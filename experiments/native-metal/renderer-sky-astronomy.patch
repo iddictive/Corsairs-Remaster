@@ -1,0 +1,221 @@
+diff --git a/src/libs/weather/src/stars.cpp b/src/libs/weather/src/stars.cpp
+--- a/src/libs/weather/src/stars.cpp
++++ b/src/libs/weather/src/stars.cpp
+@@ -6,6 +6,14 @@
+ #include "weather_base.h"
+ #include "v_file_service.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                          const char *technique, uint32_t atlasX, uint32_t atlasY,
++                                          float scaleX, float scaleY);
++
++static std::vector<RS_RECT> aMetalStarRects;
++#endif
++
+ Astronomy::STARS::STARS()
+ {
+     aStars.reserve(16384);
+@@ -239,8 +247,12 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
+             entid_t eid;
+             if (eid = core.GetEntityId("weather"))
+             {
+-                auto fTime =
+-                    static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid))->GetFloat(whf_time_counter);
++                auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid));
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++                auto fTime = weather->GetVisualFloat(whf_time_counter);
++#else
++                auto fTime = weather->GetFloat(whf_time_counter);
++#endif
+                 if (fTime > fFadeTimeStart)
+                 {
+                     auto fOldFadeValue = fFadeValue;
+@@ -268,6 +280,19 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
+     if (iVertexBufferColors == -1)
+         return;
+ 
++    float solarVisibility = 1.f;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    if (const auto eid = core.GetEntityId("weather"))
++    {
++        const auto visualHour =
++            static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid))->GetVisualFloat(whf_time_counter);
++        const auto fadeWidth = std::max(fSunFade, .01f);
++        const auto dawn = Clamp((6.f - visualHour) / fadeWidth);
++        const auto dusk = Clamp((visualHour - 18.f) / fadeWidth);
++        solarVisibility = std::max(dawn, dusk);
++    }
++#endif
++
+     CVECTOR vCamPos, vCamAng;
+     float fFov;
+     CMatrix mView, IMatrix;
+@@ -279,7 +304,12 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
+ 
+     auto fMaxMag = Bring2Range(fTelescopeMagnitude, fVisualMagnitude, 0.14f, 1.285f, fFov);
+ 
+-    if (fabsf(fFov - fPrevFov) > 1e-5f)
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    const bool refreshStarColors = true;
++#else
++    const bool refreshStarColors = fabsf(fFov - fPrevFov) > 1e-5f;
++#endif
++    if (refreshStarColors)
+     {
+         float fTmpK[5];
+         float fTmpRnd[7];
+@@ -295,19 +325,45 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
+             fTmpRnd[n] = 0.8f + FRAND(0.2f);
+         auto *pVColors = static_cast<uint32_t *>(pRS->LockVertexBuffer(iVertexBufferColors, D3DLOCK_DISCARD));
+         auto size = aStars.size();
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        aMetalStarRects.resize(size);
++#endif
+         for (uint32_t i = 0; i < size; i++)
+         {
+             auto &s = aStars[i];
+ 
+-            auto fAlpha = fFadeValue * fTmpK[i % 5] * fTmpRnd[i % 7] * s.fAlpha * 255.0f *
++            auto fAlpha = solarVisibility * fFadeValue * fTmpK[i % 5] * fTmpRnd[i % 7] * s.fAlpha * 255.0f *
+                           Bring2Range(1.0f, 0.01f, -2.0f, fMaxMag, s.fMag);
+ 
+             uint32_t dwAlpha = ftoi(fAlpha);
+             pVColors[i] = (dwAlpha << 24L) | s.dwColor;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            auto &r = aMetalStarRects[i];
++            r.vPos = fRadius * s.vPos;
++            r.fSize = fSize;
++            r.fAngle = 0.0f;
++            r.dwColor = (dwAlpha << 24L) | s.dwColor;
++            r.dwSubTexture = 0;
++#endif
+         }
+         pRS->UnLockVertexBuffer(iVertexBufferColors);
+     }
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    CMatrix mStarWorld;
++    mStarWorld.BuildPosition(vCamPos.x, vCamPos.y, vCamPos.z);
++    pRS->SetTransform(D3DTS_WORLD, mStarWorld);
++    pRS->TextureSet(0, iTexture);
++    if (!aMetalStarRects.empty() && pRS->TechniqueExecuteStart("stars"))
++        do
++        {
++            StormMetalDrawBillboards(pRS->GetD3DDevice(), aMetalStarRects.data(),
++                                      static_cast<uint32_t>(aMetalStarRects.size()), "stars", 1, 1, 1.0f,
++                                      pRS->GetHeightDeformator());
++        } while (pRS->TechniqueExecuteNext());
++    return;
++#endif
++
+     pRS->SetRenderState(D3DRS_POINTSPRITEENABLE, true);
+     pRS->SetRenderState(D3DRS_POINTSCALEENABLE, true);
+     pRS->SetRenderState(D3DRS_POINTSIZE, F2DW(fSize));
+diff --git a/src/libs/weather/src/planets.cpp b/src/libs/weather/src/planets.cpp
+--- a/src/libs/weather/src/planets.cpp
++++ b/src/libs/weather/src/planets.cpp
+@@ -3,6 +3,12 @@
+ #include "math_inlines.h"
+ #include "weather_base.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t subTexturesX,
++                                           uint32_t subTexturesY, float scaleX, float scaleY);
++#endif
++
+ Astronomy::PLANETS::PLANETS()
+ {
+     fPlanetScale = 1.0f;
+@@ -147,7 +153,16 @@ void Astronomy::PLANETS::Realize(double dDeltaTime, double dHour)
+         p.fAngle = 0.0f;
+         p.fSize = aPlanets[i].fScale * fPlanetScale * aPlanets[i].fFakeScale * 10.0f;
+         pRS->TextureSet(0, aPlanets[i].iTexture);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        if (pRS->TechniqueExecuteStart("planet"))
++            do
++            {
++                StormMetalDrawBillboards(pRS->GetD3DDevice(), &p, 1, "planet", 1, 1, 1.0f,
++                                         pRS->GetHeightDeformator());
++            } while (pRS->TechniqueExecuteNext());
++#else
+         pRS->DrawRects(&p, 1, "planet");
++#endif
+ 
+         /*if (aPlanets[i].pGeo)
+         {
+diff --git a/src/libs/weather/src/sun_glow.cpp b/src/libs/weather/src/sun_glow.cpp
+--- a/src/libs/weather/src/sun_glow.cpp
++++ b/src/libs/weather/src/sun_glow.cpp
+@@ -4,6 +4,32 @@
+ #include "math_inlines.h"
+ #include "sky.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t subTexturesX,
++                                           uint32_t subTexturesY, float scaleX, float scaleY);
++
++static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count, const char *technique,
++                           uint32_t subTexturesX = 1, uint32_t subTexturesY = 1,
++                           float scaleX = 1.0f, float scaleY = 1.0f)
++{
++    if (!renderer->TechniqueExecuteStart(technique))
++        return;
++    do
++    {
++        StormMetalDrawBillboards(renderer->GetD3DDevice(), rects, count, technique, subTexturesX,
++                                 subTexturesY, scaleX, scaleY * renderer->GetHeightDeformator());
++    } while (renderer->TechniqueExecuteNext());
++}
++#else
++static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count, const char *technique,
++                           uint32_t subTexturesX = 1, uint32_t subTexturesY = 1,
++                           float scaleX = 1.0f, float scaleY = 1.0f)
++{
++    renderer->DrawRects(rects, count, technique, subTexturesX, subTexturesY, scaleX, scaleY);
++}
++#endif
++
+ SUNGLOW::SUNGLOW()
+ {
+     fAlpha = 0.0f;
+@@ -281,7 +307,7 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+         rs_rect.fSize = Overflow.fSize;
+         rs_rect.fAngle = 0.0f;
+ 
+-        pRS->DrawRects(&rs_rect, 1, Overflow.sTechnique.c_str());
++        DrawBillboards(pRS, &rs_rect, 1, Overflow.sTechnique.c_str());
+     }
+ 
+     // calculate and draw flares
+@@ -314,7 +340,8 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+         }
+ 
+         pRS->TextureSet(0, iFlareTex);
+-        pRS->DrawRects(&aRSR[0], aRSR.size(), Flares.sTechnique.c_str(), Flares.dwTexSizeX, Flares.dwTexSizeY);
++        DrawBillboards(pRS, &aRSR[0], aRSR.size(), Flares.sTechnique.c_str(), Flares.dwTexSizeX,
++                       Flares.dwTexSizeY);
+     }
+ }
+ 
+@@ -574,6 +601,6 @@ void SUNGLOW::DrawReflection() const
+     const auto fCoeffY = Bring2Range(2.0f, 1.0f, 0.0f, 1.0f, fSunHeightAngle);
+ 
+     pRS->TextureSet(0, iReflTexture);
+-    pRS->DrawRects(&r_spr, 1, Reflection.sTechnique.c_str(), 0, 0, (bSimpleSea) ? fCoeffX : 1.0f,
++    DrawBillboards(pRS, &r_spr, 1, Reflection.sTechnique.c_str(), 0, 0, (bSimpleSea) ? fCoeffX : 1.0f,
+                    (bSimpleSea) ? fCoeffY : 1.0f);
+ }
+diff --git a/src/techniques/weather/SunGlow.fx b/src/techniques/weather/SunGlow.fx
+--- a/src/techniques/weather/SunGlow.fx
++++ b/src/techniques/weather/SunGlow.fx
+@@ -26,6 +26,7 @@ technique sunglow_z
+     pass p0
+     {
+         ZEnable = true;
++        ZWriteEnable = false;
+         FogEnable = false;
+         Lighting = false;
+         CullMode = none;

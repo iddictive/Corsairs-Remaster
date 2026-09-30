@@ -1,0 +1,67 @@
+diff --git a/src/libs/core/src/internal_functions.cpp b/src/libs/core/src/internal_functions.cpp
+index 4d98b02..4772b38 100644
+--- a/src/libs/core/src/internal_functions.cpp
++++ b/src/libs/core/src/internal_functions.cpp
+@@ -3,6 +3,7 @@
+ #include "debug-trap.h"
+ 
+ #include <execution>
++#include <SDL2/SDL.h>
+ 
+ #define INVALID_FA "Invalid function argument"
+ #define BAD_FA "Bad function argument"
+@@ -113,6 +114,7 @@ enum FUNCTION_CODE
+     FUNC_CHECKFUNCTION,
+     FUNC_GETENGINEVERSION,
+     FUNC_SORT,
++    FUNC_OPEN_EXTERNAL_URL,
+ };
+ 
+ INTFUNCDESC IntFuncTable[] = {
+@@ -145,7 +147,7 @@ INTFUNCDESC IntFuncTable[] = {
+     VAR_INTEGER, 1, "FindEntityNext", VAR_INTEGER, 2, "GetSymbol", VAR_STRING, 2, "IsDigit", VAR_INTEGER, 2,
+     "SaveVariable", VAR_INTEGER, 2, "LoadVariable", VAR_INTEGER, 2, "SetControlTreshold", TVOID, 2, "LockControl",
+     TVOID, 1, "TestRef", VAR_INTEGER, 1, "SetTimeScale", TVOID, 1, "CheckFunction", VAR_INTEGER, 0, "GetEngineVersion",
+-    VAR_INTEGER, 1, "sort", TVOID};
++    VAR_INTEGER, 1, "sort", TVOID, 1, "OpenExternalURL", VAR_INTEGER};
+ 
+ /*
+ char * FuncNameTable[]=
+@@ -2570,6 +2572,37 @@ DATA *COMPILER::BC_CallIntFunction(uint32_t func_code, DATA *&pVResult, uint32_t
+                   });
+ 
+         break;
++    case FUNC_OPEN_EXTERNAL_URL:
++        pV = SStack.Pop();
++        if (!pV)
++        {
++            SetError(INVALID_FA);
++            break;
++        }
++        pV = pV->GetVarPointer();
++        if (!pV)
++        {
++            SetError(INVALID_FA);
++            break;
++        }
++        if (pV->GetType() != VAR_STRING)
++        {
++            SetError("invalid argument type");
++            break;
++        }
++        pV->Get(pChar);
++        TempLong1 = 0;
++        if (pChar != nullptr && strncmp(pChar, "https://", 8) == 0)
++        {
++            if (SDL_OpenURL(pChar) == 0)
++            {
++                TempLong1 = 1;
++            }
++        }
++        pV = SStack.Push();
++        pV->Set(TempLong1);
++        pVResult = pV;
++        return pV;
+     }
+     return nullptr;
+ }

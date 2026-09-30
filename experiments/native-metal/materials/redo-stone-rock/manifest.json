@@ -1,0 +1,66 @@
+{
+  "schema": "corsairs.native-metal.material-redo.v1",
+  "lane": "STONE/ROCK",
+  "target": "rockU1.tga.tx",
+  "original": {
+    "path": "RESOURCE/Textures/rockU1.tga.tx",
+    "sha256": "5c36521fe053efb350bf1833694554ed9b67a160bd1c11df71d3af79ef2276e4",
+    "width": 256,
+    "height": 256,
+    "format": "DXT1",
+    "mip_count": 3,
+    "alpha": "opaque",
+    "consumer_evidence": [
+      "Locations/Inside/DungeonDuffer1/DungeonDuffer1.gm",
+      "Locations/Inside/grotto1/grotto1.gm",
+      "Locations/Inside/grotto2/grotto2.gm"
+    ],
+    "quality_evidence": "256x256 diffuse-only opaque rock material; low-resolution flag in stone-rocks-mountains family inventory."
+  },
+  "source": {
+    "page": "https://polyhaven.com/a/rock_surface",
+    "direct_map_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rock_surface/rock_surface_diff_1k.png",
+    "author": "Amal Kumar",
+    "license": "CC0-1.0",
+    "license_url": "https://polyhaven.com/license",
+    "sha256": "3581fe9abecdf2e2afc0b7d64a7af4f05b4dc01f3058ac02b90f39977466df5c",
+    "width": 1024,
+    "height": 1024
+  },
+  "output": {
+    "path": "prepared/rockU1.tga.tx",
+    "sha256": "5eb63a16c81e9ed720715825b823d91b14c299ae971c559b40538f3e17309745",
+    "width": 256,
+    "height": 256,
+    "format": "DXT1",
+    "mip_count": 3,
+    "mip_dimensions": [
+      [
+        256,
+        256
+      ],
+      [
+        128,
+        128
+      ],
+      [
+        64,
+        64
+      ]
+    ],
+    "alpha": "opaque; alpha channel not part of contract",
+    "color_space": "sRGB diffuse; no linearization or baked lighting",
+    "normal_roughness": "diffuse-only; no normal/roughness maps because consumer is a single texture reference"
+  },
+  "adaptation": {
+    "decision": "Uniform square downsample from 1K source to original 256x256 target; no crop, stretch, rotation, or atlas rearrangement.",
+    "uv_contract": "Square aspect and repeated material role preserved; target mip count and DXT1 opaque encoding preserved.",
+    "role_fit": "Grey weathered solid rock surface for the mapped indoor grotto rock material; no silhouettes, masks, water, or directional baked shadows."
+  },
+  "deterministic": {
+    "prepare": "python3 experiments/native-metal/materials/redo-stone-rock/prepare.py",
+    "verify": "python3 experiments/native-metal/materials/redo-stone-rock/verify.py",
+    "pillow_version": "12.2.0"
+  },
+  "runtime_status": "lane candidate only; not staged or integrated"
+}

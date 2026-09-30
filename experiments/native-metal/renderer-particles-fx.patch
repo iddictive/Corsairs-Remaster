@@ -1,0 +1,432 @@
+--- /dev/null
++++ b/src/libs/renderer/include/metal_particle_bridge.h
+@@ -0,0 +1,48 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++struct StormMetalParticleSprite
++{
++    float center[3];
++    float halfSize;
++    float angle;
++    uint32_t color;
++    float uv[4];
++};
++
++struct StormMetalAdvancedParticle
++{
++    float center[3];
++    float halfWidth;
++    float halfHeight;
++    float angle;
++    uint32_t color;
++    float uv0[4];
++    float uv1[4];
++    float frameBlend;
++    float addPower;
++};
++
++enum StormMetalParticlePlane : uint32_t
++{
++    StormMetalParticleCameraXY = 0,
++    StormMetalParticleWorldXZ = 1,
++};
++
++enum StormMetalParticleBlend : uint32_t
++{
++    // D3DBLEND_SRCALPHA / D3DBLEND_INVSRCALPHA.
++    StormMetalParticleStraightAlpha = 0,
++    // D3DBLEND_ONE / D3DBLEND_INVSRCALPHA.
++    StormMetalParticlePremultipliedAlpha = 1,
++};
++
++extern "C" void StormMetalDrawParticleSprites(void *device, const StormMetalParticleSprite *sprites,
++                                                size_t count, StormMetalParticlePlane plane,
++                                                StormMetalParticleBlend blend);
++extern "C" void StormMetalDrawAdvancedParticles(void *device, const StormMetalAdvancedParticle *particles,
++                                                 size_t count, StormMetalParticleBlend blend);
++#endif
+--- a/src/libs/particles/src/system/particle_processor/bb_processor.h
++++ b/src/libs/particles/src/system/particle_processor/bb_processor.h
+@@ -5,6 +5,7 @@
+ #include "dx9render.h"
+ #include "math3d/matrix.h"
+ #include "../../gmx_qsort.h"
++#include "metal_particle_bridge.h"
+ 
+ #include "../../i_common/particle.h"
+ #include "../data_source/field_list.h"
+--- a/src/libs/particles/src/system/particle_processor/bb_processor.cpp
++++ b/src/libs/particles/src/system/particle_processor/bb_processor.cpp
+@@ -334,7 +334,12 @@
+     ParticleSorter.QSort(CompareFunction, &Particles[0], Particles.size());
+ 
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++    std::vector<StormMetalAdvancedParticle> nativeParticles;
++    nativeParticles.reserve(Particles.size());
++#else
+     auto *pVerts = static_cast<RECT_VERTEX *>(pRS->LockVertexBuffer(pVBuffer, D3DLOCK_DISCARD));
++#endif
+     // RECT_VERTEX * pVerts = (RECT_VERTEX*)pVBuffer->Lock(0, 0, D3DLOCK_DISCARD);
+     // RECT_VERTEX * pVerts = (RECT_VERTEX*)pVBuffer->Lock();
+ 
+     int32_t Index = 0;
+@@ -388,9 +394,11 @@ void BillBoardProcessor::Draw()
+         if (SizeK < PLOD)
+             fSize = pR->CamDistance / PLOD;
+         //=============================================================
+ 
++#ifndef STORM_METAL_PARTICLE_BRIDGE
+         auto *pV = &pVerts[Index * 4];
+         Index++;
++#endif
+ 
+         auto DirAngle = 0.0f;
+         auto ScaleF = 1.0f;
+@@ -424,6 +432,24 @@ void BillBoardProcessor::Draw()
+         dwColor = dwColor & 0x00FFFFFF;
+         dwColor = dwColor | dwAlpha;
+ 
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++        StormMetalAdvancedParticle native{};
++        native.center[0] = vPos.x;
++        native.center[1] = vPos.y;
++        native.center[2] = vPos.z;
++        native.halfWidth = fSize;
++        native.halfHeight = fSize * (SpeedOriented ? ScaleF : 1.0f);
++        native.angle = SpeedOriented ? DirAngle : fAngle;
++        native.color = dwColor;
++        for (int32_t component = 0; component < 4; ++component)
++        {
++            native.uv0[component] = UV_WH1.v4[component];
++            native.uv1[component] = UV_WH2.v4[component];
++        }
++        native.frameBlend = FrameBlendK;
++        native.addPower = AddPower;
++        nativeParticles.push_back(native);
++#else
+         // if (j == 0)    core.Trace("fAngle[0]: %3.2f", fAngle);
+ 
+         pV[0].vRelativePos = Vector(-fSize, -fSize, 0.0f);
+@@ -492,10 +519,19 @@ void BillBoardProcessor::Draw()
+             pV[3].angle = DirAngle;
+             pV[3].vRelativePos.y *= ScaleF;
+         }
++#endif
+ 
+         ParticlesCount++;
+     }
+ 
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++    // The Metal path submits compact records, so the CPU quad index stays unused.
++    (void)Index;
++    StormMetalDrawAdvancedParticles(pRS->GetD3DDevice(), nativeParticles.data(), nativeParticles.size(),
++                                     StormMetalParticlePremultipliedAlpha);
++    return;
++#else
+     pRS->UnLockVertexBuffer(pVBuffer);
++#endif
+ 
+     Vector4 const1(0.0416666f, 1.0f, 0.0f, -0.5f);
+--- a/src/libs/tornado/src/tornado_particles.h
++++ b/src/libs/tornado/src/tornado_particles.h
+@@ -69,6 +69,7 @@
+     // Encapsulation
+     // --------------------------------------------------------------------------------------------
+   private:
++    void EnsureBuffers(VDX9RENDER *rs);
+     void DrawParticles(VDX9RENDER *rs, void *prts, int32_t num, int32_t size, int32_t texture, const char *tech);
+     static float GetRand(float r, float dev = 0.5f); // dev = 0..1, return 0..r
+ 
+@@ -79,7 +80,10 @@
+     CMatrix camMtx;
+     GroundParticle groundPrt[128];
+     PillarParticle pillarPrt[1024];
+-    Vertex buffer[256 * 6];
++    static constexpr int32_t MaxParticles = 1024;
++    VDX9RENDER *renderer = nullptr;
++    int32_t vertexBuffer = -1;
++    int32_t indexBuffer = -1;
+ };
+ 
+ // kUse = 0..1, return 0..r
+--- a/src/libs/tornado/src/tornado_particles.cpp
++++ b/src/libs/tornado/src/tornado_particles.cpp
+@@ -11,6 +11,8 @@
+ #include "tornado_particles.h"
+ #include "entity.h"
+ #include "core.h"
++#include "metal_particle_bridge.h"
++#include <vector>
+ 
+ // ============================================================================================
+ // Construction, destruction
+@@ -46,8 +46,38 @@
+ 
+ TornadoParticles::~TornadoParticles()
+ {
++    if (renderer)
++    {
++        if (vertexBuffer >= 0)
++            renderer->ReleaseVertexBuffer(vertexBuffer);
++        if (indexBuffer >= 0)
++            renderer->ReleaseIndexBuffer(indexBuffer);
++    }
+ }
+ 
++void TornadoParticles::EnsureBuffers(VDX9RENDER *rs)
++{
++    if (vertexBuffer >= 0 && indexBuffer >= 0)
++        return;
++    renderer = rs;
++    vertexBuffer = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                                           MaxParticles * 4 * sizeof(Vertex),
++                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
++    indexBuffer = rs->CreateIndexBuffer(MaxParticles * 6 * sizeof(uint16_t));
++    auto *indices = static_cast<uint16_t *>(rs->LockIndexBuffer(indexBuffer));
++    for (int32_t i = 0; i < MaxParticles; ++i)
++    {
++        const auto base = static_cast<uint16_t>(i * 4);
++        indices[i * 6 + 0] = base + 0;
++        indices[i * 6 + 1] = base + 1;
++        indices[i * 6 + 2] = base + 2;
++        indices[i * 6 + 3] = base + 2;
++        indices[i * 6 + 4] = base + 1;
++        indices[i * 6 + 5] = base + 3;
++    }
++    rs->UnLockIndexBuffer(indexBuffer);
++}
++
+ void TornadoParticles::SetSea()
+ {
+     seaID = core.GetEntityId("sea");
+@@ -152,6 +182,31 @@
+ inline void TornadoParticles::DrawParticles(VDX9RENDER *rs, void *prts, int32_t num, int32_t size, int32_t texture,
+                                             const char *tech)
+ {
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++    std::vector<StormMetalParticleSprite> sprites;
++    sprites.reserve(num);
++    for (int32_t i = 0; i < num; ++i)
++    {
++        auto *parts = static_cast<Particle *>(prts);
++        prts = static_cast<char *>(prts) + size;
++        const auto pos = camMtx * parts->pos;
++        StormMetalParticleSprite sprite{};
++        sprite.center[0] = pos.x;
++        sprite.center[1] = pos.y;
++        sprite.center[2] = pos.z;
++        sprite.halfSize = parts->size * 0.5f;
++        sprite.angle = parts->angle;
++        sprite.color = (static_cast<int32_t>(parts->alpha * galpha) << 24) | 0x00ffffff;
++        sprite.uv[2] = 1.0f;
++        sprite.uv[3] = 1.0f;
++        sprites.push_back(sprite);
++    }
++    StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(), StormMetalParticleCameraXY,
++                                  StormMetalParticleStraightAlpha);
++    return;
++#endif
++    EnsureBuffers(rs);
++    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, D3DLOCK_DISCARD));
+     int32_t n = 0;
+     for (int32_t i = 0; i < num; i++)
+     {
+@@ -162,43 +194,16 @@
+         const auto sn = sinf(parts->angle);
+         const auto cs = cosf(parts->angle);
+         const auto color = (static_cast<int32_t>(parts->alpha * galpha) << 24) | 0x00ffffff;
+-        buffer[n * 6 + 0].pos = pos + CVECTOR(size * (-cs + sn), size * (sn + cs), 0.0f);
+-        buffer[n * 6 + 0].color = color;
+-        buffer[n * 6 + 0].u = 0.0f;
+-        buffer[n * 6 + 0].v = 0.0f;
+-        buffer[n * 6 + 1].pos = pos + CVECTOR(size * (-cs - sn), size * (sn - cs), 0.0f);
+-        buffer[n * 6 + 1].color = color;
+-        buffer[n * 6 + 1].u = 0.0f;
+-        buffer[n * 6 + 1].v = 1.0f;
+-        buffer[n * 6 + 2].pos = pos + CVECTOR(size * (cs + sn), size * (-sn + cs), 0.0f);
+-        buffer[n * 6 + 2].color = color;
+-        buffer[n * 6 + 2].u = 1.0f;
+-        buffer[n * 6 + 2].v = 0.0f;
+-        buffer[n * 6 + 3].pos = buffer[n * 6 + 2].pos;
+-        buffer[n * 6 + 3].color = color;
+-        buffer[n * 6 + 3].u = 1.0f;
+-        buffer[n * 6 + 3].v = 0.0f;
+-        buffer[n * 6 + 4].pos = buffer[n * 6 + 1].pos;
+-        buffer[n * 6 + 4].color = color;
+-        buffer[n * 6 + 4].u = 0.0f;
+-        buffer[n * 6 + 4].v = 1.0f;
+-        buffer[n * 6 + 5].pos = pos + CVECTOR(size * (cs - sn), size * (-sn - cs), 0.0f);
+-        buffer[n * 6 + 5].color = color;
+-        buffer[n * 6 + 5].u = 1.0f;
+-        buffer[n * 6 + 5].v = 1.0f;
++        auto *quad = vertices + n * 4;
++        quad[0] = {pos + CVECTOR(size * (-cs + sn), size * (sn + cs), 0.0f), static_cast<uint32_t>(color), 0.0f, 0.0f};
++        quad[1] = {pos + CVECTOR(size * (-cs - sn), size * (sn - cs), 0.0f), static_cast<uint32_t>(color), 0.0f, 1.0f};
++        quad[2] = {pos + CVECTOR(size * (cs + sn), size * (-sn + cs), 0.0f), static_cast<uint32_t>(color), 1.0f, 0.0f};
++        quad[3] = {pos + CVECTOR(size * (cs - sn), size * (-sn - cs), 0.0f), static_cast<uint32_t>(color), 1.0f, 1.0f};
+         n++;
+-        if (n * 2 == 256)
+-        {
+-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+-                                sizeof(Vertex), (char *)tech);
+-            n = 0;
+-        }
+     }
++    rs->UnLockVertexBuffer(vertexBuffer);
+     if (n > 0)
+-    {
+-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+-                            sizeof(Vertex), (char *)tech);
+-    }
++        rs->DrawBuffer(vertexBuffer, sizeof(Vertex), indexBuffer, 0, n * 4, 0, n * 2, tech);
+ }
+ 
+ void TornadoParticles::SetGlobalAlpha(float a)
+--- a/src/libs/tornado/src/noise_cloud.h
++++ b/src/libs/tornado/src/noise_cloud.h
+@@ -52,9 +52,12 @@
+     // Encapsulation
+     // --------------------------------------------------------------------------------------------
+   private:
++    void EnsureBuffers(VDX9RENDER *rs);
+     Pillar &pillar;
+     float galpha;
+     int32_t lightCnt;
+     Rect rect[64];
+-    Vertex buf[6 * 64];
++    VDX9RENDER *renderer = nullptr;
++    int32_t vertexBuffer = -1;
++    int32_t indexBuffer = -1;
+ };
+--- a/src/libs/tornado/src/noise_cloud.cpp
++++ b/src/libs/tornado/src/noise_cloud.cpp
+@@ -9,5 +9,7 @@
+ //============================================================================================
+ 
+ #include "noise_cloud.h"
++#include "metal_particle_bridge.h"
++#include <vector>
+ 
+ //============================================================================================
+@@ -38,8 +38,38 @@
+ 
+ NoiseCloud::~NoiseCloud()
+ {
++    if (renderer)
++    {
++        if (vertexBuffer >= 0)
++            renderer->ReleaseVertexBuffer(vertexBuffer);
++        if (indexBuffer >= 0)
++            renderer->ReleaseIndexBuffer(indexBuffer);
++    }
+ }
+ 
++void NoiseCloud::EnsureBuffers(VDX9RENDER *rs)
++{
++    if (vertexBuffer >= 0 && indexBuffer >= 0)
++        return;
++    renderer = rs;
++    vertexBuffer = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                                           64 * 4 * sizeof(Vertex),
++                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
++    indexBuffer = rs->CreateIndexBuffer(64 * 6 * sizeof(uint16_t));
++    auto *indices = static_cast<uint16_t *>(rs->LockIndexBuffer(indexBuffer));
++    for (int32_t i = 0; i < 64; ++i)
++    {
++        const auto base = static_cast<uint16_t>(i * 4);
++        indices[i * 6 + 0] = base + 0;
++        indices[i * 6 + 1] = base + 1;
++        indices[i * 6 + 2] = base + 2;
++        indices[i * 6 + 3] = base + 2;
++        indices[i * 6 + 4] = base + 1;
++        indices[i * 6 + 5] = base + 3;
++    }
++    rs->UnLockIndexBuffer(indexBuffer);
++}
++
+ void NoiseCloud::Update(float dltTime)
+ {
+     for (int32_t i = 0; i < sizeof(rect) / sizeof(Rect); i++)
+@@ -98,6 +128,33 @@
+ 
+ void NoiseCloud::Draw(VDX9RENDER *rs)
+ {
++#ifdef STORM_METAL_PARTICLE_BRIDGE
++    std::vector<StormMetalParticleSprite> sprites;
++    sprites.reserve(sizeof(rect) / sizeof(Rect));
++    rs->TextureSet(0, texture);
++    for (const auto &item : rect)
++    {
++        const auto colorValue = item.light * 200.0f;
++        StormMetalParticleSprite sprite{};
++        sprite.center[0] = pillar.X() + item.r * sinf(item.a);
++        sprite.center[1] = pillar.GetHeight();
++        sprite.center[2] = pillar.Z() + item.r * cosf(item.a);
++        sprite.halfSize = item.size;
++        sprite.angle = item.angle;
++        sprite.color = (static_cast<int32_t>(colorValue) << 16) |
++                       (static_cast<int32_t>(colorValue * 0.95f) << 8) |
++                       static_cast<int32_t>(colorValue * 0.9f) |
++                       (static_cast<int32_t>(item.alpha * galpha * 0.4f) << 24);
++        sprite.uv[2] = 1.0f;
++        sprite.uv[3] = 1.0f;
++        sprites.push_back(sprite);
++    }
++    StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(), StormMetalParticleWorldXZ,
++                                  StormMetalParticleStraightAlpha);
++    return;
++#endif
++    EnsureBuffers(rs);
++    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, D3DLOCK_DISCARD));
+     rs->TextureSet(0, texture);
+     for (int32_t i = 0; i < sizeof(rect) / sizeof(Rect); i++)
+     {
+@@ -108,37 +140,18 @@
+         const auto cs = cosf(rect[i].angle);
+         CVECTOR pos(pillar.X() + rect[i].r * sinf(rect[i].a), pillar.GetHeight(),
+                     pillar.Z() + rect[i].r * cosf(rect[i].a));
+-        buf[i * 6 + 0].pos = pos + CVECTOR(size * (-cs + sn), 0.0f, size * (sn + cs));
+-        buf[i * 6 + 0].u = 0.0f;
+-        buf[i * 6 + 0].v = 0.0f;
+-        buf[i * 6 + 1].pos = pos + CVECTOR(size * (-cs - sn), 0.0f, size * (sn - cs));
+-        buf[i * 6 + 1].u = 0.0f;
+-        buf[i * 6 + 1].v = 1.0f;
+-        buf[i * 6 + 2].pos = pos + CVECTOR(size * (cs + sn), 0.0f, size * (-sn + cs));
+-        buf[i * 6 + 2].u = 1.0f;
+-        buf[i * 6 + 2].v = 0.0f;
+-        buf[i * 6 + 3].pos = buf[i * 6 + 2].pos;
+-        buf[i * 6 + 3].u = 1.0f;
+-        buf[i * 6 + 3].v = 0.0f;
+-        buf[i * 6 + 4].pos = buf[i * 6 + 1].pos;
+-        buf[i * 6 + 4].u = 0.0f;
+-        buf[i * 6 + 4].v = 1.0f;
+-        buf[i * 6 + 5].pos = pos + CVECTOR(size * (cs - sn), 0.0f, size * (-sn - cs));
+-        buf[i * 6 + 5].u = 1.0f;
+-        buf[i * 6 + 5].v = 1.0f;
++        auto *quad = vertices + i * 4;
+         // Colour
+         const auto clr = rect[i].light * 200.0f;
+         const auto color = (static_cast<int32_t>(clr * 1.0f) << 16) | (static_cast<int32_t>(clr * 0.95f) << 8) |
+                            static_cast<int32_t>(clr * 0.9f) | (static_cast<int32_t>(rect[i].alpha * galpha * 0.4f) << 24);
+-        buf[i * 6 + 0].color = color;
+-        buf[i * 6 + 1].color = color;
+-        buf[i * 6 + 2].color = color;
+-        buf[i * 6 + 3].color = color;
+-        buf[i * 6 + 4].color = color;
+-        buf[i * 6 + 5].color = color;
++        quad[0] = {pos + CVECTOR(size * (-cs + sn), 0.0f, size * (sn + cs)), static_cast<uint32_t>(color), 0.0f, 0.0f};
++        quad[1] = {pos + CVECTOR(size * (-cs - sn), 0.0f, size * (sn - cs)), static_cast<uint32_t>(color), 0.0f, 1.0f};
++        quad[2] = {pos + CVECTOR(size * (cs + sn), 0.0f, size * (-sn + cs)), static_cast<uint32_t>(color), 1.0f, 0.0f};
++        quad[3] = {pos + CVECTOR(size * (cs - sn), 0.0f, size * (-sn - cs)), static_cast<uint32_t>(color), 1.0f, 1.0f};
+     }
+-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2 * sizeof(rect) / sizeof(Rect),
+-                        buf, sizeof(Vertex), "TornadoClouds");
++    rs->UnLockVertexBuffer(vertexBuffer);
++    rs->DrawBuffer(vertexBuffer, sizeof(Vertex), indexBuffer, 0, 64 * 4, 0, 64 * 2, "TornadoClouds");
+ }
+ 
+ void NoiseCloud::SetGlobalAlpha(float a)

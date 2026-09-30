@@ -1,0 +1,30 @@
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -505,6 +505,5 @@
+-        const float intensity=source.intensity/255.f;
+         light.Position=source.pos;
+-        light.Diffuse.r=source.color.r*intensity;
+-        light.Diffuse.g=source.color.g*intensity;
+-        light.Diffuse.b=source.color.b*intensity;
++        light.Diffuse.r=source.color.r;
++        light.Diffuse.g=source.color.g;
++        light.Diffuse.b=source.color.b;
+         if(light.Diffuse.r<=0 && light.Diffuse.g<=0 && light.Diffuse.b<=0)continue;
+@@ -550,5 +548,4 @@
+-            const float intensity=source.intensity/255.f;
+-            light.Diffuse.r=source.color.r*intensity;
+-            light.Diffuse.g=source.color.g*intensity;
+-            light.Diffuse.b=source.color.b*intensity;
++            light.Diffuse.r=source.color.r;
++            light.Diffuse.g=source.color.g;
++            light.Diffuse.b=source.color.b;
+             id=uint64_t(index)+1;
+@@ -572,5 +569,4 @@
+-        const float intensity = source.intensity / 255.f;
+-        light.Diffuse.r = source.color.r * intensity;
+-        light.Diffuse.g = source.color.g * intensity;
+-        light.Diffuse.b = source.color.b * intensity;
++        light.Diffuse.r = source.color.r;
++        light.Diffuse.g = source.color.g;
++        light.Diffuse.b = source.color.b;
+         if (light.Diffuse.r <= 0 && light.Diffuse.g <= 0 && light.Diffuse.b <= 0) continue;

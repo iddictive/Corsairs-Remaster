@@ -1,0 +1,124 @@
+{
+  "scope": "source-only jungle terrain and foliage upgrade; no runtime staging, build or launch",
+  "observed_runtime_owner": "experiments/native-metal/.cache/runtime/RESOURCE/Textures",
+  "license_policy": {
+    "preferred": "CC0-1.0",
+    "provider": "Poly Haven",
+    "license_url": "https://polyhaven.com/license",
+    "download_pattern": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/{asset}/{asset}_diff_4k.png",
+    "rule": "Record the asset page, author, license URL and SHA-256 of the downloaded diffuse before encoding. Do not use search-result thumbnails."
+  },
+  "pipeline": {
+    "opaque_seamless_tiles": [
+      "download the 4K diffuse from the recorded provider URL",
+      "verify SHA-256 and opacity",
+      "crop only if the source itself is not square; reject visible seams",
+      "resize to the original dimensions with Lanczos",
+      "preserve the original aspect ratio and UV scale",
+      "encode a complete DXT1 mip chain",
+      "decode level 0 and compare seams, histogram, texel scale and absence of baked directional light"
+    ],
+    "baked_uv_composites": [
+      "do not replace with a generic material",
+      "upscale the RGB in place without crop, rotation, warp or repacking",
+      "retain painted path, clearing and transition coordinates",
+      "encode at the original dimensions and format"
+    ],
+    "alpha_atlases": [
+      "upscale or regenerate RGB only in the existing atlas registration",
+      "restore level-0 alpha byte-for-byte from the decoded original",
+      "retain original RGB where generated alpha confidence is below 240",
+      "generate mips with premultiplied-alpha filtering",
+      "preserve alpha-test coverage for the renderer's D3DCMP_GREATER 0xa0 contract, with no more than 0.2 percentage points or one texel of discrete mip error",
+      "reject any crop, repack, new silhouette, transparent-edge halo or UV-boundary drift"
+    ]
+  },
+  "assets": [
+    {
+      "targets": ["1grass1.tga.tx", "grassgreen1.tga.tx"],
+      "role": "repeatable close-range grass and jungle floor diffuse",
+      "original": "512x512 DXT1, opaque",
+      "consumers_observed": {"1grass1": 51, "grassgreen1": 9},
+      "method": "CC0 replacement",
+      "primary_candidate": {
+        "asset": "leafy_grass",
+        "page": "https://polyhaven.com/a/leafy_grass",
+        "diffuse_4k": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/leafy_grass/leafy_grass_diff_4k.png",
+        "author": "Charlotte Baglioni",
+        "license": "CC0-1.0"
+      },
+      "alternate_candidate": {
+        "asset": "sparse_grass",
+        "page": "https://polyhaven.com/a/sparse_grass",
+        "diffuse_4k": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/sparse_grass/sparse_grass_diff_4k.png",
+        "author": "Amal Kumar",
+        "license": "CC0-1.0"
+      },
+      "risk": "The original grass has very small, noisy blades. Match its world-space frequency before acceptance or the 512px tile will visibly repeat."
+    },
+    {
+      "targets": ["1grasstogrounsU1.tga.tx", "1grasstogrounsU2.tga.tx"],
+      "role": "Tenochtitlan stone/grass transition tiles",
+      "original": "512x512 DXT1, opaque; one model consumer each",
+      "method": "registered upscale or controlled RGB repaint",
+      "reason": "These are authored transitions with fixed stone boundaries, so a generic CC0 square would destroy the mesh transition contract.",
+      "risk": "U1 and U2 must remain a matched pair; independent replacement will create discontinuities."
+    },
+    {
+      "targets": ["jungleU1.tga.tx", "jungleU2.tga.tx", "jungleU3.tga.tx"],
+      "role": "large baked grass/path/clearing UV composites",
+      "original": "2048x2048 DXT1, opaque",
+      "method": "detail-preserving upscale only",
+      "reason": "The images contain authored roads and clearing masks at fixed UV coordinates; they are not seamless ground swatches.",
+      "risk": "Image generation or CC0 replacement can move the paths off the collision/geometry layout."
+    },
+    {
+      "targets": ["jungle1.tga.tx"],
+      "role": "island terrain canopy diffuse",
+      "original": "2048x2048 DXT1, opaque; 57 observed model consumers",
+      "method": "existing registered generated replacement is structurally compatible; inspect runtime before accepting",
+      "prepared": "ground-new/jungle1.tga.tx",
+      "manifest": "ground-new/manifest.json",
+      "risk": "This is aerial canopy, not walkable ground. Replacing it with dirt or grass would be a semantic regression."
+    },
+    {
+      "targets": ["jungle_gray.tga.tx"],
+      "role": "opaque distant/gray jungle material",
+      "original": "512x512 DXT1, opaque; 37 observed model consumers",
+      "method": "detail-preserving upscale/repaint after a representative in-scene identification",
+      "risk": "Its gray grading may be intentional for lighting or distance; a saturated CC0 forest texture can break scene depth."
+    },
+    {
+      "targets": ["treePalms.tga.tx", "trees.tga.tx"],
+      "role": "alpha-tested foliage UV atlases",
+      "original": "treePalms 2048x1024 A8R8G8B8 with 256 alpha values; trees 2048x2048 A8R8G8B8 with binary alpha",
+      "method": "existing RGB regeneration under original byte-exact level-0 alpha",
+      "prepared": ["foliage-new/prepared/treePalms.tga.tx", "foliage-new/prepared/trees.tga.tx"],
+      "manifest": "foliage-new/manifest.json",
+      "risk": "Generic foliage atlases are UV-incompatible. Keep current silhouettes and atlas regions exactly registered."
+    },
+    {
+      "targets": ["leafPalms.tga.tx", "PalmsAlphaLitle01.tga.tx", "PalmsSprites.tga.tx"],
+      "role": "remaining palm frond and sprite alpha atlases",
+      "original": "leafPalms 2048x512 A8R8G8B8 binary alpha; PalmsAlphaLitle01 512x128 DXT5 graded alpha; PalmsSprites 512x512 DXT5 graded alpha",
+      "method": "registered RGB upscale/repaint with original level-0 alpha restored byte-exact",
+      "risk": "DXT5 atlases contain soft alpha. Threshold-only masks would destroy feathered edges; preserve the full 0-255 channel and premultiplied-filter the mip chain."
+    }
+  ],
+  "additional_cc0_candidates": [
+    {"use": "damp jungle soil", "asset": "brown_mud_leaves_01", "page": "https://polyhaven.com/a/brown_mud_leaves_01", "author": "Rob Tuytel", "license": "CC0-1.0"},
+    {"use": "dark wet forest floor", "asset": "mud_forest", "page": "https://polyhaven.com/a/mud_forest", "author": "eye-candy.xyz", "license": "CC0-1.0"},
+    {"use": "dry path/soil", "asset": "dirt_floor", "page": "https://polyhaven.com/a/dirt_floor", "author": "eye-candy.xyz", "license": "CC0-1.0"},
+    {"use": "leaf-litter forest floor", "asset": "forrest_ground_01", "page": "https://polyhaven.com/a/forrest_ground_01", "author": "Rob Tuytel", "license": "CC0-1.0"},
+    {"use": "compacted path with sparse grass", "asset": "grass_path_3", "page": "https://polyhaven.com/a/grass_path_3", "author": "Rob Tuytel", "license": "CC0-1.0"}
+  ],
+  "acceptance": [
+    "all outputs keep original dimensions, aspect and codec family",
+    "opaque assets decode fully opaque",
+    "alpha-atlas level-0 alpha bytes exactly equal the decoded originals",
+    "alpha mip coverage for D3DCMP_GREATER 0xa0 remains within 0.2 percentage points or one texel while dimensions are at least 8x8",
+    "seamless tiles pass edge-difference and 3x3 contact-sheet inspection",
+    "baked composites preserve landmark and transition registration",
+    "no prepared file is staged until a representative real scene proves scale, color and repetition"
+  ]
+}

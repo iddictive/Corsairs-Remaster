@@ -1,0 +1,52 @@
+diff --git a/src/libs/geometry/src/geom_static.cpp b/src/libs/geometry/src/geom_static.cpp
+--- a/src/libs/geometry/src/geom_static.cpp
++++ b/src/libs/geometry/src/geom_static.cpp
+@@ -10,2 +10,5 @@ Comments:
+ #include "geom.h"
++#ifdef STORM_METAL_ROCKK2
++#include "rockk2_stochastic.hpp"
++#endif
+ #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+@@ -297,8 +300,19 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
+ 
+     srv.CloseFile(file);
+ 
+-    for (int32_t t = 0; t < rhead.ntextures; t++)
+-        tlookup[t] = srv.CreateTexture(&globname[tname[t]]);
++    for (int32_t t = 0; t < rhead.ntextures; t++) {
++        const char* textureName = &globname[tname[t]];
++#ifdef STORM_METAL_ROCKK2
++        const char* rockMode = std::getenv("STORM_METAL_ROCKK2");
++        if ((!rockMode || std::strcmp(rockMode, "0")) && storm::iEquals(textureName, "rockK2.tga")) {
++            const auto alias = storm_metal::rockk2::aliases[storm_metal::rockk2::candidate(fname ? fname : "")];
++            std::string selected(alias);
++            tlookup[t] = srv.CreateTexture(selected.c_str());
++            continue;
++        }
++#endif
++        tlookup[t] = srv.CreateTexture(textureName);
++    }
+     for (int32_t m = 0; m < rhead.nmaterials; m++)
+     {
+         material[m].group_name = &globname[rmat[m].group_name];
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,3 +1,7 @@
+ #include "s_device.h"
++#ifdef STORM_METAL_ROCKK2
++extern "C" void storm_metal_label_texture(IDirect3DBaseTexture9 *, const char *);
++#endif
++
+ #ifndef _WIN32
+ #include "raw_texture.hpp"
+@@ -1608,6 +1612,9 @@ bool DX9RENDER::TextureLoad(int32_t t)
+         }
+         Textures[t].d3dtex = tex;
+         Textures[t].isCubeMap = false;
++#ifdef STORM_METAL_ROCKK2
++        storm_metal_label_texture(tex, Textures[t].name);
++#endif
+     }
+     else
+     {

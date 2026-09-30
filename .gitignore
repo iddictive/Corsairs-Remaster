@@ -1,0 +1,6 @@
+experiments/*/.cache/
+experiments/native-metal/inputs/
+__pycache__/
+*.pyc
+.DS_Store
+dist/

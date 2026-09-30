@@ -1,0 +1,556 @@
+--- a/src/libs/sea_cameras/src/deck_camera.cpp
++++ b/src/libs/sea_cameras/src/deck_camera.cpp
+@@ -1,11 +1,16 @@
+ #include "deck_camera.h"
++#include "shared/sea_ai/deck_collision.hpp"
+ 
+ #include "core.h"
++#include "animation.h"
++#include <cstdlib>
++#include "geometry.h"
+ 
+ #include "save_load.h"
+ #include "controls.h"
+ #include "math_inlines.h"
+ #include "shared/messages.h"
++#include "shared/sea_ai/sea_people.h"
+ 
+ #define DISCR_F_VAL 0.00001f
+ #define EQU_FLOAT(x, y) (x) - (y) > DISCR_F_VAL ? false : (y) - (x) > DISCR_F_VAL ? false : true
+@@ -23,6 +27,154 @@
+ 
+ DECK_CAMERA::~DECK_CAMERA()
+ {
++    ReleaseWalker();
++}
++
++void DECK_CAMERA::ReleaseWalker()
++{
++    if (collisionShipId)
++    {
++        SeaDeckCharacterCollisionQuery query;
++        query.shipId = collisionShipId;
++        query.active = 0;
++        for (auto sailors : core.GetEntityIds("sailors"))
++            core.Send_Message(sailors, "lp", MSG_SAILORS_RESOLVE_DECK_CHARACTER,
++                              reinterpret_cast<uintptr_t>(&query));
++        collisionShipId = 0;
++    }
++    core.EraseEntity(walkerId);
++    walkerId = 0;
++    walkerVisible = false;
++    walkerAction.clear();
++}
++
++bool DECK_CAMERA::EnsureWalker()
++{
++    if (walkerId)
++        return core.GetEntityPointer(walkerId) != nullptr;
++    if (walkerLoadFailed || !pACharacter)
++        return false;
++    auto *modelAttr = pACharacter->GetAttributeClass("model");
++    const char *name = pACharacter->GetAttribute("model");
++    const char *animation = modelAttr ? modelAttr->GetAttribute("animation") : nullptr;
++    if (!name || !*name || !animation || !*animation)
++        return false;
++    auto *geometry = static_cast<VGEOMETRY *>(core.GetService("geometry"));
++    if (!geometry)
++        return false;
++    walkerId = core.CreateEntity("modelr");
++    geometry->SetTexturePath("characters\\");
++    const std::string path = std::string("characters\\") + name;
++    const bool loaded = walkerId && core.Send_Message(walkerId, "ls", MSG_MODEL_LOAD_GEO, path.c_str());
++    geometry->SetTexturePath("");
++    if (!loaded || !core.Send_Message(walkerId, "ls", MSG_MODEL_LOAD_ANI, animation))
++    {
++        core.Trace("Deck walk: protagonist model/animation failed to load: %s / %s", name, animation);
++        ReleaseWalker();
++        walkerLoadFailed = true;
++        return false;
++    }
++    auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId));
++    if (!model || !model->GetAnimation())
++    {
++        ReleaseWalker();
++        walkerLoadFailed = true;
++        return false;
++    }
++    for (int i = 0; auto *node = model->GetNode(i); ++i)
++        node->SetTechnique("Animation");
++    return true;
++}
++
++void DECK_CAMERA::UpdateWalker(bool moving, bool running)
++{
++    if (!EnsureWalker())
++        return;
++    auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId));
++    const char *action = moving ? (running ? "run" : "walk") : "idle_1";
++    auto &player = model->GetAnimation()->Player(0);
++    if (walkerAction != action || !player.IsPlaying())
++    {
++        if (player.SetAction(action))
++        {
++            player.Play();
++            walkerAction = action;
++        }
++    }
++    CMatrix walkerMtx = CMatrix(CVECTOR(0.f, walkerYaw, 0.f), camera_pos) * pathNode->glob_mtx;
++    auto *node = model->GetNode(0);
++    auto *animation = model->GetAnimation();
++    if (node && node->geo && animation)
++    {
++        const int32_t cameraId = node->geo->FindName("camera");
++        const int32_t labelIndex = node->geo->FindLabelN(-1, cameraId);
++        if (labelIndex >= 0)
++        {
++            GEOS::LABEL label;
++            node->geo->GetLabel(labelIndex, label);
++            CMatrix locator;
++            locator.Vx() = CVECTOR(label.m[0][0], label.m[0][1], label.m[0][2]);
++            locator.Vy() = CVECTOR(label.m[1][0], label.m[1][1], label.m[1][2]);
++            locator.Vz() = CVECTOR(label.m[2][0], label.m[2][1], label.m[2][2]);
++            locator.Pos() = CVECTOR(label.m[3][0], label.m[3][1], label.m[3][2]);
++            const CMatrix anchor = locator * animation->GetAnimationMatrix(label.bones[0]);
++            const CVECTOR target = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye, 0.f));
++            walkerMtx.Pos() += target - (walkerMtx * anchor).Pos();
++        }
++    }
++    model->mtx = walkerMtx;
++}
++
++bool DECK_CAMERA::CanWalkTo(const CVECTOR &from, const CVECTOR &to)
++{
++    const CVECTOR delta = to - from;
++    if (delta.x * delta.x + delta.z * delta.z < 0.0000001f)
++        return true;
++    const float floor = std::max(from.y, to.y);
++    const CVECTOR bottom = pathNode->glob_mtx * CVECTOR(from.x, floor + .32f, from.z);
++    const CVECTOR top = pathNode->glob_mtx * CVECTOR(from.x, floor + 1.42f, from.z);
++    const CVECTOR shift = pathNode->glob_mtx * CVECTOR(to.x, floor, to.z)
++                        - pathNode->glob_mtx * CVECTOR(from.x, floor, from.z);
++    return deck_collision::canSweep(*pModel, bottom, top, shift, .28f);
++}
++
++void DECK_CAMERA::ResolveCrew(const CVECTOR &from)
++{
++    SeaDeckCharacterCollisionQuery query;
++    query.shipId = GetAIObj()->GetId();
++    if (collisionShipId && collisionShipId != query.shipId)
++        ReleaseWalker();
++    query.active = 1;
++    query.radius = .32f;
++    query.height = 1.75f;
++    CMatrix &shipMatrix = *GetAIObj()->GetMatrix();
++    shipMatrix.MulToInv(pathNode->glob_mtx * from, query.from);
++    shipMatrix.MulToInv(pathNode->glob_mtx * camera_pos, query.desired);
++    query.resolved = query.desired;
++    collisionShipId = query.shipId;
++    for (auto sailors : core.GetEntityIds("sailors"))
++    {
++        if (!core.Send_Message(sailors, "lp", MSG_SAILORS_RESOLVE_DECK_CHARACTER,
++                                reinterpret_cast<uintptr_t>(&query)))
++            continue;
++        CVECTOR accepted;
++        pathNode->glob_mtx.MulToInv(shipMatrix * query.resolved, accepted);
++        const float floor = MultiTrace(CVECTOR(accepted.x, 500.f, accepted.z),
++                                       CVECTOR(accepted.x, -500.f, accepted.z), from.y);
++        if (floor <= 1.f)
++        {
++            accepted.y = 500.f - 1000.f * floor;
++            camera_pos = fabsf(accepted.y - from.y) < MEN_STEP_UP && CanWalkTo(from, accepted)
++                         ? accepted : from;
++        }
++        else camera_pos = from;
++        // Cache precisely the final foot position after support/solid checks.
++        shipMatrix.MulToInv(pathNode->glob_mtx * camera_pos, query.desired);
++        query.from = query.desired;
++        core.Send_Message(sailors, "lp", MSG_SAILORS_RESOLVE_DECK_CHARACTER,
++                          reinterpret_cast<uintptr_t>(&query));
++        break;
++    }
+ }
+ 
+ bool DECK_CAMERA::Init()
+@@ -54,9 +185,15 @@
+ void DECK_CAMERA::Execute(uint32_t Delta_Time)
+ {
+     if (!isOn())
++    {
++        ReleaseWalker();
+         return;
++    }
+     if (!FindShip() || !FindPath())
++    {
++        ReleaseWalker();
+         return;
++    }
+ 
+     SetPerspective(AttributesPointer->GetAttributeAsFloat("Perspective"));
+ 
+@@ -65,14 +202,27 @@
+ 
+ void DECK_CAMERA::Realize(uint32_t Delta_Time)
+ {
+-    if (!isOn())
++    if (!isOn() || !walkerVisible)
+         return;
++    if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId)))
++    {
++        uint32_t lighting;
++        RenderService->GetRenderState(D3DRS_LIGHTING, &lighting);
++        RenderService->SetRenderState(D3DRS_LIGHTING, true);
++        model->ProcessStage(Entity::Stage::realize, Delta_Time);
++        RenderService->SetRenderState(D3DRS_LIGHTING, lighting);
++    }
+ }
+ 
+ void DECK_CAMERA::Move(uint32_t DeltaTime)
+ {
+     if (!isActive())
+         return;
++
++    const bool walkMode = AttributesPointer->GetAttributeAsDword("WalkMode") != 0;
++    const bool telescope = AttributesPointer->GetAttributeAsDword("TelescopeActive") != 0;
++    const bool thirdPerson = walkMode && !telescope && AttributesPointer->GetAttributeAsDword("ThirdPerson") != 0;
++    walkerVisible = false;
+ 
+     pModel = static_cast<MODEL *>(GetModelPointer());
+     Assert(pModel);
+@@ -83,11 +233,11 @@
+     camera_ang.y += fSensivityAzimuthAngle * 3.0f * static_cast<float>(cs.fValue);
+ 
+     core.Controls->GetControlState("DeckCamera_Left", cs);
+-    if (cs.state == CST_ACTIVE)
++    if (!walkMode && cs.state == CST_ACTIVE)
+         camera_ang.y -= fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
+ 
+     core.Controls->GetControlState("DeckCamera_Right", cs);
+-    if (cs.state == CST_ACTIVE)
++    if (!walkMode && cs.state == CST_ACTIVE)
+         camera_ang.y += fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
+ 
+     core.Controls->GetControlState("DeckCamera_Turn_V", cs);
+@@ -163,6 +313,34 @@
+     }
+ 
+     // vShift += strafeV;
++
++    bool running = false;
++    float deckForward = 0.f;
++    float deckRight = 0.f;
++    if (walkMode)
++    {
++        auto held = [&](const char *name) {
++            CONTROL_STATE state;
++            core.Controls->GetControlState(name, state);
++            return state.state == CST_ACTIVE || state.state == CST_ACTIVATED;
++        };
++        deckForward = float(held("DeckWalk_Forward")) - float(held("DeckWalk_Backward"));
++        deckRight = float(held("DeckWalk_Right")) - float(held("DeckWalk_Left"));
++        const float length = sqrtf(deckForward * deckForward + deckRight * deckRight);
++        speed = 0.f;
++        running = held("DeckWalk_Run");
++        if (length > 0.f && !telescope)
++        {
++            // Horizontal normalized motion: pitch and diagonal input cannot change speed.
++            const float walkSin = sinf(yAng), walkCos = cosf(yAng);
++            vShift = CVECTOR((walkSin * deckForward + walkCos * deckRight) / length, 0.f,
++                             (walkCos * deckForward - walkSin * deckRight) / length);
++            speed = std::min(DeltaTime, uint32_t(100)) * (running ? 0.004f : 0.0018f);
++            walkerYaw = atan2f(vShift.x, vShift.z);
++        }
++        else if (!walkerId)
++            walkerYaw = camera_ang.y;
++    }
+ 
+     if (speed != 0.f)
+     {
+@@ -293,16 +470,92 @@
+         }
+     }
+ 
++    const CVECTOR pathResolved = camera_pos;
++    if (walkMode && !CanWalkTo(prev_pos, camera_pos))
++    {
++        const CVECTOR proposed = camera_pos;
++        camera_pos = prev_pos;
++        // Try the tangential components against both floor support and solid geometry.
++        for (int axis = 0; axis < 2; ++axis)
++        {
++            CVECTOR slide = camera_pos;
++            if (axis == 0) slide.x = proposed.x;
++            else slide.z = proposed.z;
++            const CVECTOR up(slide.x, 500.f, slide.z);
++            const CVECTOR down(slide.x, -500.f, slide.z);
++            const float floor = MultiTrace(up, down, camera_pos.y);
++            if (floor <= 1.f)
++            {
++                slide.y = 500.f - 1000.f * floor;
++                if (fabsf(slide.y - camera_pos.y) < MEN_STEP_UP && CanWalkTo(camera_pos, slide))
++                    camera_pos = slide;
++            }
++        }
++    }
++    const CVECTOR solidResolved = camera_pos;
++
++    if (walkMode)
++        ResolveCrew(prev_pos);
++
++    static const bool traceDeckWalk = std::getenv("STORM_TRACE_DECK_WALK") != nullptr;
++    static uint32_t traceDeckWalkElapsed = 0;
++    traceDeckWalkElapsed += DeltaTime;
++    if (traceDeckWalk && walkMode && traceDeckWalkElapsed >= 1000)
++    {
++        traceDeckWalkElapsed %= 1000;
++        const bool pathMoved = ~(pathResolved - prev_pos) > 0.000001f;
++        const bool solidChanged = ~(solidResolved - pathResolved) > 0.000001f;
++        const bool crewChanged = ~(camera_pos - solidResolved) > 0.000001f;
++        const char *reason = telescope ? "telescope" :
++            (deckForward == 0.f && deckRight == 0.f) ? "no_input" :
++            !pathMoved ? "path_rejected" : solidChanged ? "solid_rejected_or_slid" :
++            crewChanged ? "crew_resolved" : "accepted";
++        core.Trace("Deck walk trace: input=(%.0f,%.0f) from=(%.3f,%.3f,%.3f) desired=(%.3f,%.3f,%.3f) solid=(%.3f,%.3f,%.3f) resolved=(%.3f,%.3f,%.3f) reason=%s",
++                   deckForward, deckRight, prev_pos.x, prev_pos.y, prev_pos.z,
++                   pathResolved.x, pathResolved.y, pathResolved.z,
++                   solidResolved.x, solidResolved.y, solidResolved.z,
++                   camera_pos.x, camera_pos.y, camera_pos.z, reason);
++    }
++
+     // calculate camera position
+     CVECTOR s_pos;
+     s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye, 0.f));
+ 
++    if (walkMode)
++    {
++        const bool moved = ~(camera_pos - prev_pos) > 0.000001f;
++        UpdateWalker(moved, running);
++        if (thirdPerson && walkerId)
++        {
++            const CVECTOR direction(sinf(s_ang.y) * cosf(s_ang.x), -sinf(s_ang.x),
++                                    cosf(s_ang.y) * cosf(s_ang.x));
++            const CVECTOR desired = s_pos - direction * 2.7f;
++            float fraction = 1.f;
++            // Give the camera a small volume; retract immediately at hull/masts.
++            const CVECTOR offsets[] = {CVECTOR(0.f, 0.f, 0.f), CVECTOR(.15f, 0.f, 0.f),
++                CVECTOR(-.15f, 0.f, 0.f), CVECTOR(0.f, .15f, 0.f), CVECTOR(0.f, -.15f, 0.f)};
++            for (const auto &offset : offsets)
++            {
++                const float hit = pModel->Trace(s_pos + offset, desired + offset);
++                if (hit >= 0.f && hit <= 1.f)
++                    fraction = std::min(fraction, std::max(0.f, hit - .06f));
++            }
++            s_pos += (desired - s_pos) * fraction;
++            walkerVisible = fraction * 2.7f > .65f;
++        }
++    }
++
+     // set camera
+     RenderService->SetCamera(s_pos, s_ang, GetPerspective());
+ }
+ 
+ void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+ {
++    if (pACharacter != _pACharacter)
++    {
++        ReleaseWalker();
++        walkerLoadFailed = false;
++    }
+     pACharacter = _pACharacter;
+ }
+ 
+--- a/src/libs/sea_cameras/src/deck_camera.h
++++ b/src/libs/sea_cameras/src/deck_camera.h
+@@ -49,6 +49,18 @@
+     int32_t vb_id;
+     bool bLoad;
+     NODE *pathNode;
++    // Transient presentation only: keep the existing binary save layout intact.
++    entid_t walkerId = 0;
++    entid_t collisionShipId = 0;
++    bool walkerVisible = false;
++    bool walkerLoadFailed = false;
++    float walkerYaw = 0.f;
++    std::string walkerAction;
++    void ReleaseWalker();
++    bool EnsureWalker();
++    void UpdateWalker(bool moving, bool running);
++    bool CanWalkTo(const CVECTOR &from, const CVECTOR &to);
++    void ResolveCrew(const CVECTOR &from);
+     void SetStartPos();
+     bool GetCrossXZ(CVECTOR &spos, CVECTOR &dv, CVECTOR &p1, CVECTOR &p2, CVECTOR &res);
+     bool FindPath();
+--- /dev/null
++++ b/src/libs/shared_headers/include/shared/sea_ai/deck_collision.hpp
+@@ -0,0 +1,171 @@
++#pragma once
++
++#include "c_vector.h"
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++
++// Ship-root-local request shared by the deck camera and the live sailors owner.
++// Kept in a C++-only .hpp: the game script compiler enumerates shared .h files.
++struct SeaDeckCharacterCollisionQuery
++{
++    uint64_t shipId{};
++    CVECTOR from{};
++    CVECTOR desired{};
++    CVECTOR resolved{};
++    float radius{0.38f};
++    float height{1.75f};
++    uint32_t active{};
++    uint32_t blocked{};
++};
++
++// Geometry-only capsule sweep. The caller supplies triangles from the ship's BSP.
++namespace deck_collision
++{
++inline float clamp(float value) { return std::clamp(value, 0.f, 1.f); }
++
++inline CVECTOR closestPoint(const CVECTOR &p, const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++{
++    const CVECTOR ab = b - a, ac = c - a, ap = p - a;
++    const float d1 = ab | ap, d2 = ac | ap;
++    if (d1 <= 0.f && d2 <= 0.f) return a;
++    const CVECTOR bp = p - b;
++    const float d3 = ab | bp, d4 = ac | bp;
++    if (d3 >= 0.f && d4 <= d3) return b;
++    const float vc = d1 * d4 - d3 * d2;
++    if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f) return a + ab * (d1 / (d1 - d3));
++    const CVECTOR cp = p - c;
++    const float d5 = ab | cp, d6 = ac | cp;
++    if (d6 >= 0.f && d5 <= d6) return c;
++    const float vb = d5 * d2 - d1 * d6;
++    if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f) return a + ac * (d2 / (d2 - d6));
++    const float va = d3 * d6 - d5 * d4;
++    if (va <= 0.f && d4 - d3 >= 0.f && d5 - d6 >= 0.f)
++        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
++    const float sum = va + vb + vc;
++    if (fabsf(sum) < 1e-12f) return a;
++    return a + ab * (vb / sum) + ac * (vc / sum);
++}
++
++inline float segmentDistance2(const CVECTOR &p, const CVECTOR &q, const CVECTOR &a, const CVECTOR &b)
++{
++    const CVECTOR u = q - p, v = b - a, w = p - a;
++    const float uu = ~u, vv = ~v, uv = u | v, uw = u | w, vw = v | w;
++    float s = 0.f, t = 0.f;
++    if (uu <= 1e-12f && vv <= 1e-12f) return ~w;
++    if (uu <= 1e-12f) t = clamp(vw / vv);
++    else if (vv <= 1e-12f) s = clamp(-uw / uu);
++    else
++    {
++        const float denom = uu * vv - uv * uv;
++        if (denom > 1e-12f) s = clamp((uv * vw - uw * vv) / denom);
++        t = (uv * s + vw) / vv;
++        if (t < 0.f) { t = 0.f; s = clamp(-uw / uu); }
++        else if (t > 1.f) { t = 1.f; s = clamp((uv - uw) / uu); }
++    }
++    return ~(w + u * s - v * t);
++}
++
++inline float distance2(const CVECTOR &p, const CVECTOR &q,
++                       const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++{
++    const CVECTOR direction = q - p, ab = b - a, ac = c - a;
++    if (~(ab ^ ac) < 1e-12f)
++        return std::min({segmentDistance2(p, q, a, b), segmentDistance2(p, q, b, c),
++                         segmentDistance2(p, q, c, a)});
++    const CVECTOR h = direction ^ ac;
++    const float det = ab | h;
++    if (fabsf(det) > 1e-10f)
++    {
++        const CVECTOR s = p - a;
++        const float u = (s | h) / det;
++        const CVECTOR cross = s ^ ab;
++        const float v = (direction | cross) / det, t = (ac | cross) / det;
++        if (u >= 0.f && v >= 0.f && u + v <= 1.f && t >= 0.f && t <= 1.f) return 0.f;
++    }
++    return std::min({~(p - closestPoint(p, a, b, c)), ~(q - closestPoint(q, a, b, c)),
++        segmentDistance2(p, q, a, b), segmentDistance2(p, q, b, c), segmentDistance2(p, q, c, a)});
++}
++
++struct Sweep
++{
++    CVECTOR bottom, top, delta;
++    float radius;
++    bool blocked = false;
++
++    bool isSupport(const CVECTOR &a, const CVECTOR &b, const CVECTOR &c) const
++    {
++        const CVECTOR axis = top - bottom;
++        const float axisLength2 = ~axis;
++        const CVECTOR normal = (b - a) ^ (c - a);
++        const float normalLength2 = ~normal;
++        if (axisLength2 < 1e-12f || normalLength2 < 1e-12f)
++            return false;
++        const float alignment = fabsf(normal | axis) / sqrtf(normalLength2 * axisLength2);
++        if (alignment < .7f)
++            return false;
++        const float invAxisLength = 1.f / sqrtf(axisLength2);
++        const CVECTOR endBottom = bottom + delta;
++        const float foot = std::min(bottom | axis, endBottom | axis) * invAxisLength;
++        const float highest = std::max({a | axis, b | axis, c | axis}) * invAxisLength;
++        return highest <= foot + .03f;
++    }
++
++    bool hits(const CVECTOR &a, const CVECTOR &b, const CVECTOR &c) const
++    {
++        if (~delta < 1e-14f) return false;
++        if (isSupport(a, b, c)) return false;
++        const CVECTOR endBottom = bottom + delta, endTop = top + delta;
++        // The translated capsule spine sweeps a parallelogram. Its exact
++        // distance to the obstacle avoids time samples and iteration budgets.
++        float swept = std::min({distance2(bottom, top, a, b, c),
++            distance2(top, endTop, a, b, c), distance2(endTop, endBottom, a, b, c),
++            distance2(endBottom, bottom, a, b, c)});
++        const CVECTOR vertices[] = {a, b, c};
++        for (int i = 0; i < 3; ++i)
++        {
++            const CVECTOR &p = vertices[i], &q = vertices[(i + 1) % 3];
++            swept = std::min({swept, distance2(p, q, bottom, top, endTop),
++                distance2(p, q, bottom, endTop, endBottom)});
++        }
++        const float initial = sqrtf(distance2(bottom, top, a, b, c));
++        const float closest = sqrtf(std::max(0.f, swept));
++        // Existing overlaps may escape or slide, but may never deepen during
++        // the move. Distance between these convex sets is convex in time.
++        if (initial < radius + .0001f) return closest + .00001f < initial;
++        return closest <= radius;
++
++    }
++};
++
++inline thread_local Sweep *activeSweep = nullptr;
++
++inline bool polygon(const CVECTOR *vertices, int32_t count)
++{
++    for (int32_t i = 1; i + 1 < count; ++i)
++        if (activeSweep->hits(vertices[0], vertices[i], vertices[i + 1]))
++        {
++            activeSweep->blocked = true;
++            return false;
++        }
++    return true;
++}
++
++// MODEL::Clip delivers world-space triangles synchronously. Kept templated so
++// the geometry-only numerical tests do not need the renderer/runtime headers.
++template <typename Model>
++bool canSweep(Model &model, const CVECTOR &bottom, const CVECTOR &top, const CVECTOR &delta, float radius)
++{
++    Sweep sweep{bottom, top, delta, radius};
++    struct Context
++    {
++        Sweep *previous;
++        explicit Context(Sweep *current) : previous(activeSweep) { activeSweep = current; }
++        ~Context() { activeSweep = previous; }
++    } context(&sweep);
++    const CVECTOR center = (bottom + top + delta) * .5f;
++    const float bounds = radius + .5f * (sqrtf(~(top - bottom)) + sqrtf(~delta));
++    model.Clip(nullptr, 0, center, bounds, polygon);
++    return !sweep.blocked;
++}
++}

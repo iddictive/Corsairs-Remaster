@@ -1,0 +1,262 @@
+[
+  {
+    "target": "treePalms.tga.tx",
+    "prepared_path": "foliage-new/prepared/treePalms.tga.tx",
+    "role": "alpha-tested foliage UV atlas",
+    "source": "foliage-new/treePalms-generated.png",
+    "source_sha256": "5af03ea9f3670b8100e663ef6a315424901a882984801b11de87ea7e8ac8c939",
+    "original_decoded_sha256": "9c5091988ada5e7df1f95e14ee5d8c235b03451d33e287aa2ef5912a563dacba",
+    "output_sha256": "f5024f5412ec1c49aadd7207e90db125adfedb48e8e99cae0e1d4ad14d082b8e",
+    "width": 2048,
+    "height": 1024,
+    "source_width": 1774,
+    "source_height": 887,
+    "format": "A8R8G8B8",
+    "mip_count": 12,
+    "bytes": 11184836,
+    "alpha": "Level0 byte-exact original alpha; premultiplied-filtered mip coverage preserved for Storm GREATER 0xa0 alpha test",
+    "alpha_test": {
+      "ref": 160,
+      "comparison": "GREATER",
+      "source": "native-storm renderer SetCommonStates"
+    },
+    "composition": "Uniform resize, no crop/repack; generated RGB under original alpha; original RGB retained wherever generated alpha <240",
+    "tool": "builtin imagegen",
+    "prompt": "Precise-object-edit: upgrade palm frond and palm bark UV atlas to natural realistic diffuse material; exact 2:1 atlas layout, all four half-fronds, stem baselines, region boundaries and silhouettes preserved; muted green, subtle veins, tactile weathered bark, neutral light; no new objects, repacking, halos, sharpening, strong contrast, baked highlights, text or checkerboard; genuine original transparency.",
+    "license": "Generated edit of user-supplied game atlas; not CC0",
+    "consumers": [
+      "Islands/Bermudes/Bermudes.gm",
+      "Islands/Nevis/Nevis.gm",
+      "Islands/Martinique/Martinique.gm",
+      "Islands/SentMartin/SentMartin_fort1.gm"
+    ],
+    "mips": [
+      {
+        "width": 2048,
+        "height": 1024,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.7670321464538574,
+        "bytes": 8388608
+      },
+      {
+        "width": 1024,
+        "height": 512,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.7669773101806641,
+        "bytes": 2097152
+      },
+      {
+        "width": 512,
+        "height": 256,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.7669906616210938,
+        "bytes": 524288
+      },
+      {
+        "width": 256,
+        "height": 128,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.76666259765625,
+        "bytes": 131072
+      },
+      {
+        "width": 128,
+        "height": 64,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.766357421875,
+        "bytes": 32768
+      },
+      {
+        "width": 64,
+        "height": 32,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.7666015625,
+        "bytes": 8192
+      },
+      {
+        "width": 32,
+        "height": 16,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.767578125,
+        "bytes": 2048
+      },
+      {
+        "width": 16,
+        "height": 8,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.7734375,
+        "bytes": 512
+      },
+      {
+        "width": 8,
+        "height": 4,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.78125,
+        "bytes": 128
+      },
+      {
+        "width": 4,
+        "height": 2,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.75,
+        "bytes": 32
+      },
+      {
+        "width": 2,
+        "height": 1,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 1.0,
+        "bytes": 8
+      },
+      {
+        "width": 1,
+        "height": 1,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 1.0,
+        "bytes": 4
+      }
+    ],
+    "runtime_status": "candidate only; not accepted or staged by this pipeline"
+  },
+  {
+    "target": "trees.tga.tx",
+    "prepared_path": "foliage-new/prepared/trees.tga.tx",
+    "role": "alpha-tested foliage UV atlas",
+    "source": "foliage-new/trees-generated.png",
+    "source_sha256": "7e26777d543d972113c15495de800e7afe5193c13eb0d6df683168f1f62ef358",
+    "original_decoded_sha256": "7d5a5a6131d6cc2fcbb4df7c749b658eba8568d713d0b0644b0d7ff149152efa",
+    "output_sha256": "975a710e9ca7c1990bf9153281fee1ec231e90dc433362e1549aeed02a381a52",
+    "width": 2048,
+    "height": 2048,
+    "source_width": 1254,
+    "source_height": 1254,
+    "format": "A8R8G8B8",
+    "mip_count": 12,
+    "bytes": 22369644,
+    "alpha": "Level0 byte-exact original alpha; premultiplied-filtered mip coverage preserved for Storm GREATER 0xa0 alpha test",
+    "alpha_test": {
+      "ref": 160,
+      "comparison": "GREATER",
+      "source": "native-storm renderer SetCommonStates"
+    },
+    "composition": "Uniform resize, no crop/repack; generated RGB under original alpha; original RGB retained wherever generated alpha <240",
+    "tool": "builtin imagegen",
+    "prompt": "Precise-object-edit: upgrade exact square tropical tree UV atlas; four upper-left foliage strips, upper-right tree, top-right bark strip, central bark rectangle and two lower foliage masses remain fixed; natural realistic muted leaf/bark detail, neutral diffuse light; no new branches, repacking, outlines, sharpening, strong contrast or text; genuine original transparency.",
+    "license": "Generated edit of user-supplied game atlas; not CC0",
+    "consumers": [
+      "Islands/Nevis/Nevis.gm",
+      "Islands/SentMartin/SentMartin_fort1.gm"
+    ],
+    "mips": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.1211090087890625,
+        "bytes": 16777216
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.12296772003173828,
+        "bytes": 4194304
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.11967849731445312,
+        "bytes": 1048576
+      },
+      {
+        "width": 256,
+        "height": 256,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.1230010986328125,
+        "bytes": 262144
+      },
+      {
+        "width": 128,
+        "height": 128,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.12225341796875,
+        "bytes": 65536
+      },
+      {
+        "width": 64,
+        "height": 64,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.1201171875,
+        "bytes": 16384
+      },
+      {
+        "width": 32,
+        "height": 32,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.1220703125,
+        "bytes": 4096
+      },
+      {
+        "width": 16,
+        "height": 16,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.12109375,
+        "bytes": 1024
+      },
+      {
+        "width": 8,
+        "height": 8,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.109375,
+        "bytes": 256
+      },
+      {
+        "width": 4,
+        "height": 4,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.0625,
+        "bytes": 64
+      },
+      {
+        "width": 2,
+        "height": 2,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.0,
+        "bytes": 16
+      },
+      {
+        "width": 1,
+        "height": 1,
+        "alpha_ref": 160,
+        "comparison": "GREATER",
+        "coverage": 0.0,
+        "bytes": 4
+      }
+    ],
+    "runtime_status": "candidate only; not accepted or staged by this pipeline"
+  }
+]

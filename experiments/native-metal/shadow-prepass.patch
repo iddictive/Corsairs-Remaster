@@ -1,0 +1,259 @@
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -21,28 +21,93 @@
+ #include "shared/messages.h"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ #include <cstring>
++#include "model_realizer.h"
+ extern "C" void StormMetalLandLocation(void*, bool);
+-extern "C" bool StormMetalResolveLandLighting(void*);
+-// Resolve after outdoor geometry (default/9) and characters (20), before
+-// legacy character shadows (900) and blended overlays. Interior model priorities
+-// differ (65538 etc.), so those keep their original lighting and shadow pipeline.
++extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
++extern "C" void StormMetalEndLandModel(void*, unsigned);
++extern "C" bool StormMetalBeginShadowFrame(void*, uint64_t, uint64_t, const float*);
++extern "C" bool StormMetalBeginShadowPass(void*, unsigned, unsigned, uint64_t, const float*, float, float*, float*);
++extern "C" void StormMetalEndShadowPass(void*);
++extern "C" bool StormMetalEndShadowFrame(void*);
++// Source-owned replay precedes every location model, including late interior
++// geometry. No screen-visible draw list or collision-only entity is used.
+ class MetalLandLighting : public Entity {
+ public:
++    Location* location = nullptr;
+     ATTRIBUTES* locationAttributes = nullptr;
+     VDX9RENDER* renderer = nullptr;
++    uint64_t generation = 0;
+     bool Init() override { return true; }
+     void ProcessStage(Stage stage, uint32_t) override {
+-        if (!renderer) return;
++        if (!renderer || !location) return;
++        void* device = renderer->GetD3DDevice();
+         if (stage == Stage::execute) {
++            StormMetalLandLocation(device, true);
++        } else if (stage == Stage::realize) {
++            CVECTOR focus, angles; float perspective;
++            renderer->GetCamera(focus, angles, perspective);
++            for (const auto& entry : location->supervisor.character)
++                if (entry.c && entry.c->IsPlayer()) { entry.c->GetPosition(focus); break; }
++            const float center[] = {focus.x, focus.y, focus.z};
++            if (!StormMetalBeginShadowFrame(device, reinterpret_cast<uintptr_t>(location), ++generation, center)) return;
++            D3DMATRIX world, view, projection;
++            D3DVIEWPORT9 viewport;
++            renderer->GetTransform(D3DTS_WORLD, &world);
++            renderer->GetTransform(D3DTS_VIEW, &view);
++            renderer->GetTransform(D3DTS_PROJECTION, &projection);
++            renderer->GetViewport(&viewport);
++            auto renderPass = [&](unsigned kind, unsigned face, uint64_t id, const float* direction, float range) {
++                D3DMATRIX lightView, lightProjection;
++                if (!StormMetalBeginShadowPass(device, kind, face, id, direction, range,
++                                               &lightView.m[0][0], &lightProjection.m[0][0])) return;
++                static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_VIEW, &lightView);
++                static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &lightProjection);
++                location->RenderMetalShadowCasters();
++                StormMetalEndShadowPass(device);
++            };
+             const char* type = locationAttributes ? locationAttributes->GetAttribute("type") : nullptr;
+             const bool outdoor = type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore"));
+-            StormMetalLandLocation(renderer->GetD3DDevice(), outdoor);
+-        } else if (stage == Stage::realize) {
+-            StormMetalResolveLandLighting(renderer->GetD3DDevice());
++            D3DLIGHT9 sun{}; BOOL sunEnabled = false;
++            renderer->GetLightEnable(0, &sunEnabled);
++            renderer->GetLight(0, &sun);
++            if (outdoor && sunEnabled && sun.Type == D3DLIGHT_DIRECTIONAL &&
++                (sun.Diffuse.r > 0 || sun.Diffuse.g > 0 || sun.Diffuse.b > 0)) {
++                const float ray[] = {sun.Direction.x, sun.Direction.y, sun.Direction.z};
++                renderPass(0, 0, 1, ray, 32.f);
++            }
++            uint64_t lampId = 0; D3DLIGHT9 lamp{};
++            if (auto* lights = location->GetLights(); lights && lights->GetShadowLight(focus, lampId, lamp)) {
++                const float position[] = {lamp.Position.x, lamp.Position.y, lamp.Position.z};
++                for (unsigned face = 0; face < 6; ++face) renderPass(1, face, lampId, position, lamp.Range);
++            }
++            renderer->SetTransform(D3DTS_WORLD, &world);
++            static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_VIEW, &view);
++            static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &projection);
++            renderer->SetViewport(&viewport);
++            StormMetalEndShadowFrame(device);
+         }
+     }
+ };
+ CREATE_CLASS(MetalLandLighting)
++
++void Location::RenderMetalShadowCasters()
++{
++    void* device = rs->GetD3DDevice();
++    for (int32_t i = 0; i < model.Models(); ++i) {
++        auto* realizer = static_cast<LocModelRealizer*>(core.GetEntityPointer(model.RealizerID(i)));
++        auto* entity = model[i];
++        if (!realizer || !realizer->IsVisible() || !entity) continue;
++        realizer->SetDynamicLights(lights);
++        const unsigned previous = StormMetalBeginLandModel(device, 1);
++        entity->ProcessStage(Stage::realize, 0);
++        StormMetalEndLandModel(device, previous);
++    }
++    // MODELR::Realize(0) uses the current animation pose; only Execute advances
++    // animation, and zero delta does not advance its blend timer. Its frustum
++    // comes from the light matrices, so off-camera characters remain casters.
++    for (const auto& entry : supervisor.character)
++        if (entry.c && entry.c->Model()) entry.c->Model()->ProcessStage(Stage::realize, 0);
++}
+ #endif
+ 
+ 
+@@ -123,9 +188,10 @@
+     metalLandLighting = core.CreateEntity("MetalLandLighting");
+     if (auto* pass = static_cast<MetalLandLighting*>(core.GetEntityPointer(metalLandLighting))) {
+         pass->renderer = rs;
++        pass->location = this;
+         pass->locationAttributes = AttributesPointer;
+         core.AddToLayer(EXECUTE, metalLandLighting, 11);
+-        core.AddToLayer(REALIZE, metalLandLighting, 25);
++        core.AddToLayer(REALIZE, metalLandLighting, 0); // Registered before models; equal priorities preserve insertion order.
+     }
+ #endif
+ 
+--- a/src/libs/location/src/location.h
++++ b/src/libs/location/src/location.h
+@@ -109,6 +109,9 @@
+     void Clip(PLANE *p, int32_t numPlanes, CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num));
+ 
+     Lights *GetLights() const;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    void RenderMetalShadowCasters();
++#endif
+ 
+     VDX9RENDER *GetRS() const;
+     void DrawLine(const CVECTOR &s, uint32_t cs, const CVECTOR &d, uint32_t cd, bool useZ = true) const;
+--- a/src/libs/location/src/model_realizer.h
++++ b/src/libs/location/src/model_realizer.h
+@@ -19,6 +19,13 @@
+     // --------------------------------------------------------------------------------------------
+   public:
+     LocModelRealizer();
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    bool IsVisible() const { return bShow; }
++    void SetDynamicLights(Lights* value) { dynamicLights = value; }
++  private:
++    Lights* dynamicLights = nullptr;
++  public:
++#endif
+     ~LocModelRealizer() override;
+ 
+     // Initialization
+--- a/src/libs/location/src/lights.h
++++ b/src/libs/location/src/lights.h
+@@ -125,6 +125,9 @@
+     // Set lights at pos
+     void SetLightsAt(const CVECTOR &pos);
+     void UnsetLights();
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light);
++#endif
+ 
+     // Update source types
+     void UpdateLightTypes(int32_t i);
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -9,6 +9,9 @@
+ //============================================================================================
+ 
+ #include "lights.h"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
++#endif
+ 
+ #include "core.h"
+ #include "string_compare.hpp"
+@@ -487,6 +490,29 @@
+         }
+ }
+ 
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light)
++{
++    for (auto index : GetLightsAt(pos)) {
++        const auto& source = lights[index];
++        light = types[source.type].dxLight;
++        if (light.Type != D3DLIGHT_POINT || light.Range <= .1f) continue;
++        const float dx = pos.x-source.pos.x, dy = pos.y-source.pos.y, dz = pos.z-source.pos.z;
++        if (dx*dx+dy*dy+dz*dz >= light.Range*light.Range) continue;
++        const float intensity = source.intensity / 255.f;
++        light.Diffuse.r = source.color.r * intensity;
++        light.Diffuse.g = source.color.g * intensity;
++        light.Diffuse.b = source.color.b * intensity;
++        if (light.Diffuse.r <= 0 && light.Diffuse.g <= 0 && light.Diffuse.b <= 0) continue;
++        light.Position = source.pos;
++        id = uint64_t(index) + 1; // Stable only inside this source-owned frame.
++        return true;
++    }
++    id = 0;
++    return false;
++}
++#endif
++
+ // Set light sources for the character
+ void Lights::SetLightsAt(const CVECTOR &pos)
+ {
+@@ -508,6 +534,9 @@
+         l.dxLight.Position = lights[*i].pos;
+ 
+         rs->SetLight(d3d_light_index, &l.dxLight);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        StormMetalSetLightIdentity(rs->GetD3DDevice(), d3d_light_index, uint64_t(*i) + 1);
++#endif
+         rs->LightEnable(d3d_light_index, true);
+         lt[d3d_light_index].light = *i;
+         lt[d3d_light_index].set = true;
+--- a/src/libs/location/src/model_realizer.cpp
++++ b/src/libs/location/src/model_realizer.cpp
+@@ -5,6 +5,7 @@
+ #include "lights.h"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
++extern "C" bool StormMetalLandShadowResolved(void*);
+ extern "C" void StormMetalEndLandModel(void*, unsigned);
+ #endif
+ 
+@@ -44,6 +45,10 @@
+ 
+ void LocModelRealizer::Realize(uint32_t delta_time) const
+ {
++    Lights* activeLights = lights;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    if (dynamicLights && StormMetalLandShadowResolved(rs->GetD3DDevice())) activeLights = dynamicLights;
++#endif
+     if (!bShow)
+         return;
+     auto *pE = core.GetEntityPointer(eid_model);
+@@ -51,7 +56,7 @@
+     {
+         BOOL bLight0Enable;
+         uint32_t dwLighting;
+-        if (lights)
++        if (activeLights)
+         {
+             static CVECTOR camPos, camAng;
+             rs->GetCamera(camPos, camAng, camAng.x);
+@@ -60,7 +65,7 @@
+             rs->GetLightEnable(0, &bLight0Enable);
+ 
+             // calc lightning at camera pos
+-            lights->SetLightsAt(camPos);
++            activeLights->SetLightsAt(camPos);
+ 
+             rs->SetRenderState(D3DRS_LIGHTING, TRUE);
+             rs->LightEnable(0, TRUE);
+@@ -73,9 +78,9 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+         StormMetalEndLandModel(rs->GetD3DDevice(), previousLandScope);
+ #endif
+-        if (lights)
++        if (activeLights)
+         {
+-            lights->UnsetLights();
++            activeLights->UnsetLights();
+             rs->SetRenderState(D3DRS_LIGHTING, dwLighting);
+             rs->LightEnable(0, bLight0Enable);
+         }

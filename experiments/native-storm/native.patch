@@ -1,0 +1,714 @@
+--- a/src/libs/core/src/compiler.cpp
++++ b/src/libs/core/src/compiler.cpp
+@@ -6622,7 +6622,11 @@
+         break;
+     case VAR_AREFERENCE:
+         pString = nullptr;
++#ifdef _WIN32
+         __try
++#else
++        try
++#endif
+         {
+             pA = TraceARoot(pV->AttributesClass, pString);
+         }
+--- a/src/libs/core/include/message.h
++++ b/src/libs/core/include/message.h
+@@ -12,7 +12,11 @@
+ namespace storm
+ {
+ using MessageParam = std::variant<uint8_t, uint16_t, uint32_t, int32_t, float, double, ATTRIBUTES *, entid_t, VDATA *,
+-                                  CVECTOR, std::string>;
++                                  CVECTOR, std::string
++#ifdef __APPLE__
++                                  , uintptr_t
++#endif
++                                  >;
+ 
+ namespace detail {
+ 
+--- a/src/libs/core/src/internal_functions.cpp
++++ b/src/libs/core/src/internal_functions.cpp
+@@ -2564,7 +2564,7 @@
+         }
+         pA = pV->GetAClass();
+ 
+-        std::sort(std::execution::seq, std::begin(pA->attributes_), std::end(pA->attributes_),
++        std::sort(std::begin(pA->attributes_), std::end(pA->attributes_),
+                   [](const std::unique_ptr<ATTRIBUTES> &lhs, const std::unique_ptr<ATTRIBUTES> &rhs) {
+                       return strcmp(lhs->GetThisName(), rhs->GetThisName()) < 0;
+                   });
+--- a/src/libs/math/include/math_inlines.h
++++ b/src/libs/math/include/math_inlines.h
+@@ -3,7 +3,11 @@
+ #include <cstdint>
+ #include <cmath>
+ 
++#if defined(__aarch64__)
++#include <sse2neon.h>
++#else
+ #include <xmmintrin.h>
++#endif
+ 
+ #include "c_vector.h"
+ 
+@@ -137,4 +141,4 @@
+ inline int ftoi(float f)
+ {
+     return _mm_cvt_ss2si(_mm_load_ss(&f));
+-}
+\ No newline at end of file
++}
+--- a/src/libs/math/include/math3d.h
++++ b/src/libs/math/include/math3d.h
+@@ -8,7 +8,11 @@
+ 
+ #include <cstdint>
+ 
++#if defined(__aarch64__)
++#include <sse2neon.h>
++#else
+ #include <xmmintrin.h> // espkk # remove inline asm # 30/Dec/2017
++#endif
+ 
+ //#define inline __forceinline
+ 
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,4 +1,7 @@
+ #include "s_device.h"
++#ifndef _WIN32
++#include "raw_texture.hpp"
++#endif
+ 
+ #include "core.h"
+ 
+@@ -233,7 +236,7 @@
+     return true;
+ }
+ 
+-uint64_t _rdtsc;
++uint64_t renderTimestamp;
+ uint32_t dwTotalSize = 0;
+ uint32_t dwSplashTime = 0;
+ bool bSplash = false;
+@@ -722,7 +725,12 @@
+     d3dpp.BackBufferFormat = screen_bpp;
+     d3dpp.BackBufferCount = 1;
+     d3dpp.hDeviceWindow = hwnd;
++#ifdef __APPLE__
++    // SDL owns the macOS fullscreen Space. Do not let DXVK capture the display.
++    d3dpp.Windowed = TRUE;
++#else
+     d3dpp.Windowed = windowed;
++#endif
+     d3dpp.EnableAutoDepthStencil = TRUE;
+     d3dpp.AutoDepthStencilFormat = stencil_format;
+ 
+@@ -1463,6 +1471,7 @@
+         // try to load without '.tx' (e.g. raw Targa)
+         std::filesystem::path path_to_tex{fn};
+         path_to_tex.replace_extension();
++        path_to_tex = fio->ConvertPathResource(path_to_tex.string().c_str());
+         if (exists(path_to_tex))
+         {
+             return TextureLoadUsingD3DX(path_to_tex.string().c_str(), t);
+@@ -1774,10 +1783,13 @@
+ 
+ bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
+ {
+-#ifdef _WIN32 // TextureLoadUsingD3DX - used only for loading raw Targa
+     // TODO: reimplement the whole thing in a tidy way
+     IDirect3DTexture9 *pTex;
++#ifdef _WIN32
+     if(CHECKD3DERR(D3DXCreateTextureFromFileA(d3d9, path, &pTex)))
++#else
++    if(CHECKD3DERR(LoadNativeRawTexture(d3d9, path, &pTex)))
++#endif
+     {
+         delete Textures[t].name;
+         Textures[t].name = nullptr;
+@@ -1795,9 +1807,6 @@
+     Textures[t].loaded = true;
+ 
+     return true;
+-#else
+-    return false;
+-#endif
+ }
+ 
+ IDirect3DBaseTexture9 *DX9RENDER::GetBaseTexture(int32_t iTexture)
+@@ -2387,11 +2396,11 @@
+         }
+         // Copy verteces
+         uint8_t *ptr;
+-        RDTSC_B(_rdtsc);
++        RDTSC_B(renderTimestamp);
+         if (CHECKD3DERR(aniVBuffer->Lock(0, size, (void **)&ptr, 0)) == true)
+             return;
+         dwNumLV++;
+-        RDTSC_E(_rdtsc);
++        RDTSC_E(renderTimestamp);
+         memcpy(ptr, src, size);
+         CHECKD3DERR(aniVBuffer->Unlock());
+     }
+@@ -4612,4 +4621,3 @@
+ 
+     return success;
+ }
+-
+--- a/src/libs/sea_ai/src/ai_ship.h
++++ b/src/libs/sea_ai/src/ai_ship.h
+@@ -168,7 +168,7 @@
+         AICannon *pFortCannon;
+         float fDistance;
+ 
+-        bool operator<(can_fire_t &other) const
++        bool operator<(const can_fire_t &other) const
+         {
+             return fDistance < other.fDistance;
+         };
+--- a/src/libs/location/src/character.cpp
++++ b/src/libs/location/src/character.cpp
+@@ -5226,7 +5226,7 @@
+         num->Set(0);
+         return;
+     }
+-    num->Set(n);
++    num->Set(static_cast<int32_t>(n));
+     if (!n)
+         return;
+     if (n > static_cast<int32_t>(array->GetElementsNum()))
+--- a/src/libs/diagnostics/src/spdlog_sinks/file_helper.cpp
++++ b/src/libs/diagnostics/src/spdlog_sinks/file_helper.cpp
+@@ -15,12 +15,12 @@
+ using namespace spdlog;
+ using namespace spdlog::details;
+ 
+-SPDLOG_INLINE file_helper::~file_helper()
++file_helper::~file_helper()
+ {
+     close();
+ }
+ 
+-SPDLOG_INLINE void file_helper::open(const filename_t &fname, bool truncate)
++void file_helper::open(const filename_t &fname, bool truncate)
+ {
+     close();
+     filename_ = fname;
+@@ -56,7 +56,7 @@
+     throw_spdlog_ex("Failed opening file " + os::filename_to_str(filename_) + " for writing", errno);
+ }
+ 
+-SPDLOG_INLINE void file_helper::reopen(bool truncate)
++void file_helper::reopen(bool truncate)
+ {
+     if (filename_.empty())
+     {
+@@ -65,12 +65,12 @@
+     this->open(filename_, truncate);
+ }
+ 
+-SPDLOG_INLINE void file_helper::flush()
++void file_helper::flush()
+ {
+     std::fflush(fd_);
+ }
+ 
+-SPDLOG_INLINE void file_helper::close()
++void file_helper::close()
+ {
+     if (fd_ != nullptr)
+     {
+@@ -79,7 +79,7 @@
+     }
+ }
+ 
+-SPDLOG_INLINE void file_helper::write(const memory_buf_t &buf)
++void file_helper::write(const memory_buf_t &buf)
+ {
+     size_t msg_size = buf.size();
+     auto data = buf.data();
+@@ -89,7 +89,7 @@
+     }
+ }
+ 
+-SPDLOG_INLINE size_t file_helper::size() const
++size_t file_helper::size() const
+ {
+     if (fd_ == nullptr)
+     {
+@@ -98,7 +98,7 @@
+     return os::filesize(fd_);
+ }
+ 
+-SPDLOG_INLINE const filename_t &file_helper::filename() const
++const filename_t &file_helper::filename() const
+ {
+     return filename_;
+ }
+@@ -121,7 +121,7 @@
+ // ".mylog" => (".mylog". "")
+ // "my_folder/.mylog" => ("my_folder/.mylog", "")
+ // "my_folder/.mylog.txt" => ("my_folder/.mylog", ".txt")
+-SPDLOG_INLINE std::tuple<filename_t, filename_t> file_helper::split_by_extension(const filename_t &fname)
++std::tuple<filename_t, filename_t> file_helper::split_by_extension(const filename_t &fname)
+ {
+     auto ext_index = fname.rfind('.');
+ 
+--- a/src/libs/util/include/fs.h
++++ b/src/libs/util/include/fs.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <filesystem>
++#include <cstdlib>
+ 
+ #ifdef _WIN32 // SHGetKnownFolderPath
+ #include <ShlObj.h>
+@@ -18,6 +19,11 @@
+     static path path;
+     if (path.empty())
+     {
++        if (const char *overridePath = std::getenv("STORM_USERDATA"); overridePath && *overridePath)
++        {
++            path = overridePath;
++            return path;
++        }
+ #ifdef _WIN32 // SHGetKnownFolderPath
+         wchar_t *str = nullptr;
+         SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_SIMPLE_IDLIST, nullptr, &str);
+--- a/src/libs/sound_service/CMakeLists.txt
++++ b/src/libs/sound_service/CMakeLists.txt
+@@ -1,5 +1,23 @@
++if(DEFINED STORM_ENABLE_AUDIO AND NOT STORM_ENABLE_AUDIO)
++    add_library(sound_service INTERFACE)
++    target_include_directories(sound_service INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
++    return()
++endif()
++
++if(DEFINED STORM_NATIVE_AUDIO_SOURCE)
++    add_library(sound_service STATIC
++        "${STORM_NATIVE_AUDIO_SOURCE}/sound_service.cpp"
++        "${STORM_NATIVE_AUDIO_SOURCE}/miniaudio_impl.cpp")
++    target_include_directories(sound_service PUBLIC
++        "${STORM_NATIVE_AUDIO_SOURCE}" "${CMAKE_CURRENT_SOURCE_DIR}/include")
++    target_link_libraries(sound_service PUBLIC core renderer
++        "-framework AudioToolbox" "-framework CoreAudio" "-framework CoreFoundation")
++    set(global_modules_list "${global_modules_list};sound_service" CACHE INTERNAL "global_modules_list")
++    return()
++endif()
++
+ STORM_SETUP(
+     TARGET_NAME sound_service
+     TYPE storm_module
+     DEPENDENCIES core fmod renderer
+-)
+\ No newline at end of file
++)
+--- a/src/apps/engine/src/main.cpp
++++ b/src/apps/engine/src/main.cpp
+@@ -168,6 +168,9 @@
+     spdlog::set_default_logger(storm::logging::getOrCreateLogger(defaultLoggerName));
+     spdlog::info("Logging system initialized. Running on {}", STORM_BUILD_WATERMARK_STRING);
+     spdlog::info("mimalloc-redirect status: {}", mi_is_redirected());
++#ifdef STORM_AUDIO_DISABLED
++    spdlog::warn("Audio disabled: STORM_ENABLE_AUDIO=OFF");
++#endif
+ 
+     // Init core
+     core_private = static_cast<CorePrivate *>(&core);
+--- a/src/libs/renderer/src/technique.cpp
++++ b/src/libs/renderer/src/technique.cpp
+@@ -494,6 +494,7 @@
+                              {"add", D3DTOP_ADD},
+                              {"addsigned", D3DTOP_ADDSIGNED},
+                              {"addsigned2x", D3DTOP_ADDSIGNED2X},
++                             {"subtract", D3DTOP_SUBTRACT},
+                              {"substract", D3DTOP_SUBTRACT},
+                              {"addsmooth", D3DTOP_ADDSMOOTH},
+                              {"blenddiffusealpha", D3DTOP_BLENDDIFFUSEALPHA},
+@@ -521,6 +522,7 @@
+                            {"tfactor", D3DTA_TFACTOR},
+                            {"alphareplicate", D3DTA_ALPHAREPLICATE},
+                            {"complement", D3DTA_COMPLEMENT},
++                           {"texture | complement", D3DTA_TEXTURE | D3DTA_COMPLEMENT},
+                            {"current_alphareplicate", D3DTA_CURRENT | D3DTA_ALPHAREPLICATE},
+                            {"diffuse_alphareplicate", D3DTA_DIFFUSE | D3DTA_ALPHAREPLICATE},
+                            {"specular_alphareplicate", D3DTA_SPECULAR | D3DTA_ALPHAREPLICATE},
+--- a/src/libs/window/src/sdl_window.cpp
++++ b/src/libs/window/src/sdl_window.cpp
+@@ -4,10 +4,19 @@
+ 
+ namespace storm
+ {
++namespace
++{
++#ifdef __APPLE__
++constexpr uint32_t fullscreenFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
++#else
++constexpr uint32_t fullscreenFlags = SDL_WINDOW_FULLSCREEN;
++#endif
++}
++
+ SDLWindow::SDLWindow(int width, int height, int preferred_display, bool fullscreen, bool bordered)
+     : fullscreen_(fullscreen)
+ {
+-    uint32_t flags = (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | SDL_WINDOW_HIDDEN;
++    uint32_t flags = (fullscreen ? fullscreenFlags : 0) | SDL_WINDOW_HIDDEN;
+ #if !defined(_WIN32) && !defined(STORM_MESA_NINE) // DXVK-Native
+     flags |= SDL_WINDOW_VULKAN;
+ #endif
+@@ -75,7 +84,7 @@
+ void SDLWindow::SetFullscreen(bool fullscreen)
+ {
+     fullscreen_ = fullscreen;
+-    SDL_SetWindowFullscreen(window_.get(), fullscreen_ ? SDL_WINDOW_FULLSCREEN : 0);
++    SDL_SetWindowFullscreen(window_.get(), fullscreen_ ? fullscreenFlags : 0);
+ }
+ 
+ void SDLWindow::Resize(int width, int height)
+--- a/src/libs/island/include/island_base.h
++++ b/src/libs/island/include/island_base.h
+@@ -12,7 +12,10 @@
+     virtual bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth) = 0;
+     virtual bool GetDepth(float x, float z, float *fRes = nullptr) = 0;
+     virtual bool GetDepthFast(float x, float z, float *fRes = nullptr) = 0;
++    virtual bool CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth) = 0;
+     virtual bool GetDepth(FRECT *pRect, float *fMinH, float *fMaxH) = 0;
++
++    virtual bool GetGroundDepth(float x, float z, float keelY, float &depth) = 0;
+ 
+     virtual bool GetShadow(float x, float z, float *fRes = nullptr) = 0;
+ 
+--- a/src/libs/island/src/island.h
++++ b/src/libs/island/src/island.h
+@@ -180,7 +180,10 @@
+     bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth);
+     bool GetDepth(float x, float z, float *fRes = nullptr);
+     bool GetDepthFast(float x, float z, float *fRes = nullptr);
++    bool CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth) override;
+     bool GetDepth(FRECT *pRect, float *fMinH, float *fMaxH);
++
++    bool GetGroundDepth(float x, float z, float keelY, float &depth) override;
+ 
+     bool GetShadow(float x, float z, float *fRes = nullptr);
+ 
+--- a/src/libs/island/src/island.cpp
++++ b/src/libs/island/src/island.cpp
+@@ -8,6 +8,7 @@
+ #include "shared/sea_ai/script_defines.h"
+ #include "tga.h"
+ #include <cstdio>
++#include <cmath>
+ 
+ CREATE_CLASS(ISLAND)
+ 
+@@ -368,6 +369,63 @@
+     const float fZ = (z * fStep1divDZ) + static_cast<float>(iDMapSize >> 1);
+ 
+     *fRes = GetDepthNoCheck(ftoi(fX), ftoi(fZ));
++    return true;
++}
++
++bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth)
++{
++    float coarseDepth;
++    if (!GetDepthFast(next.x, next.z, &coarseDepth) || coarseDepth < broadDepth)
++        return false;
++
++    // Distant islands are lowered for rendering. Their current geometry is not
++    // authoritative for physics until that decorative displacement is gone.
++    if (fCurrentImmersion != 0.0f)
++        return true;
++
++    // The raster cell is only a broad phase. Veto its contact only with positive
++    // geometry evidence; missing collision geometry retains the legacy result.
++    CVECTOR surface(next.x, 0.0f, next.z);
++    const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
++    const float hit = Trace(surface, bottom);
++    if (!std::isfinite(hit) || hit < 0.0f || hit > 1.0f ||
++        !std::isfinite(minDepth) || -500.0f * hit >= minDepth)
++        return true;
++
++    // A deep endpoint must not erase a crossing of a thin wall during this step.
++    const float dx = next.x - previous.x, dz = next.z - previous.z;
++    if (dx * dx + dz * dz > 0.000001f)
++    {
++        const int levels = minDepth == 0.0f ? 1 : 2;
++        for (int level = 0; level < levels; ++level)
++        {
++            const float y = level == 0 ? 0.0f : minDepth;
++            const float crossing = Trace(CVECTOR(previous.x, y, previous.z), CVECTOR(next.x, y, next.z));
++            if (!std::isfinite(crossing) || crossing <= 1.0f)
++                return true;
++        }
++    }
++
++    // Reuse the height-map generator's inside-solid classification.
++    return ActivateCamomileTrace(surface);
++}
++
++bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
++{
++    if (!GetDepthFast(x, z, &depth))
++        return false;
++    // Deep cells need no additional geometry work. Distant render immersion
++    // makes the current model unsuitable for physical refinement.
++    if (depth < keelY || fCurrentImmersion != 0.0f)
++        return true;
++    CVECTOR surface(x, 0.0f, z);
++    const float hit = Trace(surface, CVECTOR(x, -500.0f, z + 0.001f));
++    if (std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f)
++    {
++        const float exactDepth = -500.0f * hit;
++        if (exactDepth >= keelY || !ActivateCamomileTrace(surface))
++            depth = exactDepth;
++    }
+     return true;
+ }
+ 
+--- a/src/libs/touch/src/touch.cpp
++++ b/src/libs/touch/src/touch.cpp
+@@ -97,6 +97,7 @@
+         if (pShips[i]->pShip && !pShips[i]->iNumVContour)
+         {
+             pShips[i]->pShip->BuildContour(&pShips[i]->vContour[0], pShips[i]->iNumVContour);
++            pShips[i]->pShip->BuildContour(&pShips[i]->vCoastContour[0], pShips[i]->iNumCoastContour, 1.0f);
+         }
+     }
+ 
+@@ -321,19 +322,26 @@
+     // island collision
+     if (cidx == ISLAND_CODE)
+     {
+-        float fRes;
+-
+         if (!pIslandBase)
+             return false; // if island collision
+         if (!pS1->pShip->TouchMove(iDeltaTime, &pS1->TP[0], &pS1->TP[1]))
+             return false;
+-        if (!BuildContour(idx))
+-            return false;
+-        for (i = 0; i < pS1->iNumVContour; i++)
+-            if (pIslandBase->GetDepthFast(pS1->vContourTemp[1][i].x, pS1->vContourTemp[1][i].z, &fRes))
+-            {
+-                if (fRes < fCollisionDepth)
+-                    continue;
++        // Use the unexpanded hull only for the coast; ship-to-ship contours stay unchanged.
++        for (int pose = 0; pose < 2; ++pose)
++        {
++            const float c = cosf(pS1->TP[pose].vAng.y), s = sinf(pS1->TP[pose].vAng.y);
++            for (int point = 0; point < pS1->iNumCoastContour; ++point)
++            {
++                float x = pS1->vCoastContour[point].x, z = pS1->vCoastContour[point].z;
++                RotateAroundY(x, z, c, s);
++                pS1->vContourTemp[pose][point] = CVECTOR(pS1->TP[pose].vPos.x + x, 0.0f,
++                                                       pS1->TP[pose].vPos.z + z);
++            }
++        }
++        for (i = 0; i < pS1->iNumCoastContour; i++)
++            if (pIslandBase->CheckDepthCollision(pS1->vContourTemp[0][i], pS1->vContourTemp[1][i],
++                                                fCollisionDepth, 0.0f))
++            {
+                 const auto v1 = &pS1->vContourTemp[0][i], v2 = &pS1->vContourTemp[1][i];
+                 auto vTemp = !(*v2 - *v1);
+                 *vRecoil = !(*v1 - pS1->TP[1].vPos);
+--- a/src/libs/ship/include/ship_base.h
++++ b/src/libs/ship/include/ship_base.h
+@@ -51,7 +51,7 @@
+         return pAShip;
+     }
+ 
+-    virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour) = 0;
++    virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) = 0;
+ 
+     virtual BOOL TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTPNew) = 0;
+     virtual int32_t AddStrength(STRENGTH *strength) = 0;
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -119,6 +119,8 @@
+     std::vector<mast_t> pMasts;
+     std::vector<hull_t> pHulls;
+     bool bShip2Strand;
++    bool bGroundMoveBlocked = false; // transient; not part of the save layout
++    float GroundPenetration(const SHIP_STATE &state);
+     bool bMounted;
+     bool bKeelContour;
+     CVECTOR vOldAng, vOldPos;
+@@ -176,7 +178,7 @@
+     int32_t AddStrength(STRENGTH *strength) override;
+     bool DelStrength(int32_t iIdx) override;
+ 
+-    BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour) override;
++    BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
+     bool BuildMasts();
+     bool BuildHulls();
+     BOOL Move(uint32_t DeltaTime, BOOL bCollision);
+--- a/src/libs/ship/src/ship_utils.cpp
++++ b/src/libs/ship/src/ship_utils.cpp
+@@ -5,7 +5,7 @@
+ #define MAST_IDENTIFY "mast"
+ #define MAST_FIRST 1
+ 
+-BOOL SHIP::BuildContour(CVECTOR *vContour, int32_t &iNumVContour)
++BOOL SHIP::BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale)
+ {
+     iNumVContour = 0;
+ 
+@@ -91,7 +91,7 @@
+             if (fRes <= 1.0f)
+             {
+                 vP.y = 0.0f;
+-                vP.x *= 1.1f;
++                vP.x *= widthScale;
+                 vContour[1 + iNumVContour] = vP;
+                 iNumVContour++;
+             }
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -410,6 +410,10 @@
+         State.vAng = ShipRocking(dtime);
+     }
+ 
++    const SHIP_STATE beforeTranslation = State;
++    if (!bCollision)
++        bGroundMoveBlocked = false;
++
+     // Update position
+     // if (!isDead())
+     {
+@@ -422,6 +426,24 @@
+         State.vPos.x += k * sinf(State.vAng.y + PId2);
+ 
+         State.vAng.y += State.vRotate.y * dtime;
++    }
++
++    // Grounding resists motion into shallower water, without a collision recoil.
++    // Prediction-only TOUCH calls must not repeat these geometry queries.
++    if (!bCollision && !bDead && !bSetFixed && bKeelContour &&
++        (State.vPos.x != beforeTranslation.vPos.x || State.vPos.z != beforeTranslation.vPos.z))
++    {
++        SHIP_STATE baseline = beforeTranslation;
++        baseline.vAng = State.vAng; // allow turning; compare translation at one orientation
++        const float oldPenetration = GroundPenetration(baseline);
++        const float newPenetration = GroundPenetration(State);
++        if (newPenetration > oldPenetration + 0.0001f)
++        {
++            State.vPos.x = beforeTranslation.vPos.x;
++            State.vPos.z = beforeTranslation.vPos.z;
++            State.vSpeed.x = State.vSpeed.z = 0.0f;
++            bGroundMoveBlocked = true;
++        }
+     }
+ 
+     return true;
+@@ -486,25 +508,28 @@
+     // return State.fShipImmersion;
+ }
+ 
++float SHIP::GroundPenetration(const SHIP_STATE &state)
++{
++    if (!pIsland || !bKeelContour)
++        return 0.0f;
++    CMatrix pose(state.vAng.x, state.vAng.y, state.vAng.z,
++                       state.vPos.x + fXOffset,
++                       state.vPos.y - state.fShipImmersion - SP.fWaterLine,
++                       state.vPos.z + fZOffset);
++    float penetration = 0.0f;
++    for (int i = 0; i < MAX_KEEL_POINTS; ++i)
++    {
++        const CVECTOR point = pose * vKeelContour[i];
++        float depth;
++        if (pIsland->GetGroundDepth(point.x, point.z, point.y, depth))
++            penetration = std::max(penetration, depth - point.y);
++    }
++    return penetration;
++}
++
+ void SHIP::CheckShip2Strand(float fDeltaTime)
+ {
+-    if (!pIsland)
+-        return;
+-    auto *pModel = GetModel();
+-    Assert(pModel);
+-    auto bNewShip2Strand = false;
+-    for (int32_t i = 0; i < MAX_KEEL_POINTS; i++)
+-    {
+-        float fRes;
+-        const auto vTmp = pModel->mtx * vKeelContour[i];
+-        if (!pIsland->GetDepth(vTmp.x, vTmp.z, &fRes))
+-            continue;
+-        if (fRes < -10.0f && (fRes + 10.0f) >= vTmp.y)
+-        {
+-            bNewShip2Strand = true;
+-            break;
+-        }
+-    }
++    const bool bNewShip2Strand = bGroundMoveBlocked || GroundPenetration(State) > 0.0f;
+     if (bShip2Strand != bNewShip2Strand)
+     {
+         bShip2Strand = bNewShip2Strand;
+--- a/src/libs/touch/src/touch.h
++++ b/src/libs/touch/src/touch.h
+@@ -23,6 +23,8 @@
+     CVECTOR vKickPoint;           // temp
+     CVECTOR vKickAngle;           // temp
+     CVECTOR vContour[128];        // initial contour // must be dynamic
++    CVECTOR vCoastContour[128];    // unexpanded model contour, rebuilt after load
++    int32_t iNumCoastContour = 0;
+     CVECTOR vContourRect[4];      // rect contour
+     int32_t iNumVContour;            // num points in contour
+ };
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -23,6 +23,8 @@
+ #define YWIDTH 128
+ 
+ #define MIPSLVLS 4
++
++namespace { constexpr uint32_t kReflectionSize = 256; }
+ 
+ #define GC_CONSTANT 0 // Global constants = {0.0, 1.0, 0.5, 0.0000152590218967 = (0.5 / 32767.5)}
+ #define GC_CONSTANT2 1 // Global constants 2 = {2.0, -1.0, 0.00036621652552071 = (12 / 32767.5), fog}
+@@ -203,13 +205,13 @@
+     /*pAnimTexture = rs->CreateAnimationTexture(pVolumeTexture, _FL_);
+     pAnimTexture->SetAnimSpeed(20.0f);*/
+ 
+-    rs->CreateCubeTexture(128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
+-    rs->CreateCubeTexture(128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
+-    rs->CreateDepthStencilSurface(128, 128, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
+-
+-    rs->CreateTexture(128, 128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
+-    rs->CreateTexture(128, 128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
+-    rs->CreateDepthStencilSurface(128, 128, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
++    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
++    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
++    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
++
++    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
++    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
++    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
+ 
+     iSeaTrashTexture = rs->TextureCreate("seatrash.tga");
+     iSeaLightTexture = rs->TextureCreate("sealight.tga");
+@@ -2016,11 +2018,11 @@
+     rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+                       &pRenderTargetBumpMap);
+ 
+-    rs->CreateCubeTexture(128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
+-    rs->CreateCubeTexture(128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
+-    rs->CreateDepthStencilSurface(128, 128, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
+-
+-    rs->CreateTexture(128, 128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
+-    rs->CreateTexture(128, 128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
+-    rs->CreateDepthStencilSurface(128, 128, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
+-}
++    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
++    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
++    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
++
++    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
++    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
++    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
++}

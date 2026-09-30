@@ -1,0 +1,57 @@
+--- a/src/libs/location/src/lights.h
++++ b/src/libs/location/src/lights.h
+@@ -127,6 +127,7 @@
+     void UnsetLights();
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+     bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light);
++    void PublishMetalSceneLights();
+ #endif
+ 
+     // Update source types
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -57,6 +57,7 @@
+             const bool outdoor = isOutsideImage || (type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore") || !std::strcmp(type,"seashore") || !std::strcmp(type,"land") || !std::strcmp(type,"mayak") || !std::strcmp(type,"plantation") || !std::strcmp(type,"fort") || !std::strcmp(type,"fort_attack") || !std::strcmp(type,"teno") || !std::strcmp(type,"LostShipsCity") || !std::strcmp(type,"deck") || !std::strcmp(type,"deck_fight") || !std::strcmp(type,"slave_deck")));
+             StormMetalLandInterior(device, !outdoor);
+             if (!StormMetalBeginShadowFrame(device, reinterpret_cast<uintptr_t>(location), ++generation, center)) return;
++            if (location->GetLights()) location->GetLights()->PublishMetalSceneLights();
+             D3DMATRIX world, view, projection;
+             D3DVIEWPORT9 viewport;
+             renderer->GetTransform(D3DTS_WORLD, &world);
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -11,6 +11,8 @@
+ #include "lights.h"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
++extern "C" void StormMetalBeginSceneLights(void*);
++extern "C" bool StormMetalSceneLight(void*, uint64_t, const D3DLIGHT9*);
+ #endif
+ 
+ #include "core.h"
+@@ -491,6 +493,25 @@
+ }
+ 
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++void Lights::PublishMetalSceneLights()
++{
++    // One source-owned catalog for the whole frame. Camera/player selection of
++    // legacy D3D slots must never switch lighting on a fixed world receiver.
++    StormMetalBeginSceneLights(rs->GetD3DDevice());
++    for (int32_t index=0; index<numLights; ++index) {
++        const auto& source=lights[index];
++        auto light=types[source.type].dxLight;
++        if(light.Type!=D3DLIGHT_POINT || light.Range<=.1f)continue;
++        const float intensity=source.intensity/255.f;
++        light.Position=source.pos;
++        light.Diffuse.r=source.color.r*intensity;
++        light.Diffuse.g=source.color.g*intensity;
++        light.Diffuse.b=source.color.b*intensity;
++        if(light.Diffuse.r<=0 && light.Diffuse.g<=0 && light.Diffuse.b<=0)continue;
++        if(!StormMetalSceneLight(rs->GetD3DDevice(),uint64_t(index)+1,&light))break;
++    }
++}
++
+ bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light)
+ {
+     for (auto index : GetLightsAt(pos)) {

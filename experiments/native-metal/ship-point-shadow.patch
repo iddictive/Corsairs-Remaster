@@ -1,0 +1,115 @@
+diff --git a/src/libs/ship/src/ship_lights.h b/src/libs/ship/src/ship_lights.h
+--- a/src/libs/ship/src/ship_lights.h
++++ b/src/libs/ship/src/ship_lights.h
+@@ -3,5 +3,6 @@
+ #include "collide.h"
+ #include "dx9render.h"
+ #include "math_inlines.h"
+ #include "sea_base.h"
++#include <cstdint>
+ #include <ship_lights.h>
+@@ -61,5 +61,6 @@ class ShipLights : public IShipLights
+         bool bOff, bBrokenTimeOff;
+         bool bLightOff;
+         bool bDead;
++        uint64_t metalId;
+         LightType *pLT;
+     };
+@@ -82,4 +83,5 @@ class ShipLights : public IShipLights
+     uint32_t dwMaxD3DLights;
+     bool bLoadLights;
+     bool bReflection;
++    uint64_t nextMetalLightId;
+     float fSunRoadFlareSize;
+@@ -98,6 +100,7 @@ class ShipLights : public IShipLights
+     LightType *FindLightType(std::string sLightType);
+     float GetAttributeAsFloat(ATTRIBUTES *pA, const char *pName, float fDefault);
+     void AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, const GEOS::LABEL &label);
++    uint64_t AllocateMetalLightId();
+     bool SetLabel(ShipLight *pL, MODEL *pModel, const char *pStr);
+ 
+   public:
+diff --git a/src/libs/ship/src/ship_lights.cpp b/src/libs/ship/src/ship_lights.cpp
+--- a/src/libs/ship/src/ship_lights.cpp
++++ b/src/libs/ship/src/ship_lights.cpp
+@@ -2,7 +2,8 @@
+ 
+ #include <algorithm>
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" bool StormMetalSceneLight(void*, uint64_t, const D3DLIGHT9*);
++extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
+ #endif
+ 
+ #include "math3d.h"
+@@ -13,6 +14,7 @@ COLLIDE *ShipLights::pCollide = nullptr;
+ 
+ ShipLights::ShipLights()
+     : fSunRoadFlareSize(0), dwCoronaSubTexX(0), dwCoronaSubTexY(0)
++    , nextMetalLightId(1)
+ {
+     bLoadLights = false;
+     bReflection = false;
+@@ -129,6 +130,14 @@ ShipLights::LightType *ShipLights::FindLightType(std::string sLightType)
+     return nullptr;
+ }
+ 
++uint64_t ShipLights::AllocateMetalLightId()
++{
++    constexpr uint64_t domain = uint64_t(1) << 63;
++    if (!nextMetalLightId || nextMetalLightId >= domain)
++        nextMetalLightId = 1;
++    return domain | nextMetalLightId++;
++}
++
+ void ShipLights::AddDynamicLights(VAI_OBJBASE *pObject, const CVECTOR &vPos)
+ {
+     if (!bLoadLights && !LoadLights())
+@@ -150,6 +158,7 @@ void ShipLights::AddDynamicLights(VAI_OBJBASE *pObject, const CVECTOR &vPos)
+ 
+     auto light = ShipLight{};
+     light.bDynamicLight = true;
++    light.metalId = AllocateMetalLightId();
+     light.pObject = pObject;
+     light.vPos = vPos;
+     light.bOff = false;
+@@ -204,6 +213,7 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, con
+ 
+     aLights.push_back(ShipLight{});
+     ShipLight *pL = &aLights.back();
++    pL->metalId = AllocateMetalLightId();
+     memcpy(m, label.m, sizeof(m));
+ 
+     pL->pNode = nullptr;
+@@ -441,7 +451,6 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
+         if (pObject == aLights[i].pObject && !aLights[i].bCoronaOnly &&
+             aLights[i].Light.Type == D3DLIGHT_POINT && aLights[i].Light.Range > 0.1f)
+         {
+-            const uint64_t id = (uint64_t(1) << 63) | uint64_t(i + 1);
+-            StormMetalSceneLight(pRS->GetD3DDevice(), id, &aLights[i].Light);
++            StormMetalSceneLight(pRS->GetD3DDevice(), aLights[i].metalId, &aLights[i].Light);
+         }
+ #endif
+@@ -471,2 +480,7 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
+         pRS->SetLight(i + 1, &pL->Light);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        // The deferred sea shadow pass consumes the exact D3D slot snapshot
++        // captured with this draw; do not derive identity from aLights index.
++        StormMetalSetLightIdentity(pRS->GetD3DDevice(), i + 1, pL->metalId);
++#endif
+         pRS->LightEnable(i + 1, true);
+@@ -670,7 +682,14 @@ void ShipLights::UnSetLights(VAI_OBJBASE *pObject)
+ {
+ 	if(!bLoadLights) return;
+     for (int32_t i = iMinLight; i <= iMaxLight; i++)
++    {
++        pRS->LightEnable(i, false);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        // A disabled slot must not keep a removed/day-off lamp eligible for
++        // the deferred boundary resolver.
++        StormMetalSetLightIdentity(pRS->GetD3DDevice(), unsigned(i), 0);
++#endif
++    }
+-        pRS->LightEnable(i, false);
+ 
+     iMinLight = 1000;
+     iMaxLight = -1;

@@ -1,0 +1,12 @@
+diff --git a/src/libs/ship/src/ship_lights.cpp b/src/libs/ship/src/ship_lights.cpp
+--- a/src/libs/ship/src/ship_lights.cpp
++++ b/src/libs/ship/src/ship_lights.cpp
+@@ -664,7 +664,7 @@ void ShipLights::ResetLights(VAI_OBJBASE *pObject, bool bLight)
+ {
+     for (auto &light : aLights)
+     {
+-        if (!light.bOff)
++        if (!light.bOff && light.pObject == pObject)
+         {
+             light.bLightOff = !bLight;
+         }

@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "assets": [
+    {"target":"Sandtile.tga.tx","prepared":"prepared/Sandtile.tga.tx","semantic":"ground/sand","sha256":"66004ec9ec5659dc653ba4356996f7d3c57c88099f487ebc01f309c52a4cde96","consumer":"MODELS/Islands/Jamaica/Jamaica_Fort1.gm"},
+    {"target":"tileU2.tga.tx","prepared":"prepared/tileU2.tga.tx","semantic":"ground/paving","sha256":"a919caeb28f62165446202279297ee4d2fcf823bd0469e3d68c4321f6249cc2a","consumer":"MODELS/Locations/Inside/churchInside3/churchInside3.gm"},
+    {"target":"cobbleM1.tga.tx","prepared":"floor-production/prepared/cobbleM1.tga.tx","semantic":"ground/paving","sha256":"57c35d290161153a08f7e9659a08625dddfcf8e23493cb1223b883bc00be04ff","consumer":"MODELS/Locations/Town_Margarita/Town/Margarita.gm"},
+    {"target":"town_cob.tga.tx","prepared":"floor-production/prepared/cobbleM1.tga.tx","semantic":"ground/paving","sha256":"57c35d290161153a08f7e9659a08625dddfcf8e23493cb1223b883bc00be04ff","consumer":"MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm"},
+    {"target":"floorU3.tga.tx","prepared":"floor-production/prepared/floorU3.tga.tx","semantic":"ground/stone","sha256":"bbacd1cbc71439d9f3e0917af464192f776284165836915018ec682db739f8d9","consumer":"MODELS/Locations/BarbadosPlantation/BarbadosPlantation.gm"},
+    {"target":"1grass1.tga.tx","prepared":"jungle-production/prepared/1grass1.tga.tx","semantic":"ground/grass","sha256":"5cb158243ee563a4599b3adde77144e129397a31575287aacefa557362e0a837","consumer":"MODELS/Locations/Outside/Jungles/Jungle1/jungle1.gm"},
+    {"target":"grassgreen1.tga.tx","prepared":"jungle-production/prepared/grassgreen1.tga.tx","semantic":"ground/grass","sha256":"757450b7edf42cb14546bdb288a094a17a8245466f2e1a8611968cdaeb547ac5","consumer":"MODELS/Locations/Outside/Mine/canyon.gm"},
+    {"target":"1grasstogrounsU1.tga.tx","prepared":"jungle-production/prepared/1grasstogrounsU1.tga.tx","semantic":"ground/transition","sha256":"a31329189b8fae5d85d6f0461ecacc50b0bb0d9d213490a94e0801e98673c7b6","consumer":"MODELS/Locations/Tenochtitlan/Tenochtitlan.gm"},
+    {"target":"1grasstogrounsU2.tga.tx","prepared":"jungle-production/prepared/1grasstogrounsU2.tga.tx","semantic":"ground/transition","sha256":"2358525131c18b87e8bff6ce42bd79a663c754c054c64e2e9108bc368a302f29","consumer":"MODELS/Locations/Tenochtitlan/Tenochtitlan.gm"},
+    {"target":"jungle_gray.tga.tx","prepared":"jungle-production/prepared/jungle_gray.tga.tx","semantic":"ground/island-cover","sha256":"5321498c7f64f928e6002136b1d9c775ae8365991ef984e601ecee1dc0e9c07a","consumer":"MODELS/Islands/PuertoRico/PuertoRico.gm"},
+    {"target":"rockK1.tga.tx","prepared":"rocks-new/prepared/rockK1.tga.tx","semantic":"ground/stone","sha256":"adbc5e1ea6129937cc2f567a4e87b8d2130cd9d00f2babc7f68ffba19a86c702","consumer":"MODELS/Islands/PuertoRico/PuertoRico.gm"},
+    {"target":"rockK3.tga.tx","prepared":"rocks-new/prepared/rockK3.tga.tx","semantic":"ground/stone","sha256":"7a1f8acac6fde07500b8f2a6b569cc8ab4475dd577f43a76b16d470efce4666c","consumer":"MODELS/Locations/Town_PortoBello/Town/PortoBello.gm"},
+    {"target":"treePalms.tga.tx","prepared":"foliage-new/prepared/treePalms.tga.tx","semantic":"foliage/alpha-tested","sha256":"f5024f5412ec1c49aadd7207e90db125adfedb48e8e99cae0e1d4ad14d082b8e","consumer":"MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm","scope":"global authored texture; representative only, not a San Juan override","acceptance":"candidate; requires multi-scene runtime review"},
+    {"target":"trees.tga.tx","prepared":"foliage-new/prepared/trees.tga.tx","semantic":"foliage/alpha-tested","sha256":"975a710e9ca7c1990bf9153281fee1ec231e90dc433362e1549aeed02a381a52","consumer":"MODELS/Islands/Nevis/Nevis.gm","scope":"global authored texture; representative only","acceptance":"candidate; requires multi-scene runtime review"}
+  ],
+  "preserve_original": [
+    {"target":"pierWood1.tga.tx","sha256":"2018f00925be11f20e3c9fc598aa5266c60ec2fa104c13f2ebecf7365bb21318"},
+    {"target":"deckPlanksU1.tga.tx","sha256":"d93d9a3e22da832e871fe94b5629aaad17a2201643f3fcf7f219e656b778c09a"},
+    {"target":"board.tga.tx","sha256":"c2101036f2eab2e433ae66423f7e2ad9060e42b0b441108eda859fd5ed174e2b"},
+    {"target":"planks.tga.tx","sha256":"ce06cb9e253e59997b50b0637b0f4ed2d74a8c34220129f7121e1c037efca83f"}
+  ],
+  "separate_material_owners": [
+    {"semantic":"ground/stone","target":"rockK2.tga.tx","owner":"rockk2-candidates/staging.json"}
+  ]
+}

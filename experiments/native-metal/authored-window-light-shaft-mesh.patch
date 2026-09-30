@@ -1,0 +1,115 @@
+diff --git a/src/libs/location/src/location.cpp b/src/libs/location/src/location.cpp
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -10,6 +10,9 @@
+ #include "location.h"
+ 
+ #include <chrono>
++#include <cstring>
++#include <string_view>
++#include <vector>
+ 
+ #include "core.h"
+ #include "character.h"
+@@ -24,5 +27,71 @@
+ float fCausticSpeed = 0.0f;
+ 
++#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
++extern "C" void StormMetalBeginLightShaftOpenings(void *);
++extern "C" bool StormMetalLightShaftMesh(void *, uint64_t, const float *, uint32_t, const uint16_t *, uint32_t);
++
++namespace
++{
++uint64_t HashLightShaftMesh(std::string_view modelName, const char *objectName, int32_t objectIndex)
++{
++    uint64_t hash = 1469598103934665603ull;
++    const auto append = [&hash](std::string_view text) {
++        for (const auto c : text) hash = (hash ^ static_cast<unsigned char>(c)) * 1099511628211ull;
++    };
++    append(modelName); append("::"); if (objectName) append(objectName);
++    return (hash ^ static_cast<uint64_t>(objectIndex + 1)) * 1099511628211ull;
++}
++
++void SubmitAuthoredWindowMeshes(VDX9RENDER *rs, GEOS *geometry, const char *modelName, CMatrix modelTransform)
++{
++    GEOS::INFO info{};
++    geometry->GetInfo(info);
++    auto *sourceIndices = static_cast<const uint16_t *>(rs->LockIndexBuffer(geometry->GetIndexBuffer(), D3DLOCK_READONLY));
++    if (!sourceIndices) return;
++    for (int32_t objectIndex = 0; objectIndex < info.nobjects; ++objectIndex)
++    {
++        GEOS::OBJECT object{};
++        geometry->GetObj(objectIndex, object);
++        auto *buffer = rs->GetVertexBuffer(object.vertex_buff);
++        D3DVERTEXBUFFER_DESC desc{};
++        if (!buffer || buffer->GetDesc(&desc) != D3D_OK || (desc.FVF & D3DFVF_POSITION_MASK) != D3DFVF_XYZ ||
++            object.start_vertex < 0 || object.num_vertices < 3 || object.ntriangles < 1) continue;
++        uint32_t stride = 3 * sizeof(float);
++        if (desc.FVF & D3DFVF_NORMAL) stride += 3 * sizeof(float);
++        if (desc.FVF & D3DFVF_DIFFUSE) stride += sizeof(uint32_t);
++        if (desc.FVF & D3DFVF_SPECULAR) stride += sizeof(uint32_t);
++        stride += ((desc.FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT) * 2 * sizeof(float);
++        if (uint64_t(object.start_vertex + object.num_vertices) * stride > desc.Size) continue;
++        void *locked = nullptr;
++        if (buffer->Lock(0, 0, &locked, D3DLOCK_READONLY) != D3D_OK || !locked) continue;
++        const auto *bytes = static_cast<const uint8_t *>(locked) + uint64_t(object.start_vertex) * stride;
++        std::vector<float> positions(static_cast<size_t>(object.num_vertices) * 3);
++        for (int32_t i = 0; i < object.num_vertices; ++i)
++        {
++            float local[3];
++            std::memcpy(local, bytes + uint64_t(i) * stride, 3 * sizeof(float));
++            const auto world = modelTransform * CVECTOR(local[0], local[1], local[2]);
++            auto *position = positions.data() + static_cast<size_t>(i) * 3;
++            position[0] = world.x; position[1] = world.y; position[2] = world.z;
++        }
++        std::vector<uint16_t> indices(static_cast<size_t>(object.ntriangles) * 3);
++        bool valid = true;
++        for (int32_t i = 0; i < object.ntriangles * 3; ++i)
++        {
++            const auto index = sourceIndices[static_cast<size_t>(object.striangle) * 3 + i];
++            if (index >= object.num_vertices) { valid = false; break; }
++            indices[i] = index;
++        }
++        buffer->Unlock();
++        if (valid)
++            StormMetalLightShaftMesh(rs->GetD3DDevice(), HashLightShaftMesh(modelName, object.name, objectIndex),
++                                     positions.data(), object.num_vertices, indices.data(), indices.size());
++    }
++    rs->UnLockIndexBuffer(geometry->GetIndexBuffer());
++}
++} // namespace
++#endif
++
+ // ============================================================================================
+ // Construction, destruction
+ // ============================================================================================
+@@ -63,3 +125,6 @@ bool Location::Init()
+     if (!rs)
+         throw std::runtime_error("No service: dx9render");
++#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
++    StormMetalBeginLightShaftOpenings(rs->GetD3DDevice());
++#endif
+     rs->SetRenderState(D3DRS_LIGHTING, FALSE);
+@@ -306,5 +371,8 @@ uint64_t Location::ProcessMessage(MESSAGE &message)
+     case MSG_LOCATION_MODELSPATH:
+         model.modelspath = message.String();
+         model.UpdateModelsPath();
++#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
++        StormMetalBeginLightShaftOpenings(rs->GetD3DDevice());
++#endif
+ 
+         core.Send_Message(lighter, "ss", "ModelsPath", model.modelspath.c_str());
+@@ -549,6 +617,13 @@ int32_t Location::LoadStaticModel(const char *modelName, const char *tech, int32_t level, bool useDynamicLights)
+         }
+     }
+ 
++#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
++    // LocationWindows is an authored script contract. Submit its exact triangles
++    // as the aperture mask; never approximate a room or combined mesh as a box.
++    if (tech && std::strcmp(tech, "LocationWindows") == 0)
++        SubmitAuthoredWindowMeshes(rs, g, modelName, node->glob_mtx);
++#endif
++
+     core.Send_Message(lighter, "ssi", "AddModel", modelName, mdl->GetId());
+ 
+     return im;

@@ -1,0 +1,225 @@
+--- a/src/libs/geometry/include/geos.h
++++ b/src/libs/geometry/include/geos.h
+@@ -136,5 +136,6 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+         uint8_t stormMetalBakedShadowMask = 0;
++        bool stormMetalBakedBaseShadow = false;
+ #endif
+     };
+ 
+@@ -142,6 +143,9 @@
+     virtual int32_t FindMaterialG(int32_t start_index, int32_t group_name_id) = 0;
+     virtual void GetMaterial(int32_t m, MATERIAL &mt) const = 0;
+     virtual void SetMaterial(int32_t m, const MATERIAL &mt) = 0;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    virtual bool HasBakedBaseShadow() const = 0;
++#endif
+     using MATERIAL_FUNC = void (*)(const MATERIAL &mt);
+ 
+     //-----------------------------------------
+--- a/src/libs/geometry/src/geom.h
++++ b/src/libs/geometry/src/geom.h
+@@ -62,6 +62,9 @@
+ #endif
+ 
+     int32_t *atriangles = nullptr;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    bool stormMetalBakedBaseShadow = false;
++#endif
+     int32_t traceid;
+     DVECTOR src, dst;
+ 
+@@ -85,6 +88,9 @@
+     virtual int32_t FindMaterialG(int32_t start_index, int32_t group_name_id);
+     virtual void GetMaterial(int32_t m, MATERIAL &mt) const;
+     virtual void SetMaterial(int32_t m, const MATERIAL &mt);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    virtual bool HasBakedBaseShadow() const override { return stormMetalBakedBaseShadow; }
++#endif
+ 
+     virtual int32_t FindLightN(int32_t start_index, int32_t name_id);
+     virtual int32_t FindLightG(int32_t start_index, int32_t group_name_id);
+--- a/src/libs/geometry/src/geom_static.cpp
++++ b/src/libs/geometry/src/geom_static.cpp
+@@ -322,6 +322,10 @@
+         material[m].specular = rmat[m].specular;
+         material[m].gloss = rmat[m].gloss;
+         material[m].selfIllum = rmat[m].selfIllum;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        material[m].stormMetalBakedShadowMask = 0;
++        material[m].stormMetalBakedBaseShadow = false;
++#endif
+ 
+         // relink textures
+         for (int32_t tl = 0; tl < 4; tl++)
+@@ -333,17 +337,29 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+                 const std::string_view textureName = &globname[tname[rmat[m].texture[tl]]];
+                 const auto shadow = std::string_view("shadow");
+                 if (std::search(textureName.begin(), textureName.end(), shadow.begin(), shadow.end(),
+                                 [](char lhs, char rhs) {
+                                     return std::tolower(static_cast<unsigned char>(lhs)) ==
+                                            std::tolower(static_cast<unsigned char>(rhs));
+                                 }) != textureName.end())
+                     material[m].stormMetalBakedShadowMask |= uint8_t(1u << tl);
++                if (tl == 0 && storm::iEquals(textureName, "shadow.tga"))
++                    material[m].stormMetalBakedBaseShadow = true;
+ #endif
+             } else
+                 material[m].texture[tl] = -1;
+         }
+     }
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    for (int32_t o = 0; o < rhead.nobjects; ++o) {
++        const auto materialIndex = object[o].material;
++        if ((object[o].flags & VISIBLE) && materialIndex >= 0 && materialIndex < rhead.nmaterials &&
++            material[materialIndex].stormMetalBakedBaseShadow) {
++            stormMetalBakedBaseShadow = true;
++            break;
++        }
++    }
++#endif
+ #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+     if (refineIsland && !islandTriangles.empty()) {
+         std::vector<island_geometry::Face> faces;
+--- a/src/libs/geometry/src/geometry.cpp
++++ b/src/libs/geometry/src/geometry.cpp
+@@ -4,6 +4,7 @@
+ #include "string_compare.hpp"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" bool StormMetalOutdoorSunShadowsReady(void*);
++extern "C" bool StormMetalBakedStaticEnvironment(void*);
+ #endif
+ 
+ CREATE_SERVICE(GEOMETRY)
+@@ -280,7 +281,8 @@
+         // COLOR = BASE_C + DETAIL_C - 0.5
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+         const bool replaceBakedShadow = (mt.stormMetalBakedShadowMask & (1u << 1)) &&
+-            StormMetalOutdoorSunShadowsReady(RenderService->GetD3DDevice());
++            StormMetalOutdoorSunShadowsReady(RenderService->GetD3DDevice()) &&
++            !StormMetalBakedStaticEnvironment(RenderService->GetD3DDevice());
+ #else
+         const bool replaceBakedShadow = false;
+ #endif
+--- a/src/libs/model/include/model.h
++++ b/src/libs/model/include/model.h
+@@ -112,4 +112,7 @@
+     bool GetCollideTriangle(TRIANGLE &triangle) override = 0;
+ 
+     virtual NODE *GetCollideNode() = 0;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    virtual bool HasBakedBaseShadow() const = 0;
++#endif
+ };
+--- a/src/libs/model/src/modelr.h
++++ b/src/libs/model/src/modelr.h
+@@ -74,6 +74,9 @@
+     void RestoreGeometry();
+ 
+     void SetMaxViewDist(float fDist);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    bool HasBakedBaseShadow() const;
++#endif
+ 
+ };
+ 
+@@ -150,6 +153,9 @@
+               ADD_POLYGON_FUNC addpoly) override;
+ 
+     NODE *GetCollideNode() override;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    bool HasBakedBaseShadow() const override;
++#endif
+ 
+   protected:
+     bool useBlend;
+--- a/src/libs/model/src/node.cpp
++++ b/src/libs/model/src/node.cpp
+@@ -358,6 +358,23 @@
+         RestoreGeometry();
+     return true;
+ }
++
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++bool NODER::HasBakedBaseShadow() const
++{
++    if (geo && geo->HasBakedBaseShadow())
++        return true;
++    for (const auto *child : next)
++        if (child && static_cast<const NODER *>(child)->HasBakedBaseShadow())
++            return true;
++    return false;
++}
++
++bool MODELR::HasBakedBaseShadow() const
++{
++    return root && root->HasBakedBaseShadow();
++}
++#endif
+ 
+ //----------------------------------------------------------
+ // NODE draw
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -31,7 +31,8 @@
+ extern "C" void StormMetalShadowLamp(void*, const D3DLIGHT9*);
+ extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
+ extern "C" void StormMetalEndLandModel(void*, unsigned);
++extern "C" void StormMetalSetBakedStaticEnvironment(void*, bool);
+ extern "C" bool StormMetalBeginShadowFrame(void*, uint64_t, uint64_t, const float*);
+ extern "C" bool StormMetalBeginShadowPass(void*, unsigned, unsigned, uint64_t, const float*, float, float*, float*);
+ extern "C" float StormMetalSunShadowCoverage(void*, unsigned);
+ extern "C" void StormMetalEndShadowPass(void*);
+@@ -79,6 +80,11 @@
+                 }
+             }
+             if (!StormMetalBeginShadowFrame(device, reinterpret_cast<uintptr_t>(location), ++generation, center)) return;
++            // A single location-wide flag couples static sun producers with the
++            // authored slot-1 receivers. It survives the prepass until the next
++            // BeginShadowFrame reset, so main-scene material setup sees it too.
++            const bool bakedStaticEnvironment = location->HasBakedStaticEnvironment();
++            StormMetalSetBakedStaticEnvironment(device, bakedStaticEnvironment);
+             if (location->GetLights()) location->GetLights()->PublishMetalSceneLights();
+             D3DMATRIX world, view, projection;
+             D3DVIEWPORT9 viewport;
+@@ -92,7 +98,10 @@
+                                                &lightView.m[0][0], &lightProjection.m[0][0])) return;
+                 static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_VIEW, &lightView);
+                 static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &lightProjection);
+-                location->RenderMetalShadowCasters(true);
++                // Daytime baked bases replace the whole static sun producer set:
++                // their atlas contains shadows cast by neighbouring static models.
++                // Point-light passes retain the static occluders.
++                location->RenderMetalShadowCasters(kind != 0 || !bakedStaticEnvironment);
+                 StormMetalEndShadowPass(device);
+             };
+             D3DLIGHT9 sun{}; BOOL sunEnabled = false;
+@@ -132,6 +141,17 @@
+     }
+ };
+ CREATE_CLASS(MetalLandLighting)
++
++bool Location::HasBakedStaticEnvironment()
++{
++    // Any static model may provide an atlas whose silhouettes describe other
++    // static models, so this is a location-level producer decision.
++    for (int32_t i = 0; i < model.Models(); ++i) {
++        auto* entity = model[i];
++        if (entity && entity->HasBakedBaseShadow()) return true;
++    }
++    return false;
++}
+ 
+ void Location::RenderMetalShadowCasters(bool includeStatic)
+ {
+--- a/src/libs/location/src/location.h
++++ b/src/libs/location/src/location.h
+@@ -111,6 +111,7 @@
+     Lights *GetLights() const;
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+     void RenderMetalShadowCasters(bool includeStatic);
++    bool HasBakedStaticEnvironment();
+ #endif
+ 
+     VDX9RENDER *GetRS() const;

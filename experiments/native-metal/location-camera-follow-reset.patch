@@ -1,0 +1,47 @@
+diff --git a/src/libs/location/src/location_camera.cpp b/src/libs/location/src/location_camera.cpp
+--- a/src/libs/location/src/location_camera.cpp
++++ b/src/libs/location/src/location_camera.cpp
+@@ -11,5 +11,6 @@
+ #include "location_camera.h"
+ 
+ #include "core.h"
++#include <cstdio>
+ 
+ #include "character.h"
+@@ -328,5 +329,16 @@
+     auto vUp = CVECTOR(0.0f, 1.0f, 0.0f);
+     if (dynamic_fog.isOn)
+         ProcessDynamicFov(core.GetDeltaTime() * .001f, realPos, lookTo, vUp);
+ 
++    // Native-metal land-camera framing diagnostic: engine-owned camera state.
++    {
++        static int32_t stormMetalCameraTick = 0;
++        if ((stormMetalCameraTick++ & 255) == 0)
++            fprintf(stderr,
++                    "[StormMetal] cam: pos=(%.2f,%.2f,%.2f) look=(%.2f,%.2f,%.2f)  "
++                    "camay=%.3f chay=%.3f ax=%.3f radius=%.2f cr=%.2f mode=%d\n",
++                    realPos.x, realPos.y, realPos.z, lookTo.x, lookTo.y, lookTo.z,
++                    cf.camay, chay, ax, radius, cf.camradius, int32_t(wmode));
++    }
++
+     rs->SetCamera(realPos, lookTo, vUp);
+@@ -362,16 +374,19 @@
+         chr = message.EntityID();
+         if (core.GetEntityPointer(chr) == nullptr)
+         {
+             core.Trace("LocationCamera -> MSG_CAMERA_SETTARGET -> invalidate character id");
+             return 0;
+         }
+         return 1;
+     case MSG_CAMERA_FOLLOW:
++        cf.isBrn = true;
++        isTeleport = true;
++        isViewExecute = false;
+         forcedPos = false;
+         if (wmode != cwm_follow)
+         {
+             oldPos = camPos;
+             oldLookTo = lookTo;
+             kMorph = 0.0f;
+         }
+         wmode = cwm_follow;

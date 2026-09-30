@@ -1,0 +1,108 @@
+diff --git a/src/libs/core/include/attributes.h b/src/libs/core/include/attributes.h
+index 3a7ea1f..bfdb895 100644
+--- a/src/libs/core/include/attributes.h
++++ b/src/libs/core/include/attributes.h
+@@ -80,6 +80,7 @@ class ATTRIBUTES final
+     [[nodiscard]] uint32_t GetThisNameCode() const noexcept;
+     void SetNameCode(uint32_t n) noexcept;
+     [[nodiscard]] VSTRING_CODEC &GetStringCodec() const noexcept;
++    [[nodiscard]] static bool IsLive(const ATTRIBUTES *attributes) noexcept;
+ 
+ private:
+     ATTRIBUTES(VSTRING_CODEC &string_codec, ATTRIBUTES *parent, const std::string_view &name);
+diff --git a/src/libs/core/src/attributes.cpp b/src/libs/core/src/attributes.cpp
+index 2844875..d54f0c0 100644
+--- a/src/libs/core/src/attributes.cpp
++++ b/src/libs/core/src/attributes.cpp
+@@ -3,6 +3,27 @@
+ #include "string_compare.hpp"
+ #include "platform/platform.hpp"
+ 
++#include <mutex>
++#include <unordered_set>
++
++namespace
++{
++std::mutex liveAttributesMutex;
++std::unordered_set<const ATTRIBUTES *> liveAttributes;
++
++void RegisterLiveAttribute(const ATTRIBUTES *attributes)
++{
++    std::lock_guard lock(liveAttributesMutex);
++    liveAttributes.insert(attributes);
++}
++
++void UnregisterLiveAttribute(const ATTRIBUTES *attributes)
++{
++    std::lock_guard lock(liveAttributesMutex);
++    liveAttributes.erase(attributes);
++}
++}
++
+ ATTRIBUTES::ATTRIBUTES(VSTRING_CODEC *p): ATTRIBUTES(*p)
+ {
+ }
+@@ -11,6 +32,7 @@ ATTRIBUTES::ATTRIBUTES(ATTRIBUTES &&other) noexcept
+     : stringCodec_(other.stringCodec_), nameCode_(other.stringCodec_.Convert("root")), value_(std::move(other.value_)),
+       attributes_(std::move(other.attributes_)), break_(other.break_)
+ {
++    RegisterLiveAttribute(this);
+ }
+ 
+ ATTRIBUTES & ATTRIBUTES::operator=(ATTRIBUTES &&other) noexcept
+@@ -28,9 +50,18 @@ ATTRIBUTES & ATTRIBUTES::operator=(ATTRIBUTES &&other) noexcept
+ 
+ ATTRIBUTES::~ATTRIBUTES()
+ {
++    UnregisterLiveAttribute(this);
+     Release();
+ }
+ 
++bool ATTRIBUTES::IsLive(const ATTRIBUTES *attributes) noexcept
++{
++    if (attributes == nullptr)
++        return false;
++    std::lock_guard lock(liveAttributesMutex);
++    return liveAttributes.contains(attributes);
++}
++
+ void ATTRIBUTES::SetBreak(bool set_break)
+ {
+     break_ = set_break;
+@@ -457,6 +488,7 @@ ATTRIBUTES::ATTRIBUTES(VSTRING_CODEC &string_codec, ATTRIBUTES *parent, const st
+ ATTRIBUTES::ATTRIBUTES(VSTRING_CODEC &string_codec, ATTRIBUTES *parent, const uint32_t name_code)
+     : stringCodec_(string_codec), nameCode_(name_code), parent_(parent)
+ {
++    RegisterLiveAttribute(this);
+ }
+ 
+ ATTRIBUTES ATTRIBUTES::Copy() const
+diff --git a/src/libs/core/src/compiler.cpp b/src/libs/core/src/compiler.cpp
+index f814413..3f17806 100644
+--- a/src/libs/core/src/compiler.cpp
++++ b/src/libs/core/src/compiler.cpp
+@@ -6192,10 +6192,13 @@ bool COMPILER::FindReferencedVariableByRootA(ATTRIBUTES *pA, uint32_t &var_index
+ 
+ ATTRIBUTES *COMPILER::TraceARoot(ATTRIBUTES *pA, const char *&pAccess)
+ {
+-    if (pA == nullptr)
++    if (!ATTRIBUTES::IsLive(pA))
+         return nullptr; // error or invalid argument
+-    if (pA->GetParent() == nullptr)
++    ATTRIBUTES *const parent = pA->GetParent();
++    if (parent == nullptr)
+         return pA; // root found
++    if (!ATTRIBUTES::IsLive(parent))
++        return nullptr;
+     if (pA->GetThisNameCode() == 0)
+         return nullptr; // fix crash at NewGame start
+ 
+@@ -6223,7 +6226,7 @@ ATTRIBUTES *COMPILER::TraceARoot(ATTRIBUTES *pA, const char *&pAccess)
+         pAccess = pAS;
+     }
+ 
+-    return TraceARoot(pA->GetParent(), pAccess);
++    return TraceARoot(parent, pAccess);
+ }
+ 
+ void COMPILER::WriteVDword(uint32_t v)

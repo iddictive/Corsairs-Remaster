@@ -1,0 +1,133 @@
+--- a/src/libs/weather/src/sky.cpp
++++ b/src/libs/weather/src/sky.cpp
+@@ -3,7 +3,66 @@
+ #include "core.h"
+ #include "attributes.h"
+ #include "math_inlines.h"
++#include <algorithm>
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++extern "C" bool StormMetalBeginDynamicSky(void *device, float hour, float deltaSeconds, float cloudCoverage,
++                                            float cloudDensity, float windAngle, float windSpeed,
++                                            float legacyTextureBlend, float sunX, float sunY, float sunZ,
++                                            uint32_t fogColor);
++extern "C" void StormMetalEndDynamicSky(void *device);
++extern "C" bool StormMetalBeginSkyFog(void *device, uint32_t fogColor);
++extern "C" void StormMetalEndSkyFog(void *device);
++
++class MetalDynamicSkyScope
++{
++  public:
++    MetalDynamicSkyScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
++        : device(renderer->GetD3DDevice())
++    {
++        if (!weather)
++            return;
++        const auto rain = weather->GetVisualRainIntensity();
++        CVECTOR visualSun;
++        weather->GetVisualVector(whv_sun_pos, &visualSun);
++        active = StormMetalBeginDynamicSky(device, weather->GetVisualFloat(whf_time_counter),
++                                           static_cast<float>(deltaTime) * 0.001f, 0.32f + rain * 0.58f,
++                                           0.48f + rain * 0.45f,
++                                           weather->GetVisualFloat(whf_wind_angle),
++                                           weather->GetVisualFloat(whf_wind_speed), 0.16f, visualSun.x,
++                                           visualSun.y, visualSun.z, weather->GetVisualColor(whc_fog_color));
++    }
++    ~MetalDynamicSkyScope()
++    {
++        if (active)
++            StormMetalEndDynamicSky(device);
++    }
++
++  private:
++    void *device = nullptr;
++    bool active = false;
++};
++
++class MetalSkyFogScope
++{
++  public:
++    MetalSkyFogScope(VDX9RENDER *renderer, WEATHER_BASE *weather) : device(renderer->GetD3DDevice())
++    {
++        if (weather)
++            active = StormMetalBeginSkyFog(device, weather->GetVisualColor(whc_fog_color));
++    }
++    ~MetalSkyFogScope()
++    {
++        if (active)
++            StormMetalEndSkyFog(device);
++    }
++
++  private:
++    void *device = nullptr;
++    bool active = false;
++};
++#endif
++
+ namespace
+ {
+ 
+@@ -336,6 +395,15 @@
+     pMatRotate.BuildRotateY(fAngleY + fSkyAngle);
+     pMatWorld = pMatRotate * pMatWorld;
+     pRS->SetTransform(D3DTS_WORLD, pMatWorld);
++
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    WEATHER_BASE *metalWeather = nullptr;
++    if (const auto weatherId = core.GetEntityId("weather"))
++        metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
++    const bool drawLowerSky = true;
++#else
++    const bool drawLowerSky = Delta_Time == 0;
++#endif
+
+     if (aSkyDirArray.size() > 1)
+     {
+@@ -348,6 +416,9 @@
+         uint32_t dwColor = (dwSkyColor & 0x00FFFFFF) | (static_cast<int32_t>(0xFF000000 * fBlendFactor) & 0xFF000000);
+         pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
++#endif
+         if (pRS->TechniqueExecuteStart(sTechSkyBlend.c_str()))
+             do
+             {
+@@ -356,7 +427,7 @@
+                     pRS->TextureSet(0, TexturesID[i]);
+                     pRS->TextureSet(1, TexturesNextID[i]);
+                     pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
+-                    if (Delta_Time == 0)
++                    if (drawLowerSky)
+                         pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
+                 }
+             } while (pRS->TechniqueExecuteNext());
+@@ -405,6 +476,9 @@
+     {
+         pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwSkyColor);
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
++#endif
+         if (pRS->TechniqueExecuteStart(sTechSky.c_str()))
+             do
+             {
+@@ -412,7 +486,7 @@
+                 {
+                     pRS->TextureSet(0, TexturesID[i]);
+                     pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
+-                    if (Delta_Time == 0)
++                    if (drawLowerSky)
+                         pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
+                 }
+             } while (pRS->TechniqueExecuteNext());
+@@ -422,6 +496,9 @@
+     pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
+     pMatWorld = pMatWorld * pMatTranslate;
+     pRS->SetTransform(D3DTS_WORLD, pMatWorld);
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    MetalSkyFogScope metalSkyFogScope(pRS, metalWeather);
++#endif
+     pRS->DrawBuffer(iFogVertsID, sizeof(FOGVERTEX), iFogIndexID, 0, kFogVertsNum, 0, kFogTrgsNum / 3,
+                     sTechSkyFog.c_str());
+ }

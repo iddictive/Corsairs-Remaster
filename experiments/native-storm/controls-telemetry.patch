@@ -1,0 +1,99 @@
+diff --git a/src/libs/pcs_controls/src/pcs_controls.cpp b/src/libs/pcs_controls/src/pcs_controls.cpp
+index 09c64f2..b41d392 100644
+--- a/src/libs/pcs_controls/src/pcs_controls.cpp
++++ b/src/libs/pcs_controls/src/pcs_controls.cpp
+@@ -7,10 +7,78 @@
+ 
+ #include <input.hpp>
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <limits>
++#include <vector>
++
+ CREATE_SERVICE(PCS_CONTROLS)
+ 
+ using namespace storm;
+ 
++namespace
++{
++constexpr unsigned int controlTraceLimitPerAction = 64;
++
++bool controlTraceEnabled()
++{
++    static const bool enabled = [] {
++        const char *value = std::getenv("STORM_CONTROL_TRACE");
++        return value != nullptr && std::strcmp(value, "1") == 0;
++    }();
++    return enabled;
++}
++
++int controlTraceSDLScancode(uint32_t systemCode)
++{
++    if (systemCode >= 'A' && systemCode <= 'Z')
++        return SDL_SCANCODE_A + static_cast<int>(systemCode - 'A');
++    return -1;
++}
++
++bool controlTraceRelevant(const char *name)
++{
++    return name != nullptr &&
++           (std::strncmp(name, "WMap", 4) == 0 || std::strncmp(name, "Ship_", 5) == 0 ||
++            std::strncmp(name, "DeckWalk_", 9) == 0);
++}
++
++void traceControlMapping(const USER_CONTROL &control)
++{
++    if (!controlTraceEnabled() || !controlTraceRelevant(control.name))
++        return;
++    std::fprintf(stderr, "CONTROL_TRACE map action=%s system_code=%u sdl_scancode=%d\n", control.name,
++                 control.system_code, controlTraceSDLScancode(control.system_code));
++}
++
++void traceControlTransition(int32_t controlCode, const USER_CONTROL &control, const CONTROL_STATE &state)
++{
++    if (!controlTraceEnabled() || !controlTraceRelevant(control.name))
++        return;
++
++    static std::vector<int32_t> previousStates;
++    static std::vector<unsigned int> emitted;
++    if (controlCode < 0)
++        return;
++    if (previousStates.size() <= static_cast<size_t>(controlCode))
++    {
++        previousStates.resize(static_cast<size_t>(controlCode) + 1, std::numeric_limits<int32_t>::min());
++        emitted.resize(static_cast<size_t>(controlCode) + 1, 0);
++    }
++    if (previousStates[controlCode] == state.state)
++        return;
++    previousStates[controlCode] = state.state;
++    if (state.state == CST_INACTIVE || emitted[controlCode] >= controlTraceLimitPerAction)
++        return;
++
++    ++emitted[controlCode];
++    std::fprintf(stderr, "CONTROL_TRACE state action=%s system_code=%u sdl_scancode=%d state=%d value=%d transition=%u\n",
++                 control.name != nullptr ? control.name : "", control.system_code,
++                 controlTraceSDLScancode(control.system_code), state.state, state.lValue, emitted[controlCode]);
++}
++} // namespace
++
+ PCS_CONTROLS::PCS_CONTROLS()
+ {
+     m_bLockAll = false;
+@@ -205,6 +273,7 @@ void PCS_CONTROLS::MapControl(int32_t control_code, int32_t system_control_code)
+         return;
+     }
+     pUserControls[control_code].system_code = system_control_code;
++    traceControlMapping(pUserControls[control_code]);
+ }
+ 
+ bool PCS_CONTROLS::GetControlState(const char *control_name, CONTROL_STATE &_state_struct)
+@@ -431,6 +500,7 @@ bool PCS_CONTROLS::GetControlState(int32_t control_code, CONTROL_STATE &_state_s
+     if (_state_struct.state != CST_INACTIVE)
+         if (!(system_code == CE_MOUSE_X_AXIS || system_code == CE_MOUSE_Y_AXIS))
+             nLastControlTime = 0;
++    traceControlTransition(control_code, pUserControls[control_code], _state_struct);
+     return true;
+ }
+ 

@@ -1,0 +1,16 @@
+{
+  "role": "main menu logo",
+  "source": "menu-logo.png",
+  "source_sha256": "791aa82c427b2f6bcb9adc19350d2e7c7427fddde4884b306a83a4d9c093d93f",
+  "target": "RESOURCE/Textures/INTERFACES/iddictive_menu_logo.tga.tx",
+  "prepared": "prepared/iddictive_menu_logo.tga.tx",
+  "sha256": "13e53a9f16bc97a8ace5edab1248d99371428805bb45e0a3db2da5603eda4027",
+  "dimensions": [
+    1024,
+    366
+  ],
+  "format": "A8R8G8B8",
+  "mip_count": 1,
+  "preserve": "original action sprite atlas remains active",
+  "generation": "built-in imagegen; original logo atlas used as title/style reference"
+}

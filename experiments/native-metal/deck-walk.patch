@@ -1,0 +1,586 @@
+diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src/deck_camera.cpp
+index 3c34d295..d14d5ebe 100644
+--- a/src/libs/sea_cameras/src/deck_camera.cpp
++++ b/src/libs/sea_cameras/src/deck_camera.cpp
+@@ -1,6 +1,10 @@
+ #include "deck_camera.h"
++#include "shared/sea_ai/deck_collision.hpp"
+
+ #include "core.h"
++#include "animation.h"
++#include <cstdlib>
++#include "geometry.h"
+
+ #include "save_load.h"
+ #include "controls.h"
+@@ -23,6 +27,116 @@ DECK_CAMERA::DECK_CAMERA()
+
+ DECK_CAMERA::~DECK_CAMERA()
+ {
++    ReleaseWalker();
++}
++
++void DECK_CAMERA::ReleaseWalker()
++{
++    core.EraseEntity(walkerId);
++    walkerId = 0;
++    walkerVisible = false;
++    walkerAction.clear();
++}
++
++bool DECK_CAMERA::EnsureWalker()
++{
++    if (walkerId)
++        return core.GetEntityPointer(walkerId) != nullptr;
++    if (walkerLoadFailed || !pACharacter)
++        return false;
++    auto *modelAttr = pACharacter->GetAttributeClass("model");
++    const char *name = pACharacter->GetAttribute("model");
++    const char *animation = modelAttr ? modelAttr->GetAttribute("animation") : nullptr;
++    if (!name || !*name || !animation || !*animation)
++        return false;
++    auto *geometry = static_cast<VGEOMETRY *>(core.GetService("geometry"));
++    if (!geometry)
++        return false;
++    walkerId = core.CreateEntity("modelr");
++    geometry->SetTexturePath("characters\\");
++    const std::string path = std::string("characters\\") + name;
++    const bool loaded = walkerId && core.Send_Message(walkerId, "ls", MSG_MODEL_LOAD_GEO, path.c_str());
++    geometry->SetTexturePath("");
++    if (!loaded || !core.Send_Message(walkerId, "ls", MSG_MODEL_LOAD_ANI, animation))
++    {
++        core.Trace("Deck walk: protagonist model/animation failed to load: %s / %s", name, animation);
++        ReleaseWalker();
++        walkerLoadFailed = true;
++        return false;
++    }
++    auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId));
++    if (!model || !model->GetAnimation())
++    {
++        ReleaseWalker();
++        walkerLoadFailed = true;
++        return false;
++    }
++    for (int i = 0; auto *node = model->GetNode(i); ++i)
++        node->SetTechnique("Animation");
++    return true;
++}
++
++void DECK_CAMERA::UpdateWalker(bool moving, bool running)
++{
++    if (!EnsureWalker())
++        return;
++    auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId));
++    // The navigation path and visible ship deck are independently authored.
++    // Keep path support for movement, but put the rendered feet on the nearest
++    // visible surface around it so regional offsets do not make the actor float
++    // over the planks or sink into the stairs.
++    CMatrix walker = CMatrix(CVECTOR(0.f, walkerYaw, 0.f), camera_pos) * pathNode->glob_mtx;
++    CVECTOR support;
++    if (ResolveWalkerSupport(camera_pos, support))
++        walker.Pos() = support;
++    model->mtx = walker;
++    const char *action = moving ? (running ? "run" : "walk") : "idle_1";
++    auto &player = model->GetAnimation()->Player(0);
++    if (walkerAction != action || !player.IsPlaying())
++    {
++        if (player.SetAction(action))
++        {
++            player.Play();
++            walkerAction = action;
++        }
++    }
++}
++
++bool DECK_CAMERA::ResolveWalkerSupport(const CVECTOR &position, CVECTOR &support) const
++{
++    const CVECTOR origin = pathNode->glob_mtx * position;
++    CVECTOR up = pathNode->glob_mtx * CVECTOR(0.f, 1.f, 0.f) - pathNode->glob_mtx * CVECTOR(0.f);
++    up *= 1.f / sqrtf(~up);
++    // MODEL::Clip also traverses the hidden navigation mesh. Because origin
++    // lies on that mesh, a nearest-hit query would otherwise select the path
++    // itself at distance zero and never reach the visible planks.
++    const int32_t pathFlags = pathNode->flags;
++    pathNode->flags &= ~NODE::CLIP_ENABLE;
++    const bool found = deck_collision::findSupport(*pModel, origin, up, 1.5f, support, MEN_STEP_UP);
++    pathNode->flags = pathFlags;
++    return found;
++}
++
++bool DECK_CAMERA::CanWalkTo(const CVECTOR &from, const CVECTOR &to)
++{
++    const CVECTOR delta = to - from;
++    if (delta.x * delta.x + delta.z * delta.z < 0.0000001f)
++        return true;
++    const CVECTOR localOrigin = pathNode->glob_mtx * CVECTOR(0.f);
++    CVECTOR up = pathNode->glob_mtx * CVECTOR(0.f, 1.f, 0.f) - localOrigin;
++    up *= 1.f / sqrtf(~up);
++    CVECTOR fromSupport = pathNode->glob_mtx * from;
++    CVECTOR toSupport = pathNode->glob_mtx * to;
++    ResolveWalkerSupport(from, fromSupport);
++    ResolveWalkerSupport(to, toSupport);
++    const CVECTOR bottom = fromSupport + up * .32f;
++    const CVECTOR top = fromSupport + up * 1.42f;
++    const CVECTOR shift = toSupport - fromSupport;
++    const int32_t pathFlags = pathNode->flags;
++    pathNode->flags &= ~NODE::CLIP_ENABLE;
++    const bool clear = deck_collision::canSweep(*pModel, bottom, top, shift, .28f, MEN_STEP_UP);
++    pathNode->flags = pathFlags;
++    return clear;
+ }
+
+ bool DECK_CAMERA::Init()
+@@ -54,9 +168,15 @@ bool DECK_CAMERA::LoadState(ENTITY_STATE *state)
+ void DECK_CAMERA::Execute(uint32_t Delta_Time)
+ {
+     if (!isOn())
++    {
++        ReleaseWalker();
+         return;
++    }
+     if (!FindShip() || !FindPath())
++    {
++        ReleaseWalker();
+         return;
++    }
+
+     SetPerspective(AttributesPointer->GetAttributeAsFloat("Perspective"));
+
+@@ -65,8 +185,16 @@ void DECK_CAMERA::Execute(uint32_t Delta_Time)
+
+ void DECK_CAMERA::Realize(uint32_t Delta_Time)
+ {
+-    if (!isOn())
++    if (!isOn() || !walkerVisible)
+         return;
++    if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId)))
++    {
++        uint32_t lighting;
++        RenderService->GetRenderState(D3DRS_LIGHTING, &lighting);
++        RenderService->SetRenderState(D3DRS_LIGHTING, true);
++        model->ProcessStage(Entity::Stage::realize, Delta_Time);
++        RenderService->SetRenderState(D3DRS_LIGHTING, lighting);
++    }
+ }
+
+ void DECK_CAMERA::Move(uint32_t DeltaTime)
+@@ -74,6 +202,11 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+     if (!isActive())
+         return;
+
++    const bool walkMode = AttributesPointer->GetAttributeAsDword("WalkMode") != 0;
++    const bool telescope = AttributesPointer->GetAttributeAsDword("TelescopeActive") != 0;
++    const bool thirdPerson = walkMode && !telescope && AttributesPointer->GetAttributeAsDword("ThirdPerson") != 0;
++    walkerVisible = false;
++
+     pModel = static_cast<MODEL *>(GetModelPointer());
+     Assert(pModel);
+
+@@ -83,11 +216,11 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+     camera_ang.y += fSensivityAzimuthAngle * 3.0f * static_cast<float>(cs.fValue);
+
+     core.Controls->GetControlState("DeckCamera_Left", cs);
+-    if (cs.state == CST_ACTIVE)
++    if (!walkMode && cs.state == CST_ACTIVE)
+         camera_ang.y -= fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
+
+     core.Controls->GetControlState("DeckCamera_Right", cs);
+-    if (cs.state == CST_ACTIVE)
++    if (!walkMode && cs.state == CST_ACTIVE)
+         camera_ang.y += fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
+
+     core.Controls->GetControlState("DeckCamera_Turn_V", cs);
+@@ -164,6 +297,34 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+
+     // vShift += strafeV;
+
++    bool running = false;
++    float deckForward = 0.f;
++    float deckRight = 0.f;
++    if (walkMode)
++    {
++        auto held = [&](const char *name) {
++            CONTROL_STATE state;
++            core.Controls->GetControlState(name, state);
++            return state.state == CST_ACTIVE || state.state == CST_ACTIVATED;
++        };
++        deckForward = float(held("ChrForward")) - float(held("ChrBackward"));
++        deckRight = float(held("ChrStrafeRight")) - float(held("ChrStrafeLeft"));
++        const float length = sqrtf(deckForward * deckForward + deckRight * deckRight);
++        speed = 0.f;
++        running = held("ChrRun");
++        if (length > 0.f && !telescope)
++        {
++            // Horizontal normalized motion: pitch and diagonal input cannot change speed.
++            const float walkSin = sinf(camera_ang.y), walkCos = cosf(camera_ang.y);
++            vShift = CVECTOR((walkSin * deckForward + walkCos * deckRight) / length, 0.f,
++                             (walkCos * deckForward - walkSin * deckRight) / length);
++            speed = std::min(DeltaTime, uint32_t(100)) * (running ? 0.004f : 0.0018f);
++            walkerYaw = atan2f(vShift.x, vShift.z);
++        }
++        else if (!walkerId)
++            walkerYaw = camera_ang.y;
++    }
++
+     if (speed != 0.f)
+     {
+         CVECTOR src, dst;
+@@ -293,16 +454,87 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+         }
+     }
+
++    const CVECTOR pathResolved = camera_pos;
++    if (walkMode && !CanWalkTo(prev_pos, camera_pos))
++    {
++        const CVECTOR proposed = camera_pos;
++        camera_pos = prev_pos;
++        // Try the tangential components against both floor support and solid geometry.
++        for (int axis = 0; axis < 2; ++axis)
++        {
++            CVECTOR slide = camera_pos;
++            if (axis == 0) slide.x = proposed.x;
++            else slide.z = proposed.z;
++            const CVECTOR up(slide.x, 500.f, slide.z);
++            const CVECTOR down(slide.x, -500.f, slide.z);
++            const float floor = MultiTrace(up, down, camera_pos.y);
++            if (floor <= 1.f)
++            {
++                slide.y = 500.f - 1000.f * floor;
++                if (fabsf(slide.y - camera_pos.y) < MEN_STEP_UP && CanWalkTo(camera_pos, slide))
++                    camera_pos = slide;
++            }
++        }
++    }
++    static const bool traceDeckWalk = std::getenv("STORM_TRACE_DECK_WALK") != nullptr;
++    static uint32_t traceDeckWalkElapsed = 0;
++    traceDeckWalkElapsed += DeltaTime;
++    if (traceDeckWalk && walkMode && traceDeckWalkElapsed >= 1000)
++    {
++        traceDeckWalkElapsed %= 1000;
++        CVECTOR walkerSupport;
++        const bool hasWalkerSupport = ResolveWalkerSupport(camera_pos, walkerSupport);
++        const bool pathMoved = ~(pathResolved - prev_pos) > 0.000001f;
++        const bool solidChanged = ~(camera_pos - pathResolved) > 0.000001f;
++        const char *reason = telescope ? "telescope" :
++            (deckForward == 0.f && deckRight == 0.f) ? "no_input" :
++            !pathMoved ? "path_rejected" : solidChanged ? "solid_rejected_or_slid" : "accepted";
++        core.Trace("Deck walk trace: input=(%.0f,%.0f) from=(%.3f,%.3f,%.3f) desired=(%.3f,%.3f,%.3f) resolved=(%.3f,%.3f,%.3f) supportY=%.3f reason=%s",
++                   deckForward, deckRight, prev_pos.x, prev_pos.y, prev_pos.z,
++                   pathResolved.x, pathResolved.y, pathResolved.z,
++                   camera_pos.x, camera_pos.y, camera_pos.z,
++                   hasWalkerSupport ? walkerSupport.y : camera_pos.y, reason);
++    }
++
+     // calculate camera position
+     CVECTOR s_pos;
+     s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye, 0.f));
+
++    if (walkMode)
++    {
++        const bool moved = ~(camera_pos - prev_pos) > 0.000001f;
++        UpdateWalker(moved, running);
++        if (thirdPerson && walkerId)
++        {
++            const CVECTOR direction(sinf(s_ang.y) * cosf(s_ang.x), -sinf(s_ang.x),
++                                    cosf(s_ang.y) * cosf(s_ang.x));
++            const CVECTOR desired = s_pos - direction * 2.7f;
++            float fraction = 1.f;
++            // Give the camera a small volume; retract immediately at hull/masts.
++            const CVECTOR offsets[] = {CVECTOR(0.f, 0.f, 0.f), CVECTOR(.15f, 0.f, 0.f),
++                CVECTOR(-.15f, 0.f, 0.f), CVECTOR(0.f, .15f, 0.f), CVECTOR(0.f, -.15f, 0.f)};
++            for (const auto &offset : offsets)
++            {
++                const float hit = pModel->Trace(s_pos + offset, desired + offset);
++                if (hit >= 0.f && hit <= 1.f)
++                    fraction = std::min(fraction, std::max(0.f, hit - .06f));
++            }
++            s_pos += (desired - s_pos) * fraction;
++            walkerVisible = fraction * 2.7f > .65f;
++        }
++    }
++
+     // set camera
+     RenderService->SetCamera(s_pos, s_ang, GetPerspective());
+ }
+
+ void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+ {
++    if (pACharacter != _pACharacter)
++    {
++        ReleaseWalker();
++        walkerLoadFailed = false;
++    }
+     pACharacter = _pACharacter;
+ }
+
+diff --git a/src/libs/sea_cameras/src/deck_camera.h b/src/libs/sea_cameras/src/deck_camera.h
+index 25e52421..e6b21386 100644
+--- a/src/libs/sea_cameras/src/deck_camera.h
++++ b/src/libs/sea_cameras/src/deck_camera.h
+@@ -49,6 +49,17 @@ class DECK_CAMERA : public COMMON_CAMERA
+     int32_t vb_id;
+     bool bLoad;
+     NODE *pathNode;
++    // Transient presentation only: keep the existing binary save layout intact.
++    entid_t walkerId = 0;
++    bool walkerVisible = false;
++    bool walkerLoadFailed = false;
++    float walkerYaw = 0.f;
++    std::string walkerAction;
++    void ReleaseWalker();
++    bool EnsureWalker();
++    void UpdateWalker(bool moving, bool running);
++    bool ResolveWalkerSupport(const CVECTOR &position, CVECTOR &support) const;
++    bool CanWalkTo(const CVECTOR &from, const CVECTOR &to);
+     void SetStartPos();
+     bool GetCrossXZ(CVECTOR &spos, CVECTOR &dv, CVECTOR &p1, CVECTOR &p2, CVECTOR &res);
+     bool FindPath();
+diff --git a/src/libs/shared_headers/include/shared/sea_ai/deck_collision.hpp b/src/libs/shared_headers/include/shared/sea_ai/deck_collision.hpp
+new file mode 100644
+index 00000000..db137551
+--- /dev/null
++++ b/src/libs/shared_headers/include/shared/sea_ai/deck_collision.hpp
+@@ -0,0 +1,243 @@
++#pragma once
++
++#include "c_vector.h"
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++
++// Geometry-only capsule sweep. The caller supplies triangles from the ship's BSP.
++namespace deck_collision
++{
++inline float clamp(float value) { return std::clamp(value, 0.f, 1.f); }
++
++inline CVECTOR closestPoint(const CVECTOR &p, const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++{
++    const CVECTOR ab = b - a, ac = c - a, ap = p - a;
++    const float d1 = ab | ap, d2 = ac | ap;
++    if (d1 <= 0.f && d2 <= 0.f) return a;
++    const CVECTOR bp = p - b;
++    const float d3 = ab | bp, d4 = ac | bp;
++    if (d3 >= 0.f && d4 <= d3) return b;
++    const float vc = d1 * d4 - d3 * d2;
++    if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f) return a + ab * (d1 / (d1 - d3));
++    const CVECTOR cp = p - c;
++    const float d5 = ab | cp, d6 = ac | cp;
++    if (d6 >= 0.f && d5 <= d6) return c;
++    const float vb = d5 * d2 - d1 * d6;
++    if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f) return a + ac * (d2 / (d2 - d6));
++    const float va = d3 * d6 - d5 * d4;
++    if (va <= 0.f && d4 - d3 >= 0.f && d5 - d6 >= 0.f)
++        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
++    const float sum = va + vb + vc;
++    if (fabsf(sum) < 1e-12f) return a;
++    return a + ab * (vb / sum) + ac * (vc / sum);
++}
++
++inline float segmentDistance2(const CVECTOR &p, const CVECTOR &q, const CVECTOR &a, const CVECTOR &b)
++{
++    const CVECTOR u = q - p, v = b - a, w = p - a;
++    const float uu = ~u, vv = ~v, uv = u | v, uw = u | w, vw = v | w;
++    float s = 0.f, t = 0.f;
++    if (uu <= 1e-12f && vv <= 1e-12f) return ~w;
++    if (uu <= 1e-12f) t = clamp(vw / vv);
++    else if (vv <= 1e-12f) s = clamp(-uw / uu);
++    else
++    {
++        const float denom = uu * vv - uv * uv;
++        if (denom > 1e-12f) s = clamp((uv * vw - uw * vv) / denom);
++        t = (uv * s + vw) / vv;
++        if (t < 0.f) { t = 0.f; s = clamp(-uw / uu); }
++        else if (t > 1.f) { t = 1.f; s = clamp((uv - uw) / uu); }
++    }
++    return ~(w + u * s - v * t);
++}
++
++inline float distance2(const CVECTOR &p, const CVECTOR &q,
++                       const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++{
++    const CVECTOR direction = q - p, ab = b - a, ac = c - a;
++    if (~(ab ^ ac) < 1e-12f)
++        return std::min({segmentDistance2(p, q, a, b), segmentDistance2(p, q, b, c),
++                         segmentDistance2(p, q, c, a)});
++    const CVECTOR h = direction ^ ac;
++    const float det = ab | h;
++    if (fabsf(det) > 1e-10f)
++    {
++        const CVECTOR s = p - a;
++        const float u = (s | h) / det;
++        const CVECTOR cross = s ^ ab;
++        const float v = (direction | cross) / det, t = (ac | cross) / det;
++        if (u >= 0.f && v >= 0.f && u + v <= 1.f && t >= 0.f && t <= 1.f) return 0.f;
++    }
++    return std::min({~(p - closestPoint(p, a, b, c)), ~(q - closestPoint(q, a, b, c)),
++        segmentDistance2(p, q, a, b), segmentDistance2(p, q, b, c), segmentDistance2(p, q, c, a)});
++}
++
++struct Sweep
++{
++    CVECTOR bottom, top, delta;
++    float radius, maxStepHeight;
++    // |delta| is fixed for the whole query; the caller computes it once so no
++    // triangle visit repeats the square root.
++    float deltaLength;
++    bool blocked = false;
++
++    bool canStepOver(const CVECTOR &a, const CVECTOR &b, const CVECTOR &c) const
++    {
++        const CVECTOR axis = top - bottom;
++        const float axisLength2 = ~axis;
++        if (axisLength2 < 1e-12f)
++            return false;
++        const float invAxisLength = 1.f / sqrtf(axisLength2);
++        const CVECTOR endBottom = bottom + delta;
++        const CVECTOR normal = (b - a) ^ (c - a);
++        const float normalLength2 = ~normal;
++        if (normalLength2 > 1e-12f)
++        {
++            const float denominator = normal | (axis * invAxisLength);
++            const float alignment = fabsf(denominator) / sqrtf(normalLength2);
++            if (alignment >= .7f)
++            {
++                const float startRise = ((a - bottom) | normal) / denominator;
++                const float endRise = ((a - endBottom) | normal) / denominator;
++                return std::max(startRise, endRise) <= maxStepHeight;
++            }
++        }
++        const float foot = std::min(bottom | axis, endBottom | axis) * invAxisLength;
++        const float highest = std::max({a | axis, b | axis, c | axis}) * invAxisLength;
++        // A stair's vertical riser is not floor-aligned, but it is still a
++        // legal step when the whole triangle fits below MEN_STEP_UP. Tall
++        // rails, guns and masts remain above the threshold and still block.
++        return highest <= foot + maxStepHeight;
++    }
++
++    bool hits(const CVECTOR &a, const CVECTOR &b, const CVECTOR &c) const
++    {
++        if (~delta < 1e-14f) return false;
++        if (canStepOver(a, b, c)) return false;
++        // The initial spine is the part of the swept solid closest to a fixed
++        // obstacle, so every distance term below is at least initial - |delta|.
++        // A triangle farther than radius + |delta| therefore cannot block this
++        // move and skips those ten terms; the .0001f margin keeps the original
++        // overlap-escape branch on the full computation.
++        const float spineDistance2 = distance2(bottom, top, a, b, c);
++        const float initial = sqrtf(spineDistance2);
++        if (initial - deltaLength - radius > .0001f) return false;
++        const CVECTOR endBottom = bottom + delta, endTop = top + delta;
++        // The translated capsule spine sweeps a parallelogram. Its exact
++        // distance to the obstacle avoids time samples and iteration budgets.
++        float swept = std::min({spineDistance2,
++            distance2(top, endTop, a, b, c), distance2(endTop, endBottom, a, b, c),
++            distance2(endBottom, bottom, a, b, c)});
++        const CVECTOR vertices[] = {a, b, c};
++        for (int i = 0; i < 3; ++i)
++        {
++            const CVECTOR &p = vertices[i], &q = vertices[(i + 1) % 3];
++            swept = std::min({swept, distance2(p, q, bottom, top, endTop),
++                distance2(p, q, bottom, endTop, endBottom)});
++        }
++        const float closest = sqrtf(std::max(0.f, swept));
++        // Existing overlaps may escape or slide, but may never deepen during
++        // the move. Distance between these convex sets is convex in time.
++        if (initial < radius + .0001f) return closest + .00001f < initial;
++        return closest <= radius;
++
++    }
++};
++
++inline thread_local Sweep *activeSweep = nullptr;
++
++inline bool polygon(const CVECTOR *vertices, int32_t count)
++{
++    for (int32_t i = 1; i + 1 < count; ++i)
++        if (activeSweep->hits(vertices[0], vertices[i], vertices[i + 1]))
++        {
++            activeSweep->blocked = true;
++            return false;
++        }
++    return true;
++}
++
++struct Support
++{
++    CVECTOR origin, up, point;
++    float maxDistance, bestDistance, maxRise, bestRise;
++    bool found = false, preferred = false;
++
++    void consider(const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++    {
++        const CVECTOR normal = (b - a) ^ (c - a);
++        const float normalLength2 = ~normal;
++        if (normalLength2 < 1e-12f)
++            return;
++        const float denominator = normal | up;
++        if (fabsf(denominator) / sqrtf(normalLength2) < .7f)
++            return;
++        const float distance = ((a - origin) | normal) / denominator;
++        if (fabsf(distance) > maxDistance)
++            return;
++        const CVECTOR candidate = origin + up * distance;
++        if (~(candidate - closestPoint(candidate, a, b, c)) > .0001f)
++            return;
++        const bool withinStep = distance <= maxRise;
++        if (withinStep)
++        {
++            if (preferred && distance <= bestRise)
++                return;
++        }
++        else if (preferred || (found && fabsf(distance) >= bestDistance))
++            return;
++        point = candidate;
++        bestDistance = fabsf(distance);
++        bestRise = distance;
++        found = true;
++        preferred = withinStep;
++    }
++};
++
++inline thread_local Support *activeSupport = nullptr;
++
++inline bool supportPolygon(const CVECTOR *vertices, int32_t count)
++{
++    for (int32_t i = 1; i + 1 < count; ++i)
++        activeSupport->consider(vertices[0], vertices[i], vertices[i + 1]);
++    return true;
++}
++
++template <typename Model>
++bool findSupport(Model &model, const CVECTOR &origin, const CVECTOR &up, float maxDistance, CVECTOR &support,
++                 float maxRise = 0.f)
++{
++    Support query{origin, up, {}, maxDistance, maxDistance + 1.f, maxRise, -maxDistance - 1.f};
++    struct Context
++    {
++        Support *previous;
++        explicit Context(Support *current) : previous(activeSupport) { activeSupport = current; }
++        ~Context() { activeSupport = previous; }
++    } context(&query);
++    model.Clip(nullptr, 0, origin, maxDistance + .5f, supportPolygon);
++    if (!query.found)
++        return false;
++    support = query.point;
++    return true;
++}
++
++// MODEL::Clip delivers world-space triangles synchronously. Kept templated so
++// the geometry-only numerical tests do not need the renderer/runtime headers.
++template <typename Model>
++bool canSweep(Model &model, const CVECTOR &bottom, const CVECTOR &top, const CVECTOR &delta,
++              float radius, float maxStepHeight)
++{
++    Sweep sweep{bottom, top, delta, radius, maxStepHeight, sqrtf(~delta)};
++    struct Context
++    {
++        Sweep *previous;
++        explicit Context(Sweep *current) : previous(activeSweep) { activeSweep = current; }
++        ~Context() { activeSweep = previous; }
++    } context(&sweep);
++    const CVECTOR center = (bottom + top + delta) * .5f;
++    const float bounds = radius + .5f * (sqrtf(~(top - bottom)) + sqrtf(~delta));
++    model.Clip(nullptr, 0, center, bounds, polygon);
++    return !sweep.blocked;
++}
++}

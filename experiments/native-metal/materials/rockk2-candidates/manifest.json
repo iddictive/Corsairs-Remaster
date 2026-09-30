@@ -1,0 +1,98 @@
+[
+  {
+    "rank": 1,
+    "candidate": "A-weathered-brown",
+    "target_contract": "rockK2.tga.tx",
+    "prepared_path": "rockk2-candidates/prepared/rockK2-A-weathered-brown.tga.tx",
+    "status": "inactive candidate; not in root staging manifest",
+    "sources": [
+      {
+        "asset": "rock_face_03",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rock_face_03/rock_face_03_diff_4k.jpg",
+        "page": "https://polyhaven.com/a/rock_face_03",
+        "sha256": "83148536c125cee3a2e2fc1368c8851ad4c87aef8b8bb35c5129d82d223effb3"
+      },
+      {
+        "asset": "rocks_ground_02",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rocks_ground_02/rocks_ground_02_col_4k.jpg",
+        "page": "https://polyhaven.com/a/rocks_ground_02",
+        "sha256": "b48c2f6429795667fc33bc4777260d469d5131541b1e68aa2a33dc550c5e966e"
+      }
+    ],
+    "license": "CC0-1.0",
+    "license_url": "https://polyhaven.com/license",
+    "output_sha256": "3363912678fa6fd37c4ebc8da654218c8cdb4de91a40e73c0cb22730113437cd",
+    "width": 1024,
+    "height": 1024,
+    "format": "DXT1",
+    "mip_count": 8,
+    "bytes": 699064,
+    "rationale": "Best balance: readable eroded stone structure softened by rocky-ground detail",
+    "composition": "Directionality reduced by desaturation/contrast control and a rotated rocky-ground CC0 layer; no crop or aspect change",
+    "pillow_version": "12.2.0"
+  },
+  {
+    "rank": 2,
+    "candidate": "B-tropical-gray",
+    "target_contract": "rockK2.tga.tx",
+    "prepared_path": "rockk2-candidates/prepared/rockK2-B-tropical-gray.tga.tx",
+    "status": "inactive candidate; not in root staging manifest",
+    "sources": [
+      {
+        "asset": "rock_3",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rock_3/rock_3_diff_4k.jpg",
+        "page": "https://polyhaven.com/a/rock_3",
+        "sha256": "33ed8439be30d8d7ad75c7feb786056cd092f0b7d50153947c2d85a47dfad3d0"
+      },
+      {
+        "asset": "rocks_ground_02",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rocks_ground_02/rocks_ground_02_col_4k.jpg",
+        "page": "https://polyhaven.com/a/rocks_ground_02",
+        "sha256": "b48c2f6429795667fc33bc4777260d469d5131541b1e68aa2a33dc550c5e966e"
+      }
+    ],
+    "license": "CC0-1.0",
+    "license_url": "https://polyhaven.com/license",
+    "output_sha256": "1710b5850eadf9d1207ff0359f445b91d3cbf3a18ac5e63aa9732adeca7cc65d",
+    "width": 1024,
+    "height": 1024,
+    "format": "DXT1",
+    "mip_count": 8,
+    "bytes": 699064,
+    "rationale": "Cool gray coastal stone with restrained tropical patina",
+    "composition": "Directionality reduced by desaturation/contrast control and a rotated rocky-ground CC0 layer; no crop or aspect change",
+    "pillow_version": "12.2.0"
+  },
+  {
+    "rank": 3,
+    "candidate": "C-weathered-limestone",
+    "target_contract": "rockK2.tga.tx",
+    "prepared_path": "rockk2-candidates/prepared/rockK2-C-weathered-limestone.tga.tx",
+    "status": "inactive candidate; not in root staging manifest",
+    "sources": [
+      {
+        "asset": "marble_cliff_03",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/marble_cliff_03/marble_cliff_03_diff_4k.jpg",
+        "page": "https://polyhaven.com/a/marble_cliff_03",
+        "sha256": "d9c09a8d1ebc3fb9442c2c43eb02132ef545af3d8b1bf7f42282a89c6d00be18"
+      },
+      {
+        "asset": "rocks_ground_02",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rocks_ground_02/rocks_ground_02_col_4k.jpg",
+        "page": "https://polyhaven.com/a/rocks_ground_02",
+        "sha256": "b48c2f6429795667fc33bc4777260d469d5131541b1e68aa2a33dc550c5e966e"
+      }
+    ],
+    "license": "CC0-1.0",
+    "license_url": "https://polyhaven.com/license",
+    "output_sha256": "96e30414902b391dd19b7b1b011d78d24d30cfd2f2f4f5de8070abb66963561d",
+    "width": 1024,
+    "height": 1024,
+    "format": "DXT1",
+    "mip_count": 8,
+    "bytes": 699064,
+    "rationale": "Pale fractured limestone with reduced fissure dominance",
+    "composition": "Directionality reduced by desaturation/contrast control and a rotated rocky-ground CC0 layer; no crop or aspect change",
+    "pillow_version": "12.2.0"
+  }
+]

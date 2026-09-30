@@ -1,0 +1,66 @@
+diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning.cpp
+--- a/src/libs/weather/src/lightning.cpp
++++ b/src/libs/weather/src/lightning.cpp
+@@ -3,1 +3,7 @@
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t atlasX, uint32_t atlasY,
++                                           float scaleX, float scaleY);
++#endif
++
+ #include "core.h"
+@@ -93,5 +99,10 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->fSize;
+             pR->fAngle = 0.0f;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->sTechnique.c_str(), dwSubTexX,
++                                     dwSubTexY, pL->fScaleX, pL->fScaleY * pRS->GetHeightDeformator());
++#else
+             pRS->DrawRects(pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX, pL->fScaleY);
++#endif
+         }
+@@ -110,5 +121,10 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->Flash.fSize;
+             pR->fAngle = 0.0f;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->Flash.sTechnique.c_str(), 1, 1,
++                                     1.0f, pRS->GetHeightDeformator());
++#else
+             pRS->DrawRects(pR, 1, pL->Flash.sTechnique.c_str());
++#endif
+         }
+diff --git a/src/libs/weather/src/rain.cpp b/src/libs/weather/src/rain.cpp
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -3,4 +3,9 @@
+ #include "core.h"
+ #include "math_inlines.h"
+ #include <algorithm>
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t atlasX, uint32_t atlasY,
++                                           float scaleX, float scaleY);
++#endif
+ 
+@@ -396,4 +402,9 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
+     rs->TextureSet(0, iRainDropsTexture);
+     // rs->SetTexture(0, null);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    StormMetalDrawBillboards(rs->GetD3DDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1,
++                             1.0f, rs->GetHeightDeformator());
++#else
+     rs->DrawRects(aRects.data(), aRects.size(), "rain_drops", 8, 1);
++#endif
+ 
+@@ -557,4 +568,9 @@ void RAIN::Realize(uint32_t Delta_Time)
+ 
+         rs->TextureSet(0, iRainbowTex);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        StormMetalDrawBillboards(rs->GetD3DDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f,
++                                 rs->GetHeightDeformator());
++#else
+         rs->DrawRects(&rs_rect, 1, "rainbow");
++#endif
+     }

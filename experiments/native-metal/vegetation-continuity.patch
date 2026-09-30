@@ -1,0 +1,102 @@
+--- a/src/libs/location/src/grass.h
++++ b/src/libs/location/src/grass.h
+@@ -160,7 +160,7 @@
+     // Box visibility check
+     bool VisibleTest(const PLANE *plane, int32_t numPlanes, const CVECTOR &min, const CVECTOR &max);
+     // Render block
+-    void RenderBlock(GRSMiniMapElement &mme, float kLod);
++    void RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha);
+     // Draw the contents of the buffer
+     void DrawBuffer();
+     // Get the color
+--- a/src/libs/location/src/grass.cpp
++++ b/src/libs/location/src/grass.cpp
+@@ -31,6 +31,24 @@
+ #define GRASS_MAX_POINTS 8192
+ 
+ #define GRASS_DEFTEXTURE "Grass\\grass.tga"
++
++namespace
++{
++// Fade only the authored blades in the outer block-width band. This keeps the
++// original .grs biome mask (including roads, water and buildings) authoritative
++// while preventing a whole minimap block from appearing or disappearing at once.
++float GrassVisibilityAlpha(float distance, float maximumDistance, float blockWorldSize)
++{
++    if (maximumDistance <= 0.0f || distance >= maximumDistance)
++        return 0.0f;
++    const float fadeWidth = std::max(blockWorldSize * 1.41421356f, maximumDistance * 0.125f);
++    const float fadeStart = std::max(0.0f, maximumDistance - fadeWidth);
++    if (distance <= fadeStart || maximumDistance <= fadeStart)
++        return 1.0f;
++    const float t = (maximumDistance - distance) / (maximumDistance - fadeStart);
++    return t * t * (3.0f - 2.0f * t);
++}
++} // namespace
+ 
+ // ============================================================================================
+ // Construction, destruction
+@@ -655,9 +673,9 @@
+     
+     if (right != miniX - 1 || bottom != miniZ - 1)
+     {
+-        for (auto mx = left; mx < right; mx++)
++        for (auto mx = left; mx <= right; mx++)
+         {
+-            for (auto mz = top; mz < bottom; mz++)
++            for (auto mz = top; mz <= bottom; mz++)
+             {
+                 GRSMiniMapElement &mm = miniMap[mz * miniX + mx];
+ 
+@@ -743,8 +761,10 @@
+     const float cx = m_fDataScale * (startX + (mx + 0.5f) * GRASS_BLK_DST);
+     const float cz = m_fDataScale * (startZ + (mz + 0.5f) * GRASS_BLK_DST);
+     const float dist = (cx - camPos.x) * (cx - camPos.x) + (cz - camPos.z) * (cz - camPos.z);
++    const float linearDistance = sqrtf(dist);
+     // Range limitation
+-    if (dist >= m_fMaxVisibleDist * m_fMaxVisibleDist)
++    const float visibilityAlpha = GrassVisibilityAlpha(linearDistance, m_fMaxVisibleDist, GRASS_BLK_DST * m_fDataScale);
++    if (visibilityAlpha <= 0.0f)
+         return;
+     // Defining visibility
+     min.x = cx - 0.5f * GRASS_BLK_DST * m_fDataScale - 2.0f * m_fMaxWidth;
+@@ -756,10 +776,12 @@
+     if (!VisibleTest(plane, numPlanes, min, max))
+         return;
+     // Lod definition
+-    float kLod = (sqrtf(dist) - m_fMinVisibleDist) / (m_fMaxVisibleDist - m_fMinVisibleDist);
++    float kLod = m_fMaxVisibleDist > m_fMinVisibleDist ? (linearDistance - m_fMinVisibleDist) / (m_fMaxVisibleDist - m_fMinVisibleDist) : 1.0f;
+     // if(kLod < 0.0f) kLod = 0.0f;
+     if (kLod < m_fMinGrassLod)
+         kLod = m_fMinGrassLod;
++    if (kLod > 1.0f)
++        kLod = 1.0f;
+     // Determine the characters that fall into the current block
+     blockChrs.clear();
+     for (size_t i = 0; i < characters.size(); i++)
+@@ -781,7 +803,7 @@
+         blockChrs.push_back(i);
+     }
+     // Render block
+-    RenderBlock(mm, kLod);
++    RenderBlock(mm, kLod, visibilityAlpha);
+ }
+ 
+ // Box visibility check
+@@ -834,7 +834,7 @@
+ }
+ 
+ // Draw block
+-inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod)
++inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha)
+ {
+ #ifndef STORM_METAL_GRASS_BRIDGE
+     // Protect from yourself
+@@ -875,6 +897,7 @@
+         {
+             alpha = kBlend;
+         }
++        alpha *= visibilityAlpha;
+         // Swaying grass
+         float winx = sinf(b[i].x * cosPh1 + b[i].z * 0.06f + phase[0]);
+         float winz = cosf(b[i].x * 0.11f + b[i].z * sinPh2 + phase[0]);

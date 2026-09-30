@@ -1,0 +1,72 @@
+diff --git a/src/libs/sea/src/env_map.cpp b/src/libs/sea/src/env_map.cpp
+index 43d0fb5..c5bdc5c 100644
+--- a/src/libs/sea/src/env_map.cpp
++++ b/src/libs/sea/src/env_map.cpp
+@@ -224,7 +224,9 @@ bool SEA::SunRoad_Render()
+     rs->SetProjection(CMatrix().BuildProjectionMatrix(PI / 2.0f, 256.0f, 256.0f, 1.0f, 4000.0f));
+ 
+     uint32_t Colors[6] = {0xd934c8, 0x2FFF1F, 0x0000FF, 0xFF00, 0xb28e11, 0x0};
+-    for (uint32_t i = 0; i < 6; i++)
++    const uint32_t firstFace = sunRoadPrimed ? sunRoadFace : 0;
++    const uint32_t endFace = sunRoadPrimed ? sunRoadFace + 1 : 6;
++    for (uint32_t i = firstFace; i < endFace; i++)
+     {
+         if (!bUnderSea && i == D3DCUBEMAP_FACE_NEGATIVE_Y)
+             continue;
+@@ -259,6 +261,14 @@ bool SEA::SunRoad_Render()
+         rs->EndScene();
+     }
+ 
++    if (!sunRoadPrimed)
++        sunRoadPrimed = true;
++    do
++    {
++        sunRoadFace = (sunRoadFace + 1) % 6;
++    }
++    while (!bUnderSea && sunRoadFace == D3DCUBEMAP_FACE_NEGATIVE_Y);
++
+     rs->PopRenderTarget();
+     rs->SetView(mOldView);
+     rs->SetProjection(mOldProjection);
+diff --git a/src/libs/sea/src/sea.cpp b/src/libs/sea/src/sea.cpp
+index b6c30c3..589aacc 100644
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1359,6 +1359,14 @@ void SEA::Realize(uint32_t dwDeltaTime)
+     if (!bUnderSea)
+         bUnderSeaStarted = false;
+ 
++    // The negative-Y face is intentionally omitted above water. A waterline
++    // transition changes that face set, so reprime the persistent sun-road cube.
++    if (reflectionUnderSea != bUnderSea)
++    {
++        reflectionUnderSea = bUnderSea;
++        sunRoadPrimed = false;
++    }
++
+     if (bSimpleSea)
+     {
+         EnvMap_Render2();
+@@ -2001,6 +2009,7 @@ uint32_t SEA::AttributeChanged(ATTRIBUTES *pAttribute)
+ 
+ void SEA::LostRender()
+ {
++    sunRoadPrimed = false;
+     rs->Release(pReflection);
+     rs->Release(pReflectionSunroad);
+     rs->Release(pEnvMap);
+diff --git a/src/libs/sea/src/sea.h b/src/libs/sea/src/sea.h
+index ebb33b5..9a00fcb 100644
+--- a/src/libs/sea/src/sea.h
++++ b/src/libs/sea/src/sea.h
+@@ -96,6 +96,10 @@ class SEA : public SEA_BASE
+ 
+     bool bSimpleSea;
+ 
++    // Sun-road cube target persists across frames with an independent bounded cadence.
++    uint32_t sunRoadFace = 0;
++    bool sunRoadPrimed = false, reflectionUnderSea = false;
++
+     SeaVertex *pVSea;
+     uint16_t *pTriangles;
+     uint32_t *pIndices;

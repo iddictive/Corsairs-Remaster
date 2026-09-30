@@ -1,0 +1,248 @@
+[
+  {
+    "target": "Sandtile.tga.tx",
+    "role": "seamless diffuse material",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/coast_sand_01/coast_sand_01_diff_4k.png",
+    "page": "https://polyhaven.com/a/coast_sand_01",
+    "prompt": null,
+    "author": "Rob Tuytel",
+    "license": "CC0-1.0",
+    "license_url": "https://polyhaven.com/license",
+    "source_width": 4096,
+    "source_height": 4096,
+    "source_sha256": "b3569f6ba0a1e3274dd637701cad6cc460513601094e83e706add0b18a34ea3d",
+    "output_sha256": "66004ec9ec5659dc653ba4356996f7d3c57c88099f487ebc01f309c52a4cde96",
+    "width": 2048,
+    "height": 1024,
+    "format": "DXT1",
+    "mip_count": 12,
+    "bytes": 1398144,
+    "alpha": "opaque",
+    "composition": "Square tile repeated twice horizontally; no nonuniform stretching or cropping",
+    "pillow_version": "12.2.0"
+  },
+  {
+    "target": "tileU2.tga.tx",
+    "role": "seamless diffuse material",
+    "source": "generated/tileU2.png",
+    "page": null,
+    "prompt": "Seamless square orthographic diffuse material: muted warm-gray coastal cobblestone paving with pale mortar, occasional subdued rusty-brown stones, evenly distributed medium-scale detail, flat neutral lighting; no perspective, text, watermark, oversharpening, halos, crunchy micro-contrast, baked strong lighting, deep black cracks, vignette.",
+    "author": "OpenAI image generation; generated material",
+    "license": "Generated material; not CC0",
+    "license_url": null,
+    "source_width": 1254,
+    "source_height": 1254,
+    "source_sha256": "4d1783b559c49a73dc19143724b26177ad5aaf91fff241e7ce5ad6a501d86bf0",
+    "output_sha256": "a919caeb28f62165446202279297ee4d2fcf823bd0469e3d68c4321f6249cc2a",
+    "width": 512,
+    "height": 512,
+    "format": "DXT1",
+    "mip_count": 10,
+    "bytes": 174800,
+    "alpha": "opaque",
+    "composition": "Uniform resize to original target dimensions; no crop, rearrangement or tiling",
+    "pillow_version": "12.2.0"
+  },
+  {
+    "target": "treePalms.tga.tx",
+    "prepared_path": "foliage-new/prepared/treePalms.tga.tx",
+    "role": "alpha-tested foliage UV atlas",
+    "source": "foliage-new/treePalms-generated.png",
+    "source_sha256": "5af03ea9f3670b8100e663ef6a315424901a882984801b11de87ea7e8ac8c939",
+    "original_decoded_sha256": "9c5091988ada5e7df1f95e14ee5d8c235b03451d33e287aa2ef5912a563dacba",
+    "output_sha256": "e06b49ff7f63284e0be4dab1a7c11f8601e11769963bcbec5d48ae5643492af7",
+    "width": 2048,
+    "height": 1024,
+    "source_width": 1774,
+    "source_height": 887,
+    "format": "A8R8G8B8",
+    "mip_count": 12,
+    "bytes": 11184836,
+    "alpha": "Level0 byte-exact original alpha; full premultiplied-filtered coverage-preserving mip chain",
+    "composition": "Uniform resize, no crop/repack; generated RGB under original alpha; original RGB retained wherever generated alpha <240",
+    "tool": "builtin imagegen",
+    "prompt": "Precise-object-edit: upgrade palm frond and palm bark UV atlas to natural realistic diffuse material; exact 2:1 atlas layout, all four half-fronds, stem baselines, region boundaries and silhouettes preserved; muted green, subtle veins, tactile weathered bark, neutral light; no new objects, repacking, halos, sharpening, strong contrast, baked highlights, text or checkerboard; genuine original transparency.",
+    "license": "Generated edit of user-supplied game atlas; not CC0",
+    "consumers": [
+      "Islands/Bermudes/Bermudes.gm",
+      "Islands/Nevis/Nevis.gm",
+      "Islands/Martinique/Martinique.gm",
+      "Islands/SentMartin/SentMartin_fort1.gm"
+    ],
+    "mips": [
+      {
+        "width": 2048,
+        "height": 1024,
+        "coverage_at_128": 0.7739443778991699,
+        "bytes": 8388608
+      },
+      {
+        "width": 1024,
+        "height": 512,
+        "coverage_at_128": 0.7748641967773438,
+        "bytes": 2097152
+      },
+      {
+        "width": 512,
+        "height": 256,
+        "coverage_at_128": 0.7739639282226562,
+        "bytes": 524288
+      },
+      {
+        "width": 256,
+        "height": 128,
+        "coverage_at_128": 0.773895263671875,
+        "bytes": 131072
+      },
+      {
+        "width": 128,
+        "height": 64,
+        "coverage_at_128": 0.7740478515625,
+        "bytes": 32768
+      },
+      {
+        "width": 64,
+        "height": 32,
+        "coverage_at_128": 0.77490234375,
+        "bytes": 8192
+      },
+      {
+        "width": 32,
+        "height": 16,
+        "coverage_at_128": 0.7734375,
+        "bytes": 2048
+      },
+      {
+        "width": 16,
+        "height": 8,
+        "coverage_at_128": 0.78125,
+        "bytes": 512
+      },
+      {
+        "width": 8,
+        "height": 4,
+        "coverage_at_128": 0.78125,
+        "bytes": 128
+      },
+      {
+        "width": 4,
+        "height": 2,
+        "coverage_at_128": 0.75,
+        "bytes": 32
+      },
+      {
+        "width": 2,
+        "height": 1,
+        "coverage_at_128": 1.0,
+        "bytes": 8
+      },
+      {
+        "width": 1,
+        "height": 1,
+        "coverage_at_128": 1.0,
+        "bytes": 4
+      }
+    ],
+    "runtime_status": "not staged; root owns integration and visual acceptance"
+  },
+  {
+    "target": "trees.tga.tx",
+    "prepared_path": "foliage-new/prepared/trees.tga.tx",
+    "role": "alpha-tested foliage UV atlas",
+    "source": "foliage-new/trees-generated.png",
+    "source_sha256": "7e26777d543d972113c15495de800e7afe5193c13eb0d6df683168f1f62ef358",
+    "original_decoded_sha256": "2e0274391a39664f191a3d9bd523b4330dd0b5516520c8dba5ddf98f8747b0b7",
+    "output_sha256": "c14b9cebf5386dcda31f6c8861b8e5c7879cdaa27b2b8b0f2717a0925fda31a9",
+    "width": 2048,
+    "height": 2048,
+    "source_width": 1254,
+    "source_height": 1254,
+    "format": "A8R8G8B8",
+    "mip_count": 12,
+    "bytes": 22369644,
+    "alpha": "Level0 byte-exact original alpha; full premultiplied-filtered coverage-preserving mip chain",
+    "composition": "Uniform resize, no crop/repack; generated RGB under original alpha; original RGB retained wherever generated alpha <240",
+    "tool": "builtin imagegen",
+    "prompt": "Precise-object-edit: upgrade exact square tropical tree UV atlas; four upper-left foliage strips, upper-right tree, top-right bark strip, central bark rectangle and two lower foliage masses remain fixed; natural realistic muted leaf/bark detail, neutral diffuse light; no new branches, repacking, outlines, sharpening, strong contrast or text; genuine original transparency.",
+    "license": "Generated edit of user-supplied game atlas; not CC0",
+    "consumers": [
+      "Islands/Nevis/Nevis.gm",
+      "Islands/SentMartin/SentMartin_fort1.gm"
+    ],
+    "mips": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "coverage_at_128": 0.3889811038970947,
+        "bytes": 16777216
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "coverage_at_128": 0.38817405700683594,
+        "bytes": 4194304
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "coverage_at_128": 0.3890724182128906,
+        "bytes": 1048576
+      },
+      {
+        "width": 256,
+        "height": 256,
+        "coverage_at_128": 0.3885345458984375,
+        "bytes": 262144
+      },
+      {
+        "width": 128,
+        "height": 128,
+        "coverage_at_128": 0.38897705078125,
+        "bytes": 65536
+      },
+      {
+        "width": 64,
+        "height": 64,
+        "coverage_at_128": 0.388427734375,
+        "bytes": 16384
+      },
+      {
+        "width": 32,
+        "height": 32,
+        "coverage_at_128": 0.3896484375,
+        "bytes": 4096
+      },
+      {
+        "width": 16,
+        "height": 16,
+        "coverage_at_128": 0.390625,
+        "bytes": 1024
+      },
+      {
+        "width": 8,
+        "height": 8,
+        "coverage_at_128": 0.390625,
+        "bytes": 256
+      },
+      {
+        "width": 4,
+        "height": 4,
+        "coverage_at_128": 0.375,
+        "bytes": 64
+      },
+      {
+        "width": 2,
+        "height": 2,
+        "coverage_at_128": 0.5,
+        "bytes": 16
+      },
+      {
+        "width": 1,
+        "height": 1,
+        "coverage_at_128": 0.0,
+        "bytes": 4
+      }
+    ],
+    "runtime_status": "not staged; root owns integration and visual acceptance"
+  }
+]

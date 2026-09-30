@@ -1,0 +1,19 @@
+diff --git a/src/libs/geometry/src/rdf.h b/src/libs/geometry/src/rdf.h
+--- a/src/libs/geometry/src/rdf.h
++++ b/src/libs/geometry/src/rdf.h
+@@ -13,5 +13,6 @@
+ #pragma pack(push, 1)
+ 
++#include <cstddef>
+ #include <cstdint>
+ 
+ #include "c_vector.h"
+@@ -272,7 +273,7 @@ struct RDF_BSPTRIANGLE
+ {
+     unsigned char vindex[3][3];
+ 
+-    constexpr int32_t getIndex(size_t i) const {
++    constexpr int32_t getIndex(std::size_t i) const {
+         return (vindex[i][0] << 0) | (vindex[i][1] << 8) | (vindex[i][2] << 16);
+     }
+ };

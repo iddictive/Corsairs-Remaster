@@ -1,0 +1,22 @@
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -2741,6 +2741,19 @@ void DX9RENDER::RunStart()
+                 qv[x + y * 32].v0 = (sy * static_cast<float>(y) / 31.0f +
+                                      sinf(fSin + static_cast<float>(y) / 31.0f * PI * 16.0f) * fDY + fDY) /
+                                     sy2;
++
++                // POST_PROCESS_FVF exposes four texture-coordinate sets and
++                // the authored postprocess shader samples all four stages.
++                // The sea distortion grid historically initialized only UV0,
++                // leaving UV1..UV3 as indeterminate memory. Direct Metal reads
++                // those channels exactly, which produced camera-dependent
++                // magenta/green wedges and apparent frame displacement.
++                qv[x + y * 32].u1 = qv[x + y * 32].u0;
++                qv[x + y * 32].v1 = qv[x + y * 32].v0;
++                qv[x + y * 32].u2 = qv[x + y * 32].u0;
++                qv[x + y * 32].v2 = qv[x + y * 32].v0;
++                qv[x + y * 32].u3 = qv[x + y * 32].u0;
++                qv[x + y * 32].v3 = qv[x + y * 32].v0;
+             }
+         }
+     }

@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "lane": "GROUND/TOWN",
+  "rows": [
+    {
+      "target": "Sandtile.tga.tx",
+      "role": "seamless diffuse ground/sand",
+      "original": {
+        "path": "/REQUIRED_EXTERNAL_INPUT/Corsairs/experiments/native-storm/.cache/runtime/RESOURCE/Textures/Sandtile.tga.tx",
+        "sha256": "40e196fa4ca5a3addd36750b342957a118d9a3a46fefb2182f84424b92c2f217",
+        "dimensions": [
+          512,
+          256
+        ],
+        "format": "RGB565",
+        "mip_count": 8,
+        "alpha": "opaque"
+      },
+      "consumer_evidence": {
+        "count": 20,
+        "gm_paths": [
+          "MODELS/Islands/Beliz/Beliz_seabed.gm",
+          "MODELS/Islands/Caracas/Caracas_seabed.gm",
+          "MODELS/Islands/Cartahena/Cartahena_seabed.gm",
+          "MODELS/Islands/Cuba1/Cuba1_seabed.gm",
+          "MODELS/Islands/Cuba2/Cuba2_seabed.gm",
+          "MODELS/Islands/Cumana/Cumana_seabed.gm",
+          "MODELS/Islands/Hispaniola1/Hispaniola1_seabed.gm",
+          "MODELS/Islands/Hispaniola2/Hispaniola2_seabed.gm",
+          "MODELS/Islands/Jamaica/Jamaica_Fort1.gm",
+          "MODELS/Islands/Jamaica/jamaica_seabed.gm",
+          "MODELS/Islands/Maracaibo/Maracaibo_seabed.gm",
+          "MODELS/Islands/PortoBello/PortoBello_seabed.gm",
+          "MODELS/Islands/SantaCatalina/SantaCatalina_seabed.gm",
+          "MODELS/Islands/Terks/Terks_seabed.gm",
+          "MODELS/Islands/Tortuga/Tortuga.gm",
+          "MODELS/Islands/Tortuga/Tortuga_refl.gm",
+          "MODELS/Islands/Tortuga/Tortuga_seabed.gm",
+          "MODELS/Islands/Trinidad/Trinidad_seabed.gm",
+          "MODELS/Locations/Outside/LighthouseJamaica/lighthouseJamaica.gm",
+          "MODELS/Locations/Outside/LighthouseJamaica/lighthouseJamaica_sb.gm"
+        ]
+      },
+      "source": {
+        "page": "https://polyhaven.com/a/coast_sand_01",
+        "direct_map_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/coast_sand_01/coast_sand_01_diff_4k.png",
+        "author": "Rob Tuytel",
+        "license": "CC0-1.0",
+        "license_url": "https://polyhaven.com/license",
+        "sha256": "b3569f6ba0a1e3274dd637701cad6cc460513601094e83e706add0b18a34ea3d",
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "format": "PNG"
+      },
+      "output": {
+        "path": "prepared/Sandtile.tga.tx",
+        "sha256": "66004ec9ec5659dc653ba4356996f7d3c57c88099f487ebc01f309c52a4cde96",
+        "dimensions": [
+          2048,
+          1024
+        ],
+        "format": "DXT1",
+        "mip_count": 12,
+        "mip_chain": [
+          [
+            2048,
+            1024
+          ],
+          [
+            1024,
+            512
+          ],
+          [
+            512,
+            256
+          ],
+          [
+            256,
+            128
+          ],
+          [
+            128,
+            64
+          ],
+          [
+            64,
+            32
+          ],
+          [
+            32,
+            16
+          ],
+          [
+            16,
+            8
+          ],
+          [
+            8,
+            4
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alpha": "opaque; source and every encoded mip decode to alpha 255",
+        "color_space": "sRGB diffuse; no normal/roughness contract is present"
+      },
+      "adaptation_uv": "Uniform 4096 square source downsampled to 1024 square, then repeated 2x horizontally to retain the original 2048:1024 aspect and UV scale; no crop, stretch, repaint, or atlas rearrangement.",
+      "pillow_version": "12.2.0",
+      "status": "lane-prepared; root integration and runtime acceptance pending"
+    }
+  ]
+}

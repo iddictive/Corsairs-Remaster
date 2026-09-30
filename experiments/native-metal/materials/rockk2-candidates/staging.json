@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "semantic_material": "rockK2.tga.tx",
+  "aliases": [
+    {"target": "rockA2.tga.tx", "prepared": "prepared/rockK2-A-weathered-brown.tga.tx", "sha256": "3363912678fa6fd37c4ebc8da654218c8cdb4de91a40e73c0cb22730113437cd"},
+    {"target": "rockB2.tga.tx", "prepared": "prepared/rockK2-B-tropical-gray.tga.tx", "sha256": "1710b5850eadf9d1207ff0359f445b91d3cbf3a18ac5e63aa9732adeca7cc65d"},
+    {"target": "rockC2.tga.tx", "prepared": "prepared/rockK2-C-weathered-limestone.tga.tx", "sha256": "96e30414902b391dd19b7b1b011d78d24d30cfd2f2f4f5de8070abb66963561d"}
+  ]
+}

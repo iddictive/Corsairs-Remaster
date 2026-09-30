@@ -1,0 +1,81 @@
+--- a/experiments/native-metal/sea_shaders.hpp
++++ b/experiments/native-metal/sea_shaders.hpp
+@@ -221,18 +221,6 @@
+     float3 point=modernSeaViewPosition(pixel,z,u);
+     return point.z<=waterView.z||dot(macroViewNormal,point-waterView)>.02f;
+ }
+-bool modernSeaForegroundFootprint(float2 pixel,float waterDepth,float3 waterView,float3 macroViewNormal,
+-                                  constant SeaU&u,depth2d<float> depth) {
+-    // The linear color sampler can touch four texels. Validate the same footprint
+-    // rather than only the nearest depth texel: foreground must not bleed across
+-    // an otherwise valid refracted sample at a hull/shore silhouette.
+-    float2 first=floor(pixel-.5f)+.5f;
+-    for(uint y=0;y<2;y++)for(uint x=0;x<2;x++) {
+-        float2 tap=clamp(first+float2(x,y),u.viewport.xy+.5f,u.viewport.xy+u.viewport.zw-.5f);
+-        if(modernSeaForeground(tap,waterDepth,waterView,macroViewNormal,u,depth))return true;
+-    }
+-    return false;
+-}
+ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,float3 sun,
+                                texture2d<float> scene,depth2d<float> depth) {
+     constexpr sampler depthSampler(coord::normalized,address::clamp_to_edge,filter::nearest);
+@@ -258,32 +246,40 @@
+         displacement*=min(1.f,12.f/max(length(displacement),1.e-6f));
+         refractedPixel=clamp(pixel+displacement,u.viewport.xy+.5f,u.viewport.xy+u.viewport.zw-.5f);
+     }
+-    float2 candidateUV=refractedPixel*u.sceneSize.zw;
+-    float candidateDepth=depth.sample(depthSampler,candidateUV);
+-    float3 candidateView=modernSeaViewPosition(refractedPixel,candidateDepth,u);
+-    // A foreground hull/shore pixel must never be dragged behind the water.
+-    // Test actual depth, then revert to the unobstructed original ray.
+     float3 macroViewNormal=seaNormalize((u.viewMatrix*float4(o.surfaceNormal,0)).xyz);
+-    bool foreground=depth0<=o.position.z+1.e-6f||
+-        modernSeaForegroundFootprint(refractedPixel,o.position.z,waterView,macroViewNormal,u,depth);
+-    if(!foreground) {
+-        uv=candidateUV;
+-        thickness=candidateDepth>=.999999f?10000.f:length(candidateView-waterView);
+-    }
++    float3 eye=seaNormalize(o.viewToEye);
++    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));
+     if(depth0<=o.position.z+1.e-6f)thickness=0.f;
+-    float3 eye=seaNormalize(o.viewToEye);
+-    // Macro-surface grazing incidence remains reflective despite fine ripples.
+-    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));
+-    // Absorption coefficients are per engine world unit; red attenuates first.
+-    // Thickness comes entirely from the actual scene depth, never view angle.
+-    float3 transmission=exp(-float3(.14f,.055f,.025f)*max(thickness,0.f))*(1.f-fresnel);
++    float3 originalTransmission=exp(-float3(.14f,.055f,.025f)*max(thickness,0.f));
++    float3 originalBackground=modernSeaLinear(scene.sample(sceneSampler,uv).rgb);
++    float3 transmission=0,background=0;
++    float2 first=floor(refractedPixel-.5f)+.5f,phase=refractedPixel-first;
++    // Filter matching color/depth contributions, not one nearest depth for an
++    // unrelated linearly filtered color. A zero-weight foreground neighbor must
++    // not switch the whole ray to another screen location as the camera moves.
++    for(uint y=0;y<2;y++)for(uint x=0;x<2;x++) {
++        float weight=(x?phase.x:1.f-phase.x)*(y?phase.y:1.f-phase.y);
++        if(weight<=0.f)continue;
++        float2 tap=clamp(first+float2(x,y),u.viewport.xy+.5f,u.viewport.xy+u.viewport.zw-.5f);
++        bool rejected=depth0<=o.position.z+1.e-6f||modernSeaForeground(tap,o.position.z,waterView,macroViewNormal,u,depth);
++        float3 tapTransmission=originalTransmission,tapBackground=originalBackground;
++        if(!rejected) {
++            float z=depth.sample(depthSampler,tap*u.sceneSize.zw);
++            float distance=z>=.999999f?10000.f:length(modernSeaViewPosition(tap,z,u)-waterView);
++            tapTransmission=exp(-float3(.14f,.055f,.025f)*max(distance,0.f));
++            tapBackground=modernSeaLinear(scene.sample(sceneSampler,tap*u.sceneSize.zw).rgb);
++        }
++        transmission+=weight*tapTransmission;
++        background+=weight*tapBackground*tapTransmission;
++    }
++    transmission*=1.f-fresnel;
++    background*=1.f-fresnel;
+     float3 body=o.waterBody*(.72f+.28f*saturate(normal.y));
+     float3 newWater=modernSeaLinear(env)*fresnel+body*(float3(1.f-fresnel)-transmission)+modernSeaLinear(sun);
+-    float3 background=modernSeaLinear(scene.sample(sceneSampler,uv).rgb);
+     // Opaque scene color already contains its fog. Fog only NEW water energy,
+     // weighted by its complement, so transmitted geometry is never fogged twice.
+     float fog=u.fogEnabled?saturate(o.fog):1.f;
+-    float3 result=newWater*fog+modernSeaLinear(u.fogColor.rgb)*(1.f-fog)*(1.f-transmission)+background*transmission;
++    float3 result=newWater*fog+modernSeaLinear(u.fogColor.rgb)*(1.f-fog)*(1.f-transmission)+background;
+     // Entire scene composite is explicit; do not also blend destination again.
+     return float4(saturate(modernSeaDisplay(result)),0);
+ }

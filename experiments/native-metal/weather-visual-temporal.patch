@@ -1,0 +1,286 @@
+diff --git a/src/libs/weather/include/weather_base.h b/src/libs/weather/include/weather_base.h
+--- a/src/libs/weather/include/weather_base.h
++++ b/src/libs/weather/include/weather_base.h
+@@ -92,5 +92,15 @@ class WEATHER_BASE : public Entity
+     virtual uint32_t GetColor(uint32_t, CVECTOR *) = 0;
+     virtual uint32_t GetColor(uint32_t) = 0;
+     virtual float GetFloat(uint32_t) = 0;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    virtual uint32_t GetVisualColor(uint32_t code) { return GetColor(code); }
++    virtual float GetVisualFloat(uint32_t code) { return GetFloat(code); }
++    virtual float GetVisualRainIntensity() { return 0.f; }
++    virtual float GetVisualRainDrops() { return 0.f; }
++    virtual void SetVisualRainDrops(float) {}
++#endif
+     virtual void GetVector(uint32_t, CVECTOR *) = 0;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    virtual void GetVisualVector(uint32_t code, CVECTOR *out) { GetVector(code, out); }
++#endif
+ };
+diff --git a/src/libs/weather/src/weather.h b/src/libs/weather/src/weather.h
+--- a/src/libs/weather/src/weather.h
++++ b/src/libs/weather/src/weather.h
+@@ -5,6 +5,9 @@
+ #include "weather_base.h"
+ #include "typedef.h"
+ #include <stdio.h>
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++#include "weather_visual_temporal.hpp"
++#endif
+ 
+ class WEATHER : public WEATHER_BASE
+ {
+@@ -35,6 +38,11 @@ class WEATHER : public WEATHER_BASE
+     float fMoonBegTime;
+     float fMoonEndAngle;
+     float fMoonEndTime;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    storm_weather_visual::State visualState;
++    float visualRainTarget = 0.f;
++    void UpdateVisualState(uint32_t deltaTime);
++#endif
+ 
+     void SetBeginData();
+     void UpdateSunMoonPos();
+@@ -47,6 +55,14 @@ class WEATHER : public WEATHER_BASE
+     uint32_t GetColor(uint32_t) override;
+     float GetFloat(uint32_t) override;
+     void GetVector(uint32_t, CVECTOR *) override;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    uint32_t GetVisualColor(uint32_t) override;
++    float GetVisualFloat(uint32_t) override;
++    void GetVisualVector(uint32_t, CVECTOR *) override;
++    float GetVisualRainIntensity() override { return visualState.rainIntensity / 5000.f; }
++    float GetVisualRainDrops() override { return visualState.rainIntensity; }
++    void SetVisualRainDrops(float value) override { visualRainTarget = value; }
++#endif
+ 
+   public:
+     WEATHER();
+diff --git a/src/libs/weather/src/weather.cpp b/src/libs/weather/src/weather.cpp
+--- a/src/libs/weather/src/weather.cpp
++++ b/src/libs/weather/src/weather.cpp
+@@ -108,5 +108,9 @@ void WEATHER::Execute(uint32_t Delta_Time)
+         }
+         // updating date in scripts
+         // if( fFloats[whf_time_counter] fOldTimer
+     }
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    UpdateVisualState(Delta_Time);
++    SetCommonStates();
++#endif
+ }
+@@ -271,9 +275,22 @@ void WEATHER::SetCommonStates()
+ {
+     pRS->SetRenderState(D3DRS_FOGENABLE, GetInt(whi_fog_enable));
+ 
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    auto fDensity = visualState.fogDensity;
++    const auto fogColor = visualState.fogColor;
++    const auto dwAmbient = visualState.ambientColor;
++    const auto sunColor = visualState.sunColor;
++    const auto fSunHeightAngle = visualState.sunHeight;
++    const auto fSunAzimuthAngle = visualState.sunAzimuth;
++#else
+     auto fDensity = GetFloat(whf_fog_density);
+-    pRS->SetRenderState(D3DRS_FOGCOLOR, GetColor(whc_fog_color));
++    const auto fogColor = GetColor(whc_fog_color);
++    const auto dwAmbient = GetColor(whc_sun_ambient);
++    const auto sunColor = GetColor(whc_sun_color);
++    const auto fSunHeightAngle = GetFloat(whf_sun_height_angle);
++    const auto fSunAzimuthAngle = GetFloat(whf_sun_azimuth_angle);
++#endif
++    pRS->SetRenderState(D3DRS_FOGCOLOR, fogColor);
+     pRS->SetRenderState(D3DRS_FOGDENSITY, *((uint32_t *)&fDensity));
+ 
+-    const auto dwAmbient = GetColor(whc_sun_ambient);
+     pRS->SetRenderState(D3DRS_AMBIENT, dwAmbient);
+@@ -303,6 +316,8 @@ void WEATHER::SetCommonStates()
+         vSun = vVectors[whv_sun_pos];
+     }
+ 
+-    GetColor(whc_sun_color, &vSunColor);
++    vSunColor.x = static_cast<float>((sunColor >> 16) & 0xFF) / 255.f;
++    vSunColor.y = static_cast<float>((sunColor >> 8) & 0xFF) / 255.f;
++    vSunColor.z = static_cast<float>(sunColor & 0xFF) / 255.f;
+ 
+     sun.Type = D3DLIGHT_DIRECTIONAL;
+@@ -371,6 +386,51 @@ float WEATHER::GetFloat(uint32_t dwCode)
+     return fFloats[dwCode];
+ }
+ 
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++void WEATHER::UpdateVisualState(uint32_t deltaTime)
++{
++    visualState.update(fFloats[whf_fog_density], dwColors[whc_fog_color], dwColors[whc_sun_ambient],
++                       dwColors[whc_sun_color], fFloats[whf_wind_angle], fFloats[whf_wind_speed],
++                       visualRainTarget, fFloats[whf_time_counter], fFloats[whf_sun_height_angle],
++                       fFloats[whf_sun_azimuth_angle], static_cast<float>(deltaTime) * .001f);
++}
++
++float WEATHER::GetVisualFloat(uint32_t code)
++{
++    if (!visualState.initialized)
++        UpdateVisualState(0);
++    if (code == whf_fog_density) return visualState.fogDensity;
++    if (code == whf_wind_angle) return visualState.windAngle;
++    if (code == whf_wind_speed) return visualState.windSpeed;
++    if (code == whf_time_counter) return visualState.timeOfDay;
++    if (code == whf_sun_height_angle) return visualState.sunHeight;
++    if (code == whf_sun_azimuth_angle) return visualState.sunAzimuth;
++    return GetFloat(code);
++}
++
++uint32_t WEATHER::GetVisualColor(uint32_t code)
++{
++    if (!visualState.initialized)
++        UpdateVisualState(0);
++    if (code == whc_fog_color) return visualState.fogColor;
++    if (code == whc_sun_ambient) return visualState.ambientColor;
++    if (code == whc_sun_color) return visualState.sunColor;
++    return GetColor(code);
++}
++
++void WEATHER::GetVisualVector(uint32_t code, CVECTOR *vOut)
++{
++    if (code != whv_sun_pos) { GetVector(code, vOut); return; }
++    if (!visualState.initialized)
++        UpdateVisualState(0);
++    vOut->x = 5000.0f;
++    vOut->y = 0.0f;
++    RotateAroundY(vOut->x, vOut->y, cosf(-visualState.sunHeight), sinf(-visualState.sunHeight));
++    vOut->z = 0.0f;
++    RotateAroundY(vOut->x, vOut->z, cosf(visualState.sunAzimuth), sinf(visualState.sunAzimuth));
++}
++#endif
++
+ void WEATHER::GetVector(uint32_t dwCode, CVECTOR *vOut)
+ {
+     *vOut = vVectors[dwCode];
+@@ -514,6 +558,9 @@ uint32_t WEATHER::AttributeChanged(ATTRIBUTES *pAttribute)
+     }
+     if (*pAttribute == "isDone")
+     {
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        UpdateVisualState(0);
++#endif
+         SetCommonStates();
+     }
+     return 0;
+diff --git a/src/libs/weather/src/rain.cpp b/src/libs/weather/src/rain.cpp
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -3,3 +3,4 @@
+ #include "core.h"
+ #include "math_inlines.h"
++#include <algorithm>
+ 
+@@ -91,5 +92,11 @@ void RAIN::GenerateRain()
+     pWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(ent));
+     Assert(pWeather);
+ 
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    pWeather->SetVisualRainDrops(static_cast<float>(dwNumDrops));
++    if (dwNumDrops == 0)
++        return;
++#endif
++
+     Release();
+ 
+@@ -104,4 +110,6 @@ void RAIN::GenerateRain()
+ 
++#ifndef STORM_METAL_WEATHER_VISUAL_STATE
+     if (dwNumDrops == 0)
+         return;
++#endif
+ 
+@@ -135,13 +144,24 @@ void RAIN::GenerateRain()
+ 
+     iVertexBuffer =
+-        rs->CreateVertexBuffer(D3DRAINVERTEX_FORMAT, dwNumDrops * 2 * sizeof(RAINVERTEX), D3DUSAGE_WRITEONLY);
++        rs->CreateVertexBuffer(D3DRAINVERTEX_FORMAT,
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++                               50000u * 2 * sizeof(RAINVERTEX), D3DUSAGE_WRITEONLY);
++#else
++                               dwNumDrops * 2 * sizeof(RAINVERTEX), D3DUSAGE_WRITEONLY);
++#endif
+     if (iVertexBuffer < 0)
+         return;
+ 
+     auto *const pVertBuf = static_cast<RAINVERTEX *>(rs->LockVertexBuffer(iVertexBuffer));
+     if (!pVertBuf)
+         return;
+ 
+-    for (i = 0; i < dwNumDrops; i++)
++    for (i = 0; i <
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++                    50000u;
++#else
++                    dwNumDrops;
++#endif
++         i++)
+     {
+         GenerateRandomDrop(&pVertBuf[i * 2 + 0].vPos);
+@@ -453,6 +473,14 @@ void RAIN::Realize(uint32_t Delta_Time)
+     uint32_t i;
+     float fFov;
+ 
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    if (pWeather) {
++        fWindPower = pWeather->GetVisualFloat(whf_wind_speed) / 18.0f;
++        fWindAngle = pWeather->GetVisualFloat(whf_wind_angle);
++        fRainWindSpeed = fWindPower * .2f;
++    }
++#endif
++
+     rs->GetCamera(vCamPos, vCamAng, fFov);
+ 
+     if (iVertexBuffer >= 0)
+@@ -504,4 +532,9 @@ void RAIN::Realize(uint32_t Delta_Time)
+                 rs->SetTransform(D3DTS_WORLD, mWorld);
+ 
+-                rs->DrawPrimitive(D3DPT_LINELIST, iVertexBuffer, sizeof(RAINVERTEX), 0, dwNumDrops);
++                rs->DrawPrimitive(D3DPT_LINELIST, iVertexBuffer, sizeof(RAINVERTEX), 0,
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++                                  static_cast<uint32_t>(std::clamp(pWeather->GetVisualRainDrops(), 0.f, 50000.f)));
++#else
++                                  dwNumDrops);
++#endif
+             }
+@@ -545,6 +578,10 @@ uint32_t RAIN::AttributeChanged(ATTRIBUTES *pAttribute)
+         Release();
+         bRainbowEnable = false;
+         dwNumDrops = 0;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        if (pWeather)
++            pWeather->SetVisualRainDrops(0.f);
++#endif
+         fDropsDeltaTime = 0.0f;
+         return 0;
+     }
+diff --git a/src/libs/weather/src/weather.cpp b/src/libs/weather/src/weather.cpp
+--- a/src/libs/weather/src/weather.cpp
++++ b/src/libs/weather/src/weather.cpp
+@@ -284,8 +284,13 @@ void WEATHER::SetCommonStates()
+-    const auto fSunHeightAngle = GetFloat(whf_sun_height_angle);
+-    const auto fSunAzimuthAngle = GetFloat(whf_sun_azimuth_angle);
+     CVECTOR vSun, vSunColor, vSunLight;
+     D3DLIGHT9 sun;
+ 
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    vSun.x = 5000.0f;
++    vSun.y = 0.0f;
++    RotateAroundY(vSun.x, vSun.y, cosf(-fSunHeightAngle), sinf(-fSunHeightAngle));
++    vSun.z = 0.0f;
++    RotateAroundY(vSun.x, vSun.z, cosf(fSunAzimuthAngle), sinf(fSunAzimuthAngle));
++#else
+     if (fFloats[whf_time_speed] == 0.f)
+     {
+         vSun.x = 5000.0f;
+@@ -303,5 +312,6 @@ void WEATHER::SetCommonStates()
+         UpdateSunMoonPos();
+         vSun = vVectors[whv_sun_pos];
+     }
++#endif
+ 
+     vSunColor.x = static_cast<float>((sunColor >> 16) & 0xFF) / 255.f;

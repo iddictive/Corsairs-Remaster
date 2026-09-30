@@ -1,0 +1,70 @@
+--- a/src/libs/location/src/character.h
++++ b/src/libs/location/src/character.h
+@@ -679,6 +679,8 @@
+     int32_t m_nHandLightID;
+     const char *m_pcHandLightLocator;
+     CVECTOR GetHandLightPos();
++    int32_t gunFlashLightID = -1;
++    float gunFlashTime = 0.0f;
+ 
+     bool CheckObstacle(float fx, float fz, float fzlen);
+     int32_t GetRandomIndexByObstacle(ObstacleZone *pZone, int32_t num);
+--- a/src/libs/location/src/character.cpp
++++ b/src/libs/location/src/character.cpp
+@@ -610,6 +610,8 @@
+ 
+     m_pcHandLightLocator = "Saber_hand";
+     m_nHandLightID = -1;
++    gunFlashLightID = -1;
++    gunFlashTime = 0.0f;
+ 
+     // Procedural head look
+     curHeadLookState = HeadLookState::dflt;
+@@ -640,6 +642,9 @@
+     if (m_nHandLightID >= 0 && location && !isDeleted)
+         location->GetLights()->DelMovingLight(m_nHandLightID);
+     m_nHandLightID = -1;
++    if (gunFlashLightID >= 0 && location && !isDeleted)
++        location->GetLights()->DelMovingLight(gunFlashLightID);
++    gunFlashLightID = -1;
+ 
+     // Removing from groups
+     core.Send_Message(core.GetEntityId("CharactersGroups"), "si", "UnloadCharacter", GetId());
+@@ -2534,6 +2539,16 @@
+     {
+         location->GetLights()->UpdateMovingLight(m_nHandLightID, GetHandLightPos());
+     }
++    if (gunFlashLightID >= 0)
++    {
++        gunFlashTime -= dltTime;
++        if (gunFlashTime <= 0.0f)
++        {
++            if (auto *loc = GetLocation(); loc && loc->GetLights())
++                loc->GetLights()->DelMovingLight(gunFlashLightID);
++            gunFlashLightID = -1;
++        }
++    }
+ 
+     // Procedural head look
+ 
+@@ -2908,8 +2923,20 @@
+                         }
+                         else if (storm::iEquals(eventName, CHARACTER_FIGHT_GUNFIRE))
+                         {
++                            if (isFired)
++                                return;
+                             isFireState = false;
+                             core.Send_Message(blade, "l", MSG_BLADE_GUNFIRE);
++                            if (auto *loc = GetLocation(); loc && loc->GetLights())
++                            {
++                                if (gunFlashLightID >= 0)
++                                    loc->GetLights()->DelMovingLight(gunFlashLightID);
++                                CVECTOR flashPos = GetHandLightPos();
++                                if (flashPos.x == 0.f && flashPos.y == 0.f && flashPos.z == 0.f)
++                                    flashPos = curPos + CVECTOR(sinf(ay) * 0.8f, 1.4f, cosf(ay) * 0.8f);
++                                gunFlashLightID = loc->GetLights()->AddMovingLight("gunfire_flash", flashPos);
++                                gunFlashTime = 0.12f;
++                            }
+                             // PlaySound("pistol_shot");
+                             isFired = true;
+                             float kDist;

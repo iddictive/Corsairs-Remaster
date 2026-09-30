@@ -1,0 +1,241 @@
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -16,5 +16,6 @@ extern "C" void StormMetalSetWorldOrigin(void*, const float*);
+ #include "s_import_func.h"
+ #include "texture.h"
++#include "texture_mip_layout.hpp"
+ #include "v_s_stack.h"
+ #include "fs.h"
+ #include "debug-trap.h"
+@@ -1555,18 +1556,48 @@ bool DX9RENDER::TextureLoad(int32_t t)
+     bool isSwizzled = textureFormats[textureFI].isSwizzled;
+     const char *formatTxt = textureFormats[textureFI].format;
++    if (head.width <= 0 || head.height <= 0 || head.nmips <= 0 || head.mip_size <= 0 ||
++        !storm::renderer::TextureMipHeaderIsValid(static_cast<uint32_t>(head.format),
++                                                  static_cast<uint32_t>(head.width),
++                                                  static_cast<uint32_t>(head.height),
++                                                  static_cast<uint32_t>(head.nmips),
++                                                  static_cast<uint32_t>(head.mip_size)))
++    {
++        if (bTrace)
++        {
++            core.Trace("Invalid texture header %s, not loading it.", fn);
++        }
++        delete Textures[t].name;
++        Textures[t].name = nullptr;
++        fio->_CloseFile(fileS);
++        return false;
++    }
++
+     // Skipping mips
+     uint32_t seekposition = 0;
+     for (int32_t nTD = nTextureDegradation; nTD > 0; nTD--)
+     {
+         if (head.nmips <= 1 || head.width <= 32 || head.height <= 32)
+         {
+             break; // degradation limit
+         }
+-        seekposition += head.mip_size;
++        const auto mipSize = storm::renderer::TextureMipSize(static_cast<uint32_t>(d3dFormat),
++                                                              static_cast<uint32_t>(head.width),
++                                                              static_cast<uint32_t>(head.height));
++        if (mipSize == 0 || seekposition > std::numeric_limits<uint32_t>::max() - mipSize)
++        {
++            if (bTrace)
++            {
++                core.Trace("Invalid texture mip chain %s, not loading it.", fn);
++            }
++            delete Textures[t].name;
++            Textures[t].name = nullptr;
++            fio->_CloseFile(fileS);
++            return false;
++        }
++        seekposition += mipSize;
+         head.nmips--;
+-        head.width /= 2;
+-        head.height /= 2;
+-        head.mip_size /= 4;
++        head.width = std::max(1, head.width / 2);
++        head.height = std::max(1, head.height / 2);
+     }
+     // Loading the texture
+     if (!(head.flags & TX_FLAGS_CUBEMAP))
+@@ -1594,8 +1627,11 @@ bool DX9RENDER::TextureLoad(int32_t t)
+         // Filling the levels
+         for (int32_t m = 0; m < head.nmips; m++)
+         {
++            const auto mipSize = storm::renderer::TextureMipSize(static_cast<uint32_t>(d3dFormat),
++                                                                  static_cast<uint32_t>(head.width),
++                                                                  static_cast<uint32_t>(head.height));
+             // take into account the size of the mip
+-            Textures[t].dwSize += head.mip_size;
++            Textures[t].dwSize += mipSize;
+             // Getting the mip surface
+             bool isError = false;
+             IDirect3DSurface9 *surface = nullptr;
+@@ -1609,7 +1650,8 @@ bool DX9RENDER::TextureLoad(int32_t t)
+             else
+             {
+                 // read the mip
+-                isError = !LoadTextureSurface(fileS, surface, head.mip_size, head.width, head.height, isSwizzled);
++                isError = mipSize == 0 ||
++                    !LoadTextureSurface(fileS, surface, mipSize, head.width, head.height, isSwizzled);
+             }
+             // Freeing the surface
+             if (surface)
+@@ -1632,8 +1674,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
+             }
+             // recalculate the dimensions for the next mip
+-            head.width /= 2;
+-            head.height /= 2;
+-            head.mip_size /= 4;
++            head.width = std::max(1, head.width / 2);
++            head.height = std::max(1, head.height / 2);
+         }
+         Textures[t].d3dtex = tex;
+         Textures[t].isCubeMap = false;
+@@ -1853,8 +1894,6 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+     // Filling the levels
+     for (uint32_t m = 0; m < numMips; m++)
+     {
+-        // take into account the size of the mip
+-        texsize += mipSize;
+         // Getting the mip surface
+         bool isError = false;
+         IDirect3DSurface9 *surface = nullptr;
+@@ -1864,8 +1904,16 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+         }
+         else
+         {
++            D3DSURFACE_DESC desc{};
++            const auto mipBytes = CHECKD3DERR(surface->GetDesc(&desc)) ? 0 :
++                storm::renderer::TextureMipSize(static_cast<uint32_t>(desc.Format), desc.Width, desc.Height);
+             // read the mip
+-            isError = !LoadTextureSurface(fileS, surface, mipSize, size, size, isSwizzled);
++            isError = mipBytes == 0 ||
++                !LoadTextureSurface(fileS, surface, mipBytes, size, size, isSwizzled);
++            if (!isError)
++            {
++                texsize += mipBytes;
++            }
+         }
+         // Freeing the surface
+         if (surface)
+@@ -1887,7 +1933,6 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+         }
+         // recalculate the dimensions for the next mip
+-        size /= 2;
+-        mipSize /= 4;
++        size = std::max(1u, size / 2);
+     }
+     return texsize;
+ }
+@@ -1900,6 +1945,31 @@ bool DX9RENDER::LoadTextureSurface(std::fstream &fileS, IDirect3DSurface9 *sufac
+     // ------------------------------------------------------------------------------------------
+     // Surface pointer
+     D3DLOCKED_RECT lock;
++    D3DSURFACE_DESC desc{};
++    if (CHECKD3DERR(suface->GetDesc(&desc)) == true)
++    {
++        return false;
++    }
++    const auto surfaceBytes = storm::renderer::TextureMipSize(static_cast<uint32_t>(desc.Format), desc.Width,
++                                                               desc.Height);
++    if (!storm::renderer::TextureMipReadIsValid(surfaceBytes, mipSize))
++    {
++        return false;
++    }
++    const auto position = fileS.tellg();
++    if (position < 0)
++    {
++        return false;
++    }
++    fileS.seekg(0, std::ios::end);
++    const auto end = fileS.tellg();
++    fileS.seekg(position);
++    if (end < position || !storm::renderer::TextureMipPayloadAvailable(
++                              static_cast<uint64_t>(end - position), mipSize))
++    {
++        return false;
++    }
++
+     if (CHECKD3DERR(suface->LockRect(&lock, NULL, 0L)) == true)
+     {
+         return false;
+diff --git a/src/libs/renderer/src/texture_mip_layout.hpp b/src/libs/renderer/src/texture_mip_layout.hpp
+new file mode 100644
+--- /dev/null
++++ b/src/libs/renderer/src/texture_mip_layout.hpp
+@@ -0,0 +1,71 @@
++#pragma once
++
++#include <algorithm>
++#include <cstdint>
++#include <limits>
++
++namespace storm::renderer
++{
++constexpr uint32_t kDxt1 = 0x31545844u;
++constexpr uint32_t kDxt3 = 0x33545844u;
++constexpr uint32_t kDxt5 = 0x35545844u;
++
++inline uint32_t TextureMipSize(uint32_t format, uint32_t width, uint32_t height)
++{
++    if (width == 0 || height == 0)
++    {
++        return 0;
++    }
++
++    uint64_t bytes = 0;
++    switch (format)
++    {
++    case kDxt1:
++        bytes = uint64_t((width + 3) / 4) * ((height + 3) / 4) * 8;
++        break;
++    case kDxt3:
++    case kDxt5:
++        bytes = uint64_t((width + 3) / 4) * ((height + 3) / 4) * 16;
++        break;
++    case 21:
++    case 22:
++        bytes = uint64_t(width) * height * 4;
++        break;
++    case 23:
++    case 25:
++    case 26:
++        bytes = uint64_t(width) * height * 2;
++        break;
++    default:
++        return 0;
++    }
++
++    return bytes <= std::numeric_limits<uint32_t>::max() ? static_cast<uint32_t>(bytes) : 0;
++}
++
++inline uint32_t TextureMipCount(uint32_t width, uint32_t height)
++{
++    uint32_t count = 1;
++    for (uint32_t dimension = std::max(width, height); dimension > 1; dimension /= 2)
++    {
++        ++count;
++    }
++    return count;
++}
++
++inline bool TextureMipHeaderIsValid(uint32_t format, uint32_t width, uint32_t height, uint32_t mips,
++                                    uint32_t levelZeroBytes)
++{
++    return mips > 0 && mips <= TextureMipCount(width, height) && levelZeroBytes == TextureMipSize(format, width, height);
++}
++
++inline bool TextureMipReadIsValid(uint32_t surfaceBytes, uint32_t inputBytes)
++{
++    return surfaceBytes != 0 && inputBytes == surfaceBytes;
++}
++
++inline bool TextureMipPayloadAvailable(uint64_t availableBytes, uint32_t requestedBytes)
++{
++    return requestedBytes <= availableBytes;
++}
++} // namespace storm::renderer

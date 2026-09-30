@@ -1,0 +1,61 @@
+diff --git a/src/libs/rigging/src/rope.cpp b/src/libs/rigging/src/rope.cpp
+--- a/src/libs/rigging/src/rope.cpp
++++ b/src/libs/rigging/src/rope.cpp
+@@ -166,6 +166,9 @@ void ROPE::Realize(uint32_t Delta_Time)
+                         {
+                             static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[i].shipEI))
+                                 ->SetLightAndFog(true);
++                            uint32_t ambient;
++                            RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
++                            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
+                             RenderService->SetTransform(D3DTS_WORLD, *gdata[i].pMatWorld);
+ 
+                             RenderService->TextureSet(0, texl);
+diff --git a/src/libs/rigging/src/vant.cpp b/src/libs/rigging/src/vant.cpp
+--- a/src/libs/rigging/src/vant.cpp
++++ b/src/libs/rigging/src/vant.cpp
+@@ -109,11 +109,6 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
+     if (bUse)
+     {
+         // _asm rdtsc _asm mov rtm,eax
+-
+-        RenderService->TextureSet(0, texl);
+-        uint32_t ambient;
+-        RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
+-        RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
+         const auto bDraw = RenderService->TechniqueExecuteStart("ShipVant");
+         if (!bDraw)
+             return;
+@@ -128,6 +123,10 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
+             {
+                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
+                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLights();
++                uint32_t ambient;
++                RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
++                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
++                RenderService->TextureSet(0, texl);
+ 
+                 RenderService->SetTransform(D3DTS_WORLD, *gdata[gn].pMatWorld);
+                 RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, 0, nVert, gdata[gn].sIndx, gdata[gn].nIndx);
+diff --git a/src/techniques/ship/Rope.fx b/src/techniques/ship/Rope.fx
+--- a/src/techniques/ship/Rope.fx
++++ b/src/techniques/ship/Rope.fx
+@@ -3,7 +3,8 @@ technique ShipRope
+ {
+     pass p0
+     {
+-        Lighting = true;
++        // ROPEVERTEX has no normal; use the ship's current scene ambient instead of full-bright fallback lighting.
++        Lighting = false;
+         CullMode = none;
+         AlphaTestEnable = true;
+         AlphaBlendEnable = true;
+@@ -13,7 +14,7 @@ technique ShipRope
+ 
+         ColorOp[0] = modulate;
+         ColorArg1[0] = texture;
+-        ColorArg2[0] = current;
++        ColorArg2[0] = tfactor;
+ 
+         AlphaOp[0] = SelectArg1;
+         AlphaArg1[0] = texture;

@@ -1,0 +1,133 @@
+--- a/src/libs/core/src/timer.h
++++ b/src/libs/core/src/timer.h
+@@ -15,6 +15,7 @@
+     bool FixedDelta = false;      // Is the time delta between frames constant
+     uint32_t FixedDeltaValue = 0; // Value of constant time delta between frames
+     uint32_t Delta_Time = 20; // The time difference between current and last frame in milliseconds, as an unsigned int.
++    float visualDeltaTime = 0.0f; // Unrounded milliseconds; visual consumers only.
+     float fDeltaTime = 0.0f;  // The time difference between current and last frame, as a float
+     uint32_t rDelta_Time = Delta_Time;
+     uint32_t fps = 0;            // Frames per second based on the last second.
+@@ -44,7 +45,15 @@
+ 
+     uint32_t Run()
+     {
+-        Current = Clock::now();
++        return Run(Clock::now());
++    }
++
++    uint32_t Run(TimePoint now)
++    {
++        Current = now;
++        visualDeltaTime = Duration(Current - Previous).count();
++        if (visualDeltaTime < 0.0f) visualDeltaTime = 0.0f;
++        if (visualDeltaTime > kMaxDelta.count()) visualDeltaTime = float(kMaxDelta.count());
+         Delta_Time = (uint32_t)Duration(Current - Previous).count();
+         if (Delta_Time > (uint32_t)kMaxDelta.count())
+         {
+@@ -79,6 +88,11 @@
+         return Delta_Time;
+     }
+ 
++    float GetVisualDeltaTime() const
++    {
++        return FixedDelta ? float(FixedDeltaValue) : visualDeltaTime;
++    }
++
+     uint32_t GetDeltaTime()
+     {
+         if (FixedDelta)
+--- a/src/libs/core/include/core.h
++++ b/src/libs/core/include/core.h
+@@ -84,6 +84,8 @@
+     // set fixed delta time mode, (-1) - off
+     virtual void SetDeltaTime(int32_t delta_time) = 0;
+     virtual uint32_t GetDeltaTime() = 0;
++    // Milliseconds, scaled like entity time; fixed-step mode takes precedence.
++    virtual float GetVisualDeltaTime() { return float(GetDeltaTime()); }
+     virtual uint32_t GetRDeltaTime() = 0;
+     //
+     virtual VDATA *Event(const std::string_view &event_name) = 0;
+--- a/src/libs/core/src/core_impl.h
++++ b/src/libs/core/src/core_impl.h
+@@ -93,6 +93,7 @@
+     // set fixed delta time mode, (-1) - off
+     void SetDeltaTime(int32_t delta_time) override;
+     uint32_t GetDeltaTime() override;
++    float GetVisualDeltaTime() override;
+     uint32_t GetRDeltaTime() override;
+     //    
+     VDATA *Event(const std::string_view &event_name) override;
+--- a/src/libs/core/src/core_impl.cpp
++++ b/src/libs/core/src/core_impl.cpp
+@@ -174,12 +174,19 @@
+         pVDay->Set(local_tm.tm_mday);
+ 
+     if (Controls && Controls->GetDebugAsyncKeyState('R') < 0)
++    {
+         Timer.Delta_Time *= 10;
++        Timer.visualDeltaTime *= 10.0f;
++    }
+     if (Controls && Controls->GetDebugAsyncKeyState('Y') < 0)
++    {
+         Timer.Delta_Time = static_cast<uint32_t>(Timer.Delta_Time * 0.2f);
++        Timer.visualDeltaTime *= 0.2f;
++    }
+ 
+     Timer.Delta_Time = static_cast<uint32_t>(Timer.Delta_Time * fTimeScale);
+     Timer.fDeltaTime *= fTimeScale;
++    Timer.visualDeltaTime *= fTimeScale;
+ 
+     auto *pVData = static_cast<VDATA *>(GetScriptVariable("fHighPrecisionDeltaTime", nullptr));
+     if (pVData)
+@@ -702,6 +709,11 @@
+     return Timer.GetDeltaTime();
+ }
+ 
++float CoreImpl::GetVisualDeltaTime()
++{
++    return Timer.GetVisualDeltaTime();
++}
++
+ uint32_t CoreImpl::GetRDeltaTime()
+ {
+     return Timer.rDelta_Time;
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1322,11 +1322,13 @@
+ 
+     float fDeltaTime = static_cast<float>(dwDeltaTime) * 0.001f;
+ 
+-    vMove1 += fDeltaTime * vMoveSpeed1;
+-    vMove2 += fDeltaTime * vMoveSpeed2;
+-
+-    fFrame1 += fDeltaTime * fAnimSpeed1;
+-    fFrame2 += fDeltaTime * fAnimSpeed2;
++    // Keep geometry and normal-volume animation on one continuous engine clock.
++    const float waveDeltaTime = core.GetVisualDeltaTime() * 0.001f;
++    vMove1 += waveDeltaTime * vMoveSpeed1;
++    vMove2 += waveDeltaTime * vMoveSpeed2;
++
++    fFrame1 += waveDeltaTime * fAnimSpeed1;
++    fFrame2 += waveDeltaTime * fAnimSpeed2;
+     while (fFrame1 >= FRAMES)
+         fFrame1 -= FRAMES;
+     while (fFrame2 >= FRAMES)
+@@ -1388,7 +1390,7 @@
+         IDirect3DSurface9 *pFace;
+ 
+         static float fBumpMapFrame = 0.0f;
+-        fBumpMapFrame += static_cast<float>(fDeltaTime) * fBumpSpeed * 48.0f;
++        fBumpMapFrame += waveDeltaTime * fBumpSpeed * 48.0f;
+ 
+         uint32_t dw1 = static_cast<int32_t>(fBumpMapFrame) % aBumpMaps.size();
+         uint32_t dw2 = static_cast<int32_t>(fBumpMapFrame + 1.0f) % aBumpMaps.size();
+@@ -1489,7 +1491,7 @@
+ 
+         mWorldViewProj.Transposition4x4();
+ 
+-        fTmp += fDeltaTime * fBumpSpeed;
++        fTmp += waveDeltaTime * fBumpSpeed;
+         while (fTmp >= 1.0f)
+             fTmp -= 1.0f;
+ 

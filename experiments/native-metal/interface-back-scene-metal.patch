@@ -1,0 +1,35 @@
+diff --git a/src/libs/xinterface/src/back_scene/back_scene.cpp b/src/libs/xinterface/src/back_scene/back_scene.cpp
+--- a/src/libs/xinterface/src/back_scene/back_scene.cpp
++++ b/src/libs/xinterface/src/back_scene/back_scene.cpp
+@@ -9,6 +9,10 @@
+ #include "math_inlines.h"
+ #include "string_compare.hpp"
+ 
++#ifdef STORM_METAL_INTERFACE_BACK_SCENE
++extern "C" void StormMetalInterfaceBackScene(void *, bool);
++#endif
++
+ InterfaceBackScene::LightParam::~LightParam()
+ {
+     bUse = false;
+@@ -154,6 +158,10 @@ InterfaceBackScene::InterfaceBackScene()
+ 
+ InterfaceBackScene::~InterfaceBackScene()
+ {
++#ifdef STORM_METAL_INTERFACE_BACK_SCENE
++    if (m_pRS) StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);
++#endif
++
+     RestoreLight();
+     core.EraseEntity(m_eiModel);
+     core.EraseEntity(m_eiLocators);
+@@ -181,6 +189,9 @@ bool InterfaceBackScene::Init()
+ {
+     m_pRS = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+     Assert(m_pRS);
++#ifdef STORM_METAL_INTERFACE_BACK_SCENE
++    StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);
++#endif
+     flyTex = m_pRS->TextureCreate("LocEfx\\firefly.tga");
+     m_nFlareTexture = m_pRS->TextureCreate("ShipsFlares\\corona.tga");
+     return true;

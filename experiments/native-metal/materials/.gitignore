@@ -1,0 +1,25 @@
+cache/
+__pycache__/
+*.png
+*.jpg
+*.tx
+
+# Runtime staging is hash-bound to these payloads. Keep exactly the files that
+# the active manifests consume; every other binary is reproducible experiment
+# output and stays local.
+!prepared/Sandtile.tga.tx
+!prepared/tileU2.tga.tx
+!floor-production/prepared/cobbleM1.tga.tx
+!floor-production/prepared/floorU3.tga.tx
+!jungle-production/prepared/1grass1.tga.tx
+!jungle-production/prepared/1grasstogrounsU1.tga.tx
+!jungle-production/prepared/1grasstogrounsU2.tga.tx
+!jungle-production/prepared/grassgreen1.tga.tx
+!jungle-production/prepared/jungle_gray.tga.tx
+!rocks-new/prepared/rockK1.tga.tx
+!rocks-new/prepared/rockK3.tga.tx
+!foliage-new/prepared/treePalms.tga.tx
+!foliage-new/prepared/trees.tga.tx
+!rockk2-candidates/prepared/rockK2-A-weathered-brown.tga.tx
+!rockk2-candidates/prepared/rockK2-B-tropical-gray.tga.tx
+!rockk2-candidates/prepared/rockK2-C-weathered-limestone.tga.tx

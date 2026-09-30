@@ -1,0 +1,114 @@
+diff --git a/src/apps/engine/src/main.cpp b/src/apps/engine/src/main.cpp
+index 16a0ead..8f12919 100644
+--- a/src/apps/engine/src/main.cpp
++++ b/src/apps/engine/src/main.cpp
+@@ -238,6 +238,14 @@ int main(int argc, char *argv[])
+     while (isRunning)
+     {
+         SDL_PumpEvents();
++        // Cocoa's Quit menu and Command-Q post SDL_QUIT, not a window close.
++        // Consume it before the legacy queue flush and use normal cleanup below.
++        SDL_Event quitEvent;
++        if (SDL_PeepEvents(&quitEvent, 1, SDL_GETEVENT, SDL_QUIT, SDL_QUIT) > 0)
++        {
++            isRunning = false;
++            break;
++        }
+         SDL_FlushEvents(0, SDL_LASTEVENT);
+ 
+         if (bActive || run_in_background)
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+index a07564e..b86bd6f 100644
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -526,6 +526,18 @@ bool DX9RENDER::Init()
+ 
+         screen_size.x = ini->GetInt(nullptr, "screen_x", 1024);
+         screen_size.y = ini->GetInt(nullptr, "screen_y", 768);
++        const auto displayMode = ini->GetInt(nullptr, "display_mode", 0);
++        // Desktop/native is resolved after SDL creates the window. Query the
++        // display mode rather than the Metal drawable: the renderer owns and
++        // resizes that drawable, so it cannot describe the display itself.
++        // Keep the saved dimensions as a deterministic fallback when the
++        // display query is unavailable or returns an invalid size.
++        if (!bWindow && displayMode == 1)
++        {
++            const auto desktop = core.GetWindow()->GetDesktopSize();
++            if (desktop.width > 0 && desktop.height > 0)
++                screen_size = {desktop.width, desktop.height};
++        }
+         fNearClipPlane = ini->GetFloat(nullptr, "NearClipPlane", 0.1f);
+         fFarClipPlane = ini->GetFloat(nullptr, "FarClipPlane", 4000.0f);
+         bBackBufferCanLock = ini->GetInt(nullptr, "lockable_back_buffer", 0) != 0;
+diff --git a/src/libs/window/include/os_window.hpp b/src/libs/window/include/os_window.hpp
+index 1165d12..c5fd0bb 100644
+--- a/src/libs/window/include/os_window.hpp
++++ b/src/libs/window/include/os_window.hpp
+@@ -46,6 +46,10 @@ class OSWindow
+     virtual int Height() const = 0;
+     //! Current window size
+     virtual WindowSize GetWindowSize() const = 0;
++    //! Current Metal drawable size in backing pixels (falls back to window points).
++    virtual WindowSize GetDrawableSize() const = 0;
++    //! Current display desktop extent, independent of the renderer-owned drawable.
++    virtual WindowSize GetDesktopSize() const = 0;
+     //! Is window fullscreen
+     virtual bool Fullscreen() const = 0;
+     //! Window title
+diff --git a/src/libs/window/src/sdl_window.cpp b/src/libs/window/src/sdl_window.cpp
+index 52cfd82..5385f55 100644
+--- a/src/libs/window/src/sdl_window.cpp
++++ b/src/libs/window/src/sdl_window.cpp
+@@ -1,6 +1,9 @@
+ #include "sdl_window.hpp"
+ 
+ #include <SDL2/SDL_syswm.h>
++#if defined(__APPLE__)
++#include <SDL2/SDL_metal.h>
++#endif
+ 
+ namespace storm
+ {
+@@ -71,6 +74,29 @@ WindowSize SDLWindow::GetWindowSize() const
+     return {w, h};
+ }
+ 
++WindowSize SDLWindow::GetDrawableSize() const
++{
++    int w = 0;
++    int h = 0;
++#if defined(__APPLE__)
++    SDL_Metal_GetDrawableSize(window_.get(), &w, &h);
++#else
++    SDL_GetWindowSize(window_.get(), &w, &h);
++#endif
++    if (w <= 0 || h <= 0)
++        return GetWindowSize();
++    return {w, h};
++}
++
++WindowSize SDLWindow::GetDesktopSize() const
++{
++    const int display = SDL_GetWindowDisplayIndex(window_.get());
++    SDL_DisplayMode mode{};
++    if (display < 0 || SDL_GetDesktopDisplayMode(display, &mode) != 0 || mode.w <= 0 || mode.h <= 0)
++        return {};
++    return {mode.w, mode.h};
++}
++
+ bool SDLWindow::Fullscreen() const
+ {
+     return fullscreen_;
+diff --git a/src/libs/window/src/sdl_window.hpp b/src/libs/window/src/sdl_window.hpp
+index 84dea52..dcf025c 100644
+--- a/src/libs/window/src/sdl_window.hpp
++++ b/src/libs/window/src/sdl_window.hpp
+@@ -19,6 +19,8 @@ class SDLWindow : public OSWindow
+     int Width() const override;
+     int Height() const override;
+     WindowSize GetWindowSize() const override;
++    WindowSize GetDrawableSize() const override;
++    WindowSize GetDesktopSize() const override;
+     bool Fullscreen() const override;
+     std::string Title() const override;
+ 

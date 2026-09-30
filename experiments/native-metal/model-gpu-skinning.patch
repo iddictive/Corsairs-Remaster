@@ -1,0 +1,92 @@
+--- a/src/libs/model/src/model.cpp
++++ b/src/libs/model/src/model.cpp
+@@ -1,6 +1,7 @@
+ #include "core.h"
+ #include "entity.h"
+ #include "modelr.h"
++#include "gpu_skinning_bridge.hpp"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" unsigned StormMetalBeginSceneModel(void*);
+ extern "C" void StormMetalEndLandModel(void*, unsigned);
+@@ -157,6 +158,16 @@ void *VBTransform(void *vb, int32_t startVrt, int32_t nVerts, int32_t totVerts)
+     return dest_vb;
+ }
+ 
++void *GPUVBTransform(void *vb, int32_t startVrt, int32_t nVerts, int32_t totVerts)
++{
++    using namespace storm::metal::skinning;
++    void *buffer = bindVertices(static_cast<const AnimatedVertex *>(vb), static_cast<uint32_t>(startVrt),
++                                static_cast<uint32_t>(nVerts), static_cast<uint32_t>(totVerts));
++    if (!buffer)
++        throw std::runtime_error("Metal skinning provider failed an accepted vertex binding");
++    return buffer;
++}
++
+ void SetChildrenTechnique(NODE *_root, const char *_name)
+ {
+     if (!_root || !_name)
+@@ -222,7 +233,29 @@ void MODELR::Realize(uint32_t Delta_Time)
+     // if have animation - special render
+     if (ani)
+     {
+-        // create VB
++        const uint32_t boneCount = static_cast<uint32_t>(ani->GetNumBones());
++        GEOS::INFO skinInfo;
++        root->geo->GetInfo(skinInfo);
++        bool gpuSkinning = skinInfo.nvrtbuffs > 0;
++        for (int32_t vb = 0; gpuSkinning && vb < skinInfo.nvrtbuffs; ++vb)
++        {
++            const int32_t avb = root->geo->GetVertexBuffer(vb);
++            const auto source = GeometyService->GetAnimationVBDesc(avb);
++            gpuSkinning = storm::metal::skinning::acceptVertices(
++                static_cast<const storm::metal::skinning::AnimatedVertex *>(source.buff),
++                static_cast<uint32_t>(source.nvertices), boneCount);
++        }
++        bones = &ani->GetAnimationMatrix(0);
++        gpuSkinning = gpuSkinning && storm::metal::skinning::beginPose(
++            rs->GetD3DDevice(), reinterpret_cast<const storm::metal::skinning::Matrix4x4 *>(bones),
++            boneCount);
++        struct SkinningScope {
++            bool active;
++            ~SkinningScope() { if (active) storm::metal::skinning::endPose(); }
++        } skinningScope{gpuSkinning};
++
++        // Allocate and rewrite the expanded stream only when no GPU provider
++        // accepted this pose. Trace/collision remains an independent CPU path.
+         if (d3dDestVB == nullptr)
+         {
+             // calculate total number of vertices
+@@ -237,9 +270,14 @@ void MODELR::Realize(uint32_t Delta_Time)
+                 nAniVerts += gavb.nvertices;
+             }
+ 
++            if (gpuSkinning)
++                nAniVerts = 0;
++            else
++            {
+             int32_t fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEXTUREFORMAT2 | D3DFVF_TEX1;
+             rs->CreateVertexBuffer(sizeof(GEOS::VERTEX0) * nAniVerts, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, fvf,
+                                    D3DPOOL_DEFAULT, &d3dDestVB);
++            }
+         }
+         dest_vb = d3dDestVB;
+ 
+@@ -258,12 +296,14 @@ void MODELR::Realize(uint32_t Delta_Time)
+             }
+         }
+ 
+-        GeometyService->SetVBConvertFunc(VBTransform);
++        struct ConvertScope {
++            VGEOMETRY *geometry;
++            ~ConvertScope() { geometry->SetVBConvertFunc(nullptr); }
++        } convertScope{GeometyService};
++        GeometyService->SetVBConvertFunc(gpuSkinning ? GPUVBTransform : VBTransform);
+ 
+-        bones = &ani->GetAnimationMatrix(0);
+         root->Draw();
+-        GeometyService->SetVBConvertFunc(nullptr);
+-        if (!alreadyTransformed)
++        if (!gpuSkinning && !alreadyTransformed)
+         {
+             aniPos[0] = -2.0f;
+             aniPos[1] = -2.0f;

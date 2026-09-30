@@ -1,0 +1,68 @@
+#pragma once
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <string_view>
+namespace storm_weather_surface {
+using Color=std::array<float,3>;
+inline float luminance(const Color&c){return c[0]*.2126f+c[1]*.7152f+c[2]*.0722f;}
+inline float saturation(const Color&c){return *std::max_element(c.begin(),c.end())-*std::min_element(c.begin(),c.end());}
+inline Color mix(const Color&a,const Color&b,float t){t=std::clamp(t,0.f,1.f);return {a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t};}
+inline Color scale(const Color&c,float v){return {c[0]*v,c[1]*v,c[2]*v};}
+inline float reflectionCeiling(const Color&fog){return std::max(luminance(fog)*.98f,.06f);}
+struct Palette{Color water;Color foam;};
+// Normalized renderer color space. Fog is the smoothed visible horizon proxy;
+// ambient is the same smoothed scene illumination consumed by land and water.
+// The modern sea vertex converts Palette::water to linear light once per vertex;
+// foam remains a display-space tint for the existing UNorm texture paths.
+inline Color visibleHorizon(const Color&fog,float overcast){
+ const float fogY=luminance(fog);const Color neutralFog{fogY,fogY,fogY};
+ return mix(fog,neutralFog,.18f+.42f*overcast);
+}
+inline Color deriveFoam(const Color&fog,const Color&ambient){
+ const float ambientY=std::clamp(luminance(ambient),.025f,1.f),fogSat=saturation(fog);
+ const float overcast=std::clamp((.16f-fogSat)*5.f,0.f,1.f),fogY=luminance(fog);
+ const Color neutralFog{fogY,fogY,fogY},horizon=visibleHorizon(fog,overcast);
+ const float foamY=std::clamp(.30f+.60f*std::sqrt(ambientY),.32f,.92f);
+ Color foam=scale(mix(horizon,neutralFog,.72f),foamY/std::max(luminance(mix(horizon,neutralFog,.72f)),.025f));
+ for(float&channel:foam)channel=std::clamp(channel,0.f,1.f);
+ return foam;
+}
+inline Palette derive(const Color&authoredWater,const Color&fog,const Color&ambient){
+ const float ambientY=std::clamp(luminance(ambient),.025f,1.f),fogSat=saturation(fog);
+ const float overcast=std::clamp((.16f-fogSat)*5.f,0.f,1.f);
+ const Color horizon=visibleHorizon(fog,overcast);
+ // Warm horizons need more influence than clear blue daylight; otherwise the
+ // fixed blue pigment turns sunset water gray while the sky is orange.
+ const float warmHorizon=std::clamp((fog[0]-fog[2])*3.f,0.f,1.f);
+ // The authored night presets deliberately use almost-black fog.  Scaling the
+ // water by that same low ambient a second time crushed the entire sea below
+ // display visibility while lamps and ships remained in the LDR scene.  Keep
+ // the authored pigment and horizon relationship, but give only low-energy
+ // weather a bounded floor; daylight is bit-for-bit unchanged.
+ const float nightLift=.22f*std::clamp((.20f-ambientY)/.175f,0.f,1.f);
+ Color water=scale(mix(authoredWater,horizon,.30f+.30f*overcast+.25f*warmHorizon),
+                   .38f+.62f*ambientY+nightLift);
+ return {water,deriveFoam(fog,ambient)};
+}
+inline bool equalAsciiInsensitive(char a,char b){
+ if(a>='a'&&a<='z')a=char(a-'a'+'A');
+ if(b>='a'&&b<='z')b=char(b-'a'+'A');
+ return a==b;
+}
+inline bool equalAsciiInsensitive(std::string_view value,std::string_view expected){
+ if(value.size()!=expected.size())return false;
+ for(size_t i=0;i<expected.size();++i)if(!equalAsciiInsensitive(value[i],expected[i]))return false;
+ return true;
+}
+// These are particle-atlas owners for spray/foam. Technique identity is too
+// broad because smoke, fire, debris and rain share the particle shaders.
+inline bool isWaterEffectTexture(std::string_view name){
+ const auto separator=name.find_last_of("/\\");
+ if(separator!=std::string_view::npos)name.remove_prefix(separator+1);
+ return equalAsciiInsensitive(name,"watersplash.tga")||
+        equalAsciiInsensitive(name,"watersplash2.tga")||
+        equalAsciiInsensitive(name,"water1.tga")||
+        equalAsciiInsensitive(name,"sparcle2.tga");
+}
+}

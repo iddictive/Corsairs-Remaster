@@ -1,0 +1,54 @@
+diff --git a/src/libs/core/include/attributes.h b/src/libs/core/include/attributes.h
+index bfdb895..b7fb20d 100644
+--- a/src/libs/core/include/attributes.h
++++ b/src/libs/core/include/attributes.h
+@@ -87,6 +87,7 @@
+     ATTRIBUTES(VSTRING_CODEC &string_codec, ATTRIBUTES *parent, uint32_t name_code);
+ 
+     void Release() const noexcept;
++    void ReparentChildren() noexcept;
+     ATTRIBUTES *CreateNewAttribute(uint32_t name_code);
+ 
+     VSTRING_CODEC &stringCodec_;
+diff --git a/src/libs/core/src/attributes.cpp b/src/libs/core/src/attributes.cpp
+index d54f0c0..dcd446f 100644
+--- a/src/libs/core/src/attributes.cpp
++++ b/src/libs/core/src/attributes.cpp
+@@ -32,6 +32,7 @@
+     : stringCodec_(other.stringCodec_), nameCode_(other.stringCodec_.Convert("root")), value_(std::move(other.value_)),
+       attributes_(std::move(other.attributes_)), break_(other.break_)
+ {
++    ReparentChildren();
+     RegisterLiveAttribute(this);
+ }
+ 
+@@ -45,7 +46,16 @@
+     // Do not update parent
+     // parent_ = other.parent_;
+     break_ = other.break_;
++    ReparentChildren();
+     return *this;
++}
++
++void ATTRIBUTES::ReparentChildren() noexcept
++{
++    // The moved children are owned by this object now; a stale parent
++    // pointer would be dereferenced when script code walks up the tree.
++    for (auto &child : attributes_)
++        child->parent_ = this;
+ }
+ 
+ ATTRIBUTES::~ATTRIBUTES()
+diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_map.cpp
+index fa7dbe9..1e927db 100644
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -732,7 +732,7 @@
+     }
+     else
+     {
+-        for (auto *pa = apnt; pa; pa = pa->GetParent())
++        for (auto *pa = apnt; pa && ATTRIBUTES::IsLive(pa); pa = pa->GetParent())
+         {
+             if (storm::iEquals(pa->GetThisName(), "labels"))
+             {

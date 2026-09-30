@@ -1,0 +1,29 @@
+# A stale character-group target was dereferenced as a live character.
+#
+# LAi_group_GetTarget sends "GetTrg" to the CharactersGroups entity whenever a
+# warrior, guardian or officer looks for a target (PROGRAM/Loc_ai/LAi_groups.c).
+# MsgGetOptimalTarget resolved the chosen grpTargets entry through
+# core.GetEntityPointer() and then read AttributesPointer from the result
+# without a null check. A group keeps the target id, not the character, so a
+# target that had already been unloaded left grpTargets pointing at an id that
+# no longer resolves; the read faulted at Character::AttributesPointer (offset
+# 8) inside the supervisor update and killed the process.
+#
+# Report "no target" for that frame, the same contract the existing
+# numTargets <= 0 and missing-variable paths already use.
+diff --git a/src/libs/location/src/characters_groups.cpp b/src/libs/location/src/characters_groups.cpp
+--- a/src/libs/location/src/characters_groups.cpp
++++ b/src/libs/location/src/characters_groups.cpp
+@@ -615,8 +615,12 @@
+         if (s < 0)
+             s = 0;
+     }
+     c = static_cast<Character *>(core.GetEntityPointer(c->grpTargets[s].chr));
+     // if(!c->IsSetBlade()) return false;
++    // The remembered target can already be gone: the group stores the id, not the
++    // character, so the lookup above can fail on a target that left the location.
++    if (!c)
++        return false;
+     if (c->AttributesPointer)
+     {
+         vd->Set(static_cast<int32_t>(c->AttributesPointer->GetAttributeAsDword("index", -1)));

@@ -1,0 +1,53 @@
+--- a/src/libs/location/src/lights.h
++++ b/src/libs/location/src/lights.h
+@@ -129,3 +129,4 @@
+     bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, bool stableIndoor = false);
++    bool GetShadowLightAt(unsigned ordinal, uint64_t& id, D3DLIGHT9& light);
+     void PublishMetalSceneLights();
+ #endif
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -494,2 +494,23 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++bool Lights::GetShadowLightAt(unsigned ordinal, uint64_t& id, D3DLIGHT9& light)
++{
++    // Stable authored source order, not camera/player proximity. Ignore types
++    // that never emit light, but do not change identity during flame flicker.
++    for (int32_t index=0; index<numLights; ++index) {
++        const auto& source=lights[index];
++        const auto& type=types[source.type];
++        if(type.dxLight.Type!=D3DLIGHT_POINT || type.dxLight.Range<=.1f)continue;
++        if(type.color.r<=0 && type.color.g<=0 && type.color.b<=0)continue;
++        if(ordinal){--ordinal;continue;}
++        light=type.dxLight;
++        light.Position=source.pos;
++        const float intensity=source.intensity/255.f;
++        light.Diffuse.r=source.color.r*intensity;
++        light.Diffuse.g=source.color.g*intensity;
++        light.Diffuse.b=source.color.b*intensity;
++        id=uint64_t(index)+1;
++        return true;
++    }
++    id=0;return false;
++}
+ void Lights::PublishMetalSceneLights()
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -82,7 +82,14 @@
+-            uint64_t lampId = 0; D3DLIGHT9 lamp{};
+-            if (auto* lights = location->GetLights(); lights && lights->GetShadowLight(focus, lampId, lamp, true)) {
+-                StormMetalShadowLamp(device, &lamp);
+-                const float position[] = {lamp.Position.x, lamp.Position.y, lamp.Position.z};
+-                for (unsigned face = 0; face < 6; ++face) renderPass(1, face, lampId, position, lamp.Range);
++            if (auto* lights = location->GetLights()) {
++                // All eight Shipyard01 candles fit. Existing MODEL light-view
++                // frustum culling excludes casters outside each face/range.
++                for (unsigned index=0; index<8u; ++index) {
++                    uint64_t lampId=0; D3DLIGHT9 lamp{};
++                    if(!lights->GetShadowLightAt(index,lampId,lamp))break;
++                    StormMetalShadowLamp(device, &lamp);
++                    const float position[] = {lamp.Position.x, lamp.Position.y, lamp.Position.z};
++                    StormMetalRenderPointShadowCube(device,lampId,position,lamp.Range);
++                }
+             }
+             renderer->SetTransform(D3DTS_WORLD, &world);

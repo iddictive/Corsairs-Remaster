@@ -1,0 +1,54 @@
+{
+  "role": "standalone rock texture upgrade shard",
+  "generated_at": "2026-09-14",
+  "assets": [
+    {
+      "target": "rockK1.tga.tx",
+      "source_runtime_ref": "RESOURCE/Textures/rockK1.tga.tx",
+      "generated_source": "experiments/native-metal/materials/rocks-new/generated/rockK1-imagegen.png",
+      "prompt": "Edit supplied rockK1 atlas only; preserve exact 2:1 UV atlas layout, tileable edge relationship, framing, and large-scale geology. Believable cool muted gray-brown coastal volcanic rock, layered fractured slabs and shallow crevices, moderate natural detail readable at game distance. Flat neutral diffuse albedo; no directional lighting, baked shadows, highlights, AO, depth cues, saturated orange, oversharpening, halos, crunchy micro-contrast, text, watermark, vignette, or perspective.",
+      "generation": "builtin image_gen edit; uniformly resized to exact existing 2048x1024 atlas dimensions",
+      "source_sha256": "380fd262f2c3d591091a2eb9a00908a3283da6fcfa8d1beedc3947f0e564a0e9",
+      "generated_resized_sha256": "a7a211344341508a5d1b044cc3dd567da63c8bd8e878713972a251e46de6351e",
+      "output_sha256": "adbc5e1ea6129937cc2f567a4e87b8d2130cd9d00f2babc7f68ffba19a86c702",
+      "width": 2048,
+      "height": 1024,
+      "format": "DXT1",
+      "mip_count": 12,
+      "alpha": "opaque",
+      "uv_layout": "preserved 2:1 atlas; no crop or rearrangement",
+      "original_runtime_header": [
+        0,
+        2048,
+        1024,
+        4,
+        827611204,
+        1048576
+      ]
+    },
+    {
+      "target": "rockK3.tga.tx",
+      "source_runtime_ref": "RESOURCE/Textures/rockK3.tga.tx",
+      "generated_source": "experiments/native-metal/materials/rocks-new/generated/rockK3-imagegen.png",
+      "prompt": "Edit supplied rockK3 atlas only; preserve exact 2:1 UV atlas layout, tileable edge relationship, framing, and broad surface distribution. Subdued cool gray-brown coastal limestone/cliff rock with layered weathered planes, shallow pits, fine natural grain, moderate detail. Flat neutral diffuse albedo; no directional lighting, baked shadows, highlights, AO, depth cues, saturated orange, neon green, oversharpening, halos, crunchy micro-contrast, text, watermark, vignette, or perspective.",
+      "generation": "builtin image_gen edit; uniformly resized to exact existing 2048x1024 atlas dimensions",
+      "source_sha256": "5b17b8be837ca22499e1a6c03d4b02f4ae53a7530ec753738355f5ec8003d030",
+      "generated_resized_sha256": "61a6cd0bd332efb21b45bc84e3a7b183be3411afad6efe434aea7ff442cd2eac",
+      "output_sha256": "7a1f8acac6fde07500b8f2a6b569cc8ab4475dd577f43a76b16d470efce4666c",
+      "width": 2048,
+      "height": 1024,
+      "format": "DXT5",
+      "mip_count": 12,
+      "alpha": "opaque",
+      "uv_layout": "preserved 2:1 atlas; no crop or rearrangement",
+      "original_runtime_header": [
+        0,
+        2048,
+        1024,
+        8,
+        894720068,
+        2097152
+      ]
+    }
+  ]
+}

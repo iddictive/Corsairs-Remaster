@@ -1,0 +1,9 @@
+{
+  "deckPlanksU1.tga.tx": "preserve existing board texture exactly by user preference",
+  "deckPlanksU2.tga.tx": "preserve existing board texture exactly by user preference",
+  "floorU1.tga.tx": "preserve existing board texture exactly by user preference",
+  "pierWood1.tga.tx": "preserve existing wood atlas exactly by user preference",
+  "woodPlanksU1.tga.tx": "preserve existing board texture exactly by user preference",
+  "woodPlanksU2.tga.tx": "preserve existing wood atlas exactly by user preference",
+  "estateFloorU1.tga.tx": "preserve existing decorative wood atlas exactly by user preference"
+}

@@ -1,0 +1,16 @@
+diff --git a/src/libs/location/src/location.cpp b/src/libs/location/src/location.cpp
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -117,5 +117,12 @@
+             renderer->SetTransform(D3DTS_VIEW, &view);
+             static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &projection);
+             renderer->SetViewport(&viewport);
++            {
++                D3DMATRIX restored{};
++                static_cast<IDirect3DDevice9*>(device)->GetTransform(D3DTS_VIEW, &restored);
++                if (restored._41 > 1.f || restored._41 < -1.f || restored._42 > 1.f || restored._42 < -1.f ||
++                    restored._43 > 1.f || restored._43 < -1.f)
++                    fprintf(stderr, "[StormMetal] camera view restore drift: (%.2f,%.2f,%.2f)\n", restored._41, restored._42, restored._43);
++            }
+             StormMetalEndShadowFrame(device);
+         }

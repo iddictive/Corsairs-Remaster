@@ -1,0 +1,12 @@
+--- a/src/libs/core/src/expression.cpp
++++ b/src/libs/core/src/expression.cpp
+@@ -1396,6 +1396,9 @@ bool COMPILER::CompileExpression_L7(SEGMENT_DESC &Segment)
+             // just get, already checked by DetectUnknown
+             FuncTab.GetFuncX(fi, dwRCode);
+ 
++            if (fi.offset == INVALID_FUNC_OFFSET && fi.segment_id != IMPORTED_SEGMENT_ID)
++                fi.arguments = fi.extern_arguments;
++
+             // if(fi.return_type == TVOID){ SetError("void function in expression: %s",fi.name); return false; }
+ 
+             uint32_t func_args;

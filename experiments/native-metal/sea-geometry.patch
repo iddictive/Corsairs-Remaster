@@ -1,0 +1,73 @@
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1,4 +1,5 @@
+ #include "sea.h"
++#include "sea_geomorph.h"
+ 
+ #include <algorithm>
+ #include <thread>
+@@ -1124,8 +1125,11 @@
+             }
+ 
+             vTmp[iCurrentV] = &pVSea[dwVIndex];
+-            vTmp[iCurrentV]->vPos.x = cx;
+-            vTmp[iCurrentV]->vPos.z = cz;
++            float renderX = cx, renderZ = cz;
++            SeaMorphGrid(renderX, renderZ, vCamPos.x, vCamPos.z,
++                         pB.iLOD, fGridStep, fLodScale);
++            vTmp[iCurrentV]->vPos.x = renderX;
++            vTmp[iCurrentV]->vPos.z = renderZ;
+ 
+             iCurrentV++;
+ 
+@@ -1376,10 +1380,12 @@
+ 
+     pFrustumPlanes = rs->GetPlanes();
+ 
+-    float fBlockSize = 256.0f * fGridStep;
+-    int32_t iNumBlocks = static_cast<int32_t>(dwMaxDim) / (256 * 2);
+-    vSeaCenterPos = CVECTOR(fBlockSize * (static_cast<int32_t>(vCamPos.x / fBlockSize) - iNumBlocks), fMaxSeaHeight * 0.5f,
+-                            fBlockSize * (static_cast<int32_t>(vCamPos.z / fBlockSize) - iNumBlocks));
++    // Keep the quadtree origin aligned to every visible LOD lattice. The
++    // previous 256-cell recenter shifted coarse grids by fractional cells.
++    const float fBlockSize = static_cast<float>(dwMaxDim / 4) * fGridStep;
++    const int32_t iNumBlocks = 2;
++    vSeaCenterPos = CVECTOR(fBlockSize * (static_cast<int32_t>(floorf(vCamPos.x / fBlockSize)) - iNumBlocks), fMaxSeaHeight * 0.5f,
++                            fBlockSize * (static_cast<int32_t>(floorf(vCamPos.z / fBlockSize)) - iNumBlocks));
+ 
+     iVStart = 0;
+     iTStart = 0;
+--- /dev/null
++++ b/src/libs/sea/src/sea_geomorph.h
+@@ -0,0 +1,31 @@
++#pragma once
++#include <cmath>
++// Render-only CDLOD vertex collapse. Evaluate the existing wave sampler AFTER
++// this operation: height, horizontal displacement, normal and UV then converge
++// together. Scalar WaveXZ used by ship buoyancy/collision is never modified.
++inline void SeaMorphGrid(float& x, float& z, float cameraX, float cameraZ,
++                         int level, float gridStep, float lodScale)
++{
++    if (!(gridStep > 0.f) || !(lodScale > 0.f)) return;
++    for (int l = level; l < 20; ++l) {
++        const float next = std::ldexp(1.f, l + 1);
++        const float end = next / std::sqrt(lodScale);
++        const float dx = x - cameraX, dz = z - cameraZ;
++        const float distanceSquared = dx * dx + dz * dz;
++        const float transitionStart = end * .75f;
++        float weight;
++        if (distanceSquared <= transitionStart * transitionStart) break;
++        if (distanceSquared >= end * end) weight = 1.f;
++        else weight = (std::sqrt(distanceSquared) - transitionStart) /
++                      (end - transitionStart);
++        const float step = gridStep * next;
++        // Round to the fine lattice first to avoid floating-point noise causing
++        // an exactly even coarse vertex to collapse into the preceding cell.
++        const float fineStep = step * .5f;
++        const float targetX = std::floor(std::round(x / fineStep) * .5f) * step;
++        const float targetZ = std::floor(std::round(z / fineStep) * .5f) * step;
++        x += (targetX - x) * weight;
++        z += (targetZ - z) * weight;
++        if (weight < 1.f) break;
++    }
++}

@@ -1,0 +1,74 @@
+--- a/src/libs/location/src/grass.h
++++ b/src/libs/location/src/grass.h
+@@ -238,6 +238,7 @@ class Grass : public Entity
+     float m_fMinVisibleDist;
+     float m_fMaxVisibleDist;
+     float m_fMinGrassLod;
++    float m_fFrameVisibleDist;
+ 
+     // boal grass parameters
+     int32_t isGrassLightsOn;
+--- a/src/libs/location/src/grass.cpp
++++ b/src/libs/location/src/grass.cpp
+@@ -170,6 +170,7 @@ Grass::Grass()
+     m_fMinVisibleDist = GRASS_MIN_DIST;
+     m_fMaxVisibleDist = GRASS_MAX_DIST;
+     m_fMinGrassLod = 0.f;
++    m_fFrameVisibleDist = m_fMaxVisibleDist;
+ }
+ 
+ Grass::~Grass()
+@@ -459,6 +460,12 @@ void Grass::Realize(uint32_t delta_time)
+     uint32_t dwOldFogDensity;
+     rs->GetRenderState(D3DRS_FOGDENSITY, &dwOldFogDensity);
+     entid_t eidIsland = core.GetEntityId("ISLAND");
++    // Sea islands use the same authored .grs distribution as nearby shores.
++    // The historical 1000-unit range hid it before an island filled the sea
++    // view. Extend only the compact GPU-instanced sea consumer; locations keep
++    // their authored near range and density.
++    constexpr float kSeaIslandVegetationDistance = 3000.0f;
++    m_fFrameVisibleDist = eidIsland ? std::max(m_fMaxVisibleDist, kSeaIslandVegetationDistance) : m_fMaxVisibleDist;
+     if (eidIsland)
+     {
+         auto fIslandFogDensity = static_cast<float>(dwOldFogDensity);
+@@ -655,8 +662,10 @@ void Grass::Realize(uint32_t delta_time)
+     int32_t camx = static_cast<int32_t>((pos.x / m_fDataScale - startX) / GRASS_BLK_DST);
+     int32_t camz = static_cast<int32_t>((pos.z / m_fDataScale - startZ) / GRASS_BLK_DST);
+     // The square that covers the area of view on the map
+-    int32_t left = camx - GRASS_VEIW, right = camx + GRASS_VEIW;
+-    int32_t top = camz - GRASS_VEIW, bottom = camz + GRASS_VEIW;
++    const float blockWorldSize = GRASS_BLK_DST * m_fDataScale;
++    const int32_t frameView = std::max(1, static_cast<int32_t>(std::ceil(m_fFrameVisibleDist / blockWorldSize)) + 1);
++    int32_t left = camx - frameView, right = camx + frameView;
++    int32_t top = camz - frameView, bottom = camz + frameView;
+     // Clip by the size of the map
+     if (right < 0 || left >= miniX)
+         return;
+@@ -779,6 +788,11 @@ void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPla
+     const float dist = (cx - camPos.x) * (cx - camPos.x) + (cz - camPos.z) * (cz - camPos.z);
+     const float linearDistance = sqrtf(dist);
++    // Stable 1/4 block selection is the far-field density LOD. It references
++    // only authored blocks and never invents vegetation outside the .grs map.
++    if (linearDistance > m_fMaxVisibleDist &&
++        ((static_cast<uint32_t>(mx) * 73856093u ^ static_cast<uint32_t>(mz) * 19349663u) & 3u) != 0u)
++        return;
+     // Range limitation
+-    const float visibilityAlpha = GrassVisibilityAlpha(linearDistance, m_fMaxVisibleDist, GRASS_BLK_DST * m_fDataScale);
++    const float visibilityAlpha = GrassVisibilityAlpha(linearDistance, m_fFrameVisibleDist, GRASS_BLK_DST * m_fDataScale);
+     if (visibilityAlpha <= 0.0f)
+         return;
+@@ -793,9 +802,13 @@ void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPla
+     if (!VisibleTest(plane, numPlanes, min, max))
+         return;
+     // Lod definition
+-    float kLod = m_fMaxVisibleDist > m_fMinVisibleDist ? (linearDistance - m_fMinVisibleDist) / (m_fMaxVisibleDist - m_fMinVisibleDist) : 1.0f;
++    float kLod = m_fFrameVisibleDist > m_fMinVisibleDist ? (linearDistance - m_fMinVisibleDist) / (m_fFrameVisibleDist - m_fMinVisibleDist) : 1.0f;
+     // if(kLod < 0.0f) kLod = 0.0f;
+     if (kLod < m_fMinGrassLod)
+         kLod = m_fMinGrassLod;
++    // Beyond the original near range submit only the sparsest authored LOD.
++    // This is a hard negative budget on CPU traversal and Metal instances.
++    if (linearDistance > m_fMaxVisibleDist && kLod < 0.7501f)
++        kLod = 0.7501f;
+     if (kLod > 1.0f)
+         kLod = 1.0f;

@@ -1,0 +1,174 @@
+--- a/src/libs/geometry/src/geom.h
++++ b/src/libs/geometry/src/geom.h
+@@ -55,6 +55,11 @@
+     OBJECT *object = nullptr;
+     int32_t idx_buff;
+     VERTEX_BUFFER *vbuff = nullptr;
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
++    std::vector<std::vector<IslandDraw>> islandDraws;
++    float islandRenderHorizontalMargin = 0;
++#endif
+ 
+     int32_t *atriangles = nullptr;
+     int32_t traceid;
+--- a/src/libs/geometry/src/geom_static.cpp
++++ b/src/libs/geometry/src/geom_static.cpp
+@@ -8,6 +8,11 @@
+ Import library main file
+ ******************************************************************************/
+ #include "geom.h"
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++#include "island_geometry.hpp"
++#include <cstdlib>
++#include <cctype>
++#endif
+ #include <storm/config.hpp>
+ 
+ #include <cstdint>
+@@ -48,6 +53,15 @@
+ // geometry constructor does all init
+ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t flags) : srv(_srv)
+ {
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    std::string islandPath = fname ? fname : "";
++    for (char& c : islandPath) c = c == '\\' ? '/' : char(std::tolower(static_cast<unsigned char>(c)));
++    const char* islandMode = std::getenv("STORM_METAL_ISLAND_GEOMETRY");
++    const bool refineIsland = islandMode && !std::strcmp(islandMode,"1") &&
++                              island_geometry::islandModelPath(islandPath);
++    std::vector<RDF_TRIANGLE> islandTriangles;
++    std::vector<std::vector<uint8_t>> islandVertices;
++#endif
+     std::vector<uint32_t> colData;
+     if (lightname != nullptr)
+     {
+@@ -195,6 +209,9 @@
+             srv.UnlockIndexBuffer(idx_buff);
+             abortLoad(fmt::format("Failed to read index buffer ({} bytes)", triangleDataSize));
+         }
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++        if (refineIsland) islandTriangles.assign(trg, trg + rhead.ntriangles);
++#endif
+         srv.UnlockIndexBuffer(idx_buff);
+     }
+ 
+@@ -216,6 +233,9 @@
+     srv.free(rvb);
+     // read vertices
+     auto itColData = colData.begin();
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    if (refineIsland) islandVertices.resize(rhead.nvrtbuffs);
++#endif
+     for (v = 0; v < rhead.nvrtbuffs; v++)
+     {
+         if (vbuff[v].size == 0)
+@@ -238,6 +258,12 @@
+             }
+         }
+ 
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++        if (refineIsland && !(vbuff[v].type >> 2)) {
++            auto* bytes = reinterpret_cast<uint8_t*>(vrt);
++            islandVertices[v].assign(bytes, bytes + vbuff[v].size);
++        }
++#endif
+         srv.UnlockVertexBuffer(vbuff[v].dev_buff);
+     }
+ 
+@@ -293,11 +319,66 @@
+         }
+     }
+-    srv.free(rmat);
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    if (refineIsland && !islandTriangles.empty()) {
++        std::vector<island_geometry::Face> faces;
++        for (int o=0; o<rhead.nobjects; ++o) {
++            const auto& ob=object[o];
++            if (!(ob.flags & VISIBLE) || ob.vertex_buff<0 || ob.vertex_buff>=rhead.nvrtbuffs) continue;
++            const int materialIndex=ob.material;
++            if(materialIndex<0 || materialIndex>=rhead.nmaterials)continue;
++            const int textureIndex=rmat[materialIndex].texture[0];
++            if(textureIndex<0 || textureIndex>=rhead.ntextures ||
++               !island_geometry::refinableTerrainTexture(&globname[tname[textureIndex]]))continue;
++            const auto& bytes=islandVertices[ob.vertex_buff]; const auto& vb=vbuff[ob.vertex_buff];
++            if (bytes.empty() || vb.stride<36 || vb.stride>60) continue;
++            for (int t=0; t<ob.ntriangles; ++t) {
++                const int triangle=ob.striangle+t;
++                if (triangle<0 || size_t(triangle)>=islandTriangles.size()) continue;
++                island_geometry::Face face{}; face.object=o;face.material=ob.material;bool valid=true;
++                for (int j=0;j<3;j++) {
++                    const int64_t vertex=int64_t(ob.start_vertex)+islandTriangles[triangle].vindex[j];
++                    if(vertex<0 || uint64_t(vertex)*vb.stride+vb.stride>bytes.size()){valid=false;break;}
++                    std::memcpy(&face.v[j],bytes.data()+size_t(vertex)*vb.stride,vb.stride);
++                }
++                if(valid)faces.push_back(face);
++            }
++        }
++        islandDraws.resize(rhead.nobjects);
++        size_t changedFaces=0,outputTriangles=0;
++        for(int o=0;o<rhead.nobjects;o++) {
++            std::vector<island_geometry::Face> objectFaces;for(const auto& face:faces)if(face.object==o)objectFaces.push_back(face);
++            if(objectFaces.empty())continue;
++            island_geometry::Surface surface(objectFaces);
++            bool changed=false;for(const auto& face:objectFaces)if(surface.refine(face).size()>3){changed=true;changedFaces++;}
++            if(!changed)continue;
++            const auto& original=vbuff[object[o].vertex_buff];
++            bool valid=true;
++            for(const auto& chunk:island_geometry::chunks(surface,objectFaces,o)) {
++                IslandDraw draw;draw.stride=original.stride;draw.vertices=int(chunk.vertices.size());draw.triangles=int(chunk.indices.size()/3);
++                draw.vb=srv.CreateVertexBuffer(original.type,draw.vertices*draw.stride);
++                draw.ib=srv.CreateIndexBuffer(int(chunk.indices.size()*sizeof(uint16_t)));
++                auto* vertices=static_cast<uint8_t*>(srv.LockVertexBuffer(draw.vb));
++                auto* indices=srv.LockIndexBuffer(draw.ib);
++                if(!vertices||!indices){if(vertices)srv.UnlockVertexBuffer(draw.vb);if(indices)srv.UnlockIndexBuffer(draw.ib);srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);valid=false;break;}
++                for(size_t i=0;i<chunk.vertices.size();i++)std::memcpy(vertices+i*draw.stride,&chunk.vertices[i],draw.stride);
++                std::memcpy(indices,chunk.indices.data(),chunk.indices.size()*sizeof(uint16_t));
++                srv.UnlockVertexBuffer(draw.vb);srv.UnlockIndexBuffer(draw.ib);islandDraws[o].push_back(draw);
++            }
++            if(!valid){for(const auto&draw:islandDraws[o]){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}islandDraws[o].clear();}
++            else {islandRenderHorizontalMargin=16;for(const auto&draw:islandDraws[o])outputTriangles+=draw.triangles;}
++        }
++        if(islandRenderHorizontalMargin>0)std::fprintf(stderr,"[StormMetal] island PN terrain geometry %s: %zu curved faces, %zu triangles in replaced opaque terrain objects; authored vertical envelope and BSP retained\n",fname,changedFaces,outputTriangles);
++    }
++#endif
++    srv.free(rmat);
+ }
+ 
+ // delete all textures, buffers, memory
+ GEOM::~GEOM()
+ {
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    for(const auto& objectDraws:islandDraws)for(const auto& draw:objectDraws){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}
++#endif
+     for (int32_t v = 0; v < rhead.nvrtbuffs; v++)
+         srv.ReleaseVertexBuffer(vbuff[v].dev_buff);
+     srv.free(vbuff);
+@@ -334,7 +415,11 @@
+         {
+             const auto dist = object[o].center.x * pl[cp].nrm.x + object[o].center.y * pl[cp].nrm.y +
+                               object[o].center.z * pl[cp].nrm.z - pl[cp].d;
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++            if (dist > object[o].radius + islandRenderHorizontalMargin)
++#else
+             if (dist > object[o].radius)
++#endif
+                 break;
+             // if(dist<-object[o].radius)    break;
+         }
+@@ -346,6 +431,16 @@
+         srv.SetMaterial(material[object[o].material]);
+         if (mtf != nullptr)
+             mtf(material[object[o].material]);
++#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++        if(size_t(o)<islandDraws.size()&&!islandDraws[o].empty()) {
++            for(const auto& draw:islandDraws[o]) {
++                srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);
++                srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);
++            }
++            srv.SetIndexBuffer(idx_buff);
++            continue;
++        }
++#endif
+         srv.DrawIndexedPrimitive(object[o].start_vertex, object[o].num_vertices, vb->stride, object[o].striangle * 3,
+                                  object[o].ntriangles);
+     }

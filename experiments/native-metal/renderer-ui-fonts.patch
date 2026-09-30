@@ -1,0 +1,149 @@
+diff --git a/src/libs/renderer/include/metal_renderer_consumers.h b/src/libs/renderer/include/metal_renderer_consumers.h
+new file mode 100644
+index 0000000..e64fb51c02ade6fc6e36243e63c1483967373dcc
+--- /dev/null
++++ b/src/libs/renderer/include/metal_renderer_consumers.h
+@@ -0,0 +1,26 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++struct StormMetalGlyphInstance
++{
++    float x1, y1, x2, y2;
++    float u1, v1, u2, v2;
++    uint32_t color;
++};
++static_assert(sizeof(StormMetalGlyphInstance) == 36);
++static_assert(offsetof(StormMetalGlyphInstance, color) == 32);
++
++extern "C" bool StormMetalDrawCompactPrimitive(void *device, uint32_t primitiveType, uint32_t fvf,
++                                                uint32_t primitiveCount, const void *vertices,
++                                                uint32_t vertexStride);
++extern "C" bool StormMetalDrawCompactIndexedPrimitive(void *device, uint32_t primitiveType,
++                                                       uint32_t minIndex, uint32_t vertexCount,
++                                                       uint32_t primitiveCount, const void *indices,
++                                                       uint32_t indexFormat, const void *vertices,
++                                                       uint32_t vertexStride);
++extern "C" bool StormMetalDrawGlyphInstances(void *device, const StormMetalGlyphInstance *glyphs,
++                                              uint32_t glyphCount, float z, float rhw);
++#endif
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,4 +1,5 @@
+ #include "s_device.h"
++#include "metal_renderer_consumers.h"
+ #ifdef STORM_METAL_ROCKK2
+ extern "C" void storm_metal_label_texture(IDirect3DBaseTexture9 *, const char *);
+ #endif
+@@ -2348,8 +2349,15 @@
+         do
+         {
+             dwNumDrawPrimitive++;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            if (!StormMetalDrawCompactIndexedPrimitive(d3d9, dwPrimitiveType, dwMinIndex, dwNumVertices,
++                                                        dwPrimitiveCount, pIndexData, IndexDataFormat,
++                                                        pVertexData, dwVertexStride))
++                core.Trace("Metal compact indexed primitive rejected FVF/state contract");
++#else
+             CHECKD3DERR(d3d9->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
+                                                      pIndexData, IndexDataFormat, pVertexData, dwVertexStride));
++#endif
+         } while (cBlockName && TechniqueExecuteNext());
+ }
+ 
+@@ -2367,7 +2375,13 @@
+         do
+         {
+             dwNumDrawPrimitive++;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            if (!StormMetalDrawCompactPrimitive(d3d9, dwPrimitiveType, dwVertexBufferFormat, dwNumPT,
++                                                 pVerts, dwStride))
++                core.Trace("Metal compact primitive rejected FVF/state contract");
++#else
+             CHECKD3DERR(d3d9->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
++#endif
+         } while (cBlockName && TechniqueExecuteNext());
+ }
+ 
+diff --git a/src/libs/renderer/src/font.cpp b/src/libs/renderer/src/font.cpp
+--- a/src/libs/renderer/src/font.cpp
++++ b/src/libs/renderer/src/font.cpp
+@@ -1,5 +1,6 @@
+ #include "font.h"
+ #include "core.h"
++#include "metal_renderer_consumers.h"
+ #include "storm/config.hpp"
+ #include "utf8.h"
+ 
+@@ -373,8 +374,58 @@
+     const bool drawShadows = overrides.shadow.value_or(drawShadows_);
+     const float scale = overrides.scale.value_or(scale_);
+     const uint32_t color = overrides.color.value_or(color_);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    auto makeGlyphs = [&](int32_t originX, int32_t originY, uint32_t glyphColor,
++                          std::vector<StormMetalGlyphInstance> &glyphs) {
++        float xoffset = 0.f;
++        const int byteCount = strlen(data_PTR);
++        for (int i = 0; i < byteCount; i += utf8::u8_inc(data_PTR + i))
++        {
++            const int codepoint = utf8::Utf8ToCodepoint(data_PTR + i);
++            if (codepoint > USED_CODES)
++                continue;
++            FLOAT_RECT pos = charDescriptors_[codepoint].Pos;
++            if (scale != 1.f)
++            {
++                pos.x1 *= scale;
++                pos.x2 *= scale;
++                pos.y1 *= scale;
++                pos.y2 *= scale;
++            }
++            float kernLeft = bUseKerning ? charDescriptors_[codepoint].kern_l * scale : 0.f;
++            float kernRight = bUseKerning ? charDescriptors_[codepoint].kern_r * scale : 0.f;
++            OffsetFRect(pos, static_cast<float>(originX) + xoffset - kernLeft,
++                        static_cast<float>(originY));
++            xoffset += pos.x2 - pos.x1 - kernLeft - kernRight + symbolInterval_ * scale;
++            if (codepoint == ' ')
++            {
++                xoffset += spacebarWidth_ * scale;
++                continue;
++            }
++            const FLOAT_RECT uv = charDescriptors_[codepoint].Tuv;
++            glyphs.push_back({pos.x1, pos.y1, pos.x2, pos.y2, uv.x1, uv.y1, uv.x2, uv.y2, glyphColor});
++        }
++        return static_cast<int32_t>(xoffset);
++    };
++    std::vector<StormMetalGlyphInstance> glyphs;
++    glyphs.reserve(s_num);
+     if (drawShadows)
+     {
++        makeGlyphs(x + shadowOffsetX_, y + shadowOffsetY_, color, glyphs);
++        device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
++        device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
++        StormMetalDrawGlyphInstances(renderService_.GetD3DDevice(), glyphs.data(),
++                                     static_cast<uint32_t>(glyphs.size()), 0.5f, scale);
++        glyphs.clear();
++    }
++    xoffset = makeGlyphs(x, y, color, glyphs);
++    device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
++    device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
++    StormMetalDrawGlyphInstances(renderService_.GetD3DDevice(), glyphs.data(),
++                                 static_cast<uint32_t>(glyphs.size()), 0.5f, scale);
++#else
++    if (drawShadows)
++    {
+         UpdateVertexBuffer(x + shadowOffsetX_, y + shadowOffsetY_, data_PTR, s_num, scale, color);
+ 
+         device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
+@@ -386,6 +435,7 @@
+     device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+     device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+     device_.DrawPrimitive(D3DPT_TRIANGLELIST, 0, s_num * 2);
++#endif
+     while (renderService_.TechniqueExecuteNext())
+         ;
+ 
+

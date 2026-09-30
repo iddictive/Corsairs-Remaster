@@ -1,0 +1,58 @@
+--- a/src/libs/geometry/include/geos.h
++++ b/src/libs/geometry/include/geos.h
+@@ -136,6 +136,9 @@
+         int32_t texture[4];
+         char *group_name;
+         char *name;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        uint8_t stormMetalBakedShadowMask = 0;
++#endif
+     };
+ 
+     virtual int32_t FindMaterialN(int32_t start_index, int32_t name_id) = 0;
+--- a/src/libs/geometry/src/geom_static.cpp
++++ b/src/libs/geometry/src/geom_static.cpp
+@@ -328,6 +328,16 @@
+             material[m].texture_type[tl] = static_cast<TEXTURE_TYPE>(rmat[m].texture_type[tl]);
+-            if (rmat[m].texture_type[tl] != TEXTURE_NONE)
+-                material[m].texture[tl] = tlookup[rmat[m].texture[tl]];
+-            else
++            if (rmat[m].texture_type[tl] != TEXTURE_NONE) {
++                material[m].texture[tl] = tlookup[rmat[m].texture[tl]];
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++                const std::string_view textureName = &globname[tname[rmat[m].texture[tl]]];
++                const auto shadow = std::string_view("shadow");
++                if (std::search(textureName.begin(), textureName.end(), shadow.begin(), shadow.end(),
++                                [](char lhs, char rhs) {
++                                    return std::tolower(static_cast<unsigned char>(lhs)) ==
++                                           std::tolower(static_cast<unsigned char>(rhs));
++                                }) != textureName.end())
++                    material[m].stormMetalBakedShadowMask |= uint8_t(1u << tl);
++#endif
++            } else
+                 material[m].texture[tl] = -1;
+         }
+--- a/src/libs/geometry/src/geometry.cpp
++++ b/src/libs/geometry/src/geometry.cpp
+@@ -3,3 +3,6 @@
+ #include "geometry_r.h"
+ #include "string_compare.hpp"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" bool StormMetalOutdoorSunShadowsReady(void*);
++#endif
+ 
+@@ -275,7 +278,13 @@
+         // stage #2
+         RenderService->TextureSet(1, mt.texture[1]);
+         // COLOR = BASE_C + DETAIL_C - 0.5
+-        RenderService->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE2X);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        const bool replaceBakedShadow = (mt.stormMetalBakedShadowMask & (1u << 1)) &&
++            StormMetalOutdoorSunShadowsReady(RenderService->GetD3DDevice());
++#else
++        const bool replaceBakedShadow = false;
++#endif
++        RenderService->SetTextureStageState(1, D3DTSS_COLOROP, replaceBakedShadow ? D3DTOP_SELECTARG1 : D3DTOP_MODULATE2X);
+ 
+         // COLOR = CURRENT_C * VERTEX_C * 2
+         RenderService->TextureSet(2, 0);

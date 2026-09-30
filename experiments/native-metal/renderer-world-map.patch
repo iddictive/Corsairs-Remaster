@@ -1,0 +1,349 @@
+diff --git a/src/libs/worldmap/src/metal_world_map_bridge.h b/src/libs/worldmap/src/metal_world_map_bridge.h
+new file mode 100644
+index 00000000..8c4896f4
+--- /dev/null
++++ b/src/libs/worldmap/src/metal_world_map_bridge.h
+@@ -0,0 +1,29 @@
++#pragma once
++#include "dx9render.h"
++struct WdmMetalScreenRect { float x,y,w,h,angle,z,rhw; uint32_t color; float uv0[4],uv1[4]; float uv1Rotation; };
++struct WdmMetalQuad3D { CVECTOR center,axisX,axisY; float halfWidth,halfHeight; uint32_t color; float uv[4]; };
++struct WdmMetalDangerDisc { CVECTOR center; float radius; uint32_t centerColor, edgeColor; uint32_t segments; };
++struct WdmMetalShipWake { CVECTOR origin; const void *centerline; uint32_t points; float y,baseV,alpha,speedScale; };
++// Implemented by the Metal renderer owner. Each call uploads compact records;
++// vertex expansion and coordinate generation happen in the Metal shader path.
++extern "C" bool StormMetalDrawWdmScreenRects(void*, const WdmMetalScreenRect*, uint32_t, const char*);
++extern "C" bool StormMetalDrawWdmQuad(void*, const WdmMetalQuad3D&, const char*);
++extern "C" bool StormMetalDrawWdmDangerDisc(void*, const WdmMetalDangerDisc&, const char*);
++extern "C" bool StormMetalDrawWdmShipWake(void*, const WdmMetalShipWake&, const char*);
++extern "C" unsigned StormMetalBeginWdmModel(void*, unsigned);
++extern "C" void StormMetalEndWdmModel(void*, unsigned);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++class WdmMetalModelScope {
++public:
++    explicit WdmMetalModelScope(VDX9RENDER *rs): device(rs ? rs->GetD3DDevice() : nullptr), previous(device ? StormMetalBeginWdmModel(device, 1) : 0) {}
++    ~WdmMetalModelScope(){if(device)StormMetalEndWdmModel(device,previous);}
++private:void *device;unsigned previous;
++};
++#endif
++// The Metal backend consumes compact records but not the fixed-function stage
++// state, so each submission first applies the technique pass the legacy draw
++// ran before it submitted geometry. The backend only receives the device.
++inline bool WdmMetalDrawScreenRects(VDX9RENDER *rs,const WdmMetalScreenRect *rects,uint32_t count,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmScreenRects(rs->GetD3DDevice(),rects,count,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
++inline bool WdmMetalDrawQuad3D(VDX9RENDER *rs,const WdmMetalQuad3D &quad,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmQuad(rs->GetD3DDevice(),quad,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
++inline bool WdmMetalDrawDangerDisc(VDX9RENDER *rs,const WdmMetalDangerDisc &disc,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmDangerDisc(rs->GetD3DDevice(),disc,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
++inline bool WdmMetalDrawShipWake(VDX9RENDER *rs,const WdmMetalShipWake &wake,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmShipWake(rs->GetD3DDevice(),wake,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
+diff --git a/src/libs/worldmap/src/wdm_render_model.cpp b/src/libs/worldmap/src/wdm_render_model.cpp
+index d96e20d3..c6b616a0 100644
+--- a/src/libs/worldmap/src/wdm_render_model.cpp
++++ b/src/libs/worldmap/src/wdm_render_model.cpp
+@@ -11,3 +11,4 @@
+ #include "geometry.h"
++#include "metal_world_map_bridge.h"
+ 
+ #include "wdm_render_model.h"
+@@ -144,6 +145,9 @@ void WdmRenderModel::Render(VDX9RENDER *rs) const
+         if (dist < -radius)
+             return;
+     }
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    const WdmMetalModelScope metalModelScope(rs);
++#endif
+     geo->Draw(nullptr, 0, nullptr);
+     wdmObjects->gs->SetTechnique("");
+ }
+diff --git a/src/libs/worldmap/src/wdm_cloud.cpp b/src/libs/worldmap/src/wdm_cloud.cpp
+index 2a0e2ca5..3dbfaea3 100644
+--- a/src/libs/worldmap/src/wdm_cloud.cpp
++++ b/src/libs/worldmap/src/wdm_cloud.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_cloud.h"
++#include "metal_world_map_bridge.h"
+ #include "wdm_objects.h"
+ #include "core.h"
+ #include "math_inlines.h"
+@@ -277,6 +278,14 @@ void WdmCloud::Render(VDX9RENDER *rs)
+                 const auto kFrames = 1.0f / 4.0f;
+                 const auto width = 10.0f;
+                 const auto u = ((r.dwColor >> 8) & 3) * kFrames;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++                const float top = r.vPos.y - 3.0f;
++                const WdmMetalQuad3D compact{{r.vPos.x, (top + 0.5f) * 0.5f, r.vPos.z}, view.Vx(),
++                                             {0.0f, -1.0f, 0.0f}, width, (top - 0.5f) * 0.5f,
++                                             lightningColor, {u, 0.01f, kFrames, 0.98f}};
++                if (WdmMetalDrawQuad3D(rs, compact, "WdmLightning"))
++                    continue;
++#endif
+                 auto &vx = view.Vx();
+                 lght[0].pos = r.vPos - vx * width - CVECTOR(0.0f, 3.0f, 0.0f);
+                 lght[0].c = lightningColor;
+diff --git a/src/libs/worldmap/src/wdm_islands.cpp b/src/libs/worldmap/src/wdm_islands.cpp
+index 953e59e9..ec00ef63 100644
+--- a/src/libs/worldmap/src/wdm_islands.cpp
++++ b/src/libs/worldmap/src/wdm_islands.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_islands.h"
++#include "metal_world_map_bridge.h"
+ 
+ #include <algorithm>
+ #include <cmath>
+@@ -881,6 +882,14 @@ void WdmIslands::LRender(VDX9RENDER *rs)
+         rs->TextureSet(0, icons.texture);
+         rs->TextureSet(1, icons.texture);
+         rs->SetRenderState(D3DRS_TEXTUREFACTOR, static_cast<uint32_t>(icons.blend));
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        const WdmMetalScreenRect compact{label.l + label.iconX, label.t + label.iconY, icons.w, icons.h,
++                                         0.0f, 0.0f, 0.5f, color,
++                                         {icons.f[0], label.icon * icons.v, icons.u, icons.v},
++                                         {icons.f[1], label.icon * icons.v, icons.u, icons.v}, 0.0f};
++        if (WdmMetalDrawScreenRects(rs, &compact, 1, "WdmDrawLabelIcon"))
++            continue;
++#endif
+         // Filling the vertices
+         static struct
+         {
+@@ -954,6 +963,9 @@ void WdmIslands::RenderDangerZones(VDX9RENDER *rs) const
+ 
+     for (const Label &label : labels)
+     {
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        if(label.dangerZone&&label.dangerRadius>0.0f&&label.dangerAlpha>0.0f){uint32_t a=uint32_t(label.dangerAlpha*255.0f);WdmMetalDangerDisc compact{{label.dangerPos.x,0.35f,label.dangerPos.z},label.dangerRadius,(a<<24)|0x00b51f24,0x00b51f24,segments};if(WdmMetalDrawDangerDisc(rs,compact,"WdmPortDangerZone"))continue;}
++#endif
+         if (!label.dangerZone || label.dangerRadius <= 0.0f || label.dangerAlpha <= 0.0f)
+             continue;
+ 
+diff --git a/src/libs/worldmap/src/wdm_ship.cpp b/src/libs/worldmap/src/wdm_ship.cpp
+index 80e63273..014338ae 100644
+--- a/src/libs/worldmap/src/wdm_ship.cpp
++++ b/src/libs/worldmap/src/wdm_ship.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_ship.h"
++#include "metal_world_map_bridge.h"
+ #include "wdm_islands.h"
+ 
+ //============================================================================================
+@@ -261,6 +262,15 @@ void WdmShip::LRender(VDX9RENDER *rs)
+         const float y = 0.01f;
+         uint32_t color = (static_cast<uint32_t>(al) << 16) | (static_cast<uint32_t>(al) << 8) |
+                          (static_cast<uint32_t>(al) << 0) | 0xff000000;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        rs->TextureSet(0, wmtexture);
++        static CMatrix wmIdentity;
++        rs->SetTransform(D3DTS_WORLD, wmIdentity);
++        const WdmMetalShipWake compact{mtx.Pos(), lines, WDM_SHIP_WMSZ, y, baseV, al,
++                                       WDM_SHIP_SPEED / 5.0f};
++        if (WdmMetalDrawShipWake(rs, compact, "WdmShipWaterTrack"))
++            return;
++#endif
+         vrt[0].x = mtx.Pos().x + (lines[0].x - mtx.Pos().x) * 1.2f;
+         vrt[0].y = y;
+         vrt[0].z = mtx.Pos().z + (lines[0].z - mtx.Pos().z) * 1.2f;
+diff --git a/src/libs/worldmap/src/wdm_wind_rose.cpp b/src/libs/worldmap/src/wdm_wind_rose.cpp
+index 12180eec..190ca8a9 100644
+--- a/src/libs/worldmap/src/wdm_wind_rose.cpp
++++ b/src/libs/worldmap/src/wdm_wind_rose.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_wind_rose.h"
++#include "metal_world_map_bridge.h"
+ 
+ // ============================================================================================
+ // Construction, destruction
+@@ -52,9 +53,21 @@ void WdmWindRose::LRender(VDX9RENDER *rs)
+     prj.BuildProjectionMatrix(0.1f, 4.0f, 3.0f, 0.5f, 50.0f);
+     rs->SetTransform(D3DTS_PROJECTION, prj);
+     WdmRenderModel::LRender(rs);
+-    Vertex v[4];
+     const auto size = 5.5f;
+     const auto tsnap = 0.01f;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    rs->TextureSet(0, shadowTexture);
++    const WdmMetalQuad3D compact{{0.0f, -1.4f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f},
++                                 size, size, 0x8f8f8f8f,
++                                 {1.0f - tsnap, 1.0f - tsnap, -(1.0f - 2.0f * tsnap), -(1.0f - 2.0f * tsnap)}};
++    if (WdmMetalDrawQuad3D(rs, compact, "WdmCompasShadow"))
++    {
++        rs->SetTransform(D3DTS_PROJECTION, oldPrj);
++        rs->SetTransform(D3DTS_VIEW, oldView);
++        return;
++    }
++#endif
++    Vertex v[4];
+     v[0].x = -size;
+     v[0].z = size;
+     v[0].tu = 1.0f - tsnap;
+diff --git a/src/libs/worldmap/src/wdm_wind_ui.cpp b/src/libs/worldmap/src/wdm_wind_ui.cpp
+index 48a958a4..255d4f47 100644
+--- a/src/libs/worldmap/src/wdm_wind_ui.cpp
++++ b/src/libs/worldmap/src/wdm_wind_ui.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_wind_ui.h"
++#include "metal_world_map_bridge.h"
+ 
+ #include "core.h"
+ 
+@@ -388,30 +389,60 @@ void WdmWindUI::LRender(VDX9RENDER *rs)
+     resizeRatio = wdmObjects->resizeRatio;
+     const auto widForce = wdmObjects->GetWind(x, y, windDir);
+     const auto ang = static_cast<float>(atan2(windDir.x, windDir.z));
+-    // Buffer for drawing
++    // Buffer for the legacy renderer. Metal consumes compact rectangle records before this buffer is expanded.
+     Vertex buf[(3 * 2) * 2];
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    const auto drawMetalRect = [rs](float left, float top, float width, float height, float angle, uint32_t color,
++                                    float u0, float v0, float uw, float vh, float u10, float v10, float u1w,
++                                    float v1h, float uv1Rotation, const char *technique) {
++        const WdmMetalScreenRect rect{left, top, width, height, angle, 0.0f, 0.5f, color,
++                                      {u0, v0, uw, vh}, {u10, v10, u1w, v1h}, uv1Rotation};
++        return WdmMetalDrawScreenRects(rs, &rect, 1, technique);
++    };
++#endif
++
+     // Sky
+     rs->TextureSet(0, skyTx);
+     rs->TextureSet(1, skyMaskTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(skyLeftPos, skyTopPos, skyWidth, skyHeight, 0.0f, skyColor,
++                       wdmObjects->wm->hour * (1.0f / 24.0f) - 0.125f, 0.0f, 0.25f, 1.0f,
++                       0.0f, 0.0f, 1.0f, 1.0f, 0.0f, "WdmInterfaceDrawSky"))
++#endif
++    {
+     FillRectCoord(buf, skyLeftPos, skyTopPos, skyWidth, skyHeight);
+ 
+     FillRectUV(buf, (wdmObjects->wm->hour * (1.0f / 24.0f) - 0.125f), 0.0f, 0.25f, 1.0f);
+     FillRectUV1(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+     FillRectColor(buf, skyColor);
+     DrawRects(buf, 1, "WdmInterfaceDrawSky");
++    }
+ 
+     // Direction of the wind
+     rs->TextureSet(0, windPointerTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(windPointerLeftPos, windPointerTopPos, windPointerWidth, windPointerHeight, ang,
++                       windPointerColor, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
++                       "WdmDrawMapBlend"))
++#endif
++    {
+     FillRectCoord(buf, windPointerLeftPos, windPointerTopPos, windPointerWidth, windPointerHeight, ang);
+ 
+     FillRectUV(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+     FillRectColor(buf, windPointerColor);
+     DrawRects(buf, 1, "WdmDrawMapBlend");
++    }
+ 
+     // Wind force
+     rs->TextureSet(0, windBarTx);
+     rs->TextureSet(1, windBarMaskTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(windBarLeftPos, windBarTopPos, windBarWidth, windBarHeight, 0.0f, windBarColor,
++                       0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
++                       1.8f * (1.0f - widForce), "WdmInterfaceDrawSky"))
++#endif
++    {
+     FillRectCoord(buf, windBarLeftPos, windBarTopPos, windBarWidth, windBarHeight);
+ 
+     FillRectUV(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+@@ -426,14 +457,21 @@ void WdmWindUI::LRender(VDX9RENDER *rs)
+     }
+     FillRectColor(buf, windBarColor);
+     DrawRects(buf, 1, "WdmInterfaceDrawSky");
++    }
+ 
+     // Frame
+     rs->TextureSet(0, frameTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(frameLeftPos, frameTopPos, frameWidth, frameHeight, 0.0f, 0xffffffff,
++                       0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, "WdmDrawMapBlend"))
++#endif
++    {
+     FillRectCoord(buf, frameLeftPos, frameTopPos, frameWidth, frameHeight);
+ 
+     FillRectUV(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+     FillRectColor(buf, 0xffffffff);
+     DrawRects(buf, 1, "WdmDrawMapBlend");
++    }
+ 
+     // writing a date
+     char tbuf[128];
+@@ -445,20 +483,33 @@ void WdmWindUI::LRender(VDX9RENDER *rs)
+     // Drawing a moral bar
+     rs->TextureSet(0, moraleBarTx);
+     rs->TextureSet(1, moraleMaskTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(moraleLeftPos, moraleTopPos, moraleWidth, moraleHeight, 0.0f, moraleColor,
++                       morale * 0.28f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
++                       "WdmInterfaceDrawSky"))
++#endif
++    {
+     FillRectCoord(buf, moraleLeftPos, moraleTopPos, moraleWidth, moraleHeight);
+ 
+     FillRectUV(buf, morale * 0.28f, 0.0f, 1.0f, 1.0f);
+     FillRectUV1(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+     FillRectColor(buf, moraleColor);
+     DrawRects(buf, 1, "WdmInterfaceDrawSky");
++    }
+ 
+     // Drawing a moral block
+     rs->TextureSet(0, moraleTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (!drawMetalRect(moraleLeftPos, moraleTopPos, moraleWidth, moraleHeight, 0.0f, moraleColor,
++                       0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, "WdmDrawMapBlend"))
++#endif
++    {
+     FillRectCoord(buf, moraleLeftPos, moraleTopPos, moraleWidth, moraleHeight);
+ 
+     FillRectUV(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+     FillRectColor(buf, moraleColor);
+     DrawRects(buf, 1, "WdmDrawMapBlend");
++    }
+ 
+     // write the number of supplies
+     sprintf_s(tbuf, sizeof(tbuf) - 1, "%i%s", food > 99999 ? 99999 : food, food > 99999 ? "+" : "");
+@@ -477,11 +528,17 @@ void WdmWindUI::LRender(VDX9RENDER *rs)
+     {
+         // Coordinate frame
+         rs->TextureSet(0, coordTx);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        if (!drawMetalRect(coordLeftPos, coordTopPos, coordWidth, coordHeight, 0.0f, coordColor,
++                           0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, "WdmDrawMapBlend"))
++#endif
++        {
+         FillRectCoord(buf, coordLeftPos, coordTopPos, coordWidth, coordHeight);
+ 
+         FillRectUV(buf, 0.0f, 0.0f, 1.0f, 1.0f);
+         FillRectColor(buf, coordColor);
+         DrawRects(buf, 1, "WdmDrawMapBlend");
++        }
+ 
+         // display a line with coordinates
+         stCoordText.Print(); // static label, should be set in scripts
+@@ -495,11 +552,18 @@ void WdmWindUI::LRender(VDX9RENDER *rs)
+     {
+         // National flag
+         rs->TextureSet(0, nationFlagTx);
++        const float addtu = 1.0f / static_cast<float>(nationFlagCount);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        if (!drawMetalRect(nationFlagLeftPos, nationFlagTopPos, nationFlagWidth, nationFlagHeight, 0.0f,
++                           nationFlagColor, wdmObjects->nationFlagIndex.value() * addtu, 0.0f, addtu, 1.0f,
++                           0.0f, 0.0f, 0.0f, 0.0f, 0.0f, "WdmDrawMapBlend"))
++#endif
++        {
+         FillRectCoord(buf, nationFlagLeftPos, nationFlagTopPos, nationFlagWidth, nationFlagHeight);
+ 
+-        const float addtu = 1.0f / static_cast<float>(nationFlagCount);
+         FillRectUV(buf, wdmObjects->nationFlagIndex.value() * addtu, 0.0f, addtu, 1.0f);
+         FillRectColor(buf, nationFlagColor);
+         DrawRects(buf, 1, "WdmDrawMapBlend");
++        }
+     }
+ }

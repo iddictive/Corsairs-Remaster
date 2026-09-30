@@ -1,0 +1,61 @@
+diff --git a/src/libs/core/src/core_impl.cpp b/src/libs/core/src/core_impl.cpp
+--- a/src/libs/core/src/core_impl.cpp
++++ b/src/libs/core/src/core_impl.cpp
+@@ -15,6 +15,10 @@
+ 
+ Core &core = core_internal;
+ 
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++extern "C" void D3DPERF_SetMarker(uint32_t color, const wchar_t *name);
++#endif
++
+ #ifdef _WIN32
+ extern S_DEBUG *CDebug;
+ #endif
+@@ -584,6 +588,24 @@ void CoreImpl::ProcessRealize()
+     ProcessRunStart(SECTION_REALIZE);
+ 
+     const auto deltatime = Timer.GetDeltaTime();
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++    // Preserve EntityManager's layer-index and per-layer priority order while
++    // exposing the engine-owned transition into the first HUD layer. The Metal
++    // backend can snapshot the completed scene without classifying draw state.
++    constexpr layer_index_t layerCount = sizeof(uint32_t) * 8;
++    for (layer_index_t layer = 0; layer < layerCount; ++layer)
++    {
++        if (layer == INTERFACE_REALIZE)
++            D3DPERF_SetMarker(0, L"Storm.SceneHudBoundary");
++        if (entity_manager_.IsLayerFrozen(layer) || entity_manager_.GetLayerType(layer) != layer_type_t::realize)
++            continue;
++        for (auto id : entity_manager_.GetEntityIds(layer))
++        {
++            if (auto *ptr = core.GetEntityPointerSafe(id))
++                ptr->ProcessStage(Entity::Stage::realize, deltatime);
++        }
++    }
++#else
+     const auto &entIds = core.GetEntityIds(layer_type_t::realize);
+     for (auto id : entIds)
+     {
+@@ -593,6 +615,7 @@ void CoreImpl::ProcessRealize()
+             ptr->ProcessStage(Entity::Stage::realize, deltatime);
+         }
+     }
++#endif
+ 
+     ProcessRunEnd(SECTION_REALIZE);
+ }
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1214,5 +1214,10 @@ void DX9RENDER::MakePostProcess()
+ void DX9RENDER::MakePostProcess()
+ {
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++    // Sea and land battle HUDs live in scene realize layers. Their existing
++    // post-process handoff is the first reliable boundary before HUD drawing.
++    D3DPERF_SetMarker(0, L"Storm.SceneHudBoundary");
++#endif
+     if (bPostProcessError)
+         return;
+     if (!bSeaEffect && !bPostProcessEnabled)

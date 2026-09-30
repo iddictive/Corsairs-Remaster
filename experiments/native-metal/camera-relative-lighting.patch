@@ -1,0 +1,30 @@
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,6 +1,9 @@
+ #include "s_device.h"
+ #ifndef _WIN32
+ #include "raw_texture.hpp"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" void StormMetalSetWorldOrigin(void*, const float*);
++#endif
+ #endif
+ 
+ #include "core.h"
+@@ -2059,5 +2062,8 @@ bool DX9RENDER::SetCamera(const CVECTOR &pos, const CVECTOR &ang)
+     mtx.Pos() += vWordRelationPos - vOldWordRelationPos;
+     d3d9->SetTransform(D3DTS_WORLD, mtx);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    StormMetalSetWorldOrigin(d3d9, &vWordRelationPos.x);
++#endif
+ 
+     FindPlanes(d3d9);
+     ProcessScriptPosAng(pos, ang);
+@@ -2074,5 +2080,8 @@ bool DX9RENDER::SetCamera(CVECTOR lookFrom, CVECTOR lookTo, CVECTOR up)
+     SetTransform(D3DTS_VIEW, mtx);
+     Pos = lookFrom;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    StormMetalSetWorldOrigin(d3d9, &vWordRelationPos.x);
++#endif
+ 
+     // calculate the angle of the camera
+     // Ang = 0.0f;

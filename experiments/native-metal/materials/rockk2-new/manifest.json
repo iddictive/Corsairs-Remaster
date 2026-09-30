@@ -1,0 +1,30 @@
+{
+  "target": "rockK2.tga.tx",
+  "prepared_path": "rockk2-new/prepared/rockK2.tga.tx",
+  "role": "shared neutral coastal rock and rocky-ground diffuse",
+  "source": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/seaside_rock/seaside_rock_diff_4k.png",
+  "page": "https://polyhaven.com/a/seaside_rock",
+  "author": "Dimitrios Savva",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "source_sha256": "c06da8f26f554ca337021f6565b5e6debaf29567568f80766982743accc7456b",
+  "original_sha256": "ce2a8a0c173f1dad5762be6cdf8bb79bd33e15c987ca2dd6e1d1993d10a2d602",
+  "output_sha256": "0941393d26d607000610d6c1cd7d09d6e55d09e48f592c87d55a3df80c37bc6a",
+  "source_width": 4096,
+  "source_height": 4096,
+  "width": 1024,
+  "height": 1024,
+  "format": "DXT1",
+  "mip_count": 8,
+  "bytes": 699064,
+  "alpha": "opaque",
+  "composition": "Uniform square downsample; original aspect, UVs, orientation and mip count preserved",
+  "consumers": {
+    "gm_files": 77,
+    "draw_objects": 85,
+    "triangles": 732834
+  },
+  "fit": "Neutral dark gray-brown coastal rock; no directional highlight or large unique silhouette; suitable for cliffs, rocky ground, reflections and color-attenuated seabed",
+  "runtime_status": "rejected: flat-noise appearance; excluded from active root manifest and staging allowlist",
+  "pillow_version": "12.2.0"
+}

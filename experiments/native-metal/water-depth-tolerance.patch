@@ -1,0 +1,27 @@
+--- a/experiments/native-metal/sea_shaders.hpp
++++ b/experiments/native-metal/sea_shaders.hpp
+@@ -217,7 +217,7 @@
+     constexpr sampler nearestDepth(coord::normalized,address::clamp_to_edge,filter::nearest);
+     float z=depth.sample(nearestDepth,pixel*u.sceneSize.zw);
+     if(z>=.999999f)return false; // Clear depth contains no foreground geometry.
+-    if(z<=waterDepth+1.e-6f)return true;
++    if(z<=waterDepth)return true;
+     float3 point=modernSeaViewPosition(pixel,z,u);
+     return point.z<=waterView.z||dot(macroViewNormal,point-waterView)>.02f;
+ }
+@@ -264,13 +264,13 @@
+     // A foreground hull/shore pixel must never be dragged behind the water.
+     // Test actual depth, then revert to the unobstructed original ray.
+     float3 macroViewNormal=seaNormalize((u.viewMatrix*float4(o.surfaceNormal,0)).xyz);
+-    bool foreground=depth0<=o.position.z+1.e-6f||
++    bool foreground=depth0<=o.position.z||
+         modernSeaForegroundFootprint(refractedPixel,o.position.z,waterView,macroViewNormal,u,depth);
+     if(!foreground) {
+         uv=candidateUV;
+         thickness=candidateDepth>=.999999f?10000.f:length(candidateView-waterView);
+     }
+-    if(depth0<=o.position.z+1.e-6f)thickness=0.f;
++    if(depth0<=o.position.z)thickness=0.f;
+     float3 eye=seaNormalize(o.viewToEye);
+     // Macro-surface grazing incidence remains reflective despite fine ripples.
+     float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));

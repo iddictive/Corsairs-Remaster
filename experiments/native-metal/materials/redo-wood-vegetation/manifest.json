@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "family": "wood/decks/hulls + vegetation",
+  "source_runtime": "/REQUIRED_EXTERNAL_INPUT/Corsairs/experiments/native-storm/.cache/runtime/RESOURCE/Textures",
+  "comparison_runtime": "/REQUIRED_EXTERNAL_INPUT/Corsairs/experiments/native-metal/.cache/runtime/RESOURCE/Textures",
+  "accepted": [],
+  "rows": [
+    {"target": "woodDamU1.tga.tx", "original": {"path": "Textures/woodDamU1.tga.tx", "sha256": "12d9a2325185146b007e1ab3d311657c784d7df57769ae50bf9b200fce74d99c", "dimensions": [256, 128], "format": "DXT1", "mip_count": 3}, "consumer_evidence": ["Locations/decks/deckLowVSBig/deckLowVSBig.gm", "Locations/decks/deckLowVSMedium/DeckLowVSMedium.gm", "Locations/decks/deckMediumVSBig/deckMediumVSBig.gm", "Locations/decks/deckQuestFull/DeckMediumVSBig.gm"], "disposition": "keep-original", "reason": "Decoded pixels are an authored foliage/ground-like atlas rather than generic deck planks; wooden_planks fails identity, palette, and authored UV semantics. No output accepted."},
+    {"target": "woodRoundU1.tga.tx", "original": {"path": "Textures/woodRoundU1.tga.tx", "sha256": "4e9515539b0ea132de76ec378277590a8c6a87a9b02227c2fd1797d06ae5c370", "dimensions": [256, 256], "format": "DXT1", "mip_count": 3}, "consumer_evidence": ["Locations/decks/deckBig/deckBig.gm", "Locations/decks/deckLow/deckLow.gm", "Locations/decks/deckLowVSBig/deckLowVSBig.gm", "Locations/decks/deckLowVSMedium/DeckLowVSMedium.gm", "Locations/decks/deckMedium/deckMedium.gm", "Locations/decks/deckMediumVSBig/deckMediumVSBig.gm", "Locations/decks/deckQuestFull/DeckMediumVSBig.gm"], "disposition": "keep-original", "reason": "Distinctive circular end-grain/tree-ring identity; wooden_planks changes the mapped material. No output accepted."},
+    {"target": "Tornado/deck.tga.tx", "original": {"path": "Textures/Tornado/deck.tga.tx", "sha256": "00e294254d54c52e85c6637acbf58f8b9937597d209023797a6f3cbc45c1c1b8", "dimensions": [128, 128], "format": "DXT1", "mip_count": 6}, "consumer_evidence": ["Tornado/*.gm and ship mast/rigging GM texture-table references in wood-decks-hulls inventory"], "disposition": "keep-original", "reason": "Multi-region authored prop atlas; seamless wooden_planks destroys atlas UV identity. No output accepted."}
+  ],
+  "vegetation": {"disposition": "keep-original", "reason": "No explicit reusable source preserves exact vegetation silhouettes, atlas UV layout, alpha-test threshold, and identity; no replacement invented."},
+  "evaluated_source": {"page": "https://polyhaven.com/a/wooden_planks", "direct_map_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/wooden_planks/wooden_planks_diff_2k.png", "author": "Charlotte Baglioni (photography); Dario Barresi (processing)", "license": "CC0-1.0", "license_url": "https://polyhaven.com/license", "sha256": "628f30103801869f63ee9bb49fb7e0b87befb6ed09cfea6da2325170f65656bd", "rejection": "Valid CC0 diffuse wood, but fails identity preservation for every mapped low-resolution target."},
+  "runtime_status": "No staging, launch, build, or runtime mutation performed."
+}

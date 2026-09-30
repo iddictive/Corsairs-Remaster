@@ -1,0 +1,236 @@
+# Sail and draw guards for the fixed renderer buffer table.
+#
+# LockIndexBuffer indexed IndexBuffers[id] with no range check, so a failed
+# CreateIndexBuffer (the table was full) produced a null dereference in
+# SAIL::SetAllSails and killed the process. Reject an out-of-range or
+# unallocated id instead, skip that draw, and report the first rejection once.
+# SAIL::SetAllSails also replaces its buffer pair without releasing the old
+# one, which leaked one vertex and one index slot per sail rebuild.
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1224,6 +1224,32 @@
+ //################################################################################
+ bool DX9RENDER::DX9EndScene()
+ {
++    {
++        // Buffer-table growth probe: a slow leak in any subsystem shows up here as a rising count
++        // long before the fixed table is exhausted. The scan runs once per 1024 frames.
++        static uint32_t s_bufferScanFrame = 0;
++        static int32_t s_vertexHighWater = 0;
++        static int32_t s_indexHighWater = 0;
++        if ((++s_bufferScanFrame & 1023u) == 0u)
++        {
++            int32_t nVertex = 0;
++            int32_t nIndex = 0;
++            for (int32_t t = 0; t < MAX_BUFFERS; t++)
++            {
++                if (VertexBuffers[t].buff)
++                    nVertex++;
++                if (IndexBuffers[t].buff)
++                    nIndex++;
++            }
++            if (nVertex / 512 > s_vertexHighWater / 512 || nIndex / 512 > s_indexHighWater / 512)
++            {
++                s_vertexHighWater = nVertex;
++                s_indexHighWater = nIndex;
++                core.Trace("DX9RENDER: live buffers vertex=%d index=%d of %d", nVertex, nIndex, MAX_BUFFERS);
++            }
++        }
++    }
++
+     if (bShowFps)
+     {
+         Print(screen_size.x - 100, screen_size.y - 50, "FPS %d", core.EngineFps());
+@@ -2229,7 +2255,10 @@
+             break;
+ 
+     if (b == MAX_BUFFERS)
++    {
++        core.Trace("DX9RENDER: vertex buffer table exhausted (%d slots); new geometry cannot be created", MAX_BUFFERS);
+         return -1;
++    }
+ 
+     if (CHECKD3DERR(d3d9->CreateVertexBuffer(size, dwUsage, type, static_cast<D3DPOOL>(dwPool),
+                                              &VertexBuffers[b].buff, NULL)))
+@@ -2265,7 +2294,10 @@
+             break;
+ 
+     if (b == MAX_BUFFERS)
++    {
++        core.Trace("DX9RENDER: index buffer table exhausted (%d slots); new geometry cannot be created", MAX_BUFFERS);
+         return -1;
++    }
+ 
+     // d3d9->CreateIndexBuffer(size, D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
+     if (CHECKD3DERR(
+@@ -2276,13 +2308,36 @@
+     IndexBuffers[b].dwUsage = dwUsage;
+ 
+     return b;
++}
++
++namespace
++{
++// A rejected buffer id must never reach the fixed buffer table: reading before
++// or past it dereferences whatever memory lies there. Report the first
++// rejection once instead of crashing, and let the caller skip that draw.
++void ReportRejectedBuffer(const char *where, int32_t vbuff, int32_t ibuff)
++{
++    static bool s_reported = false;
++    if (s_reported)
++        return;
++    s_reported = true;
++    core.Trace("DX9RENDER: %s rejected an unallocated buffer (vertex %d, index %d); drawing continues without it",
++               where, vbuff, ibuff);
+ }
++} // namespace
+ 
+ //################################################################################
+ void DX9RENDER::DrawBuffer(int32_t vbuff, int32_t stride, int32_t ibuff, int32_t minv, size_t numv, size_t startidx, size_t numtrg,
+                            const char *cBlockName)
+ {
+     bool bDraw = true;
++
++    if (vbuff >= MAX_BUFFERS || (vbuff >= 0 && VertexBuffers[vbuff].buff == nullptr) || ibuff < 0 ||
++        ibuff >= MAX_BUFFERS || IndexBuffers[ibuff].buff == nullptr)
++    {
++        ReportRejectedBuffer("DrawBuffer", vbuff, ibuff);
++        return;
++    }
+ 
+     if (vbuff >= 0)
+         if (CHECKD3DERR(SetFVF(VertexBuffers[vbuff].type)))
+@@ -2314,11 +2369,22 @@
+ {
+     bool bDraw = true;
+ 
++    if (iIBuff < 0 || iIBuff >= MAX_BUFFERS || IndexBuffers[iIBuff].buff == nullptr)
++    {
++        ReportRejectedBuffer("DrawIndexedPrimitiveNoVShader", iVBuff, iIBuff);
++        return;
++    }
++
+     if (CHECKD3DERR(d3d9->SetIndices(IndexBuffers[iIBuff].buff)) == true)
+         return;
+ 
+     if (iVBuff >= 0)
+     {
++        if (iVBuff >= MAX_BUFFERS || VertexBuffers[iVBuff].buff == nullptr)
++        {
++            ReportRejectedBuffer("DrawIndexedPrimitiveNoVShader", iVBuff, iIBuff);
++            return;
++        }
+         if (CHECKD3DERR(d3d9->SetStreamSource(0, VertexBuffers[iVBuff].buff, 0, iStride)) == true)
+             return;
+     }
+@@ -2372,6 +2438,12 @@
+ {
+     bool bDraw = true;
+ 
++    if (iVBuff < 0 || iVBuff >= MAX_BUFFERS || VertexBuffers[iVBuff].buff == nullptr)
++    {
++        ReportRejectedBuffer("DrawPrimitive", iVBuff, -1);
++        return;
++    }
++
+     if (CHECKD3DERR(SetFVF(VertexBuffers[iVBuff].type)) == true)
+         return;
+ 
+@@ -2422,7 +2494,13 @@
+     }
+     // Render
+     if (CHECKD3DERR(SetFVF(type)) == true)
++        return;
++
++    if (ib >= MAX_BUFFERS || IndexBuffers[ib].buff == nullptr)
++    {
++        ReportRejectedBuffer("RenderAnimation", -1, ib);
+         return;
++    }
+ 
+     if (CHECKD3DERR(d3d9->SetIndices(IndexBuffers[ib].buff)) == true)
+         return;
+@@ -2439,6 +2517,11 @@
+ void *DX9RENDER::LockVertexBuffer(int32_t id, uint32_t dwFlags)
+ {
+     uint8_t *ptr;
++    if (id < 0 || id >= MAX_BUFFERS || VertexBuffers[id].buff == nullptr)
++    {
++        ReportRejectedBuffer("LockVertexBuffer", id, -1);
++        return nullptr;
++    }
+     VertexBuffers[id].dwNumLocks++;
+     if (CHECKD3DERR(VertexBuffers[id].buff->Lock(0, VertexBuffers[id].size, (void **)&ptr, dwFlags)))
+         return nullptr;
+@@ -2450,18 +2533,27 @@
+ //################################################################################
+ void DX9RENDER::UnLockVertexBuffer(int32_t id)
+ {
++        if (id < 0 || id >= MAX_BUFFERS || VertexBuffers[id].buff == nullptr)
++            return;
+         VertexBuffers[id].dwNumLocks--;
+         CHECKD3DERR(VertexBuffers[id].buff->Unlock());
+ }
+ 
+ int32_t DX9RENDER::GetVertexBufferSize(int32_t id)
+ {
++    if (id < 0 || id >= MAX_BUFFERS)
++        return 0;
+     return VertexBuffers[id].size;
+ }
+ 
+ void *DX9RENDER::LockIndexBuffer(int32_t id, uint32_t dwFlags)
+ {
+     uint8_t *ptr = nullptr;
++    if (id < 0 || id >= MAX_BUFFERS || IndexBuffers[id].buff == nullptr)
++    {
++        ReportRejectedBuffer("LockIndexBuffer", -1, id);
++        return nullptr;
++    }
+     IndexBuffers[id].dwNumLocks++;
+     if (CHECKD3DERR(IndexBuffers[id].buff->Lock(0, IndexBuffers[id].size, (void **)&ptr, dwFlags)))
+         return nullptr;
+@@ -2472,6 +2564,8 @@
+ 
+ void DX9RENDER::UnLockIndexBuffer(int32_t id)
+ {
++        if (id < 0 || id >= MAX_BUFFERS || IndexBuffers[id].buff == nullptr)
++            return;
+         IndexBuffers[id].dwNumLocks--;
+         CHECKD3DERR(IndexBuffers[id].buff->Unlock());
+ }
+@@ -2479,7 +2573,7 @@
+ //################################################################################
+ void DX9RENDER::ReleaseVertexBuffer(int32_t id)
+ {
+-    if (VertexBuffers[id].buff == nullptr)
++    if (id < 0 || id >= MAX_BUFFERS || VertexBuffers[id].buff == nullptr)
+         return;
+     CHECKD3DERR(VertexBuffers[id].buff->Release());
+     VertexBuffers[id].buff = nullptr;
+@@ -2489,7 +2583,7 @@
+ //################################################################################
+ void DX9RENDER::ReleaseIndexBuffer(int32_t id)
+ {
+-    if (IndexBuffers[id].buff == nullptr)
++    if (id < 0 || id >= MAX_BUFFERS || IndexBuffers[id].buff == nullptr)
+         return;
+     CHECKD3DERR(IndexBuffers[id].buff->Release());
+     IndexBuffers[id].buff = nullptr;
+diff --git a/src/libs/rigging/src/sail.cpp b/src/libs/rigging/src/sail.cpp
+--- a/src/libs/rigging/src/sail.cpp
++++ b/src/libs/rigging/src/sail.cpp
+@@ -1289,6 +1289,12 @@
+         texl = RenderService->TextureCreate("ships\\parus_hole.tga");
+     if (m_nEmptyGerbTex == -1)
+         m_nEmptyGerbTex = RenderService->TextureCreate("ships\\emptygerald.tga");
++
++    // Replace the sail buffers as a pair. This entry point used to overwrite both ids
++    // without releasing them, so every sea scene that rebuilt its sails leaked one vertex
++    // and one index buffer out of the renderer fixed table.
++    VERTEX_BUFFER_RELEASE(RenderService, sg.vertBuf);
++    INDEX_BUFFER_RELEASE(RenderService, sg.indxBuf);
+ 
+     sg.vertBuf = RenderService->CreateVertexBuffer(SAILVERTEX_FORMAT, sg.nVert * sizeof(SAILVERTEX),
+                                                    D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);

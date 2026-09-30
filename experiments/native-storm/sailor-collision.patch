@@ -1,0 +1,1207 @@
+--- a/src/libs/sailors/src/sailors.cpp
++++ b/src/libs/sailors/src/sailors.cpp
+@@ -5,6 +5,7 @@
+ #include "animation.h"
+ #include "core.h"
+ #include "shared/messages.h"
++#include "shared/sea_ai/deck_collision.hpp"
+ #include "shared/sea_ai/script_defines.h"
+ 
+ CREATE_CLASS(Sailors)
+@@ -16,14 +17,56 @@
+ constexpr float MOVE_SPEED = 0.15f;
+ constexpr float CLIMB_SPEED = 0.065f;
+ 
++constexpr float CREW_RADIUS = 0.28f;
++constexpr float CREW_HEIGHT = 1.70f;
++constexpr float MAX_AVOID_OFFSET = 0.75f;
++constexpr float COLLISION_CLEARANCE_EPSILON = 0.001f;
++
+ constexpr float JUMP_SPEED_X_MASTFALL = 3.0f;
+ constexpr float JUMP_SPEED_Y_EXPLOSION = 30.0f;
++
++bool VerticalOverlap(float firstY, float firstHeight, float secondY, float secondHeight)
++{
++    return firstY <= secondY + secondHeight && secondY <= firstY + firstHeight;
++}
++
++bool SweptCircleHit(const CVECTOR &from, const CVECTOR &to, const CVECTOR &center, float radius, float &hit)
++{
++    const float moveX = to.x - from.x;
++    const float moveZ = to.z - from.z;
++    const float a = moveX * moveX + moveZ * moveZ;
++    if (a < 0.000001f)
++        return false;
++
++    const float offsetX = from.x - center.x;
++    const float offsetZ = from.z - center.z;
++    const float startDistanceSq = offsetX * offsetX + offsetZ * offsetZ;
++    const float c = startDistanceSq - radius * radius;
++    if (c <= 0.f)
++    {
++        // Only a non-negative initial radial velocity is a continuous escape.
++        // Comparing endpoints would permit crossing through the center and out.
++        if (offsetX * moveX + offsetZ * moveZ >= 0.f)
++            return false;
++        hit = 0.f;
++        return true;
++    }
++
++    const float b = 2.f * (offsetX * moveX + offsetZ * moveZ);
++    const float discriminant = b * b - 4.f * a * c;
++    if (discriminant < 0.f)
++        return false;
++    hit = (-b - sqrtf(discriminant)) / (2.f * a);
++    return hit >= 0.f && hit <= 1.f;
++}
+ 
+ }
+ 
+ ShipMan::ShipMan(ShipMan &&other) noexcept: modelID{other.modelID},
+                                             pos{std::move(other.pos)},
+                                             ang{std::move(other.ang)},
++                                            previousVisualPos{std::move(other.previousVisualPos)},
++                                            requestedVisualPos{std::move(other.requestedVisualPos)},
+                                             ptTo{std::move(other.ptTo)},
+                                             angTo{std::move(other.angTo)},
+                                             dir{std::move(other.dir)},
+@@ -35,13 +78,17 @@
+                                             path{std::move(other.path)},
+                                             mode{other.mode},
+                                             lastMode{other.lastMode},
++                                            previousUpdateMode{other.previousUpdateMode},
++                                            previousLastTargetBusy{other.previousLastTargetBusy},
+                                             newWayPoint{other.newWayPoint},
+                                             lastWayPoint{other.lastWayPoint},
+                                             targetWayPoint{other.targetWayPoint},
+                                             lastTargetPoint{other.lastTargetPoint},
+                                             moveTo{other.moveTo},
+                                             manSpeed{other.manSpeed},
+-                                            rotSpeed{other.rotSpeed}
++                                            rotSpeed{other.rotSpeed},
++                                            pendingNewAction{other.pendingNewAction},
++                                            blockedRouteTime{other.blockedRouteTime}
+ {
+     other.modelID = invalid_entity;
+ }
+@@ -53,6 +100,8 @@
+     modelID = other.modelID;
+     pos = std::move(other.pos);
+     ang = std::move(other.ang);
++    previousVisualPos = std::move(other.previousVisualPos);
++    requestedVisualPos = std::move(other.requestedVisualPos);
+     ptTo = std::move(other.ptTo);
+     angTo = std::move(other.angTo);
+     dir = std::move(other.dir);
+@@ -64,6 +113,8 @@
+     path = std::move(other.path);
+     mode = other.mode;
+     lastMode = other.lastMode;
++    previousUpdateMode = other.previousUpdateMode;
++    previousLastTargetBusy = other.previousLastTargetBusy;
+     newWayPoint = other.newWayPoint;
+     lastWayPoint = other.lastWayPoint;
+     targetWayPoint = other.targetWayPoint;
+@@ -71,6 +122,8 @@
+     moveTo = other.moveTo;
+     manSpeed = other.manSpeed;
+     rotSpeed = other.rotSpeed;
++    pendingNewAction = other.pendingNewAction;
++    blockedRouteTime = other.blockedRouteTime;
+ 
+     other.modelID = invalid_entity;
+     return *this;
+@@ -662,13 +715,18 @@
+ 
+ void ShipMan::UpdatePos(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState)
+ {
++    pendingNewAction = false;
+     switch (mode)
+     {
+     case MAN_WALK:
+     case MAN_RUN:
++        // Reaching a waypoint is provisional until the deck collision owner
++        // accepts the movement. This keeps path/cannon transitions aligned
++        // with the rendered foot position when a crossing is stopped.
++        pendingNewAction = MoveToPosition(dltTime, sailorsPoints, shipState);
++        break;
+     case MAN_CLIMB_UP:
+     case MAN_CLIMB_DOWN:
+-
+         if (MoveToPosition(dltTime, sailorsPoints, shipState))
+             NewAction(sailorsPoints, shipState, dltTime);
+         break;
+@@ -697,6 +755,92 @@
+     SetAnimation(dltTime, shipState);
+ }
+ 
++void ShipMan::CommitPendingAction(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState)
++{
++    if (!pendingNewAction)
++        return;
++    pendingNewAction = false;
++    if (!Dest(pos, ptTo, .001f))
++        return;
++    NewAction(sailorsPoints, shipState, dltTime);
++    SetAnimation(dltTime, shipState);
++}
++
++void ShipMan::RefreshWalkDirection()
++{
++    if ((mode != MAN_WALK && mode != MAN_RUN) || Dest(pos, ptTo, .001f))
++        return;
++    dir = !(ptTo - pos);
++    angTo.y = Vector2Angle(dir);
++}
++
++void ShipMan::ObserveRouteProgress(uint32_t dltTime, SailorsPoints &sailorsPoints, ShipState &shipState)
++{
++    if (mode != MAN_WALK && mode != MAN_RUN)
++    {
++        blockedRouteTime = 0;
++        return;
++    }
++    const CVECTOR accepted = pos + spos;
++    const float requestedSq = SQR(requestedVisualPos.x - previousVisualPos.x) +
++                              SQR(requestedVisualPos.z - previousVisualPos.z);
++    const float acceptedSq = SQR(accepted.x - previousVisualPos.x) +
++                             SQR(accepted.z - previousVisualPos.z);
++    if (requestedSq < .000001f || acceptedSq >= .000001f)
++    {
++        blockedRouteTime = 0;
++        return;
++    }
++    blockedRouteTime = std::min<uint32_t>(blockedRouteTime + dltTime, 2000u);
++    if (blockedRouteTime < 900u || sailorsPoints.points.count <= 1)
++        return;
++
++    // A visual capsule that made no accepted progress for almost a second is
++    // blocked, regardless of whether the blocker was hull geometry, crew, or
++    // the protagonist. Replan from the last authored node and exclude the
++    // failed first edge so animation cannot run forever against one obstacle.
++    blockedRouteTime = 0;
++    const int failedPoint = newWayPoint;
++    const int anchor = lastWayPoint >= 0 && lastWayPoint < sailorsPoints.points.count
++        ? lastWayPoint : newWayPoint;
++    Path replacement;
++    int replacementTarget = -1;
++    int replacementNext = -1;
++    for (int candidate = 0; candidate < sailorsPoints.points.count; ++candidate)
++    {
++        const auto &point = sailorsPoints.points.point[candidate];
++        if (candidate == targetWayPoint || point.disabled || point.buisy || point.pointType != PT_TYPE_NORMAL)
++            continue;
++        Path proposed;
++        proposed = sailorsPoints.findPath(proposed, anchor, candidate);
++        if (proposed.min == -1 || !proposed.length)
++            continue;
++        const int next = proposed.length > 1 ? proposed.point[1] : proposed.point[0];
++        if (next == failedPoint)
++            continue;
++        replacement = proposed;
++        replacementTarget = candidate;
++        replacementNext = next;
++        break;
++    }
++    if (replacementTarget < 0)
++        return;
++
++    if (moveTo != MOVE_TO_POINT && targetWayPoint >= 0 && targetWayPoint < sailorsPoints.points.count)
++        sailorsPoints.points.point[targetWayPoint].buisy = false;
++    moveTo = MOVE_TO_POINT;
++    targetWayPoint = replacementTarget;
++    path = replacement;
++    path.currentPointPosition = 0;
++    lastWayPoint = anchor;
++    newWayPoint = replacementNext;
++    ApplyTargetPoint(CVECTOR(sailorsPoints.points.point[newWayPoint].x,
++                             sailorsPoints.points.point[newWayPoint].y,
++                             sailorsPoints.points.point[newWayPoint].z), true);
++    pendingNewAction = false;
++    SetAnimation(dltTime, shipState);
++}
++
+ void ShipWalk::ReloadCannons(int bort)
+ {
+     for (auto i = 0; i < sailorsPoints.points.count; i++)
+@@ -715,6 +859,66 @@
+         return;
+     }
+ 
++    // Establish a non-overlapping authored foot position before creating the
++    // model. A ship with too few supported normal points keeps the already
++    // accepted crew instead of rendering a duplicate capsule at spawn.
++    int spawnPoint = -1;
++    CVECTOR spawnPosition;
++    const auto spawnIsClear = [this](const CVECTOR &candidate) {
++        for (const auto &other : shipMan)
++        {
++            const CVECTOR otherPosition = other.pos + other.spos;
++            if (!VerticalOverlap(candidate.y, CREW_HEIGHT, otherPosition.y, CREW_HEIGHT))
++                continue;
++            const float dx = candidate.x - otherPosition.x;
++            const float dz = candidate.z - otherPosition.z;
++            const float clearance = CREW_RADIUS * 2.f;
++            if (dx * dx + dz * dz < clearance * clearance)
++                return false;
++        }
++        return true;
++    };
++    const int start = rand() % sailorsPoints.points.count;
++    for (int attempt = 0; attempt < sailorsPoints.points.count; ++attempt)
++    {
++        const int pointIndex = (start + attempt) % sailorsPoints.points.count;
++        const auto &point = sailorsPoints.points.point[pointIndex];
++        if (point.pointType != PT_TYPE_NORMAL || point.disabled)
++            continue;
++        const CVECTOR candidate(point.x, point.y, point.z);
++        if (spawnIsClear(candidate) && CanPlaceAt(candidate, candidate))
++        {
++            spawnPoint = pointIndex;
++            spawnPosition = candidate;
++            break;
++        }
++    }
++    for (int attempt = 0; spawnPoint < 0 && attempt < sailorsPoints.points.count; ++attempt)
++    {
++        const int pointIndex = (start + attempt) % sailorsPoints.points.count;
++        const auto &point = sailorsPoints.points.point[pointIndex];
++        if (point.pointType != PT_TYPE_NORMAL || point.disabled)
++            continue;
++        const CVECTOR base(point.x, point.y, point.z);
++        for (float radius = CREW_RADIUS; radius <= MAX_AVOID_OFFSET + .001f && spawnPoint < 0;
++             radius += CREW_RADIUS * .5f)
++        {
++            for (int sample = 0; sample < 32; ++sample)
++            {
++                const float angle = static_cast<float>(sample) * (PI * 2.f / 32.f) +
++                                    static_cast<float>(shipMan.size()) * 2.39996323f;
++                const CVECTOR candidate = base + CVECTOR(cosf(angle) * radius, 0.f, sinf(angle) * radius);
++                if (!spawnIsClear(candidate) || !CanPlaceAt(base, candidate))
++                    continue;
++                spawnPoint = pointIndex;
++                spawnPosition = candidate;
++                break;
++            }
++        }
++    }
++    if (spawnPoint < 0)
++        return;
++
+     auto & man = shipMan.emplace_back();
+     man.modelID = core.CreateEntity("MODELR");
+     int modelIdx = rand() % std::size(shipManModels_);
+@@ -729,11 +933,9 @@
+ 
+     if (sailorsPoints.points.count > 0)
+     {
+-        man.newWayPoint = man.FindRandomPointWithoutType(sailorsPoints);
+-
+-        man.pos.x = sailorsPoints.points.point[man.newWayPoint].x;
+-        man.pos.y = sailorsPoints.points.point[man.newWayPoint].y;
+-        man.pos.z = sailorsPoints.points.point[man.newWayPoint].z;
++        man.newWayPoint = spawnPoint;
++
++        man.pos = spawnPosition;
+ 
+         uint32_t dltTime = 0;
+         man.NewAction(sailorsPoints, shipState, dltTime);
+@@ -806,6 +1008,8 @@
+         if (peopleCount < 0)
+             peopleCount = 0;
+ 
++        // MODEL collision queries do not refresh node transforms themselves.
++        shipModel->Update();
+         for (auto i = 0; i < peopleCount; i++)
+             CreateNewMan(sailorsPoints);
+     }
+@@ -890,52 +1094,707 @@
+         man.spos.z -= man.spos.z / 100.0f * static_cast<float>(dltTime) / 10.0f;
+     }
+ 
+-    for (auto &man1 : shipMan)
+-    {
+-        for (auto &man2 : shipMan)
+-        {
+-            if (&man1 != &man2 && Dest(man1.pos, man2.pos, 1) &&
+-                (man1.mode == MAN_WALK || man1.mode == MAN_RUN) &&
+-                man1.path.currentPointPosition >= 0 &&
+-                man1.path.currentPointPosition < man1.path.length && man2.path.currentPointPosition >= 0 &&
+-                man2.path.currentPointPosition < man2.path.length)
+-            {
+-                const float d = Dest(man1.pos, man2.pos);
+-
+-                if (d < 1.0f)
++    // Most frames contain no dynamic overlap. Reject them with capsule math
++    // before the iterative resolver starts issuing expensive ship BSP sweeps.
++    const auto needsResolution = [this]() {
++        for (size_t i = 0; i < shipMan.size(); ++i)
++        {
++            const auto &man1 = shipMan[i];
++            if (!IsCollisionMan(man1))
++                continue;
++            const CVECTOR p1 = man1.pos + man1.spos;
++            if (deckCharacter_.active)
++            {
++                const float firstMinY = std::min(man1.previousVisualPos.y, p1.y);
++                const float firstMaxY = std::max(man1.previousVisualPos.y, p1.y) + CREW_HEIGHT;
++                if (VerticalOverlap(firstMinY, firstMaxY - firstMinY, deckCharacter_.resolved.y,
++                                    std::max(0.f, deckCharacter_.height)))
+                 {
+-                    // if go in different directions
+-                    if (man1.path.point[man1.path.currentPointPosition] !=
+-                        man2.path.point[man2.path.currentPointPosition])
++                    float hit;
++                    const float clearance = CREW_RADIUS + std::max(0.f, deckCharacter_.radius);
++                    if (SweptCircleHit(man1.previousVisualPos, p1, deckCharacter_.resolved, clearance, hit))
++                        return true;
++                }
++                if (!IsClearOfDeckCharacter(p1))
++                    return true;
++            }
++            for (size_t j = i + 1; j < shipMan.size(); ++j)
++            {
++                const auto &man2 = shipMan[j];
++                if (!IsCollisionMan(man2))
++                    continue;
++                const CVECTOR p2 = man2.pos + man2.spos;
++                const float firstMinY = std::min(man1.previousVisualPos.y, p1.y);
++                const float firstMaxY = std::max(man1.previousVisualPos.y, p1.y) + CREW_HEIGHT;
++                const float secondMinY = std::min(man2.previousVisualPos.y, p2.y);
++                const float secondMaxY = std::max(man2.previousVisualPos.y, p2.y) + CREW_HEIGHT;
++                if (VerticalOverlap(firstMinY, firstMaxY - firstMinY,
++                                    secondMinY, secondMaxY - secondMinY))
++                {
++                    float hit;
++                    if (SweptCircleHit(man1.previousVisualPos - man2.previousVisualPos, p1 - p2,
++                                       CVECTOR(0.f), CREW_RADIUS * 2.f, hit))
++                        return true;
++                }
++                if (!VerticalOverlap(p1.y, CREW_HEIGHT, p2.y, CREW_HEIGHT))
++                    continue;
++                const float dx = p1.x - p2.x;
++                const float dz = p1.z - p2.z;
++                const float clearance = CREW_RADIUS * 2.f - COLLISION_CLEARANCE_EPSILON;
++                if (dx * dx + dz * dz < clearance * clearance)
++                    return true;
++            }
++        }
++        return false;
++    };
++    // Preserve static hull acceptance with one sweep per actually moved sailor.
++    // A blocked authored route step stays at the last rendered safe position;
++    // the dynamic gate below can still send that corrected state to relaxation.
++    for (auto &man : shipMan)
++    {
++        if (!IsCollisionMan(man))
++            continue;
++        const CVECTOR candidate = man.pos + man.spos;
++        const bool moved = candidate.x != man.previousVisualPos.x ||
++                           candidate.y != man.previousVisualPos.y ||
++                           candidate.z != man.previousVisualPos.z;
++        if (!moved || CanPlaceAt(man.previousVisualPos, candidate))
++            continue;
++        if (TrySteerAroundStatic(man, man.previousVisualPos, candidate))
++            continue;
++        man.pos = man.previousVisualPos;
++        man.spos = 0.f;
++        man.RefreshWalkDirection();
++    }
++    if (!needsResolution())
++        return;
++
++    // The passes only find a candidate. The final check below verifies it and
++    // falls back to the last jointly accepted frame instead of accepting a
++    // partially relaxed set.
++    const int passes = deckCharacter_.active ? 12 : 8;
++    for (int pass = 0; pass < passes; ++pass)
++    {
++        if (deckCharacter_.active)
++        {
++            for (size_t manIndex = 0; manIndex < shipMan.size(); ++manIndex)
++            {
++                auto &man = shipMan[manIndex];
++                if (!IsCollisionMan(man))
++                    continue;
++                CVECTOR position = man.pos + man.spos;
++                const float minY = std::min(man.previousVisualPos.y, position.y);
++                const float maxY = std::max(man.previousVisualPos.y, position.y) + CREW_HEIGHT;
++                if (!VerticalOverlap(minY, maxY - minY, deckCharacter_.resolved.y,
++                                     std::max(0.f, deckCharacter_.height)))
++                    continue;
++
++                const float minDistance = CREW_RADIUS + std::max(0.f, deckCharacter_.radius);
++                if (pass == 0)
++                {
++                    float hit;
++                    if (SweptCircleHit(man.previousVisualPos, position, deckCharacter_.resolved, minDistance, hit))
+                     {
+-                        man1.spos.x += 0.2f * (+man1.dir.z * (1 - d) - man1.spos.x) / 15.0f *
+-                                             static_cast<float>(dltTime) / 20.0f;
+-                        man1.spos.z += 0.2f * (-man1.dir.x * (1 - d) - man1.spos.z) / 15.0f *
+-                                             static_cast<float>(dltTime) / 20.0f;
++                        const float travel = sqrtf(SQR(position.x - man.previousVisualPos.x) +
++                                                   SQR(position.z - man.previousVisualPos.z));
++                        const float safeHit = travel > 0.f ? std::max(0.f, hit - .01f / travel) : 0.f;
++                        const CVECTOR accepted = man.previousVisualPos +
++                                                 (position - man.previousVisualPos) * safeHit;
++                        if (!TryAcceptPosition(man, accepted))
++                        {
++                            man.pos = man.previousVisualPos;
++                            man.spos = 0.f;
++                            man.RefreshWalkDirection();
++                        }
++                        position = man.pos + man.spos;
+                     }
+-                    else
++                }
++
++                if (!VerticalOverlap(position.y, CREW_HEIGHT, deckCharacter_.resolved.y,
++                                     std::max(0.f, deckCharacter_.height)))
++                    continue;
++                float dx = position.x - deckCharacter_.resolved.x;
++                float dz = position.z - deckCharacter_.resolved.z;
++                const float distanceSq = dx * dx + dz * dz;
++                if (distanceSq >= minDistance * minDistance)
++                    continue;
++                const float actualDistance = sqrtf(distanceSq);
++                float normalLength = actualDistance;
++                if (normalLength < 0.0001f)
++                {
++                    // Distinct stable angles prevent a co-located group from
++                    // being pushed into the same point around the protagonist.
++                    const float angle = static_cast<float>(manIndex) * 2.39996323f;
++                    dx = cosf(angle);
++                    dz = sinf(angle);
++                    normalLength = 1.f;
++                }
++                const CVECTOR push(dx / normalLength * (minDistance - actualDistance), 0.f,
++                                   dz / normalLength * (minDistance - actualDistance));
++                const float previousX = man.previousVisualPos.x - deckCharacter_.resolved.x;
++                const float previousZ = man.previousVisualPos.z - deckCharacter_.resolved.z;
++                const bool previousSafe =
++                    !VerticalOverlap(man.previousVisualPos.y, CREW_HEIGHT, deckCharacter_.resolved.y,
++                                     std::max(0.f, deckCharacter_.height)) ||
++                    previousX * previousX + previousZ * previousZ >= minDistance * minDistance;
++                if (!TryMoveAside(man, push) && previousSafe)
++                {
++                    man.pos = man.previousVisualPos;
++                    man.spos = 0.f;
++                    man.RefreshWalkDirection();
++                }
++            }
++        }
++
++        for (size_t i = 0; i < shipMan.size(); ++i)
++        {
++            auto &man1 = shipMan[i];
++            if (!IsCollisionMan(man1))
++                continue;
++            for (size_t j = i + 1; j < shipMan.size(); ++j)
++            {
++                auto &man2 = shipMan[j];
++                if (!IsCollisionMan(man2))
++                    continue;
++                CVECTOR p1 = man1.pos + man1.spos;
++                CVECTOR p2 = man2.pos + man2.spos;
++
++                const float firstMinY = std::min(man1.previousVisualPos.y, p1.y);
++                const float firstMaxY = std::max(man1.previousVisualPos.y, p1.y) + CREW_HEIGHT;
++                const float secondMinY = std::min(man2.previousVisualPos.y, p2.y);
++                const float secondMaxY = std::max(man2.previousVisualPos.y, p2.y) + CREW_HEIGHT;
++                if (!VerticalOverlap(firstMinY, firstMaxY - firstMinY,
++                                     secondMinY, secondMaxY - secondMinY))
++                    continue;
++
++                const float minDistance = CREW_RADIUS * 2.f;
++                if (pass == 0)
++                {
++                    const CVECTOR relativeFrom = man1.previousVisualPos - man2.previousVisualPos;
++                    const CVECTOR relativeTo = p1 - p2;
++                    float hit;
++                    if (SweptCircleHit(relativeFrom, relativeTo, CVECTOR(0.f), minDistance, hit))
+                     {
+-                        if (&man1 < &man2)
++                        const float travel = sqrtf(SQR(relativeTo.x - relativeFrom.x) +
++                                                   SQR(relativeTo.z - relativeFrom.z));
++                        const float safeHit = travel > 0.f ? std::max(0.f, hit - .01f / travel) : 0.f;
++                        const CVECTOR accepted1 = man1.previousVisualPos +
++                                                  (p1 - man1.previousVisualPos) * safeHit;
++                        const CVECTOR accepted2 = man2.previousVisualPos +
++                                                  (p2 - man2.previousVisualPos) * safeHit;
++                        const CVECTOR oldPos1 = man1.pos, oldOffset1 = man1.spos;
++                        const CVECTOR oldPos2 = man2.pos, oldOffset2 = man2.spos;
++                        if (TryAcceptPosition(man1, accepted1) && TryAcceptPosition(man2, accepted2))
+                         {
+-                            man1.spos.x += 0.2f * (+man1.dir.z * (1 - d) - man1.spos.x) / 15.0f *
+-                                                 static_cast<float>(dltTime) / 20.0f;
+-                            man1.spos.z += 0.2f * (-man1.dir.x * (1 - d) - man1.spos.z) / 15.0f *
+-                                                 static_cast<float>(dltTime) / 20.0f;
++                            // One walker yields laterally at contact. Exact hull
++                            // validation decides whether either side is open;
++                            // otherwise both retain the safe waiting contact.
++                            const bool man1Walking = man1.mode == MAN_WALK || man1.mode == MAN_RUN;
++                            const bool man2Walking = man2.mode == MAN_WALK || man2.mode == MAN_RUN;
++                            auto &yielding = man1Walking && !man2Walking ? man1 : man2;
++                            const CVECTOR relativeMove = relativeTo - relativeFrom;
++                            float lateralX = -relativeMove.z;
++                            float lateralZ = relativeMove.x;
++                            float lateralLength = sqrtf(lateralX * lateralX + lateralZ * lateralZ);
++                            if (lateralLength < .0001f)
++                            {
++                                lateralX = yielding.dir.z;
++                                lateralZ = -yielding.dir.x;
++                                lateralLength = sqrtf(lateralX * lateralX + lateralZ * lateralZ);
++                            }
++                            if (lateralLength >= .0001f)
++                            {
++                                const float sign = ((i * 31 + j * 17) & 1) ? 1.f : -1.f;
++                                const CVECTOR sidestep(lateralX / lateralLength * CREW_RADIUS * 2.5f * sign,
++                                                       0.f,
++                                                       lateralZ / lateralLength * CREW_RADIUS * 2.5f * sign);
++                                if (!TryMoveAside(yielding, sidestep))
++                                    TryMoveAside(yielding, -sidestep);
++                            }
++                            continue;
+                         }
+-                        else
+-                        {
+-                            man1.spos.x += 0.2f * (-man1.dir.z * (1 - d) - man1.spos.x) / 15.0f *
+-                                                 static_cast<float>(dltTime) / 20.0f;
+-                            man1.spos.z += 0.2f * (+man1.dir.x * (1 - d) - man1.spos.z) / 15.0f *
+-                                                 static_cast<float>(dltTime) / 20.0f;
+-                        }
++                        man1.pos = oldPos1;
++                        man1.spos = oldOffset1;
++                        man2.pos = oldPos2;
++                        man2.spos = oldOffset2;
++                        // Previous rendered positions are the last jointly accepted pair.
++                        man1.pos = man1.previousVisualPos;
++                        man1.spos = 0.f;
++                        man1.RefreshWalkDirection();
++                        man2.pos = man2.previousVisualPos;
++                        man2.spos = 0.f;
++                        man2.RefreshWalkDirection();
++                        continue;
+                     }
+-
+-                    break;
+                 }
+-            }
+-        }
+-    }
++
++                p1 = man1.pos + man1.spos;
++                p2 = man2.pos + man2.spos;
++                if (!VerticalOverlap(p1.y, CREW_HEIGHT, p2.y, CREW_HEIGHT))
++                    continue;
++                float dx = p1.x - p2.x;
++                float dz = p1.z - p2.z;
++                const float distanceSq = dx * dx + dz * dz;
++                if (distanceSq >= minDistance * minDistance)
++                    continue;
++                const float distance = sqrtf(distanceSq);
++                if (distance < 0.0001f)
++                {
++                    const float angle = static_cast<float>((i * 37 + j * 17) % 64) * (PI * 2.f / 64.f);
++                    dx = cosf(angle);
++                    dz = sinf(angle);
++                }
++                else
++                {
++                    dx /= distance;
++                    dz /= distance;
++                }
++                const float penetration = minDistance - distance;
++                const CVECTOR fullPush(dx * penetration, 0.f, dz * penetration);
++                const bool firstMoving = p1.x != man1.previousVisualPos.x ||
++                                         p1.y != man1.previousVisualPos.y ||
++                                         p1.z != man1.previousVisualPos.z;
++                const bool secondMoving = p2.x != man2.previousVisualPos.x ||
++                                          p2.y != man2.previousVisualPos.y ||
++                                          p2.z != man2.previousVisualPos.z;
++                if (firstMoving != secondMoving)
++                {
++                    // Preserve an idle actor when the approaching walker has
++                    // enough supported deck to absorb the full correction.
++                    if (firstMoving)
++                    {
++                        if (!TryMoveAside(man1, fullPush))
++                            TryMoveAside(man2, -fullPush);
++                    }
++                    else if (!TryMoveAside(man2, -fullPush))
++                        TryMoveAside(man1, fullPush);
++                    continue;
++                }
++
++                const CVECTOR halfPush = fullPush * .5f;
++                const bool moved1 = TryMoveAside(man1, halfPush);
++                const bool moved2 = TryMoveAside(man2, -halfPush);
++                if (!moved1 && moved2)
++                    TryMoveAside(man2, -halfPush);
++                else if (moved1 && !moved2)
++                    TryMoveAside(man1, halfPush);
++            }
++        }
++    }
++
++    const auto markConflicts = [this](bool previous, std::vector<bool> *conflicts) {
++        bool clear = true;
++        const auto mark = [&clear, conflicts](size_t index) {
++            clear = false;
++            if (conflicts)
++                (*conflicts)[index] = true;
++        };
++        const auto markPair = [this, previous, &mark](size_t first, size_t second,
++                                                      const CVECTOR &p1, const CVECTOR &p2) {
++            if (!previous)
++            {
++                const auto &man1 = shipMan[first];
++                const auto &man2 = shipMan[second];
++                const bool firstMoving = p1.x != man1.previousVisualPos.x ||
++                                         p1.y != man1.previousVisualPos.y ||
++                                         p1.z != man1.previousVisualPos.z;
++                const bool secondMoving = p2.x != man2.previousVisualPos.x ||
++                                          p2.y != man2.previousVisualPos.y ||
++                                          p2.z != man2.previousVisualPos.z;
++                if (firstMoving != secondMoving)
++                {
++                    mark(firstMoving ? first : second);
++                    return;
++                }
++            }
++            mark(first);
++            mark(second);
++        };
++        for (size_t i = 0; i < shipMan.size(); ++i)
++        {
++            const auto &man1 = shipMan[i];
++            if (!IsCollisionMan(man1))
++                continue;
++            const CVECTOR p1 = previous ? man1.previousVisualPos : man1.pos + man1.spos;
++            if (!previous && deckCharacter_.active)
++            {
++                const float firstMinY = std::min(man1.previousVisualPos.y, p1.y);
++                const float firstMaxY = std::max(man1.previousVisualPos.y, p1.y) + CREW_HEIGHT;
++                if (VerticalOverlap(firstMinY, firstMaxY - firstMinY, deckCharacter_.resolved.y,
++                                    std::max(0.f, deckCharacter_.height)))
++                {
++                    float hit;
++                    const float clearance = CREW_RADIUS + std::max(0.f, deckCharacter_.radius);
++                    if (SweptCircleHit(man1.previousVisualPos, p1, deckCharacter_.resolved, clearance, hit))
++                        mark(i);
++                }
++            }
++            if (!IsClearOfDeckCharacter(p1))
++                mark(i);
++            for (size_t j = i + 1; j < shipMan.size(); ++j)
++            {
++                const auto &man2 = shipMan[j];
++                if (!IsCollisionMan(man2))
++                    continue;
++                const CVECTOR p2 = previous ? man2.previousVisualPos : man2.pos + man2.spos;
++                if (!previous)
++                {
++                    const float firstMinY = std::min(man1.previousVisualPos.y, p1.y);
++                    const float firstMaxY = std::max(man1.previousVisualPos.y, p1.y) + CREW_HEIGHT;
++                    const float secondMinY = std::min(man2.previousVisualPos.y, p2.y);
++                    const float secondMaxY = std::max(man2.previousVisualPos.y, p2.y) + CREW_HEIGHT;
++                    if (VerticalOverlap(firstMinY, firstMaxY - firstMinY,
++                                        secondMinY, secondMaxY - secondMinY))
++                    {
++                        float hit;
++                        if (SweptCircleHit(man1.previousVisualPos - man2.previousVisualPos, p1 - p2,
++                                           CVECTOR(0.f), CREW_RADIUS * 2.f, hit))
++                            markPair(i, j, p1, p2);
++                    }
++                }
++                if (!VerticalOverlap(p1.y, CREW_HEIGHT, p2.y, CREW_HEIGHT))
++                    continue;
++                const float dx = p1.x - p2.x;
++                const float dz = p1.z - p2.z;
++                const float clearance = CREW_RADIUS * 2.f - COLLISION_CLEARANCE_EPSILON;
++                if (dx * dx + dz * dz < clearance * clearance)
++                    markPair(i, j, p1, p2);
++            }
++        }
++        return clear;
++    };
++
++    if (markConflicts(false, nullptr))
++        return;
++
++    if (markConflicts(true, nullptr))
++    {
++        // Roll back only the connected conflict set. Expanding the set after
++        // each rollback catches a prior position reached by another actor,
++        // while independent path progress remains committed.
++        std::vector<bool> rollback(shipMan.size(), false);
++        for (size_t iteration = 0; iteration < shipMan.size(); ++iteration)
++        {
++            std::vector<bool> conflicts(shipMan.size(), false);
++            if (markConflicts(false, &conflicts))
++                return;
++            bool expanded = false;
++            for (size_t index = 0; index < shipMan.size(); ++index)
++            {
++                if (!conflicts[index] || rollback[index] || !IsCollisionMan(shipMan[index]))
++                    continue;
++                rollback[index] = true;
++                expanded = true;
++                auto &man = shipMan[index];
++                man.pos = man.previousVisualPos;
++                man.spos = 0.f;
++                man.RefreshWalkDirection();
++            }
++            if (!expanded)
++                break;
++        }
++        if (markConflicts(false, nullptr))
++            return;
++    }
++
++    // A climber can become a walking capsule at an occupied landing even
++    // though it did not participate in the previous collision state. Repair
++    // such an entrance around its intended foot without changing its route.
++    const auto clearForMan = [this](size_t manIndex, const CVECTOR &candidate) {
++        const auto &man = shipMan[manIndex];
++        if (deckCharacter_.active)
++        {
++            const float manMinY = std::min(man.previousVisualPos.y, candidate.y);
++            const float manMaxY = std::max(man.previousVisualPos.y, candidate.y) + CREW_HEIGHT;
++            if (VerticalOverlap(manMinY, manMaxY - manMinY, deckCharacter_.resolved.y,
++                                std::max(0.f, deckCharacter_.height)))
++            {
++                float hit;
++                const float clearance = CREW_RADIUS + std::max(0.f, deckCharacter_.radius);
++                if (SweptCircleHit(man.previousVisualPos, candidate, deckCharacter_.resolved, clearance, hit))
++                    return false;
++            }
++        }
++        if (!IsClearOfDeckCharacter(candidate))
++            return false;
++        const float clearance = CREW_RADIUS * 2.f - COLLISION_CLEARANCE_EPSILON;
++        for (size_t otherIndex = 0; otherIndex < shipMan.size(); ++otherIndex)
++        {
++            if (otherIndex == manIndex || !IsCollisionMan(shipMan[otherIndex]))
++                continue;
++            const auto &otherMan = shipMan[otherIndex];
++            const CVECTOR other = otherMan.pos + otherMan.spos;
++            const float manMinY = std::min(man.previousVisualPos.y, candidate.y);
++            const float manMaxY = std::max(man.previousVisualPos.y, candidate.y) + CREW_HEIGHT;
++            const float otherMinY = std::min(otherMan.previousVisualPos.y, other.y);
++            const float otherMaxY = std::max(otherMan.previousVisualPos.y, other.y) + CREW_HEIGHT;
++            if (VerticalOverlap(manMinY, manMaxY - manMinY, otherMinY, otherMaxY - otherMinY))
++            {
++                float hit;
++                if (SweptCircleHit(man.previousVisualPos - otherMan.previousVisualPos,
++                                   candidate - other, CVECTOR(0.f), CREW_RADIUS * 2.f, hit))
++                    return false;
++            }
++            if (!VerticalOverlap(candidate.y, CREW_HEIGHT, other.y, CREW_HEIGHT))
++                continue;
++            const float dx = candidate.x - other.x;
++            const float dz = candidate.z - other.z;
++            if (dx * dx + dz * dz < clearance * clearance)
++                return false;
++        }
++        return true;
++    };
++
++    for (size_t manIndex = 0; manIndex < shipMan.size(); ++manIndex)
++    {
++        auto &man = shipMan[manIndex];
++        if (!IsCollisionMan(man))
++            continue;
++        const CVECTOR current = man.pos + man.spos;
++        if (clearForMan(manIndex, current))
++            continue;
++
++        bool placed = false;
++        for (float radius = CREW_RADIUS; radius <= MAX_AVOID_OFFSET + .001f && !placed;
++             radius += CREW_RADIUS * .5f)
++        {
++            for (int sample = 0; sample < 32; ++sample)
++            {
++                const float angle = static_cast<float>(sample) * (PI * 2.f / 32.f) +
++                                    static_cast<float>(manIndex) * 2.39996323f;
++                const CVECTOR offset(cosf(angle) * radius, 0.f, sinf(angle) * radius);
++                const CVECTOR candidate = man.pos + offset;
++                if (!clearForMan(manIndex, candidate) || !CanPlaceAt(current, candidate))
++                    continue;
++                man.spos = offset;
++                placed = true;
++                break;
++            }
++        }
++        if (!placed && (man.previousUpdateMode == MAN_OFF || man.previousUpdateMode == MAN_JUMP ||
++                        man.previousUpdateMode == MAN_SWIM || man.previousUpdateMode == MAN_CLIMB_UP ||
++                        man.previousUpdateMode == MAN_CLIMB_DOWN))
++        {
++            // Keep a newly entering actor in its prior non-deck state until a
++            // supported free landing exists; existing accepted crew stay put.
++            man.mode = man.previousUpdateMode;
++            man.pos = man.previousVisualPos;
++            man.spos = 0.f;
++            man.pendingNewAction = false;
++            if (man.previousUpdateMode == MAN_CLIMB_DOWN && man.lastTargetPoint >= 0 &&
++                man.lastTargetPoint < sailorsPoints.points.count)
++                sailorsPoints.points.point[man.lastTargetPoint].buisy = man.previousLastTargetBusy;
++            man.SetAnimation(dltTime, shipState);
++        }
++    }
++
++    if (!markConflicts(false, nullptr) && markConflicts(true, nullptr))
++    {
++        std::vector<bool> rollback(shipMan.size(), false);
++        for (size_t iteration = 0; iteration < shipMan.size(); ++iteration)
++        {
++            std::vector<bool> conflicts(shipMan.size(), false);
++            if (markConflicts(false, &conflicts))
++                break;
++            bool expanded = false;
++            for (size_t index = 0; index < shipMan.size(); ++index)
++            {
++                if (!conflicts[index] || rollback[index] || !IsCollisionMan(shipMan[index]))
++                    continue;
++                rollback[index] = true;
++                expanded = true;
++                auto &man = shipMan[index];
++                man.pos = man.previousVisualPos;
++                man.spos = 0.f;
++                man.RefreshWalkDirection();
++            }
++            if (!expanded)
++                break;
++        }
++    }
++}
++
++bool ShipWalk::IsCollisionMan(const ShipMan &man) const
++{
++    return !man.inWater && man.mode != MAN_OFF && man.mode != MAN_JUMP && man.mode != MAN_SWIM &&
++           man.mode != MAN_CLIMB_UP && man.mode != MAN_CLIMB_DOWN;
++}
++
++bool ShipWalk::IsClearOfDeckCharacter(const CVECTOR &position) const
++{
++    if (!deckCharacter_.active ||
++        !VerticalOverlap(position.y, CREW_HEIGHT, deckCharacter_.resolved.y,
++                         std::max(0.f, deckCharacter_.height)))
++        return true;
++    const float dx = position.x - deckCharacter_.resolved.x;
++    const float dz = position.z - deckCharacter_.resolved.z;
++    const float minDistance = CREW_RADIUS + std::max(0.f, deckCharacter_.radius);
++    return dx * dx + dz * dz + .000001f >= minDistance * minDistance;
++}
++
++bool ShipWalk::CanPlaceMan(const ShipMan &man, const CVECTOR &offset) const
++{
++    return CanPlaceAt(man.pos + man.spos, man.pos + offset);
++}
++
++bool ShipWalk::TrySteerAroundStatic(ShipMan &man, const CVECTOR &current, const CVECTOR &desired)
++{
++    const CVECTOR movement = desired - current;
++    const float lengthSq = SQR(movement.x) + SQR(movement.z);
++    if (lengthSq < .000001f)
++        return false;
++    constexpr float angles[] = {.436332313f, -.436332313f, .785398163f, -.785398163f,
++                                1.221730476f, -1.221730476f};
++    const int parity = man.newWayPoint & 1;
++    for (size_t index = 0; index < std::size(angles); ++index)
++    {
++        const float angle = angles[index ^ parity];
++        const float sine = sinf(angle), cosine = cosf(angle);
++        const CVECTOR steered(current.x + movement.x * cosine + movement.z * sine, desired.y,
++                              current.z + movement.z * cosine - movement.x * sine);
++        if (!IsClearOfDeckCharacter(steered) || !CanPlaceAt(current, steered))
++            continue;
++        man.pos = steered;
++        man.spos = 0.f;
++        man.RefreshWalkDirection();
++        return true;
++    }
++    return false;
++}
++
++bool ShipWalk::CanPlaceAt(const CVECTOR &current, const CVECTOR &candidate) const
++{
++    if (!ship || !shipModel)
++        return true;
++
++    auto &matrix = *ship->GetMatrix();
++    const CVECTOR bottom = matrix * (current + CVECTOR(0.f, 0.02f, 0.f));
++    const CVECTOR top = matrix * (current + CVECTOR(0.f, CREW_HEIGHT, 0.f));
++    const CVECTOR delta = matrix * candidate - matrix * current;
++    if (!deck_collision::canSweep(*shipModel, bottom, top, delta, CREW_RADIUS))
++        return false;
++
++    // Accept a correction only when a short vertical probe finds its intended
++    // support level, not a lower deck or hull surface.
++    const float supportTop = std::max(current.y, candidate.y) + .45f;
++    const float supportBottom = candidate.y - .65f;
++    const CVECTOR supportFrom(candidate.x, supportTop, candidate.z);
++    const CVECTOR supportTo(candidate.x, supportBottom, candidate.z);
++    const float floor = shipModel->Trace(matrix * supportFrom, matrix * supportTo);
++    if (floor > 1.f)
++        return false;
++    const float floorY = supportTop + (supportBottom - supportTop) * floor;
++    return fabsf(floorY - candidate.y) <= .18f;
++}
++
++bool ShipWalk::TryAcceptPosition(ShipMan &man, const CVECTOR &candidate)
++{
++    if (!IsClearOfDeckCharacter(candidate) || !CanPlaceAt(man.pos + man.spos, candidate))
++        return false;
++    man.pos = candidate;
++    man.spos = 0.f;
++    man.RefreshWalkDirection();
++    return true;
++}
++
++bool ShipWalk::TryMoveAside(ShipMan &man, const CVECTOR &delta)
++{
++    return TrySetAside(man, man.spos + delta);
++}
++
++bool ShipWalk::TrySetAside(ShipMan &man, CVECTOR candidate)
++{
++    const float lengthSq = candidate.x * candidate.x + candidate.z * candidate.z;
++    if (lengthSq > MAX_AVOID_OFFSET * MAX_AVOID_OFFSET)
++        return false;
++    if (!IsClearOfDeckCharacter(man.pos + candidate) || !CanPlaceMan(man, candidate))
++        return false;
++    man.spos = candidate;
++    return true;
++}
++
++bool ShipWalk::ResolveDeckCharacter(SeaDeckCharacterCollisionQuery &query)
++{
++    query.resolved = query.desired;
++    query.blocked = 0;
++    deckCharacter_.active = 0;
++    if (!query.active || bHide)
++        return true;
++
++    const CVECTOR movement = query.desired - query.from;
++    const float a = movement.x * movement.x + movement.z * movement.z;
++    float accepted = 1.f;
++    for (const auto &man : shipMan)
++    {
++        if (!IsCollisionMan(man))
++            continue;
++        const CVECTOR center = man.pos + man.spos;
++        const float queryLow = std::min(query.from.y, query.desired.y);
++        const float queryHigh = std::max(query.from.y, query.desired.y) + std::max(0.f, query.height);
++        if (center.y > queryHigh || center.y + CREW_HEIGHT < queryLow)
++            continue;
++
++        const float radius = std::max(0.f, query.radius) + CREW_RADIUS;
++        float hit;
++        if (SweptCircleHit(query.from, query.desired, center, radius, hit) && hit <= accepted)
++            accepted = a > 0.f ? std::max(0.f, hit - .01f / sqrtf(a)) : 0.f;
++    }
++
++    if (accepted < 1.f)
++    {
++        // Stop just before the first capsule, then preserve the remaining
++        // tangential component. Crowded decks must remain walkable along a
++        // sailor or cannon instead of turning every contact into a full stop.
++        const CVECTOR contact = query.from + movement * accepted;
++        CVECTOR slide = query.desired - contact;
++        float nearestDistance = 1e30f;
++        CVECTOR nearestCenter;
++        for (const auto &man : shipMan)
++        {
++            if (!IsCollisionMan(man))
++                continue;
++            const CVECTOR center = man.pos + man.spos;
++            if (!VerticalOverlap(contact.y, std::max(0.f, query.height), center.y, CREW_HEIGHT))
++                continue;
++            const float dx = contact.x - center.x, dz = contact.z - center.z;
++            const float distance = dx * dx + dz * dz;
++            if (distance < nearestDistance)
++            {
++                nearestDistance = distance;
++                nearestCenter = center;
++            }
++        }
++        const float nx = contact.x - nearestCenter.x, nz = contact.z - nearestCenter.z;
++        const float normalLengthSq = nx * nx + nz * nz;
++        if (normalLengthSq > .000001f)
++        {
++            const float inward = std::min(0.f, (slide.x * nx + slide.z * nz) / normalLengthSq);
++            slide.x -= nx * inward;
++            slide.z -= nz * inward;
++        }
++        float slideAccepted = 1.f;
++        const CVECTOR slideTarget = contact + slide;
++        const float slideLengthSq = slide.x * slide.x + slide.z * slide.z;
++        for (const auto &man : shipMan)
++        {
++            if (!IsCollisionMan(man))
++                continue;
++            const CVECTOR center = man.pos + man.spos;
++            if (!VerticalOverlap(contact.y, std::max(0.f, query.height), center.y, CREW_HEIGHT))
++                continue;
++            float hit;
++            const float radius = std::max(0.f, query.radius) + CREW_RADIUS;
++            if (SweptCircleHit(contact, slideTarget, center, radius, hit) && hit <= slideAccepted)
++                slideAccepted = slideLengthSq > 0.f
++                    ? std::max(0.f, hit - .01f / sqrtf(slideLengthSq)) : 0.f;
++        }
++        query.resolved = contact + slide * slideAccepted;
++        query.blocked = 1;
++    }
++    deckCharacter_ = query;
++    deckCharacter_.resolved = query.resolved;
++    deckCharacter_.active = 1;
++    return true;
+ }
+ 
+ Sailors::Sailors()
+@@ -989,10 +1848,33 @@
+             return;
+         }
+ 
+-        // Updating and drawing
++        if (!walk->shipState.dead && walk->shipModel)
++            walk->shipModel->Update();
++
++        // Update every intended foot position before resolving visible capsules.
+         for (auto &man : walk->shipMan)
+         {
++            man.previousVisualPos = man.pos + man.spos;
++            man.previousUpdateMode = man.mode;
++            man.previousLastTargetBusy = man.lastTargetPoint >= 0 &&
++                                         man.lastTargetPoint < walk->sailorsPoints.points.count &&
++                                         walk->sailorsPoints.points.point[man.lastTargetPoint].buisy;
+             man.UpdatePos(dltTime, walk->sailorsPoints, walk->shipState);
++            man.requestedVisualPos = man.pos + man.spos;
++        }
++
++        if (!walk->shipState.dead)
++            walk->CheckPosition(dltTime);
++
++        for (auto &man : walk->shipMan)
++            man.ObserveRouteProgress(dltTime, walk->sailorsPoints, walk->shipState);
++
++        for (auto &man : walk->shipMan)
++            man.CommitPendingAction(dltTime, walk->sailorsPoints, walk->shipState);
++
++        // Apply the accepted visual offsets before the first model is rendered.
++        for (auto &man : walk->shipMan)
++        {
+             man.SetPos(walk->shipModel, walk->ship, dltTime, walk->shipState);
+ 
+             if (!walk->bHide)
+@@ -1018,8 +1900,6 @@
+         // Setting ship state
+         if (!walk->shipState.dead)
+         {
+-            walk->CheckPosition(dltTime);
+-
+             if (walk->ship && !walk->shipState.dead && !editorMode)
+             {
+                 // shipState
+@@ -1159,6 +2039,16 @@
+         }
+         break;
+     }
++    case MSG_SAILORS_RESOLVE_DECK_CHARACTER: {
++        auto *query = reinterpret_cast<SeaDeckCharacterCollisionQuery *>(message.Pointer());
++        if (!query)
++            return 0;
++        const auto walk = std::ranges::find_if(shipWalk,
++                                               [query](const auto &item) { return item.shipID == query->shipId; });
++        if (walk == std::end(shipWalk))
++            return 0;
++        return walk->ResolveDeckCharacter(*query) ? 1 : 0;
++    }
+     default: ;
+         break;
+     }
+--- a/src/libs/sailors/src/sailors.h
++++ b/src/libs/sailors/src/sailors.h
+@@ -6,6 +6,7 @@
+ #include "ship_base.h"
+ #include "sea_base.h"
+ #include "sailors_way_points.h"
++#include "shared/sea_ai/deck_collision.hpp"
+ #include "shared/sea_ai/sea_people.h"
+ 
+ enum ManMode
+@@ -64,6 +65,9 @@
+     void ApplyTargetPoint(CVECTOR pt, bool randomWalk);
+ 
+     void UpdatePos(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState);
++    void CommitPendingAction(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState);
++    void RefreshWalkDirection();
++    void ObserveRouteProgress(uint32_t dltTime, SailorsPoints &sailorsPoints, ShipState &shipState);
+     // Update animation and speed 
+     void SetAnimation(uint32_t dltTime, ShipState &shipState);
+ 
+@@ -80,6 +84,8 @@
+     entid_t modelID{};
+ 
+     CVECTOR pos{}, ang{}; // current position
++    CVECTOR previousVisualPos{}; // accepted rendered foot position before this update
++    CVECTOR requestedVisualPos{}; // route-integrated foot before collision acceptance
+     CVECTOR ptTo{}, angTo{}, dir{};
+ 
+     CVECTOR spos{}; // Bypassing each other
+@@ -92,12 +98,16 @@
+     Path path; // Current path
+ 
+     ManMode mode, lastMode; // Mode
++    ManMode previousUpdateMode{MAN_OFF};
++    bool previousLastTargetBusy{};
+     int newWayPoint{}, lastWayPoint{}, targetWayPoint{}, lastTargetPoint{};
+ 
+     ManMoveTo moveTo{}; // Current point type
+ 
+     float manSpeed;
+     float rotSpeed;
++    bool pendingNewAction{};
++    uint32_t blockedRouteTime{};
+ };
+ 
+ class ShipWalk
+@@ -109,6 +119,7 @@
+ 
+     bool Init(entid_t _shipID, int editorMode, const char *shipType, std::vector<std::string> &&shipManModels);
+     void CheckPosition(const uint32_t &dltTime);
++    bool ResolveDeckCharacter(SeaDeckCharacterCollisionQuery &query);
+     void SetMastBroken(int iMastIndex);
+     void OnHullHit(const CVECTOR &v);
+ 
+@@ -126,6 +137,18 @@
+     std::vector<std::string> shipManModels_ = { "Lowcharacters\\Lo_Man_1", "Lowcharacters\\Lo_Man_2",
+                                           "Lowcharacters\\Lo_Man_3", "Lowcharacters\\Lo_Man_Kamzol_1",
+                                           "Lowcharacters\\Lo_Man_Kamzol_2", "Lowcharacters\\Lo_Man_Kamzol_3" };
++
++  private:
++    bool IsCollisionMan(const ShipMan &man) const;
++    bool IsClearOfDeckCharacter(const CVECTOR &position) const;
++    bool CanPlaceAt(const CVECTOR &current, const CVECTOR &candidate) const;
++    bool TrySteerAroundStatic(ShipMan &man, const CVECTOR &current, const CVECTOR &desired);
++    bool CanPlaceMan(const ShipMan &man, const CVECTOR &offset) const;
++    bool TryAcceptPosition(ShipMan &man, const CVECTOR &candidate);
++    bool TrySetAside(ShipMan &man, CVECTOR candidate);
++    bool TryMoveAside(ShipMan &man, const CVECTOR &delta);
++
++    SeaDeckCharacterCollisionQuery deckCharacter_{};
+ };
+ 
+ class Sailors : public Entity
+--- a/src/libs/shared_headers/include/shared/messages.h
++++ b/src/libs/shared_headers/include/shared/messages.h
+@@ -372,6 +372,7 @@
+ //============================================================================================
+ #define MSG_PEOPLES_ON_SHIP_MASTFALL 77500 //"ll"        characterIndex, mastNumber
+ #define MSG_PEOPLES_ON_SHIP_HULLHIT 77600  //"lafff"
++#define MSG_SAILORS_RESOLVE_DECK_CHARACTER 77601 //"lp" SeaDeckCharacterCollisionQuery*
+ //============================================================================================
+ 
+ //============================================================================================

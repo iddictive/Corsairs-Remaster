@@ -1,0 +1,41 @@
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -11,6 +11,7 @@
+ #include "location.h"
+ 
+ #include <chrono>
++#include <cmath>
+ #include <cstring>
+ #include <string_view>
+ #include <vector>
+@@ -35,6 +36,8 @@
+ extern "C" void StormMetalEndShadowPass(void*);
+ extern "C" bool StormMetalRenderPointShadowCube(void*, uint64_t, const float*, float);
+ extern "C" bool StormMetalEndShadowFrame(void*);
++extern "C" void StormMetalBeginLightShaftOpenings(void*);
++extern "C" bool StormMetalLightShaftOpening(void*,uint64_t,const float*,const float*,const float*,float,float);
+ // Source-owned replay precedes every location model, including late interior
+ // geometry. No screen-visible draw list or collision-only entity is used.
+ class MetalLandLighting : public Entity {
+@@ -60,6 +63,21 @@
+             const bool isOutsideImage = image && std::strstr(image, "outside");
+             const bool outdoor = isOutsideImage || (type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore") || !std::strcmp(type,"seashore") || !std::strcmp(type,"land") || !std::strcmp(type,"mayak") || !std::strcmp(type,"plantation") || !std::strcmp(type,"fort") || !std::strcmp(type,"fort_attack") || !std::strcmp(type,"teno") || !std::strcmp(type,"LostShipsCity") || !std::strcmp(type,"deck") || !std::strcmp(type,"deck_fight") || !std::strcmp(type,"slave_deck")));
+             StormMetalLandInterior(device, !outdoor);
++            StormMetalBeginLightShaftOpenings(device);
++            if (!outdoor) {
++                if (auto* apertures = location->FindLocatorsGroup("lightshafts")) {
++                    for (int32_t i=0; i<apertures->Num(); ++i) {
++                        CMatrix m; if (!apertures->GetLocatorPos(i,m)) continue;
++                        const CVECTOR x=m.Vx(), y=m.Vy(), p=m.Pos();
++                        const float xl=std::sqrt(x.x*x.x+x.y*x.y+x.z*x.z), yl=std::sqrt(y.x*y.x+y.y*y.y+y.z*y.z);
++                        if (xl<=.001f || yl<=.001f) continue;
++                        const float c[]={p.x,p.y,p.z}, r[]={x.x/xl,x.y/xl,x.z/xl}, u[]={y.x/yl,y.y/yl,y.z/yl};
++                        uint64_t id=1469598103934665603ull; if (const char* n=apertures->LocatorName(i)) for (const unsigned char* q=(const unsigned char*)n; *q; ++q) id=(id^*q)*1099511628211ull;
++                        id=(id^uint64_t(i+1))*1099511628211ull; const float radius=std::max(.05f,apertures->GetLocatorRadius(i));
++                        StormMetalLightShaftOpening(device,id,c,r,u,radius*xl,radius*yl);
++                    }
++                }
++            }
+             if (!StormMetalBeginShadowFrame(device, reinterpret_cast<uintptr_t>(location), ++generation, center)) return;
+             if (location->GetLights()) location->GetLights()->PublishMetalSceneLights();
+             D3DMATRIX world, view, projection;

@@ -1,0 +1,39 @@
+--- a/src/libs/location/src/lights.h
++++ b/src/libs/location/src/lights.h
+@@ -128,3 +128,3 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+-    bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light);
++    bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, bool stableIndoor = false);
+     void PublishMetalSceneLights();
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -82,3 +82,3 @@
+             uint64_t lampId = 0; D3DLIGHT9 lamp{};
+-            if (auto* lights = location->GetLights(); lights && lights->GetShadowLight(focus, lampId, lamp)) {
++            if (auto* lights = location->GetLights(); lights && lights->GetShadowLight(focus, lampId, lamp, true)) {
+                 StormMetalShadowLamp(device, &lamp);
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -517,3 +517,21 @@
+-bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light)
++bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, bool stableIndoor)
+ {
++    // One cube is available. Pin its owner to authored scene order indoors,
++    // never nearest camera/player distance or instantaneous flicker intensity.
++    // Every other lamp still contributes through the complete scene catalog.
++    if (stableIndoor) {
++        for (int32_t index=0; index<numLights; ++index) {
++            const auto& source=lights[index];
++            light=types[source.type].dxLight;
++            if(light.Type!=D3DLIGHT_POINT || light.Range<=.1f)continue;
++            light.Position=source.pos;
++            const float intensity=source.intensity/255.f;
++            light.Diffuse.r=source.color.r*intensity;
++            light.Diffuse.g=source.color.g*intensity;
++            light.Diffuse.b=source.color.b*intensity;
++            id=uint64_t(index)+1;
++            return true;
++        }
++        id=0;return false;
++    }
+     for (auto index : GetLightsAt(pos)) {

@@ -1,0 +1,166 @@
+--- a/src/libs/location/src/grass.h
++++ b/src/libs/location/src/grass.h
+@@ -46,6 +46,19 @@ class Grass : public Entity
+         float alpha;
+     };
+ 
++#ifdef STORM_METAL_GRASS_BRIDGE
++    // One authored blade per element. The Metal renderer expands the four
++    // corners from vertex_id; no CPU quad expansion or FFP vertex conversion.
++    struct MetalInstance
++    {
++        float x, y, z;
++        uint32_t data;
++        float wx, wz;
++        float alpha;
++    };
++    static_assert(sizeof(MetalInstance) == 28, "Metal grass bridge ABI requires seven packed 32-bit lanes");
++#endif
++
+     struct VSConstant
+     {
+         VSConstant()
+@@ -211,6 +222,9 @@ class Grass : public Entity
+ 
+     Vertex *vbuffer; // Locked buffer
+ 
++#ifdef STORM_METAL_GRASS_BRIDGE
++    std::vector<MetalInstance> metalInstances;
++#endif
+     RenderQuality quality; // Rendering quality
+ 
+     float cosPh1, sinPh2, sinPh5, sinPh6, winPow, winF10, kAmpWF, kDirWF, kLitWF;
+--- a/src/libs/location/src/grass.cpp
++++ b/src/libs/location/src/grass.cpp
+@@ -14,6 +14,16 @@
+ #include "character.h"
+ #include "entity.h"
+ 
++#ifdef STORM_METAL_GRASS_BRIDGE
++// `instances` and `shaderConstants` are borrowed only for this synchronous call;
++// the backend must copy them into its frame-owned native buffers before return.
++extern "C" bool StormMetalDrawGrass(void *device, const void *instances, size_t instanceCount,
++                                      size_t instanceStride, const float *shaderConstants,
++                                      size_t shaderConstantCount, bool lit, float dataScale,
++                                      float maxWidth, float maxHeight, bool alphaTestEnable,
++                                      unsigned alphaRef, bool alphaBlendEnable, unsigned srcBlend,
++                                      unsigned dstBlend);
++#endif
+ // ============================================================================================
+ 
+ #define GRASS_BLK_LOD 0.8f   // Degree at kLod - the less, the closer LODs switch
+@@ -115,6 +121,7 @@ bool Grass::Init()
+     // Vertex declaration
+     CreateVertexDeclaration();
+     // Buffer for dynamic data
++#ifndef STORM_METAL_GRASS_BRIDGE
+     vb = rs->CreateVertexBuffer(0, GRASS_MAX_POINTS * 4 * sizeof(Vertex), D3DUSAGE_DYNAMIC);
+     if (vb < 0)
+         return false;
+@@ -138,6 +145,9 @@ bool Grass::Init()
+         index[5] = static_cast<uint16_t>(point + 3);
+     }
+     rs->UnLockIndexBuffer(ib);
++#else
++    metalInstances.reserve(GRASS_MAX_POINTS);
++#endif
+ 
+     // Constants
+     static const auto pi2 = 2.0f * 3.141592653f;
+@@ -725,7 +735,9 @@ uint64_t Grass::ProcessMessage(MESSAGE &message)
+ 
+ void Grass::RestoreRender()
+ {
++#ifndef STORM_METAL_GRASS_BRIDGE
+     CreateVertexDeclaration();
++#endif
+ }
+ 
+ // Draw a block with coordinates on the minimap
+@@ -821,15 +833,16 @@ inline bool Grass::VisibleTest(const PLANE *plane, int32_t numPlanes, const CVECTOR &min, const CVECTOR &max)
+ // Draw block
+ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod)
+ {
++#ifndef STORM_METAL_GRASS_BRIDGE
+     // Protect from yourself
+     if (!vbuffer)
+     {
+         vbuffer = static_cast<Vertex *>(rs->LockVertexBuffer(vb));
+         if (!vbuffer)
+             return;
+     }
+-    // Position in the vertex array
+     Vertex *v = vbuffer + numPoints * 4;
++#endif
+     // Blocks
+     GRSMapElementEx *b = block + mme.start;
+     // Determine the parameters of the lod
+@@ -940,6 +954,7 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod)
+         }
+         // Initial data
+         GRSMapElementEx &el = b[i];
++#ifndef STORM_METAL_GRASS_BRIDGE
+         // Coordinates
+         v[0].x = el.x;
+         v[0].y = el.y;
+@@ -980,6 +995,9 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod)
+         v[3].alpha = alpha;
+ 
+         v += 4;
++#else
++        metalInstances.push_back({el.x, el.y, el.z, el.data, winx, winz, alpha});
++#endif
+         numPoints++;
+     }
+ }
+@@ -988,6 +1007,7 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod)
+ // Draw the contents of the buffer
+ void Grass::DrawBuffer()
+ {
++#ifndef STORM_METAL_GRASS_BRIDGE
+     if (vbuffer)
+     {
+         rs->UnLockVertexBuffer(vb);
+@@ -1007,6 +1027,26 @@ void Grass::DrawBuffer()
+         // boal shader selection <--
+         numPoints = 0;
+     }
++#else
++    if (numPoints > 0)
++    {
++        // The native shader derives corner coordinates and atlas UVs from
++        // vertex_id while retaining the authored per-blade wind and LOD alpha.
++        // These are the exact Grass.fx cutout/blend values.
++        const bool accepted = StormMetalDrawGrass(
++            rs->GetD3DDevice(), metalInstances.data(), metalInstances.size(), sizeof(MetalInstance),
++            // One float4 per VSConstant register: the same 42 registers the
++            // Windows path uploads, in the float unit the bridge validates.
++            reinterpret_cast<const float *>(consts), sizeof(consts) / sizeof(VSConstant) * 4u,
++            isGrassLightsOn == 1, m_fDataScale, m_fMaxWidth, m_fMaxHeight,
++            true, 80u, true, static_cast<unsigned>(D3DBLEND_SRCALPHA),
++            static_cast<unsigned>(D3DBLEND_INVSRCALPHA));
++        if (!accepted)
++            throw std::runtime_error("Metal grass bridge rejected a classified native batch");
++        metalInstances.clear();
++        numPoints = 0;
++    }
++#endif
+ }
+ 
+ int32_t Grass::GetColor(CVECTOR color)
+@@ -1031,6 +1067,7 @@ int32_t Grass::GetColor(CVECTOR color)
+ 
+ void Grass::CreateVertexDeclaration() const
+ {
++#ifndef STORM_METAL_GRASS_BRIDGE
+     if (vertexDecl_ == nullptr)
+     {
+         constexpr D3DVERTEXELEMENT9 VertexElements[] = {
+@@ -1042,6 +1079,7 @@ void Grass::CreateVertexDeclaration() const
+ 
+         rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
+     }
++#endif
+ 
+ #ifdef _WIN32 // Effects
+     fx_ = rs->GetEffectPointer("Grass");

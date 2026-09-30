@@ -1,0 +1,47 @@
+diff --git a/src/video/cocoa/SDL_cocoamouse.m b/src/video/cocoa/SDL_cocoamouse.m
+index e70c409..8392a1c 100644
+--- a/src/video/cocoa/SDL_cocoamouse.m
++++ b/src/video/cocoa/SDL_cocoamouse.m
+@@ -41,21 +41,27 @@ + (NSCursor *)invisibleCursor
+ {
+     static NSCursor *invisibleCursor = NULL;
+     if (!invisibleCursor) {
+-        /* RAW 16x16 transparent GIF */
+-        static unsigned char cursorBytes[] = {
+-            0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x10, 0x00, 0x10, 0x00, 0x80,
+-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0xF9, 0x04,
+-            0x01, 0x00, 0x00, 0x01, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x10,
+-            0x00, 0x10, 0x00, 0x00, 0x02, 0x0E, 0x8C, 0x8F, 0xA9, 0xCB, 0xED,
+-            0x0F, 0xA3, 0x9C, 0xB4, 0xDA, 0x8B, 0xB3, 0x3E, 0x05, 0x00, 0x3B
+-        };
+-
+-        NSData *cursorData = [NSData dataWithBytesNoCopy:&cursorBytes[0]
+-                                                  length:sizeof(cursorBytes)
+-                                            freeWhenDone:NO];
+-        NSImage *cursorImage = [[NSImage alloc] initWithData:cursorData];
+-        invisibleCursor = [[NSCursor alloc] initWithImage:cursorImage
+-                                                  hotSpot:NSZeroPoint];
++        const NSInteger cursorWidth = 16;
++        const NSInteger cursorHeight = 16;
++        NSImage *cursorImage = NULL;
++        NSBitmapImageRep *cursorRep = [[NSBitmapImageRep alloc]
++            initWithBitmapDataPlanes:NULL
++                          pixelsWide:cursorWidth
++                          pixelsHigh:cursorHeight
++                       bitsPerSample:8
++                     samplesPerPixel:4
++                            hasAlpha:YES
++                            isPlanar:NO
++                      colorSpaceName:NSCalibratedRGBColorSpace
++                         bytesPerRow:cursorWidth * 4
++                        bitsPerPixel:32];
++        if (cursorRep) {
++            SDL_memset([cursorRep bitmapData], 0, cursorWidth * cursorHeight * 4);
++            cursorImage = [[NSImage alloc] initWithSize:NSMakeSize(cursorWidth, cursorHeight)];
++            [cursorImage addRepresentation:cursorRep];
++            invisibleCursor = [[NSCursor alloc] initWithImage:cursorImage
++                                                      hotSpot:NSZeroPoint];
++        }
+     }
+ 
+     return invisibleCursor;

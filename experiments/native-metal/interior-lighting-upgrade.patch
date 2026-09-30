@@ -1,0 +1,58 @@
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -23,6 +23,8 @@
+ #include <cstring>
+ #include "model_realizer.h"
+ extern "C" void StormMetalLandLocation(void*, bool);
++extern "C" void StormMetalLandInterior(void*, bool);
++extern "C" void StormMetalShadowLamp(void*, const D3DLIGHT9*);
+ extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
+ extern "C" void StormMetalEndLandModel(void*, unsigned);
+ extern "C" bool StormMetalBeginShadowFrame(void*, uint64_t, uint64_t, const float*);
+@@ -49,6 +51,9 @@
+             for (const auto& entry : location->supervisor.character)
+                 if (entry.c && entry.c->IsPlayer()) { entry.c->GetPosition(focus); break; }
+             const float center[] = {focus.x, focus.y, focus.z};
++            const char* type = locationAttributes ? locationAttributes->GetAttribute("type") : nullptr;
++            const bool outdoor = type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore"));
++            StormMetalLandInterior(device, !outdoor);
+             if (!StormMetalBeginShadowFrame(device, reinterpret_cast<uintptr_t>(location), ++generation, center)) return;
+             D3DMATRIX world, view, projection;
+             D3DVIEWPORT9 viewport;
+@@ -65,8 +70,6 @@
+                 location->RenderMetalShadowCasters();
+                 StormMetalEndShadowPass(device);
+             };
+-            const char* type = locationAttributes ? locationAttributes->GetAttribute("type") : nullptr;
+-            const bool outdoor = type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore"));
+             D3DLIGHT9 sun{}; BOOL sunEnabled = false;
+             renderer->GetLightEnable(0, &sunEnabled);
+             renderer->GetLight(0, &sun);
+@@ -77,6 +80,7 @@
+             }
+             uint64_t lampId = 0; D3DLIGHT9 lamp{};
+             if (auto* lights = location->GetLights(); lights && lights->GetShadowLight(focus, lampId, lamp)) {
++                StormMetalShadowLamp(device, &lamp);
+                 const float position[] = {lamp.Position.x, lamp.Position.y, lamp.Position.z};
+                 for (unsigned face = 0; face < 6; ++face) renderPass(1, face, lampId, position, lamp.Range);
+             }
+--- a/src/libs/location/src/model_realizer.cpp
++++ b/src/libs/location/src/model_realizer.cpp
+@@ -5,7 +5,7 @@
+ #include "lights.h"
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
+-extern "C" bool StormMetalLandShadowResolved(void*);
++extern "C" bool StormMetalLandLightingReady(void*);
+ extern "C" void StormMetalEndLandModel(void*, unsigned);
+ #endif
+ 
+@@ -47,7 +47,7 @@
+ {
+     Lights* activeLights = lights;
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+-    if (dynamicLights && StormMetalLandShadowResolved(rs->GetD3DDevice())) activeLights = dynamicLights;
++    if (dynamicLights && StormMetalLandLightingReady(rs->GetD3DDevice())) activeLights = dynamicLights;
+ #endif
+     if (!bShow)
+         return;
