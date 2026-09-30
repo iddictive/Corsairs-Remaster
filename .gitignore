@@ -7,3 +7,6 @@ dist/
 
 /.local-archives/
 /build-inputs.tar.gz
+
+*.log
+/native-storm/
