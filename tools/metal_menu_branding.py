@@ -3,7 +3,7 @@
 
 This helper owns the main menu branding transform:
 - Replaces original Discord/VK with Telegram and Behance text buttons
-- Adds bottom clickable banner 'IDDICTIVE REMASTER · macOS Edition'
+- Makes the existing bottom-right version text a website link, without a banner
 - Replaces menu logo with new 2.8 aspect IDDICTIVE logo (1024x366 texture)
 - Removes legacy QR code window and pointer/subscribe controls
 - Preserves all 6 main menu action buttons, background, and content version
@@ -31,8 +31,8 @@ BASE = {
 }
 
 UPDATED = {
-    SCRIPT: "c3a2f9374a13de5922f7fbcf53d30dd71addede22934a58b1e5bfd6ea88704a8",
-    LAYOUT: "9893484ba53d569653e93860979400b9b4d5ec912255cce8bcdae17bfee2f5e2",
+    SCRIPT: "27de0887aed4ce46f5b011ac4375bfca4b9c51866162ff1d4503c49b5be355d5",
+    LAYOUT: "708bb1912cb1f93bd7080109ca67e4ceac961754c6fe0f6b7bf7b697f11d4ad5",
     PICTURES: "8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb",
 }
 
@@ -75,7 +75,7 @@ def _strip_pictures(data: bytes) -> bytes:
     return text.replace(new_group, needle, 1).encode("utf-8")
 
 
-def _transform_ini(data: bytes) -> bytes:
+def _transform_ini_previous(data: bytes) -> bytes:
     text = data.decode("utf-8")
 
     # 1. Main items
@@ -245,9 +245,9 @@ def _transform_ini(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
-def _strip_ini(data: bytes) -> bytes:
+def _strip_ini_previous(data: bytes) -> bytes:
     text = data.decode("utf-8")
-    
+
     # 1. Main items
     old_main_tail = (
         "item = SMALLBUTTON,BTN_QUIT\r\n"
@@ -362,7 +362,7 @@ def _strip_ini(data: bytes) -> bytes:
     # 5. Restore BTN_DISCORD, BTN_VK
     start_banner = text.index("[BTN_BANNER]\r\n")
     changes_win = text.index("[CHANGES_WINDOW]\r\n")
-    
+
     old_social_chunk = (
         "[BTN_DISCORD]\r\n"
         "command = click,event:ShowDiscordQRCodeWindow\r\n"
@@ -424,7 +424,7 @@ def _strip_ini(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
-def _transform_c(data: bytes) -> bytes:
+def _transform_c_previous(data: bytes) -> bytes:
     text = data.decode("utf-8")
 
     # 1. InitInterface
@@ -552,7 +552,7 @@ def _transform_c(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
-def _strip_c(data: bytes) -> bytes:
+def _strip_c_previous(data: bytes) -> bytes:
     text = data.decode("utf-8")
 
     # 1. InitInterface
@@ -680,6 +680,56 @@ def _strip_c(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
+REMOVED_BANNER = '[BTN_BANNER]\r\ncommand = click,event:OpenBannerURL\r\ncommand = activate,event:OpenBannerURL\r\ncommand = deactivate,select:BTN_QUIT\r\ncommand = upstep,select:BTN_QUIT\r\ncommand = downstep,select:BTN_NEWGAME\r\ncommand = leftstep,select:BTN_BEHANCE\r\ncommand = rightstep,select:BTN_TELEGRAM\r\nposition = 10,568,340,596\r\nstring = #IDDICTIVE REMASTER · macOS Edition\r\nfont = INTERFACE_NORMAL\r\nfontScale = 0.9\r\nstrOffset = 7\r\nglowoffset = 0,0\r\npressPictureOffset = 2,2\r\n\r\n'
+
+VERSION_LABEL = "Iddictive Remaster · GPK 1.3.2 AT + ReConstruction 1.4.1"
+PREVIOUS = {'PROGRAM/interface/mainmenu.c': 'c3a2f9374a13de5922f7fbcf53d30dd71addede22934a58b1e5bfd6ea88704a8', 'RESOURCE/INI/interfaces/mainmenu.ini': '9893484ba53d569653e93860979400b9b4d5ec912255cce8bcdae17bfee2f5e2', 'RESOURCE/INI/interfaces/pictures.ini': '8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb'}
+
+
+def _simplify(relative: str, data: bytes, reverse: bool = False) -> bytes:
+    text = data.decode("utf-8")
+    if relative == LAYOUT:
+        banner = REMOVED_BANNER
+        pairs = [("item = TEXTBUTTON2,BTN_BANNER\r\n", ""),
+                 ("select:BTN_BANNER", "select:VERSION"),
+                 (banner, ""),
+                 ("[VERSION]\r\n", "[VERSION]\r\ncommand = click,event:OpenBannerURL\r\ncommand = activate,event:OpenBannerURL\r\ncommand = deactivate,select:BTN_QUIT\r\ncommand = upstep,select:BTN_QUIT\r\ncommand = downstep,select:BTN_NEWGAME\r\nbShowGlowCursor = 0\r\n")]
+    else:
+        banner = '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_BANNER", 0, "#IDDICTIVE REMASTER · macOS Edition");\r\n'
+        pairs = [("IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1", VERSION_LABEL), (banner, "")]
+        if reverse:
+            anchor = '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_BEHANCE", 0, "#Behance");\r\n'
+            text = text.replace(anchor, anchor + banner, 1)
+            pairs = pairs[:1]
+    for before, after in pairs:
+        text = text.replace(after, before) if reverse else text.replace(before, after)
+    return text.encode("utf-8")
+
+
+
+
+def _transform_ini(data):
+    return _simplify(LAYOUT, _transform_ini_previous(data))
+
+
+def _strip_ini(data):
+    # The original section is deterministic; retain its previous bytes below.
+    text = data.decode("utf-8")
+    text = text.replace("item = TEXTBUTTON2,BTN_TELEGRAM\r\n", "item = TEXTBUTTON2,BTN_BANNER\r\nitem = TEXTBUTTON2,BTN_TELEGRAM\r\n", 1)
+    text = text.replace("select:VERSION", "select:BTN_BANNER")
+    text = text.replace("[VERSION]\r\ncommand = click,event:OpenBannerURL\r\ncommand = activate,event:OpenBannerURL\r\ncommand = deactivate,select:BTN_QUIT\r\ncommand = upstep,select:BTN_QUIT\r\ncommand = downstep,select:BTN_NEWGAME\r\nbShowGlowCursor = 0\r\n", "[VERSION]\r\n", 1)
+    text = text.replace("[BTN_TELEGRAM]\r\n", REMOVED_BANNER + "[BTN_TELEGRAM]\r\n", 1)
+    return _strip_ini_previous(text.encode("utf-8"))
+
+
+def _transform_c(data):
+    return _simplify(SCRIPT, _transform_c_previous(data))
+
+
+def _strip_c(data):
+    return _strip_c_previous(_simplify(SCRIPT, data, reverse=True))
+
+
 def strip(relative: str, data: bytes) -> tuple[bytes, str]:
     if relative not in BASE:
         raise ValueError(f"unsupported menu branding target: {relative}")
@@ -689,6 +739,8 @@ def strip(relative: str, data: bytes) -> tuple[bytes, str]:
         data = data.replace("string = #IDDICTIVE REMASTER · macOS Edition\r\nfontScale = 0.65\r\n".encode(), "string = #IDDICTIVE REMASTER · macOS Edition\r\nfont = INTERFACE_NORMAL\r\nfontScale = 0.9\r\nstrOffset = 7\r\n".encode()).replace(b"fontScale = 0.75\r\n", b"fontScale = 0.75\r\nstrOffset = 7\r\n")
     if relative == SCRIPT and digest(data) == "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb":
         data = data.replace('\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'.encode(), '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'.encode())
+    if digest(data) == PREVIOUS[relative] and relative != PICTURES:
+        data = (_strip_c_previous(data) if relative == SCRIPT else _strip_ini_previous(data))
     d = digest(data)
     if d == BASE[relative]:
         return data, "base"
@@ -716,6 +768,8 @@ def prepare(relative: str, data: bytes) -> tuple[bytes, str]:
         data = data.replace("string = #IDDICTIVE REMASTER · macOS Edition\r\nfontScale = 0.65\r\n".encode(), "string = #IDDICTIVE REMASTER · macOS Edition\r\nfont = INTERFACE_NORMAL\r\nfontScale = 0.9\r\nstrOffset = 7\r\n".encode()).replace(b"fontScale = 0.75\r\n", b"fontScale = 0.75\r\nstrOffset = 7\r\n")
     if relative == SCRIPT and digest(data) == "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb":
         data = data.replace('\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'.encode(), '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'.encode())
+    if digest(data) == PREVIOUS[relative] and relative != PICTURES:
+        data = (_strip_c_previous(data) if relative == SCRIPT else _strip_ini_previous(data))
     d = digest(data)
     if d == UPDATED[relative]:
         return data, "patched"
