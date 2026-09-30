@@ -482,30 +482,31 @@ def write_plist_and_launcher(contents_dir: Path, minos_version: str = "15.0") ->
     plist_path = contents_dir / "Info.plist"
     plist_path.write_bytes(plistlib.dumps(plist_data))
 
-    launch_script = """#!/bin/bash
-set -euo pipefail
-export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+    source = Path(__file__).resolve().parents[1] / 'experiments/native-metal/public_native_launcher.c'
+    subprocess.check_call(['xcrun', 'clang', '-arch', 'arm64',
+                           '-mmacosx-version-min=' + minos_version,
+                           '-O2', str(source), '-o', str(contents_dir / 'MacOS/launch')])
 
-macos_dir="$(cd "$(dirname "$0")" && pwd -P)"
-contents_dir="$(cd "$macos_dir/.." && pwd -P)"
-python_bin="$contents_dir/Frameworks/Python.framework/Versions/3.14/bin/python3.14"
-launcher_script="$contents_dir/Resources/public_launcher.py"
 
-if [[ ! -x "$python_bin" ]]; then
-    echo "Error: Bundled Python executable missing at $python_bin" >&2
-    exit 1
-fi
-
-if [[ ! -f "$launcher_script" ]]; then
-    echo "Error: Launcher script missing at $launcher_script" >&2
-    exit 1
-fi
-
-exec "$python_bin" -I -B "$launcher_script" "$@"
-"""
-    launch_path = contents_dir / "MacOS/launch"
-    launch_path.write_text(launch_script, encoding="utf-8")
-    launch_path.chmod(0o755)
+def sign_application(bundle_dir: Path) -> None:
+    """Seal nested code before the app, avoiding TCC's unsigned-bundle synthesis."""
+    framework = bundle_dir / 'Contents/Frameworks/Python.framework'
+    version = framework / 'Versions/3.14'
+    resources = version / 'Resources'
+    resources.mkdir(exist_ok=True)
+    (resources / 'Info.plist').write_bytes(plistlib.dumps({
+        'CFBundleIdentifier': 'us.iddictive.corsairs.python',
+        'CFBundleExecutable': 'Python', 'CFBundlePackageType': 'FMWK',
+        'CFBundleVersion': '3.14', 'CFBundleName': 'Python'}))
+    resource_link = framework / 'Resources'
+    if not resource_link.exists() and not resource_link.is_symlink():
+        resource_link.symlink_to('Versions/Current/Resources')
+    for path, identifier in ((version / 'bin/python3.14', 'us.iddictive.corsairs.python-bin'),
+                             (framework, 'us.iddictive.corsairs.python'),
+                             (bundle_dir / 'Contents/MacOS/metal-engine', BUNDLE_ID + '.engine'),
+                             (bundle_dir, BUNDLE_ID)):
+        subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', identifier, str(path)])
+    subprocess.check_call(['codesign', '--verify', '--deep', '--strict', str(bundle_dir)])
 
 
 def verify_dependencies(bundle_dir: Path) -> None:
@@ -583,6 +584,7 @@ def export_bundle(dest_app: Path, repo_root: Path) -> None:
         for name in files:
             if name == ".DS_Store" or name.endswith(".pyc"):
                 (Path(directory) / name).unlink()
+    sign_application(dest_app)
     verify_dependencies(dest_app)
     print("Standalone application bundle export completed successfully.")
 
