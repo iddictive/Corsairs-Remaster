@@ -6,7 +6,7 @@ This helper owns the main menu branding transform:
 - Adds bottom clickable banner 'IDDICTIVE REMASTER · macOS Edition'
 - Replaces menu logo with new 2.8 aspect IDDICTIVE logo (1024x366 texture)
 - Removes legacy QR code window and pointer/subscribe controls
-- Preserves all 6 main menu action buttons, background, and version label
+- Preserves all 6 main menu action buttons, background, and content version
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ BASE = {
 }
 
 UPDATED = {
-    SCRIPT: "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb",
-    LAYOUT: "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b",
-    PICTURES: "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63",
+    SCRIPT: "c3a2f9374a13de5922f7fbcf53d30dd71addede22934a58b1e5bfd6ea88704a8",
+    LAYOUT: "9893484ba53d569653e93860979400b9b4d5ec912255cce8bcdae17bfee2f5e2",
+    PICTURES: "8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb",
 }
 
 FILES = (SCRIPT, LAYOUT, PICTURES)
@@ -48,7 +48,7 @@ def _transform_pictures(data: bytes) -> bytes:
     needle = "\r\n[MENU_BUTTONS]\r\n"
     new_group = (
         "\r\n[MENU_IDDICTIVE_LOGO]\r\n"
-        "sTextureName\t\t= interfaces\\iddictive_menu_logo.tga\r\n"
+        "sTextureName\t\t= iddictive_menu_logo.tga\r\n"
         "wTextureWidth\t\t= 1024\r\n"
         "wTextureHeight\t\t= 366\r\n"
         "picture\t\t\t\t= Logo,0,0,1024,366\r\n"
@@ -63,7 +63,7 @@ def _strip_pictures(data: bytes) -> bytes:
     text = data.decode("utf-8")
     new_group = (
         "\r\n[MENU_IDDICTIVE_LOGO]\r\n"
-        "sTextureName\t\t= interfaces\\iddictive_menu_logo.tga\r\n"
+        "sTextureName\t\t= iddictive_menu_logo.tga\r\n"
         "wTextureWidth\t\t= 1024\r\n"
         "wTextureHeight\t\t= 366\r\n"
         "picture\t\t\t\t= Logo,0,0,1024,366\r\n"
@@ -201,7 +201,9 @@ def _transform_ini(data: bytes) -> bytes:
         "command = rightstep,select:BTN_TELEGRAM\r\n"
         "position = 10,568,340,596\r\n"
         "string = #IDDICTIVE REMASTER · macOS Edition\r\n"
-        "fontScale = 0.65\r\n"
+        "font = INTERFACE_NORMAL\r\n"
+        "fontScale = 0.9\r\n"
+        "strOffset = 7\r\n"
         "glowoffset = 0,0\r\n"
         "pressPictureOffset = 2,2\r\n"
         "\r\n"
@@ -215,6 +217,7 @@ def _transform_ini(data: bytes) -> bytes:
         "position = 580,4,680,32\r\n"
         "string = #Telegram\r\n"
         "fontScale = 0.75\r\n"
+        "strOffset = 7\r\n"
         "glowoffset = 0,0\r\n"
         "pressPictureOffset = 2,2\r\n"
         "\r\n"
@@ -228,6 +231,7 @@ def _transform_ini(data: bytes) -> bytes:
         "position = 688,4,788,32\r\n"
         "string = #Behance\r\n"
         "fontScale = 0.75\r\n"
+        "strOffset = 7\r\n"
         "glowoffset = 0,0\r\n"
         "pressPictureOffset = 2,2\r\n"
         "\r\n"
@@ -443,7 +447,7 @@ def _transform_c(data: bytes) -> bytes:
         '\tSetEventHandler("VolumeFader","VolumeFadeIn",0);\r\n'
     )
     new_init = (
-        '\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'
+        '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'
         '\t\r\n'
         '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_TELEGRAM", 0, "#Telegram");\r\n'
         '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_BEHANCE", 0, "#Behance");\r\n'
@@ -571,7 +575,7 @@ def _strip_c(data: bytes) -> bytes:
         '\tSetEventHandler("VolumeFader","VolumeFadeIn",0);\r\n'
     )
     new_init = (
-        '\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'
+        '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'
         '\t\r\n'
         '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_TELEGRAM", 0, "#Telegram");\r\n'
         '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_BEHANCE", 0, "#Behance");\r\n'
@@ -679,6 +683,12 @@ def _strip_c(data: bytes) -> bytes:
 def strip(relative: str, data: bytes) -> tuple[bytes, str]:
     if relative not in BASE:
         raise ValueError(f"unsupported menu branding target: {relative}")
+    if relative == PICTURES and digest(data) == "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63":
+        data = data.replace(b"interfaces\\iddictive_menu_logo.tga", b"iddictive_menu_logo.tga")
+    if relative == LAYOUT and digest(data) == "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b":
+        data = data.replace("string = #IDDICTIVE REMASTER · macOS Edition\r\nfontScale = 0.65\r\n".encode(), "string = #IDDICTIVE REMASTER · macOS Edition\r\nfont = INTERFACE_NORMAL\r\nfontScale = 0.9\r\nstrOffset = 7\r\n".encode()).replace(b"fontScale = 0.75\r\n", b"fontScale = 0.75\r\nstrOffset = 7\r\n")
+    if relative == SCRIPT and digest(data) == "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb":
+        data = data.replace('\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'.encode(), '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'.encode())
     d = digest(data)
     if d == BASE[relative]:
         return data, "base"
@@ -700,6 +710,12 @@ def strip(relative: str, data: bytes) -> tuple[bytes, str]:
 def prepare(relative: str, data: bytes) -> tuple[bytes, str]:
     if relative not in BASE:
         raise ValueError(f"unsupported menu branding target: {relative}")
+    if relative == PICTURES and digest(data) == "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63":
+        data = data.replace(b"interfaces\\iddictive_menu_logo.tga", b"iddictive_menu_logo.tga")
+    if relative == LAYOUT and digest(data) == "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b":
+        data = data.replace("string = #IDDICTIVE REMASTER · macOS Edition\r\nfontScale = 0.65\r\n".encode(), "string = #IDDICTIVE REMASTER · macOS Edition\r\nfont = INTERFACE_NORMAL\r\nfontScale = 0.9\r\nstrOffset = 7\r\n".encode()).replace(b"fontScale = 0.75\r\n", b"fontScale = 0.75\r\nstrOffset = 7\r\n")
+    if relative == SCRIPT and digest(data) == "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb":
+        data = data.replace('\tSetFormatedText("VERSION", VERSION_NUMBER1 + GetVerNum());\r\n'.encode(), '\tSetFormatedText("VERSION", "IDDICTIVE REMASTER · GPK 1.3.2 AT + ReConstruction 1.4.1");\r\n'.encode())
     d = digest(data)
     if d == UPDATED[relative]:
         return data, "patched"

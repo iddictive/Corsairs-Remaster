@@ -4,7 +4,7 @@ Native Apple Silicon / Metal build of City of Abandoned Ships, GPK 1.3.2 AT + Re
 
 [Download the app and read the case](https://iddictive.us/cases/corsairs-native-metal/)
 
-**Experimental build:** a September 30 player launch hung during CoreAudio/TCC initialization alongside macOS WindowServer watchdog resets. A native launcher and a complete bundle signature address the observed packaging defect; a new player startup replay is pending. This is not a stable release.
+**Experimental build:** a September 30 player launch hung during CoreAudio/TCC initialization alongside macOS WindowServer watchdog resets. A native launcher and a complete bundle signature address the observed packaging defect; the player subsequently confirmed startup and a playable sea scene. This is not a stable release.
 
 ## Play
 
