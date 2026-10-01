@@ -1,14 +1,13 @@
 diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src/deck_camera.cpp
 --- a/src/libs/sea_cameras/src/deck_camera.cpp
 +++ b/src/libs/sea_cameras/src/deck_camera.cpp
-@@ -632,6 +632,10 @@
-                 h_eye = HEIGHT_MAX;
-             else if (h_eye < HEIGHT_MIN)
-                 h_eye = HEIGHT_MIN;
-+            // Firing eye lift: deck view sits half a meter taller so the player
-+            // clears rails and reads the fall of shot. Applied after the clamp so
-+            // every ship gains exactly +0.5 m over its authored eye height.
-+            h_eye += 0.5f;
-         }
-         else
-         {
+@@ -498,5 +498,8 @@
+     // calculate camera position
+     CVECTOR s_pos;
+-    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye, 0.f));
++    // Firing eye lift: deck view sits half a meter taller so the player
++    // clears rails and reads the fall of shot. Applied per-frame to h_eye
++    // so it persists across save-loads without modifying saved state.
++    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye + 0.5f, 0.f));
+
+     if (walkMode)
