@@ -8,7 +8,7 @@ BASE = {
     LAYOUT: "a15e1e013cbe8ade5a6a9e80975e91af1b99627c2e34ceb080e8d70a78916fe1",
 }
 PREVIOUS = {
-    SCRIPT: "c2b489c8563fd3cdf37dee592ba824e77d636ae4975b9da16668239de88d878d",
+    SCRIPT: "23e7e92c908abcf2aa8922a54bc9d724123682dd275ba6fc124bd95ee2b92e26",
     LAYOUT: "2cba66d380e5de28ed5ffc00464747c4d40aac09b0cee3425da2d6e1132190b9",
 }
 
@@ -69,9 +69,12 @@ INIT = '''void InitTradeComparison()
         TradeBookPinnedCity = pchar.SystemInfo.TradeBookPinnedCity;
         if (!CheckAttribute(nulChr, "PriceList." + TradeBookPinnedCity)) TradeBookPinnedCity = "";
     }
-    else
+    if (TradeBookRouteMode == 1 && TradeBookPinnedCity == "")
     {
-        if (!TryPinCurrentTradeCity()) TradeBookPinnedCity = TradeBookSelectedCity;
+        TryPinCurrentTradeCity();
+    }
+    if (TradeBookPinnedCity == "")
+    {
         pchar.SystemInfo.TradeBookPinnedCity = TradeBookPinnedCity;
     }
     RefreshTradeComparison();
@@ -81,6 +84,10 @@ void ToggleTradeBookMode()
 {
     TradeBookRouteMode = 1 - TradeBookRouteMode;
     pchar.SystemInfo.TradeBookRouteMode = TradeBookRouteMode;
+    if (TradeBookRouteMode == 1 && TradeBookPinnedCity == "")
+    {
+        TryPinCurrentTradeCity();
+    }
     RefreshTradeComparison();
 }
 

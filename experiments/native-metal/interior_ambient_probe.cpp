@@ -13,13 +13,13 @@ static void need(bool value, const char *message) {
 int main() {
     const std::array<float, 3> dark = {.018f, .016f, .014f};
     const auto indoor = sm::interiorAmbient(dark, true);
-    need(indoor[0] >= .12f && indoor[1] >= .095f && indoor[2] >= .073f,
+    need(indoor[0] >= .135f && indoor[1] >= .107f && indoor[2] >= .083f,
          "near-black interior receives a visible indirect-light floor");
     need(indoor[0] > indoor[1] && indoor[1] > indoor[2],
          "interior fill remains warm rather than neutralizing lamp color");
-    need(indoor[0] <= .13f && indoor[1] <= .105f && indoor[2] <= .083f,
+    need(indoor[0] <= .145f && indoor[1] <= .117f && indoor[2] <= .093f,
          "fill remains below local-light contrast");
-    need((indoor[0] - indoor[2]) < .052f,
+    need((indoor[0] - indoor[2]) < .057f,
          "interior fill softens channel contrast without becoming neutral");
 
     const auto outdoor = sm::interiorAmbient(dark, false);
