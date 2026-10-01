@@ -120,6 +120,9 @@ python3 "$root/../../tools/sync_metal_gameplay.py" check
 python3 "$root/../../tools/sync_metal_gameplay.py" apply
 python3 "$root/../../tools/metal_graphics_settings.py" initialize "$runtime"
 /bin/cp -cR "$root/.cache/storm/src/libs/shared_headers/include/shared" "$bundle/Contents/Resources/resource/"
+# Every stage also refreshes the played /Applications engine (skips when the
+# game bundle is absent or already matches; refuses while the game runs).
+"$root/install-engine.sh"
 if [[ "$mode" == --stage-only ]]; then
     echo "Staged $bundle"
     exit 0
