@@ -31,6 +31,7 @@ if (INPUTS / "manifest.json").is_file():
 SOURCE = suite.NATIVE_ROOT
 METAL = PROJECT / "experiments/native-metal"
 TARGET = METAL / ".cache/runtime"
+INSTALLED_APP = Path("/Applications/Corsairs Iddictive Remaster.app")
 ENGINE = METAL / ".cache/CorsairsMetal.app/Contents/MacOS/metal-engine"
 PATCH = PROJECT / "experiments/native-storm/compiler-extern.patch"
 DECK_PATCHES = (PATCH.with_name("deck-walk.patch"),)
@@ -295,6 +296,12 @@ def apply(changes):
             written.append(relative)
         if plan():
             raise RuntimeError("post-apply gameplay comparison failed")
+        if INSTALLED_APP.is_dir():
+            for relative, (_, incoming) in changes.items():
+                app_target = INSTALLED_APP / "Contents/Resources" / relative
+                if app_target.parent.exists():
+                    atomic_write(app_target, incoming)
+            subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(INSTALLED_APP)], capture_output=True, check=False)
     except BaseException:
         for relative in reversed(written):
             atomic_write(TARGET / relative, changes[relative][0])
