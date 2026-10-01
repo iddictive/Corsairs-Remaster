@@ -53,6 +53,9 @@ done
 for technique in Rope.fx Vant.fx; do
     /bin/cp "$root/.cache/storm/src/techniques/ship/$technique" "$runtime/RESOURCE/techniques/ship/$technique"
 done
+# Manual-aim overlay techniques (ShipAimArc/ShipAimVolume) live in engine-source
+# _dev/ship.fx; without this copy the overlay draws nothing (silent no-op).
+/bin/cp "$root/.cache/storm/src/techniques/_dev/ship.fx" "$runtime/RESOURCE/techniques/_dev/ship.fx"
 python3 - "$root" "$runtime" <<'SUN_GLOW_STAGE'
 import hashlib
 import sys

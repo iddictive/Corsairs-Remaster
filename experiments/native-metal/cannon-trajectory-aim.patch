@@ -606,7 +606,7 @@ diff --git a/src/libs/rigging/src/rope.cpp b/src/libs/rigging/src/rope.cpp
 diff --git a/src/libs/rigging/src/vant.cpp b/src/libs/rigging/src/vant.cpp
 --- a/src/libs/rigging/src/vant.cpp
 +++ b/src/libs/rigging/src/vant.cpp
-@@ -118,7 +118,25 @@
+@@ -118,7 +118,27 @@
          float pr;
          RenderService->GetCamera(cp, ca, pr);
          pr = tanf(pr * .5f);
@@ -617,6 +617,8 @@ diff --git a/src/libs/rigging/src/vant.cpp b/src/libs/rigging/src/vant.cpp
 +        {
 +            for (int gn = 0; gn < groupQuantity; gn++)
 +            {
++                if (gdata[gn].bDeleted)
++                    continue;
 +                ATTRIBUTES *pAFade = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[gn].shipEI))
 +                                         ->GetACharacter();
 +                if (pAFade != nullptr && pAFade->GetAttributeAsDword("MainCharacter", 0) != 0)
