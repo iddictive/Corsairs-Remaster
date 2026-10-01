@@ -16,6 +16,7 @@ import metal_deck_controls as deck_controls
 import patch_custody_life as custody_life
 import patch_squad_common_supply as squad_supply
 import metal_tradebook as tradebook
+import metal_governor_dialog as governor_dialog
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from runtime_script_patch import atomic_write
@@ -138,6 +139,13 @@ def plan():
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
             current = target.read_bytes()
+            if relative == governor_dialog.PATH:
+                reviewed = governor_dialog.prepare(incoming)
+                if current not in (incoming, reviewed):
+                    raise RuntimeError(f"unrecognized governor dialogue revision: {relative}")
+                if current != reviewed:
+                    changes[relative] = (current, reviewed)
+                continue
             if relative in menu_branding.FILES:
                 canonical_current, _ = menu_branding.strip(relative, current)
                 if canonical_current != incoming:
@@ -245,6 +253,8 @@ def apply(changes):
                 baseline = backup.read_bytes()
                 deck = deck_package()
                 backup_matches = digest(baseline) == BASELINE.get(relative)
+                if relative == governor_dialog.PATH:
+                    backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in tradebook.BASE:
                     backup_matches = digest(baseline) == tradebook.BASE[relative]
                 if relative in custody_life.BASELINE:
