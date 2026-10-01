@@ -202,6 +202,20 @@ int main(int argc, char *argv[]) { @autoreleasepool {
         makeDynamicSkyUniform({.hour=0.f, .visualSunDirection=moonAboveHorizon}, regressionFog), 8, 8);
     need(simd_length(midnightHorizon-regressionFog) < 1e-5f,
          "corrected midnight retains exact authoritative horizon fog");
+    const simd_float3 duskFog = {77.f/255.f, 104.f/255.f, 134.f/255.f};
+    const auto duskUniform = makeDynamicSkyUniform({.hour=20.f}, duskFog);
+    const auto duskHorizon = renderSky(device, pipeline, duskUniform, 8, 8);
+    const auto duskUpper = renderSky(device, pipeline, duskUniform, 8, 2);
+    need(simd_length(duskHorizon-duskFog) < 1e-5f,
+         "dusk horizon equals authoritative fog");
+    const float duskHorLum = duskHorizon.x*.2126f+duskHorizon.y*.7152f+duskHorizon.z*.0722f;
+    const float duskUpLum = duskUpper.x*.2126f+duskUpper.y*.7152f+duskUpper.z*.0722f;
+    need(duskUpLum < duskHorLum,
+         "dusk zenith is darker than the fog horizon");
+    need(duskUpper.x < duskUpper.z && duskHorizon.x < duskHorizon.z,
+         "dusk preserves blue-dominant hue from fog");
+    need(duskUpper.z > .05f,
+         "dusk upper sky follows fog instead of fixed near-black night");
     need(std::strstr(dynamicSkyShaderSource,"skyFbm3") &&
          !std::strstr(dynamicSkyShaderSource,"raymarch"),
          "cloud path is fixed-cost and contains no ray march");

@@ -167,8 +167,18 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]], constant SkyDraw &draw [[
     float solarElevation=sin((weather.sunDirection_hour.w-6.f)*.2617993878f);
     float daylight=smoothstep(-.13f,.10f,solarElevation), twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
     float horizon=1.f-smoothstep(-.02f,.42f,max(d.y,0.f));
-    float3 nightZenith=float3(.006f,.012f,.035f), nightHorizon=float3(.035f,.045f,.075f);
-    float3 dayZenith=float3(.075f,.30f,.68f), dayHorizon=float3(.64f,.78f,.92f);
+    // Single horizon owner: the smoothed visual fog. The whole sky gradient
+    // derives from it so distant land, sea, fog sphere and sky meet by
+    // construction at every hour and weather. Fixed palettes remain only as
+    // the no-fog fallback (probes without a weather snapshot).
+    float3 fog=weather.horizonFog.rgb;
+    bool hasFog=weather.horizonFog.w>.5f;
+    float3 nightZenithFixed=float3(.006f,.012f,.035f), nightHorizonFixed=float3(.035f,.045f,.075f);
+    float3 dayZenithFixed=float3(.075f,.30f,.68f), dayHorizonFixed=float3(.64f,.78f,.92f);
+    float3 nightZenith=hasFog ? fog*float3(.22f,.42f,.72f) : nightZenithFixed;
+    float3 nightHorizon=hasFog ? fog : nightHorizonFixed;
+    float3 dayZenith=hasFog ? fog*float3(.22f,.42f,.72f) : dayZenithFixed;
+    float3 dayHorizon=hasFog ? fog : dayHorizonFixed;
     float3 color=mix(mix(nightZenith,nightHorizon,horizon),mix(dayZenith,dayHorizon,horizon),daylight);
     color+=float3(1.f,.25f,.055f)*twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
     float cloudHorizon=smoothstep(.015f,.11f,d.y)*smoothstep(.02f,.18f,1.f-d.y);
@@ -178,18 +188,28 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]], constant SkyDraw &draw [[
     float cloud=smoothstep(.70f-.48f*coverage,.82f-.34f*coverage,cloudField)*cloudHorizon;
     float density=weather.wind_coverage_density.w;
     float silver=pow(max(0.f,dot(d,sun)),8.f)*daylight;
-    float3 cloudColor=mix(float3(.10f,.12f,.16f),float3(.88f,.91f,.94f),daylight);
+    float3 nightCloudFixed=float3(.10f,.12f,.16f), dayCloudFixed=float3(.88f,.91f,.94f);
+    float3 nightCloud=hasFog ? fog*.55f+float3(.02f) : nightCloudFixed;
+    float3 dayCloud=hasFog ? fog*.49f+float3(.55f) : dayCloudFixed;
+    float3 cloudColor=mix(nightCloud,dayCloud,daylight);
     cloudColor=mix(cloudColor,float3(1.f,.70f,.40f),silver*.35f);
     color=mix(color,cloudColor,cloud*density);
 
     if (draw.hasCurrentTexture!=0u) {
         float3 legacy=current.sample(skySampler,in.uv).rgb;
         if(draw.hasNextTexture!=0u) legacy=mix(legacy,next.sample(skySampler,in.uv).rgb,saturate(draw.textureBlend));
-        color=mix(color,legacy*in.tint.rgb,saturate(weather.options.x));
+        legacy*=in.tint.rgb;
+        if (hasFog) {
+            // Detail only: preserve fog hue, modulate by texture luminance.
+            float legLum=dot(legacy,float3(.299f,.587f,.114f));
+            color*=mix(1.f,legLum*1.6f+.2f,saturate(weather.options.x));
+        } else {
+            color=mix(color,legacy,saturate(weather.options.x));
+        }
     }
-    // The existing fog sphere and scene fog consume this same smoothed color.
-    // Converge only the low sky band so distant land, sea and sky meet without
-    // a flat blue seam while the authored zenith and cloud detail stay intact.
+    // The fog sphere, scene fog, sea and land consume this same smoothed color.
+    // The base gradient already derives from it; this forces the exact horizon
+    // texel to fog despite clouds, twilight and texture detail.
     float horizonMatch=(1.f-smoothstep(.018f,.16f,max(d.y,0.f)))*weather.horizonFog.w;
     color=mix(color,weather.horizonFog.rgb,horizonMatch);
     return float4(max(color,0.f),1.f);
