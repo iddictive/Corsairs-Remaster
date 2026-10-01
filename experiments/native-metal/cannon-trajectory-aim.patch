@@ -1,7 +1,24 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 --- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-@@ -173,6 +173,9 @@
+@@ -157,7 +157,14 @@
+ void AIShipCameraController::Realize(float fDeltaTime)
+ {
+-    if (isCameraOutside())
+-        return;
++    if (isCameraOutside())
++    {
++                // Own-ship aim fade resets here when the player leaves first-person view.
++                // AI ships never touch this flag; steady off-state executes zero render-state calls.
++                extern void AIShipAimSetFadeOwnShip(bool bFade);
++                if (GetAIShip()->isMainCharacter())
++                    AIShipAimSetFadeOwnShip(false);
++        return;
++    }
+ 
+     CMatrix m;
+     RS_RECT rCam;
+@@ -173,5 +180,8 @@
      AIHelper::pRS->GetCamera(campos,camang,campersp);
      m.BuildMatrix(camang);
      CVECTOR vZ = m.Vz();*/
@@ -10,65 +27,113 @@ diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai
 +        GetAIShip()->GetCannonController()->DrawManualAimOverlay(vZ);
      if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
          return;
- 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -685,7 +685,187 @@
+@@ -683,9 +683,333 @@
+     if (!Verts.empty())
+     {
          AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
          AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, Verts.size() / 3, &Verts[0],
                                         sizeof(tr_vertex), "ShipCannonAngles");
-+    }
-+}
+     }
+ }
 +
 +namespace
 +{
-+// Manual sea-cannon aim trajectory overlay. Visualization only: no save format,
-+// AI, damage, reload or camera state changes. Flight math mirrors ai_balls.cpp
-+// (parabolic fsX/fsY, g = 9.81, RawAng == 0 flat deck fire, HeightMultiply 0.4
-+// normal round shot) with RotateAroundY by the firing direction (cos = dir.z,
-+// sin = dir.x, same convention as the fire-sector debug draw below).
-+constexpr uint32_t kAimArcSegments = 32;
-+constexpr uint32_t kAimSideArcSegments = 16;
-+constexpr uint32_t kAimRingSegments = 24;
-+constexpr float kAimNormalHeightMultiply = 0.4f;
-+constexpr uint32_t kAimReadyColor = 0xCC00FF88;
-+constexpr uint32_t kAimReloadColor = 0xCCFFCC00;
-+constexpr uint32_t kAimNoFireColor = 0x99FF2222;
++// Manual sea-cannon aim overlay. Visualization only: no save, AI, damage,
++// reload or camera state changes.
++//
++// Ballistics replicate live fire exactly (same origin, same integration):
++// muzzle world pos (AICannon::GetPos, the same vPosTemp RealFire reports via
++// CANNON_FIRE), elevation from AICannon::CalcHeightFireAngle (the same call
++// RealFire makes), raw-angle tilt plus HeightMultiply applied exactly as
++// AIBalls::Execute integrates them, azimuth from the muzzle-to-target flat
++// direction (same atan2 convention as RealFire fFireDirection). Height
++// multiplier mirrors Ball_AddBall live (catalog 1.0 stock x 0.4 / 0.65
++// knippels by loaded charge). Preview impact matches the live impact of the
++// representative gun; the ellipse around it uses the same
++// SHIP_GET_BORT_FIRE_DELTA gunner model as Fire2Position.
++//
++// Projection: one soft powder-smoke ribbon along the representative arc
++// (middle intact gun of the firing broadside) plus a faint impact ellipse and
++// small brass aim accents. The ribbon is a stable horizontal band in the
++// firing plane, alpha-blended, depth-tested (ShipAimVolume), so hulls, masts,
++// sails and islands occlude it like any in-world object. Only the firing
++// broadside (GetFirstFireBort for the current camera ray) draws anything;
++// idle side and out-of-sector views emit zero geometry.
++//
++// Style: warm parchment smoke, muted aged brass, umber halo. Thin faint
++// layers, per-vertex alpha falloff. No neon, no hue-coded states: reloading
++// only dims the same palette.
++constexpr int32_t kAimArcSteps = 20;
++constexpr int32_t kAimRingSegments = 24;
++constexpr const char *kAimTechLine = "ShipAimArc";
++constexpr const char *kAimTechVolume = "ShipAimVolume";
++constexpr uint32_t kAimSmoke = 0xCBBFA8;
++constexpr uint32_t kAimBrass = 0xC8A96A;
++constexpr uint32_t kAimUmber = 0x2E2118;
++constexpr float kAimForwardDot = 0.5f;
 +
-+inline uint32_t DimAimColor(uint32_t dwColor)
++bool s_bAimFadeOwnShip = false;
++
++struct AimVolVertex
 +{
-+    return (dwColor & 0x00FFFFFFu) | 0x44000000u;
++    CVECTOR vPos;
++    uint32_t dwColor;
++};
++
++inline uint32_t AimColor(uint32_t dwRgb, uint32_t dwAlpha)
++{
++    return (dwRgb & 0x00FFFFFFu) | ((dwAlpha & 0xFFu) << 24);
 +}
 +
-+void EmitAimArc(std::vector<RS_LINE> &lines, const CVECTOR &vStart, float fSpeedV0, float fAngle, float fDirCos,
-+                float fDirSin, float fTimeHit, uint32_t dwColor, uint32_t dwSegments)
++inline uint32_t AimFadeAlpha(int32_t dwA0, int32_t dwA1, int32_t i, int32_t n)
 +{
-+    const float fCosA = cosf(fAngle);
-+    const float fSinA = sinf(fAngle);
-+    CVECTOR vPrev = vStart;
-+    for (uint32_t i = 1; i <= dwSegments; ++i)
-+    {
-+        const float fTime = fTimeHit * static_cast<float>(i) / static_cast<float>(dwSegments);
-+        const float fsX = fSpeedV0 * fTime * fCosA;
-+        const float fsY =
-+            (fSpeedV0 * fTime * fSinA - AIHelper::fGravity * fTime * fTime * 0.5f) * kAimNormalHeightMultiply;
-+        CVECTOR vNext(0.0f, fsY, fsX);
-+        RotateAroundY(vNext.x, vNext.z, fDirCos, fDirSin);
-+        vNext += vStart;
-+        if (vNext.y < 0.0f)
-+            vNext.y = 0.0f;
-+        lines.push_back(RS_LINE{vPrev, dwColor});
-+        lines.push_back(RS_LINE{vNext, dwColor});
-+        vPrev = vNext;
-+    }
++    const int32_t dwD = n > 0 ? n : 1;
++    return static_cast<uint32_t>(dwA0 + (dwA1 - dwA0) * i / dwD);
++}
++
++// One ballistic sample at time fTime. Mirrors AIBalls::Execute + RealFire.
++CVECTOR AimBallisticPoint(const CVECTOR &vMuzzle, float fSpeedV0, float fCosA, float fSinA, float fRawCos,
++                          float fRawSin, float fDirCos, float fDirSin, float fTime, float fHeightMultiply)
++{
++    const float fsX = fSpeedV0 * fTime * fCosA;
++    const float fsY = fSpeedV0 * fTime * fSinA - AIHelper::fGravity * fTime * fTime * 0.5f;
++    const float fProjX = fsX * fRawCos + fsY * fRawSin;
++    float fProjY = -fsX * fRawSin + fsY * fRawCos;
++    fProjY *= fHeightMultiply;
++    const float fX = fProjX * fRawCos - fProjY * fRawSin;
++    const float fY = fProjX * fRawSin + fProjY * fRawCos;
++    CVECTOR vPos(0.0f, fY, fX);
++    RotateAroundY(vPos.x, vPos.z, fDirCos, fDirSin);
++    vPos += vMuzzle;
++    return vPos;
++}
++
++// Raw elevation tilt, same computation as AICannon::RealFire.
++float AimRawAngle(const CVECTOR &vMuzzle, const CVECTOR &vTarget)
++{
++    const CVECTOR vEnemyDir = !(vTarget - vMuzzle);
++    const CVECTOR vFlatDir = !(CVECTOR(vTarget.x, vMuzzle.y, vTarget.z) - vMuzzle);
++    const float fDp = vFlatDir | vEnemyDir;
++    float fAngle;
++    if (fDp >= 1.0f)
++        fAngle = 0.0f;
++    else if (fDp <= -1.0f)
++        fAngle = PI;
++    else
++        fAngle = acosf(fDp);
++    if (vTarget.y < vMuzzle.y)
++        fAngle = -fAngle;
++    return fAngle;
 +}
 +
 +void EmitAimRing(std::vector<RS_LINE> &lines, const CVECTOR &vCenter, float fRadius, uint32_t dwColor,
-+                 uint32_t dwSegments)
++                 int32_t dwSegments)
 +{
 +    CVECTOR vPrev(vCenter.x + fRadius, vCenter.y, vCenter.z);
-+    for (uint32_t i = 1; i <= dwSegments; ++i)
++    for (int32_t i = 1; i <= dwSegments; ++i)
 +    {
 +        const float fAng = 6.2831853f * static_cast<float>(i) / static_cast<float>(dwSegments);
 +        const CVECTOR vNext(vCenter.x + fRadius * cosf(fAng), vCenter.y, vCenter.z + fRadius * sinf(fAng));
@@ -78,6 +143,14 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    }
 +}
 +
++void EmitAimCross(std::vector<RS_LINE> &lines, const CVECTOR &vCenter, float fHalf, uint32_t dwColor)
++{
++    lines.push_back(RS_LINE{CVECTOR(vCenter.x - fHalf, vCenter.y, vCenter.z), dwColor});
++    lines.push_back(RS_LINE{CVECTOR(vCenter.x + fHalf, vCenter.y, vCenter.z), dwColor});
++    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z - fHalf), dwColor});
++    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z + fHalf), dwColor});
++}
++
 +void FlushAimLines(std::vector<RS_LINE> &lines)
 +{
 +    if (lines.empty())
@@ -85,39 +158,72 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    CMatrix mWorld;
 +    AIHelper::pRS->GetTransform(D3DTS_WORLD, mWorld);
 +    AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
-+    AIHelper::pRS->DrawLines(lines.data(), static_cast<uint32_t>(lines.size() / 2), "Line");
++    AIHelper::pRS->DrawLines(lines.data(), static_cast<uint32_t>(lines.size() / 2), kAimTechLine);
 +    AIHelper::pRS->SetTransform(D3DTS_WORLD, mWorld);
 +}
 +
-+float AimTimeHit(float fFlatDist, float fSpeedV0, float fAngle)
++void FlushAimVolume(std::vector<AimVolVertex> &verts)
 +{
-+    const float fDenom = fSpeedV0 * cosf(fAngle);
-+    if (fabsf(fDenom) < 1e-3f)
-+        return -1.0f;
-+    return fFlatDist / fDenom;
++    if (verts.size() < 3)
++        return;
++    CMatrix mWorld;
++    AIHelper::pRS->GetTransform(D3DTS_WORLD, mWorld);
++    AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
++    AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, verts.size() / 3, &verts[0],
++                                   sizeof(AimVolVertex), kAimTechVolume);
++    AIHelper::pRS->SetTransform(D3DTS_WORLD, mWorld);
++}
++
++bool AimBlocksOwnShip(const CVECTOR &vCamDir, const CVECTOR &vShipFwd)
++{
++    const CVECTOR vFlatC(vCamDir.x, 0.0f, vCamDir.z);
++    const CVECTOR vFlatF(vShipFwd.x, 0.0f, vShipFwd.z);
++    if (~vFlatC <= 1e-6f || ~vFlatF <= 1e-6f)
++        return false;
++    return ((!vFlatC) | (!vFlatF)) > kAimForwardDot;
 +}
 +} // namespace
++// Live height multiplier, mirroring AIBalls.c Ball_AddBall exactly: cannon
++// catalog HeightMultiply (1.0 for every stock cannon, cannons_init.c) times
++// 0.4 normal shot / 0.65 knippels, selected by the loaded charge. Charge.Type
++// is the numeric goods index (GOOD_KNIPPELS == 2, PROGRAM/store/goods.h), read
++// from the character exactly as the firing path does.
++constexpr uint32_t kAimKnippelsGoods = 2;
 +
++float AimLiveHeightMultiply(ATTRIBUTES *pACharacter)
++{
++    if (pACharacter == nullptr)
++        return 0.4f;
++    auto *pACannons = pACharacter->FindAClass(pACharacter, "Ship.Cannons");
++    if (pACannons == nullptr)
++        return 0.4f;
++    const uint32_t dwCharge = pACannons->GetAttributeAsDword("Charge.Type", 0);
++    return dwCharge == kAimKnippelsGoods ? 0.65f : 0.4f;
++}
++
++void AIShipAimSetFadeOwnShip(bool bFade)
++{
++    s_bAimFadeOwnShip = bFade;
++}
++
++bool AIShipAimGetFadeOwnShip()
++{
++    return s_bAimFadeOwnShip;
++}
 +void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &vCamDir)
 +{
-+    if (!isCanFire(vCamDir))
-+    {
-+        // Out of firing sector: small red ring on the water ahead, then out.
-+        const CVECTOR vOur = GetAIShip()->GetPos();
-+        const CVECTOR vFlat(vCamDir.x, 0.0f, vCamDir.z);
-+        if (~vFlat <= 0.0f)
-+            return;
-+        const CVECTOR vCenter = vOur + 30.0f * !vFlat;
-+        static std::vector<RS_LINE> sNoFire;
-+        sNoFire.clear();
-+        EmitAimRing(sNoFire, CVECTOR(vCenter.x, 0.05f, vCenter.z), 3.0f, kAimNoFireColor, 16);
-+        FlushAimLines(sNoFire);
-+        return;
-     }
++    // Own-ship fade gate, reported on every run (all early-outs below keep it).
++    // Player-only + first-person-only by construction: the sole caller runs for
++    // isMainCharacter() after the isCameraOutside() early return.
++    AIShipAimSetFadeOwnShip(AimBlocksOwnShip(vCamDir, !(GetAIShip()->GetMatrix()->Vz())));
 +
-+    // Aim point: max-range point along the camera ray, projected on the water plane.
++    // Idle side / out of sector: zero geometry.
++    if (!isCanFire(vCamDir))
++        return;
++
++    // Firing-solution target: max-range point along the camera ray, the same
++    // value manual Fire(vFireCamPos, vFireDir) converges to.
 +    CVECTOR vTarget = GetFirePos(vCamDir);
-+    vTarget.y = 0.0f;
 +    auto bortIt = GetFirstFireBort(vTarget);
 +    if (!IsValid(bortIt) || bortIt->aCannons.empty())
 +        return;
@@ -126,6 +232,8 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    if (fSpeedV0 <= 0.0f)
 +        return;
 +
++    // Representative gun: middle intact cannon of the firing broadside only.
++    // One arc per broadside; per-gun lines are out by design (clutter).
 +    const auto &cannons = bortIt->aCannons;
 +    const AICannon *pMid = &cannons[cannons.size() / 2];
 +    if (pMid->isDamaged())
@@ -140,67 +248,121 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +        if (pMid == nullptr)
 +            return;
 +    }
-+    const CVECTOR vStart = pMid->GetPos();
++    const CVECTOR vMuzzle = pMid->GetPos();
 +
-+    const CVECTOR vFlat(vTarget.x - vStart.x, 0.0f, vTarget.z - vStart.z);
++    CVECTOR vAim = vTarget;
++    vAim.y = 0.0f;
++    const float fAngle = pMid->CalcHeightFireAngle(fSpeedV0, vMuzzle, vAim);
++    const float fRawAng = AimRawAngle(vMuzzle, vAim);
++    const CVECTOR vFlat(vAim.x - vMuzzle.x, 0.0f, vAim.z - vMuzzle.z);
 +    if (~vFlat <= 0.0f)
 +        return;
-+    const CVECTOR vDir = !vFlat;
 +    const float fFlatDist = sqrtf(~vFlat);
-+    const float fAngle = pMid->CalcHeightFireAngle(fSpeedV0, vStart, vTarget);
-+    const float fTimeHit = AimTimeHit(fFlatDist, fSpeedV0, fAngle);
++    const float fDirAng = atan2f(vFlat.x, vFlat.z);
++    const float fDirCos = cosf(fDirAng);
++    const float fDirSin = sinf(fDirAng);
++    const float fCosA = cosf(fAngle);
++    const float fSinA = sinf(fAngle);
++    const float fRawCos = cosf(fRawAng);
++    const float fRawSin = sinf(fRawAng);
++    const float fHeightMultiply = AimLiveHeightMultiply(GetAIShip()->GetACharacter());
++
++    float fTimeHit = -1.0f;
++    {
++        const float fDenom = fSpeedV0 * fCosA;
++        if (fabsf(fDenom) > 1e-3f)
++            fTimeHit = fFlatDist / fDenom;
++    }
 +    if (fTimeHit <= 0.0f)
 +        return;
 +
 +    // Dispersion radius from the same gunner-accuracy script model as live fire.
 +    float fDispRadius = 5.0f;
-+    if (auto *pVData = core.Event(SHIP_GET_BORT_FIRE_DELTA, "afff", GetAIShip()->GetACharacter(), vTarget.x,
-+                                  vTarget.y, vTarget.z))
-+        fDispRadius = pVData->GetFloat();
++    auto *pVDisp = core.Event(SHIP_GET_BORT_FIRE_DELTA, "afff", GetAIShip()->GetACharacter(), vAim.x, vAim.y, vAim.z);
++    fDispRadius = pVDisp->GetFloat();
 +
-+    const uint32_t dwStatus = bortIt->isCharged() ? kAimReadyColor : kAimReloadColor;
-+    const uint32_t dwDim = DimAimColor(dwStatus);
++    // One palette, no hue-coded states: reloading only dims the same brass.
++    const bool bReady = bortIt->isCharged();
++    const float fDim = bReady ? 1.0f : 0.6f;
 +
++    // March the live-fire integration until the water plane.
++    CVECTOR vArc[kAimArcSteps + 1];
++    vArc[0] = vMuzzle;
++    int32_t dwPoints = 1;
++    CVECTOR vImpact(vAim.x, 0.05f, vAim.z);
++    const float fDt = fTimeHit / static_cast<float>(kAimArcSteps);
++    for (int32_t i = 1; i <= kAimArcSteps; ++i)
++    {
++        CVECTOR vNext = AimBallisticPoint(vMuzzle, fSpeedV0, fCosA, fSinA, fRawCos, fRawSin, fDirCos, fDirSin,
++                                          fDt * static_cast<float>(i), fHeightMultiply);
++        if (vNext.y <= 0.0f)
++        {
++            vNext.y = 0.05f;
++            vArc[dwPoints++] = vNext;
++            vImpact = vNext;
++            break;
++        }
++        vArc[dwPoints++] = vNext;
++        if (i == kAimArcSteps)
++            vImpact = CVECTOR(vNext.x, 0.05f, vNext.z);
++    }
++    // Powder-smoke ribbon: one wide soft band in the firing plane, widening
++    // and thinning downrange like dispersing smoke. Two nested layers (wide
++    // faint shell + narrower denser core) for a soft volumetric read.
++    // Depth-tested: ships, masts, sails and islands occlude it correctly.
++    {
++        static std::vector<AimVolVertex> sVol;
++        sVol.clear();
++        const float fSideLen = fFlatDist > 1e-3f ? fFlatDist : 1.0f;
++        const CVECTOR vSide(-vFlat.z / fSideLen, 0.0f, vFlat.x / fSideLen);
++        for (int layer = 0; layer < 2; ++layer)
++        {
++            const float fWidthMul = layer == 0 ? 1.7f : 1.0f;
++            const int32_t dwBaseA = layer == 0 ? 0x10 : 0x20;
++            for (int32_t i = 0; i + 1 < dwPoints; ++i)
++            {
++                const float fT0 = static_cast<float>(i) / static_cast<float>(kAimArcSteps);
++                const float fT1 = static_cast<float>(i + 1) / static_cast<float>(kAimArcSteps);
++                const float fW0 = (0.5f + 2.4f * fT0) * fWidthMul;
++                const float fW1 = (0.5f + 2.4f * fT1) * fWidthMul;
++                const uint32_t dwA0 = AimFadeAlpha(dwBaseA, dwBaseA / 2, i, kAimArcSteps);
++                const uint32_t dwA1 = AimFadeAlpha(dwBaseA, dwBaseA / 2, i + 1, kAimArcSteps);
++                const uint32_t dwC0 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * dwA0));
++                const uint32_t dwC1 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * dwA1));
++                const CVECTOR vA0 = vArc[i] + fW0 * vSide;
++                const CVECTOR vB0 = vArc[i] + (0.0f - fW0) * vSide;
++                const CVECTOR vA1 = vArc[i + 1] + fW1 * vSide;
++                const CVECTOR vB1 = vArc[i + 1] + (0.0f - fW1) * vSide;
++                sVol.push_back(AimVolVertex{vA0, dwC0});
++                sVol.push_back(AimVolVertex{vB0, dwC0});
++                sVol.push_back(AimVolVertex{vA1, dwC1});
++                sVol.push_back(AimVolVertex{vB0, dwC0});
++                sVol.push_back(AimVolVertex{vB1, dwC1});
++                sVol.push_back(AimVolVertex{vA1, dwC1});
++            }
++        }
++        FlushAimVolume(sVol);
++    }
 +    static std::vector<RS_LINE> sLines;
 +    sLines.clear();
 +
-+    // Main guide arc: active firing side center to the water-plane target.
-+    EmitAimArc(sLines, vStart, fSpeedV0, fAngle, vDir.z, vDir.x, fTimeHit, dwStatus, kAimArcSegments);
++    // Soft impact ellipse on the water: faint outer ring at the gunner
++    // dispersion radius plus a fainter inner echo. Calm on waves.
++    const uint32_t dwRingO = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x30));
++    const uint32_t dwRingI = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x22));
++    EmitAimRing(sLines, vImpact, fDispRadius, dwRingO, kAimRingSegments);
++    EmitAimRing(sLines, vImpact, fDispRadius * 0.55f, dwRingI, 16);
 +
-+    // Thin per-gun arcs from each ready gun.
-+    for (const auto &cannon : cannons)
-+    {
-+        if (cannon.isDamaged())
-+            continue;
-+        const CVECTOR vGun = cannon.GetPos();
-+        const CVECTOR vGunFlat(vTarget.x - vGun.x, 0.0f, vTarget.z - vGun.z);
-+        if (~vGunFlat <= 0.0f)
-+            continue;
-+        const float fGunTimeHit = AimTimeHit(sqrtf(~vGunFlat), fSpeedV0, fAngle);
-+        if (fGunTimeHit <= 0.0f)
-+            continue;
-+        const CVECTOR vGunDir = !vGunFlat;
-+        EmitAimArc(sLines, vGun, fSpeedV0, fAngle, vGunDir.z, vGunDir.x, fGunTimeHit, dwDim, 8);
-+    }
-+
-+    // Dispersion envelope: side arcs at +/- gunner spread in azimuth and elevation.
-+    const float fSpread = atanf(fDispRadius / fFlatDist);
-+    for (int s = -1; s <= 1; s += 2)
-+    {
-+        const float fCosS = cosf(static_cast<float>(s) * fSpread);
-+        const float fSinS = sinf(static_cast<float>(s) * fSpread);
-+        const float fSX = vDir.x * fCosS + vDir.z * fSinS;
-+        const float fSZ = vDir.z * fCosS - vDir.x * fSinS;
-+        EmitAimArc(sLines, vStart, fSpeedV0, fAngle + static_cast<float>(s) * fSpread, fSZ, fSX, fTimeHit, dwDim,
-+                   kAimSideArcSegments);
-+    }
-+
-+    // Impact ring on the water at the target with the dispersion radius.
-+    EmitAimRing(sLines, CVECTOR(vTarget.x, 0.05f, vTarget.z), fDispRadius, dwStatus, kAimRingSegments);
++    // Restrained aim accents: umber halo for bright-sky legibility, thin
++    // brass ring + center cross at the predicted landing point.
++    const uint32_t dwAcc = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x66));
++    EmitAimRing(sLines, vImpact, 2.6f, AimColor(kAimUmber, 0x44), 20);
++    EmitAimRing(sLines, vImpact, 2.2f, dwAcc, 20);
++    EmitAimCross(sLines, vImpact, 1.1f, dwAcc);
 +
 +    FlushAimLines(sLines);
- }
- 
++}
+
  bool AIShipCannonController::Init(ATTRIBUTES *_pAShip)
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
@@ -214,3 +376,285 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/s
  
      // init section
      bool Init(ATTRIBUTES *_pAShip);
+diff --git a/src/techniques/_dev/ship.fx b/src/techniques/_dev/ship.fx
+--- a/src/techniques/_dev/ship.fx
++++ b/src/techniques/_dev/ship.fx
+@@ -14,6 +14,53 @@
+         AlphaOp[0] = selectarg1;
+         AlphaArg1[0] = diffuse;
+
+         ColorOp[1] = disable;
+     }
+ }
++
++// Manual aim plumage: depth-tested counterparts of ShipCannonAngles.
++// ShipAimArc: 1px lines with vertex diffuse + alpha, occluded by hulls/sails/land.
++// ShipAimVolume: soft smoke-ribbon triangles, blended, no depth writes.
++technique ShipAimArc
++{
++    pass p0
++    {
++        Lighting = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = invsrcalpha;
++        ZWriteEnable = false;
++
++        ColorOp[0] = selectarg1;
++        ColorArg1[0] = diffuse;
++
++        AlphaOp[0] = selectarg1;
++        AlphaArg1[0] = diffuse;
++
++        ColorOp[1] = disable;
++    }
++}
++
++technique ShipAimVolume
++{
++    pass p0
++    {
++        Lighting = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = invsrcalpha;
++        ZWriteEnable = false;
++
++        ColorOp[0] = selectarg1;
++        ColorArg1[0] = diffuse;
++
++        AlphaOp[0] = selectarg1;
++        AlphaArg1[0] = diffuse;
++
++        ColorOp[1] = disable;
++    }
++}
+diff --git a/src/libs/rigging/src/sail.cpp b/src/libs/rigging/src/sail.cpp
+--- a/src/libs/rigging/src/sail.cpp
++++ b/src/libs/rigging/src/sail.cpp
+@@ -586,9 +586,31 @@
+         }
+         else
+         {
++                // Own-ship aim fade (player forward aim only): locate the player
++                // ship group below; it is skipped in the base pass and redrawn faded.
++                // Off-state is a single not-taken branch: no render state is touched.
++                extern bool AIShipAimGetFadeOwnShip();
++                int iFadeGroup = -1;
++                if (AIShipAimGetFadeOwnShip())
++                {
++                    for (int gn = 0; gn < groupQuantity; gn++)
++                    {
++                        if (gdata[gn].bDeleted || !gdata[gn].bYesShip)
++                            continue;
++                        ATTRIBUTES *pAFade = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[gn].shipEI))
++                                                 ->GetACharacter();
++                        if (pAFade != nullptr && pAFade->GetAttributeAsDword("MainCharacter", 0) != 0)
++                        {
++                            iFadeGroup = gn;
++                            break;
++                        }
++                    }
++                }
+             for (j = 0; j < groupQuantity; j++)
+             {
+                 if (gdata[j].bDeleted)
+                     continue;
++                if (j == iFadeGroup)
++                    continue;
+                 RenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTextureFactor);
+                 RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, gdata[j].dwSailsColor);
+@@ -644,8 +666,71 @@
+                 RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwOldTextureFactor);
+             }
++                if (iFadeGroup >= 0 && RenderService->TechniqueExecuteStart("ShipSail_alpha"))
++                {
++                    // Faded redraw of the player ship's sails only (covers the foresail).
++                    // ShipSail_alpha honors TEXTUREFACTOR alpha with ZWrite off; the base
++                    // ShipSail technique ignores it, hence the separate pass.
++                    uint32_t dwFadeSaved;
++                    RenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &dwFadeSaved);
++                    RenderService->SetRenderState(
++                        D3DRS_TEXTUREFACTOR, (gdata[iFadeGroup].dwSailsColor & 0x00FFFFFFu) | (0xA6u << 24));
++                    const int jF = iFadeGroup;
++                    for (idx = 0; idx < gdata[jF].sailQuantity; idx++)
++                    {
++                        i = gdata[jF].sailIdx[idx];
++                        RenderService->SetTransform(D3DTS_WORLD, *slist[i]->pMatWorld);
++                        RenderService->TextureSet(0, slist[i]->surfaceTex);
++                        if (slist[i]->m_bIsGerald)
++                        {
++                            if (slist[i]->m_pGeraldTex)
++                                RenderService->SetTexture(1, slist[i]->m_pGeraldTex);
++                            else
++                                RenderService->TextureSet(1, slist[i]->m_nGeraldTex);
++                        }
++                        else
++                            RenderService->TextureSet(1, m_nEmptyGerbTex);
++                        uint32_t dwOldFade;
++                        RenderService->GetSamplerState(2, D3DSAMP_ADDRESSU, &dwOldFade);
++                        RenderService->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_MIRROR);
++                        auto *ptFade =
++                            static_cast<uint16_t *>(RenderService->LockIndexBuffer(sg.indxBuf, D3DLOCK_DISCARD));
++                        if (ptFade)
++                            slist[i]->FillIndex(ptFade);
++                        RenderService->UnLockIndexBuffer(sg.indxBuf);
++                        if (gdata[jF].bYesShip)
++                        {
++                            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[jF].shipEI))
++                                ->SetLightAndFog(true);
++                            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[jF].shipEI))->SetLights();
++                        }
++                        if (slist[i]->ss.nholeIndx != 0)
++                        {
++                            RenderService->DrawBuffer(sg.vertBuf, sizeof(SAILVERTEX), sg.indxBuf, slist[i]->ss.sVert,
++                                                      slist[i]->ss.nVert, slist[i]->ss.sholeIndx,
++                                                      slist[i]->ss.nholeIndx);
++                        }
++                        RenderService->SetSamplerState(2, D3DSAMP_ADDRESSU, dwOldFade);
++                        if (slist[i]->ss.nnormIndx != 0)
++                        {
++                            RenderService->DrawBuffer(sg.vertBuf, sizeof(SAILVERTEX), sg.indxBuf, slist[i]->ss.sVert,
++                                                      slist[i]->ss.nVert, slist[i]->ss.sIndx,
++                                                      slist[i]->ss.nnormIndx);
++                        }
++                        if (gdata[jF].bYesShip)
++                        {
++                            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[jF].shipEI))->UnSetLights();
++                            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[jF].shipEI))
++                                ->RestoreLightAndFog();
++                        }
++                    }
++                    while (RenderService->TechniqueExecuteNext())
++                    {
++                    }
++                    RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwFadeSaved);
++                }
+ 
+             //_asm rdtsc    _asm sub eax,tm_draw _asm mov tm_draw,eax
+         }
+         while (RenderService->TechniqueExecuteNext())
+         {
+         }
+diff --git a/src/libs/rigging/src/rope.cpp b/src/libs/rigging/src/rope.cpp
+--- a/src/libs/rigging/src/rope.cpp
++++ b/src/libs/rigging/src/rope.cpp
+@@ -151,10 +151,30 @@
+             const auto bDraw = RenderService->TechniqueExecuteStart("ShipRope");
+ 
+             if (bDraw)
+             {
++                // Own-ship aim fade: player ropes redraw faded below. Off-state: one branch.
++                extern bool AIShipAimGetFadeOwnShip();
++                int iFadeRope = -1;
++                if (AIShipAimGetFadeOwnShip())
++                {
++                    for (int gn = 0; gn < groupQuantity; gn++)
++                    {
++                        if (gdata[gn].bDeleted)
++                            continue;
++                        ATTRIBUTES *pAFade = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[gn].shipEI))
++                                                 ->GetACharacter();
++                        if (pAFade != nullptr && pAFade->GetAttributeAsDword("MainCharacter", 0) != 0)
++                        {
++                            iFadeRope = gn;
++                            break;
++                        }
++                    }
++                }
+                 for (auto i = 0; i < groupQuantity; i++)
+                     if (!gdata[i].bDeleted && gdata[i].nt != 0 && nVert != 0)
+                         if ((~(gdata[i].pMatWorld->Pos() - cp)) * pr < fMaxRopeDist)
+                         // if the distance to the ship is not more than the maximum
+                         {
++                            if (i == iFadeRope)
++                                continue;
+                             static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[i].shipEI))
+@@ -174,6 +174,28 @@
+                 while (RenderService->TechniqueExecuteNext())
+                 {
+                 }
++                if (iFadeRope >= 0 && RenderService->TechniqueExecuteStart("ShipRope_alpha"))
++                {
++                    // Faded redraw of the player ship rope group only. ShipRope_alpha
++                    // honors TEXTUREFACTOR alpha with ZWrite off; ShipRope ignores it.
++                    uint32_t dwRopeAmbient;
++                    RenderService->GetRenderState(D3DRS_AMBIENT, &dwRopeAmbient);
++                    static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeRope].shipEI))
++                        ->SetLightAndFog(true);
++                    RenderService->SetRenderState(D3DRS_TEXTUREFACTOR,
++                                                  (dwRopeAmbient & 0x00FFFFFFu) | (0xA6u << 24));
++                    RenderService->SetTransform(D3DTS_WORLD, *gdata[iFadeRope].pMatWorld);
++                    RenderService->TextureSet(0, texl);
++                    RenderService->SetMaterial(mat);
++                    RenderService->DrawBuffer(vBuf, sizeof(ROPEVERTEX), iBuf, 0, nVert, gdata[iFadeRope].st,
++                                              gdata[iFadeRope].nt);
++                    while (RenderService->TechniqueExecuteNext())
++                    {
++                    }
++                    RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwRopeAmbient);
++                    static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeRope].shipEI))
++                        ->RestoreLightAndFog();
++                }
+             }
+
+             RDTSC_E(rtm);
+diff --git a/src/libs/rigging/src/vant.cpp b/src/libs/rigging/src/vant.cpp
+--- a/src/libs/rigging/src/vant.cpp
++++ b/src/libs/rigging/src/vant.cpp
+@@ -118,7 +118,25 @@
+         float pr;
+         RenderService->GetCamera(cp, ca, pr);
+         pr = tanf(pr * .5f);
++        // Own-ship aim fade: player vants redraw faded below. Off-state: one branch.
++        extern bool AIShipAimGetFadeOwnShip();
++        int iFadeVant = -1;
++        if (AIShipAimGetFadeOwnShip())
++        {
++            for (int gn = 0; gn < groupQuantity; gn++)
++            {
++                ATTRIBUTES *pAFade = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[gn].shipEI))
++                                         ->GetACharacter();
++                if (pAFade != nullptr && pAFade->GetAttributeAsDword("MainCharacter", 0) != 0)
++                {
++                    iFadeVant = gn;
++                    break;
++                }
++            }
++        }
+         for (auto gn = 0; gn < groupQuantity; gn++)
+             if (gdata[gn].nIndx && nVert && (~(gdata[gn].pMatWorld->Pos() - cp)) * pr < fVantMaxDist)
+             {
++                if (gn == iFadeVant)
++                    continue;
+                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
+@@ -137,5 +155,25 @@
+             }
+         while (RenderService->TechniqueExecuteNext())
+         {
+         }
++        if (iFadeVant >= 0 && RenderService->TechniqueExecuteStart("ShipVant_alpha"))
++        {
++            // Faded redraw of the player ship's vants only. ShipVant_alpha
++            // honors TEXTUREFACTOR alpha with ZWrite off; ShipVant ignores it.
++            uint32_t dwVantAmbient;
++            RenderService->GetRenderState(D3DRS_AMBIENT, &dwVantAmbient);
++            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeVant].shipEI))->SetLightAndFog(true);
++            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeVant].shipEI))->SetLights();
++            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, (dwVantAmbient & 0x00FFFFFFu) | (0xA6u << 24));
++            RenderService->TextureSet(0, texl);
++            RenderService->SetTransform(D3DTS_WORLD, *gdata[iFadeVant].pMatWorld);
++            RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, 0, nVert, gdata[iFadeVant].sIndx,
++                                      gdata[iFadeVant].nIndx);
++            while (RenderService->TechniqueExecuteNext())
++            {
++            }
++            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwVantAmbient);
++            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeVant].shipEI))->UnSetLights();
++            static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[iFadeVant].shipEI))->RestoreLightAndFog();
++        }
+         // RenderService->Print(0,200,"Vants vert=%d, tr=%d, time=%d",nVert,nIndx,rtm);

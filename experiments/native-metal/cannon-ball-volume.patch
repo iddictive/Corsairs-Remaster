@@ -1,0 +1,294 @@
+diff --git a/src/libs/collide/include/cannon_trace.h b/src/libs/collide/include/cannon_trace.h
+--- a/src/libs/collide/include/cannon_trace.h
++++ b/src/libs/collide/include/cannon_trace.h
+@@ -7,4 +7,11 @@
+     ~CANNON_TRACE_BASE() override = default;
+
+     virtual float Cannon_Trace(int32_t iBallOwner, const CVECTOR &src, const CVECTOR &dst) = 0;
++
++    // Volumetric cannon balls: effective projectile radius in meters for rigging
++    // (mast/sail) capsule tests. Default is an exact zero-radius ray; rigging
++    // owners override this. AIBalls sets it before every Cannon_Trace call.
++    virtual void SetCannonTraceRadius(float fRadius)
++    {
++    }
+ };
+diff --git a/src/libs/rigging/src/sail.h b/src/libs/rigging/src/sail.h
+--- a/src/libs/rigging/src/sail.h
++++ b/src/libs/rigging/src/sail.h
+@@ -102,8 +102,17 @@
+     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,
+               ADD_POLYGON_FUNC addpoly) override;
+     float Cannon_Trace(int32_t iBallOwner, const CVECTOR &src, const CVECTOR &dst) override;
+
++    void SetCannonTraceRadius(float fRadius) override
++    {
++        fCannonRadius = fRadius;
++    }
++
++    // Volumetric cannon-ball radius (meters) for the next Cannon_Trace call.
++    // Read by SAILONE cloth tests; non-cannon picks ignore it.
++    float fCannonRadius{};
++
+     entid_t GetShipID() override
+     {
+         return gdata[LastTraceGroup].shipEI;
+     }
+diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
+--- a/src/libs/rigging/src/sailone.cpp
++++ b/src/libs/rigging/src/sailone.cpp
+@@ -1774,6 +1774,50 @@
+     }
+ }
+
++// Squared distance from point p to triangle (a, b, c), sail-local coords.
++// Volumetric cannon balls: a ball whose center passes within its rigging radius
++// of the cloth counts as a sail hit even when the zero-radius ray misses it.
++static float BallClothDistSq(const CVECTOR &p, const CVECTOR &a, const CVECTOR &b, const CVECTOR &c)
++{
++    const CVECTOR ab = b - a;
++    const CVECTOR ac = c - a;
++    const CVECTOR n = ab ^ ac;
++    const float fN2 = ~n;
++    if (fN2 > 1e-12f)
++    {
++        const float fT = (n | (p - a)) / fN2;
++        const CVECTOR q = p - n * fT;
++        const CVECTOR aq = q - a;
++        const float fD00 = ab | ab;
++        const float fD01 = ab | ac;
++        const float fD11 = ac | ac;
++        const float fD20 = aq | ab;
++        const float fD21 = aq | ac;
++        const float fDen = fD00 * fD11 - fD01 * fD01;
++        if (fabsf(fDen) > 1e-12f)
++        {
++            const float fV = (fD11 * fD20 - fD01 * fD21) / fDen;
++            const float fW = (fD00 * fD21 - fD01 * fD20) / fDen;
++            if (fV >= 0.0f && fW >= 0.0f && fV + fW <= 1.0f)
++                return ~(p - q);
++        }
++    }
++    float fBest = 1e30f;
++    for (int k = 0; k < 3; k++)
++    {
++        const CVECTOR &e0 = (k == 0) ? a : ((k == 1) ? b : c);
++        const CVECTOR &e1 = (k == 0) ? b : ((k == 1) ? c : a);
++        const CVECTOR d = e1 - e0;
++        const float fL2 = ~d;
++        float fT = (fL2 > 1e-12f) ? ((p - e0) | d) / fL2 : 0.0f;
++        fT = (fT < 0.0f) ? 0.0f : ((fT > 1.0f) ? 1.0f : fT);
++        const float fD2 = ~(p - (e0 + d * fT));
++        if (fD2 < fBest)
++            fBest = fD2;
++    }
++    return fBest;
++}
++
+ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst,
+                               bool bCannonTrace)
+ {
+@@ -1796,15 +1840,37 @@
+     if (dstDist == 0.f)
+         return 1.f;
+
+     if ((srcDist < 0.f) ^ (dstDist < 0.f))
+         retVal = srcDist / (srcDist - dstDist);
++    else if (bCannonTrace && pp->fCannonRadius > 0.0f)
++    {
++        // Grazing pass within the ball rigging radius: the plane is not crossed
++        // inside the segment, so accept when an endpoint flies close to the cloth.
++        // Non-cannon picks keep the exact ray below.
++        const float fR2 = pp->fCannonRadius * pp->fCannonRadius;
++        if (BallClothDistSq(vsrc, va, vb, vc) <= fR2)
++            return 0.f;
++        if (BallClothDistSq(vdst, va, vb, vc) <= fR2)
++            return 1.f;
++        return 2.f;
++    }
+     else
+         return 2.f;
+
+     // checking if the intersection point is in the triangle
+     if (retVal <= 1.f)
+     {
+         const CVECTOR cv = vsrc + (vdst - vsrc) * retVal;
++        // Volumetric cannon balls: a center passing within the rigging radius of
++        // the cloth counts as a hit even when the ray misses the quad. Exact hits
++        // (distance zero) take this path too, so the edge tests below only run for
++        // far misses and keep returning 2.f exactly as before.
++        if (bCannonTrace && pp->fCannonRadius > 0.0f)
++        {
++            const float fR2 = pp->fCannonRadius * pp->fCannonRadius;
++            if (BallClothDistSq(cv, va, vb, vc) <= fR2)
++                return retVal;
++        }
+         const CVECTOR vab = vb - va;
+         const CVECTOR vbc = vc - vb;
+         const CVECTOR vca = va - vc;
+diff --git a/src/libs/ship/src/ship.h b/src/libs/ship/src/ship.h
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -121,5 +121,8 @@
+     bool bShip2Strand;
+     bool bGroundMoveBlocked = false; // transient; not part of the save layout
++    // Volumetric cannon-ball radius (meters) for mast-pole capsule tests.
++    // transient; not part of the save layout
++    float fCannonTraceRadius = 0.0f;
+     float GroundPenetration(const SHIP_STATE &state);
+     bool bMounted;
+     bool bKeelContour;
+@@ -233,5 +233,9 @@
+     // inherit functions CANNON_TRACE_BASE
+     float Cannon_Trace(int32_t iBallOwner, const CVECTOR &src, const CVECTOR &dst) override;
++    void SetCannonTraceRadius(float fRadius) override
++    {
++        fCannonTraceRadius = fRadius;
++    }
+
+     // inherit functions VAI_OBJBASE
+     void SetACharacter(ATTRIBUTES *pAP) override;
+diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -1801,6 +1801,62 @@
+     return pModel->Trace(src, dst);
+ };
+
++// Squared distance between segments p1-q1 and p2-q2; *pfT receives the
++// normalized closest-approach position on p1-q1. Volumetric cannon balls:
++// mast poles are thin, so the exact mesh ray misses near passes and knippels
++// visibly fly through rigging without damage.
++static float BallMastDistSq(const CVECTOR &p1, const CVECTOR &q1, const CVECTOR &p2, const CVECTOR &q2,
++                            float *pfT)
++{
++    const CVECTOR d1 = q1 - p1;
++    const CVECTOR d2 = q2 - p2;
++    const CVECTOR r = p1 - p2;
++    const float a = d1 | d1;
++    const float e = d2 | d2;
++    const float f = d2 | r;
++    float s, t;
++    if (a <= 1e-12f && e <= 1e-12f)
++    {
++        s = t = 0.0f;
++    }
++    else if (a <= 1e-12f)
++    {
++        s = 0.0f;
++        t = Clamp(f / e, 0.0f, 1.0f);
++    }
++    else
++    {
++        const float c = d1 | r;
++        if (e <= 1e-12f)
++        {
++            t = 0.0f;
++            s = Clamp(-c / a, 0.0f, 1.0f);
++        }
++        else
++        {
++            const float b = d1 | d2;
++            const float den = a * e - b * b;
++            s = (den > 1e-12f) ? Clamp((b * f - c * e) / den, 0.0f, 1.0f) : 0.0f;
++            t = (b * s + f) / e;
++            if (t < 0.0f)
++            {
++                t = 0.0f;
++                s = Clamp(-c / a, 0.0f, 1.0f);
++            }
++            else if (t > 1.0f)
++            {
++                t = 1.0f;
++                s = Clamp((b - c) / a, 0.0f, 1.0f);
++            }
++        }
++    }
++    if (pfT)
++        *pfT = s;
++    const CVECTOR c1 = p1 + d1 * s;
++    const CVECTOR c2 = p2 + d2 * t;
++    return ~(c1 - c2);
++}
++
+ float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst)
+ {
+     MODEL *pModel = GetModel();
+@@ -1809,7 +1809,11 @@
+     const int32_t iOurIndex = GetIndex(GetACharacter());
+     if (iBallOwner == iOurIndex)
+         return 2.0f;
+
++    // Mast poles are thin: the exact mesh ray below misses near passes. The
++    // capsule test keeps every previous ray hit (ray hits skip the capsule,
++    // so no double damage) and only adds honest near-misses.
++    CMatrix mastMtx = *GetMatrix();
+     for (int32_t i = 0; i < iNumMasts; i++)
+         if (!pMasts[i].bBroken)
+         {
+@@ -1817,14 +1817,28 @@
+             mast_t *pM = &pMasts[i];
+             const float fRes = pM->pNode->Trace(vSrc, vDst);
+
+             if (fRes <= 1.0f)
+             {
+                 const CVECTOR v1 = vSrc + fRes * (vDst - vSrc);
+                 VDATA *pV = core.Event(SHIP_MAST_DAMAGE, "llffffal", SHIP_MAST_TOUCH_BALL, pM->iMastNum, v1.x, v1.y,
+                                        v1.z, pM->fDamage, GetACharacter(), iBallOwner);
+                 pM->fDamage = Clamp(pV->GetFloat());
+                 MastFall(pM);
+             }
++            else if (fCannonTraceRadius > 0.0f)
++            {
++                float fBallT = 0.0f;
++                const float fHitR = fCannonTraceRadius + 0.35f; // mast pole radius, meters
++                if (BallMastDistSq(vSrc, vDst, mastMtx * pM->vSrc, mastMtx * pM->vDst, &fBallT) <=
++                    fHitR * fHitR)
++                {
++                    const CVECTOR v1 = vSrc + (vDst - vSrc) * fBallT;
++                    VDATA *pV = core.Event(SHIP_MAST_DAMAGE, "llffffal", SHIP_MAST_TOUCH_BALL, pM->iMastNum,
++                                           v1.x, v1.y, v1.z, pM->fDamage, GetACharacter(), iBallOwner);
++                    pM->fDamage = Clamp(pV->GetFloat());
++                    MastFall(pM);
++                }
++            }
+         }
+
+     if (core.GetTargetEngineVersion() >= storm::ENGINE_VERSION::TO_EACH_HIS_OWN)
+diff --git a/src/libs/sea_ai/src/ai_balls.cpp b/src/libs/sea_ai/src/ai_balls.cpp
+--- a/src/libs/sea_ai/src/ai_balls.cpp
++++ b/src/libs/sea_ai/src/ai_balls.cpp
+@@ -251,14 +251,31 @@
+             // sail trace
+-            if (pSail)
+-                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
++            // Volumetric rigging hits: the traces below are zero-radius rays, so
++            // thin mast poles and cloth gaps let balls through untouched. Knippels
++            // are a spinning chained pair (~2 m span), grapes spread; round shot
++            // and bombs keep their visual size. Hull, fort, island and sea traces
++            // stay exact rays on purpose: only rigging grows.
++            float fRigRadius = pBallsType->fSize * 0.5f * pBall->fSizeMultiply;
++            if (storm::iEquals(pBallsType->sName, "Knippels"))
++                fRigRadius = 1.0f * pBall->fSizeMultiply;
++            else if (storm::iEquals(pBallsType->sName, "Grapes"))
++                fRigRadius = 0.35f * pBall->fSizeMultiply;
++
++            if (pSail)
++            {
++                pSail->SetCannonTraceRadius(fRigRadius);
++                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
++                pSail->SetCannonTraceRadius(0.0f);
++            }
+
+             auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
+             for (auto ent_id : entities)
+             {
+                 if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
+                 {
++                    pShip->SetCannonTraceRadius(fRigRadius);
+                     fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
++                    pShip->SetCannonTraceRadius(0.0f);
+                     if (fRes <= 1.0f)
+                         break;
+                 }
+             }
