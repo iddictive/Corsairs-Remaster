@@ -22,6 +22,15 @@ if [[ ! -x "$dest" ]]; then
     echo "Played app missing at $dest; install skipped (staged app still updated)."
     exit 0
 fi
+for technique_path in "ship/Rope.fx" "ship/Vant.fx" "_dev/ship.fx"; do
+    src="$root/.cache/runtime/RESOURCE/techniques/$technique_path"
+    dst="$dest_app/Contents/Resources/RESOURCE/techniques/$technique_path"
+    if [[ -f "$src" && -f "$dst" ]] && ! cmp -s "$src" "$dst"; then
+        cp "$src" "$dst"
+        echo "Synced technique $technique_path to played app"
+        codesign --force --deep -s - "$dest_app" 2>/dev/null || true
+    fi
+done
 tmp=$(mktemp "$backup_dir/.candidate.XXXXXX" 2>/dev/null || { mkdir -p "$backup_dir"; mktemp "$backup_dir/.candidate.XXXXXX"; })
 cp -c "$staged" "$tmp"
 for rp in $(otool -l "$tmp" | awk '/ path /{print $2}' | grep -E '^/(opt/homebrew|usr/local|Users/)' || true); do

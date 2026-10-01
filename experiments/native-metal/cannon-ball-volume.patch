@@ -88,7 +88,7 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
  float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst,
                                bool bCannonTrace)
  {
-@@ -1796,15 +1840,37 @@
+@@ -1796,15 +1840,38 @@
      if (dstDist == 0.f)
          return 1.f;
 
@@ -97,11 +97,12 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
 +    else if (bCannonTrace && pp->fCannonRadius > 0.0f)
 +    {
 +        // Grazing pass within the ball rigging radius: the plane is not crossed
-+        // inside the segment, so accept when an endpoint flies close to the cloth.
-+        // Non-cannon picks keep the exact ray below.
++        // inside the segment. Entry-only: a slow ball sits inside the radius for
++        // several frames, and every frame must not be a new hit. Non-cannon
++        // picks keep the exact ray below.
 +        const float fR2 = pp->fCannonRadius * pp->fCannonRadius;
 +        if (BallClothDistSq(vsrc, va, vb, vc) <= fR2)
-+            return 0.f;
++            return 2.f;
 +        if (BallClothDistSq(vdst, va, vb, vc) <= fR2)
 +            return 1.f;
 +        return 2.f;
@@ -226,7 +227,7 @@ diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
      for (int32_t i = 0; i < iNumMasts; i++)
          if (!pMasts[i].bBroken)
          {
-@@ -1817,14 +1817,28 @@
+@@ -1817,14 +1817,33 @@
              mast_t *pM = &pMasts[i];
              const float fRes = pM->pNode->Trace(vSrc, vDst);
 
@@ -240,10 +241,15 @@ diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
              }
 +            else if (fCannonTraceRadius > 0.0f)
 +            {
++                // Entry-only: a slow ball sits inside the capsule for several
++                // frames; only the entering frame is a hit, or high-FPS passes
++                // stack full damage per frame and one-shot masts.
 +                float fBallT = 0.0f;
 +                const float fHitR = fCannonTraceRadius + 0.35f; // mast pole radius, meters
-+                if (BallMastDistSq(vSrc, vDst, mastMtx * pM->vSrc, mastMtx * pM->vDst, &fBallT) <=
-+                    fHitR * fHitR)
++                const CVECTOR vMastA = mastMtx * pM->vSrc;
++                const CVECTOR vMastB = mastMtx * pM->vDst;
++                if (BallMastDistSq(vSrc, vSrc, vMastA, vMastB, nullptr) > fHitR * fHitR &&
++                    BallMastDistSq(vSrc, vDst, vMastA, vMastB, &fBallT) <= fHitR * fHitR)
 +                {
 +                    const CVECTOR v1 = vSrc + (vDst - vSrc) * fBallT;
 +                    VDATA *pV = core.Event(SHIP_MAST_DAMAGE, "llffffal", SHIP_MAST_TOUCH_BALL, pM->iMastNum,

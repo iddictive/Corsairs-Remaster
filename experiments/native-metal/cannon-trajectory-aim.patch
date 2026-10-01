@@ -30,7 +30,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -683,9 +683,333 @@
+@@ -683,9 +683,416 @@
      if (!Verts.empty())
      {
          AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
@@ -55,17 +55,19 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +// representative gun; the ellipse around it uses the same
 +// SHIP_GET_BORT_FIRE_DELTA gunner model as Fire2Position.
 +//
-+// Projection: one soft powder-smoke ribbon along the representative arc
-+// (middle intact gun of the firing broadside) plus a faint impact ellipse and
-+// small brass aim accents. The ribbon is a stable horizontal band in the
-+// firing plane, alpha-blended, depth-tested (ShipAimVolume), so hulls, masts,
-+// sails and islands occlude it like any in-world object. Only the firing
-+// broadside (GetFirstFireBort for the current camera ray) draws anything;
-+// idle side and out-of-sector views emit zero geometry.
++// Projection: a volumetric smoke beam along the firing broadside. A diamond-
++// section tube around the middle-gun arc (true 3D body, readable from deck
++// height), a horizontal curtain spanning the outer gun arcs (full gun line at
++// the muzzles converging onto the landing zone), bright brass gun-line edges,
++// and a filled landing disc with rings + center mark on the water. All alpha-
++// blended, depth-tested (ShipAimVolume/ShipAimArc): hulls, masts, sails and
++// islands occlude it like any in-world object. Only the firing broadside
++// (GetFirstFireBort for the current camera ray) draws anything; idle side
++// and out-of-sector views emit zero geometry.
 +//
-+// Style: warm parchment smoke, muted aged brass, umber halo. Thin faint
-+// layers, per-vertex alpha falloff. No neon, no hue-coded states: reloading
-+// only dims the same palette.
++// Style: warm parchment smoke, muted aged brass, umber halo. Soft layers with
++// per-vertex downrange and radial falloff. No neon, no hue-coded states:
++// reloading only dims the same palette.
 +constexpr int32_t kAimArcSteps = 20;
 +constexpr int32_t kAimRingSegments = 24;
 +constexpr const char *kAimTechLine = "ShipAimArc";
@@ -74,6 +76,10 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +constexpr uint32_t kAimBrass = 0xC8A96A;
 +constexpr uint32_t kAimUmber = 0x2E2118;
 +constexpr float kAimForwardDot = 0.5f;
++constexpr float kAimImpactY = 0.35f;
++constexpr int32_t kAimTubeA = 0x38;
++constexpr int32_t kAimCurtainA = 0x26;
++constexpr int32_t kAimDiscSegments = 28;
 +
 +bool s_bAimFadeOwnShip = false;
 +
@@ -149,6 +155,23 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    lines.push_back(RS_LINE{CVECTOR(vCenter.x + fHalf, vCenter.y, vCenter.z), dwColor});
 +    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z - fHalf), dwColor});
 +    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z + fHalf), dwColor});
++}
++
++void EmitAimDisc(std::vector<AimVolVertex> &verts, const CVECTOR &vCenter, float fRadius, uint32_t dwRgb,
++                 int32_t dwAlpha, int32_t dwSegments)
++{
++    const uint32_t dwC = AimColor(dwRgb, static_cast<uint32_t>(dwAlpha));
++    const uint32_t dwR = AimColor(dwRgb, 0);
++    CVECTOR vPrev(vCenter.x + fRadius, vCenter.y, vCenter.z);
++    for (int32_t i = 1; i <= dwSegments; ++i)
++    {
++        const float fAng = 6.2831853f * static_cast<float>(i) / static_cast<float>(dwSegments);
++        const CVECTOR vNext(vCenter.x + fRadius * cosf(fAng), vCenter.y, vCenter.z + fRadius * sinf(fAng));
++        verts.push_back(AimVolVertex{vCenter, dwC});
++        verts.push_back(AimVolVertex{vPrev, dwR});
++        verts.push_back(AimVolVertex{vNext, dwR});
++        vPrev = vNext;
++    }
 +}
 +
 +void FlushAimLines(std::vector<RS_LINE> &lines)
@@ -232,49 +255,28 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    if (fSpeedV0 <= 0.0f)
 +        return;
 +
-+    // Representative gun: middle intact cannon of the firing broadside only.
-+    // One arc per broadside; per-gun lines are out by design (clutter).
++    // Firing broadside volume: outer intact guns bound the curtain, the middle
++    // gun carries the beam tube. Spans the full gun line at the muzzles and
++    // converges onto the landing zone downrange.
 +    const auto &cannons = bortIt->aCannons;
++    const AICannon *pFirst = nullptr;
++    const AICannon *pLast = nullptr;
++    for (const auto &cannon : cannons)
++        if (!cannon.isDamaged())
++        {
++            if (pFirst == nullptr)
++                pFirst = &cannon;
++            pLast = &cannon;
++        }
++    if (pFirst == nullptr)
++        return;
 +    const AICannon *pMid = &cannons[cannons.size() / 2];
 +    if (pMid->isDamaged())
-+    {
-+        pMid = nullptr;
-+        for (const auto &cannon : cannons)
-+            if (!cannon.isDamaged())
-+            {
-+                pMid = &cannon;
-+                break;
-+            }
-+        if (pMid == nullptr)
-+            return;
-+    }
-+    const CVECTOR vMuzzle = pMid->GetPos();
++        pMid = pFirst;
 +
 +    CVECTOR vAim = vTarget;
 +    vAim.y = 0.0f;
-+    const float fAngle = pMid->CalcHeightFireAngle(fSpeedV0, vMuzzle, vAim);
-+    const float fRawAng = AimRawAngle(vMuzzle, vAim);
-+    const CVECTOR vFlat(vAim.x - vMuzzle.x, 0.0f, vAim.z - vMuzzle.z);
-+    if (~vFlat <= 0.0f)
-+        return;
-+    const float fFlatDist = sqrtf(~vFlat);
-+    const float fDirAng = atan2f(vFlat.x, vFlat.z);
-+    const float fDirCos = cosf(fDirAng);
-+    const float fDirSin = sinf(fDirAng);
-+    const float fCosA = cosf(fAngle);
-+    const float fSinA = sinf(fAngle);
-+    const float fRawCos = cosf(fRawAng);
-+    const float fRawSin = sinf(fRawAng);
 +    const float fHeightMultiply = AimLiveHeightMultiply(GetAIShip()->GetACharacter());
-+
-+    float fTimeHit = -1.0f;
-+    {
-+        const float fDenom = fSpeedV0 * fCosA;
-+        if (fabsf(fDenom) > 1e-3f)
-+            fTimeHit = fFlatDist / fDenom;
-+    }
-+    if (fTimeHit <= 0.0f)
-+        return;
 +
 +    // Dispersion radius from the same gunner-accuracy script model as live fire.
 +    float fDispRadius = 5.0f;
@@ -285,54 +287,101 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    const bool bReady = bortIt->isCharged();
 +    const float fDim = bReady ? 1.0f : 0.6f;
 +
-+    // March the live-fire integration until the water plane.
-+    CVECTOR vArc[kAimArcSteps + 1];
-+    vArc[0] = vMuzzle;
-+    int32_t dwPoints = 1;
-+    CVECTOR vImpact(vAim.x, 0.05f, vAim.z);
-+    const float fDt = fTimeHit / static_cast<float>(kAimArcSteps);
-+    for (int32_t i = 1; i <= kAimArcSteps; ++i)
++    // Per-gun arcs: every plotted gun aims at the undispersed target from its
++    // own muzzle with its own elevation solution, exactly as RealFire would;
++    // the march replicates the live AIBalls integration to the water plane.
++    const AICannon *pGuns[3] = {pFirst, pMid, pLast};
++    CVECTOR vArc[3][kAimArcSteps + 1];
++    int32_t dwPoints[3] = {1, 1, 1};
++    CVECTOR vImpact(vAim.x, kAimImpactY, vAim.z);
++    for (int32_t g = 0; g < 3; ++g)
 +    {
-+        CVECTOR vNext = AimBallisticPoint(vMuzzle, fSpeedV0, fCosA, fSinA, fRawCos, fRawSin, fDirCos, fDirSin,
-+                                          fDt * static_cast<float>(i), fHeightMultiply);
-+        if (vNext.y <= 0.0f)
++        const CVECTOR vMuzzle = pGuns[g]->GetPos();
++        vArc[g][0] = vMuzzle;
++        const float fAngle = pGuns[g]->CalcHeightFireAngle(fSpeedV0, vMuzzle, vAim);
++        const float fRawAng = AimRawAngle(vMuzzle, vAim);
++        const CVECTOR vFlat(vAim.x - vMuzzle.x, 0.0f, vAim.z - vMuzzle.z);
++        if (~vFlat <= 0.0f)
++            continue;
++        const float fFlatDist = sqrtf(~vFlat);
++        const float fDirAng = atan2f(vFlat.x, vFlat.z);
++        const float fDirCos = cosf(fDirAng);
++        const float fDirSin = sinf(fDirAng);
++        const float fCosA = cosf(fAngle);
++        const float fSinA = sinf(fAngle);
++        const float fRawCos = cosf(fRawAng);
++        const float fRawSin = sinf(fRawAng);
++        float fTimeHit = -1.0f;
 +        {
-+            vNext.y = 0.05f;
-+            vArc[dwPoints++] = vNext;
-+            vImpact = vNext;
-+            break;
++            const float fDenom = fSpeedV0 * fCosA;
++            if (fabsf(fDenom) > 1e-3f)
++                fTimeHit = fFlatDist / fDenom;
 +        }
-+        vArc[dwPoints++] = vNext;
-+        if (i == kAimArcSteps)
-+            vImpact = CVECTOR(vNext.x, 0.05f, vNext.z);
-+    }
-+    // Powder-smoke ribbon: one wide soft band in the firing plane, widening
-+    // and thinning downrange like dispersing smoke. Two nested layers (wide
-+    // faint shell + narrower denser core) for a soft volumetric read.
-+    // Depth-tested: ships, masts, sails and islands occlude it correctly.
-+    {
-+        static std::vector<AimVolVertex> sVol;
-+        sVol.clear();
-+        const float fSideLen = fFlatDist > 1e-3f ? fFlatDist : 1.0f;
-+        const CVECTOR vSide(-vFlat.z / fSideLen, 0.0f, vFlat.x / fSideLen);
-+        for (int layer = 0; layer < 2; ++layer)
++        if (fTimeHit <= 0.0f)
++            continue;
++        const float fDt = fTimeHit / static_cast<float>(kAimArcSteps);
++        for (int32_t i = 1; i <= kAimArcSteps; ++i)
 +        {
-+            const float fWidthMul = layer == 0 ? 1.7f : 1.0f;
-+            const int32_t dwBaseA = layer == 0 ? 0x10 : 0x20;
-+            for (int32_t i = 0; i + 1 < dwPoints; ++i)
++            CVECTOR vNext = AimBallisticPoint(vMuzzle, fSpeedV0, fCosA, fSinA, fRawCos, fRawSin, fDirCos, fDirSin,
++                                              fDt * static_cast<float>(i), fHeightMultiply);
++            if (vNext.y <= 0.0f)
 +            {
-+                const float fT0 = static_cast<float>(i) / static_cast<float>(kAimArcSteps);
-+                const float fT1 = static_cast<float>(i + 1) / static_cast<float>(kAimArcSteps);
-+                const float fW0 = (0.5f + 2.4f * fT0) * fWidthMul;
-+                const float fW1 = (0.5f + 2.4f * fT1) * fWidthMul;
-+                const uint32_t dwA0 = AimFadeAlpha(dwBaseA, dwBaseA / 2, i, kAimArcSteps);
-+                const uint32_t dwA1 = AimFadeAlpha(dwBaseA, dwBaseA / 2, i + 1, kAimArcSteps);
-+                const uint32_t dwC0 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * dwA0));
-+                const uint32_t dwC1 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * dwA1));
-+                const CVECTOR vA0 = vArc[i] + fW0 * vSide;
-+                const CVECTOR vB0 = vArc[i] + (0.0f - fW0) * vSide;
-+                const CVECTOR vA1 = vArc[i + 1] + fW1 * vSide;
-+                const CVECTOR vB1 = vArc[i + 1] + (0.0f - fW1) * vSide;
++                vNext.y = kAimImpactY;
++                vArc[g][dwPoints[g]++] = vNext;
++                if (g == 1)
++                    vImpact = vNext;
++                break;
++            }
++            vArc[g][dwPoints[g]++] = vNext;
++            if (i == kAimArcSteps && g == 1)
++                vImpact = CVECTOR(vNext.x, kAimImpactY, vNext.z);
++        }
++    }
++    if (dwPoints[1] < 2)
++        return;
++
++    static std::vector<AimVolVertex> sVol;
++    sVol.clear();
++    // Beam tube: diamond-section smoke body around the middle arc. A true 3D
++    // volume, so it reads from deck height where flat ribbons vanish edge-on.
++    // Widens and thins downrange like dispersing powder smoke. Depth-tested:
++    // hulls, masts, sails and islands occlude it like any in-world object.
++    {
++        const int32_t dwTube = dwPoints[1];
++        const CVECTOR vUp(0.0f, 1.0f, 0.0f);
++        for (int32_t i = 0; i + 1 < dwTube; ++i)
++        {
++            CVECTOR vTan = vArc[1][i + 1] - vArc[1][i];
++            if (~vTan <= 1e-12f)
++                continue;
++            vTan = !vTan;
++            CVECTOR vSide = vTan ^ vUp;
++            if (~vSide <= 1e-12f)
++                vSide = CVECTOR(1.0f, 0.0f, 0.0f);
++            else
++                vSide = !vSide;
++            const CVECTOR vVert = vSide ^ vTan;
++            const float fT0 = static_cast<float>(i) / static_cast<float>(kAimArcSteps);
++            const float fT1 = static_cast<float>(i + 1) / static_cast<float>(kAimArcSteps);
++            const float fR0 = 0.45f + 1.7f * fT0;
++            const float fR1 = 0.45f + 1.7f * fT1;
++            const uint32_t dwC0 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimTubeA, kAimTubeA / 2, i, kAimArcSteps)));
++            const uint32_t dwC1 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimTubeA, kAimTubeA / 2, i + 1, kAimArcSteps)));
++            const CVECTOR vC0 = vArc[1][i];
++            const CVECTOR vC1 = vArc[1][i + 1];
++            const CVECTOR vS0 = vSide * fR0;
++            const CVECTOR vV0 = vVert * fR0;
++            const CVECTOR vS1 = vSide * fR1;
++            const CVECTOR vV1 = vVert * fR1;
++            // Four diamond faces; shared frame per segment, invisible twist.
++            const CVECTOR vRing0[4] = {vC0 + vS0, vC0 + vV0, vC0 - vS0, vC0 - vV0};
++            const CVECTOR vRing1[4] = {vC1 + vS1, vC1 + vV1, vC1 - vS1, vC1 - vV1};
++            for (int32_t k = 0; k < 4; ++k)
++            {
++                const CVECTOR &vA0 = vRing0[k];
++                const CVECTOR &vB0 = vRing0[(k + 1) % 4];
++                const CVECTOR &vA1 = vRing1[k];
++                const CVECTOR &vB1 = vRing1[(k + 1) % 4];
 +                sVol.push_back(AimVolVertex{vA0, dwC0});
 +                sVol.push_back(AimVolVertex{vB0, dwC0});
 +                sVol.push_back(AimVolVertex{vA1, dwC1});
@@ -341,22 +390,56 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +                sVol.push_back(AimVolVertex{vA1, dwC1});
 +            }
 +        }
-+        FlushAimVolume(sVol);
 +    }
++    // Broadside curtain: horizontal sheet between the outer gun arcs, morphing
++    // the full gun line into the landing ellipse. Skipped for single guns.
++    {
++        const int32_t dwSpan = dwPoints[0] < dwPoints[2] ? dwPoints[0] : dwPoints[2];
++        if (dwSpan >= 2 && pLast != pFirst)
++        {
++            for (int32_t i = 0; i + 1 < dwSpan; ++i)
++            {
++                const uint32_t dwC0 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimCurtainA, kAimCurtainA / 2, i, kAimArcSteps)));
++                const uint32_t dwC1 = AimColor(kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimCurtainA, kAimCurtainA / 2, i + 1, kAimArcSteps)));
++                const CVECTOR &vA0 = vArc[0][i];
++                const CVECTOR &vB0 = vArc[2][i];
++                const CVECTOR &vA1 = vArc[0][i + 1];
++                const CVECTOR &vB1 = vArc[2][i + 1];
++                sVol.push_back(AimVolVertex{vA0, dwC0});
++                sVol.push_back(AimVolVertex{vB0, dwC0});
++                sVol.push_back(AimVolVertex{vA1, dwC1});
++                sVol.push_back(AimVolVertex{vB0, dwC0});
++                sVol.push_back(AimVolVertex{vB1, dwC1});
++                sVol.push_back(AimVolVertex{vA1, dwC1});
++            }
++        }
++    }
++    // Landing zone: soft filled disc at the gunner dispersion radius, fading
++    // from a readable brass heart to a transparent rim. Sits above the wave
++    // tops so chop never swallows it.
++    EmitAimDisc(sVol, vImpact, fDispRadius, kAimBrass, static_cast<int32_t>(fDim * 0x46), kAimDiscSegments);
++    FlushAimVolume(sVol);
++
 +    static std::vector<RS_LINE> sLines;
 +    sLines.clear();
 +
-+    // Soft impact ellipse on the water: faint outer ring at the gunner
-+    // dispersion radius plus a fainter inner echo. Calm on waves.
-+    const uint32_t dwRingO = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x30));
-+    const uint32_t dwRingI = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x22));
++    // Bright gun-line edges: the outer gun arcs read the trajectory at a glance.
++    const uint32_t dwEdge = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x88));
++    for (int32_t g = 0; g < 3; g += 2)
++        for (int32_t i = 0; i + 1 < dwPoints[g]; ++i)
++        {
++            sLines.push_back(RS_LINE{vArc[g][i], dwEdge});
++            sLines.push_back(RS_LINE{vArc[g][i + 1], dwEdge});
++        }
++
++    // Landing rings + center mark: outer at dispersion, inner echo, umber halo
++    // for bright-sky legibility, thin brass ring + cross at the predicted point.
++    const uint32_t dwRingO = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x78));
++    const uint32_t dwRingI = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x55));
 +    EmitAimRing(sLines, vImpact, fDispRadius, dwRingO, kAimRingSegments);
 +    EmitAimRing(sLines, vImpact, fDispRadius * 0.55f, dwRingI, 16);
-+
-+    // Restrained aim accents: umber halo for bright-sky legibility, thin
-+    // brass ring + center cross at the predicted landing point.
-+    const uint32_t dwAcc = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0x66));
-+    EmitAimRing(sLines, vImpact, 2.6f, AimColor(kAimUmber, 0x44), 20);
++    const uint32_t dwAcc = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0xA0));
++    EmitAimRing(sLines, vImpact, 2.6f, AimColor(kAimUmber, 0x55), 20);
 +    EmitAimRing(sLines, vImpact, 2.2f, dwAcc, 20);
 +    EmitAimCross(sLines, vImpact, 1.1f, dwAcc);
 +
