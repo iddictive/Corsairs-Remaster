@@ -36,18 +36,18 @@ int main() {
          "ground hemisphere preserves underside depth");
     need(nightUp < dayUp * .2f && nightUp > 0.f,
          "authored night remains visible and materially darker than day");
-    need(tunedNightUp > nightUp && tunedNightUp < dayUp * .4f,
+    need(tunedNightUp > nightUp && tunedNightUp < dayUp * .3f,
          "night receives bounded fill while staying substantially darker than day");
     const float lampContribution = .45f;
     const float dark = energy(fill.x, 0.f, 0.f, 0.f);
-    need(dark > .145f && dark < .16f &&
+    need(dark > .07f && dark < .09f &&
          std::abs((dark + lampContribution) - dark - lampContribution) < 1e-6f,
          "lamp-free vertical surface is readable; additive lamp contrast is unchanged");
     const float retainedMaterialGround = .38f * fill.x * sm::modernAmbientFactor(0.f, true);
-    need(retainedMaterialGround > .055f && retainedMaterialGround < .065f,
+    need(retainedMaterialGround > .029f && retainedMaterialGround < .032f,
          "night floor survives retained material and ground-hemisphere response");
     const auto zero = sm::outdoorNightAmbient(simd_make_float3(0.f), true);
-    need(zero.x > .37f && zero.x < .39f, "zero authored outdoor ambient has a bounded source floor");
+    need(zero.x > .19f && zero.x < .21f, "zero authored outdoor ambient has a bounded source floor");
     const auto day = sm::outdoorNightAmbient(simd_make_float3(dayAmbient, dayAmbient, dayAmbient), true);
     const auto indoor = sm::outdoorNightAmbient(simd_make_float3(nightAmbient, nightAmbient, nightAmbient), false);
     need(day.x == dayAmbient && day.y == dayAmbient && day.z == dayAmbient,

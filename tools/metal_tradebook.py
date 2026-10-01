@@ -8,7 +8,7 @@ BASE = {
     LAYOUT: "a15e1e013cbe8ade5a6a9e80975e91af1b99627c2e34ceb080e8d70a78916fe1",
 }
 PREVIOUS = {
-    SCRIPT: "23e7e92c908abcf2aa8922a54bc9d724123682dd275ba6fc124bd95ee2b92e26",
+    SCRIPT: "e4572beabccda273daca89bfee8270ac633c6a1b3ffbdd08a12b46e33a2340c6",
     LAYOUT: "2cba66d380e5de28ed5ffc00464747c4d40aac09b0cee3425da2d6e1132190b9",
 }
 
@@ -60,6 +60,7 @@ INIT = '''void InitTradeComparison()
     TradeBookPinnedCity = "";
     TradeBookRouteMode = 1;
     TradeBookContraband = 0;
+    TradeBookPinAuto = 0;
     if (CheckAttribute(pchar, "SystemInfo.TradeBookRouteMode"))
         TradeBookRouteMode = sti(pchar.SystemInfo.TradeBookRouteMode);
     if (CheckAttribute(pchar, "SystemInfo.TradeBookContraband"))
@@ -69,7 +70,14 @@ INIT = '''void InitTradeComparison()
         TradeBookPinnedCity = pchar.SystemInfo.TradeBookPinnedCity;
         if (!CheckAttribute(nulChr, "PriceList." + TradeBookPinnedCity)) TradeBookPinnedCity = "";
     }
-    if (TradeBookRouteMode == 1 && TradeBookPinnedCity == "")
+    if (TradeBookPinnedCity != "")
+    {
+        if (CheckAttribute(pchar, "SystemInfo.TradeBookPinAuto"))
+            TradeBookPinAuto = sti(pchar.SystemInfo.TradeBookPinAuto);
+        else
+            TradeBookPinAuto = 1;
+    }
+    if (TradeBookRouteMode == 1 && (TradeBookPinnedCity == "" || TradeBookPinAuto == 1))
     {
         TryPinCurrentTradeCity();
     }
@@ -84,7 +92,7 @@ void ToggleTradeBookMode()
 {
     TradeBookRouteMode = 1 - TradeBookRouteMode;
     pchar.SystemInfo.TradeBookRouteMode = TradeBookRouteMode;
-    if (TradeBookRouteMode == 1 && TradeBookPinnedCity == "")
+    if (TradeBookRouteMode == 1 && (TradeBookPinnedCity == "" || TradeBookPinAuto == 1))
     {
         TryPinCurrentTradeCity();
     }
@@ -93,9 +101,18 @@ void ToggleTradeBookMode()
 
 void PinSelectedTradeCity()
 {
-    if (TradeBookPinnedCity != "") TradeBookPinnedCity = "";
-    else TradeBookPinnedCity = TradeBookSelectedCity;
+    if (TradeBookPinnedCity != "")
+    {
+        TradeBookPinnedCity = "";
+        TradeBookPinAuto = 0;
+    }
+    else
+    {
+        TradeBookPinnedCity = TradeBookSelectedCity;
+        TradeBookPinAuto = 0;
+    }
     pchar.SystemInfo.TradeBookPinnedCity = TradeBookPinnedCity;
+    pchar.SystemInfo.TradeBookPinAuto = TradeBookPinAuto;
     RefreshTradeComparison();
 }
 
@@ -109,7 +126,7 @@ def replace(text, old, new, count=1):
 
 
 def script(text):
-    text = replace(text, 'int TradeBookRouteMode = 1;', 'int TradeBookRouteMode = 1;\nint TradeBookContraband = 0;')
+    text = replace(text, 'int TradeBookRouteMode = 1;', 'int TradeBookRouteMode = 1;\nint TradeBookContraband = 0;\nint TradeBookPinAuto = 0;')
     text = replace(text, '\t\tcase "PIN_CITY":', '''        case "CONTRABAND_TOGGLE":
             if(comName == "click" || comName == "activate")
             {
@@ -122,6 +139,7 @@ def script(text):
     text = text[:start] + CONTROLS + text[end:]
     start, end = text.index('void InitTradeComparison()'), text.index('void RefreshTradeComparison()')
     text = text[:start] + INIT + text[end:]
+    text = replace(text, '\tTradeBookPinnedCity = currentTown;\n\tpchar.SystemInfo.TradeBookPinnedCity = TradeBookPinnedCity;', '\tTradeBookPinnedCity = currentTown;\n\tTradeBookPinAuto = 1;\n\tpchar.SystemInfo.TradeBookPinnedCity = TradeBookPinnedCity;\n\tpchar.SystemInfo.TradeBookPinAuto = 1;')
     text = replace(text, 'void RefreshTradeComparison()\n{', 'void RefreshTradeComparison()\n{\n    SyncTradeBookControls();')
     text = replace(text, '\tif (TradeBookPinnedCity == "" || TradeBookPinnedCity == TradeBookSelectedCity)', '''    if (TradeBookPinnedCity == "")
     {

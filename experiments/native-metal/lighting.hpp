@@ -27,7 +27,7 @@ inline simd_float3 outdoorNightAmbient(simd_float3 authored, bool outdoor) {
     // ground hemisphere can then halve this value again.  The old 0.17 input
     // floor therefore became a near-black 0.03--0.04 final surface.  This is a
     // source-light floor, not an additive lamp or display-space exposure lift.
-    const float fill = std::max(0.f, .38f - luminance);
+    const float fill = std::max(0.f, .20f - luminance);
     return simd_make_float3(std::min(1.f, authored.x + fill),
                            std::min(1.f, authored.y + fill),
                            std::min(1.f, authored.z + fill));

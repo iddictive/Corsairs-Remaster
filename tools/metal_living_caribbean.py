@@ -888,10 +888,68 @@ SHIP_CHEST_CMD_NEW = enc("""		case "CHEST_BUTTON":
 			}
 		break;""")
 
+SHIP_CHEST_VIS_OLD = enc("""	GameInterface.TABLE_LIST.select = 0;
+	SetCurrentNode("SHIPS_SCROLL");""")
+
+SHIP_CHEST_VIS_NEW = enc("""	GameInterface.TABLE_LIST.select = 0;
+	SetCurrentNode("SHIPS_SCROLL");
+	SetNodeUsing("CHEST_BUTTON", Get_My_Cabin() != "");""")
+
 
 def prepare_ship_interface(data: bytes) -> bytes:
     if data.count(SHIP_CHEST_CMD_OLD) != 1: raise RuntimeError("ship.c chest command anchor mismatch")
-    return data.replace(SHIP_CHEST_CMD_OLD, SHIP_CHEST_CMD_NEW)
+    if data.count(SHIP_CHEST_VIS_OLD) != 1: raise RuntimeError("ship.c chest visibility anchor mismatch")
+    data = data.replace(SHIP_CHEST_CMD_OLD, SHIP_CHEST_CMD_NEW)
+    return data.replace(SHIP_CHEST_VIS_OLD, SHIP_CHEST_VIS_NEW)
+
+
+# ---------------------------------------------------------------------------
+# 16b. ship.ini (Ship Menu Chest Button Control)
+# ---------------------------------------------------------------------------
+SHIP_INI_PATH = "RESOURCE/INI/interfaces/ship.ini"
+SHIP_INI_BASE = "e5822481464d182b80c2e89318e02e6183ec8e3d934bfd3aa0b3e89148cc7b4a"
+SHIP_INI_ITEM_OLD = enc("item = 403,TEXTBUTTON2,CREW_MORALE_BUTTON")
+SHIP_INI_ITEM_NEW = enc("item = 403,TEXTBUTTON2,CREW_MORALE_BUTTON\\nitem = 403,TEXTBUTTON2,CHEST_BUTTON")
+SHIP_INI_NODE_OLD = enc("nodelist = TABLE_LIST,TABLE_OTHER,SHIPS_SCROLL,CREW_MORALE_BUTTON,CREW_PARTITION")
+SHIP_INI_NODE_NEW = enc("nodelist = TABLE_LIST,TABLE_OTHER,SHIPS_SCROLL,CREW_MORALE_BUTTON,CREW_PARTITION,CHEST_BUTTON")
+
+SHIP_INI_SECTION_OLD = enc("""[CREW_MORALE_BUTTON]
+command = activate
+command = click
+command = deactivate,event:exitCancel
+position = 517,230,640,255
+string = RaiseMorale
+fontScale = 0.85
+glowoffset = 0,0
+""")
+
+SHIP_INI_SECTION_NEW = enc("""[CREW_MORALE_BUTTON]
+command = activate
+command = click
+command = deactivate,event:exitCancel
+position = 517,230,640,255
+string = RaiseMorale
+fontScale = 0.85
+glowoffset = 0,0
+
+[CHEST_BUTTON]
+command = activate
+command = click
+command = deactivate,event:exitCancel
+position = 627,572,787,596
+string = titleItemsBox
+fontScale = 0.85
+glowoffset = 0,0
+""")
+
+
+def prepare_ship_ini(data: bytes) -> bytes:
+    if data.count(SHIP_INI_ITEM_OLD) != 1: raise RuntimeError("ship.ini chest item anchor mismatch")
+    if data.count(SHIP_INI_NODE_OLD) != 1: raise RuntimeError("ship.ini chest nodelist anchor mismatch")
+    if data.count(SHIP_INI_SECTION_OLD) != 1: raise RuntimeError("ship.ini chest section anchor mismatch")
+    data = data.replace(SHIP_INI_ITEM_OLD, SHIP_INI_ITEM_NEW)
+    data = data.replace(SHIP_INI_NODE_OLD, SHIP_INI_NODE_NEW)
+    return data.replace(SHIP_INI_SECTION_OLD, SHIP_INI_SECTION_NEW)
 
 
 # ---------------------------------------------------------------------------
@@ -971,6 +1029,7 @@ PREPARERS = {
     LAI_PL_PATH: (LAI_PL_BASE, prepare_lai_player),
     IU_PATH: (IU_BASE, prepare_interface_utils),
     SHIP_PATH: (SHIP_BASE, prepare_ship_interface),
+    SHIP_INI_PATH: (SHIP_INI_BASE, prepare_ship_ini),
     WDM_GLO_PATH: (WDM_GLO_BASE, prepare_worldmap_globals),
     WDM_REL_PATH: (WDM_REL_BASE, prepare_worldmap_reload),
 }
@@ -993,7 +1052,8 @@ UPDATED = {
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
     "PROGRAM/Loc_ai/types/LAi_player.c": "f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3",
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
-    "PROGRAM/interface/ship.c": "25aa0ffdffb793a4cfd342e5715462948b5ca98ca1b4d1c1203da548487e0486",
+    "PROGRAM/interface/ship.c": "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561",
+    "RESOURCE/INI/interfaces/ship.ini": "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa",
     "PROGRAM/worldmap/worldmap_globals.c": "bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe",
     "PROGRAM/worldmap/worldmap_reload.c": "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1",
 }
