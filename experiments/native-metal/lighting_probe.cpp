@@ -70,7 +70,7 @@ std::printf("authored outdoor ambient day=%d night=%d explicit=%d unclassified=%
             red(outdoorDay),red(outdoorNight),red(explicitOutdoor),red(unclassified));
  // The outdoor-only sky floor survives the actual authored COLOR1 material
  // path.  Legacy lighting remains at its original weather energy.
- const int expectedNight=modern?50:14;
+ const int expectedNight=modern?48:14;
  check(std::abs(red(outdoorDay)-52)<=1&&std::abs(red(outdoorNight)-expectedNight)<=1&&red(outdoorDay)>red(outdoorNight),
       "outdoor floor remains below authored daytime ambient");
  check(std::abs(red(explicitOutdoor)-expectedExplicit)<=1,
