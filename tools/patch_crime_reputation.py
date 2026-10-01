@@ -298,11 +298,25 @@ void CrimeSea_SetReporter(aref reporter, int state, bool identityKnown, int atta
 	reporter.AttackFlagNation = attackFlagNation;
 }
 
+bool CrimeSea_IsLawfulPrize(ref victim)
+{
+	int nation = sti(victim.nation);
+	if (nation == PIRATE) return true;
+	if (GetNationRelation(GetBaseHeroNation(), nation) == RELATION_ENEMY) return true;
+	if (isMainCharacterPatented())
+	{
+		int patentNation = sti(Items[sti(pchar.EquipedPatentId)].Nation);
+		if (GetNationRelation(patentNation, nation) == RELATION_ENEMY) return true;
+	}
+	return false;
+}
+
 void CrimeSea_Begin(ref victim, ref groupCommander)
 {
 	int nation = sti(victim.nation);
-	if (nation < 0 || nation >= MAX_NATIONS || nation == PIRATE) return;
-	if (GetNationRelation(GetBaseHeroNation(), nation) == RELATION_ENEMY) return;
+	if (nation < 0 || nation >= MAX_NATIONS) return;
+	// Open war and covered privateer prizes are no crime at all.
+	if (CrimeSea_IsLawfulPrize(victim)) return;
 	if (CheckAttribute(victim, "Situation")) return;
 
 	string nationKey = NationShortName(nation);
@@ -358,6 +372,33 @@ void CrimeSea_AmbientAttack(ref groupCommander, ref victim)
 	CrimeSea_Begin(victim, groupCommander);
 }
 
+void CrimeSea_HandleUntrackedEnemy(ref groupCommander, ref victim)
+{
+	// Quest protection keeps the exact vanilla no-op: no hostility, no report.
+	if (CheckAttribute(victim, "Coastal_Captain")) return;
+	if (CheckAttribute(victim, "ShipEnemyDisable") || CheckAttribute(victim, "AlwaysFriend")) return;
+	// Mayor-quest pirate keeps its vanilla quest reroute, which punishes nothing itself.
+	if (victim.id == "MQPirate")
+	{
+		Ship_NationAgressive(groupCommander, victim);
+		return;
+	}
+	// Tactical hostility is immediate but stays local: no reputation, hunter,
+	// patent, flag or nation-relation change happens here.
+	SetCharacterRelationBoth(sti(victim.index), GetMainCharacterIndex(), RELATION_ENEMY);
+	SetCharacterRelationBoth(sti(groupCommander.index), GetMainCharacterIndex(), RELATION_ENEMY);
+	if (CheckAttribute(victim, "SeaAI.Group.Name"))
+		Group_SetEnemyToCharacter(victim.SeaAI.Group.Name, GetMainCharacterIndex());
+	for (int i = 0; i < MAX_SHIP_GROUPS; i++) AIGroups[i].TempTask = false;
+	// Lawful war and covered privateer prizes are no crime at all.
+	if (CrimeSea_IsLawfulPrize(victim)) return;
+	// Quest-involved ships keep local hostility only; their quests own outcomes.
+	if (CheckAttribute(victim, "Situation")) return;
+	// Unlawful victim the encounter pre-marked hostile: open one deferred
+	// incident so a surviving report decides exactly once.
+	CrimeSea_Begin(victim, groupCommander);
+}
+
 ref CrimeSea_GetGroupCommander(ref victim)
 {
 	if (CheckAttribute(victim, "SeaAI.Group.Name"))
@@ -380,9 +421,9 @@ void CrimeSea_PreparePlayerBallHit(ref victim)
 	if (GetRelation(sti(victim.index), GetMainCharacterIndex()) == RELATION_ENEMY ||
 		GetRelation(sti(groupCommander.index), GetMainCharacterIndex()) == RELATION_ENEMY)
 	{
-		// Explicit/scripted enemies retain the legacy punishment path.
-		Ship_NationAgressive(groupCommander, victim);
-		DoQuestCheckDelay("NationUpdate", 0.7);
+		// Pre-marked hostility stays tactical: local fight now, one deferred
+		// incident for unlawful victims, quest routing where it applies.
+		CrimeSea_HandleUntrackedEnemy(groupCommander, victim);
 		return;
 	}
 	CrimeSea_AmbientAttack(groupCommander, victim);
@@ -584,7 +625,7 @@ PATCH = PatchSet(
         FilePatch(
             "PROGRAM/sea_ai/AIShip.c",
             "080bfba46b6486bce0917c04c2af407649d0a2dc3a548627ec8ab49cc1ef0f46",
-            "96b1eaef43f818f1b5d5e25f89c2fae3ef74286d7d37102d65c3ea4057cfe187",
+            "e024268a1d74fbbc68141bbcc126355c532d50bade7ebcb3ee0782f393f45dcf",
             (
                 (
                     "// boal 030804 -->\nvoid Ship_NationAgressivePatent(ref rCharacter)",
@@ -606,11 +647,11 @@ PATCH = PatchSet(
 \t}''',
                     '''\telse
 \t{
-\t\t// Repeated hits in an evidence-tracked incident stay tactical.
-\t\t// Scripted and pre-existing enemies retain the legacy consequence.
+\t\t// No instant public consequences on any hit: tactical hostility now, and
+\t\t// one deferred incident for unlawful victims behind a surviving report.
 \t\tif (CrimeSea_IsTrackedAmbient(rMainGroupCharacter, rCharacter))
 \t\t\tCrimeSea_Begin(rCharacter, rMainGroupCharacter);
-\t\telse Ship_NationAgressivePatent(rCharacter);
+\t\telse CrimeSea_HandleUntrackedEnemy(rMainGroupCharacter, rCharacter);
 \t}''',
                 ),
                 (
@@ -974,6 +1015,8 @@ def _fixture_ball_hit_order(
     victim_index: int,
     commander_index: int,
     lethal: bool,
+    lawful: bool = False,
+    quest: bool = False,
 ) -> tuple[str, ...]:
     events: list[str] = []
     if not protected:
@@ -982,7 +1025,11 @@ def _fixture_ball_hit_order(
         elif tracked_group:
             events.append(f"incident-target:{victim_index}:commander:{commander_index}")
         elif character_enemy:
-            events.append(f"legacy:commander:{commander_index}")
+            # Pre-marked hostility is always tactical now; only unlawful ambient
+            # victims open a deferred incident. Quest reroute stays vanilla-owned.
+            events.append(f"tactical:commander:{commander_index}")
+            if not lawful and not quest:
+                events.append(f"incident-target:{victim_index}:commander:{commander_index}")
         else:
             events.append(f"incident-target:{victim_index}:commander:{commander_index}")
             events.append(f"group-hostile:{commander_index}")
@@ -1036,6 +1083,8 @@ def verify(root: Path) -> int:
                 "CrimeSea_Begin(victim, groupCommander);",
                 "Group_SetEnemyToCharacter(victim.SeaAI.Group.Name, GetMainCharacterIndex());",
                 "Ship_NationAgressive(groupCommander, victim);",
+                "CrimeSea_HandleUntrackedEnemy",
+                "CrimeSea_IsLawfulPrize",
                 "CrimeSea_RecordFlagReport",
                 "Crime_QueueCrewLeak",
                 "bool Crime_HasFleetCrew()",
@@ -1167,8 +1216,32 @@ def verify(root: Path) -> int:
         commander_index=9,
         lethal=True,
     )
-    if scripted_enemy[0] != "legacy:commander:9":
-        errors.append("untracked scripted/true enemies must retain legacy behavior")
+    if scripted_enemy[:2] != ("tactical:commander:9", "incident-target:9:commander:9"):
+        errors.append("pre-marked unlawful victim must fight locally and open one deferred incident")
+    lawful_enemy = _fixture_ball_hit_order(
+        tracked_ship=False,
+        tracked_group=False,
+        character_enemy=True,
+        protected=False,
+        victim_index=9,
+        commander_index=9,
+        lethal=True,
+        lawful=True,
+    )
+    if lawful_enemy != ("tactical:commander:9", "damage", "ship-dead"):
+        errors.append("lawful war/prize victims must stay tactical with no incident")
+    quest_enemy = _fixture_ball_hit_order(
+        tracked_ship=False,
+        tracked_group=False,
+        character_enemy=True,
+        protected=False,
+        victim_index=9,
+        commander_index=9,
+        lethal=True,
+        quest=True,
+    )
+    if quest_enemy != ("tactical:commander:9", "damage", "ship-dead"):
+        errors.append("quest-involved enemies must keep local hostility without public punishment")
     protected = _fixture_ball_hit_order(
         tracked_ship=False,
         tracked_group=False,

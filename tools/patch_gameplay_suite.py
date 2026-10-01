@@ -30,6 +30,7 @@ NATIVE_PREVIOUS_SHA256 = {
     "PROGRAM/dialog.c": "b141897109b0e751e592e064b9f2ea23bdb3c01334ee8f98d643cc0be05ab699",
     "PROGRAM/locations/locations_loader.c": "113764a8246bcc3987217c76fb1966330b2b6d39a5d724cc09a4556fbc3afd8c",
     "PROGRAM/quests/quests_reaction.c": "9aabee25dd86dffe3c3f6f7cfd8b4460b116ee0c2d7a18f53d920b3cd459852b",
+    "PROGRAM/sea_ai/AIShip.c": "1cb84155342dadf657db518395ae519d47772cba67d64ce112956eb705a618bd",
 }
 SUPPORTED_ENGINE_SHA256 = (
     "861e4ba02752b2303058202e074d8d80d37c51b716ed475dc20e4adbb08c963f"
@@ -67,7 +68,7 @@ COMPOSITE_SHA256 = {
     "PROGRAM/scripts/islandships.c": "bc03feaf048837187e22bad6fc7671b860de0fe565cd7dace027b76bc96cca20",
     "PROGRAM/scripts/time_events.c": "9da55205414ac74922b3ae9fb0d1cde6de7257566c5f84536da2bc0921566e43",
     "PROGRAM/sea_ai/AISeaGoods.c": "39050a04396461aaf2cb05d59d8d1269f67e48de2b75af5ccebcb76f8b44e162",
-    "PROGRAM/sea_ai/AIShip.c": "96b1eaef43f818f1b5d5e25f89c2fae3ef74286d7d37102d65c3ea4057cfe187",
+    "PROGRAM/sea_ai/AIShip.c": "e024268a1d74fbbc68141bbcc126355c532d50bade7ebcb3ee0782f393f45dcf",
     "PROGRAM/sea_ai/Cabin.c": "9334dc64ffcc17ebe991a82a64f2c69e63b288791ea69b16ad6964e8d1df2271",
     "PROGRAM/sea_ai/sea.c": "107f47b78d4a1fab38ad51bac1c0349bdafd1343a9ebb9eec20952a1fc213cd1",
     "PROGRAM/seadogs.c": "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",
