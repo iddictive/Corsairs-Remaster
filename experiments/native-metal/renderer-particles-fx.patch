@@ -203,7 +203,7 @@
  void TornadoParticles::SetSea()
  {
      seaID = core.GetEntityId("sea");
-@@ -152,6 +182,31 @@
+@@ -152,6 +182,35 @@
  inline void TornadoParticles::DrawParticles(VDX9RENDER *rs, void *prts, int32_t num, int32_t size, int32_t texture,
                                              const char *tech)
  {
@@ -226,8 +226,12 @@
 +        sprite.uv[3] = 1.0f;
 +        sprites.push_back(sprite);
 +    }
-+    StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(), StormMetalParticleCameraXY,
-+                                  StormMetalParticleStraightAlpha);
++    if (rs->TechniqueExecuteStart(tech))
++        do
++        {
++            StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(),
++                                          StormMetalParticleCameraXY, StormMetalParticleStraightAlpha);
++        } while (rs->TechniqueExecuteNext());
 +    return;
 +#endif
 +    EnsureBuffers(rs);
@@ -351,7 +355,7 @@
  void NoiseCloud::Update(float dltTime)
  {
      for (int32_t i = 0; i < sizeof(rect) / sizeof(Rect); i++)
-@@ -98,6 +128,33 @@
+@@ -98,6 +128,37 @@
  
  void NoiseCloud::Draw(VDX9RENDER *rs)
  {
@@ -376,8 +380,12 @@
 +        sprite.uv[3] = 1.0f;
 +        sprites.push_back(sprite);
 +    }
-+    StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(), StormMetalParticleWorldXZ,
-+                                  StormMetalParticleStraightAlpha);
++    if (rs->TechniqueExecuteStart("TornadoClouds"))
++        do
++        {
++            StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(),
++                                          StormMetalParticleWorldXZ, StormMetalParticleStraightAlpha);
++        } while (rs->TechniqueExecuteNext());
 +    return;
 +#endif
 +    EnsureBuffers(rs);
