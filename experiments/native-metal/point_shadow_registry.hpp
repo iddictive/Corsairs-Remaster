@@ -33,6 +33,20 @@ struct KeyHash {
     }
 };
 
+struct GeometryKey {
+    uint64_t vertexIdentity{}, indexIdentity{}, geometryState{};
+    bool operator==(const GeometryKey&) const = default;
+};
+
+struct GeometryKeyHash {
+    size_t operator()(const GeometryKey& k) const noexcept {
+        uint64_t h = 1469598103934665603ull;
+        const uint64_t words[] = {k.vertexIdentity, k.indexIdentity, k.geometryState};
+        for (auto v : words) { h ^= v; h *= 1099511628211ull; }
+        return size_t(h);
+    }
+};
+
 struct Bounds { simd_float3 minimum{}, maximum{}; };
 
 struct LifecycleModel {
@@ -107,8 +121,21 @@ public:
 
     void beginScene(uint64_t scene, uint64_t generation) {
         model.begin(scene, generation); generation_ = generation;
-        if (scene_ != scene) { draws.clear(); lookup.clear(); scene_=scene; dirty=true; ++stats.registryInvalidations; }
-        for (auto& item : draws) item.seen=false;
+        if (scene_ != scene) { draws.clear(); lookup.clear(); availableSlots.clear(); scene_=scene; dirty=true; ++stats.registryInvalidations; }
+        availableSlots.clear();
+        for (size_t i = 0; i < draws.size(); ++i) {
+            draws[i].seen = false;
+            draws[i].nextAvailable = UINT32_MAX;
+            const auto& k = draws[i].draw.key;
+            const GeometryKey gk{k.vertexIdentity, k.indexIdentity, k.geometryState};
+            auto& q = availableSlots[gk];
+            if (q.tail == UINT32_MAX) {
+                q.head = q.tail = uint32_t(i);
+            } else {
+                draws[q.tail].nextAvailable = uint32_t(i);
+                q.tail = uint32_t(i);
+            }
+        }
     }
 
     bool observe(const Draw& draw) {
@@ -118,9 +145,33 @@ public:
         if(found==lookup.end()) {
             // A stale entry may be recycled across frames, but a second current-frame
             // instance with the same backing mesh must remain a distinct cube caster.
-            auto stable=std::find_if(draws.begin(),draws.end(),[&](const Stored&item){const auto&k=item.draw.key;return !item.seen&&k.vertexIdentity==draw.key.vertexIdentity&&k.indexIdentity==draw.key.indexIdentity&&k.geometryState==draw.key.geometryState;});
-            if(stable!=draws.end()){model.entries.erase(stable->draw.key);stable->draw=draw;stable->seen=true;dirty=true;lookup.clear();for(size_t i=0;i<draws.size();++i)lookup.emplace(draws[i].draw.key,i);}
-            else {if(draws.size()>=MaxCasters)return false;lookup.emplace(draw.key,draws.size());draws.push_back({draw,true});dirty=true;}
+            uint32_t recycledSlot = UINT32_MAX;
+            const GeometryKey gk{draw.key.vertexIdentity, draw.key.indexIdentity, draw.key.geometryState};
+            auto qIt = availableSlots.find(gk);
+            if (qIt != availableSlots.end()) {
+                while (qIt->second.head != UINT32_MAX) {
+                    const uint32_t candidate = qIt->second.head;
+                    qIt->second.head = draws[candidate].nextAvailable;
+                    if (!draws[candidate].seen) {
+                        recycledSlot = candidate;
+                        break;
+                    }
+                }
+            }
+            if (recycledSlot != UINT32_MAX) {
+                auto& stored = draws[recycledSlot];
+                model.entries.erase(stored.draw.key);
+                lookup.erase(stored.draw.key);
+                stored.draw = draw;
+                stored.seen = true;
+                dirty = true;
+                lookup.emplace(draw.key, size_t(recycledSlot));
+            } else {
+                if (draws.size() >= MaxCasters) return false;
+                lookup.emplace(draw.key, draws.size());
+                draws.push_back({draw, true});
+                dirty = true;
+            }
         } else {
             auto&stored=draws[found->second];
             const bool transformChanged=std::memcmp(&stored.draw.world,&draw.world,sizeof(draw.world))!=0;
@@ -137,8 +188,8 @@ public:
         model.finish();
         const auto old=draws.size();
         std::erase_if(draws, [](const Stored& item){return !item.seen;});
-        if(draws.size()!=old) dirty=true;
-        if(dirty){lookup.clear();for(size_t i=0;i<draws.size();++i)lookup.emplace(draws[i].draw.key,i);}
+        if(draws.size()!=old) { dirty=true; lookup.clear(); for(size_t i=0;i<draws.size();++i)lookup.emplace(draws[i].draw.key,i); }
+        availableSlots.clear();
         stats.registeredCasters=uint32_t(draws.size()); stats.registryGeneration=generation_;
     }
 
@@ -196,8 +247,12 @@ private:
         id<MTLBuffer> resourceTable=nil,materialTable=nil,drawBuffer=nil,boundsBuffer=nil,faceBuffer=nil;
         std::atomic_bool inFlight{false};
     };
-    struct Stored { Draw draw; bool seen; };
-    LifecycleModel model; std::vector<Stored> draws; std::unordered_map<Key,size_t,KeyHash> lookup;
+    struct Stored { Draw draw{}; bool seen{false}; uint32_t nextAvailable{UINT32_MAX}; };
+    struct SlotQueue { uint32_t head{UINT32_MAX}; uint32_t tail{UINT32_MAX}; };
+    LifecycleModel model;
+    std::vector<Stored> draws;
+    std::unordered_map<Key,size_t,KeyHash> lookup;
+    std::unordered_map<GeometryKey,SlotQueue,GeometryKeyHash> availableSlots;
     uint64_t scene_{},generation_{};bool dirty=true;Statistics stats{};
     id<MTLDevice> device_=nil;id<MTLComputePipelineState> compute=nil;
     id<MTLRenderPipelineState> opaque_=nil,cutout_=nil;

@@ -36,7 +36,7 @@ index 75a0673..079704d 100644
 +        d3d9->SetStreamSource(stream, nullptr, 0, 0);
 +
      InvokeEntitiesLostRender();
-@@ -2895,2 +2907,147 @@ void DX9RENDER::RecompileEffects()
+@@ -2895,2 +2907,74 @@ void DX9RENDER::RecompileEffects()
 
 +int32_t DX9RENDER::ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality, int32_t fullscreen,
 +                                      int32_t renderWidth, int32_t renderHeight, int32_t requestedDesktopMode)
@@ -98,85 +98,12 @@ index 75a0673..079704d 100644
 +        return;
 +    }
 +
-+    const bool nextWindowed = request.fullscreen == 0;
-+    const bool nextDesktopMode = request.desktopMode != 0;
-+    const bool oldWindowed = bWindow;
-+    const bool oldDesktopMode = desktopMode;
-+    const auto oldWindowSize = window->GetWindowSize();
-+    const auto oldScreenSize = screen_size;
-+    const auto oldPresent = d3dpp;
-+    const auto restoreWindow = [&]() {
-+        if (!window->SetFullscreen(!oldWindowed))
-+            return false;
-+        return !oldWindowed || window->Resize(oldWindowSize.width, oldWindowSize.height);
-+    };
-+
-+    if (!window->SetFullscreen(!nextWindowed) ||
-+        (nextWindowed && !window->Resize(request.renderWidth, request.renderHeight)))
-+    {
-+        restoreWindow();
-+        std::fprintf(stderr, "[StormMetal graphics] deferred reject=window-transition\n");
-+        return;
-+    }
-+
-+    auto requestedSize = storm::WindowSize{request.renderWidth, request.renderHeight};
-+    if (nextDesktopMode && !nextWindowed)
-+        requestedSize = window->GetDrawableSize();
-+    if (requestedSize.width < 320 || requestedSize.height < 200 || requestedSize.width > 16384 ||
-+        requestedSize.height > 16384)
-+    {
-+        restoreWindow();
-+        std::fprintf(stderr, "[StormMetal graphics] deferred reject=invalid-drawable size=%dx%d\n",
-+                     requestedSize.width, requestedSize.height);
-+        return;
-+    }
-+
-+    const bool geometryChanged = oldWindowed != nextWindowed || oldScreenSize.x != requestedSize.width ||
-+                                 oldScreenSize.y != requestedSize.height;
-+    if (geometryChanged)
-+    {
-+        auto nextPresent = oldPresent;
-+        nextPresent.BackBufferWidth = requestedSize.width;
-+        nextPresent.BackBufferHeight = requestedSize.height;
-+        LostRender();
-+        if (FAILED(d3d9->Reset(&nextPresent)))
-+        {
-+            d3dpp = oldPresent;
-+            screen_size = oldScreenSize;
-+            bWindow = oldWindowed;
-+            desktopMode = oldDesktopMode;
-+            RestoreRender();
-+            if (!restoreWindow())
-+                core.stopFrameProcessing();
-+            std::fprintf(stderr, "[StormMetal graphics] deferred reject=device-reset\n");
-+            return;
-+        }
-+        d3dpp = nextPresent;
-+        screen_size = {requestedSize.width, requestedSize.height};
-+        bWindow = nextWindowed;
-+        desktopMode = nextDesktopMode;
-+        RestoreRender();
-+    }
-+    else
-+    {
-+        desktopMode = nextDesktopMode;
-+    }
-+
 +    if (!StormMetalApplyGraphicsSettings(d3d9, request.flagsMask, request.shadowQuality))
 +    {
 +        std::fprintf(stderr, "[StormMetal graphics] deferred reject=backend-apply\n");
 +        return;
 +    }
 +
-+    if (auto *render = static_cast<VDATA *>(core.GetScriptVariable("Render")))
-+    {
-+        if (auto *attributes = render->GetAClass())
-+        {
-+            attributes->SetAttributeUseDword("full_screen", !bWindow);
-+            attributes->SetAttributeUseDword("screen_x", screen_size.x);
-+            attributes->SetAttributeUseDword("screen_y", screen_size.y);
-+        }
-+    }
 +    metalGraphicsApplyResult = 1;
 +    std::fprintf(stderr, "[StormMetal graphics] deferred success size=%dx%d fullscreen=%d desktop=%d\n",
 +                 screen_size.x, screen_size.y, bWindow ? 0 : 1, desktopMode ? 1 : 0);
@@ -184,7 +111,7 @@ index 75a0673..079704d 100644
 +}
 +
  bool DX9RENDER::ResetDevice()
-@@ -2916,2 +3073,4 @@ void DX9RENDER::RunStart()
+@@ -2916,2 +3000,4 @@ void DX9RENDER::RunStart()
  {
 +    ProcessPendingMetalGraphics();
 +

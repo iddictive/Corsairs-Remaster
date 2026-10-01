@@ -93,13 +93,14 @@ with tempfile.TemporaryDirectory(prefix="storm-metal-graphics-live-") as tempora
          "UI apply must only enqueue work before the modal callback returns")
     pending = renderer.split("void DX9RENDER::ProcessPendingMetalGraphics", 1)[1].split(
         "bool DX9RENDER::ResetDevice()", 1)[0]
-    need("window->GetDrawableSize()" in pending and "LostRender();" in pending and
-         "d3d9->Reset(&nextPresent)" in pending and "RestoreRender();" in pending and
-         "StormMetalApplyGraphicsSettings" in pending,
-         "RunStart transaction must resolve Retina pixels, reset, restore, and apply renderer flags")
-    need("d3d9->Reset(&oldPresent)" not in pending and
-         pending.index("d3dpp = oldPresent") < pending.index("RestoreRender();"),
-         "failed reset must restore intact old state without a second rollback reset")
+    need("StormMetalApplyGraphicsSettings" in pending and "metalGraphicsApplyResult = 1;" in pending and
+         "StormMetalCanApplyGraphicsSettings" in pending and "reject=unsafe-frame" in pending,
+         "RunStart transaction must safely gate frame state, apply renderer settings, and report result")
+    need("LostRender" not in pending and "Reset" not in pending and "RestoreRender" not in pending and
+         "Resize" not in pending and "SetFullscreen" not in pending and "GetDrawableSize" not in pending and
+         "attributes->SetAttributeUseDword" not in pending and "full_screen" not in pending and
+         "screen_x" not in pending and "screen_y" not in pending,
+         "stable-screen contract prohibits live device reset, window resize, drawable query, and script screen mutation")
     run_start = renderer.split("void DX9RENDER::RunStart()", 1)[1].split("void DX9RENDER::RunEnd()", 1)[0]
     need(run_start.index("ProcessPendingMetalGraphics();") < run_start.index("GetScriptVariable(\"Render\")") and
          run_start.index("ProcessPendingMetalGraphics();") < run_start.index("BeginScene();"),
@@ -133,5 +134,5 @@ with tempfile.TemporaryDirectory(prefix="storm-metal-graphics-live-") as tempora
     need("setenv(" not in backend[backend.index("bool applyGraphicsSettings"):],
          "live apply must not spoof a current-process setting through environment mutation")
 
-print("PASS live graphics ABI queues behind the modal callback; renderer RunStart owns fullscreen/reset; "
-      "rollback restores the intact device and completion is consumed once")
+print("PASS live graphics ABI queues behind the modal callback; renderer RunStart applies feature flags on "
+      "stable geometry without device reset, window resize, or script screen mutation")
