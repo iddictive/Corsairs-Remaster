@@ -194,7 +194,7 @@ DUEL_STAY_NEW = enc("""	// Офицеры помогают если на ГГ н
 			if(idx != -1)
 			{
 				LAi_SetWarriorType(&Characters[idx]);
-				LAi_warrior_SetTarget(&Characters[idx], &Characters[GetCharacterIndex("Berglar_Duel_0")], true);
+				LAi_group_MoveCharacter(&Characters[idx], LAI_GROUP_PLAYER);
 			}
 		}
 	}""")
@@ -971,7 +971,7 @@ PREPARERS = {
 UPDATED = {
     "PROGRAM/characters/GeneratorUtilite.c": "69d4fedb0243c9d1393fe0d6e276fd5d5b7772825eb178041b630e42f067a70f",
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
-    "PROGRAM/scripts/duel.c": "f0d79df05a6eed8d4999bd3c73cd796287e15a4a2be6735cab8609e197a2311b",
+    "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
     "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
     "PROGRAM/sea_ai/AIShip.c": "fde77687879ad036f63c4c8a31e1bbe6f941aa5eec6a3191ac6692af6de72302",
