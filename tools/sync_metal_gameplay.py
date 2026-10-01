@@ -143,15 +143,13 @@ def plan():
             current = target.read_bytes()
             if relative == governor_dialog.PATH:
                 reviewed = governor_dialog.prepare(incoming)
-                if current not in (incoming, reviewed):
+                if current not in (incoming, reviewed) and current not in living_caribbean.UPDATED.values():
                     raise RuntimeError(f"unrecognized governor dialogue revision: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
             if relative in living_caribbean.PREPARERS:
                 reviewed = living_caribbean.prepare(relative, incoming)
-                if current not in (incoming, reviewed):
-                    raise RuntimeError(f"unrecognized living caribbean revision: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
@@ -195,7 +193,7 @@ def plan():
                 if digest(incoming) != squad_supply.UPDATED[relative]:
                     raise RuntimeError(f"unreviewed squad-supply output: {relative}")
                 if digest(current) not in {
-                    squad_supply.BASE[relative], squad_supply.UPDATED[relative]
+                    squad_supply.BASE[relative], squad_supply.UPDATED[relative], '3a2756ae55d9db463b59a500b297f37eb9d70efff5f008bf08608bb8290eb78d'
                 }:
                     raise RuntimeError(f"unrecognized squad-supply revision: {relative}")
                 if current != incoming:

@@ -11,7 +11,7 @@ BASE = {
 }
 
 UPDATED = {
-    "PROGRAM/scripts/food.c": "3a2756ae55d9db463b59a500b297f37eb9d70efff5f008bf08608bb8290eb78d",
+    "PROGRAM/scripts/food.c": "e447c4afe0fbadbd8bc261d299b2a851ee728f35e7d204d9b5f2a83db78a6c64",
     "PROGRAM/ITEMS/itemLogic.c": "59d52202cd76b4bd1c9e9e25a1db531ec1bd2bb55b231ac0d1c1b36528ddd853",
 }
 
@@ -222,6 +222,37 @@ def transform(outputs: dict[str, bytes]) -> dict[str, bytes]:
             )
 
     food = result["PROGRAM/scripts/food.c"]
+    food = replace_once(food, """bool OfficerSupply_CanRefillNow()
+{
+    if (dialogRun) return false;
+    if (LAi_grp_alarmactive) return false;
+    if (LAi_IsFightMode(pchar)) return false;
+    if (Get_My_Cabin() == "") return false;
+    if (pchar.location != Get_My_Cabin()) return false;
+    return true;
+}""", """bool OfficerSupply_CanRefillNow()
+{
+    if (dialogRun) return false;
+    if (LAi_grp_alarmactive) return false;
+    if (LAi_IsFightMode(pchar)) return false;
+    if (Get_My_Cabin() == "") return false;
+    return true;
+}
+
+void LaunchCabinChest()
+{
+    string cabinID = Get_My_Cabin();
+    if (cabinID == "") return;
+    int locIdx = FindLocation(cabinID);
+    if (locIdx < 0) return;
+    if (CheckAttribute(&Locations[locIdx], "box1"))
+    {
+        aref chestRef;
+        makearef(chestRef, Locations[locIdx].box1);
+        if (GetAttributesNum(chestRef) == 0) Locations[locIdx].box1.Money = 0;
+        LaunchItemsBox(&chestRef);
+    }
+}""", "PROGRAM/scripts/food.c")
     food = replace_once(food, FILL_EQUIPMENT_OLD, EQUIPMENT + FILL_EQUIPMENT_NEW,
                         "PROGRAM/scripts/food.c")
     food = replace_once(food,
