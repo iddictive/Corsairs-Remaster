@@ -1,0 +1,216 @@
+diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
+--- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
+@@ -173,6 +173,9 @@
+     AIHelper::pRS->GetCamera(campos,camang,campersp);
+     m.BuildMatrix(camang);
+     CVECTOR vZ = m.Vz();*/
++    // Player-only manual-aim trajectory overlay; one attribute check overhead otherwise.
++    if (GetAIShip()->isMainCharacter())
++        GetAIShip()->GetCannonController()->DrawManualAimOverlay(vZ);
+     if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
+         return;
+ 
+diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+@@ -685,7 +685,187 @@
+         AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
+         AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, Verts.size() / 3, &Verts[0],
+                                        sizeof(tr_vertex), "ShipCannonAngles");
++    }
++}
++
++namespace
++{
++// Manual sea-cannon aim trajectory overlay. Visualization only: no save format,
++// AI, damage, reload or camera state changes. Flight math mirrors ai_balls.cpp
++// (parabolic fsX/fsY, g = 9.81, RawAng == 0 flat deck fire, HeightMultiply 0.4
++// normal round shot) with RotateAroundY by the firing direction (cos = dir.z,
++// sin = dir.x, same convention as the fire-sector debug draw below).
++constexpr uint32_t kAimArcSegments = 32;
++constexpr uint32_t kAimSideArcSegments = 16;
++constexpr uint32_t kAimRingSegments = 24;
++constexpr float kAimNormalHeightMultiply = 0.4f;
++constexpr uint32_t kAimReadyColor = 0xCC00FF88;
++constexpr uint32_t kAimReloadColor = 0xCCFFCC00;
++constexpr uint32_t kAimNoFireColor = 0x99FF2222;
++
++inline uint32_t DimAimColor(uint32_t dwColor)
++{
++    return (dwColor & 0x00FFFFFFu) | 0x44000000u;
++}
++
++void EmitAimArc(std::vector<RS_LINE> &lines, const CVECTOR &vStart, float fSpeedV0, float fAngle, float fDirCos,
++                float fDirSin, float fTimeHit, uint32_t dwColor, uint32_t dwSegments)
++{
++    const float fCosA = cosf(fAngle);
++    const float fSinA = sinf(fAngle);
++    CVECTOR vPrev = vStart;
++    for (uint32_t i = 1; i <= dwSegments; ++i)
++    {
++        const float fTime = fTimeHit * static_cast<float>(i) / static_cast<float>(dwSegments);
++        const float fsX = fSpeedV0 * fTime * fCosA;
++        const float fsY =
++            (fSpeedV0 * fTime * fSinA - AIHelper::fGravity * fTime * fTime * 0.5f) * kAimNormalHeightMultiply;
++        CVECTOR vNext(0.0f, fsY, fsX);
++        RotateAroundY(vNext.x, vNext.z, fDirCos, fDirSin);
++        vNext += vStart;
++        if (vNext.y < 0.0f)
++            vNext.y = 0.0f;
++        lines.push_back(RS_LINE{vPrev, dwColor});
++        lines.push_back(RS_LINE{vNext, dwColor});
++        vPrev = vNext;
++    }
++}
++
++void EmitAimRing(std::vector<RS_LINE> &lines, const CVECTOR &vCenter, float fRadius, uint32_t dwColor,
++                 uint32_t dwSegments)
++{
++    CVECTOR vPrev(vCenter.x + fRadius, vCenter.y, vCenter.z);
++    for (uint32_t i = 1; i <= dwSegments; ++i)
++    {
++        const float fAng = 6.2831853f * static_cast<float>(i) / static_cast<float>(dwSegments);
++        const CVECTOR vNext(vCenter.x + fRadius * cosf(fAng), vCenter.y, vCenter.z + fRadius * sinf(fAng));
++        lines.push_back(RS_LINE{vPrev, dwColor});
++        lines.push_back(RS_LINE{vNext, dwColor});
++        vPrev = vNext;
++    }
++}
++
++void FlushAimLines(std::vector<RS_LINE> &lines)
++{
++    if (lines.empty())
++        return;
++    CMatrix mWorld;
++    AIHelper::pRS->GetTransform(D3DTS_WORLD, mWorld);
++    AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
++    AIHelper::pRS->DrawLines(lines.data(), static_cast<uint32_t>(lines.size() / 2), "Line");
++    AIHelper::pRS->SetTransform(D3DTS_WORLD, mWorld);
++}
++
++float AimTimeHit(float fFlatDist, float fSpeedV0, float fAngle)
++{
++    const float fDenom = fSpeedV0 * cosf(fAngle);
++    if (fabsf(fDenom) < 1e-3f)
++        return -1.0f;
++    return fFlatDist / fDenom;
++}
++} // namespace
++
++void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &vCamDir)
++{
++    if (!isCanFire(vCamDir))
++    {
++        // Out of firing sector: small red ring on the water ahead, then out.
++        const CVECTOR vOur = GetAIShip()->GetPos();
++        const CVECTOR vFlat(vCamDir.x, 0.0f, vCamDir.z);
++        if (~vFlat <= 0.0f)
++            return;
++        const CVECTOR vCenter = vOur + 30.0f * !vFlat;
++        static std::vector<RS_LINE> sNoFire;
++        sNoFire.clear();
++        EmitAimRing(sNoFire, CVECTOR(vCenter.x, 0.05f, vCenter.z), 3.0f, kAimNoFireColor, 16);
++        FlushAimLines(sNoFire);
++        return;
+     }
++
++    // Aim point: max-range point along the camera ray, projected on the water plane.
++    CVECTOR vTarget = GetFirePos(vCamDir);
++    vTarget.y = 0.0f;
++    auto bortIt = GetFirstFireBort(vTarget);
++    if (!IsValid(bortIt) || bortIt->aCannons.empty())
++        return;
++
++    const float fSpeedV0 = GetSpeedV0();
++    if (fSpeedV0 <= 0.0f)
++        return;
++
++    const auto &cannons = bortIt->aCannons;
++    const AICannon *pMid = &cannons[cannons.size() / 2];
++    if (pMid->isDamaged())
++    {
++        pMid = nullptr;
++        for (const auto &cannon : cannons)
++            if (!cannon.isDamaged())
++            {
++                pMid = &cannon;
++                break;
++            }
++        if (pMid == nullptr)
++            return;
++    }
++    const CVECTOR vStart = pMid->GetPos();
++
++    const CVECTOR vFlat(vTarget.x - vStart.x, 0.0f, vTarget.z - vStart.z);
++    if (~vFlat <= 0.0f)
++        return;
++    const CVECTOR vDir = !vFlat;
++    const float fFlatDist = sqrtf(~vFlat);
++    const float fAngle = pMid->CalcHeightFireAngle(fSpeedV0, vStart, vTarget);
++    const float fTimeHit = AimTimeHit(fFlatDist, fSpeedV0, fAngle);
++    if (fTimeHit <= 0.0f)
++        return;
++
++    // Dispersion radius from the same gunner-accuracy script model as live fire.
++    float fDispRadius = 5.0f;
++    if (auto *pVData = core.Event(SHIP_GET_BORT_FIRE_DELTA, "afff", GetAIShip()->GetACharacter(), vTarget.x,
++                                  vTarget.y, vTarget.z))
++        fDispRadius = pVData->GetFloat();
++
++    const uint32_t dwStatus = bortIt->isCharged() ? kAimReadyColor : kAimReloadColor;
++    const uint32_t dwDim = DimAimColor(dwStatus);
++
++    static std::vector<RS_LINE> sLines;
++    sLines.clear();
++
++    // Main guide arc: active firing side center to the water-plane target.
++    EmitAimArc(sLines, vStart, fSpeedV0, fAngle, vDir.z, vDir.x, fTimeHit, dwStatus, kAimArcSegments);
++
++    // Thin per-gun arcs from each ready gun.
++    for (const auto &cannon : cannons)
++    {
++        if (cannon.isDamaged())
++            continue;
++        const CVECTOR vGun = cannon.GetPos();
++        const CVECTOR vGunFlat(vTarget.x - vGun.x, 0.0f, vTarget.z - vGun.z);
++        if (~vGunFlat <= 0.0f)
++            continue;
++        const float fGunTimeHit = AimTimeHit(sqrtf(~vGunFlat), fSpeedV0, fAngle);
++        if (fGunTimeHit <= 0.0f)
++            continue;
++        const CVECTOR vGunDir = !vGunFlat;
++        EmitAimArc(sLines, vGun, fSpeedV0, fAngle, vGunDir.z, vGunDir.x, fGunTimeHit, dwDim, 8);
++    }
++
++    // Dispersion envelope: side arcs at +/- gunner spread in azimuth and elevation.
++    const float fSpread = atanf(fDispRadius / fFlatDist);
++    for (int s = -1; s <= 1; s += 2)
++    {
++        const float fCosS = cosf(static_cast<float>(s) * fSpread);
++        const float fSinS = sinf(static_cast<float>(s) * fSpread);
++        const float fSX = vDir.x * fCosS + vDir.z * fSinS;
++        const float fSZ = vDir.z * fCosS - vDir.x * fSinS;
++        EmitAimArc(sLines, vStart, fSpeedV0, fAngle + static_cast<float>(s) * fSpread, fSZ, fSX, fTimeHit, dwDim,
++                   kAimSideArcSegments);
++    }
++
++    // Impact ring on the water at the target with the dispersion radius.
++    EmitAimRing(sLines, CVECTOR(vTarget.x, 0.05f, vTarget.z), fDispRadius, dwStatus, kAimRingSegments);
++
++    FlushAimLines(sLines);
+ }
+ 
+ bool AIShipCannonController::Init(ATTRIBUTES *_pAShip)
+diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+@@ -131,6 +131,8 @@
+     // execute/realize section
+     void Execute(float fDeltaTime);
+     void Realize(float fDeltaTime);
++    // Manual deck-aim trajectory overlay (visualization only, player ship).
++    void DrawManualAimOverlay(const CVECTOR &vCamDir);
+ 
+     // init section
+     bool Init(ATTRIBUTES *_pAShip);
