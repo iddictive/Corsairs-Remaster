@@ -164,7 +164,10 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]], constant SkyDraw &draw [[
     float3 d=normalize(in.direction), sun=normalize(weather.sunDirection_hour.xyz);
     float3 moon=normalize(weather.moonDirection_time.xyz);
     // Storm reuses the visual sun vector for the moon; only time owns solar phase.
-    float solarElevation=sin((weather.sunDirection_hour.w-6.f)*.2617993878f);
+    // Engine sun model: 05:30-19:00 window, (fSunHeight+0.2)*sin(fK*pi)-0.2 with
+    // fSunHeight=3/4*pi/2 (sunrise ~06:07, sunset ~18:22). The plain sine stays
+    // negative all night, so no branch is needed and sunset cannot pop.
+    float solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;
     float daylight=smoothstep(-.13f,.10f,solarElevation), twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
     float horizon=1.f-smoothstep(-.02f,.42f,max(d.y,0.f));
     // Single horizon owner: the smoothed visual fog. The whole sky gradient

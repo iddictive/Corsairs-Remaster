@@ -1,0 +1,93 @@
+diff --git a/src/libs/weather/src/sun_glow.cpp b/src/libs/weather/src/sun_glow.cpp
+--- a/src/libs/weather/src/sun_glow.cpp
++++ b/src/libs/weather/src/sun_glow.cpp
+@@ -30,6 +30,17 @@ static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count,
+ }
+ #endif
+ 
++// Below-horizon gate for the unclipped billboard paths (overflow, flares,
++// sea reflection). The disc and halo rect are geometrically clipped at sea
++// level by DrawRect and need no fade. Ramps across civil twilight so the
++// sunset glow dies continuously instead of popping at the horizon.
++static float SunElevationFade(const CVECTOR &vSunPos)
++{
++    const CVECTOR vDir = !vSunPos;
++    const auto fSine = vDir.y < -1.f ? -1.f : (vDir.y > 1.f ? 1.f : vDir.y);
++    return CLAMP((asinf(fSine) + 0.12f) / 0.14f);
++}
++
+ SUNGLOW::SUNGLOW()
+ {
+     fAlpha = 0.0f;
+@@ -206,6 +217,7 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+     pRS->GetCamera(vCamPos, vCamAng, fFov);
+     vSunDir = !vSunPos;
+     vSun = vCamPos + (vSunDir * Glow.fDist);
++    const auto fElevFade = SunElevationFade(vSunPos);
+ 
+     auto bTempVisibleFlare = true;
+     auto *pPlane = pRS->GetPlanes();
+@@ -299,7 +311,7 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+     {
+         pRS->TextureSet(0, iOverflowTex);
+ 
+-        CVECTOR vOverflowColor = fFadeout * fAlphaOverflow * COLOR2VECTOR(Overflow.dwColor);
++        CVECTOR vOverflowColor = fFadeout * fAlphaOverflow * fElevFade * COLOR2VECTOR(Overflow.dwColor);
+ 
+         rs_rect.dwColor = makeRGB(static_cast<uint32_t>(vOverflowColor.x), static_cast<uint32_t>(vOverflowColor.y),
+                                   static_cast<uint32_t>(vOverflowColor.z));
+@@ -323,12 +335,12 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+         for (uint32_t i = 0; i < Flares.aFlares.size(); i++)
+         {
+             auto *pF = &Flares.aFlares[i];
+-            auto r = static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare *
++            auto r = static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare * fElevFade *
+                                            static_cast<float>((pF->dwColor & 0xFF0000) >> 16L));
+-            auto g = static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare *
++            auto g = static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare * fElevFade *
+                                            static_cast<float>((pF->dwColor & 0xFF00) >> 8L));
+             auto b =
+-                static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare * static_cast<float>((pF->dwColor & 0xFF) >> 0L));
++                static_cast<uint32_t>(fFadeout * fAlpha * fAlphaFlare * fElevFade * static_cast<float>((pF->dwColor & 0xFF) >> 0L));
+             // RS_RECT * pRSR = &aRSR[aRSR.Add()];
+             RS_RECT rect;
+             rect.dwColor = makeRGB(r, g, b);
+@@ -588,9 +600,11 @@ void SUNGLOW::DrawReflection() const
+     pRS->GetCamera(vCamPos, vCamAng, fFov);
+     vSunDir = !vSunPos;
+     vSun = vCamPos + (vSunDir * Reflection.fDist);
++    const auto fElevFade = SunElevationFade(vSunPos);
+ 
+     RS_RECT r_spr;
+-    r_spr.dwColor = (0xFFFFFF & Reflection.dwColor) | (static_cast<int32_t>(fFadeout * 255.f) << 24);
++    r_spr.dwColor = (0xFFFFFF & Reflection.dwColor) |
++                    (static_cast<int32_t>(fFadeout * fElevFade * 255.f) << 24);
+     r_spr.dwSubTexture = 0;
+     r_spr.fAngle = 0.0f;
+     r_spr.fSize = Reflection.fSize;
+diff --git a/src/libs/weather/src/weather.cpp b/src/libs/weather/src/weather.cpp
+--- a/src/libs/weather/src/weather.cpp
++++ b/src/libs/weather/src/weather.cpp
+@@ -54,9 +54,9 @@ void WEATHER::SetBeginData()
+     bSunPresent = false;
+     fSunHeight = 3.f / 4.f * PId2;
+     fSunBegAngle = 0.f;
+-    fSunBegTime = 5.f;
++    fSunBegTime = 5.5f;
+     fSunEndAngle = PI;
+-    fSunEndTime = 23.f;
++    fSunEndTime = 19.f;
+     // moon moving data
+     bMoonPresent = false;
+     fMoonHeight = 5.f / 4.f * PId2;
+@@ -329,6 +329,10 @@ void WEATHER::SetCommonStates()
+     vSunColor.x = static_cast<float>((sunColor >> 16) & 0xFF) / 255.f;
+     vSunColor.y = static_cast<float>((sunColor >> 8) & 0xFF) / 255.f;
+     vSunColor.z = static_cast<float>(sunColor & 0xFF) / 255.f;
++    // A below-horizon sun must not light the scene: fade the directional
++    // color across civil twilight. Moonlight is preserved by construction:
++    // while the moon is up whf_sun_height_angle carries its height.
++    vSunColor = vSunColor * CLAMP((fSunHeightAngle + 0.12f) / 0.14f);
+ 
+     sun.Type = D3DLIGHT_DIRECTIONAL;
+     sun.Diffuse.r = vSunColor.x;

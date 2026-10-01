@@ -90,8 +90,8 @@ int main(int argc, char *argv[]) { @autoreleasepool {
          midnightMoon.sunDirection_hour.w == 0.f && noonMoon.sunDirection_hour.w == 12.f,
          "moon-up fixture preserves the identical visual direction and distinct solar hours");
     need(std::strstr(dynamicSkyShaderSource,
-                     "solarElevation=sin((weather.sunDirection_hour.w-6.f)*.2617993878f)") != nullptr,
-         "shader derives palette phase from authoritative hour, not the moon-up visual direction");
+                     "solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;") != nullptr,
+         "shader derives palette phase from the engine 05:30-19:00 sun curve, not the moon-up visual direction");
     const simd_float3 clearFog={.43f,.61f,.78f},sunsetFog={.76f,.39f,.27f};
     const simd_float3 overcastFog={.48f,.50f,.52f},stormFog={.25f,.27f,.29f};
     const auto clearWeather=makeDynamicSkyUniform({.hour=12.f},clearFog);
@@ -216,6 +216,23 @@ int main(int argc, char *argv[]) { @autoreleasepool {
          "dusk preserves blue-dominant hue from fog");
     need(duskUpper.z > .05f,
          "dusk upper sky follows fog instead of fixed near-black night");
+    const auto dayUniform = makeDynamicSkyUniform({.hour=18.f}, duskFog);
+    const auto dayUpper = renderSky(device, pipeline, dayUniform, 8, 2);
+    const float dayUpLum = dayUpper.x*.2126f+dayUpper.y*.7152f+dayUpper.z*.0722f;
+    need(dayUpLum > duskUpLum * 2.f,
+         "18:00 upper sky is day-bright while 20:00 is night-dark");
+    const auto beforeSet = renderSky(device, pipeline,
+        makeDynamicSkyUniform({.hour=18.36f}, duskFog), 8, 2);
+    const auto afterSet = renderSky(device, pipeline,
+        makeDynamicSkyUniform({.hour=18.39f}, duskFog), 8, 2);
+    need(simd_length(beforeSet-afterSet) < .06f,
+         "sunset crossing is continuous, not a pop");
+    const auto beforeEdge = renderSky(device, pipeline,
+        makeDynamicSkyUniform({.hour=18.99f}, duskFog), 8, 2);
+    const auto afterEdge = renderSky(device, pipeline,
+        makeDynamicSkyUniform({.hour=19.01f}, duskFog), 8, 2);
+    need(simd_length(beforeEdge-afterEdge) < .02f,
+         "engine window edge at 19:00 cannot pop the sky");
     need(std::strstr(dynamicSkyShaderSource,"skyFbm3") &&
          !std::strstr(dynamicSkyShaderSource,"raymarch"),
          "cloud path is fixed-cost and contains no ray march");

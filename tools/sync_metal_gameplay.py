@@ -18,6 +18,7 @@ import patch_squad_common_supply as squad_supply
 import metal_tradebook as tradebook
 import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
+import metal_evening_lights as evening_lights
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from runtime_script_patch import atomic_write
@@ -153,6 +154,11 @@ def plan():
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
+            if relative in evening_lights.PREPARERS:
+                reviewed = evening_lights.prepare(relative, incoming)
+                if current != reviewed:
+                    changes[relative] = (current, reviewed)
+                continue
             if relative in menu_branding.FILES:
                 canonical_current, _ = menu_branding.strip(relative, current)
                 if canonical_current != incoming:
@@ -264,6 +270,8 @@ def apply(changes):
                     backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in living_caribbean.PREPARERS:
                     backup_matches = digest(baseline) == BASE.get(relative, living_caribbean.PREPARERS[relative][0])
+                if relative in evening_lights.PREPARERS:
+                    backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
                 if relative in tradebook.BASE:
                     backup_matches = digest(baseline) == tradebook.BASE[relative]
                 if relative in custody_life.BASELINE:
