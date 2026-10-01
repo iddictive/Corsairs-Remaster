@@ -447,7 +447,8 @@ SMG_AGENT_COMP_OLD = enc("""if (GetCompanionQuantity(pchar) > 1 && GetBaseHeroNa
 					"Нет, не туп"+ GetSexPhrase("ой","ая") +", просто жадн"+ GetSexPhrase("ый","ая") +" очень. Подумал"+ GetSexPhrase("","а") +", может поменялось что, и можно придти сразу эскадрой...", 
 					"Ну ты же видишь - носит как-то...", npchar, Dialog.CurrentNode);
 				link.l1.go = DialogGoNodeRepeat("exit", "", "", "", npchar, Dialog.CurrentNode);	
-				break;""")
+				break;
+			}""")
 
 SMG_AGENT_COMP_NEW = enc("""			if (CheckAttribute(pchar, "location.from_sea") && pchar.location.from_sea == (npchar.City + "_town"))
 			{
@@ -457,7 +458,9 @@ SMG_AGENT_COMP_NEW = enc("""			if (CheckAttribute(pchar, "location.from_sea") &&
 				break;
 			}""")
 
-SMG_AGENT_CLASS_OLD = enc("""ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Class);
+SMG_AGENT_CLASS_OLD = enc("""		//редкостная хрень, но по-другому не работает-класс корабля ГГ считается отдельно от компаньонов, и всё тут
+			int iClass, ipClass;
+			ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Class);
 			iClass = 3;//т.к. не пройдет по числу кораблей в любом случае
 		if (GetBaseHeroNation() == PIRATE)
 		{
@@ -485,7 +488,8 @@ SMG_AGENT_CLASS_OLD = enc("""ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Cla
 					"Нет, не тупица, просто жадина. Подумал"+ GetSexPhrase("","а") +", может поменялось что. Я бы ещё пару пинасов с собой прихватил"+ GetSexPhrase("","а") +"...", 
 					"Ну ты же видишь - носит как-то...", npchar, Dialog.CurrentNode);
 				link.l1.go = DialogGoNodeRepeat("exit", "", "", "", npchar, Dialog.CurrentNode);	
-				break;""")
+				break;
+			}""")
 
 SMG_AGENT_CLASS_NEW = enc("""			// Любой класс и эскадра разрешены в диких бухтах""")
 
@@ -512,7 +516,8 @@ SMG_SHORE_COMP_OLD = enc("""if (GetCompanionQuantity(pchar) > 1 && GetBaseHeroNa
 						"Эх-х, не удалось схитрить...", 
 						"Да, я настырн"+ GetSexPhrase("ый","ая") +"!", npchar, Dialog.CurrentNode);
 					link.l1.go = DialogGoNodeRepeat("exit", "", "", "", npchar, Dialog.CurrentNode);	
-					break;""")
+					break;
+				}""")
 
 SMG_SHORE_COMP_NEW = enc("""				if (CheckAttribute(pchar, "location.from_sea") && pchar.location.from_sea == (npchar.City + "_town"))
 				{
@@ -522,7 +527,9 @@ SMG_SHORE_COMP_NEW = enc("""				if (CheckAttribute(pchar, "location.from_sea") &
 					break;
 				}""")
 
-SMG_SHORE_CLASS_OLD = enc("""ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Class);
+SMG_SHORE_CLASS_OLD = enc("""		//редкостная хрень, но по-другому не работает-класс корабля ГГ считается отдельно от компаньонов, и всё тут
+			int iClass, ipClass;
+			ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Class);
 			iClass = 3;//т.к. не пройдет по числу кораблей в любом случае
 		if (GetBaseHeroNation() == PIRATE)
 		{
@@ -550,7 +557,8 @@ SMG_SHORE_CLASS_OLD = enc("""ipClass = 4-sti(RealShips[sti(pchar.ship.type)].Cla
 						"Эх-х, не удалось схитрить...", 
 						"Да, я настырн"+ GetSexPhrase("ый","ая") +"!", npchar, Dialog.CurrentNode);
 						link.l1.go = DialogGoNodeRepeat("exit", "", "", "", npchar, Dialog.CurrentNode);	
-					break;""")
+					break;
+				}""")
 
 SMG_SHORE_CLASS_NEW = enc("""			// Любой класс и эскадра разрешены""")
 
@@ -978,8 +986,8 @@ UPDATED = {
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
     "PROGRAM/scripts/ShipsUtilites.c": "d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",
-    "PROGRAM/dialogs/russian/Smuggler Agent_dialog.c": "9dcc124cddc7a5facad22bd90cd4b227c45beb4ab643a54119f5503f0a9b76f7",
-    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "dffed1c74a8460c82e1bf495782cae8a4232f56be45195b98ab05ab560bba05b",
+    "PROGRAM/dialogs/russian/Smuggler Agent_dialog.c": "d1ad03fde16ed7833418ba2de733b95f8ec84788b2571e90e4e549ab9a65aa42",
+    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939",
     "PROGRAM/battle_interface/utils.c": "14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b",
     "PROGRAM/battle_interface/BattleInterface.c": "fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d",
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
