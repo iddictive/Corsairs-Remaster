@@ -348,7 +348,10 @@ void CrimeSea_Begin(ref victim, ref groupCommander)
 		if (witnessIndex < 0 || witnessIndex == GetMainCharacterIndex() || witnessIndex == sti(victim.index)) continue;
 		ref witness = GetCharacter(witnessIndex);
 		if (LAi_IsDead(witness) || IsCompanion(witness)) continue;
-		if (Ship_GetDistance2D(pchar, witness) > MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER) continue;
+		// Observation is centered on the incident (the victim), not on the
+		// attacker: a third party near the victim saw the attack even when the
+		// player fired from long range.
+		if (Ship_GetDistance2D(victim, witness) > MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER) continue;
 		string witnessKey = "w" + witnessIndex;
 		aref witnessReporter;
 		makearef(witnessReporter, pchar.Crime.Sea.(nationKey).Witnesses.(witnessKey));
@@ -536,6 +539,31 @@ void CrimeSea_RecordShipTaken(ref taken, int killerIndex, bool released)
 	}
 }
 
+void CrimeSea_ReportCaptainFate(ref captain, int fate)
+{
+	// Per-fate captive-captain reporting, called by the ransack/governor
+	// dialogue layer when a prisoner leaves player hands: 1 = handed to
+	// authorities, 2 = freed where he can talk, 3 = enslaved, 4 = executed,
+	// 5 = hired into the crew. Only fates 1 and 2 report, exactly once per
+	// captain; silent fates record nothing. A freed or delivered captain met
+	// the player face to face, so his identity is always known.
+	if (CheckAttribute(captain, "Crime.FateReported")) return;
+	if (fate != 1 && fate != 2) return;
+	if (!CheckAttribute(captain, "nation")) return;
+	// Quest-involved captains keep their hand-authored outcomes; the shared
+	// sea-crime path stays out of them, mirroring the ambient protections.
+	if (CheckAttribute(captain, "Coastal_Captain")) return;
+	if (CheckAttribute(captain, "Situation")) return;
+	if (CheckAttribute(captain, "ShipEnemyDisable") || CheckAttribute(captain, "AlwaysFriend")) return;
+	if (captain.id == "MQPirate") return;
+	// Lawful prizes and pirates are no crime: handing them over reports nothing.
+	if (CrimeSea_IsLawfulPrize(captain)) return;
+	int nation = sti(captain.nation);
+	if (nation < 0 || nation >= MAX_NATIONS || nation == PIRATE) return;
+	captain.Crime.FateReported = true;
+	Crime_ApplyPublicConsequences(nation, 2, true);
+}
+
 int CrimeSea_GetReporterState(aref list)
 {
 	int result = 0;
@@ -625,7 +653,7 @@ PATCH = PatchSet(
         FilePatch(
             "PROGRAM/sea_ai/AIShip.c",
             "080bfba46b6486bce0917c04c2af407649d0a2dc3a548627ec8ab49cc1ef0f46",
-            "e024268a1d74fbbc68141bbcc126355c532d50bade7ebcb3ee0782f393f45dcf",
+            "b9a0639d4471e6aa95ad36da7d333f2decae8906b5cb979d2d8e1a8b760ecbe6",
             (
                 (
                     "// boal 030804 -->\nvoid Ship_NationAgressivePatent(ref rCharacter)",
@@ -1039,6 +1067,46 @@ def _fixture_ball_hit_order(
     return tuple(events)
 
 
+def _fixture_witness_observed(
+    *, dist_to_victim: float, dead: bool = False, companion: bool = False,
+    limit: float = 1000.0,
+) -> bool:
+    # Observation is centered on the incident: a dead ship or one of the
+    # player's own companions never counts as a third-party observer.
+    if dead or companion:
+        return False
+    return dist_to_victim <= limit
+
+
+def _fixture_boat_outcome(*, boat_spawned: bool, picked_by: str) -> str:
+    # picked_by: "none" (boat escaped unpicked), "player", "companion", "npc".
+    # A captured survivor is silenced; an escaped one reports at sea exit.
+    if not boat_spawned:
+        return "silent"
+    if picked_by in ("player", "companion"):
+        return "silenced-prisoner"
+    return "reports"
+
+
+def _fixture_captain_fate(
+    *,
+    fate: int,
+    lawful: bool = False,
+    quest: bool = False,
+    pirate: bool = False,
+    already_reported: bool = False,
+) -> str:
+    # fate: 1 = handed to authorities, 2 = freed where he can talk,
+    # 3 = enslaved, 4 = executed, 5 = hired. Only 1 and 2 report, once.
+    if already_reported:
+        return "silent"
+    if fate not in (1, 2):
+        return "silent"
+    if lawful or quest or pirate:
+        return "silent"
+    return "public-severity-2"
+
+
 def _standalone_mutation_allowed(action: str) -> bool:
     return action not in {"apply", "revert"}
 
@@ -1087,6 +1155,8 @@ def verify(root: Path) -> int:
                 "CrimeSea_IsLawfulPrize",
                 "CrimeSea_RecordFlagReport",
                 "Crime_QueueCrewLeak",
+                "CrimeSea_ReportCaptainFate",
+                "Ship_GetDistance2D(victim, witness)",
                 "bool Crime_HasFleetCrew()",
                 "GetCompanionIndex(pchar, i)",
                 "if (!Crime_HasFleetCrew()) return;",
@@ -1180,6 +1250,44 @@ def verify(root: Path) -> int:
         errors.append("indoor transitions must not resolve deferred crew reports")
     if _fixture_is_report_arrival("port", True):
         errors.append("boarding reloads must not resolve deferred crew reports")
+    if not _fixture_witness_observed(dist_to_victim=800.0):
+        errors.append("a third party near the victim must observe the incident")
+    if _fixture_witness_observed(dist_to_victim=1500.0):
+        errors.append("observation range is centered on the victim, not the attacker")
+    if _fixture_witness_observed(dist_to_victim=100.0, dead=True):
+        errors.append("a sunk observer must not report")
+    if _fixture_witness_observed(dist_to_victim=100.0, companion=True):
+        errors.append("the player's own ships are not third-party observers")
+    if "Ship_GetDistance2D(pchar, witness)" in ai_ship:
+        errors.append("attacker-centered witness range must not be restored")
+    if _fixture_boat_outcome(boat_spawned=False, picked_by="none") != "silent":
+        errors.append("a victim that launched no boat leaves no survivor report")
+    if _fixture_boat_outcome(boat_spawned=True, picked_by="none") != "reports":
+        errors.append("a launched boat that escapes must report at sea exit")
+    if _fixture_boat_outcome(boat_spawned=True, picked_by="npc") != "reports":
+        errors.append("a survivor picked up by a third party must report")
+    if _fixture_boat_outcome(boat_spawned=True, picked_by="player") != "silenced-prisoner":
+        errors.append("a survivor captured by the player is silenced until his fate")
+    if _fixture_boat_outcome(boat_spawned=True, picked_by="companion") != "silenced-prisoner":
+        errors.append("a survivor captured by a companion is silenced until his fate")
+    if _fixture_captain_fate(fate=1) != "public-severity-2":
+        errors.append("a captain handed to the authorities must report with known identity")
+    if _fixture_captain_fate(fate=2) != "public-severity-2":
+        errors.append("a captain freed where he can talk must report")
+    if _fixture_captain_fate(fate=3) != "silent":
+        errors.append("an enslaved captain must stay silent")
+    if _fixture_captain_fate(fate=4) != "silent":
+        errors.append("an executed captain must stay silent")
+    if _fixture_captain_fate(fate=5) != "silent":
+        errors.append("a hired captain must stay silent")
+    if _fixture_captain_fate(fate=1, lawful=True) != "silent":
+        errors.append("handing over a lawful prize must report nothing")
+    if _fixture_captain_fate(fate=1, quest=True) != "silent":
+        errors.append("quest-involved captains keep their hand-authored outcomes")
+    if _fixture_captain_fate(fate=2, pirate=True) != "silent":
+        errors.append("pirate captains are no crime against a crown")
+    if _fixture_captain_fate(fate=1, already_reported=True) != "silent":
+        errors.append("one captain must produce exactly one fate report")
     lethal_escort = _fixture_ball_hit_order(
         tracked_ship=False,
         tracked_group=False,

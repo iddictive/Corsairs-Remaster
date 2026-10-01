@@ -297,7 +297,7 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
 # 6. AIShip.c (Sea Surrender & Treachery)
 # ---------------------------------------------------------------------------
 AI_SHIP_PATH = "PROGRAM/sea_ai/AIShip.c"
-AI_SHIP_BASE = "6f39bde144a609865534a626f54f4ca6618deb44c0cf940c9a8a977f439acdd8"
+AI_SHIP_BASE = "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449"
 
 AI_SURRENDER_CHECK_OLD = enc("""					int   SailsPercent    = sti(rCharacter.Ship.SP);
 			        float HPPercent       = GetHullPercent(rCharacter);
@@ -1041,7 +1041,7 @@ UPDATED = {
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
     "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
-    "PROGRAM/sea_ai/AIShip.c": "ec2b09157e04fa5a6fbebc823b0d146dd91087b39c3853879cbc5f590c75d3d9",
+    "PROGRAM/sea_ai/AIShip.c": "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
     "PROGRAM/scripts/ShipsUtilites.c": "d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",
