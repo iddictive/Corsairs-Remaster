@@ -2,10 +2,21 @@
 // Compile with C++20; include shared_headers/include and engine math/include.
 // Run the generated math_probe executable. No engine libraries are needed.
 #include "shared/sea_ai/manual_aim_geometry.hpp"
+#include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <numbers>
 #include <string_view>
+
+static_assert(sizeof(storm::sea_ai::manual_aim::AimVolumeSection)==32);
+static_assert(alignof(storm::sea_ai::manual_aim::AimVolumeSection)==16);
+static_assert(offsetof(storm::sea_ai::manual_aim::AimVolumeSection,progress)==12);
+static_assert(offsetof(storm::sea_ai::manual_aim::AimVolumeSection,firstPlane)==16);
+static_assert(offsetof(storm::sea_ai::manual_aim::AimVolumeSection,halfWidth)==24);
+static_assert(sizeof(storm::sea_ai::manual_aim::AimVolumePlane)==16);
+static_assert(alignof(storm::sea_ai::manual_aim::AimVolumePlane)==16);
+static_assert(offsetof(storm::sea_ai::manual_aim::AimVolumePlane,offset1)==12);
 
 namespace {
 int checks=0,failures=0;
@@ -305,6 +316,209 @@ int main() {
     check(meshRetainedBow,"actual reconstructed loft vertices retain close bow muzzle");
     check(std::isfinite(nearestBowVertex)&&nearestBowVertex<1e-3f,"mesh bow-vertex distance below one millimeter");
     check(manual_aim::finite(closeCamera),"close-case camera finite");
+
+
+    // A real aperture is a missed receiver, not a cue to reproject the path.
+    // The center shot threads a narrow hole at z40 and continues to sea z100;
+    // an adjacent yaw sample hits the wall before reaching that same sea.
+    const float apertureAngle=float(lowAngle(100,-4,80,g));
+    const auto through=manual_aim::trajectory(CVECTOR(0.f,4.f,0.f),CVECTOR(0.f,0.f,100.f),80.f,apertureAngle,0.f,.4f,g);
+    const auto beside=manual_aim::trajectory(through.origin,CVECTOR(0.f,0.f,100.f),80.f,apertureAngle,.02f,.4f,g);
+    const auto wallTimes=manual_aim::planeTimes(through,CVECTOR(0.f,0.f,1.f),40.f,through.timeToHeight(0.f));
+    check(wallTimes.size()==1,"aperture fixture has one wall crossing");
+    const CVECTOR aperture=through.at(wallTimes.empty()?0.f:wallTimes.front());
+    struct FixtureHit {bool valid=false;float fraction=2.f;CVECTOR point{0.f};int receiver=0;};
+    const auto wallAndSea=[&](const CVECTOR& a,const CVECTOR& b) {
+        FixtureHit hit;
+        const auto offer=[&](float f,int receiver) {
+            if(f>=0.f&&f<=1.f&&f<hit.fraction)hit={true,f,a+(b-a)*f,receiver};
+        };
+        if(a.z<40.f&&b.z>=40.f) {
+            const float f=(40.f-a.z)/(b.z-a.z);const auto p=a+(b-a)*f;
+            if(std::abs(p.x)>=.15f||std::abs(p.y-aperture.y)>=.25f)offer(f,1);
+        }
+        if(a.y>0.f&&b.y<=0.f)offer(a.y/(a.y-b.y),2);
+        return hit;
+    };
+    for(int shot=0;shot<2;++shot) {
+        const auto& curve=shot?beside:through;
+        const auto saved=curve;
+        const float limit=curve.timeToHeight(-2.f);constexpr int steps=64;
+        int calls=0;bool sameTrajectory=true;
+        const auto contact=manual_aim::firstContact(curve,limit,steps,[&](const CVECTOR& a,const CVECTOR& b) {
+            sameTrajectory&=near(a,curve.at(limit*float(calls)/steps),1e-5);
+            ++calls;sameTrajectory&=near(b,curve.at(limit*float(calls)/steps),1e-5);
+            return wallAndSea(a,b);
+        });
+        check(sameTrajectory&&calls>0,"firstContact preserves every original ballistic segment");
+        check(near(curve.origin,saved.origin)&&near(curve.velocity,saved.velocity)&&near(curve.acceleration,saved.acceleration),"firstContact leaves origin and trajectory unchanged");
+        check(contact.hit.valid&&contact.hit.receiver==(shot?1:2),"aperture continues to sea while adjacent shot hits wall");
+        check(near(contact.hit.point.z,shot?40.f:100.f,.05),"aperture and adjacent shot retain correct receiver distance");
+        check(near(curve.at(contact.end),contact.hit.point,.002),"contact time remains on original trajectory");
+        if(shot)check(contact.end<curve.timeToHeight(0.f),"wall contact precedes sea contact");
+    }
+    const auto bothReceivers=manual_aim::firstContact(beside,beside.timeToHeight(-2.f),1,wallAndSea);
+    check(bothReceivers.hit.valid&&bothReceivers.hit.receiver==1,"earliest receiver wins even within one march segment");
+    for(bool ready:{false,true}) {
+        const float start=manual_aim::corridorOpacity(0.f,ready),middle=manual_aim::corridorOpacity(.5f,ready),end=manual_aim::corridorOpacity(1.f,ready);
+        check(start>0.f&&start<middle&&middle<end&&end<=.045f,"corridor stays soft and strengthens toward impact");
+        check(near(manual_aim::corridorOpacity(-1.f,ready),start,1e-8)&&near(manual_aim::corridorOpacity(2.f,ready),end,1e-8),"corridor opacity clamps outside progress range");
+    }
+    check(near(manual_aim::corridorOpacity(0.f,true),.009f,1e-8)&&near(manual_aim::corridorOpacity(1.f,true),.045f,1e-8),"ready corridor uses exact low-to-higher soft alpha bounds");
+
+
+    // Verify emitted contact triangles, not just successful hole traces. Both
+    // sampling and barycenter validation use the real ballistic march above.
+    struct ContactHit {bool valid=false;int surface=-1;CVECTOR point{0.f};};
+    struct ContactVertex {ContactHit hit;float yaw=0.f,elevation=0.f;};
+    manual_aim::ContactBudget<4> contactBudget;
+    int activeContactCell=-1;bool localContactPatch=false;
+    std::vector<ContactVertex> contactCache;
+    const auto contactSample=[&](float yaw,float elevation) {
+        for(const auto& cached:contactCache)
+            if(cached.yaw==yaw&&cached.elevation==elevation)return cached;
+        if(!contactBudget.take(activeContactCell,localContactPatch))return ContactVertex{};
+        const auto curve=manual_aim::trajectory(through.origin,CVECTOR(0.f,0.f,100.f),80.f,
+            apertureAngle+elevation,yaw,.4f,g);
+        const auto result=manual_aim::firstContact(curve,curve.timeToHeight(-2.f),64,wallAndSea);
+        ContactVertex vertex{{result.hit.valid,result.hit.receiver,result.hit.point},yaw,elevation};
+        contactCache.push_back(vertex);return vertex;
+    };
+    std::vector<std::array<ContactVertex,3>> emittedContacts;
+    const auto emitContact=[&](const ContactVertex& a,const ContactVertex& b,const ContactVertex& c) {
+        if(!a.hit.valid||!b.hit.valid||!c.hit.valid||a.hit.surface!=b.hit.surface||a.hit.surface!=c.hit.surface)return;
+        const auto center=contactSample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
+        if(!center.hit.valid||center.hit.surface!=a.hit.surface)return;
+        if(~((b.hit.point-a.hit.point)^(c.hit.point-a.hit.point))<=1e-10f)return;
+        emittedContacts.push_back({a,b,c});
+    };
+    const auto apertureContact=contactSample(0.f,0.f);
+    // Reserve a later solid cell's base center, corners, and four validation
+    // centers before any optional refinement, matching the engine's contract.
+    const auto wallCenter=contactSample(.02f,0.f);
+    std::array<ContactVertex,4> wallCorners{{contactSample(.018f,-.002f),contactSample(.022f,-.002f),
+        contactSample(.022f,.002f),contactSample(.018f,.002f)}};
+    for(size_t i=0;i<4;++i) {
+        const auto& a=wallCorners[i];const auto& b=wallCorners[(i+1)%4];
+        contactSample((a.yaw+b.yaw+wallCenter.yaw)/3.f,(a.elevation+b.elevation+wallCenter.elevation)/3.f);
+    }
+    activeContactCell=0;localContactPatch=true;
+    manual_aim::contactPatch(apertureContact,.001f,.001f,contactSample,emitContact);
+    check(!emittedContacts.empty(),"detected aperture emits actual water contact triangles");
+    bool allWater=true;
+    for(const auto& triangle:emittedContacts)for(const auto& vertex:triangle)
+        allWater&=vertex.hit.valid&&vertex.hit.surface==2&&near(vertex.hit.point.y,0.f,1e-5)&&vertex.hit.point.z>90.f;
+    check(allWater&&!emittedContacts.empty(),"every emitted aperture triangle vertex lies on real downstream water");
+    check(contactBudget.patch[0]<=8,"aperture patch and barycenter validations respect local rescue budget");
+    while(contactBudget.take(0,false)){}
+    while(contactBudget.take(0,true)){}
+    check(contactBudget.detail[0]==16&&contactBudget.patch[0]==8&&
+          !contactBudget.take(0,false)&&!contactBudget.take(0,true),"first contact cell exhausts exactly its independent detail and rescue budgets");
+    activeContactCell=1;localContactPatch=false;emittedContacts.clear();
+    for(size_t i=0;i<4;++i)emitContact(wallCorners[i],wallCorners[(i+1)%4],wallCenter);
+    check(emittedContacts.size()==4,"later cell still emits all reserved solid-wall base triangles");
+    check(contactBudget.detail[1]==0&&contactBudget.remaining(1)==16,"reserved base contacts need no later-cell optional budget");
+    emittedContacts.clear();localContactPatch=true;
+    manual_aim::contactPatch(wallCenter,.001f,.001f,contactSample,emitContact);
+    check(!emittedContacts.empty()&&contactBudget.patch[1]>0&&contactBudget.patch[1]<=8,
+          "later cell retains its own rescue capacity after earlier-cell starvation");
+    bool allWall=true;
+    for(const auto& triangle:emittedContacts)for(const auto& vertex:triangle)
+        allWall&=vertex.hit.valid&&vertex.hit.surface==1&&near(vertex.hit.point.z,40.f,1e-5);
+    check(allWall&&!emittedContacts.empty(),"later-cell emitted triangle vertices stay on real solid wall");
+    check(contactBudget.take(-1,false)&&contactBudget.take(-1,true),"mandatory contacts bypass exhausted optional cell budgets");
+
+
+    // Empty/far camera rays share a muzzle-centered legal boundary independent
+    // of camera elevation; include the same float-boundary safety margin.
+    const auto fireRange=[&](float height,float speed,float angle) {
+        const float a=-g*.5f,b=speed*std::sin(angle);
+        return speed*((-b-std::sqrt(b*b-4.f*a*height))/(2.f*a))*std::cos(angle);
+    };
+    struct RangeDisk {CVECTOR muzzle;float radius;};
+    std::vector<RangeDisk> disks;
+    for(CVECTOR p:{CVECTOR(-5.f,4.f,-25.f),CVECTOR(5.f,5.f,0.f),CVECTOR(7.f,6.f,25.f)}) {
+        const float angle=manual_aim::maximumRangeElevation(p.y,60.f,-pi/18.f,pi/9.f,g);
+        disks.push_back({p,fireRange(p.y,60.f,angle)});
+    }
+    const CVECTOR farCamera(12.f,18.f,-3.f),bearing(1.f,0.f,0.f);
+    const auto commonLimit=[&](CVECTOR camera,CVECTOR flat,const std::vector<RangeDisk>& ranges) {
+        float far=inf;
+        for(const auto& disk:ranges)
+            if(!manual_aim::farRayLimit(camera,disk.muzzle,flat,disk.radius,far))return -1.f;
+        return far-std::max(.01f,far*1e-5f);
+    };
+    const float commonFar=commonLimit(farCamera,bearing,disks);
+    const CVECTOR farTarget=CVECTOR(farCamera.x,0.f,farCamera.z)+bearing*commonFar;
+    check(commonFar>0.f&&std::isfinite(commonFar),"common far-ray limit finite and positive");
+    for(const auto& disk:disks) {
+        check(std::hypot(farTarget.x-disk.muzzle.x,farTarget.z-disk.muzzle.z)<=disk.radius,
+              "common far target stays inside every offset muzzle disk");
+        check(manual_aim::reachable(disk.muzzle,farTarget,60.f,g),"common far target remains ballistically reachable for each gun");
+    }
+    std::vector<RangeDisk> mirroredDisks;
+    for(auto disk:disks){disk.muzzle.x=-disk.muzzle.x;mirroredDisks.push_back(disk);}
+    const CVECTOR mirroredCamera(-farCamera.x,farCamera.y,farCamera.z);
+    const float mirroredFar=commonLimit(mirroredCamera,CVECTOR(-1.f,0.f,0.f),mirroredDisks);
+    check(near(commonFar,mirroredFar,1e-4),"common legal far range is port-starboard symmetric");
+    const float movedFar=commonLimit(farCamera+CVECTOR(9.f,50.f,0.f),bearing,disks);
+    check(near(movedFar,commonFar-9.f,1e-3),"camera along-bearing offset shortens ray without moving legal boundary");
+    for(float pitchDegrees:{-20.f,-5.f,0.f,15.f,40.f}) {
+        const float a=pitchDegrees*pi/180.f;
+        const CVECTOR ray(std::cos(a),std::sin(a),0.f),flat=!(CVECTOR(ray.x,0.f,ray.z));
+        check(near(commonLimit(farCamera,flat,disks),commonFar,1e-4),"empty-ray pitch sweep preserves common far limit");
+    }
+    const CVECTOR shiftedCamera=farCamera+CVECTOR(0.f,0.f,8.f);
+    const float shiftedFar=commonLimit(shiftedCamera,bearing,disks);
+    const CVECTOR shiftedTarget=CVECTOR(shiftedCamera.x,0.f,shiftedCamera.z)+bearing*shiftedFar;
+    for(const auto& disk:disks)
+        check(std::hypot(shiftedTarget.x-disk.muzzle.x,shiftedTarget.z-disk.muzzle.z)<=disk.radius,
+              "lateral camera offset retains every muzzle range constraint");
+    for(auto pair:std::array<std::array<float,2>,2>{{{60.f,5.f},{45.f,4.f}}}) {
+        const auto [speed,height]=pair;
+        const float optimum=manual_aim::maximumRangeElevation(height,speed,-pi/18.f,pi/3.f,g);
+        check(optimum>0.f&&optimum<pi/4.f,"positive muzzle height makes optimum strictly below45 degrees");
+        check(near(optimum,std::atan2(speed,std::sqrt(speed*speed+2.f*g*height)),1e-6),"maximum range optimum matches analytic value");
+        check(near(manual_aim::maximumRangeElevation(height,speed,-pi/18.f,pi/9.f,g),pi/9.f,1e-6),"maximum range elevation respects legal upper clamp");
+        float far=inf;const float range=fireRange(height,speed,optimum);
+        check(manual_aim::farRayLimit(CVECTOR(0.f,18.f,0.f),CVECTOR(0.f,height,0.f),bearing,range,far),"optimum range intersects camera bearing");
+        far-=std::max(.01f,far*1e-5f);
+        check(manual_aim::reachable(CVECTOR(0.f,height,0.f),CVECTOR(far,0.f,0.f),speed,g),"centimeter float-boundary margin preserves optimum reachability");
+    }
+
+    // The renderer clips against actual hull edge normals, not a fixed set of
+    // directions whose bounding box fattens a thin rolled 50m gunline.
+    const auto endContour=padded({{-18.f,-1.57479595f},{0.f,0.f},{18.f,1.57479595f}},.04f);
+    const auto planes=manual_aim::slabPlanes(tilted,endContour);
+    check(!planes.empty()&&planes.size()<=storm::sea_ai::manual_aim::maxVolumePlanesPerSlab,"exact slab planes fit bridge capacity");
+    const auto slabInside=[](const std::vector<manual_aim::SlabPlane>& p,manual_aim::Point q,float u) {
+        for(auto n:p)if(n.x*q.x+n.y*q.y>n.offset0*(1.f-u)+n.offset1*u+2e-4f)return false;
+        return true;
+    };
+    for(auto p:tilted)check(slabInside(planes,p,0.f),"all near endpoint hull vertices satisfy slab planes");
+    for(auto p:endContour)check(slabInside(planes,p,1.f),"all far endpoint hull vertices satisfy slab planes");
+    for(auto a:tilted)for(auto b:endContour)
+        check(slabInside(planes,{(a.x+b.x)*.5f,(a.y+b.y)*.5f},.5f),"middle interpolated contour remains inside exact slab");
+    const float slope=2.1872166f/25.f;
+    for(float u:{0.f,.5f,1.f}) {
+        float bottom=-inf,top=inf;
+        for(auto p:planes) {
+            const float offset=p.offset0*(1.f-u)+p.offset1*u;
+            if(p.y>1e-6f)top=std::min(top,offset/p.y);
+            if(p.y<-1e-6f)bottom=std::max(bottom,offset/p.y);
+            check(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(offset),"slab coefficients remain finite");
+        }
+        const float expectedHalf=(.08f*(1.f-u)+.04f*u)*(1.f+slope);
+        check(near(top,expectedHalf,2e-4)&&near(bottom,-expectedHalf,2e-4),"rolled slab preserves true centerline half-height");
+        check(top-bottom<.18f,"thin rolled slab does not become a4.5m fat box");
+        check(!slabInside(planes,{0.f,1.f},u),"fat-box interior point remains outside thin true slab");
+    }
+    const auto degenerateSlab=manual_aim::slabPlanes({{0.f,0.f}},{{-1.f,0.f},{1.f,0.f}});
+    bool finiteDegenerate=!degenerateSlab.empty();
+    for(auto p:degenerateSlab)finiteDegenerate&=std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.offset0)&&std::isfinite(p.offset1);
+    check(finiteDegenerate,"point-to-line degenerate slab has finite planes");
+    check(slabInside(degenerateSlab,{0.f,0.f},0.f)&&slabInside(degenerateSlab,{-1.f,0.f},1.f)&&slabInside(degenerateSlab,{1.f,0.f},1.f),"degenerate slab retains all true endpoint vertices");
+    check(manual_aim::slabPlanes({},tilted).empty(),"empty endpoint yields no fabricated slab");
 
     std::cout<<checks<<" checks, "<<failures<<" failures\n";
     return failures?1:0;
