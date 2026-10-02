@@ -36,7 +36,7 @@ index 3c34d295..d14d5ebe 100644
 +        return false;
 +    auto *modelAttr = pACharacter->GetAttributeClass("model");
 +    const char *name = pACharacter->GetAttribute("model");
-+    const char *animation = modelAttr ? modelAttr->GetAttribute("animation") : nullptr;
++    const char *animation = modelAttr ? static_cast<const char *>(modelAttr->GetAttribute("animation")) : nullptr;
 +    if (!name || !*name || !animation || !*animation)
 +        return false;
 +    auto *geometry = static_cast<VGEOMETRY *>(core.GetService("geometry"));

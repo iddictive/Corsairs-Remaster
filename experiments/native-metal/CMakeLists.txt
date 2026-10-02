@@ -21,13 +21,13 @@ target_include_directories(storm_metal PRIVATE "${STORM_SOURCE}/src/libs/shared_
 target_link_libraries(storm_metal PUBLIC SDL2::SDL2
   "-framework Metal" "-framework Cocoa" "-framework QuartzCore")
 set(NATIVE_D3D9_LIBS storm_metal CACHE STRING "Direct Metal backend" FORCE)
-add_compile_definitions(FMT_CONSTEVAL= STORM_METAL_AIM_VOLUME_BRIDGE=1 STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 STORM_METAL_SCENE_HUD_BOUNDARY=1 STORM_METAL_INTERFACE_BACK_SCENE=1 STORM_METAL_DYNAMIC_SKY_BRIDGE=1 STORM_METAL_ROCKK2=1 STORM_METAL_LIGHT_SHAFT_OPENINGS=1 STORM_METAL_RENDERER_CONSUMERS=1 STORM_METAL_PARTICLE_BRIDGE=1 STORM_METAL_GRASS_BRIDGE=1)
+# WEATHER_BASE has conditional virtuals; every consumer needs the same ABI.
+add_compile_definitions(FMT_CONSTEVAL= STORM_METAL_AIM_VOLUME_BRIDGE=1 STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 STORM_METAL_SCENE_HUD_BOUNDARY=1 STORM_METAL_INTERFACE_BACK_SCENE=1 STORM_METAL_DYNAMIC_SKY_BRIDGE=1 STORM_METAL_WEATHER_VISUAL_STATE=1 STORM_METAL_ROCKK2=1 STORM_METAL_LIGHT_SHAFT_OPENINGS=1 STORM_METAL_RENDERER_CONSUMERS=1 STORM_METAL_PARTICLE_BRIDGE=1 STORM_METAL_GRASS_BRIDGE=1)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.cache/native-project" native-storm)
 target_include_directories(sound_service PRIVATE "${NATIVE_ROOT}/audio")
 target_include_directories(geometry PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(weather PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_compile_definitions(weather PRIVATE STORM_METAL_WEATHER_VISUAL_STATE=1)
 add_executable(metal-probe probe.cpp)
 target_sources(metal-probe PRIVATE "${STORM_SOURCE}/src/libs/renderer/src/storm_d3dx9.cpp")
 target_include_directories(metal-probe PRIVATE "${STORM_SOURCE}/src/libs/util/include")

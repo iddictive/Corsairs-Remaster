@@ -107,7 +107,9 @@ def compiler_ready():
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
 
 
-def plan():
+def plan(target_root=None):
+    if target_root is None:
+        target_root = TARGET
     source_state = suite.classify(SOURCE)[0]
     if source_state not in {"patched", "upgrade"}:
         raise RuntimeError("archived native-storm baseline is not a reviewed gameplay package")
@@ -135,7 +137,7 @@ def plan():
             if not source.is_file() or source.name == ".DS_Store":
                 continue
             relative = source.relative_to(SOURCE).as_posix()
-            target = TARGET / relative
+            target = target_root / relative
             if source.is_symlink() or target.is_symlink():
                 raise RuntimeError(f"refusing linked gameplay file: {relative}")
             if not target.is_file():
@@ -151,11 +153,17 @@ def plan():
                 continue
             if relative in living_caribbean.PREPARERS:
                 reviewed = living_caribbean.prepare(relative, incoming)
+                recognized = {digest(incoming), digest(reviewed), BASE.get(relative)}
+                recognized.update(living_caribbean.PREVIOUS.get(relative, ()))
+                if digest(current) not in recognized:
+                    raise RuntimeError(f"unrecognized living Caribbean revision: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
             if relative in evening_lights.PREPARERS:
                 reviewed = evening_lights.prepare(relative, incoming)
+                if current not in (incoming, reviewed):
+                    raise RuntimeError(f"unrecognized evening lights revision: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
@@ -248,14 +256,31 @@ def plan():
     return changes
 
 
+def sign_installed_app():
+    # Only resource scripts changed; reseal the outer bundle and preserve the
+    # already-signed nested executables/frameworks.
+    for arguments in (("--force", "-s", "-"), ("--verify", "--deep", "--strict")):
+        result = subprocess.run(["codesign", *arguments, str(INSTALLED_APP)],
+                                capture_output=True, text=True, check=False)
+        if result.returncode:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise RuntimeError(f"installed app codesign failed: {detail}")
+
+
 def apply(changes):
     if not compiler_ready():
         raise RuntimeError("build and stage Metal with the current compiler and deck gameplay patches before applying gameplay")
-    holders = subprocess.run(["/usr/sbin/lsof", "-t", "--", str(ENGINE)],
+    app_resources = INSTALLED_APP / "Contents/Resources"
+    app_changes = plan(app_resources) if INSTALLED_APP.is_dir() else {}
+    engines = [ENGINE]
+    if INSTALLED_APP.is_dir():
+        engines.append(INSTALLED_APP / "Contents/MacOS/metal-engine")
+    holders = subprocess.run(["/usr/sbin/lsof", "-t", "--", *map(str, engines)],
                              capture_output=True, text=True, check=False)
     if holders.returncode != 1 or holders.stdout or holders.stderr:
         raise RuntimeError("close the Metal game before applying gameplay")
     written = []
+    app_written = []
     try:
         for relative, (previous, incoming) in changes.items():
             path = TARGET / relative
@@ -299,18 +324,35 @@ def apply(changes):
             if not backup.exists():
                 atomic_write(backup, previous)
             atomic_write(path, incoming)
-            written.append(relative)
+            written.append((path, previous, incoming))
         if plan():
             raise RuntimeError("post-apply gameplay comparison failed")
-        if INSTALLED_APP.is_dir():
-            for relative, (_, incoming) in changes.items():
-                app_target = INSTALLED_APP / "Contents/Resources" / relative
-                if app_target.parent.exists():
-                    atomic_write(app_target, incoming)
-            subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(INSTALLED_APP)], capture_output=True, check=False)
-    except BaseException:
-        for relative in reversed(written):
-            atomic_write(TARGET / relative, changes[relative][0])
+        for relative, (previous, incoming) in app_changes.items():
+            app_target = app_resources / relative
+            if app_target.read_bytes() != previous:
+                raise RuntimeError(f"concurrent installed gameplay change: {relative}")
+            atomic_write(app_target, incoming)
+            app_written.append((app_target, previous, incoming))
+        if app_written:
+            if plan(app_resources):
+                raise RuntimeError("post-apply installed gameplay comparison failed")
+            sign_installed_app()
+    except BaseException as error:
+        failures = []
+        for path, previous, incoming in reversed(written + app_written):
+            try:
+                if path.read_bytes() != incoming:
+                    raise RuntimeError(f"concurrent change prevents rollback: {path}")
+                atomic_write(path, previous)
+            except (OSError, RuntimeError) as rollback_error:
+                failures.append(str(rollback_error))
+        if app_written and not failures:
+            try:
+                sign_installed_app()
+            except (OSError, RuntimeError) as rollback_error:
+                failures.append(str(rollback_error))
+        if failures:
+            raise RuntimeError(f"{error}; rollback incomplete: {'; '.join(failures)}") from error
         raise
 
 

@@ -37,7 +37,7 @@ require("StormMetalLightShaftMesh" in patch and "positions.data()" in patch and 
         "runtime bridge does not submit exact authored aperture triangles")
 require("FindLocatorsGroup(\"lightshafts\")" not in patch,
         "invented lightshafts locator convention remains")
-require("StormMetalBeginLightShaftOpenings(rs->GetD3DDevice())" in patch,
+require("StormMetalResetLightShaftOpenings(rs->GetD3DDevice())" in patch,
         "location transition does not clear stale openings")
 
 available = {path.stem.casefold() for path in models.rglob("*.gm")}

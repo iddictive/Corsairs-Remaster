@@ -50,13 +50,9 @@ for directory in PROGRAM RESOURCE SAVE; do
         /bin/cp -cR "$baseline/$directory" "$runtime/"
     fi
 done
-for technique in Rope.fx Vant.fx; do
-    /bin/cp "$root/.cache/storm/src/techniques/ship/$technique" "$runtime/RESOURCE/techniques/ship/$technique"
-done
-# Manual-aim overlay techniques (ShipAimArc/ShipAimVolume) live in engine-source
-# _dev/ship.fx; without this copy the overlay draws nothing (silent no-op).
-/bin/cp "$root/.cache/storm/src/techniques/_dev/ship.fx" "$runtime/RESOURCE/techniques/_dev/ship.fx"
-python3 - "$root" "$runtime" <<'SUN_GLOW_STAGE'
+# Engine-source techniques are staged as one reviewed group. Keep unknown
+# runtime edits instead of silently replacing them with a raw copy.
+python3 - "$root" "$runtime" <<'TECHNIQUE_STAGE'
 import hashlib
 import sys
 from pathlib import Path
@@ -65,28 +61,51 @@ root, runtime = map(Path, sys.argv[1:])
 sys.path.insert(0, str(root.parents[1] / "tools"))
 from runtime_script_patch import atomic_write
 
-relative = Path("techniques/weather/SunGlow.fx")
-source = root / ".cache/storm/src" / relative
-target = runtime / "RESOURCE" / relative
-backup = root / ".cache/material-originals" / relative
-originals = {
-    "326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c",
-    "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd",
+reviewed = {
+    "ship/Rope.fx": {"5f0f0bef056f652515f2ef2b4b99b16f936ce30b5dd1f0417a13eec17ddbb9e1", "873feea8d12addfef10b0c6dabf106b93e88fc0574c54fb2b14e544eff887e69"},
+    "ship/Vant.fx": {"00a92cad48c211d0465fccc19f2481a29310d94676b0988700357eefe566d65f"},
+    "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
+    "weather/SunGlow.fx": {"326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c", "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd", "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"},
 }
-expected = "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"
 digest = lambda data: hashlib.sha256(data).hexdigest()
-incoming, current = source.read_bytes(), target.read_bytes()
-assert digest(incoming) == expected, "Unreviewed SunGlow source"
-assert digest(current) in originals | {expected}, "SunGlow changed outside staging"
-if backup.exists():
-    assert digest(backup.read_bytes()) in originals, "SunGlow backup changed"
-else:
-    assert digest(current) in originals, "SunGlow original backup is missing"
-    atomic_write(backup, current)
-if current != incoming:
-    atomic_write(target, incoming)
-print("Sun glow: hash-verified depth-write correction")
-SUN_GLOW_STAGE
+changes = {}
+for name, known in reviewed.items():
+    relative = Path("techniques") / name
+    source = root / ".cache/storm/src" / relative
+    target = runtime / "RESOURCE" / relative
+    backup = root / ".cache/material-originals" / relative
+    if any(path.is_symlink() for path in (source, target, backup)):
+        raise RuntimeError(f"Linked technique: {name}")
+    incoming, current = source.read_bytes(), target.read_bytes()
+    if current != incoming and digest(current) not in known:
+        raise RuntimeError(f"Technique changed outside staging: {name}")
+    if backup.exists() and digest(backup.read_bytes()) not in known:
+        raise RuntimeError(f"Technique backup changed: {name}")
+    changes[target] = (current, incoming, backup)
+written = []
+try:
+    for target, (current, incoming, backup) in changes.items():
+        if target.read_bytes() != current:
+            raise RuntimeError(f"Concurrent technique change: {target}")
+        if current != incoming:
+            if not backup.exists():
+                atomic_write(backup, current)
+            atomic_write(target, incoming)
+            written.append(target)
+except BaseException as error:
+    failures = []
+    for target in reversed(written):
+        try:
+            if target.read_bytes() != changes[target][1]:
+                raise RuntimeError(f"Concurrent change prevents technique rollback: {target}")
+            atomic_write(target, changes[target][0])
+        except (OSError, RuntimeError) as rollback_error:
+            failures.append(str(rollback_error))
+    if failures:
+        raise RuntimeError(f"{error}; technique rollback incomplete: {'; '.join(failures)}") from error
+    raise
+print("Engine techniques: reviewed runtime revisions staged")
+TECHNIQUE_STAGE
 python3 "$root/background_alpha.py" apply "$runtime/PROGRAM/locations/init"
 python3 "$root/materials/stage.py" "$runtime" "$root/.cache/material-originals" "${STORM_METAL_MATERIALS:-0}"
 python3 "$root/materials/rockk2-candidates/stage.py" "$runtime" "${STORM_METAL_ROCKK2:-1}"
