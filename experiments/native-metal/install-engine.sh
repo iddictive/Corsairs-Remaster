@@ -84,7 +84,11 @@ for name, known in originals.items():
 # unbounded logging. Sync it like a technique: reviewed revisions only.
 launcher_source = root / "public_launcher.py"
 launcher_target = app / "Contents/Resources/public_launcher.py"
-launcher_known = {"89aa9a965743798983d0b06e69f585edab0961c9a5fdbff265861b32e94e32f8"}
+# Reviewed launcher revisions: the pre-rotation head and this bounded one.
+launcher_known = {
+    "89aa9a965743798983d0b06e69f585edab0961c9a5fdbff265861b32e94e32f8",
+    "fdeca54d99f34062f7bc858e7ab60066743183df266fd076e90e29a215e761fd",
+}
 for path in (launcher_source, launcher_target):
     if path.is_symlink() or not path.is_file():
         raise RuntimeError(f"Missing or linked launcher: {path}")
