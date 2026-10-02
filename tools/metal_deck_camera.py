@@ -14,13 +14,22 @@ PREVIOUS_EDITS = (
 
 # Sea_Load recreates the entities after restoring script attributes. Preserve the
 # saved deck mode; engine DECK_CAMERA::Load does not serialize ThirdPerson.
-EDITS = PREVIOUS_EDITS + (
+PREVIOUS_LOAD_EDITS = PREVIOUS_EDITS + (
     (b'\r\n\tSeaDeckCamera.ThirdPerson = 1;\r\n',
      b'\r\n\tif (!bSeaLoad || !CheckAttribute(&SeaDeckCamera, "ThirdPerson"))\r\n\t\tSeaDeckCamera.ThirdPerson = 1;\r\n'),
     (b'\tCrosshair.Texture = ',
      b'\tCrosshair.OutsideCamera = SeaCameras_isCameraOutside() || (SeaCameras.Camera == "SeaDeckCamera" && sti(SeaDeckCamera.ThirdPerson) != 0);\r\n\tCrosshair.Texture = '),
 )
 
+# Tab enters manual aim first, then deck walking, then the outside camera.
+# Keep this as a reversible layer so installed reviewed camera revisions migrate
+# without replacing unrelated script changes or rewriting saved camera mode.
+EDITS = PREVIOUS_LOAD_EDITS + (
+    (b'SeaDeckCamera.ThirdPerson = 1;\r\n\t\t\t\tSeaCameras.Camera = "SeaDeckCamera";\r\n\t\t\t\tCrosshair.OutsideCamera = true;',
+     b'SeaDeckCamera.ThirdPerson = 0;\r\n\t\t\t\tSeaCameras.Camera = "SeaDeckCamera";\r\n\t\t\t\tCrosshair.OutsideCamera = false;'),
+    (b'if (sti(SeaDeckCamera.ThirdPerson) != 0)\r\n\t\t\t{\r\n\t\t\t\tSeaDeckCamera.ThirdPerson = 0;\r\n\t\t\t\tCrosshair.OutsideCamera = false;',
+     b'if (sti(SeaDeckCamera.ThirdPerson) == 0)\r\n\t\t\t{\r\n\t\t\t\tSeaDeckCamera.ThirdPerson = 1;\r\n\t\t\t\tCrosshair.OutsideCamera = true;'),
+)
 
 
 def digest(data):
@@ -32,7 +41,7 @@ def strip(data):
         return data
     # Accept the prior reviewed adapter as well as the current one, so a script
     # update can safely migrate installed runtimes without changing frozen inputs.
-    for edits in (EDITS, PREVIOUS_EDITS):
+    for edits in (EDITS, PREVIOUS_LOAD_EDITS, PREVIOUS_EDITS):
         restored = data
         for before, after in reversed(edits):
             if restored.count(after) != 1:

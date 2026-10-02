@@ -299,7 +299,7 @@ index dc92b39..7f775b7 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,862 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,863 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -693,14 +693,15 @@ index dc92b39..7f775b7 100644
 +    const AimHit hit=world.trace(camera,camera+forward*pickLength);
 +    float selectedDepth=hit.valid?((hit.point-camera)|forward):pickLength;
 +    ATTRIBUTES *rangeCharacter=hit.character;
-+    // User-defined invisible 60x34 region at2048x1285: instantaneous RANGE
-+    // selection only. No stored target, tracking, dwell or angular aim snap.
++    // The invisible range region keeps its unzoomed angular support and grows
++    // gently with zoom. It selects depth only: no retained target or aim snap.
 +    CMatrix projection,view;
 +    AIHelper::pRS->GetTransform(D3DTS_PROJECTION,projection);
 +    AIHelper::pRS->GetTransform(D3DTS_VIEW,view);view.Transposition();
 +    const CVECTOR right=!view.Vx(),up=!view.Vy();
-+    const float tx=(60.f/2048.f)/std::max(.01f,std::fabs(projection.m[0][0]));
-+    const float ty=(34.f/1285.f)/std::max(.01f,std::fabs(projection.m[1][1]));
++    const float magnification=AIHelper::pRS->GetCameraMagnification();
++    const float tx=manual_aim::rangeApertureSlope(60.f/2048.f,projection.m[0][0],magnification);
++    const float ty=manual_aim::rangeApertureSlope(34.f/1285.f,projection.m[1][1],magnification);
 +    PLANE aperture[6]{};
 +    const std::array<CVECTOR,6> normals{{right-forward*tx,-right-forward*tx,
 +        up-forward*ty,-up-forward*ty,forward,-forward}};
@@ -1234,7 +1235,7 @@ new file mode 100644
 index 0000000..a2c711d
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,302 @@
 +#pragma once
 +#include "c_vector.h"
 +#include <algorithm>
@@ -1515,6 +1516,14 @@ index 0000000..a2c711d
 +        if(begin>end)return false;
 +    }
 +    return true;
++}
++// Compensate both-axis projection zoom before expanding angular support by at
++// most 50% at the deck camera's 5x limit. Ordinary FOV/aspect policy is preserved.
++inline float rangeApertureSlope(float referenceSpan,float projectionScale,float magnification)
++{
++    const float zoom=std::isfinite(magnification)?std::clamp(magnification,1.f,5.f):1.f;
++    const float growth=1.f+.125f*(zoom-1.f);
++    return referenceSpan*zoom*growth/std::max(.01f,std::fabs(projectionScale));
 +}
 +// Range selection never redirects the centered camera ray toward a peripheral
 +// mast/hull point. It supplies only the point's view-axis depth.
