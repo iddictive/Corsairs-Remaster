@@ -18,7 +18,7 @@
 +    // group's denominator so losing a mast cannot restore its speed share.
 +    case MSG_SAIL_GET_DEPLOYED: {
 +        const entid_t shipEI = message.EntityID();
-+        auto *deployed = static_cast<float *>(message.Pointer());
++        auto *deployed = reinterpret_cast<float *>(message.Pointer());
 +        if (!deployed)
 +            break;
 +        *deployed = 0.0f;

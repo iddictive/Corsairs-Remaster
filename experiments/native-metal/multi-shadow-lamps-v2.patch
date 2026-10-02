@@ -113,7 +113,7 @@
 -                const float position[] = {lamp.Position.x, lamp.Position.y, lamp.Position.z};
 -                StormMetalRenderPointShadowCube(device, lampId, position, lamp.Range);
 -            }
-+            if (auto* lights = ((!sunEnabled || sun.Type != D3DLIGHT_DIRECTIONAL || sun.Diffuse.r + sun.Diffuse.g + sun.Diffuse.b <= 0.12f) ? location->GetLights() : nullptr)) {
++            if (auto* lights = ((!outdoor || !sunEnabled || sun.Type != D3DLIGHT_DIRECTIONAL || sun.Diffuse.r + sun.Diffuse.g + sun.Diffuse.b <= 0.12f) ? location->GetLights() : nullptr)) {
 +                Lights::MetalShadowLight selected[4]{};
 +                const unsigned count=lights->GetShadowLights(focus,selected,4);
 +                for(unsigned index=0; index<count; ++index) {
