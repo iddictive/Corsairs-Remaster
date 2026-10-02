@@ -1,8 +1,42 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-index 378d01c..60295db 100644
+index 378d01c..dfadb61 100644
 --- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-@@ -45,6 +45,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
+@@ -1,5 +1,33 @@
+ #include "ai_fort.h"
+ #include "ai_ship.h"
++#include <algorithm>
++#include <cmath>
++
++namespace
++{
++void DrawManualAimPlus(VDX9RENDER *renderer)
++{
++    D3DVIEWPORT9 viewport{};
++    if(renderer->GetViewport(&viewport)!=D3D_OK||!viewport.Width||!viewport.Height)return;
++    const float pixel=std::clamp(std::round(float(viewport.Height)/1080.f),1.f,2.f);
++    const float x=viewport.X+viewport.Width*.5f,y=viewport.Y+viewport.Height*.5f;
++    const float half=pixel*.5f,arm=pixel*3.f;
++    struct Vertex{float x,y,z,rhw;uint32_t color;};
++    std::vector<Vertex> vertices;
++    auto rectangle=[&](float left,float top,float right,float bottom)
++    {
++        constexpr uint32_t color=0x80CCD2D4u;
++        const Vertex a{left,top,0.f,1.f,color},b{right,top,0.f,1.f,color};
++        const Vertex c{right,bottom,0.f,1.f,color},d{left,bottom,0.f,1.f,color};
++        for(const auto &v:{a,b,c,a,c,d})vertices.push_back(v);
++    };
++    rectangle(x-half,y-arm,x+half,y+arm);
++    rectangle(x-arm,y-half,x-half,y+half);
++    rectangle(x+half,y-half,x+arm,y+half);
++    renderer->DrawPrimitiveUP(D3DPT_TRIANGLELIST,D3DFVF_XYZRHW|D3DFVF_DIFFUSE,
++        uint32_t(vertices.size()/3),vertices.data(),sizeof(Vertex),"ShipAimReticle");
++}
++}
+
+ AIShipCameraController::AIShipCameraController(AIShip *_pAIShip)
+ {
+@@ -45,6 +73,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
      dwTarget = RELATION_UNKNOWN;
      auto vOurPos = GetAIShip()->GetPos();
 
@@ -18,7 +52,7 @@ index 378d01c..60295db 100644
      if (isCameraOutside())
      {
          fDelta = 0.0f;
-@@ -141,8 +150,13 @@ bool AIShipCameraController::Fire()
+@@ -141,8 +178,13 @@ bool AIShipCameraController::Fire()
      const auto vZ = m.Vz();
      // CVECTOR vZ = m * CVECTOR(0.0f, 0.0f, 1.0f);
      // vZ = !CVECTOR(vZ.x, 0.0f, vZ.z);
@@ -33,7 +67,7 @@ index 378d01c..60295db 100644
 
      if (dwTarget != RELATION_UNKNOWN && pTargetAPointer)
      {
-@@ -151,7 +165,7 @@ bool AIShipCameraController::Fire()
+@@ -151,7 +193,7 @@ bool AIShipCameraController::Fire()
      }
 
      // if (pTargetAPointer) AIGroup::GroupSetAttack(GetAIShip()->GetACharacter(), pTargetAPointer);
@@ -42,23 +76,24 @@ index 378d01c..60295db 100644
  }
 
  void AIShipCameraController::Realize(float fDeltaTime)
-@@ -173,6 +187,11 @@ void AIShipCameraController::Realize(float fDeltaTime)
+@@ -173,6 +215,12 @@ void AIShipCameraController::Realize(float fDeltaTime)
      AIHelper::pRS->GetCamera(campos,camang,campersp);
      m.BuildMatrix(camang);
      CVECTOR vZ = m.Vz();*/
 +    if (GetAIShip()->isMainCharacter())
 +    {
 +        GetAIShip()->GetCannonController()->DrawManualAimOverlay(vZ, m.Pos());
-+        return; // The in-world envelope is the aim visualization; no extra HUD reticle.
++        DrawManualAimPlus(AIHelper::pRS); // Tiny camera-ray orientation mark, not the old bulky reticle.
++        return;
 +    }
      if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
          return;
 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-index dc92b39..4106569 100644
+index dc92b39..54a00f6 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -2,8 +2,16 @@
+@@ -2,8 +2,17 @@
 
  #include "ai_balls.h"
  #include "ai_ship.h"
@@ -67,6 +102,7 @@ index dc92b39..4106569 100644
 +#include "sea_base.h"
 +#include "island_base.h"
 +#include "shared/sea_ai/manual_aim_geometry.hpp"
++#include "shared/sea_ai/manual_aim_volume_bridge.hpp"
 +#include "shared/sea_ai/script_defines.h"
  #include "math_inlines.h"
 
@@ -75,7 +111,7 @@ index dc92b39..4106569 100644
  float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
  float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
 
-@@ -12,7 +20,8 @@ AIShipCannonController::AIShipCannonController(AIShip *_pShip) : bReload(false),
+@@ -12,7 +21,8 @@ AIShipCannonController::AIShipCannonController(AIShip *_pShip) : bReload(false),
      SetAIShip(_pShip);
  }
 
@@ -85,7 +121,7 @@ index dc92b39..4106569 100644
  {
      const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
      if (!bEnoughBalls)
-@@ -22,11 +31,16 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
+@@ -22,11 +32,16 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
      
      auto vTempFirePos = vFirePos + CVECTOR(0.0f, fFireHeight, 0.0f);
 
@@ -102,7 +138,7 @@ index dc92b39..4106569 100644
 
      const auto vTempFireDir = !(vTempFirePos - pOurAIShip->GetPos());
 
-@@ -34,8 +48,11 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
+@@ -34,8 +49,11 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
                 const_cast<char *>(bort.sName.c_str()), vTempFirePos.x, vTempFirePos.y, vTempFirePos.z, vTempFireDir.x,
                 vTempFireDir.y, vTempFireDir.z);
 
@@ -114,7 +150,7 @@ index dc92b39..4106569 100644
          if (!cannon.isDamaged())
          {
              cannon.SetRechargeEnable(bEnoughBalls);
-@@ -45,41 +62,24 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
+@@ -45,41 +63,24 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
                  debugFirePositions.emplace_back(vTempFirePos, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
              }
 
@@ -168,7 +204,7 @@ index dc92b39..4106569 100644
  }
 
  bool AIShipCannonController::Fire(const CVECTOR &vFirePos)
-@@ -345,57 +345,30 @@ CVECTOR AIShipCannonController::GetBortDirection(const AISHIP_BORT &bort) const
+@@ -345,57 +346,30 @@ CVECTOR AIShipCannonController::GetBortDirection(const AISHIP_BORT &bort) const
 
  CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDistance)
  {
@@ -246,7 +282,7 @@ index dc92b39..4106569 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +661,476 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,773 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -407,21 +443,9 @@ index dc92b39..4106569 100644
 +    const float limit=curve.timeToHeight(-world.waveBound-1.f);
 +    if(!std::isfinite(limit)||limit<=0.f)return path;
 +    const int steps=std::clamp(int(std::ceil(limit*curve.velocity.GetLength()/12.f)),24,128);
-+    CVECTOR previous=curve.origin;
-+    for(int i=1;i<=steps;++i)
-+    {
-+        const float t=limit*float(i)/steps;
-+        const CVECTOR next=curve.at(t);
-+        const auto hit=world.trace(previous,next);
-+        if(hit.valid)
-+        {
-+            path.end=limit*(float(i-1)+hit.fraction)/steps;
-+            path.hit=hit;
-+            return path;
-+        }
-+        previous=next;
-+    }
-+    path.end=limit;
++    const auto result=manual_aim::firstContact(curve,limit,steps,
++        [&](const CVECTOR &from,const CVECTOR &to){return world.trace(from,to);});
++    path.end=result.end;path.hit=result.hit;
 +    return path;
 +}
 +float AimHeightScale(ATTRIBUTES *character)
@@ -448,13 +472,9 @@ index dc92b39..4106569 100644
 +            .5f*accuracy*10.f*12.f*kAimPi/180.f};
 +}
 +struct AimVertex{CVECTOR point;uint32_t color;};
-+uint32_t AimColor(float opacity)
-+{ return (uint32_t(std::clamp(opacity,0.f,1.f)*255.f)<<24)|0xB8C4C8u; }
-+void AimTriangle(std::vector<AimVertex> &out,const CVECTOR &a,const CVECTOR &b,const CVECTOR &c,float alpha)
-+{
-+    if(!manual_aim::finite(a)||!manual_aim::finite(b)||!manual_aim::finite(c)||~((b-a)^(c-a))<1e-10f)return;
-+    const auto color=AimColor(alpha);out.push_back({a,color});out.push_back({b,color});out.push_back({c,color});
-+}
++uint32_t AimColor(float opacity,uint32_t rgb=0xB8C4C8u)
++{ return (uint32_t(std::clamp(opacity,0.f,1.f)*255.f)<<24)|(rgb&0xFFFFFFu); }
++
 +void AimDraw(std::vector<AimVertex> &vertices,const char *technique,const CVECTOR &camera)
 +{
 +    if(vertices.empty())return;
@@ -502,35 +522,66 @@ index dc92b39..4106569 100644
 +    if(!IsValid(bort))return false;
 +    solution.bort=&*bort;
 +    const float speed=GetSpeedV0();
-+    const float pitch=std::atan2(direction.y,std::sqrt(direction.x*direction.x+direction.z*direction.z));
-+    // World picking and ballistic reach are separate. Camera pitch must never
-+    // shorten the pick ray to the low-mounted gun's current-elevation range.
-+    float range=0.f;
++    // Pick real geometry independently of camera pitch. Empty/far space is
++    // explicit far intent, never a short horizontal-muzzle-angle shot.
++    float range=0.f,commonFar=1e20f;int compatible=0;
++    std::vector<std::pair<CVECTOR,float>> legalRangeDisks;
++    const float roll=GetBortHeightAngle(*bort);
 +    for(const auto &gun:bort->aCannons)
-+        if(!gun.isDamaged())range=std::max(range,AICannon::CalcMaxFireDistance(
-+            std::max(.01f,gun.GetPos().y),speed,GetBortHeightAngle(*bort)+bort->fFireAngMax));
-+    if(!std::isfinite(range)||range<=0.f)return false;
++    {
++        if(gun.isDamaged() || (flat|gun.GetDir())<.3f)continue;
++        const CVECTOR muzzle=gun.GetPos();
++        const float angle=manual_aim::maximumRangeElevation(muzzle.y,speed,
++            roll+bort->fFireAngMin,roll+bort->fFireAngMax,AIHelper::fGravity);
++        const float reach=AICannon::CalcMaxFireDistance(std::max(.01f,muzzle.y),speed,angle);
++        range=std::max(range,reach);
++        legalRangeDisks.push_back({muzzle,reach});
++        if(!manual_aim::farRayLimit(camera,muzzle,flat,reach,commonFar))return false;
++        ++compatible;
++    }
++    if(!compatible||!std::isfinite(range)||range<=0.f||commonFar<=0.f)return false;
++    // Float range construction can sit a few ulps outside the double-precision
++    // reach discriminant at the optimum. Move only the synthetic far boundary
++    // inward by a centimeter-scale margin; real surface targets are untouched.
++    commonFar-=std::max(.01f,commonFar*1e-5f);
++    if(commonFar<=0.f)return false;
 +    AimWorld world(GetAIShip());
 +    const float pickLength=range+(camera-GetAIShip()->GetPos()).GetLength()+world.waveBound;
 +    const auto hit=world.trace(camera,camera+(!direction)*pickLength);
-+    if(hit.valid)solution.target=hit.point;
++    if(hit.valid)
++    {
++        // A real nearby unreachable hit remains unavailable; do not redirect
++        // its shot to a convenient distant target behind the first receiver.
++        solution.target=hit.point;
++    }
 +    else
 +    {
-+        // With no surface under the reticle, retain the looked-at launch angle.
-+        // Never silently turn a failed downward pick into maximum elevation.
-+        if(pitch<0.f)return false;
-+        const float relative=pitch-GetBortHeightAngle(*bort);
-+        if(relative<bort->fFireAngMin||relative>bort->fFireAngMax)return false;
-+        CVECTOR muzzle(0.f);int count=0;
-+        for(const auto &gun:bort->aCannons)if(!gun.isDamaged()){muzzle+=gun.GetPos();++count;}
-+        if(!count)return false;muzzle*=1.f/count;
-+        const float directRange=AICannon::CalcMaxFireDistance(std::max(.01f,muzzle.y),speed,pitch);
-+        solution.target=muzzle+flat*directRange;solution.target.y=0.f;
++        // Camera/muzzle parallax matters: intersect every compatible muzzle's
++        // legal range disk with the camera bearing, and use the common limit.
++        // This stays far through mast gaps and into sky without a sticky lock,
++        // fake ship collision or range loss when raising the camera.
++        solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
 +    }
 +    solution.character=hit.character;
 +    for(auto &gun:bort->aCannons)
 +        if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
-+    return !solution.guns.empty(); // unavailable shots are excluded, not relabelled as a far lock
++    if(solution.guns.empty()&&hit.valid)
++    {
++        // A genuinely distant receiver inside the extended camera query is far
++        // intent too. A near hit outside depression/elevation limits is NOT.
++        const bool beyondEveryRange=std::all_of(legalRangeDisks.begin(),legalRangeDisks.end(),
++            [&](const auto &disk)
++            {const CVECTOR d(solution.target.x-disk.first.x,0.f,solution.target.z-disk.first.z);
++             return d.GetLength()>disk.second+.001f;});
++        if(beyondEveryRange)
++        {
++            solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
++            solution.character=nullptr;
++            for(auto &gun:bort->aCannons)
++                if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
++        }
++    }
++    return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
 +}
 +
 +void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const CVECTOR &camera)
@@ -541,13 +592,15 @@ index dc92b39..4106569 100644
 +    const float speed=GetSpeedV0(),height=AimHeightScale(GetAIShip()->GetACharacter());
 +    const auto spread=AimLiveSpread(GetAIShip()->GetACharacter());
 +    std::vector<AimPath> paths;
++    std::vector<std::pair<const AICannon *,AimPath>> nominalPaths;
 +    paths.reserve(solution.guns.size()+40);
 +    // Every valid gun participates. Locator order is irrelevant.
 +    for(const auto *gun:solution.guns)
 +    {
 +        const CVECTOR muzzle=gun->GetPos();
 +        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
-+        paths.push_back(AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity),world));
++        const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity),world);
++        paths.push_back(path);nominalPaths.push_back({gun,path});
 +    }
 +    // Dispersion samples use the battery's spatial support guns, not first/last
 +    // array indices. Model traces are bounded by this fixed support set; all
@@ -580,7 +633,274 @@ index dc92b39..4106569 100644
 +    }
 +    paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
 +    if(paths.empty())return;
-+    const float opacity=solution.bort->isCharged()?.045f:.025f;
++    const bool ready=solution.bort->isCharged();
++    // Contact field in LAUNCH space, not an ellipse on an XZ or hull-normal
++    // plane. Every vertex owns a real muzzle and a valid jittered trajectory.
++    // Through a hull/mast gap the same projectile continues until its first
++    // real receiver, including the animated sea behind the gap.
++    std::vector<AimVertex> footprint;
++    std::vector<const AICannon *> projectors=supports;
++    CVECTOR meanMuzzle(0.f);
++    for(const auto *gun:solution.guns)meanMuzzle+=gun->GetPos();
++    meanMuzzle*=1.f/solution.guns.size();
++    const AICannon *middle=solution.guns.front();
++    for(const auto *gun:solution.guns)
++        if(~(gun->GetPos()-meanMuzzle)<~(middle->GetPos()-meanMuzzle))middle=gun;
++    if(std::find(projectors.begin(),projectors.end(),middle)==projectors.end())projectors.push_back(middle);
++    // Retain a receiver found only by a non-support gun (for example the one
++    // muzzle aligned with a small opening). Add one local field per otherwise
++    // unrepresented receiver, rather than uniformly densifying every cannon.
++    std::vector<int> represented;
++    for(const auto &[gun,path]:nominalPaths)
++        if(path.hit.valid && std::find(projectors.begin(),projectors.end(),gun)!=projectors.end())
++            represented.push_back(path.hit.surface);
++    for(const auto &[gun,path]:nominalPaths)
++        if(path.hit.valid && std::find(represented.begin(),represented.end(),path.hit.surface)==represented.end())
++        {projectors.push_back(gun);represented.push_back(path.hit.surface);}
++    // Five regular projectors plus explicit receiver exceptions. Each uses a
++    // 3x3 angular grid, four cell centers and16 fan-validation centers (29
++    // required samples). Each of four cells then has16 detail +8 local-patch
++    // samples reserved independently: at most125 marches per projector.
++    // A difficult earlier cell cannot consume any later cell's coverage.
++    // Model broadphase and above-wave rejection remain active in each march.
++    constexpr int divisions=2;
++    auto relationColor=[&](const AimHit &hit)
++    {
++        if(!hit.character)return uint32_t(0xCDD4D6u);
++        const auto relation=Helper.GetRelation(GetAIShip()->GetACharacter(),hit.character);
++        if(relation==RELATION_ENEMY)return uint32_t(0xCCA29Cu);
++        if(relation==RELATION_FRIEND)return uint32_t(0xA8C4ADu);
++        if(relation==RELATION_NEUTRAL)return uint32_t(0xCFC398u);
++        return uint32_t(0xCDD4D6u);
++    };
++    struct ContactVertex {AimHit hit;float alpha=0.f,yaw=0.f,elevation=0.f;};
++    struct ContactSupport
++    {
++        int surface;
++        std::array<AimPath,6> paths{};
++        std::array<float,6> values{{-1e20f,-1e20f,-1e20f,-1e20f,-1e20f,-1e20f}};
++    };
++    std::vector<ContactSupport> contactSupports;
++    const CVECTOR vertical=!(axis^lateral);
++    auto retainContact=[&](const AimPath &path)
++    {
++        if(!path.hit.valid||path.end<=0.f)return;
++        auto it=std::find_if(contactSupports.begin(),contactSupports.end(),
++            [&](const ContactSupport &support){return support.surface==path.hit.surface;});
++        if(it==contactSupports.end()){contactSupports.push_back(ContactSupport{path.hit.surface});it=contactSupports.end()-1;}
++        const std::array<CVECTOR,3> bases{{axis,lateral,vertical}};
++        for(int coordinate=0;coordinate<3;++coordinate)
++            for(int side=0;side<2;++side)
++            {
++                const int slot=coordinate*2+side;
++                const float value=(path.hit.point|bases[coordinate])*(side?1.f:-1.f);
++                if(value>it->values[slot]){it->values[slot]=value;it->paths[slot]=path;}
++            }
++    };
++    const float layerScale=1.f/std::max(size_t(1),projectors.size());
++    for(const auto *gun:projectors)
++    {
++        const CVECTOR muzzle=gun->GetPos();
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        struct CachedContact {float yaw,elevation;ContactVertex vertex;};
++        std::vector<CachedContact> cache;
++        manual_aim::ContactBudget<divisions*divisions> budget;
++        int activeCell=-1;
++        bool rescuePhase=false;
++        auto sample=[&](float yaw,float elevation)
++        {
++            for(const auto &entry:cache)
++                if(entry.yaw==yaw&&entry.elevation==elevation)return entry.vertex;
++            // Mandatory shared samples are prefetched with activeCell=-1.
++            // Optional work has an independent16+8 budget for each cell.
++            if(!budget.take(activeCell,rescuePhase))return ContactVertex{};
++            const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,
++                angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity);
++            const auto path=AimMarch(curve,world);
++            retainContact(path);
++            // Color/coverage is sampled here. Final opacity is evaluated once
++            // against the unified corridor contour after its loft is complete;
++            // individual gun-field borders never receive their own bright rim.
++            const float alpha=.04f*layerScale*(ready?1.f:.65f);
++            const ContactVertex vertex{path.hit,alpha,yaw,elevation};
++            cache.push_back({yaw,elevation,vertex});
++            return vertex;
++        };
++        std::array<std::array<ContactVertex,divisions+1>,divisions+1> grid{};
++        for(int y=0;y<=divisions;++y)
++            for(int x=0;x<=divisions;++x)
++                grid[y][x]=sample(-1.f+2.f*x/divisions,-1.f+2.f*y/divisions);
++        // Reserve all base centers AND solid-fan validation centers before
++        // optional recursion. A difficult early hole cannot erase later cells.
++        for(int y=0;y<divisions;++y)
++            for(int x=0;x<divisions;++x)
++            {
++                const float x0=-1.f+2.f*x/divisions,x1=-1.f+2.f*(x+1)/divisions;
++                const float y0=-1.f+2.f*y/divisions,y1=-1.f+2.f*(y+1)/divisions;
++                const float xm=(x0+x1)*.5f,ym=(y0+y1)*.5f;
++                sample(xm,ym);
++                sample((x0+x1+xm)/3.f,(y0+y0+ym)/3.f);
++                sample((x1+x1+xm)/3.f,(y0+y1+ym)/3.f);
++                sample((x1+x0+xm)/3.f,(y1+y1+ym)/3.f);
++                sample((x0+x0+xm)/3.f,(y1+y0+ym)/3.f);
++            }
++        auto triangle=[&](auto &&self,const ContactVertex &a,const ContactVertex &b,const ContactVertex &c,int depth,bool boundary,bool waveOnly=false)->void
++        {
++            const auto &ha=a.hit,&hb=b.hit,&hc=c.hit;
++            if(!ha.valid||!hb.valid||!hc.valid)return;
++            if(ha.surface!=hb.surface||ha.surface!=hc.surface)
++            {
++                // A newly found gap receiver must grow into its own patch,
++                // not vanish because the parent triangle has ship/water corners.
++                if(depth<3 && budget.remaining(activeCell)>=7)
++                {
++                    const auto ab=sample((a.yaw+b.yaw)*.5f,(a.elevation+b.elevation)*.5f);
++                    const auto bc=sample((b.yaw+c.yaw)*.5f,(b.elevation+c.elevation)*.5f);
++                    const auto ca=sample((c.yaw+a.yaw)*.5f,(c.elevation+a.elevation)*.5f);
++                    // Reserve all children's validation samples before recursing.
++                    sample((a.yaw+ab.yaw+ca.yaw)/3.f,(a.elevation+ab.elevation+ca.elevation)/3.f);
++                    sample((ab.yaw+b.yaw+bc.yaw)/3.f,(ab.elevation+b.elevation+bc.elevation)/3.f);
++                    sample((ca.yaw+bc.yaw+c.yaw)/3.f,(ca.elevation+bc.elevation+c.elevation)/3.f);
++                    sample((ab.yaw+bc.yaw+ca.yaw)/3.f,(ab.elevation+bc.elevation+ca.elevation)/3.f);
++                    self(self,a,ab,ca,depth+1,true);self(self,ab,b,bc,depth+1,true);
++                    self(self,ca,bc,c,depth+1,true);self(self,ab,bc,ca,depth+1,true);
++                }
++                else if(depth<5)
++                {
++                    const bool old=rescuePhase;rescuePhase=true;
++                    const auto center=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
++                    const float du=std::max({std::fabs(a.yaw-b.yaw),std::fabs(b.yaw-c.yaw),std::fabs(c.yaw-a.yaw)})*.125f;
++                    const float dv=std::max({std::fabs(a.elevation-b.elevation),std::fabs(b.elevation-c.elevation),std::fabs(c.elevation-a.elevation)})*.125f;
++                    manual_aim::contactPatch(center,du,dv,sample,[&](const auto &x,const auto &y,const auto &z)
++                    {self(self,x,y,z,depth+1,true);});
++                    rescuePhase=old;
++                }
++                return;
++            }
++            if(footprint.size()>=48000)return; // <=16k receiver triangles, independent of wave detail
++            const CVECTOR ab=hb.point-ha.point,ac=hc.point-ha.point,bc=hc.point-hb.point;
++            if(!waveOnly)
++            {
++                // Same receiver and endpoint normals do not prove a triangle
++                // lies on a recessed hull or a terrain valley. Its launch-space
++                // center must follow the original shot path to that surface too.
++                const auto middle=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
++                if(!middle.hit.valid)return; // budget exhaustion never fabricates a floating patch
++                const CVECTOR n=!(ab^ac);
++                const float error=std::fabs((middle.hit.point-(ha.point+hb.point+hc.point)/3.f)|n);
++                const float tolerance=.04f+((ha.point+hb.point+hc.point)/3.f-camera).GetLength()*.0002f;
++                const bool different=middle.hit.surface!=ha.surface || (ha.surface!=0 && error>tolerance);
++                if(different)
++                {
++                    if(depth<2)
++                    {
++                        self(self,a,b,middle,depth+1,true);
++                        self(self,b,c,middle,depth+1,true);
++                        self(self,c,a,middle,depth+1,true);
++                    }
++                    return;
++                }
++            }
++            if(ha.surface==0 && world.sea)
++            {
++                auto midpoint=[&](const ContactVertex &x,const ContactVertex &y)
++                {
++                    ContactVertex m=x;m.hit.point=(x.hit.point+y.hit.point)*.5f;m.alpha=(x.alpha+y.alpha)*.5f;
++                    m.yaw=(x.yaw+y.yaw)*.5f;m.elevation=(x.elevation+y.elevation)*.5f;
++                    m.hit.point.y=world.sea->WaveXZ(m.hit.point.x,m.hit.point.z,&m.hit.normal);
++                    if(~m.hit.normal>1e-12f)m.hit.normal=!m.hit.normal;
++                    return m;
++                };
++                const auto ab=midpoint(a,b),bc=midpoint(b,c),ca=midpoint(c,a);
++                const float error=std::max({std::fabs(ab.hit.point.y-(ha.point.y+hb.point.y)*.5f),
++                    std::fabs(bc.hit.point.y-(hb.point.y+hc.point.y)*.5f),
++                    std::fabs(ca.hit.point.y-(hc.point.y+ha.point.y)*.5f)});
++                const float tolerance=.04f+((ha.point+hb.point+hc.point)/3.f-camera).GetLength()*.0002f;
++                const float longest=std::max({(ha.point-hb.point).GetLength(),(hb.point-hc.point).GetLength(),(hc.point-ha.point).GetLength()});
++                const int waveDepth=waveOnly?depth:0;
++                if(waveDepth<4 && (error>tolerance||longest>6.f))
++                {
++                    self(self,a,ab,ca,waveDepth+1,boundary,true);self(self,ab,b,bc,waveDepth+1,boundary,true);
++                    self(self,ca,bc,c,waveDepth+1,boundary,true);self(self,ab,bc,ca,waveDepth+1,boundary,true);return;
++                }
++                // Prefer a clipped footprint to a broad polygon floating across
++                // an unresolved storm crest/trough when the tessellation cap is met.
++                if(error>tolerance*2.f)return;
++            }
++            if((ha.normal|hb.normal)<.45f||(ha.normal|hc.normal)<.45f||(hb.normal|hc.normal)<.45f)return;
++            const float shortest=std::min({ab.GetLength(),ac.GetLength(),bc.GetLength()});
++            const float longest=std::max({ab.GetLength(),ac.GetLength(),bc.GetLength()});
++            if(longest>std::max(3.f,shortest*8.f))return;
++            if(std::fabs(ab|ha.normal)>std::max(.3f,ab.GetLength()*.4f) ||
++               std::fabs(ac|ha.normal)>std::max(.3f,ac.GetLength()*.4f))return;
++            if(~(ab^ac)<1e-10f)return;
++            const uint32_t rgb=relationColor(ha);
++            for(const auto *v:{&a,&b,&c})
++            {
++                // Alpha belongs to the continuous projected field, never to a
++                // tessellation cell/triangle. Shared vertices keep identical
++                // opacity, so internal mesh boundaries cannot become grid lines.
++                footprint.push_back({v->hit.point+v->hit.normal*kAimSurfaceLift,AimColor(v->alpha,rgb)});
++            }
++        };
++        auto cell=[&](auto &&self,float x0,float y0,float x1,float y1,
++                      const ContactVertex &a,const ContactVertex &b,const ContactVertex &c,const ContactVertex &d,
++                      int depth,bool boundary)->void
++        {
++            const float xm=(x0+x1)*.5f,ym=(y0+y1)*.5f;
++            const auto center=sample(xm,ym);
++            const int receiver=center.hit.valid?center.hit.surface:-1;
++            const bool mixed=!a.hit.valid||!b.hit.valid||!c.hit.valid||!d.hit.valid||
++                a.hit.surface!=receiver||b.hit.surface!=receiver||c.hit.surface!=receiver||d.hit.surface!=receiver;
++            if(mixed && depth<3 && budget.remaining(activeCell)>=8)
++            {
++                // Refine a detected hole/boundary in launch space. Each new
++                // sample marches through the gap, rather than raycasting down
++                // from a floating projector plane or connecting across it.
++                const auto ab=sample(xm,y0),bc=sample(x1,ym),cd=sample(xm,y1),da=sample(x0,ym);
++                // Reserve every child center before the first child can recurse
++                // and consume the remaining budget intended for its siblings.
++                sample((x0+xm)*.5f,(y0+ym)*.5f);
++                sample((xm+x1)*.5f,(y0+ym)*.5f);
++                sample((xm+x1)*.5f,(ym+y1)*.5f);
++                sample((x0+xm)*.5f,(ym+y1)*.5f);
++                self(self,x0,y0,xm,ym,a,ab,center,da,depth+1,true);
++                self(self,xm,y0,x1,ym,ab,b,bc,center,depth+1,true);
++                self(self,xm,ym,x1,y1,center,bc,c,cd,depth+1,true);
++                self(self,x0,ym,xm,y1,da,center,cd,d,depth+1,true);return;
++            }
++            if(mixed)
++            {
++                const bool old=rescuePhase;rescuePhase=true;
++                manual_aim::contactPatch(center,(x1-x0)*.125f,(y1-y0)*.125f,sample,
++                    [&](const auto &p,const auto &q,const auto &r){triangle(triangle,p,q,r,0,true);});
++                rescuePhase=old;
++            }
++            triangle(triangle,a,b,center,0,boundary||mixed);
++            triangle(triangle,b,c,center,0,boundary||mixed);
++            triangle(triangle,c,d,center,0,boundary||mixed);
++            triangle(triangle,d,a,center,0,boundary||mixed);
++        };
++        for(int y=0;y<divisions;++y)
++            for(int x=0;x<divisions;++x)
++            {
++                activeCell=y*divisions+x;
++                cell(cell,-1.f+2.f*x/divisions,-1.f+2.f*y/divisions,
++                    -1.f+2.f*(x+1)/divisions,-1.f+2.f*(y+1)/divisions,
++                    grid[y][x],grid[y][x+1],grid[y+1][x+1],grid[y+1][x],0,false);
++            }
++    }
++    // Include discovered gap-continuation supports BEFORE constructing the
++    // corridor. Otherwise a water footprint behind a hole could be detached
++    // from a volume that still stopped at the original sparse hull hits.
++    for(const auto &receiver:contactSupports)
++        for(const auto &path:receiver.paths)
++        {
++            const bool duplicate=std::any_of(paths.begin(),paths.end(),[&](const AimPath &old)
++            {return old.end==path.end && ~(old.curve.origin-path.curve.origin)<1e-10f &&
++                    ~(old.curve.velocity-path.curve.velocity)<1e-10f;});
++            if(path.hit.valid&&path.end>0.f&&!duplicate)paths.push_back(path);
++        }
 +    const CVECTOR up=!(axis^lateral);
 +    std::vector<float> stations;
 +    float first=1e20f,last=-1e20f;
@@ -604,10 +924,8 @@ index dc92b39..4106569 100644
 +        stations.push_back(first+(last-first)*float(section)/kAimSections);
 +    std::sort(stations.begin(),stations.end());
 +    stations.erase(std::unique(stations.begin(),stations.end(),[](float a,float b){return std::fabs(a-b)<.005f;}),stations.end());
-+    std::vector<manual_aim::Point> previousHull;
-+    CVECTOR previousCenter(0.f);
-+    bool hadSection=false;
-+    std::vector<AimVertex> volume;
++    struct CorridorSection {float station;CVECTOR center;std::vector<manual_aim::Point> hull;};
++    std::vector<CorridorSection> sections;
 +    for(float station:stations)
 +    {
 +        // Intersect all paths with the SAME downrange plane. Normalizing each
@@ -626,8 +944,11 @@ index dc92b39..4106569 100644
 +                points.push_back(point);center+=point;
 +            }
 +        }
-+        if(points.empty()){hadSection=false;continue;}
++        if(points.empty())continue;
 +        center*=1.f/points.size();
++        // Keep the geometric center on the actual ordered station plane;
++        // endpoint epsilon merging must not perturb slab ordering.
++        center+=axis*(station-(center|axis));
 +        const float u=std::clamp((station-first)/std::max(.01f,last-first),0.f,1.f);
 +        std::vector<manual_aim::Point> plane;
 +        for(const auto &p:points)
@@ -637,84 +958,96 @@ index dc92b39..4106569 100644
 +            for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
 +        }
 +        const auto hull=manual_aim::hull(plane);
-+        if(hadSection)
-+        {
-+            // Union both contours' actual vertex angles. Each constructed
-+            // cross-section retains every original hull corner, even a 50 m
-+            // broadside tilted a few degrees inside a very thin section.
-+            const auto angles=manual_aim::angularEvents(previousHull,hull,kAimSides);
-+            auto point=[&](const std::vector<manual_aim::Point> &h,const CVECTOR &c,float angle)
-+            {const auto p=manual_aim::boundary(h,{0.f,0.f},angle);return c+lateral*p.x+up*p.y;};
-+            for(size_t side=0;side<angles.size();++side)
-+            {
-+                const size_t next=(side+1)%angles.size();
-+                const CVECTOR a=point(previousHull,previousCenter,angles[side]);
-+                const CVECTOR b=point(previousHull,previousCenter,angles[next]);
-+                const CVECTOR c=point(hull,center,angles[side]);
-+                const CVECTOR d=point(hull,center,angles[next]);
-+                const float nearFade=std::clamp((center-camera).GetLength()/2.f,0.f,1.f);
-+                const float alpha=opacity*nearFade*(1.f-.65f*u);
-+                AimTriangle(volume,a,c,d,alpha);
-+                AimTriangle(volume,a,d,b,alpha);
-+            }
-+        }
-+        previousHull=hull;previousCenter=center;hadSection=true;
++        sections.push_back({station,center,hull});
 +    }
-+    AimDraw(volume,"ShipAimVolume",camera);
-+
-+    // Project each connected impact footprint onto its real receiver along
-+    // incoming trajectories. Vertical hulls use their own normal, not XZ.
-+    // Separate receivers cannot produce triangles spanning ship/water/cliff gaps.
-+    std::vector<AimVertex> footprint;
-+    for(int surface=0;surface<=int(world.models.size());++surface)
++#ifdef STORM_METAL_AIM_VOLUME_BRIDGE
++    // These are analytic section boundaries, not renderable alpha walls.
++    // Preserve every true hull-edge normal in adjacent slabs, including the
++    // tilted thin broadside cases that fixed angular planes would inflate.
++    namespace gpu=storm::sea_ai::manual_aim;
++    std::vector<gpu::AimVolumeSection> densitySections;
++    std::vector<gpu::AimVolumePlane> densityPlanes;
++    bool densityValid=sections.size()>=2&&sections.size()<=gpu::maxVolumeSections;
++    for(size_t i=0;densityValid&&i<sections.size();++i)
 +    {
-+        std::vector<const AimPath *> contacts;
-+        for(const auto &path:paths)if(path.hit.surface==surface)contacts.push_back(&path);
-+        if(contacts.size()<3)continue;
-+        CVECTOR center(0.f),normal(0.f);
-+        for(auto *p:contacts){center+=p->hit.point;normal+=p->hit.normal;}
-+        center*=1.f/contacts.size();
-+        normal=~normal>1e-8f?!normal:CVECTOR(0.f,1.f,0.f);
-+        CVECTOR right=normal^axis;
-+        if(~right<1e-8f)right=normal^CVECTOR(0.f,1.f,0.f);
-+        if(~right<1e-8f)right=CVECTOR(1.f,0.f,0.f);right=!right;
-+        const CVECTOR forward=!(right^normal);
-+        std::vector<manual_aim::Point> projected;
-+        float radius=.1f;
-+        for(auto *p:contacts)
-+        {const CVECTOR d=p->hit.point-center;projected.push_back({d|right,d|forward});radius=std::max(radius,d.GetLength());}
-+        const auto hull=manual_aim::hull(projected);
-+        if(hull.size()<3)continue;
-+        constexpr int rings=4;
-+        const auto angles=manual_aim::angularEvents(hull,{},24);
-+        const size_t sides=angles.size();
-+        std::vector<std::vector<AimHit>> grid(rings+1,std::vector<AimHit>(sides));
-+        const float reach=std::max(2.f,std::min(radius*2.f,80.f));
-+        for(int r=0;r<=rings;++r)
-+            for(size_t side=0;side<sides;++side)
-+            {
-+                const auto p=manual_aim::boundary(hull,{0.f,0.f},angles[side]);
-+                const CVECTOR seed=center+(right*p.x+forward*p.y)*(float(r)/rings);
-+                grid[r][side]=world.trace(seed+normal*reach,seed-normal*reach,surface);
-+            }
-+        auto triangle=[&](const AimHit &a,const AimHit &b,const AimHit &c,float alpha)
++        const auto &section=sections[i];gpu::AimVolumeSection record{};
++        record.center[0]=section.center.x;record.center[1]=section.center.y;record.center[2]=section.center.z;
++        record.progress=std::clamp((section.station-first)/std::max(.01f,last-first),0.f,1.f);
++        record.firstPlane=uint32_t(densityPlanes.size());
++        for(const auto &point:section.hull)
++        {record.halfWidth=std::max(record.halfWidth,std::fabs(point.x)+.025f);record.halfHeight=std::max(record.halfHeight,std::fabs(point.y)+.025f);}
++        if(i+1<sections.size())
 +        {
-+            if(!a.valid||!b.valid||!c.valid||a.surface!=b.surface||a.surface!=c.surface)return;
-+            if((a.normal|b.normal)<.45f||(a.normal|c.normal)<.45f||(b.normal|c.normal)<.45f)return;
-+            // Reject discontinuities rather than drawing long chords across empty space.
-+            const float maxEdge=std::max(1.f,radius*.65f);
-+            if((a.point-b.point).GetLength()>maxEdge||(a.point-c.point).GetLength()>maxEdge||(b.point-c.point).GetLength()>maxEdge)return;
-+            AimTriangle(footprint,a.point+a.normal*kAimSurfaceLift,b.point+b.normal*kAimSurfaceLift,
-+                        c.point+c.normal*kAimSurfaceLift,alpha);
-+        };
-+        for(int r=1;r<=rings;++r)
-+            for(size_t side=0;side<sides;++side)
-+            {
-+                const size_t next=(side+1)%sides;
-+                const float alpha=.11f*(1.f-.65f*float(r)/rings);
-+                triangle(grid[r-1][side],grid[r][side],grid[r][next],alpha);
-+                triangle(grid[r-1][side],grid[r][next],grid[r-1][next],alpha);
-+            }
++            const float midpoint=(section.station+sections[i+1].station)*.5f;
++            const bool occupied=std::any_of(paths.begin(),paths.end(),[&](const AimPath &path)
++            {return !manual_aim::planeTimes(path.curve,axis,midpoint,path.end).empty();});
++            // Zero planes explicitly mean zero density, never an unbounded slab.
++            // Keep empty intervals empty even when no regular station fell in them.
++            if(!occupied){densitySections.push_back(record);continue;}
++            const auto planes=manual_aim::slabPlanes(section.hull,sections[i+1].hull);
++            if(planes.empty()||planes.size()>gpu::maxVolumePlanesPerSlab){densityValid=false;break;}
++            record.planeCount=uint32_t(planes.size());
++            for(const auto &plane:planes)
++                densityPlanes.push_back({plane.x,plane.y,plane.offset0,plane.offset1});
++        }
++        densitySections.push_back(record);
++    }
++    densityValid=densityValid&&densityPlanes.size()<=gpu::maxVolumePlanes;
++    if(densityValid)
++    {
++        const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
++            uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
++            &axis.x,&lateral.x,&up.x,ready?1.f:.55f);
++        if(!drawn)
++        {
++            static bool reported=false;
++            if(!reported){core.Trace("Manual aim: soft-volume renderer unavailable; no polygon-wall fallback");reported=true;}
++        }
++    }
++    else
++    {
++        static bool reported=false;
++        if(!reported){core.Trace("Manual aim: density section/plane limits exceeded; no polygon-wall fallback");reported=true;}
++    }
++#endif
++
++    // One continuous weight field for the complete corridor, shared by every
++    // receiver and every projector. This is distance to the actual loft contour,
++    // not a grid-cell edge, a triangle edge or a separate gun's angular square.
++    auto contourDistance=[&](const CorridorSection &section,const CVECTOR &worldPoint)
++    {
++        const CVECTOR delta=worldPoint-section.center;
++        const manual_aim::Point p{delta|lateral,delta|up};
++        float best=1e20f;
++        for(size_t i=0;i<section.hull.size();++i)
++        {
++            const auto a=section.hull[i],b=section.hull[(i+1)%section.hull.size()];
++            const float x=b.x-a.x,y=b.y-a.y,length=x*x+y*y;
++            const float t=length>1e-12f?std::clamp(((p.x-a.x)*x+(p.y-a.y)*y)/length,0.f,1.f):0.f;
++            const float dx=p.x-a.x-t*x,dy=p.y-a.y-t*y;
++            best=std::min(best,std::sqrt(dx*dx+dy*dy));
++        }
++        return best;
++    };
++    for(auto &vertex:footprint)
++    {
++        if(sections.empty()){vertex.color&=0xFFFFFFu;continue;}
++        const float station=vertex.point|axis;
++        auto next=std::lower_bound(sections.begin(),sections.end(),station,
++            [](const CorridorSection &section,float value){return section.station<value;});
++        float distance;
++        if(next==sections.begin())distance=contourDistance(*next,vertex.point);
++        else if(next==sections.end())distance=contourDistance(sections.back(),vertex.point);
++        else
++        {
++            const auto &a=*(next-1),&b=*next;
++            const float t=std::clamp((station-a.station)/std::max(.001f,b.station-a.station),0.f,1.f);
++            distance=contourDistance(a,vertex.point)*(1.f-t)+contourDistance(b,vertex.point)*t;
++        }
++        const float width=.25f+(vertex.point-camera).GetLength()*.002f;
++        const float rim=std::exp(-distance*distance/(width*width));
++        const float alpha=(.04f+.14f*rim)*layerScale*(ready?1.f:.65f);
++        vertex.color=AimColor(alpha,vertex.color);
 +    }
 +    AimDraw(footprint,"ShipAimFootprint",camera);
 +}
@@ -778,10 +1111,10 @@ index 468151c..fec5817 100644
 +};
 diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
 new file mode 100644
-index 0000000..22a452d
+index 0000000..90712e8
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,268 @@
 +#pragma once
 +#include "c_vector.h"
 +#include <algorithm>
@@ -805,6 +1138,24 @@ index 0000000..22a452d
 +    const double c = r2 + double(d.y)*d.y;
 +    return finite(from) && finite(to) && std::isfinite(speed) && std::isfinite(gravity) && speed > 0.f && gravity > 0.f && r2 > 1e-8 &&
 +           b < 0.0 && b*b - double(gravity)*gravity*c >= 0.0;
++}
++inline float maximumRangeElevation(float height,float speed,float minAngle,float maxAngle,float gravity)
++{
++    const float optimum=std::atan2(speed,std::sqrt(speed*speed+2.f*gravity*std::max(0.f,height)));
++    return std::clamp(optimum,minAngle,maxAngle);
++}
++inline bool farRayLimit(const CVECTOR &camera,const CVECTOR &muzzle,const CVECTOR &flatDirection,
++                        float muzzleRange,float &limit)
++{
++    const CVECTOR offset(camera.x-muzzle.x,0.f,camera.z-muzzle.z);
++    const double along=offset|flatDirection;
++    const double perpendicular=std::max(0.0,double(~offset)-along*along);
++    const double discriminant=double(muzzleRange)*muzzleRange-perpendicular;
++    if(!finite(camera)||!finite(muzzle)||!finite(flatDirection)||!std::isfinite(muzzleRange)||
++       muzzleRange<=0.f||discriminant<0.0)return false;
++    const double far=-along+std::sqrt(discriminant);
++    if(!std::isfinite(far)||far<=0.0)return false;
++    limit=std::min(limit,float(far));return true;
 +}
 +struct Trajectory
 +{
@@ -833,6 +1184,65 @@ index 0000000..22a452d
 +    return {muzzle, forward*vx+CVECTOR(0.f,vy,0.f),
 +            forward*(-gravity*B)+CVECTOR(0.f,-gravity*C,0.f)};
 +}
++template<class Hit> struct MarchResult { float end; Hit hit; };
++// Preview callers supply a pure nearest-receiver query. A missed hull sample
++// continues along this SAME trajectory; it is not reprojected along a normal.
++template<class Trace>
++auto firstContact(const Trajectory &curve,float limit,int steps,Trace trace)
++{
++    using Hit=decltype(trace(curve.origin,curve.origin));
++    MarchResult<Hit> result{0.f,{}};
++    if(!std::isfinite(limit)||limit<=0.f||steps<=0)return result;
++    CVECTOR previous=curve.origin;
++    for(int i=1;i<=steps;++i)
++    {
++        const float t=limit*float(i)/steps;
++        const CVECTOR next=curve.at(t);
++        const Hit hit=trace(previous,next);
++        if(hit.valid)
++            return MarchResult<Hit>{limit*(float(i-1)+hit.fraction)/steps,hit};
++        previous=next;
++    }
++    return MarchResult<Hit>{limit,{}};
++}
++inline float corridorOpacity(float progress,bool ready)
++{
++    const float u=std::clamp(progress,0.f,1.f);
++    return (.009f+.036f*u)*(ready?1.f:.55f);
++}
++// Independent optional budgets: refining one contact cell never consumes a
++// later cell's required coverage. Mandatory shared samples are reserved first.
++template<size_t Cells> struct ContactBudget
++{
++    std::array<int,Cells> detail{},patch{};
++    bool take(int cell,bool localPatch)
++    {
++        if(cell<0)return true;
++        if(size_t(cell)>=Cells)return false;
++        auto &used=localPatch?patch[cell]:detail[cell];
++        const int limit=localPatch?8:16;
++        if(used>=limit)return false;
++        ++used;return true;
++    }
++    int remaining(int cell) const
++    {return cell>=0&&size_t(cell)<Cells?16-detail[cell]:0;}
++};
++// A detected receiver surrounded by another receiver needs a small local patch,
++// not an all-or-nothing mixed triangle. All emitted vertices are real contacts.
++template<class Vertex,class Sample,class Emit>
++void contactPatch(const Vertex &center,float du,float dv,Sample sample,Emit emit)
++{
++    if(!center.hit.valid||du<=0.f||dv<=0.f)return;
++    const std::array<Vertex,4> ring{{sample(center.yaw+du,center.elevation),
++        sample(center.yaw,center.elevation+dv),sample(center.yaw-du,center.elevation),
++        sample(center.yaw,center.elevation-dv)}};
++    for(size_t i=0;i<ring.size();++i)
++    {
++        const auto &a=ring[i],&b=ring[(i+1)%ring.size()];
++        if(a.hit.valid&&b.hit.valid&&a.hit.surface==center.hit.surface&&b.hit.surface==center.hit.surface)
++            emit(center,a,b);
++    }
++}
 +struct Point { float x,y; };
 +inline float cross(Point a,Point b,Point c)
 +{ return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x); }
@@ -846,6 +1256,39 @@ index 0000000..22a452d
 +    const size_t lower=k;
 +    for(size_t i=p.size()-1;i-->0;){while(k>lower&&cross(h[k-2],h[k-1],p[i])<=0.f)--k;h[k++]=p[i];}
 +    h.resize(k-1);return h;
++}
++struct SlabPlane {float x,y,offset0,offset1;};
++inline std::vector<SlabPlane> slabPlanes(const std::vector<Point> &a,const std::vector<Point> &b)
++{
++    std::vector<Point> directions;
++    auto add=[&](float x,float y)
++    {
++        const float length=std::sqrt(x*x+y*y);if(length<1e-8f)return;
++        x/=length;y/=length;
++        for(const auto &n:directions)if(n.x*x+n.y*y>1.f-1e-7f)return;
++        directions.push_back({x,y});
++    };
++    for(const auto *h:{&a,&b})
++    {
++        if(h->size()>=3)
++            for(size_t i=0;i<h->size();++i)
++            {const auto p=(*h)[i],q=(*h)[(i+1)%h->size()];add(q.y-p.y,p.x-q.x);}
++        else if(h->size()==2)
++        {
++            const float x=(*h)[1].x-(*h)[0].x,y=(*h)[1].y-(*h)[0].y;
++            add(x,y);add(-x,-y);add(y,-x);add(-y,x);
++        }
++        else {add(1.f,0.f);add(-1.f,0.f);add(0.f,1.f);add(0.f,-1.f);}
++    }
++    auto support=[](const std::vector<Point> &h,Point n)
++    {
++        float value=-1e20f;for(const auto &p:h)value=std::max(value,n.x*p.x+n.y*p.y);
++        return value+(h.size()<3?.025f:0.f);
++    };
++    std::vector<SlabPlane> planes;
++    if(a.empty()||b.empty())return planes;
++    for(Point n:directions)planes.push_back({n.x,n.y,support(a,n),support(b,n)});
++    return planes;
 +}
 +// Fixed angular sampling of a convex contour: no dependence on locator ordering,
 +// no corner-index swapping, and the same winding on either broadside.
@@ -940,18 +1383,58 @@ index 0000000..22a452d
 +    return true;
 +}
 +} // namespace manual_aim
+diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
+new file mode 100644
+index 0000000..e6fbd24
+--- /dev/null
++++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
+@@ -0,0 +1,32 @@
++#pragma once
++#include <cstdint>
++
++namespace storm::sea_ai::manual_aim
++{
++inline constexpr std::uint32_t maxVolumeSections=1024;
++inline constexpr std::uint32_t maxVolumePlanesPerSlab=256;
++inline constexpr std::uint32_t maxVolumePlanes=65536;
++
++// Absolute world centers; the backend applies its current camera-relative
++// world origin once. x/y planes are in the supplied lateral/up basis.
++// Section i owns the exact side half-planes of slab i -> i+1. Last count is0.
++// An internal zero planeCount explicitly marks an empty, zero-density slab.
++struct alignas(16) AimVolumeSection
++{
++    float center[3];
++    float progress;
++    std::uint32_t firstPlane,planeCount;
++    float halfWidth,halfHeight;
++};
++struct alignas(16) AimVolumePlane
++{
++    float x,y,offset0,offset1;
++};
++static_assert(sizeof(AimVolumeSection)==32 && alignof(AimVolumeSection)==16);
++static_assert(sizeof(AimVolumePlane)==16 && alignof(AimVolumePlane)==16);
++}
++
++extern "C" bool StormMetalDrawAimVolume(void *device,
++    const storm::sea_ai::manual_aim::AimVolumeSection *sections,std::uint32_t sectionCount,
++    const storm::sea_ai::manual_aim::AimVolumePlane *planes,std::uint32_t planeCount,
++    const float *axis,const float *lateral,const float *up,float readiness);
 diff --git a/src/techniques/_dev/ship.fx b/src/techniques/_dev/ship.fx
-index 76a5b74..cb0c284 100644
+index 76a5b74..d1f42c4 100644
 --- a/src/techniques/_dev/ship.fx
 +++ b/src/techniques/_dev/ship.fx
-@@ -17,3 +17,44 @@ technique ShipCannonAngles
+@@ -17,3 +17,48 @@ technique ShipCannonAngles
          ColorOp[1] = disable;
      }
  }
 +
-+// World-space alpha-blended aim geometry. Explicit depth state is required:
++// Surface-only alpha-blended aim contacts. Volume is a dedicated Metal density pass.
++// Explicit depth state is required:
 +// inherited HUD state is not a reliable occlusion contract.
-+technique ShipAimVolume
++
++technique ShipAimFootprint
 +{
 +    pass p0
 +    {
@@ -970,11 +1453,13 @@ index 76a5b74..cb0c284 100644
 +        ColorOp[1] = disable;
 +    }
 +}
-+technique ShipAimFootprint
++
++// Subtle centered orientation plus; explicit user request. No range/status HUD.
++technique ShipAimReticle
 +{
 +    pass p0
 +    {
-+        ZEnable = true;
++        ZEnable = false;
 +        ZWriteEnable = false;
 +        Lighting = false;
 +        CullMode = none;
