@@ -59,3 +59,29 @@ diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device
      if (bPostProcessError)
          return;
      if (!bSeaEffect && !bPostProcessEnabled)
+diff --git a/src/libs/particles/src/k2_wrapper/particles.cpp b/src/libs/particles/src/k2_wrapper/particles.cpp
+--- a/src/libs/particles/src/k2_wrapper/particles.cpp
++++ b/src/libs/particles/src/k2_wrapper/particles.cpp
+@@ -8,6 +8,10 @@
+ #include "string_compare.hpp"
+ #include "shared/messages.h"
+
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++extern "C" void D3DPERF_SetMarker(uint32_t color, const wchar_t *name);
++#endif
++
+ PARTICLES::PARTICLES()
+ {
+     bSystemDelete = false;
+@@ -277,5 +281,11 @@
+ void PARTICLES::Realize(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++    // Sea actors have finished. Resolve their shadows before alpha smoke/fire:
++    // applying per-channel light removal later also recolors the blended effects.
++    // The backend keeps reflection targets and already-resolved frames untouched.
++    D3DPERF_SetMarker(0, L"Storm.SceneEffectsBoundary");
++#endif
+     bSystemDelete = true;
+     const float fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
+     pManager->Execute(fDeltaTime);

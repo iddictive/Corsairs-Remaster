@@ -155,8 +155,8 @@
 +            for (const auto& entry : location->supervisor.character)
 +                if (entry.c && entry.c->IsPlayer()) { entry.c->GetPosition(focus); break; }
 +            const float center[] = {focus.x, focus.y, focus.z};
-+            const char* type = locationAttributes ? locationAttributes->GetAttribute("type") : nullptr;
-+            const char* image = locationAttributes ? locationAttributes->GetAttribute("image") : nullptr;
++            const char* type = locationAttributes ? static_cast<const char *>(locationAttributes->GetAttribute("type")) : nullptr;
++            const char* image = locationAttributes ? static_cast<const char *>(locationAttributes->GetAttribute("image")) : nullptr;
 +            const bool isOutsideImage = image && std::strstr(image, "outside");
 +            const bool outdoor = isOutsideImage || (type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore") || !std::strcmp(type,"seashore") || !std::strcmp(type,"land") || !std::strcmp(type,"mayak") || !std::strcmp(type,"plantation") || !std::strcmp(type,"fort") || !std::strcmp(type,"fort_attack") || !std::strcmp(type,"teno") || !std::strcmp(type,"LostShipsCity") || !std::strcmp(type,"deck") || !std::strcmp(type,"deck_fight") || !std::strcmp(type,"slave_deck")));
 +            StormMetalLandInterior(device, !outdoor);

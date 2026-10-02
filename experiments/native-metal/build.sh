@@ -150,7 +150,8 @@ print('Full configure log: ' + sys.argv[1], file=sys.stderr)
 PY
  exit 1
 }
- cmake --build "$root/.cache/build" --target engine dev-telemetry-probe audio-voice-policy-probe fvf44_two_uv-probe shadow_quality-probe shadow_quality_gpu-probe fxaa-probe texture-loader-mip-probe alpha_sampler-probe anti_tiling_gpu-probe anti_tiling_policy-probe sea_point_shadow-probe sea_point_shadow_gpu-probe ffp_lighting_gpu-probe lighting-scene-probe metal-probe sea-probe particles-caustic-probe land_shader-probe postprocess-probe stars-probe ffp_generated-probe depth_water-probe water_camera-probe lighting-probe outdoor_lighting-probe outdoor_point_shadow-probe cinematic-probe cinematic_postfx-probe scene_hud_boundary-probe menu_unlit_native-probe dynamic_sky-probe dynamic_sky_backend-probe frame-arena-probe frame-flight-probe ffp-persistent-cache-probe ambient-occlusion-gpu-probe volumetric-light-shafts-gpu-probe shadow-probe weapon-probe indexed-probe native_legacy3d-probe indexed_span_frame_cache-probe progressive_shadow_softness-probe timing-probe frame-limiter-probe dynamic_lighting-probe character_contact-probe ffp_frame_cache-probe island-pn-probe gpu-skinning-parity-probe gpu-skinning-offscreen-probe light-shaft-apertures-probe -j 10 > "$root/.cache/build.log" 2>&1 || {
+# Normal staging needs the engine only; diagnostic probes remain explicit CMake targets.
+cmake --build "$root/.cache/build" --target engine -j 10 > "$root/.cache/build.log" 2>&1 || {
  rg 'error:|FAILED:|undefined|Undefined|ld:' "$root/.cache/build.log" >&2 || true
  exit 1
 }

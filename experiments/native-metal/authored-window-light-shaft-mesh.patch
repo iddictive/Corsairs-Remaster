@@ -15,7 +15,7 @@ diff --git a/src/libs/location/src/location.cpp b/src/libs/location/src/location
  float fCausticSpeed = 0.0f;
  
 +#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
-+extern "C" void StormMetalBeginLightShaftOpenings(void *);
++extern "C" void StormMetalResetLightShaftOpenings(void *);
 +extern "C" bool StormMetalLightShaftMesh(void *, uint64_t, const float *, uint32_t, const uint16_t *, uint32_t);
 +
 +namespace
@@ -87,7 +87,7 @@ diff --git a/src/libs/location/src/location.cpp b/src/libs/location/src/location
      if (!rs)
          throw std::runtime_error("No service: dx9render");
 +#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
-+    StormMetalBeginLightShaftOpenings(rs->GetD3DDevice());
++    StormMetalResetLightShaftOpenings(rs->GetD3DDevice());
 +#endif
      rs->SetRenderState(D3DRS_LIGHTING, FALSE);
 @@ -306,5 +371,8 @@ uint64_t Location::ProcessMessage(MESSAGE &message)
@@ -95,7 +95,7 @@ diff --git a/src/libs/location/src/location.cpp b/src/libs/location/src/location
          model.modelspath = message.String();
          model.UpdateModelsPath();
 +#ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
-+        StormMetalBeginLightShaftOpenings(rs->GetD3DDevice());
++        StormMetalResetLightShaftOpenings(rs->GetD3DDevice());
 +#endif
  
          core.Send_Message(lighter, "ss", "ModelsPath", model.modelspath.c_str());

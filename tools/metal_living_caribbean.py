@@ -297,7 +297,8 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
 # 6. AIShip.c (Sea Surrender & Treachery)
 # ---------------------------------------------------------------------------
 AI_SHIP_PATH = "PROGRAM/sea_ai/AIShip.c"
-AI_SHIP_BASE = "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449"
+# The captain-journal layer is composed before this Metal-only layer.
+AI_SHIP_BASE = "7f11bdbee50e66ca5a9ac8156790ebce6b4bd78689f02743597dd83ddc2a7b24"
 
 AI_SURRENDER_CHECK_OLD = enc("""					int   SailsPercent    = sti(rCharacter.Ship.SP);
 			        float HPPercent       = GetHullPercent(rCharacter);
@@ -1041,12 +1042,12 @@ UPDATED = {
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
     "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
-    "PROGRAM/sea_ai/AIShip.c": "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
+    "PROGRAM/sea_ai/AIShip.c": "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
     "PROGRAM/scripts/ShipsUtilites.c": "d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",
-    "PROGRAM/dialogs/russian/Smuggler Agent_dialog.c": "d1ad03fde16ed7833418ba2de733b95f8ec84788b2571e90e4e549ab9a65aa42",
-    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939",
+    "PROGRAM/dialogs/russian/Smuggler Agent_dialog.c": "792bd47d3cfc62a753f1964134fae93e1bc02ac3961992215fcd36bdf2d556e9",
+    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "80cf486fcdf48ea82f4ca27ddda197020e3f9ec496fb787474edc58344583914",
     "PROGRAM/battle_interface/utils.c": "14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b",
     "PROGRAM/battle_interface/BattleInterface.c": "fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d",
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
@@ -1056,6 +1057,18 @@ UPDATED = {
     "RESOURCE/INI/interfaces/ship.ini": "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa",
     "PROGRAM/worldmap/worldmap_globals.c": "bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe",
     "PROGRAM/worldmap/worldmap_reload.c": "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1",
+}
+
+
+# Previously reviewed installed revisions may be upgraded, but are never used
+# as layer inputs: always compose from the current journal-enabled baseline.
+PREVIOUS = {
+    AI_SHIP_PATH: {
+        "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",
+        "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
+    },
+    SMG_AGENT_PATH: {"d1ad03fde16ed7833418ba2de733b95f8ec84788b2571e90e4e549ab9a65aa42"},
+    SMG_SHORE_PATH: {"aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939"},
 }
 
 
@@ -1069,5 +1082,6 @@ def prepare(relative: str, data: bytes) -> bytes:
     if curr_hash != base_hash:
         raise RuntimeError(f"unrecognized base for {relative}: {curr_hash} != {base_hash}")
     result = fn(data)
-    UPDATED[relative] = digest(result)
+    if digest(result) != UPDATED[relative]:
+        raise RuntimeError(f"unreviewed living Caribbean output: {relative}")
     return result

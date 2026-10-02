@@ -84,7 +84,7 @@ diff --git a/src/libs/weather/src/stars.cpp b/src/libs/weather/src/stars.cpp
              pVColors[i] = (dwAlpha << 24L) | s.dwColor;
 +#ifdef STORM_METAL_RENDERER_CONSUMERS
 +            auto &r = aMetalStarRects[i];
-+            r.vPos = fRadius * s.vPos;
++            r.vPos = vCamPos + fRadius * s.vPos;
 +            r.fSize = fSize;
 +            r.fAngle = 0.0f;
 +            r.dwColor = (dwAlpha << 24L) | s.dwColor;

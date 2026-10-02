@@ -35,9 +35,10 @@ diff --git a/src/libs/rigging/src/sail.h b/src/libs/rigging/src/sail.h
          return gdata[LastTraceGroup].shipEI;
      }
 diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
+index 548b171..f4e9e08 100644
 --- a/src/libs/rigging/src/sailone.cpp
 +++ b/src/libs/rigging/src/sailone.cpp
-@@ -1774,6 +1774,50 @@
+@@ -1774,10 +1774,65 @@ void SAILONE::CalculateSailWind()
      }
  }
 
@@ -88,9 +89,22 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
  float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst,
                                bool bCannonTrace)
  {
-@@ -1796,15 +1840,38 @@
-     if (dstDist == 0.f)
-         return 1.f;
+     auto retVal = 2.f;
++    // Radius contacts must commit the same hole state as legacy triangle hits
++    // before DoSailHole. Returning only a fraction loses cumulative damage.
++    const auto acceptHit = [this, i, bCannonTrace](float fraction)
++    {
++        if (fraction <= 1.f && bCannonTrace && !ss.hole[i])
++        {
++            ss.hole[i] = true;
++            ss.holeCount++;
++        }
++        return fraction;
++    };
+
+     const auto d1 = vb - va;
+     const auto d2 = vc - va;
+@@ -1798,6 +1853,19 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
 
      if ((srcDist < 0.f) ^ (dstDist < 0.f))
          retVal = srcDist / (srcDist - dstDist);
@@ -104,13 +118,13 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
 +        if (BallClothDistSq(vsrc, va, vb, vc) <= fR2)
 +            return 2.f;
 +        if (BallClothDistSq(vdst, va, vb, vc) <= fR2)
-+            return 1.f;
++            return acceptHit(1.f);
 +        return 2.f;
 +    }
      else
          return 2.f;
 
-     // checking if the intersection point is in the triangle
+@@ -1805,6 +1873,16 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
      if (retVal <= 1.f)
      {
          const CVECTOR cv = vsrc + (vdst - vsrc) * retVal;
@@ -122,11 +136,27 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
 +        {
 +            const float fR2 = pp->fCannonRadius * pp->fCannonRadius;
 +            if (BallClothDistSq(cv, va, vb, vc) <= fR2)
-+                return retVal;
++                return acceptHit(retVal);
 +        }
          const CVECTOR vab = vb - va;
          const CVECTOR vbc = vc - vb;
          const CVECTOR vca = va - vc;
+@@ -1891,14 +1969,7 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
+         //----------------------------------------------
+     }
+
+-    // poke a hole in the sail
+-    if (retVal <= 1.f && !ss.hole[i] && bCannonTrace)
+-    {
+-        ss.hole[i] = true;
+-        ss.holeCount++;
+-    }
+-
+-    return retVal;
++    return acceptHit(retVal);
+ }
+
+ void SAILONE::DoSFreeSail(SAILVERTEX *pv)
 diff --git a/src/libs/ship/src/ship.h b/src/libs/ship/src/ship.h
 --- a/src/libs/ship/src/ship.h
 +++ b/src/libs/ship/src/ship.h
