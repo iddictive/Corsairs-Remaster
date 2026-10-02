@@ -1,46 +1,102 @@
-# Sea manual-aim overlay
+# Sea manual-aim envelope
 
 ## Status
 
-Source candidate, October 1. v4 patch trial-applies exact; build, stage and replay pending (game running).
+Local source candidate based on `4e9a09ab425dc8266131788067080bea7c8ad2bd`.
+Native Metal build, staging, performance measurement and in-game visual acceptance are pending.
+Static checks and numerical probes do not establish visual acceptance.
 
 ## Contract
 
-First-person deck aim shows where the crosshair ray lands: three honest trajectory arcs plus one dispersion ellipse floating over the impact surface.
+First-person deck camera controls the aim. One subtle, continuous world-space
+ballistic envelope spans the valid guns of the selected broadside. Its footprint
+is projected onto the actual moving water, hull or terrain receiver. No individual
+bright gun beams, center spine, distance ticks, extra stock reticle or floating
+horizontal ellipse are drawn.
 
-## Scope
-
-In scope: overlay arcs/ring/cross, the shared point-and-shoot target with Fire(), manual-fire bort-delta removal, reticle restore.
-
-Out of scope: projectile volume (docs/sea-cannon-ballistics.md), damage economy, AI fire (keeps the scripted scatter).
+The envelope is a sampled prediction of live dispersion, not a promise that every
+random shell will strike one point. Unsupported/unreachable manual solutions are
+excluded; a failed downward water pick never becomes a maximum-range sky shot.
 
 ## Owners
 
-- DrawManualAimOverlay, ManualAimTarget, AimMarchArc, EmitAimDrapeRing, AimDrapeY in src/libs/sea_ai/src/ai_ship_cannon_controller.cpp, via experiments/native-metal/cannon-trajectory-aim.patch.
-- Technique ShipAimArc in src/techniques/_dev/ship.fx (ShipAimVolume stays unused in fx after the tube kill).
-- Gunner scatter model: Ship_GetBortFireDelta in PROGRAM/sea_ai/AIShip.c (fAccuracy x Bring2Range grows to tens of meters at range; AI-only after v3).
-- Wave ceiling: fMaxSeaHeight in PROGRAM/weather/WhrSea.c (calm 0.5, normal 2.0).
+- `experiments/native-metal/cannon-trajectory-aim.patch` owns the engine edits
+- `BuildManualAimSolution` shares world target and gun eligibility between firing
+  and presentation in `src/libs/sea_ai/src/ai_ship_cannon_controller.cpp`
+- `manual_aim_geometry.hpp` owns deterministic trajectory/contour math
+- `AIShipCameraController::Fire` gets the actual selected character from the firing
+  solution; the obsolete per-fort-cannon HUD targeting loop is skipped for the player
+- `ShipAimVolume` and `ShipAimFootprint` in `src/techniques/_dev/ship.fx` explicitly
+  enable depth testing and disable depth writes
 
-## Acceptance criteria
+## Correctness changes
 
-- Aiming at water shows a visible ellipse at the splash point in normal weather; aiming at a ship shows arcs ending on it plus a small ring; aiming at terrain shows one clean ellipse above the slope; close range shows short arcs with no screen-filling sheets.
-- Must not: fill sheets, per-vertex ring chords through terrain, sea markers below 1 m, any random offset between the crosshair and the manual-fire impact.
+- Camera surface picking uses the available broadside range independently of camera
+  pitch. Gun reach, elevation and traverse are checked afterward at every real muzzle
+- World queries use pure collision traces with per-model AABB rejection. Island
+  receivers come from `ISLAND_TRACE`, including extra location models and seabed
+- Sea queries sample `WaveXZ`, refine the first crossing, and detect an initially
+  submerged muzzle. Preview queries never call damage-producing `Cannon_Trace`
+- Flight follows the actual RawAng/HeightMultiply transform. Jittered trajectories
+  continue until real contact, rather than being snapped to the nominal target
+- Every eligible gun supplies a trajectory. Spatial support guns add all eight
+  independent yaw/elevation/speed jitter corners; array order does not pick the battery ends
+- Cross-sections intersect trajectories at common downrange planes. Contours have
+  consistent ordering and winding, retaining the exact hull corners even for a
+  long, thin, rolled gun line. Reversed/turning station intersections are retained
+- Footprints are projected onto each exact receiver along its local contact normal,
+  with a 3.5 cm lift. Disconnected receivers and sharp discontinuities are not bridged
+- Expensive dispersion traces are limited to at most four spatial support guns;
+  footprints use four radial rings with 24 regular angular samples plus every
+  actual convex-hull corner per contacted receiver
 
-## Discovery and evidence owners
+## Preserved gameplay and inherited limitations
 
-Read the overlay block in ai_ship_cannon_controller.cpp, Ship_GetBortFireDelta and the WhrSea.c wave heights before editing. Falsifier: git apply --check --whitespace=nowarn against the reversed base plus a staged sea replay (water/ship/shore/close-range).
+Projectile updates, damage, ammunition scripts, AI fire and save layout are unchanged.
+Reload timing and ammunition mechanics are preserved; an invalid manual attempt
+no longer clears the broadside charge when no gun fired. Published v3/v4 already suppressed the broadside-level random
+`SHIP_GET_BORT_FIRE_DELTA` offset for manual fire. That existing policy is preserved;
+per-ball random speed, direction and elevation remain active and are represented.
 
-## Rejected
+The shipped `AIBalls.c` compares the ammunition name with integer `GOOD_KNIPPELS`.
+The current engine converts nonnumeric names to zero, so both ordinary balls and
+knippels receive the catalogue's `HeightMultiply * 0.4`, despite the script's
+intended `0.65` branch. The preview mirrors that effective behavior and reads the
+live `Cannon` catalogue. Fixing the underlying script is a separate gameplay change.
 
-- Volumetric tube (v3): white highway at range, sheets plus stray lines close up; killed after 4 player screenshots, October 1.
-- Per-vertex draped ring (v3): chords sliced through cliffs (crooked cork); replaced by a max-sample raised-flat ring.
-- Sea marker 0.35 m (v2/v3): buried in normal 2.0 m chop, so no ring was visible on water or waterline ship locks; raised to 1.5 m.
-- Ribbon with a bright far end (v2): blob at impact; replaced first by the tube, then by bare arcs.
-- Deleted stock reticle (v2): out-of-sector aim showed nothing at all; reticle restored in v3.
-- Random bort-delta on manual fire: splashes landed tens of meters off the ring; removed (AI keeps it).
+This is a finite sampled envelope, not an exhaustive probabilistic bound. Static
+rigid-model receivers and waves are represented. Visual fidelity around animated
+sails, very sharp receiver transitions and camera-near geometry needs game replay.
 
-## Unresolved
+## Focused verification
 
-- Alleged left-bort asymmetry (no arc from the left bort): the code path is side-symmetric; needs a repro screenshot with reticle state and whether the guns fire.
-- Far-aim (horizon/sky) readability: arcs honestly run to max range; a pin marker is speculated, not built.
-- Heavy-storm ring wash: the 1.5 m marker can submerge past fMaxSeaHeight 2.0; accepted.
+After source staging has applied the ordered patch stack:
+
+```sh
+cd experiments/native-metal
+c++ -std=c++20 -O2 \
+  -I .cache/storm/src/libs/math/include \
+  -I .cache/storm/src/libs/shared_headers/include \
+  cannon_aim_geometry_probe.cpp -o /tmp/cannon-aim-geometry-probe
+/tmp/cannon-aim-geometry-probe
+```
+
+The small standalone probe covers the downward-camera regression, actual ballistic
+warp equivalence, reachability, dispersion lifetime, port/starboard symmetry,
+convex contours and segment bounds. It has no engine initialization or external
+test framework. The replacement patch must also trial-apply on the exact pre-aim
+source, with all subsequent ordered patches applying afterward.
+
+## Native acceptance still required
+
+Replay from the same first-person deck camera:
+
+1. Both broadsides, including reordered/damaged gun locators and multiple gun decks
+2. Close/downward water aim, level horizon and the maximum legal elevation
+3. A nearby hull, mast/rigging, coastline and steep shore, without floating discs
+4. Waves passing under the footprint and over low gun muzzles
+5. Actual volleys versus the predicted spread, for ordinary balls and current knippels
+6. Repeated reload/fire, unavailable sectors, sea-camera changes and unaffected AI fire
+7. Frame time near a heavily armed fort and with multiple visible ships
+
+Do not call this visually accepted until native frames and player replay confirm it.
