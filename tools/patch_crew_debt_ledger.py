@@ -364,6 +364,23 @@ void CrewDebt_RolloverCurrent()
 	CrewDebt_RebuildProjection();
 }
 
+bool CrewDebt_IsSuspendedEmployee(ref creditor)
+{
+	// Stored ships retain their captain and crew; only their squadron slot is freed.
+	if (CheckAttribute(creditor, "ShipInStockMan")) return true;
+	// The character's travel settings can exist before departure. Use the owned
+	// traveller registry, not the settings alone, as evidence of employment.
+	if (!CheckAttribute(pchar, "CompanionTravel")) return false;
+	aref travellers;
+	makearef(travellers, pchar.CompanionTravel);
+	for (int i = 0; i < GetAttributesNum(travellers); i++)
+	{
+		aref traveller = GetAttributeN(travellers, i);
+		if (CheckAttribute(traveller, "ID") && traveller.ID == creditor.id) return true;
+	}
+	return false;
+}
+
 bool CrewDebt_HasCurrentRoster()
 {
 	int i, cn;
@@ -384,6 +401,13 @@ bool CrewDebt_HasCurrentRoster()
 		if (!GetRemovable(crewRef)) continue;
 		if (CheckAttribute(crewRef, "prisoned") && sti(crewRef.prisoned) == true) continue;
 		return true;
+	}
+	// A temporarily detached captain/crew still owns its partition entitlement.
+	for (i = 0; i < MAX_CHARACTERS; i++)
+	{
+		crewRef = GetCharacter(i);
+		if (!GetRemovable(crewRef)) continue;
+		if (CrewDebt_IsSuspendedEmployee(crewRef)) return true;
 	}
 	return false;
 }
@@ -460,6 +484,7 @@ void CrewDebt_DismissCrew(ref shipOwner, int dismissedCount, int crewBefore)
 bool CrewDebt_IsStillEmployed(ref creditor)
 {
 	if (IsOfficer(creditor) || IsCompanion(creditor)) return true;
+	if (CrewDebt_IsSuspendedEmployee(creditor)) return true;
 	return FindFellowtravellers(pchar, creditor) != FELLOWTRAVEL_NO;
 }
 
@@ -714,7 +739,7 @@ FILES = (
     FilePatch(
         "PROGRAM/scripts/Crew.c",
         "025a0f41cf3cca142b5a7b5e3cb5aee5f6c1211e5832a9396d7e909b3000973e",
-        "072f41ae931d3c19946dab7aca5da9fa7f85c76e14aeebd8836c102a9230b490",
+        "27e4e530020a5c1d0254b6d46605c10b3a32d5180f415730add4f547e8cd4429",
         (
             (
                 "// boal новый учет зп <--",
@@ -1109,7 +1134,7 @@ command = upstep,select:PARTITION_REPUDIATE''',
     FilePatch(
         "PROGRAM/quests/quests.c",
         "bb05f09bd8faaec79639b1bafee4889c2add2a90b9be95ad121cb188d8fad6be",
-        "4e3bbd97bfad571c631c3dcf17b0e6783279d652c78915b4a6f9149ec4654bdc",
+        "bb11efff8be175bbf5777f5cb143b55a5bc08fb09de52ef455b3b109be345631",
         (
             (
                 '''\tSetEventHandler(EVENT_CHARACTER_DEAD,"CharacterDeadProcess",0);
@@ -1148,13 +1173,45 @@ void CrewDebtShipDeadProcess()
 \tint characterIndex = GetEventData();
 \tif (characterIndex < 0) return;
 \tref chref = GetCharacter(characterIndex);
-\t// A ShipEscape survivor has already left the companion roster before SHIP_DEAD.
-\tif (CheckOfficersPerk(chref, "ShipEscape") && GetRemovable(chref) && !IsCompanion(chref)) return;
+\t// Only the actual rescue branch can exempt a captain from this death event.
+\tif (CheckAttribute(chref, "CrewDebtShipEscaped"))
+\t{
+\t\tDeleteAttribute(chref, "CrewDebtShipEscaped");
+\t\treturn;
+\t}
 \tCrewDebt_OnCharacterDeath(chref);
 }
 
 //*****************************************************
 // Quest information utilite''',
+            ),
+        ),
+    ),
+    FilePatch(
+        "PROGRAM/scripts/CompanionTravel.c",
+        "311926e964fa10bc1cf121a162ac22f9d1139c2e3f387738bf7a253044fb645e",
+        "cd46314284606555cbb90c612162321fa8730fd53565296989ac07d4a0609fa0",
+        (
+            (
+                '''\tDeleteAttribute(PChar, "CompanionTravel."+sCompanion);
+\tif(WaitInColony)''',
+                '''\tDeleteAttribute(PChar, "CompanionTravel."+sCompanion);
+\t// The temporary assignment is now over, so its creditors really leave.
+\tCrewDebt_DismissCrew(rTraveller, GetCrewQuantity(rTraveller), GetCrewQuantity(rTraveller));
+\tif (WaitInColony)
+\t{
+\t\tCrewDebt_MarkNamedDismissed(rTraveller);
+\t}
+\telse
+\t{
+\t\t// A simulated voyage loss has no attacker; ignore an earlier battle's killer.
+\t\tDeleteAttribute(rTraveller, "Killer.Index");
+\t\tCrewDebt_OnCharacterDeath(rTraveller);
+\t}
+\t// Crew-less or unpaid captains can still own a partition entitlement.
+\tCrewDebt_MarkOrphanedPartitionDismissed();
+\tCrewDebt_RebuildProjection();
+\tif(WaitInColony)''',
             ),
         ),
     ),
@@ -1360,6 +1417,7 @@ def verify_static(patch_set: PatchSet) -> None:
             "activeCreditorCount = sti(debtEntry.CreditorCount);",
             "CrewDebt_ScheduleEmploymentCheck",
             "CrewDebt_IsStillEmployed",
+            "CrewDebt_IsSuspendedEmployee",
             "Crime_RecordNamedCreditorDeath(creditor, killerIndex);",
             "Crime_RecordDebtRepudiation(3);",
             "CrewDebt_IsNamedCreditor",
@@ -1397,9 +1455,17 @@ def verify_static(patch_set: PatchSet) -> None:
             'SetEventHandler("CrewDebtEmploymentCheck","CrewDebt_EmploymentCheck",0);',
             "CrewDebt_OnCharacterDeath(chref);",
             "CrewDebtShipDeadProcess",
+            'DeleteAttribute(chref, "CrewDebtShipEscaped");',
         ),
         "PROGRAM/dialogs/russian/Common_Tavern.c": (
             "CrewDebt_GetHiringBlockText();",
+        ),
+        "PROGRAM/scripts/CompanionTravel.c": (
+            "CrewDebt_DismissCrew(rTraveller, GetCrewQuantity(rTraveller), GetCrewQuantity(rTraveller));",
+            "CrewDebt_MarkNamedDismissed(rTraveller);",
+            'DeleteAttribute(rTraveller, "Killer.Index");',
+            "CrewDebt_OnCharacterDeath(rTraveller);",
+            "CrewDebt_MarkOrphanedPartitionDismissed();",
         ),
     }
     from runtime_script_patch import classify, transform

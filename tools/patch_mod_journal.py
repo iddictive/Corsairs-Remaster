@@ -15,10 +15,10 @@ PATHS = (
 )
 
 BASE_SHA256 = {
-    "PROGRAM/quests/quests.c": "4e3bbd97bfad571c631c3dcf17b0e6783279d652c78915b4a6f9149ec4654bdc",
+    "PROGRAM/quests/quests.c": "bb11efff8be175bbf5777f5cb143b55a5bc08fb09de52ef455b3b109be345631",
     "PROGRAM/scripts/custody.c": "26dffe1eaefa640f0f489db839bcc8f4ee486a9e35216771ddcf5693a802a558",
-    "PROGRAM/scripts/Crew.c": "072f41ae931d3c19946dab7aca5da9fa7f85c76e14aeebd8836c102a9230b490",
-    "PROGRAM/sea_ai/AIShip.c": "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
+    "PROGRAM/scripts/Crew.c": "27e4e530020a5c1d0254b6d46605c10b3a32d5180f415730add4f547e8cd4429",
+    "PROGRAM/sea_ai/AIShip.c": "b5bcee8a47c7456cf152dff45a01c210df1f06b48403a153eac80434e8c80803",
     "PROGRAM/seadogs.c": "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",
     "PROGRAM/QuestBook/QuestBook_New.txt": "381bd67437fcabb49abca3df8f5253b3113dec685d628d01933bf5b0610cc349",
 }
@@ -201,10 +201,10 @@ def transform_outputs(outputs: dict[str, bytes]) -> dict[str, bytes]:
 
 
 UPDATED_SHA256 = {
-    "PROGRAM/quests/quests.c": "9dddd1e68b627ba53451df039c17a224c70119d4d21381eb82c3dcc356f0ec3c",
+    "PROGRAM/quests/quests.c": "9b423e1e810613063198aafe9a9d3877f84f9cbb7e1e45184957b6d84de81307",
     "PROGRAM/scripts/custody.c": "86471b60239f60035271a4d033a341033f6a25e7c45d45714db3014b4a5b9ffe",
-    "PROGRAM/scripts/Crew.c": "07c1df47aac70ed0c0bc3cf4b01a6bd70564c3cd5e45b629e063d4cfabdae8d2",
-    "PROGRAM/sea_ai/AIShip.c": "7f11bdbee50e66ca5a9ac8156790ebce6b4bd78689f02743597dd83ddc2a7b24",
+    "PROGRAM/scripts/Crew.c": "5034b93a67232105915d6e3cc18460271fbd193f114904a5b93bd22f000c995f",
+    "PROGRAM/sea_ai/AIShip.c": "ff12aef66c491fbd5e57d20500ab0253096949f03e746bf92d7556f0e28fe356",
     "PROGRAM/seadogs.c": "cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050",
     "PROGRAM/QuestBook/QuestBook_New.txt": "0b44d01978f7bc69d1fecb95138a1e66bcf194295b6ae18915cd3272a860f3cf",
 }

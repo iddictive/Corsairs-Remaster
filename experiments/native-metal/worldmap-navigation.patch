@@ -1,0 +1,39 @@
+diff --git a/src/libs/worldmap/src/wdm_ship.cpp b/src/libs/worldmap/src/wdm_ship.cpp
+--- a/src/libs/worldmap/src/wdm_ship.cpp
++++ b/src/libs/worldmap/src/wdm_ship.cpp
+@@ -384,7 +384,8 @@
+             continue;
+         const float dx = wdmObjects->ships[i]->mtx.Pos().x - x;
+         const float dz = wdmObjects->ships[i]->mtx.Pos().z - z;
+-        if (dx * dx + dz * dz < wdmObjects->ships[i]->modelRadius2)
++        const float clearance = objRadius + wdmObjects->ships[i]->modelRadius;
++        if (dx * dx + dz * dz < clearance * clearance)
+             return false;
+     }
+     // Islands
+diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+--- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
++++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+@@ -91,7 +91,7 @@
+     {
+         dir.x = gotoPos.x - mtx.Pos().x;
+         dir.z = gotoPos.z - mtx.Pos().z;
+-        auto dl = dir.x * dir.x + dz * dz;
++        auto dl = dir.x * dir.x + dir.z * dir.z;
+         if (dl > 1.0f)
+         {
+             dl = 1.0f / sqrtf(dl);
+diff --git a/src/libs/worldmap/src/wdm_follow_ship.cpp b/src/libs/worldmap/src/wdm_follow_ship.cpp
+--- a/src/libs/worldmap/src/wdm_follow_ship.cpp
++++ b/src/libs/worldmap/src/wdm_follow_ship.cpp
+@@ -38,8 +38,8 @@
+     if (wdmObjects->playerShip)
+     {
+         // Determine the angle
+-        const double sn = wdmObjects->playerShip->mtx.Pos().x - mtx.Pos().x;
+-        double cs = wdmObjects->playerShip->mtx.Pos().z - mtx.Pos().z;
++        const double sn = wdmObjects->playerShip->mtx.Pos().x - x;
++        double cs = wdmObjects->playerShip->mtx.Pos().z - z;
+         const auto l = sn * sn + cs * cs;
+         if (l > 0.0)
+             cs /= sqrt(l);

@@ -31,7 +31,7 @@ PATCH = PatchSet(
         FilePatch(
             "PROGRAM/sea_ai/AIShip.c",
             "68bf42bb7974a43d436b8570aa0558f11f4cc07dd019e0f03ffd91e96a4f1f14",
-            "080bfba46b6486bce0917c04c2af407649d0a2dc3a548627ec8ab49cc1ef0f46",
+            "d2d0c10b09b2bf24ed168f01759d0ecc391e626c2e3c6852f32df155bd380a59",
             ((
                 "\t\t\t        else\n"
                 "\t\t\t        {\n"
@@ -41,7 +41,8 @@ PATCH = PatchSet(
                 "\t\t\t        {\n"
                 "\t\t\t            if (CheckAttribute(rCharacter, \"IslandShips\"))\n"
                 "\t\t\t            {\n"
-                "\t\t\t                SetCharacterRelationBoth(sti(rCharacter.index), GetMainCharacterIndex(), GetNationRelation2MainCharacter(sti(rCharacter.nation)));\n"
+                "\t\t\t                if (GetRelation(sti(rCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)\n"
+                "\t\t\t                    SetCharacterRelationBoth(sti(rCharacter.index), GetMainCharacterIndex(), GetNationRelation2MainCharacter(sti(rCharacter.nation)));\n"
                 "\t\t\t            }\n"
                 "\t\t\t            else\n"
                 "\t\t\t            {\n"

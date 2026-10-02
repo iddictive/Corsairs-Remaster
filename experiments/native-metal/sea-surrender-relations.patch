@@ -1,0 +1,55 @@
+--- a/src/libs/sea_ai/src/ai_helper.cpp
++++ b/src/libs/sea_ai/src/ai_helper.cpp
+@@ -114,6 +114,24 @@
+     return &pRelations[x + y * dwRelationSize];
+ }
+
++// SeaSurrender is the captor commander's character index. Apply it per ship,
++// not to the commander's cached fleet relation: wingmen can surrender separately.
++uint32_t AIHelper::GetEffectiveRelation(uint32_t x, uint32_t y) const
++{
++    if (x != y)
++    {
++        const auto surrenderedTo = [](ATTRIBUTES *ship, ATTRIBUTES *commander) {
++            return ship && commander && ship->GetAttributeClass("SeaSurrender") &&
++                   ship->GetAttributeAsDword("SeaSurrender", INVALID_ARRAY_INDEX) ==
++                       static_cast<uint32_t>(GetIndex(commander));
++        };
++        if (surrenderedTo(aCharacters[x], aMainCharacters[y]) ||
++            surrenderedTo(aCharacters[y], aMainCharacters[x]))
++            return RELATION_NEUTRAL;
++    }
++    return *GetRelation(x, y);
++}
++
+ uint32_t AIHelper::GetRelationSafe(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
+ {
+     Assert(pA1 && pA2);
+@@ -125,7 +143,7 @@
+     const auto dw2 = FindIndex(pA2);
+     if (dw2 == INVALID_ARRAY_INDEX)
+         return RELATION_NEUTRAL;
+-    return *GetRelation(dw1, dw2);
++    return GetEffectiveRelation(dw1, dw2);
+ }
+
+ uint32_t AIHelper::GetRelation(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
+@@ -135,7 +153,7 @@
+     Assert(dw1 != INVALID_ARRAY_INDEX);
+     const auto dw2 = FindIndex(pA2);
+     Assert(dw2 != INVALID_ARRAY_INDEX);
+-    return *GetRelation(dw1, dw2);
++    return GetEffectiveRelation(dw1, dw2);
+ }
+
+ bool AIHelper::isFriend(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
+--- a/src/libs/sea_ai/src/ai_helper.h
++++ b/src/libs/sea_ai/src/ai_helper.h
+@@ -68,6 +68,7 @@
+
+     uint32_t *GetRelation(uint32_t x, uint32_t y) const;
+     uint32_t FindIndex(ATTRIBUTES *pACharacter) const;
++    uint32_t GetEffectiveRelation(uint32_t x, uint32_t y) const;
+ };
+
+ extern AIHelper Helper;

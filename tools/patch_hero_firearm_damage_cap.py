@@ -9,8 +9,8 @@ PATH = "PROGRAM/Loc_ai/LAi_fightparams.c"
 FILES = (
     FilePatch(
         PATH,
-        "5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",
-        "0e5c671e97b2575586ee87379db027c0393689f1e60b242b5c9d215a7cf37f78",
+        "ec132e2de67b54fdc50480fa01fd12b2ab8eddca7612ee06a6691d024e079539",
+        "1d96b2fec71cc6666457b95221ddea2da963551f89d1365922142678378442ef",
         (
             (
                 '''\treturn dmg;

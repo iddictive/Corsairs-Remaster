@@ -153,6 +153,8 @@ void CrimeLand_CloseTarget(int targetIndex)
 
 void Crime_MarkPlayerIntent(ref target, string action)
 {
+	// Resolution belongs to the previous incident, not to this NPC forever.
+	DeleteAttribute(target, "Crime.ReportResolved");
 	target.Crime.PlayerIntent = action;
 	target.Crime.PlayerIntentDay = GetDataDay();
 	target.CrimeIntent.Dialog.AttackerIndex = GetMainCharacterIndex();
@@ -208,7 +210,7 @@ void CrimeLand_RecordDeath(ref attack, ref victim, int severity)
 	int nation = -1;
 	if (CheckAttribute(victim, "nation")) nation = sti(victim.nation);
 	bool witnessed = CrimeLand_HasExternalWitness(victim);
-	if (LAi_group_IsActivePlayerAlarm()) witnessed = true;
+	// The victim can raise a combat alarm alone; only another living NPC is evidence.
 	if (witnessed)
 	{
 		Crime_ApplyPublicConsequences(nation, severity, true);
@@ -247,6 +249,8 @@ void CrimeLand_ResolveLocation(string locationId)
 				if (CheckAttribute(target, "nation")) nation = sti(target.nation);
 				Crime_ApplyPublicConsequences(nation, 1, true);
 			}
+			// A surviving victim has finished this report, not every future incident.
+			if (!LAi_IsDead(target)) DeleteAttribute(target, "Crime.ReportResolved");
 			DeleteAttribute(target, "Crime.PlayerIntent");
 			DeleteAttribute(target, "CrimeIntent.Dialog");
 		}
@@ -652,8 +656,8 @@ PATCH = PatchSet(
     (
         FilePatch(
             "PROGRAM/sea_ai/AIShip.c",
-            "080bfba46b6486bce0917c04c2af407649d0a2dc3a548627ec8ab49cc1ef0f46",
-            "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
+            "d2d0c10b09b2bf24ed168f01759d0ecc391e626c2e3c6852f32df155bd380a59",
+            "b5bcee8a47c7456cf152dff45a01c210df1f06b48403a153eac80434e8c80803",
             (
                 (
                     "// boal 030804 -->\nvoid Ship_NationAgressivePatent(ref rCharacter)",
@@ -718,6 +722,10 @@ PATCH = PatchSet(
 \tShip_ApplyHullHitpoints(rOurCharacter, fHP, KILL_BY_TOUCH, iEnemyCharacterIndex);''',
                 ),
                 (
+                    '\t\t\tShip_NationAgressive(rOurCharacter, rOurCharacter);',
+                    '\t\t\tCrimeSea_AmbientAttack(rOurCharacter, rOurCharacter);',
+                ),
+                (
                     'DeleteAttribute(&Characters[Ships[i]], "CheckFlagDate");',
                     'DeleteAttribute(&Characters[Ships[i]], "CheckFlagDate");\n\t\t\t\t    DeleteAttribute(&Characters[Ships[i]], "CrimeKnowsHero");',
                 ),
@@ -743,6 +751,7 @@ PATCH = PatchSet(
                     '''    bool bDeadCompanion = IsCompanion(rDead);
 	rDead.Killer.Status = iKillStatus;
 	rDead.Killer.Index = iKillerCharacterIndex;
+	DeleteAttribute(rDead, "CrewDebtShipEscaped");
 	CrimeSea_RecordShipDead(rDead, iKillerCharacterIndex);
 	rBaseShip = GetRealShip(sti(rDead.Ship.Type));''',
                 ),
@@ -758,7 +767,7 @@ PATCH = PatchSet(
                     '''		    	Statistic_AddValue(rKillerCharacter, NationShortName(sti(rDead.nation))+"_KillShip", 1);
 \t\t    \tif (rand(8) < 3 && sti(rDead.nation) != PIRATE)  // 30% повышаем награду''',
                     '''		    	Statistic_AddValue(rKillerCharacter, NationShortName(sti(rDead.nation))+"_KillShip", 1);
-\t\t    \tif (!CrimeSea_IsTrackedShip(rDead) && rand(8) < 3 && sti(rDead.nation) != PIRATE)  // legacy enemy/quest outcome''',
+\t\t    \tif (!CrimeSea_IsTrackedShip(rDead) && !CrimeSea_IsLawfulPrize(rDead) && rand(8) < 3 && sti(rDead.nation) != PIRATE)  // legacy enemy/quest outcome''',
                 ),
                 (
                     '''        if (bDeadCompanion && CheckOfficersPerk(rDead, "ShipEscape") && GetRemovable(rDead)) // выживаем
@@ -771,6 +780,7 @@ PATCH = PatchSet(
                     '''        if (bDeadCompanion && CheckOfficersPerk(rDead, "ShipEscape") && GetRemovable(rDead)) // выживаем
         {
             //homo 22/06/07
+            rDead.CrewDebtShipEscaped = true;
             AISeaGoods_AddGood(rDead, "boat", "lo_boat", 1000.0, 1);
             RemoveCharacterCompanion(pchar, rDead);
             Log_Info(GetFullName(rDead) + " спасся на шлюпке.");
@@ -815,8 +825,12 @@ PATCH = PatchSet(
 	rBaseShip = GetRealShip(sti(rDead.Ship.Type));''',
                 ),
                 (
+                    'if (rand(8) < 3 && !bDeadCompanion && sti(rDead.nation) != PIRATE)  // 30% повышаем награду',
+                    'if (!CrimeSea_IsTrackedShip(rDead) && !CrimeSea_IsLawfulPrize(rDead) && rand(8) < 3 && !bDeadCompanion && sti(rDead.nation) != PIRATE)  // legacy untracked unlawful outcome',
+                ),
+                (
                     'if (rand(20) < 3 && sti(rDead.nation) != PIRATE)  // 14% повышаем награду',
-                    'if (!CrimeSea_IsTrackedShip(rDead) && rand(20) < 3 && sti(rDead.nation) != PIRATE)  // legacy enemy/quest outcome',
+                    'if (!CrimeSea_IsTrackedShip(rDead) && !CrimeSea_IsLawfulPrize(rDead) && rand(20) < 3 && sti(rDead.nation) != PIRATE)  // legacy enemy/quest outcome',
                 ),
                 (
                     # Ship_CheckSituation relation flicker: do not reset an
@@ -875,7 +889,7 @@ PATCH = PatchSet(
         FilePatch(
             "PROGRAM/Loc_ai/LAi_fightparams.c",
             "37f5c36f27109be3166f07aa8fd2ec51d350828fd2b0e8b841af9445b05b243d",
-            "5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",
+            "ec132e2de67b54fdc50480fa01fd12b2ab8eddca7612ee06a6691d024e079539",
             (
                 (
                     '''		LAi_ApplyCharacterDamage(enemy, MakeInt(dmg + 0.5));
@@ -947,10 +961,12 @@ PATCH = PatchSet(
 	bool playerOwnedKiller = sti(attack.index) == GetMainCharacterIndex() || IsOfficer(attack) || IsCompanion(attack);
 	if (!playerOwnedKiller) return;
 	enemy.Killer.Index = attack.index;
-	if (Crime_HasPlayerIntent(enemy))
+	if (CheckAttribute(enemy, "Crime.ReportResolved")) return;
+	bool namedCreditor = CrewDebt_IsNamedCreditor(enemy);
+	if (Crime_HasPlayerIntent(enemy) || namedCreditor)
 	{
 		int crimeSeverity = 2;
-		if (CrewDebt_IsNamedCreditor(enemy)) crimeSeverity = 3;
+		if (namedCreditor) crimeSeverity = 3;
 		CrimeLand_RecordDeath(attack, enemy, crimeSeverity);
 		return;
 	}
@@ -1189,7 +1205,7 @@ def verify(root: Path) -> int:
             "PROGRAM/Loc_ai/LAi_fightparams.c": (
                 "enemy.Killer.Index = attack.index;",
                 "Crime_HasPlayerIntent(enemy)",
-                "if (CrewDebt_IsNamedCreditor(enemy)) crimeSeverity = 3;",
+                "if (namedCreditor) crimeSeverity = 3;",
                 "CrimeLand_RecordDeath(attack, enemy, crimeSeverity);",
                 "if (LAi_IsDead(enemy)) LAi_SetResultOfDeath",
                 "IsOfficer(attack) || IsCompanion(attack)",
@@ -1204,7 +1220,33 @@ def verify(root: Path) -> int:
             if marker not in text:
                 errors.append(f"{spec.relative_path}: missing {marker}")
 
+    # Source-backed lifecycle regressions: each separate attack gets evidence,
+    # while a duplicate death callback cannot fall through to legacy penalties.
     ai_ship = outputs.get("PROGRAM/sea_ai/AIShip.c", "")
+    mark = ai_ship[ai_ship.find("void Crime_MarkPlayerIntent"):ai_ship.find("bool Crime_HasPlayerIntent")]
+    if 'DeleteAttribute(target, "Crime.ReportResolved");' not in mark:
+        errors.append("a fresh land incident must clear the previous report latch")
+    land_death = ai_ship[ai_ship.find("void CrimeLand_RecordDeath"):ai_ship.find("void Crime_RecordNamedCreditorDeath")]
+    if "LAi_group_IsActivePlayerAlarm" in land_death:
+        errors.append("the victim's own combat alarm is not an external witness")
+    if "CrimeLand_HasExternalWitness(victim)" not in land_death or "Crime_QueueCrewLeak(nation, severity)" not in land_death:
+        errors.append("unwitnessed land deaths must retain the deferred crew-report path")
+    fight = outputs.get("PROGRAM/Loc_ai/LAi_fightparams.c", "")
+    death_result = fight[fight.find("void LAi_SetResultOfDeath"):fight.find("void LAi_ApplyCharacterFireDamage")]
+    if 'if (CheckAttribute(enemy, "Crime.ReportResolved")) return;' not in death_result:
+        errors.append("resolved creditor deaths must not also receive legacy punishment")
+    if "Crime_HasPlayerIntent(enemy) || namedCreditor" not in death_result:
+        errors.append("a named creditor killed outside dialogue still needs one evidence path")
+    if 'DeleteAttribute(rDead, "CrewDebtShipEscaped");' not in ai_ship or 'rDead.CrewDebtShipEscaped = true;' not in ai_ship:
+        errors.append("the ship death event must identify actual rescued companions")
+    # Sinking, capture and release must not bypass evidence or punish lawful prizes.
+    for start, end in (("void ShipDead(", "void ShipTaken("), ("void ShipTaken(", "void ShipTakenFree("), ("void ShipTakenFree(", "void Ship_PlayVictory(")):
+        outcome = ai_ship[ai_ship.find(start):ai_ship.find(end, ai_ship.find(start))]
+        if "!CrimeSea_IsTrackedShip(rDead) && !CrimeSea_IsLawfulPrize(rDead)" not in outcome:
+            errors.append(f"{start}: legacy bounty must exclude tracked incidents and lawful prizes")
+    ram = ai_ship[ai_ship.find("void Ship_Ship2ShipCollision()"):ai_ship.find("void Ship_ApplyCrewHitpoints")]
+    if "Ship_NationAgressive(" in ram:
+        errors.append("ram threshold fallback must not bypass deferred sea reports")
     prepare_marker = "CrimeSea_PreparePlayerBallHit(rOurCharacter);"
     if prepare_marker in ai_ship:
         prepare_index = ai_ship.index(prepare_marker)

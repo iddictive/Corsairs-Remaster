@@ -11,9 +11,12 @@ BASE = {
 }
 
 UPDATED = {
-    "PROGRAM/scripts/food.c": "e447c4afe0fbadbd8bc261d299b2a851ee728f35e7d204d9b5f2a83db78a6c64",
+    "PROGRAM/scripts/food.c": "b9f0d3dff04eccb47ced92177b5c2b06e99018e3730e710ec50e9123a1ffa6c0",
     "PROGRAM/ITEMS/itemLogic.c": "59d52202cd76b4bd1c9e9e25a1db531ec1bd2bb55b231ac0d1c1b36528ddd853",
 }
+
+
+PREVIOUS = {"PROGRAM/scripts/food.c": {"e447c4afe0fbadbd8bc261d299b2a851ee728f35e7d204d9b5f2a83db78a6c64"}}
 
 
 def digest(data: bytes) -> str:
@@ -239,18 +242,31 @@ def transform(outputs: dict[str, bytes]) -> dict[str, bytes]:
     return true;
 }
 
+bool CabinChest_CanOpen()
+{
+    if (dialogRun || LAi_boarding_process || bAbordageStarted) return false;
+    if (LAi_IsFightMode(pchar)) return false;
+    string cabinID = Get_My_Cabin();
+    if (cabinID == "") return false;
+    return FindLocation(cabinID) >= 0;
+}
+
 void LaunchCabinChest()
 {
+    if (!CabinChest_CanOpen()) return;
     string cabinID = Get_My_Cabin();
     if (cabinID == "") return;
     int locIdx = FindLocation(cabinID);
     if (locIdx < 0) return;
-    if (CheckAttribute(&Locations[locIdx], "box1"))
+    if (!CheckAttribute(&Locations[locIdx], "box1")) Locations[locIdx].box1.Money = 0;
+    aref chestRef;
+    makearef(chestRef, Locations[locIdx].box1);
+    if (GetAttributesNum(chestRef) == 0) Locations[locIdx].box1.Money = 0;
+    if (procInterfacePrepare(INTERFACE_ITEMSBOX))
     {
-        aref chestRef;
-        makearef(chestRef, Locations[locIdx].box1);
-        if (GetAttributesNum(chestRef) == 0) Locations[locIdx].box1.Money = 0;
-        LaunchItemsBox(&chestRef);
+        nPrevInterface = -1;
+        CurrentInterface = INTERFACE_ITEMSBOX;
+        InitInterface_RS(Interfaces[CurrentInterface].IniFile, &chestRef, "CabinChest");
     }
 }""", "PROGRAM/scripts/food.c")
     food = replace_once(food, FILL_EQUIPMENT_OLD, EQUIPMENT + FILL_EQUIPMENT_NEW,

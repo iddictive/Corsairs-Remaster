@@ -70,6 +70,15 @@ BASELINE = {
 }
 
 
+# Exact main revisions accepted for this gameplay review upgrade.
+PREVIOUS = {
+    "PROGRAM/Loc_ai/LAi_fightparams.c": "0e5c671e97b2575586ee87379db027c0393689f1e60b242b5c9d215a7cf37f78",
+    "PROGRAM/quests/quests.c": "9dddd1e68b627ba53451df039c17a224c70119d4d21381eb82c3dcc356f0ec3c",
+    "PROGRAM/scripts/Crew.c": "07c1df47aac70ed0c0bc3cf4b01a6bd70564c3cd5e45b629e063d4cfabdae8d2",
+    "PROGRAM/scripts/CompanionTravel.c": "311926e964fa10bc1cf121a162ac22f9d1139c2e3f387738bf7a253044fb645e",
+}
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -102,6 +111,7 @@ def compiler_ready():
                 patch.name: digest(patch.read_bytes()) for patch in DECK_PATCHES
             }
             and record.get("engine_deck_patch_sha256") == digest(ENGINE_DECK_PATCH.read_bytes())
+            and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("graphics_layer_sha256") == digest(Path(graphics.__file__).read_bytes())
             and record.get("menu_branding_layer_sha256") == digest(Path(menu_branding.__file__).read_bytes())
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
@@ -208,7 +218,7 @@ def plan(target_root=None):
                     raise RuntimeError(f"unreviewed squad-supply output: {relative}")
                 if digest(current) not in {
                     squad_supply.BASE[relative], squad_supply.UPDATED[relative], '3a2756ae55d9db463b59a500b297f37eb9d70efff5f008bf08608bb8290eb78d'
-                }:
+                } | squad_supply.PREVIOUS.get(relative, set()):
                     raise RuntimeError(f"unrecognized squad-supply revision: {relative}")
                 if current != incoming:
                     changes[relative] = (current, incoming)
@@ -248,9 +258,9 @@ def plan(target_root=None):
                     raise RuntimeError(f"unrecognized deck gameplay revision: {relative}")
                 changes[relative] = (current, incoming)
                 continue
-            if relative not in BASE:
+            if relative not in BASE and relative not in PREVIOUS:
                 raise RuntimeError(f"unreviewed Metal difference: {relative}")
-            if digest(incoming) != expected[relative] or digest(current) != BASE[relative]:
+            if digest(incoming) != expected[relative] or digest(current) not in {BASE.get(relative), PREVIOUS.get(relative)}:
                 raise RuntimeError(f"unrecognized gameplay revision: {relative}")
             changes[relative] = (current, incoming)
     return changes
@@ -269,7 +279,7 @@ def sign_installed_app():
 
 def apply(changes):
     if not compiler_ready():
-        raise RuntimeError("build and stage Metal with the current compiler and deck gameplay patches before applying gameplay")
+        raise RuntimeError("build and stage Metal with the current compiler, deck and sea-surrender gameplay patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
     app_changes = plan(app_resources) if INSTALLED_APP.is_dir() else {}
     engines = [ENGINE]
@@ -290,11 +300,11 @@ def apply(changes):
             if backup.exists() and backup.read_bytes() != previous:
                 baseline = backup.read_bytes()
                 deck = deck_package()
-                backup_matches = digest(baseline) == BASELINE.get(relative)
+                backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
                 if relative == governor_dialog.PATH:
                     backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in living_caribbean.PREPARERS:
-                    backup_matches = digest(baseline) == BASE.get(relative, living_caribbean.PREPARERS[relative][0])
+                    backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
                 if relative in evening_lights.PREPARERS:
                     backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
                 if relative in tradebook.BASE:
@@ -302,7 +312,7 @@ def apply(changes):
                 if relative in custody_life.BASELINE:
                     backup_matches = digest(baseline) == custody_life.BASELINE[relative]
                 if relative in squad_supply.BASE:
-                    backup_matches = digest(baseline) == squad_supply.BASE[relative]
+                    backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
                 if relative in menu_branding.FILES:
                     backup_matches = digest(baseline) == menu_branding.BASE[relative]
                 graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)

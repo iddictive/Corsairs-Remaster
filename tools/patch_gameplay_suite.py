@@ -40,8 +40,9 @@ SUPPORTED_ENGINE_SHA256 = (
 # outputs. Keep the vector explicit so a changed provider or ordering cannot
 # silently redefine the installed state.
 COMPOSITE_SHA256 = {
+    "PROGRAM/scripts/CompanionTravel.c": "cd46314284606555cbb90c612162321fa8730fd53565296989ac07d4a0609fa0",
     "PROGRAM/Loc_ai/LAi_boarding.c": "ff47f627f7ab264585f751653d85949bee70f7c40a61b013ceb04118acc17934",
-    "PROGRAM/Loc_ai/LAi_fightparams.c": "0e5c671e97b2575586ee87379db027c0393689f1e60b242b5c9d215a7cf37f78",
+    "PROGRAM/Loc_ai/LAi_fightparams.c": "1d96b2fec71cc6666457b95221ddea2da963551f89d1365922142678378442ef",
     "PROGRAM/Loc_ai/LAi_monsters.c": "b1b957d11540d120e48c2fc1a5591d7ec24481fc8d3b7f363c68e8be1bb6ab11",
     "PROGRAM/Loc_ai/LAi_utilites.c": "b76b427775e1ad0555865bb6c05b3e04307b694f03d0812bc3c876b6ae5a0449",
     "PROGRAM/battle_interface/landinterface.c": "6b467ce0f8de248f2dd8865378a7ce88fefe8af369e5147428da356035e976b7",
@@ -59,16 +60,16 @@ COMPOSITE_SHA256 = {
     "PROGRAM/interface/salary.c": "125a9604e6237fc2332dbfdd8c0ecdee9a22568ce0b288c82f484e7bf64abbc5",
     "PROGRAM/interface/ship.c": "c198c1df317cc9f2c179291fac71c7bf0c88d21207468ed871f41ec188aabe34",
     "PROGRAM/locations/locations_loader.c": "122adcdd62bccbe1d60f2860d6513f88682856141366fc365f61a46b74105a31",
-    "PROGRAM/quests/quests.c": "4e3bbd97bfad571c631c3dcf17b0e6783279d652c78915b4a6f9149ec4654bdc",
+    "PROGRAM/quests/quests.c": "bb11efff8be175bbf5777f5cb143b55a5bc08fb09de52ef455b3b109be345631",
     "PROGRAM/quests/quests_reaction.c": "4ef98d00aa9ae4b0eef913c817e62ec6f0db0b53292f20633a897128a8bd0de6",
     "PROGRAM/scripts/GoldFleet.c": "1ea9fc5a3d95983fc6ac4b664de90541ae1324b60bca187666441ed134631c3e",
-    "PROGRAM/scripts/Crew.c": "072f41ae931d3c19946dab7aca5da9fa7f85c76e14aeebd8836c102a9230b490",
+    "PROGRAM/scripts/Crew.c": "27e4e530020a5c1d0254b6d46605c10b3a32d5180f415730add4f547e8cd4429",
     "PROGRAM/scripts/bountyhunters.c": "90e1ec28ea2ef5455f67a8097e33ce7b894713220f2d44a104ff1fed41235e8d",
     "PROGRAM/scripts/colony.c": "c3225c680846a904fd7a8228887aea9879f5fa4482772596b222ee2ee0380c3a",
     "PROGRAM/scripts/islandships.c": "bc03feaf048837187e22bad6fc7671b860de0fe565cd7dace027b76bc96cca20",
     "PROGRAM/scripts/time_events.c": "9da55205414ac74922b3ae9fb0d1cde6de7257566c5f84536da2bc0921566e43",
     "PROGRAM/sea_ai/AISeaGoods.c": "39050a04396461aaf2cb05d59d8d1269f67e48de2b75af5ccebcb76f8b44e162",
-    "PROGRAM/sea_ai/AIShip.c": "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
+    "PROGRAM/sea_ai/AIShip.c": "b5bcee8a47c7456cf152dff45a01c210df1f06b48403a153eac80434e8c80803",
     "PROGRAM/sea_ai/Cabin.c": "9334dc64ffcc17ebe991a82a64f2c69e63b288791ea69b16ad6964e8d1df2271",
     "PROGRAM/sea_ai/sea.c": "107f47b78d4a1fab38ad51bac1c0349bdafd1343a9ebb9eec20952a1fc213cd1",
     "PROGRAM/seadogs.c": "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",
@@ -86,6 +87,19 @@ PREVIOUS_SHA256 = {
     "PROGRAM/scripts/colony.c": "ad03ea0623a4c367ed1a9698e15a01cd39078ab36ee8f0a69c5a750ea7b8f799",
     "PROGRAM/seadogs.c": "50248f0e85736c3e8ff35211db110dbb96fb206a7bad507106c6af89c7d15841",
     "PROGRAM/scripts/custody.c": "c75b9a3b3a605d6fa310ff5d632ad5ac57bfcb5c2402e32addf019a9651e7c3e",
+}
+
+
+# Immutable captured native inputs remain valid upgrade sources.
+REVIEWED_PREVIOUS_SHA256 = {
+    "PROGRAM/scripts/CompanionTravel.c": "311926e964fa10bc1cf121a162ac22f9d1139c2e3f387738bf7a253044fb645e",
+    "PROGRAM/Loc_ai/LAi_fightparams.c": "5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",
+    "PROGRAM/dialog.c": "b141897109b0e751e592e064b9f2ea23bdb3c01334ee8f98d643cc0be05ab699",
+    "PROGRAM/locations/locations_loader.c": "113764a8246bcc3987217c76fb1966330b2b6d39a5d724cc09a4556fbc3afd8c",
+    "PROGRAM/quests/quests.c": "9dddd1e68b627ba53451df039c17a224c70119d4d21381eb82c3dcc356f0ec3c",
+    "PROGRAM/quests/quests_reaction.c": "9aabee25dd86dffe3c3f6f7cfd8b4460b116ee0c2d7a18f53d920b3cd459852b",
+    "PROGRAM/scripts/Crew.c": "07c1df47aac70ed0c0bc3cf4b01a6bd70564c3cd5e45b629e063d4cfabdae8d2",
+    "PROGRAM/sea_ai/AIShip.c": "1cb84155342dadf657db518395ae519d47772cba67d64ce112956eb705a618bd",
 }
 
 
@@ -232,6 +246,9 @@ def classify(root: Path) -> tuple[str, list[tuple[str, str, str]]]:
         previous_external = dict(delivered)
         previous_external.update(PREVIOUS_SHA256)
         if all(digest == previous_external[path] for path, _, digest in rows):
+            aggregate = "upgrade"
+        if all(digest in {delivered[path], REVIEWED_PREVIOUS_SHA256.get(path)}
+               for path, _, digest in rows):
             aggregate = "upgrade"
     return aggregate, rows
 

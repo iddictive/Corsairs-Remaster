@@ -298,69 +298,154 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 AI_SHIP_PATH = "PROGRAM/sea_ai/AIShip.c"
 # The captain-journal layer is composed before this Metal-only layer.
-AI_SHIP_BASE = "7f11bdbee50e66ca5a9ac8156790ebce6b4bd78689f02743597dd83ddc2a7b24"
+AI_SHIP_BASE = "ff12aef66c491fbd5e57d20500ab0253096949f03e746bf92d7556f0e28fe356"
 
-AI_SURRENDER_CHECK_OLD = enc("""					int   SailsPercent    = sti(rCharacter.Ship.SP);
-			        float HPPercent       = GetHullPercent(rCharacter);
-			        int   CrewQuantity    = sti(rCharacter.Ship.Crew.Quantity);
-			        int   MinCrewQuantity = GetMinCrewQuantity(rCharacter);
-					int   iCharactersNum1, iCharactersNum2;""")
+AI_SURRENDER_UPDATE_OLD = enc("""void Ship_CheckSituation()
+{
+""")
 
-AI_SURRENDER_CHECK_NEW = enc("""					int   SailsPercent    = sti(rCharacter.Ship.SP);
-			        float HPPercent       = GetHullPercent(rCharacter);
-			        int   CrewQuantity    = sti(rCharacter.Ship.Crew.Quantity);
-			        int   MinCrewQuantity = GetMinCrewQuantity(rCharacter);
-					int   iCharactersNum1, iCharactersNum2;
-
-					// Проверка поднятия белого флага и сдачи в плен
-					if (!CheckAttribute(rCharacter, "Surrendered") && !CheckAttribute(rCharacter, "NoSurrender") && !IsCompanion(rCharacter))
-					{
-						if ((HPPercent < 25.0 || CrewQuantity < makeint(MinCrewQuantity * 1.25)) && GetCharacterShipClass(rCharacter) > 1)
-						{
-							if (CheckForSurrender(GetMainCharacter(), rCharacter, 1))
-							{
-								rCharacter.Surrendered = true;
-								Ship_SetTaskDrift(PRIMARY_TASK, sti(rCharacter.index));
-								Ship_SetSailState(sti(rCharacter.index), 0.0);
-								SetCharacterRelationBoth(nMainCharacterIndex, sti(rCharacter.index), RELATION_NEUTRAL);
-								Log_SetStringToLog("Корабль '" + rCharacter.Ship.Name + "' выбросил белый флаг и лёг в дрейф!");
-								return;
-							}
-						}
-					}""")
-
-AI_TREACHERY_OLD = enc("""	ref		rBallCharacter = GetCharacter(iBallCharacterIndex);	// кто пуляет
-	ref		rOurCharacter = GetCharacter(iOurCharacterIndex);   // по кому
-
-	rOurCharacter.Ship.LastBallCharacter = iBallCharacterIndex;""")
-
-AI_TREACHERY_NEW = enc("""	ref		rBallCharacter = GetCharacter(iBallCharacterIndex);	// кто пуляет
-	ref		rOurCharacter = GetCharacter(iOurCharacterIndex);   // по кому
-
-	rOurCharacter.Ship.LastBallCharacter = iBallCharacterIndex;
-
-	// Расстрел сдавшегося корабля (вероломство)
-	if (CheckAttribute(rOurCharacter, "Surrendered") && sti(rBallCharacter.index) == nMainCharacterIndex)
+AI_SURRENDER_UPDATE_NEW = enc("""// Keep sea surrender separate from the released-captain white-flag marker.
+bool Ship_CheckSeaSurrender(ref rCharacter)
+{
+	if (IsCompanion(rCharacter)) return false;
+	if (!CheckAttribute(rCharacter, "SeaSurrender"))
 	{
-		DeleteAttribute(rOurCharacter, "Surrendered");
-		rOurCharacter.NoSurrender = true;
-		SetCharacterRelationBoth(nMainCharacterIndex, sti(rOurCharacter.index), RELATION_ENEMY);
-		Ship_SetTaskAttack(PRIMARY_TASK, sti(rOurCharacter.index), nMainCharacterIndex);
+		if (CheckAttribute(rCharacter, "Surrendered") || CheckAttribute(rCharacter, "NoSurrender")) return false;
+		if (CheckAttribute(rCharacter, "DontRansackCaptain") || CheckAttribute(rCharacter, "ShipTaskLock")) return false;
+		if (CheckAttribute(rCharacter, "AlwaysFriend") || CheckAttribute(rCharacter, "ShipEnemyDisable")) return false;
+		if (CheckAttribute(rCharacter, "SinkTenPercent") || CheckAttribute(rCharacter, "relation.UseOtherCharacter")) return false;
+		if (!Character_IsAbordageEnable(rCharacter)) return false;
+		int nativeRelation = RELATION_NEUTRAL;
+		SendMessage(&AISea, "laae", AI_MESSAGE_GET_RELATION, &rCharacter, &Characters[nMainCharacterIndex], &nativeRelation);
+		if (nativeRelation != RELATION_ENEMY) return false;
+		if (GetCharacterShipClass(rCharacter) <= 1) return false;
+		if (GetHullPercent(rCharacter) >= 25.0 && GetCrewQuantity(rCharacter) >= makeint(GetMinCrewQuantity(rCharacter) * 1.25)) return false;
+		// Deck zero evaluates at sea without inheriting a previous fort boarding.
+		if (!CheckForSurrender(GetMainCharacter(), rCharacter, 0)) return false;
+		// Native relations read this as the captor commander index.
+		rCharacter.SeaSurrender = nMainCharacterIndex;
+		rCharacter.Surrendered = true;
+		rCharacter.ShipTaskLock = true;
+		Ship_FlagRefresh(rCharacter);
+		Log_SetStringToLog("Корабль '" + rCharacter.Ship.Name + "' выбросил белый флаг и лёг в дрейф!");
+	}
+	// A secondary attack/runaway task takes precedence over primary drift.
+	Ship_SetTaskDrift(PRIMARY_TASK, sti(rCharacter.index));
+	Ship_SetTaskDrift(SECONDARY_TASK, sti(rCharacter.index));
+	Ship_SetSailState(sti(rCharacter.index), 0.0);
+	// The native per-ship overlay leaves the fleet relation matrix unchanged.
+	return true;
+}
+
+void Ship_CheckSituation()
+{
+""")
+
+AI_SURRENDER_TICK_OLD = enc("""	if (LAi_IsDead(rCharacter) || sti(rCharacter.ship.type) == SHIP_NOTUSED) { return; }  // super fix boal""")
+AI_SURRENDER_TICK_NEW = AI_SURRENDER_TICK_OLD + enc("""
+	if (Ship_CheckSeaSurrender(rCharacter)) return;""")
+
+AI_SURRENDER_BOARD_OLD = enc("""		if (iRelation != RELATION_ENEMY)\x20
+		{\x20
+			continue;\x20
+		}
+		if (fMinEnemyDistance > fDistance)\x20
+		{\x20
+			fMinEnemyDistance = fDistance;\x20
+		}""")
+AI_SURRENDER_BOARD_NEW = enc("""		bool isSeaSurrender = CheckAttribute(rShipCharacter, "SeaSurrender");
+		if (iRelation != RELATION_ENEMY && !isSeaSurrender)
+		{
+			continue;
+		}
+		if (!isSeaSurrender && fMinEnemyDistance > fDistance)
+		{
+			fMinEnemyDistance = fDistance;
+		}""")
+
+AI_SURRENDER_COUNTERBOARD_OLD = enc("""		// test enemy ship with our
+		float fEnemyGrappling = stf(rShipCharacter.TmpSkill.Grappling);""")
+AI_SURRENDER_COUNTERBOARD_NEW = enc("""		// A surrendered crew can be captured but cannot initiate boarding.
+		if (isSeaSurrender) continue;
+		// test enemy ship with our
+		float fEnemyGrappling = stf(rShipCharacter.TmpSkill.Grappling);""")
+
+AI_TREACHERY_OLD = enc("""	if (LAi_IsDead(rCharacter)) return; // fix - нефиг палить в труп!""")
+AI_TREACHERY_NEW = AI_TREACHERY_OLD + enc("""
+	// The engine sends this only after a successful player aimed-fire command.
+	// Cannonballs already airborne when the target surrendered are not treachery.
+	if (CheckAttribute(rCharacter, "Surrendered"))
+	{
+		bool wasSeaSurrender = CheckAttribute(rCharacter, "SeaSurrender");
+		if (wasSeaSurrender)
+		{
+			DeleteAttribute(rCharacter, "SeaSurrender");
+			DeleteAttribute(rCharacter, "ShipTaskLock");
+		}
+		DeleteAttribute(rCharacter, "Surrendered");
+		rCharacter.NoSurrender = true;
+		if (!wasSeaSurrender)
+		{
+			// Legacy released captains have no native surrender overlay.
+			for (int slot = 0; slot < COMPANION_MAX; slot++)
+			{
+				int companion = GetCompanionIndex(pchar, slot);
+				if (companion >= 0) SetCharacterRelationBoth(companion, sti(rCharacter.index), RELATION_ENEMY);
+			}
+			UpdateRelations();
+		}
+		Ship_SetTaskAttack(PRIMARY_TASK, sti(rCharacter.index), nMainCharacterIndex);
+		Ship_SetTaskAttack(SECONDARY_TASK, sti(rCharacter.index), nMainCharacterIndex);
+		Ship_SetSailState(sti(rCharacter.index), 1.0);
+		Ship_FlagRefresh(rCharacter);
 		Log_SetStringToLog("Вероломство! Сдавшийся корабль снова вступил в бой!");
 		pchar.ship.crew.morale = makeint(stf(pchar.ship.crew.morale) - 15);
 		if (sti(pchar.ship.crew.morale) < MORALE_MIN) pchar.ship.crew.morale = MORALE_MIN;
 		ChangeCharacterReputation(pchar, -5.0);
-	}""")
+	}
+""")
 
 
 def prepare_aiship(data: bytes) -> bytes:
-    if data.count(AI_SURRENDER_CHECK_OLD) != 1:
-        raise RuntimeError("AIShip surrender anchor mismatch")
-    data = data.replace(AI_SURRENDER_CHECK_OLD, AI_SURRENDER_CHECK_NEW)
+    for old, new, label in (
+        (AI_SURRENDER_UPDATE_OLD, AI_SURRENDER_UPDATE_NEW, "surrender helper"),
+        (AI_SURRENDER_TICK_OLD, AI_SURRENDER_TICK_NEW, "surrender AI tick"),
+        (AI_SURRENDER_BOARD_OLD, AI_SURRENDER_BOARD_NEW, "surrender boarding"),
+        (AI_SURRENDER_COUNTERBOARD_OLD, AI_SURRENDER_COUNTERBOARD_NEW, "surrender counter-boarding"),
+        (AI_TREACHERY_OLD, AI_TREACHERY_NEW, "treachery"),
+    ):
+        if data.count(old) != 1:
+            raise RuntimeError(f"AIShip {label} anchor mismatch")
+        data = data.replace(old, new)
+    return data
 
-    if data.count(AI_TREACHERY_OLD) != 1:
-        raise RuntimeError("AIShip treachery anchor mismatch")
-    data = data.replace(AI_TREACHERY_OLD, AI_TREACHERY_NEW)
+
+BOARDING_PATH = "PROGRAM/Loc_ai/LAi_boarding.c"
+BOARDING_BASE = "ff47f627f7ab264585f751653d85949bee70f7c40a61b013ceb04118acc17934"
+
+BOARDING_CAPTURE_OLD = enc("""    	if (CheckForSurrender(mchr, echr, 1) || ok) // 1 - это учет первый раз, до битвы на палубе
+\x20\x20\x20\x20	{
+\x20\x20\x20\x20		echr.ship.crew.morale = 5;// после захвата у них мораль такая""")
+BOARDING_CAPTURE_NEW = enc("""    	if (CheckAttribute(echr, "SeaSurrender") || CheckForSurrender(mchr, echr, 1) || ok) // 1 - это учет первый раз, до битвы на палубе
+\x20\x20\x20\x20	{
+			if (CheckAttribute(echr, "SeaSurrender"))
+			{
+				DeleteAttribute(echr, "SeaSurrender");
+				DeleteAttribute(echr, "Surrendered");
+				DeleteAttribute(echr, "ShipTaskLock");
+				Ship_FlagRefresh(echr);
+			}
+\x20\x20\x20\x20		echr.ship.crew.morale = 5;// после захвата у них мораль такая""")
+BOARDING_FORT_OLD = enc("""    if(boarding_location_type == BRDLT_FORT) return false; // Forts don't surrender.""")
+BOARDING_FORT_NEW = enc("""    if(_deck != 0 && boarding_location_type == BRDLT_FORT) return false; // Deck zero is a sea-only evaluation.""")
+
+
+def prepare_boarding(data: bytes) -> bytes:
+    for old, new in ((BOARDING_CAPTURE_OLD, BOARDING_CAPTURE_NEW),
+                     (BOARDING_FORT_OLD, BOARDING_FORT_NEW)):
+        if data.count(old) != 1:
+            raise RuntimeError("LAi_boarding sea surrender anchor mismatch")
+        data = data.replace(old, new)
     return data
 
 
@@ -520,11 +605,11 @@ SMG_SHORE_COMP_OLD = enc("""if (GetCompanionQuantity(pchar) > 1 && GetBaseHeroNa
 					break;
 				}""")
 
-SMG_SHORE_COMP_NEW = enc("""				if (CheckAttribute(pchar, "location.from_sea") && pchar.location.from_sea == (npchar.City + "_town"))
+SMG_SHORE_COMP_NEW = enc("""				if (CheckAttribute(pchar, "location.from_sea") && CheckAttribute(pchar, "quest.contraband.City") && pchar.location.from_sea == (pchar.quest.contraband.City + "_town"))
 				{
 					dialog.text = "Ты с ума сошёл швартоваться прямо у городского форта? Сделки не будет, патруль на хвосте!";
 					link.l1 = "Эх, черт, уходим...";
-					Link.l1.go = "Exit_Squadron";
+					Link.l1.go = "exit";
 					break;
 				}""")
 
@@ -591,7 +676,7 @@ BI_UTILS_OLD = enc("""		if(hpp<10.0)
 			spp += ProcessSailRepair(chref,fRepairS);
 		}""")
 
-BI_UTILS_NEW = enc("""		float maxSlowRep = 25.0 + GetSummonSkillFromNameToOld(chref, SKILL_REPAIR) * 0.45;
+BI_UTILS_NEW = enc("""		float maxSlowRep = 25.0 + GetSummonSkillFromName(chref, SKILL_REPAIR) * 0.45;
 		if (maxSlowRep > 70.0) maxSlowRep = 70.0;
 		if(hpp < maxSlowRep)
 		{
@@ -620,7 +705,7 @@ BI_INT_PCHAR_OLD = enc("""            if(GetHullPercent(pchar)<10.0 || GetSailPe
                 BattleInterface.Commands.LightRepair.enable = true;
 			}""")
 
-BI_INT_PCHAR_NEW = enc("""            float maxRepPchar = 25.0 + GetSummonSkillFromNameToOld(pchar, SKILL_REPAIR) * 0.45;
+BI_INT_PCHAR_NEW = enc("""            float maxRepPchar = 25.0 + GetSummonSkillFromName(pchar, SKILL_REPAIR) * 0.45;
             if (maxRepPchar > 70.0) maxRepPchar = 70.0;
             if(GetHullPercent(pchar)<maxRepPchar || GetSailPercent(pchar)<maxRepPchar)
 			{
@@ -633,7 +718,7 @@ BI_INT_OFF_OLD = enc("""            if(GetHullPercent(GetCharacter(chIdx))<10.0 
 			}""")
 
 BI_INT_OFF_NEW = enc("""            ref chOfficer = GetCharacter(chIdx);
-            float maxRepOff = 25.0 + GetSummonSkillFromNameToOld(chOfficer, SKILL_REPAIR) * 0.45;
+            float maxRepOff = 25.0 + GetSummonSkillFromName(chOfficer, SKILL_REPAIR) * 0.45;
             if (maxRepOff > 70.0) maxRepOff = 70.0;
             if(GetHullPercent(chOfficer)<maxRepOff || GetSailPercent(chOfficer)<maxRepOff)
 			{
@@ -646,7 +731,11 @@ def prepare_bi_int(data: bytes) -> bytes:
     data = data.replace(BI_INT_PCHAR_OLD, BI_INT_PCHAR_NEW)
     if data.count(BI_INT_OFF_OLD) != 1: raise RuntimeError("BattleInterface officer anchor mismatch")
     data = data.replace(BI_INT_OFF_OLD, BI_INT_OFF_NEW)
-    return data
+    flag_old = enc('\tint iNation = sti(chr.nation);\n\t\r\n\tif(iNation == PIRATE) return FLAG_PIR;')
+    flag_new = enc('\tint iNation = sti(chr.nation);\n\t\r\n\tif(CheckAttribute(chr, "Surrendered")) return FLAG_WHT;\n\tif(iNation == PIRATE) return FLAG_PIR;')
+    if data.count(flag_old) != 1:
+        raise RuntimeError("BattleInterface surrendered pirate flag anchor mismatch")
+    return data.replace(flag_old, flag_new)
 
 
 # ---------------------------------------------------------------------------
@@ -734,37 +823,8 @@ LAI_PL_UPDATE_OLD = enc("""	if(LAi_IsFightMode(chr))
 		chr.chr_ai.type.weapontime = "0";
 	}""")
 
-LAI_PL_UPDATE_NEW = enc("""	if(LAi_IsFightMode(chr))
-	{
-		time = stf(chr.chr_ai.type.weapontime) + dltTime;
-		chr.chr_ai.type.weapontime = time;
-		if(time > 300.0)
-		{
-			chr.chr_ai.type.weapontime = "0";
-			SendMessage(chr, "lsl", MSG_CHARACTER_EX_MSG, "ChangeFightMode", false);
-		}
-		if (SendMessage(chr, "ls", MSG_CHARACTER_EX_MSG, "IsActive") != 0)
-		{
-			int nearCount = FindNearCharacters(chr, 0.9, -1.0, 60.0, 0.001, false, true);
-			for (int nc = 0; nc < nearCount; nc++)
-			{
-				int blockIdx = sti(chrFindNearCharacters[nc].index);
-				if (blockIdx >= 0 && blockIdx != sti(chr.index))
-				{
-					ref blocker = &Characters[blockIdx];
-					if (IsCompanion(blocker) || IsOfficer(blocker))
-					{
-						float bx, by, bz, bAy;
-						GetCharacterPos(blocker, &bx, &by, &bz);
-						GetCharacterAy(chr, &bAy);
-						TeleportCharacterToPos(blocker, bx + 0.3 * sin(bAy + 1.57), by, bz + 0.3 * cos(bAy + 1.57));
-					}
-				}
-			}
-		}
-	}else{
-		chr.chr_ai.type.weapontime = "0";
-	}""")
+# Native player-fight-push owns collision-aware shoving; do not teleport allies.
+LAI_PL_UPDATE_NEW = LAI_PL_UPDATE_OLD
 
 
 def prepare_lai_player(data: bytes) -> bytes:
@@ -797,18 +857,31 @@ FOOD_REFILL_NEW = enc("""bool OfficerSupply_CanRefillNow()
     return true;
 }
 
+bool CabinChest_CanOpen()
+{
+    if (dialogRun || LAi_boarding_process || bAbordageStarted) return false;
+    if (LAi_IsFightMode(pchar)) return false;
+    string cabinID = Get_My_Cabin();
+    if (cabinID == "") return false;
+    return FindLocation(cabinID) >= 0;
+}
+
 void LaunchCabinChest()
 {
+    if (!CabinChest_CanOpen()) return;
     string cabinID = Get_My_Cabin();
     if (cabinID == "") return;
     int locIdx = FindLocation(cabinID);
     if (locIdx < 0) return;
-    if (CheckAttribute(&Locations[locIdx], "box1"))
+    if (!CheckAttribute(&Locations[locIdx], "box1")) Locations[locIdx].box1.Money = 0;
+    aref chestRef;
+    makearef(chestRef, Locations[locIdx].box1);
+    if (GetAttributesNum(chestRef) == 0) Locations[locIdx].box1.Money = 0;
+    if (procInterfacePrepare(INTERFACE_ITEMSBOX))
     {
-        aref chestRef;
-        makearef(chestRef, Locations[locIdx].box1);
-        if (GetAttributesNum(chestRef) == 0) Locations[locIdx].box1.Money = 0;
-        LaunchItemsBox(&chestRef);
+        nPrevInterface = -1;
+        CurrentInterface = INTERFACE_ITEMSBOX;
+        InitInterface_RS(Interfaces[CurrentInterface].IniFile, &chestRef, "CabinChest");
     }
 }""")
 
@@ -875,10 +948,11 @@ SHIP_CHEST_CMD_OLD = enc("""		case "CANNONS_REMOVE_ALL":
 		break;""")
 
 SHIP_CHEST_CMD_NEW = enc("""		case "CHEST_BUTTON":
-			if(comName=="click")
+			if ((comName == "click" || comName == "activate") && CabinChest_CanOpen())
 			{
 				ProcessExitCancel();
-				LaunchCabinChest();
+				PostEvent("LaunchIAfterFrame", 1, "sl", "I_CABIN_CHEST", 2);
+				return;
 			}
 		break;
 
@@ -894,7 +968,7 @@ SHIP_CHEST_VIS_OLD = enc("""	GameInterface.TABLE_LIST.select = 0;
 
 SHIP_CHEST_VIS_NEW = enc("""	GameInterface.TABLE_LIST.select = 0;
 	SetCurrentNode("SHIPS_SCROLL");
-	SetNodeUsing("CHEST_BUTTON", Get_My_Cabin() != "");""")
+	SetNodeUsing("CHEST_BUTTON", CabinChest_CanOpen());""")
 
 
 def prepare_ship_interface(data: bytes) -> bytes:
@@ -973,9 +1047,22 @@ WDM_GLO_FOLLOW_NEW = enc("""	string encID = "";
 	//Очищаем массив энкоунтеров""")
 
 
+WDM_GLO_WARRING_IDS_OLD = enc("""	WdmCopyEncounterData(mapEncSlotRef1, worldMap.EncounterID1);
+	WdmCopyEncounterData(mapEncSlotRef2, worldMap.EncounterID2);
+	encID1 = worldMap.EncounterID1;
+	encID2 = worldMap.EncounterID2;""")
+WDM_GLO_WARRING_IDS_NEW = enc("""	// The engine assigns model/index 1 to Warring (ID2), and 2 to Attacked (ID1).
+	WdmCopyEncounterData(mapEncSlotRef1, worldMap.EncounterID2);
+	WdmCopyEncounterData(mapEncSlotRef2, worldMap.EncounterID1);
+	encID1 = worldMap.EncounterID2;
+	encID2 = worldMap.EncounterID1;""")
+
+
 def prepare_worldmap_globals(data: bytes) -> bytes:
     if data.count(WDM_GLO_FOLLOW_OLD) != 1: raise RuntimeError("worldmap_globals follow anchor mismatch")
-    return data.replace(WDM_GLO_FOLLOW_OLD, WDM_GLO_FOLLOW_NEW)
+    data = data.replace(WDM_GLO_FOLLOW_OLD, WDM_GLO_FOLLOW_NEW)
+    if data.count(WDM_GLO_WARRING_IDS_OLD) != 1: raise RuntimeError("worldmap_globals warring identity anchor mismatch")
+    return data.replace(WDM_GLO_WARRING_IDS_OLD, WDM_GLO_WARRING_IDS_NEW)
 
 
 # ---------------------------------------------------------------------------
@@ -995,30 +1082,126 @@ WDM_REL_ENC_OLD = enc("""		//Получим информацию о данном
 WDM_REL_ENC_NEW = enc("""		//Получим информацию о данном энкоунтере
 		if(wdmSetCurrentShipData(i))
 		{
-			float encX_chk = MakeFloat(worldMap.encounter.x);
-			float encZ_chk = MakeFloat(worldMap.encounter.z);
-			float distToPlayer2 = (encX_chk - mpsX)*(encX_chk - mpsX) + (encZ_chk - mpsZ)*(encZ_chk - mpsZ);
-			// Подгружаем активный корабль либо близкие корабли в радиусе видимости
-			if(MakeInt(worldMap.encounter.select) == 0 && distToPlayer2 > (25.0 * 25.0)) continue;
+			bool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);
+			int pairedEncounter = MakeInt(worldMap.encounter.attack);
+			string pairedSeaGroup = "";
+			if (pairedEncounter >= 0 && pairedEncounter < numEncounters && pairedEncounter != i)
+			{
+				if (wdmSetCurrentShipData(pairedEncounter))
+				{
+					// Import both sides even when the radius cuts through a battle.
+					if (WdmEncounterInSeaRange(mpsX, mpsZ)) includeEncounter = true;
+					pairedSeaGroup = "egroup__wdm_" + worldMap.encounter.id;
+				}
+				if (!wdmSetCurrentShipData(i)) continue;
+			}
+			if (!includeEncounter) continue;
 			//Добавляем информацию об морских энкоунтере
 			string encStringID = worldMap.encounter.id;""")
 
+WDM_REL_HELPER_OLD = enc("""bool WdmAddEncountersData()
+{""")
+WDM_REL_HELPER_NEW = enc("""bool WdmEncounterInSeaRange(float playerX, float playerZ)
+{
+	if (MakeInt(worldMap.encounter.select) != 0) return true;
+	float dx = MakeFloat(worldMap.encounter.x) - playerX;
+	float dz = MakeFloat(worldMap.encounter.z) - playerZ;
+	return dx * dx + dz * dz <= 25.0 * 25.0;
+}
+
+bool WdmAddEncountersData()
+{""")
+
+WDM_REL_GROUP_OLD = enc("""			CopyAttributes(mapEncSlotRef, encDataForSlot);
+			//Отмечаем свершение корабельного энкоунтера""")
+WDM_REL_GROUP_NEW = enc("""			CopyAttributes(mapEncSlotRef, encDataForSlot);
+			// Map generation reuses temporary slots (egroup__0/1). Give every
+			// ordinary imported fleet its own identity before allocating another slot.
+			if (!CheckAttribute(mapEncSlotRef, "qID") && sti(mapEncSlotRef.RealEncounterType) != ENCOUNTER_TYPE_ALONE)
+			{
+				mapEncSlotRef.GroupName = "egroup__wdm_" + worldMap.encounter.id;
+				if (pairedSeaGroup != "") mapEncSlotRef.Task.Target = pairedSeaGroup;
+			}
+			//Отмечаем свершение корабельного энкоунтера""")
+
 
 def prepare_worldmap_reload(data: bytes) -> bytes:
-    if data.count(WDM_REL_ENC_OLD) != 1: raise RuntimeError("worldmap_reload enc anchor mismatch")
-    return data.replace(WDM_REL_ENC_OLD, WDM_REL_ENC_NEW)
+    for old, new in ((WDM_REL_ENC_OLD, WDM_REL_ENC_NEW),
+                     (WDM_REL_HELPER_OLD, WDM_REL_HELPER_NEW),
+                     (WDM_REL_GROUP_OLD, WDM_REL_GROUP_NEW)):
+        if data.count(old) != 1:
+            raise RuntimeError("worldmap_reload encounter anchor mismatch")
+        data = data.replace(old, new)
+    return data
+
+
+SEA_PATH = "PROGRAM/sea_ai/sea.c"
+SEA_BASE = "33373b67ed2f3dc8166dadf5560df06df2a155bdd6ec35a94462e48764beff03"
+SEA_DECK_SAILORS_OLD = enc("""	if( SeaCameras.Camera == "SeaDeckCamera" ) {
+		Sailors.IsOnDeck = "1";
+	}""")
+SEA_DECK_SAILORS_NEW = enc("""	if( SeaCameras.Camera == "SeaDeckCamera" ) {
+		Sailors.IsOnDeck = !bSeePeoplesOnDeck;
+	}""")
+
+
+def prepare_sea(data: bytes) -> bytes:
+    if data.count(SEA_DECK_SAILORS_OLD) != 1:
+        raise RuntimeError("sea deck sailor restore anchor mismatch")
+    return data.replace(SEA_DECK_SAILORS_OLD, SEA_DECK_SAILORS_NEW)
+
+
+# Remote chest uses the existing interface transition and stays in the paused
+# menu layer. Physical chest theft/quest hooks only apply to physical chests.
+INTERFACE_PATH = "PROGRAM/interface/interface.c"
+INTERFACE_BASE = "4a0d377586c1e7cab50fe4653b6c8dd17f9a25b633d3b8260366b2e6db94df24"
+ITEMSBOX_PATH = "PROGRAM/interface/itemsbox.c"
+ITEMSBOX_BASE = "0be65498622e67c507a73c4a18a882d73c0e61346ab733390c4134e3793c434b"
+
+
+def prepare_interface(data: bytes) -> bytes:
+    old = enc('\t\tcase "I_ITEMS":\t\t\tLaunchItems();\treturn; break;')
+    new = old + enc('\n\t\tcase "I_CABIN_CHEST": LaunchCabinChest(); return; break;')
+    if data.count(old) != 1: raise RuntimeError("interface chest transition anchor mismatch")
+    return data.replace(old, new)
+
+
+def prepare_itemsbox(data: bytes) -> bytes:
+    replacements = (
+        ('\tif (sFaceID != "") return false;',
+         '\tif (sFaceID == "CabinChest") return true;\n\tif (sFaceID != "") return false;'),
+        ('\tif(sInterfaceType == INTERFACETYPE_BARREL)\n',
+         '\tif(sFaceID == "CabinChest")\n\t{\n\t\t// Keep engine layers paused, as in the ship menu.\n\t}\n\telse if(sInterfaceType == INTERFACETYPE_BARREL)\n'),
+        ('\tLAi_SetActorTypeNoGroup(PChar);', '\tif (sFaceID != "CabinChest") LAi_SetActorTypeNoGroup(PChar);'),
+        ('\t\tif(!LAi_boarding_process) ', '\t\tif(!LAi_boarding_process && sFaceID != "CabinChest") '),
+        ('\tif(sInterfaceType == INTERFACETYPE_CHEST || sInterfaceType == INTERFACETYPE_DEADMAN) //',
+         '\tif(sFaceID != "CabinChest" && (sInterfaceType == INTERFACETYPE_CHEST || sInterfaceType == INTERFACETYPE_DEADMAN)) //'),
+        ('\tif(sFaceID == "") //', '\tif(sFaceID == "" || sFaceID == "CabinChest") //'),
+        ('\tEndAboveForm(true);', '\tif (sFaceID != "CabinChest") EndAboveForm(true);'),
+        ('\tLAi_SetPlayerType(PChar);', '\tif (sFaceID != "CabinChest") LAi_SetPlayerType(PChar);'),
+        ('\tif(!CheckAttribute(pchar,"quest.easter.checkskeleton"))',
+         '\tif(sFaceID != "CabinChest" && !CheckAttribute(pchar,"quest.easter.checkskeleton"))'),
+    )
+    for old, new in replacements:
+        if data.count(enc(old)) != 1: raise RuntimeError("itemsbox remote chest anchor mismatch: " + old)
+        data = data.replace(enc(old), enc(new))
+    return data
 
 
 # ---------------------------------------------------------------------------
 # Registry of handlers
 # ---------------------------------------------------------------------------
 PREPARERS = {
+    INTERFACE_PATH: (INTERFACE_BASE, prepare_interface),
+    ITEMSBOX_PATH: (ITEMSBOX_BASE, prepare_itemsbox),
     GU_PATH: (GU_BASE, prepare_generator_utilite),
     RPG_PATH: (RPG_BASE, prepare_rpg_utilite),
     DUEL_PATH: (DUEL_BASE, prepare_duel),
     WDM_INIT_PATH: (WDM_INIT_BASE, prepare_worldmap_init),
     WDM_ENC_PATH: (WDM_ENC_BASE, prepare_worldmap_encgen),
     AI_SHIP_PATH: (AI_SHIP_BASE, prepare_aiship),
+    SEA_PATH: (SEA_BASE, prepare_sea),
+    BOARDING_PATH: (BOARDING_BASE, prepare_boarding),
     UTILS_PATH: (UTILS_BASE, prepare_utils),
     GOODS_PATH: (GOODS_BASE, prepare_goods),
     SHIPS_PATH: (SHIPS_BASE, prepare_ships_utilites),
@@ -1037,39 +1220,50 @@ PREPARERS = {
 
 # Calculated post-patch hashes
 UPDATED = {
+    "PROGRAM/sea_ai/sea.c": "9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98",
+    "PROGRAM/Loc_ai/LAi_boarding.c": "5ab91b29f9b47e5cce2892d93cf11ffd979ad26b35e70960de273c75a9528930",
+    "PROGRAM/interface/itemsbox.c": "f9fe490ceca5215958001dc12c068c19e32e52e400d7cb8cd0012784caa47b36",
+    "PROGRAM/interface/interface.c": "7f37bbf8e7f0b49b75f6600f92e6c0ff77c65508b285c19cfee2301dabcda57e",
     "PROGRAM/characters/GeneratorUtilite.c": "69d4fedb0243c9d1393fe0d6e276fd5d5b7772825eb178041b630e42f067a70f",
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
     "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
-    "PROGRAM/sea_ai/AIShip.c": "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
+    "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
     "PROGRAM/scripts/ShipsUtilites.c": "d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",
     "PROGRAM/dialogs/russian/Smuggler Agent_dialog.c": "792bd47d3cfc62a753f1964134fae93e1bc02ac3961992215fcd36bdf2d556e9",
-    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "80cf486fcdf48ea82f4ca27ddda197020e3f9ec496fb787474edc58344583914",
-    "PROGRAM/battle_interface/utils.c": "14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b",
-    "PROGRAM/battle_interface/BattleInterface.c": "fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d",
+    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": "039e80171c801800bd99e250892c330549c4a77c24c25aaf6c4c12aadd9e1c19",
+    "PROGRAM/battle_interface/utils.c": "15dd6906734f158353c02475079d32d1e200450825c013c8165e64a8e6739348",
+    "PROGRAM/battle_interface/BattleInterface.c": "ffcd934ea42bc9e0138740a79de745fe77bca33d9d544865b73f517bd8b7ca25",
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
-    "PROGRAM/Loc_ai/types/LAi_player.c": "f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3",
+    "PROGRAM/Loc_ai/types/LAi_player.c": "c46c105d6ef2c36f803b60144978f42f3ad38c4938d3078a619e16fb540b7676",
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
-    "PROGRAM/interface/ship.c": "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561",
+    "PROGRAM/interface/ship.c": "d14907755256cbc4bfc470f510a320b23c02720ced975ea2dfc680b7016a211d",
     "RESOURCE/INI/interfaces/ship.ini": "5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d",
-    "PROGRAM/worldmap/worldmap_globals.c": "bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe",
-    "PROGRAM/worldmap/worldmap_reload.c": "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1",
+    "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
+    "PROGRAM/worldmap/worldmap_reload.c": "cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627",
 }
 
 
 # Previously reviewed installed revisions may be upgraded, but are never used
 # as layer inputs: always compose from the current journal-enabled baseline.
 PREVIOUS = {
-    SHIP_INI_PATH: {"751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
+    WDM_GLO_PATH: {"bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe"},
+    "PROGRAM/worldmap/worldmap_reload.c": {"04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
+    "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},
+    "PROGRAM/battle_interface/utils.c": {"14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b"},
+    LAI_PL_PATH: {"f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3"},
+    "PROGRAM/interface/ship.c": {"d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561"},
+    "RESOURCE/INI/interfaces/ship.ini": {"751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
     AI_SHIP_PATH: {
+        "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
         "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",
         "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
     },
     SMG_AGENT_PATH: {"d1ad03fde16ed7833418ba2de733b95f8ec84788b2571e90e4e549ab9a65aa42"},
-    SMG_SHORE_PATH: {"aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939"},
+    SMG_SHORE_PATH: {"aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939", "80cf486fcdf48ea82f4ca27ddda197020e3f9ec496fb787474edc58344583914"},
 }
 
 
