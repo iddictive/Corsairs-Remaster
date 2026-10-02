@@ -3,6 +3,8 @@
 #import <Metal/Metal.h>
 #include <simd/simd.h>
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -22,19 +24,33 @@ static_assert(aim_volume::maxVolumeRelationVertices == 49152);
 static_assert(aim_volume::excludedReceiverColor == 0x01000000u); // shader mask tag
 static_assert(sizeof(aim_volume::AimVolumeRelationVertex) == 16);
 static_assert(offsetof(aim_volume::AimVolumeRelationVertex, color) == 12);
+static_assert(sizeof(aim_volume::AimWaterContactVertex) == 8);
+static_assert(aim_volume::maxWaterContactVertices == 49152);
 static_assert(aim_volume::maxVolumeSections == 1024); // shader traversal bound
 struct AimVolumeUniforms {
   simd_float4x4 inverseViewProjection, viewProjection;
   simd_float4 camera, axis, lateral, up, boundsMin, boundsMax, viewport, params;
+  simd_uint4 receiverFlags;
+  simd_float4 waterAtlas;
 };
-static_assert(sizeof(AimVolumeUniforms) == 256);
+static_assert(sizeof(AimVolumeUniforms) == 288);
 static_assert(offsetof(AimVolumeUniforms, camera) == 128);
 static_assert(offsetof(AimVolumeUniforms, params) == 240);
+static_assert(offsetof(AimVolumeUniforms, receiverFlags) == 256);
+static_assert(offsetof(AimVolumeUniforms, waterAtlas) == 272);
+struct AimReceiverStamp {
+  simd_float4x4 viewProjection{};
+  simd_float4 worldOrigin{},viewport{};
+};
+static_assert(sizeof(AimReceiverStamp)==96);
 struct AimVolumeFrame {
   AimVolumeUniforms uniforms{};
   std::vector<aim_volume::AimVolumeSection> sections;
   std::vector<aim_volume::AimVolumeRelationVertex> relationVertices;
   MTLScissorRect scissor{};
+  AimReceiverStamp stamp{};
+  std::vector<aim_volume::AimWaterContactVertex> waterVertices;
+  NSUInteger waterWidth=2048,waterHeight=2048; // fixed retained capacity, no per-wave allocation churn
 };
 
 inline constexpr const char *aimVolumeShaderSource = R"MSL(
@@ -42,7 +58,7 @@ inline constexpr const char *aimVolumeShaderSource = R"MSL(
 using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
-struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; };
+struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; };
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
   return float4(p[id],0,1);
@@ -138,36 +154,115 @@ float aim_air(float3 origin,float3 ray,float nearDistance,float farDistance,floa
 // Project each boundary into the receiver surface's pixel directions BEFORE
 // taking a minimum. A terminal plane coplanar with a cliff/water receiver gates
 // coverage but is not a bright edge across the entire contact patch.
-float aim_surface_constraint(float margin,float3 normal,float3 dx,float3 dy) {
+struct AimContactMask {float coverage,edge,key,outside,visibility;};
+void aim_surface_constraint(float margin,float3 normal,float3 dx,float3 dy,thread AimContactMask&mask) {
   float gradient=abs(dot(normal,dx))+abs(dot(normal,dy));
-  float flatThreshold=max(1.e-7f,(length(dx)+length(dy))*.01f);
-  if(gradient<=flatThreshold)return margin>=-.01f?1.e6f:-1.e6f;
-  return margin/gradient;
+  float threshold=max(1.e-7f,(length(dx)+length(dy))*.01f);
+  // Preserve PR3 away from coplanarity. Crossing its old hard 1% branch now
+  // changes edge strength continuously instead of jumping from no line to full.
+  float weight=smoothstep(threshold*.5f,threshold*1.5f,gradient);
+  float pixels=margin/max(gradient,1.e-8f),flat=margin>=-.01f?1.f:0.f;
+  mask.coverage=min(mask.coverage,mix(flat,smoothstep(-.5f,.5f,pixels),weight));
+  mask.visibility=min(mask.visibility,mix(flat,1.f,weight));
+  mask.outside=min(mask.outside,min(0.f,pixels)*weight);
+  mask.edge=max(mask.edge,weight*(1.f-smoothstep(.65f,1.65f,abs(pixels))));
+  mask.key=max(mask.key,weight*(1.f-smoothstep(1.45f,2.55f,abs(pixels))));
 }
-float aim_receiver_pixels(float3 receiver,float3 dx,float3 dy,constant AimU&u,
+float3 aim_receiver_mask(float3 receiver,float3 dx,float3 dy,constant AimU&u,
     const device AimSection*sections,const device AimPlane*planes) {
   uint count=uint(u.params.x),i=aim_slab(dot(receiver,u.axis.xyz),sections,count,u);
   AimSection a=sections[i],b=sections[i+1];
-  if(!a.planeCount)return -1.e6f;
+  if(!a.planeCount)return float3(0.f);
   float3 delta=float3(b.center)-float3(a.center);
   float axialLength=dot(delta,u.axis.xyz),axial=dot(receiver-float3(a.center),u.axis.xyz);
   float t=clamp(axial/axialLength,0.f,1.f);
   float3 local=receiver-float3(a.center)-delta*t;
   float2 q=float2(dot(local,u.lateral.xyz),dot(local,u.up.xyz));
   float2 centerDelta=float2(dot(delta,u.lateral.xyz),dot(delta,u.up.xyz));
-  float pixels=1.e6f;
+  AimContactMask mask={1.f,0.f,0.f,0.f,1.f};
   for(uint j=0;j<a.planeCount;++j) {
     AimPlane p=planes[a.firstPlane+j];float2 n=float2(p.x,p.y);
     float support=mix(p.offset0,p.offset1,t);
     float axialSlope=(p.offset1-p.offset0+dot(n,centerDelta))/axialLength;
     float inverseLength=rsqrt(1.f+axialSlope*axialSlope);
     float3 normal=(n.x*u.lateral.xyz+n.y*u.up.xyz-axialSlope*u.axis.xyz)*inverseLength;
-    pixels=min(pixels,aim_surface_constraint((support-dot(n,q))*inverseLength,normal,dx,dy));
+    aim_surface_constraint((support-dot(n,q))*inverseLength,normal,dx,dy,mask);
   }
-  // No internal axial stations or air endpoint fade appear in contact shading.
-  if(i==0||!sections[i-1].planeCount)pixels=min(pixels,aim_surface_constraint(axial,u.axis.xyz,dx,dy));
-  if(i==count-2||!sections[i+1].planeCount)pixels=min(pixels,aim_surface_constraint(axialLength-axial,u.axis.xyz,dx,dy));
-  return pixels;
+  if(i==0||!sections[i-1].planeCount)aim_surface_constraint(axial,u.axis.xyz,dx,dy,mask);
+  if(i==count-2||!sections[i+1].planeCount)aim_surface_constraint(axialLength-axial,u.axis.xyz,dx,dy,mask);
+  float edge=min(mask.edge,1.f-smoothstep(.65f,1.65f,abs(mask.outside)))*mask.visibility;
+  float key=min(mask.key,1.f-smoothstep(1.45f,2.55f,abs(mask.outside)))*mask.visibility;
+  return float3(mask.coverage,edge,key);
+}
+// Same-receiver launch neighbors generate this endpoint UNION, separately from
+// the stopped airborne loft. Replace-one writes cannot stack alpha or expose
+// projector/triangle edges. Empty cells remain empty; no dilation/closing pass.
+vertex float4 aim_water_union_vs(uint id [[vertex_id]],const device packed_float2*vertices [[buffer(0)]],constant AimU&u [[buffer(1)]]) {
+  float2 uv=(float2(vertices[id])-u.waterAtlas.xy)*u.waterAtlas.zw;
+  return float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0.f,1.f);
+}
+fragment float4 aim_water_union_fs(){return float4(1.f);}
+fragment float4 aim_owner_fs(float4 pixel [[position]],depth2d<float,access::read> before [[texture(0)]],depth2d<float,access::read> after [[texture(1)]]) {
+  uint2 p=uint2(pixel.xy);float a=before.read(p),b=after.read(p);
+  if(!isfinite(a)||!isfinite(b)||b>=a||b<0.f||b>=1.f)discard_fragment();
+  // Preserve already-owned pixels when a later invocation changes no depth.
+  return float4(b,0.f,0.f,1.f);
+}
+float aim_water_value(texture2d<float> chart,sampler linearClamp,float2 uv) {
+  if(any(uv<0.f)||any(uv>1.f))return 0.f;
+  return chart.sample(linearClamp,uv).r;
+}
+bool aim_water_neighbor(int2 pixel,constant AimU&u,depth2d<float,access::read> sceneDepth,
+    texture2d<float,access::read> waterDepth,thread float3&world) {
+  int2 size=int2(sceneDepth.get_width(),sceneDepth.get_height());
+  if(any(pixel<0)||any(pixel>=size))return false;
+  float depth=sceneDepth.read(uint2(pixel));
+  if(!isfinite(depth)||depth<0.f||depth>=1.f||waterDepth.read(uint2(pixel)).r!=depth)return false;
+  float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
+  float4 p=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,depth,1.f);
+  if(abs(p.w)<1.e-8f)return false;world=p.xyz/p.w;return all(isfinite(world));
+}
+float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u,
+    depth2d<float,access::read> sceneDepth,texture2d<float,access::read> waterDepth) {
+  float3 left=0.f,right=0.f;
+  bool a=aim_water_neighbor(int2(pixel)-direction,u,sceneDepth,waterDepth,left);
+  bool b=aim_water_neighbor(int2(pixel)+direction,u,sceneDepth,waterDepth,right);
+  left=receiver-left;right=right-receiver;
+  if(a&&b) {
+    float l=length(left),r=length(right);
+    // A one-pixel foreground crest with both neighbors on another water fold
+    // must not borrow their distant chart position for a false contour halo.
+    if(dot(left,right)<=0.f)return float3(0.f);
+    return l<=r?left:right;
+  }
+  return a?left:(b?right:float3(0.f));
+}
+float3 aim_water_mask(float3 receiver,float3 dx,float3 dy,constant AimU&u,texture2d<float> chart,sampler linearClamp) {
+  if(!u.receiverFlags.z)return float3(0.f);
+  float2 uv=(receiver.xz-u.waterAtlas.xy)*u.waterAtlas.zw;
+  float2 du=dx.xz*u.waterAtlas.zw,dv=dy.xz*u.waterAtlas.zw;
+  float2 bound=(abs(du)+abs(dv))*2.55f;
+  if(any(uv< -bound)||any(uv>1.f+bound))return float3(0.f);
+  float center=aim_water_value(chart,linearClamp,uv),nearest=1.e6f;
+  const float2 directions[8]={float2(1,0),float2(-1,0),float2(0,1),float2(0,-1),
+      float2(.70710678f,.70710678f),float2(-.70710678f,.70710678f),float2(.70710678f,-.70710678f),float2(-.70710678f,-.70710678f)};
+  const float radius[3]={.5f,1.5f,2.55f};
+  // Search only the unchanged PR3 stroke's <=2.55 SCREEN-pixel support.
+  // This samples the chart, never neighboring scene color/depth or receiver IDs.
+  for(uint d=0;d<8;++d) {
+    float2 step=du*directions[d].x+dv*directions[d].y;
+    float previous=center,previousRadius=0.f;
+    for(uint r=0;r<3;++r) {
+      float value=aim_water_value(chart,linearClamp,uv+step*radius[r]);
+      if((value>=.5f)!=(previous>=.5f)) {
+        float fraction=clamp((previous-.5f)/(previous-value),0.f,1.f);
+        nearest=min(nearest,mix(previousRadius,radius[r],fraction));break;
+      }
+      previous=value;previousRadius=radius[r];
+    }
+  }
+  float signedPixels=center>=.5f?nearest:-nearest;
+  return float3(smoothstep(-.5f,.5f,signedPixels),1.f-smoothstep(.65f,1.65f,nearest),1.f-smoothstep(1.45f,2.55f,nearest));
 }
 struct AimRelationVertex { packed_float3 position; uint color; };
 struct AimRelationO { float4 position [[position]]; float4 color [[flat]]; };
@@ -201,6 +296,8 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
     depth2d<float,access::read> sceneDepth [[texture(0)]],
     texture2d<float,access::read> relation [[texture(1)]],
     texture2d<float,access::read> sceneColor [[texture(2)]],
+    texture2d<float> waterChart [[texture(3)]],texture2d<float,access::read> ownDepth [[texture(4)]],
+    texture2d<float,access::read> waterDepth [[texture(5)]],sampler linearClamp [[sampler(0)]],
     constant AimU&u [[buffer(0)]],const device AimSection*sections [[buffer(1)]],
     const device AimPlane*planes [[buffer(2)]]) {
   float2 uv=(pixel.xy-u.viewport.xy)/u.viewport.zw;
@@ -229,15 +326,29 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   // always fetched from the same integer pixel and is never blurred.
   float3 dx=dfdx(receiver),dy=dfdy(receiver);
   dx*=min(1.f,.75f/max(length(dx),1.e-6f));dy*=min(1.f,.75f/max(length(dy),1.e-6f));
-  float signedPixels=hasReceiver?aim_receiver_pixels(receiver,dx,dy,u,sections,planes):-1.e6f;
-  float coverage=hasReceiver?smoothstep(-.5f,.5f,signedPixels):0.f;
-  float contour=hasReceiver?1.f-smoothstep(.65f,1.65f,abs(signedPixels)):0.f;
+  bool actualOwn=hasReceiver&&u.receiverFlags.x&&ownDepth.read(pixelIndex).r==depth;
+  bool actualWater=hasReceiver&&u.receiverFlags.y&&waterDepth.read(pixelIndex).r==depth;
+  float3 contact=float3(0.f);
+  // Fail closed for CONTACT until both live receiver scopes are known. Missing
+  // own ownership must not paint the rail; missing sea ownership must not fall
+  // back to the stopped-air field and silently recreate fragmented water.
+  if(hasReceiver&&u.receiverFlags.x&&u.receiverFlags.y&&!actualOwn) {
+    if(actualWater) {
+      // Keep actual screen-pixel scale at long range/grazing angles. The PR3
+      // global .75m derivative clamp could reduce a4.5m pixel to.17pixels and
+      // make the otherwise-correct contour vanish by sampling phase.
+      float3 waterDx=aim_water_step(pixelIndex,int2(1,0),receiver,u,sceneDepth,waterDepth);
+      float3 waterDy=aim_water_step(pixelIndex,int2(0,1),receiver,u,sceneDepth,waterDepth);
+      contact=aim_water_mask(receiver,waterDx,waterDy,u,waterChart,linearClamp);
+    }else contact=aim_receiver_mask(receiver,dx,dy,u,sections,planes);
+  }
+  float coverage=contact.x,contour=contact.y;
   float4 identity=relation.read(pixelIndex);
-  bool excludedReceiver=identity.a>.1f&&identity.a<.5f;
-  if(excludedReceiver){coverage=0.f;contour=0.f;} // own deck/rails still occlude air
+  bool excludedReceiver=actualOwn;
+  if(excludedReceiver){coverage=0.f;contour=0.f;contact.z=0.f;}
   float readiness=.72f+.28f*u.params.y;
   float fillAlpha=.10f*coverage*readiness,lineAlpha=.72f*contour*readiness;
-  float3 tint=identity.a>.5f?identity.rgb:float3(.85098f,.88627f,.89412f);
+  float3 tint=(!actualWater&&identity.a>.5f)?identity.rgb:float3(.85098f,.88627f,.89412f);
   float3 background=sceneColor.read(pixelIndex).rgb;
   float luminance=dot(background,float3(.2126f,.7152f,.0722f));
   // Keep a bright relation-colored core rather than averaging bright/dark
@@ -246,7 +357,7 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   float3 lineTint=mix(tint,float3(1.f),.06f);
   // Both tones belong to this single depth-tested analytic contour. The dark
   // keyline is subdued at night and never increases the airborne fog.
-  float keyline=(hasReceiver&&!excludedReceiver)?1.f-smoothstep(1.45f,2.55f,abs(signedPixels)):0.f;
+  float keyline=contact.z;
   float keyAlpha=.35f*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
   float baseAlpha=keyAlpha+fillAlpha*(1.f-keyAlpha);
   float3 baseRGB=tint*.10f*keyAlpha+tint*fillAlpha*(1.f-keyAlpha);
@@ -265,24 +376,62 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
 
 class SoftAimVolume {
  public:
-  enum Failure : unsigned { Resources, Input, Camera, Shader, Snapshot, Encoder, FailureCount };
+  enum Failure : unsigned { Resources, Input, Camera, Shader, Snapshot, Encoder, OwnCapture, WaterCapture, FailureCount };
   bool fail(Failure reason,const char*message) {
     const unsigned bit=1u<<reason;
     if(!(loggedFailures_&bit)){loggedFailures_|=bit;std::fprintf(stderr,"[StormMetal] aim volume skipped: %s\n",message);}
     return false;
   }
-  void reset() { depthSnapshot_=nil;colorSnapshot_=nil;relationMask_=nil;relationPipeline_=nil;relationDepthTest_=nil; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
+  void beginFrame(){for(auto&owner:owners_){owner.active=false;owner.ready=false;}}
+  void setEnabled(bool value){if(!value||!enabled_)beginFrame();enabled_=value;}
+  bool enabled()const{return enabled_;}
+  void cancelOwner(unsigned kind){if(kind<owners_.size())owners_[kind].active=false;}
+  void reset() { depthSnapshot_=nil;colorSnapshot_=nil;relationMask_=nil;relationPipeline_=nil;relationDepthTest_=nil;waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
+  bool beginOwner(unsigned kind,id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>depth,MTLPixelFormat colorFormat,const AimReceiverStamp&stamp) {
+    if(!enabled_||kind>=owners_.size()||!command||!depth||depth.pixelFormat!=MTLPixelFormatDepth32Float||depth.sampleCount!=1||depth.textureType!=MTLTextureType2D)return false;
+    auto&owner=owners_[kind];if(owner.active)return fail(Input,"nested aiming receiver scope");
+    if(!prepare(device,colorFormat))return false;
+    if(!owner.before||!owner.depth||owner.before.width!=depth.width||owner.before.height!=depth.height) {
+      auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float width:depth.width height:depth.height mipmapped:NO];
+      descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageShaderRead;
+      owner.before=[device newTextureWithDescriptor:descriptor];descriptor.pixelFormat=MTLPixelFormatR32Float;
+      descriptor.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;owner.depth=[device newTextureWithDescriptor:descriptor];owner.ready=false;
+    }
+    if(!owner.before||!owner.depth)return fail(Snapshot,"cannot allocate receiver ownership depth");
+    auto blit=[command blitCommandEncoder];if(!blit)return fail(Encoder,"cannot begin receiver depth snapshot");
+    [blit copyFromTexture:depth sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0) sourceSize:MTLSizeMake(depth.width,depth.height,1)
+        toTexture:owner.before destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];[blit endEncoding];
+    owner.captureStamp=stamp;owner.active=true;return true;
+  }
+  bool endOwner(unsigned kind,id<MTLCommandBuffer>command,id<MTLTexture>depth,const AimReceiverStamp&stamp) {
+    if(kind>=owners_.size())return false;auto&owner=owners_[kind];
+    if(!owner.active)return false;owner.active=false;
+    if(!enabled_||!command||!depth||depth.width!=owner.before.width||depth.height!=owner.before.height||!sameStamp(stamp,owner.captureStamp))return fail(Camera,"receiver scope changed main camera/target");
+    bool load=owner.ready&&sameStamp(owner.stamp,stamp);
+    auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=owner.depth;
+    pass.colorAttachments[0].loadAction=load?MTLLoadActionLoad:MTLLoadActionClear;pass.colorAttachments[0].clearColor=MTLClearColorMake(1,0,0,0);
+    pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+    auto encoder=[command renderCommandEncoderWithDescriptor:pass];if(!encoder)return fail(Encoder,"cannot begin receiver ownership pass");
+    [encoder setRenderPipelineState:ownerPipeline_];[encoder setCullMode:MTLCullModeNone];const auto&v=stamp.viewport;
+    [encoder setViewport:MTLViewport{v.x,v.y,v.z,v.w,0.,1.}];[encoder setFragmentTexture:owner.before atIndex:0];[encoder setFragmentTexture:depth atIndex:1];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
+    owner.stamp=stamp;owner.ready=true;
+    if(!(loggedOwners_&(1u<<kind))){loggedOwners_|=1u<<kind;std::fprintf(stderr,"[StormMetal] aim %s render ownership scope encoded\n",kind?"water":"own-ship");}
+    return true;
+  }
 
   bool buildFrame(const aim_volume::AimVolumeSection*sections,uint32_t count,
       const aim_volume::AimVolumePlane*planes,uint32_t planeCount,
       const aim_volume::AimVolumeRelationVertex*relationVertices,uint32_t relationVertexCount,
+      const aim_volume::AimWaterContactVertex*waterVertices,uint32_t waterVertexCount,
       const float*axis,const float*lateral,const float*up,float readiness,
       simd_float3 worldOrigin,const simd_float4x4&viewProjection,
       const simd_float4x4&inverseView,simd_float4 viewport,AimVolumeFrame&frame) {
     using namespace aim_volume;
     if(!sections||!planes||!axis||!lateral||!up||count<2||count>maxVolumeSections||
        !planeCount||planeCount>maxVolumePlanes||!std::isfinite(readiness)||
-       relationVertexCount>maxVolumeRelationVertices||relationVertexCount%3||(!relationVertices&&relationVertexCount))return fail(Input,"invalid section/plane input");
+       relationVertexCount>maxVolumeRelationVertices||relationVertexCount%3||(!relationVertices&&relationVertexCount)||
+       waterVertexCount>maxWaterContactVertices||waterVertexCount%3||(!waterVertices&&waterVertexCount))return fail(Input,"invalid section/plane input");
     auto finite3=[](simd_float3 v){return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);};
     const simd_float3 ax={axis[0],axis[1],axis[2]},lat={lateral[0],lateral[1],lateral[2]},vertical={up[0],up[1],up[2]};
     if(!finite3(ax)||!finite3(lat)||!finite3(vertical)||!finite3(worldOrigin)||
@@ -297,6 +446,7 @@ class SoftAimVolume {
     if(!std::isfinite(viewport.x)||!std::isfinite(viewport.y)||!std::isfinite(viewport.z)||!std::isfinite(viewport.w)||
        viewport.x<0.f||viewport.y<0.f||viewport.z<=0.f||viewport.w<=0.f)return fail(Camera,"invalid viewport");
     auto&u=frame.uniforms;u={};u.inverseViewProjection=simd_inverse(viewProjection);u.viewProjection=viewProjection;
+    frame.stamp={viewProjection,simd_make_float4(worldOrigin,0.f),viewport};
     for(unsigned c=0;c<4;++c)for(unsigned r=0;r<4;++r)
       if(!std::isfinite(u.inverseViewProjection.columns[c][r]))return fail(Camera,"invalid inverse camera matrix");
     u.camera=simd_make_float4(inverseView.columns[3].xyz,1.f);
@@ -350,6 +500,17 @@ class SoftAimVolume {
       position+=worldOrigin;if(!finite3(position))return fail(Input,"nonfinite rebased relation vertex");
       vertex.position[0]=position.x;vertex.position[1]=position.y;vertex.position[2]=position.z;
     }
+    frame.waterVertices.clear();
+    if(waterVertexCount)frame.waterVertices.assign(waterVertices,waterVertices+waterVertexCount);
+    float minWaterX=std::numeric_limits<float>::max(),minWaterZ=minWaterX,maxWaterX=-minWaterX,maxWaterZ=-minWaterX;
+    for(auto&vertex:frame.waterVertices){vertex.x+=worldOrigin.x;vertex.z+=worldOrigin.z;if(!std::isfinite(vertex.x)||!std::isfinite(vertex.z))return fail(Input,"nonfinite water endpoint");
+      minWaterX=std::min(minWaterX,vertex.x);minWaterZ=std::min(minWaterZ,vertex.z);maxWaterX=std::max(maxWaterX,vertex.x);maxWaterZ=std::max(maxWaterZ,vertex.z);}
+    if(waterVertexCount){
+      float width=std::max(.01f,maxWaterX-minWaterX),height=std::max(.01f,maxWaterZ-minWaterZ);
+      float texelX=width/float(frame.waterWidth-4),texelZ=height/float(frame.waterHeight-4);
+      u.waterAtlas={minWaterX-2.f*texelX,minWaterZ-2.f*texelZ,1.f/(texelX*frame.waterWidth),1.f/(texelZ*frame.waterHeight)};
+      crossesNear=true; // Endpoint contact field need not overlap the stopped-air bounds.
+    }
     u.boundsMin=simd_make_float4(boundsMin,0.f);u.boundsMax=simd_make_float4(boundsMax,0.f);
     // Projecting bounds across the near plane is not conservative. Cover the
     // viewport in that case; the ray/volume intersection still rejects empty air.
@@ -364,14 +525,24 @@ class SoftAimVolume {
 
   bool encode(id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>target,id<MTLTexture>currentDepth,
       id<MTLBuffer>sections,NSUInteger sectionOffset,id<MTLBuffer>planes,NSUInteger planeOffset,
-      id<MTLBuffer>relationVertices,NSUInteger relationOffset,const AimVolumeFrame&frame) {
-    if(!device||!command||!target||!currentDepth||!sections||!planes||(!frame.relationVertices.empty()&&!relationVertices)||
+      id<MTLBuffer>relationVertices,NSUInteger relationOffset,id<MTLBuffer>waterVertices,NSUInteger waterOffset,const AimVolumeFrame&frame) {
+    if(!enabled_||!device||!command||!target||!currentDepth||!sections||!planes||(!frame.relationVertices.empty()&&!relationVertices)||(!frame.waterVertices.empty()&&!waterVertices)||
        target.textureType!=MTLTextureType2D||currentDepth.textureType!=MTLTextureType2D||
        target.sampleCount!=1||currentDepth.sampleCount!=1||currentDepth.pixelFormat!=MTLPixelFormatDepth32Float||
        target.width!=currentDepth.width||target.height!=currentDepth.height||
        currentDepth.storageMode==MTLStorageModeMemoryless)return fail(Resources,"unsupported current color/depth resources");
     if(!frame.scissor.width||!frame.scissor.height)return true;
     if(!prepare(device,target.pixelFormat))return false;
+    AimVolumeUniforms uniforms=frame.uniforms;
+    bool ownReady=owners_[0].ready&&sameStamp(owners_[0].stamp,frame.stamp),waterReady=owners_[1].ready&&sameStamp(owners_[1].stamp,frame.stamp);
+    uniforms.receiverFlags={uint32_t(ownReady),uint32_t(waterReady),uint32_t(!frame.waterVertices.empty()),0};
+    if(!ownReady)fail(OwnCapture,"own render ownership unavailable for this camera; contact withheld");
+    if(!waterReady)fail(WaterCapture,"water render ownership unavailable for this camera; contact withheld");
+    if(!waterMask_||waterMask_.width!=frame.waterWidth||waterMask_.height!=frame.waterHeight){
+      auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Unorm width:frame.waterWidth height:frame.waterHeight mipmapped:NO];
+      descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;waterMask_=[device newTextureWithDescriptor:descriptor];
+    }
+    if(!waterMask_)return fail(Snapshot,"cannot allocate water contact union atlas");
     if(!depthSnapshot_||depthSnapshot_.width!=currentDepth.width||depthSnapshot_.height!=currentDepth.height) {
       auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float width:currentDepth.width height:currentDepth.height mipmapped:NO];
       descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageShaderRead;
@@ -396,6 +567,13 @@ class SoftAimVolume {
         sourceSize:MTLSizeMake(target.width,target.height,1) toTexture:colorSnapshot_
         destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];
     [blit endEncoding];
+    auto chartPass=[MTLRenderPassDescriptor renderPassDescriptor];chartPass.colorAttachments[0].texture=waterMask_;
+    chartPass.colorAttachments[0].loadAction=MTLLoadActionClear;chartPass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,0);chartPass.colorAttachments[0].storeAction=MTLStoreActionStore;
+    auto chartEncoder=[command renderCommandEncoderWithDescriptor:chartPass];if(!chartEncoder)return fail(Encoder,"cannot begin water union atlas");
+    [chartEncoder setRenderPipelineState:waterPipeline_];[chartEncoder setCullMode:MTLCullModeNone];
+    if(!frame.waterVertices.empty()){[chartEncoder setVertexBuffer:waterVertices offset:waterOffset atIndex:0];[chartEncoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+      [chartEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:frame.waterVertices.size()];}
+    [chartEncoder endEncoding];
     const auto&v=frame.uniforms.viewport;
     // Mask is cleared every call, including zero-geometry frames. Exact clipped
     // receiver triangles supply identity only; they never enter scene color.
@@ -409,8 +587,8 @@ class SoftAimVolume {
     [maskEncoder setRenderPipelineState:relationPipeline_];[maskEncoder setDepthStencilState:relationDepthTest_];
     [maskEncoder setCullMode:MTLCullModeNone];[maskEncoder setViewport:MTLViewport{v.x,v.y,v.z,v.w,0.,1.}];
     [maskEncoder setScissorRect:frame.scissor];
-    [maskEncoder setVertexBytes:&frame.uniforms length:sizeof(frame.uniforms) atIndex:1];
-    [maskEncoder setFragmentBytes:&frame.uniforms length:sizeof(frame.uniforms) atIndex:0];
+    [maskEncoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+    [maskEncoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
     [maskEncoder setFragmentTexture:depthSnapshot_ atIndex:0];
     if(!frame.relationVertices.empty()) {
       [maskEncoder setVertexBuffer:relationVertices offset:relationOffset atIndex:0];
@@ -426,19 +604,23 @@ class SoftAimVolume {
     if(!encoder)return fail(Encoder,"cannot begin volume encoder");
     [encoder setRenderPipelineState:pipeline_];[encoder setCullMode:MTLCullModeNone];
     [encoder setViewport:MTLViewport{v.x,v.y,v.z,v.w,0.,1.}];[encoder setScissorRect:frame.scissor];
-    [encoder setFragmentBytes:&frame.uniforms length:sizeof(frame.uniforms) atIndex:0];
+    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
     [encoder setFragmentBuffer:sections offset:sectionOffset atIndex:1];
     [encoder setFragmentBuffer:planes offset:planeOffset atIndex:2];
     [encoder setFragmentTexture:depthSnapshot_ atIndex:0];
     [encoder setFragmentTexture:relationMask_ atIndex:1];[encoder setFragmentTexture:colorSnapshot_ atIndex:2];
+    [encoder setFragmentTexture:waterMask_ atIndex:3];[encoder setFragmentTexture:ownReady?owners_[0].depth:colorSnapshot_ atIndex:4];
+    [encoder setFragmentTexture:waterReady?owners_[1].depth:colorSnapshot_ atIndex:5];[encoder setFragmentSamplerState:waterSampler_ atIndex:0];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v2: unified depth contact + verified relation mask (air alpha <= 0.22)\n");}
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v3: endpoint-water union + rendered receiver ownership (PR3 style, air alpha <= 0.22)\n");}
     return true;
   }
 
  private:
+  struct OwnerDepth {id<MTLTexture>before=nil,depth=nil;AimReceiverStamp stamp{},captureStamp{};bool ready=false,active=false;};
+  static bool sameStamp(const AimReceiverStamp&a,const AimReceiverStamp&b){return std::memcmp(&a,&b,sizeof(a))==0;}
   bool prepare(id<MTLDevice>device,MTLPixelFormat format) {
-    if(pipeline_&&relationPipeline_&&relationDepthTest_&&format_==format)return true;
+    if(pipeline_&&relationPipeline_&&relationDepthTest_&&ownerPipeline_&&waterPipeline_&&waterSampler_&&format_==format)return true;
     if(shaderFailed_)return false;
     NSError*error=nil;
     if(!library_)library_=[device newLibraryWithSource:[NSString stringWithUTF8String:aimVolumeShaderSource] options:nil error:&error];
@@ -459,8 +641,19 @@ class SoftAimVolume {
       relationDepthTest_=[device newDepthStencilStateWithDescriptor:depth];
       if(!relationPipeline_||!relationDepthTest_){shaderFailed_=true;if(!(loggedFailures_&(1u<<Shader)))std::fprintf(stderr,"[StormMetal] aim relation pipeline: %s\n",error.localizedDescription.UTF8String);return fail(Shader,"receiver identity pipeline creation failed");}
     }
+    if(!waterPipeline_||!ownerPipeline_){
+      auto make=[&](NSString*vertex,NSString*fragment,MTLPixelFormat pixelFormat){auto descriptor=[MTLRenderPipelineDescriptor new];descriptor.vertexFunction=[library_ newFunctionWithName:vertex];descriptor.fragmentFunction=[library_ newFunctionWithName:fragment];descriptor.colorAttachments[0].pixelFormat=pixelFormat;return [device newRenderPipelineStateWithDescriptor:descriptor error:&error];};
+      waterPipeline_=make(@"aim_water_union_vs",@"aim_water_union_fs",MTLPixelFormatR8Unorm);
+      ownerPipeline_=make(@"aim_volume_vs",@"aim_owner_fs",MTLPixelFormatR32Float);
+      auto sampler=[MTLSamplerDescriptor new];sampler.minFilter=sampler.magFilter=MTLSamplerMinMagFilterLinear;sampler.sAddressMode=sampler.tAddressMode=MTLSamplerAddressModeClampToEdge;waterSampler_=[device newSamplerStateWithDescriptor:sampler];
+      if(!waterPipeline_||!ownerPipeline_||!waterSampler_){shaderFailed_=true;if(!(loggedFailures_&(1u<<Shader)))std::fprintf(stderr,"[StormMetal] aim water/owner pipeline: %s\n",error.localizedDescription.UTF8String);return fail(Shader,"water/owner pipeline creation failed");}
+    }
     return true;
   }
+  std::array<OwnerDepth,2>owners_{};
+  bool enabled_=false;unsigned loggedOwners_=0;
+  id<MTLRenderPipelineState>waterPipeline_=nil,ownerPipeline_=nil;
+  id<MTLSamplerState>waterSampler_=nil;id<MTLTexture>waterMask_=nil;
   id<MTLLibrary>library_=nil;
   id<MTLRenderPipelineState>pipeline_=nil,relationPipeline_=nil;
   id<MTLDepthStencilState>relationDepthTest_=nil;

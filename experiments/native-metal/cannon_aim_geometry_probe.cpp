@@ -552,6 +552,65 @@ int main() {
     check((storm::sea_ai::manual_aim::excludedReceiverColor&0xFF000000u)!=0,
           "own-ship contact exclusion is distinct from neutral receiver RGB");
 
+    // Stopped-air hulls cannot define a continuous water footprint: between
+    // early/late impacts every surviving sampled path is still above flat sea.
+    const auto flatEnd=[](float vy){return (vy+std::sqrt(vy*vy+100.f));};
+    const float early=flatEnd(0.f),late=flatEnd(5.f),centerEnd=flatEnd(2.5f);
+    const float oldAirLower=5.f+5.f*1.2f-5.f*1.2f*1.2f;
+    check(near(early,10.f)&&near(late,16.18034f,1e-4)&&oldAirLower>3.7f,
+          "flat-water reproducer retains positive stopped-air lower boundary");
+    auto waterVertex=[](float x,float z,int receiver=0){return ContactVertex{{true,receiver,CVECTOR(x,0.f,z)},0.f,0.f};};
+    std::vector<std::array<ContactVertex,3>> waterUnion;
+    const auto appendWater=[&](const auto&a,const auto&b,const auto&c){waterUnion.push_back({a,b,c});};
+    manual_aim::waterContactFan(waterVertex(early,-1.f),waterVertex(late,-1.f),
+        waterVertex(late,1.f),waterVertex(early,1.f),waterVertex(centerEnd,0.f),appendWater);
+    const auto inWaterUnion=[&](float x,float z)
+    {
+        for(const auto &triangle:waterUnion)
+        {
+            float lo=1e20f,hi=-1e20f;
+            for(int i=0;i<3;++i)
+            {
+                const auto &a=triangle[i].hit.point,&b=triangle[(i+1)%3].hit.point;
+                const float side=(b.x-a.x)*(z-a.z)-(b.z-a.z)*(x-a.x);
+                lo=std::min(lo,side);hi=std::max(hi,side);
+            }
+            if(lo>=-1e-5f||hi<=1e-5f)return true;
+        }
+        return false;
+    };
+    check(waterUnion.size()==4&&inWaterUnion(12.f,0.f),"real endpoint fan covers flat sea between separated impact stations");
+    for(float x:{early+.1f,12.f,centerEnd,late-.1f})for(float z:{-.9f,0.f,.9f})
+        check(inWaterUnion(x,z),"connected flat-water range has no sampled-air islands");
+    for(float dx:{-.02f,0.f,.02f})for(float dz:{-.02f,0.f,.02f})
+        check(inWaterUnion(centerEnd+dx,dz),"internal fan edges do not create union-mask boundaries");
+    waterUnion.clear();
+    manual_aim::waterContactFan(waterVertex(0.f,-1.f),waterVertex(1.f,-1.f),waterVertex(1.f,1.f),
+        waterVertex(0.f,1.f),waterVertex(.5f,0.f),appendWater);
+    manual_aim::waterContactFan(waterVertex(3.f,-1.f),waterVertex(4.f,-1.f),waterVertex(4.f,1.f),
+        waterVertex(3.f,1.f),waterVertex(3.5f,0.f),appendWater);
+    check(inWaterUnion(.5f,0.f)&&inWaterUnion(3.5f,0.f)&&!inWaterUnion(2.f,0.f),
+          "separate water lobes preserve the blocked gap instead of a convex hull bridge");
+    waterUnion.clear();
+    manual_aim::waterContactFan(waterVertex(0.f,-1.f),waterVertex(4.f,-1.f),waterVertex(4.f,1.f),
+        waterVertex(0.f,1.f),waterVertex(2.f,0.f,1),appendWater);
+    check(waterUnion.empty(),"solid first-hit center never creates water coverage through its shadow");
+    waterUnion.clear();
+    auto speedField=[&](float scale)
+    {
+        const auto impact=[&](float vy){return 10.f*scale*(vy*scale+std::sqrt(vy*vy*scale*scale+100.f))/10.f;};
+        manual_aim::waterContactFan(waterVertex(impact(0.f),-1.f),waterVertex(impact(5.f),-1.f),
+            waterVertex(impact(5.f),1.f),waterVertex(impact(0.f),1.f),waterVertex(impact(2.5f),0.f),appendWater);
+    };
+    speedField(1.f);
+    check(!inWaterUnion(late+1.f,0.f),"nominal speed alone misses legal high-speed water impact");
+    speedField(1.2f);
+    check(inWaterUnion(late+1.f,0.f),"independent high-speed field retains farther legal impact coverage");
+    check(!inWaterUnion(9.f,0.f),"nominal and high-speed fields do not fabricate slower landing extent");
+    speedField(.8f);
+    check(inWaterUnion(9.f,0.f),"independent low-speed field retains nearer legal impact coverage");
+    check(sizeof(storm::sea_ai::manual_aim::AimWaterContactVertex)==8,"water chart ABI is exactly two world coordinates");
+
     std::cout<<checks<<" checks, "<<failures<<" failures\n";
     return failures?1:0;
 }

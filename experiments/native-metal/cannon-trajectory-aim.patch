@@ -1,12 +1,13 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-index 378d01c..05acccf 100644
+index 378d01c..dab4a57 100644
 --- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-@@ -1,5 +1,37 @@
+@@ -1,5 +1,38 @@
  #include "ai_fort.h"
  #include "ai_ship.h"
 +#include <algorithm>
 +#include <cmath>
++#include "shared/sea_ai/manual_aim_volume_bridge.hpp"
 +
 +namespace
 +{
@@ -40,7 +41,16 @@ index 378d01c..05acccf 100644
 
  AIShipCameraController::AIShipCameraController(AIShip *_pAIShip)
  {
-@@ -45,6 +77,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
+@@ -40,11 +73,24 @@ bool AIShipCameraController::Init()
+ void AIShipCameraController::Execute(float fDeltaTime)
+ {
+     bCameraOutside = pACrosshair->GetAttributeAsDword("OutsideCamera") != 0;
++#ifdef STORM_METAL_AIM_VOLUME_BRIDGE
++    if(GetAIShip()->isMainCharacter())
++        StormMetalSetAimEnabled(AIHelper::pRS->GetD3DDevice(),!bCameraOutside);
++#endif
+
+     pTargetAPointer = nullptr;
      dwTarget = RELATION_UNKNOWN;
      auto vOurPos = GetAIShip()->GetPos();
 
@@ -56,7 +66,7 @@ index 378d01c..05acccf 100644
      if (isCameraOutside())
      {
          fDelta = 0.0f;
-@@ -141,8 +182,13 @@ bool AIShipCameraController::Fire()
+@@ -141,8 +187,13 @@ bool AIShipCameraController::Fire()
      const auto vZ = m.Vz();
      // CVECTOR vZ = m * CVECTOR(0.0f, 0.0f, 1.0f);
      // vZ = !CVECTOR(vZ.x, 0.0f, vZ.z);
@@ -71,7 +81,7 @@ index 378d01c..05acccf 100644
 
      if (dwTarget != RELATION_UNKNOWN && pTargetAPointer)
      {
-@@ -151,7 +197,7 @@ bool AIShipCameraController::Fire()
+@@ -151,7 +202,7 @@ bool AIShipCameraController::Fire()
      }
 
      // if (pTargetAPointer) AIGroup::GroupSetAttack(GetAIShip()->GetACharacter(), pTargetAPointer);
@@ -80,7 +90,7 @@ index 378d01c..05acccf 100644
  }
 
  void AIShipCameraController::Realize(float fDeltaTime)
-@@ -173,6 +219,12 @@ void AIShipCameraController::Realize(float fDeltaTime)
+@@ -173,6 +224,12 @@ void AIShipCameraController::Realize(float fDeltaTime)
      AIHelper::pRS->GetCamera(campos,camang,campersp);
      m.BuildMatrix(camang);
      CVECTOR vZ = m.Vz();*/
@@ -94,7 +104,7 @@ index 378d01c..05acccf 100644
          return;
 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-index dc92b39..7c04624 100644
+index dc92b39..56e2907 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 @@ -2,8 +2,17 @@
@@ -286,7 +296,7 @@ index dc92b39..7c04624 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,661 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,699 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -755,39 +765,77 @@ index dc92b39..7c04624 100644
 +                if(value>it->values[slot]){it->values[slot]=value;it->paths[slot]=path;}
 +            }
 +    };
++    std::vector<storm::sea_ai::manual_aim::AimWaterContactVertex> waterVertices;
 +    for(const auto *gun:projectors)
 +    {
 +        const CVECTOR muzzle=gun->GetPos();
 +        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        // Keep the nominal interior field plus both independent speed limits.
++        // Coarser2x2 speed-boundary grids bound extra trace cost; all faces still
++        // refine mixed first receivers independently rather than spanning them.
++        for(int speedLayer=-1;speedLayer<=1;++speedLayer)
++        {
++        const float sampleSpeed=speed+spread.speed*speedLayer;
++        struct WaterSample {AimHit hit;float yaw,elevation;};
 +        struct Sample {float yaw,elevation;AimPath path;};
 +        std::vector<Sample> cache;
-+        auto sample=[&](float yaw,float elevation)->AimHit
++        int cellSamples=0;bool baseSamples=true;
++        auto sample=[&](float yaw,float elevation)->WaterSample
 +        {
-+            for(const auto &p:cache)if(p.yaw==yaw&&p.elevation==elevation)return p.path.hit;
-+            if(cache.size()>=105)return AimHit{};
-+            const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,
++            for(const auto &p:cache)if(p.yaw==yaw&&p.elevation==elevation)return {p.path.hit,yaw,elevation};
++            //41 mandatory points plus an independent12-sample allowance per cell.
++            // A difficult earlier receiver edge cannot erase a later cell.
++            if(!baseSamples&&cellSamples>=12)return {};
++            if(!baseSamples)++cellSamples;
++            const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,sampleSpeed,
 +                angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
-+            cache.push_back({yaw,elevation,path});retainContact(path);return path.hit;
++            cache.push_back({yaw,elevation,path});retainContact(path);return {path.hit,yaw,elevation};
 +        };
-+        constexpr int divisions=4;
-+        std::array<std::array<AimHit,divisions+1>,divisions+1> grid{};
++        auto emitWater=[&](const WaterSample &a,const WaterSample &b,const WaterSample &c)
++        {
++            if(waterVertices.size()+3>storm::sea_ai::manual_aim::maxWaterContactVertices)return;
++            if(!a.hit.valid||!b.hit.valid||!c.hit.valid||a.hit.surface||b.hit.surface||c.hit.surface)return;
++            const auto &x=a.hit.point,&y=b.hit.point,&z=c.hit.point;
++            const float area=(y.x-x.x)*(z.z-x.z)-(y.z-x.z)*(z.x-x.x);
++            if(!std::isfinite(area)||std::fabs(area)<1e-8f)return;
++            for(const auto *v:{&a,&b,&c})waterVertices.push_back({v->hit.point.x,v->hit.point.z});
++        };
++        constexpr int maxDivisions=4;
++        const int divisions=speedLayer==0?4:2;const float step=2.f/divisions;
++        std::array<std::array<WaterSample,maxDivisions+1>,maxDivisions+1> grid{};
 +        for(int y=0;y<=divisions;++y)for(int x=0;x<=divisions;++x)
-+            grid[y][x]=sample(-1.f+.5f*x,-1.f+.5f*y);
-+        // Reserve every cell center before optional receiver-boundary refinement.
-+        std::array<std::array<AimHit,divisions>,divisions> centers{};
++            grid[y][x]=sample(-1.f+step*x,-1.f+step*y);
++        std::array<std::array<WaterSample,maxDivisions>,maxDivisions> centers{};
 +        for(int y=0;y<divisions;++y)for(int x=0;x<divisions;++x)
-+            centers[y][x]=sample(-.75f+.5f*x,-.75f+.5f*y);
++            centers[y][x]=sample(-1.f+step*(x+.5f),-1.f+step*(y+.5f));
++        baseSamples=false;
 +        for(int y=0;y<divisions;++y)for(int x=0;x<divisions;++x)
 +        {
-+            const int receiver=centers[y][x].surface;
-+            if(grid[y][x].surface==receiver&&grid[y][x+1].surface==receiver&&
-+               grid[y+1][x+1].surface==receiver&&grid[y+1][x].surface==receiver)continue;
-+            const float u=-1.f+.5f*x,v=-1.f+.5f*y;
-+            // Four bounded independent subcell probes reveal continued shots
-+            // through openings. No interpolation creates a collision or a tile.
-+            for(float du:{.125f,.375f})for(float dv:{.125f,.375f})sample(u+du,v+dv);
++            cellSamples=0;
++            const auto &a=grid[y][x],&b=grid[y][x+1],&c=grid[y+1][x+1],&d=grid[y+1][x];
++            const auto &center=centers[y][x];const int receiver=center.hit.surface;
++            const bool uniform=center.hit.valid&&a.hit.valid&&b.hit.valid&&c.hit.valid&&d.hit.valid&&
++                a.hit.surface==receiver&&b.hit.surface==receiver&&c.hit.surface==receiver&&d.hit.surface==receiver;
++            if(uniform)
++            {
++                manual_aim::waterContactFan(a,b,c,d,center,emitWater);
++                continue;
++            }
++            const float u=-1.f+step*x,v=-1.f+step*y;
++            //Refine in launch space. All new vertices are first physical contacts.
++            const auto ab=sample(u+step*.5f,v),bc=sample(u+step,v+step*.5f);
++            const auto cd=sample(u+step*.5f,v+step),da=sample(u,v+step*.5f);
++            const auto q0=sample(u+step*.25f,v+step*.25f),q1=sample(u+step*.75f,v+step*.25f);
++            const auto q2=sample(u+step*.75f,v+step*.75f),q3=sample(u+step*.25f,v+step*.75f);
++            manual_aim::waterContactFan(a,ab,center,da,q0,emitWater);
++            manual_aim::waterContactFan(ab,b,bc,center,q1,emitWater);
++            manual_aim::waterContactFan(center,bc,c,cd,q2,emitWater);
++            manual_aim::waterContactFan(da,center,cd,d,q3,emitWater);
++            if(center.hit.valid&&center.hit.surface==0)
++                manual_aim::contactPatch(center,step*.125f,step*.125f,sample,emitWater);
 +        }
 +    }
++        }
 +    // Include discovered gap-continuation supports BEFORE constructing the
 +    // corridor. Otherwise a water footprint behind a hole could be detached
 +    // from a volume that still stopped at the original sparse hull hits.
@@ -913,9 +961,8 @@ index dc92b39..7c04624 100644
 +        const float radius=(hi-lo).GetLength()*.5f;
 +        std::vector<gpu::AimVolumeRelationVertex> relationVertices;
 +        aimRelationOutput=&relationVertices;
-+        aimRelationRGB=gpu::excludedReceiverColor;
-+        if(auto *ownModel=GetAIShip()->GetModel())
-+            ownModel->Clip(clip,6,center,radius,AimCollectRelationPolygon);
++        // Own-ship exclusion comes from its actual render-depth scope, not a
++        // collision proxy that could consume the relation-color vertex budget.
 +        for(const auto &receiver:world.models)
 +        {
 +            if(!receiver.character || relationVertices.size()>=gpu::maxVolumeRelationVertices)continue;
@@ -927,7 +974,8 @@ index dc92b39..7c04624 100644
 +        aimRelationOutput=nullptr;
 +        const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
 +            uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
-+            relationVertices.data(),uint32_t(relationVertices.size()),&axis.x,&lateral.x,&up.x,ready?1.f:.55f);
++            relationVertices.data(),uint32_t(relationVertices.size()),
++            waterVertices.data(),uint32_t(waterVertices.size()),&axis.x,&lateral.x,&up.x,ready?1.f:.55f);
 +        if(!drawn)
 +        {
 +            static bool reported=false;
@@ -1015,10 +1063,10 @@ index 468151c..47bafdc 100644
 +};
 diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
 new file mode 100644
-index 0000000..b4b66b6
+index 0000000..a2c711d
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
-@@ -0,0 +1,280 @@
+@@ -0,0 +1,294 @@
 +#pragma once
 +#include "c_vector.h"
 +#include <algorithm>
@@ -1145,6 +1193,20 @@ index 0000000..b4b66b6
 +        const auto &a=ring[i],&b=ring[(i+1)%ring.size()];
 +        if(a.hit.valid&&b.hit.valid&&a.hit.surface==center.hit.surface&&b.hit.surface==center.hit.surface)
 +            emit(center,a,b);
++    }
++}
++// The union of these same-first-water faces is independent of the stopped air
++// hull. A mixed receiver never becomes a face spanning its physical shadow.
++template<class Vertex,class Emit>
++void waterContactFan(const Vertex &a,const Vertex &b,const Vertex &c,const Vertex &d,
++                     const Vertex &center,Emit emit)
++{
++    if(!center.hit.valid||center.hit.surface!=0)return;
++    const std::array<Vertex,4> ring{{a,b,c,d}};
++    for(size_t i=0;i<ring.size();++i)
++    {
++        const auto &x=ring[i],&y=ring[(i+1)%ring.size()];
++        if(x.hit.valid&&y.hit.valid&&x.hit.surface==0&&y.hit.surface==0)emit(center,x,y);
 +    }
 +}
 +struct Point { float x,y; };
@@ -1301,10 +1363,10 @@ index 0000000..b4b66b6
 +} // namespace manual_aim
 diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
 new file mode 100644
-index 0000000..5ef3d4a
+index 0000000..fc82871
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,54 @@
 +#pragma once
 +#include <cstdint>
 +
@@ -1314,6 +1376,7 @@ index 0000000..5ef3d4a
 +inline constexpr std::uint32_t maxVolumePlanesPerSlab=256;
 +inline constexpr std::uint32_t maxVolumePlanes=65536;
 +inline constexpr std::uint32_t maxVolumeRelationVertices=49152;
++inline constexpr std::uint32_t maxWaterContactVertices=49152;
 +inline constexpr std::uint32_t excludedReceiverColor=0x01000000u;
 +
 +// Absolute world centers; the backend applies its current camera-relative
@@ -1338,6 +1401,10 @@ index 0000000..5ef3d4a
 +    float position[3];
 +    std::uint32_t color;
 +};
++// Absolute world XZ of actual first-water contacts. Triangles are unioned in
++// a private chart; they are never drawn as alpha geometry in the scene.
++struct AimWaterContactVertex {float x,z;};
++static_assert(sizeof(AimWaterContactVertex)==8);
 +static_assert(sizeof(AimVolumeRelationVertex)==16 && alignof(AimVolumeRelationVertex)==16);
 +static_assert(sizeof(AimVolumeSection)==32 && alignof(AimVolumeSection)==16);
 +static_assert(sizeof(AimVolumePlane)==16 && alignof(AimVolumePlane)==16);
@@ -1347,7 +1414,13 @@ index 0000000..5ef3d4a
 +    const storm::sea_ai::manual_aim::AimVolumeSection *sections,std::uint32_t sectionCount,
 +    const storm::sea_ai::manual_aim::AimVolumePlane *planes,std::uint32_t planeCount,
 +    const storm::sea_ai::manual_aim::AimVolumeRelationVertex *relationVertices,std::uint32_t relationVertexCount,
++    const storm::sea_ai::manual_aim::AimWaterContactVertex *waterVertices,std::uint32_t waterVertexCount,
 +    const float *axis,const float *lateral,const float *up,float readiness);
++extern "C" void StormMetalSetAimEnabled(void *device,bool enabled);
++extern "C" bool StormMetalBeginAimOwnShip(void *device);
++extern "C" void StormMetalEndAimOwnShip(void *device);
++extern "C" bool StormMetalBeginAimWater(void *device);
++extern "C" void StormMetalEndAimWater(void *device);
 diff --git a/src/techniques/_dev/ship.fx b/src/techniques/_dev/ship.fx
 index 76a5b74..d1f42c4 100644
 --- a/src/techniques/_dev/ship.fx
@@ -1401,3 +1474,55 @@ index 76a5b74..d1f42c4 100644
 +        ColorOp[1] = disable;
 +    }
 +}
+diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
+index 43a09f2..a301d0d 100644
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -1,4 +1,5 @@
+ #include "ship.h"
++#include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+
+ #include <chrono>
+
+@@ -1132,6 +1133,15 @@ void SHIP::Realize(uint32_t dtime)
+ {
+     if (!bMounted)
+         return;
++#ifdef STORM_METAL_AIM_VOLUME_BRIDGE
++    struct AimOwnScope
++    {
++        void *device;bool active;
++        ~AimOwnScope(){if(active)StormMetalEndAimOwnShip(device);}
++    } aimOwnScope{pRS->GetD3DDevice(),false};
++    if(GetACharacter()&&GetACharacter()->GetAttributeAsDword("MainCharacter",0))
++        aimOwnScope.active=StormMetalBeginAimOwnShip(aimOwnScope.device);
++#endif
+
+     // if (dtime)
+     //    ShipRocking2(float(dtime) * 0.001f);
+diff --git a/src/libs/sea/src/sea.cpp b/src/libs/sea/src/sea.cpp
+index cf37627..ffb1637 100644
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1,4 +1,5 @@
+ #include "sea.h"
++#include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #include "sea_geomorph.h"
+
+ #include <algorithm>
+@@ -1489,6 +1490,15 @@ void SEA::Realize(uint32_t dwDeltaTime)
+
+     if (iVStart && iTStart)
+     {
++#ifdef STORM_METAL_AIM_VOLUME_BRIDGE
++        //After reflection/bump-map work, before only the live water geometry.
++        struct AimWaterScope
++        {
++            void *device;bool active;
++            ~AimWaterScope(){if(active)StormMetalEndAimWater(device);}
++        } aimWaterScope{rs->GetD3DDevice(),false};
++        aimWaterScope.active=StormMetalBeginAimWater(aimWaterScope.device);
++#endif
+         CMatrix mWorldView, mWorldViewProj;
+
+         CMatrix mView = rs->GetView();
