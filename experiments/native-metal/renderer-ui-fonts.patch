@@ -39,7 +39,7 @@ diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device
  #ifdef STORM_METAL_ROCKK2
  extern "C" void storm_metal_label_texture(IDirect3DBaseTexture9 *, const char *);
  #endif
-@@ -2348,8 +2349,15 @@
+@@ -2348,8 +2349,16 @@
          do
          {
              dwNumDrawPrimitive++;
@@ -47,7 +47,8 @@ diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device
 +            if (!StormMetalDrawCompactIndexedPrimitive(d3d9, dwPrimitiveType, dwMinIndex, dwNumVertices,
 +                                                        dwPrimitiveCount, pIndexData, IndexDataFormat,
 +                                                        pVertexData, dwVertexStride))
-+                core.Trace("Metal compact indexed primitive rejected FVF/state contract");
++                CHECKD3DERR(d3d9->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
++                                                         pIndexData, IndexDataFormat, pVertexData, dwVertexStride));
 +#else
              CHECKD3DERR(d3d9->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
                                                       pIndexData, IndexDataFormat, pVertexData, dwVertexStride));
@@ -62,7 +63,7 @@ diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device
 +#ifdef STORM_METAL_RENDERER_CONSUMERS
 +            if (!StormMetalDrawCompactPrimitive(d3d9, dwPrimitiveType, dwVertexBufferFormat, dwNumPT,
 +                                                 pVerts, dwStride))
-+                core.Trace("Metal compact primitive rejected FVF/state contract");
++                CHECKD3DERR(d3d9->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
 +#else
              CHECKD3DERR(d3d9->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
 +#endif

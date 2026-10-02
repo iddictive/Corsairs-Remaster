@@ -17,3 +17,74 @@ diff --git a/src/libs/geometry/src/rdf.h b/src/libs/geometry/src/rdf.h
          return (vindex[i][0] << 0) | (vindex[i][1] << 8) | (vindex[i][2] << 16);
      }
  };
+diff --git a/src/libs/util/include/string_compare.hpp b/src/libs/util/include/string_compare.hpp
+--- a/src/libs/util/include/string_compare.hpp
++++ b/src/libs/util/include/string_compare.hpp
+@@ -18,15 +18,27 @@
+     }
+ };
+ 
++template <typename T>
++constexpr bool is_null_str(const T &t)
++{
++    if constexpr (std::is_pointer_v<std::decay_t<T>>)
++        return t == nullptr;
++    else
++        return false;
++}
++
+ } // namespace detail
+ 
+ template <typename Range1T, typename Range2T = Range1T>
+ bool iEquals(const Range1T &first, const Range2T &second, const size_t count)
+ {
++    if (detail::is_null_str(first) && detail::is_null_str(second)) return true;
++    if (detail::is_null_str(first) || detail::is_null_str(second)) return false;
++
+     detail::is_iequal comp;
+ 
+     const auto &first_normalized = std::is_pointer<Range1T>::value ? std::string_view(first) : first;
+-    const auto &second_normalized = std::is_pointer<Range1T>::value ? std::string_view(second) : second;
++    const auto &second_normalized = std::is_pointer<Range2T>::value ? std::string_view(second) : second;
+ 
+     const auto first_begin = std::begin(first_normalized);
+     const auto second_begin = std::begin(second_normalized);
+@@ -56,24 +68,35 @@
+ 
+ template <typename Range1T, typename Range2T = Range1T> bool iEquals(const Range1T &first, const Range2T &second)
+ {
++    if (detail::is_null_str(first) && detail::is_null_str(second)) return true;
++    if (detail::is_null_str(first) || detail::is_null_str(second)) return false;
++
+     const auto &first_normalized = std::is_pointer<Range1T>::value ? std::string_view(first) : first;
+-    const auto &second_normalized = std::is_pointer<Range1T>::value ? std::string_view(second) : second;
++    const auto &second_normalized = std::is_pointer<Range2T>::value ? std::string_view(second) : second;
+ 
+     return traits_cast<ichar_traits<char>>(first_normalized) == traits_cast<ichar_traits<char>>(second_normalized);
+ }
+ 
+ template <typename Range1T, typename Range2T = Range1T> bool iLess(const Range1T &first, const Range2T &second)
+ {
++    if (detail::is_null_str(first) && detail::is_null_str(second)) return false;
++    if (detail::is_null_str(first)) return true;
++    if (detail::is_null_str(second)) return false;
++
+     const auto &first_normalized = std::is_pointer<Range1T>::value ? std::string_view(first) : first;
+-    const auto &second_normalized = std::is_pointer<Range1T>::value ? std::string_view(second) : second;
++    const auto &second_normalized = std::is_pointer<Range2T>::value ? std::string_view(second) : second;
+ 
+     return traits_cast<ichar_traits<char>>(first_normalized) < traits_cast<ichar_traits<char>>(second_normalized);
+ }
+ 
+ template <typename Range1T, typename Range2T = Range1T> bool iLessOrEqual(const Range1T &first, const Range2T &second)
+ {
++    if (detail::is_null_str(first) && detail::is_null_str(second)) return true;
++    if (detail::is_null_str(first)) return true;
++    if (detail::is_null_str(second)) return false;
++
+     const auto &first_normalized = std::is_pointer<Range1T>::value ? std::string_view(first) : first;
+-    const auto &second_normalized = std::is_pointer<Range1T>::value ? std::string_view(second) : second;
++    const auto &second_normalized = std::is_pointer<Range2T>::value ? std::string_view(second) : second;
+ 
+     return traits_cast<ichar_traits<char>>(first_normalized) <= traits_cast<ichar_traits<char>>(second_normalized);
+ }

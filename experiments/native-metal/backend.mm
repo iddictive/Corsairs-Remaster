@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include <SDL.h>
 #include <SDL_metal.h>
 #include <simd/simd.h>
@@ -1034,7 +1035,7 @@ extern "C" void StormMetalDrawAdvancedParticles(void*pointer,const BridgeAdvance
 extern "C" bool StormMetalDrawCompactPrimitive(void*pointer,uint32_t primitiveType,uint32_t compactFVF,uint32_t primitiveCount,const void*vertices,uint32_t vertexStride){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawCompact(static_cast<D3DPRIMITIVETYPE>(primitiveType),compactFVF,primitiveCount,vertices,vertexStride);}
 extern "C" bool StormMetalDrawCompactIndexedPrimitive(void*pointer,uint32_t primitiveType,uint32_t minimum,uint32_t vertexCount,uint32_t primitiveCount,const void*indices,uint32_t indexFormat,const void*vertices,uint32_t vertexStride){return pointer&&indices&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawCompact(static_cast<D3DPRIMITIVETYPE>(primitiveType),static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->fvf,primitiveCount,vertices,vertexStride,indices,static_cast<D3DFORMAT>(indexFormat),minimum,vertexCount);}
 extern "C" void StormMetalSetAimEnabled(void*pointer,bool enabled){if(pointer){auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));if(!enabled)d->aimModelScope={};d->aimVolume.setEnabled(enabled);}}
-extern "C" bool StormMetalBeginAimOwnShip(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginAimReceiver(0);}
+extern "C" bool StormMetalBeginAimOwnShip(void*pointer){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));if(d->interfaceBackSceneActive){fprintf(stderr,"[StormMetal] player ship render clears stale InterfaceBackScene domain\n");StormMetalLandLocation(pointer,false);}return d->beginAimReceiver(0);}
 extern "C" void StormMetalEndAimOwnShip(void*pointer){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->endAimReceiver(0);}
 extern "C" bool StormMetalBeginAimWater(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginAimReceiver(1);}
 extern "C" void StormMetalEndAimWater(void*pointer){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->endAimReceiver(1);}
