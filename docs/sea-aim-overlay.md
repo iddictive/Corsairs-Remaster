@@ -2,11 +2,11 @@
 
 ## Status
 
-Follow-up source candidate based on `b4a477c080afb1e28b382fcc69dd3c52a90d055f`.
-PR3 gameplay feedback accepts the overall appearance, but shows fragmented water
-contours and erroneous contact on the firing ship's inner rail. This follow-up
-preserves the appearance/range policy and targets those two defects. Native Metal
-build, shader compilation, performance and new gameplay acceptance remain pending.
+Polish source candidate based on `84f3c4e` after the water-continuity and zoom
+updates. Gameplay feedback now accepts the overall appearance and continuous
+water contact. This follow-up softens polygon corners and reduces contour artifacts
+at solid silhouettes. Native compilation, motion replay and performance remain
+pending; it does not claim to eliminate every source of ship-contact jitter.
 
 ## Contract
 
@@ -68,12 +68,22 @@ samples follow complete trajectories through missed hull/mast gaps to their firs
 physical receiver. They discover continuation supports, not visible surface tiles.
 Each projector keeps a 4×4 nominal-speed field and 2×2 fields at both live speed
 dispersion limits. Each cell has its own 12-sample refinement/local-patch allowance
-(at most 355 total samples per projector; ordinary uniform water uses 67).
+(at most 355 total samples per projector; ordinary uniform water uses 131).
+Shared traced edge midpoints improve curved boundaries and can discover a solid
+receiver inside an otherwise all-water cell. Ordinary sampling cost increases
+from 67 to 131 per projector; the worst-case bound is unchanged.
 Connected same-first-water fans are unioned once in a retained 2048×2048 XZ
 coverage atlas; internal gun/triangle edges do not
 define contours. Mixed receivers remain clipped instead of filling their shadows.
 Actual main-water depth ownership gates this chart onto current visible water.
 No trajectory is extended beyond its physical first impact.
+
+The water stroke uses a four-screen-pixel local filter with at most 1.25 pixels
+of inward contour recession. The original faint physical coverage remains,
+including thin components. The filter cannot add coverage or close real gaps;
+large physical lobes remain. Solid contour tangents use conservative one-sided
+depth neighbors, rejecting own ship, water, large depth jumps and opposing folds.
+Relation identity and target selection are neither blurred nor retained.
 
 Common downrange sections preserve actual muzzle/contact endpoints, reversed or
 turning paths, thin rolled batteries and empty axial gaps. Exact hull-edge planes

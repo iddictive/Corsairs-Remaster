@@ -241,28 +241,70 @@ float3 aim_water_mask(float3 receiver,float3 dx,float3 dy,constant AimU&u,textur
   if(!u.receiverFlags.z)return float3(0.f);
   float2 uv=(receiver.xz-u.waterAtlas.xy)*u.waterAtlas.zw;
   float2 du=dx.xz*u.waterAtlas.zw,dv=dy.xz*u.waterAtlas.zw;
-  float2 bound=(abs(du)+abs(dv))*2.55f;
+  float2 bound=(abs(du)+abs(dv))*4.f;
   if(any(uv< -bound)||any(uv>1.f+bound))return float3(0.f);
   float center=aim_water_value(chart,linearClamp,uv),nearest=1.e6f;
+  float filtered=center*.1f;float2 gradient=0.f;
   const float2 directions[8]={float2(1,0),float2(-1,0),float2(0,1),float2(0,-1),
       float2(.70710678f,.70710678f),float2(-.70710678f,.70710678f),float2(.70710678f,-.70710678f),float2(-.70710678f,-.70710678f)};
-  const float radius[3]={.5f,1.5f,2.55f};
-  // Search only the unchanged PR3 stroke's <=2.55 SCREEN-pixel support.
-  // This samples the chart, never neighboring scene color/depth or receiver IDs.
+  const float radius[3]={.75f,2.25f,4.f},weight[3]={.2f,.35f,.35f};
+  // The same24 union samples estimate a rounded local boundary. No scene color,
+  // depth or receiver identity is filtered, and the raw union remains a hard
+  // upper bound: corners may recede but holes/shadows cannot gain coverage.
   for(uint d=0;d<8;++d) {
     float2 step=du*directions[d].x+dv*directions[d].y;
-    float previous=center,previousRadius=0.f;
+    float previous=center,previousRadius=0.f;bool crossed=false;
     for(uint r=0;r<3;++r) {
       float value=aim_water_value(chart,linearClamp,uv+step*radius[r]);
-      if((value>=.5f)!=(previous>=.5f)) {
+      filtered+=value*(weight[r]/8.f);
+      gradient+=directions[d]*(value*weight[r]/(4.f*radius[r]));
+      if(!crossed&&(value>=.5f)!=(previous>=.5f)) {
         float fraction=clamp((previous-.5f)/(previous-value),0.f,1.f);
-        nearest=min(nearest,mix(previousRadius,radius[r],fraction));break;
+        nearest=min(nearest,mix(previousRadius,radius[r],fraction));crossed=true;
       }
       previous=value;previousRadius=radius[r];
     }
   }
-  float signedPixels=center>=.5f?nearest:-nearest;
-  return float3(smoothstep(-.5f,.5f,signedPixels),1.f-smoothstep(.65f,1.65f,nearest),1.f-smoothstep(1.45f,2.55f,nearest));
+  float rawSigned=center>=.5f?nearest:-nearest;
+  float roundedSigned=(filtered-.5f)/max(length(gradient),1.e-6f);
+  // Limit contour recession to1.25px. A valid narrow component retains both
+  // its raw faint fill and a visible line instead of disappearing in the filter.
+  float signedPixels=clamp(roundedSigned,rawSigned-1.25f,rawSigned);
+  float coverage=center;
+  float edge=1.f-smoothstep(.65f,1.65f,abs(signedPixels));
+  float key=1.f-smoothstep(1.45f,2.55f,abs(signedPixels));
+  // Stroke support also stays within the original physical union's PR3 width.
+  float outside=max(0.f,-rawSigned);
+  return float3(coverage,min(edge,1.f-smoothstep(.65f,1.65f,outside)),
+      min(key,1.f-smoothstep(1.45f,2.55f,outside)));
+}
+// Scene derivatives span2x2 quads, which can cross a hull/rigging silhouette.
+// Reconstruct conservative one-sided solid tangents instead. These are local
+// depth-continuity checks, not a claim that equal colors identify one object.
+bool aim_solid_neighbor(int2 pixel,float depth,float3 receiver,constant AimU&u,
+    depth2d<float,access::read> sceneDepth,texture2d<float,access::read> ownDepth,
+    texture2d<float,access::read> waterDepth,thread float3&world) {
+  int2 size=int2(sceneDepth.get_width(),sceneDepth.get_height());
+  if(any(pixel<0)||any(pixel>=size))return false;
+  uint2 index=uint2(pixel);float z=sceneDepth.read(index);
+  if(!isfinite(z)||z<0.f||z>=1.f||ownDepth.read(index).r==z||waterDepth.read(index).r==z)return false;
+  float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
+  float2 ndc=float2(uv.x*2.f-1.f,1.f-uv.y*2.f);
+  float4 p=u.inverseViewProjection*float4(ndc,z,1.f);
+  float4 flat=u.inverseViewProjection*float4(ndc,depth,1.f);
+  if(abs(p.w)<1.e-8f||abs(flat.w)<1.e-8f)return false;
+  world=p.xyz/p.w;float footprint=distance(flat.xyz/flat.w,receiver);
+  return all(isfinite(world))&&distance(world,receiver)<=max(.02f,footprint*4.f);
+}
+float3 aim_solid_step(uint2 pixel,int2 direction,float depth,float3 receiver,constant AimU&u,
+    depth2d<float,access::read> sceneDepth,texture2d<float,access::read> ownDepth,
+    texture2d<float,access::read> waterDepth) {
+  float3 left=0.f,right=0.f;
+  bool a=aim_solid_neighbor(int2(pixel)-direction,depth,receiver,u,sceneDepth,ownDepth,waterDepth,left);
+  bool b=aim_solid_neighbor(int2(pixel)+direction,depth,receiver,u,sceneDepth,ownDepth,waterDepth,right);
+  left=receiver-left;right=right-receiver;
+  if(a&&b){if(dot(left,right)<=0.f)return float3(0.f);return length(left)<=length(right)?left:right;}
+  return a?left:(b?right:float3(0.f));
 }
 struct AimRelationVertex { packed_float3 position; uint color; };
 struct AimRelationO { float4 position [[position]]; float4 color [[flat]]; };
@@ -321,11 +363,6 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
     hasReceiver=abs(p.w)>1.e-8f;
     if(hasReceiver){receiver=p.xyz/p.w;receiverDistance=dot(receiver-origin,ray);hasReceiver=isfinite(receiverDistance)&&receiverDistance>=nearDistance;}
   }
-  // Derivatives run before divergent boundary/ray traversal. Limit a depth
-  // edge's world step so it cannot produce a broad contact halo; identity is
-  // always fetched from the same integer pixel and is never blurred.
-  float3 dx=dfdx(receiver),dy=dfdy(receiver);
-  dx*=min(1.f,.75f/max(length(dx),1.e-6f));dy*=min(1.f,.75f/max(length(dy),1.e-6f));
   bool actualOwn=hasReceiver&&u.receiverFlags.x&&ownDepth.read(pixelIndex).r==depth;
   bool actualWater=hasReceiver&&u.receiverFlags.y&&waterDepth.read(pixelIndex).r==depth;
   float3 contact=float3(0.f);
@@ -340,7 +377,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
       float3 waterDx=aim_water_step(pixelIndex,int2(1,0),receiver,u,sceneDepth,waterDepth);
       float3 waterDy=aim_water_step(pixelIndex,int2(0,1),receiver,u,sceneDepth,waterDepth);
       contact=aim_water_mask(receiver,waterDx,waterDy,u,waterChart,linearClamp);
-    }else contact=aim_receiver_mask(receiver,dx,dy,u,sections,planes);
+    }else {
+      float3 dx=aim_solid_step(pixelIndex,int2(1,0),depth,receiver,u,sceneDepth,ownDepth,waterDepth);
+      float3 dy=aim_solid_step(pixelIndex,int2(0,1),depth,receiver,u,sceneDepth,ownDepth,waterDepth);
+      dx*=min(1.f,.75f/max(length(dx),1.e-6f));dy*=min(1.f,.75f/max(length(dy),1.e-6f));
+      contact=aim_receiver_mask(receiver,dx,dy,u,sections,planes);
+    }
   }
   float coverage=contact.x,contour=contact.y;
   float4 identity=relation.read(pixelIndex);

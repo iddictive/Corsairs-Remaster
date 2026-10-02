@@ -104,7 +104,7 @@ index 378d01c..dab4a57 100644
          return;
 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-index dc92b39..56e2907 100644
+index dc92b39..93a1c9f 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 @@ -2,8 +2,17 @@
@@ -296,7 +296,7 @@ index dc92b39..56e2907 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,699 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,704 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -814,17 +814,22 @@ index dc92b39..56e2907 100644
 +            cellSamples=0;
 +            const auto &a=grid[y][x],&b=grid[y][x+1],&c=grid[y+1][x+1],&d=grid[y+1][x];
 +            const auto &center=centers[y][x];const int receiver=center.hit.surface;
-+            const bool uniform=center.hit.valid&&a.hit.valid&&b.hit.valid&&c.hit.valid&&d.hit.valid&&
-+                a.hit.surface==receiver&&b.hit.surface==receiver&&c.hit.surface==receiver&&d.hit.surface==receiver;
-+            if(uniform)
-+            {
-+                manual_aim::waterContactFan(a,b,c,d,center,emitWater);
-+                continue;
-+            }
 +            const float u=-1.f+step*x,v=-1.f+step*y;
-+            //Refine in launch space. All new vertices are first physical contacts.
++            // Even an all-water coarse cell needs real curved edge samples.
++            // A midpoint hitting rigging/land turns it mixed before emission.
++            // Shared edges are cached; all refinement stays within12/cell.
 +            const auto ab=sample(u+step*.5f,v),bc=sample(u+step,v+step*.5f);
 +            const auto cd=sample(u+step*.5f,v+step),da=sample(u,v+step*.5f);
++            const std::array<WaterSample,8> ring{{a,ab,b,bc,c,cd,d,da}};
++            const bool uniform=center.hit.valid&&std::all_of(ring.begin(),ring.end(),
++                [&](const WaterSample &point){return point.hit.valid&&point.hit.surface==receiver;});
++            if(uniform)
++            {
++                for(size_t edge=0;edge<ring.size();++edge)
++                    emitWater(center,ring[edge],ring[(edge+1)%ring.size()]);
++                continue;
++            }
++            // Refine in launch space. All new vertices are first physical contacts.
 +            const auto q0=sample(u+step*.25f,v+step*.25f),q1=sample(u+step*.75f,v+step*.25f);
 +            const auto q2=sample(u+step*.75f,v+step*.75f),q3=sample(u+step*.25f,v+step*.75f);
 +            manual_aim::waterContactFan(a,ab,center,da,q0,emitWater);
