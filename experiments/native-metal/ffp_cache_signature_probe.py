@@ -26,12 +26,15 @@ int main(){
  struct {bool enabled=true;}profile;
  bool actualLighting=true,dynamicDraw=true,bakedRelight=true,prepassLit=true,modernLit=true;
  simd_float4x4 worldMatrix=matrix_identity_float4x4;
+ simd_float4 materialSpecular={0,0,0,1},cameraWorld={0,0,0,1};
+ simd_float3 infiniteViewer={0,0,1};D3DMATERIAL9 material{};
  simd_float4 materialDiffuse={1,1,1,1},materialAmbient={.2f,.3f,.4f,1},materialEmissive={0,0,0,1},sceneAmbient={.1f,.1f,.1f,1};
  D3DLIGHT9 lights[8]{};bool enabled[8]={true,true};
  lights[0].Type=D3DLIGHT_DIRECTIONAL;lights[0].Direction={0,-1,0};lights[0].Diffuse={.6f,.5f,.4f,1};
  lights[1].Type=D3DLIGHT_POINT;lights[1].Position={2,3,4};lights[1].Range=30;lights[1].Attenuation0=1;
  std::array<DWORD,256>rs{};
- struct {bool sceneLampCatalog=true,indoor=false,locationActive=true;unsigned scope=1;struct {unsigned sunValid=3;uint64_t pointId=23,lightIds[8]={0,23};} prepass;}landShadow;
+ struct {bool catalog=true;bool authoredCatalog()const{return catalog;}}lightingScene;
+ struct {bool indoor=false,locationActive=true;unsigned scope=1;struct {unsigned sunValid=3;uint64_t pointId=23,lightIds[8]={0,23};} prepass;}landShadow;
 ''' + signature + r'''
  const auto initial=conversionSignature();
  for(int frame=0;frame<120;++frame){
@@ -46,12 +49,15 @@ int main(){
  worldMatrix.columns[0].x=.8f;check(conversionSignature()!=initial,"world normal basis change invalidates lit conversion");worldMatrix.columns[0].x=1;
  materialDiffuse.w=.5f;check(conversionSignature()!=initial,"material alpha change invalidates conversion");materialDiffuse.w=1;
  landShadow.prepass.sunValid=0;const auto night=conversionSignature();lights[0].Direction.x=.5f;
- check(conversionSignature()==night,"skipped sun does not invalidate nighttime conversion");
- landShadow.prepass.sunValid=3;landShadow.sceneLampCatalog=false;const auto point=conversionSignature();
+ check(conversionSignature()!=night,"unshadowed outdoor directional light invalidates nighttime conversion");
+ landShadow.indoor=true;const auto interior=conversionSignature();lights[0].Direction.x=.6f;
+ check(conversionSignature()==interior,"suppressed interior sun does not invalidate conversion");
+ landShadow.indoor=false;
+ landShadow.prepass.sunValid=3;lightingScene.catalog=false;const auto point=conversionSignature();
  worldMatrix.columns[3].x+=1;check(conversionSignature()!=point,"CPU point lighting still invalidates on world position");worldMatrix.columns[3].x-=1;
  lights[1].Position.x+=1;check(conversionSignature()!=point,"CPU point lighting still invalidates on light position");lights[1].Position.x-=1;
  landShadow.prepass.pointId+=1;check(conversionSignature()!=point,"selected CPU point contribution identity invalidates");
- landShadow.sceneLampCatalog=true;
+ lightingScene.catalog=true;
  constexpr double angularCell=6.2831853071795864769/32768.;
  auto ray=[](double azimuth,double elevation){return simd_make_float3(float(std::cos(elevation)*std::cos(azimuth)),float(std::sin(elevation)),float(std::cos(elevation)*std::sin(azimuth)));};
  auto assignSun=[&](simd_float3 input){const auto value=stableSunDirection(input);lights[0].Direction={value.x,value.y,value.z};};
