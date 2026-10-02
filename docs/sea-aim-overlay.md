@@ -2,101 +2,98 @@
 
 ## Status
 
-Local source candidate based on `4e9a09ab425dc8266131788067080bea7c8ad2bd`.
-Native Metal build, staging, performance measurement and in-game visual acceptance are pending.
-Static checks and numerical probes do not establish visual acceptance.
+Follow-up source candidate based on `7144e7895ff57f5a47fce436f7d4a8036e7c3a0c`.
+The supplied PR2 gameplay images show unacceptable contact tiles, poor daylight
+readability and range jumps. This revision addresses those paths. Native Metal
+build, shader compilation, performance and new gameplay acceptance remain pending.
 
 ## Contract
 
-First-person deck camera controls the aim. One subtle, continuous world-space
-ballistic envelope spans the valid guns of the selected broadside. It is weaker
-near the guns and modestly more visible downrange. Its footprint follows the
-actual moving water, hull, mast, fort or terrain receiver, with soft contact rims
-and subtle friend/enemy/neutral/unknown relation colors. Opacity is evaluated from
-the combined corridor's contour; individual gun fields, cells and triangles do
-not receive separate rims or visible mesh edges. No individual
-bright gun beams, center spine, distance ticks, bulky stock reticle or floating
-horizontal ellipse are drawn. A tiny centered `+` shows the camera aiming ray.
+First-person deck camera controls aim. One subtle ballistic volume spans every
+eligible broadside muzzle. Air density is weaker near the guns and strengthens
+modestly downrange. A tiny centered `+` marks the shooting direction.
 
-The envelope is a sampled prediction of live dispersion, not a promise that every
-random shell will strike one point. Real nearby surface hits use their true aim
-point; nearby mechanically unreachable shots stay unavailable. Empty or genuinely
-out-of-range space means the common maximum legal reach of compatible muzzles,
-including through mast gaps. It never switches to a short raw-camera-pitch shot.
+An invisible rectangular range probe matches the user's approximately 60×34-pixel
+annotation at 2048×1285, scaled with the viewport. Actual mast/hull/fort polygons
+inside that view region supply depth. The target remains on the center camera
+ray at that depth: the rectangle does not redirect aim toward an off-center ship.
+Selection is instantaneous, with no retained target, tracking or dwell. A nearer
+center obstruction wins. Empty or genuinely out-of-range space uses common legal
+maximum reach; nearby mechanically unreachable targets stay unavailable.
 
-## Owners
+The visible contact is the intersection of the complete corridor with the current
+rendered surface. It has a faint interior and a soft colored perimeter, without
+individual gun-field tiles, grid edges, floating ellipses or alpha accumulation.
+Actual water depth follows rendered waves; hull, mast, terrain and fort depth
+supply their own 3D surfaces. Air remains depth-occluded by foreground geometry.
 
-- `experiments/native-metal/cannon-trajectory-aim.patch` owns the engine edits
-- `BuildManualAimSolution` shares world target and gun eligibility between firing
-  and presentation in `src/libs/sea_ai/src/ai_ship_cannon_controller.cpp`
-- `manual_aim_geometry.hpp` owns deterministic trajectory/contour math
-- `AIShipCameraController::Fire` gets the actual selected character from the firing
-  solution; the obsolete per-fort-cannon HUD targeting loop is skipped for the player
-- `aim_volume.hpp` and the bridge in `backend.mm` own the soft-density Metal pass;
-  `manual_aim_volume_bridge.hpp` defines its checked 32/16-byte records
-- `ShipAimFootprint` depth-tests surface contacts without depth writes;
-  `ShipAimReticle` is the small screen-centered orientation plus
+## Owners and implementation
 
-## Correctness changes
+- `cannon-trajectory-aim.patch` owns the engine controller, geometry and bridge edits
+- `BuildManualAimSolution` shares range selection and per-muzzle eligibility between
+  preview and manual fire. `MODEL::Clip` finds real polygons inside the small view
+  frustum; pure traces confirm visibility. Bounding boxes only reject candidates
+- The plus uses the current range-source relation. Firing events do not inherit a
+  farther center-hit character after a nearer aperture receiver changes the range
+- `manual_aim_geometry.hpp` mirrors live projectile warp and supplies exact section
+  geometry; `manual_aim_volume_bridge.hpp` defines checked 32/16-byte GPU records
+- `aim_volume.hpp` and `backend.mm` draw one soft-density/contact composite from
+  current post-water depth and color snapshots. Per-gun surface triangles are gone
+- Contact color comes from exact clipped receiver polygons rendered into a private
+  identity mask. They carry existing `GetRelation` ownership only, never visible
+  coverage. Tight depth agreement is required; collision/render disagreement stays
+  neutral. The firing ship is explicitly contact-excluded while still occluding air
+- The contact perimeter adapts its brightness to the underlying scene, with a
+  restrained dark outer keyline for midtone/daylight contrast. This does not raise
+  nighttime air opacity. Friend/enemy/neutral colors are green/red/yellow; water and
+  unknown terrain remain neutral. Identity is not blurred through receiver gaps
 
-- Camera surface picking uses the available broadside range independently of camera
-  pitch. Gun reach, elevation and traverse are checked afterward at every real muzzle.
-  Far intent intersects the camera bearing with every compatible muzzle's legal
-  range disk, using the common limit and a centimeter-scale numerical margin
-- World queries use pure collision traces with per-model AABB rejection. Island
-  receivers come from `ISLAND_TRACE`, including extra location models and seabed
-- Sea queries sample `WaveXZ`, refine the first crossing, and detect an initially
-  submerged muzzle. Preview queries never call damage-producing `Cannon_Trace`
-- Flight follows the actual RawAng/HeightMultiply transform. Jittered trajectories
-  continue until real contact, rather than being snapped to the nominal target
-- Every eligible gun supplies a trajectory. Spatial support guns add all eight
-  independent yaw/elevation/speed jitter corners; array order does not pick the battery ends
-- Cross-sections intersect trajectories at common downrange planes. Exact hull-edge
-  planes from both slab endpoints preserve long, thin, rolled gun lines without
-  narrowing or fattening them. Reversed/turning paths and empty axial gaps are retained
-- A single soft-density pass integrates camera rays inside those slabs. It copies
-  current post-water depth, reconstructs world-space receiver distance, and clips
-  there. No polygon walls or per-gun additive volumes are rendered. Alpha is capped
-  at 0.22; internal station caps are not feathered into visible bands
-- Contact-field samples originate at real gun muzzles and follow complete ballistic
-  trajectories. A missed hull/mast sample continues to the first real receiver,
-  including water through a gap. No local-normal or sea-axis ellipse is projected
-- Interior samples and bounded mixed-receiver refinement expose gaps missed by
-  corner rays. Solid-receiver triangles validate their interior with the same
-  ballistic trajectory mapping and subdivide/clip recesses. Triangles never bridge
-  different receivers or sharp discontinuities
-- Surface triangles have a 3.5 cm normal lift. Water triangles refine against
-  `WaveXZ` midpoint error; unresolved storm chords are clipped rather than floated
-- Volume dispersion traces use at most four spatial support guns. Contact fields
-  use five regular support/center guns and one extra field for any otherwise
-  unrepresented receiver found by another gun. Each field reserves 29 shared
-  samples, then gives each of four contact cells its own 16-detail/8-local-patch
-  budget (at most 125 ballistic samples per field). Early refinement cannot erase
-  later cells. Receiver tessellation is capped at 16,000 triangles. Discovered gap-continuation supports also enter the corridor
+## Physics, geometry and bounded work
 
-## Preserved gameplay and inherited limitations
+Camera selection is followed by actual muzzle reach, elevation and traverse checks.
+Far intent intersects the camera bearing with every compatible muzzle's legal
+range disk and uses an inward numerical margin at the maximum-range boundary.
+
+World queries are pure: no `Cannon_Trace`, damage events or random draws. Model
+AABBs reject unrelated receivers; island tracing covers the full `ISLAND_TRACE`
+layer. `WaveXZ` refines first crossings, including initially submerged muzzles.
+
+Every eligible gun supplies its nominal trajectory. Spatial support guns add all
+eight independent yaw/elevation/speed dispersion corners. Additional contact
+samples follow complete trajectories through missed hull/mast gaps to their first
+physical receiver. They discover continuation supports, not visible surface tiles.
+Each projector uses 41 mandatory samples plus at most 64 boundary samples.
+
+Common downrange sections preserve actual muzzle/contact endpoints, reversed or
+turning paths, thin rolled batteries and empty axial gaps. Exact hull-edge planes
+from both slab endpoints avoid fixed-direction narrowing/fattening. Internal
+station caps do not become visible contact seams. Air alpha remains capped at .22.
+
+Range picking visits at most 4096 clipped polygons and confirms at most 32 nearest
+candidates. Relation collection is capped at 49,152 vertices (16,384 triangles),
+with corridor-AABB rejection. Missing/capped identity is neutral, not invented.
+GPU records are capped at 1024 sections and 65,536 side planes. Native frame-time
+measurement remains necessary near a fort and with many ships.
+
+## Preserved gameplay and limits
 
 Projectile updates, damage, ammunition scripts, AI fire and save layout are unchanged.
-Reload timing and ammunition mechanics are preserved; an invalid manual attempt
-no longer clears the broadside charge when no gun fired. Published v3/v4 already suppressed the broadside-level random
-`SHIP_GET_BORT_FIRE_DELTA` offset for manual fire. That existing policy is preserved;
-per-ball random speed, direction and elevation remain active and are represented.
+Reload timing/ammunition mechanics remain intact; invalid manual attempts do not
+clear a broadside charge when no gun fires. The published manual broadside-level
+random-offset suppression remains unchanged, while live per-ball jitter stays active.
 
-The shipped `AIBalls.c` compares the ammunition name with integer `GOOD_KNIPPELS`.
-The current engine converts nonnumeric names to zero, so both ordinary balls and
-knippels receive the catalogue's `HeightMultiply * 0.4`, despite the script's
-intended `0.65` branch. The preview mirrors that effective behavior and reads the
-live `Cannon` catalogue. Fixing the underlying script is a separate gameplay change.
+The shipped ammunition script compares the ammunition name with integer
+`GOOD_KNIPPELS`; effective current behavior applies catalogue `HeightMultiply*.4`
+to ordinary balls and knippels. The preview mirrors it without changing gameplay.
 
-This is a finite sampled envelope, not an exhaustive probabilistic bound. Static
-rigid-model receivers and waves are represented. Animated cloth, sub-sample-size
-gaps, very sharp receiver transitions and camera-near geometry need game replay.
-Water-before-overlay ordering and depth-test state are source-checked; the staged
-sea shader, actual storm occlusion and frame time still require native verification.
+The envelope is a finite sampled dispersion prediction, not an exhaustive bound.
+Collision mesh/render LOD differences, animated cloth, sub-sample openings, own
+ship masking and sharp silhouettes require native replay. Depth/color snapshots
+are current and post-water in source; actual storm occlusion is still unverified.
 
 ## Focused verification
 
-After source staging has applied the ordered patch stack:
+After applying the ordered source-patch stack:
 
 ```sh
 cd experiments/native-metal
@@ -107,25 +104,11 @@ c++ -std=c++20 -O2 \
 /tmp/cannon-aim-geometry-probe
 ```
 
-The standalone probe covers downward/far-camera regressions, live ballistic warp,
-reachability, dispersion lifetime, port/starboard symmetry, thin exact slabs,
-emitted gap-to-water contact triangles, independent cell budgets and bridge ABI. It has no engine initialization or external
-test framework. The replacement patch must also trial-apply on the exact pre-aim
-source, with all subsequent ordered patches applying afterward.
+Also trial-apply the replacement patch on the pinned pre-aim source and validate
+all subsequent ordered patches. Probe and syntax checks are not Metal execution.
 
-## Native acceptance still required
-
-Replay from the same first-person deck camera:
-
-1. Both broadsides, including reordered/damaged gun locators and multiple gun decks
-2. Close/downward water aim, level horizon and the maximum legal elevation
-3. A nearby hull, mast/rigging, coastline and steep shore, without floating discs
-4. Waves passing under the footprint and over low gun muzzles
-5. Actual volleys versus the predicted spread, for ordinary balls and current knippels
-6. Repeated reload/fire, unavailable sectors, sea-camera changes and unaffected AI fire
-7. Frame time near a heavily armed fort and with multiple visible ships
-
-A successful native encode logs `soft aim volume: exact-slab density encoded`.
-That identifies the new path; it does not prove the appearance is accepted. The
-known slab/roof screenshots predate this density implementation. Replay the new
-renderer in day/night water, ship/mast gaps and steep shore before accepting it.
+Native replay must cover day/night water and shore; the contact perimeter and
+relation-colored plus; mast inside/outside the invisible rectangle; camera roll;
+real volleys through gaps; both broadsides; storm crests and own deck occlusion;
+reload/fire; a heavily armed fort and multiple ships. The new path logs
+`soft aim volume v2: unified depth contact + verified relation mask`.

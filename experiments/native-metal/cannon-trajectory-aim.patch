@@ -1,8 +1,8 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-index 378d01c..dfadb61 100644
+index 378d01c..05acccf 100644
 --- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-@@ -1,5 +1,33 @@
+@@ -1,5 +1,37 @@
  #include "ai_fort.h"
  #include "ai_ship.h"
 +#include <algorithm>
@@ -10,7 +10,7 @@ index 378d01c..dfadb61 100644
 +
 +namespace
 +{
-+void DrawManualAimPlus(VDX9RENDER *renderer)
++void DrawManualAimPlus(VDX9RENDER *renderer,uint32_t rgb)
 +{
 +    D3DVIEWPORT9 viewport{};
 +    if(renderer->GetViewport(&viewport)!=D3D_OK||!viewport.Width||!viewport.Height)return;
@@ -19,16 +19,20 @@ index 378d01c..dfadb61 100644
 +    const float half=pixel*.5f,arm=pixel*3.f;
 +    struct Vertex{float x,y,z,rhw;uint32_t color;};
 +    std::vector<Vertex> vertices;
-+    auto rectangle=[&](float left,float top,float right,float bottom)
++    auto rectangle=[&](float left,float top,float right,float bottom,uint32_t color)
 +    {
-+        constexpr uint32_t color=0x80CCD2D4u;
 +        const Vertex a{left,top,0.f,1.f,color},b{right,top,0.f,1.f,color};
 +        const Vertex c{right,bottom,0.f,1.f,color},d{left,bottom,0.f,1.f,color};
 +        for(const auto &v:{a,b,c,a,c,d})vertices.push_back(v);
 +    };
-+    rectangle(x-half,y-arm,x+half,y+arm);
-+    rectangle(x-arm,y-half,x-half,y+half);
-+    rectangle(x+half,y-half,x+arm,y+half);
++    auto plus=[&](float h,float a,uint32_t color)
++    {
++        rectangle(x-h,y-a,x+h,y+a,color);
++        rectangle(x-a,y-h,x-h,y+h,color);
++        rectangle(x+h,y-h,x+a,y+h,color);
++    };
++    plus(half+pixel,arm+pixel,0x700B1114u);
++    plus(half,arm,0xD0000000u|(rgb&0xFFFFFFu));
 +    renderer->DrawPrimitiveUP(D3DPT_TRIANGLELIST,D3DFVF_XYZRHW|D3DFVF_DIFFUSE,
 +        uint32_t(vertices.size()/3),vertices.data(),sizeof(Vertex),"ShipAimReticle");
 +}
@@ -36,7 +40,7 @@ index 378d01c..dfadb61 100644
 
  AIShipCameraController::AIShipCameraController(AIShip *_pAIShip)
  {
-@@ -45,6 +73,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
+@@ -45,6 +77,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
      dwTarget = RELATION_UNKNOWN;
      auto vOurPos = GetAIShip()->GetPos();
 
@@ -52,7 +56,7 @@ index 378d01c..dfadb61 100644
      if (isCameraOutside())
      {
          fDelta = 0.0f;
-@@ -141,8 +178,13 @@ bool AIShipCameraController::Fire()
+@@ -141,8 +182,13 @@ bool AIShipCameraController::Fire()
      const auto vZ = m.Vz();
      // CVECTOR vZ = m * CVECTOR(0.0f, 0.0f, 1.0f);
      // vZ = !CVECTOR(vZ.x, 0.0f, vZ.z);
@@ -67,7 +71,7 @@ index 378d01c..dfadb61 100644
 
      if (dwTarget != RELATION_UNKNOWN && pTargetAPointer)
      {
-@@ -151,7 +193,7 @@ bool AIShipCameraController::Fire()
+@@ -151,7 +197,7 @@ bool AIShipCameraController::Fire()
      }
 
      // if (pTargetAPointer) AIGroup::GroupSetAttack(GetAIShip()->GetACharacter(), pTargetAPointer);
@@ -76,21 +80,21 @@ index 378d01c..dfadb61 100644
  }
 
  void AIShipCameraController::Realize(float fDeltaTime)
-@@ -173,6 +215,12 @@ void AIShipCameraController::Realize(float fDeltaTime)
+@@ -173,6 +219,12 @@ void AIShipCameraController::Realize(float fDeltaTime)
      AIHelper::pRS->GetCamera(campos,camang,campersp);
      m.BuildMatrix(camang);
      CVECTOR vZ = m.Vz();*/
 +    if (GetAIShip()->isMainCharacter())
 +    {
 +        GetAIShip()->GetCannonController()->DrawManualAimOverlay(vZ, m.Pos());
-+        DrawManualAimPlus(AIHelper::pRS); // Tiny camera-ray orientation mark, not the old bulky reticle.
++        DrawManualAimPlus(AIHelper::pRS,GetAIShip()->GetCannonController()->GetManualAimColor()); // Tiny camera-ray orientation mark, not the old bulky reticle.
 +        return;
 +    }
      if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
          return;
 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-index dc92b39..54a00f6 100644
+index dc92b39..7c04624 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 @@ -2,8 +2,17 @@
@@ -282,16 +286,15 @@ index dc92b39..54a00f6 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,773 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,661 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
 +namespace
 +{
 +using manual_aim::Trajectory;
-+constexpr int kAimSections=32, kAimSides=20;
++constexpr int kAimSections=32;
 +constexpr float kAimPi=3.14159265358979323846f;
-+constexpr float kAimSurfaceLift=.035f;
 +struct AimHit
 +{
 +    bool valid=false;
@@ -471,27 +474,60 @@ index dc92b39..54a00f6 100644
 +    return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
 +            .5f*accuracy*10.f*12.f*kAimPi/180.f};
 +}
-+struct AimVertex{CVECTOR point;uint32_t color;};
-+uint32_t AimColor(float opacity,uint32_t rgb=0xB8C4C8u)
-+{ return (uint32_t(std::clamp(opacity,0.f,1.f)*255.f)<<24)|(rgb&0xFFFFFFu); }
-+
-+void AimDraw(std::vector<AimVertex> &vertices,const char *technique,const CVECTOR &camera)
++uint32_t AimRelationColor(AIShip *own,ATTRIBUTES *character)
 +{
-+    if(vertices.empty())return;
-+    // Transparent triangles are sorted; front/back shell overlap is low-opacity,
-+    // and no bright rails, central ray, opaque cap or distance ticks are emitted.
-+    struct Tri{std::array<AimVertex,3> v;float depth;};
-+    std::vector<Tri> triangles;triangles.reserve(vertices.size()/3);
-+    for(size_t i=0;i+2<vertices.size();i+=3)
-+        triangles.push_back({{vertices[i],vertices[i+1],vertices[i+2]},
-+            ~((vertices[i].point+vertices[i+1].point+vertices[i+2].point)/3.f-camera)});
-+    std::sort(triangles.begin(),triangles.end(),[](const Tri &a,const Tri &b){return a.depth>b.depth;});
-+    vertices.clear();for(const auto &t:triangles)vertices.insert(vertices.end(),t.v.begin(),t.v.end());
-+    CMatrix old;AIHelper::pRS->GetTransform(D3DTS_WORLD,old);
-+    AIHelper::pRS->SetTransform(D3DTS_WORLD,CMatrix());
-+    AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST,D3DFVF_XYZ|D3DFVF_DIFFUSE,
-+        uint32_t(vertices.size()/3),vertices.data(),sizeof(AimVertex),technique);
-+    AIHelper::pRS->SetTransform(D3DTS_WORLD,old);
++    if(!character)return 0xD9E2E4u;
++    const auto relation=Helper.GetRelation(own->GetACharacter(),character);
++    if(relation==RELATION_ENEMY)return 0xFF665Du;
++    if(relation==RELATION_FRIEND)return 0x69DE87u;
++    if(relation==RELATION_NEUTRAL)return 0xE6C663u;
++    return 0xD9E2E4u;
++}
++// Clip is synchronous on the render thread. The callback has no userdata in the
++// engine API; this scoped pointer is cleared immediately after each query.
++struct AimRangeContext
++{
++    CVECTOR camera,forward;
++    std::vector<std::pair<float,CVECTOR>> candidates;
++    uint32_t polygons=0;
++};
++thread_local AimRangeContext *aimRangeOutput=nullptr;
++bool AimCollectRangePolygon(const CVECTOR *v,int32_t count)
++{
++    if(!aimRangeOutput||count<3)return true;
++    if(++aimRangeOutput->polygons>4096)return false;
++    // The clipped polygon is convex and lies inside the small view rectangle.
++    // Its centroid is a real interior surface point, avoiding edge-only misses.
++    CVECTOR point(0.f);
++    for(int32_t i=0;i<count;++i){if(!manual_aim::finite(v[i]))return true;point+=v[i];}
++    point*=1.f/count;
++    const float depth=(point-aimRangeOutput->camera)|aimRangeOutput->forward;
++    if(depth<=.01f)return true;
++    auto &candidates=aimRangeOutput->candidates;
++    const auto where=std::lower_bound(candidates.begin(),candidates.end(),depth,
++        [](const auto &a,float b){return a.first<b;});
++    candidates.insert(where,{depth,point});
++    if(candidates.size()>32)candidates.pop_back();
++    return true;
++}
++using AimRelationVertex=storm::sea_ai::manual_aim::AimVolumeRelationVertex;
++thread_local std::vector<AimRelationVertex> *aimRelationOutput=nullptr;
++thread_local uint32_t aimRelationRGB=0;
++bool AimCollectRelationPolygon(const CVECTOR *v,int32_t count)
++{
++    if(!aimRelationOutput||count<3)return true;
++    constexpr size_t cap=storm::sea_ai::manual_aim::maxVolumeRelationVertices;
++    for(int32_t i=2;i<count;++i)
++    {
++        if(aimRelationOutput->size()+3>cap)return false;
++        for(const auto index:{0,i-1,i})
++        {
++            if(!manual_aim::finite(v[index]))return true;
++        }
++        for(const auto index:{0,i-1,i})
++            aimRelationOutput->push_back({{v[index].x,v[index].y,v[index].z},aimRelationRGB});
++    }
++    return true;
 +}
 +} // namespace
 +
@@ -513,6 +549,7 @@ index dc92b39..54a00f6 100644
 +                                                   MANUAL_AIM_SOLUTION &solution)
 +{
 +    solution=MANUAL_AIM_SOLUTION{};
++    manualAimColor=0xD9E2E4u;
 +    if(!manual_aim::finite(camera)||!manual_aim::finite(direction)||~direction<1e-8f||GetSpeedV0()<=0.f)return false;
 +    CVECTOR flat(direction.x,0.f,direction.z);
 +    if(~flat<1e-8f)return false;
@@ -547,25 +584,65 @@ index dc92b39..54a00f6 100644
 +    if(commonFar<=0.f)return false;
 +    AimWorld world(GetAIShip());
 +    const float pickLength=range+(camera-GetAIShip()->GetPos()).GetLength()+world.waveBound;
-+    const auto hit=world.trace(camera,camera+(!direction)*pickLength);
-+    if(hit.valid)
++    const CVECTOR forward=!direction;
++    const AimHit hit=world.trace(camera,camera+forward*pickLength);
++    float selectedDepth=hit.valid?((hit.point-camera)|forward):pickLength;
++    ATTRIBUTES *rangeCharacter=hit.character;
++    // User-defined invisible 60x34 region at2048x1285: instantaneous RANGE
++    // selection only. No stored target, tracking, dwell or angular aim snap.
++    CMatrix projection,view;
++    AIHelper::pRS->GetTransform(D3DTS_PROJECTION,projection);
++    AIHelper::pRS->GetTransform(D3DTS_VIEW,view);view.Transposition();
++    const CVECTOR right=!view.Vx(),up=!view.Vy();
++    const float tx=(60.f/2048.f)/std::max(.01f,std::fabs(projection.m[0][0]));
++    const float ty=(34.f/1285.f)/std::max(.01f,std::fabs(projection.m[1][1]));
++    PLANE aperture[6]{};
++    const std::array<CVECTOR,6> normals{{right-forward*tx,-right-forward*tx,
++        up-forward*ty,-up-forward*ty,forward,-forward}};
++    for(int i=0;i<6;++i)
 +    {
-+        // A real nearby unreachable hit remains unavailable; do not redirect
-+        // its shot to a convenient distant target behind the first receiver.
-+        solution.target=hit.point;
++        const CVECTOR n=!normals[i];
++        aperture[i].Nx=n.x;aperture[i].Ny=n.y;aperture[i].Nz=n.z;
++        aperture[i].D=n|camera;
 +    }
-+    else
++    aperture[4].D+=pickLength;aperture[5].D-=.01f;
++    AimRangeContext apertureGeometry{camera,forward,{},0};
++    aimRangeOutput=&apertureGeometry;
++    for(const auto &receiver:world.models)
 +    {
-+        // Camera/muzzle parallax matters: intersect every compatible muzzle's
-+        // legal range disk with the camera bearing, and use the common limit.
-+        // This stays far through mast gaps and into sky without a sticky lock,
-+        // fake ship collision or range loss when raising the camera.
-+        solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
++        if(!receiver.character||apertureGeometry.polygons>=4096)continue;
++        bool outside=false;
++        for(const auto &plane:aperture)
++        {
++            const CVECTOR nearest(plane.Nx>=0.f?receiver.lo.x:receiver.hi.x,
++                plane.Ny>=0.f?receiver.lo.y:receiver.hi.y,plane.Nz>=0.f?receiver.lo.z:receiver.hi.z);
++            if(plane.Nx*nearest.x+plane.Ny*nearest.y+plane.Nz*nearest.z>plane.D){outside=true;break;}
++        }
++        if(!outside)receiver.object->Clip(aperture,6,camera+forward*(pickLength*.5f),
++            pickLength*std::sqrt(.25f+tx*tx+ty*ty),AimCollectRangePolygon);
 +    }
-+    solution.character=hit.character;
++    aimRangeOutput=nullptr;
++    bool rangePicked=hit.valid;
++    for(const auto &[depth,point]:apertureGeometry.candidates)
++    {
++        if(depth>=selectedDepth)break;
++        const float distance=(point-camera).GetLength();
++        const auto real=world.trace(camera,camera+(!(point-camera))*(distance+.05f));
++        if(!real.valid)continue;
++        const float actualDepth=(real.point-camera)|forward;
++        if(manual_aim::insideRangeAperture(real.point-camera,forward,right,up,tx*1.0001f,ty*1.0001f)&&actualDepth<selectedDepth)
++        {selectedDepth=actualDepth;rangeCharacter=real.character;rangePicked=true;}
++    }
++    // The selected receiver supplies only depth. Camera direction stays exactly
++    // centered, so a shot through rigging gaps continues to its physical contact.
++    if(rangePicked)solution.target=manual_aim::centerRangeTarget(camera,forward,selectedDepth);
++    else solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
++    // A farther original center receiver must not inherit aggression when a
++    // nearer aperture surface supplied a different range.
++    solution.character=hit.valid&&((hit.point-camera)|forward)<=selectedDepth+.05f?hit.character:nullptr;
 +    for(auto &gun:bort->aCannons)
 +        if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
-+    if(solution.guns.empty()&&hit.valid)
++    if(solution.guns.empty()&&rangePicked)
 +    {
 +        // A genuinely distant receiver inside the extended camera query is far
 +        // intent too. A near hit outside depression/elevation limits is NOT.
@@ -576,11 +653,12 @@ index dc92b39..54a00f6 100644
 +        if(beyondEveryRange)
 +        {
 +            solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
-+            solution.character=nullptr;
-+            for(auto &gun:bort->aCannons)
++            solution.character=nullptr;rangeCharacter=nullptr;
++                    for(auto &gun:bort->aCannons)
 +                if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
 +        }
 +    }
++    if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
 +    return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
 +}
 +
@@ -634,11 +712,8 @@ index dc92b39..54a00f6 100644
 +    paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
 +    if(paths.empty())return;
 +    const bool ready=solution.bort->isCharged();
-+    // Contact field in LAUNCH space, not an ellipse on an XZ or hull-normal
-+    // plane. Every vertex owns a real muzzle and a valid jittered trajectory.
-+    // Through a hull/mast gap the same projectile continues until its first
-+    // real receiver, including the animated sea behind the gap.
-+    std::vector<AimVertex> footprint;
++    // Contact discovery supplies physical continuation supports, not visible
++    // per-gun meshes. Actual surface coverage is evaluated once from scene depth.
 +    std::vector<const AICannon *> projectors=supports;
 +    CVECTOR meanMuzzle(0.f);
 +    for(const auto *gun:solution.guns)meanMuzzle+=gun->GetPos();
@@ -657,23 +732,6 @@ index dc92b39..54a00f6 100644
 +    for(const auto &[gun,path]:nominalPaths)
 +        if(path.hit.valid && std::find(represented.begin(),represented.end(),path.hit.surface)==represented.end())
 +        {projectors.push_back(gun);represented.push_back(path.hit.surface);}
-+    // Five regular projectors plus explicit receiver exceptions. Each uses a
-+    // 3x3 angular grid, four cell centers and16 fan-validation centers (29
-+    // required samples). Each of four cells then has16 detail +8 local-patch
-+    // samples reserved independently: at most125 marches per projector.
-+    // A difficult earlier cell cannot consume any later cell's coverage.
-+    // Model broadphase and above-wave rejection remain active in each march.
-+    constexpr int divisions=2;
-+    auto relationColor=[&](const AimHit &hit)
-+    {
-+        if(!hit.character)return uint32_t(0xCDD4D6u);
-+        const auto relation=Helper.GetRelation(GetAIShip()->GetACharacter(),hit.character);
-+        if(relation==RELATION_ENEMY)return uint32_t(0xCCA29Cu);
-+        if(relation==RELATION_FRIEND)return uint32_t(0xA8C4ADu);
-+        if(relation==RELATION_NEUTRAL)return uint32_t(0xCFC398u);
-+        return uint32_t(0xCDD4D6u);
-+    };
-+    struct ContactVertex {AimHit hit;float alpha=0.f,yaw=0.f,elevation=0.f;};
 +    struct ContactSupport
 +    {
 +        int surface;
@@ -697,198 +755,38 @@ index dc92b39..54a00f6 100644
 +                if(value>it->values[slot]){it->values[slot]=value;it->paths[slot]=path;}
 +            }
 +    };
-+    const float layerScale=1.f/std::max(size_t(1),projectors.size());
 +    for(const auto *gun:projectors)
 +    {
 +        const CVECTOR muzzle=gun->GetPos();
 +        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
-+        struct CachedContact {float yaw,elevation;ContactVertex vertex;};
-+        std::vector<CachedContact> cache;
-+        manual_aim::ContactBudget<divisions*divisions> budget;
-+        int activeCell=-1;
-+        bool rescuePhase=false;
-+        auto sample=[&](float yaw,float elevation)
++        struct Sample {float yaw,elevation;AimPath path;};
++        std::vector<Sample> cache;
++        auto sample=[&](float yaw,float elevation)->AimHit
 +        {
-+            for(const auto &entry:cache)
-+                if(entry.yaw==yaw&&entry.elevation==elevation)return entry.vertex;
-+            // Mandatory shared samples are prefetched with activeCell=-1.
-+            // Optional work has an independent16+8 budget for each cell.
-+            if(!budget.take(activeCell,rescuePhase))return ContactVertex{};
-+            const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,
-+                angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity);
-+            const auto path=AimMarch(curve,world);
-+            retainContact(path);
-+            // Color/coverage is sampled here. Final opacity is evaluated once
-+            // against the unified corridor contour after its loft is complete;
-+            // individual gun-field borders never receive their own bright rim.
-+            const float alpha=.04f*layerScale*(ready?1.f:.65f);
-+            const ContactVertex vertex{path.hit,alpha,yaw,elevation};
-+            cache.push_back({yaw,elevation,vertex});
-+            return vertex;
++            for(const auto &p:cache)if(p.yaw==yaw&&p.elevation==elevation)return p.path.hit;
++            if(cache.size()>=105)return AimHit{};
++            const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,
++                angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
++            cache.push_back({yaw,elevation,path});retainContact(path);return path.hit;
 +        };
-+        std::array<std::array<ContactVertex,divisions+1>,divisions+1> grid{};
-+        for(int y=0;y<=divisions;++y)
-+            for(int x=0;x<=divisions;++x)
-+                grid[y][x]=sample(-1.f+2.f*x/divisions,-1.f+2.f*y/divisions);
-+        // Reserve all base centers AND solid-fan validation centers before
-+        // optional recursion. A difficult early hole cannot erase later cells.
-+        for(int y=0;y<divisions;++y)
-+            for(int x=0;x<divisions;++x)
-+            {
-+                const float x0=-1.f+2.f*x/divisions,x1=-1.f+2.f*(x+1)/divisions;
-+                const float y0=-1.f+2.f*y/divisions,y1=-1.f+2.f*(y+1)/divisions;
-+                const float xm=(x0+x1)*.5f,ym=(y0+y1)*.5f;
-+                sample(xm,ym);
-+                sample((x0+x1+xm)/3.f,(y0+y0+ym)/3.f);
-+                sample((x1+x1+xm)/3.f,(y0+y1+ym)/3.f);
-+                sample((x1+x0+xm)/3.f,(y1+y1+ym)/3.f);
-+                sample((x0+x0+xm)/3.f,(y1+y0+ym)/3.f);
-+            }
-+        auto triangle=[&](auto &&self,const ContactVertex &a,const ContactVertex &b,const ContactVertex &c,int depth,bool boundary,bool waveOnly=false)->void
++        constexpr int divisions=4;
++        std::array<std::array<AimHit,divisions+1>,divisions+1> grid{};
++        for(int y=0;y<=divisions;++y)for(int x=0;x<=divisions;++x)
++            grid[y][x]=sample(-1.f+.5f*x,-1.f+.5f*y);
++        // Reserve every cell center before optional receiver-boundary refinement.
++        std::array<std::array<AimHit,divisions>,divisions> centers{};
++        for(int y=0;y<divisions;++y)for(int x=0;x<divisions;++x)
++            centers[y][x]=sample(-.75f+.5f*x,-.75f+.5f*y);
++        for(int y=0;y<divisions;++y)for(int x=0;x<divisions;++x)
 +        {
-+            const auto &ha=a.hit,&hb=b.hit,&hc=c.hit;
-+            if(!ha.valid||!hb.valid||!hc.valid)return;
-+            if(ha.surface!=hb.surface||ha.surface!=hc.surface)
-+            {
-+                // A newly found gap receiver must grow into its own patch,
-+                // not vanish because the parent triangle has ship/water corners.
-+                if(depth<3 && budget.remaining(activeCell)>=7)
-+                {
-+                    const auto ab=sample((a.yaw+b.yaw)*.5f,(a.elevation+b.elevation)*.5f);
-+                    const auto bc=sample((b.yaw+c.yaw)*.5f,(b.elevation+c.elevation)*.5f);
-+                    const auto ca=sample((c.yaw+a.yaw)*.5f,(c.elevation+a.elevation)*.5f);
-+                    // Reserve all children's validation samples before recursing.
-+                    sample((a.yaw+ab.yaw+ca.yaw)/3.f,(a.elevation+ab.elevation+ca.elevation)/3.f);
-+                    sample((ab.yaw+b.yaw+bc.yaw)/3.f,(ab.elevation+b.elevation+bc.elevation)/3.f);
-+                    sample((ca.yaw+bc.yaw+c.yaw)/3.f,(ca.elevation+bc.elevation+c.elevation)/3.f);
-+                    sample((ab.yaw+bc.yaw+ca.yaw)/3.f,(ab.elevation+bc.elevation+ca.elevation)/3.f);
-+                    self(self,a,ab,ca,depth+1,true);self(self,ab,b,bc,depth+1,true);
-+                    self(self,ca,bc,c,depth+1,true);self(self,ab,bc,ca,depth+1,true);
-+                }
-+                else if(depth<5)
-+                {
-+                    const bool old=rescuePhase;rescuePhase=true;
-+                    const auto center=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
-+                    const float du=std::max({std::fabs(a.yaw-b.yaw),std::fabs(b.yaw-c.yaw),std::fabs(c.yaw-a.yaw)})*.125f;
-+                    const float dv=std::max({std::fabs(a.elevation-b.elevation),std::fabs(b.elevation-c.elevation),std::fabs(c.elevation-a.elevation)})*.125f;
-+                    manual_aim::contactPatch(center,du,dv,sample,[&](const auto &x,const auto &y,const auto &z)
-+                    {self(self,x,y,z,depth+1,true);});
-+                    rescuePhase=old;
-+                }
-+                return;
-+            }
-+            if(footprint.size()>=48000)return; // <=16k receiver triangles, independent of wave detail
-+            const CVECTOR ab=hb.point-ha.point,ac=hc.point-ha.point,bc=hc.point-hb.point;
-+            if(!waveOnly)
-+            {
-+                // Same receiver and endpoint normals do not prove a triangle
-+                // lies on a recessed hull or a terrain valley. Its launch-space
-+                // center must follow the original shot path to that surface too.
-+                const auto middle=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
-+                if(!middle.hit.valid)return; // budget exhaustion never fabricates a floating patch
-+                const CVECTOR n=!(ab^ac);
-+                const float error=std::fabs((middle.hit.point-(ha.point+hb.point+hc.point)/3.f)|n);
-+                const float tolerance=.04f+((ha.point+hb.point+hc.point)/3.f-camera).GetLength()*.0002f;
-+                const bool different=middle.hit.surface!=ha.surface || (ha.surface!=0 && error>tolerance);
-+                if(different)
-+                {
-+                    if(depth<2)
-+                    {
-+                        self(self,a,b,middle,depth+1,true);
-+                        self(self,b,c,middle,depth+1,true);
-+                        self(self,c,a,middle,depth+1,true);
-+                    }
-+                    return;
-+                }
-+            }
-+            if(ha.surface==0 && world.sea)
-+            {
-+                auto midpoint=[&](const ContactVertex &x,const ContactVertex &y)
-+                {
-+                    ContactVertex m=x;m.hit.point=(x.hit.point+y.hit.point)*.5f;m.alpha=(x.alpha+y.alpha)*.5f;
-+                    m.yaw=(x.yaw+y.yaw)*.5f;m.elevation=(x.elevation+y.elevation)*.5f;
-+                    m.hit.point.y=world.sea->WaveXZ(m.hit.point.x,m.hit.point.z,&m.hit.normal);
-+                    if(~m.hit.normal>1e-12f)m.hit.normal=!m.hit.normal;
-+                    return m;
-+                };
-+                const auto ab=midpoint(a,b),bc=midpoint(b,c),ca=midpoint(c,a);
-+                const float error=std::max({std::fabs(ab.hit.point.y-(ha.point.y+hb.point.y)*.5f),
-+                    std::fabs(bc.hit.point.y-(hb.point.y+hc.point.y)*.5f),
-+                    std::fabs(ca.hit.point.y-(hc.point.y+ha.point.y)*.5f)});
-+                const float tolerance=.04f+((ha.point+hb.point+hc.point)/3.f-camera).GetLength()*.0002f;
-+                const float longest=std::max({(ha.point-hb.point).GetLength(),(hb.point-hc.point).GetLength(),(hc.point-ha.point).GetLength()});
-+                const int waveDepth=waveOnly?depth:0;
-+                if(waveDepth<4 && (error>tolerance||longest>6.f))
-+                {
-+                    self(self,a,ab,ca,waveDepth+1,boundary,true);self(self,ab,b,bc,waveDepth+1,boundary,true);
-+                    self(self,ca,bc,c,waveDepth+1,boundary,true);self(self,ab,bc,ca,waveDepth+1,boundary,true);return;
-+                }
-+                // Prefer a clipped footprint to a broad polygon floating across
-+                // an unresolved storm crest/trough when the tessellation cap is met.
-+                if(error>tolerance*2.f)return;
-+            }
-+            if((ha.normal|hb.normal)<.45f||(ha.normal|hc.normal)<.45f||(hb.normal|hc.normal)<.45f)return;
-+            const float shortest=std::min({ab.GetLength(),ac.GetLength(),bc.GetLength()});
-+            const float longest=std::max({ab.GetLength(),ac.GetLength(),bc.GetLength()});
-+            if(longest>std::max(3.f,shortest*8.f))return;
-+            if(std::fabs(ab|ha.normal)>std::max(.3f,ab.GetLength()*.4f) ||
-+               std::fabs(ac|ha.normal)>std::max(.3f,ac.GetLength()*.4f))return;
-+            if(~(ab^ac)<1e-10f)return;
-+            const uint32_t rgb=relationColor(ha);
-+            for(const auto *v:{&a,&b,&c})
-+            {
-+                // Alpha belongs to the continuous projected field, never to a
-+                // tessellation cell/triangle. Shared vertices keep identical
-+                // opacity, so internal mesh boundaries cannot become grid lines.
-+                footprint.push_back({v->hit.point+v->hit.normal*kAimSurfaceLift,AimColor(v->alpha,rgb)});
-+            }
-+        };
-+        auto cell=[&](auto &&self,float x0,float y0,float x1,float y1,
-+                      const ContactVertex &a,const ContactVertex &b,const ContactVertex &c,const ContactVertex &d,
-+                      int depth,bool boundary)->void
-+        {
-+            const float xm=(x0+x1)*.5f,ym=(y0+y1)*.5f;
-+            const auto center=sample(xm,ym);
-+            const int receiver=center.hit.valid?center.hit.surface:-1;
-+            const bool mixed=!a.hit.valid||!b.hit.valid||!c.hit.valid||!d.hit.valid||
-+                a.hit.surface!=receiver||b.hit.surface!=receiver||c.hit.surface!=receiver||d.hit.surface!=receiver;
-+            if(mixed && depth<3 && budget.remaining(activeCell)>=8)
-+            {
-+                // Refine a detected hole/boundary in launch space. Each new
-+                // sample marches through the gap, rather than raycasting down
-+                // from a floating projector plane or connecting across it.
-+                const auto ab=sample(xm,y0),bc=sample(x1,ym),cd=sample(xm,y1),da=sample(x0,ym);
-+                // Reserve every child center before the first child can recurse
-+                // and consume the remaining budget intended for its siblings.
-+                sample((x0+xm)*.5f,(y0+ym)*.5f);
-+                sample((xm+x1)*.5f,(y0+ym)*.5f);
-+                sample((xm+x1)*.5f,(ym+y1)*.5f);
-+                sample((x0+xm)*.5f,(ym+y1)*.5f);
-+                self(self,x0,y0,xm,ym,a,ab,center,da,depth+1,true);
-+                self(self,xm,y0,x1,ym,ab,b,bc,center,depth+1,true);
-+                self(self,xm,ym,x1,y1,center,bc,c,cd,depth+1,true);
-+                self(self,x0,ym,xm,y1,da,center,cd,d,depth+1,true);return;
-+            }
-+            if(mixed)
-+            {
-+                const bool old=rescuePhase;rescuePhase=true;
-+                manual_aim::contactPatch(center,(x1-x0)*.125f,(y1-y0)*.125f,sample,
-+                    [&](const auto &p,const auto &q,const auto &r){triangle(triangle,p,q,r,0,true);});
-+                rescuePhase=old;
-+            }
-+            triangle(triangle,a,b,center,0,boundary||mixed);
-+            triangle(triangle,b,c,center,0,boundary||mixed);
-+            triangle(triangle,c,d,center,0,boundary||mixed);
-+            triangle(triangle,d,a,center,0,boundary||mixed);
-+        };
-+        for(int y=0;y<divisions;++y)
-+            for(int x=0;x<divisions;++x)
-+            {
-+                activeCell=y*divisions+x;
-+                cell(cell,-1.f+2.f*x/divisions,-1.f+2.f*y/divisions,
-+                    -1.f+2.f*(x+1)/divisions,-1.f+2.f*(y+1)/divisions,
-+                    grid[y][x],grid[y][x+1],grid[y+1][x+1],grid[y+1][x],0,false);
-+            }
++            const int receiver=centers[y][x].surface;
++            if(grid[y][x].surface==receiver&&grid[y][x+1].surface==receiver&&
++               grid[y+1][x+1].surface==receiver&&grid[y+1][x].surface==receiver)continue;
++            const float u=-1.f+.5f*x,v=-1.f+.5f*y;
++            // Four bounded independent subcell probes reveal continued shots
++            // through openings. No interpolation creates a collision or a tile.
++            for(float du:{.125f,.375f})for(float dv:{.125f,.375f})sample(u+du,v+dv);
++        }
 +    }
 +    // Include discovered gap-continuation supports BEFORE constructing the
 +    // corridor. Otherwise a water footprint behind a hole could be detached
@@ -995,9 +893,41 @@ index dc92b39..54a00f6 100644
 +    densityValid=densityValid&&densityPlanes.size()<=gpu::maxVolumePlanes;
 +    if(densityValid)
 +    {
++        // Exact rigid receiver polygons carry ownership only. The GPU compares
++        // them tightly to current depth and shades the volume/surface intersection
++        // once; these polygons never become visible per-gun contact geometry.
++        CVECTOR lo(1e20f),hi(-1e20f);
++        for(const auto &section:sections)for(const auto &p:section.hull)
++        {
++            const CVECTOR q=section.center+lateral*p.x+up*p.y;
++            for(int k=0;k<3;++k){lo.v[k]=std::min(lo.v[k],q.v[k]);hi.v[k]=std::max(hi.v[k],q.v[k]);}
++        }
++        lo-=CVECTOR(.1f);hi+=CVECTOR(.1f);
++        PLANE clip[6]{};
++        for(int k=0;k<3;++k)
++        {
++            (&clip[k*2].Nx)[k]=1.f;clip[k*2].D=hi.v[k];
++            (&clip[k*2+1].Nx)[k]=-1.f;clip[k*2+1].D=-lo.v[k];
++        }
++        const CVECTOR center=(lo+hi)*.5f;
++        const float radius=(hi-lo).GetLength()*.5f;
++        std::vector<gpu::AimVolumeRelationVertex> relationVertices;
++        aimRelationOutput=&relationVertices;
++        aimRelationRGB=gpu::excludedReceiverColor;
++        if(auto *ownModel=GetAIShip()->GetModel())
++            ownModel->Clip(clip,6,center,radius,AimCollectRelationPolygon);
++        for(const auto &receiver:world.models)
++        {
++            if(!receiver.character || relationVertices.size()>=gpu::maxVolumeRelationVertices)continue;
++            if(receiver.hi.x<lo.x||receiver.lo.x>hi.x||receiver.hi.y<lo.y||receiver.lo.y>hi.y||
++               receiver.hi.z<lo.z||receiver.lo.z>hi.z)continue;
++            aimRelationRGB=AimRelationColor(GetAIShip(),receiver.character);
++            receiver.object->Clip(clip,6,center,radius,AimCollectRelationPolygon);
++        }
++        aimRelationOutput=nullptr;
 +        const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
 +            uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
-+            &axis.x,&lateral.x,&up.x,ready?1.f:.55f);
++            relationVertices.data(),uint32_t(relationVertices.size()),&axis.x,&lateral.x,&up.x,ready?1.f:.55f);
 +        if(!drawn)
 +        {
 +            static bool reported=false;
@@ -1011,45 +941,7 @@ index dc92b39..54a00f6 100644
 +    }
 +#endif
 +
-+    // One continuous weight field for the complete corridor, shared by every
-+    // receiver and every projector. This is distance to the actual loft contour,
-+    // not a grid-cell edge, a triangle edge or a separate gun's angular square.
-+    auto contourDistance=[&](const CorridorSection &section,const CVECTOR &worldPoint)
-+    {
-+        const CVECTOR delta=worldPoint-section.center;
-+        const manual_aim::Point p{delta|lateral,delta|up};
-+        float best=1e20f;
-+        for(size_t i=0;i<section.hull.size();++i)
-+        {
-+            const auto a=section.hull[i],b=section.hull[(i+1)%section.hull.size()];
-+            const float x=b.x-a.x,y=b.y-a.y,length=x*x+y*y;
-+            const float t=length>1e-12f?std::clamp(((p.x-a.x)*x+(p.y-a.y)*y)/length,0.f,1.f):0.f;
-+            const float dx=p.x-a.x-t*x,dy=p.y-a.y-t*y;
-+            best=std::min(best,std::sqrt(dx*dx+dy*dy));
-+        }
-+        return best;
-+    };
-+    for(auto &vertex:footprint)
-+    {
-+        if(sections.empty()){vertex.color&=0xFFFFFFu;continue;}
-+        const float station=vertex.point|axis;
-+        auto next=std::lower_bound(sections.begin(),sections.end(),station,
-+            [](const CorridorSection &section,float value){return section.station<value;});
-+        float distance;
-+        if(next==sections.begin())distance=contourDistance(*next,vertex.point);
-+        else if(next==sections.end())distance=contourDistance(sections.back(),vertex.point);
-+        else
-+        {
-+            const auto &a=*(next-1),&b=*next;
-+            const float t=std::clamp((station-a.station)/std::max(.001f,b.station-a.station),0.f,1.f);
-+            distance=contourDistance(a,vertex.point)*(1.f-t)+contourDistance(b,vertex.point)*t;
-+        }
-+        const float width=.25f+(vertex.point-camera).GetLength()*.002f;
-+        const float rim=std::exp(-distance*distance/(width*width));
-+        const float alpha=(.04f+.14f*rim)*layerScale*(ready?1.f:.65f);
-+        vertex.color=AimColor(alpha,vertex.color);
-+    }
-+    AimDraw(footprint,"ShipAimFootprint",camera);
++
 +}
 +
 +
@@ -1057,10 +949,18 @@ index dc92b39..54a00f6 100644
  {
      pAShip = _pAShip;
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
-index 468151c..fec5817 100644
+index 468151c..47bafdc 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
-@@ -75,12 +75,22 @@ class AIShipCannonController
+@@ -5,6 +5,7 @@
+
+ class AIShip;
+ class VAI_INNEROBJ;
++class COLLISION_OBJECT;
+
+ // ============================================================================
+ // master class AIShipCannonController
+@@ -75,12 +76,24 @@ class AIShipCannonController
      // borts container
      std::vector<AISHIP_BORT> aShipBorts;
 
@@ -1074,6 +974,8 @@ index 468151c..fec5817 100644
 +    bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
 +    bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
 +
++    uint32_t manualAimColor=0xD9E2E4u;
++
      // update borts parameters
      bool UpdateParameters();
 
@@ -1084,7 +986,7 @@ index 468151c..fec5817 100644
 
      [[nodiscard]] float GetSpeedV0() const;
 
-@@ -118,7 +128,7 @@ class AIShipCannonController
+@@ -118,7 +131,7 @@ class AIShipCannonController
      // fire section
      bool Fire(const CVECTOR &vFirePos);                             // fire to position
      bool Fire(AIShip *pEnemy);                                      // fire to ship
@@ -1093,16 +995,18 @@ index 468151c..fec5817 100644
 
      // reload section
      void Unload(); // unload cannons
-@@ -131,6 +141,8 @@ class AIShipCannonController
+@@ -131,6 +144,10 @@ class AIShipCannonController
      // execute/realize section
      void Execute(float fDeltaTime);
      void Realize(float fDeltaTime);
 +    // Manual deck-aim trajectory overlay (visualization only, player ship).
 +    void DrawManualAimOverlay(const CVECTOR &vCamDir, const CVECTOR &vCamPos);
++
++    [[nodiscard]] uint32_t GetManualAimColor() const {return manualAimColor;}
 
      // init section
      bool Init(ATTRIBUTES *_pAShip);
-@@ -153,4 +165,4 @@ class AIShipCannonController
+@@ -153,4 +170,4 @@ class AIShipCannonController
 
      void Save(CSaveLoad *pSL);
      void Load(CSaveLoad *pSL);
@@ -1111,10 +1015,10 @@ index 468151c..fec5817 100644
 +};
 diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
 new file mode 100644
-index 0000000..90712e8
+index 0000000..b4b66b6
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,280 @@
 +#pragma once
 +#include "c_vector.h"
 +#include <algorithm>
@@ -1382,13 +1286,25 @@ index 0000000..90712e8
 +    }
 +    return true;
 +}
++// Range selection never redirects the centered camera ray toward a peripheral
++// mast/hull point. It supplies only the point's view-axis depth.
++inline CVECTOR centerRangeTarget(const CVECTOR &camera,const CVECTOR &forward,float depth)
++{
++    return camera+forward*depth;
++}
++inline bool insideRangeAperture(const CVECTOR &delta,const CVECTOR &forward,
++                               const CVECTOR &right,const CVECTOR &up,float tx,float ty)
++{
++    const float z=delta|forward;
++    return z>.01f && std::fabs(delta|right)<=z*tx && std::fabs(delta|up)<=z*ty;
++}
 +} // namespace manual_aim
 diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
 new file mode 100644
-index 0000000..e6fbd24
+index 0000000..5ef3d4a
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,43 @@
 +#pragma once
 +#include <cstdint>
 +
@@ -1397,6 +1313,8 @@ index 0000000..e6fbd24
 +inline constexpr std::uint32_t maxVolumeSections=1024;
 +inline constexpr std::uint32_t maxVolumePlanesPerSlab=256;
 +inline constexpr std::uint32_t maxVolumePlanes=65536;
++inline constexpr std::uint32_t maxVolumeRelationVertices=49152;
++inline constexpr std::uint32_t excludedReceiverColor=0x01000000u;
 +
 +// Absolute world centers; the backend applies its current camera-relative
 +// world origin once. x/y planes are in the supplied lateral/up basis.
@@ -1413,6 +1331,14 @@ index 0000000..e6fbd24
 +{
 +    float x,y,offset0,offset1;
 +};
++// Exact collision-mesh polygons identify a receiver only when they agree with
++// the current scene depth. They never define contact coverage or draw visibly.
++struct alignas(16) AimVolumeRelationVertex
++{
++    float position[3];
++    std::uint32_t color;
++};
++static_assert(sizeof(AimVolumeRelationVertex)==16 && alignof(AimVolumeRelationVertex)==16);
 +static_assert(sizeof(AimVolumeSection)==32 && alignof(AimVolumeSection)==16);
 +static_assert(sizeof(AimVolumePlane)==16 && alignof(AimVolumePlane)==16);
 +}
@@ -1420,6 +1346,7 @@ index 0000000..e6fbd24
 +extern "C" bool StormMetalDrawAimVolume(void *device,
 +    const storm::sea_ai::manual_aim::AimVolumeSection *sections,std::uint32_t sectionCount,
 +    const storm::sea_ai::manual_aim::AimVolumePlane *planes,std::uint32_t planeCount,
++    const storm::sea_ai::manual_aim::AimVolumeRelationVertex *relationVertices,std::uint32_t relationVertexCount,
 +    const float *axis,const float *lateral,const float *up,float readiness);
 diff --git a/src/techniques/_dev/ship.fx b/src/techniques/_dev/ship.fx
 index 76a5b74..d1f42c4 100644
