@@ -2,11 +2,11 @@
 
 ## Status
 
-Polish source candidate based on `84f3c4e` after the water-continuity and zoom
-updates. Gameplay feedback now accepts the overall appearance and continuous
-water contact. This follow-up softens polygon corners and reduces contour artifacts
-at solid silhouettes. Native compilation, motion replay and performance remain
-pending; it does not claim to eliminate every source of ship-contact jitter.
+Source candidate based on `cc42b40`. Runtime feedback showed that a pixel-sized
+rounding filter could not fix the large angular footprint, and broken contours
+made relation colors difficult to read. This revision changes the contact region
+and actual rendered ownership. Native Metal compilation, appearance, motion and
+frame-time acceptance remain pending.
 
 ## Contract
 
@@ -22,13 +22,12 @@ Selection is instantaneous, with no retained target, tracking or dwell. A nearer
 center obstruction wins. Empty or genuinely out-of-range space uses common legal
 maximum reach; nearby mechanically unreachable targets stay unavailable.
 
-Solid contact uses the corridor intersection with the current rendered surface.
-Water contact uses connected actual first-impact coverage on the current rendered
-sea: the stopped airborne hull cannot cover water between sampled impact stations.
-Both have a faint interior and a soft colored perimeter, without
-individual gun-field tiles, grid edges, floating ellipses or alpha accumulation.
-Actual water depth follows rendered waves; hull, mast, terrain and fort depth
-supply their own 3D surfaces. Air remains depth-occluded by foreground geometry.
+The visible contact area is an approximate rounded dispersion-density region,
+not a guaranteed boundary containing every shell. The same smooth field is
+evaluated on current water, hull, mast, terrain and fort depth. Physical first-hit
+samples gate where it can appear, including continuation through real openings.
+Those visibility masks do not draw their own polygon outlines. A faint interior
+and colored rim share one composite; air still uses the stopped ballistic volume.
 
 ## Owners and implementation
 
@@ -39,14 +38,16 @@ supply their own 3D surfaces. Air remains depth-occluded by foreground geometry.
 - The plus uses the current range-source relation. Firing events do not inherit a
   farther center-hit character after a nearer aperture receiver changes the range
 - `manual_aim_geometry.hpp` mirrors live projectile warp and supplies exact section
-  geometry; `manual_aim_volume_bridge.hpp` defines checked 32/16/8-byte GPU records
+  geometry; `manual_aim_volume_bridge.hpp` defines checked 64/32/16/8-byte GPU records
 - `aim_volume.hpp` and `backend.mm` draw one soft-density/contact composite from
   current post-water depth and color snapshots. Per-gun surface triangles are gone
-- Contact color comes from exact clipped receiver polygons rendered into a private
-  identity mask. They carry existing `GetRelation` ownership only, never visible
-  coverage. Tight depth agreement is required; collision/render disagreement stays
-  neutral. Actual before/after main-ship depth ownership excludes the firing ship
-  from contact while preserving its ordinary depth occlusion, independent of LOD
+- Contact color and character identity come from actual depth-writing model draws,
+  using the existing `GetRelation` mapping. One accumulated depth/token/color map
+  captures registered hull/upper-model, fort, intact mast and owned sail/rope/vant
+  groups. Exact current depth selects the actual receiver; water stays neutral
+- Alpha-tested holes remain holes. Sails/ropes are non-stopping rendered contacts,
+  gated by finite airborne support; they never stop a projectile or alter damage.
+  Own hull and separately drawn own rigging are excluded by actual ownership
 - The contact perimeter adapts its brightness to the underlying scene, with a
   restrained dark outer keyline for midtone/daylight contrast. This does not raise
   nighttime air opacity. Friend/enemy/neutral colors are green/red/yellow; water and
@@ -66,41 +67,42 @@ Every eligible gun supplies its nominal trajectory. Spatial support guns add all
 eight independent yaw/elevation/speed dispersion corners. Additional contact
 samples follow complete trajectories through missed hull/mast gaps to their first
 physical receiver. They discover continuation supports, not visible surface tiles.
-Each projector keeps a 4×4 nominal-speed field and 2×2 fields at both live speed
-dispersion limits. Each cell has its own 12-sample refinement/local-patch allowance
-(at most 355 total samples per projector; ordinary uniform water uses 131).
-Shared traced edge midpoints improve curved boundaries and can discover a solid
-receiver inside an otherwise all-water cell. Ordinary sampling cost increases
-from 67 to 131 per projector; the worst-case bound is unchanged.
-Connected same-first-water fans are unioned once in a retained 2048×2048 XZ
-coverage atlas; internal gun/triangle edges do not
-define contours. Mixed receivers remain clipped instead of filling their shadows.
-Actual main-water depth ownership gates this chart onto current visible water.
-No trajectory is extended beyond its physical first impact.
+Contact projectors use stable ship-local longitudinal/up extrema and a middle
+gun, with near-tie handling. Each of at most five ordinary density fields contains
+65 fixed axial sections derived from that gun's untruncated nominal trajectory and
+independent dispersion corners. Each ellipse is inscribed in its sampled support
+hull, preventing covariance overhang at close range. Muzzle-relative plane solves and explicit endpoint
+insertion keep translation from dropping a field. A fourth-power mean combines
+field densities once, retaining isolated regions without per-gun alpha blending.
+Receiver discoveries add visibility support only, never a density field.
 
-The water stroke uses a four-screen-pixel local filter with at most 1.25 pixels
-of inward contour recession. The original faint physical coverage remains,
-including thin components. The filter cannot add coverage or close real gaps;
-large physical lobes remain. Solid contour tangents use conservative one-sided
-depth neighbors, rejecting own ship, water, large depth jumps and opposing folds.
-Relation identity and target selection are neither blurred nor retained.
+Each physical-support projector keeps a 4×4 nominal-speed grid and 2×2 grids at both
+live speed limits. Twelve optional probes per cell bound refinement (355 maximum
+marches per projector; uniform water 131, uniform solid 227). Same-first-water fans
+form a retained 2048×2048 coverage atlas. Same-first-solid fans form bounded surface
+prisms; their thickness comes from measured local sample deviation plus 1.5 cm, with
+refinement or rejection above 0.5 m. Current-depth uncertainty is handled as a depth
+bin, not arbitrary world expansion. Character prisms require exact receiver tokens.
+Mixed receiver samples clip/refine visibility and never gain a line of their own.
+No physical trajectory is extended past its first stopping impact.
 
 Common downrange sections preserve actual muzzle/contact endpoints, reversed or
 turning paths, thin rolled batteries and empty axial gaps. Exact hull-edge planes
 from both slab endpoints avoid fixed-direction narrowing/fattening. Internal
 station caps do not become visible contact seams. Air alpha remains capped at .22.
 
-Range picking visits at most 4096 clipped polygons and confirms at most 32 nearest
-candidates. Relation collection is capped at 49,152 vertices (16,384 triangles),
-with corridor-AABB rejection. Missing/capped identity is neutral, not invented.
-Water contact triangles are capped at 49,152 vertices. Ownership capture is enabled
-by the current deck-camera state, resets each frame/camera, and preserves later
-occluders. Missing either live ownership capture withholds contact rather than
-reusing a stale/fragmented fallback; air and the plus remain available. It adds
-two depth copies and two ownership passes while aiming; the
-water composite conservatively covers the viewport. GPU records are capped at
-1024 sections and 65,536 side planes. Native frame-time
-measurement remains necessary near a fort and with many ships.
+Range picking visits at most 4096 clipped polygons and confirms 32 nearest
+candidates. GPU input caps are 16 density fields (1040 sections), 8192 contact prisms,
+49,152 water vertices, 1024 air sections and 65,536 air side planes. Actual model
+registration is capped at 128 receivers. Registry metadata is rebuilt without
+rebuilding world model bounds.
+
+Ownership resets on frame/camera changes and preserves later occluders. A model
+capture starts only at its first depth-writing draw, so culled, empty and purely
+non-depth-writing groups do no capture GPU work. Each visible registered group
+still adds one full-depth copy and one depth/token/color pass, in addition to own
+ship/water capture, the eligibility masks and full-viewport composite. Native
+profiling remains necessary with many ships and rigging groups.
 
 ## Preserved gameplay and limits
 
@@ -113,11 +115,12 @@ The shipped ammunition script compares the ammunition name with integer
 `GOOD_KNIPPELS`; effective current behavior applies catalogue `HeightMultiply*.4`
 to ordinary balls and knippels. The preview mirrors it without changing gameplay.
 
-The envelope is a finite sampled dispersion prediction, not an exhaustive bound.
-Collision mesh/render LOD differences still affect relation coloring. Animated
-cloth, sub-sample openings, separately drawn ropes/crew and sharp silhouettes
-require native replay. Main-ship depth ownership covers only its actual draw scope. Depth/color snapshots
-are current and post-water in source; actual storm occlusion is still unverified.
+The display is a finite sampled approximation. Rough unresolved curvature and
+sub-sample openings can still lose eligibility; a flat-plane check does not prove
+arbitrary cliff continuity. Blended cloth with depth writes disabled, mixed-owner
+flag draws and unregistered detached models remain unsupported for ownership.
+Actual storm occlusion, motion stability and colored day/night readability need
+native replay. There is no temporal target retention or fake collision plane.
 
 ## Focused verification
 
@@ -139,4 +142,4 @@ Native replay must cover day/night water and shore; the contact perimeter and
 relation-colored plus; mast inside/outside the invisible rectangle; camera roll;
 real volleys through gaps; both broadsides; storm crests and own deck occlusion;
 reload/fire; a heavily armed fort and multiple ships. The new path logs
-`soft aim volume v3: endpoint-water union + rendered receiver ownership`.
+the current aim renderer revision on successful initialization.

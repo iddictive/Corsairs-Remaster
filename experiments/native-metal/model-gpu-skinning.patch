@@ -71,7 +71,7 @@
          }
          dest_vb = d3dDestVB;
  
-@@ -258,12 +296,14 @@ void MODELR::Realize(uint32_t Delta_Time)
+@@ -258,12 +296,15 @@ void MODELR::Realize(uint32_t Delta_Time)
              }
          }
  
@@ -86,7 +86,8 @@
          root->Draw();
 -        GeometyService->SetVBConvertFunc(nullptr);
 -        if (!alreadyTransformed)
-+        if (!gpuSkinning && !alreadyTransformed)
++        // GPU draws leave the CPU stream stale, including a paused animation.
++        if (gpuSkinning || !alreadyTransformed)
          {
              aniPos[0] = -2.0f;
              aniPos[1] = -2.0f;

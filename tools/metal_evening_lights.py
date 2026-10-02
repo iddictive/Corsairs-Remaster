@@ -34,7 +34,9 @@ PREPARERS = {
     EVENING_PATH: (EVENING_BASE, prepare_evening),
 }
 
-UPDATED: dict = {}
+UPDATED = {
+    EVENING_PATH: "092440b04e38a7c6974181764e3c9560989f22476172f678dc79765c4ecb9d69",
+}
 
 
 def prepare(relative: str, data: bytes) -> bytes:
@@ -47,5 +49,6 @@ def prepare(relative: str, data: bytes) -> bytes:
     if curr_hash != base_hash:
         raise RuntimeError(f"unrecognized base for {relative}: {curr_hash} != {base_hash}")
     result = fn(data)
-    UPDATED[relative] = digest(result)
+    if digest(result) != UPDATED[relative]:
+        raise RuntimeError(f"unreviewed evening lights output: {relative}")
     return result

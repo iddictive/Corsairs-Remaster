@@ -107,14 +107,26 @@ def sync_once(
     written: list[str] = []
     try:
         for relative in changed:
-            writer(runtime / relative, generated[relative])
+            target = runtime / relative
+            if target.read_bytes() != before[relative]:
+                raise RuntimeError(f"{relative}: changed during settings HMR replacement")
+            writer(target, generated[relative])
             written.append(relative)
         for relative in HOT_PATHS:
             if (runtime / relative).read_bytes() != generated[relative]:
                 raise RuntimeError(f"{relative}: settings HMR verification failed")
-    except Exception:
+    except Exception as error:
+        failures = []
         for relative in reversed(written):
-            writer(runtime / relative, before[relative])
+            target = runtime / relative
+            try:
+                if target.read_bytes() != generated[relative]:
+                    raise RuntimeError(f"{relative}: concurrent change prevents settings HMR rollback")
+                writer(target, before[relative])
+            except Exception as rollback_error:
+                failures.append(str(rollback_error))
+        if failures:
+            raise RuntimeError(f"{error}; settings HMR rollback incomplete: {'; '.join(failures)}") from error
         raise
     return changed
 
