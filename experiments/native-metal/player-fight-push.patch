@@ -1,0 +1,58 @@
+# A running player with a drawn saber stops dead on bystanders instead of
+# shoving through like outside combat.
+#
+# Supervisor::Update resolves overlapping characters every frame. Outside
+# combat the standing side yields 0.1 of the overlap per frame, so a runner
+# plows through. In the fight branch the standing side yields 0.001 while the
+# mover is bounced 0.999, which is a wall; fight radius (1.5 vs 0.7) also
+# starts the block farther out (1.1m vs 0.7m). The old script workaround
+# teleported officers within 0.9m, so it never saw the blocker and covered
+# companions only.
+#
+# Carve a player-mover exception out of the fight branch: a moving player in
+# fight mode shoves with the peace coefficients (stander yields 0.1), halved
+# to 0.05 while the stander holds block (fgt_block/fgt_blockhit; a broken
+# guard shoves like normal). NPC-vs-NPC pairs, a standing player, and
+# both-moving pairs keep the old splits.
+diff --git a/src/libs/location/src/supervisor.cpp b/src/libs/location/src/supervisor.cpp
+--- a/src/libs/location/src/supervisor.cpp
++++ b/src/libs/location/src/supervisor.cpp
+@@ -142,8 +142,37 @@
+             }
+             if (ci->IsFight())
+             {
+-                if (moveI == moveJ)
++                // A moving player in fight mode shoves like outside combat, so running
++                // with a drawn saber pushes bystanders aside instead of stopping dead.
++                // A blocking bystander yields less (fgt_block/fgt_blockhit only; a broken
++                // guard shoves like normal). NPC pairs keep the old hold-ground split.
++                // The outer branch already guarantees ci->IsFight().
++                const bool playerShovesI = moveI && !moveJ && ci == player;
++                const bool playerShovesJ = moveJ && !moveI && cj == player && cj->IsFight();
++                if (playerShovesI || playerShovesJ)
+                 {
++                    const Character *const stander = playerShovesI ? cj : ci;
++                    const bool standerBlocks = stander->fgtCurType == Character::fgt_block ||
++                                               stander->fgtCurType == Character::fgt_blockhit;
++                    const float yieldK = standerBlocks ? 0.05f : 0.1f;
++                    const float holdK = 1.0f - yieldK;
++                    if (playerShovesI)
++                    {
++                        ci->curPos.x += dx * holdK;
++                        ci->curPos.z += dz * holdK;
++                        cj->curPos.x -= dx * yieldK;
++                        cj->curPos.z -= dz * yieldK;
++                    }
++                    else
++                    {
++                        ci->curPos.x += dx * yieldK;
++                        ci->curPos.z += dz * yieldK;
++                        cj->curPos.x -= dx * holdK;
++                        cj->curPos.z -= dz * holdK;
++                    }
++                }
++                else if (moveI == moveJ)
++                {
+                     ci->curPos.x += dx * 0.5f;
+                     ci->curPos.z += dz * 0.5f;
+                     cj->curPos.x -= dx * 0.5f;
