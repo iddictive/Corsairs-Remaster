@@ -19,7 +19,7 @@ FILES = (
     FilePatch(
         "PROGRAM/controls/init_pc.c",
         "0dc2d657dd2b729ee7547f161bb8a8bf4dd1a0c1638840d657f4162a8800a159",
-        "0df5597dc8376f0c6a6ff281eaca6ea0627fb6949ef9e0932275967ed90e513b",
+        "6f12891eb530f9f2c20115a3f523b2dd624a88a52481ef7c862952afbcc7a518",
         (
             (
                 '    CI_CreateAndSetControls("Sailing1Pers", "DeckWalk_Forward", CI_GetKeyCode("KEY_W"), 0, true);\n'
@@ -49,7 +49,7 @@ FILES = (
     FilePatch(
         "PROGRAM/controls/controls.c",
         "b67d02dc59504d10d3c26b8181eccd3ee196871999556912e57dcb150ccdb90a",
-        "5df48b6f34d709550c144f29cc3f3f5a1479baf17810e9f307c056243a677a23",
+        "0ed18c8208b426ee21999284c90eeeadac0f5f6dea993f2d1ebaad3d0c050723",
         (
             (
                 '\t\t\tif (grName == "sailing1pers" && (ctrlName == "Ship_TurnLeft" || ctrlName == "Ship_TurnRight" || ctrlName == "Ship_SailUp" || ctrlName == "Ship_SailDown" || ctrlName == "DeckCamera_Forward" || ctrlName == "DeckCamera_Backward" || ctrlName == "ShipCamera_Forward" || ctrlName == "ShipCamera_Backward"))',
@@ -78,6 +78,28 @@ FILES = (
 )
 
 PATHS = frozenset(item.relative_path for item in FILES)
+PREVIOUS_SHA256 = {
+    "PROGRAM/controls/init_pc.c": "0df5597dc8376f0c6a6ff281eaca6ea0627fb6949ef9e0932275967ed90e513b",
+    "PROGRAM/controls/controls.c": "5df48b6f34d709550c144f29cc3f3f5a1479baf17810e9f307c056243a677a23",
+}
+ZOOM_BINDING = 'CI_CreateAndSetControls("Sailing1Pers", "DeckAimZoom", CI_GetKeyCode("VK_RBUTTON"), 0, false);'
+
+
+def _zoom_transform(relative_path: str, source: bytes, *, reverse: bool = False) -> bytes:
+    newline = "\r\n" if b"\r\n" in source else "\n"
+    if relative_path.endswith("/init_pc.c"):
+        before = "    DeckWalk_DefaultShipKeys();"
+        after = before + "\n    " + ZOOM_BINDING
+    else:
+        before = "\tRunControlsContainers();"
+        after = "\t// Refresh the fixed aim binding even for profiles saved before it existed.\n\t" + ZOOM_BINDING + "\n" + before
+    if reverse:
+        before, after = after, before
+    before_bytes = before.replace("\n", newline).encode("utf-8")
+    after_bytes = after.replace("\n", newline).encode("utf-8")
+    if source.count(before_bytes) != 1:
+        raise RuntimeError(f"{relative_path}: aim-zoom control anchor is not unique")
+    return source.replace(before_bytes, after_bytes, 1)
 
 
 def digest(data: bytes) -> str:
@@ -110,14 +132,13 @@ def _transform(source: bytes, spec: FilePatch, *, reverse: bool = False) -> byte
 
 def prepare(relative_path: str, source: bytes) -> bytes:
     spec = _spec(relative_path)
-    current = digest(source)
-    if current == spec.patched_sha256:
+    if digest(source) == spec.patched_sha256:
         return source
-    if current != spec.original_sha256:
-        raise RuntimeError(
-            f"{relative_path}: unsupported Metal deck-control input {current}"
-        )
-    result = _transform(source, spec)
+    canonical = strip(relative_path, source)
+    previous = _transform(canonical, spec)
+    if digest(previous) != PREVIOUS_SHA256[relative_path]:
+        raise RuntimeError(f"{relative_path}: generated previous deck-control hash changed")
+    result = _zoom_transform(relative_path, previous)
     if digest(result) != spec.patched_sha256:
         raise RuntimeError(f"{relative_path}: generated Metal deck-control hash changed")
     return result
@@ -128,10 +149,14 @@ def strip(relative_path: str, source: bytes) -> bytes:
     current = digest(source)
     if current == spec.original_sha256:
         return source
-    if current != spec.patched_sha256:
+    if current == spec.patched_sha256:
+        source = _zoom_transform(relative_path, source, reverse=True)
+    elif current != PREVIOUS_SHA256[relative_path]:
         raise RuntimeError(
             f"{relative_path}: unsupported installed Metal deck-control hash {current}"
         )
+    if digest(source) != PREVIOUS_SHA256[relative_path]:
+        raise RuntimeError(f"{relative_path}: stripped aim-zoom hash changed")
     result = _transform(source, spec, reverse=True)
     if digest(result) != spec.original_sha256:
         raise RuntimeError(f"{relative_path}: stripped Metal deck-control hash changed")

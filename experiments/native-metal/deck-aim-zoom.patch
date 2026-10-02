@@ -1,0 +1,503 @@
+diff --git a/src/libs/core/include/controls.h b/src/libs/core/include/controls.h
+--- a/src/libs/core/include/controls.h
++++ b/src/libs/core/include/controls.h
+@@ -185,6 +185,9 @@
+
+     virtual void LockControl(const char *control_name, bool mode){};
+
++    // Missing/locked controls must not turn an interrupted press into a click.
++    virtual bool IsControlLocked(const char *control_name) const { return true; }
++
+     virtual void SetMouseSensivityX(float){};
+
+     virtual void SetMouseSensivityY(float){};
+diff --git a/src/libs/core/include/core.h b/src/libs/core/include/core.h
+--- a/src/libs/core/include/core.h
++++ b/src/libs/core/include/core.h
+@@ -55,6 +55,10 @@
+     virtual storm::OSWindow *GetWindow() = 0;
+     // set time scale; affect on std entity functions DeltaTime parameter
+     virtual void SetTimeScale(float _scale) = 0;
++    virtual float GetTimeScale() const { return 1.f; }
++    // Transient interaction state must notice a pause even if its entity's
++    // execute and realize layers were both frozen for the entire interval.
++    virtual uint64_t GetScenePauseRevision() const { return 0; }
+     // write message to system log file
+     virtual void Trace(const char *Format, ...) = 0;
+     // return service object pointer;
+diff --git a/src/libs/core/src/core_impl.cpp b/src/libs/core/src/core_impl.cpp
+--- a/src/libs/core/src/core_impl.cpp
++++ b/src/libs/core/src/core_impl.cpp
+@@ -385,6 +385,8 @@
+
+ void CoreImpl::SetTimeScale(float _scale)
+ {
++    if (_scale <= 0.f && fTimeScale > 0.f)
++        ++scenePauseRevision;
+     fTimeScale = _scale;
+ }
+
+@@ -1064,6 +1066,8 @@
+
+ void CoreImpl::SetLayerFrozen(layer_index_t index, bool freeze)
+ {
++    if ((index == SEA_EXECUTE || index == EXECUTE) && freeze && !entity_manager_.IsLayerFrozen(index))
++        ++scenePauseRevision;
+     entity_manager_.SetLayerFrozen(index, freeze);
+ }
+
+diff --git a/src/libs/core/src/core_impl.h b/src/libs/core/src/core_impl.h
+--- a/src/libs/core/src/core_impl.h
++++ b/src/libs/core/src/core_impl.h
+@@ -61,6 +61,8 @@
+ #endif
+     // set time scale; affect on std entity functions DeltaTime parameter
+     void SetTimeScale(float _scale) override;
++    float GetTimeScale() const override { return fTimeScale; }
++    uint64_t GetScenePauseRevision() const override { return scenePauseRevision; }
+     // write message to system log file
+     void Trace(const char *Format, ...) override;
+
+@@ -177,6 +179,7 @@
+     char *State_file_name;
+
+     float fTimeScale;
++    uint64_t scenePauseRevision = 0;
+ };
+
+ inline CoreImpl core_internal;
+diff --git a/src/libs/pcs_controls/include/pcs_controls.h b/src/libs/pcs_controls/include/pcs_controls.h
+--- a/src/libs/pcs_controls/include/pcs_controls.h
++++ b/src/libs/pcs_controls/include/pcs_controls.h
+@@ -77,6 +77,7 @@
+     int32_t LastControlTime() override;
+     void SetControlTreshold(int32_t control_code, float thval) override;
+     void LockControl(const char *control_name, bool mode) override;
++    bool IsControlLocked(const char *control_name) const override;
+
+     void SetMouseSensivityX(float) override;
+     void SetMouseSensivityY(float) override;
+diff --git a/src/libs/pcs_controls/src/pcs_controls.cpp b/src/libs/pcs_controls/src/pcs_controls.cpp
+--- a/src/libs/pcs_controls/src/pcs_controls.cpp
++++ b/src/libs/pcs_controls/src/pcs_controls.cpp
+@@ -632,6 +632,16 @@
+     }
+ }
+
++bool PCS_CONTROLS::IsControlLocked(const char *control_name) const
++{
++    if (m_bLockAll || !control_name)
++        return true;
++    for (int32_t i = 0; i < nControlsNum; ++i)
++        if (storm::iEquals(control_name, pUserControls[i].name))
++            return pUserControls[i].bLocked || pUserControls[i].system_code == UNASSIGNED_CONTROL;
++    return true;
++}
++
+ void PCS_CONTROLS::SetMouseSensivityX(float _s)
+ {
+     fMouseSensivityX = _s;
+diff --git a/src/libs/renderer/include/dx9render.h b/src/libs/renderer/include/dx9render.h
+--- a/src/libs/renderer/include/dx9render.h
++++ b/src/libs/renderer/include/dx9render.h
+@@ -215,9 +215,10 @@
+     virtual void GetTransform(int32_t type, D3DMATRIX *mtx) = 0;
+
+     virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective) = 0;
++    virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective, float magnification) = 0;
+     virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang) = 0;
+     virtual bool SetCamera(CVECTOR lookFrom, CVECTOR lookTo, CVECTOR up) = 0;
+-    virtual bool SetPerspective(float perspective, float fAspectRatio = -1.0f) = 0;
++    virtual bool SetPerspective(float perspective, float fAspectRatio = -1.0f, float magnification = 1.f) = 0;
+     virtual void GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective) = 0;
+
+     virtual bool SetCurrentMatrix(D3DMATRIX *mtx) = 0;
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -2133,9 +2133,14 @@
+ //################################################################################
+ bool DX9RENDER::SetCamera(const CVECTOR &pos, const CVECTOR &ang, float fov)
+ {
++    return SetCamera(pos, ang, fov, 1.f);
++}
++
++bool DX9RENDER::SetCamera(const CVECTOR &pos, const CVECTOR &ang, float fov, float magnification)
++{
+     if (!SetCamera(pos, ang))
+         return false;
+-    if (!SetPerspective(fov, aspectRatio))
++    if (!SetPerspective(fov, aspectRatio, magnification))
+         return false;
+
+     ProcessScriptPosAng(pos, ang);
+@@ -2232,11 +2237,16 @@
+     fNearClipPlane = fNear;
+     fFarClipPlane = fFar;
+
+-    SetPerspective(Fov, aspectRatio);
+-}
+-
+-bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio)
+-{
++    // Keep the original pre-multiplier FOV and both-axis zoom when island
++    // passes temporarily change their depth range.
++    SetPerspective(perspectiveInput, aspectRatio, projectionMagnification);
++}
++
++bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio, float magnification)
++{
++    if (!std::isfinite(magnification) || magnification <= 0.f)
++        return false;
++    const float inputPerspective = perspective;
+     perspective *= FovMultiplier;
+
+     const float near_plane = fNearClipPlane; // Distance to near clipping
+@@ -2265,15 +2275,19 @@
+
+     D3DMATRIX mtx{};
+
+-    mtx._11 = w;
+-    mtx._22 = h;
++    // Scale the existing projection equally on both axes. This preserves
++    // legacy vertical-FOV policy and user fov_multiplier without distortion.
++    mtx._11 = w * magnification;
++    mtx._22 = h * magnification;
+     mtx._33 = Q;
+     mtx._43 = -Q * near_plane;
+     mtx._34 = 1.0f;
+
+     if (CHECKD3DERR(d3d9->SetTransform(D3DTS_PROJECTION, &mtx)) == true)
+         return false;
+-    Fov = perspective;
++    perspectiveInput = inputPerspective;
++    projectionMagnification = magnification;
++    Fov = magnification == 1.f ? perspective : 2.f * atanf(tanf(perspective * .5f) / magnification);
+     FindPlanes(d3d9);
+     return true;
+ }
+diff --git a/src/libs/renderer/src/s_device.h b/src/libs/renderer/src/s_device.h
+--- a/src/libs/renderer/src/s_device.h
++++ b/src/libs/renderer/src/s_device.h
+@@ -150,9 +150,10 @@
+     void GetTransform(int32_t type, D3DMATRIX *mtx) override;
+
+     bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective) override;
++    bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective, float magnification) override;
+     bool SetCamera(const CVECTOR &pos, const CVECTOR &ang) override;
+     bool SetCamera(CVECTOR lookFrom, CVECTOR lookTo, CVECTOR up) override;
+-    bool SetPerspective(float perspective, float fAspectRatio = -1.0f) override;
++    bool SetPerspective(float perspective, float fAspectRatio = -1.0f, float magnification = 1.f) override;
+     void GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective) override;
+
+     bool SetCurrentMatrix(D3DMATRIX *mtx) override;
+@@ -482,6 +483,8 @@
+
+     CVECTOR Pos, Ang;
+     float Fov;
++    float perspectiveInput = 1.f;
++    float projectionMagnification = 1.f;
+
+     float FovMultiplier{ 1.0f };
+
+diff --git a/src/libs/sea_cameras/src/deck_aim_zoom.h b/src/libs/sea_cameras/src/deck_aim_zoom.h
+new file mode 100644
+--- /dev/null
++++ b/src/libs/sea_cameras/src/deck_aim_zoom.h
+@@ -0,0 +1,124 @@
++#pragma once
++
++#include <algorithm>
++#include <cmath>
++
++// Transient deck-aim presentation. Magnification multiplies projection scale,
++// never the FOV angle; no changes to the saved camera or script perspective.
++namespace deck_aim
++{
++class Zoom
++{
++  public:
++    static constexpr float maximum = 5.f;
++    static constexpr float holdDelay = .18f;
++    static constexpr float fullTravelTime = 1.2f;
++    static constexpr float clickTravelTime = .4f;
++
++    void reset()
++    {
++        *this = Zoom{};
++    }
++
++    float magnification() const { return std::exp(logZoom); }
++
++    float perspective(float base) const
++    {
++        if (!std::isfinite(base) || base <= 0.f || base >= 3.14159265f)
++            return base;
++        return 2.f * std::atan(std::tan(base * .5f) / magnification());
++    }
++
++    void update(float seconds, bool down)
++    {
++        // A mode/focus/control interruption requires a fresh press. In
++        // particular, releasing the button over a menu is never a click.
++        if (needRelease)
++        {
++            if (!down) needRelease = false;
++            return;
++        }
++        const float realElapsed = std::isfinite(seconds) ? std::max(seconds, 0.f) : 0.f;
++        const float dt = std::min(realElapsed, .1f);
++        if (down && !pressed)
++        {
++            pressed = true;
++            held = false;
++            pressTime = 0.f;
++            // Rapid clicks reverse an in-progress endpoint transition.
++            tapTarget = targetLog > .0001f ? 0.f : maxLog();
++            holdTarget = logZoom >= maxLog() - .0001f ? 0.f : maxLog();
++            startLog = logZoom;
++            targetLog = logZoom;
++            travelTime = 0.f;
++            return;
++        }
++        if (down)
++        {
++            if (held)
++                advance(dt);
++            else
++            {
++                const float untilHold = std::max(0.f, holdDelay - pressTime);
++                pressTime = std::min(holdDelay, pressTime + realElapsed);
++                if (pressTime >= holdDelay)
++                {
++                    held = true;
++                    begin(holdTarget, fullTravelTime);
++                    advance(std::min(dt, std::max(0.f, realElapsed - untilHold)));
++                }
++            }
++            return;
++        }
++        if (pressed)
++        {
++            pressed = false;
++            // Input is sampled per frame: a release can cross the hold
++            // threshold even if the previous down sample was just below it.
++            if (!held && pressTime + realElapsed >= holdDelay)
++            {
++                held = true;
++                begin(holdTarget, fullTravelTime);
++                advance(std::min(dt, pressTime + realElapsed - holdDelay));
++            }
++            if (held)
++            {
++                // Hold release fixes the exact current view, without inertia
++                // and without a second, short-click endpoint transition.
++                targetLog = startLog = logZoom;
++                travelTime = 0.f;
++                return;
++            }
++            begin(tapTarget, clickTravelTime);
++        }
++        advance(dt);
++    }
++
++  private:
++    static float maxLog() { return std::log(maximum); }
++    void begin(float target, float fullDuration)
++    {
++        startLog = logZoom;
++        targetLog = target;
++        elapsed = 0.f;
++        travelTime = fullDuration * std::abs(targetLog - startLog) / maxLog();
++    }
++    void advance(float dt)
++    {
++        if (travelTime <= 0.f) return;
++        elapsed = std::min(travelTime, elapsed + dt);
++        const float t = elapsed / travelTime;
++        const float eased = t * t * (3.f - 2.f * t);
++        logZoom = std::clamp(startLog + (targetLog - startLog) * eased, 0.f, maxLog());
++        if (elapsed >= travelTime)
++        {
++            logZoom = targetLog;
++            travelTime = 0.f;
++        }
++    }
++    float logZoom = 0.f, startLog = 0.f, targetLog = 0.f;
++    float tapTarget = 0.f, holdTarget = 0.f;
++    float pressTime = 0.f, elapsed = 0.f, travelTime = 0.f;
++    bool needRelease = true, pressed = false, held = false;
++};
++} // namespace deck_aim
+diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src/deck_camera.cpp
+--- a/src/libs/sea_cameras/src/deck_camera.cpp
++++ b/src/libs/sea_cameras/src/deck_camera.cpp
+@@ -8,6 +8,8 @@
+
+ #include "save_load.h"
+ #include "controls.h"
++#include "os_window.hpp"
++#include "shared/layers.h"
+ #include "math_inlines.h"
+ #include "shared/messages.h"
+
+@@ -27,6 +29,8 @@
+
+ DECK_CAMERA::~DECK_CAMERA()
+ {
++    if (zoomWindow && zoomWindowSubscription >= 0)
++        zoomWindow->Unsubscribe(zoomWindowSubscription);
+     ReleaseWalker();
+ }
+
+@@ -144,6 +148,17 @@
+     // GUARD(DECK_CAMERA::Init())
+     // core.SystemMessages(GetId(),true);
+     SetDevice();
++    zoomWindow = core.GetWindow();
++    if (zoomWindow)
++        zoomWindowSubscription = zoomWindow->Subscribe([this](const storm::OSWindow::Event &event) {
++            if (event == storm::OSWindow::FocusLost || event == storm::OSWindow::Closed)
++            {
++                zoomWindowFocused = false;
++                ResetAimZoomProjection();
++            }
++            else if (event == storm::OSWindow::FocusGained)
++                zoomWindowFocused = true;
++        });
+     // UNGUARD
+     return true;
+ }
+@@ -167,24 +182,77 @@
+
+ void DECK_CAMERA::Execute(uint32_t Delta_Time)
+ {
+-    if (!isOn())
+-    {
++    if (!isOn() || !isActive())
++    {
++        aimZoom.reset();
+         ReleaseWalker();
+         return;
+     }
+     if (!FindShip() || !FindPath())
+     {
++        aimZoom.reset();
+         ReleaseWalker();
+         return;
+     }
+
+     SetPerspective(AttributesPointer->GetAttributeAsFloat("Perspective"));
++    UpdateAimZoom();
+
+     Move(Delta_Time);
+ }
+
++void DECK_CAMERA::ResetAimZoomProjection()
++{
++    if (isOn() && isActive() && RenderService && aimZoom.magnification() > 1.f)
++    {
++        CVECTOR position, angles;
++        float perspective;
++        RenderService->GetCamera(position, angles, perspective);
++        // Restore only our current projection. A menu/telescope/other camera
++        // may already own the renderer, and must not be overwritten.
++        if (std::abs(perspective - zoomRenderedPerspective) < .00001f)
++            RenderService->SetCamera(position, angles, GetPerspective());
++    }
++    aimZoom.reset();
++}
++
++void DECK_CAMERA::UpdateAimZoom()
++{
++    const auto now = std::chrono::steady_clock::now();
++    const float elapsed = zoomLastUpdate == std::chrono::steady_clock::time_point{} ? 0.f :
++                          std::chrono::duration<float>(now - zoomLastUpdate).count();
++    zoomLastUpdate = now;
++    const auto pauseRevision = core.GetScenePauseRevision();
++    if (zoomPauseRevision != pauseRevision)
++    {
++        ResetAimZoomProjection();
++        zoomPauseRevision = pauseRevision;
++    }
++    const bool aiming = AttributesPointer->GetAttributeAsDword("WalkMode") != 0 &&
++                        AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0 &&
++                        AttributesPointer->GetAttributeAsDword("TelescopeActive") == 0;
++    if (!aiming || !zoomWindowFocused || core.GetTimeScale() <= 0.f || core.IsLayerFrozen(SEA_EXECUTE) ||
++        !core.Controls || core.Controls->IsControlLocked("DeckAimZoom"))
++    {
++        aimZoom.reset();
++        return;
++    }
++    CONTROL_STATE state{};
++    core.Controls->GetControlState("DeckAimZoom", state);
++    const bool down = state.state == CST_ACTIVE || state.state == CST_ACTIVATED;
++    // Input classification needs real elapsed time: the engine simulation
++    // timer clamps hitches to 100ms, which would misclassify a long release.
++    // Only visual movement is clamped by Zoom; sea acceleration is ignored.
++    aimZoom.update(elapsed, down);
++}
++
+ void DECK_CAMERA::Realize(uint32_t Delta_Time)
+ {
++    // Sea execution can be frozen while the last scene is still rendered
++    // behind a pause/menu. Clear the latch even when Execute is not called.
++    if (core.GetTimeScale() <= 0.f || core.IsLayerFrozen(SEA_EXECUTE) || !core.Controls ||
++        core.Controls->IsControlLocked("DeckAimZoom"))
++        ResetAimZoomProjection();
+     if (!isOn() || !walkerVisible)
+         return;
+     if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId)))
+@@ -525,11 +593,15 @@
+     }
+
+     // set camera
+-    RenderService->SetCamera(s_pos, s_ang, GetPerspective());
++    RenderService->SetCamera(s_pos, s_ang, GetPerspective(), aimZoom.magnification());
++    CVECTOR renderedPosition, renderedAngles;
++    RenderService->GetCamera(renderedPosition, renderedAngles, zoomRenderedPerspective);
+ }
+
+ void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+ {
++    // Also called when reselecting this camera for the same character.
++    aimZoom.reset();
+     if (pACharacter != _pACharacter)
+     {
+         ReleaseWalker();
+diff --git a/src/libs/sea_cameras/src/deck_camera.h b/src/libs/sea_cameras/src/deck_camera.h
+--- a/src/libs/sea_cameras/src/deck_camera.h
++++ b/src/libs/sea_cameras/src/deck_camera.h
+@@ -4,12 +4,16 @@
+ #pragma once
+
+ #include "common_camera.h"
++#include "deck_aim_zoom.h"
++#include <chrono>
+ #include "dx9render.h"
+ #include "model.h"
+ #include "vma.hpp"
+
+ #define D3DFVF_VERTEX (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1)
+ #define AIM_SIZE 0.05f
++
++namespace storm { class OSWindow; }
+
+ class DECK_CAMERA : public COMMON_CAMERA
+ {
+@@ -55,6 +59,15 @@
+     bool walkerLoadFailed = false;
+     float walkerYaw = 0.f;
+     std::string walkerAction;
++    deck_aim::Zoom aimZoom;
++    std::chrono::steady_clock::time_point zoomLastUpdate{};
++    uint64_t zoomPauseRevision = 0;
++    float zoomRenderedPerspective = 0.f;
++    storm::OSWindow *zoomWindow = nullptr;
++    int zoomWindowSubscription = -1;
++    bool zoomWindowFocused = true;
++    void UpdateAimZoom();
++    void ResetAimZoomProjection();
+     void ReleaseWalker();
+     bool EnsureWalker();
+     void UpdateWalker(bool moving, bool running);
