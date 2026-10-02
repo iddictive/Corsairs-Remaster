@@ -1,46 +1,94 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
+index 378d01c..60295db 100644
 --- a/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_camera_controller.cpp
-@@ -173,6 +173,12 @@
+@@ -45,6 +45,15 @@ void AIShipCameraController::Execute(float fDeltaTime)
+     dwTarget = RELATION_UNKNOWN;
+     auto vOurPos = GetAIShip()->GetPos();
+
++    // The manual firing solution supplies the exact picked character at fire
++    // time. The old per-fort-cannon reticle heuristic is unused by the world
++    // envelope and must not rebuild/trace the entire scene once per fort gun.
++    if (GetAIShip()->isMainCharacter())
++    {
++        fDelta = 0.f;
++        return;
++    }
++
+     if (isCameraOutside())
+     {
+         fDelta = 0.0f;
+@@ -141,8 +150,13 @@ bool AIShipCameraController::Fire()
+     const auto vZ = m.Vz();
+     // CVECTOR vZ = m * CVECTOR(0.0f, 0.0f, 1.0f);
+     // vZ = !CVECTOR(vZ.x, 0.0f, vZ.z);
+-    if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
++    // The shared solution validates muzzle elevation and reach after camera picking.
++    // Rejecting camera pitch here recreates the deck-height/parallax bug.
++    ATTRIBUTES *manualTarget = nullptr;
++    if (!GetAIShip()->GetCannonController()->Fire(m.Pos(), vZ, &manualTarget))
+         return false;
++    pTargetAPointer = manualTarget;
++    dwTarget = manualTarget ? Helper.GetRelation(GetAIShip()->GetACharacter(), manualTarget) : RELATION_UNKNOWN;
+
+     if (dwTarget != RELATION_UNKNOWN && pTargetAPointer)
+     {
+@@ -151,7 +165,7 @@ bool AIShipCameraController::Fire()
+     }
+
+     // if (pTargetAPointer) AIGroup::GroupSetAttack(GetAIShip()->GetACharacter(), pTargetAPointer);
+-    return GetAIShip()->GetCannonController()->Fire(m.Pos(), vZ);
++    return true;
+ }
+
+ void AIShipCameraController::Realize(float fDeltaTime)
+@@ -173,6 +187,11 @@ void AIShipCameraController::Realize(float fDeltaTime)
      AIHelper::pRS->GetCamera(campos,camang,campersp);
      m.BuildMatrix(camang);
      CVECTOR vZ = m.Vz();*/
-+    // Player-only manual-aim trajectory overlay; one attribute check overhead otherwise.
-+    // Origin is the camera position, exactly like Fire(m.Pos(), vZ) consumes it:
-+    // m is the transposed view matrix here, so m.Pos() is the camera world pos.
-+    // The stock center reticle below stays: it is the crosshair the guns aim at.
 +    if (GetAIShip()->isMainCharacter())
++    {
 +        GetAIShip()->GetCannonController()->DrawManualAimOverlay(vZ, m.Pos());
++        return; // The in-world envelope is the aim visualization; no extra HUD reticle.
++    }
      if (!GetAIShip()->GetCannonController()->isCanFire(vZ))
          return;
- 
+
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+index dc92b39..4106569 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -2,6 +2,9 @@
- 
+@@ -2,8 +2,16 @@
+
  #include "ai_balls.h"
  #include "ai_ship.h"
 +#include "ai_fort.h"
 +#include "cannon_trace.h"
++#include "sea_base.h"
++#include "island_base.h"
++#include "shared/sea_ai/manual_aim_geometry.hpp"
 +#include "shared/sea_ai/script_defines.h"
  #include "math_inlines.h"
- 
+
++namespace { float AimHeightScale(ATTRIBUTES *character); }
++
  float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
-@@ -12,7 +15,8 @@
+ float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
+
+@@ -12,7 +20,8 @@ AIShipCannonController::AIShipCannonController(AIShip *_pShip) : bReload(false),
      SetAIShip(_pShip);
  }
- 
+
 -bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight)
 +bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
 +                                           bool bApplyBortDelta)
  {
      const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
      if (!bEnoughBalls)
-@@ -22,11 +26,16 @@
+@@ -22,11 +31,16 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
      
      auto vTempFirePos = vFirePos + CVECTOR(0.0f, fFireHeight, 0.0f);
- 
+
 +    // Manual player fire passes bApplyBortDelta=false: the crosshair is the aim
 +    // point, so the random gunner offset is skipped (per-ball jitter stays live).
 +    if (bApplyBortDelta)
@@ -51,47 +99,97 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      const auto fAng = FRAND(PIm2);
      vTempFirePos += CVECTOR(fRadius * sinf(fAng), 0.0f, fRadius * cosf(fAng));
 +    }
- 
+
      const auto vTempFireDir = !(vTempFirePos - pOurAIShip->GetPos());
- 
-@@ -71,10 +80,22 @@
+
+@@ -34,8 +48,11 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
+                const_cast<char *>(bort.sName.c_str()), vTempFirePos.x, vTempFirePos.y, vTempFirePos.z, vTempFireDir.x,
+                vTempFireDir.y, vTempFireDir.z);
+
++    bool fired = false;
+     for (auto& cannon : bort.aCannons)
      {
-         const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
- 
++        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, vTempFirePos))
++            continue;
+         if (!cannon.isDamaged())
+         {
+             cannon.SetRechargeEnable(bEnoughBalls);
+@@ -45,41 +62,24 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
+                 debugFirePositions.emplace_back(vTempFirePos, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
+             }
+
+-            cannon.Fire(bort.fSpeedV0, vTempFirePos);
++            fired = cannon.Fire(bort.fSpeedV0, vTempFirePos) || fired;
+         }
+     }
+-    bort.ClearCharge(); // FIX-ME
++    if (bApplyBortDelta || fired)
++        bort.ClearCharge(); // AI behavior unchanged; empty manual attempts do not discharge.
+
+-    return true;
++    return bApplyBortDelta || fired;
+ }
+
+-bool AIShipCannonController::Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir)
++bool AIShipCannonController::Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget)
+ {
+-    const auto vOurPos = GetAIShip()->GetPos();
+-    const auto fSpeedV0 = GetSpeedV0();
+-
+-    const auto vTempDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
+-    float fAngle = acosf(Clamp(vTempDir | vFireDir));
+-    if (vFireDir.y < 0)
+-        fAngle = -fAngle;
+-
+-    CVECTOR vTempFirePos = vOurPos + !vTempDir;
+-    vTempFirePos.y = 0.0f;
+-
+-    auto bortIt = GetFirstFireBort(vTempFirePos);
+-    while (IsValid(bortIt))
+-    {
+-        const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
+-
 -        CVECTOR vFirePos = vFireCamPos + fMaxDist * !vFireDir;
 -        vFirePos.y = 0.0f;
-+        // Point-and-shoot: the SAME raycast target the overlay draws, so live
-+        // shells land where the tube and drape promise. Ship/rigging locks
-+        // keep their height (knippels aim at sails, balls at the waterline);
-+        // fort/island locks aim at the terrain; sky aims at the firing
-+        // bort's max-elevation range. Lock kind/disc are overlay-only; Fire
-+        // needs just the point. bApplyBortDelta=false: no random gunner
-+        // offset on manual fire, the crosshair IS the aim point (AI callers
-+        // keep the default true).
-+        ATTRIBUTES *pAimHit = nullptr;
-+        int32_t dwAimKind = 4;
-+        CVECTOR vAimLockC(0.0f, 0.0f, 0.0f);
-+        float fAimLockR = 0.0f;
-+        const CVECTOR vFirePos =
-+            ManualAimTarget(vFireCamPos, vFireDir, fMaxDist, pAimHit, dwAimKind, vAimLockC, fAimLockR);
- 
+-
 -        Fire2Position(*bortIt, vFirePos, 0.0f);
-+        Fire2Position(*bortIt, vFirePos, 0.0f, false);
- 
-         bortIt = GetNextFireBort(bortIt, vTempFirePos);
-     }
-@@ -345,6 +366,7 @@
- 
+-
+-        bortIt = GetNextFireBort(bortIt, vTempFirePos);
+-    }
+-
+-    return true;
++    if (manualTarget) *manualTarget = nullptr;
++    MANUAL_AIM_SOLUTION solution;
++    if (!BuildManualAimSolution(vFireCamPos, vFireDir, solution))
++        return false;
++    const bool fired = Fire2Position(*solution.bort, solution.target, 0.f, false);
++    if (fired && manualTarget) *manualTarget = solution.character;
++    return fired;
+ }
+
+ bool AIShipCannonController::Fire(const CVECTOR &vFirePos)
+@@ -345,57 +345,30 @@ CVECTOR AIShipCannonController::GetBortDirection(const AISHIP_BORT &bort) const
+
  CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDistance)
  {
-+    (void)fDistance;
-     const CVECTOR vOurPos = GetAIShip()->GetPos();
-     const float fSpeedV0 = GetSpeedV0();
- 
-@@ -363,15 +385,18 @@
-     }
- 
-     const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
+-    const CVECTOR vOurPos = GetAIShip()->GetPos();
+-    const float fSpeedV0 = GetSpeedV0();
+-
+-    const CVECTOR vTempDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
+-    float fAngle = acosf(Clamp(vTempDir | vFireDir));
+-    if (vFireDir.y < 0)
+-        fAngle = -fAngle;
+-
+-    CVECTOR vTempFirePos = vOurPos + !vTempDir;
+-    vTempFirePos.y = 0.0f;
+-
+-    const auto bortIt = GetFirstFireBort(vTempFirePos);
+-    if (!IsValid(bortIt))
+-    {
+-        return {1e5f, 0.0f, 1e5f};
+-    }
+-
+-    const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
 -    if (fDistance > fMaxDist)
 -        fDistance = fMaxDist;
 -
@@ -101,876 +199,793 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 -    const CVECTOR vPos = vOurPos + fDistance * vTempDir + CVECTOR(0.0f, y, 0.0f);
 -
 -    return vPos;
-+    // Unified with Fire()/overlay: stock target detection (camera Execute)
-+    // reads the same point-and-shoot raycast target, so the reticle color
-+    // agrees with where live shells actually land. Camera pos from the
-+    // transposed view matrix, exactly like the Fire/overlay origin.
-+    CMatrix mCam;
-+    AIHelper::pRS->GetTransform(D3DTS_VIEW, mCam);
-+    mCam.Transposition();
-+    ATTRIBUTES *pHit = nullptr;
-+    int32_t dwKind = 4;
-+    CVECTOR vLockC(0.0f, 0.0f, 0.0f);
-+    float fLockR = 0.0f;
-+    return ManualAimTarget(mCam.Pos(), vFireDir, fMaxDist, pHit, dwKind, vLockC, fLockR);
++    CMatrix camera;
++    AIHelper::pRS->GetTransform(D3DTS_VIEW, camera);
++    camera.Transposition();
++    MANUAL_AIM_SOLUTION solution;
++    if (!BuildManualAimSolution(camera.Pos(), vFireDir, solution))
++        return {1e5f, 0.f, 1e5f};
++    // Legacy fort detection asks for trajectory height at a specified range.
++    // Preserve that contract rather than ignoring fDistance as v4 did.
++    const auto *gun=solution.guns.front();
++    const CVECTOR muzzle=gun->GetPos(), flat=!(CVECTOR(solution.target.x-muzzle.x,0.f,solution.target.z-muzzle.z));
++    const float speed=GetSpeedV0(),angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++    const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,AimHeightScale(GetAIShip()->GetACharacter()),AIHelper::fGravity);
++    float lo=0.f,hi=curve.timeToHeight(-20.f);
++    for(int i=0;i<24;++i){const float mid=(lo+hi)*.5f;if(((curve.at(mid)-muzzle)|flat)<fDistance)lo=mid;else hi=mid;}
++    return curve.at((lo+hi)*.5f);
  }
- 
+
  CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir)
-@@ -395,7 +420,15 @@
- 
-     const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
- 
+ {
+-    const CVECTOR vOurPos = GetAIShip()->GetPos();
+-    const float fSpeedV0 = GetSpeedV0();
+-
+-    const CVECTOR vTempDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
+-    float fAngle = acosf(Clamp(vTempDir | vFireDir));
+-    if (vFireDir.y < 0)
+-        fAngle = -fAngle;
+-
+-    CVECTOR vTempFirePos = vOurPos + !vTempDir;
+-    vTempFirePos.y = 0.0f;
+-
+-    const auto bortIt = GetFirstFireBort(vTempFirePos);
+-    if (!IsValid(bortIt)) // FIX-ME
+-    {
+-        return {1e5f, 0.0f, 1e5f};
+-    }
+-
+-    const float fMaxDist = AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fAngle);
+-
 -    return vOurPos + fMaxDist * !vFireDir;
-+    // Unified with Fire()/overlay: same shared raycast target (see above).
-+    CMatrix mCam;
-+    AIHelper::pRS->GetTransform(D3DTS_VIEW, mCam);
-+    mCam.Transposition();
-+    ATTRIBUTES *pHit = nullptr;
-+    int32_t dwKind = 4;
-+    CVECTOR vLockC(0.0f, 0.0f, 0.0f);
-+    float fLockR = 0.0f;
-+    return ManualAimTarget(mCam.Pos(), vFireDir, fMaxDist, pHit, dwKind, vLockC, fLockR);
++    CMatrix camera;
++    AIHelper::pRS->GetTransform(D3DTS_VIEW, camera);
++    camera.Transposition();
++    MANUAL_AIM_SOLUTION solution;
++    return BuildManualAimSolution(camera.Pos(), vFireDir, solution) ? solution.target : CVECTOR(1e5f,0.f,1e5f);
  }
- 
+
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -685,9 +718,752 @@
-         AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
-         AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, Verts.size() / 3, &Verts[0],
-                                        sizeof(tr_vertex), "ShipCannonAngles");
-+    }
-+}
-+
+@@ -688,6 +661,476 @@ void AIShipCannonController::Realize(float fDeltaTime)
+     }
+ }
+
 +namespace
 +{
-+// Manual sea-cannon aim overlay. Visualization only: no save, AI, damage,
-+// reload or camera state changes.
-+//
-+// Ballistics replicate live fire exactly (same origin, same integration):
-+// Fire-path binding (verified against source, never approximated from camera):
-+// manual fire is AIShipCameraController::Fire, which calls
-+// AIShipCannonController::Fire(m.Pos(), vZ): ORIGIN IS THE CAMERA POS.
-+// Fire(vFireCamPos, vFireDir) and the overlay share ONE target function,
-+// ManualAimTarget: camera ray vs all physics (solid ship cylinders, fort,
-+// island, sea), then the firing bort's max-elevation range point for sky.
-+// Preview == impact by construction: same inputs, same calls, same target.
-+// Bort selection by the ship-pos flat ray like Fire, range from
-+// AICannon::CalcMaxFireDistance(bort height + ship Y, speed, camera-ray
-+// angle). GetFirePos (stock target detection) returns the same shared
-+// target, so the reticle color agrees with the overlay and live shells.
-+// Per gun, AICannon::Fire stores (vEnemyPos, fSpeedV0) and RealFire
-+// solves azimuth atan2 plus CalcHeightFireAngle from that gun's muzzle world
-+// pos (GetPos = ship matrix * locator, the vPosTemp reported via CANNON_FIRE)
-+// at the same shared target. Speed matches by construction: UpdateParameters
-+// sets bort.fSpeedV0 = GetSpeedV0() for every bort, and cannon.Fire receives
-+// bort.fSpeedV0. Height multiplier mirrors Ball_AddBall live (catalog 1.0
-+// stock, cannons_init.c, x 0.4 / 0.65 knippels by loaded charge). The march
-+// replicates AIBalls::Execute (analytic, no drag, HeightMultiply warp,
-+// RotateAroundY(Dir)); the time-scale multipliers only change playback speed,
-+// not the arc shape. Every march segment clips at the nearest of water,
-+// island and fort contact, mirroring the live kill order (hull, fort, island,
-+// sea; sail/mast hits are side effects only, so rigging never clips the
-+// march). Dispersion on manual fire is per-ball only: Fire passes
-+// bApplyBortDelta=false, so the SHIP_GET_BORT_FIRE_DELTA gunner offset is
-+// skipped (AI callers keep it) and the crosshair is the aim point. Live
-+// Ball_AddBall still jitters EVERY ball: Dir += fK * 12deg * (frnd - 0.5) with
-+// fK = Bring2Range(0.5, 1.2, 0.2, 1.2, 1.2 - Accuracy), plus SpdV0/Ang jitter
-+// scaled by Accuracy. The fan widens downrange into this per-ball cone and
-+// the landing ellipse adds its measured range spread over a 2m viz floor.
-+//
-+// Projection: three trajectory arcs along the firing broadside plus a drape
-+// outline. The mid-gun march is the spine, the outer-gun marches are faint
-+// edges, so the battery fan reads with zero fill sheets (a volumetric tube
-+// rendered as a white highway at range and exploded into sheets and stray
-+// lines at close range; rejected after player replay, October 1). The drape
-+// outline is one flat ellipse ring at the lock point: lock height on
-+// ship/fort/island, march impact on sea/sky, raised over the highest
-+// surface under it (sea, island/fort terrain, locked-ship disc at aim
-+// height; ships expose no pure model trace, so no true hull drape) so
-+// slopes never slice it. Ring segments overlapping the locked ship
-+// cylinder or fort point tint by relation (soft red = enemy, soft green =
-+// else), like focus peaking; the rest stays neutral brass. Single code path
-+// for port and starboard by construction: the firing bort comes from
-+// GetFirstFireBort with no side-specific branches anywhere below. All
-+// alpha-blended, depth-tested (ShipAimArc): hulls, masts, sails and islands
-+// occlude it like any in-world object. Only the firing broadside draws
-+// anything; idle side and out-of-sector views emit zero geometry. The stock
-+// center reticle stays: it is the crosshair the guns aim at, and arcs +
-+// drape show where its ray lands. No own-ship fading anywhere: sails, ropes
-+// and vants render stock.
-+//
-+// Style: warm parchment smoke, muted aged brass. Soft layers with per-vertex
-+// downrange falloff. No neon, no hue-coded states: reloading only dims the
-+// same palette.
-+constexpr int32_t kAimArcSteps = 20;
-+constexpr int32_t kAimRingSegments = 24;
-+constexpr const char *kAimTechLine = "ShipAimArc";
-+constexpr uint32_t kAimSmoke = 0xDCE6EC;
-+constexpr uint32_t kAimFoe = 0xE06A5A;
-+constexpr uint32_t kAimFriend = 0x6FD08A;
-+constexpr uint32_t kAimBrass = 0xC8A96A;
-+// Sea impact marker height: normal-weather crests reach fMaxSeaHeight 2.0
-+// (PROGRAM/weather/WhrSea.c; calm 0.5). 0.35 buried the ring, march end and
-+// cross in chop at any range; 1.5 clears typical seas. Brief storm wash is
-+// accepted. Terrain and ship locks use real heights, unaffected.
-+constexpr float kAimImpactY = 1.5f;
-+constexpr int32_t kAimSpineA0 = 0x55;
-+constexpr int32_t kAimSpineA1 = 0x7A;
-+constexpr int32_t kAimEdgeA0 = 0x2E;
-+constexpr int32_t kAimEdgeA1 = 0x46;
-+constexpr float kAimLockAirY = 12.0f;
-+constexpr float kAimFortTintR = 10.0f;
-+// ManualAimTarget lock kinds: sea, ship, fort, island, sky.
-+constexpr int32_t kAimLockSea = 0;
-+constexpr int32_t kAimLockShip = 1;
-+constexpr int32_t kAimLockFort = 2;
-+constexpr int32_t kAimLockIsland = 3;
-+constexpr int32_t kAimLockSky = 4;
-+
-+inline uint32_t AimColor(uint32_t dwRgb, uint32_t dwAlpha)
++using manual_aim::Trajectory;
++constexpr int kAimSections=32, kAimSides=20;
++constexpr float kAimPi=3.14159265358979323846f;
++constexpr float kAimSurfaceLift=.035f;
++struct AimHit
 +{
-+    return (dwRgb & 0x00FFFFFFu) | ((dwAlpha & 0xFFu) << 24);
-+}
-+
-+inline uint32_t AimFadeAlpha(int32_t dwA0, int32_t dwA1, int32_t i, int32_t n)
-+{
-+    const int32_t dwD = n > 0 ? n : 1;
-+    return static_cast<uint32_t>(dwA0 + (dwA1 - dwA0) * i / dwD);
-+}
-+
-+// One ballistic sample at time fTime. Mirrors AIBalls::Execute + RealFire.
-+CVECTOR AimBallisticPoint(const CVECTOR &vMuzzle, float fSpeedV0, float fCosA, float fSinA, float fRawCos,
-+                          float fRawSin, float fDirCos, float fDirSin, float fTime, float fHeightMultiply)
-+{
-+    const float fsX = fSpeedV0 * fTime * fCosA;
-+    const float fsY = fSpeedV0 * fTime * fSinA - AIHelper::fGravity * fTime * fTime * 0.5f;
-+    const float fProjX = fsX * fRawCos + fsY * fRawSin;
-+    float fProjY = -fsX * fRawSin + fsY * fRawCos;
-+    fProjY *= fHeightMultiply;
-+    const float fX = fProjX * fRawCos - fProjY * fRawSin;
-+    const float fY = fProjX * fRawSin + fProjY * fRawCos;
-+    CVECTOR vPos(0.0f, fY, fX);
-+    RotateAroundY(vPos.x, vPos.z, fDirCos, fDirSin);
-+    vPos += vMuzzle;
-+    return vPos;
-+}
-+
-+// Raw elevation tilt, same computation as AICannon::RealFire.
-+float AimRawAngle(const CVECTOR &vMuzzle, const CVECTOR &vTarget)
-+{
-+    const CVECTOR vEnemyDir = !(vTarget - vMuzzle);
-+    const CVECTOR vFlatDir = !(CVECTOR(vTarget.x, vMuzzle.y, vTarget.z) - vMuzzle);
-+    const float fDp = vFlatDir | vEnemyDir;
-+    float fAngle;
-+    if (fDp >= 1.0f)
-+        fAngle = 0.0f;
-+    else if (fDp <= -1.0f)
-+        fAngle = PI;
-+    else
-+        fAngle = acosf(fDp);
-+    if (vTarget.y < vMuzzle.y)
-+        fAngle = -fAngle;
-+    return fAngle;
-+}
-+
-+// Drape height at one XZ: the surface the ring lies on. Sea floor, raised by
-+// island/fort down-traces (pure Trace, no damage), and by the locked ship's
-+// aim height inside its footprint disc. Ships expose no pure model trace
-+// (Cannon_Trace would apply damage), so the disc rides at lock height: hull
-+// aim hugs the waterline, mast aim the sails. fShipY < 0 disables the lift.
-+float AimDrapeY(float fX, float fZ, CANNON_TRACE_BASE *pIsland, AIFort *pFort, const CVECTOR &vDiscC,
-+                float fDiscR, float fShipY)
-+{
-+    float fY = kAimImpactY;
-+    const CVECTOR vTop(fX, 400.0f, fZ);
-+    const CVECTOR vBot(fX, -50.0f, fZ);
-+    if (pIsland != nullptr)
-+    {
-+        const float fT = pIsland->Trace(vTop, vBot);
-+        if (fT <= 1.0f)
-+        {
-+            const float fHit = 400.0f + fT * (-450.0f);
-+            if (fHit > fY)
-+                fY = fHit;
-+        }
-+    }
-+    if (pFort != nullptr)
-+    {
-+        const float fT = pFort->Trace(vTop, vBot);
-+        if (fT <= 1.0f)
-+        {
-+            const float fHit = 400.0f + fT * (-450.0f);
-+            if (fHit > fY)
-+                fY = fHit;
-+        }
-+    }
-+    if (fShipY >= 0.0f && fDiscR > 0.0f)
-+    {
-+        const float fDx = fX - vDiscC.x;
-+        const float fDz = fZ - vDiscC.z;
-+        if (fDx * fDx + fDz * fDz <= fDiscR * fDiscR && fShipY > fY)
-+            fY = fShipY;
-+    }
-+    return fY + 0.15f;
-+}
-+
-+// Drape outline: one flat ellipse ring at the lock, vU downrange, vW
-+// across. The ring rides at the HIGHEST surface under it (center plus ring
-+// samples over sea, island, fort and the locked-ship disc) plus a small
-+// lift, so one clean ellipse floats over slopes instead of slicing through
-+// them (per-vertex drape cut chords through cliffs and read as stray
-+// lines). XZ is the exact dispersion ellipse; Y is visibility lift only.
-+// Segments whose midpoint falls inside the lock disc (locked ship
-+// cylinder, fort point) tint by relation like focus peaking; the rest stays
-+// neutral. fLockRadius <= 0 disables tinting (sea/sky/island). Returns the
-+// ring plane height so the center cross sits on the same plane.
-+float EmitAimDrapeRing(std::vector<RS_LINE> &lines, const CVECTOR &vCenter, const CVECTOR &vU, const CVECTOR &vW,
-+                       float fAxisLon, float fAxisLat, uint32_t dwBase, uint32_t dwTint,
-+                       const CVECTOR &vLockCenter, float fLockRadius, int32_t dwSegments,
-+                       CANNON_TRACE_BASE *pIsland, AIFort *pFort, float fShipY)
-+{
-+    float fRingY = AimDrapeY(vCenter.x, vCenter.z, pIsland, pFort, vLockCenter, fLockRadius, fShipY);
-+    for (int32_t i = 1; i <= dwSegments; ++i)
-+    {
-+        const float fAng = 6.2831853f * static_cast<float>(i) / static_cast<float>(dwSegments);
-+        const float fC = cosf(fAng);
-+        const float fS = sinf(fAng);
-+        const float fX = vCenter.x + vU.x * fAxisLon * fC + vW.x * fAxisLat * fS;
-+        const float fZ = vCenter.z + vU.z * fAxisLon * fC + vW.z * fAxisLat * fS;
-+        const float fY = AimDrapeY(fX, fZ, pIsland, pFort, vLockCenter, fLockRadius, fShipY);
-+        if (fY > fRingY)
-+            fRingY = fY;
-+    }
-+    fRingY += 0.35f;
-+    CVECTOR vPrev(vCenter.x + vU.x * fAxisLon, fRingY, vCenter.z + vU.z * fAxisLon);
-+    for (int32_t i = 1; i <= dwSegments; ++i)
-+    {
-+        const float fAng = 6.2831853f * static_cast<float>(i) / static_cast<float>(dwSegments);
-+        const float fC = cosf(fAng);
-+        const float fS = sinf(fAng);
-+        const float fX = vCenter.x + vU.x * fAxisLon * fC + vW.x * fAxisLat * fS;
-+        const float fZ = vCenter.z + vU.z * fAxisLon * fC + vW.z * fAxisLat * fS;
-+        const CVECTOR vNext(fX, fRingY, fZ);
-+        uint32_t dwColor = dwBase;
-+        if (fLockRadius > 0.0f)
-+        {
-+            const float fMx = 0.5f * (vPrev.x + vNext.x) - vLockCenter.x;
-+            const float fMz = 0.5f * (vPrev.z + vNext.z) - vLockCenter.z;
-+            if (fMx * fMx + fMz * fMz <= fLockRadius * fLockRadius)
-+                dwColor = dwTint;
-+        }
-+        lines.push_back(RS_LINE{vPrev, dwColor});
-+        lines.push_back(RS_LINE{vNext, dwColor});
-+        vPrev = vNext;
-+    }
-+    return fRingY;
-+}
-+
-+// One gun's full march, ending at water, terrain or the elevated lock. The
-+// elevation solution is the per-gun RealFire solution (CalcHeightFireAngle
-+// from this muzzle at the shared target, plus an optional delta); the march
-+// replicates the live AIBalls integration. fSolveSpd selects the solution,
-+// fMarchSpd flies it: live balls solve nominal and fly jittered, and the
-+// energy-corner replays use the same split through this identical code path.
-+// Every segment clips at the nearest of water/island/fort contact, mirroring
-+// the live kill order (AIBalls::Execute: ships, fort, island, sea). Pure
-+// Trace only: Cannon_Trace would apply damage and spawn hit effects.
-+void AimMarchArc(const AICannon *pGun, const CVECTOR &vMuzzle, const CVECTOR &vTarget, float fSolveSpd,
-+                 float fMarchSpd, float fAngDelta, float fHeightMultiply, CVECTOR *vOut, int32_t &dwCount)
-+{
-+    dwCount = 1;
-+    vOut[0] = vMuzzle;
-+    const float fAngle = pGun->CalcHeightFireAngle(fSolveSpd, vMuzzle, vTarget) + fAngDelta;
-+    const float fRawAng = AimRawAngle(vMuzzle, vTarget);
-+    const CVECTOR vFlat(vTarget.x - vMuzzle.x, 0.0f, vTarget.z - vMuzzle.z);
-+    if (~vFlat <= 0.0f)
-+        return;
-+    const float fFlatDist = sqrtf(~vFlat);
-+    const float fDirAng = atan2f(vFlat.x, vFlat.z);
-+    const float fDirCos = cosf(fDirAng);
-+    const float fDirSin = sinf(fDirAng);
-+    const float fCosA = cosf(fAngle);
-+    const float fSinA = sinf(fAngle);
-+    const float fRawCos = cosf(fRawAng);
-+    const float fRawSin = sinf(fRawAng);
-+    float fTimeHit = -1.0f;
-+    {
-+        const float fDenom = fMarchSpd * fCosA;
-+        if (fabsf(fDenom) > 1e-3f)
-+            fTimeHit = fFlatDist / fDenom;
-+    }
-+    if (fTimeHit <= 0.0f)
-+        return;
-+    CANNON_TRACE_BASE *pAimIsland = nullptr;
-+    {
-+        auto *pEnt = core.GetEntityPointer(core.GetEntityId("island"));
-+        if (pEnt != nullptr)
-+            pAimIsland = static_cast<CANNON_TRACE_BASE *>(pEnt);
-+    }
-+    AIFort *pAimFort = AIFort::pAIFort;
-+    const float fDt = fTimeHit / static_cast<float>(kAimArcSteps);
-+    for (int32_t i = 1; i <= kAimArcSteps; ++i)
-+    {
-+        CVECTOR vNext = AimBallisticPoint(vMuzzle, fMarchSpd, fCosA, fSinA, fRawCos, fRawSin, fDirCos, fDirSin,
-+                                          fDt * static_cast<float>(i), fHeightMultiply);
-+        const CVECTOR vPrev = vOut[dwCount - 1];
-+        float fWater = 2.0f;
-+        if (vPrev.y > 0.0f && vNext.y <= 0.0f)
-+            fWater = vPrev.y / (vPrev.y - vNext.y);
-+        float fTerr = 2.0f;
-+        if (pAimIsland != nullptr)
-+        {
-+            const float fT = pAimIsland->Trace(vPrev, vNext);
-+            if (fT < fTerr)
-+                fTerr = fT;
-+        }
-+        if (pAimFort != nullptr)
-+        {
-+            const float fT = pAimFort->Trace(vPrev, vNext);
-+            if (fT < fTerr)
-+                fTerr = fT;
-+        }
-+        if (fTerr <= 1.0f && fTerr <= fWater)
-+        {
-+            vNext = vPrev + fTerr * (vNext - vPrev);
-+            vOut[dwCount++] = vNext;
-+            break;
-+        }
-+        if (vNext.y <= 0.0f)
-+        {
-+            vNext.y = kAimImpactY;
-+            vOut[dwCount++] = vNext;
-+            break;
-+        }
-+        // Elevated lock (ship/rigging): the band ends ON the ship, so aim
-+        // height reads hull-vs-masts instead of sliding to the water behind.
-+        if (vTarget.y > 1.0f)
-+        {
-+            const float fStep = sqrtf(~(vNext - vPrev)) + 1e-3f;
-+            if (sqrtf(~(vNext - vTarget)) <= fStep * 0.75f)
-+            {
-+                vOut[dwCount++] = vTarget;
-+                break;
-+            }
-+        }
-+        vOut[dwCount++] = vNext;
-+    }
-+}
-+
-+// Per-ball dispersion cone, replicating PROGRAM/sea_ai/AIBalls.c Ball_AddBall:
-+// fAccuracy = 1.2 - TmpSkill.Accuracy (same character attribute read),
-+// fK = Bring2Range(0.5, 1.2, 0.2, 1.2, fAccuracy) (same engine mapping),
-+// azimuth half-cone = 0.5 * fK * 12deg, elevation half-cone = 0.5 * fAccuracy
-+// * 15deg, speed half-spread = 0.5 * fAccuracy * (10 * 12deg in radians),
-+// because (frnd() - 0.5) spans [-0.5, +0.5] on every jittered channel.
-+struct AimDispersion
-+{
-+    float fAccuracy;
-+    float fK;
-+    float fAzHalf;
-+    float fElHalf;
-+    float fSpeedHalf;
++    bool valid=false;
++    float fraction=2.f;
++    CVECTOR point{0.f},normal{0.f,1.f,0.f};
++    int surface=-1; // zero is the moving sea; positive values index exact models
++    ATTRIBUTES *character=nullptr;
 +};
-+
-+AimDispersion AimLiveDispersion(ATTRIBUTES *pACharacter)
++struct AimModel
 +{
-+    float fSkill = 0.6f;
-+    if (pACharacter != nullptr)
++    COLLISION_OBJECT *object=nullptr;
++    CVECTOR lo{1e20f},hi{-1e20f};
++    ATTRIBUTES *character=nullptr;
++};
++struct AimWorld
++{
++    std::vector<AimModel> models;
++    SEA_BASE *sea=nullptr;
++    float waveBound=20.f;
++    explicit AimWorld(AIShip *own)
 +    {
-+        auto *pTSkill = pACharacter->FindAClass(pACharacter, "TmpSkill");
-+        if (pTSkill != nullptr)
-+            fSkill = pTSkill->GetAttributeAsFloat("Accuracy", 0.6f);
-     }
-+    AimDispersion d;
-+    d.fAccuracy = 1.2f - fSkill;
-+    d.fK = Bring2Range(0.5f, 1.2f, 0.2f, 1.2f, d.fAccuracy);
-+    constexpr float fDeg = 3.14159265f / 180.0f;
-+    d.fAzHalf = 0.5f * d.fK * 12.0f * fDeg;
-+    d.fElHalf = 0.5f * d.fAccuracy * 15.0f * fDeg;
-+    d.fSpeedHalf = 0.5f * d.fAccuracy * (10.0f * 12.0f * fDeg);
-+    return d;
- }
-+void EmitAimCross(std::vector<RS_LINE> &lines, const CVECTOR &vCenter, float fHalf, uint32_t dwColor)
-+{
-+    lines.push_back(RS_LINE{CVECTOR(vCenter.x - fHalf, vCenter.y, vCenter.z), dwColor});
-+    lines.push_back(RS_LINE{CVECTOR(vCenter.x + fHalf, vCenter.y, vCenter.z), dwColor});
-+    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z - fHalf), dwColor});
-+    lines.push_back(RS_LINE{CVECTOR(vCenter.x, vCenter.y, vCenter.z + fHalf), dwColor});
-+}
- 
-+void FlushAimLines(std::vector<RS_LINE> &lines)
-+{
-+    if (lines.empty())
-+        return;
-+    CMatrix mWorld;
-+    AIHelper::pRS->GetTransform(D3DTS_WORLD, mWorld);
-+    AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
-+    AIHelper::pRS->DrawLines(lines.data(), static_cast<uint32_t>(lines.size() / 2), kAimTechLine);
-+    AIHelper::pRS->SetTransform(D3DTS_WORLD, mWorld);
-+}
-+
-+} // namespace
-+// Live height multiplier, mirroring AIBalls.c Ball_AddBall exactly: cannon
-+// catalog HeightMultiply (1.0 for every stock cannon, cannons_init.c) times
-+// 0.4 normal shot / 0.65 knippels, selected by the loaded charge. Charge.Type
-+// is the numeric goods index (GOOD_KNIPPELS == 2, PROGRAM/store/goods.h), read
-+// from the character exactly as the firing path does.
-+constexpr uint32_t kAimKnippelsGoods = 2;
-+
-+float AimLiveHeightMultiply(ATTRIBUTES *pACharacter)
-+{
-+    if (pACharacter == nullptr)
-+        return 0.4f;
-+    auto *pACannons = pACharacter->FindAClass(pACharacter, "Ship.Cannons");
-+    if (pACannons == nullptr)
-+        return 0.4f;
-+    const uint32_t dwCharge = pACannons->GetAttributeAsDword("Charge.Type", 0);
-+    return dwCharge == kAimKnippelsGoods ? 0.65f : 0.4f;
-+}
-+
-+// Shared point-and-shoot target for Fire() and DrawManualAimOverlay: ONE
-+// function, so preview == impact by construction. Camera ray vs all physics:
-+// solid ship cylinders (own ship excluded), fort, island, then the sea plane,
-+// then the firing bort's max-elevation range point for sky. Ship cylinders
-+// are solid on purpose:
-+// aiming through the masts never slips to infinity through a micro-gap.
-+// Hull/air rule: a cylinder contact above kAimLockAirY only locks for
-+// knippels (AimLiveHeightMultiply > 0.5); round shot aimed at sails falls
-+// through to whatever is behind, like live shells aimed at the waterline.
-+// pHitShip receives the locked ship-or-fort character (nullptr for
-+// sea/island/sky); dwLockKind reports sea/ship/fort/island/sky;
-+// vLockCenter/fLockRadius bound the focus-peaking tint disc (radius 0 = none).
-+CVECTOR AIShipCannonController::ManualAimTarget(const CVECTOR &vCamPos, const CVECTOR &vCamDir, float fMaxDist,
-+                                                ATTRIBUTES *&pHitShip, int32_t &dwLockKind,
-+                                                CVECTOR &vLockCenter, float &fLockRadius)
-+{
-+    const CVECTOR vDir = !vCamDir;
-+    const bool bKnippels = AimLiveHeightMultiply(GetAIShip()->GetACharacter()) > 0.5f;
-+    pHitShip = nullptr;
-+    dwLockKind = kAimLockSky;
-+    vLockCenter = CVECTOR(0.0f, 0.0f, 0.0f);
-+    fLockRadius = 0.0f;
-+    float fBest = fMaxDist;
-+    const int32_t dwOwn = GetIndex(GetAIShip()->GetACharacter());
-+    auto &&entities = core.GetEntityIds("ship");
-+    for (auto ent : entities)
-+    {
-+        auto *pS = static_cast<SHIP_BASE *>(core.GetEntityPointer(ent));
-+        if (pS == nullptr)
-+            continue;
-+        if (GetIndex(pS->GetACharacter()) == dwOwn)
-+            continue;
-+        const CVECTOR vC = pS->State.vPos;
-+        float fHalf = pS->State.vBoxSize.x;
-+        if (pS->State.vBoxSize.z > fHalf)
-+            fHalf = pS->State.vBoxSize.z;
-+        const float fR = 0.5f * fHalf + 2.0f;
-+        if (fR < 1.0f)
-+            continue;
-+        const float fY0 = -2.0f;
-+        const float fY1 = vC.y + pS->State.vBoxSize.y + 30.0f;
-+        const float fOx = vCamPos.x - vC.x;
-+        const float fOz = vCamPos.z - vC.z;
-+        const float fA = vDir.x * vDir.x + vDir.z * vDir.z;
-+        if (fA > 1e-12f)
-+        {
-+            const float fB = fOx * vDir.x + fOz * vDir.z;
-+            const float fC = fOx * fOx + fOz * fOz - fR * fR;
-+            const float fD = fB * fB - fA * fC;
-+            if (fD >= 0.0f)
++        auto *entity=core.GetEntityPointer(core.GetEntityId("sea"));
++        sea=entity?static_cast<SEA_BASE *>(entity):nullptr;
++        if(sea && sea->AttributesPointer)
++            waveBound=std::max(1.f,sea->AttributesPointer->GetAttributeAsFloat("MaxSeaHeight",20.f));
++        for(auto *ship:AIShip::AIShips)
++            if(ship && ship!=own && core.GetEntityPointer(ship->GetShipEID()))
++                add(ship->GetModel(),ship->GetACharacter());
++        if(AIFort::pAIFort)
++            for(uint32_t i=0;i<AIFort::pAIFort->GetNumForts();++i)
 +            {
-+                float fT = (-fB - sqrtf(fD)) / fA;
-+                if (fT < 0.0f)
-+                    fT = (-fB + sqrtf(fD)) / fA;
-+                if (fT > 0.0f && fT < fBest)
++                auto *fort=AIFort::pAIFort->GetFort(i);
++                add(fort->GetModel(),fort->GetACharacter());
++            }
++        // Match ISLAND::Trace's receiver layer, including added location models
++        // and the independently registered seabed, not only its primary mesh.
++        for(auto id:core.GetEntityIds(ISLAND_TRACE))
++            add(dynamic_cast<COLLISION_OBJECT *>(core.GetEntityPointer(id)),nullptr);
++    }
++    void add(COLLISION_OBJECT *object,ATTRIBUTES *character)
++    {
++        if(!object)return;
++        for(const auto &m:models)if(m.object==object)return;
++        AimModel entry;entry.object=object;entry.character=character;
++        auto *model=dynamic_cast<MODEL *>(object);
++        if(!model)
++        {
++            // Generic registered receivers still participate; only models expose
++            // geometry bounds. Do not silently drop an unfamiliar receiver.
++            entry.lo=CVECTOR(-1e20f);entry.hi=CVECTOR(1e20f);models.push_back(entry);return;
++        }
++        // Bounds are built once per preview, not once per cannon/segment.
++        for(int i=0;auto *node=model->GetNode(i);++i)
++        {
++            if(!node->geo)continue;
++            GEOS::INFO info;node->geo->GetInfo(info);
++            for(int corner=0;corner<8;++corner)
++            {
++                const CVECTOR local(info.boxcenter.x+((corner&1)?.5f:-.5f)*info.boxsize.x,
++                                    info.boxcenter.y+((corner&2)?.5f:-.5f)*info.boxsize.y,
++                                    info.boxcenter.z+((corner&4)?.5f:-.5f)*info.boxsize.z);
++                const CVECTOR p=node->glob_mtx*local;
++                for(int axis=0;axis<3;++axis)
 +                {
-+                    const float fY = vCamPos.y + fT * vDir.y;
-+                    if (fY >= fY0 && fY <= fY1 && (fY <= kAimLockAirY || bKnippels))
++                    entry.lo.v[axis]=std::min(entry.lo.v[axis],p.v[axis]-.1f);
++                    entry.hi.v[axis]=std::max(entry.hi.v[axis],p.v[axis]+.1f);
++                }
++            }
++        }
++        if(entry.lo.x<=entry.hi.x)models.push_back(entry);
++    }
++    float waterGap(const CVECTOR &p) const
++    { return p.y-(sea?sea->WaveXZ(p.x,p.z):0.f); }
++    AimHit trace(const CVECTOR &a,const CVECTOR &b,int onlySurface=-1) const
++    {
++        AimHit hit;
++        for(size_t i=0;i<models.size();++i)
++        {
++            if(onlySurface>=0 && onlySurface!=int(i)+1)continue;
++            const auto &m=models[i];
++            if(!manual_aim::segmentBox(a,b,m.lo,m.hi))continue;
++            const float f=m.object->Trace(a,b); // NEVER Cannon_Trace: previews cannot apply damage
++            if(!std::isfinite(f)||f<0.f||f>1.f||f>=hit.fraction)continue;
++            hit.valid=true;hit.fraction=f;hit.point=a+(b-a)*f;hit.surface=int(i)+1;hit.character=m.character;
++            TRIANGLE triangle;
++            hit.normal=!(a-b);
++            if(m.object->GetCollideTriangle(triangle))
++            {
++                CVECTOR n=(triangle.vrt[1]-triangle.vrt[0])^(triangle.vrt[2]-triangle.vrt[0]);
++                if(~n>1e-12f){n=!n;if((n|(b-a))>0.f)n=-n;hit.normal=n;}
++            }
++        }
++        if((onlySurface<0||onlySurface==0) && std::min(a.y,b.y)<=waveBound)
++        {
++            // Sample a bounded number of points, then refine the first wave crossing.
++            // Far-above-water segments never call WaveXZ.
++            const int samples=std::clamp(int(std::ceil((b-a).GetLength()/4.f)),2,32);
++            float previous=0.f,gap=waterGap(a);
++            if(gap<0.f)
++            {
++                if(hit.valid&&hit.fraction<=0.f)return hit;
++                // Live SEA::Trace tests the segment origin too: an immersed
++                // muzzle splashes immediately instead of launching through a wave.
++                hit.valid=true;hit.fraction=0.f;hit.point=a;hit.surface=0;hit.character=nullptr;
++                hit.normal=CVECTOR(0.f,1.f,0.f);
++                if(sea)hit.point.y=sea->WaveXZ(a.x,a.z,&hit.normal);else hit.point.y=0.f;
++                return hit;
++            }
++            for(int i=1;i<=samples;++i)
++            {
++                const float t=float(i)/samples;
++                const float nextGap=waterGap(a+(b-a)*t);
++                if(gap>=0.f && nextGap<=0.f)
++                {
++                    float lo=previous,hi=t;
++                    for(int n=0;n<9;++n)
 +                    {
-+                        fBest = fT;
-+                        pHitShip = pS->GetACharacter();
-+                        dwLockKind = kAimLockShip;
-+                        vLockCenter = CVECTOR(vC.x, 0.0f, vC.z);
-+                        fLockRadius = fR;
++                        const float mid=(lo+hi)*.5f;
++                        if(waterGap(a+(b-a)*mid)>0.f)lo=mid;else hi=mid;
 +                    }
++                    if(hi<hit.fraction)
++                    {
++                        hit.valid=true;hit.fraction=hi;hit.point=a+(b-a)*hi;
++                        hit.surface=0;hit.character=nullptr;hit.normal=CVECTOR(0.f,1.f,0.f);
++                        if(sea)hit.point.y=sea->WaveXZ(hit.point.x,hit.point.z,&hit.normal);
++                        else hit.point.y=0.f;
++                        if(~hit.normal>1e-12f)hit.normal=!hit.normal;
++                    }
++                    break;
 +                }
++                previous=t;gap=nextGap;
++                if(t>=hit.fraction)break;
 +            }
 +        }
-+        if (fabsf(vDir.y) > 1e-6f)
-+        {
-+            const float fT = (fY1 - vCamPos.y) / vDir.y;
-+            if (fT > 0.0f && fT < fBest)
-+            {
-+                const float fDx = vCamPos.x + fT * vDir.x - vC.x;
-+                const float fDz = vCamPos.z + fT * vDir.z - vC.z;
-+                if (fDx * fDx + fDz * fDz <= fR * fR && (fY1 <= kAimLockAirY || bKnippels))
-+                {
-+                    fBest = fT;
-+                    pHitShip = pS->GetACharacter();
-+                    dwLockKind = kAimLockShip;
-+                    vLockCenter = CVECTOR(vC.x, 0.0f, vC.z);
-+                    fLockRadius = fR;
-+                }
-+            }
-+        }
++        return hit;
 +    }
-+    // Forts: pure model trace (Cannon_Trace would spawn hit effects). The hit
-+    // fort's character is captured immediately, before any later Trace call
-+    // can move AIFort::pLastTraceFort.
-+    if (AIFort::pAIFort != nullptr)
-+    {
-+        const float fF = AIFort::pAIFort->Trace(vCamPos, vCamPos + fMaxDist * vDir);
-+        if (fF <= 1.0f && fF * fMaxDist < fBest)
-+        {
-+            fBest = fF * fMaxDist;
-+            pHitShip = AIFort::pAIFort->GetACharacter();
-+            dwLockKind = kAimLockFort;
-+        }
-+    }
-+    // Island: pure heightfield trace.
-+    {
-+        auto *pEnt = core.GetEntityPointer(core.GetEntityId("island"));
-+        if (pEnt != nullptr)
-+        {
-+            const float fI =
-+                static_cast<CANNON_TRACE_BASE *>(pEnt)->Trace(vCamPos, vCamPos + fMaxDist * vDir);
-+            if (fI <= 1.0f && fI * fMaxDist < fBest)
-+            {
-+                fBest = fI * fMaxDist;
-+                pHitShip = nullptr;
-+                dwLockKind = kAimLockIsland;
-+            }
-+        }
-+    }
-+    if (dwLockKind == kAimLockShip || dwLockKind == kAimLockFort || dwLockKind == kAimLockIsland)
-+    {
-+        const CVECTOR vLock = vCamPos + fBest * vDir;
-+        if (dwLockKind == kAimLockFort)
-+        {
-+            vLockCenter = CVECTOR(vLock.x, 0.0f, vLock.z);
-+            fLockRadius = (pHitShip != nullptr) ? kAimFortTintR : 0.0f;
-+        }
-+        else if (dwLockKind == kAimLockIsland)
-+        {
-+            vLockCenter = CVECTOR(vLock.x, 0.0f, vLock.z);
-+            fLockRadius = 0.0f;
-+        }
-+        return vLock;
-+    }
-+    if (vDir.y < -1e-6f)
-+    {
-+        const float fTSea = -vCamPos.y / vDir.y;
-+        if (fTSea > 0.0f && fTSea < fBest)
-+        {
-+            dwLockKind = kAimLockSea;
-+            return vCamPos + fTSea * vDir;
-+        }
-+    }
-+    dwLockKind = kAimLockSky;
-+    // Sky / infinity: the guns elevate to the firing bort's max and the
-+    // shells land at its max range in the flat look direction, so the tube
-+    // always runs through where the crosshair points. Falls back to the
-+    // passed range when no bort bears (should not happen: callers check
-+    // isCanFire first).
-+    CVECTOR vFlat(vDir.x, 0.0f, vDir.z);
-+    if (~vFlat <= 1e-8f)
-+        vFlat = CVECTOR(0.0f, 0.0f, 1.0f);
-+    else
-+        vFlat = !vFlat;
-+    float fSkyDist = fMaxDist;
-+    {
-+        const CVECTOR vOwn = GetAIShip()->GetPos();
-+        CVECTOR vTmpFire = vOwn + vFlat;
-+        vTmpFire.y = 0.0f;
-+        const auto bortSky = GetFirstFireBort(vTmpFire);
-+        if (IsValid(bortSky))
-+            fSkyDist = AICannon::CalcMaxFireDistance(bortSky->fOurBortFireHeight + vOwn.y, GetSpeedV0(),
-+                                                     GetBortHeightAngle(*bortSky) + bortSky->fFireAngMax);
-+    }
-+    return CVECTOR(vCamPos.x + fSkyDist * vFlat.x, 0.0f, vCamPos.z + fSkyDist * vFlat.z);
-+}
-+void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &vCamDir, const CVECTOR &vCamPos)
++};
++struct AimPath
 +{
-+    // Idle side / out of sector: zero geometry.
-+    if (!isCanFire(vCamDir))
-+        return;
-+
-+    // Firing-solution target, replaying AIShipCannonController::Fire exactly:
-+    // bort selection by the ship-pos flat ray (like Fire's vTempFirePos),
-+    // range from the same CalcMaxFireDistance call, but ORIGIN AT THE CAMERA
-+    // POS (like Fire's vFireCamPos): a ship-pos origin shifts the volume by
-+    // the camera-ship offset and live shells land left/right of it.
-+    const float fSpeedV0 = GetSpeedV0();
-+    if (fSpeedV0 <= 0.0f)
-+        return;
-+    const CVECTOR vOurPos = GetAIShip()->GetPos();
-+    const CVECTOR vTempDir = !CVECTOR(vCamDir.x, 0.0f, vCamDir.z);
-+    float fCamAngle = acosf(Clamp(vTempDir | vCamDir));
-+    if (vCamDir.y < 0.0f)
-+        fCamAngle = -fCamAngle;
-+    CVECTOR vTempFirePos = vOurPos + !vTempDir;
-+    vTempFirePos.y = 0.0f;
-+    auto bortIt = GetFirstFireBort(vTempFirePos);
-+    if (!IsValid(bortIt) || bortIt->aCannons.empty())
-+        return;
-+    const float fMaxDist =
-+        AICannon::CalcMaxFireDistance(bortIt->fOurBortFireHeight + vOurPos.y, fSpeedV0, fCamAngle);
-+    // Point-and-shoot target: the SAME helper Fire() uses, so preview is
-+    // impact. pHitShip/dwLockKind/vLockCenter/fLockRadius drive the drape.
-+    ATTRIBUTES *pHitShip = nullptr;
-+    int32_t dwLockKind = kAimLockSky;
-+    CVECTOR vLockCenter(0.0f, 0.0f, 0.0f);
-+    float fLockRadius = 0.0f;
-+    const CVECTOR vTarget =
-+        ManualAimTarget(vCamPos, vCamDir, fMaxDist, pHitShip, dwLockKind, vLockCenter, fLockRadius);
-+
-+    // Firing battery: outer intact guns bound the volume, the middle gun
-+    // carries the spine. One code path for port and starboard: the firing bort
-+    // is whatever GetFirstFireBort returns for this ray, with no side-specific
-+    // branches anywhere below.
-+    const auto &cannons = bortIt->aCannons;
-+    const AICannon *pFirst = nullptr;
-+    const AICannon *pLast = nullptr;
-+    for (const auto &cannon : cannons)
-+        if (!cannon.isDamaged())
-+        {
-+            if (pFirst == nullptr)
-+                pFirst = &cannon;
-+            pLast = &cannon;
-+        }
-+    if (pFirst == nullptr)
-+        return;
-+    // Spine gun: intact gun nearest the battery center, so a knocked-out
-+    // middle gun does not skew the spine to the battery edge.
-+    const AICannon *pMid = pFirst;
++    Trajectory curve;
++    float end=0.f;
++    AimHit hit;
++};
++AimPath AimMarch(const Trajectory &curve,const AimWorld &world)
++{
++    AimPath path;path.curve=curve;
++    // The real warped parabola determines lifetime, including overshooting
++    // dispersion. Nominal target time is not a collision or a stopping plane.
++    const float limit=curve.timeToHeight(-world.waveBound-1.f);
++    if(!std::isfinite(limit)||limit<=0.f)return path;
++    const int steps=std::clamp(int(std::ceil(limit*curve.velocity.GetLength()/12.f)),24,128);
++    CVECTOR previous=curve.origin;
++    for(int i=1;i<=steps;++i)
 +    {
-+        const size_t dwCount = cannons.size();
-+        const size_t dwCenter = dwCount / 2;
-+        size_t dwBest = dwCount;
-+        for (size_t i = 0; i < dwCount; ++i)
++        const float t=limit*float(i)/steps;
++        const CVECTOR next=curve.at(t);
++        const auto hit=world.trace(previous,next);
++        if(hit.valid)
 +        {
-+            if (cannons[i].isDamaged())
-+                continue;
-+            const size_t dwD = (i > dwCenter) ? (i - dwCenter) : (dwCenter - i);
-+            const size_t dwB = (dwBest > dwCenter) ? (dwBest - dwCenter) : (dwCenter - dwBest);
-+            if (dwBest == dwCount || dwD < dwB)
-+                dwBest = i;
++            path.end=limit*(float(i-1)+hit.fraction)/steps;
++            path.hit=hit;
++            return path;
 +        }
-+        if (dwBest != dwCount)
-+            pMid = &cannons[dwBest];
++        previous=next;
 +    }
++    path.end=limit;
++    return path;
++}
++float AimHeightScale(ATTRIBUTES *character)
++{
++    auto *cannons=character?character->FindAClass(character,"Ship.Cannons"):nullptr;
++    float catalogScale=1.f;
++    auto *catalog=static_cast<VDATA *>(core.GetScriptVariable("Cannon"));
++    const uint32_t type=cannons?cannons->GetAttributeAsDword("Type",0):0;
++    if(catalog && type<catalog->GetElementsNum())
++        if(auto *entry=catalog->GetAClass(type))catalogScale=entry->GetAttributeAsFloat("HeightMultiply",1.f);
++    // Match the currently shipped AIBalls.c, including its inherited comparison:
++    // Type is Goods[charge].Name, compared to integer GOOD_KNIPPELS (2).
++    // DATA converts a nonnumeric name to 0, so every loaded named shot uses .4.
++    // Using .65 for numeric Charge.Type==2 would silently disagree with live fire.
++    return catalogScale*.4f;
++}
++struct AimSpread {float azimuth,elevation,speed;};
++AimSpread AimLiveSpread(ATTRIBUTES *character)
++{
++    auto *skill=character?character->FindAClass(character,"TmpSkill"):nullptr;
++    const float accuracy=1.2f-(skill?skill->GetAttributeAsFloat("Accuracy",.6f):.6f);
++    const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
++    return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
++            .5f*accuracy*10.f*12.f*kAimPi/180.f};
++}
++struct AimVertex{CVECTOR point;uint32_t color;};
++uint32_t AimColor(float opacity)
++{ return (uint32_t(std::clamp(opacity,0.f,1.f)*255.f)<<24)|0xB8C4C8u; }
++void AimTriangle(std::vector<AimVertex> &out,const CVECTOR &a,const CVECTOR &b,const CVECTOR &c,float alpha)
++{
++    if(!manual_aim::finite(a)||!manual_aim::finite(b)||!manual_aim::finite(c)||~((b-a)^(c-a))<1e-10f)return;
++    const auto color=AimColor(alpha);out.push_back({a,color});out.push_back({b,color});out.push_back({c,color});
++}
++void AimDraw(std::vector<AimVertex> &vertices,const char *technique,const CVECTOR &camera)
++{
++    if(vertices.empty())return;
++    // Transparent triangles are sorted; front/back shell overlap is low-opacity,
++    // and no bright rails, central ray, opaque cap or distance ticks are emitted.
++    struct Tri{std::array<AimVertex,3> v;float depth;};
++    std::vector<Tri> triangles;triangles.reserve(vertices.size()/3);
++    for(size_t i=0;i+2<vertices.size();i+=3)
++        triangles.push_back({{vertices[i],vertices[i+1],vertices[i+2]},
++            ~((vertices[i].point+vertices[i+1].point+vertices[i+2].point)/3.f-camera)});
++    std::sort(triangles.begin(),triangles.end(),[](const Tri &a,const Tri &b){return a.depth>b.depth;});
++    vertices.clear();for(const auto &t:triangles)vertices.insert(vertices.end(),t.v.begin(),t.v.end());
++    CMatrix old;AIHelper::pRS->GetTransform(D3DTS_WORLD,old);
++    AIHelper::pRS->SetTransform(D3DTS_WORLD,CMatrix());
++    AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST,D3DFVF_XYZ|D3DFVF_DIFFUSE,
++        uint32_t(vertices.size()/3),vertices.data(),sizeof(AimVertex),technique);
++    AIHelper::pRS->SetTransform(D3DTS_WORLD,old);
++}
++} // namespace
 +
-+    const float fHeightMultiply = AimLiveHeightMultiply(GetAIShip()->GetACharacter());
-+    const AimDispersion aimD = AimLiveDispersion(GetAIShip()->GetACharacter());
++bool AIShipCannonController::ManualGunCanReach(const AICannon &gun,const AISHIP_BORT &bort,
++                                              const CVECTOR &target) const
++{
++    if(gun.isDamaged())return false;
++    const CVECTOR muzzle=gun.GetPos();
++    const float speed=GetSpeedV0();
++    if(!manual_aim::reachable(muzzle,target,speed,AIHelper::fGravity))return false;
++    const CVECTOR direction=!(target-muzzle);
++    if((direction|gun.GetDir())<.3f)return false; // identical traverse guard to AICannon::Fire
++    const float elevation=gun.CalcHeightFireAngle(speed,muzzle,target);
++    const float relative=elevation-GetBortHeightAngle(bort);
++    return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
++}
 +
-+    // Manual fire applies NO bort-level gunner offset (Fire passes
-+    // bApplyBortDelta=false), so the landing ellipse has no gunner-radius
-+    // base: a 2m viz floor plus the live per-ball cone only. (AI keeps the
-+    // scripted SHIP_GET_BORT_FIRE_DELTA scatter; the overlay is player-only.)
-+    constexpr float fDispBase = 2.0f;
-+    const CVECTOR vMidMuz0 = pMid->GetPos();
-+
-+    // One palette, no hue-coded states: reloading only dims the same brass.
-+    // The dimmed state stays readable (0.8, not 0.6).
-+    const bool bReady = bortIt->isCharged();
-+    const float fDim = bReady ? 1.0f : 0.8f;
-+
-+    // One march per plotted gun through the identical helper: per-gun RealFire
-+    // solution at the shared Fire target, live AIBalls integration to water.
-+    const AICannon *pGuns[3] = {pFirst, pMid, pLast};
-+    CVECTOR vArc[3][kAimArcSteps + 1];
-+    int32_t dwPoints[3] = {1, 1, 1};
-+    for (int32_t g = 0; g < 3; ++g)
-+        AimMarchArc(pGuns[g], pGuns[g]->GetPos(), vTarget, fSpeedV0, fSpeedV0, 0.0f, fHeightMultiply, vArc[g],
-+                      dwPoints[g]);
-+    if (dwPoints[1] < 2)
-+        return;
-+    // Drape center: the lock point itself on ship/fort/island (hull aim reads
-+    // at the waterline, mast aim at the sails), march impact on sea/sky.
-+    // Ring vertices then drape onto their own surface (sea, terrain, ship
-+    // disc), so the outline hugs the world instead of floating flat.
-+    CVECTOR vImpact = vArc[1][dwPoints[1] - 1];
-+    if (dwLockKind == kAimLockShip || dwLockKind == kAimLockFort || dwLockKind == kAimLockIsland)
-+        vImpact = vTarget;
++bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const CVECTOR &direction,
++                                                   MANUAL_AIM_SOLUTION &solution)
++{
++    solution=MANUAL_AIM_SOLUTION{};
++    if(!manual_aim::finite(camera)||!manual_aim::finite(direction)||~direction<1e-8f||GetSpeedV0()<=0.f)return false;
++    CVECTOR flat(direction.x,0.f,direction.z);
++    if(~flat<1e-8f)return false;
++    flat=!flat;
++    CVECTOR selection=GetAIShip()->GetPos()+flat;selection.y=0.f;
++    auto bort=GetFirstFireBort(selection);
++    if(!IsValid(bort))return false;
++    solution.bort=&*bort;
++    const float speed=GetSpeedV0();
++    const float pitch=std::atan2(direction.y,std::sqrt(direction.x*direction.x+direction.z*direction.z));
++    // World picking and ballistic reach are separate. Camera pitch must never
++    // shorten the pick ray to the low-mounted gun's current-elevation range.
++    float range=0.f;
++    for(const auto &gun:bort->aCannons)
++        if(!gun.isDamaged())range=std::max(range,AICannon::CalcMaxFireDistance(
++            std::max(.01f,gun.GetPos().y),speed,GetBortHeightAngle(*bort)+bort->fFireAngMax));
++    if(!std::isfinite(range)||range<=0.f)return false;
++    AimWorld world(GetAIShip());
++    const float pickLength=range+(camera-GetAIShip()->GetPos()).GetLength()+world.waveBound;
++    const auto hit=world.trace(camera,camera+(!direction)*pickLength);
++    if(hit.valid)solution.target=hit.point;
 +    else
-+        vImpact.y = kAimImpactY;
-+
-+    // Shot basis and honest landing ellipse. vU runs downrange (flat mid-muzzle
-+    // to impact), vW across. Lateral semi-axis: viz floor plus the live
-+    // per-ball azimuth cone at range. Longitudinal semi-axis: viz floor plus
-+    // the energy spread, measured by marching the two Ball_AddBall energy
-+    // corners (speed/elevation jitter extremes) through the identical march.
-+    CVECTOR vU = CVECTOR(vImpact.x - vMidMuz0.x, 0.0f, vImpact.z - vMidMuz0.z);
-+    if (~vU <= 1e-8f)
-+        vU = CVECTOR(0.0f, 0.0f, 1.0f);
-+    vU = !vU;
-+    const CVECTOR vW(-vU.z, 0.0f, vU.x);
-+    const float fFlatRange = sqrtf(~(CVECTOR(vImpact.x - vMidMuz0.x, 0.0f, vImpact.z - vMidMuz0.z)));
-+    float fRangeSpread = 0.0f;
 +    {
-+        CVECTOR vVar[kAimArcSteps + 1];
-+        const float fSpdV[2] = {fSpeedV0 - aimD.fSpeedHalf, fSpeedV0 + aimD.fSpeedHalf};
-+        const float fAngV[2] = {-aimD.fElHalf, aimD.fElHalf};
-+        for (int32_t v = 0; v < 2; ++v)
++        // With no surface under the reticle, retain the looked-at launch angle.
++        // Never silently turn a failed downward pick into maximum elevation.
++        if(pitch<0.f)return false;
++        const float relative=pitch-GetBortHeightAngle(*bort);
++        if(relative<bort->fFireAngMin||relative>bort->fFireAngMax)return false;
++        CVECTOR muzzle(0.f);int count=0;
++        for(const auto &gun:bort->aCannons)if(!gun.isDamaged()){muzzle+=gun.GetPos();++count;}
++        if(!count)return false;muzzle*=1.f/count;
++        const float directRange=AICannon::CalcMaxFireDistance(std::max(.01f,muzzle.y),speed,pitch);
++        solution.target=muzzle+flat*directRange;solution.target.y=0.f;
++    }
++    solution.character=hit.character;
++    for(auto &gun:bort->aCannons)
++        if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
++    return !solution.guns.empty(); // unavailable shots are excluded, not relabelled as a far lock
++}
++
++void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const CVECTOR &camera)
++{
++    MANUAL_AIM_SOLUTION solution;
++    if(!BuildManualAimSolution(camera,direction,solution))return;
++    AimWorld world(GetAIShip());
++    const float speed=GetSpeedV0(),height=AimHeightScale(GetAIShip()->GetACharacter());
++    const auto spread=AimLiveSpread(GetAIShip()->GetACharacter());
++    std::vector<AimPath> paths;
++    paths.reserve(solution.guns.size()+40);
++    // Every valid gun participates. Locator order is irrelevant.
++    for(const auto *gun:solution.guns)
++    {
++        const CVECTOR muzzle=gun->GetPos();
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        paths.push_back(AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity),world));
++    }
++    // Dispersion samples use the battery's spatial support guns, not first/last
++    // array indices. Model traces are bounded by this fixed support set; all
++    // remaining gun trajectories above still define the envelope's mouth.
++    std::vector<const AICannon *> supports;
++    CVECTOR axis=GetBortDirection(*solution.bort);
++    axis=!(CVECTOR(axis.x,0.f,axis.z));
++    const CVECTOR lateral(-axis.z,0.f,axis.x);
++    for(const CVECTOR &basis:{lateral,CVECTOR(0.f,1.f,0.f)})
++        for(float sign:{-1.f,1.f})
 +        {
-+            int32_t dwN = 0;
-+            AimMarchArc(pMid, vMidMuz0, vTarget, fSpeedV0, fSpdV[v], fAngV[v], fHeightMultiply, vVar, dwN);
-+            if (dwN >= 2)
++            const AICannon *best=nullptr;float value=-1e20f;
++            for(const auto *gun:solution.guns)
++            {const float v=(gun->GetPos()|basis)*sign;if(v>value){value=v;best=gun;}}
++            if(best&&std::find(supports.begin(),supports.end(),best)==supports.end())supports.push_back(best);
++        }
++    for(const auto *gun:supports)
++    {
++        const CVECTOR muzzle=gun->GetPos();
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        for(int n=0;n<8;++n)
++        {
++            // Live jitter uses three independent random draws, not a correlated
++            // ellipse. Include all eight support corners without consuming RNG.
++            const float elevation=spread.elevation*((n&1)?1.f:-1.f);
++            const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
++            const float v=speed+spread.speed*((n&4)?1.f:-1.f);
++            paths.push_back(AimMarch(manual_aim::trajectory(muzzle,solution.target,v,angle+elevation,yaw,height,AIHelper::fGravity),world));
++        }
++    }
++    paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
++    if(paths.empty())return;
++    const float opacity=solution.bort->isCharged()?.045f:.025f;
++    const CVECTOR up=!(axis^lateral);
++    std::vector<float> stations;
++    float first=1e20f,last=-1e20f;
++    for(const auto &path:paths)
++    {
++        const float a=path.curve.origin|axis,b=path.hit.point|axis;
++        first=std::min({first,a,b});last=std::max({last,a,b});
++        stations.push_back(a);stations.push_back(b);
++        const float acceleration=path.curve.acceleration|axis;
++        if(std::fabs(acceleration)>1e-8f)
++        {
++            const float turn=-(path.curve.velocity|axis)/acceleration;
++            if(turn>0.f&&turn<path.end)
 +            {
-+                const float fLon =
-+                    (vVar[dwN - 1].x - vImpact.x) * vU.x + (vVar[dwN - 1].z - vImpact.z) * vU.z;
-+                if (fabsf(fLon) > fRangeSpread)
-+                    fRangeSpread = fabsf(fLon);
++                const float p=path.curve.at(turn)|axis;
++                stations.push_back(p);first=std::min(first,p);last=std::max(last,p);
 +            }
 +        }
 +    }
-+    const float fAxisLat = fDispBase + tanf(aimD.fAzHalf) * fFlatRange;
-+    const float fAxisLon = fDispBase + fRangeSpread;
-+
-+    static std::vector<RS_LINE> sLines;
-+    sLines.clear();
-+
-+    // Battery fan: the outer-gun marches as faint arcs, so the spread reads
-+    // with zero fill sheets (a volumetric tube rendered as a white highway
-+    // at range and exploded into sheets and stray lines at close range;
-+    // rejected after player replay). Single code path for port and
-+    // starboard: no side branches. Depth-tested like any in-world object.
-+    for (int32_t g = 0; g < 3; g += 2)
-+        for (int32_t i = 0; i + 1 < dwPoints[g]; ++i)
++    for(int section=0;section<=kAimSections;++section)
++        stations.push_back(first+(last-first)*float(section)/kAimSections);
++    std::sort(stations.begin(),stations.end());
++    stations.erase(std::unique(stations.begin(),stations.end(),[](float a,float b){return std::fabs(a-b)<.005f;}),stations.end());
++    std::vector<manual_aim::Point> previousHull;
++    CVECTOR previousCenter(0.f);
++    bool hadSection=false;
++    std::vector<AimVertex> volume;
++    for(float station:stations)
++    {
++        // Intersect all paths with the SAME downrange plane. Normalizing each
++        // gun by its own impact time would flatten distant and nearby hits into
++        // one fake end plane and reintroduce the crossed-sheet artifact.
++        CVECTOR center(0.f);std::vector<CVECTOR> points;
++        for(const auto &path:paths)
 +        {
-+            const uint32_t dwE = AimColor(
-+                kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimEdgeA0, kAimEdgeA1, i, kAimArcSteps)));
-+            sLines.push_back(RS_LINE{vArc[g][i], dwE});
-+            sLines.push_back(RS_LINE{vArc[g][i + 1], dwE});
++            if(std::fabs(station-(path.curve.origin|axis))<.005f)
++            {points.push_back(path.curve.origin);center+=path.curve.origin;}
++            if(std::fabs(station-(path.hit.point|axis))<.005f)
++            {points.push_back(path.hit.point);center+=path.hit.point;}
++            for(float t:manual_aim::planeTimes(path.curve,axis,station,path.end))
++            {
++                const CVECTOR point=path.curve.at(t);
++                points.push_back(point);center+=point;
++            }
 +        }
-+
-+    // Spine: the mid-gun march as a brightening polyline, so the trajectory
-+    // reads at long range where the fan converges thin.
-+    for (int32_t i = 0; i + 1 < dwPoints[1]; ++i)
-+    {
-+        const uint32_t dwS =
-+            AimColor(kAimSmoke, static_cast<uint32_t>(fDim * AimFadeAlpha(kAimSpineA0, kAimSpineA1, i, kAimArcSteps)));
-+        sLines.push_back(RS_LINE{vArc[1][i], dwS});
-+        sLines.push_back(RS_LINE{vArc[1][i + 1], dwS});
++        if(points.empty()){hadSection=false;continue;}
++        center*=1.f/points.size();
++        const float u=std::clamp((station-first)/std::max(.01f,last-first),0.f,1.f);
++        std::vector<manual_aim::Point> plane;
++        for(const auto &p:points)
++        {
++            const CVECTOR d=p-center;const float x=d|lateral,y=d|up;
++            const float pad=.08f*(1.f-u);
++            for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
++        }
++        const auto hull=manual_aim::hull(plane);
++        if(hadSection)
++        {
++            // Union both contours' actual vertex angles. Each constructed
++            // cross-section retains every original hull corner, even a 50 m
++            // broadside tilted a few degrees inside a very thin section.
++            const auto angles=manual_aim::angularEvents(previousHull,hull,kAimSides);
++            auto point=[&](const std::vector<manual_aim::Point> &h,const CVECTOR &c,float angle)
++            {const auto p=manual_aim::boundary(h,{0.f,0.f},angle);return c+lateral*p.x+up*p.y;};
++            for(size_t side=0;side<angles.size();++side)
++            {
++                const size_t next=(side+1)%angles.size();
++                const CVECTOR a=point(previousHull,previousCenter,angles[side]);
++                const CVECTOR b=point(previousHull,previousCenter,angles[next]);
++                const CVECTOR c=point(hull,center,angles[side]);
++                const CVECTOR d=point(hull,center,angles[next]);
++                const float nearFade=std::clamp((center-camera).GetLength()/2.f,0.f,1.f);
++                const float alpha=opacity*nearFade*(1.f-.65f*u);
++                AimTriangle(volume,a,c,d,alpha);
++                AimTriangle(volume,a,d,b,alpha);
++            }
++        }
++        previousHull=hull;previousCenter=center;hadSection=true;
 +    }
++    AimDraw(volume,"ShipAimVolume",camera);
 +
-+    // Drape outline + center mark: thin ring at the honest dispersion, ring
-+    // segments over the locked ship/fort tint by relation (soft red = enemy,
-+    // soft green = else), sea and sky keep neutral brass. One flat ellipse
-+    // over the highest surface under it; the cross sits on the same plane.
-+    const uint32_t dwRing = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0xAA));
-+    uint32_t dwContact = AimColor(kAimBrass, static_cast<uint32_t>(fDim * 0xCC));
-+    uint32_t dwTint = dwRing;
-+    if (pHitShip != nullptr)
++    // Project each connected impact footprint onto its real receiver along
++    // incoming trajectories. Vertical hulls use their own normal, not XZ.
++    // Separate receivers cannot produce triangles spanning ship/water/cliff gaps.
++    std::vector<AimVertex> footprint;
++    for(int surface=0;surface<=int(world.models.size());++surface)
 +    {
-+        const uint32_t dwRel = Helper.GetRelation(GetAIShip()->GetACharacter(), pHitShip);
-+        const uint32_t dwTintRgb = (dwRel == RELATION_ENEMY) ? kAimFoe : kAimFriend;
-+        dwContact = AimColor(dwTintRgb, static_cast<uint32_t>(fDim * 0xCC));
-+        dwTint = AimColor(dwTintRgb, static_cast<uint32_t>(fDim * 0xCC));
++        std::vector<const AimPath *> contacts;
++        for(const auto &path:paths)if(path.hit.surface==surface)contacts.push_back(&path);
++        if(contacts.size()<3)continue;
++        CVECTOR center(0.f),normal(0.f);
++        for(auto *p:contacts){center+=p->hit.point;normal+=p->hit.normal;}
++        center*=1.f/contacts.size();
++        normal=~normal>1e-8f?!normal:CVECTOR(0.f,1.f,0.f);
++        CVECTOR right=normal^axis;
++        if(~right<1e-8f)right=normal^CVECTOR(0.f,1.f,0.f);
++        if(~right<1e-8f)right=CVECTOR(1.f,0.f,0.f);right=!right;
++        const CVECTOR forward=!(right^normal);
++        std::vector<manual_aim::Point> projected;
++        float radius=.1f;
++        for(auto *p:contacts)
++        {const CVECTOR d=p->hit.point-center;projected.push_back({d|right,d|forward});radius=std::max(radius,d.GetLength());}
++        const auto hull=manual_aim::hull(projected);
++        if(hull.size()<3)continue;
++        constexpr int rings=4;
++        const auto angles=manual_aim::angularEvents(hull,{},24);
++        const size_t sides=angles.size();
++        std::vector<std::vector<AimHit>> grid(rings+1,std::vector<AimHit>(sides));
++        const float reach=std::max(2.f,std::min(radius*2.f,80.f));
++        for(int r=0;r<=rings;++r)
++            for(size_t side=0;side<sides;++side)
++            {
++                const auto p=manual_aim::boundary(hull,{0.f,0.f},angles[side]);
++                const CVECTOR seed=center+(right*p.x+forward*p.y)*(float(r)/rings);
++                grid[r][side]=world.trace(seed+normal*reach,seed-normal*reach,surface);
++            }
++        auto triangle=[&](const AimHit &a,const AimHit &b,const AimHit &c,float alpha)
++        {
++            if(!a.valid||!b.valid||!c.valid||a.surface!=b.surface||a.surface!=c.surface)return;
++            if((a.normal|b.normal)<.45f||(a.normal|c.normal)<.45f||(b.normal|c.normal)<.45f)return;
++            // Reject discontinuities rather than drawing long chords across empty space.
++            const float maxEdge=std::max(1.f,radius*.65f);
++            if((a.point-b.point).GetLength()>maxEdge||(a.point-c.point).GetLength()>maxEdge||(b.point-c.point).GetLength()>maxEdge)return;
++            AimTriangle(footprint,a.point+a.normal*kAimSurfaceLift,b.point+b.normal*kAimSurfaceLift,
++                        c.point+c.normal*kAimSurfaceLift,alpha);
++        };
++        for(int r=1;r<=rings;++r)
++            for(size_t side=0;side<sides;++side)
++            {
++                const size_t next=(side+1)%sides;
++                const float alpha=.11f*(1.f-.65f*float(r)/rings);
++                triangle(grid[r-1][side],grid[r][side],grid[r][next],alpha);
++                triangle(grid[r-1][side],grid[r][next],grid[r-1][next],alpha);
++            }
 +    }
-+    CANNON_TRACE_BASE *pDrapeIsland = nullptr;
-+    {
-+        auto *pEnt = core.GetEntityPointer(core.GetEntityId("island"));
-+        if (pEnt != nullptr)
-+            pDrapeIsland = static_cast<CANNON_TRACE_BASE *>(pEnt);
-+    }
-+    AIFort *pDrapeFort = AIFort::pAIFort;
-+    const float fShipY = (dwLockKind == kAimLockShip) ? vTarget.y : -1.0f;
-+    const float fRingY =
-+        EmitAimDrapeRing(sLines, vImpact, vU, vW, fAxisLon, fAxisLat, dwRing, dwTint, vLockCenter, fLockRadius,
-+                         kAimRingSegments, pDrapeIsland, pDrapeFort, fShipY);
-+    EmitAimCross(sLines, CVECTOR(vImpact.x, fRingY, vImpact.z), 1.1f, dwContact);
-+
-+    FlushAimLines(sLines);
++    AimDraw(footprint,"ShipAimFootprint",camera);
 +}
++
 +
  bool AIShipCannonController::Init(ATTRIBUTES *_pAShip)
  {
      pAShip = _pAShip;
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+index 468151c..fec5817 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
-@@ -80,7 +80,7 @@
- 
+@@ -75,12 +75,22 @@ class AIShipCannonController
+     // borts container
+     std::vector<AISHIP_BORT> aShipBorts;
+
++    struct MANUAL_AIM_SOLUTION
++    {
++        AISHIP_BORT *bort = nullptr;
++        CVECTOR target{0.f};
++        ATTRIBUTES *character = nullptr;
++        std::vector<AICannon *> guns;
++    };
++    bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
++    bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
++
+     // update borts parameters
+     bool UpdateParameters();
+
      bool ScanShipForCannons();
- 
+
 -    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight);
 +    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true);
- 
+
      [[nodiscard]] float GetSpeedV0() const;
- 
-@@ -131,6 +131,14 @@
+
+@@ -118,7 +128,7 @@ class AIShipCannonController
+     // fire section
+     bool Fire(const CVECTOR &vFirePos);                             // fire to position
+     bool Fire(AIShip *pEnemy);                                      // fire to ship
+-    bool Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir); // manual fire
++    bool Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget = nullptr); // manual fire
+
+     // reload section
+     void Unload(); // unload cannons
+@@ -131,6 +141,8 @@ class AIShipCannonController
      // execute/realize section
      void Execute(float fDeltaTime);
      void Realize(float fDeltaTime);
 +    // Manual deck-aim trajectory overlay (visualization only, player ship).
 +    void DrawManualAimOverlay(const CVECTOR &vCamDir, const CVECTOR &vCamPos);
-+    // Shared point-and-shoot target for Fire() and the overlay (raycast).
-+    // Member (not static): the sky branch needs the firing bort's max
-+    // elevation range, and every caller is a member of this class.
-+    CVECTOR ManualAimTarget(const CVECTOR &vCamPos, const CVECTOR &vCamDir, float fMaxDist,
-+                            ATTRIBUTES *&pHitShip, int32_t &dwLockKind, CVECTOR &vLockCenter,
-+                            float &fLockRadius);
- 
+
      // init section
      bool Init(ATTRIBUTES *_pAShip);
-@@ -153,4 +161,4 @@
- 
+@@ -153,4 +165,4 @@ class AIShipCannonController
+
      void Save(CSaveLoad *pSL);
      void Load(CSaveLoad *pSL);
 -};
 \ No newline at end of file
 +};
+diff --git a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
+new file mode 100644
+index 0000000..22a452d
+--- /dev/null
++++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
+@@ -0,0 +1,158 @@
++#pragma once
++#include "c_vector.h"
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <vector>
++
++// Presentation geometry shared by the manual solution and its numerical probe.
++// No engine events, random draws, damage, or saved state.
++namespace manual_aim
++{
++inline bool finite(const CVECTOR &v)
++{
++    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
++}
++inline bool reachable(const CVECTOR &from, const CVECTOR &to, float speed, float gravity)
++{
++    const CVECTOR d = to - from;
++    const double r2 = double(d.x)*d.x + double(d.z)*d.z;
++    const double b = double(gravity)*d.y - double(speed)*speed;
++    const double c = r2 + double(d.y)*d.y;
++    return finite(from) && finite(to) && std::isfinite(speed) && std::isfinite(gravity) && speed > 0.f && gravity > 0.f && r2 > 1e-8 &&
++           b < 0.0 && b*b - double(gravity)*gravity*c >= 0.0;
++}
++struct Trajectory
++{
++    CVECTOR origin, velocity, acceleration;
++    CVECTOR at(float t) const { return origin + velocity*t + acceleration*(0.5f*t*t); }
++    CVECTOR tangent(float t) const { return velocity + acceleration*t; }
++    float timeToHeight(float height) const
++    {
++        const double g = -acceleration.y, h = double(origin.y)-height, v = velocity.y;
++        if (g <= 0.0 || h < 0.0) return 0.f;
++        const double root = std::sqrt(v*v + 2.0*g*h);
++        return float(v >= 0.0 ? (v+root)/g : 2.0*h/(root-v));
++    }
++};
++inline Trajectory trajectory(const CVECTOR &muzzle, const CVECTOR &target, float speed, float angle,
++                             float azimuthDelta, float heightScale, float gravity)
++{
++    const CVECTOR d = target-muzzle;
++    const float raw = std::atan2(d.y, std::sqrt(d.x*d.x+d.z*d.z));
++    const float s = std::sin(raw), c = std::cos(raw);
++    const float A = c*c+heightScale*s*s, B = (1.f-heightScale)*s*c, C = s*s+heightScale*c*c;
++    const float yaw = std::atan2(d.x,d.z)+azimuthDelta;
++    const CVECTOR forward(std::sin(yaw),0.f,std::cos(yaw));
++    const float vx = speed*(A*std::cos(angle)+B*std::sin(angle));
++    const float vy = speed*(B*std::cos(angle)+C*std::sin(angle));
++    return {muzzle, forward*vx+CVECTOR(0.f,vy,0.f),
++            forward*(-gravity*B)+CVECTOR(0.f,-gravity*C,0.f)};
++}
++struct Point { float x,y; };
++inline float cross(Point a,Point b,Point c)
++{ return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x); }
++inline std::vector<Point> hull(std::vector<Point> p)
++{
++    std::sort(p.begin(),p.end(),[](Point a,Point b){return a.x<b.x || (a.x==b.x && a.y<b.y);});
++    p.erase(std::unique(p.begin(),p.end(),[](Point a,Point b){return a.x==b.x&&a.y==b.y;}),p.end());
++    if(p.size()<3) return p;
++    std::vector<Point> h(2*p.size()); size_t k=0;
++    for(const auto &q:p){while(k>=2&&cross(h[k-2],h[k-1],q)<=0.f)--k;h[k++]=q;}
++    const size_t lower=k;
++    for(size_t i=p.size()-1;i-->0;){while(k>lower&&cross(h[k-2],h[k-1],p[i])<=0.f)--k;h[k++]=p[i];}
++    h.resize(k-1);return h;
++}
++// Fixed angular sampling of a convex contour: no dependence on locator ordering,
++// no corner-index swapping, and the same winding on either broadside.
++inline Point boundary(const std::vector<Point> &h,Point center,float angle)
++{
++    const Point d{std::cos(angle),std::sin(angle)};
++    if(h.size()==1)return h.front();
++    if(h.size()==2)
++    {
++        const Point edge{h[1].x-h[0].x,h[1].y-h[0].y};
++        if(std::fabs(edge.x*d.y-edge.y*d.x)>1e-6f*std::sqrt(edge.x*edge.x+edge.y*edge.y))return center;
++        const float a=(h[0].x-center.x)*d.x+(h[0].y-center.y)*d.y;
++        const float b=(h[1].x-center.x)*d.x+(h[1].y-center.y)*d.y;
++        return a>b?h[0]:h[1];
++    }
++    float t=1e20f;
++    for(size_t i=0;i<h.size();++i)
++    {
++        const Point a=h[i],b=h[(i+1)%h.size()];
++        const Point e{b.x-a.x,b.y-a.y};
++        const float den=e.x*d.y-e.y*d.x;
++        const float num=e.x*(center.y-a.y)-e.y*(center.x-a.x);
++        if(den < -1e-7f) t=std::min(t,-num/den);
++    }
++    if(!std::isfinite(t)||t<0.f||t>1e10f)t=0.f;
++    return {center.x+d.x*t,center.y+d.y*t};
++}
++// Keep all convex-hull corner angles when lofting adjacent sections. A fixed
++// radial polygon alone inscribes (and can almost erase) a long tilted gun line.
++inline std::vector<float> angularEvents(const std::vector<Point> &a,const std::vector<Point> &b,int regular)
++{
++    constexpr float tau=6.2831853071795864769f;
++    std::vector<float> angles;
++    for(int i=0;i<regular;++i)angles.push_back(tau*i/regular);
++    for(const auto *h:{&a,&b})for(Point p:*h)
++    {
++        float angle=std::atan2(p.y,p.x);
++        if(angle<0.f)angle+=tau;
++        angles.push_back(angle);
++    }
++    std::sort(angles.begin(),angles.end());
++    angles.erase(std::unique(angles.begin(),angles.end(),[](float x,float y){return std::fabs(x-y)<1e-7f;}),angles.end());
++    return angles;
++}
++// A common plane can cross a quadratic path in either direction, or twice.
++// Never discard a legitimate off-axis gun because its projected motion reverses.
++inline std::vector<float> planeTimes(const Trajectory &path,const CVECTOR &axis,float station,float end)
++{
++    std::vector<float> times;
++    if(!finite(path.origin)||!finite(path.velocity)||!finite(path.acceleration)||!finite(axis)||
++       !std::isfinite(station)||!std::isfinite(end)||end<0.f||~axis<1e-12f)return times;
++    const double a=.5*double(path.acceleration|axis),b=double(path.velocity|axis);
++    const double c=double(path.origin|axis)-station;
++    auto add=[&](double t)
++    {
++        if(std::isfinite(t)&&t>=-1e-5&&t<=double(end)+1e-5)
++            times.push_back(float(std::clamp(t,0.0,double(end))));
++    };
++    if(std::fabs(a)<1e-10)
++    {
++        if(std::fabs(b)>1e-10)add(-c/b);
++        else if(std::fabs(c)<1e-5){add(0.0);add(end);}
++    }
++    else
++    {
++        const double discriminant=b*b-4.0*a*c;
++        if(discriminant>=-1e-8)
++        {
++            const double root=std::sqrt(std::max(0.0,discriminant));
++            const double q=-.5*(b+std::copysign(root,b));
++            if(std::fabs(q)>1e-12){add(q/a);add(c/q);}else add(-b/(2.0*a));
++        }
++    }
++    std::sort(times.begin(),times.end());
++    times.erase(std::unique(times.begin(),times.end(),[](float x,float y){return std::fabs(x-y)<1e-5f;}),times.end());
++    return times;
++}
++inline bool segmentBox(const CVECTOR &a,const CVECTOR &b,const CVECTOR &lo,const CVECTOR &hi)
++{
++    if(!finite(a)||!finite(b)||!finite(lo)||!finite(hi))return false;
++    for(int i=0;i<3;++i)if(lo.v[i]>hi.v[i])return false;
++    float begin=0.f,end=1.f;
++    for(int i=0;i<3;++i)
++    {
++        const float d=b.v[i]-a.v[i];
++        if(std::fabs(d)<1e-8f){if(a.v[i]<lo.v[i]||a.v[i]>hi.v[i])return false;continue;}
++        float x=(lo.v[i]-a.v[i])/d,y=(hi.v[i]-a.v[i])/d;
++        if(x>y)std::swap(x,y);
++        begin=std::max(begin,x);end=std::min(end,y);
++        if(begin>end)return false;
++    }
++    return true;
++}
++} // namespace manual_aim
 diff --git a/src/techniques/_dev/ship.fx b/src/techniques/_dev/ship.fx
+index 76a5b74..cb0c284 100644
 --- a/src/techniques/_dev/ship.fx
 +++ b/src/techniques/_dev/ship.fx
-@@ -17,3 +17,50 @@
+@@ -17,3 +17,44 @@ technique ShipCannonAngles
          ColorOp[1] = disable;
      }
  }
 +
-+// Manual aim plumage: depth-tested counterparts of ShipCannonAngles.
-+// ShipAimArc: 1px lines with vertex diffuse + alpha, occluded by hulls/sails/land.
-+// ShipAimVolume: soft smoke-ribbon triangles, blended, no depth writes.
-+technique ShipAimArc
-+{
-+    pass p0
-+    {
-+        Lighting = false;
-+        CullMode = none;
-+        AlphaTestEnable = false;
-+        AlphaBlendEnable = true;
-+        SrcBlend = srcalpha;
-+        DestBlend = invsrcalpha;
-+        ZWriteEnable = false;
-+
-+        ColorOp[0] = selectarg1;
-+        ColorArg1[0] = diffuse;
-+
-+        AlphaOp[0] = selectarg1;
-+        AlphaArg1[0] = diffuse;
-+
-+        ColorOp[1] = disable;
-+    }
-+}
-+
++// World-space alpha-blended aim geometry. Explicit depth state is required:
++// inherited HUD state is not a reliable occlusion contract.
 +technique ShipAimVolume
 +{
 +    pass p0
 +    {
++        ZEnable = true;
++        ZWriteEnable = false;
 +        Lighting = false;
 +        CullMode = none;
 +        AlphaTestEnable = false;
 +        AlphaBlendEnable = true;
 +        SrcBlend = srcalpha;
 +        DestBlend = invsrcalpha;
-+        ZWriteEnable = false;
-+
 +        ColorOp[0] = selectarg1;
 +        ColorArg1[0] = diffuse;
-+
 +        AlphaOp[0] = selectarg1;
 +        AlphaArg1[0] = diffuse;
-+
++        ColorOp[1] = disable;
++    }
++}
++technique ShipAimFootprint
++{
++    pass p0
++    {
++        ZEnable = true;
++        ZWriteEnable = false;
++        Lighting = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = invsrcalpha;
++        ColorOp[0] = selectarg1;
++        ColorArg1[0] = diffuse;
++        AlphaOp[0] = selectarg1;
++        AlphaArg1[0] = diffuse;
 +        ColorOp[1] = disable;
 +    }
 +}
