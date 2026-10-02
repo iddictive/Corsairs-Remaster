@@ -14,7 +14,7 @@ Features:
 9. Contraband fleet/class freedom (refusal only when moored directly under town fort).
 10. Field repair scaling at sea (scales with Carpenter skill up to 65-70%).
 11. Responsive officer AI in combat (officers engage immediately when player is attacked).
-12. Player combat navigation (subtle push through allies/blocking NPCs).
+12. Player combat navigation retired to the engine (player-fight-push.patch).
 13. Cabin chest access and constant officer auto-supply outside combat.
 14. Clear provisions/rum display (ship vs squadron quantities and days).
 15. Global map pursuit timeout & multi-encounter sea battle transition.
@@ -297,7 +297,7 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
 # 6. AIShip.c (Sea Surrender & Treachery)
 # ---------------------------------------------------------------------------
 AI_SHIP_PATH = "PROGRAM/sea_ai/AIShip.c"
-AI_SHIP_BASE = "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449"
+AI_SHIP_BASE = "7f11bdbee50e66ca5a9ac8156790ebce6b4bd78689f02743597dd83ddc2a7b24"
 
 AI_SURRENDER_CHECK_OLD = enc("""					int   SailsPercent    = sti(rCharacter.Ship.SP);
 			        float HPPercent       = GetHullPercent(rCharacter);
@@ -715,7 +715,11 @@ def prepare_lai_officer(data: bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# 13. LAi_player.c (Player Push/Nudge through blocking characters)
+# 13. LAi_player.c (RETIRED: push is engine-owned)
+# The officer-teleport workaround is removed: experiments/native-metal
+# player-fight-push.patch shoves every bystander in Supervisor::Update, so
+# the reviewed file is stock. The preparer stays as an identity guard so
+# gameplay sync restores the stock revision and still fails closed on drift.
 # ---------------------------------------------------------------------------
 LAI_PL_PATH = "PROGRAM/Loc_ai/types/LAi_player.c"
 LAI_PL_BASE = "c46c105d6ef2c36f803b60144978f42f3ad38c4938d3078a619e16fb540b7676"
@@ -733,42 +737,9 @@ LAI_PL_UPDATE_OLD = enc("""	if(LAi_IsFightMode(chr))
 		chr.chr_ai.type.weapontime = "0";
 	}""")
 
-LAI_PL_UPDATE_NEW = enc("""	if(LAi_IsFightMode(chr))
-	{
-		time = stf(chr.chr_ai.type.weapontime) + dltTime;
-		chr.chr_ai.type.weapontime = time;
-		if(time > 300.0)
-		{
-			chr.chr_ai.type.weapontime = "0";
-			SendMessage(chr, "lsl", MSG_CHARACTER_EX_MSG, "ChangeFightMode", false);
-		}
-		if (SendMessage(chr, "ls", MSG_CHARACTER_EX_MSG, "IsActive") != 0)
-		{
-			int nearCount = FindNearCharacters(chr, 0.9, -1.0, 60.0, 0.001, false, true);
-			for (int nc = 0; nc < nearCount; nc++)
-			{
-				int blockIdx = sti(chrFindNearCharacters[nc].index);
-				if (blockIdx >= 0 && blockIdx != sti(chr.index))
-				{
-					ref blocker = &Characters[blockIdx];
-					if (IsCompanion(blocker) || IsOfficer(blocker))
-					{
-						float bx, by, bz, bAy;
-						GetCharacterPos(blocker, &bx, &by, &bz);
-						GetCharacterAy(chr, &bAy);
-						TeleportCharacterToPos(blocker, bx + 0.3 * sin(bAy + 1.57), by, bz + 0.3 * cos(bAy + 1.57));
-					}
-				}
-			}
-		}
-	}else{
-		chr.chr_ai.type.weapontime = "0";
-	}""")
-
-
 def prepare_lai_player(data: bytes) -> bytes:
     if data.count(LAI_PL_UPDATE_OLD) != 1: raise RuntimeError("LAi_player update anchor mismatch")
-    return data.replace(LAI_PL_UPDATE_OLD, LAI_PL_UPDATE_NEW)
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -1041,7 +1012,7 @@ UPDATED = {
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
     "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
-    "PROGRAM/sea_ai/AIShip.c": "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
+    "PROGRAM/sea_ai/AIShip.c": "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
     "PROGRAM/scripts/ShipsUtilites.c": "d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",
@@ -1050,7 +1021,7 @@ UPDATED = {
     "PROGRAM/battle_interface/utils.c": "14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b",
     "PROGRAM/battle_interface/BattleInterface.c": "fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d",
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
-    "PROGRAM/Loc_ai/types/LAi_player.c": "f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3",
+    "PROGRAM/Loc_ai/types/LAi_player.c": "c46c105d6ef2c36f803b60144978f42f3ad38c4938d3078a619e16fb540b7676",  # stock; push is engine-owned
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
     "PROGRAM/interface/ship.c": "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561",
     "RESOURCE/INI/interfaces/ship.ini": "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa",

@@ -1,5 +1,5 @@
 diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src/deck_camera.cpp
-index 3c34d295..d14d5ebe 100644
+index 3c34d29..bf321c4 100644
 --- a/src/libs/sea_cameras/src/deck_camera.cpp
 +++ b/src/libs/sea_cameras/src/deck_camera.cpp
 @@ -1,6 +1,10 @@
@@ -225,7 +225,59 @@ index 3c34d295..d14d5ebe 100644
      if (speed != 0.f)
      {
          CVECTOR src, dst;
-@@ -293,16 +454,87 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+@@ -182,7 +343,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+             src.x = dst.x = vRes.x;
+             src.z = dst.z = vRes.z;
+             float htmp;
+-            htmp = 500.f - 1000.f * MultiTrace(src, dst, camera_pos.y);
++            htmp = 500.f - 1000.f * MultiTrace(src, dst, vRes.y);
+             if (htmp >= -500.f && vRes.y - htmp < MEN_STEP_UP && htmp - vRes.y < MEN_STEP_UP)
+             {
+                 if (!GetCrossXZ(vRes, vShift, (p1 = g_gv0), (p2 = g_gv1), vRes))
+@@ -198,7 +359,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+                     // determine camera height
+                     src.x = dst.x = vRes.x;
+                     src.z = dst.z = vRes.z;
+-                    auto tmp = MultiTrace(src, dst, camera_pos.y); // pathNode->geo->Trace(src,dst);
++                    auto tmp = MultiTrace(src, dst, vRes.y); // pathNode->geo->Trace(src,dst);
+                     if (tmp <= 1.f)
+                     {
+                         vRes.y = 500.f - 1000.f * tmp;
+@@ -250,7 +411,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+                         src.x = dst.x = vRes.x;
+                         src.z = dst.z = vRes.z;
+                         speed -= len;
+-                        if (MultiTrace(src, dst, camera_pos.y) <= 1.f)
++                        if (MultiTrace(src, dst, vRes.y) <= 1.f)
+                         {
+                             prev_res = vRes;
+                         }
+@@ -259,7 +420,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+                             vRes -= vShift * MEN_STEP_MIN;
+                             src.x = dst.x = vRes.x;
+                             src.z = dst.z = vRes.z;
+-                            if (MultiTrace(src, dst, camera_pos.y) > 1.f)
++                            if (MultiTrace(src, dst, vRes.y) > 1.f)
+                                 break;
+                         }
+                     }
+@@ -278,7 +439,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+             // check if the camera is in a suitable place
+             src.x = dst.x = vRes.x;
+             src.z = dst.z = vRes.z;
+-            auto fTmp = MultiTrace(src, dst, camera_pos.y);
++            auto fTmp = MultiTrace(src, dst, vRes.y);
+             // float fDist = 1000.f;
+             // if(fTmp<=1.f) fDist = src.y + fTmp*(dst.y-src.y) - camera_pos.y;
+             if (fTmp <= 1.f)
+@@ -287,22 +448,93 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+             {
+                 src.x = dst.x = prev_res.x;
+                 src.z = dst.z = prev_res.z;
+-                if (MultiTrace(src, dst, camera_pos.y) <= 1.f)
++                if (MultiTrace(src, dst, prev_res.y) <= 1.f)
+                     camera_pos = prev_res;
+             }
          }
      }
 
@@ -522,7 +574,7 @@ index 00000000..db137551
 +        const CVECTOR candidate = origin + up * distance;
 +        if (~(candidate - closestPoint(candidate, a, b, c)) > .0001f)
 +            return;
-+        const bool withinStep = distance <= maxRise;
++        const bool withinStep = distance >= -maxRise && distance <= maxRise;
 +        if (withinStep)
 +        {
 +            if (preferred && distance <= bestRise)
