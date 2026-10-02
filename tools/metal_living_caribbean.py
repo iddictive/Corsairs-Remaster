@@ -910,7 +910,7 @@ def prepare_ship_interface(data: bytes) -> bytes:
 SHIP_INI_PATH = "RESOURCE/INI/interfaces/ship.ini"
 SHIP_INI_BASE = "e5822481464d182b80c2e89318e02e6183ec8e3d934bfd3aa0b3e89148cc7b4a"
 SHIP_INI_ITEM_OLD = enc("item = 403,TEXTBUTTON2,CREW_MORALE_BUTTON")
-SHIP_INI_ITEM_NEW = enc("item = 403,TEXTBUTTON2,CREW_MORALE_BUTTON\\nitem = 403,TEXTBUTTON2,CHEST_BUTTON")
+SHIP_INI_ITEM_NEW = enc("item = 403,TEXTBUTTON2,CREW_MORALE_BUTTON\nitem = 403,TEXTBUTTON2,CHEST_BUTTON")
 SHIP_INI_NODE_OLD = enc("nodelist = TABLE_LIST,TABLE_OTHER,SHIPS_SCROLL,CREW_MORALE_BUTTON,CREW_PARTITION")
 SHIP_INI_NODE_NEW = enc("nodelist = TABLE_LIST,TABLE_OTHER,SHIPS_SCROLL,CREW_MORALE_BUTTON,CREW_PARTITION,CHEST_BUTTON")
 
@@ -1054,7 +1054,7 @@ UPDATED = {
     "PROGRAM/Loc_ai/types/LAi_player.c": "f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3",
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
     "PROGRAM/interface/ship.c": "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561",
-    "RESOURCE/INI/interfaces/ship.ini": "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa",
+    "RESOURCE/INI/interfaces/ship.ini": "5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d",
     "PROGRAM/worldmap/worldmap_globals.c": "bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe",
     "PROGRAM/worldmap/worldmap_reload.c": "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1",
 }
@@ -1063,6 +1063,7 @@ UPDATED = {
 # Previously reviewed installed revisions may be upgraded, but are never used
 # as layer inputs: always compose from the current journal-enabled baseline.
 PREVIOUS = {
+    SHIP_INI_PATH: {"751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
     AI_SHIP_PATH: {
         "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",
         "57b69d139b89309178f0ce5304dbe4cef9d2a70fa50b399b5bd0abe0b4427682",
