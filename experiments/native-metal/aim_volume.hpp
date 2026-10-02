@@ -348,8 +348,18 @@ float3 aim_solid_step(uint2 pixel,int2 direction,float depth,float3 receiver,uin
   bool a=aim_solid_neighbor(int2(pixel)-direction,depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth,left);
   bool b=aim_solid_neighbor(int2(pixel)+direction,depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth,right);
   left=receiver-left;right=right-receiver;
-  if(a&&b){if(dot(left,right)<=0.f)return float3(0.f);return length(left)<=length(right)?left:right;}
-  return a?left:(b?right:float3(0.f));
+  // A real bump can make the two accepted one-sided steps oppose along the
+  // camera ray. Their symmetric secant stays continuous through that extremum;
+  // rejecting it erased the rim even at an eligible pixel on the density edge.
+  if(a&&b)return (left+right)*.5f;
+  if(a||b)return a?left:right;
+  // With no safe neighbor, estimate stroke width on the current pixel's depth
+  // plane. This reads no other surface depth and never changes eligibility.
+  float2 uv=(float2(pixel)+.5f+float2(direction)-u.viewport.xy)/u.viewport.zw;
+  float4 flat=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,depth,1.f);
+  if(abs(flat.w)<1.e-8f)return float3(0.f);
+  float3 step=flat.xyz/flat.w-receiver;
+  return all(isfinite(step))?step:float3(0.f);
 }
 // Relation identity comes from depth written by the actual registered model
 // scope. Collision meshes, material colors and nearby pixels are not proxies.
@@ -768,7 +778,7 @@ class SoftAimVolume {
     [encoder setFragmentTexture:modelReady?model_.depth:colorSnapshot_ atIndex:6];[encoder setFragmentTexture:solidSupport_ atIndex:7];
     [encoder setFragmentSamplerState:waterSampler_ atIndex:0];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v4: smooth contact field + actual model/rigging relation ownership (air alpha <= 0.22)\n");}
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v4.1: local curved-surface support + continuous contour derivatives (air alpha <= 0.22)\n");}
     return true;
   }
 

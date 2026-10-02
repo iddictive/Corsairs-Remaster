@@ -2,11 +2,11 @@
 
 ## Status
 
-Source candidate based on `cc42b40`. Runtime feedback showed that a pixel-sized
-rounding filter could not fix the large angular footprint, and broken contours
-made relation colors difficult to read. This revision changes the contact region
-and actual rendered ownership. Native Metal compilation, appearance, motion and
-frame-time acceptance remain pending.
+The rounded region and palette were accepted in PR9 runtime feedback. This
+follow-up addresses two reproduced causes of surface disappearance: local solid
+curvature was estimated from a triangle's own vertices, and valid depth bumps
+could zero the screen-space contour derivative. The region shape is unchanged.
+Native motion replay is still needed to verify this correction on rough objects.
 
 ## Contract
 
@@ -80,11 +80,16 @@ Each physical-support projector keeps a 4×4 nominal-speed grid and 2×2 grids a
 live speed limits. Twelve optional probes per cell bound refinement (355 maximum
 marches per projector; uniform water 131, uniform solid 227). Same-first-water fans
 form a retained 2048×2048 coverage atlas. Same-first-solid fans form bounded surface
-prisms; their thickness comes from measured local sample deviation plus 1.5 cm, with
-refinement or rejection above 0.5 m. Current-depth uncertainty is handled as a depth
+prisms; their thickness uses all five independent corner/center witnesses of the
+local launch subcell plus 1.5 cm, with refinement or rejection above 0.5 m. Receiver
+mismatches are classified in launch space, so an opposite mixed corner does not
+erase an otherwise valid child triangle. Current-depth uncertainty is handled as a depth
 bin, not arbitrary world expansion. Character prisms require exact receiver tokens.
 Mixed receiver samples clip/refine visibility and never gain a line of their own.
-No physical trajectory is extended past its first stopping impact.
+Solid contour width uses the symmetric secant of accepted depth neighbors. If no
+safe neighbor exists, a current-depth pixel tangent supplies only stroke width;
+it does not borrow another surface or expand eligibility. No physical trajectory
+is extended past its first stopping impact.
 
 Common downrange sections preserve actual muzzle/contact endpoints, reversed or
 turning paths, thin rolled batteries and empty axial gaps. Exact hull-edge planes

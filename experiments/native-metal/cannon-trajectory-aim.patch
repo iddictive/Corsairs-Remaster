@@ -107,7 +107,7 @@ index 378d01c..96ec69f 100644
          return;
 
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-index dc92b39..e4e63bc 100644
+index dc92b39..7f775b7 100644
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 @@ -2,8 +2,17 @@
@@ -299,7 +299,7 @@ index dc92b39..e4e63bc 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,850 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,862 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -903,7 +903,6 @@ index dc92b39..e4e63bc 100644
 +        struct WaterSample {AimHit hit;float yaw,elevation;};
 +        struct Sample {float yaw,elevation;AimPath path;};
 +        std::vector<Sample> cache;
-+        std::vector<WaterSample> witnesses;
 +        int cellSamples=0;bool baseSamples=true;
 +        auto sample=[&](float yaw,float elevation)->WaterSample
 +        {
@@ -916,7 +915,7 @@ index dc92b39..e4e63bc 100644
 +                angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
 +            cache.push_back({yaw,elevation,path});retainContact(path);return {path.hit,yaw,elevation};
 +        };
-+        auto emitContactDepth=[&](auto &&self,const WaterSample &a,const WaterSample &b,const WaterSample &c,int depth)->void
++        auto emitContactDepth=[&](auto &&self,const WaterSample &a,const WaterSample &b,const WaterSample &c,const std::vector<WaterSample> &witnesses,int depth)->void
 +        {
 +            namespace gpu=storm::sea_ai::manual_aim;
 +            if(!a.hit.valid||!b.hit.valid||!c.hit.valid||a.hit.surface!=b.hit.surface||a.hit.surface!=c.hit.surface)return;
@@ -932,17 +931,23 @@ index dc92b39..e4e63bc 100644
 +            if(contactTriangles.size()>=gpu::maxContactTriangles)return;
 +            const CVECTOR edge0=y-x,edge1=z-x;CVECTOR normal=edge0^edge1;
 +            if(~normal<1e-10f)return;normal=!normal;
-+            const double aa=edge0|edge0,ab=edge0|edge1,bb=edge1|edge1,den=aa*bb-ab*ab;
-+            if(den<1e-12)return;
++            // The opposite corners of this local launch subcell are independent
++            // curvature witnesses. Filtering by the child world triangle retained
++            // only its own vertices, reported zero error, and clipped gently bowed
++            // hulls/cliffs to a15mm sheet. Do not borrow witnesses from other cells.
++            const double uy=b.yaw-a.yaw,ue=b.elevation-a.elevation;
++            const double vy=c.yaw-a.yaw,ve=c.elevation-a.elevation,den=uy*ve-ue*vy;
++            if(std::fabs(den)<1e-12)return;
 +            float error=0.f;
 +            for(const auto &w:witnesses)
 +            {
-+                if(!w.hit.valid)continue;
-+                const CVECTOR d=w.hit.point-x;const double da=d|edge0,db=d|edge1;
-+                const double u=(bb*da-ab*db)/den,v=(aa*db-ab*da)/den;
-+                if(u<-.03||v<-.03||u+v>1.03)continue;
-+                if(w.hit.surface!=a.hit.surface)return; // never span a sampled shadow
-+                error=std::max(error,std::fabs(d|normal));
++                const double wy=w.yaw-a.yaw,we=w.elevation-a.elevation;
++                const double u=(wy*ve-we*vy)/den,v=(uy*we-ue*wy)/den;
++                const bool inside=u>=-1e-5&&v>=-1e-5&&u+v<=1.+1e-5;
++                // A different receiver only invalidates the launch triangle it is
++                // actually inside; an opposite mixed corner must not erase it.
++                if(!w.hit.valid||w.hit.surface!=a.hit.surface){if(inside)return;continue;}
++                error=std::max(error,std::fabs((w.hit.point-x)|normal));
 +            }
 +            // Only measured local curvature expands a prism; large unresolved
 +            // deviations are omitted rather than tinting a different surface.
@@ -953,8 +958,8 @@ index dc92b39..e4e63bc 100644
 +                if(depth>=1||cellSamples>=12)return;
 +                const auto middle=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
 +                if(!middle.hit.valid||middle.hit.surface!=a.hit.surface)return;
-+                witnesses.push_back(middle);
-+                self(self,a,b,middle,depth+1);self(self,b,c,middle,depth+1);self(self,c,a,middle,depth+1);
++                const std::vector<WaterSample> local{{a,b,c,middle}};
++                self(self,a,b,middle,local,depth+1);self(self,b,c,middle,local,depth+1);self(self,c,a,middle,local,depth+1);
 +                return;
 +            }
 +            uint32_t token=0;
@@ -968,13 +973,15 @@ index dc92b39..e4e63bc 100644
 +                {z.x,z.y,z.z},0u,{normal.x,normal.y,normal.z},0.f});
 +        };
 +        auto emitContact=[&](const WaterSample &a,const WaterSample &b,const WaterSample &c)
-+        {emitContactDepth(emitContactDepth,a,b,c,0);};
++        {emitContactDepth(emitContactDepth,a,b,c,{a,b,c},0);};
 +        auto contactFan=[&](const WaterSample &a,const WaterSample &b,const WaterSample &c,
 +                            const WaterSample &d,const WaterSample &center)
 +        {
 +            if(!center.hit.valid)return;
 +            const std::array<WaterSample,4> ring{{a,b,c,d}};
-+            for(size_t i=0;i<ring.size();++i)emitContact(center,ring[i],ring[(i+1)%ring.size()]);
++            const std::vector<WaterSample> local{{a,b,c,d,center}};
++            for(size_t i=0;i<ring.size();++i)
++                emitContactDepth(emitContactDepth,center,ring[i],ring[(i+1)%ring.size()],local,0);
 +        };
 +        constexpr int maxDivisions=4;
 +        const int divisions=speedLayer==0?4:2;const float step=2.f/divisions;
@@ -999,7 +1006,6 @@ index dc92b39..e4e63bc 100644
 +            const std::array<WaterSample,8> ring{{a,ab,b,bc,c,cd,d,da}};
 +            const bool uniform=center.hit.valid&&std::all_of(ring.begin(),ring.end(),
 +                [&](const WaterSample &point){return point.hit.valid&&point.hit.surface==receiver;});
-+            witnesses.assign(ring.begin(),ring.end());witnesses.push_back(center);
 +            if(uniform&&receiver==0)
 +            {
 +                for(size_t edge=0;edge<ring.size();++edge)
@@ -1009,13 +1015,19 @@ index dc92b39..e4e63bc 100644
 +            // Refine in launch space. All new vertices are first physical contacts.
 +            const auto q0=sample(u+step*.25f,v+step*.25f),q1=sample(u+step*.75f,v+step*.25f);
 +            const auto q2=sample(u+step*.75f,v+step*.75f),q3=sample(u+step*.25f,v+step*.75f);
-+            for(const auto &q:{q0,q1,q2,q3})witnesses.push_back(q);
 +            contactFan(a,ab,center,da,q0);
 +            contactFan(ab,b,bc,center,q1);
 +            contactFan(center,bc,c,cd,q2);
 +            contactFan(da,center,cd,d,q3);
 +            if(center.hit.valid&&!uniform)
-+                manual_aim::contactPatch(center,step*.125f,step*.125f,sample,emitContact);
++            {
++                const float radius=step*.125f;
++                const auto right=sample(center.yaw+radius,center.elevation);
++                const auto top=sample(center.yaw,center.elevation+radius);
++                const auto left=sample(center.yaw-radius,center.elevation);
++                const auto bottom=sample(center.yaw,center.elevation-radius);
++                contactFan(right,top,left,bottom,center);
++            }
 +        }
 +    }
 +        }
