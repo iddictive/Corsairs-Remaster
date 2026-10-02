@@ -971,11 +971,88 @@ SHIP_CHEST_VIS_NEW = enc("""	GameInterface.TABLE_LIST.select = 0;
 	SetNodeUsing("CHEST_BUTTON", CabinChest_CanOpen());""")
 
 
+# Replace the legacy fleet-only rows, rather than adding another supply layer.
+SHIP_SUPPLY_OLD = enc("""		// еда и ром -->
+		int iColor, iFood, iRum;
+		string sText;
+		// в эскадре
+		if (GetCompanionQuantity(pchar) > 1) // больше 1 ГГ
+		{
+			sText = "Провианта в эскадре на ";
+			iFood = CalculateFood();
+			sText = sText + FindRussianDaysString(iFood);
+			SetFormatedText("FOOD", sText);
+			if(iFood >= 5)
+			{
+				iColor = argb(255,255,255,192);
+			}
+			if(iFood > 10)
+			{
+				iColor = argb(255,192,255,192);
+			}
+			if(iFood < 5)
+			{
+				iColor = argb(255,255,192,192);
+			}
+			SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,"FOOD", 8,-1,iColor);
+\t\t\t
+			sText = "Рома в эскадре на ";
+			iRum = CalculateRum();
+			sText = sText + FindRussianDaysString(iRum);
+			SetFormatedText("RUM", sText);
+			if(iRum >= 5)
+			{
+				iColor = argb(255,255,255,192);
+			}
+			if(iRum > 10)
+			{
+				iColor = argb(255,192,255,192);
+			}
+			if(iRum < 5)
+			{
+				iColor = argb(255,255,192,192);
+			}
+			SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,"RUM", 8,-1,iColor);
+\t\t\t
+		}
+		// на одном корабле
+		SetFoodShipInfo(xi_refCharacter, "FOOD_SHIP");
+		SetRumShipInfo(xi_refCharacter, "RUM_SHIP");
+		// еда и ром <--""")
+SHIP_SUPPLY_NEW = enc("""		// Two resource blocks, with selected-ship and squadron durations kept distinct.
+		int iColor;
+		int iFood = CalculateShipFood(xi_refCharacter);
+		int iRum = CalculateShipRum(xi_refCharacter);
+		string foodText = "Провиант" + NewStr() + "Судно: " + FindRussianDaysString(iFood);
+		string rumText = "Ром" + NewStr() + "Судно: " + FindRussianDaysString(iRum);
+		if (GetCompanionQuantity(pchar) > 1)
+		{
+			foodText = foodText + NewStr() + "Эскадра: " + FindRussianDaysString(CalculateFood());
+			rumText = rumText + NewStr() + "Эскадра: " + FindRussianDaysString(CalculateRum());
+		}
+		SetFormatedText("FOOD_SHIP", foodText);
+		SetFormatedText("RUM_SHIP", rumText);
+		// Match SetFoodShipInfo/SetRumShipInfo selected-ship warning thresholds.
+		iColor = argb(255,255,192,192);
+		if (iFood >= 5) iColor = argb(255,255,255,192);
+		if (iFood > 10) iColor = argb(255,192,255,192);
+		SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,"FOOD_SHIP",8,-1,iColor);
+		iColor = argb(255,255,192,192);
+		if (iRum >= 3) iColor = argb(255,255,255,192);
+		if (iRum >= 10) iColor = argb(255,192,255,192);
+		SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,"RUM_SHIP",8,-1,iColor);""")
+
+
 def prepare_ship_interface(data: bytes) -> bytes:
     if data.count(SHIP_CHEST_CMD_OLD) != 1: raise RuntimeError("ship.c chest command anchor mismatch")
     if data.count(SHIP_CHEST_VIS_OLD) != 1: raise RuntimeError("ship.c chest visibility anchor mismatch")
     data = data.replace(SHIP_CHEST_CMD_OLD, SHIP_CHEST_CMD_NEW)
-    return data.replace(SHIP_CHEST_VIS_OLD, SHIP_CHEST_VIS_NEW)
+    data = data.replace(SHIP_CHEST_VIS_OLD, SHIP_CHEST_VIS_NEW)
+    if data.count(SHIP_SUPPLY_OLD) != 1: raise RuntimeError("ship.c supply block anchor mismatch")
+    data = data.replace(SHIP_SUPPLY_OLD, SHIP_SUPPLY_NEW)
+    old_clear = enc('\tSetFormatedText("FOOD", "");\n')
+    if data.count(old_clear) != 1: raise RuntimeError("ship.c legacy supply reset anchor mismatch")
+    return data.replace(old_clear, b"")
 
 
 # ---------------------------------------------------------------------------
@@ -1018,13 +1095,66 @@ glowoffset = 0,0
 """)
 
 
+SHIP_SUPPLY_INI_OLD = enc("""[FOOD_SHIP]
+position = 665,90,780,117
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+[RUM_SHIP]
+position = 665,117,780,144
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+[FOOD]
+position = 665,144,780,171
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+[RUM]
+position = 665,171,780,198
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+""")
+SHIP_SUPPLY_INI_NEW = enc("""[FOOD_SHIP]
+position = 665,90,780,144
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+[RUM_SHIP]
+position = 665,144,780,198
+fontScale = 0.75
+lineSpace = 13
+alignment = center
+Color = 255,255,255,255
+
+""")
+
+
 def prepare_ship_ini(data: bytes) -> bytes:
     if data.count(SHIP_INI_ITEM_OLD) != 1: raise RuntimeError("ship.ini chest item anchor mismatch")
     if data.count(SHIP_INI_NODE_OLD) != 1: raise RuntimeError("ship.ini chest nodelist anchor mismatch")
     if data.count(SHIP_INI_SECTION_OLD) != 1: raise RuntimeError("ship.ini chest section anchor mismatch")
     data = data.replace(SHIP_INI_ITEM_OLD, SHIP_INI_ITEM_NEW)
     data = data.replace(SHIP_INI_NODE_OLD, SHIP_INI_NODE_NEW)
-    return data.replace(SHIP_INI_SECTION_OLD, SHIP_INI_SECTION_NEW)
+    data = data.replace(SHIP_INI_SECTION_OLD, SHIP_INI_SECTION_NEW)
+    if data.count(SHIP_SUPPLY_INI_OLD) != 1: raise RuntimeError("ship.ini supply layout anchor mismatch")
+    data = data.replace(SHIP_SUPPLY_INI_OLD, SHIP_SUPPLY_INI_NEW)
+    for node in ("FOOD", "RUM"):
+        old_item = enc(f"item = 201,FORMATEDTEXT,{node}\n")
+        if data.count(old_item) != 1: raise RuntimeError(f"ship.ini legacy {node} item anchor mismatch")
+        data = data.replace(old_item, b"")
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -1240,8 +1370,8 @@ UPDATED = {
     "PROGRAM/Loc_ai/types/LAi_officer.c": "127607b8f0bb83a9da3b6f2d2809c70b56bf46cc0786d8bca1856e624b599f5f",
     "PROGRAM/Loc_ai/types/LAi_player.c": "c46c105d6ef2c36f803b60144978f42f3ad38c4938d3078a619e16fb540b7676",
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
-    "PROGRAM/interface/ship.c": "d14907755256cbc4bfc470f510a320b23c02720ced975ea2dfc680b7016a211d",
-    "RESOURCE/INI/interfaces/ship.ini": "5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d",
+    "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
+    "RESOURCE/INI/interfaces/ship.ini": "b4e7ec7de0a555abbed901e843d567093c670bb724dc11ab40d9a208c0d68db6",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
     "PROGRAM/worldmap/worldmap_reload.c": "cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627",
 }
@@ -1255,8 +1385,8 @@ PREVIOUS = {
     "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},
     "PROGRAM/battle_interface/utils.c": {"14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b"},
     LAI_PL_PATH: {"f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3"},
-    "PROGRAM/interface/ship.c": {"d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561"},
-    "RESOURCE/INI/interfaces/ship.ini": {"751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
+    "PROGRAM/interface/ship.c": {"d14907755256cbc4bfc470f510a320b23c02720ced975ea2dfc680b7016a211d", "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561"},
+    "RESOURCE/INI/interfaces/ship.ini": {"5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d", "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
     AI_SHIP_PATH: {
         "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
         "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",
