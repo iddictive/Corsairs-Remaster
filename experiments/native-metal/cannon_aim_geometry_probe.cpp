@@ -520,6 +520,38 @@ int main() {
     check(slabInside(degenerateSlab,{0.f,0.f},0.f)&&slabInside(degenerateSlab,{-1.f,0.f},1.f)&&slabInside(degenerateSlab,{1.f,0.f},1.f),"degenerate slab retains all true endpoint vertices");
     check(manual_aim::slabPlanes({},tilted).empty(),"empty endpoint yields no fabricated slab");
 
+    // The user's invisible rectangular area chooses depth only, independently
+    // each call. A thin off-center mast must not snap the actual shooting ray.
+    const CVECTOR rangeCamera(10.f,20.f,-5.f),rangeForward(0.f,0.f,1.f);
+    const CVECTOR rangeRight(1.f,0.f,0.f),rangeUp(0.f,1.f,0.f);
+    const float tx=60.f/2048.f,ty=34.f/1285.f;
+    const CVECTOR mastDelta(2.f,1.f,100.f);
+    check(manual_aim::insideRangeAperture(mastDelta,rangeForward,rangeRight,rangeUp,tx,ty),
+          "off-center thin mast intersects the actual rectangular range area");
+    check(!manual_aim::insideRangeAperture(CVECTOR(3.f,0.f,100.f),rangeForward,rangeRight,rangeUp,tx,ty),
+          "mast beyond rectangle releases without retained target");
+    check(!manual_aim::insideRangeAperture(CVECTOR(0.f,2.7f,100.f),rangeForward,rangeRight,rangeUp,tx,ty),
+          "shorter rectangle height matches user aspect ratio");
+    check(!manual_aim::insideRangeAperture(CVECTOR(0.f,0.f,-100.f),rangeForward,rangeRight,rangeUp,tx,ty),
+          "geometry behind camera never supplies range");
+    const auto rangeTarget=manual_aim::centerRangeTarget(rangeCamera,rangeForward,mastDelta|rangeForward);
+    check(near(rangeTarget,rangeCamera+CVECTOR(0.f,0.f,100.f)),"aperture changes depth without aiming toward side mast");
+    check(near(!(rangeTarget-rangeCamera),rangeForward),"selected depth preserves exact center-plus direction");
+    const float rollAngle=.7f;
+    const CVECTOR rolledRight(std::cos(rollAngle),std::sin(rollAngle),0.f);
+    const CVECTOR rolledUp(-std::sin(rollAngle),std::cos(rollAngle),0.f);
+    const CVECTOR rolledMast=rolledRight*2.f+rolledUp+rangeForward*100.f;
+    check(manual_aim::insideRangeAperture(rolledMast,rangeForward,rolledRight,rolledUp,tx,ty),
+          "screen rectangle follows rolled camera basis");
+    for(float depth:{40.f,500.f,100.f,500.f})
+        check(near(manual_aim::centerRangeTarget(rangeCamera,rangeForward,depth),rangeCamera+rangeForward*depth),
+              "repeated picks and closer obstruction are stateless");
+    using RelationVertex=storm::sea_ai::manual_aim::AimVolumeRelationVertex;
+    check(sizeof(RelationVertex)==16&&alignof(RelationVertex)==16&&offsetof(RelationVertex,color)==12,
+          "relation-mask POD layout matches packed GPU record");
+    check((storm::sea_ai::manual_aim::excludedReceiverColor&0xFF000000u)!=0,
+          "own-ship contact exclusion is distinct from neutral receiver RGB");
+
     std::cout<<checks<<" checks, "<<failures<<" failures\n";
     return failures?1:0;
 }

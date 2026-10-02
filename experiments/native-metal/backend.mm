@@ -440,6 +440,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  static UINT count(D3DPRIMITIVETYPE t,UINT n){return t==D3DPT_LINESTRIP?n+1:t==D3DPT_TRIANGLELIST?n*3:t==D3DPT_LINELIST?n*2:t==D3DPT_POINTLIST?n:n+2;}
  bool drawAimVolume(const storm::sea_ai::manual_aim::AimVolumeSection*sections,uint32_t sectionCount,
      const storm::sea_ai::manual_aim::AimVolumePlane*planes,uint32_t planeCount,
+     const storm::sea_ai::manual_aim::AimVolumeRelationVertex*relationVertices,uint32_t relationVertexCount,
      const float*axis,const float*lateral,const float*up,float readiness){
   // Only the live main perspective scene is supported. A missing safe volume
   // pass must never fall back to the old alpha-polygon corridor shell.
@@ -453,19 +454,20 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   if(std::abs(projectionMatrix.columns[2].w)<1.e-6f||std::abs(projectionMatrix.columns[3].w)>1.e-6f)
    return aimVolume.fail(storm_metal::SoftAimVolume::Camera,"non-perspective aim camera");
   storm_metal::AimVolumeFrame frame;
-  if(!aimVolume.buildFrame(sections,sectionCount,planes,planeCount,axis,lateral,up,readiness,landShadow.worldOrigin,
+  if(!aimVolume.buildFrame(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,axis,lateral,up,readiness,landShadow.worldOrigin,
       simd_mul(projectionMatrix,viewMatrix),inverseViewForDraw(viewMatrix),
       {float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)},frame))return false;
   if(!frame.scissor.width||!frame.scissor.height)return true;
   const auto sectionSlice=submissionBuffer(frame.sections.data(),frame.sections.size()*sizeof(frame.sections[0]));
   const auto planeSlice=submissionBuffer(planes,size_t(planeCount)*sizeof(*planes));
-  if(!sectionSlice.buffer||!planeSlice.buffer)return aimVolume.fail(storm_metal::SoftAimVolume::Resources,"cannot upload volume hull");
+  const auto relationSlice=submissionBuffer(frame.relationVertices.data(),frame.relationVertices.size()*sizeof(storm::sea_ai::manual_aim::AimVolumeRelationVertex));
+  if(!sectionSlice.buffer||!planeSlice.buffer||(relationVertexCount&&!relationSlice.buffer))return aimVolume.fail(storm_metal::SoftAimVolume::Resources,"cannot upload volume hull");
   finish();if(!command)command=[queue commandBuffer];
   const bool drawn=aimVolume.encode(metal,command,target->gpu,zbuffer->gpu,sectionSlice.buffer,sectionSlice.offset,
-      planeSlice.buffer,planeSlice.offset,frame);
+      planeSlice.buffer,planeSlice.offset,relationSlice.buffer,relationSlice.offset,frame);
   // The private pass is ended and Device.encoder stays nil. The next scene/HUD
   // draw restores its normal color/depth attachments and all D3D render state.
-  if(drawn){target->gpuDirty=true;if(profile.enabled){++profile.draws;profile.vertices+=3;}}
+  if(drawn){target->gpuDirty=true;if(profile.enabled){profile.draws+=relationVertexCount?2:1;profile.vertices+=3+relationVertexCount;}}
   return drawn;
  }
  bool prepareSeaScene(SeaUniform& u){
@@ -971,8 +973,9 @@ extern "C" void StormMetalDrawAdvancedParticles(void*pointer,const BridgeAdvance
 extern "C" bool StormMetalDrawCompactPrimitive(void*pointer,uint32_t primitiveType,uint32_t compactFVF,uint32_t primitiveCount,const void*vertices,uint32_t vertexStride){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawCompact(static_cast<D3DPRIMITIVETYPE>(primitiveType),compactFVF,primitiveCount,vertices,vertexStride);}
 extern "C" bool StormMetalDrawCompactIndexedPrimitive(void*pointer,uint32_t primitiveType,uint32_t minimum,uint32_t vertexCount,uint32_t primitiveCount,const void*indices,uint32_t indexFormat,const void*vertices,uint32_t vertexStride){return pointer&&indices&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawCompact(static_cast<D3DPRIMITIVETYPE>(primitiveType),static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->fvf,primitiveCount,vertices,vertexStride,indices,static_cast<D3DFORMAT>(indexFormat),minimum,vertexCount);}
 extern "C" bool StormMetalDrawAimVolume(void*pointer,const storm::sea_ai::manual_aim::AimVolumeSection*sections,uint32_t sectionCount,
-    const storm::sea_ai::manual_aim::AimVolumePlane*planes,uint32_t planeCount,const float*axis,const float*lateral,const float*up,float readiness){
- return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawAimVolume(sections,sectionCount,planes,planeCount,axis,lateral,up,readiness);
+    const storm::sea_ai::manual_aim::AimVolumePlane*planes,uint32_t planeCount,
+    const storm::sea_ai::manual_aim::AimVolumeRelationVertex*relationVertices,uint32_t relationVertexCount,const float*axis,const float*lateral,const float*up,float readiness){
+ return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawAimVolume(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,axis,lateral,up,readiness);
 }
 extern "C" bool StormMetalDrawGlyphInstances(void*pointer,const BridgeGlyph*glyphs,uint32_t count,float z,float rhw){return pointer&&(!count||glyphs)&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->drawBridge(glyphs,size_t(count)*sizeof(*glyphs),size_t(count)*6,@"bridge_glyph_vs",7,0,{z,rhw,0,0});}
 extern "C" unsigned StormMetalBeginWdmModel(void*pointer,unsigned role){if(!pointer||!storm::metal::world_map::validRole(role))return 0;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));unsigned previous=d->worldMapModelRole;d->worldMapModelRole=role;return previous;}
