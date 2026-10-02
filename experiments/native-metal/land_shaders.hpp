@@ -36,7 +36,13 @@ vertex O grass_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],
     float y=pos.y*l.vc[38].w+sqrt(abs(size.y-dot(wa.xy,wa.xy)))*offset.y;
     O o=landBase();o.p=xz.x*l.vc[32]+y*l.vc[33]+xz.y*l.vc[34]+l.vc[35];
     o.c=saturate(float4(l.vc[37].xyz+l.vc[38].xyz*light,wa.z));
-    o.uv01=float4(l.vc[16+tile].xy+offset.xy*l.vc[39].zw,0,0);return o;
+    o.uv01=float4(l.vc[16+tile].xy+offset.xy*l.vc[39].zw,0,0);
+    // Use the same clip-space w and fog states as island geometry and
+    // billboards; the fixed-function combiner applies fog to RGB after cutout.
+    float z=abs(o.p.w);if(u.fogParams.w==1)o.fog=exp(-u.fogParams.z*z);
+    else if(u.fogParams.w==2)o.fog=exp(-pow(u.fogParams.z*z,2.));
+    else if(u.fogParams.w==3)o.fog=clamp((u.fogParams.y-z)/max(.0001,u.fogParams.y-u.fogParams.x),0.,1.);
+    return o;
 }
 vertex O worldmap_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant U& u [[buffer(1)]],constant LandU& l [[buffer(2)]]) {
     const device uchar* raw=bytes+id*l.stride;const device float* f=(const device float*)raw;
