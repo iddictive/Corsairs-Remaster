@@ -105,6 +105,21 @@ def build_launch_environment(user_dir: Path, inherited: dict[str, str]) -> dict[
     return settings.launch_environment(user_dir, env)
 
 
+def rotate_launch_log(log_file: Path) -> None:
+    """Keep at most one previous session, so the player log stays bounded.
+
+    The engine writes raw stderr (diagnostics) into this file for the whole
+    run; without rotation it grows forever. An empty leftover is left in
+    place so a failed relaunch cannot discard the previous session.
+    """
+    try:
+        if log_file.stat().st_size == 0:
+            return
+        os.replace(log_file, log_file.with_name(log_file.name + ".1"))
+    except FileNotFoundError:
+        return
+
+
 def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
         description="Public launcher coordinator for Corsairs Iddictive Remaster."
@@ -194,8 +209,10 @@ def main() -> int:
         os.close(lock_fd)
         sys.exit(f"Error: Engine executable not found or not executable: {engine_binary}")
 
-    # Redirect logging to user state logs/launch.log
+    # Redirect logging to user state logs/launch.log, rotating one previous
+    # session to launch.log.1 before the engine starts appending.
     log_file = user_dir / "logs" / "launch.log"
+    rotate_launch_log(log_file)
     log_fd = os.open(str(log_file), os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
     os.dup2(log_fd, 1)
     os.dup2(log_fd, 2)

@@ -4,6 +4,8 @@
 # stripped, bundle Frameworks rpath wired, ad-hoc codesigned. Keeps one
 # backup per installed hash for instant rollback. Safe to run on every
 # stage: skips when the installed engine already matches the candidate.
+# Also syncs the reviewed public launcher resource (the player log redirect
+# owner) so a staged launcher change reaches the played app with the engine.
 set -euo pipefail
 root=$(cd "$(dirname "$0")" && pwd)
 staged="$root/.cache/build/bin/engine-1"
@@ -78,11 +80,24 @@ for name, known in originals.items():
         raise RuntimeError(f"Installed technique changed outside staging: {name}")
     if before != after:
         changes[target] = (before, after)
+# The public launcher owns the player log redirect, so a stale copy keeps
+# unbounded logging. Sync it like a technique: reviewed revisions only.
+launcher_source = root / "public_launcher.py"
+launcher_target = app / "Contents/Resources/public_launcher.py"
+launcher_known = {"89aa9a965743798983d0b06e69f585edab0961c9a5fdbff265861b32e94e32f8"}
+for path in (launcher_source, launcher_target):
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"Missing or linked launcher: {path}")
+before, after = launcher_target.read_bytes(), launcher_source.read_bytes()
+if before != after and digest(before) not in launcher_known:
+    raise RuntimeError("Installed launcher changed outside staging: public_launcher.py")
+if before != after:
+    changes[launcher_target] = (before, after)
 before, after = engine.read_bytes(), candidate.read_bytes()
 if before != after:
     changes[engine] = (before, after)
 if not changes:
-    print("Played app engine and techniques already match; install skipped.")
+    print("Played app engine, techniques and launcher already match; install skipped.")
 else:
     written = []
     try:
@@ -111,7 +126,7 @@ else:
         if failures:
             raise RuntimeError(f"{error}; installed rollback incomplete: {'; '.join(failures)}") from error
         raise
-    print("Installed engine and reviewed techniques; bundle signature verified.")
+    print("Installed engine, reviewed techniques and launcher; bundle signature verified.")
 INSTALL
 rm -f "$tmp"
 final_hash=$(shasum -a 256 "$dest" | awk '{print $1}')
