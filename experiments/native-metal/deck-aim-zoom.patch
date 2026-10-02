@@ -448,7 +448,29 @@ diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src
      if (!isOn() || !walkerVisible)
          return;
      if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId)))
-@@ -525,11 +593,15 @@
+@@ -212,8 +280,11 @@
+
+     pModel->Update();
+     CONTROL_STATE cs;
++    // Match both mouse axes to this frame's actual zoom without changing
++    // user sensitivity settings or unzoomed/spyglass camera input.
++    const float aimInputScale = 1.f / aimZoom.magnification();
+     core.Controls->GetControlState("DeckCamera_Turn_H", cs);
+-    camera_ang.y += fSensivityAzimuthAngle * 3.0f * static_cast<float>(cs.fValue);
++    camera_ang.y += fSensivityAzimuthAngle * 3.0f * static_cast<float>(cs.fValue) * aimInputScale;
+
+     core.Controls->GetControlState("DeckCamera_Left", cs);
+     if (!walkMode && cs.state == CST_ACTIVE)
+@@ -224,7 +295,7 @@
+         camera_ang.y += fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
+
+     core.Controls->GetControlState("DeckCamera_Turn_V", cs);
+-    camera_ang.x -= fSensivityHeightAngle * 3.0f * static_cast<float>(cs.fValue);
++    camera_ang.x -= fSensivityHeightAngle * 3.0f * static_cast<float>(cs.fValue) * aimInputScale;
+
+     if (camera_ang.x > CAMERA_MAX_X)
+         camera_ang.x = CAMERA_MAX_X;
+@@ -525,11 +596,15 @@
      }
 
      // set camera
