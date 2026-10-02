@@ -68,7 +68,7 @@ COMPOSITE_SHA256 = {
     "PROGRAM/scripts/islandships.c": "bc03feaf048837187e22bad6fc7671b860de0fe565cd7dace027b76bc96cca20",
     "PROGRAM/scripts/time_events.c": "9da55205414ac74922b3ae9fb0d1cde6de7257566c5f84536da2bc0921566e43",
     "PROGRAM/sea_ai/AISeaGoods.c": "39050a04396461aaf2cb05d59d8d1269f67e48de2b75af5ccebcb76f8b44e162",
-    "PROGRAM/sea_ai/AIShip.c": "b9a0639d4471e6aa95ad36da7d333f2decae8906b5cb979d2d8e1a8b760ecbe6",
+    "PROGRAM/sea_ai/AIShip.c": "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
     "PROGRAM/sea_ai/Cabin.c": "9334dc64ffcc17ebe991a82a64f2c69e63b288791ea69b16ad6964e8d1df2271",
     "PROGRAM/sea_ai/sea.c": "107f47b78d4a1fab38ad51bac1c0349bdafd1343a9ebb9eec20952a1fc213cd1",
     "PROGRAM/seadogs.c": "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",

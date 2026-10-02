@@ -18,7 +18,7 @@ BASE_SHA256 = {
     "PROGRAM/quests/quests.c": "4e3bbd97bfad571c631c3dcf17b0e6783279d652c78915b4a6f9149ec4654bdc",
     "PROGRAM/scripts/custody.c": "26dffe1eaefa640f0f489db839bcc8f4ee486a9e35216771ddcf5693a802a558",
     "PROGRAM/scripts/Crew.c": "072f41ae931d3c19946dab7aca5da9fa7f85c76e14aeebd8836c102a9230b490",
-    "PROGRAM/sea_ai/AIShip.c": "b9a0639d4471e6aa95ad36da7d333f2decae8906b5cb979d2d8e1a8b760ecbe6",
+    "PROGRAM/sea_ai/AIShip.c": "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
     "PROGRAM/seadogs.c": "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",
     "PROGRAM/QuestBook/QuestBook_New.txt": "381bd67437fcabb49abca3df8f5253b3113dec685d628d01933bf5b0610cc349",
 }
@@ -204,7 +204,7 @@ UPDATED_SHA256 = {
     "PROGRAM/quests/quests.c": "9dddd1e68b627ba53451df039c17a224c70119d4d21381eb82c3dcc356f0ec3c",
     "PROGRAM/scripts/custody.c": "86471b60239f60035271a4d033a341033f6a25e7c45d45714db3014b4a5b9ffe",
     "PROGRAM/scripts/Crew.c": "07c1df47aac70ed0c0bc3cf4b01a6bd70564c3cd5e45b629e063d4cfabdae8d2",
-    "PROGRAM/sea_ai/AIShip.c": "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",
+    "PROGRAM/sea_ai/AIShip.c": "7f11bdbee50e66ca5a9ac8156790ebce6b4bd78689f02743597dd83ddc2a7b24",
     "PROGRAM/seadogs.c": "cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050",
     "PROGRAM/QuestBook/QuestBook_New.txt": "0b44d01978f7bc69d1fecb95138a1e66bcf194295b6ae18915cd3272a860f3cf",
 }

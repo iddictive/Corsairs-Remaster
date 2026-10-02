@@ -653,7 +653,7 @@ PATCH = PatchSet(
         FilePatch(
             "PROGRAM/sea_ai/AIShip.c",
             "080bfba46b6486bce0917c04c2af407649d0a2dc3a548627ec8ab49cc1ef0f46",
-            "b9a0639d4471e6aa95ad36da7d333f2decae8906b5cb979d2d8e1a8b760ecbe6",
+            "8c832079e7edb93f5cef8e1c2ec4348da940d903603167c8afc69f44b6626100",
             (
                 (
                     "// boal 030804 -->\nvoid Ship_NationAgressivePatent(ref rCharacter)",
@@ -817,6 +817,19 @@ PATCH = PatchSet(
                 (
                     'if (rand(20) < 3 && sti(rDead.nation) != PIRATE)  // 14% повышаем награду',
                     'if (!CrimeSea_IsTrackedShip(rDead) && rand(20) < 3 && sti(rDead.nation) != PIRATE)  // legacy enemy/quest outcome',
+                ),
+                (
+                    # Ship_CheckSituation relation flicker: do not reset an
+                    # individual ENEMY back to the nation relation every tick.
+                    '''			        if (sti(rCharacter.nation) != PIRATE || bBettaTestMode)//boal 030804 нужно чтоб при тесте флаг с пиратами мирил
+			        {
+	                    SetCharacterRelationBoth(sti(rCharacter.index), GetMainCharacterIndex(), GetNationRelation2MainCharacter(sti(rCharacter.nation)));''',
+                    '''			        if (sti(rCharacter.nation) != PIRATE || bBettaTestMode)//boal 030804 нужно чтоб при тесте флаг с пиратами мирил
+			        {
+	                    if (GetRelation(sti(rCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)
+	                    {
+	                        SetCharacterRelationBoth(sti(rCharacter.index), GetMainCharacterIndex(), GetNationRelation2MainCharacter(sti(rCharacter.nation)));
+	                    }''',
                 ),
             ),
         ),
