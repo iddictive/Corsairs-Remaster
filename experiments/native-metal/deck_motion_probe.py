@@ -201,7 +201,7 @@ int main() {
     std::puts("PASS: rotated/rocking ship WASD, path-excluded visible support, low stair riser and tall solid negative");
 }
 '''.replace("MOTION", motion.group())
-headers = ROOT.parent / "native-storm/.cache/d3d9/dxvk-native/include/native"
+headers = ROOT / "inputs/native/d3d9/dxvk-native/include/native" if (ROOT / "inputs/native/d3d9/dxvk-native/include/native").exists() else ROOT.parent / "native-storm/.cache/d3d9/dxvk-native/include/native"
 binary = ROOT / ".cache/probes/deck-motion"
 binary.parent.mkdir(parents=True, exist_ok=True)
 subprocess.run(["clang++", "-std=c++20", "-O2", "-Wno-implicit-const-int-float-conversion",
