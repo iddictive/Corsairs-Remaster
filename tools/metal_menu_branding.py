@@ -2,7 +2,7 @@
 """Exact-hash Metal main menu branding layer over original Reconstruction 1.4.1.
 
 This helper owns the main menu branding transform:
-- Replaces original Discord/VK with Telegram and Behance text buttons
+- Keeps Behance and the existing website footer; removes the Telegram control
 - Makes the existing bottom-right version text a website link, without a banner
 - Replaces menu logo with new 2.8 aspect IDDICTIVE logo (1024x366 texture)
 - Removes legacy QR code window and pointer/subscribe controls
@@ -31,9 +31,14 @@ BASE = {
 }
 
 UPDATED = {
+    SCRIPT: "8b3e4dd50e18dbfaf871f9a9135163b0c0d2212aafb33d7bd8b1df14aa533a5a",
+    LAYOUT: "c2d9673911eedc386cc28405cb3128ae84dba1555e877202766874fb17f681c1",
+    PICTURES: "8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb",
+}
+
+WITH_TELEGRAM = {
     SCRIPT: "27de0887aed4ce46f5b011ac4375bfca4b9c51866162ff1d4503c49b5be355d5",
     LAYOUT: "708bb1912cb1f93bd7080109ca67e4ceac961754c6fe0f6b7bf7b697f11d4ad5",
-    PICTURES: "8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb",
 }
 
 FILES = (SCRIPT, LAYOUT, PICTURES)
@@ -708,11 +713,55 @@ def _simplify(relative: str, data: bytes, reverse: bool = False) -> bytes:
 
 
 
+def _website_and_behance(relative: str, data: bytes, reverse: bool = False) -> bytes:
+    text = data.decode("utf-8")
+    if relative == LAYOUT:
+        section = (
+            "[BTN_TELEGRAM]\r\n"
+            "command = click,event:OpenTelegramURL\r\n"
+            "command = activate,event:OpenTelegramURL\r\n"
+            "command = deactivate,select:BTN_NEWGAME\r\n"
+            "command = leftstep,select:BTN_NEWGAME\r\n"
+            "command = rightstep,select:BTN_BEHANCE\r\n"
+            "command = downstep,select:BTN_NEWGAME\r\n"
+            "position = 580,4,680,32\r\n"
+            "string = #Telegram\r\n"
+            "fontScale = 0.75\r\n"
+            "strOffset = 7\r\n"
+            "glowoffset = 0,0\r\n"
+            "pressPictureOffset = 2,2\r\n\r\n"
+        )
+        pairs = [
+            ("item = TEXTBUTTON2,BTN_TELEGRAM\r\nitem = TEXTBUTTON2,BTN_BEHANCE\r\n", "item = TEXTBUTTON2,BTN_BEHANCE\r\n"),
+            (section + "[BTN_BEHANCE]\r\n", "[BTN_BEHANCE]\r\n"),
+            ("command = rightstep,select:BTN_TELEGRAM\r\n", "command = rightstep,select:VERSION\r\n"),
+            ("command = leftstep,select:BTN_TELEGRAM\r\n", "command = leftstep,select:VERSION\r\n"),
+        ]
+    else:
+        pairs = []
+        for action in ("SetEventHandler", "DelEventHandler"):
+            suffix = ",0" if action == "SetEventHandler" else ""
+            keep = f'\t{action}("OpenBehanceURL","OpenBehanceURL"{suffix});\r\n'
+            remove = f'\t{action}("OpenTelegramURL","OpenTelegramURL"{suffix});\r\n'
+            pairs.append((remove + keep, keep))
+        keep = '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_BEHANCE", 0, "#Behance");\r\n'
+        remove = '\tSendMessage(&GameInterface, "lsls", MSG_INTERFACE_MSG_TO_NODE, "BTN_TELEGRAM", 0, "#Telegram");\r\n'
+        pairs.append((remove + keep, keep))
+        pairs.append(('void OpenTelegramURL()\r\n{\r\n\tOpenExternalURL("https://t.me/iddictive");\r\n}\r\n\r\nvoid OpenBehanceURL()', 'void OpenBehanceURL()'))
+    for before, after in reversed(pairs) if reverse else pairs:
+        old, new = (after, before) if reverse else (before, after)
+        expected = 6 if old.startswith("command = rightstep,") else 1
+        if text.count(old) != expected:
+            raise ValueError(f"unexpected social-link anatomy: {relative}")
+        text = text.replace(old, new)
+    return text.encode("utf-8")
+
+
 def _transform_ini(data):
-    return _simplify(LAYOUT, _transform_ini_previous(data))
+    return _website_and_behance(LAYOUT, _simplify(LAYOUT, _transform_ini_previous(data)))
 
 
-def _strip_ini(data):
+def _strip_ini_with_telegram(data):
     # The original section is deterministic; retain its previous bytes below.
     text = data.decode("utf-8")
     text = text.replace("item = TEXTBUTTON2,BTN_TELEGRAM\r\n", "item = TEXTBUTTON2,BTN_BANNER\r\nitem = TEXTBUTTON2,BTN_TELEGRAM\r\n", 1)
@@ -723,16 +772,26 @@ def _strip_ini(data):
 
 
 def _transform_c(data):
-    return _simplify(SCRIPT, _transform_c_previous(data))
+    return _website_and_behance(SCRIPT, _simplify(SCRIPT, _transform_c_previous(data)))
+
+
+def _strip_c_with_telegram(data):
+    return _strip_c_previous(_simplify(SCRIPT, data, reverse=True))
+
+
+def _strip_ini(data):
+    return _strip_ini_with_telegram(_website_and_behance(LAYOUT, data, reverse=True))
 
 
 def _strip_c(data):
-    return _strip_c_previous(_simplify(SCRIPT, data, reverse=True))
+    return _strip_c_with_telegram(_website_and_behance(SCRIPT, data, reverse=True))
 
 
 def strip(relative: str, data: bytes) -> tuple[bytes, str]:
     if relative not in BASE:
         raise ValueError(f"unsupported menu branding target: {relative}")
+    if digest(data) == WITH_TELEGRAM.get(relative):
+        data = _strip_c_with_telegram(data) if relative == SCRIPT else _strip_ini_with_telegram(data)
     if relative == PICTURES and digest(data) == "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63":
         data = data.replace(b"interfaces\\iddictive_menu_logo.tga", b"iddictive_menu_logo.tga")
     if relative == LAYOUT and digest(data) == "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b":
@@ -762,6 +821,8 @@ def strip(relative: str, data: bytes) -> tuple[bytes, str]:
 def prepare(relative: str, data: bytes) -> tuple[bytes, str]:
     if relative not in BASE:
         raise ValueError(f"unsupported menu branding target: {relative}")
+    if digest(data) == WITH_TELEGRAM.get(relative):
+        data = _strip_c_with_telegram(data) if relative == SCRIPT else _strip_ini_with_telegram(data)
     if relative == PICTURES and digest(data) == "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63":
         data = data.replace(b"interfaces\\iddictive_menu_logo.tga", b"iddictive_menu_logo.tga")
     if relative == LAYOUT and digest(data) == "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b":

@@ -35,12 +35,12 @@ void InitInterface(string iniName)
     SendMessage(&GameInterface, "lsl", MSG_INTERFACE_MSG_TO_NODE, "TAB_BUY_TEXT", 5);
     SendMessage(&GameInterface, "lsl", MSG_INTERFACE_MSG_TO_NODE, "TAB_SELL_TEXT", 5);
     Button_SetText("EDIT_TARGET_BUTTON", "#Изменить цель");
-    Button_SetText("CLEAR_TABLE_LIST", "#Очистить цели корабля");
-    Button_SetText("BUY_NOW_BUTTON", "#Купить для эскадры");
+    Button_SetText("CLEAR_TABLE_LIST", "#Очистить цели");
+    Button_SetText("BUY_NOW_BUTTON", "#Купить эскадре");
     Button_SetText("SELL_NOW_BUTTON", "#Продать");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "AUTO_BUY_CHECK", 1, 1, "Автозакупка в порту");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "AUTO_SELL_CHECK", 1, 1, "Автопродажа в порту");
-    SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "NOTGOODSTRANSFER_CHECK", 1, 1, "Не закупать для корабля");
+    SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "NOTGOODSTRANSFER_CHECK", 1, 1, "Пропустить корабль");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "BUYCONTRABAND_CHECK", 1, 1, "Закупать контрабанду");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_BLADE_CHECK", 1, 1, "Клинки");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_GUN_CHECK", 1, 1, "Огнестрельное");
@@ -51,6 +51,7 @@ void InitInterface(string iniName)
     SetEventHandler("exitCancel", "ProcessCancelExit", 0);
     SetEventHandler("ievnt_command", "ProcCommand", 0);
     SetEventHandler("TableSelectChange", "TableSelectChange", 0);
+    SetEventHandler("TableActivate", "TreasurerUI_TableActivate", 0);
     SetEventHandler("MouseRClickUP", "HideInfo", 0);
     SetEventHandler("CheckButtonChange", "ProcessCheckBox", 0);
     SetEventHandler("ShowItemInfo", "ShowItemInfo", 0);
@@ -76,6 +77,7 @@ void IDoExit(int exitCode)
     DelEventHandler("exitCancel", "ProcessCancelExit");
     DelEventHandler("ievnt_command", "ProcCommand");
     DelEventHandler("TableSelectChange", "TableSelectChange");
+    DelEventHandler("TableActivate", "TreasurerUI_TableActivate");
     DelEventHandler("MouseRClickUP", "HideInfo");
     DelEventHandler("CheckButtonChange", "ProcessCheckBox");
     DelEventHandler("ShowItemInfo", "ShowItemInfo");
@@ -215,7 +217,7 @@ void SetCheckButtonsStates()
 
 void SetVariable()
 {
-    Button_SetText("RESERVE_BUTTON", "#Резерв: " + Treasurer_Setting("ReserveGold", 0, 0, 100000000) + " пиастров");
+    Button_SetText("RESERVE_BUTTON", "#Резерв: " + Treasurer_Setting("ReserveGold", 0, 0, 100000000));
     Button_SetText("PRICE_LIMIT_BUTTON", "#Цена вещи < " + Treasurer_Setting("PriceLimit", 1500, 1, 1000000));
     Button_SetText("KEEP_COUNT_BUTTON", "#Оставлять: " + Treasurer_Setting("KeepCount", 1, 0, 999) + " шт.");
     SetFormatedText("SERVICE_STATUS", Treasurer_Status());
@@ -304,14 +306,15 @@ void FillChestTable()
     GameInterface.CHEST_TABLE.hr.td2.str = "Предмет";
     GameInterface.CHEST_TABLE.hr.td3.str = "Продать";
     GameInterface.CHEST_TABLE.hr.td4.str = "Цена\nза шт.";
-    GameInterface.CHEST_TABLE.hr.td5.str = "Оставить / причина";
+    GameInterface.CHEST_TABLE.hr.td5.str = "Останется";
+    GameInterface.CHEST_TABLE.hr.td6.str = "Особенности";
     GameInterface.CHEST_TABLE.hr.td1.scale = 0.8;
     GameInterface.CHEST_TABLE.hr.td2.scale = 0.85;
     GameInterface.CHEST_TABLE.hr.td3.scale = 0.8;
     GameInterface.CHEST_TABLE.hr.td4.scale = 0.8;
     GameInterface.CHEST_TABLE.hr.td5.scale = 0.8;
+    GameInterface.CHEST_TABLE.hr.td6.scale = 0.8;
     int cabinIndex = Treasurer_CabinIndex();
-    int keepCount = Treasurer_Setting("KeepCount", 1, 0, 999);
     int n = 1;
     int selected = 0;
     iSaleQuantity = 0;
@@ -341,12 +344,7 @@ void FillChestTable()
                 reason = Treasurer_ItemSaleReason(item);
                 sellQuantity = Treasurer_ItemSaleQuantity(item, quantity);
                 price = Treasurer_ItemSalePrice(item);
-                if (reason == "" && sellQuantity < quantity)
-                {
-                    int retained = quantity - sellQuantity;
-                    reason = "Оставить " + retained + " шт.";
-                    if (retained <= keepCount) reason = "Резерв: " + retained + " шт.";
-                }
+                if (reason == "") reason = "Обычный предмет";
                 if (CheckAttribute(item, "picTexture") && CheckAttribute(item, "picIndex"))
                 {
                     GameInterface.CHEST_TABLE.(row).td2.icon.group = item.picTexture;
@@ -365,8 +363,9 @@ void FillChestTable()
             GameInterface.CHEST_TABLE.(row).td2.scale = 0.83;
             GameInterface.CHEST_TABLE.(row).td3.str = sellQuantity;
             GameInterface.CHEST_TABLE.(row).td4.str = price;
-            GameInterface.CHEST_TABLE.(row).td5.str = reason;
-            GameInterface.CHEST_TABLE.(row).td5.scale = 0.75;
+            GameInterface.CHEST_TABLE.(row).td5.str = quantity - sellQuantity;
+            GameInterface.CHEST_TABLE.(row).td6.str = reason;
+            GameInterface.CHEST_TABLE.(row).td6.scale = 0.75;
             iSaleQuantity += sellQuantity;
             proceeds += sellQuantity * stf(price);
             if (itemID == sSelectedItemID) selected = n;
@@ -400,8 +399,8 @@ void SelectChestRow(int selected)
 void SetSelectedItemControl()
 {
     SetSelectable("KEEP_ITEM_BUTTON", sSelectedItemID != "");
-    string label = "#Сохранять предмет";
-    if (sSelectedItemID != "" && Treasurer_ItemLocked(sSelectedItemID)) label = "#Разрешить продажу";
+    string label = "#Защитить от продажи";
+    if (sSelectedItemID != "" && Treasurer_ItemLocked(sSelectedItemID)) label = "#Снять свою защиту";
     Button_SetText("KEEP_ITEM_BUTTON", label);
 }
 
@@ -419,6 +418,34 @@ void TableSelectChange()
         SetSelectable("EDIT_TARGET_BUTTON", iCurGoodIndex >= 0);
     }
     if (control == "CHEST_TABLE" && iTreasurerTab == 1) SelectChestRow(selected);
+}
+
+void TreasurerUI_TableActivate()
+{
+    string control = GetEventData();
+    // Native TableActivate is zero-based; table attributes and selection are one-based.
+    int selected = GetEventData() + 1;
+    if (bRefreshingTable || bShowChangeWin || selected <= 0) return;
+    string row = "tr" + selected;
+    if (control == "TABLE_LIST" && iTreasurerTab == 0)
+    {
+        if (!CheckAttribute(&GameInterface, "TABLE_LIST." + row + ".index")) return;
+        CurRow = row;
+        iCurGoodIndex = sti(GameInterface.TABLE_LIST.(row).index);
+        ShowItemInfo();
+    }
+    if (control == "CHEST_TABLE" && iTreasurerTab == 1)
+    {
+        SelectChestRow(selected);
+        TreasurerUI_ToggleItemLocked();
+    }
+}
+
+void TreasurerUI_ToggleItemLocked()
+{
+    if (iTreasurerTab != 1 || sSelectedItemID == "") return;
+    Treasurer_SetItemLocked(sSelectedItemID, !Treasurer_ItemLocked(sSelectedItemID));
+    RefreshInterface();
 }
 
 void ProcessCheckBox()
@@ -471,9 +498,7 @@ void ProcCommand()
         case "PRICE_LIMIT_BUTTON": OpenSettingQuantity(2); break;
         case "KEEP_COUNT_BUTTON": OpenSettingQuantity(3); break;
         case "KEEP_ITEM_BUTTON":
-            if (iTreasurerTab != 1 || sSelectedItemID == "") return;
-            Treasurer_SetItemLocked(sSelectedItemID, !Treasurer_ItemLocked(sSelectedItemID));
-            RefreshInterface();
+            TreasurerUI_ToggleItemLocked();
         break;
         case "BUY_NOW_BUTTON":
             if (iTreasurerTab != 0) return;

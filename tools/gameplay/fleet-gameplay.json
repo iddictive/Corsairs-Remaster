@@ -197,12 +197,16 @@
     },
     "PROGRAM/interface/GoodsTransfer.c": {
       "base_sha256": "56405b0cf15319bc7296f70228a93e6e121c05a6f8638c5f295d588cc9275109",
-      "updated_sha256": "58f977d00855a2cc5b4e3a701e4d5291aeb57b9ef565cefcc4ba0f60937ba0df",
+      "updated_sha256": "657eddb10b74221f9fffeec35ad2b5662de3b19ab9e20bb7844a185fbc7e6442",
       "previous_sha256": [
         "1da1ed6092647a47a8dd6b567b27a389f9b3c7f8beb824b45a6957d9c57395f5",
         "3feb91df36032499ad6fbffa634605d75709f4d4bfc79b12edd51f254a10216f",
         "8559f6ac678b9ab7565001d390d57d5d1c44693a364d0762c2a6802318c27459",
-        "b545f8de9b9977919d5458948095715884085d757d43b5a4a7e6feefc4cffd11"
+        "b545f8de9b9977919d5458948095715884085d757d43b5a4a7e6feefc4cffd11",
+        "58f977d00855a2cc5b4e3a701e4d5291aeb57b9ef565cefcc4ba0f60937ba0df",
+        "3caf7cbc78db021b3986f71c1d9fdb1c3eba6ff57b5d087ac06e4cf0fac2c3f5",
+        "9478d88357820258ed4fdd014b7a312b65e2e967dc2bc70a7e796cc949ec6d82",
+        "9da053ec04f8d0f479f1204a20e5520d52070b8df31aaf6f1ebc1126df62f44d"
       ],
       "source": "treasurer-interface.c"
     },
@@ -287,9 +291,12 @@
     "RESOURCE/INI/interfaces/GoodsTransfer.ini": {
       "base_sha256": "8d2598f058c8105327290863ea2c47b0ab43c35e3fda2b2bb47dd77c96b10c29",
       "previous_sha256": [
-        "ca5ba998d62ef7f2cc62ddd1e1bbe7f00e5aee2249ad0d68389e2066665479b4"
+        "ca5ba998d62ef7f2cc62ddd1e1bbe7f00e5aee2249ad0d68389e2066665479b4",
+        "88a059df76aa4af49beef0231ac0ffaa57699a1e23394438015e2a26bb771770",
+        "d09d81e5f8f9db57f0bc5360ecbd3fe6cf99ea5e00587a96a917b34d7acfbcba",
+        "99f2748b65c3bc23432a52ebcc776ae0be994ee33db567ce86693f537ac1d945"
       ],
-      "updated_sha256": "88a059df76aa4af49beef0231ac0ffaa57699a1e23394438015e2a26bb771770",
+      "updated_sha256": "358236f06a621aa01d3903cce2ddcc4a86642a001c0c05e0ad482f6aed4bd44f",
       "source": "treasurer-interface.ini",
       "encoding": "cp1251"
     }

@@ -136,3 +136,23 @@ The normal widget initialization runs at 800×600; this proves state and lifecyc
 not captured screen composition. The fixture reuses the established seeded world
 queries; a delayed game-time exit cannot fire while this interface pauses time,
 so it closes via the normal cancel event before the queued process-exit check.
+
+## Treasurer row activation and readable stock
+
+Native tables emit `TableActivate` with a zero-based row. The treasury registers
+and removes its own handler, converts to the one-based table row, and acts on the
+clicked item rather than a previous selection. Purchase activation opens its
+target editor; chest double-click toggles only the existing explicit item lock.
+Single-click remains selection and neither activation performs a transaction.
+
+The three purchase checkboxes share one baseline; cash reserve and actions share
+one footer row. Sale preview separates `Останется` (chest quantity minus preview
+sale quantity, always visible) from `Особенности` (the existing restriction or
+ordinary-item status). The global retained-copy rule and all protection filters
+remain unchanged. `Защитить от продажи` / `Снять свою защиту` toggles the manual
+lock without claiming that rarity, quests or useful equipment become sellable.
+
+October 3: the closed-game canonical stage delivered this follow-up. The earlier
+row-event fixture passed before the player stopped additional checks; the final
+layout/copy revision has no new runtime replay. Player input and visual acceptance
+remain separate from installation.
