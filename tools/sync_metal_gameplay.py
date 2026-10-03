@@ -158,6 +158,7 @@ def plan(target_root=None):
             if relative in fleet_gameplay.FILES:
                 if relative in living_caribbean.PREPARERS:
                     incoming = living_caribbean.prepare(relative, incoming)
+                incoming, _ = background_alpha.prepare_file(relative, incoming)
                 reviewed = fleet_gameplay.prepare(relative, incoming)
                 if not fleet_gameplay.recognized(relative, current):
                     raise RuntimeError(f"unrecognized fleet gameplay revision: {relative}")
