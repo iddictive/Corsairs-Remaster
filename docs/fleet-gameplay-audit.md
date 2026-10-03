@@ -52,6 +52,14 @@ All ten manifest transforms are byte-exact, idempotent, and reject unknown input
 The native engine builds as ARM64. The merged fog fix passes actual Metal pixel
 checks; the merged manual-aim change passes 758 geometry checks with no failures.
 
+Player replay exposed a blank officer/boarding dialogue: its duplicate trading
+extern failed after the shop script was loaded. The layer removes that redundant
+declaration and reuses the main program's registered function. A native fixture
+now seeds the loaded shop, invokes the production dialogue wrapper, and verifies
+all three loot choices on first load and after reload in separate event frames,
+plus refusal of a junk sale at sea. It exits with an empty error log. Only cabin
+entity readiness is abstracted; the earlier isolated compile missed this context.
+
 Player replay remains: automatic HP correction on load; treasurer ship selection
 and a real sale versus refusal at sea; a paid fleet morale transaction; a daily
 repair with scarce materials; a dry companion entering combat; immediate and
