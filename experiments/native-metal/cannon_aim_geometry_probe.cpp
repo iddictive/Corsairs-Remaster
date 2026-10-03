@@ -537,6 +537,32 @@ int main() {
     const auto rangeTarget=manual_aim::centerRangeTarget(rangeCamera,rangeForward,mastDelta|rangeForward);
     check(near(rangeTarget,rangeCamera+CVECTOR(0.f,0.f,100.f)),"aperture changes depth without aiming toward side mast");
     check(near(!(rangeTarget-rangeCamera),rangeForward),"selected depth preserves exact center-plus direction");
+    // Regression: a fixed screen rectangle shrank fivefold between masts at
+    // maximum zoom. The same real support must remain eligible while zooming.
+    for(float baseX:{.7f,1.f,1.8f}) for(float baseY:{.8f,1.3f,2.2f})
+    {
+        const float baseTx=manual_aim::rangeApertureSlope(60.f/2048.f,baseX,1.f);
+        const float baseTy=manual_aim::rangeApertureSlope(34.f/1285.f,baseY,1.f);
+        float previous=baseTx;
+        for(float zoom:{1.f,1.2f,2.f,3.f,5.f})
+        {
+            const float zoomTx=manual_aim::rangeApertureSlope(60.f/2048.f,baseX*zoom,zoom);
+            const float zoomTy=manual_aim::rangeApertureSlope(34.f/1285.f,baseY*zoom,zoom);
+            const CVECTOR support(baseTx*100.f*.9f,baseTy*100.f*.9f,100.f);
+            check(manual_aim::insideRangeAperture(support,rangeForward,rangeRight,rangeUp,zoomTx,zoomTy),
+                  "real off-axis range support remains eligible at every zoom");
+            check(zoomTx>=previous-1e-7f,"range support grows continuously instead of narrowing with zoom");
+            check(near(zoomTx/baseTx,zoomTy/baseTy),"zoom support preserves rectangle aspect across FOV policies");
+            previous=zoomTx;
+        }
+        const float maxTx=manual_aim::rangeApertureSlope(60.f/2048.f,baseX*5.f,5.f);
+        const float maxTy=manual_aim::rangeApertureSlope(34.f/1285.f,baseY*5.f,5.f);
+        check(near(maxTx/baseTx,1.5f),"maximum zoom grows world support by fifty percent");
+        check(manual_aim::insideRangeAperture(CVECTOR(baseTx*100.f*1.4f,0.f,100.f),rangeForward,rangeRight,rangeUp,maxTx,maxTy),
+              "nearby mast just outside unzoomed box supplies zoomed range");
+        check(!manual_aim::insideRangeAperture(CVECTOR(baseTx*100.f*1.6f,0.f,100.f),rangeForward,rangeRight,rangeUp,maxTx,maxTy),
+              "geometry beyond widened box is still released without target retention");
+    }
     const float rollAngle=.7f;
     const CVECTOR rolledRight(std::cos(rollAngle),std::sin(rollAngle),0.f);
     const CVECTOR rolledUp(-std::sin(rollAngle),std::cos(rollAngle),0.f);

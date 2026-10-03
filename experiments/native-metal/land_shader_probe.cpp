@@ -9,6 +9,7 @@
 #include <cstring>
 #include <cmath>
 extern "C" bool StormMetalDrawGrass(void*,const void*,size_t,size_t,const float*,size_t,bool,float,float,float,bool,unsigned,bool,unsigned,unsigned);
+extern "C" void StormMetalDrawBillboards(void*,const void*,uint32_t,const char*,uint32_t,uint32_t,float,float);
 static void check(bool b,const char*s){if(!b){fprintf(stderr,"FAIL %s\n",s);exit(1);}}
 static std::vector<DWORD> load(std::string p){std::ifstream f(p,std::ios::binary|std::ios::ate);check(bool(f),p.c_str());size_t n=f.tellg();std::vector<DWORD> v(n/4);f.seekg(0);f.read((char*)v.data(),n);return v;}
 int main(int argc,char**argv){
@@ -45,5 +46,48 @@ int main(int argc,char**argv){
 	printf("grass bridge inherited clean=%08x cw=%08x ccw=%08x stage1=%08x\n",clean,cw,ccw,stage1);near(clean,64,128,192,"grass bridge clean technique state");near(cw,64,128,192,"grass bridge ignores inherited CW cull");near(ccw,64,128,192,"grass bridge ignores inherited CCW cull");near(stage1,64,128,192,"grass bridge disables inherited stage-1 color/alpha");
 	bridgeGrass[0].alpha=.1f;d->SetRenderState(D3DRS_CULLMODE,D3DCULL_CW);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_MODULATE);d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);DWORD cutout=bridge();restored(D3DCULL_CW,D3DTOP_MODULATE,D3DTOP_SELECTARG1,"grass bridge restores cutout caller state");near(cutout,7,11,19,"grass bridge retains authored alpha cutout");
 	for(auto&v:grass){v.wx=0;v.alpha=.1;}d->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);d->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_GREATER);d->SetRenderState(D3DRS_ALPHAREF,80);draw(grass,sizeof(G));near(pixel(64,64),7,11,19,"grass fade respects original alpha test");
-	d->SetVertexShader(nullptr);vs->Release();read->Release();target->Release();d->SetTexture(0,nullptr);d->SetTexture(1,nullptr);t1->Release();t->Release();d->Release();a->Release();SDL_DestroyWindow(w);SDL_Quit();puts("PASS land original bytecodes -> Metal -> FFP pixels");
+	// Every world-space consumer must use the same fog colour and camera depth.
+	// The existing grass fixtures previously exercised only fog-disabled draws.
+	struct Flat {float x,y,z;DWORD color;float u,v;};
+	Flat flat[]={{-.8f,-.8f,.5f,0xff4080bf,0,0},{.8f,-.8f,.5f,0xff4080bf,1,0},{0,.8f,.5f,0xff4080bf,.5f,1}};
+	struct Billboard {float x,y,z,size,angle;DWORD color,subtexture;};
+	Billboard billboard{0,0,.5f,.8f,0,0xff4080bf,0};
+	bridgeGrass[0].alpha=1;for(auto&v:grass)v.alpha=1;
+	d->SetTexture(0,t);d->SetTexture(1,nullptr);d->SetRenderState(D3DRS_LIGHTING,FALSE);
+	d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+	d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
+	d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_DISABLE);d->SetRenderState(D3DRS_FOGCOLOR,0xff60a0e0);
+	auto stateFloat=[&](D3DRENDERSTATETYPE state,float value){DWORD bits;memcpy(&bits,&value,4);d->SetRenderState(state,bits);};
+	stateFloat(D3DRS_FOGDENSITY,.35f);stateFloat(D3DRS_FOGSTART,0);stateFloat(D3DRS_FOGEND,4);
+	const char*paths[]={"expanded grass","compact grass","fixed geometry","billboard"};
+	for(float depth:{1.f,3.f}) {
+		D3DMATRIX projection{};for(int axis=0;axis<4;axis++)projection.m[axis][axis]=depth;
+		d->SetTransform(D3DTS_PROJECTION,&projection);
+		set(32,depth,0,0,0);set(33,0,depth,0,0);set(34,0,0,depth,0);set(35,0,0,0,depth);
+		d->SetVertexShaderConstantF(0,&c[0][0],256);
+		for(unsigned path=0;path<4;path++) {
+			auto render=[&](){
+				d->SetVertexShader(path<2?vs:nullptr);
+				if(path==1)return bridge();
+				if(path==0){draw(grass,sizeof(G));return pixel(64,64);}
+				if(path==2){d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);draw(flat,sizeof(Flat));return pixel(64,64);}
+				d->Clear(0,nullptr,D3DCLEAR_TARGET,0xff070b13,1,0);d->BeginScene();
+				StormMetalDrawBillboards(d,&billboard,1,"fog parity",1,1,1,1);d->EndScene();return pixel(64,64);
+			};
+			d->SetRenderState(D3DRS_FOGENABLE,FALSE);DWORD base=render();
+			for(unsigned mode:{unsigned(D3DFOG_NONE),unsigned(D3DFOG_EXP),unsigned(D3DFOG_EXP2),unsigned(D3DFOG_LINEAR)}) {
+				for(bool table:{true,false}) {
+					d->SetRenderState(D3DRS_FOGENABLE,TRUE);
+					d->SetRenderState(D3DRS_FOGTABLEMODE,table?mode:D3DFOG_NONE);
+					d->SetRenderState(D3DRS_FOGVERTEXMODE,table?D3DFOG_NONE:mode);
+					float factor=mode==D3DFOG_EXP?std::exp(-.35f*depth):mode==D3DFOG_EXP2?std::exp(-std::pow(.35f*depth,2.f)):mode==D3DFOG_LINEAR?1.f-depth/4.f:1.f;
+					DWORD actual=render();const int fog[]={96,160,224};bool matches=true;
+					for(unsigned channel=0;channel<3;channel++){unsigned shift=16-channel*8;int expected=std::lround(fog[channel]+(int(base>>shift&255)-fog[channel])*factor);matches&=std::abs(int(actual>>shift&255)-expected)<=2;}
+					if(!matches)std::fprintf(stderr,"fog path=%s depth=%.1f mode=%u table=%u base=%08x actual=%08x factor=%.5f\n",paths[path],depth,mode,table,base,actual,factor);
+					check(matches,"world-space fog colour/depth/mode parity");
+				}
+			}
+		}
+	}
+	d->SetVertexShader(nullptr);vs->Release();read->Release();target->Release();d->SetTexture(0,nullptr);d->SetTexture(1,nullptr);t1->Release();t->Release();d->Release();a->Release();SDL_DestroyWindow(w);SDL_Quit();puts("PASS land original bytecodes -> Metal -> FFP pixels; grass/geometry/billboard fog parity");
 }

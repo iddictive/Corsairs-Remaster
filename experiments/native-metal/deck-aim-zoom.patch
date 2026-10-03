@@ -100,7 +100,7 @@ diff --git a/src/libs/pcs_controls/src/pcs_controls.cpp b/src/libs/pcs_controls/
 diff --git a/src/libs/renderer/include/dx9render.h b/src/libs/renderer/include/dx9render.h
 --- a/src/libs/renderer/include/dx9render.h
 +++ b/src/libs/renderer/include/dx9render.h
-@@ -215,9 +215,10 @@
+@@ -215,9 +215,11 @@
      virtual void GetTransform(int32_t type, D3DMATRIX *mtx) = 0;
 
      virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective) = 0;
@@ -110,6 +110,7 @@ diff --git a/src/libs/renderer/include/dx9render.h b/src/libs/renderer/include/d
 -    virtual bool SetPerspective(float perspective, float fAspectRatio = -1.0f) = 0;
 +    virtual bool SetPerspective(float perspective, float fAspectRatio = -1.0f, float magnification = 1.f) = 0;
      virtual void GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective) = 0;
++    virtual float GetCameraMagnification() const { return 1.f; }
 
      virtual bool SetCurrentMatrix(D3DMATRIX *mtx) = 0;
 diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
@@ -179,7 +180,7 @@ diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device
 diff --git a/src/libs/renderer/src/s_device.h b/src/libs/renderer/src/s_device.h
 --- a/src/libs/renderer/src/s_device.h
 +++ b/src/libs/renderer/src/s_device.h
-@@ -150,9 +150,10 @@
+@@ -150,9 +150,11 @@
      void GetTransform(int32_t type, D3DMATRIX *mtx) override;
 
      bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective) override;
@@ -189,6 +190,7 @@ diff --git a/src/libs/renderer/src/s_device.h b/src/libs/renderer/src/s_device.h
 -    bool SetPerspective(float perspective, float fAspectRatio = -1.0f) override;
 +    bool SetPerspective(float perspective, float fAspectRatio = -1.0f, float magnification = 1.f) override;
      void GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective) override;
++    float GetCameraMagnification() const override { return projectionMagnification; }
 
      bool SetCurrentMatrix(D3DMATRIX *mtx) override;
 @@ -482,6 +483,8 @@
