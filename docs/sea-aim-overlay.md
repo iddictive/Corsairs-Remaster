@@ -15,7 +15,10 @@ eligible broadside muzzle. Air density is weaker near the guns and strengthens
 modestly downrange. A tiny centered `+` marks the shooting direction.
 
 An invisible rectangular range probe matches the user's approximately 60×34-pixel
-annotation at 2048×1285, scaled with the viewport. Actual mast/hull/fort polygons
+annotation at 2048×1285 at 1x, scaled with the viewport. It compensates the actual
+renderer magnification so zoom cannot narrow its angular/world support. That
+support grows linearly from 1x to 1.5x at maximum 5x zoom, with the same rectangle
+aspect. Actual mast/hull/fort polygons
 inside that view region supply depth. The target remains on the center camera
 ray at that depth: the rectangle does not redirect aim toward an off-center ship.
 Selection is instantaneous, with no retained target, tracking or dwell. A nearer
@@ -35,6 +38,8 @@ and colored rim share one composite; air still uses the stopped ballistic volume
 - `BuildManualAimSolution` shares range selection and per-muzzle eligibility between
   preview and manual fire. `MODEL::Clip` finds real polygons inside the small view
   frustum; pure traces confirm visibility. Bounding boxes only reject candidates
+- `rangeApertureSlope` and renderer `GetCameraMagnification` bind range support to
+  the active both-axis camera zoom while retaining ordinary FOV/aspect policy
 - The plus uses the current range-source relation. Firing events do not inherit a
   farther center-hit character after a nearer aperture receiver changes the range
 - `manual_aim_geometry.hpp` mirrors live projectile warp and supplies exact section
@@ -148,3 +153,11 @@ relation-colored plus; mast inside/outside the invisible rectangle; camera roll;
 real volleys through gaps; both broadsides; storm crests and own deck occlusion;
 reload/fire; a heavily armed fort and multiple ships. The new path logs
 the current aim renderer revision on successful initialization.
+
+Zoom regression: place the plus between a target ship's masts and sweep 1x–5x.
+Real mast/hull range support must remain eligible as it grows modestly; the plus
+and physical trajectory stay centered, distant objects beyond the aperture are
+released, and a nearer center obstruction still wins. The first Tab from the
+outside camera now enters first-person manual aim; the second enters third-person
+deck walking and the third returns outside. Saved camera mode and telescope/dead
+camera gates are preserved by `tools/metal_deck_camera.py`.
