@@ -2,8 +2,9 @@
 
 ## Status and delivery owner
 
-October 2: reviewed source and native script checks pass; the ARM64 engine builds.
-Installed staging remains pending while the player game runs. Native interaction
+October 2: reviewed source, native script checks and the canonical ARM64 build
+and staging pass. Installed scripts, engine and aiming techniques are updated;
+the application passes deep, strict signature verification. Native interaction
 acceptance belongs to the player; compilation and state fixtures do not accept it.
 
 `tools/metal_fleet_gameplay.py` and `tools/gameplay/fleet-gameplay.json` own this
