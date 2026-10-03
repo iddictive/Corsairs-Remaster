@@ -63,7 +63,7 @@ from runtime_script_patch import atomic_write
 originals = {
     "ship/Rope.fx": {"5f0f0bef056f652515f2ef2b4b99b16f936ce30b5dd1f0417a13eec17ddbb9e1", "873feea8d12addfef10b0c6dabf106b93e88fc0574c54fb2b14e544eff887e69"},
     "ship/Vant.fx": {"00a92cad48c211d0465fccc19f2481a29310d94676b0988700357eefe566d65f"},
-    "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
+    "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "092a2b5a087dd44d2e3c0eb779d167819fa672398b80189e1f05a75fffaf9621", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
     "weather/SunGlow.fx": {"326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c", "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd", "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"},
 }
 digest = lambda data: hashlib.sha256(data).hexdigest()
