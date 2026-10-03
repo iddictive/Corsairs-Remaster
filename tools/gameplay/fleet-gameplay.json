@@ -128,10 +128,11 @@
     },
     "PROGRAM/characters/characterUtilite.c": {
       "base_sha256": "104e5a88131306aba33bfd07a11a79b71ddb945a1252a55579cf7c870f11d1dd",
-      "updated_sha256": "4d2db76b00c5117494002c4fe056891d3145e1e23093da36ceefe99add382448",
+      "updated_sha256": "2ce7768f794776828aab59025545538d865359f1c505d88ced6bfaa82aa602c6",
       "previous_sha256": [
         "10fd0cfc249898de4c8945cc1dcf6be77ae9d551fe5015c0dc3f48147c972f15",
-        "7d4731ab6e6dc7c9f55c8a166d00e8bf7b3f9aa5879e5ca9448420d6caa112a0"
+        "7d4731ab6e6dc7c9f55c8a166d00e8bf7b3f9aa5879e5ca9448420d6caa112a0",
+        "4d2db76b00c5117494002c4fe056891d3145e1e23093da36ceefe99add382448"
       ],
       "edits": [
         {
@@ -196,22 +197,29 @@
     },
     "PROGRAM/interface/GoodsTransfer.c": {
       "base_sha256": "56405b0cf15319bc7296f70228a93e6e121c05a6f8638c5f295d588cc9275109",
-      "updated_sha256": "b545f8de9b9977919d5458948095715884085d757d43b5a4a7e6feefc4cffd11",
+      "updated_sha256": "58f977d00855a2cc5b4e3a701e4d5291aeb57b9ef565cefcc4ba0f60937ba0df",
       "previous_sha256": [
         "1da1ed6092647a47a8dd6b567b27a389f9b3c7f8beb824b45a6957d9c57395f5",
         "3feb91df36032499ad6fbffa634605d75709f4d4bfc79b12edd51f254a10216f",
-        "8559f6ac678b9ab7565001d390d57d5d1c44693a364d0762c2a6802318c27459"
+        "8559f6ac678b9ab7565001d390d57d5d1c44693a364d0762c2a6802318c27459",
+        "b545f8de9b9977919d5458948095715884085d757d43b5a4a7e6feefc4cffd11"
       ],
       "source": "treasurer-interface.c"
     },
     "PROGRAM/interface/itemsbox.c": {
       "base_sha256": "f9fe490ceca5215958001dc12c068c19e32e52e400d7cb8cd0012784caa47b36",
-      "updated_sha256": "36b643ca02c232a9aeddeabfa225b2ff1f50193d5e8a204c732e10ca4033c40d",
-      "previous_sha256": [],
+      "updated_sha256": "2b70d49b6921a4b9206eeb6b5c9e0017947096952102a8815f40401b616fc29b",
+      "previous_sha256": [
+        "36b643ca02c232a9aeddeabfa225b2ff1f50193d5e8a204c732e10ca4033c40d"
+      ],
       "edits": [
         {
           "before": "\t\n\tDelEventHandler(\"eTabControlPress\", \"procTabChange\"); // Событие смены закладки\n\n\tinterfaceResultCommand = exitCode;\n\tEndCancelInterface(true);\n\t\n\tif (sFaceID != \"CabinChest\") LAi_SetPlayerType(PChar); // Возвращаем тип игрока\n\n\t// evganat - пасха\n\tif(sFaceID != \"CabinChest\" && !CheckAttribute(pchar,\"quest.easter.checkskeleton\"))\n\t\tEasterCheckSkeleton();\n}\n\nvoid ProcCommand()\n",
           "after": "\t\n\tDelEventHandler(\"eTabControlPress\", \"procTabChange\"); // Событие смены закладки\n\n\tinterfaceResultCommand = exitCode;\n\tbool wasCabinChest = sFaceID == \"CabinChest\";\n\tEndCancelInterface(true);\n\t\n\tif (!wasCabinChest) LAi_SetPlayerType(PChar); // Возвращаем тип игрока\n\n\t// evganat - пасха\n\tif(!wasCabinChest && !CheckAttribute(pchar,\"quest.easter.checkskeleton\"))\n\t\tEasterCheckSkeleton();\n}\n\nvoid ProcCommand()\n"
+        },
+        {
+          "before": "\t\tSetFormatedText(\"TABSTR_3\", \"Общий сундук\");",
+          "after": "\t\tSetFormatedText(\"TABSTR_3\", \"Общий сундук\");\n\t\tSetVAligmentFormatedText(\"TABSTR_3\");"
         }
       ]
     },
@@ -278,8 +286,10 @@
     },
     "RESOURCE/INI/interfaces/GoodsTransfer.ini": {
       "base_sha256": "8d2598f058c8105327290863ea2c47b0ab43c35e3fda2b2bb47dd77c96b10c29",
-      "previous_sha256": [],
-      "updated_sha256": "ca5ba998d62ef7f2cc62ddd1e1bbe7f00e5aee2249ad0d68389e2066665479b4",
+      "previous_sha256": [
+        "ca5ba998d62ef7f2cc62ddd1e1bbe7f00e5aee2249ad0d68389e2066665479b4"
+      ],
+      "updated_sha256": "88a059df76aa4af49beef0231ac0ffaa57699a1e23394438015e2a26bb771770",
       "source": "treasurer-interface.ini",
       "encoding": "cp1251"
     }

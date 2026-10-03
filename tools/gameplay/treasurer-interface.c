@@ -32,10 +32,12 @@ void InitInterface(string iniName)
     SetFormatedText("MAIN_CAPTION", "Казначей");
     SetFormatedText("TAB_BUY_TEXT", "Закупка товаров");
     SetFormatedText("TAB_SELL_TEXT", "Продажа из сундука");
+    SendMessage(&GameInterface, "lsl", MSG_INTERFACE_MSG_TO_NODE, "TAB_BUY_TEXT", 5);
+    SendMessage(&GameInterface, "lsl", MSG_INTERFACE_MSG_TO_NODE, "TAB_SELL_TEXT", 5);
     Button_SetText("EDIT_TARGET_BUTTON", "#Изменить цель");
     Button_SetText("CLEAR_TABLE_LIST", "#Очистить цели корабля");
     Button_SetText("BUY_NOW_BUTTON", "#Купить для эскадры");
-    Button_SetText("SELL_NOW_BUTTON", "#Продать из сундука");
+    Button_SetText("SELL_NOW_BUTTON", "#Продать");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "AUTO_BUY_CHECK", 1, 1, "Автозакупка в порту");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "AUTO_SELL_CHECK", 1, 1, "Автопродажа в порту");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "NOTGOODSTRANSFER_CHECK", 1, 1, "Не закупать для корабля");
@@ -43,6 +45,7 @@ void InitInterface(string iniName)
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_BLADE_CHECK", 1, 1, "Клинки");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_GUN_CHECK", 1, 1, "Огнестрельное");
     SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_ARMOR_CHECK", 1, 1, "Доспехи");
+    SendMessage(&GameInterface, "lslls", MSG_INTERFACE_MSG_TO_NODE, "SELL_LOOT_CHECK", 1, 1, "Ценности");
     SetControlsTabMode(0);
 
     SetEventHandler("exitCancel", "ProcessCancelExit", 0);
@@ -206,13 +209,14 @@ void SetCheckButtonsStates()
     CheckButton_SetState("SELL_BLADE_CHECK", 1, Treasurer_Setting("SellBlade", 1, 0, 1) != 0);
     CheckButton_SetState("SELL_GUN_CHECK", 1, Treasurer_Setting("SellGun", 1, 0, 1) != 0);
     CheckButton_SetState("SELL_ARMOR_CHECK", 1, Treasurer_Setting("SellArmor", 1, 0, 1) != 0);
+    CheckButton_SetState("SELL_LOOT_CHECK", 1, Treasurer_Setting("SellLoot", 1, 0, 1) != 0);
     bSyncControls = false;
 }
 
 void SetVariable()
 {
     Button_SetText("RESERVE_BUTTON", "#Резерв: " + Treasurer_Setting("ReserveGold", 0, 0, 100000000) + " пиастров");
-    Button_SetText("PRICE_LIMIT_BUTTON", "#Базовая цена < " + Treasurer_Setting("PriceLimit", 1500, 1, 1000000));
+    Button_SetText("PRICE_LIMIT_BUTTON", "#Цена вещи < " + Treasurer_Setting("PriceLimit", 1500, 1, 1000000));
     Button_SetText("KEEP_COUNT_BUTTON", "#Оставлять: " + Treasurer_Setting("KeepCount", 1, 0, 999) + " шт.");
     SetFormatedText("SERVICE_STATUS", Treasurer_Status());
     bool available = Treasurer_OfficerIndex() >= 0;
@@ -323,6 +327,8 @@ void FillChestTable()
             if (quantity <= 0) continue;
             string itemID = GetAttributeName(entry);
             int itemIndex = FindItem(itemID);
+            if (itemIndex < 0 || itemIndex >= TOTAL_ITEMS) continue;
+            if (Treasurer_ItemSaleCategory(&Items[itemIndex]) == "") continue;
             string row = "tr" + n;
             string reason = "Неизвестный предмет";
             string label = itemID;
@@ -351,7 +357,7 @@ void FillChestTable()
                     GameInterface.CHEST_TABLE.(row).td2.textoffset = "31,0";
                 }
             }
-            // Unknown IDs remain visible and protected; neither preview nor selection edits stock.
+            // Only sale categories enter this list; preview and selection never edit stock.
             GameInterface.CHEST_TABLE.(row).itemID = itemID;
             GameInterface.CHEST_TABLE.(row).index = itemIndex;
             GameInterface.CHEST_TABLE.(row).td1.str = quantity;
@@ -394,8 +400,8 @@ void SelectChestRow(int selected)
 void SetSelectedItemControl()
 {
     SetSelectable("KEEP_ITEM_BUTTON", sSelectedItemID != "");
-    string label = "#Оставлять выбранный предмет";
-    if (sSelectedItemID != "" && Treasurer_ItemLocked(sSelectedItemID)) label = "#Снять запрет продажи предмета";
+    string label = "#Сохранять предмет";
+    if (sSelectedItemID != "" && Treasurer_ItemLocked(sSelectedItemID)) label = "#Разрешить продажу";
     Button_SetText("KEEP_ITEM_BUTTON", label);
 }
 
@@ -436,6 +442,7 @@ void ProcessCheckBox()
     if (control == "SELL_BLADE_CHECK") Treasurer_SetSetting("SellBlade", state);
     if (control == "SELL_GUN_CHECK") Treasurer_SetSetting("SellGun", state);
     if (control == "SELL_ARMOR_CHECK") Treasurer_SetSetting("SellArmor", state);
+    if (control == "SELL_LOOT_CHECK") Treasurer_SetSetting("SellLoot", state);
     RefreshInterface();
 }
 

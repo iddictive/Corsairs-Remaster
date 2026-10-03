@@ -102,3 +102,37 @@ repair with scarce materials; a dry companion entering combat; immediate and
 late surrender, captain victory, a quest letter, a missing boarding speaker and
 two consecutive captures. Canonical stage-only must pass after this final batch
 before any installed-delivery claim. No automated player-game launch is required.
+
+## Treasurer button geometry and ordinary loot
+
+`Treasurer_ItemSaleCategory` is the shared preview/manual/automatic category owner.
+Alongside blades, guns and armor, `SellLoot` accepts the ordinary `jewelry*` and
+`mineral*` families, including emeralds. This source revision replaces the older
+gem exclusion above. Existing price, rarity, quest/unique flags, retained quantity
+and explicit keep locks still apply. Only flagship `box1.items` supplies a sale;
+personal inventory is never a fallback. Supplies and amulets stay outside it.
+The sale table omits non-sale families; protected equipment remains visible with
+its refusal reason. Turning a category off preserves its rows and stock.
+
+Authored treasury buttons and the ship's morale/chest buttons use the existing
+normal UI font and explicit offsets inside their unchanged rectangles.
+`TEXTBUTTON2` places text at `rect.top + strOffset`; it does not vertically center
+it. `FORMATEDTEXT` clears vertical alignment on every `SetFormatedText`, even if
+the INI declares `valignment`. Reapply node message 5 after the treasury tab text
+and the final shared-chest tab label. Changing default engine geometry would
+also alter unrelated original controls, so these fixes remain at their authored
+consumers.
+
+The isolated native VM verifies emerald/mineral sale quantities and exact
+chest/merchant/wallet conservation, personal inventory identity, repeat-sale
+refusal, disabled-category/keep/quest/price protections and unchanged medicine,
+amulets and unknown stock. World service availability, XP/time and notification
+queries are fixture boundaries; player-save interaction and rendered alignment
+still require the installed app replay recorded in `docs/runtime.md`.
+Ten actual XInterface state/event checks also pass: first-open flagship, valuables
+preview, omission of non-sale families, category off/on, keep/unlock recalculation,
+unchanged preview stock/money, return to purchases and full interface unload.
+The normal widget initialization runs at 800×600; this proves state and lifecycle,
+not captured screen composition. The fixture reuses the established seeded world
+queries; a delayed game-time exit cannot fire while this interface pauses time,
+so it closes via the normal cancel event before the queued process-exit check.

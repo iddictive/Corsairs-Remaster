@@ -1081,7 +1081,9 @@ command = click
 command = deactivate,event:exitCancel
 position = 517,230,640,255
 string = RaiseMorale
+font = interface_normal
 fontScale = 0.85
+strOffset = 6
 glowoffset = 0,0
 
 [CHEST_BUTTON]
@@ -1090,7 +1092,9 @@ command = click
 command = deactivate,event:exitCancel
 position = 627,572,787,596
 string = titleItemsBox
+font = interface_normal
 fontScale = 0.85
+strOffset = 5
 glowoffset = 0,0
 """)
 
@@ -1371,7 +1375,7 @@ UPDATED = {
     "PROGRAM/Loc_ai/types/LAi_player.c": "c46c105d6ef2c36f803b60144978f42f3ad38c4938d3078a619e16fb540b7676",
     "PROGRAM/interface/interface_utils.c": "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b",
     "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
-    "RESOURCE/INI/interfaces/ship.ini": "b4e7ec7de0a555abbed901e843d567093c670bb724dc11ab40d9a208c0d68db6",
+    "RESOURCE/INI/interfaces/ship.ini": "fa4a01b9179c8dfb2794a5c8b1702102ea3cd27e61e9af9781f4b6c8c6a91fc3",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
     "PROGRAM/worldmap/worldmap_reload.c": "cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627",
 }
@@ -1386,7 +1390,7 @@ PREVIOUS = {
     "PROGRAM/battle_interface/utils.c": {"14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b"},
     LAI_PL_PATH: {"f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3"},
     "PROGRAM/interface/ship.c": {"d14907755256cbc4bfc470f510a320b23c02720ced975ea2dfc680b7016a211d", "d8a46d6d9966cc2124f069390dd3d919925ff40fd180d66049200bbab4819561"},
-    "RESOURCE/INI/interfaces/ship.ini": {"5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d", "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
+    "RESOURCE/INI/interfaces/ship.ini": {"b4e7ec7de0a555abbed901e843d567093c670bb724dc11ab40d9a208c0d68db6", "5fc983517967d38d1aba911285ac20b7cf9d76adc66aeacfa00bfd9d67e4a76d", "751dfa872b4f6b7edcdbf78a81a103450e8d0810c06d824833562189aed9cbaa"},
     AI_SHIP_PATH: {
         "9ea6fc82c3fe9ed0daf6c6ed2f54724c691fdf7b91bdccff857b916ae5439a92",
         "1c781337127e01b0392de260ef276368cfee3915818a2d4f495d35048a018449",

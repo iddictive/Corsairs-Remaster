@@ -170,6 +170,21 @@ bool Treasurer_ItemNeeded(ref item)
     return false;
 }
 
+string Treasurer_ItemSaleCategory(ref item)
+{
+    if (!CheckAttribute(item, "id")) return "";
+    if (CheckAttribute(item, "groupID"))
+    {
+        if (item.groupID == BLADE_ITEM_TYPE) return "SellBlade";
+        if (item.groupID == GUN_ITEM_TYPE) return "SellGun";
+        if (item.groupID == CIRASS_ITEM_TYPE) return "SellArmor";
+        return "";
+    }
+    // The ordinary valuables/minerals families in initItems; amulets and supplies stay separate.
+    if (findsubstr(item.id, "jewelry", 0) == 0 || findsubstr(item.id, "mineral", 0) == 0) return "SellLoot";
+    return "";
+}
+
 string Treasurer_ItemSaleReason(ref item)
 {
     if (!CheckAttribute(item, "id")) return "Неизвестная вещь";
@@ -179,16 +194,12 @@ string Treasurer_ItemSaleReason(ref item)
     {
         if (item.ItemType == "QUESTITEMS" || item.ItemType == "MAP" || item.ItemType == "BOOK") return "Квест / карта / книга";
     }
-    if (!CheckAttribute(item, "groupID")) return "Не снаряжение";
-    string category = "";
-    if (item.groupID == BLADE_ITEM_TYPE) category = "SellBlade";
-    if (item.groupID == GUN_ITEM_TYPE) category = "SellGun";
-    if (item.groupID == CIRASS_ITEM_TYPE) category = "SellArmor";
+    string category = Treasurer_ItemSaleCategory(item);
     if (category == "" || item.id == "unarmed" || item.id == "CaptainBook") return "Не для автосбыта";
     if (!CheckAttribute(item, "price") || sti(item.price) <= 0 || IsQuestUsedItem(item.id)) return "Квестовая вещь";
     if (!CheckAttribute(item, "rare")) return "Редкость неизвестна";
-    if (stf(item.rare) < 0.01) return "Редкое снаряжение";
-    if (Treasurer_ItemNeeded(item)) return "Нужно вам / офицеру";
+    if (stf(item.rare) < 0.01) return "Редкая вещь";
+    if (category != "SellLoot" && Treasurer_ItemNeeded(item)) return "Нужно вам / офицеру";
     if (!Treasurer_Setting(category, 1, 0, 1)) return "Категория отключена";
     if (sti(item.price) >= Treasurer_Setting("PriceLimit", 1500, 1, 1000000)) return "Дороже предела";
     return "";
