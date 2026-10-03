@@ -12,6 +12,8 @@ delivery after the player closes the game: two choices, free Esc cancellation,
 ordinary click-to-exit, and removal of the temporary crew speaker after dialogue.
 Closing a chest also restores the hero's player type without reading unloaded
 interface globals.
+Treasurer first-open selection is corrected too: read the scroll index after
+native initialization, which turns its provisional `-1` into a valid selection.
 
 `tools/metal_fleet_gameplay.py` and `tools/gameplay/fleet-gameplay.json` own this
 layer. `tools/sync_metal_gameplay.py` composes it after the shared gameplay and
@@ -84,6 +86,15 @@ seven errors and retained actor type, then verifies ordinary chests restore play
 type with no errors while the cabin-menu path preserves its previous type. The
 compiler's actual segment unload is exercised; pre-exit UI bookkeeping and native
 UI teardown are abstracted.
+
+Player replay showed a blank captain and zero cargo until the treasurer carousel
+was switched. The script read the provisional scroll index before
+`MSG_INTERFACE_INIT`; the native scroll owner normalizes it during that call.
+Moving the read after initialization fixes that ordering. A native VM data fixture
+reproduces the old `-1` first read and verifies first-open flagship cargo/orders,
+then companion cargo/orders with the flagship order unchanged. Native widget
+creation and presentation are abstracted against the installed scroll contract;
+the player's cold-open screen remains the accepting surface.
 
 Player replay remains: automatic HP correction on load; treasurer ship selection
 and a real sale versus refusal at sea; a paid fleet morale transaction; a daily

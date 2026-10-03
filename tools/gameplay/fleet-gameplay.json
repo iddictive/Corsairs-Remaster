@@ -193,14 +193,15 @@
     },
     "PROGRAM/interface/GoodsTransfer.c": {
       "base_sha256": "56405b0cf15319bc7296f70228a93e6e121c05a6f8638c5f295d588cc9275109",
-      "updated_sha256": "8559f6ac678b9ab7565001d390d57d5d1c44693a364d0762c2a6802318c27459",
+      "updated_sha256": "1da1ed6092647a47a8dd6b567b27a389f9b3c7f8beb824b45a6957d9c57395f5",
       "previous_sha256": [
-        "3feb91df36032499ad6fbffa634605d75709f4d4bfc79b12edd51f254a10216f"
+        "3feb91df36032499ad6fbffa634605d75709f4d4bfc79b12edd51f254a10216f",
+        "8559f6ac678b9ab7565001d390d57d5d1c44693a364d0762c2a6802318c27459"
       ],
       "edits": [
         {
-          "before": "{\n\tStartAboveForm(true);\n\t\n\tFillShipsScroll();\n\tSendMessage(&GameInterface,\"ls\",MSG_INTERFACE_INIT,iniName);\n\tFillGoodsTable();\n\tSetCheckButtonsStates();\n\tSetVariable();\n\t\n\tCreateString(true,\"ShipName\",\"\",FONT_NORMAL,COLOR_MONEY, 400,98,SCRIPT_ALIGN_CENTER,0.7);\n\t\n\tif (CheckAttribute(pchar, \"ship.name\"))\n\t{\n\t\tGameInterface.strings.shipname = pchar.ship.name;\n\t}\n\telse \n\t{\n\t\tGameInterface.strings.shipname = \"\";\n",
-          "after": "{\n\tStartAboveForm(true);\n\t\n\tFillShipsScroll();\n\tnCurScrollNum = sti(GameInterface.SHIPS_SCROLL.current);\n\tSendMessage(&GameInterface,\"ls\",MSG_INTERFACE_INIT,iniName);\n\tFillGoodsTable();\n\tSetCheckButtonsStates();\n\tSetVariable();\n\t\n\tCreateString(true,\"ShipName\",\"\",FONT_NORMAL,COLOR_MONEY, 400,98,SCRIPT_ALIGN_CENTER,0.7);\n\t\n\tif (CheckAttribute(&Characters[iCurCompanion], \"ship.name\"))\n\t{\n\t\tGameInterface.strings.shipname = Characters[iCurCompanion].ship.name;\n\t}\n\telse \n\t{\n\t\tGameInterface.strings.shipname = \"\";\n"
+          "before": "\tStartAboveForm(true);\n\t\n\tFillShipsScroll();\n\tSendMessage(&GameInterface,\"ls\",MSG_INTERFACE_INIT,iniName);\n\tFillGoodsTable();\n\tSetCheckButtonsStates();\n\tSetVariable();\n\t\n\tCreateString(true,\"ShipName\",\"\",FONT_NORMAL,COLOR_MONEY, 400,98,SCRIPT_ALIGN_CENTER,0.7);\n\t\n\tif (CheckAttribute(pchar, \"ship.name\"))\n\t{\n\t\tGameInterface.strings.shipname = pchar.ship.name;\n\t}\n\telse \n\t{\n\t\tGameInterface.strings.shipname = \"\";\n",
+          "after": "\tStartAboveForm(true);\n\t\n\tFillShipsScroll();\n\tSendMessage(&GameInterface,\"ls\",MSG_INTERFACE_INIT,iniName);\n\tnCurScrollNum = sti(GameInterface.SHIPS_SCROLL.current);\n\tFillGoodsTable();\n\tSetCheckButtonsStates();\n\tSetVariable();\n\t\n\tCreateString(true,\"ShipName\",\"\",FONT_NORMAL,COLOR_MONEY, 400,98,SCRIPT_ALIGN_CENTER,0.7);\n\t\n\tif (CheckAttribute(&Characters[iCurCompanion], \"ship.name\"))\n\t{\n\t\tGameInterface.strings.shipname = Characters[iCurCompanion].ship.name;\n\t}\n\telse \n\t{\n\t\tGameInterface.strings.shipname = \"\";\n"
         },
         {
           "before": "\t{\n\t\tif (sti(GameInterface.SHIPS_SCROLL.current) != nCurScrollNum)\n\t\t{\n\t\t\tnCurScrollNum = sti(GameInterface.SHIPS_SCROLL.current);\n\t\t\tSetCheckButtonsStates();\n\t\t\tSetVariable();\n\t\t}\n\t}\n",
