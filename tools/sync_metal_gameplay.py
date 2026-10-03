@@ -19,6 +19,7 @@ import metal_tradebook as tradebook
 import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
 import metal_evening_lights as evening_lights
+import metal_fleet_gameplay as fleet_gameplay
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from runtime_script_patch import atomic_write
@@ -154,6 +155,15 @@ def plan(target_root=None):
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
             current = target.read_bytes()
+            if relative in fleet_gameplay.FILES:
+                if relative in living_caribbean.PREPARERS:
+                    incoming = living_caribbean.prepare(relative, incoming)
+                reviewed = fleet_gameplay.prepare(relative, incoming)
+                if not fleet_gameplay.recognized(relative, current):
+                    raise RuntimeError(f"unrecognized fleet gameplay revision: {relative}")
+                if current != reviewed:
+                    changes[relative] = (current, reviewed)
+                continue
             if relative == governor_dialog.PATH:
                 reviewed = governor_dialog.prepare(incoming)
                 if current not in (incoming, reviewed) and current not in living_caribbean.UPDATED.values():
@@ -307,6 +317,8 @@ def apply(changes):
                     backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
                 if relative in evening_lights.PREPARERS:
                     backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
+                if relative in fleet_gameplay.FILES:
+                    backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
                 if relative in tradebook.BASE:
                     backup_matches = digest(baseline) == tradebook.BASE[relative]
                 if relative in custody_life.BASELINE:
