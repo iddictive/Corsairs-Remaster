@@ -307,7 +307,7 @@ void FillChestTable()
     GameInterface.CHEST_TABLE.hr.td3.str = "Продать";
     GameInterface.CHEST_TABLE.hr.td4.str = "Цена\nза шт.";
     GameInterface.CHEST_TABLE.hr.td5.str = "Останется";
-    GameInterface.CHEST_TABLE.hr.td6.str = "Особенности";
+    GameInterface.CHEST_TABLE.hr.td6.str = "Редкость";
     GameInterface.CHEST_TABLE.hr.td1.scale = 0.8;
     GameInterface.CHEST_TABLE.hr.td2.scale = 0.85;
     GameInterface.CHEST_TABLE.hr.td3.scale = 0.8;
@@ -341,10 +341,16 @@ void FillChestTable()
             {
                 ref item = &Items[itemIndex];
                 if (CheckAttribute(item, "name")) label = GetConvertStr(item.name, "ItemsDescribe.txt");
-                reason = Treasurer_ItemSaleReason(item);
                 sellQuantity = Treasurer_ItemSaleQuantity(item, quantity);
                 price = Treasurer_ItemSalePrice(item);
-                if (reason == "") reason = "Обычный предмет";
+                reason = "Неизвестна";
+                if (CheckAttribute(item, "rare"))
+                {
+                    reason = "Обычный";
+                    if (stf(item.rare) < 0.01) reason = "Редкий";
+                }
+                if (CheckAttribute(item, "unique")) reason = "Уникальный";
+                if (CheckAttribute(item, "quest") || IsQuestUsedItem(item.id)) reason = "Квестовый";
                 if (CheckAttribute(item, "picTexture") && CheckAttribute(item, "picIndex"))
                 {
                     GameInterface.CHEST_TABLE.(row).td2.icon.group = item.picTexture;

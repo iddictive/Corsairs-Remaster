@@ -132,44 +132,6 @@ void Treasurer_SetItemLocked(string itemID, bool locked)
     else DeleteAttribute(pchar, "Treasury.KeepItems." + itemID);
 }
 
-bool Treasurer_ItemNeededBy(ref officer, ref item)
-{
-    string equipped = GetCharacterEquipByGroup(officer, item.groupID);
-    if (equipped == item.id) return true;
-    if (OfficerSupply_IsEquipmentLocked(officer, item.groupID, equipped)) return false;
-    float score = OfficerSupply_ItemScore(officer, item, item.groupID);
-    if (score < 0.0) return false;
-    if (equipped == "" || equipped == "unarmed") return true;
-    aref current;
-    if (Items_FindItem(equipped, &current) < 0) return true;
-    return score > OfficerSupply_ItemScore(officer, current, item.groupID);
-}
-
-bool Treasurer_ItemNeeded(ref item)
-{
-    if (Treasurer_ItemNeededBy(pchar, item)) return true;
-    int index;
-    ref officer;
-    for (int slot = 0; slot < GetPassengersQuantity(pchar); slot++)
-    {
-        index = GetPassenger(pchar, slot);
-        if (index < 0) continue;
-        officer = GetCharacter(index);
-        if (!GetRemovable(officer) || LAi_IsDead(officer)) continue;
-        if (CheckAttribute(officer, "prisoned") && sti(officer.prisoned)) continue;
-        if (Treasurer_ItemNeededBy(officer, item)) return true;
-    }
-    for (int ship = 1; ship < COMPANION_MAX; ship++)
-    {
-        index = GetCompanionIndex(pchar, ship);
-        if (index < 0) continue;
-        officer = GetCharacter(index);
-        if (!FleetService_IsShip(officer)) continue;
-        if (Treasurer_ItemNeededBy(officer, item)) return true;
-    }
-    return false;
-}
-
 string Treasurer_ItemSaleCategory(ref item)
 {
     if (!CheckAttribute(item, "id")) return "";
@@ -199,7 +161,6 @@ string Treasurer_ItemSaleReason(ref item)
     if (!CheckAttribute(item, "price") || sti(item.price) <= 0 || IsQuestUsedItem(item.id)) return "Квестовая вещь";
     if (!CheckAttribute(item, "rare")) return "Редкость неизвестна";
     if (stf(item.rare) < 0.01) return "Редкая вещь";
-    if (category != "SellLoot" && Treasurer_ItemNeeded(item)) return "Нужно вам / офицеру";
     if (!Treasurer_Setting(category, 1, 0, 1)) return "Категория отключена";
     if (sti(item.price) >= Treasurer_Setting("PriceLimit", 1500, 1, 1000000)) return "Дороже предела";
     return "";
