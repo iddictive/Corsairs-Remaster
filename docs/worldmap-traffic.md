@@ -353,6 +353,176 @@ the active scene and provide the corresponding retreat/settlement transition.
 Stage duration, actor density and on-screen effects need player-runtime acceptance;
 a written state diagram alone cannot establish pacing or performance.
 
+### Commerce lifecycle, price recovery and player exposure — proposed contract
+
+Current source constraints: `UpdateStore` moves each quantity toward its Norm by
+approximately one seventh of the difference per day, with random variation.
+`RndPriceModify` then changes from the stock/Norm ratio within existing bounds;
+`GetStoreGoodsPrice` combines commodity cost, import/export class, that modifier
+and commerce skill/perks. Its quantity argument currently scales a linear total.
+These facts do not establish a shipment-driven economy. Adding caravan arrivals
+on top of unmodified import regeneration would credit the same supply twice.
+
+The chosen model is a bounded commodity flow, preserving authored import/export
+identity and commerce skill. No new universal currency, bidding exchange or
+port prosperity score is required. Per commodity, record stock, outbound reserved
+stock, target demand, local production/consumption, observed price and last update.
+Choose the new production/consumption rates by calibrating against existing Norm
+and ordinary prices. Imported goods principally return through deliveries; locally
+produced exports replenish over time. A small explicitly accounted recovery source
+keeps essential services recoverable when transport is exhausted; it must not
+replace normal imports or secretly fill stores overnight. Damaged capacity reduces
+production/recovery temporarily; food or tools delivered for reconstruction are
+consumed once and restore capacity over elapsed time, not both sold and reused.
+
+| Transition | Required state and effect |
+| --- | --- |
+| Plan voyage | Choose demand and a viable destination; reserve only available export stock, supplies and actual hull capacity |
+| Load/depart | Transfer reserved goods into hull manifests once; release canceled reservations; leave local essential reserves |
+| Voyage | Pay supply/time and preserve manifest; escorts, diversion, losses and piracy change what reaches destination |
+| Delivery | Transfer surviving goods to the destination once; record delivery identity; unloading/service takes time |
+| Diversion | Choose an accessible eligible alternate buyer if port access or demand changes; never teleport or regenerate cargo |
+| Capture/robbery | Transfer or destroy exact quantities; limited surrender can release a merchant with remaining cargo |
+| Return/service | Unload prizes, replenish from available goods, repair over time and take another viable job |
+| Recovery | Reconcile elapsed production, consumption and deliveries once through the same daily store owner |
+
+**Prices.** Maintain a bounded target scarcity adjustment from usable stock
+relative to demand; approach it through the existing price owner with controlled
+movement rather than stacking another independent siege multiplier. Cost, trade
+class and perks remain meaningful. Interruption raises prices of affected goods,
+not every commodity globally. A delivered supply reduces shortage; a large sale
+therefore has diminishing proceeds. A blockade ending does not reset prices:
+stock/capacity and service need to recover. Use a consistent quantity-aware quote
+for buy/sell, with the spread preserved under the allowed perks and rounding; the
+quote is the cumulative marginal price of the chosen quantity, not the last unit's
+price multiplied by the whole load. Apply the same rule to player, treasurer and
+NPC cargo transfers. Local transactions move scarcity immediately, while unrelated
+daily drift is bounded; no round-trip buy/sell profit from inconsistent order,
+split transactions, zero quantity, rounding or reload. Calibration must retain
+worthwhile inter-port profit after food, wages, travel and risk, not erase trade.
+
+**Player decision.** The live store presents the actual total for the requested
+quantity before commitment. Trade-journal destination prices are dated observations,
+not guaranteed sale offers; an estimated route profit is explicitly an estimate.
+A recently relieved port may no longer buy at its previous shortage price. Keep
+bought goods after a destination closes: wait, reroute, sell elsewhere or support
+the port, rather than forced confiscation or automatic loss. Physical port access,
+national hostility and contraband still apply. Loss in honest trade is possible;
+protect the decision with current quotes and visible dated intelligence, not a
+scripted promise of profit or free insurance.
+
+**Treasurer.** Fleet supply goals remain desired final quantities, not repeated
+purchase orders. Purchases debit real accessible stock and money, honour the
+player's cash reserve and capacity, and subtract already aboard quantities.
+Autopurchase needs a player-owned spend ceiling/acceptable price ceiling for
+volatile essentials; a high shortage quote must not silently drain the wallet.
+When blocked by price, stock, cash or access, leave the unmet target and report the
+actual reason once. Show quantities and total actually bought/sold after a real
+transaction, without sound. Chest-sale filters and explicit protected items remain
+player decisions; economic rarity must not restore the rejected equipment veto.
+Player buys and fleet purchases cannot both consume the same last stock unit.
+
+Admission requires partial-load conservation, diversion to a closed destination,
+post-raid recovery without duplicate imports, large versus split trade quote parity,
+no profitable same-shop round trip, stale price-journal estimates and treasury
+reserve/price-ceiling negatives. Numeric rates and caps remain tuning inputs until
+representative ordinary and disrupted routes pass; the design is not yet balanced.
+
+### Siege intervention scenarios, factions and land population — proposed contract
+
+**Naval opportunity.** The player may attack or board the landing fleet while
+its troops are ashore. Transports retain only their actually available crew;
+covering warships need not have landed theirs. Cover reacts to observed attacks,
+escorts try to protect extraction and transports may flee or recall troops.
+Do not apply equal crew loss to the whole squadron. The fort fires only if its guns
+and allegiance still permit it. Taking a transport grants its aboard cargo and
+people, not every troop ashore. Sinking it removes the hull and aboard supplies;
+shore troops lose assigned transport/supply and must use surviving boats, secure
+the port, seek another evacuation or surrender. Their death or retreat is not
+instantaneous. This offers a genuine naval way to disrupt a land operation.
+
+**Choosing land participation.** There is no requirement to first sink the
+attacking squadron. From sea, approach a usable defended harbour, an attackers'
+beachhead or a different authored shore, respecting coastal guns and access.
+From shore, use the real connected gate/port/town locations. Describe control and
+risk before entry; never offer a magic town teleport or a supposedly safe harbour
+which spawns the player among enemies. If all accessible approaches are hostile,
+landing remains a dangerous intentional choice, not an impossible universal ban.
+The player already inside town stays in that scene when the siege changes; guards
+warn and routes/occupants transition rather than suddenly surrounding the hero.
+Fast travel follows actual route availability; physical retreat remains possible
+where an open connection exists, without a universal fight-until-everyone-dies lock.
+
+**Relations are a matrix, not a shared enemy flag.** Every contingent has a siege
+ID, faction, allegiance, commander and local task. Player, attacker, defender and
+arriving relief evaluate each pair separately, preserving pre-existing hostility.
+An enemy of the player's enemy is not automatically an ally. If both sides are
+hostile to the hero, both may attack when they detect him, while continuing their
+own battle and priorities; neither receives global player location. A commander
+may accept a specific ceasefire/help agreement if lawful for that faction and
+mission, but its existence is not guaranteed. Helping one side does not silently
+pardon crimes or confer citizenship. A same-side mistake gets the bounded warning
+rule; intentional repeated aggression cancels its agreement. Civilians, merchants
+and story actors do not share a universal combat group. NPC targets choose nearby
+credible threats or assigned positions, not every participant simultaneously.
+
+**Multiple forces.** Relief helping the existing defender joins its side; an
+independent hostile force retains its own hostility matrix and objective. Cap
+local simulated operations and active actor counts, not diplomatic possibilities.
+A new siege cannot allocate the same fort, garrison or port stock twice. Existing
+combat admits arrivals or keeps incompatible operations waiting outside, rather
+than creating overlapping fresh battles. One-patrol commerce rescue limits remain
+a separate rule; they must not forbid an actual naval expedition reaching a port.
+
+**Population accounting.** Keep finite troop pools assigned to hulls and shore
+contingents. Active named soldiers consume available troop slots; reserve soldiers
+are not already spawned duplicates. On a land scene's first entry, choose the
+currently occupied authored positions and serialize actor identities, equipment,
+health, side and task. Re-entry restores survivors/corpses where retained and never
+heals, rerolls elites or fills the roster again. Dead/surrendered/captured soldiers
+are removed or reassigned exactly once. The hero's officers keep their ordinary
+party limits and orders; accepting a side is not a free permanent army.
+
+Active scenes contain bounded combat detachments, not hundreds of NPCs. Reserve
+reinforcements enter only from a controlled connected gate, shore or other valid
+entry and draw down finite reserves. Do not spawn behind the player or inside
+visible occupied space; if no valid entry exists, defer admission, not invent one.
+Other sectors can resolve off-screen over elapsed time with their own disjoint
+troop pools. The foreground sector never also receives background casualties.
+Taking a gate or commander position changes access/morale and may trigger retreat
+or surrender; killing a small visible detachment does not magically kill the whole
+garrison. No infinite wave grinder is required to finish a siege: objectives,
+remaining force ratio, access and morale determine continued resistance.
+
+**Settlement and partial outcomes.** Suppressed fort plus failed landing leaves
+a blockade or retreat, not a captured town. A captured town plus lost transports
+can force a holding action, negotiation or abandoned loot. Reinforcement during
+loading can save some goods without reversing already debited losses. A defender's
+victory does not respawn the dead or all looted stock; an attacker's victory does
+not confiscate every player item or change every nation relationship. Claimed
+help rewards and outstanding cargo each retain identity through a second visit.
+If the player leaves, only subsequent elapsed time advances the unresolved fight;
+returning shows its actual new phase. No hidden second settlement on scene exit.
+
+### Cross-layer scenarios required before siege delivery
+
+| Seeded situation | Expected outcome | Reject |
+| --- | --- | --- |
+| Neutral hero approaches a landing | Can observe, select a usable approach or depart; existing law still applies | All combatants become enemies on scene load |
+| Hero attacks troop transport | Cover responds; aboard crew/cargo take actual damage; shore contingent loses transport | Whole shore army dies or full crew regenerates |
+| Hero joins assault from alternate shore | Travels connected locations and joins the current land objective | Must destroy all ships first or teleports to governor |
+| Both factions already hate hero | Pairwise fighting and optional negotiated access where eligible | Enemy-of-enemy becomes a free ally or everyone ignores their own battle |
+| Hero remains in town as attackers land | State changes at valid entries with bounded actors and readable danger | Sudden full enemy ring at hero position |
+| Relief reaches extraction | Real arriving ships change evacuation and loot recovery | Instant remote reinforcements or duplicated treasury |
+| Save/load in street battle | Restore health, finite reserves, positions, allegiance and claims | New army, free heal or repeated reward |
+| Scarce port receives two loads | Credit each once; quote and shortage adjust; later recovery uses same ledger | Old import regeneration plus shipment credit counted as separate full supply |
+| Hero buys shortage cargo for resale | Can profit or lose with dated information and current transaction totals | Guaranteed arbitrage or secretly changing committed price |
+
+The chapter remains design. Implementation still needs source-grounded crew/shore
+allocation, pairwise combat groups, authored scene/entry admission, price-quote
+integration and native fort targeting. Documentation checks cannot accept these
+behaviours or promise that all siege/town combinations already have usable assets.
+
 ### Balance and causal model
 
 Availability, distance, cargo value, observed force ratio and prior route losses
