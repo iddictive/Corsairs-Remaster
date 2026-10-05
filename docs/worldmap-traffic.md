@@ -61,6 +61,44 @@ introducing a parallel AI registry would duplicate those owners without closing
 a further requirement. Exact native/script probes and canonical staging precede
 installation; the player owns final scene/balance acceptance.
 
+## October 5 regional shipping routes
+
+Route selection now uses the existing authored island centres as a coarse distance
+estimate, while the native pathfinder still sails between verified offshore port
+locators. Destination weight is `20 + 80 / (1 + distance² / 400²)`: short voyages
+are more likely, but the positive floor preserves interregional trade. Existing
+hostility, ownership and encounter eligibility filters still run before selection.
+No player position enters departure or route selection.
+
+New departures spread their home ports by `100 / (1 + resident²)`, counting only
+living ordinary fleets of the same role whose saved `trafficOrigin` matches that
+port. This reduces duplicate home patrols and repeated departure clusters without
+increasing the population cap. Old fleets keep their routes and retire normally;
+missing origin metadata is not guessed or used to reset their state.
+
+Raiders add a smooth destination bonus from the actual positions of ordinary
+merchant fleets: `40 / (1 + distance² / 400²)` per merchant group. Shipping can
+attract pirate routes; quest ships, the player and removed encounters cannot.
+This changes route preference only, not enemy omniscience or attack permission:
+local sight, strength assessment, commitment and the one-patrol rescue cap still
+own actual encounters. New origin/destination metadata is saved inside the existing
+encounter descriptor, with no second registry or economy.
+
+The design reference was TaleWorlds' documented caravan protection/patrol response
+([War Sails release](https://www.taleworlds.com/en/News/587)) and purposeful sea
+journeys ([developer update](https://www.taleworlds.com/en/News/598)). Those sources
+explain their documented mechanics, not proof that these weights make Corsairs fun.
+A larger spawn cap was rejected: it raises the number of actors without giving
+them better reasons to cross paths.
+
+Disposable checks compile the changed route helpers and complete creation function
+in the native script VM. Seeded VM checks verify nearer-route preference, nonzero
+long-distance weight, actual commerce attracting raiders, underrepresented home
+selection, unchanged other-role counts, quest exclusion and missing-coordinate
+fallback. Exact-hash composition admits the previously installed revision and
+rejects unknown edits. Real-game density/enjoyment remains player acceptance:
+travel through regional ports after new departures have replaced older traffic.
+
 ## Contract and owners
 
 The map should contain trade travelling between ports, naval patrols and pirate

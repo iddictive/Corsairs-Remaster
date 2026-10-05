@@ -394,6 +394,57 @@ float WdmTrafficFleetPower(ref fleet, int rank)
 	return merchants * merchantPower + warships * warPower * 2.0;
 }
 
+// Route choice uses authored island centres only as a distance estimate;
+// native navigation still resolves the verified offshore endpoint locators.
+float WdmTrafficRouteWeight(int home, int destination, int role)
+{
+	string fromPath = "islands." + Colonies[home].island + ".position";
+	string toPath = "islands." + Colonies[destination].island + ".position";
+	float weight = 20.0; // Keep long voyages possible, including distant colonies.
+	if (!CheckAttribute(&worldMap, fromPath + ".x") || !CheckAttribute(&worldMap, fromPath + ".z") ||
+		!CheckAttribute(&worldMap, toPath + ".x") || !CheckAttribute(&worldMap, toPath + ".z")) return weight;
+	aref origin, target;
+	makearef(origin, worldMap.(fromPath));
+	makearef(target, worldMap.(toPath));
+	float dx = stf(origin.x) - stf(target.x);
+	float dz = stf(origin.z) - stf(target.z);
+	weight = weight + 80.0 / (1.0 + (dx * dx + dz * dz) / 160000.0);
+	if (role == 3 && CheckAttribute(&worldMap, "encounters"))
+	{
+		// Hunt existing shipping, not the player and not invented hotspot flags.
+		aref traffic;
+		makearef(traffic, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(traffic); i++)
+		{
+			aref fleet = GetAttributeN(traffic, i);
+			if (!WdmTrafficIsOrdinary(fleet) || sti(fleet.trafficRole) != 1) continue;
+			if (!CheckAttribute(fleet, "x") || !CheckAttribute(fleet, "z")) continue;
+			dx = stf(fleet.x) - stf(target.x);
+			dz = stf(fleet.z) - stf(target.z);
+			weight = weight + 40.0 / (1.0 + (dx * dx + dz * dz) / 160000.0);
+		}
+	}
+	return weight;
+}
+
+int WdmTrafficHomeWeight(int home, int role)
+{
+	int resident = 0;
+	if (CheckAttribute(&worldMap, "encounters"))
+	{
+		aref traffic;
+		makearef(traffic, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(traffic); i++)
+		{
+			aref fleet = GetAttributeN(traffic, i);
+			if (!WdmTrafficIsOrdinary(fleet) || sti(fleet.trafficRole) != role) continue;
+			if (CheckAttribute(fleet, "trafficOrigin") && fleet.trafficOrigin == Colonies[home].id) resident++;
+		}
+	}
+	// Prevent duplicate patrols piling up at one randomly selected home port.
+	return 100 / (1 + resident * resident);
+}
+
 bool WdmTrafficCreate(int role)
 {
 	if (role < 1 || role > 3 || !IsEntity(worldMap)) return false;
@@ -410,10 +461,24 @@ bool WdmTrafficCreate(int role)
 		homeCount++;
 	}
 	if (homeCount == 0) return false;
-	int home = homes[rand(homeCount - 1)];
+	int homeWeights[MAX_COLONIES];
+	int totalHomeWeight = 0;
+	for (i = 0; i < homeCount; i++)
+	{
+		homeWeights[i] = WdmTrafficHomeWeight(homes[i], role);
+		totalHomeWeight = totalHomeWeight + homeWeights[i];
+	}
+	int homeRoll = rand(totalHomeWeight - 1);
+	int home = homes[homeCount - 1];
+	for (i = 0; i < homeCount; i++)
+	{
+		homeRoll = homeRoll - homeWeights[i];
+		if (homeRoll < 0) { home = homes[i]; break; }
+	}
 	int nation = sti(Colonies[home].nation);
 	string from = WdmTrafficPortLocator(home);
 	string to = "";
+	int destination = -1;
 	if (role == 2)
 	{
 		to = WdmTrafficPatrolLocator(Colonies[home].island);
@@ -434,7 +499,20 @@ bool WdmTrafficCreate(int role)
 			destinationCount++;
 		}
 		if (destinationCount == 0) return false;
-		int destination = destinations[rand(destinationCount - 1)];
+		int routeWeights[MAX_COLONIES];
+		int totalRouteWeight = 0;
+		for (i = 0; i < destinationCount; i++)
+		{
+			routeWeights[i] = makeint(WdmTrafficRouteWeight(home, destinations[i], role));
+			totalRouteWeight = totalRouteWeight + routeWeights[i];
+		}
+		int routeRoll = rand(totalRouteWeight - 1);
+		destination = destinations[destinationCount - 1];
+		for (i = 0; i < destinationCount; i++)
+		{
+			routeRoll = routeRoll - routeWeights[i];
+			if (routeRoll < 0) { destination = destinations[i]; break; }
+		}
 		to = WdmTrafficPortLocator(destination);
 	}
 	if (to == "" || to == from) return false;
@@ -544,6 +622,8 @@ bool WdmTrafficCreate(int role)
 		worldMap.deleteUpdate = "";
 		return false;
 	}
+	encounter.trafficOrigin = Colonies[home].id;
+	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
 	encounter.trafficRole = role;
 	encounter.trafficNation = nation;
 	encounter.trafficPower = power;

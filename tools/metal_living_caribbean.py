@@ -291,7 +291,7 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "db22188cebb5da2c5a4015fb61350b5e4c4f211d1d074e324545f2170f1d78ca"
+WDM_TRAFFIC_SHA256 = "15b03524455c478aa9505c475e8d99e97c3c864e6072a72a17bc3bd3c83e12a7"
 
 WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)
 {
@@ -1483,7 +1483,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "7aea1579393c4eb67c9c4de145b1d5a1ea62a9b0742b380df1a735432212cb82",
+    "PROGRAM/worldmap/worldmap_encgen.c": "c7d8ed65bfa0bfa002d4cdcafb9cef184a6853d136b698cee852057762c7b449",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1508,7 +1508,7 @@ PREVIOUS = {
     WDM_MAIN_PATH: {"2f1610cc7392493ed46cc42cb483c5b2a7984b4ff61231900d328018c214a2cc"},
     SEA_PATH: {"9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98"},
     WDM_INIT_PATH: {"20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980"},
-    WDM_ENC_PATH: {"975b3085bc51e8508d56c3138fcd62646f7ad2bf2d0d78b7874c68da7af21372", "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a", "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86"},
+    WDM_ENC_PATH: {"7aea1579393c4eb67c9c4de145b1d5a1ea62a9b0742b380df1a735432212cb82", "975b3085bc51e8508d56c3138fcd62646f7ad2bf2d0d78b7874c68da7af21372", "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a", "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86"},
     WDM_GLO_PATH: {"bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe"},
     "PROGRAM/worldmap/worldmap_reload.c": {"cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627", "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
     "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},
