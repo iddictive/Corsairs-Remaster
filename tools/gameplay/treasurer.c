@@ -380,6 +380,5 @@ void Treasurer_PortService()
         Treasurer_Report("Казначей: продажа " + proceeds + ", закупки " + spent + " пиастров.");
         Log_Info(pchar.Treasury.Last.text);
         AddMsgToCharacter(pchar, MSGICON_GETITEM);
-        PlayStereoSound("interface\important_item.wav");
     }
 }
