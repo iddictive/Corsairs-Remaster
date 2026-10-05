@@ -20,6 +20,8 @@ import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
 import metal_evening_lights as evening_lights
 import metal_fleet_gameplay as fleet_gameplay
+import metal_fleet_sea as fleet_sea
+import metal_fleet_ui as fleet_ui
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from runtime_script_patch import atomic_write
@@ -118,6 +120,33 @@ def compiler_ready():
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
 
 
+# Compose after the existing gameplay owners, notably the AIShip fleet layer.
+FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
+FLEET_FINAL_SHA = {
+    "PROGRAM/worldmap/worldmap_reload.c": "e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc",
+    "PROGRAM/sea_ai/sea.c": "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c",
+    "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
+    "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
+    "PROGRAM/interface/map.c": "8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c",
+    "PROGRAM/battle_interface/WmInterface.c": "4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1",
+    "PROGRAM/battle_interface/loginterface.c": "7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0",
+    "RESOURCE/INI/interfaces/map.ini": "fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122",
+}
+
+
+def prepare_fleet_final(relative, incoming):
+    if relative in living_caribbean.PREPARERS:
+        incoming = living_caribbean.prepare(relative, incoming)
+    if relative in fleet_gameplay.FILES:
+        incoming = fleet_gameplay.prepare(relative, incoming)
+    if digest(incoming) != FLEET_FINAL_BASE[relative]:
+        raise RuntimeError(f"unrecognized fleet bridge input: {relative}")
+    result = fleet_ui.prepare(relative, fleet_sea.prepare(relative, incoming))
+    if digest(result) != FLEET_FINAL_SHA[relative]:
+        raise RuntimeError(f"unreviewed fleet bridge output: {relative}")
+    return result
+
+
 def plan(target_root=None):
     if target_root is None:
         target_root = TARGET
@@ -155,6 +184,13 @@ def plan(target_root=None):
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
             current = target.read_bytes()
+            if relative in FLEET_FINAL_BASE:
+                reviewed = prepare_fleet_final(relative, incoming)
+                if digest(current) not in {FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]}:
+                    raise RuntimeError(f"unrecognized installed fleet bridge: {relative}")
+                if current != reviewed:
+                    changes[relative] = (current, reviewed)
+                continue
             if relative in fleet_gameplay.FILES:
                 if relative in living_caribbean.PREPARERS:
                     incoming = living_caribbean.prepare(relative, incoming)
@@ -312,6 +348,8 @@ def apply(changes):
                 baseline = backup.read_bytes()
                 deck = deck_package()
                 backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
+                if relative in FLEET_FINAL_BASE:
+                    backup_matches = digest(baseline) in {FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} or backup_matches
                 if relative == governor_dialog.PATH:
                     backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in living_caribbean.PREPARERS:

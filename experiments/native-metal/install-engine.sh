@@ -68,6 +68,27 @@ originals = {
 }
 digest = lambda data: hashlib.sha256(data).hexdigest()
 changes = {}
+# Shared messages are compiled by the script VM as well as the engine. Deliver
+# the built header to both consumers; stale commands abort startup compilation.
+header_source = root / ".cache/storm/src/libs/shared_headers/include/shared/messages.h"
+header_known = {
+    "a3904843de09a05cafd0bb4bb78766953747bdcd33175fb1bdfdc3171444dc69",
+    "38bab60eeeb5cb90370f3ea4c51b9be5169555ac09df74e15debd630257125a2",
+}
+if header_source.is_symlink() or not header_source.is_file():
+    raise RuntimeError("Missing or linked built messages.h")
+header_after = header_source.read_bytes()
+for target in (
+    app / "Contents/Resources/resource/shared/messages.h",
+    root / ".cache/runtime/resource/shared/messages.h",
+):
+    if target.is_symlink() or not target.is_file():
+        raise RuntimeError(f"Missing or linked script header: {target}")
+    before = target.read_bytes()
+    if before != header_after and digest(before) not in header_known:
+        raise RuntimeError(f"Script header changed outside staging: {target}")
+    if before != header_after:
+        changes[target] = (before, header_after)
 for name, known in originals.items():
     source = root / ".cache/runtime/RESOURCE/techniques" / name
     target = app / "Contents/Resources/RESOURCE/techniques" / name
@@ -101,7 +122,7 @@ before, after = engine.read_bytes(), candidate.read_bytes()
 if before != after:
     changes[engine] = (before, after)
 if not changes:
-    print("Played app engine, techniques and launcher already match; install skipped.")
+    print("Played app engine, script header, techniques and launcher already match; install skipped.")
 else:
     written = []
     try:
@@ -130,7 +151,7 @@ else:
         if failures:
             raise RuntimeError(f"{error}; installed rollback incomplete: {'; '.join(failures)}") from error
         raise
-    print("Installed engine, reviewed techniques and launcher; bundle signature verified.")
+    print("Installed engine, reviewed script header, techniques and launcher; bundle signature verified.")
 INSTALL
 rm -f "$tmp"
 final_hash=$(shasum -a 256 "$dest" | awk '{print $1}')
