@@ -3,7 +3,8 @@
 
 Compose after the gameplay layers. Native integration must provide message
 31131 (MSG_WORLDMAP_ENTER_SEA_DIRECT): clear every isSelect, then emit
-ExitFromWorldMap without ExitFromMap/enemy selection. 31130 stays targeted.
+ExitFromWorldMap without ExitFromMap/enemy selection. Quick actions use 31130
+for encounter review; only the explicit popup sea button commits via 31131.
 The worldmap owner supplies WdmTrafficRefresh, trafficPlayerPower and
 WdmTrafficFleetPower(ref fleet, int rank); outer trafficCondition stays separate.
 """
@@ -78,16 +79,17 @@ def prepare_map(data: bytes) -> bytes:
 
 		case "B_OK":""")
     data = replace(data, 'SetCurrentNode("BTN_OK")', 'SetCurrentNode("B_OK")')
+    data = replace(data, 'SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"INFO_TEXT",5);', '// Keep the encounter summary top-aligned.')
     data = replace(data, 'SetSelectable("BTN_CANCEL",true)', 'SetSelectable("B_CANCEL",true)')
     data = replace(data, 'SetSelectable("BTN_CANCEL",false)', 'SetSelectable("B_CANCEL",false)', 3)
     data = replace(data, '\tpchar.space_press = 0;', """	// Story, storm and island actions retain their authored transition.
 	bool plainSea = !bFleetUIQuest && sti(worldMap.encounter_type) != 0 && sti(worldMap.encounter_type) != 4;
 	SetSelectable("B_SEA", plainSea);
 	if (!plainSea) SetNodeUsing("B_SEA", false);
-	if (plainSea) SetCurrentNode("B_SEA");
+	SetCurrentNode("B_OK");
 	pchar.space_press = 0;""")
     data = replace(data, 'EI_CreateFrame("BORDERS", 245,154,555,330);',
-                   'EI_CreateFrame("BORDERS", 145,94,655,250);')
+                   'EI_CreateFrame("BORDERS", 184,192,344,352);')
     helper = Path(__file__).with_name("gameplay") / "fleet-encounter-ui.c"
     source = helper.read_bytes()
     if hashlib.sha256(source).hexdigest() != HELPER_SHA256:
@@ -96,13 +98,8 @@ def prepare_map(data: bytes) -> bytes:
 
 
 def prepare_wm(data: bytes) -> bytes:
-    data = replace(data, """case "EnterToSea":
-		SendMessage(&worldMap,"l",MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA);""", """case "EnterToSea":
-		SendMessage(&worldMap,"l",MSG_WORLDMAP_ENTER_SEA_DIRECT);""")
-    # Both producers (possible commands/current action) choose plain sea by
-    # default around fleets. Keep island/storm paths and dead-character guard.
-    for action in ("EnterToShip", "EnterToAttack", "EnterToEnemy"):
-        data = replace(data, f'Log_SetActiveAction("{action}");', 'Log_SetActiveAction("EnterToSea");', 2)
+    # Keep contextual pursuit/attack as the default. The independent sea
+    # choice still opens the stock encounter review before committing entry.
     for line in ('BattleInterface.Commands.EnterToShip.enable\t= true;',
                  'BattleInterface.Commands.EnterToAttack.enable = true;',
                  'BattleInterface.Commands.EnterToEnemy.enable = true;'):
@@ -125,23 +122,18 @@ def prepare_wm(data: bytes) -> bytes:
 
 
 def prepare_log(data: bytes) -> bytes:
-    return replace(data, """case "EnterToSea":
-			bEC = true;
-			SendMessage(&worldMap,"l",MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA);""", """case "EnterToSea":
-			bEC = true;
-			SendMessage(&worldMap,"l",MSG_WORLDMAP_ENTER_SEA_DIRECT);""")
+    return data
 
 
 def prepare_ini(data: bytes) -> bytes:
     data = replace(data, 'item = 90,FORMATEDTEXT,INFO_TEXT_QUESTION\n', '')
     data = replace(data, 'item = 100,TEXTBUTTON2,B_OK', 'item = 90,SCROLLER,INFO_SCROLL\nitem = 100,TEXTBUTTON2,B_SEA\nitem = 100,TEXTBUTTON2,B_OK')
-    data = replace(data, 'start = B_OK', 'start = B_SEA')
-    for old, new in (('position = 240,119,560,469', 'position = 140,65,660,540'),
-                     ('position = 240,341,560,469', 'position = 140,250,660,540'),
-                     ('position = 241,144,559,341', 'position = 141,90,659,250'),
-                     ('position = 251,121,548,147', 'position = 151,67,648,91'),
-                     ('position = 268,432,398,464', 'position = 316,495,484,527'),
-                     ('position = 402,432,532,464', 'position = 490,495,648,527')):
+    for old, new in (('position = 240,119,560,469', 'position = 170,160,630,440'),
+                     ('position = 240,341,560,469', 'position = 170,184,630,440'),
+                     ('position = 241,144,559,341', 'position = 184,192,344,352'),
+                     ('position = 251,121,548,147', 'position = 181,162,618,184'),
+                     ('position = 268,432,398,464', 'position = 184,392,324,424'),
+                     ('position = 402,432,532,464', 'position = 480,392,616,424')):
         data = replace(data, old, new)
     data = replace(data, '[INFO_TEXT]\nposition = 242,344,558,425\nfontScale = 0.9\nlineSpace = 13', """[INFO_TEXT]
 command = click,select:INFO_TEXT
@@ -150,24 +142,25 @@ command = downstep
 command = speedup
 command = speeddown
 command = deactivate,select:B_OK
-position = 155,262,625,479
+position = 360,194,588,366
 scrollerName = INFO_SCROLL
+alignment = left
 fontScale = 0.9
 lineSpace = 16""")
-    data = replace(data, 'command = rightstep,select:B_CANCEL\nposition = 316,495,484,527',
-                   'command = leftstep,select:B_SEA\ncommand = rightstep,select:B_CANCEL\ncommand = upstep,select:INFO_TEXT\nposition = 316,495,484,527')
-    data = replace(data, 'command = leftstep,select:B_OK\nposition = 490,495,648,527',
-                   'command = leftstep,select:B_OK\ncommand = rightstep,select:B_SEA\ncommand = upstep,select:INFO_TEXT\nposition = 490,495,648,527')
+    data = replace(data, 'command = rightstep,select:B_CANCEL\nposition = 184,392,324,424',
+                   'command = leftstep,select:B_CANCEL\ncommand = rightstep,select:B_SEA\ncommand = upstep,select:INFO_TEXT\nposition = 184,392,324,424')
+    data = replace(data, 'command = leftstep,select:B_OK\nposition = 480,392,616,424',
+                   'command = leftstep,select:B_SEA\ncommand = rightstep,select:B_OK\ncommand = upstep,select:INFO_TEXT\nposition = 480,392,616,424')
     return data + enc("""
 [B_SEA]
 bBreakCommand
 command = deactivate,event:exitCancel
 command = activate
 command = click
-command = leftstep,select:B_CANCEL
-command = rightstep,select:B_OK
+command = leftstep,select:B_OK
+command = rightstep,select:B_CANCEL
 command = upstep,select:INFO_TEXT
-position = 152,495,310,527
+position = 332,392,472,424
 string = worldmap_sea
 glowoffset = 0,0
 
@@ -176,7 +169,7 @@ command = click
 command = upstep
 command = downstep
 command = deactivate,select:B_OK
-position = 628,262,645,479
+position = 594,194,611,366
 ownedControl = INFO_TEXT
 """)
 

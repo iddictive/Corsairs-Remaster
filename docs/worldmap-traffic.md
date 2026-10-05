@@ -133,8 +133,12 @@ Population runs while the world-map entity is active.
 `tools/sync_metal_gameplay.py` composes the source-only `metal_fleet_sea` and
 `metal_fleet_ui` adapters after existing exact-hash owners. They do not install
 files independently. AIShip's existing fleet layer runs before the sea bridge.
-The Enter menu's plain sea command uses message 31131; targeted approach keeps
-31130. Plain entry clears selection but preserves genuine hostile commitments.
+The Enter menu retains contextual approach/attack/pursuit as its default. Both
+quick-entry paths use 31130 to review a nearby encounter before entering; only
+the explicit sea button in that panel commits through 31131. Plain entry clears
+selection but preserves genuine hostile commitments. The encounter panel keeps
+a square 160-unit illustration beside the top-aligned summary, a bounded body
+scroller and one action row; its initial focus is the contextual action.
 The encounter panel shows purpose, surviving composition and approximate
 relative power, with truthful approach/pursuit/attack labels. Story restrictions
 retain their existing callbacks; barrels and boats remain separate encounters.

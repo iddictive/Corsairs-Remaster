@@ -127,10 +127,18 @@ FLEET_FINAL_SHA = {
     "PROGRAM/sea_ai/sea.c": "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c",
     "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
     "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
-    "PROGRAM/interface/map.c": "8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c",
-    "PROGRAM/battle_interface/WmInterface.c": "4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1",
-    "PROGRAM/battle_interface/loginterface.c": "7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0",
-    "RESOURCE/INI/interfaces/map.ini": "fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122",
+    "PROGRAM/interface/map.c": "4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be",
+    "PROGRAM/battle_interface/WmInterface.c": "4088a04e7f29758167938ec95530199bfd998cb7b37f01c67b939f4d973aac78",
+    "PROGRAM/battle_interface/loginterface.c": "88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c",
+    "RESOURCE/INI/interfaces/map.ini": "0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd",
+}
+
+
+FLEET_FINAL_PREVIOUS = {
+    "PROGRAM/interface/map.c": {"8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c"},
+    "PROGRAM/battle_interface/WmInterface.c": {"4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1"},
+    "PROGRAM/battle_interface/loginterface.c": {"7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0"},
+    "RESOURCE/INI/interfaces/map.ini": {"fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122"},
 }
 
 
@@ -186,7 +194,7 @@ def plan(target_root=None):
             current = target.read_bytes()
             if relative in FLEET_FINAL_BASE:
                 reviewed = prepare_fleet_final(relative, incoming)
-                if digest(current) not in {FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]}:
+                if digest(current) not in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())):
                     raise RuntimeError(f"unrecognized installed fleet bridge: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
@@ -349,7 +357,7 @@ def apply(changes):
                 deck = deck_package()
                 backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
                 if relative in FLEET_FINAL_BASE:
-                    backup_matches = digest(baseline) in {FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} or backup_matches
+                    backup_matches = digest(baseline) in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())) or backup_matches
                 if relative == governor_dialog.PATH:
                     backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in living_caribbean.PREPARERS:
