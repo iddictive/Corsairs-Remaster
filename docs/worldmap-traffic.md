@@ -290,6 +290,69 @@ universal hostility; betrayal across save/load; surrender stopping combat;
 intercepting a loaded withdrawing fleet; and reward/store conservation after a
 second visit. These are implementation requirements, not accepted runtime results.
 
+### Visual language and remaining siege design constraints
+
+This is proposed presentation and simulation behaviour, not implemented visuals.
+The phase must be understandable from activity and placement, with a short observed
+status for ambiguous transitions. Do not rely on colour alone or exact hidden stats.
+
+| Phase | World map | Local sea and town |
+| --- | --- | --- |
+| Blockade | Observed squadron holds harbour approaches; a port blockade marker | Interceptors cover entry routes, transports stay behind; no decorative continuous shelling or burning town |
+| Bombardment | Siege marker on the port; attackers hold a firing area rather than circling the player | Warships orient usable batteries toward the fort, real shots and fort return fire; damage/smoke tied to actual impacts |
+| Landing | Same port marker changes to an observed landing phase | Troop ships approach usable landing access under cover; bounded boat/shore representations only if compatible assets/pathing exist |
+| Assault | Attacking fleet remains offshore, relief approaches physically | Supporting ships guard landing/extraction routes; land groups fight at authored positions, civilians shelter and routes reflect local control |
+| Surrender | Observed phase becomes surrender, not another generic combat icon | Ceasefire, surrendered groups stop fighting; an explicit short status carries the meaning if no usable white-flag asset exists |
+| Loading/extraction | Raiders remain temporarily at port, then depart with their persistent identities | Cargo loading and troop return take time; covering ships protect transports, no uninterrupted fire after settlement |
+| Aftermath | Observed damaged/recovering port; old reports retain their date | Survivors depart or repair, shops reflect actual disruption, damage clears with recovery rather than every scene load |
+
+Markers summarize a port operation, not one icon per every ship or message every
+frame. Use the existing map view and encounter review. A short contextual line
+such as “Высаживают десант; два корабля прикрывают подход” describes observed
+activity, not a hidden mathematical evaluation. Sparse smoke/fire must not imply
+that every port building has physically burned or impose a permanent FPS cost.
+
+**Crew on shore is not dead crew.** Keep total surviving personnel distinct from
+currently aboard, ashore, wounded and prisoners, with a single conservation rule.
+Landing allocation leaves required sailing/gunnery crew; a captain cannot unload
+all sailors while keeping full movement, reload and boarding power. Apply existing
+crew-performance contracts to the people actually available aboard; do not invent
+an extra unrelated penalty. Shore casualties reduce the persistent survivor pool,
+returning troops restore aboard availability, not lost lives. Retreat can abandon
+stragglers and cannot teleport them aboard. Capturing a transport does not also
+capture every soldier already ashore; their supply/evacuation situation changes.
+
+A half-crewed ship must not look half-sunk or have magically smaller sails. At
+close range, if the existing deck actor system permits it, reduce visible activity
+with a bounded representative sailor count; never instantiate the whole crew.
+Performance follows actual remaining crew. A spyglass/context inspection may show
+an approximate observed manpower state and landing activity, with uncertainty;
+remote ships must not expose exact crew or troop counts. Hull, sail and crew bars
+retain their established meanings; temporary landing allocation must not be shown
+as deaths. Detailed aboard/ashore counts belong only to a supported inspection,
+not labels floating over every ship.
+
+**Remaining implementation decisions.** Inspect authored shore/gate/street
+locators and existing boat/flag/deck assets before choosing visible landing and
+combat placement. Prefer compatible authored positions and concise phase status
+to promised new animations or arbitrary crowds. Resolve at the sea/task owner how
+ships hold bombardment/cover positions without grounding, firing through allies
+or falling back to chasing the player. Define shore troop ownership and minimum
+aboard allocation before admitting a landing. A town with no compatible assault
+scene needs an explicitly reported abstract land resolution; it must not masquerade
+as a playable street battle. Ports with protected quest transitions need their
+own compatible scene admission, not universal immunity or deleted story actors.
+
+**Timing and interruption.** Each phase has readiness conditions and elapsed
+work, not a universal instant switch or a mandatory full day for every street
+fight. Pause freezes the simulation. Land and sea use the same elapsed-time owner;
+remaining offshore action may progress while the player fights ashore, but its
+resolution must not independently resolve that foreground land battle. Before a
+phase can evict the player, surrender, withdraw or close their only exit, reconcile
+the active scene and provide the corresponding retreat/settlement transition.
+Stage duration, actor density and on-screen effects need player-runtime acceptance;
+a written state diagram alone cannot establish pacing or performance.
+
 ### Balance and causal model
 
 Availability, distance, cargo value, observed force ratio and prior route losses
