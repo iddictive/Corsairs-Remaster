@@ -208,7 +208,7 @@ string Treasurer_ItemSaleReason(ref item)
 int Treasurer_ItemSaleQuantity(ref item, int quantity)
 {
     if (Treasurer_ItemSaleReason(item) != "") return 0;
-    quantity -= Treasurer_Setting("KeepCount", 1, 0, 999);
+    quantity -= Treasurer_Setting("KeepCount", 0, 0, 999);
     if (quantity < 0) quantity = 0;
     if (quantity > 1000000) quantity = 1000000;
     return quantity;

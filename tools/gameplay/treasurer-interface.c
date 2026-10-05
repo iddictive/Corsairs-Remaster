@@ -219,7 +219,7 @@ void SetVariable()
 {
     Button_SetText("RESERVE_BUTTON", "#Резерв: " + Treasurer_Setting("ReserveGold", 0, 0, 100000000));
     Button_SetText("PRICE_LIMIT_BUTTON", "#Цена вещи < " + Treasurer_Setting("PriceLimit", 1500, 1, 1000000));
-    Button_SetText("KEEP_COUNT_BUTTON", "#Оставлять: " + Treasurer_Setting("KeepCount", 1, 0, 999) + " шт.");
+    Button_SetText("KEEP_COUNT_BUTTON", "#Оставлять: " + Treasurer_Setting("KeepCount", 0, 0, 999) + " шт.");
     SetFormatedText("SERVICE_STATUS", Treasurer_Status());
     bool available = Treasurer_OfficerIndex() >= 0;
     if (Treasurer_BuyerIndex() < 0) available = false;
@@ -563,7 +563,7 @@ void OpenSettingQuantity(int mode)
             caption = "Оставлять в сундуке";
             info = "Сохранять столько экземпляров каждого предмета, допущенного к продаже.";
             iQuantityMaximum = 999;
-            GameInterface.QTY_EDIT.str = Treasurer_Setting("KeepCount", 1, 0, 999);
+            GameInterface.QTY_EDIT.str = Treasurer_Setting("KeepCount", 0, 0, 999);
         break;
     }
     SetFormatedText("QTY_CAPTION", caption);
