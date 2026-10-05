@@ -1,0 +1,517 @@
+diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wdm_enemy_ship.cpp
+--- a/src/libs/worldmap/src/wdm_enemy_ship.cpp
++++ b/src/libs/worldmap/src/wdm_enemy_ship.cpp
+@@ -50,6 +50,14 @@
+ 
+ WdmEnemyShip::~WdmEnemyShip()
+ {
++    // Paired encounters expose this pointer to the player and sea-import cursor.
++    for (auto *ship : wdmObjects->ships)
++        if (ship != this && ship != wdmObjects->playerShip)
++        {
++            auto *enemy = static_cast<WdmEnemyShip *>(ship);
++            if (enemy->attack == this) enemy->attack = nullptr;
++        }
++
+     /*
+     if(saveAttribute)
+     {
+@@ -91,7 +99,7 @@
+         if (deleteAlpha >= 1.0f)
+         {
+             // Remote check
+-            if (d > wdmObjects->enemyshipDistKill)
++            if (!GetTrafficData() && d > wdmObjects->enemyshipDistKill)
+                 deleteAlpha = 0.999999f;
+             // Lifetime check
+             liveTime -= dltTime;
+@@ -424,3 +432,13 @@
+     }
+     return "";
+ }
++
++ATTRIBUTES *WdmEnemyShip::GetTrafficData() const
++{
++    if (!saveAttribute || !ATTRIBUTES::IsLive(saveAttribute) ||
++        saveAttribute->GetAttribute("quest") || saveAttribute->GetAttribute("needDelete")) return nullptr;
++    auto *enc = saveAttribute->FindAClass(saveAttribute, "encdata");
++    if (!enc || enc->GetAttribute("qID") || enc->GetAttributeAsDword("RealEncounterType") == 19) return nullptr;
++    const auto role = saveAttribute->GetAttributeAsDword("trafficRole");
++    return role >= 1 && role <= 3 ? saveAttribute : nullptr;
++}
+diff --git a/src/libs/worldmap/src/wdm_enemy_ship.h b/src/libs/worldmap/src/wdm_enemy_ship.h
+--- a/src/libs/worldmap/src/wdm_enemy_ship.h
++++ b/src/libs/worldmap/src/wdm_enemy_ship.h
+@@ -49,6 +49,9 @@
+ 
+     // Get attribute name
+     const char *GetAttributeName() const;
++    // Only ordinary generated traffic participates in the simulation.
++    ATTRIBUTES *GetTrafficData() const;
++
+ 
+   protected:
+     // Find the pulling force in the desired direction
+diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+--- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
++++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+@@ -10,13 +10,16 @@
+ 
+ #include "wdm_merchant_ship.h"
+ #include "wdm_islands.h"
++#include "world_map.h"
++#include <cstring>
++#include <algorithm>
+ 
+ // ============================================================================================
+ // Construction, destruction
+ // ============================================================================================
+ 
+-WdmMerchantShip::WdmMerchantShip()
+-    : isEnableSetDir(false)
++WdmMerchantShip::WdmMerchantShip(bool globalPlacement)
++    : trafficPlacement(globalPlacement), isEnableSetDir(false)
+ {
+     shipType = wdmest_merchant;
+     gotoPos = 0.0f;
+@@ -35,7 +38,10 @@
+         return false;
+     // Position
+     float x, z;
+-    killMe = !GeneratePosition(1.2f * modelRadius, 2.0f, x, z);
++    if (trafficPlacement)
++        x = z = 0.0f;
++    else
++        killMe = !GeneratePosition(1.2f * modelRadius, 2.0f, x, z);
+     Teleport(x, z, 0.0f);
+     isEnableSetDir = true;
+     return true;
+@@ -80,17 +86,18 @@
+ void WdmMerchantShip::FindMoveForce()
+ {
+     isEnableSetDir = false;
++    const CVECTOR destination = trafficSteering ? trafficDestination : gotoPos;
+     CVECTOR dir;
+     if (wdmObjects->islands)
+     {
+-        wdmObjects->islands->FindDirection(mtx.Pos(), gotoPos, dir);
++        wdmObjects->islands->FindDirection(mtx.Pos(), destination, dir);
+         // wdmObjects->rs->DrawVector(mtx.Pos(), gotoPos, 0xFFFFFFFF);
+         // wdmObjects->rs->DrawVector(mtx.Pos(), mtx.Pos()+dir*100.f, 0xFFFF0000);
+     }
+     else
+     {
+-        dir.x = gotoPos.x - mtx.Pos().x;
+-        dir.z = gotoPos.z - mtx.Pos().z;
++        dir.x = destination.x - mtx.Pos().x;
++        dir.z = destination.z - mtx.Pos().z;
+         auto dl = dir.x * dir.x + dir.z * dir.z;
+         if (dl > 1.0f)
+         {
+@@ -106,10 +113,23 @@
+ // Completion check
+ bool WdmMerchantShip::KillTest()
+ {
++    if (GetTrafficData() && (trafficSteering || attack)) return false;
+     const auto dx = gotoPos.x - mtx.Pos().x;
+     const auto dz = gotoPos.z - mtx.Pos().z;
+     const auto dl = dx * dx + dz * dz;
+-    return dl <= gotoRad * gotoRad;
++    if (dl > gotoRad * gotoRad) return false;
++    auto *data = GetTrafficData();
++    if (data && data->GetAttributeAsDword("trafficRole") != 1)
++    {
++        // Patrols/raiders reverse their route instead of vanishing at its end.
++        const float x = data->GetAttributeAsFloat("trafficReturnX", mtx.Pos().x);
++        const float z = data->GetAttributeAsFloat("trafficReturnZ", mtx.Pos().z);
++        data->SetAttributeUseFloat("trafficReturnX", gotoPos.x);
++        data->SetAttributeUseFloat("trafficReturnZ", gotoPos.z);
++        Goto(x, z, gotoRad);
++        return false;
++    }
++    return true;
+ }
+ 
+ // Updating stored data
+@@ -136,3 +156,238 @@
+     }
+     WdmEnemyShip::SetSaveAttribute(save);
+ }
++
++
++WdmEnemyShip *WdmMerchantShip::FindTrafficShip(const char *id) const
++{
++    if (!id || !id[0]) return nullptr;
++    for (auto *ship : wdmObjects->ships)
++    {
++        if (ship == this || ship == wdmObjects->playerShip || ship->killMe || !ship->isLive) continue;
++        auto *enemy = static_cast<WdmEnemyShip *>(ship);
++        if (enemy->GetTrafficData() && std::strcmp(enemy->GetAttributeName(), id) == 0) return enemy;
++    }
++    return nullptr;
++}
++
++void WdmMerchantShip::Update(float dltTime)
++{
++    auto *data = GetTrafficData();
++    if (!data) { WdmEnemyShip::Update(dltTime); return; }
++    if (!data->GetAttribute("trafficReturnX"))
++    {
++        data->SetAttributeUseFloat("trafficReturnX", mtx.Pos().x);
++        data->SetAttributeUseFloat("trafficReturnZ", mtx.Pos().z);
++    }
++    attack = FindTrafficShip(data->GetAttribute("trafficBattle"));
++    const char *rootID = data->GetAttribute("trafficBattleRoot");
++    auto *root = rootID && std::strcmp(rootID, GetAttributeName()) == 0 ? this : FindTrafficShip(rootID);
++    if (data->GetAttribute("trafficBattle") && (!attack || !root))
++    {
++        data->DeleteAttributeClassX(data->FindAClass(data, "trafficBattle"));
++        data->DeleteAttributeClassX(data->FindAClass(data, "trafficBattleRoot"));
++        data->DeleteAttributeClassX(data->FindAClass(data, "trafficEscort"));
++        data->SetAttributeUseFloat("trafficCooldown", 90.0f);
++        attack = nullptr;
++    }
++    const auto role = data->GetAttributeAsDword("trafficRole");
++    shipType = attack ? wdmest_warring : (role == 1 ? wdmest_merchant : wdmest_follow);
++    isEnemy = !attack && role != 1 && data->GetAttributeAsDword("trafficHostile") != 0;
++    if (dltTime > 0.0f)
++    {
++        data->SetAttributeUseFloat("trafficCooldown", std::max(0.0f, data->GetAttributeAsFloat("trafficCooldown") - dltTime));
++        trafficThink -= dltTime;
++        if (trafficThink <= 0.0f) { trafficThink = 1.0f; ThinkTraffic(); }
++        if (attack && data->GetAttribute("trafficBattleRoot") &&
++            std::strcmp(data->GetAttribute("trafficBattleRoot"), GetAttributeName()) == 0)
++        {
++            const float hours = data->GetAttributeAsFloat("trafficBattleElapsed") + wdmObjects->wm->TrafficHours(dltTime);
++            data->SetAttributeUseFloat("trafficBattleElapsed", hours);
++            if (hours >= std::max(24.0f, data->GetAttributeAsFloat("trafficBattleHours", 24.0f))) ResolveTrafficBattle();
++        }
++    }
++    WdmWarringShip::Update(dltTime);
++}
++
++void WdmMerchantShip::StartTrafficBattle(WdmEnemyShip *target)
++{
++    auto *data = GetTrafficData();
++    auto *other = target->GetTrafficData();
++    auto *root = data->GetAttributeAsDword("trafficRole") == 1 ? this :
++        (other->GetAttributeAsDword("trafficRole") == 1 ? target :
++         (std::strcmp(GetAttributeName(), target->GetAttributeName()) < 0 ? this : target));
++    data->SetAttribute("trafficBattle", target->GetAttributeName());
++    other->SetAttribute("trafficBattle", GetAttributeName());
++    data->SetAttribute("trafficBattleRoot", root->GetAttributeName());
++    other->SetAttribute("trafficBattleRoot", root->GetAttributeName());
++    auto *state = root->GetTrafficData();
++    const float ours = data->GetAttributeAsFloat("trafficPower", 1.0f) * data->GetAttributeAsFloat("trafficCondition", 1.0f);
++    const float theirs = other->GetAttributeAsFloat("trafficPower", 1.0f) * other->GetAttributeAsFloat("trafficCondition", 1.0f);
++    const float ratio = std::min(ours, theirs) / std::max(1.0f, std::max(ours, theirs));
++    state->SetAttributeUseFloat("trafficBattleHours", ratio <= 0.5f ? 24.0f : 24.0f + 24.0f * ratio);
++    state->SetAttributeUseFloat("trafficBattleElapsed", 0.0f);
++    attack = target; target->attack = this;
++    shipType = target->shipType = wdmest_warring;
++    isEnemy = target->isEnemy = false;
++}
++
++void WdmMerchantShip::ResolveTrafficBattle()
++{
++    auto *data = GetTrafficData();
++    auto *other = attack ? attack->GetTrafficData() : nullptr;
++    if (!data || !other) return;
++    auto *escort = FindTrafficShip(data->GetAttribute("trafficEscort"));
++    auto *ally = escort ? escort->GetTrafficData() : nullptr;
++    if (ally && (!ally->GetAttribute("trafficBattleRoot") ||
++        std::strcmp(ally->GetAttribute("trafficBattleRoot"), GetAttributeName()) != 0)) { escort = nullptr; ally = nullptr; }
++    const float ours = std::max(1.0f, data->GetAttributeAsFloat("trafficPower", 1.0f) * data->GetAttributeAsFloat("trafficCondition", 1.0f));
++    const float theirs = std::max(1.0f, other->GetAttributeAsFloat("trafficPower", 1.0f) * other->GetAttributeAsFloat("trafficCondition", 1.0f));
++    const float allied = ally ? ally->GetAttributeAsFloat("trafficPower", 1.0f) * ally->GetAttributeAsFloat("trafficCondition", 1.0f) : 0.0f;
++    const float total = ours + allied;
++    const bool win = total >= theirs * 2.0f ? true : (theirs >= total * 2.0f ? false :
++        float(rand()) / RAND_MAX < total * total / (total * total + theirs * theirs));
++    const float ratio = std::min(total, theirs) / std::max(total, theirs);
++    const float wear = ratio <= 0.5f ? 0.04f * ratio * ratio : 0.35f * ratio;
++    WdmEnemyShip *members[] = {this, attack, escort};
++    for (int i = 0; i < 3; ++i)
++    {
++        auto *member = members[i]; if (!member) continue;
++        auto *state = member->GetTrafficData();
++        const bool lost = i == 1 ? win : !win;
++        if (lost) member->SetLiveTime(0.0f);
++        else state->SetAttributeUseFloat("trafficCondition", std::max(0.3f,
++            state->GetAttributeAsFloat("trafficCondition", 1.0f) * (1.0f - wear)));
++        for (const char *key : {"trafficBattle", "trafficBattleRoot", "trafficEscort"})
++            state->DeleteAttributeClassX(state->FindAClass(state, key));
++        state->SetAttributeUseFloat("trafficCooldown", 90.0f);
++        member->attack = nullptr;
++        member->shipType = state->GetAttributeAsDword("trafficRole") == 1 ? wdmest_merchant : wdmest_follow;
++        member->isEnemy = false;
++    }
++    trafficSteering = false;
++}
++
++void WdmMerchantShip::Move(float dltTime)
++{
++    if (GetTrafficData() && attack) { speed = 0.0f; turnspd = 0.0f; return; }
++    WdmEnemyShip::Move(dltTime);
++}
++
++void WdmMerchantShip::ThinkTraffic()
++{
++    trafficSteering = false;
++    auto *data = GetTrafficData();
++    if (!data || attack || data->GetAttributeAsFloat("trafficCooldown") > 0.0f) return;
++    const auto role = data->GetAttributeAsDword("trafficRole");
++    const auto enemies = data->GetAttributeAsDword("trafficEnemies");
++    const float power = std::max(1.0f, data->GetAttributeAsFloat("trafficPower", 1.0f) * data->GetAttributeAsFloat("trafficCondition", 1.0f));
++    const CVECTOR home(data->GetAttributeAsFloat("trafficHomeX"), 0.0f,
++                       data->GetAttributeAsFloat("trafficHomeZ"));
++    const float leash = data->GetAttributeAsFloat("trafficHomeRadius", 180.0f);
++    if (role == 2 && !data->GetAttributeAsDword("trafficPatrolReady"))
++    {
++        // A shore on the home island supplies the bearing, not an unlimited leg.
++        const float bearing = atan2f(gotoPos.x - home.x, gotoPos.z - home.z);
++        bool found = false;
++        for (int attempt = 0; attempt < 16; ++attempt)
++        {
++            const float angle = bearing + float(attempt / 2 + 1) * 0.25f * (attempt % 2 ? -1.0f : 1.0f);
++            const float radius = leash * (attempt < 8 ? 0.8f : 0.55f);
++            const float x = home.x + sinf(angle) * radius;
++            const float z = home.z + cosf(angle) * radius;
++            if (!WdmShip::CheckPosition(x, z, 1.2f * modelRadius)) continue;
++            Goto(x, z, 3.0f);
++            found = true;
++            break;
++        }
++        if (!found) Goto(home.x, home.z, 3.0f);
++        data->SetAttributeUseFloat("trafficReturnX", home.x);
++        data->SetAttributeUseFloat("trafficReturnZ", home.z);
++        data->SetAttributeUseDword("trafficPatrolReady", 1);
++    }
++    WdmEnemyShip *target = nullptr;
++    WdmEnemyShip *danger = nullptr;
++    float dangerDistance = 80.0f * 80.0f;
++    float best = 110.0f * 110.0f;
++    for (auto *ship : wdmObjects->ships)
++    {
++        if (ship == this || ship == wdmObjects->playerShip || ship->killMe || !ship->isLive) continue;
++        auto *enemy = static_cast<WdmEnemyShip *>(ship);
++        auto *other = enemy->GetTrafficData();
++        if (!other) continue;
++        if (enemy->attack || other->GetAttribute("trafficBattle"))
++        {
++            // One territorial patrol may rescue its own commerce, not pile onto every fight.
++            if (role != 2 || other->GetAttributeAsDword("trafficRole") != 1 ||
++                other->GetAttributeAsDword("trafficNation") != data->GetAttributeAsDword("trafficNation") ||
++                (~(ship->mtx.Pos() - mtx.Pos())) > 110.0f * 110.0f ||
++                (~(ship->mtx.Pos() - home)) > leash * leash) continue;
++            auto *raider = FindTrafficShip(other->GetAttribute("trafficBattle"));
++            auto *raiderData = raider ? raider->GetTrafficData() : nullptr;
++            auto *existing = FindTrafficShip(other->GetAttribute("trafficEscort"));
++            if (!raiderData || existing || raiderData->GetAttributeAsDword("trafficRole") != 3 ||
++                !raiderData->GetAttribute("trafficBattleRoot") ||
++                std::strcmp(raiderData->GetAttribute("trafficBattleRoot"), enemy->GetAttributeName()) != 0) continue;
++            const auto raiderNation = raiderData->GetAttributeAsDword("trafficNation", 32);
++            if (raiderNation >= 32 || !(enemies & (1u << raiderNation))) continue;
++            const float distance = ~(raider->mtx.Pos() - mtx.Pos());
++            if (distance < 22.0f * 22.0f)
++            {
++                data->SetAttribute("trafficBattle", raider->GetAttributeName());
++                data->SetAttribute("trafficBattleRoot", enemy->GetAttributeName());
++                other->SetAttribute("trafficEscort", GetAttributeName());
++                attack = raider; shipType = wdmest_warring; isEnemy = false;
++                return;
++            }
++            // Rescue has priority over starting an unrelated battle.
++            trafficDestination = raider->mtx.Pos(); trafficSteering = true;
++            return;
++        }
++        const auto nation = other->GetAttributeAsDword("trafficNation", 32);
++        if (nation >= 32 || !(enemies & (1u << nation))) continue;
++        const auto otherRole = other->GetAttributeAsDword("trafficRole");
++        if (role == 1 && otherRole == 1) continue;
++        if (role == 2 && (~(ship->mtx.Pos() - home)) > leash * leash) continue;
++        const float otherPower = std::max(1.0f, other->GetAttributeAsFloat("trafficPower", 1.0f) * other->GetAttributeAsFloat("trafficCondition", 1.0f));
++        if (role == 3 && otherPower > power * data->GetAttributeAsFloat("trafficRisk", 1.05f))
++        {
++            const float distance = ~(ship->mtx.Pos() - mtx.Pos());
++            if (distance < dangerDistance) { dangerDistance = distance; danger = enemy; }
++            continue;
++        }
++        float score = ~(ship->mtx.Pos() - mtx.Pos());
++        if (score > 110.0f * 110.0f) continue;
++        if (role == 3) score *= std::max(0.5f, otherPower / power) * (otherRole == 1 ? 0.6f : 1.0f);
++        if (role == 2 && otherRole == 3) score *= 0.6f;
++        if (score < best) { best = score; target = enemy; }
++    }
++    if (danger)
++    {
++        trafficDestination = mtx.Pos() + (mtx.Pos() - danger->mtx.Pos());
++        trafficSteering = true;
++        return;
++    }
++    if (target)
++    {
++        const float distance = ~(target->mtx.Pos() - mtx.Pos());
++        if (role == 1 && distance > 80.0f * 80.0f) return;
++        if (distance < 22.0f * 22.0f)
++        {
++            StartTrafficBattle(target);
++            return;
++        }
++        trafficDestination = target->mtx.Pos();
++        if (role == 1)
++            trafficDestination = mtx.Pos() + (mtx.Pos() - target->mtx.Pos());
++        trafficSteering = true;
++        return;
++    }
++    // Short-range sight, independent of the expanded player viewing horizon.
++    if (role != 1 && isEnemy && wdmObjects->playerShip &&
++        (~(wdmObjects->playerShip->mtx.Pos() - mtx.Pos())) < 75.0f * 75.0f &&
++        (role != 2 || (~(wdmObjects->playerShip->mtx.Pos() - home)) <= leash * leash))
++    {
++        trafficDestination = wdmObjects->playerShip->mtx.Pos();
++        trafficSteering = true;
++    }
++}
+diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/wdm_merchant_ship.h
+--- a/src/libs/worldmap/src/wdm_merchant_ship.h
++++ b/src/libs/worldmap/src/wdm_merchant_ship.h
+@@ -10,20 +10,23 @@
+ 
+ #pragma once
+ 
+-#include "wdm_enemy_ship.h"
++#include "wdm_warring_ship.h"
+ 
+-class WdmMerchantShip : public WdmEnemyShip
++class WdmMerchantShip : public WdmWarringShip
+ {
+     // --------------------------------------------------------------------------------------------
+     // Construction, destruction
+     // --------------------------------------------------------------------------------------------
+   public:
+-    WdmMerchantShip();
++    explicit WdmMerchantShip(bool trafficPlacement = false);
+     ~WdmMerchantShip() override;
+ 
+     void Goto(float x, float z, float rad);
++    void Update(float dltTime) override;
++
+ 
+   protected:
++    void Move(float dltTime) override;
+     // Find the pulling force in the desired direction
+     void FindMoveForce() override;
+     // Completion check
+@@ -41,6 +44,14 @@
+     // Encapsulation
+     // --------------------------------------------------------------------------------------------
+   private:
++    WdmEnemyShip *FindTrafficShip(const char *id) const;
++    void ThinkTraffic();
++    void StartTrafficBattle(WdmEnemyShip *target);
++    void ResolveTrafficBattle();
++    bool trafficPlacement = false;
++    float trafficThink = 0.0f;
++    CVECTOR trafficDestination;
++    bool trafficSteering = false;
+     CVECTOR gotoPos;
+     float gotoRad;
+     bool isEnableSetDir;
+diff --git a/src/libs/worldmap/src/wdm_warring_ship.cpp b/src/libs/worldmap/src/wdm_warring_ship.cpp
+--- a/src/libs/worldmap/src/wdm_warring_ship.cpp
++++ b/src/libs/worldmap/src/wdm_warring_ship.cpp
+@@ -21,7 +21,7 @@
+     numRects = 0;
+     brnTime = 5.0f;
+     texture = -1;
+-    texture = wdmObjects->rs->TextureCreate("\\WorldMap\\csmoke.tga");
++
+ }
+ 
+ WdmWarringShip::~WdmWarringShip()
+@@ -35,17 +35,20 @@
+ {
+     WdmEnemyShip::Update(dltTime);
+     // help the opponent :)
+-    if (attack)
++    if (attack && !GetTrafficData())
+     {
+         if (!isLive)
+             attack->isLive = false;
+         if (killMe)
+             attack->killMe = true;
+     }
++    // Routed ships retain the same model/identity when a local clash begins.
++    if (shipType != wdmest_warring && numRects == 0) return;
++    if (texture < 0) texture = wdmObjects->rs->TextureCreate("\\WorldMap\\csmoke.tga");
+     // Smoke
+     // spawn if necessary
+     brnTime += dltTime;
+-    if (!numRects && rand() * (20.0f / RAND_MAX) < brnTime - 5.0f)
++    if (shipType == wdmest_warring && !numRects && rand() * (20.0f / RAND_MAX) < brnTime - 5.0f)
+     {
+         brnTime = 0.0f;
+         // Half for the left side
+diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_map.cpp
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -499,7 +499,28 @@
+         auto psx = 0.0f, psz = 0.0f, psay = 0.0f;
+         wdmObjects->playerShip->GetPosition(psx, psz, psay);
+ #ifndef ENCS_OFF
++        int population[4] = {};
++        int ordinary = 0;
++        for (auto *ship : wdmObjects->ships)
++        {
++            if (ship == wdmObjects->playerShip || ship->killMe) continue;
++            auto *enemy = static_cast<WdmEnemyShip *>(ship);
++            auto *data = enemy->GetTrafficData();
++            if (data) { ++population[data->GetAttributeAsDword("trafficRole")]; ++ordinary; }
++        }
++        const int quotas[4] = {0, 18, 8, 6};
++        int request = 0;
++        float deficit = 0.0f;
++        // One departure per tick; quest ships never consume a traffic quota.
++        if (ordinary < 32 && wdmObjects->ships.size() < 64)
++            for (int role = 1; role <= 3; ++role)
++            {
++                const float missing = float(quotas[role] - population[role]) / quotas[role];
++                if (missing > deficit) { deficit = missing; request = role; }
++            }
++        AttributesPointer->SetAttributeUseDword("trafficRequestRole", request);
+         core.Event("WorldMap_EncounterCreate", "ffff", encTime, psx, psz, psay);
++        AttributesPointer->SetAttributeUseDword("trafficRequestRole", 0);
+ #endif
+         encTime = 0.0f;
+     }
+@@ -934,7 +955,8 @@
+ {
+     if (kSpeed < 0.1f)
+         kSpeed = 0.1f;
+-    WdmShip *ship = new WdmMerchantShip();
++    WdmShip *ship = new WdmMerchantShip((save && save->GetAttribute("trafficRole")) ||
++        AttributesPointer->GetAttributeAsDword("trafficRequestRole") != 0);
+     if (ship->killMe)
+     {
+         delete ship;
+@@ -1010,7 +1032,8 @@
+ {
+     if (kSpeed < 0.1f)
+         kSpeed = 0.1f;
+-    WdmShip *ship = new WdmMerchantShip();
++    WdmShip *ship = new WdmMerchantShip((save && save->GetAttribute("trafficRole")) ||
++        AttributesPointer->GetAttributeAsDword("trafficRequestRole") != 0);
+     if (ship->killMe)
+     {
+         delete ship;
+diff --git a/src/libs/worldmap/src/world_map.h b/src/libs/worldmap/src/world_map.h
+--- a/src/libs/worldmap/src/world_map.h
++++ b/src/libs/worldmap/src/world_map.h
+@@ -40,6 +40,7 @@
+   public:
+     WorldMap();
+     ~WorldMap() override;
++    float TrafficHours(float seconds) const { return seconds * timeScale; }
+ 
+     //--------------------------------------------------------------------------------------------
+     // Entity

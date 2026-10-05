@@ -5,7 +5,7 @@ Features:
 1. Balanced rank scaling and HP caps (no 250 HP civilian/tavern terminators).
 2. Tavern duel fix (realistic civilian brawlers, no Hunter override, officers not frozen).
 3. Endurance curve softening (Endurance 3 is no longer a fragile 100 HP trap).
-4. Living world map (30 ships, broader horizon 140-280, speed variance, dynamic war encounters).
+4. Native map traffic (port routes, caravans, patrol/pirate encounters, wider horizon).
 5. Sea surrender and white flag (damaged merchants/outmatched ships surrender and drift,
    standard looting/capture transfer interface, treachery penalty on white flag violation).
 6. Active prisoner events (guaranteed story engagement for captured captains).
@@ -241,17 +241,31 @@ WDM_DIST_OLD = enc("""	worldMap.enemyshipViewDistMin = 60.0;		//Растояни
 	worldMap.enemyshipBrnDistMin = 80.0;		//Минимальное растояние на котором рожается корабль
 	worldMap.enemyshipBrnDistMax = 130.0;		//Максимальное растояние на котором рожается корабль""")
 
-WDM_DIST_NEW = enc("""	worldMap.enemyshipViewDistMin = 140.0;		// Расширенный горизонт обзора
-	worldMap.enemyshipViewDistMax = 280.0;		// Расстояние полного исчезновения
+WDM_DIST_NEW = enc("""	worldMap.enemyshipViewDistMin = 190.0;		// Расширенный горизонт обзора
+	worldMap.enemyshipViewDistMax = 380.0;		// Расстояние полного исчезновения
     worldMap.enemyshipDistKill = 3500;
-	worldMap.enemyshipBrnDistMin = 150.0;		// Естественное рождение вдалеке
-	worldMap.enemyshipBrnDistMax = 260.0;""")
+	worldMap.enemyshipBrnDistMin = 400.0;		// Естественное рождение вдалеке
+	worldMap.enemyshipBrnDistMax = 650.0;""")
 
 
 def prepare_worldmap_init(data: bytes) -> bytes:
     if data.count(WDM_DIST_OLD) != 1:
         raise RuntimeError("worldmap_init dist anchor mismatch")
     return data.replace(WDM_DIST_OLD, WDM_DIST_NEW)
+
+
+WDM_MAIN_PATH = "PROGRAM/worldmap/worldmap.c"
+WDM_MAIN_BASE = "0f928c5a67bcadcf9b72a1aefb1d1639473225bc898193af53464d345ed07eb0"
+
+
+def prepare_worldmap_main(data: bytes) -> bytes:
+    # The saved worldMap object retains old visibility values. Apply the same
+    # configuration on ordinary map entry, before native entity creation.
+    anchor = enc("void wdmCreateWorldMap()\n{\n")
+    if data.count(anchor) != 1:
+        raise RuntimeError("worldmap entry anchor mismatch")
+    data = data.replace(anchor, anchor + enc("\tWdmTrafficApplyVisibility();\n"))
+    return data + enc("\nvoid WdmTrafficApplyVisibility()\n{\n") + WDM_DIST_NEW + enc("\n}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -269,28 +283,74 @@ WDM_RATES_OLD = enc("""//Частота торговцев в секунду
 //Частота специальных событий  (бочка или шлюпка) в секунду
 #define WDM_SPECIAL_RATE  		0.002""")
 
-WDM_RATES_NEW = enc("""// Частота торговцев
-#define WDM_MERCHANTS_RATE		0.11
-// Больше динамических стычек патрулей с пиратами
-#define WDM_WARRING_RATE		0.045
-// Частота патрулей/преследователей
-#define WDM_FOLLOW_RATE  		0.035
-// Плавающие бочки и люди после штормов
-#define WDM_SPECIAL_RATE  		0.010""")
+WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
+#define WDM_MERCHANTS_RATE		0.0
+#define WDM_WARRING_RATE		0.0
+// Preserve the old generator/quest path with bounded pursuit pressure.
+#define WDM_FOLLOW_RATE		0.012
+#define WDM_SPECIAL_RATE		0.006""")
 
-WDM_NUMSHIPS_OLD = enc("""	if(numShips < 12)""")
-WDM_NUMSHIPS_NEW = enc("""	if(numShips < 30)""")
+WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
+WDM_TRAFFIC_SHA256 = "501ea5bb703981f80826f212ee2dcf8543b19a2bce39f353e28090aa8f86524a"
 
+WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)
+{
+	wdmReconcileQuestShipCounter();
+	WdmTrafficRefresh();
+	bool encoff = false;
+	if (CheckAttribute(pchar, "worldmapencountersoff")) encoff = sti(pchar.worldmapencountersoff);
+	if (encoff || wdmGetNumberShipEncounters() >= 60) return;
+	if (CheckAttribute(&worldMap, "trafficRequestRole"))
+	{
+		int role = sti(worldMap.trafficRequestRole);
+		if (role >= 1 && role <= 3) WdmTrafficCreate(role);
+	}
+	int pursuers = 0;
+	if (CheckAttribute(&worldMap, "encounters"))
+	{
+		aref encounters;
+		makearef(encounters, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(encounters); i++)
+		{
+			aref encounter = GetAttributeN(encounters, i);
+			if (CheckAttribute(encounter, "quest") || CheckAttribute(encounter, "trafficRole")) continue;
+			if (CheckAttribute(encounter, "type") && encounter.type == "Follow") pursuers++;
+		}
+	}
+	wdmTimeOfLastFollow = wdmTimeOfLastFollow + dltTime * WDM_FOLLOW_RATE * 1000.0 * iEncountersRate;
+	if (pursuers < 2 && !IsStopMapFollowEncounters() && rand(1001) + 1 < wdmTimeOfLastFollow)
+	{
+		wdmTimeOfLastFollow = 0.0;
+		wdmCreateFollowShip(0.8 + rand(10) * 0.05);
+	}
+	if (pursuers >= 2) wdmTimeOfLastFollow = 0.0;
+	wdmTimeOfLastSpecial = wdmTimeOfLastSpecial + dltTime * WDM_SPECIAL_RATE * 1000.0 * iEncountersRate;
+	if (rand(1001) + 1 < wdmTimeOfLastSpecial)
+	{
+		wdmTimeOfLastSpecial = 0.0;
+		wdmCreateSpecial(0.05 + rand(10) * 0.02);
+	}
+}
+
+
+""")
 
 def prepare_worldmap_encgen(data: bytes) -> bytes:
     if data.count(WDM_RATES_OLD) != 1:
         raise RuntimeError("worldmap_encgen rates anchor mismatch")
     data = data.replace(WDM_RATES_OLD, WDM_RATES_NEW)
 
-    if data.count(WDM_NUMSHIPS_OLD) != 1:
-        raise RuntimeError("worldmap_encgen numShips anchor mismatch")
-    data = data.replace(WDM_NUMSHIPS_OLD, WDM_NUMSHIPS_NEW)
-    return data
+    start_anchor = enc("void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)")
+    end_anchor = enc('#event_handler("Map_TraderSucces", "Map_TraderSucces");')
+    if data.count(start_anchor) != 1 or data.count(end_anchor) != 1:
+        raise RuntimeError("worldmap_encgen traffic tick anchor mismatch")
+    start, end = data.index(start_anchor), data.index(end_anchor)
+    if start >= end:
+        raise RuntimeError("worldmap_encgen traffic tick order mismatch")
+    traffic = WDM_TRAFFIC_SOURCE.read_bytes()
+    if digest(traffic) != WDM_TRAFFIC_SHA256:
+        raise RuntimeError("worldmap traffic source hash mismatch")
+    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8"))
 
 
 # ---------------------------------------------------------------------------
@@ -1217,6 +1277,7 @@ WDM_REL_ENC_NEW = enc("""		//Получим информацию о данном
 		if(wdmSetCurrentShipData(i))
 		{
 			bool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);
+			if (!includeEncounter) includeEncounter = WdmTrafficBattleInSeaRange(i, numEncounters, mpsX, mpsZ);
 			int pairedEncounter = MakeInt(worldMap.encounter.attack);
 			string pairedSeaGroup = "";
 			if (pairedEncounter >= 0 && pairedEncounter < numEncounters && pairedEncounter != i)
@@ -1243,6 +1304,27 @@ WDM_REL_HELPER_NEW = enc("""bool WdmEncounterInSeaRange(float playerX, float pla
 	return dx * dx + dz * dz <= 25.0 * 25.0;
 }
 
+bool WdmTrafficBattleInSeaRange(int current, int count, float playerX, float playerZ)
+{
+	string path = "encounters." + worldMap.encounter.id;
+	if (!CheckAttribute(&worldMap, path + ".trafficBattleRoot") || CheckAttribute(&worldMap, path + ".quest")) return false;
+	string root = worldMap.(path).trafficBattleRoot;
+	string rootPath = "encounters." + root;
+	string escort = "";
+	if (CheckAttribute(&worldMap, rootPath + ".trafficEscort")) escort = worldMap.(rootPath).trafficEscort;
+	bool included = false;
+	for (int member = 0; member < count; member++)
+	{
+		if (!wdmSetCurrentShipData(member)) continue;
+		if (worldMap.encounter.id == root || worldMap.encounter.id == escort)
+		{
+			if (WdmEncounterInSeaRange(playerX, playerZ)) included = true;
+		}
+	}
+	wdmSetCurrentShipData(current);
+	return included;
+}
+
 bool WdmAddEncountersData()
 {""")
 
@@ -1254,7 +1336,25 @@ WDM_REL_GROUP_NEW = enc("""			CopyAttributes(mapEncSlotRef, encDataForSlot);
 			if (!CheckAttribute(mapEncSlotRef, "qID") && sti(mapEncSlotRef.RealEncounterType) != ENCOUNTER_TYPE_ALONE)
 			{
 				mapEncSlotRef.GroupName = "egroup__wdm_" + worldMap.encounter.id;
-				if (pairedSeaGroup != "") mapEncSlotRef.Task.Target = pairedSeaGroup;
+				string trafficPath = "encounters." + worldMap.encounter.id;
+				if (CheckAttribute(&worldMap, trafficPath + ".trafficCondition") && !CheckAttribute(&worldMap, trafficPath + ".quest"))
+					mapEncSlotRef.trafficCondition = worldMap.(trafficPath).trafficCondition;
+				if (pairedSeaGroup != "" && !CheckAttribute(&worldMap, trafficPath + ".quest"))
+				{
+					mapEncSlotRef.Task = AITASK_ATTACK;
+					mapEncSlotRef.Task.Target = pairedSeaGroup;
+					DeleteAttribute(mapEncSlotRef, "Task.Pos");
+				}
+				else
+				{
+					if (CheckAttribute(&worldMap, trafficPath + ".trafficRole") && !CheckAttribute(&worldMap, trafficPath + ".quest"))
+					{
+						mapEncSlotRef.Task = AITASK_MOVE;
+						DeleteAttribute(mapEncSlotRef, "Task.Target");
+						mapEncSlotRef.Task.Pos.x = wpsX + (stf(worldMap.(trafficPath).gotoX) - mpsX) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
+						mapEncSlotRef.Task.Pos.z = wpsZ + (stf(worldMap.(trafficPath).gotoZ) - mpsZ) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
+					}
+				}
 			}
 			//Отмечаем свершение корабельного энкоунтера""")
 
@@ -1282,7 +1382,25 @@ SEA_DECK_SAILORS_NEW = enc("""	if( SeaCameras.Camera == "SeaDeckCamera" ) {
 def prepare_sea(data: bytes) -> bytes:
     if data.count(SEA_DECK_SAILORS_OLD) != 1:
         raise RuntimeError("sea deck sailor restore anchor mismatch")
-    return data.replace(SEA_DECK_SAILORS_OLD, SEA_DECK_SAILORS_NEW)
+    data = data.replace(SEA_DECK_SAILORS_OLD, SEA_DECK_SAILORS_NEW)
+    anchor = enc('\t\t\t\tFantom_SetSails(rFantom, rEncounter.Type);')
+    if data.count(anchor) != 1:
+        raise RuntimeError("sea traffic wear anchor mismatch")
+    data = data.replace(anchor, anchor + enc('\n\t\t\t\tWdmTrafficApplySeaWear(rFantom, rEncounter);'))
+    return data + enc("""
+void WdmTrafficApplySeaWear(ref captain, aref encounter)
+{
+	if (!CheckAttribute(encounter, "trafficCondition") || CheckAttribute(encounter, "qID")) return;
+	if (CheckAttribute(encounter, "RealEncounterType") && sti(encounter.RealEncounterType) == ENCOUNTER_TYPE_ALONE) return;
+	float condition = stf(encounter.trafficCondition);
+	if (condition >= 1.0) return;
+	if (condition < 0.3) condition = 0.3;
+	if (CheckAttribute(captain, "Ship.HP")) captain.Ship.HP = stf(captain.Ship.HP) * condition;
+	if (CheckAttribute(captain, "Ship.SP")) captain.Ship.SP = stf(captain.Ship.SP) * condition;
+	if (condition < 0.95 && CheckAttribute(captain, "Ship.Crew.Quantity"))
+		captain.Ship.Crew.Quantity = makeint(sti(captain.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
+}
+""")
 
 
 # Remote chest uses the existing interface transition and stays in the paused
@@ -1332,6 +1450,7 @@ PREPARERS = {
     RPG_PATH: (RPG_BASE, prepare_rpg_utilite),
     DUEL_PATH: (DUEL_BASE, prepare_duel),
     WDM_INIT_PATH: (WDM_INIT_BASE, prepare_worldmap_init),
+    WDM_MAIN_PATH: (WDM_MAIN_BASE, prepare_worldmap_main),
     WDM_ENC_PATH: (WDM_ENC_BASE, prepare_worldmap_encgen),
     AI_SHIP_PATH: (AI_SHIP_BASE, prepare_aiship),
     SEA_PATH: (SEA_BASE, prepare_sea),
@@ -1354,15 +1473,16 @@ PREPARERS = {
 
 # Calculated post-patch hashes
 UPDATED = {
-    "PROGRAM/sea_ai/sea.c": "9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98",
+    "PROGRAM/worldmap/worldmap.c": "2f1610cc7392493ed46cc42cb483c5b2a7984b4ff61231900d328018c214a2cc",
+    "PROGRAM/sea_ai/sea.c": "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
     "PROGRAM/Loc_ai/LAi_boarding.c": "5ab91b29f9b47e5cce2892d93cf11ffd979ad26b35e70960de273c75a9528930",
     "PROGRAM/interface/itemsbox.c": "f9fe490ceca5215958001dc12c068c19e32e52e400d7cb8cd0012784caa47b36",
     "PROGRAM/interface/interface.c": "7f37bbf8e7f0b49b75f6600f92e6c0ff77c65508b285c19cfee2301dabcda57e",
     "PROGRAM/characters/GeneratorUtilite.c": "69d4fedb0243c9d1393fe0d6e276fd5d5b7772825eb178041b630e42f067a70f",
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
-    "PROGRAM/worldmap/worldmap_init.c": "20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980",
-    "PROGRAM/worldmap/worldmap_encgen.c": "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a",
+    "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
+    "PROGRAM/worldmap/worldmap_encgen.c": "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1377,15 +1497,18 @@ UPDATED = {
     "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
     "RESOURCE/INI/interfaces/ship.ini": "fa4a01b9179c8dfb2794a5c8b1702102ea3cd27e61e9af9781f4b6c8c6a91fc3",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
-    "PROGRAM/worldmap/worldmap_reload.c": "cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627",
+    "PROGRAM/worldmap/worldmap_reload.c": "14cdabc70ff8440629a169a2f3c2201c824cde353c6049416e0ea165f57966ee",
 }
 
 
 # Previously reviewed installed revisions may be upgraded, but are never used
 # as layer inputs: always compose from the current journal-enabled baseline.
 PREVIOUS = {
+    SEA_PATH: {"9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98"},
+    WDM_INIT_PATH: {"20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980"},
+    WDM_ENC_PATH: {"782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a"},
     WDM_GLO_PATH: {"bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe"},
-    "PROGRAM/worldmap/worldmap_reload.c": {"04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
+    "PROGRAM/worldmap/worldmap_reload.c": {"cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627", "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
     "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},
     "PROGRAM/battle_interface/utils.c": {"14169ddacc58b0390e9eacdf5b71330d2491e869bbf0ae294de9be7115fd4e5b"},
     LAI_PL_PATH: {"f1e76fa30e5a3ca8f886ca7e8e6ebe7ec04e4f198ea8b740e6bba0f0e43cd4d3"},
