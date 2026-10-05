@@ -188,6 +188,108 @@ acceptance of this section are pending.
   and save compatibility. Quest fleets do not become economic actors or receive
   autonomous targets, cargo changes or service resets.
 
+### City assault, allegiance and extraction — proposed contract
+
+Defeating a squadron or silencing fort guns opens an opportunity; neither captures
+its town. A siege owns one persistent ID, participating fleets, landing forces,
+fort/garrison casualties, supplies, phase, agreements and outstanding claims.
+Use the live colony and fleet descriptors above, not a separate duplicate world.
+
+**Phases and failure.** Reconnaissance/blockade can become bombardment only with
+sufficient guns, ammunition and tolerated losses. Suppression permits a landing
+when the attackers have surviving troops, usable landing access and supply.
+A beachhead must defeat remaining defenders before streets and the governor's
+position fall. Resolve surrender, negotiated ransom, limited sack or an admitted
+occupation explicitly. Pirates usually seek loot and departure; a national
+expedition may seek control. A fleet with insufficient troops can blockade,
+demand ransom or withdraw instead of being awarded a town. Reinforcements must
+travel to arrive; ammunition exhaustion, failed landing, rising casualties or
+relief can force withdrawal at any phase. A fort which has surrendered must not
+keep firing, and surrendering troops must not remain mandatory kill targets.
+
+**Discoverability and entering.** A witnessed siege shows a port activity marker
+and an encounter description naming the observed participants and phase. At sea,
+ships, fire and cannon smoke make the action visible. Unvisited distant ports
+remain unknown until dated news arrives. Before entering, report the known
+landing routes and fighting; offer a defended harbour, a usable shore landing or
+withdrawal according to actual access. Landing does not teleport the player into
+a crowd of enemies. The land scene instantiates the current beachhead/street/
+resistance phase, with bounded actors, damaged defences and accessible exits.
+Guards hold positions, civilians shelter or flee; shops in the fighting close,
+while a reachable safe district can still provide services. Do not display a
+closed-shop message merely because the port is marked besieged.
+
+**Participation.** A neutral arrival has no automatic siege allegiance. Existing
+national hostility, personal crimes and wartime port restrictions still apply;
+neutrality is not immunity. A defending officer or governor offers relief,
+supplies, holding a position or evacuation. The attacking commander offers
+intercepting relief, supporting a landing or taking a position. The player can
+agree to a specific objective and its compensation, decline or leave through an
+open route. Joining attackers may close defender-controlled entrances, so explain
+that consequence before commitment. Sea combat, logistics and land combat are
+separate useful contributions; completing a land assault is not required to help.
+
+**Aggression.** Store local siege allegiance separately from port law, personal
+reputation and national relations. Apply it to participating combat groups only;
+never reuse blanket AlwaysEnemy against every actor. Explicit commitment or
+sustained intentional violence establishes a side. An isolated stray hit causes
+a warning/temporary response, not an irreversible diplomatic flip; repeated hits
+and lethal deliberate attacks count as aggression. Distinguish an accidental hit
+from robbing or assaulting a neutral civilian. Betrayal cancels the first agreement
+and reward eligibility, makes that side hostile, and requires acceptance by the
+other commander; it cannot reset through leaving, saving or changing scenes.
+After surrender/withdrawal, local combat hostility ends where justified, while
+actual crimes, national hostility and betrayal consequences remain. Each actor
+uses the same participant/allegiance facts in map, sea, land and dialogue.
+
+**Information and dialogue.** Before battle, commanders discuss their objective,
+known opposition and offered job rather than claiming exact win odds. During the
+siege, guards/civilians report local conditions and usable routes; commanders
+update objectives when landing fails or relief arrives. Afterward, survivors,
+merchants and taverns report the result, lost supply and departures. Reports carry
+an observation time and source; stale rumours cannot override a witnessed state.
+Reuse ordinary dialogue/news surfaces. No compulsory conversations, unclosable
+menus or constant duplicate messages; one transition announcement per siege phase.
+
+**Rewards.** An accepted agreement records a bounded payment/prize share and its
+payer. Contribution includes supplied goods, ships stopped/saved, landing support
+and objectives completed; the final hit alone grants no full reward. Settlement
+uses a finite available treasury or recovered prize pool, less agreed costs, and
+is claimable once per siege ID. A partial success can pay the contracted portion;
+a failed or bankrupt expedition cannot manufacture money. Defence can grant
+payment and existing reputation/service benefits; attack can grant a share of
+actual recovered loot. Player capture remains a distinct settlement path, so NPC
+victory must not call a helper which automatically pays the hero or counts their
+capture. Do not award both attacker and defender shares for the same operation.
+
+**Loot, departure and recovery.** Debit available port money/goods once and load
+surviving transport hulls within remaining capacity after crew supplies. Prefer
+valuable movable goods, bullion and available military supplies; cannon removal
+requires actual transport capacity and time. Casualty/prisoner transport follows
+existing crew/prisoner rules and cannot create infinite cargo. Loading takes game
+time and can be interrupted by relief. Loot aboard sunk/captured/intercepted ships
+is lost or recovered through the normal sea manifest; it does not vanish at the
+edge of the port. Departing attackers return to a viable refuge/base to unload
+and repair. Negotiate ransom as an alternative to wrecking every shop. Preserve
+recovery floors and story contracts; a limited sack does not silently change
+colony ownership. Full occupation needs a compatible ownership/quest transition
+before admission, with the same troop, supply and surrender prerequisites.
+
+**Scene and save invariants.** Transfer survivor counts, fort working cannons,
+cargo and objectives across scenes without regenerating fresh armies. Foreground
+combat owns its active interval; background resolution must not charge the same
+casualties or advance an assault past the player. Resolve only unobserved elapsed
+time on return, bounded by the next phase. Reloading cannot reroll surrender,
+repeat rewards or reload a looted store. A quest-sensitive town must keep authored
+actors available through its existing quest contracts rather than deleting them
+with a generic conquest helper.
+
+Acceptance scenarios include a suppressed fort with a failed landing; a neutral
+visitor with a safe exit; relief arriving mid-assault; helping either side without
+universal hostility; betrayal across save/load; surrender stopping combat;
+intercepting a loaded withdrawing fleet; and reward/store conservation after a
+second visit. These are implementation requirements, not accepted runtime results.
+
 ### Balance and causal model
 
 Availability, distance, cargo value, observed force ratio and prior route losses
@@ -248,7 +350,10 @@ wrapper is not evidence of that contract.
    a defended port, blockade/fight and suffer losses; a weak raider avoids it.
    Import the same damaged actors and fort state to sea; a neutral player is not
    attacked simply for loading. Nearby arriving relief changes the actual battle;
-   distant fleets and invalid/quest ports do not.
+   distant fleets and invalid/quest ports do not. Continue to a land assault only
+   with surviving landing strength, carrying the same siege ID, casualties and
+   allegiance into town. Verify failed landing, surrender, safe neutral entry,
+   betrayal and interrupted extraction before claiming city-assault acceptance.
 4. **Consequences and player-readable activity:** a disrupted port loses a bounded
    amount of real supply, successful shipping/recovery restores availability, and
    the normal store reflects it. Far rumours remain dated/imprecise. Native probes
