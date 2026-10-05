@@ -65,7 +65,7 @@ bool Treasurer_StoreDoorOpen(ref buyer)
 {
     int storeLocation = FindLocation(buyer.location);
     if (storeLocation < 0 || !CheckAttribute(&Locations[storeLocation], "type")) return false;
-    if (Locations[storeLocation].type != "store") return false;
+    if (Locations[storeLocation].type != "shop") return false;
     int town = FindLocation(buyer.City + "_town");
     if (town < 0 || !CheckAttribute(&Locations[town], "reload")) return false;
     aref doors;
@@ -74,7 +74,7 @@ bool Treasurer_StoreDoorOpen(ref buyer)
     {
         aref door = GetAttributeN(doors, index);
         if (!CheckAttribute(door, "go") || !CheckAttribute(door, "name")) continue;
-        if (door.go == buyer.location) return chrCheckReload(&Locations[town], door.name);
+        if (FindLocation(door.go) == storeLocation) return chrCheckReload(&Locations[town], door.name);
     }
     return false;
 }
@@ -104,8 +104,6 @@ int Treasurer_BuyerIndex()
         if (!CheckAttribute(buyer, "Dialog.Filename") || buyer.Dialog.Filename != "Common_Store.c") continue;
         if (!CheckAttribute(buyer, "City") || buyer.City != city) continue;
         if (!CheckAttribute(buyer, "location") || LAi_IsDead(buyer)) continue;
-        if (!CheckAttribute(buyer, "nation")) continue;
-        if (GetNationRelation2MainCharacter(sti(buyer.nation)) == RELATION_ENEMY) continue;
         if (CheckAttribute(buyer, "angry")) continue;
         if (CheckFreeServiceForNPC(buyer, "Store") != -1) continue;
         if (!CheckAttribute(buyer, "Dialog.CurrentNode")) continue;
@@ -159,8 +157,6 @@ string Treasurer_ItemSaleReason(ref item)
     string category = Treasurer_ItemSaleCategory(item);
     if (category == "" || item.id == "unarmed" || item.id == "CaptainBook") return "Не для автосбыта";
     if (!CheckAttribute(item, "price") || sti(item.price) <= 0 || IsQuestUsedItem(item.id)) return "Квестовая вещь";
-    if (!CheckAttribute(item, "rare")) return "Редкость неизвестна";
-    if (stf(item.rare) < 0.01) return "Редкая вещь";
     if (!Treasurer_Setting(category, 1, 0, 1)) return "Категория отключена";
     if (sti(item.price) >= Treasurer_Setting("PriceLimit", 1500, 1, 1000000)) return "Дороже предела";
     return "";
@@ -352,7 +348,7 @@ void Treasurer_OnLocationLoaded(ref location)
     // Save rehydration is not a new arrival; old saves opt in only through the UI.
     if (actLoadFlag != 0 || bAbordageStarted) return;
     if (!CheckAttribute(location, "type") || CheckAttribute(location, "boarding")) return;
-    if (location.type != "port" && location.type != "town" && location.type != "store") return;
+    if (location.type != "port" && location.type != "town" && location.type != "shop") return;
     if (!Treasurer_Setting("AutoBuy", 0, 0, 1) && !Treasurer_Setting("AutoSell", 0, 0, 1)) return;
     PostEvent("TreasurerPortService", 500, "lsl", Treasurer_PortGeneration, location.id, 0);
 }
