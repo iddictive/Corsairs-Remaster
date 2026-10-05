@@ -81,5 +81,6 @@ exclusion. Exact composed map/init/encgen/reload/sea scripts compile together in
 the native VM. VM state probes pass rescue-range inclusion/cursor restoration,
 distant/quest negatives and persistent wear with untagged/quest negatives.
 The script lane separately checked real class tables/count generation and
-maritime locators. Renderer/world geometry and creation/scene replay are outside
-those fixtures. Installed delivery and player scene acceptance remain pending.
+maritime locators. Canonical staging and exact installed engine/content hashes
+are verified. Renderer/world geometry and creation/scene replay are outside
+those fixtures; player scene acceptance remains pending.
