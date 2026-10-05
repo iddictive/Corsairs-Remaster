@@ -76,7 +76,10 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
   this->~LandShadow();new(this) LandShadow(nextEnabled,nextQuality);
   locationActive=wasLocationActive;indoor=wasIndoor;worldOrigin=previousOrigin;
  }
- bool collecting()const{if(!enabled||!scope)return false;if(!locationActive)return !prepass.frame&&!resolved;return prepass.frame?(prepass.finished&&!prepass.failed&&(applied||indoor)):!resolved;}
+ // A completed dusk/night prepass can have no shadow maps. Illumination still
+ // consumes the current ambient and lights; map validity controls occlusion only.
+ bool locationLightingReady()const{return enabled&&locationActive&&prepass.finished&&!prepass.failed;}
+ bool collecting()const{if(!enabled||!scope)return false;if(!locationActive)return !prepass.frame&&!resolved;return prepass.frame?locationLightingReady():!resolved;}
  // Ship lights are scoped to the ship model and disabled before late deck actors.
  // Once an earlier receiver recorded an actual point lamp this frame, retain only
  // that immutable snapshot as admission for subsequent scene-model casters.

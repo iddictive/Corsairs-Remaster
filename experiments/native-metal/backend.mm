@@ -683,7 +683,7 @@ auto*landTexture=dynamic_cast<Texture*>(textures[0]);const bool inferredWorldCov
 // reproduce authored coverage; a completed prepass can relight every opaque FFP
 // partition, including untextured/lightmapped partitions and generated UV passes.
 const bool worldDraw=landShadow.collecting()&&target==back&&zbuffer==depth&&(fvf&D3DFVF_NORMAL)&&((fvf&D3DFVF_POSITION_MASK)==D3DFVF_XYZ)&&(landShadow.scope==1||landShadow.scope==2)&&rs[D3DRS_ZENABLE]&&(t==D3DPT_TRIANGLELIST||t==D3DPT_TRIANGLESTRIP||t==D3DPT_TRIANGLEFAN);
-const bool blendedCharacterReceiver=landShadow.scope==2&&landShadow.prepass.finished&&!landShadow.prepass.failed&&(landShadow.applied||landShadow.indoor);
+const bool blendedCharacterReceiver=landShadow.scope==2&&landShadow.locationLightingReady();
 const bool opaqueReceiver=rs[D3DRS_ZWRITEENABLE]&&!rs[D3DRS_ALPHABLENDENABLE];
 const bool receiverEligible=worldDraw&&landShadow.prepass.finished&&(blendedCharacterReceiver||opaqueReceiver);
 // Depth coverage is semantic: Z-writing blended characters are opaque casters;
@@ -1104,7 +1104,7 @@ extern "C" void StormMetalInterfaceBackScene(void*pointer,bool active){
  else{if(!d->interfaceBackSceneActive)return;d->interfaceBackSceneActive=false;d->landShadow.locationActive=false;d->landShadow.indoor=false;d->lightingScene.setDomain(storm_metal::LightingDomain::Sea);d->lightingScene.clearAuthoredLights();d->landShadow.resetFrame();d->lightShaftMeshes.clear();d->lightShafts.reset();}
 }
 extern "C" bool StormMetalInterfaceBackSceneActive(void*pointer){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));return d->interfaceBackSceneActive&&d->landShadow.locationActive&&d->landShadow.indoor;}
-extern "C" bool StormMetalLandLightingReady(void*pointer){if(!pointer)return false;auto&l=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow;return l.enabled&&l.locationActive&&l.prepass.finished&&!l.prepass.failed&&(l.applied||l.indoor);}
+extern "C" bool StormMetalLandLightingReady(void*pointer){if(!pointer)return false;return static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow.locationLightingReady();}
 extern "C" bool StormMetalOutdoorSunShadowsReady(void*pointer){if(!pointer)return false;auto&l=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow;return l.enabled&&l.locationActive&&!l.indoor&&l.prepass.finished&&!l.prepass.failed&&l.prepass.sunValid==3;}
 extern "C" void StormMetalSetBakedStaticEnvironment(void*pointer,bool active){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow.bakedStaticEnvironment=active;}
 extern "C" bool StormMetalBakedStaticEnvironment(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow.bakedStaticEnvironment;}
