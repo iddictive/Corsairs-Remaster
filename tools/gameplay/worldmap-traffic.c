@@ -72,6 +72,36 @@ void WdmTrafficRefreshEncounter(aref encounter, bool stopFollow)
 
 void WdmTrafficRefresh()
 {
+	// Rebuild from the active companion slots, never rank, officers or stored ships.
+	float playerPower = 0.0;
+	bool playerTrade = true;
+	for (int slot = 0; slot < COMPANION_MAX; slot++)
+	{
+		int captain = GetCompanionIndex(pchar, slot);
+		if (captain < 0 || captain >= TOTAL_CHARACTERS) continue;
+		ref shipCaptain = &Characters[captain];
+		int type = GetCharacterShipType(shipCaptain);
+		if (type < 0 || type >= REAL_SHIPS_QUANTITY) continue;
+		ref hull = &RealShips[type];
+		if (!CheckAttribute(hull, "Class") || !CheckAttribute(hull, "HP") || stf(hull.HP) <= 0.0) continue;
+		int shipClass = sti(hull.Class);
+		if (shipClass < 1 || shipClass > 7) continue;
+		float hp = 1.0;
+		float sails = 1.0;
+		if (CheckAttribute(shipCaptain, "Ship.HP")) hp = stf(shipCaptain.Ship.HP) / stf(hull.HP);
+		if (CheckAttribute(shipCaptain, "Ship.SP") && CheckAttribute(hull, "SP") && stf(hull.SP) > 0.0)
+			sails = stf(shipCaptain.Ship.SP) / stf(hull.SP);
+		if (hp < 0.0) hp = 0.0;
+		if (hp > 1.0) hp = 1.0;
+		if (sails < 0.0) sails = 0.0;
+		if (sails > 1.0) sails = 1.0;
+		float weight = 1.0;
+		if (CheckAttribute(hull, "Type.War") && sti(hull.Type.War)) { weight = 2.0; playerTrade = false; }
+		float size = 8.0 - shipClass;
+		playerPower = playerPower + size * size * weight * (0.75 * hp + 0.25 * sails);
+	}
+	worldMap.trafficPlayerPower = playerPower;
+	worldMap.trafficPlayerTrade = playerTrade;
 	if (!CheckAttribute(&worldMap, "encounters")) return;
 	bool stopFollow = IsStopMapFollowEncounters();
 	aref encounters;
@@ -79,8 +109,29 @@ void WdmTrafficRefresh()
 	for (int i = 0; i < GetAttributesNum(encounters); i++)
 	{
 		aref encounter = GetAttributeN(encounters, i);
-		if (!WdmTrafficIsOrdinary(encounter)) continue;
-		WdmTrafficRefreshEncounter(encounter, stopFollow);
+		if (WdmTrafficIsOrdinary(encounter))
+		{
+			encounter.trafficPlayerAware = sti(encounter.trafficRole) == 3;
+			WdmTrafficRefreshEncounter(encounter, stopFollow);
+			continue;
+		}
+		// Old generated pirate pursuers must not bypass the fleet-strength rule.
+		// Quest/ALONE descriptors and naval pursuers retain their own contracts.
+		if (CheckAttribute(encounter, "quest") || CheckAttribute(encounter, "encdata.qID") ||
+			CheckAttribute(encounter, "needDelete") || !CheckAttribute(encounter, "type") || encounter.type != "Follow") continue;
+		if (!CheckAttribute(encounter, "encdata.nation") || sti(encounter.encdata.nation) != PIRATE) continue;
+		if (CheckAttribute(encounter, "encdata.RealEncounterType") && sti(encounter.encdata.RealEncounterType) == ENCOUNTER_TYPE_ALONE) continue;
+		aref fleet;
+		makearef(fleet, encounter.encdata);
+		float power = WdmTrafficFleetPower(fleet, sti(pchar.rank));
+		if (power <= 0.0) continue;
+		encounter.trafficPower = power;
+		encounter.trafficPlayerAware = true;
+		if (!CheckAttribute(encounter, "trafficRisk"))
+		{
+			encounter.trafficRisk = 1.05;
+			if (rand(9) == 0) encounter.trafficRisk = 1.25;
+		}
 	}
 }
 
@@ -270,6 +321,7 @@ bool WdmTrafficCreate(int role)
 	encounter.trafficRole = role;
 	encounter.trafficNation = nation;
 	encounter.trafficPower = power;
+	encounter.trafficPlayerAware = role == 3;
 	if (role == 3)
 	{
 		encounter.trafficRisk = 1.05;

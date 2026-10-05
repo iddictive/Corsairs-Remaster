@@ -264,7 +264,7 @@ def prepare_worldmap_main(data: bytes) -> bytes:
     anchor = enc("void wdmCreateWorldMap()\n{\n")
     if data.count(anchor) != 1:
         raise RuntimeError("worldmap entry anchor mismatch")
-    data = data.replace(anchor, anchor + enc("\tWdmTrafficApplyVisibility();\n"))
+    data = data.replace(anchor, anchor + enc("\tWdmTrafficApplyVisibility();\n\tWdmTrafficRefresh();\n"))
     return data + enc("\nvoid WdmTrafficApplyVisibility()\n{\n") + WDM_DIST_NEW + enc("\n}\n")
 
 
@@ -291,7 +291,7 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "501ea5bb703981f80826f212ee2dcf8543b19a2bce39f353e28090aa8f86524a"
+WDM_TRAFFIC_SHA256 = "722262732a4f10edb721fb781ed1728f74654b5d08ffb30496dafadd34d9acd0"
 
 WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)
 {
@@ -322,6 +322,7 @@ WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX
 	{
 		wdmTimeOfLastFollow = 0.0;
 		wdmCreateFollowShip(0.8 + rand(10) * 0.05);
+		WdmTrafficRefresh();
 	}
 	if (pursuers >= 2) wdmTimeOfLastFollow = 0.0;
 	wdmTimeOfLastSpecial = wdmTimeOfLastSpecial + dltTime * WDM_SPECIAL_RATE * 1000.0 * iEncountersRate;
@@ -1473,7 +1474,7 @@ PREPARERS = {
 
 # Calculated post-patch hashes
 UPDATED = {
-    "PROGRAM/worldmap/worldmap.c": "2f1610cc7392493ed46cc42cb483c5b2a7984b4ff61231900d328018c214a2cc",
+    "PROGRAM/worldmap/worldmap.c": "f744ff02267d85c4c07fd32f81f8aa2814e6038867fdacc6068352ee33dd2c6d",
     "PROGRAM/sea_ai/sea.c": "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
     "PROGRAM/Loc_ai/LAi_boarding.c": "5ab91b29f9b47e5cce2892d93cf11ffd979ad26b35e70960de273c75a9528930",
     "PROGRAM/interface/itemsbox.c": "f9fe490ceca5215958001dc12c068c19e32e52e400d7cb8cd0012784caa47b36",
@@ -1482,7 +1483,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86",
+    "PROGRAM/worldmap/worldmap_encgen.c": "975b3085bc51e8508d56c3138fcd62646f7ad2bf2d0d78b7874c68da7af21372",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1504,9 +1505,10 @@ UPDATED = {
 # Previously reviewed installed revisions may be upgraded, but are never used
 # as layer inputs: always compose from the current journal-enabled baseline.
 PREVIOUS = {
+    WDM_MAIN_PATH: {"2f1610cc7392493ed46cc42cb483c5b2a7984b4ff61231900d328018c214a2cc"},
     SEA_PATH: {"9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98"},
     WDM_INIT_PATH: {"20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980"},
-    WDM_ENC_PATH: {"782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a"},
+    WDM_ENC_PATH: {"782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a", "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86"},
     WDM_GLO_PATH: {"bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe"},
     "PROGRAM/worldmap/worldmap_reload.c": {"cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627", "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
     "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},

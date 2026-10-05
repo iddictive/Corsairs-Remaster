@@ -1,7 +1,16 @@
 diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wdm_enemy_ship.cpp
 --- a/src/libs/worldmap/src/wdm_enemy_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_enemy_ship.cpp
-@@ -50,6 +50,14 @@
+@@ -13,6 +13,8 @@
+ #include "core.h"
+ 
+ #include "wdm_islands.h"
++#include "world_map.h"
++#include <algorithm>
+ 
+ //============================================================================================
+ 
+@@ -50,6 +52,14 @@
  
  WdmEnemyShip::~WdmEnemyShip()
  {
@@ -16,7 +25,7 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
      /*
      if(saveAttribute)
      {
-@@ -91,7 +99,7 @@
+@@ -91,7 +101,7 @@
          if (deleteAlpha >= 1.0f)
          {
              // Remote check
@@ -25,7 +34,7 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
                  deleteAlpha = 0.999999f;
              // Lifetime check
              liveTime -= dltTime;
-@@ -424,3 +432,13 @@
+@@ -424,3 +434,29 @@
      }
      return "";
  }
@@ -39,19 +48,64 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 +    const auto role = saveAttribute->GetAttributeAsDword("trafficRole");
 +    return role >= 1 && role <= 3 ? saveAttribute : nullptr;
 +}
++
++// Shared by steering and contact: unwilling pirates cannot force a sea reload.
++bool WdmEnemyShip::ShouldAvoidPlayer() const
++{
++    if (!saveAttribute || !ATTRIBUTES::IsLive(saveAttribute) ||
++        !saveAttribute->GetAttributeAsDword("trafficPlayerAware") ||
++        saveAttribute->GetAttribute("quest") || saveAttribute->GetAttribute("needDelete")) return false;
++    auto *enc = saveAttribute->FindAClass(saveAttribute, "encdata");
++    if (!enc || enc->GetAttribute("qID") || enc->GetAttributeAsDword("RealEncounterType") == 19) return false;
++    auto *map = wdmObjects->wm ? wdmObjects->wm->AttributesPointer : nullptr;
++    if (!map || !map->GetAttribute("trafficPlayerPower")) return false;
++    const float ours = std::max(1.0f, saveAttribute->GetAttributeAsFloat("trafficPower", 1.0f) *
++                                    saveAttribute->GetAttributeAsFloat("trafficCondition", 1.0f));
++    return map->GetAttributeAsFloat("trafficPlayerPower") >
++           ours * saveAttribute->GetAttributeAsFloat("trafficRisk", 1.05f);
++}
 diff --git a/src/libs/worldmap/src/wdm_enemy_ship.h b/src/libs/worldmap/src/wdm_enemy_ship.h
 --- a/src/libs/worldmap/src/wdm_enemy_ship.h
 +++ b/src/libs/worldmap/src/wdm_enemy_ship.h
-@@ -49,6 +49,9 @@
+@@ -49,6 +49,10 @@
  
      // Get attribute name
      const char *GetAttributeName() const;
 +    // Only ordinary generated traffic participates in the simulation.
 +    ATTRIBUTES *GetTrafficData() const;
++    bool ShouldAvoidPlayer() const;
 +
  
    protected:
      // Find the pulling force in the desired direction
+diff --git a/src/libs/worldmap/src/wdm_follow_ship.cpp b/src/libs/worldmap/src/wdm_follow_ship.cpp
+--- a/src/libs/worldmap/src/wdm_follow_ship.cpp
++++ b/src/libs/worldmap/src/wdm_follow_ship.cpp
+@@ -60,16 +60,21 @@
+ // Find the pulling force in the desired direction
+ void WdmFollowShip::FindMoveForce()
+ {
++    if (!wdmObjects->playerShip) { mx = mz = 0.0f; return; }
++    const bool avoid = ShouldAvoidPlayer();
++    if (saveAttribute && saveAttribute->GetAttributeAsDword("trafficPlayerAware")) isEnemy = !avoid;
++    CVECTOR destination = wdmObjects->playerShip->mtx.Pos();
++    if (avoid) destination = mtx.Pos() + (mtx.Pos() - destination);
+     CVECTOR dir;
+     if (wdmObjects->islands)
+     {
+-        wdmObjects->islands->FindDirection(mtx.Pos(), static_cast<WdmShip *>(wdmObjects->playerShip)->mtx.Pos(), dir);
++        wdmObjects->islands->FindDirection(mtx.Pos(), destination, dir);
+     }
+     else
+     {
+         // Player position
+-        dir.x = static_cast<WdmShip *>(wdmObjects->playerShip)->mtx.Pos().x;
+-        dir.z = static_cast<WdmShip *>(wdmObjects->playerShip)->mtx.Pos().z;
++        dir.x = destination.x;
++        dir.z = destination.z;
+         // Direction to player
+         dir.x -= mtx.Pos().x;
+         dir.z -= mtx.Pos().z;
 diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
 --- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
@@ -133,7 +187,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
  }
  
  // Updating stored data
-@@ -136,3 +156,238 @@
+@@ -136,3 +156,261 @@
      }
      WdmEnemyShip::SetSaveAttribute(save);
  }
@@ -173,7 +227,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    }
 +    const auto role = data->GetAttributeAsDword("trafficRole");
 +    shipType = attack ? wdmest_warring : (role == 1 ? wdmest_merchant : wdmest_follow);
-+    isEnemy = !attack && role != 1 && data->GetAttributeAsDword("trafficHostile") != 0;
++    isEnemy = !attack && role != 1 && data->GetAttributeAsDword("trafficHostile") != 0 && !ShouldAvoidPlayer();
 +    if (dltTime > 0.0f)
 +    {
 +        data->SetAttributeUseFloat("trafficCooldown", std::max(0.0f, data->GetAttributeAsFloat("trafficCooldown") - dltTime));
@@ -287,9 +341,34 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +        data->SetAttributeUseDword("trafficPatrolReady", 1);
 +    }
 +    WdmEnemyShip *target = nullptr;
-+    WdmEnemyShip *danger = nullptr;
++    WdmShip *danger = nullptr;
 +    float dangerDistance = 80.0f * 80.0f;
 +    float best = 110.0f * 110.0f;
++    bool playerTarget = false;
++    auto *player = wdmObjects->playerShip;
++    auto *map = wdmObjects->wm ? wdmObjects->wm->AttributesPointer : nullptr;
++    // Evaluate the hero in the same target competition; merchants retain priority.
++    if (role != 1 && data->GetAttributeAsDword("trafficHostile") && player && map)
++    {
++        const float distance = ~(player->mtx.Pos() - mtx.Pos());
++        if (distance < 75.0f * 75.0f &&
++            (role != 2 || (~(player->mtx.Pos() - home)) <= leash * leash))
++        {
++            if (ShouldAvoidPlayer())
++            {
++                danger = player;
++                dangerDistance = distance;
++            }
++            else
++            {
++                best = distance;
++                if (role == 3)
++                    best *= std::max(0.5f, map->GetAttributeAsFloat("trafficPlayerPower", 1.0f) / power) *
++                            (map->GetAttributeAsDword("trafficPlayerTrade") ? 0.6f : 1.0f);
++                playerTarget = true;
++            }
++        }
++    }
 +    for (auto *ship : wdmObjects->ships)
 +    {
 +        if (ship == this || ship == wdmObjects->playerShip || ship->killMe || !ship->isLive) continue;
@@ -340,11 +419,17 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +        if (score > 110.0f * 110.0f) continue;
 +        if (role == 3) score *= std::max(0.5f, otherPower / power) * (otherRole == 1 ? 0.6f : 1.0f);
 +        if (role == 2 && otherRole == 3) score *= 0.6f;
-+        if (score < best) { best = score; target = enemy; }
++        if (score < best) { best = score; target = enemy; playerTarget = false; }
 +    }
 +    if (danger)
 +    {
 +        trafficDestination = mtx.Pos() + (mtx.Pos() - danger->mtx.Pos());
++        trafficSteering = true;
++        return;
++    }
++    if (playerTarget)
++    {
++        trafficDestination = player->mtx.Pos();
 +        trafficSteering = true;
 +        return;
 +    }
@@ -362,14 +447,6 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +            trafficDestination = mtx.Pos() + (mtx.Pos() - target->mtx.Pos());
 +        trafficSteering = true;
 +        return;
-+    }
-+    // Short-range sight, independent of the expanded player viewing horizon.
-+    if (role != 1 && isEnemy && wdmObjects->playerShip &&
-+        (~(wdmObjects->playerShip->mtx.Pos() - mtx.Pos())) < 75.0f * 75.0f &&
-+        (role != 2 || (~(wdmObjects->playerShip->mtx.Pos() - home)) <= leash * leash))
-+    {
-+        trafficDestination = wdmObjects->playerShip->mtx.Pos();
-+        trafficSteering = true;
 +    }
 +}
 diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/wdm_merchant_ship.h
@@ -417,6 +494,18 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/w
      CVECTOR gotoPos;
      float gotoRad;
      bool isEnableSetDir;
+diff --git a/src/libs/worldmap/src/wdm_player_ship.cpp b/src/libs/worldmap/src/wdm_player_ship.cpp
+--- a/src/libs/worldmap/src/wdm_player_ship.cpp
++++ b/src/libs/worldmap/src/wdm_player_ship.cpp
+@@ -125,7 +125,7 @@
+         // Distance to the ship
+         const auto r = ~(es->mtx.Pos() - mtx.Pos());
+         // Determine the testing radius
+-        if (es->isEnemy)
++        if (es->isEnemy && !es->ShouldAvoidPlayer())
+         {
+             if (r < actionRadius * actionRadius * 6.0f)
+             {
 diff --git a/src/libs/worldmap/src/wdm_warring_ship.cpp b/src/libs/worldmap/src/wdm_warring_ship.cpp
 --- a/src/libs/worldmap/src/wdm_warring_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_warring_ship.cpp

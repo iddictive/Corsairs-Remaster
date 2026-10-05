@@ -28,6 +28,17 @@ target acquisition, escape, patrol limits and battle timing belong to the engine
 - Raiders prefer trade and reject fleets stronger than 1.05 times their own
   estimated strength; 10% tolerate 1.25. They flee stronger nearby opponents.
   Trading ships flee; distant enemies do not know the player's position.
+- Player strength uses every active companion-slot ship, class and hull role,
+  weighted by current hull/sail condition (75%/25%). Parked ships and personal
+  stats do not count. Ordinary raiders compare the player and NPC prey in the
+  same scoring pass; superior player fleets cause escape and cannot force a sea
+  encounter through the native contact flag. The player can still enter combat.
+  Map entry rebuilds the estimate before creating the entity, including old saves;
+  creation assigns awareness immediately and legacy creation refreshes before
+  the next native update. No random risk reroll occurs during target evaluation.
+- Old nonquest pirate `Follow` encounters also apply strength-based retreat and
+  contact suppression. They remain dedicated pursuits, not commerce-seeking
+  traffic. Naval and quest/qID/ALONE encounters retain their existing behavior.
 - Opposing fleets become a battle only after approaching each other. Both
   original descriptions and identities enter the sea scene together. Battles
   last at least 24 game hours using the native map clock (up to 48 for close
@@ -58,6 +69,10 @@ while a distant player is ignored. Exit/re-entry preserves the pair and route;
 sea import targets the opposing fleet, not the player by default. Nearest
 negatives: friendly fleets and quest encounters are never retargeted, a removed
 partner leaves no dangling pointer, and pause stops traffic timers.
+Player-target falsifier: adding a healthy active warship prevents a weak pirate
+from pursuing or forcing contact; removing/damaging it restores eligibility.
+Comparable prey remains eligible, merchants compete with the player, and
+quest encounters and voluntary player engagement remain available.
 
 Compile and disposable script/native probes establish implementation properties.
 The player owns the accepting scene replay: travel past a trade route, observe a
@@ -84,3 +99,17 @@ The script lane separately checked real class tables/count generation and
 maritime locators. Canonical staging and exact installed engine/content hashes
 are verified. Renderer/world geometry and creation/scene replay are outside
 those fixtures; player scene acceptance remains pending.
+
+October 5 player-target correction: exact composed scripts compile in the native
+VM; state probes cover full active fleet, parked-ship exclusion, hull/sail damage,
+removed companion and no ship. Disposable probes execute actual native avoidance
+and acquisition methods for ordinary/brave thresholds, escape, trade preference,
+distant-player and quest/qID/ALONE/missing-state negatives. Read-only independent
+review found the first-frame awareness gap; entry/creation refresh closes it.
+The initial script compile failed because `makeref` cannot bind an attribute
+branch; `makearef` corrected that owner and the final VM probe passes.
+The VM additionally refreshes an old pirate Follow descriptor with real class
+tables, verifies quest exclusion and checks that bravery is retained across ticks.
+Fixture-only enum/nation initialization errors were corrected without product
+changes. The broad repository hygiene check remains unresolved: its own
+`git check-ignore --stdin` exceeded a bounded 20-second check and was stopped.
