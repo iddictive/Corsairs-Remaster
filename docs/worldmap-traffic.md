@@ -99,6 +99,165 @@ fallback. Exact-hash composition admits the previously installed revision and
 rejects unknown edits. Real-game density/enjoyment remains player acceptance:
 travel through regional ports after new departures have replaced older traffic.
 
+## Living Caribbean expansion — design, not an installed feature
+
+Requested outcome: resident fleets, trade caravans, robbery, prizes, military
+expeditions, fort sieges and port plunder should form one causal simulation with
+observable opportunities for the player. The previously installed route weights
+are a prerequisite, not completion of this expansion. Implementation and real-game
+acceptance of this section are pending.
+
+### Objects and authoritative state
+
+- Fleet: retain the existing encounter ID, fixed survivor roster, cargo snapshots,
+  nation, captain temperament, position, current mission and observed opponents.
+  Add voyage/service/prize intent to that descriptor, not a second actor registry.
+- Port: retain live Colony ownership, fort commander, garrison and Store goods.
+  Supply/disruption/recovery state belongs with that colony and its existing
+  stock updater; no independent decorative prosperity score.
+- Cargo: use one manifest per surviving hull. Store departure, sea import, prizes,
+  player looting and destination delivery consume the same quantities. A generated
+  cargo reroll cannot stand in for a transported shipment.
+- Simulation clock: the existing world-map clock and calendar advance own elapsed
+  time. Map pause freezes time. Returning from land/sea advances only the missing
+  interval once; saving or entering a scene is not a fresh random resolution.
+- Information: visible nearby fleets expose observed purpose/composition; distant
+  port reports require a visited port or an ordinary news source and carry an age.
+  No exact cargo, hidden temperament, win percentage or omniscient enemy targets.
+
+### Coupled mission loops
+
+1. **Commerce and caravans.** A port selects an eligible allied/neutral buyer using
+   live export/import demand, stock, travel cost and known route danger. Load from
+   actual available stock within hull capacity, leave reserves for local/player
+   supply, and debit once. A caravan is a real fleet with merchant hulls and
+   optional escorts; valuable cargo and unsafe routes increase escort demand,
+   with capacity/availability bounds. Arrival credits the surviving manifest,
+   unloads, services the fleet and chooses the next job. Cheap local coastal
+   traffic remains alongside rarer valuable long voyages.
+2. **Piracy.** A captain searches locally, compares whole opposing fleets and
+   escort/gun/readiness, estimates attainable loot versus losses and time, and
+   chooses shadow/chase/attack/escape. Keep fixed bold/reckless temperaments;
+   recklessness raises risk tolerance but does not grant hidden knowledge or
+   free combat stats. An escort can be drawn away, a damaged straggler attacked,
+   or an overmatched merchant coerced into a limited cargo surrender. After
+   profitable plunder or major damage, return to a pirate refuge to sell prizes,
+   repair and replenish instead of pursuing indefinitely. No reroll at sea entry.
+3. **Patrols and relief.** Home patrols defend their territory, respond to observed
+   attacks on their nation's commerce, and escort endangered survivors for a
+   bounded leg. Preserve the one-patrol rescue cap for a local commerce fight.
+   Repeated losses reduce supply and create bounded demand for replacement/relief
+   departures from eligible allied ports, rather than instant reinforcements.
+4. **Military expeditions.** Only hostile diplomacy permits an offensive port
+   mission. Dispatch requires an available squadron, supplies and credible siege
+   strength; it competes with home defence. The expedition physically travels,
+   can be spotted or intercepted en route, and can abandon a newly untenable
+   mission. A small pirate gang must not randomly bombard a powerful fort.
+5. **Blockade, bombardment and plunder.** Distinguish interdicting shipping,
+   suppressing fort guns, defeating a garrison and carrying away loot. A blockade
+   can succeed without storming a fort. Derive siege power from working cannons,
+   hulls, ammunition, crew and the live fort/garrison, with stationary-defender
+   advantages; close battles resolve over days with accumulated costs. Relief
+   ships join only if they actually arrive. Sack requires suppressed defence and
+   surviving landing strength/cargo capacity; bounded loot comes from the port.
+   Failure costs ships/time/supplies and sends survivors home. Ownership changes
+   need a separately admitted full conquest/quest contract; ordinary successful
+   raids damage supply and recovery, not authored story availability.
+6. **Aftermath and recovery.** Destroyed/captured hulls stay gone. Surviving fleets
+   need elapsed service time and available port supplies to regain readiness;
+   entering a scene must not restore damage. Disrupted ports recover through the
+   existing stock/garrison update and successful deliveries. Scarcity must remain
+   recoverable: retain local reserve/recovery floors and cap simultaneous raids,
+   so a few raids cannot permanently starve every shop.
+
+### Player jobs and consistent scene transitions
+
+- Observe a convoy, identify its escort, shadow it, intercept it or let it pass.
+- Join an ongoing commerce fight on the same observed sides, rescue survivors,
+  take a prize, or exploit damaged winners; no freshly regenerated opponents.
+- Enter a port sea scene during a blockade/siege: import the same attacking fleet,
+  damage/ammunition and mission, and bind its target to the fort/defenders.
+  Friendly/neutral players remain optional participants, never universal targets.
+- Relieve a port, defeat raiders, deliver scarce supplies, or wait until a shipping
+  route becomes safer. Effects must be evident in actual goods/defence and the
+  player's ordinary store interactions, not only in a log message.
+- Hear a dated report about a disrupted port through ordinary port/news surfaces.
+  Map icons summarize observed convoy/combat/port activity without flooding the
+  screen. Use existing encounter review; no new omniscient dashboard.
+- Preserve direct sea entry, deliberate pursuit, barrels/boats, story encounters
+  and save compatibility. Quest fleets do not become economic actors or receive
+  autonomous targets, cargo changes or service resets.
+
+### Balance and causal model
+
+Availability, distance, cargo value, observed force ratio and prior route losses
+are continuous inputs. A riskier/high-value job should demand more support;
+stronger effective defence should make raids less attractive and costlier.
+Raider success should make a route less safe until patrol/escort/relief responds,
+while merchants can switch to a viable alternative. This is a feedback loop with
+bounded pressure and decay, not a player-rank-driven difficulty spawn.
+
+Do not promise constant combat. A powerful player squadron can deter weak gangs
+and choose profitable dangerous waters; reckless rivals, equivalent forces,
+contested convoys and military operations provide meaningful optional danger.
+Do not add global AI knowledge or ensure an enemy victory/loss for spectacle.
+Maintain the finite actor budget and one authoritative battle resolution per
+encounter. Reports/icon density and regional activity are separate from combat
+frequency; increasing all spawn rates is not this design.
+
+### Source discoveries and reuse verdict
+
+- Native `WdmMerchantShip::KillTest` currently deletes commerce on arrival and
+  reverses patrol/raider legs; `WdmEnemyShip::Update` ages fleets out. Rework these
+  into service/new-voyage transitions for ordinary resident fleets only. Preserve
+  explicit sunk/captured retirement and legacy quest lifetime semantics.
+- Existing `WdmMerchantShip::StartTrafficBattle/ResolveTrafficBattle` already owns
+  local paired battles, one rescue patrol, wear and hull tombstones. Adapt it;
+  do not build a second battle scheduler.
+- `tools/gameplay/fleet-sea.c` already preserves exact Ship/RealShip cargo/damage
+  and imports persistent IDs. Extend its same manifest/task bridge for commerce
+  and fort targets, rather than parallel sea-only generators.
+- `PROGRAM/store/storeutilite.c` owns Set/Add/RemoveStoreGoods, current quantities,
+  prices and daily stock updates. `Colonies[].StoreNum` supplies the actual store.
+  Supply consequences must integrate there and reconcile daily regeneration.
+- `PROGRAM/sea_ai/AIFort.c` uses Fort_FindCharacter, live colony nation, actual
+  cannon quantity, Fort.HP/Ship.HP and fort resurrection. Integrate map siege wear
+  after initialization and before fighting; initialization currently resets HP,
+  so an attribute-only map patch would be visually false.
+- The existing city siege branch in `PROGRAM/scripts/colony.c` creates six hunter
+  captains, sets AlwaysEnemy/player hostility, locks a scripted timer and targets
+  PLAYER_GROUP. Reuse underlying group/address/fort facilities, not this authored
+  player-attack wrapper. It is not an NPC-versus-port simulation.
+
+### Ordered delivery and falsifiers
+
+The implementation uses the existing exact-hash composition and ordered native
+patch stack, then canonical staging. The unresolved native fort-target binding
+must be proven before accepting the siege bridge; the authored player-attack
+wrapper is not evidence of that contract.
+
+1. **Persistent voyages and service:** new/old ordinary descriptors complete a
+   route, spend game time servicing, depart again and retain identity. Seed a
+   damaged survivor and a dead hull; only the survivor can recover. Quest timers
+   and pause remain unchanged. Port capture invalidates incompatible destinations.
+2. **Cargo-backed commerce/piracy:** loaded stock equals transported manifest;
+   loss/capture/sea exit/delivery conserve goods, with no repeated debit, duplicate
+   credit, cargo reroll or loot creation. Saved-state reload is idempotent. Existing
+   player store actions and quest cargo are unaffected.
+3. **NPC expedition and fort handoff:** a strong hostile supplied fleet can reach
+   a defended port, blockade/fight and suffer losses; a weak raider avoids it.
+   Import the same damaged actors and fort state to sea; a neutral player is not
+   attacked simply for loading. Nearby arriving relief changes the actual battle;
+   distant fleets and invalid/quest ports do not.
+4. **Consequences and player-readable activity:** a disrupted port loses a bounded
+   amount of real supply, successful shipping/recovery restores availability, and
+   the normal store reflects it. Far rumours remain dated/imprecise. Native probes
+   and script VM establish implementation properties; canonical stage-only proves
+   delivery; the player voyage accepts pacing, visibility and enjoyment.
+
+No later milestone may substitute decorative events, instant arbitrary stock
+changes, invisible escorts or forced player enemies for these prerequisites.
+
 ## Contract and owners
 
 The map should contain trade travelling between ports, naval patrols and pirate
