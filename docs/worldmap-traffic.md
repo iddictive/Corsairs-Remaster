@@ -544,6 +544,20 @@ script-state save/load preserves the separate counts and fractional damage.
 The land-fort scene exists in `locations/init/Boarding.c` and the existing
 `BRDLT_FORT` route; connecting two autonomous sides to it and the following
 `NullCharacter.GenQuestFort` city chain remains the military implementation task.
+`tools/gameplay/fort-layout.json` pins the 23 installed maritime fort locator
+assets, their SHA-256 and separate cannon/culverin/mortar label counts. The existing
+living composer owns the file's exact hash and emits the script lookup; canonical
+sync verifies those exact physical RESOURCE inputs before preparing changes.
+Counts follow native `RDF_LABEL.name` and `ScanFortForCannons` prefixes, with the
+commander's enabled cannon types applied at runtime. An independent read of each
+GM matches the catalog; all 23 match the installed application. Unknown layouts,
+contradictory saved counts and an old boarding/dead state without cannon evidence
+remain unknown, not fortless/intact. Nation readiness uses the same bound live
+fort counts and identifies materially suppressed home defence. Actual VM probes
+cover all/subset cannon types, preserved prior damage, unknown/contradictory state,
+genuine HasNoFort, and the national defence report. A changed locator file is
+rejected before delivery. This catalog contains source metadata, not cloned assets.
+
 Canonical build/stage, old player-save migration and real cannon/boarding replay
 are unresolved. These checks do not accept an expedition or playable land defence.
 

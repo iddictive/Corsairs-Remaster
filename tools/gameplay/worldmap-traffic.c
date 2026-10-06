@@ -1549,17 +1549,29 @@ void WdmTrafficNationalReadiness(int nation, ref report)
 {
 	DeleteAttribute(report, "");
 	report.hulls = 0; report.readyPatrols = 0; report.attackedPorts = 0; report.damagedPorts = 0;
+	report.installedCannons = 0; report.workingCannons = 0;
 	for (int colony = 0; colony < MAX_COLONIES; colony++)
 	{
 		if (!CheckAttribute(&Colonies[colony], "nation") || Colonies[colony].nation == "none" ||
 			sti(Colonies[colony].nation) != nation) continue;
 		if (CheckAttribute(&Colonies[colony], "trafficSiege.active") && sti(Colonies[colony].trafficSiege.active))
 			report.attackedPorts = sti(report.attackedPorts) + 1;
+		bool damaged = false;
 		if (CheckAttribute(&Colonies[colony], "trafficRecovery.days"))
 		{
 			aref recovery; makearef(recovery, Colonies[colony].trafficRecovery);
-			if (WdmTrafficElapsed(recovery, "day") < sti(recovery.days)) report.damagedPorts = sti(report.damagedPorts) + 1;
+			damaged = WdmTrafficElapsed(recovery, "day") < sti(recovery.days);
 		}
+		int installed = WdmTrafficFortInventory(colony);
+		if (installed > 0)
+		{
+			ref fort = GetCharacter(GetCharacterIndex(Colonies[colony].commander));
+			int working = Fort_GetCannonsQuantity(fort);
+			report.installedCannons = sti(report.installedCannons) + installed;
+			report.workingCannons = sti(report.workingCannons) + working;
+			if (working * 2 <= installed) damaged = true;
+		}
+		if (damaged) report.damagedPorts = sti(report.damagedPorts) + 1;
 	}
 	if (!CheckAttribute(&worldMap, "encounters")) return;
 	aref encounters; makearef(encounters, worldMap.encounters);
@@ -1674,4 +1686,28 @@ void WdmTrafficReviewStrategies()
 	if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
 	WdmTrafficStamp(clock);
 	for (int nation = 0; nation < MAX_NATIONS; nation++) WdmTrafficReviewStrategy(nation);
+}
+
+// Zero means a genuinely fortless colony; unknown/contradictory defence is -1.
+// A prior boarding/dead mode without cannon evidence is never a fresh intact fort.
+int WdmTrafficFortInventory(int colony)
+{
+	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "id")) return -1;
+	if (CheckAttribute(&Colonies[colony], "HasNoFort")) return 0;
+	if (!CheckAttribute(&Colonies[colony], "commander") || !CheckAttribute(&Colonies[colony], "island") ||
+		!CheckAttribute(&Colonies[colony], "num") || sti(Colonies[colony].num) != 1) return -1;
+	int index = GetCharacterIndex(Colonies[colony].commander);
+	if (index < 0 || index >= TOTAL_CHARACTERS) return -1;
+	ref fort = &Characters[index];
+	int installed = WdmTrafficAuthoredFortCannons(fort, Colonies[colony].island);
+	if (installed <= 0) return -1;
+	if (CheckAttribute(fort, "Fort.Cannons.Quantity") && sti(fort.Fort.Cannons.Quantity) != installed) return -1;
+	if (CheckAttribute(fort, "Fort.Cannons.Destroyed") &&
+		(sti(fort.Fort.Cannons.Destroyed) < 0 || sti(fort.Fort.Cannons.Destroyed) > installed)) return -1;
+	if (!CheckAttribute(fort, "Fort.Cannons.Destroyed") && CheckAttribute(fort, "Fort.Mode") &&
+		sti(fort.Fort.Mode) != FORT_NORMAL) return -1;
+	fort.Fort.Cannons.Quantity = installed;
+	if (!CheckAttribute(fort, "Fort.Cannons.Destroyed")) fort.Fort.Cannons.Destroyed = 0;
+	if (!CheckAttribute(fort, "Fort.HP")) fort.Fort.HP = installed * 100;
+	return installed;
 }

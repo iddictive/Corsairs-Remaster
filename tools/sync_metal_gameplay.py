@@ -159,6 +159,7 @@ def prepare_fleet_final(relative, incoming):
 def plan(target_root=None):
     if target_root is None:
         target_root = TARGET
+    living_caribbean.verify_fort_layout_assets(target_root)
     source_state = suite.classify(SOURCE)[0]
     if source_state not in {"patched", "upgrade"}:
         raise RuntimeError("archived native-storm baseline is not a reviewed gameplay package")

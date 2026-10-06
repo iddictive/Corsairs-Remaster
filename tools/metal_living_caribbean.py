@@ -23,6 +23,7 @@ Features:
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 
@@ -295,7 +296,38 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "c03285bb8492a77b0bfa584a19808d0c2c88f78a9253a0d23cd24fd5a9d70949"
+WDM_TRAFFIC_SHA256 = "b98fa2b667be3730b1868deb2c782c1c22d30f976a263c65b593c67b41aef0c4"
+FORT_LAYOUT = Path(__file__).parent / "gameplay/fort-layout.json"
+FORT_LAYOUT_SHA256 = "e1111baefbbc01d4b8c7f9fcc5e3a973f6a09d58f4e632dcfd752db77e8d7cc2"
+
+
+def fort_layout_source() -> bytes:
+    raw = FORT_LAYOUT.read_bytes()
+    if digest(raw) != FORT_LAYOUT_SHA256:
+        raise RuntimeError("fort layout source hash mismatch")
+    document = json.loads(raw)
+    if document["schema"] != 1 or document["consumer"] != WDM_ENC_PATH:
+        raise RuntimeError("unsupported fort layout consumer")
+    rows = document["layouts"]
+    if len({row["island"] for row in rows}) != len(rows):
+        raise RuntimeError("duplicate authored fort layout")
+    source = "\nint WdmTrafficAuthoredFortCannons(ref fort, string island)\n{\n\tint guns = 0; int culverins = 0; int mortars = 0;\n"
+    for row in rows:
+        guns, culverins, mortars = row["counts"]
+        source += f'\tif (island == "{row["island"]}") {{ guns = {guns}; culverins = {culverins}; mortars = {mortars}; }}\n'
+    source += '\tint quantity = 0;\n'
+    for key, count in (("1", "guns"), ("2", "culverins"), ("3", "mortars")):
+        source += f'\tif (CheckAttribute(fort, "Fort.Cannons.Type.{key}") && sti(fort.Fort.Cannons.Type.{key}) >= 0) quantity = quantity + {count};\n'
+    return enc(source + '\treturn quantity;\n}\n')
+
+
+def verify_fort_layout_assets(runtime_root: Path) -> None:
+    # This pins the same physical locators consumed by native ScanFortForCannons.
+    fort_layout_source()
+    for row in json.loads(FORT_LAYOUT.read_bytes())["layouts"]:
+        path = runtime_root / "RESOURCE" / row["resource"]
+        if not path.is_file() or digest(path.read_bytes()) != row["sha256"]:
+            raise RuntimeError(f'unrecognized physical fort layout: {row["resource"]}')
 
 WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)
 {
@@ -355,7 +387,7 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
     traffic = WDM_TRAFFIC_SOURCE.read_bytes()
     if digest(traffic) != WDM_TRAFFIC_SHA256:
         raise RuntimeError("worldmap traffic source hash mismatch")
-    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8"))
+    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8")) + fort_layout_source()
 
 
 # ---------------------------------------------------------------------------
@@ -1510,7 +1542,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "19b3ef6b2e7c053f6e42508a31e4f44a922537b2a359f9becdcafbb68a8ff08f",
+    "PROGRAM/worldmap/worldmap_encgen.c": "de1827b28081a2fb0dcecf545f99a6d74f4298442db329c708b1eeacd3ddb34a",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",

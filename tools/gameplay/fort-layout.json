@@ -1,0 +1,236 @@
+{
+  "schema": 1,
+  "consumer": "PROGRAM/worldmap/worldmap_encgen.c",
+  "layouts": [
+    {
+      "island": "Antigua",
+      "counts": [
+        74,
+        27,
+        2
+      ],
+      "resource": "MODELS/Islands/Antigua/antigua_fort1_locators.gm",
+      "sha256": "ed08e1510461b93203af2befb0fb48389d82e362416c70bac5cc85e68020ddb1"
+    },
+    {
+      "island": "Barbados",
+      "counts": [
+        42,
+        32,
+        10
+      ],
+      "resource": "MODELS/Islands/Barbados/Barbados_fort1_locators.gm",
+      "sha256": "6c762bd2d4183e4720611bc174ab4724135124412c2a63272388685d775f16ea"
+    },
+    {
+      "island": "Beliz",
+      "counts": [
+        39,
+        38,
+        3
+      ],
+      "resource": "MODELS/Islands/Beliz/Beliz_Fort1_locators.gm",
+      "sha256": "cc78202e65ab66632e153138390fb345b89b5688bf627e99192d1c7fd5130cb1"
+    },
+    {
+      "island": "Caracas",
+      "counts": [
+        129,
+        24,
+        11
+      ],
+      "resource": "MODELS/Islands/Caracas/Caracas_Fort1_locators.gm",
+      "sha256": "ad2b66e89211769237ee54aef938dffbdab2653ef037a4df42db8c7803f1132f"
+    },
+    {
+      "island": "Cartahena",
+      "counts": [
+        49,
+        31,
+        5
+      ],
+      "resource": "MODELS/Islands/Cartahena/Cartahena_Fort1_locators.gm",
+      "sha256": "1d5c1bbcbdb11e74b1655b45814dfcc678dfa04178fdf268e7e4671b4b5e5558"
+    },
+    {
+      "island": "Cuba1",
+      "counts": [
+        93,
+        24,
+        11
+      ],
+      "resource": "MODELS/Islands/Cuba1/Cuba1_Fort1_locators.gm",
+      "sha256": "7782d8e7e2504b455b1a478d5c168a0db35c50b180f3bd84646a0355d9fc001f"
+    },
+    {
+      "island": "Cuba2",
+      "counts": [
+        77,
+        70,
+        15
+      ],
+      "resource": "MODELS/Islands/Cuba2/Cuba2_Fort1_locators.gm",
+      "sha256": "4831f57317f4776d02f638ae08607037d73c99047623b1d627094a5dd85f714b"
+    },
+    {
+      "island": "Cumana",
+      "counts": [
+        39,
+        38,
+        3
+      ],
+      "resource": "MODELS/Islands/Cumana/Cumana_Fort1_locators.gm",
+      "sha256": "bcd89456a4d49b254a5ad813f5283495399252fc1fc3089114c98f80280b1ad2"
+    },
+    {
+      "island": "Curacao",
+      "counts": [
+        57,
+        11,
+        8
+      ],
+      "resource": "MODELS/Islands/Curacao/Curacao_fort1_locators.gm",
+      "sha256": "5927bd3c9eaadc6e98de1108f607bc57d9bd631b47c8f7ef10749aba9f2410c8"
+    },
+    {
+      "island": "Guadeloupe",
+      "counts": [
+        64,
+        12,
+        6
+      ],
+      "resource": "MODELS/Islands/Guadeloupe/guadeloupe_fort1_locators.gm",
+      "sha256": "843b77c0eabc0c11019f6d14cc5607d4806c9c656b3c301d030381c3adc63080"
+    },
+    {
+      "island": "Hispaniola1",
+      "counts": [
+        68,
+        48,
+        12
+      ],
+      "resource": "MODELS/Islands/Hispaniola1/Hispaniola1_fort1_locators.gm",
+      "sha256": "bd41e86a5a41db090ce918291ca577cc9f6c90fdba8aa1a6a6c9250520e77e09"
+    },
+    {
+      "island": "Hispaniola2",
+      "counts": [
+        114,
+        62,
+        3
+      ],
+      "resource": "MODELS/Islands/Hispaniola2/Hispaniola2_fort1_locators.gm",
+      "sha256": "4ffaf72cdf11c5ca0e4a4307c085f7d48ef2f52c3eb88f460f78ed5e759a7815"
+    },
+    {
+      "island": "Jamaica",
+      "counts": [
+        139,
+        62,
+        3
+      ],
+      "resource": "MODELS/Islands/Jamaica/jamaica_fort1_locators.gm",
+      "sha256": "e64a2d0fc6006aa8875c171b7845823cd4cae4537798f0eaa15ae71c310f28c2"
+    },
+    {
+      "island": "Maracaibo",
+      "counts": [
+        31,
+        37,
+        2
+      ],
+      "resource": "MODELS/Islands/Maracaibo/Maracaibo_Fort1_locators.gm",
+      "sha256": "a9756f925b40676c40774f02313a6b72d73d9067f1c083ecaea03aad5e85c52c"
+    },
+    {
+      "island": "Martinique",
+      "counts": [
+        38,
+        53,
+        1
+      ],
+      "resource": "MODELS/Islands/Martinique/Martinique_fort1_locators.gm",
+      "sha256": "0e1cf4c69b52594d4474a4a7770570a3ab7e3202d4713c626d67b2b9f9a9df5a"
+    },
+    {
+      "island": "Nevis",
+      "counts": [
+        86,
+        68,
+        3
+      ],
+      "resource": "MODELS/Islands/Nevis/Nevis_Fort1_locators.gm",
+      "sha256": "ef5094091b45832288fb9d7406c15feaf6b8271f8c14505e10eeda309c335e2a"
+    },
+    {
+      "island": "PortoBello",
+      "counts": [
+        37,
+        43,
+        2
+      ],
+      "resource": "MODELS/Islands/PortoBello/PortoBello_Fort1_locators.gm",
+      "sha256": "273f66a1c38c2e21b2f2c4b424adacf2e602955e5f0b54715dff4d1c6baeb60c"
+    },
+    {
+      "island": "Providence",
+      "counts": [
+        53,
+        61,
+        3
+      ],
+      "resource": "MODELS/Islands/Providence/Providence_fort1_locators.gm",
+      "sha256": "a36958da10cbab1903eb5d69b07a4e106b60abec229b56a13d5ab622c4a1af24"
+    },
+    {
+      "island": "PuertoRico",
+      "counts": [
+        29,
+        15,
+        1
+      ],
+      "resource": "MODELS/Islands/PuertoRico/PuertoRico_fort1_locators.gm",
+      "sha256": "8b55b47f0add9fc89180af114cf9193d55b8c95616658649e4a0227883bece85"
+    },
+    {
+      "island": "SantaCatalina",
+      "counts": [
+        129,
+        24,
+        11
+      ],
+      "resource": "MODELS/Islands/SantaCatalina/SantaCatalina_Fort1_locators.gm",
+      "sha256": "b96a950b5973cdd5804f31242d48c6cb1ef7f2bbe3eaa52196c1b1705eb32585"
+    },
+    {
+      "island": "SentMartin",
+      "counts": [
+        92,
+        66,
+        3
+      ],
+      "resource": "MODELS/Islands/SentMartin/SentMartin_fort1_locators.gm",
+      "sha256": "f63a8f232e822a4174764dfb9b6112795efb44179b3cd8d8b9183e984a79ba28"
+    },
+    {
+      "island": "Tortuga",
+      "counts": [
+        45,
+        50,
+        15
+      ],
+      "resource": "MODELS/Islands/Tortuga/Tortuga_fort1_locators.gm",
+      "sha256": "ac1b04a7e84c496563f2508bdafa136d35e0ad83323c88d47917c2eef5d03c4b"
+    },
+    {
+      "island": "Trinidad",
+      "counts": [
+        34,
+        48,
+        1
+      ],
+      "resource": "MODELS/Islands/Trinidad/Trinidad_fort1_locators.gm",
+      "sha256": "98d9b44d9b2cd78373646f9a0299d748bc22b0221dc472d79e5c453fe3b74f7a"
+    }
+  ]
+}
