@@ -368,21 +368,35 @@ they cannot establish neutral visitors, autonomous defence or persistent NPC sie
 acceptance unchanged. `Default.BoardLocation` is only an authored approach field,
 not evidence of a safe route, sufficient room or a supported battle in every town.
 
-**Default sequence.** A supplied naval expedition engages the fort from sea.
-Surviving working guns, ammunition and crew govern actual bombardment. It can
-blockade before assault or abandon a failed attack. Suppressing the fort permits
-the existing-style landing/capture sequence; it does not open an imagined safe
-harbour district. A fortified town's ordinary direct landing stays restricted while
-its fort/port encounter forbids it. A land approach is offered only if that town's
-existing connected locations and siege entry support it. Towns without an admitted
-capture chain do not receive a fabricated playable land assault.
+**Assault threshold and sequence — agreed design.** Once more than half of a
+fort's installed cannons are destroyed, both player and NPC attackers may initiate
+its land assault. Exactly half is insufficient. Use the actual cannon counts and
+persisted destroyed state, not a hull-HP approximation or a new roll on entry.
+Meeting the threshold permits assault; it does not force it or itself win the fort.
+Surviving landing strength and the existing encounter/quest admission still apply.
+The combat sequence is naval fort attack → land battle at the fort → land battle
+in the city's admitted capture chain → settlement. Losing the fort battle cannot
+skip directly to the governor or city victory. The land-fort scene/transition must
+be discovered and connected before claiming implementation; this contract is not
+proof that every town already has that scene.
 
-Phases are: approach/blockade, naval fort combat, landing commitment, authored
-land capture stages, surrender/failed assault, loading/re-embarkation, departure
-and recovery. Each consumes elapsed time/resources once and can fail. A military
-occupation and a loot-seeking raid remain different missions. A limited sack does
-not change colony ownership or delete authored quest actors; full conquest needs
-the actual ownership/quest transition admitted before use.
+**Two resolution modes.** An autonomous assault is proposed to last 10–12 game
+hours from commencement of actual attack on the fort, excluding voyage/preparation.
+Persist its selected duration, current stage, casualties and stage boundaries.
+Initial tuning may allocate 4–5 hours to bombardment, 3 to fort assault and 3–4
+to city combat; transitions additionally need threshold and a winning surviving
+force. Elapsed time cannot grant a victory to an expedition unable to breach or
+land: resolve failure/withdrawal by its actual state. These substage allocations
+are tuning candidates within the user-specified duration, not installed timings.
+A player joining late enters the current admitted stage (fort or city) with its
+remaining forces; entry cannot restart the whole siege.
+
+Player foreground fights run in normal real-time encounters, typically minutes,
+without a mandatory 10–12-hour wait. Foreground stage combat replaces that stage's
+background resolution. On completion or departure reconcile actual game time,
+casualties and the new stage once; background timers cannot independently finish
+or kill the same actors while the player is fighting. A limited sack and full
+occupation remain distinct admitted settlement paths; no silent story deletion.
 
 **Player participation occurs before combat entry.** Use the observed encounter
 review to select naval intervention or an eligible land-side agreement. Helping
@@ -394,14 +408,35 @@ commander/contact dialogue outside the active fight, where an actual contact exi
 can provide the same agreement. If the defender entry or two-sided scene has not
 been proven for that town, offer naval help only; do not claim a playable defence.
 
-Entering an active capture scene is intentional participation, not ordinary town
-visiting. Do not load ordinary civilians/shops as an alleged safe neutral district.
-Use the current capture participants and protected story contracts. If the hero is
-already in town when a landing becomes ready, hold that incompatible scene
-transition until a supported exit/re-entry or explicit participation transition;
-report the impending assault once. Do not silently replace actors around the hero,
-teleport them, freeze all sea activity or claim a simultaneous siege that is not
-actually progressing. Resolving this active-location boundary is a delivery gate.
+**A siege starts while the hero is ashore.** Check actual player-fleet berthing,
+not just current town/flag. If the fleet is moored in this attacked port, a sailor
+notification/dialogue at the next safe interaction boundary offers staying for
+land defence or returning to the ship for naval defence of the fort. During an
+existing dialogue/load/quest transition queue it once rather than interrupting
+with competing dialogue. Staying leaves the fleet inactive/berthed; do not invent
+AI piloting or off-screen attacks, sink ships or transfer ownership behind the
+player. Returning imports the real fleet into the current sea operation through
+the admitted transition. One choice per operation persists across save/load.
+The colloquial “leave ships behind” means choosing the land branch, not automatic
+irreversible deletion or surrender of the player's entire squadron.
+
+The player's squadron is not a target of autonomous simulation while the hero is
+ashore or fighting a land stage. Exclude it from off-screen battle targets and
+attrition, not only from rendering; do not mutate its hull/crew/cargo. Enemy NPC
+transport vulnerability remains real when the player deliberately fights at sea.
+Port defeat reconciles berthing/return access without silently confiscating the
+fleet; a supported return transition is required before this branch is delivered.
+This explicit player abstraction takes precedence over the earlier simultaneous
+sea/land realism proposal; ordinary NPC operation losses still persist.
+
+If the hero visits a hostile town without actually being berthed, there is no
+fictitious sailor warning from ships in its dock. The current assault can appear
+when exiting an interior into the admitted exterior: hostile land groups follow
+the same stage and relations, with no automatic governor alliance. Queue scene
+population at transition, never replace actors mid-dialogue. A currently loaded
+exterior needs its supported staged actor admission; this is an implementation
+gate, not permission to freeze the entire operation. Prior protected story actors
+remain governed by their existing contracts.
 
 **Attack the fleet while its soldiers are ashore.** The sea branch remains useful
 throughout the assault. Transports have their assigned aboard crew; covering ships
@@ -571,9 +606,15 @@ Foreground capture owns its current fight; background resolution handles only
 unobserved forces/intervals. A sea intervention can affect an unresolved landing,
 but cannot double-resolve a land stage previously played by the hero. Surrender,
 phase completion and return-to-sea must reconcile one siege ID and survivor ledger.
-An early exit follows the supported capture exit contract; ordinary city exits
-cannot be promised while a capture stage locks transitions. Add an explicit safe
-withdrawal transition only after its casualty/state handling is proven.
+Leaving the operation into jungle ends the hero's active participation and resumes
+autonomous resolution from its remaining state as game time passes. Persist earned
+contribution, revoke current participation orders and reconcile surviving officers/
+representatives; do not restart actors or settle a victory at the exit. This does
+not itself end governor safe conduct, whose agreed boundary remains global-sea
+entry (unless betrayed). Capture reload locks must admit this explicit withdrawal
+path where the authored jungle connection exists. Do not invent an escape route in
+a scene with no connection; disclose and implement its actual return/withdrawal
+transition before offering participation.
 
 **Loot and compensation.** A raid loads actually available money/goods into
 surviving hull capacity over time, after supplies and evacuation needs. Loading
