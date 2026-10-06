@@ -1,0 +1,15 @@
+# NODER::Unlink2Model leaves a null slot in its parent's child vector when a
+# composite mast section detaches. Mount must skip that slot while finding the
+# first remaining yard; the existing no-yard and local-matrix behavior is kept.
+diff --git a/src/libs/mast/src/mast.cpp b/src/libs/mast/src/mast.cpp
+--- a/src/libs/mast/src/mast.cpp
++++ b/src/libs/mast/src/mast.cpp
+@@ -396,7 +396,7 @@
+ 
+         // set the left and right points of the yard
+         for (i = 0; i < mastNodePointer->next.size(); i++)
+-            if (!strncmp(mastNodePointer->next[i]->GetName(), "rey", 3))
++            if (mastNodePointer->next[i] && !strncmp(mastNodePointer->next[i]->GetName(), "rey", 3))
+             {
+                 mastNodePointer->next[i]->geo->GetInfo(gi);
+                 mm.brey = mm.erey = *(CVECTOR *)&gi.boxcenter;
