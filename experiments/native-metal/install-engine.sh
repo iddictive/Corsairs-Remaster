@@ -54,6 +54,7 @@ python3 - "$root" "$dest_app" "$tmp" "$dest" <<'INSTALL'
 from pathlib import Path
 import hashlib
 import subprocess
+import shutil
 import sys
 
 root, app, candidate, engine = map(Path, sys.argv[1:])
@@ -131,6 +132,19 @@ else:
                 raise RuntimeError(f"Concurrent installed-app change: {target}")
             atomic_write(target, after)
             written.append(target)
+        # Bundled Python regenerates __pycache__ on every game launch. The
+        # exporter excludes those caches from delivery and they break the
+        # deep seal, so purge them inside this transaction before sealing
+        # a played bundle. They regenerate automatically on next launch.
+        frameworks = app / "Contents/Frameworks"
+        if frameworks.is_dir():
+            for pycache in sorted(frameworks.rglob("__pycache__")):
+                shutil.rmtree(pycache, ignore_errors=True)
+            for stale in sorted(frameworks.rglob("*.pyc")):
+                try:
+                    stale.unlink()
+                except OSError:
+                    pass
         # The candidate executable is already signed. Seal only the outer
         # bundle so signing cannot rewrite nested files outside this transaction.
         subprocess.run(["codesign", "--force", "-s", "-", str(app)], check=True)
