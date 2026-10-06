@@ -260,52 +260,88 @@ with a real controlled base is a distinct state, not a loot raid pretending to
 have an escape route. Do not award the hero every surrendered person automatically:
 prisoner handling requires the actual accepting force and available capacity.
 
-**Local cooperation and target priority.** National relations, personal crimes,
-current siege agreement and immediate combat threat are separate facts. Set local
-combat relations before spawning without altering national relations. An allied
-contingent permits an admitted join-side land entry. If neither side is allied,
-allow an explicit offer of help to an eligible commander before scene entry:
-“Помочь защитникам — временное перемирие до окончания штурма.” Acceptance establishes
-local cooperation only; entry must show whether it was accepted. This is a required
-land participation path for an admitted two-sided town scene, not an optional
-reward message after already spawning everyone hostile.
+**Residence parley is the default defender-help entry.** For a city still held
+by its governor, an observed active assault can offer “Высадиться для переговоров”.
+This is an explicit special siege transition into the existing residence dialogue,
+not an ordinary safe harbour or a freely selectable street teleport. Establish
+parley protection before initializing residence actors, including hero officers.
+It grants no cargo transfer, battle reward, shop service or protection for attacking
+ships at sea. Explain the special entry in encounter review. Only admit it where
+the actual residence, governor and capture transition are compatible. A governor
+already captured/dead, a completed occupation or a protected incompatible quest
+cannot be used as a resurrected negotiator; use the actual siege state and offer
+other admitted actions. A neutral/allied helper can use the same entry without
+inventing prior hostility.
 
-Emergency defenders normally accept useful help against an active assault even
-from a hostile nation, provided the hero is not personally responsible for this
-siege, has not attacked their people during it and is not subject to an admitted
-exceptional personal enemy/quest lock. Attackers can accept useful help under their
-mission constraints, with the same explicit non-aggression commitment. Neither
-agreement is inferred solely because the hero shoots someone's enemy. A refusal
-leaves existing hostility intact and explains the concrete reason before landing;
-it does not erase all land participation elsewhere. Eligible refusal/exception
-conditions must be sourced, not invented to block the normal help path.
+The governor offers assistance against the current assault, the finite reward,
+and local safe conduct. Agreement temporarily allies the defending siege garrison
+with the hero/party and admits their land participation. It also suppresses this
+colony's defensive hostility toward the participating player fleet while the
+agreement is valid, regardless of its displayed flag; it does not make every ship
+of that nation friendly, silence enemy attackers or legalize unrelated crimes.
+Implement a scoped effective relation overlay with siege ID and participant IDs,
+not deleting nation/crime/quest attributes or setting blanket AlwaysEnemy false.
+Keep prior relations underneath for restoration. Relevant uncommitted personal
+hostility can be suspended locally; incompatible story locks remain explicit
+entry exclusions, not surprise betrayal after the governor agreed.
 
-Without an agreement, hostile soldiers prioritize an immediate attacker, their
-assigned capture opponent and nearby threats to their position. A distant passive
-hero is not more important merely because he is the player. This is not immunity:
-a nearby hostile hero can be attacked, blocking a position or aiming/attacking its
-people escalates threat, and idle guards can engage according to ordinary law.
-If both sides are enemies, they continue fighting one another; they do not form a
-coalition or share omniscient hero coordinates. Deliberate unaligned land entry
-warns that both groups may attack. Do not imply “they are busy” guarantees safety.
+**Safe conduct ends at global-sea departure.** After successful relief, defenders,
+local guards and the fort keep the hero/party/fleet friendly until the first actual
+transition to the global world map. Ordinary town/shore/cabin/local-sea transitions,
+changing ship flag, saving and loading do not end it. This removes a surprise
+thank-you-then-attack and avoids a countdown while collecting the agreed reward.
+Scope is this colony and participating defenders only; unrelated enemy fleets
+still apply their real relations. The governor states the exact boundary.
+Leaving the global map and immediately returning does not restore the old agreement;
+a new siege needs a new agreement. Betrayal, deliberate defender attacks or civilian
+robbery revoke protection early. A stray hit follows the bounded warning rule.
 
-An agreed assisting hero and ordinary officers use their side's relations. A stray
-hit gets the bounded warning rule; repeated deliberate hits, civilian robbery or
-betrayal revoke the agreement once. Preserve finite contingent identities and
-contribution through transitions/save/load; changing flags or re-entering cannot
-reset misconduct or earn both sides' rewards. No generic three-way crowd beyond
-the scene's proven actor/locator budget is promised.
+**Decline and independent entry.** A refusal is not an attack or a new national
+crime. End the dialogue normally and disclose that no defender safe conduct was
+accepted. Provide an explicit return to the prior eligible sea state; if the player
+chooses to stay/go out into town instead, restore original effective hostility at
+that transition, with no immediate ambush inside the protected dialogue. If both
+sides were hostile, both can attack there; they continue fighting one another and
+prioritize immediate threats, not share omniscient hero coordinates. If one side
+was already allied, refusing the governor does not make that side hostile. Exit
+placement and actor relations require the actual capture-scene admission; do not
+promise a generic three-way crowd beyond the proven town actor budget.
 
-**After the battle.** Material uncontracted help can earn acknowledgement and a
-bounded discretionary reward from the side actually helped, even with hostile
-national relations. It cannot guarantee a reward without an agreement, reset all
-national reputation or excuse crimes. Contracted help settles the stated payment
-once. A temporary ceasefire ends through a readable settlement/withdrawal transition:
-permit the hero to return along the admitted exit before restoring ordinary local
-hostility, rather than thanking and instantly attacking in the same scene. The
-withdrawal grace cannot be extended by save/load, spent indefinitely in town or
-used to loot civilians; new aggression ends it. Quest/personal-hostility exceptions
-must be disclosed before accepting help, not used to surprise-kill the contributor.
+**Attacker cooperation is narrower.** A hostile expedition does not accept an
+unknown enemy merely because he asks to help or has a matching displayed flag.
+An already allied, verified cooperating or authored privateering party may join
+an admitted attacker-side scene; otherwise naval/independent intervention applies.
+A defender-help agreement cannot also earn attacker rewards. No automatic enemy-
+of-enemy alliance, citizenship or national pardon is implied by a local agreement.
+
+**Uncontracted outcomes.** Defeating attackers while leaving defenders intact is
+relief, not player conquest: the governor may acknowledge material aid and offer
+a bounded discretionary reward/settlement. A parley after help can explicitly grant
+local safe conduct; no invisible retrospective alliance is promised. Defeating
+both land forces is instead an independent seizure attempt, never a defence reward.
+Admit it only through the real conquest/residence settlement path with sufficient
+remaining player force and compatible quest/ownership transitions. Merely killing
+all currently visible representative fighters does not eliminate unrepresented
+reserves or win the entire siege. A defeated governor can negotiate surrender,
+ransom or an admitted transfer; he cannot pay both a rescue bonus and unlimited
+conquest loot from the same finite stock/treasury.
+
+**Offshore survivors do not disappear on land victory.** The expedition reacts to
+its actual surviving landing force, viable ships, supplies, current sea opponent
+and mission. Loss of its entire assault force normally aborts this assault; capable
+survivors recover troops and withdraw when a route permits. Trapped ships surrender
+under an admitted surrender rule or fight; a still viable naval force may hold a
+blockade/bombard rather than surrender merely because the player killed a small
+land detachment. Entry/exit keeps its actual damage, crew, ammo and cargo, never
+spawns fresh ships or awards loot for ships still afloat. Local land capture cannot
+automatically grant the hero naval victory or make the expedition vanish.
+
+Consequences follow actual actions: repelling attackers harms their operation;
+attacking the garrison/conquering its city harms the defending nation too. No
+arbitrary “maximum enemy of both nations” penalty simply for entering. A genuine
+independent conquest can produce both nations' hostility and finite ransom/prizes,
+but also casualties, supply costs and unresolved offshore danger. Exact diplomatic
+penalties reuse admitted crime/conquest owners and remain balance work.
 
 Use bounded representative fighters fitted to the authored capture stages. Retain
 actual troop pools, their representative weights, stage and casualties in the siege
