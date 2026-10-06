@@ -278,6 +278,31 @@ exact global enemy/player strength. Do not change authored diplomacy just to cre
 a siege. A new peace cancels uncommitted attacks and triggers a coherent ceasefire/
 withdrawal for ongoing operations; it does not reroll ships or pay capture rewards.
 
+October 5 strategy source candidate, not installed: the existing `Nations`
+objects own versioned `trafficStrategy` state. Initial migration seeds a 30–60-day
+review, a 75–150-day authorization clock and one weekly decision clock; it emits
+no operation or historical catch-up. Canonical calendar stamps and a one-hour
+review gate suppress frame/load churn. Owned-port attack/recovery reports and
+actual surviving fleet readiness determine eligibility, without reading enemy or
+hero strength. At peace, offensive strategies are excluded; expedition preference
+requires two ready, uncommitted patrol fleets. A scheduled choice holds at least
+14 days, downweights a repeated choice and retains modest national biases.
+Actual home attack or major hull loss changes posture immediately and records
+its reason. Existing voyages and rosters remain intact. Home selection weights
+patrol defence/protection; expedition preference permits a rarer 3–5-hull authored
+large-patrol assembly through the same real service contract, never an instant
+replacement or raid. This is strategy/readiness behavior, not a dispatched siege.
+
+The exact script composition compiles in the native VM. Disposable state probes
+cover migration/no immediate operation, timer range/no repeated roll, a day-14
+emergency, the subsequent minimum hold, peace after a year skip, major loss even
+when recovery was already randomly selected, pirate exclusion, and a native
+save/load without reroll. A failed probe exposed that a nested attribute passed
+directly to an `aref` calendar parameter resolves incorrectly in this VM;
+`makearef` fixes the strategy hold and the existing pirate-assembly timer.
+Permanent test delta is zero. Actual rare authorization/target reservation,
+expedition travel, fort/city arbitration and real-player pacing remain pending.
+
 **Rare assault scheduling.** City targets are weighted random among currently
 hostile nations' eligible ports; randomness does not override fort/quest admission,
 physical travel, credible force or the home-defence floor. Weight distance,

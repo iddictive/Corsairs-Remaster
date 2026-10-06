@@ -348,7 +348,7 @@ void WdmTrafficRefresh()
 	}
 	worldMap.trafficPlayerPower = playerPower;
 	worldMap.trafficPlayerTrade = playerTrade;
-	if (!CheckAttribute(&worldMap, "encounters")) return;
+	if (!CheckAttribute(&worldMap, "encounters")) { WdmTrafficReviewStrategies(); return; }
 	bool stopFollow = IsStopMapFollowEncounters();
 	aref encounters;
 	makearef(encounters, worldMap.encounters);
@@ -381,6 +381,7 @@ void WdmTrafficRefresh()
 		}
 		encounter.trafficPower = WdmTrafficRosterPower(fleet);
 	}
+	WdmTrafficReviewStrategies();
 }
 
 float WdmTrafficClassPower(int weakest, int strongest)
@@ -470,7 +471,18 @@ int WdmTrafficHomeWeight(int home, int role)
 		}
 	}
 	// Prevent duplicate patrols piling up at one randomly selected home port.
-	return 100 / (1 + resident * resident);
+	int weight = 100 / (1 + resident * resident);
+	int nation = sti(Colonies[home].nation);
+	if (CheckAttribute(&Nations[nation], "trafficStrategy.posture"))
+	{
+		string posture = Nations[nation].trafficStrategy.posture;
+		if (role == 2 && (posture == "defence" || posture == "protection")) weight = weight * 2;
+		if (role == 1 && posture == "recovery") weight = weight / 2;
+		if (role == 2 && posture == "defence" && CheckAttribute(&Colonies[home], "trafficSiege.active") &&
+			sti(Colonies[home].trafficSiege.active)) weight = weight * 2;
+	}
+	if (weight < 1) weight = 1;
+	return weight;
 }
 
 bool WdmTrafficCreate(int role)
@@ -579,8 +591,12 @@ bool WdmTrafficCreate(int role)
 		fleet.NumWarShips = 1 + rand(1);
 		fleet.Type = "war";
 		if (size >= 70) { type = ENCOUNTER_TYPE_PATROL_MEDIUM; fleet.NumWarShips = 2 + rand(1); }
+		if (role == 2 && size >= 70 && CheckAttribute(&Nations[nation], "trafficStrategy.posture") &&
+			Nations[nation].trafficStrategy.posture == "expedition")
+		{ type = ENCOUNTER_TYPE_PATROL_LARGE; fleet.NumWarShips = 3 + rand(2); }
 		if (role == 3)
 		{
+			aref bandAssembly; makearef(bandAssembly, Colonies[home].trafficBandAssembly);
 			fleet.Type = "pirate";
 			type = ENCOUNTER_TYPE_PIRATE_SMALL;
 			fleet.NumWarShips = 1;
@@ -590,7 +606,7 @@ bool WdmTrafficCreate(int role)
 			if (size >= 90 && CheckAttribute(&Colonies[home], "trafficPrizeReturns") &&
 				sti(Colonies[home].trafficPrizeReturns) > 0 &&
 				CheckAttribute(&Colonies[home], "trafficBandAssembly") &&
-				WdmTrafficElapsed(Colonies[home].trafficBandAssembly, "day") >= 14 &&
+				WdmTrafficElapsed(bandAssembly, "day") >= 14 &&
 				sti(Colonies[home].Ship.Crew.Quantity) >= 100)
 			{ type = ENCOUNTER_TYPE_PIRATE_LARGE; fleet.NumWarShips = 4 + rand(1); }
 		}
@@ -1522,4 +1538,140 @@ void WdmTrafficDeparted()
 	DeleteAttribute(encounter, "trafficService");
 	DeleteAttribute(encounter, "trafficCurrentPort");
 	if (!CheckAttribute(encounter, "trafficReturning")) DeleteAttribute(encounter, "trafficServiceOnArrival");
+}
+
+bool WdmTrafficIsStateNation(int nation)
+{
+	return nation == ENGLAND || nation == FRANCE || nation == SPAIN || nation == HOLLAND;
+}
+
+void WdmTrafficNationalReadiness(int nation, ref report)
+{
+	DeleteAttribute(report, "");
+	report.hulls = 0; report.readyPatrols = 0; report.attackedPorts = 0; report.damagedPorts = 0;
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		if (!CheckAttribute(&Colonies[colony], "nation") || Colonies[colony].nation == "none" ||
+			sti(Colonies[colony].nation) != nation) continue;
+		if (CheckAttribute(&Colonies[colony], "trafficSiege.active") && sti(Colonies[colony].trafficSiege.active))
+			report.attackedPorts = sti(report.attackedPorts) + 1;
+		if (CheckAttribute(&Colonies[colony], "trafficRecovery.days"))
+		{
+			aref recovery; makearef(recovery, Colonies[colony].trafficRecovery);
+			if (WdmTrafficElapsed(recovery, "day") < sti(recovery.days)) report.damagedPorts = sti(report.damagedPorts) + 1;
+		}
+	}
+	if (!CheckAttribute(&worldMap, "encounters")) return;
+	aref encounters; makearef(encounters, worldMap.encounters);
+	for (int i = 0; i < GetAttributesNum(encounters); i++)
+	{
+		aref encounter = GetAttributeN(encounters, i);
+		if (!WdmTrafficIsOrdinary(encounter) || sti(encounter.trafficNation) != nation ||
+			!CheckAttribute(encounter, "encdata.trafficRoster.count")) continue;
+		aref roster; makearef(roster, encounter.encdata.trafficRoster);
+		bool ready = true;
+		int alive = 0;
+		for (int j = 0; j < sti(roster.count); j++)
+		{
+			string key = "ship" + j;
+			if (!CheckAttribute(roster, key)) continue;
+			aref ship; makearef(ship, roster.(key));
+			if (sti(ship.dead)) continue;
+			alive++;
+			if (stf(ship.hp) < 0.75 || stf(ship.sp) < 0.60 || stf(ship.ammo) < 0.60 || stf(ship.crew) < 0.50) ready = false;
+		}
+		report.hulls = sti(report.hulls) + alive;
+		if (alive == 0 || sti(encounter.trafficRole) != 2 || !ready ||
+			CheckAttribute(encounter, "trafficBattle") || CheckAttribute(encounter, "trafficMission") ||
+			(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea)) ||
+			WdmTrafficNeedsService(encounter)) continue;
+		report.readyPatrols = sti(report.readyPatrols) + 1;
+	}
+}
+
+bool WdmTrafficStateAtWar(int nation)
+{
+	for (int other = 0; other < MAX_NATIONS; other++)
+		if (WdmTrafficIsStateNation(other) && other != nation && GetNationRelation(nation, other) == RELATION_ENEMY) return true;
+	return false;
+}
+
+void WdmTrafficReviewStrategy(int nation)
+{
+	if (!WdmTrafficIsStateNation(nation) || !CheckAttribute(&Nations[nation], "Name")) return;
+	object report;
+	WdmTrafficNationalReadiness(nation, &report);
+	aref strategy; makearef(strategy, Nations[nation].trafficStrategy);
+	if (!CheckAttribute(strategy, "version"))
+	{
+		strategy.version = 1;
+		strategy.posture = "protection";
+		strategy.reason = "migration";
+		strategy.interval = 30 + rand(30);
+		strategy.knownHulls = report.hulls;
+		WdmTrafficStamp(strategy);
+		aref hold; makearef(hold, strategy.hold); WdmTrafficStamp(hold);
+		// Seed permission clocks once. An old save never replays missed wars.
+		aref authorization; makearef(authorization, strategy.authorization); WdmTrafficStamp(authorization);
+		authorization.days = 75 + rand(75);
+		aref weekly; makearef(weekly, strategy.weekly); WdmTrafficStamp(weekly);
+		return;
+	}
+	bool severeLoss = sti(strategy.knownHulls) >= 4 && sti(report.hulls) * 3 < sti(strategy.knownHulls) * 2;
+	string urgent = "";
+	if (sti(report.attackedPorts) > 0) urgent = "defence";
+	else if (severeLoss || sti(report.damagedPorts) > 0) urgent = "recovery";
+	if (urgent != "")
+	{
+		string reason = "home_attack";
+		if (urgent == "recovery") reason = "loss_or_recovery";
+		if (strategy.posture == urgent && strategy.reason == reason && !severeLoss) return;
+		strategy.posture = urgent;
+		strategy.reason = reason;
+	}
+	else
+	{
+		aref heldSince; makearef(heldSince, strategy.hold);
+		if (WdmTrafficElapsed(strategy, "day") < sti(strategy.interval) || WdmTrafficElapsed(heldSince, "day") < 14) return;
+		bool war = WdmTrafficStateAtWar(nation);
+		int weights[5];
+		weights[0] = 2; weights[1] = 4; weights[2] = 3; weights[3] = 0; weights[4] = 0;
+		if (sti(report.readyPatrols) == 0) weights[0] = 8;
+		if (war) weights[3] = 4;
+		if (war && sti(report.readyPatrols) >= 2) weights[4] = 4;
+		if (nation == ENGLAND) { weights[1] = weights[1] + 2; if (war) weights[3] = weights[3] + 1; }
+		if (nation == FRANCE && weights[4] > 0) weights[4] = weights[4] + 2;
+		if (nation == SPAIN) weights[2] = weights[2] + 2;
+		if (nation == HOLLAND) weights[1] = weights[1] + 2;
+		string postures[5];
+		postures[0] = "recovery"; postures[1] = "protection"; postures[2] = "defence";
+		postures[3] = "interdiction"; postures[4] = "expedition";
+		int total = 0;
+		for (int i = 0; i < 5; i++)
+		{
+			if (postures[i] == strategy.posture && weights[i] > 1) weights[i] = weights[i] / 2;
+			total = total + weights[i];
+		}
+		int choice = rand(total - 1);
+		for (i = 0; i < 5; i++)
+		{
+			choice = choice - weights[i];
+			if (choice < 0) { strategy.posture = postures[i]; break; }
+		}
+		strategy.reason = "scheduled_review";
+	}
+	strategy.knownHulls = report.hulls;
+	strategy.interval = 30 + rand(30);
+	WdmTrafficStamp(strategy);
+	aref held; makearef(held, strategy.hold); WdmTrafficStamp(held);
+}
+
+#event_handler("NextDay", "WdmTrafficReviewStrategies");
+void WdmTrafficReviewStrategies()
+{
+	if (!CheckAttribute(&Environment, "date.year") || GetDataYear() <= 0) return;
+	aref clock; makearef(clock, worldMap.trafficStrategyClock);
+	if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
+	WdmTrafficStamp(clock);
+	for (int nation = 0; nation < MAX_NATIONS; nation++) WdmTrafficReviewStrategy(nation);
 }
