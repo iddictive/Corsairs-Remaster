@@ -296,7 +296,15 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "b98fa2b667be3730b1868deb2c782c1c22d30f976a263c65b593c67b41aef0c4"
+WDM_TRAFFIC_SHA256 = "0458da50dcc2ac501d4ff8127294fc3f31c40944db7b5d0013601d69b5fee6a1"
+WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
+WDM_MILITARY_SHA256 = "e73a0b24de5426181e5f9c236c084cad218c32b4ef62dcae0048501898620ad8"
+WDM_OPERATION_MODULES = {
+    "worldmap-recovery.c": "7d8fe076cc510d2741873c297d68b5313a8a1ba912db6ae9d3a8d38b78cf534d",
+    "worldmap-harbour.c": "cdafa369f2d18f5e535e45b853b0e6bb50f935078d24d488ce929984f6b084d9",
+    "worldmap-participation.c": "b95e37fcbc3b3c78cf0ef9292d9ac008f3e10a1cc106bca0c87619ca0c71aa17",
+    "worldmap-land.c": "afed3b552153ecfa6c202d27a802db80fb29daa831c03c7b2d28f1c61c97d193",
+}
 FORT_LAYOUT = Path(__file__).parent / "gameplay/fort-layout.json"
 FORT_LAYOUT_SHA256 = "e1111baefbbc01d4b8c7f9fcc5e3a973f6a09d58f4e632dcfd752db77e8d7cc2"
 
@@ -387,7 +395,16 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
     traffic = WDM_TRAFFIC_SOURCE.read_bytes()
     if digest(traffic) != WDM_TRAFFIC_SHA256:
         raise RuntimeError("worldmap traffic source hash mismatch")
-    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8")) + fort_layout_source()
+    military = WDM_MILITARY_SOURCE.read_bytes()
+    if digest(military) != WDM_MILITARY_SHA256:
+        raise RuntimeError("worldmap military source hash mismatch")
+    helpers = b""
+    for name, expected in WDM_OPERATION_MODULES.items():
+        source = WDM_TRAFFIC_SOURCE.with_name(name).read_bytes()
+        if digest(source) != expected:
+            raise RuntimeError(f"worldmap operation source hash mismatch: {name}")
+        helpers += enc("\n") + enc(source.decode("utf-8"))
+    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8")) + fort_layout_source() + enc("\n") + enc(military.decode("utf-8")) + helpers
 
 
 # ---------------------------------------------------------------------------
@@ -1487,6 +1504,9 @@ AI_FORT_BASE = "cb2cf09c5d3db4dc3f2de6723e0db222f3d85d744b72d0a101a4d9e70f388b1f
 
 def prepare_aifort(data: bytes) -> bytes:
     replacements = (
+        ("\t\t\tint iFortMode = FORT_NORMAL;", "\t\t\tbool managedFort = CheckAttribute(rCharacter, \"trafficFortManaged\") && sti(rCharacter.trafficFortManaged);\n\t\t\tobject managedCargo;\n\t\t\tint managedCrew = -1;\n\t\t\tif (managedFort)\n\t\t\t{\n\t\t\t\taref originalCargo; makearef(originalCargo, rCharacter.Ship.Cargo);\n\t\t\t\tCopyAttributes(&managedCargo, originalCargo);\n\t\t\t\tmanagedCrew = GetCrewQuantity(rCharacter);\n\t\t\t}\n\t\t\tint iFortMode = FORT_NORMAL;"),
+        ("\t\t\tif (iFortMode == FORT_DEAD && iDeadDays > 0)//fix", "\t\t\tif (managedFort) bFortRessurect = false;\n\t\t\tif (!managedFort && iFortMode == FORT_DEAD && iDeadDays > 0)//fix"),
+        ("\t\t\t// create fort blot", "\t\t\tif (managedFort)\n\t\t\t{\n\t\t\t\taref restoredCargo; makearef(restoredCargo, rCharacter.Ship.Cargo);\n\t\t\t\tDeleteAttribute(rCharacter, \"Ship.Cargo\");\n\t\t\t\tmakearef(restoredCargo, rCharacter.Ship.Cargo);\n\t\t\t\tCopyAttributes(restoredCargo, &managedCargo);\n\t\t\t\tSetCrewQuantity(rCharacter, managedCrew);\n\t\t\t}\n\t\t\t// create fort blot"),
         ("\t\t\t   SetSeaFantomParam(rCharacter, \"war\"); // генератор!!", "\t\t\t   int savedFortCrew = -1;\n\t\t\t   if (CheckAttribute(rCharacter, \"Fort.Cannons.Hit\") && sti(rCharacter.Fort.Cannons.Hit)) savedFortCrew = GetCrewQuantity(rCharacter);\n\t\t\t   SetSeaFantomParam(rCharacter, \"war\"); // генератор!!\n\t\t\t   if (savedFortCrew >= 0) SetCrewQuantity(rCharacter, savedFortCrew);"),
         ("\t\t\t\tSetFortCharacterCaptured(rCharacter, false);", "\t\t\t\tDeleteAttribute(rCharacter, \"Fort.Cannons.Damage\");\n\t\t\t\trCharacter.Fort.Cannons.Destroyed = 0;\n\t\t\t\tSetFortCharacterCaptured(rCharacter, false);"),
         ("\trCharacter.Ship.HP = iCannonsNum * 100;\n\trCharacter.Fort.HP = rCharacter.Ship.HP;", "\trCharacter.Fort.HP = iCannonsNum * 100;\n\trCharacter.Ship.HP = Fort_GetCannonsQuantity(rCharacter) * 100;"),
@@ -1532,7 +1552,7 @@ PREPARERS = {
 
 # Calculated post-patch hashes
 UPDATED = {
-    "PROGRAM/sea_ai/AIFort.c": "9b4aee83c670757b0ff8ca3565027d1d44c9edfb22e4c5e47f0441ba5658d147",
+    "PROGRAM/sea_ai/AIFort.c": "c4fd8e0a480ed5f00139c8f056f7f90c3f92f3f14dd36b5fdfcdb13937d73deb",
     "PROGRAM/worldmap/worldmap.c": "48bfe0c13a38e2e176a8087dfd45c919345581b04d9c0bbc252f63c02fe9d267",
     "PROGRAM/sea_ai/sea.c": "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
     "PROGRAM/Loc_ai/LAi_boarding.c": "5ab91b29f9b47e5cce2892d93cf11ffd979ad26b35e70960de273c75a9528930",
@@ -1542,7 +1562,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "de1827b28081a2fb0dcecf545f99a6d74f4298442db329c708b1eeacd3ddb34a",
+    "PROGRAM/worldmap/worldmap_encgen.c": "79944d1b9f8de82a084848761e82bbb26cfad6dad2e94972510990b511ba5b5b",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",

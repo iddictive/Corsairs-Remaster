@@ -11,7 +11,7 @@ bool WdmFleetSeaTagged(aref fleet)
 
 void WdmFleetSeaCopyIdentity(aref destination, aref source)
 {
-	string fields[12];
+	string fields[13];
 	fields[0] = "trafficFleetID";
 	fields[1] = "trafficRole";
 	fields[2] = "trafficNation";
@@ -24,7 +24,8 @@ void WdmFleetSeaCopyIdentity(aref destination, aref source)
 	fields[9] = "trafficObservedOwnPower";
 	fields[10] = "trafficTargetID";
 	fields[11] = "trafficObservedTargetPower";
-	for (int i = 0; i < 12; i++)
+	fields[12] = "trafficMission";
+	for (int i = 0; i < 13; i++)
 	{
 		string key = fields[i];
 		DeleteAttribute(destination, key);
@@ -39,6 +40,7 @@ void WdmFleetSeaClearCaptain(ref captain)
 	DeleteAttribute(captain, "trafficTaken");
 	DeleteAttribute(captain, "trafficIntent");
 	DeleteAttribute(captain, "trafficTargetID");
+	DeleteAttribute(captain, "trafficMission");
 }
 
 bool WdmFleetSeaImport(ref fleet, aref descriptor, string identity)
@@ -70,6 +72,14 @@ bool WdmFleetSeaImport(ref fleet, aref descriptor, string identity)
 	WdmTrafficConsumeSupplies(descriptor);
 	DeleteAttribute(descriptor, "trafficSupplyClock.remainder");
 	descriptor.trafficInSea = 1;
+	if (CheckAttribute(descriptor, "trafficMission"))
+	{
+		int colony = FindColony(descriptor.trafficMission);
+		if (WdmMilitaryActive(colony))
+		{
+			aref clock; makearef(clock, Colonies[colony].trafficSiege.clock); WdmTrafficStamp(clock);
+		}
+	}
 	DeleteAttribute(descriptor, "needDelete");
 	return true;
 }
@@ -207,6 +217,7 @@ bool WdmFleetSeaAdmit(ref fleet, ref login)
 		// Island/story ships and companions have already entered. Admit the
 		// complete battle bundle, or leave every member on the saved map.
 		bool admitted = iNumShips + sti(login.trafficHullReservations) + hulls <= MAX_SHIPS_ON_SEA;
+		if (root != "" && CheckAttribute(login, "trafficIncompleteBattle." + root)) admitted = false;
 		for (i = 0; i < GetAttributesNum(groups); i++)
 		{
 			aref row = GetAttributeN(groups, i);
@@ -462,6 +473,14 @@ void WdmFleetSeaSave()
 		WdmTrafficStamp(clock);
 		DeleteAttribute(clock, "remainder");
 		DeleteAttribute(descriptor, "trafficInSea");
+		if (CheckAttribute(descriptor, "trafficMission"))
+		{
+			int colony = FindColony(descriptor.trafficMission);
+			if (WdmMilitaryActive(colony))
+			{
+				aref observedClock; makearef(observedClock, Colonies[colony].trafficSiege.clock); WdmTrafficStamp(observedClock);
+			}
+		}
 	}
 }
 
@@ -564,6 +583,7 @@ bool WdmFleetSeaCheckSituation(ref captain)
 	if (!CheckAttribute(group, "trafficFleetID")) return false;
 	if (CheckAttribute(group, "Task.Lock") && sti(group.Task.Lock)) return false;
 	if (CheckAttribute(captain, "SeaAI.Task") && (sti(captain.SeaAI.Task) == AITASK_ABORDAGE || sti(captain.SeaAI.Task) == AITASK_BRANDER)) return false;
+	if (WdmFleetSeaMilitaryTask(captain)) return true;
 	if (bIsFortAtIsland && CheckAttribute(captain, "SeaAI.Task.Target") && captain.SeaAI.Task.Target != "" && sti(captain.SeaAI.Task.Target) == iFortCommander) return false;
 	string opponent = WdmFleetSeaOpponent(captain);
 	if (opponent == "" || opponent == group.id || Group_FindGroup(opponent) < 0) return true;
@@ -626,5 +646,119 @@ bool WdmFleetSeaCheckSituation(ref captain)
 	}
 	if (!CheckAttribute(captain, "SeaAI.Task") || sti(captain.SeaAI.Task) != AITASK_ATTACK)
 		Ship_SetTaskAttack(SECONDARY_TASK, sti(captain.index), enemyIndex);
+	return true;
+}
+
+// A local operation and its committed defenders share the normal admission.
+// Failure to import one member defers the entire battle, including members
+// already selected by the ordinary player encounter radius.
+bool WdmFleetSeaAttachOperationFleet(ref login, aref descriptor)
+{
+	if (!CheckAttribute(descriptor, "x") || !CheckAttribute(descriptor, "z") || !WdmTrafficIsOrdinary(descriptor)) return false;
+	string identity = GetAttributeName(descriptor);
+	string groupID = "egroup__wdm_" + identity;
+	if (!WdmFleetSeaIncluded(login, groupID))
+	{
+		int slot = FindFreeMapEncounterSlot();
+		if (slot < 0) { descriptor.trafficSeaDeferred = 1; return false; }
+		ref fleet = GetMapEncounterRef(slot);
+		aref source; makearef(source, descriptor.encdata); CopyAttributes(fleet, source);
+		fleet.bUse = true; fleet.GroupName = groupID;
+		if (!WdmFleetSeaImport(fleet, descriptor, identity))
+		{
+			ManualReleaseMapEncounter(slot); descriptor.trafficSeaDeferred = 1; return false;
+		}
+		string row = "campaign_" + identity;
+		login.encounters.(row).type = slot;
+		login.encounters.(row).ay = 0.0;
+	}
+	aref groups; makearef(groups, login.encounters);
+	for (int i = 0; i < GetAttributesNum(groups); i++)
+	{
+		aref raw = GetAttributeN(groups, i);
+		ref member = GetMapEncounterRef(sti(raw.type));
+		if (!WdmFleetSeaTagged(member) || member.trafficFleetID != identity) continue;
+		raw.x = (stf(descriptor.x) - stf(worldMap.zeroX)) * GetSeaToMapScale();
+		raw.z = (stf(descriptor.z) - stf(worldMap.zeroZ)) * GetSeaToMapScale();
+		member.trafficRouteX = raw.x; member.trafficRouteZ = raw.z;
+		member.Task = AITASK_MOVE; DeleteAttribute(member, "Task.Target");
+		member.Task.Pos.x = raw.x; member.Task.Pos.z = raw.z;
+	}
+	return true;
+}
+
+void WdmFleetSeaAttachMilitary(ref login)
+{
+	DeleteAttribute(login, "trafficIncompleteBattle");
+	if (!CheckAttribute(login, "Island") || !CheckAttribute(&worldMap, "zeroX") || !CheckAttribute(&worldMap, "zeroZ")) return;
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		if (!WdmMilitaryActive(colony) || Colonies[colony].island != login.Island) continue;
+		aref siege; makearef(siege, Colonies[colony].trafficSiege);
+		if (siege.phase == "preparation" || siege.phase == "voyage") continue;
+		string path = "encounters." + siege.fleet;
+		if (!CheckAttribute(&worldMap, path)) continue;
+		aref descriptor; makearef(descriptor, worldMap.(path));
+		bool complete = WdmFleetSeaAttachOperationFleet(login, descriptor);
+		string root = "";
+		if (CheckAttribute(descriptor, "trafficBattleRoot")) root = descriptor.trafficBattleRoot;
+		if (root == "") continue;
+		aref encounters; makearef(encounters, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(encounters); i++)
+		{
+			aref defender = GetAttributeN(encounters, i);
+			if (GetAttributeName(defender) == siege.fleet || !CheckAttribute(defender, "trafficBattleRoot") || defender.trafficBattleRoot != root) continue;
+			if (!WdmFleetSeaAttachOperationFleet(login, defender)) complete = false;
+		}
+		if (!complete) login.trafficIncompleteBattle.(root) = 1;
+	}
+	WdmFleetSeaResolveImportTasks(login);
+}
+
+bool WdmFleetSeaMilitaryTask(ref captain)
+{
+	if (!CheckAttribute(captain, "trafficMission")) return false;
+	int colony = FindColony(captain.trafficMission);
+	if (!WdmMilitaryActive(colony) || !CheckAttribute(&AISea, "Island") || AISea.Island != Colonies[colony].island) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (siege.fleet != captain.trafficFleetID || siege.phase == "voyage" || siege.phase == "preparation") return false;
+	int fortIndex = WdmMilitaryGarrisonCharacter(colony);
+	bool physicalFort = false;
+	for (int f = 0; f < iNumForts; f++)
+	{
+		if (CheckAttribute(&Forts[f], "fortcmdridx") && sti(Forts[f].fortcmdridx) == fortIndex) physicalFort = true;
+	}
+	int target = -1;
+	float nearest = 2000.0;
+	for (int i = 0; i < iNumShips; i++)
+	{
+		int index = Ships[i];
+		if (index < 0 || index >= TOTAL_CHARACTERS || index == sti(captain.index)) continue;
+		ref opponent = &Characters[index];
+		if (!WdmFleetSeaAlive(opponent) || GetRelation(sti(captain.index), index) != RELATION_ENEMY) continue;
+		if (physicalFort && Ship_GetDistance2D(opponent, &Characters[fortIndex]) > 3000.0) continue;
+		float distance = Ship_GetDistance2D(captain, opponent);
+		if (distance >= nearest) continue;
+		target = index; nearest = distance;
+	}
+	if (target < 0 && siege.phase == "naval" && physicalFort && !Fort_CanLandAssault(&Characters[fortIndex])) target = fortIndex;
+	if (target < 0)
+	{
+		// Cover and transports keep their actual harbour position after the
+		// fort falls; ordinary patrol logic must not disperse the expedition.
+		string path = "encounters." + captain.trafficFleetID;
+		if (CheckAttribute(&worldMap, path + ".x") && CheckAttribute(&worldMap, path + ".z") &&
+			CheckAttribute(&worldMap, "zeroX") && CheckAttribute(&worldMap, "zeroZ"))
+		{
+			aref descriptor; makearef(descriptor, worldMap.(path));
+			float x = (stf(descriptor.x) - stf(worldMap.zeroX)) * GetSeaToMapScale();
+			float z = (stf(descriptor.z) - stf(worldMap.zeroZ)) * GetSeaToMapScale();
+			Ship_SetTaskMove(SECONDARY_TASK, sti(captain.index), x, z);
+		}
+		return true;
+	}
+	if (GetHullPercent(captain) < 20.0 || GetCrewQuantity(captain) < GetMinCrewQuantity(captain) || !WdmFleetSeaHasAmmo(captain))
+		Ship_SetTaskRunaway(SECONDARY_TASK, sti(captain.index), target);
+	else Ship_SetTaskAttack(SECONDARY_TASK, sti(captain.index), target);
 	return true;
 }

@@ -1430,6 +1430,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 {
 	if (!WdmTrafficIsOrdinary(encounter)) return;
 	WdmTrafficMigrateVoyage(encounter);
+	if (CheckAttribute(encounter, "trafficMission")) return;
 	if (!CheckAttribute(encounter, "trafficVersion") || CheckAttribute(encounter, "trafficBattle") ||
 		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))) return;
 	if (encounter.trafficLifecycle != "service")
@@ -1518,6 +1519,7 @@ void WdmTrafficArrived()
 	if (!CheckAttribute(&worldMap, path)) return;
 	aref encounter;
 	makearef(encounter, worldMap.(path));
+	if (WdmMilitaryArrived(encounter)) return;
 	if (!WdmTrafficIsOrdinary(encounter) || !CheckAttribute(encounter, "trafficDestinationPort")) return;
 	encounter.trafficCurrentPort = encounter.trafficDestinationPort;
 	WdmTrafficUnloadCargo(encounter, FindColony(encounter.trafficCurrentPort));
@@ -1537,7 +1539,8 @@ void WdmTrafficDeparted()
 	WdmTrafficStamp(clock);
 	DeleteAttribute(encounter, "trafficService");
 	DeleteAttribute(encounter, "trafficCurrentPort");
-	if (!CheckAttribute(encounter, "trafficReturning")) DeleteAttribute(encounter, "trafficServiceOnArrival");
+	if (!CheckAttribute(encounter, "trafficReturning") && !CheckAttribute(encounter, "trafficMission"))
+		DeleteAttribute(encounter, "trafficServiceOnArrival");
 }
 
 bool WdmTrafficIsStateNation(int nation)

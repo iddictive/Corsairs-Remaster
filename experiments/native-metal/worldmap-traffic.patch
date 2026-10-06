@@ -446,7 +446,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    if (!data || attack || data->GetAttributeAsFloat("trafficCooldown") > 0.0f) return;
 +    if ((data->GetAttribute("trafficLifecycle") &&
 +         std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0) ||
-+        data->GetAttributeAsDword("trafficReturning")) return;
++        data->GetAttributeAsDword("trafficReturning") || data->GetAttribute("trafficMission")) return;
 +    const bool wasPlayerTarget = data->GetAttributeAsDword("trafficTargetPlayer") != 0;
 +    data->SetAttribute("trafficIntent", "route");
 +    const auto role = data->GetAttributeAsDword("trafficRole");

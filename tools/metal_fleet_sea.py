@@ -80,7 +80,7 @@ int Fantom_CreateShipFromBase(int iBaseShipType, string sGroupName, string sFant
 
 def prepare_sea(text: str) -> str:
     text = _one(text, '\tint iNumGroups = GetAttributesNum(arEncounters);',
-                '\tint iNumGroups = GetAttributesNum(arEncounters);\n\tWdmFleetSeaPrepareAdmission(&Login);',
+                '\tWdmFleetSeaAttachMilitary(&Login);\n\tint iNumGroups = GetAttributesNum(arEncounters);\n\tWdmFleetSeaPrepareAdmission(&Login);',
                 'scene hull admission baseline')
     text = _one(text, '\t\trEncounter = GetMapEncounterRef(sti(rRawGroup.type));',
                 '\t\trEncounter = GetMapEncounterRef(sti(rRawGroup.type));\n'

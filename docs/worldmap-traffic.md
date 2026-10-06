@@ -1227,3 +1227,91 @@ wear, proportional ammunition consumption, capture removal and semantic action
 labels. Final composition is idempotent and rejects unknown installed revisions.
 These are implementation checks, not proof of visual layout or battle enjoyment;
 the player owns encounter-panel and gameplay acceptance after installation.
+
+## Military operations — source candidate
+
+`tools/gameplay/worldmap-military.c` composes into the existing encounter owner.
+A colony owns `trafficSiege`; its saved fleet ID refers to the original descriptor
+and survivor roster. No additional fleet registry, treasury or replacement army is
+created. Preparation lasts 6–12 game hours, then the same fleet requests its actual
+maritime target. Only native arrival starts the naval phase; time alone cannot
+teleport it. The military mission prevents ordinary patrol/service logic from
+replacing its route, while damaged returnees resume the ordinary service contract.
+
+National authorization, global spacing, port protection and recovery are checked
+before the single weekly 15–20% consideration. At most two operations exist, with
+one per nation and one per island. Commitment consumes the saved cooldowns even
+on failure. Two ready home patrols are required before one is reserved. Supply
+planning validates all actual Store debits and real holds before publishing the
+operation. Quest-owned fleet/port exclusions remain; complete story-siege coexistence
+still requires player replay.
+
+The strongest hull retains 75% of maximum crew for cover; other transports retain
+25%, always at least MinCrew. Only the remainder becomes the shore pool, debited
+once at landing. Fort shelling consumes actual balls/bombs and powder, damages
+physical indexed guns, hulls and crew; a nearby real hostile patrol interrupts it
+through the existing NPC battle owner. A genuine fortless town skips the fort
+only after local naval defence is absent. Fort towns require strictly more than
+half their physical guns destroyed before fort then city stages. Autonomous land
+combat lasts 10–12 total game hours, with cumulative losses against the same pools.
+These force, damage, duration and probability values are unmeasured tuning.
+
+City victory is a finite raid, not a national ownership transfer. Surviving defence
+is recorded as temporarily surrendered during loading and restored as the same
+remaining garrison after withdrawal. Plunder removes actual shop stock into living
+holds, preserving space for evacuation. Existing cargo freight handles its later
+home unloading. Usable crew, hull/sails, maximum crew and cargo load bound rescue;
+crew and working gun weight use the real cargo convention. Partial space rescues
+only that many survivors. With no usable transport, all remaining shore troops
+surrender, including after city victory. Ending is idempotent and clears landed
+assignments; dead transports and their goods remain dead/lost.
+
+Island sea entry imports the active expedition at its actual map-to-sea coordinates,
+including beyond the normal player encounter radius. Complete-fleet admission still
+respects the 32-ship limit and preserves deferred rosters. The sea adapter resolves
+actual hostile ships and the real fort commander; cover/transports hold their harbour
+position once the fort is suppressed. Admitted sea or foreground land actors own
+losses, and admission/unload advance the operation watermark to avoid duplicate
+background damage. Explicit blocks in the new fort scan are required: a disposable
+VM replay of an unbraced for/if changed a following `target=-1` into `1`, selecting
+an unrelated character. The braced scan preserves the absent-target case.
+
+Disposable whole-PROGRAM VM checks pass paid shelling, defence interruption, peace,
+strict half-damage rejection, count-only damage migration, fixed preparation and
+arrival, island reservation, partial rescue, all-transport loss after victory,
+finite city loading, scene admission/defer, harbour hold and mid-assault native
+attribute serialization with no repeated debit/loss/evacuation. The final run has
+zero script errors; permanent test delta is zero. Current native patch application
+and the changed merchant translation unit syntax pass. Exact canonical composition
+reports sixteen pending PROGRAM consumers, not an installed batch. The callback
+adapter in `tools/metal_military_integration.py` composes after existing gameplay
+owners, validates exact input/output hashes, and reverses only its reviewed bytes
+for subsequent owner validation. Unknown revisions retain the original rejection.
+
+The source suite now includes finite foreground room/city projections, scoped
+participation and finite settlement, real berth/ship-loss and survivor recovery,
+and calendar store/fort recovery. Hooks bind existing location admission/load/
+unload/death, relation, mayor dialogue, map entry, rumour selection, sea death,
+physical embarkation and selected-ship confirmation owners. The existing land
+exit command offers withdrawal only in the owned foreground scene and restores
+its original note elsewhere. No new popup, fleet registry or replacement hull is
+introduced. Foreground pools preserve the fixed city reserve and do not refill
+cleared rooms; location transitions suppress ordinary generated guards and the
+native hero/officer healing path, then restore their exact prior settings.
+
+The focused integration VM executes the actual departure event, Blood/Intelligence
+and same-island national-quest exclusions, active/cleared legacy siege lifecycle,
+late complete battle attachment, reciprocal attack tasks, six-hull admission and
+whole-bundle deferral on hull/map-slot shortage. Existing four serializer rounds
+remain green with zero script errors. This headless VM uses a task-local identity
+localization adapter; original localization source still compiles, but rendered
+text and native localization/runtime scenes are not accepted by this evidence.
+
+Still unresolved: real scene placement and entry from sea, reachable expedition
+commander contact, player choice before harbour damage, ordinary-guard binding,
+crime/contribution callbacks, actual return news and integrated finite rewards,
+actual evacuation accessibility under sea control, and normal prior-save/player
+replay. Some helper APIs remain intentionally unwired until those contracts are
+bound. Recovery and the selected survivor UI compile as integrated callbacks;
+real pricing/repair/player interaction still needs native acceptance. Canonical
+build/stage/install has not accepted this goal's batch.

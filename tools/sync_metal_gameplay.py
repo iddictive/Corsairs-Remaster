@@ -22,6 +22,7 @@ import metal_evening_lights as evening_lights
 import metal_fleet_gameplay as fleet_gameplay
 import metal_fleet_sea as fleet_sea
 import metal_fleet_ui as fleet_ui
+import metal_military_integration as military_callbacks
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from runtime_script_patch import atomic_write
@@ -124,7 +125,7 @@ def compiler_ready():
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
 FLEET_FINAL_SHA = {
     "PROGRAM/worldmap/worldmap_reload.c": "e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc",
-    "PROGRAM/sea_ai/sea.c": "08f9085d42071c884630e8ceeb95143d1f6288a1792c7458859587645e40f4fa",
+    "PROGRAM/sea_ai/sea.c": "22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1",
     "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
     "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
     "PROGRAM/interface/map.c": "4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be",
@@ -193,7 +194,7 @@ def plan(target_root=None):
             if not target.is_file():
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
-            current = target.read_bytes()
+            current = military_callbacks.strip(relative, target.read_bytes())
             if relative in FLEET_FINAL_BASE:
                 reviewed = prepare_fleet_final(relative, incoming)
                 if digest(current) not in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())):
@@ -320,6 +321,18 @@ def plan(target_root=None):
             if digest(incoming) != expected[relative] or digest(current) not in {BASE.get(relative), PREVIOUS.get(relative)}:
                 raise RuntimeError(f"unrecognized gameplay revision: {relative}")
             changes[relative] = (current, incoming)
+    # The owning layers validate their canonical predecessors above; military
+    # callbacks then compose once on those exact final bytes. Original bytes
+    # remain the backup/delivery owner, including an already-installed adapter.
+    for relative in military_callbacks.HOOKS:
+        target = target_root / relative
+        current = target.read_bytes()
+        incoming = changes[relative][1] if relative in changes else military_callbacks.strip(relative, current)
+        reviewed = military_callbacks.prepare(relative, incoming)
+        if reviewed != current:
+            changes[relative] = (current, reviewed)
+        else:
+            changes.pop(relative, None)
     return changes
 
 
