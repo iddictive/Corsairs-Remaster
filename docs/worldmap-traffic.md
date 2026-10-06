@@ -125,6 +125,181 @@ acceptance of this section are pending.
   port reports require a visited port or an ordinary news source and carry an age.
   No exact cargo, hidden temperament, win percentage or omniscient enemy targets.
 
+### National funding, rotating priorities and rare operations — proposed
+
+Each ordinary state owns a persistent simulation funding account under its existing
+Nations record: available funds, reserved commitments, last accrual date, strategy,
+next strategy review and operation cooldowns. This is new required state, not an
+already discovered national treasury. Keep it distinct from a town's lootable
+cash, Store stock and the player's wallet. No ship capture exposes the entire
+national budget. Pirate bands instead own bounded fleet/refuge proceeds and support;
+one central pirate state must not fund an unlimited synchronized navy.
+
+**Funding.** Ordinary background administration provides a bounded base accrual
+plus a capped contribution from currently controlled usable ports. Delivery/loss
+and disruption can improve/reduce that contribution, without pretending the hybrid
+stock system models every taxable coin. Preserve a minimum recovery income to
+avoid permanent national bankruptcy; losses still delay expensive expeditions.
+Service, ammunition, crew recruitment, replacement hulls, escort subsidies,
+expeditions and promised player payments all consume this account through recorded
+commitments. Use existing hull/service/goods values to calibrate costs; do not invent
+unrelated strength points or claim exact player ship prices already equal NPC costs.
+Reserve money at authorization, debit each actual stage once, release unused funds
+on cancellation, and never refund destroyed assets as unused commitments.
+
+Merchants own their cargo/trading proceeds; national money subsidizes public escorts
+or strategic deliveries rather than paying every trader from the same treasury.
+Finite national funds constrain money, while actual port stock, service time,
+crew availability, home-defence needs and actor slots separately constrain dispatch.
+Money alone cannot instantly buy a fleet at sea. Destroyed hulls get new identities
+only after a replacement is funded/prepared; saved old dead hulls never revive.
+Surviving fleets return for service and keep identity. A low budget cuts new
+expeditions first, preserves bounded defensive recovery and slows expansion rather
+than deleting fleets or freezing commerce.
+
+**Strategy rotation.** Keep a modest national temperament bias, not hard national
+combat buffs. Proposed game biases: England convoy/interception, France expedition/
+raiding, Spain home/valuable-cargo defence, Holland trade/escorts. These are tunable
+playstyle distinctions, not historical assertions or permanent prohibitions.
+All states can choose every eligible strategy. Strategies weight the next funded
+jobs and spending envelopes:
+
+| Strategy | Primary spending and missions | Triggering pressure |
+| --- | --- | --- |
+| Recovery | Repairs, recruitment, replacing key escorts | Heavy losses, low funding or damaged home ports |
+| Trade protection | Convoy escorts, threatened-route patrols | Repeated merchant losses or valuable upcoming cargo |
+| Home defence | Local patrols, supplies, available relief | Observed siege preparation or current attacked port |
+| Interdiction | Enemy shipping interception and bounded blockade | Affordable war pressure with insufficient land-assault strength |
+| Expedition | Prepare one eligible port assault and its transport | Hostile diplomacy, credible funded force, healthy home defence |
+
+Review on persisted 30–60 game-day intervals, with a 14-day minimum hold against
+random churn. A major loss or actual home siege can switch immediately to recovery/
+defence; save the reason and next review date. Choose weighted eligible strategies,
+reduce repeated identical picks where alternatives remain credible; do not blindly
+cycle to an offensive strategy while broke or at peace. Existing voyages complete
+or cancel for their actual safety/mission conditions; strategy rotation never
+teleports ships, rerolls crews or reverses every task simultaneously. Threat
+information must come from observed losses/contacts and owned-port reports, not
+exact global enemy/player strength. Do not change authored diplomacy just to create
+a siege. A new peace cancels uncommitted attacks and triggers a coherent ceasefire/
+withdrawal for ongoing operations; it does not reroll ships or pay capture rewards.
+
+**Rare assault scheduling.** City targets are weighted random among currently
+hostile nations' eligible ports; randomness does not override fort/quest admission,
+funding, physical travel, credible force or the home-defence floor. Weight distance,
+known defence, strategic value, recent target history and affordable logistics.
+Sometimes decline every target rather than guarantee an attack on the weakest
+city. Reconsider unviable targets after a bounded delay; never roll every frame or
+reroll on save/load until success. Fix the operation identity and target at dispatch;
+changed access/diplomacy can cancel or safely divert it through the same owner.
+
+Proposed initial ranges, explicitly not measured balance:
+- Per attacking nation: next major-expedition authorization 75–150 game days after
+  its preceding dispatch. Authorization is permission to consider, not a scheduled
+  guaranteed spawn. One active major offensive expedition per nation.
+- Per targeted port: 90–180 game days between major assault commitments, and never
+  before its admitted recovery/protection boundary. A failed assault still consumes
+  cooldown, with the range/attempt severity chosen and saved at commitment.
+- Across ordinary states: at most two active major operations including preparation
+  and voyage; at least 20–40 game days between authorizations. Existing quest sieges
+  occupy the affected port/exclusion region but are not rewritten by this scheduler.
+
+Sample ranges once from the saved calendar/operation state. Check funding and
+cooldown eligibility before reserving hulls/target; serialization prevents two
+nations claiming the same fort/garrison. Lack of actor slots delays preparation,
+not removal of unrelated fleets. Cooldowns do not restrict ordinary piracy,
+commerce or existing local battles, which need not be rare. A lost expedition's
+survivors and recovery are still active actors and costs; a cooldown expiry does
+not magically finish them. Longer time skips accrue bounded funds and apply
+existing operation transitions without dumping years of newly spawned assaults
+around the player in one frame.
+
+### Fleet variety, escorts and pirate groups — proposed
+
+Use the existing merchant/guarded-merchant/patrol/pirate encounter templates and
+fixed roster/Ship bridge. One map encounter represents the entire real fleet.
+Current `WdmTrafficCreate` selects three template sizes and includes player-rank
+gates; replacing those ordinary-traffic gates with funded role/region/composition
+selection is an implementation requirement, not current behaviour. Preserve quest
+rank requirements and authored ship validity. Native/source per-fleet limits must
+be verified before committing a composition; actor budget counts fleet entities,
+while sea cost also depends on total hulls.
+
+Proposed variety ranges: small traders 1–2 merchant hulls and 0–1 escorts; ordinary
+caravans 2–4 merchants and 1–2 escorts; rarer valuable caravans 3–5 merchants and
+2–3 escorts, trimmed to admitted hull/scene capacity. Escorts differ by speed,
+working guns, crew and readiness. Cargo value/known danger justify their expense;
+short safer routes can stay lightly guarded. An escort is a real hull with costs,
+ammo and damage, not a multiplier. Keep the full roster in sea import. If escort
+support is unavailable, delay a valuable convoy, shrink its load or select a safer
+route instead of always generating a suicidal unguarded treasure ship.
+
+Piracy includes single hunters, 2–3 ship bands and less frequent organized bands
+up to five hulls where the native limits permit. Large bands require successful
+prizes, available captains/support and elapsed assembly, not the hero's level.
+Boldness remains per captain/band, while actual whole-fleet strength, loot capacity,
+readiness, supplies and nearby observed escorts determine commitment. A five-ship
+band can attack a defended convoy without being five elite battleships. Defeat
+reduces the real band; prizes can finance repair/crew or bounded future replacement.
+Large pirate groups compete for viable prey, disperse/rebase after depleted routes
+and return to unload, rather than all selecting the player. No free multiplication
+of captured hulls into both merchant survivors and pirate additions.
+
+Small commerce rescue still admits one eligible local patrol. A rare expedition or
+relief force follows its own actual mission and arrival, but local battle/sea limits
+must arbitrate joins without silently discarding hulls or duplicating crews. Admit
+new participants in the existing battle owner, not several overlapping resolutions.
+
+### News through existing tavern/citizen dialogue — source reuse and design
+
+`Common_Tavern.c` and `Enc_Walker.c` include `Rumours/Common_rumours.c` and call
+`ProcessCommonDialogRumors`; `SelectRumourEx` chooses existing queued information.
+`Rumour_func.c` provides AddSimpleRumour/Ex/City/CityTip with city/nation scope,
+lifetime, repetition and event fields, and existing OnSiege branches. Reuse this
+queue and dialogue, not a parallel news window or unsolicited dialogue popup.
+Some existing rumour events generate merchants/quests when heard; new simulation
+news must read an already existing operation and use no generation callback.
+Hearing about a convoy cannot create that convoy or extend its life.
+
+Create bounded news records from actual committed departure, first reported
+attack, relief, surrender, loss, return and disrupted supply. Attach operation ID,
+phase, origin, observation date and knowledge scope; propagate to nearby/connected
+ports after a bounded information delay. Departure ports can report preparation,
+affected ports report current siege, arriving survivors report aftermath. Do not
+broadcast hidden routes, future targets or exact crew/prize amounts globally.
+Delay matters: a stale report can describe a convoy already gone, with its age
+stated; witnessed current state supersedes it without rewriting history.
+
+Use existing “Что нового?” exchanges. Example information styles:
+- Tavern: “Три дня назад из ... вышла эскадра. Говорят, собираются ударить по ...”.
+- Merchant/citizen: “После налёта пороха мало; последний привоз быстро разобрали”.
+- Aftermath: “Нападение отбили. Остатки эскадры ушли ... дней назад”.
+Only fill counts/places/dates actually known to that source. No invented departure
+bearing from a hidden current coordinate. Keep normal quest tips available; limit
+ordinary simulation news share, expire/update operation phase records and suppress
+duplicate insertion. Preserve dialogue exits and repeat limits. Existing legacy
+rumour date encoding is not permission to use a second approximate simulation
+clock; canonical game calendar owns operation/cooldown/recovery elapsed time.
+
+### Funding/scheduling admission before implementation
+
+Persist a versioned compatible state under the existing nation/fleet/colony owners.
+An old save seeds bounded budgets/cooldown phase once without grants on every load,
+immediate expeditions or replayed history. Existing ordinary fleets enter funded
+service at their next valid transition without retroactive purchase charges or
+teleportation; pending story operations remain excluded. Calendar catch-up,
+strategy decisions, commitments and settlement are idempotent.
+
+Required design falsifiers: broke nation cannot authorize a siege but can recover;
+funded nation cannot exceed physical supply/home defence; canceled commitment releases
+only unused funds; two states cannot claim one target; target cooldown survives
+reload and failed assault; strategy rotates without rerolling underway fleets;
+peace interrupts coherently; ordinary piracy continues during siege cooldown;
+five-hull band and variable escort convoy import unchanged; hearing news creates
+no fleet; a year-long skip cannot generate a burst of active wars. Numeric timing,
+funding and group proportions remain candidates until normal player voyages show
+rare discoverable operations and continuous varied ordinary shipping.
+
 ### Coupled mission loops
 
 1. **Commerce and caravans.** A port selects an eligible allied/neutral buyer using
@@ -573,8 +748,10 @@ patch stack, then canonical staging. The unresolved native fort-target binding
 must be proven before accepting the siege bridge; the authored player-attack
 wrapper is not evidence of that contract.
 
-1. **Persistent voyages and service:** new/old ordinary descriptors complete a
-   route, spend game time servicing, depart again and retain identity. Seed a
+1. **Persistent voyages, funding and service:** bind nation funding, reserved
+   costs, compatible old-save seeding and calendar catch-up to the same owner.
+   New/old ordinary descriptors complete a route, spend funded game time servicing,
+   depart again and retain identity. Seed a
    damaged survivor and a dead hull; only the survivor can recover. Quest timers
    and pause remain unchanged. Port capture invalidates incompatible destinations.
 2. **Cargo-backed commerce/piracy:** loaded stock equals transported manifest;
