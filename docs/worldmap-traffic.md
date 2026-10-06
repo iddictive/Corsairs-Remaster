@@ -375,28 +375,30 @@ persisted destroyed state, not a hull-HP approximation or a new roll on entry.
 Meeting the threshold permits assault; it does not force it or itself win the fort.
 Surviving landing strength and the existing encounter/quest admission still apply.
 The combat sequence is fort-supported harbour naval combat → land battle at the fort → land battle
-in the city's admitted capture chain → settlement. Losing the fort battle cannot
-skip directly to the governor or city victory. The land-fort scene/transition must
+in the city's admitted capture chain → settlement. If the defenders defeat the
+attackers in the land-fort battle, the assault ends in a defensive victory; do not
+advance to city combat. If attackers win that battle, survivors enter the city
+stage. A town genuinely without a fort skips cannon threshold/land-fort combat and
+uses its admitted city capture stage after any actual naval opposition is resolved.
+An absent compatible scene is not equivalent to an absent fort. The land-fort scene/transition must
 be discovered and connected before claiming implementation; this contract is not
 proof that every town already has that scene.
 
-**Two resolution modes.** An autonomous assault is proposed to last 10–12 game
-hours from commencement of actual attack on the fort, excluding voyage/preparation.
-Persist its selected duration, current stage, casualties and stage boundaries.
-Initial tuning may allocate 4–5 hours to bombardment, 3 to fort assault and 3–4
-to city combat; transitions additionally need threshold and a winning surviving
-force. Elapsed time cannot grant a victory to an expedition unable to breach or
-land: resolve failure/withdrawal by its actual state. These substage allocations
-are tuning candidates within the user-specified duration, not installed timings.
-A player joining late enters the current admitted stage (fort or city) with its
-remaining forces; entry cannot restart the whole siege.
+**Two resolution modes.** Without a player in a land fight, use a simplified
+strength-and-loss calculation with saved stage timers, not unloaded NPC simulation.
+The agreed autonomous siege duration is 10–12 game hours from its active attack,
+excluding voyage/preparation. Persist current phase, remaining forces and elapsed
+work. Stage outcomes depend on force/readiness and valid assault threshold; time
+alone is not victory or a deadline that makes capable attackers abandon. A town
+without a fort skips that phase; duration allocation must follow its actual chain.
+A joining player enters the current fort/city stage with remaining forces.
 
-Player foreground fights run in normal real-time encounters, typically minutes,
-without a mandatory 10–12-hour wait. Foreground stage combat replaces that stage's
-background resolution. On completion or departure reconcile actual game time,
-casualties and the new stage once; background timers cannot independently finish
-or kill the same actors while the player is fighting. A limited sack and full
-occupation remain distinct admitted settlement paths; no silent story deletion.
+Foreground combat replaces that stage's timer outcome. Defending victory at the
+fort ends the assault; attacking victory advances immediately to city combat,
+without waiting remaining background hours. At the city stage, actual victory
+settles the current assault. On jungle departure, resume simplified resolution
+from remaining forces/stage work once, not from a new full-duration siege. No
+background casualty calculation runs for the same active land fighters.
 
 **Player participation occurs before combat entry.** Use the observed encounter
 review to select naval intervention or an eligible land-side agreement. Helping
@@ -477,18 +479,37 @@ with a real controlled base is a distinct state, not a loot raid pretending to
 have an escape route. Do not award the hero every surrendered person automatically:
 prisoner handling requires the actual accepting force and available capacity.
 
-**Residence parley is the default defender-help entry.** For a city still held
-by its governor, an observed active assault can offer “Высадиться для переговоров”.
-This is an explicit special siege transition into the existing residence dialogue,
-not an ordinary safe harbour or a freely selectable street teleport. Establish
-parley protection before initializing residence actors, including hero officers.
-It grants no cargo transfer, battle reward, shop service or protection for attacking
-ships at sea. Explain the special entry in encounter review. Only admit it where
-the actual residence, governor and capture transition are compatible. A governor
-already captured/dead, a completed occupation or a protected incompatible quest
-cannot be used as a resurrected negotiator; use the actual siege state and offer
-other admitted actions. A neutral/allied helper can use the same entry without
-inventing prior hostility.
+**Governor entry respects landing access.** During the naval fight, direct
+harbour landing to seek the governor is available only to a hero genuinely neutral
+to both fighting sides under current relations, not merely displaying a neutral
+flag. Otherwise the hero must use an existing accessible shore/jungle connection;
+no residence teleport through a hostile harbour is offered. Reaching the governor
+uses the admitted actual town/residence path; any special residence dialogue
+transition starts only after legal location entry, not from a remote encounter
+button. If the governor is captured/dead or the scene is incompatible, do not
+resurrect him to offer help. Neutral visitor access does not itself join either
+side or move the fleet out of danger.
+
+**Neutral helper's fleet: decision before violence.** The governor distinguishes
+an offer to help from confirmed participation and explains the real location of
+the player's ships. The hero can return to sea to defend/extract the fleet, secure
+it manually at another actually accessible anchorage then return overland, or
+commit to land defence leaving it in this harbour at risk. No automatic relocation,
+AI evacuation or invulnerable neutral hulls. Ship safety must follow real position,
+not a flag changed in dialogue. The agreed defending hostility/safe-conduct overlay
+begins at participation commitment; hostile attackers identify the participating
+player and exposed vessels through the normal operation relation/target owner.
+
+A land hit cannot directly destroy/capture every player ship or call a blanket
+fleet-loss handler. Intentional engagement changes local participation/hostility;
+actual naval damage or capture requires the ongoing sea outcome and exposed ship
+positions. While the harbour defence remains viable, the fleet can survive; when
+hostile attackers secure it, exposed player ships are lost under the agreed rule.
+If the harbour is already held by attackers, explicitly warn that committing from
+land with ships still there leaves them capturable; do not offer a fictitious safe
+naval-return window. The same risk applies to an uncontracted deliberate attack.
+This removes the surprise first-hit deletion without granting fleet immunity for
+choosing land participation.
 
 The governor offers assistance against the current assault, the finite reward,
 and local safe conduct. Agreement temporarily allies the defending siege garrison
