@@ -374,7 +374,7 @@ its land assault. Exactly half is insufficient. Use the actual cannon counts and
 persisted destroyed state, not a hull-HP approximation or a new roll on entry.
 Meeting the threshold permits assault; it does not force it or itself win the fort.
 Surviving landing strength and the existing encounter/quest admission still apply.
-The combat sequence is naval fort attack → land battle at the fort → land battle
+The combat sequence is fort-supported harbour naval combat → land battle at the fort → land battle
 in the city's admitted capture chain → settlement. Losing the fort battle cannot
 skip directly to the governor or city victory. The land-fort scene/transition must
 be discovered and connected before claiming implementation; this contract is not
@@ -413,21 +413,39 @@ not just current town/flag. If the fleet is moored in this attacked port, a sail
 notification/dialogue at the next safe interaction boundary offers staying for
 land defence or returning to the ship for naval defence of the fort. During an
 existing dialogue/load/quest transition queue it once rather than interrupting
-with competing dialogue. Staying leaves the fleet inactive/berthed; do not invent
-AI piloting or off-screen attacks, sink ships or transfer ownership behind the
-player. Returning imports the real fleet into the current sea operation through
-the admitted transition. One choice per operation persists across save/load.
-The colloquial “leave ships behind” means choosing the land branch, not automatic
-irreversible deletion or surrender of the player's entire squadron.
+with competing dialogue. Staying leaves the fleet berthed and exposed to naval defence resolution; it
+is not immunity. Returning imports the real fleet into the current sea operation
+through the admitted transition before autonomous resolution consumes it. One
+choice per operation persists across save/load. The sailor explicitly warns:
+“Если форт и корабли охраны не отобьют нападение, мы потеряем суда в гавани.”
+Queue the choice before resolving danger to the moored fleet; no retroactive choice
+after already computing its destruction.
 
-The player's squadron is not a target of autonomous simulation while the hero is
-ashore or fighting a land stage. Exclude it from off-screen battle targets and
-attrition, not only from rendering; do not mutate its hull/crew/cargo. Enemy NPC
-transport vulnerability remains real when the player deliberately fights at sea.
-Port defeat reconciles berthing/return access without silently confiscating the
-fleet; a supported return transition is required before this branch is delivered.
-This explicit player abstraction takes precedence over the earlier simultaneous
-sea/land realism proposal; ordinary NPC operation losses still persist.
+**Harbour clearance precedes landing.** Attackers engage actual hostile ships in
+the fort combat vicinity plus a bounded manoeuvre margin; allied/neutral ships do
+not become targets merely by proximity. Determine the extent from the real fort
+range and admitted sea positioning, not an arbitrary global deletion radius. Fort
+guns support the naval defenders during this phase. The operation must defeat or
+drive off effective naval opposition before committing its exposed landing force.
+Bombardment may occur during the same sea fight; do not disable fort fire until
+some artificial naval phase ends. Then the more-than-half-cannons threshold permits
+land assault, followed by the city stage.
+
+**Berthed player fleet shares the naval outcome.** If the hero declines sea entry,
+resolve actual fort and defending ships, including the exposed berthed player
+ships, through the admitted background sea owner. No automatic player piloting or
+full free readiness is invented for moored ships. If naval defence repels the
+attack, preserve its surviving ships and recorded damage. If attackers defeat the
+fort-supported naval defence and secure the harbour, the player's ships still
+berthed there are lost through recorded capture/destruction, before the city result.
+An eventual player land victory cannot resurrect sunk ships. Captured ships can
+only be recovered if they still physically exist and their captors/control are
+actually defeated; they cannot also be counted as destroyed or duplicated prizes.
+Ships demonstrably elsewhere are unaffected. Jungle withdrawal grants no automatic
+evacuation. Persist each hull outcome once with its crew/cargo; entering sea later
+imports only actual remaining ships. This supersedes the earlier protected-player-
+fleet proposal. The background owner and normal save/sea import must support these
+outcomes before delivering this choice; no silent removal of the entire squadron.
 
 If the hero visits a hostile town without actually being berthed, there is no
 fictitious sailor warning from ships in its dock. The current assault can appear
