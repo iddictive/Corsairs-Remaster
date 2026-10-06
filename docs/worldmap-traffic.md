@@ -541,9 +541,43 @@ persistence helper with fractional/destroyed guns, repeated restoration, indepen
 forts and damage bounds. The exact whole PROGRAM compiles in the native VM;
 50/100 rejects, 51/100 admits, another undamaged fort remains at 100, and native
 script-state save/load preserves the separate counts and fractional damage.
-The land-fort scene exists in `locations/init/Boarding.c` and the existing
-`BRDLT_FORT` route; connecting two autonomous sides to it and the following
-`NullCharacter.GenQuestFort` city chain remains the military implementation task.
+The real land-fort entry owner is `ships/ships.c:GetShipLocationID`: a Fort
+hull resolves its actual `FindIslandReloadLocator(...).go` and calls
+`scripts/ShipsUtilites.c:MakeCloneFortBoarding`. This copies that port's original
+FortV/FortVRight location into the existing `BOARDING_FORT` slot, replaces ordinary
+locators with the authored lAttack asset, removes ordinary reloads and advances to
+`Boarding_fortyard`, then one of the two existing bastions. Five actual GM locator
+files provide separate `rld.locN`/`rld.alocN` banks: 25 positions per side at the
+outer fort and 16 per side in yard/bastions. These are geometry/admission evidence,
+not a playable two-sided siege. Preserve port geometry and bind sides before load;
+reuse this clone/template path rather than a free-roaming battlefield or fictitious
+fort destination.
+
+The current boarding state cannot be reused unchanged for defender participation:
+`LAi_StartBoarding(BRDLT_FORT)` forces `isMCAttack=true`, derives manpower from hero
+ships, restores officer HP and owns global boarding transitions. Its missing-fort-
+location fallback sends `FORT_CAPTURED` and opens loot, so a missing compatible
+siege scene must reject entry rather than invoke that fallback. New finite mission
+representatives need their own saved troop/phase owner while reusing geometry and
+existing character/group primitives. `Loc_ai/LAi_events.c:LAi_Character_Dead_Process`
+is the casualty boundary before logoff/reincarnation/group completion; suppress
+rebirth for admitted mission representatives and consume their saved weight once.
+The following `NullCharacter.GenQuestFort` chain is likewise hero-keyed and cannot
+supply autonomous defender state unchanged.
+
+Actual berthing belongs to `pchar.location.from_sea`, written by
+`reload.c:SetPlayerShipLocation` and the real sea-to-land reload transition; the
+current town/flag alone cannot locate exposed hulls. `AIShip.c:ShipDead` schedules
+normal game over for the hero's aboard flagship; a background ashore outcome must
+use a separate finite hull disposition without invoking that path for the hero.
+`AISea.c:SeaAI_SwapShipsAttributes` is the existing Ship-object transfer owner, but
+its curshipnum handling assumes native ship-array participation. Physical ashore
+reassignment must bind that requirement before using it and restore a displaced
+companion captain through the existing officer owner once.
+
+Connecting two autonomous sides and real player admission to the fort/city chain,
+casualties, naval danger and accessible shipless recovery remains active military
+work; the owners above are discovered, not implemented feature acceptance.
 `tools/gameplay/fort-layout.json` pins the 23 installed maritime fort locator
 assets, their SHA-256 and separate cannon/culverin/mortar label counts. The existing
 living composer owns the file's exact hash and emits the script lookup; canonical
