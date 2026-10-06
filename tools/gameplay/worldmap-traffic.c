@@ -86,7 +86,7 @@ float WdmTrafficCrewReadiness(float quantity, float minimum, float maximum)
 	return ready;
 }
 
-float WdmTrafficHullPower(ref hull, float hp, float sails, float crew, float guns, float ammo)
+float WdmTrafficHullPower(ref hull, int cannonType, float hp, float sails, float crew, float guns, float ammo)
 {
 	if (!CheckAttribute(hull, "Class")) return 0.0;
 	int shipClass = sti(hull.Class);
@@ -97,13 +97,17 @@ float WdmTrafficHullPower(ref hull, float hp, float sails, float crew, float gun
 	crew = WdmTrafficFraction(crew);
 	guns = WdmTrafficFraction(guns);
 	ammo = WdmTrafficFraction(ammo);
-	if (!CheckAttribute(hull, "CannonsQuantity") || sti(hull.CannonsQuantity) <= 0) guns = 0.0;
-	if (CheckAttribute(hull, "Cannon") && sti(hull.Cannon) == CANNON_TYPE_NONECANNON) guns = 0.0;
-	float weight = 1.0;
-	if (CheckAttribute(hull, "Type.War") && sti(hull.Type.War)) weight = 2.0;
-	float size = 8.0 - shipClass;
-	// Unarmed shipping still has survival/escape strength; readiness is monotonic.
-	return size * size * weight * (0.75 * hp + 0.25 * sails) * crew * (0.25 + 0.75 * guns * ammo);
+	if (!CheckAttribute(hull, "HP") || stf(hull.HP) <= 0.0) return 0.0;
+	float artillery = 0.0;
+	if (cannonType >= 0 && cannonType < CANNON_TYPES_QUANTITY && CheckAttribute(hull, "CannonsQuantity"))
+	{
+		ref cannon = GetCannonByType(cannonType);
+		if (CheckAttribute(cannon, "DamageMultiply"))
+			artillery = 100.0 * stf(hull.CannonsQuantity) * guns * ammo * stf(cannon.DamageMultiply);
+	}
+	// Reuse the engine's HP + 100 per gun scale with actual gun damage/readiness.
+	// Encounter role and class labels cannot double an otherwise identical ship.
+	return (stf(hull.HP) * hp + artillery) * (0.75 + 0.25 * sails) * crew;
 }
 
 float WdmTrafficCharacterPower(ref captain)
@@ -119,31 +123,48 @@ float WdmTrafficCharacterPower(ref captain)
 	if (CheckAttribute(captain, "Ship.SP")) sails = stf(captain.Ship.SP) * 0.01;
 	float quantity = 0.0;
 	if (CheckAttribute(captain, "Ship.Crew.Quantity")) quantity = stf(captain.Ship.Crew.Quantity);
-	float crew = WdmTrafficCrewReadiness(quantity, GetMinCrewQuantity(captain), GetMaxCrewQuantity(captain));
+	float crew = WdmTrafficCrewReadiness(quantity, GetMinCrewQuantity(captain), GetOptCrewQuantity(captain));
 	float guns = 0.0;
-	float ammo = 0.0;
 	int nominal = GetCannonQuantity(captain);
 	int intact = 0;
-	if (nominal > 0 && GetCaracterShipCannonsType(captain) != CANNON_TYPE_NONECANNON)
+	int cannonType = GetCaracterShipCannonsType(captain);
+	if (nominal > 0 && cannonType >= 0 && cannonType < CANNON_TYPES_QUANTITY)
 	{
 		intact = GetCannonsNum(captain);
 		guns = makefloat(intact) / nominal;
 	}
-	if (intact > 0)
+	return WdmTrafficHullPower(hull, cannonType, hp, sails, crew, guns, WdmTrafficAmmoReadiness(captain, intact));
+}
+
+int WdmTrafficLoadedCannons(ref captain)
+{
+	if (!IsEntity(&AISea) || !CheckAttribute(captain, "Ship.Cannons.Borts")) return 0;
+	aref borts; makearef(borts, captain.Ship.Cannons.Borts);
+	int loaded = 0;
+	for (int i = 0; i < GetAttributesNum(borts); i++)
 	{
-		// Any usable charge counts, regardless of the currently selected charge.
-		int shot = GetCargoGoods(captain, GOOD_BALLS);
-		int available = GetCargoGoods(captain, GOOD_BOMBS);
-		if (available > shot) shot = available;
-		available = GetCargoGoods(captain, GOOD_KNIPPELS);
-		if (available > shot) shot = available;
-		available = GetCargoGoods(captain, GOOD_GRAPES);
-		if (available > shot) shot = available;
-		int powder = GetCargoGoods(captain, GOOD_POWDER);
-		if (powder < shot) shot = powder;
-		ammo = makefloat(shot) / intact;
+		aref bort = GetAttributeN(borts, i);
+		// Native writes the exact count after executing each intact gun. A completed
+		// reload percentage also occurs for empty guns, so it is not ammunition.
+		if (CheckAttribute(bort, "LoadedCannons") && sti(bort.LoadedCannons) > 0) loaded = loaded + sti(bort.LoadedCannons);
 	}
-	return WdmTrafficHullPower(hull, hp, sails, crew, guns, ammo);
+	return loaded;
+}
+
+float WdmTrafficAmmoReadiness(ref captain, int intact)
+{
+	if (intact <= 0) return 0.0;
+	int shot = GetCargoGoods(captain, GOOD_BALLS);
+	int available = GetCargoGoods(captain, GOOD_BOMBS);
+	if (available > shot) shot = available;
+	available = GetCargoGoods(captain, GOOD_KNIPPELS);
+	if (available > shot) shot = available;
+	available = GetCargoGoods(captain, GOOD_GRAPES);
+	if (available > shot) shot = available;
+	int powder = GetCargoGoods(captain, GOOD_POWDER);
+	if (powder < shot) shot = powder;
+	if (shot < 0) shot = 0;
+	return WdmTrafficFraction(makefloat(shot + WdmTrafficLoadedCannons(captain)) / intact);
 }
 
 int WdmTrafficPickBaseShip(int min, int max, string type, int nation)
@@ -279,7 +300,14 @@ float WdmTrafficRosterPower(ref fleet)
 		if (CheckAttribute(ship, "crew")) crew = stf(ship.crew);
 		if (CheckAttribute(ship, "guns")) guns = stf(ship.guns);
 		if (CheckAttribute(ship, "ammo")) ammo = stf(ship.ammo);
-		power = power + WdmTrafficHullPower(&ShipsTypes[type], hp, sails, crew, guns, ammo);
+		aref hull; makearef(hull, ShipsTypes[type]);
+		if (CheckAttribute(ship, "RealShip.HP")) makearef(hull, ship.RealShip);
+		int cannonType = CANNON_TYPE_NONECANNON;
+		if (CheckAttribute(hull, "Cannon")) cannonType = sti(hull.Cannon);
+		if (CheckAttribute(ship, "Ship.Cannons.Type")) cannonType = sti(ship.Ship.Cannons.Type);
+		if (CheckAttribute(ship, "Ship.Crew.Quantity") && CheckAttribute(hull, "OptCrew") && CheckAttribute(hull, "MinCrew"))
+			crew = WdmTrafficCrewReadiness(stf(ship.Ship.Crew.Quantity), stf(hull.MinCrew), stf(hull.OptCrew));
+		power = power + WdmTrafficHullPower(hull, cannonType, hp, sails, crew, guns, ammo);
 	}
 	// Native still multiplies trafficPower by trafficCondition once. Roster hp/sp
 	// contain intrinsic sea losses only; the legacy aggregate wear stays outside.
@@ -380,6 +408,14 @@ void WdmTrafficRefresh()
 			WdmTrafficRefreshEncounter(encounter, stopFollow);
 		}
 		encounter.trafficPower = WdmTrafficRosterPower(fleet);
+		if (!CheckAttribute(encounter, "trafficPowerVersion") || sti(encounter.trafficPowerVersion) != 2)
+		{
+			// Retain intent but rebase old observations: changing units is not damage.
+			DeleteAttribute(encounter, "trafficObservedOwnPower");
+			DeleteAttribute(encounter, "trafficObservedPlayerPower");
+			DeleteAttribute(encounter, "trafficObservedTargetPower");
+			encounter.trafficPowerVersion = 2;
+		}
 	}
 	WdmTrafficReviewStrategies();
 }
@@ -400,29 +436,9 @@ float WdmTrafficFleetPower(ref fleet, int rank)
 	int type = sti(fleet.RealEncounterType);
 	if (type < 0 || type >= MAX_ENCOUNTER_TYPES || type == ENCOUNTER_TYPE_ALONE) return 0.0;
 	if (CheckAttribute(fleet, "trafficRoster")) return WdmTrafficRosterPower(fleet);
-	int merchantMin, merchantMax, warMin, warMax;
-	// Reuse the same rank/class selection as Fantom_GenerateEncounterExt.
-	if (!Encounter_GetClassesFromRank(type, rank, &merchantMin, &merchantMax, &warMin, &warMax)) return 0.0;
-	int merchants = 0;
-	int warships = 0;
-	if (CheckAttribute(fleet, "NumMerchantShips")) merchants = sti(fleet.NumMerchantShips);
-	if (CheckAttribute(fleet, "NumWarShips")) warships = sti(fleet.NumWarShips);
-	if (merchants < 0 || warships < 0) return 0.0;
-	float merchantPower = 0.0;
-	float warPower = 0.0;
-	if (merchants > 0)
-	{
-		merchantPower = WdmTrafficClassPower(merchantMin, merchantMax);
-		if (merchantPower <= 0.0) return 0.0;
-	}
-	if (warships > 0)
-	{
-		warPower = WdmTrafficClassPower(warMin, warMax);
-		if (warPower <= 0.0) return 0.0;
-	}
-	return merchants * merchantPower + warships * warPower * 2.0;
+	// Class-only points use different units; an unknown hull roster is unknown.
+	return 0.0;
 }
-
 // Route choice uses authored island centres only as a distance estimate;
 // native navigation still resolves the verified offshore endpoint locators.
 float WdmTrafficRouteWeight(int home, int destination, int role)

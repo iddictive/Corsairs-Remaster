@@ -307,6 +307,21 @@
       "updated_sha256": "358236f06a621aa01d3903cce2ddcc4a86642a001c0c05e0ad482f6aed4bd44f",
       "source": "treasurer-interface.ini",
       "encoding": "cp1251"
+    },
+    "PROGRAM/sea_ai/AICannon.c": {
+      "base_sha256": "52b6b88747e657405d480639130af6e8e22e89382a29edfd479940acc54dda69",
+      "updated_sha256": "3419ae6185f2c551d4aeeea328ba66aa6e1d4866dcbcc14ffb05536103c4d878",
+      "previous_sha256": [],
+      "edits": [
+        {
+          "before": "\tif (!CheckAttribute(rCharacter, \"Ship.Cannons.Borts.\" + sBort_real + \".damages\") ||\n\t    !CheckAttribute(rCharacter, \"Ship.Cannons.Borts.\" + sBort + \".damages\")) return iNumCannonsOnBort;",
+          "after": "\tif (!CheckAttribute(rCharacter, \"Ship.Cannons.Borts.\" + sBort_real + \".damages\") &&\n\t    !CheckAttribute(rCharacter, \"Ship.Cannons.Borts.\" + sBort + \".damages\")) return iNumCannonsOnBort;"
+        },
+        {
+          "before": "\tint iNumIntactCannons = 0;\n\tfor (int i=0; i<iNumCannonsOnBort; i++)",
+          "after": "\tint iNumIntactCannons = 0;\n\tint physical = GetAttributesNum(arDamages);\n\tif (physical > iNumCannonsOnBort) physical = iNumCannonsOnBort;\n\tfor (int i=0; i<physical; i++)"
+        }
+      ]
     }
   }
 }

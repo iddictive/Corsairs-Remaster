@@ -403,24 +403,33 @@ void WdmFleetSeaSave()
 			entry.mode = captain.Ship.Mode;
 			entry.hp = stf(captain.Ship.HP) / stf(realShip.HP);
 			entry.sp = stf(captain.Ship.SP) * 0.01;
-			entry.crew = WdmTrafficCrewReadiness(stf(captain.Ship.Crew.Quantity), GetMinCrewQuantity(captain), GetMaxCrewQuantity(captain));
+			entry.crew = WdmTrafficCrewReadiness(stf(captain.Ship.Crew.Quantity), GetMinCrewQuantity(captain), GetOptCrewQuantity(captain));
 			entry.trafficCrewQuantity = captain.Ship.Crew.Quantity;
 			int nominal = GetCannonQuantity(captain);
 			int intact = GetCannonsNum(captain);
 			entry.guns = 0.0;
 			entry.ammo = 0.0;
 			if (nominal > 0 && GetCaracterShipCannonsType(captain) != CANNON_TYPE_NONECANNON) entry.guns = makefloat(intact) / nominal;
-			int ammunition = GetCargoGoods(captain, GOOD_BALLS);
-			if (GetCargoGoods(captain, GOOD_BOMBS) > ammunition) ammunition = GetCargoGoods(captain, GOOD_BOMBS);
-			if (GetCargoGoods(captain, GOOD_GRAPES) > ammunition) ammunition = GetCargoGoods(captain, GOOD_GRAPES);
-			if (GetCargoGoods(captain, GOOD_KNIPPELS) > ammunition) ammunition = GetCargoGoods(captain, GOOD_KNIPPELS);
-			if (GetCargoGoods(captain, GOOD_POWDER) < ammunition) ammunition = GetCargoGoods(captain, GOOD_POWDER);
-			if (intact > 0) entry.ammo = Clampf(makefloat(ammunition) / intact);
+			entry.ammo = WdmTrafficAmmoReadiness(captain, intact);
 			entry.savedAmmo = entry.ammo;
 			DeleteAttribute(entry, "Ship");
 			makearef(source, captain.Ship);
 			makearef(destination, entry.Ship);
 			CopyAttributes(destination, source);
+			// The native unload refunds loaded charges after this snapshot. Mirror that
+			// inventory normalization in the persistent NPC copy before the next mount.
+			int loaded = WdmTrafficLoadedCannons(captain);
+			if (loaded > 0 && CheckAttribute(captain, "Ship.Cannons.Charge.Type"))
+			{
+				int charge = sti(captain.Ship.Cannons.Charge.Type);
+				if (charge == GOOD_BALLS || charge == GOOD_BOMBS || charge == GOOD_GRAPES || charge == GOOD_KNIPPELS)
+				{
+					string chargeName = Goods[charge].name;
+					string powderName = Goods[GOOD_POWDER].name;
+					entry.Ship.Cargo.Goods.(chargeName) = GetCargoGoods(captain, charge) + loaded;
+					entry.Ship.Cargo.Goods.(powderName) = GetCargoGoods(captain, GOOD_POWDER) + loaded;
+				}
+			}
 			DeleteAttribute(entry, "Ship.Type");
 			DeleteAttribute(entry, "Ship.Pos");
 			DeleteAttribute(entry, "Ship.Ang");
@@ -428,7 +437,7 @@ void WdmFleetSeaSave()
 			DeleteAttribute(entry, "Ship.Sounds");
 			DeleteAttribute(entry, "Ship.SeaAI");
 			DeleteAttribute(entry, "Ship.LastBallCharacter");
-			makearef(source, captain.Ship.Cargo.Goods);
+			makearef(source, entry.Ship.Cargo.Goods);
 			DeleteAttribute(entry, "trafficSupplies");
 			makearef(destination, entry.trafficSupplies);
 			CopyAttributes(destination, source);

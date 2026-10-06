@@ -1,0 +1,27 @@
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+@@ -204,6 +204,7 @@
+             }
+ 
+             int32_t dwReadyCannonsAfter = 0, dwReadyCannonsBefore = 0;
++            int32_t loadedCannons = 0;
+ 
+             bort.fChargePercent = 0.0f;
+             for (uint32_t j = 0; j < bort.aCannons.size(); j++)
+@@ -218,6 +219,8 @@
+ 
+                 pC->Execute(fDeltaTime);
+                 bort.fChargePercent += pC->GetRechargePercent();
++                if (!pC->isEmpty())
++                    loadedCannons++;
+ 
+                 if (!(pC->isFired() || pC->isRecharged() || pC->isDamaged() || pC->isEmpty()))
+                     dwReadyCannonsAfter++;
+@@ -250,6 +253,7 @@
+                 ATTRIBUTES *pACurBort = pABorts->FindAClass(pABorts, bort.sName.c_str());
+                 Assert(pACurBort);
+ 
++                pACurBort->SetAttributeUseDword("LoadedCannons", loadedCannons);
+                 pACurBort->SetAttributeUseFloat("MaxFireDistance", bort.fMaxFireDistance);
+                 pACurBort->SetAttributeUseFloat("ChargeRatio", bort.fChargePercent);
+                 pACurBort->SetAttributeUseFloat("DamageRatio",

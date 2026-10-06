@@ -1,5 +1,57 @@
 # World-map traffic
 
+## Sea strength and ammunition contract — October 6
+
+`WdmTrafficHullPower` uses actual hull HP and installed artillery on the native
+`HP + 100 per gun` scale; gun contribution also uses the cannon table's
+`DamageMultiply`, intact fraction and ammunition readiness. Hull/sail condition
+and crew readiness remain monotonic. Optimal crew is full readiness; the extra
+25% crew capacity is not mandatory. Class and trade/war eligibility labels select
+hulls but cannot give identical physical ships different tactical power.
+
+The same calculation serves active player/companion ships, live NPC battle sides,
+persistent rosters and encounter-panel estimates. A saved `RealShip` and installed
+cannon type take precedence over the original archetype. Unknown quest strength
+remains unknown. Missing rosters also remain unknown: the former class-only
+fallback uses incompatible units. This is an approximate comparison, not a victory
+probability.
+
+`cannon-loaded-count.patch` extends the existing cannon-controller writer with
+`Ship.Cannons.Borts.<bort>.LoadedCannons`: the number of intact, nonempty guns after
+execution, including charges still reloading or awaiting fire. Reload percentage
+is not ammunition: empty guns can report a completed reload. Spare charges need
+both ammunition and powder; already loaded charges retain their contribution
+until fired. The live sea entity owns this count even while `bSeaActive` is false
+during teardown; outside that entity, saved counts are ignored.
+
+Sea exit snapshots normalize loaded rounds/powder into the surviving NPC cargo
+copy before native unload refunds the live inventory. The snapshot does not
+mutate live cargo, and repeated exit cannot refund twice. The shared physical gun
+getter accepts canonical or legacy damage attributes, prefers canonical when both
+exist, and cannot read beyond the physical damage entries. The former `||` guard
+ignored damage in a canonical-only state; normal dual-alias generated ships were
+not all affected.
+
+Old ordinary descriptors retain their target/intent. `trafficPowerVersion=2`
+invalidates only observations recorded in former strength units on their first
+refresh, preventing a scale change from being interpreted as combat losses.
+Subsequent refreshes preserve current observations; quests remain excluded.
+
+Disposable native-VM probes reproduce the old loaded-salvo drop from 25.6 to 6.4
+and a destroyed canonical-only gun counted as intact. The corrected fixture keeps
+7200 before and after loading. Empty/partial guns, no powder, optimal crew,
+different armament and same-class hulls, sparse/legacy damage arrays, sunk ships,
+NPC sea-exit inventory, unchanged sea/map strength, repeat exit and old-save
+observation migration pass. Exact main and installed-baseline compositions compile
+without VM errors. Engine compilation passes; player scene acceptance and
+installation of the current batch remain pending in `docs/runtime.md`.
+
+Reuse decision: retain the existing per-gun controller, damage getter and fleet
+owner. The latest upstream beta4 controller exposes progress but no loaded count;
+bounded cannon issue/PR searches found no applicable ready export. See the
+[upstream controller](https://github.com/storm-devs/storm-engine/blob/beta4/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp)
+and [release history](https://github.com/storm-devs/storm-engine/releases).
+
 ## October 5 coherent fleet model — implementation contract
 
 The next batch replaces scene-specific guesses with one fleet descriptor. This
@@ -12,8 +64,8 @@ installation requires the player application to be closed.
   reconnaissance and sea generation consume that roster; gaining a player rank
   must not silently regenerate an existing fleet. Legacy ordinary descriptors
   acquire a roster on refresh; quests and ALONE retain their authored contracts.
-- **Readiness:** derive strength from the entire active fleet, hull role/class,
-  hull/sail condition, crew and usable guns/ammunition. Use the same calculation
+- **Readiness:** derive strength from the entire active fleet, actual hull HP,
+  hull/sail condition, optimal crew and usable guns/ammunition. Use the same calculation
   for generated fleets and the player. No player rank or personal health enters
   tactical power. Losses and depleted cargo survive sea exit; sunk/captured ships
   must not return through a fresh encounter generation.
@@ -1112,9 +1164,9 @@ target acquisition, escape, patrol limits and battle timing belong to the engine
   the same opponent count as allies; distant traffic does not. After committing,
   retreat requires changed strength (20% own loss or 25% enemy growth) and an
   unfavourable comparison. Trading ships flee.
-- Player strength uses every active companion-slot ship, class and hull role,
-  weighted by current hull/sail condition (75%/25%). Parked ships and personal
-  stats do not count. Ordinary raiders compare the player and NPC prey in the
+- Player strength uses every active companion-slot ship with actual hull HP,
+  installed/intact artillery, loaded/spare ammunition and hull/sail/crew readiness.
+  Parked ships and personal stats do not count. Ordinary raiders compare the player and NPC prey in the
   same scoring pass; superior player fleets cause escape and cannot force a sea
   encounter through the native contact flag. The player can still enter combat.
   Map entry rebuilds the estimate before creating the entity, including old saves;
@@ -1140,8 +1192,8 @@ target acquisition, escape, patrol limits and battle timing belong to the engine
 - Saved routes, targets, roster slots and battle state survive map exit/re-entry.
   Old ordinary descriptors gain only missing fields; quest state is excluded.
 
-Strength uses the selected base hulls and their readiness: class/war role,
-hull/sails (75%/25%), crew, intact guns and usable ammunition. The same function
+Strength uses actual saved hulls and installed cannon damage, with hull/sail
+condition, optimal crew, intact guns and loaded/spare ammunition. The same function
 reads active player ships and imported NPC ships. Exact hulls are chosen once,
 not rerolled with the player's rank. Sea exit saves Ship/RealShip values without
 old runtime indexes, including cargo and captured/sunk tombstones; re-entry
