@@ -1,0 +1,12 @@
+# The fixed foam registry shares storage boundaries with shipsCount and psIni.
+# Reject an extra cosmetic emitter before indexing; ship gameplay is unchanged.
+--- a/src/libs/sea_foam/src/seafoam.cpp
++++ b/src/libs/sea_foam/src/seafoam.cpp
+@@ -77,4 +77,7 @@
+ void SEAFOAM::AddShip(entid_t pShipEID)
+ {
++    if (shipsCount >= MAX_SHIPS)
++        return;
++
+     auto *foamInfo = &shipFoamInfo[shipsCount++];
+ 
