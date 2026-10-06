@@ -263,7 +263,7 @@ def plan(target_root=None):
                     changes[relative] = (current, reviewed)
                 continue
             if relative in custody_life.BASE:
-                if digest(current) not in {custody_life.INSTALLED[relative], custody_life.UPDATED[relative]}:
+                if digest(current) not in {custody_life.INSTALLED[relative], custody_life.UPDATED[relative]} | custody_life.PREVIOUS.get(relative, set()):
                     raise RuntimeError(f"unrecognized custody revision: {relative}")
                 if current != incoming:
                     changes[relative] = (current, incoming)

@@ -52,7 +52,7 @@ void CustodyLife_Day(string result)
 	}
 	WaitDate("", 0, 0, 1, 0, 0);
 	RecalculateJumpTable();
-	Whr_UpdateWeather();
+	// The cell keeps its locked Inside weather; only the date changes.
 	Custody_ApplyLocks();
 	Custody_UpdateJournal();
 }

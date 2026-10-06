@@ -16,8 +16,11 @@ BASELINE = {
     'PROGRAM/scripts/custody.c': 'b434f09a612bdd154239a7a8afae08e8d213e0982effed45926c8fd903aa4b1f',
     'PROGRAM/quests/quests_reaction.c': 'b435b2fbc99346d06a7376b3f02de5fec306fa65da096099a0f092b971414514',
 }
+PREVIOUS = {
+    'PROGRAM/scripts/custody.c': {'b764435349c4c2e8f2c408b5ae018601e32fd1a1cfc6507adc702d4ebe2c377b'},
+}
 UPDATED = {
-    'PROGRAM/scripts/custody.c': 'b764435349c4c2e8f2c408b5ae018601e32fd1a1cfc6507adc702d4ebe2c377b',
+    'PROGRAM/scripts/custody.c': 'af63f1a9d008d2e664f4aab5596b10e6c776a569777c684587d2acf4b20c4b46',
     'PROGRAM/dialogs/russian/Common_Prison.c': '2088d0a7b75d720541a97155d2864a8854eb01fa77d088f5bd3d5e310a075520',
     'PROGRAM/scripts/GoldFleet.c': 'c1a124264892cdd72bad8b3a8ab31f0ffc4a094bfb7df07e0d03707ea2a6b8db',
     'PROGRAM/quests/quests_reaction.c': '8d8169d2f22e550c64aa5c1771fa035bcf518945cf6508c1f596b50e23242ffd',
