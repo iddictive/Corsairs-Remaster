@@ -314,6 +314,55 @@ an admitted attacker-side scene; otherwise naval/independent intervention applie
 A defender-help agreement cannot also earn attacker rewards. No automatic enemy-
 of-enemy alliance, citizenship or national pardon is implied by a local agreement.
 
+**Flagship contact and voluntary attacker assistance.** Separate permission to
+visit, combat allegiance and entitlement to payment. Offer a boat/contact action
+to the real expedition flagship when its commander is alive, interaction is safe
+and the current local-sea contact mechanism supports it. This is a requested
+interaction, not a proven boat/cabin implementation. Do not create a second
+commander or reset the flagship's damage/task. During immediate combat the visit
+is deferred/unavailable; it is not invulnerability or free boarding of an enemy.
+A hostile flagship requires explicit accepted parley before transfer. Rejection
+returns through the admitted contact exit without teleporting into its cabin as
+an enemy. Verify the actual sea contact owner before claiming this action works.
+
+A commander evaluates genuine current national allegiance, a valid patent for
+that nation, mission eligibility, prior betrayal/crimes and useful available force.
+Displayed flag alone is not credentials. Existing allied players can be declined
+for a paid contract without losing their existing allegiance. Eligible privateers
+can receive a contribution-based prize agreement; unlicensed allies may be offered
+an explicit fixed job or unpaid participation. Hostile visitors can be refused;
+there is no requirement that every expedition recruit every available hero.
+Show terms before accepting and persist one agreement per siege/player.
+
+Once the fort is suppressed and an admitted landing/capture stage is accessible,
+an already allied hero may enter the ongoing land fight without first visiting
+the commander. Do not force the governor negotiation branch on attacker-side
+participants. Attacking soldiers remain allied based on real relations, even
+without a paid contract; defenders remain hostile under the siege participation
+rules. Finite capture representatives and the current stage do not regenerate.
+An unaligned hero does not gain attacker friendship merely by shooting defenders.
+
+Payment modes:
+- Accepted contract: its bounded share/payment follows measured sea/land support,
+  troop losses, agreed objectives and operation outcome, not the final blow.
+- Valid participating privateer of the attacking nation, no prior contract:
+  permit a modest post-operation assistance claim for material contribution.
+  This is a chosen game reward rule, not an asserted historical/legal entitlement.
+  It uses a smaller bounded allocation than contracted assistance, from the same
+  finite distributable prize pool; prior agreement and automatic claim cannot stack.
+- Allied unlicensed volunteer, no contract: no automatic money or loot share.
+  Acknowledgement/reputation can reflect material help; no hidden promise of pay.
+- Late spectator, noncontributor or betrayer: no assistance claim. A patent gained
+  only after the fight or switching flags cannot retrospectively create one.
+
+Independent naval prizes retain their normal admitted prize/loot rules; a town
+assistance share cannot count the same captured cargo twice. City treasury/store
+remain under operation settlement, not free looting by every allied volunteer.
+Save contribution and patent eligibility when it occurred, and settle once at
+the real expedition commander or its admitted replacement. If the commander dies,
+do not resurrect him or erase contributions; settlement waits for a valid surviving
+command/payer. A failed assault with no recovered prize cannot manufacture a share.
+
 **Uncontracted outcomes.** Defeating attackers while leaving defenders intact is
 relief, not player conquest: the governor may acknowledge material aid and offer
 a bounded discretionary reward/settlement. A parley after help can explicitly grant
