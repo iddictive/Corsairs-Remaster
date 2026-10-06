@@ -79,6 +79,13 @@ int Fantom_CreateShipFromBase(int iBaseShipType, string sGroupName, string sFant
 
 
 def prepare_sea(text: str) -> str:
+    text = _one(text, '\tint iNumGroups = GetAttributesNum(arEncounters);',
+                '\tint iNumGroups = GetAttributesNum(arEncounters);\n\tWdmFleetSeaPrepareAdmission(&Login);',
+                'scene hull admission baseline')
+    text = _one(text, '\t\trEncounter = GetMapEncounterRef(sti(rRawGroup.type));',
+                '\t\trEncounter = GetMapEncounterRef(sti(rRawGroup.type));\n'
+                '\t\tif (WdmFleetSeaTagged(rEncounter) && !WdmFleetSeaAdmit(rEncounter, &Login)) continue;',
+                'whole fleet and battle capacity admission')
     text = _one(text, '\tSendMessage(&AISea, "l", AI_MESSAGE_UNLOAD);',
                 '\tWdmFleetSeaSave();\n\tSendMessage(&AISea, "l", AI_MESSAGE_UNLOAD);', 'before sea unload')
     text = _one(text, '\t\tGroup_SetType(sGName, rEncounter.Type);',

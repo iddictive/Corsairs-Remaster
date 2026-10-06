@@ -32,8 +32,9 @@ installation requires the player application to be closed.
   ships. One nearby home patrol can rescue its nation's commerce; unrelated
   neutral traffic and distant fleets are not invisible reinforcements.
 - **Map lifecycle:** retain the existing finite population and island navigation.
-  Arrivals retire commerce and let bounded scheduling create new departures;
-  patrol/raider routes continue. Preserve survivor roster/state when entering
+  The resident-voyage candidate replaces commerce retirement with elapsed port
+  service on the same descriptor; patrol/raider routes continue or return for
+  actual service. Preserve survivor roster/state when entering
   and leaving sea. Paused play freezes simulation. This batch is a fleet
   simulation while the map runs, not a hidden economy or off-screen cannon solver.
 - **Reconnaissance UI:** retain the game's parchment/flag vocabulary. Show each
@@ -107,8 +108,71 @@ The current ordered patch applies to a preserved source copy, and changed native
 translation units pass the canonical compiler's syntax checks. Read-only canonical
 script composition admits exactly three changed consumers and the verified prior
 installed hashes. Canonical build/staging, installed callbacks and real save replay
-remain unresolved. Cargo delivery/prizes and the later expansion milestones are
-still pending. The first native compile exposed a missing `core.h` include, now fixed.
+remain unresolved. The cargo component below has subsequent source/state evidence;
+the military/player/economic expansion milestones remain pending. The first native
+compile exposed a missing `core.h` include, now fixed.
+
+## October 5 cargo, prizes and fleet assembly — source verification
+
+The existing per-hull `trafficSupplies` attribute now owns the complete physical
+off-screen cargo. `trafficFreight` marks its deliverable subset; it is bounded by
+the physical quantities and cannot create a second inventory. Actual sea entry
+replaces generator goods from this manifest, including empty holds. Sea exit
+copies actual remaining goods back and clamps freight after looting/consumption.
+Capturing or sinking a ship clears its old descriptor's cargo without clearing the
+separate live captain/ship object used by the capture interface.
+
+Commerce selects admitted buyers using live export/import demand and regional
+travel weights. Departure debits actual export stock once, leaves 15% of Norm,
+and respects each hull's actual hold after provisions/ammunition. Import demand
+admits stock up to 125% of its authored Norm; other demand uses Norm. Several hulls
+share that demand bound. A saved cargo job prevents a second load while awaiting
+departure. Arrival credits only surviving, physically held freight and removes it
+from the hulls. Store Norm, trade classes and ordinary daily replenishment are
+unchanged. Initially valuable goods costing at least 200 require two working
+escorts; this threshold and demand/reserve values are unmeasured tuning.
+
+Native NPC battle resolution labels captured versus sunk tombstones and emits one
+settlement after all participating hull losses. Captured goods fill survivors only
+within their remaining hold; sunk cargo and an uncarried captured remainder are
+lost. The captured hull stays gone and is not also regenerated in the winner's
+roster. Profitable raiders physically return for unloading. Real crew/provisions
+use the canonical daily food ratio and saved elapsed calendar intervals; sea owns
+its own consumption interval. Repeated settlement, arrival or save/load cannot
+credit the same goods again. A battle interrupts existing port work, preserving
+paid recruits while folding new wear into a newly funded service interval.
+
+New ordinary fleets reserve the existing map slot directly, bypassing the legacy
+hero-rank generators. Existing nation/CanEncounter/type/class eligibility remains;
+quests and legacy roster seeding retain their contracts. Small shipping has 1–2
+merchants/0–1 escorts; ordinary caravans 2–4/1–2; rare large caravans 3–5/2–3, within
+the existing eight-hull bound. Pirate groups range from one to three hulls; four or
+five require a returned prize, a fourteen-day refuge assembly interval and an
+available recruitment pool, then the same paid readiness/service gate. These
+proportions remain tuning candidates. Assembly invokes the actual ship generator
+once and saves its values/working gun anatomy without holding a RealShips slot;
+MinCrew and capacity therefore cannot reroll on first sea entry.
+
+The sea's actual `Ships[MAX_SHIPS_ON_SEA]` bound is 32, including companions and
+already loaded island/story ships. Admission reserves a complete local battle
+bundle before generation. A bundle that does not fit is explicitly deferred on
+the saved map, preserving hulls/cargo/wear; no roster trimming or partial battle
+resolution stands in for admission. Native `SetLiveTime(0)` clamps to one second,
+so the new `trafficRetired` guard permits explicit resident losses to expire while
+positive ordinary voyage lifetimes remain persistent.
+
+Disposable native VM falsifiers pass actual Store debit → sea restore → remaining
+cargo save → destination credit, valuable-cargo/escort rejection, hold bounds,
+partial-unit weights, finite capture/prize losses, elapsed food and ammunition,
+interrupted paid recruitment, complete-battle capacity admission, actual authored
+ship assembly, invalid hull/legacy negatives and native descriptor serialization
+without repeat settlement. The quantity oracle transported 35 units, removed 23
+in the sea snapshot and credited only 12; a 200-unit prize transferred only 40 into
+an existing 10-unit load with room for 50. Current native patch application and
+changed translation-unit syntax pass; a source-branch probe verifies resident,
+retired-loss, pause and legacy lifetime outcomes. Permanent test delta is zero.
+These are source/state results. Canonical build/stage, installed callbacks,
+player-save upgrade and actual gameplay/capture/convoy replay remain unresolved.
 
 ## October 5 regional shipping routes
 
@@ -257,9 +321,9 @@ bounded population scheduler rather than this rare-event chance.
 
 Use the existing merchant/guarded-merchant/patrol/pirate encounter templates and
 fixed roster/Ship bridge. One map encounter represents the entire real fleet.
-Current `WdmTrafficCreate` selects three template sizes and includes player-rank
-gates; replacing those ordinary-traffic gates with role/region/readiness composition
-selection is an implementation requirement, not current behaviour. Preserve quest
+The preceding installed `WdmTrafficCreate` selects three template sizes and includes
+player-rank gates. The uninstalled cargo candidate above replaces those ordinary
+gates with fixed role composition and physical assembly/service. Preserve quest
 rank requirements and authored ship validity. Native/source per-fleet limits must
 be verified before committing a composition; actor budget counts fleet entities,
 while sea cost also depends on total hulls.

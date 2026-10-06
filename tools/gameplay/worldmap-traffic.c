@@ -188,6 +188,7 @@ bool WdmTrafficEnsureRoster(ref fleet, int rank)
 	int nation = sti(fleet.nation);
 	if (nation < 0 || nation >= MAX_NATIONS) return false;
 	int merchantMin, merchantMax, warMin, warMax;
+	if (CheckAttribute(fleet, "trafficComposition")) rank = 1000;
 	if (!Encounter_GetClassesFromRank(type, rank, &merchantMin, &merchantMax, &warMin, &warMax)) return false;
 	int merchants = 0;
 	int warships = 0;
@@ -217,6 +218,31 @@ bool WdmTrafficEnsureRoster(ref fleet, int rank)
 		roster.(key).guns = 1.0;
 		roster.(key).ammo = 1.0;
 		roster.(key).dead = 0;
+		if (CheckAttribute(fleet, "trafficComposition"))
+		{
+			// Reuse the actual ship generator once at assembly, then release its
+			// temporary allocation. Service and sea read the saved values; a first
+			// sea entry cannot reroll MinCrew, hold capacity or gun anatomy.
+			object builder;
+			builder.nation = nation;
+			int realIndex = GenerateShipExt(baseType, false, &builder);
+			if (realIndex < 0 || realIndex >= REAL_SHIPS_QUANTITY) return false;
+			builder.Ship.Type = realIndex;
+			builder.Ship.Mode = mode;
+			builder.Ship.HP = RealShips[realIndex].HP;
+			builder.Ship.SP = 100.0;
+			builder.Ship.Crew.Quantity = 0;
+			builder.Ship.Cannons.Type = RealShips[realIndex].Cannon;
+			SetRandomNameToShip(&builder);
+			aref real, savedShip;
+			makearef(real, roster.(key).RealShip);
+			CopyAttributes(real, &RealShips[realIndex]);
+			DeleteAttribute(real, "index"); DeleteAttribute(real, "lock");
+			makearef(savedShip, roster.(key).Ship);
+			CopyAttributes(savedShip, builder.Ship);
+			DeleteAttribute(savedShip, "Type");
+			DeleteAttribute(&RealShips[realIndex], "");
+		}
 	}
 	fleet.trafficRoster = "";
 	aref destination;
@@ -518,70 +544,86 @@ bool WdmTrafficCreate(int role)
 		to = WdmTrafficPortLocator(destination);
 	}
 	if (to == "" || to == from) return false;
-	int slot = -1;
-	bool generated = false;
-	if (role == 1) generated = GenerateMapEncounter_Merchant(Colonies[home].island, &slot);
-	else generated = GenerateMapEncounter_War(Colonies[home].island, &slot, -1);
-	if (!generated)
-	{
-		if (slot >= 0) ManualReleaseMapEncounter(slot);
-		return false;
-	}
+	// Reserve the existing map slot directly. Legacy generators select by hero
+	// rank before returning, so changing the template afterwards is too late.
+	int slot = FindFreeMapEncounterSlot();
+	if (slot < 0) return false;
+	ManualReleaseMapEncounter(slot);
 	ref fleet = GetMapEncounterRef(slot);
-	if (CheckAttribute(fleet, "qID") || !CheckAttribute(fleet, "RealEncounterType") || sti(fleet.RealEncounterType) == ENCOUNTER_TYPE_ALONE)
-	{
-		ManualReleaseMapEncounter(slot);
-		return false;
-	}
-	int type = sti(fleet.RealEncounterType);
-	if (type < 0 || type >= MAX_ENCOUNTER_TYPES)
-	{
-		ManualReleaseMapEncounter(slot);
-		return false;
-	}
-	int smallest = type;
+	int size = rand(99);
+	int type = ENCOUNTER_TYPE_PATROL_SMALL;
 	if (role == 1)
 	{
-		// One map entity contains the real merchant/escort fleet, not cloned icons.
-		smallest = ENCOUNTER_TYPE_MERCHANT_SMALL;
-		if (rand(9) < 3) smallest = ENCOUNTER_TYPE_MERCHANT_GUARD_SMALL;
-		type = smallest + rand(2);
+		type = ENCOUNTER_TYPE_MERCHANT_SMALL;
+		fleet.NumMerchantShips = 1 + rand(1);
+		fleet.NumWarShips = rand(1);
+		if (size >= 55)
+		{
+			type = ENCOUNTER_TYPE_MERCHANT_GUARD_MEDIUM;
+			fleet.NumMerchantShips = 2 + rand(2);
+			fleet.NumWarShips = 1 + rand(1);
+		}
+		if (size >= 90)
+		{
+			type = ENCOUNTER_TYPE_MERCHANT_GUARD_LARGE;
+			fleet.NumMerchantShips = 3 + rand(2);
+			fleet.NumWarShips = 2 + rand(1);
+		}
+		if (type == ENCOUNTER_TYPE_MERCHANT_SMALL && sti(fleet.NumWarShips) > 0)
+			type = ENCOUNTER_TYPE_MERCHANT_GUARD_SMALL;
 		fleet.Type = "trade";
 	}
 	else
 	{
-		if (role == 2) smallest = ENCOUNTER_TYPE_PATROL_SMALL;
-		else smallest = ENCOUNTER_TYPE_PIRATE_SMALL;
-		type = smallest + rand(2);
-		if (role == 2) fleet.Type = "war";
-		else fleet.Type = "pirate";
+		fleet.NumMerchantShips = 0;
+		fleet.NumWarShips = 1 + rand(1);
+		fleet.Type = "war";
+		if (size >= 70) { type = ENCOUNTER_TYPE_PATROL_MEDIUM; fleet.NumWarShips = 2 + rand(1); }
+		if (role == 3)
+		{
+			fleet.Type = "pirate";
+			type = ENCOUNTER_TYPE_PIRATE_SMALL;
+			fleet.NumWarShips = 1;
+			if (size >= 45) { type = ENCOUNTER_TYPE_PIRATE_MEDIUM; fleet.NumWarShips = 2 + rand(1); }
+			// A large band requires an actual returned prize, available recruits
+			// and a saved assembly interval at its refuge, never a player level.
+			if (size >= 90 && CheckAttribute(&Colonies[home], "trafficPrizeReturns") &&
+				sti(Colonies[home].trafficPrizeReturns) > 0 &&
+				CheckAttribute(&Colonies[home], "trafficBandAssembly") &&
+				WdmTrafficElapsed(Colonies[home].trafficBandAssembly, "day") >= 14 &&
+				sti(Colonies[home].Ship.Crew.Quantity) >= 100)
+			{ type = ENCOUNTER_TYPE_PIRATE_LARGE; fleet.NumWarShips = 4 + rand(1); }
+		}
 	}
-	int rank = sti(pchar.rank);
-	while (type > smallest && sti(EncountersTypes[type].MinRank) > rank) type--;
-	if (sti(EncountersTypes[type].Skip) || rank < sti(EncountersTypes[type].MinRank) ||
-		rank > sti(EncountersTypes[type].MaxRank) || !Encounter_CanNation(type, nation))
+	if (sti(EncountersTypes[type].Skip) || !Encounter_CanNation(type, nation))
 	{
 		ManualReleaseMapEncounter(slot);
 		return false;
 	}
 	fleet.RealEncounterType = type;
+	fleet.bUse = true;
+	fleet.trafficComposition = 1;
+	// The existing generator admits eight hulls; sea capacity is independently
+	// 32 ships including player/quest participants. Never exceed either owner.
+	while (sti(fleet.NumMerchantShips) + sti(fleet.NumWarShips) > 8)
+		fleet.NumMerchantShips = sti(fleet.NumMerchantShips) - 1;
 	fleet.Nation = nation;
 	fleet.GroupName = ENCOUNTER_GROUP + slot;
 	fleet.Task = AITASK_MOVE;
 	DeleteAttribute(fleet, "Task.Target");
 	DeleteAttribute(fleet, "Task.Pos");
 	DeleteAttribute(fleet, "Lock");
-	if (!GenerateMapEncounter_WriteNumShips(fleet, type, 8) || !GenerateMapEncounter_SetMapShipModel(fleet))
+	if (!GenerateMapEncounter_SetMapShipModel(fleet))
 	{
 		ManualReleaseMapEncounter(slot);
 		return false;
 	}
-	if (!WdmTrafficEnsureRoster(fleet, rank))
+	if (!WdmTrafficEnsureRoster(fleet, 1000))
 	{
 		ManualReleaseMapEncounter(slot);
 		return false;
 	}
-	float power = WdmTrafficFleetPower(fleet, rank);
+	float power = WdmTrafficFleetPower(fleet, 1000);
 	if (power <= 0.0)
 	{
 		ManualReleaseMapEncounter(slot);
@@ -651,6 +693,12 @@ bool WdmTrafficCreate(int role)
 		encounter.encdata.trafficRoster.(hullKey).ammo = 0.0;
 	}
 	WdmTrafficBeginService(encounter);
+	if (role == 3 && sti(encounter.encdata.NumWarShips) >= 4)
+	{
+		aref assembly;
+		makearef(assembly, Colonies[home].trafficBandAssembly);
+		WdmTrafficStamp(assembly);
+	}
 	WdmTrafficRefreshEncounter(encounter, IsStopMapFollowEncounters());
 	return true;
 }
@@ -751,6 +799,407 @@ int WdmTrafficEntryGoods(aref ship, int good)
 	return sti(ship.trafficSupplies.(name));
 }
 
+void WdmTrafficClampFreight(aref ship)
+{
+	for (int good = 0; good < GOODS_QUANTITY; good++)
+	{
+		string name = Goods[good].name;
+		if (!CheckAttribute(ship, "trafficFreight." + name)) continue;
+		int quantity = sti(ship.trafficFreight.(name));
+		int held = WdmTrafficEntryGoods(ship, good);
+		if (quantity > held) ship.trafficFreight.(name) = held;
+	}
+}
+
+void WdmTrafficCargoToSnapshot(aref ship)
+{
+	WdmTrafficClampFreight(ship);
+	if (!CheckAttribute(ship, "Ship")) return;
+	aref source, destination;
+	makearef(source, ship.trafficSupplies);
+	DeleteAttribute(ship, "Ship.Cargo.Goods");
+	makearef(destination, ship.Ship.Cargo.Goods);
+	CopyAttributes(destination, source);
+}
+
+void WdmTrafficSyncCargo(aref ship)
+{
+	// The physical manifest is authoritative off-screen. Ship.Cargo is its sea
+	// snapshot, imported once for old descriptors or explicitly at sea exit.
+	if (!CheckAttribute(ship, "trafficSupplies"))
+	{
+		ship.trafficSupplies = "";
+		if (CheckAttribute(ship, "Ship.Cargo.Goods"))
+		{
+			aref source, destination;
+			makearef(source, ship.Ship.Cargo.Goods);
+			makearef(destination, ship.trafficSupplies);
+			CopyAttributes(destination, source);
+		}
+	}
+	if (CheckAttribute(ship, "savedAmmo"))
+	{
+		float scale = 1.0;
+		if (stf(ship.savedAmmo) > 0.0) scale = WdmTrafficFraction(stf(ship.ammo) / stf(ship.savedAmmo));
+		for (int good = GOOD_BALLS; good <= GOOD_POWDER; good++)
+		{
+			string name = Goods[good].name;
+			ship.trafficSupplies.(name) = makeint(WdmTrafficEntryGoods(ship, good) * scale);
+		}
+	}
+	ship.savedAmmo = ship.ammo;
+	WdmTrafficCargoToSnapshot(ship);
+}
+
+void WdmTrafficLoseCargo(aref ship)
+{
+	DeleteAttribute(ship, "trafficSupplies");
+	ship.trafficSupplies = "";
+	DeleteAttribute(ship, "trafficFreight");
+	DeleteAttribute(ship, "Ship.Cargo.Goods");
+}
+
+int WdmTrafficCargoCapacity(aref ship)
+{
+	if (CheckAttribute(ship, "RealShip.Capacity")) return sti(ship.RealShip.Capacity);
+	int capacity = sti(ShipsTypes[sti(ship.baseType)].Capacity);
+	// GenerateShipExt's minimum random capacity is base minus one eighth.
+	// Before a RealShip exists, this bound cannot overfill its eventual hold.
+	return capacity - capacity / 8;
+}
+
+int WdmTrafficCargoWeight(aref ship)
+{
+	int weight = 0;
+	for (int good = 0; good < GOODS_QUANTITY; good++)
+	{
+		int quantity = WdmTrafficEntryGoods(ship, good);
+		if (quantity > 0) weight = weight + GetGoodWeightByType(good, quantity);
+	}
+	return weight;
+}
+
+int WdmTrafficCargoRoom(aref ship, int good)
+{
+	int free = WdmTrafficCargoCapacity(ship) - WdmTrafficCargoWeight(ship);
+	if (free < 0) return 0;
+	// A partial existing goods unit already owns its weight. Count its unused
+	// quantity too, using the same ceil-unit weight as the actual cargo owner.
+	int held = WdmTrafficEntryGoods(ship, good);
+	int room = GetGoodQuantityByWeight(good, free + GetGoodWeightByType(good, held)) - held;
+	if (room < 0) return 0;
+	return room;
+}
+
+bool WdmTrafficStoreGood(ref store, int good)
+{
+	string name = Goods[good].name;
+	if (!CheckAttribute(store, "Goods." + name + ".Norm") ||
+		!CheckAttribute(store, "Goods." + name + ".TradeType")) return false;
+	if (CheckAttribute(store, "Goods." + name + ".NotUsed") && sti(store.Goods.(name).NotUsed)) return false;
+	return sti(store.Goods.(name).TradeType) != TRADE_TYPE_CONTRABAND;
+}
+
+int WdmTrafficTradeQuantity(int origin, int destination, int good)
+{
+	ref seller = &Stores[origin];
+	ref buyer = &Stores[destination];
+	if (!WdmTrafficStoreGood(seller, good) || !WdmTrafficStoreGood(buyer, good)) return 0;
+	string name = Goods[good].name;
+	if (sti(seller.Goods.(name).TradeType) != TRADE_TYPE_EXPORT) return 0;
+	int available = GetStoreGoodsQuantity(seller, good) - makeint(stf(seller.Goods.(name).Norm) * 0.15);
+	int target = sti(buyer.Goods.(name).Norm);
+	if (sti(buyer.Goods.(name).TradeType) == TRADE_TYPE_IMPORT) target = makeint(target * 1.25);
+	int need = target - GetStoreGoodsQuantity(buyer, good);
+	if (available < need) need = available;
+	if (need < 0) return 0;
+	return need;
+}
+
+float WdmTrafficTradeWeight(int origin, int destination)
+{
+	int seller = FindStore(Colonies[origin].id);
+	int buyer = FindStore(Colonies[destination].id);
+	if (seller < 0 || buyer < 0 || seller == SHIP_STORE || buyer == SHIP_STORE) return 0.0;
+	float demand = 0.0;
+	for (int good = GOOD_FOOD; good <= GOOD_SILVER; good++)
+	{
+		int quantity = WdmTrafficTradeQuantity(seller, buyer, good);
+		if (quantity <= 0) continue;
+		// Bound the demand term so one gold stock cannot erase regional travel.
+		demand = demand + 1.0 + quantity * 0.01;
+	}
+	if (demand > 50.0) demand = 50.0;
+	return demand;
+}
+
+bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
+{
+	if (CheckAttribute(encounter, "trafficCargoJob") && !CheckAttribute(encounter, "trafficCargoJob.delivered")) return true;
+	int seller = FindStore(Colonies[origin].id);
+	int buyer = FindStore(Colonies[destination].id);
+	if (seller < 0 || buyer < 0 || seller == SHIP_STORE || buyer == SHIP_STORE) return false;
+	aref roster, ship;
+	makearef(roster, encounter.encdata.trafficRoster);
+	int escorts = 0;
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (!sti(ship.dead) && ship.mode == "War" && stf(ship.guns) >= 0.5 && stf(ship.ammo) >= 0.5) escorts++;
+	}
+	int loaded = 0;
+	int firstGood = GOOD_FOOD + rand(GOOD_SILVER - GOOD_FOOD);
+	for (i = 0; i < sti(roster.count); i++)
+	{
+		string hullKey = "ship" + i;
+		makearef(ship, roster.(hullKey));
+		if (sti(ship.dead) || ship.mode != "Trade") continue;
+		WdmTrafficSyncCargo(ship);
+		for (int g = GOOD_FOOD; g <= GOOD_SILVER; g++)
+		{
+			int good = GOOD_FOOD + (firstGood - GOOD_FOOD + g - GOOD_FOOD) % (GOOD_SILVER - GOOD_FOOD + 1);
+			if (stf(Goods[good].Cost) >= 200.0 && escorts < 2) continue;
+			int quantity = WdmTrafficTradeQuantity(seller, buyer, good);
+			for (int n = 0; n < sti(roster.count); n++)
+			{
+				string other = "ship" + n;
+				string goodName = Goods[good].name;
+				if (!sti(roster.(other).dead) && CheckAttribute(roster, other + ".trafficFreight." + goodName))
+					quantity = quantity - sti(roster.(other).trafficFreight.(goodName));
+			}
+			int room = WdmTrafficCargoRoom(ship, good);
+			if (quantity > room) quantity = room;
+			if (quantity <= 0) continue;
+			string name = Goods[good].name;
+			RemoveStoreGoods(&Stores[seller], good, quantity);
+			ship.trafficSupplies.(name) = WdmTrafficEntryGoods(ship, good) + quantity;
+			int freight = 0;
+			if (CheckAttribute(ship, "trafficFreight." + name)) freight = sti(ship.trafficFreight.(name));
+			ship.trafficFreight.(name) = freight + quantity;
+			loaded = loaded + quantity;
+		}
+		WdmTrafficCargoToSnapshot(ship);
+	}
+	if (loaded == 0) return false;
+	DeleteAttribute(encounter, "trafficCargoJob");
+	encounter.trafficCargoJob.origin = Colonies[origin].id;
+	encounter.trafficCargoJob.destination = Colonies[destination].id;
+	encounter.trafficCargoJob.voyage = sti(encounter.trafficVoyage) + 1;
+	return true;
+}
+
+void WdmTrafficUnloadCargo(aref encounter, int colony)
+{
+	if (!WdmTrafficPortAdmits(colony, sti(encounter.trafficNation))) return;
+	int store = FindStore(Colonies[colony].id);
+	if (store < 0 || store == SHIP_STORE) return;
+	aref roster, ship;
+	makearef(roster, encounter.encdata.trafficRoster);
+	int delivered = 0;
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) { WdmTrafficLoseCargo(ship); continue; }
+		WdmTrafficSyncCargo(ship);
+		for (int good = 0; good < GOODS_QUANTITY; good++)
+		{
+			string name = Goods[good].name;
+			if (!CheckAttribute(ship, "trafficFreight." + name) || !CheckAttribute(&Stores[store], "Goods." + name)) continue;
+			int quantity = sti(ship.trafficFreight.(name));
+			int held = WdmTrafficEntryGoods(ship, good);
+			if (quantity > held) quantity = held;
+			if (quantity <= 0) continue;
+			AddStoreGoods(&Stores[store], good, quantity);
+			ship.trafficSupplies.(name) = held - quantity;
+			ship.trafficFreight.(name) = 0;
+			delivered = delivered + quantity;
+		}
+		WdmTrafficCargoToSnapshot(ship);
+	}
+	if (CheckAttribute(encounter, "trafficCargoJob")) encounter.trafficCargoJob.delivered = Colonies[colony].id;
+	if (delivered > 0 && CheckAttribute(encounter, "trafficPrize") && sti(encounter.trafficPrize))
+	{
+		int returns = 0;
+		if (CheckAttribute(&Colonies[colony], "trafficPrizeReturns")) returns = sti(Colonies[colony].trafficPrizeReturns);
+		Colonies[colony].trafficPrizeReturns = returns + 1;
+		if (!CheckAttribute(&Colonies[colony], "trafficBandAssembly"))
+		{
+			aref assembly;
+			makearef(assembly, Colonies[colony].trafficBandAssembly);
+			WdmTrafficStamp(assembly);
+		}
+		DeleteAttribute(encounter, "trafficPrize");
+	}
+}
+
+int WdmTrafficCrewQuantity(aref ship)
+{
+	if (CheckAttribute(ship, "trafficCrewQuantity")) return sti(ship.trafficCrewQuantity);
+	if (CheckAttribute(ship, "Ship.Crew.Quantity")) return sti(ship.Ship.Crew.Quantity);
+	return makeint(stf(ShipsTypes[sti(ship.baseType)].MaxCrew) * stf(ship.crew));
+}
+
+int WdmTrafficDailyFood(aref ship)
+{
+	int food = makeint((WdmTrafficCrewQuantity(ship) + 5.1) / FOOD_BY_CREW);
+	food = food + makeint((WdmTrafficEntryGoods(ship, GOOD_SLAVES) + 6) / FOOD_BY_SLAVES);
+	if (food < 1) food = 1;
+	return food;
+}
+
+void WdmTrafficConsumeSupplies(aref encounter)
+{
+	aref clock;
+	makearef(clock, encounter.trafficSupplyClock);
+	if (!CheckAttribute(clock, "year")) { WdmTrafficStamp(clock); return; }
+	int hours = WdmTrafficElapsed(clock, "hour");
+	if (hours <= 0) return;
+	if (CheckAttribute(clock, "remainder")) hours = hours + sti(clock.remainder);
+	WdmTrafficStamp(clock);
+	clock.remainder = hours % 24;
+	int days = hours / 24;
+	if (days == 0) return;
+	aref roster, ship;
+	makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) { WdmTrafficLoseCargo(ship); continue; }
+		WdmTrafficSyncCargo(ship);
+		int food = WdmTrafficEntryGoods(ship, GOOD_FOOD) - days * WdmTrafficDailyFood(ship);
+		if (food < 0) food = 0;
+		string name = Goods[GOOD_FOOD].name;
+		ship.trafficSupplies.(name) = food;
+		WdmTrafficCargoToSnapshot(ship);
+	}
+}
+
+bool WdmTrafficNeedsService(aref encounter)
+{
+	if (CheckAttribute(encounter, "trafficCondition") && stf(encounter.trafficCondition) < 0.65) return true;
+	aref roster, ship;
+	makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) continue;
+		WdmTrafficSyncCargo(ship);
+		if (WdmTrafficEntryGoods(ship, GOOD_FOOD) < 3 * WdmTrafficDailyFood(ship) ||
+			stf(ship.hp) < 0.7 || stf(ship.sp) < 0.5 || stf(ship.ammo) < 0.2) return true;
+	}
+	return false;
+}
+
+void WdmTrafficSettlePrize(aref winner, aref loser)
+{
+	if (!WdmTrafficIsOrdinary(winner) || !WdmTrafficIsOrdinary(loser)) return;
+	aref sourceRoster, targetRoster, source, target;
+	makearef(sourceRoster, loser.encdata.trafficRoster);
+	makearef(targetRoster, winner.encdata.trafficRoster);
+	int taken = 0;
+	for (int i = 0; i < sti(sourceRoster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(source, sourceRoster.(key));
+		if (!sti(source.dead) || CheckAttribute(source, "trafficCargoResolved")) continue;
+		WdmTrafficSyncCargo(source);
+		if (CheckAttribute(source, "trafficLoss") && source.trafficLoss == "capture")
+		{
+			for (int n = 0; n < sti(targetRoster.count); n++)
+			{
+				string receiver = "ship" + n;
+				makearef(target, targetRoster.(receiver));
+				if (sti(target.dead)) continue;
+				WdmTrafficSyncCargo(target);
+				for (int good = 0; good < GOODS_QUANTITY; good++)
+				{
+					int quantity = WdmTrafficEntryGoods(source, good);
+					int room = WdmTrafficCargoRoom(target, good);
+					if (quantity > room) quantity = room;
+					if (quantity <= 0) continue;
+					string name = Goods[good].name;
+					source.trafficSupplies.(name) = WdmTrafficEntryGoods(source, good) - quantity;
+					target.trafficSupplies.(name) = WdmTrafficEntryGoods(target, good) + quantity;
+					int freight = 0;
+					if (CheckAttribute(target, "trafficFreight." + name)) freight = sti(target.trafficFreight.(name));
+					target.trafficFreight.(name) = freight + quantity;
+					taken = taken + quantity;
+				}
+				WdmTrafficCargoToSnapshot(target);
+			}
+		}
+		// Sunk cargo and a captured hull's uncarried remainder are actual loss.
+		// No second survivor/prize hull is generated from this tombstone.
+		WdmTrafficLoseCargo(source);
+		source.trafficCargoResolved = 1;
+	}
+	if (taken > 0)
+	{
+		winner.trafficPrize = 1;
+		if (winner.trafficLifecycle == "service")
+		{
+			if (CheckAttribute(winner, "trafficCurrentPort")) WdmTrafficUnloadCargo(winner, FindColony(winner.trafficCurrentPort));
+		}
+		else
+		{
+			int refuge = WdmTrafficNearestPort(winner);
+			if (refuge >= 0) WdmTrafficReturnToPort(winner, refuge);
+		}
+	}
+}
+
+void WdmTrafficInterruptService(aref encounter)
+{
+	if (encounter.trafficLifecycle != "service" || !CheckAttribute(encounter, "trafficService")) return;
+	aref roster, ship, hull;
+	makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead) || !CheckAttribute(ship, "trafficService.crew")) continue;
+		// Paid recruits already belong to this hull. Interrupted work cannot
+		// erase them and buy the same crew again; subsequent battle wear still
+		// applies casualties before a new, funded repair interval.
+		makearef(hull, ShipsTypes[sti(ship.baseType)]);
+		if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+		ship.trafficCrewQuantity = ship.trafficService.crew;
+		ship.crew = WdmTrafficCrewReadiness(stf(ship.trafficCrewQuantity), stf(hull.MinCrew), stf(hull.MaxCrew));
+		if (CheckAttribute(ship, "Ship")) ship.Ship.Crew.Quantity = ship.trafficCrewQuantity;
+	}
+	DeleteAttribute(encounter, "trafficService");
+	WdmTrafficBeginService(encounter);
+}
+
+#event_handler("WdmTraffic_BattleResolved", "WdmTrafficBattleResolved");
+void WdmTrafficBattleResolved()
+{
+	string first = GetEventData();
+	string second = GetEventData();
+	string escort = GetEventData();
+	bool won = GetEventData();
+	string winner = first; string loser = second;
+	if (!won) { winner = second; loser = first; }
+	string winning = "encounters." + winner;
+	string losing = "encounters." + loser;
+	if (!CheckAttribute(&worldMap, winning) || !CheckAttribute(&worldMap, losing)) return;
+	aref victor, defeated;
+	makearef(victor, worldMap.(winning)); makearef(defeated, worldMap.(losing));
+	WdmTrafficSettlePrize(victor, defeated);
+	WdmTrafficInterruptService(victor);
+	WdmTrafficInterruptService(defeated);
+	if (escort != "" && CheckAttribute(&worldMap, "encounters." + escort))
+	{
+		makearef(defeated, worldMap.encounters.(escort));
+		if (!won) WdmTrafficSettlePrize(victor, defeated);
+		WdmTrafficInterruptService(defeated);
+	}
+}
+
 void WdmTrafficBeginService(aref encounter)
 {
 	if (CheckAttribute(encounter, "trafficService")) return;
@@ -784,26 +1233,7 @@ void WdmTrafficBeginService(aref encounter)
 			ship.Ship.SP = stf(ship.Ship.SP) * condition;
 			if (condition < 0.95) ship.Ship.Crew.Quantity = makeint(stf(ship.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
 		}
-		if (CheckAttribute(ship, "Ship.Cargo.Goods"))
-		{
-			aref saved, supplies;
-			makearef(saved, ship.Ship.Cargo.Goods);
-			DeleteAttribute(ship, "trafficSupplies");
-			makearef(supplies, ship.trafficSupplies);
-			CopyAttributes(supplies, saved);
-		}
-		if (!CheckAttribute(ship, "trafficSupplies")) ship.trafficSupplies = "";
-		if (CheckAttribute(ship, "savedAmmo"))
-		{
-			float scale = 0.0;
-			if (stf(ship.savedAmmo) > 0.0) scale = WdmTrafficFraction(stf(ship.ammo) / stf(ship.savedAmmo));
-			for (int good = GOOD_BALLS; good <= GOOD_POWDER; good++)
-			{
-				string name = Goods[good].name;
-				if (CheckAttribute(ship, "trafficSupplies." + name))
-					ship.trafficSupplies.(name) = makeint(stf(ship.trafficSupplies.(name)) * scale);
-			}
-		}
+		WdmTrafficSyncCargo(ship);
 	}
 	encounter.trafficCondition = 1.0;
 }
@@ -871,6 +1301,17 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 		if (reserve < 1) reserve = 1;
 		if (GetStoreGoodsQuantity(store, good) - need[good] < reserve) return false;
 	}
+	int cargoWeight = WdmTrafficCargoWeight(ship);
+	int carried[3];
+	carried[0] = GOOD_BALLS; carried[1] = GOOD_POWDER; carried[2] = GOOD_FOOD;
+	for (int item = 0; item < 3; item++)
+	{
+		good = carried[item];
+		if (need[good] <= 0) continue;
+		int held = WdmTrafficEntryGoods(ship, good);
+		cargoWeight = cargoWeight + GetGoodWeightByType(good, held + need[good]) - GetGoodWeightByType(good, held);
+	}
+	if (cargoWeight > WdmTrafficCargoCapacity(ship)) return false;
 	for (good = 0; good < GOODS_QUANTITY; good++)
 	{
 		if (need[good] <= 0) continue;
@@ -956,6 +1397,7 @@ int WdmTrafficNextPort(int origin, int nation, int role)
 		if (role == 1 && !WdmTrafficPortAdmits(i, nation)) continue;
 		if (role == 3 && sti(Colonies[i].nation) == PIRATE) continue;
 		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, role));
+		if (role == 1) weights[i] = makeint(weights[i] * WdmTrafficTradeWeight(origin, i));
 		total = total + weights[i];
 	}
 	if (total <= 0) return -1;
@@ -976,8 +1418,8 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))) return;
 	if (encounter.trafficLifecycle != "service")
 	{
-		if (!CheckAttribute(encounter, "trafficReturning") && CheckAttribute(encounter, "trafficCondition") &&
-			stf(encounter.trafficCondition) < 0.65)
+		WdmTrafficConsumeSupplies(encounter);
+		if (!CheckAttribute(encounter, "trafficReturning") && WdmTrafficNeedsService(encounter))
 		{
 			int refuge = WdmTrafficNearestPort(encounter);
 			if (refuge >= 0) WdmTrafficReturnToPort(encounter, refuge);
@@ -1032,7 +1474,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		worldMap.deleteUpdate = "";
 		return;
 	}
-	if (!ready || CheckAttribute(encounter, "trafficNextLocator")) return;
+	if (!ready || !stock || CheckAttribute(encounter, "trafficNextLocator")) return;
 	int role = sti(encounter.trafficRole);
 	string locator = "";
 	int destination = -1;
@@ -1043,6 +1485,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		if (destination >= 0) locator = WdmTrafficPortLocator(destination);
 	}
 	if (locator == "") return;
+	if (role == 1 && !WdmTrafficLoadCargo(encounter, colony, destination)) return;
 	encounter.trafficLegLocator = locator;
 	encounter.trafficNextLocator = locator;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
@@ -1061,6 +1504,7 @@ void WdmTrafficArrived()
 	makearef(encounter, worldMap.(path));
 	if (!WdmTrafficIsOrdinary(encounter) || !CheckAttribute(encounter, "trafficDestinationPort")) return;
 	encounter.trafficCurrentPort = encounter.trafficDestinationPort;
+	WdmTrafficUnloadCargo(encounter, FindColony(encounter.trafficCurrentPort));
 	WdmTrafficBeginService(encounter);
 }
 
@@ -1072,6 +1516,9 @@ void WdmTrafficDeparted()
 	aref encounter;
 	makearef(encounter, worldMap.(path));
 	if (!WdmTrafficIsOrdinary(encounter)) return;
+	aref clock;
+	makearef(clock, encounter.trafficSupplyClock);
+	WdmTrafficStamp(clock);
 	DeleteAttribute(encounter, "trafficService");
 	DeleteAttribute(encounter, "trafficCurrentPort");
 	if (!CheckAttribute(encounter, "trafficReturning")) DeleteAttribute(encounter, "trafficServiceOnArrival");

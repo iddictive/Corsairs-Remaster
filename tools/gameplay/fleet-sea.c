@@ -67,6 +67,8 @@ bool WdmFleetSeaImport(ref fleet, aref descriptor, string identity)
 	if (!CheckAttribute(descriptor, "trafficIntent")) descriptor.trafficIntent = "route";
 	if (!CheckAttribute(descriptor, "trafficTargetPlayer")) descriptor.trafficTargetPlayer = 0;
 	WdmFleetSeaCopyIdentity(fleet, descriptor);
+	WdmTrafficConsumeSupplies(descriptor);
+	DeleteAttribute(descriptor, "trafficSupplyClock.remainder");
 	descriptor.trafficInSea = 1;
 	DeleteAttribute(descriptor, "needDelete");
 	return true;
@@ -157,6 +159,78 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
 }
 
+int WdmFleetSeaHullCount(ref fleet)
+{
+	if (!CheckAttribute(fleet, "trafficRoster.count")) return 0;
+	int count = 0;
+	for (int i = 0; i < sti(fleet.trafficRoster.count); i++)
+	{
+		string key = "ship" + i;
+		if (CheckAttribute(fleet, "trafficRoster." + key + ".baseType") && !sti(fleet.trafficRoster.(key).dead)) count++;
+	}
+	return count;
+}
+
+void WdmFleetSeaPrepareAdmission(ref login)
+{
+	login.trafficHullReservations = 0;
+	aref groups;
+	makearef(groups, login.encounters);
+	for (int i = 0; i < GetAttributesNum(groups); i++)
+	{
+		aref raw = GetAttributeN(groups, i);
+		ref fleet = GetMapEncounterRef(sti(raw.type));
+		DeleteAttribute(fleet, "trafficSeaAdmission");
+	}
+}
+
+bool WdmFleetSeaAdmit(ref fleet, ref login)
+{
+	if (!CheckAttribute(fleet, "trafficSeaAdmission"))
+	{
+		string descriptor = "encounters." + fleet.trafficFleetID;
+		string root = "";
+		if (CheckAttribute(&worldMap, descriptor + ".trafficBattleRoot")) root = worldMap.(descriptor).trafficBattleRoot;
+		aref groups;
+		makearef(groups, login.encounters);
+		int hulls = 0;
+		for (int i = 0; i < GetAttributesNum(groups); i++)
+		{
+			aref raw = GetAttributeN(groups, i);
+			ref member = GetMapEncounterRef(sti(raw.type));
+			if (!WdmFleetSeaTagged(member)) continue;
+			string path = "encounters." + member.trafficFleetID;
+			bool included = member.trafficFleetID == fleet.trafficFleetID;
+			if (root != "" && CheckAttribute(&worldMap, path + ".trafficBattleRoot") && worldMap.(path).trafficBattleRoot == root) included = true;
+			if (included) hulls = hulls + WdmFleetSeaHullCount(member);
+		}
+		// Island/story ships and companions have already entered. Admit the
+		// complete battle bundle, or leave every member on the saved map.
+		bool admitted = iNumShips + sti(login.trafficHullReservations) + hulls <= MAX_SHIPS_ON_SEA;
+		for (i = 0; i < GetAttributesNum(groups); i++)
+		{
+			aref row = GetAttributeN(groups, i);
+			ref actor = GetMapEncounterRef(sti(row.type));
+			if (!WdmFleetSeaTagged(actor)) continue;
+			string state = "encounters." + actor.trafficFleetID;
+			bool same = actor.trafficFleetID == fleet.trafficFleetID;
+			if (root != "" && CheckAttribute(&worldMap, state + ".trafficBattleRoot") && worldMap.(state).trafficBattleRoot == root) same = true;
+			if (!same) continue;
+			actor.trafficSeaAdmission = admitted;
+			if (!admitted)
+			{
+				worldMap.(state).trafficSeaDeferred = 1;
+				DeleteAttribute(&worldMap, state + ".trafficInSea");
+			}
+			else DeleteAttribute(&worldMap, state + ".trafficSeaDeferred");
+		}
+		if (admitted) login.trafficHullReservations = sti(login.trafficHullReservations) + hulls;
+	}
+	if (!sti(fleet.trafficSeaAdmission)) return false;
+	login.trafficHullReservations = sti(login.trafficHullReservations) - WdmFleetSeaHullCount(fleet);
+	return true;
+}
+
 int WdmFleetSeaGenerate(string groupID, ref fleet)
 {
 	string path = "encounters." + fleet.trafficFleetID + ".encdata.trafficRoster";
@@ -205,11 +279,10 @@ void WdmFleetSeaRestoreShip(ref captain)
 	if (!CheckAttribute(&worldMap, path)) return;
 	aref entry, source, destination;
 	makearef(entry, worldMap.(path));
+	WdmTrafficSyncCargo(entry);
 	int realIndex = GetCharacterShipType(captain);
 	if (realIndex < 0 || realIndex >= REAL_SHIPS_QUANTITY) return;
 	ref realShip = &RealShips[realIndex];
-	float ammoScale = 1.0;
-	if (CheckAttribute(entry, "ammo")) ammoScale = Clampf(stf(entry.ammo));
 	// Fantom_SetUpgrade also runs inside Ship_Add2Sea. Undo that reroll for a
 	// survivor before CharacterUpdateShipFromBaseShip/native entity creation.
 	if (CheckAttribute(entry, "RealShip"))
@@ -222,14 +295,6 @@ void WdmFleetSeaRestoreShip(ref captain)
 	}
 	if (CheckAttribute(entry, "Ship"))
 	{
-		// Native map battles reduce readiness without owning the saved cargo.
-		// Compare with the last cargo snapshot to consume only subsequent losses.
-		if (CheckAttribute(entry, "savedAmmo"))
-		{
-			ammoScale = 1.0;
-			if (stf(entry.savedAmmo) > 0.0 && CheckAttribute(entry, "ammo"))
-				ammoScale = Clampf(stf(entry.ammo) / stf(entry.savedAmmo));
-		}
 		makearef(source, entry.Ship);
 		DeleteAttribute(captain, "Ship");
 		makearef(destination, captain.Ship);
@@ -248,19 +313,13 @@ void WdmFleetSeaRestoreShip(ref captain)
 		captain.Ship.SP = 100.0 * sails;
 		captain.Ship.Crew.Quantity = makeint(stf(realShip.MaxCrew) * crew);
 		if (CheckAttribute(entry, "trafficCrewQuantity")) captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
-		if (CheckAttribute(entry, "trafficSupplies"))
-		{
-			// Initial serviced fleets carry the same paid supplies at sea. Clear
-			// generator cargo even when the saved manifest is empty.
-			makearef(source, entry.trafficSupplies);
-			DeleteAttribute(captain, "Ship.Cargo.Goods");
-			makearef(destination, captain.Ship.Cargo.Goods);
-			CopyAttributes(destination, source);
-			ammoScale = 1.0;
-			if (CheckAttribute(entry, "savedAmmo") && stf(entry.savedAmmo) > 0.0)
-				ammoScale = Clampf(stf(entry.ammo) / stf(entry.savedAmmo));
-		}
 	}
+	// Both fresh and saved ships consume the same off-screen manifest. Empty
+	// holds also overwrite generator goods; syncing consumed native ammo once.
+	makearef(source, entry.trafficSupplies);
+	DeleteAttribute(captain, "Ship.Cargo.Goods");
+	makearef(destination, captain.Ship.Cargo.Goods);
+	CopyAttributes(destination, source);
 	// Off-screen combat can wear a previously saved survivor. Apply the outer
 	// condition after either restore path; exit resets that aggregate to one.
 	float condition = 1.0;
@@ -270,15 +329,6 @@ void WdmFleetSeaRestoreShip(ref captain)
 	captain.Ship.HP = stf(captain.Ship.HP) * condition;
 	captain.Ship.SP = stf(captain.Ship.SP) * condition;
 	if (condition < 0.95) captain.Ship.Crew.Quantity = makeint(stf(captain.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
-	if (ammoScale < 1.0)
-	{
-		SetCharacterGoods(captain, GOOD_BALLS, makeint(GetCargoGoods(captain, GOOD_BALLS) * ammoScale));
-		SetCharacterGoods(captain, GOOD_BOMBS, makeint(GetCargoGoods(captain, GOOD_BOMBS) * ammoScale));
-		SetCharacterGoods(captain, GOOD_KNIPPELS, makeint(GetCargoGoods(captain, GOOD_KNIPPELS) * ammoScale));
-		SetCharacterGoods(captain, GOOD_GRAPES, makeint(GetCargoGoods(captain, GOOD_GRAPES) * ammoScale));
-		SetCharacterGoods(captain, GOOD_POWDER, makeint(GetCargoGoods(captain, GOOD_POWDER) * ammoScale));
-
-	}
 	entry.seaLoaded = 1;
 	RecalculateCargoLoad(captain);
 }
@@ -298,6 +348,9 @@ void WdmFleetSeaMarkGone(ref captain)
 	string path = "encounters." + captain.trafficFleetID + ".encdata.trafficRoster.ship" + captain.trafficRosterSlot;
 	if (!CheckAttribute(&worldMap, path)) return;
 	worldMap.(path).dead = 1;
+	aref entry;
+	makearef(entry, worldMap.(path));
+	WdmTrafficLoseCargo(entry);
 	captain.trafficTaken = 1;
 }
 
@@ -312,13 +365,15 @@ void WdmFleetSeaSave()
 		if (!CheckAttribute(descriptor, "trafficInSea") || !sti(descriptor.trafficInSea)) continue;
 		if (CheckAttribute(descriptor, "quest") || !CheckAttribute(descriptor, "encdata.trafficRoster.count")) continue;
 		makearef(roster, descriptor.encdata.trafficRoster);
+		bool admitted = false;
 		// Only entries actually admitted to this scene can become missing/dead.
 		for (int ordinal = 0; ordinal < sti(roster.count); ordinal++)
 		{
 			string key = "ship" + ordinal;
 			makearef(entry, roster.(key));
-			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) entry.dead = 1;
+			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) { entry.dead = 1; admitted = true; }
 		}
+		if (!admitted) { DeleteAttribute(descriptor, "trafficInSea"); continue; }
 		for (int i = 0; i < iNumShips; i++)
 		{
 			int index = Ships[i];
@@ -362,6 +417,11 @@ void WdmFleetSeaSave()
 			DeleteAttribute(entry, "Ship.Sounds");
 			DeleteAttribute(entry, "Ship.SeaAI");
 			DeleteAttribute(entry, "Ship.LastBallCharacter");
+			makearef(source, captain.Ship.Cargo.Goods);
+			DeleteAttribute(entry, "trafficSupplies");
+			makearef(destination, entry.trafficSupplies);
+			CopyAttributes(destination, source);
+			WdmTrafficClampFreight(entry);
 			DeleteAttribute(entry, "RealShip");
 			makearef(source, RealShips[realIndex]);
 			makearef(destination, entry.RealShip);
@@ -388,6 +448,7 @@ void WdmFleetSeaSave()
 			makearef(entry, roster.(survivorKey));
 			DeleteAttribute(entry, "seaLoaded");
 			if (!CheckAttribute(entry, "dead") || !sti(entry.dead)) survivors++;
+			else WdmTrafficLoseCargo(entry);
 		}
 		// Exact state now includes wear. Native must not multiply it again.
 		descriptor.trafficCondition = 1.0;
@@ -396,6 +457,10 @@ void WdmFleetSeaSave()
 		CopyAttributes(&fleet, source);
 		descriptor.trafficPower = WdmTrafficRosterPower(&fleet);
 		if (survivors == 0) descriptor.needDelete = "Sea fleet has no survivors";
+		aref clock;
+		makearef(clock, descriptor.trafficSupplyClock);
+		WdmTrafficStamp(clock);
+		DeleteAttribute(clock, "remainder");
 		DeleteAttribute(descriptor, "trafficInSea");
 	}
 }
