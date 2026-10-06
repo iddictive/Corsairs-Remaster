@@ -260,14 +260,52 @@ with a real controlled base is a distinct state, not a loot raid pretending to
 have an escape route. Do not award the hero every surrendered person automatically:
 prisoner handling requires the actual accepting force and available capacity.
 
-**Relations and representation.** Set attacker/defender/player combat relations
-before spawning. Being the enemy of a defender does not ally the hero to the
-attacker. If both sides are hostile, do not offer an ordinary peaceful landing;
-naval attack remains possible, and a land entry requires an eligible explicit
-agreement or a supported deliberate hostile entry. No generic spawn-in-the-middle
-three-way battle is promised. Preserve existing nation law/crimes separately from
-local agreement; betrayal removes the agreement/reward and changes its local group
-relations once. A battle's end clears justified local hostility, not prior crimes.
+**Local cooperation and target priority.** National relations, personal crimes,
+current siege agreement and immediate combat threat are separate facts. Set local
+combat relations before spawning without altering national relations. An allied
+contingent permits an admitted join-side land entry. If neither side is allied,
+allow an explicit offer of help to an eligible commander before scene entry:
+“Помочь защитникам — временное перемирие до окончания штурма.” Acceptance establishes
+local cooperation only; entry must show whether it was accepted. This is a required
+land participation path for an admitted two-sided town scene, not an optional
+reward message after already spawning everyone hostile.
+
+Emergency defenders normally accept useful help against an active assault even
+from a hostile nation, provided the hero is not personally responsible for this
+siege, has not attacked their people during it and is not subject to an admitted
+exceptional personal enemy/quest lock. Attackers can accept useful help under their
+mission constraints, with the same explicit non-aggression commitment. Neither
+agreement is inferred solely because the hero shoots someone's enemy. A refusal
+leaves existing hostility intact and explains the concrete reason before landing;
+it does not erase all land participation elsewhere. Eligible refusal/exception
+conditions must be sourced, not invented to block the normal help path.
+
+Without an agreement, hostile soldiers prioritize an immediate attacker, their
+assigned capture opponent and nearby threats to their position. A distant passive
+hero is not more important merely because he is the player. This is not immunity:
+a nearby hostile hero can be attacked, blocking a position or aiming/attacking its
+people escalates threat, and idle guards can engage according to ordinary law.
+If both sides are enemies, they continue fighting one another; they do not form a
+coalition or share omniscient hero coordinates. Deliberate unaligned land entry
+warns that both groups may attack. Do not imply “they are busy” guarantees safety.
+
+An agreed assisting hero and ordinary officers use their side's relations. A stray
+hit gets the bounded warning rule; repeated deliberate hits, civilian robbery or
+betrayal revoke the agreement once. Preserve finite contingent identities and
+contribution through transitions/save/load; changing flags or re-entering cannot
+reset misconduct or earn both sides' rewards. No generic three-way crowd beyond
+the scene's proven actor/locator budget is promised.
+
+**After the battle.** Material uncontracted help can earn acknowledgement and a
+bounded discretionary reward from the side actually helped, even with hostile
+national relations. It cannot guarantee a reward without an agreement, reset all
+national reputation or excuse crimes. Contracted help settles the stated payment
+once. A temporary ceasefire ends through a readable settlement/withdrawal transition:
+permit the hero to return along the admitted exit before restoring ordinary local
+hostility, rather than thanking and instantly attacking in the same scene. The
+withdrawal grace cannot be extended by save/load, spent indefinitely in town or
+used to loot civilians; new aggression ends it. Quest/personal-hostility exceptions
+must be disclosed before accepting help, not used to surprise-kill the contributor.
 
 Use bounded representative fighters fitted to the authored capture stages. Retain
 actual troop pools, their representative weights, stage and casualties in the siege
@@ -339,8 +377,15 @@ caravans or add an unrelated permanent scarcity multiplier.
 **Recovery stages.** Ordinary towns keep the current recovery speed. A blockade
 reduces positive refill for affected imports/ammunition, never stops all goods.
 A sack debits actual stock and applies a finite disruption period; a proposed
-initial tuning is seven game days, recovering linearly from 25% to ordinary speed.
-This is a tunable starting value, not proven balance. Ending the blockade removes
+initial tuning is 14–45 game days based on the actual goods lost and damage:
+limited plunder 14 days, substantial sack 30, severe sack 45. These durations are
+proposed map-scale starting values, not measured or proven balance. Recovery starts
+at 25% of ordinary positive refill and rises continuously toward ordinary speed
+through that period; imports, exports and marker goods retain authored identities.
+A supply caravan immediately restores its actual goods, but does not instantly
+repair damage or cancel the whole period. An active blockade keeps its separate
+bounded access penalty; ending it cannot erase remaining sack disruption.
+This is a tunable starting model. Ending the blockade removes
 its continuing slowdown; sack recovery runs out by elapsed game date. Positive
 refill is scaled once at the existing daily update, not at every location visit.
 Negative correction of surplus retains its ordinary behaviour. Preserve residual
