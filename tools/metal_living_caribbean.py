@@ -1448,7 +1448,29 @@ def prepare_itemsbox(data: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 # Registry of handlers
 # ---------------------------------------------------------------------------
+# Physical fort cannon state is shared by player combat and traffic missions.
+AI_FORT_PATH = "PROGRAM/sea_ai/AIFort.c"
+AI_FORT_BASE = "cb2cf09c5d3db4dc3f2de6723e0db222f3d85d744b72d0a101a4d9e70f388b1f"
+
+
+def prepare_aifort(data: bytes) -> bytes:
+    replacements = (
+        ("\t\t\t   SetSeaFantomParam(rCharacter, \"war\"); // генератор!!", "\t\t\t   int savedFortCrew = -1;\n\t\t\t   if (CheckAttribute(rCharacter, \"Fort.Cannons.Hit\") && sti(rCharacter.Fort.Cannons.Hit)) savedFortCrew = GetCrewQuantity(rCharacter);\n\t\t\t   SetSeaFantomParam(rCharacter, \"war\"); // генератор!!\n\t\t\t   if (savedFortCrew >= 0) SetCrewQuantity(rCharacter, savedFortCrew);"),
+        ("\t\t\t\tSetFortCharacterCaptured(rCharacter, false);", "\t\t\t\tDeleteAttribute(rCharacter, \"Fort.Cannons.Damage\");\n\t\t\t\trCharacter.Fort.Cannons.Destroyed = 0;\n\t\t\t\tSetFortCharacterCaptured(rCharacter, false);"),
+        ("\trCharacter.Ship.HP = iCannonsNum * 100;\n\trCharacter.Fort.HP = rCharacter.Ship.HP;", "\trCharacter.Fort.HP = iCannonsNum * 100;\n\trCharacter.Ship.HP = Fort_GetCannonsQuantity(rCharacter) * 100;"),
+        ("\tint ResultCannons = sti(iMaxCannonsQuantity) - (iNumDamagedCannonsQuantity);\n\treturn ResultCannons;", "\tint destroyed = 0;\n\tif (CheckAttribute(rFortCharacter, \"Fort.Cannons.Destroyed\")) destroyed = sti(rFortCharacter.Fort.Cannons.Destroyed);\n\tif (destroyed < 0) destroyed = 0;\n\tif (destroyed > iMaxCannonsQuantity) destroyed = iMaxCannonsQuantity;\n\treturn iMaxCannonsQuantity - destroyed;"),
+        ("\tif (iNumDamagedCannons >= makeint(iNumAllCannons / (1.05 + 0.19*(10 - MOD_SKILL_ENEMY_RATE)) + 0.1)) // усложним с 2 до 1.5", "\trFortCharacter.Fort.Cannons.Destroyed = iNumDamagedCannons;\n\trFortCharacter.Ship.HP = (iNumAllCannons - iNumDamagedCannons) * 100;\n\tif (Fort_CanLandAssault(rFortCharacter))"),
+    )
+    for old, new in replacements:
+        old, new = enc(old), enc(new)
+        if data.count(old) != 1:
+            raise RuntimeError("AIFort physical cannon anchor mismatch")
+        data = data.replace(old, new)
+    return data + enc("\nbool Fort_CanLandAssault(ref fort)\n{\n\tif (!CheckAttribute(fort, \"Fort.Cannons.Quantity\")) return false;\n\tint installed = sti(fort.Fort.Cannons.Quantity);\n\treturn installed > 0 && (installed - Fort_GetCannonsQuantity(fort)) * 2 > installed;\n}\n")
+
+
 PREPARERS = {
+    AI_FORT_PATH: (AI_FORT_BASE, prepare_aifort),
     INTERFACE_PATH: (INTERFACE_BASE, prepare_interface),
     ITEMSBOX_PATH: (ITEMSBOX_BASE, prepare_itemsbox),
     GU_PATH: (GU_BASE, prepare_generator_utilite),
@@ -1478,6 +1500,7 @@ PREPARERS = {
 
 # Calculated post-patch hashes
 UPDATED = {
+    "PROGRAM/sea_ai/AIFort.c": "9b4aee83c670757b0ff8ca3565027d1d44c9edfb22e4c5e47f0441ba5658d147",
     "PROGRAM/worldmap/worldmap.c": "48bfe0c13a38e2e176a8087dfd45c919345581b04d9c0bbc252f63c02fe9d267",
     "PROGRAM/sea_ai/sea.c": "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
     "PROGRAM/Loc_ai/LAi_boarding.c": "5ab91b29f9b47e5cce2892d93cf11ffd979ad26b35e70960de273c75a9528930",

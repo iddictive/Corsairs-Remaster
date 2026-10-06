@@ -497,6 +497,31 @@ An absent compatible scene is not equivalent to an absent fort. The land-fort sc
 be discovered and connected before claiming implementation; this contract is not
 proof that every town already has that scene.
 
+October 5 source prerequisite, not installed: the same native `AI_FORT` now
+persists every physical cannon's damage under its commander
+`Fort.Cannons.Damage.gunN`, alongside the unchanged native sea-save stream.
+Scene creation restores those values after scanning the authored cannon locators;
+hit, save and load paths refresh the per-fort destroyed count. The script count
+and spyglass read that fort's state, rather than the former global damage counter.
+`Fort_CanLandAssault` requires a positive actual installed count and strictly more
+than half destroyed. The existing cannon-hit transition uses that gate, retaining
+ordinary fort boarding rather than treating the threshold as a won land battle.
+Partial fort crew losses survive scene re-entry when its guns have actually been
+hit; an intact fort retains the existing initialization path. Existing admitted
+6/8-day fort resurrection clears cannon damage with the restored defence.
+
+The ordered traffic patch applies on eleven native paths and the changed fort
+translation unit passes canonical syntax. Disposable probes execute the actual
+persistence helper with fractional/destroyed guns, repeated restoration, independent
+forts and damage bounds. The exact whole PROGRAM compiles in the native VM;
+50/100 rejects, 51/100 admits, another undamaged fort remains at 100, and native
+script-state save/load preserves the separate counts and fractional damage.
+The land-fort scene exists in `locations/init/Boarding.c` and the existing
+`BRDLT_FORT` route; connecting two autonomous sides to it and the following
+`NullCharacter.GenQuestFort` city chain remains the military implementation task.
+Canonical build/stage, old player-save migration and real cannon/boarding replay
+are unresolved. These checks do not accept an expedition or playable land defence.
+
 **Two resolution modes.** Without a player in a land fight, use a simplified
 strength-and-loss calculation with saved stage timers, not unloaded NPC simulation.
 The agreed autonomous siege duration is 10–12 game hours from its active attack,

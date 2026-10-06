@@ -823,3 +823,65 @@ diff --git a/src/libs/shared_headers/include/shared/messages.h b/src/libs/shared
  // Setting a flag on the map
  #define MSG_WORLDMAP_SET_NATION_FLAG 31150 // "ll" nation
  // Print line with coordinates
+
+--- a/src/libs/sea_ai/src/ai_fort.cpp
++++ b/src/libs/sea_ai/src/ai_fort.cpp
+@@ -1,5 +1,26 @@
+ #include "ai_fort.h"
+ #include "shared/messages.h"
++
++// Character attributes outlive a sea scene. Keep each physical cannon's
++// damage here as well as in the existing native sea-save stream.
++static void PersistFortCannons(AIFort::AI_FORT &fort, bool restore)
++{
++    auto *character = fort.GetACharacter();
++    auto *state = character->CreateSubAClass(character, "Fort.Cannons");
++    auto *damage = state->CreateSubAClass(state, "Damage");
++    bool hit = false;
++    for (uint32_t i = 0; i < fort.GetAllCannonsNum(); ++i)
++    {
++        const auto key = std::string("gun") + std::to_string(i);
++        auto *cannon = fort.GetCannon(i);
++        if (restore && damage->GetAttribute(key.c_str()))
++            cannon->SetDamage(std::clamp(damage->GetAttributeAsFloat(key.c_str()), 0.0f, 1.0f));
++        damage->SetAttributeUseFloat(key.c_str(), cannon->GetDamage());
++        hit = hit || cannon->GetDamage() > 0.0f;
++    }
++    state->SetAttributeUseDword("Hit", hit);
++    state->SetAttributeUseDword("Destroyed", fort.GetDamagedCannonsNum());
++}
+
+ AIFort *AIFort::pAIFort = nullptr;
+
+@@ -211,6 +232,7 @@
+     pFort->mOldMatrix = pFort->GetModel()->mtx;
+
+     ScanFortForCannons(pFort, pModelsDir, pLocatorsName);
++    PersistFortCannons(*pFort, true);
+
+     auto *pALights = pFortCharacter->FindAClass(GetACharacter(), "ship.lights");
+     auto *pAFlares = pFortCharacter->FindAClass(GetACharacter(), "ship.flares");
+@@ -259,6 +281,7 @@
+             Assert(pVData);
+
+             pC->SetDamage(pVData->GetFloat());
++            PersistFortCannons(*pF, false);
+         }
+     }
+ }
+@@ -504,6 +527,7 @@
+
+ void AIFort::AI_FORT::Save(CSaveLoad *pSL)
+ {
++    PersistFortCannons(*this, false);
+     pSL->SaveVector(vPos);
+
+     uint32_t i;
+@@ -549,6 +573,7 @@
+             core.Event(FORT_LOADDMGCANNON, "fff", vPos.x, vPos.y, vPos.z);
+         }
+     }
++    PersistFortCannons(*this, false);
+ }
+
+ void AIFort::Fire(const CVECTOR &vPos)
