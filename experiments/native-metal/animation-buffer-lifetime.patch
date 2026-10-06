@@ -1,0 +1,147 @@
+--- a/src/libs/geometry/src/geometry.cpp
++++ b/src/libs/geometry/src/geometry.cpp
+@@ -2,6 +2,8 @@
+ 
+ #include "geometry_r.h"
+ #include "string_compare.hpp"
++#include <limits>
++#include <vector>
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" bool StormMetalOutdoorSunShadowsReady(void*);
+ extern "C" bool StormMetalBakedStaticEnvironment(void*);
+@@ -17,8 +19,14 @@
+ char texturePath[256];
+ 
+ const int32_t SHIFT_VALUE = 999999999;
+-#define AVB_MAX 1024
+-VGEOMETRY::ANIMATION_VB avb[AVB_MAX]; //!!! temporary
++std::vector<VGEOMETRY::ANIMATION_VB> avb;
++
++static VGEOMETRY::ANIMATION_VB *AnimationBuffer(int32_t id)
++{
++    if (id < SHIFT_VALUE || static_cast<size_t>(id - SHIFT_VALUE) >= avb.size())
++        return nullptr;
++    return &avb[id - SHIFT_VALUE];
++}
+ 
+ GEOMETRY::GEOMETRY()
+ {
+@@ -45,7 +53,8 @@
+ 
+ GEOMETRY::ANIMATION_VB GEOMETRY::GetAnimationVBDesc(int32_t vb)
+ {
+-    return avb[vb - SHIFT_VALUE];
++    const auto *buffer = AnimationBuffer(vb);
++    return buffer ? *buffer : ANIMATION_VB{};
+ }
+ 
+ VERTEX_TRANSFORM transform_func = nullptr;
+@@ -341,15 +350,21 @@
+     // animated vertices
+     if (type & 4)
+     {
+-        int32_t a;
+-        for (a = 0; a < AVB_MAX; a++)
+-            if (avb[a].nvertices == 0)
++        size_t a;
++        for (a = 0; a < avb.size(); a++)
++            if (avb[a].buff == nullptr)
+                 break;
++        if (a == avb.size())
++        {
++            if (a > static_cast<size_t>(std::numeric_limits<int32_t>::max() - SHIFT_VALUE))
++                return INVALID_BUFFER_ID;
++            avb.emplace_back();
++        }
+         avb[a].buff = new char[size];
+         avb[a].stride = sizeof(GEOS::VERTEX0);
+         avb[a].nvertices = size / sizeof(GEOS::AVERTEX0);
+         avb[a].fvf = FVF;
+-        return a + SHIFT_VALUE;
++        return static_cast<int32_t>(a) + SHIFT_VALUE;
+     }
+ 
+     vrtSize += size;
+@@ -363,7 +378,10 @@
+     if (RenderService == nullptr)
+         return nullptr;
+     if (vb >= SHIFT_VALUE)
+-        return avb[vb - SHIFT_VALUE].buff;
++    {
++        const auto *buffer = AnimationBuffer(vb);
++        return buffer ? buffer->buff : nullptr;
++    }
+     return RenderService->LockVertexBuffer(vb);
+ }
+ 
+@@ -382,8 +400,11 @@
+     if (RenderService)
+         if (vb >= SHIFT_VALUE)
+         {
+-            delete static_cast<char*>(avb[vb - SHIFT_VALUE].buff);
+-            avb[vb - SHIFT_VALUE].nvertices = 0;
++            if (auto *buffer = AnimationBuffer(vb))
++            {
++                delete[] static_cast<char *>(buffer->buff);
++                *buffer = {};
++            }
+         }
+         else
+             RenderService->ReleaseVertexBuffer(vb);
+@@ -469,22 +490,25 @@
+     }
+ 
+     // draw animation
+-    if (transform_func != nullptr)
+-    {
+-        auto *cavb = &avb[CurentVertexBuffer - SHIFT_VALUE];
++    if (CurentVertexBuffer >= SHIFT_VALUE)
++    {
++        const auto *buffer = AnimationBuffer(CurentVertexBuffer);
++        if (!buffer || !buffer->buff || !transform_func)
++            return;
++        const auto cavb = *buffer;
+ 
+         auto *transformed_vb =
+-            static_cast<IDirect3DVertexBuffer9 *>(transform_func(cavb->buff, minv, numv, cavb->nvertices));
++            static_cast<IDirect3DVertexBuffer9 *>(transform_func(cavb.buff, minv, numv, cavb.nvertices));
+         if (!bCaustic)
+         {
+-            RenderService->SetStreamSource(0, transformed_vb, cavb->stride);
+-            RenderService->SetFVF(cavb->fvf);
+-
+-            RenderService->DrawBuffer(-1, cavb->stride, CurentIndexBuffer, minv, numv, startidx, numtrg, technique);
++            RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
++            RenderService->SetFVF(cavb.fvf);
++
++            RenderService->DrawBuffer(-1, cavb.stride, CurentIndexBuffer, minv, numv, startidx, numtrg, technique);
+         }
+         else
+         {
+-            RenderService->SetStreamSource(0, transformed_vb, cavb->stride);
++            RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
+             RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, 0, CurentIndexBuffer,
+                                                          minv, numv, startidx, numtrg, "caustic");
+         }
+--- a/src/libs/sailors/src/sailors.cpp
++++ b/src/libs/sailors/src/sailors.cpp
+@@ -50,6 +50,7 @@
+ {
+     if (this == &other)
+         return *this;
++    core.EraseEntity(modelID);
+     modelID = other.modelID;
+     pos = std::move(other.pos);
+     ang = std::move(other.ang);
+--- a/src/libs/model/src/node.cpp
++++ b/src/libs/model/src/node.cpp
+@@ -277,7 +277,8 @@
+ #endif
+ 
+     delete geo;
+-    std::destroy(next.begin(), next.end());
++    for (auto *child : next)
++        delete child;
+ }
+ 
+ void NODER::ReleaseGeometry()
