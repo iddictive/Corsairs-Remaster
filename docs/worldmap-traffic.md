@@ -449,6 +449,24 @@ imports only actual remaining ships. This supersedes the earlier protected-playe
 fleet proposal. The background owner and normal save/sea import must support these
 outcomes before delivering this choice; no silent removal of the entire squadron.
 
+**Flagship loss while the hero is ashore.** Losing the flagship does not kill an
+ashore hero or delete surviving companion ships. Each hull keeps its actual
+location, control, damage, crew and cargo. Once the hero can physically reach a
+surviving player-controlled ship, select it as the new flagship through the normal
+ship assignment owner; its former companion captain returns to the officer pool
+without duplication or loss. Until harbour access is restored, the interface cannot
+teleport the hero aboard or mark a captured ship as available. Preserve the existing
+ordinary defeat when the hero is aboard the sinking flagship; no automatic jump
+between companion ships during combat.
+
+Cargo and cabin-chest contents of a sunk flagship are lost. Other ships keep their
+own contents; capture preserves goods only on the actual captured hull until real
+recovery. Officer disposition follows actual location, not the flagship pointer.
+The ashore survivor path must support saving, loading and a working sea return
+without a flagship; a surviving accessible companion must prevent a no-ship softlock.
+If all hulls are lost, use an admitted shipless recovery path rather than inventing
+a replacement ship or an unusable sea command. This remains an implementation gate.
+
 If the hero visits a hostile town without actually being berthed, there is no
 fictitious sailor warning from ships in its dock. The current assault can appear
 when exiting an interior into the admitted exterior: hostile land groups follow
@@ -466,17 +484,20 @@ actual valid embarkation transition. Crew on shore cannot fire ship guns or join
 a naval boarding defence; capturing a ship transfers only its aboard people/cargo.
 Shore losses and naval losses debit different portions of the same survivor pool.
 
-**No stranded-raider loophole.** For an assaulting raid which has not secured the
-town, loss/capture of every usable evacuation ship and route makes the surviving
-shore force surrender deterministically at the next valid combat transition.
+**No stranded-raider loophole.** Throughout the expedition, including after town
+victory and during loot loading, loss/capture of every usable evacuation ship and
+route makes the surviving shore force surrender deterministically at the next valid
+combat transition. Capturing the town does not grant an occupation-base exception,
+replacement fleet or an exemption from evacuation. The expedition cannot continue
+holding the town after its shore force has surrendered; reconcile local control
+with the actual accepting force. Prior deaths, damage and goods already lost remain
+recorded rather than rolling the operation back.
 There is no random refusal, invisible rescue fleet, endless street combat or
 teleportation aboard. Emit one surrender result and stop its fighting groups;
 pause and scene synchronization still apply. A remaining ship counts only if it
 can actually reach embarkation and transport people; an inaccessible hulk does
 not prevent surrender. Insufficient capacity permits evacuation of a finite
-number, with the rest surrendering. A successfully established military occupation
-with a real controlled base is a distinct state, not a loot raid pretending to
-have an escape route. Do not award the hero every surrendered person automatically:
+number, with the rest surrendering. Do not award the hero every surrendered person automatically:
 prisoner handling requires the actual accepting force and available capacity.
 
 **Governor entry respects landing access.** During the naval fight, direct
@@ -758,6 +779,10 @@ rejected automatic equipment-protection veto; keep player-owned sale rules.
   manpower contract, with player allegiance set before any active actors appear.
 - NPC shore troops without any real evacuation surrender; a partial evacuation
   accounts for capacity and leaves the remainder, not a free full-crew return.
+- An ashore hero loses the flagship while a companion survives: save/load preserves
+  the survivor, its captain and cargo; restored physical access permits flagship
+  reassignment and sea return. Enemy-held access rejects transfer. A hero aboard
+  the sinking flagship still receives ordinary defeat.
 - Player naval intervention and land participation share casualties, loot and
   phase; background combat never resolves a foreground stage a second time.
 - Each town admits defender entry, withdraw/return and protected quest actors before
