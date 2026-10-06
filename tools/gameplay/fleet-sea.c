@@ -247,6 +247,19 @@ void WdmFleetSeaRestoreShip(ref captain)
 		captain.Ship.HP = stf(realShip.HP) * hp;
 		captain.Ship.SP = 100.0 * sails;
 		captain.Ship.Crew.Quantity = makeint(stf(realShip.MaxCrew) * crew);
+		if (CheckAttribute(entry, "trafficCrewQuantity")) captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
+		if (CheckAttribute(entry, "trafficSupplies"))
+		{
+			// Initial serviced fleets carry the same paid supplies at sea. Clear
+			// generator cargo even when the saved manifest is empty.
+			makearef(source, entry.trafficSupplies);
+			DeleteAttribute(captain, "Ship.Cargo.Goods");
+			makearef(destination, captain.Ship.Cargo.Goods);
+			CopyAttributes(destination, source);
+			ammoScale = 1.0;
+			if (CheckAttribute(entry, "savedAmmo") && stf(entry.savedAmmo) > 0.0)
+				ammoScale = Clampf(stf(entry.ammo) / stf(entry.savedAmmo));
+		}
 	}
 	// Off-screen combat can wear a previously saved survivor. Apply the outer
 	// condition after either restore path; exit resets that aggregate to one.
@@ -325,6 +338,7 @@ void WdmFleetSeaSave()
 			entry.hp = stf(captain.Ship.HP) / stf(realShip.HP);
 			entry.sp = stf(captain.Ship.SP) * 0.01;
 			entry.crew = WdmTrafficCrewReadiness(stf(captain.Ship.Crew.Quantity), GetMinCrewQuantity(captain), GetMaxCrewQuantity(captain));
+			entry.trafficCrewQuantity = captain.Ship.Crew.Quantity;
 			int nominal = GetCannonQuantity(captain);
 			int intact = GetCannonsNum(captain);
 			entry.guns = 0.0;

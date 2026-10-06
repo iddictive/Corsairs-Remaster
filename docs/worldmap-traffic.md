@@ -61,6 +61,55 @@ introducing a parallel AI registry would duplicate those owners without closing
 a further requirement. Exact native/script probes and canonical staging precede
 installation; the player owns final scene/balance acceptance.
 
+## October 5 resident voyages and service — source verification
+
+`worldmap-traffic.patch` now admits a guarded lifecycle on the existing ordinary
+descriptor. `trafficLifecycle=service` stops movement and repeated arrival;
+`WdmTraffic_Arrived` hands the same ID to scripts. A saved `trafficNextLocator`
+must resolve through the existing native maritime locator owner before `Goto`
+commits the next leg, clears that request, increments `trafficVoyage` and emits
+`WdmTraffic_Departed`. Invalid locators leave the request blocked in place.
+`trafficServiceOnArrival` admits a patrol/raider's actual service return, while
+their ordinary search/patrol legs retain the existing reversal. Explicit loss
+still retires a fleet; the legacy lifetime cannot expire a resident descriptor.
+Quest descriptors retain their authored lifecycle. Old ordinary Follow ships
+migrate through the native reload constructor into the resident implementation,
+using the same descriptor, coordinates, nationality and roster. A missing old
+destination assigns a future refuge and sails there; it does not invent a former
+origin or teleport the ship. Expiring/deleted old descriptors are not resurrected.
+The script's off-map one-day expiry excludes admitted residents as well.
+
+`worldmap-traffic.c` owns the saved calendar stamps, arrival/departure handlers,
+service plan and next ordinary job. Each surviving hull reserves actual Store
+planks, sailcloth, matching replacement guns, ammunition and provisions before
+its work interval starts. Store Norm and trade classes remain unchanged; service
+leaves 15% of the authored stock target. Recruitment debits the existing colony
+hiring pool while retaining 25%, with a minimum five-person reserve. Small pools
+fill a hull through paid, elapsed partial service intervals. Only actual MinCrew
+permits departure; readiness still reflects the partial crew. Dead slots remain
+dead. Initial assembly uses this same contract, and the sea bridge imports the
+paid supplies and actual crew quantity instead of generated cargo/crew.
+
+Work takes at least 24 game hours, with hull/sail damage extending the interval.
+The saved plan prevents duplicate purchases, repairs and recruitment after load.
+One stock review per game day bounds catch-up; a long skip does not replay missed
+purchase attempts or spawn several departures. These numeric service/reserve
+values are initial tuning, not measured gameplay balance.
+
+This remains an uninstalled source candidate. Disposable VM checks execute
+stock/reserve and recruitment failures, timed repairs, partial hiring, real gun
+damage restoration, dead-slot and quest exclusions, coordinate-preserving old
+Follow migration, and descriptor save/load without repeated debits. The save/load
+probe uses the native serializer with scene hooks replaced only in its disposable
+fixture; it does not accept the player's actual upgrade path. A source-branch
+probe checks arrival identity, one event, pause, service hold and patrol reversal.
+The current ordered patch applies to a preserved source copy, and changed native
+translation units pass the canonical compiler's syntax checks. Read-only canonical
+script composition admits exactly three changed consumers and the verified prior
+installed hashes. Canonical build/staging, installed callbacks and real save replay
+remain unresolved. Cargo delivery/prizes and the later expansion milestones are
+still pending. The first native compile exposed a missing `core.h` include, now fixed.
+
 ## October 5 regional shipping routes
 
 Route selection now uses the existing authored island centres as a coarse distance

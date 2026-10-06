@@ -25,7 +25,7 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
      /*
      if(saveAttribute)
      {
-@@ -91,7 +101,7 @@
+@@ -91,10 +101,13 @@
          if (deleteAlpha >= 1.0f)
          {
              // Remote check
@@ -33,8 +33,15 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 +            if (!GetTrafficData() && d > wdmObjects->enemyshipDistKill)
                  deleteAlpha = 0.999999f;
              // Lifetime check
-             liveTime -= dltTime;
-@@ -424,3 +434,56 @@
+-            liveTime -= dltTime;
++            auto *traffic = GetTrafficData();
++            // Ordinary resident lifetimes end only on explicit loss/retirement.
++            if (!traffic || !traffic->GetAttribute("trafficLifecycle") || liveTime <= 0.0f)
++                liveTime -= dltTime;
+             if (liveTime < 0.0f)
+                 deleteAlpha = 0.999999f;
+             // External verification
+@@ -424,3 +437,56 @@
      }
      return "";
  }
@@ -156,10 +163,11 @@ diff --git a/src/libs/worldmap/src/wdm_follow_ship.cpp b/src/libs/worldmap/src/w
 diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
 --- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
-@@ -10,13 +10,16 @@
+@@ -10,13 +10,17 @@
  
  #include "wdm_merchant_ship.h"
  #include "wdm_islands.h"
++#include "core.h"
 +#include "world_map.h"
 +#include <cstring>
 +#include <algorithm>
@@ -175,7 +183,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
  {
      shipType = wdmest_merchant;
      gotoPos = 0.0f;
-@@ -35,7 +38,10 @@
+@@ -35,7 +39,10 @@
          return false;
      // Position
      float x, z;
@@ -187,7 +195,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
      Teleport(x, z, 0.0f);
      isEnableSetDir = true;
      return true;
-@@ -80,17 +86,18 @@
+@@ -80,17 +87,18 @@
  void WdmMerchantShip::FindMoveForce()
  {
      isEnableSetDir = false;
@@ -209,7 +217,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
          auto dl = dir.x * dir.x + dir.z * dir.z;
          if (dl > 1.0f)
          {
-@@ -106,10 +113,23 @@
+@@ -106,10 +114,37 @@
  // Completion check
  bool WdmMerchantShip::KillTest()
  {
@@ -220,6 +228,20 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 -    return dl <= gotoRad * gotoRad;
 +    if (dl > gotoRad * gotoRad) return false;
 +    auto *data = GetTrafficData();
++    if (data && data->GetAttribute("trafficLifecycle") && wdmObjects->isPause) return false;
++    if (data && data->GetAttribute("trafficLifecycle") &&
++        (std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0 ||
++         data->GetAttributeAsDword("trafficRole") == 1 || data->GetAttributeAsDword("trafficServiceOnArrival")))
++    {
++        if (std::strcmp(data->GetAttribute("trafficLifecycle"), "service") != 0)
++        {
++            data->SetAttribute("trafficLifecycle", "service");
++            data->SetAttribute("trafficIntent", "service");
++            data->SetAttributeUseDword("trafficTargetPlayer", 0);
++            core.Event("WdmTraffic_Arrived", "s", GetAttributeName());
++        }
++        return false;
++    }
 +    if (data && data->GetAttributeAsDword("trafficRole") != 1)
 +    {
 +        // Patrols/raiders reverse their route instead of vanishing at its end.
@@ -234,7 +256,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
  }
  
  // Updating stored data
-@@ -136,3 +156,332 @@
+@@ -136,3 +171,354 @@
      }
      WdmEnemyShip::SetSaveAttribute(save);
  }
@@ -256,6 +278,22 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +{
 +    auto *data = GetTrafficData();
 +    if (!data) { WdmEnemyShip::Update(dltTime); return; }
++    if (dltTime > 0.0f && !wdmObjects->isPause && !data->GetAttribute("trafficBattle") &&
++        !data->GetAttributeAsDword("trafficInSea") && data->GetAttribute("trafficNextLocator"))
++    {
++        const std::string locator = data->GetAttribute("trafficNextLocator");
++        CVECTOR destination;
++        if (wdmObjects->islands && wdmObjects->islands->GetQuestLocator(locator.c_str(), destination))
++        {
++            Goto(destination.x, destination.z, 2.0f);
++            data->DeleteAttributeClassX(data->FindAClass(data, "trafficNextLocator"));
++            data->DeleteAttributeClassX(data->FindAClass(data, "trafficRouteBlocked"));
++            data->SetAttribute("trafficLifecycle", "voyage");
++            data->SetAttributeUseDword("trafficVoyage", data->GetAttributeAsDword("trafficVoyage") + 1);
++            core.Event("WdmTraffic_Departed", "s", GetAttributeName());
++        }
++        else data->SetAttribute("trafficRouteBlocked", "locator");
++    }
 +    if (!data->GetAttribute("trafficReturnX"))
 +    {
 +        data->SetAttributeUseFloat("trafficReturnX", mtx.Pos().x);
@@ -385,7 +423,10 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +
 +void WdmMerchantShip::Move(float dltTime)
 +{
-+    if (GetTrafficData() && attack) { speed = 0.0f; turnspd = 0.0f; return; }
++    auto *data = GetTrafficData();
++    if (data && (attack || (data->GetAttribute("trafficLifecycle") &&
++        std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0)))
++    { speed = 0.0f; turnspd = 0.0f; return; }
 +    WdmEnemyShip::Move(dltTime);
 +}
 +
@@ -394,6 +435,9 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    trafficSteering = false;
 +    auto *data = GetTrafficData();
 +    if (!data || attack || data->GetAttributeAsFloat("trafficCooldown") > 0.0f) return;
++    if ((data->GetAttribute("trafficLifecycle") &&
++         std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0) ||
++        data->GetAttributeAsDword("trafficReturning")) return;
 +    const bool wasPlayerTarget = data->GetAttributeAsDword("trafficTargetPlayer") != 0;
 +    data->SetAttribute("trafficIntent", "route");
 +    const auto role = data->GetAttributeAsDword("trafficRole");
@@ -732,6 +776,22 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
      if (ship->killMe)
      {
          delete ship;
+@@ -1056,6 +1086,15 @@
+ // Create a ship that follows us
+ bool WorldMap::CreateFollowShip(const char *modelName, float kSpeed, float time, ATTRIBUTES *save)
+ {
++    // Old ordinary pursuers migrate on map reload, retaining their descriptor
++    // and position. Quest constructors keep the authored Follow implementation.
++    if (save && save->GetAttribute("trafficLifecycle") && !save->GetAttribute("quest") &&
++        !save->FindAClass(save, "encdata.qID"))
++    {
++        const bool created = CreateMerchantShip(modelName, nullptr, nullptr, kSpeed, time, save);
++        if (created) save->SetAttribute("type", "Merchant");
++        return created;
++    }
+     if (kSpeed < 0.1f)
+         kSpeed = 0.1f;
+     WdmShip *ship = new WdmFollowShip();
 diff --git a/src/libs/worldmap/src/world_map.h b/src/libs/worldmap/src/world_map.h
 --- a/src/libs/worldmap/src/world_map.h
 +++ b/src/libs/worldmap/src/world_map.h

@@ -124,7 +124,7 @@ def compiler_ready():
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
 FLEET_FINAL_SHA = {
     "PROGRAM/worldmap/worldmap_reload.c": "e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc",
-    "PROGRAM/sea_ai/sea.c": "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c",
+    "PROGRAM/sea_ai/sea.c": "1f30c0fd5549952f17a963658a336f6222e02b4bebc04fd82b26465254f2c95a",
     "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
     "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
     "PROGRAM/interface/map.c": "4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be",
@@ -135,6 +135,7 @@ FLEET_FINAL_SHA = {
 
 
 FLEET_FINAL_PREVIOUS = {
+    "PROGRAM/sea_ai/sea.c": {"d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c"},
     "PROGRAM/interface/map.c": {"8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c"},
     "PROGRAM/battle_interface/WmInterface.c": {"4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1"},
     "PROGRAM/battle_interface/loginterface.c": {"7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0"},
