@@ -1,8 +1,60 @@
 # World-map traffic
 
+## Finite trade cycle — October 7
+
+The requested outcome is a world that can have empty ports without creating
+permanent queues of unemployed merchants. `worldmap-traffic.c` owns one cycle:
+market work admits assembly, funded service prepares the actual roster, finite
+loading commits a shipment, arrival credits its recorded destination, and an
+unloaded ready fleet reassesses work before physically changing its working port.
+The native 32-commerce/60-total quotas are ceilings, not economic demand.
+
+Remaining demand is the authored target minus current stock minus actual living
+freight already committed to that store. No speculative stock or second ledger
+is introduced. Assembly and empty repositioning yield to an existing unloaded
+fleet at the prospective working port. Exact hull/escort fit and one aggregate
+dry run of the existing service planner must admit a newborn before map creation;
+the live transaction remains the only buyer of supplies and recruits.
+
+A ready fleet without an undelivered shipment reviews the local market once per
+game day. After a full day without work it may request a real voyage to an
+admitted, unclaimed port with feasible outgoing work. No available work means
+waiting, not deletion, teleportation or free goods. A paid shipment retains its
+endpoint through refuges and shortages. If that endpoint becomes inadmissible,
+an explicit cancelled return sends the physical remainder to the original seller;
+the recorded destination stays unchanged and a separate returned receipt closes
+the job. Neither a refuge nor the former buyer receives a false delivery credit.
+If both endpoints are inadmissible, a recorded salvage port receives the physical
+remainder with a separate salvage receipt; the former buyer is never credited.
+Empty positioning carries no trade job
+and competes for a working berth; arrival releases that claim. Recovery may leave
+exports unavailable while incoming supplies still have positive demand.
+
+Acceptance: a sacked zero-export port admits no new merchants; existing ready
+empty fleets disperse only to finite work; competing shipments cannot satisfy the
+same demand twice; repeated clocks/reload cannot duplicate debit, credit or
+navigation. Negatives include player-depleted stocks, ordinary scarcity, a
+loaded/diverted shipment, hostile endpoints, dead/quest fleets, and a wholly
+inactive market. Isolated actual-script/serializer probes are the decisive state
+falsifier; installed harbour behaviour and perceived balance require player replay.
+The implemented batch is installed by canonical stage. Actual-script probes
+reproduce the old incoming-demand, zero-export admission and eight-day idle-port
+failures. Fifteen affected scenarios pass, with eight using four native save/load
+rounds; unchanged paid-service/ammunition and quota-fallback scenarios retain
+their earlier passing evidence. Final early-export filters also pass the four
+affected cases. Whole installed PROGRAM composition compiles with the real VM.
+
+Market demand is projected once into a decision-local object and discarded after
+selection/loading. There is no persisted cache, expiry or second stock owner.
+A 35-colony/51-good/60-encounter isolated reposition probe measured 12.514 seconds
+with repeated shipment scans, 0.0585 seconds with depleted seller stocks after
+projection/early export rejection, and 0.1773 seconds with rich stocks. This
+measures one script decision, not gameplay FPS. The scripted state checks do not
+accept a rendered harbour drain or perceived balance; those remain unresolved.
+
 ## Gameplay safety contract — October 7
 
-The ordinary population target remains 60 resident fleet markers (32 trade,
+The ordinary population ceiling remains 60 resident fleet markers (32 trade,
 16 patrol, 12 pirate), including fleets receiving service; it is not a promise
 of 60 moving hulls. The native object ceiling remains 80. Quests are excluded.
 Traffic cargo/service, military, sea handoff and native navigation retain their
@@ -208,7 +260,7 @@ including crew, working guns and pending service; scarce jobs carry less. Prize
 transfer may use remaining space. The 75% ceiling is initial tuning, not evidence
 that perceived balance is accepted; wars and demand may still leave empty ports.
 
-This remains an uninstalled source candidate. Disposable VM checks execute
+The service source is installed; disposable VM checks execute
 stock/reserve and recruitment failures, timed repairs, partial hiring, real gun
 damage restoration, dead-slot and quest exclusions, coordinate-preserving old
 Follow migration, and descriptor save/load without repeated debits. The save/load

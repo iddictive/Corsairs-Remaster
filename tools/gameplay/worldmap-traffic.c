@@ -480,6 +480,10 @@ float WdmTrafficRouteWeight(int home, int destination, int role)
 
 int WdmTrafficHomeWeight(int home, int role)
 {
+	// Population ceilings cannot create demand. Idle incumbents and empty
+	// positioning voyages get first use of finite work at this working port.
+	if (role == 1 && (WdmTrafficPortHasIdleTrade(home, "") ||
+		WdmTrafficMarketWork(home, sti(Colonies[home].nation)) <= 0.0)) return 0;
 	int resident = 0;
 	if (CheckAttribute(&worldMap, "encounters"))
 	{
@@ -674,6 +678,30 @@ bool WdmTrafficCreate(int role)
 		ManualReleaseMapEncounter(slot);
 		return false;
 	}
+	// New hulls have no generated crew/supplies. Before publishing a native
+	// entity, admit their exact assembly against one finite service preview.
+	for (i = 0; i < sti(fleet.trafficRoster.count); i++)
+	{
+		string hullKey = "ship" + i;
+		fleet.trafficRoster.(hullKey).crew = 0.0;
+		fleet.trafficRoster.(hullKey).trafficCrewQuantity = 0;
+		fleet.trafficRoster.(hullKey).Ship.Crew.Quantity = 0;
+		fleet.trafficRoster.(hullKey).ammo = 0.0;
+		fleet.trafficRoster.(hullKey).savedAmmo = 0.0;
+		fleet.trafficRoster.(hullKey).trafficSupplies = "";
+		DeleteAttribute(fleet.trafficRoster.(hullKey), "Ship.Cargo.Goods");
+	}
+	int assemblyPort = WdmTrafficAssemblyPort(fleet, home, role);
+	if (assemblyPort < 0)
+	{
+		ManualReleaseMapEncounter(slot);
+		return false;
+	}
+	if (role == 1)
+	{
+		destination = assemblyPort;
+		to = WdmTrafficPortLocator(destination);
+	}
 	string encID = "";
 	// ByIndex copies encdata even when native creation fails. Give that failure
 	// an unused, owned descriptor so it cannot overwrite the preceding encounter.
@@ -729,21 +757,6 @@ bool WdmTrafficCreate(int role)
 	encounter.trafficLifecycle = "service";
 	encounter.trafficCurrentPort = Colonies[home].id;
 	encounter.trafficLegLocator = to;
-	// New hulls assemble at the actual home berth. Existing/legacy rosters
-	// never pass through this path and retain their observed crew and supplies.
-	for (i = 0; i < sti(encounter.encdata.trafficRoster.count); i++)
-	{
-		string hullKey = "ship" + i;
-		encounter.encdata.trafficRoster.(hullKey).crew = 0.0;
-		encounter.encdata.trafficRoster.(hullKey).trafficCrewQuantity = 0;
-		encounter.encdata.trafficRoster.(hullKey).Ship.Crew.Quantity = 0;
-		encounter.encdata.trafficRoster.(hullKey).ammo = 0.0;
-		encounter.encdata.trafficRoster.(hullKey).savedAmmo = 0.0;
-		encounter.encdata.trafficRoster.(hullKey).trafficSupplies = "";
-		DeleteAttribute(encounter.encdata.trafficRoster.(hullKey), "Ship.Cargo.Goods");
-		encounter.encdata.trafficRoster.(hullKey).hp = 1.0;
-		encounter.encdata.trafficRoster.(hullKey).sp = 1.0;
-	}
 	encounter.trafficPower = 0.0;
 	WdmTrafficBeginService(encounter);
 	WdmTrafficVoyageUpdate(encounter);
@@ -755,6 +768,42 @@ bool WdmTrafficCreate(int role)
 	}
 	WdmTrafficRefreshEncounter(encounter, IsStopMapFollowEncounters());
 	return true;
+}
+
+void WdmTrafficFillRequest(int requested)
+{
+	int quotas[4]; quotas[0] = 0; quotas[1] = 32; quotas[2] = 16; quotas[3] = 12;
+	int population[4], tried[4];
+	for (int role = 0; role < 4; role++) { population[role] = 0; tried[role] = 0; }
+	int ordinary = 0;
+	if (CheckAttribute(&worldMap, "encounters"))
+	{
+		aref traffic; makearef(traffic, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(traffic); i++)
+		{
+			aref fleet = GetAttributeN(traffic, i);
+			if (!WdmTrafficIsOrdinary(fleet)) continue;
+			population[sti(fleet.trafficRole)]++;
+			ordinary++;
+		}
+	}
+	if (ordinary >= 60) return;
+	for (int attempt = 0; attempt < 3; attempt++)
+	{
+		if (requested < 1 || requested > 3) return;
+		tried[requested] = 1;
+		if (population[requested] < quotas[requested] && WdmTrafficCreate(requested)) return;
+		// Unavailable commerce must not starve independent patrol/raider work.
+		requested = 0;
+		float deficit = 0.0;
+		for (role = 1; role <= 3; role++)
+		{
+			if (tried[role]) continue;
+			float missing = makefloat(quotas[role] - population[role]) / quotas[role];
+			if (missing <= deficit) continue;
+			deficit = missing; requested = role;
+		}
+	}
 }
 
 // Calendar stamps belong to the saved descriptor; frame time is never a clock.
@@ -811,6 +860,7 @@ int WdmTrafficNearestPort(aref encounter)
 void WdmTrafficReturnToPort(aref encounter, int port)
 {
 	if (!WdmTrafficPortAdmits(port, sti(encounter.trafficNation))) return;
+	DeleteAttribute(encounter, "trafficRepositionPort");
 	encounter.trafficDestinationPort = Colonies[port].id;
 	encounter.trafficNextLocator = WdmTrafficPortLocator(port);
 	encounter.trafficReturning = 1;
@@ -1001,7 +1051,39 @@ bool WdmTrafficStoreGood(ref store, int good)
 	return sti(store.Goods.(name).TradeType) != TRADE_TYPE_CONTRABAND;
 }
 
-int WdmTrafficTradeDemand(int destination, int good)
+bool WdmTrafficCargoPending(aref encounter)
+{
+	return CheckAttribute(encounter, "trafficCargoJob") &&
+		!CheckAttribute(encounter, "trafficCargoJob.delivered") &&
+		!CheckAttribute(encounter, "trafficCargoJob.returned") &&
+		!CheckAttribute(encounter, "trafficCargoJob.salvaged");
+}
+
+int WdmTrafficIncomingBuyer(aref fleet)
+{
+	if (!WdmTrafficIsOrdinary(fleet) || sti(fleet.trafficRole) != 1 ||
+		!WdmTrafficCargoPending(fleet) || CheckAttribute(fleet, "trafficCargoJob.returning") ||
+		!CheckAttribute(fleet, "trafficCargoJob.destination")) return -1;
+	int port = FindColony(fleet.trafficCargoJob.destination);
+	if (!WdmTrafficPortAdmits(port, sti(fleet.trafficNation))) return -1;
+	return FindStore(Colonies[port].id);
+}
+
+int WdmTrafficTradeIncoming(int destination, int good)
+{
+	if (!CheckAttribute(&worldMap, "encounters")) return 0;
+	aref traffic; makearef(traffic, worldMap.encounters);
+	int incoming = 0;
+	for (int i = 0; i < GetAttributesNum(traffic); i++)
+	{
+		aref fleet = GetAttributeN(traffic, i);
+		if (WdmTrafficIncomingBuyer(fleet) != destination) continue;
+		incoming = incoming + WdmTrafficFreightQuantity(fleet, good);
+	}
+	return incoming;
+}
+
+int WdmTrafficRawTradeDemand(int destination, int good)
 {
 	ref buyer = &Stores[destination];
 	if (!WdmTrafficStoreGood(buyer, good)) return 0;
@@ -1013,17 +1095,125 @@ int WdmTrafficTradeDemand(int destination, int good)
 	return need;
 }
 
-int WdmTrafficTradeQuantity(int origin, int destination, int good)
+int WdmTrafficTradeDemand(int destination, int good)
 {
-	ref seller = &Stores[origin];
+	int need = WdmTrafficRawTradeDemand(destination, good) - WdmTrafficTradeIncoming(destination, good);
+	if (need < 0) return 0;
+	return need;
+}
+
+// A decision-local projection: scan living shipments once, then reuse their
+// unmet demand for all candidate ports/goods. It is never saved or cached
+// across a transaction, a clock tick, a scene handoff or a load.
+void WdmTrafficBuildMarket(ref market)
+{
+	DeleteAttribute(market, "");
+	for (int port = 0; port < MAX_COLONIES; port++)
+	{
+		if (WdmTrafficPortLocator(port) == "") continue;
+		int store = FindStore(Colonies[port].id);
+		if (store < 0 || store == SHIP_STORE) continue;
+		string key = "store" + store;
+		for (int good = GOOD_FOOD; good <= GOOD_SILVER; good++)
+		{
+			string name = Goods[good].name;
+			market.(key).(name) = WdmTrafficRawTradeDemand(store, good);
+		}
+	}
+	if (!CheckAttribute(&worldMap, "encounters")) return;
+	aref traffic; makearef(traffic, worldMap.encounters);
+	for (int i = 0; i < GetAttributesNum(traffic); i++)
+	{
+		aref fleet = GetAttributeN(traffic, i);
+		int buyer = WdmTrafficIncomingBuyer(fleet);
+		if (buyer < 0 || buyer == SHIP_STORE) continue;
+		key = "store" + buyer;
+		for (good = GOOD_FOOD; good <= GOOD_SILVER; good++)
+		{
+			name = Goods[good].name;
+			if (!CheckAttribute(market, key + "." + name)) continue;
+			int need = sti(market.(key).(name)) - WdmTrafficFreightQuantity(fleet, good);
+			if (need < 0) need = 0;
+			market.(key).(name) = need;
+		}
+	}
+}
+
+int WdmTrafficMarketDemand(ref market, int buyer, int good)
+{
+	string key = "store" + buyer;
+	string name = Goods[good].name;
+	if (!CheckAttribute(market, key + "." + name)) return 0;
+	return sti(market.(key).(name));
+}
+
+int WdmTrafficTradeSupply(ref seller, int good, int need)
+{
 	if (!WdmTrafficStoreGood(seller, good)) return 0;
 	string name = Goods[good].name;
 	if (sti(seller.Goods.(name).TradeType) != TRADE_TYPE_EXPORT) return 0;
 	int available = GetStoreGoodsQuantity(seller, good) - makeint(stf(seller.Goods.(name).Norm) * 0.15);
-	int need = WdmTrafficTradeDemand(destination, good);
 	if (available < need) need = available;
 	if (need < 0) return 0;
 	return need;
+}
+
+int WdmTrafficTradeAvailable(ref seller, int destination, int good)
+{
+	if (WdmTrafficTradeSupply(seller, good, 1) == 0) return 0;
+	return WdmTrafficTradeSupply(seller, good, WdmTrafficTradeDemand(destination, good));
+}
+
+bool WdmTrafficHasExports(ref seller)
+{
+	for (int good = GOOD_FOOD; good <= GOOD_SILVER; good++)
+	{
+		if (WdmTrafficTradeSupply(seller, good, 1) > 0) return true;
+	}
+	return false;
+}
+
+int WdmTrafficTradeQuantity(int origin, int destination, int good)
+{
+	return WdmTrafficTradeAvailable(&Stores[origin], destination, good);
+}
+
+float WdmTrafficMarketWork(int origin, int nation)
+{
+	if (!WdmTrafficPortAdmits(origin, nation)) return 0.0;
+	int seller = FindStore(Colonies[origin].id);
+	if (seller < 0 || seller == SHIP_STORE) return 0.0;
+	if (!WdmTrafficHasExports(&Stores[seller])) return 0.0;
+	object market; WdmTrafficBuildMarket(&market);
+	float work = 0.0;
+	for (int port = 0; port < MAX_COLONIES; port++)
+	{
+		if (port == origin || !WdmTrafficPortAdmits(port, nation)) continue;
+		int buyer = FindStore(Colonies[port].id);
+		if (buyer < 0 || buyer == SHIP_STORE) continue;
+		for (int good = GOOD_FOOD; good <= GOOD_SILVER; good++)
+		{
+			int quantity = WdmTrafficTradeSupply(&Stores[seller], good, WdmTrafficMarketDemand(&market, buyer, good));
+			if (quantity > 0) work = work + 1.0 + quantity * 0.01;
+		}
+	}
+	return work;
+}
+
+bool WdmTrafficPortHasIdleTrade(int colony, string exceptID)
+{
+	if (!CheckAttribute(&worldMap, "encounters")) return false;
+	aref traffic; makearef(traffic, worldMap.encounters);
+	for (int i = 0; i < GetAttributesNum(traffic); i++)
+	{
+		aref fleet = GetAttributeN(traffic, i);
+		if (GetAttributeName(fleet) == exceptID || !WdmTrafficIsOrdinary(fleet) ||
+			sti(fleet.trafficRole) != 1 || CheckAttribute(fleet, "trafficMission") || WdmTrafficCargoPending(fleet)) continue;
+		if (CheckAttribute(fleet, "trafficRepositionPort") && fleet.trafficRepositionPort == Colonies[colony].id) return true;
+		if (CheckAttribute(fleet, "trafficLifecycle") && fleet.trafficLifecycle == "service" &&
+			CheckAttribute(fleet, "trafficCurrentPort") && fleet.trafficCurrentPort == Colonies[colony].id) return true;
+	}
+	return false;
 }
 
 int WdmTrafficCargoEscorts(aref encounter)
@@ -1059,11 +1249,8 @@ int WdmTrafficFreightQuantity(aref encounter, int good)
 	return quantity;
 }
 
-float WdmTrafficTradeWeight(aref encounter, int origin, int destination)
+float WdmTrafficTradeWork(aref encounter, ref seller, int buyer, ref market)
 {
-	int seller = FindStore(Colonies[origin].id);
-	int buyer = FindStore(Colonies[destination].id);
-	if (seller < 0 || buyer < 0 || seller == SHIP_STORE || buyer == SHIP_STORE) return 0.0;
 	aref roster, ship;
 	makearef(roster, encounter.encdata.trafficRoster);
 	int escorts = WdmTrafficCargoEscorts(encounter);
@@ -1077,7 +1264,7 @@ float WdmTrafficTradeWeight(aref encounter, int origin, int destination)
 	for (int good = GOOD_FOOD; good <= GOOD_SILVER; good++)
 	{
 		if (stf(Goods[good].Cost) >= 200.0 && escorts < 2) continue;
-		int quantity = WdmTrafficTradeQuantity(seller, buyer, good);
+		int quantity = WdmTrafficTradeSupply(seller, good, WdmTrafficMarketDemand(market, buyer, good));
 		if (quantity <= 0) continue;
 		bool fits = false;
 		for (i = 0; i < sti(roster.count); i++)
@@ -1094,10 +1281,32 @@ float WdmTrafficTradeWeight(aref encounter, int origin, int destination)
 	return demand;
 }
 
+float WdmTrafficTradeWeight(aref encounter, int origin, int destination)
+{
+	int seller = FindStore(Colonies[origin].id);
+	int buyer = FindStore(Colonies[destination].id);
+	if (seller < 0 || buyer < 0 || seller == SHIP_STORE || buyer == SHIP_STORE) return 0.0;
+	object market; WdmTrafficBuildMarket(&market);
+	return WdmTrafficTradeWork(encounter, &Stores[seller], buyer, &market);
+}
+
 int WdmTrafficPendingCargoDestination(aref encounter)
 {
-	if (!CheckAttribute(encounter, "trafficCargoJob.destination") || CheckAttribute(encounter, "trafficCargoJob.delivered")) return -1;
+	if (!WdmTrafficCargoPending(encounter) || !CheckAttribute(encounter, "trafficCargoJob.destination")) return -1;
 	int destination = FindColony(encounter.trafficCargoJob.destination);
+	if (!WdmTrafficPortAdmits(destination, sti(encounter.trafficNation))) encounter.trafficCargoJob.returning = 1;
+	if (CheckAttribute(encounter, "trafficCargoJob.returning"))
+	{
+		if (!CheckAttribute(encounter, "trafficCargoJob.origin")) return -1;
+		destination = FindColony(encounter.trafficCargoJob.origin);
+		if (CheckAttribute(encounter, "trafficCargoJob.salvagePort"))
+			destination = FindColony(encounter.trafficCargoJob.salvagePort);
+		if (!WdmTrafficPortAdmits(destination, sti(encounter.trafficNation)))
+		{
+			destination = WdmTrafficNearestPort(encounter);
+			if (destination >= 0) encounter.trafficCargoJob.salvagePort = Colonies[destination].id;
+		}
+	}
 	if (!WdmTrafficPortAdmits(destination, sti(encounter.trafficNation))) return -1;
 	return destination;
 }
@@ -1105,7 +1314,7 @@ int WdmTrafficPendingCargoDestination(aref encounter)
 bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 {
 	if (origin < 0 || origin >= MAX_COLONIES || destination < 0 || destination >= MAX_COLONIES) return false;
-	if (CheckAttribute(encounter, "trafficCargoJob") && !CheckAttribute(encounter, "trafficCargoJob.delivered"))
+	if (WdmTrafficCargoPending(encounter))
 	{
 		if (!CheckAttribute(encounter, "trafficCargoJob.origin") || !CheckAttribute(encounter, "trafficCargoJob.destination")) return false;
 		return encounter.trafficCargoJob.origin == Colonies[origin].id && encounter.trafficCargoJob.destination == Colonies[destination].id;
@@ -1113,6 +1322,7 @@ bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 	int seller = FindStore(Colonies[origin].id);
 	int buyer = FindStore(Colonies[destination].id);
 	if (seller < 0 || buyer < 0 || seller == SHIP_STORE || buyer == SHIP_STORE) return false;
+	object market; WdmTrafficBuildMarket(&market);
 	aref roster, ship;
 	makearef(roster, encounter.encdata.trafficRoster);
 	int escorts = WdmTrafficCargoEscorts(encounter);
@@ -1128,11 +1338,10 @@ bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 		{
 			int good = GOOD_FOOD + (firstGood - GOOD_FOOD + g - GOOD_FOOD) % (GOOD_SILVER - GOOD_FOOD + 1);
 			if (stf(Goods[good].Cost) >= 200.0 && escorts < 2) continue;
-			int quantity = WdmTrafficTradeQuantity(seller, buyer, good);
 			// Store availability already reflects earlier hull debits. Only buyer
 			// demand still includes this voyage's aboard, undelivered freight.
-			int demand = WdmTrafficTradeDemand(buyer, good) - WdmTrafficFreightQuantity(encounter, good);
-			if (quantity > demand) quantity = demand;
+			int demand = WdmTrafficMarketDemand(&market, buyer, good) - WdmTrafficFreightQuantity(encounter, good);
+			int quantity = WdmTrafficTradeSupply(&Stores[seller], good, demand);
 			int room = WdmTrafficTradeRoom(ship, good);
 			if (quantity > room) quantity = room;
 			if (quantity <= 0) continue;
@@ -1157,9 +1366,9 @@ bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 void WdmTrafficUnloadCargo(aref encounter, int colony)
 {
 	if (!WdmTrafficPortAdmits(colony, sti(encounter.trafficNation))) return;
-	if (CheckAttribute(encounter, "trafficCargoJob") && !CheckAttribute(encounter, "trafficCargoJob.delivered"))
+	if (WdmTrafficCargoPending(encounter))
 	{
-		if (!CheckAttribute(encounter, "trafficCargoJob.destination") || encounter.trafficCargoJob.destination != Colonies[colony].id) return;
+		if (WdmTrafficPendingCargoDestination(encounter) != colony) return;
 	}
 	int store = FindStore(Colonies[colony].id);
 	if (store < 0 || store == SHIP_STORE) return;
@@ -1187,17 +1396,25 @@ void WdmTrafficUnloadCargo(aref encounter, int colony)
 		}
 		WdmTrafficCargoToSnapshot(ship);
 	}
-	if (CheckAttribute(encounter, "trafficCargoJob") && !CheckAttribute(encounter, "trafficCargoJob.delivered"))
+	if (WdmTrafficCargoPending(encounter))
 	{
+		string receipt = "deliveredQuantity";
+		if (CheckAttribute(encounter, "trafficCargoJob.returning")) receipt = "returnedQuantity";
+		if (CheckAttribute(encounter, "trafficCargoJob.salvagePort")) receipt = "salvagedQuantity";
 		int credited = 0;
-		if (CheckAttribute(encounter, "trafficCargoJob.deliveredQuantity")) credited = sti(encounter.trafficCargoJob.deliveredQuantity);
-		encounter.trafficCargoJob.deliveredQuantity = credited + delivered;
+		if (CheckAttribute(encounter, "trafficCargoJob." + receipt)) credited = sti(encounter.trafficCargoJob.(receipt));
+		encounter.trafficCargoJob.(receipt) = credited + delivered;
 		int remaining = 0;
 		for (int g = 0; g < GOODS_QUANTITY; g++)
 		{
 			remaining = remaining + WdmTrafficFreightQuantity(encounter, g);
 		}
-		if (remaining == 0) encounter.trafficCargoJob.delivered = Colonies[colony].id;
+		if (remaining == 0)
+		{
+			if (CheckAttribute(encounter, "trafficCargoJob.salvagePort")) encounter.trafficCargoJob.salvaged = Colonies[colony].id;
+			else if (CheckAttribute(encounter, "trafficCargoJob.returning")) encounter.trafficCargoJob.returned = Colonies[colony].id;
+			else encounter.trafficCargoJob.delivered = Colonies[colony].id;
+		}
 	}
 	if (delivered > 0 && CheckAttribute(encounter, "trafficPrize") && sti(encounter.trafficPrize))
 	{
@@ -1533,26 +1750,18 @@ int WdmTrafficServiceCarried(aref ship, int good, int quantity, int free)
 	return quantity;
 }
 
-bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
+bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 {
 	aref hull;
 	makearef(hull, ShipsTypes[sti(ship.baseType)]);
 	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
-	ref store = &Stores[storeIndex];
 	int minCrew = sti(hull.MinCrew);
-	WdmTrafficServiceMigrate(ship, false);
-	if (CheckAttribute(ship, "trafficService"))
-	{
-		if (!CheckAttribute(ship, "trafficService.complete") || !sti(ship.trafficService.complete)) return true;
-		if (WdmTrafficServiceReady(ship)) return true;
-	}
 	int crew = WdmTrafficCrewQuantity(ship);
 	int recruits = minCrew - crew;
 	if (recruits < 0) recruits = 0;
 	if (recruits > 0)
 	{
-		int available = WdmTrafficServiceCrewAvailable(colony);
-		if (recruits > available) recruits = available;
+		if (recruits > availableCrew) recruits = availableCrew;
 	}
 	int guns = 0;
 	if (CheckAttribute(hull, "CannonsQuantity")) guns = sti(hull.CannonsQuantity);
@@ -1688,10 +1897,9 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 		if (need[good] > 0) progress = true;
 	}
 	if (!progress && !WdmTrafficServiceReady(ship)) return false;
-	// Reserve and publish one exact funded plan. No unrelated missing commodity
-	// rejects paid progress; an unchanged attempt never consumes stock again.
-	DeleteAttribute(ship, "trafficService");
-	aref plan; makearef(plan, ship.trafficService);
+	// The same read-only plan admits assembly and funds live service. Admission
+	// may reject partial work; an existing hull still accepts useful paid progress.
+	DeleteAttribute(plan, "");
 	WdmTrafficStamp(plan);
 	plan.version = 2;
 	plan.startHp = hp; plan.startSp = sails; plan.startGuns = intact; plan.startCrew = crew;
@@ -1703,15 +1911,43 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 	for (good = 0; good < GOODS_QUANTITY; good++)
 	{
 		if (need[good] <= 0) continue;
-		RemoveStoreGoods(store, good, need[good]);
 		string paidName = Goods[good].name;
 		plan.goods.(paidName) = need[good];
+	}
+	return true;
+}
+
+bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
+{
+	WdmTrafficServiceMigrate(ship, false);
+	if (CheckAttribute(ship, "trafficService"))
+	{
+		if (!CheckAttribute(ship, "trafficService.complete") || !sti(ship.trafficService.complete)) return true;
+		if (WdmTrafficServiceReady(ship)) return true;
+	}
+	object paid;
+	int available = 0;
+	aref hull; makearef(hull, ShipsTypes[sti(ship.baseType)]);
+	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+	if (WdmTrafficCrewQuantity(ship) < sti(hull.MinCrew)) available = WdmTrafficServiceCrewAvailable(colony);
+	ref store = &Stores[storeIndex];
+	if (!WdmTrafficPlanService(ship, available, store, &paid)) return false;
+	DeleteAttribute(ship, "trafficService");
+	aref plan; makearef(plan, ship.trafficService);
+	CopyAttributes(plan, &paid);
+	for (int good = 0; good < GOODS_QUANTITY; good++)
+	{
+		string paidName = Goods[good].name;
+		if (!CheckAttribute(plan, "goods." + paidName)) continue;
+		int quantity = sti(plan.goods.(paidName));
+		RemoveStoreGoods(store, good, quantity);
 		if (good == GOOD_BALLS || good == GOOD_POWDER || good == GOOD_FOOD)
 		{
 			string goodsName = Goods[good].name;
-			ship.trafficSupplies.(goodsName) = WdmTrafficEntryGoods(ship, good) + need[good];
+			ship.trafficSupplies.(goodsName) = WdmTrafficEntryGoods(ship, good) + quantity;
 		}
 	}
+	int recruits = sti(plan.crew) - sti(plan.startCrew);
 	if (recruits > 0) Colonies[colony].Ship.Crew.Quantity = sti(Colonies[colony].Ship.Crew.Quantity) - recruits;
 	return true;
 }
@@ -1797,18 +2033,115 @@ bool WdmTrafficFinishService(aref ship)
 	return WdmTrafficServiceReady(ship);
 }
 
+int WdmTrafficTradeNextPort(aref encounter, int origin, int nation, ref seller)
+{
+	object market; WdmTrafficBuildMarket(&market);
+	int weights[MAX_COLONIES];
+	int total = 0;
+	for (int i = 0; i < MAX_COLONIES; i++)
+	{
+		weights[i] = 0;
+		if (i == origin || !WdmTrafficPortAdmits(i, nation)) continue;
+		int buyer = FindStore(Colonies[i].id);
+		if (buyer < 0 || buyer == SHIP_STORE) continue;
+		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, 1) * WdmTrafficTradeWork(encounter, seller, buyer, &market));
+		total = total + weights[i];
+	}
+	if (total <= 0) return -1;
+	int roll = rand(total - 1);
+	for (i = 0; i < MAX_COLONIES; i++)
+	{
+		roll = roll - weights[i];
+		if (roll < 0) return i;
+	}
+	return -1;
+}
+
+int WdmTrafficAssemblyPort(ref fleet, int home, int role)
+{
+	int storeIndex = FindStore(Colonies[home].id);
+	if (storeIndex < 0 || storeIndex == SHIP_STORE) return -1;
+	object stock, preview;
+	CopyAttributes(&stock, &Stores[storeIndex]);
+	aref copy; makearef(copy, preview.encdata);
+	CopyAttributes(copy, fleet);
+	aref roster, ship, hull;
+	makearef(roster, preview.encdata.trafficRoster);
+	int available = WdmTrafficServiceCrewAvailable(home);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) continue;
+		object plan;
+		if (!WdmTrafficPlanService(ship, available, &stock, &plan)) return -1;
+		available = available - sti(plan.crew) + sti(plan.startCrew);
+		makearef(hull, ShipsTypes[sti(ship.baseType)]);
+		if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+		ship.hp = plan.hp; ship.sp = plan.sp; ship.trafficCrewQuantity = plan.crew;
+		ship.crew = WdmTrafficCrewReadiness(stf(plan.crew), stf(hull.MinCrew), stf(hull.MaxCrew));
+		ship.guns = 0.0;
+		if (sti(hull.CannonsQuantity) > 0) ship.guns = makefloat(sti(plan.guns)) / sti(hull.CannonsQuantity);
+		for (int good = 0; good < GOODS_QUANTITY; good++)
+		{
+			string name = Goods[good].name;
+			if (!CheckAttribute(plan, "goods." + name)) continue;
+			int quantity = sti(plan.goods.(name));
+			RemoveStoreGoods(&stock, good, quantity);
+			if (good == GOOD_FOOD || good == GOOD_BALLS || good == GOOD_POWDER)
+				ship.trafficSupplies.(name) = WdmTrafficEntryGoods(ship, good) + quantity;
+		}
+		ship.ammo = WdmTrafficServiceAmmo(ship);
+		if (!WdmTrafficServiceReady(ship)) return -1;
+	}
+	if (role == 1) return WdmTrafficTradeNextPort(&preview, home, sti(Colonies[home].nation), &stock);
+	return home;
+}
+
+int WdmTrafficRepositionPort(aref encounter, int origin)
+{
+	object market; WdmTrafficBuildMarket(&market);
+	int selected = -1;
+	float best = 0.0;
+	int nation = sti(encounter.trafficNation);
+	for (int port = 0; port < MAX_COLONIES; port++)
+	{
+		if (port == origin || !WdmTrafficPortAdmits(port, nation) ||
+			WdmTrafficPortHasIdleTrade(port, GetAttributeName(encounter))) continue;
+		int seller = FindStore(Colonies[port].id);
+		if (seller < 0 || seller == SHIP_STORE) continue;
+		if (!WdmTrafficHasExports(&Stores[seller])) continue;
+		float work = 0.0;
+		for (int buyerPort = 0; buyerPort < MAX_COLONIES; buyerPort++)
+		{
+			if (buyerPort == port || !WdmTrafficPortAdmits(buyerPort, nation)) continue;
+			int buyer = FindStore(Colonies[buyerPort].id);
+			if (buyer < 0 || buyer == SHIP_STORE) continue;
+			work = work + WdmTrafficTradeWork(encounter, &Stores[seller], buyer, &market);
+		}
+		float weight = work * WdmTrafficRouteWeight(origin, port, 1);
+		if (weight <= best) continue;
+		best = weight; selected = port;
+	}
+	return selected;
+}
+
 int WdmTrafficNextPort(aref encounter, int origin, int nation, int role)
 {
+	if (role == 1)
+	{
+		int seller = FindStore(Colonies[origin].id);
+		if (seller < 0 || seller == SHIP_STORE) return -1;
+		return WdmTrafficTradeNextPort(encounter, origin, nation, &Stores[seller]);
+	}
 	int weights[MAX_COLONIES];
 	int total = 0;
 	for (int i = 0; i < MAX_COLONIES; i++)
 	{
 		weights[i] = 0;
 		if (i == origin || WdmTrafficPortLocator(i) == "") continue;
-		if (role == 1 && !WdmTrafficPortAdmits(i, nation)) continue;
 		if (role == 3 && sti(Colonies[i].nation) == PIRATE) continue;
 		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, role));
-		if (role == 1) weights[i] = makeint(weights[i] * WdmTrafficTradeWeight(encounter, origin, i));
 		total = total + weights[i];
 	}
 	if (total <= 0) return -1;
@@ -1831,6 +2164,13 @@ void WdmTrafficVoyageUpdate(aref encounter)
 	if (encounter.trafficLifecycle != "service")
 	{
 		WdmTrafficConsumeSupplies(encounter);
+		if (sti(encounter.trafficRole) == 1 && WdmTrafficCargoPending(encounter))
+		{
+			int endpoint = WdmTrafficPendingCargoDestination(encounter);
+			if (endpoint >= 0 && CheckAttribute(encounter, "trafficCargoJob.returning") &&
+				(!CheckAttribute(encounter, "trafficDestinationPort") || encounter.trafficDestinationPort != Colonies[endpoint].id))
+				WdmTrafficReturnToPort(encounter, endpoint);
+		}
 		if (!CheckAttribute(encounter, "trafficReturning") && WdmTrafficNeedsService(encounter))
 		{
 			int refuge = WdmTrafficNearestPort(encounter);
@@ -1899,16 +2239,37 @@ void WdmTrafficVoyageUpdate(aref encounter)
 	if (role == 2) locator = WdmTrafficPatrolLocator(Colonies[colony].island);
 	else
 	{
-		bool pendingCargo = role == 1 && CheckAttribute(encounter, "trafficCargoJob") &&
-			!CheckAttribute(encounter, "trafficCargoJob.delivered");
+		bool pendingCargo = role == 1 && WdmTrafficCargoPending(encounter);
 		if (pendingCargo) destination = WdmTrafficPendingCargoDestination(encounter);
 		else destination = WdmTrafficNextPort(encounter, colony, sti(encounter.trafficNation), role);
-		if (destination == colony) return;
+		// A cancelled shipment physically returns to its original seller; a
+		// same-port return settles once before any new cargo can be considered.
+		if (pendingCargo && destination == colony)
+		{
+			WdmTrafficUnloadCargo(encounter, colony);
+			return;
+		}
+		if (role == 1 && !pendingCargo)
+		{
+			if (destination >= 0 && !WdmTrafficLoadCargo(encounter, colony, destination)) destination = -1;
+			if (destination < 0)
+			{
+				aref idle; makearef(idle, service.noWork);
+				if (!CheckAttribute(idle, "year")) WdmTrafficStamp(idle);
+				if (WdmTrafficElapsed(idle, "hour") < 24) return;
+				destination = WdmTrafficRepositionPort(encounter, colony);
+				if (destination < 0) return;
+				encounter.trafficRepositionPort = Colonies[destination].id;
+			}
+			else
+			{
+				DeleteAttribute(encounter, "trafficRepositionPort");
+				DeleteAttribute(service, "noWork");
+			}
+		}
 		if (destination >= 0) locator = WdmTrafficPortLocator(destination);
 	}
 	if (locator == "") return;
-	if (role == 1 && (!CheckAttribute(encounter, "trafficCargoJob") || CheckAttribute(encounter, "trafficCargoJob.delivered")) &&
-		!WdmTrafficLoadCargo(encounter, colony, destination)) return;
 	encounter.trafficLegLocator = locator;
 	encounter.trafficNextLocator = locator;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
@@ -1928,6 +2289,7 @@ void WdmTrafficArrived()
 	if (WdmMilitaryArrived(encounter)) return;
 	if (!WdmTrafficIsOrdinary(encounter) || !CheckAttribute(encounter, "trafficDestinationPort")) return;
 	encounter.trafficCurrentPort = encounter.trafficDestinationPort;
+	DeleteAttribute(encounter, "trafficRepositionPort");
 	WdmTrafficUnloadCargo(encounter, FindColony(encounter.trafficCurrentPort));
 	WdmTrafficBeginService(encounter);
 	WdmMilitaryReturnNews(encounter);
