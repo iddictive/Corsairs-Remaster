@@ -12,6 +12,7 @@ be reversed through that exact legacy prefix.
 import argparse
 import base64
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -61,6 +62,65 @@ def touched(patches):
             safe_path(Path('/'), name)
             paths.add(name)
     return paths
+
+
+def file_digest(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def build_integrity(after_map, target_paths):
+    integrity = {}
+    for name in sorted(target_paths):
+        item = after_map.get(name)
+        if item is None:
+            integrity[name] = None
+        else:
+            raw = base64.b64decode(item['data'])
+            integrity[name] = {
+                'sha256': hashlib.sha256(raw).hexdigest(),
+                'mode': item['mode'],
+                'size': len(raw),
+            }
+    return integrity
+
+
+def verify_integrity(root, integrity, target_paths):
+    if not isinstance(integrity, dict):
+        return False
+    if set(integrity.keys()) != target_paths:
+        return False
+    for name in target_paths:
+        expected = integrity[name]
+        try:
+            p = safe_path(root, name)
+        except Conflict:
+            return False
+        if expected is None:
+            if p.exists():
+                return False
+        elif isinstance(expected, dict) and 'sha256' in expected and 'mode' in expected:
+            try:
+                st = p.lstat()
+            except OSError:
+                return False
+            if stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode):
+                return False
+            if stat.S_IMODE(st.st_mode) != expected['mode']:
+                return False
+            if 'size' in expected and st.st_size != expected['size']:
+                return False
+            try:
+                if file_digest(p) != expected['sha256']:
+                    return False
+            except OSError:
+                return False
+        else:
+            return False
+    return True
 
 
 def capture(root, paths):
@@ -201,6 +261,12 @@ def update(source, state, patches, bootstrap_prefix=()):
                 raise Conflict('Bootstrap prefix is already tracked by patch state')
             if any(sum(patch['name'] == name for patch in patches) != 1 for name in names):
                 raise Conflict('Bootstrap prefix patch names must be unique')
+        if not bootstrap_prefix and previous and previous.get('patches') == patches:
+            target_paths = touched(patches)
+            if any(safe_path(root, name) in (state, journal, lock) for name in target_paths):
+                raise Conflict('A patch cannot edit its transaction state')
+            if verify_integrity(root, previous.get('integrity'), target_paths):
+                return 0
         paths = touched(old) | touched(bootstrap_prefix) | touched(patches)
         if any(safe_path(root, name) in (state, journal, lock) for name in paths):
             raise Conflict('A patch cannot edit its transaction state')
@@ -231,7 +297,13 @@ def update(source, state, patches, bootstrap_prefix=()):
                 raise Conflict('Patch stack round-trip changed source')
         finally:
             shutil.rmtree(temporary)
-        new_bytes = (json.dumps({'version': 1, 'source': str(root), 'patches': patches}, indent=2) + '\n').encode()
+        integrity = build_integrity(after, touched(patches))
+        new_bytes = (json.dumps({
+            'version': 1,
+            'source': str(root),
+            'patches': patches,
+            'integrity': integrity,
+        }, indent=2) + '\n').encode()
         changed = {name: after[name] for name in paths if before[name] != after[name]}
         if not changed and previous_bytes == new_bytes:
             return 0
