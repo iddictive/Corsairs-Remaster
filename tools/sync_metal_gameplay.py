@@ -9,7 +9,6 @@ import subprocess
 from pathlib import Path
 
 import patch_gameplay_suite as suite
-import metal_graphics_settings as graphics
 import metal_deck_camera as deck_camera
 import metal_deck_controls as deck_controls
 import patch_custody_life as custody_life
@@ -121,7 +120,7 @@ def script_bytes(relative, data, *representations):
                 return representation
         known = set()
         owners = (globals(), vars(suite), vars(living_caribbean), vars(fleet_gameplay),
-                  vars(fleet_sea), vars(fleet_ui), vars(military_callbacks), vars(graphics),
+                  vars(fleet_sea), vars(fleet_ui), vars(military_callbacks),
                   vars(deck_camera), vars(deck_controls),
                   vars(governor_dialog), vars(squad_supply), vars(custody_life))
         for owner in owners:
@@ -345,14 +344,6 @@ def plan(target_root=None, paths=None, source_set=None):
                 if current != incoming:
                     changes[relative] = (current, incoming)
                 continue
-            if relative in {item.relative_path for item in graphics.FILES}:
-                canonical_current, _ = graphics.strip(relative, current)
-                if canonical_current != incoming:
-                    raise RuntimeError(f"unrecognized graphics source revision: {relative}")
-                reviewed, _ = graphics.prepare(relative, incoming)
-                if reviewed != current:
-                    changes[relative] = (current, reviewed)
-                continue
             if incoming == current:
                 continue
             reviewed, backdrop_changed = background_alpha.prepare_file(relative, incoming)
@@ -464,9 +455,6 @@ def apply_locked(changes, paths=None, source_set=None):
                 backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
             if relative == pickup_glow.RELATIVE_PATH:
                 backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
-            graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)
-            if graphics_spec:
-                backup_matches = digest(baseline) == graphics_spec.original_sha256
             if relative in deck.PATCHES:
                 prepared_baseline, _ = deck.prepare(relative, baseline)
                 shared_incoming = incoming

@@ -1,0 +1,445 @@
+
+void OSL_WriteGameOption()
+{
+	object gopt;
+	PrepareDefaultOption(&gopt);
+	GetRealOptions(&gopt);
+	SaveSavedOptions(&gopt);
+	if(!SaveMetalGraphicsOptions()) {}
+}
+
+void OSL_ReadGameOption()
+{
+	object gopt;
+	PrepareDefaultOption(&gopt);
+	ReadSavedOptions(&gopt);
+	SetCurentOptions(&gopt);
+	ReadMetalGraphicsOptions();
+}
+
+void PrepareDefaultMetalGraphics(ref optref)
+{
+	optref.dynamic_lighting = true;
+	optref.shadow_quality = 1;
+	optref.modern_water = true;
+	optref.modern_lighting = true;
+	optref.cinematic = true;
+	optref.light_shafts = true;
+	optref.dynamic_sky = true;
+	optref.antialiasing = false;
+	optref.full_screen = true;
+	optref.resolution = 2;
+	optref.resolution_width = 1920;
+	optref.resolution_height = 1080;
+	optref.display_width = 1920;
+	optref.display_height = 1080;
+}
+
+void ReadMetalGraphicsOptions()
+{
+	object gopt;
+	PrepareDefaultMetalGraphics(&gopt);
+	SendMessage(&GameInterface, "lsa", MSG_INTERFACE_LOADOPTIONS, "metal_graphics", gopt);
+	SetMetalGraphicsOptions(&gopt);
+}
+
+bool SaveMetalGraphicsOptions()
+{
+	object gopt;
+	PrepareDefaultMetalGraphics(&gopt);
+	GetMetalGraphicsOptions(&gopt);
+	return SendMessage(&GameInterface, "lsa", MSG_INTERFACE_SAVEOPTIONS, "metal_graphics", gopt);
+}
+
+void GetMetalGraphicsOptions(ref optref)
+{
+	optref.dynamic_lighting = InterfaceStates.MetalDynamicLighting;
+	optref.shadow_quality = InterfaceStates.MetalShadowQuality;
+	optref.modern_water = InterfaceStates.MetalModernWater;
+	optref.modern_lighting = InterfaceStates.MetalModernLighting;
+	optref.cinematic = InterfaceStates.MetalCinematic;
+	optref.light_shafts = InterfaceStates.MetalLightShafts;
+	optref.dynamic_sky = InterfaceStates.MetalDynamicSky;
+	optref.antialiasing = InterfaceStates.MetalAntialiasing;
+	optref.full_screen = InterfaceStates.MetalFullScreen;
+	optref.resolution = InterfaceStates.MetalResolution;
+	optref.resolution_width = InterfaceStates.MetalResolutionWidth;
+	optref.resolution_height = InterfaceStates.MetalResolutionHeight;
+	optref.display_width = InterfaceStates.MetalDisplayWidth;
+	optref.display_height = InterfaceStates.MetalDisplayHeight;
+}
+
+void SetMetalGraphicsOptions(ref optref)
+{
+	InterfaceStates.MetalDynamicLighting = sti(optref.dynamic_lighting);
+	InterfaceStates.MetalShadowQuality = sti(optref.shadow_quality);
+	if(sti(InterfaceStates.MetalShadowQuality)<0 || sti(InterfaceStates.MetalShadowQuality)>2) InterfaceStates.MetalShadowQuality = 1;
+	InterfaceStates.MetalModernWater = sti(optref.modern_water);
+	InterfaceStates.MetalModernLighting = sti(optref.modern_lighting);
+	InterfaceStates.MetalCinematic = sti(optref.cinematic);
+	InterfaceStates.MetalLightShafts = sti(optref.light_shafts);
+	InterfaceStates.MetalDynamicSky = sti(optref.dynamic_sky);
+	InterfaceStates.MetalAntialiasing = sti(optref.antialiasing);
+	InterfaceStates.MetalFullScreen = sti(optref.full_screen);
+	InterfaceStates.MetalResolution = sti(optref.resolution);
+	InterfaceStates.MetalResolutionWidth = sti(optref.resolution_width);
+	InterfaceStates.MetalResolutionHeight = sti(optref.resolution_height);
+	InterfaceStates.MetalDisplayWidth = sti(optref.display_width);
+	InterfaceStates.MetalDisplayHeight = sti(optref.display_height);
+	if(sti(InterfaceStates.MetalResolution)<0 || sti(InterfaceStates.MetalResolution)>5) InterfaceStates.MetalResolution = 2;
+	if(sti(InterfaceStates.MetalResolutionWidth)<320 || sti(InterfaceStates.MetalResolutionHeight)<200) {
+		InterfaceStates.MetalResolutionWidth = 1920;
+		InterfaceStates.MetalResolutionHeight = 1080;
+	}
+	if(sti(InterfaceStates.MetalDisplayWidth)<320 || sti(InterfaceStates.MetalDisplayHeight)<200) {
+		InterfaceStates.MetalDisplayWidth = sti(InterfaceStates.MetalResolutionWidth);
+		InterfaceStates.MetalDisplayHeight = sti(InterfaceStates.MetalResolutionHeight);
+	}
+}
+
+
+void PrepareDefaultOption(ref optref)
+{
+	optref.volume.music = 0.5;
+	optref.volume.sound = 0.5;
+	optref.volume.dialog = 0.5;
+	optref.cameramode.follow_on = true;
+	/*
+	optref.arcademode.bArcadeSails = true;
+	optref.arcademode.bArcadeShipSpeed = true;
+	optref.arcademode.bArcadeCannonsReload = true;
+	optref.arcademode.bArcadeCannonsAccuracy = true;
+	optref.arcademode.bArcadeFencingAI = true;
+	optref.arcademode.bArcadeFencingDamage = true;
+	optref.arcademode.bArcadeFencingEquip = true;
+	optref.arcademode.bArcadeSailTo = true;
+	*/
+	optref.alwaysrun = true;
+	optref.video.grassquantity = 0;
+	optref.seadetails = 1.0;
+	// Hokkins: настройки камеры -->
+	optref.perspdetails = 0.0;
+	optref.raddetails = 0.0;
+	
+	SeaParametrs.MaxVertices = MaxVertices;
+	SeaParametrs.MaxIndices = MaxIndices;
+	SeaParametrs.GridStepX = GridStepX;
+	SeaParametrs.GridStepPC = GridStepPC;
+	SeaParametrs.LodScale = LodScale;
+	SeaParametrs.MaxWaveDistance = MaxWaveDistance;
+}
+
+void GetRealOptions(ref optref)
+{
+	float ftmp1,ftmp2,ftmp3;
+
+	ftmp1 = stf(optref.volume.sound);
+	ftmp2 = stf(optref.volume.music);
+	ftmp3 = stf(optref.volume.dialog);
+	SendMessage(&sound,"leee", MSG_SOUND_GET_MASTER_VOLUME, &ftmp1, &ftmp2,	&ftmp3 );
+	optref.volume.sound = ftmp1;
+	optref.volume.music = ftmp2;
+	optref.volume.dialog = ftmp3;
+
+	/*
+	optref.arcademode.bArcadeSails = bArcadeSails;
+	optref.arcademode.bArcadeShipSpeed = bArcadeShipSpeed;
+	optref.arcademode.bArcadeCannonsReload = bArcadeCannonsReload;
+	optref.arcademode.bArcadeCannonsAccuracy = bArcadeCannonsAccuracy;
+	optref.arcademode.bArcadeFencingAI = bArcadeFencingAI;
+	optref.arcademode.bArcadeFencingDamage = bArcadeFencingDamage;
+	optref.arcademode.bArcadeFencingEquip = bArcadeFencingEquip;
+	optref.arcademode.bArcadeSailTo = bArcadeSailTo;
+	*/
+
+	optref.cameramode.follow_on = !locCameraEnableSpecialMode;
+
+	optref.video.grassquantity = iGrassQuality;
+	if( CheckAttribute(&InterfaceStates,"SeaDetails") ) {
+		optref.seadetails = stf(InterfaceStates.SeaDetails);
+	}
+	
+	//Hokkins: настройки камеры -->
+	if( CheckAttribute(&InterfaceStates,"PerspDetails") ) {
+		optref.perspdetails = stf(InterfaceStates.PerspDetails);
+	}
+	
+	if( CheckAttribute(&InterfaceStates,"RadDetails") ) {
+		optref.raddetails = stf(InterfaceStates.RadDetails);
+	}
+	//Hokkins: настройки камеры <--
+
+	if( CheckAttribute(&InterfaceStates,"InvertCameras") ) {
+		optref.cameramode.InvertCameras = sti(InterfaceStates.InvertCameras);
+	} else {
+		optref.cameramode.InvertCameras = false;
+	}
+	
+	if( CheckAttribute(&InterfaceStates,"SimpleSea") ) {
+		optref.cameramode.SimpleSeaMode = sti(InterfaceStates.SimpleSea);
+	} else {
+		optref.cameramode.SimpleSeaMode = true;
+	}
+
+	if( CheckAttribute(&InterfaceStates,"ShowBattleMode") ) {
+		optref.cameramode.ShowBattleMode = sti(InterfaceStates.ShowBattleMode);
+	} else {
+		optref.cameramode.ShowBattleMode = false;
+	}
+	
+	if( CheckAttribute(&InterfaceStates,"SkipStartVideo") ) {
+		optref.cameramode.SkipStartVideo = sti(InterfaceStates.SkipStartVideo);
+	} else {
+		optref.cameramode.SkipStartVideo = false;
+	}
+	
+	if( CheckAttribute(&InterfaceStates,"EnabledShipMarks") ) {
+		optref.cameramode.EnabledShipMarks = sti(InterfaceStates.EnabledShipMarks);
+	} else {
+		optref.cameramode.EnabledShipMarks = true;
+	}
+
+	if( CheckAttribute(&InterfaceStates,"EnabledAutoSaveMode") ) {
+		optref.cameramode.EnabledAutoSaveMode = sti(InterfaceStates.EnabledAutoSaveMode);
+	} else {
+		optref.cameramode.EnabledAutoSaveMode = true;
+	}
+
+	GetControlsOptions(optref);
+
+	// mouse
+	if( CheckAttribute(&InterfaceStates,"mouse.x_sens") ) {
+		optref.mouse.x_sensitivity = InterfaceStates.mouse.x_sens;
+	} else {
+		optref.mouse.x_sensitivity = 0.5;
+	}
+	if( CheckAttribute(&InterfaceStates,"mouse.y_sens") ) {
+		optref.mouse.y_sensitivity = InterfaceStates.mouse.y_sens;
+	} else {
+		optref.mouse.y_sensitivity = 0.5;
+	}
+	// video colors
+	if( CheckAttribute(&InterfaceStates,"video.contrast") ) {
+		optref.video.contrast = InterfaceStates.video.contrast;
+	} else {
+		optref.video.contrast = 1.0;
+	}
+	if( CheckAttribute(&InterfaceStates,"video.gamma") ) {
+		optref.video.gamma = InterfaceStates.video.gamma;
+	} else {
+		optref.video.gamma = 1.0;
+	}
+	if( CheckAttribute(&InterfaceStates,"video.brightness") ) {
+		optref.video.brightness = InterfaceStates.video.brightness;
+	} else {
+		optref.video.brightness = 0.0;
+	}
+	
+	// Warship 07.07.09 Эффект свечения
+	if(CheckAttribute(&InterfaceStates, "GlowEffect"))
+	{
+		optref.GlowEffect = InterfaceStates.GlowEffect;
+	}
+	else
+	{
+		optref.GlowEffect = 50;
+	}
+	
+	SeaParametrs.MaxVertices = MaxVertices;
+	SeaParametrs.MaxIndices = MaxIndices;
+	SeaParametrs.GridStepX = GridStepX;
+	SeaParametrs.GridStepPC = GridStepPC;
+	SeaParametrs.MaxWaveDistance = MaxWaveDistance;
+	SeaParametrs.LodScale = LodScale;
+
+	// always run
+	if( CheckAttribute(&InterfaceStates,"alwaysrun") ) {
+		optref.alwaysrun = InterfaceStates.alwaysrun;
+	} else {
+		optref.alwaysrun = false;
+	}
+}
+
+void SetCurentOptions(ref optref)
+{
+	SendMessage(&sound,"lfff", MSG_SOUND_SET_MASTER_VOLUME, stf(optref.volume.sound),	stf(optref.volume.music),	stf(optref.volume.dialog));
+
+	/*bArcadeSails = sti(optref.arcademode.bArcadeSails);
+	bArcadeShipSpeed = sti(optref.arcademode.bArcadeShipSpeed);
+	bArcadeCannonsReload = sti(optref.arcademode.bArcadeCannonsReload);
+	bArcadeCannonsAccuracy = sti(optref.arcademode.bArcadeCannonsAccuracy);
+	bArcadeFencingAI = sti(optref.arcademode.bArcadeFencingAI);
+	bArcadeFencingDamage = sti(optref.arcademode.bArcadeFencingDamage);
+	bArcadeFencingEquip = sti(optref.arcademode.bArcadeFencingEquip);
+	bArcadeSailTo = sti(optref.arcademode.bArcadeSailTo);
+	*/
+	locCameraEnableSpecialMode = !sti(optref.cameramode.follow_on);
+	
+	/*
+	SeaMaxVertices
+	SeaMaxIndices
+	SeaGridStep
+	SeaMaxWaveDistance
+	*/
+	
+	if( CheckAttribute(optref,"cameramode.SimpleSeaMode") ) {
+		InterfaceStates.SimpleSea = optref.cameramode.SimpleSeaMode;
+	} else {
+		InterfaceStates.SimpleSea = false;
+	}
+
+	if( CheckAttribute(optref,"cameramode.ShowBattleMode") ) {
+		InterfaceStates.ShowBattleMode = optref.cameramode.ShowBattleMode;
+	} else {
+		InterfaceStates.ShowBattleMode = false;
+	}
+	
+	if( CheckAttribute(optref,"cameramode.SkipStartVideo") ) {
+		InterfaceStates.SkipStartVideo = optref.cameramode.SkipStartVideo;
+	} else {
+		InterfaceStates.SkipStartVideo = false;
+	}
+	
+	if( CheckAttribute(optref,"cameramode.EnabledShipMarks") ) {
+		InterfaceStates.EnabledShipMarks = optref.cameramode.EnabledShipMarks;
+	} else {
+		InterfaceStates.EnabledShipMarks = true;
+	}
+
+	if( CheckAttribute(optref,"cameramode.EnabledAutoSaveMode") ) {
+		InterfaceStates.EnabledAutoSaveMode = optref.cameramode.EnabledAutoSaveMode;
+	} else {
+		InterfaceStates.EnabledAutoSaveMode = true;
+	}
+
+	// mouse
+	if( CheckAttribute(optref,"cameramode.InvertCameras") ) {
+		InterfaceStates.InvertCameras = optref.cameramode.InvertCameras;
+	} else {
+		InterfaceStates.InvertCameras = false;
+	}
+	if( CheckAttribute(optref,"mouse.x_sensitivity") ) {
+		InterfaceStates.mouse.x_sens = optref.mouse.x_sensitivity;
+	} else {
+		InterfaceStates.mouse.x_sens = 0.5;
+	}
+	if( CheckAttribute(optref,"mouse.y_sensitivity") ) {
+		InterfaceStates.mouse.y_sens = optref.mouse.y_sensitivity;
+	} else {
+		InterfaceStates.mouse.y_sens = 0.5;
+	}
+	// video colors
+	if( CheckAttribute(optref,"video.contrast") ) {
+		InterfaceStates.video.contrast = optref.video.contrast;
+	} else {
+		InterfaceStates.video.contrast = 1.0;
+	}
+	if( CheckAttribute(optref,"video.gamma") ) {
+		InterfaceStates.video.gamma = optref.video.gamma;
+	} else {
+		InterfaceStates.video.gamma = 1.0;
+	}
+	if( CheckAttribute(optref,"video.brightness") ) {
+		InterfaceStates.video.brightness = optref.video.brightness;
+	} else {
+		InterfaceStates.video.brightness = 0.0;
+	}
+	
+	// Warship 07.07.09 Эффект свечения
+	if(CheckAttribute(optref, "GlowEffect"))
+	{
+		InterfaceStates.GlowEffect = optref.GlowEffect;
+	}
+	else
+	{
+		InterfaceStates.GlowEffect = 50;
+	}
+	
+	SetGlowParams(1.0, sti(InterfaceStates.GlowEffect), 2);
+	
+	if( CheckAttribute(optref,"video.grassquantity") ) {
+		iGrassQuality = sti(optref.video.grassquantity);
+	}
+	
+	if( CheckAttribute(optref,"seadetails") ) {
+		InterfaceStates.SeaDetails = stf(optref.seadetails);
+	}
+	
+	//Hokkins: настройки камеры -->
+	if( CheckAttribute(optref,"perspdetails") ) {
+		InterfaceStates.PerspDetails = stf(optref.perspdetails);
+	}
+	
+	if( CheckAttribute(optref,"raddetails") ) {
+		InterfaceStates.RadDetails = stf(optref.raddetails);
+	}
+	//Hokkins: настройки камеры <--
+
+	XI_SetColorCorrection(stf(InterfaceStates.video.contrast),stf(InterfaceStates.video.gamma),stf(InterfaceStates.video.brightness));
+
+	aref arControls;
+	makearef(arControls,optref.controls);
+	RestoreKeysFromOptions(arControls);
+
+	// always run
+	if( CheckAttribute(&optref,"alwaysrun") ) {
+		InterfaceStates.alwaysrun = optref.alwaysrun;
+	} else {
+		InterfaceStates.alwaysrun = false;
+	}
+
+	ControlsMakeInvert();
+	SetRealMouseSensitivity();
+	// Hokkins: настройки камеры -->
+	SetPerspectiveSettings();
+}
+
+void ReadSavedOptions(ref gopt)
+{
+	string sFileName = "options";
+	if( CheckAttribute(&PlayerProfile,"name") && PlayerProfile.name!="" ) {
+		sFileName = "save\"+PlayerProfile.name+"\options\options";
+	}
+	SendMessage(&GameInterface, "lsa", MSG_INTERFACE_LOADOPTIONS, sFileName, gopt);
+}
+
+void SaveSavedOptions(ref gopt)
+{
+	string sFileName = "options";
+	if( CheckAttribute(&PlayerProfile,"name") && PlayerProfile.name!="" ) {
+		sFileName = "save\"+PlayerProfile.name+"\options\options";
+	}
+	SendMessage(&GameInterface, "lsa", MSG_INTERFACE_SAVEOPTIONS, sFileName, gopt);
+}
+
+void GetControlsOptions(ref optref)
+{
+	int ng,qg, nc,qc;
+	aref arIn, arOut, arGrp, arCntrl;
+	string grName, cntrlName;
+
+	makearef(arOut,objControlsState.keygroups);
+	optref.controls = true;
+	makearef(arIn,optref.controls);
+
+	qg = GetAttributesNum(arOut);
+	for(ng=0; ng<qg; ng++)
+	{
+		arGrp = GetAttributeN(arOut,ng);
+		grName = GetAttributeName(arGrp);
+		if( CheckAttribute(&objControlsState,"grouplist."+grName) && sti(objControlsState.grouplist.(grName))==true )
+		{
+			qc = GetAttributesNum(arGrp);
+			for(nc=0; nc<qc; nc++)
+			{
+				arCntrl = GetAttributeN(arGrp,nc);
+				if( CheckAttribute(arCntrl,"remapping") && sti(arCntrl.remapping)==true )
+				{
+					cntrlName = GetAttributeName(arCntrl);
+					arIn.(grName).(cntrlName) = GetAttributeValue(arCntrl);
+					arIn.(grName).(cntrlName).state = arCntrl.state;
+				}
+			}
+		}
+	}
+}

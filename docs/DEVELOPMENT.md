@@ -2,7 +2,7 @@
 
 ## Owners
 
-`experiments/native-metal/build.sh` owns the ordered engine patch stack and canonical build. `run.sh` owns staging and launch. `backend.mm` and the Metal shader headers own rendering. `src/gameplay` owns complete editable scripts and interface definitions registered in its manifest, including the trade journal and main menu; `tools/gameplay_sources.py` projects them to runtime files. `tools/sync_metal_gameplay.py` delivers these sources and the remaining legacy layers; `metal_graphics_settings.py` still owns its exact-hash interface transforms.
+`experiments/native-metal/build.sh` owns the ordered engine patch stack and canonical build. `run.sh` owns staging and launch. `backend.mm` and the Metal shader headers own rendering. `src/gameplay` owns complete editable scripts and interface definitions registered in its manifest, including the trade journal, main menu and graphics settings; `tools/gameplay_sources.py` projects them to runtime files. `tools/sync_metal_gameplay.py` delivers these sources and the remaining legacy layers; `metal_graphics_settings.py` owns runtime settings synchronization and launch environment.
 
 Captured `experiments/native-metal/inputs` are the portable build dependency owner. The manifest verifies pinned engine source, baseline scripts, headers and toolchain. Builds with those inputs do not depend on the original developer’s machine or old engine checkout. Keep inputs and generated `.cache` out of Git.
 

@@ -152,7 +152,7 @@ def seal_app(app: Path) -> None:
 
 
 def transact(changes: dict[Path, tuple[bytes | None, bytes]], app: Path | None = None,
-             verify=None) -> int:
+             verify=None, writer=None) -> int:
     """Preflight the whole batch, then restore only still-owned bytes on failure."""
     def read(path):
         safe_path(path.parent, Path(path.name))
@@ -162,13 +162,17 @@ def transact(changes: dict[Path, tuple[bytes | None, bytes]], app: Path | None =
         if read(path) != before:
             raise RuntimeError(f"Concurrent delivery change: {path}; no files changed.")
     written = []
+    write = atomic_write if writer is None else writer
     try:
         for path, (before, after) in changes.items():
             if read(path) != before:
                 raise RuntimeError(f"Concurrent delivery change: {path}")
             if before != after:
-                atomic_write(path, after)
+                write(path, after)
                 written.append(path)
+        for path, (_, after) in changes.items():
+            if read(path) != after:
+                raise RuntimeError(f"Delivery verification failed: {path}")
         if verify is not None:
             verify()
         if app is not None and any(path.is_relative_to(app) for path in written):
@@ -183,7 +187,7 @@ def transact(changes: dict[Path, tuple[bytes | None, bytes]], app: Path | None =
                 if before is None:
                     path.unlink()
                 else:
-                    atomic_write(path, before)
+                    write(path, before)
             except (OSError, RuntimeError) as rollback_error:
                 failures.append(str(rollback_error))
         if app is not None and any(path.is_relative_to(app) for path in written) and not failures:
