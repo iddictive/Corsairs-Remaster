@@ -10,7 +10,6 @@ from pathlib import Path
 
 import patch_gameplay_suite as suite
 import metal_graphics_settings as graphics
-import metal_menu_branding as menu_branding
 import metal_deck_camera as deck_camera
 import metal_deck_controls as deck_controls
 import patch_custody_life as custody_life
@@ -123,7 +122,7 @@ def script_bytes(relative, data, *representations):
         known = set()
         owners = (globals(), vars(suite), vars(living_caribbean), vars(fleet_gameplay),
                   vars(fleet_sea), vars(fleet_ui), vars(military_callbacks), vars(graphics),
-                  vars(menu_branding), vars(deck_camera), vars(deck_controls),
+                  vars(deck_camera), vars(deck_controls),
                   vars(governor_dialog), vars(squad_supply), vars(custody_life))
         for owner in owners:
             for value in owner.values():
@@ -306,14 +305,6 @@ def plan(target_root=None, paths=None, source_set=None):
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
-            if relative in menu_branding.FILES:
-                canonical_current, _ = menu_branding.strip(relative, current)
-                if canonical_current != incoming:
-                    raise RuntimeError(f"unrecognized menu branding source revision: {relative}")
-                reviewed, _ = menu_branding.prepare(relative, incoming)
-                if reviewed != current:
-                    changes[relative] = (current, reviewed)
-                continue
             if relative in deck_controls.PATHS:
                 reviewed = deck_controls.prepare(relative, incoming)
                 current = script_bytes(relative, current, incoming, reviewed)
@@ -473,8 +464,6 @@ def apply_locked(changes, paths=None, source_set=None):
                 backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
             if relative == pickup_glow.RELATIVE_PATH:
                 backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
-            if relative in menu_branding.FILES:
-                backup_matches = digest(baseline) == menu_branding.BASE[relative]
             graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)
             if graphics_spec:
                 backup_matches = digest(baseline) == graphics_spec.original_sha256

@@ -22,6 +22,34 @@
         "a15e1e013cbe8ade5a6a9e80975e91af1b99627c2e34ceb080e8d70a78916fe1",
         "2cba66d380e5de28ed5ffc00464747c4d40aac09b0cee3425da2d6e1132190b9"
       ]
+    },
+    "PROGRAM/interface/mainmenu.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "27de0887aed4ce46f5b011ac4375bfca4b9c51866162ff1d4503c49b5be355d5",
+        "5f73c2b07b34bdf72ba98dc58b469821c4e6c6f376bad73ab8f3ad291d615c0a",
+        "6ff003eb1a19078078a8fbb459f38f63f72d12b4db2d48e8116b6718c946f4bb",
+        "8b3e4dd50e18dbfaf871f9a9135163b0c0d2212aafb33d7bd8b1df14aa533a5a",
+        "c3a2f9374a13de5922f7fbcf53d30dd71addede22934a58b1e5bfd6ea88704a8"
+      ]
+    },
+    "RESOURCE/INI/interfaces/mainmenu.ini": {
+      "encoding": "utf-8",
+      "legacy": [
+        "172a7ea274f5a5c52163574bd61fc70e291b252206b8e9480b0099291803574b",
+        "4725f28fb9393fc8be6397263d5bd1021b8708a297d94a81c663d7cbd177d39d",
+        "708bb1912cb1f93bd7080109ca67e4ceac961754c6fe0f6b7bf7b697f11d4ad5",
+        "9893484ba53d569653e93860979400b9b4d5ec912255cce8bcdae17bfee2f5e2",
+        "c2d9673911eedc386cc28405cb3128ae84dba1555e877202766874fb17f681c1"
+      ]
+    },
+    "RESOURCE/INI/interfaces/pictures.ini": {
+      "encoding": "utf-8",
+      "legacy": [
+        "045d5d3e07be77ca6259dc64b826a68145c16fd3114e64c6337578205fea9634",
+        "2805c35bf9d4a750fb399f0fc53e22df41ad1625716e7f4a09bb0811daf7ee63",
+        "8cc35fbd54af83c9bb2fc320c2555ebdabb9daf137c344e847ad09bb849303cb"
+      ]
     }
   }
 }
