@@ -75,6 +75,7 @@ int WdmMilitaryHullGuns(aref ship)
 	aref hull; makearef(hull, ShipsTypes[sti(ship.baseType)]);
 	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
 	if (!CheckAttribute(hull, "CannonsQuantity") || !CheckAttribute(hull, "Cannon") || sti(hull.Cannon) == CANNON_TYPE_NONECANNON) return 0;
+	if (CheckAttribute(ship, "Ship.Cannons.Type") && sti(ship.Ship.Cannons.Type) == CANNON_TYPE_NONECANNON) return 0;
 	return makeint(sti(hull.CannonsQuantity) * WdmTrafficFraction(stf(ship.guns)));
 }
 
@@ -145,17 +146,7 @@ bool WdmMilitaryFleetReady(aref encounter, int nation)
 
 int WdmMilitaryPhysicalLoad(aref ship)
 {
-	int weight = WdmTrafficCargoWeight(ship) + WdmTrafficCrewQuantity(ship);
-	int cannon = CANNON_TYPE_NONECANNON;
-	if (CheckAttribute(ship, "Ship.Cannons.Type")) cannon = sti(ship.Ship.Cannons.Type);
-	else if (CheckAttribute(ship, "RealShip.Cannon")) cannon = sti(ship.RealShip.Cannon);
-	else if (CheckAttribute(ship, "baseType")) cannon = sti(ShipsTypes[sti(ship.baseType)].Cannon);
-	if (cannon != CANNON_TYPE_NONECANNON && cannon >= 0)
-	{
-		ref armament = GetCannonByType(cannon);
-		weight = weight + WdmMilitaryHullGuns(ship) * sti(armament.Weight);
-	}
-	return weight;
+	return WdmTrafficPhysicalLoad(ship);
 }
 
 int WdmMilitaryTransportRoom(aref ship)
@@ -304,6 +295,78 @@ bool WdmMilitaryCommit(aref encounter, int colony)
 	return true;
 }
 
+int WdmMilitaryTargetWeight(int colony, aref encounter, ref forces, ref plan)
+{
+	// TargetReady owns admission; positive preferences never override it.
+	string path = "islands." + Colonies[colony].island + ".position";
+	if (CheckAttribute(&Colonies[colony], "from_sea"))
+	{
+		string berth = "islands." + Colonies[colony].island + "." + Colonies[colony].from_sea + ".position";
+		if (CheckAttribute(&worldMap, berth + ".x") && CheckAttribute(&worldMap, berth + ".z")) path = berth;
+	}
+	// Unknown coordinates remain eligible with the smallest preference; they
+	// cannot masquerade as a nearby target. Native still validates its locator.
+	if (!CheckAttribute(encounter, "x") || !CheckAttribute(encounter, "z") ||
+		!CheckAttribute(&worldMap, path + ".x") || !CheckAttribute(&worldMap, path + ".z")) return 1;
+	float dx = stf(worldMap.(path).x) - stf(encounter.x);
+	float dz = stf(worldMap.(path).z) - stf(encounter.z);
+	float distance = sqrt(dx * dx + dz * dz);
+	int garrison = WdmMilitaryGarrison(colony);
+	int guns = 0;
+	if (WdmTrafficFortInventory(colony) > 0) guns = Fort_GetCannonsQuantity(&Characters[WdmMilitaryGarrisonCharacter(colony)]);
+	float defence = makefloat(garrison) / (sti(forces.landing) + 1.0) + makefloat(guns) / (stf(forces.guns) + 1.0);
+	float foodDays = -1.0; int room = 0;
+	aref roster; makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		if (!CheckAttribute(roster, key) || sti(roster.(key).dead)) continue;
+		aref ship; makearef(ship, roster.(key));
+		float days = makefloat(WdmTrafficEntryGoods(ship, GOOD_FOOD)) / WdmTrafficDailyFood(ship);
+		if (foodDays < 0.0 || days < foodDays) foodDays = days;
+		int free = WdmTrafficCargoCapacity(ship) - WdmMilitaryPhysicalLoad(ship);
+		if (CheckAttribute(plan, key))
+		{
+			int balls = WdmTrafficEntryGoods(ship, GOOD_BALLS); int powder = WdmTrafficEntryGoods(ship, GOOD_POWDER);
+			free = free - GetGoodWeightByType(GOOD_BALLS, balls + sti(plan.(key).balls)) + GetGoodWeightByType(GOOD_BALLS, balls);
+			free = free - GetGoodWeightByType(GOOD_POWDER, powder + sti(plan.(key).powder)) + GetGoodWeightByType(GOOD_POWDER, powder);
+		}
+		if (free > 0) room = room + free;
+	}
+	if (foodDays < 0.0) foodDays = 0.0;
+	int stock = 0;
+	int storeIndex = FindStore(Colonies[colony].id);
+	if (storeIndex >= 0 && storeIndex != SHIP_STORE)
+	{
+		ref store = &Stores[storeIndex];
+		for (int good = 0; good < GOODS_QUANTITY; good++)
+		{
+			if (!WdmTrafficStoreGood(store, good)) continue;
+			string name = Goods[good].name;
+			int available = GetStoreGoodsQuantity(store, good) - makeint(stf(store.Goods.(name).Norm) * 0.25);
+			if (available > 0) stock = stock + GetGoodWeightByType(good, available);
+		}
+	}
+	// Cargo attractiveness stops at this fleet's actual remaining holds. Food
+	// endurance matters more for distant targets, rather than cancelling out as
+	// one fleet-wide multiplier in every target's weight.
+	int carriedStock = stock; if (carriedStock > room) carriedStock = room;
+	float value = 1.0 + stf(Colonies[colony].FortValue) / 100.0 + makefloat(carriedStock) / (carriedStock + 10000.0);
+	float endurance = (foodDays + 1.0) / (foodDays + 1.0 + 7.0 * (1.0 + distance / 400.0));
+	float capacity = 0.5 + 0.5 * room / (room + sti(forces.landing) + 1.0);
+	float history = 1.0;
+	if (CheckAttribute(&Colonies[colony], "trafficSiege.id"))
+	{
+		aref previous; makearef(previous, Colonies[colony].trafficSiege);
+		int age = WdmTrafficElapsed(previous, "day");
+		history = 0.5 + 0.5 * age / (age + 180.0);
+	}
+	// Scales are initial tuning, not a travel-time or victory-probability model.
+	int weight = makeint(1000.0 * value * endurance * capacity * history / ((1.0 + distance / 400.0) * (1.0 + defence)));
+	if (weight < 1) weight = 1;
+	return weight;
+}
+
 void WdmMilitaryReview(int nation)
 {
 	if (!WdmTrafficIsStateNation(nation) || !CheckAttribute(&Nations[nation], "trafficStrategy.version")) return;
@@ -322,10 +385,13 @@ void WdmMilitaryReview(int nation)
 		if (!WdmMilitaryFleetReady(fleet, nation)) continue;
 		object forces, plan; WdmMilitaryFleetForces(fleet, &forces);
 		if (!WdmMilitarySupplyPlan(fleet, &plan)) continue;
-		int choices[MAX_COLONIES]; int count = 0;
+		int choices[MAX_COLONIES]; int weights[MAX_COLONIES]; int count = 0; int total = 0;
 		for (int c = 0; c < MAX_COLONIES; c++)
 		{
-			if (WdmMilitaryTargetReady(c, nation, &forces)) { choices[count] = c; count++; }
+			if (!WdmMilitaryTargetReady(c, nation, &forces)) continue;
+			choices[count] = c;
+			weights[count] = WdmMilitaryTargetWeight(c, fleet, &forces, &plan);
+			total = total + weights[count]; count++;
 		}
 		if (count == 0) continue;
 		int probability = 15; if (nation == FRANCE) probability = 20;
@@ -333,7 +399,13 @@ void WdmMilitaryReview(int nation)
 		weekly.roll = rand(99);
 		weekly.result = "declined";
 		if (sti(weekly.roll) >= probability) return;
-		int target = choices[rand(count - 1)];
+		int roll = rand(total - 1); int target = -1;
+		for (int choice = 0; choice < count; choice++)
+		{
+			if (roll < weights[choice]) { target = choices[choice]; break; }
+			roll = roll - weights[choice];
+		}
+		if (target < 0) { weekly.result = "unavailable"; return; }
 		if (WdmMilitaryCommit(fleet, target)) weekly.result = "committed";
 		else weekly.result = "unavailable";
 		return;
@@ -357,10 +429,87 @@ void WdmMilitarySeed()
 	}
 }
 
+bool WdmMilitaryEmbarkationRoute(int colony)
+{
+	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "from_sea")) return false;
+	string berth = Colonies[colony].from_sea;
+	int shore = FindLocation(berth);
+	int island = WdmHarbourBerthIsland(berth);
+	if (shore < 0 || island < 0 || !CheckAttribute(&Locations[shore], "reload") ||
+		!CheckAttribute(&Islands[island], "reload") ||
+		(CheckAttribute(&Islands[island], "reload_enable") && !sti(Islands[island].reload_enable))) return false;
+	aref sea, land; makearef(sea, Islands[island].reload); makearef(land, Locations[shore].reload);
+	for (int s = 0; s < GetAttributesNum(sea); s++)
+	{
+		aref arrival = GetAttributeN(sea, s);
+		if (!CheckAttribute(arrival, "go") || arrival.go != berth || !CheckAttribute(arrival, "name") ||
+			(CheckAttribute(arrival, "disable") && sti(arrival.disable) > 0)) continue;
+		for (int r = 0; r < GetAttributesNum(land); r++)
+		{
+			aref departure = GetAttributeN(land, r);
+			if (!CheckAttribute(departure, "go") || departure.go != Islands[island].id ||
+				!CheckAttribute(departure, "emerge") || departure.emerge != arrival.name || !CheckAttribute(departure, "name")) continue;
+			if (chrCheckReload(&Locations[shore], departure.name)) return true;
+		}
+	}
+	return false;
+}
+
+bool WdmMilitaryEvacuationAdmitted(aref encounter)
+{
+	if (!CheckAttribute(encounter, "trafficMission") || !CheckAttribute(encounter, "trafficFleetID")) return false;
+	int colony = FindColony(encounter.trafficMission);
+	if (!WdmMilitaryActive(colony)) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (siege.fleet != encounter.trafficFleetID || !sti(siege.landed) || !WdmMilitaryEmbarkationRoute(colony)) return false;
+	// Arrival owns this berth. A requested route, another port or a loaded sea
+	// battle cannot silently embark these shore troops on a healthy remote hull.
+	if (!CheckAttribute(encounter, "trafficDestinationPort") || encounter.trafficDestinationPort != Colonies[colony].id ||
+		CheckAttribute(encounter, "trafficNextLocator") || CheckAttribute(encounter, "trafficBattle") ||
+		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))) return false;
+	return WdmMilitaryLocalDefence(colony, encounter) == "" && !WdmHarbourNavalOpposition(colony, sti(siege.nation));
+}
+
+bool WdmMilitaryControlsHarbour(int colony, aref encounter)
+{
+	if (!CheckAttribute(encounter, "trafficNation") || GetNationRelation(sti(encounter.trafficNation), sti(Colonies[colony].nation)) != RELATION_ENEMY ||
+		!CheckAttribute(encounter, "encdata.trafficRoster.count") || CheckAttribute(encounter, "needDelete") ||
+		WdmMilitaryLocalDefence(colony, encounter) != "" || WdmHarbourNavalOpposition(colony, sti(encounter.trafficNation))) return false;
+	aref roster; makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		if (!CheckAttribute(roster, key) || sti(roster.(key).dead)) continue;
+		aref ship, hull; makearef(ship, roster.(key)); makearef(hull, ShipsTypes[sti(ship.baseType)]);
+		if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+		if (stf(ship.hp) >= 0.15 && stf(ship.sp) >= 0.15 && WdmTrafficCrewQuantity(ship) >= sti(hull.MinCrew) &&
+			WdmMilitaryHullGuns(ship) > 0 && stf(ship.ammo) > 0.0) return true;
+	}
+	return false;
+}
+
+void WdmMilitaryRefreshHarbour(int colony)
+{
+	if (!CheckAttribute(&Colonies[colony], "trafficHarbour.held") || !sti(Colonies[colony].trafficHarbour.held) ||
+		!CheckAttribute(&Colonies[colony], "trafficHarbour.fleet")) return;
+	aref harbour; makearef(harbour, Colonies[colony].trafficHarbour);
+	string path = "encounters." + harbour.fleet;
+	bool held = false;
+	if (CheckAttribute(&worldMap, path))
+	{
+		aref encounter; makearef(encounter, worldMap.(path));
+		int voyage = 0; if (CheckAttribute(encounter, "trafficVoyage")) voyage = sti(encounter.trafficVoyage);
+		// The native departure increments this only after its maritime locator
+		// resolves. Merely scheduling homeward travel cannot release the harbour.
+		held = voyage == sti(harbour.voyage) && WdmMilitaryControlsHarbour(colony, encounter);
+	}
+	if (!held) WdmHarbourSetAccess(colony, harbour.operation, true);
+}
+
 int WdmMilitaryEvacuationCapacity(aref encounter)
 {
 	int capacity = 0;
-	if (!CheckAttribute(encounter, "encdata.trafficRoster.count")) return 0;
+	if (!CheckAttribute(encounter, "encdata.trafficRoster.count") || !WdmMilitaryEvacuationAdmitted(encounter)) return 0;
 	aref roster; makearef(roster, encounter.encdata.trafficRoster);
 	for (int i = 0; i < sti(roster.count); i++)
 	{
@@ -415,6 +564,7 @@ void WdmMilitaryEnd(int colony, aref encounter, string result)
 	if (CheckAttribute(siege, "surrendered") && sti(siege.surrendered) > 0 && sti(siege.evacuated) == 0) result = "surrender";
 	siege.active = 0; siege.phase = "ended"; siege.result = result; siege.foreground = 0;
 	WdmRecoveryEndOperation(colony);
+	WdmMilitaryRefreshHarbour(colony);
 	WdmMilitaryNews(colony, "outcome", colony);
 	aref ended; makearef(ended, siege.ended); WdmTrafficStamp(ended);
 	int nation = sti(siege.nation);
@@ -445,6 +595,7 @@ bool WdmMilitaryArrived(aref encounter)
 		encounter.trafficIntent = "fort_attack";
 		encounter.trafficLifecycle = "service";
 		aref clock; makearef(clock, siege.clock); WdmTrafficStamp(clock);
+		WdmHarbourParticipationPending(colony);
 	}
 	return true;
 }
@@ -528,8 +679,14 @@ void WdmMilitaryBeginLanding(int colony, aref encounter)
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
 	if (sti(siege.landed)) return;
 	int installed = WdmTrafficFortInventory(colony);
-	if (installed < 0 || WdmMilitaryLocalDefence(colony, encounter) != "") return;
+	if (installed < 0 || WdmMilitaryLocalDefence(colony, encounter) != "" ||
+		WdmHarbourParticipationPending(colony) || WdmHarbourNavalOpposition(colony, sti(siege.nation))) return;
 	if (installed > 0 && !Fort_CanLandAssault(&Characters[WdmMilitaryGarrisonCharacter(colony)])) return;
+	WdmHarbourOverrun(colony, siege.id);
+	WdmHarbourSetAccess(colony, siege.id, false);
+	Colonies[colony].trafficHarbour.fleet = encounter.trafficFleetID;
+	Colonies[colony].trafficHarbour.voyage = 0;
+	if (CheckAttribute(encounter, "trafficVoyage")) Colonies[colony].trafficHarbour.voyage = encounter.trafficVoyage;
 	aref roster; makearef(roster, encounter.encdata.trafficRoster);
 	siege.attackers = 0;
 	for (int i = 0; i < sti(roster.count); i++)
@@ -558,20 +715,31 @@ void WdmMilitaryBeginLanding(int colony, aref encounter)
 
 void WdmMilitaryNavalStep(int colony, aref encounter)
 {
+	if (WdmHarbourParticipationPending(colony)) return;
 	if (WdmMilitaryEngageDefence(colony, encounter)) return;
 	int installed = WdmTrafficFortInventory(colony);
 	if (installed < 0) { WdmMilitaryEnd(colony, encounter, "unknown_defence"); return; }
-	if (installed == 0) { WdmMilitaryBeginLanding(colony, encounter); return; }
-	ref fort = &Characters[WdmMilitaryGarrisonCharacter(colony)];
-	if (Fort_CanLandAssault(fort)) { WdmMilitaryBeginLanding(colony, encounter); return; }
-	int working = Fort_GetCannonsQuantity(fort);
-	int ammunition = GetCargoGoods(fort, GOOD_BOMBS);
-	int charge = GOOD_BOMBS;
-	if (GetCargoGoods(fort, GOOD_BALLS) > ammunition) { charge = GOOD_BALLS; ammunition = GetCargoGoods(fort, GOOD_BALLS); }
-	if (GetCargoGoods(fort, GOOD_POWDER) < ammunition) ammunition = GetCargoGoods(fort, GOOD_POWDER);
-	if (ammunition > working) ammunition = working;
-	if (ammunition < 0) ammunition = 0;
-	if (ammunition > 0) { RemoveCharacterGoods(fort, charge, ammunition); RemoveCharacterGoods(fort, GOOD_POWDER, ammunition); }
+	bool shelling = false;
+	if (installed > 0) shelling = !Fort_CanLandAssault(&Characters[WdmMilitaryGarrisonCharacter(colony)]);
+	if (!shelling && !WdmHarbourNavalOpposition(colony, sti(encounter.trafficNation)))
+	{
+		WdmMilitaryBeginLanding(colony, encounter); return;
+	}
+	// A suppressed/absent fort cannot bypass living moored naval defence. Use
+	// the same paid ship exchange below, without inventing fort return fire.
+	int ammunition = 0;
+	if (shelling)
+	{
+		ref fort = &Characters[WdmMilitaryGarrisonCharacter(colony)];
+		int working = Fort_GetCannonsQuantity(fort);
+		ammunition = GetCargoGoods(fort, GOOD_BOMBS);
+		int charge = GOOD_BOMBS;
+		if (GetCargoGoods(fort, GOOD_BALLS) > ammunition) { charge = GOOD_BALLS; ammunition = GetCargoGoods(fort, GOOD_BALLS); }
+		if (GetCargoGoods(fort, GOOD_POWDER) < ammunition) ammunition = GetCargoGoods(fort, GOOD_POWDER);
+		if (ammunition > working) ammunition = working;
+		if (ammunition < 0) ammunition = 0;
+		if (ammunition > 0) { RemoveCharacterGoods(fort, charge, ammunition); RemoveCharacterGoods(fort, GOOD_POWDER, ammunition); }
+	}
 	aref roster; makearef(roster, encounter.encdata.trafficRoster);
 	float fire = 0.0; int alive = 0;
 	for (int i = 0; i < sti(roster.count); i++)
@@ -594,8 +762,29 @@ void WdmMilitaryNavalStep(int colony, aref encounter)
 		if (stf(ship.hp) <= 0.0) { ship.dead = 1; ship.trafficLoss = "sunk"; WdmTrafficLoseCargo(ship); }
 	}
 	if (fire <= 0.0 || alive == 0) { WdmMilitaryEnd(colony, encounter, "repelled"); return; }
-	WdmMilitaryDamageFort(fort, fire / 25.0);
-	WdmMilitarySetGarrison(colony, WdmMilitaryGarrison(colony) - makeint(fire / 20.0));
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	int step = 0; if (CheckAttribute(siege, "navalStep")) step = sti(siege.navalStep);
+	string receipt = siege.id + "_" + step;
+	siege.navalStep = step + 1;
+	float harbourFire = WdmHarbourNavalStep(colony, fire, receipt);
+	if (harbourFire > 0.0 && alive > 0)
+	{
+		float harbourWear = harbourFire / (alive * 800.0);
+		for (int h = 0; h < sti(roster.count); h++)
+		{
+			string hk = "ship" + h;
+			if (!CheckAttribute(roster, hk) || sti(roster.(hk).dead)) continue;
+			aref hship; makearef(hship, roster.(hk));
+			hship.hp = WdmTrafficFraction(stf(hship.hp) - harbourWear);
+			if (CheckAttribute(hship, "RealShip.HP")) hship.Ship.HP = stf(hship.RealShip.HP) * stf(hship.hp);
+			if (stf(hship.hp) <= 0.0) { hship.dead = 1; hship.trafficLoss = "sunk"; WdmTrafficLoseCargo(hship); }
+		}
+	}
+	if (shelling)
+	{
+		WdmMilitaryDamageFort(&Characters[WdmMilitaryGarrisonCharacter(colony)], fire / 25.0);
+		WdmMilitarySetGarrison(colony, WdmMilitaryGarrison(colony) - makeint(fire / 20.0));
+	}
 	WdmMilitaryBeginLanding(colony, encounter);
 }
 
@@ -771,6 +960,10 @@ void WdmMilitaryTick()
 	if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
 	WdmTrafficStamp(clock);
 	WdmMilitarySeed();
-	for (int colony = 0; colony < MAX_COLONIES; colony++) WdmMilitaryUpdate(colony);
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		WdmMilitaryRefreshHarbour(colony);
+		WdmMilitaryUpdate(colony);
+	}
 	for (int nation = 0; nation < MAX_NATIONS; nation++) WdmMilitaryReview(nation);
 }

@@ -145,12 +145,26 @@ bool WdmMilitaryAgree(int colony, string side, ref speaker, bool contract)
 	if (side == "attacker" && GetRelation(sti(speaker.index), GetMainCharacterIndex()) == RELATION_ENEMY) return false;
 	if (side == "attacker" && GetRelation2BaseNation(nation) != RELATION_FRIEND && !WdmMilitaryHasPatent(nation)) return false;
 	if (side == "attacker" && contract && !WdmMilitaryHasPatent(nation)) return false;
+	if (CheckAttribute(siege, "assistance.id") && (side != "attacker" || !WdmMilitaryAssistanceValid(colony))) return false;
 	aref agreement; makearef(agreement, siege.participation);
+	int earned = 0;
+	int priorStrength = 0;
+	if (WdmMilitaryAssistanceValid(colony))
+	{
+		aref assistance; makearef(assistance, siege.assistance);
+		CopyAttributes(agreement, assistance); earned = sti(assistance.contribution);
+		priorStrength = sti(assistance.enemyStrength);
+		DeleteAttribute(siege, "assistance");
+	}
 	agreement.id = siege.id; agreement.phase = siege.phase; agreement.side = side; agreement.nation = nation;
 	agreement.active = 1; agreement.agreed = contract; agreement.revoked = 0; agreement.settled = 0;
+	agreement.departed = 0;
+	if (!CheckAttribute(agreement, "warning")) agreement.warning = 0;
 	agreement.safeConduct = 0; if (side == "defender" && contract) agreement.safeConduct = 1;
-	agreement.patent = WdmMilitaryHasPatent(nation); agreement.contribution = 0;
+	agreement.patent = WdmMilitaryHasPatent(nation); agreement.contribution = earned;
+	agreement.uncontractedContribution = earned;
 	agreement.enemyStrength = siege.plannedLanding; if (side == "attacker") agreement.enemyStrength = siege.defenders;
+	if (priorStrength > sti(agreement.enemyStrength)) agreement.enemyStrength = priorStrength;
 	agreement.moneyCap = 0; if (side == "defender" && CheckAttribute(&Colonies[colony], "money")) agreement.moneyCap = makeint(sti(Colonies[colony].money) * 0.1);
 	if (sti(agreement.moneyCap) < 0) agreement.moneyCap = 0;
 	int storeIndex = FindStore(Colonies[colony].id);
@@ -166,6 +180,7 @@ bool WdmMilitaryAgree(int colony, string side, ref speaker, bool contract)
 		}
 	}
 	WdmTrafficStamp(agreement);
+	DeleteAttribute(agreement, "party");
 	for (int i = 0; i < 4; i++)
 	{
 		int index = GetMainCharacterIndex(); if (i > 0) index = GetOfficersIndex(pchar, i);
@@ -188,6 +203,205 @@ void WdmMilitaryRecordContribution(int colony, string side, int weight)
 	aref agreement; makearef(agreement, Colonies[colony].trafficSiege.participation);
 	if (agreement.side != side) return;
 	agreement.contribution = sti(agreement.contribution) + weight;
+}
+
+bool WdmMilitaryAssistanceValid(int colony)
+{
+	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "trafficSiege.assistance.id")) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	return siege.assistance.id == siege.id && siege.assistance.player == pchar.id &&
+		siege.assistance.side == "attacker" && sti(siege.assistance.nation) == sti(siege.nation) &&
+		sti(siege.assistance.patent) && !sti(siege.assistance.revoked) && !sti(siege.assistance.settled);
+}
+
+bool WdmMilitaryCurrentParty(int index)
+{
+	if (index < 0 || index >= TOTAL_CHARACTERS) return false;
+	if (index == nMainCharacterIndex) return true;
+	for (int officer = 1; officer < 4; officer++)
+	{
+		if (GetOfficersIndex(pchar, officer) == index) return true;
+	}
+	for (int companion = 1; companion < COMPANION_MAX; companion++)
+	{
+		if (GetCompanionIndex(pchar, companion) == index) return true;
+	}
+	return false;
+}
+
+bool WdmMilitaryContributionReady(int colony, string victimSide, int attackerIndex)
+{
+	if (!WdmMilitaryActive(colony) || WdmMilitaryParticipationBlocked(colony) || victimSide == "") return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (CheckAttribute(siege, "participation.id"))
+		return WdmMilitaryParticipationValid(colony) && victimSide != siege.participation.side;
+	// Uncontracted evidence grants no alliance or safe conduct. Eligibility is
+	// captured at the actual action; a patent acquired afterwards cannot help.
+	if (victimSide != "defender") return false;
+	if (CheckAttribute(siege, "assistance.id")) return WdmMilitaryAssistanceValid(colony);
+	int nation = sti(siege.nation);
+	if (!WdmMilitaryCurrentParty(attackerIndex) || !WdmMilitaryHasPatent(nation) ||
+		GetRelation2BaseNation(nation) == RELATION_ENEMY) return false;
+	aref assistance; makearef(assistance, siege.assistance);
+	assistance.id = siege.id; assistance.player = pchar.id; assistance.side = "attacker"; assistance.nation = nation;
+	assistance.phase = siege.phase; assistance.active = 0; assistance.agreed = 0; assistance.safeConduct = 0;
+	assistance.patent = 1; assistance.revoked = 0; assistance.settled = 0; assistance.contribution = 0;
+	assistance.departed = 0; assistance.warning = 0;
+	assistance.moneyCap = 0; assistance.enemyStrength = siege.defenders;
+	if (CheckAttribute(siege, "initialDefenders")) assistance.enemyStrength = siege.initialDefenders;
+	else if (CheckAttribute(&Colonies[colony], "trafficRecovery.garrisonTarget"))
+		assistance.enemyStrength = Colonies[colony].trafficRecovery.garrisonTarget;
+	for (int member = 0; member < TOTAL_CHARACTERS; member++)
+	{
+		if (!WdmMilitaryCurrentParty(member)) continue;
+		string key = "member" + member; assistance.party.(key) = Characters[member].id;
+	}
+	WdmTrafficStamp(assistance);
+	return true;
+}
+
+void WdmMilitaryCreditEvidence(int colony, aref evidence, int weight)
+{
+	if (weight <= 0) return;
+	if (CheckAttribute(&Colonies[colony], "trafficSiege.participation.id"))
+		WdmMilitaryRecordContribution(colony, evidence.side, weight);
+	else if (WdmMilitaryAssistanceValid(colony) && WdmMilitaryHasPatent(sti(evidence.nation)) &&
+		GetRelation2BaseNation(sti(evidence.nation)) != RELATION_ENEMY)
+		evidence.contribution = sti(evidence.contribution) + weight;
+}
+
+string WdmMilitaryNavalSide(int colony, ref victim)
+{
+	if (CheckAttribute(victim, "quest") || CheckAttribute(victim, "qID")) return "";
+	string side = WdmMilitaryActorSide(colony, victim);
+	if (side != "") return side;
+	if (!CheckAttribute(victim, "trafficFleetID") || !CheckAttribute(victim, "trafficRosterSlot")) return "";
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	string expedition = "encounters." + siege.fleet;
+	string defender = "encounters." + victim.trafficFleetID;
+	// A same-nation ship elsewhere is not a participant in this operation.
+	if (sti(victim.nation) != sti(siege.defendingNation) ||
+		!CheckAttribute(&worldMap, expedition + ".trafficBattleRoot") ||
+		!CheckAttribute(&worldMap, defender + ".trafficBattleRoot")) return "";
+	if (worldMap.(expedition).trafficBattleRoot != "" &&
+		worldMap.(expedition).trafficBattleRoot == worldMap.(defender).trafficBattleRoot) return "defender";
+	return "";
+}
+
+void WdmMilitaryNavalContribution(ref victim, int attackerIndex, float hpBefore, float hpAfter)
+{
+	if (hpBefore <= 0.0 || hpAfter >= hpBefore || !CheckAttribute(victim, "Ship.Type")) return;
+	if (hpAfter < 0.0) hpAfter = 0.0;
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		if (!WdmMilitaryActive(colony)) continue;
+		string side = WdmMilitaryNavalSide(colony, victim);
+		if (side == "") continue;
+		string key = "";
+		float capacity = 0.0;
+		if (sti(victim.index) == WdmMilitaryGarrisonCharacter(colony))
+		{
+			// The fort's physical destroyed-count callback owns contribution.
+			// Its synthetic Ship.HP must not award the same gun loss again.
+			continue;
+		}
+		else
+		{
+			if (!CheckAttribute(victim, "trafficFleetID") || !CheckAttribute(victim, "trafficRosterSlot")) continue;
+			string roster = "encounters." + victim.trafficFleetID + ".encdata.trafficRoster.ship" + victim.trafficRosterSlot;
+			if (!CheckAttribute(&worldMap, roster + ".baseType")) continue;
+			if (CheckAttribute(&worldMap, roster + ".dead") && sti(worldMap.(roster).dead)) continue;
+			int type = GetCharacterShipType(victim);
+			if (type < 0 || type >= REAL_SHIPS_QUANTITY || type == SHIP_NOTUSED) continue;
+			capacity = stf(RealShips[type].HP);
+			key = "fleet" + victim.trafficFleetID + "_ship" + victim.trafficRosterSlot;
+		}
+		if (capacity <= 0.0) continue;
+		if (!WdmMilitaryContributionReady(colony, side, attackerIndex)) continue;
+		aref siege, agreement; makearef(siege, Colonies[colony].trafficSiege);
+		if (CheckAttribute(siege, "participation.id")) makearef(agreement, siege.participation);
+		else makearef(agreement, siege.assistance);
+		aref damage; makearef(damage, agreement.naval.(key));
+		if (!CheckAttribute(damage, "minimumHP"))
+		{
+			damage.minimumHP = hpBefore;
+			damage.capacity = capacity;
+			damage.weight = GetCrewQuantity(victim);
+			damage.loss = 0.0; damage.credited = 0;
+		}
+		float previous = stf(damage.minimumHP);
+		if (hpBefore < previous) previous = hpBefore;
+		if (hpAfter >= previous) continue;
+		// Observe NPC damage too. A later player hit cannot claim earlier losses,
+		// and repairs/reloads cannot reset this siege-owned low watermark.
+		damage.minimumHP = hpAfter;
+		if (attackerIndex < 0 || attackerIndex >= TOTAL_CHARACTERS ||
+			!WdmMilitaryPartyMember(agreement, &Characters[attackerIndex])) continue;
+		damage.loss = stf(damage.loss) + (previous - hpAfter);
+		if (stf(damage.loss) > stf(damage.capacity)) damage.loss = damage.capacity;
+		int credited = makeint(stf(damage.loss) * sti(damage.weight) / stf(damage.capacity));
+		int delta = credited - sti(damage.credited);
+		if (delta > 0)
+		{
+			damage.credited = credited;
+			WdmMilitaryCreditEvidence(colony, agreement, delta);
+		}
+	}
+}
+
+void WdmMilitaryFortContribution(ref fort, int attackerIndex, int destroyedBefore, int destroyedAfter)
+{
+	if (!CheckAttribute(fort, "Fort.Cannons.Quantity") || destroyedAfter <= destroyedBefore) return;
+	int quantity = sti(fort.Fort.Cannons.Quantity);
+	if (quantity <= 0 || destroyedBefore < 0 || destroyedAfter > quantity) return;
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		if (!WdmMilitaryActive(colony) || sti(fort.index) != WdmMilitaryGarrisonCharacter(colony)) continue;
+		if (!WdmMilitaryContributionReady(colony, "defender", attackerIndex)) continue;
+		aref siege, agreement, damage; makearef(siege, Colonies[colony].trafficSiege);
+		if (CheckAttribute(siege, "participation.id")) makearef(agreement, siege.participation);
+		else makearef(agreement, siege.assistance);
+		makearef(damage, agreement.fortDamage);
+		if (!CheckAttribute(damage, "maximumDestroyed"))
+		{
+			damage.character = fort.id; damage.maximumDestroyed = destroyedBefore;
+			damage.quantity = quantity; damage.weight = GetCrewQuantity(fort);
+			// Each real destroyed gun remains an objective even after crew loss.
+			if (sti(damage.weight) < quantity) damage.weight = quantity;
+			damage.destroyed = 0; damage.credited = 0;
+		}
+		if (damage.character != fort.id || sti(damage.quantity) != quantity) continue;
+		int previous = sti(damage.maximumDestroyed);
+		if (destroyedBefore > previous) previous = destroyedBefore;
+		if (destroyedAfter <= previous) continue;
+		damage.maximumDestroyed = destroyedAfter;
+		if (attackerIndex < 0 || attackerIndex >= TOTAL_CHARACTERS ||
+			!WdmMilitaryPartyMember(agreement, &Characters[attackerIndex])) continue;
+		damage.destroyed = sti(damage.destroyed) + destroyedAfter - previous;
+		int credited = makeint(sti(damage.destroyed) * makefloat(sti(damage.weight)) / quantity);
+		int delta = credited - sti(damage.credited);
+		if (delta > 0) { damage.credited = credited; WdmMilitaryCreditEvidence(colony, agreement, delta); }
+	}
+}
+
+void WdmMilitaryLandContribution(int colony, aref victim, int killerIndex, int weight)
+{
+	if (weight <= 0 || !WdmMilitaryActive(colony) || !CheckAttribute(victim, "trafficLand.id")) return;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (victim.trafficLand.id != siege.id || victim.trafficLand.phase != siege.phase ||
+		victim.trafficLand.location != siege.scene.location || !sti(victim.trafficLand.counted)) return;
+	if (siege.phase == "fort" && sti(victim.trafficLand.room) != sti(siege.land.room)) return;
+	if (weight > sti(victim.trafficLand.weight)) weight = sti(victim.trafficLand.weight);
+	if (!WdmMilitaryContributionReady(colony, victim.trafficLand.side, killerIndex)) return;
+	aref agreement;
+	if (CheckAttribute(siege, "participation.id")) makearef(agreement, siege.participation);
+	else makearef(agreement, siege.assistance);
+	if (killerIndex < 0 || killerIndex >= TOTAL_CHARACTERS || !WdmMilitaryPartyMember(agreement, &Characters[killerIndex])) return;
+	string key = "actor" + victim.index + "_" + victim.trafficLand.phase + "_" + victim.trafficLand.location;
+	if (CheckAttribute(victim, "trafficLand.room")) key = key + "_room" + victim.trafficLand.room;
+	if (CheckAttribute(agreement, "landCredits." + key)) return;
+	agreement.landCredits.(key) = victim.id;
+	WdmMilitaryCreditEvidence(colony, agreement, weight);
 }
 
 void WdmMilitaryParticipationLeave(int colony)
@@ -223,12 +437,31 @@ void WdmMilitaryParticipationCrime(string city)
 {
 	int colony = FindColony(city);
 	if (WdmMilitarySafeConduct(colony)) WdmMilitaryParticipationRevoke(colony);
+	if (WdmMilitaryAssistanceValid(colony)) Colonies[colony].trafficSiege.assistance.revoked = 1;
+}
+
+void WdmMilitaryParticipationMurder(ref victim, int killerIndex)
+{
+	if (!WdmMilitaryCurrentParty(killerIndex) || !CheckAttribute(victim, "City") ||
+		CheckAttribute(victim, "quest") || CheckAttribute(victim, "qID") ||
+		CheckAttribute(victim, "trafficLand.id") || IsOfficer(victim) || IsCompanion(victim)) return;
+	if (CheckAttribute(victim, "CityType") && victim.CityType == "soldier") return;
+	// Called by the existing unlawful-death owner, before public/deferred reports;
+	// local protection is not contingent on a surviving witness or patent loss.
+	WdmMilitaryParticipationCrime(victim.City);
 }
 
 bool WdmMilitaryParticipationHit(ref victim, bool deliberate)
 {
 	for (int colony = 0; colony < MAX_COLONIES; colony++)
 	{
+		if (WdmMilitaryActive(colony) && WdmMilitaryAssistanceValid(colony) &&
+			WdmMilitaryNavalSide(colony, victim) == "attacker")
+		{
+			aref assistance; makearef(assistance, Colonies[colony].trafficSiege.assistance);
+			if (deliberate || sti(assistance.warning)) assistance.revoked = 1;
+			else assistance.warning = 1;
+		}
 		if (!WdmMilitaryParticipationValid(colony) && !WdmMilitarySafeConduct(colony)) continue;
 		aref agreement; makearef(agreement, Colonies[colony].trafficSiege.participation);
 		string side = WdmMilitaryActorSide(colony, victim);
@@ -262,14 +495,28 @@ float WdmMilitaryContributionShare(aref agreement)
 	if (!sti(agreement.agreed) && !sti(agreement.patent)) return 0.0;
 	float effort = WdmTrafficFraction(makefloat(sti(agreement.contribution)) / sti(agreement.enemyStrength));
 	float ceiling = 0.1; if (!sti(agreement.agreed)) ceiling = 0.05;
-	return effort * ceiling;
+	float prior = 0.0;
+	if (sti(agreement.agreed) && CheckAttribute(agreement, "uncontractedContribution"))
+		prior = WdmTrafficFraction(makefloat(sti(agreement.uncontractedContribution)) / sti(agreement.enemyStrength));
+	if (prior > effort) prior = effort;
+	// Signing later cannot upgrade earlier uncontracted service to a paid contract.
+	return (effort - prior) * ceiling + prior * 0.05;
 }
 
 bool WdmMilitarySettle(int colony, ref speaker)
 {
-	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "trafficSiege.participation.id")) return false;
+	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "trafficSiege.id")) return false;
+	if (!CheckAttribute(&Colonies[colony], "trafficSiege.participation.id"))
+	{
+		if (!WdmMilitaryAssistanceValid(colony)) return false;
+		aref terminal; makearef(terminal, Colonies[colony].trafficSiege);
+		if (sti(terminal.active) || terminal.result != "sacked" || sti(terminal.assistance.contribution) <= 0 ||
+			WdmMilitaryParticipationSpeaker(speaker, "attacker") != colony) return false;
+		aref claimant, confirmed; makearef(claimant, terminal.assistance); makearef(confirmed, terminal.participation);
+		CopyAttributes(confirmed, claimant); DeleteAttribute(terminal, "assistance");
+	}
 	aref siege, agreement; makearef(siege, Colonies[colony].trafficSiege); makearef(agreement, siege.participation);
-	if (agreement.id != siege.id || sti(siege.active) || sti(agreement.settled) || WdmMilitaryParticipationSpeaker(speaker, agreement.side) != colony) return false;
+	if (agreement.id != siege.id || !WdmMilitaryPartyMember(agreement, pchar) || sti(siege.active) || sti(agreement.settled) || WdmMilitaryParticipationSpeaker(speaker, agreement.side) != colony) return false;
 	float share = WdmMilitaryContributionShare(agreement);
 	if (share <= 0.0 || siege.result == "ceasefire") return false;
 	if (agreement.side == "defender" && siege.result != "repelled" && siege.result != "fleet_lost" && siege.result != "surrender") return false;
@@ -410,6 +657,23 @@ void WdmMilitaryNews(int colony, string phase, int source)
 	WdmMilitaryNewsRefresh();
 }
 
+void WdmMilitaryReturnNews(aref encounter)
+{
+	if (!CheckAttribute(encounter, "trafficFleetID") || !CheckAttribute(encounter, "trafficCurrentPort") ||
+		!CheckAttribute(encounter, "trafficLifecycle") || encounter.trafficLifecycle != "service") return;
+	int source = FindColony(encounter.trafficCurrentPort);
+	if (source < 0) return;
+	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	{
+		if (!CheckAttribute(&Colonies[colony], "trafficSiege.id")) continue;
+		aref siege; makearef(siege, Colonies[colony].trafficSiege);
+		if (sti(siege.active) || siege.fleet != encounter.trafficFleetID) continue;
+		// Arrival has already unloaded the real manifest and begun service.
+		// News owns its existing operation+phase receipt; repeat arrival is inert.
+		WdmMilitaryNews(colony, "return", source);
+	}
+}
+
 bool WdmMilitaryParticipationDialog(ref speaker, aref links, string node)
 {
 	string side = "defender";
@@ -449,18 +713,49 @@ bool WdmMilitaryParticipationDialog(ref speaker, aref links, string node)
 		else
 		{
 			dialog.text = "Соглашение принято. Вступайте в бой, когда будете готовы.";
-			if (siege.phase == "fort" || siege.phase == "city") { links.l1 = "Вступить в бой на берегу."; links.l1.go = "WdmSiegeJoin"; }
+			if (WdmMilitaryLandEntryAvailable(colony)) { links.l1 = "Вступить в бой на берегу."; links.l1.go = "WdmSiegeJoin"; }
 		}
 		links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
 	}
 	if (node == "WdmSiegeJoin")
 	{
-		if (WdmMilitaryParticipationValid(colony) && WdmMilitaryJoinLand(colony)) { DialogExit(); return true; }
+		if (WdmMilitaryLandEntryAvailable(colony) && WdmMilitaryJoinLand(colony)) { DialogExit(); return true; }
 		dialog.text = "Сейчас пройти к месту боя нельзя."; links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
 	}
 	if (WdmMilitarySettle(colony, speaker)) dialog.text = "Вот ваша доля. Наш расчёт окончен.";
 	else dialog.text = "Сейчас выплатить долю нельзя: нужны итог боя, ваш вклад и доступная казна или вывезенная добыча.";
 	links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
+}
+
+bool WdmMilitaryLandEntryAvailable(int colony)
+{
+	if (!WdmMilitaryParticipationValid(colony) || WdmMilitaryParticipationBlocked(colony) || bSeaActive || LAi_IsBoardingProcess()) return false;
+	if (!IsEntity(loadedLocation) || LAi_IsDead(pchar) || LAi_IsFightMode(pchar)) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if ((siege.phase != "fort" && siege.phase != "city") || sti(siege.foreground) ||
+		!sti(siege.landed) || sti(siege.attackers) <= 0 || Colonies[colony].island != GetCharacterCurrentIslandId(pchar)) return false;
+	string destination = WdmMilitaryLandDestination(colony);
+	int index = FindLocation(destination);
+	if (destination == "" || index < 0) return false;
+	ref loc = &Locations[index];
+	// Admission needs actual locator banks, not only a town/asset name. A town
+	// whose capture geometry has not been bound retains naval assistance only.
+	if (!CheckAttribute(loc, "locators.rld.loc0")) return false;
+	int needed = 1;
+	if (WdmMilitaryLandDefenders(colony) > 0) needed = 2;
+	if (WdmMilitaryLandFreeActors() < needed) return false;
+	if (siege.phase == "city")
+	{
+		if (!CheckAttribute(loc, "locators.rld.loc1")) return false;
+		for (int fighter = 1; fighter <= 9; fighter++)
+		{
+			if (!CheckAttribute(loc, "locators.rld.loc0" + fighter) ||
+				!CheckAttribute(loc, "locators.rld.loc1" + fighter)) return false;
+		}
+	}
+	else if (!CheckAttribute(loc, "locators.rld.loc1") || !CheckAttribute(loc, "locators.rld.aloc0") ||
+		!CheckAttribute(loc, "locators.rld.aloc1")) return false;
+	return true;
 }
 
 void WdmMilitaryParticipationLinks(ref speaker, aref links)
@@ -473,10 +768,13 @@ void WdmMilitaryParticipationLinks(ref speaker, aref links)
 		(siege.phase == "naval" || siege.phase == "fort" || siege.phase == "city"))
 	{
 		links.l12 = "О помощи в этой осаде."; links.l12.go = "WdmSiegeOffer";
-		if (WdmMilitaryParticipationValid(colony) && (siege.phase == "fort" || siege.phase == "city"))
+		if (WdmMilitaryLandEntryAvailable(colony))
 		{ links.l13 = "Вступить в бой на берегу."; links.l13.go = "WdmSiegeJoin"; }
 	}
 	if (!sti(siege.active) && CheckAttribute(siege, "participation.id") && !sti(siege.participation.settled) &&
 		!sti(siege.participation.revoked) && sti(siege.participation.contribution) > 0)
+	{ links.l14 = "О моей доле за помощь."; links.l14.go = "WdmSiegeSettle"; }
+	if (!sti(siege.active) && !CheckAttribute(siege, "participation.id") && WdmMilitaryAssistanceValid(colony) &&
+		siege.result == "sacked" && sti(siege.assistance.contribution) > 0 && side == "attacker")
 	{ links.l14 = "О моей доле за помощь."; links.l14.go = "WdmSiegeSettle"; }
 }

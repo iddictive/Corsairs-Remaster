@@ -717,21 +717,27 @@ bool WdmTrafficCreate(int role)
 	encounter.trafficHomePort = Colonies[home].id;
 	encounter.trafficFleetID = encID;
 	encounter.trafficVersion = 1;
-	encounter.trafficVoyage = 1;
-	encounter.trafficLifecycle = "voyage";
+	encounter.trafficVoyage = 0;
+	encounter.trafficLifecycle = "service";
 	encounter.trafficCurrentPort = Colonies[home].id;
 	encounter.trafficLegLocator = to;
+	// New hulls assemble at the actual home berth. Existing/legacy rosters
+	// never pass through this path and retain their observed crew and supplies.
 	for (i = 0; i < sti(encounter.encdata.trafficRoster.count); i++)
 	{
 		string hullKey = "ship" + i;
-		encounter.encdata.trafficRoster.(hullKey).crew = 1.0;
-		if (CheckAttribute(encounter.encdata.trafficRoster.(hullKey), "maxCrew"))
-			encounter.encdata.trafficRoster.(hullKey).trafficCrewQuantity = sti(encounter.encdata.trafficRoster.(hullKey).maxCrew);
-		encounter.encdata.trafficRoster.(hullKey).ammo = 1.0;
+		encounter.encdata.trafficRoster.(hullKey).crew = 0.0;
+		encounter.encdata.trafficRoster.(hullKey).trafficCrewQuantity = 0;
+		encounter.encdata.trafficRoster.(hullKey).Ship.Crew.Quantity = 0;
+		encounter.encdata.trafficRoster.(hullKey).ammo = 0.0;
+		encounter.encdata.trafficRoster.(hullKey).savedAmmo = 0.0;
+		encounter.encdata.trafficRoster.(hullKey).trafficSupplies = "";
+		DeleteAttribute(encounter.encdata.trafficRoster.(hullKey), "Ship.Cargo.Goods");
 		encounter.encdata.trafficRoster.(hullKey).hp = 1.0;
 		encounter.encdata.trafficRoster.(hullKey).sp = 1.0;
 	}
-	DeleteAttribute(encounter, "trafficService");
+	encounter.trafficPower = 0.0;
+	WdmTrafficBeginService(encounter);
 	if (role == 3 && sti(encounter.encdata.NumWarShips) >= 4)
 	{
 		aref assembly;
@@ -920,7 +926,7 @@ int WdmTrafficCargoWeight(aref ship)
 
 int WdmTrafficCargoRoom(aref ship, int good)
 {
-	int free = WdmTrafficCargoCapacity(ship) - WdmTrafficCargoWeight(ship);
+	int free = WdmTrafficCargoCapacity(ship) - WdmTrafficPhysicalLoad(ship);
 	if (free < 0) return 0;
 	// A partial existing goods unit already owns its weight. Count its unused
 	// quantity too, using the same ceil-unit weight as the actual cargo owner.
@@ -928,6 +934,21 @@ int WdmTrafficCargoRoom(aref ship, int good)
 	int room = GetGoodQuantityByWeight(good, free + GetGoodWeightByType(good, held)) - held;
 	if (room < 0) return 0;
 	return room;
+}
+
+int WdmTrafficPhysicalLoad(aref ship)
+{
+	int weight = WdmTrafficCargoWeight(ship) + WdmTrafficCrewQuantity(ship);
+	int cannon = CANNON_TYPE_NONECANNON;
+	if (CheckAttribute(ship, "Ship.Cannons.Type")) cannon = sti(ship.Ship.Cannons.Type);
+	else if (CheckAttribute(ship, "RealShip.Cannon")) cannon = sti(ship.RealShip.Cannon);
+	else if (CheckAttribute(ship, "baseType")) cannon = sti(ShipsTypes[sti(ship.baseType)].Cannon);
+	if (cannon != CANNON_TYPE_NONECANNON && cannon >= 0)
+	{
+		ref armament = GetCannonByType(cannon);
+		weight = weight + WdmMilitaryHullGuns(ship) * sti(armament.Weight);
+	}
+	return weight;
 }
 
 bool WdmTrafficStoreGood(ref store, int good)
@@ -1077,7 +1098,11 @@ int WdmTrafficCrewQuantity(aref ship)
 {
 	if (CheckAttribute(ship, "trafficCrewQuantity")) return sti(ship.trafficCrewQuantity);
 	if (CheckAttribute(ship, "Ship.Crew.Quantity")) return sti(ship.Ship.Crew.Quantity);
-	return makeint(stf(ShipsTypes[sti(ship.baseType)].MaxCrew) * stf(ship.crew));
+	int maximum = sti(ShipsTypes[sti(ship.baseType)].MaxCrew);
+	if (CheckAttribute(ship, "RealShip.MaxCrew")) maximum = sti(ship.RealShip.MaxCrew);
+	float fraction = 1.0;
+	if (CheckAttribute(ship, "crew")) fraction = WdmTrafficFraction(stf(ship.crew));
+	return makeint(maximum * fraction);
 }
 
 int WdmTrafficDailyFood(aref ship)
@@ -1311,6 +1336,7 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 	int guns = 0;
 	if (CheckAttribute(hull, "CannonsQuantity")) guns = sti(hull.CannonsQuantity);
 	if (CheckAttribute(hull, "Cannon") && sti(hull.Cannon) == CANNON_TYPE_NONECANNON) guns = 0;
+	if (CheckAttribute(ship, "Ship.Cannons.Type") && sti(ship.Ship.Cannons.Type) == CANNON_TYPE_NONECANNON) guns = 0;
 	int need[GOODS_QUANTITY];
 	for (int good = 0; good < GOODS_QUANTITY; good++) need[good] = 0;
 	float maxHP = stf(hull.HP);
@@ -1340,7 +1366,18 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 		if (reserve < 1) reserve = 1;
 		if (GetStoreGoodsQuantity(store, good) - need[good] < reserve) return false;
 	}
-	int cargoWeight = WdmTrafficCargoWeight(ship);
+	int cargoWeight = WdmTrafficPhysicalLoad(ship) + recruits;
+	if (guns > 0)
+	{
+		int repaired = guns - WdmMilitaryHullGuns(ship);
+		if (repaired > 0)
+		{
+			int repairedType = sti(hull.Cannon);
+			if (CheckAttribute(ship, "Ship.Cannons.Type")) repairedType = sti(ship.Ship.Cannons.Type);
+			ref repairedArmament = GetCannonByType(repairedType);
+			cargoWeight = cargoWeight + repaired * sti(repairedArmament.Weight);
+		}
+	}
 	int carried[3];
 	carried[0] = GOOD_BALLS; carried[1] = GOOD_POWDER; carried[2] = GOOD_FOOD;
 	for (int item = 0; item < 3; item++)
@@ -1514,8 +1551,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		worldMap.deleteUpdate = "";
 		return;
 	}
-	bool overdue = WdmTrafficElapsed(service, "hour") >= 36;
-	if ((!ready && !overdue) || (!stock && !overdue) || CheckAttribute(encounter, "trafficNextLocator")) return;
+	if (!ready || !stock || CheckAttribute(encounter, "trafficNextLocator")) return;
 	int role = sti(encounter.trafficRole);
 	string locator = "";
 	int destination = -1;
@@ -1526,7 +1562,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		if (destination >= 0) locator = WdmTrafficPortLocator(destination);
 	}
 	if (locator == "") return;
-	if (role == 1 && !overdue && !WdmTrafficLoadCargo(encounter, colony, destination)) return;
+	if (role == 1 && !WdmTrafficLoadCargo(encounter, colony, destination)) return;
 	encounter.trafficLegLocator = locator;
 	encounter.trafficNextLocator = locator;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
@@ -1548,6 +1584,7 @@ void WdmTrafficArrived()
 	encounter.trafficCurrentPort = encounter.trafficDestinationPort;
 	WdmTrafficUnloadCargo(encounter, FindColony(encounter.trafficCurrentPort));
 	WdmTrafficBeginService(encounter);
+	WdmMilitaryReturnNews(encounter);
 }
 
 void WdmTrafficDeparted()

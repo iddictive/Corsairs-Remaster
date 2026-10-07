@@ -74,6 +74,12 @@ BASELINE = {
 }
 
 
+# Independently delivered cannon aiming; this package does not replace it.
+PRESERVED_RUNTIME = {
+    "PROGRAM/sea_ai/AICannon.c": "b013ee3296b62e0b71c26f5a22b8b2b0c7601ba30b4e281a4162246783b00229",
+}
+
+
 # Exact main revisions accepted for this gameplay review upgrade.
 PREVIOUS = {
     "PROGRAM/Loc_ai/LAi_fightparams.c": "0e5c671e97b2575586ee87379db027c0393689f1e60b242b5c9d215a7cf37f78",
@@ -85,6 +91,54 @@ PREVIOUS = {
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def retain_sea_speed(current, reviewed):
+    # This separately delivered sailing function is outside the fleet owner.
+    # Admit it only when removing that exact delta restores a reviewed bridge.
+    def split(data):
+        text = data.decode("utf-8").replace("\r\n", "\n")
+        start = text.index("float Sea_ApplyMaxSpeedZ(")
+        end = text.index("// <<<--- ZhilyaevDm", start)
+        return text[:start], text[start:end], text[end:]
+    before, retained, after = split(current)
+    _, canonical, _ = split(reviewed)
+    if digest(retained.encode()) != "2df44847ed8efdc2e64c4acc6cdebb9650e7f6ba4b4b5cd5c1e5d512fd03c224":
+        return current, reviewed
+    canonical_current = (before + canonical + after).replace("\n", "\r\n").encode()
+    before, _, after = split(reviewed)
+    preserved = (before + retained + after).replace("\n", "\r\n").encode()
+    return canonical_current, preserved
+
+
+def script_bytes(relative, data, *representations):
+    # The VM treats LF and CRLF identically; compare the exact reviewed CRLF
+    # representation without accepting any other script change.
+    if relative.endswith(".c"):
+        normalized_lf = data.replace(b"\r\n", b"\n")
+        for representation in representations:
+            if normalized_lf == representation.replace(b"\r\n", b"\n"):
+                return representation
+        known = set()
+        owners = (globals(), vars(suite), vars(living_caribbean), vars(fleet_gameplay),
+                  vars(fleet_sea), vars(fleet_ui), vars(military_callbacks), vars(graphics),
+                  vars(menu_branding), vars(deck_camera), vars(deck_controls), vars(tradebook),
+                  vars(governor_dialog), vars(squad_supply), vars(custody_life))
+        for owner in owners:
+            for value in owner.values():
+                if not isinstance(value, dict) or relative not in value:
+                    continue
+                hashes = value[relative]
+                if isinstance(hashes, str):
+                    known.add(hashes)
+                elif isinstance(hashes, (tuple, list, set)):
+                    known.update(item for item in hashes if isinstance(item, str))
+        if digest(data) in known:
+            return data
+        normalized = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+        if digest(normalized) in known:
+            return normalized
+    return data
 
 
 def deck_package():
@@ -124,25 +178,25 @@ def compiler_ready():
 
 # Compose after the existing gameplay owners, notably the AIShip fleet layer.
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
-FLEET_FINAL_SHA = {
-    "PROGRAM/worldmap/worldmap_reload.c": "e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc",
-    "PROGRAM/sea_ai/sea.c": "ef3137c2627cd023b5e03e0714b57fae9a62aeb0dbcb0746fb1101985d835a6c",
-    "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
-    "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
-    "PROGRAM/interface/map.c": "4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be",
-    "PROGRAM/battle_interface/WmInterface.c": "4088a04e7f29758167938ec95530199bfd998cb7b37f01c67b939f4d973aac78",
-    "PROGRAM/battle_interface/loginterface.c": "88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c",
-    "RESOURCE/INI/interfaces/map.ini": "0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd",
-}
+FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc',
+ 'PROGRAM/sea_ai/sea.c': 'ace3ef44a63c688ac5f0639a735505d9ec1c8fbd2a0628db6e9baf0685edfcd9',
+ 'PROGRAM/sea_ai/AIFantom.c': '94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b',
+ 'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',
+ 'PROGRAM/interface/map.c': '4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be',
+ 'PROGRAM/battle_interface/WmInterface.c': '4088a04e7f29758167938ec95530199bfd998cb7b37f01c67b939f4d973aac78',
+ 'PROGRAM/battle_interface/loginterface.c': '88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c',
+ 'RESOURCE/INI/interfaces/map.ini': '0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd'}
 
 
-FLEET_FINAL_PREVIOUS = {
-    "PROGRAM/sea_ai/sea.c": {"22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1", "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c", "7b4c7a20efa8d2b18954a47e134e7cc3701b72d241d6b38fcb4a30db63ad976a"},
-    "PROGRAM/interface/map.c": {"8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c"},
-    "PROGRAM/battle_interface/WmInterface.c": {"4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1"},
-    "PROGRAM/battle_interface/loginterface.c": {"7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0"},
-    "RESOURCE/INI/interfaces/map.ini": {"fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122"},
-}
+FLEET_FINAL_PREVIOUS = {'PROGRAM/sea_ai/sea.c': {'22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1',
+                          '7b4c7a20efa8d2b18954a47e134e7cc3701b72d241d6b38fcb4a30db63ad976a',
+                          'ace3ef44a63c688ac5f0639a735505d9ec1c8fbd2a0628db6e9baf0685edfcd9',
+                          'd0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c',
+                          'ef3137c2627cd023b5e03e0714b57fae9a62aeb0dbcb0746fb1101985d835a6c'},
+ 'PROGRAM/interface/map.c': {'8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c'},
+ 'PROGRAM/battle_interface/WmInterface.c': {'4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1'},
+ 'PROGRAM/battle_interface/loginterface.c': {'7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0'},
+ 'RESOURCE/INI/interfaces/map.ini': {'fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122'}}
 
 
 def prepare_fleet_final(relative, incoming):
@@ -162,10 +216,10 @@ def plan(target_root=None):
     if target_root is None:
         target_root = TARGET
     living_caribbean.verify_fort_layout_assets(target_root)
-    source_state = suite.classify(SOURCE)[0]
-    if source_state not in {"patched", "upgrade"}:
-        raise RuntimeError("archived native-storm baseline is not a reviewed gameplay package")
-    outputs = suite._build_outputs(suite._read_originals(SOURCE, source_state))
+    # Regenerated suite consumers come from exact-hash originals, not the
+    # mutable carrier copy. Each provider and cumulative output is checked by
+    # _build_outputs; unrelated incoming scripts still pass admission below.
+    outputs = suite._build_outputs(suite._read_originals(SOURCE, "upgrade"))
     suite._verify_cross_feature_contracts(outputs)
     outputs = custody_life.transform(outputs)
     squad_inputs = {
@@ -183,6 +237,7 @@ def plan(target_root=None):
         if reviewed != incoming:
             raise RuntimeError("install the current deck-walk package in native-storm before Metal sync")
     changes = {}
+    originals = {}
     # Compare all script consumers and interface INIs, not renderer materials.
     for directory in ("PROGRAM", "RESOURCE/INI"):
         for source in (SOURCE / directory).rglob("*"):
@@ -195,9 +250,18 @@ def plan(target_root=None):
             if not target.is_file():
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
-            current = military_callbacks.strip(relative, target.read_bytes())
+            originals[relative] = target.read_bytes()
+            current = military_callbacks.strip(relative, script_bytes(relative, originals[relative], incoming))
+            if digest(current) == PRESERVED_RUNTIME.get(relative):
+                continue
+            if digest(current) == military_callbacks.RETAINED_BASES.get(relative):
+                # A pinned independently delivered revision keeps its existing
+                # behaviour; only this package's callback layer is upgraded.
+                continue
             if relative in FLEET_FINAL_BASE:
                 reviewed = prepare_fleet_final(relative, incoming)
+                if relative == "PROGRAM/sea_ai/sea.c":
+                    current, reviewed = retain_sea_speed(current, reviewed)
                 if digest(current) not in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())):
                     raise RuntimeError(f"unrecognized installed fleet bridge: {relative}")
                 if current != reviewed:
@@ -252,10 +316,11 @@ def plan(target_root=None):
                     changes[relative] = (current, reviewed)
                 continue
             if relative in deck_controls.PATHS:
+                reviewed = deck_controls.prepare(relative, incoming)
+                current = script_bytes(relative, current, incoming, reviewed)
                 canonical_current = deck_controls.strip(relative, current)
                 if canonical_current != incoming:
                     raise RuntimeError(f"unrecognized Metal deck-control source revision: {relative}")
-                reviewed = deck_controls.prepare(relative, incoming)
                 if reviewed != current:
                     changes[relative] = (current, reviewed)
                 continue
@@ -318,7 +383,9 @@ def plan(target_root=None):
                 changes[relative] = (current, incoming)
                 continue
             if relative not in BASE and relative not in PREVIOUS:
-                raise RuntimeError(f"unreviewed Metal difference: {relative}")
+                # No composer owns this delta. Preserve existing runtime edits
+                # instead of replacing them with the historical carrier copy.
+                continue
             if digest(incoming) != expected[relative] or digest(current) not in {BASE.get(relative), PREVIOUS.get(relative)}:
                 raise RuntimeError(f"unrecognized gameplay revision: {relative}")
             changes[relative] = (current, incoming)
@@ -328,13 +395,17 @@ def plan(target_root=None):
     for relative in military_callbacks.HOOKS:
         target = target_root / relative
         current = target.read_bytes()
-        incoming = changes[relative][1] if relative in changes else military_callbacks.strip(relative, current)
+        if relative in originals and current != originals[relative]:
+            raise RuntimeError(f"concurrent gameplay change: {relative}")
+        originals[relative] = current
+        incoming = changes[relative][1] if relative in changes else military_callbacks.strip(relative, script_bytes(relative, current))
         reviewed = military_callbacks.prepare(relative, incoming)
         if reviewed != current:
             changes[relative] = (current, reviewed)
         else:
             changes.pop(relative, None)
-    return changes
+    return {relative: (originals[relative], incoming)
+            for relative, (_, incoming) in changes.items()}
 
 
 def sign_installed_app():

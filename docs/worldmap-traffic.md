@@ -1334,8 +1334,8 @@ arrival, island reservation, partial rescue, all-transport loss after victory,
 finite city loading, scene admission/defer, harbour hold and mid-assault native
 attribute serialization with no repeated debit/loss/evacuation. The final run has
 zero script errors; permanent test delta is zero. Current native patch application
-and the changed merchant translation unit syntax pass. Exact canonical composition
-reports sixteen pending PROGRAM consumers, not an installed batch. The callback
+and the changed merchant translation unit syntax pass. Read-only canonical composition reports 14 cache consumers and 11 installed-app
+consumers pending in the October 7 batch; these are not installation receipts. The callback
 adapter in `tools/metal_military_integration.py` composes after existing gameplay
 owners, validates exact input/output hashes, and reverses only its reviewed bytes
 for subsequent owner validation. Unknown revisions retain the original rejection.
@@ -1359,11 +1359,58 @@ remain green with zero script errors. This headless VM uses a task-local identit
 localization adapter; original localization source still compiles, but rendered
 text and native localization/runtime scenes are not accepted by this evidence.
 
-Still unresolved: real scene placement and entry from sea, reachable expedition
-commander contact, player choice before harbour damage, ordinary-guard binding,
-crime/contribution callbacks, actual return news and integrated finite rewards,
-actual evacuation accessibility under sea control, and normal prior-save/player
-replay. Some helper APIs remain intentionally unwired until those contracts are
-bound. Recovery and the selected survivor UI compile as integrated callbacks;
-real pricing/repair/player interaction still needs native acceptance. Canonical
-build/stage/install has not accepted this goal's batch.
+October 7 source closure binds the following contracts:
+
+- New ordinary fleets start with an explicit empty manifest/zero crew in service.
+  Stock/recruit debits and elapsed work gate departure; the overdue bypass is gone.
+  Initial sea admission rejects any unfunded/uncompleted hull atomically. Existing
+  observed legacy state and explicit low/zero HP, sails and crew remain intact.
+- Cargo, service and expedition transport share physical goods + crew + working
+  gun weight. Planned recruits/repaired guns reserve space before any stock debit.
+  An explicitly disarmed ship has no gun weight/fire. Missing legacy crew uses
+  the old default; it does not turn an explicit zero into recruits.
+- Targets use one cumulative weighted draw after unchanged weekly eligibility.
+  Authored distance, defence, value/stock, physical holds, food endurance and
+  prior attack influence that draw; their numerical balance remains unmeasured.
+- The real berth gets a saved choice before autonomous harbour damage. A safe
+  self-dialogue defers during incompatible UI/fighting; return requires the actual
+  quay and normal reload. Healthy inaccessible hulls provide no evacuation.
+  Harbour control outlives land-result cleanup until its actual fleet/control ends.
+- Actual hull HP loss, newly destroyed fort guns and counted land casualties feed
+  one saved contribution ledger. NPC losses advance the watermark without player
+  credit; repair/repeat/unrelated actors cannot earn more. A late patent is not
+  retroactive, and later signing retains the uncontracted portion's 5% ceiling.
+  Local civilian murder revokes protection through the existing crime consumer;
+  terminal service arrival publishes existing dated return news once.
+- Existing `BI_Boat` → `Sea_DeckBoatLoad` → `SetSailorDeck_Ships` owns contact.
+  `worldmap-contact.c` admits the real surviving commander only at safe distance,
+  with a usable authored deck, no combat/transition/diversion, and actual alliance
+  or patent. No captain clone, task reset or flag-based credential is introduced.
+  This proves the admitted friendly/neutral path; accepted hostile parley before
+  transfer is still unimplemented. Hostile transfer is refused.
+
+The composer has 21 callback owners, including lazy MainHero/Capitans dialogue,
+fort gun damage, hull/death/crime and the custody berth writer. Canonical source
+comes from reviewed originals; mutable carrier changes do not replace that owner.
+LF/CRLF differences are admitted only against exact reviewed representations.
+Pinned parallel cannon aiming, speed, boarding dialogue and custody berth changes
+remain in the runtime variant. Backups retain original raw bytes; a repeated plan
+is empty, and an unknown callback revision is rejected. Unowned runtime files are
+preserved instead of overwritten from a historical carrier.
+
+Final whole-PROGRAM/lazy-dialogue VM and four serializer rounds pass with zero
+script errors. Separate probes use the actual hull consumer and canonical cargo
+load owner, test contact admission, old crew absence versus explicit zero, NPC/
+repair/repeat contribution, late signing, murder scope and return news; restored
+ledgers remain inert. Fixture-only assumptions were corrected: real bidirectional
+embarkation, complete RealShip Class/OptCrew, crew capacity reservation and cannon
+weights. A contact fixture erroneously assigned the `DistanceToShipTalk` macro;
+removing that invalid assignment restored the real 300-unit contact criterion.
+No permanent tests were added. Canonical native build passes; runtime scenes and
+perceived balance are not accepted by this evidence.
+
+Still unresolved: accepted hostile pre-transfer parley, actual scene placement/
+sea-to-land paths, rendered harbour choice and commander contact, real guard/crime/
+contribution/settlement and evacuation replay, and normal prior-save/player replay.
+Recovery/pricing and survivor reassignment still need player interaction evidence.
+Canonical stage/install waits for the running game to close; root owns delivery.

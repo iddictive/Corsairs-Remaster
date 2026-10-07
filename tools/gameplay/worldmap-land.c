@@ -539,16 +539,8 @@ bool WdmMilitaryLandActorDead(aref chr)
 		}
 		WdmMilitarySetGarrison(colony, sti(siege.defenders));
 	}
-	if (CheckAttribute(chr, "Killer.Index") && WdmMilitaryParticipationValid(colony) &&
-		chr.trafficLand.side != siege.participation.side)
-	{
-		int killer = sti(chr.Killer.Index); bool player = killer == nMainCharacterIndex;
-		for (int i = 1; i < 4; i++)
-		{
-			if (killer >= 0 && killer == GetOfficersIndex(pchar, i)) player = true;
-		}
-		if (player) WdmMilitaryRecordContribution(colony, siege.participation.side, weight);
-	}
+	if (CheckAttribute(chr, "Killer.Index"))
+		WdmMilitaryLandContribution(colony, chr, sti(chr.Killer.Index), weight);
 	return true;
 }
 

@@ -103,21 +103,21 @@ void WdmHarbourSetAccess(int colony, string operation, bool accessible)
 	Colonies[colony].trafficHarbour.held = !accessible;
 }
 
-bool WdmHarbourEmbarkAccess(ref captain)
+string WdmHarbourEmbarkLocator(ref captain)
 {
-	if (!WdmHarbourAshore() || LAi_boarding_process || LAi_grp_alarmactive || chrDisableReloadToLocation || bDisableMapEnter) return false;
+	if (!WdmHarbourAshore() || LAi_boarding_process || LAi_grp_alarmactive || chrDisableReloadToLocation || bDisableMapEnter) return "";
 	string berth = WdmHarbourHullBerth(captain);
 	// Selection must occur at the real quay/shore. An available map path is not
 	// permission to teleport the hero out of an interior, jungle or held town.
-	if (berth == "" || pchar.location != berth || pchar.location.from_sea != berth) return false;
+	if (berth == "" || pchar.location != berth || pchar.location.from_sea != berth) return "";
 	for (int colony = 0; colony < MAX_COLONIES; colony++)
 	{
 		if (CheckAttribute(&Colonies[colony], "from_sea") && Colonies[colony].from_sea == berth &&
-			CheckAttribute(&Colonies[colony], "trafficHarbour.held") && sti(Colonies[colony].trafficHarbour.held)) return false;
+			CheckAttribute(&Colonies[colony], "trafficHarbour.held") && sti(Colonies[colony].trafficHarbour.held)) return "";
 	}
 	int island = WdmHarbourBerthIsland(berth);
 	int location = FindLocation(berth);
-	if (island < 0 || location < 0 || !CheckAttribute(&Locations[location], "reload")) return false;
+	if (island < 0 || location < 0 || !CheckAttribute(&Locations[location], "reload")) return "";
 	aref sea, shore; makearef(sea, Islands[island].reload); makearef(shore, Locations[location].reload);
 	for (int s = 0; s < GetAttributesNum(sea); s++)
 	{
@@ -127,10 +127,15 @@ bool WdmHarbourEmbarkAccess(ref captain)
 		{
 			aref departure = GetAttributeN(shore, r);
 			if (!CheckAttribute(departure, "go") || departure.go != Islands[island].id || !CheckAttribute(departure, "emerge") || departure.emerge != arrival.name) continue;
-			if (CheckAttribute(departure, "name") && chrCheckReload(&Locations[location], departure.name)) return true;
+			if (CheckAttribute(departure, "name") && chrCheckReload(&Locations[location], departure.name)) return departure.name;
 		}
 	}
-	return false;
+	return "";
+}
+
+bool WdmHarbourEmbarkAccess(ref captain)
+{
+	return WdmHarbourEmbarkLocator(captain) != "";
 }
 
 void WdmHarbourLoseCabinChest()
@@ -262,6 +267,161 @@ bool WdmHarbourPrepareEmbark()
 	{
 		int index = GetCompanionIndex(pchar, slot);
 		if (index >= 0 && WdmHarbourPromote(index)) return true;
+	}
+	return false;
+}
+
+bool WdmHarbourEmbarkAvailable()
+{
+	if (WdmHarbourHull(pchar)) return WdmHarbourEmbarkAccess(pchar);
+	for (int slot = 1; slot < COMPANION_MAX; slot++)
+	{
+		int index = GetCompanionIndex(pchar, slot);
+		if (index >= 0 && WdmHarbourCanPromote(index)) return true;
+	}
+	return false;
+}
+
+// The colony operation owns the decision. The hero attribute is only the one
+// currently queued dialogue, not another fleet/operation registry.
+bool WdmHarbourParticipationPending(int colony)
+{
+	if (!WdmMilitaryActive(colony)) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (siege.phase != "naval" || !WdmHarbourAshore()) return false;
+	bool exposed = false;
+	for (int slot = 0; slot < COMPANION_MAX; slot++)
+	{
+		int index = GetCompanionIndex(pchar, slot);
+		if (index >= 0 && WdmHarbourBerthedAt(&Characters[index], colony)) exposed = true;
+	}
+	if (!exposed) return false;
+	if (!CheckAttribute(siege, "harbourChoice.id") || siege.harbourChoice.id != siege.id)
+	{
+		DeleteAttribute(siege, "harbourChoice");
+		siege.harbourChoice.id = siege.id;
+		siege.harbourChoice.pending = 1;
+		siege.harbourChoice.decision = "";
+	}
+	if (!sti(siege.harbourChoice.pending)) return false;
+	if (!CheckAttribute(pchar, "trafficHarbourChoice"))
+	{
+		pchar.trafficHarbourChoice.colony = colony;
+		pchar.trafficHarbourChoice.id = siege.id;
+	}
+	return true;
+}
+
+bool WdmHarbourChoiceSafe()
+{
+	if (!WdmHarbourAshore() || DialogRun != 0 || dialogDisable || bQuestCheckProcessFreeze ||
+		bQuestDisableMapEnter || bDisableMapEnter || chrDisableReloadToLocation || LAi_grp_alarmactive ||
+		LAi_boarding_process || LAi_IsFightMode(pchar) || LAi_IsDead(pchar) || !chrIsEnableReload()) return false;
+	if (IsEntity(&reload_fader) || (CheckAttribute(&InterfaceStates, "Launched") && sti(InterfaceStates.Launched))) return false;
+	// A quest actor/custom hero dialogue keeps its transition; retry only after
+	// the normal player and self-dialogue owners have been restored.
+	return CheckAttribute(pchar, "chr_ai.type") && pchar.chr_ai.type == LAI_TYPE_PLAYER &&
+		CheckAttribute(pchar, "Dialog.Filename") && pchar.Dialog.Filename == "MainHero_dialog.c";
+}
+
+int WdmHarbourChoiceColony()
+{
+	if (!CheckAttribute(pchar, "trafficHarbourChoice.colony")) return -1;
+	int colony = sti(pchar.trafficHarbourChoice.colony);
+	if (!WdmMilitaryActive(colony)) return -1;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (!CheckAttribute(siege, "harbourChoice.id") || siege.harbourChoice.id != siege.id ||
+		pchar.trafficHarbourChoice.id != siege.id || !sti(siege.harbourChoice.pending)) return -1;
+	return colony;
+}
+
+// Composed at MainHero_dialog's existing ProcessDialogEvent boundary.
+bool WdmHarbourChoiceDialog(ref speaker, aref links, string node)
+{
+	if (speaker.id != pchar.id || (node != "WdmHarbourOffer" && node != "WdmHarbourStay" && node != "WdmHarbourReturn")) return false;
+	int colony = WdmHarbourChoiceColony();
+	if (colony < 0) { DialogExit(); locCameraSleep(false); return true; }
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (node == "WdmHarbourOffer")
+	{
+		dialog.text = "Вестовой из гавани: На порт напали! Если форт и корабли охраны не отобьют нападение, мы потеряем суда в гавани.";
+		if (pchar.location == pchar.location.from_sea && !WdmHarbourEmbarkAvailable())
+			dialog.text = dialog.text + " Сейчас выход закрыт или корабль не готов к плаванию; можно остаться на берегу.";
+		links.l1 = "Останусь на берегу. Корабли остаются под огнём."; links.l1.go = "WdmHarbourStay";
+		links.l2 = "Вернусь к причалу и выйду в море."; links.l2.go = "WdmHarbourReturn";
+		return true;
+	}
+	if (node == "WdmHarbourStay")
+	{
+		siege.harbourChoice.decision = "land"; siege.harbourChoice.pending = 0;
+	}
+	else siege.harbourChoice.decision = "return";
+	if (CheckAttribute(pchar, "trafficHarbourChoice.previousNode")) pchar.Dialog.CurrentNode = pchar.trafficHarbourChoice.previousNode;
+	DeleteAttribute(pchar, "trafficHarbourChoice.previousNode");
+	DialogExit(); locCameraSleep(false);
+	return true;
+}
+
+#event_handler("frame", "WdmHarbourChoiceTick");
+void WdmHarbourChoiceTick()
+{
+	if (!CheckAttribute(pchar, "trafficHarbourChoice")) return;
+	int colony = WdmHarbourChoiceColony();
+	if (colony < 0)
+	{
+		if (CheckAttribute(pchar, "trafficHarbourChoice.previousNode") && pchar.Dialog.CurrentNode == "WdmHarbourOffer")
+			pchar.Dialog.CurrentNode = pchar.trafficHarbourChoice.previousNode;
+		DeleteAttribute(pchar, "trafficHarbourChoice"); return;
+	}
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (siege.harbourChoice.decision == "return" && bSeaActive)
+	{
+		siege.harbourChoice.pending = 0; siege.harbourChoice.decision = "sea";
+		DeleteAttribute(pchar, "trafficHarbourChoice"); return;
+	}
+	if (!WdmHarbourChoiceSafe() || WdmMilitaryParticipationBlocked(colony)) return;
+	if (siege.harbourChoice.decision == "return")
+	{
+		// Walk to the recorded quay first. The ordinary Reload path owns the
+		// fader, sea import and its rejection; no residence/jungle teleport.
+		if (!WdmHarbourPrepareEmbark())
+		{
+			// An inaccessible quay must not lock the campaign behind an impossible
+			// return choice. Reuse the same dialogue to stay or retry sea access.
+			if (pchar.location == pchar.location.from_sea) siege.harbourChoice.decision = "";
+			return;
+		}
+		int location = FindLocation(pchar.location);
+		string locator = WdmHarbourEmbarkLocator(pchar);
+		if (location < 0 || locator == "") return;
+		aref exits; makearef(exits, Locations[location].reload);
+		Reload(exits, locator, pchar.location);
+		return;
+	}
+	if (!CheckAttribute(pchar, "trafficHarbourChoice.previousNode")) pchar.trafficHarbourChoice.previousNode = pchar.Dialog.CurrentNode;
+	StartActorSelfDialog("WdmHarbourOffer");
+}
+
+// Fort suppression alone cannot erase a living hostile player defence. Read
+// readiness without spending its ammunition; NavalStep remains the only writer.
+bool WdmHarbourNavalOpposition(int colony, int attackingNation)
+{
+	if (!WdmHarbourAshore() || colony < 0 || colony >= MAX_COLONIES || attackingNation < 0 || attackingNation >= MAX_NATIONS) return false;
+	bool defending = (WdmMilitaryParticipationValid(colony) || WdmMilitarySafeConduct(colony)) &&
+		Colonies[colony].trafficSiege.participation.side == "defender";
+	if (!defending && GetNationRelation2MainCharacter(attackingNation) != RELATION_ENEMY) return false;
+	for (int slot = 0; slot < COMPANION_MAX; slot++)
+	{
+		int index = GetCompanionIndex(pchar, slot); if (index < 0) continue;
+		ref captain = &Characters[index];
+		if (!WdmHarbourBerthedAt(captain, colony) || !CheckAttribute(captain, "Ship.HP") || stf(captain.Ship.HP) <= 0.0 ||
+			GetCrewQuantity(captain) <= 0 || !CheckAttribute(captain, "Ship.Cannons.Type") || sti(captain.Ship.Cannons.Type) == CANNON_TYPE_NONECANNON) continue;
+		aref character; makearef(character, captain);
+		int minimum = GetMinCrewQuantity(captain); if (minimum <= 0) continue;
+		int shots = GetCannonsNum(character);
+		int crew = GetCrewQuantity(captain);
+		if (crew < minimum) shots = makeint(shots * makefloat(crew) / minimum);
+		if (shots > 0 && GetCargoGoods(captain, GOOD_BALLS) > 0 && GetCargoGoods(captain, GOOD_POWDER) > 0) return true;
 	}
 	return false;
 }

@@ -115,7 +115,7 @@ float WdmRecoveryRefillFactor(int colony, int good, int offset)
 			int blockedDays = WdmTrafficElapsed(blockade, "day") - offset;
 			ref store = &Stores[sti(Colonies[colony].StoreNum)]; string name = Goods[good].name;
 			int trade = sti(store.Goods.(name).TradeType);
-			if (blockedDays >= 0 && blockedDays < 14 && (trade == TRADE_TYPE_IMPORT || trade == TRADE_TYPE_AMMUNITION || trade == TRADE_TYPE_CANNONS || good == GOOD_POWDER)) factor = factor * 0.5;
+			if (blockedDays >= 0 && (trade == TRADE_TYPE_IMPORT || trade == TRADE_TYPE_AMMUNITION || trade == TRADE_TYPE_CANNONS || good == GOOD_POWDER)) factor = factor * 0.5;
 		}
 	}
 	if (factor < 0.25) factor = 0.25;

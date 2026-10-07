@@ -169,6 +169,33 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
 }
 
+bool WdmFleetSeaAssemblyReady(ref fleet)
+{
+	string path = "encounters." + fleet.trafficFleetID;
+	if (!CheckAttribute(&worldMap, path + ".trafficVoyage") || sti(worldMap.(path).trafficVoyage) != 0 ||
+		worldMap.(path).trafficLifecycle != "service") return true;
+	if (!CheckAttribute(&worldMap, path + ".encdata.trafficRoster.count")) return false;
+	aref roster, ship, hull;
+	makearef(roster, worldMap.(path).encdata.trafficRoster);
+	int survivors = 0;
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		if (!CheckAttribute(roster, key)) continue;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) continue;
+		survivors++;
+		if (!CheckAttribute(ship, "trafficService.complete") || !sti(ship.trafficService.complete) ||
+			!CheckAttribute(ship, "baseType")) return false;
+		int type = sti(ship.baseType);
+		if (type < SHIP_BILANCETTA || type > SHIP_MANOWAR) return false;
+		makearef(hull, ShipsTypes[type]);
+		if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+		if (WdmTrafficCrewQuantity(ship) < sti(hull.MinCrew)) return false;
+	}
+	return survivors > 0;
+}
+
 int WdmFleetSeaHullCount(ref fleet)
 {
 	if (!CheckAttribute(fleet, "trafficRoster.count")) return 0;
@@ -204,6 +231,7 @@ bool WdmFleetSeaAdmit(ref fleet, ref login)
 		aref groups;
 		makearef(groups, login.encounters);
 		int hulls = 0;
+		bool assemblyReady = true;
 		for (int i = 0; i < GetAttributesNum(groups); i++)
 		{
 			aref raw = GetAttributeN(groups, i);
@@ -212,11 +240,15 @@ bool WdmFleetSeaAdmit(ref fleet, ref login)
 			string path = "encounters." + member.trafficFleetID;
 			bool included = member.trafficFleetID == fleet.trafficFleetID;
 			if (root != "" && CheckAttribute(&worldMap, path + ".trafficBattleRoot") && worldMap.(path).trafficBattleRoot == root) included = true;
-			if (included) hulls = hulls + WdmFleetSeaHullCount(member);
+			if (included)
+			{
+				hulls = hulls + WdmFleetSeaHullCount(member);
+				if (!WdmFleetSeaAssemblyReady(member)) assemblyReady = false;
+			}
 		}
 		// Island/story ships and companions have already entered. Admit the
 		// complete battle bundle, or leave every member on the saved map.
-		bool admitted = iNumShips + sti(login.trafficHullReservations) + hulls <= MAX_SHIPS_ON_SEA;
+		bool admitted = assemblyReady && iNumShips + sti(login.trafficHullReservations) + hulls <= MAX_SHIPS_ON_SEA;
 		if (root != "" && CheckAttribute(login, "trafficIncompleteBattle." + root)) admitted = false;
 		for (i = 0; i < GetAttributesNum(groups); i++)
 		{
@@ -313,13 +345,15 @@ void WdmFleetSeaRestoreShip(ref captain)
 		shipName = entry.name;
 	if (CheckAttribute(entry, "Ship"))
 	{
-		if (CheckAttribute(entry, "Ship.HP") && stf(entry.Ship.HP) > 0.0) captain.Ship.HP = entry.Ship.HP;
+		// Only absent legacy fields receive defaults; zero and low saved values
+		// are actual losses, not a request for free repair or recruitment.
+		if (CheckAttribute(entry, "Ship.HP")) captain.Ship.HP = entry.Ship.HP;
 		else captain.Ship.HP = realShip.HP;
-		if (CheckAttribute(entry, "Ship.SP") && stf(entry.Ship.SP) > 0.0) captain.Ship.SP = entry.Ship.SP;
+		if (CheckAttribute(entry, "Ship.SP")) captain.Ship.SP = entry.Ship.SP;
 		else captain.Ship.SP = 100.0;
-		if (CheckAttribute(entry, "Ship.Crew.Quantity") && sti(entry.Ship.Crew.Quantity) > 0)
+		if (CheckAttribute(entry, "Ship.Crew.Quantity"))
 			captain.Ship.Crew.Quantity = entry.Ship.Crew.Quantity;
-		else if (CheckAttribute(entry, "trafficCrewQuantity") && sti(entry.trafficCrewQuantity) > 0)
+		else if (CheckAttribute(entry, "trafficCrewQuantity"))
 			captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
 		else captain.Ship.Crew.Quantity = realShip.MaxCrew;
 		if (CheckAttribute(entry, "Ship.Mode")) captain.Ship.Mode = entry.Ship.Mode;
@@ -331,13 +365,13 @@ void WdmFleetSeaRestoreShip(ref captain)
 		float hp = 1.0;
 		float sails = 1.0;
 		float crew = 1.0;
-		if (CheckAttribute(entry, "hp") && stf(entry.hp) > 0.0) hp = stf(entry.hp);
-		if (CheckAttribute(entry, "sp") && stf(entry.sp) > 0.0) sails = stf(entry.sp);
-		if (CheckAttribute(entry, "crew") && stf(entry.crew) > 0.0) crew = stf(entry.crew);
+		if (CheckAttribute(entry, "hp")) hp = stf(entry.hp);
+		if (CheckAttribute(entry, "sp")) sails = stf(entry.sp);
+		if (CheckAttribute(entry, "crew")) crew = stf(entry.crew);
 		captain.Ship.HP = stf(realShip.HP) * hp;
 		captain.Ship.SP = 100.0 * sails;
 		captain.Ship.Crew.Quantity = makeint(stf(realShip.MaxCrew) * crew);
-		if (CheckAttribute(entry, "trafficCrewQuantity") && sti(entry.trafficCrewQuantity) > 0)
+		if (CheckAttribute(entry, "trafficCrewQuantity"))
 			captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
 	}
 	if (shipName != "")
@@ -364,15 +398,11 @@ void WdmFleetSeaRestoreShip(ref captain)
 	string descriptorPath = "encounters." + captain.trafficFleetID;
 	if (CheckAttribute(&worldMap, descriptorPath + ".trafficCondition"))
 	{
-		float rawCondition = stf(worldMap.(descriptorPath).trafficCondition);
-		if (rawCondition > 0.1) condition = Clampf(rawCondition);
+		condition = Clampf(stf(worldMap.(descriptorPath).trafficCondition));
 	}
 	captain.Ship.HP = stf(captain.Ship.HP) * condition;
 	captain.Ship.SP = stf(captain.Ship.SP) * condition;
-	if (stf(captain.Ship.HP) < stf(realShip.HP) * 0.25) captain.Ship.HP = stf(realShip.HP) * 0.25;
-	if (stf(captain.Ship.SP) < 25.0) captain.Ship.SP = 25.0;
 	if (condition < 0.95) captain.Ship.Crew.Quantity = makeint(stf(captain.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
-	if (sti(captain.Ship.Crew.Quantity) < sti(realShip.MinCrew)) captain.Ship.Crew.Quantity = sti(realShip.MinCrew);
 	entry.seaLoaded = 1;
 	RecalculateCargoLoad(captain);
 }
