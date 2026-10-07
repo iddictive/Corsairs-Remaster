@@ -185,7 +185,10 @@ definitions through `InitPerks()` inside the existing `PerkLoad()` callback afte
 restore. Character-owned learned perks, ability points and cooldowns remain
 unchanged. The isolated native script VM rejects the old missing-registry path
 and passes a save/restore round with the updated registry and preserved learned
-perks/cooldown. Installed old-save menu and volley replay remain required.
+perks/cooldown. The installed old-save ability menu now visibly shows
+“Продольный залп” and its two prerequisite descriptors; the observed character
+has zero free ship ability points and the new perk is unlearned. Manual volley
+replay remains required.
 
 ## Firing eye floor
 
