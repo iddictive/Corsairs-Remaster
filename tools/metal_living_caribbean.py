@@ -296,13 +296,13 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "196767293ac2d297ff23cf3de08f9d7d7c2238ae516fc02aa88d2063a15354f2"
+WDM_TRAFFIC_SHA256 = "7a2baf915f28314873b8b3c77efcad8837c5a32781cc0ed2522023214c280b73"
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
-WDM_MILITARY_SHA256 = "52f67ec3c037bb724d0fa9f900bd5668a1fe9b8519fc2bdea7d5a6295426d1ad"
+WDM_MILITARY_SHA256 = "8a683fc050b01f58f94ce1c9b0ba4e6d87f610afa62dadb6ff2cbe80bf9e8186"
 WDM_OPERATION_MODULES = {
     "worldmap-contact.c": "80ed71add68db6a0683e9fb5cf6a8ab5880aef000ac03300268c39cae960fa17",
     "worldmap-recovery.c": "abff863661f3f1adfd136a301c327e40750d02fcebbb818e99a209654d410aa1",
-    "worldmap-harbour.c": "771438248f50c09faea499c68cc5b7c9db42f35f41e9ca1d02b447f5483c554d",
+    "worldmap-harbour.c": "9517d2960de1e1af74c8359aa9ce0bb178f7c2411dc070332025ffb34db10306",
     "worldmap-participation.c": "0fdb68e1f97750b286b3bfd60b426b94aab2102eba277632bd6666b781fd135f",
     "worldmap-land.c": "2e8ec8ff830536cdcab24e674bcbc155cf0c68cfee1c40ab5fac41ab136faa9c",
 }
@@ -1576,7 +1576,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "1fc95e425f4887bc2f38572141de6e70f486660db2bc6897500cfae7f3728bfe",
+    "PROGRAM/worldmap/worldmap_encgen.c": "cf064b2309bd4a6f32dd1909b34fbd097525a0e071b46a32e6e610ce68b4d6db",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1617,6 +1617,9 @@ PREVIOUS = {
     SMG_AGENT_PATH: {"d1ad03fde16ed7833418ba2de733b95f8ec84788b2571e90e4e549ab9a65aa42"},
     SMG_SHORE_PATH: {"aa09c1a08a17d5615d4f2b908367cdce417dcf06e20d373644b2a84935c9c939", "80cf486fcdf48ea82f4ca27ddda197020e3f9ec496fb787474edc58344583914"},
 }
+
+
+PREVIOUS[WDM_ENC_PATH].add("1fc95e425f4887bc2f38572141de6e70f486660db2bc6897500cfae7f3728bfe")
 
 
 def prepare(relative: str, data: bytes) -> bytes:

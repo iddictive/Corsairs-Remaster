@@ -30,6 +30,17 @@ source = source.replace(
  'set(STORM_NATIVE_AUDIO_SOURCE \"${NATIVE_ROOT}/audio\")',
  'set(STORM_NATIVE_AUDIO_SOURCE \"${METAL_AUDIO_SOURCE}\")')
 assert 'set(STORM_NATIVE_AUDIO_SOURCE \"${METAL_AUDIO_SOURCE}\")' in source
+# Reconfiguration must not invalidate every native object for identical bytes.
+watermark = 'file(WRITE "${STORM_WATERMARK_FILE}" "#define STORM_BUILD_WATERMARK native-probe-4860fe13\\n")'
+assert source.count(watermark) == 1
+source = source.replace(watermark, '''set(metal_watermark "#define STORM_BUILD_WATERMARK native-probe-4860fe13\\n")
+if(EXISTS "${STORM_WATERMARK_FILE}")
+  file(READ "${STORM_WATERMARK_FILE}" metal_previous_watermark)
+endif()
+if(NOT metal_previous_watermark STREQUAL metal_watermark)
+  file(WRITE "${STORM_WATERMARK_FILE}" "${metal_watermark}")
+endif()''')
+source += '\ninclude("${METAL_PROJECT_ROOT}/experiments/native-metal/script_vm_probe.cmake")\n'
 target = root / '.cache/native-project/CMakeLists.txt'
 target.parent.mkdir(parents=True, exist_ok=True)
 if not target.exists() or target.read_text() != source:

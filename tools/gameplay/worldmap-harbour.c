@@ -74,6 +74,14 @@ void WdmHarbourBindBerth(int location)
 	}
 }
 
+// The paid shipyard replacement owns only this hull's new berth.
+void WdmHarbourBindPurchasedHull(ref captain, string berth)
+{
+	if (!WdmHarbourHull(captain) || WdmHarbourBerthIsland(berth) < 0) return;
+	captain.Ship.trafficBerth = berth;
+	DeleteAttribute(captain, "Ship.trafficHarbourLoss");
+}
+
 string WdmHarbourHullBerth(ref captain)
 {
 	if (!WdmHarbourHull(captain)) return "";
@@ -162,10 +170,15 @@ void WdmHarbourRecoverOfficers()
 		aref item = GetAttributeN(pending, i);
 		int index = sti(GetAttributeValue(item));
 		if (index < 0 || index >= TOTAL_CHARACTERS) continue;
+		ref captain = &Characters[index];
+		if (LAi_IsDead(captain) || WdmHarbourHull(captain) || !CheckAttribute(captain, "location") ||
+			!WdmHarbourLandLocation(FindLocation(captain.location)) ||
+			!CheckAttribute(captain, "Ship.trafficHarbourLoss.outcome") || captain.Ship.trafficHarbourLoss.outcome != "sunk" ||
+			(CheckAttribute(item, "id") && item.id != captain.id)) continue;
 		if (GetPassengerNumber(pchar, index) < 0)
 		{
 			if (GetPassengersQuantity(pchar) >= PASSENGERS_MAX) continue;
-			AddPassenger(pchar, &Characters[index], false);
+			AddPassenger(pchar, captain, false);
 		}
 		DeleteAttribute(pending, GetAttributeName(item));
 	}
@@ -218,6 +231,7 @@ bool WdmHarbourClaimLoss(int index, string operation)
 			{
 				string officerKey = "captain" + index;
 				pchar.trafficHarbourOfficers.(officerKey) = index;
+				pchar.trafficHarbourOfficers.(officerKey).id = captain.id;
 			}
 		}
 		else { LAi_SetCurHP(captain, 0.0); CrewDebt_OnCharacterDeath(captain); }

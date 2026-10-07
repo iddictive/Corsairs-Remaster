@@ -5,26 +5,41 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/w
      void Move(float dltTime) override;
      // Find the pulling force in the desired direction
      void FindMoveForce() override;
-+    // Fade repulsions near the berth so arrivals can close the last mile.
++    // Fade repulsions only on a committed ordinary port approach.
 +    void FindIslandForce() override;
 +    void FindShipsForce() override;
      // Completion check
      bool KillTest() override;
  
+@@ -49,6 +52,7 @@
+     void ThinkTraffic();
+     void StartTrafficBattle(WdmEnemyShip *target);
+     void ResolveTrafficBattle();
++    float BerthFade() const;
+     bool trafficPlacement = false;
+     float trafficThink = 0.0f;
+     CVECTOR trafficDestination;
 diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
 --- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
-@@ -362,6 +362,37 @@
+@@ -364,6 +364,42 @@
      WdmEnemyShip::Move(dltTime);
  }
  
-+// Near the berth, repulsion from islands and other hulls can overpower the
-+// homing force (arrival radius 12 < island reaction 32 + ship radius 45),
-+// so ships hover offshore forever and pile up. Fade repulsions out on final.
-+static float WdmMerchantBerthFade(const CVECTOR &pos, const CVECTOR &dest)
++// Island and hull repulsion may overpower homing near a physical port.
++// Quest routes, patrol legs and active pursuit retain their full avoidance.
++float WdmMerchantShip::BerthFade() const
 +{
-+    const float dx = dest.x - pos.x;
-+    const float dz = dest.z - pos.z;
++    auto *data = GetTrafficData();
++    const char *lifecycle = data ? data->GetAttribute("trafficLifecycle") : nullptr;
++    const char *port = data ? data->GetAttribute("trafficDestinationPort") : nullptr;
++    if (!data || !lifecycle || std::strcmp(lifecycle, "voyage") != 0 ||
++        !port || !port[0] || trafficSteering || attack || data->GetAttribute("trafficNextLocator") ||
++        data->GetAttribute("trafficBattle") ||
++        (data->GetAttributeAsDword("trafficRole") != 1 && !data->GetAttributeAsDword("trafficServiceOnArrival")))
++        return 1.0f;
++    const float dx = gotoPos.x - mtx.Pos().x;
++    const float dz = gotoPos.z - mtx.Pos().z;
 +    const float dist = sqrtf(dx * dx + dz * dz);
 +    if (dist >= 70.0f) return 1.0f;
 +    if (dist <= 12.0f) return 0.0f;
@@ -34,8 +49,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +void WdmMerchantShip::FindIslandForce()
 +{
 +    WdmEnemyShip::FindIslandForce();
-+    const CVECTOR dest = trafficSteering ? trafficDestination : gotoPos;
-+    const float fade = WdmMerchantBerthFade(mtx.Pos(), dest);
++    const float fade = BerthFade();
 +    ix *= fade;
 +    iz *= fade;
 +}
@@ -43,8 +57,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +void WdmMerchantShip::FindShipsForce()
 +{
 +    WdmEnemyShip::FindShipsForce();
-+    const CVECTOR dest = trafficSteering ? trafficDestination : gotoPos;
-+    const float fade = WdmMerchantBerthFade(mtx.Pos(), dest);
++    const float fade = BerthFade();
 +    sx *= fade;
 +    sz *= fade;
 +}

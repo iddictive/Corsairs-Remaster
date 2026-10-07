@@ -1,5 +1,45 @@
 # World-map traffic
 
+## Gameplay safety contract — October 7
+
+The ordinary population target remains 60 resident fleet markers (32 trade,
+16 patrol, 12 pirate), including fleets receiving service; it is not a promise
+of 60 moving hulls. The native object ceiling remains 80. Quests are excluded.
+Traffic cargo/service, military, sea handoff and native navigation retain their
+existing module owners; the composers bind those sources to delivery hashes.
+
+| Owner | Reproduced failure | Required result and nearest allowed case |
+| --- | --- | --- |
+| `worldmap-traffic.c`, service | One unavailable full-repair item blocks affordable work; maximum recruitment cannot fit; paid work is absent from cargo admission | Stock funds partial work once, paid crew/guns reserve physical capacity, completion applies only purchased work; empty reserves cause no free repair or departure |
+| `worldmap-traffic.c`, cargo | Seller availability is deducted twice across holds; impossible destinations win; wrong arrival credits stock; residual freight is marked delivered | Finite stock, feasible eligible holds, immutable shipment endpoint, exact arrival credit and retained residual; repeat/reload does not debit or credit twice |
+| `worldmap-military.c` | Rejected endpoint, orphan mission reservation or no surviving original hulls can retain an operation | Physical recovery and matching reservation cleanup; ordinary pending navigation and a surviving hull remain valid |
+| `fleet-sea.c`, `worldmap-harbour.c` | Stale/unadmitted actors overwrite tombstones; orphan sea ownership hides a descriptor; reusable officer slot is recovered; purchased hull retains an old berth | Existing group/ordinal/admission identity guards; normal map entry releases sea ownership without inventing sinks; only the living original officer and purchased hull change |
+| Native traffic and berth patches | Avoidance fades on quests/pursuit/patrol, saved recoil drifts in service, old pursuit survives a new route | Fade only on committed ordinary port approaches; hold every velocity component; successful departure clears steering while a rejected locator remains pending |
+
+Supported prior funded service plans must migrate without another stock debit
+or a restarted clock. New partial plans record paid targets and starting state;
+damage/casualties acquired afterwards cannot be overwritten by stale targets.
+Existing finite stocks, cargo weight, crew reserves and original ship identities
+remain authoritative. No timeout despawn, teleport, free stock, enlarged quota
+or replacement ship is an acceptable liveness fix.
+
+Verification uses actual native methods and the actual COMPILER serializer in
+isolated task-owned fixtures. It proves state and conservation, not an interactive
+harbour drain, player save upgrade, balance or FPS. Those remain player replay
+requirements; canonical stage-only is the separate installation gate.
+
+`script-vm-probe` is an explicit native diagnostic target, reusing the engine's
+compiler libraries and native registration rather than a second compiler build:
+`cmake --build experiments/native-metal/.cache/build --target script-vm-probe`.
+Run `script-vm-probe <task-fixture-directory> <entry> [0..4 rounds] [after-load-entry]`
+from that fixture directory. `cases.c` supplies integer-returning entries (zero
+means pass), no `Main`, and `OnLoad`; `OnSave` is optional. The tool writes only
+its driver and `.vm-userdata` there. Errors fail even when an entry returns zero.
+The bounded pilot used about 10 MiB RSS and four native serializer rounds; cargo,
+service and handoff fixtures share the runner but retain independent finite-stock,
+physical-fit and identity/tombstone oracles. Fixtures remain disposable; no new
+required CI suite or example-specific permanent test registry is introduced.
+
 ## Sea strength and ammunition contract — October 6
 
 `WdmTrafficHullPower` uses actual hull HP and installed artillery on the native
@@ -137,7 +177,10 @@ service plan and next ordinary job. Each surviving hull reserves actual Store
 planks, sailcloth, matching replacement guns, ammunition and provisions before
 its work interval starts. Store Norm and trade classes remain unchanged; service
 leaves 15% of the authored stock target. Recruitment debits the existing colony
-hiring pool while retaining 25%, with a minimum five-person reserve. Small pools
+hiring pool while retaining 25% of its authored refresh, with a minimum
+five-person reserve. That reserve remains fixed until `CrewDate` changes;
+successive NPC purchases cannot reduce it. Player depletion remains possible.
+Small pools
 fill a hull through paid, elapsed partial service intervals. Only actual MinCrew
 permits departure; readiness still reflects the partial crew. Dead slots remain
 dead. Initial assembly uses this same contract, and the sea bridge imports the
@@ -148,6 +191,22 @@ The saved plan prevents duplicate purchases, repairs and recruitment after load.
 One stock review per game day bounds catch-up; a long skip does not replay missed
 purchase attempts or spawn several departures. These numeric service/reserve
 values are initial tuning, not measured gameplay balance.
+
+New service plans apply paid partial HP/sail/gun deltas after elapsed work; they
+do not assign full health or invent ammunition. Food, paired shots/powder and
+MinCrew must physically fit. Pending paid crew/guns count in every cargo-room
+check. A late capacity reduction delays completion without an overweight hull.
+Legacy funded plans retain their original stamp and paid targets. An unvisited
+legacy plan interrupted after casualties has no original crew watermark; it
+keeps observed survivors instead of reconstructing unknown lives.
+
+An actual failed stock review blocks new assemblies at that physical port until
+paid progress/readiness returns. Existing fleets remain, and another port or quest
+is unaffected. This guard does not raise the 60/80 ceilings or guarantee a moving
+fleet count. Ordinary trade loading uses at most 75% of total physical capacity,
+including crew, working guns and pending service; scarce jobs carry less. Prize
+transfer may use remaining space. The 75% ceiling is initial tuning, not evidence
+that perceived balance is accepted; wars and demand may still leave empty ports.
 
 This remains an uninstalled source candidate. Disposable VM checks execute
 stock/reserve and recruitment failures, timed repairs, partial hiring, real gun

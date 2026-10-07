@@ -315,13 +315,44 @@ int WdmFleetSeaGenerate(string groupID, ref fleet)
 	return created;
 }
 
+// The saved ordinal alone is not an actor receipt: reused fantoms retain
+// character slots. The current group must bind this exact character identity.
+bool WdmFleetSeaActorOwned(ref captain, bool admitted)
+{
+	if (!CheckAttribute(captain, "trafficFleetID") || !CheckAttribute(captain, "trafficRosterSlot") ||
+		!CheckAttribute(captain, "index") || !CheckAttribute(captain, "id") ||
+		CheckAttribute(captain, "quest") || CheckAttribute(captain, "qID") || IsCompanion(captain)) return false;
+	int index = sti(captain.index);
+	if (index < 0 || index >= TOTAL_CHARACTERS) return false;
+	string path = "encounters." + captain.trafficFleetID;
+	if (!CheckAttribute(&worldMap, path + ".trafficInSea") || !sti(worldMap.(path).trafficInSea) ||
+		CheckAttribute(&worldMap, path + ".quest") || CheckAttribute(&worldMap, path + ".encdata.qID") ||
+		!CheckAttribute(&worldMap, path + ".encdata.trafficRoster.count")) return false;
+	aref descriptor; makearef(descriptor, worldMap.(path));
+	if (!WdmTrafficIsOrdinary(descriptor)) return false;
+	int ordinal = sti(captain.trafficRosterSlot);
+	if (ordinal < 0 || ordinal >= sti(worldMap.(path).encdata.trafficRoster.count)) return false;
+	string entry = path + ".encdata.trafficRoster.ship" + ordinal;
+	if (!CheckAttribute(&worldMap, entry + ".baseType")) return false;
+	if (admitted && (!CheckAttribute(&worldMap, entry + ".seaLoaded") || !sti(worldMap.(entry).seaLoaded))) return false;
+	string groupID = "egroup__wdm_" + captain.trafficFleetID;
+	if (!CheckAttribute(captain, "SeaAI.Group.Name") || captain.SeaAI.Group.Name != groupID) return false;
+	int groupIndex = Group_FindGroup(groupID);
+	if (groupIndex < 0 || !CheckAttribute(&AIGroups[groupIndex], "trafficFleetID") ||
+		AIGroups[groupIndex].trafficFleetID != captain.trafficFleetID) return false;
+	string member = "quest.id_" + index;
+	return CheckAttribute(&AIGroups[groupIndex], member + ".index") &&
+		sti(AIGroups[groupIndex].(member).index) == index && AIGroups[groupIndex].(member) == captain.id;
+}
+
 void WdmFleetSeaRestoreShip(ref captain)
 {
-	if (!CheckAttribute(captain, "trafficFleetID") || !CheckAttribute(captain, "trafficRosterSlot")) return;
+	if (!WdmFleetSeaActorOwned(captain, false)) return;
 	string path = "encounters." + captain.trafficFleetID + ".encdata.trafficRoster.ship" + captain.trafficRosterSlot;
 	if (!CheckAttribute(&worldMap, path)) return;
 	aref entry, source, destination;
 	makearef(entry, worldMap.(path));
+	if ((CheckAttribute(entry, "dead") && sti(entry.dead)) || CheckAttribute(captain, "trafficTaken") || LAi_IsDead(captain)) return;
 	WdmTrafficSyncCargo(entry);
 	int realIndex = GetCharacterShipType(captain);
 	if (realIndex < 0 || realIndex >= REAL_SHIPS_QUANTITY) return;
@@ -418,7 +449,7 @@ bool WdmFleetSeaAlive(ref captain)
 
 void WdmFleetSeaMarkGone(ref captain)
 {
-	if (!CheckAttribute(captain, "trafficFleetID") || !CheckAttribute(captain, "trafficRosterSlot")) return;
+	if (!WdmFleetSeaActorOwned(captain, true)) return;
 	string path = "encounters." + captain.trafficFleetID + ".encdata.trafficRoster.ship" + captain.trafficRosterSlot;
 	if (!CheckAttribute(&worldMap, path)) return;
 	worldMap.(path).dead = 1;
@@ -437,7 +468,12 @@ void WdmFleetSeaSave()
 	{
 		descriptor = GetAttributeN(descriptors, d);
 		if (!CheckAttribute(descriptor, "trafficInSea") || !sti(descriptor.trafficInSea)) continue;
-		if (CheckAttribute(descriptor, "quest") || !CheckAttribute(descriptor, "encdata.trafficRoster.count")) continue;
+		if (CheckAttribute(descriptor, "quest") || CheckAttribute(descriptor, "encdata.qID")) continue;
+		if (!CheckAttribute(descriptor, "encdata.trafficRoster.count"))
+		{
+			DeleteAttribute(descriptor, "trafficInSea");
+			continue;
+		}
 		makearef(roster, descriptor.encdata.trafficRoster);
 		bool admitted = false;
 		// Only entries actually admitted to this scene can become missing/dead.
@@ -445,7 +481,7 @@ void WdmFleetSeaSave()
 		{
 			string key = "ship" + ordinal;
 			makearef(entry, roster.(key));
-			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) { entry.dead = 1; admitted = true; }
+			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) admitted = true;
 		}
 		if (!admitted) { DeleteAttribute(descriptor, "trafficInSea"); continue; }
 		for (int i = 0; i < iNumShips; i++)
@@ -455,10 +491,12 @@ void WdmFleetSeaSave()
 			ref captain = &Characters[index];
 			if (!CheckAttribute(captain, "trafficFleetID") || captain.trafficFleetID != descriptor.trafficFleetID) continue;
 			if (!CheckAttribute(captain, "trafficRosterSlot") || !WdmFleetSeaAlive(captain) || IsCompanion(captain)) continue;
+			if (!WdmFleetSeaActorOwned(captain, true)) continue;
 			string slot = "ship" + captain.trafficRosterSlot;
 			makearef(entry, roster.(slot));
 			// Do not resurrect a captured ship even if its former captain stays alive.
-			if (CheckAttribute(captain, "trafficTaken")) continue;
+			if (CheckAttribute(captain, "trafficTaken") || (CheckAttribute(entry, "dead") && sti(entry.dead))) continue;
+			DeleteAttribute(entry, "seaLoaded");
 			entry.dead = 0;
 			int realIndex = GetCharacterShipType(captain);
 			ref realShip = &RealShips[realIndex];
@@ -529,6 +567,7 @@ void WdmFleetSeaSave()
 		{
 			string survivorKey = "ship" + n;
 			makearef(entry, roster.(survivorKey));
+			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) entry.dead = 1;
 			DeleteAttribute(entry, "seaLoaded");
 			if (!CheckAttribute(entry, "dead") || !sti(entry.dead)) survivors++;
 			else WdmTrafficLoseCargo(entry);
@@ -552,6 +591,27 @@ void WdmFleetSeaSave()
 			{
 				aref observedClock; makearef(observedClock, Colonies[colony].trafficSiege.clock); WdmTrafficStamp(observedClock);
 			}
+		}
+	}
+}
+
+// Called only by normal map entry, before traffic refresh/native restoration.
+// A missing scene is not evidence of a sink: preserve the last saved roster.
+void WdmFleetSeaReconcileWorldMap()
+{
+	if (!CheckAttribute(&worldMap, "encounters")) return;
+	aref descriptors; makearef(descriptors, worldMap.encounters);
+	for (int d = 0; d < GetAttributesNum(descriptors); d++)
+	{
+		aref descriptor = GetAttributeN(descriptors, d);
+		if (!WdmTrafficIsOrdinary(descriptor) || !CheckAttribute(descriptor, "trafficInSea")) continue;
+		DeleteAttribute(descriptor, "trafficInSea");
+		if (!CheckAttribute(descriptor, "encdata.trafficRoster.count")) continue;
+		aref roster; makearef(roster, descriptor.encdata.trafficRoster);
+		for (int ordinal = 0; ordinal < sti(roster.count); ordinal++)
+		{
+			string key = "ship" + ordinal;
+			if (CheckAttribute(roster, key)) DeleteAttribute(roster, key + ".seaLoaded");
 		}
 	}
 }

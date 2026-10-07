@@ -291,6 +291,7 @@ bool WdmMilitaryCommit(aref encounter, int colony)
 	encounter.trafficMission = Colonies[colony].id;
 	encounter.trafficIntent = "preparation";
 	DeleteAttribute(encounter, "trafficNextLocator"); DeleteAttribute(encounter, "trafficReturning");
+	DeleteAttribute(encounter, "trafficRouteBlocked");
 	encounter.trafficTargetPlayer = 0;
 	return true;
 }
@@ -371,6 +372,16 @@ void WdmMilitaryReview(int nation)
 {
 	if (!WdmTrafficIsStateNation(nation) || !CheckAttribute(&Nations[nation], "trafficStrategy.version")) return;
 	aref strategy; makearef(strategy, Nations[nation].trafficStrategy);
+	if (CheckAttribute(strategy, "activeMission"))
+	{
+		bool reserved = false;
+		for (int colony = 0; colony < MAX_COLONIES; colony++)
+		{
+			if (WdmMilitaryActive(colony) && sti(Colonies[colony].trafficSiege.nation) == nation &&
+				Colonies[colony].trafficSiege.id == strategy.activeMission) { reserved = true; break; }
+		}
+		if (!reserved) DeleteAttribute(strategy, "activeMission");
+	}
 	aref weekly; makearef(weekly, strategy.weekly);
 	if (WdmTrafficElapsed(weekly, "day") < 7) return;
 	WdmTrafficStamp(weekly);
@@ -571,6 +582,7 @@ void WdmMilitaryEnd(int colony, aref encounter, string result)
 	if (CheckAttribute(&Nations[nation], "trafficStrategy.activeMission") && Nations[nation].trafficStrategy.activeMission == siege.id)
 		DeleteAttribute(&Nations[nation], "trafficStrategy.activeMission");
 	DeleteAttribute(encounter, "trafficMission"); DeleteAttribute(encounter, "trafficNextLocator");
+	DeleteAttribute(encounter, "trafficRouteBlocked");
 	DeleteAttribute(encounter, "trafficService"); DeleteAttribute(encounter, "trafficCurrentPort");
 	encounter.trafficLifecycle = "voyage";
 	encounter.trafficCondition = 1.0;
@@ -904,6 +916,22 @@ void WdmMilitaryUpdate(int colony)
 	if (sti(siege.foreground) || (CheckAttribute(fleet, "trafficInSea") && sti(fleet.trafficInSea)) || CheckAttribute(fleet, "trafficBattle"))
 	{
 		WdmTrafficStamp(clock); return;
+	}
+	int survivors = 0;
+	if (CheckAttribute(fleet, "encdata.trafficRoster.count"))
+	{
+		aref roster; makearef(roster, fleet.encdata.trafficRoster);
+		for (int slot = 0; slot < sti(roster.count); slot++)
+		{
+			string key = "ship" + slot;
+			if (CheckAttribute(roster, key) && !sti(roster.(key).dead)) survivors++;
+		}
+	}
+	if (survivors == 0) { WdmMilitaryEnd(colony, fleet, "fleet_lost"); return; }
+	if (siege.phase == "voyage" && CheckAttribute(fleet, "trafficNextLocator") &&
+		CheckAttribute(fleet, "trafficRouteBlocked") && fleet.trafficRouteBlocked == "locator")
+	{
+		WdmMilitaryEnd(colony, fleet, "route_blocked"); return;
 	}
 	if (CheckAttribute(fleet, "trafficCondition") && stf(fleet.trafficCondition) < 1.0)
 	{

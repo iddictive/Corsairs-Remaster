@@ -181,7 +181,7 @@ def compiler_ready():
 # Compose after the existing gameplay owners, notably the AIShip fleet layer.
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
 FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc',
- 'PROGRAM/sea_ai/sea.c': 'ace3ef44a63c688ac5f0639a735505d9ec1c8fbd2a0628db6e9baf0685edfcd9',
+ 'PROGRAM/sea_ai/sea.c': '9937ba2362e2b55ca9b13adcb60dc0b4310c5a29470a1e58abda1a38a52a1a09',
  'PROGRAM/sea_ai/AIFantom.c': '94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b',
  'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',
  'PROGRAM/interface/map.c': '4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be',
@@ -256,7 +256,7 @@ def plan(target_root=None):
             current = military_callbacks.strip(relative, script_bytes(relative, originals[relative], incoming))
             if digest(current) == PRESERVED_RUNTIME.get(relative):
                 continue
-            if digest(current) == military_callbacks.RETAINED_BASES.get(relative):
+            if relative != living_caribbean.SEA_PATH and digest(current) == military_callbacks.RETAINED_BASES.get(relative):
                 # A pinned independently delivered revision keeps its existing
                 # behaviour; only this package's callback layer is upgraded.
                 continue

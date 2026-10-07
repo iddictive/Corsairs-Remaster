@@ -414,7 +414,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
          auto dl = dir.x * dir.x + dir.z * dir.z;
          if (dl > 1.0f)
          {
-@@ -106,10 +122,42 @@
+@@ -106,10 +122,43 @@
  // Completion check
  bool WdmMerchantShip::KillTest()
  {
@@ -436,6 +436,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +            data->SetAttribute("trafficLifecycle", "service");
 +            data->SetAttribute("trafficIntent", "service");
 +            data->SetAttributeUseDword("trafficTargetPlayer", 0);
++            Move(0.0f);
 +            core.Event("WdmTraffic_Arrived", "s", GetAttributeName());
 +        }
 +        return false;
@@ -458,7 +459,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
  }
  
  // Updating stored data
-@@ -136,3 +184,362 @@
+@@ -136,3 +185,363 @@
      }
      WdmEnemyShip::SetSaveAttribute(save);
  }
@@ -487,6 +488,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +        CVECTOR destination;
 +        if (wdmObjects->islands && wdmObjects->islands->GetQuestLocator(locator.c_str(), destination))
 +        {
++            trafficSteering = false;
 +            Goto(destination.x, destination.z, 2.0f);
 +            data->DeleteAttributeClassX(data->FindAClass(data, "trafficNextLocator"));
 +            data->DeleteAttributeClassX(data->FindAClass(data, "trafficRouteBlocked"));
@@ -636,7 +638,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    auto *data = GetTrafficData();
 +    if (data && (attack || (data->GetAttribute("trafficLifecycle") &&
 +        std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0)))
-+    { speed = 0.0f; turnspd = 0.0f; return; }
++    { speed = 0.0f; turnspd = 0.0f; rspeed = 0.0f; return; }
 +    WdmEnemyShip::Move(dltTime);
 +}
 +

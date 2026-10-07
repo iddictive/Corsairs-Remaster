@@ -16,6 +16,15 @@ def enc(text):
 
 
 HOOKS = {
+    "PROGRAM/sea_ai/AISea.c": ((
+        'bool SeaAI_SetOfficer2ShipAfterAbordage(ref refMyCharacter, ref refEnemyCharacter)\n'
+        '{\n\tint iMyCharacterIndex = sti(refMyCharacter.index);\n'
+        '\tint iEnemyCharacterIndex = sti(refEnemyCharacter.index);\n\tif (bSeaActive)\n\t{\t',
+        'bool SeaAI_SetOfficer2ShipAfterAbordage(ref refMyCharacter, ref refEnemyCharacter)\n'
+        '{\n\tint iMyCharacterIndex = sti(refMyCharacter.index);\n'
+        '\tint iEnemyCharacterIndex = sti(refEnemyCharacter.index);\n\tif (bSeaActive)\n\t{\t\n'
+        '\t\tWdmFleetSeaMarkGone(refEnemyCharacter);'
+    ),),
     "PROGRAM/battle_interface/BattleInterface.c": (
         ('\tBattleInterface.Commands.Boat.note\t= "Выслать шлюпку";',
          '\tBattleInterface.Commands.Boat.note\t= "Выслать шлюпку";\n'
@@ -279,10 +288,17 @@ HOOKS = {
                                    'float AddPriceModify'),
                                   ('return MakeInt(basePrice*tradeModify*skillModify*_qty  + 0.5);',
                                    'return WdmRecoveryQuote(refGoods, basePrice, tradeModify, skillModify, _qty);')),
+ 'PROGRAM/interface/shipyard.c': (('\tDelBakSkill();\n\tRefreshShipLists();\n}',
+                                  '\tWdmHarbourBindPurchasedHull(xi_refCharacter, sFrom_sea);\n'
+                                  '\tDelBakSkill();\n\tRefreshShipLists();\n}'),),
  'PROGRAM/worldmap/worldmap.c': (('void wdmCreateWorldMap()\n{',
-                                  'void wdmCreateWorldMap()\n{\n\tWdmMilitaryParticipationWorldMap();'),)}
+                                  'void wdmCreateWorldMap()\n{\n\tWdmMilitaryParticipationWorldMap();'),
+                                 ('\tWdmMilitaryParticipationWorldMap();',
+                                  '\tWdmMilitaryParticipationWorldMap();\n\tWdmFleetSeaReconcileWorldMap();'))}
 
 BASES = {'PROGRAM/Loc_ai/LAi_events.c': '6d8e35df2e543572e657345e8aa2f94c209e99f9a354a1037877504df8004831',
+ 'PROGRAM/sea_ai/AISea.c': '03c4bcf233c554e5bef5024c7dd7b0e44a70367b092a15124da176750225487b',
+ 'PROGRAM/interface/shipyard.c': '999cb234ef0aa1a3b76bb56ef7003218d9155d85efc04713065f50fdf36636df',
  'PROGRAM/Loc_ai/LAi_fightparams.c': '1d96b2fec71cc6666457b95221ddea2da963551f89d1365922142678378442ef',
  'PROGRAM/Loc_ai/LAi_init.c': 'd2b4ebdcb1671d87f96a34bcdf3d957c3ac8643c751a4880341179bc4ec393c6',
  'PROGRAM/Loc_ai/LAi_login.c': '268c33bab0cb4686362d0911df134096adbf92ad95b9b053b05f373e4fdb2a54',
@@ -307,6 +323,8 @@ BASES = {'PROGRAM/Loc_ai/LAi_events.c': '6d8e35df2e543572e657345e8aa2f94c209e99f
  'PROGRAM/worldmap/worldmap.c': '48bfe0c13a38e2e176a8087dfd45c919345581b04d9c0bbc252f63c02fe9d267'}
 
 UPDATED = {'PROGRAM/Loc_ai/LAi_events.c': '41ee1d25051139a464d0c323f18b59aa925e0e8d4b586855451f178d9c131caf',
+ 'PROGRAM/sea_ai/AISea.c': 'd0710a40e04c1c4bf9efabee0a71128277f38c9fd329b6eb976eb157416cf89f',
+ 'PROGRAM/interface/shipyard.c': '674d59bf5fd1c5e7de98d5675362021e9e203c28bc42adaba9c8dcbe4ee39006',
  'PROGRAM/Loc_ai/LAi_fightparams.c': '28674da4fa2c160489adda17255b6934c2d323a15c455db8405473c789fe7add',
  'PROGRAM/Loc_ai/LAi_init.c': '07c3dc1f0d495a92f4450946f2a0692aec2e83c39e8738bf6b87a9e7fc757e63',
  'PROGRAM/Loc_ai/LAi_login.c': '43fefc2e366ef093a0d5d9fe897c63ff013bdb631a84c3082497135828f6bc2d',
@@ -328,7 +346,7 @@ UPDATED = {'PROGRAM/Loc_ai/LAi_events.c': '41ee1d25051139a464d0c323f18b59aa925e0
  'PROGRAM/sea_ai/Cabin.c': '4a393af88878c516e893c7923e87a12601f6fc4093ceb8f2a64708b459a45e68',
  'PROGRAM/sea_ai/sea.c': 'd55e1e17792b34ae5ef510d6151e49ed14f73978213fdc51dcd72766c244b6c8',
  'PROGRAM/store/storeutilite.c': 'af9a4e70c6d51adf9d59f6e0a003141ab8a666c5165e07b41151fc84f394cf65',
- 'PROGRAM/worldmap/worldmap.c': '1a276465b0d5f568bc7ee45209b5de09f16f80756c11f123e44ac26dc67af979'}
+ 'PROGRAM/worldmap/worldmap.c': 'b29cbe7d92497415cbf807c41fda72da6f9b4816b774bd02e445405abb13409f'}
 
 
 def transform(relative, data, reverse=False):
@@ -354,6 +372,7 @@ def prepare(relative, data):
 
 
 PREVIOUS = {'PROGRAM/Loc_ai/LAi_login.c': {'f3aba4b03ce0d98af57d8c3d4582aa394287517ba7dfdc206a5a4b844a1d7ef3'},
+ 'PROGRAM/worldmap/worldmap.c': {'1a276465b0d5f568bc7ee45209b5de09f16f80756c11f123e44ac26dc67af979'},
  'PROGRAM/dialogs/russian/Capitans_dialog.c': {'278ddeaedbb47b9ed02f9572c1a7ba0a2aba85ea005dc34e84c51511e587a2c3'},
  'PROGRAM/nations/nations.c': {'50fb7b254d58bcb4c81a4e012a8f7810e9544840349204712d21a1d58bcc550a'},
  'PROGRAM/sea_ai/AIShip.c': {'36db5c827f0e8770ea4c42b2e7fba29eb7b1c0d05354a11a8ea3172051974e62',
@@ -364,19 +383,24 @@ PREVIOUS = {'PROGRAM/Loc_ai/LAi_login.c': {'f3aba4b03ce0d98af57d8c3d4582aa394287
 RETAINED_BASES = {'PROGRAM/dialogs/russian/MainHero_dialog.c': 'e4b610de7ed77de21fab8cd539cac828c01de99021590b7a475e6f2348f3e971',
  'PROGRAM/sea_ai/AIFort.c': '5ae1a571d5f10cff0083a2532260c575d8cf4005d4643e5704ab5b1f7ae1f24d',
  'PROGRAM/sea_ai/AIShip.c': '30a3ab0e6b9aa5bda09099f34a8e0aedcc97c8beda34d58f02b382bf161a85f1',
- 'PROGRAM/sea_ai/sea.c': 'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006'}
+ 'PROGRAM/sea_ai/sea.c': 'c0f5cefdcdb00d25a117cd77b3d7726743813d0ea2ccb273af6c54bd9c1d6e04'}
 RETAINED_UPDATED = {'PROGRAM/dialogs/russian/MainHero_dialog.c': 'b4af6b1b2ccd25f12ae517b447b477a5ca9e9364f4dbe43c4c4e2840671f3d14',
  'PROGRAM/sea_ai/AIFort.c': '4a68fa9ad5624980663e2a1b7f7c1f2617604434df1d8beb787d1b297e2f6c43',
  'PROGRAM/sea_ai/AIShip.c': '8a265c0705824d393dd9b2f5d684d8fdf636d56e78d67de89951c5c5d35171b8',
- 'PROGRAM/sea_ai/sea.c': '2c5d84deb57d33614c05d2b6c353d956369bbb0ab79f1d145822551cfde639aa'}
+ 'PROGRAM/sea_ai/sea.c': 'f322bc2e89371c8e679d1b728061b6bc0034c3932e6fd7b98f23da618b550715'}
 RETAINED_PREVIOUS = {'PROGRAM/dialogs/russian/MainHero_dialog.c': {'e4b610de7ed77de21fab8cd539cac828c01de99021590b7a475e6f2348f3e971'},
  'PROGRAM/sea_ai/AIFort.c': {'5ae1a571d5f10cff0083a2532260c575d8cf4005d4643e5704ab5b1f7ae1f24d'},
  'PROGRAM/sea_ai/AIShip.c': {'b51efe70dccc7ed0c43e482f11245e54c5b949f755e59f436a6fcea0151b2c91'},
- 'PROGRAM/sea_ai/sea.c': {'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006'}}
+ 'PROGRAM/sea_ai/sea.c': {'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006',
+                         '2c5d84deb57d33614c05d2b6c353d956369bbb0ab79f1d145822551cfde639aa'}}
+
+RETAINED_BASE_PREVIOUS = {
+    'PROGRAM/sea_ai/sea.c': {'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006'}
+}
 
 
 def strip(relative, data):
-    if relative not in HOOKS or digest(data) in {BASES[relative], RETAINED_BASES.get(relative)}:
+    if relative not in HOOKS or digest(data) in {BASES[relative], RETAINED_BASES.get(relative)} | RETAINED_BASE_PREVIOUS.get(relative, set()):
         return data
     if digest(data) not in {UPDATED[relative], RETAINED_UPDATED.get(relative)} | PREVIOUS.get(relative, set()) | RETAINED_PREVIOUS.get(relative, set()):
         return data
@@ -387,6 +411,6 @@ def strip(relative, data):
             result = result.replace(after, before, 1)
         elif result.count(before) != 1:
             raise RuntimeError(f"military callback predecessor anchor mismatch: {relative}")
-    if digest(result) not in {BASES[relative], RETAINED_BASES.get(relative)}:
+    if digest(result) not in {BASES[relative], RETAINED_BASES.get(relative)} | RETAINED_BASE_PREVIOUS.get(relative, set()):
         raise RuntimeError(f"military callback predecessor mismatch: {relative}")
     return result
