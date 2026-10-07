@@ -37,3 +37,35 @@ diff --git a/src/libs/worldmap/src/wdm_follow_ship.cpp b/src/libs/worldmap/src/w
          const auto l = sn * sn + cs * cs;
          if (l > 0.0)
              cs /= sqrt(l);
+diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_map.cpp
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -463,19 +463,20 @@
+     if (tmp)
+         strcpy_s(wdmObjects->attrYear, tmp);
+     //---------------------------------------------------------
++    auto isKill = false;
++    // execute all objects
++    for (auto i = firstObject; i >= 0; i = object[i].next)
++    {
++        if (!object[i].ro->killMe)
++            object[i].ro->Update(object[i].ro->isEnablePause && wdmObjects->isPause ? 0.0f : dltTime);
++        isKill |= object[i].ro->killMe;
++    }
++    // Follow the position rendered this frame, not the previous frame.
+     if (camera && !wdmObjects->isPause)
+     {
+         camera->Move(dltTime, rs);
+         AttributesPointer->SetAttributeUseFloat("wdmCameraY", camera->pos.y);
+         AttributesPointer->SetAttributeUseFloat("wdmCameraAY", camera->ang.y);
+-    }
+-    auto isKill = false;
+-    // execute all objects
+-    for (auto i = firstObject; i >= 0; i = object[i].next)
+-    {
+-        if (!object[i].ro->killMe)
+-            object[i].ro->Update(object[i].ro->isEnablePause && wdmObjects->isPause ? 0.0f : dltTime);
+-        isKill |= object[i].ro->killMe;
+     }
+     // Remove objects if necessary
+     if (isKill)

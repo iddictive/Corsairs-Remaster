@@ -1,5 +1,26 @@
 # World-map traffic
 
+## Player movement and follow camera — October 7
+
+`WorldMap::Realize` owns the map frame. It previously updated the follow camera
+before ship simulation, then rendered the newly advanced ship against the old
+camera anchor. Variable frame duration therefore varied the ship's displacement
+from its intended focus even on open water. `worldmap-navigation.patch` now moves
+the same camera call after object updates, before removal/events/rendering. Camera
+controls, elastic heading, physics, collision, travel speed and calendar are unchanged.
+Storm opacity computed during Update reads the preceding camera height; ordinary
+fixed-height opacity is unchanged, while a zoom-height change reaches it next frame.
+
+A disposable ASan/UBSan probe compiles the exact camera Move method and map update
+block with explicit linear-motion/control adapters. Independent camera ground-focus
+versus rendered-ship position is the oracle: alternating 120/30 Hz frames reproduced
+0.186328..0.745361 units of anchor error before the repair, below 0.000011 after.
+Following with zoom, free camera, pause, per-object update count and unpaused-object
+time pass. This proves frame ownership, not rendered smoothness or measured FPS.
+The player's current ship jitter report reopens visual acceptance; it does not
+prove an AI avoidance defect. Canonical build/install and player replay remain
+separate evidence in `docs/runtime.md`.
+
 ## Player journey hardening — October 7
 
 The current requested batch evaluates the installed Living Caribbean from the
