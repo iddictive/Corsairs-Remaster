@@ -1334,8 +1334,9 @@ arrival, island reservation, partial rescue, all-transport loss after victory,
 finite city loading, scene admission/defer, harbour hold and mid-assault native
 attribute serialization with no repeated debit/loss/evacuation. The final run has
 zero script errors; permanent test delta is zero. Current native patch application
-and the changed merchant translation unit syntax pass. Read-only canonical composition reports 15 cache consumers and 13 installed-app
-consumers pending in the October 7 batch; these are not installation receipts. The callback
+and the changed merchant translation unit syntax pass. The October 7 batch passed
+canonical `experiments/native-metal/run.sh --stage-only`; both development and
+installed-app composition report zero pending consumers. The callback
 adapter in `tools/metal_military_integration.py` composes after existing gameplay
 owners, validates exact input/output hashes, and reverses only its reviewed bytes
 for subsequent owner validation. Unknown revisions retain the original rejection.
@@ -1425,6 +1426,11 @@ counts seeded live projectile records without changing them; real entity-event
 and rendered command/deck transfer acceptance still require player replay.
 No permanent tests were added. Canonical native build passes; runtime scenes and
 perceived balance are not accepted by this evidence.
+
+The played `/Applications/Corsairs Iddictive Remaster.app` now contains this
+exact package and its native projectile-query capability. Build readiness and
+the deep/strict bundle signature pass; installed, built and VM message headers
+are identical. Player SAVE/config preservation is verified by unchanged hashes.
 
 Still unresolved: rendered hostile pre-transfer parley, actual scene placement/
 sea-to-land paths, rendered harbour choice and commander contact, real guard/crime/
