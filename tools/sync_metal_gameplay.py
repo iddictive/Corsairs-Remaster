@@ -174,9 +174,6 @@ def compiler_ready():
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
             and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
             and record.get("pickup_patch_sha256") == digest((METAL / "pickup-glow.patch").read_bytes())
-            and record.get("pickup_layer_sha256") == digest(Path(pickup_glow.__file__).read_bytes())
-            and record.get("graphics_layer_sha256") == digest(Path(graphics.__file__).read_bytes())
-            and record.get("menu_branding_layer_sha256") == digest(Path(menu_branding.__file__).read_bytes())
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
 
 

@@ -175,9 +175,6 @@ digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
  'cannon_loaded_patch_sha256': digest(root / 'cannon-loaded-count.patch'),
  'sea_contact_patch_sha256': digest(root / 'sea-contact-activity.patch'),
  'pickup_patch_sha256': digest(root / 'pickup-glow.patch'),
- 'pickup_layer_sha256': digest(root / '../../tools/metal_pickup_glow.py'),
- 'graphics_layer_sha256': digest(root / '../../tools/metal_graphics_settings.py'),
- 'menu_branding_layer_sha256': digest(root / '../../tools/metal_menu_branding.py'),
  'external_url_patch_sha256': digest(root / 'external-url.patch'),
  'gameplay_patches': {
  name: digest(root / '../native-storm' / name)
