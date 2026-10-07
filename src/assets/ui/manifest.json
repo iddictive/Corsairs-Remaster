@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/Textures/battle_interface/mast_repair.tga.tx": {
+      "source": "mast-repair.png",
+      "source_sha256": "195d1c79f1830f17a15eb15a2d3fc30874e7393de664b366df364fe5cf7cfdc8",
+      "prepared": "mast-repair.tga.tx",
+      "sha256": "5348e9bf4f8ab1a23fcbcb30481c797bd6181abcc13bb4e0c2486037b9c57eb3",
+      "dimensions": [
+        128,
+        64
+      ],
+      "format": "A8R8G8B8",
+      "consumer": "BattleInterface.Commands.MastRepair, normal/selected 64px tiles",
+      "prompt": "Match the Corsairs list_icons command atlas: one wooden mast and yard with a diagonal wooden mallet, thin subdued antique-brass rounded frame, dark brown normal state and muted navy selected state, transparent outer corners; two identical 64px tiles without text or extra ornaments.",
+      "generation": "built-in imagegen",
+      "source_dimensions": [
+        1774,
+        887
+      ],
+      "crop": [
+        94,
+        33,
+        1678,
+        825
+      ],
+      "preparation": "Crop transparent sprite-sheet margins; resize to 128x64 with LANCZOS; encode one A8R8G8B8 BGRA mip."
+    }
+  }
+}

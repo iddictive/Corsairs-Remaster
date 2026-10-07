@@ -89,7 +89,7 @@
     },
     "PROGRAM/battle_interface/BattleInterface.c": {
       "base_sha256": "ffcd934ea42bc9e0138740a79de745fe77bca33d9d544865b73f517bd8b7ca25",
-      "updated_sha256": "1453fdf44c059083c98ec554d9b4f5f2b5301d55ec62cbf0b0641149ceac5318",
+      "updated_sha256": "650d5771845e21fc1d95acff5fcedc35f84b343642adeb210cf197a369f21429",
       "previous_sha256": [
         "ccb12cc178377bbd9fbeb4b5ac98d18d645c9fc364b2b789b1a4da1765608654",
         "fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d",
@@ -98,8 +98,8 @@
       ],
       "edits": [
         {
-          "before": "\tfloat fGoodsQ = 0.0;\n\n\tif( bIsHull )\n\t{\n\t\tfGoodsQ = GetCargoGoods(chref,GOOD_PLANKS);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forHull\") )   // \u043f\u043e\u0433\u0440\u0435\u0448\u043d\u043e\u0441\u0442\u044c \u043e\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u0438\u044f \u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u0432\u0430 \u0434\u043e\u0441\u043e\u043a \u0437\u0430 \u043f\u0440\u043e\u0446\u0435\u043d\u0442\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forHull);\n\t\t}\n\t}\n\telse\n\t{\n\t\tfGoodsQ = GetCargoGoods(chref,GOOD_SAILCLOTH);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forSails\") )\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forSails);\n\t\t}\n",
-          "after": "\tfloat fGoodsQ = 0.0;\n\n\tif( bIsHull )\n\t{\n\t\tif (FleetService_IsShip(chref)) fGoodsQ = SquadReserve_Goods(chref, GOOD_PLANKS, false);\n\t\telse fGoodsQ = GetCargoGoods(chref,GOOD_PLANKS);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forHull\") )   // \u043f\u043e\u0433\u0440\u0435\u0448\u043d\u043e\u0441\u0442\u044c \u043e\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u0438\u044f \u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u0432\u0430 \u0434\u043e\u0441\u043e\u043a \u0437\u0430 \u043f\u0440\u043e\u0446\u0435\u043d\u0442\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forHull);\n\t\t}\n\t}\n\telse\n\t{\n\t\tif (FleetService_IsShip(chref)) fGoodsQ = SquadReserve_Goods(chref, GOOD_SAILCLOTH, false);\n\t\telse fGoodsQ = GetCargoGoods(chref,GOOD_SAILCLOTH);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forSails\") )\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forSails);\n\t\t}\n"
+          "before": "\tfloat fGoodsQ = 0.0;\n\n\tif( bIsHull )\n\t{\n\t\tfGoodsQ = GetCargoGoods(chref,GOOD_PLANKS);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forHull\") )   // погрешность округления списания колва досок за процент\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forHull);\n\t\t}\n\t}\n\telse\n\t{\n\t\tfGoodsQ = GetCargoGoods(chref,GOOD_SAILCLOTH);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forSails\") )\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forSails);\n\t\t}\n",
+          "after": "\tfloat fGoodsQ = 0.0;\n\n\tif( bIsHull )\n\t{\n\t\tif (FleetService_IsShip(chref)) fGoodsQ = SquadReserve_Goods(chref, GOOD_PLANKS, false);\n\t\telse fGoodsQ = GetCargoGoods(chref,GOOD_PLANKS);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forHull\") )   // погрешность округления списания колва досок за процент\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forHull);\n\t\t}\n\t}\n\telse\n\t{\n\t\tif (FleetService_IsShip(chref)) fGoodsQ = SquadReserve_Goods(chref, GOOD_SAILCLOTH, false);\n\t\telse fGoodsQ = GetCargoGoods(chref,GOOD_SAILCLOTH);\n\t\tif( CheckAttribute(chref,\"RepairMaterials.forSails\") )\n\t\t{\t\n\t\t\tfGoodsQ += stf(chref.RepairMaterials.forSails);\n\t\t}\n"
         },
         {
           "before": "}\n\nvoid RemoveRepairGoods(bool bIsHull, ref chref, float matQ)\n{\n\tint nGoodsQ = 0;\n\tfloat fGoodsQ = GetRepairGoods(bIsHull,chref);\n\n\tif( bIsHull )\n",
@@ -123,7 +123,11 @@
         },
         {
           "before": "\tBattleInterface.Commands.LightRepair.enable\t\t\t= false;\n\tBattleInterface.Commands.LightRepair.picNum",
-          "after": "    BattleInterface.Commands.MastRepair.enable = false;\n    BattleInterface.Commands.MastRepair.picNum = 54;\n    BattleInterface.Commands.MastRepair.selPicNum = 38;\n    BattleInterface.Commands.MastRepair.texNum = BI_ICONS_TEXTURE_COMMAND;\n    BattleInterface.Commands.MastRepair.event = \"BI_MastRepair\";\n    BattleInterface.Commands.MastRepair.note = \"\u0420\u0435\u043c\u043e\u043d\u0442 \u043c\u0430\u0447\u0442\";\n\n\tBattleInterface.Commands.LightRepair.enable\t\t\t= false;\n\tBattleInterface.Commands.LightRepair.picNum"
+          "after": "    BattleInterface.Commands.MastRepair.enable = false;\n    BattleInterface.Commands.MastRepair.picNum = 0;\n    BattleInterface.Commands.MastRepair.selPicNum = 1;\n    BattleInterface.Commands.MastRepair.texNum = 5;\n    BattleInterface.Commands.MastRepair.event = \"BI_MastRepair\";\n    BattleInterface.Commands.MastRepair.note = \"Ремонт мачт\";\n\n\tBattleInterface.Commands.LightRepair.enable\t\t\t= false;\n\tBattleInterface.Commands.LightRepair.picNum"
+        },
+        {
+          "before": "\tBattleInterface.CommandTextures.list.t4.ysize = 4;\n",
+          "after": "\tBattleInterface.CommandTextures.list.t4.ysize = 4;\n\n    BattleInterface.CommandTextures.list.t5.name = \"battle_interface\\mast_repair.tga.tx\";\n    BattleInterface.CommandTextures.list.t5.xsize = 2;\n    BattleInterface.CommandTextures.list.t5.ysize = 1;\n"
         }
       ],
       "append": "mast-repair.c"

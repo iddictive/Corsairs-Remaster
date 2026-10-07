@@ -27,6 +27,7 @@ from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 from contextlib import nullcontext
 
 PROJECT = Path(__file__).resolve().parents[1]
+UI_ASSETS = PROJECT / "src/assets/ui"
 # Portable input is a reviewed read-only baseline, never a second game runtime.
 INPUTS = PROJECT / "experiments/native-metal/inputs"
 if (INPUTS / "manifest.json").is_file():
@@ -145,6 +146,39 @@ def legacy_admission():
     return record["files"]
 
 
+def ui_asset_changes(target_root, state, managed=None, inputs=None):
+    manifest = UI_ASSETS / "manifest.json"
+    raw = manifest.read_bytes()
+    record = json.loads(raw)
+    if set(record) != {"version", "files"} or record["version"] != 1 or not isinstance(record["files"], dict):
+        raise RuntimeError("Invalid UI asset manifest")
+    if inputs is not None:
+        if manifest in inputs and inputs[manifest] != (raw, raw):
+            raise RuntimeError("Concurrent UI asset manifest; no files changed")
+        inputs[manifest] = (raw, raw)
+    changes = {}
+    for name, spec in record["files"].items():
+        data = None
+        for key, checksum in (("source", "source_sha256"), ("prepared", "sha256")):
+            path = gameplay_sources.safe_path(UI_ASSETS, Path(spec[key]))
+            data = path.read_bytes()
+            if digest(data) != spec[checksum]:
+                raise RuntimeError(f"Unreviewed UI asset: {name}")
+            if inputs is not None:
+                if path in inputs and inputs[path] != (data, data):
+                    raise RuntimeError("Concurrent UI asset input; no files changed")
+                inputs[path] = (data, data)
+        target = state.path(name)
+        original = target.read_bytes() if target.exists() else None
+        state.admit(name, original, data, create=True)
+        state.track(name, data)
+        if managed is not None:
+            managed[name] = (original, data)
+        if original != data:
+            changes[name] = (original, data)
+    return changes
+
+
 def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None):
     if target_root is None:
         target_root = TARGET
@@ -156,6 +190,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     canonical = source_changes(target_root, source_set, state, managed)
     if paths is not None:
         return canonical
+    assets = ui_asset_changes(target_root, state, managed, inputs)
     living_caribbean.verify_fort_layout_assets(target_root)
     living_caribbean.verify_land_layout_assets(target_root)
     # Regenerated suite consumers come from exact-hash originals, not the
@@ -256,6 +291,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
             if original != reviewed:
                 changes[relative] = (original, reviewed)
     changes.update(canonical)
+    changes.update(assets)
     return changes
 
 

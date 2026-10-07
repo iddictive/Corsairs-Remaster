@@ -4,8 +4,18 @@
 
 The flagship's quick menu offers `Ремонт мачт` only in safe, active sea mode,
 with crew, fallen main masts and enough planks for at least one mast. Combat,
-nearby enemies, storms, tornadoes and scene transitions reject it. The existing
-repair icon is provisional; no dedicated icon has been generated.
+nearby enemies, storms, tornadoes and scene transitions reject it.
+
+The dedicated mast/mallet icon follows the existing command atlas, with a thin
+antique-brass rim, dark brown normal and muted blue selected states. These rims
+are painted into the command textures; the native menu draws each tile whole.
+`src/assets/ui/manifest.json` binds the generated PNG and prepared 128×64 TX
+texture to their hashes and runtime destination. The existing native command
+texture list adds slot 5 (two 64px tiles); the shared command atlas stays intact.
+`tools/sync_metal_gameplay.py` delivers icon and script through the ordinary
+receipt/backup/rollback transaction, reusing the installed engine. Missing icons
+are created on first delivery; unknown edits and mismatched source hashes reject
+delivery. Selected canonical text-only updates retain their existing scope.
 
 Standing main masts after repair may not exceed `floor(total * 0.6)`. Existing
 standing masts count toward that ceiling, preventing repeat repairs from raising
