@@ -52,23 +52,16 @@ fi
 # must be reviewed, even when the development runtime has accepted its own copy.
 python3 - "$root" "$dest_app" "$tmp" "$dest" <<'INSTALL'
 from pathlib import Path
-import hashlib
 import subprocess
-import shutil
 import sys
 
 root, app, candidate, engine = map(Path, sys.argv[1:])
 sys.path.insert(0, str(root.parents[1] / "tools"))
-from runtime_script_patch import atomic_write
+from delivery_state import DeliveryState, ENGINE, LEGACY_TECHNIQUES, digest, player_guard, transact
 
-originals = {
-    "ship/Rope.fx": {"5f0f0bef056f652515f2ef2b4b99b16f936ce30b5dd1f0417a13eec17ddbb9e1", "873feea8d12addfef10b0c6dabf106b93e88fc0574c54fb2b14e544eff887e69"},
-    "ship/Vant.fx": {"00a92cad48c211d0465fccc19f2481a29310d94676b0988700357eefe566d65f"},
-    "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "092a2b5a087dd44d2e3c0eb779d167819fa672398b80189e1f05a75fffaf9621", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
-    "weather/SunGlow.fx": {"326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c", "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd", "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"},
-}
-digest = lambda data: hashlib.sha256(data).hexdigest()
 changes = {}
+state = DeliveryState(app / "Contents/Resources", app)
+runtime_state = DeliveryState(root / ".cache/runtime")
 # Shared messages are compiled by the script VM as well as the engine. Deliver
 # the built header to both consumers; stale commands abort startup compilation.
 header_source = root / ".cache/storm/src/libs/shared_headers/include/shared/messages.h"
@@ -86,11 +79,12 @@ for target in (
     if target.is_symlink() or not target.is_file():
         raise RuntimeError(f"Missing or linked script header: {target}")
     before = target.read_bytes()
-    if before != header_after and digest(before) not in header_known:
-        raise RuntimeError(f"Script header changed outside staging: {target}")
+    owner = state if target.is_relative_to(app) else runtime_state
+    owner.admit("resource/shared/messages.h", before, header_after, header_known)
+    owner.track("resource/shared/messages.h", header_after)
     if before != header_after:
         changes[target] = (before, header_after)
-for name, known in originals.items():
+for name, known in LEGACY_TECHNIQUES.items():
     source = root / ".cache/runtime/RESOURCE/techniques" / name
     target = app / "Contents/Resources/RESOURCE/techniques" / name
     if source.is_symlink() or target.is_symlink() or not source.is_file() or not target.is_file():
@@ -98,8 +92,9 @@ for name, known in originals.items():
     before, after = target.read_bytes(), source.read_bytes()
     if after != (root / ".cache/storm/src/techniques" / name).read_bytes():
         raise RuntimeError(f"Technique does not match the built source: {name}")
-    if before != after and digest(before) not in known:
-        raise RuntimeError(f"Installed technique changed outside staging: {name}")
+    relative = "RESOURCE/techniques/" + name
+    state.admit(relative, before, after, known)
+    state.track(relative, after)
     if before != after:
         changes[target] = (before, after)
 # The public launcher owns the player log redirect, so a stale copy keeps
@@ -115,57 +110,27 @@ for path in (launcher_source, launcher_target):
     if path.is_symlink() or not path.is_file():
         raise RuntimeError(f"Missing or linked launcher: {path}")
 before, after = launcher_target.read_bytes(), launcher_source.read_bytes()
-if before != after and digest(before) not in launcher_known:
-    raise RuntimeError("Installed launcher changed outside staging: public_launcher.py")
+state.admit("public_launcher.py", before, after, launcher_known)
+state.track("public_launcher.py", after)
 if before != after:
     changes[launcher_target] = (before, after)
 before, after = engine.read_bytes(), candidate.read_bytes()
+# Existing installations predate receipts. Preserve their signed-engine
+# bootstrap contract; subsequent replacements require the recorded bytes.
+if ENGINE not in state.files:
+    subprocess.run(["codesign", "--verify", "--strict", str(engine)], check=True)
+state.admit(ENGINE, before, after, {digest(before)})
+state.track(ENGINE, after)
 if before != after:
     changes[engine] = (before, after)
-if not changes:
+changes[state.receipt] = state.change()
+changes[runtime_state.receipt] = runtime_state.change()
+with player_guard(app):
+    updated = transact(changes, app)
+if not updated:
     print("Played app engine, script header, techniques and launcher already match; install skipped.")
 else:
-    written = []
-    try:
-        for target, (before, after) in changes.items():
-            if target.read_bytes() != before:
-                raise RuntimeError(f"Concurrent installed-app change: {target}")
-            atomic_write(target, after)
-            written.append(target)
-        # Bundled Python regenerates __pycache__ on every game launch. The
-        # exporter excludes those caches from delivery and they break the
-        # deep seal, so purge them inside this transaction before sealing
-        # a played bundle. They regenerate automatically on next launch.
-        frameworks = app / "Contents/Frameworks"
-        if frameworks.is_dir():
-            for pycache in sorted(frameworks.rglob("__pycache__")):
-                shutil.rmtree(pycache, ignore_errors=True)
-            for stale in sorted(frameworks.rglob("*.pyc")):
-                try:
-                    stale.unlink()
-                except OSError:
-                    pass
-        # The candidate executable is already signed. Seal only the outer
-        # bundle so signing cannot rewrite nested files outside this transaction.
-        subprocess.run(["codesign", "--force", "-s", "-", str(app)], check=True)
-        subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
-    except BaseException as error:
-        failures = []
-        for target in reversed(written):
-            try:
-                if target.read_bytes() != changes[target][1]:
-                    raise RuntimeError(f"Concurrent change prevents installed rollback: {target}")
-                atomic_write(target, changes[target][0])
-            except (OSError, RuntimeError) as rollback_error:
-                failures.append(str(rollback_error))
-        if written and not failures:
-            result = subprocess.run(["codesign", "--force", "-s", "-", str(app)], check=False)
-            if result.returncode:
-                failures.append("could not restore the installed bundle signature")
-        if failures:
-            raise RuntimeError(f"{error}; installed rollback incomplete: {'; '.join(failures)}") from error
-        raise
-    print("Installed engine, reviewed script header, techniques and launcher; bundle signature verified.")
+    print("Engine resource delivery completed; ownership receipts updated.")
 INSTALL
 rm -f "$tmp"
 final_hash=$(shasum -a 256 "$dest" | awk '{print $1}')

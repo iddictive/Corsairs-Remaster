@@ -53,23 +53,16 @@ done
 # Engine-source techniques are staged as one reviewed group. Keep unknown
 # runtime edits instead of silently replacing them with a raw copy.
 python3 - "$root" "$runtime" <<'TECHNIQUE_STAGE'
-import hashlib
 import sys
 from pathlib import Path
 
 root, runtime = map(Path, sys.argv[1:])
 sys.path.insert(0, str(root.parents[1] / "tools"))
-from runtime_script_patch import atomic_write
+from delivery_state import DeliveryState, LEGACY_TECHNIQUES, digest, transact
 
-reviewed = {
-    "ship/Rope.fx": {"5f0f0bef056f652515f2ef2b4b99b16f936ce30b5dd1f0417a13eec17ddbb9e1", "873feea8d12addfef10b0c6dabf106b93e88fc0574c54fb2b14e544eff887e69"},
-    "ship/Vant.fx": {"00a92cad48c211d0465fccc19f2481a29310d94676b0988700357eefe566d65f"},
-    "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "092a2b5a087dd44d2e3c0eb779d167819fa672398b80189e1f05a75fffaf9621", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
-    "weather/SunGlow.fx": {"326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c", "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd", "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"},
-}
-digest = lambda data: hashlib.sha256(data).hexdigest()
 changes = {}
-for name, known in reviewed.items():
+state = DeliveryState(runtime)
+for name, known in LEGACY_TECHNIQUES.items():
     relative = Path("techniques") / name
     source = root / ".cache/storm/src" / relative
     target = runtime / "RESOURCE" / relative
@@ -77,33 +70,21 @@ for name, known in reviewed.items():
     if any(path.is_symlink() for path in (source, target, backup)):
         raise RuntimeError(f"Linked technique: {name}")
     incoming, current = source.read_bytes(), target.read_bytes()
-    if current != incoming and digest(current) not in known:
-        raise RuntimeError(f"Technique changed outside staging: {name}")
+    key = "RESOURCE/" + relative.as_posix()
+    state.admit(key, current, incoming, known)
+    state.track(key, incoming)
     if backup.exists() and digest(backup.read_bytes()) not in known:
         raise RuntimeError(f"Technique backup changed: {name}")
-    changes[target] = (current, incoming, backup)
-written = []
-try:
-    for target, (current, incoming, backup) in changes.items():
-        if target.read_bytes() != current:
-            raise RuntimeError(f"Concurrent technique change: {target}")
-        if current != incoming:
-            if not backup.exists():
-                atomic_write(backup, current)
-            atomic_write(target, incoming)
-            written.append(target)
-except BaseException as error:
-    failures = []
-    for target in reversed(written):
-        try:
-            if target.read_bytes() != changes[target][1]:
-                raise RuntimeError(f"Concurrent change prevents technique rollback: {target}")
-            atomic_write(target, changes[target][0])
-        except (OSError, RuntimeError) as rollback_error:
-            failures.append(str(rollback_error))
-    if failures:
-        raise RuntimeError(f"{error}; technique rollback incomplete: {'; '.join(failures)}") from error
-    raise
+    if current != incoming and not backup.exists():
+        if digest(current) not in known:
+            backup = root / ".cache/native-resource-backups" / digest(current)
+            if backup.exists() and backup.read_bytes() != current:
+                raise RuntimeError(f"Technique snapshot changed: {name}")
+        if not backup.exists():
+            changes[backup] = (None, current)
+    changes[target] = (current, incoming)
+changes[state.receipt] = state.change()
+transact(changes)
 print("Engine techniques: reviewed runtime revisions staged")
 TECHNIQUE_STAGE
 python3 "$root/background_alpha.py" apply "$runtime/PROGRAM/locations/init"

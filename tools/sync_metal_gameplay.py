@@ -26,7 +26,8 @@ import metal_fleet_ui as fleet_ui
 import metal_military_integration as military_callbacks
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
-from runtime_script_patch import atomic_write
+from delivery_state import DeliveryState, player_guard, transact
+from contextlib import nullcontext
 
 PROJECT = Path(__file__).resolve().parents[1]
 # Portable input is a reviewed read-only baseline, never a second game runtime.
@@ -417,18 +418,13 @@ def plan(target_root=None):
             for relative, (_, incoming) in changes.items()}
 
 
-def sign_installed_app():
-    # Only resource scripts changed; reseal the outer bundle and preserve the
-    # already-signed nested executables/frameworks.
-    for arguments in (("--force", "-s", "-"), ("--verify", "--deep", "--strict")):
-        result = subprocess.run(["codesign", *arguments, str(INSTALLED_APP)],
-                                capture_output=True, text=True, check=False)
-        if result.returncode:
-            detail = result.stderr.strip() or result.stdout.strip()
-            raise RuntimeError(f"installed app codesign failed: {detail}")
-
-
 def apply(changes):
+    guard = player_guard(INSTALLED_APP) if INSTALLED_APP.is_dir() else nullcontext()
+    with guard:
+        apply_locked(changes)
+
+
+def apply_locked(changes):
     if not compiler_ready():
         raise RuntimeError("build and stage Metal with the current compiler, deck, sea-surrender and contact-activity patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
@@ -440,92 +436,79 @@ def apply(changes):
                              capture_output=True, text=True, check=False)
     if holders.returncode != 1 or holders.stdout or holders.stderr:
         raise RuntimeError("close the Metal game before applying gameplay")
-    written = []
-    app_written = []
-    try:
-        for relative, (previous, incoming) in changes.items():
-            path = TARGET / relative
-            if path.read_bytes() != previous:
-                raise RuntimeError(f"concurrent Metal change: {relative}")
-            backup = METAL / ".cache/gameplay-baseline" / relative
-            if backup.exists() and backup.read_bytes() != previous:
-                baseline = backup.read_bytes()
-                deck = deck_package()
-                backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
-                if relative in FLEET_FINAL_BASE:
-                    backup_matches = digest(baseline) in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())) or backup_matches
-                if relative in military_callbacks.HOOKS:
-                    backup_matches = digest(baseline) in {
-                        military_callbacks.BASES[relative], military_callbacks.UPDATED[relative],
-                        military_callbacks.RETAINED_BASES.get(relative), military_callbacks.RETAINED_UPDATED.get(relative),
-                    } | military_callbacks.PREVIOUS.get(relative, set()) | military_callbacks.RETAINED_PREVIOUS.get(relative, set()) or backup_matches
-                if relative == governor_dialog.PATH:
-                    backup_matches = digest(baseline) == governor_dialog.BASE
-                if relative in living_caribbean.PREPARERS:
-                    backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
-                if relative in evening_lights.PREPARERS:
-                    backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
-                if relative in fleet_gameplay.FILES:
-                    backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
-                if relative in tradebook.BASE:
-                    backup_matches = digest(baseline) == tradebook.BASE[relative]
-                if relative in custody_life.BASELINE:
-                    backup_matches = digest(baseline) == custody_life.BASELINE[relative]
-                if relative in squad_supply.BASE:
-                    backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
-                if relative == pickup_glow.RELATIVE_PATH:
-                    backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
-                if relative in menu_branding.FILES:
-                    backup_matches = digest(baseline) == menu_branding.BASE[relative]
-                graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)
-                if graphics_spec:
-                    backup_matches = digest(baseline) == graphics_spec.original_sha256
-                if relative in deck.PATCHES:
-                    prepared_baseline, _ = deck.prepare(relative, baseline)
-                    shared_incoming = incoming
-                    if relative == deck_camera.PATH:
-                        shared_incoming = deck_camera.strip(shared_incoming)
-                    if relative in deck_controls.PATHS:
-                        shared_incoming = deck_controls.strip(relative, shared_incoming)
-                    prepared_incoming, _ = deck.prepare(relative, shared_incoming)
-                    canonical_baseline, _ = deck.settings_visibility.strip(relative, prepared_baseline)
-                    canonical_incoming, _ = deck.settings_visibility.strip(relative, prepared_incoming)
-                    backup_matches = canonical_baseline == canonical_incoming
-                if not backup_matches:
-                    raise RuntimeError(f"unexpected backup revision: {relative}")
-            if not backup.exists():
-                atomic_write(backup, previous)
-            atomic_write(path, incoming)
-            written.append((path, previous, incoming))
+    batch = {}
+    runtime_state = DeliveryState(TARGET)
+    app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
+    for relative, (previous, incoming) in changes.items():
+        path = TARGET / relative
+        if path.read_bytes() != previous:
+            raise RuntimeError(f"concurrent Metal change: {relative}")
+        backup = METAL / ".cache/gameplay-baseline" / relative
+        if backup.exists() and backup.read_bytes() != previous:
+            baseline = backup.read_bytes()
+            deck = deck_package()
+            backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
+            if relative in FLEET_FINAL_BASE:
+                backup_matches = digest(baseline) in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())) or backup_matches
+            if relative in military_callbacks.HOOKS:
+                backup_matches = digest(baseline) in {
+                    military_callbacks.BASES[relative], military_callbacks.UPDATED[relative],
+                    military_callbacks.RETAINED_BASES.get(relative), military_callbacks.RETAINED_UPDATED.get(relative),
+                } | military_callbacks.PREVIOUS.get(relative, set()) | military_callbacks.RETAINED_PREVIOUS.get(relative, set()) or backup_matches
+            if relative == governor_dialog.PATH:
+                backup_matches = digest(baseline) == governor_dialog.BASE
+            if relative in living_caribbean.PREPARERS:
+                backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
+            if relative in evening_lights.PREPARERS:
+                backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
+            if relative in fleet_gameplay.FILES:
+                backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
+            if relative in tradebook.BASE:
+                backup_matches = digest(baseline) == tradebook.BASE[relative]
+            if relative in custody_life.BASELINE:
+                backup_matches = digest(baseline) == custody_life.BASELINE[relative]
+            if relative in squad_supply.BASE:
+                backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
+            if relative == pickup_glow.RELATIVE_PATH:
+                backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
+            if relative in menu_branding.FILES:
+                backup_matches = digest(baseline) == menu_branding.BASE[relative]
+            graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)
+            if graphics_spec:
+                backup_matches = digest(baseline) == graphics_spec.original_sha256
+            if relative in deck.PATCHES:
+                prepared_baseline, _ = deck.prepare(relative, baseline)
+                shared_incoming = incoming
+                if relative == deck_camera.PATH:
+                    shared_incoming = deck_camera.strip(shared_incoming)
+                if relative in deck_controls.PATHS:
+                    shared_incoming = deck_controls.strip(relative, shared_incoming)
+                prepared_incoming, _ = deck.prepare(relative, shared_incoming)
+                canonical_baseline, _ = deck.settings_visibility.strip(relative, prepared_baseline)
+                canonical_incoming, _ = deck.settings_visibility.strip(relative, prepared_incoming)
+                backup_matches = canonical_baseline == canonical_incoming
+            if not backup_matches:
+                raise RuntimeError(f"unexpected backup revision: {relative}")
+        runtime_state.admit(relative, previous, incoming, {digest(previous)})
+        runtime_state.track(relative, incoming)
+        if not backup.exists():
+            batch[backup] = (None, previous)
+        batch[path] = (previous, incoming)
+    for relative, (previous, incoming) in app_changes.items():
+        app_state.admit(relative, previous, incoming, {digest(previous)})
+        app_state.track(relative, incoming)
+        batch[app_resources / relative] = (previous, incoming)
+    batch[runtime_state.receipt] = runtime_state.change()
+    if app_state is not None:
+        batch[app_state.receipt] = app_state.change()
+
+    def verify():
         if plan():
             raise RuntimeError("post-apply gameplay comparison failed")
-        for relative, (previous, incoming) in app_changes.items():
-            app_target = app_resources / relative
-            if app_target.read_bytes() != previous:
-                raise RuntimeError(f"concurrent installed gameplay change: {relative}")
-            atomic_write(app_target, incoming)
-            app_written.append((app_target, previous, incoming))
-        if app_written:
-            if plan(app_resources):
-                raise RuntimeError("post-apply installed gameplay comparison failed")
-            sign_installed_app()
-    except BaseException as error:
-        failures = []
-        for path, previous, incoming in reversed(written + app_written):
-            try:
-                if path.read_bytes() != incoming:
-                    raise RuntimeError(f"concurrent change prevents rollback: {path}")
-                atomic_write(path, previous)
-            except (OSError, RuntimeError) as rollback_error:
-                failures.append(str(rollback_error))
-        if app_written and not failures:
-            try:
-                sign_installed_app()
-            except (OSError, RuntimeError) as rollback_error:
-                failures.append(str(rollback_error))
-        if failures:
-            raise RuntimeError(f"{error}; rollback incomplete: {'; '.join(failures)}") from error
-        raise
+        if app_state is not None and plan(app_resources):
+            raise RuntimeError("post-apply installed gameplay comparison failed")
+
+    transact(batch, INSTALLED_APP if app_state is not None else None, verify)
 
 
 def main():
@@ -542,7 +525,7 @@ def main():
             apply(changes)
             print("Applied to native-metal. SAVE, config and renderer resources unchanged.")
         return 0
-    except (RuntimeError, OSError, ValueError) as error:
+    except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"error: {error}")
         return 2
 

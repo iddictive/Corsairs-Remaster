@@ -20,6 +20,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from runtime_script_patch import atomic_write
+from delivery_state import DeliveryState, safe_path, require_idle
+from delivery_state import player_guard as delivery_player_guard, transact as deliver
 
 PROJECT = Path(__file__).resolve().parents[1]
 METAL = PROJECT / "experiments/native-metal"
@@ -31,16 +33,6 @@ INSTALLED_APP = Path("/Applications/Corsairs Iddictive Remaster.app")
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def safe_path(root: Path, relative: Path = Path()) -> Path:
-    if relative.is_absolute() or ".." in relative.parts:
-        raise RuntimeError(f"Invalid relative path: {relative}")
-    target = root / relative
-    for path in (target, *target.parents):
-        if path.is_symlink():
-            raise RuntimeError(f"Linked path is not editable: {path}")
-    return target
 
 
 def editable(relative: Path) -> bool:
@@ -78,13 +70,6 @@ def files(root: Path) -> list[Path]:
     return sorted(result)
 
 
-def require_idle() -> None:
-    result = subprocess.run(["ps", "-axo", "comm="], capture_output=True, text=True, check=True)
-    if any(line.rstrip().endswith(("/metal-engine", "/native-engine", "/engine-1", "engine.exe"))
-           for line in result.stdout.splitlines()):
-        raise RuntimeError("Close the game before changing installed content or launching another instance.")
-
-
 @contextmanager
 def session():
     safe_path(STATE_ROOT).mkdir(parents=True, exist_ok=True)
@@ -96,22 +81,8 @@ def session():
         yield
 
 
-@contextmanager
 def player_guard():
-    # Reuse the installed launcher's state resolution and flock contract.
-    path = safe_path(resources(), Path("public_launcher.py"))
-    namespace = {"__file__": str(path), "__name__": "corsairs_dev_player_owner"}
-    exec(compile(path.read_bytes(), str(path), "exec"), namespace)
-    user_dir = namespace["resolve_user_dir"]()
-    if not safe_path(user_dir).is_dir():
-        raise RuntimeError("Player state is not initialized; open the installed app first.")
-    with safe_path(user_dir, Path(".launch.lock")).open("a+b") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError("Installed app is running or staging; no content changed.") from error
-        require_idle()
-        yield
+    return delivery_player_guard(INSTALLED_APP, require_initialized=True)
 
 
 def read_state() -> dict:
@@ -149,57 +120,21 @@ def snapshot(data: bytes) -> str:
     return key
 
 
-def seal() -> None:
-    subprocess.run(["codesign", "--force", "-s", "-", str(INSTALLED_APP)], check=True)
-    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(INSTALLED_APP)], check=True)
-
-
-def transact(changes: dict[Path, tuple[bytes | None, bytes]], state: dict, app_changed: bool) -> None:
-    """Commit preflighted files; restore only bytes still owned by this batch."""
+def transact(changes: dict[Path, tuple[bytes | None, bytes]], state: dict,
+             app_changed: bool, delivery: DeliveryState | None = None) -> None:
     state_path = safe_path(STATE_ROOT, Path("state.json"))
     before_state = state_path.read_bytes() if state_path.exists() else None
     changes[state_path] = (before_state, (json.dumps(state, indent=2, sort_keys=True) + "\n").encode())
-    written = []
-    try:
-        for path, (before, after) in changes.items():
-            safe_path(path.parent, Path(path.name))
-            current = path.read_bytes() if path.exists() else None
-            if current != before:
-                raise RuntimeError(f"Concurrent edit: {path}")
-            if before != after:
-                atomic_write(path, after)
-                written.append(path)
-        if app_changed:
-            seal()
-    except BaseException as error:
-        failures = []
-        for path in reversed(written):
-            try:
-                safe_path(path.parent, Path(path.name))
-                before, after = changes[path]
-                if path.read_bytes() != after:
-                    raise RuntimeError(f"Concurrent edit prevents rollback: {path}")
-                if before is None:
-                    path.unlink()
-                else:
-                    atomic_write(path, before)
-            except (OSError, RuntimeError) as rollback_error:
-                failures.append(str(rollback_error))
-        app_written = any(path.is_relative_to(resources()) for path in written)
-        if app_written and not failures:
-            try:
-                seal()
-            except (OSError, subprocess.CalledProcessError) as rollback_error:
-                failures.append(f"Could not restore bundle signature: {rollback_error}")
-        if failures:
-            raise RuntimeError(f"{error}; rollback incomplete: {'; '.join(failures)}") from error
-        raise
+    if delivery is not None:
+        changes[delivery.receipt] = delivery.change()
+    deliver(changes, INSTALLED_APP if app_changed or delivery is not None else None)
 
 
 def push_locked(state: dict, revert: Path | None = None) -> int:
     selected = [revert] if revert is not None else files(WORKSPACE)
     changes, originals = {}, []
     rows = state["files"]
+    delivery = DeliveryState(resources(), INSTALLED_APP)
     app_changed = False
     for relative in selected:
         target = content_path(resources(), relative)
@@ -218,6 +153,7 @@ def push_locked(state: dict, revert: Path | None = None) -> int:
             originals.append(before)
         elif digest(before) not in (row["applied"], digest(after)):
             raise RuntimeError(f"Unknown installed edit: {relative}; no files changed.")
+        delivery.admit(str(relative), before, after, {digest(before)}, development=True)
         if before != after:
             changes[target] = (before, after)
             app_changed = True
@@ -225,10 +161,12 @@ def push_locked(state: dict, revert: Path | None = None) -> int:
             ws_before = workspace.read_bytes() if workspace.exists() else None
             changes[workspace] = (ws_before, after)
         rows[str(relative)] = {"original": row["original"] if row else digest(before), "applied": digest(after)}
+        owner = "stage" if rows[str(relative)]["original"] == digest(after) else "development"
+        delivery.track(str(relative), after, owner)
     for data in originals:
         snapshot(data)
-    transact(changes, state, app_changed)
-    return sum(1 for path in changes if path.is_relative_to(resources()))
+    transact(changes, state, app_changed, delivery)
+    return sum(1 for path in changes if path.is_relative_to(resources()) and path != delivery.receipt)
 
 
 def cmd_push(quiet: bool = False, revert: Path | None = None) -> int:

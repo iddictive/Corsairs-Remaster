@@ -221,6 +221,8 @@ def validate_inputs(repo_root: Path) -> dict[str, Any]:
         sys.exit(f"Error: Missing Corsairs.icns: {icns}")
 
     shared_headers = metal_cache / "CorsairsMetal.app/Contents/Resources/resource/shared"
+    if not (shared_headers / "messages.h").is_file():
+        sys.exit(f"Error: Built script messages.h missing: {shared_headers}; stage the engine first.")
 
     graphics_script = repo_root / "tools/metal_graphics_settings.py"
     if not graphics_script.is_file():
@@ -503,9 +505,11 @@ def sign_application(bundle_dir: Path) -> None:
         resource_link.symlink_to('Versions/Current/Resources')
     for path, identifier in ((version / 'bin/python3.14', 'us.iddictive.corsairs.python-bin'),
                              (framework, 'us.iddictive.corsairs.python'),
-                             (bundle_dir / 'Contents/MacOS/metal-engine', BUNDLE_ID + '.engine'),
-                             (bundle_dir, BUNDLE_ID)):
+                             (bundle_dir / 'Contents/MacOS/metal-engine', BUNDLE_ID + '.engine')):
         subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', identifier, str(path)])
+    from delivery_state import record_export
+    record_export(bundle_dir)
+    subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', BUNDLE_ID, str(bundle_dir)])
     subprocess.check_call(['codesign', '--verify', '--deep', '--strict', str(bundle_dir)])
 
 
