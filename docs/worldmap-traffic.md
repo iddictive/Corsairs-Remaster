@@ -1,5 +1,28 @@
 # World-map traffic
 
+## Sea outcomes and ordinary NPC identity — October 7
+
+`InitCharacter` initializes `ch.quest` and `ch.quest.meeting` on every character,
+including ordinary sea phantoms. That container is not a story-actor marker.
+`WdmFleetSeaActorOwned` previously rejected it, so ordinary actors could neither
+restore their saved hull state nor publish `seaLoaded`; death and exit snapshots
+then retained the old living map roster. The canonical `sea.c` now rejects the
+explicit `isquest` marker instead. Descriptor quest/qID, companion, current group,
+character identity, ordinal and admitted-hull receipt checks still gate writeback.
+The legacy bridge template is not the active canonical source consumer.
+
+A disposable actual-script VM fixture seeds the real ordinary-character quest
+defaults and reproduces rejected ownership before the change. Afterward, admitted
+sink → exit → map reconciliation marks the last hull dead and the descriptor for
+native deletion; an injured survivor retains hull, mast and cannon damage.
+Repeated exit, deferred/unadmitted rosters, story/qID actors, companions, stale
+group identity and invalid ordinals pass their negative cases. Four native codec
+rounds preserve the sink result with an explicit empty OnLoad adapter and zero
+script errors. Cargo/power and scene/entity APIs use explicit fixture adapters;
+rendered disappearance and reentry remain player replay in `docs/runtime.md`.
+Already resurrected map rosters cannot reveal historical unrecorded losses;
+this repair does not guess which old living descriptors should be deleted.
+
 ## Player movement and follow camera — October 7
 
 `WorldMap::Realize` owns the map frame. It previously updated the follow camera

@@ -2142,7 +2142,7 @@ bool WdmFleetSeaActorOwned(ref captain, bool admitted)
 {
 	if (!CheckAttribute(captain, "trafficFleetID") || !CheckAttribute(captain, "trafficRosterSlot") ||
 		!CheckAttribute(captain, "index") || !CheckAttribute(captain, "id") ||
-		CheckAttribute(captain, "quest") || CheckAttribute(captain, "qID") || IsCompanion(captain)) return false;
+		CheckAttribute(captain, "isquest") || CheckAttribute(captain, "qID") || IsCompanion(captain)) return false;
 	int index = sti(captain.index);
 	if (index < 0 || index >= TOTAL_CHARACTERS) return false;
 	string path = "encounters." + captain.trafficFleetID;
