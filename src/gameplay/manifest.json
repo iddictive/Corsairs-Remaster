@@ -1,9 +1,27 @@
 {
-  "version": 1,
+  "version": 2,
   "files": {
-    "PROGRAM/weather/Init/Evening.c": [
-      "c0f5e6d814cc5232e94efd92cb76c5c32429f9dd799b9cc44baf0690d8898e10",
-      "092440b04e38a7c6974181764e3c9560989f22476172f678dc79765c4ecb9d69"
-    ]
+    "PROGRAM/weather/Init/Evening.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "c0f5e6d814cc5232e94efd92cb76c5c32429f9dd799b9cc44baf0690d8898e10",
+        "092440b04e38a7c6974181764e3c9560989f22476172f678dc79765c4ecb9d69"
+      ]
+    },
+    "PROGRAM/interface/tradebook.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "59a239e2ebac0102dbf9cf0c810e65e5efbf0e6d84f119090b81c0660357e05c",
+        "e4572beabccda273daca89bfee8270ac633c6a1b3ffbdd08a12b46e33a2340c6",
+        "8d4a1d1392593eac83161bcd6b6b95ede163e25fc05dce9f313a43d17d254f5b"
+      ]
+    },
+    "RESOURCE/INI/interfaces/tradebook.ini": {
+      "encoding": "cp1251",
+      "legacy": [
+        "a15e1e013cbe8ade5a6a9e80975e91af1b99627c2e34ceb080e8d70a78916fe1",
+        "2cba66d380e5de28ed5ffc00464747c4d40aac09b0cee3425da2d6e1132190b9"
+      ]
+    }
   }
 }

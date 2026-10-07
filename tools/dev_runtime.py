@@ -193,19 +193,19 @@ def cmd_promote(name: str) -> int:
         relative = Path(name)
         workspace = content_path(WORKSPACE, relative)
         edited = workspace.read_bytes()
-        incoming = gameplay_sources.runtime_bytes(name, edited)
+        sources, inputs = source_set
+        current, legacy, encoding = sources[name]
+        incoming = gameplay_sources.runtime_bytes(name, gameplay_sources.source_bytes(name, edited, encoding), encoding)
         installed = content_path(resources(), relative).read_bytes()
         if digest(installed) != row["applied"]:
             raise RuntimeError(f"Unknown installed edit: {name}; no files changed.")
-        sources, inputs = source_set
-        current, legacy = sources[name]
-        if gameplay_sources.source_bytes(name, current) not in (
-                gameplay_sources.source_bytes(name, original(row)),
-                gameplay_sources.source_bytes(name, incoming)):
+        if gameplay_sources.source_bytes(name, current, encoding) not in (
+                gameplay_sources.source_bytes(name, original(row), encoding),
+                gameplay_sources.source_bytes(name, incoming, encoding)):
             raise RuntimeError(f"Canonical source changed since dev snapshot: {name}")
         source = safe_path(gameplay_sources.ROOT, relative)
-        inputs[source] = (inputs[source][0], gameplay_sources.source_bytes(name, incoming))
-        sources[name] = (incoming, legacy)
+        inputs[source] = (inputs[source][0], gameplay_sources.source_bytes(name, incoming, encoding))
+        sources[name] = (incoming, legacy, encoding)
         changes = gameplay_sources.prepare_delivery(METAL / ".cache/runtime", source_set)
         changes.update(gameplay_sources.prepare_delivery(resources(), source_set, development=True))
         changes[workspace] = (edited, incoming)

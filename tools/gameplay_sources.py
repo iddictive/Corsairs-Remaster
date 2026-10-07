@@ -10,13 +10,18 @@ ROOT = Path(__file__).resolve().parents[1] / "src/gameplay"
 BACKUPS = ROOT.parents[1] / "experiments/native-metal/.cache/gameplay-source-backups"
 
 
-def source_bytes(name: str, data: bytes) -> bytes:
-    return data.replace(b"\r\n", b"\n") if Path(name).suffix in (".c", ".h") else data
+def source_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
+    text = data.decode(encoding)
+    if Path(name).suffix in (".c", ".h", ".ini"):
+        text = text.replace("\r\n", "\n")
+    return text.encode("utf-8")
 
 
-def runtime_bytes(name: str, data: bytes) -> bytes:
-    data = source_bytes(name, data)
-    return data.replace(b"\n", b"\r\n") if Path(name).suffix in (".c", ".h") else data
+def runtime_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
+    text = source_bytes(name, data).decode("utf-8")
+    if Path(name).suffix in (".c", ".h", ".ini"):
+        text = text.replace("\n", "\r\n")
+    return text.encode(encoding)
 
 
 def read(selected=None):
@@ -24,7 +29,7 @@ def read(selected=None):
     raw = manifest.read_bytes()
     record = json.loads(raw)
     if (not isinstance(record, dict) or set(record) != {"version", "files"}
-            or type(record["version"]) is not int or record["version"] != 1
+            or type(record["version"]) is not int or record["version"] != 2
             or not isinstance(record["files"], dict)):
         raise RuntimeError("Invalid gameplay source manifest")
     names = set(record["files"]) if selected is None else set(selected)
@@ -32,7 +37,11 @@ def read(selected=None):
         raise RuntimeError(f"Not a canonical gameplay source: {', '.join(sorted(names - record['files'].keys()))}")
     result, inputs = {}, {manifest: (raw, raw)}
     for name in sorted(names):
-        legacy = record["files"][name]
+        row = record["files"][name]
+        if (not isinstance(row, dict) or set(row) != {"encoding", "legacy"}
+                or row["encoding"] not in ("utf-8", "cp1251")):
+            raise RuntimeError(f"Invalid gameplay source format: {name}")
+        encoding, legacy = row["encoding"], row["legacy"]
         relative = Path(name)
         parts = relative.parts
         allowed = (len(parts) > 1 and parts[0] == "PROGRAM" and relative.suffix in (".c", ".h", ".txt")) or (
@@ -44,7 +53,7 @@ def read(selected=None):
             raise RuntimeError(f"Invalid legacy source admission: {name}")
         path = safe_path(ROOT, relative)
         data = path.read_bytes()
-        result[name] = (runtime_bytes(name, data), legacy)
+        result[name] = (runtime_bytes(name, data, encoding), legacy, encoding)
         inputs[path] = (data, data)
     return result, inputs
 
@@ -58,10 +67,10 @@ def prepare_delivery(resources: Path, source_set, state: DeliveryState | None = 
         raise RuntimeError("Gameplay receipt belongs to another runtime.")
     changes = dict(inputs)
     for name in sorted(sources):
-        incoming, legacy = sources[name]
+        incoming, legacy, encoding = sources[name]
         path = state.path(name)
         before = path.read_bytes() if path.exists() else None
-        equivalent = before is not None and source_bytes(name, before) == source_bytes(name, incoming)
+        equivalent = before is not None and source_bytes(name, before, encoding) == source_bytes(name, incoming, encoding)
         state.admit(name, before, incoming, legacy, development=development or equivalent, create=True)
         state.track(name, incoming)
         if before is not None and before != incoming:

@@ -204,7 +204,7 @@ def validate_inputs(repo_root: Path) -> dict[str, Any]:
         )
 
     from gameplay_sources import read
-    for name, (incoming, _) in read()[0].items():
+    for name, (incoming, _, _) in read()[0].items():
         path = metal_cache / "runtime" / name
         if not path.is_file() or path.read_bytes() != incoming:
             sys.exit(f"Error: Canonical gameplay source is not staged: {name}; run sync_metal_gameplay.py apply.")
@@ -515,7 +515,7 @@ def sign_application(bundle_dir: Path) -> None:
         subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', identifier, str(path)])
     from delivery_state import record_export
     from gameplay_sources import read
-    record_export(bundle_dir, {name: incoming for name, (incoming, _) in read()[0].items()})
+    record_export(bundle_dir, {name: incoming for name, (incoming, _, _) in read()[0].items()})
     subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', BUNDLE_ID, str(bundle_dir)])
     subprocess.check_call(['codesign', '--verify', '--deep', '--strict', str(bundle_dir)])
 

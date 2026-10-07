@@ -28,7 +28,7 @@ For settings UI work only, `experiments/native-metal/run.sh --settings-hmr` watc
 
 Use `python3 tools/sync_metal_gameplay.py apply` for a reviewed script-only delivery. Staging receipts prove build and delivery, not interactive gameplay. Replay the changed action on a suitable save and check the nearest unaffected action before calling a feature accepted.
 
-Edit registered files directly in `src/gameplay`; they are UTF-8 source files with LF endings, projected to the runtime's CRLF representation. To deliver one independent file without running unrelated legacy composers:
+Edit registered files directly in `src/gameplay`; they are UTF-8 source files with LF endings. The manifest declares each file's runtime encoding: scripts currently use UTF-8 and the trade-journal INI uses CP1251. Script/header/INI projection restores CRLF. To deliver one independent file without running unrelated legacy composers:
 
 ```sh
 python3 tools/sync_metal_gameplay.py apply --path PROGRAM/weather/Init/Evening.c

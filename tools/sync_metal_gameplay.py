@@ -16,7 +16,6 @@ import metal_deck_controls as deck_controls
 import patch_custody_life as custody_life
 import metal_pickup_glow as pickup_glow
 import patch_squad_common_supply as squad_supply
-import metal_tradebook as tradebook
 import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
 import gameplay_sources
@@ -124,7 +123,7 @@ def script_bytes(relative, data, *representations):
         known = set()
         owners = (globals(), vars(suite), vars(living_caribbean), vars(fleet_gameplay),
                   vars(fleet_sea), vars(fleet_ui), vars(military_callbacks), vars(graphics),
-                  vars(menu_branding), vars(deck_camera), vars(deck_controls), vars(tradebook),
+                  vars(menu_branding), vars(deck_camera), vars(deck_controls),
                   vars(governor_dialog), vars(squad_supply), vars(custody_life))
         for owner in owners:
             for value in owner.values():
@@ -315,13 +314,6 @@ def plan(target_root=None, paths=None, source_set=None):
                 if reviewed != current:
                     changes[relative] = (current, reviewed)
                 continue
-            if relative in tradebook.BASE:
-                reviewed = tradebook.prepare(relative, incoming)
-                if current not in (incoming, reviewed) and digest(current) != tradebook.PREVIOUS[relative]:
-                    raise RuntimeError(f"unrecognized Metal trade journal revision: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
             if relative in deck_controls.PATHS:
                 reviewed = deck_controls.prepare(relative, incoming)
                 current = script_bytes(relative, current, incoming, reviewed)
@@ -475,8 +467,6 @@ def apply_locked(changes, paths=None, source_set=None):
                 backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
             if relative in fleet_gameplay.FILES:
                 backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
-            if relative in tradebook.BASE:
-                backup_matches = digest(baseline) == tradebook.BASE[relative]
             if relative in custody_life.BASELINE:
                 backup_matches = digest(baseline) == custody_life.BASELINE[relative]
             if relative in squad_supply.BASE:
