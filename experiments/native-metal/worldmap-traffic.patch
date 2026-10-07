@@ -42,9 +42,48 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
              if (liveTime < 0.0f)
                  deleteAlpha = 0.999999f;
              // External verification
-@@ -196,94 +210,121 @@
- // Find the force that repels from ships
- void WdmEnemyShip::FindShipsForce()
+@@ -168,8 +182,38 @@
+     if (wdmObjects->islands)
+     {
+         wdmObjects->islands->FindReaction(mtx.Pos(), reaction);
+-        ix = reaction.x * 1.5f;
+-        iz = reaction.z * 1.5f;
++        ix = reaction.x * 2.0f;
++        iz = reaction.z * 2.0f;
++
++        const float vx = mtx.Vz().x;
++        const float vz = mtx.Vz().z;
++        const float rightX = vz;
++        const float rightZ = -vx;
++
++        const float probeDist = 32.0f;
++        const float fwdX = mtx.Pos().x + vx * probeDist;
++        const float fwdZ = mtx.Pos().z + vz * probeDist;
++        if (wdmObjects->islands->ObstacleTest(fwdX, fwdZ, 12.0f))
++        {
++            const bool obsRight = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx + rightX * 0.7f) * probeDist,
++                                                                   mtx.Pos().z + (vz + rightZ * 0.7f) * probeDist, 10.0f);
++            const bool obsLeft  = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx - rightX * 0.7f) * probeDist,
++                                                                   mtx.Pos().z + (vz - rightZ * 0.7f) * probeDist, 10.0f);
++            float steerX = rightX * 2.2f;
++            float steerZ = rightZ * 2.2f;
++            if (!obsLeft && obsRight)
++            {
++                steerX = -rightX * 2.2f;
++                steerZ = -rightZ * 2.2f;
++            }
++            ix += -vx * 1.5f + steerX;
++            iz += -vz * 1.5f + steerZ;
++        }
++        if (wdmObjects->islands->ObstacleTest(mtx.Pos().x + vx * 15.0f, mtx.Pos().z + vz * 15.0f, 9.0f))
++        {
++            ix += -vx * 3.5f;
++            iz += -vz * 3.5f;
++        }
+     }
+     else
+     {
+@@ -183,41 +227,64 @@
  {
      sx = 0.0f;
      sz = 0.0f;
@@ -56,10 +95,10 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
      for (const auto &ship : wdmObjects->ships)
      {
 -        if (!ship)
+-            continue;
+-        if (ship == this)
 +        if (!ship || ship == this || !ship->isLive || ship->killMe)
              continue;
--        if (ship == this)
--            continue;
          if (ship == wdmObjects->playerShip && !isLookOnPlayer)
              continue;
 -        // Vertor from the ship to us
@@ -68,7 +107,11 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 -        // Distance
 -        auto fl = fx * fx + fz * fz - 25.0f * 25.0f;
 -        if (fl > 25.0f * 25.0f)
--            continue;
++        const float toX = ship->mtx.Pos().x - mtx.Pos().x;
++        const float toZ = ship->mtx.Pos().z - mtx.Pos().z;
++        const float dist2 = toX * toX + toZ * toZ;
++        if (dist2 >= avoidRadius * avoidRadius || dist2 < 0.01f)
+             continue;
 -        if (fl < 0.1f)
 -            fl = 0.1f;
 -        fl = 0.2f / powf(fl, 0.5f);
@@ -82,11 +125,13 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 -        fz *= ship->mtx.Vz().z;
 -        sx += -fz * 0.01f;
 -        sz += fx * 0.01f;
-+        const float toX = ship->mtx.Pos().x - mtx.Pos().x;
-+        const float toZ = ship->mtx.Pos().z - mtx.Pos().z;
-+        const float dist2 = toX * toX + toZ * toZ;
-+        if (dist2 >= avoidRadius * avoidRadius || dist2 < 0.01f)
-+            continue;
+-    }
+-    auto sl = sx * sx + sz * sz;
+-    if (sl > 1.0f)
+-    {
+-        sl = 1.0f / sqrtf(sl);
+-        sx *= sl;
+-        sz *= sl;
 +
 +        const float dist = sqrtf(dist2);
 +        const float invDist = 1.0f / dist;
@@ -106,75 +151,57 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 +            const float ovz = ship->mtx.Vz().z;
 +            const float headOn = -(vx * ovx + vz * ovz);
 +            const float latStrength = weight * (headOn > 0.0f ? 1.8f : 1.2f);
++            const float steer = std::clamp(cross * 0.25f, -1.0f, 1.0f);
 +
-+            if (cross <= 0.5f)
++            if (headOn > 0.5f && fabsf(cross) < 1.0f)
 +            {
 +                latX = rightX * latStrength;
 +                latZ = rightZ * latStrength;
 +            }
 +            else
 +            {
-+                latX = -rightX * latStrength;
-+                latZ = -rightZ * latStrength;
++                latX = -rightX * (steer * latStrength);
++                latZ = -rightZ * (steer * latStrength);
 +            }
 +        }
 +
 +        sx += repelX * repForce + latX;
 +        sz += repelZ * repForce + latZ;
-     }
--    auto sl = sx * sx + sz * sz;
--    if (sl > 1.0f)
++    }
 +    const float sl = sx * sx + sz * sz;
 +    if (sl > 2.25f)
-     {
--        sl = 1.0f / sqrtf(sl);
--        sx *= sl;
--        sz *= sl;
++    {
 +        const float inv = 1.5f / sqrtf(sl);
 +        sx *= inv;
 +        sz *= inv;
      }
  }
  
- // All move calculations together
- void WdmEnemyShip::Move(float dltTime)
- {
-     // Calculating the turn response
-     // Where to sail
-     FindMoveForce();
-     // Repulsion the islands
-     FindIslandForce();
+@@ -232,8 +299,8 @@
      // Repulsion from ships
      FindShipsForce();
      // The resulting
 -    dx = 1.0f * mx + 1.5f * ix + 1.1f * sx;
 -    dz = 1.0f * mz + 1.5f * iz + 1.1f * sz;
-+    dx = 1.0f * mx + 1.5f * ix + 1.2f * sx;
-+    dz = 1.0f * mz + 1.5f * iz + 1.2f * sz;
++    dx = 1.0f * mx + 2.0f * ix + 1.2f * sx;
++    dz = 1.0f * mz + 2.0f * iz + 1.2f * sz;
      const auto dl = dx * dx + dz * dz;
      // Our direction
      const auto vx = mtx.Vz().x;
-     const auto vz = mtx.Vz().z;
-     const auto vl = vx * vx + vz * vz;
-     // The sine of the angle between this pair of vectors
-     auto sn = vz * dx - vx * dz;
-     if (dl * vl > 0.0f)
-         sn /= sqrtf(dl * vl);
-     // If the player is behind, then make a full turn
+@@ -247,8 +314,10 @@
      const auto cs = vx * dx + vz * dz;
      if (cs < 0.0f)
      {
-         if (sn < 0.0f)
-             sn = -1;
+-        if (sn < 0.0f)
+-            sn = -1;
++        if (fabsf(sn) < 0.05f)
++            sn = (turnspd >= 0.0f ? 1.0f : -1.0f);
++        else if (sn < 0.0f)
++            sn = -1.0f;
          else
              sn = 1.0f;
      }
-     // Turning reaction
-     turnspd += 2.0f * WDM_SHIP_TSPEED * sn * dltTime;
-     // Speed control
-     if (cs >= 0.0f)
-     {
-         speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
+@@ -261,11 +330,18 @@
      }
      else
      {
@@ -188,16 +215,15 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
 +            if (speed < minManeuverSpeed)
 +                speed = minManeuverSpeed;
 +        }
-+        else
++        else if (speed < minManeuverSpeed)
 +        {
 +            speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
++            if (speed > minManeuverSpeed)
++                speed = minManeuverSpeed;
          }
      }
      speed *= slowingAlfa;
-     turnspd *= slowingAlfa;
- }
- 
-@@ -424,3 +465,56 @@
+@@ -424,3 +500,56 @@
      }
      return "";
  }
@@ -351,7 +377,8 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
      Teleport(x, z, 0.0f);
      isEnableSetDir = true;
      return true;
-@@ -60,4 +64,12 @@
+@@ -43,6 +50,14 @@
+ 
  void WdmMerchantShip::Goto(float x, float z, float rad)
  {
 +    if (GetTrafficData())
@@ -364,7 +391,8 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    }
      if (x < -0.5f * wdmObjects->worldSizeX)
          x = -0.5f * wdmObjects->worldSizeX;
-@@ -80,17 +92,18 @@
+     if (x > 0.5f * wdmObjects->worldSizeX)
+@@ -80,17 +95,18 @@
  void WdmMerchantShip::FindMoveForce()
  {
      isEnableSetDir = false;
@@ -386,7 +414,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
          auto dl = dir.x * dir.x + dir.z * dir.z;
          if (dl > 1.0f)
          {
-@@ -106,10 +122,38 @@
+@@ -106,10 +122,42 @@
  // Completion check
  bool WdmMerchantShip::KillTest()
  {
@@ -417,16 +445,20 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +        // Patrols/raiders reverse their route instead of vanishing at its end.
 +        const float x = data->GetAttributeAsFloat("trafficReturnX", mtx.Pos().x);
 +        const float z = data->GetAttributeAsFloat("trafficReturnZ", mtx.Pos().z);
-+        data->SetAttributeUseFloat("trafficReturnX", gotoPos.x);
-+        data->SetAttributeUseFloat("trafficReturnZ", gotoPos.z);
-+        Goto(x, z, gotoRad);
-+        return false;
++        const float retDist2 = (x - mtx.Pos().x) * (x - mtx.Pos().x) + (z - mtx.Pos().z) * (z - mtx.Pos().z);
++        if (retDist2 > 25.0f * 25.0f)
++        {
++            data->SetAttributeUseFloat("trafficReturnX", gotoPos.x);
++            data->SetAttributeUseFloat("trafficReturnZ", gotoPos.z);
++            Goto(x, z, gotoRad);
++            return false;
++        }
 +    }
 +    return true;
  }
  
  // Updating stored data
-@@ -136,3 +179,362 @@
+@@ -136,3 +184,362 @@
      }
      WdmEnemyShip::SetSaveAttribute(save);
  }
@@ -834,6 +866,66 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/w
      CVECTOR gotoPos;
      float gotoRad;
      bool isEnableSetDir;
+diff --git a/src/libs/worldmap/src/wdm_islands.cpp b/src/libs/worldmap/src/wdm_islands.cpp
+--- a/src/libs/worldmap/src/wdm_islands.cpp
++++ b/src/libs/worldmap/src/wdm_islands.cpp
+@@ -1001,9 +1001,32 @@
+     }
+     // trying to determine the node on which we are standing and the node to which we need to sail
+     float y = 0.0f;
+-    const int32_t from = patch->FindNode(position, y);
++    int32_t from = patch->FindNode(position, y);
++    if (from < 0)
++    {
++        const CVECTOR toDest = Norm2D(destination - position);
++        for (float r = 4.0f; r <= 36.0f; r += 4.0f)
++        {
++            y = 0.0f;
++            from = patch->FindNode(position + toDest * r, y);
++            if (from >= 0) break;
++            y = 0.0f;
++            from = patch->FindNode(position - toDest * r, y);
++            if (from >= 0) break;
++        }
++    }
+     y = 0.0f;
+     int32_t to = patch->FindNode(destination, y);
++    if (to < 0)
++    {
++        const CVECTOR back = Norm2D(position - destination);
++        for (float r = 4.0f; r <= 48.0f; r += 4.0f)
++        {
++            y = 0.0f;
++            to = patch->FindNode(destination + back * r, y);
++            if (to >= 0) break;
++        }
++    }
+     if (from < 0 || to < 0)
+     {
+         direction = Norm2D(destination - position);
+@@ -1024,10 +1047,20 @@
+     if (patch)
+     {
+         float y = 0.0f;
+-        const int32_t n = patch->FindNode(position, y);
++        int32_t n = patch->FindNode(position, y);
++        if (n < 0)
++        {
++            for (float r = 4.0f; r <= 24.0f; r += 4.0f)
++            {
++                y = 0.0f; n = patch->FindNode(CVECTOR(position.x + r, 0.0f, position.z), y); if (n >= 0) break;
++                y = 0.0f; n = patch->FindNode(CVECTOR(position.x - r, 0.0f, position.z), y); if (n >= 0) break;
++                y = 0.0f; n = patch->FindNode(CVECTOR(position.x, 0.0f, position.z + r), y); if (n >= 0) break;
++                y = 0.0f; n = patch->FindNode(CVECTOR(position.x, 0.0f, position.z - r), y); if (n >= 0) break;
++            }
++        }
+         if (n >= 0)
+         {
+-            patch->FindForce(n, position, 20.0f, reaction);
++            patch->FindForce(n, position, 32.0f, reaction);
+         }
+         else
+         {
 diff --git a/src/libs/worldmap/src/wdm_player_ship.cpp b/src/libs/worldmap/src/wdm_player_ship.cpp
 --- a/src/libs/worldmap/src/wdm_player_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_player_ship.cpp
