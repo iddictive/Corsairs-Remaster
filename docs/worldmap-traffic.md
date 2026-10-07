@@ -29,6 +29,17 @@ Separate saved evidence shows three LeFransua returning groups remaining around
 The cause of that physical arrival failure is still under native investigation;
 ordinary timed service at a reached berth is a distinct valid state.
 
+The installed PTC table connects the stalled node3540 to destination3570 in six
+transitions. A disposable Python port of edge refinement reports an open route;
+it does not execute native ship movement or GM collision. The proposed shore-force
+equilibrium omits the installed berth fade, and all three returns already have
+ServiceOnArrival=1; neither claim admits a repair. `WdmShip::ShipUpdate` also keeps
+a static collision-escape vector initialized by the first ship and reused by
+others. That source defect needs a native collision falsifier before attributing
+these particular stalls or changing recovery. Root owns the advancing-map
+movement/collision capture when the player provides that scene; no arbitrary
+arrival-radius expansion is accepted.
+
 ## Sea outcomes and ordinary NPC identity — October 7
 
 `InitCharacter` initializes `ch.quest` and `ch.quest.meeting` on every character,
