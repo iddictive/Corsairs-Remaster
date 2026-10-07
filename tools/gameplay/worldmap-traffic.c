@@ -252,9 +252,14 @@ bool WdmTrafficEnsureRoster(ref fleet, int rank)
 			builder.Ship.Mode = mode;
 			builder.Ship.HP = RealShips[realIndex].HP;
 			builder.Ship.SP = 100.0;
-			builder.Ship.Crew.Quantity = 0;
+			builder.Ship.Crew.Quantity = RealShips[realIndex].MaxCrew;
 			builder.Ship.Cannons.Type = RealShips[realIndex].Cannon;
 			SetRandomNameToShip(&builder);
+			if (!CheckAttribute(builder, "Ship.Name") || builder.Ship.Name == "" || builder.Ship.Name == "error")
+			{
+				builder.Ship.Name = "Быстрый";
+			}
+			roster.(key).name = builder.Ship.Name;
 			aref real, savedShip;
 			makearef(real, roster.(key).RealShip);
 			CopyAttributes(real, &RealShips[realIndex]);
@@ -712,19 +717,21 @@ bool WdmTrafficCreate(int role)
 	encounter.trafficHomePort = Colonies[home].id;
 	encounter.trafficFleetID = encID;
 	encounter.trafficVersion = 1;
-	encounter.trafficVoyage = 0;
-	encounter.trafficLifecycle = "service";
+	encounter.trafficVoyage = 1;
+	encounter.trafficLifecycle = "voyage";
 	encounter.trafficCurrentPort = Colonies[home].id;
 	encounter.trafficLegLocator = to;
-	// Assembly uses the same real recruits and supplies as subsequent service.
 	for (i = 0; i < sti(encounter.encdata.trafficRoster.count); i++)
 	{
 		string hullKey = "ship" + i;
-		encounter.encdata.trafficRoster.(hullKey).crew = 0.0;
-		encounter.encdata.trafficRoster.(hullKey).trafficCrewQuantity = 0;
-		encounter.encdata.trafficRoster.(hullKey).ammo = 0.0;
+		encounter.encdata.trafficRoster.(hullKey).crew = 1.0;
+		if (CheckAttribute(encounter.encdata.trafficRoster.(hullKey), "maxCrew"))
+			encounter.encdata.trafficRoster.(hullKey).trafficCrewQuantity = sti(encounter.encdata.trafficRoster.(hullKey).maxCrew);
+		encounter.encdata.trafficRoster.(hullKey).ammo = 1.0;
+		encounter.encdata.trafficRoster.(hullKey).hp = 1.0;
+		encounter.encdata.trafficRoster.(hullKey).sp = 1.0;
 	}
-	WdmTrafficBeginService(encounter);
+	DeleteAttribute(encounter, "trafficService");
 	if (role == 3 && sti(encounter.encdata.NumWarShips) >= 4)
 	{
 		aref assembly;
@@ -1507,7 +1514,8 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		worldMap.deleteUpdate = "";
 		return;
 	}
-	if (!ready || !stock || CheckAttribute(encounter, "trafficNextLocator")) return;
+	bool overdue = WdmTrafficElapsed(service, "hour") >= 36;
+	if ((!ready && !overdue) || (!stock && !overdue) || CheckAttribute(encounter, "trafficNextLocator")) return;
 	int role = sti(encounter.trafficRole);
 	string locator = "";
 	int destination = -1;
@@ -1518,7 +1526,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		if (destination >= 0) locator = WdmTrafficPortLocator(destination);
 	}
 	if (locator == "") return;
-	if (role == 1 && !WdmTrafficLoadCargo(encounter, colony, destination)) return;
+	if (role == 1 && !overdue && !WdmTrafficLoadCargo(encounter, colony, destination)) return;
 	encounter.trafficLegLocator = locator;
 	encounter.trafficNextLocator = locator;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;

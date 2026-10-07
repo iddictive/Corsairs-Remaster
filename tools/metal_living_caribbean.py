@@ -290,13 +290,13 @@ WDM_RATES_OLD = enc("""//Частота торговцев в секунду
 
 WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_MERCHANTS_RATE		0.0
-#define WDM_WARRING_RATE		0.0
+#define WDM_WARRING_RATE		0.012
 // Ordinary pursuit belongs to persistent traffic; quest constructors remain.
-#define WDM_FOLLOW_RATE		0.0
+#define WDM_FOLLOW_RATE		0.025
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "e353f958bda97f12e69fe1f3deb189fa1e84b0bfababb6e0784516813e1e9d69"
+WDM_TRAFFIC_SHA256 = "4516bfbd5ac998b4f6ec4425ad6868c6b2c416c5e4cdf124034eb72e6b82ddfa"
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
 WDM_MILITARY_SHA256 = "e73a0b24de5426181e5f9c236c084cad218c32b4ef62dcae0048501898620ad8"
 WDM_OPERATION_MODULES = {
@@ -343,13 +343,14 @@ WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX
 	WdmTrafficRefresh();
 	bool encoff = false;
 	if (CheckAttribute(pchar, "worldmapencountersoff")) encoff = sti(pchar.worldmapencountersoff);
-	if (encoff || wdmGetNumberShipEncounters() >= 60) return;
+	if (encoff || wdmGetNumberShipEncounters() >= 80) return;
 	if (CheckAttribute(&worldMap, "trafficRequestRole"))
 	{
 		int role = sti(worldMap.trafficRequestRole);
 		if (role >= 1 && role <= 3) WdmTrafficCreate(role);
 	}
 	int pursuers = 0;
+	int warring = 0;
 	if (CheckAttribute(&worldMap, "encounters"))
 	{
 		aref encounters;
@@ -358,7 +359,11 @@ WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX
 		{
 			aref encounter = GetAttributeN(encounters, i);
 			if (CheckAttribute(encounter, "quest") || CheckAttribute(encounter, "trafficRole")) continue;
-			if (CheckAttribute(encounter, "type") && encounter.type == "Follow") pursuers++;
+			if (CheckAttribute(encounter, "type"))
+			{
+				if (encounter.type == "Follow") pursuers++;
+				if (encounter.type == "Warring") warring++;
+			}
 		}
 	}
 	wdmTimeOfLastFollow = wdmTimeOfLastFollow + dltTime * WDM_FOLLOW_RATE * 1000.0 * iEncountersRate;
@@ -369,6 +374,14 @@ WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX
 		WdmTrafficRefresh();
 	}
 	if (pursuers >= 2) wdmTimeOfLastFollow = 0.0;
+	wdmTimeOfLastWarring = wdmTimeOfLastWarring + dltTime * WDM_WARRING_RATE * 1000.0 * iEncountersRate;
+	if (warring < 2 && rand(1001) + 1 < wdmTimeOfLastWarring)
+	{
+		wdmTimeOfLastWarring = 0.0;
+		wdmCreateWarringShips();
+		WdmTrafficRefresh();
+	}
+	if (warring >= 2) wdmTimeOfLastWarring = 0.0;
 	wdmTimeOfLastSpecial = wdmTimeOfLastSpecial + dltTime * WDM_SPECIAL_RATE * 1000.0 * iEncountersRate;
 	if (rand(1001) + 1 < wdmTimeOfLastSpecial)
 	{
@@ -1562,7 +1575,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "6928638bc4b82d9f29ccb9de442569a6baa805c74ee39144f32fabc6ab264ed6",
+    "PROGRAM/worldmap/worldmap_encgen.c": "40908f4bed232969d0e716fc06fcdc3476c7e6dd1dfd1e8278b3edfb41ecabc8",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1587,7 +1600,7 @@ PREVIOUS = {
     WDM_MAIN_PATH: {"2f1610cc7392493ed46cc42cb483c5b2a7984b4ff61231900d328018c214a2cc", "f744ff02267d85c4c07fd32f81f8aa2814e6038867fdacc6068352ee33dd2c6d"},
     SEA_PATH: {"9fed277c0c54cfb4c14c0b3ce681a7c834d41f9a4c74c6da21f92daa14ec3c98"},
     WDM_INIT_PATH: {"20fb735441fed2b424334bf02b941626ad7c891aa8c6e6351e4305c36e472980"},
-    WDM_ENC_PATH: {"79944d1b9f8de82a084848761e82bbb26cfad6dad2e94972510990b511ba5b5b", "7aea1579393c4eb67c9c4de145b1d5a1ea62a9b0742b380df1a735432212cb82", "975b3085bc51e8508d56c3138fcd62646f7ad2bf2d0d78b7874c68da7af21372", "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a", "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86", "c7d8ed65bfa0bfa002d4cdcafb9cef184a6853d136b698cee852057762c7b449"},
+    WDM_ENC_PATH: {"71ec4da7a02856831b9a81b7b5a87e433e8ce4bdfdfdf5a3e8f96987b7e43c98", "6928638bc4b82d9f29ccb9de442569a6baa805c74ee39144f32fabc6ab264ed6", "3fe5ad32138fafabece7fe38ad8c98443349656da27753da689c53febb2aec9a", "79944d1b9f8de82a084848761e82bbb26cfad6dad2e94972510990b511ba5b5b", "7aea1579393c4eb67c9c4de145b1d5a1ea62a9b0742b380df1a735432212cb82", "975b3085bc51e8508d56c3138fcd62646f7ad2bf2d0d78b7874c68da7af21372", "782727d8f853d799e787ee84a02406dfe9d39bc8550385e02b51768413d1780a", "f247de1a597225c5f9295eee094882ff6b33204e70018839037aec94a4bbdd86", "c7d8ed65bfa0bfa002d4cdcafb9cef184a6853d136b698cee852057762c7b449"},
     WDM_GLO_PATH: {"bdfd151ae7b39d5aa13d557fc8b914aaf31536433df0f8fa1e0303557eb432fe"},
     "PROGRAM/worldmap/worldmap_reload.c": {"cd326ed939e06068465674067d908dad633463ca55d35d26153af21ca63bb627", "04d65751725adae685d79752d0ed31dd5939ebf1c48c2d8a488a259e7d5497f1"},
     "PROGRAM/battle_interface/BattleInterface.c": {"fd7a703c4e3a176cb61334da370d410e57c1305ea67a82c58f7fd2874f65583d"},

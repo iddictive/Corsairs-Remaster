@@ -126,7 +126,7 @@ def compiler_ready():
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
 FLEET_FINAL_SHA = {
     "PROGRAM/worldmap/worldmap_reload.c": "e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc",
-    "PROGRAM/sea_ai/sea.c": "0878ea20a8e49ae30a10503809d17811f8f71b04d917b8416ea824f23eae750f",
+    "PROGRAM/sea_ai/sea.c": "ef3137c2627cd023b5e03e0714b57fae9a62aeb0dbcb0746fb1101985d835a6c",
     "PROGRAM/sea_ai/AIFantom.c": "94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b",
     "PROGRAM/sea_ai/AIShip.c": "3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427",
     "PROGRAM/interface/map.c": "4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be",
@@ -137,7 +137,7 @@ FLEET_FINAL_SHA = {
 
 
 FLEET_FINAL_PREVIOUS = {
-    "PROGRAM/sea_ai/sea.c": {"22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1", "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c"},
+    "PROGRAM/sea_ai/sea.c": {"22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1", "d0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c", "7b4c7a20efa8d2b18954a47e134e7cc3701b72d241d6b38fcb4a30db63ad976a"},
     "PROGRAM/interface/map.c": {"8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c"},
     "PROGRAM/battle_interface/WmInterface.c": {"4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1"},
     "PROGRAM/battle_interface/loginterface.c": {"7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0"},

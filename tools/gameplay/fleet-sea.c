@@ -304,12 +304,26 @@ void WdmFleetSeaRestoreShip(ref captain)
 		realShip.index = realIndex;
 		realShip.BaseType = entry.baseType;
 	}
+	string shipName = "";
+	if (CheckAttribute(captain, "Ship.Name") && captain.Ship.Name != "" && captain.Ship.Name != "error")
+		shipName = captain.Ship.Name;
+	else if (CheckAttribute(entry, "Ship.Name") && entry.Ship.Name != "" && entry.Ship.Name != "error")
+		shipName = entry.Ship.Name;
+	else if (CheckAttribute(entry, "name") && entry.name != "" && entry.name != "error")
+		shipName = entry.name;
 	if (CheckAttribute(entry, "Ship"))
 	{
-		makearef(source, entry.Ship);
-		DeleteAttribute(captain, "Ship");
-		makearef(destination, captain.Ship);
-		CopyAttributes(destination, source);
+		if (CheckAttribute(entry, "Ship.HP") && stf(entry.Ship.HP) > 0.0) captain.Ship.HP = entry.Ship.HP;
+		else captain.Ship.HP = realShip.HP;
+		if (CheckAttribute(entry, "Ship.SP") && stf(entry.Ship.SP) > 0.0) captain.Ship.SP = entry.Ship.SP;
+		else captain.Ship.SP = 100.0;
+		if (CheckAttribute(entry, "Ship.Crew.Quantity") && sti(entry.Ship.Crew.Quantity) > 0)
+			captain.Ship.Crew.Quantity = entry.Ship.Crew.Quantity;
+		else if (CheckAttribute(entry, "trafficCrewQuantity") && sti(entry.trafficCrewQuantity) > 0)
+			captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
+		else captain.Ship.Crew.Quantity = realShip.MaxCrew;
+		if (CheckAttribute(entry, "Ship.Mode")) captain.Ship.Mode = entry.Ship.Mode;
+		if (CheckAttribute(entry, "Ship.Cannons.Type")) captain.Ship.Cannons.Type = entry.Ship.Cannons.Type;
 		captain.Ship.Type = realIndex;
 	}
 	else
@@ -317,29 +331,48 @@ void WdmFleetSeaRestoreShip(ref captain)
 		float hp = 1.0;
 		float sails = 1.0;
 		float crew = 1.0;
-		if (CheckAttribute(entry, "hp")) hp = stf(entry.hp);
-		if (CheckAttribute(entry, "sp")) sails = stf(entry.sp);
-		if (CheckAttribute(entry, "crew")) crew = stf(entry.crew);
+		if (CheckAttribute(entry, "hp") && stf(entry.hp) > 0.0) hp = stf(entry.hp);
+		if (CheckAttribute(entry, "sp") && stf(entry.sp) > 0.0) sails = stf(entry.sp);
+		if (CheckAttribute(entry, "crew") && stf(entry.crew) > 0.0) crew = stf(entry.crew);
 		captain.Ship.HP = stf(realShip.HP) * hp;
 		captain.Ship.SP = 100.0 * sails;
 		captain.Ship.Crew.Quantity = makeint(stf(realShip.MaxCrew) * crew);
-		if (CheckAttribute(entry, "trafficCrewQuantity")) captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
+		if (CheckAttribute(entry, "trafficCrewQuantity") && sti(entry.trafficCrewQuantity) > 0)
+			captain.Ship.Crew.Quantity = entry.trafficCrewQuantity;
 	}
-	// Both fresh and saved ships consume the same off-screen manifest. Empty
-	// holds also overwrite generator goods; syncing consumed native ammo once.
-	makearef(source, entry.trafficSupplies);
-	DeleteAttribute(captain, "Ship.Cargo.Goods");
-	makearef(destination, captain.Ship.Cargo.Goods);
-	CopyAttributes(destination, source);
-	// Off-screen combat can wear a previously saved survivor. Apply the outer
-	// condition after either restore path; exit resets that aggregate to one.
+	if (shipName != "")
+	{
+		captain.Ship.Name = shipName;
+	}
+	else
+	{
+		SetRandomNameToShip(captain);
+		if (!CheckAttribute(captain, "Ship.Name") || captain.Ship.Name == "" || captain.Ship.Name == "error")
+		{
+			captain.Ship.Name = "Морской Волк";
+		}
+	}
+	entry.name = captain.Ship.Name;
+	if (CheckAttribute(entry, "trafficSupplies"))
+	{
+		makearef(source, entry.trafficSupplies);
+		DeleteAttribute(captain, "Ship.Cargo.Goods");
+		makearef(destination, captain.Ship.Cargo.Goods);
+		CopyAttributes(destination, source);
+	}
 	float condition = 1.0;
 	string descriptorPath = "encounters." + captain.trafficFleetID;
-	if (CheckAttribute(&worldMap, descriptorPath + ".trafficCondition")) condition = stf(worldMap.(descriptorPath).trafficCondition);
-	condition = Clampf(condition);
+	if (CheckAttribute(&worldMap, descriptorPath + ".trafficCondition"))
+	{
+		float rawCondition = stf(worldMap.(descriptorPath).trafficCondition);
+		if (rawCondition > 0.1) condition = Clampf(rawCondition);
+	}
 	captain.Ship.HP = stf(captain.Ship.HP) * condition;
 	captain.Ship.SP = stf(captain.Ship.SP) * condition;
+	if (stf(captain.Ship.HP) < stf(realShip.HP) * 0.25) captain.Ship.HP = stf(realShip.HP) * 0.25;
+	if (stf(captain.Ship.SP) < 25.0) captain.Ship.SP = 25.0;
 	if (condition < 0.95) captain.Ship.Crew.Quantity = makeint(stf(captain.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
+	if (sti(captain.Ship.Crew.Quantity) < sti(realShip.MinCrew)) captain.Ship.Crew.Quantity = sti(realShip.MinCrew);
 	entry.seaLoaded = 1;
 	RecalculateCargoLoad(captain);
 }

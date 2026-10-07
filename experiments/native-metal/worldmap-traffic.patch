@@ -42,7 +42,162 @@ diff --git a/src/libs/worldmap/src/wdm_enemy_ship.cpp b/src/libs/worldmap/src/wd
              if (liveTime < 0.0f)
                  deleteAlpha = 0.999999f;
              // External verification
-@@ -424,3 +438,56 @@
+@@ -196,94 +210,121 @@
+ // Find the force that repels from ships
+ void WdmEnemyShip::FindShipsForce()
+ {
+     sx = 0.0f;
+     sz = 0.0f;
++    const float avoidRadius = 45.0f;
++    const float vx = mtx.Vz().x;
++    const float vz = mtx.Vz().z;
++    const float rightX = vz;
++    const float rightZ = -vx;
+     for (const auto &ship : wdmObjects->ships)
+     {
+-        if (!ship)
++        if (!ship || ship == this || !ship->isLive || ship->killMe)
+             continue;
+-        if (ship == this)
+-            continue;
+         if (ship == wdmObjects->playerShip && !isLookOnPlayer)
+             continue;
+-        // Vertor from the ship to us
+-        auto fx = mtx.Pos().x - ship->mtx.Pos().x;
+-        auto fz = mtx.Pos().z - ship->mtx.Pos().z;
+-        // Distance
+-        auto fl = fx * fx + fz * fz - 25.0f * 25.0f;
+-        if (fl > 25.0f * 25.0f)
+-            continue;
+-        if (fl < 0.1f)
+-            fl = 0.1f;
+-        fl = 0.2f / powf(fl, 0.5f);
+-        fx *= fl;
+-        fz *= fl;
+-        sx += fx;
+-        sz += fz;
+-        // Deviation
+-        fl = fx * fx + fz * fz;
+-        fx *= ship->mtx.Vz().x;
+-        fz *= ship->mtx.Vz().z;
+-        sx += -fz * 0.01f;
+-        sz += fx * 0.01f;
++        const float toX = ship->mtx.Pos().x - mtx.Pos().x;
++        const float toZ = ship->mtx.Pos().z - mtx.Pos().z;
++        const float dist2 = toX * toX + toZ * toZ;
++        if (dist2 >= avoidRadius * avoidRadius || dist2 < 0.01f)
++            continue;
++
++        const float dist = sqrtf(dist2);
++        const float invDist = 1.0f / dist;
++        const float repelX = -toX * invDist;
++        const float repelZ = -toZ * invDist;
++        const float weight = (avoidRadius - dist) / avoidRadius;
++        const float repForce = weight * weight * 1.5f;
++
++        const float ahead = toX * vx + toZ * vz;
++        float latX = 0.0f;
++        float latZ = 0.0f;
++
++        if (ahead > -5.0f)
++        {
++            const float cross = vx * toZ - vz * toX;
++            const float ovx = ship->mtx.Vz().x;
++            const float ovz = ship->mtx.Vz().z;
++            const float headOn = -(vx * ovx + vz * ovz);
++            const float latStrength = weight * (headOn > 0.0f ? 1.8f : 1.2f);
++
++            if (cross <= 0.5f)
++            {
++                latX = rightX * latStrength;
++                latZ = rightZ * latStrength;
++            }
++            else
++            {
++                latX = -rightX * latStrength;
++                latZ = -rightZ * latStrength;
++            }
++        }
++
++        sx += repelX * repForce + latX;
++        sz += repelZ * repForce + latZ;
+     }
+-    auto sl = sx * sx + sz * sz;
+-    if (sl > 1.0f)
++    const float sl = sx * sx + sz * sz;
++    if (sl > 2.25f)
+     {
+-        sl = 1.0f / sqrtf(sl);
+-        sx *= sl;
+-        sz *= sl;
++        const float inv = 1.5f / sqrtf(sl);
++        sx *= inv;
++        sz *= inv;
+     }
+ }
+ 
+ // All move calculations together
+ void WdmEnemyShip::Move(float dltTime)
+ {
+     // Calculating the turn response
+     // Where to sail
+     FindMoveForce();
+     // Repulsion the islands
+     FindIslandForce();
+     // Repulsion from ships
+     FindShipsForce();
+     // The resulting
+-    dx = 1.0f * mx + 1.5f * ix + 1.1f * sx;
+-    dz = 1.0f * mz + 1.5f * iz + 1.1f * sz;
++    dx = 1.0f * mx + 1.5f * ix + 1.2f * sx;
++    dz = 1.0f * mz + 1.5f * iz + 1.2f * sz;
+     const auto dl = dx * dx + dz * dz;
+     // Our direction
+     const auto vx = mtx.Vz().x;
+     const auto vz = mtx.Vz().z;
+     const auto vl = vx * vx + vz * vz;
+     // The sine of the angle between this pair of vectors
+     auto sn = vz * dx - vx * dz;
+     if (dl * vl > 0.0f)
+         sn /= sqrtf(dl * vl);
+     // If the player is behind, then make a full turn
+     const auto cs = vx * dx + vz * dz;
+     if (cs < 0.0f)
+     {
+         if (sn < 0.0f)
+             sn = -1;
+         else
+             sn = 1.0f;
+     }
+     // Turning reaction
+     turnspd += 2.0f * WDM_SHIP_TSPEED * sn * dltTime;
+     // Speed control
+     if (cs >= 0.0f)
+     {
+         speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
+     }
+     else
+     {
+-        if (speed > 0.1f)
++        const float minManeuverSpeed = 0.35f * WDM_SHIP_SPEED * kMaxSpeed;
++        if (speed > minManeuverSpeed)
+         {
+             speed -= kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
+-            if (speed < 0.1f)
+-                speed = 0.1f;
++            if (speed < minManeuverSpeed)
++                speed = minManeuverSpeed;
++        }
++        else
++        {
++            speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
+         }
+     }
+     speed *= slowingAlfa;
+     turnspd *= slowingAlfa;
+ }
+ 
+@@ -424,3 +465,56 @@
      }
      return "";
  }
@@ -196,7 +351,20 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
      Teleport(x, z, 0.0f);
      isEnableSetDir = true;
      return true;
-@@ -80,17 +87,18 @@
+@@ -60,4 +64,12 @@
+ void WdmMerchantShip::Goto(float x, float z, float rad)
+ {
++    if (GetTrafficData())
++    {
++        const uint32_t seed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) >> 4);
++        const float angle = float(seed % 360) * (3.14159265f / 180.0f);
++        const float offset = 4.0f + float((seed >> 8) % 6);
++        x += cosf(angle) * offset;
++        z += sinf(angle) * offset;
++    }
+     if (x < -0.5f * wdmObjects->worldSizeX)
+         x = -0.5f * wdmObjects->worldSizeX;
+@@ -80,17 +92,18 @@
  void WdmMerchantShip::FindMoveForce()
  {
      isEnableSetDir = false;
@@ -218,7 +386,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
          auto dl = dir.x * dir.x + dir.z * dir.z;
          if (dl > 1.0f)
          {
-@@ -106,10 +114,37 @@
+@@ -106,10 +122,38 @@
  // Completion check
  bool WdmMerchantShip::KillTest()
  {
@@ -227,7 +395,8 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
      const auto dz = gotoPos.z - mtx.Pos().z;
      const auto dl = dx * dx + dz * dz;
 -    return dl <= gotoRad * gotoRad;
-+    if (dl > gotoRad * gotoRad) return false;
++    const float arrivalRad = GetTrafficData() ? std::max(gotoRad, 12.0f) : gotoRad;
++    if (dl > arrivalRad * arrivalRad) return false;
 +    auto *data = GetTrafficData();
 +    if (data && data->GetAttribute("trafficLifecycle") && wdmObjects->isPause) return false;
 +    if (data && data->GetAttribute("trafficLifecycle") &&
@@ -257,7 +426,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
  }
  
  // Updating stored data
-@@ -136,3 +171,362 @@
+@@ -136,3 +179,362 @@
      }
      WdmEnemyShip::SetSaveAttribute(save);
  }
@@ -737,11 +906,11 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
 +            auto *data = enemy->GetTrafficData();
 +            if (data) { ++population[data->GetAttributeAsDword("trafficRole")]; ++ordinary; }
 +        }
-+        const int quotas[4] = {0, 18, 8, 6};
++        const int quotas[4] = {0, 32, 16, 12};
 +        int request = 0;
 +        float deficit = 0.0f;
 +        // One departure per tick; quest ships never consume a traffic quota.
-+        if (ordinary < 32 && wdmObjects->ships.size() < 64)
++        if (ordinary < 60 && wdmObjects->ships.size() < 80)
 +            for (int role = 1; role <= 3; ++role)
 +            {
 +                const float missing = float(quotas[role] - population[role]) / quotas[role];
