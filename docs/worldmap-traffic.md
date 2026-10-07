@@ -1,5 +1,34 @@
 # World-map traffic
 
+## Ordinary admission and legacy pursuit — October 7
+
+The resident scheduler must be the only caller that creates ordinary map fleets.
+`WDM_TRAFFIC_TICK` still called the old random Follow generator after that
+scheduler. Refresh adopted each new Follow into persistent traffic, while the
+transient pursuer counter excluded every descriptor with `trafficRole`. Thus
+the counter reopened every tick, bypassing both role and total admission limits.
+The player's November 1 save contains 74 living ordinary groups: 38 commerce,
+15 patrol and 21 pirate. This contradicts the former asserted 60-group bound.
+
+The tick now retains scheduler admission and special pickups but removes both
+legacy ordinary Follow and Warring constructors. Resident fleets already own
+pursuit and autonomous clashes; authored quest constructors and storm callbacks
+are unchanged. A disposable real-VM probe seeds an already full resident world
+and models the existing refresh adoption. Three tick calls reproduce three
+extra Follow groups before the repair and none afterward, with zero script
+errors. Disabled encounters, ordinary scheduler requests and special pickups
+pass, including four native serializer rounds. The composed installed PROGRAM
+also compiles with the played app's shared headers; only Main is replaced by
+the compile-only runner. These checks do not accept player map behaviour.
+
+The 32/16/12 and 60 limits govern admission. A save already exceeding them keeps
+its living hulls and cargo; admission pauses until losses bring its count below
+the relevant limits. The repair does not delete fleets to manufacture compliance.
+Separate saved evidence shows three LeFransua returning groups remaining around
+552/-371 from October 28 through November 1, outside the 12-unit arrival radius.
+The cause of that physical arrival failure is still under native investigation;
+ordinary timed service at a reached berth is a distinct valid state.
+
 ## Sea outcomes and ordinary NPC identity — October 7
 
 `InitCharacter` initializes `ch.quest` and `ch.quest.meeting` on every character,
@@ -194,8 +223,9 @@ accept a rendered harbour drain or perceived balance; those remain unresolved.
 
 ## Gameplay safety contract — October 7
 
-The ordinary population ceiling remains 60 resident fleet markers (32 trade,
-16 patrol, 12 pirate), including fleets receiving service; it is not a promise
+Ordinary admission is limited to 60 resident fleet markers (32 trade,
+16 patrol, 12 pirate), including fleets receiving service. Existing over-limit
+saves retain their living ships and stop new admission; it is not a promise
 of 60 moving hulls. The native object ceiling remains 80. Quests are excluded.
 Traffic cargo/service, military, sea handoff and native navigation retain their
 existing module owners; the composers bind those sources to delivery hashes.
@@ -489,7 +519,7 @@ No player position enters departure or route selection.
 New departures spread their home ports by `100 / (1 + resident²)`, counting only
 living ordinary fleets of the same role whose saved `trafficOrigin` matches that
 port. This reduces duplicate home patrols and repeated departure clusters without
-increasing the population cap. Old fleets keep their routes and retire normally;
+increasing the admission cap. Old resident fleets keep their routes and actual losses;
 missing origin metadata is not guessed or used to reset their state.
 
 Raiders add a smooth destination bonus from the actual positions of ordinary
