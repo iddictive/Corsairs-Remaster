@@ -1,6 +1,10 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/interface/LeaveBattle.c": {
+      "encoding": "utf-8",
+      "legacy": ["f6cd4372ccaa99a914a3fb6b2a9d24672e97f65494eda64584c55695c45a94f5"]
+    },
     "PROGRAM/weather/Init/Evening.c": {
       "encoding": "utf-8",
       "legacy": [

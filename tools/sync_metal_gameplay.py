@@ -92,6 +92,7 @@ def compiler_ready():
             and record.get("engine_deck_patch_sha256") == digest(ENGINE_DECK_PATCH.read_bytes())
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
+            and record.get("mast_repair_patch_sha256") == digest((METAL / "mast-repair.patch").read_bytes())
             and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
             and record.get("pickup_patch_sha256") == digest((METAL / "pickup-glow.patch").read_bytes())
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))

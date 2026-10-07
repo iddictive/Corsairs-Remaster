@@ -1,0 +1,137 @@
+diff --git a/src/libs/shared_headers/include/shared/messages.h b/src/libs/shared_headers/include/shared/messages.h
+--- a/src/libs/shared_headers/include/shared/messages.h
++++ b/src/libs/shared_headers/include/shared/messages.h
+@@ -73,6 +73,7 @@
+ #define MSG_SHIP_SET_CUSTOM_FLAG 50313 // "li", flag entity - Specify a custom flag entity to use for this ship
+ #define MSG_SHIP_SAFE_DELETE 50315
+ #define MSG_SHIP_GET_SAIL_STATE 50325
++#define MSG_SHIP_REPAIR_MASTS 50326 // "l", returns restored main-mast count
+ #define MSG_SHIP_CURVES 50400
+ #define MSG_SHIP_LIGHTSRESET 50402 // ugeen 25.12.19
+ #define MSG_SHIP_DO_FAKE_FIRE 50403
+diff --git a/src/libs/ship/src/ship.h b/src/libs/ship/src/ship.h
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -146,6 +146,7 @@
+     void MastFall(mast_t *pM);
+     void HullFall(hull_t *pM);
+     void FakeFire(const char *sBort, float fRandTime);
++    uint64_t RepairMasts();
+ 
+     CMatrix UpdateModelMatrix();
+     void RecalculateWorldOffset();
+diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -1327,6 +1327,8 @@
+ 
+     switch (code)
+     {
++    case MSG_SHIP_REPAIR_MASTS:
++        return RepairMasts();
+     case MSG_SEA_REFLECTION_DRAW:
+         Realize(0);
+         break;
+@@ -1489,6 +1491,90 @@
+     return 0;
+ }
+ 
++uint64_t SHIP::RepairMasts()
++{
++    if (!bMounted || bDead || !GetModel()) return 0;
++    auto *damage = GetACharacter()->FindAClass(GetACharacter(), "Ship.Masts");
++    if (!damage) return 0;
++    struct Repair { int number; NODE *node; NODE *parent; };
++    std::vector<Repair> repairs;
++    const auto donorId = core.CreateEntity("MODELR");
++    const auto path = fmt::format("ships\\{}\\{}", cShipIniName, cShipIniName);
++    if (!core.Send_Message(donorId, "ls", MSG_MODEL_LOAD_GEO, path.c_str()))
++    {
++        core.EraseEntity(donorId);
++        return 0;
++    }
++    auto *donor = static_cast<MODEL *>(core.GetEntityPointer(donorId));
++    for (const auto &mast : pMasts)
++    {
++        if (!mast.bBroken || mast.iMastNum <= 0 || mast.iMastNum >= TOPMAST_BEGIN) continue;
++        const auto name = fmt::format("mast{}", mast.iMastNum);
++        auto *value = damage->GetAttributeClass(name.c_str());
++        if (!value || value->GetAttributeAsFloat() >= 1.0f) continue;
++        auto *node = donor->FindNode(name.c_str());
++        auto *parent = node && node->parent ? GetModel()->FindNode(node->parent->GetName()) : nullptr;
++        if (!parent) { core.EraseEntity(donorId); return 0; }
++        repairs.push_back({mast.iMastNum, node, parent});
++    }
++    // Preflight every replacement before touching live geometry. Keep original
++    // pMasts order/count: the native save codec relies on the authored order.
++    for (const auto &repair : repairs)
++        for (const auto &mast : pMasts)
++            if ((mast.iMastNum == repair.number || mast.iMastNum / TOPMAST_BEGIN == repair.number) &&
++                !donor->FindNode(fmt::format("mast{}", mast.iMastNum).c_str()))
++            { core.EraseEntity(donorId); return 0; }
++    if (repairs.empty()) { core.EraseEntity(donorId); return 0; }
++    for (const auto &repair : repairs)
++    {
++        const auto detached = repair.node->Unlink2Model();
++        repair.node->parent = repair.parent;
++        repair.parent->Link(detached, false);
++        for (auto &mast : pMasts)
++        {
++            if (mast.iMastNum != repair.number && mast.iMastNum / TOPMAST_BEGIN != repair.number) continue;
++            mast.pNode = GetModel()->FindNode(fmt::format("mast{}", mast.iMastNum).c_str());
++            mast.bBroken = false;
++            mast.fDamage = 0.0f;
++            // Same authored geometry: preserve its local collision endpoints.
++        }
++    }
++    core.EraseEntity(donorId);
++    GetModel()->Update();
++    // Rebuild this model's rig, then rehydrate ordinary sail damage through
++    // GetSailTextureData. Flush deferred deletion before registering replacements.
++    const auto reset = [&](entid_t entity, int message, entid_t owner) {
++        if (!entity) return;
++        core.Send_Message(entity, "li", message, owner);
++        if (auto *object = core.GetEntityPointer(entity)) object->ProcessStage(Stage::execute, 0);
++    };
++    reset(sail_id, MSG_SAIL_DEL_GROUP, GetId());
++    reset(rope_id, MSG_ROPE_DEL_GROUP, GetModelEID());
++    reset(flag_id, MSG_FLAG_DEL_GROUP, GetModelEID());
++    reset(vant_id, MSG_VANT_DEL_GROUP, GetModelEID());
++    reset(vantl_id, MSG_VANT_DEL_GROUP, GetModelEID());
++    reset(vantz_id, MSG_VANT_DEL_GROUP, GetModelEID());
++    if (sail_id) core.Send_Message(sail_id, "liil", MSG_SAIL_INIT, GetId(), GetModelEID(), GetSailState() ? 1 : 0);
++    if (rope_id) core.Send_Message(rope_id, "lii", MSG_ROPE_INIT, GetId(), GetModelEID());
++    if (flag_id) core.Send_Message(flag_id, "lili", MSG_FLAG_INIT, GetModelEID(), GetNation(GetACharacter()), GetId());
++    for (const auto entity : {vant_id, vantl_id, vantz_id})
++        if (entity) core.Send_Message(entity, "lii", MSG_VANT_INIT, GetId(), GetModelEID());
++    if (auto *sails = core.GetEntityPointer(sail_id)) sails->ProcessStage(Stage::execute, 0);
++    SetSailState(fSailState);
++    if (const auto lights = static_cast<IShipLights *>(core.GetEntityPointer(shipLights)))
++    {
++        const auto *lamps = GetACharacter()->FindAClass(GetACharacter(), "Ship.Lights");
++        const auto *flares = GetACharacter()->FindAClass(GetACharacter(), "Ship.Flares");
++        const bool lit = lamps && lamps->GetAttributeAsDword();
++        const bool flare = flares && flares->GetAttributeAsDword();
++        lights->Release(this);
++        lights->AddLights(this, GetModel(), lit, flare);
++        lights->SetLightsOff(this, 0.0f, !lit, !flare, true);
++        lights->ResetLights(this, !lit);
++    }
++    return repairs.size();
++}
++
+ void SHIP::FakeFire(const char *sBort, float fRandTime)
+ {
+     GEOS::LABEL label;
+diff --git a/src/libs/ship/src/ship_lights.cpp b/src/libs/ship/src/ship_lights.cpp
+--- a/src/libs/ship/src/ship_lights.cpp
++++ b/src/libs/ship/src/ship_lights.cpp
+@@ -57,6 +57,8 @@
+ 
+ void ShipLights::Release(VAI_OBJBASE *pObject)
+ {
++    aSelectedLights.clear();
++    std::erase_if(aLights, [pObject](const auto &light) { return light.pObject == pObject; });
+ }
+ 
+ float ShipLights::GetAttributeAsFloat(ATTRIBUTES *pA, const char *pName, float fDefault)
