@@ -26,19 +26,40 @@ its living hulls and cargo; admission pauses until losses bring its count below
 the relevant limits. The repair does not delete fleets to manufacture compliance.
 Separate saved evidence shows three LeFransua returning groups remaining around
 552/-371 from October 28 through November 1, outside the 12-unit arrival radius.
-The cause of that physical arrival failure is still under native investigation;
-ordinary timed service at a reached berth is a distinct valid state.
+That physical arrival failure is reproduced against the shipped BSP and native
+motion controller below; ordinary timed service at a reached berth remains valid.
 
-The installed PTC table connects the stalled node3540 to destination3570 in six
-transitions. A disposable Python port of edge refinement reports an open route;
-it does not execute native ship movement or GM collision. The proposed shore-force
-equilibrium omits the installed berth fade, and all three returns already have
-ServiceOnArrival=1; neither claim admits a repair. `WdmShip::ShipUpdate` also keeps
-a static collision-escape vector initialized by the first ship and reused by
-others. That source defect needs a native collision falsifier before attributing
-these particular stalls or changing recovery. Root owns the advancing-map
-movement/collision capture when the player provides that scene; no arbitrary
-arrival-radius expansion is accepted.
+The installed PTC table connects stalled node3540 to destination3570, but this
+point route does not admit every full-hull pose needed to follow it. Real collision
+geometry is the archipelago's `islands/mein.gm` BSP; Martinique.gm is a dummy.
+A disposable C++ replay executes native GEOM clipping, PTC refinement, ship motion
+and arrival against that BSP with the three saved poses, velocities and model
+dimensions. The unchanged controller leaves all three in voyage after 300 seconds:
+positive maneuver headway drives the bow into the coast, and collision rolls back
+translation and yaw. Installed berth fade is already active on these returns;
+missing service intent and a simple shore-force equilibrium are rejected causes.
+
+`worldmap-berth-homing.patch` now lets an ordinary committed port approach recover
+after actual ground contact using the existing full-model CollisionTest. A bounded
+local position/heading search checks sampled translation and rotation edges, then
+physically advances the hull at the existing 5-unit recovery rate and 0.65-radian
+turn limit. Arrival still uses the native 12-unit minimum and emits its original
+callback once. The path is transient, cancelled on retargeting/service/combat or
+lost eligibility, and recomputed after load. No save field or fleet deletion is
+introduced. Failed searches have a two-second cooldown and a 1024-node ceiling.
+The old session-global collision escape vector becomes per ship/per contact
+episode; ordinary movement and the first ten collision reactions are preserved.
+
+Braking with one retained turn and a straight safe escape are rejected: a valid
+full-hull corridor curves, and these narrower repairs fail wind/load cases. The
+final replay brings all three to service with four cardinal winds, full-hull-safe
+arrival and exactly one event each, including path loss/save-attribute reload at
+0.1/0.2/0.3 seconds. Two already serviced groups remain at their exact positions.
+Quest routes, patrol legs, pursuit, pending route, battle and distant approaches
+retain the old controller. Attribute/event adapters are explicit; this is native
+collision/motion evidence, not a rendered scene or native save-codec acceptance.
+Canonical build passes against the actual private/public headers. Installed
+activation and player map replay are recorded separately in `docs/runtime.md`.
 
 ## Sea outcomes and ordinary NPC identity — October 7
 

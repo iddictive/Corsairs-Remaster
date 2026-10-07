@@ -10,8 +10,8 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/w
 +    void FindShipsForce() override;
      // Completion check
      bool KillTest() override;
- 
-@@ -49,6 +52,7 @@
+
+@@ -48,6 +51,7 @@
      void ThinkTraffic();
      void StartTrafficBattle(WdmEnemyShip *target);
      void ResolveTrafficBattle();
@@ -22,10 +22,31 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/w
 diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
 --- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
-@@ -364,6 +364,42 @@
+@@ -50,6 +50,7 @@
+
+ void WdmMerchantShip::Goto(float x, float z, float rad)
+ {
++    CancelRouteRecovery();
+     if (GetTrafficData())
+     {
+         const uint32_t seed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) >> 4);
+@@ -360,8 +361,52 @@
+     auto *data = GetTrafficData();
+     if (data && (attack || (data->GetAttribute("trafficLifecycle") &&
+         std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0)))
+-    { speed = 0.0f; turnspd = 0.0f; rspeed = 0.0f; return; }
++    { CancelRouteRecovery(); speed = 0.0f; turnspd = 0.0f; rspeed = 0.0f; return; }
++    if (dltTime > 0.0f)
++    {
++        recoveryRetry = std::max(0.0f, recoveryRetry - dltTime);
++        if (BerthFade() >= 1.0f && recovering) CancelRouteRecovery();
++        if (!recovering && recoveryRetry <= 0.0f && collisionCounter > 0 && BerthFade() < 1.0f)
++        { if (!BeginRouteRecovery(gotoPos, std::max(gotoRad, 12.0f))) recoveryRetry = 2.0f; }
++        if (recovering) { speed = turnspd = 0.0f; rspeed = 0.0f; return; }
++    }
      WdmEnemyShip::Move(dltTime);
- }
- 
++}
++
 +// Island and hull repulsion may overpower homing near a physical port.
 +// Quest routes, patrol legs and active pursuit retain their full avoidance.
 +float WdmMerchantShip::BerthFade() const
@@ -35,7 +56,7 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    const char *port = data ? data->GetAttribute("trafficDestinationPort") : nullptr;
 +    if (!data || !lifecycle || std::strcmp(lifecycle, "voyage") != 0 ||
 +        !port || !port[0] || trafficSteering || attack || data->GetAttribute("trafficNextLocator") ||
-+        data->GetAttribute("trafficBattle") ||
++        data->GetAttribute("trafficBattle") || data->GetAttributeAsDword("trafficRetired") ||
 +        (data->GetAttributeAsDword("trafficRole") != 1 && !data->GetAttributeAsDword("trafficServiceOnArrival")))
 +        return 1.0f;
 +    const float dx = gotoPos.x - mtx.Pos().x;
@@ -60,8 +81,162 @@ diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src
 +    const float fade = BerthFade();
 +    sx *= fade;
 +    sz *= fade;
+ }
+
+ void WdmMerchantShip::ThinkTraffic()
+diff --git a/src/libs/worldmap/src/wdm_ship.h b/src/libs/worldmap/src/wdm_ship.h
+--- a/src/libs/worldmap/src/wdm_ship.h
++++ b/src/libs/worldmap/src/wdm_ship.h
+@@ -11,6 +11,9 @@
+ #pragma once
+
+ #include "wdm_render_model.h"
++
++#include <cstddef>
++#include <vector>
+
+ // #define WDM_SHIP_MODELL 6.0f // Half the length of the ship
+ // #define WDM_SHIP_MODELW 1.9f // Half Ship Width
+@@ -65,6 +68,21 @@
+     // Encapsulation
+     // --------------------------------------------------------------------------------------------
+   protected:
++    // Transient full-hull recovery for ordinary port approaches.
++    struct RecoveryPose { CVECTOR pos; float yaw; };
++    std::vector<RecoveryPose> recoveryPath;
++    std::size_t recoveryStep = 0;
++    bool recovering = false;
++    float recoveryRetry = 0.0f;
++    CVECTOR collisionEscapeDirection = 0.0f;
++    bool BeginRouteRecovery(const CVECTOR &goal, float arrival);
++    void CancelRouteRecovery()
++    {
++        recovering = false;
++        recoveryPath.clear();
++        recoveryStep = 0;
++        recoveryRetry = 0.0f;
++    }
+     void ShipUpdate(float dltTime);
+     void UpdateWaterMark(float dltTime);
+
+diff --git a/src/libs/worldmap/src/wdm_ship.cpp b/src/libs/worldmap/src/wdm_ship.cpp
+--- a/src/libs/worldmap/src/wdm_ship.cpp
++++ b/src/libs/worldmap/src/wdm_ship.cpp
+@@ -11,6 +11,11 @@
+ #include "wdm_ship.h"
+ #include "metal_world_map_bridge.h"
+ #include "wdm_islands.h"
++
++#include <algorithm>
++#include <functional>
++#include <limits>
++#include <queue>
+
+ //============================================================================================
+
+@@ -115,8 +120,77 @@
+ }
+
+ // Calculations
++bool WdmShip::BeginRouteRecovery(const CVECTOR &goal,float arrival)
++{
++    if (!wdmObjects->islands) return false;
++    const CVECTOR origin=mtx.Pos();
++    const float heading=atan2f(mtx.Vz().x,mtx.Vz().z);
++    constexpr float step=0.5f,angleStep=3.14159265f/16.0f;
++    const float extent=4.0f*sqrtf(modelL05*modelL05+modelW05*modelW05);
++    const int limit=std::max(2,static_cast<int>(ceilf(extent/step))),width=2*limit+1;
++    const int count=width*width*32;
++    std::vector<float> cost(count,std::numeric_limits<float>::infinity());
++    std::vector<int> parent(count,-1);
++    using Entry=std::pair<float,int>;
++    std::priority_queue<Entry,std::vector<Entry>,std::greater<Entry>> pending;
++    auto index=[&](int x,int z,int a){return ((z+limit)*width+x+limit)*32+a;};
++    auto pose=[&](int id){int a=id%32;id/=32;int x=id%width-limit,z=id/width-limit;return RecoveryPose{origin+CVECTOR(float(x)*step,0.0f,float(z)*step),heading+float(a)*angleStep};};
++    auto distance=[&](const CVECTOR&p){return sqrtf((p.x-goal.x)*(p.x-goal.x)+(p.z-goal.z)*(p.z-goal.z));};
++    const int first=index(0,0,0);cost[first]=0;pending.emplace(std::max(0.0f,distance(origin)-arrival)/5.0f,first);
++    int end=-1;
++    for(int expanded=0;!pending.empty()&&expanded<1024;++expanded)
++    {
++        const int current=pending.top().second;pending.pop();const auto from=pose(current);
++        if(distance(from.pos)<=arrival){end=current;break;}
++        int a=current%32,cell=current/32,x=cell%width-limit,z=cell/width-limit;
++        for(int move=0;move<10;++move)
++        {
++            static constexpr int ox[8]={1,0,-1,0,1,1,-1,-1},oz[8]={0,1,0,-1,1,-1,1,-1};
++            int nx=x,nz=z,na=a;
++            if(move<8){nx+=ox[move];nz+=oz[move];}else na=(a+(move==8?1:31))%32;
++            if(abs(nx)>limit||abs(nz)>limit)continue;
++            const int next=index(nx,nz,na);const auto to=pose(next);
++            const float angle=std::remainder(to.yaw-from.yaw,6.2831853f);
++            const float duration=move<8?sqrtf(~(to.pos-from.pos))/5.0f:fabsf(angle)/WDM_SHIP_MAX_TURNSPD;
++            const float incoming=cost[current]+duration;
++            if(incoming>=cost[next])continue;
++            bool clear=true;
++            const int samples=move<8?8:16;
++            for(int sample=1;sample<=samples;++sample)
++            {
++                const float k=float(sample)/float(samples);const CVECTOR p=from.pos+(to.pos-from.pos)*k;
++                if(fabsf(p.x)>0.5f*wdmObjects->worldSizeX||fabsf(p.z)>0.5f*wdmObjects->worldSizeZ){clear=false;break;}
++                CMatrix check(0,from.yaw+angle*k,0,p.x,0,p.z);
++                if(wdmObjects->islands->CollisionTest(check,modelL05,modelW05)){clear=false;break;}
++            }
++            if(!clear)continue;
++            cost[next]=incoming;parent[next]=current;pending.emplace(incoming+std::max(0.0f,distance(to.pos)-arrival)/5.0f,next);
++        }
++    }
++    if(end<0)return false;
++    recoveryPath.clear();for(int id=end;id!=first;id=parent[id])recoveryPath.push_back(pose(id));
++    std::reverse(recoveryPath.begin(),recoveryPath.end());recoveryStep=0;recovering=!recoveryPath.empty();return recovering;
 +}
 +
- void WdmMerchantShip::ThinkTraffic()
+ void WdmShip::ShipUpdate(float dltTime)
  {
-     trafficSteering = false;
++    if(recovering)
++    {
++        const auto target=recoveryPath[recoveryStep];
++        const float difference=std::remainder(target.yaw-ay,6.2831853f);
++        const float newYaw=ay+std::clamp(difference,-WDM_SHIP_MAX_TURNSPD*dltTime,WDM_SHIP_MAX_TURNSPD*dltTime);
++        CVECTOR delta=target.pos-mtx.Pos();delta.y=0.0f;const float distance=sqrtf(~delta);
++        const CVECTOR next=distance>1e-5f?mtx.Pos()+delta*(std::min(distance,5.0f*dltTime)/distance):target.pos;
++        CMatrix candidate(0,newYaw,0,next.x,0,next.z);
++        if(!wdmObjects->islands||!wdmObjects->islands->CollisionTest(candidate,modelL05,modelW05))
++        {
++            ay=newYaw;mtx=candidate;speed=turnspd=0.0f;rspeed=0.0f;collisionCounter=0;isWMRender=false;
++            if(distance<=5.0f*dltTime&&fabsf(difference)<=WDM_SHIP_MAX_TURNSPD*dltTime)
++            {if(++recoveryStep==recoveryPath.size())CancelRouteRecovery();}
++            UpdateWaterMark(dltTime);return;
++        }
++        CancelRouteRecovery();recoveryRetry=1.0f;collisionCounter=10;
++    }
+     const auto pi2 = 3.14159265f * 2.0f;
+     // Uncheck the render flag
+     isWMRender = false;
+@@ -179,22 +253,16 @@
+         if (wdmObjects->islands->CollisionTest(mtx, modelL05, modelW05))
+         {
+             collisionCounter++;
+-            static CVECTOR moveDir = pos - wdmObjects->islands->centPos;
+             if (collisionCounter > 10)
+             {
+                 if (collisionCounter == 11)
+                 {
+-                    if (~moveDir > 1e-20f)
+-                    {
+-                        moveDir = !moveDir;
+-                    }
+-                    else
+-                    {
+-                        moveDir = 1.0f;
+-                    }
+-                    moveDir *= 5.0f;
++                    collisionEscapeDirection = pos - wdmObjects->islands->centPos;
++                    collisionEscapeDirection.y = 0.0f;
++                    if (~collisionEscapeDirection > 1e-20f) collisionEscapeDirection = !collisionEscapeDirection;
++                    else collisionEscapeDirection = -mtx.Vz();
+                 }
+-                opos += moveDir * dltTime;
++                opos += collisionEscapeDirection * (5.0f * dltTime);
+             }
+             ay = oay;
+             // calculate the reaction to a collision
