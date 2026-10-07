@@ -4116,12 +4116,15 @@ void Ship_UpdateParameters()
 	// some of ship parameters
 	aref	arCharShip; makearef(arCharShip, rCharacter.Ship);
 	ref		rShip = GetRealShip(sti(arCharShip.Type));
-	rCharacter.Tmp.fShipSpeedIdeal = stf(rShip.SpeedRate); // база корпуса для четверти-пола скорости в движке
+	float fShipSpeedScale = 1.0;
+	if (iArcadeSails == 1) fShipSpeedScale = 2.5;
+	// The propulsion floor and MaxSpeedZ use the same engine speed units.
+	rCharacter.Tmp.fShipSpeedIdeal = fShipSpeedScale * stf(rShip.SpeedRate);
 	// TEMP-DIAG(sailing-floor): remove after 0.8-speed diagnosis.
-	if (!CheckAttribute(rCharacter, "Tmp.FloorDiagIdeal") || stf(rCharacter.Tmp.FloorDiagIdeal) != stf(rShip.SpeedRate))
+	if (!CheckAttribute(rCharacter, "Tmp.FloorDiagIdeal") || stf(rCharacter.Tmp.FloorDiagIdeal) != stf(rCharacter.Tmp.fShipSpeedIdeal))
 	{
-		rCharacter.Tmp.FloorDiagIdeal = stf(rShip.SpeedRate);
-		Trace("FLOORDIAG script char=" + rCharacter.id + " ideal=" + stf(rShip.SpeedRate));
+		rCharacter.Tmp.FloorDiagIdeal = stf(rCharacter.Tmp.fShipSpeedIdeal);
+		Trace("FLOORDIAG script char=" + rCharacter.id + " ideal=" + stf(rCharacter.Tmp.fShipSpeedIdeal));
 	}
 
     float fShipSpeed, fShipTurnRate;
@@ -4232,16 +4235,10 @@ void Ship_UpdateParameters()
 	arCharShip.MaxSpeedY =	fTRResult;
 
     // Apply arcade mode
+	arCharShip.MaxSpeedZ = fShipSpeedScale * stf(arCharShip.MaxSpeedZ);
 	if (iArcadeSails == 1)
 	{
-		//arCharShip.MaxSpeedZ = 6.0 * stf(arCharShip.MaxSpeedZ);
-		arCharShip.MaxSpeedZ = (2.5 * stf(arCharShip.MaxSpeedZ));
 		arCharShip.MaxSpeedY = (2.0 * stf(arCharShip.MaxSpeedY));
-	}
-	else
-	{
-		//arCharShip.MaxSpeedY = 0.75 * stf(arCharShip.MaxSpeedY);
-		arCharShip.MaxSpeedZ = (1.0 * stf(arCharShip.MaxSpeedZ));
 	}
 	//Log_Info("MaxSpeedY = "  + arCharShip.MaxSpeedY);
 	// calculate immersion
