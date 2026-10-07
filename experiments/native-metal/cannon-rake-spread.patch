@@ -1,0 +1,257 @@
+diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+@@ -22,7 +22,7 @@
+ }
+ 
+ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
+-                                           bool bApplyBortDelta)
++                                           bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual)
+ {
+     const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
+     if (!bEnoughBalls)
+@@ -52,7 +52,11 @@
+     bool fired = false;
+     for (auto& cannon : bort.aCannons)
+     {
+-        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, vTempFirePos))
++        CVECTOR gunTarget = vTempFirePos;
++        if (!bApplyBortDelta && manual)
++            for (size_t i = 0; i < manual->guns.size(); ++i)
++                if (manual->guns[i] == &cannon) { gunTarget = manual->gunTargets[i]; break; }
++        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget))
+             continue;
+         if (!cannon.isDamaged())
+         {
+@@ -60,10 +64,10 @@
+ 
+             if (debugDrawToggle)
+             {
+-                debugFirePositions.emplace_back(vTempFirePos, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
++                debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
+             }
+ 
+-            fired = cannon.Fire(bort.fSpeedV0, vTempFirePos) || fired;
++            fired = cannon.Fire(bort.fSpeedV0, gunTarget) || fired;
+         }
+     }
+     if (bApplyBortDelta || fired)
+@@ -78,7 +82,7 @@
+     MANUAL_AIM_SOLUTION solution;
+     if (!BuildManualAimSolution(vFireCamPos, vFireDir, solution))
+         return false;
+-    const bool fired = Fire2Position(*solution.bort, solution.target, 0.f, false);
++    const bool fired = Fire2Position(*solution.bort, solution.target, 0.f, false, &solution);
+     if (fired && manualTarget) *manualTarget = solution.character;
+     return fired;
+ }
+@@ -849,6 +853,26 @@
+     const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
+     return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
+             .5f*accuracy*10.f*12.f*kAimPi/180.f};
++}
++float AimRakeFactor(ATTRIBUTES *character)
++{
++    // Rookie gunners keep the legacy single-point volley; masters spread it
++    // along the locked hull, fully only with the RakingFire capstone.
++    auto *skill=character?character->FindAClass(character,"TmpSkill"):nullptr;
++    const float cannons=skill?skill->GetAttributeAsFloat("Cannons",.3f):.3f;
++    const float rakeSkill=std::clamp((cannons-.30f)/.55f,0.f,1.f);
++    auto *perks=character?character->FindAClass(character,"TmpPerks"):nullptr;
++    const bool capstone=perks&&perks->GetAttributeAsDword("RakingFire",0)!=0;
++    return rakeSkill*(capstone?1.f:.45f);
++}
++AIShip *AimShipForCharacter(ATTRIBUTES *character,AIShip *own)
++{
++    // Forts, islands and open water keep the common aim point.
++    if(!character)return nullptr;
++    for(auto *ship:AIShip::AIShips)
++        if(ship&&ship!=own&&ship->GetACharacter()==character)
++            return ship;
++    return nullptr;
+ }
+ uint32_t AimRelationColor(AIShip *own,ATTRIBUTES *character)
+ {
+@@ -1013,6 +1037,72 @@
+     return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
+ }
+ 
++void AIShipCannonController::DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution,AIShip *targetShip)
++{
++    if(!targetShip||solution.guns.size()<2)return;
++    const float rake=AimRakeFactor(GetAIShip()->GetACharacter());
++    if(rake<=.01f)return;
++    const CMatrix *matrix=targetShip->GetMatrix();
++    CVECTOR axis=matrix?matrix->Vz():CVECTOR(0.f,0.f,1.f);
++    axis.y=0.f;
++    if(~axis<1e-8f)return;
++    axis=!axis;
++    // Live waterline extent from the target model bounds.
++    CVECTOR lo(1e20f),hi(-1e20f);
++    if(auto *model=targetShip->GetModel())
++        for(int i=0;auto *node=model->GetNode(i);++i)
++        {
++            if(!node->geo)continue;
++            GEOS::INFO info;node->geo->GetInfo(info);
++            for(int corner=0;corner<8;++corner)
++            {
++                const CVECTOR local(info.boxcenter.x+((corner&1)?.5f:-.5f)*info.boxsize.x,
++                                    info.boxcenter.y+((corner&2)?.5f:-.5f)*info.boxsize.y,
++                                    info.boxcenter.z+((corner&4)?.5f:-.5f)*info.boxsize.z);
++                const CVECTOR p=node->glob_mtx*local;
++                for(int a=0;a<3;++a)
++                {
++                    lo.v[a]=std::min(lo.v[a],p.v[a]);
++                    hi.v[a]=std::max(hi.v[a],p.v[a]);
++                }
++            }
++        }
++    if(!(lo.x<=hi.x))return;
++    float extentMin=1e20f,extentMax=-1e20f;
++    for(int corner=0;corner<8;++corner)
++    {
++        const CVECTOR p(corner&1?hi.x:lo.x,corner&2?hi.y:lo.y,corner&4?hi.z:lo.z);
++        const float s=p|axis;
++        extentMin=std::min(extentMin,s);extentMax=std::max(extentMax,s);
++    }
++    const float halfLen=(extentMax-extentMin)*.5f;
++    if(!std::isfinite(halfLen)||halfLen<2.f)return; // boats keep one point
++    // Preserve muzzle order along the target axis so each gun keeps the
++    // smallest possible deflection; every aim stays inside the hull extent
++    // and falls back toward the common point while unreachable.
++    std::vector<size_t> order(solution.guns.size());
++    for(size_t i=0;i<order.size();++i)order[i]=i;
++    std::sort(order.begin(),order.end(),[&](size_t a,size_t b)
++        {return (solution.guns[a]->GetPos()|axis)<(solution.guns[b]->GetPos()|axis);});
++    const float aimY=solution.target.y;
++    for(size_t rank=0;rank<order.size();++rank)
++    {
++        const size_t i=order[rank];
++        float s=(-1.f+2.f*float(rank)/float(order.size()-1))*halfLen*rake;
++        for(int attempt=0;attempt<7;++attempt)
++        {
++            CVECTOR point=solution.target+axis*s;
++            const float along=point|axis;
++            if(along<extentMin)point+=axis*(extentMin-along);
++            else if(along>extentMax)point+=axis*(extentMax-along);
++            point.y=aimY;
++            if(ManualGunCanReach(*solution.guns[i],*solution.bort,point))
++            {solution.gunTargets[i]=point;break;}
++            s*=.5f;
++        }
++    }
++}
++
+ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const CVECTOR &direction,
+                                                    MANUAL_AIM_SOLUTION &solution)
+ {
+@@ -1127,6 +1217,9 @@
+                 if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
+         }
+     }
++    solution.gunTargets.assign(solution.guns.size(),solution.target);
++    if(AIShip *targetShip=AimShipForCharacter(solution.character,GetAIShip()))
++        DistributeRakeTargets(solution,targetShip);
+     if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
+     return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
+ }
+@@ -1141,12 +1234,19 @@
+     std::vector<AimPath> paths;
+     std::vector<std::pair<const AICannon *,AimPath>> nominalPaths;
+     paths.reserve(solution.guns.size()+40);
++    auto aimFor=[&](const AICannon *gun)->const CVECTOR &
++    {
++        for(size_t i=0;i<solution.guns.size();++i)
++            if(solution.guns[i]==gun)return solution.gunTargets[i];
++        return solution.target;
++    };
+     // Every valid gun participates. Locator order is irrelevant.
+     for(const auto *gun:solution.guns)
+     {
+         const CVECTOR muzzle=gun->GetPos();
+-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
+-        const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity),world);
++        const CVECTOR aim=aimFor(gun);
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
++        const auto path=AimMarch(manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity),world);
+         paths.push_back(path);nominalPaths.push_back({gun,path});
+     }
+     // Dispersion samples use the battery's spatial support guns, not first/last
+@@ -1167,7 +1267,8 @@
+     for(const auto *gun:supports)
+     {
+         const CVECTOR muzzle=gun->GetPos();
+-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        const CVECTOR aim=aimFor(gun);
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
+         for(int n=0;n<8;++n)
+         {
+             // Live jitter uses three independent random draws, not a correlated
+@@ -1175,7 +1276,7 @@
+             const float elevation=spread.elevation*((n&1)?1.f:-1.f);
+             const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
+             const float v=speed+spread.speed*((n&4)?1.f:-1.f);
+-            paths.push_back(AimMarch(manual_aim::trajectory(muzzle,solution.target,v,angle+elevation,yaw,height,AIHelper::fGravity),world));
++            paths.push_back(AimMarch(manual_aim::trajectory(muzzle,aim,v,angle+elevation,yaw,height,AIHelper::fGravity),world));
+         }
+     }
+     paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
+@@ -1210,10 +1311,11 @@
+     std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
+     for(const auto *gun:densityProjectors)
+     {
+-        const CVECTOR muzzle=gun->GetPos();const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
+-        std::vector<Trajectory> curves{manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity)};
++        const CVECTOR muzzle=gun->GetPos();const CVECTOR aim=aimFor(gun);
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
++        std::vector<Trajectory> curves{manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity)};
+         for(int n=0;n<8;++n)
+-            curves.push_back(manual_aim::trajectory(muzzle,solution.target,speed+spread.speed*((n&4)?1.f:-1.f),
++            curves.push_back(manual_aim::trajectory(muzzle,aim,speed+spread.speed*((n&4)?1.f:-1.f),
+                 angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
+         const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
+         if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
+@@ -1257,7 +1359,8 @@
+     for(const auto *gun:projectors)
+     {
+         const CVECTOR muzzle=gun->GetPos();
+-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
++        const CVECTOR aim=aimFor(gun);
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
+         // Keep the nominal interior field plus both independent speed limits.
+         // Coarser2x2 speed-boundary grids bound extra trace cost; all faces still
+         // refine mixed first receivers independently rather than spanning them.
+@@ -1275,7 +1378,7 @@
+             // A difficult earlier receiver edge cannot erase a later cell.
+             if(!baseSamples&&cellSamples>=12)return {};
+             if(!baseSamples)++cellSamples;
+-            const auto path=AimMarch(manual_aim::trajectory(muzzle,solution.target,sampleSpeed,
++            const auto path=AimMarch(manual_aim::trajectory(muzzle,aim,sampleSpeed,
+                 angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
+             cache.push_back({yaw,elevation,path});retainContact(path);return {path.hit,yaw,elevation};
+         };
+diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+@@ -82,9 +82,11 @@
+         CVECTOR target{0.f};
+         ATTRIBUTES *character = nullptr;
+         std::vector<AICannon *> guns;
++        std::vector<CVECTOR> gunTargets; // parallel to guns; rake spread, else target
+     };
+     bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
+     bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
++    void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip);
+ 
+     uint32_t manualAimColor=0xD9E2E4u;
+     std::vector<std::pair<uint64_t,uint32_t>> manualAimReceiverTokens;
+@@ -94,7 +96,8 @@
+ 
+     bool ScanShipForCannons();
+ 
+-    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true);
++    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true,
++                       const MANUAL_AIM_SOLUTION *manual = nullptr);
+ 
+     [[nodiscard]] float GetSpeedV0() const;
+ 

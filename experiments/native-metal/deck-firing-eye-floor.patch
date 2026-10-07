@@ -1,0 +1,15 @@
+diff --git a/src/libs/sea_cameras/src/deck_camera.cpp b/src/libs/sea_cameras/src/deck_camera.cpp
+--- a/src/libs/sea_cameras/src/deck_camera.cpp
++++ b/src/libs/sea_cameras/src/deck_camera.cpp
+@@ -573,7 +573,10 @@
+     // Do not lift the third-person orbit or telescope; h_eye stays saved.
+     const float firingEyeLift = walkMode && !telescope &&
+                                 AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0 ? 0.5f : 0.f;
+-    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, h_eye + firingEyeLift, 0.f));
++    // Firing eye never drops below the design height: a low ship locator or a
++    // saved crouch must not bury the manual-aim view under the rails.
++    const float firingEye = firingEyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + firingEyeLift : h_eye;
++    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, firingEye, 0.f));
+ 
+     if (walkMode)
+     {

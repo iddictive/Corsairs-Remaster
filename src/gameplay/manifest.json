@@ -119,6 +119,18 @@
         "bb3c65769c717cc9d87d41b9cbe33e6fca86a85fd4d87d58a57d0ed9810bb55d"
       ]
     },
+    "PROGRAM/interface/perks/perks_init.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "437db2e0cef5562f9d54fb655dbc9512a63fef0adf742fb964ac2d624e5a4519"
+      ]
+    },
+    "RESOURCE/INI/texts/russian/AbilityDescribe.txt": {
+      "encoding": "utf-8",
+      "legacy": [
+        "8d9a9dcfe5dda29ac63ff9936ec2559c739c97b8273738108a2c6127e0907304"
+      ]
+    },
     "PROGRAM/sea_ai/AIFort.c": {
       "encoding": "utf-8",
       "legacy": [

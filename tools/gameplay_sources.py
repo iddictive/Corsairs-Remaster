@@ -12,14 +12,14 @@ BACKUPS = ROOT.parents[1] / "experiments/native-metal/.cache/gameplay-source-bac
 
 def source_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
     text = data.decode(encoding)
-    if Path(name).suffix in (".c", ".h", ".ini"):
+    if Path(name).suffix in (".c", ".h", ".ini", ".txt"):
         text = text.replace("\r\n", "\n")
     return text.encode("utf-8")
 
 
 def runtime_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
     text = source_bytes(name, data).decode("utf-8")
-    if Path(name).suffix in (".c", ".h", ".ini"):
+    if Path(name).suffix in (".c", ".h", ".ini", ".txt"):
         text = text.replace("\n", "\r\n")
     return text.encode(encoding)
 
@@ -45,7 +45,8 @@ def read(selected=None):
         relative = Path(name)
         parts = relative.parts
         allowed = (len(parts) > 1 and parts[0] == "PROGRAM" and relative.suffix in (".c", ".h", ".txt")) or (
-            len(parts) > 2 and parts[:2] == ("RESOURCE", "INI") and relative.suffix == ".ini")
+            len(parts) > 2 and parts[:2] == ("RESOURCE", "INI") and relative.suffix == ".ini") or (
+            len(parts) > 3 and parts[:3] == ("RESOURCE", "INI", "texts") and relative.suffix == ".txt")
         if not allowed or relative.as_posix() != name:
             raise RuntimeError(f"Invalid gameplay source path: {name}")
         if not isinstance(legacy, list) or any(not isinstance(sha, str) or len(sha) != 64

@@ -161,3 +161,13 @@ released, and a nearer center obstruction still wins. The first Tab from the
 outside camera now enters first-person manual aim; the second enters third-person
 deck walking and the third returns outside. Saved camera mode and telescope/dead
 camera gates are preserved by `tools/metal_deck_camera.py`.
+
+## Raking fire along the captured hull
+
+Manual fire at a locked ship distributes guns along the target longitudinal axis instead of one aim point.
+`AimRakeFactor` ramps normalized gunner skill 0.30 to 0.85 and multiplies by 1.0 with the RakingFire capstone, 0.45 without;
+at zero the legacy single-point volley runs untouched.
+
+## Firing eye floor
+
+First-person firing view never drops below design eye height: a low ship camera locator or a saved crouch no longer buries manual aim under the rails.
