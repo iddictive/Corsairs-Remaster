@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and deliver the reviewed exact-hash gameplay package to native-metal."""
+"""Deliver canonical gameplay sources and the remaining reviewed legacy layers."""
 
 import argparse
 import hashlib
@@ -19,14 +19,14 @@ import patch_squad_common_supply as squad_supply
 import metal_tradebook as tradebook
 import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
-import metal_evening_lights as evening_lights
+import gameplay_sources
 import metal_fleet_gameplay as fleet_gameplay
 import metal_fleet_sea as fleet_sea
 import metal_fleet_ui as fleet_ui
 import metal_military_integration as military_callbacks
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
-from delivery_state import DeliveryState, player_guard, transact
+from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 from contextlib import nullcontext
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -214,9 +214,19 @@ def prepare_fleet_final(relative, incoming):
     return result
 
 
-def plan(target_root=None):
+def source_changes(target_root, source_set):
+    return {path.relative_to(target_root).as_posix(): (before, after)
+            for path, (before, after) in gameplay_sources.prepare_delivery(target_root, source_set).items()
+            if path.is_relative_to(target_root) and path.name != RECEIPT and before != after}
+
+
+def plan(target_root=None, paths=None, source_set=None):
     if target_root is None:
         target_root = TARGET
+    source_set = gameplay_sources.read(paths) if source_set is None else source_set
+    canonical = source_changes(target_root, source_set)
+    if paths is not None:
+        return canonical
     living_caribbean.verify_fort_layout_assets(target_root)
     # Regenerated suite consumers come from exact-hash originals, not the
     # mutable carrier copy. Each provider and cumulative output is checked by
@@ -246,6 +256,8 @@ def plan(target_root=None):
             if not source.is_file() or source.name == ".DS_Store":
                 continue
             relative = source.relative_to(SOURCE).as_posix()
+            if relative in source_set[0]:
+                continue
             target = target_root / relative
             if source.is_symlink() or target.is_symlink():
                 raise RuntimeError(f"refusing linked gameplay file: {relative}")
@@ -292,13 +304,6 @@ def plan(target_root=None):
                 recognized.update(living_caribbean.PREVIOUS.get(relative, ()))
                 if digest(current) not in recognized:
                     raise RuntimeError(f"unrecognized living Caribbean revision: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative in evening_lights.PREPARERS:
-                reviewed = evening_lights.prepare(relative, incoming)
-                if current not in (incoming, reviewed):
-                    raise RuntimeError(f"unrecognized evening lights revision: {relative}")
                 if current != reviewed:
                     changes[relative] = (current, reviewed)
                 continue
@@ -403,6 +408,8 @@ def plan(target_root=None):
     # callbacks then compose once on those exact final bytes. Original bytes
     # remain the backup/delivery owner, including an already-installed adapter.
     for relative in military_callbacks.HOOKS:
+        if relative in source_set[0]:
+            continue
         target = target_root / relative
         current = target.read_bytes()
         if relative in originals and current != originals[relative]:
@@ -414,21 +421,24 @@ def plan(target_root=None):
             changes[relative] = (current, reviewed)
         else:
             changes.pop(relative, None)
-    return {relative: (originals[relative], incoming)
-            for relative, (_, incoming) in changes.items()}
+    result = {relative: (originals[relative], incoming)
+              for relative, (_, incoming) in changes.items()}
+    result.update(canonical)
+    return result
 
 
-def apply(changes):
+def apply(changes, paths=None, source_set=None):
     guard = player_guard(INSTALLED_APP) if INSTALLED_APP.is_dir() else nullcontext()
     with guard:
-        apply_locked(changes)
+        apply_locked(changes, paths, source_set)
 
 
-def apply_locked(changes):
+def apply_locked(changes, paths=None, source_set=None):
     if not compiler_ready():
         raise RuntimeError("build and stage Metal with the current compiler, deck, sea-surrender and contact-activity patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
-    app_changes = plan(app_resources) if INSTALLED_APP.is_dir() else {}
+    source_set = gameplay_sources.read(paths) if source_set is None else source_set
+    app_changes = plan(app_resources, paths, source_set) if INSTALLED_APP.is_dir() else {}
     engines = [ENGINE]
     if INSTALLED_APP.is_dir():
         engines.append(INSTALLED_APP / "Contents/MacOS/metal-engine")
@@ -440,6 +450,10 @@ def apply_locked(changes):
     runtime_state = DeliveryState(TARGET)
     app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
     for relative, (previous, incoming) in changes.items():
+        if relative in source_set[0]:
+            if incoming != source_set[0][relative][0]:
+                raise RuntimeError(f"Concurrent canonical source change: {relative}")
+            continue
         path = TARGET / relative
         if path.read_bytes() != previous:
             raise RuntimeError(f"concurrent Metal change: {relative}")
@@ -459,8 +473,6 @@ def apply_locked(changes):
                 backup_matches = digest(baseline) == governor_dialog.BASE
             if relative in living_caribbean.PREPARERS:
                 backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
-            if relative in evening_lights.PREPARERS:
-                backup_matches = digest(baseline) == evening_lights.PREPARERS[relative][0]
             if relative in fleet_gameplay.FILES:
                 backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
             if relative in tradebook.BASE:
@@ -495,17 +507,19 @@ def apply_locked(changes):
             batch[backup] = (None, previous)
         batch[path] = (previous, incoming)
     for relative, (previous, incoming) in app_changes.items():
+        if relative in source_set[0]:
+            continue
         app_state.admit(relative, previous, incoming, {digest(previous)})
         app_state.track(relative, incoming)
         batch[app_resources / relative] = (previous, incoming)
-    batch[runtime_state.receipt] = runtime_state.change()
+    batch.update(gameplay_sources.prepare_delivery(TARGET, source_set, runtime_state))
     if app_state is not None:
-        batch[app_state.receipt] = app_state.change()
+        batch.update(gameplay_sources.prepare_delivery(app_resources, source_set, app_state))
 
     def verify():
-        if plan():
+        if plan(paths=paths, source_set=source_set):
             raise RuntimeError("post-apply gameplay comparison failed")
-        if app_state is not None and plan(app_resources):
+        if app_state is not None and plan(app_resources, paths, source_set):
             raise RuntimeError("post-apply installed gameplay comparison failed")
 
     transact(batch, INSTALLED_APP if app_state is not None else None, verify)
@@ -514,15 +528,17 @@ def apply_locked(changes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("check", "apply"), default="check", nargs="?")
+    parser.add_argument("--path", action="append", help="Deliver only this registered canonical gameplay source (repeatable).")
     args = parser.parse_args()
     try:
-        changes = plan()
+        source_set = gameplay_sources.read(args.path)
+        changes = plan(paths=args.path, source_set=source_set)
         ready = compiler_ready()
         print(f"Metal gameplay: {len(changes)} files pending; compiler {'ready' if ready else 'build/stage pending'}")
         for path in sorted(changes):
             print(path)
         if args.action == "apply":
-            apply(changes)
+            apply(changes, args.path, source_set)
             print("Applied to native-metal. SAVE, config and renderer resources unchanged.")
         return 0
     except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as error:

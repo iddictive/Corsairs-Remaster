@@ -20,8 +20,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from runtime_script_patch import atomic_write
-from delivery_state import DeliveryState, safe_path, require_idle
+from delivery_state import DeliveryState, RECEIPT, safe_path, require_idle
 from delivery_state import player_guard as delivery_player_guard, transact as deliver
+import gameplay_sources
 
 PROJECT = Path(__file__).resolve().parents[1]
 METAL = PROJECT / "experiments/native-metal"
@@ -181,6 +182,42 @@ def cmd_push(quiet: bool = False, revert: Path | None = None) -> int:
     return 0
 
 
+def cmd_promote(name: str) -> int:
+    """Make a snapshotted dev edit the canonical source and stage it once."""
+    with session(), player_guard():
+        source_set = gameplay_sources.read([name])
+        state = read_state()
+        row = state["files"].get(name)
+        if row is None:
+            raise RuntimeError(f"No original dev snapshot for {name}; pull before editing.")
+        relative = Path(name)
+        workspace = content_path(WORKSPACE, relative)
+        edited = workspace.read_bytes()
+        incoming = gameplay_sources.runtime_bytes(name, edited)
+        installed = content_path(resources(), relative).read_bytes()
+        if digest(installed) != row["applied"]:
+            raise RuntimeError(f"Unknown installed edit: {name}; no files changed.")
+        sources, inputs = source_set
+        current, legacy = sources[name]
+        if gameplay_sources.source_bytes(name, current) not in (
+                gameplay_sources.source_bytes(name, original(row)),
+                gameplay_sources.source_bytes(name, incoming)):
+            raise RuntimeError(f"Canonical source changed since dev snapshot: {name}")
+        source = safe_path(gameplay_sources.ROOT, relative)
+        inputs[source] = (inputs[source][0], gameplay_sources.source_bytes(name, incoming))
+        sources[name] = (incoming, legacy)
+        changes = gameplay_sources.prepare_delivery(METAL / ".cache/runtime", source_set)
+        changes.update(gameplay_sources.prepare_delivery(resources(), source_set, development=True))
+        changes[workspace] = (edited, incoming)
+        key = snapshot(incoming)
+        state["files"][name] = {"original": key, "applied": key}
+        count = sum(before != after for path, (before, after) in changes.items()
+                    if path.is_relative_to(resources()) and path.name != RECEIPT)
+        transact(changes, state, True)
+    print(f"Promoted {name} to canonical source; installed {count} file(s).")
+    return 0
+
+
 def pull_locked(state: dict, all_files: bool = False) -> None:
     selected = set(files(WORKSPACE))
     for relative in files(resources()):
@@ -320,6 +357,8 @@ def main() -> int:
     watch.add_argument("--interval", "-i", type=float, default=0.5)
     revert = commands.add_parser("revert")
     revert.add_argument("path", type=Path)
+    promote = commands.add_parser("promote")
+    promote.add_argument("path", help="Exact registered canonical source path")
     args = parser.parse_args()
     try:
         if args.command in (None, "launch"):
@@ -334,6 +373,8 @@ def main() -> int:
             return cmd_diff(args.path)
         if args.command == "watch":
             return cmd_watch(args.interval)
+        if args.command == "promote":
+            return cmd_promote(args.path)
         return cmd_push(revert=args.path)
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Dev runtime: {error}", file=sys.stderr)

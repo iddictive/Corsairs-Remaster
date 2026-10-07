@@ -85,10 +85,14 @@ class DeliveryState:
             raise RuntimeError(f"Outside managed delivery scope: {name}")
         return safe_path(self.resources, relative)
 
-    def admit(self, name: str, current: bytes, incoming: bytes, legacy=(),
-              development: bool = False) -> None:
+    def admit(self, name: str, current: bytes | None, incoming: bytes, legacy=(),
+              development: bool = False, create: bool = False) -> None:
         self.path(name)
         row = self.files.get(name)
+        if current is None:
+            if row is not None or not create:
+                raise RuntimeError(f"Missing delivered file: {name}; no files changed.")
+            return
         if row is not None:
             if digest(current) != row["sha256"]:
                 raise RuntimeError(f"Unknown delivered-file edit: {name}; no files changed.")
@@ -193,11 +197,16 @@ def transact(changes: dict[Path, tuple[bytes | None, bytes]], app: Path | None =
     return len(written)
 
 
-def record_export(app: Path) -> None:
+def record_export(app: Path, content: dict[str, bytes] | None = None) -> None:
     """Record fresh produced bytes after nested signing, before the outer seal."""
     state = DeliveryState(app / "Contents/Resources", app)
     if state.before is not None:
         raise RuntimeError("Export destination already has delivery state.")
     for name in (*NATIVE_RESOURCES, ENGINE):
         state.track(name, state.path(name).read_bytes())
+    for name, incoming in (content or {}).items():
+        current = state.path(name).read_bytes()
+        if current != incoming:
+            raise RuntimeError(f"Stale exported gameplay source: {name}")
+        state.track(name, current)
     atomic_write(state.receipt, state.change()[1])

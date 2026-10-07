@@ -203,6 +203,12 @@ def validate_inputs(repo_root: Path) -> dict[str, Any]:
             "Run experiments/native-metal/run.sh --stage-only first."
         )
 
+    from gameplay_sources import read
+    for name, (incoming, _) in read()[0].items():
+        path = metal_cache / "runtime" / name
+        if not path.is_file() or path.read_bytes() != incoming:
+            sys.exit(f"Error: Canonical gameplay source is not staged: {name}; run sync_metal_gameplay.py apply.")
+
     # Captured neutral baseline gameplay inputs required - no runtime-config fallback
     engine_ini = gameplay_inputs / "engine.ini"
     options = gameplay_inputs / "options"
@@ -508,7 +514,8 @@ def sign_application(bundle_dir: Path) -> None:
                              (bundle_dir / 'Contents/MacOS/metal-engine', BUNDLE_ID + '.engine')):
         subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', identifier, str(path)])
     from delivery_state import record_export
-    record_export(bundle_dir)
+    from gameplay_sources import read
+    record_export(bundle_dir, {name: incoming for name, (incoming, _) in read()[0].items()})
     subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', BUNDLE_ID, str(bundle_dir)])
     subprocess.check_call(['codesign', '--verify', '--deep', '--strict', str(bundle_dir)])
 
