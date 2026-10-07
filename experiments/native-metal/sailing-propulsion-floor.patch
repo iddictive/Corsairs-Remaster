@@ -1,52 +1,3 @@
---- a/src/libs/shared_headers/include/shared/sail_msg.h
-+++ b/src/libs/shared_headers/include/shared/sail_msg.h
-@@ -7,6 +7,7 @@
- #define MSG_SAIL_ROPE_UNTIE 40021      // "lil" (msg_code, model_id,ropenum)
- #define MSG_SAIL_TO_NEWHOST 40022      // "liplii" (msg_code, oldModel_id,&node,groupNum, hewHost_id,newModel_id)
- #define MSG_SAIL_CHECK 40023           // "liii" (msg_code, ship_id, newHost_id, newModel_id)
-+#define MSG_SAIL_GET_DEPLOYED 40026    // "lip" (msg_code, ship_id, &deployedDamagedFraction)
- #define MSG_SAIL_GET_PARAMS 40024      // "lip" (msg_code, ship_id, &maxSpeed)
- #define MSG_SAIL_MAST_PROCESSING 40025 // "ll" (msg_code, charIdx)
- // get the maximum speed factor for the ship
---- a/src/libs/rigging/src/sail.cpp
-+++ b/src/libs/rigging/src/sail.cpp
-@@ -925,6 +925,36 @@
-         }
-         break;
- 
-+    // Wind-independent cloth available for propulsion. Keep the original
-+    // group's denominator so losing a mast cannot restore its speed share.
-+    case MSG_SAIL_GET_DEPLOYED: {
-+        const entid_t shipEI = message.EntityID();
-+        auto *deployed = static_cast<float *>(message.Pointer());
-+        if (!deployed)
-+            break;
-+        *deployed = 0.0f;
-+        for (int gn = 0; gn < groupQuantity; ++gn)
-+        {
-+            if (gdata[gn].shipEI != shipEI || gdata[gn].bDeleted ||
-+                gdata[gn].speed_m <= 0.001f)
-+                continue;
-+            float available = 0.0f;
-+            for (int j = 0; j < gdata[gn].sailQuantity; ++j)
-+            {
-+                const auto *sail = slist[gdata[gn].sailIdx[j]];
-+                if (sail->bDeleted || sail->bFreeSail || sail->bRolling)
-+                    continue;
-+                float area = GetSailSpeed(sail->ss.holeCount, sail->GetMaxHoleCount(), sail->maxSpeed);
-+                if (sail->sroll)
-+                    area *= Clamp(sail->sroll->delta);
-+                available += area;
-+            }
-+            *deployed = Clamp(available / gdata[gn].speed_m);
-+            break;
-+        }
-+        break;
-+    }
-+
-     case MSG_SAIL_GET_PARAMS: // "lip"
-     {
-         entid_t shipEI = message.EntityID();
 --- a/src/libs/ship/src/ship.cpp
 +++ b/src/libs/ship/src/ship.cpp
 @@ -4,6 +4,7 @@
@@ -57,27 +8,48 @@
  #include "character.h"
  #include "math_inlines.h"
  #include "shared/mast_msg.h"
-@@ -283,6 +284,24 @@
+@@ -283,6 +284,45 @@
      }
  
      Speed->z *= GetMaxSpeedZ();
 +
-+    // Floor the propulsion target, never velocity: inertia, braking, impulses
-+    // and collision/grounding resolution still own the actual movement.
++    // Quarter-of-ideal propulsion floor: while main masts stand and sails
++    // are raised, the ship keeps at least a quarter of her ideal hull speed
++    // whatever the wind, sail damage, load, crew or skills. Each standing
++    // main mast keeps its share; dismasted ships stay adrift at 0. Floors
++    // the propulsion target, never velocity: inertia, braking, impulses and
++    // collision/grounding resolution still own the actual movement.
 +    auto *character = GetACharacter();
-+    auto *stopped = character->FindAClass(character, "Ship.Stopped");
-+    auto *capability = character->FindAClass(character, "Tmp.fShipSpeed");
-+    if (!isDead() && !bSetFixed && fSailState >= 0.3f && capability &&
++    auto *stopped = character ? character->FindAClass(character, "Ship.Stopped") : nullptr;
++    if (character && !isDead() && !bSetFixed && fSailState >= 0.3f &&
 +        (!stopped || stopped->GetAttributeAsDword() == 0) &&
 +        !character->GetAttributeClass("SeaSurrender") && !IsShipSailingFloorBlocked(character))
 +    {
-+        float deployed = 0.0f;
-+        core.Send_Message(sail_id, "lip", MSG_SAIL_GET_DEPLOYED, GetId(), &deployed);
-+        // The script caches this ship's upgrade/load/crew/skill/damage-adjusted
-+        // capability BEFORE applying weather. Missing old-save data is a no-op.
-+        const float floor = 0.30f * capability->GetAttributeAsFloat() * deployed;
-+        if (floor > Speed->z)
-+            Speed->z = floor;
++        int standingMasts = 0, totalMasts = 0;
++        // Never trust the count past the vector: newly created ships can
++        // run propulsion before their mast list is built.
++        const int32_t mastCount =
++            iNumMasts < static_cast<int32_t>(pMasts.size()) ? iNumMasts : static_cast<int32_t>(pMasts.size());
++        for (int32_t i = 0; i < mastCount; i++)
++        {
++            const auto &mast = pMasts[i];
++            // iMastNum is parsed once at build; count only provable main
++            // masts so unparseable nodes fail closed to stock behavior.
++            if (mast.iMastNum <= 0 || mast.iMastNum >= TOPMAST_BEGIN)
++                continue;
++            totalMasts++;
++            if (!mast.bBroken)
++                standingMasts++;
++        }
++        float mastFloor = 0.0f;
++        auto *ideal = character->FindAClass(character, "Tmp.fShipSpeedIdeal");
++        if (ideal && totalMasts > 0)
++            mastFloor = 0.25f * ideal->GetAttributeAsFloat() *
++                        static_cast<float>(standingMasts) / static_cast<float>(totalMasts);
++        else if (!ideal)
++            mastFloor = standingMasts >= 3 ? 3.0f : standingMasts == 2 ? 2.5f : standingMasts == 1 ? 2.0f : 0.0f;
++        if (mastFloor > Speed->z)
++            Speed->z = mastFloor;
 +    }
      Rotate->y *= GetMaxSpeedY();
  

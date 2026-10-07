@@ -102,8 +102,8 @@
          renderTuner->Restore(this, rs);
 --- a/src/libs/model/src/modelr.h
 +++ b/src/libs/model/src/modelr.h
-@@ -152,6 +152,7 @@
-     NODE *GetCollideNode() override;
+@@ -158,6 +158,7 @@
+ #endif
  
    protected:
 +    float pickupGlowSeconds = 0.0f;

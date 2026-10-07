@@ -1,6 +1,6 @@
 --- a/src/libs/sea_ai/src/ai_helper.cpp
 +++ b/src/libs/sea_ai/src/ai_helper.cpp
-@@ -114,6 +114,24 @@
+@@ -114,6 +114,29 @@
      return &pRelations[x + y * dwRelationSize];
  }
 
@@ -11,8 +11,13 @@
 +    if (x != y)
 +    {
 +        const auto surrenderedTo = [](ATTRIBUTES *ship, ATTRIBUTES *commander) {
-+            return ship && commander && ship->GetAttributeClass("SeaSurrender") &&
-+                   ship->GetAttributeAsDword("SeaSurrender", INVALID_ARRAY_INDEX) ==
++            if (!ship || !commander)
++                return false;
++            // Resolve the name through this root's codec, but read the live node
++            // each time: surrender can be removed without CalculateRelations.
++            auto *surrender = ship->GetAttributeClassByCode(ship->GetStringCodec().Convert("SeaSurrender"));
++            return surrender &&
++                   (surrender->HasValue() ? surrender->GetAttributeAsDword() : INVALID_ARRAY_INDEX) ==
 +                       static_cast<uint32_t>(GetIndex(commander));
 +        };
 +        if (surrenderedTo(aCharacters[x], aMainCharacters[y]) ||
@@ -25,7 +30,7 @@
  uint32_t AIHelper::GetRelationSafe(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
  {
      Assert(pA1 && pA2);
-@@ -125,7 +143,7 @@
+@@ -125,7 +148,7 @@
      const auto dw2 = FindIndex(pA2);
      if (dw2 == INVALID_ARRAY_INDEX)
          return RELATION_NEUTRAL;
@@ -34,7 +39,7 @@
  }
 
  uint32_t AIHelper::GetRelation(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
-@@ -135,7 +153,7 @@
+@@ -135,7 +158,7 @@
      Assert(dw1 != INVALID_ARRAY_INDEX);
      const auto dw2 = FindIndex(pA2);
      Assert(dw2 != INVALID_ARRAY_INDEX);
@@ -53,3 +58,32 @@
  };
 
  extern AIHelper Helper;
+--- a/src/libs/battle_interface/src/sea/ship_info_images.cpp
++++ b/src/libs/battle_interface/src/sea/ship_info_images.cpp
+@@ -265,8 +265,11 @@
+     CalculateDirectingVectors(shippos);
+ 
+     // write relation square
++    int32_t rel = pSD->relation;
++    if (pSD->pAttr && (pSD->pAttr->GetAttributeClass("SeaSurrender") || pSD->pAttr->GetAttributeClass("Surrendered")))
++        rel = 2;
+     WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,
+-                      GetUVForRelation(pSD->relation), 1.f);
++                      GetUVForRelation(rel), 1.f);
+ 
+     // write progress back square
+     WriteSquareVertex(&m_pVBuffBackProgress[nShipNum * 4], shippos, m_vProgressBackOffset, m_fpProgressBackSize,
+--- a/src/libs/battle_interface/src/sea/battle_navigator.cpp
++++ b/src/libs/battle_interface/src/sea/battle_navigator.cpp
+@@ -1028,7 +1028,10 @@
+         auto dwColor = 0xFFFFFFFF;
+         if (psd->dwShipColor == 0)
+         {
+-            switch (psd->relation)
++            auto rel = psd->relation;
++            if (psd->pAttr && (psd->pAttr->GetAttributeClass("SeaSurrender") || psd->pAttr->GetAttributeClass("Surrendered")))
++                rel = BI_RELATION_NEUTRAL;
++            switch (rel)
+             {
+             case BI_RELATION_ENEMY:
+                 dwColor = m_dwEnemyShipColor;

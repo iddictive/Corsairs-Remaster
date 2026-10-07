@@ -14,6 +14,7 @@ import metal_menu_branding as menu_branding
 import metal_deck_camera as deck_camera
 import metal_deck_controls as deck_controls
 import patch_custody_life as custody_life
+import metal_pickup_glow as pickup_glow
 import patch_squad_common_supply as squad_supply
 import metal_tradebook as tradebook
 import metal_governor_dialog as governor_dialog
@@ -172,6 +173,8 @@ def compiler_ready():
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
             and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
+            and record.get("pickup_patch_sha256") == digest((METAL / "pickup-glow.patch").read_bytes())
+            and record.get("pickup_layer_sha256") == digest(Path(pickup_glow.__file__).read_bytes())
             and record.get("graphics_layer_sha256") == digest(Path(graphics.__file__).read_bytes())
             and record.get("menu_branding_layer_sha256") == digest(Path(menu_branding.__file__).read_bytes())
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
@@ -332,6 +335,14 @@ def plan(target_root=None):
                 if reviewed != current:
                     changes[relative] = (current, reviewed)
                 continue
+            if relative == pickup_glow.RELATIVE_PATH:
+                canonical_current = pickup_glow.strip(current)
+                if canonical_current not in (source.read_bytes(), incoming):
+                    raise RuntimeError(f"unrecognized pickup source revision: {relative}")
+                reviewed = pickup_glow.prepare(incoming)
+                if current != reviewed:
+                    changes[relative] = (current, reviewed)
+                continue
             if relative in custody_life.BASE:
                 if digest(current) not in {custody_life.INSTALLED[relative], custody_life.UPDATED[relative]} | custody_life.PREVIOUS.get(relative, set()):
                     raise RuntimeError(f"unrecognized custody revision: {relative}")
@@ -465,6 +476,8 @@ def apply(changes):
                     backup_matches = digest(baseline) == custody_life.BASELINE[relative]
                 if relative in squad_supply.BASE:
                     backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
+                if relative == pickup_glow.RELATIVE_PATH:
+                    backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
                 if relative in menu_branding.FILES:
                     backup_matches = digest(baseline) == menu_branding.BASE[relative]
                 graphics_spec = next((item for item in graphics.FILES if item.relative_path == relative), None)

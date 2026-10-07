@@ -12,6 +12,7 @@
 #include <atomic>
 #include <string>
 #include "texture_material_compat.hpp"
+#include "frame_flight.hpp"
 namespace sm {
 inline uint64_t nextBufferIdentity(){static std::atomic<uint64_t> next{1};return next.fetch_add(1,std::memory_order_relaxed);}
 void retainDeviceResource(IDirect3DDevice9*);
@@ -130,7 +131,7 @@ struct Texture:StubIDirect3DTexture9,ResourceParent{
 struct VertexBuffer:StubIDirect3DVertexBuffer9,ResourceParent{
  HRESULT STDMETHODCALLTYPE GetDevice(IDirect3DDevice9**out)override{return getOwner(out);}
  const uint64_t cacheIdentity=nextBufferIdentity();uint64_t cacheRevision=0;
- std::vector<uint8_t>bytes;DWORD usage=0,fvf=0;bool locked=false,gpuSkinned=false;id<MTLBuffer> gpuSkinningBuffer=nil;explicit VertexBuffer(UINT n):bytes(n){}
+ std::vector<uint8_t>bytes;DWORD usage=0,fvf=0;bool locked=false,gpuSkinned=false;id<MTLBuffer> gpuSkinningBuffer=nil;id<MTLBuffer> skinningRing[FrameFlightRing::count]={nil,nil,nil};size_t skinningRingBytes[FrameFlightRing::count]={0,0,0};explicit VertexBuffer(UINT n):bytes(n){}
  D3DRESOURCETYPE STDMETHODCALLTYPE GetType()override{return D3DRTYPE_VERTEXBUFFER;}
  HRESULT STDMETHODCALLTYPE Lock(UINT offset,UINT size,void**out,DWORD)override{if(!out||locked||offset>bytes.size()||(size&&size>bytes.size()-offset))return D3DERR_INVALIDCALL;*out=bytes.data()+offset;locked=true;return S_OK;}
  HRESULT STDMETHODCALLTYPE Unlock()override{if(!locked)return D3DERR_INVALIDCALL;locked=false;++cacheRevision;return S_OK;}

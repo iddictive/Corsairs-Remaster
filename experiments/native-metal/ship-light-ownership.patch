@@ -1,7 +1,21 @@
-diff --git a/src/libs/ship/src/ship_lights.cpp b/src/libs/ship/src/ship_lights.cpp
 --- a/src/libs/ship/src/ship_lights.cpp
 +++ b/src/libs/ship/src/ship_lights.cpp
-@@ -664,7 +664,7 @@ void ShipLights::ResetLights(VAI_OBJBASE *pObject, bool bLight)
+@@ -540,6 +540,14 @@
+ 
+         if (pCollide)
+         {
++            const float fLightDistSq = ~(vCamPos - L.vCurPos);
++            if (fLightDistSq > 22500.0f)
++            {
++                L.bVisible = false;
++                L.fFlareAlpha = 0.0f;
++                continue;
++            }
++
+             L.bVisible = true;
+ 
+             float fDistance =
+@@ -664,7 +672,7 @@ void ShipLights::ResetLights(VAI_OBJBASE *pObject, bool bLight)
  {
      for (auto &light : aLights)
      {

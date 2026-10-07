@@ -1,0 +1,54 @@
+diff --git a/src/libs/worldmap/src/wdm_merchant_ship.h b/src/libs/worldmap/src/wdm_merchant_ship.h
+--- a/src/libs/worldmap/src/wdm_merchant_ship.h
++++ b/src/libs/worldmap/src/wdm_merchant_ship.h
+@@ -29,6 +29,9 @@
+     void Move(float dltTime) override;
+     // Find the pulling force in the desired direction
+     void FindMoveForce() override;
++    // Fade repulsions near the berth so arrivals can close the last mile.
++    void FindIslandForce() override;
++    void FindShipsForce() override;
+     // Completion check
+     bool KillTest() override;
+ 
+diff --git a/src/libs/worldmap/src/wdm_merchant_ship.cpp b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+--- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
++++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
+@@ -362,6 +362,37 @@
+     WdmEnemyShip::Move(dltTime);
+ }
+ 
++// Near the berth, repulsion from islands and other hulls can overpower the
++// homing force (arrival radius 12 < island reaction 32 + ship radius 45),
++// so ships hover offshore forever and pile up. Fade repulsions out on final.
++static float WdmMerchantBerthFade(const CVECTOR &pos, const CVECTOR &dest)
++{
++    const float dx = dest.x - pos.x;
++    const float dz = dest.z - pos.z;
++    const float dist = sqrtf(dx * dx + dz * dz);
++    if (dist >= 70.0f) return 1.0f;
++    if (dist <= 12.0f) return 0.0f;
++    return (dist - 12.0f) / 58.0f;
++}
++
++void WdmMerchantShip::FindIslandForce()
++{
++    WdmEnemyShip::FindIslandForce();
++    const CVECTOR dest = trafficSteering ? trafficDestination : gotoPos;
++    const float fade = WdmMerchantBerthFade(mtx.Pos(), dest);
++    ix *= fade;
++    iz *= fade;
++}
++
++void WdmMerchantShip::FindShipsForce()
++{
++    WdmEnemyShip::FindShipsForce();
++    const CVECTOR dest = trafficSteering ? trafficDestination : gotoPos;
++    const float fade = WdmMerchantBerthFade(mtx.Pos(), dest);
++    sx *= fade;
++    sz *= fade;
++}
++
+ void WdmMerchantShip::ThinkTraffic()
+ {
+     trafficSteering = false;
