@@ -418,12 +418,18 @@ void WdmHarbourChoiceTick()
 
 // Fort suppression alone cannot erase a living hostile player defence. Read
 // readiness without spending its ammunition; NavalStep remains the only writer.
+bool WdmHarbourDefendsAgainst(int colony, int attackingNation)
+{
+	if (colony < 0 || colony >= MAX_COLONIES || attackingNation < 0 || attackingNation >= MAX_NATIONS) return false;
+	if (WdmMilitaryParticipationValid(colony) || WdmMilitarySafeConduct(colony))
+		return Colonies[colony].trafficSiege.participation.side == "defender";
+	return GetNationRelation2MainCharacter(attackingNation) == RELATION_ENEMY;
+}
+
 bool WdmHarbourNavalOpposition(int colony, int attackingNation)
 {
 	if (!WdmHarbourAshore() || colony < 0 || colony >= MAX_COLONIES || attackingNation < 0 || attackingNation >= MAX_NATIONS) return false;
-	bool defending = (WdmMilitaryParticipationValid(colony) || WdmMilitarySafeConduct(colony)) &&
-		Colonies[colony].trafficSiege.participation.side == "defender";
-	if (!defending && GetNationRelation2MainCharacter(attackingNation) != RELATION_ENEMY) return false;
+	if (!WdmHarbourDefendsAgainst(colony, attackingNation)) return false;
 	for (int slot = 0; slot < COMPANION_MAX; slot++)
 	{
 		int index = GetCompanionIndex(pchar, slot); if (index < 0) continue;
@@ -471,6 +477,7 @@ float WdmHarbourNavalStep(int colony, float incoming, string receipt)
 	if (count == 0) return 0.0;
 	Colonies[colony].trafficHarbour.step = receipt;
 	float fire = 0.0;
+	bool defending = WdmHarbourDefendsAgainst(colony, sti(Colonies[colony].trafficSiege.nation));
 	for (int ordinal = 0; ordinal < COMPANION_MAX; ordinal++)
 	{
 		int target = GetCompanionIndex(pchar, ordinal);
@@ -478,7 +485,7 @@ float WdmHarbourNavalStep(int colony, float incoming, string receipt)
 		ref captain = &Characters[target];
 		if (!WdmHarbourBerthedAt(captain, colony)) continue;
 		captain.Ship.trafficBerth = pchar.location.from_sea;
-		fire = fire + WdmHarbourFire(captain);
+		if (defending) fire = fire + WdmHarbourFire(captain);
 		float wear = incoming / (count * 800.0);
 		if (wear < 0.0) wear = 0.0;
 		captain.Ship.HP = stf(captain.Ship.HP) - GetCharacterShipHP(captain) * wear;

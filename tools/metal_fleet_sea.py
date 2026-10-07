@@ -8,7 +8,7 @@ Every replacement admits exactly one anchor; a second application is rejected.
 from pathlib import Path
 
 BASE_HASHES = {
-    "PROGRAM/worldmap/worldmap_reload.c": "14cdabc70ff8440629a169a2f3c2201c824cde353c6049416e0ea165f57966ee",
+    "PROGRAM/worldmap/worldmap_reload.c": "ff15ad3026b75f32b3a67e6e3cdda02c0a1139a07eb45d12dcc58bee69ab6712",
     "PROGRAM/sea_ai/sea.c": "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
     "PROGRAM/sea_ai/AIFantom.c": "40385ed6482ba3c35507636928ecc60ce24191b87aa0264f7e85894619741e6f",
     "PROGRAM/sea_ai/AIShip.c": "418e35eb44997d783668f734553fd38b7cbc091b69f93b86e918a8c749871be5",

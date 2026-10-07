@@ -296,18 +296,69 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "631047bc9c6ccd226fbd935b0461bd340549a022cd6660d7a8ba951a1ab2f11d"
+WDM_TRAFFIC_SHA256 = "ddede7d890e347b29670a7a2f42e03ecd62e15151b3103a2b25d544ee3d307d9"
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
-WDM_MILITARY_SHA256 = "8a683fc050b01f58f94ce1c9b0ba4e6d87f610afa62dadb6ff2cbe80bf9e8186"
+WDM_MILITARY_SHA256 = "dae69b3c4f2deec7623906a67c644fc96604f936586a9b6cf95a800966de4431"
 WDM_OPERATION_MODULES = {
     "worldmap-contact.c": "80ed71add68db6a0683e9fb5cf6a8ab5880aef000ac03300268c39cae960fa17",
-    "worldmap-recovery.c": "abff863661f3f1adfd136a301c327e40750d02fcebbb818e99a209654d410aa1",
-    "worldmap-harbour.c": "9517d2960de1e1af74c8359aa9ce0bb178f7c2411dc070332025ffb34db10306",
-    "worldmap-participation.c": "0fdb68e1f97750b286b3bfd60b426b94aab2102eba277632bd6666b781fd135f",
-    "worldmap-land.c": "2e8ec8ff830536cdcab24e674bcbc155cf0c68cfee1c40ab5fac41ab136faa9c",
+    "worldmap-recovery.c": "b2ae4add6db8843a9355641fa3809182cab8d96655466c7fa705f87a0be158d9",
+    "worldmap-harbour.c": "af1fda306a0a62202bc284c22733785490c67a02ed290e6f50a1c23fc4ec8a95",
+    "worldmap-participation.c": "414e8977d6d3c22e53a268b0a81929a68011097c161817795d841dba81f1551f",
+    "worldmap-land.c": "b87f9b295424ca1fdc9378c03c41e3cdca2a8ef422a00e9697c2a9d71c3e17c6",
 }
 FORT_LAYOUT = Path(__file__).parent / "gameplay/fort-layout.json"
 FORT_LAYOUT_SHA256 = "e1111baefbbc01d4b8c7f9fcc5e3a973f6a09d58f4e632dcfd752db77e8d7cc2"
+LAND_LAYOUT = Path(__file__).parent / "gameplay/land-layout.json"
+LAND_LAYOUT_SHA256 = "77e8e9d5a5df0a1f9f3bfe778657c37dce809f5c2b7584ec674f6a5968fcc85e"
+
+
+def land_layout_source() -> bytes:
+    raw = LAND_LAYOUT.read_bytes()
+    if digest(raw) != LAND_LAYOUT_SHA256:
+        raise RuntimeError("land layout source hash mismatch")
+    document = json.loads(raw)
+    if document["schema"] != 1 or document["consumer"] != WDM_ENC_PATH:
+        raise RuntimeError("unsupported land layout consumer")
+    source = ['\nbool WdmMilitaryAuthoredLandLayout(aref loc, ref layout)', '{',
+              '\tDeleteAttribute(layout, "");',
+              '\tif (!CheckAttribute(loc, "filespath.models")) return false;']
+
+    def literal(value: str) -> str:
+        # Storm source uses authored backslashes directly in model paths.
+        if '"' in value or '\n' in value or '\r' in value:
+            raise RuntimeError("invalid authored land layout string")
+        return '"' + value + '"'
+
+    def point(path: str, values: list) -> None:
+        for key, value in zip(("group", "name", "x", "y", "z"), values, strict=True):
+            encoded = literal(value) if isinstance(value, str) else str(value)
+            source.append(f'\t\tlayout.{path}.{key} = {encoded};')
+
+    for row in document["layouts"]:
+        locations = " || ".join(f'loc.id == {literal(name)}' for name in row["locations"])
+        stem = row["model_path"].rstrip("\\/")
+        variants = sorted({stem, stem + "\\", stem.replace("\\", "/"), stem.replace("\\", "/") + "/"})
+        paths = " || ".join(f'loc.filespath.models == {literal(path)}' for path in variants)
+        slot = row["locator_slot"]
+        source += [f'\tif (({locations}) && ({paths}) &&',
+                   f'\t\tCheckAttribute(loc, "models.always.{slot}") && loc.models.always.{slot} == {literal(row["locator_model"])})', '\t{',
+                   f'\t\tlayout.kind = {literal(row["kind"])}; layout.limit = {row["limit"]};']
+        for side in ("attacker", "defender"):
+            point(f'anchor.{side}', row["anchors"][side])
+            candidates = row["candidates"][side]
+            source.append(f'\t\tlayout.{side}.count = {len(candidates)};')
+            for index, values in enumerate(candidates):
+                point(f'{side}.point{index}', values)
+        source += ['\t\treturn true;', '\t}']
+    return enc("\n".join(source + ['\treturn false;', '}']) + "\n")
+
+
+def verify_land_layout_assets(runtime_root: Path) -> None:
+    land_layout_source()
+    for row in json.loads(LAND_LAYOUT.read_bytes())["layouts"]:
+        path = runtime_root / "RESOURCE" / row["resource"]
+        if not path.is_file() or digest(path.read_bytes()) != row["sha256"]:
+            raise RuntimeError(f'unrecognized physical land layout: {row["resource"]}')
 
 
 def fort_layout_source() -> bytes:
@@ -418,7 +469,7 @@ def prepare_worldmap_encgen(data: bytes) -> bytes:
         if digest(source) != expected:
             raise RuntimeError(f"worldmap operation source hash mismatch: {name}")
         helpers += enc("\n") + enc(source.decode("utf-8"))
-    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8")) + fort_layout_source() + enc("\n") + enc(military.decode("utf-8")) + helpers
+    return data[:start] + WDM_TRAFFIC_TICK + data[end:] + enc("\n") + enc(traffic.decode("utf-8")) + fort_layout_source() + land_layout_source() + enc("\n") + enc(military.decode("utf-8")) + helpers
 
 
 # ---------------------------------------------------------------------------
@@ -1348,13 +1399,16 @@ WDM_REL_ENC_NEW = enc("""		//Получим информацию о данном
 			if (!includeEncounter) includeEncounter = WdmTrafficBattleInSeaRange(i, numEncounters, mpsX, mpsZ);
 			int pairedEncounter = MakeInt(worldMap.encounter.attack);
 			string pairedSeaGroup = "";
-			if (pairedEncounter >= 0 && pairedEncounter < numEncounters && pairedEncounter != i)
+			if (!WdmEncounterUsesAuthoredAdmission() && pairedEncounter >= 0 && pairedEncounter < numEncounters && pairedEncounter != i)
 			{
 				if (wdmSetCurrentShipData(pairedEncounter))
 				{
-					// Import both sides even when the radius cuts through a battle.
-					if (WdmEncounterInSeaRange(mpsX, mpsZ)) includeEncounter = true;
-					pairedSeaGroup = "egroup__wdm_" + worldMap.encounter.id;
+					// Ordinary battle expansion never adopts an authored encounter.
+					if (!WdmEncounterUsesAuthoredAdmission())
+					{
+						if (WdmEncounterInSeaRange(mpsX, mpsZ)) includeEncounter = true;
+						pairedSeaGroup = "egroup__wdm_" + worldMap.encounter.id;
+					}
 				}
 				if (!wdmSetCurrentShipData(i)) continue;
 			}
@@ -1364,18 +1418,58 @@ WDM_REL_ENC_NEW = enc("""		//Получим информацию о данном
 
 WDM_REL_HELPER_OLD = enc("""bool WdmAddEncountersData()
 {""")
-WDM_REL_HELPER_NEW = enc("""bool WdmEncounterInSeaRange(float playerX, float playerZ)
+WDM_REL_HELPER_NEW = enc("""bool WdmEncounterUsesAuthoredAdmission()
+{
+	string path = "encounters." + worldMap.encounter.id;
+	if (!CheckAttribute(&worldMap, path)) return true;
+	if (CheckAttribute(&worldMap, path + ".quest") || CheckAttribute(&worldMap, path + ".qID") ||
+		CheckAttribute(&worldMap, path + ".encdata.qID")) return true;
+	return CheckAttribute(&worldMap, path + ".encdata.RealEncounterType") &&
+		sti(worldMap.(path).encdata.RealEncounterType) == ENCOUNTER_TYPE_ALONE;
+}
+
+bool WdmEncounterInSeaRange(float playerX, float playerZ)
 {
 	if (MakeInt(worldMap.encounter.select) != 0) return true;
+	if (WdmEncounterUsesAuthoredAdmission()) return false;
 	float dx = MakeFloat(worldMap.encounter.x) - playerX;
 	float dz = MakeFloat(worldMap.encounter.z) - playerZ;
 	return dx * dx + dz * dz <= 25.0 * 25.0;
 }
 
+bool WdmTrafficSelectedBattleMember(int current, int count)
+{
+	if (!wdmSetCurrentShipData(current)) return false;
+	string path = "encounters." + worldMap.encounter.id;
+	bool included = false;
+	if (!WdmEncounterUsesAuthoredAdmission() && CheckAttribute(&worldMap, path + ".trafficBattleRoot"))
+	{
+		aref encounter; makearef(encounter, worldMap.(path));
+		string root = encounter.trafficBattleRoot;
+		if (root != "" && WdmTrafficIsOrdinary(encounter))
+		{
+			for (int member = 0; member < count; member++)
+			{
+					if (member == current || !wdmSetCurrentShipData(member)) continue;
+					if (!sti(worldMap.encounter.select) || WdmEncounterUsesAuthoredAdmission()) continue;
+					string memberPath = "encounters." + worldMap.encounter.id;
+					if (!CheckAttribute(&worldMap, memberPath + ".trafficBattleRoot")) continue;
+					aref candidate; makearef(candidate, worldMap.(memberPath));
+					if (candidate.trafficBattleRoot == root && WdmTrafficIsOrdinary(candidate)) included = true;
+			}
+		}
+	}
+	wdmSetCurrentShipData(current);
+	return included;
+}
+
 bool WdmTrafficBattleInSeaRange(int current, int count, float playerX, float playerZ)
 {
 	string path = "encounters." + worldMap.encounter.id;
-	if (!CheckAttribute(&worldMap, path + ".trafficBattleRoot") || CheckAttribute(&worldMap, path + ".quest")) return false;
+	if (!CheckAttribute(&worldMap, path + ".trafficBattleRoot") || WdmEncounterUsesAuthoredAdmission()) return false;
+	aref encounter; makearef(encounter, worldMap.(path));
+	if (!WdmTrafficIsOrdinary(encounter)) return false;
+	if (WdmTrafficSelectedBattleMember(current, count)) return true;
 	string root = worldMap.(path).trafficBattleRoot;
 	string rootPath = "encounters." + root;
 	string escort = "";
@@ -1386,7 +1480,10 @@ bool WdmTrafficBattleInSeaRange(int current, int count, float playerX, float pla
 		if (!wdmSetCurrentShipData(member)) continue;
 		if (worldMap.encounter.id == root || worldMap.encounter.id == escort)
 		{
-			if (WdmEncounterInSeaRange(playerX, playerZ)) included = true;
+			string memberPath = "encounters." + worldMap.encounter.id;
+			if (WdmEncounterUsesAuthoredAdmission()) continue;
+			aref candidate; makearef(candidate, worldMap.(memberPath));
+			if (WdmTrafficIsOrdinary(candidate) && WdmEncounterInSeaRange(playerX, playerZ)) included = true;
 		}
 	}
 	wdmSetCurrentShipData(current);
@@ -1576,7 +1673,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "08c4cb18fe6185fd872202b0eee37c4e3473a8421e85ca557e434a9f6e11d286",
+    "PROGRAM/worldmap/worldmap_encgen.c": "a3fb4c7ac5773bd7c85a12140c6b1eec59de5c615ff5ea8224bb238ce17ffc1b",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1591,7 +1688,7 @@ UPDATED = {
     "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
     "RESOURCE/INI/interfaces/ship.ini": "fa4a01b9179c8dfb2794a5c8b1702102ea3cd27e61e9af9781f4b6c8c6a91fc3",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
-    "PROGRAM/worldmap/worldmap_reload.c": "14cdabc70ff8440629a169a2f3c2201c824cde353c6049416e0ea165f57966ee",
+    "PROGRAM/worldmap/worldmap_reload.c": "ff15ad3026b75f32b3a67e6e3cdda02c0a1139a07eb45d12dcc58bee69ab6712",
 }
 
 

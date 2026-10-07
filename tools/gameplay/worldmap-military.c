@@ -571,7 +571,9 @@ void WdmMilitaryEnd(int colony, aref encounter, string result)
 	if (!sti(siege.active)) return;
 	WdmMilitaryEvacuate(encounter, siege);
 	WdmMilitaryLandOperationEnded(colony);
-	if (CheckAttribute(siege, "defenderSurrendered")) WdmMilitarySetGarrison(colony, sti(siege.defenderSurrendered));
+	// A newly reserved story owns its defence; do not overwrite its garrison
+	// with the expedition's former surrendered projection during withdrawal.
+	if (!WdmMilitaryStoryReserved(colony) && CheckAttribute(siege, "defenderSurrendered")) WdmMilitarySetGarrison(colony, sti(siege.defenderSurrendered));
 	if (CheckAttribute(siege, "surrendered") && sti(siege.surrendered) > 0 && sti(siege.evacuated) == 0) result = "surrender";
 	siege.active = 0; siege.phase = "ended"; siege.result = result; siege.foreground = 0;
 	WdmRecoveryEndOperation(colony);
@@ -599,6 +601,10 @@ bool WdmMilitaryArrived(aref encounter)
 	if (!WdmMilitaryActive(colony)) return false;
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
 	if (siege.fleet != encounter.trafficFleetID) return false;
+	if (WdmMilitaryStoryReserved(colony))
+	{
+		WdmMilitaryEnd(colony, encounter, "story_reserved"); return true;
+	}
 	if (siege.phase == "voyage")
 	{
 		siege.phase = "naval"; siege.elapsed = 0.0;
@@ -908,6 +914,10 @@ void WdmMilitaryUpdate(int colony)
 		WdmMilitaryEnd(colony, &lost, "fleet_lost"); return;
 	}
 	aref fleet; makearef(fleet, worldMap.(path));
+	if (WdmMilitaryStoryReserved(colony))
+	{
+		WdmMilitaryEnd(colony, fleet, "story_reserved"); return;
+	}
 	aref clock; makearef(clock, siege.clock);
 	int hours = WdmTrafficElapsed(clock, "hour");
 	if (hours < 1) return;

@@ -127,18 +127,18 @@ bool WdmMilitaryHasPatent(int nation)
 	return isMainCharacterPatented() && GetPatentNation() == nation;
 }
 
-bool WdmMilitaryAgree(int colony, string side, ref speaker, bool contract)
+bool WdmMilitaryAgreementAvailable(int colony, string side, ref speaker, bool contract)
 {
+	if (side != "attacker" && side != "defender") return false;
 	if (!WdmMilitaryActive(colony) || WdmMilitaryParticipationBlocked(colony) || WdmMilitaryParticipationSpeaker(speaker, side) != colony) return false;
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
 	if (siege.phase != "naval" && siege.phase != "fort" && siege.phase != "city") return false;
 	if (CheckAttribute(siege, "participation.id"))
 	{
 		// One side/entitlement per operation. Withdrawal does not reroll a contract.
-		if (siege.participation.id != siege.id || siege.participation.side != side || sti(siege.participation.revoked) ||
-			sti(siege.participation.departed) || sti(siege.participation.settled)) return false;
-		siege.participation.active = 1; siege.participation.phase = siege.phase;
-		WdmMilitaryLandRefreshRelations(colony); UpdateRelations(); return true;
+		aref agreement; makearef(agreement, siege.participation);
+		return agreement.id == siege.id && agreement.side == side && WdmMilitaryPartyMember(agreement, pchar) &&
+			!sti(agreement.active) && !sti(agreement.revoked) && !sti(agreement.departed) && !sti(agreement.settled);
 	}
 	int nation = sti(siege.defendingNation); if (side == "attacker") nation = sti(siege.nation);
 	// Authored allegiance/patent, never the displayed ship flag or enemy-of-enemy.
@@ -146,6 +146,19 @@ bool WdmMilitaryAgree(int colony, string side, ref speaker, bool contract)
 	if (side == "attacker" && GetRelation2BaseNation(nation) != RELATION_FRIEND && !WdmMilitaryHasPatent(nation)) return false;
 	if (side == "attacker" && contract && !WdmMilitaryHasPatent(nation)) return false;
 	if (CheckAttribute(siege, "assistance.id") && (side != "attacker" || !WdmMilitaryAssistanceValid(colony))) return false;
+	return true;
+}
+
+bool WdmMilitaryAgree(int colony, string side, ref speaker, bool contract)
+{
+	if (!WdmMilitaryAgreementAvailable(colony, side, speaker, contract)) return false;
+	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	if (CheckAttribute(siege, "participation.id"))
+	{
+		siege.participation.active = 1; siege.participation.phase = siege.phase;
+		WdmMilitaryLandRefreshRelations(colony); UpdateRelations(); return true;
+	}
+	int nation = sti(siege.defendingNation); if (side == "attacker") nation = sti(siege.nation);
 	aref agreement; makearef(agreement, siege.participation);
 	int earned = 0;
 	int priorStrength = 0;
@@ -503,24 +516,33 @@ float WdmMilitaryContributionShare(aref agreement)
 	return (effort - prior) * ceiling + prior * 0.05;
 }
 
-bool WdmMilitarySettle(int colony, ref speaker)
+bool WdmMilitaryClaimAvailable(int colony, ref speaker)
 {
 	if (colony < 0 || colony >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "trafficSiege.id")) return false;
-	if (!CheckAttribute(&Colonies[colony], "trafficSiege.participation.id"))
+	aref siege, agreement; makearef(siege, Colonies[colony].trafficSiege);
+	if (sti(siege.active)) return false;
+	if (CheckAttribute(siege, "participation.id")) makearef(agreement, siege.participation);
+	else
 	{
 		if (!WdmMilitaryAssistanceValid(colony)) return false;
-		aref terminal; makearef(terminal, Colonies[colony].trafficSiege);
-		if (sti(terminal.active) || terminal.result != "sacked" || sti(terminal.assistance.contribution) <= 0 ||
-			WdmMilitaryParticipationSpeaker(speaker, "attacker") != colony) return false;
-		aref claimant, confirmed; makearef(claimant, terminal.assistance); makearef(confirmed, terminal.participation);
-		CopyAttributes(confirmed, claimant); DeleteAttribute(terminal, "assistance");
+		makearef(agreement, siege.assistance);
 	}
+	if (agreement.id != siege.id || !WdmMilitaryPartyMember(agreement, pchar) || sti(agreement.settled) ||
+		WdmMilitaryParticipationSpeaker(speaker, agreement.side) != colony || WdmMilitaryContributionShare(agreement) <= 0.0) return false;
+	if (agreement.side == "defender") return siege.result == "repelled" || siege.result == "fleet_lost" || siege.result == "surrender";
+	return agreement.side == "attacker" && siege.result == "sacked";
+}
+
+bool WdmMilitarySettle(int colony, ref speaker)
+{
+	if (!WdmMilitaryClaimAvailable(colony, speaker)) return false;
 	aref siege, agreement; makearef(siege, Colonies[colony].trafficSiege); makearef(agreement, siege.participation);
-	if (agreement.id != siege.id || !WdmMilitaryPartyMember(agreement, pchar) || sti(siege.active) || sti(agreement.settled) || WdmMilitaryParticipationSpeaker(speaker, agreement.side) != colony) return false;
+	if (!CheckAttribute(siege, "participation.id"))
+	{
+		aref claimant; makearef(claimant, siege.assistance);
+		CopyAttributes(agreement, claimant); DeleteAttribute(siege, "assistance");
+	}
 	float share = WdmMilitaryContributionShare(agreement);
-	if (share <= 0.0 || siege.result == "ceasefire") return false;
-	if (agreement.side == "defender" && siege.result != "repelled" && siege.result != "fleet_lost" && siege.result != "surrender") return false;
-	if (agreement.side == "attacker" && siege.result != "sacked") return false;
 	int paid = 0; int delivered = 0;
 	if (agreement.side == "defender")
 	{
@@ -613,6 +635,15 @@ void WdmMilitaryNewsRefresh()
 	}
 }
 
+int WdmMilitaryNewsPhaseOrder(string phase)
+{
+	if (phase == "preparation") return 1;
+	if (phase == "attack") return 2;
+	if (phase == "outcome") return 3;
+	if (phase == "return") return 4;
+	return 0;
+}
+
 void WdmMilitaryNews(int colony, string phase, int source)
 {
 	if (colony < 0 || colony >= MAX_COLONIES || source < 0 || source >= MAX_COLONIES || !CheckAttribute(&Colonies[colony], "trafficSiege.id")) return;
@@ -639,17 +670,33 @@ void WdmMilitaryNews(int colony, string phase, int source)
 	}
 	if (report == "" || CheckAttribute(siege, "newsReported." + phase)) return;
 	WdmMilitaryNewsRefresh();
-	int count = 0; bool room = false;
+	int count = 0; bool room = false; int position = -1; int previousPhase = 0;
 	for (int slot = 0; slot < MAX_RUMOURS; slot++)
 	{
-		if (CheckAttribute(&Rumour[slot], "trafficNews.id") && sti(Rumour[slot].state) > 0) count++;
-		if (Rumour[slot].text == "") room = true;
+		ref queued = &Rumour[slot];
+		if (CheckAttribute(queued, "trafficNews.id") && sti(queued.state) > 0) count++;
+		if (queued.text == "") room = true;
+		if (!CheckAttribute(queued, "trafficNews.id") || queued.trafficNews.id != siege.id ||
+			!CheckAttribute(queued, "trafficNews.source") || queued.trafficNews.source != Colonies[source].id ||
+			!CheckAttribute(queued, "City") || queued.City != Colonies[source].id ||
+			!CheckAttribute(queued, "event") || queued.event != "none" ||
+			!CheckAttribute(queued, "next") || queued.next != "none" || CheckAttribute(queued, "loginfo")) continue;
+		int order = WdmMilitaryNewsPhaseOrder(queued.trafficNews.phase);
+		if (order > previousPhase && order < WdmMilitaryNewsPhaseOrder(phase))
+		{ position = slot; previousPhase = order; }
 	}
-	// Preserve quest tips and queue callbacks: ordinary news never evicts them.
-	if (count >= 4 || !room) return;
-	int identity = AddSimpleRumourCity(report, Colonies[source].id, 14, 2, "none");
-	int position = FindRumour(identity); if (position < 0) return;
+	// Advancing our own scoped report needs no extra queue slot. Never evict a
+	// quest or unrelated report, or reactivate a spent report beyond the ceiling.
+	if (count >= 4 && (position < 0 || sti(Rumour[position].state) <= 0)) return;
+	if (position < 0)
+	{
+		if (!room) return;
+		int identity = AddSimpleRumourCity(report, Colonies[source].id, 14, 2, "none");
+		position = FindRumour(identity); if (position < 0) return;
+	}
 	ref news = &Rumour[position]; DeleteAttribute(news, "trafficNews");
+	news.text = report; news.state = 2; news.starttime = DateToInt(0);
+	DeleteAttribute(news, "LastNPC");
 	news.trafficNews.id = siege.id; news.trafficNews.phase = phase;
 	news.trafficNews.source = Colonies[source].id; news.trafficNews.nation = siege.nation; news.trafficNews.report = report;
 	aref observed; makearef(observed, news.trafficNews); WdmTrafficStamp(observed);
@@ -676,15 +723,24 @@ void WdmMilitaryReturnNews(aref encounter)
 
 bool WdmMilitaryParticipationDialog(ref speaker, aref links, string node)
 {
+	if (node != "WdmSiegeOffer" && node != "WdmSiegeAgree" && node != "WdmSiegeVolunteer" && node != "WdmSiegeJoin" && node != "WdmSiegeSettle") return false;
 	string side = "defender";
 	int colony = WdmMilitaryParticipationSpeaker(speaker, side);
 	if (colony < 0) { side = "attacker"; colony = WdmMilitaryParticipationSpeaker(speaker, side); }
-	if (colony < 0) return false;
-	if (node != "WdmSiegeOffer" && node != "WdmSiegeAgree" && node != "WdmSiegeVolunteer" && node != "WdmSiegeJoin" && node != "WdmSiegeSettle") return false;
+	if (colony < 0)
+	{
+		dialog.text = "Условия этой осады больше недоступны.";
+		links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
+	}
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
 	if (node == "WdmSiegeOffer")
 	{
-		if (!WdmMilitaryActive(colony) || WdmMilitaryParticipationBlocked(colony)) return false;
+		bool offerContract = side == "defender" || WdmMilitaryHasPatent(sti(siege.nation));
+		if (!WdmMilitaryAgreementAvailable(colony, side, speaker, offerContract))
+		{
+			dialog.text = "Сейчас заключить соглашение об участии в этой осаде нельзя.";
+			links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
+		}
 		if (side == "defender") dialog.text = "Помогите отбить нападение. За реальный вклад получите до десятой части доступной городской казны и свободных запасов. Для груза нужно место в трюме. Гарнизон и форт не тронут вас и ваши корабли до первого выхода на глобальную карту. Намеренный удар по нашим людям разорвёт соглашение; за случайный сначала предупредим.";
 		else if (WdmMilitaryHasPatent(sti(siege.nation))) dialog.text = "За реальный вклад в штурм получите до десятой части добычи, которую наши корабли сумеют вывезти. Плата — грузом после победы; оставьте место в трюме.";
 		else dialog.text = "Можете помочь в штурме добровольцем, если вы наш союзник. Без нашего патента доли добычи я не обещаю.";
@@ -722,8 +778,9 @@ bool WdmMilitaryParticipationDialog(ref speaker, aref links, string node)
 		if (WdmMilitaryLandEntryAvailable(colony) && WdmMilitaryJoinLand(colony)) { DialogExit(); return true; }
 		dialog.text = "Сейчас пройти к месту боя нельзя."; links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
 	}
-	if (WdmMilitarySettle(colony, speaker)) dialog.text = "Вот ваша доля. Наш расчёт окончен.";
-	else dialog.text = "Сейчас выплатить долю нельзя: нужны итог боя, ваш вклад и доступная казна или вывезенная добыча.";
+	if (!WdmMilitaryClaimAvailable(colony, speaker)) dialog.text = "Сейчас вы не можете требовать долю за эту осаду.";
+	else if (WdmMilitarySettle(colony, speaker)) dialog.text = "Вот ваша доля. Наш расчёт окончен.";
+	else dialog.text = "Сейчас выплатить долю нельзя: нужны доступная казна или вывезенная добыча, а для груза — место в трюме.";
 	links.l10 = "Вернуться."; links.l10.go = "exit"; return true;
 }
 
@@ -735,27 +792,7 @@ bool WdmMilitaryLandEntryAvailable(int colony)
 	if ((siege.phase != "fort" && siege.phase != "city") || sti(siege.foreground) ||
 		!sti(siege.landed) || sti(siege.attackers) <= 0 || Colonies[colony].island != GetCharacterCurrentIslandId(pchar)) return false;
 	string destination = WdmMilitaryLandDestination(colony);
-	int index = FindLocation(destination);
-	if (destination == "" || index < 0) return false;
-	ref loc = &Locations[index];
-	// Admission needs actual locator banks, not only a town/asset name. A town
-	// whose capture geometry has not been bound retains naval assistance only.
-	if (!CheckAttribute(loc, "locators.rld.loc0")) return false;
-	int needed = 1;
-	if (WdmMilitaryLandDefenders(colony) > 0) needed = 2;
-	if (WdmMilitaryLandFreeActors() < needed) return false;
-	if (siege.phase == "city")
-	{
-		if (!CheckAttribute(loc, "locators.rld.loc1")) return false;
-		for (int fighter = 1; fighter <= 9; fighter++)
-		{
-			if (!CheckAttribute(loc, "locators.rld.loc0" + fighter) ||
-				!CheckAttribute(loc, "locators.rld.loc1" + fighter)) return false;
-		}
-	}
-	else if (!CheckAttribute(loc, "locators.rld.loc1") || !CheckAttribute(loc, "locators.rld.aloc0") ||
-		!CheckAttribute(loc, "locators.rld.aloc1")) return false;
-	return true;
+	return destination != "" && WdmMilitaryLandPlacementAvailable(colony, destination);
 }
 
 void WdmMilitaryParticipationLinks(ref speaker, aref links)
@@ -764,17 +801,11 @@ void WdmMilitaryParticipationLinks(ref speaker, aref links)
 	if (colony < 0) { side = "attacker"; colony = WdmMilitaryParticipationSpeaker(speaker, side); }
 	if (colony < 0) return;
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
-	if (WdmMilitaryActive(colony) && !WdmMilitaryParticipationBlocked(colony) &&
-		(siege.phase == "naval" || siege.phase == "fort" || siege.phase == "city"))
-	{
-		links.l12 = "О помощи в этой осаде."; links.l12.go = "WdmSiegeOffer";
-		if (WdmMilitaryLandEntryAvailable(colony))
-		{ links.l13 = "Вступить в бой на берегу."; links.l13.go = "WdmSiegeJoin"; }
-	}
-	if (!sti(siege.active) && CheckAttribute(siege, "participation.id") && !sti(siege.participation.settled) &&
-		!sti(siege.participation.revoked) && sti(siege.participation.contribution) > 0)
-	{ links.l14 = "О моей доле за помощь."; links.l14.go = "WdmSiegeSettle"; }
-	if (!sti(siege.active) && !CheckAttribute(siege, "participation.id") && WdmMilitaryAssistanceValid(colony) &&
-		siege.result == "sacked" && sti(siege.assistance.contribution) > 0 && side == "attacker")
-	{ links.l14 = "О моей доле за помощь."; links.l14.go = "WdmSiegeSettle"; }
+	bool contract = side == "defender" || WdmMilitaryHasPatent(sti(siege.nation));
+	if (WdmMilitaryAgreementAvailable(colony, side, speaker, contract))
+	{ links.lWdmSiegeOffer = "О помощи в этой осаде."; links.lWdmSiegeOffer.go = "WdmSiegeOffer"; }
+	if (WdmMilitaryLandEntryAvailable(colony))
+	{ links.lWdmSiegeJoin = "Вступить в бой на берегу."; links.lWdmSiegeJoin.go = "WdmSiegeJoin"; }
+	if (WdmMilitaryClaimAvailable(colony, speaker))
+	{ links.lWdmSiegeSettle = "О моей доле за помощь."; links.lWdmSiegeSettle.go = "WdmSiegeSettle"; }
 }

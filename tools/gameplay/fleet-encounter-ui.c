@@ -56,7 +56,7 @@ void WdmFleetUIInfo()
 	for (int i = 0; i < count; i++)
 	{
 		if (!wdmSetCurrentShipData(i)) continue;
-		if (MakeInt(worldMap.encounter.select) == 0) continue;
+		if (MakeInt(worldMap.encounter.select) == 0 && !WdmTrafficSelectedBattleMember(i, count)) continue;
 		string id = worldMap.encounter.id;
 		if (CheckAttribute(&observed, id)) continue;
 		observed.(id) = true;

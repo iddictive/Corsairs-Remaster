@@ -1685,16 +1685,22 @@ int WdmTrafficServiceCrewAvailable(int colony)
 	return available;
 }
 
-float WdmTrafficServiceAmmo(aref ship)
+int WdmTrafficServiceShot(aref ship)
 {
-	int intact = WdmMilitaryHullGuns(ship);
-	if (intact <= 0) return 0.0;
 	int shot = 0;
 	for (int good = GOOD_BALLS; good <= GOOD_BOMBS; good++)
 	{
 		int quantity = WdmTrafficEntryGoods(ship, good);
 		if (quantity > shot) shot = quantity;
 	}
+	return shot;
+}
+
+float WdmTrafficServiceAmmo(aref ship)
+{
+	int intact = WdmMilitaryHullGuns(ship);
+	if (intact <= 0) return 0.0;
+	int shot = WdmTrafficServiceShot(ship);
 	int powder = WdmTrafficEntryGoods(ship, GOOD_POWDER);
 	if (powder < shot) shot = powder;
 	return WdmTrafficFraction(makefloat(shot) / intact);
@@ -1794,7 +1800,8 @@ bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 		if (minimumCharge < 1) minimumCharge = 1;
 		int heldBallsForCharge = WdmTrafficEntryGoods(ship, GOOD_BALLS);
 		int heldPowderForCharge = WdmTrafficEntryGoods(ship, GOOD_POWDER);
-		int ballsForCharge = heldBallsForCharge; if (ballsForCharge < minimumCharge) ballsForCharge = minimumCharge;
+		int missingShot = minimumCharge - WdmTrafficServiceShot(ship); if (missingShot < 0) missingShot = 0;
+		int ballsForCharge = heldBallsForCharge + missingShot;
 		int powderForCharge = heldPowderForCharge; if (powderForCharge < minimumCharge) powderForCharge = minimumCharge;
 		minimumChargeWeight = GetGoodWeightByType(GOOD_BALLS, ballsForCharge) - GetGoodWeightByType(GOOD_BALLS, heldBallsForCharge) +
 			GetGoodWeightByType(GOOD_POWDER, powderForCharge) - GetGoodWeightByType(GOOD_POWDER, heldPowderForCharge);
@@ -1852,9 +1859,9 @@ bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 				int charge = intact + repaired;
 				int balls = WdmTrafficEntryGoods(ship, GOOD_BALLS);
 				int powder = WdmTrafficEntryGoods(ship, GOOD_POWDER);
-				if (charge < balls) balls = charge;
+				int missingRepairShot = charge - WdmTrafficServiceShot(ship); if (missingRepairShot < 0) missingRepairShot = 0;
 				if (charge < powder) powder = charge;
-				int chargeWeight = GetGoodWeightByType(GOOD_BALLS, charge) - GetGoodWeightByType(GOOD_BALLS, balls) +
+				int chargeWeight = GetGoodWeightByType(GOOD_BALLS, balls + missingRepairShot) - GetGoodWeightByType(GOOD_BALLS, balls) +
 					GetGoodWeightByType(GOOD_POWDER, charge) - GetGoodWeightByType(GOOD_POWDER, powder);
 				if (repaired * gunWeight + chargeWeight <= free) break;
 				repaired--;
@@ -1865,12 +1872,7 @@ bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 	free = free - repaired * gunWeight;
 	int heldBalls = WdmTrafficEntryGoods(ship, GOOD_BALLS);
 	int heldPowder = WdmTrafficEntryGoods(ship, GOOD_POWDER);
-	int heldShot = heldBalls;
-	for (good = GOOD_BALLS; good <= GOOD_BOMBS; good++)
-	{
-		int alternative = WdmTrafficEntryGoods(ship, good);
-		if (alternative > heldShot) heldShot = alternative;
-	}
+	int heldShot = WdmTrafficServiceShot(ship);
 	int chargeTarget = (intact + repaired) * 6;
 	int shotStock = heldShot + WdmTrafficServiceAvailable(store, GOOD_BALLS);
 	int powderStock = heldPowder + WdmTrafficServiceAvailable(store, GOOD_POWDER);

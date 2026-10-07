@@ -21,7 +21,7 @@ BASES = {
     "PROGRAM/battle_interface/loginterface.c": "88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c",
     "RESOURCE/INI/interfaces/map.ini": "112a4943f67b1d85d6e9fad17dacbdc0d40f338a058af8e4373a48f2a0d5f608",
 }
-HELPER_SHA256 = "27b697ce0738aaf8fb30172348acda2bb06f2a5e8adf4e30e84182962fa2e5aa"
+HELPER_SHA256 = "bfe0155f733e8e18920dc1387b39d89865ec93b820b4b4635c33fa4526af9674"
 
 
 def enc(text: str) -> bytes:

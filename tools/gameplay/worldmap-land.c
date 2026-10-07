@@ -179,6 +179,118 @@ int WdmMilitaryLandDefenders(int colony)
 	return sti(siege.land.(room).defenders);
 }
 
+bool WdmMilitaryLandLayout(int colony, string destination, ref layout)
+{
+	int index = FindLocation(destination);
+	if (index < 0 || !WdmMilitaryAuthoredLandLayout(&Locations[index], layout)) return false;
+	string kind = "fort";
+	if (Colonies[colony].trafficSiege.phase == "city") kind = "city";
+	return layout.kind == kind && sti(layout.limit) > 0 && sti(layout.attacker.count) > 0 && sti(layout.defender.count) > 0;
+}
+
+bool WdmMilitaryLandPlacementAvailable(int colony, string destination)
+{
+	object layout;
+	if (!WdmMilitaryLandLayout(colony, destination, &layout)) return false;
+	int needed = 1;
+	if (WdmMilitaryLandDefenders(colony) > 0) needed = 2;
+	return WdmMilitaryLandFreeActors() >= needed;
+}
+
+string WdmMilitaryLandHeroLocator(int colony, string destination)
+{
+	object layout;
+	if (!WdmMilitaryLandLayout(colony, destination, &layout)) return "";
+	string side = Colonies[colony].trafficSiege.participation.side;
+	return layout.anchor.(side).name;
+}
+
+bool WdmMilitaryLandPointMatches(ref loc, aref point)
+{
+	string path = "locators." + point.group + "." + point.name;
+	if (!CheckAttribute(loc, path + ".x") || !CheckAttribute(loc, path + ".y") || !CheckAttribute(loc, path + ".z")) return false;
+	float dx = stf(loc.(path).x) - stf(point.x);
+	float dy = stf(loc.(path).y) - stf(point.y);
+	float dz = stf(loc.(path).z) - stf(point.z);
+	// Metadata retains six decimal places from the actual GM float coordinates.
+	return dx * dx + dy * dy + dz * dz < 0.0001;
+}
+
+bool WdmMilitaryLandPointRoom(aref point, aref occupied)
+{
+	for (int i = 0; i < GetAttributesNum(occupied); i++)
+	{
+		aref other = GetAttributeN(occupied, i);
+		float dx = stf(point.x) - stf(other.x);
+		float dy = stf(point.y) - stf(other.y);
+		float dz = stf(point.z) - stf(other.z);
+		// Native Character uses height=1.8 and fighting radius=1.5. Reserve both
+		// fighters' radii before creating entities, as well as the hero entries.
+		if (dy * dy < 3.24 && dx * dx + dz * dz < 9.0) return false;
+	}
+	return true;
+}
+
+bool WdmMilitaryLandLoadedLayout(int colony, ref loc, ref layout)
+{
+	if (!WdmMilitaryLandLayout(colony, loc.id, layout)) return false;
+	for (int i = 0; i < 2; i++)
+	{
+		string side = "attacker"; if (i == 1) side = "defender";
+		aref anchor, points; makearef(anchor, layout.anchor.(side)); makearef(points, layout.(side));
+		if (!WdmMilitaryLandPointMatches(loc, anchor)) return false;
+		for (int n = 0; n < sti(points.count); n++)
+		{
+			string key = "point" + n;
+			aref point; makearef(point, points.(key));
+			if (!WdmMilitaryLandPointMatches(loc, point)) return false;
+		}
+	}
+	return true;
+}
+
+bool WdmMilitaryLandPlacementPlan(int colony, ref loc, ref plan)
+{
+	DeleteAttribute(plan, "");
+	object layout;
+	if (!WdmMilitaryLandLoadedLayout(colony, loc, &layout)) return false;
+	object occupied;
+	for (int sideIndex = 0; sideIndex < 2; sideIndex++)
+	{
+		string side = "attacker"; if (sideIndex == 1) side = "defender";
+		aref anchor, points; makearef(anchor, layout.anchor.(side)); makearef(points, layout.(side));
+		aref reserved; makearef(reserved, occupied.(side)); CopyAttributes(reserved, anchor);
+	}
+	int free = WdmMilitaryLandFreeActors();
+	int countA = sti(layout.limit); if (countA > sti(Colonies[colony].trafficSiege.attackers)) countA = sti(Colonies[colony].trafficSiege.attackers);
+	int countD = sti(layout.limit); if (countD > WdmMilitaryLandDefenders(colony)) countD = WdmMilitaryLandDefenders(colony);
+	while (countA + countD > free && (countA > 1 || countD > 1))
+	{
+		if (countA >= countD && countA > 1) countA--;
+		else if (countD > 1) countD--;
+	}
+	for (int n = 0; n < 2; n++)
+	{
+		string actorSide = "attacker"; int limit = countA;
+		if (n == 1) { actorSide = "defender"; limit = countD; }
+		aref candidates; makearef(candidates, layout.(actorSide));
+		plan.(actorSide).count = 0;
+		for (int p = 0; p < sti(candidates.count) && sti(plan.(actorSide).count) < limit; p++)
+		{
+			string candidateKey = "point" + p;
+			aref point, taken; makearef(point, candidates.(candidateKey)); makearef(taken, occupied);
+			if (!WdmMilitaryLandPointRoom(point, taken) || !CheckLocationPosition(loc, stf(point.x), stf(point.y), stf(point.z))) continue;
+			string selected = "point" + plan.(actorSide).count;
+			aref selection; makearef(selection, plan.(actorSide).(selected)); CopyAttributes(selection, point);
+			string receipt = actorSide + plan.(actorSide).count;
+			aref reservation; makearef(reservation, occupied.(receipt)); CopyAttributes(reservation, point);
+			plan.(actorSide).count = sti(plan.(actorSide).count) + 1;
+		}
+	}
+	return sti(plan.attacker.count) > 0 && (WdmMilitaryLandDefenders(colony) == 0 || sti(plan.defender.count) > 0) &&
+		sti(plan.attacker.count) + sti(plan.defender.count) <= free;
+}
+
 string WdmMilitaryLandDestination(int colony)
 {
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
@@ -188,7 +300,7 @@ string WdmMilitaryLandDestination(int colony)
 		if (!CheckAttribute(&NullCharacter, "GenQuestFort." + city + ".next0")) return "";
 		string town = NullCharacter.GenQuestFort.(city).next0;
 		int index = FindLocation(town);
-		if (index < 0 || !CheckAttribute(&Locations[index], "models.always.locators")) return "";
+		if (index < 0) return "";
 		if (Locations[index].type != "town") return "";
 		return town;
 	}
@@ -220,7 +332,9 @@ bool WdmMilitaryJoinLand(int colony)
 	if (Colonies[colony].island != GetCharacterCurrentIslandId(pchar)) return false;
 	string destination = WdmMilitaryLandDestination(colony);
 	int location = FindLocation(destination);
-	if (location < 0 || destination == "") return false;
+	if (location < 0 || destination == "" || !WdmMilitaryLandPlacementAvailable(colony, destination)) return false;
+	string locator = WdmMilitaryLandHeroLocator(colony, destination);
+	if (locator == "") return false;
 	// This is the only initial teleport: caller owns the explicit accepted join.
 	siege.scene.returnLocation = pchar.location;
 	siege.scene.returnGroup = pchar.location.group;
@@ -233,12 +347,6 @@ bool WdmMilitaryJoinLand(int colony)
 	WdmMilitaryLandPrepareLocation(colony, destination);
 	aref clock; makearef(clock, siege.clock); WdmTrafficStamp(clock);
 	aref sceneClock; makearef(sceneClock, siege.scene.clock); WdmTrafficStamp(sceneClock);
-	string locator = "loc0";
-	if (siege.participation.side == "defender")
-	{
-		locator = "aloc0";
-		if (siege.phase == "city") locator = "loc1";
-	}
 	DialogExit();
 	DoQuestReloadToLocation(destination, "rld", locator, "");
 	return true;
@@ -350,23 +458,26 @@ bool WdmMilitaryLeaveLand(int colony)
 	return true;
 }
 
-bool WdmMilitaryLandSpawnSide(int colony, string side, int count, string prefix)
+bool WdmMilitaryLandSpawnSide(int colony, string side, aref selected)
 {
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
 	int pool = sti(siege.attackers); int nation = sti(siege.nation);
 	string group = "WDM_SIEGE_ATTACK";
 	if (side == "defender") { pool = WdmMilitaryLandDefenders(colony); nation = sti(siege.defendingNation); group = "WDM_SIEGE_DEFEND"; }
 	if (pool == 0) return true;
+	int count = sti(selected.count);
 	if (count < 1) return false;
 	int remaining = pool;
 	for (int i = 0; i < count; i++)
 	{
-		string locator = prefix + (i + 1);
-		if (siege.phase == "city") locator = prefix;
+		string key = "point" + i;
+		aref point; makearef(point, selected.(key));
+		string locator = point.name;
 		if (WdmMilitaryLandFreeActors() < 1) return false;
-		ref chr = SetFantomDefenceForts("rld", locator, nation, group);
-		if (!IsEntity(chr) || chr.location.locator != locator) return false;
+		if (!CheckLocationPosition(loadedLocation, stf(point.x), stf(point.y), stf(point.z))) return false;
+		ref chr = SetFantomDefenceForts(point.group, locator, nation, LAI_DEFAULT_GROUP);
 		chr.trafficLand.id = siege.id;
+		chr.trafficLand.projecting = 1;
 		chr.trafficLand.colony = colony;
 		chr.trafficLand.side = side;
 		chr.trafficLand.location = siege.scene.location;
@@ -375,6 +486,12 @@ bool WdmMilitaryLandSpawnSide(int colony, string side, int count, string prefix)
 		chr.trafficLand.weight = remaining / (count - i);
 		remaining = remaining - sti(chr.trafficLand.weight);
 		chr.trafficLand.counted = 0;
+		float x, y, z;
+		if (!IsEntity(chr) || chr.location.locator != locator || !GetCharacterPos(chr, &x, &y, &z)) return false;
+		// Native Teleport may silently choose a nearby occupied-locator fallback.
+		// Ground projection can raise Y; the authored horizontal point must remain.
+		float dx = x - stf(point.x); float dz = z - stf(point.z);
+		if (dx * dx + dz * dz >= 0.0001) return false;
 		float health = 1.0;
 		if (side == "attacker" && CheckAttribute(siege, "land.attackHealth")) health = stf(siege.land.attackHealth);
 		if (side == "defender")
@@ -394,9 +511,27 @@ bool WdmMilitaryLandSpawnSide(int colony, string side, int count, string prefix)
 	return remaining == 0;
 }
 
+void WdmMilitaryLandProjectionFinish(int colony, bool accepted)
+{
+	for (int i = 0; i < MAX_CHARS_IN_LOC; i++)
+	{
+		ref chr = &Characters[LOC_FANTOM_CHARACTERS + i];
+		if (!CheckAttribute(chr, "trafficLand.projecting") || chr.trafficLand.id != Colonies[colony].trafficSiege.id) continue;
+		if (accepted) DeleteAttribute(chr, "trafficLand.projecting");
+		else
+		{
+			chr.trafficLand.counted = 1;
+			LogoffCharacter(chr); DeleteCharacter(chr);
+			int index = sti(chr.index);
+			DeleteAttribute(chr, ""); chr.index = index; chr.id = ""; chr.location = "none";
+		}
+	}
+}
+
 void WdmMilitaryLandReject(int colony, string reason)
 {
 	aref siege; makearef(siege, Colonies[colony].trafficSiege);
+	WdmMilitaryLandProjectionFinish(colony, false);
 	siege.scene.failure = reason;
 	siege.scene.pending = 0; siege.scene.transiting = 0; siege.foreground = 0;
 	WdmMilitaryLandRebase(colony);
@@ -436,21 +571,15 @@ void WdmMilitaryLandLocationLoaded(ref loc)
 		WdmMilitaryLandReject(colony, "stale_participation"); return;
 	}
 	WdmMilitaryLandEnsurePools(colony);
-	if (!CheckAttribute(loc, "locators.rld.loc0")) { WdmMilitaryLandReject(colony, "missing_locators"); return; }
-	string defender = "aloc"; int limit = 15;
-	if (loc.id == "BOARDING_FORT") limit = 24; // loc0/aloc0 belong to the hero; actual banks end at 24.
-	if (siege.phase == "city")
-	{
-		defender = "loc1"; limit = 9;
-		if (!CheckAttribute(loc, "locators.rld.loc1")) { WdmMilitaryLandReject(colony, "missing_city_capture_bank"); return; }
-	}
-	else if (!CheckAttribute(loc, "locators.rld.aloc0")) { WdmMilitaryLandReject(colony, "missing_defender_bank"); return; }
+	object layout;
+	if (!WdmMilitaryLandLoadedLayout(colony, loc, &layout)) { WdmMilitaryLandReject(colony, "unknown_land_layout"); return; }
 	int attackers = 0; int defenders = 0;
 	for (int i = 0; i < MAX_CHARS_IN_LOC; i++)
 	{
 		ref old = &Characters[LOC_FANTOM_CHARACTERS + i];
 		if (!CheckAttribute(old, "trafficLand.id") || old.trafficLand.id != siege.id) continue;
 		if (old.trafficLand.location != loc.id || sti(old.trafficLand.counted)) continue;
+		if (!IsEntity(old)) { WdmMilitaryLandReject(colony, "missing_saved_actor"); return; }
 		if (old.trafficLand.side == "attacker") attackers = attackers + sti(old.trafficLand.weight);
 		else defenders = defenders + sti(old.trafficLand.weight);
 	}
@@ -464,40 +593,18 @@ void WdmMilitaryLandLocationLoaded(ref loc)
 	}
 	else
 	{
-		int countA = limit; int countD = limit;
-		if (siege.phase != "city")
+		object plan;
+		if (!WdmMilitaryLandPlacementPlan(colony, loc, &plan))
 		{
-			countA = 0; countD = 0;
-			for (int n = 1; n <= limit; n++)
-			{
-				if (CheckAttribute(loc, "locators.rld.loc" + n)) countA++;
-				else break;
-			}
-			for (int m = 1; m <= limit; m++)
-			{
-				if (CheckAttribute(loc, "locators.rld.aloc" + m)) countD++;
-				else break;
-			}
+			WdmMilitaryLandReject(colony, "placement_unavailable"); return;
 		}
-		if (countA > sti(siege.attackers)) countA = sti(siege.attackers);
-		if (countD > WdmMilitaryLandDefenders(colony)) countD = WdmMilitaryLandDefenders(colony);
-		int free = WdmMilitaryLandFreeActors();
-		while (countA + countD > free && (countA > 1 || countD > 1))
-		{
-			if (countA >= countD && countA > 1) countA--;
-			else if (countD > 1) countD--;
-		}
-		if (countA < 1 || (WdmMilitaryLandDefenders(colony) > 0 && countD < 1) || countA + countD > free)
-		{
-			WdmMilitaryLandReject(colony, "actor_budget"); return;
-		}
-		string attacker = "loc";
-		if (siege.phase == "city") attacker = "loc0";
-		if (!WdmMilitaryLandSpawnSide(colony, "attacker", countA, attacker) ||
-			!WdmMilitaryLandSpawnSide(colony, "defender", countD, defender))
+		aref attackPlan, defencePlan; makearef(attackPlan, plan.attacker); makearef(defencePlan, plan.defender);
+		if (!WdmMilitaryLandSpawnSide(colony, "attacker", attackPlan) ||
+			!WdmMilitaryLandSpawnSide(colony, "defender", defencePlan))
 		{
 			WdmMilitaryLandReject(colony, "actor_entry_failed"); return;
 		}
+		WdmMilitaryLandProjectionFinish(colony, true);
 	}
 	if (!CheckAttribute(siege.scene, "oldFastReload")) siege.scene.oldFastReload = bDisableFastReload;
 	if (!CheckAttribute(siege.scene, "oldReload")) siege.scene.oldReload = chrDisableReloadToLocation;
@@ -631,7 +738,7 @@ void WdmMilitaryLandNext()
 	WdmMilitaryLandPrepareLocation(colony, destination);
 	siege.scene.pending = 1;
 	siege.scene.phase = siege.phase;
-	string locator = "loc0";
-	if (siege.participation.side == "defender") { locator = "aloc0"; if (siege.phase == "city") locator = "loc1"; }
+	string locator = WdmMilitaryLandHeroLocator(colony, destination);
+	if (locator == "") { WdmMilitaryLandReject(colony, "missing_hero_entry"); return; }
 	DoQuestReloadToLocation(destination, "rld", locator, "");
 }

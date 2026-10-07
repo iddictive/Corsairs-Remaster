@@ -99,11 +99,11 @@ def compiler_ready():
 
 # Compose after the existing gameplay owners, notably the AIShip fleet layer.
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
-FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'e3ea4c8b5999ff3d7ffdf9129b4b67f5d7ce0bc99540c2e0e7376b83b076b2dc',
+FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': '82fa26766d7706d01b21716e52381115edf556764be7caf611779b06c44b3776',
  'PROGRAM/sea_ai/sea.c': '9937ba2362e2b55ca9b13adcb60dc0b4310c5a29470a1e58abda1a38a52a1a09',
  'PROGRAM/sea_ai/AIFantom.c': '94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b',
  'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',
- 'PROGRAM/interface/map.c': '4aac6bd149f573d4425be7d524648998a70e28106838ec2f330426b8b7bc10be',
+ 'PROGRAM/interface/map.c': 'd342e2cc54a3272c5b13998210fff578046b5f8f4db62e569e564af3457802cf',
  'PROGRAM/battle_interface/WmInterface.c': '4088a04e7f29758167938ec95530199bfd998cb7b37f01c67b939f4d973aac78',
  'PROGRAM/battle_interface/loginterface.c': '88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c',
  'RESOURCE/INI/interfaces/map.ini': '0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd'}
@@ -122,9 +122,12 @@ def prepare_fleet_final(relative, incoming):
     return result
 
 
-def source_changes(target_root, source_set, state=None):
+def source_changes(target_root, source_set, state=None, managed=None):
+    delivery = gameplay_sources.prepare_delivery(target_root, source_set, state)
+    if managed is not None:
+        managed.update({name: delivery[target_root / name] for name in source_set[0]})
     return {path.relative_to(target_root).as_posix(): (before, after)
-            for path, (before, after) in gameplay_sources.prepare_delivery(target_root, source_set, state).items()
+            for path, (before, after) in delivery.items()
             if path.is_relative_to(target_root) and path.name != RECEIPT and before != after}
 
 
@@ -149,10 +152,11 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     state = DeliveryState(target_root, app) if state is None else state
     if state.resources != target_root or state.app != app:
         raise RuntimeError("Gameplay receipt belongs to another runtime")
-    canonical = source_changes(target_root, source_set, state)
+    canonical = source_changes(target_root, source_set, state, managed)
     if paths is not None:
         return canonical
     living_caribbean.verify_fort_layout_assets(target_root)
+    living_caribbean.verify_land_layout_assets(target_root)
     # Regenerated suite consumers come from exact-hash originals, not the
     # mutable carrier copy. Each provider and cumulative output is checked by
     # _build_outputs; unrelated incoming scripts still pass admission below.
@@ -293,7 +297,7 @@ def apply_locked(changes, paths=None, source_set=None):
                              capture_output=True, text=True, check=False)
     if holders.returncode != 1 or holders.stdout or holders.stderr:
         raise RuntimeError("close the Metal game before applying gameplay")
-    batch = dict(variant_inputs)
+    batch = {**source_set[1], **variant_inputs}
     for relative, (previous, incoming) in runtime_managed.items():
         path = TARGET / relative
         batch.update(gameplay_sources.backup_change(previous, incoming))
@@ -301,9 +305,11 @@ def apply_locked(changes, paths=None, source_set=None):
     for relative, (previous, incoming) in app_managed.items():
         batch.update(gameplay_sources.backup_change(previous, incoming))
         batch[app_resources / relative] = (previous, incoming)
-    batch.update(gameplay_sources.prepare_delivery(TARGET, source_set, runtime_state))
+    # plan already admitted canonical files against the loaded receipt. Reuse
+    # that proposal instead of re-admitting old bytes against future hashes.
+    batch[runtime_state.receipt] = runtime_state.change()
     if app_state is not None:
-        batch.update(gameplay_sources.prepare_delivery(app_resources, source_set, app_state))
+        batch[app_state.receipt] = app_state.change()
 
     def verify():
         if plan(paths=paths, source_set=source_set):

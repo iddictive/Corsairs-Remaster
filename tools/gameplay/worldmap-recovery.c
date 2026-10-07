@@ -163,12 +163,21 @@ int WdmRecoveryAvailable(ref store, int good)
 
 void WdmRecoveryFortDay(int colony, ref store, int offset)
 {
-	if (colony < 0 || WdmMilitaryReserved(colony) || bSeaActive) return;
+	if (colony < 0 || WdmMilitaryReserved(colony)) return;
 	aref recovery; makearef(recovery, Colonies[colony].trafficRecovery);
 	if (!CheckAttribute(recovery, "startDay") || !CheckAttribute(recovery, "garrisonTarget") ||
 		WdmRecoveryDay() - offset <= sti(recovery.startDay)) return;
 	int index = WdmMilitaryGarrisonCharacter(colony);
 	if (index < 0 || index >= TOTAL_CHARACTERS) return;
+	// Fort_Login publishes the actual scene commanders; remote ports keep
+	// their calendar work while an admitted fort retains native ownership.
+	if (bSeaActive)
+	{
+		for (int actor = 0; actor < iNumForts; actor++)
+		{
+			if (CheckAttribute(&Forts[actor], "fortcmdridx") && sti(Forts[actor].fortcmdridx) == index) return;
+		}
+	}
 	ref fort = &Characters[index];
 	bool hasFort = !CheckAttribute(&Colonies[colony], "HasNoFort");
 	if (hasFort && (!CheckAttribute(fort, "trafficFortManaged") || !sti(fort.trafficFortManaged))) return;

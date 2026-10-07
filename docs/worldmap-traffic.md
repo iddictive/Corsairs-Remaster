@@ -1,5 +1,101 @@
 # World-map traffic
 
+## Player journey hardening — October 7
+
+The current requested batch evaluates the installed Living Caribbean from the
+player's journey: sail the map, continue authored quests, enter a port, buy and
+service a fleet, discover events, choose participation, and return for consequences.
+An empty port or a temporary shortage is allowed. An unavailable action, permanent
+queue, stolen quest actor, duplicated transaction, unavoidable participation,
+unreachable return or stale reward is not. Numeric balance and rendered scenes
+require game evidence; source or isolated VM checks cannot accept them.
+
+| Coverage lane | Current source owners | Decisive boundary | State |
+| --- | --- | --- | --- |
+| Trade, supplies and recovery | `worldmap-traffic.c`, `worldmap-recovery.c` | Finite available work; paid service; loading/delivery; depleted/recovering port | Actual-script checks and four codec rounds pass |
+| Encounter choice and sea handoff | `fleet-encounter-ui.c`, canonical `src/gameplay/PROGRAM/sea_ai/sea.c` | Plain sea/pursuit/attack; actual roster and surviving state; quest exclusions | Actual-script damage/name/service/admission checks pass |
+| Siege, harbour and physical return | `worldmap-military.c`, `worldmap-land.c`, `worldmap-harbour.c` | Sea/fort/city transition; evacuation; ashore flagship loss; terminal cleanup | GM-bound placement, rollback/return and four codec rounds pass; rendered scene unresolved |
+| Authored quest and port continuity | `metal_living_caribbean.py`, original callback owners | Existing quest actors/locks; port access; store and day callbacks | Authored admission matrix and four codec rounds pass |
+| Discovery, participation and consequences | `worldmap-participation.c`, news/contact callbacks | Truthful rumours; choose/join/leave; finite rewards and reputation | Actual mayor callback, transaction negatives and four codec rounds pass |
+| Clock, reload and integrated delivery | Existing saved descriptor/calendar and canonical composers | Prior valid state survives repeated calendar/load/handoff; exact installed package | Whole PROGRAM compilation and integrated dialogue/codec pass; installed verdict belongs to `docs/runtime.md` |
+
+Root owns shared source composition, Git/index, build/staging and installation.
+Independent lanes first return observable actual/expected mismatches bound to an
+independent contract; a repair follows only that evidence. Existing player saves,
+configuration, foreign dirty/staged work and authored scarcity are preserved.
+Ordered acceptance is relevant actual-script/serializer checks and their nearest
+negative, a focused local commit, canonical `run.sh --stage-only` with the game
+closed, and available player scenes. The player's later replay remains a distinct
+gate. No automated game launch or rewrite of player saves is part of this batch.
+
+Confirmed state defects have independent owners and expectations:
+
+- The service planner reserved balls even when existing bombs/knippels already
+  satisfied the unchanged six-salvo policy, rejecting a physically fitting recruit.
+  One shot-count owner now serves reservation and purchase. Full holds, missing
+  ammunition/powder and depleted recruitment remain legitimate rejections.
+- The global sea flag suppressed every port's paid daily recovery. Only the
+  commander actually published by `Fort_Login` is excluded from background
+  recovery; remote ports tick once, preserving quest/siege and empty-stock gates.
+- Ordinary proximity imported unselected quest/qID/ALONE encounters. Authored
+  selection retains control; ordinary selected battle expansion uses one shared
+  same-root predicate, including an already committed rescue member in review.
+- Fresh sea phantoms replaced the saved name and lost physical gun/mast/sail/blot
+  damage. Restoration replaces only persistent damage, retaining native reload
+  handles/charges. Unpaid damage survives; existing funded service clears it.
+- Neutral berthed ships fired on an assault automatically. Their return fire now
+  requires actual hostile allegiance or explicit defender participation. Their
+  exposure to incoming damage and harbour loss remains real.
+- A late story island reservation allowed ordinary expeditions to continue.
+  Map update, arrival and pre-generation sea attachment now yield through the
+  existing physical evacuation owner. Pending import is released only without
+  a loaded-hull receipt; live actor ownership still vetoes evacuation.
+- Dialogue links offered contracts/claims rejected by their action owner, and
+  governor quest links overwrote the military slots. Shared pure admission and
+  entitlement predicates now serve both links and actions; semantic link keys
+  preserve the real `Common_Mayor` quest callback. Local withdrawal permits
+  rejoining the existing agreement; departure to the map and betrayal do not.
+  Empty treasury/full hold keep an earned claim retryable without duplicate pay.
+- Four queued preparation/attack reports suppressed every later outcome. Phase
+  progression now updates only its own operation/source report, retaining the
+  four-report ceiling, dated scope, unrelated rumours and quest callbacks.
+
+The pre-edit VM reproduced recruit/recovery failures, three authored-admission
+failures, seven restoration failures, three encounter-review omissions and neutral
+fire/story-yield failures without script errors. The repaired state scenarios and
+nearest allowed cases pass; these are not rendered gameplay or balance evidence.
+
+Land placement reuses the existing SHA-bound authored-layout delivery pattern.
+`tools/gameplay/land-layout.json` binds 26 canonical town destinations, three fort
+rooms and the two real `BOARDING_FORT` locator models. The composer generates
+`WdmMilitaryAuthoredLandLayout` and gameplay planning checks every physical GM
+asset SHA. An unloaded location is admitted from its authored ID/model tuple,
+not transient `Locations.locators`. Loaded coordinate identity and native
+`CheckLocationPosition` remain the physical authority before combat. Hero entry
+anchors and other characters are reserved; representative counts may shrink to
+finite free positions while preserving the troop pool weights. Unknown geometry
+retains naval assistance. A native scene is still required to accept placement,
+combat, transition and physical return.
+
+The geometry falsifier reproduces both old unloaded/invalid-bank admissions.
+Final tuple seeds come from canonical initialization and `MakeCloneFortBoarding`;
+loaded coordinates come from raw GM labels, independently of the JSON. All 31
+layouts pass unloaded and loaded state checks. PortRoyal's capped projection
+retains exact 101/79 troop weights. Occupied/stale/wrong-model rejection, partial
+projection cleanup preserving quest actors, explicit withdrawal/return, casualty
+and saved-actor reentry pass with four native serializer rounds. Headless entity
+and occupancy adapters delimit this evidence; no native character scene was run.
+The exact four-file candidate (map UI, sea, worldmap generator and reload) also
+passes whole-PROGRAM compilation and the existing events fixture after integration.
+
+Canonical synchronization retains the complete reviewed proposal from planning,
+including direct source files, frozen input guards and the final receipt. Applying
+the same batch must not admit its old bytes a second time against an already
+proposed new hash. The original normal-stage failure was reproduced before the
+repair without entering the atomic writer. Both runtime/app proposals now agree;
+an independently edited file still fails closed, and delivered content is
+idempotent. Gameplay composition bytes are unchanged by this delivery repair.
+
 ## Finite trade cycle — October 7
 
 The requested outcome is a world that can have empty ports without creating

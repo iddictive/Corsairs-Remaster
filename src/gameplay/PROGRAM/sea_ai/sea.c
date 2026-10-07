@@ -2189,12 +2189,46 @@ void WdmFleetSeaRestoreShip(ref captain)
 		realShip.BaseType = entry.baseType;
 	}
 	string shipName = "";
-	if (CheckAttribute(captain, "Ship.Name") && captain.Ship.Name != "" && captain.Ship.Name != "error")
-		shipName = captain.Ship.Name;
-	else if (CheckAttribute(entry, "Ship.Name") && entry.Ship.Name != "" && entry.Ship.Name != "error")
+	if (CheckAttribute(entry, "Ship.Name") && entry.Ship.Name != "" && entry.Ship.Name != "error")
 		shipName = entry.Ship.Name;
 	else if (CheckAttribute(entry, "name") && entry.name != "" && entry.name != "error")
 		shipName = entry.name;
+	else if (CheckAttribute(captain, "Ship.Name") && captain.Ship.Name != "" && captain.Ship.Name != "error")
+		shipName = captain.Ship.Name;
+	// Replace physical damage only. Reload state belongs to the new sea entity.
+	string damageBranches[3];
+	damageBranches[0] = "Ship.Masts";
+	damageBranches[1] = "Ship.Sails";
+	damageBranches[2] = "Ship.Blots";
+	for (int branch = 0; branch < 3; branch++)
+	{
+		string damagePath = damageBranches[branch];
+		DeleteAttribute(captain, damagePath);
+		if (!CheckAttribute(entry, damagePath)) continue;
+		makearef(source, entry.(damagePath));
+		makearef(destination, captain.(damagePath));
+		CopyAttributes(destination, source);
+	}
+	aref borts, bort;
+	makearef(borts, captain.Ship.Cannons.Borts);
+	for (int side = 0; side < GetAttributesNum(borts); side++)
+	{
+		bort = GetAttributeN(borts, side);
+		DeleteAttribute(bort, "damages");
+	}
+	if (CheckAttribute(entry, "Ship.Cannons.Borts"))
+	{
+		makearef(borts, entry.Ship.Cannons.Borts);
+		for (side = 0; side < GetAttributesNum(borts); side++)
+		{
+			bort = GetAttributeN(borts, side);
+			if (!CheckAttribute(bort, "damages")) continue;
+			string cannonDamage = "Ship.Cannons.Borts." + GetAttributeName(bort) + ".damages";
+			makearef(source, bort.damages);
+			makearef(destination, captain.(cannonDamage));
+			CopyAttributes(destination, source);
+		}
+	}
 	if (CheckAttribute(entry, "Ship"))
 	{
 		// Only absent legacy fields receive defaults; zero and low saved values
@@ -2652,6 +2686,23 @@ void WdmFleetSeaAttachMilitary(ref login)
 		string path = "encounters." + siege.fleet;
 		if (!CheckAttribute(&worldMap, path)) continue;
 		aref descriptor; makearef(descriptor, worldMap.(path));
+		if (WdmMilitaryStoryReserved(colony))
+		{
+			// Map import marks pending ownership before SeaLogin creates actors.
+			// Only a loaded hull receipt may veto the existing evacuation owner.
+			bool loaded = false;
+			if (CheckAttribute(descriptor, "encdata.trafficRoster.count"))
+			{
+				for (int slot = 0; slot < sti(descriptor.encdata.trafficRoster.count); slot++)
+				{
+					string receipt = "encdata.trafficRoster.ship" + slot + ".seaLoaded";
+					if (CheckAttribute(descriptor, receipt) && sti(descriptor.(receipt))) loaded = true;
+				}
+			}
+			if (!loaded) DeleteAttribute(descriptor, "trafficInSea");
+			WdmMilitaryEnd(colony, descriptor, "story_reserved");
+			continue;
+		}
 		bool complete = WdmFleetSeaAttachOperationFleet(login, descriptor);
 		string root = "";
 		if (CheckAttribute(descriptor, "trafficBattleRoot")) root = descriptor.trafficBattleRoot;
