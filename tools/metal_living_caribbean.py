@@ -300,7 +300,7 @@ WDM_TRAFFIC_SHA256 = "196767293ac2d297ff23cf3de08f9d7d7c2238ae516fc02aa88d2063a1
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
 WDM_MILITARY_SHA256 = "52f67ec3c037bb724d0fa9f900bd5668a1fe9b8519fc2bdea7d5a6295426d1ad"
 WDM_OPERATION_MODULES = {
-    "worldmap-contact.c": "9a32505d35d944bb9dc0d831f7f7f3c500bd59dbaeca46cdce000c338bfa8bea",
+    "worldmap-contact.c": "80ed71add68db6a0683e9fb5cf6a8ab5880aef000ac03300268c39cae960fa17",
     "worldmap-recovery.c": "abff863661f3f1adfd136a301c327e40750d02fcebbb818e99a209654d410aa1",
     "worldmap-harbour.c": "771438248f50c09faea499c68cc5b7c9db42f35f41e9ca1d02b447f5483c554d",
     "worldmap-participation.c": "0fdb68e1f97750b286b3bfd60b426b94aab2102eba277632bd6666b781fd135f",
@@ -1576,7 +1576,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "392834aecf9c037da50be5fbff071d244e7efb0d31af14f13d9a86f9d88c9c79",
+    "PROGRAM/worldmap/worldmap_encgen.c": "1fc95e425f4887bc2f38572141de6e70f486660db2bc6897500cfae7f3728bfe",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",

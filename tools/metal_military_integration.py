@@ -16,12 +16,46 @@ def enc(text):
 
 
 HOOKS = {
+    "PROGRAM/battle_interface/BattleInterface.c": (
+        ('\tBattleInterface.Commands.Boat.note\t= "Выслать шлюпку";',
+         '\tBattleInterface.Commands.Boat.note\t= "Выслать шлюпку";\n'
+         '\tBattleInterface.Commands.MilitaryParley.enable = false;\n'
+         '\tBattleInterface.Commands.MilitaryParley.picNum = BattleInterface.Commands.Boat.picNum;\n'
+         '\tBattleInterface.Commands.MilitaryParley.selPicNum = BattleInterface.Commands.Boat.selPicNum;\n'
+         '\tBattleInterface.Commands.MilitaryParley.texNum = BattleInterface.Commands.Boat.texNum;\n'
+         '\tBattleInterface.Commands.MilitaryParley.event = "BI_MilitaryParley";\n'
+         '\tBattleInterface.Commands.MilitaryParley.note = "Запросить переговоры";'),
+        ('\tcase "cancel":\n\t\tBI_retComValue = -1;',
+         '\tcase "BI_MilitaryParley":\n\t\tBI_retComValue = 0;\n\t\tbreak;\n'
+         '\tcase "cancel":\n\t\tBI_retComValue = -1;'),
+        ('    case "BI_Cabin":\n        Sea_CabinStartNow();',
+         '\tcase "BI_MilitaryParley":\n\t\tWdmMilitaryParleyCommand();\n\t\tbreak;\n'
+         '    case "BI_Cabin":\n        Sea_CabinStartNow();'),
+        ('    Event("evntSetUsingAbility","l", chIdx);',
+         '    WdmMilitaryParleyCommandRefresh(mainIdx, chIdx);\n'
+         '    Event("evntSetUsingAbility","l", chIdx);'),
+    ),
+    "PROGRAM/sea_ai/sea.c": (
+        ('void DeleteSeaEnvironment()\n{', 'void DeleteSeaEnvironment()\n{\n\tWdmMilitaryParleyClear();'),
+        ('void SeaLogin(ref Login)\n{', 'void SeaLogin(ref Login)\n{\n\tWdmMilitaryParleyClear();'),
+        ('void Sea_Load()\n{', 'void Sea_Load()\n{\n\tWdmMilitaryParleyClear();'),
+    ),
     "PROGRAM/sea_ai/Cabin.c": [(
         'void Sea_DeckBoatLoad(int ShipsCharacter)\n{\n\tif (bSeaActive == false) { return; }',
         'void Sea_DeckBoatLoad(int ShipsCharacter)\n{\n'
         '\tif (bSeaActive == false) { return; }\n'
         '\tstring trafficContactRefusal = WdmMilitaryContactRefusal(ShipsCharacter);\n'
         '\tif (trafficContactRefusal != "") { Log_Info(trafficContactRefusal); return; }',
+    ), (
+        '\t\tSetSailorDeck_Ships(_iShipsCharacter);',
+        '\t\tSetSailorDeck_Ships(_iShipsCharacter);\n\t\tWdmMilitaryParleyDeckBound(_iShipsCharacter);',
+    ), (
+        'void Return2SeaClearNPC()\n{',
+        'void Return2SeaClearNPC()\n{\n\tWdmMilitaryParleyLeaving();',
+    ), (
+        '\tif (bDisableMapEnter) //идет бой',
+        '\tbool parleyProtectedReturn = WdmMilitaryParleyConsumeReturn();\n'
+        '\tif (bDisableMapEnter && !parleyProtectedReturn) //идет бой',
     )],
     "PROGRAM/scripts/custody.c": [(
         '\t\tSetCharacterShipLocation(companion, destination);\n\t}\n}',
@@ -43,7 +77,9 @@ HOOKS = {
      ('\tmakearef(NextDiag, NPChar.Dialog);',
       '\tmakearef(NextDiag, NPChar.Dialog);\n\tif (WdmMilitaryParticipationDialog(NPChar, Link, Dialog.CurrentNode)) return;'),
      ('\t\tcase "First time":',
-      '\t\tcase "First time":\n\t\t\tWdmMilitaryParticipationLinks(NPChar, Link);')),
+      '\t\tcase "First time":\n\t\t\tWdmMilitaryParticipationLinks(NPChar, Link);'),
+     ('\t\t\tif (!bDisableMapEnter)',
+      '\t\t\tif (!bDisableMapEnter || WdmMilitaryParleyVisit(NPChar))')),
  'PROGRAM/Loc_ai/LAi_events.c': (('void LAi_Character_Dead_Process(aref chr)\n{',
                                   'void LAi_Character_Dead_Process(aref chr)\n'
                                   '{\n'
@@ -155,7 +191,11 @@ HOOKS = {
                                 '{\n'
                                 '\tint trafficRelation = WdmMilitaryEffectiveRelation(iCharacterIndex1, '
                                 'iCharacterIndex2);\n'
-                                '\tif (trafficRelation >= 0) return trafficRelation;'),),
+                                '\tif (trafficRelation >= 0) return trafficRelation;'),
+                               ('\tint trafficRelation = WdmMilitaryEffectiveRelation(iCharacterIndex1, iCharacterIndex2);',
+                                '\tint trafficParleyRelation = WdmMilitaryParleyRelation(iCharacterIndex1, iCharacterIndex2);\n'
+                                '\tif (trafficParleyRelation >= 0) return trafficParleyRelation;\n'
+                                '\tint trafficRelation = WdmMilitaryEffectiveRelation(iCharacterIndex1, iCharacterIndex2);')),
  'PROGRAM/reload.c': (('\tmc.location.from_sea = Locations[location_index].id;',
                        '\tmc.location.from_sea = Locations[location_index].id;\n'
                        '\tWdmHarbourBindBerth(location_index);'),
@@ -246,6 +286,7 @@ BASES = {'PROGRAM/Loc_ai/LAi_events.c': '6d8e35df2e543572e657345e8aa2f94c209e99f
  'PROGRAM/Loc_ai/LAi_fightparams.c': '1d96b2fec71cc6666457b95221ddea2da963551f89d1365922142678378442ef',
  'PROGRAM/Loc_ai/LAi_init.c': 'd2b4ebdcb1671d87f96a34bcdf3d957c3ac8643c751a4880341179bc4ec393c6',
  'PROGRAM/Loc_ai/LAi_login.c': '268c33bab0cb4686362d0911df134096adbf92ad95b9b053b05f373e4fdb2a54',
+ 'PROGRAM/battle_interface/BattleInterface.c': '344850578dac3ad335ea1acac08623d50da2c3b8e7444fcd57746fb5c417de3c',
  'PROGRAM/battle_interface/landinterface.c': '6b467ce0f8de248f2dd8865378a7ce88fefe8af369e5147428da356035e976b7',
  'PROGRAM/dialogs/russian/Capitans_dialog.c': 'e56df483d832ee954e5387788511c3733e3648e09d9990b9d505eb69e8d38fb7',
  'PROGRAM/dialogs/russian/Common_Mayor.c': 'b277442e1ae1df960877c35c50a1fa8de0a7cef9af1fbd1c5696425d4dc7813d',
@@ -261,6 +302,7 @@ BASES = {'PROGRAM/Loc_ai/LAi_events.c': '6d8e35df2e543572e657345e8aa2f94c209e99f
  'PROGRAM/sea_ai/AIFort.c': 'c4fd8e0a480ed5f00139c8f056f7f90c3f92f3f14dd36b5fdfcdb13937d73deb',
  'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',
  'PROGRAM/sea_ai/Cabin.c': '9334dc64ffcc17ebe991a82a64f2c69e63b288791ea69b16ad6964e8d1df2271',
+ 'PROGRAM/sea_ai/sea.c': 'ace3ef44a63c688ac5f0639a735505d9ec1c8fbd2a0628db6e9baf0685edfcd9',
  'PROGRAM/store/storeutilite.c': 'fe19d87f68c3b838c838f8909353194bb6027118414418cf64ed00d1d0dfb903',
  'PROGRAM/worldmap/worldmap.c': '48bfe0c13a38e2e176a8087dfd45c919345581b04d9c0bbc252f63c02fe9d267'}
 
@@ -268,21 +310,23 @@ UPDATED = {'PROGRAM/Loc_ai/LAi_events.c': '41ee1d25051139a464d0c323f18b59aa925e0
  'PROGRAM/Loc_ai/LAi_fightparams.c': '28674da4fa2c160489adda17255b6934c2d323a15c455db8405473c789fe7add',
  'PROGRAM/Loc_ai/LAi_init.c': '07c3dc1f0d495a92f4450946f2a0692aec2e83c39e8738bf6b87a9e7fc757e63',
  'PROGRAM/Loc_ai/LAi_login.c': '43fefc2e366ef093a0d5d9fe897c63ff013bdb631a84c3082497135828f6bc2d',
+ 'PROGRAM/battle_interface/BattleInterface.c': '2dbae512f4e3bc2cf4d7b935a278192177cd7c3e6bded54d7aecacac8894c25d',
  'PROGRAM/battle_interface/landinterface.c': '78aefb8e92bc3884f8f42d4d064019cd8a5ba5d7051332b75d5b2a4f6c327500',
- 'PROGRAM/dialogs/russian/Capitans_dialog.c': '278ddeaedbb47b9ed02f9572c1a7ba0a2aba85ea005dc34e84c51511e587a2c3',
+ 'PROGRAM/dialogs/russian/Capitans_dialog.c': '1a9abef5fbdf7d63e3490c966e664a8ac6869d807c8dc4b3f8c0f49070fe1439',
  'PROGRAM/dialogs/russian/Common_Mayor.c': '92b94fab040d31dbc9fbe17993904c5d452c8d53f676b0c8480bdf838f1d4b31',
  'PROGRAM/dialogs/russian/Enc_Walker.c': 'c2bb4ae402e98cf8c488521ec5132ffac70bf16340cd09e9653a2fe2acacd4bb',
  'PROGRAM/dialogs/russian/MainHero_dialog.c': 'eb0e76dc04001ce9bb34e08242a5b3b53728a47e1fad27b0839696c907b5037a',
  'PROGRAM/dialogs/russian/Rumours/Common_rumours.c': 'dc26958a6e80082384da817803f86228e899568e28d0feb6e5d9b624775bf7a9',
  'PROGRAM/interface/ship.c': '3100502779a69659a155497e26c18205f0c223667393cde00787f075b8ddf2ca',
  'PROGRAM/locations/locations_loader.c': '146dc0bf88577906b33a05a9a64bfe9cfb1029d3c40df8474f6539d098db2ce7',
- 'PROGRAM/nations/nations.c': '50fb7b254d58bcb4c81a4e012a8f7810e9544840349204712d21a1d58bcc550a',
+ 'PROGRAM/nations/nations.c': '5a9bf2d43cda277795e0350aafbc41103d5f3bf9c1ab732cec2409cf28d140a5',
  'PROGRAM/reload.c': '841975af5a3f86b2b270d6d82ace33f97c86ef0f45978c49699b22954467ad27',
  'PROGRAM/scripts/Rumour_func.c': 'baad93e41b6c34f6a50c13e092d2968d8c77a944e6844ae58700897e2b8f5d6f',
  'PROGRAM/scripts/custody.c': '029e65b5e4b53d5d625356b603b33d4c80c20893a71ba93b246385662c5cf0c4',
  'PROGRAM/sea_ai/AIFort.c': 'd80fd6978779f473795fc000a50534617e83734677c9c0aeb9838ee714a6276f',
  'PROGRAM/sea_ai/AIShip.c': 'b7dc138ff5491177fcdcc2b611c93a722cad823bc92767508f413f5599ed2b2b',
- 'PROGRAM/sea_ai/Cabin.c': '8b80a9dfdb683fb8d31ab3fd76222ea397e7c62add84cafd34768cf7f8b14e78',
+ 'PROGRAM/sea_ai/Cabin.c': '4a393af88878c516e893c7923e87a12601f6fc4093ceb8f2a64708b459a45e68',
+ 'PROGRAM/sea_ai/sea.c': 'd55e1e17792b34ae5ef510d6151e49ed14f73978213fdc51dcd72766c244b6c8',
  'PROGRAM/store/storeutilite.c': 'af9a4e70c6d51adf9d59f6e0a003141ab8a666c5165e07b41151fc84f394cf65',
  'PROGRAM/worldmap/worldmap.c': '1a276465b0d5f568bc7ee45209b5de09f16f80756c11f123e44ac26dc67af979'}
 
@@ -310,19 +354,25 @@ def prepare(relative, data):
 
 
 PREVIOUS = {'PROGRAM/Loc_ai/LAi_login.c': {'f3aba4b03ce0d98af57d8c3d4582aa394287517ba7dfdc206a5a4b844a1d7ef3'},
+ 'PROGRAM/dialogs/russian/Capitans_dialog.c': {'278ddeaedbb47b9ed02f9572c1a7ba0a2aba85ea005dc34e84c51511e587a2c3'},
+ 'PROGRAM/nations/nations.c': {'50fb7b254d58bcb4c81a4e012a8f7810e9544840349204712d21a1d58bcc550a'},
  'PROGRAM/sea_ai/AIShip.c': {'36db5c827f0e8770ea4c42b2e7fba29eb7b1c0d05354a11a8ea3172051974e62',
-                             '9f2b3e4294091824cd32d13a6ba8588c312376f868230da27cf59a922340cc13'}}
+                             '9f2b3e4294091824cd32d13a6ba8588c312376f868230da27cf59a922340cc13'},
+ 'PROGRAM/sea_ai/Cabin.c': {'8b80a9dfdb683fb8d31ab3fd76222ea397e7c62add84cafd34768cf7f8b14e78'}}
 
 
 RETAINED_BASES = {'PROGRAM/dialogs/russian/MainHero_dialog.c': 'e4b610de7ed77de21fab8cd539cac828c01de99021590b7a475e6f2348f3e971',
  'PROGRAM/sea_ai/AIFort.c': '5ae1a571d5f10cff0083a2532260c575d8cf4005d4643e5704ab5b1f7ae1f24d',
- 'PROGRAM/sea_ai/AIShip.c': '30a3ab0e6b9aa5bda09099f34a8e0aedcc97c8beda34d58f02b382bf161a85f1'}
+ 'PROGRAM/sea_ai/AIShip.c': '30a3ab0e6b9aa5bda09099f34a8e0aedcc97c8beda34d58f02b382bf161a85f1',
+ 'PROGRAM/sea_ai/sea.c': 'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006'}
 RETAINED_UPDATED = {'PROGRAM/dialogs/russian/MainHero_dialog.c': 'b4af6b1b2ccd25f12ae517b447b477a5ca9e9364f4dbe43c4c4e2840671f3d14',
  'PROGRAM/sea_ai/AIFort.c': '4a68fa9ad5624980663e2a1b7f7c1f2617604434df1d8beb787d1b297e2f6c43',
- 'PROGRAM/sea_ai/AIShip.c': '8a265c0705824d393dd9b2f5d684d8fdf636d56e78d67de89951c5c5d35171b8'}
+ 'PROGRAM/sea_ai/AIShip.c': '8a265c0705824d393dd9b2f5d684d8fdf636d56e78d67de89951c5c5d35171b8',
+ 'PROGRAM/sea_ai/sea.c': '2c5d84deb57d33614c05d2b6c353d956369bbb0ab79f1d145822551cfde639aa'}
 RETAINED_PREVIOUS = {'PROGRAM/dialogs/russian/MainHero_dialog.c': {'e4b610de7ed77de21fab8cd539cac828c01de99021590b7a475e6f2348f3e971'},
  'PROGRAM/sea_ai/AIFort.c': {'5ae1a571d5f10cff0083a2532260c575d8cf4005d4643e5704ab5b1f7ae1f24d'},
- 'PROGRAM/sea_ai/AIShip.c': {'b51efe70dccc7ed0c43e482f11245e54c5b949f755e59f436a6fcea0151b2c91'}}
+ 'PROGRAM/sea_ai/AIShip.c': {'b51efe70dccc7ed0c43e482f11245e54c5b949f755e59f436a6fcea0151b2c91'},
+ 'PROGRAM/sea_ai/sea.c': {'b8a15db8c14cd1b06c456e60da68ed98019321aae73500211375e3ff22ed0006'}}
 
 
 def strip(relative, data):

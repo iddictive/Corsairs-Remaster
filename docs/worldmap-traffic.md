@@ -1334,7 +1334,7 @@ arrival, island reservation, partial rescue, all-transport loss after victory,
 finite city loading, scene admission/defer, harbour hold and mid-assault native
 attribute serialization with no repeated debit/loss/evacuation. The final run has
 zero script errors; permanent test delta is zero. Current native patch application
-and the changed merchant translation unit syntax pass. Read-only canonical composition reports 14 cache consumers and 11 installed-app
+and the changed merchant translation unit syntax pass. Read-only canonical composition reports 15 cache consumers and 13 installed-app
 consumers pending in the October 7 batch; these are not installation receipts. The callback
 adapter in `tools/metal_military_integration.py` composes after existing gameplay
 owners, validates exact input/output hashes, and reverses only its reviewed bytes
@@ -1386,10 +1386,21 @@ October 7 source closure binds the following contracts:
   `worldmap-contact.c` admits the real surviving commander only at safe distance,
   with a usable authored deck, no combat/transition/diversion, and actual alliance
   or patent. No captain clone, task reset or flag-based credential is introduced.
-  This proves the admitted friendly/neutral path; accepted hostile parley before
-  transfer is still unimplemented. Hostile transfer is refused.
+  Hostile contact uses one contextual command: request negotiations, explicit
+  acceptance/refusal, then a separate revalidated visit. The first action moves
+  nobody and grants no allegiance, participation, payment or damage protection.
+  Consent binds the operation, fleet, commander identity/slot/group, island and
+  phase. Real alliance/patent, usable force and no crime/story/offensive-task
+  veto are required; a displayed flag is insufficient. Actual airborne rounds
+  are queried synchronously from native AIBalls records, failing closed without
+  the native capability. Mere enemy proximity cannot stand in for that query.
+  Only the exact captain/hero relation and ordinary deck actors' groups are
+  protected during the visit. Original groups return before deck teardown; a
+  visit-derived return marker suppresses Cabin's proximity damage once and is
+  consumed before sea execution resumes. Sea entry/load/unload clears consent.
+  Both existing BI_Boat selector/launch cases remain byte-identical.
 
-The composer has 21 callback owners, including lazy MainHero/Capitans dialogue,
+The composer has 23 callback owners, including lazy MainHero/Capitans dialogue,
 fort gun damage, hull/death/crime and the custody berth writer. Canonical source
 comes from reviewed originals; mutable carrier changes do not replace that owner.
 LF/CRLF differences are admitted only against exact reviewed representations.
@@ -1406,10 +1417,16 @@ ledgers remain inert. Fixture-only assumptions were corrected: real bidirectiona
 embarkation, complete RealShip Class/OptCrew, crew capacity reservation and cannon
 weights. A contact fixture erroneously assigned the `DistanceToShipTalk` macro;
 removing that invalid assignment restored the real 300-unit contact criterion.
+The parley transition probe also covers actual enemy relation, no first-action
+transfer/HP/entitlement change, identity replacement, renewed fire, quest/attack/
+false-flag/crime refusal, island absence/change, exact local protection, group
+restoration and one-time return consumption. The compiled native query branch
+counts seeded live projectile records without changing them; real entity-event
+and rendered command/deck transfer acceptance still require player replay.
 No permanent tests were added. Canonical native build passes; runtime scenes and
 perceived balance are not accepted by this evidence.
 
-Still unresolved: accepted hostile pre-transfer parley, actual scene placement/
+Still unresolved: rendered hostile pre-transfer parley, actual scene placement/
 sea-to-land paths, rendered harbour choice and commander contact, real guard/crime/
 contribution/settlement and evacuation replay, and normal prior-save/player replay.
 Recovery/pricing and survivor reassignment still need player interaction evidence.

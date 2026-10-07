@@ -171,6 +171,7 @@ def compiler_ready():
             and record.get("engine_deck_patch_sha256") == digest(ENGINE_DECK_PATCH.read_bytes())
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
+            and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
             and record.get("graphics_layer_sha256") == digest(Path(graphics.__file__).read_bytes())
             and record.get("menu_branding_layer_sha256") == digest(Path(menu_branding.__file__).read_bytes())
             and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
@@ -421,7 +422,7 @@ def sign_installed_app():
 
 def apply(changes):
     if not compiler_ready():
-        raise RuntimeError("build and stage Metal with the current compiler, deck and sea-surrender gameplay patches before applying gameplay")
+        raise RuntimeError("build and stage Metal with the current compiler, deck, sea-surrender and contact-activity patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
     app_changes = plan(app_resources) if INSTALLED_APP.is_dir() else {}
     engines = [ENGINE]
@@ -445,6 +446,11 @@ def apply(changes):
                 backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
                 if relative in FLEET_FINAL_BASE:
                     backup_matches = digest(baseline) in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())) or backup_matches
+                if relative in military_callbacks.HOOKS:
+                    backup_matches = digest(baseline) in {
+                        military_callbacks.BASES[relative], military_callbacks.UPDATED[relative],
+                        military_callbacks.RETAINED_BASES.get(relative), military_callbacks.RETAINED_UPDATED.get(relative),
+                    } | military_callbacks.PREVIOUS.get(relative, set()) | military_callbacks.RETAINED_PREVIOUS.get(relative, set()) or backup_matches
                 if relative == governor_dialog.PATH:
                     backup_matches = digest(baseline) == governor_dialog.BASE
                 if relative in living_caribbean.PREPARERS:

@@ -1,0 +1,19 @@
+# Ordered ai_balls.cpp preimage SHA256: 30066b6e549d5e5bb710af162323676e3247f7d425af3736f1c9b66647bb92f3
+diff --git a/src/libs/sea_ai/src/ai_balls.cpp b/src/libs/sea_ai/src/ai_balls.cpp
+--- a/src/libs/sea_ai/src/ai_balls.cpp
++++ b/src/libs/sea_ai/src/ai_balls.cpp
+@@ -358,4 +358,14 @@
+ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
+ {
++    // Synchronous sea-contact safety query; the live native records own truth.
++    if (*pAttributeChanged == "queryActiveCount")
++    {
++        uint32_t count = 0;
++        for (const auto &type : aBallTypes)
++            count += static_cast<uint32_t>(type.Balls.size());
++        AttributesPointer->SetAttributeUseDword("activeCount", count);
++        return 0;
++    }
++
+     if (*pAttributeChanged == "clear")
+     {
