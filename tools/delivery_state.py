@@ -27,8 +27,19 @@ LEGACY_TECHNIQUES = {
     "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "092a2b5a087dd44d2e3c0eb779d167819fa672398b80189e1f05a75fffaf9621", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},
     "weather/SunGlow.fx": {"326efdd05bdea7fd257b23126b3ffe64f9afbeb8eca51868f78dcf960e8a0f0c", "11abcfe7065d4f652c0204f32f048da1f1e24adf1cfe4085b3a3d3d76c5662cd", "014bbf13890f74450369f8b74269f5518356457fdbcee4be890374aeeb2b527e"},
 }
-NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) + (
-    "resource/shared/messages.h", "public_launcher.py",
+LEGACY_SHARED_HEADERS = {
+    "messages.h": {
+        "a3904843de09a05cafd0bb4bb78766953747bdcd33175fb1bdfdc3171444dc69",
+        "38bab60eeeb5cb90370f3ea4c51b9be5169555ac09df74e15debd630257125a2",
+    },
+    "sea_ai/script_defines.h": {
+        "0810dd98c17656ed1a812d35e7e16d57e35979d35e3892137296cdf37a97b4ce",
+    },
+}
+NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) + tuple(
+    "resource/shared/" + name for name in LEGACY_SHARED_HEADERS
+) + (
+    "public_launcher.py",
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx",
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx",
 )

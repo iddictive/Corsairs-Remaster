@@ -57,33 +57,28 @@ import sys
 
 root, app, candidate, engine = map(Path, sys.argv[1:])
 sys.path.insert(0, str(root.parents[1] / "tools"))
-from delivery_state import DeliveryState, ENGINE, LEGACY_TECHNIQUES, digest, player_guard, transact
+from delivery_state import DeliveryState, ENGINE, LEGACY_SHARED_HEADERS, LEGACY_TECHNIQUES, digest, player_guard, transact
 
 changes = {}
 state = DeliveryState(app / "Contents/Resources", app)
 runtime_state = DeliveryState(root / ".cache/runtime")
 # Shared messages are compiled by the script VM as well as the engine. Deliver
 # the built header to both consumers; stale commands abort startup compilation.
-header_source = root / ".cache/storm/src/libs/shared_headers/include/shared/messages.h"
-header_known = {
-    "a3904843de09a05cafd0bb4bb78766953747bdcd33175fb1bdfdc3171444dc69",
-    "38bab60eeeb5cb90370f3ea4c51b9be5169555ac09df74e15debd630257125a2",
-}
-if header_source.is_symlink() or not header_source.is_file():
-    raise RuntimeError("Missing or linked built messages.h")
-header_after = header_source.read_bytes()
-for target in (
-    app / "Contents/Resources/resource/shared/messages.h",
-    root / ".cache/runtime/resource/shared/messages.h",
-):
-    if target.is_symlink() or not target.is_file():
-        raise RuntimeError(f"Missing or linked script header: {target}")
-    before = target.read_bytes()
-    owner = state if target.is_relative_to(app) else runtime_state
-    owner.admit("resource/shared/messages.h", before, header_after, header_known)
-    owner.track("resource/shared/messages.h", header_after)
-    if before != header_after:
-        changes[target] = (before, header_after)
+for name, known in LEGACY_SHARED_HEADERS.items():
+    header_source = root / ".cache/storm/src/libs/shared_headers/include/shared" / name
+    if header_source.is_symlink() or not header_source.is_file():
+        raise RuntimeError(f"Missing or linked built header: {name}")
+    header_after = header_source.read_bytes()
+    relative = "resource/shared/" + name
+    for target in (app / "Contents/Resources" / relative, root / ".cache/runtime" / relative):
+        if target.is_symlink() or not target.is_file():
+            raise RuntimeError(f"Missing or linked script header: {target}")
+        before = target.read_bytes()
+        owner = state if target.is_relative_to(app) else runtime_state
+        owner.admit(relative, before, header_after, known)
+        owner.track(relative, header_after)
+        if before != header_after:
+            changes[target] = (before, header_after)
 for name, known in LEGACY_TECHNIQUES.items():
     source = root / ".cache/runtime/RESOURCE/techniques" / name
     target = app / "Contents/Resources/RESOURCE/techniques" / name

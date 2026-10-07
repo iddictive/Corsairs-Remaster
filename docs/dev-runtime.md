@@ -28,6 +28,14 @@ Canonical staging also admits the two exact UI texture destinations declared in
 TX bytes are checksum-bound by `src/assets/ui/manifest.json` and use the existing
 transaction/receipt path. Arbitrary texture paths and SAVE remain excluded.
 
+Engine staging delivers the built `shared/messages.h` and
+`shared/sea_ai/script_defines.h` to both runtime and installed script consumers.
+Their finite bootstrap hashes and delivery paths belong to
+`LEGACY_SHARED_HEADERS` in `tools/delivery_state.py`; later upgrades use receipts.
+Startup compilation must be checked against the installed headers. A probe using
+the source tree's newer headers can pass while the played app rejects new event
+constants in `AICannon.c`.
+
 gameplay/ remains ignored scratch space. Accepted edits need integration into
 their durable source before canonical staging or clean-checkout delivery.
 
