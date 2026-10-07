@@ -41,73 +41,14 @@ PATCH = PROJECT / "experiments/native-storm/compiler-extern.patch"
 DECK_PATCHES = (PATCH.with_name("deck-walk.patch"),)
 ENGINE_DECK_PATCH = METAL / "deck-walk.patch"
 BACKGROUND_ALPHA = METAL / "background_alpha.py"
-BASE = {
-    "PROGRAM/Loc_ai/LAi_fightparams.c": "5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",
-    "PROGRAM/Loc_ai/LAi_boarding.c": "656e64ced4c97244dc363bd23a328418269cd7426b6c2015da4ac0a896a275da",
-    "PROGRAM/seadogs.c": "50248f0e85736c3e8ff35211db110dbb96fb206a7bad507106c6af89c7d15841",
-    "PROGRAM/battle_interface/landinterface.c": "75b1650140beaad2d846b1f62638e9e3af7b46454eb49f19fcd7a52ccc6cefcc",
-    "PROGRAM/QuestBook/QuestBook_New.txt": "381bd67437fcabb49abca3df8f5253b3113dec685d628d01933bf5b0610cc349",
-    "PROGRAM/quests/quests.c": "4e3bbd97bfad571c631c3dcf17b0e6783279d652c78915b4a6f9149ec4654bdc",
-    "PROGRAM/quests/quests_reaction.c": "9aabee25dd86dffe3c3f6f7cfd8b4460b116ee0c2d7a18f53d920b3cd459852b",
-    "PROGRAM/locations/locations_loader.c": "113764a8246bcc3987217c76fb1966330b2b6d39a5d724cc09a4556fbc3afd8c",
-    "PROGRAM/scripts/Crew.c": "072f41ae931d3c19946dab7aca5da9fa7f85c76e14aeebd8836c102a9230b490",
-    "PROGRAM/scripts/custody.c": "b434f09a612bdd154239a7a8afae08e8d213e0982effed45926c8fd903aa4b1f",
-    "PROGRAM/sea_ai/AIShip.c": "96b1eaef43f818f1b5d5e25f89c2fae3ef74286d7d37102d65c3ea4057cfe187",
-    "PROGRAM/sea_ai/sea.c": "107f47b78d4a1fab38ad51bac1c0349bdafd1343a9ebb9eec20952a1fc213cd1",
-    # Installed Metal revision, not the layer input: the Esc exit composes on
-    # top of the delivered dialogue-attack revision.
-    "PROGRAM/dialog.c": "948e47d62c451f204e9e7bfe41bcc6d235255d2438a3b06ef3ab758170361ee8",
-}
-
-# Metal revision each file had before the current gameplay layer was first
-# delivered. The baseline copy in .cache/gameplay-baseline is written once and
-# never overwritten, so a file delivered a second time keeps its pristine
-# baseline here instead of silently accepting an unrelated revision.
-BASELINE = {
-    "PROGRAM/dialog.c": "1f0f4f918f1f35134478e1ba2c98c607492f045242e8e6c30cccdfb95a6b57ce",
-    # Recorded by the 2026-09-18 delivery of the previous gameplay layer. Both paths
-    # are delivered a second time now, and their recorded pre-delivery revision is
-    # not the current BASE revision, so the tool needs the explicit record.
-    "PROGRAM/locations/locations_loader.c": "3000c4aedc6b5f36b881dae6b955e5afd3fb2fcb35954434ff326ebb5445b51c",
-    "PROGRAM/quests/quests_reaction.c": "b435b2fbc99346d06a7376b3f02de5fec306fa65da096099a0f092b971414514",
-}
-
-
 # Independently delivered cannon aiming; this package does not replace it.
 PRESERVED_RUNTIME = {
     "PROGRAM/sea_ai/AICannon.c": "b013ee3296b62e0b71c26f5a22b8b2b0c7601ba30b4e281a4162246783b00229",
 }
 
 
-# Exact main revisions accepted for this gameplay review upgrade.
-PREVIOUS = {
-    "PROGRAM/Loc_ai/LAi_fightparams.c": "0e5c671e97b2575586ee87379db027c0393689f1e60b242b5c9d215a7cf37f78",
-    "PROGRAM/quests/quests.c": "9dddd1e68b627ba53451df039c17a224c70119d4d21381eb82c3dcc356f0ec3c",
-    "PROGRAM/scripts/Crew.c": "07c1df47aac70ed0c0bc3cf4b01a6bd70564c3cd5e45b629e063d4cfabdae8d2",
-    "PROGRAM/scripts/CompanionTravel.c": "311926e964fa10bc1cf121a162ac22f9d1139c2e3f387738bf7a253044fb645e",
-}
-
-
 def digest(data):
     return hashlib.sha256(data).hexdigest()
-
-
-def retain_sea_speed(current, reviewed):
-    # This separately delivered sailing function is outside the fleet owner.
-    # Admit it only when removing that exact delta restores a reviewed bridge.
-    def split(data):
-        text = data.decode("utf-8").replace("\r\n", "\n")
-        start = text.index("float Sea_ApplyMaxSpeedZ(")
-        end = text.index("// <<<--- ZhilyaevDm", start)
-        return text[:start], text[start:end], text[end:]
-    before, retained, after = split(current)
-    _, canonical, _ = split(reviewed)
-    if digest(retained.encode()) != "2df44847ed8efdc2e64c4acc6cdebb9650e7f6ba4b4b5cd5c1e5d512fd03c224":
-        return current, reviewed
-    canonical_current = (before + canonical + after).replace("\n", "\r\n").encode()
-    before, _, after = split(reviewed)
-    preserved = (before + retained + after).replace("\n", "\r\n").encode()
-    return canonical_current, preserved
 
 
 def script_bytes(relative, data, *representations):
@@ -118,25 +59,6 @@ def script_bytes(relative, data, *representations):
         for representation in representations:
             if normalized_lf == representation.replace(b"\r\n", b"\n"):
                 return representation
-        known = set()
-        owners = (globals(), vars(suite), vars(living_caribbean), vars(fleet_gameplay),
-                  vars(fleet_sea), vars(fleet_ui), vars(military_callbacks),
-                  vars(deck_camera), vars(deck_controls),
-                  vars(governor_dialog), vars(squad_supply), vars(custody_life))
-        for owner in owners:
-            for value in owner.values():
-                if not isinstance(value, dict) or relative not in value:
-                    continue
-                hashes = value[relative]
-                if isinstance(hashes, str):
-                    known.add(hashes)
-                elif isinstance(hashes, (tuple, list, set)):
-                    known.update(item for item in hashes if isinstance(item, str))
-        if digest(data) in known:
-            return data
-        normalized = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
-        if digest(normalized) in known:
-            return normalized
     return data
 
 
@@ -187,17 +109,6 @@ FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'e3ea4c8b5999ff3d7ffdf9
  'RESOURCE/INI/interfaces/map.ini': '0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd'}
 
 
-FLEET_FINAL_PREVIOUS = {'PROGRAM/sea_ai/sea.c': {'22cbf6b06c96e6518093e5e717c48973684d8006b19fe9e52fe862e658425ab1',
-                          '7b4c7a20efa8d2b18954a47e134e7cc3701b72d241d6b38fcb4a30db63ad976a',
-                          'ace3ef44a63c688ac5f0639a735505d9ec1c8fbd2a0628db6e9baf0685edfcd9',
-                          'd0178cf32d2a148df0f444dcd751d497071489c847f70e033f976350f00a629c',
-                          'ef3137c2627cd023b5e03e0714b57fae9a62aeb0dbcb0746fb1101985d835a6c'},
- 'PROGRAM/interface/map.c': {'8728d28c489c98d6bee5b01698f14c7e78f192f12e2359e3829a5a176c0d910c'},
- 'PROGRAM/battle_interface/WmInterface.c': {'4e9a00718859264aa67c528bd73a54215c9972c39b94b7ce4219e026104f8ae1'},
- 'PROGRAM/battle_interface/loginterface.c': {'7c29df890c9db731ea72eddbf0d27ee07314b6b41643f36965f967efb67a90e0'},
- 'RESOURCE/INI/interfaces/map.ini': {'fc8394f323f4ff94ad125e7c3b10c3219df957a7fab2c0ec545720e2b087e122'}}
-
-
 def prepare_fleet_final(relative, incoming):
     if relative in living_caribbean.PREPARERS:
         incoming = living_caribbean.prepare(relative, incoming)
@@ -211,17 +122,34 @@ def prepare_fleet_final(relative, incoming):
     return result
 
 
-def source_changes(target_root, source_set):
+def source_changes(target_root, source_set, state=None):
     return {path.relative_to(target_root).as_posix(): (before, after)
-            for path, (before, after) in gameplay_sources.prepare_delivery(target_root, source_set).items()
+            for path, (before, after) in gameplay_sources.prepare_delivery(target_root, source_set, state).items()
             if path.is_relative_to(target_root) and path.name != RECEIPT and before != after}
 
 
-def plan(target_root=None, paths=None, source_set=None):
+def legacy_admission():
+    record = json.loads((PROJECT / "tools/gameplay/delivery-bootstrap.json").read_bytes())
+    if (not isinstance(record, dict) or set(record) != {"version", "files"}
+            or type(record["version"]) is not int or record["version"] != 1
+            or not isinstance(record["files"], dict)):
+        raise RuntimeError("Invalid legacy gameplay admission")
+    for name, hashes in record["files"].items():
+        if not isinstance(hashes, list) or any(not isinstance(sha, str) or len(sha) != 64
+                or any(c not in "0123456789abcdef" for c in sha) for sha in hashes):
+            raise RuntimeError(f"Invalid legacy gameplay admission: {name}")
+    return record["files"]
+
+
+def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None):
     if target_root is None:
         target_root = TARGET
     source_set = gameplay_sources.read(paths) if source_set is None else source_set
-    canonical = source_changes(target_root, source_set)
+    app = target_root.parent.parent if target_root.name == "Resources" and target_root.parent.name == "Contents" else None
+    state = DeliveryState(target_root, app) if state is None else state
+    if state.resources != target_root or state.app != app:
+        raise RuntimeError("Gameplay receipt belongs to another runtime")
+    canonical = source_changes(target_root, source_set, state)
     if paths is not None:
         return canonical
     living_caribbean.verify_fort_layout_assets(target_root)
@@ -245,8 +173,9 @@ def plan(target_root=None, paths=None, source_set=None):
         reviewed, _ = deck.prepare(relative, incoming)
         if reviewed != incoming:
             raise RuntimeError("install the current deck-walk package in native-storm before Metal sync")
+    bootstrap = legacy_admission()
+    variants = gameplay_sources.read_variants()
     changes = {}
-    originals = {}
     # Compare all script consumers and interface INIs, not renderer materials.
     for directory in ("PROGRAM", "RESOURCE/INI"):
         for source in (SOURCE / directory).rglob("*"):
@@ -261,144 +190,82 @@ def plan(target_root=None, paths=None, source_set=None):
             if not target.is_file():
                 raise RuntimeError(f"missing Metal gameplay file: {relative}")
             incoming = outputs.get(relative, source.read_bytes())
-            originals[relative] = target.read_bytes()
-            current = military_callbacks.strip(relative, script_bytes(relative, originals[relative], incoming))
-            if digest(current) == PRESERVED_RUNTIME.get(relative):
+            original = target.read_bytes()
+            preserved = original.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n") if relative.endswith(".c") else original
+            if digest(preserved) == PRESERVED_RUNTIME.get(relative):
                 continue
-            if relative != living_caribbean.SEA_PATH and digest(current) == military_callbacks.RETAINED_BASES.get(relative):
-                # A pinned independently delivered revision keeps its existing
-                # behaviour; only this package's callback layer is upgraded.
-                continue
-            if relative in FLEET_FINAL_BASE:
+            variant = gameplay_sources.variant_source(relative, original, state, variants)
+            if variant is not None:
+                reviewed, identity, variant_inputs = variant
+                if inputs is not None:
+                    for path, pair in variant_inputs.items():
+                        if path in inputs and inputs[path] != pair:
+                            raise RuntimeError("Concurrent gameplay variant input; no files changed")
+                        inputs[path] = pair
+            elif relative in FLEET_FINAL_BASE:
                 reviewed = prepare_fleet_final(relative, incoming)
-                if relative == "PROGRAM/sea_ai/sea.c":
-                    current, reviewed = retain_sea_speed(current, reviewed)
-                if digest(current) not in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())):
-                    raise RuntimeError(f"unrecognized installed fleet bridge: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative in fleet_gameplay.FILES:
+            elif relative in fleet_gameplay.FILES:
                 if relative in living_caribbean.PREPARERS:
                     incoming = living_caribbean.prepare(relative, incoming)
                 incoming, _ = background_alpha.prepare_file(relative, incoming)
                 reviewed = fleet_gameplay.prepare(relative, incoming)
-                if not fleet_gameplay.recognized(relative, current):
-                    raise RuntimeError(f"unrecognized fleet gameplay revision: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative == governor_dialog.PATH:
+            elif relative == governor_dialog.PATH:
                 reviewed = governor_dialog.prepare(incoming)
-                if current not in (incoming, reviewed) and current not in living_caribbean.UPDATED.values():
-                    raise RuntimeError(f"unrecognized governor dialogue revision: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative in living_caribbean.PREPARERS:
+            elif relative in living_caribbean.PREPARERS:
                 reviewed = living_caribbean.prepare(relative, incoming)
-                recognized = {digest(incoming), digest(reviewed), BASE.get(relative)}
-                recognized.update(living_caribbean.PREVIOUS.get(relative, ()))
-                if digest(current) not in recognized:
-                    raise RuntimeError(f"unrecognized living Caribbean revision: {relative}")
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative in deck_controls.PATHS:
+            elif relative in deck_controls.PATHS:
                 reviewed = deck_controls.prepare(relative, incoming)
-                current = script_bytes(relative, current, incoming, reviewed)
-                canonical_current = deck_controls.strip(relative, current)
-                if canonical_current != incoming:
-                    raise RuntimeError(f"unrecognized Metal deck-control source revision: {relative}")
-                if reviewed != current:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative == deck_camera.PATH:
-                if deck_camera.strip(current) != incoming:
-                    raise RuntimeError(f"unrecognized deck camera source revision: {relative}")
+            elif relative == deck_camera.PATH:
                 reviewed = deck_camera.prepare(incoming)
-                if reviewed != current:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative == pickup_glow.RELATIVE_PATH:
-                canonical_current = pickup_glow.strip(current)
-                if canonical_current not in (source.read_bytes(), incoming):
-                    raise RuntimeError(f"unrecognized pickup source revision: {relative}")
+            elif relative == pickup_glow.RELATIVE_PATH:
                 reviewed = pickup_glow.prepare(incoming)
-                if current != reviewed:
-                    changes[relative] = (current, reviewed)
-                continue
-            if relative in custody_life.BASE:
-                if digest(current) not in {custody_life.INSTALLED[relative], custody_life.UPDATED[relative]} | custody_life.PREVIOUS.get(relative, set()):
-                    raise RuntimeError(f"unrecognized custody revision: {relative}")
-                if current != incoming:
-                    changes[relative] = (current, incoming)
-                continue
-            if relative in squad_supply.BASE:
+            elif relative in custody_life.BASE:
+                reviewed = incoming
+            elif relative in squad_supply.BASE:
                 if digest(incoming) != squad_supply.UPDATED[relative]:
                     raise RuntimeError(f"unreviewed squad-supply output: {relative}")
-                if digest(current) not in {
-                    squad_supply.BASE[relative], squad_supply.UPDATED[relative], '3a2756ae55d9db463b59a500b297f37eb9d70efff5f008bf08608bb8290eb78d'
-                } | squad_supply.PREVIOUS.get(relative, set()):
-                    raise RuntimeError(f"unrecognized squad-supply revision: {relative}")
-                if current != incoming:
-                    changes[relative] = (current, incoming)
-                continue
-            if incoming == current:
-                continue
-            reviewed, backdrop_changed = background_alpha.prepare_file(relative, incoming)
-            if backdrop_changed:
-                canonical_current, current_backdrop = background_alpha.strip_file(relative, current)
-                canonical_incoming, incoming_backdrop = background_alpha.strip_file(relative, reviewed)
-                if (relative in BASE and current_backdrop and incoming_backdrop
-                        and digest(canonical_current) == BASE[relative]
-                        and digest(canonical_incoming) == expected[relative]):
-                    changes[relative] = (current, reviewed)
+                reviewed = incoming
+            else:
+                if (relative not in bootstrap
+                        and relative not in deck.PATCHES and relative not in military_callbacks.HOOKS):
+                    # No composer owns this file. Preserve runtime edits.
                     continue
-                if reviewed != current:
-                    raise RuntimeError(f"unrecognized Metal backdrop revision: {relative}")
-                continue
-            if relative in deck.PATCHES:
-                reviewed_current, _ = deck.prepare(relative, current)
-                reviewed_incoming, _ = deck.prepare(relative, incoming)
-                canonical_current, _ = deck.settings_visibility.strip(
-                    relative, reviewed_current
-                )
-                canonical_incoming, _ = deck.settings_visibility.strip(
-                    relative, reviewed_incoming
-                )
-                if canonical_current != canonical_incoming:
-                    raise RuntimeError(f"unrecognized deck gameplay revision: {relative}")
-                changes[relative] = (current, incoming)
-                continue
-            if relative not in BASE and relative not in PREVIOUS:
-                # No composer owns this delta. Preserve existing runtime edits
-                # instead of replacing them with the historical carrier copy.
-                continue
-            if digest(incoming) != expected[relative] or digest(current) not in {BASE.get(relative), PREVIOUS.get(relative)}:
-                raise RuntimeError(f"unrecognized gameplay revision: {relative}")
-            changes[relative] = (current, incoming)
-    # The owning layers validate their canonical predecessors above; military
-    # callbacks then compose once on those exact final bytes. Original bytes
-    # remain the backup/delivery owner, including an already-installed adapter.
-    for relative in military_callbacks.HOOKS:
-        if relative in source_set[0]:
-            continue
-        target = target_root / relative
-        current = target.read_bytes()
-        if relative in originals and current != originals[relative]:
-            raise RuntimeError(f"concurrent gameplay change: {relative}")
-        originals[relative] = current
-        incoming = changes[relative][1] if relative in changes else military_callbacks.strip(relative, script_bytes(relative, current))
-        reviewed = military_callbacks.prepare(relative, incoming)
-        if reviewed != current:
-            changes[relative] = (current, reviewed)
-        else:
-            changes.pop(relative, None)
-    result = {relative: (originals[relative], incoming)
-              for relative, (_, incoming) in changes.items()}
-    result.update(canonical)
-    return result
+                reviewed, _ = background_alpha.prepare_file(relative, incoming)
+                if relative in expected and digest(incoming) != expected[relative]:
+                    raise RuntimeError(f"unreviewed gameplay output: {relative}")
+            if relative in military_callbacks.HOOKS:
+                reviewed = (military_callbacks.transform(relative, reviewed) if variant is not None
+                            else military_callbacks.prepare(relative, reviewed))
+            if script_bytes(relative, original, reviewed) == reviewed:
+                reviewed = original
+            admitted = original if relative in state.files else script_bytes(relative, original, reviewed)
+            if relative not in state.files and relative.endswith(".c"):
+                normalized = admitted.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+                if digest(normalized) in bootstrap.get(relative, ()):
+                    admitted = normalized
+            state.admit(relative, admitted, reviewed, bootstrap.get(relative, ()))
+            state.track(relative, reviewed, owner=state.files.get(relative, {}).get("owner", "stage"),
+                        source=identity if variant is not None else None)
+            if managed is not None:
+                managed[relative] = (original, reviewed)
+            if original != reviewed:
+                changes[relative] = (original, reviewed)
+    changes.update(canonical)
+    return changes
+
+
+def delivery_content(target_root, sources=None):
+    source_set = gameplay_sources.read()
+    managed = {}
+    app = target_root.parent.parent if target_root.name == "Resources" and target_root.parent.name == "Contents" else None
+    state = DeliveryState(target_root, app)
+    if plan(target_root, source_set=source_set, managed=managed, state=state):
+        raise RuntimeError("Gameplay is not staged; run sync_metal_gameplay.py apply")
+    if sources is not None:
+        sources.update({name: row["source"] for name, row in state.files.items()
+                        if "source" in row and name in managed})
+    return {name: after for name, (_, after) in managed.items()} | {
+        name: row[0] for name, row in source_set[0].items()}
 
 
 def apply(changes, paths=None, source_set=None):
@@ -412,7 +279,13 @@ def apply_locked(changes, paths=None, source_set=None):
         raise RuntimeError("build and stage Metal with the current compiler, deck, sea-surrender and contact-activity patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
     source_set = gameplay_sources.read(paths) if source_set is None else source_set
-    app_changes = plan(app_resources, paths, source_set) if INSTALLED_APP.is_dir() else {}
+    runtime_state = DeliveryState(TARGET)
+    app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
+    runtime_managed, app_managed, variant_inputs = {}, {}, {}
+    if plan(paths=paths, source_set=source_set, state=runtime_state, managed=runtime_managed, inputs=variant_inputs) != changes:
+        raise RuntimeError("Concurrent gameplay plan change; no files changed")
+    if app_state is not None:
+        plan(app_resources, paths, source_set, app_state, app_managed, variant_inputs)
     engines = [ENGINE]
     if INSTALLED_APP.is_dir():
         engines.append(INSTALLED_APP / "Contents/MacOS/metal-engine")
@@ -420,64 +293,13 @@ def apply_locked(changes, paths=None, source_set=None):
                              capture_output=True, text=True, check=False)
     if holders.returncode != 1 or holders.stdout or holders.stderr:
         raise RuntimeError("close the Metal game before applying gameplay")
-    batch = {}
-    runtime_state = DeliveryState(TARGET)
-    app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
-    for relative, (previous, incoming) in changes.items():
-        if relative in source_set[0]:
-            if incoming != source_set[0][relative][0]:
-                raise RuntimeError(f"Concurrent canonical source change: {relative}")
-            continue
+    batch = dict(variant_inputs)
+    for relative, (previous, incoming) in runtime_managed.items():
         path = TARGET / relative
-        if path.read_bytes() != previous:
-            raise RuntimeError(f"concurrent Metal change: {relative}")
-        backup = METAL / ".cache/gameplay-baseline" / relative
-        if backup.exists() and backup.read_bytes() != previous:
-            baseline = backup.read_bytes()
-            deck = deck_package()
-            backup_matches = digest(baseline) in {BASELINE.get(relative), BASE.get(relative), PREVIOUS.get(relative), suite.base_hashes().get(relative)}
-            if relative in FLEET_FINAL_BASE:
-                backup_matches = digest(baseline) in ({FLEET_FINAL_BASE[relative], FLEET_FINAL_SHA[relative]} | FLEET_FINAL_PREVIOUS.get(relative, set())) or backup_matches
-            if relative in military_callbacks.HOOKS:
-                backup_matches = digest(baseline) in {
-                    military_callbacks.BASES[relative], military_callbacks.UPDATED[relative],
-                    military_callbacks.RETAINED_BASES.get(relative), military_callbacks.RETAINED_UPDATED.get(relative),
-                } | military_callbacks.PREVIOUS.get(relative, set()) | military_callbacks.RETAINED_PREVIOUS.get(relative, set()) or backup_matches
-            if relative == governor_dialog.PATH:
-                backup_matches = digest(baseline) == governor_dialog.BASE
-            if relative in living_caribbean.PREPARERS:
-                backup_matches = digest(baseline) in {BASE.get(relative), living_caribbean.PREPARERS[relative][0]} | living_caribbean.PREVIOUS.get(relative, set())
-            if relative in fleet_gameplay.FILES:
-                backup_matches = fleet_gameplay.recognized(relative, baseline) or backup_matches
-            if relative in custody_life.BASELINE:
-                backup_matches = digest(baseline) == custody_life.BASELINE[relative]
-            if relative in squad_supply.BASE:
-                backup_matches = digest(baseline) in {squad_supply.BASE[relative]} | squad_supply.PREVIOUS.get(relative, set())
-            if relative == pickup_glow.RELATIVE_PATH:
-                backup_matches = digest(pickup_glow.strip(baseline)) in pickup_glow.BASE_SHA256
-            if relative in deck.PATCHES:
-                prepared_baseline, _ = deck.prepare(relative, baseline)
-                shared_incoming = incoming
-                if relative == deck_camera.PATH:
-                    shared_incoming = deck_camera.strip(shared_incoming)
-                if relative in deck_controls.PATHS:
-                    shared_incoming = deck_controls.strip(relative, shared_incoming)
-                prepared_incoming, _ = deck.prepare(relative, shared_incoming)
-                canonical_baseline, _ = deck.settings_visibility.strip(relative, prepared_baseline)
-                canonical_incoming, _ = deck.settings_visibility.strip(relative, prepared_incoming)
-                backup_matches = canonical_baseline == canonical_incoming
-            if not backup_matches:
-                raise RuntimeError(f"unexpected backup revision: {relative}")
-        runtime_state.admit(relative, previous, incoming, {digest(previous)})
-        runtime_state.track(relative, incoming)
-        if not backup.exists():
-            batch[backup] = (None, previous)
+        batch.update(gameplay_sources.backup_change(previous, incoming))
         batch[path] = (previous, incoming)
-    for relative, (previous, incoming) in app_changes.items():
-        if relative in source_set[0]:
-            continue
-        app_state.admit(relative, previous, incoming, {digest(previous)})
-        app_state.track(relative, incoming)
+    for relative, (previous, incoming) in app_managed.items():
+        batch.update(gameplay_sources.backup_change(previous, incoming))
         batch[app_resources / relative] = (previous, incoming)
     batch.update(gameplay_sources.prepare_delivery(TARGET, source_set, runtime_state))
     if app_state is not None:

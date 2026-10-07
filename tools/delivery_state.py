@@ -61,8 +61,10 @@ class DeliveryState:
         self.files = record["files"]
         for name, row in self.files.items():
             self.path(name)
-            if not isinstance(row, dict) or set(row) != {"sha256", "owner"}:
+            if not isinstance(row, dict) or set(row) not in ({"sha256", "owner"}, {"sha256", "owner", "source"}):
                 raise RuntimeError(f"Invalid delivery record: {name}")
+            if "source" in row:
+                self.source_name(row["source"])
             sha = row["sha256"]
             if (not isinstance(sha, str) or len(sha) != 64
                     or any(c not in "0123456789abcdef" for c in sha)
@@ -101,11 +103,22 @@ class DeliveryState:
         elif current != incoming and digest(current) not in legacy:
             raise RuntimeError(f"Unrecognized legacy delivery: {name}; no files changed.")
 
-    def track(self, name: str, incoming: bytes, owner: str = "stage") -> None:
+    @staticmethod
+    def source_name(source: str) -> None:
+        if (not isinstance(source, str) or not source or len(source) > 512
+                or "\0" in source or Path(source).is_absolute() or ".." in Path(source).parts
+                or Path(source).as_posix() != source):
+            raise RuntimeError("Invalid delivered source identity")
+
+    def track(self, name: str, incoming: bytes, owner: str = "stage", source: str | None = None) -> None:
         self.path(name)
         if owner not in ("stage", "development"):
             raise RuntimeError(f"Invalid delivery owner: {owner}")
+        source = self.files.get(name, {}).get("source") if source is None else source
         self.files[name] = {"sha256": digest(incoming), "owner": owner}
+        if source is not None:
+            self.source_name(source)
+            self.files[name]["source"] = source
 
     def change(self) -> tuple[bytes | None, bytes]:
         record = {"version": 1, "files": self.files}
@@ -201,7 +214,7 @@ def transact(changes: dict[Path, tuple[bytes | None, bytes]], app: Path | None =
     return len(written)
 
 
-def record_export(app: Path, content: dict[str, bytes] | None = None) -> None:
+def record_export(app: Path, content: dict[str, bytes] | None = None, sources=None) -> None:
     """Record fresh produced bytes after nested signing, before the outer seal."""
     state = DeliveryState(app / "Contents/Resources", app)
     if state.before is not None:
@@ -212,5 +225,5 @@ def record_export(app: Path, content: dict[str, bytes] | None = None) -> None:
         current = state.path(name).read_bytes()
         if current != incoming:
             raise RuntimeError(f"Stale exported gameplay source: {name}")
-        state.track(name, current)
+        state.track(name, current, source=(sources or {}).get(name))
     atomic_write(state.receipt, state.change()[1])

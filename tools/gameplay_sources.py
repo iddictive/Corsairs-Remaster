@@ -58,6 +58,57 @@ def read(selected=None):
     return result, inputs
 
 
+def backup_change(before: bytes | None, incoming: bytes):
+    if before is None or before == incoming:
+        return {}
+    backup = safe_path(BACKUPS, Path(digest(before)))
+    saved = backup.read_bytes() if backup.exists() else None
+    if saved is not None and saved != before:
+        raise RuntimeError("Changed gameplay source backup")
+    return {backup: (saved, before)}
+
+
+def read_variants():
+    manifest = safe_path(ROOT, Path("variants.json"))
+    raw = manifest.read_bytes()
+    record = json.loads(raw)
+    if (not isinstance(record, dict) or set(record) != {"version", "files"}
+            or type(record["version"]) is not int or record["version"] != 1
+            or not isinstance(record["files"], dict)):
+        raise RuntimeError("Invalid gameplay variants")
+    return record["files"], {manifest: (raw, raw)}
+
+
+def variant_source(name: str, current: bytes, state: DeliveryState, declarations):
+    """Select an existing product variant once, then retain its source identity."""
+    files, inputs = declarations
+    row = files.get(name)
+    if row is None:
+        return None
+    if (not isinstance(row, dict) or set(row) != {"encoding", "sources"}
+            or row["encoding"] not in ("utf-8", "cp1251")
+            or not isinstance(row["sources"], dict) or not row["sources"]):
+        raise RuntimeError(f"Invalid gameplay variant: {name}")
+    for source, legacy in row["sources"].items():
+        DeliveryState.source_name(source)
+        if (Path(source).parts[0] != "variants" or Path(source).suffix != Path(name).suffix
+                or not isinstance(legacy, list) or any(not isinstance(sha, str) or len(sha) != 64
+                or any(c not in "0123456789abcdef" for c in sha) for sha in legacy)):
+            raise RuntimeError(f"Invalid gameplay variant source: {source}")
+    identity = state.files.get(name, {}).get("source")
+    if identity is None:
+        hashes = {digest(current), digest(runtime_bytes(name, source_bytes(name, current, row["encoding"]), row["encoding"]))}
+        matches = [source for source, legacy in row["sources"].items() if hashes.intersection(legacy)]
+        if len(matches) != 1:
+            raise RuntimeError(f"Unrecognized gameplay variant: {name}; no files changed")
+        identity = matches[0]
+    if identity not in row["sources"]:
+        raise RuntimeError(f"Unknown delivered variant source: {name}; no files changed")
+    path = safe_path(ROOT, Path(identity))
+    data = path.read_bytes()
+    return runtime_bytes(name, data, row["encoding"]), identity, {**inputs, path: (data, data)}
+
+
 def prepare_delivery(resources: Path, source_set, state: DeliveryState | None = None,
                      development: bool = False):
     sources, inputs = source_set
@@ -72,13 +123,9 @@ def prepare_delivery(resources: Path, source_set, state: DeliveryState | None = 
         before = path.read_bytes() if path.exists() else None
         equivalent = before is not None and source_bytes(name, before, encoding) == source_bytes(name, incoming, encoding)
         state.admit(name, before, incoming, legacy, development=development or equivalent, create=True)
-        state.track(name, incoming)
-        if before is not None and before != incoming:
-            backup = safe_path(BACKUPS, Path(digest(before)))
-            saved = backup.read_bytes() if backup.exists() else None
-            if saved is not None and saved != before:
-                raise RuntimeError(f"Changed gameplay source backup: {name}")
-            changes[backup] = (saved, before)
+        owner = state.files.get(name, {}).get("owner", "stage") if not development else "stage"
+        state.track(name, incoming, owner=owner)
+        changes.update(backup_change(before, incoming))
         changes[path] = (before, incoming)
     changes[state.receipt] = state.change()
     return changes

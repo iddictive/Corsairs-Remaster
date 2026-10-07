@@ -203,11 +203,12 @@ def validate_inputs(repo_root: Path) -> dict[str, Any]:
             "Run experiments/native-metal/run.sh --stage-only first."
         )
 
-    from gameplay_sources import read
-    for name, (incoming, _, _) in read()[0].items():
-        path = metal_cache / "runtime" / name
-        if not path.is_file() or path.read_bytes() != incoming:
-            sys.exit(f"Error: Canonical gameplay source is not staged: {name}; run sync_metal_gameplay.py apply.")
+    from sync_metal_gameplay import delivery_content
+    gameplay_origins = {}
+    try:
+        gameplay_content = delivery_content(metal_cache / "runtime", gameplay_origins)
+    except (RuntimeError, OSError, ValueError) as error:
+        sys.exit(f"Error: {error}")
 
     # Captured neutral baseline gameplay inputs required - no runtime-config fallback
     engine_ini = gameplay_inputs / "engine.ini"
@@ -254,6 +255,8 @@ def validate_inputs(repo_root: Path) -> dict[str, Any]:
         "graphics_script": graphics_script,
         "launcher_script": launcher_script,
         "py_framework": py_framework,
+        "gameplay_content": gameplay_content,
+        "gameplay_origins": gameplay_origins,
     }
 
 
@@ -496,7 +499,7 @@ def write_plist_and_launcher(contents_dir: Path, minos_version: str = "15.0") ->
                            '-O2', str(source), '-o', str(contents_dir / 'MacOS/launch')])
 
 
-def sign_application(bundle_dir: Path) -> None:
+def sign_application(bundle_dir: Path, gameplay_content: dict[str, bytes], gameplay_origins: dict[str, str]) -> None:
     """Seal nested code before the app, avoiding TCC's unsigned-bundle synthesis."""
     framework = bundle_dir / 'Contents/Frameworks/Python.framework'
     version = framework / 'Versions/3.14'
@@ -514,8 +517,7 @@ def sign_application(bundle_dir: Path) -> None:
                              (bundle_dir / 'Contents/MacOS/metal-engine', BUNDLE_ID + '.engine')):
         subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', identifier, str(path)])
     from delivery_state import record_export
-    from gameplay_sources import read
-    record_export(bundle_dir, {name: incoming for name, (incoming, _, _) in read()[0].items()})
+    record_export(bundle_dir, gameplay_content, gameplay_origins)
     subprocess.check_call(['codesign', '--force', '--sign', '-', '--identifier', BUNDLE_ID, str(bundle_dir)])
     subprocess.check_call(['codesign', '--verify', '--deep', '--strict', str(bundle_dir)])
 
@@ -595,7 +597,7 @@ def export_bundle(dest_app: Path, repo_root: Path) -> None:
         for name in files:
             if name == ".DS_Store" or name.endswith(".pyc"):
                 (Path(directory) / name).unlink()
-    sign_application(dest_app)
+    sign_application(dest_app, inputs['gameplay_content'], inputs['gameplay_origins'])
     verify_dependencies(dest_app)
     print("Standalone application bundle export completed successfully.")
 

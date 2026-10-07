@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "files": {
+    "PROGRAM/dialogs/russian/MainHero_dialog.c": {
+      "encoding": "utf-8",
+      "sources": {
+        "variants/mainhero/standard.c": [
+          "5b4d6435621d2dd0e51538e8e6bfefaa3c174085e98fdd66f78ccb0a93ebe739",
+          "eb0e76dc04001ce9bb34e08242a5b3b53728a47e1fad27b0839696c907b5037a"
+        ],
+        "variants/mainhero/boarding-loot.c": [
+          "b4af6b1b2ccd25f12ae517b447b477a5ca9e9364f4dbe43c4c4e2840671f3d14",
+          "e4b610de7ed77de21fab8cd539cac828c01de99021590b7a475e6f2348f3e971"
+        ]
+      }
+    }
+  }
+}
