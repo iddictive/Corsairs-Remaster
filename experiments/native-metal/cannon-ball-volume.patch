@@ -328,3 +328,23 @@ diff --git a/src/libs/sea_ai/src/ai_balls.cpp b/src/libs/sea_ai/src/ai_balls.cpp
                          break;
                  }
              }
+diff --git a/src/libs/rigging/src/script_func.cpp b/src/libs/rigging/src/script_func.cpp
+--- a/src/libs/rigging/src/script_func.cpp
++++ b/src/libs/rigging/src/script_func.cpp
+@@ -4,6 +4,7 @@
+ #include "s_import_func.h"
+ #include "sail.h"
+ #include "v_s_stack.h"
++#include <algorithm>
+ 
+ extern float g_fSailHoleDepend;
+ // extern float GetSailSpeed(int holeQ,int holeMax,float maxSpeed,float fSailHoleDepend);
+@@ -180,7 +181,7 @@
+     int holeArraySize = 0;
+     int holeIdx[20];
+     uint32_t holeMask = _holeData;
+-    for (int i = 0; holeMask > 0; i++, holeMask >>= 1)
++    for (int i = 0; i < std::min(_maxHole, 20); i++, holeMask >>= 1)
+         if (!(holeMask & 1))
+             holeIdx[holeArraySize++] = i;
+ 

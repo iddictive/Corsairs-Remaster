@@ -30,6 +30,7 @@ LEGACY_TECHNIQUES = {
 NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) + (
     "resource/shared/messages.h", "public_launcher.py",
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx",
+    "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx",
 )
 
 

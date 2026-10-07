@@ -1,6 +1,10 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/battle_interface/BattleInterface.c": {
+      "encoding": "utf-8",
+      "legacy": ["8d56beba0436ada9af6a8a236bf3535f32c8df7fb9f88e577f89ba6f23a2d566"]
+    },
     "PROGRAM/interface/LeaveBattle.c": {
       "encoding": "utf-8",
       "legacy": ["f6cd4372ccaa99a914a3fb6b2a9d24672e97f65494eda64584c55695c45a94f5"]
@@ -119,6 +123,14 @@
         "bb3c65769c717cc9d87d41b9cbe33e6fca86a85fd4d87d58a57d0ed9810bb55d"
       ]
     },
+    "PROGRAM/interface/character.c": {
+      "encoding": "utf-8",
+      "legacy": ["00b54166f3c4970cf71d67c36987cb966f358dc9f555aa16b63c20c071895d7f"]
+    },
+    "PROGRAM/interface/character_all.c": {
+      "encoding": "utf-8",
+      "legacy": ["41645b8e40bd1ed841fda82fa6832ca7965d271cc52a3f5b4aa758cdc8dcd441"]
+    },
     "PROGRAM/interface/perks/perks.c": {
       "encoding": "utf-8",
       "legacy": [
@@ -136,6 +148,14 @@
       "legacy": [
         "8d9a9dcfe5dda29ac63ff9936ec2559c739c97b8273738108a2c6127e0907304"
       ]
+    },
+    "PROGRAM/sea_ai/AIBalls.c": {
+      "encoding": "utf-8",
+      "legacy": ["6e0940276707f009dd1dae34f590b99effc441d4b86fba9d291f25084b3a0e48"]
+    },
+    "PROGRAM/sea_ai/AICannon.c": {
+      "encoding": "utf-8",
+      "legacy": ["e0cde8f0e223a5ec61faf5143b7e426ffc8140179423b464f25945d3094b3ba7"]
     },
     "PROGRAM/sea_ai/AIFort.c": {
       "encoding": "utf-8",

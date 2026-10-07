@@ -1,29 +1,68 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -22,7 +22,7 @@
+@@ -3,6 +3,7 @@
+ #include "ai_balls.h"
+ #include "ai_ship.h"
+ #include "ai_fort.h"
++#include "ship_surrender.h"
+ #include "cannon_trace.h"
+ #include "sea_base.h"
+ #include "island_base.h"
+@@ -11,7 +12,7 @@
+ #include "shared/sea_ai/script_defines.h"
+ #include "math_inlines.h"
+ 
+-namespace { float AimHeightScale(ATTRIBUTES *character); }
++namespace { float AimHeightScale(ATTRIBUTES *character); float AimRakeFactor(ATTRIBUTES *character); }
+ 
+ float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
+ float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
+@@ -22,7 +23,7 @@
  }
  
  bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
 -                                           bool bApplyBortDelta)
-+                                           bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual)
++                                           bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual, AIShip *targetShip)
  {
      const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
      if (!bEnoughBalls)
-@@ -52,7 +52,11 @@
+@@ -43,6 +44,21 @@
+     vTempFirePos += CVECTOR(fRadius * sinf(fAng), 0.0f, fRadius * cosf(fAng));
+     }
+ 
++    MANUAL_AIM_SOLUTION autoSolution;
++    const MANUAL_AIM_SOLUTION *solution = manual;
++    if (!solution && targetShip && AimRakeFactor(GetAIShip()->GetACharacter()) > .01f)
++    {
++        autoSolution.bort = &bort;
++        autoSolution.target = vTempFirePos;
++        for (auto &cannon : bort.aCannons)
++            if (!cannon.isDamaged()) autoSolution.guns.push_back(&cannon);
++        autoSolution.gunTargets.assign(autoSolution.guns.size(), vTempFirePos);
++        // Retain the ordinary moving-target lead and gunner offset; hull
++        // stations share the manual solution, translated to the intercept.
++        DistributeRakeTargets(autoSolution, targetShip, vTempFirePos - targetShip->GetPos());
++        solution = &autoSolution;
++    }
++
+     const auto vTempFireDir = !(vTempFirePos - pOurAIShip->GetPos());
+ 
+     core.Event(SHIP_BORT_FIRE, "lisffffff", GetIndex(GetAIShip()->GetACharacter()), GetAIShip()->GetShipEID(),
+@@ -52,7 +68,11 @@
      bool fired = false;
      for (auto& cannon : bort.aCannons)
      {
 -        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, vTempFirePos))
 +        CVECTOR gunTarget = vTempFirePos;
-+        if (!bApplyBortDelta && manual)
-+            for (size_t i = 0; i < manual->guns.size(); ++i)
-+                if (manual->guns[i] == &cannon) { gunTarget = manual->gunTargets[i]; break; }
++        if (solution)
++            for (size_t i = 0; i < solution->guns.size(); ++i)
++                if (solution->guns[i] == &cannon) { gunTarget = solution->gunTargets[i]; break; }
 +        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget))
              continue;
          if (!cannon.isDamaged())
          {
-@@ -60,10 +64,10 @@
+@@ -60,10 +80,10 @@
  
              if (debugDrawToggle)
              {
@@ -38,7 +77,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      if (bApplyBortDelta || fired)
-@@ -78,7 +82,7 @@
+@@ -78,7 +98,7 @@
      MANUAL_AIM_SOLUTION solution;
      if (!BuildManualAimSolution(vFireCamPos, vFireDir, solution))
          return false;
@@ -47,20 +86,138 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      if (fired && manualTarget) *manualTarget = solution.character;
      return fired;
  }
-@@ -850,6 +854,26 @@
-     return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
-             .5f*accuracy*10.f*12.f*kAimPi/180.f};
+@@ -128,7 +148,7 @@
+             const auto &midCannon = cannons[cannons.size() / 2];
+ 
+             // calc average real speed
+-            const float fRealAng = midCannon.CalcHeightFireAngle(fSpeedV0, !(vTargetEnemyPos - midCannon.GetPos()), vTargetEnemyPos);
++            const float fRealAng = midCannon.CalcHeightFireAngle(fSpeedV0, midCannon.GetPos(), vTargetEnemyPos);
+             const float fSpeedV = fRealSpeedV0 * cosf(fRealAng);
+ 
+             // calc precise pos
+@@ -144,7 +164,7 @@
+                                                 ARGB(0xFF, 0x00, 0xFF, 0x00), float{});
+             }
+ 
+-            Fire2Position(*bortIt, vFirePos, fFireHeight);
++            Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy);
+             bortIt = GetNextFireBort(bortIt, vFirePos);
+         }
+     }
+@@ -361,7 +381,9 @@
+     const auto *gun=solution.guns.front();
+     const CVECTOR muzzle=gun->GetPos(), flat=!(CVECTOR(solution.target.x-muzzle.x,0.f,solution.target.z-muzzle.z));
+     const float speed=GetSpeedV0(),angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
+-    const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,AimHeightScale(GetAIShip()->GetACharacter()),AIHelper::fGravity);
++    const float height=AimHeightScale(GetAIShip()->GetACharacter());
++    if(height<=0.f)return {1e5f,0.f,1e5f};
++    const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity);
+     float lo=0.f,hi=curve.timeToHeight(-20.f);
+     for(int i=0;i<24;++i){const float mid=(lo+hi)*.5f;if(((curve.at(mid)-muzzle)|flat)<fDistance)lo=mid;else hi=mid;}
+     return curve.at((lo+hi)*.5f);
+@@ -689,11 +711,15 @@
+ {
+     std::vector<AimModel> models;
+     SEA_BASE *sea=nullptr;
++    CANNON_TRACE_BASE *sail=nullptr;
++    entid_t ownShip=0;
+     float waveBound=20.f;
+     explicit AimWorld(AIShip *own)
+     {
+         auto *entity=core.GetEntityPointer(core.GetEntityId("sea"));
+         sea=entity?static_cast<SEA_BASE *>(entity):nullptr;
++        ownShip=own->GetShipEID();
++        sail=dynamic_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(core.GetEntityId("sail")));
+         if(sea && sea->AttributesPointer)
+             waveBound=std::max(1.f,sea->AttributesPointer->GetAttributeAsFloat("MaxSeaHeight",20.f));
+         for(auto *ship:AIShip::AIShips)
+@@ -807,6 +833,23 @@
+         }
+         return hit;
+     }
++    AimHit traceSelection(const CVECTOR &a,const CVECTOR &b) const
++    {
++        AimHit hit=trace(a,b);
++        if(!sail)return hit;
++        entid_t owner=0;
++        const float f=sail->Pick(a,b,ownShip,owner);
++        if(std::isfinite(f)&&f>=0.f&&f<=1.f&&f<hit.fraction)
++        {
++            auto *ship=dynamic_cast<VAI_OBJBASE *>(core.GetEntityPointer(owner));
++            if(ship&&ship->GetACharacter())
++            {
++                hit.valid=true;hit.fraction=f;hit.point=a+(b-a)*f;
++                hit.surface=-1;hit.character=ship->GetACharacter();hit.normal=!(a-b);
++            }
++        }
++        return hit;
++    }
+ };
+ struct AimPath
+ {
+@@ -829,30 +872,64 @@
  }
+ float AimHeightScale(ATTRIBUTES *character)
+ {
+-    auto *cannons=character?character->FindAClass(character,"Ship.Cannons"):nullptr;
+-    float catalogScale=1.f;
+-    auto *catalog=static_cast<VDATA *>(core.GetScriptVariable("Cannon"));
+-    const uint32_t type=cannons?cannons->GetAttributeAsDword("Type",0):0;
+-    if(catalog && type<catalog->GetElementsNum())
+-        if(auto *entry=catalog->GetAClass(type))catalogScale=entry->GetAttributeAsFloat("HeightMultiply",1.f);
+-    // Match the currently shipped AIBalls.c, including its inherited comparison:
+-    // Type is Goods[charge].Name, compared to integer GOOD_KNIPPELS (2).
+-    // DATA converts a nonnumeric name to 0, so every loaded named shot uses .4.
+-    // Using .65 for numeric Charge.Type==2 would silently disagree with live fire.
+-    return catalogScale*.4f;
++    if(auto *vd=core.Event(CANNON_GET_FIRE_HEIGHT_MULTIPLY,"a",character))
++    {
++        const float hm=vd->GetFloat();
++        if(hm>0.f)return hm;
++    }
++    static bool logged=false;
++    if(!logged){core.Trace("Manual aim: CANNON_GET_FIRE_HEIGHT_MULTIPLY unavailable; no guessed ballistics");logged=true;}
++    return 0.f;
+ }
+ struct AimSpread {float azimuth,elevation,speed;};
+ AimSpread AimLiveSpread(ATTRIBUTES *character)
+ {
++    if(auto *vd=core.Event(CANNON_GET_FIRE_ACCURACY,"a",character))
++    {
++        const float accuracy=vd->GetFloat();
++        if(accuracy>0.f)
++        {
++            const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
++            return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
++                    .5f*accuracy*10.f*12.f*kAimPi/180.f};
++        }
++    }
++    static bool logged=false;
++    if(!logged){core.Trace("Manual aim: CANNON_GET_FIRE_ACCURACY unavailable; no guessed dispersion");logged=true;}
++    return {0.f,0.f,0.f};
++}
 +float AimRakeFactor(ATTRIBUTES *character)
 +{
 +    // Rookie gunners keep the legacy single-point volley; masters spread it
 +    // along the locked hull, fully only with the RakingFire capstone.
-+    auto *skill=character?character->FindAClass(character,"TmpSkill"):nullptr;
+     auto *skill=character?character->FindAClass(character,"TmpSkill"):nullptr;
+-    const float accuracy=1.2f-(skill?skill->GetAttributeAsFloat("Accuracy",.6f):.6f);
+-    const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
+-    return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
+-            .5f*accuracy*10.f*12.f*kAimPi/180.f};
 +    const float cannons=skill?skill->GetAttributeAsFloat("Cannons",.3f):.3f;
 +    const float rakeSkill=std::clamp((cannons-.30f)/.55f,0.f,1.f);
 +    auto *perks=character?character->FindAClass(character,"TmpPerks"):nullptr;
 +    const bool capstone=perks&&perks->GetAttributeAsDword("RakingFire",0)!=0;
-+    return rakeSkill*(capstone?1.f:.45f);
++    if(auto *vd=core.Event(CANNON_GET_RAKE_CREW_FACTOR,"a",character))
++    {
++        const float crew=vd->GetFloat();
++        if(std::isfinite(crew)&&crew>=.1f&&crew<=1.f)
++            return rakeSkill*(capstone?1.f:.45f)*crew;
++    }
++    static bool logged=false;
++    if(!logged){core.Trace("Raking fire: CANNON_GET_RAKE_CREW_FACTOR unavailable");logged=true;}
++    return 0.f;
 +}
 +AIShip *AimShipForCharacter(ATTRIBUTES *character,AIShip *own)
 +{
@@ -70,17 +227,72 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +        if(ship&&ship!=own&&ship->GetACharacter()==character)
 +            return ship;
 +    return nullptr;
-+}
+ }
  uint32_t AimRelationColor(AIShip *own,ATTRIBUTES *character)
  {
      if(!character)return 0xD9E2E4u;
-@@ -1011,6 +1035,61 @@
++    if(IsShipSurrendered(character))return 0xE6C663u;
+     const auto relation=Helper.GetRelation(own->GetACharacter(),character);
+     if(relation==RELATION_ENEMY)return 0xFF665Du;
+     if(relation==RELATION_FRIEND)return 0x69DE87u;
+@@ -868,6 +945,49 @@
+     uint32_t polygons=0;
+ };
+ thread_local AimRangeContext *aimRangeOutput=nullptr;
++struct AimMeshContext
++{
++    std::array<PLANE,5> planes;
++    uint32_t token,polygons=0;
++    std::vector<storm::sea_ai::manual_aim::AimContactTriangle> *triangles;
++};
++thread_local AimMeshContext *aimMeshOutput=nullptr;
++bool AimCollectContactMesh(const CVECTOR *vertices,int32_t count)
++{
++    namespace gpu=storm::sea_ai::manual_aim;
++    auto *ctx=aimMeshOutput;
++    if(!ctx||count<3)return true;
++    if(++ctx->polygons>128||ctx->triangles->size()>=gpu::maxContactTriangles)return false;
++    std::vector<CVECTOR> polygon(vertices,vertices+count);
++    for(const auto &p:polygon)if(!manual_aim::finite(p))return true;
++    // Clip again here: mesh APIs may return an intersecting original polygon.
++    // This bounds support to the witnessed fan, including its measured relief.
++    for(const auto &plane:ctx->planes)
++    {
++        if(polygon.size()<3)return true;
++        std::vector<CVECTOR> clipped;clipped.reserve(polygon.size()+1);
++        auto distance=[&](const CVECTOR &p){return p.x*plane.Nx+p.y*plane.Ny+p.z*plane.Nz-plane.D;};
++        CVECTOR previous=polygon.back();float before=distance(previous);
++        for(const auto &point:polygon)
++        {
++            const float after=distance(point);
++            if((before<=0.f)!=(after<=0.f))
++                clipped.push_back(previous+(point-previous)*(before/(before-after)));
++            if(after<=0.f)clipped.push_back(point);
++            previous=point;before=after;
++        }
++        polygon=std::move(clipped);
++    }
++    for(size_t i=1;i+1<polygon.size();++i)
++    {
++        if(ctx->triangles->size()>=gpu::maxContactTriangles)return false;
++        const auto &a=polygon[0],&b=polygon[i],&c=polygon[i+1];
++        CVECTOR n=(b-a)^(c-a);if(~n<1e-10f)continue;n=!n;
++        ctx->triangles->push_back({{a.x,a.y,a.z},.015f,{b.x,b.y,b.z},ctx->token,
++            {c.x,c.y,c.z},0u,{n.x,n.y,n.z},0.f});
++    }
++    return true;
++}
+ bool AimCollectRangePolygon(const CVECTOR *v,int32_t count)
+ {
+     if(!aimRangeOutput||count<3)return true;
+@@ -1011,6 +1131,62 @@
      const float elevation=gun.CalcHeightFireAngle(speed,muzzle,target);
      const float relative=elevation-GetBortHeightAngle(bort);
      return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
 +}
 +
-+void AIShipCannonController::DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution,AIShip *targetShip)
++void AIShipCannonController::DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution,AIShip *targetShip,
++                                                 const CVECTOR &targetOffset)
 +{
 +    if(!targetShip||solution.guns.size()<2)return;
 +    const float rake=AimRakeFactor(GetAIShip()->GetACharacter());
@@ -102,7 +314,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +        const CVECTOR local(info.boxcenter.x+((corner&1)?.5f:-.5f)*info.boxsize.x,
 +                            info.boxcenter.y+((corner&2)?.5f:-.5f)*info.boxsize.y,
 +                            info.boxcenter.z+((corner&4)?.5f:-.5f)*info.boxsize.z);
-+        const CVECTOR p=node->glob_mtx*local;
++        const CVECTOR p=node->glob_mtx*local+targetOffset;
 +        const float s=p|axis;
 +        extentMin=std::min(extentMin,s);extentMax=std::max(extentMax,s);
 +    }
@@ -136,7 +348,42 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  }
  
  bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const CVECTOR &direction,
-@@ -1127,6 +1206,9 @@
+@@ -1053,7 +1229,7 @@
+     AimWorld world(GetAIShip());
+     const float pickLength=range+(camera-GetAIShip()->GetPos()).GetLength()+world.waveBound;
+     const CVECTOR forward=!direction;
+-    const AimHit hit=world.trace(camera,camera+forward*pickLength);
++    const AimHit hit=world.traceSelection(camera,camera+forward*pickLength);
+     float selectedDepth=hit.valid?((hit.point-camera)|forward):pickLength;
+     ATTRIBUTES *rangeCharacter=hit.character;
+     // The invisible range region keeps its unzoomed angular support and grows
+@@ -1091,12 +1267,24 @@
+             pickLength*std::sqrt(.25f+tx*tx+ty*ty),AimCollectRangePolygon);
+     }
+     aimRangeOutput=nullptr;
++    // Cloth lives outside the ship MODEL. Pure aperture rays supplement its
++    // center pick without redirecting the centered firing bearing.
++    for(int y=-1;y<=1;++y)for(int x=-1;x<=1;++x)
++    {
++        if(!x&&!y)continue;
++        const CVECTOR ray=!(forward+right*(float(x)*tx)+up*(float(y)*ty));
++        const auto cloth=world.traceSelection(camera,camera+ray*pickLength);
++        if(!cloth.valid||cloth.surface!=-1||!cloth.character)continue;
++        apertureGeometry.candidates.push_back({(cloth.point-camera)|forward,cloth.point});
++    }
++    std::sort(apertureGeometry.candidates.begin(),apertureGeometry.candidates.end(),
++        [](const auto &a,const auto &b){return a.first<b.first;});
+     bool rangePicked=hit.valid;
+     for(const auto &[depth,point]:apertureGeometry.candidates)
+     {
+         if(depth>=selectedDepth)break;
+         const float distance=(point-camera).GetLength();
+-        const auto real=world.trace(camera,camera+(!(point-camera))*(distance+.05f));
++        const auto real=world.traceSelection(camera,camera+(!(point-camera))*(distance+.05f));
+         if(!real.valid)continue;
+         const float actualDepth=(real.point-camera)|forward;
+         if(manual_aim::insideRangeAperture(real.point-camera,forward,right,up,tx*1.0001f,ty*1.0001f)&&actualDepth<selectedDepth)
+@@ -1127,6 +1315,9 @@
                  if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
          }
      }
@@ -146,7 +393,13 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
      return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
  }
-@@ -1141,12 +1223,19 @@
+@@ -1137,16 +1328,25 @@
+     if(!BuildManualAimSolution(camera,direction,solution))return;
+     AimWorld world(GetAIShip());
+     const float speed=GetSpeedV0(),height=AimHeightScale(GetAIShip()->GetACharacter());
++    if(height<=0.f)return;
+     const auto spread=AimLiveSpread(GetAIShip()->GetACharacter());
++    if(spread.azimuth<=0.f||spread.elevation<=0.f||spread.speed<=0.f)return;
      std::vector<AimPath> paths;
      std::vector<std::pair<const AICannon *,AimPath>> nominalPaths;
      paths.reserve(solution.guns.size()+40);
@@ -168,7 +421,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          paths.push_back(path);nominalPaths.push_back({gun,path});
      }
      // Dispersion samples use the battery's spatial support guns, not first/last
-@@ -1167,7 +1256,8 @@
+@@ -1167,7 +1367,8 @@
      for(const auto *gun:supports)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -178,7 +431,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          for(int n=0;n<8;++n)
          {
              // Live jitter uses three independent random draws, not a correlated
-@@ -1175,7 +1265,7 @@
+@@ -1175,7 +1376,7 @@
              const float elevation=spread.elevation*((n&1)?1.f:-1.f);
              const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
              const float v=speed+spread.speed*((n&4)?1.f:-1.f);
@@ -187,7 +440,29 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
-@@ -1210,10 +1300,11 @@
+@@ -1204,16 +1405,33 @@
+     for(const auto *gun:solution.guns)
+         if(~(gun->GetPos()-meanMuzzle)<~(middle->GetPos()-meanMuzzle)-.001f)middle=gun;
+     if(std::find(projectors.begin(),projectors.end(),middle)==projectors.end())projectors.push_back(middle);
++    CVECTOR rakeAxis(0.f);
++    for(const auto &target:solution.gunTargets)
++        if(~(target-solution.target)>~rakeAxis)rakeAxis=target-solution.target;
++    if(~rakeAxis>.0025f)
++    {
++        rakeAxis=!rakeAxis;
++        size_t first=0,last=0;
++        for(size_t i=1;i<solution.gunTargets.size();++i)
++        {
++            if((solution.gunTargets[i]|rakeAxis)<(solution.gunTargets[first]|rakeAxis))first=i;
++            if((solution.gunTargets[i]|rakeAxis)>(solution.gunTargets[last]|rakeAxis))last=i;
++        }
++        for(size_t i:{first,last})
++            if(std::find(projectors.begin(),projectors.end(),solution.guns[i])==projectors.end())
++                projectors.push_back(solution.guns[i]);
++    }
+     // Physical receiver discoveries may add mask support below, but cannot
+     // change the smooth density shape or its normalization.
+     const auto densityProjectors=projectors;
      std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
      for(const auto *gun:densityProjectors)
      {
@@ -202,7 +477,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
                  angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
          const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
          if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
-@@ -1257,7 +1348,8 @@
+@@ -1257,7 +1475,8 @@
      for(const auto *gun:projectors)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -212,7 +487,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          // Keep the nominal interior field plus both independent speed limits.
          // Coarser2x2 speed-boundary grids bound extra trace cost; all faces still
          // refine mixed first receivers independently rather than spanning them.
-@@ -1275,7 +1367,7 @@
+@@ -1275,7 +1494,7 @@
              // A difficult earlier receiver edge cannot erase a later cell.
              if(!baseSamples&&cellSamples>=12)return {};
              if(!baseSamples)++cellSamples;
@@ -221,10 +496,69 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
                  angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
              cache.push_back({yaw,elevation,path});retainContact(path);return {path.hit,yaw,elevation};
          };
+@@ -1313,25 +1532,50 @@
+                 if(!w.hit.valid||w.hit.surface!=a.hit.surface){if(inside)return;continue;}
+                 error=std::max(error,std::fabs((w.hit.point-x)|normal));
+             }
++            uint32_t token=0;
++            if(a.hit.character)
++            {
++                const uint64_t modelId=world.models[size_t(a.hit.surface)-1].object->GetId();
++                for(const auto &item:manualAimReceiverTokens)if(item.first==modelId){token=item.second;break;}
++                if(!token)return;
++            }
+             // Only measured local curvature expands a prism; large unresolved
+             // deviations are omitted rather than tinting a different surface.
+             if(error>.485f)
+             {
+                 // Spend only this cell's remaining allowance on a real barycenter
+                 // before rejecting unresolved curvature. No meter-scale dilation.
+-                if(depth>=1||cellSamples>=12)return;
++                if(depth>=1||cellSamples>=12)
++                {
++                    // A curved receiver cannot be represented by one thin plane.
++                    // Use its real clipped mesh, without clamping away relief or
++                    // expanding the triangle to adjacent launch/receiver cells.
++                    AimMeshContext ctx{{},token,0,&contactTriangles};
++                    const std::array<CVECTOR,3> points{{x,y,z}};
++                    const CVECTOR center=(x+y+z)*(1.f/3.f);
++                    float low=normal|x,high=low,radius=0.f;
++                    for(const auto &w:witnesses)
++                        if(w.hit.valid&&w.hit.surface==a.hit.surface)
++                        {const float d=normal|w.hit.point;low=std::min(low,d);high=std::max(high,d);radius=std::max(radius,(w.hit.point-center).GetLength());}
++                    for(int i=0;i<3;++i)
++                    {
++                        CVECTOR n=!(normal^(points[(i+1)%3]-points[i]));
++                        float d=n|points[i];if((n|points[(i+2)%3])>d){n=-n;d=-d;}
++                        ctx.planes[i]={n.x,n.y,n.z,d};
++                        radius=std::max(radius,(points[i]-center).GetLength());
++                    }
++                    ctx.planes[3]={normal.x,normal.y,normal.z,high+.015f};
++                    ctx.planes[4]={-normal.x,-normal.y,-normal.z,-low+.015f};
++                    auto *previous=aimMeshOutput;aimMeshOutput=&ctx;
++                    world.models[size_t(a.hit.surface)-1].object->Clip(ctx.planes.data(),5,center,radius+.015f,AimCollectContactMesh);
++                    aimMeshOutput=previous;
++                    return;
++                }
+                 const auto middle=sample((a.yaw+b.yaw+c.yaw)/3.f,(a.elevation+b.elevation+c.elevation)/3.f);
+                 if(!middle.hit.valid||middle.hit.surface!=a.hit.surface)return;
+                 const std::vector<WaterSample> local{{a,b,c,middle}};
+                 self(self,a,b,middle,local,depth+1);self(self,b,c,middle,local,depth+1);self(self,c,a,middle,local,depth+1);
+                 return;
+-            }
+-            uint32_t token=0;
+-            if(a.hit.character)
+-            {
+-                const uint64_t modelId=world.models[size_t(a.hit.surface)-1].object->GetId();
+-                for(const auto &item:manualAimReceiverTokens)if(item.first==modelId){token=item.second;break;}
+-                if(!token)return;
+             }
+             contactTriangles.push_back({{x.x,x.y,x.z},error+.015f,{y.x,y.y,y.z},token,
+                 {z.x,z.y,z.z},0u,{normal.x,normal.y,normal.z},0.f});
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
-@@ -82,9 +82,11 @@
+@@ -82,9 +82,12 @@
          CVECTOR target{0.f};
          ATTRIBUTES *character = nullptr;
          std::vector<AICannon *> guns;
@@ -232,17 +566,117 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.h b/src/libs/sea_ai/s
      };
      bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
      bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
-+    void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip);
++    void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip,
++                               const CVECTOR &targetOffset = CVECTOR(0.f));
  
      uint32_t manualAimColor=0xD9E2E4u;
      std::vector<std::pair<uint64_t,uint32_t>> manualAimReceiverTokens;
-@@ -94,7 +96,8 @@
+@@ -94,7 +97,8 @@
  
      bool ScanShipForCannons();
  
 -    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true);
 +    bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true,
-+                       const MANUAL_AIM_SOLUTION *manual = nullptr);
++                       const MANUAL_AIM_SOLUTION *manual = nullptr, AIShip *targetShip = nullptr);
  
      [[nodiscard]] float GetSpeedV0() const;
  
+diff --git a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
+--- a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
++++ b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
+@@ -82,6 +82,9 @@
+ #define CANNON_GET_FIRE_TIME "CannGFTime"
+ #define CANNON_FIRE "CannFire"
+ #define CANNON_GET_FIRE_HEIGHT "CannGFHeight"
++#define CANNON_GET_FIRE_HEIGHT_MULTIPLY "CannGFHeightMult"
++#define CANNON_GET_FIRE_ACCURACY "CannGFAccuracy"
++#define CANNON_GET_RAKE_CREW_FACTOR "CannGFRakeCrew"
+ #define CANNON_UNLOAD "CannUnload"
+ #define CANNON_LOAD "CannLoad"
+ #define CANNON_DAMAGE "CannDamage"
+diff --git a/src/libs/collide/include/cannon_trace.h b/src/libs/collide/include/cannon_trace.h
+--- a/src/libs/collide/include/cannon_trace.h
++++ b/src/libs/collide/include/cannon_trace.h
+@@ -15,4 +15,11 @@
+     virtual void SetCannonTraceRadius(float fRadius)
+     {
+     }
++
++    // Pure nearest owned geometry query; multi-ship sail entities override it.
++    virtual float Pick(const CVECTOR &src, const CVECTOR &dst, entid_t excludeShip, entid_t &hitShip)
++    {
++        hitShip = 0;
++        return 2.f;
++    }
+ };
+diff --git a/src/libs/rigging/src/sail.cpp b/src/libs/rigging/src/sail.cpp
+--- a/src/libs/rigging/src/sail.cpp
++++ b/src/libs/rigging/src/sail.cpp
+@@ -2,6 +2,7 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #endif
+ #include "sail.h"
++#include "shared/sea_ai/manual_aim_geometry.hpp"
+ 
+ #include "core.h"
+ 
+@@ -1560,6 +1561,30 @@
+     return retVal;
+ }
+ 
++float SAIL::Pick(const CVECTOR &src, const CVECTOR &dst, entid_t excludeShip, entid_t &hitShip)
++{
++    float nearest = 2.f;
++    hitShip = 0;
++    if (!bUse) return nearest;
++    for (int i = 0; i < groupQuantity; ++i)
++    {
++        const auto &group = gdata[i];
++        if (group.bDeleted || group.shipEI == excludeShip) continue;
++        if (!manual_aim::segmentBox(src, dst, group.boxCenter - group.boxSize, group.boxCenter + group.boxSize))
++            continue;
++        for (int j = 0; j < group.sailQuantity; ++j)
++        {
++            const float fraction = slist[group.sailIdx[j]]->Trace(src, dst, false);
++            if (std::isfinite(fraction) && fraction >= 0.f && fraction <= 1.f && fraction < nearest)
++            {
++                nearest = fraction;
++                hitShip = group.shipEI;
++            }
++        }
++    }
++    return nearest;
++}
++
+ const char *SAIL::GetCollideMaterialName()
+ {
+     return "sail";
+diff --git a/src/libs/rigging/src/sail.h b/src/libs/rigging/src/sail.h
+--- a/src/libs/rigging/src/sail.h
++++ b/src/libs/rigging/src/sail.h
+@@ -118,6 +118,7 @@
+     }
+ 
+     SAILONE_BASE *FindSailForCharacter(int chrIdx, const char *nodeName, int grNum) override;
++    float Pick(const CVECTOR &src, const CVECTOR &dst, entid_t excludeShip, entid_t &hitShip) override;
+     uint32_t AttributeChanged(ATTRIBUTES *pAttr) override;
+ 
+     void LostRender();
+diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
+--- a/src/libs/rigging/src/sailone.cpp
++++ b/src/libs/rigging/src/sailone.cpp
+@@ -1601,6 +1601,14 @@
+             if (dv.y < minp.y)
+                 return 2.f;
+             vmed = sv + (dv - sv) * (minp.y - sv.y) / (dv.y - sv.y);
++            if (vmed.z >= minp.z && vmed.z <= maxp.z && vmed.x >= minp.x && vmed.x <= maxp.x)
++                bYesTrace = true;
++        }
++        if (!bYesTrace && sv.y > maxp.y)
++        {
++            if (dv.y > maxp.y)
++                return 2.f;
++            vmed = sv + (dv - sv) * (maxp.y - sv.y) / (dv.y - sv.y);
+             if (vmed.z >= minp.z && vmed.z <= maxp.z && vmed.x >= minp.x && vmed.x <= maxp.x)
+                 bYesTrace = true;
+         }

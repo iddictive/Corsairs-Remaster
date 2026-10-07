@@ -23,6 +23,11 @@ Editable existing files are limited to PROGRAM .c/.h, RESOURCE/INI .ini and
 RESOURCE/techniques .fx. SAVE, userdata, root configuration, shared message
 headers, artwork and native binaries are outside content synchronization.
 
+Canonical staging also admits the two exact UI texture destinations declared in
+`tools/delivery_state.py`: mast repair and raking fire. Their sources and prepared
+TX bytes are checksum-bound by `src/assets/ui/manifest.json` and use the existing
+transaction/receipt path. Arbitrary texture paths and SAVE remain excluded.
+
 gameplay/ remains ignored scratch space. Accepted edits need integration into
 their durable source before canonical staging or clean-checkout delivery.
 

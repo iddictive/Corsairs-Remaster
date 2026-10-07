@@ -2,11 +2,10 @@
 
 ## Status
 
-The rounded region and palette were accepted in PR9 runtime feedback. This
-follow-up addresses two reproduced causes of surface disappearance: local solid
-curvature was estimated from a triangle's own vertices, and valid depth bumps
-could zero the screen-space contour derivative. The region shape is unchanged.
-Native motion replay is still needed to verify this correction on rough objects.
+October 7 player feedback reopened action acceptance. The current source candidate
+adds live script ballistics, exact cloth range picks, automatic/manual raking and
+real mesh support for curved receivers. Native replay on the reported cliff,
+stern-on ally and sinking ship remains the acceptance owner.
 
 ## Contract
 
@@ -34,10 +33,18 @@ and colored rim share one composite; air still uses the stopped ballistic volume
 
 ## Owners and implementation
 
-- `cannon-trajectory-aim.patch` owns the engine controller, geometry and bridge edits
+- `cannon-trajectory-aim.patch` owns the base controller, geometry and GPU bridge;
+  `cannon-rake-spread.patch` layers cloth selection, live parameter queries,
+  per-gun manual/automatic raking and curved-receiver support
+- Canonical `PROGRAM/sea_ai/AIBalls.c` owns height warp and shot dispersion.
+  `AICannon.c` supplies their query events and the crew-quality multiplier;
+  preview and fire read the same helpers without guessed C++ fallbacks
 - `BuildManualAimSolution` shares range selection and per-muzzle eligibility between
   preview and manual fire. `MODEL::Clip` finds real polygons inside the small view
-  frustum; pure traces confirm visibility. Bounding boxes only reject candidates
+  frustum; pure traces confirm visibility. `SAIL::Pick` also visits exact unrolled
+  cloth triangles, excludes the shooter's ship and performs no damage or RNG.
+  Eight bounded aperture rays supplement model polygon candidates for cloth.
+  Bounding boxes only reject candidates
 - `rangeApertureSlope` and renderer `GetCameraMagnification` bind range support to
   the active both-axis camera zoom while retaining ordinary FOV/aspect policy
 - The plus uses the current range-source relation. Firing events do not inherit a
@@ -46,6 +53,9 @@ and colored rim share one composite; air still uses the stopped ballistic volume
   geometry; `manual_aim_volume_bridge.hpp` defines checked 64/32/16/8-byte GPU records
 - `aim_volume.hpp` and `backend.mm` draw one soft-density/contact composite from
   current post-water depth and color snapshots. Per-gun surface triangles are gone
+- `ship_surrender.h` supplies live per-ship display state to the controller and
+  battle interface. Surrendered aim highlighting and overhead markers use gold
+  `0xE6C663`; the marker retains its authored alpha and ordinary depth test
 - Contact color and character identity come from actual depth-writing model draws,
   using the existing `GetRelation` mapping. One accumulated depth/token/color map
   captures registered hull/upper-model, fort, intact mast and owned sail/rope/vant
@@ -73,7 +83,8 @@ eight independent yaw/elevation/speed dispersion corners. Additional contact
 samples follow complete trajectories through missed hull/mast gaps to their first
 physical receiver. They discover continuation supports, not visible surface tiles.
 Contact projectors use stable ship-local longitudinal/up extrema and a middle
-gun, with near-tie handling. Each of at most five ordinary density fields contains
+gun, with near-tie handling. Active raking also retains the actual first/last gun
+targets along the target's longitudinal axis. Each of at most seven density fields contains
 65 fixed axial sections derived from that gun's untruncated nominal trajectory and
 independent dispersion corners. Each ellipse is inscribed in its sampled support
 hull, preventing covariance overhang at close range. Muzzle-relative plane solves and explicit endpoint
@@ -85,8 +96,11 @@ Each physical-support projector keeps a 4×4 nominal-speed grid and 2×2 grids a
 live speed limits. Twelve optional probes per cell bound refinement (355 maximum
 marches per projector; uniform water 131, uniform solid 227). Same-first-water fans
 form a retained 2048×2048 coverage atlas. Same-first-solid fans form bounded surface
-prisms; their thickness uses all five independent corner/center witnesses of the
-local launch subcell plus 1.5 cm, with refinement or rejection above 0.5 m. Receiver
+prisms; their thickness uses all independent corner/center witnesses of the
+local launch subcell plus 1.5 cm. Above 0.5 m, one barycenter refinement precedes
+a real `MODEL::Clip` mesh query bounded to that fan and its witnessed relief.
+Each query accepts at most 128 polygons and retains real normals rather than
+clamping relief into a flat slab. Receiver
 mismatches are classified in launch space, so an opposite mixed corner does not
 erase an otherwise valid child triangle. Current-depth uncertainty is handled as a depth
 bin, not arbitrary world expansion. Character prisms require exact receiver tokens.
@@ -116,18 +130,26 @@ profiling remains necessary with many ships and rigging groups.
 
 ## Preserved gameplay and limits
 
-Projectile updates, damage, ammunition scripts, AI fire and save layout are unchanged.
+Projectile flight integration and save layout are unchanged. Manual and automatic
+ship fire now share per-gun longitudinal target distribution. It ramps from zero
+at effective `TmpSkill.Cannons <= .30` to full skill at `.85`, then multiplies by
+`.45` without `RakingFire` or `1` with it. Crew quality contributes
+`.1 + .9 * clamp(GetCrewExp("Cannoners") / GetCrewExpRate(), 0, 1)`.
+Accuracy controls the independent shot spread, not this longitudinal factor.
+Moving-target lead and common automatic broadside jitter remain in the target
+offset; each gun retains its traverse/elevation/reach limits.
 Reload timing/ammunition mechanics remain intact; invalid manual attempts do not
 clear a broadside charge when no gun fires. The published manual broadside-level
 random-offset suppression remains unchanged, while live per-ball jitter stays active.
 
-The shipped ammunition script compares the ammunition name with integer
-`GOOD_KNIPPELS`; effective current behavior applies catalogue `HeightMultiply*.4`
-to ordinary balls and knippels. The preview mirrors it without changing gameplay.
+The canonical ammunition script applies catalogue `HeightMultiply*.70` to ordinary
+shot and `*.85` to knippels. Preview queries that live helper, including the actual
+accuracy/perk/arcade modifiers. Missing query events suppress the unsupported
+preview instead of supplying a second physics formula.
 
-The display is a finite sampled approximation. Rough unresolved curvature and
-sub-sample openings can still lose eligibility; a flat-plane check does not prove
-arbitrary cliff continuity. Blended cloth with depth writes disabled, mixed-owner
+The display is a finite sampled approximation. Mesh and sample caps, receiver
+boundaries and sub-sample openings can still lose eligibility; the source-level
+curved-mesh probe does not prove arbitrary cliff continuity. Blended cloth with depth writes disabled, mixed-owner
 flag draws and unregistered detached models remain unsupported for ownership.
 Actual storm occlusion, motion stability and colored day/night readability need
 native replay. There is no temporal target retention or fake collision plane.

@@ -232,6 +232,7 @@ void extrnInitPerks()
 	ChrPerksList.list.CannonProfessional.OfficerType = "cannoner";
 
 	ChrPerksList.list.RakingFire.descr = "perkRakingFire";  // канонир
+	ChrPerksList.list.RakingFire.TextureGroup = "PERK_RAKINGFIRE";
 	ChrPerksList.list.RakingFire.condition.CannonProfessional = true;
 	ChrPerksList.list.RakingFire.condition.ImmediateReload = true;
 	ChrPerksList.list.RakingFire.BaseType = "ship";

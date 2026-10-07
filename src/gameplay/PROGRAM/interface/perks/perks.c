@@ -14,6 +14,15 @@ void InitPerks()
 	}
 }
 
+string GetPerkPictureGroup(string perkName, bool enabled)
+{
+	string group = "PERK";
+	if (CheckAttribute(&ChrPerksList, "list." + perkName + ".TextureGroup"))
+		group = ChrPerksList.list.(perkName).TextureGroup;
+	if (enabled) return group + "_ENABLE";
+	return group + "_DISABLE";
+}
+
 bool CheckCharacterPerk(ref chref, string perkName)
 {
 	if( CheckAttribute(chref,"perks.list."+perkName) ) return true;

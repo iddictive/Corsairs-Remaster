@@ -2,10 +2,9 @@
 
 ## Status
 
-Source candidate, October 1. Engine patch
-`experiments/native-metal/cannon-ball-volume.patch` written and
-`git apply --check` verified against the post-stack source; build/stage and
-player replay pending (parent owns `run.sh --stage-only`).
+October 7 candidate: the existing volume path is extended with bounded sail-hole
+enumeration and monotonic cumulative sail damage. Actual-script VM checks pass;
+the sinking-ship action and visible sail-health replay remain unresolved.
 
 ## Contract
 
@@ -34,6 +33,11 @@ Out of scope: hull/fort/island/sea traces (exact rays by design), aim overlay
   `src/libs/rigging/src/`, damage event `SHIP_SAIL_DAMAGE`.
 - Mast hits: `SHIP::Cannon_Trace` mast loop in `src/libs/ship/src/ship.cpp`,
   damage event `SHIP_MAST_DAMAGE` / `SHIP_MAST_TOUCH_BALL`.
+- Sail health: canonical `PROGRAM/battle_interface/BattleInterface.c`
+  `ProcessSailDamage` retains cumulative `arSail.dmg`; hole-derived damage can
+  raise that floor but cannot erase earlier hits. Repair remains the owner of
+  intentional damage reduction. `_RandomHole2Sail` visits all bounded cloth slots,
+  including a pristine zero mask, instead of stopping at its highest set bit.
 - Damage model: `Ship_MastDamage` in `PROGRAM/sea_ai/AIShip.c`
   (ball +0.10, grapes +0.05, knippel +0.25, bomb +0.15; mast falls at 3.0).
 
@@ -49,16 +53,19 @@ Muzzle velocity: `Ship.Cannons.SpeedV0 = cannon.SpeedV0 * goods.SpeedV0`
 balls 1.0, grapes 0.6, knippels 0.9, bombs 0.8.
 
 Per-shot dispersion (`Ball_AddBall`): `Dir += K * 12deg * (rnd-0.5)` with
-`K = Bring2Range(0.5, 1.2, 0.2, 1.2, 1.2 - Accuracy)`;
-`SpdV0 += Accuracy * (10 * 12degRad) * (rnd-0.5)`;
-`Ang += Accuracy * 15degRad * (rnd-0.5)`.
+`K = Bring2Range(0.5, 1.2, 0.2, 1.2, spread)`;
+`SpdV0 += spread * (10 * 12degRad) * (rnd-0.5)`;
+`Ang += spread * 15degRad * (rnd-0.5)`.
+`spread = clamp(1.2 - min(1.25, TmpSkill.Accuracy + GunProfessional*.12
++ LongRangeShoot*.06) - arcade*.10, .05, 1.20)` is owned by `Ball_GetAccuracy`.
+This per-shot formula differs from `AIShip.c`'s common broadside-position jitter.
 
 Flight (`ai_balls.cpp`, analytic, NO drag):
-`t += dt * 3.0 * TimeSpeedMultiply` (`dt` = frame ms / 1000,
-`SpeedMultiply = 3.0` from `AIBalls.c`, `TimeSpeedMultiply = 1.0` stock);
+`t += dt * 2.0 * TimeSpeedMultiply` (`dt` = frame ms / 1000,
+`SpeedMultiply = 2.0` from canonical `AIBalls.c`, `TimeSpeedMultiply = 1.0` stock);
 `x = V0*t*cos(Ang)`, `y_raw = V0*t*sin(Ang) - 9.81*t^2/2`;
 HeightMultiply warp: rotate (x, y_raw) by RawAng, scale Y by HM, rotate back,
-where HM = cannon.HeightMultiply (1.0 stock) * 0.4 normal shot / 0.65 knippel,
+where HM = cannon.HeightMultiply (1.0 stock) * 0.70 normal shot / 0.85 knippel,
 RawAng = signed angle between flat and true firing direction (0 for level
 deck fire). World = FirstPos + Ry(Dir) * (0, y, x).
 
@@ -67,9 +74,9 @@ Collision sweep: per-frame segment src->dst, order sail entity, all
 sea. Sail and mast hits are side effects only; the ball dies on hull, fort,
 island or sea (`fRes <= 1`).
 
-## Verdict: point-like, player report confirmed
+## Frozen baseline: point-like
 
-Projectiles are zero-radius rays: `CheckSailSquar` is an exact ray-triangle
+The pre-volume baseline used zero-radius rays: `CheckSailSquar` was an exact ray-triangle
 test, mast/hull traces are `NODE::Trace`/`GEOS::Trace` mesh rays, and
 ropes/vants/yards are not in the cannon-trace set at all. Thin mast poles plus
 knippel fall threshold (12 direct hits at +0.25) explain visible fly-throughs.

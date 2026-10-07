@@ -25,6 +25,27 @@
         825
       ],
       "preparation": "Crop transparent sprite-sheet margins; resize to 128x64 with LANCZOS; encode one A8R8G8B8 BGRA mip."
+    },
+    "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx": {
+      "source": "raking-fire.png",
+      "source_sha256": "59fa82b8a61fe83b40f56a4c66c348e873c2380b5001ee5ac10c20856c4aacf1",
+      "prepared": "raking-fire.tga.tx",
+      "sha256": "017ba1daa4f4f2400e2ae3dd612d4e1fc24b26133391f82112fa7cb1397fefa5",
+      "dimensions": [
+        256,
+        128
+      ],
+      "format": "A8R8G8B8",
+      "consumer": "ChrPerksList.list.RakingFire.TextureGroup; enabled/disabled 128px tiles in both character menus and prerequisites",
+      "generation": "existing enabled art; built-in imagegen disabled color state",
+      "prompt": "Preserve square icon composition and frame; muted warm grey/sepia at approximately 29% saturation for an unlearned ability.",
+      "source_dimensions": [
+        1254,
+        1254
+      ],
+      "preparation": "Keep enabled 128px tile byte-identical; LANCZOS-resize disabled output to128px; pack two tiles and encode one A8R8G8B8 BGRA mip.",
+      "enabled_source": "docs/images/raking-fire-capstone-128.png",
+      "enabled_source_sha256": "b18971df64bbdabba33c26686f63b65c8d7273e347291b1f0ddabcb6f794dfb9"
     }
   }
 }
