@@ -119,6 +119,12 @@
         "bb3c65769c717cc9d87d41b9cbe33e6fca86a85fd4d87d58a57d0ed9810bb55d"
       ]
     },
+    "PROGRAM/interface/perks/perks.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "3361766c73f196ca6cf2dc693590cc63f340d6b584129c0087f3511d2df9dddf"
+      ]
+    },
     "PROGRAM/interface/perks/perks_init.c": {
       "encoding": "utf-8",
       "legacy": [

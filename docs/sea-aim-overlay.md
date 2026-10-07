@@ -168,6 +168,25 @@ Manual fire at a locked ship distributes guns along the target longitudinal axis
 `AimRakeFactor` ramps normalized gunner skill 0.30 to 0.85 and multiplies by 1.0 with the RakingFire capstone, 0.45 without;
 at zero the legacy single-point volley runs untouched.
 
+Raking geometry follows the ship selected by the existing range aperture, while
+hostility attribution keeps the exact center-ray receiver. Hull stations use
+the root hull geometry projected directly onto the ship axis; projecting a
+world-axis box inflated a rotated hull and included rigging. The station center
+moves toward the hull center with skill, so aiming at the bow or stern does not
+collapse half the guns onto one endpoint. Elevation/traverse limits and the
+fallback toward the original aim point remain; forts, water and automatic fire
+retain their existing targeting. A disposable driver of the actual C++ method
+checks a rotated 100 m hull, four distinct stern-aim stations, zero skill,
+reachability fallback, non-ship targets and unchanged aim height.
+
+Saved games serialize `ChrPerksList`, so startup registration alone does not add a
+new ability to an old save. `PROGRAM/interface/perks/perks.c` rebuilds the current
+definitions through `InitPerks()` inside the existing `PerkLoad()` callback after
+restore. Character-owned learned perks, ability points and cooldowns remain
+unchanged. The isolated native script VM rejects the old missing-registry path
+and passes a save/restore round with the updated registry and preserved learned
+perks/cooldown. Installed old-save menu and volley replay remain required.
+
 ## Firing eye floor
 
 First-person firing view never drops below design eye height: a low ship camera locator or a saved crouch no longer buries manual aim under the rails.

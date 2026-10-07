@@ -3,7 +3,7 @@
 @@ -114,6 +114,29 @@
      return &pRelations[x + y * dwRelationSize];
  }
-
+ 
 +// SeaSurrender is the captor commander's character index. Apply it per ship,
 +// not to the commander's cached fleet relation: wingmen can surrender separately.
 +uint32_t AIHelper::GetEffectiveRelation(uint32_t x, uint32_t y) const
@@ -37,7 +37,7 @@
 -    return *GetRelation(dw1, dw2);
 +    return GetEffectiveRelation(dw1, dw2);
  }
-
+ 
  uint32_t AIHelper::GetRelation(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
 @@ -135,7 +158,7 @@
      Assert(dw1 != INVALID_ARRAY_INDEX);
@@ -46,44 +46,115 @@
 -    return *GetRelation(dw1, dw2);
 +    return GetEffectiveRelation(dw1, dw2);
  }
-
+ 
  bool AIHelper::isFriend(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
 --- a/src/libs/sea_ai/src/ai_helper.h
 +++ b/src/libs/sea_ai/src/ai_helper.h
 @@ -68,6 +68,7 @@
-
+ 
      uint32_t *GetRelation(uint32_t x, uint32_t y) const;
      uint32_t FindIndex(ATTRIBUTES *pACharacter) const;
 +    uint32_t GetEffectiveRelation(uint32_t x, uint32_t y) const;
  };
-
+ 
  extern AIHelper Helper;
 --- a/src/libs/battle_interface/src/sea/ship_info_images.cpp
 +++ b/src/libs/battle_interface/src/sea/ship_info_images.cpp
-@@ -265,8 +265,11 @@
-     CalculateDirectingVectors(shippos);
+@@ -266,7 +266,7 @@
  
      // write relation square
-+    int32_t rel = pSD->relation;
-+    if (pSD->pAttr && (pSD->pAttr->GetAttributeClass("SeaSurrender") || pSD->pAttr->GetAttributeClass("Surrendered")))
-+        rel = 2;
      WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,
 -                      GetUVForRelation(pSD->relation), 1.f);
-+                      GetUVForRelation(rel), 1.f);
++                      GetUVForRelation(pSD->GetDisplayRelation()), 1.f);
  
      // write progress back square
      WriteSquareVertex(&m_pVBuffBackProgress[nShipNum * 4], shippos, m_vProgressBackOffset, m_fpProgressBackSize,
 --- a/src/libs/battle_interface/src/sea/battle_navigator.cpp
 +++ b/src/libs/battle_interface/src/sea/battle_navigator.cpp
-@@ -1028,7 +1028,10 @@
+@@ -1028,7 +1028,7 @@
          auto dwColor = 0xFFFFFFFF;
          if (psd->dwShipColor == 0)
          {
 -            switch (psd->relation)
-+            auto rel = psd->relation;
-+            if (psd->pAttr && (psd->pAttr->GetAttributeClass("SeaSurrender") || psd->pAttr->GetAttributeClass("Surrendered")))
-+                rel = BI_RELATION_NEUTRAL;
-+            switch (rel)
++            switch (psd->GetDisplayRelation())
              {
              case BI_RELATION_ENEMY:
                  dwColor = m_dwEnemyShipColor;
+--- a/src/libs/battle_interface/src/sea/ships_list.cpp
++++ b/src/libs/battle_interface/src/sea/ships_list.cpp
+@@ -132,6 +132,16 @@
+     va_end(args);
+ }
+ 
++int32_t SHIP_DESCRIBE_LIST::SHIP_DESCR::GetDisplayRelation() const
++{
++    auto *character = pShip ? pShip->GetACharacter() : nullptr;
++    if (character &&
++        (character->GetAttributeClassByCode(character->GetStringCodec().Convert("SeaSurrender")) ||
++         character->GetAttributeClassByCode(character->GetStringCodec().Convert("Surrendered"))))
++        return BI_RELATION_NEUTRAL;
++    return relation;
++}
++
+ SHIP_DESCRIBE_LIST::SHIP_DESCRIBE_LIST()
+ {
+     root = nullptr;
+@@ -189,7 +199,10 @@
+ {
+     assert(pChAttr != NULL);
+     assert(pShipAttr != NULL);
+-    auto *pr = new SHIP_DESCR;
++    auto *pr = FindShip(chIdx);
++    const bool isNew = pr == nullptr;
++    if (isNew)
++        pr = new SHIP_DESCR;
+     if (pr == nullptr)
+     {
+         throw std::runtime_error("Can`t allocate memory");
+@@ -213,7 +226,8 @@
+                  &pr->selectPictureNum, 0, &pr->textureNum, -1, &lTmp, 0); //&pr->isDead,false );
+     pr->isDead = lTmp != 0;
+ 
+-    pr->next = nullptr;
++    if (isNew)
++        pr->next = nullptr;
+ 
+     // find this ship
+     auto &&entities = core.GetEntityIds("ship");
+@@ -241,14 +255,17 @@
+       }
+     } while( NetFindClassNext(false,&ei) );*/
+ 
+-    auto *ptmp = root;
+-    if (ptmp == nullptr)
+-        root = pr;
+-    else
+-    {
+-        while (ptmp->next != nullptr)
+-            ptmp = ptmp->next;
+-        ptmp->next = pr;
++    if (isNew)
++    {
++        auto *ptmp = root;
++        if (ptmp == nullptr)
++            root = pr;
++        else
++        {
++            while (ptmp->next != nullptr)
++                ptmp = ptmp->next;
++            ptmp->next = pr;
++        }
+     }
+ 
+     // if(pChAttr->GetAttributeAsDword("MainCharacter",0)!=0)
+--- a/src/libs/battle_interface/src/sea/ships_list.h
++++ b/src/libs/battle_interface/src/sea/ships_list.h
+@@ -25,6 +25,8 @@
+         uint32_t dwShipColor;
+ 
+         SHIP_DESCR *next;
++
++        int32_t GetDisplayRelation() const;
+     };
+ 
+   public:

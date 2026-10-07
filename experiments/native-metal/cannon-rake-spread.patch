@@ -28,10 +28,12 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
              if (debugDrawToggle)
              {
 -                debugFirePositions.emplace_back(vTempFirePos, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
-+                debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
-             }
- 
+-            }
+-
 -            fired = cannon.Fire(bort.fSpeedV0, vTempFirePos) || fired;
++                debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
++            }
++
 +            fired = cannon.Fire(bort.fSpeedV0, gunTarget) || fired;
          }
      }
@@ -45,11 +47,10 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      if (fired && manualTarget) *manualTarget = solution.character;
      return fired;
  }
-@@ -849,6 +853,26 @@
-     const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
+@@ -850,6 +854,26 @@
      return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
              .5f*accuracy*10.f*12.f*kAimPi/180.f};
-+}
+ }
 +float AimRakeFactor(ATTRIBUTES *character)
 +{
 +    // Rookie gunners keep the legacy single-point volley; masters spread it
@@ -69,13 +70,16 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +        if(ship&&ship!=own&&ship->GetACharacter()==character)
 +            return ship;
 +    return nullptr;
- }
++}
  uint32_t AimRelationColor(AIShip *own,ATTRIBUTES *character)
  {
-@@ -1013,6 +1037,72 @@
+     if(!character)return 0xD9E2E4u;
+@@ -1011,6 +1035,61 @@
+     const float elevation=gun.CalcHeightFireAngle(speed,muzzle,target);
+     const float relative=elevation-GetBortHeightAngle(bort);
      return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
- }
- 
++}
++
 +void AIShipCannonController::DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution,AIShip *targetShip)
 +{
 +    if(!targetShip||solution.guns.size()<2)return;
@@ -86,31 +90,19 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    axis.y=0.f;
 +    if(~axis<1e-8f)return;
 +    axis=!axis;
-+    // Live waterline extent from the target model bounds.
-+    CVECTOR lo(1e20f),hi(-1e20f);
-+    if(auto *model=targetShip->GetModel())
-+        for(int i=0;auto *node=model->GetNode(i);++i)
-+        {
-+            if(!node->geo)continue;
-+            GEOS::INFO info;node->geo->GetInfo(info);
-+            for(int corner=0;corner<8;++corner)
-+            {
-+                const CVECTOR local(info.boxcenter.x+((corner&1)?.5f:-.5f)*info.boxsize.x,
-+                                    info.boxcenter.y+((corner&2)?.5f:-.5f)*info.boxsize.y,
-+                                    info.boxcenter.z+((corner&4)?.5f:-.5f)*info.boxsize.z);
-+                const CVECTOR p=node->glob_mtx*local;
-+                for(int a=0;a<3;++a)
-+                {
-+                    lo.v[a]=std::min(lo.v[a],p.v[a]);
-+                    hi.v[a]=std::max(hi.v[a],p.v[a]);
-+                }
-+            }
-+        }
-+    if(!(lo.x<=hi.x))return;
++    // The root hull geometry also owns SHIP::vBoxSize. Project its transformed
++    // corners directly: a world AABB grows with heading and includes rigging.
++    auto *model=targetShip->GetModel();
++    auto *node=model?model->GetNode(0):nullptr;
++    if(!node||!node->geo)return;
++    GEOS::INFO info;node->geo->GetInfo(info);
 +    float extentMin=1e20f,extentMax=-1e20f;
 +    for(int corner=0;corner<8;++corner)
 +    {
-+        const CVECTOR p(corner&1?hi.x:lo.x,corner&2?hi.y:lo.y,corner&4?hi.z:lo.z);
++        const CVECTOR local(info.boxcenter.x+((corner&1)?.5f:-.5f)*info.boxsize.x,
++                            info.boxcenter.y+((corner&2)?.5f:-.5f)*info.boxsize.y,
++                            info.boxcenter.z+((corner&4)?.5f:-.5f)*info.boxsize.z);
++        const CVECTOR p=node->glob_mtx*local;
 +        const float s=p|axis;
 +        extentMin=std::min(extentMin,s);extentMax=std::max(extentMax,s);
 +    }
@@ -127,7 +119,8 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +    for(size_t rank=0;rank<order.size();++rank)
 +    {
 +        const size_t i=order[rank];
-+        float s=(-1.f+2.f*float(rank)/float(order.size()-1))*halfLen*rake;
++        const float centerOffset=(.5f*(extentMin+extentMax)-(solution.target|axis))*rake;
++        float s=centerOffset+(-1.f+2.f*float(rank)/float(order.size()-1))*halfLen*rake;
 +        for(int attempt=0;attempt<7;++attempt)
 +        {
 +            CVECTOR point=solution.target+axis*s;
@@ -140,22 +133,20 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +            s*=.5f;
 +        }
 +    }
-+}
-+
+ }
+ 
  bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const CVECTOR &direction,
-                                                    MANUAL_AIM_SOLUTION &solution)
- {
-@@ -1127,6 +1217,9 @@
+@@ -1127,6 +1206,9 @@
                  if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
          }
      }
 +    solution.gunTargets.assign(solution.guns.size(),solution.target);
-+    if(AIShip *targetShip=AimShipForCharacter(solution.character,GetAIShip()))
++    if(AIShip *targetShip=AimShipForCharacter(rangeCharacter,GetAIShip()))
 +        DistributeRakeTargets(solution,targetShip);
      if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
      return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
  }
-@@ -1141,12 +1234,19 @@
+@@ -1141,12 +1223,19 @@
      std::vector<AimPath> paths;
      std::vector<std::pair<const AICannon *,AimPath>> nominalPaths;
      paths.reserve(solution.guns.size()+40);
@@ -177,7 +168,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          paths.push_back(path);nominalPaths.push_back({gun,path});
      }
      // Dispersion samples use the battery's spatial support guns, not first/last
-@@ -1167,7 +1267,8 @@
+@@ -1167,7 +1256,8 @@
      for(const auto *gun:supports)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -187,7 +178,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          for(int n=0;n<8;++n)
          {
              // Live jitter uses three independent random draws, not a correlated
-@@ -1175,7 +1276,7 @@
+@@ -1175,7 +1265,7 @@
              const float elevation=spread.elevation*((n&1)?1.f:-1.f);
              const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
              const float v=speed+spread.speed*((n&4)?1.f:-1.f);
@@ -196,7 +187,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
-@@ -1210,10 +1311,11 @@
+@@ -1210,10 +1300,11 @@
      std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
      for(const auto *gun:densityProjectors)
      {
@@ -211,7 +202,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
                  angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
          const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
          if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
-@@ -1257,7 +1359,8 @@
+@@ -1257,7 +1348,8 @@
      for(const auto *gun:projectors)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -221,7 +212,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          // Keep the nominal interior field plus both independent speed limits.
          // Coarser2x2 speed-boundary grids bound extra trace cost; all faces still
          // refine mixed first receivers independently rather than spanning them.
-@@ -1275,7 +1378,7 @@
+@@ -1275,7 +1367,7 @@
              // A difficult earlier receiver edge cannot erase a later cell.
              if(!baseSamples&&cellSamples>=12)return {};
              if(!baseSamples)++cellSamples;
