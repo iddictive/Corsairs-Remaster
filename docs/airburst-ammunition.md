@@ -17,9 +17,12 @@ The actual scene/source review also found a third icon consumer near the compass
 its source now selects navigator cell40 with the same drawn normal-state art.
 Further player requests add a fort airburst before the battery and restrict
 ordinary purchases to Bermuda. The complete firing-mode/fort/trade/HUD source
-batch passes canonical native build and zero-error full PROGRAM compilation.
-Canonical staging and installed action replay remain pending; the installed
-engine is still the preceding ship-only version.
+batche2ecbbf passes canonical native build, zero-error full PROGRAM compilation
+and canonical stage-only. Signed engineb8d033b7, the fort fuze, lower ship hull
+damage, Bermuda trade restriction and navigator icon are installed. Signature,
+receipt and seven content inputs match; all252 player files retain hashes.
+Real fort/store/HUD/firing replay remains open under a serialized fresh-save
+clone actor. The olderfcce6e7b inventory is historical.
 
 ## Contract
 
@@ -166,7 +169,7 @@ texture paths. An initial fixture used macOS's `/var` symlink and was rejected
 before testing; resolving its path fixed the fixture. Both exact prepared atlases
 are installed with the corrected fuze; in-game icon readability remains unverified.
 
-The pending navigator atlas copies that prepared normal-state tile into the
+The installed navigator atlas copies that prepared normal-state tile into the
 separate charge indicator. Its original header and every byte outside cell40
 remain identical. The actual delivery owner admits this exact original atlas
 and rejects an unknown navigator edit or an unrelated texture. The decoded

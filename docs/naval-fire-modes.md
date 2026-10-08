@@ -2,12 +2,14 @@
 
 ## Status
 
-The integrated source passes canonical native build and full PROGRAM compilation
-with zero script errors. The player requested a quick-menu single-cannon mode
-and a broadside spread over approximately3.5–10 simulation seconds. Independent
-endpoint jitter also passes the two-gun case. Installed delivery and actual
-firing/preview replay remain pending with the integration owner; the installed
-app remains on the preceding batch.
+Sourcee2ecbbf passes canonical native build, full PROGRAM compilation with zero
+script errors and canonical stage-only. Signed installed engineb8d033b7 and its
+ownership receipt match; deep/strict signature passes. All seven changed content
+inputs match cache/app, and six PROGRAM inputs match the native compiler fixture.
+All252 original player files retain hashes. The requested quick-menu single mode,
+3.5–10-second broadside and independent endpoint jitter are installed. Actual
+firing/preview acceptance remains open under a sole installed-app replay actor
+using a fresh current-save clone; no real player state is replaced.
 
 ## State and consumers
 

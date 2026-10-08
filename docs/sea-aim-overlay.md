@@ -502,6 +502,26 @@ player scene and ammunition replay actor, then explicit sole-GPU assignment.
 The Porto binary64 serialization discrepancy remains unresolved. No prototype
 is installed.
 
+The single authorized UV-memo GPU resource capture and uncaptured14-workload
+corpus subsequently pass all193 complete Results/Pair bits, work counters,
+ordered ranges,13 negatives and poisoned output/mask freshness.56 command
+buffers/112 ended encoders retain193 primary invocations and one coplanar rerun.
+Primary spills1152→1120 bytes and96/44 registers stay unchanged, while compiled
+instructions58638→94691 (+61.5%); full masked spills10912. Resource preservation
+passes, but smaller CPU work does not imply a smaller shader.
+
+Whole two-pass three-warm medians versus the retained specialization run are
+Flying55 7.68808→6.51192ms, Nevis63 5.94563→5.06154ms and Porto64
+4.74008→4.20117ms (11.4–15.3% lower). This historical-run comparison does not
+control scene or hardware frequency and proves no installed FPS gain.4.2–6.5ms
+for55–64 endpoints remains too costly: production/FPS adequacy is rejected.
+No further variant or product integration follows this assignment.
+family-uv-memo-gpu-report.md retains the exact source/capture/results; the
+projection owner retains temporary evidence. Native session12 terminates
+normally, fresh session/process inventories are empty and the one-shot corpus
+supervisor reports no player interruption. Sole-GPU actor releases to root for
+the independent ammunition/fire-mode batch.
+
 Production boundary certification, live camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
 unresolved. No contact replacement source batch is staged; the installed
