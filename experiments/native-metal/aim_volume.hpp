@@ -330,7 +330,7 @@ bool aim_solid_neighbor(int2 pixel,float depth,float3 receiver,uint receiverToke
   int2 size=int2(sceneDepth.get_width(),sceneDepth.get_height());
   if(any(pixel<0)||any(pixel>=size))return false;
   uint2 index=uint2(pixel);float z=sceneDepth.read(index);
-  if(!isfinite(z)||z<0.f||z>=1.f||ownDepth.read(index).r==z||waterDepth.read(index).r==z)return false;
+  if(!isfinite(z)||z<0.f||z>=1.f||ownDepth.read(index).r==z||(u.receiverFlags.y&&waterDepth.read(index).r==z))return false;
   uint token=u.receiverFlags.w&&relationDepth.read(index).r==z?relation.read(index).x:0u;
   if((token&0x40000000u)||(token&0x3fffffffu)!=receiverToken)return false;
   float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
@@ -409,10 +409,10 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   bool nonStopping=actualModel&&(identity.x&0x80000000u);
   uint receiverToken=(!actualOwn&&!actualWater)?(identity.x&0x3fffffffu):0u;
   float3 contact=float3(0.f);
-  // Fail closed for CONTACT until both live receiver scopes are known. Missing
-  // own ownership must not paint the rail; missing sea ownership must not fall
-  // back to the stopped-air field and silently recreate fragmented water.
-  if(hasReceiver&&u.receiverFlags.x&&u.receiverFlags.y&&!actualOwn) {
+  // Exact registered model depth already proves a solid/rigging receiver even
+  // when this view submits no sea geometry. Unknown terrain and water still
+  // require sea ownership; own ownership remains mandatory to exclude rails.
+  if(hasReceiver&&u.receiverFlags.x&&!actualOwn&&(u.receiverFlags.y||(actualModel&&receiverToken))) {
     if(actualWater) {
       // Keep actual screen-pixel scale at long range/grazing angles. The PR3
       // global .75m derivative clamp could reduce a4.5m pixel to.17pixels and
@@ -705,7 +705,7 @@ class SoftAimVolume {
     bool modelReady=model_.ready&&sizeMatches(model_.depth)&&sizeMatches(model_.identity)&&sameStamp(model_.stamp,frame.stamp);
     uniforms.receiverFlags={uint32_t(ownReady),uint32_t(waterReady),uint32_t(!frame.waterVertices.empty()),uint32_t(modelReady)};
     if(!ownReady)fail(OwnCapture,"own render ownership unavailable for this camera; contact withheld");
-    if(!waterReady)fail(WaterCapture,"water render ownership unavailable for this camera; contact withheld");
+    if(!waterReady)fail(WaterCapture,"water render ownership unavailable for this camera; unregistered contact withheld");
     if(!waterMask_||waterMask_.width!=frame.waterWidth||waterMask_.height!=frame.waterHeight){
       auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Unorm width:frame.waterWidth height:frame.waterHeight mipmapped:NO];
       descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;waterMask_=[device newTextureWithDescriptor:descriptor];

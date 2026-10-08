@@ -133,6 +133,18 @@ still adds one full-depth copy and one depth/token/color pass, in addition to ow
 ship/water capture, the eligibility masks and full-viewport composite. Native
 profiling remains necessary with many ships and rigging groups.
 
+Registered hull, fort and rigging contacts use their exact current depth/token
+even when the current view submits no water geometry. The previous composite
+required a matching water capture for every contact, so loss of that unrelated
+scope erased an otherwise valid fort contour; the live October 8 launch log
+records this rejection. The source candidate admits registered contacts with
+matching model depth and own-ship ownership independently of water ownership.
+Unknown terrain and water still require water ownership, and solid contour
+neighbors never read an unavailable water capture. Frame/stamp resets, physical
+first-hit masks and own-ship exclusion are unchanged. This restores only the
+independent capture gate; the sampled fan/prism gaps and motion flicker below
+remain unresolved and require a matched live frame before geometry replacement.
+
 ## Manual-aim CPU work
 
 The live October 7 profile of the installed cannon batch spent 1533/1951 main-thread
