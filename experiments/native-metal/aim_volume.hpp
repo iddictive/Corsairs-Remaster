@@ -252,11 +252,12 @@ float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u
 }
 // A smooth approximate dispersion field is independent of receiver sampling.
 // Eligibility masks only clip its visibility; their triangle/cell edges never
-// generate bright lines. Axial limits are open and have no terminal cap rim.
+// generate bright lines. Stroke distance uses the gradient on the q=1 boundary;
+// a collapsing covariance root outside the field must not generate another rim.
 float3 aim_contact_shape(float3 receiver,float3 dx,float3 dy,constant AimU&u,const device AimContactSection*sections){
   const uint stationCount=65u;uint fieldCount=min(112u,u.contactCounts.x/stationCount);
   if(!fieldCount)return float3(0.f);
-  float station=dot(receiver,u.axis.xyz),value=INFINITY;float3 valueGradient=0.f;
+  float station=dot(receiver,u.axis.xyz),value=INFINITY,radius=INFINITY;float3 valueGradient=0.f;
   for(uint field=0;field<fieldCount;++field){
     uint base=field*stationCount;
     if(station<dot(float3(sections[base].center),u.axis.xyz)||station>dot(float3(sections[base+stationCount-1].center),u.axis.xyz))continue;
@@ -274,20 +275,24 @@ float3 aim_contact_shape(float3 receiver,float3 dx,float3 dy,constant AimU&u,con
     float2 r=float2(m.z*p.x-m.y*p.y,m.x*p.y-m.y*p.x)/determinant;
     float axial=(station-sections[base].padding)/sections[base].extent;
     float2 squared=r*r;float q=dot(squared,squared)+axial*axial*axial*axial;if(!isfinite(q))continue;
-    float2 cube=r*squared;
+    float fieldRadius=sqrt(sqrt(q));
+    float boundaryScale=fieldRadius>1.e-6f?1.f/fieldRadius:1.f;
+    float2 boundary=r*boundaryScale;
+    float2 cube=boundary*boundary*boundary;
     float2 mp=float2(m.z*cube.x-m.y*cube.y,m.x*cube.y-m.y*cube.x)/determinant;
     float3 dm=float3(b.rootXX-a.rootXX,b.rootXY-a.rootXY,b.rootYY-a.rootYY)/span;
     float2 centerSlope=float2(dot(delta,u.lateral.xyz),dot(delta,u.up.xyz))/span;
-    float2 rootSlope=float2(dm.x*r.x+dm.y*r.y,dm.y*r.x+dm.z*r.y);
-    float axialGradient=-4.f*dot(mp,centerSlope+rootSlope)+4.f*axial*axial*axial/sections[base].extent;
+    float2 rootSlope=float2(dm.x*boundary.x+dm.y*boundary.y,dm.y*boundary.x+dm.z*boundary.y);
+    float boundaryAxial=axial*boundaryScale;
+    float axialGradient=-4.f*dot(mp,centerSlope+rootSlope)+4.f*boundaryAxial*boundaryAxial*boundaryAxial/sections[base].extent;
     float3 gradient=4.f*(mp.x*u.lateral.xyz+mp.y*u.up.xyz)+axialGradient*u.axis.xyz;
-    if(q<value){value=q;valueGradient=gradient;}
+    if(q<value){value=q;radius=fieldRadius;valueGradient=gradient;}
   }
   if(!isfinite(value))return float3(0.f);
   float density=exp(-2.f*value);
   float width=abs(dot(valueGradient,dx))+abs(dot(valueGradient,dy));
   if(!isfinite(width)||width<1.e-8f)return float3(value<=1.f?density:0.f,0.f,0.f);
-  float pixels=(1.f-value)/width;
+  float pixels=4.f*(1.f-radius)/width;
   return float3(density*smoothstep(-.5f,.5f,pixels),
       1.f-smoothstep(.5f,1.5f,abs(pixels)),1.f-smoothstep(1.25f,2.25f,abs(pixels)));
 }
@@ -750,7 +755,7 @@ class SoftAimVolume {
     [encoder setFragmentTexture:waterReady?owners_[1].depth:colorSnapshot_ atIndex:5];
     [encoder setFragmentTexture:modelReady?model_.depth:colorSnapshot_ atIndex:6];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v8: rounded range-local depth drape (air alpha <= 0.22)\n");}
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v9: boundary-gradient depth drape (air alpha <= 0.22)\n");}
     return true;
   }
 

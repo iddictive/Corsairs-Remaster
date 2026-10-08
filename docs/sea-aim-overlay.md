@@ -12,8 +12,11 @@ The installed thin-rim revision removes terrain ownership passes and reuses CPU
 point storage. The next player screenshot shows92FPS and accepts the thinner rim,
 but rejects a second huge hillside strip and broken main perimeter. The latest
 range-local revision closes that field around nominal arrival range and removes
-the contact-only coplanarity fade. Its hillside suppression, seam continuity and
-paired FPS require installed replay. Staging/receipts belong to `docs/runtime.md`.
+the contact-only coplanarity fade. The player's 13:00:21 screenshot rejects that
+revision: the secondary hillside contour remains and is larger. The latest
+source fixes a reproduced false stroke outside the field by evaluating thickness
+at its unit-radius boundary. Real hillside suppression, seam/zoom continuity and
+paired FPS still require installed replay. Staging/receipts belong to `docs/runtime.md`.
 
 ## Contract
 
@@ -105,14 +108,20 @@ Weighted axial mean/variance supplies a smooth quartic range cap with radius
 sqrt(3*(variance+.0025)). This is approximate main density, not a physical first-hit
 proof. In the unchanged32-byte contact record, padding carries the absolute
 axial center and extent the radius. The backend rebases that center once with
-dot(worldOrigin,axis); the radius is invariant. A far second hillside intersection
-outside this local region no longer belongs to the drape.
+dot(worldOrigin,axis); the radius is invariant. This cap limits density support;
+by itself it did not prevent the false outside stroke described below.
 
-The shader reconstructs the receiver from current post-water depth. Direct
-`(1-q)/|gradient(q)|` supplies pixel-width contour coverage. The earlier
-exponential-union distance exaggerated its inside width at small screen sizes.
-A radius18/72/288px scalar check reduces inside bright-rim pixels from8/8/2 to1
-without moving the q=1 boundary; this does not prove rendered quality.
+The shader reconstructs the receiver from current post-water depth. Stroke
+distance uses `4*(1-fourthRoot(q))` divided by the screen gradient evaluated at
+unit radius. Field density and the q=1 boundary remain unchanged. The prior
+`(1-q)/|gradient(q)|` approximation let a collapsing interpolated covariance root
+amplify the derivative faster than distance: pixels hundreds of pixels outside
+the contour received full bright coverage. A source-exact seven-point Metal
+probe reproduces this with old rim1/keyline1 versus new0/0 in both strict and
+fast math. An independent linear-radius boundary oracle puts that receiver
+249.85 pixels away. The same probe preserves the real boundary, one-pixel AA,
+center fill and zero-gradient/range rejection. These are shader properties,
+not acceptance of the player's complete rendered hillside or its frame rate.
 Same-surface neighbors determine stroke width, with a current-depth-plane fallback.
 Contact uses projected gradient directly without the former1% coplanarity fade,
 which could erase its perimeter at polygon joins. Zero/nonfinite projected
