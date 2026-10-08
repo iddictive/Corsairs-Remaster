@@ -437,11 +437,31 @@ none of those compiled fields; no structural resource improvement is accepted.
 Profiler dynamic instruction estimates disagree across sessions, so they prove
 no speedup. The cannon owner retains gpu-resource-report.md and capture/counter
 files, closes profiler sessions13/20, reports empty fresh session/process
-inventories and releases the GPU actor. Its read-only source specialist next
-binds ordinary-segment versus coplanar Polygon/Family data lifetimes and by-value
-copies before any edit. No further algorithm variant or installation is admitted.
+inventories and releases the GPU actor. Its read-only source specialist binds
+ordinary-segment versus coplanar Polygon/Family data lifetimes and by-value
+copies before the next source-only revision.
 
-Production boundary certification, actual camera/render-mesh/BSP matching,
+The retained original-scale GM corpus now binds render and BSP anatomy directly:
+all40445/80025/104038 triangle vertex triples match for Flyingdutchman1/Nevis/
+PortoBello, with39997/78575/104037 unique BSP triangles and no collidable render
+face absent from BSP. The reader normalizes signed zero only; source DrawBuffer
+proves RDF_OBJECT.svertex is BaseVertexIndex. This excludes source mesh anatomy
+mismatch for those three files only. Live transforms, instances, node lifetime,
+alpha/depth, deformation, camera unprojection and water remain separate contracts.
+gm-binding-report.md/results and gm-binding.cpp retain the read-only evidence.
+
+The subsequent temporary scalar Segment state revision retains generic coplanar
+handling and uses immutable Family/Bin references. cpu-final-results.txt records
+193 complete equal-record Result shadows,14164573 ordered per-triangle checks
+and8730 ordered ranges without mismatch; strict MSL compilation passes with
+fastMath disabled and zero queues/dispatches. The Porto original-versus-transfer
+oracle disagreement and unsupported zero-time case remain unresolved. This is
+CPU/compiler acceptance only. The projection chat owns one serial14-workload GPU
+falsifier in family-segment-state.aWvG5A2o; root integration holds GPU-heavy build,
+staging and replays until that actor is explicitly released. No production
+source, cache, app or player state changes are admitted by these checks.
+
+Production boundary certification, live camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
 unresolved. No contact replacement source batch is staged; the installed
 foreground ship-aim profile still shows50FPS and roughly69% main samples in aiming.
