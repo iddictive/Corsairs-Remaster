@@ -608,7 +608,7 @@
  #define EVENT_SEA_LOGIN "EventSeaLogin"
 --- a/src/libs/shared_headers/include/shared/sea_tsunami.hpp
 +++ b/src/libs/shared_headers/include/shared/sea_tsunami.hpp
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,284 @@
 +#pragma once
 +
 +#include <algorithm>
@@ -620,7 +620,7 @@
 +    static constexpr float minWidth = 220.f, maxWidth = 285.f;
 +    static constexpr float minSpeed = 22.f, maxSpeed = 28.f;
 +    static constexpr float minDamage = .10f, maxDamage = .50f;
-+    static constexpr float maxPitch = 1.25f, maxRoll = 2.05f, responseFrequency = 2.6f;
++    static constexpr float maxPitch = .20f, maxRoll = 2.05f, responseFrequency = 2.6f;
 +    // Broadside means 90 degrees +/- 40 degrees to propagation, on either side.
 +    static constexpr float capsizeBeamThreshold = .76604444f, overturnAngle = 1.57079633f;
 +    static constexpr float minDriftDistance = 60.f, maxDriftDistance = 300.f;
@@ -729,36 +729,45 @@
 +// Native per-ship contact state: no attributes, saved flags or render clock.
 +struct SeaTsunamiContact
 +{
-+    float x = 0.f, z = 0.f, age = 0.f, signedDistance = 0.f, peak = 0.f;
-+    bool initialized = false, consumed = false;
++    float x = 0.f, z = 0.f, age = 0.f, peak = 0.f, paid = 0.f;
++    unsigned serial = 0;
++    bool initialized = false;
 +
 +    float Query(const SeaTsunamiFrame &wave, float nextX, float nextZ)
 +    {
-+        if (!wave.active || consumed) return 0.f;
++        if (!wave.active) { *this = {}; return 0.f; }
++        if (serial != wave.serial) { *this = {}; serial = wave.serial; }
 +        const auto sample = EvaluateSeaTsunami(wave, nextX, nextZ);
++        peak = std::max(peak, std::clamp(sample.height / wave.amplitude, 0.f, 1.f));
 +        float exposure = 0.f;
 +        if (initialized && wave.age <= age) return 0.f;
-+        if (initialized && ((signedDistance < 0.f && sample.signedDistance >= 0.f) ||
-+                            (signedDistance > 0.f && sample.signedDistance <= 0.f)))
++        if (initialized)
 +        {
-+            // Sweep the last native contact query, including a one-second gap.
-+            const float t = signedDistance / (signedDistance - sample.signedDistance);
-+            auto crossing = wave;
-+            crossing.age = age + t * (wave.age - age);
-+            crossing.frontDistance = crossing.launchDistance - crossing.speed * crossing.age;
-+            crossing.envelope = SeaTsunamiSmooth(crossing.age / 5.f) *
-+                                SeaTsunamiSmooth((crossing.duration - crossing.age) / 8.f);
-+            exposure = EvaluateSeaTsunami(crossing, x + t * (nextX - x), z + t * (nextZ - z)).crestStrength;
++            // Integrate actual profile contact between the ordinary one-second
++            // ship updates. Neither crest crossing nor exit pays a lump sum.
++            const float seconds = wave.age - age;
++            const int steps = std::clamp(static_cast<int>(std::ceil(seconds / .25f)), 1, 64);
++            for (int i = 0; i < steps; ++i)
++            {
++                const float t = (static_cast<float>(i) + .5f) / static_cast<float>(steps);
++                auto crossing = wave;
++                crossing.age = age + t * seconds;
++                crossing.frontDistance = crossing.launchDistance - crossing.speed * crossing.age;
++                crossing.envelope = SeaTsunamiSmooth(crossing.age / 5.f) *
++                                    SeaTsunamiSmooth((crossing.duration - crossing.age) / 8.f);
++                const float load = std::clamp(EvaluateSeaTsunami(crossing,
++                    x + t * (nextX - x), z + t * (nextZ - z)).height / wave.amplitude, 0.f, 1.f);
++                peak = std::max(peak, load);
++                exposure += load * seconds * wave.speed /
++                            (static_cast<float>(steps) * SeaTsunamiParameters::profileArea * wave.width);
++            }
 +        }
-+        peak = std::max(peak, std::clamp(sample.height / wave.amplitude, 0.f, 1.f));
-+        // A ship grazing a flank pays its strongest actual contact once, on exit.
-+        if (exposure == 0.f && sample.height == 0.f && peak > 0.f) exposure = peak;
-+        // Ships first discovered behind the crest cannot receive full catch-up.
-+        if (!initialized && sample.signedDistance >= 0.f) exposure = peak;
++        // First discovery starts the clock; no retroactive entry payment.
 +        initialized = true;
-+        x = nextX; z = nextZ; age = wave.age; signedDistance = sample.signedDistance;
-+        if (exposure > 0.f) consumed = true;
-+        return std::clamp(exposure, 0.f, 1.f);
++        x = nextX; z = nextZ; age = wave.age;
++        exposure = std::clamp(exposure, 0.f, std::max(0.f, peak - paid));
++        paid += exposure;
++        return exposure;
 +    }
 +};
 +
@@ -773,8 +782,13 @@
 +        if (sample.serial == 0 || protection <= 0.f) { Reset(); return; }
 +        if (serial != sample.serial) { Reset(); serial = sample.serial; }
 +        if (!(seconds > 0.f) || !std::isfinite(seconds)) return;
-+        const float load = std::clamp(sample.height / sample.amplitude, 0.f, 1.f) *
-+                           sample.severity * sample.severity * std::clamp(protection, 0.f, 1.f);
++        // Ordinary buoyancy follows the surface; event torque follows its signed
++        // flank, never its height on a flat crest. Bow impact stays below 12 degrees.
++        const float alongSlope = sample.slopeX * sample.directionX +
++                                 sample.slopeZ * sample.directionZ;
++        const float flank = std::clamp(alongSlope * sample.width /
++            (sample.amplitude * SeaTsunamiParameters::profileArea), -1.f, 1.f);
++        const float load = flank * sample.severity * sample.severity * std::clamp(protection, 0.f, 1.f);
 +        const float targetPitch = SeaTsunamiParameters::maxPitch * load * head;
 +        const float targetRoll = SeaTsunamiParameters::maxRoll * load * beam;
 +        const float delta = std::min(seconds, .1f);
@@ -881,6 +895,15 @@
 +};
 --- a/src/libs/ship/src/ship.cpp
 +++ b/src/libs/ship/src/ship.cpp
+@@ -225,2 +225,8 @@
++            if (tsunamiMotion.serial != 0)
++            {
++                // Sample the tilted hull footprint during the event response.
++                point.x = mat.m[0][0] * x + mat.m[2][0] * z + State.vPos.x + fXOffset;
++                point.z = mat.m[0][2] * x + mat.m[2][2] * z + State.vPos.z + fZOffset;
++            }
+             auto wave_y = pSea->WaveXZ(point.x, point.z);
+             auto f = (wave_y - point.y);
 @@ -432,15 +432,35 @@
      return true;
  }
@@ -968,12 +991,23 @@
  
          bDead = true;
          core.RemoveFromLayer(SEA_REFLECTION2, GetId());
-@@ -744,6 +773,14 @@
+@@ -738,11 +767,25 @@
+     if (!isDead())
+     {
++        const auto pos = GetPos();
++        const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
++        if (sample.serial != 0 || tsunamiMotion.serial != 0)
++        {
++            // Match this frame's sampled buoyancy and drift before event rotation.
++            vPos = State.vPos;
++            vAng = State.vAng;
++        }
+         auto fRotate = State.vRotate.y;
+         if (fRotate > 0.25f)
+             fRotate = 0.25f;
          if (fRotate < -0.25f)
              fRotate = -0.25f;
          vAng.z += fRotate;
-+        const auto pos = GetPos();
-+        const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
 +        const float protection = TsunamiProtection();
 +        const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
 +        const float beam = sample.directionX * std::cos(State.vAng.y) - sample.directionZ * std::sin(State.vAng.y);

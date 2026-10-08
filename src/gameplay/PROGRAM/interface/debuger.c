@@ -10,21 +10,13 @@ void TsunamiDebug_Start()
 	if (SeaTsunami_Start()) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 
-void TsunamiDebug_Stop()
-{
-	SeaTsunami_Stop();
-	IDoExit(RC_INTERFACE_QUICK_SAVE);
-}
-
 void InitInterface(string iniName)
 {
  	StartAboveForm(true);
 	
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
 	SetNodeUsing("TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
-	SetNodeUsing("TSUNAMI_STOP", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TSUNAMI_START",0,"#Цунами");
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TSUNAMI_STOP",0,"#Стоп");
 	
 	CalculateInfoData();
 
@@ -195,9 +187,6 @@ void ProcCommand()
 	{
 		case "TSUNAMI_START":
 			if(comName=="activate" || comName=="click") TsunamiDebug_Start();
-		break;
-		case "TSUNAMI_STOP":
-			if(comName=="activate" || comName=="click") TsunamiDebug_Stop();
 		break;
 		case "TELEPORT_BTN":
 		  if(comName=="activate" || comName=="click")

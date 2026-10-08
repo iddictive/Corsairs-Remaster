@@ -17,6 +17,8 @@ replay, including open-water arc silhouette and moving hull responses, stays
 player-owned.
 The current installed inventory and chronological receipts belong to
 `docs/runtime.md`; component probes do not prove real-game acceptance.
+The later progressive-contact, geometry-driven pose and debug-feedback correction
+passes canonical staging and is installed; its player replay remains unresolved.
 
 ## Player action
 
@@ -24,17 +26,27 @@ The pause menu uses **Esc → Цунами** in an ordinary local sea scene. At 
 starts ahead of the controlled ship, including beside a pier. On the map,
 **Esc → Цунами: дуга** or **Цунами: кольцо** creates an expanding raised wave
 through the same constructor as natural encounters; its contact triggers the existing
-automatic local-sea transition. **Esc → Стоп цунами** cancels the local wave or
-removes marked map events. Repeated map start replaces the marked event; ordinary
+automatic local-sea transition. Repeated start replaces the current wave; ordinary
 storms and ships remain. These actions resume through the existing pause menu
 exit. The buttons are absent on land and during boarding.
 They occupy free cells to the right of the existing pause controls; Ring is map-only.
 
 The existing F11 route remains available in source (Fn+F11 when macOS uses media keys). The script
-debug menu contains `Цунами` and `Стоп` in the two free cells of its lower row.
+debug menu contains `Цунами` in the free cell of its lower row.
 `Цунами` closes the menu and dispatches the same map/local start owner. The local
-wave travels back toward the position where it was called. Reopening the menu
-and choosing `Стоп` cancels it. A repeated start replaces the previous wave.
+wave travels back toward the position where it was called. The correction removes
+the visible Stop controls from both menus, including handlers and navigation
+references; internal cancellation remains the map replacement owner.
+
+One existing `Log_Info` notification reports the exact sampled strength out of
+100 and nominal hull damage before contact/defenses, for example strength 50/100
+and base damage 30%. Local start and manual map arc/ring share the formatter;
+the map report reads the newly created descriptor rather than sampling again.
+Natural offscreen map generation emits no notification. A full PROGRAM/menu
+compile and real script VM cases cover bounds, one sample, restart/replacement,
+creation failure, ordinary storms/ships and land/boarding rejection. INI controls
+and ordinary menu sections are checked against the preceding source. Actual
+notification visibility and updated menus remain player-replay requirements.
 
 The menu remains gated by the existing test-mode flag on land. The Win32 debug
 console is unrelated; no global cheat/test-mode setting is enabled.
@@ -56,17 +68,37 @@ height `28 + 56s`, width `220 + 65s`, speed `22 + 6s` and nominal hull damage
 `10 + 40s` percent of maximum HP before contact and defenses. The nominal 40–50%
 band has probability `1 − √0.75 ≈ 13.4%` per wave, independent of encounter rate.
 
-Native contact sweeps the crest between ship queries: full crossing pays once,
-grazing pays actual peak exposure. The existing hull owner preserves immortality,
+The original native contact paid a full crossing on the crest and a graze on
+exit, explaining the reported instant hull loss. The correction integrates actual
+profile height along the ship's movement between the ordinary one-second queries:
+both leading and trailing slopes contribute while the hull remains in contact.
+First discovery has no retroactive payment; same-age queries cannot double-bill.
+Paid exposure is capped by the strongest encountered profile and resets on
+cancel/restart. A stationary full passage approaches the nominal damage; a faster
+crossing can take less, and following the wave cannot exceed the contact budget.
+Actual-header ASan/UBSan checks cover 0.1/1/2-second partitions, moving ships and
+entry/cancel/restart. The existing hull owner preserves immortality,
 reload/dead guards and battle armor. `StormProfessional` («Плавание в штормах»)
 multiplies damage by 0.7; `DontHitInStorm` prevents it. Natural tsunami starts
 ordinary sea weather, avoiding generic hurricane/tornado damage on top.
 
 Native SHIP adds damped pitch/roll after ordinary buoyancy, before model placement.
-Maximum unprotected pitch/roll is 1.25/2.05 radians, scaled by `s²` and actual
-local contact; the storm perk reduces motion too. Script `Ship.Impulse.Rotate.z`
+The original extra tilt was driven by height: even a flat crest could demand a
+117-degree roll. The correction instead drives the response from the signed slope
+of the same profile used by rendering and `WaveXZ`. Bow impact is bounded by
+0.20 radians (about 11.5 degrees) beyond surface following; maximum additional
+roll remains 2.05 radians, scaled by `s²`, actual flank and protection. Opposing
+flanks reverse the forcing and a flat crest supplies no torque. During this
+response buoyancy samples the tilted hull footprint, and rendering uses the
+current post-Move position/angles rather than the preceding frame. Ordinary sea
+retains its existing path. The storm perk reduces motion too. Script `Ship.Impulse.Rotate.z`
 is an invalid substitute: `SHIP::Move` integrates yaw, while `ShipRocking` owns
 the other axes. The native final pose is the authoritative response owner.
+Exact native ShipRocking/response/CMatrix checks pass current waterline placement,
+the tilted footprint and 400-step ordinary-sea equality. Actual-profile probes
+still permit unprotected beam capsize at strength 0.9 and 1, while ordinary strengths,
+bow/stern headings and protected response pass the nearest negatives. These are
+component checks; they do not accept the installed hull appearance in the player save.
 
 Fatal capsize requires live contact, heading **50–130°** to wave travel on either
 side (90° ±40°), and actual model up-vector at or below zero. Strength must also
@@ -157,7 +189,7 @@ retain their six-cloud geometry.
 
 Esc has separate map actions **Цунами: дуга** and **Цунами: кольцо**, sharing
 `SeaTsunami_CreateMapEncounterWithShape`; natural generation chooses the shape
-once. The old local-sea start and Stop keep their existing actions. Existing
+once. The local-sea start keeps its existing action. Existing
 marked saves without new fields initialize a front without rerolling severity,
 including valid zero. The existing Storm descriptor persists origin, heading,
 shape, age and radius parameters. Water-origin admission uses a finite nearby

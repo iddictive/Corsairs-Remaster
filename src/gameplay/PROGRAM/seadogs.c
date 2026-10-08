@@ -1527,6 +1527,13 @@ float SeaTsunami_SampleSeverity()
 	return strength * strength;
 }
 
+string SeaTsunami_StrengthInfo(float severity)
+{
+	severity = Clampf(severity);
+	return "сила " + makeint(severity * 100.0 + 0.5) + "/100, базовый урон " +
+		makeint(10.0 + 40.0 * severity + 0.5) + "% корпуса";
+}
+
 bool SeaTsunami_StartWithSeverity(float severity)
 {
 	return SeaTsunami_StartWithDirection(severity, 0.0, 0.0);
@@ -1552,8 +1559,8 @@ bool SeaTsunami_StartWithDirection(float severity, float incomingX, float incomi
 	}
 	Sea.Tsunami.Severity = Clampf(severity);
 	Sea.Tsunami.Start = 1;
-	if (directionLength > 0.0001) Log_Info("Цунами приближается к кораблю.");
-	else Log_Info("Цунами идёт с горизонта перед носом корабля.");
+	if (directionLength > 0.0001) Log_Info("Цунами приближается: " + SeaTsunami_StrengthInfo(stf(Sea.Tsunami.Severity)) + ".");
+	else Log_Info("Цунами с горизонта: " + SeaTsunami_StrengthInfo(stf(Sea.Tsunami.Severity)) + ".");
 	return true;
 }
 
@@ -1576,7 +1583,8 @@ bool SeaTsunami_StartMapWithShape(int shape)
 	if (!IsEntity(&worldMap) || bAbordageStarted) return false;
 	SeaTsunami_Stop();
 	if (!SeaTsunami_CreateMapEncounterWithShape(shape)) return false;
-	Log_Info("Цунами приближается на глобальной карте.");
+	string path = "encounters." + worldMap.EncounterID1;
+	Log_Info("Цунами на глобальной карте: " + SeaTsunami_StrengthInfo(stf(worldMap.(path).tsunamiSeverity)) + ".");
 	return true;
 }
 

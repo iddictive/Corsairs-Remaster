@@ -10,12 +10,10 @@ void InitInterface_gm(string iniName)
 
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
 	SetNodeUsing("MB_TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
-	SetNodeUsing("MB_TSUNAMI_STOP", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SetNodeUsing("MB_TSUNAMI_RING", !bAbordageStarted && IsEntity(&worldMap));
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами");
 	if (IsEntity(&worldMap)) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами: дуга");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_RING",0,"#Цунами: кольцо");
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_STOP",0,"#Стоп цунами");
 
 	SetEventHandler("InterfaceBreak","ProcessCancelExit",0);
 	SetEventHandler("exitCancel","ProcessCancelExit",0);
@@ -186,12 +184,6 @@ void ProcessCommandExecute()
 			if (comName == "click" || comName == "activate")
 			{
 				if (SeaTsunami_Start()) ResumeClick();
-			}
-		break;
-		case "MB_TSUNAMI_STOP":
-			if (comName == "click" || comName == "activate")
-			{
-				if (SeaTsunami_Stop()) ResumeClick();
 			}
 		break;
 		case "MB_TSUNAMI_RING":
