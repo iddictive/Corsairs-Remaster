@@ -6,8 +6,8 @@
  }
 -// The visible contact region is approximate dispersion density, independent of
 -// changing first-hit receivers. Fixed axial stations avoid hull/mast hit-set jumps.
-+// One main-density ellipsoid at nominal arrival. No station fitting, raycasts,
-+// or receiver-dependent subdivisions: the renderer projects its covariance once.
++// Fit an approximate impact-plane density. The renderer marginalizes its normal
++// direction instead of slicing a flight-time ellipsoid with receiver polygons.
  std::vector<storm::sea_ai::manual_aim::AimContactSection> AimContactRegion(
 -    const std::vector<Trajectory> &inputCurves,const std::vector<double>&weights,const CVECTOR &axis,
 -    const CVECTOR &lateral,const CVECTOR &up,float waveBound)
@@ -125,7 +125,15 @@
          manualAimReceiverTokens.push_back({id,token});
      };
      // Metadata only: no second world-BVH/model-bounds rebuild during Execute.
-@@ -1539,280 +1490,42 @@
+@@ -1474,6 +1425,7 @@
+         }
+     }
+     if(IsSingleFireMode())SelectSingleGun(solution);
++    solution.previewCharacter=rangeCharacter;
+     if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
+     return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
+ }
+@@ -1539,280 +1491,80 @@
      if(paths.empty())return;
      const bool ready=IsSingleFireMode() ? solution.guns.front()->CanFireTo(solution.gunTargets.front())
                                         : solution.bort->isCharged();
@@ -174,10 +182,10 @@
      if(solution.guns.size()>storm::sea_ai::manual_aim::maxContactFields)return;
      std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
 +    namespace gpu=storm::sea_ai::manual_aim;
-+    std::vector<CVECTOR> densityPoints;
-+    std::vector<double> densityWeights;
-+    densityPoints.reserve(27*solution.guns.size());
-+    densityWeights.reserve(27*solution.guns.size());
++    std::vector<CVECTOR> waterPoints,solidPoints;
++    std::vector<double> waterWeights,solidWeights;
++    waterPoints.reserve(27*solution.guns.size());solidPoints.reserve(27*solution.guns.size());
++    waterWeights.reserve(27*solution.guns.size());solidWeights.reserve(27*solution.guns.size());
      const float nodes[]={-.7745966692f,0.f,.7745966692f};
      const double weights[]={5./18.,4./9.,5./18.};
      for(const auto *gun:solution.guns)
@@ -186,12 +194,6 @@
          const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
 -        std::vector<Trajectory> curves;std::vector<double> probabilities;
 -        curves.reserve(27);probabilities.reserve(27);
-+        const auto nominal=manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity);
-+        float arrival=std::numeric_limits<float>::infinity();
-+        manual_aim::forEachPlaneTime(nominal,axis,aim|axis,
-+            nominal.timeToHeight(-world.waveBound-1.f),
-+            [&](float t){if(t>1e-5f)arrival=std::min(arrival,t);});
-+        if(!std::isfinite(arrival))return;
          for(unsigned yaw=0;yaw<3;++yaw)for(unsigned v=0;v<3;++v)for(unsigned elevation=0;elevation<3;++elevation)
          {
 -            curves.push_back(manual_aim::trajectory(muzzle,aim,speed+spread.speed*nodes[v],
@@ -417,21 +419,65 @@
 -        }
 +            const auto curve=manual_aim::trajectory(muzzle,aim,speed+spread.speed*nodes[v],
 +                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity);
-+            densityPoints.push_back(curve.at(arrival));
-+            densityWeights.push_back(weights[yaw]*weights[v]*weights[elevation]);
++            const double weight=weights[yaw]*weights[v]*weights[elevation];
++            const float waterTime=curve.timeToHeight(0.f);
++            if(std::isfinite(waterTime)&&waterTime>0.f)
++            {waterPoints.push_back(curve.at(waterTime));waterWeights.push_back(weight);}
++            float contactTime=std::numeric_limits<float>::infinity();
++            manual_aim::forEachPlaneTime(curve,axis,aim|axis,
++                curve.timeToHeight(-world.waveBound-1.f),
++                [&](float t){if(t>1e-5f)contactTime=std::min(contactTime,t);});
++            if(std::isfinite(contactTime))
++            {solidPoints.push_back(curve.at(contactTime));solidWeights.push_back(weight);}
 +        }
 +    }
-+    contactSections=AimContactRegion(densityPoints,densityWeights);
-+    if(contactSections.size()!=gpu::contactSectionsPerField)return;
-+    // The surface decal is anchored at the selected receiver. In particular,
-+    // an airburst's intentional +8m flight offset must not lift it off water.
-+    // Its world covariance still comes from the actual current launch law.
-+    auto &contact=contactSections.front();
-+    contact.center[0]=solution.target.x;contact.center[1]=solution.target.y;contact.center[2]=solution.target.z;
++    auto waterField=AimContactRegion(waterPoints,waterWeights);
++    if(!waterField.empty())
++    {
++        auto &field=waterField.front();field.padding=0.f;
++        field.reserved[0]=-world.waveBound-1.f-field.center[1];field.reserved[1]=world.waveBound+1.f-field.center[1];
++        contactSections.push_back(field);
++    }
++    // Registered ships/forts have an actual bounded receiver extent. Terrain
++    // uses only the existing same-first-receiver witnesses, not the island's
++    // enormous whole-model box. No additional contact marches are introduced.
++    float nearDepth=1e20f,farDepth=-1e20f;
++    for(const auto &model:world.models)
++        if(solution.previewCharacter&&model.character==solution.previewCharacter)
++            for(int corner=0;corner<8;++corner)
++            {
++                const CVECTOR p((corner&1)?model.hi.x:model.lo.x,(corner&2)?model.hi.y:model.lo.y,(corner&4)?model.hi.z:model.lo.z);
++                const float depth=p|axis;nearDepth=std::min(nearDepth,depth);farDepth=std::max(farDepth,depth);
++            }
++    if(!solution.previewCharacter)
++    {
++        int surface=0;float nearest=1e20f;
++        for(const auto &[gun,path]:nominalPaths)
++            if(path.hit.surface>0)
++            {const float d=std::fabs((path.hit.point-solution.target)|axis);if(d<nearest){nearest=d;surface=path.hit.surface;}}
++        if(surface)for(const auto &path:paths)if(path.hit.surface==surface)
++        {const float depth=path.hit.point|axis;nearDepth=std::min(nearDepth,depth);farDepth=std::max(farDepth,depth);}
++    }
++    auto solidField=AimContactRegion(solidPoints,solidWeights);
++    if(!solidField.empty()&&farDepth>=nearDepth&&std::isfinite(nearDepth)&&std::isfinite(farDepth))
++    {
++        auto &field=solidField.front();field.padding=1.f;
++        // Plane impacts have zero normal variance by construction. The finite
++        // projector uses the same fore/aft impact span as the water dispersion,
++        // allowing local relief while excluding scenery beyond that span.
++        // This is projection support, not measured terrain or hit probability.
++        const auto &cov=waterField.empty()?field.covariance:waterField.front().covariance;
++        const float normalVariance=axis.x*axis.x*cov[0]+2.f*axis.x*axis.z*cov[2]+axis.z*axis.z*cov[5];
++        const float margin=std::max(.02f,std::sqrt(std::max(0.f,normalVariance)));
++        const CVECTOR center(field.center[0],field.center[1],field.center[2]);
++        field.reserved[0]=nearDepth-margin-(center|axis);field.reserved[1]=farDepth+margin-(center|axis);
++        contactSections.push_back(field);
++    }
++    if(contactSections.empty())return;
      const CVECTOR up=!(axis^lateral);
      std::vector<float> stations;
      float first=1e20f,last=-1e20f;
-@@ -1910,9 +1623,9 @@
+@@ -1910,9 +1662,9 @@
          const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
              uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
              nullptr,0,
@@ -453,7 +499,7 @@
 +inline constexpr std::uint32_t contactSectionsPerField=1;
  inline constexpr std::uint32_t maxContactFields=112; // All current GM batteries <=52; no truncation.
 -inline constexpr std::uint32_t maxContactSections=contactSectionsPerField*maxContactFields;
-+inline constexpr std::uint32_t maxContactSections=1; // One aggregate for every eligible gun.
++inline constexpr std::uint32_t maxContactSections=2; // Sea impacts and selected-range projection.
  inline constexpr std::uint32_t maxContactTriangles=8192;
  inline constexpr std::uint32_t maxRenderedReceivers=128;
  inline constexpr std::uint32_t excludedReceiverColor=0x01000000u;
@@ -463,9 +509,9 @@
  // Approximate main dispersion density, not an extremal shot boundary.
 -// Positive-definite covariance square root in the lateral/up basis; interpolate
 -// this root before inversion so near-muzzle widths grow without metric pinching.
-+// Selected receiver anchor and full WORLD xyz covariance at nominal arrival,
-+// aggregated across all eligible guns. Current rendered world positions sample
-+// this bounded decal; receiver depth deforms its patch instead of a flat HUD ring.
++// True impact-plane mean and world covariance across all eligible guns.
++// padding selects the chart: 0=sea XZ, 1=selected-range lateral/up.
++// reserved stores center-relative normal-depth bounds, independent of chart variance.
  struct alignas(16) AimContactSection
  {
      float center[3],padding;
@@ -484,3 +530,13 @@
  static_assert(sizeof(AimContactTriangle)==64);
  static_assert(sizeof(AimRenderedReceiver)==16);
  static_assert(sizeof(AimWaterContactVertex)==8);
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+@@ -81,6 +81,7 @@
+         AISHIP_BORT *bort = nullptr;
+         CVECTOR target{0.f};
+         ATTRIBUTES *character = nullptr;
++        ATTRIBUTES *previewCharacter = nullptr;
+         std::vector<AICannon *> guns;
+         std::vector<CVECTOR> gunTargets; // parallel to guns; rake spread, else target
+     };

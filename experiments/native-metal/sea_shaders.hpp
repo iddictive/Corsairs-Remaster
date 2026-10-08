@@ -146,10 +146,18 @@ float3 seaReflected(SeaO o,float3 sampled) {
 float4 seaFog(float4 color,SeaO o,constant SeaU& u) {
     color=saturate(color);if(u.fogEnabled)color.rgb=mix(u.fogColor.rgb,color.rgb,saturate(o.fog));return color;
 }
-fragment float4 sea2_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]]) {
+struct SeaAimOutput {float4 color [[color(0)]];float depth [[color(1)]];uint2 identity [[color(2)]];};
+SeaAimOutput seaAimOutput(float4 color,SeaO o,uint2 identity) {return {color,o.position.z,identity};}
+float4 sea2Color(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,texturecube<float> reflection,array<sampler,8> s) {
     float3 ray=seaReflected(o,seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb);
     float3 sky=reflection.sample(s[3],ray).rgb;
     return seaFog(float4(o.diffuse.rgb*sky+o.specular.rgb,o.diffuse.a),o,u);
+}
+fragment float4 sea2_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]]) {
+    return sea2Color(o,u,t,bump,reflection,s);
+}
+fragment SeaAimOutput sea2_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],constant uint2& identity [[buffer(7)]]) {
+    return seaAimOutput(sea2Color(o,u,t,bump,reflection,s),o,identity);
 }
 fragment float4 seasun_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]]) {
     float3 ray=seaReflected(o,seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb);
@@ -167,13 +175,19 @@ fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(
     return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
 }
 float2 seaBumpOffset(float2 delta,float4 matrix) {return float2(dot(delta,matrix.xz),dot(delta,matrix.yw));}
-fragment float4 sea3_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]]) {
+float4 sea3Color(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s) {
     // texbem uses the sampled channels directly (no _bx2 in the source).
     float2 normal0=seaBump(o.t0.xyz,u,t[0],bump,s[0]).rg;
     float2 normal2=seaBump(o.t2.xyz,u,t[2],bump,s[2]).rg;
     float3 reflected=t[1].sample(s[1],o.t1.xy+seaBumpOffset(normal0,u.bump1)).rgb;
     float3 sun=t[3].sample(s[3],o.t3.xy+seaBumpOffset(normal2,u.bump3)).rgb;
     return seaFog(float4(o.diffuse.rgb*reflected+o.specular.rgb+sun,o.diffuse.a),o,u);
+}
+fragment float4 sea3_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]]) {
+    return sea3Color(o,u,t,bump,s);
+}
+fragment SeaAimOutput sea3_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],constant uint2& identity [[buffer(7)]]) {
+    return seaAimOutput(sea3Color(o,u,t,bump,s),o,identity);
 }
 
 // Optional modern material. Original entries above remain pixel-fixture compatible.
@@ -264,7 +278,7 @@ float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture
     // BuildVolumeTexture writes ARGB(blue, green, red): restore world XYZ order.
     return modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f);
 }
-fragment float4 sea2_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]]) {
+float4 sea2ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,texturecube<float> reflection,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth) {
     float3 n=modernSeaCubeNormal(o,u,t[0],bump,s[0]);
     float3 eye=seaNormalize(o.viewToEye);
     float3 ray=reflect(-eye,n);
@@ -272,6 +286,12 @@ fragment float4 sea2_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]
     if(u.depthRefractionEnabled)return modernSeaDepthComposite(o,u,n,env,float3(0),scene,sceneDepth);
     // SunRoad is still rendered by the unchanged subsequent additive pass.
     return modernSeaComposite(modernSeaMaterial(o,u,n,eye,env),o,u,float3(0));
+}
+fragment float4 sea2_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]]) {
+    return sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth);
+}
+fragment SeaAimOutput sea2_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]]) {
+    return seaAimOutput(sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth),o,identity);
 }
 // Match the modern base-water reflection direction for the separate sun pass.
 // Keep the authored additive pass, but bind its horizon energy to the same
@@ -283,7 +303,7 @@ fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1
     sunRoad.rgb=weatherBoundedReflection(sunRoad.rgb,u);
     return seaFog(sunRoad,o,u);
 }
-fragment float4 sea3_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]]) {
+float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth) {
     float3 raw=seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb;
     float3 fine=seaBump(float3(o.t0.xy*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,t[0],bump,s[0]).rgb;
     // SimpleSea packs horizontal normal X in B and Z in R (R duplicated to G).
@@ -303,6 +323,12 @@ fragment float4 sea3_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]
     float4 output=seaFog(float4(withSun-base*material.a,material.a),o,u);
     if(u.fogEnabled)output.a*=saturate(o.fog);
     return output;
+}
+fragment float4 sea3_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]]) {
+    return sea3ModernColor(o,u,t,bump,s,scene,sceneDepth);
+}
+fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]]) {
+    return seaAimOutput(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth),o,identity);
 }
 
 )MSL";

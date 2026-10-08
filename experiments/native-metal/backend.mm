@@ -211,7 +211,7 @@ struct Device : StubIDirect3DDevice9 {
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
  bool aimDirectPass=false;
- struct AimModelScope {storm::sea_ai::manual_aim::AimRenderedReceiver receiver{};storm_metal::AimReceiverStamp stamp{};bool open=false,rigging=false,attempted=false,captured=false;}aimModelScope;
+ struct AimModelScope {storm::sea_ai::manual_aim::AimRenderedReceiver receiver{};storm_metal::AimReceiverStamp stamp{};bool open=false,rigging=false,attempted=false,captured=false,water=false;}aimModelScope;
  storm_metal::AmbientOcclusionComposite ambientOcclusion;bool ambientOcclusionLogged=false;storm_metal::VolumetricLightShafts lightShafts;std::vector<storm_metal::LightShaftOpening> lightShaftMeshes,lightShaftAuthored;bool lightShaftsEnabled=true;size_t loggedShaftApertures=~size_t(0);
  uint64_t telemetryFrame=0,rawLocationDraws=0,rawSkinnedDraws=0,rawWorldDraws=0,nativeUnlitDraws=0,nativeUnlitVertices=0,legacyUnlitCpuDraws=0,legacyUnlitCpuVertices=0;unsigned worldMapModelRole=0,telemetryReceiverDraws=0,telemetryCasterRejects=0,telemetryReceiverRejects=0;bool backdropAlphaTraced=false;uint64_t diagnosticTick=0;
  uint64_t seaGeometryCandidates=0,seaRawEligible=0,seaShadowEligible=0,seaRawPackets=0,seaFastReturns=0,seaConvertedPackets=0,seaCandidateScopes[3]{},seaRejects[8]{};
@@ -469,8 +469,9 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  bool fixedFunctionStagesSupported(){for(unsigned i=0;i<8;i++){auto colorOp=static_cast<D3DTEXTUREOP>(ts[i][D3DTSS_COLOROP]);if(colorOp==D3DTOP_DISABLE)return true;if(!storm_metal::compat::supportsTextureOp(colorOp)||!storm_metal::compat::supportsTextureOp(static_cast<D3DTEXTUREOP>(ts[i][D3DTSS_ALPHAOP])))return false;}return true;}
  HRESULT applyState(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSString* vertexName,NSString* pixelName){
   const auto stamp=aimReceiverStamp();
-  const bool direct=aimModelScope.captured&&aimReceiverTarget()&&std::memcmp(&stamp,&aimModelScope.stamp,sizeof(stamp))==0&&rs[D3DRS_ZENABLE]&&rs[D3DRS_ZWRITEENABLE]&&shaderLibrary==library&&
-      ([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"bridge_advanced_fs"]);
+  const bool direct=aimModelScope.captured&&aimReceiverTarget()&&std::memcmp(&stamp,&aimModelScope.stamp,sizeof(stamp))==0&&rs[D3DRS_ZENABLE]&&rs[D3DRS_ZWRITEENABLE]&&
+      ((aimModelScope.water&&shaderLibrary==seaLibrary&&([pixelName isEqualToString:@"sea2_fs"]||[pixelName isEqualToString:@"sea3_fs"]||[pixelName isEqualToString:@"sea2_modern_fs"]||[pixelName isEqualToString:@"sea3_modern_fs"]))||
+       (!aimModelScope.water&&shaderLibrary==library&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"bridge_advanced_fs"])));
   if(encoder&&aimDirectPass!=direct)finish();aimDirectPass=direct;begin();
   if(direct){pixelName=[pixelName stringByAppendingString:@"_aim"];const auto identity=aimVolume.modelIdentity();[encoder setFragmentBytes:&identity length:sizeof(identity) atIndex:7];}
  bool hasDepth=zbuffer&&zbuffer->desc.Width==target->desc.Width&&zbuffer->desc.Height==target->desc.Height;const bool separate=rs[D3DRS_SEPARATEALPHABLENDENABLE];DWORD srcAlpha=separate?rs[D3DRS_SRCBLENDALPHA]:rs[D3DRS_SRCBLEND],dstAlpha=separate?rs[D3DRS_DESTBLENDALPHA]:rs[D3DRS_DESTBLEND];uint64_t key=1469598103934665603ull;auto add=[&](uint64_t value){key^=value;key*=1099511628211ull;};for(uint64_t value:{uint64_t(rs[D3DRS_ALPHABLENDENABLE]),uint64_t(rs[D3DRS_SRCBLEND]),uint64_t(rs[D3DRS_DESTBLEND]),uint64_t(separate),uint64_t(srcAlpha),uint64_t(dstAlpha),uint64_t(hasDepth),uint64_t(target->gpu.pixelFormat),shaderKey,uint64_t(direct)})add(value);auto pipeline=pipelines[key];if(!pipeline){MTLBlendFactor srcRGB,dstRGB,srcA,dstA;if(!metalBlendFactor(rs[D3DRS_SRCBLEND],false,srcRGB)||!metalBlendFactor(rs[D3DRS_DESTBLEND],false,dstRGB)||!metalBlendFactor(srcAlpha,true,srcA)||!metalBlendFactor(dstAlpha,true,dstA))return unsupported("authored blend factor");auto d=[MTLRenderPipelineDescriptor new];d.vertexFunction=[shaderLibrary newFunctionWithName:vertexName];d.fragmentFunction=[shaderLibrary newFunctionWithName:pixelName];d.colorAttachments[0].pixelFormat=target->gpu.pixelFormat;if(direct){d.colorAttachments[1].pixelFormat=MTLPixelFormatR32Float;d.colorAttachments[2].pixelFormat=MTLPixelFormatRG32Uint;}d.depthAttachmentPixelFormat=hasDepth?zbuffer->gpu.pixelFormat:MTLPixelFormatInvalid;d.colorAttachments[0].blendingEnabled=rs[D3DRS_ALPHABLENDENABLE];d.colorAttachments[0].sourceRGBBlendFactor=srcRGB;d.colorAttachments[0].destinationRGBBlendFactor=dstRGB;d.colorAttachments[0].sourceAlphaBlendFactor=srcA;d.colorAttachments[0].destinationAlphaBlendFactor=dstA;NSError*e=nil;pipeline=[metal newRenderPipelineStateWithDescriptor:d error:&e];if(!pipeline){fprintf(stderr,"[StormMetal] pipeline %s\n",e.localizedDescription.UTF8String);return E_FAIL;}pipelines[key]=pipeline;}[encoder setRenderPipelineState:pipeline];auto blendColor=color(rs[D3DRS_BLENDFACTOR]);[encoder setBlendColorRed:blendColor.x green:blendColor.y blue:blendColor.z alpha:blendColor.w];uint64_t dk=rs[D3DRS_ZENABLE]|uint64_t(rs[D3DRS_ZWRITEENABLE])<<8|uint64_t(rs[D3DRS_ZFUNC])<<16;auto ds=depths[dk];if(!ds){auto d=[MTLDepthStencilDescriptor new];d.depthCompareFunction=rs[D3DRS_ZENABLE]?(MTLCompareFunction)(rs[D3DRS_ZFUNC]-1):MTLCompareFunctionAlways;d.depthWriteEnabled=rs[D3DRS_ZENABLE]&&rs[D3DRS_ZWRITEENABLE];ds=[metal newDepthStencilStateWithDescriptor:d];depths[dk]=ds;}[encoder setDepthStencilState:ds];[encoder setFrontFacingWinding:MTLWindingClockwise];[encoder setCullMode:rs[D3DRS_CULLMODE]==D3DCULL_NONE?MTLCullModeNone:rs[D3DRS_CULLMODE]==D3DCULL_CW?MTLCullModeFront:MTLCullModeBack];float depthBias=0,slopeBias=0;memcpy(&depthBias,&rs[D3DRS_DEPTHBIAS],4);memcpy(&slopeBias,&rs[D3DRS_SLOPESCALEDEPTHBIAS],4);[encoder setDepthBias:depthBias slopeScale:slopeBias clamp:0];[encoder setViewport:MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),vp.MinZ,vp.MaxZ}];return S_OK;}
@@ -488,10 +489,13 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   return {simd_mul(projectionMatrix,viewMatrix),simd_make_float4(landShadow.worldOrigin,0.f),{float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)}};
  }
  bool beginAimReceiver(unsigned kind){
-  // Own/model identity is written by ordinary geometry; water uses scene depth.
-  return false;
+  // Sea.cpp opens this only around the live water mesh, after reflection work.
+  // Capture remains lazy: a real depth-writing Sea2/Sea3 submission owns MRT.
+  if(kind!=1||aimModelScope.open||!aimReceiverTarget())return false;
+  aimModelScope={};aimModelScope.receiver.receiverToken=0x20000000u;
+  aimModelScope.stamp=aimReceiverStamp();aimModelScope.open=aimModelScope.water=true;return true;
  }
- void endAimReceiver(unsigned kind){}
+ void endAimReceiver(unsigned kind){if(kind==1&&aimModelScope.water)endAimModel();}
  bool beginAimModel(uint64_t modelId,bool rigging=false){
   // Empty/culled models and non-depth-writing cloth allocate no GPU work. The
   // first actual depth-writing D3D submission starts its ordinary MRT draw.
@@ -499,8 +503,8 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   const auto*receiver=aimVolume.receiver(modelId);if(!receiver)return false;
   aimModelScope={*receiver,aimReceiverStamp(),true,rigging,false,false};return true;
  }
- void captureAimModelBeforeDraw(){
-  if(!aimModelScope.open||aimModelScope.attempted||!rs[D3DRS_ZENABLE]||!rs[D3DRS_ZWRITEENABLE]||!aimReceiverTarget())return;
+ void captureAimModelBeforeDraw(bool waterDraw=false){
+  if(!aimModelScope.open||aimModelScope.water!=waterDraw||aimModelScope.attempted||!rs[D3DRS_ZENABLE]||!rs[D3DRS_ZWRITEENABLE]||!aimReceiverTarget())return;
   const auto stamp=aimReceiverStamp();
   if(std::memcmp(&stamp,&aimModelScope.stamp,sizeof(stamp))!=0)return;
   aimModelScope.attempted=true;finish();if(!command)command=[queue commandBuffer];
@@ -579,6 +583,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  bool modernPass=modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Foam||kind==SeaShaderKind::Sun);
  if(modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3))prepareSeaScene(uniforms);
  const char* fragment=modernPass?(kind==SeaShaderKind::Sea2?"sea2_modern_fs":kind==SeaShaderKind::Sea3?"sea3_modern_fs":kind==SeaShaderKind::Foam?"seafoam_modern_fs":"seasun_modern_fs"):seaPixelFunction(kind);
+ if(primitives&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3))captureAimModelBeforeDraw(true);
  auto hr=applyState(uint64_t(kind)|(modernPass?0x100ull:0),seaLibrary,[NSString stringWithUTF8String:seaVertexFunction(kind)],[NSString stringWithUTF8String:fragment]);if(FAILED(hr))return hr;
 	 auto constants=submissionBuffer(&uniforms,sizeof(uniforms));if(!constants.buffer)return E_OUTOFMEMORY;[encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBuffer:constants.buffer offset:constants.offset atIndex:1];[encoder setFragmentBuffer:constants.buffer offset:constants.offset atIndex:1];
  for(int stage=0;stage<8;stage++){auto* texture=dynamic_cast<Texture*>(textures[stage]);[encoder setFragmentTexture:texture?texture->gpu():nil atIndex:stage];[encoder setFragmentSamplerState:samplerFor(stage) atIndex:stage];}

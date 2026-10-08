@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cmath>
 #include <cstddef>
+#include <chrono>
 #include <cstdio>
 #include <limits>
 #include <vector>
@@ -31,7 +32,7 @@ static_assert(sizeof(aim_volume::AimRenderedReceiver)==16);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,color)==8);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,receiverToken)==12);
 static_assert(sizeof(aim_volume::AimContactSection)==48);
-static_assert(aim_volume::maxContactSections==1 && aim_volume::maxContactFields==112);
+static_assert(aim_volume::maxContactSections==2 && aim_volume::maxContactFields==112);
 static_assert(offsetof(aim_volume::AimContactSection,covariance)==16);
 static_assert(sizeof(aim_volume::AimContactTriangle)==64);
 static_assert(offsetof(aim_volume::AimContactTriangle,receiverToken)==28);
@@ -42,10 +43,8 @@ struct AimVolumeUniforms {
   simd_uint4 receiverFlags;
   simd_float4 waterAtlas;
   simd_uint4 contactCounts;
-  simd_float4 contactCenter,contactMetric0,contactMetric1;
 };
-static_assert(sizeof(AimVolumeUniforms) == 352);
-static_assert(offsetof(AimVolumeUniforms,contactCenter)==304);
+static_assert(sizeof(AimVolumeUniforms) == 304);
 static_assert(offsetof(AimVolumeUniforms,contactCounts)==288);
 static_assert(offsetof(AimVolumeUniforms, camera) == 128);
 static_assert(offsetof(AimVolumeUniforms, params) == 240);
@@ -72,7 +71,8 @@ inline constexpr const char *aimVolumeShaderSource = R"MSL(
 using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
-struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; float4 contactCenter,contactMetric0,contactMetric1; };
+struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; };
+struct AimContactField {packed_float3 center;float chart;float metric[6];float nearDepth,farDepth;};
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
@@ -251,31 +251,37 @@ float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u
   float4 neighbor=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,clip.z/clip.w,1.f);
   return abs(neighbor.w)>1.e-8f?neighbor.xyz/neighbor.w-receiver:float3(0.f);
 }
-// The decal lives in world space. Every sample is the nearest actually rendered
-// surface, not an intersection with a camera-facing plane or distant receiver.
-float2 aim_contact_sample(int2 pixel,depth2d<float,access::read> depth,constant AimU&u){
-  int2 size=int2(depth.get_width(),depth.get_height());
-  if(any(pixel<0)||any(pixel>=size))return float2(0.f);
-  float z=depth.read(uint2(pixel));if(!isfinite(z)||z<0.f||z>=1.f)return float2(0.f);
-  float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
-  float4 p=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,z,1.f);
-  if(abs(p.w)<1.e-8f)return float2(0.f);
-  float3 d=p.xyz/p.w-u.contactCenter.xyz;
-  float3 m=float3(dot(u.contactMetric0.xyz,d),
-      u.contactMetric0.y*d.x+u.contactMetric1.x*d.y+u.contactMetric1.y*d.z,
-      u.contactMetric0.z*d.x+u.contactMetric1.y*d.y+u.contactMetric1.z*d.z);
-  float q=max(0.f,dot(d,m));
-  return isfinite(q)&&q<=1.f?float2(1.f,exp(-2.f*q)):float2(0.f);
+// Marginal impact-plane density, independently bounded along its projection
+// normal. Receiver holes/depth discontinuities are not contour boundaries.
+float4 aim_contact_metric(float3 world,bool water,const device AimContactField*fields,constant AimU&u){
+  float4 result=float4(1.e6f,0.f,0.f,0.f);
+  for(uint i=0;i<min(u.contactCounts.x,2u);++i){
+    const auto field=fields[i];float3 d=world-float3(field.center);
+    if((field.chart<.5f)!=water)continue;
+    float depth=field.chart>.5f?dot(d,u.axis.xyz):d.y;
+    if(depth<field.nearDepth||depth>field.farDepth)continue;
+    float3 m=float3(field.metric[0]*d.x+field.metric[1]*d.y+field.metric[2]*d.z,
+        field.metric[1]*d.x+field.metric[3]*d.y+field.metric[4]*d.z,
+        field.metric[2]*d.x+field.metric[4]*d.y+field.metric[5]*d.z);
+    float q=max(0.f,dot(d,m));if(!isfinite(q))continue;
+    if(result.x>1.e5f){result=float4(q,2.f*m);continue;}
+    // Compact smooth union rounds the join; disjoint zones keep their gap.
+    float h=clamp(.5f+.5f*(q-result.x)/.15f,0.f,1.f);
+    result=float4(mix(q,result.x,h)-.15f*h*(1.f-h),mix(2.f*m,result.yzw,h));
+  }
+  return result;
 }
-float3 aim_contact_shape(float2 pixel,depth2d<float,access::read> depth,constant AimU&u){
-  if(!u.contactCenter.w)return float3(0.f);
-  // A fixed 3x3 binomial filter rounds the actual mask, including creases.
-  // No depth derivatives, singular boundary distances or variable ray marches.
-  float2 mask=0.f;
-  for(int y=-1;y<=1;++y)for(int x=-1;x<=1;++x)
-    mask+=aim_contact_sample(int2(pixel)+int2(x,y),depth,u)*float((x?1:2)*(y?1:2))/16.f;
-  float rim=4.f*mask.x*(1.f-mask.x);
-  return float3(mask.y,rim,sqrt(rim));
+float3 aim_contact_shape(float2 pixel,float depth,float3 world,bool water,const device AimContactField*fields,constant AimU&u){
+  float4 field=aim_contact_metric(world,water,fields,u);if(field.x>1.1f)return float3(0.f);
+  float2 uv=(pixel-u.viewport.xy)/u.viewport.zw;
+  float3 steps[2];
+  for(uint i=0;i<2;++i){float2 neighbor=uv;neighbor[i]+=1.f/u.viewport.zw[i];
+    float4 p=u.inverseViewProjection*float4(neighbor.x*2.f-1.f,1.f-neighbor.y*2.f,depth,1.f);
+    steps[i]=abs(p.w)>1.e-8f?p.xyz/p.w-world:float3(0.f);}
+  float width=clamp(length(float2(dot(field.yzw,steps[0]),dot(field.yzw,steps[1]))),1.e-4f,.1f);
+  float coverage=1.f-smoothstep(1.f-width,1.f+width,field.x);
+  float rim=(1.f-smoothstep(.35f*width,1.2f*width,abs(field.x-1.f)))*coverage;
+  return float3(exp(-2.f*max(0.f,field.x))*coverage,rim,sqrt(rim)*coverage);
 }
 struct AimPrismO {float4 position [[position]];uint triangle [[flat]];};
 vertex AimPrismO aim_prism_vs(uint id [[vertex_id]],const device AimContactTriangle*triangles [[buffer(0)]],constant AimU&u [[buffer(1)]]){
@@ -368,7 +374,7 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
     texture2d<float,access::read> ownDepth [[texture(4)]],
     texture2d<float,access::read> waterDepth [[texture(5)]],texture2d<float,access::read> relationDepth [[texture(6)]],
     constant AimU&u [[buffer(0)]],const device AimSection*sections [[buffer(1)]],
-    const device AimPlane*planes [[buffer(2)]]) {
+    const device AimPlane*planes [[buffer(2)]],const device AimContactField*fields [[buffer(3)]]) {
   uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
   uint2 pixelIndex=min(uint2(pixel.xy),size-1);float depth=sceneDepth.read(pixelIndex);
   bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
@@ -396,23 +402,25 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   return float4(float3(.7215686f,.7686275f,.7843137f)*airAlpha,airAlpha);
   }
   bool actualOwn=false;
-  bool actualWater=hasReceiver&&u.receiverFlags.y&&waterDepth.read(pixelIndex).r==depth;
   bool actualModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(pixelIndex).r==depth;
   uint2 identity=actualModel?relation.read(pixelIndex).xy:uint2(0u);
+  bool actualWater=actualModel&&(identity.x&0x20000000u);
   actualOwn=actualOwn||(actualModel&&(identity.x&0x40000000u));
   uint receiverToken=(!actualOwn&&!actualWater)?(identity.x&0x3fffffffu):0u;
   float3 contact=float3(0.f);
   // Current scene depth already supplies terrain, even when zoom culls water.
   // Identity is needed only for relation color; own depth still excludes rails.
   if(hasReceiver&&u.receiverFlags.x&&!actualOwn) {
-    contact=aim_contact_shape(pixel.xy,sceneDepth,u);
+    float2 uv=(pixel.xy-u.viewport.xy)/u.viewport.zw;
+    float4 p=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,depth,1.f);
+    if(abs(p.w)>1.e-8f)contact=aim_contact_shape(pixel.xy,depth,p.xyz/p.w,actualWater,fields,u);
   }
   float coverage=contact.x,contour=contact.y;
   bool excludedReceiver=actualOwn;
   if(excludedReceiver){coverage=0.f;contour=0.f;contact.z=0.f;}
   float readiness=.72f+.28f*u.params.y;
   bool coloredReceiver=receiverToken!=0u;
-  float fillAlpha=.10f*coverage*readiness,lineAlpha=(coloredReceiver?.90f:.72f)*contour*readiness;
+  float fillAlpha=.08f*coverage*readiness,lineAlpha=(coloredReceiver?.42f:.48f)*contour*readiness;
   uint rgb=identity.y;
   float3 tint=coloredReceiver?float3(float((rgb>>16)&255u),float((rgb>>8)&255u),float(rgb&255u))/255.f:
       float3(.85098f,.88627f,.89412f);
@@ -425,12 +433,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   // Both tones belong to this single depth-tested analytic contour. The dark
   // keyline is subdued at night and never increases the airborne fog.
   float keyline=contact.z;
-  float keyAlpha=.35f*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
+  float keyAlpha=.14f*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
   float baseAlpha=keyAlpha+fillAlpha*(1.f-keyAlpha);
   float3 baseRGB=tint*.10f*keyAlpha+tint*fillAlpha*(1.f-keyAlpha);
   float surfaceAlpha=lineAlpha+baseAlpha*(1.f-lineAlpha);
   float3 surfaceRGB=lineTint*lineAlpha+baseRGB*(1.f-lineAlpha);
-  if(surfaceAlpha>.78f){surfaceRGB*=.78f/surfaceAlpha;surfaceAlpha=.78f;}
+  if(surfaceAlpha>.52f){surfaceRGB*=.52f/surfaceAlpha;surfaceAlpha=.52f;}
   // The following air pass blends over this surface, preserving the existing
   // premultiplied composition while limiting contact work to its own bounds.
   return float4(surfaceRGB,surfaceAlpha);
@@ -448,14 +456,14 @@ class SoftAimVolume {
   }
   void beginFrame(){for(auto&owner:owners_){owner.active=false;owner.ready=false;}model_.active=model_.ready=false;}
   void endFrame(){beginFrame();receivers_.clear();}
-  void setEnabled(bool value){if(!value||!enabled_)endFrame();enabled_=value;}
+  void setEnabled(bool value){if(!value||!enabled_){endFrame();smoothedContact_.clear();}enabled_=value;}
   void setReceivers(const aim_volume::AimRenderedReceiver*receivers,uint32_t count){
     receivers_.clear();model_.active=model_.ready=false;
     if(!enabled_)return;
     if(count>aim_volume::maxRenderedReceivers||(!receivers&&count)){fail(Input,"invalid rendered receiver registry");return;}
     for(uint32_t i=0;i<count;++i){
       const auto&r=receivers[i];
-      if(!r.modelId||(r.receiverToken&0xc0000000u)||(!r.receiverToken&&r.color!=aim_volume::excludedReceiverColor)||((r.color&0xff000000u)&&r.color!=aim_volume::excludedReceiverColor)){fail(Input,"invalid rendered receiver identity");return;}
+      if(!r.modelId||(r.receiverToken&0xe0000000u)||(!r.receiverToken&&r.color!=aim_volume::excludedReceiverColor)||((r.color&0xff000000u)&&r.color!=aim_volume::excludedReceiverColor)){fail(Input,"invalid rendered receiver identity");return;}
       for(uint32_t j=0;j<i;++j)if(receivers[j].modelId==r.modelId){fail(Input,"duplicate rendered receiver model");return;}
     }
     if(count)receivers_.assign(receivers,receivers+count);
@@ -468,7 +476,7 @@ class SoftAimVolume {
   void cancelModel(){model_.active=false;}
   bool enabled()const{return enabled_;}
   void cancelOwner(unsigned kind){if(kind<owners_.size())owners_[kind].active=false;}
-  void reset() { depthSnapshot_=nil;colorSnapshot_=nil;emptyIdentity_=nil;solidSupport_=nil;prismPipeline_=nil;model_={};modelPipeline_=nil;receivers_.clear();waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
+  void reset() { depthSnapshot_=nil;colorSnapshot_=nil;emptyIdentity_=nil;solidSupport_=nil;prismPipeline_=nil;model_={};modelPipeline_=nil;receivers_.clear();smoothedContact_.clear();waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
   bool beginOwner(unsigned kind,id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>depth,MTLPixelFormat colorFormat,const AimReceiverStamp&stamp) {
     // Own model/rigging tags now arrive with their ordinary geometry draws.
     // Neither own ship nor water needs another full-frame copy/pass.
@@ -524,7 +532,7 @@ class SoftAimVolume {
        !planeCount||planeCount>maxVolumePlanes||!std::isfinite(readiness)||
        relationVertexCount>maxVolumeRelationVertices||relationVertexCount%3||(!relationVertices&&relationVertexCount)||
        waterVertexCount>maxWaterContactVertices||waterVertexCount%3||(!waterVertices&&waterVertexCount)||
-       contactSectionCount!=1||!contactSections||
+       !contactSectionCount||contactSectionCount>maxContactSections||!contactSections||
        contactTriangleCount>maxContactTriangles||(!contactTriangles&&contactTriangleCount))return fail(Input,"invalid section/plane input");
     auto finite3=[](simd_float3 v){return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);};
     const simd_float3 ax={axis[0],axis[1],axis[2]},lat={lateral[0],lateral[1],lateral[2]},vertical={up[0],up[1],up[2]};
@@ -587,37 +595,70 @@ class SoftAimVolume {
     }
     // Old collision relation arguments remain ABI-compatible but are never
     // uploaded, rasterized or used as an identity fallback.
-    frame.contactSections.assign(contactSections,contactSections+1);frame.contactTriangles.clear();u.contactCounts={1,contactTriangleCount,0,0};
-    auto&contact=frame.contactSections.front();
-    simd_float3 contactCenter={contact.center[0],contact.center[1],contact.center[2]};
-    const auto&c=contact.covariance;
-    for(float value:c)if(!std::isfinite(value))return fail(Input,"nonfinite contact covariance");
-    const double minor=double(c[0])*c[3]-double(c[1])*c[1];
-    const double determinant3=double(c[0])*(double(c[3])*c[5]-double(c[4])*c[4])-
-        double(c[1])*(double(c[1])*c[5]-double(c[2])*c[4])+double(c[2])*(double(c[1])*c[4]-double(c[2])*c[3]);
-    if(!finite3(contactCenter)||c[0]<=0.f||minor<=0.||determinant3<=0.)return fail(Input,"invalid contact covariance");
-    contactCenter+=worldOrigin;
-    for(unsigned i=0;i<3;++i)contact.center[i]=contactCenter[i];
-    u.contactCenter=simd_make_float4(contactCenter,1.f);
-    u.contactMetric0={float((double(c[3])*c[5]-double(c[4])*c[4])/determinant3),
-        float((double(c[2])*c[4]-double(c[1])*c[5])/determinant3),
-        float((double(c[1])*c[4]-double(c[2])*c[3])/determinant3),0.f};
-    u.contactMetric1={float((double(c[0])*c[5]-double(c[2])*c[2])/determinant3),
-        float((double(c[1])*c[2]-double(c[0])*c[4])/determinant3),
-        float(minor/determinant3),0.f};
-    // Project the world ellipsoid's enclosing box, not a camera Jacobian at
-    // its center. This remains conservative across receiver relief and zoom.
-    simd_float3 radius={std::sqrt(c[0]),std::sqrt(c[3]),std::sqrt(c[5])};
+    frame.contactSections.assign(contactSections,contactSections+contactSectionCount);
+    frame.contactTriangles.clear();u.contactCounts={contactSectionCount,contactTriangleCount,0,0};
+    const auto now=std::chrono::steady_clock::now();
+    const float dt=std::chrono::duration<float>(now-contactTime_).count();
+    const float blend=dt>0.f&&dt<.25f?1.f-std::exp(-dt/.07f):1.f;
+    for(auto&field:frame.contactSections){
+      if(field.padding!=0.f&&field.padding!=1.f)return fail(Input,"invalid contact chart");
+      for(float v:field.center)if(!std::isfinite(v))return fail(Input,"nonfinite contact center");
+      for(float v:field.covariance)if(!std::isfinite(v))return fail(Input,"nonfinite contact covariance");
+      if(!std::isfinite(field.reserved[0])||!std::isfinite(field.reserved[1])||field.reserved[1]<=field.reserved[0])return fail(Input,"invalid projector depth");
+      const auto normal=field.padding>.5f?ax:simd_make_float3(0.f,1.f,0.f);
+      const simd_float3 current={field.center[0],field.center[1],field.center[2]};
+      const float station=simd_dot(current,normal);
+      const float near=station+field.reserved[0],far=station+field.reserved[1];
+      if(simd_dot(ax,contactAxis_)>.98f)for(const auto&old:smoothedContact_)if(old.padding==field.padding){
+        const simd_float3 previous={old.center[0],old.center[1],old.center[2]};
+        const float oldStation=simd_dot(previous,normal);
+        const auto tangent=current-previous-normal*simd_dot(current-previous,normal);
+        const simd_float3 radius={std::sqrt(std::max(0.f,field.covariance[0]))+std::sqrt(std::max(0.f,old.covariance[0])),
+            std::sqrt(std::max(0.f,field.covariance[3]))+std::sqrt(std::max(0.f,old.covariance[3])),
+            std::sqrt(std::max(0.f,field.covariance[5]))+std::sqrt(std::max(0.f,old.covariance[5]))};
+        // Inertia belongs to one overlapping footprint. Never interpolate the
+        // physical depth interval into a third, unrelated receiver.
+        if(near>oldStation+old.reserved[1]||far<oldStation+old.reserved[0]||simd_any(simd_abs(tangent)>radius))break;
+        const auto center=current-(1.f-blend)*tangent;
+        for(unsigned i=0;i<3;++i)field.center[i]=center[i];
+        for(unsigned i=0;i<6;++i)field.covariance[i]=old.covariance[i]+blend*(field.covariance[i]-old.covariance[i]);
+        field.reserved[0]=near-simd_dot(center,normal);field.reserved[1]=far-simd_dot(center,normal);
+        break;
+      }
+    }
+    smoothedContact_=frame.contactSections;contactTime_=now;contactAxis_=ax;
     float contactMinX=viewport.x+viewport.z,contactMinY=viewport.y+viewport.w;
     float contactMaxX=viewport.x,contactMaxY=viewport.y;bool contactNear=false;
-    for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
-      const auto corner=contactCenter+radius*simd_make_float3(float(x),float(y),float(z));
-      const auto clip=simd_mul(viewProjection,simd_make_float4(corner,1.f));
-      if(clip.w<=1.e-5f||clip.z<=0.f){contactNear=true;continue;}
-      const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
-      const float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
-      contactMinX=std::min(contactMinX,px);contactMinY=std::min(contactMinY,py);
-      contactMaxX=std::max(contactMaxX,px);contactMaxY=std::max(contactMaxY,py);
+    for(auto&contact:frame.contactSections){
+      simd_float3 center={contact.center[0],contact.center[1],contact.center[2]};
+      const simd_float3 a=contact.padding>.5f?lat:simd_make_float3(1.f,0.f,0.f);
+      const simd_float3 b=contact.padding>.5f?vertical:simd_make_float3(0.f,0.f,1.f);
+      const simd_float3 normal=contact.padding>.5f?ax:simd_make_float3(0.f,1.f,0.f);
+      const auto&c=contact.covariance;
+      auto cov=[&](simd_float3 v,simd_float3 w){return double(v.x)*(c[0]*w.x+c[1]*w.y+c[2]*w.z)+
+          double(v.y)*(c[1]*w.x+c[3]*w.y+c[4]*w.z)+double(v.z)*(c[2]*w.x+c[4]*w.y+c[5]*w.z);};
+      const double aa=cov(a,a),ab=cov(a,b),bb=cov(b,b),det=aa*bb-ab*ab;
+      if(aa<=0.||bb<=0.||det<=0.)return fail(Input,"invalid impact-plane covariance");
+      simd_float3 metric[3];
+      for(unsigned i=0;i<3;++i)metric[i]=a*float((bb*a[i]-ab*b[i])/det)+b*float((aa*b[i]-ab*a[i])/det);
+      simd_float3 radius;
+      for(unsigned i=0;i<3;++i)radius[i]=float(std::sqrt(std::max(0.,aa*a[i]*a[i]+2.*ab*a[i]*b[i]+bb*b[i]*b[i])));
+      const float near=contact.reserved[0],far=contact.reserved[1];
+      const simd_float3 boxCenter=center+worldOrigin+normal*((near+far)*.5f);
+      radius=radius*std::sqrt(1.1375f)+simd_abs(normal)*((far-near)*.5f);
+      center+=worldOrigin;
+      for(unsigned i=0;i<3;++i)contact.center[i]=center[i];
+      contact.covariance[0]=metric[0].x;contact.covariance[1]=metric[0].y;contact.covariance[2]=metric[0].z;
+      contact.covariance[3]=metric[1].y;contact.covariance[4]=metric[1].z;contact.covariance[5]=metric[2].z;
+      for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
+        const auto corner=boxCenter+radius*simd_make_float3(float(x),float(y),float(z));
+        const auto clip=simd_mul(viewProjection,simd_make_float4(corner,1.f));
+        if(clip.w<=1.e-5f||clip.z<=0.f){contactNear=true;continue;}
+        const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
+        const float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
+        contactMinX=std::min(contactMinX,px);contactMinY=std::min(contactMinY,py);
+        contactMaxX=std::max(contactMaxX,px);contactMaxY=std::max(contactMaxY,py);
+      }
     }
     if(contactNear){contactMinX=viewport.x;contactMinY=viewport.y;contactMaxX=viewport.x+viewport.z;contactMaxY=viewport.y+viewport.w;}
     const auto contactX=NSUInteger(std::clamp(std::floor(contactMinX)-2.f,viewport.x,viewport.x+viewport.z));
@@ -727,7 +768,7 @@ class SoftAimVolume {
       [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     }
     [encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v11: world-depth dispersion decal (air alpha <= 0.22)\n");}
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v12: impact-plane dispersion projectors (air alpha <= 0.22)\n");}
     return true;
   }
 
@@ -767,6 +808,9 @@ class SoftAimVolume {
     return true;
   }
   std::array<OwnerDepth,2>owners_{};
+  std::vector<aim_volume::AimContactSection>smoothedContact_;
+  std::chrono::steady_clock::time_point contactTime_{};
+  simd_float3 contactAxis_{};
   bool enabled_=false;unsigned loggedOwners_=0;
   id<MTLRenderPipelineState>waterPipeline_=nil,ownerPipeline_=nil;
   id<MTLSamplerState>waterSampler_=nil;id<MTLTexture>waterMask_=nil;

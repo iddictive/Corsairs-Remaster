@@ -2,13 +2,14 @@
 
 ## Status
 
-The current candidate evaluates one bounded world-space dispersion decal against
-the nearest rendered surface. Revision10 is rejected: its screen-space ring did
-not conform to objects and the airborne mean lifted close-water marks above aim.
-Revision11 anchors the decal at selected receiver depth, samples current world
-positions, filters its perimeter and writes own/relation identity during ordinary
-model rendering. Native build and source-exact offscreen GPU checks pass;
-complete player appearance, motion/zoom and paired FPS remain unresolved.
+Revision12 projects two approximate impact-plane densities onto the current
+rendered surface: actual sea receives the water-landing distribution; solids
+receive the selected-range lateral/up distribution. Revision11 is rejected by
+player evidence: its3D slice understated water overshoot and outlined sail holes.
+Revision10's flat screen-space ring also failed to conform to objects.
+Source-exact native/GPU checks pass for the new metric, receiver admission,
+inertia/reset, own exclusion and subdued contour. Complete player appearance,
+motion/zoom and paired FPS remain unresolved.
 Staging/receipts belong to `docs/runtime.md`.
 
 ## Contract
@@ -31,8 +32,8 @@ maximum reach; nearby mechanically unreachable targets stay unavailable.
 The visible contact area is an approximate dispersion-density patch, not a
 guaranteed boundary containing every shell. Its thin antialiased perimeter must
 remain smoothly rounded through receiver-depth and polygon changes; a perfect
-ellipse is not a requirement. The representation is one world covariance decal
-with a soft Gaussian fill. Current nearest water, hull, mast, terrain and fort
+ellipse is not a requirement. Each impact chart has a soft Gaussian fill and
+an analytic antialiased perimeter. Current nearest water, hull, mast, terrain and fort
 positions deform its actual surface footprint. Its finite world extent excludes
 far terrain and the horizon behind a close selected receiver. Sky and actual own
 geometry remain excluded. Rare physical shots outside this approximate patch
@@ -44,8 +45,8 @@ Air still uses the stopped ballistic volume, with its existing opacity.
 - `cannon-trajectory-aim.patch` owns the base controller, geometry and GPU bridge;
   `cannon-rake-spread.patch` layers cloth selection, live parameter queries,
   per-gun manual/automatic raking and curved-receiver support
-- `cannon-depth-drape.patch` replaces sampled contact support with one aggregate
-  density field and removes the extra contact discovery marches
+- `cannon-depth-drape.patch` replaces sampled contact support with two aggregate
+  impact charts and removes the extra contact discovery marches
 - Canonical `PROGRAM/sea_ai/AIBalls.c` owns height warp and shot dispersion.
   `AICannon.c` supplies their query events and the crew-quality multiplier;
   preview and fire read the same helpers without guessed C++ fallbacks
@@ -61,7 +62,7 @@ Air still uses the stopped ballistic volume, with its existing opacity.
   farther center-hit character after a nearer aperture receiver changes the range
 - `manual_aim_geometry.hpp` mirrors live projectile warp and supplies exact section
   geometry; `manual_aim_volume_bridge.hpp` defines checked 64/48/32/16/8-byte records
-- `aim_volume.hpp` inverts contact covariance once per current camera. It draws
+- `aim_volume.hpp` inverts each2D marginal covariance once per current camera. It draws
   the world-depth decal within conservative bounds, followed by stopped air.
   `backend.mm` supplies current post-water depth and exact rendered ownership
 - `ship_surrender.h` supplies live per-ship display state to the controller and
@@ -70,7 +71,9 @@ Air still uses the stopped ballistic volume, with its existing opacity.
 - Contact color and character identity come from actual depth-writing model draws,
   using the existing `GetRelation` mapping. Fixed-function and lit fragments write
   depth/token/color alongside scene color through MRT for registered hull/upper-
-  model, fort, intact mast and owned sail/rope/vant groups. This replaces their
+  model, fort, intact mast and owned sail/rope/vant groups. The ordinary main-camera
+  depth-writing Sea2/Sea3 draw writes an exact sea bit through the same targets;
+  reflection, foam, sun and non-depth-writing draws do not capture it. This replaces their
   full-screen depth copies and difference passes. Exact current depth selects
   the actual receiver; water stays neutral
 - Alpha-tested holes remain holes. Sails/ropes are non-stopping rendered contacts;
@@ -92,22 +95,37 @@ World queries are pure: no `Cannon_Trace`, damage events or random draws. Model
 AABBs reject unrelated receivers; island tracing covers the full `ISLAND_TRACE`
 layer. `WaveXZ` refines first crossings, including initially submerged muzzles.
 
-All eligible guns contribute27 weighted yaw/elevation/speed launch-law points at
-their earliest positive nominal target-plane arrival time. One48-byte record
-stores the selected receiver anchor and full xyz covariance, scaled by3 with.0025
-world-variance regularization. This retains longitudinal speed spread and all
-guns without RNG, contact marches, axial station fitting or receiver subdivisions.
-Actual firing and stopped-air construction are unchanged. Surface placement uses
-the existing selected target, rather than the airborne mean: an airburst's real
-8-unit overhead flight offset must not move the water decal above its receiver.
+All eligible guns contribute27 weighted independent yaw/elevation/speed launch
+samples. Each sample solves its own descending sea-level landing and its earliest
+positive selected-range vertical-plane crossing. The true means and full xyz
+covariances are retained, scaled by3 with.0025 variance regularization. Two48-byte
+records select sea XZ or solid lateral/up charts, independently bounded along
+their normals. Preview range-character metadata does not alter firing authority.
+No RNG or additional contact marches are used; firing and stopped air are unchanged.
 
-The renderer rebases the anchor once and inverts its covariance once. Each current
-depth pixel reconstructs a real world position and evaluates the bounded metric
-`q = (world - anchor)^T * inverseCovariance * (world - anchor)`; only `q <= 1`
-belongs to the patch. A fixed3x3 binomial filter rounds the resulting occupancy
-mask and supplies a thin screen-pixel rim/keyline. No depth derivative or divided
-boundary gradient can create distant false strokes. This is a surface projection,
-not per-pixel ballistic solving, receiver searches or a new geometry mesh.
+The renderer rebases each mean once and inverts its2D marginal covariance once.
+Current depth reconstructs a real world position; only the matching surface family
+evaluates `q = tangent^T * inverseMarginalCovariance * tangent`. Sea identity is
+required for the water chart, so its fore/aft extent cannot climb a wall. A bounded
+screen-pixel derivative of this analytic metric supplies AA and rim: holes and
+identity/depth seams are not perimeter edges. There is no3x3 neighbor-depth filter,
+per-pixel ballistic solving, receiver search or generated mesh.
+
+Solid projection support uses current selected model extent or existing same-first
+receiver witnesses, padded by the water-impact fore/aft density radius. This admits
+local relief without an infinitely deep decal. The pad is projection support,
+not a terrain measurement or conditional hit probability; terrain outside that
+finite range can still be clipped. Water support is bounded by current sea height.
+The water continuation is a potential miss outcome; without tracing every sampled
+shot it does not prove that a wall hit and a water landing have mutually exclusive
+probability. This remains a main-density preview rather than guaranteed coverage.
+
+Visual inertia uses a70ms exponential time constant on overlapping tangent means
+and covariance. Physical normal clips and firing selection remain current.
+Disjoint support, large camera-axis changes, disable and reset clear the history;
+switching from50 to500 metres never creates an intermediate receiver on145m.
+Fill alpha is.08 and the subdued rim is.42 on models/.48 on neutral surfaces,
+with a.52 composite cap. Stopped-air alpha remains capped at.22.
 The projected world enclosing box plus2 pixels bounds contact work and its color
 snapshot; unlike a Jacobian at the center, it remains conservative across relief.
 Air uses its own conservative bounds and blends after the surface, preserving
@@ -119,20 +137,27 @@ The inspected maintained reference is [Godot's finite decal projection](https://
 Its bounded world-space projection principle is adapted to the existing native
 depth owner; integrating another engine or generating receiver meshes adds no value.
 
-A source-exact CPU oracle checks all52 guns against independent uniform-jitter
-moments and translation. Strict/fast probes compile the exact complete scene and
-aim MSL, including ordinary/lit/MRT material variants. The actual native encoder
-fixture compares every pixel against an independent world-sphere/filter oracle:
-flat, tilted, curved and creased surfaces, close water below the camera, and far
-terrain behind the selected range. The far fixture has zero marked pixels;
-close water has no horizon mark. Ordinary MRT preserves scene color, own geometry
-exclusion, model relation color and alpha-tested holes. Bounds use68×52 pixels
-at256×192;5x zoom and origin translation pass. These checks do not prove real-game
-aesthetics, all camera angles or FPS.
+An independent50,000-shot uniform-jitter oracle exposes revision11's original
+failure: at50m, actual5th–95th percentile water hits lie36.46–70.45m downrange,
+while its3D water slice has only.434m half-length. Per-sample landing moments
+produce an18.95m half-length and roughly82% main-density coverage for that fixture;
+this is not a95% promise. Gaussian quadrature agrees with sampled standard
+deviations within.6%; independent quadratic landing roots agree within2.4e-7s.
+
+Current exact aim MSL and all four legacy/modern sea MRT pipelines compile.
+The GPU metric fixture checks water fore/aft span, solid perimeter, local relief,
+far sea/terrain rejection and wall/sea admission. The actual native encoder
+with ordinary MRT identity checks sea-versus-wall separation, own exclusion,
+interior fill and subdued analytic rim under Metal API validation. CPU frame
+checks cover finite bounds, receiver switches, nearby tangent inertia, disjoint
+footprint reset and device lifecycle reset. Revision11's sphere/filter and
+camera/zoom fixtures are historical evidence for that earlier representation;
+they do not accept revision12's player appearance, all angles or FPS.
 
 Terrain uses neutral current depth and has no registered model capture. Adding
 ISLAND_TRACE had introduced full-frame copies/passes and let the half-far seabed
-draw replace the main-camera identity stamp. Water ownership is not required.
+draw replace the main-camera identity stamp. Water now has exact ordinary-draw
+MRT admission; it has no separate snapshot/difference pass.
 Exact own-identity bits exclude hull and separately drawn rigging. Registered
 ship/fort identities supply relation color only. Air alpha stays capped at.22.
 
