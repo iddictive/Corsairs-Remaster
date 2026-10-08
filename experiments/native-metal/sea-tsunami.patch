@@ -1,0 +1,235 @@
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -669,7 +669,7 @@
+     const float fGSize = fGridStep * iSize;
+ 
+     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize, -fMaxSeaHeight / 2.0f, iTY * fGSize);
+-    const CVECTOR v2 = v1 + CVECTOR(fGSize, fMaxSeaHeight, fGSize);
++    const CVECTOR v2 = v1 + CVECTOR(fGSize, fMaxSeaHeight + tsunami.HeightBound(), fGSize);
+ 
+     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
+         return;
+@@ -690,6 +690,20 @@
+     BuildTree(iTX + 1, iTY, iLev);
+     BuildTree(iTX, iTY + 1, iLev);
+     BuildTree(iTX + 1, iTY + 1, iLev);
++}
++
++void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal)
++{
++    const auto sample = EvaluateSeaTsunami(tsunami.Frame(), x, z);
++    height += sample.height;
++    if (normal && sample.height != 0.f)
++    {
++        // Compose gradients with the existing normal, then renormalize once.
++        // This also handles the ordinary flat-water distance cutoff.
++        normal->x -= sample.slopeX * normal->y;
++        normal->z -= sample.slopeZ * normal->y;
++        *normal = !(*normal);
++    }
+ }
+ 
+ // INTEL COMMENT:
+@@ -831,6 +845,9 @@
+         pArray[2]->vNormal = vNormal[2];
+         pArray[3]->vNormal = vNormal[3];
+     }
++    if (tsunami.Frame().active)
++        for (int i = 0; i < 4; ++i)
++            ApplyTsunami(pArray[i]->vPos.x, pArray[i]->vPos.z, pArray[i]->vPos.y, &pArray[i]->vNormal);
+ }
+ 
+ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
+@@ -842,6 +859,12 @@
+     {
+         if (pNormal)
+             *pNormal = CVECTOR(0.0f, 1.0f, 0.0f);
++        if (tsunami.Frame().active)
++        {
++            float height = 0.f;
++            ApplyTsunami(x, z, height, pNormal);
++            return height;
++        }
+         return 0.0f;
+     }
+ 
+@@ -944,6 +967,7 @@
+         *pNormal = vNormal;
+     }
+ 
++    if (tsunami.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
+     return fRes;
+ }
+ 
+@@ -1362,7 +1386,8 @@
+     if (vCamPos.y < 0.0f)
+         bUnderSea = true;
+ 
+-    if (vCamPos.y < WaveXZ(vCamPos.x, vCamPos.z && bStarted))
++    if (vCamPos.y < (tsunami.Frame().active ? WaveXZ(vCamPos.x, vCamPos.z) :
++                                            WaveXZ(vCamPos.x, vCamPos.z && bStarted)))
+         bUnderSea = true;
+ 
+     if (!bUnderSea)
+@@ -1793,7 +1818,8 @@
+     float fRes = 2.0f;
+     const float fDV = 1.0f / static_cast<float>(iNumTests - 1);
+ 
+-    if (vSrc.y > fMaxSeaHeight && vDst.y > fMaxSeaHeight)
++    const float traceHeightBound = fMaxSeaHeight + tsunami.HeightBound();
++    if (vSrc.y > traceHeightBound && vDst.y > traceHeightBound)
+         return 2.0f;
+ 
+     for (int32_t i = 0; i < iNumTests; i++)
+@@ -1826,6 +1852,22 @@
+ {
+     ATTRIBUTES *pParent = pAttribute->GetParent();
+     ATTRIBUTES *pParent2 = (pParent) ? pParent->GetParent() : nullptr;
++
++    if (pParent && pParent2 == AttributesPointer && *pParent == "Tsunami")
++    {
++        if (*pAttribute == "Start")
++        {
++            if (pAttribute->GetAttributeAsDword() != 0)
++                tsunami.Start(pParent->GetAttributeAsFloat("OriginX"), pParent->GetAttributeAsFloat("OriginZ"),
++                              pParent->GetAttributeAsFloat("DirectionX"), pParent->GetAttributeAsFloat("DirectionZ"),
++                              fMaxSeaDistance);
++            else
++                tsunami.Cancel();
++            // A command is consumed once; saved attributes cannot resurrect it.
++            pAttribute->SetValue(std::string_view("0"));
++        }
++        return 0;
++    }
+ 
+     if (*pParent == "isDone")
+     {
+--- a/src/libs/sea/src/sea.h
++++ b/src/libs/sea/src/sea.h
+@@ -7,6 +7,7 @@
+ #include "c_vector4.h"
+ #include "dx9render.h"
+ #include "vma.hpp"
++#include "shared/sea_tsunami.hpp"
+ 
+ 
+ class SEA : public SEA_BASE
+@@ -73,6 +74,8 @@
+     uint32_t dwMaxDim, dwMinDim;
+     float fMaxSeaHeight;
+     float fMaxSeaDistance;
++    SeaTsunami tsunami;
++    void ApplyTsunami(float x, float z, float &height, CVECTOR *normal);
+     float fGridStep;
+     float fLodScale;
+     float fBumpScale, fBumpSpeed;
+@@ -216,8 +219,11 @@
+     {
+         switch (stage)
+         {
+-            // case Stage::execute:
+-            //    Execute(delta); break;
++        case Stage::execute:
++            // Sea already belongs to the simulation layer; pausing that layer
++            // freezes this transient clock even if rendering continues.
++            if (!bStop) tsunami.Advance(static_cast<float>(delta) * 0.001f);
++            break;
+         case Stage::realize:
+             Realize(delta);
+             break;
+--- /dev/null
++++ b/src/libs/shared_headers/include/shared/sea_tsunami.hpp
+@@ -0,0 +1,93 @@
++#pragma once
++
++#include <algorithm>
++#include <cmath>
++
++// One transient wave state for rendered sea geometry and scalar physics queries.
++// A C1 quadratic B-spline supplies height and matching slopes to both samplers.
++// The lateral front is uniform.
++struct SeaTsunamiFrame
++{
++    bool active = false;
++    float originX = 0.f, originZ = 0.f;
++    float directionX = 0.f, directionZ = 1.f;
++    float age = 0.f, launchDistance = 0.f, frontDistance = 0.f;
++    float duration = 0.f, envelope = 0.f;
++    float amplitude = 28.f, speed = 22.f, width = 220.f;
++};
++
++struct SeaTsunamiSample
++{
++    float height = 0.f, slopeX = 0.f, slopeZ = 0.f;
++};
++
++inline float SeaTsunamiSmooth(float t)
++{
++    t = std::clamp(t, 0.f, 1.f);
++    return t * t * (3.f - 2.f * t);
++}
++
++struct SeaTsunamiPolynomial
++{
++    float constant = 0.f, linear = 0.f, quadratic = 0.f;
++};
++inline SeaTsunamiPolynomial SeaTsunamiProfilePolynomial(float u)
++{
++    if (std::abs(u) >= 1.5f) return {};
++    if (std::abs(u) <= 0.5f) return {1.f, 0.f, -4.f / 3.f};
++    return {1.5f, u < 0.f ? 2.f : -2.f, 2.f / 3.f};
++}
++
++inline SeaTsunamiSample EvaluateSeaTsunami(const SeaTsunamiFrame &wave, float x, float z)
++{
++    if (!wave.active || wave.envelope <= 0.f) return {};
++    const float dx = x - wave.originX, dz = z - wave.originZ;
++    const float along = dx * wave.directionX + dz * wave.directionZ - wave.frontDistance;
++    const float u = along / wave.width;
++    const float a = std::abs(u);
++    if (a >= 1.5f) return {};
++    const auto polynomial = SeaTsunamiProfilePolynomial(u);
++    // Factor the edge pieces to preserve nonnegative height near the support end.
++    const float edge = 1.5f - a;
++    const float profile = a <= 0.5f ? 1.f - (4.f / 3.f) * u * u : (2.f / 3.f) * edge * edge;
++    const float strength = wave.amplitude * wave.envelope;
++    const float dAlong = strength * (2.f * polynomial.quadratic * u + polynomial.linear) / wave.width;
++    return {strength * profile, dAlong * wave.directionX, dAlong * wave.directionZ};
++}
++
++class SeaTsunami
++{
++    SeaTsunamiFrame frame_;
++
++  public:
++    const SeaTsunamiFrame &Frame() const { return frame_; }
++    float HeightBound() const { return frame_.active ? frame_.amplitude : 0.f; }
++    void Cancel() { frame_ = {}; }
++
++    void Start(float x, float z, float directionX, float directionZ, float maxSeaDistance)
++    {
++        Cancel();
++        const float length = std::hypot(directionX, directionZ);
++        if (!std::isfinite(x) || !std::isfinite(z) || !std::isfinite(length) ||
++            length < 0.001f || !std::isfinite(maxSeaDistance) || maxSeaDistance < 900.f) return;
++        frame_.active = true;
++        frame_.originX = x;
++        frame_.originZ = z;
++        frame_.directionX = directionX / length;
++        frame_.directionZ = directionZ / length;
++        // Leave a conservative launch margin for the 330-unit tail inside ordinary sea.
++        frame_.launchDistance = std::min(2000.f, maxSeaDistance - 600.f);
++        frame_.frontDistance = frame_.launchDistance;
++        frame_.duration = (frame_.launchDistance + 700.f) / frame_.speed;
++    }
++
++    void Advance(float seconds)
++    {
++        if (!frame_.active || !(seconds > 0.f) || !std::isfinite(seconds)) return;
++        frame_.age += seconds;
++        if (frame_.age >= frame_.duration) { Cancel(); return; }
++        frame_.frontDistance = frame_.launchDistance - frame_.speed * frame_.age;
++        frame_.envelope = SeaTsunamiSmooth(frame_.age / 5.f) *
++                          SeaTsunamiSmooth((frame_.duration - frame_.age) / 8.f);
++    }
++};

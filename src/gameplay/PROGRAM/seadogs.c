@@ -1108,6 +1108,7 @@ void ProcessControls()
 			case "MainMenu": ProcessMainMenuKey();	break;
 			case "MainMenuDouble": ProcessMainMenuKey(); break;
 			case "Interface": ProcessInterfaceKey(); break;
+			case "BOAL_Control": LaunchDebuderMenu(); break;
 
 			case "Sea_CameraSwitch": SeaCameras_Switch(); break;
 			case "Ship_Fire": Ship_DoFire(); break;

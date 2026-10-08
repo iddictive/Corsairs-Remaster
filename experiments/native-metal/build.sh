@@ -129,7 +129,8 @@ python3 "$root/apply_source_patches.py" --source "$root/.cache/storm" \
  "$root/model-gpu-skinning.patch" "$root/sea-geometry.patch" "$root/sea-reflection-budget.patch" "$root/island-geometry.patch" "$root/scene-light-catalog.patch" "$root/stable-shadow-lamp.patch" "$root/multi-shadow-lamps-v2.patch" "$root/godrays-locator-v2.patch" "$root/ship-light-ownership.patch" "$root/camera-relative-lighting.patch" "$root/smooth-location-lights.patch" "$root/location-light-distance.patch" "$root/rockk2-system.patch" "$root/dynamic-town-shadows.patch" "$root/rigging-lighting.patch" "$root/location-camera-follow-reset.patch" "$root/metal-camera-view-restore.patch" "$root/cannon-trajectory-aim.patch" "$root/cannon-ball-volume.patch" "$root/cannon-rake-spread.patch" "$root/sea-contact-activity.patch" "$root/deck-eye-height.patch" "$root/deck-firing-eye-floor.patch" "$root/deck-aim-zoom.patch" "$root/renderer-buffer-guard.patch" "$root/group-target-liveness.patch" "$root/sailing-propulsion-floor.patch" "$root/sailing-floor-diag.patch" "$root/sea-surrender-relations.patch" \
  "$root/renderer-grass.patch" "$root/vegetation-continuity.patch" "$root/sea-island-vegetation.patch" "$root/renderer-particles-fx.patch" "$root/renderer-rain-weather.patch" "$root/renderer-sky-astronomy.patch" "$root/renderer-ui-fonts.patch" "$root/renderer-world-map.patch" "$root/worldmap-navigation.patch" "$root/worldmap-traffic.patch" "$root/worldmap-berth-homing.patch" "$root/sea-postprocess-uv.patch" "$root/texture-loader-mips.patch" "$root/metal-graphics-live.patch" "$root/baked-static-shadow-casters.patch" "$root/external-url.patch" "$root/player-fight-push.patch" "$root/sun-below-horizon.patch" "$root/animation-buffer-lifetime.patch" \
  "$root/pickup-glow.patch" "$root/mast-repair.patch" "$root/airburst-shell.patch" "$root/cannon-fire-modes.patch" "$root/adaptive-fencing.patch" \
- "$root/cannon-depth-drape.patch"
+ "$root/cannon-depth-drape.patch" \
+ "$root/sea-tsunami.patch"
 printf '%s\n' "$fingerprint" > "$root/.cache/source-fingerprint"
 python3 "$root/renderer_consumer_coverage_probe.py"
 # Reuse installed headers and dependencies without rebuilding the playable port.
@@ -184,6 +185,7 @@ digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
  'patch_sha256': digest(Path(sys.argv[2])),
  'engine_deck_patch_sha256': digest(root / 'deck-walk.patch'),
  'sea_surrender_patch_sha256': digest(root / 'sea-surrender-relations.patch'),
+ 'sea_tsunami_patch_sha256': digest(root / 'sea-tsunami.patch'),
  'cannon_loaded_patch_sha256': digest(root / 'cannon-loaded-count.patch'),
  'mast_repair_patch_sha256': digest(root / 'mast-repair.patch'),
  'sea_contact_patch_sha256': digest(root / 'sea-contact-activity.patch'),

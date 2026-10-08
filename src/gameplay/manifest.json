@@ -25,6 +25,14 @@
       "encoding": "utf-8",
       "legacy": ["cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050"]
     },
+    "PROGRAM/interface/debuger.c": {
+      "encoding": "utf-8",
+      "legacy": ["c2fd853fe9091c9af11cf5bb38b1f1d99c3b0cd4544a44675c568207aed9dcf9"]
+    },
+    "RESOURCE/INI/interfaces/debuger.ini": {
+      "encoding": "utf-8",
+      "legacy": ["5e8f505d9277d6ec1b59adf2514b3b28ec3bf4fadcdfb550ced99134e42e02b0"]
+    },
     "PROGRAM/controls/init_pc.c": {
       "encoding": "utf-8",
       "legacy": [
