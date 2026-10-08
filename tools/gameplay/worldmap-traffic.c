@@ -1328,12 +1328,17 @@ bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 	int escorts = WdmTrafficCargoEscorts(encounter);
 	int loaded = 0;
 	int firstGood = GOOD_FOOD + rand(GOOD_SILVER - GOOD_FOOD);
+	for (int h = 0; h < sti(roster.count); h++)
+	{
+		string syncKey = "ship" + h;
+		makearef(ship, roster.(syncKey));
+		if (!sti(ship.dead) && ship.mode == "Trade") WdmTrafficSyncCargo(ship);
+	}
 	for (int i = 0; i < sti(roster.count); i++)
 	{
 		string hullKey = "ship" + i;
 		makearef(ship, roster.(hullKey));
 		if (sti(ship.dead) || ship.mode != "Trade") continue;
-		WdmTrafficSyncCargo(ship);
 		for (int g = GOOD_FOOD; g <= GOOD_SILVER; g++)
 		{
 			int good = GOOD_FOOD + (firstGood - GOOD_FOOD + g - GOOD_FOOD) % (GOOD_SILVER - GOOD_FOOD + 1);
@@ -1343,6 +1348,23 @@ bool WdmTrafficLoadCargo(aref encounter, int origin, int destination)
 			int demand = WdmTrafficMarketDemand(&market, buyer, good) - WdmTrafficFreightQuantity(encounter, good);
 			int quantity = WdmTrafficTradeSupply(&Stores[seller], good, demand);
 			int room = WdmTrafficTradeRoom(ship, good);
+			if (quantity <= 0 || room <= 0) continue;
+			// Share this finite shipment by usable hold space. Earlier hulls must
+			// not exhaust the port while their merchant companions sail empty.
+			int remainingRoom = room;
+			for (h = i + 1; h < sti(roster.count); h++)
+			{
+				string shareKey = "ship" + h;
+				aref other; makearef(other, roster.(shareKey));
+				if (!sti(other.dead) && other.mode == "Trade")
+					remainingRoom = remainingRoom + WdmTrafficTradeRoom(other, good);
+			}
+			if (quantity < remainingRoom)
+			{
+				float share = makefloat(quantity) * room / remainingRoom;
+				quantity = makeint(share);
+				if (quantity < share) quantity++;
+			}
 			if (quantity > room) quantity = room;
 			if (quantity <= 0) continue;
 			string name = Goods[good].name;
@@ -1954,6 +1976,67 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 	return true;
 }
 
+void WdmTrafficBuyCarriedGoods(aref ship, ref store, int good, int target)
+{
+	if (!WdmTrafficStoreGood(store, good)) return;
+	int held = WdmTrafficEntryGoods(ship, good);
+	int quantity = target - held;
+	int available = WdmTrafficServiceAvailable(store, good);
+	if (quantity > available) quantity = available;
+	int room = WdmTrafficTradeRoom(ship, good);
+	if (quantity > room) quantity = room;
+	if (quantity <= 0) return;
+	RemoveStoreGoods(store, good, quantity);
+	string name = Goods[good].name;
+	ship.trafficSupplies.(name) = held + quantity;
+}
+
+// A ship owns stores besides its shipment. Restock at a real port after
+// every hull's essential service is funded, before allocating new freight.
+// These goods are retained on delivery and never regenerated on sea entry.
+void WdmTrafficStockPersonalCargo(aref encounter, ref store)
+{
+	aref roster, ship, hull;
+	makearef(roster, encounter.encdata.trafficRoster);
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		makearef(ship, roster.(key));
+		if (sti(ship.dead)) continue;
+		WdmTrafficSyncCargo(ship);
+		makearef(hull, ShipsTypes[sti(ship.baseType)]);
+		if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
+		int scale = 7 - sti(hull.Class);
+		if (scale < 1) scale = 1;
+		// Match the ordinary phantom's small equipment/provision categories.
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_SAILCLOTH, 4 * scale);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_PLANKS, 3 * scale);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_WEAPON, 6 * scale);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_RUM, 2 * scale);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_MEDICAMENT, 3 * scale);
+		int guns = WdmMilitaryHullGuns(ship);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_KNIPPELS, guns);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_GRAPES, guns);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_BOMBS, 2 * guns);
+		int powder = 0;
+		for (int charge = GOOD_BALLS; charge <= GOOD_BOMBS; charge++)
+			powder = powder + WdmTrafficEntryGoods(ship, charge);
+		WdmTrafficBuyCarriedGoods(ship, store, GOOD_POWDER, powder);
+		// Small ordinary parcels, distinct from the buyer's freight contract.
+		// Stable choices prevent a new random inventory on every port visit.
+		int span = GOOD_GOLD - GOOD_PLANKS - 1;
+		for (int parcel = 0; parcel < 3; parcel++)
+		{
+			int good = GOOD_PLANKS + 1 + (sti(ship.baseType) + i + parcel * 7) % span;
+			if (good == GOOD_SLAVES) continue;
+			string name = Goods[good].name;
+			if (!WdmTrafficStoreGood(store, good) || sti(store.Goods.(name).TradeType) != TRADE_TYPE_EXPORT) continue;
+			WdmTrafficBuyCarriedGoods(ship, store, good, 10 * scale);
+		}
+		WdmTrafficCargoToSnapshot(ship);
+	}
+}
+
 int WdmTrafficServiceRepairGuns(aref ship, int paid)
 {
 	if (paid <= 0) return 0;
@@ -2235,6 +2318,7 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		return;
 	}
 	if (!ready || !stock || CheckAttribute(encounter, "trafficNextLocator")) return;
+	WdmTrafficStockPersonalCargo(encounter, &Stores[storeIndex]);
 	int role = sti(encounter.trafficRole);
 	string locator = "";
 	int destination = -1;

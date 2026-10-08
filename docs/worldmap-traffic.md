@@ -1,5 +1,38 @@
 # World-map traffic
 
+## Merchant cargo distribution and personal stores — October 7
+
+The played Cornelia is an almost empty third merchant, not a wholly stripped
+inventory: its captured hold retains 180 balls, while the first two merchants of
+the same convoy carry wine and weapons. Before capture its roster already has no
+freight and only balls/powder. The sea bridge restores that roster faithfully;
+the missing merchant freight originates in loading, not in the boarding window.
+
+`WdmTrafficLoadCargo` previously filled hulls in order, letting the first holds
+exhaust a finite shipment. It now synchronizes all eligible holds and allocates
+each available good in proportion to their remaining usable capacity. The same
+seller debit, buyer demand, escort restrictions, pending-job idempotence and 75%
+physical loading limit remain. Scarcity can still leave an individual ship empty;
+captured ships and live sea encounters receive no invented cargo.
+
+After all living hulls complete essential port service, before allocating new
+freight, `WdmTrafficStockPersonalCargo` replenishes small class-scaled sailcloth,
+planks, weapons, rum and medicine, alternate ammunition and its powder, plus up
+to three stable ordinary export parcels. Gold, silver and slaves are outside these
+parcels. These are the hull's own stores, separate from delivered freight, and are
+retained in the authoritative supplies/snapshot ledger. Purchases use actual
+permitted store stock, its existing 15% reserve and the same physical headroom;
+missing optional stock does not block sailing. Sea entry never rerolls these goods.
+
+The actual loader in the native script VM reproduces 100/0 in two equal 100-unit
+holds; the repair produces 50/50 from the same 100-unit stock. Asymmetric/full/dead/
+escort holds, scarce stock, buyer limits, reserve, repeated loading and four codec
+rounds pass. Market/entity adapters are explicit in that focused fixture. A second
+fixture uses the complete actual PROGRAM goods, weight, store and snapshot owners
+to verify personal targets, exact stock conservation, repeat idempotence, snapshot
+parity, dead hulls, reserve exhaustion, contraband/disabled goods and full holds,
+with no script errors. Installed activation and player replay remain separate.
+
 ## Ordinary admission and legacy pursuit — October 7
 
 The resident scheduler must be the only caller that creates ordinary map fleets.

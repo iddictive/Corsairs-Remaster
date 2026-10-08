@@ -311,8 +311,7 @@ void ProcessDialogEvent()
 			
 			// Режим сбора трофеев при абордаже
 			string sLootMode = "матрос с вопросом в каюте";
-			int iLootMode = 0;
-			if (CheckAttribute(pchar, "BoardingLootMode")) iLootMode = sti(pchar.BoardingLootMode);
+			int iLootMode = Boarding_CabinLootMode();
 			if (iLootMode == 1) sLootMode = "тихий перенос во флагманский рундук";
 			if (iLootMode == 2) sLootMode = "отключен (ручной сбор)";
 			link.lLoot = "Приказ о сборе добычи при абордаже [" + sLootMode + "].";
@@ -601,19 +600,19 @@ void ProcessDialogEvent()
 		break;
 
 		case "TalkSelf_BoardingLoot_0":
-			pchar.BoardingLootMode = 0;
+			Boarding_SetCabinLootMode(0);
 			Log_SetStringToLog("Режим сбора добычи: Обычный (с диалогом матроса в каюте).");
 			DialogExit_Self();
 		break;
 
 		case "TalkSelf_BoardingLoot_1":
-			pchar.BoardingLootMode = 1;
+			Boarding_SetCabinLootMode(1);
 			Log_SetStringToLog("Режим сбора добычи: Тихий (автоматический перенос в рундук флагмана).");
 			DialogExit_Self();
 		break;
 
 		case "TalkSelf_BoardingLoot_2":
-			pchar.BoardingLootMode = 2;
+			Boarding_SetCabinLootMode(2);
 			Log_SetStringToLog("Режим сбора добычи: Отключен (только ручной сбор).");
 			DialogExit_Self();
 		break;

@@ -310,6 +310,17 @@ void ProcessDialogEvent()
 			}
 			
 			Link.l10 = RandPhraseSimple("Не сейчас. Нет времени.", "Некогда. Дела ждут.");
+			string sLootMode = "матрос с вопросом в каюте";
+			int iLootMode = Boarding_CabinLootMode();
+			if (iLootMode == 1) sLootMode = "тихий перенос во флагманский рундук";
+			if (iLootMode == 2) sLootMode = "отключен (ручной сбор)";
+			link.lLoot = "Приказ о сборе добычи при абордаже [" + sLootMode + "].";
+			link.lLoot.go = "TalkSelf_BoardingLoot";
+			if (Boarding_CabinLootReady())
+			{
+				link.lLootFix = "Осмотреться в каюте (отпустить матроса).";
+				link.lLootFix.go = "TalkSelf_BoardingLoot_Release";
+			}
 			Link.l10.go = "exit";
 		break;
 
@@ -573,6 +584,37 @@ void ProcessDialogEvent()
 			pchar.questTemp.Azzy = "Azzy_Freedom";
 			DialogExit();
 		break;	
+		case "TalkSelf_BoardingLoot":
+			Dialog.Text = "Как собирать трофеи из сундуков после абордажа?";
+			link.l1 = "Матрос спрашивает о переносе вещей.";
+			link.l1.go = "TalkSelf_BoardingLoot_0";
+			link.l2 = "Команда переносит вещи в рундук флагмана без разговора.";
+			link.l2.go = "TalkSelf_BoardingLoot_1";
+			link.l3 = "Сундуки разбираю сам, матроса не присылать.";
+			link.l3.go = "TalkSelf_BoardingLoot_2";
+			link.l4 = "Оставить как есть.";
+			link.l4.go = "TalkSelf_Main";
+		break;
+
+		case "TalkSelf_BoardingLoot_0":
+			Boarding_SetCabinLootMode(0);
+			DialogExit_Self();
+		break;
+
+		case "TalkSelf_BoardingLoot_1":
+			Boarding_SetCabinLootMode(1);
+			DialogExit_Self();
+		break;
+
+		case "TalkSelf_BoardingLoot_2":
+			Boarding_SetCabinLootMode(2);
+			DialogExit_Self();
+		break;
+
+		case "TalkSelf_BoardingLoot_Release":
+			Boarding_InspectCabinLoot();
+			DialogExit_Self();
+		break;
 	}
 }
 
