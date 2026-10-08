@@ -1904,6 +1904,8 @@ void WdmFleetSeaCopyIdentity(aref destination, aref source)
 
 void WdmFleetSeaClearCaptain(ref captain)
 {
+	if (CheckAttribute(captain, "GroupShipPos_event") && captain.GroupShipPos_event == "WdmFleetSeaShipPosition")
+		DeleteAttribute(captain, "GroupShipPos_event");
 	DeleteAttribute(captain, "trafficFleetID");
 	DeleteAttribute(captain, "trafficRosterSlot");
 	DeleteAttribute(captain, "trafficTaken");
@@ -2022,6 +2024,13 @@ void WdmFleetSeaResolveImportTasks(ref login)
 			DeleteAttribute(fleet, "Task.Pos");
 			continue;
 		}
+		if (fleet.trafficIntent == "service" && !CheckAttribute(fleet, "trafficMission"))
+		{
+			fleet.Task = AITASK_DRIFT;
+			DeleteAttribute(fleet, "Task.Target");
+			DeleteAttribute(fleet, "Task.Pos");
+			continue;
+		}
 		fleet.Task = AITASK_MOVE;
 		DeleteAttribute(fleet, "Task.Target");
 		fleet.Task.Pos.x = fleet.trafficRouteX;
@@ -2034,8 +2043,64 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	if (!WdmFleetSeaTagged(fleet)) return;
 	WdmFleetSeaCopyIdentity(group, fleet);
 	DeleteAttribute(group, "trafficScene");
+	DeleteAttribute(group, "trafficEntry");
 	string path = "encounters." + fleet.trafficFleetID;
 	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
+	// Military placements retain their real fort/landing coordinates.
+	if (CheckAttribute(fleet, "trafficMission")) return;
+	group.trafficEntry.spacing = 260.0 + frnd() * 80.0;
+	group.trafficEntry.width = 0.65 + frnd() * 0.35;
+	group.trafficEntry.stagger = frnd() * 0.25;
+	// A service fleet is already at its harbour; only moving encounters need
+	// room to approach instead of materialising beside the player's hull.
+	if (fleet.trafficIntent == "service") return;
+	float x = stf(group.Pos.x);
+	float z = stf(group.Pos.z);
+	float dx = x - stf(pchar.Ship.Pos.x);
+	float dz = z - stf(pchar.Ship.Pos.z);
+	float distance = sqrt(dx * dx + dz * dz);
+	float extent = stf(group.trafficEntry.spacing) * (1 + makeint(WdmFleetSeaHullCount(fleet) / 2));
+	float minimum = 1200.0 + extent;
+	if (distance >= minimum) return;
+	if (distance < 0.01)
+	{
+		dx = sin(stf(group.Pos.ay));
+		dz = cos(stf(group.Pos.ay));
+		distance = 1.0;
+	}
+	x = stf(pchar.Ship.Pos.x) + dx * minimum / distance;
+	z = stf(pchar.Ship.Pos.z) + dz * minimum / distance;
+	Group_SetXZ_AY(group.id, x, z, stf(group.Pos.ay));
+}
+
+float WdmFleetSeaShipPositionResult[3];
+#event_handler("WdmFleetSeaShipPosition", "WdmFleetSeaShipPosition");
+ref WdmFleetSeaShipPosition()
+{
+	int slot = GetEventData();
+	float x = GetEventData();
+	float ay = GetEventData();
+	float z = GetEventData();
+	aref captain = GetEventData();
+	float across = 0.0;
+	float aft = slot * 250.0;
+	if (CheckAttribute(captain, "SeaAI.Group.Name") && Group_FindGroup(captain.SeaAI.Group.Name) >= 0)
+	{
+		ref group = Group_GetGroupByID(captain.SeaAI.Group.Name);
+		if (CheckAttribute(group, "trafficEntry.spacing") && slot > 0)
+		{
+			float spacing = stf(group.trafficEntry.spacing);
+			float side = 1.0;
+			if (slot % 2 == 0) side = -1.0;
+			across = side * spacing * stf(group.trafficEntry.width);
+			aft = makeint((slot + 1) / 2) * spacing;
+			if (side < 0.0) aft = aft + spacing * stf(group.trafficEntry.stagger);
+		}
+	}
+	WdmFleetSeaShipPositionResult[0] = x + across * cos(ay) - aft * sin(ay);
+	WdmFleetSeaShipPositionResult[1] = ay;
+	WdmFleetSeaShipPositionResult[2] = z - across * sin(ay) - aft * cos(ay);
+	return &WdmFleetSeaShipPositionResult;
 }
 
 bool WdmFleetSeaAssemblyReady(ref fleet)
@@ -2169,6 +2234,9 @@ int WdmFleetSeaGenerate(string groupID, ref fleet)
 		ref captain = &Characters[characterIndex];
 		WdmFleetSeaCopyIdentity(captain, fleet);
 		captain.trafficRosterSlot = ordinal;
+		ref group = Group_GetGroupByID(groupID);
+		if (CheckAttribute(group, "trafficEntry.spacing") && !CheckAttribute(captain, "GroupShipPos_event"))
+			captain.GroupShipPos_event = "WdmFleetSeaShipPosition";
 		// Native ship slots are freshly allocated every entry. Restore values only.
 		if (CheckAttribute(entry, "RealShip"))
 		{

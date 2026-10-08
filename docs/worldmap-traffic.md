@@ -1,5 +1,44 @@
 # World-map traffic
 
+## Sea entry spacing and port service — October 8
+
+Canonical `src/gameplay/PROGRAM/sea_ai/sea.c` owns ordinary imported fleet
+placement. The map bridge's scale of 25 can turn a close contact into adjacent
+hulls; native `AIGroup::AddShip` otherwise places every group in single file,
+250 units apart. Raising the global projection scale would also move already
+distant ordinary encounters, so the repair stays in the ordinary fleet bridge.
+
+Moving ordinary groups retain their observed bearing and heading, but their
+initial centre receives 1200 units of approach room plus the fleet's formation
+extent. Already distant groups remain at their original centre. The existing
+native `GroupShipPos_event` now places these hulls in two staggered columns,
+with per-entry continuous spacing of 260–340, width of 0.65–1 spacing and an
+additional 0–0.25-spacing stagger. It uses the compact live native slot, not
+the persistent roster ordinal. Slot zero remains the commander. Authored
+callbacks, quest/ALONE groups, companions and military operation coordinates
+are preserved; reused ordinary captains clear only this bridge's callback.
+
+Servicing fleets keep their actual harbour centre and use the spread formation.
+Their imported task becomes drift after genuine attack/escape resolution,
+instead of moving every serviced group to one common route target. Military
+mission tasks retain their prior path. Native hull/depth start-position checks
+still run after mounting; coast correction may change the proposed placement.
+
+The full composed PROGRAM compiles in the native script VM with the current
+shared headers. Actual group binding, native event argument/return handling,
+all supported hull counts at 16 headings, zero/far entry, service, mission,
+quest/ALONE, callback cleanup and task-priority negatives pass with zero script
+errors. This proves the script proposal and task ownership; actual mounted
+positions, near-coast correction and visible formation require player replay.
+
+The previous global excess-admission and failed-return fixes are already in
+the installed scripts/native stack. No new stalled queue was demonstrated.
+Map service freezes the reached position and deliberately fades avoidance at
+a committed berth; visually overlapping serviced markers remain possible.
+A separate berth-allocation change would need coast-safe finite positions and
+arrival/reload/departure ownership. Random arrival jitter or a collision veto
+would risk reopening the proven shore-return stall, so neither is added here.
+
 ## Merchant cargo distribution and personal stores — October 7
 
 The played Cornelia is an almost empty third merchant, not a wholly stripped
