@@ -8,9 +8,11 @@ stage. Signed engine
 receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
 The player reports that F11 opens no menu. The installed follow-up adds a sea-only
 action to the existing Esc pause menu; it does not establish the F11 failure's cause.
-The no-window input/script/native-command chain and actual SEA scalar/render
-sampler pass; physical-key delivery, visible menu and real-game wave replay
-remain unresolved. This is an exaggerated sea experiment, not a
+The player confirms the Esc menu button starts the wave and supplies its crest
+screenshot. The straight, repeating crest appearance is rejected and belongs to
+the next visual/ship-interaction correction. The no-window command chain and
+actual SEA scalar/render sampler pass; physical F11 delivery, cancel/restart and
+wave/ship response remain unresolved. This is an exaggerated sea experiment, not a
 coastal flooding simulation or a new random weather preset.
 
 ## Player action

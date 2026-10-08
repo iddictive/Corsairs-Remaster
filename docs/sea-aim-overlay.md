@@ -8,8 +8,11 @@ receive the selected-range lateral/up distribution. Revision11 is rejected by
 player evidence: its3D slice understated water overshoot and outlined sail holes.
 Revision10's flat screen-space ring also failed to conform to objects.
 Source-exact native/GPU checks pass for the new metric, receiver admission,
-inertia/reset, own exclusion and subdued contour. Complete player appearance,
-motion/zoom and paired FPS remain unresolved.
+inertia/reset, own exclusion and subdued contour. The player accepts revision12's
+shape/projection and reports excellent FPS in their sea replay. Their only aim
+follow-up is slightly stronger daytime contour visibility. A brightness-local
+rim/keyline increase is prepared; its delivery/replay is pending. No paired
+instrumented FPS measurement or exhaustive angle/zoom replay is claimed.
 Canonical staging has installed this frozen revision; its signed-engine and
 source receipts belong to `docs/runtime.md`. Compilation and delivery do not
 accept its real-game appearance or frame cost.
@@ -128,6 +131,9 @@ Disjoint support, large camera-axis changes, disable and reset clear the history
 switching from50 to500 metres never creates an intermediate receiver on145m.
 Fill alpha is.08 and the subdued rim is.42 on models/.48 on neutral surfaces,
 with a.52 composite cap. Stopped-air alpha remains capped at.22.
+The daylight follow-up ramps with background luminance.18–.55: rim alpha rises
+up to16%, keyline.14→.17 and composite cap.52→.58. Dark-background rendering,
+line width, fill, geometry and air remain unchanged.
 The projected world enclosing box plus2 pixels bounds contact work and its color
 snapshot; unlike a Jacobian at the center, it remains conservative across relief.
 Air uses its own conservative bounds and blends after the surface, preserving

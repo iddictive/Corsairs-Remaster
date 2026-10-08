@@ -426,6 +426,8 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
       float3(.85098f,.88627f,.89412f);
   float3 background=sceneColor.read(pixelIndex).rgb;
   float luminance=dot(background,float3(.2126f,.7152f,.0722f));
+  float daylight=smoothstep(.18f,.55f,luminance);
+  lineAlpha*=1.f+.16f*daylight;
   // Keep a bright relation-colored core rather than averaging bright/dark
   // tints into a disappearing midgray at some background luminance. The narrow
   // dark keyline grows stronger in daylight; at least one edge retains contrast.
@@ -433,12 +435,13 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   // Both tones belong to this single depth-tested analytic contour. The dark
   // keyline is subdued at night and never increases the airborne fog.
   float keyline=contact.z;
-  float keyAlpha=.14f*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
+  float keyAlpha=(.14f+.03f*daylight)*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
   float baseAlpha=keyAlpha+fillAlpha*(1.f-keyAlpha);
   float3 baseRGB=tint*.10f*keyAlpha+tint*fillAlpha*(1.f-keyAlpha);
   float surfaceAlpha=lineAlpha+baseAlpha*(1.f-lineAlpha);
   float3 surfaceRGB=lineTint*lineAlpha+baseRGB*(1.f-lineAlpha);
-  if(surfaceAlpha>.52f){surfaceRGB*=.52f/surfaceAlpha;surfaceAlpha=.52f;}
+  float surfaceCap=.52f+.06f*daylight;
+  if(surfaceAlpha>surfaceCap){surfaceRGB*=surfaceCap/surfaceAlpha;surfaceAlpha=surfaceCap;}
   // The following air pass blends over this surface, preserving the existing
   // premultiplied composition while limiting contact work to its own bounds.
   return float4(surfaceRGB,surfaceAlpha);
