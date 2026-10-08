@@ -13,6 +13,13 @@ receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
 All four changed PROGRAM inputs match their canonical delivery bytes. Actual sea
 salvo, burst appearance and FPS remain unresolved; no player replay is accepted.
 
+Player feedback reopened fort effectiveness: the installed shells burst before
+the fort but almost never damage its battery. The source correction below arms
+the fort fuze near intact gun locators rather than the fort's enclosing model
+box. Native geometry and VM checks pass; this correction still requires canonical
+staging and a fort salvo replay. Catalogue damage, the1–7m fuze, ship behavior and
+the shared2–8m damage curve remain unchanged.
+
 ### Earlier delivery evidence (historical)
 
 The first installed version40c8c300 was rejected by player replay: no overhead
@@ -58,7 +65,7 @@ Drawn sources and exact prepared atlas bytes belong to
 `src/assets/ui/manifest.json`; all original pixels outside those cells stay intact.
 
 A shell arms after35 metres and bursts when its swept proximity sphere reaches
-a ship or normal fort model volume. Each shell has a continuous1–7m threshold,
+a ship model volume or an intact gun in a normal fort. Each shell has a continuous1–7m threshold,
 derived with FNV-1a from immutable serialized launch position, velocity/angles,
 owner and cannon type. The value remains fixed in flight and across save/load;
 it neither consumes global RNG state nor adds a projectile field. Existing gun
@@ -76,7 +83,8 @@ piecewise quadratic; splitting the segment at its six possible face crossings
 finds the earliest entry and prevents a long frame from skipping the radius.
 The nearest ship or fort trigger wins. Both use35m arming-segment clipping;
 stationary segments, own/dead/missing-model ships and own/missing/non-normal forts
-do not trigger. Fort geometry remains present after a gun is damaged.
+do not trigger. Destroyed fort guns do not arm the fuze; fort masonry retains
+ordinary contact collision.
 Pure island, fort, non-own ship and water traces over the original segment to
 the candidate burst run before any effect or damage. Earlier or equal contact
 rejects the burst and retains ordinary-bomb collision, including a contact
@@ -92,6 +100,11 @@ deck can burst overhead; a lower approach can burst beside the hull. Proximity
 alone does not guarantee an overhead burst. Islands and masonry still shield
 the existing fragment/radial damage.
 
+Fort proximity uses the same exact sphere sweep against each intact gun's
+world-space `AICannon::GetPos()`, with a zero-size box. A fort node can enclose
+hundreds of metres of empty frontage, so its model bound cannot define proximity
+to a battery. An approach outside every gun's1–7m sphere keeps ordinary contact
+behavior. No fort-specific height or aiming offset is added.
 The8m fort blast reuses `AIFort::AddFortHit`, its gun-damage callback and
 `PersistFortCannons`. Visibility to the exposed muzzle excludes masonry/terrain
 shielded guns; ordinary contact callers retain their original radius and path.
@@ -237,6 +250,47 @@ at2m it becomes45.2. Ordinary bombs retain the30-damage floor. The same fixture
 rejects the old handler at the zero8m oracle. Native hole-changing primitives
 and the SP base are state-updating stubs; the fixture does not prove pixels.
 Canonical native build/delivery and actual sea replay remain separate gates.
+
+The fort regression is reproduced against all23 installed fort meshes and2636
+authored gun locators. Cache/app asset bytes match. PortoBello's single fort node
+bounds343.57×64.78×160.74m: its box fuze consumes open battery approaches many
+metres outside every gun's8m damage radius. Six barrel-front examples have no
+fort triangle contact before the locator, rejecting the hypothesis that those
+shells must hit masonry first.
+An isolated probe compiles the unchanged production `GEOM::Trace` and
+`AirburstEntry`, loads installed fort/island/seabed BSP streams, and checks
+pre-burst contacts and visibility to each3m exposed muzzle. Across2636 horizontal
+front approaches, at fuze radii1/3/5/7m the installed box fuze destroys at least
+one gun in200/146/78/3 cases; the gun-based candidate does so in1467/1472/1474/1474
+cases with the weakest catalogue cannon multiplier0.7. Total destroyed guns are
+520/307/96/3 versus4620/4085/2967/1547. These are intact authored batteries and
+controlled trajectories, not a saved-game salvo or FPS measurement. Terrain and
+masonry contacts retain the normal contact fallback.
+The geometry probe uses default/nonimmersed model coordinates, not a saved
+camera pose. Gun positions use the identity `AIFort::mtxFort`; fort loading leaves
+its model at the default transform. Actual island/seabed child transforms are
+included. Providence's tiny seabed yaw and Cuba2's200m seabed offset were checked
+explicitly and leave the corpus counts unchanged. All28 reflection meshes lack
+BSP data, so none adds an unrelated collision consumer to this probe.
+Four matched PortoBello approaches4.001m above the target gun destroy6/6/6/4
+guns with the former22m fuze/32m blast, zero with the installed box fuze, and
+1/1/1/2 with the candidate5m fuze. At7m each destroys one gun. Two other
+approaches remain blocked by authored geometry in every variant. The old
+script's `1-distance²/32²` curve exceeds the normalized destruction threshold
+for all counted old hits even with the weakest cannon. This bounds the requested
+fort balance between the two reported extremes without inflating ship damage.
+The extracted production fort loop, sphere sweep and arming function pass17
+ASan/UBSan cases: radius1/3/5/7, tangent/miss, long steps, closest intact gun,
+destroyed/own/non-normal/missing targets, stationary segments and pre-arming.
+The complete unchanged `Fort_CannonDamage` and shared curve also pass12 real-VM
+event cases seeded with cannon damage0.25, three destroyed guns and700 fort HP.
+At1/3/5/7m one more gun is destroyed and HP becomes600; at8/9m the prior state is
+preserved. At7.9m gun damage becomes0.264 without an HP step. Ordinary bomb/shot,
+direct bomb contact, non-normal forts and immortality remain valid. World/crew/
+relation/effect dependencies in that VM fixture are stubs. Fort damage is already
+normalized0–1 per gun; increasing its180 coefficient would not repair a burst
+that never dispatches to a gun. The old32m fort blast is not restored.
+
 The maintained alternative is [Geometric Tools moving sphere/box](https://www.geometrictools.com/Documentation/IntersectionMovingSphereBox.pdf);
 its full math dependency is unnecessary for this bounded local distance model.
 The old slab and gun sphere are superseded by the current Contract above; earlier
