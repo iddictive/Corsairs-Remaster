@@ -5,10 +5,13 @@
 The October 8 correction replaces the elevated slab/gun fuze with a swept sphere
 whose threshold varies from1–7m per shell, removes both the8m aim lift and special
 arc multiplier, and gives all burst damage one2m-full/8m-zero quadratic curve.
-Initial fragments and the fire/smoke burst spread in every direction. Final
-production validation, canonical delivery and actual sea replay remain separate
-gates. The current aim integration owner serializes native build and staging;
-this source candidate does not accept an installed sea salvo.
+Initial fragments and the fire/smoke burst spread in every direction. Production
+native/VM checks and the complete PROGRAM compilation pass. The frozen correction
+is installed through canonical staging as signed engine
+`b5e871dd3a2c24168d9267bcda7b44309dd39c7a4e26946e9f167c1627c5113a`,
+receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
+All four changed PROGRAM inputs match their canonical delivery bytes. Actual sea
+salvo, burst appearance and FPS remain unresolved; no player replay is accepted.
 
 ### Earlier delivery evidence (historical)
 

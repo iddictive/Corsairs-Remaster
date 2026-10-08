@@ -10,7 +10,9 @@ Revision10's flat screen-space ring also failed to conform to objects.
 Source-exact native/GPU checks pass for the new metric, receiver admission,
 inertia/reset, own exclusion and subdued contour. Complete player appearance,
 motion/zoom and paired FPS remain unresolved.
-Staging/receipts belong to `docs/runtime.md`.
+Canonical staging has installed this frozen revision; its signed-engine and
+source receipts belong to `docs/runtime.md`. Compilation and delivery do not
+accept its real-game appearance or frame cost.
 
 ## Contract
 

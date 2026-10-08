@@ -2,11 +2,12 @@
 
 ## Status
 
-October 8, 2026 installed in the current canonical stage. Signed engine
-`5b14e3196d4674c7cc296de97debc83fc26fbf7a8a8eb88b41f4cf40989221a7`;
-receipt `0ebc514c8b38488591258f7a36a94c33e6e3301a836f8108c46d8e6bae0fdce4`.
-The player reports that F11 opens no menu. The source now adds a sea-only action
-to the existing Esc pause menu; delivery of this follow-up remains pending.
+October 8, 2026: the Esc pause-menu follow-up is installed through the canonical
+stage. Signed engine
+`b5e871dd3a2c24168d9267bcda7b44309dd39c7a4e26946e9f167c1627c5113a`;
+receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
+The player reports that F11 opens no menu. The installed follow-up adds a sea-only
+action to the existing Esc pause menu; it does not establish the F11 failure's cause.
 The no-window input/script/native-command chain and actual SEA scalar/render
 sampler pass; physical-key delivery, visible menu and real-game wave replay
 remain unresolved. This is an exaggerated sea experiment, not a
@@ -14,7 +15,7 @@ coastal flooding simulation or a new random weather preset.
 
 ## Player action
 
-The prepared follow-up uses **Esc → Цунами** in an ordinary local sea scene
+The installed follow-up uses **Esc → Цунами** in an ordinary local sea scene
 where the player controls the ship, including sailing beside a pier. **Esc →
 Стоп цунами** cancels it. Both actions resume the game through the existing pause
 menu exit. The buttons are absent on the world map, on land and during boarding.
@@ -89,7 +90,9 @@ cancel/restart, pause/resume and sea teardown. Compare ordinary sea after cancel
 and verify that aiming follows rendered water. Source/math probes prove
 only their properties; they do not accept appearance or gameplay consequences.
 
-The isolated complete PROGRAM startup/debug segment compiles with zero errors.
+The complete PROGRAM include graph and separate pause/debug segments compile
+with zero errors in the native VM. Its startup `Main` is renamed only in the
+disposable compiler fixture; ordinary game startup is not executed.
 Native scalar/SSE, C1 profile, bounds, lifecycle and same-value cancel probes
 pass. A task-local no-window probe sets the isolated SDL F11 state and uses the
 real SDLInput, PCS_CONTROLS transition and CoreImpl control-event producer. Both
@@ -113,13 +116,14 @@ errors. A full scene save replay is outside these isolated checks.
 Before the native upgrade, the ordinary source delivery gate reports
 compiler pending; after canonical staging, it reports zero pending files and
 compiler ready with the exact tsunami patch hash. Installed sources match all
-three canonical inputs after newline normalization. The compiler receipt binds
+five canonical PROGRAM/INI inputs byte-for-byte in their delivery encoding.
+The compiler receipt binds
 `sea-tsunami.patch` to
 `a24fe3e7f5e03a3ce4e2f1adcd82e2a89c34e4078e02610f325a59431eb8f697`.
 The earlier combined delivery's player-file preservation and responsive sea
 startup do not accept a tsunami action. The exact pending player scenario is
 the physical key, visible menu, start, approach, ship response and cancel on the
-installed app. The prepared pause entry also requires a real-game menu replay;
+installed app. The installed pause entry also requires a real-game menu replay;
 it does not establish the cause of the failed physical F11 delivery.
 
 The reopened native probe compiles the complete current SEA implementation
