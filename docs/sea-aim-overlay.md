@@ -409,10 +409,20 @@ The first serialized GPU batch fails the performance target:55/63/64 seeded
 families cost12.027/8.981/7.690ms warm GPU time for Flyingdutchman/Nevis/Porto;
 the Nevis duplicate61143/61156 query alone costs7.068ms. These are isolated GPU
 query timings, not game FPS. Correctness parity does not admit this variant for
-installation. The active source-only child is revising only conservative BVH
-node broadphase with outward float bounds and compensated leaf predicates.
+installation. A second bounded revision replaces only BVH node broadphase with
+outward FP32 bounds, preserving compensated leaf/sweep arithmetic.
 Evidence is retained in the cannon owner's `continuous-family.kfAeKRPV` fixture,
 particularly gpu-results.txt, final-cpu-results.txt and the separate Porto inputs.
+
+That revision also retains all193 equal-record cases with zero parity errors,
+but its warm GPU times are12.444/9.394/7.830ms for55/63/64 seeded families and
+7.320ms for the Nevis duplicate. The one-triangle coplanar fixture still costs
+1.142ms. Differences may be run noise; no speed improvement or dominant node
+arithmetic cause is established. float-node-cpu-results.txt and
+float-node-gpu-results.txt retain this changed-input comparison against the
+frozen baseline. After two failed performance attempts, GPU probing stops;
+the cannon owner diagnoses renderer/resource cost before another algorithm
+variant. Both performance variants are rejected and no product delta is kept.
 
 Production boundary certification, actual camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
