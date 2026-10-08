@@ -1521,6 +1521,30 @@ void Teleport(int step)
 	SetEventHandler("frame","NewGame",1);
 }
 
+bool SeaTsunami_Start()
+{
+	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea) || !CheckAttribute(pchar, "Ship.Pos.x") ||
+		!CheckAttribute(pchar, "Ship.Pos.z") || !CheckAttribute(pchar, "Ship.Ang.y"))
+	{
+		Log_Info("Цунами можно вызвать только в море.");
+		return false;
+	}
+	Sea.Tsunami.OriginX = stf(pchar.Ship.Pos.x);
+	Sea.Tsunami.OriginZ = stf(pchar.Ship.Pos.z);
+	Sea.Tsunami.DirectionX = sin(stf(pchar.Ship.Ang.y));
+	Sea.Tsunami.DirectionZ = cos(stf(pchar.Ship.Ang.y));
+	Sea.Tsunami.Start = 1;
+	Log_Info("Цунами идёт с горизонта перед носом корабля.");
+	return true;
+}
+
+bool SeaTsunami_Stop()
+{
+	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea)) return false;
+	Sea.Tsunami.Start = 0;
+	return true;
+}
+
 void ProcessMainMenuKey()
 {
 	if (interfacestates.buttons.resume.enable == "1")

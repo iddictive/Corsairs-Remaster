@@ -7,24 +7,12 @@ string textLine = "***********************************"
 
 void TsunamiDebug_Start()
 {
-	if (!bSeaActive || !IsEntity(&Sea) || !CheckAttribute(pchar, "Ship.Pos.x") ||
-		!CheckAttribute(pchar, "Ship.Pos.z") || !CheckAttribute(pchar, "Ship.Ang.y"))
-	{
-		Log_Info("Цунами можно вызвать только в море.");
-		return;
-	}
-	Sea.Tsunami.OriginX = stf(pchar.Ship.Pos.x);
-	Sea.Tsunami.OriginZ = stf(pchar.Ship.Pos.z);
-	Sea.Tsunami.DirectionX = sin(stf(pchar.Ship.Ang.y));
-	Sea.Tsunami.DirectionZ = cos(stf(pchar.Ship.Ang.y));
-	Sea.Tsunami.Start = 1;
-	Log_Info("Цунами идёт с горизонта перед носом корабля.");
-	IDoExit(RC_INTERFACE_QUICK_SAVE);
+	if (SeaTsunami_Start()) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 
 void TsunamiDebug_Stop()
 {
-	if (bSeaActive && IsEntity(&Sea)) Sea.Tsunami.Start = 0;
+	SeaTsunami_Stop();
 	IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 

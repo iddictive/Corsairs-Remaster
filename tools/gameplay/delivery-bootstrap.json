@@ -330,6 +330,12 @@
       "8019f758cbc516ba70583719c6abd96d1d13a641c73b4db3de46a28c2a334340",
       "cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050"
     ],
+    "PROGRAM/interface/game_menu.c": [
+      "15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0"
+    ],
+    "RESOURCE/INI/interfaces/game_menu.ini": [
+      "d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e"
+    ],
     "PROGRAM/store/initGoods.c": [
       "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
       "820998b414ef8cee93964425da97524bc96642d5430ba9b1abb5ad4601c4540d"

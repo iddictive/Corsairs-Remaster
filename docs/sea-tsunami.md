@@ -5,13 +5,22 @@
 October 8, 2026 installed in the current canonical stage. Signed engine
 `5b14e3196d4674c7cc296de97debc83fc26fbf7a8a8eb88b41f4cf40989221a7`;
 receipt `0ebc514c8b38488591258f7a36a94c33e6e3301a836f8108c46d8e6bae0fdce4`.
-The no-window input/script/native-command chain passes; physical-key delivery,
-visible menu and real-game wave replay remain unresolved. This is an exaggerated sea experiment, not a
+The player reports that F11 opens no menu. The source now adds a sea-only action
+to the existing Esc pause menu; delivery of this follow-up remains pending.
+The no-window input/script/native-command chain and actual SEA scalar/render
+sampler pass; physical-key delivery, visible menu and real-game wave replay
+remain unresolved. This is an exaggerated sea experiment, not a
 coastal flooding simulation or a new random weather preset.
 
 ## Player action
 
-In a sea scene, press F11 (Fn+F11 when macOS uses media keys). The existing script
+The prepared follow-up uses **Esc → Цунами** in an ordinary local sea scene
+where the player controls the ship, including sailing beside a pier. **Esc →
+Стоп цунами** cancels it. Both actions resume the game through the existing pause
+menu exit. The buttons are absent on the world map, on land and during boarding.
+They occupy two free cells to the right of the existing pause controls.
+
+The existing F11 route remains available in source (Fn+F11 when macOS uses media keys). The script
 debug menu contains `Цунами` and `Стоп` in the two free cells of its lower row.
 `Цунами` closes the menu and starts one wave ahead of the ship's bow, travelling
 back toward the position where it was called. Reopening the menu and choosing
@@ -30,8 +39,12 @@ physical key reaches the game; no actual OS interception has been established.
 
 ## Owners and contract
 
-- `src/gameplay/PROGRAM/seadogs.c` admits the existing F11 debug menu at sea.
-- `src/gameplay/PROGRAM/interface/debuger.c` owns the guarded start/cancel actions.
+- `src/gameplay/PROGRAM/seadogs.c` admits the existing F11 debug menu at sea and
+  owns the one guarded start/cancel writer shared by both interfaces.
+- `src/gameplay/PROGRAM/interface/debuger.c` adapts those actions to the debugger exit.
+- `src/gameplay/PROGRAM/interface/game_menu.c` adapts the same actions to the
+  ordinary pause menu's `ResumeClick` exit. Its canonical INI owns the two new
+  button cells; all preexisting menu actions and their vertical navigation remain.
 - `src/gameplay/RESOURCE/INI/interfaces/debuger.ini` owns their existing-style
   button geometry. `src/gameplay/manifest.json` binds both imported original
   files to their installed baseline hashes and the ordinary transactional delivery.
@@ -71,7 +84,7 @@ no scripted damage, knockback, reward, random spawn or save migration.
 
 Compile the scripts and canonical native stack, stage through
 `experiments/native-metal/run.sh --stage-only`, then replay the installed app:
-open F11, start, observe horizon approach, crest crossing and ship response,
+open Esc, start, observe horizon approach, crest crossing and ship response,
 cancel/restart, pause/resume and sea teardown. Compare ordinary sea after cancel
 and verify that aiming follows rendered water. Source/math probes prove
 only their properties; they do not accept appearance or gameplay consequences.
@@ -106,4 +119,40 @@ three canonical inputs after newline normalization. The compiler receipt binds
 The earlier combined delivery's player-file preservation and responsive sea
 startup do not accept a tsunami action. The exact pending player scenario is
 the physical key, visible menu, start, approach, ship response and cancel on the
-installed app.
+installed app. The prepared pause entry also requires a real-game menu replay;
+it does not establish the cause of the failed physical F11 delivery.
+
+The reopened native probe compiles the complete current SEA implementation
+unchanged, with a temporary friend seam and no renderer initialization. Actual
+`AttributeChanged → ProcessStage(execute) → WaveXZ/SSE_WaveXZBlock` passes at the
+nonzero global origin `(14567, -27890)`. After five game seconds the envelope is
+one and the front is 1890 units away: a 2.5-unit baseline at the crest becomes
+30.5. A real geomorphed rendered block gives 28.978294, matching scalar sampling
+at its restored global coordinates after the render-offset shift. All four
+vertices beyond the ordinary cutoff still receive the wave; zero delta,
+`bStop`, inactive state and same-value cancellation pass. Missing execute-layer
+registration, offset mismatch, cutoff skipping and shader Y flattening were
+rejected as explanations. GPU visibility and live layer delivery remain untested.
+
+The pause follow-up is compiled against the full current PROGRAM with the real
+native script VM. Exact `ProcessCommandExecute`, shared start/cancel,
+`ResumeClick` and pause `IDoExit` execute: click/activate publish origin/direction
+and start/cancel, emit the start notice, clear `pchar.pause`, restore the resume
+result and request interface unfreeze. Repeated start replaces the origin;
+ordinary Resume does not alter the wave command. Non-activation, land, boarding,
+absent sea and missing heading reject without an unintended exit or command
+mutation. The compiler also loads the unchanged debugger action adapters.
+Result: `PauseCases=0`, `script_errors=0`. Sea presence, camera/log and the final
+interface-release terminal are fixture seams; this is script action evidence,
+not a live menu, physical Esc or visible notification replay. One-off INI checks
+verify window membership, activation commands and nonoverlapping button bounds.
+
+The two new canonical imports preserve the installed baseline after newline
+normalization. Their raw baseline admissions are
+`PROGRAM/interface/game_menu.c` =
+`15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0` and
+`RESOURCE/INI/interfaces/game_menu.ini` =
+`d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e`.
+The integration owner registers these in the existing gameplay manifest and
+delivers the source batch; no new native patch or engine build is required by
+this content delta.
