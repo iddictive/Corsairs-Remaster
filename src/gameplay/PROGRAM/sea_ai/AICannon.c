@@ -121,6 +121,26 @@ float Cannon_GetRakeCrewFactor()
 	return Cannon_GetRakeCrewQuality(aCharacter);
 }
 
+bool Cannon_HasStandingSailMasts(aref character)
+{
+	if (!CheckAttribute(character, "Ship.Masts")) { return true; }
+	aref masts, mast;
+	makearef(masts, character.Ship.Masts);
+	bool known = false;
+	for (int i = 0; i < GetAttributesNum(masts); i++)
+	{
+		mast = GetAttributeN(masts, i);
+		string name = GetAttributeName(mast);
+		if (strlen(name) < 5 || strcut(name, 0, 3) != "mast") { continue; }
+		int number = sti(strcut(name, 4, strlen(name) - 1));
+		// Native mast1 is horizontal; mast101..199 are its topmast family.
+		if (number <= 1 || (number >= 100 && number < 200)) { continue; }
+		known = true;
+		if (stf(GetAttributeValue(mast)) < 1.0) { return true; }
+	}
+	return !known; // An old/empty record does not prove a demasted ship.
+}
+
 float Cannon_GetFireHeight()
 {
 	aref aCharacter = GetEventData();
@@ -158,9 +178,15 @@ float Cannon_GetFireHeight()
 			{
 				if (Y < 3.2) { Y = 3.2; }
 			}
-			else // Knippels - sail centroid by target class, not flat 15
+			else // Knippels: surviving masts, or the ordinary hull band after demasting.
 			{
-				if (Y < 12.0)
+				if (!Cannon_HasStandingSailMasts(aEnemy))
+				{
+					Y = stf(rEnemyShip.Height.Balls.Y);
+					DY = stf(rEnemyShip.Height.Balls.DY);
+					if (Y < 2.2) { Y = 2.2; }
+				}
+				else if (Y < 12.0)
 				{
 					int iClass = 4;
 					if (CheckAttribute(rEnemyShip, "Class")) { iClass = sti(rEnemyShip.Class); }

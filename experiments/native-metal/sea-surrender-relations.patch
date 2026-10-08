@@ -20,7 +20,7 @@ diff --git a/src/libs/battle_interface/src/sea/ship_info_images.cpp b/src/libs/b
  #include "ship_base.h"
  
  // define the vertices
-@@ -46,8 +47,38 @@
+@@ -46,8 +47,43 @@
      if (m_idRelationTexture != -1)
      {
          pRS->TextureSet(0, m_idRelationTexture);
@@ -32,6 +32,9 @@ diff --git a/src/libs/battle_interface/src/sea/ship_info_images.cpp b/src/libs/b
 +        {
 +            do
 +            {
++                uint32_t previousColorOp = 0, previousColorArg2 = 0;
++                pRS->GetTextureStageState(0, D3DTSS_COLOROP, &previousColorOp);
++                pRS->GetTextureStageState(0, D3DTSS_COLORARG2, &previousColorArg2);
 +                int32_t n = 0, first = 0;
 +                for (auto *ship = g_ShipList.GetShipRoot(); ship; ship = ship->next)
 +                {
@@ -41,13 +44,15 @@ diff --git a/src/libs/battle_interface/src/sea/ship_info_images.cpp b/src/libs/b
 +                        if (n > first)
 +                            pRS->DrawBuffer(m_vbRelation, sizeof(SII_VERTEX), m_ibRelation, 0, m_nShipQ * 4,
 +                                            first * 6, (n - first) * 2, nullptr);
-+                        // Keep the authored alpha mask and ordinary depth test;
-+                        // the neutral atlas cell itself is beige/white.
++                        // Tint the neutral atlas cell without losing its frame,
++                        // highlights, shading, alpha mask or ordinary depth test.
 +                        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFE6C663);
-+                        pRS->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
++                        pRS->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
++                        pRS->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 +                        pRS->DrawBuffer(m_vbRelation, sizeof(SII_VERTEX), m_ibRelation, 0, m_nShipQ * 4,
 +                                        n * 6, 2, nullptr);
-+                        pRS->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
++                        pRS->SetTextureStageState(0, D3DTSS_COLOROP, previousColorOp);
++                        pRS->SetTextureStageState(0, D3DTSS_COLORARG2, previousColorArg2);
 +                        first = n + 1;
 +                    }
 +                    ++n;
@@ -61,7 +66,7 @@ diff --git a/src/libs/battle_interface/src/sea/ship_info_images.cpp b/src/libs/b
      }
  
      if (m_idProgressTexture != -1)
-@@ -266,7 +297,7 @@
+@@ -266,7 +302,7 @@
  
      // write relation square
      WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,

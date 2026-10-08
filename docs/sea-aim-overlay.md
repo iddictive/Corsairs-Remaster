@@ -7,8 +7,10 @@ header; the player reached the current saved sea battle. Action acceptance remai
 open for the reported cliff, stern-on ally and sinking ship. A subsequent live
 manual-aim profile reopened performance acceptance. Its correction at11571da passed
 the canonical build and installed stage; the current signed engine is37598a37.
-The player reached the saved sea battle, but matching manual-aim FPS still awaits
-the player hold. Source/probe timings do not accept that runtime outcome.
+The player's subsequent ship-aim hold reproduced the performance defect on that
+installed engine: 1185/1717 main-thread samples were inside the aiming camera and
+the concurrent manual scene showed 50 FPS. Solid-cliff gaps/flicker also remain
+open. Source/probe timings do not accept either runtime outcome.
 
 ## Contract
 
@@ -168,6 +170,97 @@ CPU timings improved by 7.4–15.8% across these geometries, separately from the
 curve/model prefilter. Initial cache construction plus query took 0.372–0.996 ms.
 Installed aiming FPS remains the final acceptance criterion.
 
+The later installed37598 ship-aim hold confirms that this bounded optimization
+did not close the performance outcome. The foreground manual scene showed the
+target ship, centered crosshair and 50 FPS; 1185/1717 main-thread samples were in
+the aiming camera (69.0%). Collapsed leaf counts were `GEOM::Clip`418,
+`GEOM::Trace`261, segment/model boxes134 and `SEA::WaveXZ`107. An earlier sample
+of the same ship view was almost entirely background sleep and is rejected.
+
+## Reopened curved-surface coverage
+
+Actual GM replay, using extracted `AimMarch`, `GEOM::Trace`, `GEOM::Clip` and the
+current grid/refinement branch, reproduces loss before either polygon cap. Across
+24 fans per geometry, removing both caps still missed 470/5838 actual first hits
+on Flyingdutchman1,335/6729 on Nevis and54/6936 on PortoBello. Nevis triangle54375,
+side+1 is the decisive local case: muzzle(-543.138,17.3739,-575.566),
+aim(-636.343,17.3739,-539.334), all289 trajectories hit the model, but14 points lack
+eligibility (eight beyond sampled relief, six beyond every flat fan side).
+Only1197 output triangles are present, and cap128/uncapped outputs agree there.
+
+Caps cause additional loss and temporal toggles. Translating a broad real-mesh
+query by1cm changed capped eligibility at50 hull,two Nevis andfive PortoBello
+surface points that remained in both uncapped outputs. Queries below128 polygons
+are the nearest unaffected case and have zero such differences.
+
+Rejected repair: replacing the expensive clipped-mesh fallback with its same
+witnessed five-plane prism removes enumeration/caps but retains virtually all
+pre-cap gaps. Increasing prism thickness also cannot restore points outside its
+flat sides. The measured fallback half-thickness can exceed4m; merely raising
+the backend limit is therefore insufficient. These probes prove the mechanism,
+not the number of visible holes on the player's particular save.
+
+The remaining owner is continuous launch-space support at the actual rendered
+depth point plus its first stopping obstruction from the muzzle. Camera depth
+and receiver token supply visible geometry but cannot alone rule out an earlier
+occluder, including another portion of that same model. A disposable analytic
+inverse of the existing projectile warp recovered feasible launch support for
+200,000 actual `manual_aim::trajectory` points with no misses, maximum endpoint
+error1.007mm and a rejected out-of-support case. Native visibility throughput
+and installed-scene acceptance are still pending; no replacement is delivered.
+
+The disposable continuous-curve GPU proof now passes 400,005 trajectories plus
+six tangent/coplanar/two-root/occluder cases against an independent binary64
+oracle, with zero hit/miss or nearest-time errors (maximum 5.96e-8 seconds).
+Plain FP32 was rejected: a triangle-edge sign flipped and skipped a Nevis cliff
+face by about110m. Shared CPU/MSL compensated coefficients, corrected roots and
+strict projected edge predicates eliminate that counterexample without geometric
+dilation. Coincident-face IDs can differ; one extra Flyingdutchman GPU face tie
+still needs classification, despite identical first-contact time.
+
+Actual Apple M3 Max GPU times for100k curves are2.593ms Flyingdutchman1,
+10.364ms Nevis and5.859ms PortoBello; this is an isolated query workload, not FPS
+or an integrated projection. The accepting layer still needs a bounded scene
+budget, current model/node transforms and trace flags, water-first stopping,
+model removal/mast detachment invalidation and actual visible receiver ownership.
+The current renderer remains the sampled implementation described below.
+
+## Surrender marker shading, tracers and demasted automatic fire
+
+The former surrendered marker used `SELECTARG1/TFACTOR`, replacing the authored
+neutral atlas RGB with a flat gold fill. The corrected native patch multiplies
+the existing texture by gold instead, preserving its rim, highlight, shadows,
+alpha and depth test. It restores the technique's previous color operation and
+second argument before drawing ordinary ships. An offscreen actual-atlas GPU
+oracle checks254 opaque texels within one byte and unchanged transparent
+exterior; the actual `ShipInfoImages::Draw` driver passes interleaved surrender,
+hidden-ship indexing, ordinary batching and state restoration. Installed replay
+is still required.
+
+Canonical `AIBalls.c::CreateBallsEnvironment` now assigns the existing
+`Bomb_Smoke.xps` effect to every ammunition type. That authored effect includes
+the luminous particle stream missing from `Ball_Smoke_low`; grapes and knippels
+previously had no emitter. Brightness and warm palette match bombs, satisfying
+the requested minimum of half their brightness without another shader or asset.
+The existing particle factory, emitter update, impact/clear/destructor cleanup and
+flight/save layout remain unchanged. An isolated real VM restores prior empty
+grape/knippel and smoke-only round-shot settings through the ordinary environment
+initializer, twice through the save codec, preserving sprite sizes and atlas
+indices. Already airborne legacy balls with no saved particle pointer acquire
+no retroactive emitter; new shots use the updated environment. Actual broadside
+visibility and frame cost remain replay requirements.
+
+`AICannon.c::Cannon_GetFireHeight` now reads the native persisted `Ship.Masts`
+damage record for automatic chainshot. After every known vertical mast is broken
+it uses the same target hull band as round shot; native horizontal `mast1` and
+its101..199 family do not preserve an imaginary sail-height target. Missing or
+empty legacy records keep existing behavior until the native ship initializes
+them. Surviving vertical/top masts, repaired masts, forts and other ammunition
+retain their targeting. The real VM baseline aimed15.168m above an entirely
+demasted target; the corrected source passes demasted/bowsprit-only, surviving
+main/top mast, fort, other-ammo, missing state, repair and two save/load rounds.
+This selects a valid fallback band; a player volley still owns hit acceptance.
+
 ## Preserved gameplay and limits
 
 Projectile flight integration and save layout are unchanged. Manual and automatic
@@ -236,7 +329,7 @@ the root hull geometry projected directly onto the ship axis; projecting a
 world-axis box inflated a rotated hull and included rigging. The station center
 moves toward the hull center with skill, so aiming at the bow or stern does not
 collapse half the guns onto one endpoint. Elevation/traverse limits and the
-fallback toward the original aim point remain; forts, water and automatic fire
+fallback toward the original aim point remain; forts and water
 retain their existing targeting. A disposable driver of the actual C++ method
 checks a rotated 100 m hull, four distinct stern-aim stations, zero skill,
 reachability fallback, non-ship targets and unchanged aim height.
