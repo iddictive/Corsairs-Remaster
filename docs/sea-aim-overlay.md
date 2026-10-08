@@ -2,18 +2,18 @@
 
 ## Status
 
-The October 8 smooth-depth-density batch is installed: signed engine
-`70d78026`, app receipt `08f6c75b`, including `047406c`, `aaf7a69` and the density
-correction below. Canonical stage-only and deep/strict signature verification pass;
-all 17 frozen inputs and 253 player files retain their hashes. Both content plans
-are empty and the script compiler is ready. No changed-action replay is recorded
-on this new engine.
-Real cliff, stern-on ally, sinking-ship and aiming-performance acceptance remain
-open. The earlier `11571da` delivery on engine `37598a37` reproduced the aiming
-performance defect: 1185/1717 main-thread samples were inside the aiming camera
-and the concurrent manual scene showed 50 FPS. These are historical measurements,
-not a profile of the current installed engine. Solid-cliff gaps/flicker remain
-open; source/probe timings do not accept either runtime outcome.
+The current candidate is a simple drape on already rendered scene depth.
+Per-pixel ballistic collision solving and sampled first-hit masks are rejected.
+The first installed depth-only version, engine `c220a1e6`, improved the shape;
+the player's 12:28:46 screenshot shows102FPS. The player still reports about half
+the ordinary FPS, a thick distant rim and occasional zoom disappearance. This
+reopens acceptance; one screenshot FPS value cannot accept performance.
+The installed thin-rim revision removes terrain ownership passes and reuses CPU
+point storage. The next player screenshot shows92FPS and accepts the thinner rim,
+but rejects a second huge hillside strip and broken main perimeter. The latest
+range-local revision closes that field around nominal arrival range and removes
+the contact-only coplanarity fade. Its hillside suppression, seam continuity and
+paired FPS require installed replay. Staging/receipts belong to `docs/runtime.md`.
 
 ## Contract
 
@@ -34,9 +34,9 @@ maximum reach; nearby mechanically unreachable targets stay unavailable.
 
 The visible contact area is an approximate rounded dispersion-density region,
 not a guaranteed boundary containing every shell. The same smooth field is
-evaluated on current water, hull, mast, terrain and fort depth. Physical first-hit
-samples gate where it can appear, including continuation through real openings.
-Those visibility masks do not draw their own polygon outlines. A soft Gaussian
+evaluated on current water, hull, mast, terrain and fort depth. The nearest
+rendered surface supplies the drape; no first-hit sample or collision solver
+gates its pixels. A soft Gaussian
 blot fades from its center toward a subtle colored perimeter, projected onto real
 scene depth. Ellipse-like or rounded/square-like shape is allowed; rare physical
 shots outside the main-density contour remain valid. Air still uses the stopped
@@ -47,6 +47,8 @@ ballistic volume, with its existing opacity.
 - `cannon-trajectory-aim.patch` owns the base controller, geometry and GPU bridge;
   `cannon-rake-spread.patch` layers cloth selection, live parameter queries,
   per-gun manual/automatic raking and curved-receiver support
+- `cannon-depth-drape.patch` replaces sampled contact support with one aggregate
+  density field and removes the extra contact discovery marches
 - Canonical `PROGRAM/sea_ai/AIBalls.c` owns height warp and shot dispersion.
   `AICannon.c` supplies their query events and the crew-quality multiplier;
   preview and fire read the same helpers without guessed C++ fallbacks
@@ -71,8 +73,9 @@ ballistic volume, with its existing opacity.
   using the existing `GetRelation` mapping. One accumulated depth/token/color map
   captures registered hull/upper-model, fort, intact mast and owned sail/rope/vant
   groups. Exact current depth selects the actual receiver; water stays neutral
-- Alpha-tested holes remain holes. Sails/ropes are non-stopping rendered contacts,
-  gated by finite airborne support; they never stop a projectile or alter damage.
+- Alpha-tested holes remain holes. Sails/ropes are non-stopping rendered contacts;
+  their depth receives the same approximate field. They never stop a projectile
+  or alter damage.
   Own hull and separately drawn own rigging are excluded by actual ownership
 - The contact perimeter adapts its brightness to the underlying scene, with a
   restrained dark outer keyline for midtone/daylight contrast. This does not raise
@@ -88,6 +91,42 @@ range disk and uses an inward numerical margin at the maximum-range boundary.
 World queries are pure: no `Cannon_Trace`, damage events or random draws. Model
 AABBs reject unrelated receivers; island tracing covers the full `ISLAND_TRACE`
 layer. `WaveXZ` refines first crossings, including initially submerged muzzles.
+
+All eligible guns contribute27 weighted launch-law curves to one aggregate field
+with65 quadratic axial stations. Covariance scale3 and root interpolation produce
+one rounded L4 region without RNG or collision queries. One reusable points array
+replaces65 allocations/initializations per frame. Actual shots and stopped air
+retain their existing owners; rare shots can remain outside the approximate field.
+
+The drape is local to the selected arrival range, rather than every possible
+intersection along the whole flight. Each gun supplies one positive earliest
+nominal target-plane time; its27 jitter curves are evaluated at that common time.
+Weighted axial mean/variance supplies a smooth quartic range cap with radius
+sqrt(3*(variance+.0025)). This is approximate main density, not a physical first-hit
+proof. In the unchanged32-byte contact record, padding carries the absolute
+axial center and extent the radius. The backend rebases that center once with
+dot(worldOrigin,axis); the radius is invariant. A far second hillside intersection
+outside this local region no longer belongs to the drape.
+
+The shader reconstructs the receiver from current post-water depth. Direct
+`(1-q)/|gradient(q)|` supplies pixel-width contour coverage. The earlier
+exponential-union distance exaggerated its inside width at small screen sizes.
+A radius18/72/288px scalar check reduces inside bright-rim pixels from8/8/2 to1
+without moving the q=1 boundary; this does not prove rendered quality.
+Same-surface neighbors determine stroke width, with a current-depth-plane fallback.
+Contact uses projected gradient directly without the former1% coplanarity fade,
+which could erase its perimeter at polygon joins. Zero/nonfinite projected
+gradient retains inside fill and returns zero rim, including exactly q=1.
+No water atlas, solid prism or ballistic GPU solver participates in the composite.
+
+Terrain uses neutral current depth and has no registered model capture. Adding
+ISLAND_TRACE had introduced full-frame copies/passes and let the half-far seabed
+draw replace the main-camera identity stamp. Zoom that culls water no longer
+withholds neutral terrain. Own-camera capture remains required; exact own depth
+and own-identity bits exclude hull and separately drawn rigging. Registered
+ship/fort identities supply relation color only. Air alpha stays capped at.22.
+
+### Historical sampled support — superseded by the depth drape
 
 Every eligible gun supplies its nominal trajectory. Spatial support guns add all
 eight independent yaw/elevation/speed dispersion corners. Additional contact
