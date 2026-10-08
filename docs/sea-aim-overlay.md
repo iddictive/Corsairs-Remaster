@@ -5,8 +5,10 @@
 The October 7 cannon batch is installed, including the corrected shared event
 header; the player reached the current saved sea battle. Action acceptance remains
 open for the reported cliff, stern-on ally and sinking ship. A subsequent live
-manual-aim profile reopened performance acceptance; its source correction awaits
-the combined native build, installation and the same player aiming replay.
+manual-aim profile reopened performance acceptance. Its correction at11571da passed
+the canonical build and installed stage; the current signed engine is37598a37.
+The player reached the saved sea battle, but matching manual-aim FPS still awaits
+the player hold. Source/probe timings do not accept that runtime outcome.
 
 ## Contract
 

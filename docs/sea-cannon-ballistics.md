@@ -2,9 +2,11 @@
 
 ## Status
 
-October 7 candidate: the existing volume path is extended with bounded sail-hole
-enumeration and monotonic cumulative sail damage. Actual-script VM checks pass;
-the sinking-ship action and visible sail-health replay remain unresolved.
+The October 7 installed batch extends the volume path with bounded sail-hole
+enumeration and monotonic cumulative sail damage. Actual-script VM checks pass,
+the corrected shared event header is delivered, and the current saved sea battle
+opens on the combined37598a37 engine. The sinking-ship firing action and visible
+sail-health replay remain unresolved; startup alone does not accept them.
 
 ## Contract
 
