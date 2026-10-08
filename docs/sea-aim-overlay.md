@@ -424,6 +424,23 @@ frozen baseline. After two failed performance attempts, GPU probing stops;
 the cannon owner diagnoses renderer/resource cost before another algorithm
 variant. Both performance variants are rejected and no product delta is kept.
 
+The subsequent native Apple MTLCaptureManager/gpudebug diagnosis captures only
+the frozen55-family workload, one command buffer/encoder/dispatch per capture;
+both runs retain all55 outputs and semantic work counters. The compiled kernel
+has61806 instructions,96 temporary plus40 uniform registers,11552 spilled bytes
+and zero static threadgroup bytes. Baseline L1 reads are0.39GiB/s,0.37 stack;
+writes are0.48GiB/s, all stack. This proves substantial stack state/traffic,
+not stack bandwidth dominance or a cause of the installed player's FPS loss.
+
+Binding maximum threads to32 preserves arithmetic, inputs and parity but changes
+none of those compiled fields; no structural resource improvement is accepted.
+Profiler dynamic instruction estimates disagree across sessions, so they prove
+no speedup. The cannon owner retains gpu-resource-report.md and capture/counter
+files, closes profiler sessions13/20, reports empty fresh session/process
+inventories and releases the GPU actor. Its read-only source specialist next
+binds ordinary-segment versus coplanar Polygon/Family data lifetimes and by-value
+copies before any edit. No further algorithm variant or installation is admitted.
+
 Production boundary certification, actual camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
 unresolved. No contact replacement source batch is staged; the installed
