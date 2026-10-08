@@ -366,8 +366,7 @@ float Fort_CannonDamage()
 	bool airburst = sti(AIBalls.CurrentBallType) == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
 	if (airburst)
 	{
-		fDistanceMul = 1.0 - fDistance * fDistance / (32.0 * 32.0);
-		if (fDistanceMul < 0.0) fDistanceMul = 0.0;
+		fDistanceMul = Ball_AirburstPower(fDistance);
 	}
 
 	ref rCannon = GetCannonByType(sti(rBallCharacter.Ship.Cannons.Type));

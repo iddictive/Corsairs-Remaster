@@ -10,12 +10,13 @@
      bool Init() override;
 --- a/src/libs/sea_ai/src/ai_balls.cpp
 +++ b/src/libs/sea_ai/src/ai_balls.cpp
-@@ -2,6 +2,229 @@
+@@ -2,6 +2,284 @@
  #include "ai_fort.h"
  #include "math_inlines.h"
  #include "shared/messages.h"
 +#include "ship_base.h"
 +#include <algorithm>
++#include <cstring>
 +
 +namespace
 +{
@@ -43,33 +44,118 @@
 +    return ball.sBallEvent == "@airburst-fragment";
 +}
 +
-+// Sweep a shell through the target's oriented overhead volume.
-+// Slab entry, rather than endpoint proximity, also catches long frame steps.
-+bool AirburstEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &box, float &entry)
++// Derive a stable per-shell fuze from immutable, already serialized launch data.
++// No global RNG state or projectile save-layout change is needed.
++float AirburstRadius(const BALL_PARAMS &ball)
++{
++    uint32_t hash = 2166136261u;
++    const auto mix = [&hash](uint32_t word)
++    {
++        for (int byte = 0; byte < 4; ++byte) { hash ^= (word >> (byte*8)) & 255u; hash *= 16777619u; }
++    };
++    mix(static_cast<uint32_t>(ball.iBallOwner));
++    mix(ball.dwCannonType);
++    for (const float value : {ball.vFirstPos.x, ball.vFirstPos.y, ball.vFirstPos.z, ball.fSpeedV0,
++                              ball.fDirX, ball.fDirZ, ball.fSinAngle, ball.fCosAngle, ball.fRawAng})
++    {
++        uint32_t bits;
++        std::memcpy(&bits, &value, sizeof(bits));
++        mix(bits);
++    }
++    return 1.0f + 6.0f * static_cast<float>(hash >> 8) / 16777215.0f;
++}
++
++// Sweep the shell's sphere against a node's actual centered box, not a raised slab.
++// Squared distance to the box is quadratic between the six face crossings.
++// This keeps rounded corners spherical and catches long frame steps.
++bool AirburstEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &center,
++                   const CVECTOR &box, float radius, float &entry)
 +{
 +    if (~(dst-src) < 1e-8f) return false;
-+    const float deck = std::clamp(box.y * 0.15f, 3.0f, 9.0f);
-+    const float lo[] = {-box.x * 0.5f - 3.0f, deck + 1.0f, -box.z * 0.5f - 3.0f};
-+    const float hi[] = { box.x * 0.5f + 3.0f, deck + 7.0f, box.z * 0.5f + 3.0f};
-+    const float origin[] = {src.x, src.y, src.z};
-+    const float delta[] = {dst.x-src.x, dst.y-src.y, dst.z-src.z};
-+    float enter = 0.0f, leave = 1.0f;
++    const double lo[] = {center.x-box.x*.5, center.y-box.y*.5, center.z-box.z*.5};
++    const double hi[] = {center.x+box.x*.5, center.y+box.y*.5, center.z+box.z*.5};
++    const double origin[] = {src.x, src.y, src.z};
++    const double delta[] = {dst.x-src.x, dst.y-src.y, dst.z-src.z};
++    double cuts[8] = {0.0, 1.0};
++    int count = 2;
 +    for (int axis = 0; axis < 3; ++axis)
 +    {
-+        if (fabsf(delta[axis]) < 1e-6f)
++        if (delta[axis] == 0.0) continue;
++        for (const double face : {lo[axis], hi[axis]})
 +        {
-+            if (origin[axis] < lo[axis] || origin[axis] > hi[axis]) return false;
-+            continue;
++            const double t = (face-origin[axis])/delta[axis];
++            if (t > 0.0 && t < 1.0) cuts[count++] = t;
 +        }
-+        float a = (lo[axis] - origin[axis]) / delta[axis];
-+        float b = (hi[axis] - origin[axis]) / delta[axis];
-+        if (a > b) std::swap(a, b);
-+        enter = std::max(enter, a);
-+        leave = std::min(leave, b);
-+        if (enter > leave) return false;
 +    }
-+    entry = enter;
-+    return true;
++    std::sort(cuts, cuts+count);
++    for (int interval = 1; interval < count; ++interval)
++    {
++        const double begin = cuts[interval-1], end = cuts[interval];
++        const double middle = (begin+end)*.5;
++        double a = 0.0, b = 0.0, c = -static_cast<double>(radius)*radius;
++        for (int axis = 0; axis < 3; ++axis)
++        {
++            const double position = origin[axis]+delta[axis]*middle;
++            if (position >= lo[axis] && position <= hi[axis]) continue;
++            const double offset = origin[axis]-(position < lo[axis] ? lo[axis] : hi[axis]);
++            a += delta[axis]*delta[axis];
++            b += 2.0*offset*delta[axis];
++            c += offset*offset;
++        }
++        if ((a*begin+b)*begin+c <= 0.0) { entry = static_cast<float>(begin); return true; }
++        const double discriminant = b*b-4.0*a*c;
++        if (a == 0.0 || discriminant < 0.0) continue;
++        const double t = (-b-sqrt(discriminant))/(2.0*a);
++        if (t >= begin && t <= end) { entry = static_cast<float>(t); return true; }
++    }
++    return false;
++}
++
++bool AirburstNodeBox(NODE *node, CVECTOR &center, CVECTOR &box)
++{
++    if (!node->geo || !(node->flags & NODE::TRACE_ENABLE)) return false;
++    for (auto *parent = node->parent; parent; parent = parent->parent)
++        if (!(parent->flags & NODE::TRACE_ENABLE_TREE)) return false;
++    GEOS::INFO info;
++    node->geo->GetInfo(info);
++    center = CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
++    box = CVECTOR(info.boxsize.x, info.boxsize.y, info.boxsize.z);
++    return box.x > 0.0f && box.y > 0.0f && box.z > 0.0f;
++}
++
++bool AirburstModelEntry(MODEL *model, const CVECTOR &src, const CVECTOR &dst, float radius, float &entry)
++{
++    float nearest = 2.0f;
++    for (int index = 0; auto *node = model->GetNode(index); ++index)
++    {
++        CVECTOR center, box;
++        if (!AirburstNodeBox(node, center, box)) continue;
++        CVECTOR localSrc, localDst;
++        node->glob_mtx.MulToInv(src, localSrc);
++        node->glob_mtx.MulToInv(dst, localDst);
++        float hit = 0.0f;
++        if (AirburstEntry(localSrc, localDst, center, box, radius, hit)) nearest = std::min(nearest, hit);
++    }
++    entry = nearest;
++    return nearest <= 1.0f;
++}
++
++float AirburstModelDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit)
++{
++    float nearest2 = 8.0f*8.0f;
++    for (int index = 0; auto *node = model->GetNode(index); ++index)
++    {
++        CVECTOR center, box, local;
++        if (!AirburstNodeBox(node, center, box)) continue;
++        node->glob_mtx.MulToInv(burst, local);
++        const CVECTOR point(std::clamp(local.x, center.x-box.x*.5f, center.x+box.x*.5f),
++                            std::clamp(local.y, center.y-box.y*.5f, center.y+box.y*.5f),
++                            std::clamp(local.z, center.z-box.z*.5f, center.z+box.z*.5f));
++        const CVECTOR worldPoint = node->glob_mtx * point;
++        const float distance2 = ~(burst-worldPoint);
++        if (distance2 < nearest2) { nearest2 = distance2; hit = worldPoint; }
++    }
++    return sqrtf(nearest2);
 +}
 +
 +// Adapt the engine Sphere::Intersection projection to a bounded CVECTOR sweep.
@@ -87,33 +173,6 @@
 +    return start >= 0.0f && start <= 1.0f;
 +}
 +
-+bool AirburstFortEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &gun, float &entry)
-+{
-+    const auto delta = dst-src;
-+    const float length2 = ~delta;
-+    if (length2 < 1e-8f) return false;
-+    const float minHeight = gun.y + 4.0f;
-+    float overheadStart = 0.0f;
-+    if (src.y < minHeight)
-+    {
-+        if (delta.y <= 0.0f) return false;
-+        overheadStart = (minHeight-src.y) / delta.y;
-+        if (overheadStart > 1.0f) return false;
-+    }
-+    const auto overheadSrc = src + delta*overheadStart;
-+    const auto overheadDelta = dst-overheadSrc;
-+    const float overheadLength2 = ~overheadDelta;
-+    if (overheadLength2 < 1e-8f) return false;
-+    const auto toGun = gun-overheadSrc;
-+    constexpr float radius2 = 22.0f*22.0f;
-+    if (~toGun <= radius2) { entry = overheadStart; return true; }
-+    const float projection = (overheadDelta | toGun) / overheadLength2;
-+    const float halfChord2 = (radius2 - (~toGun - projection*projection*overheadLength2)) / overheadLength2;
-+    if (halfChord2 < 0.0f) return false;
-+    const float overheadEntry = projection - sqrtf(halfChord2);
-+    entry = overheadStart + (1.0f-overheadStart)*overheadEntry;
-+    return overheadEntry >= 0.0f && overheadEntry <= 1.0f && (src+delta*entry).y >= minHeight;
-+}
 +}
 +
 +bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments)
@@ -123,6 +182,7 @@
 +    float armedStart = 0.0f;
 +    if (!AirburstArmedStart(src, dst, ball.vFirstPos, armedStart)) return false;
 +    const CVECTOR armedSrc = src + (dst-src)*armedStart;
++    const float radius = AirburstRadius(ball);
 +    float nearest = 2.0f;
 +    const auto ships = core.GetEntityIds(SHIP_CANNON_TRACE);
 +    for (const auto id : ships)
@@ -131,12 +191,8 @@
 +        if (!ship || ship->isDead() || !ship->GetACharacter() || !ship->GetModel() ||
 +            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
 +            continue;
-+        CVECTOR localSrc, localDst;
-+        if (!ship->GetMatrix() || ship->GetBoxsize().x <= 0.0f || ship->GetBoxsize().z <= 0.0f) continue;
-+        ship->GetMatrix()->MulToInv(armedSrc, localSrc);
-+        ship->GetMatrix()->MulToInv(dst, localDst);
 +        float entry = 0.0f;
-+        if (AirburstEntry(localSrc, localDst, ship->GetBoxsize(), entry))
++        if (AirburstModelEntry(ship->GetModel(), armedSrc, dst, radius, entry))
 +            nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
 +    }
 +    auto *forts = AIFort::pAIFort;
@@ -148,34 +204,39 @@
 +            if (!fort->GetModel() || !fort->GetACharacter() || !fort->isNormalMode() ||
 +                static_cast<int32_t>(fort->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
 +                continue;
-+            for (uint32_t c = 0; c < fort->GetAllCannonsNum(); ++c)
-+            {
-+                auto *gun = fort->GetCannon(c);
-+                float entry = 0.0f;
-+                if (!gun->isDamaged() && AirburstFortEntry(armedSrc, dst, gun->GetPos(), entry))
-+                    nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
-+            }
++            float entry = 0.0f;
++            if (AirburstModelEntry(fort->GetModel(), armedSrc, dst, radius, entry))
++                nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
 +        }
 +    }
 +    if (nearest > 1.0f) return false;
 +    CVECTOR burst = src + (dst-src) * nearest;
-+    // Land and masonry remain real blockers; never detonate through an island.
-+    if ((pIsland && pIsland->Trace(src, burst) < 1.0f) ||
-+        (AIFort::pAIFort && AIFort::pAIFort->Trace(src, burst) < 1.0f))
++    // Contact before proximity (even before arming) keeps the ordinary bomb path.
++    if ((pIsland && pIsland->Trace(src, burst) <= 1.0f) ||
++        (pSea && pSea->Trace(src, burst) <= 1.0f) ||
++        (forts && forts->Trace(src, burst) <= 1.0f))
 +        return false;
++    for (const auto id : ships)
++    {
++        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
++        if (ship && !ship->isDead() && ship->GetACharacter() && ship->GetModel() &&
++            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) != ball.iBallOwner &&
++            ship->Trace(src, burst) <= 1.0f) return false;
++    }
 +    ball.vPos = burst;
 +    if (ball.pParticle) ball.pParticle->SetEmitter(burst, !(src-dst));
 +    AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
-+    // A bounded fan reaches cloth both above and below the low deck burst.
++    AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
++    // Eight bounded directions reach cloth throughout the 8m blast sphere.
 +    // Hull/crew blast remains one radial hit per ship, not one hit per fragment.
 +    if (pSail)
 +    {
 +        for (int fragment = 0; fragment < 8; ++fragment)
 +        {
 +            const float angle = fragment * 2.399963f;
-+            const float radius = 8.0f + fragment * 2.5f;
-+            const float height = fragment < 4 ? 24.0f : -24.0f;
-+            const CVECTOR end = burst + CVECTOR(cosf(angle)*radius, height, sinf(angle)*radius);
++            const float vertical = 1.0f - 2.0f * (fragment + 0.5f) / 8.0f;
++            const float horizontal = sqrtf(1.0f-vertical*vertical);
++            const CVECTOR end = burst + CVECTOR(cosf(angle)*horizontal, vertical, sinf(angle)*horizontal)*8.0f;
 +            if ((pIsland && pIsland->Trace(burst, end) < 1.0f) ||
 +                (AIFort::pAIFort && AIFort::pAIFort->Trace(burst, end) < 1.0f)) continue;
 +            pSail->SetCannonTraceRadius(0.35f);
@@ -189,16 +250,18 @@
 +    for (int fragment = 0; fragment < 16; ++fragment)
 +    {
 +        BALL_PARAMS shot{};
-+        const float angle = fragment * 2.399963f;
-+        const float drop = 0.30f + (fragment % 4) * 0.12f;
++        const int pair = fragment / 2;
++        const float angle = pair * 2.399963f;
++        const float vertical = (pair + 0.5f) / 8.0f;
++        const float sign = fragment % 2 ? -1.0f : 1.0f;
 +        shot.vFirstPos = shot.vPos = burst;
 +        shot.iBallOwner = ball.iBallOwner;
 +        shot.sBallEvent = "@airburst-fragment";
 +        shot.fSpeedV0 = 24.0f;
-+        shot.fDirX = cosf(angle);
-+        shot.fDirZ = sinf(angle);
-+        shot.fSinAngle = -drop;
-+        shot.fCosAngle = sqrtf(1.0f-drop*drop);
++        shot.fDirX = sign*cosf(angle);
++        shot.fDirZ = sign*sinf(angle);
++        shot.fSinAngle = sign*vertical;
++        shot.fCosAngle = sqrtf(1.0f-vertical*vertical);
 +        shot.fHeightMultiply = shot.fSizeMultiply = shot.fTimeSpeedMultiply = 1.0f;
 +        shot.dwCannonType = ball.dwCannonType;
 +        fragments.push_back(shot);
@@ -211,36 +274,28 @@
 +        if (!ship || ship->isDead() || !ship->GetACharacter() || !ship->GetModel()) continue;
 +        const int32_t target = ship->GetACharacter()->GetAttributeAsDword("index");
 +        if (target == ball.iBallOwner) continue;
-+        if (!ship->GetMatrix() || ship->GetBoxsize().x <= 0.0f || ship->GetBoxsize().z <= 0.0f) continue;
-+        CVECTOR local;
-+        ship->GetMatrix()->MulToInv(burst, local);
-+        const auto box = ship->GetBoxsize();
-+        const CVECTOR deckPoint(std::clamp(local.x, -box.x*.5f, box.x*.5f),
-+                                std::clamp(box.y*.15f, 3.0f, 9.0f),
-+                                std::clamp(local.z, -box.z*.5f, box.z*.5f));
-+        const float power = std::max(0.0f, 1.0f - ~(local-deckPoint)/(32.0f*32.0f));
-+        if (power <= 0.0f) continue;
-+        const CVECTOR hit = *ship->GetMatrix() * deckPoint;
++        CVECTOR hit;
++        const float distance = AirburstModelDistance(ship->GetModel(), burst, hit);
++        if (distance >= 8.0f) continue;
 +        if ((pIsland && pIsland->Trace(burst, hit) < 1.0f) ||
 +            (AIFort::pAIFort && AIFort::pAIFort->Trace(burst, hit) < 1.0f)) continue;
-+        AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", power);
++        AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", distance);
 +        AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
 +        core.Event(SHIP_HULL_HIT, "illffflf", id, ball.iBallOwner, target,
 +                   hit.x, hit.y, hit.z, -1, 1e8f);
 +    }
-+    AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
 +    if (AIFort::pAIFort)
 +    {
 +        AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
 +        AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
-+        AIFort::pAIFort->AddFortHit(ball.iBallOwner, burst, 32.0f, pIsland);
++        AIFort::pAIFort->AddFortHit(ball.iBallOwner, burst, 8.0f, pIsland);
 +    }
 +    return true;
 +}
  
  AIBalls *AIBalls::pAIBalls = nullptr;
  
-@@ -26,6 +249,7 @@
+@@ -26,6 +304,7 @@
          for (j = 0; j < pBallsType->Balls.size(); j++)
          {
              auto *pBall = &pBallsType->Balls[j];
@@ -248,7 +303,7 @@
              if (pBall->pParticle)
              {
                  STORM_DELETE(pBall->pParticle);
-@@ -163,6 +387,9 @@
+@@ -163,6 +442,9 @@
      CVECTOR vSrc, vDst;
      entid_t EID;
  
@@ -258,7 +313,7 @@
      if (!pIsland && (EID = core.GetEntityId("island")))
          pIsland = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
      if (!pSail && (EID = core.GetEntityId("sail")))
-@@ -189,6 +416,15 @@
+@@ -189,6 +471,15 @@
              auto *pBall = &pBallsType->Balls[j];
  
              vSrc = pBall->vPos;
@@ -268,13 +323,13 @@
 +            // An unarmed/direct shell uses the ordinary native Bombs contract,
 +            // including forts and rigging. Only the radial burst changes goods.
 +            AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
-+            AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
++            AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
 +            AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
 +            AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
  
              AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
              AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
-@@ -217,7 +453,7 @@
+@@ -217,7 +508,7 @@
  
              vDst = pBall->vPos;
  
@@ -283,7 +338,7 @@
                  core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
                             pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
                             vSrc.z);
-@@ -229,6 +465,29 @@
+@@ -229,6 +520,29 @@
              }
  
              float fRes = 2.0f;
@@ -313,7 +368,7 @@
  
              CVECTOR v1 = mView * vSrc;
              CVECTOR v2 = mView * vDst;
-@@ -260,7 +519,7 @@
+@@ -260,7 +574,7 @@
              else if (storm::iEquals(pBallsType->sName, "Grapes"))
                  fRigRadius = 0.35f * pBall->fSizeMultiply;
  
@@ -322,7 +377,7 @@
              {
                  pSail->SetCannonTraceRadius(fRigRadius);
                  pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
-@@ -270,6 +529,7 @@
+@@ -270,6 +584,7 @@
              auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
              for (auto ent_id : entities)
              {
@@ -330,7 +385,7 @@
                  if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                  {
                      pShip->SetCannonTraceRadius(fRigRadius);
-@@ -281,23 +541,23 @@
+@@ -281,23 +596,23 @@
              }
  
              // fort trace
@@ -358,7 +413,7 @@
                  {
                      core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
                                 pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
-@@ -318,17 +578,34 @@
+@@ -318,17 +633,34 @@
                  continue;
              }
  
@@ -397,7 +452,7 @@
          }
      }
  }
-@@ -536,7 +813,8 @@
+@@ -536,7 +868,8 @@
                  if (auto eidParticle = core.GetEntityId("particles"))
                  {
                      pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
@@ -407,22 +462,6 @@
                          pB.vPos.y, pB.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
                  }
              }
---- a/src/libs/sea_ai/src/ai_cannon.cpp
-+++ b/src/libs/sea_ai/src/ai_cannon.cpp
-@@ -56,7 +56,12 @@
-     vTemp.y = 0.0f;
-     const double fDistance = sqrtf(~vTemp);
-     const auto g = static_cast<double>(AIHelper::fGravity);
--    const double fHeight = (vEnemy.y - vOur.y);
-+    // Stable cargo ID51 is GOOD_AIRBURST. The shared angle solver drives both
-+    // real fire and manual trajectory previews, keeping their flight identical.
-+    auto *character = pAHolder ? pAHolder->GetACharacter() : nullptr;
-+    auto *charge = character ? character->FindAClass(character, "Ship.Cannons.Charge") : nullptr;
-+    const double lift = charge && charge->GetAttributeAsDword("Type") == 51 && fDistance >= 35.0 ? 8.0 : 0.0;
-+    const double fHeight = (vEnemy.y - vOur.y) + lift;
-     const double a = SQR(g) / 4.0f;
-     const double b = (fHeight * g - SQR(_fSpeedV0));
-     const double c = SQR(fHeight) + SQR(fDistance);
 --- a/src/libs/sea_ai/src/ai_fort.h
 +++ b/src/libs/sea_ai/src/ai_fort.h
 @@ -276,7 +276,6 @@
@@ -486,6 +525,30 @@
  
              // VDATA * pVData = core.Event(FORT_CANNON_DAMAGE, "llallfffff", iCharacterIndex,
              // GetIndex(pF->GetACharacter()), pF->pFortLabelAP, pF->GetAllCannonsNum(), pF->GetDamagedCannonsNum(),
+--- a/src/libs/rigging/src/sailone.cpp
++++ b/src/libs/rigging/src/sailone.cpp
+@@ -1670,6 +1670,10 @@
+             if (pVai != nullptr && pVai->GetACharacter() != nullptr)
+                 charIdx = pVai->GetACharacter()->GetAttributeAsDword("index");
+             if (charIdx != -1)
++            {
++                const CVECTOR hit = *pMatWorld * (src + (dst-src)*retVal);
++                core.Event("Ball_AirburstSailDistance", "f", sqrtf(~(hit - (*pMatWorld * src))));
+                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
+                            ss.holeCount, GetHoleDword(), 12, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
++            }
+         }
+@@ -1729,6 +1733,10 @@
+             if (pVai != nullptr && pVai->GetACharacter() != nullptr)
+                 charIdx = pVai->GetACharacter()->GetAttributeAsDword("index");
+             if (charIdx != -1)
++            {
++                const CVECTOR hit = *pMatWorld * (src + (dst-src)*retVal);
++                core.Event("Ball_AirburstSailDistance", "f", sqrtf(~(hit - (*pMatWorld * src))));
+                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
+                            ss.holeCount, GetHoleDword(), 10, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
++            }
+         }
 --- a/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 +++ b/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 @@ -369,7 +369,7 @@

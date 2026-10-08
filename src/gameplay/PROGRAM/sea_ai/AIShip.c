@@ -3277,9 +3277,10 @@ void Ship_HullHitEvent()
 	ref rCannon = GetCannonByType(sti(rBallCharacter.Ship.Cannons.Type));
 	float fCannonDamageMultiply = stf(rCannon.DamageMultiply);
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
-	if (airburst) fCannonDamageMultiply *= stf(AIBalls.CurrentAirburstPower);
+	if (airburst) fCannonDamageMultiply *= Ball_AirburstPower(stf(AIBalls.CurrentAirburstDistance));
 
 	float fDistanceDamageMultiply = Bring2Range(1.2, 0.25, 0.0, stf(AIBalls.CurrentMaxBallDistance), stf(AIBalls.CurrentBallDistance));
+	if (airburst) fDistanceDamageMultiply = 1.0;
 
     if (sti(rBallCharacter.TmpPerks.CriticalShoot) && rand(19)==10) { bSeriousBoom = true; }		// +5%
 	if (sti(rBallCharacter.TmpPerks.CannonProfessional) && rand(9)==4) { bSeriousBoom = true; }		// +10%
@@ -3331,7 +3332,7 @@ void Ship_HullHitEvent()
 	fCrewDamageMultiply = Bring2Range(0.35, 1.0, 0.35, 0.8, (1 - fCrewHullProtection));	*/
 	// evganat - убрал формулу Жиляева, добавил новую функцию
 	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15) * GetCrewDamageReduction(rOurCharacter);
-	// Downward fragments reach the exposed deck; hull armour still protects direct hits.
+	// Airburst fragments reach exposed crew; hull armour still protects direct hits.
 	if (airburst) fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15);
 	fCrewDamage = Ship_AmmoCrewLoss(rOurCharacter, fCrewDamage);
 	// <<<---	ZhilyaevDm

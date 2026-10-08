@@ -2,6 +2,16 @@
 
 ## Status
 
+The October 8 correction replaces the elevated slab/gun fuze with a swept sphere
+whose threshold varies from1–7m per shell, removes both the8m aim lift and special
+arc multiplier, and gives all burst damage one2m-full/8m-zero quadratic curve.
+Initial fragments and the fire/smoke burst spread in every direction. Final
+production validation, canonical delivery and actual sea replay remain separate
+gates. The current aim integration owner serializes native build and staging;
+this source candidate does not accept an installed sea salvo.
+
+### Earlier delivery evidence (historical)
+
 The first installed version40c8c300 was rejected by player replay: no overhead
 burst and misplaced shop rows. Corrected source4d42729 is now installed through
 canonical stage-only as signed enginefcce6e7b, together with adaptive fencing.
@@ -44,31 +54,63 @@ all earlier navigator, named nation, spyglass and sailing cells stay unchanged.
 Drawn sources and exact prepared atlas bytes belong to
 `src/assets/ui/manifest.json`; all original pixels outside those cells stay intact.
 
-A shell arms after 35 metres and bursts inside a ship's oriented
-overhead volume. The volume follows the current native ship transform and hull
-bounds; segment/slab intersection prevents a long frame from skipping it. The
-shooter and dead/unmounted targets do not trigger it. Rising and falling shells
-can enter the overhead volume; a stationary segment cannot. The shared native
-`AICannon::CalcHeightFireAngle` adds8m of aim height for cargo51 at ranges of at
-least35m. Both real firing and manual trajectory preview use this solver. Islands
-and masonry block the flight and fragment damage. The ship volume now spans
-1–7m above its existing deck estimate, instead of4–14m; its footprint, oriented
-transform, arming and swept intersection remain unchanged. Fort sphere geometry
-and its gun-relative4m minimum remain unchanged.
+A shell arms after35 metres and bursts when its swept proximity sphere reaches
+a ship or normal fort model volume. Each shell has a continuous1–7m threshold,
+derived with FNV-1a from immutable serialized launch position, velocity/angles,
+owner and cannon type. The value remains fixed in flight and across save/load;
+it neither consumes global RNG state nor adds a projectile field. Existing gun
+positions and shot dispersion vary these inputs; identical launches share a
+threshold. Each collision-enabled node supplies its real
+`GEOS::INFO.boxcenter`, `boxsize` and current `glob_mtx`; disabled nodes and
+disabled ancestor trace trees are excluded. The union includes present hull,
+mast and yard nodes without treating all empty rigging space as one solid box.
+These are geometry bounds, not an exact triangle-distance query: a tapered bow
+can still occupy less space than its node box. Sails remain the existing cloth
+damage consumer, not a new solid proximity volume.
 
-Fort proximity uses world cannon locators: a swept22m sphere around an undamaged
-gun in a normal fort, restricted to at least4m above that gun. The nearest ship
-or fort trigger wins. Both queries share35m arming-segment clipping, including
-a long frame crossing the arming boundary inside the target volume. Own,
-missing-model, already destroyed and non-normal forts do not trigger it.
-The32m fort blast reuses `AIFort::AddFortHit`, its gun-damage callback and
+The sphere remains spherical at edges/corners. Squared point-to-box distance is
+piecewise quadratic; splitting the segment at its six possible face crossings
+finds the earliest entry and prevents a long frame from skipping the radius.
+The nearest ship or fort trigger wins. Both use35m arming-segment clipping;
+stationary segments, own/dead/missing-model ships and own/missing/non-normal forts
+do not trigger. Fort geometry remains present after a gun is damaged.
+Pure island, fort, non-own ship and water traces over the original segment to
+the candidate burst run before any effect or damage. Earlier or equal contact
+rejects the burst and retains ordinary-bomb collision, including a contact
+before the arming boundary.
+
+`AICannon::CalcHeightFireAngle` uses ordinary target height for every charge.
+`Ball_GetHeightMultiply` gives airbursts the same0.70 multiplier as ordinary
+bombs, replacing the former1.15 special branch. There is no airburst-specific
+lift or separate targeting solver; current speed, gravity and dispersion still
+determine the ordinary flight.
+Real firing and manual preview keep their shared solver. A trajectory above the
+deck can burst overhead; a lower approach can burst beside the hull. Proximity
+alone does not guarantee an overhead burst. Islands and masonry still shield
+the existing fragment/radial damage.
+
+The8m fort blast reuses `AIFort::AddFortHit`, its gun-damage callback and
 `PersistFortCannons`. Visibility to the exposed muzzle excludes masonry/terrain
 shielded guns; ordinary contact callers retain their original radius and path.
 
 A burst makes one hull/crew hit per live nearby ship through `SHIP_HULL_HIT`.
-Power falls quadratically to zero at 32 metres from the nearest deck point.
-Eight fragment sweeps use the existing sail-cloth damage owner: four upwards
-and four downwards, so a low deck burst can still hit cloth above it. Nearby
+Its distance is measured to the nearest point in the same enabled model-node
+volumes, including their real centers/transforms, replacing the estimated deck.
+`Ball_AirburstPower` owns the curve for hull, crew, sails and fort guns: full
+catalogue damage at distances≤2m, `((8-distance)/6)^2` between2m and8m, and zero
+at distances≥8m. Thus3m gives69.44%,5m25%, and7m2.78%, before the retained cannon,
+perks and defence modifiers. Native code bounds dispatch at8m but does not own a
+second curve.
+Eight normalized spherical fragment sweeps use the existing sail-cloth damage
+owner within8m. Before each rectangular/triangular cloth damage callback,
+`Ball_AirburstSailDistance` records that sail's actual world hit distance; the
+script curve replaces ordinary flight-range scaling for a detonated airburst.
+The native callback leaves the existing `DoSailHole` arguments unchanged.
+`ProcessSailDamage` reconciles excess native contact holes through the existing
+repair primitive instead of raising a weak burst's damage to the ordinary
+hole-count floor. Previous accumulated damage remains; ordinary impacts retain
+their existing floor.
+Nearby
 friendly ships receive the same damage; the firing ship is excluded. Crew damage
 retains captain/doctor defences but bypasses hull protection for the overhead
 burst. Direct hits, including forts and rigging, keep ordinary-bomb damage.
@@ -78,8 +120,8 @@ bombs' hull19.5, grapes' crew0.6% and knippels' rigging12.6 respectively. Crew
 percentages use the target's current crew before the retained modifiers; the
 shared conversion and old-save reconciliation belong to `naval-crew-damage.md`.
 These values supersede the earlier67.5/14/8 balance. Direct contacts retain ordinary-bomb
-fallback. Fort airbursts use a separate `DamageFort`
-coefficient180 with quadratic32m falloff, independent of ship hull damage.
+fallback. Fort airbursts retain the separate `DamageFort` coefficient180 and use
+the same2–8m distance curve, independent of ship hull damage.
 Cost is480 per goods
 unit (eight times ordinary bombs), reload takes 1.65 times as long, and speed 0.8
 keeps range below round shot. Shop stock is bounded to 40–120, derived from one
@@ -91,12 +133,19 @@ gate for table prices, quantity editing and the final transaction, including
 non-colony/generated shops. The later unlock quest is explicitly deferred.
 A failed overhead approach does not grant radial damage.
 
-Visuals reuse the authored `bomb_smoke`, `blast`, `ShipExplode` and `CreateBlast`
-owners. `ShipExplode` supplies fire, smoke trails and gravity-driven fire traces.
-Every shell has a blast; heavy fire/smoke and explosion audio are capped to one
-start per 120 ms per live balls environment. Each shell also emits16 ballistic
+Visuals reuse `bomb_smoke` and the authored finite `blast_inv` fire/smoke burst.
+Four systems face tetrahedral directions, so their wide cones cover the sphere
+instead of one upward plume. Each emitter ends after0.30s and caps at five fire
+plus five smoke particles:40 total per bomb. Fire flashes/expands for0.29s; smoke
+persists about4–6s under the stock friction/gravity. Random density is not
+mathematically uniform, and the stock smoke has no buoyancy. Only explosion audio
+is capped to one start per120ms; every shell gets the full finite visual burst.
+`CreateBlast` is removed from this effect: its native owner emits wooden debris
+and swimmer-body models, not a flash. The upward `ShipExplode` is also removed.
+Each shell also emits16 ballistic
 cosmetic fragments using the existing grapeshot atlas cell and `grapes_tracer`.
-They spread downward at24m/s under the ordinary native ball gravity. The enlarged
+They start at24m/s in eight opposite direction pairs across the sphere, then
+follow ordinary native ball gravity. The enlarged
 0.30m sprites and authored tracers are visual feedback; they cause no additional
 hull, crew, fort or cloth damage. The eight original cloth sweeps remain the
 damage owner. Ship, island and fort geometry absorb the cosmetics through pure
@@ -109,7 +158,7 @@ Fragments are queued until the active ball iteration finishes, then appended to
 the existing Bombs lane. This prevents a broadside from invalidating the bursting
 ball's vector reference. They stop and release their tracer at impact or after
 3s of projectile time; environment destruction keeps the existing ball cleanup.
-There is no renderer/shader replacement or new texture. Actual appearance and
+There is no renderer/shader replacement or new asset. Actual appearance and
 frame cost require a sea replay.
 
 ## Owners and compatibility
@@ -117,11 +166,13 @@ frame cost require a sea replay.
 - `experiments/native-metal/airburst-shell.patch`: native fuze, bounded fragment
   sweep, radial dispatch, and selector-note consumption.
 - `src/gameplay/PROGRAM/sea_ai/AIBalls.c`: flight marker, arc and burst VFX.
+- `Ball_AirburstPower` in that script owns all burst distance scaling;
+  `BattleInterface.c::GetRigDamage`, `AIShip.c` and `AIFort.c` consume it.
 - `src/gameplay/PROGRAM/sea_ai/AIShip.c`: radial damage through existing crime,
   kill-credit, hull, crew and gun-damage consumers.
 - `src/gameplay/PROGRAM/sea_ai/AICannon.c`: reload multiplier and the ordinary
   bomb target-height alias. Manual aim already queries the actual scripted
-  height multiplier, so the higher arc has one owner.
+  height multiplier and the same native solver as real fire.
 - `src/gameplay/PROGRAM/store/`: catalogue, missing-row initialization and saved
   Bermuda-only trade policy; existing empty/disabled stock is preserved.
 - `src/gameplay/PROGRAM/interface/store.c`: display-only goods ordering; row
@@ -154,6 +205,39 @@ same initializer. Sea/non-colony stores receive no newly invented stock; an
 existing special row still receives the outside-Bermuda trade policy.
 
 ## Evidence and remaining replay
+
+The disposable proximity-design probe uses actual old solver/flight equations
+and native CVECTOR/CMatrix with ASan/UBSan. It reproduces ordinary targety2 versus
+lifted airbursty10 at100m, and an ordinary approach inside5m of the hull that the
+old slab rejects. The candidate radius checks cover tangent5/miss5.001, rounded
+corner rejection, shifted centers, rotation/pitch/roll, long steps, arming inside
+a target, node unions/disabled trees and earlier/equal contact precedence.
+The earlier fixed5m production Entry/ModelEntry/ArmedStart/TryAirburst functions passed47
+ASan/UBSan cases, including guard rejection and earlier/equal hull/island/fort/
+water contact. The exact new patch applies after reversing the old patch in an
+isolated current-source copy; projectile Save/Load bodies remain byte-identical.
+That receipt is superseded for variable-radius/damage/VFX acceptance. The new
+source retains contact/arming logic and unchanged binary Save/Load bodies;
+new production and script evidence must cover the1–7m seed,2–8m shared curve,
+cloth distance bridge, spherical fragments and ordinary-next-shot reset.
+The variable-radius production functions pass71 ASan/UBSan checks, including
+actual binary Save/Load round trips, unchanged global RNG, transformed model
+distance, contact precedence,8m dispatch and16 antipodal cosmetic directions.
+Triangle contacts and model/event dependencies are stubbed; this proves the
+changed native functions, not a scene. The actual script VM also executes the
+single production curve at0/2/3/5/7/8/20m through two VM serializer rounds with
+zero errors. The full production `ProcessSailDamage`, `GetRigDamage`, shared curve
+and actual hole quantization pass22 native-VM assertions seeded with existing
+damage20/two holes/SP100. At8–9m they preserve that state and remove only the
+extra contact-hole count; at7m damage becomes20.7 instead of the old floor30;
+at2m it becomes45.2. Ordinary bombs retain the30-damage floor. The same fixture
+rejects the old handler at the zero8m oracle. Native hole-changing primitives
+and the SP base are state-updating stubs; the fixture does not prove pixels.
+Canonical native build/delivery and actual sea replay remain separate gates.
+The maintained alternative is [Geometric Tools moving sphere/box](https://www.geometrictools.com/Documentation/IntersectionMovingSphereBox.pdf);
+its full math dependency is unnecessary for this bounded local distance model.
+The old slab and gun sphere are superseded by the current Contract above; earlier
+solver/fort evidence below documents their historical scope.
 
 Disposable native-VM checks pass catalogue/selector expansion, retained ordinary
 goods and cargo, missing/depleted/disabled shop rows, fresh initialization and a
@@ -241,7 +325,7 @@ the integration owner's runtime/compiler checks.
 
 Canonical build/staging and full PROGRAM compilation pass under the integration
 owner. Gameplay acceptance requires an existing-save shop purchase/selection,
-an above-target burst with resulting hull/crew/sail state, nearby-friendly risk,
+a5m target-proximity burst with resulting hull/crew/sail state, nearby-friendly risk,
 an unarmed ordinary-bomb impact, and a neighboring ordinary-bomb shot. Stock
 effects alone do not prove the requested spectacle or game FPS. Runtime attempts
 and the consuming engine/content hashes belong to `docs/runtime.md`.

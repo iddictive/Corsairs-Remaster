@@ -2025,8 +2025,17 @@ ref ProcessSailDamage()
 			}
 			else
 			{
-				float holeDmg = GetNeedDmgFromHole(holeCount,sailDmgMax,maxHoleCount);
-				if (holeDmg > sailDmg) { sailDmg = holeDmg; }
+				if (sti(AIBalls.CurrentBallType) == GOOD_AIRBURST && sti(AIBalls.CurrentAirburstDetonated))
+				{
+					// Native contact holes must not impose a damage floor on a weak burst.
+					holeData = DeleteOneSailHole(chrIdx, groupName, reyName, holeData, holeCount-needHole);
+					holeCount = needHole;
+				}
+				else
+				{
+					float holeDmg = GetNeedDmgFromHole(holeCount,sailDmgMax,maxHoleCount);
+					if (holeDmg > sailDmg) { sailDmg = holeDmg; }
+				}
 			}
 		}
 	}
@@ -2549,6 +2558,8 @@ float GetRigDamage(int shootIdx, int iBallType, ref damage_chr)
 {
 	ref rBall = GetGoodByType(iBallType);
 	float fDistanceDamageMultiply = Bring2Range(1.2, 0.25, 0.0, stf(AIBalls.CurrentMaxBallDistance), stf(AIBalls.CurrentBallDistance));
+	if (iBallType == GOOD_AIRBURST && sti(AIBalls.CurrentAirburstDetonated))
+		fDistanceDamageMultiply = Ball_AirburstPower(stf(AIBalls.CurrentAirburstDistance));
 	float fDmgRig = fDistanceDamageMultiply * stf(rBall.DamageRig);
 	//float fDmgRig = stf(rBall.DamageRig);
     if (shootIdx>=0 )

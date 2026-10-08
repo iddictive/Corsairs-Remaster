@@ -18,6 +18,7 @@ void DeleteBallsEnvironment()
 	DelEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera");
 	DelEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion");
 	DelEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady");
+	DelEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance");
 }
 
 void CreateBallsEnvironment()
@@ -32,6 +33,8 @@ void CreateBallsEnvironment()
 	AIBalls.BallFlySoundDistance = 15.0;
 	AIBalls.BallFlySoundStereoMultiplyer = 2.0;
 	AIBalls.AirburstFxBusy = false;
+	AIBalls.CurrentAirburstDetonated = false;
+	AIBalls.CurrentAirburstDistance = 0.0;
 
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
 	AIBalls.Texture = "AllBalls.tga";
@@ -70,6 +73,22 @@ void CreateBallsEnvironment()
 	SetEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera", 0);
 	SetEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion", 0);
 	SetEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady", 0);
+	SetEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance", 0);
+}
+
+float Ball_AirburstPower(float distance)
+{
+	if (distance <= 2.0) return 1.0;
+	if (distance >= 8.0) return 0.0;
+	float remaining = (8.0 - distance) / 6.0;
+	return remaining * remaining;
+}
+
+void Ball_AirburstSailDistance()
+{
+	float distance = GetEventData();
+	if (sti(AIBalls.CurrentBallType) == GOOD_AIRBURST && sti(AIBalls.CurrentAirburstDetonated))
+		AIBalls.CurrentAirburstDistance = distance;
 }
 
 void Ball_AirburstFxReady()
@@ -83,14 +102,16 @@ void Ball_AirburstExplosion()
 	float x = GetEventData();
 	float y = GetEventData();
 	float z = GetEventData();
-	CreateBlast(x, y, z);
-	CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
-	// Dense broadsides keep every blast, while heavy fire/smoke stays bounded.
+	// Four finite authored cones cover the sphere; every shell gets fire and smoke.
+	CreateParticleSystem("blast_inv", x, y, z, 0.9553166, 0.7853982, 0.0, 0);
+	CreateParticleSystem("blast_inv", x, y, z, 0.9553166, -2.3561945, 0.0, 0);
+	CreateParticleSystem("blast_inv", x, y, z, 2.1862760, 2.3561945, 0.0, 0);
+	CreateParticleSystem("blast_inv", x, y, z, 2.1862760, -0.7853982, 0.0, 0);
+	// Audio stays bounded during dense broadsides.
 	if (!sti(AIBalls.AirburstFxBusy))
 	{
 		AIBalls.AirburstFxBusy = true;
 		PostEvent("Ball_AirburstFxReady", 120);
-		CreateParticleSystem("ShipExplode", x, y, z, 0.0, 0.0, 0.0, 0);
 		Play3DSound("ship_explosion", x, y, z);
 	}
 }
@@ -113,7 +134,6 @@ float Ball_GetHeightMultiply(aref aCharacter)
 	float fCannonHeightMultiply = stf(rCannon.HeightMultiply);
 
 	int iChargeType = sti(aCharacter.Ship.Cannons.Charge.Type);
-	if (iChargeType == GOOD_AIRBURST) return fCannonHeightMultiply * 1.15;
 	if (iChargeType != GOOD_KNIPPELS)
 	{
 		fCannonHeightMultiply *= 0.70; // Красивая навесная дуга вместо плоского луча
