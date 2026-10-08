@@ -2,10 +2,11 @@
 
 ## Status
 
-October 7 player feedback reopened action acceptance. The current source candidate
-adds live script ballistics, exact cloth range picks, automatic/manual raking and
-real mesh support for curved receivers. Native replay on the reported cliff,
-stern-on ally and sinking ship remains the acceptance owner.
+The October 7 cannon batch is installed, including the corrected shared event
+header; the player reached the current saved sea battle. Action acceptance remains
+open for the reported cliff, stern-on ally and sinking ship. A subsequent live
+manual-aim profile reopened performance acceptance; its source correction awaits
+the combined native build, installation and the same player aiming replay.
 
 ## Contract
 
@@ -127,6 +128,43 @@ non-depth-writing groups do no capture GPU work. Each visible registered group
 still adds one full-depth copy and one depth/token/color pass, in addition to own
 ship/water capture, the eligibility masks and full-viewport composite. Native
 profiling remains necessary with many ships and rigging groups.
+
+## Manual-aim CPU work
+
+The live October 7 profile of the installed cannon batch spent 1533/1951 main-thread
+samples in the manual overlay (78.6%). The dominant leaf work was BSP clipping,
+segment/model AABB tests and exact model traces; wave sampling was minor. These
+inclusive and leaf counts are different measurements and must not be added.
+
+`AimMarch` now rejects unrelated models once using a conservative full-parabola
+bound, including interior coordinate extrema and float roundoff. Original model
+IDs/order, per-segment AABB tests, exact `Trace`, water tests and all sampled paths
+remain. There is no reuse across frames, so moving hulls, camera and waves cannot
+leave stale first contacts. A one-off extracted-function comparison across 1000
+seeded scenes retained identical sampled segments, first-hit fraction/point/surface
+and end time, including submerged and generic unbounded receivers. Model AABB
+checks fell from 5,243,152 to 367,765; this is CPU work, not a measured FPS gain.
+
+`GEOM::Clip` owns a lazy local-space triangle AABB cache. BSP vertices and triangle
+indices are populated only during geometry construction; render vertex buffers
+and moving model matrices are separate. The cache dies with its `GEOM` owner and
+requires no frame invalidation. Plane signs and conservative error thresholds are
+prepared once per query. A wholly outside face is rejected only after the stock
+first-occurrence dedup mark, before vertex copying/clipping. Sphere, BSP traversal,
+callback order and polygon caps remain unchanged. Zero-plane queries retain stock
+behavior without building this cache.
+
+Rejected alternative: tightening the search sphere to the exact five-plane fan
+preserves uncapped polygon sets but changes first-occurrence order for duplicated
+BSP faces. On 640 queries each, it changed the capped 128-polygon set in 24 hull,
+four Nevis and one PortoBello cases. This can reintroduce missing coverage and is
+not used. The same-traversal reject instead preserved exact callback bytes/order
+and capped results across those 1920 queries; 1183 had more than 128 uncapped
+polygons. The final extracted function also preserves visited face/node counts;
+cold/warm cache, zero-plane, test-only and fully rejected queries pass. Its aggregate
+CPU timings improved by 7.4–15.8% across these geometries, separately from the
+curve/model prefilter. Initial cache construction plus query took 0.372–0.996 ms.
+Installed aiming FPS remains the final acceptance criterion.
 
 ## Preserved gameplay and limits
 

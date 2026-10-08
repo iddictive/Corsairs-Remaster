@@ -1,7 +1,10 @@
 diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -3,6 +3,7 @@
+@@ -1,8 +1,10 @@
+ #include <thread>
++#include <limits>
+ 
  #include "ai_balls.h"
  #include "ai_ship.h"
  #include "ai_fort.h"
@@ -9,7 +12,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  #include "cannon_trace.h"
  #include "sea_base.h"
  #include "island_base.h"
-@@ -11,7 +12,7 @@
+@@ -11,7 +13,7 @@
  #include "shared/sea_ai/script_defines.h"
  #include "math_inlines.h"
  
@@ -18,7 +21,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  
  float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
  float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
-@@ -22,7 +23,7 @@
+@@ -22,7 +24,7 @@
  }
  
  bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
@@ -27,7 +30,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  {
      const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
      if (!bEnoughBalls)
-@@ -43,6 +44,21 @@
+@@ -43,6 +45,21 @@
      vTempFirePos += CVECTOR(fRadius * sinf(fAng), 0.0f, fRadius * cosf(fAng));
      }
  
@@ -49,7 +52,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      const auto vTempFireDir = !(vTempFirePos - pOurAIShip->GetPos());
  
      core.Event(SHIP_BORT_FIRE, "lisffffff", GetIndex(GetAIShip()->GetACharacter()), GetAIShip()->GetShipEID(),
-@@ -52,7 +68,11 @@
+@@ -52,7 +69,11 @@
      bool fired = false;
      for (auto& cannon : bort.aCannons)
      {
@@ -62,7 +65,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
              continue;
          if (!cannon.isDamaged())
          {
-@@ -60,10 +80,10 @@
+@@ -60,10 +81,10 @@
  
              if (debugDrawToggle)
              {
@@ -77,7 +80,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      if (bApplyBortDelta || fired)
-@@ -78,7 +98,7 @@
+@@ -78,7 +99,7 @@
      MANUAL_AIM_SOLUTION solution;
      if (!BuildManualAimSolution(vFireCamPos, vFireDir, solution))
          return false;
@@ -86,7 +89,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      if (fired && manualTarget) *manualTarget = solution.character;
      return fired;
  }
-@@ -128,7 +148,7 @@
+@@ -128,7 +149,7 @@
              const auto &midCannon = cannons[cannons.size() / 2];
  
              // calc average real speed
@@ -95,7 +98,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
              const float fSpeedV = fRealSpeedV0 * cosf(fRealAng);
  
              // calc precise pos
-@@ -144,7 +164,7 @@
+@@ -144,7 +165,7 @@
                                                  ARGB(0xFF, 0x00, 0xFF, 0x00), float{});
              }
  
@@ -104,7 +107,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
              bortIt = GetNextFireBort(bortIt, vFirePos);
          }
      }
-@@ -361,7 +381,9 @@
+@@ -361,7 +382,9 @@
      const auto *gun=solution.guns.front();
      const CVECTOR muzzle=gun->GetPos(), flat=!(CVECTOR(solution.target.x-muzzle.x,0.f,solution.target.z-muzzle.z));
      const float speed=GetSpeedV0(),angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
@@ -115,7 +118,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      float lo=0.f,hi=curve.timeToHeight(-20.f);
      for(int i=0;i<24;++i){const float mid=(lo+hi)*.5f;if(((curve.at(mid)-muzzle)|flat)<fDistance)lo=mid;else hi=mid;}
      return curve.at((lo+hi)*.5f);
-@@ -689,11 +711,15 @@
+@@ -689,11 +712,15 @@
  {
      std::vector<AimModel> models;
      SEA_BASE *sea=nullptr;
@@ -131,7 +134,25 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          if(sea && sea->AttributesPointer)
              waveBound=std::max(1.f,sea->AttributesPointer->GetAttributeAsFloat("MaxSeaHeight",20.f));
          for(auto *ship:AIShip::AIShips)
-@@ -807,6 +833,23 @@
+@@ -744,11 +771,14 @@
+     }
+     float waterGap(const CVECTOR &p) const
+     { return p.y-(sea?sea->WaveXZ(p.x,p.z):0.f); }
+-    AimHit trace(const CVECTOR &a,const CVECTOR &b,int onlySurface=-1) const
++    AimHit trace(const CVECTOR &a,const CVECTOR &b,int onlySurface=-1,
++                 const std::vector<size_t> *candidates=nullptr) const
+     {
+         AimHit hit;
+-        for(size_t i=0;i<models.size();++i)
+-        {
++        const size_t count=candidates?candidates->size():models.size();
++        for(size_t n=0;n<count;++n)
++        {
++            const size_t i=candidates?(*candidates)[n]:n;
+             if(onlySurface>=0 && onlySurface!=int(i)+1)continue;
+             const auto &m=models[i];
+             if(!manual_aim::segmentBox(a,b,m.lo,m.hi))continue;
+@@ -807,6 +837,23 @@
          }
          return hit;
      }
@@ -155,7 +176,48 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  };
  struct AimPath
  {
-@@ -829,30 +872,64 @@
+@@ -822,37 +869,104 @@
+     const float limit=curve.timeToHeight(-world.waveBound-1.f);
+     if(!std::isfinite(limit)||limit<=0.f)return path;
+     const int steps=std::clamp(int(std::ceil(limit*curve.velocity.GetLength()/12.f)),24,128);
++    // Reject unrelated models once for the complete parabola. The old segment
++    // tests and exact Trace remain unchanged for every retained receiver.
++    const CVECTOR end=curve.at(limit);
++    CVECTOR lo=curve.origin,hi=curve.origin;
++    for(int axis=0;axis<3;++axis)
++    {
++        lo.v[axis]=std::min(lo.v[axis],end.v[axis]);
++        hi.v[axis]=std::max(hi.v[axis],end.v[axis]);
++        if(std::fabs(curve.acceleration.v[axis])>1e-12f)
++        {
++            const float turn=-curve.velocity.v[axis]/curve.acceleration.v[axis];
++            if(turn>0.f&&turn<limit)
++            {
++                const float value=curve.at(turn).v[axis];
++                lo.v[axis]=std::min(lo.v[axis],value);hi.v[axis]=std::max(hi.v[axis],value);
++            }
++        }
++        const float scale=std::max({1.f,std::fabs(curve.origin.v[axis]),
++            std::fabs(curve.velocity.v[axis]*limit),
++            std::fabs(curve.acceleration.v[axis]*.5f*limit*limit)});
++        const float margin=.001f+16.f*std::numeric_limits<float>::epsilon()*scale;
++        lo.v[axis]-=margin;hi.v[axis]+=margin;
++    }
++    std::vector<size_t> candidates;candidates.reserve(world.models.size());
++    const bool finite=manual_aim::finite(lo)&&manual_aim::finite(hi);
++    for(size_t i=0;i<world.models.size();++i)
++    {
++        const auto &model=world.models[i];
++        bool overlap=true;
++        if(finite)for(int axis=0;axis<3;++axis)
++            if(hi.v[axis]<model.lo.v[axis]||lo.v[axis]>model.hi.v[axis]){overlap=false;break;}
++        if(overlap)candidates.push_back(i);
++    }
+     const auto result=manual_aim::firstContact(curve,limit,steps,
+-        [&](const CVECTOR &from,const CVECTOR &to){return world.trace(from,to);});
++        [&](const CVECTOR &from,const CVECTOR &to){return world.trace(from,to,-1,&candidates);});
+     path.end=result.end;path.hit=result.hit;
+     return path;
  }
  float AimHeightScale(ATTRIBUTES *character)
  {
@@ -235,7 +297,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      const auto relation=Helper.GetRelation(own->GetACharacter(),character);
      if(relation==RELATION_ENEMY)return 0xFF665Du;
      if(relation==RELATION_FRIEND)return 0x69DE87u;
-@@ -868,6 +945,49 @@
+@@ -868,6 +982,49 @@
      uint32_t polygons=0;
  };
  thread_local AimRangeContext *aimRangeOutput=nullptr;
@@ -285,7 +347,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  bool AimCollectRangePolygon(const CVECTOR *v,int32_t count)
  {
      if(!aimRangeOutput||count<3)return true;
-@@ -1011,6 +1131,62 @@
+@@ -1011,6 +1168,62 @@
      const float elevation=gun.CalcHeightFireAngle(speed,muzzle,target);
      const float relative=elevation-GetBortHeightAngle(bort);
      return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
@@ -348,7 +410,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
  }
  
  bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const CVECTOR &direction,
-@@ -1053,7 +1229,7 @@
+@@ -1053,7 +1266,7 @@
      AimWorld world(GetAIShip());
      const float pickLength=range+(camera-GetAIShip()->GetPos()).GetLength()+world.waveBound;
      const CVECTOR forward=!direction;
@@ -357,7 +419,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      float selectedDepth=hit.valid?((hit.point-camera)|forward):pickLength;
      ATTRIBUTES *rangeCharacter=hit.character;
      // The invisible range region keeps its unzoomed angular support and grows
-@@ -1091,12 +1267,24 @@
+@@ -1091,12 +1304,24 @@
              pickLength*std::sqrt(.25f+tx*tx+ty*ty),AimCollectRangePolygon);
      }
      aimRangeOutput=nullptr;
@@ -383,7 +445,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          if(!real.valid)continue;
          const float actualDepth=(real.point-camera)|forward;
          if(manual_aim::insideRangeAperture(real.point-camera,forward,right,up,tx*1.0001f,ty*1.0001f)&&actualDepth<selectedDepth)
-@@ -1127,6 +1315,9 @@
+@@ -1127,6 +1352,9 @@
                  if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
          }
      }
@@ -393,7 +455,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
      if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
      return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
  }
-@@ -1137,16 +1328,25 @@
+@@ -1137,16 +1365,25 @@
      if(!BuildManualAimSolution(camera,direction,solution))return;
      AimWorld world(GetAIShip());
      const float speed=GetSpeedV0(),height=AimHeightScale(GetAIShip()->GetACharacter());
@@ -421,7 +483,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          paths.push_back(path);nominalPaths.push_back({gun,path});
      }
      // Dispersion samples use the battery's spatial support guns, not first/last
-@@ -1167,7 +1367,8 @@
+@@ -1167,7 +1404,8 @@
      for(const auto *gun:supports)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -431,7 +493,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          for(int n=0;n<8;++n)
          {
              // Live jitter uses three independent random draws, not a correlated
-@@ -1175,7 +1376,7 @@
+@@ -1175,7 +1413,7 @@
              const float elevation=spread.elevation*((n&1)?1.f:-1.f);
              const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
              const float v=speed+spread.speed*((n&4)?1.f:-1.f);
@@ -440,7 +502,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
-@@ -1204,16 +1405,33 @@
+@@ -1204,16 +1442,33 @@
      for(const auto *gun:solution.guns)
          if(~(gun->GetPos()-meanMuzzle)<~(middle->GetPos()-meanMuzzle)-.001f)middle=gun;
      if(std::find(projectors.begin(),projectors.end(),middle)==projectors.end())projectors.push_back(middle);
@@ -477,7 +539,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
                  angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
          const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
          if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
-@@ -1257,7 +1475,8 @@
+@@ -1257,7 +1512,8 @@
      for(const auto *gun:projectors)
      {
          const CVECTOR muzzle=gun->GetPos();
@@ -487,7 +549,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          // Keep the nominal interior field plus both independent speed limits.
          // Coarser2x2 speed-boundary grids bound extra trace cost; all faces still
          // refine mixed first receivers independently rather than spanning them.
-@@ -1275,7 +1494,7 @@
+@@ -1275,7 +1531,7 @@
              // A difficult earlier receiver edge cannot erase a later cell.
              if(!baseSamples&&cellSamples>=12)return {};
              if(!baseSamples)++cellSamples;
@@ -496,7 +558,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
                  angle+spread.elevation*elevation,spread.azimuth*yaw,height,AIHelper::fGravity),world);
              cache.push_back({yaw,elevation,path});retainContact(path);return {path.hit,yaw,elevation};
          };
-@@ -1313,25 +1532,50 @@
+@@ -1313,25 +1569,50 @@
                  if(!w.hit.valid||w.hit.surface!=a.hit.surface){if(inside)return;continue;}
                  error=std::max(error,std::fabs((w.hit.point-x)|normal));
              }
@@ -680,3 +742,96 @@ diff --git a/src/libs/rigging/src/sailone.cpp b/src/libs/rigging/src/sailone.cpp
              if (vmed.z >= minp.z && vmed.z <= maxp.z && vmed.x >= minp.x && vmed.x <= maxp.x)
                  bYesTrace = true;
          }
+diff --git a/src/libs/geometry/src/geom.h b/src/libs/geometry/src/geom.h
+--- a/src/libs/geometry/src/geom.h
++++ b/src/libs/geometry/src/geom.h
+@@ -28,6 +28,11 @@
+     std::vector<CVECTOR> vrt{};
+     std::vector<RDF_BSPTRIANGLE> btrg{};
+     std::vector<BSP_NODE> sroot{};
++    // BSP vertices/triangles are immutable after loading. Build these lazily
++    // for clipping; render vertex buffers and model transforms are separate.
++    struct ClipBounds { CVECTOR lo, hi; };
++    std::vector<ClipBounds> clipBounds{};
++    CVECTOR clipMaxAbs{0.0f};
+ 
+     CVECTOR res_norm;
+     float res_pldist;
+diff --git a/src/libs/geometry/src/collide.cpp b/src/libs/geometry/src/collide.cpp
+--- a/src/libs/geometry/src/collide.cpp
++++ b/src/libs/geometry/src/collide.cpp
+@@ -9,6 +9,7 @@
+ ******************************************************************************/
+ #include "geom.h"
+ #include <cstring>
++#include <limits>
+ 
+ //---------------------------------------------------------------------------
+ // Trace main procedure
+@@ -289,6 +290,43 @@
+         return false;
+     const DVECTOR src(center.x, center.y, center.z);
+ 
++    struct RejectPlane { float nx, ny, nz, d, tolerance; bool sx, sy, sz; };
++    std::vector<RejectPlane> rejectPlanes;
++    if (nplanes > 0)
++    {
++        if (clipBounds.empty())
++        {
++            clipBounds.reserve(btrg.size());
++            for (const auto &triangle : btrg)
++            {
++                ClipBounds bounds{CVECTOR(1e20f), CVECTOR(-1e20f)};
++                for (int i = 0; i < 3; ++i)
++                    for (int axis = 0; axis < 3; ++axis)
++                    {
++                        const float value = vrt[triangle.getIndex(i)].v[axis];
++                        bounds.lo.v[axis] = std::min(bounds.lo.v[axis], value);
++                        bounds.hi.v[axis] = std::max(bounds.hi.v[axis], value);
++                    }
++                clipBounds.push_back(bounds);
++                for (int axis = 0; axis < 3; ++axis)
++                    clipMaxAbs.v[axis] = std::max(clipMaxAbs.v[axis],
++                        std::max(std::fabs(bounds.lo.v[axis]), std::fabs(bounds.hi.v[axis])));
++            }
++        }
++        rejectPlanes.reserve(nplanes);
++        for (int i = 0; i < nplanes; ++i)
++        {
++            const auto &p = planes[i];
++            const double scale = std::fabs(double(p.nrm.x)) * clipMaxAbs.x +
++                std::fabs(double(p.nrm.y)) * clipMaxAbs.y + std::fabs(double(p.nrm.z)) * clipMaxAbs.z +
++                std::fabs(double(p.d)) + 1.0;
++            const float tolerance = std::nextafter(float(16.0 * std::numeric_limits<float>::epsilon() * scale),
++                std::numeric_limits<float>::infinity());
++            rejectPlanes.push_back({p.nrm.x, p.nrm.y, p.nrm.z, p.d, tolerance,
++                p.nrm.x >= 0.0f, p.nrm.y >= 0.0f, p.nrm.z >= 0.0f});
++        }
++    }
++
+     attempt++;
+     if (attempt == 0)
+     {
+@@ -322,6 +360,22 @@
+             {
+                 // mark the triangle added
+                 trgclip[face] = attempt;
++
++                // Keep the stock BSP traversal, first-occurrence dedup and
++                // callback order. Skip only triangles wholly outside a plane.
++                bool outside = false;
++                if (!rejectPlanes.empty())
++                {
++                    const auto &bounds = clipBounds[face];
++                    for (const auto &p : rejectPlanes)
++                    {
++                        const float distance = p.nx * (p.sx ? bounds.lo.x : bounds.hi.x) +
++                            p.ny * (p.sy ? bounds.lo.y : bounds.hi.y) +
++                            p.nz * (p.sz ? bounds.lo.z : bounds.hi.z) - p.d;
++                        if (distance > p.tolerance) { outside = true; break; }
++                    }
++                }
++                if (outside) { pface += 3; continue; }
+ 
+                 // copy vertices to poly container
+                 for (int32_t v = 0; v < 3; v++)
