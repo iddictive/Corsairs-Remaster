@@ -2,18 +2,16 @@
 
 ## Status
 
-The first version passed native build, full PROGRAM compilation and stage-only.
-Its installed signed engine is40c8c300 with all13 content inputs delivered;
-signature and exact compiler-input/app/cache checks pass. The player's replay
-rejects the current fuze: shells hit ships without an overhead burst, and the
-shop lists the new goods outside the bomb group. Native fuze and shop display
-order are reopened under the airburst source owner, keeping saved goods IDs.
-The corrected source now includes raised shared aim, both-direction overhead
-fuze, display-only shop order and the drawn icon. Canonical native build and full
-startup PROGRAM plus the new store interface compile with zero script errors.
-Installed delivery and corrected player action replay remain pending with root.
-The icon delivery fixture now passes using a resolved temporary path. No game
-process is interrupted.
+The first installed version40c8c300 was rejected by player replay: no overhead
+burst and misplaced shop rows. Corrected source4d42729 is now installed through
+canonical stage-only as signed enginefcce6e7b, together with adaptive fencing.
+Raised shared aim, both-direction overhead fuze, display-only shop ordering and
+the drawn icon are delivered. Full startup PROGRAM and catalogue/store/control
+segments, including the store interface, compile with zero script errors.
+Deep/strict signature, all five changed cache/app inputs and both changed PROGRAM
+compiler inputs match; delivery plans are empty. SAVE/config hashes are preserved.
+Root launches no game; a new unknown/player process appears after staging and
+changes five startup logs. Corrected salvo/shop replay remains unresolved.
 
 ## Contract
 
@@ -116,8 +114,8 @@ The icon producer pixels, decoded TX cells and64/128px comparisons pass. A
 disposable check of the real delivery owner admits both exact original atlases,
 preserves existing mast/perk art and rejects unknown atlas edits and unrelated
 texture paths. An initial fixture used macOS's `/var` symlink and was rejected
-before testing; resolving its path fixed the fixture. The new icon is pending
-installed delivery together with the corrected fuze.
+before testing; resolving its path fixed the fixture. Both exact prepared atlases
+are installed with the corrected fuze; in-game icon readability remains unverified.
 
 Full PROGRAM compilation caught the unavailable script API `GetTickCount` in
 the initial VFX limiter. Its canonical correction uses `PostEvent` and a ready
@@ -128,8 +126,8 @@ errors. The same native compiler accepts the full startup program plus changed
 catalogue/store/control segments using installed executable-relative headers;
 an initial disposable missing-header setup error is not a product failure.
 
-Canonical build/staging and installed whole-PROGRAM compilation remain with the
-integration owner. Acceptance requires an existing-save shop purchase/selection,
+Canonical build/staging and full PROGRAM compilation pass under the integration
+owner. Gameplay acceptance requires an existing-save shop purchase/selection,
 an above-target burst with resulting hull/crew/sail state, nearby-friendly risk,
 an unarmed ordinary-bomb impact, and a neighboring ordinary-bomb shot. Stock
 effects alone do not prove the requested spectacle or game FPS. Runtime attempts

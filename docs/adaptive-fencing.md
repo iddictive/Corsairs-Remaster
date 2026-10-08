@@ -2,10 +2,11 @@
 
 ## Status
 
-October 7, 2026: native source/CPU model/defence proofs and canonical engine build
-pass after ordered integration. Installed activation and player combat replay
-remain pending with root, held while the reopened airburst repair is prepared.
-No installed runtime or SAVE changed for this feature.
+October 7, 2026: sourcec4143b9 passes native source/CPU model/defence proofs and
+canonical build. Canonical stage-only installs the ordered fencing patch with
+corrected airburst source4d42729 in signed enginefcce6e7b. Signature and engine
+ownership receipt match. SAVE/config hashes are preserved. Combat and scene
+balance replay remain unresolved; installed activation alone does not accept them.
 
 ## Contract and owners
 
@@ -97,5 +98,5 @@ Must not accept this feature from the model probe or build alone. In the played
 app, replay repeated thrusts against one sufficiently durable skilled opponent,
 then change to ordinary strikes and compare defence choices. Also replay normal
 stamina exhaustion/forced parry and an NPC-versus-NPC encounter. Keep identical
-HP/damage/difficulty and retain the player's saves. Player scene/balance evidence
-and canonical build consumption remain unresolved.
+HP/damage/difficulty and retain the player's saves. Canonical build and installed
+consumption pass; player scene/balance evidence remains unresolved.
