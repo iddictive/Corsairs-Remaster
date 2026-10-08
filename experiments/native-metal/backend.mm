@@ -274,6 +274,7 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
  void retireCompletedFlights(){for(size_t slot=0;slot<flights.size();++slot)retireFlight(slot,false);}
  void prepareFrameSlot(){retireCompletedFlights();const size_t slot=flightRing.current;if(flightRing.mustWaitBeforeReuse())retireFlight(slot,true);frameArena.select(slot);}
  bool beginDynamicSky(float hour,float deltaSeconds,float coverage,float density,float windAngle,float windSpeed,float legacyBlend,float sunX,float sunY,float sunZ,uint32_t fogColor){
+  dynamicSkyInput.hour=hour; // Weather remains the aim daylight owner with authored sky too.
   dynamicSkyActive=false;if(!dynamicSkyEnabled||!metal)return false;
   if(!dynamicSkyLibrary){NSError*error=nil;dynamicSkyLibrary=[metal newLibraryWithSource:[NSString stringWithUTF8String:storm_metal::dynamicSkyShaderSource] options:nil error:&error];if(!dynamicSkyLibrary){fprintf(stderr,"[StormMetal] dynamic sky compile: %s; retaining authored sky\n",error.localizedDescription.UTF8String);dynamicSkyEnabled=false;return false;}}
   const float visualDelta=std::max(0.f,std::isfinite(deltaSeconds)?deltaSeconds:0.f);dynamicSkyElapsed=std::min(1'000'000.f,dynamicSkyElapsed+visualDelta);dynamicSkyPhase=storm_metal::advanceDynamicSkyPhase(dynamicSkyPhase,windAngle,windSpeed,visualDelta);dynamicSkyTemporal.update(coverage,density,visualDelta);dynamicSkyInput={hour,dynamicSkyElapsed,dynamicSkyTemporal.coverage,dynamicSkyTemporal.density,windAngle,windSpeed,legacyBlend,dynamicSkyPhase.x,dynamicSkyPhase.y,{sunX,sunY,sunZ}};const auto visualFog=color(fogColor);dynamicSkyFog=visualFog.xyz;dynamicSkyActive=true;return true;
@@ -539,6 +540,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   if(!aimVolume.buildFrame(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,waterVertices,waterVertexCount,contactSections,contactSectionCount,contactTriangles,contactTriangleCount,axis,lateral,up,readiness,landShadow.worldOrigin,
       simd_mul(projectionMatrix,viewMatrix),inverseViewForDraw(viewMatrix),
       {float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)},frame))return false;
+  frame.uniforms.surfaceStyle.x=storm_metal::aimSurfaceDaylight(dynamicSkyInput.hour);
   if((!frame.scissor.width||!frame.scissor.height)&&(!frame.contactScissor.width||!frame.contactScissor.height))return true;
   const auto sectionSlice=submissionBuffer(frame.sections.data(),frame.sections.size()*sizeof(frame.sections[0]));
   const auto planeSlice=submissionBuffer(planes,size_t(planeCount)*sizeof(*planes));

@@ -43,8 +43,10 @@ struct AimVolumeUniforms {
   simd_uint4 receiverFlags;
   simd_float4 waterAtlas;
   simd_uint4 contactCounts;
+  simd_float4 surfaceStyle; // x: solar daylight from the existing weather clock
 };
-static_assert(sizeof(AimVolumeUniforms) == 304);
+static_assert(sizeof(AimVolumeUniforms) == 320);
+static_assert(offsetof(AimVolumeUniforms,surfaceStyle)==304);
 static_assert(offsetof(AimVolumeUniforms,contactCounts)==288);
 static_assert(offsetof(AimVolumeUniforms, camera) == 128);
 static_assert(offsetof(AimVolumeUniforms, params) == 240);
@@ -66,12 +68,21 @@ struct AimVolumeFrame {
   NSUInteger waterWidth=2048,waterHeight=2048; // fixed retained capacity, no per-wave allocation churn
 };
 
+inline float aimSurfaceDaylight(float hour) {
+  if(!std::isfinite(hour))return 0.f;
+  hour=std::fmod(hour,24.f);if(hour<0.f)hour+=24.f;
+  // Same solar phase as the sky; the visual sun vector becomes the moon at night.
+  const float elevation=1.3780972f*std::sin((hour-5.5f)*.232710567f)-.2f;
+  const float t=std::clamp((elevation+.13f)/.23f,0.f,1.f);
+  return t*t*(3.f-2.f*t);
+}
+
 inline constexpr const char *aimVolumeShaderSource = R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
-struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; };
+struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; float4 surfaceStyle; };
 struct AimContactField {packed_float3 center;float chart;float metric[6];float nearDepth,farDepth;};
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
@@ -426,8 +437,9 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
       float3(.85098f,.88627f,.89412f);
   float3 background=sceneColor.read(pixelIndex).rgb;
   float luminance=dot(background,float3(.2126f,.7152f,.0722f));
-  float daylight=smoothstep(.18f,.55f,luminance);
-  lineAlpha*=1.f+.16f*daylight;
+  float brightBackground=smoothstep(.18f,.55f,luminance);
+  float daylight=u.surfaceStyle.x;
+  lineAlpha*=1.f+.16f*brightBackground+.45f*daylight;
   // Keep a bright relation-colored core rather than averaging bright/dark
   // tints into a disappearing midgray at some background luminance. The narrow
   // dark keyline grows stronger in daylight; at least one edge retains contrast.
@@ -435,12 +447,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   // Both tones belong to this single depth-tested analytic contour. The dark
   // keyline is subdued at night and never increases the airborne fog.
   float keyline=contact.z;
-  float keyAlpha=(.14f+.03f*daylight)*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
+  float keyAlpha=(.14f+.03f*brightBackground+.13f*daylight)*keyline*readiness*mix(.35f,1.f,smoothstep(.12f,.50f,luminance));
   float baseAlpha=keyAlpha+fillAlpha*(1.f-keyAlpha);
   float3 baseRGB=tint*.10f*keyAlpha+tint*fillAlpha*(1.f-keyAlpha);
   float surfaceAlpha=lineAlpha+baseAlpha*(1.f-lineAlpha);
   float3 surfaceRGB=lineTint*lineAlpha+baseRGB*(1.f-lineAlpha);
-  float surfaceCap=.52f+.06f*daylight;
+  float surfaceCap=.52f+.06f*brightBackground+.17f*daylight;
   if(surfaceAlpha>surfaceCap){surfaceRGB*=surfaceCap/surfaceAlpha;surfaceAlpha=surfaceCap;}
   // The following air pass blends over this surface, preserving the existing
   // premultiplied composition while limiting contact work to its own bounds.

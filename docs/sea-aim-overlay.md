@@ -9,13 +9,14 @@ player evidence: its3D slice understated water overshoot and outlined sail holes
 Revision10's flat screen-space ring also failed to conform to objects.
 Source-exact native/GPU checks pass for the new metric, receiver admission,
 inertia/reset, own exclusion and subdued contour. The player accepts revision12's
-shape/projection and reports excellent FPS in their sea replay. Their only aim
-follow-up is slightly stronger daytime contour visibility. The brightness-local
-rim/keyline increase is installed; its new daytime replay remains pending. No paired
+shape/projection and reports excellent FPS in their sea replay. The installed
+brightness-local rim/keyline increase is rejected as insufficient: the player
+still barely sees the drape by day. A further source candidate uses the existing
+weather clock for daylight, including on dark receivers. Exact current MSL,
+native uniform ABI and dawn/day/dusk/night value checks pass; the combined
+canonical engine build/staging is installed. The new player daytime replay remains pending. Installed
+signed-engine and source receipts belong to `docs/runtime.md`. No paired
 instrumented FPS measurement or exhaustive angle/zoom replay is claimed.
-Canonical staging has installed this frozen revision; its signed-engine and
-source receipts belong to `docs/runtime.md`. Compilation and delivery do not
-establish its new daytime visibility or frame cost.
 
 ## Contract
 
@@ -131,9 +132,15 @@ Disjoint support, large camera-axis changes, disable and reset clear the history
 switching from50 to500 metres never creates an intermediate receiver on145m.
 Fill alpha is.08 and the subdued rim is.42 on models/.48 on neutral surfaces,
 with a.52 composite cap. Stopped-air alpha remains capped at.22.
-The daylight follow-up ramps with background luminance.18–.55: rim alpha rises
-up to16%, keyline.14→.17 and composite cap.52→.58. Dark-background rendering,
-line width, fill, geometry and air remain unchanged.
+Background brightness still ramps across luminance.18–.55 for the existing
+up-to16% rim boost, keyline.14→.17 and composite cap.52→.58. The new candidate
+adds another45% of base rim alpha in full daylight, keyline+.13 and composite
+cap+.17. Its solar phase follows the sky's existing weather-clock formula, with
+smooth dawn/dusk ramps; night values remain unchanged. Reading a dark receiver
+no longer disables the daylight boost. Weather supplies the hour even with
+authored sky selected. The daylight scalar is calculated once per overlay draw;
+only constant-cost opacity math changes in the existing fragment composition. Line
+width, fill, geometry, air, pass count and texture copies remain unchanged.
 The projected world enclosing box plus2 pixels bounds contact work and its color
 snapshot; unlike a Jacobian at the center, it remains conservative across relief.
 Air uses its own conservative bounds and blends after the surface, preserving
