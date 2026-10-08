@@ -456,10 +456,25 @@ handling and uses immutable Family/Bin references. cpu-final-results.txt records
 and8730 ordered ranges without mismatch; strict MSL compilation passes with
 fastMath disabled and zero queues/dispatches. The Porto original-versus-transfer
 oracle disagreement and unsupported zero-time case remain unresolved. This is
-CPU/compiler acceptance only. The projection chat owns one serial14-workload GPU
-falsifier in family-segment-state.aWvG5A2o; root integration holds GPU-heavy build,
-staging and replays until that actor is explicitly released. No production
-source, cache, app or player state changes are admitted by these checks.
+CPU/compiler acceptance only.
+
+The subsequent serial14-workload GPU falsifier uses193 families and56 command
+buffers, retaining all complete Result/Pair bits and semantic work counters.
+Three-warm medians improve to7.789/6.022/4.851ms for Flying55/Nevis63/Porto64,
+and5.195ms for the Nevis duplicate; coplanar1 regresses1.142 to1.494ms. This
+measured corpus supports smaller ordinary state, but tiny batches still cost
+several milliseconds. Product/full-image performance remains rejected.
+
+One frozen55 native profile retains inputs/results/work counters: spill
+reservation drops11552 to11040 bytes while96/40 registers stay unchanged and
+compiled instructions grow61806 to134200. Stack bandwidth rates fall from
+0.37/0.48 to0.18/0.08GiB/s read/write; rates do not prove total traffic or
+bandwidth dominance. family-segment-gpu-report.md retains the result and limits.
+The projection chat closes session9, reports fresh session and exact probe/game
+inventories empty, and explicitly releases its GPU actor. Root's serialization
+hold ends. No production source/cache/app/player state change or staging is
+requested; the projection owner continues kernel/resource-boundary diagnosis,
+preserving coplanarity, ordered ranges and the uncapped symbolic sweep.
 
 Production boundary certification, live camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
