@@ -19,6 +19,10 @@ The current installed inventory and chronological receipts belong to
 `docs/runtime.md`; component probes do not prove real-game acceptance.
 The later progressive-contact, geometry-driven pose and debug-feedback correction
 passes canonical staging and is installed; its player replay remains unresolved.
+The subsequent player report reopens storm-plus-tsunami hang acceptance. A native
+collision-separation nontermination is reproduced. Its correction passes native
+checks and the canonical build; installed delivery awaits the player's normal
+quit, and the reported scenario remains player-owned replay.
 
 ## Player action
 
@@ -130,6 +134,38 @@ Save body is unchanged; Load resets transient budget. Repeated prediction, actua
 movement, cancel/restart/zero delta, grounding, fixed/dead/immunity and400-step
 ordinary propulsion/impulse equality pass source-bound disposable checks.
 Real shore impact and damage remain player-replay requirements.
+
+## Finite collision separation
+
+`TOUCH::FakeTouch` repeatedly checks predicted ship contours while moving actual
+hulls apart. Its legacy 1024-iteration limit counted only island collisions.
+Ship pairs could run forever when equal centres produced no displacement, or
+vertical separation made the horizontal step smaller than float resolution.
+The transient tsunami current makes even stationary hulls have predicted motion,
+so an unchanged pair can continue satisfying the actual collision predicate.
+
+The correction counts both branches and stops a ship-pair solve when neither XZ
+position changes. It preserves the existing displacement, weight sharing, impulse,
+damage and island solver; unresolved overlap can be retried on the next frame.
+No saved state or event-specific collision bypass is introduced.
+
+Disposable ASan/UBSan checks use the actual FakeTouch, contour/intersection methods,
+CVECTOR, wave evaluator and drift budget, with explicit ship-prediction/island
+adapters. Equal-centre and raised-hull fixtures exceed 6000 predictions with
+unchanged positions before the correction, and return after one solve afterward.
+Six converging ordinary/event pairs preserve positions and prediction counts;
+the island path preserves its 1024-step limit and exact final state. The canonical
+build compiles one changed source, whose bytes equal the tested candidate.
+The player's terminated session has no saved hang stack. The restarted process
+samples normal Execute/Realize/present activity; this does not establish the
+original freeze's cause or accept the corrected player scene.
+
+A bounded October 8 upstream check finds the same unbounded ship branch in
+[develop](https://github.com/storm-devs/storm-engine/blob/develop/src/libs/touch/src/touch.cpp).
+The [release list](https://github.com/storm-devs/storm-engine/releases) and
+[open/closed collision-freeze search](https://github.com/storm-devs/storm-engine/issues?q=is%3Aissue+collision+freeze)
+provide no matching fix; the pinned native source remains 4860fe13245b. This
+local correction adds the missing termination contract without an engine upgrade.
 
 ## Shore splashes
 

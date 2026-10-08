@@ -2092,3 +2092,35 @@
 +        AlphaOp[1] = disable;
 +    }
 +}
+--- a/src/libs/touch/src/touch.cpp
++++ b/src/libs/touch/src/touch.cpp
+@@ -616,11 +616,17 @@
+                         const auto k = 0.5f + (fEnemyWeight - fOurWeight) / (2 * MAX(fOurWeight, fEnemyWeight));
+                         const auto vDV = !CVECTOR(pEnemy->State.vPos - pOur->State.vPos);
+                         const auto fMul = 0.02f;
++                        const auto oldOurPos = pOur->State.vPos;
++                        const auto oldEnemyPos = pEnemy->State.vPos;
+ 
+                         pOur->State.vPos.x -= (k * vDV.x * fMul);
+                         pEnemy->State.vPos.x += ((1.0f - k) * vDV.x * fMul);
+                         pOur->State.vPos.z -= (k * vDV.z * fMul);
+                         pEnemy->State.vPos.z += ((1.0f - k) * vDV.z * fMul);
++                        // A wave can keep predicted hulls overlapping without an XZ step.
++                        if (pOur->State.vPos.x == oldOurPos.x && pOur->State.vPos.z == oldOurPos.z &&
++                            pEnemy->State.vPos.x == oldEnemyPos.x && pEnemy->State.vPos.z == oldEnemyPos.z)
++                            break;
+                     }
+                     else
+                     {
+@@ -637,9 +643,9 @@
+                         pOur->State.vAng.y -= fAng;
+                         pOur->State.vPos.x -= (vDV.x * fMul);
+                         pOur->State.vPos.z -= (vDV.z * fMul);
+-                        iCycleIndex++;
+                     }
+-                    if (iCycleIndex == 1024)
++                    // Both ship and island separation must yield to the next frame.
++                    if (++iCycleIndex == 1024)
+                         break;
+                 }
+             }
