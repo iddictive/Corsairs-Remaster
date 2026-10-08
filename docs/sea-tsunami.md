@@ -3,8 +3,8 @@
 ## Status
 
 October 8, 2026 installed in the current canonical stage. Signed engine
-`0fc23284301f1b3465887169686ab1b14dd1d6b605a07659a3ca92d73282fe6d`;
-receipt `d9d0421b3f72784831020597741e1f8d18bebc06e5d7fddbba5307ccf3732a6c`.
+`5b14e3196d4674c7cc296de97debc83fc26fbf7a8a8eb88b41f4cf40989221a7`;
+receipt `0ebc514c8b38488591258f7a36a94c33e6e3301a836f8108c46d8e6bae0fdce4`.
 The no-window input/script/native-command chain passes; physical-key delivery,
 visible menu and real-game wave replay remain unresolved. This is an exaggerated sea experiment, not a
 coastal flooding simulation or a new random weather preset.

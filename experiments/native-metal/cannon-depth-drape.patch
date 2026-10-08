@@ -125,7 +125,7 @@
          manualAimReceiverTokens.push_back({id,token});
      };
      // Metadata only: no second world-BVH/model-bounds rebuild during Execute.
-@@ -1539,280 +1490,37 @@
+@@ -1539,280 +1490,42 @@
      if(paths.empty())return;
      const bool ready=IsSingleFireMode() ? solution.guns.front()->CanFireTo(solution.gunTargets.front())
                                         : solution.bort->isCharged();
@@ -423,10 +423,15 @@
 +    }
 +    contactSections=AimContactRegion(densityPoints,densityWeights);
 +    if(contactSections.size()!=gpu::contactSectionsPerField)return;
++    // The surface decal is anchored at the selected receiver. In particular,
++    // an airburst's intentional +8m flight offset must not lift it off water.
++    // Its world covariance still comes from the actual current launch law.
++    auto &contact=contactSections.front();
++    contact.center[0]=solution.target.x;contact.center[1]=solution.target.y;contact.center[2]=solution.target.z;
      const CVECTOR up=!(axis^lateral);
      std::vector<float> stations;
      float first=1e20f,last=-1e20f;
-@@ -1910,9 +1618,9 @@
+@@ -1910,9 +1623,9 @@
          const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
              uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
              nullptr,0,
@@ -458,9 +463,9 @@
  // Approximate main dispersion density, not an extremal shot boundary.
 -// Positive-definite covariance square root in the lateral/up basis; interpolate
 -// this root before inversion so near-muzzle widths grow without metric pinching.
-+// Mean and full WORLD xyz covariance at nominal arrival, aggregated across all
-+// eligible guns. The backend projects this once into the current camera; scene
-+// depth/identity clip the one ellipse without receiver-dependent shape changes.
++// Selected receiver anchor and full WORLD xyz covariance at nominal arrival,
++// aggregated across all eligible guns. Current rendered world positions sample
++// this bounded decal; receiver depth deforms its patch instead of a flat HUD ring.
  struct alignas(16) AimContactSection
  {
      float center[3],padding;

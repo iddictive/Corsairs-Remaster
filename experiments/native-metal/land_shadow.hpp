@@ -306,7 +306,7 @@ float samplePoint(depthcube<float> map,float3 ray,float receiverMajor,float far,
  float z=far/(far-.1)-(.1*far/(far-.1))/receiverMajor;
  return map.sample_compare(comparison,direction,z-.0012);
 }
-fragment float4 fs_landlit(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]) {
+float4 shadeLand(O v,constant U&u,constant LandSampling&s,array<texture2d<float>,8>t,array<sampler,8>sam,array<texturecube<float>,8>cubes,depth2d<float>sunNear,depth2d<float>sunFar,array<depthcube<float>,8>pointMaps) {
  float sun=1,visibility=1;
  const bool needsSun=(s.flags.x&1u) && any(v.directSun!=float3(0));
  const bool needsPoint=s.flags.y && s.flags.w;
@@ -358,6 +358,8 @@ fragment float4 fs_landlit(O v [[stage_in]],constant U&u [[buffer(1)]],constant 
  v.c.rgb=max(float3(0),v.c.rgb-v.directSun*(1-sun)+catalogLighting);
  return shadeFixedFunction(v,u,t,sam,cubes);
 }
+fragment float4 fs_landlit(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]){return shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps);}
+fragment AimReceiverO fs_landlit_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]){return {shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps),v.p.z,identity};}
 )MSL";
  bool prepare(id<MTLDevice>device,MTLPixelFormat colorFormat,MTLPixelFormat depthFormat){
   if(caster&&rawCaster&&skinnedCaster&&receiver&&rawReceiver&&skinnedReceiver&&rawPointReceiver&&skinnedPointReceiver)return true;NSError*error=nil;library=[device newLibraryWithSource:[NSString stringWithUTF8String:source] options:nil error:&error];if(!library){fprintf(stderr,"[StormMetal] shadow library: %s\n",error.localizedDescription.UTF8String);return false;}
