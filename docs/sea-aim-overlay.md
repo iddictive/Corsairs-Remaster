@@ -385,7 +385,7 @@ replay remains required.
 
 First-person firing view never drops below design eye height: a low ship camera locator or a saved crouch no longer buries manual aim under the rails.
 
-## Continuous contact replacement — CPU candidate, not installed
+## Continuous contact replacement — CPU/GPU proof candidate, performance rejected
 
 The cannon owner reports an analytic launch-space support with at most two
 feasible intervals, then adaptive subtraction of proven complete occlusion
@@ -397,8 +397,24 @@ three adaptive steps. Duplicate61143/61156 incidence is handled by exact depth
 bins, retaining outside-bin, same-triangle earlier-root and different-token
 negatives. These are reported CPU fixture results, not rendered acceptance.
 
-CPU raster execution costs roughly65–263ms/100k in those workloads. Boundary/
-coplanar proof, actual camera/render-mesh/BSP matching, compensated interval GPU
-cost, live node/water lifecycle and installed FPS remain unresolved. No contact
-replacement source batch is staged; the installed foreground ship-aim profile
-still shows50FPS and roughly69% main samples inside aiming.
+CPU raster execution costs roughly65–263ms/100k in those workloads. The later
+shared CPU/MSL continuous family passes11 named geometry/boundary cases and182
+seeded equal-record endpoints, with zero GPU parity mismatches across193
+families. Flyingdutchman has one explicitly unsupported zero-time sample. A
+synthetic binary64 Porto curve51 endpoint changes by1.46e-11m during transfer
+and flips the original-vs-transferred oracle result; both records remain
+separate and this serialization disagreement remains unresolved.
+
+The first serialized GPU batch fails the performance target:55/63/64 seeded
+families cost12.027/8.981/7.690ms warm GPU time for Flyingdutchman/Nevis/Porto;
+the Nevis duplicate61143/61156 query alone costs7.068ms. These are isolated GPU
+query timings, not game FPS. Correctness parity does not admit this variant for
+installation. The active source-only child is revising only conservative BVH
+node broadphase with outward float bounds and compensated leaf predicates.
+Evidence is retained in the cannon owner's `continuous-family.kfAeKRPV` fixture,
+particularly gpu-results.txt, final-cpu-results.txt and the separate Porto inputs.
+
+Production boundary certification, actual camera/render-mesh/BSP matching,
+scene-budget GPU cost, live node/water lifecycle and installed FPS remain
+unresolved. No contact replacement source batch is staged; the installed
+foreground ship-aim profile still shows50FPS and roughly69% main samples in aiming.
