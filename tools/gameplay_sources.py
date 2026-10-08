@@ -11,6 +11,8 @@ BACKUPS = ROOT.parents[1] / "experiments/native-metal/.cache/gameplay-source-bac
 
 
 def source_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
+    if encoding == "binary":
+        return data
     text = data.decode(encoding)
     if Path(name).suffix in (".c", ".h", ".ini", ".txt"):
         text = text.replace("\r\n", "\n")
@@ -18,6 +20,8 @@ def source_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
 
 
 def runtime_bytes(name: str, data: bytes, encoding: str = "utf-8") -> bytes:
+    if encoding == "binary":
+        return data
     text = source_bytes(name, data).decode("utf-8")
     if Path(name).suffix in (".c", ".h", ".ini", ".txt"):
         text = text.replace("\n", "\r\n")
@@ -38,8 +42,9 @@ def read(selected=None):
     result, inputs = {}, {manifest: (raw, raw)}
     for name in sorted(names):
         row = record["files"][name]
-        if (not isinstance(row, dict) or set(row) != {"encoding", "legacy"}
-                or row["encoding"] not in ("utf-8", "cp1251")):
+        if (not isinstance(row, dict) or row.get("encoding") not in ("utf-8", "cp1251", "binary")
+                or set(row) != ({"encoding", "legacy", "sha256"} if row.get("encoding") == "binary"
+                                else {"encoding", "legacy"})):
             raise RuntimeError(f"Invalid gameplay source format: {name}")
         encoding, legacy = row["encoding"], row["legacy"]
         relative = Path(name)
@@ -47,13 +52,16 @@ def read(selected=None):
         allowed = (len(parts) > 1 and parts[0] == "PROGRAM" and relative.suffix in (".c", ".h", ".txt")) or (
             len(parts) > 2 and parts[:2] == ("RESOURCE", "INI") and relative.suffix == ".ini") or (
             len(parts) > 3 and parts[:3] == ("RESOURCE", "INI", "texts") and relative.suffix == ".txt")
-        if not allowed or relative.as_posix() != name:
+        particle = len(parts) == 3 and parts[:2] == ("RESOURCE", "Particles") and relative.suffix == ".xps"
+        if (not (particle if encoding == "binary" else allowed) or relative.as_posix() != name):
             raise RuntimeError(f"Invalid gameplay source path: {name}")
         if not isinstance(legacy, list) or any(not isinstance(sha, str) or len(sha) != 64
                 or any(c not in "0123456789abcdef" for c in sha) for sha in legacy):
             raise RuntimeError(f"Invalid legacy source admission: {name}")
         path = safe_path(ROOT, relative)
         data = path.read_bytes()
+        if encoding == "binary" and (row["sha256"] != digest(data) or not data.startswith(b"PSYSv3.5")):
+            raise RuntimeError(f"Unreviewed particle source: {name}")
         result[name] = (runtime_bytes(name, data, encoding), legacy, encoding)
         inputs[path] = (data, data)
     return result, inputs

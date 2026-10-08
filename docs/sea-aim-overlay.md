@@ -237,16 +237,42 @@ exterior; the actual `ShipInfoImages::Draw` driver passes interleaved surrender,
 hidden-ship indexing, ordinary batching and state restoration. Installed replay
 is still required.
 
-Canonical `AIBalls.c::CreateBallsEnvironment` now assigns the existing
-`Bomb_Smoke.xps` effect to every ammunition type. That authored effect includes
-the luminous particle stream missing from `Ball_Smoke_low`; grapes and knippels
-previously had no emitter. Brightness and warm palette match bombs, satisfying
-the requested minimum of half their brightness without another shader or asset.
+The initial all-ammunition `Bomb_Smoke.xps` assignment made each shot luminous,
+but the player's installed replay rejected its identical smoke/trace appearance.
+Canonical `AIBalls.c::CreateBallsEnvironment` now selects three independent
+non-bomb profiles and preserves the original bomb effect. They reuse only its
+authored luminous Particle2, removing the bomb smoke component. The original
+atlas, color, transparency and material remain; no shader or renderer changes.
+
+| Ammunition | Sprite size | Trace width vs bomb | Trace life vs bomb | Emission rate vs bomb luminous stream |
+| --- | --- | --- | --- | --- |
+| Grapes | .055 | .15 | .23 | .55 |
+| Balls | .20 | .40 | .50 | .75 |
+| Knippels | .24 | .65 | .72 | 1 |
+| Bombs | .30 | 1 | 1 | 1, plus original smoke |
+
+`src/gameplay/RESOURCE/Particles/{Grapes,Balls,Knippels}_Tracer.xps` are native
+PSYSv3.5 assets with exact SHA-256 bindings in the canonical gameplay manifest.
+They derive from authored Bomb_Smoke hash
+`a115d87af80129b77b7941adfe4556e02eb68c3c91d6e04804080f4f68f12cfa`;
+only Particle2 Size/Life time/Emission rate values change, and Particle1 is
+removed. Binary XPS delivery uses the existing source/receipt transaction,
+without text recoding; source hash drift and unknown installed bytes fail closed.
+Existing UTF8/CP1251 text contracts remain. A supported prior runtime accepts
+the three new assets and updated script atomically; repeat delivery is idle.
+
+Installed `initGoods.c` and `Cannon_RecalculateParameters` retain distinct
+launch-speed multipliers: balls1, grapes.6, knippels.9, bombs.8. Actual VM checks
+produce100/60/90/80 from the same100-speed cannon, including LongRangeShoot92
+for bombs and the no-cannon negative. Four codec rounds restore the new profile
+names and sizes from the prior uniform state, preserving atlas indices and
+global SpeedMultiply2. No ballistic, damage, charge or timing values change.
+The native rigging radii of grapes and knippels are explicit type constants,
+so their sprite resizing does not alter sail/mast collision; balls/bombs stay
+the same size. Perceived speed and broadside/night visibility remain player
+replay requirements until the installed action is observed.
 The existing particle factory, emitter update, impact/clear/destructor cleanup and
-flight/save layout remain unchanged. An isolated real VM restores prior empty
-grape/knippel and smoke-only round-shot settings through the ordinary environment
-initializer, twice through the save codec, preserving sprite sizes and atlas
-indices. Already airborne legacy balls with no saved particle pointer acquire
+flight/save layout remain unchanged. Already airborne legacy balls with no saved particle pointer acquire
 no retroactive emitter; new shots use the updated environment. Actual broadside
 visibility and frame cost remain replay requirements.
 
@@ -348,3 +374,21 @@ replay remains required.
 ## Firing eye floor
 
 First-person firing view never drops below design eye height: a low ship camera locator or a saved crouch no longer buries manual aim under the rails.
+
+## Continuous contact replacement — CPU candidate, not installed
+
+The cannon owner reports an analytic launch-space support with at most two
+feasible intervals, then adaptive subtraction of proven complete occlusion
+intervals instead of finite candidate guessing. Exact Nevis289 endpoints pass;
+13 of14 former prism misses are restored, while the remaining chord point has
+a genuine first obstruction2.65m earlier at same-GEOM19345. A narrow real triangle
+hole rejects nominal and both edge candidates but yields a free interval after
+three adaptive steps. Duplicate61143/61156 incidence is handled by exact depth
+bins, retaining outside-bin, same-triangle earlier-root and different-token
+negatives. These are reported CPU fixture results, not rendered acceptance.
+
+CPU raster execution costs roughly65–263ms/100k in those workloads. Boundary/
+coplanar proof, actual camera/render-mesh/BSP matching, compensated interval GPU
+cost, live node/water lifecycle and installed FPS remain unresolved. No contact
+replacement source batch is staged; the installed foreground ship-aim profile
+still shows50FPS and roughly69% main samples inside aiming.

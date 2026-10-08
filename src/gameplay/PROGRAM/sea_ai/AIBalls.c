@@ -45,15 +45,15 @@ void CreateBallsEnvironment()
 	Bombs.Particle = "bomb_smoke";
 
 	// Grapes
-	Grapes.SubTexIndex = 1;		Grapes.Size = 0.2;		Grapes.GoodIndex = GOOD_GRAPES;
-	Grapes.Particle = "bomb_smoke";
+	Grapes.SubTexIndex = 1;		Grapes.Size = 0.055;		Grapes.GoodIndex = GOOD_GRAPES;
+	Grapes.Particle = "grapes_tracer";
 
 	// Balls
 	Balls.SubTexIndex = 2;		Balls.Size = 0.2;		Balls.GoodIndex = GOOD_BALLS;
-	Balls.Particle = "bomb_smoke";
+	Balls.Particle = "balls_tracer";
 	// Knippels
-	Knippels.SubTexIndex = 3;	Knippels.Size = 0.2;	Knippels.GoodIndex = GOOD_KNIPPELS;
-	Knippels.Particle = "bomb_smoke";
+	Knippels.SubTexIndex = 3;	Knippels.Size = 0.24;	Knippels.GoodIndex = GOOD_KNIPPELS;
+	Knippels.Particle = "knippels_tracer";
 
 	AIBalls.isDone = 1;
 

@@ -1,6 +1,21 @@
 {
   "version": 2,
   "files": {
+    "RESOURCE/Particles/Grapes_Tracer.xps": {
+      "encoding": "binary",
+      "legacy": [],
+      "sha256": "a997d06a6eb2519b59556957a0a99b7f1efc410a7c1e69efc4e360fee941f93c"
+    },
+    "RESOURCE/Particles/Balls_Tracer.xps": {
+      "encoding": "binary",
+      "legacy": [],
+      "sha256": "7af2ad9f1a6b2910eb4e9ccd527a82eed0662cf47b10b5caf8a1c7185767b2b8"
+    },
+    "RESOURCE/Particles/Knippels_Tracer.xps": {
+      "encoding": "binary",
+      "legacy": [],
+      "sha256": "924d96752ad0900384effc1528bac66000f05477419917f702f595c2f5635a34"
+    },
     "PROGRAM/battle_interface/BattleInterface.c": {
       "encoding": "utf-8",
       "legacy": ["8d56beba0436ada9af6a8a236bf3535f32c8df7fb9f88e577f89ba6f23a2d566"]

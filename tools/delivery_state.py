@@ -95,7 +95,9 @@ class DeliveryState:
                    and relative.suffix.lower() in (".c", ".h", ".txt")) or (
             len(parts) > 2 and parts[:2] == ("RESOURCE", "INI")) or (
             len(parts) > 2 and parts[:2] == ("RESOURCE", "techniques")
-            and relative.suffix.lower() == ".fx")
+            and relative.suffix.lower() == ".fx") or (
+            len(parts) == 3 and parts[:2] == ("RESOURCE", "Particles")
+            and relative.suffix.lower() == ".xps")
         if relative.as_posix() != name or (name not in NATIVE_RESOURCES and not content):
             raise RuntimeError(f"Outside managed delivery scope: {name}")
         return safe_path(self.resources, relative)
