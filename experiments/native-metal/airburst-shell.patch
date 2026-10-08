@@ -4,13 +4,13 @@
      VDX9RENDER *rs{};
  
      void AddBall(ATTRIBUTES *pABall);
-+    bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst);
++    bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments);
  
      // inherited functions from Entity
      bool Init() override;
 --- a/src/libs/sea_ai/src/ai_balls.cpp
 +++ b/src/libs/sea_ai/src/ai_balls.cpp
-@@ -2,6 +2,202 @@
+@@ -2,6 +2,229 @@
  #include "ai_fort.h"
  #include "math_inlines.h"
  #include "shared/messages.h"
@@ -38,14 +38,19 @@
 +    return good;
 +}
 +
++bool AirburstFragment(const BALL_PARAMS &ball)
++{
++    return ball.sBallEvent == "@airburst-fragment";
++}
++
 +// Sweep a shell through the target's oriented overhead volume.
 +// Slab entry, rather than endpoint proximity, also catches long frame steps.
 +bool AirburstEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &box, float &entry)
 +{
 +    if (~(dst-src) < 1e-8f) return false;
 +    const float deck = std::clamp(box.y * 0.15f, 3.0f, 9.0f);
-+    const float lo[] = {-box.x * 0.5f - 3.0f, deck + 4.0f, -box.z * 0.5f - 3.0f};
-+    const float hi[] = { box.x * 0.5f + 3.0f, deck + 14.0f, box.z * 0.5f + 3.0f};
++    const float lo[] = {-box.x * 0.5f - 3.0f, deck + 1.0f, -box.z * 0.5f - 3.0f};
++    const float hi[] = { box.x * 0.5f + 3.0f, deck + 7.0f, box.z * 0.5f + 3.0f};
 +    const float origin[] = {src.x, src.y, src.z};
 +    const float delta[] = {dst.x-src.x, dst.y-src.y, dst.z-src.z};
 +    float enter = 0.0f, leave = 1.0f;
@@ -111,7 +116,7 @@
 +}
 +}
 +
-+bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst)
++bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments)
 +{
 +    if (AirburstGood(ball) < 0)
 +        return false;
@@ -161,7 +166,7 @@
 +    ball.vPos = burst;
 +    if (ball.pParticle) ball.pParticle->SetEmitter(burst, !(src-dst));
 +    AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
-+    // A bounded downward fan uses the existing cloth collision/damage owner.
++    // A bounded fan reaches cloth both above and below the low deck burst.
 +    // Hull/crew blast remains one radial hit per ship, not one hit per fragment.
 +    if (pSail)
 +    {
@@ -169,12 +174,34 @@
 +        {
 +            const float angle = fragment * 2.399963f;
 +            const float radius = 8.0f + fragment * 2.5f;
-+            const CVECTOR end = burst + CVECTOR(cosf(angle)*radius, -45.0f, sinf(angle)*radius);
-+            if (pIsland && pIsland->Trace(burst, end) < 1.0f) continue;
++            const float height = fragment < 4 ? 24.0f : -24.0f;
++            const CVECTOR end = burst + CVECTOR(cosf(angle)*radius, height, sinf(angle)*radius);
++            if ((pIsland && pIsland->Trace(burst, end) < 1.0f) ||
++                (AIFort::pAIFort && AIFort::pAIFort->Trace(burst, end) < 1.0f)) continue;
 +            pSail->SetCannonTraceRadius(0.35f);
 +            pSail->Cannon_Trace(ball.iBallOwner, burst, end);
 +            pSail->SetCannonTraceRadius(0.0f);
 +        }
++    }
++    // Cosmetic shot uses the existing saved Bombs lane/physics, with a marker
++    // that suppresses damage and chooses the existing grapeshot sprite/tracer.
++    // Queue until Execute finishes: appending here would invalidate this ball.
++    for (int fragment = 0; fragment < 16; ++fragment)
++    {
++        BALL_PARAMS shot{};
++        const float angle = fragment * 2.399963f;
++        const float drop = 0.30f + (fragment % 4) * 0.12f;
++        shot.vFirstPos = shot.vPos = burst;
++        shot.iBallOwner = ball.iBallOwner;
++        shot.sBallEvent = "@airburst-fragment";
++        shot.fSpeedV0 = 24.0f;
++        shot.fDirX = cosf(angle);
++        shot.fDirZ = sinf(angle);
++        shot.fSinAngle = -drop;
++        shot.fCosAngle = sqrtf(1.0f-drop*drop);
++        shot.fHeightMultiply = shot.fSizeMultiply = shot.fTimeSpeedMultiply = 1.0f;
++        shot.dwCannonType = ball.dwCannonType;
++        fragments.push_back(shot);
 +    }
 +    core.Event("Ball_AirburstExplosion", "lfff", ball.iBallOwner, burst.x, burst.y, burst.z);
 +    for (const auto id : ships)
@@ -213,7 +240,7 @@
  
  AIBalls *AIBalls::pAIBalls = nullptr;
  
-@@ -26,6 +222,7 @@
+@@ -26,6 +249,7 @@
          for (j = 0; j < pBallsType->Balls.size(); j++)
          {
              auto *pBall = &pBallsType->Balls[j];
@@ -221,74 +248,165 @@
              if (pBall->pParticle)
              {
                  STORM_DELETE(pBall->pParticle);
-@@ -190,6 +387,13 @@
+@@ -163,6 +387,9 @@
+     CVECTOR vSrc, vDst;
+     entid_t EID;
+ 
++    std::vector<BALL_PARAMS> fragments;
++    const auto grapes = std::find_if(aBallTypes.begin(), aBallTypes.end(),
++        [](const BALL_TYPE &type) { return storm::iEquals(type.sName, "Grapes"); });
+     if (!pIsland && (EID = core.GetEntityId("island")))
+         pIsland = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
+     if (!pSail && (EID = core.GetEntityId("sail")))
+@@ -189,6 +416,15 @@
+             auto *pBall = &pBallsType->Balls[j];
  
              vSrc = pBall->vPos;
- 
++
 +            const int airburstGood = AirburstGood(*pBall);
++            const bool fragment = AirburstFragment(*pBall);
 +            // An unarmed/direct shell uses the ordinary native Bombs contract,
 +            // including forts and rigging. Only the radial burst changes goods.
 +            AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
 +            AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
 +            AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
-+
++            AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
+ 
              AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
              AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
-             AttributesPointer->SetAttributeUseFloat("CurrentMaxBallDistance", pBall->fMaxFireDistance);
-@@ -217,7 +421,7 @@
+@@ -217,7 +453,7 @@
  
              vDst = pBall->vPos;
  
 -            if (!pBall->sBallEvent.empty())
-+            if (!pBall->sBallEvent.empty() && airburstGood < 0)
++            if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment)
                  core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
                             pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
                             vSrc.z);
-@@ -229,6 +433,9 @@
+@@ -229,6 +465,29 @@
              }
  
              float fRes = 2.0f;
 +
-+            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst);
++            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst, fragments);
 +            if (burst) fRes = 0.0f;
++            if (fragment)
++            {
++                // Trace-only solid contacts cannot duplicate hull/crew/fort damage.
++                if (pIsland) fRes = std::min(fRes, pIsland->Trace(vSrc, vDst));
++                if (AIFort::pAIFort) fRes = std::min(fRes, AIFort::pAIFort->Trace(vSrc, vDst));
++                for (const auto id : core.GetEntityIds(SHIP_CANNON_TRACE))
++                {
++                    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
++                    if (ship && !ship->isDead() && ship->GetModel())
++                        fRes = std::min(fRes, ship->Trace(vSrc, vDst));
++                }
++                // Water owns the collision position, wave height and splash event.
++                if (pSea)
++                {
++                    const float water = pSea->Trace(vSrc, vDst);
++                    if (water <= 1.0f && water < fRes)
++                        fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
++                }
++                if (pBall->fTime > 3.0f) fRes = 0.0f;
++            }
  
              CVECTOR v1 = mView * vSrc;
              CVECTOR v2 = mView * vDst;
-@@ -260,7 +467,7 @@
+@@ -260,7 +519,7 @@
              else if (storm::iEquals(pBallsType->sName, "Grapes"))
                  fRigRadius = 0.35f * pBall->fSizeMultiply;
  
 -            if (pSail)
-+            if (!burst && pSail)
++            if (!burst && !fragment && pSail)
              {
                  pSail->SetCannonTraceRadius(fRigRadius);
                  pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
-@@ -270,6 +477,7 @@
+@@ -270,6 +529,7 @@
              auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
              for (auto ent_id : entities)
              {
-+                if (burst) break;
++                if (burst || fragment) break;
                  if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                  {
                      pShip->SetCannonTraceRadius(fRigRadius);
-@@ -297,7 +505,7 @@
+@@ -281,23 +541,23 @@
+             }
+ 
+             // fort trace
+-            if (fRes > 1.0f && AIFort::pAIFort)
++            if (!fragment && fRes > 1.0f && AIFort::pAIFort)
+             {
+                 fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+             }
+ 
+             // island trace
+-            if (fRes > 1.0f && pIsland)
++            if (!fragment && fRes > 1.0f && pIsland)
+                 fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+ 
+             // sea trace
+-            if (fRes > 1.0f && pSea)
++            if (!fragment && fRes > 1.0f && pSea)
+                 fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+ 
              // delete ball
              if (fRes <= 1.0f)
              {
 -                if (!pBall->sBallEvent.empty())
-+                if (!pBall->sBallEvent.empty() && airburstGood < 0)
++                if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment)
                  {
                      core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
                                 pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
-@@ -318,7 +526,7 @@
+@@ -318,17 +578,34 @@
                  continue;
              }
  
 -            if (pBall->sBallEvent.empty())
-+            if (pBall->sBallEvent.empty() || airburstGood >= 0)
++            if (pBall->sBallEvent.empty() || airburstGood >= 0 || fragment)
              {
                  aBallRects.push_back(RS_RECT{});
                  // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
+                 RS_RECT *pRSR = &aBallRects.back();
+                 pRSR->vPos = pBall->vPos;
+                 pRSR->dwColor = 0xFFFFFF;
+-                pRSR->dwSubTexture = pBallsType->dwSubTexIndex;
++                pRSR->dwSubTexture = fragment && grapes != aBallTypes.end() ? grapes->dwSubTexIndex : pBallsType->dwSubTexIndex;
+                 pRSR->fAngle = pBall->fTime * 3.0f;
+-                pRSR->fSize = pBallsType->fSize * pBall->fSizeMultiply;
+-            }
++                pRSR->fSize = fragment ? 0.30f : pBallsType->fSize * pBall->fSizeMultiply;
++            }
++        }
++    }
++    if (!fragments.empty())
++    {
++        // Every reference into Balls is now out of use; insertion is safe.
++        for (auto &type : aBallTypes)
++        {
++            if (!storm::iEquals(type.sName, "Bombs")) continue;
++            for (auto &shot : fragments)
++            {
++                if (auto particle = core.GetEntityId("particles"))
++                    shot.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
++                        particle, "lsffffffl", PS_CREATE_RIC, "grapes_tracer", shot.vPos.x,
++                        shot.vPos.y, shot.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
++                type.Balls.push_back(shot);
++            }
++            break;
+         }
+     }
+ }
+@@ -536,7 +813,8 @@
+                 if (auto eidParticle = core.GetEntityId("particles"))
+                 {
+                     pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+-                        eidParticle, "lsffffffl", PS_CREATE_RIC, (char *)aBallType.sParticleName.c_str(), pB.vPos.x,
++                        eidParticle, "lsffffffl", PS_CREATE_RIC,
++                        AirburstFragment(pB) ? "grapes_tracer" : aBallType.sParticleName.c_str(), pB.vPos.x,
+                         pB.vPos.y, pB.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+                 }
+             }
 --- a/src/libs/sea_ai/src/ai_cannon.cpp
 +++ b/src/libs/sea_ai/src/ai_cannon.cpp
 @@ -56,7 +56,12 @@
@@ -300,7 +418,7 @@
 +    // real fire and manual trajectory previews, keeping their flight identical.
 +    auto *character = pAHolder ? pAHolder->GetACharacter() : nullptr;
 +    auto *charge = character ? character->FindAClass(character, "Ship.Cannons.Charge") : nullptr;
-+    const double lift = charge && charge->GetAttributeAsDword("Type") == 51 && fDistance >= 35.0 ? 12.0 : 0.0;
++    const double lift = charge && charge->GetAttributeAsDword("Type") == 51 && fDistance >= 35.0 ? 8.0 : 0.0;
 +    const double fHeight = (vEnemy.y - vOur.y) + lift;
      const double a = SQR(g) / 4.0f;
      const double b = (fHeight * g - SQR(_fSpeedV0));

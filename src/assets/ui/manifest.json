@@ -67,6 +67,19 @@
       ],
       "preparation": "Crop transparent sprite-sheet margins; resize to 128x64 with LANCZOS; encode one A8R8G8B8 BGRA mip."
     },
+    "RESOURCE/Textures/battle_interface/fire_mode.tga.tx": {
+      "source": "fire-mode.png",
+      "source_sha256": "845a50cc43bbca320ef295b5f7bff5cd4e94bd18e42d6e0452b2163e7fa8a05e",
+      "prepared": "fire-mode.tga.tx",
+      "sha256": "448c6bbb827eecbfc9933ecdc0f55f602712d8058f57d7cdeb85ce6dab13d9c9",
+      "dimensions": [128, 128],
+      "source_dimensions": [1200, 1200],
+      "format": "A8R8G8B8",
+      "consumer": "BattleInterface.Commands.FireMode, 2x2 grid of64px tiles: single normal/selected0/1; broadside normal/selected2/3",
+      "generation": "built-in imagegen alignment edit; generated empty state frames and isolated gun sprites packed with shared anchors",
+      "prompt": "Preserve the Corsairs antique-brass frame, brown/navy insets and iron cannon artwork; produce two empty state frames plus isolated single-cannon and three-cannon broadside cutouts with actual alpha and transparent gutters, without text or decorations.",
+      "preparation": "Extract generated parts by their alpha>8 bounds. Register each frame to564x564 at18,18 in a600px square. Center each gun group within450x450 and composite the identical foreground layer onto both state frames; pack four tiles into1200x1200. LANCZOS-resize to128x128 and encode one A8R8G8B8 BGRA mip. Every64px frame has visible bounds2,2,62,62 and center31.5,31.5; single foreground bounds8,12,56,52 and broadside8,10,56,54 share that center. Normal/selected foreground displacement is exactly0px; decoded payload is byte-exact to prepared RGBA."
+    },
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx": {
       "source": "raking-fire.png",
       "source_sha256": "59fa82b8a61fe83b40f56a4c66c348e873c2380b5001ee5ac10c20856c4aacf1",

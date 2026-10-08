@@ -1091,9 +1091,17 @@ void BI_FireModeRefresh(int mainIndex, int selectedIndex)
         CheckAttribute(pchar, "Ship.Cannons.Charge.Type") &&
         GetCaracterShipCannonsType(pchar) != CANNON_TYPE_NONECANNON;
     if (sti(pchar.Ship.Cannons.FireMode) == 1)
+    {
         BattleInterface.Commands.FireMode.note = "Огонь: по одной";
+        BattleInterface.Commands.FireMode.picNum = 0;
+        BattleInterface.Commands.FireMode.selPicNum = 1;
+    }
     else
+    {
         BattleInterface.Commands.FireMode.note = "Огонь: залпом";
+        BattleInterface.Commands.FireMode.picNum = 2;
+        BattleInterface.Commands.FireMode.selPicNum = 3;
+    }
 }
 
 void BI_ToggleFireMode()
@@ -1207,9 +1215,9 @@ void BI_InitializeCommands()
 	BattleInterface.Commands.Charge.note			= LanguageConvertString(idLngFile, "sea_Charge");
 
     BattleInterface.Commands.FireMode.enable = false;
-    BattleInterface.Commands.FireMode.picNum = BattleInterface.Commands.Charge.picNum;
-    BattleInterface.Commands.FireMode.selPicNum = BattleInterface.Commands.Charge.selPicNum;
-    BattleInterface.Commands.FireMode.texNum = BattleInterface.Commands.Charge.texNum;
+    BattleInterface.Commands.FireMode.picNum = 2;
+    BattleInterface.Commands.FireMode.selPicNum = 3;
+    BattleInterface.Commands.FireMode.texNum = 6;
     BattleInterface.Commands.FireMode.event = "BI_FireMode";
     BI_FireModeRefresh(GetMainCharacterIndex(), -1);
 	//
@@ -1591,6 +1599,10 @@ void SetParameterData()
     BattleInterface.CommandTextures.list.t5.name = "battle_interface\mast_repair.tga.tx";
     BattleInterface.CommandTextures.list.t5.xsize = 2;
     BattleInterface.CommandTextures.list.t5.ysize = 1;
+
+    BattleInterface.CommandTextures.list.t6.name = "battle_interface\fire_mode.tga.tx";
+    BattleInterface.CommandTextures.list.t6.xsize = 2;
+    BattleInterface.CommandTextures.list.t6.ysize = 2;
 
 	BattleInterface.charge.charge1.picNum = 19; // balls
 	BattleInterface.charge.charge1.selPicNum = 3;

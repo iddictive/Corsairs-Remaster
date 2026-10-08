@@ -131,6 +131,11 @@ float Ball_GetAccuracy(aref aCharacter)
 	if (CheckCharacterPerk(aCharacter, "GunProfessional")) { fGunSkill = fGunSkill + 0.12; }
 	if (CheckCharacterPerk(aCharacter, "LongRangeShoot"))  { fGunSkill = fGunSkill + 0.06; }
 	if (fGunSkill > 1.25) { fGunSkill = 1.25; }
+    // Ammunition scales gunner precision before conversion to random scatter.
+    float ammoAccuracy = stf(Goods[sti(aCharacter.Ship.Cannons.Charge.Type)].Accuracy);
+    if (ammoAccuracy < 0.0) ammoAccuracy = 0.0;
+    if (ammoAccuracy > 100.0) ammoAccuracy = 100.0;
+    fGunSkill *= ammoAccuracy / 100.0;
 	float fAccuracy = 1.2 - fGunSkill;
 	if (iArcadeSails == 1) { fAccuracy = fAccuracy - 0.10; }
 	if (fAccuracy < 0.05)  { fAccuracy = 0.05; }
@@ -218,7 +223,11 @@ void Ball_WaterHitEvent()
 	y = GetEventData();
 	z = GetEventData();
 
-	if (sti(AIBalls.CurrentBallCannonType) >= 0)
+	if (sti(AIBalls.CurrentAirburstFragment))
+	{
+		CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5);
+	}
+	else if (sti(AIBalls.CurrentBallCannonType) >= 0)
 	{
 		ref rCannon = GetCannonByType(sti(AIBalls.CurrentBallCannonType));
 

@@ -1,25 +1,47 @@
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -26,12 +26,10 @@
+@@ -15,6 +15,16 @@
+
+ namespace { float AimHeightScale(ATTRIBUTES *character); float AimRakeFactor(ATTRIBUTES *character); }
+
++namespace
++{
++float SalvoWindowForCount(float qualityWindow, size_t count)
++{
++    // Two firing guns take half a second; 108 reach the full quality window.
++    const float fraction = float(std::clamp(count, size_t(2), size_t(108)) - 2) / 106.f;
++    return .5f + (qualityWindow - .5f) * fraction * fraction;
++}
++}
++
+ float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
+ float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
+
+@@ -24,14 +34,13 @@
+ }
+
  bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
-                                            bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual, AIShip *targetShip)
- {
+-                                           bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual, AIShip *targetShip)
+-{
 -    const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
 -    if (!bEnoughBalls)
 -        bNotEnoughBalls = true;
 -    if (!bort.isCharged() || bort.aCannons.empty() || bort.isBortDamaged())
++                                           bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual, AIShip *targetShip,
++                                           float targetLeadDelay, float targetFlightTime)
++{
 +    const bool single = IsSingleFireMode();
 +    if ((!single && !bort.isCharged()) || bort.aCannons.empty() || bort.isBortDamaged())
          return false;
 -    
 +
      auto vTempFirePos = vFirePos + CVECTOR(0.0f, fFireHeight, 0.0f);
- 
+
      // Manual player fire passes bApplyBortDelta=false: the crosshair is the aim
-@@ -60,37 +58,60 @@
+@@ -60,37 +69,111 @@
          solution = &autoSolution;
      }
- 
+
 +    MANUAL_AIM_SOLUTION firing;
 +    firing.bort = &bort;
 +    firing.target = vTempFirePos;
@@ -49,20 +71,71 @@
 +        Assert(data);
 +        window = std::isfinite(data->GetFloat()) ? std::clamp(data->GetFloat(), 3.5f, 10.f) : 10.f;
 +    }
-+    const float step = firing.guns.size() > 1 ? window / float(firing.guns.size() - 1) : 0.f;
++    std::vector<float> delays;
++    std::vector<CVECTOR> targets;
++    TOUCH_PARAMS original;
++    if (targetShip && targetFlightTime >= 0.f)
++        targetShip->GetShipBasePointer()->TouchMove(
++            static_cast<uint32_t>((targetFlightTime + targetLeadDelay) * 1000.f), nullptr, &original);
++    // Reject guns outside traverse at the final intercept, then rescale using
++    // only surviving firing guns. No shot or resource state changes here.
++    for (;;)
++    {
++        const size_t count = firing.guns.size();
++        const float step = count > 1 ? SalvoWindowForCount(window, count) / float(count - 1) : 0.f;
++        delays.clear();
++        targets = firing.gunTargets;
++        bool rejected = false;
++        for (size_t i = 0; i < count; ++i)
++        {
++            float delay;
++            if (!single && count == 1)
++            {
++                // A sole salvo gun must use the same delay as moving-target lead.
++                // Position-only callers retain the existing ship delay event.
++                if (targetLeadDelay < 0.f)
++                {
++                    auto *data = core.Event(CANNON_GET_FIRE_TIME, "a", GetAIShip()->GetACharacter());
++                    Assert(data);
++                    targetLeadDelay = data->GetFloat();
++                }
++                delay = targetLeadDelay;
++            }
++            else
++            {
++                // Every gun, including both endpoints, has independent small jitter.
++                // Positive jitter <=20% of a stratum keeps >=80% adjacent spacing;
++                // the battery span stays within 0.15 seconds of its count window.
++                delay = .05f + FRAND(count > 1 ? std::min(.15f, .2f * step) : .15f);
++                if (count > 1)
++                    delay += float(i) * step;
++            }
++            delays.push_back(delay);
++            if (targetShip && targetFlightTime >= 0.f && delay != targetLeadDelay)
++            {
++                TOUCH_PARAMS intercept;
++                auto *ship = targetShip->GetShipBasePointer();
++                ship->TouchMove(static_cast<uint32_t>((targetFlightTime + delay) * 1000.f), nullptr, &intercept);
++                targets[i] += intercept.vPos - original.vPos;
++            }
++            if (!firing.guns[i]->CanFireTo(targets[i])) rejected = true;
++        }
++        if (!rejected) break;
++        for (size_t i = count; i-- > 0;)
++            if (!firing.guns[i]->CanFireTo(targets[i]))
++            {
++                firing.guns.erase(firing.guns.begin() + i);
++                firing.gunTargets.erase(firing.gunTargets.begin() + i);
++            }
++        if (firing.guns.empty()) return false;
++    }
 +    bool fired = false;
 +    for (size_t i = 0; i < firing.guns.size(); ++i)
 +    {
 +        auto &cannon = *firing.guns[i];
-+        const CVECTOR &gunTarget = firing.gunTargets[i];
-+        // Every gun, including both endpoints, has independent small jitter.
-+        // Positive jitter <=20% of a stratum keeps >=80% adjacent spacing;
-+        // the battery span stays within 0.15 seconds of its quality window.
-+        float delay = .05f + FRAND(firing.guns.size() > 1 ? std::min(.15f, .2f * step) : .15f);
-+        if (firing.guns.size() > 1)
-+            delay += float(i) * step;
++        const CVECTOR &gunTarget = targets[i];
 +        cannon.SetRechargeEnable(bEnoughBalls);
-+        if (!cannon.Fire(bort.fSpeedV0, gunTarget, delay)) continue;
++        if (!cannon.Fire(bort.fSpeedV0, gunTarget, delays[i])) continue;
 +        fired = true;
 +        if (debugDrawToggle)
 +            debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
@@ -102,9 +175,9 @@
 +    if (!single) bort.ClearCharge();
 +    return true;
  }
- 
+
  bool AIShipCannonController::Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget)
-@@ -109,10 +130,10 @@
+@@ -109,10 +192,10 @@
      auto bortIt = GetFirstFireBort(vFirePos);
      while (IsValid(bortIt))
      {
@@ -115,14 +188,14 @@
 -    return true;
 +    return !IsSingleFireMode();
  }
- 
+
  bool AIShipCannonController::Fire(AIShip *pEnemy)
-@@ -165,11 +186,12 @@
+@@ -165,11 +248,12 @@
                                                  ARGB(0xFF, 0x00, 0xFF, 0x00), float{});
              }
- 
+
 -            Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy);
-+            if (Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy) && IsSingleFireMode())
++            if (Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy, fFireTime, fDistance / fSpeedV) && IsSingleFireMode())
 +                return true;
              bortIt = GetNextFireBort(bortIt, vFirePos);
          }
@@ -130,9 +203,9 @@
 -    return true;
 +    return !IsSingleFireMode();
  }
- 
+
  void AIShipCannonController::Execute(float fDeltaTime)
-@@ -1154,6 +1176,31 @@
+@@ -1154,6 +1238,31 @@
          {auto *fort=AIFort::pAIFort->GetFort(i);add(fort->GetModel(),fort->GetACharacter());}
      StormMetalSetAimRenderedReceivers(AIHelper::pRS->GetD3DDevice(),receivers.data(),uint32_t(receivers.size()));
  #endif
@@ -162,17 +235,56 @@
 +    solution.guns.clear();
 +    solution.gunTargets.clear();
  }
- 
+
  bool AIShipCannonController::ManualGunCanReach(const AICannon &gun,const AISHIP_BORT &bort,
-@@ -1355,6 +1402,7 @@
-     solution.gunTargets.assign(solution.guns.size(),solution.target);
-     if(AIShip *targetShip=AimShipForCharacter(rangeCharacter,GetAIShip()))
-         DistributeRakeTargets(solution,targetShip);
+@@ -1334,8 +1443,25 @@
+     // A farther original center receiver must not inherit aggression when a
+     // nearer aperture surface supplied a different range.
+     solution.character=hit.valid&&((hit.point-camera)|forward)<=selectedDepth+.05f?hit.character:nullptr;
+-    for(auto &gun:bort->aCannons)
+-        if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
++    AIShip *targetShip=AimShipForCharacter(rangeCharacter,GetAIShip());
++    const auto prepareGuns=[&]()
++    {
++        solution.guns.clear();
++        // A ship's longitudinal stations can be reachable even when the
++        // centered depth point is not. Judge each gun after assigning its rake.
++        for(auto &gun:bort->aCannons)
++            if(!gun.isDamaged()&&(targetShip||ManualGunCanReach(gun,*bort,solution.target)))
++                solution.guns.push_back(&gun);
++        solution.gunTargets.assign(solution.guns.size(),solution.target);
++        if(targetShip)DistributeRakeTargets(solution,targetShip);
++        for(size_t i=solution.guns.size();i-- > 0;)
++            if(!ManualGunCanReach(*solution.guns[i],*bort,solution.gunTargets[i]))
++            {
++                solution.guns.erase(solution.guns.begin()+i);
++                solution.gunTargets.erase(solution.gunTargets.begin()+i);
++            }
++    };
++    prepareGuns();
+     if(solution.guns.empty()&&rangePicked)
+     {
+         // A genuinely distant receiver inside the extended camera query is far
+@@ -1348,13 +1474,11 @@
+         {
+             solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
+             solution.character=nullptr;rangeCharacter=nullptr;
+-                    for(auto &gun:bort->aCannons)
+-                if(ManualGunCanReach(gun,*bort,solution.target))solution.guns.push_back(&gun);
+-        }
+-    }
+-    solution.gunTargets.assign(solution.guns.size(),solution.target);
+-    if(AIShip *targetShip=AimShipForCharacter(rangeCharacter,GetAIShip()))
+-        DistributeRakeTargets(solution,targetShip);
++            targetShip=nullptr;
++            prepareGuns();
++        }
++    }
 +    if(IsSingleFireMode())SelectSingleGun(solution);
      if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
      return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
  }
-@@ -1418,7 +1466,8 @@
+@@ -1418,7 +1542,8 @@
      }
      paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
      if(paths.empty())return;
@@ -182,7 +294,7 @@
      // Contact discovery supplies physical continuation supports, not visible
      // per-gun meshes. Actual surface coverage is evaluated once from scene depth.
      // Use ship-local support directions for stable contact projectors. Rolling
-@@ -1947,7 +1996,8 @@
+@@ -1947,7 +2072,8 @@
  {
      VDATA *pvData = core.Event(SHIP_GET_CURRENT_BALLS_NUM, "a", GetAIShip()->GetACharacter());
      Assert(pvData);
@@ -201,21 +313,28 @@
 +    void SelectSingleGun(MANUAL_AIM_SOLUTION &solution) const;
      void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip,
                                 const CVECTOR &targetOffset = CVECTOR(0.f));
- 
-@@ -103,6 +104,7 @@
+
+@@ -98,11 +99,13 @@
+     bool ScanShipForCannons();
+
+     bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true,
+-                       const MANUAL_AIM_SOLUTION *manual = nullptr, AIShip *targetShip = nullptr);
++                       const MANUAL_AIM_SOLUTION *manual = nullptr, AIShip *targetShip = nullptr,
++                       float targetLeadDelay = -1.f, float targetFlightTime = -1.f);
+
      [[nodiscard]] float GetSpeedV0() const;
- 
+
    public:
 +    bool IsSingleFireMode() const;
      [[nodiscard]] uint32_t GetCannonsNum() const;
- 
+
      [[nodiscard]] float GetFireDistance(bool bMaxFireDistance) const;
 --- a/src/libs/sea_ai/src/ai_cannon.cpp
 +++ b/src/libs/sea_ai/src/ai_cannon.cpp
 @@ -161,9 +161,10 @@
      Recharge();
  }
- 
+
 -bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos)
 -{
 -    if (isFired() || isRecharged() || isDamaged() || isEmpty())
@@ -224,7 +343,7 @@
 +    if (!isReady2Fire() || isFired() || isRecharged() || isDamaged() || isEmpty() ||
 +        !std::isfinite(_vFirePos.x) || !std::isfinite(_vFirePos.y) || !std::isfinite(_vFirePos.z))
          return false;
- 
+
      auto *pAIObj = GetAIObjPointer();
 @@ -174,7 +175,12 @@
      const auto vFireDir = !(_vFirePos - vPosTemp);
@@ -238,12 +357,12 @@
 +{
 +    if (!CanFireTo(_vFirePos))
          return false;
- 
+
      bFired = true;
 @@ -183,10 +189,15 @@
      vEnemyPos = _vFirePos;
      fSpeedV0 = _fSpeedV0;
- 
+
 -    // calculate in script timeout before real fire
 -    auto *pVData = core.Event(CANNON_GET_FIRE_TIME, "a", pAHolder->GetACharacter());
 -    Assert(pVData);
@@ -259,12 +378,12 @@
 +    fTotalTime2Action = fTime2Action = fireDelay;
      return true;
  }
- 
+
 --- a/src/libs/sea_ai/src/ai_cannon.h
 +++ b/src/libs/sea_ai/src/ai_cannon.h
 @@ -60,7 +60,8 @@
      VAI_OBJBASE *GetAIObjPointer() const;
- 
+
      float CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const CVECTOR &vEnemy) const;
 -    bool Fire(float fSpeedV0, const CVECTOR &vFirePos);
 +    bool CanFireTo(const CVECTOR &vFirePos) const;
@@ -277,7 +396,7 @@
 @@ -399,13 +399,14 @@
              // aShipFire.Sort();
              std::sort(aShipFire.begin(), aShipFire.end());
- 
+
 +            const bool single = GetCannonController()->IsSingleFireMode();
              for (i = 0; i < aShipFire.size(); i++)
              {

@@ -24,6 +24,13 @@ receipt and seven content inputs match; all252 player files retain hashes.
 Real fort/store/HUD/firing replay remains open under a serialized fresh-save
 clone actor. The olderfcce6e7b inventory is historical.
 
+The October 8 native correction is staged as signed engine4a632fcd: lower ship
+fuze/aim and cosmetic ballistic fragments with real water collisions. Crew
+percentages, live damage descriptions, gunner precision multipliers and aligned
+single/salvo art are also delivered. Actual salvo/burst/casualty replay remains
+unresolved; the later manual-target reach-order repair still awaits native
+delivery.
+
 ## Contract
 
 `GOOD_AIRBURST` is appended at index 51; existing cargo identifiers stay fixed.
@@ -42,9 +49,12 @@ overhead volume. The volume follows the current native ship transform and hull
 bounds; segment/slab intersection prevents a long frame from skipping it. The
 shooter and dead/unmounted targets do not trigger it. Rising and falling shells
 can enter the overhead volume; a stationary segment cannot. The shared native
-`AICannon::CalcHeightFireAngle` adds12m of aim height for cargo51 at ranges of at
+`AICannon::CalcHeightFireAngle` adds8m of aim height for cargo51 at ranges of at
 least35m. Both real firing and manual trajectory preview use this solver. Islands
-and masonry block the flight and fragment damage.
+and masonry block the flight and fragment damage. The ship volume now spans
+1–7m above its existing deck estimate, instead of4–14m; its footprint, oriented
+transform, arming and swept intersection remain unchanged. Fort sphere geometry
+and its gun-relative4m minimum remain unchanged.
 
 Fort proximity uses world cannon locators: a swept22m sphere around an undamaged
 gun in a normal fort, restricted to at least4m above that gun. The nearest ship
@@ -57,14 +67,18 @@ shielded guns; ordinary contact callers retain their original radius and path.
 
 A burst makes one hull/crew hit per live nearby ship through `SHIP_HULL_HIT`.
 Power falls quadratically to zero at 32 metres from the nearest deck point.
-Eight downward fragment sweeps use the existing sail-cloth damage owner. Nearby
+Eight fragment sweeps use the existing sail-cloth damage owner: four upwards
+and four downwards, so a low deck burst can still hit cloth above it. Nearby
 friendly ships receive the same damage; the firing ship is excluded. Crew damage
 retains captain/doctor defences but bypasses hull protection for the overhead
 burst. Direct hits, including forts and rigging, keep ordinary-bomb damage.
 
-The catalogue values are hull67.5, crew14 and rigging8. The hull coefficient was
-reduced from90 by25% after player feedback; overhead crew/rigging and ordinary
-direct-hit fallback remain unchanged. Fort airbursts use a separate `DamageFort`
+The current catalogue values are hull39, crew1.2% and rigging25.2: twice ordinary
+bombs' hull19.5, grapes' crew0.6% and knippels' rigging12.6 respectively. Crew
+percentages use the target's current crew before the retained modifiers; the
+shared conversion and old-save reconciliation belong to `naval-crew-damage.md`.
+These values supersede the earlier67.5/14/8 balance. Direct contacts retain ordinary-bomb
+fallback. Fort airbursts use a separate `DamageFort`
 coefficient180 with quadratic32m falloff, independent of ship hull damage.
 Cost is480 per goods
 unit (eight times ordinary bombs), reload takes 1.65 times as long, and speed 0.8
@@ -80,9 +94,23 @@ A failed overhead approach does not grant radial damage.
 Visuals reuse the authored `bomb_smoke`, `blast`, `ShipExplode` and `CreateBlast`
 owners. `ShipExplode` supplies fire, smoke trails and gravity-driven fire traces.
 Every shell has a blast; heavy fire/smoke and explosion audio are capped to one
-start per 120 ms per live balls environment. The effects need no renderer/shader
-replacement or new effect texture. Actual appearance and frame cost require a
-sea replay.
+start per 120 ms per live balls environment. Each shell also emits16 ballistic
+cosmetic fragments using the existing grapeshot atlas cell and `grapes_tracer`.
+They spread downward at24m/s under the ordinary native ball gravity. The enlarged
+0.30m sprites and authored tracers are visual feedback; they cause no additional
+hull, crew, fort or cloth damage. The eight original cloth sweeps remain the
+damage owner. Ship, island and fort geometry absorb the cosmetics through pure
+`Trace`; the nearest unoccluded water collision calls `SEA::Cannon_Trace`, which
+owns the actual wave height and `BALL_WATER_HIT` position. Script selects the
+ordinary `splash` effect for fragments rather than the cannon's large-ball splash.
+Normal cannon impacts keep their existing effect selection.
+
+Fragments are queued until the active ball iteration finishes, then appended to
+the existing Bombs lane. This prevents a broadside from invalidating the bursting
+ball's vector reference. They stop and release their tracer at impact or after
+3s of projectile time; environment destruction keeps the existing ball cleanup.
+There is no renderer/shader replacement or new texture. Actual appearance and
+frame cost require a sea replay.
 
 ## Owners and compatibility
 
@@ -110,7 +138,12 @@ sea replay.
 The native projectile save format iterates four unnamed type lanes. Adding a
 fifth lane would consume unrelated saved bytes. New shells therefore use the
 existing Bombs lane and preserve identity in the already serialized event string
-`@airburst:51`; all native projectile save/load functions remain unchanged.
+`@airburst:51`; the native projectile save/load binary contract stays unchanged.
+Cosmetic fragments use the distinct existing event-string marker
+`@airburst-fragment` in that same lane. They suppress custom flight callbacks and
+all damage consumers, and restore `grapes_tracer` after loading. The binary
+`BALL_PARAMS` codec and four lane layout remain unchanged; only the existing
+particle restoration selects a fragment-specific authored effect.
 
 Old VM saves restore their recorded array sizes. `Airburst_InitGoods` expands a
 51-row catalogue to 52 without resetting old goods; the selector expands from
@@ -184,6 +217,27 @@ through119ms, then permits the next heavy effect at120ms, with zero script
 errors. The same native compiler accepts the full startup program plus changed
 catalogue/store/control segments using installed executable-relative headers;
 an initial disposable missing-header setup error is not a product failure.
+
+The latest correction passes30 disposable actual-function cases under Address
+and Undefined Behaviour sanitizers: the shared solver and native flight equations
+enter lower ship volumes at50/150/300m for box heights20/60m; sampled burst
+heights are9.42–10m and10–16m respectively. Fort paths at those distances and gun
+heights5/30m still burst at least4m above the gun and before the wall plane.
+Below/outside/stationary, unarmed, blocked, missing-model, destroyed, own and
+non-normal cases retain their rejection. Actual `AIBalls::Execute` emits16 water
+impact events, gives cosmetics zero damage, restores ordinary next-shot state,
+and safely inserts/releases16 tracers after a burst. Actual projectile Save/Load
+preserves the fragment marker in the existing lane and restores its tracer.
+An independent cloth plane at18m received zero hits from the old downward fan;
+the corrected fan reaches it with four sweeps and goods51 through the same cloth
+trace owner. The water cases use actual `SEA::Trace`/`SEA::Cannon_Trace` with a
+flat-wave fixture; each unoccluded fragment produces one impact event.
+The native cloth damage path is `SAIL::Cannon_Trace` → `SAILONE` → `DoSailHole` →
+`ProcessSailDamage` → `GetRigDamage`, which reads `AIBalls.CurrentBallType`.
+The nearest ordinary following shot resets that field to the original lane good.
+Collision/model/particle/event dependencies are bounded stubs; real sea pixels,
+wave collision, broadside frame cost and the new script splash branch remain
+the integration owner's runtime/compiler checks.
 
 Canonical build/staging and full PROGRAM compilation pass under the integration
 owner. Gameplay acceptance requires an existing-save shop purchase/selection,

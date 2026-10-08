@@ -2721,6 +2721,14 @@ void Ship_Ship2ShipCollision()
 	if (fPower>1.0) { Play3DSound("coll_ship2ship", x, y, z); }
 }
 
+float Ship_AmmoCrewLoss(ref rCharacter, float percent)
+{
+    float crew = stf(rCharacter.Ship.Crew.Quantity);
+    if (crew <= 0.0 || percent <= 0.0) return 0.0;
+    if (percent > 100.0) percent = 100.0;
+    return crew * percent / 100.0;
+}
+
 void Ship_ApplyCrewHitpoints(ref rOurCharacter, float fCrewHP)
 {         // че-то распук метод "неподецки" - переделал 29.07.06 boal
 	if (LAi_IsImmortal(rOurCharacter)) 
@@ -3325,6 +3333,7 @@ void Ship_HullHitEvent()
 	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15) * GetCrewDamageReduction(rOurCharacter);
 	// Downward fragments reach the exposed deck; hull armour still protects direct hits.
 	if (airburst) fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15);
+	fCrewDamage = Ship_AmmoCrewLoss(rOurCharacter, fCrewDamage);
 	// <<<---	ZhilyaevDm
 
 	// Establish evidence and group hostility before a lethal hit can run ShipDead.

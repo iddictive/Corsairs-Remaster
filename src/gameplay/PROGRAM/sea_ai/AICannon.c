@@ -322,18 +322,14 @@ float Cannon_GetSalvoWindow()
 	return Cannon_SalvoWindow(aCharacter);
 }
 
-// Direct/fort callers keep their existing delay event; moving-target lead uses
-// the same ship window's average, with bounded variation around its midpoint.
+// Ships use a short direct/single delay; native batteries apply count cadence
+// and predict each moving-target intercept at that gun's actual queued delay.
 float Cannon_GetFireTime()
 {
 	aref aCharacter = GetEventData();
 	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
 	if (refBaseShip.Name == ShipsTypes[SHIP_FORT].Name) { return frnd() * 20.0; }
-	if (sti(aCharacter.index) == GetMainCharacterIndex() && CheckAttribute(aCharacter, "Ship.Cannons.FireMode"))
-	{
-		if (sti(aCharacter.Ship.Cannons.FireMode) == 1) { return 0.05 + frnd() * 0.15; }
-	}
-	return Cannon_SalvoWindow(aCharacter) * (0.4 + frnd() * 0.2);
+	return 0.05 + frnd() * 0.15;
 }
 
 void Cannon_FireCannon()

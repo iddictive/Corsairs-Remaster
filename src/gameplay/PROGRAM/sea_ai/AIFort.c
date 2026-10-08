@@ -380,6 +380,7 @@ float Fort_CannonDamage()
 	float fHullDamage = stf(rBall.DamageHull) * fCannonDamageMultiply * 0.4;
 	if (airburst) fHullDamage = stf(rBall.DamageFort) * fCannonDamageMultiply * 0.4;
 	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * 0.6;
+	fCrewDamage = Ship_AmmoCrewLoss(rFortCharacter, fCrewDamage);
 
 	rFortCharacter.Ship.HP = (1.0 - MakeFloat(iNumDamagedCannons) / MakeFloat(iNumAllCannons)) * stf(rFortCharacter.Fort.HP);
 	//rFortCharacter.Ship.Crew.Quantity = stf(rFortCharacter.Ship.Crew.Quantity) - fCrewDamage;

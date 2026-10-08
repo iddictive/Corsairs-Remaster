@@ -2,14 +2,15 @@
 
 ## Status
 
-Sourcee2ecbbf passes canonical native build, full PROGRAM compilation with zero
-script errors and canonical stage-only. Signed installed engineb8d033b7 and its
-ownership receipt match; deep/strict signature passes. All seven changed content
-inputs match cache/app, and six PROGRAM inputs match the native compiler fixture.
-All252 original player files retain hashes. The requested quick-menu single mode,
-3.5–10-second broadside and independent endpoint jitter are installed. Actual
-firing/preview acceptance remains open under a sole installed-app replay actor
-using a fresh current-save clone; no real player state is replaced.
+The count-aware quadratic cadence and per-shot moving-target prediction passed
+canonical native build/staging as signed engine4a632fcd. Aligned single/salvo
+art and ammunition precision multipliers are delivered. A later manual-aim
+repair applies mechanical reach checks after longitudinal station assignment;
+native actual-function checks pass, but its build/staging and installed firing
+replay remain required. Earlier source
+`e2ecbbf` was built and staged with fixed 3.5–10-second windows; that historical
+delivery does not accept this correction. Preserve real player saves and use a
+fresh current-save clone for the pending real-game replay.
 
 ## State and consumers
 
@@ -19,6 +20,9 @@ using a fresh current-save clone; no real player state is replaced.
   `BI_FireMode`, labelled `Огонь: по одной` or `Огонь: залпом`. Switching changes
   only that attribute and the existing command projection; loaded cannons,
   scheduled shots, ammo, powder and reload progress remain intact.
+- `src/assets/ui/manifest.json`: separate `fire-mode.tga.tx` with one-gun and
+  three-gun art, each in normal/selected states. BattleInterface texture6 selects
+  rows0/1 for single fire and2/3 for salvo; refresh uses the saved mode owner.
 - Native `AIShip::Fire` and `AIShipCannonController`: every supported manual and
   third-person fire consumer must honor one successful cannon per trigger in
   single mode, including the third-person target/bort iteration loops.
@@ -26,17 +30,35 @@ using a fresh current-save clone; no real player state is replaced.
   live muzzle/solver, loaded shot and individual reload/debit lifecycle. No new
   timer queue or cannon/projectile save format is introduced.
 - `PROGRAM/sea_ai/AICannon.c`: one captain/crew/morale quality window for ship
-  salvos. The best quality retains an approximately 3.5-second window; poorest
-  quality approaches 10 seconds. Fort firing retains its existing 20-second
+  salvos. This returns the full-window quality `Q`: 3.5 seconds at best quality,
+  10 seconds at poorest quality. Fort firing retains its existing 20-second
   individual-delay contract. Native salvo strata must retain nonzero spacing
   and jitter at maximum quality. Every gun, including both endpoints of a
   two-gun battery, receives independent positive jitter bounded by the smaller
   of 0.15 seconds and 20% of its stratum. Adjacent delays remain at least 80% of
   a stratum apart; the total window varies by at most 0.15 seconds.
+- Native `SalvoWindowForCount` owns count scaling for the actual firing set:
+  `W = 0.5 + (Q - 0.5) * ((min(N, 108) - 2) / 106)^2` for `N >= 2`.
+  Two guns have a half-second nominal span and finish within one second; 108
+  guns span approximately 3.5–10 seconds. Damaged, unavailable and unreachable
+  guns do not contribute to `N`; whole-ship inventory/HUD counts are not battery
+  counts. Each moving-target gun uses its own queued delay for interception,
+  preserving the existing rake offset and ballistic flight estimate. Guns that
+  cannot traverse to that intercept are removed before rescaling the survivors.
+  A sole ship gun uses one 0.05–0.20-second event sample for both its target lead
+  and discharge. Single mode retains the same short-delay range. No timing or
+  target fields are added to the cannon save codec.
 - Manual aim: reuse the full existing rake distribution, then select the same
   one ready/reachable gun and its mapped target for actual single fire and its
   dispersion/trajectory preview. Ball flight and per-shot random scatter retain
   their existing owner.
+  A selected ship first receives longitudinal targets for intact guns; each
+  mapped target then passes the existing per-gun traverse, elevation and range
+  checks. Rejecting the common depth point before assigning those stations can
+  incorrectly discard a whole battery. Terrain and unreachable high mast shots
+  retain their mechanical limits; no elevation clamping or vertical snapping is
+  introduced. The common far-range fallback remains limited to genuinely
+  out-of-range receivers.
 
 Input is unchanged: `Ship_Fire` maps left mouse in first and third person.
 `Core::ControlProcess` emits `Control Activation` on `CST_ACTIVATED`, while held
@@ -59,9 +81,9 @@ main/companion/gunless eligibility and unchanged ammo/powder/partial charge stat
 The actual quality helper compiles and returns 3.5 seconds at full skill/crew
 quality, 10 seconds at zero skill/experience or zero optimal crew, and 6.75
 seconds at half crew or zero morale; saturated inputs clamp to 3.5 seconds.
-The actual VM event dispatch also accepts the new window handler, the
-0.05–0.20-second single delay, 40–60% ship-window lead estimate and unchanged
-0–20-second fort delay with zero script errors.
+The earlier VM event-dispatch evidence belongs to the prior fixed-window
+implementation. The current direct ship-delay event returns 0.05–0.20 seconds
+for player and NPC ships; the unchanged fort branch returns 0–20 seconds.
 The quality is normalized cannon skill times crew experience/optimal staffing
 times the bounded morale factor. Existing per-trigger `SHIP_BORT_FIRE` experience
 rewards remain unchanged, including when the trigger fires one cannon.
@@ -77,18 +99,40 @@ pending shots through save/load, pause/delta advancement, teardown and live
 muzzle recomputation. The existing cannon/controller Save/Load functions remain
 byte-identical. Collision and event dependencies in that fixture are stubs.
 
-Integration rejected the first cadence candidate: its fixed first/last delays
-left two-gun batteries with no temporal scatter. The bounded per-gun correction
-passes 64 seeds for each of 2/4/32 guns at both 3.5/10-second windows, including
-independent endpoint and total-span variation. Two-gun spans observed
-3.3580–3.5131 and 9.8580–10.0131 seconds; dense 32-gun gaps remain at least
-0.09032/0.25806 seconds. Existing pending-shot, mode-change, save/load and reload
-cases still pass. No cannon script or save-codec change was required.
+Integration rejected fixed first/last delays because two-gun batteries had no
+temporal scatter. A later fixed-quality window also stretched two guns across
+the full 3.5–10 seconds. The quadratic correction reuses the retained disposable
+actual-function fixture and passes 64 seeds for 2/4/32/49/108 firing guns at both
+quality endpoints. Two-gun last shots occur at 0.552–0.649 seconds; 108-gun last
+shots at 3.550–3.556 or 10.050–10.068 seconds. Both endpoints vary independently,
+and adjacent spacing remains at least 80% of each count-scaled stratum.
+The same fixture accepts each moving-target gun's delay-based intercept,
+108 model guns with only two eligible guns, late traverse rejection followed by
+singleton rescaling, single-mode isolation, per-gun reload/resource debit, NPC
+mode handling, direct/fort delay fallback, and unchanged pending-shot save/load.
+Native syntax checks pass for the three touched full translation units.
+
+The earlier retained isolated script-VM fixture failed compilation with
+`Invalid Expression` at its delay-event scenario, including after restoration
+of its historical assertion-stripped form. This does not prove a gameplay-source
+defect or a passing VM check. Full PROGRAM compilation and installed-app replay
+resolve the script compilation gap; visible firing remains a separate gate.
 
 Full startup plus catalogue/initStore/controls/store interface compilation passes
 with installed shared headers and exact pending script inputs. Real-game
 acceptance still requires a partial-battery single-shot sequence, exhausted ammo,
 mode switch, delayed full salvo, selected-gun preview and an ordinary NPC salvo.
 Source/mock/VM evidence does not accept those visible actions.
+
+The manual-aim actual-function falsifier seeds the same four guns and a selected
+close hull point at y0,z20 with a muzzle at y5 and a depression limit of -0.13
+radians. The previous common-point gate returns zero guns although three
+longitudinal stations on the 100-metre hull are mechanically reachable. The
+candidate returns those three legal guns and queues their shots. An impossible
+high mast, steep nearby terrain, ordinary far intent and single-mode mapped
+station pass the nearest negative checks. The existing cadence/state fixture
+and all three native translation-unit syntax checks pass. This proves the
+ordering defect; the player's broader report that aiming at any ship breaks
+fire remains unresolved until its actual symptom is reproduced.
 
 Runtime attempt chronology and installed hashes belong to `docs/runtime.md`.

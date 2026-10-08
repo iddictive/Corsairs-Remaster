@@ -1,17 +1,32 @@
+void NavalAmmo_InitDamage()
+{
+    // Base percent of the current crew; one owner for new games and old saves.
+    Goods[GOOD_BALLS].DamageCrew = 0.05;
+    Goods[GOOD_GRAPES].DamageCrew = 0.6;
+    Goods[GOOD_KNIPPELS].DamageCrew = 0.075;
+    Goods[GOOD_BOMBS].DamageCrew = 0.125;
+    Goods[GOOD_AIRBURST].DamageCrew = 1.2;
+    Goods[GOOD_BALLS].Accuracy = 100.0;
+    Goods[GOOD_GRAPES].Accuracy = 50.0;
+    Goods[GOOD_KNIPPELS].Accuracy = 30.0;
+    Goods[GOOD_BOMBS].Accuracy = 80.0;
+    Goods[GOOD_AIRBURST].Accuracy = 80.0;
+}
+
 void Airburst_InitGoods()
 {
     // Saved arrays restore their old size; append without touching old rows.
     if (GetArraySize(&Goods) < GOODS_QUANTITY) SetArraySize(&Goods, GOODS_QUANTITY);
+    NavalAmmo_InitDamage();
     Goods[GOOD_AIRBURST].Name = "Airburst";
     Goods[GOOD_AIRBURST].Cost = 480;
     Goods[GOOD_AIRBURST].Weight = 1;
     Goods[GOOD_AIRBURST].Units = 20;
     Goods[GOOD_AIRBURST].SpeedV0 = 0.8;
     Goods[GOOD_AIRBURST].ReloadTime = 1.65;
-    Goods[GOOD_AIRBURST].DamageHull = 67.5;
+    Goods[GOOD_AIRBURST].DamageHull = 39.0; // twice ordinary bombs
     Goods[GOOD_AIRBURST].DamageFort = 180.0;
-    Goods[GOOD_AIRBURST].DamageRig = 8.0;
-    Goods[GOOD_AIRBURST].DamageCrew = 14.0;
+    Goods[GOOD_AIRBURST].DamageRig = 25.2; // twice knippels
     Goods[GOOD_AIRBURST].AfraidWater = 0;
     Goods[GOOD_AIRBURST].type = TRADE_TYPE_AMMUNITION;
     Goods[GOOD_AIRBURST].canbecontraband = 0;
@@ -30,7 +45,6 @@ void InitGoods()
 	Goods[GOOD_BALLS].SpeedV0		= 1.0;
 	Goods[GOOD_BALLS].DamageHull	= 11.5;
 	Goods[GOOD_BALLS].DamageRig		= 0.5;
-	Goods[GOOD_BALLS].DamageCrew	= 0.2;
 	Goods[GOOD_BALLS].AfraidWater = 0;    // рудимент от к3
 	Goods[GOOD_BALLS].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_BALLS].canbecontraband	= 0;  // рудимент от к3
@@ -43,7 +57,6 @@ void InitGoods()
 	Goods[GOOD_GRAPES].SpeedV0		= 0.6; // boal
 	Goods[GOOD_GRAPES].DamageHull	= 1.0;
 	Goods[GOOD_GRAPES].DamageRig	= 2.0;
-	Goods[GOOD_GRAPES].DamageCrew	= 2.4;
 	Goods[GOOD_GRAPES].AfraidWater	= 0;
 	Goods[GOOD_GRAPES].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_GRAPES].canbecontraband	= 0;
@@ -55,7 +68,6 @@ void InitGoods()
 	Goods[GOOD_KNIPPELS].SpeedV0	= 0.9;
 	Goods[GOOD_KNIPPELS].DamageHull = 1.5;
 	Goods[GOOD_KNIPPELS].DamageRig	= 12.6;
-	Goods[GOOD_KNIPPELS].DamageCrew = 0.3;
 	Goods[GOOD_KNIPPELS].AfraidWater = 0;
 	Goods[GOOD_KNIPPELS].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_KNIPPELS].canbecontraband	= 0;
@@ -67,7 +79,6 @@ void InitGoods()
 	Goods[GOOD_BOMBS].SpeedV0		= 0.8;
 	Goods[GOOD_BOMBS].DamageHull	= 19.5;
 	Goods[GOOD_BOMBS].DamageRig		= 1.0;
-	Goods[GOOD_BOMBS].DamageCrew	= 0.5;
 	Goods[GOOD_BOMBS].AfraidWater = 0;
 	Goods[GOOD_BOMBS].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_BOMBS].canbecontraband	= 0;
