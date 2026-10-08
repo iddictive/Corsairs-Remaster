@@ -22,6 +22,23 @@ One local coefficient now scales both the ideal and MaxSpeedZ on every parameter
 update; mode changes replace the derived ideal rather than multiplying old state.
 The normal-mode result and turn-rate scaling are unchanged.
 
+The subsequent native correction removes the flat band in
+`max(stock target, quarter target)`: stock propulsion could double below the
+quarter target without changing speed at all. With a valid ideal speed `I` and
+standing-mast floor `F`, a stock target `N` below `I` now maps to
+`F + max(N, 0) × (1 − F/I)`. Thus every positive propulsion change raises the
+target, zero propulsion keeps the requested floor and the ideal endpoint stays
+unchanged. Targets at or above the ideal retain their stock/perk result. Existing
+mast/control guards and the absent-ideal fallback remain unchanged.
+
+A read-only later sea save has intact masts but heavily holed main sails, so a low
+stock target is compatible with sail damage; it does not establish live velocity.
+The exact changed native method passes a continuous 0–120% propulsion sweep,
+normal/arcade HUD parity, preserved ideal/perk maxima and all existing mast/control
+negatives under ASan/UBSan. The ordered canonical build and stage-only command
+consume the correction and install it in the supported app. Real acceleration/HUD
+replay remains player-owned; the exact installed inventory is in `docs/runtime.md`.
+
 A disposable fixture executes the changed script blocks in the real script VM:
 normal → arcade → normal passes with zero script errors. Another fixture compiles
 the exact installed native target method under ASan/UBSan, using explicit

@@ -8,7 +8,7 @@
  #include "character.h"
  #include "math_inlines.h"
  #include "shared/mast_msg.h"
-@@ -283,6 +284,45 @@
+@@ -283,6 +284,55 @@
      }
  
      Speed->z *= GetMaxSpeedZ();
@@ -41,6 +41,7 @@
 +            if (!mast.bBroken)
 +                standingMasts++;
 +        }
++        const float naturalSpeed = Speed->z;
 +        float mastFloor = 0.0f;
 +        auto *ideal = character->FindAClass(character, "Tmp.fShipSpeedIdeal");
 +        if (ideal && totalMasts > 0)
@@ -50,6 +51,15 @@
 +            mastFloor = standingMasts >= 3 ? 3.0f : standingMasts == 2 ? 2.5f : standingMasts == 1 ? 2.0f : 0.0f;
 +        if (mastFloor > Speed->z)
 +            Speed->z = mastFloor;
++        // Spread natural propulsion over the remaining speed range: a
++        // stronger wind must help even below the quarter-speed floor.
++        // Stock propulsion at or above the ideal maximum stays unchanged.
++        if (ideal && totalMasts > 0 && ideal->GetAttributeAsFloat() > 0.0f)
++        {
++            const float idealSpeed = ideal->GetAttributeAsFloat();
++            if (Speed->z < idealSpeed)
++                Speed->z = mastFloor + (naturalSpeed > 0.0f ? naturalSpeed : 0.0f) * (1.0f - mastFloor / idealSpeed);
++        }
 +    }
      Rotate->y *= GetMaxSpeedY();
  
