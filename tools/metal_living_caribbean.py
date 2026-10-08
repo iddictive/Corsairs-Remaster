@@ -426,14 +426,7 @@ WDM_TSUNAMI_GENERATOR = enc("""void wdmTsunamiGen(float dltTime)
     }
     wdmTimeOfLastTsunami += dltTime * 0.000001 * 1000.0 * iEncountersRate;
     if (rand(1001) >= wdmTimeOfLastTsunami) return;
-    string previousID = "";
-    if (CheckAttribute(&worldMap, "EncounterID1")) previousID = worldMap.EncounterID1;
-    SendMessage(&worldMap, "ll", MSG_WORLDMAP_CREATESTORM, 0);
-    if (!CheckAttribute(&worldMap, "EncounterID1") || worldMap.EncounterID1 == previousID) return;
-    string path = "encounters." + worldMap.EncounterID1;
-    if (!CheckAttribute(&worldMap, path + ".type") || worldMap.(path).type != "Storm") return;
-    worldMap.(path).tsunamiSeverity = SeaTsunami_SampleSeverity();
-    wdmTimeOfLastTsunami = 0.0;
+    if (SeaTsunami_CreateMapEncounter()) wdmTimeOfLastTsunami = 0.0;
 }
 
 """)
@@ -1696,7 +1689,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "9795a316304be3e77eb30fd10068b1ead5c1d915906382800e4bee3877e33927",
+    "PROGRAM/worldmap/worldmap_encgen.c": "52a68d391c28d8298d8b98894b01d4f436b9471b3daacf3b1dd532dbb3222187",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1741,6 +1734,7 @@ PREVIOUS = {
 
 PREVIOUS[WDM_ENC_PATH].update({"1fc95e425f4887bc2f38572141de6e70f486660db2bc6897500cfae7f3728bfe", "cf064b2309bd4a6f32dd1909b34fbd097525a0e071b46a32e6e610ce68b4d6db"})
 PREVIOUS[WDM_ENC_PATH].add("0051df1dd35d4094af4ad6b30f1f6216e1f3af27c2f70a74a20766302a4482dd")
+PREVIOUS[WDM_ENC_PATH].add("9795a316304be3e77eb30fd10068b1ead5c1d915906382800e4bee3877e33927")
 
 
 def prepare(relative: str, data: bytes) -> bytes:

@@ -21,8 +21,8 @@ void InitInterface(string iniName)
  	StartAboveForm(true);
 	
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
-	SetNodeUsing("TSUNAMI_START", bSeaActive);
-	SetNodeUsing("TSUNAMI_STOP", bSeaActive);
+	SetNodeUsing("TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
+	SetNodeUsing("TSUNAMI_STOP", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TSUNAMI_START",0,"#Цунами");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TSUNAMI_STOP",0,"#Стоп");
 	

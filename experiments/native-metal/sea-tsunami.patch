@@ -353,7 +353,23 @@
              break;
 --- a/src/libs/sea_foam/src/seafoam.cpp
 +++ b/src/libs/sea_foam/src/seafoam.cpp
-@@ -105,6 +105,9 @@
+@@ -1,5 +1,7 @@
+ #include "seafoam.h"
+ #include "shared/messages.h"
++#include "shared/sea_ai/script_defines.h"
++#include "island_base.h"
+ 
+ #include "entity.h"
+ #include "core.h"
+@@ -28,6 +30,7 @@
+     // GUARD(SEAFOAM::~SEAFOAM)
+ 
+     ReleaseShipFoam();
++    ResetTsunamiShore();
+     if (renderer && (carcassTexture >= 0))
+         renderer->TextureRelease(carcassTexture);
+     // UNGUARD
+@@ -105,6 +108,9 @@
      foamInfo->firstSoundPlay = true;
      foamInfo->doSplash = false;
      foamInfo->sound = 0;
@@ -363,7 +379,7 @@
  }
  
  //--------------------------------------------------------------------
-@@ -406,24 +409,31 @@
+@@ -406,24 +412,31 @@
  
      frontEmitterPos.x -= FOAM_SHIFT_X;
  
@@ -411,9 +427,111 @@
          _shipFoamInfo.frontEmitter[2]->Realize(_dTime);
      }
  
+@@ -465,6 +478,37 @@
+ 
+     switch (code)
+     {
++    case MSG_SEA_TSUNAMI_SHORE_SPLASH: {
++        const auto serial = static_cast<unsigned>(message.Long());
++        if (serial == 0) { ResetTsunamiShore(); return 0; }
++        CVECTOR hit, seaward;
++        hit.x = message.Float(); hit.y = message.Float(); hit.z = message.Float();
++        seaward.x = message.Float(); seaward.y = message.Float(); seaward.z = message.Float();
++        const float strength = message.Float();
++        if (!sea || !psIni || !std::isfinite(hit.x) || !std::isfinite(hit.y) || !std::isfinite(hit.z) ||
++            !std::isfinite(seaward.x) || !std::isfinite(seaward.y) || !std::isfinite(seaward.z) ||
++            !std::isfinite(strength) || strength <= 0.f) return 0;
++        const auto sample = sea->GetTsunamiSample(hit.x, hit.z);
++        if (sample.serial != serial || sample.height <= 0.f) return 0;
++        for (auto &splash : tsunamiShoreSplashes)
++            if (splash.serial == 0)
++            {
++                if (!splash.particles)
++                {
++                    splash.particles = std::make_unique<SEAFOAM_PS>();
++                    splash.particles->Init(psIni.get(), "seafoam_front");
++                }
++                splash.particles->ClearParticles();
++                splash.particles->SetSplashScale((.8f + 1.6f * sample.severity) * (.5f + .5f * std::clamp(strength, 0.f, 1.f)));
++                splash.particles->SetEmitter(hit, !CVECTOR(seaward.x * .4f, 1.f, seaward.z * .4f));
++                splash.serial = serial;
++                splash.age = 0;
++                splash.emissionTime = static_cast<uint32_t>(300.f + 700.f * sample.severity);
++                splash.lifeTime = splash.emissionTime + 1500;
++                return 1;
++            }
++        return 0;
++    }
+     case MSG_SHIP_DELETE: {
+         auto *const attrs = message.AttributePointer();
+         tShipFoamInfo *foamInfo = nullptr;
+@@ -492,12 +536,49 @@
+ }
+ 
+ //--------------------------------------------------------------------
++void SEAFOAM::ResetTsunamiShore()
++{
++    for (auto &splash : tsunamiShoreSplashes)
++    {
++        if (splash.particles && splash.serial != 0) splash.particles->ClearParticles();
++        splash.serial = 0;
++        splash.age = splash.emissionTime = splash.lifeTime = 0;
++    }
++}
++
++void SEAFOAM::RealizeTsunamiShore(uint32_t delta)
++{
++    const auto event = sea ? sea->GetTsunamiSample(0.f, 0.f) : SeaTsunamiSample{};
++    const auto islandID = core.GetEntityId("island");
++    auto *island = static_cast<ISLAND_BASE *>(core.GetEntityPointer(islandID));
++    if (event.serial == 0 || !island || island->GetCurrentImmersion() != 0.f)
++    {
++        ResetTsunamiShore();
++        return;
++    }
++    for (auto &splash : tsunamiShoreSplashes)
++    {
++        if (splash.serial == 0) continue;
++        if (splash.serial != event.serial || delta >= splash.lifeTime - splash.age)
++        {
++            splash.particles->ClearParticles();
++            splash.serial = 0;
++            splash.age = splash.emissionTime = splash.lifeTime = 0;
++            continue;
++        }
++        splash.age += delta;
++        splash.particles->EnableEmit(delta > 0 && splash.age < splash.emissionTime);
++        splash.particles->Realize(delta);
++    }
++}
++
+ void SEAFOAM::Realize(uint32_t _dTime)
+ {
+     // GUARD(SEAFOAM::Realize)
+ 
+     uint64_t ticks = 0;
+     RDTSC_B(ticks)
++    RealizeTsunamiShore(_dTime);
+ 
+     tShipFoamInfo *foamInfo = nullptr;
+     int ship;
+@@ -565,6 +646,7 @@
+ uint32_t SEAFOAM::AttributeChanged(ATTRIBUTES *pA)
+ {
+     const auto *const nm = pA->GetThisName();
++    if (storm::iEquals(nm, "Clear")) ResetTsunamiShore();
+ 
+     if (storm::iEquals(nm, "storm"))
+     {
 --- a/src/libs/sea_foam/src/seafoam.h
 +++ b/src/libs/sea_foam/src/seafoam.h
-@@ -34,6 +34,10 @@
+@@ -1,4 +1,5 @@
+ #pragma once
++#include <array>
+ 
+ #include "seafoam_defines.h"
+ #include "t_carcass.h"
+@@ -34,6 +35,10 @@
      bool doSplash;
      bool firstSoundPlay;
      bool enabled;
@@ -424,12 +542,43 @@
  };
  
  class SEAFOAM : public Entity
+@@ -74,6 +79,15 @@
+     void InterpolateLeftParticle(tShipFoamInfo &_shipFoamInfo, int z, uint32_t dTime);
+     void InterpolateRightParticle(tShipFoamInfo &_shipFoamInfo, int z, uint32_t dTime);
+     void AddShip(entid_t pShipEID);
++    void ResetTsunamiShore();
++    void RealizeTsunamiShore(uint32_t delta);
++    struct TsunamiShoreSplash
++    {
++        std::unique_ptr<SEAFOAM_PS> particles;
++        unsigned serial = 0;
++        uint32_t age = 0, emissionTime = 0, lifeTime = 0;
++    };
++    std::array<TsunamiShoreSplash, 12> tsunamiShoreSplashes{};
+ 
+     VDX9RENDER *renderer;
+     entid_t seaID;
 --- a/src/libs/sea_foam/src/seafoam_ps.h
 +++ b/src/libs/sea_foam/src/seafoam_ps.h
-@@ -218,6 +218,19 @@
+@@ -1,4 +1,5 @@
+ #pragma once
++#include <algorithm>
+ 
+ #include "matrix.h"
+ #include "dx9render.h"
+@@ -172,6 +173,7 @@
+     CMatrix Matrix;
+ 
+     bool bComplete;
++    float splashScale = 1.f;
+ 
+     bool bRepeat;
+     bool bColorInverse;
+@@ -217,6 +219,20 @@
+     {
          enableEmit = _enableEmit;
      }
- 
++
 +    void ClearParticles()
 +    {
 +        enableEmit = false;
@@ -442,23 +591,24 @@
 +            Particle[i].color = 0;
 +        }
 +    }
-+
++    void SetSplashScale(float scale) { splashScale = std::clamp(scale, .1f, 3.f); }
+ 
      // nodes --------------------------------------------------------
      SEAFOAM_PS *GetLeftNode();
-     SEAFOAM_PS *GetRightNode();
 --- a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
 +++ b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
-@@ -3,6 +3,7 @@
+@@ -3,6 +3,8 @@
  
  //
  #define SEA_GET_LAYERS "SeaGetLayers"
 +#define MSG_SEA_TSUNAMI_CONTACT 50202 // "laeeee": character; exposure, damage fraction, capsize int, signed beam
++#define MSG_SEA_TSUNAMI_SHORE_SPLASH 50203 // "llfffffff": serial; hit xyz, seaward xyz, strength; serial0 clears owned pool
  
  //
  #define EVENT_SEA_LOGIN "EventSeaLogin"
 --- a/src/libs/shared_headers/include/shared/sea_tsunami.hpp
 +++ b/src/libs/shared_headers/include/shared/sea_tsunami.hpp
-@@ -0,0 +1,235 @@
+@@ -0,0 +1,270 @@
 +#pragma once
 +
 +#include <algorithm>
@@ -473,6 +623,8 @@
 +    static constexpr float maxPitch = 1.25f, maxRoll = 2.05f, responseFrequency = 2.6f;
 +    // Broadside means 90 degrees +/- 40 degrees to propagation, on either side.
 +    static constexpr float capsizeBeamThreshold = .76604444f, overturnAngle = 1.57079633f;
++    static constexpr float minDriftDistance = 60.f, maxDriftDistance = 300.f;
++    static constexpr float profileArea = 4.f / 3.f;
 +};
 +
 +// One transient wave state for rendered sea geometry and scalar physics queries.
@@ -496,6 +648,7 @@
 +    float signedDistance = 0.f, crestStrength = 0.f, foam = 0.f;
 +    unsigned serial = 0;
 +    float amplitude = SeaTsunamiParameters::minAmplitude, severity = 0.f, damageFraction = 0.f;
++    float speed = SeaTsunamiParameters::minSpeed, width = SeaTsunamiParameters::minWidth;
 +    float directionX = 0.f, directionZ = 1.f;
 +};
 +
@@ -545,6 +698,8 @@
 +    sample.amplitude = wave.amplitude;
 +    sample.severity = wave.severity;
 +    sample.damageFraction = wave.damageFraction;
++    sample.speed = wave.speed;
++    sample.width = wave.width;
 +    sample.directionX = wave.directionX;
 +    sample.directionZ = wave.directionZ;
 +    sample.signedDistance = signedDistance;
@@ -644,6 +799,36 @@
 +               SeaTsunamiParameters::overturnAngle && modelUpY <= 0.f;
 +}
 +
++// Current velocity is temporary in Move; only its finite travel budget lives here.
++// Prediction reads the same budget without mutating it, including event changes.
++struct SeaTsunamiDrift
++{
++    unsigned serial = 0;
++    float spent = 0.f;
++    void Reset() { *this = {}; }
++
++    float Speed(const SeaTsunamiSample &sample, float protection, float seconds, bool consume)
++    {
++        if (sample.serial == 0 || protection <= 0.f)
++        {
++            if (consume) Reset();
++            return 0.f;
++        }
++        if (consume && serial != sample.serial) { Reset(); serial = sample.serial; }
++        if (!(seconds > 0.f) || !std::isfinite(seconds)) return 0.f;
++        const float distance = (SeaTsunamiParameters::minDriftDistance + sample.severity *
++            (SeaTsunamiParameters::maxDriftDistance - SeaTsunamiParameters::minDriftDistance)) *
++            std::clamp(protection, 0.f, 1.f);
++        const float remaining = std::max(0.f, distance - (serial == sample.serial ? spent : 0.f));
++        const float load = std::clamp(sample.height / sample.amplitude, 0.f, 1.f);
++        const float ratio = distance * load / (SeaTsunamiParameters::profileArea * sample.width);
++        // Account for a ship moving with the crest: v/(c-v) follows the profile.
++        const float speed = std::min(sample.speed * ratio / (1.f + ratio), remaining / seconds);
++        if (consume) spent += speed * seconds;
++        return speed;
++    }
++};
++
 +class SeaTsunami
 +{
 +    SeaTsunamiFrame frame_;
@@ -696,7 +881,72 @@
 +};
 --- a/src/libs/ship/src/ship.cpp
 +++ b/src/libs/ship/src/ship.cpp
-@@ -605,7 +605,8 @@
+@@ -432,15 +432,35 @@
+     return true;
+ }
+ 
++float SHIP::TsunamiProtection()
++{
++    auto *character = GetACharacter();
++    auto *perks = character->FindAClass(character, "TmpPerks");
++    if (character->FindAClass(character, "DontHitInStorm")) return 0.f;
++    return perks && perks->GetAttributeAsDword("StormProfessional", 0) != 0 ? .7f : 1.f;
++}
++
++CVECTOR SHIP::TsunamiDriftSpeed(float seconds, bool consume)
++{
++    const auto pos = GetPos();
++    const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
++    const float speed = tsunamiDrift.Speed(sample, isDead() || bSetFixed ? 0.f : TsunamiProtection(), seconds, consume);
++    // frontDistance decreases: propagation is opposite the stored outward direction.
++    CVECTOR local(METERS2KNOTS(-sample.directionX * speed), 0.f, METERS2KNOTS(-sample.directionZ * speed));
++    RotateAroundY(local.x, local.z, cosf(-State.vAng.y), sinf(-State.vAng.y));
++    return local;
++}
++
+ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTPNew)
+ {
+     if (!pTPOld && !pTPNew)
+         return false;
+     const auto old_state = State;
++    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false);
+ 
+     if (pTPOld)
+     {
+-        pTPOld->vSpeed = State.vSpeed;
++        pTPOld->vSpeed = State.vSpeed + eventSpeed;
+         pTPOld->vRotate = State.vRotate;
+         pTPOld->vPos = State.vPos;
+         pTPOld->vAng = State.vAng;
+@@ -452,7 +472,7 @@
+ 
+     if (pTPNew)
+     {
+-        pTPNew->vSpeed = State.vSpeed;
++        pTPNew->vSpeed = State.vSpeed + eventSpeed;
+         pTPNew->vRotate = State.vRotate;
+         pTPNew->vPos = State.vPos;
+         pTPNew->vAng = State.vAng;
+@@ -469,6 +489,8 @@
+ {
+     const auto dtime = DELTA_TIME(DeltaTime);
+     ApplyStrength(dtime, bCollision);
++    const auto eventSpeed = TsunamiDriftSpeed(dtime, !bCollision);
++    State.vSpeed += eventSpeed;
+     if (!bCollision && !isDead())
+     {
+         State.vAng = ShipRocking(dtime);
+@@ -510,6 +532,9 @@
+         }
+     }
+ 
++    // Only grounding mutates translational velocity after the temporary current.
++    // Its zero velocity is authoritative; never subtract a stale current from it.
++    if (bCollision || !bGroundMoveBlocked) State.vSpeed -= eventSpeed;
+     return true;
+ }
+ 
+@@ -605,7 +630,8 @@
  {
      if (!isDead())
      {
@@ -706,7 +956,7 @@
  
          vOldAng = State.vAng;
          vOldPos = State.vPos;
-@@ -629,7 +630,9 @@
+@@ -629,7 +655,10 @@
          vDeadDir.y = pASinkSpeed->GetAttributeAsFloat("y");
          vDeadDir.z = pASinkSpeed->GetAttributeAsFloat("z");
  
@@ -714,19 +964,17 @@
 +        // Transfer the actual live event pose into the existing saved sink pose.
 +        vCurDeadDir = eventTilt;
 +        tsunamiMotion.Reset();
++        tsunamiDrift.Reset();
  
          bDead = true;
          core.RemoveFromLayer(SEA_REFLECTION2, GetId());
-@@ -744,6 +747,17 @@
+@@ -744,6 +773,14 @@
          if (fRotate < -0.25f)
              fRotate = -0.25f;
          vAng.z += fRotate;
 +        const auto pos = GetPos();
 +        const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
-+        auto *character = GetACharacter();
-+        auto *perks = character->FindAClass(character, "TmpPerks");
-+        float protection = perks && perks->GetAttributeAsDword("StormProfessional", 0) != 0 ? .7f : 1.f;
-+        if (character->FindAClass(character, "DontHitInStorm")) protection = 0.f;
++        const float protection = TsunamiProtection();
 +        const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
 +        const float beam = sample.directionX * std::cos(State.vAng.y) - sample.directionZ * std::sin(State.vAng.y);
 +        tsunamiMotion.Update(sample, head, beam, protection, fDeltaTime);
@@ -735,16 +983,223 @@
      }
  
      auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
+@@ -2292,6 +2329,7 @@
+ void SHIP::Load(CSaveLoad *pSL)
+ {
+     uint32_t i;
++    tsunamiDrift.Reset();
+ 
+     SetACharacter(pSL->LoadAPointer("character"));
+     pAShip = pSL->LoadAPointer("ship");
 --- a/src/libs/ship/src/ship.h
 +++ b/src/libs/ship/src/ship.h
-@@ -113,6 +113,7 @@
+@@ -113,6 +113,8 @@
      float fWaterLine;
      bool bDead, bVisible;
      CVECTOR vDeadDir, vCurDeadDir;
 +    SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
++    SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
      CVECTOR vKeelContour[MAX_KEEL_POINTS];
      int32_t iNumMasts;
      int32_t iNumHulls;
+@@ -141,6 +143,8 @@
+     // executed functions
+     CVECTOR ShipRocking(float fDeltaTime);
+     BOOL ApplyStrength(float dtime, BOOL bCollision);
++    float TsunamiProtection();
++    CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
+     BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate);
+     void CalculateImmersion(); //
+     void CheckShip2Strand(float fDeltaTime);
+--- a/src/libs/island/src/foam.cpp
++++ b/src/libs/island/src/foam.cpp
+@@ -4,6 +4,7 @@
+ #include "math3d/plane.h"
+ #include "dx9render.h"
+ #include "math3d.h"
++#include "shared/sea_ai/script_defines.h"
+ 
+ CoastFoam::CoastFoam()
+ {
+@@ -119,6 +120,7 @@
+             ExecuteFoamType2(pF, fDeltaTime);
+     }
+     RDTSC_E(dw1);
++    RealizeTsunamiShore(Delta_Time);
+ 
+     // rs->Print(0, 300, "dwNumPenasExecuted = %d, ticks = %d", dwNumPenasExecuted, dw1);
+ 
+@@ -822,8 +824,98 @@
+ #endif
+ }
+ 
++void CoastFoam::ResetTsunamiShore()
++{
++    tsunamiShoreContacts.clear();
++    tsunamiShoreSerial = 0;
++    tsunamiShoreIsland = 0;
++    tsunamiShoreCursor = 0;
++    if (const auto foamID = core.GetEntityId("seafoam"))
++        core.Send_Message(foamID, "llfffffff", MSG_SEA_TSUNAMI_SHORE_SPLASH, 0,
++                          0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f);
++}
++
++void CoastFoam::RealizeTsunamiShore(uint32_t delta)
++{
++    CVECTOR camera, angle;
++    float perspective;
++    rs->GetCamera(camera, angle, perspective);
++    const auto event = pSea->GetTsunamiSample(camera.x, camera.z);
++    const auto islandID = core.GetEntityId("island");
++    auto *island = static_cast<ISLAND_BASE *>(core.GetEntityPointer(islandID));
++    if (event.serial == 0 || !island || island->GetCurrentImmersion() != 0.f)
++    {
++        if (tsunamiShoreSerial != 0) ResetTsunamiShore();
++        return;
++    }
++    if (event.serial != tsunamiShoreSerial || islandID != tsunamiShoreIsland)
++    {
++        ResetTsunamiShore();
++        tsunamiShoreSerial = event.serial;
++        tsunamiShoreIsland = islandID;
++        size_t count = 0, index = 0;
++        for (const auto *foam : aFoams) count += foam->aFoamParts.size();
++        const size_t stride = std::max(size_t(1), (count + 511) / 512);
++        tsunamiShoreContacts.reserve(512);
++        for (const auto *foam : aFoams)
++            for (const auto &part : foam->aFoamParts)
++                if (index++ % stride == 0 && tsunamiShoreContacts.size() < 512)
++                    if (std::isfinite(part.v[0].x) && std::isfinite(part.v[0].z) &&
++                        std::isfinite(part.v[1].x) && std::isfinite(part.v[1].z))
++                        tsunamiShoreContacts.push_back({part.v[1], part.v[0]});
++    }
++    if (delta == 0 || tsunamiShoreContacts.empty()) return;
++    const auto foamID = core.GetEntityId("seafoam");
++    if (!foamID) return;
++
++    // Refine authored coast strips once per event, with at most eight mesh traces/frame.
++    unsigned traces = 0;
++    for (size_t visited = 0; visited < tsunamiShoreContacts.size() && traces < 8; ++visited)
++    {
++        auto &contact = tsunamiShoreContacts[tsunamiShoreCursor++ % tsunamiShoreContacts.size()];
++        if (contact.checked || ~(contact.land - camera) > fMaxFoamDistance * fMaxFoamDistance) continue;
++        contact.checked = true;
++        CVECTOR inland = contact.land - contact.water;
++        inland.y = 0.f;
++        if (~inland < .0001f) continue;
++        inland = !inland;
++        CVECTOR from = contact.water - inland * 10.f, to = contact.land + inland * 40.f;
++        float waterDepth = -50.f, landDepth = -50.f;
++        island->GetDepthFast(to.x, to.z, &landDepth);
++        island->GetDepthFast(from.x, from.z, &waterDepth);
++        if (waterDepth > landDepth)
++        {
++            std::swap(from, to);
++            std::swap(waterDepth, landDepth);
++            inland = -inland;
++        }
++        if (landDepth < -.25f || waterDepth >= -.25f) continue;
++        from.y = to.y = .5f;
++        ++traces;
++        const float hit = island->Trace(from, to);
++        if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) continue;
++        contact.hit = from + hit * (to - from);
++        contact.seaward = -inland;
++        contact.valid = true;
++    }
++    for (auto &contact : tsunamiShoreContacts)
++    {
++        if (!contact.valid || contact.emitted ||
++            ~(contact.hit - camera) > fMaxFoamDistance * fMaxFoamDistance) continue;
++        const auto sample = pSea->GetTsunamiSample(contact.hit.x, contact.hit.z);
++        const float incidence = sample.directionX * contact.seaward.x + sample.directionZ * contact.seaward.z;
++        if (sample.serial != tsunamiShoreSerial || sample.foam < .5f || incidence <= .1f ||
++            pSea->WaveXZ(contact.hit.x, contact.hit.z) <= contact.hit.y + .1f) continue;
++        const float strength = std::clamp(sample.foam * incidence, 0.f, 1.f);
++        contact.emitted = core.Send_Message(foamID, "llfffffff", MSG_SEA_TSUNAMI_SHORE_SPLASH, tsunamiShoreSerial,
++                          contact.hit.x, contact.hit.y, contact.hit.z,
++                          contact.seaward.x, contact.seaward.y, contact.seaward.z, strength) != 0;
++    }
++}
++
+ void CoastFoam::clear()
+ {
++    ResetTsunamiShore();
+     for (auto &foam : aFoams)
+     {
+         if (foam->iTexture >= 0)
+@@ -917,5 +1009,6 @@
+ 
+ uint32_t CoastFoam::AttributeChanged(ATTRIBUTES *pA)
+ {
++    if (std::strcmp(pA->GetThisName(), "Clear") == 0) ResetTsunamiShore();
+     return 0;
+ }
+--- a/src/libs/island/src/foam.h
++++ b/src/libs/island/src/foam.h
+@@ -104,6 +104,15 @@
+     int32_t iFoamTexture, iCursorTex;
+     SEA_BASE *pSea;
+     std::vector<Foam *> aFoams;
++    struct TsunamiShoreContact
++    {
++        CVECTOR water, land, hit, seaward;
++        bool checked = false, valid = false, emitted = false;
++    };
++    std::vector<TsunamiShoreContact> tsunamiShoreContacts;
++    unsigned tsunamiShoreSerial = 0;
++    entid_t tsunamiShoreIsland = 0;
++    size_t tsunamiShoreCursor = 0;
+     int32_t iVBuffer, iIBuffer;
+     PLANE *pFrustumPlanes;
+ 
+@@ -121,6 +130,8 @@
+     void Save();
+     void Load();
+     void clear();
++    void ResetTsunamiShore();
++    void RealizeTsunamiShore(uint32_t delta);
+ 
+     void InitNewFoam(Foam *pF);
+     void RecalculateFoam(int32_t iFoam);
+--- a/src/libs/sea_foam/src/seafoam_ps.cpp
++++ b/src/libs/sea_foam/src/seafoam_ps.cpp
+@@ -68,11 +68,11 @@
+             RenderService->TextureRelease(TextureID[n]);
+         // core.FreeService("dx9render");
+     }
+-    delete Particle;
++    delete[] Particle;
+     Particle = nullptr;
+     delete pFlowTrack;
+     pFlowTrack = nullptr;
+-    delete TechniqueName;
++    delete[] TechniqueName;
+     TechniqueName = nullptr;
+ }
+ 
+@@ -246,7 +246,7 @@
+     float ChaosVal;
+     ChaosVal = 0.0001f;
+ 
+-    Particle = (PARTICLE *)new char[ParticlesNum * sizeof(PARTICLE)];
++    Particle = new PARTICLE[ParticlesNum];
+     if (Particle == nullptr)
+         throw std::runtime_error("mem error");
+ 
+@@ -714,10 +714,10 @@
+         Particle[n].color = color;
+ 
+         // size -----------------------------------------------
+-        Particle[n].size = GetTrackValue(ParticleSize, Particle[n].time);
++        Particle[n].size = GetTrackValue(ParticleSize, Particle[n].time) * splashScale;
+ 
+         // speed ----------------------------------------------
+-        Particle[n].speed = Particle[n].speedVal * GetTrackValue(ParticleSpeed, Particle[n].time);
++        Particle[n].speed = Particle[n].speedVal * GetTrackValue(ParticleSpeed, Particle[n].time) * splashScale;
+ 
+         // spin -----------------------------------------------
+         Particle[n].spin = Particle[n].spinVal * GetTrackValue(ParticleSpin, Particle[n].time);
 --- a/src/libs/worldmap/src/wdm_storm.cpp
 +++ b/src/libs/worldmap/src/wdm_storm.cpp
 @@ -33,6 +33,7 @@

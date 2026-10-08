@@ -211,9 +211,9 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]], constant SkyDraw &draw [[
         }
     }
     // The fog sphere, scene fog, sea and land consume this same smoothed color.
-    // The base gradient already derives from it; this forces the exact horizon
-    // texel to fog despite clouds, twilight and texture detail.
-    float horizonMatch=(1.f-smoothstep(.018f,.16f,max(d.y,0.f)))*weather.horizonFog.w;
+    // Only the narrow seam needs an exact match. The authored fog hemisphere
+    // owns weather haze above it; a second wide band would erase sky detail.
+    float horizonMatch=(1.f-smoothstep(.004f,.018f,max(d.y,0.f)))*weather.horizonFog.w;
     color=mix(color,weather.horizonFog.rgb,horizonMatch);
     return float4(max(color,0.f),1.f);
 }

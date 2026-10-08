@@ -9,8 +9,8 @@ void InitInterface_gm(string iniName)
 	EngineLayersOffOn(true);
 
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
-	SetNodeUsing("MB_TSUNAMI_START", bSeaActive && !bAbordageStarted && IsEntity(&Sea));
-	SetNodeUsing("MB_TSUNAMI_STOP", bSeaActive && !bAbordageStarted && IsEntity(&Sea));
+	SetNodeUsing("MB_TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
+	SetNodeUsing("MB_TSUNAMI_STOP", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_STOP",0,"#Стоп цунами");
 

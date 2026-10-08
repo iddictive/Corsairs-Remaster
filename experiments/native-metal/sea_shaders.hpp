@@ -180,6 +180,12 @@ float4 seaTsunamiFoam(SeaO o,constant SeaU& u,texture2d<float> texture,sampler s
     // second grade/severity table in the renderer.
     float foamScale=max(u.vc[240].w*(18.f/28.f),1.f);
     float2 uv=o.worldXZ/foamScale+float2(.021f,-.013f)*u.vc[240].z;
+    // The four-tap blend leaves a regular contrast lattice even with random
+    // image transforms. Bend its coordinates continuously with the authored
+    // foam image; preserve density and explicit derivatives in the sampler.
+    float2 domain=float2(texture.sample(state,uv*.117f+float2(.371f,.619f)).r,
+                         texture.sample(state,uv*.193f+float2(.733f,.127f)).r)-.5f;
+    uv+=domain*1.15f;
     float4 pattern=antiTilingSampleNatural(texture,state,uv,0x5453554eu);
     // Native severity modulates the material continuously; it is not inferred
     // from damage or split into renderer-owned grades.

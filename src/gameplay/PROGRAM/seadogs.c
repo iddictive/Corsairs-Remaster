@@ -1547,11 +1547,49 @@ bool SeaTsunami_StartWithSeverity(float severity)
 
 bool SeaTsunami_Start()
 {
+	if (IsEntity(&worldMap) && !bAbordageStarted)
+	{
+		SeaTsunami_Stop();
+		if (!SeaTsunami_CreateMapEncounter()) return false;
+		Log_Info("Цунами приближается на глобальной карте.");
+		return true;
+	}
 	return SeaTsunami_StartWithSeverity(SeaTsunami_SampleSeverity());
+}
+
+bool SeaTsunami_CreateMapEncounter()
+{
+	if (!IsEntity(&worldMap) || bAbordageStarted) return false;
+	string previousID = "";
+	if (CheckAttribute(&worldMap, "EncounterID1")) previousID = worldMap.EncounterID1;
+	SendMessage(&worldMap, "ll", MSG_WORLDMAP_CREATESTORM, 0);
+	if (!CheckAttribute(&worldMap, "EncounterID1") || worldMap.EncounterID1 == previousID) return false;
+	string path = "encounters." + worldMap.EncounterID1;
+	if (!CheckAttribute(&worldMap, path + ".type") || worldMap.(path).type != "Storm") return false;
+	worldMap.(path).tsunamiSeverity = SeaTsunami_SampleSeverity();
+	return true;
 }
 
 bool SeaTsunami_Stop()
 {
+	if (IsEntity(&worldMap) && !bAbordageStarted)
+	{
+		if (CheckAttribute(&worldMap, "encounters"))
+		{
+			aref encounters;
+			makearef(encounters, worldMap.encounters);
+			int count = GetAttributesNum(encounters);
+			for (int i = 0; i < count; i++)
+			{
+				aref encounter = GetAttributeN(encounters, i);
+				if (CheckAttribute(encounter, "type") && encounter.type == "Storm" &&
+					CheckAttribute(encounter, "tsunamiSeverity"))
+					encounter.needDelete = "Cancel tsunami";
+			}
+			worldMap.deleteUpdate = "";
+		}
+		return true;
+	}
 	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea)) return false;
 	Sea.Tsunami.Start = 0;
 	return true;

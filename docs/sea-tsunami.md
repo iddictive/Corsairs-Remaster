@@ -7,24 +7,30 @@ and is installed; the current receipt belongs to `docs/runtime.md`. The player c
 the installed Esc button starts the wave. Its supplied screenshot rejects the
 straight, repeating white crest. Physical F11 delivery remains unresolved.
 New waveform, splashes, damage, capsize and natural encounters require player replay.
-Horizontal wave transport and the separately reported sky-horizon haze correction
-are the next active source batch; this installation does not yet include them.
+Horizontal transport, shore splashes, the sky-horizon correction and the wider
+crest-material correction pass source/component checks and canonical staging.
+The world-map debug menu action also passes canonical staging and is installed;
+natural and debug creation share one event constructor.
 The current installed inventory and chronological receipts belong to
 `docs/runtime.md`; component probes do not prove real-game acceptance.
 
 ## Player action
 
-The installed follow-up uses **Esc → Цунами** in an ordinary local sea scene
-where the player controls the ship, including sailing beside a pier. **Esc →
-Стоп цунами** cancels it. Both actions resume the game through the existing pause
-menu exit. The buttons are absent on the world map, on land and during boarding.
+The pause menu uses **Esc → Цунами** in an ordinary local sea scene or on the
+world map. At sea it starts ahead of the controlled ship, including beside a
+pier. On the map it creates a nearby blue event circle through the same native
+constructor as natural encounters; its approach/contact triggers the existing
+automatic local-sea transition. **Esc → Стоп цунами** cancels the local wave or
+removes marked map events. Repeated map start replaces the marked event; ordinary
+storms and ships remain. Both actions resume through the existing pause menu
+exit. The buttons are absent on land and during boarding.
 They occupy two free cells to the right of the existing pause controls.
 
 The existing F11 route remains available in source (Fn+F11 when macOS uses media keys). The script
 debug menu contains `Цунами` and `Стоп` in the two free cells of its lower row.
-`Цунами` closes the menu and starts one wave ahead of the ship's bow, travelling
-back toward the position where it was called. Reopening the menu and choosing
-`Стоп` cancels it. A repeated start replaces the previous wave.
+`Цунами` closes the menu and dispatches the same map/local start owner. The local
+wave travels back toward the position where it was called. Reopening the menu
+and choosing `Стоп` cancels it. A repeated start replaces the previous wave.
 
 The menu remains gated by the existing test-mode flag on land. The Win32 debug
 console is unrelated; no global cheat/test-mode setting is enabled.
@@ -67,7 +73,64 @@ Death uses normal `ShipDead` hooks. A synchronous `Ship.TsunamiCapsizeBeam` mark
 chooses the continuing sink direction and is immediately removed. Native
 `SetDead` transfers tilt into the existing death pose; no ship save fields added.
 
+## Horizontal transport and shore collision
+
+The follow-up uses actual native `SHIP::Move` and `TouchMove`. Incoming propagation
+is opposite the stored outward direction: `frontDistance = launch − speed × age`.
+The transient transport budget interpolates continuously from **60 to 300 metres**
+with strength, multiplied by the existing storm protection. Actual local profile
+and time determine velocity; maximum budget bounds the passage, without a
+position teleport or query-side force. A stationary full-profile component probe
+travels 60.000/179.987/293.884 m at strength0/.5/1; the strong professional case
+travels209.339 m, immunity0. Moving or grazing vessels can travel less.
+
+Velocity is added temporarily inside Move after ordinary inertia, then removed;
+it does not survive in saved State. Collision prediction reads the same effective
+old/new TOUCH velocity without spending/resetting the transient budget. Grounding
+keeps its authoritative zero speed. Actual moved hull points reach the existing
+`CheckDepthCollision`/`SHIP_SHIP2ISLAND_COLLISION` chain, whose normal script hull
+damage remains the shore-hit owner. No separate tsunami coast damage is added.
+Save body is unchanged; Load resets transient budget. Repeated prediction, actual
+movement, cancel/restart/zero delta, grounding, fixed/dead/immunity and400-step
+ordinary propulsion/impulse equality pass source-bound disposable checks.
+Real shore impact and damage remain player-replay requirements.
+
+## Shore splashes
+
+The existing CoastFoam authored cross-shore strips identify candidate shoreline
+segments. Depth broadphase and actual `ISLAND_BASE::Trace` at water level refine
+them to land geometry. Splash admission requires the incoming crest, sea height
+above the hit and an emerged island; a nearby wave or outward passage is insufficient.
+There are at most 512 cached contacts and 8 geometry traces per frame. Synchronous
+`MSG_SEA_TSUNAMI_SHORE_SPLASH` 50203 carries scalar hit/direction/strength values to
+SEAFOAM, without a new island/ship library dependency or borrowed pointers.
+
+SEAFOAM owns 12 separate native particle emitters using the existing
+`seafoam_front` profile, `Sparcle2` texture and particles technique. Continuous
+severity controls spray size/speed and emission duration. Cancel/restart, expiry,
+island teardown/submersion and attribute Clear reset only the new pool. Ordinary
+ship/storm emitters and coast mesh stay unchanged; particle scale defaults to 1.
+Matched array allocation/deallocation in SEAFOAM_PS supports reliable pool teardown.
+
+Disposable actual-method probes cover real trace hit coordinates with an independent
+geometry shim, the bounds above, 21 severity samples and ordinary particle byte
+equality at scale 1. No-hit/all-water, absent or submerged island, outward wave,
+low water, zero delta, absent receiver and lifecycle negatives pass. Five native
+translation units compile; these checks do not prove installed island rendering
+or the appearance of spray. Those remain player-replay requirements.
+
 ## Natural world-map encounter
+
+`seadogs.c::SeaTsunami_CreateMapEncounter` owns the shared native CreateStorm
+command and strength assignment. Debug map start calls it after cancelling only
+`Storm` descriptors with `tsunamiSeverity`; natural generation calls it after
+the unchanged lottery. Cancellation uses existing `needDelete`/`deleteUpdate`,
+without a new saved schema. Spawn remains 100–140 map units away with two-second
+activation, allowing the event to appear before contact. Source-bound headless
+VM cases cover replace/cancel, zero strength, ordinary-storm/ship preservation,
+failed creation, land/boarding rejection, local sea, menu click/activate/resume
+and visibility. The complete integrated PROGRAM compiles without VM errors;
+visible map movement and the forced sea transition remain player-replay checks.
 
 The existing saved `Storm` descriptor owns a `tsunamiSeverity` marker, including
 valid strength zero. It is sampled once and reused on restore/sea transition.
@@ -132,6 +195,15 @@ distance 520, camera clearance is 18 (installed minimum 1); low/high/pan frames
 retain the sea substrate and show a distinct raised face with irregular foam,
 without the initial grid or fixture plane clipping. Component material passes;
 islands, live spray, vessel pose and perceived danger remain unproven.
+The player's subsequent repetition report reopens material acceptance. Wider
+oblique/native-frame endpoints reproduce recurring PENA motifs and unit-cell
+contrast from the existing four-tap sampler. A continuous low-frequency UV
+distortion uses two samples of the same authored texture before that sampler;
+native density/height/foam ownership remains. Its source Fourier oracle reduces
+unit-lattice contrast about49.5% at PENA mips3/4 with mean/variance within0.4%.
+Six paired wide renders at different world positions/time preserve macro coverage
+and depth/MRT. The far-right finite-plane cut is an unchanged fixture limitation;
+repetition and temporal flicker in the actual game remain player-replay checks.
 Player replay remains start/approach/cancel, low/strong visuals, splashes/damage
 with defenses, beam capsize versus bow/stern survival, natural forced transition
 and exit release, pause/restart/teardown and current-save behavior. Component
