@@ -2569,3 +2569,94 @@ int WdmTrafficFortInventory(int colony)
 	if (!CheckAttribute(fort, "Fort.HP")) fort.Fort.HP = installed * 100;
 	return installed;
 }
+
+#event_handler("WdmTrafficStormContact", "WdmTrafficStormContact");
+void WdmTrafficStormContact()
+{
+	string fleetID = GetEventData();
+	string stormID = GetEventData();
+	float exposure = GetEventData();
+	float incomingX = GetEventData();
+	float incomingZ = GetEventData();
+	float seconds = GetEventData();
+	bool tsunami = GetEventData();
+	if (seconds <= 0.0 || exposure <= 0.0) return;
+	string fleetPath = "encounters." + fleetID;
+	string stormPath = "encounters." + stormID;
+	if (!CheckAttribute(&worldMap, fleetPath) || !CheckAttribute(&worldMap, stormPath)) return;
+	aref encounter, storm;
+	makearef(encounter, worldMap.(fleetPath));
+	makearef(storm, worldMap.(stormPath));
+	if (!WdmTrafficIsOrdinary(encounter) || CheckAttribute(encounter, "qID") ||
+		!CheckAttribute(encounter, "encdata.trafficRoster.count") ||
+		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))) return;
+	if (!CheckAttribute(storm, "type") || storm.type != "Storm" || CheckAttribute(storm, "needDelete")) return;
+	float damage;
+	if (tsunami)
+	{
+		if (!CheckAttribute(storm, "tsunamiSeverity") || CheckAttribute(storm, "npcTsunamiHits." + fleetID)) return;
+		damage = (0.10 + 0.40 * WdmTrafficFraction(stf(storm.tsunamiSeverity))) * WdmTrafficFraction(exposure);
+	}
+	else
+	{
+		if (CheckAttribute(storm, "tsunamiSeverity")) return;
+		float side = 1.0;
+		if (CheckAttribute(encounter, "ay"))
+		{
+			float heading = stf(encounter.ay);
+			side = WdmTrafficFraction(1.0 - abs(incomingX * sin(heading) + incomingZ * cos(heading)));
+		}
+		// SHIP updates parameters every second; ordinary sea storm hull damage
+		// is 1.1% of maximum HP, with the same bow/beam factor 0.25..1.
+		damage = 0.011 * seconds * (0.25 + 0.75 * side);
+	}
+	float condition = 1.0;
+	if (CheckAttribute(encounter, "trafficCondition")) condition = WdmTrafficFraction(stf(encounter.trafficCondition));
+	aref roster, ship, hull, fleet;
+	makearef(fleet, encounter.encdata);
+	makearef(roster, fleet.trafficRoster);
+	bool changed = false;
+	int survivors = 0;
+	for (int i = 0; i < sti(roster.count); i++)
+	{
+		string key = "ship" + i;
+		if (!CheckAttribute(roster, key)) continue;
+		makearef(ship, roster.(key));
+		if (CheckAttribute(ship, "dead") && sti(ship.dead)) continue;
+		survivors++;
+		// A missing observed hull condition is unknown, never a fresh ship.
+		if (!CheckAttribute(ship, "baseType")) continue;
+		int type = sti(ship.baseType);
+		if (type < SHIP_BILANCETTA || type > SHIP_MANOWAR) continue;
+		makearef(hull, ShipsTypes[type]);
+		if (CheckAttribute(ship, "RealShip.HP")) makearef(hull, ship.RealShip);
+		if (!CheckAttribute(hull, "HP") || stf(hull.HP) <= 0.0) continue;
+		float hp;
+		// The sea bridge prefers an existing absolute snapshot over its fraction.
+		if (CheckAttribute(ship, "Ship.HP")) hp = WdmTrafficFraction(stf(ship.Ship.HP) / stf(hull.HP));
+		else if (CheckAttribute(ship, "hp")) hp = WdmTrafficFraction(stf(ship.hp));
+		else continue;
+		float remaining = hp * condition - damage;
+		if (remaining < 0.0) remaining = 0.0;
+		ship.hp = 0.0;
+		if (condition > 0.0) ship.hp = remaining / condition;
+		if (CheckAttribute(ship, "Ship.HP")) ship.Ship.HP = stf(hull.HP) * stf(ship.hp);
+		changed = true;
+		if (remaining <= 0.0)
+		{
+			ship.dead = 1;
+			ship.trafficLoss = "sunk";
+			WdmTrafficLoseCargo(ship);
+			survivors--;
+		}
+	}
+	if (!changed) return;
+	if (tsunami) storm.npcTsunamiHits.(fleetID) = 1;
+	WdmTrafficRefreshRosterCounts(fleet);
+	encounter.trafficPower = WdmTrafficRosterPower(fleet);
+	if (survivors == 0)
+	{
+		encounter.needDelete = "No surviving hulls";
+		worldMap.deleteUpdate = "";
+	}
+}

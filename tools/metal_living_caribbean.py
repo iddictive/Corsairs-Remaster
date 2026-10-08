@@ -296,7 +296,7 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "2875cb637dc7b89d15a642d6456245d8acccf4503165a160257821df077c4bd5"
+WDM_TRAFFIC_SHA256 = "c220f5031ccbde7c437474a1b8179cf99f4e2ffb17bd3731cc9cd750af1e3794"
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
 WDM_MILITARY_SHA256 = "dae69b3c4f2deec7623906a67c644fc96604f936586a9b6cf95a800966de4431"
 WDM_OPERATION_MODULES = {
@@ -1539,6 +1539,14 @@ def prepare_worldmap_reload(data: bytes) -> bytes:
         if (CheckAttribute(&worldMap, tsunamiPath + ".tsunamiSeverity"))
         {
             wdmLoginToSea.TsunamiSeverity = stf(worldMap.(tsunamiPath).tsunamiSeverity);
+            if (CheckAttribute(&worldMap, tsunamiPath + ".tsunamiImpactSeverity"))
+                wdmLoginToSea.TsunamiSeverity = stf(worldMap.(tsunamiPath).tsunamiImpactSeverity);
+            if (CheckAttribute(&worldMap, tsunamiPath + ".tsunamiImpactDirectionX") &&
+                CheckAttribute(&worldMap, tsunamiPath + ".tsunamiImpactDirectionZ"))
+            {
+                wdmLoginToSea.TsunamiDirectionX = stf(worldMap.(tsunamiPath).tsunamiImpactDirectionX);
+                wdmLoginToSea.TsunamiDirectionZ = stf(worldMap.(tsunamiPath).tsunamiImpactDirectionZ);
+            }
             // A travelling wave is not hurricane/tornado weather or ongoing damage.
             wdmLoginToSea.storm = 0;
             wdmLoginToSea.tornado = 0;
@@ -1689,7 +1697,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "52a68d391c28d8298d8b98894b01d4f436b9471b3daacf3b1dd532dbb3222187",
+    "PROGRAM/worldmap/worldmap_encgen.c": "1bdf7384d34cb366ddd4622c0ee82062e433ad78ec000ab00e4ed98fc3d3894f",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1704,7 +1712,7 @@ UPDATED = {
     "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
     "RESOURCE/INI/interfaces/ship.ini": "fa4a01b9179c8dfb2794a5c8b1702102ea3cd27e61e9af9781f4b6c8c6a91fc3",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
-    "PROGRAM/worldmap/worldmap_reload.c": "ac68fac14de4a387ba73207e0c8e9fb468237a7f3a09add07d4c2a89b77ecb57",
+    "PROGRAM/worldmap/worldmap_reload.c": "270077cba5dc6af1623eff6e50224c03fa54af4d6781feb53c8b7c90a75ac0c0",
 }
 
 
@@ -1735,6 +1743,7 @@ PREVIOUS = {
 PREVIOUS[WDM_ENC_PATH].update({"1fc95e425f4887bc2f38572141de6e70f486660db2bc6897500cfae7f3728bfe", "cf064b2309bd4a6f32dd1909b34fbd097525a0e071b46a32e6e610ce68b4d6db"})
 PREVIOUS[WDM_ENC_PATH].add("0051df1dd35d4094af4ad6b30f1f6216e1f3af27c2f70a74a20766302a4482dd")
 PREVIOUS[WDM_ENC_PATH].add("9795a316304be3e77eb30fd10068b1ead5c1d915906382800e4bee3877e33927")
+PREVIOUS[WDM_ENC_PATH].add("52a68d391c28d8298d8b98894b01d4f436b9471b3daacf3b1dd532dbb3222187")
 
 
 def prepare(relative: str, data: bytes) -> bytes:
@@ -1750,3 +1759,5 @@ def prepare(relative: str, data: bytes) -> bytes:
     if digest(result) != UPDATED[relative]:
         raise RuntimeError(f"unreviewed living Caribbean output: {relative}")
     return result
+
+PREVIOUS[WDM_REL_PATH].add("ac68fac14de4a387ba73207e0c8e9fb468237a7f3a09add07d4c2a89b77ecb57")

@@ -1202,15 +1202,39 @@
          Particle[n].spin = Particle[n].spinVal * GetTrackValue(ParticleSpin, Particle[n].time);
 --- a/src/libs/worldmap/src/wdm_storm.cpp
 +++ b/src/libs/worldmap/src/wdm_storm.cpp
-@@ -33,6 +33,7 @@
- #define WDM_STORM_CLDRADIUS 30.0f // The radius of the spread of clouds in a storm
+@@ -13,8 +13,14 @@
+ #include "wdm_camera.h"
+ #include "wdm_cloud.h"
+ #include "wdm_render_model.h"
++#include "wdm_islands.h"
++#include "wdm_ship.h"
++#include "wdm_enemy_ship.h"
++#include "core.h"
+ #include "world_map.h"
+ #include "platform/platform.hpp"
++#include <algorithm>
++#include <cmath>
  
- #define WDM_STORM_CLOUDRAD 20.0f // Cloud size to activate
-+#define WDM_TSUNAMI_RADIUS 60.0f
+ //============================================================================================
  
- // ============================================================================================
- // Construction, destruction
-@@ -140,8 +141,20 @@
+@@ -64,6 +70,7 @@
+     r = sqrtf(~dir);
+     if (r > 0.0f)
+         dir /= r;
++    tsunamiHeading = dir; // Preserve the spawn-to-player axis before ordinary wind deviation.
+     // Arbitrary deviation from course
+     r = WDM_STORM_DIR_DIS * (1.0f - rand() * 2.0f / RAND_MAX);
+     ang = dir.x;
+@@ -129,6 +136,8 @@
+ 
+ WdmStorm::~WdmStorm()
+ {
++    if (tsunamiWaterTexture >= 0) wdmObjects->rs->TextureRelease(tsunamiWaterTexture);
++    if (tsunamiFoamTexture >= 0) wdmObjects->rs->TextureRelease(tsunamiFoamTexture);
+     if (rainTexture >= 0)
+         wdmObjects->rs->TextureRelease(rainTexture);
+     rainTexture = -1;
+@@ -140,8 +149,210 @@
      wdmObjects->DelStorm(this);
  }
  
@@ -1219,47 +1243,645 @@
 +    return saveAttribute && saveAttribute->GetAttribute("tsunamiSeverity");
 +}
 +
++void WdmStorm::InitTsunami()
++{
++    if (tsunamiReady || !IsTsunami()) return;
++    tsunamiSeverity = saveAttribute->GetAttributeAsFloat("tsunamiSeverity");
++    if (!std::isfinite(tsunamiSeverity)) tsunamiSeverity = 0.0f;
++    tsunamiSeverity = std::clamp(tsunamiSeverity, 0.0f, 1.0f);
++    tsunamiShape = saveAttribute->GetAttributeAsDword("tsunamiShape", 0) == 1 ? 1 : 0;
++    const bool restoring = saveAttribute->GetAttribute("tsunamiAge") &&
++        saveAttribute->GetAttribute("tsunamiOriginX") && saveAttribute->GetAttribute("tsunamiOriginZ") &&
++        saveAttribute->GetAttribute("tsunamiDirectionX") && saveAttribute->GetAttribute("tsunamiDirectionZ");
++    if (restoring)
++    {
++        pos.x = saveAttribute->GetAttributeAsFloat("tsunamiOriginX", pos.x);
++        pos.z = saveAttribute->GetAttributeAsFloat("tsunamiOriginZ", pos.z);
++        tsunamiHeading.x = saveAttribute->GetAttributeAsFloat("tsunamiDirectionX", tsunamiHeading.x);
++        tsunamiHeading.z = saveAttribute->GetAttributeAsFloat("tsunamiDirectionZ", tsunamiHeading.z);
++        tsunamiAge = saveAttribute->GetAttributeAsFloat("tsunamiAge", 0.0f);
++    }
++    else if (wdmObjects->playerShip)
++    {
++        tsunamiHeading = static_cast<WdmRenderModel *>(wdmObjects->playerShip)->mtx.Pos() - pos;
++    }
++    if (!std::isfinite(pos.x) || !std::isfinite(pos.z)) { killMe = true; return; }
++    tsunamiHeading.y = 0.0f;
++    float length = sqrtf(~tsunamiHeading);
++    if (!std::isfinite(length) || length < 1e-5f) tsunamiHeading = CVECTOR(0.0f, 0.0f, 1.0f);
++    else tsunamiHeading /= length;
++    if (!std::isfinite(tsunamiAge)) tsunamiAge = 0.0f;
++    tsunamiAge = std::max(0.0f, tsunamiAge);
++    // A legacy descriptor has no front prerequisites; admit a new front at its
++    // current fixed location rather than reusing a random lifetime or wind course.
++    const auto parameter = [&](const char *name, float fallback, float low, float high) {
++        const float value = saveAttribute->GetAttributeAsFloat(name, fallback);
++        return std::isfinite(value) ? std::clamp(value, low, high) : fallback;
++    };
++    tsunamiStartRadius = parameter("tsunamiStartRadius", 12.0f, 4.0f, 24.0f);
++    tsunamiSpeed = parameter("tsunamiSpeed", 6.0f + 3.0f * tsunamiSeverity, 6.0f, 9.0f);
++    tsunamiMaxRadius = parameter("tsunamiMaxRadius", 240.0f + 80.0f * tsunamiSeverity, 240.0f, 320.0f);
++    tsunamiLifetime = (tsunamiMaxRadius - tsunamiStartRadius) / tsunamiSpeed + 4.0f;
++    pos.y = 0.0f;
++    if (!restoring && wdmObjects->islands && wdmObjects->islands->TsunamiLandfall(pos, pos) < 1.0f)
++    {
++        // Finite water-origin admission. Search deterministic nearby points;
++        // never reroll the event or move the ship. Fail closed if all are land.
++        const CVECTOR original = pos;
++        bool found = false;
++        for (uint32_t probe = 0; probe < 32 && !found; ++probe)
++        {
++            const float angle = std::atan2(tsunamiHeading.x, tsunamiHeading.z) +
++                float(probe % 8) * 0.7853981633974483f;
++            const float distance = 8.0f * float(1u << (probe / 8));
++            const CVECTOR candidate = original + CVECTOR(sinf(angle), 0.0f, cosf(angle)) * distance;
++            if (wdmObjects->islands->TsunamiLandfall(candidate, candidate) >= 1.0f)
++            {
++                pos = candidate;
++                if (wdmObjects->playerShip)
++                {
++                    tsunamiHeading = static_cast<WdmRenderModel *>(wdmObjects->playerShip)->mtx.Pos() - pos;
++                    tsunamiHeading.y = 0.0f;
++                    length = sqrtf(~tsunamiHeading);
++                    if (length > 1e-5f) tsunamiHeading /= length;
++                    else tsunamiHeading = CVECTOR(0.0f, 0.0f, 1.0f);
++                }
++                found = true;
++            }
++        }
++        if (!found) { killMe = true; return; }
++    }
++    dir = tsunamiHeading;
++    for (int32_t i = 0; i < num; ++i)
++        if (cloud[i])
++        {
++            // WorldMap owns deletion during its normal post-update sweep.
++            cloud[i]->globalAlpha = 0.0f;
++            cloud[i]->killMe = true;
++            cloud[i] = nullptr;
++        }
++    num = 0;
++    if (rainTexture >= 0) wdmObjects->rs->TextureRelease(rainTexture);
++    rainTexture = -1;
++    isTornado = false;
++    tsunamiPreviousAge = tsunamiAge; // Do not repay a passed front after restore.
++    tsunamiReady = true;
++    CacheTsunamiShadows();
++    UpdateSaveData();
++}
++
++float WdmStorm::TsunamiRadius(float age) const
++{
++    return std::min(tsunamiMaxRadius, tsunamiStartRadius + tsunamiSpeed * std::max(0.0f, age));
++}
++
++float WdmStorm::TsunamiGain(float age) const
++{
++    if (age <= 0.0f || age >= tsunamiLifetime) return 0.0f;
++    const auto smooth = [](float x) { x = std::clamp(x, 0.0f, 1.0f); return x * x * (3.0f - 2.0f * x); };
++    const float entry = smooth(age / 2.0f), exit = smooth((tsunamiLifetime - age) / 4.0f);
++    const float spawnDistance = wdmObjects->stormBrnDistMax;
++    const float plateau = std::clamp(std::isfinite(spawnDistance) ? spawnDistance : 0.0f,
++                                     0.0f, tsunamiMaxRadius - 1.0f);
++    const float distanceFade = 1.0f - smooth((TsunamiRadius(age) - plateau) /
++                                           (tsunamiMaxRadius - plateau));
++    return entry * exit * distanceFade;
++}
++
++float WdmStorm::TsunamiAngularGain(float x, float z) const
++{
++    if (tsunamiShape == 1) return 1.0f;
++    const float length = sqrtf(x * x + z * z);
++    if (length < 1e-5f) return 0.0f;
++    // A 140-degree crescent, with a smooth 12-degree shoulder at both ends.
++    const float cosine = (x * tsunamiHeading.x + z * tsunamiHeading.z) / length;
++    const float t = std::clamp((cosine - 0.3420201433f) / (0.5299192642f - 0.3420201433f), 0.0f, 1.0f);
++    return t * t * (3.0f - 2.0f * t);
++}
++
++float WdmStorm::TsunamiProfile(float offset) const
++{
++    const float u = std::fabs(offset);
++    if (u <= 0.5f) return 1.0f - 4.0f * u * u / 3.0f;
++    if (u >= 1.5f) return 0.0f;
++    return (2.0f / 3.0f) * (1.5f - u) * (1.5f - u);
++}
++
++void WdmStorm::CacheTsunamiShadows()
++{
++    if (!wdmObjects->islands)
++    {
++        std::fill(std::begin(tsunamiShadow), std::end(tsunamiShadow), tsunamiMaxRadius + 30.0f);
++        return;
++    }
++    const auto generation = wdmObjects->islands->TsunamiLandGeneration();
++    if (generation == tsunamiShadowGeneration) return;
++    const float reach = tsunamiMaxRadius + 30.0f;
++    for (uint32_t i = 0; i < tsunamiSegments; ++i)
++    {
++        const float angle = float(i) * (6.283185307179586f / tsunamiSegments);
++        const CVECTOR destination = pos + CVECTOR(sinf(angle), 0.0f, cosf(angle)) * reach;
++        tsunamiShadow[i] = wdmObjects->islands->TsunamiLandfall(pos, destination) * reach;
++    }
++    tsunamiShadow[tsunamiSegments] = tsunamiShadow[0];
++    tsunamiShadowGeneration = generation;
++}
++
++void WdmStorm::UpdateTsunami(float delta)
++{
++    InitTsunami();
++    if (!tsunamiReady || killMe || !std::isfinite(delta) || delta <= 0.0f) return;
++    // Preserve the final swept interval for the player's next normal query.
++    if (isKl || tsunamiAge >= tsunamiLifetime) { killMe = true; return; }
++    const float previousActivation = isActiveTime;
++    isActiveTime -= delta;
++    tsunamiPreviousAge = tsunamiAge;
++    const float activeDelta = std::max(0.0f, delta - std::max(0.0f, previousActivation));
++    tsunamiAge = std::min(tsunamiLifetime, tsunamiAge + activeDelta);
++    liveTime = std::max(0.0f, tsunamiLifetime - tsunamiAge);
++    liveAlpha = TsunamiGain(tsunamiAge);
++    CacheTsunamiShadows();
++    UpdateSaveData();
++    DispatchTrafficContacts(activeDelta);
++}
++
++bool WdmStorm::SampleTsunamiContact(float x, float z, float r, CVECTOR &incoming,
++    float &impactSeverity, float *exposure) const
++{
++    if (!IsTsunami() || !tsunamiReady || !IsActive() || isKl || killMe || wdmObjects->isPause ||
++        tsunamiAge < 2.0f || !std::isfinite(x) || !std::isfinite(z) || !std::isfinite(r) || r < 0.0f) return false;
++    const float dx = x - pos.x, dz = z - pos.z;
++    const float distance = sqrtf(dx * dx + dz * dz);
++    const float width = 10.0f + 5.0f * tsunamiSeverity;
++    const float before = TsunamiRadius(std::max(2.0f, tsunamiPreviousAge)), now = TsunamiRadius(tsunamiAge);
++    if (distance + r < before - 1.5f * width || distance - r > now + 1.5f * width) return false;
++    // A born crest develops for two seconds before spending any once receipt.
++    const float contactAge = std::clamp(std::max(2.0f, (distance - tsunamiStartRadius) / tsunamiSpeed),
++        std::max(2.0f, tsunamiPreviousAge), tsunamiAge);
++    // A large execute delta must not skip a strong front merely because its
++    // final age faded. Deep inside a previously passed circle is excluded above.
++    const float gain = TsunamiGain(contactAge) * TsunamiAngularGain(dx, dz);
++    if (gain < 0.06f || distance < 1e-5f) return false;
++    if (wdmObjects->islands && wdmObjects->islands->TsunamiLandfall(pos, CVECTOR(x, 0.0f, z)) < 1.0f) return false;
++    incoming = CVECTOR(dx / distance, 0.0f, dz / distance);
++    impactSeverity = tsunamiSeverity * gain;
++    if (exposure) *exposure = gain;
++    return true;
++}
++
  bool WdmStorm::CheckIntersection(float x, float z, float r)
  {
 +    if (IsTsunami())
 +    {
-+        if (!IsActive() || isKl || liveTime <= 0.0f) return false;
-+        const float contactRadius = WDM_TSUNAMI_RADIUS + r;
-+        const float dx = pos.x - x, dz = pos.z - z;
-+        return dx * dx + dz * dz < contactRadius * contactRadius;
++        InitTsunami();
++        CVECTOR incoming;
++        float severity;
++        if (!SampleTsunamiContact(x, z, r, incoming, severity)) return false;
++        saveAttribute->SetAttributeUseFloat("tsunamiImpactSeverity", severity);
++        saveAttribute->SetAttributeUseFloat("tsunamiImpactDirectionX", incoming.x);
++        saveAttribute->SetAttributeUseFloat("tsunamiImpactDirectionZ", incoming.z);
++        return true;
 +    }
      // Crossing distance
      r = (r + WDM_STORM_CLOUDRAD) * (r + WDM_STORM_CLOUDRAD);
      // loop through all the clouds
-@@ -258,6 +271,18 @@
+@@ -157,9 +368,38 @@
+     return false;
+ }
+ 
++void WdmStorm::DispatchTrafficContacts(float delta)
++{
++    if (!saveAttribute || !std::isfinite(delta) || delta <= 0.0f || wdmObjects->isPause ||
++        !IsActive() || isKl || killMe) return;
++    const bool tsunami = IsTsunami();
++    for (auto *ship : wdmObjects->ships)
++    {
++        if (!ship || ship == wdmObjects->playerShip || ship->killMe || !ship->isLive) continue;
++        auto *enemy = static_cast<WdmEnemyShip *>(ship);
++        auto *data = enemy->GetTrafficData(); // Rejects quest, qID, ALONE and deletion.
++        if (!data || data->GetAttribute("qID") || data->GetAttributeAsDword("trafficInSea") != 0) continue;
++        float x, z, heading;
++        ship->GetPosition(x, z, heading);
++        CVECTOR incoming = dir;
++        float severity = 0.0f, exposure = 1.0f;
++        if (tsunami)
++        {
++            if (!SampleTsunamiContact(x, z, ship->radius, incoming, severity, &exposure)) continue;
++        }
++        else if (!CheckIntersection(x, z, ship->radius)) continue;
++        // Script owns saved HP, protections, death and per-event once receipts.
++        // No borrowed descriptor is accessed after the synchronous callback.
++        core.Event("WdmTrafficStormContact", "ssffffl", data->GetThisName(), GetId(),
++            exposure, incoming.x, incoming.z, delta, int32_t(tsunami));
++    }
++}
++
+ // Calculations
+ void WdmStorm::Update(float dltTime)
+ {
++    if (IsTsunami()) { UpdateTsunami(dltTime); return; }
++    const float previousActivation = isActiveTime;
+     if (isActiveTime >= 0.0f)
+         isActiveTime -= dltTime;
+     // Direction vector to the ship
+@@ -254,10 +494,89 @@
+             cloud[i]->pos = pos + cloudPos[i];
+         }
+     UpdateSaveData();
++    DispatchTrafficContacts(std::max(0.0f, dltTime - std::max(0.0f, previousActivation)));
++}
++
++void WdmStorm::BuildTsunamiMesh(std::vector<TsunamiVertex> &water, std::vector<TsunamiVertex> &foam)
++{
++    water.clear(); foam.clear();
++    InitTsunami();
++    if (!tsunamiReady || killMe || isKl) return;
++    CacheTsunamiShadows();
++    const float gain = TsunamiGain(tsunamiAge);
++    if (gain <= 0.001f) return;
++    const float radius = TsunamiRadius(tsunamiAge), width = 10.0f + 5.0f * tsunamiSeverity;
++    const float height = (3.0f + 5.0f * tsunamiSeverity) * gain;
++    const auto vertex = [&](uint32_t segment, float offset, bool isFoam) {
++        const float angle = float(segment) * (6.283185307179586f / tsunamiSegments);
++        const float x = sinf(angle), z = cosf(angle);
++        const float radial = std::max(0.5f, radius + offset * width);
++        const float angular = TsunamiAngularGain(x, z);
++        const float profile = TsunamiProfile(offset);
++        const float shoreline = std::clamp((tsunamiShadow[segment] - radial) / 1.5f, 0.0f, 1.0f);
++        const float shade = std::clamp(0.64f + 0.25f * offset + 0.08f * cosf(angle), 0.35f, 1.0f);
++        // The raised face and foam share the physical support; only authored
++        // texture coordinates vary along the crest, never event/contact geometry.
++        TsunamiVertex v{pos.x + x * radial, 0.15f + height * profile * angular,
++            pos.z + z * radial, 0, 0.0f, 0.0f};
++        if (isFoam)
++        {
++            const float grain = 0.75f + 0.25f * sinf(angle * 13.0f + 0.7f * sinf(angle * 5.0f) + tsunamiAge * 0.35f);
++            const uint32_t alpha = uint32_t(220.0f * gain * angular * shoreline * grain);
++            v.color = (alpha << 24) | 0x00e9faff;
++            v.y += 0.07f;
++            v.u = angle * radius / 36.0f + 0.25f * sinf(angle * 7.0f) + tsunamiAge * 0.06f;
++            v.v = (offset + 0.5f) / 0.9f;
++        }
++        else
++        {
++            const uint32_t alpha = uint32_t(210.0f * profile * angular * shoreline * std::min(1.0f, gain * 2.5f));
++            const uint32_t red = uint32_t(18.0f * shade), green = uint32_t(122.0f * shade), blue = uint32_t(184.0f * shade);
++            v.color = (alpha << 24) | (red << 16) | (green << 8) | blue;
++            v.u = v.x / 80.0f + tsunamiAge * 0.015f;
++            v.v = v.z / 80.0f;
++        }
++        return v;
++    };
++    const auto appendStrip = [&](std::vector<TsunamiVertex> &out, bool isFoam, uint32_t bands, float from, float to) {
++        out.reserve(tsunamiSegments * bands * 6);
++        for (uint32_t segment = 0; segment < tsunamiSegments; ++segment)
++            for (uint32_t band = 0; band < bands; ++band)
++            {
++                const float a = from + (to - from) * float(band) / bands;
++                const float b = from + (to - from) * float(band + 1) / bands;
++                const auto v0 = vertex(segment, a, isFoam), v1 = vertex(segment + 1, a, isFoam);
++                const auto v2 = vertex(segment, b, isFoam), v3 = vertex(segment + 1, b, isFoam);
++                if (((v0.color | v1.color | v2.color | v3.color) >> 24) == 0) continue;
++                out.insert(out.end(), {v0, v1, v2, v2, v1, v3});
++            }
++    };
++    appendStrip(water, false, 8, -1.5f, 1.5f);
++    appendStrip(foam, true, 3, -0.5f, 0.4f);
+ }
  
  void WdmStorm::LRender(VDX9RENDER *rs)
  {
 +    if (IsTsunami())
 +    {
-+        const float strength = saveAttribute->GetAttributeAsFloat("tsunamiSeverity");
-+        const float severity = strength >= 0.0f && strength <= 1.0f ? strength : 0.0f;
-+        CMatrix marker;
-+        marker.Pos() = pos;
-+        marker.Pos().y = 0.1f;
-+        const uint32_t red = 20 + uint32_t(60.0f * severity);
-+        const uint32_t green = 110 - uint32_t(50.0f * severity);
-+        const uint32_t alpha = uint32_t(48.0f * liveAlpha);
-+        wdmObjects->DrawCircle(marker, WDM_TSUNAMI_RADIUS, (alpha << 24) | (red << 16) | (green << 8) | 210);
++        std::vector<TsunamiVertex> water, foam;
++        BuildTsunamiMesh(water, foam);
++        if (water.empty() && foam.empty()) return;
++        if (tsunamiWaterTexture < 0) tsunamiWaterTexture = rs->TextureCreate("\\WorldMap\\Sea\\sea.tga");
++        if (tsunamiFoamTexture < 0) tsunamiFoamTexture = rs->TextureCreate("\\WorldMap\\geometry\\Wave001.tga");
++        CMatrix identity;
++        rs->SetTransform(D3DTS_WORLD, identity);
++        rs->SetTransform(D3DTS_TEXTURE0, identity);
++        const auto draw = [&](std::vector<TsunamiVertex> &mesh, int32_t texture) {
++            if (mesh.empty() || texture < 0) return;
++            rs->TextureSet(0, texture);
++            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                uint32_t(mesh.size() / 3), mesh.data(), sizeof(TsunamiVertex), "WdmTsunamiWave");
++        };
++        draw(water, tsunamiWaterTexture);
++        draw(foam, tsunamiFoamTexture);
++        return; // Marked events have no ordinary debug disks, storm clouds or rain.
 +    }
      if (wdmObjects->isDebug)
      {
          CMatrix mtr;
+@@ -323,6 +642,7 @@
+         rotSpdName[6] = '0' + i;
+         rotSpd[i] = saveAttribute->GetAttributeAsFloat(rotSpdName, rotSpd[i]);
+     }
++    if (IsTsunami()) InitTsunami();
+     UpdateSaveData();
+ }
+ 
+@@ -342,6 +662,20 @@
+ {
+     if (!saveAttribute)
+         return;
++    if (tsunamiReady && IsTsunami())
++    {
++        saveAttribute->SetAttributeUseFloat("tsunamiAge", tsunamiAge);
++        saveAttribute->SetAttributeUseFloat("tsunamiOriginX", pos.x);
++        saveAttribute->SetAttributeUseFloat("tsunamiOriginZ", pos.z);
++        saveAttribute->SetAttributeUseFloat("tsunamiDirectionX", tsunamiHeading.x);
++        saveAttribute->SetAttributeUseFloat("tsunamiDirectionZ", tsunamiHeading.z);
++        saveAttribute->SetAttributeUseFloat("tsunamiRadius", TsunamiRadius(tsunamiAge));
++        saveAttribute->SetAttributeUseFloat("tsunamiStartRadius", tsunamiStartRadius);
++        saveAttribute->SetAttributeUseFloat("tsunamiSpeed", tsunamiSpeed);
++        saveAttribute->SetAttributeUseFloat("tsunamiMaxRadius", tsunamiMaxRadius);
++        saveAttribute->SetAttributeUseFloat("tsunamiLifetime", tsunamiLifetime);
++        saveAttribute->SetAttributeUseDword("tsunamiShape", tsunamiShape);
++    }
+     saveAttribute->SetAttributeUseFloat("px", pos.x);
+     saveAttribute->SetAttributeUseFloat("py", pos.y);
+     saveAttribute->SetAttributeUseFloat("pz", pos.z);
 --- a/src/libs/worldmap/src/wdm_storm.h
 +++ b/src/libs/worldmap/src/wdm_storm.h
-@@ -28,6 +28,7 @@
+@@ -28,6 +28,13 @@
      float GetLiveTime() const;
      void GetPosition(float &x, float &z) const;
      bool IsActive() const;
 +    bool IsTsunami() const;
++
++    struct TsunamiVertex { float x, y, z; uint32_t color; float u, v; };
++    // The renderer and disposable component probes consume this exact producer.
++    void BuildTsunamiMesh(std::vector<TsunamiVertex> &water, std::vector<TsunamiVertex> &foam);
++    bool SampleTsunamiContact(float x, float z, float radius, CVECTOR &incoming,
++        float &impactSeverity, float *exposure = nullptr) const;
  
      bool CheckIntersection(float x, float z, float r);
  
+@@ -50,9 +57,27 @@
+   private:
+     // Updating stored data
+     void UpdateSaveData();
++    void InitTsunami();
++    void UpdateTsunami(float delta);
++    float TsunamiRadius(float age) const;
++    float TsunamiGain(float age) const;
++    float TsunamiAngularGain(float x, float z) const;
++    float TsunamiProfile(float offset) const;
++    void CacheTsunamiShadows();
++    void DispatchTrafficContacts(float delta);
+ 
+   private:
+     CVECTOR pos, dir;
++    CVECTOR tsunamiHeading;
++    bool tsunamiReady = false;
++    float tsunamiAge = 0.0f, tsunamiPreviousAge = 0.0f;
++    float tsunamiStartRadius = 12.0f, tsunamiSpeed = 6.0f;
++    float tsunamiMaxRadius = 240.0f, tsunamiLifetime = 42.0f;
++    float tsunamiSeverity = 0.0f;
++    uint32_t tsunamiShape = 0, tsunamiShadowGeneration = 0;
++    static constexpr uint32_t tsunamiSegments = 256;
++    float tsunamiShadow[tsunamiSegments + 1]{};
++    int32_t tsunamiWaterTexture = -1, tsunamiFoamTexture = -1;
+ 
+     float isActiveTime;
+     float liveTime;
+--- a/src/libs/worldmap/src/wdm_islands.cpp
++++ b/src/libs/worldmap/src/wdm_islands.cpp
+@@ -13,6 +13,8 @@
+ 
+ #include <algorithm>
+ #include <cmath>
++#include <cstring>
++#include <limits>
+ 
+ #include "core.h"
+ #include "math_inlines.h"
+@@ -399,9 +401,189 @@
+     return false;
+ }
+ 
++// The ordinary collision BSP is absent from most authored map islands. Own one
++// CPU footprint of the actual rendered buffers instead; never scan them on query.
++void WdmIslands::BuildTsunamiLand()
++{
++    if (tsunamiLandBuilt) return;
++    tsunamiLand.clear();
++    tsunamiLandNodes.clear();
++    for (const auto &island : islands)
++    {
++        if (!island.model || !island.model->geo) continue;
++        auto *geo = island.model->geo;
++        GEOS::INFO info{};
++        geo->GetInfo(info);
++        const auto *indices = static_cast<const uint16_t *>(
++            wdmObjects->rs->LockIndexBuffer(geo->GetIndexBuffer(), D3DLOCK_READONLY));
++        if (!indices) continue;
++        for (int32_t oi = 0; oi < info.nobjects; ++oi)
++        {
++            GEOS::OBJECT object{};
++            geo->GetObj(oi, object);
++            if (!(object.flags & GEOS::VISIBLE) || object.start_vertex < 0 ||
++                object.num_vertices < 3 || object.striangle < 0 || object.ntriangles < 1 ||
++                int64_t(object.striangle) + object.ntriangles > info.ntriangles) continue;
++            auto *vb = wdmObjects->rs->GetVertexBuffer(object.vertex_buff);
++            D3DVERTEXBUFFER_DESC desc{};
++            if (!vb || vb->GetDesc(&desc) != D3D_OK ||
++                (desc.FVF & D3DFVF_POSITION_MASK) != D3DFVF_XYZ) continue;
++            uint32_t stride = 3 * sizeof(float);
++            if (desc.FVF & D3DFVF_NORMAL) stride += 3 * sizeof(float);
++            if (desc.FVF & D3DFVF_DIFFUSE) stride += sizeof(uint32_t);
++            if (desc.FVF & D3DFVF_SPECULAR) stride += sizeof(uint32_t);
++            const auto uvCount = (desc.FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
++            for (uint32_t uv = 0; uv < uvCount; ++uv)
++            {
++                const uint32_t dimensions = (desc.FVF >> (16 + 2 * uv)) & 3;
++                stride += (dimensions == 0 ? 2 : dimensions == 1 ? 3 : dimensions == 2 ? 4 : 1) * sizeof(float);
++            }
++            if ((uint64_t(object.start_vertex) + object.num_vertices) * stride > desc.Size) continue;
++            void *locked = nullptr;
++            if (vb->Lock(0, 0, &locked, D3DLOCK_READONLY) != D3D_OK || !locked) continue;
++            const auto *bytes = static_cast<const uint8_t *>(locked) + uint64_t(object.start_vertex) * stride;
++            std::vector<CVECTOR> vertices(object.num_vertices);
++            for (int32_t v = 0; v < object.num_vertices; ++v)
++            {
++                float p[3];
++                std::memcpy(p, bytes + uint64_t(v) * stride, sizeof(p));
++                vertices[v] = island.model->mtx * CVECTOR(p[0], p[1], p[2]);
++            }
++            vb->Unlock();
++            for (int32_t ti = 0; ti < object.ntriangles; ++ti)
++            {
++                CVECTOR polygon[4];
++                int count = 0;
++                CVECTOR triangle[3];
++                bool valid = true;
++                for (int v = 0; v < 3; ++v)
++                {
++                    const auto index = indices[(size_t(object.striangle) + ti) * 3 + v];
++                    if (index >= object.num_vertices) { valid = false; break; }
++                    triangle[v] = vertices[index];
++                    valid &= std::isfinite(triangle[v].x) && std::isfinite(triangle[v].y) && std::isfinite(triangle[v].z);
++                }
++                if (!valid) continue;
++                // Clip below ordinary map water, rather than projecting submerged
++                // seabed/skirts into a false barrier. The resulting polygon has <=4 vertices.
++                constexpr float seaPlane = 0.0f;
++                for (int v = 0; v < 3; ++v)
++                {
++                    const CVECTOR a = triangle[v], b = triangle[(v + 1) % 3];
++                    if (a.y >= seaPlane) polygon[count++] = a;
++                    if ((a.y >= seaPlane) != (b.y >= seaPlane))
++                        polygon[count++] = a + (b - a) * ((seaPlane - a.y) / (b.y - a.y));
++                }
++                for (int v = 1; v + 1 < count; ++v)
++                {
++                    const CVECTOR a = polygon[0], b = polygon[v], c = polygon[v + 1];
++                    if (std::fabs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)) < 1e-6f) continue;
++                    tsunamiLand.push_back({{a.x, b.x, c.x}, {a.z, b.z, c.z}});
++                }
++            }
++        }
++        wdmObjects->rs->UnLockIndexBuffer(geo->GetIndexBuffer());
++    }
++    if (!tsunamiLand.empty()) BuildLandNode(0, uint32_t(tsunamiLand.size()));
++    tsunamiLandBuilt = true;
++    ++tsunamiLandGeneration;
++}
++
++uint32_t WdmIslands::BuildLandNode(uint32_t begin, uint32_t end)
++{
++    LandNode node{1e20f, 1e20f, -1e20f, -1e20f, begin, end - begin, 0, 0};
++    for (uint32_t i = begin; i < end; ++i)
++        for (int v = 0; v < 3; ++v)
++        {
++            node.minX = std::min(node.minX, tsunamiLand[i].x[v]);
++            node.maxX = std::max(node.maxX, tsunamiLand[i].x[v]);
++            node.minZ = std::min(node.minZ, tsunamiLand[i].z[v]);
++            node.maxZ = std::max(node.maxZ, tsunamiLand[i].z[v]);
++        }
++    const auto index = uint32_t(tsunamiLandNodes.size());
++    tsunamiLandNodes.push_back(node);
++    if (end - begin > 8)
++    {
++        const bool splitX = node.maxX - node.minX > node.maxZ - node.minZ;
++        const uint32_t middle = begin + (end - begin) / 2;
++        std::nth_element(tsunamiLand.begin() + begin, tsunamiLand.begin() + middle, tsunamiLand.begin() + end,
++            [splitX](const LandTriangle &a, const LandTriangle &b) {
++                return splitX ? a.x[0] + a.x[1] + a.x[2] < b.x[0] + b.x[1] + b.x[2] :
++                    a.z[0] + a.z[1] + a.z[2] < b.z[0] + b.z[1] + b.z[2];
++            });
++        const auto left = BuildLandNode(begin, middle), right = BuildLandNode(middle, end);
++        tsunamiLandNodes[index].left = left;
++        tsunamiLandNodes[index].right = right;
++        tsunamiLandNodes[index].count = 0;
++    }
++    return index;
++}
++
++float WdmIslands::TraceLandNode(uint32_t index, const CVECTOR &s, const CVECTOR &d, float nearest) const
++{
++    const auto &node = tsunamiLandNodes[index];
++    float lo = 0.0f, hi = nearest;
++    const float position[2] = {s.x, s.z}, delta[2] = {d.x, d.z};
++    const float minimum[2] = {node.minX, node.minZ}, maximum[2] = {node.maxX, node.maxZ};
++    for (int axis = 0; axis < 2; ++axis)
++    {
++        if (std::fabs(delta[axis]) < 1e-12f)
++        {
++            if (position[axis] < minimum[axis] || position[axis] > maximum[axis]) return nearest;
++        }
++        else
++        {
++            const float a = (minimum[axis] - position[axis]) / delta[axis];
++            const float b = (maximum[axis] - position[axis]) / delta[axis];
++            lo = std::max(lo, std::min(a, b)); hi = std::min(hi, std::max(a, b));
++            if (lo > hi) return nearest;
++        }
++    }
++    if (!node.count)
++    {
++        nearest = TraceLandNode(node.left, s, d, nearest);
++        return TraceLandNode(node.right, s, d, nearest);
++    }
++    for (uint32_t i = node.begin; i < node.begin + node.count; ++i)
++    {
++        const auto &triangle = tsunamiLand[i];
++        float enter = 0.0f, exit = nearest;
++        const float orientation = (triangle.x[1] - triangle.x[0]) * (triangle.z[2] - triangle.z[0]) -
++            (triangle.z[1] - triangle.z[0]) * (triangle.x[2] - triangle.x[0]);
++        const float sign = orientation > 0.0f ? 1.0f : -1.0f;
++        for (int v = 0; v < 3 && enter <= exit; ++v)
++        {
++            const int j = (v + 1) % 3;
++            const float ex = triangle.x[j] - triangle.x[v], ez = triangle.z[j] - triangle.z[v];
++            const float a = sign * (ex * (s.z - triangle.z[v]) - ez * (s.x - triangle.x[v]));
++            const float b = sign * (ex * d.z - ez * d.x);
++            if (std::fabs(b) < 1e-12f) { if (a < -1e-5f) exit = -1.0f; }
++            else if (b > 0.0f) enter = std::max(enter, -a / b);
++            else exit = std::min(exit, -a / b);
++        }
++        if (enter <= exit && exit >= 0.0f) nearest = std::min(nearest, std::max(0.0f, enter));
++    }
++    return nearest;
++}
++
++float WdmIslands::TsunamiLandfall(const CVECTOR &source, const CVECTOR &destination)
++{
++    BuildTsunamiLand();
++    if (tsunamiLandNodes.empty()) return 1.0f;
++    return TraceLandNode(0, source, destination - source, 1.0f);
++}
++
++uint32_t WdmIslands::TsunamiLandGeneration()
++{
++    BuildTsunamiLand();
++    return tsunamiLandGeneration;
++}
++
+ // Read Island Data
+ void WdmIslands::SetIslandsData(ATTRIBUTES *apnt, bool isChange)
+ {
++    // All borrowed geometry is discarded; active waves rebuild angular masks.
++    tsunamiLandBuilt = false;
+     if (!isChange)
+     {
+         LabelsRelease();
+--- a/src/libs/worldmap/src/wdm_islands.h
++++ b/src/libs/worldmap/src/wdm_islands.h
+@@ -105,6 +105,10 @@
+     // Check for the presence of triangles in this place
+     bool ObstacleTest(float x, float z, float radius);
+ 
++    // First emerged-land footprint on a world-space water path (1 = clear).
++    float TsunamiLandfall(const CVECTOR &source, const CVECTOR &destination);
++    uint32_t TsunamiLandGeneration();
++
+     // Read Island Data
+     void SetIslandsData(ATTRIBUTES *apnt, bool isChange);
+ 
+@@ -139,6 +143,20 @@
+     int32_t LabelsAddFont(const char *name);
+     void LabelsRelease();
+     static CVECTOR Norm2D(const CVECTOR &ret);
++
++    struct LandTriangle { float x[3], z[3]; };
++    struct LandNode
++    {
++        float minX, minZ, maxX, maxZ;
++        uint32_t begin, count, left, right;
++    };
++    void BuildTsunamiLand();
++    uint32_t BuildLandNode(uint32_t begin, uint32_t end);
++    float TraceLandNode(uint32_t node, const CVECTOR &source, const CVECTOR &delta, float nearest) const;
++    std::vector<LandTriangle> tsunamiLand;
++    std::vector<LandNode> tsunamiLandNodes;
++    bool tsunamiLandBuilt = false;
++    uint32_t tsunamiLandGeneration = 0;
+ 
+   private:
+     // Model containing all locators
 --- a/src/libs/worldmap/src/wdm_player_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_player_ship.cpp
 @@ -303,6 +303,8 @@
@@ -1287,3 +1909,152 @@
      if (aEncounter)
          aEncounter->SetAttributeUseDword("num", wdmObjects->ships.size() - (wdmObjects->playerShip != nullptr));
      // Events
+--- a/src/libs/sea_ai/src/ai_ship.cpp
++++ b/src/libs/sea_ai/src/ai_ship.cpp
+@@ -111,8 +111,11 @@
+     if (!isDead())
+     {
+         GetCannonController()->Execute(fDeltaTime);
+-        GetTaskController()->Execute(fDeltaTime);
+-        GetMoveController()->Execute(fDeltaTime);
++        if (!GetMoveController()->ExecuteTsunami(fDeltaTime))
++        {
++            GetTaskController()->Execute(fDeltaTime);
++            GetMoveController()->Execute(fDeltaTime);
++        }
+         if (!isMainCharacter())
+             GetTouchController()->Execute(fDeltaTime);
+         GetRotateController()->Execute(fDeltaTime);
+--- a/src/libs/sea_ai/src/ai_ship_move_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_move_controller.cpp
+@@ -20,6 +20,62 @@
+ 
+ bool AIShipMoveController::Init()
+ {
++    return true;
++}
++
++bool AIShipMoveController::ExecuteTsunami(float fDeltaTime)
++{
++    auto *ai = GetAIShip();
++    if (fDeltaTime <= 0.0f || isStopped() || ai->isMainCharacter() || ai->isDead())
++        return false;
++    auto *ship = ai->GetShipBasePointer();
++    if (!ship || !ship->CanNavigate())
++        return false;
++    auto *character = ai->GetACharacter();
++    const auto *stopped = character->FindAClass(character, "Ship.Stopped");
++    if ((stopped && stopped->GetAttributeAsDword()) ||
++        character->GetAttribute("ShipTaskLock") || character->GetAttribute("Ship_SetTaskAbordage") ||
++        character->GetAttribute("SeaSurrender") || character->GetAttribute("Surrendered"))
++        return false;
++    switch (ai->GetTaskController()->GetCurrentTask()->dwTaskType)
++    {
++    case AITASK_ATTACK:
++    case AITASK_DEFEND:
++    case AITASK_MOVE:
++    case AITASK_RUNAWAY:
++    case AITASK_FOLLOW:
++        break;
++    default:
++        return false;
++    }
++    const auto *skills = character->FindAClass(character, "TmpSkill");
++    const float sailing = skills ? std::clamp(skills->GetAttributeAsFloat("Sailing"), 0.0f, 1.0f) : 0.0f;
++    if (sailing <= 0.0f)
++        return false;
++    auto *sea = dynamic_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
++    if (!sea)
++        return false;
++    const auto pos = ai->GetPos();
++    const auto wave = sea->GetTsunamiSample(pos.x, pos.z);
++    if (!wave.serial || wave.speed <= 0.0f || wave.width <= 0.0f)
++        return false;
++    const auto direction = CVECTOR(wave.directionX, 0.0f, wave.directionZ);
++    const auto bow = CVECTOR(sinf(ai->GetAng().y), 0.0f, cosf(ai->GetAng().y));
++    const float closure = wave.speed + KNOTS2METERS(ship->State.vSpeed.z) * (bow | direction);
++    const float support = 1.5f * wave.width;
++    // More navigation experience buys observation time, never extra turn authority.
++    // The wave travels against its stored direction, so the bow faces that direction.
++    if (wave.signedDistance >= support ||
++        wave.signedDistance < -support - std::max(0.0f, closure) * (5.0f + 55.0f * sailing))
++        return false;
++    const float error = atan2f((bow ^ direction).y, bow | direction);
++    float brakingTime = 0.0f;
++    const float brakingAngle = ship->GetRotationAngle(&brakingTime);
++    float rotate = std::clamp(error * 2.0f, -1.0f, 1.0f);
++    if (error * ship->State.vRotate.y > 0.0f && brakingAngle >= fabsf(error))
++        rotate = 0.0f;
++    ai->GetRotateController()->AddRotate(rotate);
++    ai->GetSpeedController()->AddSpeed(fabsf(error) > 0.3f ? 0.5f : 1.0f);
+     return true;
+ }
+ 
+--- a/src/libs/sea_ai/src/ai_ship_move_controller.h
++++ b/src/libs/sea_ai/src/ai_ship_move_controller.h
+@@ -31,6 +31,7 @@
+     // init/execute/realize section
+     virtual bool Init();
+     virtual void Execute(float);
++    bool ExecuteTsunami(float);
+     virtual void Realize(float);
+ 
+     // move to point (major function!!!)
+--- a/src/libs/ship/include/ship_base.h
++++ b/src/libs/ship/include/ship_base.h
+@@ -84,4 +84,5 @@
+     void Fire(const CVECTOR &vPos) override = 0;
+ 
+     virtual void SetFixedSpeed(bool bSetFixed, float fFixedSpeed) = 0;
++    virtual bool CanNavigate() const { return false; }
+ };
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -169,6 +169,11 @@
+         return bDead;
+     };
+ 
++    bool CanNavigate() const override
++    {
++        return bMounted && !bSetFixed && !bGroundMoveBlocked && !bDead;
++    }
++
+     bool isVisible()
+     {
+         return bVisible;
+--- a/src/techniques/worldmap/worldmap.fx
++++ b/src/techniques/worldmap/worldmap.fx
+@@ -597,3 +597,33 @@
+         AlphaOp[1] = disable;
+     }
+ }
++
++// Raised world-map tsunami body and crest; per-vertex alpha owns fade and shelter.
++technique WdmTsunamiWave
++{
++    pass p0
++    {
++        Lighting = false;
++        FogEnable = false;
++        ZEnable = true;
++        ZFunc = lessequal;
++        ZWriteEnable = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = invsrcalpha;
++        TextureTransformFlags[0] = disable;
++        TexCoordIndex[0] = 0;
++        AddressU[0] = wrap;
++        AddressV[0] = wrap;
++        ColorArg1[0] = texture;
++        ColorArg2[0] = diffuse;
++        ColorOp[0] = modulate;
++        AlphaArg1[0] = texture;
++        AlphaArg2[0] = diffuse;
++        AlphaOp[0] = modulate;
++        ColorOp[1] = disable;
++        AlphaOp[1] = disable;
++    }
++}

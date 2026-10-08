@@ -18,10 +18,11 @@ from runtime_script_patch import atomic_write
 
 RECEIPT = ".delivery-state.json"
 ENGINE = "@engine"
-TECHNIQUES = ("ship/Rope.fx", "ship/Vant.fx", "_dev/ship.fx", "weather/SunGlow.fx")
+TECHNIQUES = ("ship/Rope.fx", "ship/Vant.fx", "_dev/ship.fx", "weather/SunGlow.fx", "worldmap/worldmap.fx")
 # Frozen admission for installations created before receipts. New deliveries
 # record their predecessor automatically; do not extend these lists per release.
 LEGACY_TECHNIQUES = {
+    "worldmap/worldmap.fx": {"986abc93b8d967cba222104b7ef0ea8b4813de0856a71d514845313a64490bd2", "c27ec7f9a45cfec10903d9030992824a5ee483f0218d62307cd99ed1d8de0f2b"},
     "ship/Rope.fx": {"5f0f0bef056f652515f2ef2b4b99b16f936ce30b5dd1f0417a13eec17ddbb9e1", "873feea8d12addfef10b0c6dabf106b93e88fc0574c54fb2b14e544eff887e69"},
     "ship/Vant.fx": {"00a92cad48c211d0465fccc19f2481a29310d94676b0988700357eefe566d65f"},
     "_dev/ship.fx": {"e868be15c45b8b2d91489b939933b0c420669f241ac6ea5cde1c9e04465fd8e9", "092a2b5a087dd44d2e3c0eb779d167819fa672398b80189e1f05a75fffaf9621", "1629e130e608483aa5ab640d8d429d3d882810889306875ad3d9e515f87b46f9"},

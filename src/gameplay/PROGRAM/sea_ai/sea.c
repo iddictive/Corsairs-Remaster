@@ -94,8 +94,16 @@ void Sea_ReconcileCabinSleepEnvironment()
 	doShipLightChange(currentWeather);
 }
 
+void SeaTsunami_ClearPending()
+{
+    DeleteAttribute(&Sea, "Tsunami.PendingSeverity");
+    DeleteAttribute(&Sea, "Tsunami.PendingDirectionX");
+    DeleteAttribute(&Sea, "Tsunami.PendingDirectionZ");
+}
+
 void DeleteSeaEnvironment()
 {
+	SeaTsunami_ClearPending();
 	WdmMilitaryParleyClear();
     PauseParticles(true); //fix
 	Ship_Walk_Delete();
@@ -538,13 +546,23 @@ void Sea_LoginGroupNow(string sGroupID)
 
 void SeaLogin(ref Login)
 {
+	SeaTsunami_ClearPending();
 	bSeaTsunamiEncounter = false;
     float tsunamiSeverity = -1.0;
+    float tsunamiDirectionX = 0.0;
+    float tsunamiDirectionZ = 0.0;
     if (CheckAttribute(&Login, "TsunamiSeverity"))
     {
         tsunamiSeverity = stf(Login.TsunamiSeverity);
         DeleteAttribute(&Login, "TsunamiSeverity");
     }
+    if (CheckAttribute(&Login, "TsunamiDirectionX") && CheckAttribute(&Login, "TsunamiDirectionZ"))
+    {
+        tsunamiDirectionX = stf(Login.TsunamiDirectionX);
+        tsunamiDirectionZ = stf(Login.TsunamiDirectionZ);
+    }
+    DeleteAttribute(&Login, "TsunamiDirectionX");
+    DeleteAttribute(&Login, "TsunamiDirectionZ");
 	WdmMilitaryParleyClear();
 	int		i, j, k, iShipType;
 	float	x, y, z, ay;
@@ -1232,7 +1250,11 @@ void SeaLogin(ref Login)
 	
 	PostEvent("Sea_FirstInit", 1);
     if (tsunamiSeverity >= 0.0 && tsunamiSeverity <= 1.0)
+    {
         Sea.Tsunami.PendingSeverity = tsunamiSeverity;
+        Sea.Tsunami.PendingDirectionX = tsunamiDirectionX;
+        Sea.Tsunami.PendingDirectionZ = tsunamiDirectionZ;
+    }
 }
 
 void Sea_LoginGroup(string sGroupID)
@@ -1415,8 +1437,15 @@ void Sea_FirstInit()
     if (CheckAttribute(&Sea, "Tsunami.PendingSeverity"))
     {
         float severity = stf(Sea.Tsunami.PendingSeverity);
-        DeleteAttribute(&Sea, "Tsunami.PendingSeverity");
-        bSeaTsunamiEncounter = SeaTsunami_StartWithSeverity(severity);
+        float incomingX = 0.0;
+        float incomingZ = 0.0;
+        if (CheckAttribute(&Sea, "Tsunami.PendingDirectionX") && CheckAttribute(&Sea, "Tsunami.PendingDirectionZ"))
+        {
+            incomingX = stf(Sea.Tsunami.PendingDirectionX);
+            incomingZ = stf(Sea.Tsunami.PendingDirectionZ);
+        }
+        SeaTsunami_ClearPending();
+        bSeaTsunamiEncounter = SeaTsunami_StartWithDirection(severity, incomingX, incomingZ);
     }
 	RefreshBattleInterface();
 	if( SeaCameras.Camera == "SeaDeckCamera" ) {
@@ -1703,6 +1732,7 @@ bool bSeaLoad = false;
 
 void Sea_Load()
 {
+	SeaTsunami_ClearPending();
 	bSeaTsunamiEncounter = false;
 	WdmMilitaryParleyClear();
 	bSeaLoad = true;

@@ -102,7 +102,7 @@ def compiler_ready():
 
 # Compose after the existing gameplay owners, notably the AIShip fleet layer.
 FLEET_FINAL_BASE = {**fleet_sea.BASE_HASHES, **fleet_ui.BASES}
-FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': '102ca97441d76adfb73bcfc6020507c76f23bd54b6cacc285d72cd875ed51a9e',
+FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'eb77e881d82dbe21ddf60a79a45c02cc00f3d5ecb3ce3b99de35a7bd35a018d8',
  'PROGRAM/sea_ai/sea.c': '9937ba2362e2b55ca9b13adcb60dc0b4310c5a29470a1e58abda1a38a52a1a09',
  'PROGRAM/sea_ai/AIFantom.c': '94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b',
  'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',

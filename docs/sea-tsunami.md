@@ -11,20 +11,24 @@ Horizontal transport, shore splashes, the sky-horizon correction and the wider
 crest-material correction pass source/component checks and canonical staging.
 The world-map debug menu action also passes canonical staging and is installed;
 natural and debug creation share one event constructor.
+The expanding arc/ring, rendered-land shelter, NPC map damage and navigation-led
+local NPC maneuver pass canonical staging and are installed. Their actual game
+replay, including open-water arc silhouette and moving hull responses, stays
+player-owned.
 The current installed inventory and chronological receipts belong to
 `docs/runtime.md`; component probes do not prove real-game acceptance.
 
 ## Player action
 
-The pause menu uses **Esc → Цунами** in an ordinary local sea scene or on the
-world map. At sea it starts ahead of the controlled ship, including beside a
-pier. On the map it creates a nearby blue event circle through the same native
-constructor as natural encounters; its approach/contact triggers the existing
+The pause menu uses **Esc → Цунами** in an ordinary local sea scene. At sea it
+starts ahead of the controlled ship, including beside a pier. On the map,
+**Esc → Цунами: дуга** or **Цунами: кольцо** creates an expanding raised wave
+through the same constructor as natural encounters; its contact triggers the existing
 automatic local-sea transition. **Esc → Стоп цунами** cancels the local wave or
 removes marked map events. Repeated map start replaces the marked event; ordinary
-storms and ships remain. Both actions resume through the existing pause menu
+storms and ships remain. These actions resume through the existing pause menu
 exit. The buttons are absent on land and during boarding.
-They occupy two free cells to the right of the existing pause controls.
+They occupy free cells to the right of the existing pause controls; Ring is map-only.
 
 The existing F11 route remains available in source (Fn+F11 when macOS uses media keys). The script
 debug menu contains `Цунами` and `Стоп` in the two free cells of its lower row.
@@ -141,22 +145,114 @@ Rate `0.000001` allows at most one marked event alongside the ordinary storm
 limit. Existing encounter-off, pause and no-encounter gates remain. The cumulative
 lottery makes spawn waiting roughly ten times the rate-0.0001 storm under matched
 active-map conditions, not a 100-fold guarantee. Player frequency is unmeasured.
-Native movement is 5–8 map units/s, lifetime 60–120 seconds, activation delay two
-seconds and existing spawn distance 100–140 units. The live trigger is a
-**60-unit circle** plus the player's existing 16-unit action radius. Its blue
-circle is visible without global debug; strength changes its color. Ordinary
-storms retain six-cloud collision; marked outer proximity cannot admit hurricane
-weather outside the actual circle.
+The installed front replaces the moving filled circle with a fixed-origin hollow
+front: a **140° arc** or full ring. Radius starts at 12 map units, grows at
+`6 + 3s` units/s and stops at `240 + 80s` (at most 320). Lifetime follows this
+bounded reach plus four seconds for entry/fade. Full strength lasts through the
+ordinary configured maximum spawn distance (currently 140); the shared gain then
+decays smoothly to zero at maximum radius, with entry/exit and arc-end envelopes.
+Contact below 0.06 exposure is rejected. Swept front checks admit a
+crossing between updates, while the passed interior is safe. Ordinary storms
+retain their six-cloud geometry.
+
+Esc has separate map actions **Цунами: дуга** and **Цунами: кольцо**, sharing
+`SeaTsunami_CreateMapEncounterWithShape`; natural generation chooses the shape
+once. The old local-sea start and Stop keep their existing actions. Existing
+marked saves without new fields initialize a front without rerolling severity,
+including valid zero. The existing Storm descriptor persists origin, heading,
+shape, age and radius parameters. Water-origin admission uses a finite nearby
+search without moving the ship or resampling the event.
+
+`WdmStorm::BuildTsunamiMesh` produces both the raised water body and authored foam;
+`WdmTsunamiWave` uses the existing compact fixed-function backend. The technique
+is delivered through the canonical managed-material registry, whose first
+admission binds the identical LF/CRLF predecessor bodies. No new shader pipeline
+or map texture is introduced. The original blue debug disk/cloud/rain is absent
+for marked events; ordinary storm visuals remain.
+
+`WdmIslands` owns a one-time cache of active authored land triangles, clipped at
+the sea plane and transformed with actual model placements. Exact source-to-point
+queries govern shelter and contact; cached angular queries cut the rendered front
+at the same landfall. Island reload/teardown invalidates the cache. The installed
+archipelago is consolidated in `mein.gm`; most named island files are submerged
+placeholders without usable BSP. Consequently `GEOM::Trace`/`Clip` and ordinary
+map collision cannot prove shelter. Navigable-water patches are also insufficient
+to identify rendered land. The small projected-triangle BVH adapts the existing
+buffer intake, rather than adding a 3D ray-library dependency such as
+[TinyBVH](https://github.com/jbikker/tinybvh).
+
+The source-bound component intake finds 32 active models, 169,394 clipped land
+triangles, 65,535 BVH nodes and 8 MiB capacity, taking about 26 ms once. 2,500 segment
+queries match an independent edge/barycentric oracle without relocking buffers.
+An actual water→Jamaica→water segment is sheltered; an open water ray passes.
+These checks prove geometry/query behavior, not player-visible map acceptance.
+
+The first four-frame offscreen fixture was rejected because its camera clipped
+Jamaica and its unanimated substrate hid the water body. Corrected framing uses
+the supported free-camera height 500 and actual WdmSea fixed-function/animated
+substrate, plus installed island geometry/material inputs. A further two frames
+consume the final shared gain: full initial strength and a sheltered decaying ring.
+The raised dark face and pale foam are visible, the sector behind Jamaica is absent,
+and the opposite water front survives. At maximum radius gain reaches zero and
+the producer emits no mesh. The generic Metal shader compiles. This fixture has
+no live reflection/sun refinement, labels, ships, spray or FPS evidence; the full
+open-water arc silhouette and installed moving scene remain player-replay checks.
 
 `TestInStorm → WorldMap_PlayerInStorm → wdmReloadToSea` forces local sea without
-the skippable encounter dialog. Reload consumes the descriptor and copies its
-strength into `Login.TsunamiSeverity`. `SeaLogin` consumes this before early exits;
-after successful sea creation `Sea_FirstInit` invokes the shared start owner.
+the skippable encounter dialog. Reload consumes the descriptor and copies actual
+attenuated severity and radial incoming direction into Login. `SeaLogin` consumes
+them before early exits; after successful sea creation `Sea_FirstInit` invokes
+`SeaTsunami_StartWithDirection`. Map/sea coordinate axes preserve this direction;
+the local owner normalizes and negates it into the existing outward-wave convention.
+Missing direction in an old descriptor uses the ordinary bow fallback. Pending
+commands clear on rejected login, teardown/load and after their single consumption.
 `bSeaTsunamiEncounter` extends the existing map/land/SailTo lock only for a natural
 wave while native `Sea.Tsunami.Active` is true. Finish clears it; debug does not
 impose that lock. Sea teardown/load clears flags and pending commands. Attribute
 clears during weather/cabin rebuilding republish actual native active state,
 preventing a stale projection from unlocking a surviving event.
+
+## NPC map damage and local navigation
+
+Ordinary local SHIP instances already query tsunami contact for their own
+character; player, enemy and companion damage share that owner. The map adapter
+adds `WdmStorm::DispatchTrafficContacts` for live ordinary encounter ships only.
+Tsunami uses the same swept front, arc attenuation and exact island shelter as
+the player; ordinary storms use their existing cloud intersections. Paused,
+inactive, expired, deleted, quest/qID/ALONE and locally admitted fleets are excluded.
+The developing front does not spend a once receipt before age two seconds.
+
+`tools/gameplay/worldmap-traffic.c::WdmTrafficStormContact` owns persisted roster
+HP, cargo loss, survivor counts/power and last-hull deletion. Unknown hull state
+is left unknown. Nominal tsunami damage is `(0.10 + 0.40s) × exposure`; the saved
+Storm descriptor records one hit per fleet, surviving map reentry and save/load.
+Ordinary storm damage uses actual active simulation seconds at the existing
+local rate 0.011 maximum HP/s and bow/beam multiplier 0.25..1. The native dispatch
+subtracts preactivation time, so different time partitions pay the same duration.
+
+The intrinsic roster fraction and optional absolute Ship.HP snapshot stay aligned;
+outer `trafficCondition` is applied once by the existing sea bridge. Paid service
+adds only its original funded repair delta, preserving subsequent storm losses.
+Source-bound VM cases show an intact 1000 HP hull becomes 700 while a 50 HP hull sinks;
+four restores preserve losses/once receipts, and actual sea restore reads 200
+intrinsic HP × condition 0.5 as 100 effective HP. Quest and unknown-state negatives,
+ordinary elapsed-time partitions and funded-service completion pass.
+
+The local AI move controller reads existing normalized `TmpSkill.Sailing`, derived
+from summoned navigation skill, to anticipate incoming support by `5 + 55 × skill`
+seconds. It faces the bow toward the source using ordinary rotate/speed controllers
+and collision steering. Emergency steering temporarily skips task/move evaluation;
+the task itself is untouched and resumes after passage/cancel. Main-player control,
+fixed/grounded/unmounted/stopped/dead ships, locked or forced boarding/brander/drift
+orders and surrender retain existing behavior. Missing/zero skill gives no maneuver.
+No separate saved captain skill or world-map maneuver is invented.
+
+Actual-controller CPU checks preserve 19 eligibility negatives and the task state.
+With the same 0.04 rad/s yaw-inertia fixture, skill 1 meets the crest at 1.819° from
+the bow, while skill 0.05 remains 55.623° from it; onset changes monotonically with
+skill. This proves the bounded controller response, not success for every hull,
+speed, collision or player scene. Local skill/pose and map fleet losses still
+need the human's installed-game replay.
 
 ## Expanded geometry and material
 

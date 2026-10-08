@@ -1529,6 +1529,11 @@ float SeaTsunami_SampleSeverity()
 
 bool SeaTsunami_StartWithSeverity(float severity)
 {
+	return SeaTsunami_StartWithDirection(severity, 0.0, 0.0);
+}
+
+bool SeaTsunami_StartWithDirection(float severity, float incomingX, float incomingZ)
+{
 	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea) || !CheckAttribute(pchar, "Ship.Pos.x") ||
 		!CheckAttribute(pchar, "Ship.Pos.z") || !CheckAttribute(pchar, "Ship.Ang.y"))
 	{
@@ -1539,9 +1544,16 @@ bool SeaTsunami_StartWithSeverity(float severity)
 	Sea.Tsunami.OriginZ = stf(pchar.Ship.Pos.z);
 	Sea.Tsunami.DirectionX = sin(stf(pchar.Ship.Ang.y));
 	Sea.Tsunami.DirectionZ = cos(stf(pchar.Ship.Ang.y));
+	float directionLength = sqrt(incomingX * incomingX + incomingZ * incomingZ);
+	if (directionLength > 0.0001)
+	{
+		Sea.Tsunami.DirectionX = -incomingX / directionLength;
+		Sea.Tsunami.DirectionZ = -incomingZ / directionLength;
+	}
 	Sea.Tsunami.Severity = Clampf(severity);
 	Sea.Tsunami.Start = 1;
-	Log_Info("Цунами идёт с горизонта перед носом корабля.");
+	if (directionLength > 0.0001) Log_Info("Цунами приближается к кораблю.");
+	else Log_Info("Цунами идёт с горизонта перед носом корабля.");
 	return true;
 }
 
@@ -1549,15 +1561,26 @@ bool SeaTsunami_Start()
 {
 	if (IsEntity(&worldMap) && !bAbordageStarted)
 	{
-		SeaTsunami_Stop();
-		if (!SeaTsunami_CreateMapEncounter()) return false;
-		Log_Info("Цунами приближается на глобальной карте.");
-		return true;
+		return SeaTsunami_StartMapWithShape(0);
 	}
 	return SeaTsunami_StartWithSeverity(SeaTsunami_SampleSeverity());
 }
 
 bool SeaTsunami_CreateMapEncounter()
+{
+	return SeaTsunami_CreateMapEncounterWithShape(rand(1));
+}
+
+bool SeaTsunami_StartMapWithShape(int shape)
+{
+	if (!IsEntity(&worldMap) || bAbordageStarted) return false;
+	SeaTsunami_Stop();
+	if (!SeaTsunami_CreateMapEncounterWithShape(shape)) return false;
+	Log_Info("Цунами приближается на глобальной карте.");
+	return true;
+}
+
+bool SeaTsunami_CreateMapEncounterWithShape(int shape)
 {
 	if (!IsEntity(&worldMap) || bAbordageStarted) return false;
 	string previousID = "";
@@ -1567,6 +1590,7 @@ bool SeaTsunami_CreateMapEncounter()
 	string path = "encounters." + worldMap.EncounterID1;
 	if (!CheckAttribute(&worldMap, path + ".type") || worldMap.(path).type != "Storm") return false;
 	worldMap.(path).tsunamiSeverity = SeaTsunami_SampleSeverity();
+	worldMap.(path).tsunamiShape = shape;
 	return true;
 }
 
