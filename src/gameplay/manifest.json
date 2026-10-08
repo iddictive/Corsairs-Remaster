@@ -1,6 +1,10 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/interface/store.c": {
+      "encoding": "utf-8",
+      "legacy": ["d031125b83a89c4b76a38205f90723d22a700b233e1a1e70c30f93a358b90854"]
+    },
     "PROGRAM/store/goods.h": {
       "encoding": "cp1251",
       "legacy": ["d26f0f3c353e59bf27199fa614111c8282aa415a8e6975d534bab0c6002e8c5b"]

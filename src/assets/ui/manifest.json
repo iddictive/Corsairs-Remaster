@@ -1,6 +1,34 @@
 {
   "version": 1,
   "files": {
+    "RESOURCE/Textures/INTERFACES/goods.tga.tx": {
+      "source": "airburst-bomb.png",
+      "source_sha256": "7cca81562245e8dd6b095a3f1097cc4cc234ce7a79259a06e1557f7b9b98fcb1",
+      "prepared": "airburst-goods.tga.tx",
+      "sha256": "530de1b0ec22aa5d79f19393fba7c7cffe5eaf3d538a7ad5000cbe528ec2581e",
+      "original_sha256": "46bb923ea99335ac03fad0a8999c2400142b92c39406b6ec20d183d354c3a81d",
+      "dimensions": [1024, 1024],
+      "source_dimensions": [1254, 1254],
+      "format": "A8R8G8B8",
+      "consumer": "GOODS.Airburst: 128px inventory, shop, cargo and trade icons",
+      "generation": "built-in imagegen; original game atlas retained",
+      "prompt": "Corsairs ammunition sprite: worn spherical cast-iron bomb with lit curved fuse, opening on the right and escaping grape-shot balls; muted natural upper-left light, compact object silhouette and transparent background.",
+      "preparation": "LANCZOS-resize source to112px inside transparent128px cell; insert at384,512 in goods atlas. Update only that cell through its1px mip; preserve every outside byte and original smaller atlas mips."
+    },
+    "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx": {
+      "source": "airburst-command-states.png",
+      "source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
+      "prepared": "airburst-commands.tga.tx",
+      "sha256": "85870f5271c26486cf6cd5f2c20c7639306c31a8e9e9b0f6a006215f16a37614",
+      "original_sha256": "4248cc5253d60dc2b0c02f976325e6597623383d2a50c4816e51a97c877ba31c",
+      "dimensions": [1024, 512],
+      "source_dimensions": [1774, 887],
+      "format": "A4R4G4B4",
+      "consumer": "BattleInterface.charge.charge5: normal cell72, selected cell73, each64px",
+      "generation": "built-in imagegen edit of airburst-bomb.png; original game atlas retained",
+      "prompt": "Preserve the same bursting bomb; two64px command states with Corsairs antique-brass rounded frames, dark brown normal and muted navy selected interiors, transparent outer corners.",
+      "preparation": "LANCZOS-resize two-state source to128x64; round RGBA channels to4bits and insert into unused cells72/73 at512,256 and576,256. Preserve original header and every byte outside those cells."
+    },
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx": {
       "source": "mast-repair.png",
       "source_sha256": "195d1c79f1830f17a15eb15a2d3fc30874e7393de664b366df364fe5cf7cfdc8",

@@ -38,11 +38,11 @@
 +    return good;
 +}
 +
-+// Sweep a descending shell through the target's oriented overhead volume.
++// Sweep a shell through the target's oriented overhead volume.
 +// Slab entry, rather than endpoint proximity, also catches long frame steps.
 +bool AirburstEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &box, float &entry)
 +{
-+    if (dst.y >= src.y) return false;
++    if (~(dst-src) < 1e-8f) return false;
 +    const float deck = std::clamp(box.y * 0.15f, 3.0f, 9.0f);
 +    const float lo[] = {-box.x * 0.5f - 3.0f, deck + 4.0f, -box.z * 0.5f - 3.0f};
 +    const float hi[] = { box.x * 0.5f + 3.0f, deck + 14.0f, box.z * 0.5f + 3.0f};
@@ -221,6 +221,22 @@
              {
                  aBallRects.push_back(RS_RECT{});
                  // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
+--- a/src/libs/sea_ai/src/ai_cannon.cpp
++++ b/src/libs/sea_ai/src/ai_cannon.cpp
+@@ -56,7 +56,12 @@
+     vTemp.y = 0.0f;
+     const double fDistance = sqrtf(~vTemp);
+     const auto g = static_cast<double>(AIHelper::fGravity);
+-    const double fHeight = (vEnemy.y - vOur.y);
++    // Stable cargo ID51 is GOOD_AIRBURST. The shared angle solver drives both
++    // real fire and manual trajectory previews, keeping their flight identical.
++    auto *character = pAHolder ? pAHolder->GetACharacter() : nullptr;
++    auto *charge = character ? character->FindAClass(character, "Ship.Cannons.Charge") : nullptr;
++    const double lift = charge && charge->GetAttributeAsDword("Type") == 51 && fDistance >= 35.0 ? 12.0 : 0.0;
++    const double fHeight = (vEnemy.y - vOur.y) + lift;
+     const double a = SQR(g) / 4.0f;
+     const double b = (fHeight * g - SQR(_fSpeedV0));
+     const double c = SQR(fHeight) + SQR(fDistance);
 --- a/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 +++ b/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 @@ -369,7 +369,7 @@

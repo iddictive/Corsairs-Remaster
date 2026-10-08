@@ -170,7 +170,8 @@ def ui_asset_changes(target_root, state, managed=None, inputs=None):
                 inputs[path] = (data, data)
         target = state.path(name)
         original = target.read_bytes() if target.exists() else None
-        state.admit(name, original, data, create=True)
+        legacy = (spec["original_sha256"],) if "original_sha256" in spec else ()
+        state.admit(name, original, data, legacy=legacy, create=True)
         state.track(name, data)
         if managed is not None:
             managed[name] = (original, data)

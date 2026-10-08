@@ -23,10 +23,13 @@ Editable existing files are limited to PROGRAM .c/.h, RESOURCE/INI .ini and
 RESOURCE/techniques .fx. SAVE, userdata, root configuration, shared message
 headers, artwork and native binaries are outside content synchronization.
 
-Canonical staging also admits the two exact UI texture destinations declared in
-`tools/delivery_state.py`: mast repair and raking fire. Their sources and prepared
+Canonical staging also admits the four exact UI texture destinations declared in
+`tools/delivery_state.py`: mast repair, raking fire, goods and command icons.
+The latter two preserve existing atlas pixels outside the airburst cells. Their sources and prepared
 TX bytes are checksum-bound by `src/assets/ui/manifest.json` and use the existing
-transaction/receipt path. Arbitrary texture paths and SAVE remain excluded.
+transaction/receipt path. An existing unrecorded atlas is admitted only by the
+manifest's exact `original_sha256`; subsequent changes use the receipt.
+Arbitrary texture paths and SAVE remain excluded.
 
 Engine staging delivers the built `shared/messages.h` and
 `shared/sea_ai/script_defines.h` to both runtime and installed script consumers.

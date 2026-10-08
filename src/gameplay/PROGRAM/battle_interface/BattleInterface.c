@@ -1565,8 +1565,8 @@ void SetParameterData()
 	BattleInterface.charge.charge3.selPicNum = 5;
 	BattleInterface.charge.charge4.picNum = 20; // bombs
 	BattleInterface.charge.charge4.selPicNum = 4;
-	BattleInterface.charge.charge5.picNum = 20;
-	BattleInterface.charge.charge5.selPicNum = 4;
+	BattleInterface.charge.charge5.picNum = 72;
+	BattleInterface.charge.charge5.selPicNum = 73;
 	BattleInterface.charge.charge5.note = XI_convertString("Airburst");
 
 	BattleInterface.CommandTextures.ChargeTexNum = 0;

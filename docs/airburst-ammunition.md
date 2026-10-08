@@ -2,28 +2,37 @@
 
 ## Status
 
-Native build, full startup PROGRAM compilation and canonical stage-only pass.
-The installed signed engine is40c8c300 with all13 content inputs delivered;
+The first version passed native build, full PROGRAM compilation and stage-only.
+Its installed signed engine is40c8c300 with all13 content inputs delivered;
 signature and exact compiler-input/app/cache checks pass. The player's replay
 rejects the current fuze: shells hit ships without an overhead burst, and the
 shop lists the new goods outside the bomb group. Native fuze and shop display
 order are reopened under the airburst source owner, keeping saved goods IDs.
-The distinct drawn icon was never installed; it joins the corrected next batch.
-Its earlier delivery-fixture pass was withdrawn after the fixture rejected a
-temporary symlink path before testing. No game process is interrupted.
+The corrected source now includes raised shared aim, both-direction overhead
+fuze, display-only shop order and the drawn icon. Canonical native build and full
+startup PROGRAM plus the new store interface compile with zero script errors.
+Installed delivery and corrected player action replay remain pending with root.
+The icon delivery fixture now passes using a resolved temporary path. No game
+process is interrupted.
 
 ## Contract
 
 `GOOD_AIRBURST` is appended at index 51; existing cargo identifiers stay fixed.
 The fifth charge command and key `5` select «Шрапнельные бомбы». It is ship cargo,
-uses powder and the normal cannon-loading rules, and reuses the bomb icon with a
-distinct selector note and selected-ammunition label.
+uses powder and the normal cannon-loading rules. Store rows display it directly
+after bombs without changing saved cargo identifiers. The inventory icon uses
+the unused128px goods cell at384,512; normal/selected command icons use cells72/73
+of the existing64px atlas. Drawn sources and exact prepared atlas bytes belong to
+`src/assets/ui/manifest.json`; all original pixels outside those cells stay intact.
 
-A descending shell arms after 35 metres and bursts inside a ship's oriented
+A shell arms after 35 metres and bursts inside a ship's oriented
 overhead volume. The volume follows the current native ship transform and hull
 bounds; segment/slab intersection prevents a long frame from skipping it. The
-shooter and dead/unmounted targets do not trigger it. Islands and forts block the
-flight and fragment damage.
+shooter and dead/unmounted targets do not trigger it. Rising and falling shells
+can enter the overhead volume; a stationary segment cannot. The shared native
+`AICannon::CalcHeightFireAngle` adds12m of aim height for cargo51 at ranges of at
+least35m. Both real firing and manual trajectory preview use this solver. Islands
+and forts block the flight and fragment damage.
 
 A burst makes one hull/crew hit per live nearby ship through `SHIP_HULL_HIT`.
 Power falls quadratically to zero at 32 metres from the nearest deck point.
@@ -41,8 +50,9 @@ radial damage.
 Visuals reuse the authored `bomb_smoke`, `blast`, `ShipExplode` and `CreateBlast`
 owners. `ShipExplode` supplies fire, smoke trails and gravity-driven fire traces.
 Every shell has a blast; heavy fire/smoke and explosion audio are capped to one
-start per 120 ms per live balls environment. No renderer/shader replacement or
-new texture is required. Actual appearance and frame cost require a sea replay.
+start per 120 ms per live balls environment. The effects need no renderer/shader
+replacement or new effect texture. Actual appearance and frame cost require a
+sea replay.
 
 ## Owners and compatibility
 
@@ -55,11 +65,15 @@ new texture is required. Actual appearance and frame cost require a sea replay.
   bomb target-height alias. Manual aim already queries the actual scripted
   height multiplier, so the higher arc has one owner.
 - `src/gameplay/PROGRAM/store/`: catalogue and missing-only shop initialization.
+- `src/gameplay/PROGRAM/interface/store.c`: display-only goods ordering; row
+  transaction indices still refer to the original cargo catalogue.
 - `src/gameplay/PROGRAM/seadogs.c`: normal `OnLoad` array/catalogue migration.
 - `src/gameplay/PROGRAM/battle_interface/BattleInterface.c` and controls/text
   sources: fifth charge, saved selector-array expansion and Russian labels.
 - `src/gameplay/manifest.json`: complete-source delivery and original-byte
   admission; the ordered native patch is declared by `build.sh`.
+- `src/assets/ui/manifest.json`: drawn art, original-atlas admission and prepared
+  textures; `tools/delivery_state.py` admits only the two exact added atlas paths.
 
 The native projectile save format iterates four unnamed type lanes. Adding a
 fifth lane would consume unrelated saved bytes. New shells therefore use the
@@ -81,10 +95,29 @@ save/load round. The initial fixture lacked the engine's required `OnLoad`
 callback; adding that callback in the fixture resolved its invalid-function
 failure without an engine/harness edit.
 
-Extracted native fuze/marker checks pass swept and already-inside descending
+The first-version extracted fuze/marker checks passed swept/inside descending
 segments; ascending, below-deck, outside-footprint and stationary negatives
-reject. Ordinary event strings remain ordinary shots. Exact patch admission
-passes; native projectile save/load source is unchanged.
+rejected. Ordinary event strings remained ordinary shots. Those checks proved
+only the geometry predicate; native projectile save/load source stayed unchanged.
+
+The installed first version was rejected by player replay: shells hit the hull
+without an overhead burst. Its Bombs target-height alias aimed around2.2m, below
+the overhead slab's7m minimum; a height multiplier preserves the aim chord and
+cannot raise the destination. Requiring descent also rejected short-range rising
+arcs. This earlier geometric-only check did not exercise the firing trajectory.
+The correction retains the slab/arming/blockers and moves aim height in the
+shared cannon solver. Extracted actual solver and flight equations now enter the
+overhead volume at50/150/300m for small and tall hull bounds; the previous solver
+misses it in the same cases. Under35m/direct and ordinary-bomb angles stay
+unchanged; below/outside/stationary cases reject. Projectile Save/Load remains
+byte-identical. Real corrected salvo replay remains required.
+
+The icon producer pixels, decoded TX cells and64/128px comparisons pass. A
+disposable check of the real delivery owner admits both exact original atlases,
+preserves existing mast/perk art and rejects unknown atlas edits and unrelated
+texture paths. An initial fixture used macOS's `/var` symlink and was rejected
+before testing; resolving its path fixed the fixture. The new icon is pending
+installed delivery together with the corrected fuze.
 
 Full PROGRAM compilation caught the unavailable script API `GetTickCount` in
 the initial VFX limiter. Its canonical correction uses `PostEvent` and a ready
