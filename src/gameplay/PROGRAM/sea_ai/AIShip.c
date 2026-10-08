@@ -3061,6 +3061,13 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
 	aSink.Speed.y = 0.25 + (frnd() * 0.05);	// speed of sink y
 	aSink.Speed.x = 0.021 * (frnd() * 2.0 - 1.0);	// speed sink angle rotate around x
 	aSink.Speed.z = 0.04 * (frnd() * 2.0 - 1.0);	// speed sink angle rotate around z
+	if (CheckAttribute(rDead, "Ship.TsunamiCapsizeBeam"))
+	{
+		aSink.Speed.x = 0.0;
+		aSink.Speed.z = 0.10;
+		if (stf(rDead.Ship.TsunamiCapsizeBeam) < 0.0) aSink.Speed.z = -0.10;
+		DeleteAttribute(rDead, "Ship.TsunamiCapsizeBeam");
+	}
 
 	if(rDead.id == "GhostCapt" && iKillerCharacterIndex == nMainCharacterIndex && !CheckAttribute(pchar, "GenQuest.GhostShip.LastBattle") && !CheckAttribute(pchar, "GenQuest.GhostShip.Prize"))
 	{
@@ -3896,7 +3903,14 @@ void Ship_CheckMainCharacter()
         bCanEnterToLand = false;
     }
     // boal <--
-	if (iStormLockSeconds)
+	bool tsunamiEncounterActive = false;
+    if (bSeaTsunamiEncounter)
+    {
+        if (IsEntity(&Sea) && CheckAttribute(&Sea, "Tsunami.Active"))
+            tsunamiEncounterActive = sti(Sea.Tsunami.Active);
+        if (!tsunamiEncounterActive) bSeaTsunamiEncounter = false;
+    }
+	if (iStormLockSeconds || tsunamiEncounterActive)
 	{
 		bDisableMapEnter = true;
 		bCanEnterToLand = false;
@@ -4326,6 +4340,25 @@ void Ship_UpdateParameters()
 		fStormProfessional = 0;
 	}
 	// boal fix defence ship in storm 11.05.05 <--
+	if (bSeaActive && !bAbordageStarted && IsEntity(&Sea))
+	{
+		float fTsunamiImpact = 0.0;
+		float fTsunamiDamageFraction = 0.0;
+		int iTsunamiCapsize = 0;
+		float fTsunamiBeam = 0.0;
+		SendMessage(&Sea, "laeeee", MSG_SEA_TSUNAMI_CONTACT, rCharacter, &fTsunamiImpact, &fTsunamiDamageFraction, &iTsunamiCapsize, &fTsunamiBeam);
+		if (iTsunamiCapsize && fStormProfessional > 0.0 && !LAi_IsImmortal(rCharacter))
+		{
+			rCharacter.Ship.TsunamiCapsizeBeam = fTsunamiBeam;
+			ShipDead(iCharacterIndex, KILL_BY_TOUCH, -1);
+			DeleteAttribute(rCharacter, "Ship.TsunamiCapsizeBeam");
+		}
+		else
+		{
+			Ship_ApplyHullHitpoints(rCharacter, fBaseShipHP * Clampf(fTsunamiDamageFraction) * Clampf(fTsunamiImpact) * fStormProfessional, KILL_BY_TOUCH, -1);
+		}
+		if (LAi_IsDead(rCharacter)) return;
+	}
 	// do damage if storm or tornado
 	if (bStorm && bSeaActive)
 	{

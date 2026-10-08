@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
+#include <string>
+#include "anti_tiling_msl.hpp"
 
 // Exact FNV-1a fingerprints of the shipped shader token streams, including END.
 // Unknown shaders stay unsupported: no heuristic substitution of unrelated effects.
@@ -44,7 +46,7 @@ inline const char* seaPixelFunction(SeaShaderKind k) {
 // Positions/normals/UVs are the ORIGINAL CPU-generated animated SeaVertex mesh.
 // Slots 0..7 retain 2D texture bindings; slot 8 is the original bump volume
 // (stage 0 or stage 4 for foam), and slot 9 is the original stage-3 cube map.
-inline const char* seaShaderSource=R"MSL(
+inline const std::string seaShaderSourceStorage=std::string(antiTilingMSL)+R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct SeaU {
@@ -63,11 +65,17 @@ struct SeaO {
     float4 t0; float4 t1; float4 t2; float4 t3; float4 t4;
     float fog;
     float3 surfaceNormal; float3 viewToEye; float3 waterBody;
+    float2 eventMaterial; float2 worldXZ;
 };
-struct SeaInput {float4 p;float3 n;float2 uv;};
-SeaInput seaInput(const device uchar* bytes,uint index,uint stride) {
+struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;};
+SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU& u) {
     const device float* p=(const device float*)(bytes+index*stride);
-    SeaInput v;v.p=float4(p[0],p[1],p[2],1);v.n=float3(p[3],p[4],p[5]);v.uv=float2(p[6],p[7]);return v;
+    SeaInput v;v.p=float4(p[0],p[1],p[2],1);v.n=float3(p[3],p[4],p[5]);v.uv=float2(p[6],p[7]);
+    // vc240.x declares native's extended layout even with an inactive wave.
+    // The native SEA evaluator owns both values, including its event envelope.
+    // Existing 32-byte fixture vertices retain their ordinary material contract.
+    v.eventMaterial=(u.vc[240].x>.5f&&stride>=40u)?saturate(float2(p[8],p[9])):float2(0);
+    return v;
 }
 float3 seaNormalize(float3 v) {return v*rsqrt(max(dot(v,v),1.e-20f));}
 SeaO seaBase(SeaInput v,constant SeaU& u) {
@@ -76,6 +84,7 @@ SeaO seaBase(SeaInput v,constant SeaU& u) {
     o.position=float4(dot(v.p,u.vc[24]),dot(v.p,u.vc[25]),dot(v.p,u.vc[26]),dot(v.p,u.vc[27]));
     o.fog=exp2(-o.position.z*u.vc[1].w);
     o.surfaceNormal=v.n;o.viewToEye=u.vc[23].xyz-v.p.xyz;
+    o.eventMaterial=v.eventMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
     // The weather palette already combines authored pigment with the smoothed
     // visible fog/ambient state. Convert it once at vertex frequency. Preserve
     // the old illumination path as the exact fallback when the bridge is absent.
@@ -115,19 +124,19 @@ void seaBasis(thread SeaO& o,SeaInput v,constant SeaU& u) {
     o.t3=float4(dot(tangent,u.vc[38].xyz),dot(bitangent,u.vc[38].xyz),dot(third,u.vc[38].xyz),eye.z);
 }
 vertex SeaO sea2_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride);SeaO o=seaBase(v,u);seaColors(o,v,u);seaBasis(o,v,u);return o;
+    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaColors(o,v,u);seaBasis(o,v,u);return o;
 }
 vertex SeaO seasun_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride);SeaO o=seaBase(v,u);seaBasis(o,v,u);return o;
+    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);return o;
 }
 vertex SeaO seafoam_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride);SeaO o=seaBase(v,u);seaBasis(o,v,u);
+    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);
     o.t0=o.t1;o.t1=o.t2;o.t2=o.t3;
     o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
     o.t4=float4(v.uv,u.vc[2].x,0);return o;
 }
 vertex SeaO sea3_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride);SeaO o=seaBase(v,u);seaColors(o,v,u);
+    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaColors(o,v,u);
     float3 projected=o.position.xyz/o.position.w*u.vc[0].z;
     projected.y*=u.vc[1].y;projected.xy+=u.vc[0].z+u.vc[0].w;
     o.t3=float4(projected,o.position.w);projected.xy+=v.n.xz;o.t1=float4(projected,o.position.w);o.t2=o.t0;return o;
@@ -163,15 +172,42 @@ fragment float4 seasun_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],arr
     float3 ray=seaReflected(o,seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb);
     return seaFog(reflection.sample(s[3],ray),o,u);
 }
+float4 seaTsunamiFoam(SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
+    // Adapt Crest's world-space black-point foam coverage; reuse the existing
+    // derivative-safe sampler to break periodic cells without another asset.
+    // This is a material mask over native geometry, never a wave evaluator.
+    // Feature size follows native physical amplitude continuously, with no
+    // second grade/severity table in the renderer.
+    float foamScale=max(u.vc[240].w*(18.f/28.f),1.f);
+    float2 uv=o.worldXZ/foamScale+float2(.021f,-.013f)*u.vc[240].z;
+    float4 pattern=antiTilingSampleNatural(texture,state,uv,0x5453554eu);
+    // Native severity modulates the material continuously; it is not inferred
+    // from damage or split into renderer-owned grades.
+    float severity=saturate(u.vc[243].x);
+    float density=min(saturate(o.eventMaterial.y)*mix(.72f,1.f,severity),.9f);
+    float feather=max(.09f,fwidth(pattern.r)*1.25f);
+    float coverage=smoothstep(1.f-density,1.f-density+feather,pattern.r);
+    float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
+    float3 normal=seaNormalize(o.surfaceNormal);
+    float illumination=.72f+.28f*saturate(normal.y);
+    return seaFog(float4(tint*illumination,coverage),o,u);
+}
 fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
     // Original ps_1_4 computes a perturbed normal in r5 but never consumes it.
     // Phase two samples the foam texture using unperturbed r3.xy, alpha=r3.z.
+    // Uniform admission keeps derivative evaluation coherent across quads.
+    if(u.vc[240].x>.5f&&u.vc[240].y>0.f&&u.stride>=40u) {
+        float4 authored=seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
+        return mix(authored,seaTsunamiFoam(o,u,t[0],s[0]),smoothstep(0.f,.05f,o.eventMaterial.x));
+    }
     return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
 }
 fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
     float4 foam=t[0].sample(s[0],o.t3.xy);
     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
     // RGB follows available weather light; authored coverage and blending stay exact.
+    if(u.vc[240].x>.5f&&u.vc[240].y>0.f&&u.stride>=40u)
+        return mix(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),seaTsunamiFoam(o,u,t[0],s[0]),smoothstep(0.f,.05f,o.eventMaterial.x));
     return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
 }
 float2 seaBumpOffset(float2 delta,float4 matrix) {return float2(dot(delta,matrix.xz),dot(delta,matrix.yw));}
@@ -332,3 +368,4 @@ fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[
 }
 
 )MSL";
+inline const char* seaShaderSource=seaShaderSourceStorage.c_str();

@@ -415,10 +415,46 @@ WDM_TRAFFIC_TICK = enc("""void wdmShipEncounter(float dltTime, float playerShipX
 
 """)
 
+WDM_TSUNAMI_GENERATOR = enc("""void wdmTsunamiGen(float dltTime)
+{
+    int count = 0;
+    if (CheckAttribute(&worldMap, "storm.tsunamiNum")) count = sti(worldMap.storm.tsunamiNum);
+    if (count > 0)
+    {
+        wdmTimeOfLastTsunami = 0.0;
+        return;
+    }
+    wdmTimeOfLastTsunami += dltTime * 0.000001 * 1000.0 * iEncountersRate;
+    if (rand(1001) >= wdmTimeOfLastTsunami) return;
+    string previousID = "";
+    if (CheckAttribute(&worldMap, "EncounterID1")) previousID = worldMap.EncounterID1;
+    SendMessage(&worldMap, "ll", MSG_WORLDMAP_CREATESTORM, 0);
+    if (!CheckAttribute(&worldMap, "EncounterID1") || worldMap.EncounterID1 == previousID) return;
+    string path = "encounters." + worldMap.EncounterID1;
+    if (!CheckAttribute(&worldMap, path + ".type") || worldMap.(path).type != "Storm") return;
+    worldMap.(path).tsunamiSeverity = SeaTsunami_SampleSeverity();
+    wdmTimeOfLastTsunami = 0.0;
+}
+
+""")
+
 def prepare_worldmap_encgen(data: bytes) -> bytes:
     if data.count(WDM_RATES_OLD) != 1:
         raise RuntimeError("worldmap_encgen rates anchor mismatch")
     data = data.replace(WDM_RATES_OLD, WDM_RATES_NEW)
+    storm_anchor = enc("void wdmStormGen(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)")
+    count_anchor = enc("\tint numStorms = wdmGetNumberStorms();")
+    storm_end = enc("\t\twdmTimeOfLastStorm = 0.0;\n\t}\n}\n\n//Random ships")
+    reset_anchor = enc("\twdmTimeOfLastStorm = 0.0;\n\twdmTimeOfLastMerchant = 0.0;")
+    variable_anchor = enc("float wdmTimeOfLastStorm = 0.0;")
+    for anchor in (storm_anchor, count_anchor, storm_end, reset_anchor, variable_anchor):
+        if data.count(anchor) != 1:
+            raise RuntimeError("worldmap tsunami generator anchor mismatch")
+    data = data.replace(storm_anchor, WDM_TSUNAMI_GENERATOR + storm_anchor)
+    data = data.replace(count_anchor, count_anchor + enc("\n\tif (CheckAttribute(&worldMap, \"storm.tsunamiNum\")) numStorms -= sti(worldMap.storm.tsunamiNum);"))
+    data = data.replace(storm_end, enc("\t\twdmTimeOfLastStorm = 0.0;\n\t}\n\twdmTsunamiGen(dltTime);\n}\n\n//Random ships"))
+    data = data.replace(reset_anchor, enc("\twdmTimeOfLastTsunami = 0.0;\n") + reset_anchor)
+    data = data.replace(variable_anchor, enc("float wdmTimeOfLastTsunami = 0.0;\n") + variable_anchor)
 
     start_anchor = enc("void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)")
     end_anchor = enc('#event_handler("Map_TraderSucces", "Map_TraderSucces");')
@@ -1501,6 +1537,23 @@ def prepare_worldmap_reload(data: bytes) -> bytes:
         if data.count(old) != 1:
             raise RuntimeError("worldmap_reload encounter anchor mismatch")
         data = data.replace(old, new)
+    storm_anchor = enc("\twdmLoginToSea.storm = worldMap.playerInStorm;")
+    if data.count(storm_anchor) != 1:
+        raise RuntimeError("worldmap tsunami login anchor mismatch")
+    data = data.replace(storm_anchor, enc("""    if (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "")
+    {
+        string tsunamiPath = "encounters." + worldMap.stormId;
+        if (CheckAttribute(&worldMap, tsunamiPath + ".tsunamiSeverity"))
+        {
+            wdmLoginToSea.TsunamiSeverity = stf(worldMap.(tsunamiPath).tsunamiSeverity);
+            // A travelling wave is not hurricane/tornado weather or ongoing damage.
+            wdmLoginToSea.storm = 0;
+            wdmLoginToSea.tornado = 0;
+            worldMap.(tsunamiPath).needDelete = "Reload consume tsunami";
+            return;
+        }
+    }
+""") + storm_anchor)
     return data
 
 
@@ -1643,7 +1696,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "8952af599d4408d5327f531d4c38fbff2bc93d103801419b0f6fed8be01ecfcf",
+    "PROGRAM/worldmap/worldmap_encgen.c": "9795a316304be3e77eb30fd10068b1ead5c1d915906382800e4bee3877e33927",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",
@@ -1658,7 +1711,7 @@ UPDATED = {
     "PROGRAM/interface/ship.c": "bf94ec326da0a57aff357c25a509446c484c6002c49f916639df97619df4bb96",
     "RESOURCE/INI/interfaces/ship.ini": "fa4a01b9179c8dfb2794a5c8b1702102ea3cd27e61e9af9781f4b6c8c6a91fc3",
     "PROGRAM/worldmap/worldmap_globals.c": "68753f218bf16cfb3bc14cd82dea6b503e13e91b5c24a9ae23a7428de9973361",
-    "PROGRAM/worldmap/worldmap_reload.c": "ff15ad3026b75f32b3a67e6e3cdda02c0a1139a07eb45d12dcc58bee69ab6712",
+    "PROGRAM/worldmap/worldmap_reload.c": "ac68fac14de4a387ba73207e0c8e9fb468237a7f3a09add07d4c2a89b77ecb57",
 }
 
 

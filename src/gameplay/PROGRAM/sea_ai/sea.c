@@ -38,6 +38,7 @@ int	sCurrentSeaRealize = REALIZE;
 int		iAITemplatesNum;
 bool	bSeaActive;
 bool	bSeaLoaded = false;
+bool    bSeaTsunamiEncounter = false;
 bool 	bSkipSeaLogin = false;
 bool	bIslandLoaded = false;
 bool	bSeaReloadStarted = false;
@@ -102,6 +103,7 @@ void DeleteSeaEnvironment()
 	StopMusic();
 	bSeaActive = false;
 	bSeaLoaded = false;
+	bSeaTsunamiEncounter = false;
 
 	sCurrentSeaExecute = EXECUTE;
 	sCurrentSeaRealize = REALIZE;
@@ -536,6 +538,13 @@ void Sea_LoginGroupNow(string sGroupID)
 
 void SeaLogin(ref Login)
 {
+	bSeaTsunamiEncounter = false;
+    float tsunamiSeverity = -1.0;
+    if (CheckAttribute(&Login, "TsunamiSeverity"))
+    {
+        tsunamiSeverity = stf(Login.TsunamiSeverity);
+        DeleteAttribute(&Login, "TsunamiSeverity");
+    }
 	WdmMilitaryParleyClear();
 	int		i, j, k, iShipType;
 	float	x, y, z, ay;
@@ -1222,6 +1231,8 @@ void SeaLogin(ref Login)
 	}*/
 	
 	PostEvent("Sea_FirstInit", 1);
+    if (tsunamiSeverity >= 0.0 && tsunamiSeverity <= 1.0)
+        Sea.Tsunami.PendingSeverity = tsunamiSeverity;
 }
 
 void Sea_LoginGroup(string sGroupID)
@@ -1401,6 +1412,12 @@ void Sea_FirstInit()
 { 
 	trace("Sea_FirstInit");
 	bSeaLoaded = true;
+    if (CheckAttribute(&Sea, "Tsunami.PendingSeverity"))
+    {
+        float severity = stf(Sea.Tsunami.PendingSeverity);
+        DeleteAttribute(&Sea, "Tsunami.PendingSeverity");
+        bSeaTsunamiEncounter = SeaTsunami_StartWithSeverity(severity);
+    }
 	RefreshBattleInterface();
 	if( SeaCameras.Camera == "SeaDeckCamera" ) {
 		Sailors.IsOnDeck = !bSeePeoplesOnDeck;
@@ -1686,6 +1703,7 @@ bool bSeaLoad = false;
 
 void Sea_Load()
 {
+	bSeaTsunamiEncounter = false;
 	WdmMilitaryParleyClear();
 	bSeaLoad = true;
 	

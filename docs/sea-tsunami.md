@@ -1,19 +1,16 @@
-# Debug tsunami
+# Tsunami: local sea and world-map encounter
 
 ## Status
 
-October 8, 2026: the Esc pause-menu follow-up is installed through the canonical
-stage. Signed engine
-`b5e871dd3a2c24168d9267bcda7b44309dd39c7a4e26946e9f167c1627c5113a`;
-receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
-The player reports that F11 opens no menu. The installed follow-up adds a sea-only
-action to the existing Esc pause menu; it does not establish the F11 failure's cause.
-The player confirms the Esc menu button starts the wave and supplies its crest
-screenshot. The straight, repeating crest appearance is rejected and belongs to
-the next visual/ship-interaction correction. The no-window command chain and
-actual SEA scalar/render sampler pass; physical F11 delivery, cancel/restart and
-wave/ship response remain unresolved. This is an exaggerated sea experiment, not a
-coastal flooding simulation or a new random weather preset.
+October 8, 2026: expanded material/ship/world-map source passes canonical staging
+and is installed; the current receipt belongs to `docs/runtime.md`. The player confirms
+the installed Esc button starts the wave. Its supplied screenshot rejects the
+straight, repeating white crest. Physical F11 delivery remains unresolved.
+New waveform, splashes, damage, capsize and natural encounters require player replay.
+Horizontal wave transport and the separately reported sky-horizon haze correction
+are the next active source batch; this installation does not yet include them.
+The current installed inventory and chronological receipts belong to
+`docs/runtime.md`; component probes do not prove real-game acceptance.
 
 ## Player action
 
@@ -40,7 +37,107 @@ The native SDL mapping is F11 → VK122; this ordinary control is unaffected by
 also assigns F11 to Show Desktop. An Fn modifier alone does not prove that the
 physical key reaches the game; no actual OS interception has been established.
 
-## Owners and contract
+## Continuous strength and ship consequences
+
+`src/gameplay/PROGRAM/seadogs.c::SeaTsunami_SampleSeverity` samples `u = frnd()`
+once and returns `s = u²`. Debug and natural starts share this continuous owner;
+there are no fixed grade buckets. Native parameters use the same strength:
+height `28 + 56s`, width `220 + 65s`, speed `22 + 6s` and nominal hull damage
+`10 + 40s` percent of maximum HP before contact and defenses. The nominal 40–50%
+band has probability `1 − √0.75 ≈ 13.4%` per wave, independent of encounter rate.
+
+Native contact sweeps the crest between ship queries: full crossing pays once,
+grazing pays actual peak exposure. The existing hull owner preserves immortality,
+reload/dead guards and battle armor. `StormProfessional` («Плавание в штормах»)
+multiplies damage by 0.7; `DontHitInStorm` prevents it. Natural tsunami starts
+ordinary sea weather, avoiding generic hurricane/tornado damage on top.
+
+Native SHIP adds damped pitch/roll after ordinary buoyancy, before model placement.
+Maximum unprotected pitch/roll is 1.25/2.05 radians, scaled by `s²` and actual
+local contact; the storm perk reduces motion too. Script `Ship.Impulse.Rotate.z`
+is an invalid substitute: `SHIP::Move` integrates yaw, while `ShipRocking` owns
+the other axes. The native final pose is the authoritative response owner.
+
+Fatal capsize requires live contact, heading **50–130°** to wave travel on either
+side (90° ±40°), and actual model up-vector at or below zero. Strength must also
+permit a 90° roll: `2.05s² ≥ π/2`, hence `s ≥ 0.87535256`, near **45.0%** nominal
+damage. This eligible tail is about **6.4%** of samples; actual deaths also depend
+on heading, exposure, defenses and prior pose. Bow/stern approaches are excluded.
+Death uses normal `ShipDead` hooks. A synchronous `Ship.TsunamiCapsizeBeam` marker
+chooses the continuing sink direction and is immediately removed. Native
+`SetDead` transfers tilt into the existing death pose; no ship save fields added.
+
+## Natural world-map encounter
+
+The existing saved `Storm` descriptor owns a `tsunamiSeverity` marker, including
+valid strength zero. It is sampled once and reused on restore/sea transition.
+`tools/metal_living_caribbean.py` composes generator/reload in their existing
+owners. Importing a full generated script would skip traffic/fleet projectors.
+
+Rate `0.000001` allows at most one marked event alongside the ordinary storm
+limit. Existing encounter-off, pause and no-encounter gates remain. The cumulative
+lottery makes spawn waiting roughly ten times the rate-0.0001 storm under matched
+active-map conditions, not a 100-fold guarantee. Player frequency is unmeasured.
+Native movement is 5–8 map units/s, lifetime 60–120 seconds, activation delay two
+seconds and existing spawn distance 100–140 units. The live trigger is a
+**60-unit circle** plus the player's existing 16-unit action radius. Its blue
+circle is visible without global debug; strength changes its color. Ordinary
+storms retain six-cloud collision; marked outer proximity cannot admit hurricane
+weather outside the actual circle.
+
+`TestInStorm → WorldMap_PlayerInStorm → wdmReloadToSea` forces local sea without
+the skippable encounter dialog. Reload consumes the descriptor and copies its
+strength into `Login.TsunamiSeverity`. `SeaLogin` consumes this before early exits;
+after successful sea creation `Sea_FirstInit` invokes the shared start owner.
+`bSeaTsunamiEncounter` extends the existing map/land/SailTo lock only for a natural
+wave while native `Sea.Tsunami.Active` is true. Finish clears it; debug does not
+impose that lock. Sea teardown/load clears flags and pending commands. Attribute
+clears during weather/cabin rebuilding republish actual native active state,
+preventing a stale projection from unlocking a surviving event.
+
+## Expanded geometry and material
+
+`sea-tsunami.patch` owns one transient native frame/evaluator for scalar/SSE
+height, slopes, foam, ship motion/contact and rendered vertices. Its compact C1
+asymmetric crest has finite support and long noncommensurate lobes/meander.
+Vertices sample the same global geomorphed point before render-offset subtraction.
+They preserve the original 32-byte prefix and add float2 normalized height/foam,
+giving a 40-byte stride. Private shader decoding supports both layouts; inactive
+40-byte draws keep layout selection enabled while event envelope gates material.
+The 256-constant ABI and water/depth/MRT contracts remain. Aim consumes displaced
+scene/water depth, without another solver. Cancel restores ordinary material.
+
+Material adapts [Crest foam](https://docs.crest.waveharmonic.com/Manual/Appearance/Foam.html)
+and the existing local anti-tiling helper to installed PENA. A full Unity/Crest
+dependency is incompatible. Existing SEAFOAM hull intersection/front emitters
+own ship splashes. Only tsunami-owned particles clear on replace/cancel/expiry;
+ordinary storm particle lifecycle remains unchanged.
+
+Disposable checks cover 16,146 evaluator/contact cases, swept/grazing/once/reset
+negatives and finite-difference slopes. Actual SEA/SHIP/SEAFOAM translation units
+compile against canonical inputs. 243 full-profile CMatrix sweeps yield 30 real
+overturns and 213 safe cases; bow/stern, medium, perk/immunity negatives pass.
+Fifteen VM damage cases use actual hull damage with query/sea-presence/death
+terminal seams. Descriptor/generator/login/lock and two save-codec rounds pass;
+native disk/event bodies cover radius, activation, deletion and ordinary storms.
+Creation, event containers and final sea start are explicit fixture seams.
+
+First seven-frame offscreen Metal pilot proves shader compilation, inactive
+32/40-byte identity, cancel parity and depth/MRT preservation. Visual admission
+is rejected: neutral bump/uniform reflections and camera nearly intersecting the
+fierce wave do not represent installed sea. The corrected seven-frame/27-pass
+pilot uses all 64 installed sea heights and canonical four-mip normal conversion,
+installed day-12 sky faces and a sky-only reflection capture. At matched crest
+distance 520, camera clearance is 18 (installed minimum 1); low/high/pan frames
+retain the sea substrate and show a distinct raised face with irregular foam,
+without the initial grid or fixture plane clipping. Component material passes;
+islands, live spray, vessel pose and perceived danger remain unproven.
+Player replay remains start/approach/cancel, low/strong visuals, splashes/damage
+with defenses, beam capsize versus bow/stern survival, natural forced transition
+and exit release, pause/restart/teardown and current-save behavior. Component
+probes do not provide that replay; the player owns real-game verification.
+
+## Historical debug-only ownership and evidence
 
 - `src/gameplay/PROGRAM/seadogs.c` admits the existing F11 debug menu at sea and
   owns the one guarded start/cancel writer shared by both interfaces.
@@ -80,10 +177,11 @@ was the strongest inspected ready reference. A full CFD dependency adds no
 value for this debug event. The compact polynomial crest preserves continuous
 height and slope, finite support and a shared native render/physics evaluator.
 
-Existing ship buoyancy, camera and damage rules remain the consumers. There is
-no scripted damage, knockback, reward, random spawn or save migration.
+That first debug batch used only existing buoyancy/camera consumers, without
+scripted damage or random encounters. Its uniform lateral profile and fixed
+strength are superseded by the expanded contract above.
 
-## Acceptance
+### Original debug acceptance probes
 
 Compile the scripts and canonical native stack, stage through
 `experiments/native-metal/run.sh --stage-only`, then replay the installed app:

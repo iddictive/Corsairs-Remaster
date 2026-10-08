@@ -1521,7 +1521,13 @@ void Teleport(int step)
 	SetEventHandler("frame","NewGame",1);
 }
 
-bool SeaTsunami_Start()
+float SeaTsunami_SampleSeverity()
+{
+	float strength = frnd();
+	return strength * strength;
+}
+
+bool SeaTsunami_StartWithSeverity(float severity)
 {
 	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea) || !CheckAttribute(pchar, "Ship.Pos.x") ||
 		!CheckAttribute(pchar, "Ship.Pos.z") || !CheckAttribute(pchar, "Ship.Ang.y"))
@@ -1533,9 +1539,15 @@ bool SeaTsunami_Start()
 	Sea.Tsunami.OriginZ = stf(pchar.Ship.Pos.z);
 	Sea.Tsunami.DirectionX = sin(stf(pchar.Ship.Ang.y));
 	Sea.Tsunami.DirectionZ = cos(stf(pchar.Ship.Ang.y));
+	Sea.Tsunami.Severity = Clampf(severity);
 	Sea.Tsunami.Start = 1;
 	Log_Info("Цунами идёт с горизонта перед носом корабля.");
 	return true;
+}
+
+bool SeaTsunami_Start()
+{
+	return SeaTsunami_StartWithSeverity(SeaTsunami_SampleSeverity());
 }
 
 bool SeaTsunami_Stop()
