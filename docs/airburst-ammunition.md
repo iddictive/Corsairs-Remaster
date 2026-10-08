@@ -8,16 +8,16 @@ arc multiplier, and gives all burst damage one2m-full/8m-zero quadratic curve.
 Initial fragments and the fire/smoke burst spread in every direction. Production
 native/VM checks and the complete PROGRAM compilation pass. The frozen correction
 is installed through canonical staging as signed engine
-`b5e871dd3a2c24168d9267bcda7b44309dd39c7a4e26946e9f167c1627c5113a`,
-receipt `6c4a9e52ccfa3e68cc59b1a77a91b7f64e5b4050ec4b9c75e693d45d7ae2bedf`.
-All four changed PROGRAM inputs match their canonical delivery bytes. Actual sea
-salvo, burst appearance and FPS remain unresolved; no player replay is accepted.
+`10400733be42be03508aa27280dcbd1e2d6be77d11ef638a56c563fe6956da51`,
+receipt `23c4496eff4d21ae05c3b27d35954b1dd08451ec9e03a3b6f17a8c0fd4651fad`.
+All canonical PROGRAM inputs match their delivery bytes. The player accepts
+airburst results against ships; detailed burst appearance and paired FPS are not measured.
 
 Player feedback reopened fort effectiveness: the installed shells burst before
-the fort but almost never damage its battery. The source correction below arms
+the fort but almost never damage its battery. The installed correction below arms
 the fort fuze near intact gun locators rather than the fort's enclosing model
-box. Native geometry and VM checks pass; this correction still requires canonical
-staging and a fort salvo replay. Catalogue damage, the1–7m fuze, ship behavior and
+box. Native geometry, VM and canonical staging checks pass; a new fort salvo
+replay remains pending. Catalogue damage, the1–7m fuze, ship behavior and
 the shared2–8m damage curve remain unchanged.
 
 ### Earlier delivery evidence (historical)

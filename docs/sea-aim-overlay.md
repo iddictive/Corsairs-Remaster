@@ -10,12 +10,12 @@ Revision10's flat screen-space ring also failed to conform to objects.
 Source-exact native/GPU checks pass for the new metric, receiver admission,
 inertia/reset, own exclusion and subdued contour. The player accepts revision12's
 shape/projection and reports excellent FPS in their sea replay. Their only aim
-follow-up is slightly stronger daytime contour visibility. A brightness-local
-rim/keyline increase is prepared; its delivery/replay is pending. No paired
+follow-up is slightly stronger daytime contour visibility. The brightness-local
+rim/keyline increase is installed; its new daytime replay remains pending. No paired
 instrumented FPS measurement or exhaustive angle/zoom replay is claimed.
 Canonical staging has installed this frozen revision; its signed-engine and
 source receipts belong to `docs/runtime.md`. Compilation and delivery do not
-accept its real-game appearance or frame cost.
+establish its new daytime visibility or frame cost.
 
 ## Contract
 
