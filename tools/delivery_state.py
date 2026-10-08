@@ -44,6 +44,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx",
     "RESOURCE/Textures/INTERFACES/goods.tga.tx",
     "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx",
+    "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx",
 )
 
 

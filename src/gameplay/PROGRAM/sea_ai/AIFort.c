@@ -363,6 +363,12 @@ float Fort_CannonDamage()
 	float fBlastBase = 0.20;
 	if (sti(AIBalls.CurrentBallType) == GOOD_BOMBS) { fBlastBase = 0.30; }
 	float fDistanceMul = pow(fBlastBase, fDistance);
+	bool airburst = sti(AIBalls.CurrentBallType) == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
+	if (airburst)
+	{
+		fDistanceMul = 1.0 - fDistance * fDistance / (32.0 * 32.0);
+		if (fDistanceMul < 0.0) fDistanceMul = 0.0;
+	}
 
 	ref rCannon = GetCannonByType(sti(rBallCharacter.Ship.Cannons.Type));
 	float fCannonDamageMultiply = stf(rCannon.DamageMultiply) * fDistanceMul;
@@ -372,6 +378,7 @@ float Fort_CannonDamage()
 	//CreateParticleSystem("blast",x,y,z,0.0,0.0,0.0,0);
 	
 	float fHullDamage = stf(rBall.DamageHull) * fCannonDamageMultiply * 0.4;
+	if (airburst) fHullDamage = stf(rBall.DamageFort) * fCannonDamageMultiply * 0.4;
 	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * 0.6;
 
 	rFortCharacter.Ship.HP = (1.0 - MakeFloat(iNumDamagedCannons) / MakeFloat(iNumAllCannons)) * stf(rFortCharacter.Fort.HP);

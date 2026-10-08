@@ -23,9 +23,9 @@ Editable existing files are limited to PROGRAM .c/.h, RESOURCE/INI .ini and
 RESOURCE/techniques .fx. SAVE, userdata, root configuration, shared message
 headers, artwork and native binaries are outside content synchronization.
 
-Canonical staging also admits the four exact UI texture destinations declared in
-`tools/delivery_state.py`: mast repair, raking fire, goods and command icons.
-The latter two preserve existing atlas pixels outside the airburst cells. Their sources and prepared
+Canonical staging also admits the five exact UI texture destinations declared in
+`tools/delivery_state.py`: mast repair, raking fire, goods, command and navigator icons.
+The three atlases preserve existing pixels outside the airburst cells. Their sources and prepared
 TX bytes are checksum-bound by `src/assets/ui/manifest.json` and use the existing
 transaction/receipt path. An existing unrecorded atlas is admitted only by the
 manifest's exact `original_sha256`; subsequent changes use the receipt.

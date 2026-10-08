@@ -10,7 +10,7 @@ void Store_InitAirburst(ref pStore)
     if (CheckAttribute(pStore, "Goods.Bombs.Norm")) quantity = sti(pStore.Goods.Bombs.Norm) / 4;
     if (quantity < 40) quantity = 40;
     if (quantity > 120) quantity = 120;
-    pStore.Goods.Airburst.TradeType = TRADE_TYPE_AMMUNITION;
+    pStore.Goods.Airburst.TradeType = Store_AirburstTradeType(pStore);
     pStore.Goods.Airburst.NotUsed = false;
     pStore.Goods.Airburst.Quantity = quantity;
     pStore.Goods.Airburst.Norm = quantity;
@@ -20,10 +20,31 @@ void Store_InitAirburst(ref pStore)
 
 void Store_EnsureAirburst(ref pStore)
 {
-    // Only a missing shop row is migrated: an empty existing stock stays empty.
-    if (CheckAttribute(pStore, "Goods.Airburst")) return;
+    // Reconcile policy on saved rows without refilling or enabling their stock.
+    if (CheckAttribute(pStore, "Goods.Airburst"))
+    {
+        pStore.Goods.Airburst.TradeType = Store_AirburstTradeType(pStore);
+        return;
+    }
     if (!CheckAttribute(pStore, "Colony") || pStore.Colony == "none" || pStore.Colony == "") return;
     Store_InitAirburst(pStore);
+}
+
+int Store_AirburstTradeType(ref pStore)
+{
+    // Pirates is the canonical Bermuda colony, not every pirate settlement.
+    if (CheckAttribute(pStore, "Colony") && pStore.Colony == "Pirates") return TRADE_TYPE_AMMUNITION;
+    return TRADE_TYPE_CONTRABAND;
+}
+
+bool Store_CanBuyGoods(ref pStore, int good)
+{
+    if (good == GOOD_AIRBURST) return Store_AirburstTradeType(pStore) == TRADE_TYPE_AMMUNITION;
+    string name = Goods[good].Name;
+    if (!CheckAttribute(pStore, "Goods." + name)) return false;
+    if (CheckAttribute(pStore, "Colony") && pStore.Colony == "none" &&
+        sti(pStore.Goods.(name).TradeType) == TRADE_TYPE_AMMUNITION) return false;
+    return true;
 }
 
 void SetStoreGoods(ref _refStore,int _Goods,int _Quantity)

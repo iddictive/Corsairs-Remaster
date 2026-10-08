@@ -29,6 +29,19 @@
       "prompt": "Preserve the same bursting bomb; two64px command states with Corsairs antique-brass rounded frames, dark brown normal and muted navy selected interiors, transparent outer corners.",
       "preparation": "LANCZOS-resize two-state source to128x64; round RGBA channels to4bits and insert into unused cells72/73 at512,256 and576,256. Preserve original header and every byte outside those cells."
     },
+    "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx": {
+      "source": "airburst-command-states.png",
+      "source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
+      "prepared": "airburst-navigator.tga.tx",
+      "sha256": "898e5d1a3c998a7fc81b654315be6e7701ca402a9193fcc4f90db325f046fe19",
+      "original_sha256": "666327045db97ab49fc56daab0d788895a8ea8c7e1e4b4fb6c00a0949854b1bf",
+      "dimensions": [512, 512],
+      "source_dimensions": [1774, 887],
+      "format": "A4R4G4B4",
+      "consumer": "GetCurrentCharge GOOD_AIRBURST: navigator cell40, 64px source displayed at48px near the compass",
+      "generation": "reuse built-in imagegen command art; original navigator atlas retained",
+      "preparation": "Copy prepared normal command cell72 byte-for-byte into unused navigator cell40 at0,320. Preserve original header and every byte outside the64px cell."
+    },
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx": {
       "source": "mast-repair.png",
       "source_sha256": "195d1c79f1830f17a15eb15a2d3fc30874e7393de664b366df364fe5cf7cfdc8",

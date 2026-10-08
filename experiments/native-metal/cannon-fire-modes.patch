@@ -1,0 +1,295 @@
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
+@@ -26,12 +26,10 @@
+ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight,
+                                            bool bApplyBortDelta, const MANUAL_AIM_SOLUTION *manual, AIShip *targetShip)
+ {
+-    const auto bEnoughBalls = isHaveEnoughBallsForBort(bort);
+-    if (!bEnoughBalls)
+-        bNotEnoughBalls = true;
+-    if (!bort.isCharged() || bort.aCannons.empty() || bort.isBortDamaged())
++    const bool single = IsSingleFireMode();
++    if ((!single && !bort.isCharged()) || bort.aCannons.empty() || bort.isBortDamaged())
+         return false;
+-    
++
+     auto vTempFirePos = vFirePos + CVECTOR(0.0f, fFireHeight, 0.0f);
+ 
+     // Manual player fire passes bApplyBortDelta=false: the crosshair is the aim
+@@ -60,37 +58,60 @@
+         solution = &autoSolution;
+     }
+ 
++    MANUAL_AIM_SOLUTION firing;
++    firing.bort = &bort;
++    firing.target = vTempFirePos;
++    for (auto &cannon : bort.aCannons)
++    {
++        CVECTOR gunTarget = vTempFirePos;
++        bool included = !solution;
++        if (solution)
++            for (size_t i = 0; i < solution->guns.size(); ++i)
++                if (solution->guns[i] == &cannon)
++                { gunTarget = solution->gunTargets[i]; included = true; break; }
++        if (!included || !cannon.CanFireTo(gunTarget) ||
++            (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget)))
++            continue;
++        firing.guns.push_back(&cannon);
++        firing.gunTargets.push_back(gunTarget);
++    }
++    if (single) SelectSingleGun(firing);
++    if (firing.guns.empty()) return false; // no event, discharge or resource debit
++
++    const bool bEnoughBalls = isHaveEnoughBallsForBort(bort);
++    if (!bEnoughBalls) bNotEnoughBalls = true;
++    float window = 3.5f;
++    if (!single && firing.guns.size() > 1)
++    {
++        auto *data = core.Event("Cannon_GetSalvoWindow", "a", GetAIShip()->GetACharacter());
++        Assert(data);
++        window = std::isfinite(data->GetFloat()) ? std::clamp(data->GetFloat(), 3.5f, 10.f) : 10.f;
++    }
++    const float step = firing.guns.size() > 1 ? window / float(firing.guns.size() - 1) : 0.f;
++    bool fired = false;
++    for (size_t i = 0; i < firing.guns.size(); ++i)
++    {
++        auto &cannon = *firing.guns[i];
++        const CVECTOR &gunTarget = firing.gunTargets[i];
++        // Every gun, including both endpoints, has independent small jitter.
++        // Positive jitter <=20% of a stratum keeps >=80% adjacent spacing;
++        // the battery span stays within 0.15 seconds of its quality window.
++        float delay = .05f + FRAND(firing.guns.size() > 1 ? std::min(.15f, .2f * step) : .15f);
++        if (firing.guns.size() > 1)
++            delay += float(i) * step;
++        cannon.SetRechargeEnable(bEnoughBalls);
++        if (!cannon.Fire(bort.fSpeedV0, gunTarget, delay)) continue;
++        fired = true;
++        if (debugDrawToggle)
++            debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
++    }
++    if (!fired) return false;
+     const auto vTempFireDir = !(vTempFirePos - pOurAIShip->GetPos());
+-
+     core.Event(SHIP_BORT_FIRE, "lisffffff", GetIndex(GetAIShip()->GetACharacter()), GetAIShip()->GetShipEID(),
+                const_cast<char *>(bort.sName.c_str()), vTempFirePos.x, vTempFirePos.y, vTempFirePos.z, vTempFireDir.x,
+                vTempFireDir.y, vTempFireDir.z);
+-
+-    bool fired = false;
+-    for (auto& cannon : bort.aCannons)
+-    {
+-        CVECTOR gunTarget = vTempFirePos;
+-        if (solution)
+-            for (size_t i = 0; i < solution->guns.size(); ++i)
+-                if (solution->guns[i] == &cannon) { gunTarget = solution->gunTargets[i]; break; }
+-        if (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget))
+-            continue;
+-        if (!cannon.isDamaged())
+-        {
+-            cannon.SetRechargeEnable(bEnoughBalls);
+-
+-            if (debugDrawToggle)
+-            {
+-                debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
+-            }
+-
+-            fired = cannon.Fire(bort.fSpeedV0, gunTarget) || fired;
+-        }
+-    }
+-    if (bApplyBortDelta || fired)
+-        bort.ClearCharge(); // AI behavior unchanged; empty manual attempts do not discharge.
+-
+-    return bApplyBortDelta || fired;
++    if (!single) bort.ClearCharge();
++    return true;
+ }
+ 
+ bool AIShipCannonController::Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget)
+@@ -109,10 +130,10 @@
+     auto bortIt = GetFirstFireBort(vFirePos);
+     while (IsValid(bortIt))
+     {
+-        Fire2Position(*bortIt, vFirePos, -1.0f);
++        if (Fire2Position(*bortIt, vFirePos, -1.0f) && IsSingleFireMode()) return true;
+         bortIt = GetNextFireBort(bortIt, vFirePos);
+     }
+-    return true;
++    return !IsSingleFireMode();
+ }
+ 
+ bool AIShipCannonController::Fire(AIShip *pEnemy)
+@@ -165,11 +186,12 @@
+                                                 ARGB(0xFF, 0x00, 0xFF, 0x00), float{});
+             }
+ 
+-            Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy);
++            if (Fire2Position(*bortIt, vFirePos, fFireHeight, true, nullptr, pEnemy) && IsSingleFireMode())
++                return true;
+             bortIt = GetNextFireBort(bortIt, vFirePos);
+         }
+     }
+-    return true;
++    return !IsSingleFireMode();
+ }
+ 
+ void AIShipCannonController::Execute(float fDeltaTime)
+@@ -1154,6 +1176,31 @@
+         {auto *fort=AIFort::pAIFort->GetFort(i);add(fort->GetModel(),fort->GetACharacter());}
+     StormMetalSetAimRenderedReceivers(AIHelper::pRS->GetD3DDevice(),receivers.data(),uint32_t(receivers.size()));
+ #endif
++}
++
++bool AIShipCannonController::IsSingleFireMode() const
++{
++    if (!GetAIShip()->isMainCharacter()) return false;
++    auto *character = GetAIShip()->GetACharacter();
++    auto *cannons = character ? character->FindAClass(character, "Ship.Cannons") : nullptr;
++    return cannons && cannons->GetAttributeAsDword("FireMode", 0) == 1;
++}
++
++void AIShipCannonController::SelectSingleGun(MANUAL_AIM_SOLUTION &solution) const
++{
++    // Pure selection: repeated preview cannot consume or advance a gun. Keep
++    // the mapped rake target from the FULL battery solution, never recenter it.
++    for (size_t i = 0; i < solution.guns.size(); ++i)
++        if (solution.guns[i]->CanFireTo(solution.gunTargets[i]))
++        {
++            auto *gun = solution.guns[i];
++            const CVECTOR target = solution.gunTargets[i];
++            solution.guns.assign(1, gun);
++            solution.gunTargets.assign(1, target);
++            return;
++        }
++    solution.guns.clear();
++    solution.gunTargets.clear();
+ }
+ 
+ bool AIShipCannonController::ManualGunCanReach(const AICannon &gun,const AISHIP_BORT &bort,
+@@ -1355,6 +1402,7 @@
+     solution.gunTargets.assign(solution.guns.size(),solution.target);
+     if(AIShip *targetShip=AimShipForCharacter(rangeCharacter,GetAIShip()))
+         DistributeRakeTargets(solution,targetShip);
++    if(IsSingleFireMode())SelectSingleGun(solution);
+     if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
+     return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
+ }
+@@ -1418,7 +1466,8 @@
+     }
+     paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
+     if(paths.empty())return;
+-    const bool ready=solution.bort->isCharged();
++    const bool ready=IsSingleFireMode() ? solution.guns.front()->CanFireTo(solution.gunTargets.front())
++                                       : solution.bort->isCharged();
+     // Contact discovery supplies physical continuation supports, not visible
+     // per-gun meshes. Actual surface coverage is evaluated once from scene depth.
+     // Use ship-local support directions for stable contact projectors. Rolling
+@@ -1947,7 +1996,8 @@
+ {
+     VDATA *pvData = core.Event(SHIP_GET_CURRENT_BALLS_NUM, "a", GetAIShip()->GetACharacter());
+     Assert(pvData);
+-    if (static_cast<int32_t>(GetBortIntactCannonsNum(bort)) > pvData->GetInt())
++    const int32_t required = IsSingleFireMode() ? 1 : static_cast<int32_t>(GetBortIntactCannonsNum(bort));
++    if (required > pvData->GetInt())
+         return false;
+     return true;
+ }
+--- a/src/libs/sea_ai/src/ai_ship_cannon_controller.h
++++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.h
+@@ -86,6 +86,7 @@
+     };
+     bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
+     bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
++    void SelectSingleGun(MANUAL_AIM_SOLUTION &solution) const;
+     void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip,
+                                const CVECTOR &targetOffset = CVECTOR(0.f));
+ 
+@@ -103,6 +104,7 @@
+     [[nodiscard]] float GetSpeedV0() const;
+ 
+   public:
++    bool IsSingleFireMode() const;
+     [[nodiscard]] uint32_t GetCannonsNum() const;
+ 
+     [[nodiscard]] float GetFireDistance(bool bMaxFireDistance) const;
+--- a/src/libs/sea_ai/src/ai_cannon.cpp
++++ b/src/libs/sea_ai/src/ai_cannon.cpp
+@@ -161,9 +161,10 @@
+     Recharge();
+ }
+ 
+-bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos)
+-{
+-    if (isFired() || isRecharged() || isDamaged() || isEmpty())
++bool AICannon::CanFireTo(const CVECTOR &_vFirePos) const
++{
++    if (!isReady2Fire() || isFired() || isRecharged() || isDamaged() || isEmpty() ||
++        !std::isfinite(_vFirePos.x) || !std::isfinite(_vFirePos.y) || !std::isfinite(_vFirePos.z))
+         return false;
+ 
+     auto *pAIObj = GetAIObjPointer();
+@@ -174,7 +175,12 @@
+     const auto vFireDir = !(_vFirePos - vPosTemp);
+     const auto vDirTemp = mRot * vDir;
+     const auto fDot = (vFireDir | vDirTemp);
+-    if (fDot < 0.3f)
++    return std::isfinite(fDot) && fDot >= 0.3f;
++}
++
++bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay)
++{
++    if (!CanFireTo(_vFirePos))
+         return false;
+ 
+     bFired = true;
+@@ -183,10 +189,15 @@
+     vEnemyPos = _vFirePos;
+     fSpeedV0 = _fSpeedV0;
+ 
+-    // calculate in script timeout before real fire
+-    auto *pVData = core.Event(CANNON_GET_FIRE_TIME, "a", pAHolder->GetACharacter());
+-    Assert(pVData);
+-    fTotalTime2Action = fTime2Action = pVData->GetFloat();
++    // Ship batteries provide an ordered delay; direct and fort calls retain
++    // the existing script event and the same RealFire/reload lifecycle.
++    if (fireDelay < 0.f)
++    {
++        auto *pVData = core.Event(CANNON_GET_FIRE_TIME, "a", pAHolder->GetACharacter());
++        Assert(pVData);
++        fireDelay = pVData->GetFloat();
++    }
++    fTotalTime2Action = fTime2Action = fireDelay;
+     return true;
+ }
+ 
+--- a/src/libs/sea_ai/src/ai_cannon.h
++++ b/src/libs/sea_ai/src/ai_cannon.h
+@@ -60,7 +60,8 @@
+     VAI_OBJBASE *GetAIObjPointer() const;
+ 
+     float CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const CVECTOR &vEnemy) const;
+-    bool Fire(float fSpeedV0, const CVECTOR &vFirePos);
++    bool CanFireTo(const CVECTOR &vFirePos) const;
++    bool Fire(float fSpeedV0, const CVECTOR &vFirePos, float fireDelay = -1.f);
+     void Load();
+     void Unload();
+     void Recharge();
+--- a/src/libs/sea_ai/src/ai_ship.cpp
++++ b/src/libs/sea_ai/src/ai_ship.cpp
+@@ -399,13 +399,14 @@
+             // aShipFire.Sort();
+             std::sort(aShipFire.begin(), aShipFire.end());
+ 
++            const bool single = GetCannonController()->IsSingleFireMode();
+             for (i = 0; i < aShipFire.size(); i++)
+             {
+                 auto *const pFire = &aShipFire[i];
+-                if (pFire->pShip)
+-                    GetCannonController()->Fire(pFire->pShip);
+-                if (pFire->pFortCannon)
+-                    GetCannonController()->Fire(pFire->pFortCannon->GetPos());
++                if (pFire->pShip && GetCannonController()->Fire(pFire->pShip) && single)
++                    return true;
++                if (pFire->pFortCannon && GetCannonController()->Fire(pFire->pFortCannon->GetPos()) && single)
++                    return true;
+             }
+         }
+     }

@@ -8,7 +8,8 @@ void Airburst_InitGoods()
     Goods[GOOD_AIRBURST].Units = 20;
     Goods[GOOD_AIRBURST].SpeedV0 = 0.8;
     Goods[GOOD_AIRBURST].ReloadTime = 1.65;
-    Goods[GOOD_AIRBURST].DamageHull = 90.0;
+    Goods[GOOD_AIRBURST].DamageHull = 67.5;
+    Goods[GOOD_AIRBURST].DamageFort = 180.0;
     Goods[GOOD_AIRBURST].DamageRig = 8.0;
     Goods[GOOD_AIRBURST].DamageCrew = 14.0;
     Goods[GOOD_AIRBURST].AfraidWater = 0;

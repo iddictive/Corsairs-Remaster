@@ -568,6 +568,9 @@ void BI_LaunchCommand()
 
 	switch(commandName)
 	{
+    case "BI_FireMode":
+        if (charIdx == GetMainCharacterIndex()) BI_ToggleFireMode();
+        break;
     case "BI_MastRepair":
         BI_MastRepairOpen();
         break;
@@ -1078,6 +1081,31 @@ void BI_SetPossibleCommands()
     WdmMilitaryParleyCommandRefresh(mainIdx, chIdx);
     Event("evntSetUsingAbility","l", chIdx);
     BI_MastRepairRefresh(mainIdx, chIdx);
+    BI_FireModeRefresh(mainIdx, chIdx);
+}
+
+void BI_FireModeRefresh(int mainIndex, int selectedIndex)
+{
+    if (!CheckAttribute(pchar, "Ship.Cannons.FireMode")) pchar.Ship.Cannons.FireMode = 0;
+    BattleInterface.Commands.FireMode.enable = selectedIndex == mainIndex &&
+        CheckAttribute(pchar, "Ship.Cannons.Charge.Type") &&
+        GetCaracterShipCannonsType(pchar) != CANNON_TYPE_NONECANNON;
+    if (sti(pchar.Ship.Cannons.FireMode) == 1)
+        BattleInterface.Commands.FireMode.note = "Огонь: по одной";
+    else
+        BattleInterface.Commands.FireMode.note = "Огонь: залпом";
+}
+
+void BI_ToggleFireMode()
+{
+    if (!CheckAttribute(pchar, "Ship.Cannons.Charge.Type") ||
+        GetCaracterShipCannonsType(pchar) == CANNON_TYPE_NONECANNON) return;
+    if (CheckAttribute(pchar, "Ship.Cannons.FireMode") && sti(pchar.Ship.Cannons.FireMode) == 1)
+        pchar.Ship.Cannons.FireMode = 0;
+    else
+        pchar.Ship.Cannons.FireMode = 1;
+    BI_FireModeRefresh(GetMainCharacterIndex(), GetMainCharacterIndex());
+    RefreshBattleInterface();
 }
 
 void BI_InitializeCommands()
@@ -1177,6 +1205,13 @@ void BI_InitializeCommands()
 	BattleInterface.Commands.Charge.texNum			= BI_ICONS_TEXTURE_COMMAND;
 	BattleInterface.Commands.Charge.event			= "BI_Charge";
 	BattleInterface.Commands.Charge.note			= LanguageConvertString(idLngFile, "sea_Charge");
+
+    BattleInterface.Commands.FireMode.enable = false;
+    BattleInterface.Commands.FireMode.picNum = BattleInterface.Commands.Charge.picNum;
+    BattleInterface.Commands.FireMode.selPicNum = BattleInterface.Commands.Charge.selPicNum;
+    BattleInterface.Commands.FireMode.texNum = BattleInterface.Commands.Charge.texNum;
+    BattleInterface.Commands.FireMode.event = "BI_FireMode";
+    BI_FireModeRefresh(GetMainCharacterIndex(), -1);
 	//
 	BattleInterface.Commands.Speed.enable			= false;
 	BattleInterface.Commands.Speed.picNum			= 22;
@@ -1324,7 +1359,7 @@ ref GetCurrentCharge()
 			BattleInterface.textinfo.Powder.text = XI_convertString("Powder") + ": " + sti(pchar.ship.cargo.goods.powder);
 		break;
 		case GOOD_AIRBURST:
-			BI_intNRetValue[0] = 33;
+			BI_intNRetValue[0] = 40;
 			BattleInterface.textinfo.Ammo.text = XI_convertString("Airburst") + ": " + GetCargoGoods(pchar, GOOD_AIRBURST);
 			BattleInterface.textinfo.Powder.text = XI_convertString("Powder") + ": " + sti(pchar.ship.cargo.goods.powder);
 		break;

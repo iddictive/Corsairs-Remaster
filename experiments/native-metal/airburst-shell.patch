@@ -10,13 +10,13 @@
      bool Init() override;
 --- a/src/libs/sea_ai/src/ai_balls.cpp
 +++ b/src/libs/sea_ai/src/ai_balls.cpp
-@@ -2,7 +2,134 @@
+@@ -2,6 +2,202 @@
  #include "ai_fort.h"
  #include "math_inlines.h"
  #include "shared/messages.h"
 +#include "ship_base.h"
 +#include <algorithm>
- 
++
 +namespace
 +{
 +// Identity rides the existing saved event string: the four native ball lanes and
@@ -66,12 +66,58 @@
 +    entry = enter;
 +    return true;
 +}
++
++// Adapt the engine Sphere::Intersection projection to a bounded CVECTOR sweep.
++bool AirburstArmedStart(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &first, float &start)
++{
++    constexpr float distance2 = 35.0f*35.0f;
++    const auto offset = src-first;
++    if (~offset >= distance2) { start = 0.0f; return true; }
++    if (~(dst-first) < distance2) return false;
++    const auto delta = dst-src;
++    const float length2 = ~delta;
++    if (length2 < 1e-8f) return false;
++    const float projection = offset | delta;
++    start = (-projection + sqrtf(projection*projection + length2*(distance2 - ~offset))) / length2;
++    return start >= 0.0f && start <= 1.0f;
++}
++
++bool AirburstFortEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &gun, float &entry)
++{
++    const auto delta = dst-src;
++    const float length2 = ~delta;
++    if (length2 < 1e-8f) return false;
++    const float minHeight = gun.y + 4.0f;
++    float overheadStart = 0.0f;
++    if (src.y < minHeight)
++    {
++        if (delta.y <= 0.0f) return false;
++        overheadStart = (minHeight-src.y) / delta.y;
++        if (overheadStart > 1.0f) return false;
++    }
++    const auto overheadSrc = src + delta*overheadStart;
++    const auto overheadDelta = dst-overheadSrc;
++    const float overheadLength2 = ~overheadDelta;
++    if (overheadLength2 < 1e-8f) return false;
++    const auto toGun = gun-overheadSrc;
++    constexpr float radius2 = 22.0f*22.0f;
++    if (~toGun <= radius2) { entry = overheadStart; return true; }
++    const float projection = (overheadDelta | toGun) / overheadLength2;
++    const float halfChord2 = (radius2 - (~toGun - projection*projection*overheadLength2)) / overheadLength2;
++    if (halfChord2 < 0.0f) return false;
++    const float overheadEntry = projection - sqrtf(halfChord2);
++    entry = overheadStart + (1.0f-overheadStart)*overheadEntry;
++    return overheadEntry >= 0.0f && overheadEntry <= 1.0f && (src+delta*entry).y >= minHeight;
++}
 +}
 +
 +bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst)
 +{
 +    if (AirburstGood(ball) < 0)
 +        return false;
++    float armedStart = 0.0f;
++    if (!AirburstArmedStart(src, dst, ball.vFirstPos, armedStart)) return false;
++    const CVECTOR armedSrc = src + (dst-src)*armedStart;
 +    float nearest = 2.0f;
 +    const auto ships = core.GetEntityIds(SHIP_CANNON_TRACE);
 +    for (const auto id : ships)
@@ -82,15 +128,32 @@
 +            continue;
 +        CVECTOR localSrc, localDst;
 +        if (!ship->GetMatrix() || ship->GetBoxsize().x <= 0.0f || ship->GetBoxsize().z <= 0.0f) continue;
-+        ship->GetMatrix()->MulToInv(src, localSrc);
++        ship->GetMatrix()->MulToInv(armedSrc, localSrc);
 +        ship->GetMatrix()->MulToInv(dst, localDst);
 +        float entry = 0.0f;
-+        if (AirburstEntry(localSrc, localDst, ship->GetBoxsize(), entry) &&
-+            ~(src + (dst-src)*entry - ball.vFirstPos) >= 35.0f*35.0f)
-+            nearest = std::min(nearest, entry);
++        if (AirburstEntry(localSrc, localDst, ship->GetBoxsize(), entry))
++            nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
++    }
++    auto *forts = AIFort::pAIFort;
++    if (forts)
++    {
++        for (uint32_t f = 0; f < forts->GetNumForts(); ++f)
++        {
++            auto *fort = forts->GetFort(f);
++            if (!fort->GetModel() || !fort->GetACharacter() || !fort->isNormalMode() ||
++                static_cast<int32_t>(fort->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
++                continue;
++            for (uint32_t c = 0; c < fort->GetAllCannonsNum(); ++c)
++            {
++                auto *gun = fort->GetCannon(c);
++                float entry = 0.0f;
++                if (!gun->isDamaged() && AirburstFortEntry(armedSrc, dst, gun->GetPos(), entry))
++                    nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
++            }
++        }
 +    }
 +    if (nearest > 1.0f) return false;
-+    const CVECTOR burst = src + (dst-src) * nearest;
++    CVECTOR burst = src + (dst-src) * nearest;
 +    // Land and masonry remain real blockers; never detonate through an island.
 +    if ((pIsland && pIsland->Trace(src, burst) < 1.0f) ||
 +        (AIFort::pAIFort && AIFort::pAIFort->Trace(src, burst) < 1.0f))
@@ -139,13 +202,18 @@
 +                   hit.x, hit.y, hit.z, -1, 1e8f);
 +    }
 +    AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
++    if (AIFort::pAIFort)
++    {
++        AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
++        AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
++        AIFort::pAIFort->AddFortHit(ball.iBallOwner, burst, 32.0f, pIsland);
++    }
 +    return true;
 +}
-+
+ 
  AIBalls *AIBalls::pAIBalls = nullptr;
  
- AIBalls::AIBalls()
-@@ -26,6 +153,7 @@
+@@ -26,6 +222,7 @@
          for (j = 0; j < pBallsType->Balls.size(); j++)
          {
              auto *pBall = &pBallsType->Balls[j];
@@ -153,21 +221,21 @@
              if (pBall->pParticle)
              {
                  STORM_DELETE(pBall->pParticle);
-@@ -189,6 +317,13 @@
-             auto *pBall = &pBallsType->Balls[j];
+@@ -190,6 +387,13 @@
  
              vSrc = pBall->vPos;
-+
+ 
 +            const int airburstGood = AirburstGood(*pBall);
 +            // An unarmed/direct shell uses the ordinary native Bombs contract,
 +            // including forts and rigging. Only the radial burst changes goods.
 +            AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
 +            AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
 +            AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
- 
++
              AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
              AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
-@@ -217,7 +352,7 @@
+             AttributesPointer->SetAttributeUseFloat("CurrentMaxBallDistance", pBall->fMaxFireDistance);
+@@ -217,7 +421,7 @@
  
              vDst = pBall->vPos;
  
@@ -176,17 +244,17 @@
                  core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
                             pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
                             vSrc.z);
-@@ -230,6 +365,9 @@
+@@ -229,6 +433,9 @@
+             }
  
              float fRes = 2.0f;
- 
++
 +            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst);
 +            if (burst) fRes = 0.0f;
-+
+ 
              CVECTOR v1 = mView * vSrc;
              CVECTOR v2 = mView * vDst;
- 
-@@ -260,7 +398,7 @@
+@@ -260,7 +467,7 @@
              else if (storm::iEquals(pBallsType->sName, "Grapes"))
                  fRigRadius = 0.35f * pBall->fSizeMultiply;
  
@@ -195,7 +263,7 @@
              {
                  pSail->SetCannonTraceRadius(fRigRadius);
                  pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
-@@ -270,6 +408,7 @@
+@@ -270,6 +477,7 @@
              auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
              for (auto ent_id : entities)
              {
@@ -203,7 +271,7 @@
                  if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                  {
                      pShip->SetCannonTraceRadius(fRigRadius);
-@@ -297,7 +436,7 @@
+@@ -297,7 +505,7 @@
              // delete ball
              if (fRes <= 1.0f)
              {
@@ -212,7 +280,7 @@
                  {
                      core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
                                 pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
-@@ -318,7 +457,7 @@
+@@ -318,7 +526,7 @@
                  continue;
              }
  
@@ -237,6 +305,69 @@
      const double a = SQR(g) / 4.0f;
      const double b = (fHeight * g - SQR(_fSpeedV0));
      const double c = SQR(fHeight) + SQR(fDistance);
+--- a/src/libs/sea_ai/src/ai_fort.h
++++ b/src/libs/sea_ai/src/ai_fort.h
+@@ -276,7 +276,6 @@
+     // Ships lights
+     IShipLights *pShipsLights;
+ 
+-    void AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos);
+     float GetSpeedV0(uint32_t dwFortIndex);
+     bool ScanFortForCannons(AI_FORT *pFort, const char *pModelsDir, const char *pLocatorsName) const;
+     bool AddFort(ATTRIBUTES *pIslandAP, ATTRIBUTES *pFortAP, ATTRIBUTES *pFortCharacter, entid_t eidModel,
+@@ -285,6 +284,10 @@
+ 
+   public:
+     static AIFort *pAIFort;
++
++    // Ordinary contacts keep their original radius; airbursts reuse damage/persistence.
++    void AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius = 0.0f,
++                    CANNON_TRACE_BASE *island = nullptr);
+ 
+     AIFort();
+     ~AIFort() override;
+--- a/src/libs/sea_ai/src/ai_fort.cpp
++++ b/src/libs/sea_ai/src/ai_fort.cpp
+@@ -252,13 +252,19 @@
+     return true;
+ }
+ 
+-void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos)
+-{
++void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius, CANNON_TRACE_BASE *island)
++{
++    const bool airburst = radius > 0.0f;
++    const float maxDistance = airburst ? radius : fMinCannonDamageDistance;
+     uint32_t i, j, iMax;
+     for (i = 0; i < aForts.size(); i++)
+     {
+         auto *pF = aForts[i];
+ 
++        if (airburst && (!pF->GetModel() || !pF->GetACharacter() || !pF->isNormalMode() ||
++                        GetIndex(pF->GetACharacter()) == iCharacterIndex))
++            continue;
++
+         iMax = pF->GetAllCannonsNum(); // boal fix
+         for (j = 0; j < iMax; j++)
+         {
+@@ -269,8 +275,16 @@
+ 
+             auto vPos = pC->GetPos();
+             const auto fDistance = sqrtf(~(vPos - vHitPos));
+-            if (fDistance > fMinCannonDamageDistance)
++            if (fDistance > maxDistance)
+                 continue;
++
++            if (airburst)
++            {
++                // Test the exposed muzzle, not a locator embedded in masonry.
++                const CVECTOR muzzle = vPos + pC->GetDir() * 3.0f;
++                if (Trace(vHitPos, muzzle) < 1.0f || (island && island->Trace(vHitPos, muzzle) < 1.0f))
++                    continue;
++            }
+ 
+             // VDATA * pVData = core.Event(FORT_CANNON_DAMAGE, "llallfffff", iCharacterIndex,
+             // GetIndex(pF->GetACharacter()), pF->pFortLabelAP, pF->GetAllCannonsNum(), pF->GetDamagedCannonsNum(),
 --- a/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 +++ b/src/libs/battle_interface/src/sea/battle_ship_command.cpp
 @@ -369,7 +369,7 @@

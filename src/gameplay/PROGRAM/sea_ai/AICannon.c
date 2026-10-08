@@ -4,6 +4,7 @@ void DeleteCannonsEnvironment()
 {
 	DelEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime");
 	DelEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime");
+	DelEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow");
 	DelEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight");
 	DelEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply");
 	DelEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy");
@@ -19,6 +20,7 @@ void CreateCannonsEnvironment()
 {
 	SetEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime", 0);
 	SetEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime", 0);
+	SetEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow", 0);
 	SetEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight", 0);
 	SetEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply", 0);
 	SetEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy", 0);
@@ -290,37 +292,48 @@ float Cannon_GetRechargeTime()
 	return  fMultiply * fReloadTime * fCannonSkill;
 }
 
-// calculate delay before fire
+// Battery cadence has one quality owner; native ship salvos distribute guns
+// across this window instead of independent random delays that can collapse.
+float Cannon_SalvoWindow(aref aCharacter)
+{
+	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
+	float fCannonSkill = stf(aCharacter.TmpSkill.Cannons);
+	if (fCannonSkill < 0.0) fCannonSkill = 0.0;
+	if (fCannonSkill > 1.0) fCannonSkill = 1.0;
+	float crewQ   = GetCrewQuantity(aCharacter);
+	float crewMax = stf(refBaseShip.MaxCrew);
+	float crewOpt = stf(refBaseShip.OptCrew);
+	if (crewMax < crewQ) crewQ = crewMax;
+	float fExp = 0.0;
+	if (crewOpt > 0.0 && GetCrewExpRate() > 0.0)
+		fExp = stf(GetCrewExp(aCharacter, "Cannoners") * crewQ) / stf(crewOpt * GetCrewExpRate());
+	if (fExp < 0.0) fExp = 0.0;
+	if (fExp > 1.0) fExp = 1.0;
+	float morale = GetCharacterCrewMorale(aCharacter) / MORALE_NORMAL;
+	if (morale < 0.0) morale = 0.0;
+	if (morale > 1.0) morale = 1.0;
+	float quality = fCannonSkill * fExp * (0.5 + 0.5 * morale);
+	return 10.0 - 6.5 * quality;
+}
+
+float Cannon_GetSalvoWindow()
+{
+	aref aCharacter = GetEventData();
+	return Cannon_SalvoWindow(aCharacter);
+}
+
+// Direct/fort callers keep their existing delay event; moving-target lead uses
+// the same ship window's average, with bounded variation around its midpoint.
 float Cannon_GetFireTime()
 {
-	//aref aCharacter = GetEventData();
 	aref aCharacter = GetEventData();
 	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
-
-	// make 10 seconds random delay between fire from fort cannons
-	if (refBaseShip.Name == ShipsTypes[SHIP_FORT].Name) { return frnd() * 20.0; }   // иначе пулеметный залп
-
-	float fCannonSkill = stf(aCharacter.TmpSkill.Cannons);
-	float fFireTime = 1.3 - fCannonSkill;
-	//fFireTime = fFireTime * Bring2RangeNoCheck(3.0, 1.0, 0.0, 1.0, stf(aCharacter.Ship.Crew.MinRatio));
-	fFireTime = frnd() * fFireTime * 6.0;
-	if (iArcadeSails) { fFireTime = fFireTime * 0.5; }
-				   
-	float crewQ   = GetCrewQuantity(aCharacter);
- 	float crewMax = stf(refBaseShip.MaxCrew);
- 	float crewOpt = stf(refBaseShip.OptCrew);
- 	if (crewMax < crewQ) crewQ  = crewMax; 
- 	
-	float fCrewMorale = GetCharacterCrewMorale(aCharacter);
-
-    float  fExp;
-	fExp = 0.05 + stf(GetCrewExp(aCharacter, "Cannoners") * crewQ) / stf(crewOpt * GetCrewExpRate());
-	if (fExp > 1) fExp = 1;
-	
-	fFireTime = fFireTime * (2.0 - fExp);
-	fFireTime = fFireTime * (1 + (1 - fCrewMorale/MORALE_NORMAL)/5.0);
-	
-	return fFireTime;  
+	if (refBaseShip.Name == ShipsTypes[SHIP_FORT].Name) { return frnd() * 20.0; }
+	if (sti(aCharacter.index) == GetMainCharacterIndex() && CheckAttribute(aCharacter, "Ship.Cannons.FireMode"))
+	{
+		if (sti(aCharacter.Ship.Cannons.FireMode) == 1) { return 0.05 + frnd() * 0.15; }
+	}
+	return Cannon_SalvoWindow(aCharacter) * (0.4 + frnd() * 0.2);
 }
 
 void Cannon_FireCannon()

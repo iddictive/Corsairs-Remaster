@@ -372,7 +372,7 @@ void AddToTable(int _mode)
 			    if (sti(GameInterface.TABLE_LIST.(row).td5.str) < 1) GameInterface.TABLE_LIST.(row).td5.str = 1;
 			}
 		}
-		if ((tradeType == TRADE_TYPE_AMMUNITION) && (refStore.Colony == "none"))
+		if (!Store_CanBuyGoods(refStore, i))
 		{
 		    GameInterface.TABLE_LIST.(row).td3.str = "-"; // нельзя купить в море
 		}
@@ -782,7 +782,7 @@ void ShowGoodsInfo(int iGoodIndex)
 		}
         SetFormatedText("QTY_INFO_STORE_PRICE",XI_ConvertString("Price buy") + NewStr() + its(iStorePrice));
 	}
-	if ((MakeInt(refStore.Goods.(GoodName).TradeType) == TRADE_TYPE_AMMUNITION) && (refStore.Colony == "none"))
+	if (!Store_CanBuyGoods(refStore, iGoodIndex))
 	{
 	    iShipPrice = 0;
 	    SetFormatedText("QTY_INFO_SHIP_PRICE", XI_ConvertString("Price sell") + NewStr() + "-");
@@ -830,6 +830,7 @@ void TransactionOK()
 	    return;
 	}
     if (!GetRemovable(refCharacter)) return;
+    if (BuyOrSell == 1 && !Store_CanBuyGoods(refStore, iCurGoodsIdx)) return;
     
  	if (BuyOrSell == 1) // BUY
 	{
@@ -933,7 +934,7 @@ void ChangeQTY_EDIT()
 		else
 		{
             // не нужно у кэпов в море пукупать порох и ядра, а то потом они беззащитны
-            if ((MakeInt(refStore.Goods.(GoodName).TradeType) == TRADE_TYPE_AMMUNITION) && (refStore.Colony == "none"))
+            if (!Store_CanBuyGoods(refStore, iCurGoodsIdx))
             {
                 GameInterface.qty_edit.str = 0;
             }
