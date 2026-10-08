@@ -271,6 +271,16 @@ The native rigging radii of grapes and knippels are explicit type constants,
 so their sprite resizing does not alter sail/mast collision; balls/bombs stay
 the same size. Perceived speed and broadside/night visibility remain player
 replay requirements until the installed action is observed.
+
+The disposable native loader links current compiled DataSource/FieldList and
+their field classes: all three profiles load as one emitter/one Particle2,
+and original Bomb_Smoke as one emitter/two particle components. Native graph
+evaluation returns initial emission224.765/306.498/408.663 per second. This
+accepts binary loading; the existing synthetic-texture particle GPU fixture
+accepts only its original shader/alpha cases. Neither proves the new profiles'
+actual atlas geometry, night visibility or full ParticleManager/BBProcessor
+launch-to-impact rendering. Particle counts are an analytic source budget,
+not game FPS measurements.
 The existing particle factory, emitter update, impact/clear/destructor cleanup and
 flight/save layout remain unchanged. Already airborne legacy balls with no saved particle pointer acquire
 no retroactive emitter; new shots use the updated environment. Actual broadside
