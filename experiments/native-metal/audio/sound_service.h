@@ -5,6 +5,7 @@
 #include "audio_voice_policy.h"
 
 #include <array>
+#include <chrono>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -50,6 +51,9 @@ class SoundService final : public VSoundService
     struct Slot {
         ma_sound sound{};
         std::string path;
+        std::string impactAlias;
+        CVECTOR impactPosition{};
+        std::chrono::steady_clock::time_point impactStarted{};
         eSoundType type{};
         eVolumeType volumeType{};
         float volume{1.0f};

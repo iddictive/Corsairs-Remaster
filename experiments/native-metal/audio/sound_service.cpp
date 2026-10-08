@@ -158,6 +158,28 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     std::string selected = name ? name : "";
     const std::string aliasKey = Lower(selected);
     const auto voiceClass = storm::metal::audio::ClassifyAlias(aliasKey);
+    const bool spatial = type == PCM_3D || type == MP3_3D;
+    const bool clusteredImpact = spatial && position && !looped && !simpleCache && volumeType == VOLUME_FX &&
+        storm::metal::audio::IsClusteredImpactAlias(aliasKey);
+    const auto impactStarted = clusteredImpact ? std::chrono::steady_clock::now() :
+        std::chrono::steady_clock::time_point{};
+    if (clusteredImpact)
+    {
+        for (const auto &slot : slots_)
+        {
+            if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended ||
+                slot.type != type || slot.impactAlias != aliasKey || ma_sound_at_end(&slot.sound))
+                continue;
+            const float dx = slot.impactPosition.x - position->x;
+            const float dy = slot.impactPosition.y - position->y;
+            const float dz = slot.impactPosition.z - position->z;
+            if (dx * dx + dy * dy + dz * dz > storm::metal::audio::kImpactClusterRadiusSquared)
+                continue;
+            if (impactStarted - slot.impactStarted <
+                std::chrono::milliseconds(storm::metal::audio::kImpactClusterIntervalMs))
+                return SOUND_INVALID_ID;
+        }
+    }
     if (voiceClass == storm::metal::audio::VoiceClass::cannon &&
         !storm::metal::audio::AdmitCannonVoice(ActiveVoiceCount(voiceClass)))
         return SOUND_INVALID_ID;
@@ -179,7 +201,6 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     auto it = std::find_if(slots_.begin(), slots_.end(), [](const Slot &slot) { return !slot.initialized; });
     if (it == slots_.end()) return SOUND_INVALID_ID;
 
-    const bool spatial = type == PCM_3D || type == MP3_3D;
     // Short PCM effects must be decoded before start. Streaming every sound
     // adds decoder/file latency between the animation event and the first sample.
     ma_uint32 flags = (type == MP3_STEREO || type == MP3_3D || looped || volumeType == VOLUME_MUSIC)
@@ -192,6 +213,12 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     const size_t index = static_cast<size_t>(it - slots_.begin());
     const TSD_ID id = TSD_ID::createId(static_cast<uint16_t>(index));
     it->path = path;
+    if (clusteredImpact)
+    {
+        it->impactAlias = aliasKey;
+        it->impactPosition = *position;
+        it->impactStarted = impactStarted;
+    }
     it->type = type;
     it->volumeType = volumeType;
     it->volume = volume;

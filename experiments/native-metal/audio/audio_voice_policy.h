@@ -15,6 +15,17 @@ enum class VoiceClass
 
 constexpr std::size_t kMaxCannonVoices = 12;
 constexpr unsigned long long kChargeReplacementFadeMs = 90;
+constexpr unsigned long long kImpactClusterIntervalMs = 40;
+constexpr float kImpactClusterRadiusSquared = 20.0f * 20.0f;
+
+constexpr bool IsClusteredImpactAlias(std::string_view lowerAlias)
+{
+    return lowerAlias == "ball_splash" || lowerAlias == "fly_ball" || lowerAlias == "fly_ball_misc" ||
+           lowerAlias == "ball2bort" || lowerAlias == "bomb2bort" || lowerAlias == "grapes2bort" ||
+           lowerAlias == "ball2sail" || lowerAlias == "knippel2sail" || lowerAlias == "grapes2sail" ||
+           lowerAlias == "mast_fall" || lowerAlias == "coll_ship2rock" || lowerAlias == "coll_ship2ship" ||
+           lowerAlias == "fort_cann_explode" || lowerAlias == "cannon_explosion" || lowerAlias == "ship_explosion";
+}
 
 constexpr VoiceClass ClassifyAlias(std::string_view lowerAlias)
 {
