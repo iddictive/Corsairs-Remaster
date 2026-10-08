@@ -16,6 +16,8 @@ void DeleteBallsEnvironment()
 	DelEventHandler(BALL_FLY_UPDATE, "Ball_OnFlyUpdate");
 	DelEventHandler(BALL_FORT_HIT, "Ball_FortHit");
 	DelEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera");
+	DelEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion");
+	DelEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady");
 }
 
 void CreateBallsEnvironment()
@@ -29,6 +31,7 @@ void CreateBallsEnvironment()
 	AIBalls.CurrentMaxBallDistance = 0.0;
 	AIBalls.BallFlySoundDistance = 15.0;
 	AIBalls.BallFlySoundStereoMultiplyer = 2.0;
+	AIBalls.AirburstFxBusy = false;
 
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
 	AIBalls.Texture = "AllBalls.tga";
@@ -65,6 +68,31 @@ void CreateBallsEnvironment()
 	SetEventHandler(BALL_FLY_UPDATE, "Ball_OnFlyUpdate", 0);
 	SetEventHandler(BALL_FORT_HIT, "Ball_FortHit", 0);
 	SetEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera", 0);
+	SetEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion", 0);
+	SetEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady", 0);
+}
+
+void Ball_AirburstFxReady()
+{
+	AIBalls.AirburstFxBusy = false;
+}
+
+void Ball_AirburstExplosion()
+{
+	int owner = GetEventData();
+	float x = GetEventData();
+	float y = GetEventData();
+	float z = GetEventData();
+	CreateBlast(x, y, z);
+	CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+	// Dense broadsides keep every blast, while heavy fire/smoke stays bounded.
+	if (!sti(AIBalls.AirburstFxBusy))
+	{
+		AIBalls.AirburstFxBusy = true;
+		PostEvent("Ball_AirburstFxReady", 120);
+		CreateParticleSystem("ShipExplode", x, y, z, 0.0, 0.0, 0.0, 0);
+		Play3DSound("ship_explosion", x, y, z);
+	}
 }
 
 void Ball_FlyNearCamera()
@@ -85,6 +113,7 @@ float Ball_GetHeightMultiply(aref aCharacter)
 	float fCannonHeightMultiply = stf(rCannon.HeightMultiply);
 
 	int iChargeType = sti(aCharacter.Ship.Cannons.Charge.Type);
+	if (iChargeType == GOOD_AIRBURST) return fCannonHeightMultiply * 1.15;
 	if (iChargeType != GOOD_KNIPPELS)
 	{
 		fCannonHeightMultiply *= 0.70; // Красивая навесная дуга вместо плоского луча
@@ -156,6 +185,12 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	AIBalls.Ang = fHeightAng + fAccuracy * (fTempDispersionX) * (frnd() - 0.5);
 
 	AIBalls.Event = "";
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_AIRBURST)
+	{
+		// Preserve the four native lanes and the existing in-flight save codec.
+		AIBalls.Type = "Bombs";
+		AIBalls.Event = "@airburst:" + GOOD_AIRBURST;
+	}
 
 	EntityUpdate(1);
 	AIBalls.Add = "";

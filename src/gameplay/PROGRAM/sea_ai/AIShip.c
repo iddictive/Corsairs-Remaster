@@ -2634,6 +2634,7 @@ void Ship_SailDamage()
 		case GOOD_GRAPES:	sSound = "grapes2sail";	break;
 		case GOOD_KNIPPELS:	sSound = "knippel2sail";	break;
 		case GOOD_BOMBS:	sSound = "ball2sail"; break;
+		case GOOD_AIRBURST: sSound = "ball2sail"; break;
 	}
 
 	Play3DSound(sSound, x, y, z);
@@ -3267,6 +3268,8 @@ void Ship_HullHitEvent()
 	// Cannon damage multiply
 	ref rCannon = GetCannonByType(sti(rBallCharacter.Ship.Cannons.Type));
 	float fCannonDamageMultiply = stf(rCannon.DamageMultiply);
+	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
+	if (airburst) fCannonDamageMultiply *= stf(AIBalls.CurrentAirburstPower);
 
 	float fDistanceDamageMultiply = Bring2Range(1.2, 0.25, 0.0, stf(AIBalls.CurrentMaxBallDistance), stf(AIBalls.CurrentBallDistance));
 
@@ -3274,6 +3277,8 @@ void Ship_HullHitEvent()
 	if (sti(rBallCharacter.TmpPerks.CannonProfessional) && rand(9)==4) { bSeriousBoom = true; }		// +10%
 	
 	ref rBall = GetGoodByType(iBallType);
+	// An unarmed or low direct hit has ordinary-bomb damage, not blast damage.
+	if (iBallType == GOOD_AIRBURST && !airburst) rBall = GetGoodByType(GOOD_BOMBS);
 	switch (iBallType)
 	{
 		case GOOD_BALLS:
@@ -3295,6 +3300,11 @@ void Ship_HullHitEvent()
 			if (rand(5) == 1) { bInflame = true; }
 			Play3DSound("bomb2bort", x, y, z);
 		break;
+		case GOOD_AIRBURST:
+			// One radial hit per shell/ship; perks cannot multiply it into a magazine explosion.
+			bSeriousBoom = false;
+			if (!airburst) Play3DSound("bomb2bort", x, y, z);
+		break;
 	}
 	fTmpCannonDamage = fCannonDamageMultiply * stf(rBall.DamageHull);
 	if (rand(2) == 1) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);// boal fix
@@ -3313,6 +3323,8 @@ void Ship_HullHitEvent()
 	fCrewDamageMultiply = Bring2Range(0.35, 1.0, 0.35, 0.8, (1 - fCrewHullProtection));	*/
 	// evganat - убрал формулу Жиляева, добавил новую функцию
 	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15) * GetCrewDamageReduction(rOurCharacter);
+	// Downward fragments reach the exposed deck; hull armour still protects direct hits.
+	if (airburst) fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * AIShip_isPerksUse(rBallCharacter.TmpPerks.CrewDamageUp, 1.0, 1.15);
 	// <<<---	ZhilyaevDm
 
 	// Establish evidence and group hostility before a lethal hit can run ShipDead.

@@ -150,6 +150,7 @@ float Cannon_GetFireHeight()
 	ref rEnemyShip = GetRealShip(sti(aEnemy.Ship.Type));
 
 	string sBallName = rBallType.Name;
+	if (sBallName == "Airburst") sBallName = "Bombs";
 
 	float Y, DY;
 	Y = stf(rEnemyShip.Height.(sBallName).Y);
@@ -282,6 +283,10 @@ float Cannon_GetRechargeTime()
         } 
     // boal  корректный учет команды <--
     }
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_AIRBURST)
+	{
+		fReloadTime *= stf(Goods[GOOD_AIRBURST].ReloadTime);
+	}
 	return  fMultiply * fReloadTime * fCannonSkill;
 }
 

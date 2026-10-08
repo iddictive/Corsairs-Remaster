@@ -1,6 +1,37 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/store/goods.h": {
+      "encoding": "cp1251",
+      "legacy": ["d26f0f3c353e59bf27199fa614111c8282aa415a8e6975d534bab0c6002e8c5b"]
+    },
+    "PROGRAM/store/initGoods.c": {
+      "encoding": "utf-8",
+      "legacy": ["29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8"]
+    },
+    "PROGRAM/store/storeutilite.c": {
+      "encoding": "utf-8",
+      "legacy": ["af9a4e70c6d51adf9d59f6e0a003141ab8a666c5165e07b41151fc84f394cf65"]
+    },
+    "PROGRAM/store/initStore.c": {
+      "encoding": "utf-8",
+      "legacy": ["27aa94dc9049ee9ce93f1d564db6114847af2b3bddf1d1d4f66618b13642f9f0"]
+    },
+    "PROGRAM/seadogs.c": {
+      "encoding": "utf-8",
+      "legacy": ["cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050"]
+    },
+    "PROGRAM/controls/init_pc.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "f094c216fdf5546d8456f29dbbdd4c319dffbbec290a5d861364c09a33fdb093",
+        "6f12891eb530f9f2c20115a3f523b2dd624a88a52481ef7c862952afbcc7a518"
+      ]
+    },
+    "RESOURCE/INI/texts/russian/GoodsDescribe.txt": {
+      "encoding": "utf-8",
+      "legacy": ["08cd1d3cd4ea8d70d022dce5b4cfbd8ed56d2b39cc5ee3cc73259ee78024b1a1"]
+    },
     "RESOURCE/Particles/Grapes_Tracer.xps": {
       "encoding": "binary",
       "legacy": [],

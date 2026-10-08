@@ -53,7 +53,7 @@ bool bEnableIslandSailTo = false;
 
 int BI_intRetValue;
 int BI_retComValue;
-int BI_ChargeState[5];
+int BI_ChargeState[6];
 float BI_g_fRetVal;
 
 int BI_intNRetValue[8];
@@ -79,6 +79,12 @@ int ShipFlagsQuantity = -1;
 
 void InitBattleInterface()
 {
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.hk_charge5"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "hk_charge5", CI_GetKeyCode("KEY_5"), 0, true);
+        MapControlToGroup("hk_charge5", "Sailing1Pers");
+        MapControlToGroup("hk_charge5", "BattleInterfaceControls");
+    }
     BI_MastRepairCancel();
 	BI_InitializeCommands();
 	bi_icons_CommandMode = 0;
@@ -607,6 +613,10 @@ void BI_LaunchCommand()
 			//Log_SetStringToLog("Bombs");
 			PlaySound("ChargeBombs");
 			chargeType=GOOD_BOMBS;
+			break;
+		case 5:
+			PlaySound("ChargeBombs");
+			chargeType=GOOD_AIRBURST;
 			break;
 		}
 		Ship_ChangeCharge(chRef, chargeType);
@@ -1271,13 +1281,15 @@ void BI_InitializeCommands()
 
 ref BI_GetChargeQuantity()
 {
+	if (GetArraySize(&BI_ChargeState) < 6) SetArraySize(&BI_ChargeState, 6);
 	int chIdx = GetEventData();
 	ref chr = GetCharacter(chIdx);
-	BI_ChargeState[0] = 4;
+	BI_ChargeState[0] = 5;
 	BI_ChargeState[1] = GetCargoGoods(chr,GOOD_BALLS);
 	BI_ChargeState[2] = GetCargoGoods(chr,GOOD_GRAPES);
 	BI_ChargeState[3] = GetCargoGoods(chr,GOOD_KNIPPELS);
 	BI_ChargeState[4] = GetCargoGoods(chr,GOOD_BOMBS);
+	BI_ChargeState[5] = GetCargoGoods(chr,GOOD_AIRBURST);
 
 	return &BI_ChargeState;
 }
@@ -1309,6 +1321,11 @@ ref GetCurrentCharge()
 		case GOOD_BOMBS:
 			BI_intNRetValue[0] = 33;
 			BattleInterface.textinfo.Ammo.text = XI_convertString("Bombs") + ": " + sti(pchar.ship.cargo.goods.bombs);
+			BattleInterface.textinfo.Powder.text = XI_convertString("Powder") + ": " + sti(pchar.ship.cargo.goods.powder);
+		break;
+		case GOOD_AIRBURST:
+			BI_intNRetValue[0] = 33;
+			BattleInterface.textinfo.Ammo.text = XI_convertString("Airburst") + ": " + GetCargoGoods(pchar, GOOD_AIRBURST);
 			BattleInterface.textinfo.Powder.text = XI_convertString("Powder") + ": " + sti(pchar.ship.cargo.goods.powder);
 		break;
 		// korsar328: <----
@@ -1548,6 +1565,9 @@ void SetParameterData()
 	BattleInterface.charge.charge3.selPicNum = 5;
 	BattleInterface.charge.charge4.picNum = 20; // bombs
 	BattleInterface.charge.charge4.selPicNum = 4;
+	BattleInterface.charge.charge5.picNum = 20;
+	BattleInterface.charge.charge5.selPicNum = 4;
+	BattleInterface.charge.charge5.note = XI_convertString("Airburst");
 
 	BattleInterface.CommandTextures.ChargeTexNum = 0;
 	BattleInterface.CommandTextures.CommandTexNum = 0;
@@ -2751,6 +2771,10 @@ void BI_ProcessControlPress()
 		case "hk_charge4":
 			PlaySound("ChargeBombs");
 			Ship_ChangeCharge(pchar, GOOD_BOMBS);
+		break;
+		case "hk_charge5":
+			PlaySound("ChargeBombs");
+			Ship_ChangeCharge(pchar, GOOD_AIRBURST);
 		break;
 		
 		case "BICommandsActivate": 

@@ -1,0 +1,234 @@
+--- a/src/libs/sea_ai/src/ai_balls.h
++++ b/src/libs/sea_ai/src/ai_balls.h
+@@ -69,6 +69,7 @@
+     VDX9RENDER *rs{};
+ 
+     void AddBall(ATTRIBUTES *pABall);
++    bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst);
+ 
+     // inherited functions from Entity
+     bool Init() override;
+--- a/src/libs/sea_ai/src/ai_balls.cpp
++++ b/src/libs/sea_ai/src/ai_balls.cpp
+@@ -2,7 +2,134 @@
+ #include "ai_fort.h"
+ #include "math_inlines.h"
+ #include "shared/messages.h"
++#include "ship_base.h"
++#include <algorithm>
+ 
++namespace
++{
++// Identity rides the existing saved event string: the four native ball lanes and
++// BALL_PARAMS codec remain byte-for-byte compatible with previous sea saves.
++int AirburstGood(const BALL_PARAMS &ball)
++{
++    constexpr char prefix[] = "@airburst:";
++    if (ball.sBallEvent.compare(0, sizeof(prefix) - 1, prefix) != 0)
++        return -1;
++    const auto number = ball.sBallEvent.substr(sizeof(prefix) - 1);
++    if (number.empty() || number.size() > 3)
++        return -1;
++    int good = 0;
++    for (const char digit : number)
++    {
++        if (digit < '0' || digit > '9') return -1;
++        good = good * 10 + digit - '0';
++    }
++    return good;
++}
++
++// Sweep a descending shell through the target's oriented overhead volume.
++// Slab entry, rather than endpoint proximity, also catches long frame steps.
++bool AirburstEntry(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &box, float &entry)
++{
++    if (dst.y >= src.y) return false;
++    const float deck = std::clamp(box.y * 0.15f, 3.0f, 9.0f);
++    const float lo[] = {-box.x * 0.5f - 3.0f, deck + 4.0f, -box.z * 0.5f - 3.0f};
++    const float hi[] = { box.x * 0.5f + 3.0f, deck + 14.0f, box.z * 0.5f + 3.0f};
++    const float origin[] = {src.x, src.y, src.z};
++    const float delta[] = {dst.x-src.x, dst.y-src.y, dst.z-src.z};
++    float enter = 0.0f, leave = 1.0f;
++    for (int axis = 0; axis < 3; ++axis)
++    {
++        if (fabsf(delta[axis]) < 1e-6f)
++        {
++            if (origin[axis] < lo[axis] || origin[axis] > hi[axis]) return false;
++            continue;
++        }
++        float a = (lo[axis] - origin[axis]) / delta[axis];
++        float b = (hi[axis] - origin[axis]) / delta[axis];
++        if (a > b) std::swap(a, b);
++        enter = std::max(enter, a);
++        leave = std::min(leave, b);
++        if (enter > leave) return false;
++    }
++    entry = enter;
++    return true;
++}
++}
++
++bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst)
++{
++    if (AirburstGood(ball) < 0)
++        return false;
++    float nearest = 2.0f;
++    const auto ships = core.GetEntityIds(SHIP_CANNON_TRACE);
++    for (const auto id : ships)
++    {
++        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
++        if (!ship || ship->isDead() || !ship->GetACharacter() || !ship->GetModel() ||
++            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
++            continue;
++        CVECTOR localSrc, localDst;
++        if (!ship->GetMatrix() || ship->GetBoxsize().x <= 0.0f || ship->GetBoxsize().z <= 0.0f) continue;
++        ship->GetMatrix()->MulToInv(src, localSrc);
++        ship->GetMatrix()->MulToInv(dst, localDst);
++        float entry = 0.0f;
++        if (AirburstEntry(localSrc, localDst, ship->GetBoxsize(), entry) &&
++            ~(src + (dst-src)*entry - ball.vFirstPos) >= 35.0f*35.0f)
++            nearest = std::min(nearest, entry);
++    }
++    if (nearest > 1.0f) return false;
++    const CVECTOR burst = src + (dst-src) * nearest;
++    // Land and masonry remain real blockers; never detonate through an island.
++    if ((pIsland && pIsland->Trace(src, burst) < 1.0f) ||
++        (AIFort::pAIFort && AIFort::pAIFort->Trace(src, burst) < 1.0f))
++        return false;
++    ball.vPos = burst;
++    if (ball.pParticle) ball.pParticle->SetEmitter(burst, !(src-dst));
++    AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
++    // A bounded downward fan uses the existing cloth collision/damage owner.
++    // Hull/crew blast remains one radial hit per ship, not one hit per fragment.
++    if (pSail)
++    {
++        for (int fragment = 0; fragment < 8; ++fragment)
++        {
++            const float angle = fragment * 2.399963f;
++            const float radius = 8.0f + fragment * 2.5f;
++            const CVECTOR end = burst + CVECTOR(cosf(angle)*radius, -45.0f, sinf(angle)*radius);
++            if (pIsland && pIsland->Trace(burst, end) < 1.0f) continue;
++            pSail->SetCannonTraceRadius(0.35f);
++            pSail->Cannon_Trace(ball.iBallOwner, burst, end);
++            pSail->SetCannonTraceRadius(0.0f);
++        }
++    }
++    core.Event("Ball_AirburstExplosion", "lfff", ball.iBallOwner, burst.x, burst.y, burst.z);
++    for (const auto id : ships)
++    {
++        // A preceding lethal hit may delete a ship: resolve every id again.
++        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
++        if (!ship || ship->isDead() || !ship->GetACharacter() || !ship->GetModel()) continue;
++        const int32_t target = ship->GetACharacter()->GetAttributeAsDword("index");
++        if (target == ball.iBallOwner) continue;
++        if (!ship->GetMatrix() || ship->GetBoxsize().x <= 0.0f || ship->GetBoxsize().z <= 0.0f) continue;
++        CVECTOR local;
++        ship->GetMatrix()->MulToInv(burst, local);
++        const auto box = ship->GetBoxsize();
++        const CVECTOR deckPoint(std::clamp(local.x, -box.x*.5f, box.x*.5f),
++                                std::clamp(box.y*.15f, 3.0f, 9.0f),
++                                std::clamp(local.z, -box.z*.5f, box.z*.5f));
++        const float power = std::max(0.0f, 1.0f - ~(local-deckPoint)/(32.0f*32.0f));
++        if (power <= 0.0f) continue;
++        const CVECTOR hit = *ship->GetMatrix() * deckPoint;
++        if ((pIsland && pIsland->Trace(burst, hit) < 1.0f) ||
++            (AIFort::pAIFort && AIFort::pAIFort->Trace(burst, hit) < 1.0f)) continue;
++        AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", power);
++        AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
++        core.Event(SHIP_HULL_HIT, "illffflf", id, ball.iBallOwner, target,
++                   hit.x, hit.y, hit.z, -1, 1e8f);
++    }
++    AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
++    return true;
++}
++
+ AIBalls *AIBalls::pAIBalls = nullptr;
+ 
+ AIBalls::AIBalls()
+@@ -26,6 +153,7 @@
+         for (j = 0; j < pBallsType->Balls.size(); j++)
+         {
+             auto *pBall = &pBallsType->Balls[j];
++
+             if (pBall->pParticle)
+             {
+                 STORM_DELETE(pBall->pParticle);
+@@ -189,6 +317,13 @@
+             auto *pBall = &pBallsType->Balls[j];
+ 
+             vSrc = pBall->vPos;
++
++            const int airburstGood = AirburstGood(*pBall);
++            // An unarmed/direct shell uses the ordinary native Bombs contract,
++            // including forts and rigging. Only the radial burst changes goods.
++            AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
++            AttributesPointer->SetAttributeUseFloat("CurrentAirburstPower", 1.0f);
++            AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
+ 
+             AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
+             AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
+@@ -217,7 +352,7 @@
+ 
+             vDst = pBall->vPos;
+ 
+-            if (!pBall->sBallEvent.empty())
++            if (!pBall->sBallEvent.empty() && airburstGood < 0)
+                 core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
+                            pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
+                            vSrc.z);
+@@ -230,6 +365,9 @@
+ 
+             float fRes = 2.0f;
+ 
++            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst);
++            if (burst) fRes = 0.0f;
++
+             CVECTOR v1 = mView * vSrc;
+             CVECTOR v2 = mView * vDst;
+ 
+@@ -260,7 +398,7 @@
+             else if (storm::iEquals(pBallsType->sName, "Grapes"))
+                 fRigRadius = 0.35f * pBall->fSizeMultiply;
+ 
+-            if (pSail)
++            if (!burst && pSail)
+             {
+                 pSail->SetCannonTraceRadius(fRigRadius);
+                 pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+@@ -270,6 +408,7 @@
+             auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
+             for (auto ent_id : entities)
+             {
++                if (burst) break;
+                 if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
+                 {
+                     pShip->SetCannonTraceRadius(fRigRadius);
+@@ -297,7 +436,7 @@
+             // delete ball
+             if (fRes <= 1.0f)
+             {
+-                if (!pBall->sBallEvent.empty())
++                if (!pBall->sBallEvent.empty() && airburstGood < 0)
+                 {
+                     core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
+                                pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
+@@ -318,7 +457,7 @@
+                 continue;
+             }
+ 
+-            if (pBall->sBallEvent.empty())
++            if (pBall->sBallEvent.empty() || airburstGood >= 0)
+             {
+                 aBallRects.push_back(RS_RECT{});
+                 // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
+--- a/src/libs/battle_interface/src/sea/battle_ship_command.cpp
++++ b/src/libs/battle_interface/src/sea/battle_ship_command.cpp
+@@ -369,7 +369,7 @@
+         const int32_t nNormalPicIndex = pA ? pA->GetAttributeAsDword("picNum", -1) : -1;
+         const int32_t nSelectPicIndex = pA ? pA->GetAttributeAsDword("selPicNum", -1) : -1;
+         retVal += AddToIconList(m_nChargeTextureNum, nNormalPicIndex, nSelectPicIndex, -1, -1, nullptr, i + 1, nullptr,
+-                                nullptr);
++                                pA ? pA->GetAttribute("note") : nullptr);
+     }
+     return retVal;
+ }
