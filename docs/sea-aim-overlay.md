@@ -476,7 +476,19 @@ hold ends. No production source/cache/app/player state change or staging is
 requested; the projection owner continues kernel/resource-boundary diagnosis,
 preserving coplanarity, ordered ranges and the uncapped symbolic sweep.
 
+The bounded ordinary/full masked specialization subsequently preserves all193
+complete Results/Pair bits, work counters and CPU masks across56 command buffers
+and112 ended encoders/dispatches, poisoning both outputs before every repeat.
+Primary spills fall11040 to1152 bytes and instructions134200 to58638; full
+masked remains11072/133699. Total warm Flying55/Nevis63/Porto64 costs7.6881/
+5.9456/4.7401ms, only1.3–2.3% below scalar and potentially noise. Compiler
+resource separation is accepted; product performance is rejected. Session9
+closes and GPU actor releases; no larger dispatch or product integration follows.
+family-specialized-gpu-report.md retains the evidence. The projection source
+owner next performs read-only query/arithmetic diagnosis without a GPU actor.
+
 Production boundary certification, live camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
 unresolved. No contact replacement source batch is staged; the installed
-foreground ship-aim profile still shows50FPS and roughly69% main samples in aiming.
+last matched ship-aim profile showed50FPS and roughly69% main samples in aiming;
+later independent ammunition deliveries do not establish a new FPS result.

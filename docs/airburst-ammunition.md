@@ -2,9 +2,15 @@
 
 ## Status
 
-Native build and full startup PROGRAM compilation, including the changed
-catalogue/store/control segments, pass. Canonical installed staging and player
-action/visual replay remain pending with the root integration owner.
+Native build, full startup PROGRAM compilation and canonical stage-only pass.
+The installed signed engine is40c8c300 with all13 content inputs delivered;
+signature and exact compiler-input/app/cache checks pass. The player's replay
+rejects the current fuze: shells hit ships without an overhead burst, and the
+shop lists the new goods outside the bomb group. Native fuze and shop display
+order are reopened under the airburst source owner, keeping saved goods IDs.
+The distinct drawn icon was never installed; it joins the corrected next batch.
+Its earlier delivery-fixture pass was withdrawn after the fixture rejected a
+temporary symlink path before testing. No game process is interrupted.
 
 ## Contract
 
