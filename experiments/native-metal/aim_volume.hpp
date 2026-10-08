@@ -31,8 +31,8 @@ static_assert(sizeof(aim_volume::AimRenderedReceiver)==16);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,color)==8);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,receiverToken)==12);
 static_assert(sizeof(aim_volume::AimContactSection)==32);
-static_assert(aim_volume::maxContactSections==1040 && aim_volume::maxContactFields==16);
-static_assert(offsetof(aim_volume::AimContactSection,metricXX)==16);
+static_assert(aim_volume::maxContactSections==7280 && aim_volume::maxContactFields==112);
+static_assert(offsetof(aim_volume::AimContactSection,rootXX)==16);
 static_assert(sizeof(aim_volume::AimContactTriangle)==64);
 static_assert(offsetof(aim_volume::AimContactTriangle,receiverToken)==28);
 static_assert(offsetof(aim_volume::AimContactTriangle,normal)==48);
@@ -71,7 +71,7 @@ using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
 struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; };
-struct AimContactSection {packed_float3 center;float padding;float metricXX,metricXY,metricYY,extent;};
+struct AimContactSection {packed_float3 center;float padding;float rootXX,rootXY,rootYY,extent;};
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
@@ -255,7 +255,7 @@ float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u
 // Eligibility masks only clip its visibility; their triangle/cell edges never
 // generate bright lines. Axial limits are open and have no terminal cap rim.
 float3 aim_contact_shape(float3 receiver,float3 dx,float3 dy,constant AimU&u,const device AimContactSection*sections){
-  const uint stationCount=65u;uint fieldCount=min(16u,u.contactCounts.x/stationCount);
+  const uint stationCount=65u;uint fieldCount=min(112u,u.contactCounts.x/stationCount);
   if(!fieldCount)return float3(0.f);
   float station=dot(receiver,u.axis.xyz),value=0.f;float3 valueGradient=0.f;
   for(uint field=0;field<fieldCount;++field){
@@ -268,24 +268,31 @@ float3 aim_contact_shape(float3 receiver,float3 dx,float3 dy,constant AimU&u,con
     float t=clamp(dot(receiver-float3(a.center),u.axis.xyz)/span,0.f,1.f);
     float3 local=receiver-float3(a.center)-delta*t;
     float2 p=float2(dot(local,u.lateral.xyz),dot(local,u.up.xyz));
-    float3 m=mix(float3(a.metricXX,a.metricXY,a.metricYY),float3(b.metricXX,b.metricXY,b.metricYY),t);
-    float2 mp=float2(m.x*p.x+m.y*p.y,m.y*p.x+m.z*p.y);
-    float q=dot(p,mp);if(!isfinite(q))continue;
-    float3 dm=float3(b.metricXX-a.metricXX,b.metricXY-a.metricXY,b.metricYY-a.metricYY)/span;
+    float3 m=mix(float3(a.rootXX,a.rootXY,a.rootYY),float3(b.rootXX,b.rootXY,b.rootYY),t);
+    // Interpolate covariance roots before inversion. Interpolating inverse
+    // metrics pinches a near-muzzle slab between tiny and wide endpoint ellipses.
+    float determinant=m.x*m.z-m.y*m.y;
+    float2 r=float2(m.z*p.x-m.y*p.y,m.x*p.y-m.y*p.x)/determinant;
+    float q=dot(r,r);if(!isfinite(q))continue;
+    float2 mp=float2(m.z*r.x-m.y*r.y,m.x*r.y-m.y*r.x)/determinant;
+    float3 dm=float3(b.rootXX-a.rootXX,b.rootXY-a.rootXY,b.rootYY-a.rootYY)/span;
     float2 centerSlope=float2(dot(delta,u.lateral.xyz),dot(delta,u.up.xyz))/span;
-    float axialGradient=dm.x*p.x*p.x+2.f*dm.y*p.x*p.y+dm.z*p.y*p.y-2.f*dot(mp,centerSlope);
+    float2 rootSlope=float2(dm.x*r.x+dm.y*r.y,dm.y*r.x+dm.z*r.y);
+    float axialGradient=-2.f*dot(mp,centerSlope+rootSlope);
     float3 gradient=2.f*(mp.x*u.lateral.xyz+mp.y*u.up.xyz)+axialGradient*u.axis.xyz;
-    float density=exp(-4.f*max(0.f,q));value+=density;valueGradient+=(-4.f*density)*gradient;
+    // Unnormalized smooth union: another distant gun never shrinks this field.
+    // Boundary-normalized exponent keeps border gradients numerically useful.
+    float density=exp(clamp(16.f*(1.f-max(0.f,q)),-80.f,16.f));
+    value+=density;valueGradient+=(-16.f*density)*gradient;
   }
-  // Fourth-power mean of exp(-q), compared without taking a fourth root.
-  // One smooth density/gradient, not one rim or alpha contribution per gun.
-  value/=float(fieldCount);valueGradient/=float(fieldCount);
-  const float boundary=.0183156389f; // exp(-4)
+  const float boundary=1.f;
+  // One soft Gaussian blot, strongest at its center and fading toward its rim.
+  float density=value>0.f?exp(-2.f*max(0.f,1.f-log(value)/16.f)):0.f;
   float scale=length(valueGradient);
-  if(scale<1.e-8f)return float3(value>=boundary?1.f:0.f,0.f,0.f);
+  if(scale<1.e-8f)return float3(value>=boundary?density:0.f,0.f,0.f);
   AimContactMask mask={1.f,0.f,0.f,0.f,1.f};
   aim_surface_constraint((value-boundary)/scale,valueGradient/scale,dx,dy,mask);
-  return float3(mask.coverage,mask.edge*mask.visibility,mask.key*mask.visibility);
+  return float3(density*mask.coverage,mask.edge*mask.visibility,mask.key*mask.visibility);
 }
 struct AimPrismO {float4 position [[position]];uint triangle [[flat]];};
 vertex AimPrismO aim_prism_vs(uint id [[vertex_id]],const device AimContactTriangle*triangles [[buffer(0)]],constant AimU&u [[buffer(1)]]){
@@ -420,12 +427,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
       float3 waterDx=aim_water_step(pixelIndex,int2(1,0),receiver,u,sceneDepth,waterDepth);
       float3 waterDy=aim_water_step(pixelIndex,int2(0,1),receiver,u,sceneDepth,waterDepth);
       float eligibility=u.receiverFlags.z?aim_water_value(waterChart,linearClamp,(receiver.xz-u.waterAtlas.xy)*u.waterAtlas.zw):0.f;
-      contact=aim_contact_shape(receiver,waterDx,waterDy,u,contactSections)*eligibility;
+      if(eligibility>0.f)contact=aim_contact_shape(receiver,waterDx,waterDy,u,contactSections)*eligibility;
     }else {
       float3 dx=aim_solid_step(pixelIndex,int2(1,0),depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth);
       float3 dy=aim_solid_step(pixelIndex,int2(0,1),depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth);
       float eligibility=nonStopping?aim_receiver_mask(receiver,dx,dy,u,sections,planes).x:solidSupport.read(pixelIndex).r;
-      contact=aim_contact_shape(receiver,dx,dy,u,contactSections)*eligibility;
+      if(eligibility>0.f)contact=aim_contact_shape(receiver,dx,dy,u,contactSections)*eligibility;
     }
   }
   float coverage=contact.x,contour=contact.y;
@@ -576,7 +583,7 @@ class SoftAimVolume {
        !planeCount||planeCount>maxVolumePlanes||!std::isfinite(readiness)||
        relationVertexCount>maxVolumeRelationVertices||relationVertexCount%3||(!relationVertices&&relationVertexCount)||
        waterVertexCount>maxWaterContactVertices||waterVertexCount%3||(!waterVertices&&waterVertexCount)||
-       contactSectionCount>maxContactSections||contactSectionCount%65u||(!contactSections&&contactSectionCount)||
+       !contactSectionCount||contactSectionCount>maxContactSections||contactSectionCount%65u||!contactSections||
        contactTriangleCount>maxContactTriangles||(!contactTriangles&&contactTriangleCount))return fail(Input,"invalid section/plane input");
     auto finite3=[](simd_float3 v){return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);};
     const simd_float3 ax={axis[0],axis[1],axis[2]},lat={lateral[0],lateral[1],lateral[2]},vertical={up[0],up[1],up[2]};
@@ -645,10 +652,10 @@ class SoftAimVolume {
     for(size_t contactIndex=0;contactIndex<frame.contactSections.size();++contactIndex){
       auto&section=frame.contactSections[contactIndex];if(contactIndex%65u==0)previousStation=-std::numeric_limits<float>::infinity();
       simd_float3 center={section.center[0],section.center[1],section.center[2]};
-      const double determinant=double(section.metricXX)*section.metricYY-double(section.metricXY)*section.metricXY;
-      if(!finite3(center)||!std::isfinite(section.metricXX)||!std::isfinite(section.metricXY)||!std::isfinite(section.metricYY)||
-         section.metricXX<=0.f||section.metricYY<=0.f||!std::isfinite(determinant)||determinant<=0.||
-         !std::isfinite(section.extent)||section.extent<=0.f)return fail(Input,"invalid contact ellipse metric");
+      const double determinant=double(section.rootXX)*section.rootYY-double(section.rootXY)*section.rootXY;
+      if(!finite3(center)||!std::isfinite(section.rootXX)||!std::isfinite(section.rootXY)||!std::isfinite(section.rootYY)||
+         section.rootXX<=0.f||section.rootYY<=0.f||!std::isfinite(determinant)||determinant<=0.||
+         !std::isfinite(section.extent)||section.extent<=0.f)return fail(Input,"invalid contact covariance root");
       center+=worldOrigin;float station=simd_dot(center,ax);
       if(!finite3(center)||!std::isfinite(station)||station<=previousStation)return fail(Input,"unordered contact stations");
       previousStation=station;section.center[0]=center.x;section.center[1]=center.y;section.center[2]=center.z;

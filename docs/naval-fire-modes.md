@@ -6,8 +6,9 @@ The count-aware quadratic cadence and per-shot moving-target prediction passed
 canonical native build/staging as signed engine4a632fcd. Aligned single/salvo
 art and ammunition precision multipliers are delivered. A later manual-aim
 repair applies mechanical reach checks after longitudinal station assignment;
-native actual-function checks pass, but its build/staging and installed firing
-replay remain required. Earlier source
+native actual-function checks and canonical stage-only pass as signed
+enginebb71d94c, retained in current engine70d78026; installed firing replay
+remains required. Earlier source
 `e2ecbbf` was built and staged with fixed 3.5–10-second windows; that historical
 delivery does not accept this correction. Preserve real player saves and use a
 fresh current-save clone for the pending real-game replay.

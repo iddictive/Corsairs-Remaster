@@ -2,15 +2,18 @@
 
 ## Status
 
-The October 7 cannon batch is installed, including the corrected shared event
-header; the player reached the current saved sea battle. Action acceptance remains
-open for the reported cliff, stern-on ally and sinking ship. A subsequent live
-manual-aim profile reopened performance acceptance. Its correction at11571da passed
-the canonical build and installed stage; the current signed engine is37598a37.
-The player's subsequent ship-aim hold reproduced the performance defect on that
-installed engine: 1185/1717 main-thread samples were inside the aiming camera and
-the concurrent manual scene showed 50 FPS. Solid-cliff gaps/flicker also remain
-open. Source/probe timings do not accept either runtime outcome.
+The October 8 smooth-depth-density batch is installed: signed engine
+`70d78026`, app receipt `08f6c75b`, including `047406c`, `aaf7a69` and the density
+correction below. Canonical stage-only and deep/strict signature verification pass;
+all 17 frozen inputs and 253 player files retain their hashes. Both content plans
+are empty and the script compiler is ready. No changed-action replay is recorded
+on this new engine.
+Real cliff, stern-on ally, sinking-ship and aiming-performance acceptance remain
+open. The earlier `11571da` delivery on engine `37598a37` reproduced the aiming
+performance defect: 1185/1717 main-thread samples were inside the aiming camera
+and the concurrent manual scene showed 50 FPS. These are historical measurements,
+not a profile of the current installed engine. Solid-cliff gaps/flicker remain
+open; source/probe timings do not accept either runtime outcome.
 
 ## Contract
 
@@ -33,8 +36,11 @@ The visible contact area is an approximate rounded dispersion-density region,
 not a guaranteed boundary containing every shell. The same smooth field is
 evaluated on current water, hull, mast, terrain and fort depth. Physical first-hit
 samples gate where it can appear, including continuation through real openings.
-Those visibility masks do not draw their own polygon outlines. A faint interior
-and colored rim share one composite; air still uses the stopped ballistic volume.
+Those visibility masks do not draw their own polygon outlines. A soft Gaussian
+blot fades from its center toward a subtle colored perimeter, projected onto real
+scene depth. Ellipse-like or rounded/square-like shape is allowed; rare physical
+shots outside the main-density contour remain valid. Air still uses the stopped
+ballistic volume, with its existing opacity.
 
 ## Owners and implementation
 
@@ -89,13 +95,20 @@ samples follow complete trajectories through missed hull/mast gaps to their firs
 physical receiver. They discover continuation supports, not visible surface tiles.
 Contact projectors use stable ship-local longitudinal/up extrema and a middle
 gun, with near-tie handling. Active raking also retains the actual first/last gun
-targets along the target's longitudinal axis. Each of at most seven density fields contains
-65 fixed axial sections derived from that gun's untruncated nominal trajectory and
-independent dispersion corners. Each ellipse is inscribed in its sampled support
-hull, preventing covariance overhang at close range. Muzzle-relative plane solves and explicit endpoint
-insertion keep translation from dropping a field. A fourth-power mean combines
-field densities once, retaining isolated regions without per-gun alpha blending.
-Receiver discoveries add visibility support only, never a density field.
+targets along the target's longitudinal axis. These projectors own visibility,
+independently of the main-density fields. Every eligible firing gun contributes
+65 sections from 27 untruncated trajectories: three Gauss-Legendre nodes and
+weights for each independent uniform yaw/speed/elevation draw. This samples the
+launch law without consuming RNG or adding physical traces. Fixed quadratic
+axial spacing resolves the near-muzzle field; muzzle-relative plane solves and
+explicit endpoints preserve translation. Weighted covariance uses scale 4.5 for
+the approximate main-density contour. Sections store its positive-definite square
+root, interpolated before inversion; interpolation of inverse metrics previously
+pinched near-muzzle slabs. Ellipses are no longer inscribed in an eight-corner
+support hull. Boundary-normalized `exp(16*(1-q))` fields sum without gun-count
+division, so distant guns cannot shrink an isolated field. The same field drives
+Gaussian fill and perimeter derivatives in one composite. Receiver discoveries
+add visibility support only, never a density field.
 
 Each physical-support projector keeps a 4×4 nominal-speed grid and 2×2 grids at both
 live speed limits. Twelve optional probes per cell bound refinement (355 maximum
@@ -121,7 +134,7 @@ from both slab endpoints avoid fixed-direction narrowing/fattening. Internal
 station caps do not become visible contact seams. Air alpha remains capped at .22.
 
 Range picking visits at most 4096 clipped polygons and confirms 32 nearest
-candidates. GPU input caps are 16 density fields (1040 sections), 8192 contact prisms,
+candidates. GPU input caps are 112 density fields (7280 sections), 8192 contact prisms,
 49,152 water vertices, 1024 air sections and 65,536 air side planes. Actual model
 registration is capped at 128 receivers. Registry metadata is rebuilt without
 rebuilding world model bounds.
@@ -137,13 +150,57 @@ Registered hull, fort and rigging contacts use their exact current depth/token
 even when the current view submits no water geometry. The previous composite
 required a matching water capture for every contact, so loss of that unrelated
 scope erased an otherwise valid fort contour; the live October 8 launch log
-records this rejection. The source candidate admits registered contacts with
+records this rejection. The installed `aaf7a69` correction admits registered contacts with
 matching model depth and own-ship ownership independently of water ownership.
 Unknown terrain and water still require water ownership, and solid contour
 neighbors never read an unavailable water capture. Frame/stamp resets, physical
 first-hit masks and own-ship exclusion are unchanged. This restores only the
 independent capture gate; the sampled fan/prism gaps and motion flicker below
 remain unresolved and require a matched live frame before geometry replacement.
+
+The density correction's independent uniform-frnd probe covered 3,782,416 points
+at target planes, including speed 84.4209595, close/long range and higher mast
+aim. Its aggregate outside fraction was 4.13%; this is not a universal 95% or
+first-contact guarantee. Conditional survivors near the water/lifetime boundary
+can be less well represented: the worst tested case was 20.31% outside at speed
+84.42, scatter accuracy 1.2, height scale .7 and a 400m plane. Tested accuracy .4
+cases remained below 6% outside. This fixed quadrature is an approximate density,
+not an exact launch-support replacement or a change to ammunition scatter.
+
+One strict-MSL GPU run evaluated the actual candidate at 1,048,576 fully eligible
+pixels: one field 0.4006ms, 52 fields 3.4612ms, all-outside 52 fields 3.4378ms with
+zero fill/rim and no nonfinite output. The identical old field code, with only its
+cap raised for equal 52-field comparison and covariance converted to inverse
+metrics, measured 0.1120/2.7273/2.7098ms. The +0.7339ms equal-count delta is not
+installed overhead: the old production path selected at most seven fields. New
+shape work short-circuits outside actual eligibility, but installed GPU/FPS
+acceptance remains open. The initial actual-constructor CPU probe measured one
+new field 0.1180ms and 52 fields 3.6498ms; old one/seven/52 fields measured
+0.0420/0.2957/1.7352ms. That regression was dominated by per-plane and per-station
+heap storage. The candidate now uses bounded stack arrays for 27 curves, at most
+two plane roots plus three endpoints, and their 135 possible points. The shared
+plane solver exposes a visitor; its existing vector API delegates to the same
+equation owner. A paired same-law probe measured one/52 fields at
+0.072854/3.04631ms before and 0.024542/1.24369ms after, reducing allocations
+from 2,034 to three per gun (105,768 to 156 at 52 guns). All 10,000 solver cases
+and 120 complete field payloads matched exactly, including covariance roots.
+The paired fixture uses the same 27 launch laws and 65 stations; its absolute
+timings are not an installed FPS measurement or a replacement for the earlier
+seven-field baseline. All-gun construction and shader frame-budget acceptance
+remain open.
+Native input probes reject absent/partial/over-cap
+fields, invalid covariance roots and singular cameras; ordered trajectory/rake
+and current fire-mode controller replay and the 32-byte header compile pass.
+
+The unchanged first-impact masks can still clip an enclosing elliptic perimeter:
+on an ideal rectangular footprint a circumscribed ellipse retains only corner
+neighborhoods after mask multiplication. The Gaussian fill does not certify a
+closed perimeter or repair the documented fan/prism holes. A matched live frame
+is still required for that acceptance. The installed Release has exported aim
+symbols but no DWARF; existing telemetry owns camera/frame data only. The smallest
+existing read-only capture route is a debugger snapshot at
+`StormMetalDrawAimVolume`, paired with that frame's camera publication. CPU
+payloads alone do not reveal the GPU-private depth/token/eligibility textures.
 
 ## Manual-aim CPU work
 

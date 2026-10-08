@@ -299,7 +299,7 @@ index dc92b39..7f775b7 100644
  }
 
  bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
-@@ -688,6 +662,863 @@ void AIShipCannonController::Realize(float fDeltaTime)
+@@ -688,6 +662,865 @@ void AIShipCannonController::Realize(float fDeltaTime)
      }
  }
 
@@ -526,20 +526,24 @@ index dc92b39..7f775b7 100644
 +// The visible contact region is approximate dispersion density, independent of
 +// changing first-hit receivers. Fixed axial stations avoid hull/mast hit-set jumps.
 +std::vector<storm::sea_ai::manual_aim::AimContactSection> AimContactRegion(
-+    const std::vector<Trajectory> &inputCurves,size_t nominalCount,const CVECTOR &axis,
++    const std::vector<Trajectory> &inputCurves,const std::vector<double>&weights,const CVECTOR &axis,
 +    const CVECTOR &lateral,const CVECTOR &up,float waveBound)
 +{
 +    using Section=storm::sea_ai::manual_aim::AimContactSection;
 +    std::vector<Section> result;
-+    if(inputCurves.empty())return result;
++    if(inputCurves.empty()||inputCurves.size()>27||weights.size()!=inputCurves.size())return result;
++    result.reserve(65);
 +    // Solve planes relative to the muzzle, avoiding large-world endpoint
 +    // cancellation before converting the final centers back to absolute world.
 +    const CVECTOR reference=inputCurves.front().origin;
-+    auto curves=inputCurves;for(auto &curve:curves)curve.origin-=reference;
-+    std::vector<float> limits;float first=1e20f,last=-1e20f;
-+    for(const auto &curve:curves)
++    std::array<Trajectory,27> curves;std::array<float,27> limits;
++    const size_t curveCount=inputCurves.size();
++    for(size_t i=0;i<curveCount;++i){curves[i]=inputCurves[i];curves[i].origin-=reference;}
++    float first=1e20f,last=-1e20f;
++    for(size_t i=0;i<curveCount;++i)
 +    {
-+        const float end=curve.timeToHeight(-waveBound-1.f-reference.y);limits.push_back(end);
++        const auto &curve=curves[i];
++        const float end=curve.timeToHeight(-waveBound-1.f-reference.y);limits[i]=end;
 +        if(!std::isfinite(end)||end<=0.f)continue;
 +        const float a=curve.origin|axis,b=curve.at(end)|axis;
 +        first=std::min({first,a,b});last=std::max({last,a,b});
@@ -552,58 +556,49 @@ index dc92b39..7f775b7 100644
 +        }
 +    }
 +    if(!std::isfinite(first)||!std::isfinite(last)||last-first<.01f)return result;
-+    const size_t spreadCount=curves.size()-std::min(nominalCount,curves.size());
 +    for(int station=0;station<=64;++station)
 +    {
-+        const float axial=first+(last-first)*float(station)/64.f;
-+        std::vector<std::pair<CVECTOR,double>> points;CVECTOR center(0.f);double sum=0.;
-+        for(size_t i=0;i<curves.size();++i)
++        const float fraction=float(station)/64.f;const float axial=first+(last-first)*fraction*fraction;
++        std::array<std::pair<CVECTOR,double>,27*5> points;size_t pointCount=0;CVECTOR center(0.f);double sum=0.;
++        for(size_t i=0;i<curveCount;++i)
 +        {
 +            if(!std::isfinite(limits[i])||limits[i]<=0.f)continue;
-+            const double weight=i<nominalCount?1./std::max(size_t(1),nominalCount):1./std::max(size_t(1),spreadCount);
-+            auto times=manual_aim::planeTimes(curves[i],axis,axial,limits[i]);
++            const double weight=weights[i];
++            std::array<float,5> times;size_t timeCount=0;
++            manual_aim::forEachPlaneTime(curves[i],axis,axial,limits[i],
++                [&](float t){times[timeCount++]=t;});
 +            auto endpoint=[&](float t)
 +            {
 +                if(!std::isfinite(t)||t<0.f||t>limits[i]||std::fabs((curves[i].at(t)|axis)-axial)>.0005f)return;
-+                for(float old:times)if(std::fabs(old-t)<1e-5f)return;
-+                times.push_back(t);
++                for(size_t j=0;j<timeCount;++j)if(std::fabs(times[j]-t)<1e-5f)return;
++                times[timeCount++]=t;
 +            };
 +            endpoint(0.f);endpoint(limits[i]);
 +            const float acceleration=curves[i].acceleration|axis;
 +            if(std::fabs(acceleration)>1e-8f)endpoint(-(curves[i].velocity|axis)/acceleration);
-+            for(float t:times)
-+            {const CVECTOR point=curves[i].at(t);points.push_back({point,weight});center+=point*float(weight);sum+=weight;}
++            for(size_t j=0;j<timeCount;++j)
++            {const CVECTOR point=curves[i].at(times[j]);points[pointCount++]={point,weight};center+=point*float(weight);sum+=weight;}
 +        }
-+        if(points.empty())continue;
++        if(!pointCount)continue;
 +        center*=float(1./sum);center+=axis*(axial-(center|axis));
 +        double xx=.0025,xy=0.,yy=.0025; // regularize before fitting the real support
-+        std::vector<manual_aim::Point> supportPoints;
-+        for(const auto &[point,weight]:points)
++        for(size_t i=0;i<pointCount;++i)
 +        {
++            const auto &[point,weight]=points[i];
 +            const CVECTOR d=point-center;const double x=d|lateral,y=d|up;
-+            const double w=2.*weight/sum;xx+=w*x*x;xy+=w*x*y;yy+=w*y*y;
-+            supportPoints.push_back({float(x),float(y)});
++            const double w=weight/sum;xx+=w*x*x;xy+=w*x*y;yy+=w*y*y;
 +        }
-+        // A covariance ellipse can overhang a nonlinear spread hull at very
-+        // short range. Inscribe it using every actual hull support plane rather
-+        // than a range-specific shrink constant or an expanded collision mask.
-+        const auto supportHull=manual_aim::hull(supportPoints);double scale=1.;
-+        if(supportHull.size()>=3)for(size_t edge=0;edge<supportHull.size();++edge)
-+        {
-+            const auto a=supportHull[edge],b=supportHull[(edge+1)%supportHull.size()];
-+            const double ex=b.x-a.x,ey=b.y-a.y,length=std::hypot(ex,ey);
-+            if(length<1e-10)continue;
-+            const double nx=ey/length,ny=-ex/length,support=nx*a.x+ny*a.y;
-+            const double variance=nx*nx*xx+2.*nx*ny*xy+ny*ny*yy;
-+            if(support>1e-8&&variance>0.)scale=std::min(scale,support*support/variance);
-+        }
++        // Uniform independent launch jitter: calibrated main-density contour.
++        // Rare tails remain valid physical shots outside this approximate field.
++        const double scale=4.5;
 +        xx*=scale;xy*=scale;yy*=scale;
 +        const double determinant=xx*yy-xy*xy;
 +        const double largest=.5*(xx+yy+std::sqrt((xx-yy)*(xx-yy)+4.*xy*xy));
 +        if(!(determinant>0.)||!std::isfinite(largest))return {};
 +        center+=reference;
-+        result.push_back({{center.x,center.y,center.z},0.f,float(yy/determinant),
-+            float(-xy/determinant),float(xx/determinant),float(std::sqrt(largest))});
++        const double rootDet=std::sqrt(determinant),rootTrace=std::sqrt(xx+yy+2.*rootDet);
++        result.push_back({{center.x,center.y,center.z},0.f,float((xx+rootDet)/rootTrace),
++            float(xy/rootTrace),float((yy+rootDet)/rootTrace),float(std::sqrt(largest))});
 +    }
 +    return result;
 +}
@@ -841,20 +836,27 @@ index dc92b39..7f775b7 100644
 +    for(const auto *gun:solution.guns)
 +        if(~(gun->GetPos()-meanMuzzle)<~(middle->GetPos()-meanMuzzle)-.001f)middle=gun;
 +    if(std::find(projectors.begin(),projectors.end(),middle)==projectors.end())projectors.push_back(middle);
-+    // Physical receiver discoveries may add mask support below, but cannot
-+    // change the smooth density shape or its normalization.
-+    const auto densityProjectors=projectors;
++    // Every eligible firing gun contributes a statistically weighted field.
++    // Sample launch law only; this path consumes no RNG or physical traces.
++    if(solution.guns.size()>storm::sea_ai::manual_aim::maxContactFields)return;
 +    std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
-+    for(const auto *gun:densityProjectors)
++    const float nodes[]={-.7745966692f,0.f,.7745966692f};
++    const double weights[]={5./18.,4./9.,5./18.};
++    for(const auto *gun:solution.guns)
 +    {
-+        const CVECTOR muzzle=gun->GetPos();const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
-+        std::vector<Trajectory> curves{manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity)};
-+        for(int n=0;n<8;++n)
-+            curves.push_back(manual_aim::trajectory(muzzle,solution.target,speed+spread.speed*((n&4)?1.f:-1.f),
-+                angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
-+        const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
-+        if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
-+            contactSections.insert(contactSections.end(),field.begin(),field.end());
++        const CVECTOR muzzle=gun->GetPos(),aim=solution.target;
++        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
++        std::vector<Trajectory> curves;std::vector<double> probabilities;
++        curves.reserve(27);probabilities.reserve(27);
++        for(unsigned yaw=0;yaw<3;++yaw)for(unsigned v=0;v<3;++v)for(unsigned elevation=0;elevation<3;++elevation)
++        {
++            curves.push_back(manual_aim::trajectory(muzzle,aim,speed+spread.speed*nodes[v],
++                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity));
++            probabilities.push_back(weights[yaw]*weights[v]*weights[elevation]);
++        }
++        const auto field=AimContactRegion(curves,probabilities,axis,lateral,!(axis^lateral),world.waveBound);
++        if(field.size()!=storm::sea_ai::manual_aim::contactSectionsPerField)return;
++        contactSections.insert(contactSections.end(),field.begin(),field.end());
 +    }
 +    // Retain a receiver found only by a non-support gun (for example the one
 +    // muzzle aligned with a small opening). Add one local field per otherwise
@@ -1235,7 +1237,7 @@ new file mode 100644
 index 0000000..a2c711d
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
-@@ -0,0 +1,302 @@
+@@ -0,0 +1,309 @@
 +#pragma once
 +#include "c_vector.h"
 +#include <algorithm>
@@ -1470,17 +1472,18 @@ index 0000000..a2c711d
 +}
 +// A common plane can cross a quadratic path in either direction, or twice.
 +// Never discard a legitimate off-axis gun because its projected motion reverses.
-+inline std::vector<float> planeTimes(const Trajectory &path,const CVECTOR &axis,float station,float end)
++template<class Visit>
++inline void forEachPlaneTime(const Trajectory &path,const CVECTOR &axis,float station,float end,Visit visit)
 +{
-+    std::vector<float> times;
++    std::array<float,2> times;size_t count=0;
 +    if(!finite(path.origin)||!finite(path.velocity)||!finite(path.acceleration)||!finite(axis)||
-+       !std::isfinite(station)||!std::isfinite(end)||end<0.f||~axis<1e-12f)return times;
++       !std::isfinite(station)||!std::isfinite(end)||end<0.f||~axis<1e-12f)return;
 +    const double a=.5*double(path.acceleration|axis),b=double(path.velocity|axis);
 +    const double c=double(path.origin|axis)-station;
 +    auto add=[&](double t)
 +    {
 +        if(std::isfinite(t)&&t>=-1e-5&&t<=double(end)+1e-5)
-+            times.push_back(float(std::clamp(t,0.0,double(end))));
++            times[count++]=float(std::clamp(t,0.0,double(end)));
 +    };
 +    if(std::fabs(a)<1e-10)
 +    {
@@ -1497,8 +1500,14 @@ index 0000000..a2c711d
 +            if(std::fabs(q)>1e-12){add(q/a);add(c/q);}else add(-b/(2.0*a));
 +        }
 +    }
-+    std::sort(times.begin(),times.end());
-+    times.erase(std::unique(times.begin(),times.end(),[](float x,float y){return std::fabs(x-y)<1e-5f;}),times.end());
++    if(count==2&&times[1]<times[0])std::swap(times[0],times[1]);
++    if(count)visit(times[0]);
++    if(count==2&&std::fabs(times[1]-times[0])>=1e-5f)visit(times[1]);
++}
++inline std::vector<float> planeTimes(const Trajectory &path,const CVECTOR &axis,float station,float end)
++{
++    std::vector<float> times;
++    forEachPlaneTime(path,axis,station,end,[&](float t){times.push_back(t);});
 +    return times;
 +}
 +inline bool segmentBox(const CVECTOR &a,const CVECTOR &b,const CVECTOR &lo,const CVECTOR &hi)
@@ -1543,7 +1552,7 @@ new file mode 100644
 index 0000000..2eebdd9
 --- /dev/null
 +++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_volume_bridge.hpp
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,91 @@
 +#pragma once
 +#include <cstdint>
 +
@@ -1555,7 +1564,7 @@ index 0000000..2eebdd9
 +inline constexpr std::uint32_t maxVolumeRelationVertices=49152;
 +inline constexpr std::uint32_t maxWaterContactVertices=49152;
 +inline constexpr std::uint32_t contactSectionsPerField=65;
-+inline constexpr std::uint32_t maxContactFields=16;
++inline constexpr std::uint32_t maxContactFields=112; // All current GM batteries <=52; no truncation.
 +inline constexpr std::uint32_t maxContactSections=contactSectionsPerField*maxContactFields;
 +inline constexpr std::uint32_t maxContactTriangles=8192;
 +inline constexpr std::uint32_t maxRenderedReceivers=128;
@@ -1586,12 +1595,13 @@ index 0000000..2eebdd9
 +// Absolute world XZ of actual first-water contacts. Triangles are unioned in
 +// a private chart; they are never drawn as alpha geometry in the scene.
 +struct AimWaterContactVertex {float x,z;};
-+// Stable, approximate dispersion density; not the extremal shot boundary.
-+// The positive-definite2x2 metric is expressed in the lateral/up basis.
++// Approximate main dispersion density, not an extremal shot boundary.
++// Positive-definite covariance square root in the lateral/up basis; interpolate
++// this root before inversion so near-muzzle widths grow without metric pinching.
 +struct alignas(16) AimContactSection
 +{
 +    float center[3],padding;
-+    float metricXX,metricXY,metricYY,extent;
++    float rootXX,rootXY,rootYY,extent;
 +};
 +// A same-first-receiver support prism, used only as a coverage/occlusion gate.
 +struct alignas(16) AimContactTriangle

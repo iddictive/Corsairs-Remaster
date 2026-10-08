@@ -502,7 +502,7 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
          }
      }
      paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
-@@ -1204,16 +1442,33 @@
+@@ -1204,15 +1442,31 @@
      for(const auto *gun:solution.guns)
          if(~(gun->GetPos()-meanMuzzle)<~(middle->GetPos()-meanMuzzle)-.001f)middle=gun;
      if(std::find(projectors.begin(),projectors.end(),middle)==projectors.end())projectors.push_back(middle);
@@ -522,23 +522,19 @@ diff --git a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp b/src/libs/sea_ai
 +            if(std::find(projectors.begin(),projectors.end(),solution.guns[i])==projectors.end())
 +                projectors.push_back(solution.guns[i]);
 +    }
-     // Physical receiver discoveries may add mask support below, but cannot
-     // change the smooth density shape or its normalization.
-     const auto densityProjectors=projectors;
+     // Every eligible firing gun contributes a statistically weighted field.
+     // Sample launch law only; this path consumes no RNG or physical traces.
+     if(solution.guns.size()>storm::sea_ai::manual_aim::maxContactFields)return;
      std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
-     for(const auto *gun:densityProjectors)
+     const float nodes[]={-.7745966692f,0.f,.7745966692f};
+     const double weights[]={5./18.,4./9.,5./18.};
+     for(const auto *gun:solution.guns)
      {
--        const CVECTOR muzzle=gun->GetPos();const float angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
--        std::vector<Trajectory> curves{manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity)};
-+        const CVECTOR muzzle=gun->GetPos();const CVECTOR aim=aimFor(gun);
-+        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
-+        std::vector<Trajectory> curves{manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity)};
-         for(int n=0;n<8;++n)
--            curves.push_back(manual_aim::trajectory(muzzle,solution.target,speed+spread.speed*((n&4)?1.f:-1.f),
-+            curves.push_back(manual_aim::trajectory(muzzle,aim,speed+spread.speed*((n&4)?1.f:-1.f),
-                 angle+spread.elevation*((n&1)?1.f:-1.f),spread.azimuth*((n&2)?1.f:-1.f),height,AIHelper::fGravity));
-         const auto field=AimContactRegion(curves,1,axis,lateral,!(axis^lateral),world.waveBound);
-         if(field.size()==storm::sea_ai::manual_aim::contactSectionsPerField)
+-        const CVECTOR muzzle=gun->GetPos(),aim=solution.target;
++        const CVECTOR muzzle=gun->GetPos(),aim=aimFor(gun);
+         const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
+         std::vector<Trajectory> curves;std::vector<double> probabilities;
+         curves.reserve(27);probabilities.reserve(27);
 @@ -1257,7 +1512,8 @@
      for(const auto *gun:projectors)
      {
