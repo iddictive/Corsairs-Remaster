@@ -30,9 +30,9 @@ static_assert(aim_volume::maxVolumeSections == 1024); // shader traversal bound
 static_assert(sizeof(aim_volume::AimRenderedReceiver)==16);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,color)==8);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,receiverToken)==12);
-static_assert(sizeof(aim_volume::AimContactSection)==32);
-static_assert(aim_volume::maxContactSections==7280 && aim_volume::maxContactFields==112);
-static_assert(offsetof(aim_volume::AimContactSection,rootXX)==16);
+static_assert(sizeof(aim_volume::AimContactSection)==48);
+static_assert(aim_volume::maxContactSections==1 && aim_volume::maxContactFields==112);
+static_assert(offsetof(aim_volume::AimContactSection,covariance)==16);
 static_assert(sizeof(aim_volume::AimContactTriangle)==64);
 static_assert(offsetof(aim_volume::AimContactTriangle,receiverToken)==28);
 static_assert(offsetof(aim_volume::AimContactTriangle,normal)==48);
@@ -42,8 +42,10 @@ struct AimVolumeUniforms {
   simd_uint4 receiverFlags;
   simd_float4 waterAtlas;
   simd_uint4 contactCounts;
+  simd_float4 ellipseCenterMetric,ellipseExtent;
 };
-static_assert(sizeof(AimVolumeUniforms) == 304);
+static_assert(sizeof(AimVolumeUniforms) == 336);
+static_assert(offsetof(AimVolumeUniforms,ellipseCenterMetric)==304);
 static_assert(offsetof(AimVolumeUniforms,contactCounts)==288);
 static_assert(offsetof(AimVolumeUniforms, camera) == 128);
 static_assert(offsetof(AimVolumeUniforms, params) == 240);
@@ -59,7 +61,7 @@ struct AimVolumeFrame {
   std::vector<aim_volume::AimVolumeSection> sections;
   std::vector<aim_volume::AimContactSection> contactSections;
   std::vector<aim_volume::AimContactTriangle> contactTriangles;
-  MTLScissorRect scissor{};
+  MTLScissorRect scissor{},contactScissor{};
   AimReceiverStamp stamp{};
   std::vector<aim_volume::AimWaterContactVertex> waterVertices;
   NSUInteger waterWidth=2048,waterHeight=2048; // fixed retained capacity, no per-wave allocation churn
@@ -70,8 +72,7 @@ inline constexpr const char *aimVolumeShaderSource = R"MSL(
 using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
-struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; };
-struct AimContactSection {packed_float3 center;float padding;float rootXX,rootXY,rootYY,extent;};
+struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; float4 ellipseCenterMetric,ellipseExtent; };
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
@@ -250,49 +251,18 @@ float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u
   float4 neighbor=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,clip.z/clip.w,1.f);
   return abs(neighbor.w)>1.e-8f?neighbor.xyz/neighbor.w-receiver:float3(0.f);
 }
-// A smooth approximate dispersion field is independent of receiver sampling.
-// Eligibility masks only clip its visibility; their triangle/cell edges never
-// generate bright lines. Stroke distance uses the gradient on the q=1 boundary;
-// a collapsing covariance root outside the field must not generate another rim.
-float3 aim_contact_shape(float3 receiver,float3 dx,float3 dy,constant AimU&u,const device AimContactSection*sections){
-  const uint stationCount=65u;uint fieldCount=min(112u,u.contactCounts.x/stationCount);
-  if(!fieldCount)return float3(0.f);
-  float station=dot(receiver,u.axis.xyz),value=INFINITY,radius=INFINITY;float3 valueGradient=0.f;
-  for(uint field=0;field<fieldCount;++field){
-    uint base=field*stationCount;
-    if(station<dot(float3(sections[base].center),u.axis.xyz)||station>dot(float3(sections[base+stationCount-1].center),u.axis.xyz))continue;
-    uint lo=0,hi=stationCount;
-    while(lo<hi){uint mid=lo+(hi-lo)/2;if(dot(float3(sections[base+mid].center),u.axis.xyz)<=station)lo=mid+1;else hi=mid;}
-    uint index=base+min(lo?lo-1:0,stationCount-2);AimContactSection a=sections[index],b=sections[index+1];
-    float3 delta=float3(b.center)-float3(a.center);float span=dot(delta,u.axis.xyz);
-    float t=clamp(dot(receiver-float3(a.center),u.axis.xyz)/span,0.f,1.f);
-    float3 local=receiver-float3(a.center)-delta*t;
-    float2 p=float2(dot(local,u.lateral.xyz),dot(local,u.up.xyz));
-    float3 m=mix(float3(a.rootXX,a.rootXY,a.rootYY),float3(b.rootXX,b.rootXY,b.rootYY),t);
-    // Interpolate covariance roots before inversion. Interpolating inverse
-    // metrics pinches a near-muzzle slab between tiny and wide endpoint ellipses.
-    float determinant=m.x*m.z-m.y*m.y;
-    float2 r=float2(m.z*p.x-m.y*p.y,m.x*p.y-m.y*p.x)/determinant;
-    float axial=(station-sections[base].padding)/sections[base].extent;
-    float2 squared=r*r;float q=dot(squared,squared)+axial*axial*axial*axial;if(!isfinite(q))continue;
-    float fieldRadius=sqrt(sqrt(q));
-    float boundaryScale=fieldRadius>1.e-6f?1.f/fieldRadius:1.f;
-    float2 boundary=r*boundaryScale;
-    float2 cube=boundary*boundary*boundary;
-    float2 mp=float2(m.z*cube.x-m.y*cube.y,m.x*cube.y-m.y*cube.x)/determinant;
-    float3 dm=float3(b.rootXX-a.rootXX,b.rootXY-a.rootXY,b.rootYY-a.rootYY)/span;
-    float2 centerSlope=float2(dot(delta,u.lateral.xyz),dot(delta,u.up.xyz))/span;
-    float2 rootSlope=float2(dm.x*boundary.x+dm.y*boundary.y,dm.y*boundary.x+dm.z*boundary.y);
-    float boundaryAxial=axial*boundaryScale;
-    float axialGradient=-4.f*dot(mp,centerSlope+rootSlope)+4.f*boundaryAxial*boundaryAxial*boundaryAxial/sections[base].extent;
-    float3 gradient=4.f*(mp.x*u.lateral.xyz+mp.y*u.up.xyz)+axialGradient*u.axis.xyz;
-    if(q<value){value=q;radius=fieldRadius;valueGradient=gradient;}
-  }
-  if(!isfinite(value))return float3(0.f);
-  float density=exp(-2.f*value);
-  float width=abs(dot(valueGradient,dx))+abs(dot(valueGradient,dy));
-  if(!isfinite(width)||width<1.e-8f)return float3(value<=1.f?density:0.f,0.f,0.f);
-  float pixels=4.f*(1.f-radius)/width;
+// One projected covariance, computed once per frame. Surface depth and model
+// identity clip visibility, never the ellipse shape or its pixel-width stroke.
+float3 aim_contact_shape(float2 pixel,constant AimU&u){
+  if(!u.ellipseExtent.w)return float3(0.f);
+  float2 d=pixel-u.ellipseCenterMetric.xy;
+  float2 m=float2(u.ellipseCenterMetric.z*d.x+u.ellipseCenterMetric.w*d.y,
+                  u.ellipseCenterMetric.w*d.x+u.ellipseExtent.x*d.y);
+  float q=max(0.f,dot(d,m)),radius=sqrt(q);
+  if(!isfinite(q))return float3(0.f);
+  float density=exp(-2.f*q);
+  if(radius<1.e-6f)return float3(density,0.f,0.f);
+  float pixels=(1.f-radius)*radius/max(length(m),1.e-8f);
   return float3(density*smoothstep(-.5f,.5f,pixels),
       1.f-smoothstep(.5f,1.5f,abs(pixels)),1.f-smoothstep(1.25f,2.25f,abs(pixels)));
 }
@@ -387,7 +357,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
     texture2d<float,access::read> ownDepth [[texture(4)]],
     texture2d<float,access::read> waterDepth [[texture(5)]],texture2d<float,access::read> relationDepth [[texture(6)]],
     constant AimU&u [[buffer(0)]],const device AimSection*sections [[buffer(1)]],
-    const device AimPlane*planes [[buffer(2)]],const device AimContactSection*contactSections [[buffer(3)]]) {
+    const device AimPlane*planes [[buffer(2)]]) {
+  uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
+  uint2 pixelIndex=min(uint2(pixel.xy),size-1);float depth=sceneDepth.read(pixelIndex);
+  bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
+  bool hasReceiver=validDepth&&depth<1.f;
+  if(!u.receiverFlags.z) {
   float2 uv=(pixel.xy-u.viewport.xy)/u.viewport.zw;
   float2 ndc=float2(uv.x*2.f-1.f,1.f-uv.y*2.f);
   float4 mid4=u.inverseViewProjection*float4(ndc,.5f,1.f);
@@ -399,15 +374,15 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   float nearDistance=dot(near4.xyz/near4.w-origin,ray),farDistance=1.e8f;
   float4 far4=u.inverseViewProjection*float4(ndc,1.f,1.f);
   if(abs(far4.w)>1.e-8f){float farZ=dot(far4.xyz/far4.w-origin,ray);if(isfinite(farZ))farDistance=farZ;}
-  uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
-  uint2 pixelIndex=min(uint2(pixel.xy),size-1);float depth=sceneDepth.read(pixelIndex);
-  bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
-  bool hasReceiver=validDepth&&depth<1.f;
   float3 receiver=origin+ray*farDistance;float receiverDistance=1.e8f;
   if(hasReceiver) {
     float4 p=u.inverseViewProjection*float4(ndc,depth,1.f);
     hasReceiver=abs(p.w)>1.e-8f;
     if(hasReceiver){receiver=p.xyz/p.w;receiverDistance=dot(receiver-origin,ray);hasReceiver=isfinite(receiverDistance)&&receiverDistance>=nearDistance;}
+  }
+  float opticalDepth=validDepth?aim_air(origin,ray,nearDistance,farDistance,receiverDistance,u,sections,planes):0.f;
+  float airAlpha=u.params.z*(1.f-exp(-min(opticalDepth,6.f)));
+  return float4(float3(.7215686f,.7686275f,.7843137f)*airAlpha,airAlpha);
   }
   bool actualOwn=hasReceiver&&u.receiverFlags.x&&ownDepth.read(pixelIndex).r==depth;
   bool actualWater=hasReceiver&&u.receiverFlags.y&&waterDepth.read(pixelIndex).r==depth;
@@ -419,18 +394,7 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   // Current scene depth already supplies terrain, even when zoom culls water.
   // Identity is needed only for relation color; own depth still excludes rails.
   if(hasReceiver&&u.receiverFlags.x&&!actualOwn) {
-    if(actualWater) {
-      // Keep actual screen-pixel scale at long range/grazing angles. The PR3
-      // global .75m derivative clamp could reduce a4.5m pixel to.17pixels and
-      // make the otherwise-correct contour vanish by sampling phase.
-      float3 waterDx=aim_water_step(pixelIndex,int2(1,0),receiver,u,sceneDepth,waterDepth);
-      float3 waterDy=aim_water_step(pixelIndex,int2(0,1),receiver,u,sceneDepth,waterDepth);
-      contact=aim_contact_shape(receiver,waterDx,waterDy,u,contactSections);
-    }else {
-      float3 dx=aim_solid_step(pixelIndex,int2(1,0),depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth);
-      float3 dy=aim_solid_step(pixelIndex,int2(0,1),depth,receiver,receiverToken,u,sceneDepth,ownDepth,waterDepth,relation,relationDepth);
-      contact=aim_contact_shape(receiver,dx,dy,u,contactSections);
-    }
+    contact=aim_contact_shape(pixel.xy,u);
   }
   float coverage=contact.x,contour=contact.y;
   bool excludedReceiver=actualOwn;
@@ -456,12 +420,9 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   float surfaceAlpha=lineAlpha+baseAlpha*(1.f-lineAlpha);
   float3 surfaceRGB=lineTint*lineAlpha+baseRGB*(1.f-lineAlpha);
   if(surfaceAlpha>.78f){surfaceRGB*=.78f/surfaceAlpha;surfaceAlpha=.78f;}
-  float opticalDepth=validDepth?aim_air(origin,ray,nearDistance,farDistance,receiverDistance,u,sections,planes):0.f;
-  float airAlpha=u.params.z*(1.f-exp(-min(opticalDepth,6.f)));
-  float3 airTint=float3(.7215686f,.7686275f,.7843137f);
-  // One premultiplied composite. Actual rendered identity colors the continuous
-  // surface footprint, with no per-model alpha stacking or collision-LOD seams.
-  return float4(airTint*airAlpha+surfaceRGB*(1.f-airAlpha),airAlpha+surfaceAlpha*(1.f-airAlpha));
+  // The following air pass blends over this surface, preserving the existing
+  // premultiplied composition while limiting contact work to its own bounds.
+  return float4(surfaceRGB,surfaceAlpha);
 }
 
 )MSL";
@@ -498,6 +459,9 @@ class SoftAimVolume {
   void cancelOwner(unsigned kind){if(kind<owners_.size())owners_[kind].active=false;}
   void reset() { depthSnapshot_=nil;colorSnapshot_=nil;emptyIdentity_=nil;solidSupport_=nil;prismPipeline_=nil;model_={};modelPipeline_=nil;receivers_.clear();waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
   bool beginOwner(unsigned kind,id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>depth,MTLPixelFormat colorFormat,const AimReceiverStamp&stamp) {
+    // Current scene depth already supplies water. No separate full-frame copy
+    // or ownership pass is needed for a receiver-independent footprint.
+    if(kind==1)return false;
     if(!enabled_||kind>=owners_.size()||!command||!depth||depth.pixelFormat!=MTLPixelFormatDepth32Float||depth.sampleCount!=1||depth.textureType!=MTLTextureType2D)return false;
     auto&owner=owners_[kind];if(owner.active)return fail(Input,"nested aiming receiver scope");
     if(!prepare(device,colorFormat))return false;
@@ -580,7 +544,7 @@ class SoftAimVolume {
        !planeCount||planeCount>maxVolumePlanes||!std::isfinite(readiness)||
        relationVertexCount>maxVolumeRelationVertices||relationVertexCount%3||(!relationVertices&&relationVertexCount)||
        waterVertexCount>maxWaterContactVertices||waterVertexCount%3||(!waterVertices&&waterVertexCount)||
-       !contactSectionCount||contactSectionCount>maxContactSections||contactSectionCount%65u||!contactSections||
+       contactSectionCount!=1||!contactSections||
        contactTriangleCount>maxContactTriangles||(!contactTriangles&&contactTriangleCount))return fail(Input,"invalid section/plane input");
     auto finite3=[](simd_float3 v){return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);};
     const simd_float3 ax={axis[0],axis[1],axis[2]},lat={lateral[0],lateral[1],lateral[2]},vertical={up[0],up[1],up[2]};
@@ -643,20 +607,42 @@ class SoftAimVolume {
     }
     // Old collision relation arguments remain ABI-compatible but are never
     // uploaded, rasterized or used as an identity fallback.
-    frame.contactSections.clear();frame.contactTriangles.clear();u.contactCounts={contactSectionCount,contactTriangleCount,0,0};
-    if(contactSectionCount)frame.contactSections.assign(contactSections,contactSections+contactSectionCount);
-    previousStation=-std::numeric_limits<float>::infinity();
-    for(size_t contactIndex=0;contactIndex<frame.contactSections.size();++contactIndex){
-      auto&section=frame.contactSections[contactIndex];if(contactIndex%65u==0)previousStation=-std::numeric_limits<float>::infinity();
-      simd_float3 center={section.center[0],section.center[1],section.center[2]};
-      const double determinant=double(section.rootXX)*section.rootYY-double(section.rootXY)*section.rootXY;
-      if(!finite3(center)||!std::isfinite(section.rootXX)||!std::isfinite(section.rootXY)||!std::isfinite(section.rootYY)||
-         section.rootXX<=0.f||section.rootYY<=0.f||!std::isfinite(determinant)||determinant<=0.||
-         !std::isfinite(section.padding)||!std::isfinite(section.extent)||section.extent<=0.f)return fail(Input,"invalid contact covariance root");
-      center+=worldOrigin;float station=simd_dot(center,ax);
-      if(!finite3(center)||!std::isfinite(station)||station<=previousStation)return fail(Input,"unordered contact stations");
-      previousStation=station;section.center[0]=center.x;section.center[1]=center.y;section.center[2]=center.z;
-      section.padding+=simd_dot(worldOrigin,ax);
+    frame.contactSections.assign(contactSections,contactSections+1);frame.contactTriangles.clear();u.contactCounts={1,contactTriangleCount,0,0};
+    auto&contact=frame.contactSections.front();
+    simd_float3 contactCenter={contact.center[0],contact.center[1],contact.center[2]};
+    const auto&c=contact.covariance;
+    for(float value:c)if(!std::isfinite(value))return fail(Input,"nonfinite contact covariance");
+    const double minor=double(c[0])*c[3]-double(c[1])*c[1];
+    const double determinant3=double(c[0])*(double(c[3])*c[5]-double(c[4])*c[4])-
+        double(c[1])*(double(c[1])*c[5]-double(c[2])*c[4])+double(c[2])*(double(c[1])*c[4]-double(c[2])*c[3]);
+    if(!finite3(contactCenter)||c[0]<=0.f||minor<=0.||determinant3<=0.)return fail(Input,"invalid contact covariance");
+    contactCenter+=worldOrigin;
+    for(unsigned i=0;i<3;++i)contact.center[i]=contactCenter[i];
+    const auto clip=simd_mul(viewProjection,simd_make_float4(contactCenter,1.f));
+    frame.contactScissor={};
+    if(clip.w>1.e-5f&&clip.z>0.f&&clip.z<clip.w){
+      // J * covariance * J^T preserves yaw, elevation AND longitudinal speed
+      // spread. Perspective/zoom and world-origin changes enter once per frame.
+      double jx[3],jy[3];
+      for(unsigned i=0;i<3;++i){
+        const auto column=viewProjection.columns[i];
+        jx[i]=.5*viewport.z*(column.x-clip.x/clip.w*column.w)/clip.w;
+        jy[i]=-.5*viewport.w*(column.y-clip.y/clip.w*column.w)/clip.w;
+      }
+      const double covariance[3][3]={{c[0],c[1],c[2]},{c[1],c[3],c[4]},{c[2],c[4],c[5]}};
+      double xx=.25,xy=0.,yy=.25; // Subpixel regularization, no distance-dependent fattening.
+      for(unsigned i=0;i<3;++i)for(unsigned j=0;j<3;++j){xx+=jx[i]*covariance[i][j]*jx[j];xy+=jx[i]*covariance[i][j]*jy[j];yy+=jy[i]*covariance[i][j]*jy[j];}
+      const double determinant2=xx*yy-xy*xy;
+      if(!std::isfinite(determinant2)||determinant2<=0.)return fail(Camera,"invalid projected contact covariance");
+      const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z,py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
+      const float rx=float(std::sqrt(xx)),ry=float(std::sqrt(yy));
+      u.ellipseCenterMetric={px,py,float(yy/determinant2),float(-xy/determinant2)};
+      u.ellipseExtent={float(xx/determinant2),rx,ry,1.f};
+      const auto x=NSUInteger(std::clamp(std::floor(px-rx)-3.f,viewport.x,viewport.x+viewport.z));
+      const auto y=NSUInteger(std::clamp(std::floor(py-ry)-3.f,viewport.y,viewport.y+viewport.w));
+      const auto right=NSUInteger(std::clamp(std::ceil(px+rx)+3.f,viewport.x,viewport.x+viewport.z));
+      const auto bottom=NSUInteger(std::clamp(std::ceil(py+ry)+3.f,viewport.y,viewport.y+viewport.w));
+      frame.contactScissor={x,y,right>x?right-x:0,bottom>y?bottom-y:0};
     }
     if(contactTriangleCount)frame.contactTriangles.assign(contactTriangles,contactTriangles+contactTriangleCount);
     for(auto&triangle:frame.contactTriangles){
@@ -682,7 +668,7 @@ class SoftAimVolume {
     u.boundsMin=simd_make_float4(boundsMin,0.f);u.boundsMax=simd_make_float4(boundsMax,0.f);
     // Projecting bounds across the near plane is not conservative. Cover the
     // viewport in that case; the ray/volume intersection still rejects empty air.
-    if(crossesNear||contactSectionCount||contactTriangleCount){minX=viewport.x;minY=viewport.y;maxX=viewport.x+viewport.z;maxY=viewport.y+viewport.w;}
+    if(crossesNear||contactTriangleCount){minX=viewport.x;minY=viewport.y;maxX=viewport.x+viewport.z;maxY=viewport.y+viewport.w;}
     const auto x=NSUInteger(std::clamp(std::floor(minX)-4.f,viewport.x,viewport.x+viewport.z));
     const auto y=NSUInteger(std::clamp(std::floor(minY)-4.f,viewport.y,viewport.y+viewport.w));
     const auto right=NSUInteger(std::clamp(std::ceil(maxX)+4.f,viewport.x,viewport.x+viewport.z));
@@ -701,16 +687,14 @@ class SoftAimVolume {
        target.sampleCount!=1||currentDepth.sampleCount!=1||currentDepth.pixelFormat!=MTLPixelFormatDepth32Float||
        target.width!=currentDepth.width||target.height!=currentDepth.height||
        currentDepth.storageMode==MTLStorageModeMemoryless)return fail(Resources,"unsupported current color/depth resources");
-    if(!frame.scissor.width||!frame.scissor.height)return true;
+    if((!frame.scissor.width||!frame.scissor.height)&&(!frame.contactScissor.width||!frame.contactScissor.height))return true;
     if(!prepare(device,target.pixelFormat))return false;
     AimVolumeUniforms uniforms=frame.uniforms;
     auto sizeMatches=[&](id<MTLTexture>texture){return texture&&texture.width==currentDepth.width&&texture.height==currentDepth.height;};
     bool ownReady=owners_[0].ready&&sizeMatches(owners_[0].depth)&&sameStamp(owners_[0].stamp,frame.stamp);
-    bool waterReady=owners_[1].ready&&sizeMatches(owners_[1].depth)&&sameStamp(owners_[1].stamp,frame.stamp);
     bool modelReady=model_.ready&&sizeMatches(model_.depth)&&sizeMatches(model_.identity)&&sameStamp(model_.stamp,frame.stamp);
-    uniforms.receiverFlags={uint32_t(ownReady),uint32_t(waterReady),uint32_t(!frame.waterVertices.empty()),uint32_t(modelReady)};
+    uniforms.receiverFlags={uint32_t(ownReady),0u,1u,uint32_t(modelReady)};
     if(!ownReady)fail(OwnCapture,"own render ownership unavailable for this camera; contact withheld");
-    if(!waterReady)fail(WaterCapture,"water ownership unavailable; drape uses current scene depth");
     if(!depthSnapshot_||depthSnapshot_.width!=currentDepth.width||depthSnapshot_.height!=currentDepth.height) {
       auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float width:currentDepth.width height:currentDepth.height mipmapped:NO];
       descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageShaderRead;
@@ -731,9 +715,10 @@ class SoftAimVolume {
     [blit copyFromTexture:currentDepth sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
         sourceSize:MTLSizeMake(currentDepth.width,currentDepth.height,1) toTexture:depthSnapshot_
         destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];
-    [blit copyFromTexture:target sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
-        sourceSize:MTLSizeMake(target.width,target.height,1) toTexture:colorSnapshot_
-        destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];
+    const auto&roi=frame.contactScissor;
+    if(roi.width&&roi.height)[blit copyFromTexture:target sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(roi.x,roi.y,0)
+        sourceSize:MTLSizeMake(roi.width,roi.height,1) toTexture:colorSnapshot_
+        destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(roi.x,roi.y,0)];
     [blit endEncoding];
     const auto&v=frame.uniforms.viewport;
     auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
@@ -744,18 +729,26 @@ class SoftAimVolume {
     auto encoder=[command renderCommandEncoderWithDescriptor:pass];
     if(!encoder)return fail(Encoder,"cannot begin volume encoder");
     [encoder setRenderPipelineState:pipeline_];[encoder setCullMode:MTLCullModeNone];
-    [encoder setViewport:MTLViewport{v.x,v.y,v.z,v.w,0.,1.}];[encoder setScissorRect:frame.scissor];
-    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [encoder setViewport:MTLViewport{v.x,v.y,v.z,v.w,0.,1.}];
     [encoder setFragmentBuffer:sections offset:sectionOffset atIndex:1];
     [encoder setFragmentBuffer:planes offset:planeOffset atIndex:2];
     [encoder setFragmentBuffer:contactSections?contactSections:sections offset:contactSections?contactSectionOffset:sectionOffset atIndex:3];
     [encoder setFragmentTexture:depthSnapshot_ atIndex:0];
     [encoder setFragmentTexture:modelReady?model_.identity:emptyIdentity_ atIndex:1];[encoder setFragmentTexture:colorSnapshot_ atIndex:2];
     [encoder setFragmentTexture:ownReady?owners_[0].depth:colorSnapshot_ atIndex:4];
-    [encoder setFragmentTexture:waterReady?owners_[1].depth:colorSnapshot_ atIndex:5];
+    [encoder setFragmentTexture:colorSnapshot_ atIndex:5];
     [encoder setFragmentTexture:modelReady?model_.depth:colorSnapshot_ atIndex:6];
-    [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v9: boundary-gradient depth drape (air alpha <= 0.22)\n");}
+    if(roi.width&&roi.height){
+      [encoder setScissorRect:roi];[encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+      [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+    }
+    if(frame.scissor.width&&frame.scissor.height){
+      uniforms.receiverFlags.z=0u;[encoder setScissorRect:frame.scissor];
+      [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+      [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+    }
+    [encoder endEncoding];
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v10: projected dispersion patch, bounded contact pass (air alpha <= 0.22)\n");}
     return true;
   }
 

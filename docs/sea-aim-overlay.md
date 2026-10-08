@@ -2,21 +2,15 @@
 
 ## Status
 
-The current candidate is a simple drape on already rendered scene depth.
-Per-pixel ballistic collision solving and sampled first-hit masks are rejected.
-The first installed depth-only version, engine `c220a1e6`, improved the shape;
-the player's 12:28:46 screenshot shows102FPS. The player still reports about half
-the ordinary FPS, a thick distant rim and occasional zoom disappearance. This
-reopens acceptance; one screenshot FPS value cannot accept performance.
-The installed thin-rim revision removes terrain ownership passes and reuses CPU
-point storage. The next player screenshot shows92FPS and accepts the thinner rim,
-but rejects a second huge hillside strip and broken main perimeter. The latest
-range-local revision closes that field around nominal arrival range and removes
-the contact-only coplanarity fade. The player's 13:00:21 screenshot rejects that
-revision: the secondary hillside contour remains and is larger. The latest
-source fixes a reproduced false stroke outside the field by evaluating thickness
-at its unit-radius boundary. Real hillside suppression, seam/zoom continuity and
-paired FPS still require installed replay. Staging/receipts belong to `docs/runtime.md`.
+The current candidate projects one smooth dispersion patch onto already rendered
+surface pixels. Per-pixel ballistic solving, sampled first-hit masks and the
+65-station volume/surface intersection are rejected. The player accepts removal
+of the distant false line in revision9, but the 13:13–13:14 screenshots reject
+the broken terrain perimeter, water disappearance and remaining aiming cost.
+Revision10 replaces that shape with one camera-projected covariance, separates
+bounded contact drawing from air, and removes water ownership capture. Native
+build and source-exact GPU checks pass; complete player appearance, motion/zoom
+and paired FPS remain unresolved. Staging/receipts belong to `docs/runtime.md`.
 
 ## Contract
 
@@ -35,15 +29,15 @@ Selection is instantaneous, with no retained target, tracking or dwell. A nearer
 center obstruction wins. Empty or genuinely out-of-range space uses common legal
 maximum reach; nearby mechanically unreachable targets stay unavailable.
 
-The visible contact area is an approximate rounded dispersion-density region,
-not a guaranteed boundary containing every shell. The same smooth field is
-evaluated on current water, hull, mast, terrain and fort depth. The nearest
-rendered surface supplies the drape; no first-hit sample or collision solver
-gates its pixels. A soft Gaussian
-blot fades from its center toward a subtle colored perimeter, projected onto real
-scene depth. Ellipse-like or rounded/square-like shape is allowed; rare physical
-shots outside the main-density contour remain valid. Air still uses the stopped
-ballistic volume, with its existing opacity.
+The visible contact area is an approximate dispersion-density patch, not a
+guaranteed boundary containing every shell. Its thin antialiased perimeter must
+remain smoothly rounded through receiver-depth and polygon changes; a perfect
+ellipse is not a requirement. The current representation is one projected
+covariance ellipse with a soft Gaussian fill. Current nearest water, hull, mast,
+terrain and fort pixels supply visibility and relation color. Their varying
+depth does not split or reshape the contour. Sky and actual own geometry remain
+excluded. Rare physical shots outside the main-density contour remain valid.
+Air still uses the stopped ballistic volume, with its existing opacity.
 
 ## Owners and implementation
 
@@ -66,9 +60,10 @@ ballistic volume, with its existing opacity.
 - The plus uses the current range-source relation. Firing events do not inherit a
   farther center-hit character after a nearer aperture receiver changes the range
 - `manual_aim_geometry.hpp` mirrors live projectile warp and supplies exact section
-  geometry; `manual_aim_volume_bridge.hpp` defines checked 64/32/16/8-byte GPU records
-- `aim_volume.hpp` and `backend.mm` draw one soft-density/contact composite from
-  current post-water depth and color snapshots. Per-gun surface triangles are gone
+  geometry; `manual_aim_volume_bridge.hpp` defines checked 64/48/32/16/8-byte records
+- `aim_volume.hpp` projects contact covariance once per current camera. It draws
+  the surface patch within its pixel bounds, followed by the existing stopped air.
+  `backend.mm` supplies current post-water depth and exact rendered ownership
 - `ship_surrender.h` supplies live per-ship display state to the controller and
   battle interface. Surrendered aim highlighting and overhead markers use gold
   `0xE6C663`; the marker retains its authored alpha and ordinary depth test
@@ -95,45 +90,54 @@ World queries are pure: no `Cannon_Trace`, damage events or random draws. Model
 AABBs reject unrelated receivers; island tracing covers the full `ISLAND_TRACE`
 layer. `WaveXZ` refines first crossings, including initially submerged muzzles.
 
-All eligible guns contribute27 weighted launch-law curves to one aggregate field
-with65 quadratic axial stations. Covariance scale3 and root interpolation produce
-one rounded L4 region without RNG or collision queries. One reusable points array
-replaces65 allocations/initializations per frame. Actual shots and stopped air
-retain their existing owners; rare shots can remain outside the approximate field.
+All eligible guns contribute27 weighted yaw/elevation/speed launch-law points at
+their earliest positive nominal target-plane arrival time. One48-byte record
+stores the aggregate world mean and full xyz covariance, scaled by3 with.0025
+world-variance regularization. This retains longitudinal speed spread and all
+guns without RNG, contact marches, axial station fitting or receiver subdivisions.
+Actual firing and stopped-air construction are unchanged.
 
-The drape is local to the selected arrival range, rather than every possible
-intersection along the whole flight. Each gun supplies one positive earliest
-nominal target-plane time; its27 jitter curves are evaluated at that common time.
-Weighted axial mean/variance supplies a smooth quartic range cap with radius
-sqrt(3*(variance+.0025)). This is approximate main density, not a physical first-hit
-proof. In the unchanged32-byte contact record, padding carries the absolute
-axial center and extent the radius. The backend rebases that center once with
-dot(worldOrigin,axis); the radius is invariant. This cap limits density support;
-by itself it did not prevent the false outside stroke described below.
+The renderer rebases the mean once and projects covariance with the live camera
+Jacobian: `screenCovariance = J * worldCovariance * J^T`. A.25 pixel-variance
+regularizer keeps subpixel patches well conditioned; it does not fatten distant
+contours. The shader evaluates one2D quadratic metric with Gaussian fill and a
+thin pixel-width core/keyline. It reads no neighboring depth and does no station
+search or receiver unprojection for contact. Thus a depth seam cannot independently
+erase a contour pixel. The contact scissor is the ellipse bounds plus3 pixels;
+only that rectangle copies background color and runs the contact fragment.
+Air uses its own conservative bounds and blends after the surface, preserving
+the prior premultiplied composition. Water capture no longer finishes the scene
+encoder, copies depth or draws a full-frame ownership pass.
 
-The shader reconstructs the receiver from current post-water depth. Stroke
-distance uses `4*(1-fourthRoot(q))` divided by the screen gradient evaluated at
-unit radius. Field density and the q=1 boundary remain unchanged. The prior
-`(1-q)/|gradient(q)|` approximation let a collapsing interpolated covariance root
-amplify the derivative faster than distance: pixels hundreds of pixels outside
-the contour received full bright coverage. A source-exact seven-point Metal
-probe reproduces this with old rim1/keyline1 versus new0/0 in both strict and
-fast math. An independent linear-radius boundary oracle puts that receiver
-249.85 pixels away. The same probe preserves the real boundary, one-pixel AA,
-center fill and zero-gradient/range rejection. These are shader properties,
-not acceptance of the player's complete rendered hillside or its frame rate.
-Same-surface neighbors determine stroke width, with a current-depth-plane fallback.
-Contact uses projected gradient directly without the former1% coplanarity fade,
-which could erase its perimeter at polygon joins. Zero/nonfinite projected
-gradient retains inside fill and returns zero rim, including exactly q=1.
-No water atlas, solid prism or ballistic GPU solver participates in the composite.
+A source-exact CPU oracle checks all52 guns against independent uniform-jitter
+moments and translation. Strict/fast Metal probes check96 boundary angles,
+center, one-pixel AA and far-outside rejection. The actual native encoder fixture
+keeps the contour across four stepped depth regions, excludes own geometry and
+sky, preserves model relation color, and uses a136×84 contact rectangle at256×192.
+Projection checks cover5x zoom, camera yaw and world-origin translation. These
+checks prove the selected source/render properties, not real-game aesthetics or FPS.
 
 Terrain uses neutral current depth and has no registered model capture. Adding
 ISLAND_TRACE had introduced full-frame copies/passes and let the half-far seabed
-draw replace the main-camera identity stamp. Zoom that culls water no longer
-withholds neutral terrain. Own-camera capture remains required; exact own depth
+draw replace the main-camera identity stamp. Water ownership is not required.
+Own-camera capture remains required; exact own depth
 and own-identity bits exclude hull and separately drawn rigging. Registered
 ship/fort identities supply relation color only. Air alpha stays capped at.22.
+
+### Historical volume-intersection drape — superseded by the projected patch
+
+The65-station aggregate used interpolated lateral/up covariance roots, an L4
+cross-section and a quartic axial cap around nominal arrival. Surface-depth
+intersections changed topology across terrain and foliage, giving split upright
+arcs, polygon-dependent corners and water undercoverage. The player rejected
+this geometry even after its separate false outside-stroke defect was fixed.
+The earlier `(1-q)/|gradient(q)|` distance let collapsing roots produce full
+rim/keyline coverage at a receiver249.85 pixels outside the true contour.
+Revision9 evaluated the gradient at unit radius instead: its strict/fast
+seven-point fixture removed that false rim and preserved true-edge AA. The
+player then confirmed removal of the giant hillside stripe. That bounded repair
+did not smooth the main patch or accept aiming performance; no root fitting or
+receiver-depth tangent from that approach remains in the current contact path.
 
 ### Historical sampled support — superseded by the depth drape
 

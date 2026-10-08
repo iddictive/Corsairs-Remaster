@@ -479,7 +479,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  bool beginAimReceiver(unsigned kind){
   // Outside manual aiming this is a zero-GPU-work guard. Reflection and shadow
   // targets never enter the main camera's receiver ownership history.
-  if(!aimReceiverTarget())return false;
+  if(kind==1||!aimReceiverTarget())return false; // Water uses the final scene depth directly.
   finish();if(!command)command=[queue commandBuffer];
   return aimVolume.beginOwner(kind,metal,command,zbuffer->gpu,target->gpu.pixelFormat,aimReceiverStamp());
  }
