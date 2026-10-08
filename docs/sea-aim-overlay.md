@@ -487,6 +487,21 @@ closes and GPU actor releases; no larger dispatch or product integration follows
 family-specialized-gpu-report.md retains the evidence. The projection source
 owner next performs read-only query/arithmetic diagnosis without a GPU actor.
 
+The next temporary candidate caches exact raw UV values on ordinary segment
+vertices while preserving original point construction, projection arithmetic,
+Pair division order and coplanar Polygon storage. CPU193 Result shadows,
+14164573 ordered leaf checks,8730 ranges and13 negatives pass; strict Metal
+compile creates no queues or dispatches. Frozen55 UV calls fall3588 to1438 and
+Pair divisions18505 to12055; non-UV divisions remain7741. Sequential matching
+CPU runs cost0.997816 versus0.826971ms per55 (17.1% lower local CPU time).
+This is not GPU or installed FPS evidence. Segment storage grows64 to96 bytes,
+so the frozen resource/throughput gate remains required. family.hpp5a0a4c58,
+unchanged family.metalfe1d2d53 and family-uv-memo/report.md bind the candidate.
+The projection owner retains temporary evidence; GPU work waits for the current
+player scene and ammunition replay actor, then explicit sole-GPU assignment.
+The Porto binary64 serialization discrepancy remains unresolved. No prototype
+is installed.
+
 Production boundary certification, live camera/render-mesh/BSP matching,
 scene-budget GPU cost, live node/water lifecycle and installed FPS remain
 unresolved. No contact replacement source batch is staged; the installed
