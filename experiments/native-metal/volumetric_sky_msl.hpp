@@ -576,7 +576,7 @@ fragment float4 dynamic_stars_fs(SkyStarOut in [[stage_in]],constant SkyStarDraw
     float opacity=skyCloudMoments(normalize(in.direction),cloudFrom,cloudTo,draw.scale_blend.z).a;
     color.a*=1.f-opacity;return color;
 }
-float3 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
+float3 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance,bool includeClouds) {
     // Twilight continues from the actual grazing sky below sea level. Keep
     // the established noon/night endpoints, without a daylight-colored dusk seam.
     float3 originalDirection=normalize(direction);
@@ -614,14 +614,16 @@ float3 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float distance=moments.y/max(moments.a,.001f);
     float3 airExtinction=.5f*(molecular_scattering_coefficient_base.xyz+aerosol_scattering_cross_section.xyz*aerosol_base_density*.25f);
     airExtinction+=overcast*.045f;
-    float3 aerial=exp(-max(0.f,distance-1.5f)*airExtinction);
-    color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
+    if(includeClouds){
+        float3 aerial=exp(-max(0.f,distance-1.5f)*airExtinction);
+        color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
+    }
     float seam=(1.f-smoothstep(0.f,.0015f,max(originalDirection.y,0.f)))*weather.horizonFog.w*(1.f-twilight);
     color=mix(color,fog,seam);
     return max(color,0.f);
 }
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]]) {
-    return float4(skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance),1);
+    return float4(skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance,true),1);
 }
 kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {
     if(any(pixel>=uint2(output.get_width(),output.get_height())))return;
@@ -629,7 +631,7 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
     float azimuth=6.28318530718f*(uv.x-.5f),l=uv.y*2.f-1.f;
     float elevation=l*l*sign(l)*1.57079632679f;
     float3 direction=float3(cos(elevation)*cos(azimuth),sin(elevation),cos(elevation)*sin(azimuth));
-    output.write(float4(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance),1),pixel);
+    output.write(float4(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance,false),1),pixel);
 }
 )MSL";
 inline const char *volumetricSkyShaderSource=volumetricSkyShaderStorage.c_str();
