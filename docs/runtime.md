@@ -8034,3 +8034,18 @@ Source/native acceptance passes at local commit `3c41e2e`. Root's canonical
 staging is pending (the user is running the game); the prior installed engine
 is `44cdd028` (`9052624`). Evidence and disposable diagnostic sources live in
 the ignored native sky-evidence owner.
+
+### October 9 — overcast fog veil scoped to fog field, engine staged to played app
+
+Player replayed the stale `44cdd028` engine and correctly reported no change:
+the directional fog, aerial perspective and overcast fixes never reached the
+installed app. A dirty-tree tuning attempt had also leaked overcast dimming
+into the sky display, breaking the midnight/dusk exact-authored-fog probe.
+The dimming now applies only to the directional fog field (`veil`), the sky
+display stays bit-exact at its horizon, and clear-air Rayleigh drops 20x->5x.
+Dynamic-sky, backend, shadow and original/modern sea probes pass at `da1d467`.
+Canonical `--stage-only` returns 0 with the game idle and installs signed
+engine `694d31f3` plus receipt into the played app; SAVE/config untouched,
+8252 inputs verified. Player acceptance of dusk overcast islands-vs-sky,
+horizon seam, shore water and cloud motion remains with the player on the
+new engine.
