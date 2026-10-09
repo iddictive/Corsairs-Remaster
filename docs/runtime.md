@@ -8049,3 +8049,15 @@ engine `694d31f3` plus receipt into the played app; SAVE/config untouched,
 8252 inputs verified. Player acceptance of dusk overcast islands-vs-sky,
 horizon seam, shore water and cloud motion remains with the player on the
 new engine.
+
+### October 9 — clear-night fog veil falls to night ambient, staging awaits idle game
+
+Player capture on `694d31f3` at 19:36 shows islands at sRGB(44,57,76) against
+a(10,12,20) sky: a uniform 0.56x/0.42x scale of the Evening authored fog
+(77,104,134), proving the veil tracks authored color on clear nights. Root
+cause: dynamic-sky coverage is rain-derived (0.32 clear), so overcast dimming
+stays weak while the sun is long set. The fog field now mixes its veil to
+night ambient by `1-max(daylight,twilight)`: full dark at 19:36, while the
+accepted 18:25 sunward dusk keeps twilight=1 and stays bit-identical, and the
+sky display path is untouched. All four probes pass at `14daa14`. Staging is
+blocked: the game is running the player's session.
