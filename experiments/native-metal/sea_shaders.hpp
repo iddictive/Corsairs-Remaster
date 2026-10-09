@@ -61,6 +61,7 @@ struct SeaU {
     float4 weatherWater;    // RGB: display-space palette; W: broad reflection luminance ceiling/validity
     float4 weatherFoam;     // RGB: display-space palette; alpha remains texture/authored
     float4 solarDirectionBlend; // XYZ: active sun/moon direction (zero = authored sky); W: cloud cache blend
+    float4 sunScreen;
 };
 struct SeaO {
     float4 position [[position]];
@@ -304,16 +305,12 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     if(depth0<=o.position.z)thickness=0.f;
     float3 eye=seaNormalize(o.viewToEye);
     // Macro-surface grazing incidence remains reflective despite fine ripples.
-    // Soften reflection and force transparency near the shore to prevent opaque
-    // grazing-angle water from covering the mountain base with a hard sky-color seam.
-    float verticalDepth=depth0>=.999999f?1000.f:max(0.f,waterView.y-behindView.y);
-    float shoreFade=saturate(verticalDepth/4.f);
-    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)))*shoreFade;
+    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));
     // Absorption coefficients are per engine world unit; red attenuates first.
     // Thickness comes entirely from the actual scene depth, never view angle.
-    float3 transmission=max(exp(-float3(.14f,.055f,.025f)*max(thickness,0.f))*(1.f-fresnel),float3(1.f-shoreFade));
+    float3 transmission=exp(-float3(.14f,.055f,.025f)*max(thickness,0.f))*(1.f-fresnel);
     float3 body=o.waterBody*(.72f+.28f*saturate(normal.y));
-    float3 newWater=modernSeaLinear(env)*fresnel+body*(float3(1.f-fresnel)-transmission)+modernSeaLinear(sun)*shoreFade;
+    float3 newWater=modernSeaLinear(env)*fresnel+body*(float3(1.f-fresnel)-transmission)+modernSeaLinear(sun);
     float3 background=modernSeaLinear(scene.sample(sceneSampler,uv).rgb);
     // Opaque scene color already contains its fog. Fog only NEW water energy,
     // weighted by its complement, so transmitted geometry is never fogged twice.
@@ -368,7 +365,12 @@ float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,textu
     // Original projected coordinates/targets are retained, with centered distortion.
     float3 env=weatherBoundedReflection(t[1].sample(s[1],o.t1.xy+seaBumpOffset(perturb,u.bump1)).rgb,u);
     float3 sun=t[3].sample(s[3],o.t3.xy+seaBumpOffset(perturb,u.bump3)).rgb;
-    sun=modernSeaDisplay(modernSeaLinear(sun)*skySolarTransmission(u.solarDirectionBlend,cloudFrom,cloudTo));
+    float visibility=skySolarTransmission(u.solarDirectionBlend,cloudFrom,cloudTo);
+    if(u.sunScreen.z>0.5f&&u.sunScreen.x>=0.f&&u.sunScreen.x<=1.f&&u.sunScreen.y>=0.f&&u.sunScreen.y<=1.f){
+        constexpr sampler depthSampler(coord::normalized,address::clamp_to_edge,filter::nearest);
+        if(sceneDepth.sample(depthSampler,u.sunScreen.xy)<1.f)visibility=0.f;
+    }
+    sun=modernSeaDisplay(modernSeaLinear(sun)*visibility);
     if(u.depthRefractionEnabled)return modernSeaDepthComposite(o,u,n,env,sun,scene,sceneDepth);
     float4 material=modernSeaMaterial(o,u,n,seaNormalize(o.viewToEye),env);
     // Preserve the previous linear-space sun energy without the redundant
