@@ -185,7 +185,9 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]], constant SkyDraw &draw [[
     float3 color=mix(mix(nightZenith,nightHorizon,horizon),mix(dayZenith,dayHorizon,horizon),daylight);
     color+=float3(1.f,.25f,.055f)*twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
     float cloudHorizon=smoothstep(.015f,.11f,d.y)*smoothstep(.02f,.18f,1.f-d.y);
-    float2 cloudUv=d.xz/max(.09f,d.y)*.42f+weather.options.yz;
+    // Keep cloud-plane perspective until cloudHorizon has faded to zero.
+    // Clamping at .09 froze depth across the visible lower five degrees.
+    float2 cloudUv=d.xz/max(.015f,d.y)*.42f+weather.options.yz;
     float cloudField=skyFbm3(cloudUv)+.22f*skyNoise(cloudUv*3.7f+31.f);
     float coverage=weather.wind_coverage_density.z;
     float cloud=smoothstep(.70f-.48f*coverage,.82f-.34f*coverage,cloudField)*cloudHorizon;
