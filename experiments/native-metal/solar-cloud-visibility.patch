@@ -1,0 +1,157 @@
+--- a/src/libs/weather/src/sun_glow.cpp
++++ b/src/libs/weather/src/sun_glow.cpp
+@@ -28,6 +28,36 @@
+ {
+     renderer->DrawRects(rects, count, technique, subTexturesX, subTexturesY, scaleX, scaleY);
+ }
++#endif
++
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++extern "C" bool StormMetalBeginSolarVisual(void *device);
++extern "C" void StormMetalEndSolarVisual(void *device);
++extern "C" bool StormMetalCloudFieldCurrent(void *device);
++bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime, bool skyDraw);
++
++// Explicit astronomy owner; reflection producers remain unattenuated so the
++// water consumer applies the current cloud field exactly once, every frame.
++class MetalSolarVisualScope
++{
++  public:
++    MetalSolarVisualScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
++        : device(renderer->GetD3DDevice())
++    {
++        if (!StormMetalCloudFieldCurrent(device))
++            PrepareMetalAtmosphere(renderer, weather, deltaTime, false);
++        active = StormMetalBeginSolarVisual(device);
++    }
++    ~MetalSolarVisualScope()
++    {
++        if (active)
++            StormMetalEndSolarVisual(device);
++    }
++
++  private:
++    void *device = nullptr;
++    bool active = false;
++};
+ #endif
+ 
+ // Below-horizon gate for the unclipped billboard paths (overflow, flares,
+@@ -198,13 +228,16 @@
+         return 2.0f;
+ 
+     CVECTOR vDst;
+-    pWeather->GetVector(whv_sun_pos, &vDst);
++    pWeather->GetVisualVector(whv_sun_pos, &vDst);
+     vDst = vSrc + (!vDst) * 10000.0f;
+     return pCollide->Trace(its, vSrc, vDst, nullptr, 0);
+ }
+ 
+ void SUNGLOW::Realize(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    MetalSolarVisualScope solarVisual(pRS, pWeather, Delta_Time);
++#endif
+     CMatrix OldMatrix, IMatrix, View;
+     pRS->GetTransform(D3DTS_VIEW, OldMatrix);
+     pRS->GetTransform(D3DTS_VIEW, View);
+@@ -213,7 +246,7 @@
+     CVECTOR vSun, vSunPos, vSunDir;
+     CVECTOR vCamPos, vCamAng, vCamDir;
+ 
+-    pWeather->GetVector(whv_sun_pos, &vSunPos);
++    pWeather->GetVisualVector(whv_sun_pos, &vSunPos);
+     pRS->GetCamera(vCamPos, vCamAng, fFov);
+     vSunDir = !vSunPos;
+     vSun = vCamPos + (vSunDir * Glow.fDist);
+@@ -359,13 +392,16 @@
+ 
+ void SUNGLOW::DrawSunMoon()
+ {
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    MetalSolarVisualScope solarVisual(pRS, pWeather, 0);
++#endif
+     const auto fGlowSize = bMoon ? Glow.fMoonSize : Glow.fSunSize;
+ 
+     float fFov;
+     CVECTOR vCamPos, vCamAng;
+     CVECTOR vSun, vSunPos, vSunDir;
+ 
+-    pWeather->GetVector(whv_sun_pos, &vSunPos);
++    pWeather->GetVisualVector(whv_sun_pos, &vSunPos);
+     pRS->GetCamera(vCamPos, vCamAng, fFov);
+     vSunDir = !vSunPos;
+     vSun = vCamPos + (vSunDir * Glow.fDist);
+@@ -596,7 +632,7 @@
+     CVECTOR vSun, vSunPos, vSunDir;
+     CVECTOR vCamPos, vCamAng;
+ 
+-    pWeather->GetVector(whv_sun_pos, &vSunPos);
++    pWeather->GetVisualVector(whv_sun_pos, &vSunPos);
+     pRS->GetCamera(vCamPos, vCamAng, fFov);
+     vSunDir = !vSunPos;
+     vSun = vCamPos + (vSunDir * Reflection.fDist);
+@@ -783,6 +819,12 @@
+ 
+ float SUNGLOW::GetSunFadeoutFactor(const CVECTOR &vSunPos, float fSunSize)
+ {
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    // Procedural cloud opacity is applied by the native consumers. Sampling
++    // unrelated legacy sky alpha here would attenuate a second cloud field.
++    if (StormMetalCloudFieldCurrent(pRS->GetD3DDevice()))
++        return 1.0f;
++#endif
+     // get a pointer to the sky
+     if (!pSky)
+     {
+--- a/src/libs/weather/src/sky.cpp
++++ b/src/libs/weather/src/sky.cpp
+@@ -10,27 +10,37 @@
+                                             float cloudDensity, float windAngle, float windSpeed,
+                                             float legacyTextureBlend, float sunX, float sunY, float sunZ,
+                                             uint32_t fogColor);
++extern "C" bool StormMetalPrepareDynamicSky(void *device, float hour, float deltaSeconds, float cloudCoverage,
++                                              float cloudDensity, float windAngle, float windSpeed,
++                                              float legacyTextureBlend, float sunX, float sunY, float sunZ,
++                                              uint32_t fogColor);
+ extern "C" void StormMetalEndDynamicSky(void *device);
+ extern "C" bool StormMetalBeginSkyFog(void *device, uint32_t fogColor);
+ extern "C" void StormMetalEndSkyFog(void *device);
+ 
++bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime, bool skyDraw)
++{
++    if (!weather)
++        return false;
++    const auto rain = weather->GetVisualRainIntensity();
++    CVECTOR visualSun;
++    weather->GetVisualVector(whv_sun_pos, &visualSun);
++    const auto prepare = skyDraw ? StormMetalBeginDynamicSky : StormMetalPrepareDynamicSky;
++    return prepare(renderer->GetD3DDevice(), weather->GetVisualFloat(whf_time_counter),
++                                       static_cast<float>(deltaTime) * 0.001f, 0.32f + rain * 0.58f,
++                                       0.48f + rain * 0.45f,
++                                       weather->GetVisualFloat(whf_wind_angle),
++                                       weather->GetVisualFloat(whf_wind_speed), 0.16f, visualSun.x,
++                                       visualSun.y, visualSun.z, weather->GetVisualColor(whc_fog_color));
++}
++
+ class MetalDynamicSkyScope
+ {
+   public:
+     MetalDynamicSkyScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
+         : device(renderer->GetD3DDevice())
+     {
+-        if (!weather)
+-            return;
+-        const auto rain = weather->GetVisualRainIntensity();
+-        CVECTOR visualSun;
+-        weather->GetVisualVector(whv_sun_pos, &visualSun);
+-        active = StormMetalBeginDynamicSky(device, weather->GetVisualFloat(whf_time_counter),
+-                                           static_cast<float>(deltaTime) * 0.001f, 0.32f + rain * 0.58f,
+-                                           0.48f + rain * 0.45f,
+-                                           weather->GetVisualFloat(whf_wind_angle),
+-                                           weather->GetVisualFloat(whf_wind_speed), 0.16f, visualSun.x,
+-                                           visualSun.y, visualSun.z, weather->GetVisualColor(whc_fog_color));
++        active = PrepareMetalAtmosphere(renderer, weather, deltaTime, true);
+     }
+     ~MetalDynamicSkyScope()
+     {

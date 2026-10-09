@@ -120,6 +120,6 @@ inline DynamicSkyUniform makeDynamicSkyUniform(const DynamicSkyInput &input) {
     return makeDynamicSkyUniform(input,simd_make_float3(NAN,NAN,NAN));
 }
 
-inline constexpr const char *dynamicSkyShaderSource=volumetricSkyShaderSource;
+inline const char *dynamicSkyShaderSource=volumetricSkyShaderSource;
 
 } // namespace storm_metal

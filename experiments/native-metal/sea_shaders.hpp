@@ -1,4 +1,5 @@
 #pragma once
+#include "cloud_visibility_msl.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <string>
@@ -46,7 +47,7 @@ inline const char* seaPixelFunction(SeaShaderKind k) {
 // Positions/normals/UVs are the ORIGINAL CPU-generated animated SeaVertex mesh.
 // Slots 0..7 retain 2D texture bindings; slot 8 is the original bump volume
 // (stage 0 or stage 4 for foam), and slot 9 is the original stage-3 cube map.
-inline const std::string seaShaderSourceStorage=std::string(antiTilingMSL)+R"MSL(
+inline const std::string seaShaderSourceStorage=std::string(antiTilingMSL)+storm_metal::cloudVisibilityMSL+R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct SeaU {
@@ -58,6 +59,7 @@ struct SeaU {
     float4 waterIrradiance; // RGB: actual weather ambient + enabled directional light; W: validity
     float4 weatherWater;    // RGB: display-space palette; W: broad reflection luminance ceiling/validity
     float4 weatherFoam;     // RGB: display-space palette; alpha remains texture/authored
+    float4 solarDirectionBlend; // XYZ: active sun/moon direction (zero = authored sky); W: cloud cache blend
 };
 struct SeaO {
     float4 position [[position]];
@@ -338,14 +340,15 @@ fragment SeaAimOutput sea2_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[
 // Match the modern base-water reflection direction for the separate sun pass.
 // Sun/moon radiance is a localized specular source, not the broad fog-colored
 // environment. Apply water's Fresnel response without clipping it to fog energy.
-fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]]) {
+fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]]) {
     float3 n=modernSeaCubeNormal(o,u,t[0],bump,s[0]);
     float3 eye=seaNormalize(o.viewToEye),ray=reflect(-eye,n);
     float4 sunRoad=reflection.sample(s[3],ray);
-    sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*modernSeaFresnel(dot(n,eye)));
+    float visibility=skySolarTransmission(u.solarDirectionBlend,cloudFrom,cloudTo);
+    sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*modernSeaFresnel(dot(n,eye))*visibility);
     return seaFog(sunRoad,o,u);
 }
-float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth) {
+float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth,texture2d<float> cloudFrom,texture2d<float> cloudTo) {
     float3 raw=seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb;
     float3 fine=seaBump(float3(o.t0.xy*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,t[0],bump,s[0]).rgb;
     // SimpleSea packs horizontal normal X in B and Z in R (R duplicated to G).
@@ -356,21 +359,22 @@ float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,textu
     // Original projected coordinates/targets are retained, with centered distortion.
     float3 env=weatherBoundedReflection(t[1].sample(s[1],o.t1.xy+seaBumpOffset(perturb,u.bump1)).rgb,u);
     float3 sun=t[3].sample(s[3],o.t3.xy+seaBumpOffset(perturb,u.bump3)).rgb;
+    sun=modernSeaDisplay(modernSeaLinear(sun)*skySolarTransmission(u.solarDirectionBlend,cloudFrom,cloudTo));
     if(u.depthRefractionEnabled)return modernSeaDepthComposite(o,u,n,env,sun,scene,sceneDepth);
     float4 material=modernSeaMaterial(o,u,n,seaNormalize(o.viewToEye),env);
     // Preserve the previous linear-space sun energy without the redundant
-    // display -> linear round trip, and without attenuating sun by transmission.
+    // display -> linear round trip, and without attenuating sun by water transmission.
     float3 withSun=modernSeaDisplay(material.rgb+modernSeaLinear(sun));
     float3 base=modernSeaDisplay(material.rgb);
     float4 output=seaFog(float4(withSun-base*material.a,material.a),o,u);
     if(u.fogEnabled)output.a*=saturate(o.fog);
     return output;
 }
-fragment float4 sea3_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]]) {
-    return sea3ModernColor(o,u,t,bump,s,scene,sceneDepth);
+fragment float4 sea3_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]]) {
+    return sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo);
 }
-fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]]) {
-    return seaAimOutput(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth),o,identity);
+fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]]) {
+    return seaAimOutput(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo),o,identity);
 }
 
 )MSL";

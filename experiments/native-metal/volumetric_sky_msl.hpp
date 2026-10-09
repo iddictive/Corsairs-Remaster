@@ -1,6 +1,8 @@
 #pragma once
+#include "cloud_visibility_msl.hpp"
+#include <string>
 namespace storm_metal {
-inline constexpr const char *volumetricSkyShaderSource=R"MSL(
+inline const std::string volumetricSkyShaderStorage=std::string(cloudVisibilityMSL)+R"MSL(
 /*
 // Cloud shader and Godot code
 
@@ -542,10 +544,6 @@ float4 cloudSky(float3 dir, texture3d<float> large_scale_noise, texture3d<float>
 
 
 
-float2 skyOctUv(float3 d) {
-    d=d.xzy/(abs(d.x)+abs(d.y)+abs(d.z));
-    return float2((d.x+d.y)*.5f+.5f,(-d.x+d.y)*.5f+.5f);
-}
 float3 skyOctDirection(float2 uv) {
     float x=uv.x-uv.y,y=uv.x+uv.y-1.f;
     return normalize(float3(x,1.f-abs(x)-abs(y),y));
@@ -555,10 +553,6 @@ kernel void sky_clouds(texture2d<float,access::write> output [[texture(0)]], tex
     uint2 pixel=id+region.yz;float3 d=skyOctDirection((float2(pixel)+.5f)/float(region.x));
     float4 cloud=d.y>0.f?cloudSky(d,shape,detail,coverage,w):float4(0);
     output.write(cloud,pixel);
-}
-float4 skyCloudMoments(float3 d,texture2d<float> a,texture2d<float>b,float blend) {
-    constexpr sampler s(coord::normalized,address::clamp_to_edge,filter::linear);
-    return mix(a.sample(s,skyOctUv(d),level(0)),b.sample(s,skyOctUv(d),level(0)),blend)*step(0.f,d.y);
 }
 float3 skyDisplay(float3 color){return pow(1.f-exp(-max(color,0.f)*1.2f),float3(1.f/2.2f));}
 struct SkyStar {packed_float3 center;float size,angle;uint color,subtexture;};
@@ -613,4 +607,5 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[bu
     return float4(max(color,0.f),1.f);
 }
 )MSL";
+inline const char *volumetricSkyShaderSource=volumetricSkyShaderStorage.c_str();
 }
