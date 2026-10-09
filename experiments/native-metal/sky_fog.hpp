@@ -22,7 +22,10 @@ inline const char* skyFogMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;};
-float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture2d<float> environment) {
+// Water mirrors the actual sky including twilight glow; land haze keeps the
+// ambient veil so the sun never shines through islands. includeGlow is only
+// for base-water convergence at the horizon.
+float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture2d<float> environment,bool includeGlow=false) {
     if(draw.options.x<.5f)return authored;
     float2 uv=(pixel-draw.viewport.xy)/draw.viewport.zw;
     float4 a=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0,1);
@@ -34,7 +37,9 @@ float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture
                        sqrt(theta/1.57079632679f)*.5f+.5f);
     constexpr sampler s(coord::normalized,s_address::repeat,t_address::clamp_to_edge,filter::linear);
     float4 sample=environment.sample(s,skyUV,level(0));
-    return draw.options.y>.5f?sample.rgb+float3(1.f,.25f,.055f)*sample.a:sample.rgb;
+    float3 lit=sample.rgb+float3(1.f,.25f,.055f)*sample.a;
+    if(draw.options.y>.5f||includeGlow)return lit;
+    return sample.rgb;
 }
 )MSL";
 }
