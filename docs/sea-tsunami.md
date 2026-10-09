@@ -21,8 +21,12 @@ The later progressive-contact, geometry-driven pose and debug-feedback correctio
 passes canonical staging and is installed; its player replay remains unresolved.
 The subsequent player report reopens storm-plus-tsunami hang acceptance. A native
 collision-separation nontermination is reproduced. Its correction passes native
-checks and the canonical build; installed delivery awaits the player's normal
-quit, and the reported scenario remains player-owned replay.
+checks and the canonical build and is installed after normal quit; the reported
+scenario remains player-owned replay. The player's subsequent map report rejects
+the dark rotating appearance. Its correction reuses ordinary animated map water,
+anchors the crest phase and adds shoreline contact foam; native build passes,
+final component checks and canonical staging pass, and the correction is installed.
+Actual game appearance/movement and shoreline replay remain player-owned.
 
 ## Player action
 
@@ -184,6 +188,21 @@ island teardown/submersion and attribute Clear reset only the new pool. Ordinary
 ship/storm emitters and coast mesh stay unchanged; particle scale defaults to 1.
 Matched array allocation/deallocation in SEAFOAM_PS supports reliable pool teardown.
 
+The later player report rejects the missing shore hit. The emitter previously
+started at the traced bank's fixed Y=.5, below the displaced crest; the existing
+short spray profile cannot reliably rise through that water. Each tsunami-owned
+slot now retains its hit/direction and emits at max(hit Y, current WaveXZ)+.75,
+following the displaced surface during its emission window. The existing pool,
+serial, cancellation, expiry and ordinary particle path remain the owners.
+This is contact spray; no persistent aftermath foam or wider coast sampling is
+introduced. Actual shoreline visibility remains a player-replay check.
+The corrected actual admission/reset/realize bodies pass 74 ASan/UBSan component
+checks with particle API, sea terminal and island adapters: initial independent
+crest altitude, two changing water heights at severity 0/.5/1, seeded replacement,
+pause, emission/lifetime expiry and absent/submerged island. A fixed-ground mutant
+fails the independent altitude oracle. The actual ordinary SEAFOAM_PS source is
+unchanged; its rendered simulation is not replayed by this adapter.
+
 Disposable actual-method probes cover real trace hit coordinates with an independent
 geometry shim, the bounds above, 21 severity samples and ordinary particle byte
 equality at scale 1. No-hit/all-water, absent or submerged island, outward wave,
@@ -216,9 +235,12 @@ active-map conditions, not a 100-fold guarantee. Player frequency is unmeasured.
 The installed front replaces the moving filled circle with a fixed-origin hollow
 front: a **140° arc** or full ring. Radius starts at 12 map units, grows at
 `6 + 3s` units/s and stops at `240 + 80s` (at most 320). Lifetime follows this
-bounded reach plus four seconds for entry/fade. Full strength lasts through the
-ordinary configured maximum spawn distance (currently 140); the shared gain then
-decays smoothly to zero at maximum radius, with entry/exit and arc-end envelopes.
+bounded reach plus four seconds for entry/fade. After its two-second entry, full
+strength lasts through the first third of propagation from the starting radius
+to its severity-defined maximum. The shared gain then decays smoothly to zero
+over the remaining two thirds, with entry/exit and arc-end envelopes. Radius and
+lifetime still derive from the sampled severity; the plateau changes no saved
+distance/speed fields. This same gain feeds mesh height/alpha and contact exposure.
 Contact below 0.06 exposure is rejected. Swept front checks admit a
 crossing between updates, while the passed interior is safe. Ordinary storms
 retain their six-cloud geometry.
@@ -237,6 +259,44 @@ is delivered through the canonical managed-material registry, whose first
 admission binds the identical LF/CRLF predecessor bodies. No new shader pipeline
 or map texture is introduced. The original blue debug disk/cloud/rain is absent
 for marked events; ordinary storm visuals remain.
+
+The dark-collar report invalidates material acceptance from the earlier static
+fixture. Installed sea.tga is a near-black authored base; ordinary WdmSea adds
+interpolated animation in a separate pass. Neutral vertex tint alone still
+renders the raised wave as a dark hose and is rejected. WdmSea now owns the wave's
+base/animated draws through DrawTsunamiSurface and shared PresetAnimated. Both
+consumers use the same 32 textures, clock, interpolation and UV transforms;
+the wave adds only depth testing and per-vertex coverage. The non-owning sea
+reference registers after construction and clears on destruction/map reset.
+No second texture collection, clock, renderer or particle material is introduced.
+
+Body RGB is neutral and UV maps the ordinary sea grid. Crest UV makes eight
+angular repeats, independent of radius/age; its grain has no time phase. Thus
+the front expands radially without circumference texture/grain scrolling. Native
+complete-scene stills reject tint-only and accept the missing-layer correction;
+three-second A/B clips were generated at intended speed but their continuous
+perceptual playback is unverified. Component evidence is separate from game replay.
+Final integration binds actual WdmSea drawing methods and raw CMatrix bytes to
+the current generic Metal shader. The earlier prototype normalized a texture
+translation differently and is not final source-parity evidence; the ordinary
+renderer behavior is preserved rather than repaired through this effect.
+
+The exact shared gain passes full first-third and monotone remaining-distance
+sweeps at severity 0/.5/1; the retained two-second entry precedes the plateau.
+The corresponding plateau radii are 88, 101.333 and 114.667 map units. Actual
+Jamaica landfall at radius 80.4034 admits a water-side foam lip at full gain.
+Four final source-bound native frames show the open arc without a black collar,
+shore-hit foam at Jamaica, a decayed ring with the protected sector absent, and
+ordinary water after terminal fade. These complete frames use actual island
+inputs and native material methods; they omit ships, labels, live reflection/sun
+refinement and measured FPS. Earlier prototype A/B clips are not exact final
+material evidence. Current installed hashes/receipt belong to docs/runtime.md.
+
+Cached landfall also produces a short raised foam lip on the water side of a
+contacting shoreline. Its intensity uses the front profile and shared gain;
+open-water sentinels and discontinuous coast gaps emit no lip. The same existing
+foam texture/pass owns it, without saved state. Land still cuts propagation and
+protects ships behind it; this effect does not create land traversal or fort damage.
 
 `WdmIslands` owns a one-time cache of active authored land triangles, clipped at
 the sea plane and transformed with actual model placements. Exact source-to-point
@@ -260,7 +320,7 @@ Jamaica and its unanimated substrate hid the water body. Corrected framing uses
 the supported free-camera height 500 and actual WdmSea fixed-function/animated
 substrate, plus installed island geometry/material inputs. A further two frames
 consume the final shared gain: full initial strength and a sheltered decaying ring.
-The raised dark face and pale foam are visible, the sector behind Jamaica is absent,
+The earlier raised dark face and pale foam were visible, the sector behind Jamaica was absent,
 and the opposite water front survives. At maximum radius gain reaches zero and
 the producer emits no mesh. The generic Metal shader compiles. This fixture has
 no live reflection/sun refinement, labels, ships, spray or FPS evidence; the full

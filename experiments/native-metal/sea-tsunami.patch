@@ -427,7 +427,7 @@
          _shipFoamInfo.frontEmitter[2]->Realize(_dTime);
      }
  
-@@ -465,6 +478,37 @@
+@@ -465,6 +478,40 @@
  
      switch (code)
      {
@@ -453,7 +453,10 @@
 +                }
 +                splash.particles->ClearParticles();
 +                splash.particles->SetSplashScale((.8f + 1.6f * sample.severity) * (.5f + .5f * std::clamp(strength, 0.f, 1.f)));
-+                splash.particles->SetEmitter(hit, !CVECTOR(seaward.x * .4f, 1.f, seaward.z * .4f));
++                splash.hit = hit;
++                splash.direction = !CVECTOR(seaward.x * .4f, 1.f, seaward.z * .4f);
++                hit.y = std::max(hit.y, sea->WaveXZ(hit.x, hit.z)) + .75f;
++                splash.particles->SetEmitter(hit, splash.direction);
 +                splash.serial = serial;
 +                splash.age = 0;
 +                splash.emissionTime = static_cast<uint32_t>(300.f + 700.f * sample.severity);
@@ -465,7 +468,7 @@
      case MSG_SHIP_DELETE: {
          auto *const attrs = message.AttributePointer();
          tShipFoamInfo *foamInfo = nullptr;
-@@ -492,12 +536,49 @@
+@@ -492,12 +536,55 @@
  }
  
  //--------------------------------------------------------------------
@@ -500,6 +503,12 @@
 +            continue;
 +        }
 +        splash.age += delta;
++        if (splash.age < splash.emissionTime)
++        {
++            auto hit = splash.hit;
++            hit.y = std::max(hit.y, sea->WaveXZ(hit.x, hit.z)) + .75f;
++            splash.particles->SetEmitter(hit, splash.direction);
++        }
 +        splash.particles->EnableEmit(delta > 0 && splash.age < splash.emissionTime);
 +        splash.particles->Realize(delta);
 +    }
@@ -542,7 +551,7 @@
  };
  
  class SEAFOAM : public Entity
-@@ -74,6 +79,15 @@
+@@ -74,6 +79,16 @@
      void InterpolateLeftParticle(tShipFoamInfo &_shipFoamInfo, int z, uint32_t dTime);
      void InterpolateRightParticle(tShipFoamInfo &_shipFoamInfo, int z, uint32_t dTime);
      void AddShip(entid_t pShipEID);
@@ -551,6 +560,7 @@
 +    struct TsunamiShoreSplash
 +    {
 +        std::unique_ptr<SEAFOAM_PS> particles;
++        CVECTOR hit, direction;
 +        unsigned serial = 0;
 +        uint32_t age = 0, emissionTime = 0, lifeTime = 0;
 +    };
@@ -1236,11 +1246,12 @@
          Particle[n].spin = Particle[n].spinVal * GetTrackValue(ParticleSpin, Particle[n].time);
 --- a/src/libs/worldmap/src/wdm_storm.cpp
 +++ b/src/libs/worldmap/src/wdm_storm.cpp
-@@ -13,8 +13,14 @@
+@@ -13,8 +13,15 @@
  #include "wdm_camera.h"
  #include "wdm_cloud.h"
  #include "wdm_render_model.h"
 +#include "wdm_islands.h"
++#include "wdm_sea.h"
 +#include "wdm_ship.h"
 +#include "wdm_enemy_ship.h"
 +#include "core.h"
@@ -1259,16 +1270,15 @@
      // Arbitrary deviation from course
      r = WDM_STORM_DIR_DIS * (1.0f - rand() * 2.0f / RAND_MAX);
      ang = dir.x;
-@@ -129,6 +136,8 @@
+@@ -129,6 +136,7 @@
  
  WdmStorm::~WdmStorm()
  {
-+    if (tsunamiWaterTexture >= 0) wdmObjects->rs->TextureRelease(tsunamiWaterTexture);
 +    if (tsunamiFoamTexture >= 0) wdmObjects->rs->TextureRelease(tsunamiFoamTexture);
      if (rainTexture >= 0)
          wdmObjects->rs->TextureRelease(rainTexture);
      rainTexture = -1;
-@@ -140,8 +149,210 @@
+@@ -140,8 +149,208 @@
      wdmObjects->DelStorm(this);
  }
  
@@ -1374,9 +1384,7 @@
 +    if (age <= 0.0f || age >= tsunamiLifetime) return 0.0f;
 +    const auto smooth = [](float x) { x = std::clamp(x, 0.0f, 1.0f); return x * x * (3.0f - 2.0f * x); };
 +    const float entry = smooth(age / 2.0f), exit = smooth((tsunamiLifetime - age) / 4.0f);
-+    const float spawnDistance = wdmObjects->stormBrnDistMax;
-+    const float plateau = std::clamp(std::isfinite(spawnDistance) ? spawnDistance : 0.0f,
-+                                     0.0f, tsunamiMaxRadius - 1.0f);
++    const float plateau = tsunamiStartRadius + (tsunamiMaxRadius - tsunamiStartRadius) / 3.0f;
 +    const float distanceFade = 1.0f - smooth((TsunamiRadius(age) - plateau) /
 +                                           (tsunamiMaxRadius - plateau));
 +    return entry * exit * distanceFade;
@@ -1518,7 +1526,7 @@
      if (isActiveTime >= 0.0f)
          isActiveTime -= dltTime;
      // Direction vector to the ship
-@@ -254,10 +494,89 @@
+@@ -254,10 +494,111 @@
              cloud[i]->pos = pos + cloudPos[i];
          }
      UpdateSaveData();
@@ -1542,27 +1550,27 @@
 +        const float angular = TsunamiAngularGain(x, z);
 +        const float profile = TsunamiProfile(offset);
 +        const float shoreline = std::clamp((tsunamiShadow[segment] - radial) / 1.5f, 0.0f, 1.0f);
-+        const float shade = std::clamp(0.64f + 0.25f * offset + 0.08f * cosf(angle), 0.35f, 1.0f);
++        // The sea owns animated water; the crest phase stays on its radial ray.
 +        // The raised face and foam share the physical support; only authored
 +        // texture coordinates vary along the crest, never event/contact geometry.
 +        TsunamiVertex v{pos.x + x * radial, 0.15f + height * profile * angular,
 +            pos.z + z * radial, 0, 0.0f, 0.0f};
 +        if (isFoam)
 +        {
-+            const float grain = 0.75f + 0.25f * sinf(angle * 13.0f + 0.7f * sinf(angle * 5.0f) + tsunamiAge * 0.35f);
++            const float grain = 0.75f + 0.25f * sinf(angle * 13.0f + 0.7f * sinf(angle * 5.0f));
 +            const uint32_t alpha = uint32_t(220.0f * gain * angular * shoreline * grain);
 +            v.color = (alpha << 24) | 0x00e9faff;
 +            v.y += 0.07f;
-+            v.u = angle * radius / 36.0f + 0.25f * sinf(angle * 7.0f) + tsunamiAge * 0.06f;
++            v.u = angle * (8.0f / 6.283185307179586f);
 +            v.v = (offset + 0.5f) / 0.9f;
 +        }
 +        else
 +        {
 +            const uint32_t alpha = uint32_t(210.0f * profile * angular * shoreline * std::min(1.0f, gain * 2.5f));
-+            const uint32_t red = uint32_t(18.0f * shade), green = uint32_t(122.0f * shade), blue = uint32_t(184.0f * shade);
-+            v.color = (alpha << 24) | (red << 16) | (green << 8) | blue;
-+            v.u = v.x / 80.0f + tsunamiAge * 0.015f;
-+            v.v = v.z / 80.0f;
++            v.color = (alpha << 24) | 0x00ffffff;
++            // Match WdmSea's mesh UV before its base/animation transforms.
++            v.u = v.x / (3.0f * wdmObjects->worldSizeX) + 0.5f;
++            v.v = 0.5f - v.z / (3.0f * wdmObjects->worldSizeZ);
 +        }
 +        return v;
 +    };
@@ -1581,6 +1589,27 @@
 +    };
 +    appendStrip(water, false, 8, -1.5f, 1.5f);
 +    appendStrip(foam, true, 3, -0.5f, 0.4f);
++    // Land stops propagation, but the contacting front breaks along its water edge.
++    const auto shoreVertex = [&](uint32_t segment, bool lip) {
++        const float angle = float(segment) * (6.283185307179586f / tsunamiSegments);
++        const float x = sinf(angle), z = cosf(angle), edge = tsunamiShadow[segment];
++        const float impact = gain * TsunamiAngularGain(x, z) * TsunamiProfile((edge - radius) / width);
++        const uint32_t alpha = uint32_t(220.0f * impact * (lip ? 1.0f : 0.4f));
++        const float radial = std::max(0.5f, edge - (lip ? 0.3f : 4.0f));
++        return TsunamiVertex{pos.x + x * radial, 0.25f + (lip ? height * impact * 0.55f : 0.0f),
++            pos.z + z * radial, (alpha << 24) | 0x00e9faff,
++            angle * (8.0f / 6.283185307179586f), lip ? 0.1f : 0.9f};
++    };
++    for (uint32_t segment = 0; segment < tsunamiSegments; ++segment)
++    {
++        const float a = tsunamiShadow[segment], b = tsunamiShadow[segment + 1];
++        // Do not bridge across an island gap or emit on the open-water sentinel.
++        if (a > tsunamiMaxRadius || b > tsunamiMaxRadius || fabsf(a - b) > 2.0f * width) continue;
++        const auto v0 = shoreVertex(segment, false), v1 = shoreVertex(segment + 1, false);
++        const auto v2 = shoreVertex(segment, true), v3 = shoreVertex(segment + 1, true);
++        if (((v0.color | v1.color | v2.color | v3.color) >> 24) == 0) continue;
++        foam.insert(foam.end(), {v0, v1, v2, v2, v1, v3});
++    }
  }
  
  void WdmStorm::LRender(VDX9RENDER *rs)
@@ -1590,18 +1619,19 @@
 +        std::vector<TsunamiVertex> water, foam;
 +        BuildTsunamiMesh(water, foam);
 +        if (water.empty() && foam.empty()) return;
-+        if (tsunamiWaterTexture < 0) tsunamiWaterTexture = rs->TextureCreate("\\WorldMap\\Sea\\sea.tga");
++        if (!wdmObjects->sea) return;
 +        if (tsunamiFoamTexture < 0) tsunamiFoamTexture = rs->TextureCreate("\\WorldMap\\geometry\\Wave001.tga");
 +        CMatrix identity;
 +        rs->SetTransform(D3DTS_WORLD, identity);
++        wdmObjects->sea->DrawTsunamiSurface(rs, water.data(), uint32_t(water.size() / 3), sizeof(TsunamiVertex));
 +        rs->SetTransform(D3DTS_TEXTURE0, identity);
++        rs->SetTransform(D3DTS_TEXTURE1, identity);
 +        const auto draw = [&](std::vector<TsunamiVertex> &mesh, int32_t texture) {
 +            if (mesh.empty() || texture < 0) return;
 +            rs->TextureSet(0, texture);
 +            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
 +                uint32_t(mesh.size() / 3), mesh.data(), sizeof(TsunamiVertex), "WdmTsunamiWave");
 +        };
-+        draw(water, tsunamiWaterTexture);
 +        draw(foam, tsunamiFoamTexture);
 +        return; // Marked events have no ordinary debug disks, storm clouds or rain.
 +    }
@@ -1677,7 +1707,7 @@
 +    uint32_t tsunamiShape = 0, tsunamiShadowGeneration = 0;
 +    static constexpr uint32_t tsunamiSegments = 256;
 +    float tsunamiShadow[tsunamiSegments + 1]{};
-+    int32_t tsunamiWaterTexture = -1, tsunamiFoamTexture = -1;
++    int32_t tsunamiFoamTexture = -1;
  
      float isActiveTime;
      float liveTime;
@@ -2058,7 +2088,7 @@
          return bVisible;
 --- a/src/techniques/worldmap/worldmap.fx
 +++ b/src/techniques/worldmap/worldmap.fx
-@@ -597,3 +597,33 @@
+@@ -597,3 +597,100 @@
          AlphaOp[1] = disable;
      }
  }
@@ -2089,6 +2119,73 @@
 +        AlphaArg2[0] = diffuse;
 +        AlphaOp[0] = modulate;
 +        ColorOp[1] = disable;
++        AlphaOp[1] = disable;
++    }
++}
++
++// The ordinary sea's authored base on the raised mesh, with vertex coverage.
++technique WdmTsunamiWaterBase
++{
++    pass p0
++    {
++        Lighting = false;
++        FogEnable = false;
++        ZEnable = true;
++        ZFunc = lessequal;
++        ZWriteEnable = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = invsrcalpha;
++        TextureTransformFlags[0] = count2;
++        TexCoordIndex[0] = 0;
++        AddressU[0] = clamp;
++        AddressV[0] = clamp;
++        ColorArg1[0] = texture;
++        ColorArg2[0] = diffuse;
++        ColorOp[0] = modulate;
++        AlphaArg1[0] = texture;
++        AlphaArg2[0] = diffuse;
++        AlphaOp[0] = modulate;
++        ColorOp[1] = disable;
++        AlphaOp[1] = disable;
++    }
++}
++
++// WdmSeaDraw3's frame interpolation/addition, masked by the wave's coverage.
++technique WdmTsunamiWaterAnimated
++{
++    pass p0
++    {
++        Lighting = false;
++        FogEnable = false;
++        ZEnable = true;
++        ZFunc = lessequal;
++        ZWriteEnable = false;
++        CullMode = none;
++        AlphaTestEnable = false;
++        AlphaBlendEnable = true;
++        SrcBlend = srcalpha;
++        DestBlend = one;
++        TextureTransformFlags[0] = count2;
++        TextureTransformFlags[1] = count2;
++        TexCoordIndex[0] = 0;
++        TexCoordIndex[1] = 0;
++        AddressU[0] = wrap;
++        AddressV[0] = wrap;
++        AddressU[1] = wrap;
++        AddressV[1] = wrap;
++        ColorArg1[0] = texture;
++        ColorOp[0] = SelectArg1;
++        ColorArg0[1] = tfactor;
++        ColorArg1[1] = texture;
++        ColorArg2[1] = current;
++        ColorOp[1] = lerp;
++        ColorOp[2] = disable;
++        AlphaArg1[0] = diffuse;
++        AlphaArg2[0] = tfactor;
++        AlphaOp[0] = modulate;
 +        AlphaOp[1] = disable;
 +    }
 +}
@@ -2124,3 +2221,156 @@
                          break;
                  }
              }
+--- a/src/libs/worldmap/src/wdm_sea.cpp
++++ b/src/libs/worldmap/src/wdm_sea.cpp
+@@ -145,10 +145,12 @@
+     flareTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\flare.tga");
+     flareCount = 0;
+     flareCerateCounter = 0.0f;
++    wdmObjects->sea = this;
+ }
+ 
+ WdmSea::~WdmSea()
+ {
++    if (wdmObjects->sea == this) wdmObjects->sea = nullptr;
+     if (ib >= 0)
+         wdmObjects->rs->ReleaseIndexBuffer(ib);
+     if (vb >= 0)
+@@ -302,20 +304,54 @@
+     // Render
+     Render(rs, "WdmSeaDraw2");
+     // Drawing an animated texture
+-    // Determine a pair of frames and the blending coefficient between them
++    PresetAnimated(rs);
++    Render(rs, "WdmSeaDraw3");
++    // draw flares
++    if (flareCount > 0)
++    {
++        CMatrix view;
++        rs->GetTransform(D3DTS_VIEW, view);
++        view.Transposition();
++        auto y = view.Pos().y;
++        const auto maxy = 130.0f;
++        const auto miny = 80.0f;
++        if (y < maxy)
++        {
++            y = (y - miny) / (maxy - miny);
++            if (y < 0.0f)
++                y = 0.0f;
++            y = (1.0f - y) * (1.0f - y);
++            const auto c = static_cast<int32_t>(y * 255.0f) << 24;
++            rs->TextureSet(0, flareTexture);
++            rs->SetRenderState(D3DRS_TEXTUREFACTOR, (c << 24) | (c << 16) | (c << 8) | c);
++            rs->DrawRects(flareRect, flareCount, "WdmSeaDrawFlare");
++        }
++    }
++}
++
++void WdmSea::DrawTsunamiSurface(VDX9RENDER *rs, const void *vertices, uint32_t triangles, uint32_t stride) const
++{
++    if (!vertices || !triangles) return;
++    rs->TextureSet(0, baseTexture);
++    PresetMain(rs);
++    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++        triangles, vertices, stride, "WdmTsunamiWaterBase");
++    PresetAnimated(rs);
++    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++        triangles, vertices, stride, "WdmTsunamiWaterAnimated");
++}
++
++void WdmSea::PresetAnimated(VDX9RENDER *rs) const
++{
+     const auto curFrame = static_cast<int32_t>(aniFrame);
+     auto nextFrame = curFrame + 1;
+     if (nextFrame >= sizeof(aniTextures) / sizeof(int32_t))
+         nextFrame = 0;
+     auto k = 255.0f * (aniFrame - static_cast<int32_t>(aniFrame));
+-    if (k < 0.0f)
+-        k = 0.0f;
+-    if (k > 255.0f)
+-        k = 255.0f;
+-    // Textures
++    if (k < 0.0f) k = 0.0f;
++    if (k > 255.0f) k = 255.0f;
+     rs->TextureSet(0, aniTextures[curFrame]);
+     rs->TextureSet(1, aniTextures[nextFrame]);
+-    // Matrix for textures
+     CMatrix mtx;
+     mtx.m[0][0] = aniTiling;
+     mtx.m[1][1] = aniTiling;
+@@ -324,28 +360,6 @@
+     rs->SetTransform(D3DTS_TEXTURE0, mtx);
+     rs->SetTransform(D3DTS_TEXTURE1, mtx);
+     rs->SetRenderState(D3DRS_TEXTUREFACTOR, WDM_SEA_CLR(WDM_SEA_ANIALPHA, k));
+-    Render(rs, "WdmSeaDraw3");
+-    // draw flares
+-    if (flareCount > 0)
+-    {
+-        CMatrix view;
+-        rs->GetTransform(D3DTS_VIEW, view);
+-        view.Transposition();
+-        auto y = view.Pos().y;
+-        const auto maxy = 130.0f;
+-        const auto miny = 80.0f;
+-        if (y < maxy)
+-        {
+-            y = (y - miny) / (maxy - miny);
+-            if (y < 0.0f)
+-                y = 0.0f;
+-            y = (1.0f - y) * (1.0f - y);
+-            const auto c = static_cast<int32_t>(y * 255.0f) << 24;
+-            rs->TextureSet(0, flareTexture);
+-            rs->SetRenderState(D3DRS_TEXTUREFACTOR, (c << 24) | (c << 16) | (c << 8) | c);
+-            rs->DrawRects(flareRect, flareCount, "WdmSeaDrawFlare");
+-        }
+-    }
+ }
+ 
+ void WdmSea::Render(VDX9RENDER *rs, const char *tech) const
+--- a/src/libs/worldmap/src/wdm_sea.h
++++ b/src/libs/worldmap/src/wdm_sea.h
+@@ -61,6 +61,8 @@
+ 
+     void PRender(VDX9RENDER *rs) override;
+     void LRender(VDX9RENDER *rs) override;
++    // Same XYZ/DIFFUSE/TEX1 surface as the ordinary sea, with vertex coverage.
++    void DrawTsunamiSurface(VDX9RENDER *rs, const void *vertices, uint32_t triangles, uint32_t stride) const;
+ 
+     // --------------------------------------------------------------------------------------------
+     // Encapsulation
+@@ -70,6 +72,7 @@
+     void Render(VDX9RENDER *rs, const char *tech = nullptr) const;
+     // Adjust texture coordinate transformations
+     void PresetMain(VDX9RENDER *rs) const;
++    void PresetAnimated(VDX9RENDER *rs) const;
+ 
+   private:
+     // Geometry buffers
+--- a/src/libs/worldmap/src/wdm_objects.cpp
++++ b/src/libs/worldmap/src/wdm_objects.cpp
+@@ -78,6 +78,7 @@
+     rs = nullptr;
+     gs = nullptr;
+     islands = nullptr;
++    sea = nullptr;
+     isDebug = false;
+     isPause = false;
+     shipSpeedOppositeWind = 0.8f;
+--- a/src/libs/worldmap/src/wdm_objects.h
++++ b/src/libs/worldmap/src/wdm_objects.h
+@@ -20,6 +20,7 @@
+ #include <optional>
+ 
+ class WdmIslands;
++class WdmSea;
+ class WdmShip;
+ class WdmPlayerShip;
+ class WorldMap;
+@@ -81,6 +82,7 @@
+     WdmCamera *camera;
+     // Islands
+     WdmIslands *islands;
++    WdmSea *sea = nullptr; // Non-owning: the map's render-object list owns its lifetime.
+ 
+     // The ships
+     // Player ship
