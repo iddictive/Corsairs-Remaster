@@ -8030,7 +8030,7 @@ pass. The513-frame weather/wind/cache replay remains smooth/finite at mean0.689m
 p951.867ms, max2.985ms and prime47.92ms; timings include fog compute plus a small
 diagnostic draw and do not prove player FPS.
 
-Source/native acceptance passes at local commit `7554564`. Root's canonical
+Source/native acceptance passes at local commit `41dd4f9`. Root's canonical
 staging is pending (the user is running the game); the prior installed engine
-is `44cdd028` (`9052624`). Evidence and disposable diagnostic sources live in
-the ignored native sky-evidence owner.
+is `44cdd028`. Evidence and disposable diagnostic sources live in the ignored
+native sky-evidence owner.
