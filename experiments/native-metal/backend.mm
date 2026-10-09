@@ -925,7 +925,7 @@ if(rawOutdoor||rawIndoor||rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWd
  // Location point cubes may consume last frame's registry before scene draws.
  // Sea traversal prunes unseen packets before cube encoding, so only that
  // domain may use frame-arena geometry; location keeps immutable residency.
- const bool transientSail=rawDynamicSail&&!landShadow.locationActive;
+ const bool transientSail=false;
  const auto sailUpload=transientSail?dynamicVertexBuffer(vb):DynamicRawBuffer{};
  auto rawVertices=rawSkinned?vb->gpuSkinningBuffer:(transientSail?sailUpload.slice.buffer:residentBuffer(rawVertexBuffers,vb->bytes,vb->cacheIdentity,vb->cacheRevision));
  auto rawIndices=residentBuffer(rawIndexBuffers,ib->bytes,ib->cacheIdentity,ib->cacheRevision);if(!rawVertices||!rawIndices)return E_OUTOFMEMORY;
