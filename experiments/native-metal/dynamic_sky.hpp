@@ -40,6 +40,7 @@ struct alignas(16) DynamicSkyDrawUniform {
     uint32_t hasNextTexture = 0;
     float textureBlend = 0.f;
     uint32_t padding = 0;
+    simd_float4x4 rayFromLocal = matrix_identity_float4x4;
 };
 
 struct alignas(16) DynamicStarDrawUniform {
