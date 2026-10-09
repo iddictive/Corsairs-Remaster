@@ -450,7 +450,8 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 	// Initialize ray length, direction, and position.
 	float ss = length(dir);
 	dir = normalize(dir);
-	float3 p = pos + dir * hash(pos * 10.0) * ss;
+	const float jitter = hash(pos * 10.0);
+	float3 p = pos;
 
 	// Initialize light ray.
 	const float t_dist = sky_t_radius - sky_b_radius;
@@ -472,7 +473,9 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 
 	for (int i = 0; i < depth; i++) {
 		if(T<.005f)break;
-		p += dir * ss;
+		// Planet-space Y is about six million metres: repeatedly adding small
+		// steps rounds the same error into every sample and bands the whole ray.
+		p = pos + dir * (ss * (float(i) + 1.f + jitter));
 		float3 weather_sample = weather_noise.sample(ns, p.xz * weather_scale + .5f + weather_pos).xyz;
 		float height_fraction = GetHeightFractionForPoint(length(p));
 
@@ -590,10 +593,15 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[bu
     float cosTheta=dot(d,sun),phase=max(max(henyey_greenstein(cosTheta,.6f),henyey_greenstein(cosTheta,clamp(.4f-1.4f*sun.y,-.7f,.7f))),henyey_greenstein(cosTheta,-.2f));
     float lowerWeight=max(0.f,moments.a-moments.x);
     float3 dayCloud=moments.x*upper+lowerWeight*lower+moments.z*sunColor*phase;
-    // Preserve the accepted white noon rims. At low sun, compress the much
-    // stronger forward lobe instead of clipping the whole cloud field white.
+    // The cloud moments contain HDR radiance but Storm's scene target is LDR.
+    // Compress only bright highlights before that target loses their detail;
+    // unpremultiply first so thin cloud edges keep their proper coverage.
+    float3 radiance=dayCloud/max(moments.a,.00001f);
+    float peak=max(max(radiance.r,radiance.g),radiance.b);
+    float displayPeak=peak<=.75f?peak:.75f+.25f*(1.f-exp(-(peak-.75f)/.25f));
+    float3 displayCloud=radiance*(displayPeak/max(peak,.00001f))*moments.a;
     float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
-    dayCloud=mix(dayCloud,1.f-exp(-dayCloud*.85f),sunsetExposure);
+    dayCloud=mix(displayCloud,1.f-exp(-dayCloud*.85f),sunsetExposure);
     float overcast=smoothstep(.5f,.96f,weather.wind_coverage_density.z);
     dayCloud*=mix(1.f,.64f,overcast);
     float3 nightCloud=moments.x*float3(.055f,.071f,.105f)+lowerWeight*float3(.022f,.027f,.044f)+moments.z*float3(.16f,.20f,.29f)*phase;
