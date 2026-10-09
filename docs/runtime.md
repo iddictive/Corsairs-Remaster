@@ -8061,3 +8061,12 @@ night ambient by `1-max(daylight,twilight)`: full dark at 19:36, while the
 accepted 18:25 sunward dusk keeps twilight=1 and stays bit-identical, and the
 sky display path is untouched. All four probes pass at `14daa14`. Staging is
 blocked: the game is running the player's session.
+
+### October 9 — dawn horizon seam fixed, base water converges to twilight glow
+
+Player capture at 06:10 dawn shows a hard tone step at the horizon — sky (241,156,78) versus sea (146,115,58) with smooth gradients and no geometry gap. Root cause: far sea converges to the cloudless/glowless ambient veil, while the sky display adds the twilight sun glow (+clouds) stored in the environment map's alpha channel.
+
+Fix: The base-water  variants now request this twilight glow from  (), meaning the far sea equals the actual sky display by construction. The land/foam/sun passes keep the ambient veil, preserving the "no sun shines through islands" acceptance constraint. This intentionally diverges the sea appearance from the old FFP-equality reproduction to fix the modern visual defect.
+
+Dynamic-sky, backend, shadow, and sea probes pass at . Staging awaits idle game.
+
