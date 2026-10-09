@@ -82,7 +82,7 @@ inline simd_float2 advanceDynamicSkyPhase(simd_float2 phase, float windAngleRadi
     const float angle = std::isfinite(windAngleRadians) ? windAngleRadians : 0.f;
     const float speed = finiteSkyClamp(windSpeed, 0.f, 0.f, 40.f);
     const float dt = std::max(0.f, std::isfinite(deltaSeconds) ? deltaSeconds : 0.f);
-    return phase + simd_make_float2(std::cos(angle), std::sin(angle)) * speed * dt * .000035f;
+    return phase + simd_make_float2(std::cos(angle), std::sin(angle)) * speed * dt;
 }
 
 inline simd_float3 dynamicSkySunDirection(float hour) {

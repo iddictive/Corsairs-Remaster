@@ -304,12 +304,16 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     if(depth0<=o.position.z)thickness=0.f;
     float3 eye=seaNormalize(o.viewToEye);
     // Macro-surface grazing incidence remains reflective despite fine ripples.
-    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));
+    // Soften reflection and force transparency near the shore to prevent opaque
+    // grazing-angle water from covering the mountain base with a hard sky-color seam.
+    float verticalDepth=depth0>=.999999f?1000.f:max(0.f,waterView.y-behindView.y);
+    float shoreFade=saturate(verticalDepth/4.f);
+    float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)))*shoreFade;
     // Absorption coefficients are per engine world unit; red attenuates first.
     // Thickness comes entirely from the actual scene depth, never view angle.
-    float3 transmission=exp(-float3(.14f,.055f,.025f)*max(thickness,0.f))*(1.f-fresnel);
+    float3 transmission=max(exp(-float3(.14f,.055f,.025f)*max(thickness,0.f))*(1.f-fresnel),float3(1.f-shoreFade));
     float3 body=o.waterBody*(.72f+.28f*saturate(normal.y));
-    float3 newWater=modernSeaLinear(env)*fresnel+body*(float3(1.f-fresnel)-transmission)+modernSeaLinear(sun);
+    float3 newWater=modernSeaLinear(env)*fresnel+body*(float3(1.f-fresnel)-transmission)+modernSeaLinear(sun)*shoreFade;
     float3 background=modernSeaLinear(scene.sample(sceneSampler,uv).rgb);
     // Opaque scene color already contains its fog. Fog only NEW water energy,
     // weighted by its complement, so transmitted geometry is never fogged twice.

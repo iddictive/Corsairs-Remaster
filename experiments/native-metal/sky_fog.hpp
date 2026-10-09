@@ -33,7 +33,8 @@ float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture
     float2 skyUV=float2(atan2(ray.z,ray.x)/6.28318530718f+.5f,
                        sqrt(theta/1.57079632679f)*.5f+.5f);
     constexpr sampler s(coord::normalized,s_address::repeat,t_address::clamp_to_edge,filter::linear);
-    return environment.sample(s,skyUV,level(0)).rgb;
+    float4 sample=environment.sample(s,skyUV,level(0));
+    return draw.options.y>.5f?sample.rgb+float3(1.f,.25f,.055f)*sample.a:sample.rgb;
 }
 )MSL";
 }
