@@ -586,14 +586,14 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float daylight=smoothstep(-.13f,.10f,solarElevation),twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
     float horizon=1.f-smoothstep(-.02f,.42f,max(d.y,0.f));
     float3 fog=weather.horizonFog.w>.5f?weather.horizonFog.rgb:mix(float3(.035f,.045f,.075f),float3(.64f,.78f,.92f),daylight);
-    float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
-    float3 color=mix(fog*float3(.22f,.42f,.72f),fog,horizon);
-    float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
-    color=mix(color,physical,twilight*.72f);
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
     float3 lower=float3(.18f,.22f,.26f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
+    // The sky display keeps exact authoritative fog at its horizon; only the
+    // directional fog field dims toward the actual ambient under clouds.
+    float3 veil=fog;
+    float overcastAmbient=0.f;
     if(!includeClouds){
-        float overcastAmbient=smoothstep(.3f,.9f,weather.wind_coverage_density.z);
+        overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
         if(overcastAmbient>0.01f){
             float3 avgCloud=mix(lower,upper,0.5f);
             float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
@@ -601,9 +601,14 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
             avgCloud*=mix(1.f,.64f,overcastAmbient);
             float3 nightCloud=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
             float3 ambientCloud=mix(nightCloud,avgCloud,daylight);
-            color=mix(color,ambientCloud,overcastAmbient*0.8f);
+            veil=mix(fog,ambientCloud,overcastAmbient);
         }
     }
+    float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
+    float3 color=mix(veil*float3(.22f,.42f,.72f),veil,horizon);
+    float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
+    color=mix(color,physical,twilight*.72f);
+    if(!includeClouds){color=mix(color,veil,overcastAmbient);}
     float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
     float3 transmission=transmittance_from_lut(transmittance,sun.y,0.f).rgb;
     float3 noonTransmission=transmittance_from_lut(transmittance,1.f,0.f).rgb;
@@ -631,7 +636,7 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
         color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
     }
     float seam=(1.f-smoothstep(0.f,.0015f,max(originalDirection.y,0.f)))*weather.horizonFog.w*(1.f-twilight);
-    color=mix(color,fog,seam);
+    color=mix(color,veil,seam);
     return float4(max(color,0.f),glow);
 }
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]]) {

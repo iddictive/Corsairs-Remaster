@@ -254,7 +254,7 @@ fragment float4 land_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],depth2d<
  float lit=evaluateSunCascades(nearMap,farMap,o.shadow,o.shadowFar,u.shadowTexel.x);
  float occlusion=(1.f-lit)*.8f;
  float3 original=clamp(o.total,0.,1.),shadowed=clamp(o.total-o.direct*occlusion,0.,1.);
- float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*20.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
+ float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
  float3 fogged=mix(skyFogColor(o.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment),original,z_fog);
  return float4(clamp((original-shadowed)*z_fog/max(fogged,float3(.00001)),0.,1.),0);
 }
@@ -268,7 +268,7 @@ fragment float4 land_point_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],co
  }
  for(uint n=0;n<8;n++)if(points.pointMask&(1u<<n)){float3 delta=points.positionRange[n].xyz-worldPosition;float range=points.positionRange[n].w,distance=length(delta);if(range<=.1||distance<=.1||distance>=range)continue;float major=max(abs(delta.x),max(abs(delta.y),abs(delta.z)));float a=range/(range-.1),b=.1*range/(range-.1),depth=a-b/max(major,.00001);uint slot=points.cubeSlots[n];if(slot<1u||slot>8u)continue;float visibility=mix(1.,maps[slot-1u].sample_compare(comparison,normalize(-delta),depth-.0012),clamp(points.weights[n],0.,1.));removed+=pointDirect(o,n)*(1.-visibility);}
  float3 original=clamp(o.total,0.,1.),shadowed=clamp(o.total-removed,0.,1.);
- float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*20.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
+ float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
  float3 fogged=mix(skyFogColor(o.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment),original,z_fog);
  return float4(clamp((original-shadowed)*z_fog/max(fogged,float3(.00001)),0.,1.),0);
 }
