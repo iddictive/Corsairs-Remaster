@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include "weather_surface_color.hpp"
 
 static void check(bool ok,const char* message) {if(!ok){std::fprintf(stderr,"FAIL: %s\n",message);std::exit(1);}}
 static std::vector<DWORD> shader(const std::string& path) {
@@ -51,6 +52,9 @@ int main(int argc,char**argv) {
     set(28,1,1,1,0);set(30,.5f,.5f,.5f,1);set(33,1,0,0,1);set(34,0,1,.5f,1);set(36,1,0,0,0);set(37,0,1,0,0);set(38,0,0,1,0);set(58,0,1,0,1);
     check(SUCCEEDED(d->SetVertexShaderConstantF(0,&c[0][0],256)),"VS constants");
     d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetRenderState(D3DRS_ZENABLE,FALSE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);d->SetRenderState(D3DRS_FOGENABLE,FALSE);
+    // Explicit daylight weather. Unassigned ambient/fog are black, and must
+    // no longer be mistaken for a lit sea by relying on an emission floor.
+    d->SetRenderState(D3DRS_AMBIENT,0xff69645a);d->SetRenderState(D3DRS_FOGCOLOR,0xff9cc3e8);
     for(int stage=0;stage<8;stage++){d->SetSamplerState(stage,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MIPFILTER,D3DTEXF_NONE);d->SetSamplerState(stage,D3DSAMP_ADDRESSU,D3DTADDRESS_WRAP);d->SetSamplerState(stage,D3DSAMP_ADDRESSV,D3DTADDRESS_WRAP);d->SetSamplerState(stage,D3DSAMP_ADDRESSW,D3DTADDRESS_WRAP);d->SetTexture(stage,flat);}
     IDirect3DSurface9 *target=nullptr,*readback=nullptr;check(SUCCEEDED(d->GetRenderTarget(0,&target)),"target");check(SUCCEEDED(d->CreateOffscreenPlainSurface(128,128,D3DFMT_A8R8G8B8,D3DPOOL_SYSTEMMEM,&readback,nullptr)),"readback");
     auto readPixel=[&](int x,int y){check(SUCCEEDED(d->GetRenderTargetData(target,readback)),"GPU readback");D3DLOCKED_RECT r{};check(SUCCEEDED(readback->LockRect(&r,nullptr,D3DLOCK_READONLY)),"readback lock");DWORD pixel;memcpy(&pixel,(char*)r.pBits+y*r.Pitch+x*4,4);readback->UnlockRect();return pixel;};
@@ -62,7 +66,9 @@ int main(int argc,char**argv) {
         auto vsData=shader(techniques+"/weather/sea_"+names[mode]+"_vertex_shader.vso"),psData=shader(techniques+"/weather/sea_"+names[mode]+"_pixel_shader.pso");IDirect3DVertexShader9*vs=nullptr;IDirect3DPixelShader9*ps=nullptr;
         check(SUCCEEDED(d->CreateVertexShader(vsData.data(),&vs)),"original VS");check(SUCCEEDED(d->CreatePixelShader(psData.data(),&ps)),"original PS");d->SetVertexShader(vs);d->SetPixelShader(ps);
         d->SetTexture(0,mode==2?static_cast<IDirect3DBaseTexture9*>(flat):volume);d->SetTexture(1,reflection);d->SetTexture(2,volume);d->SetTexture(3,mode==1?static_cast<IDirect3DBaseTexture9*>(sun):cube);d->SetTexture(4,volume);
-        check(SUCCEEDED(draw()),names[mode]);auto p=readPixel(64,64);if(!modern&&(mode==0||mode==1))near(p,32,64,96,names[mode]);if(mode==2)near(p,32,64,128,names[mode]);if(mode==3)near(p,64,128,192,names[mode]);
+        check(SUCCEEDED(draw()),names[mode]);auto p=readPixel(64,64);if(!modern&&(mode==0||mode==1))near(p,32,64,96,names[mode]);
+        if(mode==2){if(!modern)near(p,32,64,128,names[mode]);else{auto foam=storm_weather_surface::deriveFoam({156/255.f,195/255.f,232/255.f},{105/255.f,100/255.f,90/255.f});near(p,int(32*foam[0]),int(64*foam[1]),int(128*foam[2]),"weather foam RGB");check((p>>24)==128,"weather foam preserves authored alpha");}}
+        if(mode==3){if(!modern)near(p,64,128,192,names[mode]);else{check((p&255)>((p>>8)&255)&&((p>>8)&255)>((p>>16)&255),"specular road preserves authored chroma");check((p&255)>0&&(p&255)<64,"overhead water applies low Fresnel reflectance to direct light");}}
         if(modern&&mode<2){
             auto brightness=[](DWORD value){return int(value&255)+int((value>>8)&255)+int((value>>16)&255);};
             check(brightness(p)>12&&brightness(p)<720,"modern water produces nonblack, nonclipped color");
@@ -84,8 +90,11 @@ int main(int argc,char**argv) {
             }
             set(23,0,3,0,1);d->SetVertexShaderConstantF(23,c[23],1);
             if(mode==0)paintCube(cube,false,0xff000000);else paint(reflection,0xff000000);
-            set(30,0,0,0,1);d->SetVertexShaderConstantF(30,c[30],1);check(SUCCEEDED(draw()),"modern night color draw");DWORD night=readPixel(64,64);
+            set(30,0,0,0,1);d->SetVertexShaderConstantF(30,c[30],1);
+            d->SetRenderState(D3DRS_AMBIENT,0xff1c1c23);d->SetRenderState(D3DRS_FOGCOLOR,0xff020202);set(29,5/255.f,10/255.f,20/255.f,1);d->SetVertexShaderConstantF(29,c[29],1);
+            check(SUCCEEDED(draw()),"actual midnight palette draw");DWORD night=readPixel(64,64);
             check(brightness(night)<brightness(dark),"weather illumination darkens water body at night");
+            d->SetRenderState(D3DRS_AMBIENT,0xff69645a);d->SetRenderState(D3DRS_FOGCOLOR,0xff9cc3e8);set(29,0,0,0,0);d->SetVertexShaderConstantF(29,c[29],1);
             set(30,.5f,.5f,.5f,1);d->SetVertexShaderConstantF(30,c[30],1);
             paintCube(cube,false);paint(reflection,0xff204060);paint(sun,0xff102030);
             // The game has already drawn underwater objects into this target.

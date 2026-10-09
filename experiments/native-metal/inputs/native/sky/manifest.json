@@ -1,0 +1,10 @@
+{
+  "source": "https://github.com/clayjohn/godot-volumetric-cloud-demo-v2",
+  "revision": "6b5772821dbb42ee1f278722810e5dee936e9309",
+  "consumer": "storm_metal::VolumetricSky, embedded in the staged/installed metal-engine",
+  "files": {
+    "perlworlnoise.tga": "966040f5deee085a189c513c59c660ca0318a7247ed41c25a3e7950ca9c14b21",
+    "worlnoise.bmp": "0c4999da205a1bec29821bfb0b6324bea5b52acf66d6bbe84af6bb60366d1a70",
+    "weather.bmp": "4956dd6d9b0b95853ecd5e7de0dfa1824ea9d32f5cb6b589a726b2d0304d6af4"
+  }
+}

@@ -20,29 +20,28 @@ inline Color visibleHorizon(const Color&fog,float overcast){
  return mix(fog,neutralFog,.18f+.42f*overcast);
 }
 inline Color deriveFoam(const Color&fog,const Color&ambient){
- const float ambientY=std::clamp(luminance(ambient),.025f,1.f),fogSat=saturation(fog);
+ const float ambientY=std::clamp(luminance(ambient),0.f,1.f),fogSat=saturation(fog);
  const float overcast=std::clamp((.16f-fogSat)*5.f,0.f,1.f),fogY=luminance(fog);
  const Color neutralFog{fogY,fogY,fogY},horizon=visibleHorizon(fog,overcast);
- const float foamY=std::clamp(.30f+.60f*std::sqrt(ambientY),.32f,.92f);
+ // Foam reflects incident light; the daylight response must not become an
+ // emission floor when the same material is drawn under moonlight.
+ const float foamY=std::min(std::clamp(.30f+.60f*std::sqrt(ambientY),.32f,.92f),2.f*ambientY);
  Color foam=scale(mix(horizon,neutralFog,.72f),foamY/std::max(luminance(mix(horizon,neutralFog,.72f)),.025f));
  for(float&channel:foam)channel=std::clamp(channel,0.f,1.f);
  return foam;
 }
 inline Palette derive(const Color&authoredWater,const Color&fog,const Color&ambient){
- const float ambientY=std::clamp(luminance(ambient),.025f,1.f),fogSat=saturation(fog);
+ const float ambientY=std::clamp(luminance(ambient),0.f,1.f),fogSat=saturation(fog);
  const float overcast=std::clamp((.16f-fogSat)*5.f,0.f,1.f);
  const Color horizon=visibleHorizon(fog,overcast);
  // Warm horizons need more influence than clear blue daylight; otherwise the
  // fixed blue pigment turns sunset water gray while the sky is orange.
  const float warmHorizon=std::clamp((fog[0]-fog[2])*3.f,0.f,1.f);
- // The authored night presets deliberately use almost-black fog.  Scaling the
- // water by that same low ambient a second time crushed the entire sea below
- // display visibility while lamps and ships remained in the LDR scene.  Keep
- // the authored pigment and horizon relationship, but give only low-energy
- // weather a bounded floor; daylight is bit-for-bit unchanged.
- const float nightLift=.22f*std::clamp((.20f-ambientY)/.175f,0.f,1.f);
+ // Retain the daylight pigment response. Below it, remove the artificial
+ // readability lift and converge to zero with the actual ambient light.
+ const float illumination=(.38f+.62f*ambientY)*std::min(1.f,ambientY/.20f);
  Color water=scale(mix(authoredWater,horizon,.30f+.30f*overcast+.25f*warmHorizon),
-                   .38f+.62f*ambientY+nightLift);
+                   illumination);
  return {water,deriveFoam(fog,ambient)};
 }
 inline bool equalAsciiInsensitive(char a,char b){

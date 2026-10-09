@@ -336,13 +336,13 @@ fragment SeaAimOutput sea2_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[
     return seaAimOutput(sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth),o,identity);
 }
 // Match the modern base-water reflection direction for the separate sun pass.
-// Keep the authored additive pass, but bind its horizon energy to the same
-// weather ceiling as base water so dusk lighting cannot form a pale seam.
+// Sun/moon radiance is a localized specular source, not the broad fog-colored
+// environment. Apply water's Fresnel response without clipping it to fog energy.
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]]) {
     float3 n=modernSeaCubeNormal(o,u,t[0],bump,s[0]);
-    float3 ray=reflect(-seaNormalize(o.viewToEye),n);
+    float3 eye=seaNormalize(o.viewToEye),ray=reflect(-eye,n);
     float4 sunRoad=reflection.sample(s[3],ray);
-    sunRoad.rgb=weatherBoundedReflection(sunRoad.rgb,u);
+    sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*modernSeaFresnel(dot(n,eye)));
     return seaFog(sunRoad,o,u);
 }
 float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth) {

@@ -14,8 +14,9 @@ int main(){
  const auto sunset=derive(authored,sunsetFog,{.46f,.30f,.24f});
  const auto overcast=derive(authored,{.48f,.50f,.52f},{.34f,.35f,.36f});
  const auto storm=derive(authored,{.25f,.27f,.29f},{.14f,.15f,.16f});
- const Color nightAuthored{20.f/255.f,30.f/255.f,40.f/255.f};
- const Color nightFog{4.f/255.f,6.f/255.f,9.f/255.f};
+ // Actual open-sea night preset and midnight weather, including a raised moon.
+ const Color nightAuthored{5.f/255.f,10.f/255.f,20.f/255.f};
+ const Color nightFog{2.f/255.f,2.f/255.f,2.f/255.f};
  const Color nightAmbient{28.f/255.f,28.f/255.f,35.f/255.f};
  const auto night=derive(nightAuthored,nightFog,nightAmbient);
  need(saturation(overcast.water)<saturation(clear.water),"overcast water loses clear-sky blue saturation");
@@ -36,10 +37,15 @@ int main(){
  need(luminance(storm.foam)<.72f,"storm foam follows available sky light");
  need(distance(overcast.water,Color{.48f,.50f,.52f})<distance(authored,Color{.48f,.50f,.52f}),"water moves toward visible horizon palette");
  need(distance(storm.water,storm.foam)>.15f,"storm water and foam retain separation");
- need(luminance(night.water)>.036f&&luminance(night.water)<.060f,
-      "night sea remains readable without approaching lamp or daylight energy");
+ need(luminance(night.water)>0.f&&luminance(night.water)<luminance(nightFog),
+      "midnight water body stays darker than its actual horizon; specular moonlight is separate");
  need(night.water[2]>night.water[1]&&night.water[1]>night.water[0],
-      "night lift preserves the authored cool water ordering");
+      "low-light response preserves the authored cool water ordering");
+ const auto unlit=derive(authored,{0,0,0},{0,0,0});
+ need(luminance(unlit.water)==0.f&&luminance(unlit.foam)==0.f,
+      "water pigment and foam cannot emit light without illumination");
+ need(luminance(night.foam)<luminance(clear.foam)*.5f,
+      "night foam cannot retain daytime illumination");
  need(isWaterEffectTexture("RESOURCE\\Textures\\WATERSPLASH.TGA")&&
       isWaterEffectTexture("water1.tga")&&isWaterEffectTexture("sparcle2.TgA"),
       "known spray and foam atlases are classified independent of path/case");
@@ -51,7 +57,6 @@ int main(){
       std::strstr(seaShaderSource,"float4(foam.rgb*tint,o.t3.z)"),
       "weather-aware sea foam preserves authored alpha");
  need(std::strstr(seaShaderSource,"weatherBoundedReflection")&&
-      std::strstr(seaShaderSource,"sunRoad.rgb=weatherBoundedReflection(sunRoad.rgb,u)")&&
       std::strstr(particlesShaderSource,"particle_water_fs")&&
       std::strstr(particlesShaderSource,"particle_modern_fs"),
       "bounded sea reflection and isolated generic/water particle entries are present");

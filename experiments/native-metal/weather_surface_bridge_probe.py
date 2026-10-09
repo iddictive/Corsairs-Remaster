@@ -41,17 +41,18 @@ need("weatherBoundedReflection" in sea and "texture2d" not in
      sea[sea.index("float3 weatherBoundedReflection"):sea.index("float4 modernSeaMaterial")],
      "reflection bound must add no texture sample or pass")
 sun_road = sea[sea.index("fragment float4 seasun_modern_fs"):sea.index("fragment float4 sea3_modern_fs")]
-need("sunRoad.rgb=weatherBoundedReflection(sunRoad.rgb,u)" in sun_road,
-     "additive sun road must share the weather horizon ceiling")
+need("modernSeaFresnel(dot(n,eye))" in sun_road and
+     "weatherBoundedReflection(sunRoad.rgb" not in sun_road,
+     "localized sun/moon highlights must use Fresnel rather than the broad fog ceiling")
 need("fragment float4 particle_modern_fs" in particles and
      "fragment float4 particle_water_fs" in particles,
      "generic and water particle paths must remain separate")
 need("premultiplied*lighting*foamTint" in particles,
      "water tint must preserve the premultiplied atlas path")
 
-need("makeDynamicSkyUniform(dynamicSkyInput, fixed.fogColor.xyz)" in backend,
-     "dynamic sky must receive the same smoothed fog render state as the scene")
-need("horizonMatch" in sea or "horizonMatch" in (ROOT / "dynamic_sky.hpp").read_text(),
+need("makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog)" in backend,
+     "dynamic sky must receive the explicit smoothed weather snapshot")
+need("color=mix(color,fog,seam)" in (ROOT / "volumetric_sky_msl.hpp").read_text(),
      "sky must contain an explicit low-band fog convergence")
 
 print("PASS smoothed weather reaches exact sky/sea/foam owners; generic particles and fixed-cost detail remain isolated")

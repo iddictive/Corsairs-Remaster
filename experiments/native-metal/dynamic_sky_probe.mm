@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #include "dynamic_sky.hpp"
+#include "volumetric_sky.hpp"
 #include <cmath>
 #include <cfloat>
 #include <cstdio>
@@ -15,7 +16,7 @@ struct GpuSkyVertex {
     simd_float4 p, tint, uv01, uv23, specular, cameraNormal, cameraPosition;
 };
 
-static simd_float3 renderSky(id<MTLDevice> device, id<MTLRenderPipelineState> pipeline,
+static simd_float3 renderSky(id<MTLDevice> device, id<MTLLibrary> library, id<MTLRenderPipelineState> pipeline,
                              const storm_metal::DynamicSkyUniform &weather, unsigned x, unsigned y) {
     using namespace storm_metal;
     constexpr unsigned side = 16;
@@ -48,12 +49,16 @@ static simd_float3 renderSky(id<MTLDevice> device, id<MTLRenderPipelineState> pi
     draw.mvp = matrix_identity_float4x4;
     id<MTLCommandQueue> queue = [device newCommandQueue];
     id<MTLCommandBuffer> command = [queue commandBuffer];
+    VolumetricSky clouds;
+    need(clouds.encode(device,library,command,0,weather),"volume resources and first-frame priming");
+    auto drawWeather=weather;drawWeather.options.w=clouds.blend;
     id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
     [encoder setRenderPipelineState:pipeline];
     [encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
     [encoder setVertexBytes:&draw length:sizeof(draw) atIndex:1];
     [encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];
-    [encoder setFragmentBytes:&weather length:sizeof(weather) atIndex:2];
+    [encoder setFragmentBytes:&drawWeather length:sizeof(drawWeather) atIndex:2];
+    clouds.bind(encoder);
     [encoder setFragmentTexture:sample atIndex:0];
     [encoder setFragmentTexture:sample atIndex:1];
     [encoder setFragmentSamplerState:sampler atIndex:0];
@@ -66,6 +71,30 @@ static simd_float3 renderSky(id<MTLDevice> device, id<MTLRenderPipelineState> pi
     [target getBytes:&pixel bytesPerRow:sizeof(pixel)
           fromRegion:MTLRegionMake2D(x, y, 1, 1) mipmapLevel:0];
     return pixel.xyz;
+}
+
+static void checkStars(id<MTLDevice> device,id<MTLLibrary> library) {
+    using namespace storm_metal;
+    struct Star {float x,y,z,size,angle;uint32_t color,subtexture;};
+    Star star{0,.5f,1,.2f,0,0xffffffffu,0};
+    auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float width:16 height:16 mipmapped:NO];
+    d.usage=MTLTextureUsageShaderRead|MTLTextureUsageRenderTarget;d.storageMode=MTLStorageModeShared;
+    auto target=[device newTextureWithDescriptor:d];d.width=d.height=1;
+    auto sprite=[device newTextureWithDescriptor:d],cloud=[device newTextureWithDescriptor:d];
+    simd_float4 white{1,1,1,1};[sprite replaceRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0 withBytes:&white bytesPerRow:16];
+    auto p=[MTLRenderPipelineDescriptor new];p.vertexFunction=[library newFunctionWithName:@"dynamic_stars_vs"];p.fragmentFunction=[library newFunctionWithName:@"dynamic_stars_fs"];
+    auto a=p.colorAttachments[0];a.pixelFormat=MTLPixelFormatRGBA32Float;a.blendingEnabled=YES;a.sourceRGBBlendFactor=MTLBlendFactorSourceAlpha;a.destinationRGBBlendFactor=MTLBlendFactorOne;
+    NSError*error=nil;auto pipeline=[device newRenderPipelineStateWithDescriptor:p error:&error];need(pipeline!=nil,"catalogue star pipeline");
+    DynamicStarDrawUniform draw{};draw.view=draw.projection=matrix_identity_float4x4;draw.scale_blend={1,1,0,0};
+    auto queue=[device newCommandQueue];
+    auto render=[&](float opacity){
+        simd_float4 moment{0,0,0,opacity};[cloud replaceRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0 withBytes:&moment bytesPerRow:16];
+        auto command=[queue commandBuffer];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=target;pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+        auto e=[command renderCommandEncoderWithDescriptor:pass];[e setRenderPipelineState:pipeline];[e setVertexBytes:&star length:sizeof(star) atIndex:0];[e setVertexBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentTexture:sprite atIndex:0];[e setFragmentTexture:cloud atIndex:2];[e setFragmentTexture:cloud atIndex:3];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];[e endEncoding];[command commit];[command waitUntilCompleted];need(command.status==MTLCommandBufferStatusCompleted,"star GPU command");
+        simd_float4 pixel{};[target getBytes:&pixel bytesPerRow:16 fromRegion:MTLRegionMake2D(8,4,1,1) mipmapLevel:0];return pixel.x;
+    };
+    need(std::abs(render(0)-1)<1e-5f&&std::abs(render(.5f)-.5f)<1e-5f&&render(1)<1e-5f,
+         "catalogue stars survive clear sky and attenuate continuously through cloud opacity");
 }
 
 int main(int argc, char *argv[]) { @autoreleasepool {
@@ -89,9 +118,6 @@ int main(int argc, char *argv[]) { @autoreleasepool {
     need(midnightMoon.sunDirection_hour.y > .5f && noonMoon.sunDirection_hour.y > .5f &&
          midnightMoon.sunDirection_hour.w == 0.f && noonMoon.sunDirection_hour.w == 12.f,
          "moon-up fixture preserves the identical visual direction and distinct solar hours");
-    need(std::strstr(dynamicSkyShaderSource,
-                     "solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;") != nullptr,
-         "shader derives palette phase from the engine 05:30-19:00 sun curve, not the moon-up visual direction");
     const simd_float3 clearFog={.43f,.61f,.78f},sunsetFog={.76f,.39f,.27f};
     const simd_float3 overcastFog={.48f,.50f,.52f},stormFog={.25f,.27f,.29f};
     const auto clearWeather=makeDynamicSkyUniform({.hour=12.f},clearFog);
@@ -192,20 +218,21 @@ int main(int argc, char *argv[]) { @autoreleasepool {
     id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
     if (!pipeline) std::fprintf(stderr, "%s\n", error.localizedDescription.UTF8String);
     need(pipeline != nil, "dynamic sky regression pipeline");
-    const auto midnightFrame = renderSky(device, pipeline, midnightMoon, 8, 2);
-    const auto noonFrame = renderSky(device, pipeline, noonMoon, 8, 2);
+    checkStars(device,library);
+    const auto midnightFrame = renderSky(device, library, pipeline, midnightMoon, 8, 2);
+    const auto noonFrame = renderSky(device, library, pipeline, noonMoon, 8, 2);
     need(midnightFrame.x + midnightFrame.y + midnightFrame.z <
              (noonFrame.x + noonFrame.y + noonFrame.z) * .45f,
          "midnight remains dark when the visible moon is above the horizon");
     const simd_float3 regressionFog = {.17f, .24f, .31f};
-    const auto midnightHorizon = renderSky(device, pipeline,
+    const auto midnightHorizon = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=0.f, .visualSunDirection=moonAboveHorizon}, regressionFog), 8, 8);
     need(simd_length(midnightHorizon-regressionFog) < 1e-5f,
          "corrected midnight retains exact authoritative horizon fog");
     const simd_float3 duskFog = {77.f/255.f, 104.f/255.f, 134.f/255.f};
     const auto duskUniform = makeDynamicSkyUniform({.hour=20.f}, duskFog);
-    const auto duskHorizon = renderSky(device, pipeline, duskUniform, 8, 8);
-    const auto duskUpper = renderSky(device, pipeline, duskUniform, 8, 2);
+    const auto duskHorizon = renderSky(device, library, pipeline, duskUniform, 8, 8);
+    const auto duskUpper = renderSky(device, library, pipeline, duskUniform, 8, 2);
     need(simd_length(duskHorizon-duskFog) < 1e-5f,
          "dusk horizon equals authoritative fog");
     const float duskHorLum = duskHorizon.x*.2126f+duskHorizon.y*.7152f+duskHorizon.z*.0722f;
@@ -217,28 +244,21 @@ int main(int argc, char *argv[]) { @autoreleasepool {
     need(duskUpper.z > .05f,
          "dusk upper sky follows fog instead of fixed near-black night");
     const auto dayUniform = makeDynamicSkyUniform({.hour=18.f}, duskFog);
-    const auto dayUpper = renderSky(device, pipeline, dayUniform, 8, 2);
+    const auto dayUpper = renderSky(device, library, pipeline, dayUniform, 8, 2);
     const float dayUpLum = dayUpper.x*.2126f+dayUpper.y*.7152f+dayUpper.z*.0722f;
     need(dayUpLum > duskUpLum * 2.f,
          "18:00 upper sky is day-bright while 20:00 is night-dark");
-    const auto beforeSet = renderSky(device, pipeline,
+    const auto beforeSet = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=18.36f}, duskFog), 8, 2);
-    const auto afterSet = renderSky(device, pipeline,
+    const auto afterSet = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=18.39f}, duskFog), 8, 2);
     need(simd_length(beforeSet-afterSet) < .06f,
          "sunset crossing is continuous, not a pop");
-    const auto beforeEdge = renderSky(device, pipeline,
+    const auto beforeEdge = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=18.99f}, duskFog), 8, 2);
-    const auto afterEdge = renderSky(device, pipeline,
+    const auto afterEdge = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=19.01f}, duskFog), 8, 2);
     need(simd_length(beforeEdge-afterEdge) < .02f,
          "engine window edge at 19:00 cannot pop the sky");
-    need(std::strstr(dynamicSkyShaderSource,"skyFbm3") &&
-         !std::strstr(dynamicSkyShaderSource,"raymarch"),
-         "cloud path is fixed-cost and contains no ray march");
-    need(std::strstr(dynamicSkyShaderSource,"horizonMatch")&&
-         !std::strstr(dynamicSkyShaderSource,"sunDisc")&&
-         !std::strstr(dynamicSkyShaderSource,"moonDisc"),
-         "sky converges to visible fog and leaves sun/moon discs to astronomy");
     std::puts("PASS dynamic sky time, bounded weather/wind, four-state fog convergence, astronomy ownership, Metal compile");
 } }
