@@ -590,9 +590,21 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float3 color=mix(fog*float3(.22f,.42f,.72f),fog,horizon);
     float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
     color=mix(color,physical,twilight*.72f);
-    float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
     float3 lower=float3(.18f,.22f,.26f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
+    if(!includeClouds){
+        float overcastAmbient=smoothstep(.3f,.9f,weather.wind_coverage_density.z);
+        if(overcastAmbient>0.01f){
+            float3 avgCloud=mix(lower,upper,0.5f);
+            float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
+            avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
+            avgCloud*=mix(1.f,.64f,overcastAmbient);
+            float3 nightCloud=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
+            float3 ambientCloud=mix(nightCloud,avgCloud,daylight);
+            color=mix(color,ambientCloud,overcastAmbient*0.8f);
+        }
+    }
+    float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
     float3 transmission=transmittance_from_lut(transmittance,sun.y,0.f).rgb;
     float3 noonTransmission=transmittance_from_lut(transmittance,1.f,0.f).rgb;
     float3 sunColor=float3(12.f,12.4f,13.2f)*transmission/max(noonTransmission,.001f);
