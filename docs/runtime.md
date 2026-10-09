@@ -8070,3 +8070,11 @@ Fix: The base-water  variants now request this twilight glow from  (), meaning t
 
 Dynamic-sky, backend, shadow, and sea probes pass at . Staging awaits idle game.
 
+
+### October 9 — transient sail geometry corruption fixed
+
+Player reported that all sails became "crooked" (кривые). Inspection showed sail geometry was corrupted. 
+Hypothesis: The transient sail upload path introduced in `ad83111` causes geometry corruption when uploading the dynamic sail vertex buffer to the Metal frame arena.
+Exact delta: Hardcoded `transientSail=false` in `experiments/native-metal/backend.mm`, forcing sails to use the previously stable `residentBuffer` allocation path instead of the `frameArena`.
+Result: Reverted transient uploads locally. Player tested the build in the sea and confirmed the sails are fixed.
+Disposition: `accepted`. The fix is committed and staged.
