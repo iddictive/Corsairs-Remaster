@@ -594,15 +594,21 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float overcastAmbient=0.f;
     if(!includeClouds){
         overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
+        float3 nightAmbient=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
         if(overcastAmbient>0.01f){
             float3 avgCloud=mix(lower,upper,0.5f);
             float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
             avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
             avgCloud*=mix(1.f,.64f,overcastAmbient);
-            float3 nightCloud=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
-            float3 ambientCloud=mix(nightCloud,avgCloud,daylight);
+            float3 ambientCloud=mix(nightAmbient,avgCloud,daylight);
             veil=mix(fog,ambientCloud,overcastAmbient);
         }
+        // No sun means no lit haze: clear nights fall to night ambient even
+        // when rain-derived coverage reports almost-clear sky.
+        // Twilight counts as light, so the accepted 18:25 sunward dusk veil
+        // keeps its warmth; only truly dark hours fall to night ambient.
+        float nightFactor=1.f-max(daylight,twilight);
+        if(nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor);}
     }
     float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
     float3 color=mix(veil*float3(.22f,.42f,.72f),veil,horizon);
