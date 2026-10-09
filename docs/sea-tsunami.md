@@ -27,6 +27,10 @@ the dark rotating appearance. Its correction reuses ordinary animated map water,
 anchors the crest phase and adds shoreline contact foam; native build passes,
 final component checks and canonical staging pass, and the correction is installed.
 Actual game appearance/movement and shoreline replay remain player-owned.
+The local continuation correction keeps the wave alive beyond the player's
+crossing and separates the natural encounter exit lock from the event lifetime.
+Its source/component checks, full PROGRAM compile and canonical stage pass; it is
+installed. The player's continued-wave and optional-map-return replay is pending.
 
 ## Player action
 
@@ -335,10 +339,39 @@ the local owner normalizes and negates it into the existing outward-wave convent
 Missing direction in an old descriptor uses the ordinary bow fallback. Pending
 commands clear on rejected login, teardown/load and after their single consumption.
 `bSeaTsunamiEncounter` extends the existing map/land/SailTo lock only for a natural
-wave while native `Sea.Tsunami.Active` is true. Finish clears it; debug does not
-impose that lock. Sea teardown/load clears flags and pending commands. Attribute
-clears during weather/cabin rebuilding republish actual native active state,
-preventing a stale projection from unlocking a surviving event.
+wave while native `Sea.Tsunami.Active` is true and the controlled hull has not
+cleared the complete trailing support. `Sea.Tsunami.PlayerPassed` projects that
+native condition, using the controlled `MainCharacter` ship's horizontal bounding
+radius and the wave's full meander bound. The existing contact query updates it;
+NPC queries cannot unlock the player. Missing/invalid player geometry stays locked.
+Crossing frees only this encounter lock: ordinary storms, enemies and other
+navigation restrictions remain. The player may return to the map or remain and
+watch; there is no automatic return. Reentering the wave relocks, and the natural
+flag remains until event expiry. Debug does not impose this lock. Start/replacement
+resets the passed state; sea teardown/load clears flags and pending commands.
+Weather/cabin attribute rebuilds republish actual native active and passed state.
+
+The local wave formerly expired 700 world units beyond the fixed launch origin,
+which made it disappear shortly after passing the player's ship. It now continues
+`2500 + 2500s` units beyond that origin, using the same sampled continuous strength
+as height and damage. Shorter scene reach clamps continuation to
+`max(700, min(MaxSeaDistance - 600, 2500 + 2500s))`, preserving the old minimum.
+With the ordinary 8000-unit sea reach, total duration is about 205–250 simulation
+seconds; the existing final eight-second fade applies at the new end. All ships,
+water geometry and shoreline emitters keep consuming the same active frame.
+Map propagation range and its first-third plateau are unchanged. Leaving the
+local scene still disposes its transient event, as before.
+
+Thirty-eight disposable ASan/UBSan checks run the actual frame/contact evaluator
+and SEA publication/contact method bodies with external API doubles. They cover
+downstream NPC exposure after the old expiry, finite expiry, short scene reach,
+full hull clearance, reentry, NPC isolation, unknown/invalid player geometry,
+attribute rebuilding and replacement/reset. Eight actual script VM cases run the
+canonical lock branch with a sea-presence seam: missing passed state, safe passage,
+reentry, ordinary storm, debug and inactive sea preserve their expected locks.
+They do not prove installed moving-scene behavior; the player owns that replay.
+The full staged PROGRAM include graph also compiles with installed shared headers
+and zero native script VM errors; game startup is disabled in that fixture.
 
 ## NPC map damage and local navigation
 
@@ -456,7 +489,7 @@ direction points outward along its bow. `Start=0` cancels. The native owner
 consumes the command rather than persisting an active saved event. Sea teardown
 discards the wave; pause freezes its simulation clock.
 
-Initial parameters are a crest around 2,000 world units ahead, speed 22 units
+The original debug parameters were a crest around 2,000 world units ahead, speed 22 units
 per simulation second, height 28, and a wide solitary-wave front. The crest
 passes the launch position after about 91 simulation seconds and the event
 expires after about 123 seconds. Shorter sea draw distances bound the starting

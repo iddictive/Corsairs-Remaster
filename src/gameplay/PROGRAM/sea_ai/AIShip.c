@@ -3909,6 +3909,8 @@ void Ship_CheckMainCharacter()
         if (IsEntity(&Sea) && CheckAttribute(&Sea, "Tsunami.Active"))
             tsunamiEncounterActive = sti(Sea.Tsunami.Active);
         if (!tsunamiEncounterActive) bSeaTsunamiEncounter = false;
+        else if (CheckAttribute(&Sea, "Tsunami.PlayerPassed") && sti(Sea.Tsunami.PlayerPassed))
+            tsunamiEncounterActive = false;
     }
 	if (iStormLockSeconds || tsunamiEncounterActive)
 	{

@@ -199,7 +199,7 @@
          return 2.0f;
  
      for (int32_t i = 0; i < iNumTests; i++)
-@@ -1822,10 +1872,86 @@
+@@ -1822,10 +1872,104 @@
      return fRes;
  }
  
@@ -211,6 +211,9 @@
 +    const uint32_t active = tsunami.Frame().active ? 1 : 0;
 +    if (!state->GetAttribute("Active") || state->GetAttributeAsDword("Active") != active)
 +        state->SetAttributeUseDword("Active", active);
++    const uint32_t playerPassed = !active || tsunamiPlayerPassed ? 1 : 0;
++    if (!state->GetAttribute("PlayerPassed") || state->GetAttributeAsDword("PlayerPassed") != playerPassed)
++        state->SetAttributeUseDword("PlayerPassed", playerPassed);
 +}
 +
 +uint64_t SEA::ProcessMessage(MESSAGE &message)
@@ -227,12 +230,25 @@
 +    capsize->Set(int32_t(0));
 +    beamResult->Set(0.f);
 +    if (!character || bStop || !tsunami.Frame().active || tsunami.Frame().envelope <= 0.f) return 0;
++    const bool player = character->GetAttributeAsDword("MainCharacter", 0) != 0;
++    if (player) tsunamiPlayerPassed = false;
 +    for (const auto shipID : core.GetEntityIds("ship"))
 +    {
 +        auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(shipID));
 +        if (!ship || ship->GetACharacter() != character) continue;
 +        const auto pos = ship->GetPos();
-+        if (!std::isfinite(pos.x) || !std::isfinite(pos.z)) return 0;
++        if (!std::isfinite(pos.x) || !std::isfinite(pos.z)) break;
++        if (player)
++        {
++            const auto box = ship->GetBoxsize();
++            const float hullRadius = .5f * std::hypot(box.x, box.z);
++            const auto &event = tsunami.Frame();
++            const float along = (pos.x - event.originX) * event.directionX +
++                                (pos.z - event.originZ) * event.directionZ - event.frontDistance;
++            // The complete hull must clear the tail, including every crest meander.
++            tsunamiPlayerPassed = std::isfinite(hullRadius) && hullRadius > 0.f &&
++                                  along > tsunami.SupportBound() + hullRadius;
++        }
 +        auto entry = std::find_if(tsunamiContacts.begin(), tsunamiContacts.end(),
 +                                 [shipID](const auto &record) { return record.ship == shipID; });
 +        if (entry == tsunamiContacts.end())
@@ -255,6 +271,7 @@
 +        }
 +        break;
 +    }
++    if (player) PublishTsunamiActive();
 +    return 0;
 +}
 +
@@ -268,6 +285,7 @@
 +        if (*pAttribute == "Start")
 +        {
 +            tsunamiContacts.clear();
++            tsunamiPlayerPassed = false;
 +            if (pAttribute->GetAttributeAsDword() != 0)
 +                tsunami.Start(pParent->GetAttributeAsFloat("OriginX"), pParent->GetAttributeAsFloat("OriginZ"),
 +                              pParent->GetAttributeAsFloat("DirectionX"), pParent->GetAttributeAsFloat("DirectionZ"),
@@ -286,7 +304,7 @@
  
      if (*pParent == "isDone")
      {
-@@ -2042,6 +2168,7 @@
+@@ -2042,6 +2186,7 @@
  
  void SEA::RestoreRender()
  {
@@ -312,20 +330,21 @@
      };
  
      struct SeaBlock
-@@ -73,6 +75,12 @@
+@@ -73,6 +75,13 @@
      uint32_t dwMaxDim, dwMinDim;
      float fMaxSeaHeight;
      float fMaxSeaDistance;
 +    SeaTsunami tsunami;
++    bool tsunamiPlayerPassed = false;
 +    struct TsunamiShipContact { entid_t ship; SeaTsunamiContact contact; bool capsizeReported = false; };
 +    std::vector<TsunamiShipContact> tsunamiContacts;
 +    void ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *eventMaterial = nullptr);
 +    void PublishTsunamiActive();
-+    void ResetTsunami() { tsunami.Cancel(); tsunamiContacts.clear(); PublishTsunamiActive(); }
++    void ResetTsunami() { tsunami.Cancel(); tsunamiContacts.clear(); tsunamiPlayerPassed = false; PublishTsunamiActive(); }
      float fGridStep;
      float fLodScale;
      float fBumpScale, fBumpSpeed;
-@@ -211,13 +219,23 @@
+@@ -211,13 +220,23 @@
      bool EditMode_Update();
  
      uint32_t AttributeChanged(ATTRIBUTES *pAttribute) override;
@@ -618,7 +637,7 @@
  #define EVENT_SEA_LOGIN "EventSeaLogin"
 --- a/src/libs/shared_headers/include/shared/sea_tsunami.hpp
 +++ b/src/libs/shared_headers/include/shared/sea_tsunami.hpp
-@@ -0,0 +1,284 @@
+@@ -0,0 +1,288 @@
 +#pragma once
 +
 +#include <algorithm>
@@ -630,6 +649,7 @@
 +    static constexpr float minWidth = 220.f, maxWidth = 285.f;
 +    static constexpr float minSpeed = 22.f, maxSpeed = 28.f;
 +    static constexpr float minDamage = .10f, maxDamage = .50f;
++    static constexpr float minContinuationDistance = 2500.f, maxContinuationDistance = 5000.f;
 +    static constexpr float maxPitch = .20f, maxRoll = 2.05f, responseFrequency = 2.6f;
 +    // Broadside means 90 degrees +/- 40 degrees to propagation, on either side.
 +    static constexpr float capsizeBeamThreshold = .76604444f, overturnAngle = 1.57079633f;
@@ -890,7 +910,10 @@
 +        // Leave a conservative launch margin for the 330-unit tail inside ordinary sea.
 +        frame_.launchDistance = std::min(2000.f, maxSeaDistance - 600.f);
 +        frame_.frontDistance = frame_.launchDistance;
-+        frame_.duration = (frame_.launchDistance + 700.f) / frame_.speed;
++        // Keep affecting ships and shore after the launch hull has crossed.
++        const float continuation = std::max(700.f, std::min(maxSeaDistance - 600.f,
++            interpolate(SeaTsunamiParameters::minContinuationDistance, SeaTsunamiParameters::maxContinuationDistance)));
++        frame_.duration = (frame_.launchDistance + continuation) / frame_.speed;
 +    }
 +
 +    void Advance(float seconds)
