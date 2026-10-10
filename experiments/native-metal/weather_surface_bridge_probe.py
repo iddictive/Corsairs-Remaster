@@ -52,7 +52,7 @@ need("premultiplied*lighting*foamTint" in particles,
 
 need("makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog)" in backend,
      "dynamic sky must receive the explicit smoothed weather snapshot")
-need("color=mix(color,fog,seam)" in (ROOT / "volumetric_sky_msl.hpp").read_text(),
-     "sky must contain an explicit low-band fog convergence")
+need("float seam=" not in (ROOT / "volumetric_sky_msl.hpp").read_text(),
+     "sky must not overwrite its night/cloud field with an authored horizon strip")
 
 print("PASS smoothed weather reaches exact sky/sea/foam owners; generic particles and fixed-cost detail remain isolated")

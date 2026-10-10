@@ -1,8 +1,39 @@
 # Runtime state
 
-Last verified: October 10 final-RGB surface lighting and +15% night diffuse packet; installed as 499866d6fa43ab8c, player replay pending (America/New_York)
+Last verified: October 10 unified outdoor sky field with the authored horizon strip removed; installed as b910314a0293bac7, player replay pending (America/New_York)
 
 ## Current verdict
+
+### Unified outdoor sky field and removed horizon strip — October 10
+
+Observed: near 19:36 the horizon carries a bright authored band (GPU-measured
+sky RGB 0.30/0.41/0.53 at the strip's own grazing angles) while the night field
+directly above it is 0.008, and the water reads brighter than the sky. Expected:
+one outdoor field owns the displayed sky, the reflection environment, distance
+fog and surface irradiance, so the horizon converges night and day and no
+authored color overwrites the night/cloud response.
+
+Delta: removed the exact-color grazing strip
+(`seam=(1-smoothstep(0,.0015,dir.y))*horizonFog.w*(1-twilight)`) and the
+`includeClouds` split it served; `skyRadiance` now has a single evaluation used
+by the sky draw, the reflection/fog environment kernel and the solar irradiance
+packet. The `veil`/`overcastAmbient`/`haze` branch existed only for that split
+and was deleted with it.
+
+Result: a native GPU probe over six weather states (19:36 clear and overcast,
+midnight, noon, 18:25, 06:06 dawn) x eight azimuths x ten elevations reduced the
+worst grazing sky-versus-fog mismatch from 0.536635 to 0.022250, and the narrow
+0-0.002 rad band from 0.536635 to 0.004120. Outside the removed band the sky is
+byte-identical in all six states. `dynamic_sky_probe.mm` now rejects a horizon
+that a brighter authored fog can overwrite and fails on the pre-fix shader.
+Canonical `run.sh --stage-only` completed and installed signed engine SHA-256
+`b910314a0293bac7c2eb4635e06ccc629fb90e666dd4ddb370f3bb3eace0cc18`; the change
+marker is present in the staged and installed binaries.
+
+Disposition: unresolved. The visible band, water-versus-sky brightness and FPS
+remain player-replay items. Distance fog now samples the clouded field instead
+of the removed veil variant; that is the intended single-field behavior and is
+part of the same replay. Contract belongs to `docs/metal-dynamic-sky.md`.
 
 ### Normal-less surfaces and night navigation — October 10 correction
 

@@ -38,8 +38,8 @@ static simd_float3 renderSky(id<MTLDevice> device, id<MTLLibrary> library, id<MT
     pass.colorAttachments[0].storeAction = MTLStoreActionStore;
     pass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
 
-    // This triangle covers the output. Its upper sample stays outside the
-    // horizon blend; the centre sample remains inside it for the fog negative.
+    // This triangle covers the output. Its upper sample stays above the
+    // horizon; the centre sample exercises the grazing/below-horizon field.
     GpuSkyVertex vertices[3] = {};
     vertices[0].p = {-1.f, -1.f, 1.f, 1.f};
     vertices[1].p = { 3.f, -1.f, 1.f, 1.f};
@@ -227,18 +227,20 @@ int main(int argc, char *argv[]) { @autoreleasepool {
     const simd_float3 regressionFog = {.17f, .24f, .31f};
     const auto midnightHorizon = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=0.f, .visualSunDirection=moonAboveHorizon}, regressionFog), 8, 8);
-    need(simd_length(midnightHorizon-regressionFog) < 1e-5f,
-         "corrected midnight retains exact authoritative horizon fog");
+    const auto midnightFogControl = renderSky(device, library, pipeline,
+        makeDynamicSkyUniform({.hour=0.f, .visualSunDirection=moonAboveHorizon}, regressionFog*.2f), 8, 8);
+    need(simd_length(midnightHorizon-midnightFogControl) < .003f,
+         "night horizon cannot be overwritten by a brighter authored fog strip");
     const simd_float3 duskFog = {77.f/255.f, 104.f/255.f, 134.f/255.f};
     const auto duskUniform = makeDynamicSkyUniform({.hour=20.f}, duskFog);
     const auto duskHorizon = renderSky(device, library, pipeline, duskUniform, 8, 8);
     const auto duskUpper = renderSky(device, library, pipeline, duskUniform, 8, 2);
-    need(simd_length(duskHorizon-duskFog) < 1e-5f,
-         "dusk horizon equals authoritative fog");
+    const auto duskFogControl = renderSky(device, library, pipeline,
+        makeDynamicSkyUniform({.hour=20.f}, duskFog*.2f), 8, 8);
+    need(simd_length(duskHorizon-duskFogControl) < .003f,
+         "late evening horizon follows the night field instead of authored fog brightness");
     const float duskHorLum = duskHorizon.x*.2126f+duskHorizon.y*.7152f+duskHorizon.z*.0722f;
     const float duskUpLum = duskUpper.x*.2126f+duskUpper.y*.7152f+duskUpper.z*.0722f;
-    need(duskUpLum < duskHorLum,
-         "dusk zenith is darker than the fog horizon");
     need(duskUpper.x < duskUpper.z && duskHorizon.x < duskHorizon.z,
          "dusk preserves blue-dominant hue from fog");
     need(duskUpper.z > .05f,
@@ -246,8 +248,8 @@ int main(int argc, char *argv[]) { @autoreleasepool {
     const auto dayUniform = makeDynamicSkyUniform({.hour=18.f}, duskFog);
     const auto dayUpper = renderSky(device, library, pipeline, dayUniform, 8, 2);
     const float dayUpLum = dayUpper.x*.2126f+dayUpper.y*.7152f+dayUpper.z*.0722f;
-    need(dayUpLum > duskUpLum * 2.f,
-         "18:00 upper sky is day-bright while 20:00 is night-dark");
+    need(dayUpLum > std::max(duskUpLum,duskHorLum) * 2.f,
+         "18:00 upper sky is day-bright while the complete 20:00 field is night-dark");
     const auto beforeSet = renderSky(device, library, pipeline,
         makeDynamicSkyUniform({.hour=18.36f}, duskFog), 8, 2);
     const auto afterSet = renderSky(device, library, pipeline,

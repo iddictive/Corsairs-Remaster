@@ -580,7 +580,7 @@ float3 skySolarSpectrum(float elevation,texture2d<float>transmittance) {
     return transmittance_from_lut(transmittance,elevation,0.f).rgb/
            max(transmittance_from_lut(transmittance,1.f,0.f).rgb,.001f);
 }
-float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance,bool includeClouds) {
+float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
     // Twilight continues from the actual grazing sky below sea level. Keep
     // the established noon/night endpoints, without a daylight-colored dusk seam.
     float3 originalDirection=normalize(direction);
@@ -592,37 +592,16 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float3 fog=weather.horizonFog.w>.5f?weather.horizonFog.rgb:mix(float3(.035f,.045f,.075f),float3(.64f,.78f,.92f),daylight);
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
     float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
-    // The sky display keeps exact authoritative fog at its horizon; only the
-    // directional fog field dims toward the actual ambient under clouds.
-    float3 veil=fog;
-    float overcastAmbient=0.f;
-    // Surface haze may lose upper-sky contrast, but the grazing sky and water
-    // must converge to the same radiance. Do not give the sea a second horizon.
-    float haze=includeClouds?0.f:smoothstep(.0015f,.018f,max(originalDirection.y,0.f));
-    overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
     float3 nightAmbient=mix(float3(.035f,.045f,.065f),float3(.075f,.095f,.135f),0.5f);
-    if(haze>0.f && overcastAmbient>0.01f){
-        float3 avgCloud=mix(lower,upper,0.5f);
-        float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
-        avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
-        avgCloud*=mix(1.f,.64f,overcastAmbient);
-        float3 ambientCloud=mix(nightAmbient,avgCloud,daylight);
-        veil=mix(fog,ambientCloud,overcastAmbient*haze);
-    }
     float nightFactor=1.f-max(daylight,twilight);
-    if(haze>0.f && nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor*haze);}
     
     // Reduce twilight glow slightly at night to prevent a sharp stripe
     float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.25f;
-    float3 color=mix(veil*float3(.22f,.42f,.72f),veil,horizon);
+    float3 color=mix(fog*float3(.22f,.42f,.72f),fog,horizon);
     // Darken sky at horizon explicitly at night if it is a clear sky
-    if(includeClouds && nightFactor>0.01f){ color = mix(color, nightAmbient, nightFactor * horizon); }
+    if(nightFactor>0.01f){ color = mix(color, nightAmbient, nightFactor * horizon); }
     float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
-    if(includeClouds){
-        color=mix(color,physical,twilight*.72f);
-    } else {
-        color=mix(color,veil,max(overcastAmbient, nightFactor*horizon)*haze);
-    }
+    color=mix(color,physical,twilight*.72f);
     float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
     float3 sunColor=float3(12.f,12.4f,13.2f)*skySolarSpectrum(sun.y,transmittance);
     float cosTheta=dot(d,sun),phase=max(max(henyey_greenstein(cosTheta,.6f),henyey_greenstein(cosTheta,clamp(.4f-1.4f*sun.y,-.7f,.7f))),henyey_greenstein(cosTheta,-.2f));
@@ -643,16 +622,14 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float distance=moments.y/max(moments.a,.001f);
     float3 airExtinction=.5f*(molecular_scattering_coefficient_base.xyz+aerosol_scattering_cross_section.xyz*aerosol_base_density*.25f);
     airExtinction+=overcast*.045f;
-    if(includeClouds){
-        float3 aerial=exp(-max(0.f,distance-1.5f)*airExtinction);
-        color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
-    }
-    float seam=(1.f-smoothstep(0.f,.0015f,max(originalDirection.y,0.f)))*weather.horizonFog.w*(1.f-twilight);
-    color=mix(color,veil,seam);
+    float3 aerial=exp(-max(0.f,distance-1.5f)*airExtinction);
+    color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
+    // horizon-strip-fix 01a123a3: display, reflection, distance fog and surface
+    // irradiance share this field; an authored-color grazing strip is gone.
     return float4(max(color,0.f),glow);
 }
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]]) {
-    float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance,true);
+    float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
     return float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f);
 }
 kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {
@@ -661,7 +638,7 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
     float azimuth=6.28318530718f*(uv.x-.5f),l=uv.y*2.f-1.f;
     float elevation=l*l*sign(l)*1.57079632679f;
     float3 direction=float3(cos(elevation)*cos(azimuth),sin(elevation),cos(elevation)*sin(azimuth));
-    output.write(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance,false),pixel);
+    output.write(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance),pixel);
 }
 // The same completed opacity field also drives ordinary scene lights. One
 // packet per frame avoids sampling the sky for every ship/town vertex.
@@ -682,7 +659,7 @@ kernel void sky_surface_solar(constant SkyWeather&weather [[buffer(0)]],
     for(uint i=0;i<64;i++){
         float y=(float(i)+.5f)/64.f,phi=float(i)*2.39996323f;
         float r=sqrt(1.f-y*y);float3 d=float3(r*cos(phi),y,r*sin(phi));
-        float4 sky=skyRadiance(d,weather,cloudFrom,cloudTo,atmosphere,transmittance,true);
+        float4 sky=skyRadiance(d,weather,cloudFrom,cloudTo,atmosphere,transmittance);
         float3 radiance=sky.rgb+float3(1.f,.25f,.055f)*sky.a;
         mean+=radiance;mx+=radiance*d.x;my+=radiance*d.y;mz+=radiance*d.z;
     }
