@@ -22,9 +22,8 @@ inline const char* skyFogMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;};
-// Water mirrors the actual sky including twilight glow; land haze keeps the
-// ambient veil so the sun never shines through islands. includeGlow is only
-// for base-water convergence at the horizon.
+// Foreground haze uses the shared atmospheric field. Water may include its
+// twilight scattering; actual cloud reflections belong to the reflection cube.
 float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture2d<float> environment,bool includeGlow=false) {
     if(draw.options.x<.5f)return authored;
     float2 uv=(pixel-draw.viewport.xy)/draw.viewport.zw;

@@ -1,10 +1,44 @@
 # Runtime state
 
-Last verified: October 10 lighting-consumer candidate ed27122 installed as e35742f3bf0890bd; component checks passed, player replay pending (America/New_York).
+Last verified: October 10 foreground-scattering and lower-hemisphere correction installed as 2daeaebcf3214220; GPU comparison passed, player replay pending (America/New_York).
 
 ## Current verdict
 
-### Imported materials, lamp variants and culled subobjects — October 10
+### Daytime horizon streaks and cloud-shaped island haze — October 10
+
+Observed: the player's 07:48–07:54 sea captures show vertical cloud/light streaks
+extending below the horizon and patterned blue haze over a nearby island. Ship
+brightness is explicitly lower priority and is unchanged by this batch.
+
+Reproduction: a disposable Metal comparison changes only a striped cloud field
+while holding weather/atmosphere inputs fixed. Before repair, RGB-vector delta
+is .110966 at each of three lower-hemisphere elevations and .611835 in foreground
+fog. `skyRadiance` clamps negative elevations to the same positive cloud row;
+the fog environment also contains the complete background-cloud image.
+
+Delta: `skyAirField` owns the unchanged atmospheric/weather response shared by
+the background and foreground scattering. `skyRadiance` adds clouds using their
+actual direction and antialiases the hemisphere edge over two cache texels.
+`sky_fog_environment` reuses atmospheric scattering without projecting distant
+cloud silhouettes onto geometry. Actual sky/reflection draws retain cloud detail.
+No extra texture/pass, CPU vertex work, weather timer or brightness adjustment.
+
+Result: after repair, both lower-hemisphere and foreground-fog cloud deltas are
+zero; upper sky at elevations .03/.15/.4 is byte-identical with both cloud
+controls. Native Metal shader compilation passes. Final canonical
+`experiments/native-metal/run.sh --stage-only` returns 0; installed signed engine:
+`2daeaebcf3214220b4e83e32912c4f10da8e149a7777bfd935d851e11c44a22b`.
+Read-only installed hash matches the delivery receipt. Previous e35742f3 engine
+is retained by the canonical backup owner. SAVE/configuration are preserved;
+no game launch, UI interaction or game-process termination was performed.
+
+Disposition: installed candidate; player camera/sea/island replay remains
+unresolved. This closes the component reproductions, not visual scene acceptance
+or FPS. The existing unrelated project-context check action remains absent.
+Cloud-layer capabilities and the corrected consumer contract are recorded in
+`docs/metal-dynamic-sky.md`.
+
+### Historical imported materials, lamp variants and culled subobjects — October 10
 
 Observed: the player's 17:03 report rejects the previous 119b43ed candidate:
 fireplace illumination still follows camera framing, street lantern glass stays

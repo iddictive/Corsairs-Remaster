@@ -580,18 +580,16 @@ float3 skySolarSpectrum(float elevation,texture2d<float>transmittance) {
     return transmittance_from_lut(transmittance,elevation,0.f).rgb/
            max(transmittance_from_lut(transmittance,1.f,0.f).rgb,.001f);
 }
-float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
+struct SkyAirField {float3 direction,sun,color;float solarElevation,daylight,glow;};
+SkyAirField skyAirField(float3 direction,constant SkyWeather&weather,texture2d<float>atmosphere) {
     // Twilight continues from the actual grazing sky below sea level. Keep
     // the established noon/night endpoints, without a daylight-colored dusk seam.
-    float3 originalDirection=normalize(direction);
     float3 d=normalize(float3(direction.x,max(direction.y,.0015f*length(direction.xz)),direction.z));
     float3 sun=normalize(weather.sunDirection_hour.xyz);
     float solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;
     float daylight=smoothstep(-.13f,.10f,solarElevation),twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
     float horizon=1.f-smoothstep(0.f,.42f,max(d.y,0.f));
     float3 fog=weather.horizonFog.w>.5f?weather.horizonFog.rgb:mix(float3(.035f,.045f,.075f),float3(.64f,.78f,.92f),daylight);
-    float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
-    float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
     float3 nightAmbient=mix(float3(.035f,.045f,.065f),float3(.075f,.095f,.135f),0.5f);
     float nightFactor=1.f-max(daylight,twilight);
     
@@ -602,7 +600,19 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     if(nightFactor>0.01f){ color = mix(color, nightAmbient, nightFactor * horizon); }
     float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
     color=mix(color,physical,twilight*.72f);
-    float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
+    return {d,sun,color,solarElevation,daylight,glow};
+}
+float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
+    SkyAirField air=skyAirField(direction,weather,atmosphere);
+    float3 d=air.direction,sun=air.sun,color=air.color;
+    float solarElevation=air.solarElevation,daylight=air.daylight;
+    float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
+    float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
+    float3 cloudDirection=normalize(direction);
+    float4 moments=skyCloudMoments(cloudDirection,cloudFrom,cloudTo,weather.options.w);
+    // Antialias the hemisphere boundary over two cache texels. Never stretch
+    // the grazing cloud row down the entire lower hemisphere.
+    moments*=smoothstep(0.f,2.f/float(cloudFrom.get_width()),cloudDirection.y);
     float3 sunColor=float3(12.f,12.4f,13.2f)*skySolarSpectrum(sun.y,transmittance);
     float cosTheta=dot(d,sun),phase=max(max(henyey_greenstein(cosTheta,.6f),henyey_greenstein(cosTheta,clamp(.4f-1.4f*sun.y,-.7f,.7f))),henyey_greenstein(cosTheta,-.2f));
     float lowerWeight=max(0.f,moments.a-moments.x);
@@ -624,9 +634,7 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     airExtinction+=overcast*.045f;
     float3 aerial=exp(-max(0.f,distance-1.5f)*airExtinction);
     color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
-    // horizon-strip-fix 01a123a3: display, reflection, distance fog and surface
-    // irradiance share this field; an authored-color grazing strip is gone.
-    return float4(max(color,0.f),glow);
+    return float4(max(color,0.f),air.glow);
 }
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]]) {
     float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
@@ -638,7 +646,10 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
     float azimuth=6.28318530718f*(uv.x-.5f),l=uv.y*2.f-1.f;
     float elevation=l*l*sign(l)*1.57079632679f;
     float3 direction=float3(cos(elevation)*cos(azimuth),sin(elevation),cos(elevation)*sin(azimuth));
-    output.write(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance),pixel);
+    // Foreground air scattering is not a background-cloud projection.
+    // Reuse the sky's atmosphere/weather response, without distant cloud detail.
+    SkyAirField air=skyAirField(direction,weather,atmosphere);
+    output.write(float4(max(air.color,0.f),air.glow),pixel);
 }
 // The same completed opacity field also drives ordinary scene lights. One
 // packet per frame avoids sampling the sky for every ship/town vertex.
