@@ -4,6 +4,21 @@ Last verified: October 9 bounded hourly map work and CPU sea jobs staged; native
 
 ## Current verdict
 
+### Live sea low-FPS capture — diagnosed CPU hot spots, October 9
+
+Player caught the slow sea scene in installed PID36996, engine21396882
+(same full hash as the installed inventory below). A five-second read-only
+sample at 22:04:38 EDT records 425/1355 main-thread samples in ship environment
+reflections and 352/1355 in Metal buffer creation/copy; these groups overlap.
+A subsequent native capture shows 36 FPS, six fleet HUD entries, other ships,
+wooded shoreline and daylight water highlights in ordinary ship view.
+Hypothesis: repeated geometry rendering/uploads scale poorly with this scene.
+Observed allocations do not yet prove 512-entry cache eviction as their trigger.
+GPU timing is unavailable because profiling is disabled; no setting, input,
+engine, save or running game was changed. Disposition: diagnosis accepted at
+the sampling layer, causal correction/FPS acceptance unresolved. Exact source
+constraints, counts and retained raw evidence belong to metal-frame-pacing.md.
+
 ### Non-sea CPU short-path investigation — rejected prototype, October 9
 
 Hypothesis: independent animated collision-vertex transforms can cheaply reuse
