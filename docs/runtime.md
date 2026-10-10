@@ -1,10 +1,66 @@
 # Runtime state
 
-Last verified: October 10 camera-independent lamp candidate installed as 119b43ed10513514; component checks passed, player replay pending (America/New_York).
+Last verified: October 10 lighting-consumer candidate ed27122 installed as e35742f3bf0890bd; component checks passed, player replay pending (America/New_York).
 
 ## Current verdict
 
-### Lamp emission, off-camera occlusion and depth reuse — October 10
+### Imported materials, lamp variants and culled subobjects — October 10
+
+Observed: the player's 17:03 report rejects the previous 119b43ed candidate:
+fireplace illumination still follows camera framing, street lantern glass stays
+black, ship/boat coronas do not light their geometry, and some weapons glow.
+FPS is reported acceptable; shadow trembling remains reported. Sky and sea are
+accepted and receive no change in this batch.
+
+Proven consumer gaps: global RDF `selfIllum` import admits values .44628/1 from
+ordinary weapon exports; SanJuan's luminous night lamp model is not selected
+at weather hours 19/20 when `Lights` is true but `Night` is false; GEOM subobject
+culling remains after the previously repaired NODER boundary; ship flare sockets
+originally have a visible corona without a physical light. Ship models also have
+ordinary light sockets, so this does not claim that all hull illumination was absent.
+
+Delta: `lighting-consumer-coverage.patch` restricts imported emission to location
+models registered as lamps, captures nearby culled GEOM subobjects without colour
+drawing, and promotes modern ship flares to physical sources using the existing
+default lamp recipe. Flare socket parsing, visual recipe and independent activation
+are retained. `metal_lighting_consumers.py`, integrated in the existing gameplay
+composer, selects the existing lamp variant by `Whr_IsLight` on location load.
+No new CPU vertex pass, scene traversal, sky/sea change or night gain is added.
+
+Verification: native build passes. Checks executing the actual material importer,
+GEOM object-culling method and ship AddFlare/SetLightsOff with bounded mocks pass,
+including ordinary-material emission rejection, off-camera capture with no colour
+draw, and independent flare/light activation. A native script VM reports
+`CheckLamp=0`, `script_errors=0` for the prepared lamp-selection block. Fresh
+weapon and dynamic-light GPU checks pass; the extended GPU bounds check passes
+negative world origin, WORLD scale and far exclusion. These checks prove consumer
+properties, not the composed game scene or a live hour transition.
+
+Delivery: source commit `ed27122`; final canonical `run.sh --stage-only` returns 0.
+Installed signed engine SHA-256:
+`e35742f3bf0890bd362d2a72dd0be54785f9bde82fb10be268d52ce2cac1dcbb`.
+Read-only installed-symbol inspection confirms the four new renderer bridges;
+the installed location loader contains the prepared lamp-model selection.
+No game launch, UI interaction or SAVE/configuration replacement was performed.
+
+Source persistence incident: eleven committed backend bridge/state lines were
+repeatedly removed from the working file after successful writes/builds. The
+committed source and installed engine retained them. The user reports no editor
+or review rollback; no writer has been identified, so this is not attributed to
+the user, another agent or a hook. The working file was restored to the committed
+hash `09161132143620675e3625ee58395b0aca63bd49c3f59a8a693e17d1b822b5cc`
+and a separate read confirmed it. A later diagnostic relink during the deleted
+state failed on those four symbols; it is not recorded as a passing check and
+does not invalidate the separately verified installed binary.
+
+Disposition: installed candidate, real-game acceptance unresolved. The player's
+next replay must establish fireplace/grate and deck continuity when sources leave
+the camera, street lantern appearance, hull illumination and weapon response.
+Shadow trembling and quick-action stripes remain unresolved; no fix is claimed.
+The unchanged repository environment still lacks its project-context check
+action; no passing aggregate hygiene result or measured FPS gain is claimed.
+
+### Historical lamp emission, off-camera occlusion and depth reuse — October 10
 
 Observed: the player reports black luminous lantern materials, grate/deck
 illumination changing with camera framing, coarse local shadows, bright weapon
