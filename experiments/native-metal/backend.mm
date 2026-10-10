@@ -368,7 +368,9 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
   if(sunEnabled&&simd_length(direction)>.001f){memcpy(&sunView,&matrices[D3DTS_VIEW],64);if(pointCount){applied|=landShadow.encode(metal,command,back->gpu,depth->gpu,sunView,direction,false,&sunLight);combinedSun=&sunLight;}else applied|=landShadow.encode(metal,command,back->gpu,depth->gpu,sunView,direction);}
   if(pointCount&&landShadow.beginTraversalPointFrame()){
    landShadow.finishRegistry();std::array<LandShadow::TraversalPoint,8> points{};unsigned ready=0;
-   for(unsigned i=0;i<pointCount;i++){const auto&light=selected[i];const simd_float3 absolute={light.position[0],light.position[1],light.position[2]},relative=absolute-landShadow.worldOrigin;if(simd_length_squared(relative)>900.0f)continue;const float position[]={relative.x,relative.y,relative.z};if(landShadow.encodePointCube(metal,command,light.id,position,light.range))points[ready++]={light.id,absolute,light.range};}
+   // These lamps were consumed by this frame's visible receiver packets. Their
+   // authored Range bounds illumination; camera distance cannot discard shadows.
+   for(unsigned i=0;i<pointCount;i++){const auto&light=selected[i];const simd_float3 absolute={light.position[0],light.position[1],light.position[2]},relative=absolute-landShadow.worldOrigin;const float position[]={relative.x,relative.y,relative.z};if(landShadow.encodePointCube(metal,command,light.id,position,light.range))points[ready++]={light.id,absolute,light.range};}
    if(ready)applied|=landShadow.encodeTraversalPointReceivers(metal,command,back->gpu,depth->gpu,points.data(),ready,combinedSun);
    else if(combinedSun)applied|=landShadow.encode(metal,command,back->gpu,depth->gpu,sunView,direction);
    landShadow.endTraversalPointFrame();

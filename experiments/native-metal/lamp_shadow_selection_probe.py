@@ -19,4 +19,4 @@ with TemporaryDirectory() as directory:
     executable = Path(directory) / "probe"
     run(["/usr/bin/clang++", "-std=c++20", "-Wall", "-Werror", "-I", directory, str(root / "lamp_shadow_selection_probe.cpp"), "-o", str(executable)], check=True)
     run([str(executable)], check=True)
-print("PASS compiled lamp selector: crossover, round-trip, pause, reset, and bounded churn")
+print("PASS lamp influence/view overlap, stable membership across movement, reset, deletion and eight-slot pressure")

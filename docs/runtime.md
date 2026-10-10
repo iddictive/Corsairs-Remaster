@@ -4,6 +4,38 @@ Last verified: October 10 unified outdoor sky field with the authored horizon st
 
 ## Current verdict
 
+### Local-lamp shadow continuity — October 10, built; installation pending
+
+Observed: at 19:45 in the San Juan port office and on streets, walking changes
+static-object shadows while the objects and their illumination remain visible.
+Expected: a lamp keeps occlusion on visible receivers within its influence;
+multiple candles may legitimately produce multiple silhouettes.
+
+Source reproduction: the two-nearest location selector loses lamp 1 after one
+rank-crossing step among three lamps. Its quarter-second fade removes only the
+shadow, while the full authored catalog continues illuminating the wall.
+Delta: retain up to eight admitted lamps while their influence spheres overlap
+the renderer view; distance ranks initial/free-slot admission only. Remove the
+separate 30-unit world-origin rejection for sea/deck lamps already consumed by
+visible receiver packets. Source owner and budget limitations are recorded in
+`docs/metal-lighting-parity.md`.
+
+Result: canonical native build and selector check pass; dynamic-lighting and
+sea/deck point-shadow GPU fixtures pass, including world/view translation.
+Repository context check fails because the unchanged environment configuration
+has no project-context check action; this is not recorded as a passing check.
+No game launch or interaction was performed. Installed engine remains the
+previous b910314a0293bac7 batch: PID 78195 still runs the player's session,
+so canonical staging has not been attempted against it. The committed sky
+source was restored after an unexplained working-tree reversion; no new sky
+change is part of this shadow delta.
+
+Disposition: unresolved — source/build verified, installation and player replay
+pending. Acceptance requires street/interior movement without rank-induced
+shadow loss, correct multi-candle shadows, and FPS. The existing eight-cube
+budget limits coverage when more than eight lamps affect the view; GPU cost
+can increase relative to the former two-lamp selection.
+
 ### Unified outdoor sky field and removed horizon strip — October 10
 
 Observed: near 19:36 the horizon carries a bright authored band (GPU-measured
