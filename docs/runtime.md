@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified: October 9 shared outdoor lighting and harbour service delivery; player replay pending (America/New_York)
+Last verified: October 10 outdoor unlit/misc sky response without floor lift; staged, player replay pending (America/New_York)
 
 ## Current verdict
 
