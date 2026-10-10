@@ -843,6 +843,9 @@ auto conversionSignature=[&](){uint64_t h=1469598103934665603ull;unsigned group=
   }
   group=6;add(&solarGain,sizeof(solarGain));add(skyLight.data(),sizeof(skyLight));if(usesPosition)add(&worldMatrix.columns[3],3*sizeof(float));
   group=7;add(&rs[D3DRS_COLORVERTEX],sizeof(DWORD));add(&rs[D3DRS_DIFFUSEMATERIALSOURCE],sizeof(DWORD));add(&rs[D3DRS_AMBIENTMATERIALSOURCE],sizeof(DWORD));add(&landShadow.scope,sizeof(landShadow.scope));add(&landShadow.indoor,sizeof(landShadow.indoor));add(&landShadow.locationActive,sizeof(landShadow.locationActive));}
+  else if(skyLighting&&(fvf&D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW){
+   group=6;add(&solarGain,sizeof(solarGain));add(skyLight.data(),sizeof(skyLight));add(&sceneAmbient,3*sizeof(float));
+  }
  return h;};
 // Animated MODELR buffers are rewritten with DISCARD. Dedicated persistent
 // Metal buffers per revision cost hundreds of allocations without frame reuse.
@@ -858,7 +861,7 @@ const bool compactUv=textureCoordinates<=1&&(!textureCoordinates||((fvf>>16)&3)=
 const bool nativeUnlit=!skyFogActive&&!solarVisualActive&&!(worldMapModelRole&&boundIndexed&&!dynamicSource&&(fvf&D3DFVF_NORMAL))&&!depthPass&&!actualLighting&&!generatedCoordinates&&special==ProgramKind::None&&!(vb&&vb->gpuSkinned)&&
  (t==D3DPT_POINTLIST||t==D3DPT_LINELIST||t==D3DPT_LINESTRIP||t==D3DPT_TRIANGLELIST||t==D3DPT_TRIANGLESTRIP||t==D3DPT_TRIANGLEFAN)&&
  (compactPosition==D3DFVF_XYZ||compactPosition==D3DFVF_XYZRHW)&&!(fvf&~compactAllowed)&&compactUv&&
- (!(fvf&D3DFVF_SPECULAR)||!rs[D3DRS_SPECULARENABLE]);
+ (!(fvf&D3DFVF_SPECULAR)||!rs[D3DRS_SPECULARENABLE])&&!(skyLighting&&compactPosition==D3DFVF_XYZ);
 if(nativeUnlit){
  const bool hasIndices=indices!=nullptr;const IndexedSpan*span=rawIndexed;
  if(!hasIndices||span){
