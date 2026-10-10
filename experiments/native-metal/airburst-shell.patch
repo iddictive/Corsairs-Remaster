@@ -10,7 +10,7 @@
      bool Init() override;
 --- a/src/libs/sea_ai/src/ai_balls.cpp
 +++ b/src/libs/sea_ai/src/ai_balls.cpp
-@@ -2,6 +2,291 @@
+@@ -2,6 +2,309 @@
  #include "ai_fort.h"
  #include "math_inlines.h"
  #include "shared/messages.h"
@@ -177,7 +177,7 @@
 +
 +bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments)
 +{
-+    if (AirburstGood(ball) < 0)
++    if (AirburstGood(ball) < 0 || ~(dst-src) < 1e-8f)
 +        return false;
 +    float armedStart = 0.0f;
 +    if (!AirburstArmedStart(src, dst, ball.vFirstPos, armedStart)) return false;
@@ -195,6 +195,7 @@
 +        if (AirburstModelEntry(ship->GetModel(), armedSrc, dst, radius, entry))
 +            nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
 +    }
++    float fortContact = 2.0f;
 +    auto *forts = AIFort::pAIFort;
 +    if (forts)
 +    {
@@ -204,6 +205,11 @@
 +            if (!fort->GetModel() || !fort->GetACharacter() || !fort->isNormalMode() ||
 +                static_cast<int32_t>(fort->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
 +                continue;
++            // Armed shrapnel also detonates on real masonry contact. A miss of
++            // every small gun sphere must not fall into the random stock hit FX.
++            const float contact = fort->GetModel()->Trace(src, dst);
++            if (contact >= armedStart && contact <= 1.0f)
++                fortContact = std::min(fortContact, contact);
 +            // Fort nodes can bound hundreds of metres of empty battery frontage.
 +            // Match the fuze to the live guns that receive the bounded blast.
 +            for (uint32_t gunIndex = 0; gunIndex < fort->GetAllCannonsNum(); ++gunIndex)
@@ -216,10 +222,20 @@
 +            }
 +        }
 +    }
++    const bool contactBurst = fortContact <= nearest && fortContact <= 1.0f;
++    if (contactBurst) nearest = fortContact;
 +    if (nearest > 1.0f) return false;
 +    CVECTOR burst = src + (dst-src) * nearest;
++    // A selected fort contact is the impact, not a blocker of its own burst.
++    // Compare on the original segment to avoid endpoint roundoff/self-contact.
++    if (contactBurst)
++    {
++        if ((pIsland && pIsland->Trace(src, dst) < nearest) ||
++            (pSea && pSea->Trace(src, dst) <= nearest) ||
++            (forts && forts->Trace(src, dst) < nearest)) return false;
++    }
 +    // Contact before proximity (even before arming) keeps the ordinary bomb path.
-+    if ((pIsland && pIsland->Trace(src, burst) <= 1.0f) ||
++    else if ((pIsland && pIsland->Trace(src, burst) <= 1.0f) ||
 +        (pSea && pSea->Trace(src, burst) <= 1.0f) ||
 +        (forts && forts->Trace(src, burst) <= 1.0f))
 +        return false;
@@ -228,8 +244,10 @@
 +        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
 +        if (ship && !ship->isDead() && ship->GetACharacter() && ship->GetModel() &&
 +            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) != ball.iBallOwner &&
-+            ship->Trace(src, burst) <= 1.0f) return false;
++            ship->Trace(src, contactBurst ? dst : burst) <= (contactBurst ? nearest : 1.0f)) return false;
 +    }
++    // Keep the radial origin just outside the wall so exposed guns are visible.
++    if (contactBurst) burst -= !(dst-src) * 0.01f;
 +    ball.vPos = burst;
 +    if (ball.pParticle) ball.pParticle->SetEmitter(burst, !(src-dst));
 +    AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));

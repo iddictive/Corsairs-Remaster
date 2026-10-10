@@ -4,6 +4,27 @@ Last verified: October 9 cloud/weather and surface-light refinement; native repl
 
 ## Current verdict
 
+### Fort shrapnel contact burst — October 9, source only
+
+Hypothesis: shells missing the small gun proximity spheres reach masonry through
+ordinary Bombs fallback; `Ball_FortHit` displays its stock blast only20% of the
+time and never dispatches the shrapnel burst. Player reports most shells entering
+the fort without explosion or battery damage; a scene-level pass-through remains
+unproven. Delta: an armed normal non-own fort mesh contact enters the existing
+shrapnel explosion/8m damage path, with original-segment blocker precedence and
+a1cm exterior radial origin. Gun proximity, ship behavior, cumulative cannon
+damage, shared2–8m curve and binary save layout remain unchanged.
+
+The old extracted production function reproduces zero burst/dispatch on an
+independent wall contact outside its gun sphere. Final production functions pass
+ASan/UBSan contact, exposed-gun dispatch, repeated/destroyed-gun, segment-boundary,
+ordinary/fragment/own/mode/missing/unarmed and earlier-blocker cases. Strict patch
+replacement and actual native translation-unit compilation pass. Fixture limits
+and stable contract belong to airburst-ammunition.md.
+Disposition: source correction verified; canonical build/staging and real salvo
+remain unresolved. No installed app/engine/content or player SAVE/configuration
+was changed; current installed inventory remains the cloud/weather entry below.
+
 ### Cloud/weather and surface-light refinement — October 9
 
 Hypothesis: oversized broad cloud interiors and fast visual-state time constants

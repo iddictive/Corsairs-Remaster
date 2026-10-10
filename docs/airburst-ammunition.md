@@ -20,6 +20,12 @@ box. Native geometry, VM and canonical staging checks pass; a new fort salvo
 replay remains pending. Catalogue damage, the1–7m fuze, ship behavior and
 the shared2–8m damage curve remain unchanged.
 
+October 9 contact correction is verified in source only, not staged/installed.
+An armed shell hitting actual fort masonry now uses the existing shrapnel burst
+when no earlier proximity wins. Previously this path selected ordinary Bombs
+damage and `Ball_FortHit`, whose visual blast runs only on `rand(4) == 1`.
+Native dispatch and translation-unit compilation pass; real fort replay is open.
+
 ### Earlier delivery evidence (historical)
 
 The first installed version40c8c300 was rejected by player replay: no overhead
@@ -83,12 +89,15 @@ piecewise quadratic; splitting the segment at its six possible face crossings
 finds the earliest entry and prevents a long frame from skipping the radius.
 The nearest ship or fort trigger wins. Both use35m arming-segment clipping;
 stationary segments, own/dead/missing-model ships and own/missing/non-normal forts
-do not trigger. Destroyed fort guns do not arm the fuze; fort masonry retains
-ordinary contact collision.
-Pure island, fort, non-own ship and water traces over the original segment to
-the candidate burst run before any effect or damage. Earlier or equal contact
-rejects the burst and retains ordinary-bomb collision, including a contact
-before the arming boundary.
+do not trigger. Destroyed fort guns do not arm the proximity fuze. Armed shells
+also detonate at an actual normal non-own fort-mesh contact, including a miss of
+every gun sphere. Pure collision traces precede effects and damage. Earlier/equal
+contact rejects proximity bursts; earlier terrain/fort and earlier/equal
+water/ship contact reject fort-contact bursts. The selected fort surface itself
+is the detonation, not a blocker. Contact fractions use the original segment to
+avoid endpoint roundoff. The radial origin moves1cm back along the incoming
+direction to avoid a surface self-hit hiding exposed guns. Pre-arming contacts
+keep the ordinary-bomb path.
 
 `AICannon::CalcHeightFireAngle` uses ordinary target height for every charge.
 `Ball_GetHeightMultiply` gives airbursts the same0.70 multiplier as ordinary
@@ -103,8 +112,9 @@ the existing fragment/radial damage.
 Fort proximity uses the same exact sphere sweep against each intact gun's
 world-space `AICannon::GetPos()`, with a zero-size box. A fort node can enclose
 hundreds of metres of empty frontage, so its model bound cannot define proximity
-to a battery. An approach outside every gun's1–7m sphere keeps ordinary contact
-behavior. No fort-specific height or aiming offset is added.
+to a battery. An approach outside every gun's1–7m sphere still detonates on an
+armed mesh contact; unarmed/own/non-normal fort contacts keep the ordinary path.
+No fort-specific height or aiming offset is added.
 The8m fort blast reuses `AIFort::AddFortHit`, its gun-damage callback and
 `PersistFortCannons`. Visibility to the exposed muzzle excludes masonry/terrain
 shielded guns; ordinary contact callers retain their original radius and path.
@@ -129,14 +139,16 @@ their existing floor.
 Nearby
 friendly ships receive the same damage; the firing ship is excluded. Crew damage
 retains captain/doctor defences but bypasses hull protection for the overhead
-burst. Direct hits, including forts and rigging, keep ordinary-bomb damage.
+burst. Direct ship/rigging and unarmed fort hits keep ordinary-bomb damage;
+armed fort contacts use the same bounded shrapnel blast as fort proximity.
 
 The current catalogue values are hull39, crew1.2% and rigging25.2: twice ordinary
 bombs' hull19.5, grapes' crew0.6% and knippels' rigging12.6 respectively. Crew
 percentages use the target's current crew before the retained modifiers; the
 shared conversion and old-save reconciliation belong to `naval-crew-damage.md`.
-These values supersede the earlier67.5/14/8 balance. Direct contacts retain ordinary-bomb
-fallback. Fort airbursts retain the separate `DamageFort` coefficient180 and use
+These values supersede the earlier67.5/14/8 balance. Direct ship/rigging and
+unarmed fort contacts retain ordinary-bomb fallback. Fort bursts retain the
+separate `DamageFort` coefficient180 and use
 the same2–8m distance curve, independent of ship hull damage.
 Cost is480 per goods
 unit (eight times ordinary bombs), reload takes 1.65 times as long, and speed 0.8
@@ -221,6 +233,20 @@ same initializer. Sea/non-colony stores receive no newly invented stock; an
 existing special row still receives the outside-Bermuda trade policy.
 
 ## Evidence and remaining replay
+
+The October 9 disposable probe extracts production `TryAirburst`, sphere sweep,
+arming and `AddFortHit`, with native `CVECTOR` and ASan/UBSan. An independent
+wall at100m and a trajectory4m above a gun with a fuze≤2m reproduce the old
+rejection: no burst or gun dispatch. Final source explodes once, queues16
+fragments and dispatches to an exposed gun within8m. Twenty repeated contacts
+still explode after that gun is destroyed. Segment-start/end contacts, coincident
+fort/terrain and equal water contact pass. Stationary/ordinary/fragment/own/
+non-normal/missing/unarmed, earlier terrain/water/ship, existing gun proximity
+and pre-arming contact retain their paths. Collision planes, model/events and
+the damage return are fixtures; this proves dispatch, not saved-fort damage or
+salvo pixels. Script damage/curve/persistence remain unchanged. Strict old-patch
+reversal/new-patch application and the actual `ai_balls.cpp` translation unit
+compile against canonical build flags pass. Build/staging/replay remain pending.
 
 The disposable proximity-design probe uses actual old solver/flight equations
 and native CVECTOR/CMatrix with ASan/UBSan. It reproduces ordinary targety2 versus
