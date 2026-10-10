@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv)
 {
-    if (argc < 3 || argc > 5) return 64;
+    if (argc < 3 || argc > 6) return 64;
     const std::regex identifier("[A-Za-z_][A-Za-z_0-9]*");
     if (!std::regex_match(argv[2], identifier) ||
         (argc > 4 && !std::regex_match(argv[4], identifier))) return 64;
@@ -26,6 +26,12 @@ int main(int argc, char **argv)
     core_internal.Controls = new CONTROLS;
     auto &vm = *core_internal.Compiler;
     vm.SetProgramDirectory(".");
+    // Optional prelude: compile the shared program chain as its own segment
+    // first, the way the game loads seadogs.c before any interface file.
+    if (argc > 5 && !vm.CreateProgram(argv[5])) {
+        spdlog::apply_all([](auto logger) { logger->flush(); });
+        return 65;
+    }
     {
         std::ofstream driver("driver.c");
         driver << "#include \"cases.c\"\nint RunnerResult;\nvoid Main(){RunnerResult="

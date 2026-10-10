@@ -1600,6 +1600,41 @@ The encounter panel shows purpose, surviving composition and approximate
 relative power, with truthful approach/pursuit/attack labels. Story restrictions
 retain their existing callbacks; barrels and boats remain separate encounters.
 
+### Encounter panel: escape dice, power scale, spyglass tiers
+
+Escape is a contested roll, not a fixed per-open `rand(100)` gate. The player
+edge is `(Navigation + Sneak + Luck/2)/6 + slowest active companion ship speed
+× 1.5`, plus 4 with the SailingProfessional officer perk. The enemy edge is the
+hostile captain's Navigation/6 plus the fastest surviving hostile hull's speed
+× 1.5, read from the same roster the panel already prints. The margins clamp to
+±8 and decide a single `rand(20) + margin` versus `rand(20)`; a lost roll keeps
+the panel open but disables the cancel button, so that encounter is a forced
+sea battle. Friendly, quest and items-only encounters never roll and never lock.
+
+The displayed power is one scale for both sides: hull HP plus own-artillery
+value (`100 × guns × DamageMultiply` of the installed cannon), multiplied by
+readiness. Merchant hulls count 0.35 of that value. Thresholds stay 1.80 /
+1.25 / 0.80 / 0.40 of the player's own fleet power. No absolute ship count, and no
+separate enemy-only formula, may appear in the panel.
+
+The equipped spyglass sets how much of the hostile roster the panel reveals:
+tier 1 shows the surviving merchant/war counts, tier 2 adds the class histogram,
+tier 3 adds exact ship names and the destination port, and tier 4 adds the
+cannon count per hull class. Without a spyglass the panel keeps only the
+aggregate description. The sea-entry button stays hidden inside the encounter
+panel; the only quick sea action is the panel's own action button, so a player
+cannot leave an enemy encounter without the dice deciding it.
+
+Owners: `tools/gameplay/fleet-encounter-ui.c` holds the dice, power scale and
+spyglass tiers; `tools/metal_fleet_ui.py` composes that helper into
+`PROGRAM/interface/map.c` and owns the `map.ini` layout; the animated step
+commands for `B_OK`/`B_CANCEL` must pass through the interface's selectability
+check, otherwise an arrow key can focus a hidden button and dead-end the panel.
+
+Must not: no escape without the dice; no reroll on reopen during the same
+encounter; no enemy edge without the fastest hostile hull speed; no dead-end
+keyboard focus.
+
 ## Acceptance
 
 Primary falsifier: generated trade has a valid destination and real fleet;

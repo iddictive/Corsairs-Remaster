@@ -106,10 +106,10 @@ FLEET_FINAL_SHA = {'PROGRAM/worldmap/worldmap_reload.c': 'eb77e881d82dbe21ddf60a
  'PROGRAM/sea_ai/sea.c': '9937ba2362e2b55ca9b13adcb60dc0b4310c5a29470a1e58abda1a38a52a1a09',
  'PROGRAM/sea_ai/AIFantom.c': '94064aa548f1d3e41033c94ebe63dc823c664c1943852eadabff3d3ed6a75c0b',
  'PROGRAM/sea_ai/AIShip.c': '3f42a3c1c00db690ed91e83e78113a8ed4a12ed01e4e9a02ccf02e3842f78427',
- 'PROGRAM/interface/map.c': 'd342e2cc54a3272c5b13998210fff578046b5f8f4db62e569e564af3457802cf',
+ 'PROGRAM/interface/map.c': '6e6eca9b5fc12a37796a57f9c913eb20a85aa73dbbb66b573a6990ecc273f6e9',
  'PROGRAM/battle_interface/WmInterface.c': '4088a04e7f29758167938ec95530199bfd998cb7b37f01c67b939f4d973aac78',
  'PROGRAM/battle_interface/loginterface.c': '88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c',
- 'RESOURCE/INI/interfaces/map.ini': '0edb623bf4ce8f01d815a80d62c66748eb7520ad133917f927d83b90c43cfafd'}
+ 'RESOURCE/INI/interfaces/map.ini': '06c9e91085ccf1832ed15f384534d7dc83d92658cdb42649f27e28b3f7a8604e'}
 
 
 def prepare_fleet_final(relative, incoming):

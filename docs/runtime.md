@@ -8078,3 +8078,37 @@ Hypothesis: The transient sail upload path introduced in `ad83111` causes geomet
 Exact delta: Hardcoded `transientSail=false` in `experiments/native-metal/backend.mm`, forcing sails to use the previously stable `residentBuffer` allocation path instead of the `frameArena`.
 Result: Reverted transient uploads locally. Player tested the build in the sea and confirmed the sails are fixed.
 Disposition: `accepted`. The fix is committed and staged.
+
+### October 9 — encounter panel: navigation dice, spyglass tiers, HP+guns power
+
+Hypothesis: the legacy map encounter panel decided escape with an unconditional
+`rand(100)` gate, duplicated the sea entry button, and could not show a spyglass
+advantage; its power comparison also used a count-based estimate.
+Exact delta: `tools/gameplay/fleet-encounter-ui.c` (composed by
+`tools/metal_fleet_ui.py` into `PROGRAM/interface/map.c`) replaces the escape
+gate with a contested roll — `(Navigation+Sneak+Luck/2)/6 + slowest surviving
+active companion hull speed × 1.5 + 4` (SailingProfessional) against the hostile
+captain's Navigation/6 plus the fastest surviving hostile hull speed × 1.5,
+clamped ±8 and resolved as `rand(20)+margin` versus `rand(20)`. A lost roll only
+locks `B_CANCEL` and forces the sea fight. Power is now one HP+guns scale for
+both sides (traders ×0.35, thresholds 1.80/1.25/0.80/0.40 with Russian labels),
+spyglass tiers 2/3/4 add class histogram, hull names plus destination port, and
+cannon counts. `B_SEA` stays hidden; both step commands for `B_OK`/`B_CANCEL`
+now pass through `GetSelectable`, because `CINODE::DoAction` switches the current
+node on `select:` unconditionally and a disabled button would dead-end the
+arrow keys.
+Intermediate defect: the first composition read `worldMap.enemyMaxSpeed`, which
+`WdmFleetUIInfo()` initialised but never filled, so the enemy edge was
+Navigation/6 and the clamped margin was almost always +8. The fastest surviving
+hostile hull's `RealShip.SpeedRate` is now read inside the same roster loop that
+fills `enemyMaxNav`; the player and enemy sides now use the same speed units.
+An `Invalid array (spyTypes) size` VM error was investigated and rejected as a
+probe artifact: `map.c` fails only when `#include`d into the driver file, while
+the game loads `interface\map.c` as its own `LoadSegment` after `seadogs.c`. The
+extended `script_vm_probe.cpp` prelude fixture reproduces that loader path.
+Result: canonical `sync_metal_gameplay.py apply` returns 0 with the game idle and
+installs signed content whose `map.c`/`map.ini` hashes match `.cache/runtime`.
+Probe result: the composed `map.c` loads as its own VM segment with zero script
+errors and zero duplicate local names.
+Disposition: `staged/installed`; player replay pending. Ambush is deliberately
+not ported in this batch.

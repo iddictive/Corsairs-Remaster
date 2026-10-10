@@ -21,7 +21,7 @@ BASES = {
     "PROGRAM/battle_interface/loginterface.c": "88a187aec46bf600ff6c239eb2d358b8155775a006f70d085917fa7bc79a849c",
     "RESOURCE/INI/interfaces/map.ini": "112a4943f67b1d85d6e9fad17dacbdc0d40f338a058af8e4373a48f2a0d5f608",
 }
-HELPER_SHA256 = "bfe0155f733e8e18920dc1387b39d89865ec93b820b4b4635c33fa4526af9674"
+HELPER_SHA256 = "e373d56721de5fc33cd1ec22e3605ddcd6d71c5983394f779831a0fe263fd236"
 
 
 def enc(text: str) -> bytes:
@@ -44,6 +44,21 @@ def replace_function(data: bytes, start: str, end: str, base: str, new: str) -> 
     if first >= last or hashlib.sha256(data[first:last]).hexdigest() != base:
         raise RuntimeError(f"fleet UI function body mismatch: {start}")
     return data[:first] + enc(new) + data[last:]
+
+
+def legacy_escape_roll() -> str:
+    """Exact anchor of the replaced rand(100) escape block in the input."""
+    return ('        if (!isSkipable && !bBettaTestMode)\n'
+            '        {\n'
+            '        \tif (CheckOfficersPerk(pchar, "SailingProfessional"))\n'
+            '        \t{\n'
+            '\t\t\tif (rand(100) > 75) SetSelectable("B_CANCEL",false);\n'
+            '        \t}\n'
+            '\t\telse\n'
+            '\t\t{\n'
+            '\t\t\tif (rand(100) > 25) SetSelectable("B_CANCEL",false);\n'
+            '        }\n'
+            '\t}\n')
 
 
 def prepare_map(data: bytes) -> bytes:
@@ -82,10 +97,23 @@ def prepare_map(data: bytes) -> bytes:
     data = replace(data, 'SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"INFO_TEXT",5);', '// Keep the encounter summary top-aligned.')
     data = replace(data, 'SetSelectable("BTN_CANCEL",true)', 'SetSelectable("B_CANCEL",true)')
     data = replace(data, 'SetSelectable("BTN_CANCEL",false)', 'SetSelectable("B_CANCEL",false)', 3)
-    data = replace(data, '\tpchar.space_press = 0;', """	// Story, storm and island actions retain their authored transition.
-	bool plainSea = !bFleetUIQuest && sti(worldMap.encounter_type) != 0 && sti(worldMap.encounter_type) != 4;
-	SetSelectable("B_SEA", plainSea);
-	if (!plainSea) SetNodeUsing("B_SEA", false);
+    data = replace(data, legacy_escape_roll(), """	if (!isSkipable && !bBettaTestMode && !bFleetUIEscapeOK)
+	{
+		SetSelectable("B_CANCEL", false);
+	}
+""")
+    # Движок переключает текущий узел по select: безусловно, поэтому скрытая
+    # или выключенная кнопка стала бы ловушкой для стрелок. Шаги кнопок
+    # разбирает ProcCommand, который сверяет доступность цели.
+    data = replace(data, 'if(comName=="downstep")',
+                   'if(comName=="downstep" || comName=="leftstep" || comName=="rightstep")')
+    data = replace(data, 'if(comName=="upstep")',
+                   'if(comName=="upstep" || comName=="leftstep" || comName=="rightstep")')
+
+    data = replace(data, '\tpchar.space_press = 0;', """	// Один морской переход: кнопка «Войти в море» дублировала бой и
+	// позволяла ускользнуть без броска кубика, поэтому остаётся скрытой.
+	SetSelectable("B_SEA", false);
+	SetNodeUsing("B_SEA", false);
 	SetCurrentNode("B_OK");
 	pchar.space_press = 0;""")
     data = replace(data, 'EI_CreateFrame("BORDERS", 245,154,555,330);',
@@ -148,9 +176,9 @@ alignment = left
 fontScale = 0.9
 lineSpace = 16""")
     data = replace(data, 'command = rightstep,select:B_CANCEL\nposition = 184,392,324,424',
-                   'command = leftstep,select:B_CANCEL\ncommand = rightstep,select:B_SEA\ncommand = upstep,select:INFO_TEXT\nposition = 184,392,324,424')
+                   'command = leftstep\ncommand = rightstep\ncommand = upstep,select:INFO_TEXT\nposition = 184,392,324,424')
     data = replace(data, 'command = leftstep,select:B_OK\nposition = 480,392,616,424',
-                   'command = leftstep,select:B_SEA\ncommand = rightstep,select:B_OK\ncommand = upstep,select:INFO_TEXT\nposition = 480,392,616,424')
+                   'command = leftstep\ncommand = rightstep\ncommand = upstep,select:INFO_TEXT\nposition = 480,392,616,424')
     return data + enc("""
 [B_SEA]
 bBreakCommand
