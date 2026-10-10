@@ -3,43 +3,63 @@
   "files": {
     "PROGRAM/interface/store.c": {
       "encoding": "utf-8",
-      "legacy": ["d031125b83a89c4b76a38205f90723d22a700b233e1a1e70c30f93a358b90854"]
+      "legacy": [
+        "d031125b83a89c4b76a38205f90723d22a700b233e1a1e70c30f93a358b90854"
+      ]
     },
     "PROGRAM/store/goods.h": {
       "encoding": "cp1251",
-      "legacy": ["d26f0f3c353e59bf27199fa614111c8282aa415a8e6975d534bab0c6002e8c5b"]
+      "legacy": [
+        "d26f0f3c353e59bf27199fa614111c8282aa415a8e6975d534bab0c6002e8c5b"
+      ]
     },
     "PROGRAM/store/initGoods.c": {
       "encoding": "utf-8",
-      "legacy": ["29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8"]
+      "legacy": [
+        "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8"
+      ]
     },
     "PROGRAM/store/storeutilite.c": {
       "encoding": "utf-8",
-      "legacy": ["af9a4e70c6d51adf9d59f6e0a003141ab8a666c5165e07b41151fc84f394cf65"]
+      "legacy": [
+        "af9a4e70c6d51adf9d59f6e0a003141ab8a666c5165e07b41151fc84f394cf65"
+      ]
     },
     "PROGRAM/store/initStore.c": {
       "encoding": "utf-8",
-      "legacy": ["27aa94dc9049ee9ce93f1d564db6114847af2b3bddf1d1d4f66618b13642f9f0"]
+      "legacy": [
+        "27aa94dc9049ee9ce93f1d564db6114847af2b3bddf1d1d4f66618b13642f9f0"
+      ]
     },
     "PROGRAM/seadogs.c": {
       "encoding": "utf-8",
-      "legacy": ["cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050"]
+      "legacy": [
+        "cb67fa4e4c92499756f4c9a7a7a707e4daf9ad5eb00d3a393106aad5900bf050"
+      ]
     },
     "PROGRAM/interface/debuger.c": {
       "encoding": "utf-8",
-      "legacy": ["c2fd853fe9091c9af11cf5bb38b1f1d99c3b0cd4544a44675c568207aed9dcf9"]
+      "legacy": [
+        "c2fd853fe9091c9af11cf5bb38b1f1d99c3b0cd4544a44675c568207aed9dcf9"
+      ]
     },
     "PROGRAM/interface/game_menu.c": {
       "encoding": "utf-8",
-      "legacy": ["15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0"]
+      "legacy": [
+        "15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0"
+      ]
     },
     "RESOURCE/INI/interfaces/game_menu.ini": {
       "encoding": "utf-8",
-      "legacy": ["d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e"]
+      "legacy": [
+        "d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e"
+      ]
     },
     "RESOURCE/INI/interfaces/debuger.ini": {
       "encoding": "utf-8",
-      "legacy": ["5e8f505d9277d6ec1b59adf2514b3b28ec3bf4fadcdfb550ced99134e42e02b0"]
+      "legacy": [
+        "5e8f505d9277d6ec1b59adf2514b3b28ec3bf4fadcdfb550ced99134e42e02b0"
+      ]
     },
     "PROGRAM/controls/init_pc.c": {
       "encoding": "utf-8",
@@ -50,7 +70,9 @@
     },
     "RESOURCE/INI/texts/russian/GoodsDescribe.txt": {
       "encoding": "utf-8",
-      "legacy": ["08cd1d3cd4ea8d70d022dce5b4cfbd8ed56d2b39cc5ee3cc73259ee78024b1a1"]
+      "legacy": [
+        "08cd1d3cd4ea8d70d022dce5b4cfbd8ed56d2b39cc5ee3cc73259ee78024b1a1"
+      ]
     },
     "RESOURCE/Particles/Grapes_Tracer.xps": {
       "encoding": "binary",
@@ -69,11 +91,15 @@
     },
     "PROGRAM/battle_interface/BattleInterface.c": {
       "encoding": "utf-8",
-      "legacy": ["8d56beba0436ada9af6a8a236bf3535f32c8df7fb9f88e577f89ba6f23a2d566"]
+      "legacy": [
+        "8d56beba0436ada9af6a8a236bf3535f32c8df7fb9f88e577f89ba6f23a2d566"
+      ]
     },
     "PROGRAM/interface/LeaveBattle.c": {
       "encoding": "utf-8",
-      "legacy": ["f6cd4372ccaa99a914a3fb6b2a9d24672e97f65494eda64584c55695c45a94f5"]
+      "legacy": [
+        "f6cd4372ccaa99a914a3fb6b2a9d24672e97f65494eda64584c55695c45a94f5"
+      ]
     },
     "PROGRAM/weather/Init/Evening.c": {
       "encoding": "utf-8",
@@ -191,11 +217,15 @@
     },
     "PROGRAM/interface/character.c": {
       "encoding": "utf-8",
-      "legacy": ["00b54166f3c4970cf71d67c36987cb966f358dc9f555aa16b63c20c071895d7f"]
+      "legacy": [
+        "00b54166f3c4970cf71d67c36987cb966f358dc9f555aa16b63c20c071895d7f"
+      ]
     },
     "PROGRAM/interface/character_all.c": {
       "encoding": "utf-8",
-      "legacy": ["41645b8e40bd1ed841fda82fa6832ca7965d271cc52a3f5b4aa758cdc8dcd441"]
+      "legacy": [
+        "41645b8e40bd1ed841fda82fa6832ca7965d271cc52a3f5b4aa758cdc8dcd441"
+      ]
     },
     "PROGRAM/interface/perks/perks.c": {
       "encoding": "utf-8",
@@ -217,11 +247,15 @@
     },
     "PROGRAM/sea_ai/AIBalls.c": {
       "encoding": "utf-8",
-      "legacy": ["6e0940276707f009dd1dae34f590b99effc441d4b86fba9d291f25084b3a0e48"]
+      "legacy": [
+        "6e0940276707f009dd1dae34f590b99effc441d4b86fba9d291f25084b3a0e48"
+      ]
     },
     "PROGRAM/sea_ai/AICannon.c": {
       "encoding": "utf-8",
-      "legacy": ["e0cde8f0e223a5ec61faf5143b7e426ffc8140179423b464f25945d3094b3ba7"]
+      "legacy": [
+        "e0cde8f0e223a5ec61faf5143b7e426ffc8140179423b464f25945d3094b3ba7"
+      ]
     },
     "PROGRAM/sea_ai/AIFort.c": {
       "encoding": "utf-8",
@@ -273,6 +307,24 @@
         "e7fb99e15439cd84df81f0bcc831913b7f8221b2c15241fd2bb70c56623e3360",
         "ef3137c2627cd023b5e03e0714b57fae9a62aeb0dbcb0746fb1101985d835a6c",
         "f322bc2e89371c8e679d1b728061b6bc0034c3932e6fd7b98f23da618b550715"
+      ]
+    },
+    "PROGRAM/scripts/Crew.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "5034b93a67232105915d6e3cc18460271fbd193f114904a5b93bd22f000c995f"
+      ]
+    },
+    "PROGRAM/characters/characterUtilite.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "a6cc2ed304c9120be62c6b14f69847eba279ee27c8665bcb74afc8888c6323b4"
+      ]
+    },
+    "PROGRAM/quests/reaction_functions.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "d23b8a8684480f21d290779482e666e2e8e88d979883c9bc876541f6eef78c95"
       ]
     }
   }

@@ -1,10 +1,31 @@
 # Runtime state
 
-Last verified: October 9 directional sky/fog correction staged without game launch (America/New_York)
+Last verified: October 9 officer-debt/mutiny and NPC crew complement installed into the app; no game launch (America/New_York)
 
 ## Current verdict
 
-### Current installed inventory — directional sky/fog and coherent camera rays
+### Current installed inventory — officer escape, crew debt and NPC traffic crews
+
+tools/sync_metal_gameplay.py apply delivered three scripts into the signed app:
+PROGRAM/worldmap/worldmap_encgen.c (composed from the edited traffic source,
+WDM_TRAFFIC_SHA256 4f1555eb…, composed output daa5abcd…),
+PROGRAM/scripts/Crew.c and PROGRAM/quests/reaction_functions.c. The following
+check reports zero pending files and compiler readiness, and the installed
+markers were re-read from /Applications/Corsairs Iddictive Remaster.app.
+
+Delta: an escaped officer keeps an open "escaped" debt entry; his escape no
+longer raises a mutiny at normal morale and requires low morale plus weak
+leadership; a dismissed or removed officer cannot start the scene at all; NPC
+traffic hulls publish with their optimal crew and port service recruits toward it
+from a dated NPC harbour reserve instead of the hero-sized tavern pool.
+
+Result: source and delivery accepted; the script VM full-chain probe also fails
+on the pristine baseline (fixture artifact) and does not gate this batch. Player
+replay is unresolved: a real escape or dismissal with good morale, the debt
+journal entry, and map NPC ships that visibly carry crews instead of empty holds.
+No game launch, input or player-data write.
+
+### Historical installed inventory — directional sky/fog and coherent camera rays, superseded by the officer/crew batch
 
 Canonical `experiments/native-metal/run.sh --stage-only` returns0 for local
 source commit `9052624`. Installed signed arm64 engine:

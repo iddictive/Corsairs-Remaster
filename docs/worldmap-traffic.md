@@ -1,5 +1,36 @@
 # World-map traffic
 
+## NPC crew complement — October 9
+
+The player reported that almost every ordinary ship on the map sailed with
+practically no crew while ball and powder cargo was present. The cause was the
+crew source, not the service interval: NPC recruitment drew from
+Colonies[].Ship.Crew.Quantity, which is the tavern hiring pool. The shipped
+base-game refresh (UpdateCrewInColonies) sizes that pool from the hero's own
+fleet (GetMaxCrewAble) and drops it to 1-20 men whenever the player's ships are
+fully crewed; with the pool reserve subtracted, fleets reached only the sailing
+minimum or failed assembly, so traffic fought and boarded at roughly 20%
+readiness.
+
+Crew is now the hull's own people, the way generated NPC ships work in the base
+game. Publication stamps each new hull with its optimal complement (OptCrew,
+never below MinCrew) and the matching readiness; port service recruits toward
+that complement instead of the bare sailing minimum;
+WdmTrafficServiceCrewAvailable returns a dated NPC harbour reserve (at least 300
+men, or the actual pool when it is larger) and no longer debits the tavern pool,
+so hero hiring is untouched. The temporary 40%/10 reserve and the per-hull +40
+assembly slack were removed. Assembly still funds provisions, guns and
+ammunition from one finite store preview, and MinCrew remains the departure gate.
+
+Installed as PROGRAM/worldmap/worldmap_encgen.c through
+tools/sync_metal_gameplay.py apply; the source pin moved to
+4f1555eb05403cbafa662677208c9cf52d74c0564d4b9003fe67db0d1f73dc38 and the
+composed output to
+daa5abcdaa68a743bccd25a637b8f2397e7b3a9338ebb31ec323b270ec16a3c7.
+No player replay is recorded: actual map traffic crews, port turn-around time
+and encounter strength remain player-owned. The script VM full-chain probe fails
+on the pristine baseline as well, so it does not gate this change.
+
 ## Sea entry spacing and port service — October 8
 
 Canonical `src/gameplay/PROGRAM/sea_ai/sea.c` owns ordinary imported fleet

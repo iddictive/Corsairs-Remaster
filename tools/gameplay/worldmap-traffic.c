@@ -1,6 +1,11 @@
 // Appended to worldmap_encgen.c. Native traffic owns requests, quotas and movement.
 // Roles: 1 commerce, 2 territorial patrol, 3 pirate raider. No player-centred spawning.
 #define WDM_TRAFFIC_FREIGHT_FILL 0.75
+// Собственный портовый запас людей для NPC-трафика. Наёмная витрина города
+// (Colonies[].Ship.Crew.Quantity) считается от экипажа героя и при полном
+// комплекте игрока падает до 1-20 человек, поэтому эскадры не могли добрать
+// команду ни при рождении, ни после боя.
+#define WDM_TRAFFIC_CREW_MANPOWER 300
 
 string WdmTrafficPortLocator(int colony)
 {
@@ -678,14 +683,18 @@ bool WdmTrafficCreate(int role)
 		ManualReleaseMapEncounter(slot);
 		return false;
 	}
-	// New hulls have no generated crew/supplies. Before publishing a native
-	// entity, admit their exact assembly against one finite service preview.
+	// Экипаж — часть самого корпуса, а не портовый товар: обычные NPC-корабли
+	// ходят с оптимальной командой, а наёмная витрина города остаётся игроку.
+	// Снабжение, орудия и порох по-прежнему закупаются в порту ниже.
 	for (i = 0; i < sti(fleet.trafficRoster.count); i++)
 	{
 		string hullKey = "ship" + i;
-		fleet.trafficRoster.(hullKey).crew = 0.0;
-		fleet.trafficRoster.(hullKey).trafficCrewQuantity = 0;
-		fleet.trafficRoster.(hullKey).Ship.Crew.Quantity = 0;
+		aref crewHull; makearef(crewHull, ShipsTypes[sti(fleet.trafficRoster.(hullKey).baseType)]);
+		int rosterCrew = sti(crewHull.OptCrew);
+		if (rosterCrew < sti(crewHull.MinCrew)) rosterCrew = sti(crewHull.MinCrew);
+		fleet.trafficRoster.(hullKey).crew = WdmTrafficCrewReadiness(stf(rosterCrew), stf(crewHull.MinCrew), stf(crewHull.MaxCrew));
+		fleet.trafficRoster.(hullKey).trafficCrewQuantity = rosterCrew;
+		fleet.trafficRoster.(hullKey).Ship.Crew.Quantity = rosterCrew;
 		fleet.trafficRoster.(hullKey).ammo = 0.0;
 		fleet.trafficRoster.(hullKey).savedAmmo = 0.0;
 		fleet.trafficRoster.(hullKey).trafficSupplies = "";
@@ -1679,8 +1688,12 @@ int WdmTrafficServiceAvailable(ref store, int good)
 int WdmTrafficServiceCrewAvailable(int colony)
 {
 	ref port = &Colonies[colony];
-	int quantity = 0;
-	if (CheckAttribute(port, "Ship.Crew.Quantity")) quantity = sti(port.Ship.Crew.Quantity);
+	// NPC-трафик комплектуется из собственного портового запаса людей, а не из
+	// наёмной витрины города: витрина считается от экипажа героя и при полном
+	// комплекте игрока падает до 1-20 человек.
+	int quantity = WDM_TRAFFIC_CREW_MANPOWER;
+	if (CheckAttribute(port, "Ship.Crew.Quantity") && sti(port.Ship.Crew.Quantity) > quantity)
+		quantity = sti(port.Ship.Crew.Quantity);
 	aref pool; makearef(pool, port.trafficCrewReserve);
 	bool dated = CheckAttribute(port, "CrewDate.control_year") && CheckAttribute(port, "CrewDate.control_month") &&
 		CheckAttribute(port, "CrewDate.control_day");
@@ -1693,8 +1706,7 @@ int WdmTrafficServiceCrewAvailable(int colony)
 	}
 	if (refresh)
 	{
-		pool.quantity = makeint(quantity * 0.25);
-		if (sti(pool.quantity) < 5) pool.quantity = 5;
+		pool.quantity = quantity;
 		if (dated)
 		{
 			pool.control_year = port.CrewDate.control_year;
@@ -1702,7 +1714,7 @@ int WdmTrafficServiceCrewAvailable(int colony)
 			pool.control_day = port.CrewDate.control_day;
 		}
 	}
-	int available = quantity - sti(pool.quantity);
+	int available = sti(pool.quantity);
 	if (available < 0) available = 0;
 	return available;
 }
@@ -1784,8 +1796,12 @@ bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 	makearef(hull, ShipsTypes[sti(ship.baseType)]);
 	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
 	int minCrew = sti(hull.MinCrew);
+	// Целевой состав — оптимальная команда корпуса; ходовой минимум остаётся
+	// только разрешением на выход в море.
+	int optimalCrew = sti(hull.OptCrew);
+	if (optimalCrew < minCrew) optimalCrew = minCrew;
 	int crew = WdmTrafficCrewQuantity(ship);
-	int recruits = minCrew - crew;
+	int recruits = optimalCrew - crew;
 	if (recruits < 0) recruits = 0;
 	if (recruits > 0)
 	{
@@ -1953,7 +1969,9 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 	int available = 0;
 	aref hull; makearef(hull, ShipsTypes[sti(ship.baseType)]);
 	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
-	if (WdmTrafficCrewQuantity(ship) < sti(hull.MinCrew)) available = WdmTrafficServiceCrewAvailable(colony);
+	int optimalCrew = sti(hull.OptCrew);
+	if (optimalCrew < sti(hull.MinCrew)) optimalCrew = sti(hull.MinCrew);
+	if (WdmTrafficCrewQuantity(ship) < optimalCrew) available = WdmTrafficServiceCrewAvailable(colony);
 	ref store = &Stores[storeIndex];
 	if (!WdmTrafficPlanService(ship, available, store, &paid)) return false;
 	DeleteAttribute(ship, "trafficService");
@@ -1971,8 +1989,8 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 			ship.trafficSupplies.(goodsName) = WdmTrafficEntryGoods(ship, good) + quantity;
 		}
 	}
-	int recruits = sti(plan.crew) - sti(plan.startCrew);
-	if (recruits > 0) Colonies[colony].Ship.Crew.Quantity = sti(Colonies[colony].Ship.Crew.Quantity) - recruits;
+	// Наёмная витрина города остаётся игроку: NPC-трафик берёт людей из
+	// собственного портового запаса (WdmTrafficServiceCrewAvailable).
 	return true;
 }
 
