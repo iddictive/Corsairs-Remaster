@@ -42,6 +42,25 @@ constants in `AICannon.c`.
 gameplay/ remains ignored scratch space. Accepted edits need integration into
 their durable source before canonical staging or clean-checkout delivery.
 
+## Codex environment actions
+
+The saved Corsairs project's local `.codex/environments/environment.toml`
+exposes two player outcomes:
+
+| Action | Effect |
+| --- | --- |
+| Обновить установленную игру | Runs `experiments/native-metal/run.sh --stage-only`: builds the current engine, prepares reviewed resources and updates the played app in `/Applications`. The game must be closed; this action does not launch it. |
+| Открыть установленную игру | Opens `/Applications/Corsairs Iddictive Remaster.app` through `/usr/bin/open`. It does not build or update the game and uses the installed launcher's existing player-state owner. |
+
+Setup checks the existing development tools only; it builds neither engine.
+The internal word `stage` names file preparation, not a separate player
+environment. `run.sh --launch-installed` launches the development cache despite
+its name and is therefore not the player-facing environment action.
+
+The configuration is local-only. Inspect the visible Codex menu after it has
+reloaded the environment before claiming its labels are current; disk parsing
+and launch-route inspection do not prove menu refresh.
+
 ## Ordinary content iteration
 
 Open the installed app once to initialize its player state, then close it.
