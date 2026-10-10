@@ -6,6 +6,7 @@
 #include <cstring>
 #include "gpu_skinning_bridge.hpp"
 
+extern "C" bool StormMetalSceneLight(void*, uint64_t, const D3DLIGHT9*);
 extern "C" unsigned StormMetalBeginSceneModel(void*);
 extern "C" void StormMetalEndLandModel(void*, unsigned);
 extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
@@ -22,6 +23,7 @@ struct SunFrame { std::array<DWORD,64*64> pixels{}; bool resolved=false; };
 
 int main() {
     setenv("STORM_METAL_DYNAMIC_LIGHTING", "1", 1);
+    setenv("STORM_METAL_MODERN_LIGHTING", "1", 1);
     need(SDL_Init(SDL_INIT_VIDEO) == 0, "SDL");
     auto* window=SDL_CreateWindow("Sea point shadows",0,0,64,64,SDL_WINDOW_HIDDEN|SDL_WINDOW_METAL); need(window,"window");
     auto* d3d=Direct3DCreate9(D3D_SDK_VERSION); D3DPRESENT_PARAMETERS pp{}; pp.Windowed=TRUE;pp.BackBufferWidth=pp.BackBufferHeight=64;pp.BackBufferFormat=D3DFMT_A8R8G8B8;pp.hDeviceWindow=window;pp.SwapEffect=D3DSWAPEFFECT_DISCARD;
@@ -30,16 +32,22 @@ int main() {
     const WORD ix[]={0,1,2,0,2,3}; IDirect3DVertexBuffer9* meshVb=nullptr;IDirect3DIndexBuffer9* ib=nullptr;IDirect3DTexture9* alphaTexture=nullptr;
     need(SUCCEEDED(d->CreateVertexBuffer(sizeof(Vertex)*4,D3DUSAGE_WRITEONLY,0,D3DPOOL_MANAGED,&meshVb,nullptr)),"shared mesh VB");need(SUCCEEDED(d->CreateIndexBuffer(sizeof(ix),D3DUSAGE_WRITEONLY,D3DFMT_INDEX16,D3DPOOL_MANAGED,&ib,nullptr)),"IB");need(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&alphaTexture,nullptr)),"alpha texture");void* p=nullptr;ib->Lock(0,0,&p,0);std::memcpy(p,ix,sizeof(ix));ib->Unlock();Vertex q[]={{-1,-1,0,0,0,-1,0xffffffff,0,0},{1,-1,0,0,0,-1,0xffffffff,1,0},{1,1,0,0,0,-1,0xffffffff,1,1},{-1,1,0,0,0,-1,0xffffffff,0,1}};meshVb->Lock(0,0,&p,0);std::memcpy(p,q,sizeof(q));meshVb->Unlock();D3DLOCKED_RECT alphaLock{};alphaTexture->LockRect(0,&alphaLock,nullptr,0);*static_cast<DWORD*>(alphaLock.pBits)=0xffffffff;alphaTexture->UnlockRect(0);
     D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;d->SetTransform(D3DTS_WORLD,&identity);d->SetTransform(D3DTS_VIEW,&identity);d->SetTransform(D3DTS_PROJECTION,&identity);d->SetFVF(D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_TEX1);d->SetIndices(ib);d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_COLORVERTEX,FALSE);d->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_MATERIAL);d->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_MATERIAL);D3DMATERIAL9 material{};material.Diffuse={1,1,1,1};d->SetMaterial(&material);
-    auto frame=[&](bool blocker,bool red,bool blue,float translation=0.f){
+    auto frame=[&](bool blocker,bool red,bool blue,float translation=0.f,unsigned catalogMode=0){
         d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff000000,1,0);d->BeginScene();
         D3DMATRIX view=identity;view._41=-translation;d->SetTransform(D3DTS_VIEW,&view);
         D3DLIGHT9 redLamp{};redLamp.Type=D3DLIGHT_POINT;redLamp.Position={translation-.6f,0,-.4f};redLamp.Diffuse={1,0,0,1};redLamp.Range=3;redLamp.Attenuation0=1;d->SetLight(1,&redLamp);d->LightEnable(1,red);StormMetalSetLightIdentity(d,1,71);
         D3DLIGHT9 blueLamp=redLamp;blueLamp.Position={translation+.6f,0,-.4f};blueLamp.Diffuse={0,0,1,1};d->SetLight(2,&blueLamp);d->LightEnable(2,blue);StormMetalSetLightIdentity(d,2,72);d->LightEnable(0,FALSE);
+        if(catalogMode){if(red)need(StormMetalSceneLight(d,71,&redLamp),"sea source published before shadow frame");if(blue)need(StormMetalSceneLight(d,72,&blueLamp),"second sea source");if(catalogMode==1){d->LightEnable(1,FALSE);d->LightEnable(2,FALSE);}}
         auto draw=[&](float x,float half,float z){D3DMATRIX world=identity;world._11=world._22=half;world._41=x+translation;world._43=z;d->SetTransform(D3DTS_WORLD,&world);d->SetStreamSource(0,meshVb,0,sizeof(Vertex));need(SUCCEEDED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"raw sea geometry");};
         unsigned scope=StormMetalBeginSceneModel(d);if(blocker&&red)draw(-.1f,.14f,.1f);if(blocker&&blue)draw(.05f,.14f,.1f);draw(0,.9f,.6f);StormMetalEndLandModel(d,scope);D3DPERF_SetMarker(0,L"Storm.SceneHudBoundary");d->EndScene();
         need(SUCCEEDED(d->GetRenderTargetData(target,read)),"readback");D3DLOCKED_RECT lock{};read->LockRect(&lock,nullptr,D3DLOCK_READONLY);FramePixels value{};std::memcpy(&value.red,static_cast<char*>(lock.pBits)+32*lock.Pitch+48*4,4);std::memcpy(&value.blue,static_cast<char*>(lock.pBits)+32*lock.Pitch+16*4,4);read->UnlockRect();need(SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr)),"frame reset");return value;
     };
     const auto before=StormMetalRawWorldDraws(d);const auto redLit=frame(false,true,false),redShadow=frame(true,true,false),blueLit=frame(false,false,true),blueShadow=frame(true,false,true),twoShadow=frame(true,true,true),off=frame(true,false,false);
+    const auto catalogOnly=frame(false,true,false,0,1),catalogWithSlots=frame(false,true,false,0,2);
+    need(((catalogOnly.red>>16)&255)>16,"catalog lights the hull without receiver-owned D3D slots");
+    need(std::abs(int((catalogOnly.red>>16)&255)-int((catalogWithSlots.red>>16)&255))<=2,"catalog plus D3D slot counts a physical source once");
+    const auto expiredCatalog=frame(false,false,false);
+    need(((expiredCatalog.red>>16)&255)<8,"off source does not leak from the previous catalog frame");
     // Translating the camera and its illuminated geometry together must preserve
     // lamp occlusion, including beyond the former 30-unit world-origin cutoff.
     const auto translatedLit=frame(false,true,false,40),translatedShadow=frame(true,true,false,40);

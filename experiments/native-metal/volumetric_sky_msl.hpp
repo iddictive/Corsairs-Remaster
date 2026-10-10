@@ -668,7 +668,7 @@ kernel void sky_surface_solar(constant SkyWeather&weather [[buffer(0)]],
     // their existing energy, and sky/fog display radiance is not raised.
     float daylight=smoothstep(-.13f,.10f,solarElevation);
     float twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
-    float nightDiffuse=1.f+.15f*(1.f-max(daylight,twilight));
+    float nightDiffuse=1.f+.25f*(1.f-max(daylight,twilight));
     sample[1]=float4(mean/128.f*nightDiffuse,0);sample[2]=float4(mx/64.f*nightDiffuse,0);
     sample[3]=float4(my/64.f*nightDiffuse,0);sample[4]=float4(mz/64.f*nightDiffuse,0);
 }

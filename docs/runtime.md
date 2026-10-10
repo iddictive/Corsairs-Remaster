@@ -1,10 +1,60 @@
 # Runtime state
 
-Last verified: October 10 unified outdoor sky field with the authored horizon strip removed; installed as b910314a0293bac7, player replay pending (America/New_York)
+Last verified: October 10 camera-independent lamp candidate installed as 119b43ed10513514; component checks passed, player replay pending (America/New_York).
 
 ## Current verdict
 
-### Local-lamp shadow continuity — October 10, built; installation pending
+### Lamp emission, off-camera occlusion and depth reuse — October 10
+
+Observed: the player reports black luminous lantern materials, grate/deck
+illumination changing with camera framing, coarse local shadows, bright weapon
+reflections, and reduced outdoor/deck FPS. Sky and sea appearance are explicitly
+accepted and are preserved. Quick-action icon stripes are reported but their
+affected control/state is not yet identified from the supplied screenshots.
+
+Proven source defects: GEOM discarded authored `selfIllum`; ship source
+publication required a location prepass and the current receiver's ownership;
+corona distance rejection skipped physical light updates; camera-culled nodes
+never reached the point-caster registry; generated weapon reflections bypassed
+incident material light. The cube key also hashed a camera-rebased transform,
+so physically unchanged geometry could invalidate it on camera translation.
+
+Delta: the ordered `authored-emission.patch`, `ship-source-catalog.patch` and
+`offscreen-point-casters.patch` restore shared material/source contracts and
+bounded capture-only location geometry. Stable catalog IDs update once and
+expire when not republished. Nested/far geometry retains range rejection.
+Absolute caster keys reuse unchanged depth cubes; world-origin translation is
+applied consistently to off-camera admission. Shared four-tap filtering keeps
+the existing cube resolution and eight-light budget. Generated lit reflections
+use existing GPU material light. Full-night diffuse SH gain is 1.25 instead of
+1.15; sky and base-water radiance receive no brightness lift.
+
+Verification: current named CMake targets were rebuilt before executing
+`lighting-scene-probe`, `dynamic_lighting-probe`, `weapon-probe` and
+`sea_point_shadow_gpu-probe`; all passed. Readback covers capture without color
+drawing, caster deletion, camera translation with cube reuse, nested/far
+rejection, first-cube admission under negative world origin, source expiry,
+hull lighting without local D3D slots, and no duplicate lamp contribution.
+Weapon reflections become black at zero incident light and quarter-energy
+under quarter illumination, while the unlit compatibility cases pass. Source
+inspection independently confirms SanJuan night-lamp emission 1 and day-lamp
+emission 0. Native node traversal is compiled, not replayed through a game camera.
+
+Delivery: canonical `run.sh --stage-only` returned 0 after the final renderer
+and ordered-patch changes. Installed signed engine SHA-256:
+`119b43ed10513514a723fc0698934f69ce789b78a6c598acbf09df7d348a40d1`.
+The earlier installed f76f6d3f candidate is superseded. No game launch or UI
+interaction was performed; SAVE/configuration are preserved.
+The repository context check still fails on the unchanged environment's missing
+project-context check action; no passing repository-hygiene result is claimed.
+
+Disposition: installed candidate; real-game acceptance remains unresolved.
+Player replay must establish lantern appearance, grate/deck continuity,
+shadow edges, night readability and actual FPS. The icon stripes remain an
+unlocalized defect owned by the lighting task pending the affected UI state;
+no icon repair is claimed. Depth reuse is verified, an FPS gain is not.
+
+### Historical pre-batch local-lamp shadow continuity — October 10
 
 Observed: at 19:45 in the San Juan port office and on streets, walking changes
 static-object shadows while the objects and their illumination remain visible.

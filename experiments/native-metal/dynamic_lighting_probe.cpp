@@ -21,6 +21,11 @@ extern "C" bool StormMetalEndShadowFrame(void*);
 extern "C" void StormMetalSetLightIdentity(void*,unsigned,uint64_t);
 extern "C" uint64_t StormMetalRawLocationDraws(void*);
 extern "C" uint64_t StormMetalRawSkinnedDraws(void*);
+extern "C" void StormMetalSetWorldOrigin(void*,const float*);
+extern "C" bool StormMetalBeginOffscreenPointCaster(void*,const float*,float);
+extern "C" void StormMetalEndOffscreenPointCaster(void*);
+extern "C" bool StormMetalRenderPointShadowCube(void*,uint64_t,const float*,float);
+extern "C" uint64_t StormMetalPointShadowGpuCullDispatches(void*);
 int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODERN_LIGHTING","1",1);SDL_Init(SDL_INIT_VIDEO);auto*w=SDL_CreateWindow("Weapon FFP contract",0,0,64,64,SDL_WINDOW_METAL|SDL_WINDOW_HIDDEN);need(w,"window");auto*a=Direct3DCreate9(D3D_SDK_VERSION);D3DPRESENT_PARAMETERS p{};p.Windowed=TRUE;p.BackBufferWidth=p.BackBufferHeight=64;p.BackBufferFormat=D3DFMT_A8R8G8B8;p.hDeviceWindow=w;p.SwapEffect=D3DSWAPEFFECT_DISCARD;IDirect3DDevice9*d=nullptr;need(SUCCEEDED(a->CreateDevice(0,D3DDEVTYPE_HAL,w,0,&p,&d)),"device");
  IDirect3DTexture9*t=nullptr;d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&t,nullptr);D3DLOCKED_RECT l{};t->LockRect(0,&l,nullptr,0);for(int y=0;y<2;y++)for(int x=0;x<2;x++)((DWORD*)((char*)l.pBits+y*l.Pitch))[x]=0xff204060;t->UnlockRect(0);
 
@@ -183,5 +188,41 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
  need(StormMetalRawLocationDraws(d)>=rawLocationBefore+3,"static town fixtures used the raw Metal location path");
  need(zeroMaterialLocation==ordinaryMaterialLocation,"town COLOR1 lighting is independent of zero or ordinary material diffuse");
  need(energy(zeroMaterialLocation)>energy(explicitZeroMaterial)*2,"explicit material source remains dark while town COLOR1 stays visible");
+ // An occluder outside the colour pass must still be registered without
+ // painting over the visible receiver. A camera turn alone keeps the cube.
+ D3DLIGHT9 source{};source.Type=D3DLIGHT_POINT;source.Position={0,0,0};source.Diffuse={.8f,.8f,.8f,1};source.Range=24;source.Attenuation0=1;
+ const float center[]={0,0,8},lampPosition[]={0,0,0},casterCenter[]={0,0,6},farCenter[]={200,0,6};
+ IDirect3DIndexBuffer9* registryIb=nullptr;const WORD registryIndices[]={0,1,2,0,2,3};void* registryStorage=nullptr;
+ need(SUCCEEDED(d->CreateIndexBuffer(sizeof(registryIndices),D3DUSAGE_WRITEONLY,D3DFMT_INDEX16,D3DPOOL_MANAGED,&registryIb,nullptr)),"persistent registry IB");registryIb->Lock(0,0,&registryStorage,0);memcpy(registryStorage,registryIndices,sizeof(registryIndices));registryIb->Unlock();
+ auto makeRegistryQuad=[&](float radius,float z){const V vertices[]={{-radius,-radius,z,0,0,-1,0xff808080,0,0},{radius,-radius,z,0,0,-1,0xff808080,1,0},{radius,radius,z,0,0,-1,0xff808080,1,1},{-radius,radius,z,0,0,-1,0xff808080,0,1}};IDirect3DVertexBuffer9* vb=nullptr;need(SUCCEEDED(d->CreateVertexBuffer(sizeof(vertices),D3DUSAGE_WRITEONLY,0,D3DPOOL_MANAGED,&vb,nullptr)),"persistent registry VB");vb->Lock(0,0,&registryStorage,0);memcpy(registryStorage,vertices,sizeof(vertices));vb->Unlock();return vb;};
+ auto* receiverVb=makeRegistryQuad(14,8);auto* casterVb=makeRegistryQuad(1.5f,6);
+ auto drawRegistryQuad=[&](IDirect3DVertexBuffer9*vb){d->SetFVF(D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_TEX1);d->SetStreamSource(0,vb,0,sizeof(V));d->SetIndices(registryIb);auto scope=StormMetalBeginLandModel(d,1);need(SUCCEEDED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"persistent source geometry");StormMetalEndLandModel(d,scope);};
+ auto registryFrame=[&](bool capture,float cameraOrigin=0.f){
+  d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff000000,1,0);d->BeginScene();StormMetalLandLocation(d,true);StormMetalLandInterior(d,true);
+  for(unsigned i=0;i<8;i++)d->LightEnable(i,FALSE);
+  const float frameOrigin[]={cameraOrigin,0,0};StormMetalSetWorldOrigin(d,frameOrigin);D3DMATRIX frameWorld=identity,frameView=identity;frameWorld._41=cameraOrigin;frameView._41=-cameraOrigin;d->SetTransform(D3DTS_WORLD,&frameWorld);d->SetTransform(D3DTS_VIEW,&frameView);d->SetTransform(D3DTS_PROJECTION,&projection);
+  d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_COLORVERTEX,TRUE);d->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1);d->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_COLOR1);d->SetRenderState(D3DRS_AMBIENT,0);
+  d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_ZENABLE,TRUE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+  need(StormMetalBeginShadowFrame(d,50001,++generation,center),"persistent scene begins");StormMetalBeginSceneLights(d);need(StormMetalSceneLight(d,701,&source),"persistent scene source");StormMetalRenderPointShadowCube(d,701,lampPosition,24);StormMetalEndShadowFrame(d);
+  drawRegistryQuad(receiverVb);const auto before=pixels();
+  need(!StormMetalBeginOffscreenPointCaster(d,farCenter,1.5f),"off-camera geometry outside lamp range stays culled");
+  if(capture){need(StormMetalBeginOffscreenPointCaster(d,casterCenter,1.5f),"off-camera nearby caster admitted");need(!StormMetalBeginOffscreenPointCaster(d,farCenter,1.5f),"nested out-of-range caster remains culled");drawRegistryQuad(casterVb);StormMetalEndOffscreenPointCaster(d);need(before==pixels(),"off-camera caster never paints the colour target");}
+  d->EndScene();need(SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr)),"registry frame reset");return before;
+ };
+ registryFrame(true);const auto shadowWithCaster=registryFrame(true);const auto cubeSubmissions=StormMetalPointShadowGpuCullDispatches(d);registryFrame(true);
+ need(StormMetalPointShadowGpuCullDispatches(d)==cubeSubmissions,"unchanged scene reuses its point depth cube");
+ registryFrame(true,-100);registryFrame(true,-100);need(StormMetalPointShadowGpuCullDispatches(d)==cubeSubmissions,"camera origin changes do not rebuild physical caster cubes");
+ registryFrame(false);const auto shadowWithoutCaster=registryFrame(false);
+ need(energy(shadowWithoutCaster)>energy(shadowWithCaster),"removing the source caster invalidates its shadow");
+ // Before a first cube exists, catalog positions are rebased while NODER
+ // supplies world centers. Admission must agree with the warmed-up cube path.
+ d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff000000,1,0);d->BeginScene();
+ const float origin[]={-100,0,0},translatedCaster[]={100,0,6},translatedFar[]={300,0,6},translatedLamp[]={100,0,0};
+ StormMetalSetWorldOrigin(d,origin);source.Position.x=100;
+ need(StormMetalBeginShadowFrame(d,60002,++generation,translatedCaster),"translated empty scene begins");StormMetalBeginSceneLights(d);need(StormMetalSceneLight(d,702,&source),"translated physical source");StormMetalRenderPointShadowCube(d,702,translatedLamp,24);need(!StormMetalEndShadowFrame(d),"empty scene has not produced a cube yet");
+ need(StormMetalBeginOffscreenPointCaster(d,translatedCaster,1.5f),"first-frame off-camera admission preserves world origin");StormMetalEndOffscreenPointCaster(d);
+ need(!StormMetalBeginOffscreenPointCaster(d,translatedFar,1.5f),"translated out-of-range caster remains culled");
+ const float zeroOrigin[]={0,0,0};StormMetalSetWorldOrigin(d,zeroOrigin);d->EndScene();d->Present(nullptr,nullptr,nullptr,nullptr);
+ d->SetStreamSource(0,nullptr,0,0);d->SetIndices(nullptr);receiverVb->Release();casterVb->Release();registryIb->Release();
  puts("PASS sun source prepass, role1/role2 paths, town COLOR1 materials, direct lamp catalog, selected outdoor/indoor point cube");
  d->SetTexture(0,nullptr);t->Release();read->Release();target->Release();d->Release();a->Release();SDL_DestroyWindow(w);SDL_Quit();puts("PASS dynamic lighting and real caster GPU fixture");}

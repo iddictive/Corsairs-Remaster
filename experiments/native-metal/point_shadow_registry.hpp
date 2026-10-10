@@ -13,6 +13,25 @@
 
 namespace storm_metal::point_shadow {
 
+inline constexpr const char* SamplingMSL = R"MSL(
+#include <metal_stdlib>
+using namespace metal;
+float samplePoint(depthcube<float> map,float3 ray,float receiverMajor,float far,float radius) {
+ constexpr sampler comparison(coord::normalized,address::clamp_to_edge,filter::linear,compare_func::less_equal);
+ float3 direction=ray/max(receiverMajor,.00001f),a=abs(direction);
+ float3 u=a.x>=a.y&&a.x>=a.z?float3(0,0,1):float3(1,0,0);
+ float3 v=a.y>a.x&&a.y>=a.z?float3(0,0,1):float3(0,1,0);
+ float step=2.f*radius/float(map.get_width());
+ float depth=far/(far-.1f)-(.1f*far/(far-.1f))/receiverMajor-.0012f;
+ float visibility=0.f;
+ for(uint i=0;i<4;i++) {
+  float2 offset=float2(i&1u? .5f:-.5f,i&2u? .5f:-.5f)*step;
+  visibility+=map.sample_compare(comparison,normalize(direction+u*offset.x+v*offset.y),depth);
+ }
+ return visibility*.25f;
+}
+)MSL";
+
 // Point-shadow casters are discovered while the ordinary scene is submitted.
 // The registry is persistent: the six cube faces consume this compact snapshot
 // and never ask Location/MODELR to render the scene again.
@@ -196,6 +215,18 @@ public:
     const Statistics& statistics() const { return stats; }
     const LifecycleModel& lifecycle() const { return model; }
     bool empty() const { return draws.empty(); }
+
+    // Only occluders intersecting this light can invalidate its depth cube.
+    // Intensity/exposure and the camera do not change shadow geometry.
+    uint64_t cubeSignature(simd_float3 position, float range) const {
+        uint64_t h = (1469598103934665603ull ^ scene_) * 1099511628211ull;
+        for (const auto& item : draws) {
+            const auto& d = item.draw;
+            if (!LifecycleModel::intersects(d.bounds, position, range)) continue;
+            h = (h ^ KeyHash{}(d.key)) * 1099511628211ull;
+        }
+        return h;
+    }
 
     bool prepare(id<MTLDevice> device, id<MTLRenderPipelineState> = nil,
                  id<MTLRenderPipelineState> = nil) {

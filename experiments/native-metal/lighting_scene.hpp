@@ -8,17 +8,17 @@ namespace storm_metal {
 enum class LightingDomain : uint8_t { Sea, Deck, Outdoor, Interior };
 struct SceneLight { uint32_t type=0; simd_float4 positionRange{},direction{},diffuse{},ambient{},attenuation{}; bool enabled=false; };
 
-// Renderer-owned snapshot shared by every world consumer. Legacy systems only
-// publish source changes; shaders consume the frozen frame revision.
+// Renderer-owned source catalog shared by world consumers. Producers republish
+// physical sources per frame; repeated receiver submissions update stable IDs.
 class LightingScene {
  public:
   void setDomain(LightingDomain v){update(domain_,v);} void setAmbient(uint32_t v){update(ambient_,v);}
   void setLight(unsigned slot,const SceneLight&v){if(slot>=lights_.size())return;const auto&old=lights_[slot];if(old.type!=v.type||old.enabled!=v.enabled||std::memcmp(&old.positionRange,&v.positionRange,sizeof(simd_float4)*5)){lights_[slot]=v;++revision_;}}
   void setEnabled(unsigned slot,bool v){if(slot>=lights_.size()||lights_[slot].enabled==v)return;lights_[slot].enabled=v;++revision_;}
-  void beginFrame(){frameRevision_=revision_;} uint64_t revision()const{return revision_;} uint64_t frameRevision()const{return frameRevision_;}
+  void beginFrame(){if(authoredCatalog_)clearAuthoredLights();frameRevision_=revision_;} uint64_t revision()const{return revision_;} uint64_t frameRevision()const{return frameRevision_;}
   LightingDomain domain()const{return domain_;} uint32_t ambient()const{return ambient_;} const SceneLight&light(unsigned slot)const{return lights_[slot];}
   void beginAuthoredLights(){authoredCount_=0;authoredCatalog_=true;++revision_;}
-  bool appendAuthoredLight(uint64_t id,const SceneLight&light){if(!authoredCatalog_||!id||authoredCount_>=authoredLights_.size())return false;authoredIds_[authoredCount_]=id;authoredLights_[authoredCount_++]=light;++revision_;return true;}
+  bool appendAuthoredLight(uint64_t id,const SceneLight&light){if(!authoredCatalog_||!id)return false;for(unsigned i=0;i<authoredCount_;++i)if(authoredIds_[i]==id){const auto&old=authoredLights_[i];if(old.type!=light.type||old.enabled!=light.enabled||std::memcmp(&old.positionRange,&light.positionRange,sizeof(simd_float4)*5)){authoredLights_[i]=light;++revision_;}return true;}if(authoredCount_>=authoredLights_.size())return false;authoredIds_[authoredCount_]=id;authoredLights_[authoredCount_++]=light;++revision_;return true;}
   bool authoredCatalog()const{return authoredCatalog_;} unsigned authoredCount()const{return authoredCount_;}
   uint64_t authoredId(unsigned index)const{return index<authoredCount_?authoredIds_[index]:0;}
   const SceneLight&authoredLight(unsigned index)const{return authoredLights_[index];}

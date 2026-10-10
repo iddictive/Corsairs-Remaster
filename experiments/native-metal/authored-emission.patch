@@ -1,0 +1,11 @@
+--- a/src/libs/geometry/src/geometry.cpp
++++ b/src/libs/geometry/src/geometry.cpp
+@@ -326,3 +326,8 @@
+     m.Specular.a = 1.0f;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    m.Emissive.r = m.Emissive.g = m.Emissive.b = mt.selfIllum;
++    m.Emissive.a = 0.0f;
++#else
+     m.Emissive.r = m.Emissive.g = m.Emissive.b = m.Emissive.a = 0.0f;
++#endif
+     m.Power = mt.gloss;
