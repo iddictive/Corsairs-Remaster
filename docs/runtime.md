@@ -1,8 +1,32 @@
 # Runtime state
 
-Last verified: October 10 outdoor unlit/misc sky response without floor lift; staged, player replay pending (America/New_York)
+Last verified: October 10 final-RGB surface lighting and +15% night diffuse packet; installed as 499866d6fa43ab8c, player replay pending (America/New_York)
 
 ## Current verdict
+
+### Normal-less surfaces and night navigation — October 10 correction
+
+Player screenshots reject the earlier outdoor-unlit fixes: flags/vants remain
+bright and the horizon/water issue persists. The earlier staged label does not
+accept those images. An isolated GPU material draw reproduces the actual bypass:
+texture × factor yields RGB128/128/128 despite a dim completed sky packet. The
+repair applies incident light to final material RGB, removes the identified
+ambient-factor producer copies and their ineffective CPU vertex workaround, and
+repairs the rope cross-section frame. The player reports that the new city
+lighting works well but is slightly too dark; the common GPU diffuse packet now
+raises night energy by 15%, preserving day/twilight and solar output.
+
+Source contracts, rejected hypotheses and component results belong to
+`docs/metal-normal-less-surfaces.md`. Canonical `run.sh --stage-only` completed
+after the final shader change, installing signed engine SHA-256
+`499866d6fa43ab8c2905c064c3e111e34940edbe6788f3c33392ed9dda3698ad`.
+The corresponding material resources match the applied source. No game launch
+or player interaction was performed. Flags, assembled rigging, jungle/city night
+brightness and the original horizon/water observation remain player-replay
+items; this batch does not claim the horizon defect is repaired.
+
+The older night-floor fixture fails identically against pre-repair HEAD;
+that verification gap is not relabeled green.
 
 ### Shared outdoor lighting, horizon and harbour service — October 9
 

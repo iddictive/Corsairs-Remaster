@@ -1,0 +1,177 @@
+diff --git a/src/libs/rigging/src/rope.cpp b/src/libs/rigging/src/rope.cpp
+--- a/src/libs/rigging/src/rope.cpp
++++ b/src/libs/rigging/src/rope.cpp
+@@ -169,9 +169,7 @@
+ #endif
+                             static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[i].shipEI))
+                                 ->SetLightAndFog(true);
+-                            uint32_t ambient;
+-                            RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
+-                            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
++                            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+                             RenderService->SetTransform(D3DTS_WORLD, *gdata[i].pMatWorld);
+ 
+                             RenderService->TextureSet(0, texl);
+@@ -687,9 +685,9 @@
+             CVECTOR norm;
+             float cvert, chorz, svert, shorz;
+             norm = ce - cb;
+-            cvert = norm.z / rd->len;
+             svert = norm.y / rd->len;
+             const float ftmp = sqrtf(norm.x * norm.x + norm.z * norm.z);
++            cvert = -ftmp / rd->len; // perpendicular, unit cross-section basis
+             if (ftmp >= 0.0001f)
+             {
+                 chorz = norm.z / ftmp;
+diff --git a/src/libs/rigging/src/vant.cpp b/src/libs/rigging/src/vant.cpp
+--- a/src/libs/rigging/src/vant.cpp
++++ b/src/libs/rigging/src/vant.cpp
+@@ -133,9 +133,7 @@
+ #endif
+                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
+                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLights();
+-                uint32_t ambient;
+-                RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
+-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
++                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+                 RenderService->TextureSet(0, texl);
+ 
+                 RenderService->SetTransform(D3DTS_WORLD, *gdata[gn].pMatWorld);
+diff --git a/src/libs/rigging/src/flag.cpp b/src/libs/rigging/src/flag.cpp
+--- a/src/libs/rigging/src/flag.cpp
++++ b/src/libs/rigging/src/flag.cpp
+@@ -130,9 +130,7 @@
+         //_asm rdtsc _asm mov rtm,eax
+ 
+         RenderService->TextureSet(0, texl);
+-        uint32_t ambient;
+-        RenderService->GetRenderState(D3DRS_AMBIENT, &ambient);
+-        RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
++        RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+         RenderService->SetTransform(D3DTS_WORLD, rootMatrix);
+ 
+         // draw nature flag
+diff --git a/src/techniques/ship/Rope.fx b/src/techniques/ship/Rope.fx
+--- a/src/techniques/ship/Rope.fx
++++ b/src/techniques/ship/Rope.fx
+@@ -2,8 +2,7 @@
+ {
+     pass p0
+     {
+-        // ROPEVERTEX has no normal; use the ship's current scene ambient instead of full-bright fallback lighting.
+-        Lighting = false;
++        Lighting = true;
+         CullMode = none;
+         AlphaTestEnable = true;
+         AlphaBlendEnable = true;
+diff --git a/src/techniques/ship/Vant.fx b/src/techniques/ship/Vant.fx
+--- a/src/techniques/ship/Vant.fx
++++ b/src/techniques/ship/Vant.fx
+@@ -3,7 +3,7 @@
+     pass p0
+     {
+         CullMode = none;
+-        Lighting = false;
++        Lighting = true;
+         ColorVertex = false;
+         AlphaTestEnable = true;
+         AlphaBlendEnable = true;
+@@ -29,7 +29,7 @@
+     pass p0
+     {
+         CullMode = none;
+-        Lighting = false;
++        Lighting = true;
+         ColorVertex = false;
+         AlphaTestEnable = false;
+         AlphaBlendEnable = true;
+diff --git a/src/techniques/butterfly.fx b/src/techniques/butterfly.fx
+--- a/src/techniques/butterfly.fx
++++ b/src/techniques/butterfly.fx
+@@ -2,6 +2,7 @@
+ {
+     pass p0
+     {
++        Lighting = true;
+         CullMode = none;
+         ColorVertex = false;
+         AlphaTestEnable = true;
+diff --git a/src/techniques/sink.fx b/src/techniques/sink.fx
+--- a/src/techniques/sink.fx
++++ b/src/techniques/sink.fx
+@@ -2,6 +2,7 @@
+ {
+     pass p0
+     {
++        Lighting = true;
+         CullMode = none;
+         ColorVertex = true;
+         AlphaTestEnable = false;
+diff --git a/src/techniques/effects/maineffects.fx b/src/techniques/effects/maineffects.fx
+--- a/src/techniques/effects/maineffects.fx
++++ b/src/techniques/effects/maineffects.fx
+@@ -76,7 +76,7 @@
+ {
+     pass p0
+     {
+-        Lighting = false;
++        Lighting = true;
+         ZWriteEnable = false;
+         FogEnable = false;
+         CullMode = none;
+@@ -116,7 +116,7 @@
+     pass p0
+     {
+         SlopeScaleDepthBias = -0.6;
+-        Lighting = false;
++        Lighting = true;
+         ZEnable = true;
+         ZWriteEnable = false;
+         AlphaTestEnable = false;
+@@ -200,7 +200,7 @@
+     pass p0
+     {
+         SlopeScaleDepthBias = -0.6;
+-        Lighting = false;
++        Lighting = true;
+         ZEnable = true;
+         ZWriteEnable = false;
+         AlphaTestEnable = false;
+diff --git a/src/libs/location/src/blood.cpp b/src/libs/location/src/blood.cpp
+--- a/src/libs/location/src/blood.cpp
++++ b/src/libs/location/src/blood.cpp
+@@ -90,11 +90,10 @@
+ {
+     if (nUsedTQ > 0)
+     {
+-        uint32_t dwOldTF, dwAmbient;
++        uint32_t dwOldTF;
+ 
+         pRS->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTF);
+-        pRS->GetRenderState(D3DRS_AMBIENT, &dwAmbient);
+-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwAmbient);
++        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+ 
+         pRS->TextureSet(0, texID);
+         CMatrix mtx;
+diff --git a/src/libs/sink_effect/src/t_sink.cpp b/src/libs/sink_effect/src/t_sink.cpp
+--- a/src/libs/sink_effect/src/t_sink.cpp
++++ b/src/libs/sink_effect/src/t_sink.cpp
+@@ -161,16 +161,12 @@
+         return;
+ 
+     const CMatrix m;
+-    uint32_t ambient;
+ 
+     renderer->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(m));
+     renderer->TextureSet(0, texture);
+ 
+-    renderer->GetRenderState(D3DRS_AMBIENT, &ambient);
+-    ambient |= 0x55000000;
+-    renderer->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
++    renderer->SetRenderState(D3DRS_TEXTUREFACTOR, 0x55ffffff);
+     ivManager->DrawBuffers("sink");
+-    renderer->SetRenderState(D3DRS_AMBIENT, ambient);
+ 
+     for (auto i = 0; i < sink_effect::MAX_SPLASHES; i++)
+     {

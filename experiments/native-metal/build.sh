@@ -130,7 +130,7 @@ python3 "$root/apply_source_patches.py" --source "$root/.cache/storm" \
  "$root/renderer-grass.patch" "$root/vegetation-continuity.patch" "$root/sea-island-vegetation.patch" "$root/renderer-particles-fx.patch" "$root/renderer-rain-weather.patch" "$root/renderer-sky-astronomy.patch" "$root/renderer-ui-fonts.patch" "$root/renderer-world-map.patch" "$root/worldmap-navigation.patch" "$root/worldmap-traffic.patch" "$root/worldmap-berth-homing.patch" "$root/sea-postprocess-uv.patch" "$root/texture-loader-mips.patch" "$root/metal-graphics-live.patch" "$root/baked-static-shadow-casters.patch" "$root/external-url.patch" "$root/player-fight-push.patch" "$root/sun-below-horizon.patch" "$root/solar-cloud-visibility.patch" "$root/animation-buffer-lifetime.patch" \
  "$root/pickup-glow.patch" "$root/mast-repair.patch" "$root/airburst-shell.patch" "$root/cannon-fire-modes.patch" "$root/adaptive-fencing.patch" \
  "$root/cannon-depth-drape.patch" \
- "$root/sea-tsunami.patch" "$root/cpu-parallel-sea.patch"
+ "$root/sea-tsunami.patch" "$root/cpu-parallel-sea.patch" "$root/normal-less-surface-lighting.patch"
 printf '%s\n' "$fingerprint" > "$root/.cache/source-fingerprint"
 python3 "$root/renderer_consumer_coverage_probe.py"
 # Reuse installed headers and dependencies without rebuilding the playable port.

@@ -686,8 +686,14 @@ kernel void sky_surface_solar(constant SkyWeather&weather [[buffer(0)]],
         float3 radiance=sky.rgb+float3(1.f,.25f,.055f)*sky.a;
         mean+=radiance;mx+=radiance*d.x;my+=radiance*d.y;mz+=radiance*d.z;
     }
-    sample[1]=float4(mean/128.f,0);sample[2]=float4(mx/64.f,0);
-    sample[3]=float4(my/64.f,0);sample[4]=float4(mz/64.f,0);
+    // Modest night diffuse exposure for navigation; no additive light floor.
+    // All receivers consume this one GPU packet. Twilight/day and emitters keep
+    // their existing energy, and sky/fog display radiance is not raised.
+    float daylight=smoothstep(-.13f,.10f,solarElevation);
+    float twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
+    float nightDiffuse=1.f+.15f*(1.f-max(daylight,twilight));
+    sample[1]=float4(mean/128.f*nightDiffuse,0);sample[2]=float4(mx/64.f*nightDiffuse,0);
+    sample[3]=float4(my/64.f*nightDiffuse,0);sample[4]=float4(mz/64.f*nightDiffuse,0);
 }
 )MSL";
 inline const char *volumetricSkyShaderSource=volumetricSkyShaderStorage.c_str();
