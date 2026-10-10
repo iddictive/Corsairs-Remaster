@@ -588,7 +588,7 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float3 sun=normalize(weather.sunDirection_hour.xyz);
     float solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;
     float daylight=smoothstep(-.13f,.10f,solarElevation),twilight=1.f-smoothstep(.02f,.28f,abs(solarElevation));
-    float horizon=1.f-smoothstep(-.02f,.42f,max(d.y,0.f));
+    float horizon=1.f-smoothstep(0.f,.42f,max(d.y,0.f));
     float3 fog=weather.horizonFog.w>.5f?weather.horizonFog.rgb:mix(float3(.035f,.045f,.075f),float3(.64f,.78f,.92f),daylight);
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
     float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
@@ -599,29 +599,30 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     // Surface haze may lose upper-sky contrast, but the grazing sky and water
     // must converge to the same radiance. Do not give the sea a second horizon.
     float haze=includeClouds?0.f:smoothstep(.0015f,.018f,max(originalDirection.y,0.f));
-    if(haze>0.f){
-        overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
-        float3 nightAmbient=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
-        if(overcastAmbient>0.01f){
-            float3 avgCloud=mix(lower,upper,0.5f);
-            float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
-            avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
-            avgCloud*=mix(1.f,.64f,overcastAmbient);
-            float3 ambientCloud=mix(nightAmbient,avgCloud,daylight);
-            veil=mix(fog,ambientCloud,overcastAmbient*haze);
-        }
-        // No sun means no lit haze: clear nights fall to night ambient even
-        // when rain-derived coverage reports almost-clear sky.
-        // Twilight counts as light, so the accepted 18:25 sunward dusk veil
-        // keeps its warmth; only truly dark hours fall to night ambient.
-        float nightFactor=1.f-max(daylight,twilight);
-        if(nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor*haze);}
+    overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
+    float3 nightAmbient=mix(float3(.035f,.045f,.065f),float3(.075f,.095f,.135f),0.5f);
+    if(haze>0.f && overcastAmbient>0.01f){
+        float3 avgCloud=mix(lower,upper,0.5f);
+        float sunsetExposure=1.f-smoothstep(.12f,.42f,solarElevation);
+        avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
+        avgCloud*=mix(1.f,.64f,overcastAmbient);
+        float3 ambientCloud=mix(nightAmbient,avgCloud,daylight);
+        veil=mix(fog,ambientCloud,overcastAmbient*haze);
     }
-    float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
+    float nightFactor=1.f-max(daylight,twilight);
+    if(haze>0.f && nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor*haze);}
+    
+    // Reduce twilight glow slightly at night to prevent a sharp stripe
+    float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.25f;
     float3 color=mix(veil*float3(.22f,.42f,.72f),veil,horizon);
+    // Darken sky at horizon explicitly at night if it is a clear sky
+    if(includeClouds && nightFactor>0.01f){ color = mix(color, nightAmbient, nightFactor * horizon); }
     float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
-    color=mix(color,physical,twilight*.72f);
-    if(!includeClouds){color=mix(color,veil,overcastAmbient*haze);}
+    if(includeClouds){
+        color=mix(color,physical,twilight*.72f);
+    } else {
+        color=mix(color,veil,max(overcastAmbient, nightFactor*horizon)*haze);
+    }
     float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
     float3 sunColor=float3(12.f,12.4f,13.2f)*skySolarSpectrum(sun.y,transmittance);
     float cosTheta=dot(d,sun),phase=max(max(henyey_greenstein(cosTheta,.6f),henyey_greenstein(cosTheta,clamp(.4f-1.4f*sun.y,-.7f,.7f))),henyey_greenstein(cosTheta,-.2f));

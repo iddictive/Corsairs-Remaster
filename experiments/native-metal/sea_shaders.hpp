@@ -100,8 +100,8 @@ SeaO seaBase(SeaInput v,constant SeaU& u) {
         float skyEnergy=clamp(dot(pow(max(u.vc[30].rgb,float3(0)),float3(2.2f)),float3(.2126f,.7152f,.0722f)),.015f,1.f);
         o.waterBody=mix(float3(.008f,.055f,.075f),pow(saturate(u.vc[29].rgb),float3(2.2f)),.24f)*skyEnergy;
         if(u.waterIrradiance.w>0) {
-            float illumination=saturate(max(u.waterIrradiance.x,max(u.waterIrradiance.y,u.waterIrradiance.z)));
-            o.waterBody*=pow(illumination,2.2f);
+            float illumination=max(u.waterIrradiance.x,max(u.waterIrradiance.y,u.waterIrradiance.z));
+            o.waterBody*=illumination;
         }
     }
     o.diffuse=float4(0);o.specular=float4(0);

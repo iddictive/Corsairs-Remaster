@@ -2070,13 +2070,8 @@ bool WdmFleetSeaServicePosition(ref group, int slot)
 		int row = makeint(ordinal / count);
 		if (row > 0)
 		{
-			if (!CheckAttribute(port, "x") || !CheckAttribute(port, "z")) return false;
-			float dx = x - stf(port.x);
-			float dz = z - stf(port.z);
-			float distance = sqrt(dx * dx + dz * dz);
-			if (distance < 1.0) return false;
-			x = x + dx / distance * row * 500.0;
-			z = z + dz / distance * row * 500.0;
+			x = x + sin(ay) * row * 150.0;
+			z = z + cos(ay) * row * 150.0;
 		}
 		WdmFleetSeaShipPositionResult[0] = x;
 		WdmFleetSeaShipPositionResult[1] = ay;
