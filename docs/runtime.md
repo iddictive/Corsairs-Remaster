@@ -1,8 +1,54 @@
 # Runtime state
 
-Last verified: October 9 cloud/weather and surface-light refinement; native replay status below (America/New_York)
+Last verified: October 9 shared outdoor lighting and harbour service delivery; player replay pending (America/New_York)
 
 ## Current verdict
+
+### Shared outdoor lighting, horizon and harbour service — October 9
+
+Observed: dawn sky/water are warm while ships and shoreline do not receive its
+directional diffuse fill; a different overcast/night haze branch creates a
+horizon stripe. Foreign service fleets retain a map-projected centre and the
+sea-login switch fails to apply their DRIFT command. Expected: outdoor consumers
+share incident sun/cloud/sky illumination, and servicing hulls wait at the real
+port instead of converging offshore. Contracts belong to metal-dynamic-sky.md,
+metal-lighting-parity.md and worldmap-traffic.md.
+
+Delta: one completed GPU packet now supplies diffuse sky irradiance and solar
+spectrum/transmission to static/skinned models, CPU fallback, shadow receivers,
+grass, modern water, foam and identified water particles. Sky fill replaces the
+outdoor ambient proxy; local emitters, interiors and UI retain their owners.
+Grazing haze converges to the visible horizon. Service groups reserve authored
+reload ship locators across fleets; overflow rows extend seaward, and all group
+members receive primary/secondary DRIFT. Mission/route and stale berth negatives
+retain their own placement. Existing saved sea scenes are not teleported.
+
+Evidence: native build and runtime MSL compilation pass. GPU gray geometry gets
+dawn sky RGB11/8/8 with direct sun disabled; menu isolation, authored D3D lighting,
+source-gated sea/deck sun and independent red/blue lamp shadows pass. The horizon
+component's worst RGB mismatch falls0.605447→0.011831 across five clock samples.
+Original sea four-pass GPU checks pass. The complete composed PROGRAM and authored
+harbour/seaward-row/wrong-island/missing-locator/mission/route VM checks pass with
+zero errors. The legacy dusk sea-vs-land equality fixture rejects the existing
+water glow distinction: sea body includes twilight glow, land haze excludes it
+already at593cb26. It is not a same-radiance oracle for those two materials.
+The standalone grass probe has an existing C++/Objective-C header conflict;
+production backend MSL compilation covers both grass entries.
+
+Canonical `experiments/native-metal/run.sh --stage-only` returned0 after the final
+native edits, built all8252 portable inputs and installed the signed arm64 engine
+SHA-256 `8659e3c0e1b98149f8307b09523776f745fc2fd8bccd4c7b68f8644684c3df06`.
+This build also consumes the independently committed fort-contact patch593cb26;
+the older source-only note below is historical. Its salvo acceptance stays with
+that feature's player replay. The final service-state guard is a content-only
+delivery through `sync_metal_gameplay.py apply --path PROGRAM/sea_ai/sea.c`.
+No launcher, player SAVE or configuration change is part of this batch.
+
+Disposition: installed candidate; visual horizon/material quality, land scene,
+physical harbour positions and collision-free waiting remain unresolved pending
+the player's review. The user explicitly requested no further game-window
+inspection, launch or interaction. No player scene or FPS acceptance is claimed.
+The preceding installed inventory below is historical.
 
 ### Fort shrapnel contact burst — October 9, source only
 

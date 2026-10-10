@@ -1177,6 +1177,9 @@ void SeaLogin(ref Login)
 		// set task 
 		switch (sti(rGroup.Task))
 		{
+			case AITASK_DRIFT:
+				WdmFleetSeaSetDrift(sGroupID);
+			break;
 			case AITASK_RUNAWAY:
 				Group_SetTaskRunAway(sGroupID, rGroup.Task.Target);
 			break;
@@ -1880,7 +1883,7 @@ bool WdmFleetSeaTagged(aref fleet)
 
 void WdmFleetSeaCopyIdentity(aref destination, aref source)
 {
-	string fields[13];
+	string fields[14];
 	fields[0] = "trafficFleetID";
 	fields[1] = "trafficRole";
 	fields[2] = "trafficNation";
@@ -1894,7 +1897,8 @@ void WdmFleetSeaCopyIdentity(aref destination, aref source)
 	fields[10] = "trafficTargetID";
 	fields[11] = "trafficObservedTargetPower";
 	fields[12] = "trafficMission";
-	for (int i = 0; i < 13; i++)
+	fields[13] = "trafficCurrentPort";
+	for (int i = 0; i < 14; i++)
 	{
 		string key = fields[i];
 		DeleteAttribute(destination, key);
@@ -2038,12 +2042,69 @@ void WdmFleetSeaResolveImportTasks(ref login)
 	}
 }
 
+float WdmFleetSeaShipPositionResult[3];
+
+bool WdmFleetSeaServicePosition(ref group, int slot)
+{
+	if (!CheckAttribute(group, "trafficBerthBase") || !CheckAttribute(group, "trafficCurrentPort")) return false;
+	if (!CheckAttribute(group, "trafficIntent") || group.trafficIntent != "service" || CheckAttribute(group, "trafficMission")) return false;
+	int colony = FindColony(group.trafficCurrentPort);
+	if (colony < 0 || Colonies[colony].island != pchar.location) return false;
+	ref island = GetIslandByID(pchar.location);
+	aref reloads; makearef(reloads, island.reload);
+	for (int i = 0; i < GetAttributesNum(reloads); i++)
+	{
+		aref port = GetAttributeN(reloads, i);
+		if (!CheckAttribute(port, "go") || port.go != Colonies[colony].from_sea || !CheckAttribute(port, "ships")) continue;
+		aref berths; makearef(berths, port.ships);
+		int count = GetAttributesNum(berths);
+		if (count == 0) return false;
+		int ordinal = sti(group.trafficBerthBase) + slot;
+		aref berth = GetAttributeN(berths, ordinal % count);
+		if (!CheckAttribute(berth, "x") || !CheckAttribute(berth, "z") || !CheckAttribute(berth, "ay")) return false;
+		float x = stf(berth.x);
+		float z = stf(berth.z);
+		float ay = stf(berth.ay);
+		// Authored port ship locators are already offshore. Additional rows
+		// extend from the pier toward that berth, never toward the island.
+		int row = makeint(ordinal / count);
+		if (row > 0)
+		{
+			if (!CheckAttribute(port, "x") || !CheckAttribute(port, "z")) return false;
+			float dx = x - stf(port.x);
+			float dz = z - stf(port.z);
+			float distance = sqrt(dx * dx + dz * dz);
+			if (distance < 1.0) return false;
+			x = x + dx / distance * row * 500.0;
+			z = z + dz / distance * row * 500.0;
+		}
+		WdmFleetSeaShipPositionResult[0] = x;
+		WdmFleetSeaShipPositionResult[1] = ay;
+		WdmFleetSeaShipPositionResult[2] = z;
+		return true;
+	}
+	return false;
+}
+
+void WdmFleetSeaSetDrift(string groupID)
+{
+	ref group = Group_GetGroupByID(groupID);
+	for (int slot = 0; slot < MAX_CHARACTERS; slot++)
+	{
+		int character = Group_GetCharacterIndexR(group, slot);
+		if (character < 0) break;
+		Ship_SetTaskDrift(PRIMARY_TASK, character);
+		Ship_SetTaskDrift(SECONDARY_TASK, character);
+	}
+}
+
 void WdmFleetSeaBindGroup(ref group, ref fleet)
 {
 	if (!WdmFleetSeaTagged(fleet)) return;
 	WdmFleetSeaCopyIdentity(group, fleet);
 	DeleteAttribute(group, "trafficScene");
 	DeleteAttribute(group, "trafficEntry");
+	DeleteAttribute(group, "trafficBerthBase");
 	string path = "encounters." + fleet.trafficFleetID;
 	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
 	// Military placements retain their real fort/landing coordinates.
@@ -2053,7 +2114,22 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	group.trafficEntry.stagger = frnd() * 0.25;
 	// A service fleet is already at its harbour; only moving encounters need
 	// room to approach instead of materialising beside the player's hull.
-	if (fleet.trafficIntent == "service") return;
+	if (fleet.trafficIntent == "service")
+	{
+		if (CheckAttribute(group, "trafficCurrentPort"))
+		{
+			string portID = group.trafficCurrentPort;
+			if (!CheckAttribute(&AISea, "trafficHarbourBerths." + portID)) AISea.trafficHarbourBerths.(portID) = 0;
+			group.trafficBerthBase = AISea.trafficHarbourBerths.(portID);
+			if (WdmFleetSeaServicePosition(group, 0))
+			{
+				Group_SetXZ_AY(group.id, WdmFleetSeaShipPositionResult[0], WdmFleetSeaShipPositionResult[2], WdmFleetSeaShipPositionResult[1]);
+				AISea.trafficHarbourBerths.(portID) = sti(group.trafficBerthBase) + WdmFleetSeaHullCount(fleet);
+			}
+			else DeleteAttribute(group, "trafficBerthBase");
+		}
+		return;
+	}
 	float x = stf(group.Pos.x);
 	float z = stf(group.Pos.z);
 	float dx = x - stf(pchar.Ship.Pos.x);
@@ -2073,7 +2149,6 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	Group_SetXZ_AY(group.id, x, z, stf(group.Pos.ay));
 }
 
-float WdmFleetSeaShipPositionResult[3];
 #event_handler("WdmFleetSeaShipPosition", "WdmFleetSeaShipPosition");
 ref WdmFleetSeaShipPosition()
 {
@@ -2087,6 +2162,7 @@ ref WdmFleetSeaShipPosition()
 	if (CheckAttribute(captain, "SeaAI.Group.Name") && Group_FindGroup(captain.SeaAI.Group.Name) >= 0)
 	{
 		ref group = Group_GetGroupByID(captain.SeaAI.Group.Name);
+		if (WdmFleetSeaServicePosition(group, slot)) return &WdmFleetSeaShipPositionResult;
 		if (CheckAttribute(group, "trafficEntry.spacing") && slot > 0)
 		{
 			float spacing = stf(group.trafficEntry.spacing);
@@ -2145,6 +2221,7 @@ int WdmFleetSeaHullCount(ref fleet)
 void WdmFleetSeaPrepareAdmission(ref login)
 {
 	login.trafficHullReservations = 0;
+	DeleteAttribute(&AISea, "trafficHarbourBerths");
 	aref groups;
 	makearef(groups, login.encounters);
 	for (int i = 0; i < GetAttributesNum(groups); i++)

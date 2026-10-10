@@ -62,6 +62,7 @@ struct SeaU {
     float4 weatherFoam;     // RGB: display-space palette; alpha remains texture/authored
     float4 solarDirectionBlend; // XYZ: active sun/moon direction (zero = authored sky); W: cloud cache blend
     float4 sunScreen;
+    float4 solarSpectrum;   // same atmospheric spectrum as the clouds and geometry
 };
 struct SeaO {
     float4 position [[position]];
@@ -350,7 +351,7 @@ float4 seaSunModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,tex
     float3 eye=seaNormalize(o.viewToEye),ray=reflect(-eye,n);
     float4 sunRoad=reflection.sample(s[3],ray);
     float visibility=skySolarTransmission(u.solarDirectionBlend,cloudFrom,cloudTo);
-    sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*modernSeaFresnel(dot(n,eye))*visibility);
+    sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*(u.solarSpectrum.w>0?u.solarSpectrum.rgb:float3(1))*modernSeaFresnel(dot(n,eye))*visibility);
     return seaFog(sunRoad,o,u);
 }
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]]) {return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo);}
@@ -370,7 +371,7 @@ float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,textu
         constexpr sampler depthSampler(coord::normalized,address::clamp_to_edge,filter::nearest);
         if(sceneDepth.sample(depthSampler,u.sunScreen.xy)<1.f)visibility=0.f;
     }
-    sun=modernSeaDisplay(modernSeaLinear(sun)*visibility);
+    sun=modernSeaDisplay(modernSeaLinear(sun)*(u.solarSpectrum.w>0?u.solarSpectrum.rgb:float3(1))*visibility);
     if(u.depthRefractionEnabled)return modernSeaDepthComposite(o,u,n,env,sun,scene,sceneDepth);
     float4 material=modernSeaMaterial(o,u,n,seaNormalize(o.viewToEye),env);
     // Preserve the previous linear-space sun energy without the redundant

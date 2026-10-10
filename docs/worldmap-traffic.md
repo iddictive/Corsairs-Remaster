@@ -65,11 +65,26 @@ the persistent roster ordinal. Slot zero remains the commander. Authored
 callbacks, quest/ALONE groups, companions and military operation coordinates
 are preserved; reused ordinary captains clear only this bridge's callback.
 
-Servicing fleets keep their actual harbour centre and use the spread formation.
-Their imported task becomes drift after genuine attack/escape resolution,
-instead of moving every serviced group to one common route target. Military
-mission tasks retain their prior path. Native hull/depth start-position checks
-still run after mounting; coast correction may change the proposed placement.
+The October 9 follow-up found two gaps in that service proposal: its centre was
+still a global-map projection, and the sea-login task switch never applied DRIFT
+to the mounted ships. Canonical `sea.c` now carries `trafficCurrentPort` into the
+group and resolves that colony's `from_sea` reload on the currently loaded island.
+`LOCATOR::LocateForI_L2` provides its authored `reload.*.ships` coordinates and
+headings. Ordinary service fleets reserve consecutive live hull ordinals across
+groups and use those port ship locators; additional rows extend 500 units seaward
+from the pier toward each authored berth. Missing/wrong-island locators keep the
+ordinary entry fallback. Native hull/depth start-position checks still run after
+mounting, so coast correction remains authoritative.
+
+The sea-login switch applies primary and secondary DRIFT to every service-group
+member. Genuine attack/escape resolution still outranks service; mission, quest,
+ALONE and player companion paths retain their previous owners. This takes effect
+on the next ordinary sea entry, without teleporting an already saved sea scene.
+The complete current PROGRAM compiles with zero native VM errors. A disposable
+full-chain fixture checks exact authored berth positions, the next fleet's
+seaward row, wrong-island rejection, missing reservation and missing locators.
+These are script checks; physical harbour placement and collision-free waiting
+remain player replay requirements.
 
 The full composed PROGRAM compiles in the native script VM with the current
 shared headers. Actual group binding, native event argument/return handling,

@@ -576,6 +576,10 @@ fragment float4 dynamic_stars_fs(SkyStarOut in [[stage_in]],constant SkyStarDraw
     float opacity=skyCloudMoments(normalize(in.direction),cloudFrom,cloudTo,draw.scale_blend.z).a;
     color.a*=1.f-opacity;return color;
 }
+float3 skySolarSpectrum(float elevation,texture2d<float>transmittance) {
+    return transmittance_from_lut(transmittance,elevation,0.f).rgb/
+           max(transmittance_from_lut(transmittance,1.f,0.f).rgb,.001f);
+}
 float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance,bool includeClouds) {
     // Twilight continues from the actual grazing sky below sea level. Keep
     // the established noon/night endpoints, without a daylight-colored dusk seam.
@@ -592,7 +596,10 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     // directional fog field dims toward the actual ambient under clouds.
     float3 veil=fog;
     float overcastAmbient=0.f;
-    if(!includeClouds){
+    // Surface haze may lose upper-sky contrast, but the grazing sky and water
+    // must converge to the same radiance. Do not give the sea a second horizon.
+    float haze=includeClouds?0.f:smoothstep(.0015f,.018f,max(originalDirection.y,0.f));
+    if(haze>0.f){
         overcastAmbient=smoothstep(.1f,.8f,weather.wind_coverage_density.z);
         float3 nightAmbient=mix(float3(.022f,.027f,.044f),float3(.055f,.071f,.105f),0.5f);
         if(overcastAmbient>0.01f){
@@ -601,24 +608,22 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
             avgCloud=mix(avgCloud,1.f-exp(-avgCloud*.85f),sunsetExposure);
             avgCloud*=mix(1.f,.64f,overcastAmbient);
             float3 ambientCloud=mix(nightAmbient,avgCloud,daylight);
-            veil=mix(fog,ambientCloud,overcastAmbient);
+            veil=mix(fog,ambientCloud,overcastAmbient*haze);
         }
         // No sun means no lit haze: clear nights fall to night ambient even
         // when rain-derived coverage reports almost-clear sky.
         // Twilight counts as light, so the accepted 18:25 sunward dusk veil
         // keeps its warmth; only truly dark hours fall to night ambient.
         float nightFactor=1.f-max(daylight,twilight);
-        if(nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor);}
+        if(nightFactor>0.01f){veil=mix(veil,nightAmbient,nightFactor*haze);}
     }
     float glow=twilight*horizon*max(0.f,dot(d,float3(sun.x,0,sun.z)))*.55f;
     float3 color=mix(veil*float3(.22f,.42f,.72f),veil,horizon);
     float3 physical=skyDisplay(sampleAtmosphere(d,atmosphere));
     color=mix(color,physical,twilight*.72f);
-    if(!includeClouds){color=mix(color,veil,overcastAmbient);}
+    if(!includeClouds){color=mix(color,veil,overcastAmbient*haze);}
     float4 moments=skyCloudMoments(d,cloudFrom,cloudTo,weather.options.w);
-    float3 transmission=transmittance_from_lut(transmittance,sun.y,0.f).rgb;
-    float3 noonTransmission=transmittance_from_lut(transmittance,1.f,0.f).rgb;
-    float3 sunColor=float3(12.f,12.4f,13.2f)*transmission/max(noonTransmission,.001f);
+    float3 sunColor=float3(12.f,12.4f,13.2f)*skySolarSpectrum(sun.y,transmittance);
     float cosTheta=dot(d,sun),phase=max(max(henyey_greenstein(cosTheta,.6f),henyey_greenstein(cosTheta,clamp(.4f-1.4f*sun.y,-.7f,.7f))),henyey_greenstein(cosTheta,-.2f));
     float lowerWeight=max(0.f,moments.a-moments.x);
     float3 dayCloud=moments.x*upper+lowerWeight*lower+moments.z*sunColor*phase;
@@ -658,11 +663,30 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
     output.write(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance,false),pixel);
 }
 // The same completed opacity field also drives ordinary scene lights. One
-// scalar per frame avoids sampling five solar rays for every ship/town vertex.
+// packet per frame avoids sampling the sky for every ship/town vertex.
 kernel void sky_surface_solar(constant SkyWeather&weather [[buffer(0)]],
     texture2d<float>cloudFrom [[texture(0)]],texture2d<float>cloudTo [[texture(1)]],
-    device float&transmission [[buffer(1)]]) {
-    transmission=skySolarTransmission(float4(weather.sunDirection_hour.xyz,weather.options.w),cloudFrom,cloudTo);
+    texture2d<float>atmosphere [[texture(2)]],texture2d<float>transmittance [[texture(3)]],
+    device float4*sample [[buffer(1)]]) {
+    float solarElevation=1.3780972f*sin((weather.sunDirection_hour.w-5.5f)*.232710567f)-.2f;
+    // Weather retains source intensity and the moon's authored color. Daylight
+    // receives the same atmospheric spectral extinction as the visible clouds.
+    float3 spectrum=solarElevation>0.f?skySolarSpectrum(weather.sunDirection_hour.y,transmittance):float3(1);
+    spectrum/=max(max(spectrum.r,spectrum.g),max(spectrum.b,.001f));
+    sample[0]=float4(skySolarTransmission(float4(weather.sunDirection_hour.xyz,weather.options.w),cloudFrom,cloudTo),spectrum);
+    float3 mean=0,mx=0,my=0,mz=0;
+    // Equal-solid-angle Fibonacci hemisphere; no extra volume march. Project
+    // the same completed clouds/atmosphere that the player sees. First-order
+    // SH convolution by Lambert's cosine gives L0=.5*mean and L1=mean(L*d).
+    for(uint i=0;i<64;i++){
+        float y=(float(i)+.5f)/64.f,phi=float(i)*2.39996323f;
+        float r=sqrt(1.f-y*y);float3 d=float3(r*cos(phi),y,r*sin(phi));
+        float4 sky=skyRadiance(d,weather,cloudFrom,cloudTo,atmosphere,transmittance,true);
+        float3 radiance=sky.rgb+float3(1.f,.25f,.055f)*sky.a;
+        mean+=radiance;mx+=radiance*d.x;my+=radiance*d.y;mz+=radiance*d.z;
+    }
+    sample[1]=float4(mean/128.f,0);sample[2]=float4(mx/64.f,0);
+    sample[3]=float4(my/64.f,0);sample[4]=float4(mz/64.f,0);
 }
 )MSL";
 inline const char *volumetricSkyShaderSource=volumetricSkyShaderStorage.c_str();
