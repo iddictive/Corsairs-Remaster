@@ -2554,14 +2554,29 @@ void WdmTrafficReviewStrategy(int nation)
 	aref held; makearef(held, strategy.hold); WdmTrafficStamp(held);
 }
 
+bool wdmTrafficStrategyPending = false;
+int wdmTrafficStrategyCursor = 0;
+
 #event_handler("NextDay", "WdmTrafficReviewStrategies");
 void WdmTrafficReviewStrategies()
 {
 	if (!CheckAttribute(&Environment, "date.year") || GetDataYear() <= 0) return;
+	if (wdmTrafficStrategyPending) return;
 	aref clock; makearef(clock, worldMap.trafficStrategyClock);
 	if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
 	WdmTrafficStamp(clock);
-	for (int nation = 0; nation < MAX_NATIONS; nation++) WdmTrafficReviewStrategy(nation);
+	wdmTrafficStrategyCursor = 0;
+	wdmTrafficStrategyPending = true;
+}
+
+#event_handler("frame", "WdmTrafficStrategyStep");
+void WdmTrafficStrategyStep()
+{
+	if (!wdmTrafficStrategyPending || !CheckAttribute(&Environment, "date.year") || GetDataYear() <= 0) return;
+	// Keep hourly decisions, but never rescan every nation's forts in one frame.
+	WdmTrafficReviewStrategy(wdmTrafficStrategyCursor);
+	wdmTrafficStrategyCursor++;
+	if (wdmTrafficStrategyCursor >= MAX_NATIONS) wdmTrafficStrategyPending = false;
 }
 
 // Zero means a genuinely fortless colony; unknown/contradictory defence is -1.

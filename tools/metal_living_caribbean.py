@@ -296,9 +296,9 @@ WDM_RATES_NEW = enc("""// Native traffic owns trade and NPC clashes.
 #define WDM_SPECIAL_RATE		0.006""")
 
 WDM_TRAFFIC_SOURCE = Path(__file__).parent / "gameplay/worldmap-traffic.c"
-WDM_TRAFFIC_SHA256 = "4f1555eb05403cbafa662677208c9cf52d74c0564d4b9003fe67db0d1f73dc38"
+WDM_TRAFFIC_SHA256 = "db1250c09b4d0d20c25598f9eab283a099ae06bdfa91549a957a7fc7d0cfca40"
 WDM_MILITARY_SOURCE = Path(__file__).parent / "gameplay/worldmap-military.c"
-WDM_MILITARY_SHA256 = "dae69b3c4f2deec7623906a67c644fc96604f936586a9b6cf95a800966de4431"
+WDM_MILITARY_SHA256 = "191973fc85ea9932e43f328f733142acad688aeb234040c938b59c96d99c9056"
 WDM_OPERATION_MODULES = {
     "worldmap-contact.c": "80ed71add68db6a0683e9fb5cf6a8ab5880aef000ac03300268c39cae960fa17",
     "worldmap-recovery.c": "b2ae4add6db8843a9355641fa3809182cab8d96655466c7fa705f87a0be158d9",
@@ -1697,7 +1697,7 @@ UPDATED = {
     "PROGRAM/characters/RPGUtilite.c": "16ede08cc02c1746f6f8134a5e03d2a5e8f919451cc10bcdba8fdb10b4e7828d",
     "PROGRAM/scripts/duel.c": "1fdd23359a724cdeb41cd7f53742165f51e80105f9fd9314eb0457c5321d2b81",
     "PROGRAM/worldmap/worldmap_init.c": "d3728062d1838c28f6f3c909165999e0ae1ced397731699104479cd24082a95b",
-    "PROGRAM/worldmap/worldmap_encgen.c": "daa5abcdaa68a743bccd25a637b8f2397e7b3a9338ebb31ec323b270ec16a3c7",
+    "PROGRAM/worldmap/worldmap_encgen.c": "b772bf956179fb0801d597b51953f81956d269b3c0e2a0b067623493a6a777d9",
     "PROGRAM/sea_ai/AIShip.c": "87fca8908abe53bdebedce82c44c01a16171706077da1a539002fb3661ebf1e9",
     "PROGRAM/scripts/utils.c": "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061",
     "PROGRAM/store/initGoods.c": "29bd80feed653c9a8311fed8a6c83b99f926ca4765969bd7c44bfd887360fba8",

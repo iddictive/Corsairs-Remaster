@@ -990,18 +990,34 @@ void WdmMilitaryUpdate(int colony)
 	WdmTrafficStamp(clock);
 }
 
+bool wdmMilitaryTickPending = false;
+int wdmMilitaryTickCursor = 0;
+
 #event_handler("frame", "WdmMilitaryTick");
 void WdmMilitaryTick()
 {
 	if (!CheckAttribute(&Environment, "date.year") || GetDataYear() <= 0 || !CheckAttribute(pchar, "id")) return;
-	aref clock; makearef(clock, worldMap.trafficCampaignClock);
-	if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
-	WdmTrafficStamp(clock);
-	WdmMilitarySeed();
-	for (int colony = 0; colony < MAX_COLONIES; colony++)
+	if (!wdmMilitaryTickPending)
 	{
-		WdmMilitaryRefreshHarbour(colony);
-		WdmMilitaryUpdate(colony);
+		aref clock; makearef(clock, worldMap.trafficCampaignClock);
+		if (CheckAttribute(clock, "year") && WdmTrafficElapsed(clock, "hour") < 1) return;
+		WdmTrafficStamp(clock);
+		WdmMilitarySeed();
+		wdmMilitaryTickCursor = 0;
+		wdmMilitaryTickPending = true;
 	}
-	for (int nation = 0; nation < MAX_NATIONS; nation++) WdmMilitaryReview(nation);
+	// Complete the same ordered sweep over successive frames. Operation clocks
+	// still own elapsed hours; a long time skip creates no extra admission rolls.
+	if (wdmMilitaryTickCursor < MAX_COLONIES)
+	{
+		WdmMilitaryRefreshHarbour(wdmMilitaryTickCursor);
+		WdmMilitaryUpdate(wdmMilitaryTickCursor);
+	}
+	else
+	{
+		if (wdmTrafficStrategyPending) return;
+		WdmMilitaryReview(wdmMilitaryTickCursor - MAX_COLONIES);
+	}
+	wdmMilitaryTickCursor++;
+	if (wdmMilitaryTickCursor >= MAX_COLONIES + MAX_NATIONS) wdmMilitaryTickPending = false;
 }

@@ -2,6 +2,15 @@
 
 ## Status and delivery owner
 
+October 9 startup recovery: the canonical `characterUtilite.c` lacked the existing
+fleet-service helpers and treasurer append while BattleInterface still called
+`FleetService_IsShip`. Both the prior map script and the new hourly scheduler
+failed native startup at BattleInterface.c:2480. Restoring only this file's
+reviewed fleet manifest edits/append preserved the later officer escape marker
+and employment-check changes. The full `seadogs.c` segment then compiled; the
+diagnostic runner's subsequent duplicate Main is its own entry-point artifact.
+No new fleet policy or officer-debt behavior was introduced.
+
 October 3: the completed treasurer layer is installed through the canonical
 stage-only path. All fourteen manifest pins match both the cache and played app;
 deep/strict signing passes. The played engine remains `a743bc4a`; all 197 recorded

@@ -1,0 +1,76 @@
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -3,6 +3,7 @@
+ #include "sea_geomorph.h"
+ #include "vai_objbase.h"
+ 
++#include "metal_cpu_parallel.h"
+ #include <algorithm>
+ #include <thread>
+ 
+@@ -1486,10 +1487,13 @@
+     RDTSC_B(dwX);
+     // SetEvent(hEventCalcMaps);
+-    CalculateHeightMap(fFrame1, 1.0f / 255.0f, pSeaFrame1, aBumps);
+-    CalculateNormalMap(fFrame1, 1.0f / 255.0f, pSeaNormalsFrame1, aNormals);
+-
+-    CalculateHeightMap(fFrame2, 1.0f / 255.0f, pSeaFrame2, aBumps);
+-    CalculateNormalMap(fFrame2, 1.0f / 255.0f, pSeaNormalsFrame2, aNormals);
++    // Independent immutable samples; join before buoyancy/mesh reads them.
++    MetalCpuParallelFor(2, [this](size_t index) noexcept {
++        const float frame = index == 0 ? fFrame1 : fFrame2;
++        CalculateHeightMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
++        CalculateNormalMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
++    });
+     RDTSC_E(dwX);
+     // core.Trace("dwX = %d", dwX);
+ 
+@@ -1522,8 +1526,11 @@
+         PrepareIndicesForBlock(i);
+     }
+ 
+-    for (auto &block : aBlocks)
+-        SSE_WaveXZBlock(block);
++    // PrepareIndicesForBlock assigns disjoint owned [iIFirst,iILast] ranges;
++    // shared seam indices are read-only. No renderer/event calls run here.
++    MetalCpuParallelFor(aBlocks.size(), [this](size_t index) noexcept {
++        SSE_WaveXZBlock(aBlocks[index]);
++    });
+ 
+     if (iVStart && iTStart)
+         memcpy(pVSea2, pVSea, iVStart * sizeof(SeaVertex));
+--- /dev/null
++++ b/src/libs/util/include/metal_cpu_parallel.h
+@@ -0,0 +1,30 @@
++#pragma once
++#include <algorithm>
++#include <cstddef>
++#include <dispatch/dispatch.h>
++#include <type_traits>
++
++// Bounded, synchronous numeric jobs on the OS-owned reusable worker pool.
++// Each index must own its writes; callers keep VM, events and Metal on main.
++template <class Function>
++void MetalCpuParallelFor(std::size_t count, Function function) noexcept
++{
++    static_assert(std::is_nothrow_invocable_v<Function &, std::size_t>);
++    if (count < 2)
++    {
++        if (count) function(0);
++        return;
++    }
++    struct Context
++    {
++        std::size_t count, chunks;
++        Function &function;
++    } context{count, std::min(count, std::size_t{4}), function};
++    dispatch_apply_f(context.chunks, DISPATCH_APPLY_AUTO, &context,
++                     [](void *pointer, std::size_t chunk) noexcept {
++        auto &context = *static_cast<Context *>(pointer);
++        for (std::size_t index = chunk; index < context.count; index += context.chunks)
++            context.function(index);
++    });
++    // dispatch_apply_f joins every job before any captured state can expire.
++}

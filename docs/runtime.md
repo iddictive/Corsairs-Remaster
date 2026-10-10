@@ -1,10 +1,49 @@
 # Runtime state
 
-Last verified: October 9 escaped-officer debt write-off and NPC crew complement installed into the app; no game launch (America/New_York)
+Last verified: October 9 bounded hourly map work and CPU sea jobs staged; native replay status below (America/New_York)
 
 ## Current verdict
 
-### Current installed inventory — officer escape, crew debt and NPC traffic crews
+### Current installed inventory — bounded hourly map work and CPU sea jobs
+
+Canonical `experiments/native-metal/run.sh --stage-only` passed with the ordered
+`cpu-parallel-sea.patch`. Installed signed arm64 engine SHA-256:
+`21396882da13c0393675fe6479b3345a3b649226654d32ae3ca0945998499226`.
+The installed map script is
+`b772bf956179fb0801d597b51953f81956d269b3c0e2a0b067623493a6a777d9`.
+Hourly campaign/strategy work is distributed across frames; independent sea
+height/normal maps and disjoint mesh blocks use synchronous OS CPU jobs capped
+at four chunks. VM/events/render submission remain serial.
+
+Native VM scheduling and four save-codec rounds pass; numeric kernels match
+serial outputs bit-for-bit and a local GCD probe observed four threads. Source,
+build and engine staging are accepted at those layers; real stutter/FPS and sea
+visual parity remain unresolved. Contracts are in worldmap-traffic.md and
+metal-frame-pacing.md. No profiling was run for this attempt.
+
+Build preparation initially rejected three changed immutable input captures.
+Exact manifest-hashed originals were recovered for characterUtilite.c,
+reaction_functions.c and Crew.c; all 8252 input hashes then passed. Their previous
+bytes were preserved by hash under `.cache/input-recovery`; no manifest weakening
+or player SAVE/config replacement occurred.
+
+Both the cache launcher and public app initially aborted with `fail to create
+program`. An isolated full-program comparison reproduced the same error with
+the prior and new map scripts. Debug info localized it to BattleInterface.c:2480:
+canonical characterUtilite.c had lost its existing fleet helpers/treasurer layer.
+Restoring its reviewed manifest edits/append preserved the newer officer-escape
+marker. The actual seadogs.c segment then compiled; the diagnostic runner's
+subsequent duplicate Main is an entry-point artifact. Installed recovered script:
+`f26cc458a19fa583e02e8a22e1e39737142a1281d7dd2f7a27ac027328b54e24`.
+The subsequent public-app launch stays running and reaches Metal initialization
+without compilation errors. Two later runtime errors in ShipLights.c report
+`incorrect argument index` and `Invalid conversation`; their cause is unresolved.
+CUA image capture fails with ScreenCaptureKit
+error -3811, so menu/interactive-scene and visual acceptance are unresolved;
+process/log evidence is not scene acceptance. The launched app is retained for
+player replay; no save was selected or game input sent.
+
+### Historical installed inventory — officer escape, crew debt and NPC traffic crews, superseded by the hourly/CPU batch
 
 tools/sync_metal_gameplay.py apply delivered three scripts into the signed app:
 PROGRAM/worldmap/worldmap_encgen.c (composed from the edited traffic source,

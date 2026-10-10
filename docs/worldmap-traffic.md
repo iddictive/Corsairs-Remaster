@@ -1,5 +1,21 @@
 # World-map traffic
 
+## Hourly work admission — October 9
+
+The hourly campaign sweep formerly refreshed/updated every colony and reviewed
+every nation inside one frame; traffic strategy also scanned all nations at once.
+`WdmMilitaryTick` now processes one colony per frame, then one nation per frame.
+`WdmTrafficReviewStrategies` admits the same hourly batch and its frame handler
+reviews one nation at a time. Campaign review waits for the strategy batch.
+Elapsed-hour operation clocks, nation/colony order and gameplay decisions remain
+owned by the existing helpers. Pending flags/cursors are ordinary saved VM globals.
+
+A disposable native VM fixture reproduced the original burst and passed ordered
+completion, hourly/invalid-date guards, a subsequent hour and four save-codec
+rounds with a partially completed batch. Heavy gameplay helpers were stubbed;
+this proves scheduling/state, not live map stutter or campaign balance. The
+composed script hash is `b772bf956179fb0801d597b51953f81956d269b3c0e2a0b067623493a6a777d9`.
+
 ## NPC crew complement — October 9
 
 The player reported that almost every ordinary ship on the map sailed with
