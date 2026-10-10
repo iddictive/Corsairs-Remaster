@@ -173,8 +173,8 @@ int GetSalaryForShip(ref chref)
 // Codex crew debt ledger v1. CrewPayment and Partition.MonthPart are projections.
 bool CrewDebt_IsOpenStatus(string debtStatus)
 {
-	// "escaped": кредитор сбежал без расчёта, доля остаётся долгом.
-	return debtStatus == "active" || debtStatus == "dismissed" || debtStatus == "escaped";
+	// "escaped": кредитор сбежал без расчёта — доля списана, запись закрыта.
+	return debtStatus == "active" || debtStatus == "dismissed";
 }
 
 void CrewDebt_MarkNamedEscaped(ref creditor)
@@ -187,7 +187,11 @@ void CrewDebt_MarkNamedEscaped(ref creditor)
 		if (!CheckAttribute(pchar, "CrewDebt.Entries." + entryName)) continue;
 		aref debtEntry;
 		makearef(debtEntry, pchar.CrewDebt.Entries.(entryName));
-		if (debtEntry.Status == "active" && debtEntry.CreditorId == creditor.id) debtEntry.Status = "escaped";
+		if (debtEntry.Status == "active" && debtEntry.CreditorId == creditor.id)
+		{
+			debtEntry.Status = "escaped";
+			debtEntry.ClosedDate = GetDateString() + " " + GetTimeString();
+		}
 	}
 	CrewDebt_MarkOrphanedPartitionDismissed();
 	CrewDebt_RebuildProjection();
@@ -239,7 +243,6 @@ void CrewDebt_UpdateJournal()
 		{
 			employment = ", кредитор остаётся в команде";
 			if (debtEntry.Status == "dismissed") employment = ", кредитор уволен";
-			if (debtEntry.Status == "escaped") employment = ", кредитор сбежал, долг остаётся";
 		}
 		string due = "текущий расчёт";
 		if (debtEntry.DueState == "overdue") due = "просрочено";
