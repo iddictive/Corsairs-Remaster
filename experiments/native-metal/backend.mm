@@ -238,6 +238,7 @@ struct Device : StubIDirect3DDevice9 {
 	 std::map<uint64_t,id<MTLSamplerState>> samplers; std::map<uint64_t,id<MTLRenderPipelineState>> pipelines; std::map<uint64_t,id<MTLDepthStencilState>> depths;
 struct RawBuffer {uint64_t revision=~0ull;id<MTLBuffer> buffer=nil;};std::map<uint64_t,RawBuffer> rawVertexBuffers,rawIndexBuffers;
 unsigned offscreenPointCasterDepth=0;
+bool authoredGeometryEmitter=false;
 struct SubmissionSlice {id<MTLBuffer> buffer=nil;NSUInteger offset=0,length=0;};
 struct DynamicRawBuffer {uint64_t revision=~0ull,uploadIdentity=0;SubmissionSlice slice{};};
 std::map<uint64_t,DynamicRawBuffer> dynamicVertexUploads;
@@ -1238,6 +1239,9 @@ extern "C" void StormMetalEndSolarVisual(void*pointer){if(pointer)static_cast<De
 extern "C" bool StormMetalSolarVisualActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->solarVisualActive;}
 extern "C" bool StormMetalCloudFieldCurrent(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->cloudFieldCurrent();}
 extern "C" unsigned StormMetalBeginLandModel(void*pointer,unsigned role){if(!pointer)return 0;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto previous=d->landShadow.scope;d->landShadow.scope=role;return previous;}
+extern "C" bool StormMetalSetGeometryEmitter(void*pointer,bool active){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));const bool previous=d->authoredGeometryEmitter;d->authoredGeometryEmitter=active;return previous;}
+extern "C" bool StormMetalGeometryEmitter(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->authoredGeometryEmitter;}
+extern "C" bool StormMetalModernLighting(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->modernLighting;}
 extern "C" unsigned StormMetalBeginSceneModel(void*pointer){if(!pointer)return 0;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto previous=d->landShadow.scope;if(!previous)d->landShadow.scope=2;return previous;}
 extern "C" bool StormMetalBeginOffscreenPointCaster(void*pointer,const float*center,float radius){
  if(!pointer||!center)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));
@@ -1253,6 +1257,13 @@ extern "C" bool StormMetalBeginOffscreenPointCaster(void*pointer,const float*cen
  ++d->offscreenPointCasterDepth;return true;
 }
 extern "C" void StormMetalEndOffscreenPointCaster(void*pointer){if(pointer){auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));if(d->offscreenPointCasterDepth)--d->offscreenPointCasterDepth;}}
+extern "C" bool StormMetalBeginOffscreenLocalPointCaster(void*pointer,const float*center,float radius){
+ if(!pointer||!center)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));
+ simd_float4x4 world;std::memcpy(&world,&d->matrices[D3DTS_WORLD],sizeof(world));
+ const auto absolute=simd_mul(world,simd_make_float4(center[0],center[1],center[2],1.f)).xyz-d->landShadow.worldOrigin;
+ const float scale=std::max({simd_length(world.columns[0].xyz),simd_length(world.columns[1].xyz),simd_length(world.columns[2].xyz)});
+ const float position[]={absolute.x,absolute.y,absolute.z};return StormMetalBeginOffscreenPointCaster(pointer,position,radius*scale);
+}
 extern "C" void StormMetalSetWorldOrigin(void*pointer,const float*origin){if(pointer&&origin)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->landShadow.worldOrigin={origin[0],origin[1],origin[2]};}
 extern "C" void StormMetalLandInterior(void*pointer,bool indoor){if(!pointer)return;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));d->landShadow.indoor=indoor;d->lightingScene.setDomain(indoor?storm_metal::LightingDomain::Interior:storm_metal::LightingDomain::Outdoor);}
 extern "C" void StormMetalInterfaceBackScene(void*pointer,bool active){

@@ -21,6 +21,7 @@ import metal_fleet_gameplay as fleet_gameplay
 import metal_fleet_sea as fleet_sea
 import metal_fleet_ui as fleet_ui
 import metal_military_integration as military_callbacks
+import metal_lighting_consumers as lighting_consumers
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
@@ -278,6 +279,8 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
             if relative in military_callbacks.HOOKS:
                 reviewed = (military_callbacks.transform(relative, reviewed) if variant is not None
                             else military_callbacks.prepare(relative, reviewed))
+            if relative == lighting_consumers.PATH:
+                reviewed = lighting_consumers.prepare(reviewed)
             if script_bytes(relative, original, reviewed) == reviewed:
                 reviewed = original
             admitted = original if relative in state.files else script_bytes(relative, original, reviewed)
