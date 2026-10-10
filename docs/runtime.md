@@ -4,6 +4,21 @@ Last verified: October 9 bounded hourly map work and CPU sea jobs staged; native
 
 ## Current verdict
 
+### Non-sea CPU short-path investigation — rejected prototype, October 9
+
+Hypothesis: independent animated collision-vertex transforms can cheaply reuse
+the synchronous four-chunk CPU pool. A disposable native driver used the actual
+MODELR::Trace numeric block and math/vertex types; no engine, patch stack,
+installed content, player state or running game was changed.
+
+All eight sizes from 0 to 32768 matched serial output bytes. Three warmed timing
+rounds showed parallel overhead losing at 1024–8192 vertices; at 32768 it saved
+about 0.03 ms per call, without evidence of that workload in a real land frame.
+Disposition: rejected for unconditional implementation; size-gated use and larger
+animation/particle/navigation/render/loading work deferred in TASKS.md. Exact
+measurements and shared-state constraints belong to metal-frame-pacing.md.
+The installed inventory below is unchanged by this source-only investigation.
+
 ### Current installed inventory — bounded hourly map work and CPU sea jobs
 
 Canonical `experiments/native-metal/run.sh --stage-only` passed with the ordered
