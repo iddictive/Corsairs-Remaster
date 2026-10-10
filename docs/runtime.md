@@ -1,10 +1,44 @@
 # Runtime state
 
-Last verified: October 9 bounded hourly map work and CPU sea jobs staged; native replay status below (America/New_York)
+Last verified: October 9 cloud/weather and surface-light refinement; native replay status below (America/New_York)
 
 ## Current verdict
 
-### Live sea low-FPS capture — diagnosed CPU hot spots, October 9
+### Cloud/weather and surface-light refinement — October 9
+
+Hypothesis: oversized broad cloud interiors and fast visual-state time constants
+produce heavy dark patches and abrupt weather; geometry direct light does not
+consume the completed cloud transmission already used by astronomy and water.
+Delta: horizontal cloud shape scale 0.00008→0.00012, brighter lower-cloud ambient,
+4/8-second cloud smoothing, 4-second weather colors and 3/6-second fog/wind/rain.
+One completed five-ray solar sample now attenuates geometry directional diffuse
+and specular; authored ambient, local lamps and interior/fallback light survive.
+Contracts and native component evidence belong to metal-dynamic-sky.md.
+
+The installed updated engine reached the player's ongoing sea battle at
+December 28 1668 13:48: fleet ships, wooded shoreline, sky, water and smoke rendered.
+The visibly black torn sails remain on the flagship while neighboring cream sails
+retain their material color; cloud transmission alone does not establish a sail
+material defect. Native geometry checks passed for converted and indexed input,
+including opaque cover, point lamps, interior and absent-sky negatives. Weather
+and dynamic-sky probes passed; the 513-frame component replay remained continuous.
+Disposition: installed sea-scene rendering and component behavior accepted;
+actual weather-preset transition and an interactive land scene are not replayed.
+No FPS improvement is claimed; the separate live sea performance finding below
+remains unresolved. Player SAVE/configuration were preserved.
+
+Current installed inventory: canonical `experiments/native-metal/run.sh --stage-only`
+returned0 after the final native source change. All8252 portable inputs and the
+ordered patch stack passed; the signed candidate already matched the played app,
+so the final transaction skipped replacement. Installed arm64 engine SHA-256:
+`dd96d2876c4ce6d6ed02a93d5b4ba1156a5e00b01b00e62058c2044e0dfeba63`.
+`codesign --verify --strict` passed. PROGRAM/RESOURCE roots and player SAVE/config
+remain the same owners as the previous inventory. The previous engine21396882
+remains recoverable in the canonical installed-engine backup. The player reopened
+the installed game after the final stage; a redundant launch was refused by the
+launcher's existing running-game guard, with no second process created.
+
+### Live sea low-FPS capture — diagnosed CPU hot spots, October 9 (prior engine)
 
 Player caught the slow sea scene in installed PID36996, engine21396882
 (same full hash as the installed inventory below). A five-second read-only
@@ -34,7 +68,7 @@ animation/particle/navigation/render/loading work deferred in TASKS.md. Exact
 measurements and shared-state constraints belong to metal-frame-pacing.md.
 The installed inventory below is unchanged by this source-only investigation.
 
-### Current installed inventory — bounded hourly map work and CPU sea jobs
+### Historical installed inventory — bounded hourly map work and CPU sea jobs, superseded by cloud/weather refinement
 
 Canonical `experiments/native-metal/run.sh --stage-only` passed with the ordered
 `cpu-parallel-sea.patch`. Installed signed arm64 engine SHA-256:

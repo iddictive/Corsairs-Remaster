@@ -423,7 +423,7 @@ float density(float3 pip, float3 weather, float mip, texture3d<float> large_scal
 	p.xz += w.options.yz;
 
 	// Define the base of the cloud.
-	float4 n = large_scale_noise.sample(ns, p.xyz * 0.00008f, level(max(0.f,mip-2.f)));
+	float4 n = large_scale_noise.sample(ns, p.xyz * float3(.00012f,.00008f,.00012f), level(max(0.f,mip-2.f)));
 	float fbm = n.g * 0.625 + n.b * 0.25 + n.a * 0.125;
 
 	// Remap based on weather, coverage, and cloud shape gradient.
@@ -587,7 +587,7 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     float horizon=1.f-smoothstep(-.02f,.42f,max(d.y,0.f));
     float3 fog=weather.horizonFog.w>.5f?weather.horizonFog.rgb:mix(float3(.035f,.045f,.075f),float3(.64f,.78f,.92f),daylight);
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
-    float3 lower=float3(.18f,.22f,.26f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
+    float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
     // The sky display keeps exact authoritative fog at its horizon; only the
     // directional fog field dims toward the actual ambient under clouds.
     float3 veil=fog;
@@ -656,6 +656,13 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
     float elevation=l*l*sign(l)*1.57079632679f;
     float3 direction=float3(cos(elevation)*cos(azimuth),sin(elevation),cos(elevation)*sin(azimuth));
     output.write(skyRadiance(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance,false),pixel);
+}
+// The same completed opacity field also drives ordinary scene lights. One
+// scalar per frame avoids sampling five solar rays for every ship/town vertex.
+kernel void sky_surface_solar(constant SkyWeather&weather [[buffer(0)]],
+    texture2d<float>cloudFrom [[texture(0)]],texture2d<float>cloudTo [[texture(1)]],
+    device float&transmission [[buffer(1)]]) {
+    transmission=skySolarTransmission(float4(weather.sunDirection_hour.xyz,weather.options.w),cloudFrom,cloudTo);
 }
 )MSL";
 inline const char *volumetricSkyShaderSource=volumetricSkyShaderStorage.c_str();

@@ -35,7 +35,7 @@ inline void seedColor(float (&channels)[4], uint32_t color) {
         channels[index] = float((color >> (index * 8u)) & 255u);
 }
 
-inline uint32_t approachColor(float (&channels)[4], uint32_t target, float seconds, float responseSeconds = .9f) {
+inline uint32_t approachColor(float (&channels)[4], uint32_t target, float seconds, float responseSeconds = 4.f) {
     const float alpha = 1.f - std::exp(-boundedDelta(seconds) / responseSeconds);
     uint32_t result = 0;
     for (unsigned index = 0; index != 4; ++index) {
@@ -75,13 +75,13 @@ struct State {
                 float angle, float speed, float rain, float time, float height, float azimuth,
                 float seconds) {
         if (!initialized) { seed(fog,fogRgb,ambient,sun,angle,speed,rain,time,height,azimuth);return; }
-        fogDensity=approach(fogDensity,fog,seconds,.55f,1.4f);
+        fogDensity=approach(fogDensity,fog,seconds,3.f,6.f);
         fogColor=approachColor(fogChannels,fogRgb,seconds);
         ambientColor=approachColor(ambientChannels,ambient,seconds);
         sunColor=approachColor(sunChannels,sun,seconds);
         windAngle=approachAngle(windAngle,angle,seconds);
-        windSpeed=approach(windSpeed,speed,seconds,.65f,1.6f);
-        rainIntensity=approach(rainIntensity,rain,seconds,.45f,1.8f);
+        windSpeed=approach(windSpeed,speed,seconds,3.f,6.f);
+        rainIntensity=approach(rainIntensity,rain,seconds,3.f,6.f);
         // The game time is already a continuous visual fact.  Keep its phase exact
         // while smoothing the two derived lighting angles with the other weather facts.
         timeOfDay=wrapDayHour(time,timeOfDay);

@@ -68,7 +68,7 @@ struct DynamicSkyTemporal {
         const auto approach = [dt](float current, float target) {
             target = finiteSkyClamp(target, current, 0.f, 1.f);
             // Storm fronts build visibly faster than clear weather recovers.
-            const float timeConstant = target > current ? .65f : 2.2f;
+            const float timeConstant = target > current ? 4.f : 8.f;
             const float alpha = 1.f - std::exp(-dt / timeConstant);
             return current + (target - current) * alpha;
         };
