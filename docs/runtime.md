@@ -1,10 +1,39 @@
 # Runtime state
 
-Last verified: October 10 startup crash diagnosed, weather adapter restored and full installed-script compilation passes; engine 87101a13ec9b213a, player startup/cloud replay pending (America/New_York).
+Last verified: October 10, 20:21 native fog callback crash reproduced and repaired; engine 258f76c4ea3238cd installed, full installed-script compilation passes, player startup/cloud replay pending (America/New_York).
 
 ## Current verdict
 
-### Weather batch startup crash — October 10, 19:49
+### Native fog callback startup crash — October 10, 20:21
+
+Player incident B49BAFA3-58F6-47DC-9E8B-B17A247ED29C is a new SIGSEGV in
+`SKY::UpdateFogSphere`, after script initialization. Installed-engine disassembly
+at the reported offset shows the null event result being dereferenced for
+`GetInt`. The weather migration removed registration of `Whr_OnCalcFogColor`
+but left the engine's per-vertex `WEATHER_CALC_FOG_COLOR` producer intact.
+
+The ordered `weather-engine.patch` now computes the sphere's existing vertical
+alpha fade natively; its RGB still comes from the shared Metal atmospheric field.
+`WhrSky.c` supplies the authored Fog.Height at sky creation. Removed the obsolete
+script function and deletion handler. No restored script weather producer, new
+render pass or additional per-frame CPU traversal.
+
+Evidence: a disposable UBSan fixture executes the actual fog vertex/sphere
+functions with a missing callback. Original source aborts on the null result;
+corrected source passes creation, updates, uninitialized-buffer early exit,
+513 vertex/3048 index bounds, exact authored fades at 200/500m and invalid/missing
+height fallback, with zero script-event calls. The compiler-only current native
+VM compiles the complete installed `seadogs.c` chain without executing Main;
+`seadogs_compiled=1`, exit 0, error log empty. Its two changed weather scripts
+are byte-identical to the installed consumers.
+
+Canonical `run.sh --stage-only` succeeds. Installed signed engine SHA-256:
+`258f76c4ea3238cdf2f6589303aeab86a697d435b88459c62793036c862ba595`.
+Previous 87101a13 engine retained by normal backup; SAVE/config preserved.
+Disposition: repaired component and installed candidate; player startup, old-save
+and cloud-scene acceptance unresolved. No game launch or UI manipulation.
+
+### Historical script startup crash — October 10, 19:49
 
 Player crash E098FEFA-1490-4237-8EDE-FAAC571DACB7 aborts in
 `CoreImpl::ProcessEngineIniFile`, before scene creation. The existing player

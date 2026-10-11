@@ -153,7 +153,15 @@
      float fFov;
 --- a/src/libs/weather/src/sky.cpp
 +++ b/src/libs/weather/src/sky.cpp
-@@ -22,13 +22,12 @@
+@@ -4,6 +4,7 @@
+ #include "attributes.h"
+ #include "math_inlines.h"
+ #include <algorithm>
++#include <cmath>
+ 
+ #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+ extern "C" bool StormMetalBeginDynamicSky(void *device, float hour, float deltaSeconds, float cloudCoverage,
+@@ -22,13 +23,12 @@
  {
      if (!weather)
          return false;
@@ -169,6 +177,54 @@
                                         weather->GetVisualFloat(whf_wind_angle),
                                         weather->GetVisualFloat(whf_wind_speed), 0.16f, visualSun.x,
                                         visualSun.y, visualSun.z, weather->GetVisualColor(whc_fog_color));
+@@ -90,12 +90,18 @@
+     uint32_t diffuse;
+ };
+ 
+-FOGVERTEX CreateFogVertex(const CVECTOR &vPos)
+-{
++FOGVERTEX CreateFogVertex(const CVECTOR &vPos, float height)
++{
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    // Metal supplies directional fog RGB; the sphere retains its authored fade.
++    const auto alpha = 255u - static_cast<uint32_t>(255.f * std::clamp(vPos.y / height, 0.f, 1.f));
++    return {vPos, alpha << 24};
++#else
+     auto *pvData = core.Event(WEATHER_CALC_FOG_COLOR, "fff", vPos.x, vPos.y, vPos.z);
+     Assert(pvData);
+ 
+     return {vPos, static_cast<uint32_t>(pvData->GetInt())};
++#endif
+ }
+ 
+ }
+@@ -177,6 +183,8 @@
+         return;
+     }
+ 
++    const float authoredHeight = AttributesPointer ? AttributesPointer->GetAttributeAsFloat("FogHeight", 200.f) : 200.f;
++    const float fogHeight = std::isfinite(authoredHeight) && authoredHeight > 0.f ? authoredHeight : 200.f;
+     FOGVERTEX vertices[kFogVertsNum];
+     uint16_t indices[kFogTrgsNum];
+     auto *pIndices = indices;
+@@ -191,7 +199,7 @@
+             const auto fCos = cosf(static_cast<float>(x) / static_cast<float>(kNumAngles) * PIm2);
+             const auto fSin = sinf(static_cast<float>(x) / static_cast<float>(kNumAngles) * PIm2);
+ 
+-            vertices[idx] = CreateFogVertex(CVECTOR(R1 * fCos, h, R1 * fSin));
++            vertices[idx] = CreateFogVertex(CVECTOR(R1 * fCos, h, R1 * fSin), fogHeight);
+ 
+             if (initialize)
+             {
+@@ -216,7 +224,7 @@
+             idx++;
+         }
+     }
+-    vertices[idx] = CreateFogVertex(CVECTOR(0.0f, kR, 0.0f));
++    vertices[idx] = CreateFogVertex(CVECTOR(0.0f, kR, 0.0f), fogHeight);
+ 
+     auto *vertBuf = static_cast<FOGVERTEX *>(pRS->LockVertexBuffer(iFogVertsID));
+     memcpy(vertBuf, vertices, kFogVertsNum * sizeof(FOGVERTEX));
 --- a/src/libs/sea/src/sea.cpp
 +++ b/src/libs/sea/src/sea.cpp
 @@ -1,4 +1,5 @@

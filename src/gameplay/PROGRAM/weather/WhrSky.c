@@ -41,6 +41,7 @@ void WhrCreateSkyEnvironment()
 	Sky.RotateSpeed = Whr_GetFloat(aSky, "Rotate"); // Warship 02.06.09 - ротация неба ниже
 	Sky.Angle = Whr_GetFloat(aSky, "Angle");
 	Sky.Size = Whr_GetFloat(aSky, "Size");
+	Sky.FogHeight = Whr_GetFloat(aCurWeather, "Fog.Height");
 	
 	  if(bSeaActive) 
 	{

@@ -97,8 +97,6 @@ void DeleteWeatherEnvironment()
 	WhrDeleteSeaEnvironment();
 	WhrDeleteAstronomyEnvironment();
 
-	DelEventHandler(WEATHER_CALC_FOG_COLOR,"Whr_OnCalcFogColor");
-
 	bWeatherLoaded = false;
 }
 
@@ -241,37 +239,6 @@ void Whr_LoadNextWeather(int nPlus)
 
 	SetCurrentTime(iCurWeatherHour, 0);
 	Weather.Time.time = GetTime();
-}
-
-int Whr_OnCalcFogColor()
-{
-	int		iAlpha, iColor;
-	float	x, y, z;
-
-	x = GetEventData();
-	y = GetEventData();
-	z = GetEventData();
-
-	if( iBlendWeatherNum < 0 )
-	{
-		aref aCurWeather = GetCurrentWeather();
-		iAlpha = 255 - MakeInt(255.0 * Clampf(y / stf(aCurWeather.(sCurrentFog).Height)));
-
-		//iColor = argb(0,0,0,0);
-		int iFogColor = 0; // Legacy fog billboard is disabled by the native sky owner.
-		iColor = or(shl(iAlpha, 24), iFogColor);
-	}
-	else
-	{
-		float fBlend = stf(Environment.time) - sti(Environment.time);
-		float fH = Whr_BlendFloat(fBlend, stf(Weathers[iCurWeatherNum].(sCurrentFog).Height), stf(Weathers[iBlendWeatherNum].(sCurrentFog).Height));
-		int iColorTmp = Whr_BlendColor(fBlend, sti(Weathers[iCurWeatherNum].(sCurrentFog).Color), sti(Weathers[iBlendWeatherNum].(sCurrentFog).Color));
-
-		iAlpha = 255 - MakeInt(255.0 * Clampf(y / fH));
-		iColor = or(shl(iAlpha, 24), iColorTmp);
-	}
-
-	return iColor;
 }
 
 float Whr_BlendFloat(float fBlend, float f1, float f2)
