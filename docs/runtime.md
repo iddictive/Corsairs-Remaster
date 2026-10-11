@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified: October 10, 21:44:40 installed e675530ab7a88ec6 starts through the public launcher as PID23162 and renders its menu. It includes the weather-calendar correction and second fog/zoom/submission batch; sea/map/spyglass and FPS acceptance remain pending. The prior d5f417e0 sea replay rejects horizon closure and FPS recovery; foreground CPU profile was captured at 21:24:46 (America/New_York).
+Last verified: October 10, installed e675530ab7a88ec6 runs as PID23162 through the public launcher and reaches player-controlled sea and port-office scenes. The observed dawn sea view displays116 FPS without an obvious rectangular water boundary; this is a different view/time and does not accept the original horizon, telescope or low-FPS incident. A fresh foreground CPU sample starts21:51:13 (America/New_York). Weather evolution and sea/map calendar replay remain unresolved.
 
 ## Current verdict
 
@@ -216,9 +216,30 @@ defaults to0). The menu renders and remains animated. Native automation moves
 the cursor but two menu clicks and keyboard activation do not open the save list;
 no save or graphics setting is changed. The player is asked to load the existing
 sea save and leave it active. Menu metrics are excluded from gameplay FPS claims.
-Disposition: native/calendar component and installation verified; actual old-save,
-sea/map transition, weather evolution, horizon/spyglass and paired FPS replay
-remain unresolved with the current task as replay owner.
+The player subsequently reaches sea: native observation shows six fleet HUD
+entries, the black-sailed flagship, rain and islands at December29,1668,07:25,
+with116 displayed FPS. No obvious hard rectangular water boundary is visible in
+that view. The selected save filename and matched original camera are not
+observed, so this accepts interactive sea startup only. The next observation
+shows the player in the San Juan port office at December28,07:36 and126 FPS;
+no navigation, save or weather input is sent by this task between observations.
+
+A five-second foreground sample at21:51:13 contains2360 main-thread samples:
+Realize1413 (59.9%), Execute119 (5.0%), texture/general RTTI13 (0.6%), raw
+residency58 (2.5%), sea reflection144 (6.1%), sailors81 (3.4%) and drawable
+acquisition690 (29.2%). These inclusive shares overlap; the sample contains sea
+rendering but the nearby player navigation prevents camera-matched acceptance.
+Active profile windows contain120 frames with inactive0: wall9.70/10.63ms,
+GPU9.13/10.14ms, drawable wait2.18/2.27ms,650.7/633.9 draws and2.73/2.79M
+submitted vertices per frame. These are observed intervals, not a controlled
+gain over the original37-FPS episode. The new binding owner materially reduces
+the sampled RTTI hot spot; rare slow scenes and distant crew cost remain open.
+
+Disposition: native/calendar component, installation and interactive player
+startup verified; actual sea/map weather evolution, original horizon/telescope
+views and paired low-FPS replay remain unresolved. The current task owns replay;
+the player is asked to leave the problem telescope view active. The game remains
+open and player-owned; graphics settings and SAVE are unchanged by these probes.
 
 ### Weather event startup crash — October 10, 20:38
 
