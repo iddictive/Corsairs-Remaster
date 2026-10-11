@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified: October 10, installed e675530ab7a88ec6 reaches player-controlled sea and port-office scenes as PID23162. That process has ended; the same installed engine is running as PID36180, started21:53:11, with its scene not yet observed. The observed dawn sea view displays116 FPS without an obvious rectangular water boundary; this is a different view/time and does not accept the original horizon, telescope or low-FPS incident. A foreground CPU sample starts21:51:13 (America/New_York). Weather evolution and sea/map calendar replay remain unresolved.
+Last verified: October 10, installed e675530ab7a88ec6 runs as PID36180, started21:53:11. After the player confirms loading the sea save, native observation shows its deck camera at December28,1668,14:35 with70 displayed FPS and no obvious rectangular water boundary in that shore-facing view. Telescope replay is deferred by the player; the original horizon and rare low-FPS incident remain unresolved. The five-second21:55:33 sample catches98.3% background sleep and is rejected as performance evidence. Weather evolution and sea/map calendar replay remain unresolved.
 
 ## Current verdict
 
@@ -243,6 +243,18 @@ player-owned; graphics settings and SAVE are unchanged by these probes. A final
 process reconciliation finds PID23162 ended and PID36180 started21:53:11 using
 the same installed e675530ab7a88ec6 engine. This task sent no quit/relaunch input;
 the new process's scene and profiling mode are unobserved.
+
+The player confirms loading the sea save and chooses to continue playing rather
+than leave the telescope view active. Native observation of PID36180 shows the
+deck camera, a nearby black-sailed ship, six fleet HUD entries, rain and San Juan
+shore at December28,1668,14:35, with70 displayed FPS. No obvious rectangular
+water boundary is visible in this view; the shore occludes much of the distant
+horizon, and telescope artifacts are not tested. No camera or gameplay input is
+sent. The ensuing five-second21:55:33 sample contains3806/3870 main-thread
+samples in the existing inactive sleep branch (98.3%); it cannot establish
+current rendering cost or FPS gain. No repeat sample is taken. Disposition:
+loaded-save sea startup observed; telescope replay is player-deferred and the
+current task retains the original visual/FPS acceptance as unresolved.
 
 ### Weather event startup crash — October 10, 20:38
 
