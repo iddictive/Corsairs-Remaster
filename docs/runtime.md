@@ -1,8 +1,224 @@
 # Runtime state
 
-Last verified: October 10, 20:38 weather-event startup crash reproduced and repaired; corrected event adapter installed with engine 258f76c4ea3238cd unchanged, installed-script compilation and event execution pass, player startup/cloud replay pending (America/New_York).
+Last verified: October 10, 21:44:40 installed e675530ab7a88ec6 starts through the public launcher as PID23162 and renders its menu. It includes the weather-calendar correction and second fog/zoom/submission batch; sea/map/spyglass and FPS acceptance remain pending. The prior d5f417e0 sea replay rejects horizon closure and FPS recovery; foreground CPU profile was captured at 21:24:46 (America/New_York).
 
 ## Current verdict
+
+### Live sea low-FPS capture — October 10, capacity eviction observed
+
+The player-owned installed app reached an active sea scene as PID 40516,
+launched 20:55:47. A five-second sample at 20:57:37 binds engine SHA-256
+`258f76c4ea3238cdf2f6589303aeab86a697d435b88459c62793036c862ba595`.
+Nearby native observation shows 37 FPS, rain, island shore and six fleet HUD
+entries. The player confirmed approximately this FPS and saved the scene before
+requesting a repair; the exact minimum was not measured.
+
+Hypothesis: scene-dependent geometry uploads and repeated ship reflections
+consume the main thread. Evidence identifies substantial buffer creation,
+reflection and sailor rendering cost, and installed disassembly binds sampled
+tree deletion to the 512-entry residency capacity branch. This distinguishes
+actual capacity eviction from the prior source-only suspicion. Details and
+claim limits belong to `docs/metal-frame-pacing.md`.
+
+Delta: read-only CPU sampling and native window observation; no input,
+settings, SAVE, content, engine, staging or process change. Existing installed
+inventory remains unchanged. Disposition: CPU hot spots diagnosed and capacity
+eviction observed; FPS repair, paired CPU/GPU timings and the exact severe
+episode remain unresolved. The prior resource-owned residency candidate stays
+rejected; it was not reinstalled.
+
+### Bounded residency repair — October 10, installed; FPS acceptance unresolved
+
+Requested outcome: recover the saved sea scene's FPS while preserving ships,
+crew, reflections, shadows and graphics settings. One `backend.mm` cache now
+serves ordinary raw draws, depth/shadow draws and source submission spans;
+existing shared resource identities distinguish vertex and index buffers.
+The cache adapts the established converted-geometry LRU pattern: 512 MiB and
+8,192 entries, evicting only oldest buffers instead of clearing every mesh at
+512. Exact revision changes replace immutable uploads; encoded commands and
+shadow packets retain old data. GPU skinning and the sail arena are unchanged.
+
+An extracted actual-code Metal fixture seeds 600 unchanged resources: the old
+implementation performs 4,800 warm repeat allocations over eight sweeps; the
+repair performs zero. It also passes revised-data GPU reads after cache clear,
+selective count/byte eviction, hit promotion and bookkeeping cleanup. No
+permanent tests are added. See `docs/metal-frame-pacing.md` for the owner,
+alternative decision and claim limits.
+
+Canonical `run.sh --stage-only` succeeds after the player game exited: portable
+inputs, engine build, nine renderer consumer checks, zero pending gameplay
+scripts, resource ownership and app signing pass. Installed engine SHA-256 is
+`fb521607d0f5b34d79668582d6f1828aa3defc55d46386e52ad52c39b13db4e9`.
+Normal app launch creates PID 60047 at 21:04:36; its menu renders. The player
+loads a sea scene before the next UI action (that action was rejected because
+the user changed the window). Native observation shows 38 FPS, six fleet HUD
+entries, rain and the island at December 28, 1668, 14:30. Ships and reflections
+remain visible; no material FPS recovery is proven. The intended latest save
+is `Кампот/Пуэрто-Рико - море 2`, created 20:59; the player's exact selected
+filename was not observed.
+
+Two follow-up samples find >99% main-thread background sleep, not rendering;
+the displayed FPS is therefore insufficient for paired allocation evidence.
+The foreground profile remains pending the player keeping the game active.
+A bounded 60-second CPU-activity watcher finds no active interval; no further
+sample or optimization is selected from this inactive evidence. Continuation
+owner: the current task, triggered by the player's active-sea confirmation.
+No process was stopped by this task; SAVE/config and content are unchanged by
+delivery. Disposition: component and installation verified; original FPS
+outcome remains unresolved, including same-save warm allocations and nearest
+camera/crew/shadow comparison. The game remains available to the player.
+
+After the player confirms active gameplay, a fresh five-second foreground
+sample contains 2,700 main-thread samples: buffer creation 136 (5.0%), raw
+residency 181 (6.7%), reflections 427 (15.8%), sailors 700 (25.9%), Execute
+360 (13.3%) and SEA_AI 182 (6.7%). These overlapping inclusive shares are
+relative CPU samples, not frame timings or a controlled camera-matched gain.
+Native observation shows 40 FPS at a neighboring camera; the player's 21:12:03
+attachment shows 62 FPS from another view. Allocation cost is materially
+reduced; all-scene FPS recovery and long-session stability remain unresolved.
+
+Installed disassembly binds a 142-sample sailor hot loop to repeated FNV hashing
+of the same immutable bone palette for material packets. The source candidate
+now evaluates that exact full-byte hash lazily once per accepted pose; begin,
+end and source cleanup invalidate it together. Extracted actual methods pass
+1,000 repeated packets with one hash, independent 256-bone byte oracles,
+changed last-byte/new-offset pose, nested/invalid rejection and failed-upload
+state. This second component is compiled in the native engine below; installation
+and actual crew/shadow replay remain pending.
+
+The player additionally reports distant running sailors/high ship detail and
+a pale horizon-water strip that breaks at island silhouettes (21:12:03 and
+21:12:20 screenshots). Distance/FOV admission and the water/fog endpoint are
+separate investigations; the sky/weather direction is retained. Source confirms
+no sailor distance gate, but sailors already use low-character meshes, while
+sails and ropes have distance/FOV reductions. The sampled sailors' distances
+are unknown; no arbitrary-distance draw suppression is introduced.
+
+Horizon component: `fs_skyfog` treats the SkyFog veil flag as an additive override
+despite its actual `srcalpha/invsrcalpha` technique, suppressing local in-scatter
+only for that veil. Removing that argument restores the shared transport;
+actual blend mode, weather, cloud-free air field, water material and veil alpha
+stay unchanged. The actual Metal fragment reproduces the darkening at alpha0/.5/1
+with fixed medium and passes after correction; no-volume, additive and non-veil
+draws stay identical. This is a component proof, not the player's visual verdict.
+
+Native build succeeds with both lazy pose-hash and veil corrections as
+`b7afcba6722cb6b292da1ab1c781097c5e452d2dbb39b1d0250cf31c8038477e`.
+After the player saves/exits, canonical `run.sh --stage-only` succeeds at 21:21:39;
+8,252 portable inputs, nine renderer consumer checks, zero pending gameplay
+scripts and app signing pass. Signed installed engine SHA-256 is
+`d5f417e0fd11c79ff34a5d15f8aca04622c6f72a87237e6d94fa8c991105ff9c`.
+The normal player app starts PID 96502 at 21:21:44, using the existing player
+state and bundle PROGRAM/RESOURCE. The player reaches sea before the next UI
+action; that action is rejected and no menu click is sent into gameplay.
+
+Actual replay rejects horizon acceptance: the 21:23:17 screenshot exposes a
+hard water rectangle and a separate vertical sky seam; the 21:24:30 spyglass
+image exposes stair-step patterns across both distant island and ship at
+2,121.5 m. The 21:25:57 evening image retains the water rectangle. The earlier
+constant-medium veil fixture proves only its corrected blend component.
+Native observations 68/88 FPS and player screenshots 63/56/82 FPS have different
+views, zoom and daylight; they do not prove a paired gain. The player reports
+no noticeable recovery, so the original FPS requirement stays unresolved.
+
+The player leaves gameplay active for the 21:24:46 five-second sample
+`.cache/diagnostics/fps-20261010-final-foreground.sample.txt`: 2,362 main samples,
+Realize 1,885 (79.8%), Execute 405 (17.1%), reflections 472 (20.0%), sailors
+352 (14.9%), buffer creation 166 (7.0%), repeated RTTI 352 (14.9%) and lazy
+pose hashing 29 (1.2%). Inclusive shares overlap and the camera is not paired
+with the first capture. No GPU timing is available from this public launch.
+The remaining render submission cost, stale reflected weather-view binding
+and far-depth AO precision are separate source investigations; no distance
+suppression or graphics downgrade has been applied.
+
+The next bounded batch corrects the proved stale-view owner: preparation before
+the consuming render encoder checks the existing frame/view/projection/origin/
+terrain key. Reflection views cannot remain bound when water or shadow receivers
+restore the main view. Actual LocalWeatherVolume/skyLocalMedium Metal reproduction
+seeds main then cube: stale main binding has 630/1,281 identity samples and
+transport error 1.08644; restored preparation has zero identity samples and zero
+error to baseline. Repeated same-view and legitimate cube-view negatives pass.
+The separate smooth vertical sky seam remains unbound until installed replay.
+
+Actual AO GPU reproduction identifies the spyglass mechanism independently:
+an unobstructed plane at 2,121.5 m falsely self-occludes only under strong zoom.
+Depth32 reconstruction error exceeds the 0.8 m AO radius, and inverse-projection
+scaling plus a forced two-pixel floor sample an unresolved neighborhood. The
+candidate uses actual projected radius and fades AO when symmetric two-ULP depth
+uncertainty exceeds its existing radius*bias budget. All 24 plane cases at
+700/1,200/2,121.5/3,500 m, ordinary/telescope FOV and three slopes stay AO=255;
+near contact stays flat255/contact187/halo255. A quarter-radius admission was
+rejected because it retained false contours at 700 m. The final production
+shader itself passes the same GPU oracle; no permanent test is added.
+
+Remaining RTTI cost is reduced at the binding owner: SetTexture retains its
+AddRef/Release semantics and classifies changed bindings once; 19 draw-time
+2D/cube/volume casts use borrowed classifications. Reset/cleanup clears them
+before releasing owned base pointers. Actual-resource sanitizer checks preserve
+all eight stages, null/unknown/type transitions, same-pointer calls, duplicate
+refs, invalid stage rejection and reset-like cleanup/rebind; the production
+methods match those tested. Graphics, draw admission and texture bytes are
+unchanged. Native build succeeds as
+`de7faf3e5f22a17a2bfa4aff978b6b8d216372a21c829d90bcc852e0dfaeff59`.
+The player process exits and canonical staging completes before the subsequent
+weather request arrives. Signed installed engine is
+`061aee869b3e76517b75705e413f7eb2d6595c7cf81decebe0333f9dba133990`;
+the previous d5f417e0 engine is backed up, SAVE/config/resources are preserved,
+8,252 portable inputs and all nine consumer checks pass with zero pending
+gameplay inputs. The game is kept closed for the requested weather investigation.
+Installed sea/spyglass/FPS replay remains unresolved; the current task owns
+integration, staging and replay.
+
+### Weather calendar clock — October 10, installed; scene replay unresolved
+
+The player rejects a fixed 1–3-hour rain cutoff and mandatory clear intervals:
+rain duration must emerge from the dynamic weather, with short and longer spells.
+No maximum-rain timer or forced alternation is introduced. The existing stochastic
+front generator, continuous rain/cloud/wind transitions, seasonal probabilities
+and quest locks are retained.
+
+The actual clock owner is wrong on the world map: WEATHER advances meteorology
+with entity seconds, while WorldMap advances its calendar with hours-per-second
+(default 1). Sea uses 250 entity seconds/hour; ordinary land uses 350. A seeded
+six-hour replay produces different front RNG and phase in sea/map; an already
+wet front still has rain0.799859 after six map hours, versus initial0.8.
+This reproduces the timer mismatch; it does not prove the exact photographed
+sea rain was a stuck quest lock or that all long rain is erroneous.
+
+Candidate: WEATHER advances its existing model from the same unwrapped calendar
+increment used by its solar clock; WorldMap forwards its actual calendar increment
+through WEATHER_BASE before wrapping the date. Map WEATHER.Time.speed remains0,
+so its execute layer cannot advance meteorology a second time. Version-1 model
+coordinates retain350 units/game-hour, preserving saved phase/RNG/current fronts
+and requests. Full intervals are consumed rather than clipped to one second.
+Lightning cadence and checkpoint I/O retain entity time; visual smoothing,
+indoor rain suppression and quest locks remain independent consumers.
+
+A disposable probe uses the production Engine and actual ATTRIBUTES object:
+six calendar hours on sea, land, map and accelerated map retain the same front
+RNG; worst condition error is0.003553 in wind-speed units. Seeded wet-to-dry map
+state clears below rain0.03. Prior version-1 state loads with its exact phase,
+finite requests expire, quest locks remain, pause/invalid deltas do not advance,
+saved continuation preserves RNG, and advancing calendar does not advance
+lightning cadence. Canonical build/staging succeeds after the player exits,
+including the revised ordered patch and shared WEATHER_BASE consumer: four source
+files change in the cache, all nine renderer consumers pass, scripts have zero
+pending inputs and app signing succeeds. Installed signed engine is
+`e675530ab7a88ec6f8b971adb978d1d0f6bfba881fc2ae488583821cbd847385`;
+the previous061aee86 is preserved by the installer. Configuration SHA-256 stays
+`dd594a8f58b5c914661f379e02c8ee5022b234336aa83d4f74fba8be9bbf92a0`.
+A final patch-context-only cleanup reaches canonical staging again with zero
+cache-source changes and matching installed inputs; the installer skips copying.
+
+The public launcher starts PID23162 at21:44:40 with diagnostic
+STORM_METAL_PROFILE=1 inherited only by this process (ordinary subsequent launch
+defaults to0). The menu renders and remains animated. Native automation moves
+the cursor but two menu clicks and keyboard activation do not open the save list;
+no save or graphics setting is changed. The player is asked to load the existing
+sea save and leave it active. Menu metrics are excluded from gameplay FPS claims.
+Disposition: native/calendar component and installation verified; actual old-save,
+sea/map transition, weather evolution, horizon/spyglass and paired FPS replay
+remain unresolved with the current task as replay owner.
 
 ### Weather event startup crash — October 10, 20:38
 

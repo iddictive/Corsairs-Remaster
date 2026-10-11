@@ -48,11 +48,18 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
     return 0;
 }
 
+void WEATHER::AdvanceWeatherHours(float hours)
+{
+    if (ATTRIBUTES::IsLive(weatherState)) weatherEngine.advanceHours(hours);
+}
+
 void WEATHER::UpdateWeatherEngine(uint32_t deltaTime)
 {
     if (!ATTRIBUTES::IsLive(weatherState)) { weatherState=nullptr; return; }
     const float dt=static_cast<float>(deltaTime)*.001f;
-    weatherEngine.update(dt); weatherCheckpoint+=dt;
+    AdvanceWeatherHours(static_cast<float>(deltaTime)*fFloats[whf_time_speed]);
+    // Lightning cadence and checkpoint I/O stay on the entity simulation clock.
+    weatherEngine.lightningRemaining-=dt; weatherCheckpoint+=dt;
     if (weatherCheckpoint>=5.f) { weatherCheckpoint=0.f; SaveWeatherEngine(); }
     const auto &c=weatherEngine.current;
     const int rain=c.rain>.03f, storm=c.storm>.5f;

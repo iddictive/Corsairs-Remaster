@@ -38,7 +38,7 @@
      void UpdateVisualState(uint32_t deltaTime);
  #endif
  
-@@ -60,8 +71,10 @@
+@@ -60,8 +71,11 @@
      float GetVisualFloat(uint32_t) override;
      void GetVisualVector(uint32_t, CVECTOR *) override;
      float GetVisualRainIntensity() override { return visualState.rainIntensity / 5000.f; }
@@ -48,6 +48,7 @@
 +    void SetVisualRainDrops(float) override {} // Rain is a consumer.
 +    float GetCloudCoverage() override { return weatherEngine.current.coverage; }
 +    float GetCloudDensity() override { return .35f + weatherEngine.current.coverage * .55f; }
++    void AdvanceWeatherHours(float hours) override;
  #endif
  
    public:
@@ -61,12 +62,13 @@
      {
 --- a/src/libs/weather/include/weather_base.h
 +++ b/src/libs/weather/include/weather_base.h
-@@ -96,6 +96,8 @@
+@@ -96,6 +96,9 @@
      virtual uint32_t GetVisualColor(uint32_t code) { return GetColor(code); }
      virtual float GetVisualFloat(uint32_t code) { return GetFloat(code); }
      virtual float GetVisualRainIntensity() { return 0.f; }
 +    virtual float GetCloudCoverage() { return .32f; }
 +    virtual float GetCloudDensity() { return .48f; }
++    virtual void AdvanceWeatherHours(float) {}
      virtual float GetVisualRainDrops() { return 0.f; }
      virtual void SetVisualRainDrops(float) {}
  #endif
@@ -322,7 +324,27 @@
 +
 +void WdmObjects::UpdateWind(float)
 +{
-+    // WEATHER advances once in its execute layer; the map only samples it.
++    // The map's calendar owner advances WEATHER; wind only samples its state.
  }
  
  // Get save string
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -14,2 +14,3 @@
+ #include "shared/messages.h"
++#include "weather_base.h"
+ #include "core.h"
+@@ -402,7 +403,12 @@
+     // Updating the date
+     if (hour < 0.0f)
+         hour = 0.0f;
+-    hour += dltTime * timeScale;
++    const float calendarHours = dltTime * timeScale;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    if (const auto weatherId = core.GetEntityId("weather"))
++        static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId))->AdvanceWeatherHours(calendarHours);
++#endif
++    hour += calendarHours;
+     auto days = static_cast<int32_t>(hour / 24.0f);
+     hour = (hour / 24.0f - days) * 24.0f;
+     const auto dtHour = static_cast<int32_t>(hour);

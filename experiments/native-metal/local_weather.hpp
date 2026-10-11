@@ -100,6 +100,11 @@ struct LocalWeatherVolume {
     simd_float3 viewOrigin{};
     simd_float4x4 clipFromWorld=matrix_identity_float4x4;
     simd_float4 cameraRange{};
+    bool matches(uint64_t frame,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin)const{
+        const auto vp=simd_mul(projection,view);
+        return current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&
+            simd_all(origin==viewOrigin)&&std::memcmp(&vp,&viewProjection,sizeof(vp))==0;
+    }
     bool prepare(id<MTLDevice>device,id<MTLLibrary>library){
         if(segmentKernel)return true;
         NSError*error=nil;
@@ -113,7 +118,7 @@ struct LocalWeatherVolume {
     }
     bool encode(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&weather,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin,id<MTLTexture>shape,id<MTLTexture>detail,id<MTLTexture>regional,id<MTLTexture>atmosphere,id<MTLBuffer>lighting,bool outdoor){
         auto vp=simd_mul(projection,view);
-        if(outdoor&&current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&simd_all(origin==viewOrigin)&&std::memcmp(&vp,&viewProjection,sizeof(vp))==0)return true;
+        if(outdoor&&matches(frame,view,projection,origin))return true;
         current=false;if(!outdoor)return true;
         if(!prepare(device,library))return false;
         if(terrainRevision!=weatherTerrain.revision){

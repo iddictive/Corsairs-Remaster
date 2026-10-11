@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-// Meteorology runs on elapsed simulation seconds, independently of the solar clock.
+// Meteorology follows elapsed calendar hours, independently of the hour of day.
 // Units retain Storm's wind-speed convention, so sailing/AI keep the same contract.
 namespace storm_weather {
 struct Conditions {
@@ -42,8 +42,18 @@ struct Engine {
         locked=lock; requestedTornado=tornado; tornadoEmitted=false;
     }
     void release() { locked=false; requestRemaining=0.f; requestedTornado=false; }
-    void update(float dt) {
-        dt=std::clamp(std::isfinite(dt)?dt:0.f,0.f,1.f);
+    void advanceHours(float hours) {
+        if (!std::isfinite(hours) || hours<=0.f) return;
+        // Version-1 saves retain their model coordinate: 350 units per game hour.
+        // Consume the full calendar interval, including accelerated map travel.
+        double remaining=double(hours)*350.0;
+        while (remaining>0.0) {
+            const float step=static_cast<float>(std::min(remaining,1.0));
+            updateStep(step); remaining-=step;
+        }
+    }
+  private:
+    void updateStep(float dt) {
         elapsed+=dt;
         if (elapsed>=duration) {
             const float remainder=elapsed-duration;
@@ -68,8 +78,8 @@ struct Engine {
         current.speed+=(target.speed-current.speed)*a;
         current.angle+=std::remainder(target.angle-current.angle,6.2831853f)*a;
         current.storm+=(target.storm-current.storm)*a;
-        lightningRemaining-=dt;
     }
+  public:
     bool lightning() {
         if (current.rain<.35f || current.storm<.15f || lightningRemaining>0.f) return false;
         lightningRemaining=4.f+random()*16.f; return true;

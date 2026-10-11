@@ -62,14 +62,27 @@ kernel void ambient_occlusion_half(depth2d<float, access::read> depth [[texture(
     if (d >= 0.999999f || coverage.read(q).r < .5f) { output.write(float4(1.0f), h); return; }
     float2 uv = (float2(q) + .5f) / u.fullSize;
     float3 p = aoPosition(uv, d, u);
+    // Perspective Depth32 cannot resolve sub-metre contacts at kilometre
+    // distances. Fade out before its reconstruction error exceeds AO's bias.
+    uint depthBits = as_type<uint>(d);
+    float lowerDepth = as_type<float>(depthBits > 2u ? depthBits - 2u : 0u);
+    float upperDepth = as_type<float>(depthBits + 2u);
+    float depthError = max(abs(aoPosition(uv, lowerDepth, u).z - p.z),
+                           abs(aoPosition(uv, upperDepth, u).z - p.z));
+    float precisionBudget = max(u.radius * u.bias, 1.e-6f);
+    float precisionWeight = 1.f - smoothstep(precisionBudget * .5f, precisionBudget, depthError);
+    if (precisionWeight <= 0.f) { output.write(float4(1.f), h); return; }
     float3 n = aoNormal(depth, q, u);
     constexpr float2 pattern[8] = {float2(1,0),float2(-1,0),float2(0,1),float2(0,-1),
                                     float2(.707f,.707f),float2(-.707f,.707f),
                                     float2(.707f,-.707f),float2(-.707f,-.707f)};
     float rotation = fract(sin(dot(float2(h), float2(12.9898f,78.233f))) * 43758.5453f) * 6.2831853f;
     float cs = cos(rotation), sn = sin(rotation), blocked = 0.0f, weight = 0.0f;
-    float pixelRadius = clamp(u.radius * max(abs(u.inverseProjection[0][0]), abs(u.inverseProjection[1][1]))
-                              * .5f * min(u.fullSize.x, u.fullSize.y) / max(abs(p.z), .05f), 2.0f, 6.0f);
+    float projectedRadius = u.radius * .5f * max(u.fullSize.x / max(abs(u.inverseProjection[0][0]), 1.e-6f),
+                                                u.fullSize.y / max(abs(u.inverseProjection[1][1]), 1.e-6f))
+                            / max(abs(p.z), .05f);
+    if (projectedRadius < 1.f) { output.write(float4(1.f), h); return; }
+    float pixelRadius = min(projectedRadius, 6.f);
     for (uint i=0; i<8; ++i) {
         float2 dir = float2(pattern[i].x*cs-pattern[i].y*sn, pattern[i].x*sn+pattern[i].y*cs);
         float scale = pixelRadius * (.35f + .65f * float(i+1) / 8.0f);
@@ -83,7 +96,7 @@ kernel void ambient_occlusion_half(depth2d<float, access::read> depth [[texture(
         blocked += max(0.0f, dot(n, delta) / max(distance, 1.0e-4f) - u.bias) * range;
         weight += range;
     }
-    float ao = 1.0f - u.intensity * blocked / max(weight, .25f);
+    float ao = 1.0f - precisionWeight * u.intensity * blocked / max(weight, .25f);
     output.write(float4(saturate(ao)), h);
 }
 
