@@ -39,6 +39,12 @@ Startup compilation must be checked against the installed headers. A probe using
 the source tree's newer headers can pass while the played app rejects new event
 constants in `AICannon.c`.
 
+`tools/sync_metal_gameplay.py check` compares both the cache and the installed
+app, including receipt integrity. A zero cache delta alone does not establish
+installed parity. Its compiler-ready flag checks the engine revision, not script
+compilation; startup compatibility requires the complete installed `seadogs.c`
+include chain rather than selected function fixtures.
+
 gameplay/ remains ignored scratch space. Accepted edits need integration into
 their durable source before canonical staging or clean-checkout delivery.
 

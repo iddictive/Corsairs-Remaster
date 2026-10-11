@@ -14,12 +14,13 @@
      int32_t traceid;
 --- a/src/libs/geometry/src/geom_static.cpp
 +++ b/src/libs/geometry/src/geom_static.cpp
-@@ -8,6 +8,11 @@
+@@ -8,6 +8,12 @@
  Import library main file
  ******************************************************************************/
  #include "geom.h"
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
 +#include "island_geometry.hpp"
++#include "weather_terrain.hpp"
 +#include <cstdlib>
 +#include <cctype>
 +#endif
@@ -34,8 +35,8 @@
 +    std::string islandPath = fname ? fname : "";
 +    for (char& c : islandPath) c = c == '\\' ? '/' : char(std::tolower(static_cast<unsigned char>(c)));
 +    const char* islandMode = std::getenv("STORM_METAL_ISLAND_GEOMETRY");
-+    const bool refineIsland = islandMode && !std::strcmp(islandMode,"1") &&
-+                              island_geometry::islandModelPath(islandPath);
++    const bool captureIsland = island_geometry::islandModelPath(islandPath);
++    const bool refineIsland = islandMode && !std::strcmp(islandMode,"1") && captureIsland;
 +    std::vector<RDF_TRIANGLE> islandTriangles;
 +    std::vector<std::vector<uint8_t>> islandVertices;
 +#endif
@@ -47,7 +48,7 @@
              abortLoad(fmt::format("Failed to read index buffer ({} bytes)", triangleDataSize));
          }
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
-+        if (refineIsland) islandTriangles.assign(trg, trg + rhead.ntriangles);
++        if (captureIsland) islandTriangles.assign(trg, trg + rhead.ntriangles);
 +#endif
          srv.UnlockIndexBuffer(idx_buff);
      }
@@ -57,7 +58,7 @@
      // read vertices
      auto itColData = colData.begin();
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
-+    if (refineIsland) islandVertices.resize(rhead.nvrtbuffs);
++    if (captureIsland) islandVertices.resize(rhead.nvrtbuffs);
 +#endif
      for (v = 0; v < rhead.nvrtbuffs; v++)
      {
@@ -67,7 +68,7 @@
          }
  
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
-+        if (refineIsland && !(vbuff[v].type >> 2)) {
++        if (captureIsland && !(vbuff[v].type >> 2)) {
 +            auto* bytes = reinterpret_cast<uint8_t*>(vrt);
 +            islandVertices[v].assign(bytes, bytes + vbuff[v].size);
 +        }
@@ -75,12 +76,12 @@
          srv.UnlockVertexBuffer(vbuff[v].dev_buff);
      }
  
-@@ -293,11 +319,66 @@
+@@ -293,11 +319,68 @@
          }
      }
 -    srv.free(rmat);
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
-+    if (refineIsland && !islandTriangles.empty()) {
++    if (captureIsland && !islandTriangles.empty()) {
 +        std::vector<island_geometry::Face> faces;
 +        for (int o=0; o<rhead.nobjects; ++o) {
 +            const auto& ob=object[o];
@@ -104,9 +105,10 @@
 +                if(valid)faces.push_back(face);
 +            }
 +        }
++        storm_metal::weatherTerrain.capture(this,faces);
 +        islandDraws.resize(rhead.nobjects);
 +        size_t changedFaces=0,outputTriangles=0;
-+        for(int o=0;o<rhead.nobjects;o++) {
++        for(int o=0;refineIsland && o<rhead.nobjects;o++) {
 +            std::vector<island_geometry::Face> objectFaces;for(const auto& face:faces)if(face.object==o)objectFaces.push_back(face);
 +            if(objectFaces.empty())continue;
 +            island_geometry::Surface surface(objectFaces);
@@ -138,6 +140,7 @@
  GEOM::~GEOM()
  {
 +#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
++    storm_metal::weatherTerrain.clear(this);
 +    for(const auto& objectDraws:islandDraws)for(const auto& draw:objectDraws){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}
 +#endif
      for (int32_t v = 0; v < rhead.nvrtbuffs; v++)

@@ -2,6 +2,7 @@
 #import <Metal/Metal.h>
 #include "dynamic_sky.hpp"
 #include "volumetric_sky.hpp"
+#include "local_weather_fixture.hpp"
 #include <cmath>
 #include <cfloat>
 #include <cstdio>
@@ -59,6 +60,9 @@ static simd_float3 renderSky(id<MTLDevice> device, id<MTLLibrary> library, id<MT
     [encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];
     [encoder setFragmentBytes:&drawWeather length:sizeof(drawWeather) atIndex:2];
     clouds.bind(encoder);
+    auto fogDraw=makeSkyFogDraw(matrix_identity_float4x4,simd_make_float4(0,0,16,16),false);
+    [encoder setFragmentBytes:&fogDraw length:sizeof(fogDraw) atIndex:9];
+    [encoder setFragmentTexture:clouds.shape atIndex:27];
     [encoder setFragmentTexture:sample atIndex:0];
     [encoder setFragmentTexture:sample atIndex:1];
     [encoder setFragmentSamplerState:sampler atIndex:0];
@@ -81,6 +85,7 @@ static void checkStars(id<MTLDevice> device,id<MTLLibrary> library) {
     d.usage=MTLTextureUsageShaderRead|MTLTextureUsageRenderTarget;d.storageMode=MTLStorageModeShared;
     auto target=[device newTextureWithDescriptor:d];d.width=d.height=1;
     auto sprite=[device newTextureWithDescriptor:d],cloud=[device newTextureWithDescriptor:d];
+    d.textureType=MTLTextureType3D;d.depth=1;d.usage=MTLTextureUsageShaderRead;auto inactiveVolume=[device newTextureWithDescriptor:d];
     simd_float4 white{1,1,1,1};[sprite replaceRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0 withBytes:&white bytesPerRow:16];
     auto p=[MTLRenderPipelineDescriptor new];p.vertexFunction=[library newFunctionWithName:@"dynamic_stars_vs"];p.fragmentFunction=[library newFunctionWithName:@"dynamic_stars_fs"];
     auto a=p.colorAttachments[0];a.pixelFormat=MTLPixelFormatRGBA32Float;a.blendingEnabled=YES;a.sourceRGBBlendFactor=MTLBlendFactorSourceAlpha;a.destinationRGBBlendFactor=MTLBlendFactorOne;
@@ -90,7 +95,7 @@ static void checkStars(id<MTLDevice> device,id<MTLLibrary> library) {
     auto render=[&](float opacity){
         simd_float4 moment{0,0,0,opacity};[cloud replaceRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0 withBytes:&moment bytesPerRow:16];
         auto command=[queue commandBuffer];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=target;pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].storeAction=MTLStoreActionStore;
-        auto e=[command renderCommandEncoderWithDescriptor:pass];[e setRenderPipelineState:pipeline];[e setVertexBytes:&star length:sizeof(star) atIndex:0];[e setVertexBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentTexture:sprite atIndex:0];[e setFragmentTexture:cloud atIndex:2];[e setFragmentTexture:cloud atIndex:3];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];[e endEncoding];[command commit];[command waitUntilCompleted];need(command.status==MTLCommandBufferStatusCompleted,"star GPU command");
+        auto e=[command renderCommandEncoderWithDescriptor:pass];[e setRenderPipelineState:pipeline];[e setVertexBytes:&star length:sizeof(star) atIndex:0];[e setVertexBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentBytes:&draw length:sizeof(draw) atIndex:1];auto fogDraw=makeSkyFogDraw(matrix_identity_float4x4,simd_make_float4(0,0,16,16),false);[e setFragmentBytes:&fogDraw length:sizeof(fogDraw) atIndex:9];[e setFragmentTexture:sprite atIndex:0];[e setFragmentTexture:cloud atIndex:2];[e setFragmentTexture:cloud atIndex:3];[e setFragmentTexture:inactiveVolume atIndex:27];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];[e endEncoding];[command commit];[command waitUntilCompleted];need(command.status==MTLCommandBufferStatusCompleted,"star GPU command");
         simd_float4 pixel{};[target getBytes:&pixel bytesPerRow:16 fromRegion:MTLRegionMake2D(8,4,1,1) mipmapLevel:0];return pixel.x;
     };
     need(std::abs(render(0)-1)<1e-5f&&std::abs(render(.5f)-.5f)<1e-5f&&render(1)<1e-5f,
@@ -99,8 +104,9 @@ static void checkStars(id<MTLDevice> device,id<MTLLibrary> library) {
 
 int main(int argc, char *argv[]) { @autoreleasepool {
     using namespace storm_metal;
+    if(argc==3&&std::strcmp(argv[1],"--local-weather")==0)return checkLocalWeather(argv[2]);
     const bool cpuOnly = argc == 2 && std::strcmp(argv[1], "--cpu-only") == 0;
-    need(argc == 1 || cpuOnly, "usage: dynamic_sky-probe [--cpu-only]");
+    need(argc == 1 || cpuOnly, "usage: dynamic_sky-probe [--cpu-only | --local-weather output-directory]");
     auto noon = makeDynamicSkyUniform({.hour=12.f});
     auto midnight = makeDynamicSkyUniform({.hour=0.f});
     need(noon.sunDirection_hour.y > .9f && midnight.sunDirection_hour.y < -.9f,

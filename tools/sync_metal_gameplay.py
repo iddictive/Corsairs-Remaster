@@ -374,6 +374,11 @@ def main():
         print(f"Metal gameplay: {len(changes)} files pending; compiler {'ready' if ready else 'build/stage pending'}")
         for path in sorted(changes):
             print(path)
+        if INSTALLED_APP.is_dir():
+            installed_changes = plan(INSTALLED_APP / "Contents/Resources", args.path, source_set)
+            print(f"Installed Metal gameplay: {len(installed_changes)} files pending")
+            for path in sorted(installed_changes):
+                print(path)
         if args.action == "apply":
             apply(changes, args.path, source_set)
             print("Applied to native-metal. SAVE, config and renderer resources unchanged.")

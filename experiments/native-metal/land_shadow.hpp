@@ -18,6 +18,7 @@
 // casters only; source light/time/weather owns illumination, never a fixed grade.
 struct LandShadow {
  id<MTLTexture> fogEnvironment=nil;
+ storm_metal::SkyFogDraw localFog{};id<MTLTexture> localVolume=nil;
  static constexpr const char* OptimizationTag="land-shadow-opt-20260918";
  static constexpr float NearSunCoverage=96.f;
  static constexpr float FarSunCoverage=288.f;
@@ -256,16 +257,17 @@ static inline float evaluateSunCascades(depth2d<float> nearMap,depth2d<float> fa
  float farLit=evaluateSunVisibility(farMap,farCoord,texelSize);
  return mix(nearLit,farLit,smoothstep(.75f,.875f,extent));
 }
-fragment float4 land_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],depth2d<float> nearMap [[texture(0)]],texture2d<float> diffuse [[texture(1)]],sampler materialSampler [[sampler(0)]],depth2d<float> farMap [[texture(2)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment float4 land_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],depth2d<float> nearMap [[texture(0)]],texture2d<float> diffuse [[texture(1)]],sampler materialSampler [[sampler(0)]],depth2d<float> farMap [[texture(2)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
  if(o.fog==0 || all(o.direct==float3(0)))return float4(0);
  float lit=evaluateSunCascades(nearMap,farMap,o.shadow,o.shadowFar,u.shadowTexel.x);
  float occlusion=(1.f-lit)*.8f;
  float3 original=clamp(o.total,0.,1.),shadowed=clamp(o.total-o.direct*occlusion,0.,1.);
  float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
  float3 fogged=mix(skyFogColor(o.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment),original,z_fog);
- return float4(clamp((original-shadowed)*z_fog/max(fogged,float3(.00001)),0.,1.),0);
+ float4 medium=skyLocalMedium(o.p.xyz,fogDraw,localVolume);
+ return float4(clamp((original-shadowed)*z_fog*medium.a/max(fogged*medium.a+medium.rgb,float3(.00001)),0.,1.),0);
 }
-fragment float4 land_point_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],constant PointReceiverU&points [[buffer(6)]],array<depthcube<float>,8> maps [[texture(0)]],depth2d<float> sunNear [[texture(8)]],depth2d<float> sunFar [[texture(9)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment float4 land_point_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],constant PointReceiverU&points [[buffer(6)]],array<depthcube<float>,8> maps [[texture(0)]],depth2d<float> sunNear [[texture(8)]],depth2d<float> sunFar [[texture(9)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
  if(o.fog==0 || (!points.pointMask&&!points.sunEnabled))return float4(0);
  constexpr sampler comparison(coord::normalized,address::clamp_to_edge,filter::linear,compare_func::less_equal);
  float3 worldPosition=o.shadow.xyz/max(o.shadow.w,.00001),removed=0;
@@ -277,7 +279,8 @@ fragment float4 land_point_shadow(O o [[stage_in]],constant U&u [[buffer(1)]],co
  float3 original=clamp(o.total,0.,1.),shadowed=clamp(o.total-removed,0.,1.);
  float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=o.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}
  float3 fogged=mix(skyFogColor(o.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment),original,z_fog);
- return float4(clamp((original-shadowed)*z_fog/max(fogged,float3(.00001)),0.,1.),0);
+ float4 medium=skyLocalMedium(o.p.xyz,fogDraw,localVolume);
+ return float4(clamp((original-shadowed)*z_fog*medium.a/max(fogged*medium.a+medium.rgb,float3(.00001)),0.,1.),0);
 }
 )MSL";
  static constexpr const char*materialSource=R"MSL(
@@ -362,8 +365,8 @@ float4 shadeLand(O v,constant U&u,constant LandSampling&s,array<texture2d<float>
 }
 fragment float4 fs_landlit(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]){return shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,u.fogColor.rgb);}
 fragment AimReceiverO fs_landlit_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]){return {shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,u.fogColor.rgb),v.p.z,identity};}
-fragment float4 fs_landlit_skyfog(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {return shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment));}
-fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {return {shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment)),v.p.z,identity};}
+fragment float4 fs_landlit_skyfog(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {return skyLocalComposite(shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment)),v.p.xyz,fogDraw,localVolume);}
+fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {return {skyLocalComposite(shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment)),v.p.xyz,fogDraw,localVolume),v.p.z,identity};}
 
 )MSL";
  bool prepare(id<MTLDevice>device,MTLPixelFormat colorFormat,MTLPixelFormat depthFormat){
@@ -406,9 +409,9 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
    if(!hasTexture||texture!=p.alphaTexture){[e setFragmentTexture:p.alphaTexture atIndex:slot];texture=p.alphaTexture;hasTexture=true;}
    if(!hasSampler||sampler!=p.sampler){[e setFragmentSamplerState:p.sampler atIndex:0];sampler=p.sampler;hasSampler=true;}
   }
-  void view(id<MTLRenderCommandEncoder>e,const Packet&p,id<MTLTexture>fogEnvironment){
+  void view(id<MTLRenderCommandEncoder>e,const Packet&p,id<MTLTexture>fogEnvironment,const storm_metal::SkyFogDraw&localFog,id<MTLTexture>localVolume){
    auto fog=storm_metal::makeSkyFogDraw(simd_mul(p.world,simd_inverse(p.mvp)),{float(p.viewport.originX),float(p.viewport.originY),float(p.viewport.width),float(p.viewport.height)},fogEnvironment!=nil);
-   [e setFragmentBytes:&fog length:sizeof(fog) atIndex:9];[e setFragmentTexture:fogEnvironment atIndex:26];
+   fog.options.z=localFog.options.z;fog.volumeClipFromWorld=localFog.volumeClipFromWorld;fog.volumeCameraRange=localFog.volumeCameraRange;[e setFragmentTexture:localVolume atIndex:27];[e setFragmentBytes:&fog length:sizeof(fog) atIndex:9];[e setFragmentTexture:fogEnvironment atIndex:26];
    const auto&v=p.viewport;
    if(!hasViewport||viewport.originX!=v.originX||viewport.originY!=v.originY||viewport.width!=v.width||viewport.height!=v.height||viewport.znear!=v.znear||viewport.zfar!=v.zfar){[e setViewport:v];viewport=v;hasViewport=true;}
   }
@@ -462,7 +465,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
   for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];
    // Keep the receiver's original parameter values; only reuse the matrices.
    Uniform u=fallbackUniforms[i];u.parameters={p.modulation,0,0,0};
-   receiverBindings.common(e,p,p.skinPalette?skinnedReceiver:(p.raw?rawReceiver:receiver));receiverBindings.view(e,p,fogEnvironment);
+   receiverBindings.common(e,p,p.skinPalette?skinnedReceiver:(p.raw?rawReceiver:receiver));receiverBindings.view(e,p,fogEnvironment,localFog,localVolume);
    if(p.raw)[e setVertexBytes:&p.rawReceiver length:sizeof(p.rawReceiver) atIndex:3];else receiverBindings.direct(e,p);
    if(p.skinPalette){SkinUniform skin{p.boneCount,{0,0,0}};receiverBindings.skin(e,p);[e setVertexBytes:&skin length:sizeof(skin) atIndex:5];}
    receiverBindings.material(e,p,1);[e setVertexBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&u length:sizeof(u) atIndex:1];draw(e,p);
@@ -475,7 +478,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
  auto e=[command renderCommandEncoderWithDescriptor:pass];[e setDepthStencilState:equalDepth];[e setFrontFacingWinding:MTLWindingClockwise];for(unsigned slot=0;slot<8;slot++)[e setFragmentTexture:prepass.points[slot].map atIndex:slot];[e setFragmentTexture:map atIndex:8];[e setFragmentTexture:farMap atIndex:9];DrawBindings bindings;bool drew=false;
  for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];if(!p.raw||!p.rawReceiver.receiverEnabled)continue;const auto&source=p.rawReceiver;PointReceiverUniform points{};points.sunEnabled=sunLight!=nullptr&&fallbackUniforms.size()==packets.size();points.sunWorld=points.sunEnabled?fallbackUniforms[i].lightWorld:matrix_identity_float4x4;points.sunWorldFar=points.sunEnabled?fallbackUniforms[i].lightWorldFar:matrix_identity_float4x4;points.shadowTexel={1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0};
   for(unsigned selected=0;selected<lightCount;selected++){const auto&light=lights[selected];const unsigned cubeSlot=shadowSlot(light.lightId);if(!cubeSlot)continue;unsigned sourceSlot=0;while(sourceSlot<8&&(!(source.lightMask&(1u<<sourceSlot))||source.lightIds[sourceSlot]!=light.lightId))++sourceSlot;if(sourceSlot==8)continue;const auto snapshot=source.lightPositionRange[sourceSlot];if(snapshot.w<=.1f||simd_length(snapshot.xyz-light.position)>.001f||std::abs(snapshot.w-light.range)>.001f)continue;points.pointMask|=1u<<sourceSlot;points.cubeSlots[sourceSlot]=cubeSlot;points.positionRange[sourceSlot]=snapshot;points.weights[sourceSlot]=prepass.points[cubeSlot-1].weight;}
-  if(!points.pointMask&&!points.sunEnabled)continue;Uniform u{p.mvp,p.world,{0,0,0,0},p.fogColor,p.fogParams,{1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0},matrix_identity_float4x4};bindings.common(e,p,p.skinPalette?skinnedPointReceiver:rawPointReceiver);bindings.view(e,p,fogEnvironment);[e setVertexBytes:&source length:sizeof(source) atIndex:3];[e setVertexBytes:&points length:sizeof(points) atIndex:6];if(p.skinPalette){SkinUniform skin{p.boneCount,{0,0,0}};bindings.skin(e,p);[e setVertexBytes:&skin length:sizeof(skin) atIndex:5];}[e setVertexBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&points length:sizeof(points) atIndex:6];draw(e,p);drew=true;
+  if(!points.pointMask&&!points.sunEnabled)continue;Uniform u{p.mvp,p.world,{0,0,0,0},p.fogColor,p.fogParams,{1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0},matrix_identity_float4x4};bindings.common(e,p,p.skinPalette?skinnedPointReceiver:rawPointReceiver);bindings.view(e,p,fogEnvironment,localFog,localVolume);[e setVertexBytes:&source length:sizeof(source) atIndex:3];[e setVertexBytes:&points length:sizeof(points) atIndex:6];if(p.skinPalette){SkinUniform skin{p.boneCount,{0,0,0}};bindings.skin(e,p);[e setVertexBytes:&skin length:sizeof(skin) atIndex:5];}[e setVertexBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&points length:sizeof(points) atIndex:6];draw(e,p);drew=true;
   }
   [e endEncoding];applied|=drew;return drew;
  }

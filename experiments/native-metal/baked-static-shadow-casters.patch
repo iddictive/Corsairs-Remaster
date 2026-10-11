@@ -80,7 +80,7 @@
 +    }
 +#endif
  #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
-     if (refineIsland && !islandTriangles.empty()) {
+     if (captureIsland && !islandTriangles.empty()) {
          std::vector<island_geometry::Face> faces;
 --- a/src/libs/geometry/src/geometry.cpp
 +++ b/src/libs/geometry/src/geometry.cpp

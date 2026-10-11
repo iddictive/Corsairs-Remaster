@@ -390,25 +390,25 @@ fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[
 }
 
 
-fragment float4 seafoam_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
-    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return seaFoamModernColor(o,u,t,s);}
-fragment float4 sea2_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment float4 seafoam_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
+    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return skyLocalComposite(seaFoamModernColor(o,u,t,s),o.position.xyz,fogDraw,localVolume,true);}
+fragment float4 sea2_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment,true);
-    return sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth);
+    return skyLocalComposite(sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth),o.position.xyz,fogDraw,localVolume,false);
 }
-fragment SeaAimOutput sea2_modern_fs_skyfog_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment SeaAimOutput sea2_modern_fs_skyfog_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment,true);
-    return seaAimOutput(sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth),o,identity);
+    return seaAimOutput(skyLocalComposite(sea2ModernColor(o,u,t,bump,reflection,s,scene,sceneDepth),o.position.xyz,fogDraw,localVolume,false),o,identity);
 }
-fragment float4 seasun_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
-    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo);}
-fragment float4 sea3_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment float4 seasun_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
+    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return skyLocalComposite(seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo),o.position.xyz,fogDraw,localVolume,true);}
+fragment float4 sea3_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment,true);
-    return sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo);
+    return skyLocalComposite(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo),o.position.xyz,fogDraw,localVolume,true);
 }
-fragment SeaAimOutput sea3_modern_fs_skyfog_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {
+fragment SeaAimOutput sea3_modern_fs_skyfog_aim(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],constant uint2& identity [[buffer(7)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment,true);
-    return seaAimOutput(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo),o,identity);
+    return seaAimOutput(skyLocalComposite(sea3ModernColor(o,u,t,bump,s,scene,sceneDepth,cloudFrom,cloudTo),o.position.xyz,fogDraw,localVolume,true),o,identity);
 }
 )MSL";
 inline const char* seaShaderSource=seaShaderSourceStorage.c_str();

@@ -19,7 +19,7 @@ vertex PO particle_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0
  float4 offset=float4(v[0]*rotation.x+v[1]*rotation.y,v[1]*rotation.x-v[0]*rotation.y,u.vc[13].x,u.vc[13].x);
  float4 center=particleMatrix(float4(v[10],v[11],v[12],1),u.vc+3);o.p=particleMatrix(offset+center,u.vc+7);return o;
 }
-fragment float4 particle_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){
+float4 shade_particle_fs(PO o,constant PU& u,array<texture2d<float>,8> t,array<sampler,8> s){
  float4 a=t[0].sample(s[0],o.uv0),b=t[1].sample(s[1],o.uv1),normal=t[3].sample(s[3],o.uv0);
  float4 mixed=mix(b,a,o.specular.a)*o.diffuse;
  float lighting=dot(normal.rgb*2-1,o.specular.rgb*2-1)+.6f;
@@ -28,7 +28,7 @@ fragment float4 particle_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array
 // Blend animation frames in premultiplied form: hidden RGB in transparent atlas
 // texels cannot bleed into a visible neighbouring animation frame. Preserve the
 // source's AddPowerK alpha-only control (zero deliberately means additive fire).
-fragment float4 particle_modern_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){
+float4 shade_particle_modern_fs(PO o,constant PU& u,array<texture2d<float>,8> t,array<sampler,8> s){
  float4 a=t[0].sample(s[0],o.uv0),b=t[1].sample(s[1],o.uv1),normal=t[3].sample(s[3],o.uv0);
  float weight=saturate(o.specular.a);
  float alpha=mix(b.a,a.a,weight)*o.diffuse.a;
@@ -36,7 +36,7 @@ fragment float4 particle_modern_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]
  float lighting=dot(normal.rgb*2-1,o.specular.rgb*2-1)+.6f;
  return saturate(float4(premultiplied*lighting,dot(saturate(o.t2.xyz),float3(alpha))));
 }
-fragment float4 particle_water_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){
+float4 shade_particle_water_fs(PO o,constant PU& u,array<texture2d<float>,8> t,array<sampler,8> s){
  float4 a=t[0].sample(s[0],o.uv0),b=t[1].sample(s[1],o.uv1),normal=t[3].sample(s[3],o.uv0);
  float weight=saturate(o.specular.a);
  float alpha=mix(b.a,a.a,weight)*o.diffuse.a;
@@ -47,4 +47,10 @@ fragment float4 particle_water_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]]
  // remain identical to particle_modern_fs so spray coverage cannot pop.
  return saturate(float4(premultiplied*lighting*foamTint,dot(saturate(o.t2.xyz),float3(alpha))));
 }
+fragment float4 particle_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){return shade_particle_fs(o,u,t,s);}
+fragment float4 particle_fs_skyfog(PO o [[stage_in]],constant PU&u [[buffer(1)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]],constant SkyFogDraw&draw [[buffer(9)]],texture3d<float>volume [[texture(27)]]){return skyLocalComposite(shade_particle_fs(o,u,t,s),o.p.xyz,draw,volume);}
+fragment float4 particle_modern_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){return shade_particle_modern_fs(o,u,t,s);}
+fragment float4 particle_modern_fs_skyfog(PO o [[stage_in]],constant PU&u [[buffer(1)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]],constant SkyFogDraw&draw [[buffer(9)]],texture3d<float>volume [[texture(27)]]){return skyLocalComposite(shade_particle_modern_fs(o,u,t,s),o.p.xyz,draw,volume);}
+fragment float4 particle_water_fs(PO o [[stage_in]],constant PU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]){return shade_particle_water_fs(o,u,t,s);}
+fragment float4 particle_water_fs_skyfog(PO o [[stage_in]],constant PU&u [[buffer(1)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]],constant SkyFogDraw&draw [[buffer(9)]],texture3d<float>volume [[texture(27)]]){return skyLocalComposite(shade_particle_water_fs(o,u,t,s),o.p.xyz,draw,volume);}
 )MSL";

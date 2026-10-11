@@ -1,0 +1,272 @@
+--- a/src/libs/weather/src/weather.h
++++ b/src/libs/weather/src/weather.h
+@@ -7,6 +7,7 @@
+ #include <stdio.h>
+ #ifdef STORM_METAL_WEATHER_VISUAL_STATE
+ #include "weather_visual_temporal.hpp"
++#include "weather_engine.hpp"
+ #endif
+ 
+ class WEATHER : public WEATHER_BASE
+@@ -14,9 +15,9 @@
+   private:
+     VDX9RENDER *pRS;
+ 
+-    float fFloats[MAX_FLOAT_PARAMS];
+-    int32_t iLongs[MAX_LONG_PARAMS];
+-    uint32_t dwColors[MAX_COLOR_PARAMS];
++    float fFloats[MAX_FLOAT_PARAMS] = {};
++    int32_t iLongs[MAX_LONG_PARAMS] = {};
++    uint32_t dwColors[MAX_COLOR_PARAMS] = {};
+     CVECTOR vVectors[MAX_VECTORS_PARAMS];
+     char *pStrings[MAX_STRINGS_PARAMS];
+ 
+@@ -40,6 +41,16 @@
+ #ifdef STORM_METAL_WEATHER_VISUAL_STATE
+     storm_weather_visual::State visualState;
+     float visualRainTarget = 0.f;
++    storm_weather::Engine weatherEngine;
++    ATTRIBUTES *weatherState = nullptr;
++    std::array<std::array<uint32_t,3>,24> weatherPalette{};
++    bool weatherPaletteValid = false;
++    bool weatherOutside = true;
++    float weatherCheckpoint = 0.f;
++    int weatherRainStatus = -1, weatherStormStatus = -1;
++    void UpdateWeatherEngine(uint32_t deltaTime);
++    void ApplyWeatherConditions();
++    void SaveWeatherEngine();
+     void UpdateVisualState(uint32_t deltaTime);
+ #endif
+ 
+@@ -60,8 +71,10 @@
+     float GetVisualFloat(uint32_t) override;
+     void GetVisualVector(uint32_t, CVECTOR *) override;
+     float GetVisualRainIntensity() override { return visualState.rainIntensity / 5000.f; }
+-    float GetVisualRainDrops() override { return visualState.rainIntensity; }
+-    void SetVisualRainDrops(float value) override { visualRainTarget = value; }
++    float GetVisualRainDrops() override { return weatherOutside ? visualState.rainIntensity : 0.f; }
++    void SetVisualRainDrops(float) override {} // Rain is a consumer.
++    float GetCloudCoverage() override { return weatherEngine.current.coverage; }
++    float GetCloudDensity() override { return .35f + weatherEngine.current.coverage * .55f; }
+ #endif
+ 
+   public:
+@@ -76,6 +89,7 @@
+     bool CreateState(ENTITY_STATE_GEN *state_gen);
+     bool LoadState(ENTITY_STATE *state);
+     uint32_t AttributeChanged(ATTRIBUTES *pAttribute) override;
++    uint64_t ProcessMessage(MESSAGE &message) override;
+ 
+     void ProcessStage(Stage stage, uint32_t delta) override
+     {
+--- a/src/libs/weather/include/weather_base.h
++++ b/src/libs/weather/include/weather_base.h
+@@ -96,6 +96,8 @@
+     virtual uint32_t GetVisualColor(uint32_t code) { return GetColor(code); }
+     virtual float GetVisualFloat(uint32_t code) { return GetFloat(code); }
+     virtual float GetVisualRainIntensity() { return 0.f; }
++    virtual float GetCloudCoverage() { return .32f; }
++    virtual float GetCloudDensity() { return .48f; }
+     virtual float GetVisualRainDrops() { return 0.f; }
+     virtual void SetVisualRainDrops(float) {}
+ #endif
+--- a/src/libs/weather/src/weather.cpp
++++ b/src/libs/weather/src/weather.cpp
+@@ -26,6 +26,7 @@
+ 
+ WEATHER::~WEATHER()
+ {
++    SaveWeatherEngine();
+     CleanUP();
+ }
+ 
+@@ -76,6 +77,7 @@
+ 
+ void WEATHER::Execute(uint32_t Delta_Time)
+ {
++    UpdateWeatherEngine(Delta_Time);
+     /*    if (dwFrames) SetLong(whi_weather_update,0);
+ 
+       WIN32_FIND_DATA    wfd;
+@@ -398,12 +400,15 @@
+ 
+ float WEATHER::GetFloat(uint32_t dwCode)
+ {
++    if (weatherState && dwCode == whf_wind_speed) return weatherEngine.current.speed;
++    if (weatherState && dwCode == whf_wind_angle) return weatherEngine.current.angle;
+     return fFloats[dwCode];
+ }
+ 
+ #ifdef STORM_METAL_WEATHER_VISUAL_STATE
+ void WEATHER::UpdateVisualState(uint32_t deltaTime)
+ {
++    ApplyWeatherConditions();
+     visualState.update(fFloats[whf_fog_density], dwColors[whc_fog_color], dwColors[whc_sun_ambient],
+                        dwColors[whc_sun_color], fFloats[whf_wind_angle], fFloats[whf_wind_speed],
+                        visualRainTarget, fFloats[whf_time_counter], fFloats[whf_sun_height_angle],
+@@ -593,9 +598,12 @@
+     if (*pAttribute == "isDone")
+     {
+ #ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        UpdateSunMoonPos();
+         UpdateVisualState(0);
+ #endif
+         SetCommonStates();
+     }
+     return 0;
+ }
++
++#include "weather_engine_integration.hpp"
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -99,8 +99,7 @@
+ 
+ #ifdef STORM_METAL_WEATHER_VISUAL_STATE
+     pWeather->SetVisualRainDrops(static_cast<float>(dwNumDrops));
+-    if (dwNumDrops == 0)
+-        return;
++    // Prepare capacity once for autonomous dry-to-rain transitions.
+ #endif
+ 
+     Release();
+@@ -264,6 +263,11 @@
+     if (sea_id = core.GetEntityId("sea"))
+         pSea = static_cast<SEA_BASE *>(core.GetEntityPointer(sea_id));
+ 
++    // Native intensity controls splash generation as well as falling drops.
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    fDeltaTime *= std::clamp(pWeather->GetVisualRainDrops()/5000.f,0.f,1.f);
++#endif
++    if (dwDropsNearNum + dwDropsFarNum == 0) return;
+     fDropsDeltaTime += fDeltaTime;
+ 
+     auto iNumNewDrops1 = static_cast<int32_t>(fDropsDeltaTime * static_cast<float>(dwDropsNearNum));
+@@ -488,6 +492,9 @@
+ {
+     if (!bShow)
+         return;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    if (!pWeather || pWeather->GetVisualRainDrops() < 1.f) return;
++#endif
+ 
+     uint32_t i;
+     float fFov;
+--- a/src/libs/weather/src/sky.cpp
++++ b/src/libs/weather/src/sky.cpp
+@@ -22,13 +22,12 @@
+ {
+     if (!weather)
+         return false;
+-    const auto rain = weather->GetVisualRainIntensity();
+     CVECTOR visualSun;
+     weather->GetVisualVector(whv_sun_pos, &visualSun);
+     const auto prepare = skyDraw ? StormMetalBeginDynamicSky : StormMetalPrepareDynamicSky;
+     return prepare(renderer->GetD3DDevice(), weather->GetVisualFloat(whf_time_counter),
+-                                       static_cast<float>(deltaTime) * 0.001f, 0.32f + rain * 0.58f,
+-                                       0.48f + rain * 0.45f,
++                                       static_cast<float>(deltaTime) * 0.001f, weather->GetCloudCoverage(),
++                                       weather->GetCloudDensity(),
+                                        weather->GetVisualFloat(whf_wind_angle),
+                                        weather->GetVisualFloat(whf_wind_speed), 0.16f, visualSun.x,
+                                        visualSun.y, visualSun.z, weather->GetVisualColor(whc_fog_color));
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1,4 +1,5 @@
+ #include "sea.h"
++#include "weather_base.h"
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #include "sea_geomorph.h"
+ #include "vai_objbase.h"
+@@ -1368,6 +1369,19 @@
+ 
+     // Keep geometry and normal-volume animation on one continuous engine clock.
+     const float waveDeltaTime = core.GetVisualDeltaTime() * 0.001f;
++    if (const auto id=core.GetEntityId("weather")) {
++        auto *weather=static_cast<WEATHER_BASE *>(core.GetEntityPointer(id));
++        const float wind=weather->GetVisualFloat(whf_wind_speed);
++        const float desired1=.35f+wind*.16f, desired2=.15f+wind*.035f;
++        const float cap=std::min(1.f,std::max(0.f,fMaxSeaHeight)/(desired1+desired2));
++        const float blend=1.f-expf(-std::min(waveDeltaTime,.1f)/8.f);
++        fAmp1+=(desired1*cap-fAmp1)*blend; fAmp2+=(desired2*cap-fAmp2)*blend;
++        const float angle=weather->GetVisualFloat(whf_wind_angle);
++        const CVECTOR primary(sinf(angle),0.f,cosf(angle));
++        const CVECTOR cross(sinf(angle+.65f),0.f,cosf(angle+.65f));
++        vMoveSpeed1+=(primary*(1.5f+wind*.18f)-vMoveSpeed1)*blend;
++        vMoveSpeed2+=(cross*(.5f+wind*.06f)-vMoveSpeed2)*blend;
++    }
+     vMove1 += waveDeltaTime * vMoveSpeed1;
+     vMove2 += waveDeltaTime * vMoveSpeed2;
+ 
+--- a/src/libs/worldmap/src/wdm_objects.cpp
++++ b/src/libs/worldmap/src/wdm_objects.cpp
+@@ -9,8 +9,11 @@
+ //============================================================================================
+ 
+ #include "wdm_objects.h"
++#include "weather_base.h"
++#include "core.h"
+ 
+ #include <chrono>
++#include <algorithm>
+ 
+ #include "geometry.h"
+ #include "string_compare.hpp"
+@@ -365,46 +367,18 @@
+ // Get wind direction and strength
+ float WdmObjects::GetWind(float x, float z, CVECTOR &dir)
+ {
+-    windField.GetWind(x, z, dir.x, dir.z);
+-    dir.y = 0.0f;
+-    auto len = sqrtf(dir.x * dir.x + dir.z * dir.z);
+-    if (len > 1e-20f)
+-    {
+-        dir.x /= len;
+-        dir.z /= len;
+-    }
+-    else
+-    {
+-        dir.x = 0.0f;
+-        dir.z = 1.0f;
+-    }
+-    if (len < 0.0f)
+-        len = 0.0f;
+-    if (len > 1.0f)
+-        len = 1.0f;
+-    return len;
+-}
+-
+-// Update wind state
+-void WdmObjects::UpdateWind(float dltTime)
+-{
+-    dltTime = dltTime / 2.0f;
+-    windField.Step(dltTime);
+-
+-    /*
+-    const int32_t size = 64;
+-    for(int32_t z = 0; z < size; z++)
+-    {
+-      for(int32_t x = 0; x < size; x++)
+-      {
+-        float px = worldSizeX*(x/(float)size - 0.5f);
+-        float pz = worldSizeZ*(z/(float)size - 0.5f);
+-        float wx, wz;
+-        windField.GetWind(px, pz, wx, wz);
+-        DrawLine(CVECTOR(px, 1.0f, pz), CVECTOR(px, 1.0f, pz) + CVECTOR(wx, 0.0f, wz)*30.0f, 0xff00ff00);
+-      }
+-    }
+-    */
++    if (const auto id=core.GetEntityId("weather")) {
++        auto *weather=static_cast<WEATHER_BASE *>(core.GetEntityPointer(id));
++        const float angle=weather->GetFloat(whf_wind_angle);
++        dir=CVECTOR(sinf(angle),0.f,cosf(angle));
++        return std::clamp(weather->GetFloat(whf_wind_speed)/20.f,0.f,1.f);
++    }
++    dir=CVECTOR(0.f,0.f,1.f); return 0.f;
++}
++
++void WdmObjects::UpdateWind(float)
++{
++    // WEATHER advances once in its execute layer; the map only samples it.
+ }
+ 
+ // Get save string

@@ -326,6 +326,42 @@
       "legacy": [
         "d23b8a8684480f21d290779482e666e2e8e88d979883c9bc876541f6eef78c95"
       ]
+    },
+    "PROGRAM/weather/WhrWeather.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "c66e496f39ea89b0452a505528cf5906df477de186cc46644b0ca3949e8c94d9"
+      ]
+    },
+    "PROGRAM/weather/WhrLightning.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "a369300e237a9d66ec9a3ea775f803bca1ddcaa0356ee83e79159c2bf6c79f8a"
+      ]
+    },
+    "PROGRAM/weather/WhrRain.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "20f2d9399169073e619446c5c4c8ef01fdbee35f8b1236b4e6c81525c7746704"
+      ]
+    },
+    "PROGRAM/weather/WhrTornado.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "6c987a80db38eee9fe35b6a795dd12c633882ef89fe79635309d7ed93254881a"
+      ]
+    },
+    "PROGRAM/weather/WhrSky.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "11d08ffb5ba16c9ec625ef93f486b5fd10d4ca32d2532ee6dd5ddc6ff7b62210"
+      ]
+    },
+    "PROGRAM/worldmap/worldmap.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "b29cbe7d92497415cbf807c41fda72da6f9b4816b774bd02e445405abb13409f"
+      ]
     }
   }
 }

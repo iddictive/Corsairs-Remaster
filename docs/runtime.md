@@ -1,8 +1,76 @@
 # Runtime state
 
-Last verified: October 10 foreground-scattering and lower-hemisphere correction installed as 2daeaebcf3214220; GPU comparison passed, player replay pending (America/New_York).
+Last verified: October 10 startup crash diagnosed, weather adapter restored and full installed-script compilation passes; engine 87101a13ec9b213a, player startup/cloud replay pending (America/New_York).
 
 ## Current verdict
+
+### Weather batch startup crash — October 10, 19:49
+
+Player crash E098FEFA-1490-4237-8EDE-FAAC571DACB7 aborts in
+`CoreImpl::ProcessEngineIniFile`, before scene creation. The existing player
+error log identifies `Whr_BindMapWeather` as undeclared. Installed `WhrWeather.c`
+had reverted to its exact legacy hash c66e496f while its receipt recorded the
+new 5acf4521 adapter; the new world-map consumer remained installed. The writer
+that restored those bytes is unknown. No active child writer was present during
+this diagnosis; there is no evidence attributing the revert to the player.
+
+Restored only the verified legacy file to its staged receipt through the existing
+guarded transaction and retained backup. Full startup-chain compilation then
+exposed a second defect: the candidate called nonexistent `WhrCreateSeaPreset`.
+Replaced it with the existing `WhrSetSeaPreset`/`WhrGetSeaPresetFromWind` pair
+at environment creation; continuous native wave updates remain unchanged.
+
+The sync check previously inspected the cache only. It now also compares the
+installed application and checks its delivery receipts, so a cache-only zero
+cannot hide a stale installed consumer. Canonical content apply delivers the
+correction without rebuilding the unchanged engine. All seven changed gameplay
+consumers match canonical runtime bytes; `WhrWeather.c` is now SHA-256
+`2cf06bd8cc1bced6817fe5f1316f136044fbaeea54b6b3469748aeb715063cae`.
+
+Evidence: an isolated compiler-only executable links the actual current native
+VM/core, compiles the complete installed `seadogs.c` include chain against its
+installed shared headers, and returns `seadogs_compiled=1`, exit 0 with an empty
+error log. It does not run script Main, create a game window or touch player
+userdata. Engine bytes remain 87101a13. Disposition: compilation defect repaired;
+player startup, old-save and weather scene replay still unresolved.
+
+### Autonomous weather and multilayer/local clouds — October 10
+
+Requested: native weather owns wind and conditions independently of the solar
+clock; scripts submit storm/tornado/quest events. Clouds need independent layers,
+world-scale altitude variation and soft terrain-adjacent fog without an abrupt
+straight island cutoff. Storm damage redesign is deferred in the local backlog.
+
+Delta: `weather-engine.patch` integrates the native front/request/save owner,
+replaces the map wind producer and drives sea amplitude/propagation from wind.
+Canonical weather/world-map scripts become event/effect/calendar adapters.
+Native lighting interpolates existing hourly color anchors; no new ambient lift.
+Three far cloud decks share the existing cache, plus a local GPU transport volume
+and load-time island height field. Owner, units and consumer limits are in
+`metal-dynamic-sky.md`.
+
+Intermediate results: the first ordered-patch replay failed on the later baked
+shadow patch's obsolete `refineIsland` context; only that context changed to
+`captureIsland`. The first compile then exposed a missing `core.h` include in
+the map consumer; corrected. Final canonical `run.sh --stage-only` returns 0.
+Installed signed engine SHA-256:
+`87101a13ec9b213a8ccb4231cd549f5bebdb1d8f4074b43775f6da94c0077c02`.
+The preceding 2daeaebc engine is retained by the normal backup owner. Gameplay
+sync now reports zero pending files and compiler ready. Saves/config remain intact.
+
+Evidence: GPU local-medium wet/dry/night/medium, terrain and rebase fixtures pass;
+one-off native model/actual-ATTRIBUTES reconstruction passes fixed-hour wind,
+30/120Hz, pause, event expiry/lock and RNG continuity. The actual VM compiles
+the changed weather/effect function fixture with zero errors and valid palette
+attributes. A separate isolated VM roundtrip emits an empty-function error
+despite passing palette checks; it does not prove a complete save/load replay.
+Modern particles/caustic GPU fixture also passes unchanged alpha/blend boundaries.
+
+Disposition: installed candidate, full player acceptance unresolved. Required
+player replay is old-save load, sea↔map↔interior weather continuity, quest/world-map
+events, soft clouds around islands and complete scene/FPS. No game launch, UI
+interaction or game-process termination. Existing unrelated project-context check
+action remains absent.
 
 ### Daytime horizon streaks and cloud-shaped island haze — October 10
 

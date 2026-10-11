@@ -409,6 +409,7 @@ void SaveGameToFile(string saveName, string saveData)
 		//implemet interface
 		//LaunchQuickSaveMenu();
 		pchar.version_number = 104;
+		if (isEntity(&Weather)) SendMessage(&Weather,"l",1464336389);
 		SaveEngineState(saveName);
 		ISetSaveData(saveName,saveData);
 	}

@@ -29,6 +29,7 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "light_shaft_apertures.hpp"
 #include "dynamic_sky.hpp"
 #include "volumetric_sky.hpp"
+#include "local_weather.hpp"
 #include "weather_surface_color.hpp"
 #include "frame_arena.hpp"
 #include "frame_flight.hpp"
@@ -104,12 +105,12 @@ fragment float4 fs_solar(O v [[stage_in]],constant U& u [[buffer(1)]],array<text
     return value;
 }
 fragment AimReceiverO fs_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]]){return {shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb),v.p.z,identity};}
-fragment float4 fs_skyfog(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);float4 value=shadeFixedFunction(v,u,t,sam,cubes,fogColor);if(fogDraw.options.y>.5f)value.rgb=fogColor;return value;}
-fragment AimReceiverO fs_skyfog_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return {shadeFixedFunction(v,u,t,sam,cubes,fogColor),v.p.z,identity};}
-fragment float4 fs_solar_skyfog(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant float4& directionBlend [[buffer(8)]],texture2d<float> cloudFrom [[texture(16)]],texture2d<float> cloudTo [[texture(17)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);
+fragment float4 fs_skyfog(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);float4 value=shadeFixedFunction(v,u,t,sam,cubes,fogColor);if(fogDraw.options.y>.5f)value.rgb=fogColor;return skyLocalComposite(value,v.p.xyz,fogDraw,localVolume,fogDraw.options.y>.5f);}
+fragment AimReceiverO fs_skyfog_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return {skyLocalComposite(shadeFixedFunction(v,u,t,sam,cubes,fogColor),v.p.xyz,fogDraw,localVolume),v.p.z,identity};}
+fragment float4 fs_solar_skyfog(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant float4& directionBlend [[buffer(8)]],texture2d<float> cloudFrom [[texture(16)]],texture2d<float> cloudTo [[texture(17)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);
     float4 value=shadeFixedFunction(v,u,t,sam,cubes,fogColor);
     value.rgb*=pow(skySolarTransmission(directionBlend,cloudFrom,cloudTo),1.f/2.2f);
-    return value;
+    return skyLocalComposite(value,v.p.xyz,fogDraw,localVolume,fogDraw.options.y>.5f);
 }
 struct BridgeU { float4x4 m,view,projection; float4 viewport; uint stride; uint fvf; uint transformed; uint mode; float4 params; };
 struct GrassU {float4 vc[42];};
@@ -144,6 +145,8 @@ vertex O bridge_advanced_vs(uint id [[vertex_id]],const device BridgeAdvanced*s 
 float4 shadeAdvanced(O o,array<texture2d<float>,8>t,array<sampler,8>s){float4 a=t[0].sample(s[0],o.uv01.xy),b=t[1].sample(s[1],o.uv01.zw);float weight=o.specular.a;float alpha=mix(b.a,a.a,weight)*o.c.a;float3 rgb=mix(b.rgb*b.a,a.rgb*a.a,weight)*o.c.rgb*o.c.a;return saturate(float4(rgb,alpha*o.directPoint.x));}
 fragment float4 bridge_advanced_fs(O o [[stage_in]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]]){return shadeAdvanced(o,t,s);}
 fragment AimReceiverO bridge_advanced_fs_aim(O o [[stage_in]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]]){return {shadeAdvanced(o,t,s),o.p.z,identity};}
+fragment float4 bridge_advanced_fs_skyfog(O o [[stage_in]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]],constant SkyFogDraw&draw [[buffer(9)]],texture3d<float>volume [[texture(27)]]){return skyLocalComposite(shadeAdvanced(o,t,s),o.p.xyz,draw,volume);}
+fragment AimReceiverO bridge_advanced_fs_skyfog_aim(O o [[stage_in]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>s [[sampler(0)]],constant SkyFogDraw&draw [[buffer(9)]],texture3d<float>volume [[texture(27)]]){return {skyLocalComposite(shadeAdvanced(o,t,s),o.p.xyz,draw,volume),o.p.z,identity};}
 vertex O bridge_grass_vs(uint id [[vertex_id]],const device BridgeGrass*g [[buffer(0)]],constant U&u [[buffer(1)]],constant GrassU&b [[buffer(2)]]){uint n=id/6;float2 q=bridgeCorner(id),offset=q*.5+.5;float4 params=rawColor(g[n].data);uint angle=min(uint(params.z*b.vc[40].x),15u),tile=min(uint(params.w*b.vc[40].x),15u);float3 ang=b.vc[angle].xyz,wa=float3(g[n].wx,g[n].wz,g[n].alpha);float light=clamp(-dot(wa.xy,b.vc[36].xy),b.vc[40].y,b.vc[40].z);light=(light*b.vc[39].x+ang.z*b.vc[40].w)*offset.y*b.vc[39].y;float2 size=params.xy*b.vc[41].xy+b.vc[41].zw;float2 xz=g[n].center.xz*b.vc[38].w-ang.xy*size.x*(offset.x+b.vc[40].y)+wa.xy*offset.y;float y=g[n].center.y*b.vc[38].w+sqrt(abs(size.y-dot(wa.xy,wa.xy)))*offset.y;O o={};o.p=xz.x*b.vc[32]+y*b.vc[33]+xz.y*b.vc[34]+b.vc[35];o.c=float4(saturate(b.vc[37].xyz+b.vc[38].xyz*light),g[n].alpha);o.uv01=float4(b.vc[16+tile].xy+offset*b.vc[39].zw,0,0);o.fog=abs(o.p.w);return o;}
 vertex O bridge_screen_vs(uint id [[vertex_id]],const device BridgeScreenRect*r [[buffer(0)]],constant U&u [[buffer(1)]]){uint n=id/6;float2 q=bridgeCorner(id),corner=q*.5+.5,halfExtent=float2(r[n].w,r[n].h)*.5;float sn=sin(r[n].angle),cs=cos(r[n].angle);float2 d=(corner-.5f)*float2(r[n].w,r[n].h),p=float2(r[n].x,r[n].y)+halfExtent+float2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);float2 uc=r[n].angle!=0.0f?float2(1.0f-corner.x,corner.y):corner;float2 uv0=r[n].uv0.xy+uc*r[n].uv0.zw,uv1=r[n].uv1.xy+uc*r[n].uv1.zw;float s1=sin(r[n].uv1Rotation),c1=cos(r[n].uv1Rotation),dx=uv1.x-.5f,dy=uv1.y;uv1=float2(dx*c1+dy*s1+.5f,-dx*s1+dy*c1);O o=bridgeVertex(float4(p,r[n].z,r[n].rhw),rawColor(r[n].color),uv0,u,true);o.uv01=float4(uv0,uv1);return o;}
 vertex O bridge_quad_vs(uint id [[vertex_id]],const device BridgeQuad*qv [[buffer(0)]],constant U&u [[buffer(1)]]){uint n=id/6;float2 q=bridgeCorner(id);float3 p=qv[n].center+qv[n].axisX*q.x*qv[n].halfWidth+qv[n].axisY*q.y*qv[n].halfHeight;return bridgeVertex(float4(p,1),rawColor(qv[n].color),bridgeUV(q,qv[n].uv),u,false);}
@@ -223,7 +226,7 @@ struct Device : StubIDirect3DDevice9 {
  ULONG childRefs=0;bool draining=false,drained=false;bool modernWater=false,modernEffects=false,modernLighting=false,cinematic=false;id<MTLRenderPipelineState> cinematicPipeline;
  storm_metal::FXAAPass fxaaPass;bool fxaaEnabled=false;uint64_t fxaaFrames=0;
  bool dynamicSkyEnabled=true,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
- storm_metal::VolumetricSky volumetricSky;uint64_t dynamicSkyFrame=0,dynamicSkyWeatherFrame=~uint64_t(0);bool dynamicSkyWeatherSeeded=false;
+ storm_metal::VolumetricSky volumetricSky;storm_metal::LocalWeatherVolume localWeather;uint64_t dynamicSkyFrame=0,dynamicSkyWeatherFrame=~uint64_t(0);bool dynamicSkyWeatherSeeded=false;
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
  bool aimDirectPass=false;
@@ -294,13 +297,15 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
  bool beginDynamicSky(float hour,float deltaSeconds,float coverage,float density,float windAngle,float windSpeed,float legacyBlend,float sunX,float sunY,float sunZ,uint32_t fogColor){
   dynamicSkyInput.hour=hour; // Weather remains the aim daylight owner with authored sky too.
   dynamicSkyActive=false;if(!dynamicSkyEnabled||!metal)return false;
-  if(!dynamicSkyLibrary){NSError*error=nil;dynamicSkyLibrary=[metal newLibraryWithSource:[NSString stringWithUTF8String:storm_metal::dynamicSkyShaderSource] options:nil error:&error];if(!dynamicSkyLibrary){fprintf(stderr,"[StormMetal] dynamic sky compile: %s; retaining authored sky\n",error.localizedDescription.UTF8String);dynamicSkyEnabled=false;return false;}}
+  if(!dynamicSkyLibrary){NSError*error=nil;dynamicSkyLibrary=[metal newLibraryWithSource:[NSString stringWithUTF8String:(std::string(storm_metal::dynamicSkyShaderSource)+storm_metal::localWeatherMSL).c_str()] options:nil error:&error];if(!dynamicSkyLibrary){fprintf(stderr,"[StormMetal] dynamic sky compile: %s; retaining authored sky\n",error.localizedDescription.UTF8String);dynamicSkyEnabled=false;return false;}}
   if(!dynamicSkyWeatherSeeded){dynamicSkyTemporal.coverage=storm_metal::finiteSkyClamp(coverage,.38f,0.f,1.f);dynamicSkyTemporal.density=storm_metal::finiteSkyClamp(density,.55f,0.f,1.f);dynamicSkyWeatherSeeded=true;}
   const float visualDelta=storm_metal::finiteSkyClamp(deltaSeconds,0.f,0.f,.1f);
   if(visualDelta>0.f&&dynamicSkyWeatherFrame!=dynamicSkyFrame){dynamicSkyWeatherFrame=dynamicSkyFrame;dynamicSkyElapsed=std::min(1'000'000.f,dynamicSkyElapsed+visualDelta);dynamicSkyPhase=storm_metal::advanceDynamicSkyPhase(dynamicSkyPhase,windAngle,windSpeed,visualDelta);dynamicSkyTemporal.update(coverage,density,visualDelta);}
   dynamicSkyInput={hour,dynamicSkyElapsed,dynamicSkyTemporal.coverage,dynamicSkyTemporal.density,windAngle,windSpeed,legacyBlend,dynamicSkyPhase.x,dynamicSkyPhase.y,{sunX,sunY,sunZ}};dynamicSkyFog=color(fogColor).xyz;
   finish();if(!command)command=[queue commandBuffer];auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);
   if(!volumetricSky.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather)){fprintf(stderr,"[StormMetal] volume sky allocation/input failure; retaining authored sky\n");dynamicSkyEnabled=false;return false;}
+  simd_float4x4 view,projection;memcpy(&view,&matrices[D3DTS_VIEW],64);memcpy(&projection,&matrices[D3DTS_PROJECTION],64);
+  if(!localWeather.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather,view,projection,landShadow.worldOrigin,volumetricSky.shape,volumetricSky.detail,volumetricSky.weatherNoise,volumetricSky.atmosphere,volumetricSky.solarSamples[dynamicSkyFrame%3],!(landShadow.locationActive&&landShadow.indoor)))return false;
   dynamicSkyActive=true;return true;
  }
  void endDynamicSky(){dynamicSkyActive=false;}
@@ -320,6 +325,8 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
  void bindSkyFog(){
   simd_float4x4 view,projection;memcpy(&view,&matrices[D3DTS_VIEW],64);memcpy(&projection,&matrices[D3DTS_PROJECTION],64);
   auto draw=storm_metal::makeSkyFogDraw(simd_inverse(simd_mul(projection,view)),{float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)},cloudFieldCurrent(),skyFogActive);
+  localWeather.bind(encoder,draw,landShadow.worldOrigin);draw.options.w=rs[D3DRS_ALPHABLENDENABLE]?(rs[D3DRS_DESTBLEND]==D3DBLEND_ONE?1.f:rs[D3DRS_SRCBLEND]==D3DBLEND_ONE&&rs[D3DRS_DESTBLEND]==D3DBLEND_INVSRCALPHA?2.f:0.f):0.f;draw.options.z*=float(cloudFieldCurrent()&&!(landShadow.locationActive&&landShadow.indoor));
+  if(!localWeather.transport)[encoder setFragmentTexture:volumetricSky.shape atIndex:27];
   [encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:9];[encoder setFragmentTexture:volumetricSky.fogEnvironment atIndex:26];
  }
  simd_float4 solarDirectionBlend()const{
@@ -338,7 +345,7 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
   auto vertices=submissionBuffer(stars,size_t(count)*sizeof(*stars));if(!vertices.buffer)return false;
   if(FAILED(applyState(0x10000ull,dynamicSkyLibrary,@"dynamic_stars_vs",@"dynamic_stars_fs")))return false;
   prepareFixedFunction();storm_metal::DynamicStarDrawUniform draw{};memcpy(&draw.view,&matrices[D3DTS_VIEW],64);memcpy(&draw.projection,&matrices[D3DTS_PROJECTION],64);draw.camera=simd_inverse(draw.view).columns[3];draw.scale_blend={scaleX,scaleY,volumetricSky.blend,0};
-  [encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentTexture:texture->gpu() atIndex:0];volumetricSky.bind(encoder);[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:size_t(count)*6];return true;
+  [encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentTexture:texture->gpu() atIndex:0];volumetricSky.bind(encoder);bindSkyFog();[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:size_t(count)*6];return true;
  }
  bool beginSkyFog(uint32_t fogColor){skyFogActive=false;if(!metal)return false;skyFogColor=color(fogColor).xyz;skyFogActive=true;return true;}
  void endSkyFog(){skyFogActive=false;}
@@ -366,7 +373,7 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
   const bool sunEnabled=sun.valid;
   const simd_float3 direction=sun.direction;
   if((!sunEnabled||simd_length(direction)<=.001f)&&!pointCount){landShadow.resolved=true;return;}
-  finish();if(!command)command=[queue commandBuffer];landShadow.fogEnvironment=cloudFieldCurrent()?volumetricSky.fogEnvironment:nil;bool applied=false;simd_float4x4 sunLight{},sunView{};const simd_float4x4*combinedSun=nullptr;
+finish();if(!command)command=[queue commandBuffer];landShadow.fogEnvironment=cloudFieldCurrent()?volumetricSky.fogEnvironment:nil;localWeather.bind(nil,landShadow.localFog,landShadow.worldOrigin);landShadow.localFog.options.z*=float(cloudFieldCurrent()&&!(landShadow.locationActive&&landShadow.indoor));landShadow.localVolume=localWeather.transport ?: volumetricSky.shape;bool applied=false;simd_float4x4 sunLight{},sunView{};const simd_float4x4*combinedSun=nullptr;
   if(sunEnabled&&simd_length(direction)>.001f){memcpy(&sunView,&matrices[D3DTS_VIEW],64);if(pointCount){applied|=landShadow.encode(metal,command,back->gpu,depth->gpu,sunView,direction,false,&sunLight);combinedSun=&sunLight;}else applied|=landShadow.encode(metal,command,back->gpu,depth->gpu,sunView,direction);}
   if(pointCount&&landShadow.beginTraversalPointFrame()){
    landShadow.finishRegistry();std::array<LandShadow::TraversalPoint,8> points{};unsigned ready=0;
@@ -539,8 +546,9 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
        (!aimModelScope.water&&shaderLibrary==library&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"bridge_advanced_fs"])));
   if(encoder&&aimDirectPass!=direct)finish();aimDirectPass=direct;begin();
   // Select once here: raw, compact, cached and bridge draws share the same fog.
-  const bool skyFog=cloudFieldCurrent()&&(rs[D3DRS_FOGENABLE]||skyFogActive)&&
-      ((shaderLibrary==library&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]))||
+  const bool skyFog=cloudFieldCurrent()&&(rs[D3DRS_FOGENABLE]||skyFogActive||(localWeather.current&&rs[D3DRS_ZENABLE]&&(fvf&D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW&&!interfaceBackSceneActive))&&
+      ((shaderLibrary==library&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]||[pixelName isEqualToString:@"bridge_advanced_fs"]))||
+       shaderLibrary==particlesLibrary||
        (shaderLibrary==seaLibrary&&([pixelName isEqualToString:@"sea2_modern_fs"]||[pixelName isEqualToString:@"sea3_modern_fs"]||[pixelName isEqualToString:@"seafoam_modern_fs"]||[pixelName isEqualToString:@"seasun_modern_fs"])));
   if(skyFog){shaderKey|=0x40000ull;pixelName=[pixelName stringByAppendingString:@"_skyfog"];bindSkyFog();}
   if(direct){pixelName=[pixelName stringByAppendingString:@"_aim"];const auto identity=aimVolume.modelIdentity();[encoder setFragmentBytes:&identity length:sizeof(identity) atIndex:7];}
@@ -699,7 +707,7 @@ return u;}
   UINT minimum=kind==ProgramKind::Particles?56:36;
   if(!data||vertexStride<minimum||type!=D3DPT_TRIANGLELIST||base<0)return D3DERR_INVALIDCALL;
   id<MTLLibrary> __strong& program=kind==ProgramKind::Particles?particlesLibrary:causticLibrary;
-  if(!program){NSError*error=nil;const char*source=kind==ProgramKind::Particles?particlesShaderSource:causticShaderSource;program=[metal newLibraryWithSource:[NSString stringWithUTF8String:source] options:nil error:&error];if(!program){fprintf(stderr,"[StormMetal] effect shader compile: %s\n",error.localizedDescription.UTF8String);return E_FAIL;}}
+  if(!program){NSError*error=nil;const char*source=kind==ProgramKind::Particles?particlesShaderSource:causticShaderSource;const auto combined=std::string(storm_metal::skyFogMSL)+source;program=[metal newLibraryWithSource:[NSString stringWithUTF8String:combined.c_str()] options:nil error:&error];if(!program){fprintf(stderr,"[StormMetal] effect shader compile: %s\n",error.localizedDescription.UTF8String);return E_FAIL;}}
   UINT countVertices=primitives*3,vertexCount=countVertices;
   if(indexData){UINT maximum=0;for(UINT i=0;i<countVertices;i++)maximum=std::max(maximum,indexFormat==D3DFMT_INDEX32?((const uint32_t*)indexData)[i]:UINT(((const uint16_t*)indexData)[i]));vertexCount=maximum+base+1;}
 	  auto vertices=submissionBuffer(data,size_t(vertexCount)*vertexStride);if(!vertices.buffer)return E_OUTOFMEMORY;
@@ -1115,7 +1123,7 @@ if(profile.enabled)profile.conversionMs[conversionKind]+=FrameProfile::now()-con
 if(fan)t=D3DPT_TRIANGLELIST;
  if(dynamicSkyActive&&t==D3DPT_TRIANGLELIST&&!declaration&&fvf==(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX2|D3DFVF_TEXTUREFORMAT2)){
   auto*current=dynamic_cast<Texture*>(textures[0]);auto*next=dynamic_cast<Texture*>(textures[1]);auto stateResult=applyState(0x40ull,dynamicSkyLibrary,@"dynamic_sky_vs",@"dynamic_sky_fs");if(FAILED(stateResult)){dynamicSkyActive=false;dynamicSkyEnabled=false;return draw(t,n,data,st,indices,fmt,base,indexed,boundIndexed);}
-  Uniform fixed=prepareFixedFunction();storm_metal::DynamicSkyDrawUniform drawUniform{};drawUniform.mvp=fixed.m;simd_float4x4 skyView;memcpy(&skyView,&matrices[D3DTS_VIEW],64);memcpy(&drawUniform.rayFromLocal,&matrices[D3DTS_WORLD],64);drawUniform.rayFromLocal.columns[3].xyz-=inverseViewForDraw(skyView).columns[3].xyz;drawUniform.hasCurrentTexture=current?1u:0u;drawUniform.hasNextTexture=next?1u:0u;drawUniform.textureBlend=fixed.factor.w;auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);weather.options.w=volumetricSky.blend;volumetricSky.bind(encoder);
+  Uniform fixed=prepareFixedFunction();storm_metal::DynamicSkyDrawUniform drawUniform{};drawUniform.mvp=fixed.m;simd_float4x4 skyView;memcpy(&skyView,&matrices[D3DTS_VIEW],64);memcpy(&drawUniform.rayFromLocal,&matrices[D3DTS_WORLD],64);drawUniform.rayFromLocal.columns[3].xyz-=inverseViewForDraw(skyView).columns[3].xyz;drawUniform.hasCurrentTexture=current?1u:0u;drawUniform.hasNextTexture=next?1u:0u;drawUniform.textureBlend=fixed.factor.w;auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);weather.options.w=volumetricSky.blend;volumetricSky.bind(encoder);bindSkyFog();
   [encoder setVertexBuffer:vertexSlice.buffer offset:vertexSlice.offset atIndex:0];[encoder setVertexBytes:&drawUniform length:sizeof(drawUniform) atIndex:1];[encoder setFragmentBytes:&drawUniform length:sizeof(drawUniform) atIndex:1];[encoder setFragmentBytes:&weather length:sizeof(weather) atIndex:2];[encoder setFragmentTexture:current?current->gpu():nil atIndex:0];[encoder setFragmentTexture:next?next->gpu():nil atIndex:1];[encoder setFragmentSamplerState:samplerFor(0) atIndex:0];
   if(indexed)[encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:drawCount indexType:MTLIndexTypeUInt32 indexBuffer:indexSlice.buffer indexBufferOffset:indexSlice.offset];else [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:num];return S_OK;
  }

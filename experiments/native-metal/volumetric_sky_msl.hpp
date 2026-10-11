@@ -1,8 +1,9 @@
 #pragma once
 #include "cloud_visibility_msl.hpp"
+#include "sky_fog.hpp"
 #include <string>
 namespace storm_metal {
-inline const std::string volumetricSkyShaderStorage=std::string(cloudVisibilityMSL)+R"MSL(
+inline const std::string volumetricSkyShaderStorage=std::string(cloudVisibilityMSL)+skyFogMSL+R"MSL(
 /*
 // Cloud shader and Godot code
 
@@ -359,7 +360,16 @@ float3 sampleAtmosphere(float3 ray,texture2d<float> atmosphere) {
     constexpr sampler s(coord::normalized,s_address::repeat,t_address::clamp_to_edge,filter::linear);
     return atmosphere.sample(s,uv,level(0)).rgb;
 }
-constant float g_radius=6000000.f, sky_b_radius=6001500.f, sky_t_radius=6004000.f;
+constant float g_radius=6000000.f;
+struct CloudLayer {float base,top,type,coverage,scale,shear;};
+CloudLayer cloudLayer(uint index,constant SkyWeather&w){
+    float wet=smoothstep(.40f,.85f,w.wind_coverage_density.z);
+    // Each deck has its own altitude, vertical profile and wind shear. Weather
+    // lowers the condensation level; the existing visual clock owns advection.
+    if(index==0)return {mix(850.f,380.f,wet),mix(1450.f,1050.f,wet),.42f,mix(.34f,.95f,wet),1.8f,.65f};
+    if(index==1)return {mix(1800.f,1400.f,wet),mix(3800.f,4700.f,wet),.93f,1.f,1.f,1.f};
+    return {6100.f,7200.f,.58f,.42f,.45f,1.8f};
+}
 constexpr sampler ns(coord::normalized,address::repeat,filter::linear,mip_filter::linear);
 // From: https://www.shadertoy.com/view/4sfGzS credit to iq
 float hash(float3 p) {
@@ -379,8 +389,8 @@ float henyey_greenstein(float cos_theta, float g) {
 	return k * (1.0 - g * g) / (pow(1.0 + g * g - 2.0 * g * cos_theta, 1.5));
 }
 
-float GetHeightFractionForPoint(float inPosition) {
-	float height_fraction = (inPosition -  sky_b_radius) / (sky_t_radius - sky_b_radius);
+float GetHeightFractionForPoint(float inPosition,CloudLayer layer) {
+	float height_fraction = (inPosition - g_radius - layer.base) / (layer.top - layer.base);
 	return clamp(height_fraction, 0.0, 1.0);
 }
 
@@ -411,31 +421,33 @@ float intersectSphere(float3 pos, float3 dir,float r) {
 
 // Returns density at a given point
 // Heavily based on method from Schneider
-float density(float3 pip, float3 weather, float mip, texture3d<float> large_scale_noise, texture3d<float> small_scale_noise, texture2d<float> weather_noise, constant SkyWeather &w) {
+float density(float3 pip, float3 weather, float mip, texture3d<float> large_scale_noise, texture3d<float> small_scale_noise, texture2d<float> weather_noise, constant SkyWeather &w,CloudLayer layer) {
+	float altitude=length(pip)-g_radius;
+	if(altitude<=layer.base||altitude>=layer.top)return 0.f;
 	float3 p = pip;
-	float height_fraction = GetHeightFractionForPoint(length(p));
+	float height_fraction = GetHeightFractionForPoint(length(p),layer);
 	// A much larger, independently scaled weather domain bends the repeating
 	// source volume and varies cloud towers/coverage without swapping textures.
 	float3 macro=weather_noise.sample(ns,(p.xz+w.options.yz)*.0000123f+float2(.371f,.619f),level(0)).rgb;
 	p.xz+=(macro.rb-float2(.748f,.577f))*8500.f;
 
 	// Base wind follows exact world-space displacement.
-	p.xz += w.options.yz;
+	p.xz += w.options.yz*layer.shear+float2(layer.base*3.1f,layer.base*1.7f);
 
 	// Define the base of the cloud.
-	float4 n = large_scale_noise.sample(ns, p.xyz * float3(.00012f,.00008f,.00012f), level(max(0.f,mip-2.f)));
+	float4 n = large_scale_noise.sample(ns, float3(p.x*layer.scale,(length(pip)-g_radius-layer.base)*2500.f/(layer.top-layer.base),p.z*layer.scale) * float3(.00012f,.00008f,.00012f), level(max(0.f,mip-2.f)));
 	float fbm = n.g * 0.625 + n.b * 0.25 + n.a * 0.125;
 
 	// Remap based on weather, coverage, and cloud shape gradient.
-	float type=mix(.62f+.38f*smoothstep(.68f,.83f,weather.r),.18f+.40f*macro.r,smoothstep(.5f,.9f,w.wind_coverage_density.z));
+	float type=clamp(layer.type+(macro.r-.5f)*.18f,0.f,1.f);
 	float g = densityHeightGradient(height_fraction, type);
 	float base_cloud = remap(n.r, -(1.0 - fbm), 1.0, 0.0, 1.0);
-	float weather_coverage = clamp(w.wind_coverage_density.z * weather.b * (.65f+.60f*macro.b),.001f,1.f);
+	float weather_coverage = clamp(w.wind_coverage_density.z * layer.coverage * weather.b * (.65f+.60f*macro.b),.001f,1.f);
 	base_cloud = remap(base_cloud * g, 1.0 - (weather_coverage), 1.0, 0.0, 1.0);
 	base_cloud *= weather_coverage;
 
 	// Detailed wind.
-	p.xz -= w.options.yz * 6.5f;
+	p.xz -= w.options.yz * (6.5f*layer.shear);
 	p.y -= w.moonDirection_time.w;
 
 	// Detailed texture.
@@ -446,7 +458,7 @@ float density(float3 pip, float3 weather, float mip, texture3d<float> large_scal
 	return pow(clamp(base_cloud, 0.0, 1.0), (1.0 - height_fraction) * 0.8 + 0.5);
 }
 
-float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> large_scale_noise, texture3d<float> small_scale_noise, texture2d<float> weather_noise, constant SkyWeather &w) {
+float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> large_scale_noise, texture3d<float> small_scale_noise, texture2d<float> weather_noise, constant SkyWeather &w,CloudLayer layer) {
 	const float3 RANDOM_VECTORS[6] = {float3( 0.38051305f,  0.92453449f, -0.02111345f),float3(-0.50625799f, -0.03590792f, -0.86163418f),float3(-0.32509218f, -0.94557439f,  0.01428793f),float3( 0.09026238f, -0.27376545f,  0.95755165f),float3( 0.28128598f,  0.42443639f, -0.86065785f),float3(-0.16852403f,  0.14748697f,  0.97460106f)};
 
 	// Initialize ray length, direction, and position.
@@ -456,7 +468,7 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 	float3 p = pos;
 
 	// Initialize light ray.
-	const float t_dist = sky_t_radius - sky_b_radius;
+	const float t_dist = layer.top-layer.base;
 	float lss = (t_dist / 64.0);
 	float3 ldir = normalize(w.sunDirection_hour.xyz);
 
@@ -479,9 +491,9 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 		// steps rounds the same error into every sample and bands the whole ray.
 		p = pos + dir * (ss * (float(i) + 1.f + jitter));
 		float3 weather_sample = weather_noise.sample(ns, p.xz * weather_scale + .5f + weather_pos).xyz;
-		float height_fraction = GetHeightFractionForPoint(length(p));
+		float height_fraction = GetHeightFractionForPoint(length(p),layer);
 
-		t = density(p, weather_sample, max(0.f,log2(ss*.001f)), large_scale_noise, small_scale_noise, weather_noise, w);
+		t = density(p, weather_sample, max(0.f,log2(ss*.001f)), large_scale_noise, small_scale_noise, weather_noise, w,layer);
 		float dt = exp(-(.025f+.055f*w.wind_coverage_density.w) * t * ss);
 
 		float3 lp = p;
@@ -492,17 +504,17 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 			float lheight_fraction = 0.0;
 			for (int j = 0; j < 6; j++) {
 				lp +=  (ldir + RANDOM_VECTORS[j] * float(j)) * lss;
-				lheight_fraction = GetHeightFractionForPoint(length(lp));
+				lheight_fraction = GetHeightFractionForPoint(length(lp),layer);
 				float3 lweather = weather_noise.sample(ns, lp.xz * weather_scale + .5f + weather_pos).xyz;
-				lt = density(lp, lweather, float(j), large_scale_noise, small_scale_noise, weather_noise, w);
+				lt = density(lp, lweather, float(j), large_scale_noise, small_scale_noise, weather_noise, w,layer);
 				cd += lt;
 			}
 
 			// Take a single distant sample
 			lp = p + ldir * 18.0 * lss;
-			lheight_fraction = GetHeightFractionForPoint(length(lp));
+			lheight_fraction = GetHeightFractionForPoint(length(lp),layer);
 			float3 lweather = weather_noise.sample(ns, lp.xz * weather_scale + .5f + weather_pos).xyz;
-			lt = pow(density(lp, lweather, 5.0, large_scale_noise, small_scale_noise, weather_noise, w), (1.0 - lheight_fraction) * 0.8 + 0.5);
+			lt = pow(density(lp, lweather, 5.0, large_scale_noise, small_scale_noise, weather_noise, w,layer), (1.0 - lheight_fraction) * 0.8 + 0.5);
 			cd += lt;
 
 			// captures the direct lighting from the sun
@@ -531,15 +543,18 @@ float4 cloudSky(float3 dir, texture3d<float> large_scale_noise, texture3d<float>
 	if (dir.y > 0.0) {
 		// Only draw clouds above the horizon.
 		float3 camPos = float3(0.0, g_radius, 0.0);
-		float3 start = camPos + dir * intersectSphere(camPos, dir, sky_b_radius);
-		float3 end = camPos + dir * intersectSphere(camPos, dir, sky_t_radius);
-		float shelldist = (length(end - start));
-		// Grazing rays traverse a much longer shell. Increase their bounded
-		// sampling budget instead of hiding distant detail in an opacity fade.
-		float steps = 128.f + 512.f*(1.f-smoothstep(.03f,.30f,dir.y));
-
-		float3 raystep = dir * shelldist / steps;
-		col = march(start, end, raystep, int(steps), large_scale_noise, small_scale_noise, weather_noise, w);
+        for(uint deck=0;deck<3;deck++){
+            if(col.a>.995f)break;
+            CloudLayer layer=cloudLayer(deck,w);
+            float3 start=camPos+dir*intersectSphere(camPos,dir,g_radius+layer.base);
+            float3 end=camPos+dir*intersectSphere(camPos,dir,g_radius+layer.top);
+            float grazing=1.f-smoothstep(.03f,.30f,dir.y);
+            int steps=deck==2?48:96+int(192.f*grazing);
+            float3 raystep=dir*length(end-start)/float(steps);
+            // Moments are premultiplied optical weights: nearer layers
+            // extinguish distant layers, including their direct illumination.
+            col+=(1.f-col.a)*march(start,end,raystep,steps,large_scale_noise,small_scale_noise,weather_noise,w,layer);
+        }
 	} else {
 		col = float4(0.0);
 	}
@@ -570,11 +585,11 @@ vertex SkyStarOut dynamic_stars_vs(uint id [[vertex_id]],const device SkyStar*st
     SkyStarOut o;o.position=draw.projection*center;o.color=float4(float((s.color>>16)&255),float((s.color>>8)&255),float(s.color&255),float((s.color>>24)&255))/255.f;
     o.uv=float2(q.x*.5f+.5f,.5f-q.y*.5f);o.direction=normalize(float3(s.center)-draw.camera.xyz);return o;
 }
-fragment float4 dynamic_stars_fs(SkyStarOut in [[stage_in]],constant SkyStarDraw&draw [[buffer(1)]],texture2d<float>sprite [[texture(0)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]]) {
+fragment float4 dynamic_stars_fs(SkyStarOut in [[stage_in]],constant SkyStarDraw&draw [[buffer(1)]],texture2d<float>sprite [[texture(0)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
     constexpr sampler s(coord::normalized,address::clamp_to_edge,filter::linear);
     float4 color=sprite.sample(s,in.uv)*in.color;
     float opacity=skyCloudMoments(normalize(in.direction),cloudFrom,cloudTo,draw.scale_blend.z).a;
-    color.a*=1.f-opacity;return color;
+    color.a*=(1.f-opacity)*skyLocalMedium(float3(in.position.xy,1.f),fogDraw,localVolume).a;return color;
 }
 float3 skySolarSpectrum(float elevation,texture2d<float>transmittance) {
     return transmittance_from_lut(transmittance,elevation,0.f).rgb/
@@ -636,9 +651,9 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
     return float4(max(color,0.f),air.glow);
 }
-fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]]) {
+fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
     float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
-    return float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f);
+    return skyLocalComposite(float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f),float3(in.position.xy,1.f),fogDraw,localVolume);
 }
 kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {
     if(any(pixel>=uint2(output.get_width(),output.get_height())))return;
