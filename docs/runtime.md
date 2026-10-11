@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified: October 10, installed e675530ab7a88ec6 runs as PID23162 through the public launcher and reaches player-controlled sea and port-office scenes. The observed dawn sea view displays116 FPS without an obvious rectangular water boundary; this is a different view/time and does not accept the original horizon, telescope or low-FPS incident. A fresh foreground CPU sample starts21:51:13 (America/New_York). Weather evolution and sea/map calendar replay remain unresolved.
+Last verified: October 10, installed e675530ab7a88ec6 reaches player-controlled sea and port-office scenes as PID23162. That process has ended; the same installed engine is running as PID36180, started21:53:11, with its scene not yet observed. The observed dawn sea view displays116 FPS without an obvious rectangular water boundary; this is a different view/time and does not accept the original horizon, telescope or low-FPS incident. A foreground CPU sample starts21:51:13 (America/New_York). Weather evolution and sea/map calendar replay remain unresolved.
 
 ## Current verdict
 
@@ -239,7 +239,10 @@ Disposition: native/calendar component, installation and interactive player
 startup verified; actual sea/map weather evolution, original horizon/telescope
 views and paired low-FPS replay remain unresolved. The current task owns replay;
 the player is asked to leave the problem telescope view active. The game remains
-open and player-owned; graphics settings and SAVE are unchanged by these probes.
+player-owned; graphics settings and SAVE are unchanged by these probes. A final
+process reconciliation finds PID23162 ended and PID36180 started21:53:11 using
+the same installed e675530ab7a88ec6 engine. This task sent no quit/relaunch input;
+the new process's scene and profiling mode are unobserved.
 
 ### Weather event startup crash — October 10, 20:38
 
