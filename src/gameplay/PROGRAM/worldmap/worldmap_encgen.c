@@ -1220,6 +1220,7 @@ int WdmTrafficEntryGoods(aref ship, int good)
 
 void WdmTrafficClampFreight(aref ship)
 {
+	if (!CheckAttribute(ship, "trafficFreight")) return;
 	for (int good = 0; good < GOODS_QUANTITY; good++)
 	{
 		string name = Goods[good].name;

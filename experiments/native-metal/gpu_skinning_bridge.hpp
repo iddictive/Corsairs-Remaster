@@ -31,6 +31,7 @@ struct Provider {
                          std::uint32_t firstVertex, std::uint32_t vertexCount,
                          std::uint32_t totalVertices);
     void (*endPose)(void *context);
+    void (*invalidateVertices)(void *context, const AnimatedVertex *vertices) = nullptr;
 };
 
 static_assert(sizeof(AnimatedVertex) == 44);
@@ -49,6 +50,9 @@ static_assert(sizeof(Matrix4x4) == 64);
 void registerProvider(const Provider *provider);
 bool acceptVertices(const AnimatedVertex *vertices, std::uint32_t totalVertices,
                     std::uint32_t boneCount);
+// Geometry owns writes and destruction. Invalidate before a source is replaced
+// or released so a recycled allocation address cannot reuse an old mesh.
+void invalidateVertices(const AnimatedVertex *vertices);
 bool beginPose(void *device, const Matrix4x4 *palette, std::uint32_t boneCount);
 void *bindVertices(const AnimatedVertex *vertices, std::uint32_t firstVertex,
                    std::uint32_t vertexCount, std::uint32_t totalVertices);

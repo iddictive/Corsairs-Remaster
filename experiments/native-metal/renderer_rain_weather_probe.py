@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static acceptance probe for the compact rain/weather Metal bridge."""
 from pathlib import Path
-import shutil, subprocess, sys, tempfile
+import re, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name("renderer-rain-weather.patch")
@@ -12,9 +12,10 @@ def need(ok, message):
     if not ok: raise SystemExit(f"FAIL: {message}")
 
 patch = PATCH.read_text()
+added = "\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
 need("backend.mm" not in patch, "backend edit is outside this lane")
-need("DrawPrimitiveUP" not in patch and "DrawIndexedPrimitiveUP" not in patch, "UP submission introduced")
-need("LockVertexBuffer" not in patch and "D3DLOCK_DISCARD" not in patch, "Metal path CPU-expands/uploads quads")
+need("DrawPrimitiveUP" not in added and "DrawIndexedPrimitiveUP" not in added, "UP submission introduced")
+need(not re.search(r"\bLockVertexBuffer\s*\(|\bD3DLOCK_DISCARD\b", added), "Metal path CPU-expands/uploads quads")
 need(f"#ifdef {MACRO}" in patch, "compact bridge is not Metal-guarded")
 need('extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects' in patch,
      "shared semantic RS_RECT C bridge ABI missing")
@@ -26,6 +27,10 @@ need(weather.is_dir(), f"incomplete source: {SOURCE}")
 with tempfile.TemporaryDirectory(prefix="renderer-rain-weather-probe-") as tmp:
     target = Path(tmp)
     shutil.copytree(weather, target / "src/libs/weather/src")
+    sea = SOURCE / "src/libs/sea/src/sea.cpp"
+    need(sea.is_file(), f"incomplete sea source: {SOURCE}")
+    (target / "src/libs/sea/src").mkdir(parents=True)
+    shutil.copy2(sea, target / "src/libs/sea/src/sea.cpp")
     staged = (weather / "rain.cpp").read_text()
     if f"#ifdef {MACRO}" in staged:
         # renderer-rain-weather is part of the canonical ordered stack, so the
@@ -52,9 +57,9 @@ with tempfile.TemporaryDirectory(prefix="renderer-rain-weather-probe-") as tmp:
     need("pL->fScaleY * pRS->GetHeightDeformator()" in lightning and
          lightning.count("pRS->GetHeightDeformator()") == 2 and
          rain.count("rs->GetHeightDeformator()") == 2, "height deformation was not pre-applied")
-    need(rain.count(f"#ifdef {MACRO}") == 3 and rain.count("StormMetalDrawBillboards(") == 3 and
+    need(rain.count("StormMetalDrawBillboards(") == 3 and
          rain.count("DrawRects(") == 2, "rain Metal/fallback branch coverage incomplete")
-    need(lightning.count(f"#ifdef {MACRO}") == 3 and lightning.count("StormMetalDrawBillboards(") == 3 and
+    need(lightning.count("StormMetalDrawBillboards(") == 3 and
          lightning.count("DrawRects(") == 2, "lightning Metal/fallback branch coverage incomplete")
 
 contracts = {

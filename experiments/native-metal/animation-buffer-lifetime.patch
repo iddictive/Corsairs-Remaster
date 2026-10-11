@@ -1,8 +1,9 @@
 --- a/src/libs/geometry/src/geometry.cpp
 +++ b/src/libs/geometry/src/geometry.cpp
-@@ -2,6 +2,8 @@
+@@ -2,6 +2,9 @@
  
  #include "geometry_r.h"
++#include "gpu_skinning_bridge.hpp"
  #include "string_compare.hpp"
 +#include <limits>
 +#include <vector>
@@ -74,7 +75,19 @@
      return RenderService->LockVertexBuffer(vb);
  }
  
-@@ -382,8 +400,11 @@
+@@ -374,6 +393,11 @@ void GEOM_SERVICE_R::UnlockVertexBuffer(GEOS::ID vb)
+ {
+     if (vb == INVALID_BUFFER_ID)
+         return;
++    if (vb >= SHIFT_VALUE)
++        if (const auto *buffer = AnimationBuffer(vb))
++            storm::metal::skinning::invalidateVertices(
++                static_cast<const storm::metal::skinning::AnimatedVertex *>(buffer->buff));
++
+     if (RenderService && vb < SHIFT_VALUE)
+         RenderService->UnLockVertexBuffer(vb);
+ }
+@@ -382,8 +406,13 @@
      if (RenderService)
          if (vb >= SHIFT_VALUE)
          {
@@ -82,6 +95,8 @@
 -            avb[vb - SHIFT_VALUE].nvertices = 0;
 +            if (auto *buffer = AnimationBuffer(vb))
 +            {
++                storm::metal::skinning::invalidateVertices(
++                    static_cast<const storm::metal::skinning::AnimatedVertex *>(buffer->buff));
 +                delete[] static_cast<char *>(buffer->buff);
 +                *buffer = {};
 +            }

@@ -1,15 +1,239 @@
-diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning.cpp
---- a/src/libs/weather/src/lightning.cpp
-+++ b/src/libs/weather/src/lightning.cpp
-@@ -3,1 +3,7 @@
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -3,6 +3,11 @@
+ #include "core.h"
+ #include "math_inlines.h"
+ #include <algorithm>
 +#ifdef STORM_METAL_RENDERER_CONSUMERS
 +extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
 +                                           const char *technique, uint32_t atlasX, uint32_t atlasY,
 +                                           float scaleX, float scaleY);
 +#endif
+
+ RAIN::RAIN()
+ {
+@@ -165,10 +170,21 @@
+          i++)
+     {
+         GenerateRandomDrop(&pVertBuf[i * 2 + 0].vPos);
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        // Five metres is the authored ceiling, not every drop's exposure length.
++        const float streak = 0.18f + FRAND(0.32f);
++        const uint32_t headAlpha = 100u + static_cast<uint32_t>(FRAND(100.f));
++        pVertBuf[i * 2 + 0].dwColor = (headAlpha << 24) | 0x00FFFFFFu;
++#else
+         pVertBuf[i * 2 + 0].dwColor = 0xFFFFFFFF;
++#endif
+
+         pVertBuf[i * 2 + 1].vPos = pVertBuf[i * 2 + 0].vPos;
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        pVertBuf[i * 2 + 1].vPos.y += fDropLength * streak;
++#else
+         pVertBuf[i * 2 + 1].vPos.y += fDropLength;
++#endif
+         pVertBuf[i * 2 + 1].dwColor = 0xFFFFFF;
+     }
+     rs->UnLockVertexBuffer(iVertexBuffer);
+@@ -229,6 +245,13 @@
+
+ void RAIN::Execute(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++    // Dry/hidden transitions must not resurrect old impacts at the next shower.
++    if (!bShow || !pWeather || pWeather->GetVisualRainDrops() < 1.f)
++    {
++        aDrops.clear(); aSeaDrops.clear(); aShips.clear(); fDropsDeltaTime = 0.f;
++    }
++#endif
+ }
+
+ void RAIN::InitialSomeBlockParameters(int32_t iIdx) const
+@@ -242,6 +265,7 @@
+ void RAIN::RealizeDrops(uint32_t Delta_Time)
+ {
+     auto fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
++    const float lifetimeDeltaTime = fDeltaTime;
+
+     static auto dwShipName = MakeHashValue("SHIP");
+
+@@ -268,9 +292,11 @@
+     if (fDropsDeltaTime < 0.0f)
+         fDropsDeltaTime = 0.0f;
+
+-    if (auto && entities = core.GetEntityIds(RAIN_DROPS); !entities.empty())
+-    {
+-        for (int32_t i = 0; i < iNumNewDrops1 + iNumNewDrops2; i++)
++    // Open sea needs no collision receivers; roofs still win the existing trace.
++    if (auto && entities = core.GetEntityIds(RAIN_DROPS); !entities.empty() || pSea)
++    {
++        const int32_t newDrops = std::min(iNumNewDrops1 + iNumNewDrops2, NUM_SEA_DROPS);
++        for (int32_t i = 0; i < newDrops; i++)
+         {
+             SHIP_BASE *pShip = nullptr;
+             float fA, fS, fR;
+@@ -290,7 +316,7 @@
+             vSrc = CVECTOR(vCamPos.x + fR * sinf(fA), vCamPos.y + 75.0f, vCamPos.z + fR * cosf(fA));
+             vDst = CVECTOR(vSrc.x, vCamPos.y - 75.0f, vSrc.z);
+
+-            auto fTest1 = cs->Trace(entities, vSrc, vDst, nullptr, 0);
++            auto fTest1 = entities.empty() ? 2.0f : cs->Trace(entities, vSrc, vDst, nullptr, 0);
+             auto fTest2 = 2.0f;
+
+             if (pSea)
+@@ -317,12 +343,14 @@
+                 // sea_drop.vPos = vSrc + fTest * (vDst - vSrc);
+                 // sea_drop.fTime = 1.0f;
+                 // sea_drop.fLifeTime = 1.0f;
+-                aSeaDrops.push_back(seadrop_t{vSrc + fTest * (vDst - vSrc), 1.0f, 1.0f});
++                if (aSeaDrops.size() < NUM_SEA_DROPS)
++                    aSeaDrops.push_back(seadrop_t{vSrc + fTest * (vDst - vSrc), 0.7f, 0.7f});
+             }
+
+             if (fTest <= 1.0f)
+             {
+                 // Add a drop
++                if (aDrops.size() >= NUM_SEA_DROPS) continue;
+                 aDrops.push_back(drop_t{});
+                 // drop_t & drop = aDrops[aDrops.Add()];
+                 drop_t &drop = aDrops.back();
+@@ -365,7 +393,7 @@
+     {
+         drop_t &drop = aDrops[i];
+
+-        drop.fLifeTime -= fDeltaTime;
++        drop.fLifeTime -= lifetimeDeltaTime;
+         if (drop.fLifeTime <= 0.0f || (drop.iShip >= 0 && !aShips[drop.iShip].pShip))
+         {
+             // aDrops.ExtractNoShift(i);
+@@ -396,7 +424,19 @@
+
+     rs->TextureSet(0, iRainDropsTexture);
+     // rs->SetTexture(0, null);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    if (rs->TechniqueExecuteStart("rain_drops"))
++        do
++        {
++            StormMetalDrawBillboards(rs->GetD3DDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1,
++                                     1.0f, rs->GetHeightDeformator());
++        } while (rs->TechniqueExecuteNext());
++#else
+     rs->DrawRects(aRects.data(), aRects.size(), "rain_drops", 8, 1);
++#endif
 +
++    if (!pSea) { aSeaDrops.clear(); return; }
++    if (aSeaDrops.empty()) return;
+
+     // draw circles on the water
+     CMatrix IMatrix;
+@@ -404,6 +444,11 @@
+     rs->SetWorld(IMatrix);
+     rs->TextureSet(0, iSeaDropTex);
+
++    uint32_t ambient = 0;
++    rs->GetRenderState(D3DRS_AMBIENT, &ambient);
++    const float illumination = static_cast<float>(std::max({(ambient >> 16) & 255u,
++                                                             (ambient >> 8) & 255u, ambient & 255u})) / 255.f;
++
+     auto pVSeaDropBuffer = static_cast<SEADROPVERTEX *>(rs->LockVertexBuffer(iVBSeaDrops, D3DLOCK_DISCARD));
+     int32_t n = 0;
+     if (pVSeaDropBuffer)
+@@ -411,7 +456,7 @@
+         {
+             seadrop_t &drop = aSeaDrops[i];
+
+-            drop.fTime -= fDeltaTime;
++            drop.fTime -= lifetimeDeltaTime;
+             if (drop.fTime <= 0.0f)
+             {
+                 // aSeaDrops.ExtractNoShift(i);
+@@ -426,28 +471,31 @@
+
+             SEADROPVERTEX *pV = &pVSeaDropBuffer[n * 4];
+
+-            float fSize = 0.15f;
+-            int32_t frame = static_cast<int32_t>((1.0f - drop.fTime / drop.fLifeTime) * 8.0f);
++            const float age = std::clamp(1.0f - drop.fTime / drop.fLifeTime, 0.f, 1.f);
++            float fSize = 0.035f + 0.18f * age;
++            const uint32_t alpha = static_cast<uint32_t>(70.f * illumination * (1.f - age));
++            const uint32_t rippleColor = ARGB(alpha, dwRainR, dwRainG, dwRainB);
++            int32_t frame = std::min(7, static_cast<int32_t>(age * 8.0f));
+             float du = 1.0f / 8.0f;
+             float u = static_cast<float>(frame) * du;
+
+             pV[0].vPos = v + CVECTOR(-fSize, 0.0f, -fSize);
+-            pV[0].dwColor = 0xFFFFFFFF;
++            pV[0].dwColor = rippleColor;
+             pV[0].tu = u;
+             pV[0].tv = 0.0f;
+
+             pV[1].vPos = v + CVECTOR(fSize, 0.0f, -fSize);
+-            pV[1].dwColor = 0xFFFFFFFF;
++            pV[1].dwColor = rippleColor;
+             pV[1].tu = u + du;
+             pV[1].tv = 0.0f;
+
+             pV[2].vPos = v + CVECTOR(fSize, 0.0f, fSize);
+-            pV[2].dwColor = 0xFFFFFFFF;
++            pV[2].dwColor = rippleColor;
+             pV[2].tu = u + du;
+             pV[2].tv = 1.0f;
+
+             pV[3].vPos = v + CVECTOR(-fSize, 0.0f, fSize);
+-            pV[3].dwColor = 0xFFFFFFFF;
++            pV[3].dwColor = rippleColor;
+             pV[3].tu = u;
+             pV[3].tv = 1.0f;
+
+@@ -463,9 +511,9 @@
+             }
+         }
+
++    if (pVSeaDropBuffer) rs->UnLockVertexBuffer(iVBSeaDrops);
+     if (n > 0)
+     {
+-        rs->UnLockVertexBuffer(iVBSeaDrops);
+         rs->DrawBuffer(iVBSeaDrops, sizeof(SEADROPVERTEX), iIBSeaDrops, 0, n * 4, 0, n * 2, "sea_rain_drops");
+     }
+ }
+@@ -505,6 +553,7 @@
+                 if (dwAlpha > dwRainMaxBlend)
+                     dwAlpha = dwRainMaxBlend;
++                dwAlpha = std::min(dwAlpha, 255u); // ARGB packs an 8-bit alpha.
+                 uint32_t dwColor = ARGB(dwAlpha, dwRainR, dwRainG, dwRainB);
+                 rs->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+
+                 CMatrix mY1, mX, mY2, mWorld;
+@@ -557,7 +606,16 @@
+         rs_rect.fAngle = 0.0f;
+
+         rs->TextureSet(0, iRainbowTex);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        if (rs->TechniqueExecuteStart("rainbow"))
++            do
++            {
++                StormMetalDrawBillboards(rs->GetD3DDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f,
++                                         rs->GetHeightDeformator());
++            } while (rs->TechniqueExecuteNext());
++#else
+         rs->DrawRects(&rs_rect, 1, "rainbow");
++#endif
+     }
+ }
+
+--- a/src/libs/weather/src/lightning.cpp
++++ b/src/libs/weather/src/lightning.cpp
+@@ -1,4 +1,10 @@
+ #include "lightning.h"
++
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t atlasX, uint32_t atlasY,
++                                           float scaleX, float scaleY);
++#endif
+
  #include "core.h"
-@@ -93,5 +99,14 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+
+@@ -93,7 +99,16 @@
              pR->vPos = pL->vPos;
              pR->fSize = pL->fSize;
              pR->fAngle = 0.0f;
@@ -24,7 +248,9 @@ diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning
              pRS->DrawRects(pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX, pL->fScaleY);
 +#endif
          }
-@@ -110,5 +121,14 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+     }
+
+@@ -110,7 +125,16 @@
              pR->vPos = pL->vPos;
              pR->fSize = pL->Flash.fSize;
              pR->fAngle = 0.0f;
@@ -39,44 +265,23 @@ diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning
              pRS->DrawRects(pR, 1, pL->Flash.sTechnique.c_str());
 +#endif
          }
-diff --git a/src/libs/weather/src/rain.cpp b/src/libs/weather/src/rain.cpp
---- a/src/libs/weather/src/rain.cpp
-+++ b/src/libs/weather/src/rain.cpp
-@@ -3,4 +3,9 @@
- #include "core.h"
- #include "math_inlines.h"
- #include <algorithm>
-+#ifdef STORM_METAL_RENDERER_CONSUMERS
-+extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
-+                                           const char *technique, uint32_t atlasX, uint32_t atlasY,
-+                                           float scaleX, float scaleY);
-+#endif
- 
-@@ -396,4 +402,13 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
-     rs->TextureSet(0, iRainDropsTexture);
-     // rs->SetTexture(0, null);
-+#ifdef STORM_METAL_RENDERER_CONSUMERS
-+    if (rs->TechniqueExecuteStart("rain_drops"))
-+        do
-+        {
-+            StormMetalDrawBillboards(rs->GetD3DDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1,
-+                                     1.0f, rs->GetHeightDeformator());
-+        } while (rs->TechniqueExecuteNext());
-+#else
-     rs->DrawRects(aRects.data(), aRects.size(), "rain_drops", 8, 1);
-+#endif
- 
-@@ -557,4 +568,13 @@ void RAIN::Realize(uint32_t Delta_Time)
- 
-         rs->TextureSet(0, iRainbowTex);
-+#ifdef STORM_METAL_RENDERER_CONSUMERS
-+        if (rs->TechniqueExecuteStart("rainbow"))
-+            do
-+            {
-+                StormMetalDrawBillboards(rs->GetD3DDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f,
-+                                         rs->GetHeightDeformator());
-+            } while (rs->TechniqueExecuteNext());
-+#else
-         rs->DrawRects(&rs_rect, 1, "rainbow");
-+#endif
      }
+ }
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1526,6 +1526,15 @@
+         const auto vec3 = CVECTOR4(fFoamV, fFoamK, fFoamUV, 6.0f);
+         const auto vec4 = CVECTOR4(fTmp, fTmp, fTmp, fTmp);
+         const auto vec5 = CVECTOR4(vCamPos.x - vWorldOffset.x, vCamPos.y, vCamPos.z - vWorldOffset.z, 1.0f);
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++        // Reserved native water slot; republish dry on every draw, never stale.
++        float rainIntensity = 0.f;
++        if (const auto id = core.GetEntityId("weather"))
++            if (auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(id)))
++                rainIntensity = std::clamp(weather->GetVisualRainDrops() / 5000.f, 0.f, 1.f);
++        const CVECTOR4 rainSurface(rainIntensity, fTmp, 0.f, 1.f);
++        rs->SetVertexShaderConstantF(244, (const float *)&rainSurface, 1);
++#endif
+         const auto vec6 = CVECTOR4(1.0f, 0.0f, 0.0f, 1.0f);
+         const auto vec7 = CVECTOR4(fFrenel, 1.0f, 0.5f, 1.0f);
+         const auto vec8 = CVECTOR4(1.0f, 0.0f, 0.0f, 1.0f);

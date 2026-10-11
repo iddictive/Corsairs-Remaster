@@ -83,6 +83,7 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
   need(SUCCEEDED(d->SetIndices(nullptr)),"GPU unbinds skinned indices");
   ib->Release();
   endPose();
+  invalidateVertices(v);
  };
  // The next frames use source replay, not the screen-visible receiver packets.
  // The directional caster lies outside the main camera's X and near planes.
@@ -173,6 +174,10 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
  const auto darkGpuEnergy=energy(darkGpuSkinned),litGpuEnergy=energy(litGpuSkinned);
  if(litGpuEnergy<=darkGpuEnergy*2)fprintf(stderr,"GPU-skinned catalog energy: dark=%llu lit=%llu\n",static_cast<unsigned long long>(darkGpuEnergy),static_cast<unsigned long long>(litGpuEnergy));
  need(litGpuEnergy>darkGpuEnergy*2,"GPU-skinned character receives authored local lamp catalog");
+ // This lamp reaches the animated quad's right edge, but not its model origin.
+ // A zero facade AABB wrongly rejects it before the shader sees the catalog.
+ auto edgeLampGpuSkinned=prepassFrame(true,false,0,true,2,false,true,14,0,1,0,0,false,false,true);
+ need(energy(edgeLampGpuSkinned)>darkGpuEnergy,"posed bounds admit a lamp reaching vertices outside the model origin");
  prepassFrame(true,true,-2,true,1,false,true,0,.7f,1,-6);
  prepassFrame(true,true,-2,true,1,false,true,0,.7f,1,0,0,false,true);
  prepassFrame(true,true,-2,true,2,false,true,0,.7f,1,0,0,false,true);
@@ -197,20 +202,22 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
  auto makeRegistryQuad=[&](float radius,float z){const V vertices[]={{-radius,-radius,z,0,0,-1,0xff808080,0,0},{radius,-radius,z,0,0,-1,0xff808080,1,0},{radius,radius,z,0,0,-1,0xff808080,1,1},{-radius,radius,z,0,0,-1,0xff808080,0,1}};IDirect3DVertexBuffer9* vb=nullptr;need(SUCCEEDED(d->CreateVertexBuffer(sizeof(vertices),D3DUSAGE_WRITEONLY,0,D3DPOOL_MANAGED,&vb,nullptr)),"persistent registry VB");vb->Lock(0,0,&registryStorage,0);memcpy(registryStorage,vertices,sizeof(vertices));vb->Unlock();return vb;};
  auto* receiverVb=makeRegistryQuad(14,8);auto* casterVb=makeRegistryQuad(1.5f,6);
  auto drawRegistryQuad=[&](IDirect3DVertexBuffer9*vb){d->SetFVF(D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_TEX1);d->SetStreamSource(0,vb,0,sizeof(V));d->SetIndices(registryIb);auto scope=StormMetalBeginLandModel(d,1);need(SUCCEEDED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"persistent source geometry");StormMetalEndLandModel(d,scope);};
- auto registryFrame=[&](bool capture,float cameraOrigin=0.f){
+ auto registryFrame=[&](bool capture,float cameraOrigin=0.f,bool warmCandidate=false){
   d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff000000,1,0);d->BeginScene();StormMetalLandLocation(d,true);StormMetalLandInterior(d,true);
   for(unsigned i=0;i<8;i++)d->LightEnable(i,FALSE);
   const float frameOrigin[]={cameraOrigin,0,0};StormMetalSetWorldOrigin(d,frameOrigin);D3DMATRIX frameWorld=identity,frameView=identity;frameWorld._41=cameraOrigin;frameView._41=-cameraOrigin;d->SetTransform(D3DTS_WORLD,&frameWorld);d->SetTransform(D3DTS_VIEW,&frameView);d->SetTransform(D3DTS_PROJECTION,&projection);
   d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_COLORVERTEX,TRUE);d->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1);d->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_COLOR1);d->SetRenderState(D3DRS_AMBIENT,0);
   d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_ZENABLE,TRUE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
-  need(StormMetalBeginShadowFrame(d,50001,++generation,center),"persistent scene begins");StormMetalBeginSceneLights(d);need(StormMetalSceneLight(d,701,&source),"persistent scene source");StormMetalRenderPointShadowCube(d,701,lampPosition,24);StormMetalEndShadowFrame(d);
+  need(StormMetalBeginShadowFrame(d,50001,++generation,center),"persistent scene begins");StormMetalBeginSceneLights(d);need(StormMetalSceneLight(d,701,&source),"persistent scene source");if(warmCandidate){auto candidate=source;candidate.Position.x=30;candidate.Range=12;need(StormMetalSceneLight(d,702,&candidate),"view-eligible unselected source");}StormMetalRenderPointShadowCube(d,701,lampPosition,24);StormMetalEndShadowFrame(d);
   drawRegistryQuad(receiverVb);const auto before=pixels();
   need(!StormMetalBeginOffscreenPointCaster(d,farCenter,1.5f),"off-camera geometry outside lamp range stays culled");
+  if(warmCandidate){const float candidateCaster[]={30,0,6};need(StormMetalBeginOffscreenPointCaster(d,candidateCaster,1.5f),"unselected view-eligible lamp warms its offscreen caster before admission");StormMetalEndOffscreenPointCaster(d);need(before==pixels(),"warming an unselected lamp never paints the colour target");}
   if(capture){need(StormMetalBeginOffscreenPointCaster(d,casterCenter,1.5f),"off-camera nearby caster admitted");need(!StormMetalBeginOffscreenPointCaster(d,farCenter,1.5f),"nested out-of-range caster remains culled");drawRegistryQuad(casterVb);StormMetalEndOffscreenPointCaster(d);need(before==pixels(),"off-camera caster never paints the colour target");}
   d->EndScene();need(SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr)),"registry frame reset");return before;
  };
  registryFrame(true);const auto shadowWithCaster=registryFrame(true);const auto cubeSubmissions=StormMetalPointShadowGpuCullDispatches(d);registryFrame(true);
  need(StormMetalPointShadowGpuCullDispatches(d)==cubeSubmissions,"unchanged scene reuses its point depth cube");
+ registryFrame(true,0,true);need(StormMetalPointShadowGpuCullDispatches(d)==cubeSubmissions,"warming eligible sources does not allocate additional cube faces");
  registryFrame(true,-100);registryFrame(true,-100);need(StormMetalPointShadowGpuCullDispatches(d)==cubeSubmissions,"camera origin changes do not rebuild physical caster cubes");
  registryFrame(false);const auto shadowWithoutCaster=registryFrame(false);
  need(energy(shadowWithoutCaster)>energy(shadowWithCaster),"removing the source caster invalidates its shadow");

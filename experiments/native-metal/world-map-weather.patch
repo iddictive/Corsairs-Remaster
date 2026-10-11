@@ -1,24 +1,34 @@
 --- a/src/libs/weather/include/weather_base.h
 +++ b/src/libs/weather/include/weather_base.h
-@@ -99,6 +99,9 @@
+@@ -6,2 +6,5 @@
+ #define MAX_FLOAT_PARAMS 128
++#ifdef STORM_METAL_WEATHER_VISUAL_STATE
++namespace storm_weather { struct Front; }
++#endif
+ #define MAX_LONG_PARAMS 64
+@@ -99,6 +99,11 @@
      virtual float GetCloudCoverage() { return .32f; }
      virtual float GetCloudDensity() { return .48f; }
      virtual void AdvanceWeatherHours(float) {}
 +    virtual void SetWeatherLocation(float, float) {}
 +    virtual void GetWeatherAt(float, float, float &rain, float &storm, float &coverage) { rain=storm=coverage=0.f; }
 +    virtual float GetWindAt(float, float, CVECTOR &dir) { const float a=GetFloat(whf_wind_angle); dir=CVECTOR(sinf(a),0.f,cosf(a)); return GetFloat(whf_wind_speed); }
++    virtual void SetWeatherWorldSize(float, float) {}
++    virtual bool GetWeatherFront(unsigned, storm_weather::Front &) { return false; }
      virtual float GetVisualRainDrops() { return 0.f; }
      virtual void SetVisualRainDrops(float) {}
  #endif
 --- a/src/libs/weather/src/weather.h
 +++ b/src/libs/weather/src/weather.h
-@@ -76,6 +76,9 @@
+@@ -76,6 +76,11 @@
      float GetCloudCoverage() override { return weatherEngine.local().coverage; }
      float GetCloudDensity() override { return .35f + weatherEngine.local().coverage * .55f; }
      void AdvanceWeatherHours(float hours) override;
 +    void SetWeatherLocation(float x,float z) override { weatherEngine.mapX=x; weatherEngine.mapZ=z; }
 +    void GetWeatherAt(float x,float z,float &rain,float &storm,float &coverage) override { const auto c=weatherEngine.sample(x,z); rain=c.rain; storm=c.storm; coverage=c.coverage; }
 +    float GetWindAt(float x,float z,CVECTOR &dir) override { const auto c=weatherEngine.sample(x,z); dir=CVECTOR(sinf(c.angle),0.f,cosf(c.angle)); return c.speed; }
++    void SetWeatherWorldSize(float x,float z) override { if (weatherEngine.worldSizeX==x && weatherEngine.worldSizeZ==z) return; weatherEngine.setWorldSize(x,z); SaveWeatherEngine(); }
++    bool GetWeatherFront(unsigned index,storm_weather::Front &front) override { return weatherEngine.front(index,front); }
  #endif
  
    public:
@@ -45,14 +55,19 @@
  #include "core.h"
  
  #include "wdm_camera_std_ctrl.h"
-@@ -127,6 +128,7 @@
-     ro = AddObject(islands);
-     AddObject(ro, -100000);
-     AddLObject(ro, wdm::render_levels::Label);
-+    AddLObject(AddObject(new WdmWeatherRegions()), wdm::render_levels::PortDanger);
-     AddLObject(AddObject(new WdmPortDangerZones(islands)), wdm::render_levels::PortDanger);
-     //
+@@ -139,7 +140,11 @@
+     AddPObject(sea, 10);
+     AddLObject(sea, wdm::render_levels::Sea);
+     // create clouds
+-    AddLObject(AddObject(new WdmClouds()), 10000);
++    if (const auto id=core.GetEntityId("weather"))
++        static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->SetWeatherWorldSize(
++            wdmObjects->worldSizeX,wdmObjects->worldSizeZ);
++    // Fronts precede label/UI layers, preserving names and navigation controls.
++    AddLObject(AddObject(new WdmWeatherRegions()), wdm::render_levels::Ship+1);
      rs->ProgressView();
+     // Create a camera
+     camera = new WdmCameraStdCtrl();
 @@ -336,6 +338,10 @@
              }
              if (storm::iEquals(type, "Storm"))
@@ -64,12 +79,15 @@
                  const auto isTornado = (a->GetAttributeAsDword("isTornado", 0) != 0);
                  if (!CreateStorm(isTornado, -1.0f, a))
                  {
-@@ -379,6 +385,8 @@
+@@ -379,6 +385,11 @@
          CVECTOR wind(0.0f);
          float x, z, ay;
          wdmObjects->playerShip->GetPosition(x, z, ay);
-+        if (const auto id=core.GetEntityId("weather"))
-+            static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->SetWeatherLocation(x,z);
++        if (const auto id=core.GetEntityId("weather")) {
++            auto *weather=static_cast<WEATHER_BASE *>(core.GetEntityPointer(id));
++            weather->SetWeatherWorldSize(wdmObjects->worldSizeX,wdmObjects->worldSizeZ);
++            weather->SetWeatherLocation(x,z);
++        }
          const auto force = wdmObjects->GetWind(x, z, wind);
          AttributesPointer->SetAttributeUseFloat("WindX", wind.x);
          AttributesPointer->SetAttributeUseFloat("WindZ", wind.z);
@@ -82,30 +100,40 @@
  #ifdef STORM_METAL_WEATHER_VISUAL_STATE
      if (const auto weatherId = core.GetEntityId("weather"))
          static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId))->AdvanceWeatherHours(calendarHours);
---- a/src/libs/worldmap/src/wdm_clouds.cpp
-+++ b/src/libs/worldmap/src/wdm_clouds.cpp
-@@ -12,6 +12,8 @@
- 
- #include "math_inlines.h"
- #include "wdm_objects.h"
-+#include "core.h"
+--- a/src/libs/worldmap/src/wdm_player_ship.cpp
++++ b/src/libs/worldmap/src/wdm_player_ship.cpp
+@@ -16,6 +16,7 @@
+ #include "shared/events.h"
+ #include "wdm_enemy_ship.h"
+ #include "wdm_islands.h"
 +#include "weather_base.h"
+ #include "wdm_storm.h"
+ #include "world_map.h"
  
- //============================================================================================
- 
-@@ -222,6 +224,12 @@
-         auto a = static_cast<float>(static_cast<uint8_t>(c.color >> 24));
-         a *= alpha;
-         a *= 0.1f + c.alpha * 0.9f;
-+        // Retain authored cloud art as a quiet decoration of the same field.
-+        if (const auto id=core.GetEntityId("weather")) {
-+            float rain=0.f, storm=0.f, coverage=0.f;
-+            static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->GetWeatherAt(c.pos.x,c.pos.z,rain,storm,coverage);
-+            a *= .15f*coverage;
-+        } else a=0.f;
-         auto la = static_cast<int32_t>(a * galpha);
-         if (la > 0xff)
-             la = 0xff;
+@@ -241,6 +241,7 @@
+ int32_t WdmPlayerShip::TestInStorm() const
+ {
+     auto inStormZone = false;
++    wdmObjects->wm->AttributesPointer->SetAttributeUseDword("nativeWeatherStorm",0);
+     auto isTornado = false;
+     for (int32_t i = 0; i < wdmObjects->storms.size(); i++)
+     {
+@@ -290,5 +291,15 @@
+         }
+     }
++    // Ordinary weather contact comes from the same moving regional storm core
++    // shown by the forecast. Explicit tornado/tsunami contacts keep precedence.
++    if (const auto id=core.GetEntityId("weather")) {
++        float rain=0.f, storm=0.f, coverage=0.f;
++        static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->GetWeatherAt(
++            mtx.Pos().x,mtx.Pos().z,rain,storm,coverage);
++        inStormZone |= storm>.5f;
++        wdmObjects->wm->AttributesPointer->SetAttributeUseDword(
++            "nativeWeatherStorm",storm>.5f && !isTornado);
++    }
+     if (inStormZone)
+     {
+         wdmObjects->wm->AttributesPointer->SetAttribute("playerInStorm", "1");
 --- a/src/libs/sea/src/sea.cpp
 +++ b/src/libs/sea/src/sea.cpp
 @@ -1908,7 +1908,12 @@

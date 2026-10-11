@@ -251,6 +251,42 @@ float3 modernSeaNormal(SeaO o,float3 coarse,float3 detail) {
     float2 ripples=coarse.xz*.32f+detail.xz*.075f;
     return seaNormalize(float3(n.x+ripples.x,max(n.y,.08f),n.z+ripples.y));
 }
+// Rain perturbs the existing reflecting surface, rather than adding bright
+// painted circles. vc244 is published by SEA from the smoothed rain snapshot
+// and its existing wrapped normal-animation phase. No extra pass or history.
+float2 seaRainImpactSlope(float2 world,float phase,uint salt) {
+    float2 cell=floor(world/.8f),local=world-cell*.8f;
+    uint2 key=uint2(int2(cell));
+    uint h=key.x*0x8da6b343u^key.y*0xd8163841u^salt;
+    h^=h>>16;h*=0x7feb352du;h^=h>>15;h*=0x846ca68bu;h^=h>>16;
+    float2 center=(float2(float(h&65535u),float(h>>16))/65535.f*.4f+.3f)*.8f;
+    float age=fract(phase+float((h>>8)&65535u)/65535.f);
+    float2 delta=local-center;
+    float radius=length(delta),q=radius-(.018f+.19f*age);
+    float envelope=exp(-q*q/(.015f*.015f));
+    // Birth and death have zero amplitude; hashed centres never cross cells.
+    float life=smoothstep(0.f,.08f,age)*(1.f-age)*(1.f-age);
+    float packet=130.f*cos(q*130.f)-2.f*q/(.015f*.015f)*sin(q*130.f);
+    float edge=1.f-smoothstep(.19f,.235f,radius);
+    return delta/max(radius,.001f)*(.00045f*life*envelope*packet*edge);
+}
+float3 modernSeaRainNormal(SeaO o,constant SeaU&u,float3 normal) {
+    // Uniform dry/missing-state rejection preserves the exact previous normal.
+    if(u.vc[244].w<.5f||u.vc[244].x<=0.f)return normal;
+    float footprint=max(length(dfdx(o.worldXZ)),length(dfdy(o.worldXZ)));
+    float strength=saturate(u.vc[244].x)*(1.f-smoothstep(.015f,.06f,footprint));
+    strength*=1.f-smoothstep(25.f,90.f,length(o.viewToEye));
+    strength*=smoothstep(.05f,.3f,normal.y);
+    if(strength<=.0001f)return normal;
+    // Two staggered orientations conceal the square admission lattice. Each
+    // pixel evaluates two compact packets; distant/subpixel rain costs none.
+    float2 slope=seaRainImpactSlope(o.worldXZ,u.vc[244].y,0x5241494eu);
+    float2 rotated=float2(.8f*o.worldXZ.x-.6f*o.worldXZ.y,.6f*o.worldXZ.x+.8f*o.worldXZ.y);
+    float2 second=seaRainImpactSlope(rotated,u.vc[244].y+.37f,0x44524f50u);
+    slope+=float2(.8f*second.x+.6f*second.y,-.6f*second.x+.8f*second.y);
+    slope=clamp(slope,float2(-.12f),float2(.12f))*strength;
+    return seaNormalize(float3(normal.x-slope.x,normal.y,normal.z-slope.y));
+}
 float3 modernSeaLinear(float3 color) {return pow(max(color,float3(0)),float3(2.2f));}
 float3 modernSeaDisplay(float3 color) {return pow(max(color,float3(0)),float3(1.f/2.2f));}
 float3 weatherBoundedReflection(float3 value,constant SeaU&u) {
@@ -326,7 +362,7 @@ float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture
     float3 raw=seaBump(o.t0.xyz,u,flat,bump,sampleState).rgb;
     float3 fine=seaBump(float3(o.t0.xy*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,flat,bump,sampleState).rgb;
     // BuildVolumeTexture writes ARGB(blue, green, red): restore world XYZ order.
-    return modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f);
+    return modernSeaRainNormal(o,u,modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f));
 }
 float4 sea2ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,texturecube<float> reflection,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth) {
     float3 n=modernSeaCubeNormal(o,u,t[0],bump,s[0]);
@@ -377,6 +413,11 @@ float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,textu
     float3 detail=float3(fine.b*2.f-1.f,1,fine.r*2.f-1.f);
     float3 n=modernSeaNormal(o,coarse,detail);
     float2 perturb=coarse.xz*.25f+detail.xz*.06f;
+    if(u.vc[244].w>=.5f&&u.vc[244].x>0.f) {
+        float3 rainNormal=modernSeaRainNormal(o,u,n);
+        perturb+=rainNormal.xz-n.xz;
+        n=rainNormal;
+    }
     // Original projected coordinates/targets are retained, with centered distortion.
     float3 env=weatherBoundedReflection(t[1].sample(s[1],o.t1.xy+seaBumpOffset(perturb,u.bump1)).rgb,u);
     float3 sun=t[3].sample(s[3],o.t3.xy+seaBumpOffset(perturb,u.bump3)).rgb;

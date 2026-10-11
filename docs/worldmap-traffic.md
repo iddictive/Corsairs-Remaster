@@ -1919,3 +1919,22 @@ sea-to-land paths, rendered harbour choice and commander contact, real guard/cri
 contribution/settlement and evacuation replay, and normal prior-save/player replay.
 Recovery/pricing and survivor reassignment still need player interaction evidence.
 Canonical stage/install waits for the running game to close; root owns delivery.
+
+## Chart refresh freight fast path — October 11
+
+The canonical editable owner is `src/gameplay/PROGRAM/worldmap/worldmap_encgen.c`,
+registered by gameplay manifest v2; historical import composers are not edited.
+`wdmShipEncounter` runs `WdmTrafficRefresh` once per second; this preserves entry,
+panel, pursuit and roster reactions. Its repeated cargo synchronization scanned
+all52 goods even when a hull had no `trafficFreight` branch. The freight clamp
+now returns before that scan for the missing-branch case; explicit empty and
+legacy-imported manifests still traverse the existing owner.
+
+An actual script-VM fixture seeds60 fleets of6 hulls, with20 commerce manifests
+and40 patrol/raider fleets. Five hundred sweeps minus initialization measure
+16.70ms/sweep before and11.44ms after; external voyage/service branches are
+stubbed, so this is a component cost and not player frame-time evidence. Legacy
+cargo import, snapshot refresh, repeat/ammunition scaling, unknown fields, empty
+manifest, absent snapshot and four save-codec rounds pass with zero VM errors.
+Native one-second `ThinkTraffic` remains unchanged without an independent cost
+oracle. Player-visible periodic stutter stays unresolved after installation.

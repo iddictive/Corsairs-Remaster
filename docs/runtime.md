@@ -1,10 +1,76 @@
 # Runtime state
 
-Last verified: October11. Canonical staging installs signed engine `ba6c9cb3aada635cb1b86bc4f66180e8d6945fad721d0a36dcf078f598706599` into the supported player app after ordinary player closure. The preceding source milestone468a15a remains integrated; transformed tsunami contact,336 refreshed description blocks and emergency-repair balance are subsequently installed. Shared regional weather, bounded storm wear, matched airborne aim, ammunition, solar fog and CPU-preparation corrections remain installed. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
+Last verified: October11. Canonical staging installs signed engine `2f1c207791a6f9945a6569e87f9c4bae68fd6cefbb1e4970257e0cacfb07c476` into the supported player app after ordinary player closure. The player rejected the preceding fa648c36 weather tempo, storm visibility and lamp stability; the new batch contains their corrections, rain-water response and a chart freight fast path. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. Earlier tsunami, descriptions, repair, aim, ammunition and fog changes remain included. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
 
 ## Current verdict
 
-### October11 — tsunami, pirate descriptions and repair balance, installed; player review pending
+### October11 — weather tempo, rain impacts and lamp stability, installed; player review pending
+
+Observed rejection: the player sees authored cloud masses in fa648c36 but reports
+excessive speed, rain jitter, no visible thunderstorm cores, chart stutter, city
+shadow flicker on turning near San Juan lamps, and cheap sea rain without water
+response. The broad city FPS gain and orange/green sea saturation remain unproven.
+Eight supplied original screenshots are retained in the private case intake.
+
+Weather owner: one deterministic calendar/seed field supplies cloud parcels,
+local wind, precipitation and storm cores; land scenes bind their actual chart
+location instead of the last ship position. Real chart `hourPerSec=1` made the
+previous80–160units/game-hour fronts move80–160units/real-second. Cohorts now
+last16calendar hours and transport at5–10units/real-second on that same chart.
+Clouds persist through24-hour shower cycles:2h growth,4h mature,2h decay and16h
+parcel dry intervals. Moisture creates cores without a second storm lottery.
+130 chart locations ×16 seeds have longest wet intervals16.75h January,22.25h
+July and17.75h December. Strong storm cores occur in31%/48% winter/summer
+overview samples; clear area remains96.57%/93.75%. Save-v1 rebind, calendar
+partition, quest overrides and finite-event negatives pass component checks.
+
+Projection reuses authored WdmClouds/WdmRain/WdmLightning art. Rain/flash
+animation uses frame seconds, preventing the previous437.5cycles/real-second
+rain alias. Ship camera opacity multiplier is.12; Tab overview is.95. The native
+three-stage cloud shader reproduces RGB58/71/83 and unchanged outside geometry.
+The broader existing land fixture separately fails depth3 fog parity; this is
+recorded as a distinct observation, not accepted by the cloud-only check.
+
+Lamp owner: immutable AVERTEX0 source validation/uploads now reuse live geometry
+and the three flight slots, invalidated on owner unlock/release. Animated bounds
+formerly read the facade's zero-filled CPU bytes; current pose bounds now use
+GPU-source vertices/palette and reuse the pose-keyed span cache. A separate
+camera-yaw fixture proves newly admitted lamps could lack offscreen static
+casters in the previous-frame registry. View-eligible authored influences warm
+those casters within64 sources; eight cube budget, caster/vertex caps and shader
+behavior remain. ASan/UBSan lifetime, pose and warmed-yaw negatives pass. Native
+dynamic-lighting, sea/deck point-shadow and GPU/CPU skinning fixtures pass. Extra
+eligible caster capture may cost CPU; actual city FPS/flicker needs player replay.
+
+Rain owner: existing sea impact batches no longer depend on a collision-receiver
+list, retain roof precedence, age independently of intensity and cap at500 drops.
+Impacts expand/fade under ambient light; falling streaks vary/taper and packed
+alpha clamps to255. SEA publishes reservedvc244 from smoothed rain and its
+existing wrapped phase on each draw; modern water/reflection normals share two
+bounded analytical ripple packets, with no extra texture/pass/history. Native
+rain-normal readback changes3296/16384pixels, remains finite, phase-wrap error
+6e-8, and dry/invalid states are identical. On idle M3 Max, a4112×2580 all-near
+normal-only pass is.201ms dry/.506ms wet: component delta.305ms, not a complete
+scene/FPS guarantee. Existing modern/original water fixtures pass.
+
+Chart CPU owner: `WdmTrafficClampFreight` skips52-goods scans only when no freight
+manifest exists. Actual VM60fleet×6hull workload falls16.70→11.44ms per sweep;
+external voyage/service are stubbed. Legacy import, cargo/ammunition, empty and
+unknown fields and four save-codec rounds pass; cadence/quests remain. Periodic
+player stutter is unresolved. Full startup plus city/sea chart-position fixtures
+compile/run with zero errors; failed initial fixture attempts were local syntax
+and duplicate-Main seams, corrected without product changes.
+
+Delivery: canonical `run.sh --stage-only` exits0 after final inputs, caching
+fc840681 and installing signed2f1c2077. Deep/strict signature passes; both
+gameplay plans report zero pending, and weather/encounter consumers match
+canonical bytes. All250 SAVE/config files match the new idle snapshot. One
+autosave changed during the preceding live player session; that older snapshot
+is not a delivery preservation receipt. Installedfa648c36 is backed up by the
+existing installer. No game launch/input/stop, ZIP/upload or site publication.
+Disposition: installed, full player weather/lamp/rain/FPS replay unresolved.
+
+### October11 — historical tsunami, pirate descriptions and repair installation
 
 The player reports tsunami handoff before visible contact. Its16-unit ordinary
 encounter envelope is replaced for the player tsunami query by radial bounds

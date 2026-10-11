@@ -81,6 +81,7 @@ int main() {
             need(acceptVertices(actor,4,1),"late actor accepted");need(beginPose(d,palette,1),"late actor pose");
             auto* actorVb=static_cast<IDirect3DVertexBuffer9*>(bindVertices(actor,0,4,4));need(actorVb,"late actor vertices");
             need(SUCCEEDED(d->SetStreamSource(0,actorVb,0,36)),"late actor stream");need(SUCCEEDED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"late actor draw");endPose();
+            invalidateVertices(actor);
         }
         StormMetalEndLandModel(d,scope);D3DPERF_SetMarker(0,L"Storm.SceneHudBoundary");d->EndScene();
         need(SUCCEEDED(d->GetRenderTargetData(target,read)),"late readback");D3DLOCKED_RECT lock{};read->LockRect(&lock,nullptr,D3DLOCK_READONLY);FramePixels value{};std::memcpy(&value.red,static_cast<char*>(lock.pBits)+32*lock.Pitch+48*4,4);read->UnlockRect();need(SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr)),"late frame reset");return value;
@@ -118,6 +119,7 @@ int main() {
             need(acceptVertices(actor,4,1),"late sun actor accepted");need(beginPose(d,palette,1),"late sun actor pose");
             auto* actorVb=static_cast<IDirect3DVertexBuffer9*>(bindVertices(actor,0,4,4));need(actorVb,"late sun actor vertices");
             need(SUCCEEDED(d->SetStreamSource(0,actorVb,0,36)),"late sun actor stream");need(SUCCEEDED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"late sun actor draw");endPose();
+            invalidateVertices(actor);
             StormMetalEndLandModel(d,scope);
         }
         D3DPERF_SetMarker(0,L"Storm.SceneHudBoundary");d->EndScene();

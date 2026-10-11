@@ -130,6 +130,11 @@ void CreateWeatherEnvironment()
     bool eventTornado = false;
     if (bSeaActive && CheckAttribute(&WeatherParams,"Storm")) eventStorm=sti(WeatherParams.Storm);
     if (bSeaActive && CheckAttribute(&WeatherParams,"Tornado")) eventTornado=sti(WeatherParams.Tornado);
+    // A natural map front continues at the entered sea coordinates; it must not
+    // become an independent five-minute whole-scene storm request.
+    if (bSeaActive && !eventTornado && CheckAttribute(&worldMap,"nativeWeatherStorm") &&
+        sti(worldMap.nativeWeatherStorm)) eventStorm=false;
+    DeleteAttribute(&worldMap,"nativeWeatherStorm");
     if (locationIndex >= 0) {
         ref location = &Locations[locationIndex];
         if (CheckAttribute(location,"storm") || CheckAttribute(location,"alwaysStorm") || CheckAttribute(location,"alwaysStorm_2")) eventStorm=true;
@@ -614,6 +619,8 @@ void Whr_BindMapWeather()
     Whr_BindSolarPalette();
     aref savedWeather; makearef(savedWeather,WeatherParams.NativeState);
     Whr_BindNativeState(savedWeather);
+    // A location's quest lock ends when leaving it for the global map.
+    SendMessage(&Weather,"l",1464336390);
     SendMessage(&Weather,"ll",1464336388,false);
     Weather.Time.speed=0.0;
     LayerAddObject(EXECUTE,&Weather,1000000);
@@ -629,6 +636,26 @@ void Whr_GetMapPosition(ref position)
         float scale=wdmMapToSeaScale();
         position.x=stf(worldMap.zeroX)+stf(pchar.Ship.Pos.x)/scale;
         position.z=stf(worldMap.zeroZ)+stf(pchar.Ship.Pos.z)/scale;
+    }
+    if (bSeaActive || isEntity(&worldMap)) return;
+    // Land scenes sample their chart location, not the last offshore ship pose.
+    string islandId=pchar.location;
+    string chartLocation=pchar.location;
+    int locationIndex=FindLocation(pchar.location);
+    if (locationIndex>=0) {
+        ref location=&Locations[locationIndex];
+        if (CheckAttribute(location,"islandId")) islandId=location.islandId;
+        if (CheckAttribute(location,"townsack")) chartLocation=location.townsack+"_town";
+    }
+    islandId=GetIslandByArealName(islandId);
+    if (!CheckAttribute(&worldMap,"islands."+islandId)) return;
+    aref chart; makearef(chart,worldMap.islands.(islandId));
+    if (CheckAttribute(chart,pchar.location+".position")) chartLocation=pchar.location;
+    if (CheckAttribute(chart,chartLocation+".position.x") && CheckAttribute(chart,chartLocation+".position.z")) {
+        position.x=stf(chart.(chartLocation).position.x);
+        position.z=stf(chart.(chartLocation).position.z);
+    } else if (CheckAttribute(chart,"position.x") && CheckAttribute(chart,"position.z")) {
+        position.x=stf(chart.position.x); position.z=stf(chart.position.z);
     }
 }
 

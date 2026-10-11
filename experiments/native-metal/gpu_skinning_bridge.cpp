@@ -20,6 +20,13 @@ bool acceptVertices(const AnimatedVertex *vertices, std::uint32_t totalVertices,
            candidate->acceptVertices(candidate->context, vertices, totalVertices, boneCount);
 }
 
+void invalidateVertices(const AnimatedVertex *vertices)
+{
+    const Provider *candidate = installed.load(std::memory_order_acquire);
+    if (candidate && candidate->invalidateVertices && vertices)
+        candidate->invalidateVertices(candidate->context, vertices);
+}
+
 bool beginPose(void *device, const Matrix4x4 *palette, std::uint32_t boneCount)
 {
     const Provider *candidate = installed.load(std::memory_order_acquire);
