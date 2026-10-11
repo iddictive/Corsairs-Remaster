@@ -61,8 +61,13 @@ delivery.
 
 `GOOD_AIRBURST` is appended at index 51; existing cargo identifiers stay fixed.
 The fifth charge command and key `5` select «Шрапнельные бомбы». It is ship cargo,
-uses powder and the normal cannon-loading rules. Store rows display it directly
-after bombs without changing saved cargo identifiers. The inventory icon uses
+uses powder and the normal cannon-loading rules. Cargo tables display it directly
+after bombs without changing saved cargo identifiers. `Goods_GetDisplayIndex`
+in `PROGRAM/store/goods.h` owns that display-only permutation for store, hold,
+ship transfer/loot, personal storage, colony capture and treasurer cargo rows.
+Each row retains the original goods ID for quantities and transactions;
+cannon-only and independently profit-ranked lists retain their own order.
+The inventory icon uses
 the unused128px goods cell at384,512; normal/selected command icons use cells72/73
 of the existing64px atlas. The compass charge indicator uses cell40 at0,320 in
 the separate512px `LIST_ICON2` atlas. It reuses command cell72 byte-for-byte;
@@ -233,6 +238,15 @@ same initializer. Sea/non-colony stores receive no newly invented stock; an
 existing special row still receives the outside-Bermuda trade policy.
 
 ## Evidence and remaining replay
+
+October 11 cargo-order candidate: production hold and ship-transfer table
+functions run in the real script VM with52 distinct cargo quantities. Every row
+retains its goods ID and quantity while airburst51 follows bombs3; skipping
+an empty bomb row still keeps airburst before powder4. The same display helper
+is wired into the store, storage, colony-capture and treasurer tables. The VM
+also passes51→52 old-catalogue reconciliation and two serializer rounds while
+retaining prior ordinary-goods cost and player cargo. Table-window/world helpers
+are stubs; actual installed cargo screens remain a player replay requirement.
 
 The October 9 disposable probe extracts production `TryAirburst`, sphere sweep,
 arming and `AddFortHit`, with native `CVECTOR` and ASan/UBSan. An independent

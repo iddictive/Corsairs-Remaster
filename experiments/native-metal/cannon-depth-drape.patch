@@ -133,7 +133,7 @@
      if(!solution.guns.empty())manualAimColor=AimRelationColor(GetAIShip(),rangeCharacter);
      return !solution.guns.empty(); // near mechanically impossible shots stay unavailable
  }
-@@ -1539,280 +1491,80 @@
+@@ -1539,286 +1491,92 @@
      if(paths.empty())return;
      const bool ready=IsSingleFireMode() ? solution.guns.front()->CanFireTo(solution.gunTargets.front())
                                         : solution.bort->isCharged();
@@ -184,6 +184,9 @@
 +    namespace gpu=storm::sea_ai::manual_aim;
 +    std::vector<CVECTOR> waterPoints,solidPoints;
 +    std::vector<double> waterWeights,solidWeights;
++    struct DensitySample {Trajectory curve;double weight;float end;};
++    std::vector<DensitySample> densitySamples;
++    densitySamples.reserve(27*solution.guns.size());
 +    waterPoints.reserve(27*solution.guns.size());solidPoints.reserve(27*solution.guns.size());
 +    waterWeights.reserve(27*solution.guns.size());solidWeights.reserve(27*solution.guns.size());
      const float nodes[]={-.7745966692f,0.f,.7745966692f};
@@ -420,12 +423,14 @@
 +            const auto curve=manual_aim::trajectory(muzzle,aim,speed+spread.speed*nodes[v],
 +                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity);
 +            const double weight=weights[yaw]*weights[v]*weights[elevation];
++            const float limit=curve.timeToHeight(-world.waveBound-1.f);
++            densitySamples.push_back({curve,weight,limit});
 +            const float waterTime=curve.timeToHeight(0.f);
 +            if(std::isfinite(waterTime)&&waterTime>0.f)
 +            {waterPoints.push_back(curve.at(waterTime));waterWeights.push_back(weight);}
 +            float contactTime=std::numeric_limits<float>::infinity();
 +            manual_aim::forEachPlaneTime(curve,axis,aim|axis,
-+                curve.timeToHeight(-world.waveBound-1.f),
++                limit,
 +                [&](float t){if(t>1e-5f)contactTime=std::min(contactTime,t);});
 +            if(std::isfinite(contactTime))
 +            {solidPoints.push_back(curve.at(contactTime));solidWeights.push_back(weight);}
@@ -476,8 +481,99 @@
 +    if(contactSections.empty())return;
      const CVECTOR up=!(axis^lateral);
      std::vector<float> stations;
-     float first=1e20f,last=-1e20f;
-@@ -1910,9 +1662,9 @@
+-    float first=1e20f,last=-1e20f;
++    float first=1e20f,last=-1e20f,mouthEnd=-1e20f;
+     for(const auto &path:paths)
+     {
+         const float a=path.curve.origin|axis,b=path.hit.point|axis;
++        mouthEnd=std::max(mouthEnd,a);
+         first=std::min({first,a,b});last=std::max({last,a,b});
+         stations.push_back(a);stations.push_back(b);
+         const float acceleration=path.curve.acceleration|axis;
+@@ -1869,8 +1627,71 @@
+             const float pad=.08f*(1.f-u);
+             for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
+         }
+-        const auto hull=manual_aim::hull(plane);
+-        sections.push_back({station,center,hull});
++        auto stoppedHull=manual_aim::hull(plane);
++        // The mouth still spans every eligible muzzle, including rare locators
++        // outside the aggregate main-density contour. Near-gun alpha is weak.
++        if(station<=mouthEnd+.005f)
++        {sections.push_back({station,center,std::move(stoppedHull)});continue;}
++        // Air and solid drape describe the same launch law at this downrange
++        // plane. Extrema still stop the corridor, but no longer define its
++        // visual density: a rare corner must not fill a tall opaque column.
++        std::vector<CVECTOR> densityPoints;std::vector<double> probabilities;
++        densityPoints.reserve(densitySamples.size());probabilities.reserve(densitySamples.size());
++        for(const auto &sample:densitySamples)
++        {
++            float time=std::numeric_limits<float>::infinity();
++            manual_aim::forEachPlaneTime(sample.curve,axis,station,sample.end,
++                [&](float t){time=std::min(time,t);});
++            if(std::isfinite(time))
++            {densityPoints.push_back(sample.curve.at(time));probabilities.push_back(sample.weight);}
++        }
++        const auto density=AimContactRegion(densityPoints,probabilities);
++        if(density.empty()){sections.push_back({station,center,{}});continue;}
++        const auto &field=density.front();
++        const CVECTOR mean(field.center[0],field.center[1],field.center[2]);
++        auto cov=[&](const CVECTOR &a,const CVECTOR &b)
++        {
++            const auto &c=field.covariance;
++            return double(a.x)*(c[0]*b.x+c[1]*b.y+c[2]*b.z)+
++                double(a.y)*(c[1]*b.x+c[3]*b.y+c[4]*b.z)+
++                double(a.z)*(c[2]*b.x+c[4]*b.y+c[5]*b.z);
++        };
++        const double xx=cov(lateral,lateral),xy=cov(lateral,up),yy=cov(up,up);
++        const double rootDet=std::sqrt(std::max(0.,xx*yy-xy*xy));
++        const double rootTrace=std::sqrt(xx+yy+2.*rootDet);
++        if(!(rootTrace>0.)||!std::isfinite(rootTrace))return;
++        const double rootXX=(xx+rootDet)/rootTrace,rootXY=xy/rootTrace,rootYY=(yy+rootDet)/rootTrace;
++        const CVECTOR shift=mean-center;
++        for(auto &p:stoppedHull){p.x-=shift|lateral;p.y-=shift|up;}
++        std::vector<manual_aim::Point> hull;
++        // Inscribed24-gon differs by at most0.86% from the contact's q=1 ellipse.
++        for(int i=0;i<24;++i)
++        {
++            const double angle=2.*kAimPi*i/24.,x=std::cos(angle),y=std::sin(angle);
++            hull.push_back({float(rootXX*x+rootXY*y),float(rootXY*x+rootYY*y)});
++        }
++        // Keep the existing stopped-path boundary. A statistical continuation
++        // must not reappear past an obstruction or bridge an empty slab.
++        for(size_t edge=0;edge<stoppedHull.size()&&!hull.empty();++edge)
++        {
++            const auto a=stoppedHull[edge],b=stoppedHull[(edge+1)%stoppedHull.size()];
++            std::vector<manual_aim::Point> clipped;
++            auto previous=hull.back();float previousSide=manual_aim::cross(a,b,previous);
++            for(const auto &current:hull)
++            {
++                const float side=manual_aim::cross(a,b,current);
++                if((side>=0.f)!=(previousSide>=0.f))
++                {
++                    const float t=previousSide/(previousSide-side);
++                    clipped.push_back({previous.x+(current.x-previous.x)*t,previous.y+(current.y-previous.y)*t});
++                }
++                if(side>=0.f)clipped.push_back(current);
++                previous=current;previousSide=side;
++            }
++            hull=std::move(clipped);
++        }
++        center=mean;center+=axis*(station-(center|axis));
++        sections.push_back({station,center,std::move(hull)});
+     }
+ #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
+     // These are analytic section boundaries, not renderable alpha walls.
+@@ -1890,6 +1711,8 @@
+         {record.halfWidth=std::max(record.halfWidth,std::fabs(point.x)+.025f);record.halfHeight=std::max(record.halfHeight,std::fabs(point.y)+.025f);}
+         if(i+1<sections.size())
+         {
++            if(section.hull.size()<3||sections[i+1].hull.size()<3)
++            {densitySections.push_back(record);continue;}
+             const float midpoint=(section.station+sections[i+1].station)*.5f;
+             const bool occupied=std::any_of(paths.begin(),paths.end(),[&](const AimPath &path)
+             {return !manual_aim::planeTimes(path.curve,axis,midpoint,path.end).empty();});
+@@ -1910,9 +1733,9 @@
          const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
              uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
              nullptr,0,

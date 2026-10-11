@@ -31,17 +31,21 @@ cloth damage remain point values.
 ## Projectile accuracy
 
 The catalogue owns the player's requested gunner-accuracy multipliers: round shot100%,
-grapeshot50%, knippels30%, bombs80%, and airburst80% as a bomb-family default.
+grapeshot50%, knippels35%, bombs80%, and airburst80% as a bomb-family default.
 `NavalAmmo_InitDamage` reconciles these five values on new-game initialization
 and normal old-save load, alongside the crew coefficients.
 
 `AIBalls.c::Ball_GetAccuracy` multiplies the existing gunner precision, including
 perks, by `(ammoAccuracy / 100)` before converting it to the existing random
 scatter factor. Catalogue accuracy is clamped to0–100. Round shot100% preserves
-the crew's ordinary precision; knippels30% remove70% of it. Skilled gunners still
+the crew's ordinary precision; knippels35% remove65% of it. Skilled gunners still
 scatter knippels widely, and poor gunners retain still wider scatter. This is
 a precision multiplier, not a hit probability. Deliberate rake, target choice,
 aim point, wind/trajectory and reload keep their existing owners.
+
+The October 11 candidate raises knippels from30% to35%: at maximum1.25
+gunner precision in simulation mode, scatter falls from0.825 to0.7625 (7.58%).
+At zero skill it stays1.2; no other ammunition's accuracy or trajectory changes.
 
 The existing `CANNON_GET_FIRE_ACCURACY` query forwards the same live factor to
 native `AimLiveSpread` in the unchanged `cannon-rake-spread.patch`. The preview
@@ -77,6 +81,9 @@ goods and cargo. Must not reinterpret ram, fire or other absolute crew damage.
 The disposable native VM passes old-catalogue save/load reconciliation, the
 actual percentage converter and all five accuracy values. At zero captain skill,
 scatter factors remain1.2 for unskilled gunners; at1.25 precision the five factors
-are0.05/0.575/0.825/0.2/0.2. Out-of-range catalogue accuracy clamps correctly.
+were0.05/0.575/0.825/0.2/0.2 for the earlier30% knippel value. The October 11
+production-function VM repeats the zero/full-skill cases and two serializer
+rounds at35% knippel accuracy:0.7625 scatter, with every other factor unchanged.
+Out-of-range catalogue accuracy clamps correctly.
 Actual installed ship/fort casualty and random-scatter replay remain required;
 compilation alone does not accept battle balance.

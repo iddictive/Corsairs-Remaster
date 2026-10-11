@@ -233,7 +233,7 @@
     },
     "PROGRAM/interface/GoodsTransfer.c": {
       "base_sha256": "56405b0cf15319bc7296f70228a93e6e121c05a6f8638c5f295d588cc9275109",
-      "updated_sha256": "128abb95a263273285031a6d869b8fe7930ac53798dbe7b9006cd1f1cc9ca6ba",
+      "updated_sha256": "95a730e7e5bde028e686ace10b1aeced9cb6844bb86631ce5d2bfd1d1b1330f3",
       "previous_sha256": [
         "1da1ed6092647a47a8dd6b567b27a389f9b3c7f8beb824b45a6957d9c57395f5",
         "3feb91df36032499ad6fbffa634605d75709f4d4bfc79b12edd51f254a10216f",
@@ -244,7 +244,8 @@
         "9478d88357820258ed4fdd014b7a312b65e2e967dc2bc70a7e796cc949ec6d82",
         "9da053ec04f8d0f479f1204a20e5520d52070b8df31aaf6f1ebc1126df62f44d",
         "657eddb10b74221f9fffeec35ad2b5662de3b19ab9e20bb7844a185fbc7e6442",
-        "6c90b382ea9f3da820bfb338b5913b263c54797f149d9c91b0cd54ce3e9fd3b3"
+        "6c90b382ea9f3da820bfb338b5913b263c54797f149d9c91b0cd54ce3e9fd3b3",
+        "128abb95a263273285031a6d869b8fe7930ac53798dbe7b9006cd1f1cc9ca6ba"
       ],
       "source": "treasurer-interface.c"
     },

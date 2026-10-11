@@ -4129,6 +4129,24 @@ float AIShip_isPerksUse(string sPerk, float fOff, float fOn)
 	return fOff;
 }
 
+float Ship_StormHandlingLoad(float beam, float sail, float skill, float hull)
+{
+    return (0.20 + 0.80*Clampf(beam)) * (0.30 + 0.70*Clampf(sail)*Clampf(sail)) *
+        (1.0 - 0.65*Clampf(skill)) * (1.0 + 1.5*(1.0-Clampf(hull)));
+}
+
+float Ship_StormConditionFloor(float defence, float stormPerk, float maximum)
+{
+    return 0.20 + (maximum-0.20)*0.50*(Clampf(defence/0.35)+Clampf(stormPerk));
+}
+
+float Ship_StormWearDamage(float damage, float current, float floor)
+{
+    if (damage <= 0.0 || current <= floor) return 0.0;
+    // Leave a rounding margin for the existing hull/sail damage adapters.
+    return damage * Clampf(((current-floor)*0.9999)/damage);
+}
+
 // EVENT, calculate dynamic parameters for ship, one per second
 void Ship_UpdateParameters()
 {
@@ -4148,6 +4166,7 @@ void Ship_UpdateParameters()
 
 	// update temporary skill storage
 	Ship_UpdateTmpSkills(rCharacter);
+	if (iCharacterIndex == nMainCharacterIndex) Whr_UpdateWeatherPosition();
 
 	Cannon_RecalculateParameters(sti(rCharacter.index));
 
@@ -4362,26 +4381,42 @@ void Ship_UpdateParameters()
 		if (LAi_IsDead(rCharacter)) return;
 	}
 	// do damage if storm or tornado
-	if (bStorm && bSeaActive)
+	if (bStorm && bSeaActive && !bAbordageStarted && IsEntity(&Sea))
 	{
 		float fWindAttack = 1.0 - abs(fWindDotShip);
-		
-		float fDamageMultiply = fStormProfessional * Bring2Range(0.25, 1.0, 0.0, 1.0, fWindAttack);
-
-		// hull damage
-		float fDamageHP = (fBaseShipHP / 100.0) * 1.1;
-		Ship_ApplyHullHitpoints(rCharacter, fDamageMultiply * fDamageHP, KILL_BY_TOUCH, -1);
-
-		// sails damage
-		switch (MakeInt(fSailState * 2.0))
+		float fWaveAmplitude = 0.0;
+		SendMessage(&Sea,"le",1464336400,&fWaveAmplitude);
+		float fWeatherLoad = Clampf(Whr_NativeValue(3)) * Clampf((Whr_GetWindSpeed()-12.0)/23.0) * Clampf(fWaveAmplitude/5.0);
+		float fHullCondition = Clampf(stf(arCharShip.HP)/fBaseShipHP);
+		float fSails = Clampf(fSailState);
+		float fHandlingLoad = Ship_StormHandlingLoad(fWindAttack,fSails,Clampf(stf(rCharacter.TmpSkill.Sailing)),fHullCondition);
+		float fStormDefence = 0.0;
+		if (sti(arTmpPerks.BasicBattleState)) fStormDefence = 0.15;
+		if (sti(arTmpPerks.AdvancedBattleState)) fStormDefence = 0.25;
+		if (sti(arTmpPerks.ShipDefenseProfessional)) fStormDefence = 0.35;
+		float fHullFloor = Ship_StormConditionFloor(fStormDefence,stf(arTmpPerks.StormProfessional),0.80);
+		float fSailFloor = Ship_StormConditionFloor(fStormDefence,stf(arTmpPerks.StormProfessional),0.70);
+		// Protection and storm sailing bound ordinary wear; time cannot sink the ship.
+		// Actual wind, waves and handling still determine how quickly wear accumulates.
+		float fGustChance = fWeatherLoad * (0.02 + 0.10*fHandlingLoad);
+		float fDamageHP = 0.0;
+		if (fStormProfessional > 0.0 && frnd() < fGustChance)
 		{
-			case 0: MakeSailDmg(iCharacterIndex, fDamageMultiply * (fBaseSailHP / 100.0) * 0.15); break;
-			case 1: MakeSailDmg(iCharacterIndex, fDamageMultiply * (fBaseSailHP / 100.0) * 0.55); break;
-			case 2: MakeSailDmg(iCharacterIndex, fDamageMultiply * (fBaseSailHP / 100.0) * 1.1); break;
+			fDamageHP = fBaseShipHP * fWeatherLoad * fStormProfessional * (0.004 + 0.010*fHandlingLoad);
+			fDamageHP = Ship_StormWearDamage(fDamageHP,stf(arCharShip.HP),fHullFloor*fBaseShipHP);
+			if (fDamageHP > 0.0) Ship_ApplyHullHitpoints(rCharacter,fDamageHP,KILL_BY_TOUCH,-1);
+			float fSailCondition = Clampf(GetSailPercent(rCharacter)/100.0);
+			float fDamageSP = fBaseSailHP * fWeatherLoad * fStormProfessional * fSails*fSails *
+				(0.003 + 0.015*fHandlingLoad) * (1.0 + (1.0-fSailCondition));
+			// MakeSailDmg amplifies damage for upgraded sails; cap its final debit.
+			float fSailDamageScale = 1.0;
+			if (CheckAttribute(rCharacter,"upgrades.sails")) fSailDamageScale += 0.05*(sti(rCharacter.upgrades.sails)-1);
+			fDamageSP = Ship_StormWearDamage(fDamageSP*fSailDamageScale,stf(arCharShip.SP),fSailFloor*fBaseSailHP)/fSailDamageScale;
+			if (fDamageSP > 0.0) MakeSailDmg(iCharacterIndex,fDamageSP);
 		}
 
 		// experience
-		float fExp = (1.0 - fWindAttack) * fDamageHP / (8 - GetCharacterShipClass(rCharacter)); // fDamageHP - это процент корпуса, для мановара слишком жирно
+		float fExp = (1.0 - fWindAttack) * (fBaseShipHP / 100.0) * 1.1 / (8 - GetCharacterShipClass(rCharacter));
 		fExp = fExp / 10;
   		if (!bDead)
         {

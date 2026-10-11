@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -255,6 +256,13 @@ public:
         if(!frame){++stats.frameResourceExhaustions;return false;}
         if(!buildGpuTables(*frame)){frame->inFlight.store(false,std::memory_order_release);return false;}
         std::memcpy(frame->faceBuffer.contents,faces.data(),sizeof(GpuFace)*6);
+        // Materials/instances often share buffers and textures. Residency is a
+        // resource set, not a draw list; declare each object once per encoder.
+        std::vector<id<MTLResource>> residency{frame->icb,frame->drawBuffer,frame->boundsBuffer,frame->faceBuffer,frame->resourceTable,frame->materialTable};
+        residency.reserve(6+draws.size()*4);
+        for(const auto&item:draws){residency.push_back(item.draw.vertices);residency.push_back(item.draw.indices);if(item.draw.alphaTexture)residency.push_back(item.draw.alphaTexture);if(item.draw.skinPalette)residency.push_back(item.draw.skinPalette);}
+        std::sort(residency.begin()+6,residency.end(),std::less<id<MTLResource>>{});
+        residency.erase(std::unique(residency.begin()+6,residency.end()),residency.end());
         auto blit=[command blitCommandEncoder];
         [blit resetCommandsInBuffer:frame->icb withRange:NSMakeRange(0,draws.size()*6)];[blit endEncoding];
         auto c=[command computeCommandEncoder];[c setComputePipelineState:compute];
@@ -263,10 +271,9 @@ public:
         [c useResource:frame->icb usage:MTLResourceUsageWrite];
         [c useResource:frame->resourceTable usage:MTLResourceUsageRead];
         [c useResource:frame->materialTable usage:MTLResourceUsageRead];
-        for(const auto& item:draws){[c useResource:item.draw.vertices usage:MTLResourceUsageRead];[c useResource:item.draw.indices usage:MTLResourceUsageRead];if(item.draw.alphaTexture)[c useResource:item.draw.alphaTexture usage:MTLResourceUsageRead];if(item.draw.skinPalette)[c useResource:item.draw.skinPalette usage:MTLResourceUsageRead];}
+        [c useResources:residency.data()+6 count:residency.size()-6 usage:MTLResourceUsageRead];
         [c dispatchThreads:MTLSizeMake(draws.size(),6,1) threadsPerThreadgroup:MTLSizeMake(std::min<size_t>(32,draws.size()),1,1)];[c endEncoding];
         ++stats.gpuCullDispatches;stats.candidateCommands=uint32_t(draws.size()*6);
-        std::vector<id<MTLResource>> residency{frame->icb,frame->drawBuffer,frame->boundsBuffer,frame->faceBuffer,frame->resourceTable,frame->materialTable};for(const auto&item:draws){residency.push_back(item.draw.vertices);residency.push_back(item.draw.indices);if(item.draw.alphaTexture)residency.push_back(item.draw.alphaTexture);if(item.draw.skinPalette)residency.push_back(item.draw.skinPalette);}
         for(unsigned face=0;face<6;++face){auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.depthAttachment.texture=cube;pass.depthAttachment.slice=face;pass.depthAttachment.loadAction=MTLLoadActionClear;pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=1;auto e=[command renderCommandEncoderWithDescriptor:pass];[e setViewport:MTLViewport{0,0,double(cube.width),double(cube.height),0,1}];[e setFrontFacingWinding:MTLWindingClockwise];[e setDepthStencilState:depthState];[e setDepthBias:0 slopeScale:1 clamp:0];[e useResources:residency.data() count:residency.size() usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];[e executeCommandsInBuffer:frame->icb withRange:NSMakeRange(face*draws.size(),draws.size())];[e endEncoding];++stats.indirectFaceSubmissions;}
         [command addCompletedHandler:^(id<MTLCommandBuffer> completed){(void)completed;frame->inFlight.store(false,std::memory_order_release);}];
         return true;

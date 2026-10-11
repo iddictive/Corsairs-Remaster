@@ -255,8 +255,9 @@ void FillGoodsTable()
     int missing = 0;
     if (iCurCompanion >= 0)
     {
-        for (int i = 0; i < GOODS_QUANTITY; i++)
+        for (int displayIndex = 0; displayIndex < GOODS_QUANTITY; displayIndex++)
         {
+            int i = Goods_GetDisplayIndex(displayIndex);
             if (CheckAttribute(Goods[i], "CannonIdx")) continue;
             string row = "tr" + n;
             string sGoods = Goods[i].name;

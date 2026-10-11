@@ -350,7 +350,7 @@ void WdmFleetUIInfo()
 				string classList = "";
 				for (int classIndex = 1; classIndex < 8; classIndex++)
 				{
-					if (classes[classIndex] > 0) classList = WdmFleetUIAppendItem(classList, "" + classes[classIndex] + " × " + classIndex + " кл.");
+					if (classes[classIndex] > 0) classList = WdmFleetUIAppendItem(classList, "" + classIndex + "-й класс: " + classes[classIndex] + " шт.");
 				}
 				if (classList != "") line = line + "\nПодзорная труба: " + classList + ".";
 			}

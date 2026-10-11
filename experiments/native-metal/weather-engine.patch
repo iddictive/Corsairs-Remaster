@@ -46,8 +46,8 @@
 -    void SetVisualRainDrops(float value) override { visualRainTarget = value; }
 +    float GetVisualRainDrops() override { return weatherOutside ? visualState.rainIntensity : 0.f; }
 +    void SetVisualRainDrops(float) override {} // Rain is a consumer.
-+    float GetCloudCoverage() override { return weatherEngine.current.coverage; }
-+    float GetCloudDensity() override { return .35f + weatherEngine.current.coverage * .55f; }
++    float GetCloudCoverage() override { return weatherEngine.local().coverage; }
++    float GetCloudDensity() override { return .35f + weatherEngine.local().coverage * .55f; }
 +    void AdvanceWeatherHours(float hours) override;
  #endif
  
@@ -94,8 +94,8 @@
  
  float WEATHER::GetFloat(uint32_t dwCode)
  {
-+    if (weatherState && dwCode == whf_wind_speed) return weatherEngine.current.speed;
-+    if (weatherState && dwCode == whf_wind_angle) return weatherEngine.current.angle;
++    if (weatherState && dwCode == whf_wind_speed) return weatherEngine.local().speed;
++    if (weatherState && dwCode == whf_wind_angle) return weatherEngine.local().angle;
      return fFloats[dwCode];
  }
  

@@ -24,6 +24,11 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
         const auto season=static_cast<unsigned>(message.Long());
         if (!weatherEngine.load(weatherState))
             weatherEngine.initialize(static_cast<uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count()),season);
+        const int year=message.Long();
+        const unsigned day=static_cast<unsigned>(message.Long());
+        const float hour=message.Float();
+        weatherEngine.calendarHours=storm_weather::Engine::calendar(year,season,day,hour);
+        weatherEngine.mapX=message.Float(); weatherEngine.mapZ=message.Float();
         auto *palette=weatherState->GetAttributeClass("palette");
         weatherPaletteValid=palette!=nullptr;
         for (unsigned hour=0;hour<24;++hour) {
@@ -39,7 +44,7 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
     } else if (code==1464336386) {
         const auto field=message.Long(); auto *out=message.ScriptVariablePointer();
         if (out) {
-            const auto &c=weatherEngine.current; float value=0.f;
+            const auto c=weatherEngine.local(); float value=0.f;
             switch(field) {
             case 0: value=c.angle; break; case 1: value=c.speed; break;
             case 2: value=c.rain; break; case 3: value=c.storm; break;
@@ -53,7 +58,10 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
         weatherEngine.request(rain,storm,wind,duration,tornado,lock); SaveWeatherEngine();
     } else if (code==1464336388) { weatherOutside=message.Long()!=0;
     } else if (code==1464336389) { SaveWeatherEngine();
-    } else if (code==1464336390) { weatherEngine.locked=false; SaveWeatherEngine(); }
+    } else if (code==1464336390) { weatherEngine.locked=false; SaveWeatherEngine();
+    } else if (code==1464336391) {
+        weatherEngine.mapX=message.Float(); weatherEngine.mapZ=message.Float();
+    }
     return 0;
 }
 
@@ -70,7 +78,7 @@ void WEATHER::UpdateWeatherEngine(uint32_t deltaTime)
     // Lightning cadence and checkpoint I/O stay on the entity simulation clock.
     weatherEngine.lightningRemaining-=dt; weatherCheckpoint+=dt;
     if (weatherCheckpoint>=5.f) { weatherCheckpoint=0.f; SaveWeatherEngine(); }
-    const auto &c=weatherEngine.current;
+    const auto c=weatherEngine.local();
     const int rain=WeatherRainIntensity(c.rain)>0.f, storm=c.storm>.5f;
     if (rain!=weatherRainStatus || storm!=weatherStormStatus) {
         weatherRainStatus=rain; weatherStormStatus=storm;
@@ -89,7 +97,7 @@ void WEATHER::UpdateWeatherEngine(uint32_t deltaTime)
 void WEATHER::ApplyWeatherConditions()
 {
     if (!weatherState) return;
-    const auto &c=weatherEngine.current;
+    const auto c=weatherEngine.local();
     fFloats[whf_wind_angle]=c.angle; fFloats[whf_wind_speed]=c.speed;
     fFloats[whf_fog_density]=.000005f+c.rain*.00004f;
     visualRainTarget=WeatherRainIntensity(c.rain)*5000.f;

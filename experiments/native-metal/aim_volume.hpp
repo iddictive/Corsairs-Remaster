@@ -569,7 +569,9 @@ class SoftAimVolume {
     u.camera=simd_make_float4(inverseView.columns[3].xyz,1.f);
     u.axis=simd_make_float4(ax,0.f);u.lateral=simd_make_float4(lat,0.f);u.up=simd_make_float4(vertical,0.f);u.viewport=viewport;
     readiness=std::clamp(readiness,0.f,1.f);
-    u.params={float(count),readiness,.22f,.016f*(.6f+.4f*readiness)};
+    // Air is a quiet trajectory cue; contact owns the aiming information.
+    // Bound long camera-ray accumulation independently of the surface drape.
+    u.params={float(count),readiness,.07f,.004f*(.6f+.4f*readiness)};
     simd_float3 boundsMin=simd_make_float3(std::numeric_limits<float>::max()),boundsMax=-boundsMin;
     frame.sections.assign(sections,sections+count);
     float previousStation=-std::numeric_limits<float>::infinity(),previousProgress=-1.f;

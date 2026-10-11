@@ -77,6 +77,14 @@
 //=========================================================================================
 
 
+int wdmMapToSeaScale()
+{
+    if (worldMap.island == "Cuba1" || worldMap.island == "Cuba2" || worldMap.island == "Beliz" || worldMap.island == "SantaCatalina"
+        || worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo"
+        || worldMap.island == "Caracas" || worldMap.island == "Cumana") return 25;
+    return WDM_MAP_TO_SEA_SCALE;
+}
+
 void wdmCreateMap(float x, float z, float ay)
 {
 	//Координаты острова с которого уплыли
@@ -84,13 +92,7 @@ void wdmCreateMap(float x, float z, float ay)
 	float zeroZ = MakeFloat(worldMap.zeroZ);
 	float ShipX, ShipZ;
 	//Находим новыве координаты на карте
-	int scale = WDM_MAP_TO_SEA_SCALE;
-	if (worldMap.island == "Cuba1" || worldMap.island == "Cuba2" || worldMap.island == "Beliz" || worldMap.island == "SantaCatalina" 
-		|| worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo"
-		|| worldMap.island == "Caracas" || worldMap.island == "Cumana")
-	{
-		scale = 25;
-	}
+	int scale = wdmMapToSeaScale();
 	shipX = (x/scale) + zeroX;
 	shipZ = (z/scale) + zeroZ;
 	worldMap.playerShipX = (x/scale) + zeroX;

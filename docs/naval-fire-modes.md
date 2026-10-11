@@ -61,6 +61,16 @@ fresh current-save clone for the pending real-game replay.
   introduced. The common far-range fallback remains limited to genuinely
   out-of-range receivers.
 
+`PROGRAM/store/initGoods.c::NavalAmmo_InitDamage` owns ammunition reload
+speed for fresh games and normal old-save reconciliation: round shot1,
+bombs1, knippels0.8, grapes1.2 and airburst1/1.65. The existing
+`Cannon_GetRechargeTime` event divides its fully modified duration by that
+speed. Knippels take25% longer, grapes take5/6 of the ordinary duration,
+and airburst still takes65% longer. This changes only newly requested reload
+durations; already loaded rounds, running reloads, queued shots and the
+per-gun save codec retain their owners. Russian cargo descriptions read the
+same live `ReloadSpeed` field.
+
 Input is unchanged: `Ship_Fire` maps left mouse in first and third person.
 `Core::ControlProcess` emits `Control Activation` on `CST_ACTIVATED`, while held
 `CST_ACTIVE` does not emit another press. `ProcessControls` calls `Ship_DoFire`,
@@ -137,3 +147,11 @@ ordering defect; the player's broader report that aiming at any ship breaks
 fire remains unresolved until its actual symptom is reproduced.
 
 Runtime attempt chronology and installed hashes belong to `docs/runtime.md`.
+
+October 11 source candidate: the real script VM executes the production reload
+event with catalogue speeds1/1/0.8/1.2/1÷1.65. A20-second base becomes20/20/25/
+16.6667/33 seconds. Existing crew/perk modifiers compose before ammunition,
+and unrelated goods without `ReloadSpeed` retain their prior duration. Catalogue
+reconciliation and these event results pass two VM serializer rounds with zero
+script errors. World/crew/perk dependencies are fixture stubs; loaded/pending
+native state is unchanged in source, and actual timed firing remains player replay.

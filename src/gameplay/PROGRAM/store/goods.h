@@ -62,6 +62,14 @@
 
 object  Goods[GOODS_QUANTITY];
 
+// Catalogue display order only; saved cargo IDs and transaction indices stay fixed.
+int Goods_GetDisplayIndex(int displayIndex)
+{
+    if (displayIndex == GOOD_BOMBS + 1) return GOOD_AIRBURST;
+    if (displayIndex > GOOD_BOMBS && displayIndex <= GOOD_AIRBURST) return displayIndex - 1;
+    return displayIndex;
+}
+
 ref GetGoodByType(int iGoodType)
 {
 	return &Goods[iGoodType];

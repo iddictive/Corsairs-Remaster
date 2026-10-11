@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <list>
 #include <map>
+#include <utility>
 #include <vector>
 
 namespace sm {
@@ -23,7 +25,9 @@ struct IndexedSpanFrameCache {
     using Key = std::array<std::uint64_t, 10>;
     using IdentitySpans = std::map<std::uint64_t, std::vector<Key>>;
 
-    std::map<Key, IndexedSpan> entries;
+    struct Entry { IndexedSpan span; std::list<Key>::iterator recent; };
+    std::map<Key, Entry> entries;
+    std::list<Key> recency;
     std::map<std::uint64_t, std::uint64_t> indexRevisions, vertexRevisions;
     IdentitySpans indexSpans, vertexSpans;
 
@@ -37,18 +41,25 @@ struct IndexedSpanFrameCache {
             evict(2, key[2]);
     }
 
-    const IndexedSpan *find(const Key &key) const
+    const IndexedSpan *find(const Key &key)
     {
         const auto entry = entries.find(key);
-        return entry == entries.end() ? nullptr : &entry->second;
+        if (entry == entries.end())
+            return nullptr;
+        recency.splice(recency.end(), recency, entry->second.recent);
+        return &entry->second.span;
     }
 
     void insert(const Key &key, IndexedSpan span)
     {
+        if (entries.contains(key))
+            return;
+        // Old locations cannot permanently prevent later spans from caching.
+        // Keep the established bound and replace only the least-recent hit.
         if (entries.size() >= 8192)
-            return;
-        if (!entries.emplace(key, span).second)
-            return;
+            erase(entries.find(recency.front()));
+        recency.push_back(key);
+        entries.emplace(key, Entry{span, std::prev(recency.end())});
         indexRevisions[key[0]] = key[1];
         vertexRevisions[key[2]] = key[3];
         indexSpans[key[0]].push_back(key);
@@ -58,6 +69,7 @@ struct IndexedSpanFrameCache {
     void clear()
     {
         entries.clear();
+        recency.clear();
         indexRevisions.clear();
         vertexRevisions.clear();
         indexSpans.clear();
@@ -65,35 +77,48 @@ struct IndexedSpanFrameCache {
     }
 
   private:
+    void unlink(IdentitySpans &owners,
+                std::map<std::uint64_t, std::uint64_t> &revisions,
+                const Key &key, unsigned slot)
+    {
+        const auto owner = owners.find(key[slot]);
+        if (owner == owners.end())
+            return;
+        auto &keys = owner->second;
+        keys.erase(std::remove(keys.begin(), keys.end(), key), keys.end());
+        if (keys.empty()) {
+            revisions.erase(owner->first);
+            owners.erase(owner);
+        }
+    }
+
+    void erase(std::map<Key, Entry>::iterator entry)
+    {
+        const Key key = entry->first;
+        recency.erase(entry->second.recent);
+        entries.erase(entry);
+        unlink(indexSpans, indexRevisions, key, 0);
+        unlink(vertexSpans, vertexRevisions, key, 2);
+    }
+
     // Slot 0 owns the index identity, slot 2 the vertex identity. Removing a span
     // through one owner unlinks it from the other and drops the peer revision
     // once that buffer has no admitted span left.
     void evict(unsigned slot, std::uint64_t identity)
     {
         IdentitySpans &owners = slot == 0 ? indexSpans : vertexSpans;
-        IdentitySpans &peers = slot == 0 ? vertexSpans : indexSpans;
         std::map<std::uint64_t, std::uint64_t> &ownerRevisions = slot == 0 ? indexRevisions : vertexRevisions;
-        std::map<std::uint64_t, std::uint64_t> &peerRevisions = slot == 0 ? vertexRevisions : indexRevisions;
-        const unsigned peerSlot = slot == 0 ? 2 : 0;
         const auto owner = owners.find(identity);
         if (owner == owners.end()) {
             ownerRevisions.erase(identity);
             return;
         }
-        for (const Key &key : owner->second) {
-            entries.erase(key);
-            const auto peer = peers.find(key[peerSlot]);
-            if (peer == peers.end())
-                continue;
-            auto &keys = peer->second;
-            keys.erase(std::remove(keys.begin(), keys.end(), key), keys.end());
-            if (keys.empty()) {
-                peerRevisions.erase(peer->first);
-                peers.erase(peer);
-            }
-        }
+        // Detach this owner's list before exact erasure mutates both lists.
+        auto keys = std::move(owner->second);
         owners.erase(owner);
         ownerRevisions.erase(identity);
+        for (const Key &key : keys)
+            erase(entries.find(key));
     }
 };
 

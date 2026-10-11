@@ -18,6 +18,12 @@ canonical engine build/staging is installed. The new player daytime replay remai
 signed-engine and source receipts belong to `docs/runtime.md`. No paired
 instrumented FPS measurement or exhaustive angle/zoom replay is claimed.
 
+The player has reopened the airborne volume: its bright vertical column is
+rejected while revision12's surface footprint remains accepted. The current
+source candidate fits air to the same launch moments as the solid drape and
+subdues its optical accumulation. Canonical staging and the rejected fort-scene
+replay remain pending; source checks do not accept its appearance or FPS.
+
 ## Contract
 
 First-person deck camera controls aim. One subtle ballistic volume spans every
@@ -44,7 +50,9 @@ positions deform its actual surface footprint. Its finite world extent excludes
 far terrain and the horizon behind a close selected receiver. Sky and actual own
 geometry remain excluded. Rare physical shots outside this approximate patch
 remain valid.
-Air still uses the stopped ballistic volume, with its existing opacity.
+Air is a subdued main-density trajectory cue, clipped by the stopped ballistic
+support. Its flight sections share the launch law and moment fit of the drape;
+water's landing distribution remains an event statistic, not a flight slice.
 
 ## Owners and implementation
 
@@ -107,7 +115,7 @@ positive selected-range vertical-plane crossing. The true means and full xyz
 covariances are retained, scaled by3 with.0025 variance regularization. Two48-byte
 records select sea XZ or solid lateral/up charts, independently bounded along
 their normals. Preview range-character metadata does not alter firing authority.
-No RNG or additional contact marches are used; firing and stopped air are unchanged.
+No RNG or additional contact marches are used; firing is unchanged.
 
 The renderer rebases each mean once and inverts its2D marginal covariance once.
 Current depth reconstructs a real world position; only the matching surface family
@@ -131,7 +139,8 @@ and covariance. Physical normal clips and firing selection remain current.
 Disjoint support, large camera-axis changes, disable and reset clear the history;
 switching from50 to500 metres never creates an intermediate receiver on145m.
 Fill alpha is.08 and the subdued rim is.42 on models/.48 on neutral surfaces,
-with a.52 composite cap. Stopped-air alpha remains capped at.22.
+with a.52 composite cap. The current air candidate caps alpha at.07 instead of
+.22 and uses extinction.004 instead of.016; surface composition is unchanged.
 Background brightness still ramps across luminance.18–.55 for the existing
 up-to16% rim boost, keyline.14→.17 and composite cap.52→.58. The new candidate
 adds another45% of base rim alpha in full daylight, keyline+.13 and composite
@@ -151,6 +160,44 @@ and depth test to write identity, not another full-screen raster.
 The inspected maintained reference is [Godot's finite decal projection](https://docs.godotengine.org/en/stable/tutorials/3d/using_decals.html).
 Its bounded world-space projection principle is adapted to the existing native
 depth owner; integrating another engine or generating receiver meshes adds no value.
+
+### Air and contact moment ownership
+
+The former air hull joined nominal guns and the eight extrema of a few spatial
+support guns with equal geometric weight. The contact drape instead used all
+guns'27 weighted launch samples and covariance scaled by3. Filling the extrema
+hull did not display that main density; reducing opacity alone would preserve
+the geometry mismatch.
+
+The source candidate retains those already computed27 trajectories, weights
+and sea-floor limits. At each existing axial station it takes the earliest
+crossing per launch sample, then reuses `AimContactRegion`'s mean and3C covariance.
+The lateral/up covariance root produces an inscribed24-gon of the q=1 ellipse,
+with at most0.86% radial error before clipping. It is intersected with the old
+stopped-path hull; empty or degenerate sections give zero-density slabs. The
+original hull remains through the last muzzle station, retaining every eligible
+gun's mouth even when a rare locator lies outside the main density. Existing
+slab planes, current depth occlusion, ray integration, bridge records, surface
+fields and receiver ownership remain the implementation owners. No new trace,
+GPU pass, buffer ABI or player state is introduced.
+
+At a common selected target plane, air and solid contact use the same crossings,
+mean and covariance. Per-gun rake depths can differ; air remains a flight-state
+approximation, while contact aggregates each gun's selected-plane outcome.
+Water retains each launch's own descending landing, so its XZ distribution must
+not be reconstructed by slicing the air corridor. Neither field promises all
+shots or conditional first-hit probability.
+
+A temporary source-derived CPU probe covers50/200/500m,1/52-gun batteries and
+open-water/stopped-wall fixtures. Its739 checks retain axial stations, constrain
+every new air vertex inside the former stopped hull, and bind target-plane air
+centers and q<=1 vertices to the solid contact metric. Summed section area is
+57–75% of the prior hull in this corpus. The52-gun whole-corridor calculation
+costs.75–1.76ms across two local runs with differing machine load; this excludes
+scene rendering and proves no installed
+FPS result. Objective-C++ header syntax passes and the exact MSL source/ABI is
+unchanged. The remaining runtime checks are the original fort scene, water,
+own-deck/sky exclusion, a nearer obstruction and1x–5x zoom on the delivered batch.
 
 An independent50,000-shot uniform-jitter oracle exposes revision11's original
 failure: at50m, actual5th–95th percentile water hits lie36.46–70.45m downrange,

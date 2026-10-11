@@ -11,12 +11,44 @@ struct Conditions {
     float coverage=.45f, rain=0.f, speed=10.f, angle=0.f, storm=0.f;
 };
 struct Engine {
+    // Calendar and position are projections of the existing Environment/worldMap
+    // owners, rebound at scene entry. They are not a second saved weather clock.
+    double calendarHours=0.0;
+    float mapX=0.f, mapZ=0.f;
     uint32_t seed=1;
     Conditions from, to, current;
     float elapsed=0.f, duration=300.f, requestRemaining=0.f, lightningRemaining=15.f;
     float requestedRain=0.f, requestedStorm=0.f, requestedWind=0.f;
     bool locked=false, requestedTornado=false, tornadoEmitted=false;
     unsigned month=1;
+    static double calendar(int year, unsigned month, unsigned day, float hour) {
+        constexpr unsigned before[]={0,0,31,59,90,120,151,181,212,243,273,304,334};
+        // WorldMap's existing calendar uses a 28-day February, including leap years.
+        return (double(year)*365.0+before[std::clamp(month,1u,12u)]+std::max(day,1u)-1.0)*24.0+hour;
+    }
+    Conditions sample(float x, float z) const {
+        Conditions c=current;
+        if (!std::isfinite(x) || !std::isfinite(z)) return c;
+        // A continuous advected synoptic field: broad overlapping fronts, no map
+        // particle RNG, event lifetime or additional persisted region simulation.
+        const double phase=calendarHours*.035;
+        const double px=x*.0055+phase, pz=z*.0065-phase*.7;
+        const float field=.50f+.27f*std::sin(px+.65f*std::sin(pz*.6f))
+                              +.23f*std::cos(pz+.5f*std::cos(px*.7f));
+        float wet=std::clamp((field-.22f)/.62f,0.f,1.f);
+        wet=wet*wet*(3.f-2.f*wet);
+        // Explicit quest/event requests retain their existing whole-scene contract.
+        const float requestBlend=locked?1.f:std::clamp(requestRemaining/12.f,0.f,1.f);
+        wet+=(1.f-wet)*requestBlend;
+        c.coverage=std::clamp(current.coverage*(.25f+.75f*wet),0.f,1.f);
+        c.rain*=wet;
+        float core=std::clamp((wet-.35f)/.65f,0.f,1.f);
+        core=core*core*(3.f-2.f*core);
+        c.storm*=core;
+        c.speed*=.70f+.30f*wet;
+        return c;
+    }
+    Conditions local() const { return sample(mapX,mapZ); }
     float random() {
         seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
         return float(seed >> 8) / 16777216.f;
@@ -44,6 +76,7 @@ struct Engine {
     void release() { locked=false; requestRemaining=0.f; requestedTornado=false; }
     void advanceHours(float hours) {
         if (!std::isfinite(hours) || hours<=0.f) return;
+        calendarHours+=hours;
         // Version-1 saves retain their model coordinate: 350 units per game hour.
         // Consume the full calendar interval, including accelerated map travel.
         double remaining=double(hours)*350.0;

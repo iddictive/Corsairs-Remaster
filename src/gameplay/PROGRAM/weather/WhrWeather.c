@@ -149,7 +149,7 @@ void CreateWeatherEnvironment()
     if (!CheckAttribute(&WeatherParams,"NativeState")) WeatherParams.NativeState.version=0;
     Whr_BindSolarPalette();
     aref savedWeather; makearef(savedWeather,WeatherParams.NativeState);
-    SendMessage(&Weather,"lal",1464336385,savedWeather,GetDataMonth());
+    Whr_BindNativeState(savedWeather);
     // Leaving a quest location releases its lock; finite world-map events continue.
     SendMessage(&Weather,"l",1464336390);
     if (eventStorm || eventTornado) {
@@ -600,6 +600,7 @@ void Whr_NativeChanged()
     bool rain=GetEventData();
     bool storm=GetEventData();
     bWeatherIsRain=rain; bWeatherIsStorm=storm; bCurWeatherStorm=storm;
+    if (bSeaActive) bStorm=storm;
     // Menu/transition weather has no active gameplay sound scene yet.
     if (!bSeaActive && !bLandInterfaceStart) return;
     if (!isEntity(&worldMap)) Whr_SetRainSound(rain && Whr_isRainEnable(),bWeatherIsNight);
@@ -612,10 +613,36 @@ void Whr_BindMapWeather()
     if (!CheckAttribute(&WeatherParams,"NativeState")) WeatherParams.NativeState.version=0;
     Whr_BindSolarPalette();
     aref savedWeather; makearef(savedWeather,WeatherParams.NativeState);
-    SendMessage(&Weather,"lal",1464336385,savedWeather,GetDataMonth());
+    Whr_BindNativeState(savedWeather);
     SendMessage(&Weather,"ll",1464336388,false);
     Weather.Time.speed=0.0;
     LayerAddObject(EXECUTE,&Weather,1000000);
+}
+
+void Whr_GetMapPosition(ref position)
+{
+    position.x=0.0; position.z=0.0;
+    if (CheckAttribute(&worldMap,"playerShipX")) position.x=stf(worldMap.playerShipX);
+    if (CheckAttribute(&worldMap,"playerShipZ")) position.z=stf(worldMap.playerShipZ);
+    if (bSeaActive && !isEntity(&worldMap) && CheckAttribute(&worldMap,"zeroX") &&
+        CheckAttribute(&worldMap,"zeroZ") && CheckAttribute(pchar,"Ship.Pos.x") && CheckAttribute(pchar,"Ship.Pos.z")) {
+        float scale=wdmMapToSeaScale();
+        position.x=stf(worldMap.zeroX)+stf(pchar.Ship.Pos.x)/scale;
+        position.z=stf(worldMap.zeroZ)+stf(pchar.Ship.Pos.z)/scale;
+    }
+}
+
+void Whr_BindNativeState(aref savedWeather)
+{
+    object position; Whr_GetMapPosition(&position);
+    SendMessage(&Weather,"lalllfff",1464336385,savedWeather,GetDataMonth(),GetDataYear(),GetDataDay(),GetTime(),stf(position.x),stf(position.z));
+}
+
+void Whr_UpdateWeatherPosition()
+{
+    if (!isEntity(&Weather)) return;
+    object position; Whr_GetMapPosition(&position);
+    SendMessage(&Weather,"lff",1464336391,stf(position.x),stf(position.z));
 }
 
 void Whr_BindSolarPalette()

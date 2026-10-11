@@ -269,10 +269,7 @@ void AddToTable(int _mode)
 	Table_Clear("TABLE_LIST", false, true, false);
     for (displayIndex = 0; displayIndex < GOODS_QUANTITY; displayIndex++)
 	{
-        // Display the new shell after bombs; cargo/save identifiers stay fixed.
-        i = displayIndex;
-        if (displayIndex > GOOD_BOMBS && displayIndex <= GOOD_AIRBURST) i = displayIndex - 1;
-        if (displayIndex == GOOD_BOMBS + 1) i = GOOD_AIRBURST;
+        i = Goods_GetDisplayIndex(displayIndex);
         row = "tr" + n;
 		sGood = Goods[i].name;
 		makearef(refGoods,refStore.Goods.(sGood));

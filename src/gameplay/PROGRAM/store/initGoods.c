@@ -8,9 +8,14 @@ void NavalAmmo_InitDamage()
     Goods[GOOD_AIRBURST].DamageCrew = 1.2;
     Goods[GOOD_BALLS].Accuracy = 100.0;
     Goods[GOOD_GRAPES].Accuracy = 50.0;
-    Goods[GOOD_KNIPPELS].Accuracy = 30.0;
+    Goods[GOOD_KNIPPELS].Accuracy = 35.0;
     Goods[GOOD_BOMBS].Accuracy = 80.0;
     Goods[GOOD_AIRBURST].Accuracy = 80.0;
+    Goods[GOOD_BALLS].ReloadSpeed = 1.0;
+    Goods[GOOD_BOMBS].ReloadSpeed = 1.0;
+    Goods[GOOD_KNIPPELS].ReloadSpeed = 0.8;
+    Goods[GOOD_GRAPES].ReloadSpeed = 1.2;
+    Goods[GOOD_AIRBURST].ReloadSpeed = 1.0 / 1.65;
 }
 
 void Airburst_InitGoods()
@@ -23,7 +28,6 @@ void Airburst_InitGoods()
     Goods[GOOD_AIRBURST].Weight = 1;
     Goods[GOOD_AIRBURST].Units = 20;
     Goods[GOOD_AIRBURST].SpeedV0 = 0.8;
-    Goods[GOOD_AIRBURST].ReloadTime = 1.65;
     Goods[GOOD_AIRBURST].DamageHull = 39.0; // twice ordinary bombs
     Goods[GOOD_AIRBURST].DamageFort = 180.0;
     Goods[GOOD_AIRBURST].DamageRig = 25.2; // twice knippels

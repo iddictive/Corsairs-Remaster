@@ -362,6 +362,37 @@
       "legacy": [
         "b29cbe7d92497415cbf807c41fda72da6f9b4816b774bd02e445405abb13409f"
       ]
+    },
+    "PROGRAM/interface/ship.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "3100502779a69659a155497e26c18205f0c223667393cde00787f075b8ddf2ca"
+      ]
+    },
+    "PROGRAM/interface/transfer_main.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "3e08cff0b3973388856acd5b6ff0e0ca3bea833cd89b78a0f37f0fe64ec27c47"
+      ]
+    },
+    "PROGRAM/interface/storage.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "3363e45921c8d52ac0f42f43b9fa97808261e1335c6005ba8ec79d279250e525"
+      ]
+    },
+    "PROGRAM/interface/ColonyCapture.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "cb512b2bc996867bee03b432e11937d36e573562ed2e21a92d484e48fdf2d945"
+      ]
+    },
+    "PROGRAM/worldmap/worldmap_encgen.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "f6615ecded6b52649a99e94d955c1a2fb53a29b5812a1aa32b67ffd8e05f5615",
+        "b772bf956179fb0801d597b51953f81956d269b3c0e2a0b067623493a6a777d9"
+      ]
     }
   }
 }

@@ -362,7 +362,11 @@ float4 seaSunModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,tex
     float4 sunRoad=reflection.sample(s[3],ray);
     float visibility=seaSolarVisibility(u,sceneDepth,cloudFrom,cloudTo);
     sunRoad.rgb=modernSeaDisplay(modernSeaLinear(sunRoad.rgb)*(u.solarSpectrum.w>0?u.solarSpectrum.rgb:float3(1))*modernSeaFresnel(dot(n,eye))*visibility);
-    return seaFog(sunRoad,o,u);
+    // The water body already contributes fog scattering. This additive pass
+    // only transmits solar radiance; adding the fog color creates a second veil.
+    sunRoad=saturate(sunRoad);
+    if(u.fogEnabled)sunRoad.rgb*=saturate(o.fog);
+    return sunRoad;
 }
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],depth2d<float> sceneDepth [[texture(11)]]) {return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo,sceneDepth);}
 float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth,texture2d<float> cloudFrom,texture2d<float> cloudTo) {

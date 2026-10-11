@@ -285,9 +285,10 @@ float Cannon_GetRechargeTime()
         } 
     // boal  корректный учет команды <--
     }
-	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_AIRBURST)
+	ref ammo = GetGoodByType(sti(aCharacter.Ship.Cannons.Charge.Type));
+	if (CheckAttribute(ammo, "ReloadSpeed"))
 	{
-		fReloadTime *= stf(Goods[GOOD_AIRBURST].ReloadTime);
+		fReloadTime /= stf(ammo.ReloadSpeed);
 	}
 	return  fMultiply * fReloadTime * fCannonSkill;
 }
