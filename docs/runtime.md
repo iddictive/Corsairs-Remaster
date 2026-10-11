@@ -1,8 +1,63 @@
 # Runtime state
 
-Last verified: October 10,22:10:47 EDT. Canonical staging installs signed engine `4f11929d28001cc02c064c6e61e238cd661298bb3716c4db8c891abb761a0211` into the supported player app. The game is idle for delivery; no task launch, game capture, input or profiling follows the player's stop on observation. The player accepts the preceding telescope square-artifact repair on `e675530ab7a88ec6`; their18:05/18:45 sea captures reopen horizon and solar leakage. This new candidate passes component checks; complete scene acceptance stays with the player. Rare low-FPS, weather evolution and sea/map calendar replay remain unresolved.
+Last verified: October10,22:33 EDT. Canonical staging installs signed engine `acd3bd0104699691775b4c0b4f6e8af92b8fe6cacd30d4741224ab9e66693747` into the supported player app with the game idle. No task launch, game capture, input or profiling follows the player's stop on observation. The player reports the preceding zoom/solar fixes good and reopens horizon brightness during camera pitch and excessive rain duration. The new motion/admission candidate passes component checks; complete scene and rain-duration acceptance stay with the player. Rare low-FPS and sea/map calendar replay remain unresolved.
 
 ## Current verdict
+
+### October10 — world-stable horizon transport and rain admission, installed; replay pending
+
+Observed mismatch: the player reports dark/light horizon jitter when pitching
+the camera and apparently endless rain; otherwise the preceding scene is good.
+They retain observation ownership. Read-only process checks show the game exited
+before installation; this task does not stop, launch or operate the game.
+
+Hypothesis and delta: view-aligned72-row local atmosphere moves its sparse
+ground-fog samples with pitch; absolute far-point reconstruction adds floating-
+origin cancellation. `local_weather.hpp` retains density, terrain, lighting and
+the two compute passes but samples a fixed world-angular lattice. A512-cell
+azimuth ring dispatches only the current frustum's window; pole views cover the
+full ring. Fixed513-column storage prevents camera/reflection allocation churn.
+The shared sinh elevation mapping in `sky_fog.hpp` resolves the horizon layer;
+relative homogeneous rays remove absolute far-point subtraction. Land receivers
+copy the same angular metadata. Storage grows18.94→75.94MB, while ordinary views
+dispatch their bounded window. The earlier background-depth veil and solar
+occlusion repairs remain integrated.
+
+Rain's native status becomes dry below.03, but particles formerly emitted down
+to.0002. `weather_engine_integration.hpp` now uses the same clamped admission/
+intensity transform for events and particles. A dry front previously emits56.314
+target drops after becoming dry; the repair emits zero. Calendar timing, random
+fronts, persisted version1 state and quest locks are unchanged. Natural long wet
+sequences remain possible; the exact player's seed/lock is not observed, so this
+does not claim their complete duration report proven resolved.
+
+Component result: actual rotation-only-VIEW/floating-origin10000 GPU sweeps at
+heights5/30/100 show horizon transmittance variation .342285/.212646/.128418
+before and zero measured FP16 variation after, over41 pitches and seven fixed
+world rays. Independent density integration is constant; spatial interpolation
+retains up to.041 error, distinct from stability. Angular coverage passes
+6,117,552 rays including wide/narrow FOV, aspect, pitch, roll and yaw wrap.
+Wet/dry/night/orographic GPU fixtures pass terrain, floating-origin and indoor
+negatives; measured medium compute is.295–.646ms, not whole-game FPS. Rain's
+1000-seed/24h simulations reduce rendered wet time January50.791%→35.677% and
+July80.188%→63.524%, with native wet status unchanged. Saved phase/RNG, pause,
+invalid clock, sea/map continuation and24h quest lock checks pass. Dynamic-sky
+backend, shadow and original-sea GPU consumer probes pass; the initial sea
+probe invocation lacked its required techniques argument and is discarded.
+
+Delivery: canonical `run.sh --stage-only` returns0 after the final native input,
+verifying8252 portable inputs, nine consumer classes and zero pending gameplay
+files. Cached engine SHA `865283faf889830c48cc6101cddc9d50deb73d0d4a6be1ace516c61b0bddeacf`;
+installed signed SHA `acd3bd0104699691775b4c0b4f6e8af92b8fe6cacd30d4741224ab9e66693747`.
+Final signature verification passes after completion. A premature signature
+check during signing is discarded. All248 SAVE/config files match the pre-stage
+snapshot. No player launch or permanent test is added. Mechanism contracts and
+rejected temporal-history/flat-fog alternatives are in `docs/metal-dynamic-sky.md`.
+The separate repository-context gate retains its pre-existing missing
+project-context action; no green verdict is claimed for that configuration.
+Disposition: source/component and installed delivery verified; camera-motion
+appearance and genuine rain-episode duration remain `unresolved`, owned by the
+player's next report and this task's continuation.
 
 ### October 10 — horizon transport and solar leakage repair, installed; player replay pending
 

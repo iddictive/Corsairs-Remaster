@@ -10,6 +10,7 @@ struct SkyFogDraw {
     simd_float4 options; // X: field; Y: veil; Z: volume; W: 0 straight, 1 additive, 2 premultiplied.
     simd_float4x4 volumeClipFromWorld;
     simd_float4 volumeCameraRange;
+    simd_float4 volumeAngles;
 };
 
 inline SkyFogDraw makeSkyFogDraw(simd_float4x4 worldFromClip, simd_float4 viewport,
@@ -23,20 +24,31 @@ inline SkyFogDraw makeSkyFogDraw(simd_float4x4 worldFromClip, simd_float4 viewpo
 inline const char* skyFogMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
-struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;float4x4 volumeClipFromWorld;float4 volumeCameraRange;};
+struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;float4x4 volumeClipFromWorld;float4 volumeCameraRange,volumeAngles;};
+// A fixed world-direction lattice, with continuous extra resolution near the
+// thin ground-fog layer. Both the producer and receiver use this same mapping.
+float skyLocalTheta(float elevation){return sinh((elevation*2.f-1.f)*7.f)/sinh(7.f)*1.57079632679f;}
+float skyLocalElevation(float theta){return .5f+.5f*asinh(theta*sinh(7.f)/1.57079632679f)/7.f;}
 float4 skyLocalMedium(float3 pixel,constant SkyFogDraw&draw,texture3d<float>volume){
     if(draw.options.z<.5f||draw.options.x<.5f)return float4(0,0,0,1);
     // The sky veil is a background mask, not an atmospheric endpoint at the
     // radius of its mesh. Match the sky's full view-ray transport at its edge.
     if(draw.options.y>.5f)pixel.z=1.f;
     float2 uv=(pixel.xy-draw.viewport.xy)/draw.viewport.zw;
+    if(any(uv<0)||any(uv>1))return float4(0,0,0,1);
+    float4 near=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0,1);
+    float4 far=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1,1);
+    float3 ray=normalize(far.xyz*near.w-near.xyz*far.w);
     float4 p=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,pixel.z,1);
     if(abs(p.w)<1.e-8f)return float4(0,0,0,1);
     float3 world=p.xyz/p.w;
-    float4 clip=draw.volumeClipFromWorld*float4(world,1);
-    float2 screen=float2(clip.x,-clip.y)/clip.w*.5f+.5f;
-    if(clip.w<=0||any(screen<0)||any(screen>1))return float4(0,0,0,1);
-    float distance=length(world-draw.volumeCameraRange.xyz);
+    float azimuth=atan2(ray.z,ray.x);
+    float column=fmod(azimuth-draw.volumeAngles.x+12.56637061436f,6.28318530718f)/draw.volumeAngles.y;
+    if(column>draw.volumeAngles.z-1.f)return float4(0,0,0,1);
+    float theta=asin(clamp(ray.y,-1.f,1.f));
+    float elevation=skyLocalElevation(theta);
+    float2 screen=float2((column+.5f)/float(volume.get_width()),(elevation*float(volume.get_height()-1)+.5f)/float(volume.get_height()));
+    float distance=pixel.z>=1.f?draw.volumeCameraRange.w:length(world-draw.volumeCameraRange.xyz);
     float z=clamp(log(1.f+distance/8.f)/log(1.f+draw.volumeCameraRange.w/8.f),0.f,1.f);
     // Slice zero is the camera (identity transport). Prefix endpoints occupy
     // the other slices; map endpoints to texel centres, not texture edges.

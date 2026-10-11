@@ -1,6 +1,15 @@
 #pragma once
 #include <chrono>
 
+namespace {
+float WeatherRainIntensity(float rain)
+{
+    // The native wet/dry admission also owns emission; sub-threshold front tails
+    // must not keep visible drops alive after the condition has become dry.
+    return std::clamp((rain-.03f)/.97f,0.f,1.f);
+}
+}
+
 // Included by weather.cpp after WEATHER's declarations. No renderer-side weather owner.
 void WEATHER::SaveWeatherEngine()
 {
@@ -62,7 +71,7 @@ void WEATHER::UpdateWeatherEngine(uint32_t deltaTime)
     weatherEngine.lightningRemaining-=dt; weatherCheckpoint+=dt;
     if (weatherCheckpoint>=5.f) { weatherCheckpoint=0.f; SaveWeatherEngine(); }
     const auto &c=weatherEngine.current;
-    const int rain=c.rain>.03f, storm=c.storm>.5f;
+    const int rain=WeatherRainIntensity(c.rain)>0.f, storm=c.storm>.5f;
     if (rain!=weatherRainStatus || storm!=weatherStormStatus) {
         weatherRainStatus=rain; weatherStormStatus=storm;
         core.Event("NativeWeatherChanged","ll",rain,storm);
@@ -83,7 +92,7 @@ void WEATHER::ApplyWeatherConditions()
     const auto &c=weatherEngine.current;
     fFloats[whf_wind_angle]=c.angle; fFloats[whf_wind_speed]=c.speed;
     fFloats[whf_fog_density]=.000005f+c.rain*.00004f;
-    visualRainTarget=c.rain*5000.f;
+    visualRainTarget=WeatherRainIntensity(c.rain)*5000.f;
     const float hour=storm_weather_visual::wrapDayHour(fFloats[whf_time_counter]);
     const int first=static_cast<int>(hour), next=(first+1)%24;
     const float fraction=hour-first;

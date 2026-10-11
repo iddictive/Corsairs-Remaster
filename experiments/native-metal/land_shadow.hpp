@@ -411,7 +411,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
   }
   void view(id<MTLRenderCommandEncoder>e,const Packet&p,id<MTLTexture>fogEnvironment,const storm_metal::SkyFogDraw&localFog,id<MTLTexture>localVolume){
    auto fog=storm_metal::makeSkyFogDraw(simd_mul(p.world,simd_inverse(p.mvp)),{float(p.viewport.originX),float(p.viewport.originY),float(p.viewport.width),float(p.viewport.height)},fogEnvironment!=nil);
-   fog.options.z=localFog.options.z;fog.volumeClipFromWorld=localFog.volumeClipFromWorld;fog.volumeCameraRange=localFog.volumeCameraRange;[e setFragmentTexture:localVolume atIndex:27];[e setFragmentBytes:&fog length:sizeof(fog) atIndex:9];[e setFragmentTexture:fogEnvironment atIndex:26];
+   fog.options.z=localFog.options.z;fog.volumeClipFromWorld=localFog.volumeClipFromWorld;fog.volumeCameraRange=localFog.volumeCameraRange;fog.volumeAngles=localFog.volumeAngles;[e setFragmentTexture:localVolume atIndex:27];[e setFragmentBytes:&fog length:sizeof(fog) atIndex:9];[e setFragmentTexture:fogEnvironment atIndex:26];
    const auto&v=p.viewport;
    if(!hasViewport||viewport.originX!=v.originX||viewport.originY!=v.originY||viewport.width!=v.width||viewport.height!=v.height||viewport.znear!=v.znear||viewport.zfar!=v.zfar){[e setViewport:v];viewport=v;hasViewport=true;}
   }

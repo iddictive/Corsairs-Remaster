@@ -9,9 +9,10 @@ struct LocalWeatherUniform {
     simd_float4x4 worldFromClip;
     simd_float4 cameraRange,terrainBounds;
     DynamicSkyUniform weather;
+    simd_float4 angles;
 };
 inline const char* localWeatherMSL=R"MSL(
-struct LocalWeatherUniform {float4x4 worldFromClip;float4 cameraRange,terrainBounds;SkyWeather weather;};
+struct LocalWeatherUniform {float4x4 worldFromClip;float4 cameraRange,terrainBounds;SkyWeather weather;float4 angles;};
 float localTerrainHeight(float2 p,texture2d<float>terrain,float4 bounds){
     if(bounds.z<=0||bounds.w<=0)return 0;
     float2 uv=(p-bounds.xy)/bounds.zw;
@@ -54,9 +55,9 @@ float localCloudDensity(float3 p,constant LocalWeatherUniform&u,texture2d<float>
 float localWeatherDistance(float z,float range){return 8.f*(exp(z*log(1.f+range/8.f))-1.f);}
 kernel void local_weather_segments(texture3d<float,access::write>output [[texture(0)]],texture2d<float>terrain [[texture(1)]],texture3d<float>shape [[texture(2)]],texture3d<float>detail [[texture(3)]],texture2d<float>regional [[texture(4)]],texture2d<float>atmosphere [[texture(5)]],constant LocalWeatherUniform&u [[buffer(0)]],constant float4*lighting [[buffer(1)]],uint3 id [[thread_position_in_grid]]){
     if(id.x>=output.get_width()||id.y>=output.get_height()||id.z>=output.get_depth())return;
-    float2 uv=(float2(id.xy)+.5f)/float2(output.get_width(),output.get_height());
-    float4 far=u.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1,1);
-    float3 ray=normalize(far.xyz/far.w-u.cameraRange.xyz);
+    float phi=u.angles.x+float(id.x)*u.angles.y;
+    float theta=skyLocalTheta(float(id.y)/float(output.get_height()-1));
+    float3 ray=float3(cos(phi)*cos(theta),sin(theta),sin(phi)*cos(theta));
     float a=localWeatherDistance(float(id.z)/128.f,u.cameraRange.w),b=localWeatherDistance(float(id.z+1)/128.f,u.cameraRange.w);
     float3 p=u.cameraRange.xyz+ray*(a+b)*.5f;
     // Two quadrature samples and noise mip filtering integrate thin wisps
@@ -90,7 +91,10 @@ kernel void local_weather_integrate(texture3d<float>segments [[texture(0)]],text
 )MSL";
 
 struct LocalWeatherVolume {
-    static constexpr unsigned width=128,height=72;
+    static constexpr unsigned height=72;
+    static constexpr float angleStep=6.28318530718f/512.f;
+    static constexpr unsigned width=513;
+    simd_float4 angles{};
     id<MTLTexture> terrain=nil,segments=nil,transport=nil;
     id<MTLComputePipelineState> segmentKernel=nil,integrateKernel=nil;
     uint64_t terrainRevision=~uint64_t(0);
@@ -105,11 +109,38 @@ struct LocalWeatherVolume {
         return current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&
             simd_all(origin==viewOrigin)&&std::memcmp(&vp,&viewProjection,sizeof(vp))==0;
     }
+    static simd_float4 angularWindow(simd_float4x4 view,simd_float4x4 projection){
+        // A projected frustum is a convex cone. Its azimuth extrema lie on
+        // corner rays unless it contains a pole, which needs the whole ring.
+        const auto vp=simd_mul(projection,view),inverse=simd_inverse(vp);
+        const auto camera=simd_inverse(view).columns[3].xyz;
+        for(float y:{-1.f,1.f}){
+            auto clip=simd_mul(vp,simd_make_float4(0,y,0,0));
+            if(clip.w>0&&std::abs(clip.x)<=clip.w&&std::abs(clip.y)<=clip.w)
+                return {0,angleStep,513,0};
+        }
+        float phi[4];unsigned n=0;
+        for(float y:{-1.f,1.f})for(float x:{-1.f,1.f}){
+            auto near=simd_mul(inverse,simd_make_float4(x,y,0,1));
+            auto ray=near.xyz/near.w-camera;
+            float a=std::atan2(ray.z,ray.x);phi[n++]=a<0?a+6.28318530718f:a;
+        }
+        std::sort(phi,phi+4);float gap=-1,start=0;
+        for(unsigned i=0;i<4;i++){
+            float next=i==3?phi[0]+6.28318530718f:phi[i+1];
+            if(next-phi[i]>gap){gap=next-phi[i];start=next;}
+        }
+        const float first=std::floor(start/angleStep)-1.f;
+        const unsigned count=std::min(513u,unsigned(std::ceil((start+6.28318530718f-gap)/angleStep)-first)+2u);
+        return {std::fmod(first*angleStep,6.28318530718f),angleStep,float(count),0};
+    }
     bool prepare(id<MTLDevice>device,id<MTLLibrary>library){
         if(segmentKernel)return true;
         NSError*error=nil;
         segmentKernel=[device newComputePipelineStateWithFunction:[library newFunctionWithName:@"local_weather_segments"] error:&error];
         integrateKernel=[device newComputePipelineStateWithFunction:[library newFunctionWithName:@"local_weather_integrate"] error:&error];
+        // Reserve the pole view once; dispatch only the current angular window.
+        // Camera motion and reflection faces must not churn in-flight textures.
         auto volume=[&](unsigned depth){auto d=[MTLTextureDescriptor new];d.textureType=MTLTextureType3D;d.pixelFormat=MTLPixelFormatRGBA16Float;d.width=width;d.height=height;d.depth=depth;d.storageMode=MTLStorageModePrivate;d.usage=MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;return [device newTextureWithDescriptor:d];};
         segments=volume(128);transport=volume(129);
         auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float width:WeatherTerrain::side height:WeatherTerrain::side mipmapped:NO];d.storageMode=MTLStorageModeShared;d.usage=MTLTextureUsageShaderRead;terrain=[device newTextureWithDescriptor:d];
@@ -120,7 +151,10 @@ struct LocalWeatherVolume {
         auto vp=simd_mul(projection,view);
         if(outdoor&&matches(frame,view,projection,origin))return true;
         current=false;if(!outdoor)return true;
+        auto inverse=simd_inverse(vp);
+        if(!std::isfinite(simd_determinant(inverse)))return true;
         if(!prepare(device,library))return false;
+        angles=angularWindow(view,projection);
         if(terrainRevision!=weatherTerrain.revision){
             // Replace immutable upload storage, never overwrite bytes referenced
             // by an older in-flight scene after an island load/unload.
@@ -130,23 +164,23 @@ struct LocalWeatherVolume {
             [terrain replaceRegion:MTLRegionMake2D(0,0,WeatherTerrain::side,WeatherTerrain::side) mipmapLevel:0 withBytes:weatherTerrain.heights.empty()?empty.data():weatherTerrain.heights.data() bytesPerRow:WeatherTerrain::side*sizeof(float)];
             terrainRevision=weatherTerrain.revision;
         }
-        auto inverse=simd_inverse(vp);
-        if(!std::isfinite(simd_determinant(inverse)))return true;
         auto absolute=matrix_identity_float4x4;absolute.columns[3]=simd_make_float4(-origin,1);
-        LocalWeatherUniform u{};u.worldFromClip=simd_mul(absolute,inverse);
+        LocalWeatherUniform u{};u.worldFromClip=inverse;
+        u.angles=angles;
         cameraRange=simd_make_float4(simd_inverse(view).columns[3].xyz-origin,6000.f);
         u.cameraRange=cameraRange;u.weather=weather;
         if(!weatherTerrain.heights.empty())u.terrainBounds={weatherTerrain.bounds[0],weatherTerrain.bounds[1],weatherTerrain.bounds[2],weatherTerrain.bounds[3]};
         absolute.columns[3]=simd_make_float4(origin,1);clipFromWorld=simd_mul(vp,absolute);
         auto e=[command computeCommandEncoder];[e setComputePipelineState:segmentKernel];[e setBytes:&u length:sizeof(u) atIndex:0];
         [e setTexture:segments atIndex:0];[e setTexture:terrain atIndex:1];[e setTexture:shape atIndex:2];[e setTexture:detail atIndex:3];[e setTexture:regional atIndex:4];[e setTexture:atmosphere atIndex:5];[e setBuffer:lighting offset:0 atIndex:1];
-        [e dispatchThreads:MTLSizeMake(width,height,128) threadsPerThreadgroup:MTLSizeMake(4,4,4)];[e endEncoding];
-        e=[command computeCommandEncoder];[e setComputePipelineState:integrateKernel];[e setTexture:segments atIndex:0];[e setTexture:transport atIndex:1];[e dispatchThreads:MTLSizeMake(width,height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        [e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,128) threadsPerThreadgroup:MTLSizeMake(4,4,4)];[e endEncoding];
+        e=[command computeCommandEncoder];[e setComputePipelineState:integrateKernel];[e setTexture:segments atIndex:0];[e setTexture:transport atIndex:1];[e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
         viewFrame=frame;viewProjection=vp;viewOrigin=origin;current=true;return true;
     }
     void bind(id<MTLRenderCommandEncoder>encoder,SkyFogDraw&draw,simd_float3 origin)const{
         draw.options.z=current;auto absolute=matrix_identity_float4x4;absolute.columns[3]=simd_make_float4(-origin,1);
         draw.volumeClipFromWorld=simd_mul(clipFromWorld,absolute);draw.volumeCameraRange=simd_make_float4(cameraRange.xyz+origin,cameraRange.w);
+        draw.volumeAngles=angles;
         [encoder setFragmentTexture:transport atIndex:27];
     }
 };
