@@ -1,8 +1,90 @@
 # Runtime state
 
-Last verified: October11. Canonical staging installs signed engine `2f1c207791a6f9945a6569e87f9c4bae68fd6cefbb1e4970257e0cacfb07c476` into the supported player app after ordinary player closure. The player rejected the preceding fa648c36 weather tempo, storm visibility and lamp stability; the new batch contains their corrections, rain-water response and a chart freight fast path. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. Earlier tsunami, descriptions, repair, aim, ammunition and fog changes remain included. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
+Last verified: October11. Canonical staging installs signed engine `6d94e88804fc76524ac5ef0ff4356330b2d84444b333b08d0e352c0df6d700dc` into the supported player app. Current source removes respawning chart rain cards and distributes periodic fleet refresh across frames; shared cloudy fog and native storm entry remain included. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly requests commit/push of this source batch. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
 
 ## Current verdict
+
+### October11 — continuous chart rain and sliced fleet refresh installed; player replay pending
+
+The later screenshot isolates grainy rain-cloud circles to rain.tga cards,
+respawning every0.8s. The projector replaces them with one stationary world-XZ
+precipitation quad per front, beneath unchanged ordinary cloud lobes. Its Metal
+fragment evaluates the weather sample's squared smooth radial kernel without
+texture noise or respawn. At most12 quads preserve front position/radius and
+close/Tab opacity. CPU recording and real compact-bridge GPU readback pass stable
+placement/pixels, monotonic intensity, dry identity and ordinary-quad fallback;
+complete natural appearance remains the player's accepting view. Case intake
+contains14 original screenshots.
+
+The initial rain-veil stage installed a shader containing the reserved Metal
+keyword `kernel`; the actual GPU fixture rejected its compilation. Renaming the
+radial value to `parcel`, then canonical staging, installed35360903 and passed
+the real shader readback. This rejected intermediate is not visual acceptance.
+
+Complete service-chain VM measurement found a33.49ms all-fleet pass; binding cargo
+attributes once reduced it to26.40ms, still too long for an8.33ms120FPS frame.
+Periodic refresh now snapshots live encounter IDs and spreads whole-fleet work
+over the existing one-second native encounter phase. For60 fleets, normal
+30/60/120FPS callbacks visit at most2/1/1 fleets; isolated average costs are
+0.921/0.522/0.522ms, with0.033ms queue admission. Public entry/load/manual refresh
+remains synchronous. Pause/resume or a long frame may finish a larger remaining
+prefix at the old catch-up boundary. This removes the measured periodic bulk
+pass; it does not establish actual player FPS or eliminate every stutter cause.
+
+Synchronous/sliced complete fleet-state equality, service/supply action counts,
+list mutation, pause/exit/manual cancellation and four save-codec rounds pass.
+Whole shared PROGRAM startup compiles with zero VM errors; an initial fixture
+Main-name collision was corrected in the disposable prelude, not product code.
+Port transactions/route selection and strategy admission use equal external
+stubs in the scheduling fixture; live gameplay remains player-owned.
+
+Final canonical stage-only exits0 after the native callback and script handler,
+with cached engine295524b9 and signed installed6d94e888. Deep/strict signature
+passes; both gameplay plans have zero pending. Installed/cache encgen bytes match;
+canonical text matches with the delivery's existing CRLF conversion. All245
+idle SAVE/config snapshot files are unchanged. Previous35360903 is backed up.
+Disposition: installed, player chart/freeze replay unresolved. Night-city FPS,
+lamp flicker, sea saturation and near-chart/local cloud parity remain open.
+Read-only follow-up found repeated per-lamp GPU table preparation, not a measured
+night FPS cause; its bounded CPU probe belongs to the separate night lane.
+
+### October11 — unified chart cloud material and regional storm entry, installed; player review pending
+
+The player accepts ordinary cloud readability but rejects the separate rain-cloud
+appearance and abrupt transitions. Local overcast retains blue distant haze,
+and chart storms can be sailed through without encounter. Five additional original
+screenshots are retained; case intake now contains13 images.
+
+Confirmed render mismatch: precipitation thresholds swapped a front's light atlas
+and alpha-sort batch. All parcels now retain the ordinary cloud atlas, lobes,
+subtextures and order while wet cores darken continuously. Rain alpha grows from
+zero without the wet-batch threshold; ship/Tab opacity remains.12/.95. Solar-hour
+fog color now desaturates/dims with the same sampled cloud/rain/storm, feeding
+sky, water and distant geometry; clear weather and missing palette retain RGB.
+
+Confirmed contact defect: regional storms returned TestInStorm=-2, while automatic
+dispatch required an authored storm index>=0. Native -2 now dispatches through
+the existing0.5s throttle; explicit hazard precedence remains. Actual-method CPU
+fixtures reproduce the old missed entry and pass contact, dry, paused, proximity,
+dead-hazard, tsunami and tornado negatives. The map-header recorder retains36
+lobes/material/order through dry/rain/storm and both threshold crossings; shade
+changes by at most1/255 there. Fog-method clear/overcast/storm, unbound state and
+absent-palette cases pass. These prove API behavior, not rendered player acceptance.
+
+Seeded Jan3 sea/map binding preserves coverage/rain/storm exactly; sparse chart
+sprites and close-camera transparency can still look clear beside continuous
+local overcast. This perceptual gap remains unaccepted. Jan7/Jan16 fields are
+continuous, but the chart's1game-hour/real-second compresses wet runs to3–7seconds.
+No model rate, save contract or rain-duration bound changed. Complete natural
+cloud appearance/lifecycle, earlier city FPS, lamp flicker and chart stutter remain
+player-review items.
+
+Delivery: final canonical run.sh --stage-only exits0, cached engine fae5e544,
+installed signed2ab4995d. Deep/strict signature passes after staging completes;
+both gameplay plans have zero pending files. Previous installed2f1c2077 is backed
+up by the installer. A patch hunk-count failure was corrected before the successful
+transaction. Disposition: installed, player replay unresolved; no game operation,
+ZIP/upload or publication.
 
 ### October11 — weather tempo, rain impacts and lamp stability, installed; player review pending
 

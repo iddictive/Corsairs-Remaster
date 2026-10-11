@@ -114,6 +114,19 @@ void WEATHER::ApplyWeatherConditions()
         } return out;
     };
     dwColors[whc_fog_color]=color(0,dwColors[whc_fog_color]);
+    // Palette is solar time, not a second clear-weather owner. Overcast air
+    // loses its blue tint and dims with the same parcel driving the sky/rain.
+    const float cloudiness=std::clamp((c.coverage-.4f)/.55f,0.f,1.f);
+    const float overcast=weatherPaletteValid?cloudiness*cloudiness*(3.f-2.f*cloudiness):0.f;
+    const uint32_t fog=dwColors[whc_fog_color];
+    const float red=float((fog>>16)&255u), green=float((fog>>8)&255u), blue=float(fog&255u);
+    const float grey=(.2126f*red+.7152f*green+.0722f*blue)*(1.f-.22f*c.rain-.10f*c.storm);
+    uint32_t weatherFog=fog&0xff000000u;
+    for (unsigned shift=0;shift<24;shift+=8) {
+        const float channel=float((fog>>shift)&255u);
+        weatherFog|=uint32_t(channel+(grey-channel)*overcast)<<shift;
+    }
+    dwColors[whc_fog_color]=weatherFog;
     dwColors[whc_sun_ambient]=color(1,dwColors[whc_sun_ambient]);
     dwColors[whc_sun_color]=color(2,dwColors[whc_sun_color]);
 }

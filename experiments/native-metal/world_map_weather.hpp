@@ -13,11 +13,11 @@
 // authored cloud/rain art; the map retains camera, input and label ownership.
 class WdmWeatherRegions final : public WdmRenderObject
 {
-    static constexpr unsigned puffs=18, drops=12;
+    static constexpr unsigned puffs=18;
     std::array<RS_RECT,storm_weather::Engine::frontCount*puffs> cloudRects{};
-    std::array<RS_RECT,storm_weather::Engine::frontCount*drops> rainRects{};
+    std::array<WdmMetalQuad3D,storm_weather::Engine::frontCount> rainQuads{};
     IDirect3DVertexDeclaration9 *declaration=nullptr;
-    int32_t cloudTexture=-1, cloudLight=-1, stormLight=-1, rainTexture=-1, lightningTexture=-1;
+    int32_t cloudTexture=-1, cloudLight=-1, lightningTexture=-1;
     double animationSeconds=0;
     static float noise(uint32_t id,unsigned index)
     {
@@ -54,8 +54,6 @@ public:
         auto *rs=wdmObjects->rs;
         cloudTexture=rs->TextureCreate("\\WorldMap\\clouds.tga");
         cloudLight=rs->TextureCreate("\\WorldMap\\cloudslight.tga");
-        stormLight=rs->TextureCreate("\\WorldMap\\stormlight.tga");
-        rainTexture=rs->TextureCreate("\\WorldMap\\rain.tga");
         lightningTexture=rs->TextureCreate("\\WorldMap\\lightnings.tga");
         const D3DVERTEXELEMENT9 elements[]={
             {0,0,D3DDECLTYPE_FLOAT3,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_POSITION,0},
@@ -66,7 +64,7 @@ public:
     ~WdmWeatherRegions() override
     {
         auto *rs=wdmObjects->rs;
-        for (int32_t texture:{cloudTexture,cloudLight,stormLight,rainTexture,lightningTexture})
+        for (int32_t texture:{cloudTexture,cloudLight,lightningTexture})
             if (texture>=0) rs->TextureRelease(texture);
         if (declaration) declaration->Release();
     }
@@ -82,13 +80,11 @@ public:
         float zoom=std::clamp((camera.y-60.f)/360.f,0.f,1.f);
         zoom=zoom*zoom*(3.f-2.f*zoom);
         const float opacity=.12f+.83f*zoom;
-        unsigned rainCount=0;
-        for (unsigned wetBatch=0;wetBatch<2;++wetBatch) {
-            unsigned cloudCount=0;
+        unsigned rainCount=0, cloudCount=0;
+        {
             for (unsigned slot=0;slot<storm_weather::Engine::frontCount;++slot) {
                 storm_weather::Front front;
                 if (!weather->GetWeatherFront(slot,front) || front.coverage<=.01f) continue;
-                if (unsigned(front.rain>.03f || front.storm>.05f)!=wetBatch) continue;
                 for (unsigned puff=0;puff<puffs;++puff) {
                     const float angle=noise(front.id,puff*4)*6.2831853f;
                     const float radial=std::sqrt(noise(front.id,puff*4+1))*.70f;
@@ -99,27 +95,25 @@ public:
                     r.fAngle=noise(front.id,puff*4+3)*6.2831853f;
                     r.dwSubTexture=puff%4;
                     const uint32_t alpha=uint32_t(255.f*opacity*front.coverage*(1.f-radial*radial));
-                    const uint32_t shade=uint32_t(245.f-65.f*front.rain-25.f*front.storm);
+                    // The same lobes and light atlas survive the whole cloud's
+                    // lifecycle. Its wet core darkens continuously; changing
+                    // precipitation never swaps material or alpha-sort order.
+                    const float core=1.f-radial*radial;
+                    const uint32_t shade=uint32_t(245.f-(95.f*front.rain+30.f*front.storm)*core);
                     const uint32_t size=uint32_t(255.f*std::clamp((r.fSize-40.f)/200.f,0.f,1.f));
                     r.dwColor=(alpha<<24)|(shade<<16)|size;
                 }
-                if (wetBatch && rainTexture>=0) for (unsigned drop=0;drop<drops;++drop) {
-                    const float angle=noise(front.id,100+drop*3)*6.2831853f;
-                    const float radial=std::sqrt(noise(front.id,101+drop*3))*.48f;
-                    auto &r=rainRects[rainCount++];
-                    const float phase=float(std::fmod(animationSeconds,.8)/.8)+noise(front.id,102+drop*3);
-                    r.vPos=CVECTOR(front.x+std::sin(angle)*radial*front.radius,
-                                  3.f+18.f*(1.f-(phase-std::floor(phase))),
-                                  front.z+std::cos(angle)*radial*front.radius);
-                    r.fSize=front.radius*.16f; r.fAngle=0.f; r.dwSubTexture=0;
-                    r.dwColor=(uint32_t(130.f*opacity*front.rain)<<24)|0x00c8d8e8u;
+                const uint32_t rainAlpha=uint32_t(160.f*opacity*front.rain);
+                if (rainAlpha) {
+                    // One world-space veil shares the sampled rain footprint.
+                    // No restarting/falling sprite cards or grain texture.
+                    rainQuads[rainCount++]={{front.x,6.f,front.z},{1.f,0.f,0.f},{0.f,0.f,1.f},
+                        front.radius,front.radius,(rainAlpha<<24)|0x00687078u,{0.f,0.f,1.f,1.f}};
                 }
             }
-            drawClouds(rs,cloudCount,wetBatch?stormLight:cloudLight);
-        }
-        if (rainCount) {
-            rs->TextureSet(0,rainTexture); rs->TextureSet(1,-1);
-            rs->DrawRects(rainRects.data(),rainCount,"WdmRain",1,1);
+            for (unsigned index=0;index<rainCount;++index)
+                WdmMetalDrawQuad3D(rs,rainQuads[index],"WdmRain");
+            drawClouds(rs,cloudCount,cloudLight);
         }
         if (lightningTexture>=0) for (unsigned slot=0;slot<storm_weather::Engine::frontCount;++slot) {
             storm_weather::Front front;

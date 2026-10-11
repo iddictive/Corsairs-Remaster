@@ -83,7 +83,7 @@ int wdmReconcileQuestShipCounter()
 void wdmShipEncounter(float dltTime, float playerShipX, float playerShipZ, float playerShipAY)
 {
 	wdmReconcileQuestShipCounter();
-	WdmTrafficRefresh();
+	WdmTrafficBeginRefresh();
 	bool encoff = false;
 	if (CheckAttribute(pchar, "worldmapencountersoff")) encoff = sti(pchar.worldmapencountersoff);
 	if (encoff || wdmGetNumberShipEncounters() >= 80) return;
@@ -673,7 +673,20 @@ void WdmTrafficEnsureRisk(aref encounter, int nation)
 	if (temperament < 2) encounter.trafficRisk = 1.65;
 }
 
-void WdmTrafficRefresh()
+object wdmTrafficRefreshQueue;
+bool wdmTrafficRefreshPending = false;
+int wdmTrafficRefreshCursor = 0;
+int wdmTrafficRefreshCount = 0;
+
+void WdmTrafficCancelRefresh()
+{
+	DeleteAttribute(&wdmTrafficRefreshQueue, "");
+	wdmTrafficRefreshPending = false;
+	wdmTrafficRefreshCursor = 0;
+	wdmTrafficRefreshCount = 0;
+}
+
+void WdmTrafficRefreshPlayer()
 {
 	// Rebuild from the active companion slots, never rank, officers or stored ships.
 	float playerPower = 0.0;
@@ -693,48 +706,112 @@ void WdmTrafficRefresh()
 	}
 	worldMap.trafficPlayerPower = playerPower;
 	worldMap.trafficPlayerTrade = playerTrade;
-	if (!CheckAttribute(&worldMap, "encounters")) { WdmTrafficReviewStrategies(); return; }
-	bool stopFollow = IsStopMapFollowEncounters();
-	aref encounters;
-	makearef(encounters, worldMap.encounters);
-	for (int i = 0; i < GetAttributesNum(encounters); i++)
+}
+
+void WdmTrafficRefreshFleet(aref encounter, bool stopFollow)
+{
+	if (CheckAttribute(encounter, "quest") || CheckAttribute(encounter, "encdata.qID") ||
+		CheckAttribute(encounter, "needDelete") || !CheckAttribute(encounter, "encdata")) return;
+	if (CheckAttribute(encounter, "killMe") && sti(encounter.killMe)) return;
+	aref fleet;
+	makearef(fleet, encounter.encdata);
+	if (!WdmTrafficEnsureRoster(fleet, sti(pchar.rank))) return;
+	WdmTrafficRefreshRosterCounts(fleet);
+	// Saved ordinary descriptors acquire roles before the native map reload.
+	if (!WdmTrafficIsOrdinary(encounter) && CheckAttribute(encounter, "type") &&
+		(encounter.type == "Follow" || encounter.type == "Merchant") && CheckAttribute(fleet, "nation"))
 	{
-		aref encounter = GetAttributeN(encounters, i);
-		if (CheckAttribute(encounter, "quest") || CheckAttribute(encounter, "encdata.qID") ||
-			CheckAttribute(encounter, "needDelete") || !CheckAttribute(encounter, "encdata")) continue;
-		if (CheckAttribute(encounter, "killMe") && sti(encounter.killMe)) continue;
-		aref fleet;
-		makearef(fleet, encounter.encdata);
-		if (!WdmTrafficEnsureRoster(fleet, sti(pchar.rank))) continue;
-		WdmTrafficRefreshRosterCounts(fleet);
-		// Saved ordinary descriptors acquire roles before the native map reload.
-		if (!WdmTrafficIsOrdinary(encounter) && CheckAttribute(encounter, "type") &&
-			(encounter.type == "Follow" || encounter.type == "Merchant") && CheckAttribute(fleet, "nation"))
+		encounter.trafficNation = sti(fleet.nation);
+		encounter.trafficRole = 2;
+		if (CheckAttribute(fleet, "Type") && fleet.Type == "trade") encounter.trafficRole = 1;
+		if (sti(fleet.nation) == PIRATE) encounter.trafficRole = 3;
+	}
+	if (WdmTrafficIsOrdinary(encounter))
+	{
+		WdmTrafficVoyageUpdate(encounter);
+		int role = sti(encounter.trafficRole);
+		encounter.trafficPlayerAware = role == 2 || role == 3;
+		WdmTrafficEnsureRisk(encounter, sti(encounter.trafficNation));
+		WdmTrafficRefreshEncounter(encounter, stopFollow);
+	}
+	encounter.trafficPower = WdmTrafficRosterPower(fleet);
+	if (!CheckAttribute(encounter, "trafficPowerVersion") || sti(encounter.trafficPowerVersion) != 2)
+	{
+		// Retain intent but rebase old observations: changing units is not damage.
+		DeleteAttribute(encounter, "trafficObservedOwnPower");
+		DeleteAttribute(encounter, "trafficObservedPlayerPower");
+		DeleteAttribute(encounter, "trafficObservedTargetPower");
+		encounter.trafficPowerVersion = 2;
+	}
+}
+
+void WdmTrafficRefresh()
+{
+	// Entry, save reload and encounter inspection still publish every fleet now.
+	WdmTrafficCancelRefresh();
+	WdmTrafficRefreshPlayer();
+	if (CheckAttribute(&worldMap, "encounters"))
+	{
+		bool stopFollow = IsStopMapFollowEncounters();
+		aref encounters;
+		makearef(encounters, worldMap.encounters);
+		for (int i = 0; i < GetAttributesNum(encounters); i++)
 		{
-			encounter.trafficNation = sti(fleet.nation);
-			encounter.trafficRole = 2;
-			if (CheckAttribute(fleet, "Type") && fleet.Type == "trade") encounter.trafficRole = 1;
-			if (sti(fleet.nation) == PIRATE) encounter.trafficRole = 3;
-		}
-		if (WdmTrafficIsOrdinary(encounter))
-		{
-			WdmTrafficVoyageUpdate(encounter);
-			int role = sti(encounter.trafficRole);
-			encounter.trafficPlayerAware = role == 2 || role == 3;
-			WdmTrafficEnsureRisk(encounter, sti(encounter.trafficNation));
-			WdmTrafficRefreshEncounter(encounter, stopFollow);
-		}
-		encounter.trafficPower = WdmTrafficRosterPower(fleet);
-		if (!CheckAttribute(encounter, "trafficPowerVersion") || sti(encounter.trafficPowerVersion) != 2)
-		{
-			// Retain intent but rebase old observations: changing units is not damage.
-			DeleteAttribute(encounter, "trafficObservedOwnPower");
-			DeleteAttribute(encounter, "trafficObservedPlayerPower");
-			DeleteAttribute(encounter, "trafficObservedTargetPower");
-			encounter.trafficPowerVersion = 2;
+			aref encounter = GetAttributeN(encounters, i);
+			WdmTrafficRefreshFleet(encounter, stopFollow);
 		}
 	}
 	WdmTrafficReviewStrategies();
+}
+
+void WdmTrafficBeginRefresh()
+{
+	WdmTrafficRefreshPlayer();
+	// Native phase completes the previous finite batch before its next admission.
+	if (wdmTrafficRefreshPending) return;
+	WdmTrafficCancelRefresh();
+	if (CheckAttribute(&worldMap, "encounters"))
+	{
+		aref encounters;
+		makearef(encounters, worldMap.encounters);
+		wdmTrafficRefreshCount = GetAttributesNum(encounters);
+		for (int i = 0; i < wdmTrafficRefreshCount; i++)
+		{
+			string key = "fleet" + i;
+			aref encounter = GetAttributeN(encounters, i);
+			wdmTrafficRefreshQueue.(key) = GetAttributeName(encounter);
+		}
+	}
+	wdmTrafficRefreshPending = wdmTrafficRefreshCount > 0;
+	if (!wdmTrafficRefreshPending) WdmTrafficReviewStrategies();
+}
+
+#event_handler("WorldMap_TrafficFrame", "WdmTrafficRefreshFrame");
+void WdmTrafficRefreshFrame()
+{
+	if (!IsEntity(worldMap)) { WdmTrafficCancelRefresh(); return; }
+	if (!wdmTrafficRefreshPending) return;
+	float phase = GetEventData();
+	if (phase < 0.0) return;
+	int goal = wdmTrafficRefreshCount;
+	if (phase < 1.0) goal = makeint(wdmTrafficRefreshCount * phase);
+	bool stopFollow = IsStopMapFollowEncounters();
+	while (wdmTrafficRefreshCursor < goal)
+	{
+		string key = "fleet" + wdmTrafficRefreshCursor;
+		string path = "encounters." + wdmTrafficRefreshQueue.(key);
+		wdmTrafficRefreshCursor++;
+		// IDs survive a list edit; references are reacquired only for this slice.
+		if (!CheckAttribute(&worldMap, path)) continue;
+		aref encounter;
+		makearef(encounter, worldMap.(path));
+		WdmTrafficRefreshFleet(encounter, stopFollow);
+	}
+	if (wdmTrafficRefreshCursor >= wdmTrafficRefreshCount)
+	{
+		WdmTrafficCancelRefresh();
+		WdmTrafficReviewStrategies();
+	}
 }
 
 float WdmTrafficClassPower(int weakest, int strongest)
@@ -1290,10 +1367,15 @@ int WdmTrafficCargoCapacity(aref ship)
 
 int WdmTrafficCargoWeight(aref ship)
 {
+	if (!CheckAttribute(ship, "trafficSupplies")) return 0;
+	aref supplies;
+	makearef(supplies, ship.trafficSupplies);
 	int weight = 0;
 	for (int good = 0; good < GOODS_QUANTITY; good++)
 	{
-		int quantity = WdmTrafficEntryGoods(ship, good);
+		string name = Goods[good].name;
+		if (!CheckAttribute(supplies, name)) continue;
+		int quantity = sti(supplies.(name));
 		if (quantity > 0) weight = weight + GetGoodWeightByType(good, quantity);
 	}
 	return weight;

@@ -52,4 +52,12 @@ vertex O worldmap_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)
     float shade=dot(p,l.vc[4])/(c.z*l.vc[5].z+l.vc[5].x)+l.vc[5].w;
     o.uv01=float4(f[4],f[5],shade,shade);return o;
 }
+fragment float4 worldmap_rain_veil_fs(O o [[stage_in]]) {
+    // Match Engine::sample's squared rain kernel below the persistent cloud
+    // lobes. World-space projection and continuous alpha carry precipitation,
+    // without a screen-facing noise sprite respawning every .8 seconds.
+    float2 q=o.uv01.xy*2.f-1.f;
+    float parcel=smoothstep(0.f,1.f,1.f-dot(q,q));
+    return float4(o.c.rgb,o.c.a*parcel*parcel);
+}
 )MSL";

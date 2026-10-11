@@ -100,6 +100,15 @@
  #ifdef STORM_METAL_WEATHER_VISUAL_STATE
      if (const auto weatherId = core.GetEntityId("weather"))
          static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId))->AdvanceWeatherHours(calendarHours);
+@@ -510,6 +522,8 @@
+     // Events
+     encTime += dltTime;
++    if (wdmObjects->playerShip && !wdmObjects->isPause)
++        core.Event("WorldMap_TrafficFrame", "f", encTime);
+     if (encTime >= 1.0f && wdmObjects->playerShip && !wdmObjects->isPause)
+     {
+         auto psx = 0.0f, psz = 0.0f, psay = 0.0f;
+         wdmObjects->playerShip->GetPosition(psx, psz, psay);
 --- a/src/libs/worldmap/src/wdm_player_ship.cpp
 +++ b/src/libs/worldmap/src/wdm_player_ship.cpp
 @@ -16,6 +16,7 @@
@@ -110,6 +119,17 @@
  #include "wdm_storm.h"
  #include "world_map.h"
  
+@@ -97,6 +98,9 @@
+     // Storm
+     auto i = TestInStorm();
+-    if (i >= 0)
++    // Regional cores have no legacy storm-array index. Dispatch their contact
++    // through the same throttle, while retaining -2 for the action-icon state.
++    if (i >= 0 || (i == -2 && wdmObjects->wm->AttributesPointer->GetAttributeAsDword(
++            "nativeWeatherStorm",0)))
+     {
+         if (stormEventTime <= 0.0f)
+         {
 @@ -241,6 +241,7 @@
  int32_t WdmPlayerShip::TestInStorm() const
  {

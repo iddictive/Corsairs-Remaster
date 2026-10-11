@@ -1938,3 +1938,39 @@ cargo import, snapshot refresh, repeat/ammunition scaling, unknown fields, empty
 manifest, absent snapshot and four save-codec rounds pass with zero VM errors.
 Native one-second `ThinkTraffic` remains unchanged without an independent cost
 oracle. Player-visible periodic stutter stays unresolved after installation.
+
+## Periodic fleet refresh across frames — October 11
+
+The earlier freight-only fixture omitted the service readiness chain. With actual
+voyage, supplies, service, cargo, power and roster helpers,60 fleets of6 hulls
+cost33.49ms per synchronous sweep. Binding `trafficSupplies` once in CargoWeight
+instead of rebuilding52 attribute paths reduces this to26.40ms; that still exceeds
+a120FPS frame's8.33ms budget and does not accept the reported freeze.
+
+Periodic `wdmShipEncounter` now admits a finite snapshot of encounter IDs.
+The native `WorldMap_TrafficFrame` event supplies the existing encounter clock's
+phase before the next one-second admission. Each frame processes the proportional
+prefix of that snapshot, resolving live references only for that slice. A fleet's
+roster, supplies, service, relations and power publish together. Deleted entries
+are skipped; new entries join the next batch. Player power refreshes at admission;
+strategy review is admitted after completion through its existing frame queue.
+Public `WdmTrafficRefresh` still cancels pending work and publishes synchronously
+for map entry, save reload and manual inspection. Quest/deleted-fleet exclusions
+are unchanged; there is no worker thread or parallel mutation of the script VM.
+
+For60 fleets, normal30/60/120FPS callbacks visit at most2/1/1 fleets respectively,
+finishing within the existing encounter interval. Actual VM CPU averages are
+0.033ms for queue admission,0.522ms for one fleet and0.921ms for two; these are
+isolated averages, not measured worst-case latency or player FPS. Paused maps do
+not dispatch. A resumed or unusually long frame with phase>=1 retains the old
+immediate catch-up boundary and can complete a larger remaining prefix.
+
+Synchronous and sliced refreshes produce recursively equal complete fleet state
+at30/60/120FPS. Six service fleets produce36 stock actions and6 service starts;
+a calendar-hour transition and subsequent synchronous refresh do not repeat food
+consumption or service actions. Port transactions/path selection and final
+strategy admission are equal external stubs in that fixture. Pause/resume,
+manual cancellation, map exit, live list edits and four save-codec rounds pass;
+normal entry cancels restored pending state. Whole shared PROGRAM compilation
+also passes with zero VM errors. Native staging and the player's chart replay
+own delivery and perceptual acceptance, separately from these checks.
