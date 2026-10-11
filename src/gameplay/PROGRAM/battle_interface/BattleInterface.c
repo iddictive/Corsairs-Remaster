@@ -2697,8 +2697,7 @@ void procSetUsingAbility()
 		BattleInterface.Commands.LightRepair.enable		= false;
 		if (!CheckOfficersPerk(pchar, "LightRepair") && GetOfficersPerkUsing(pchar,"LightRepair"))
 		{
-            float maxRepPchar = 25.0 + GetSummonSkillFromName(pchar, SKILL_REPAIR) * 0.45;
-            if (maxRepPchar > 70.0) maxRepPchar = 70.0;
+            float maxRepPchar = BI_SlowRepairLimit(pchar);
             if(GetHullPercent(pchar)<maxRepPchar || GetSailPercent(pchar)<maxRepPchar)
 			{
                 BattleInterface.Commands.LightRepair.enable = true;
@@ -2744,12 +2743,11 @@ void procSetUsingAbility()
 		BattleInterface.Commands.InstantRepair.enable	= CheckInstantRepairCondition(GetCharacter(chIdx));
 		BattleInterface.Commands.ImmediateReload.enable	= GetCharacterPerkUsing(GetCharacter(chIdx), "ImmediateReload");//false;
 		BattleInterface.Commands.InstantBoarding.enable	= false;
-		BattleInterface.Commands.LightRepair.enable		= GetCharacterPerkUsing(GetCharacter(chIdx), "LightRepair");//false;
+		BattleInterface.Commands.LightRepair.enable		= false;
 		if (GetCharacterPerkUsing(GetCharacter(chIdx),"LightRepair"))
 		{
             ref chOfficer = GetCharacter(chIdx);
-            float maxRepOff = 25.0 + GetSummonSkillFromName(chOfficer, SKILL_REPAIR) * 0.45;
-            if (maxRepOff > 70.0) maxRepOff = 70.0;
+            float maxRepOff = BI_SlowRepairLimit(chOfficer);
             if(GetHullPercent(chOfficer)<maxRepOff || GetSailPercent(chOfficer)<maxRepOff)
 			{
                 BattleInterface.Commands.LightRepair.enable = true;

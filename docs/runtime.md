@@ -1,8 +1,107 @@
 # Runtime state
 
-Last verified: October10,22:33 EDT. Canonical staging installs signed engine `acd3bd0104699691775b4c0b4f6e8af92b8fe6cacd30d4741224ab9e66693747` into the supported player app with the game idle. No task launch, game capture, input or profiling follows the player's stop on observation. The player reports the preceding zoom/solar fixes good and reopens horizon brightness during camera pitch and excessive rain duration. The new motion/admission candidate passes component checks; complete scene and rain-duration acceptance stay with the player. Rare low-FPS and sea/map calendar replay remain unresolved.
+Last verified: October11. Canonical staging installs signed engine `ba6c9cb3aada635cb1b86bc4f66180e8d6945fad721d0a36dcf078f598706599` into the supported player app after ordinary player closure. The preceding source milestone468a15a remains integrated; transformed tsunami contact,336 refreshed description blocks and emergency-repair balance are subsequently installed. Shared regional weather, bounded storm wear, matched airborne aim, ammunition, solar fog and CPU-preparation corrections remain installed. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
 
 ## Current verdict
+
+### October11 — tsunami, pirate descriptions and repair balance, installed; player review pending
+
+The player reports tsunami handoff before visible contact. Its16-unit ordinary
+encounter envelope is replaced for the player tsunami query by radial bounds
+of the transformed authored GM box. Ordinary storms/NPC queries, swept support,
+severity and shelter remain. The actual methods pass302 ASan/UBSan cases and an
+independent72-case geometric oracle; both native translation units and canonical
+build pass. The box is conservative by up to2.655 map units in sampled headings;
+exact rendered first contact remains a player scenario, not a pixel guarantee.
+
+Goods52, perk16, item168, RPG34 and ship66 blocks are refreshed with concise
+pirate copy and source-verified mechanics. Labels, ordered IDs, story passages
+and all97 substitution tokens remain. The actual native string parser preserves
+105/126/549/66/71 block keys and passes UTF8 plus ASan/UBSan checks. After the
+player's subsequent repair-balance request, both repair descriptions and their
+mechanics change together: free0.5pp/sec60s, skill ceiling20–40%, repeat240s;
+material-based2pp/sec30s, ceiling75%, repeat360s. Shared menu limits use the same
+helper; companion eligibility no longer remains true above its ceiling.
+Timed activity guards stop both repair queues before repair or boarding deferral.
+The actual script VM reproduces old balance/lifecycle rejection and accepts
+new balance, materials, officer activity and negative-state cases. External
+world/repair/event services are fixture seams. Full startup, lazy perks and
+LeaveBattle compile with zero errors; live activation/battle balance is pending.
+
+Mast-icon diagnosis is read-only: the installed sprite matches its registered
+hash and command texture slot. Eligibility hides it unless the main ship's plan
+fits the existing60%-standing-mast ceiling, resources, crew and safe-sea gates.
+On a three-masted ship, two standing masts already exceed floor(3*.6)=1; losing
+one mast therefore does not offer a repair. No mast eligibility change is made.
+
+Delivery: both subsequent canonical stage-only commands exit0 after their frozen
+inputs. Cached native engine1e289cab signs to installedba6c9cb3; the final content
+batch reuses that matching engine. Deep/strict signature passes; both gameplay
+plans have zero pending files and compiler ready. All nine final gameplay/copy
+consumers match canonical runtime bytes, and all244 SAVE/config files match the
+pre-delivery snapshot. The previous10dda731 engine is recoverable through the
+existing installer backup. No game launch, input, stop, ZIP, upload or site
+publication occurs. The existing missing project-context check action remains
+a separate broader verification gap.
+
+### October11 — naval/weather/player-feedback batch, installed; scene replay pending
+
+Observed mismatch: the player supplied six screenshots and reports airborne aim
+not matching surface grouping, excessive air brightness, disconnected world-map
+weather, solar reflection through fog, unclear spyglass classes, chainshot spread,
+reload timing and shrapnel cargo order. They then caught sea and city low FPS.
+Five-second read-only samples bind PID33507 to installed arm64 engineacd3bd01;
+city has active land lighting and harbor ships, without background-sleep rows.
+The nearby sea window capture is not synchronized FPS evidence. After rejecting
+computer-use overhead, the player opened the city and left it active; the second
+profile used `sample` only. No game input, setting, stop or launch occurred.
+
+Main-thread source-bound shares: sea point-cube preparation225/2191 and city
+183/2256; city index-span validation531/2256 and reflection543/2256 are larger.
+Groups overlap. Deduplicated Metal residency preserves the resource set and six
+faces; bounded LRU repairs the reproduced8192-entry index-span admission lockout.
+The exact live cache occupancy, double baked/dynamic shadow claim and resulting
+FPS gain remain unproven. See `metal-frame-pacing.md` for retained profiles,
+ASan/UBSan invalidation negatives and official residency contracts.
+
+Regional weather preserves version1 saved macrofront/RNG and samples calendar/
+map coordinates in map and local scenes. Map wet/storm regions use the existing
+translucent map pass, alpha≤61/255; the48² sampler/draw preparation costs.094ms
+in a CPU component fixture. Story locks, tornadoes and tsunami descriptors remain.
+The player refines storm survival to20% hull without defence/perk and80% with
+maximum defence plus StormProfessional; intermediate floors use existing defence
+tiers. Gusts/handling determine accumulation; ordinary wear never crosses the
+floor or heals existing damage. Independent hazards remain dangerous. Actual VM
+helpers and32 protection/perk/sail-upgrade long-duration cases pass. Native
+storms now update the existing sea `bStorm` state through NativeWeatherChanged.
+
+Airborne sections share the drape's27 weighted trajectories/3C covariance,
+retain all muzzles and stopped obstruction support, and lower air cap/extinction.
+Surface styling and ABI/MSL are preserved;739 CPU cases pass. Ammo, six cargo
+tables, saved goods IDs and two save/load rounds pass the actual script VM.
+Reload speeds are1/1/.8/1.2/(1/1.65), chainshot precision35%; the existing armed
+fort masonry-contact repair is included. The modern additive SunRoad no longer
+adds fog scattering twice: native black-solar/half-fog RGB56→0, clear/original
+water, foam alpha, Fresnel/night and both point-shadow fixtures pass.
+
+Integration rejects two intermediate attempts: new map header lacked its
+cpp-local include path (fixed in target CMake); raw encgen intake dropped military
+functions (replaced by exact prior composedb772bf source with only storm lottery
+changed). Final full startup plus eight late consumers compile with zero script
+errors, including the final zero-damage guard. These failures are not installed.
+
+Delivery: canonical `run.sh --stage-only` exits0 after the final native inputs.
+Cached engine7457f97d; signed installed10dda731; deep/strict signature passes,
+both gameplay plans report zero pending and compiler ready. All244 snapshotted
+SAVE/config files are byte-identical. Rollback owner retains previousacd3bd01.
+The source milestone is468a15a; no push or package/site publication occurs.
+The broad context check still reports its pre-existing missing project-context
+action; nonignored untracked paths are resolved by source registration/commit.
+Player replay owns fort projection, map/sea transition/readability, prolonged
+storm handling, ammunition screens/timing and city/sea FPS. GreatRecipe and larger
+non-sea threading remain deferred. Six original case images are durably retained
+in the private intake; ZIP/site work follows player review.
+
 
 ### October10 — world-stable horizon transport and rain admission, installed; replay pending
 

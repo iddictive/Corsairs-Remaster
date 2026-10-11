@@ -393,6 +393,36 @@
         "f6615ecded6b52649a99e94d955c1a2fb53a29b5812a1aa32b67ffd8e05f5615",
         "b772bf956179fb0801d597b51953f81956d269b3c0e2a0b067623493a6a777d9"
       ]
+    },
+    "PROGRAM/battle_interface/utils.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "15dd6906734f158353c02475079d32d1e200450825c013c8165e64a8e6739348"
+      ]
+    },
+    "PROGRAM/_mod_on_off.h": {
+      "encoding": "utf-8",
+      "legacy": [
+        "a7467336b89d7f1e7f9e84568c1202a40246a275636943a4e6f80a2d57993e25"
+      ]
+    },
+    "RESOURCE/INI/texts/russian/ItemsDescribe.txt": {
+      "encoding": "utf-8",
+      "legacy": [
+        "5f334cb8437b243175d0ef80af90ee104efe5ef62a2e7c51ff737d635f1a6bc0"
+      ]
+    },
+    "RESOURCE/INI/texts/russian/RPGDescribe.txt": {
+      "encoding": "utf-8",
+      "legacy": [
+        "f906226ac440d03d05d0aed35f557b1a7ab2eeb09e743282071ca51eccb2c6a5"
+      ]
+    },
+    "RESOURCE/INI/texts/russian/ShipsDescribe.txt": {
+      "encoding": "utf-8",
+      "legacy": [
+        "b09462d49655f74055c5c84ddf9c49748a342597a71aa95c1aec8233027d64af"
+      ]
     }
   }
 }

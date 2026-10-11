@@ -31,6 +31,8 @@ The local continuation correction keeps the wave alive beyond the player's
 crossing and separates the natural encounter exit lock from the event lifetime.
 Its source/component checks, full PROGRAM compile and canonical stage pass; it is
 installed. The player's continued-wave and optional-map-return replay is pending.
+The subsequent early map-contact correction is source/component verified and
+canonically installed; the player's visible first-contact replay remains pending.
 
 ## Player action
 
@@ -248,6 +250,36 @@ distance/speed fields. This same gain feeds mesh height/alpha and contact exposu
 Contact below 0.06 exposure is rejected. Swept front checks admit a
 crossing between updates, while the passed interior is safe. Ordinary storms
 retain their six-cloud geometry.
+
+The player's tsunami trigger formerly reused the ordinary 16-unit encounter
+action radius. The installed `WorldMap/Ship.gm` has X/Z bounds 4.60068 by 11.9721,
+with centre Z=1.78801; its near-side authored vertices extend only 2.30–4.20 map
+units in axis headings. The encounter envelope could therefore trigger with
+roughly 11.8–13.7 units still separating that ship outline from the wave support.
+The interaction radius is not a physical hull contract. Its replacement passes
+the player ship only for marked tsunami contacts and derives near/far radial
+distances from the GM bounding box under the current complete model transform.
+All eight corners, twelve projected edges and projected-face interior contribute;
+the same existing swept wave support gates the resulting interval. GM centre,
+heading, rocking and scene translation are consumed rather than approximated by
+the stale constructor `modelRadius` or another circle. Invalid/missing geometry
+rejects this physical contact. Ordinary storms and NPC circle queries retain their
+existing paths; speed, severity, arc gain, shelter, event state and sea handoff do
+not change.
+
+The actual contact/bounds methods and native CMatrix pass 302 disposable
+ASan/UBSan checks, including the former visible gap, immediately before/after box
+contact, swept crossing, restored passed interval, arc/ring, shelter and lifecycle
+negatives. Seventy-two heading/rocking/translated cases match an independent
+convex-polygon radial oracle within 0.000006 map units and enclose all 16,576
+installed GM vertices. Both actual worldmap translation units pass syntax checks
+using canonical compiler flags; reverse-old/apply-new preflight passes on copies
+of the three affected currently staged source files. These are component checks.
+The box remains conservative relative to the rendered outline: the sampled
+box-to-nearest-vertex margin reaches 2.655 map units, and the compact wave support
+has a zero-height edge. This is not an exact pixel/mesh-contact guarantee; the
+installed player's visible first contact and forced sea transition remain
+unresolved until replayed.
 
 Esc has separate map actions **Цунами: дуга** and **Цунами: кольцо**, sharing
 `SeaTsunami_CreateMapEncounterWithShape`; natural generation chooses the shape
