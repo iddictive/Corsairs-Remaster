@@ -702,7 +702,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  auto*volume=boundTextures[kind==SeaShaderKind::Foam?4:0].volume;auto*cube=boundTextures[3].cube;uniforms.bumpIsVolume=volume!=nullptr;
  if((kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sun)&&!cube)return unsupported("sea cube map absent");
  bool modernPass=modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Foam||kind==SeaShaderKind::Sun);
- if(modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3))prepareSeaScene(uniforms);
+ if(modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Sun))prepareSeaScene(uniforms);
  const char* fragment=modernPass?(kind==SeaShaderKind::Sea2?"sea2_modern_fs":kind==SeaShaderKind::Sea3?"sea3_modern_fs":kind==SeaShaderKind::Foam?"seafoam_modern_fs":"seasun_modern_fs"):seaPixelFunction(kind);
  if(primitives&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3))captureAimModelBeforeDraw(true);
  auto hr=applyState(uint64_t(kind)|(modernPass?0x100ull:0),seaLibrary,[NSString stringWithUTF8String:seaVertexFunction(kind)],[NSString stringWithUTF8String:fragment]);if(FAILED(hr))return hr;

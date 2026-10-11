@@ -1,8 +1,61 @@
 # Runtime state
 
-Last verified: October 10, installed e675530ab7a88ec6 runs as PID36180, started21:53:11. After the player confirms loading the sea save, native observation shows its deck camera at December28,1668,14:35 with70 displayed FPS and no obvious rectangular water boundary in that shore-facing view. Telescope replay is deferred by the player; the original horizon and rare low-FPS incident remain unresolved. The five-second21:55:33 sample catches98.3% background sleep and is rejected as performance evidence. Weather evolution and sea/map calendar replay remain unresolved.
+Last verified: October 10,22:10:47 EDT. Canonical staging installs signed engine `4f11929d28001cc02c064c6e61e238cd661298bb3716c4db8c891abb761a0211` into the supported player app. The game is idle for delivery; no task launch, game capture, input or profiling follows the player's stop on observation. The player accepts the preceding telescope square-artifact repair on `e675530ab7a88ec6`; their18:05/18:45 sea captures reopen horizon and solar leakage. This new candidate passes component checks; complete scene acceptance stays with the player. Rare low-FPS, weather evolution and sea/map calendar replay remain unresolved.
 
 ## Current verdict
+
+### October 10 — horizon transport and solar leakage repair, installed; player replay pending
+
+Observed mismatch: the player reports a persistent horizon line, occasional
+gaps along it, sun/moon glare through islands and rays from below water after
+accepting the telescope precision repair. Their supplied December28,1668 sea
+captures show18:05 at125FPS and18:45 at111FPS. These are different views/times,
+not paired evidence that the original rare37FPS event is repaired. The player
+explicitly owns subsequent reports; no new game observation is authorized.
+
+Hypotheses and exact delta: `sky_fog.hpp` previously integrated local atmosphere
+only to the radius2000 SkyFog coverage mesh, although the sky behind it used
+the full background ray. The veil now uses background depth1; actual foreground
+depth and fallback behavior remain unchanged. `sun-below-horizon.patch` gates
+direct halo/overflow/flares/reflections by the authored disc's visible circular
+area, clips at the current camera's angular horizon, and fixes the fourth-to-first
+polygon edge. The atmospheric/directional twilight owner is preserved. Direct
+island glare uses the existing collision result immediately. SunRoad producers
+trace `SUN_TRACE` from their actual reflection camera, including offscreen
+sources, preserving the established10,000-unit range. `sea_shaders.hpp` shares
+the existing projected-water source-depth mask with cube SunRoad; `backend.mm`
+reuses the current pre-water depth snapshot for that additive pass. The source
+visibility model and amortized cube updates remain; this does not add per-water-
+point directional island shadows. Mechanism ownership and rejected finite-sea-
+edge/short-shadow-cascade alternatives are recorded in `docs/metal-dynamic-sky.md`.
+
+Component evidence: an extracted actual `fs_skyfog` Metal fixture reproduces a
+linear RGB vector error up to0.094 against an independently integrated6000-unit
+background across radii1000/2000/4000 and alpha0/.5/1. The repair yields zero
+error; actual foreground and disabled-volume negatives match unchanged. The
+actual cube SunRoad shader previously emits0.340714 total RGB energy for both
+clear and fully island-covered source depth; the repair emits zero when covered
+and retains exact clear/offscreen/behind-camera/missing-snapshot energy. Exact
+source probes cover1001 bounded monotonic disc elevations, moon/sun and both
+reflection modes, clear/island-hit/absent collision layers, below/half horizon,
+and current reflection camera with the retained10km trace. Polygon closure
+has zero mismatches across3968 rotated/height cases versus1508 formerly.
+No permanent test or live player-state mutation is introduced.
+
+Delivery: initial build rejects a malformed newly edited patch hunk count;
+correcting that count lets the ordered stack and nine native consumer classes
+pass. Canonical `run.sh --stage-only` then returns0 with8252 portable inputs,
+zero pending gameplay files and installation/ownership receipts. Cached build
+SHA is`05128183486333a283edf9cd18ff3ae68c043322ed2d25a6d2b25ebbc86c021c`;
+installed signed SHA is`4f11929d28001cc02c064c6e61e238cd661298bb3716c4db8c891abb761a0211`.
+Final app signature verification passes after staging completes. A premature
+verification during resource signing is discarded as an in-progress observation.
+All248 player SAVE/config files match their pre-delivery hashes. No launch is
+performed. The repo context gate retains its unrelated pre-existing missing
+project-context action; native/component/diff checks pass independently.
+Disposition: source and installed delivery verified; complete horizon,
+solar/lunar island occlusion and underwater-ray replay remain `unresolved`,
+owned by the player's next report and this task's continuation.
 
 ### Live sea low-FPS capture — October 10, capacity eviction observed
 

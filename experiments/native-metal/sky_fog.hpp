@@ -26,6 +26,9 @@ using namespace metal;
 struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;float4x4 volumeClipFromWorld;float4 volumeCameraRange;};
 float4 skyLocalMedium(float3 pixel,constant SkyFogDraw&draw,texture3d<float>volume){
     if(draw.options.z<.5f||draw.options.x<.5f)return float4(0,0,0,1);
+    // The sky veil is a background mask, not an atmospheric endpoint at the
+    // radius of its mesh. Match the sky's full view-ray transport at its edge.
+    if(draw.options.y>.5f)pixel.z=1.f;
     float2 uv=(pixel.xy-draw.viewport.xy)/draw.viewport.zw;
     float4 p=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,pixel.z,1);
     if(abs(p.w)<1.e-8f)return float4(0,0,0,1);
