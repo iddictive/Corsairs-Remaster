@@ -503,19 +503,24 @@ void Whr_SetRainSound(bool _set, bool _isNight)
 	//можно и больше...
 	if (!bSeaActive || bAbordageStarted)
 	{
-		if (IsEntity(loadedLocation) && CheckAttribute(loadedLocation, "type"))
+		int locationIndex = FindLocation(pchar.location);
+		if (locationIndex >= 0)
 		{
-			switch (loadedLocation.type)
+			ref location = &Locations[locationIndex];
+			if (CheckAttribute(location, "type"))
 			{
-			case "town":
-				scheme = "town";
-				break;
-			case "land":
-				scheme = "land";
-				break;
-			case "deck":
-				scheme = "deck";
-				break;
+				switch (location.type)
+				{
+				case "town":
+					scheme = "town";
+					break;
+				case "land":
+					scheme = "land";
+					break;
+				case "deck":
+					scheme = "deck";
+					break;
+				}
 			}
 		}
 	}
@@ -569,44 +574,7 @@ bool Whr_isRainEnable()
 			if (location.type=="residence" || location.type=="tavern" || location.type=="house" || location.type=="shop" || location.type=="shipyard" || location.type=="church" || location.type=="cave") return false;
 		}
 	}
-	bool bRain  = true;
-	//ГГ в локации
-    if (CheckAttribute(GetMainCharacter(), "HeroParam") && IsEntity(loadedLocation)) // pchar проверяется для гл меню
-	{
-        if (CheckAttribute(loadedLocation, "environment.weather.rain") && !sti(loadedLocation.environment.weather.rain))
-		{
-			bRain = false;
-		}
-		/*else
-		{
-			if (CheckAttribute(loadedLocation, "type"))
-			{
-				// тип помещение
-				if(loadedLocation.type == "residence"
-					|| loadedLocation.type == "tavern"
-					|| loadedLocation.type == "house"
-					|| loadedLocation.type == "shop"
-					|| loadedLocation.type == "shipyard"
-					|| loadedLocation.type == "church" )
-				{
-					//нет дождя
-					bRain = false;
-				}
-			}
-		}*/
-		//в других можно включать дождь
-	}
-	else
-	{
-		if (bSeaActive && bAbordageStarted ) // в море не срабатывает bLandInterfaceStart
-		{
-			if (IsEntity(loadedLocation) && CheckAttribute(loadedLocation, "environment.weather.rain") && !sti(loadedLocation.environment.weather.rain))
-			{
-				bRain = false;
-			}
-		}
-	}
-	return bRain;
+	return true;
 }
 // boal <--
 float Whr_NativeValue(int field)
@@ -632,6 +600,8 @@ void Whr_NativeChanged()
     bool rain=GetEventData();
     bool storm=GetEventData();
     bWeatherIsRain=rain; bWeatherIsStorm=storm; bCurWeatherStorm=storm;
+    // Menu/transition weather has no active gameplay sound scene yet.
+    if (!bSeaActive && !bLandInterfaceStart) return;
     if (!isEntity(&worldMap)) Whr_SetRainSound(rain && Whr_isRainEnable(),bWeatherIsNight);
 }
 

@@ -1,10 +1,41 @@
 # Runtime state
 
-Last verified: October 10, 20:21 native fog callback crash reproduced and repaired; engine 258f76c4ea3238cd installed, full installed-script compilation passes, player startup/cloud replay pending (America/New_York).
+Last verified: October 10, 20:38 weather-event startup crash reproduced and repaired; corrected event adapter installed with engine 258f76c4ea3238cd unchanged, installed-script compilation and event execution pass, player startup/cloud replay pending (America/New_York).
 
 ## Current verdict
 
-### Native fog callback startup crash — October 10, 20:21
+### Weather event startup crash — October 10, 20:38
+
+Player incident 473271E8-9B10-4AA5-A6C4-F0694592E155 ran the installed
+258f76c4 engine (UUID D9DCE515-3C82-3A84-8FD1-8F4224CE96F3). Its first
+native condition-change event entered `IsEntity` with the uninitialized
+`loadedLocation` reference; installed disassembly maps the failing VM call to
+`FUNC_IS_Entity_LOADED`, where `GetVarPointer` returns null before `DATA::Get`.
+The preceding fog component repair did not cover this event's script execution.
+
+`Whr_NativeChanged` still updates condition flags in every mode, but refreshes
+gameplay audio only when the land interface or sea is active. Rain sound and
+rain eligibility use the existing indexed location registry, removing duplicated
+checks through the transient `loadedLocation`. Menu audio retains its own owner.
+See `docs/metal-dynamic-sky.md` for the adapter lifecycle contract.
+
+Evidence: a disposable real-VM fixture running the original functions and event
+payload exits with SIGSEGV (-11) with `loadedLocation` unbound. Corrected functions
+pass wet/dry flags, menu/transition exclusion, town/land/sea/deck sound schemes,
+night, cave/house, explicit rain exclusion and Inside lock; zero script errors.
+The full installed `seadogs.c` chain also compiles and executes the actual native
+change/lightning/tornado payloads before Main, with no game window or scene:
+`installed_weather_events=pass`, exit 0, empty error log.
+
+Focused `sync_metal_gameplay.py apply --path PROGRAM/weather/WhrWeather.c`
+updates and reseals the played app; subsequent cache and installed comparison
+both report zero pending files. Installed script SHA-256:
+`ff78b75725efaa5085812211019628518ea1d257434d1ef211e0a7a72afcf760`.
+Engine SHA-256 remains 258f76c4ea3238cd; no native build, SAVE/config change,
+game launch or UI manipulation. Disposition: repaired event component and
+installed candidate; player startup, old-save and cloud-scene replay unresolved.
+
+### Historical native fog callback startup crash — October 10, 20:21
 
 Player incident B49BAFA3-58F6-47DC-9E8B-B17A247ED29C is a new SIGSEGV in
 `SKY::UpdateFogSphere`, after script initialization. Installed-engine disassembly
