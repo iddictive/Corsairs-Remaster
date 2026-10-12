@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified: October11. Canonical staging installs signed engine `0dbca948864a69d81f1873fe2bd9d6ebb92f033a713aa94886e9e1eeb568dc7c` into the supported player app. Current source adds phase-dependent lunar reflection to the continuous chart rain and sliced fleet refresh batch. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly authorized the portfolio case, installer-facing Russian changelog and latest ZIP/Drive publication, superseding the earlier weather-review release hold. Archive extraction verification and cloud delivery are pending. No task launches or operates the game.
+Last verified: October11. Canonical staging installs signed engine `0dbca948864a69d81f1873fe2bd9d6ebb92f033a713aa94886e9e1eeb568dc7c` into the supported player app. Current source adds phase-dependent lunar reflection to the continuous chart rain and sliced fleet refresh batch. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly authorized the portfolio case, installer-facing Russian changelog and latest ZIP/Drive publication, superseding the earlier weather-review release hold. Archive extraction and public case delivery are verified; the player took ownership of future cloud upload. No task launches or operates the game.
 
 ## Current verdict
 
@@ -23,9 +23,31 @@ rejected without replacing prior files. The delivery topic owns its invocation.
 The connected uploader rejected10.7GB before transmission at its512MiB limit.
 Updating the cold desktop placeholder stalled without changing the old cloud
 revision, so the owned copy process was stopped. A dated archive was copied to
-the same folder through Drive for desktop; the live File Provider identifies it
-as uploading, not uploaded. The old September30 cloud ZIP remains intact.
-Disposition: archive accepted; provider completion and website publication pending.
+the same folder through Drive for desktop. Drive later cancelled that upload,
+retained a recovery copy and removed the queued item; the cancellation initiator
+is unknown. The unchanged verified archive was queued again. After offline
+retries, live File Provider progress advanced beyond zero, then Drive cancelled
+the second attempt as well. A direct browser version upload was started, but
+the player took ownership of the upload and its dialog now reports cancelled.
+The verified local ZIP was handed off; no upload or monitor remains agent-owned.
+The player supplied the same public folder and will add the ZIP later.
+Disposition: archive accepted; cloud upload explicitly player-owned.
+
+The player chose to keep Russian interface text inside the actual screenshots.
+The English ImageGen trial was rejected and retained privately; no translated
+image is integrated. English/Russian case text and captions remain localized.
+
+Website main22613f48 was pushed and delivered through its canonical npm run deploy
+after GitHub Actions rejected the job before execution for account billing.
+The server revision matches that exact commit. Public HTTPS bytes match the
+Russian changelog and six representative actual screenshot assets, and the case
+contains the supplied Drive folder and changelog links. Live browser acceptance
+passes RU-default/EN/RU,18 art blocks, three noninteractive localized placeholders,
+desktop/mobile image ratios and gallery/Escape/focus return. The folder link
+reaches the supplied target, and the changelog link completes a browser download.
+Disposition: website published and accepted; future ZIP upload player-owned.
+The existing unrelated agent_context check still reports the missing
+project-context environment action; website build and delivery checks pass.
 
 ### October11 — lunar reflection phase installed; screenshot graphics preserved
 
@@ -55,6 +77,9 @@ variants are retained privately as rejected material; the three new case images
 use real morningOctober11 screenshots, with lossless source pixel equality and
 only proportional WebP delivery. Russian/English prose, current mechanics and
 three explicit future-image slots are updated in the website's own repository.
+Eight additional aiming, fleet and treasury images now use the original player
+captures; the aiming pair describes separate scenes rather than a reconstructed
+matched comparison. Screenshot UI stays Russian at the player's explicit choice.
 The Russian changelog has a durable docs/changelog-ru.md source.
 
 ### October11 — continuous chart rain and sliced fleet refresh installed; player replay pending
