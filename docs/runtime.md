@@ -1,8 +1,61 @@
 # Runtime state
 
-Last verified: October11. Canonical staging installs signed engine `6d94e88804fc76524ac5ef0ff4356330b2d84444b333b08d0e352c0df6d700dc` into the supported player app. Current source removes respawning chart rain cards and distributes periodic fleet refresh across frames; shared cloudy fog and native storm entry remain included. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly requests commit/push of this source batch. Release/case/changelog/Drive ZIP preparation follows the player's successful regional map-weather review. No task launches or operates the game.
+Last verified: October11. Canonical staging installs signed engine `0dbca948864a69d81f1873fe2bd9d6ebb92f033a713aa94886e9e1eeb568dc7c` into the supported player app. Current source adds phase-dependent lunar reflection to the continuous chart rain and sliced fleet refresh batch. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly authorized the portfolio case, installer-facing Russian changelog and latest ZIP/Drive publication, superseding the earlier weather-review release hold. Archive extraction verification and cloud delivery are pending. No task launches or operates the game.
 
 ## Current verdict
+
+### October11 — public archive prepared; delivery pending
+
+The public app export contains the current installed code/data sections, neutral
+configuration and no player SAVE, userdata, logs or profile. Its archive adds the
+installer-facing Russian comparison against GPK1.3.2 AT + ReConstruction1.4.1
+and a short installation guide. ZIP64 contains95,333 members and10,734,555,329
+bytes; SHA-256 f9a55cd53e94c69f3a44a6b9ca2254470eb8a26d08014f538889a1a001f3b35e,
+MD5 5333f700bf4f74ba5f973999c01d6c04. Full names/CRC/size/mode inventory,
+native extraction, eight links,46,715 xattrs, strict/deep signing and relocated
+stage-only with prior profile state retained all pass. No game was launched.
+
+The reconstructed archive producer now has tools/rewrite_metal_zip64.py as its
+durable owner; its native31-member replay exactly matches the accepted candidate
+and preserves links/xattrs. Existing output, malformed and escaping paths are
+rejected without replacing prior files. The delivery topic owns its invocation.
+
+The connected uploader rejected10.7GB before transmission at its512MiB limit.
+Updating the cold desktop placeholder stalled without changing the old cloud
+revision, so the owned copy process was stopped. A dated archive was copied to
+the same folder through Drive for desktop; the live File Provider identifies it
+as uploading, not uploaded. The old September30 cloud ZIP remains intact.
+Disposition: archive accepted; provider completion and website publication pending.
+
+### October11 — lunar reflection phase installed; screenshot graphics preserved
+
+The player's23:40 December31 capture shows a bright water road under an almost
+invisible lunar disc. Installed Moon31 is authored nearly black; SunGlow used
+the independent full-strength refl_night template for every lunar phase. A moon
+outside the viewport is valid and is not suppressed. The sky-overlay hypothesis
+was rejected: its inverse source-alpha blend makes procedural alpha1 identity.
+
+solar-cloud-visibility.patch now caches mean linear energy from the current
+authored moon texture's existing64x64 CPU mip when its path/id changes. Relative
+energy is normalized to the shipped Moon15 mip and display-encoded for the sea
+shader's existing pow(2.2) decode. Only lunar reflection RGB changes; its broad
+template, alpha, cloud transmission, full-moon output and solar path remain.
+Actual C++ helper/cache/color probes pass all31 installed phases, byte-identical
+fullmoon, Moon31 gain0.0103753, texture-change invalidation and unsupported/missing
+texture/mip/lock legacy fallback. No per-frame decode or GPU readback is added.
+
+Canonical run.sh --stage-only exits0 after the complete ordered stack changed
+two engine sources. Cached engine c0983107, signed installed0dbca948; deep/strict
+application signature passes after stage completion. Previous6d94e888 is backed
+up; script plans remain zero pending and stage reports SAVE/config unchanged.
+Disposition: installed; exact nighttime player replay unresolved.
+
+The user rejected newly generated scene graphics for the portfolio. Those
+variants are retained privately as rejected material; the three new case images
+use real morningOctober11 screenshots, with lossless source pixel equality and
+only proportional WebP delivery. Russian/English prose, current mechanics and
+three explicit future-image slots are updated in the website's own repository.
+The Russian changelog has a durable docs/changelog-ru.md source.
 
 ### October11 — continuous chart rain and sliced fleet refresh installed; player replay pending
 
