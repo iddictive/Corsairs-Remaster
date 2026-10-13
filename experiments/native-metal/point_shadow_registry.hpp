@@ -140,6 +140,7 @@ public:
     };
 
     void beginScene(uint64_t scene, uint64_t generation) {
+        ++observationEpoch;
         model.begin(scene, generation); generation_ = generation;
         if (scene_ != scene) { draws.clear(); lookup.clear(); availableSlots.clear(); scene_=scene; dirty=true; ++stats.registryInvalidations; }
         availableSlots.clear();
@@ -160,6 +161,7 @@ public:
 
     bool observe(const Draw& draw) {
         if (!draw.vertices || !draw.indices || !draw.indexCount) return false;
+        ++observationEpoch;
         model.observe(draw.key, draw.bounds);
         auto found=lookup.find(draw.key);
         if(found==lookup.end()) {
@@ -205,6 +207,7 @@ public:
     }
 
     void finishScene() {
+        ++observationEpoch;
         model.finish();
         const auto old=draws.size();
         std::erase_if(draws, [](const Stored& item){return !item.seen;});
@@ -233,6 +236,7 @@ public:
                  id<MTLRenderPipelineState> = nil) {
         if (!device) return false;
         if (device_==device && compute && opaque_ && cutout_) return true;
+        preparedCommand=nil; preparedFrame.reset();
         for(auto& frame:framePool)frame.reset();frameCursor=0;
         device_=device;
         NSError* error=nil;
@@ -254,28 +258,38 @@ public:
         if(!command||!cube||!compute||!resourceEncoder||!materialEncoder||draws.empty())return false;
         auto frame=acquireFrame();
         if(!frame){++stats.frameResourceExhaustions;return false;}
-        if(!buildGpuTables(*frame)){frame->inFlight.store(false,std::memory_order_release);return false;}
+        frame->tableSource.reset();
+        if(preparedCommand==command&&preparedEpoch==observationEpoch&&preparedFrame){
+            // Geometry is immutable inside this command/observation snapshot.
+            // The destination keeps its own ICB, face constants and argument table.
+            if(!ensureFrameResources(*frame)){frame->inFlight.store(false,std::memory_order_release);return false;}
+            frame->tableSource=preparedFrame;
+            std::memcpy(frame->resourceTable.contents,preparedFrame->resourceTable.contents,resourceEncoder.encodedLength);
+            [resourceEncoder setArgumentBuffer:frame->resourceTable offset:0];
+            [resourceEncoder setIndirectCommandBuffer:frame->icb atIndex:0];
+        }else{
+            if(!buildGpuTables(*frame)){frame->inFlight.store(false,std::memory_order_release);return false;}
+            preparedCommand=command;preparedEpoch=observationEpoch;preparedFrame=frame;
+        }
+        const auto& tables=frame->tableSource?*frame->tableSource:*frame;
         std::memcpy(frame->faceBuffer.contents,faces.data(),sizeof(GpuFace)*6);
         // Materials/instances often share buffers and textures. Residency is a
         // resource set, not a draw list; declare each object once per encoder.
-        std::vector<id<MTLResource>> residency{frame->icb,frame->drawBuffer,frame->boundsBuffer,frame->faceBuffer,frame->resourceTable,frame->materialTable};
-        residency.reserve(6+draws.size()*4);
-        for(const auto&item:draws){residency.push_back(item.draw.vertices);residency.push_back(item.draw.indices);if(item.draw.alphaTexture)residency.push_back(item.draw.alphaTexture);if(item.draw.skinPalette)residency.push_back(item.draw.skinPalette);}
-        std::sort(residency.begin()+6,residency.end(),std::less<id<MTLResource>>{});
-        residency.erase(std::unique(residency.begin()+6,residency.end()),residency.end());
+        std::vector<id<MTLResource>> residency{frame->icb,tables.drawBuffer,tables.boundsBuffer,frame->faceBuffer,frame->resourceTable,tables.materialTable};
+        residency.insert(residency.end(),tables.geometryResources.begin(),tables.geometryResources.end());
         auto blit=[command blitCommandEncoder];
         [blit resetCommandsInBuffer:frame->icb withRange:NSMakeRange(0,draws.size()*6)];[blit endEncoding];
         auto c=[command computeCommandEncoder];[c setComputePipelineState:compute];
-        [c setBuffer:frame->drawBuffer offset:0 atIndex:0];[c setBuffer:frame->boundsBuffer offset:0 atIndex:1];
+        [c setBuffer:tables.drawBuffer offset:0 atIndex:0];[c setBuffer:tables.boundsBuffer offset:0 atIndex:1];
         [c setBuffer:frame->faceBuffer offset:0 atIndex:2];[c setBuffer:frame->resourceTable offset:0 atIndex:3];uint32_t casterCount=uint32_t(draws.size());[c setBytes:&casterCount length:sizeof(casterCount) atIndex:4];
         [c useResource:frame->icb usage:MTLResourceUsageWrite];
         [c useResource:frame->resourceTable usage:MTLResourceUsageRead];
-        [c useResource:frame->materialTable usage:MTLResourceUsageRead];
+        [c useResource:tables.materialTable usage:MTLResourceUsageRead];
         [c useResources:residency.data()+6 count:residency.size()-6 usage:MTLResourceUsageRead];
         [c dispatchThreads:MTLSizeMake(draws.size(),6,1) threadsPerThreadgroup:MTLSizeMake(std::min<size_t>(32,draws.size()),1,1)];[c endEncoding];
         ++stats.gpuCullDispatches;stats.candidateCommands=uint32_t(draws.size()*6);
         for(unsigned face=0;face<6;++face){auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.depthAttachment.texture=cube;pass.depthAttachment.slice=face;pass.depthAttachment.loadAction=MTLLoadActionClear;pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=1;auto e=[command renderCommandEncoderWithDescriptor:pass];[e setViewport:MTLViewport{0,0,double(cube.width),double(cube.height),0,1}];[e setFrontFacingWinding:MTLWindingClockwise];[e setDepthStencilState:depthState];[e setDepthBias:0 slopeScale:1 clamp:0];[e useResources:residency.data() count:residency.size() usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];[e executeCommandsInBuffer:frame->icb withRange:NSMakeRange(face*draws.size(),draws.size())];[e endEncoding];++stats.indirectFaceSubmissions;}
-        [command addCompletedHandler:^(id<MTLCommandBuffer> completed){(void)completed;frame->inFlight.store(false,std::memory_order_release);}];
+        [command addCompletedHandler:^(id<MTLCommandBuffer> completed){(void)completed;frame->geometryResources.clear();frame->tableSource.reset();frame->inFlight.store(false,std::memory_order_release);}];
         return true;
     }
 
@@ -283,6 +297,8 @@ private:
     struct FrameResources {
         id<MTLIndirectCommandBuffer> icb=nil;
         id<MTLBuffer> resourceTable=nil,materialTable=nil,drawBuffer=nil,boundsBuffer=nil,faceBuffer=nil;
+        std::vector<id<MTLResource>> geometryResources;
+        std::shared_ptr<FrameResources> tableSource;
         std::atomic_bool inFlight{false};
     };
     struct Stored { Draw draw{}; bool seen{false}; uint32_t nextAvailable{UINT32_MAX}; };
@@ -300,6 +316,9 @@ private:
     // permits three frames in flight. Every cube needs a distinct mutable ICB
     // until its owning command buffer completes.
     std::array<std::shared_ptr<FrameResources>,24> framePool{};size_t frameCursor=0;
+    uint64_t observationEpoch{},preparedEpoch{};
+    id<MTLCommandBuffer> preparedCommand=nil;
+    std::shared_ptr<FrameResources> preparedFrame;
 
     std::shared_ptr<FrameResources> acquireFrame(){
         for(size_t attempt=0;attempt<framePool.size();++attempt){
@@ -313,17 +332,21 @@ private:
         return {};
     }
 
+    bool ensureFrameResources(FrameResources& frame){
+        if(!frame.faceBuffer)frame.faceBuffer=[device_ newBufferWithLength:sizeof(GpuFace)*6 options:MTLResourceStorageModeShared];
+        if(!frame.icb){auto descriptor=[MTLIndirectCommandBufferDescriptor new];descriptor.commandTypes=MTLIndirectCommandTypeDrawIndexed;descriptor.inheritPipelineState=NO;descriptor.inheritBuffers=NO;descriptor.maxVertexBufferBindCount=5;descriptor.maxFragmentBufferBindCount=1;frame.icb=[device_ newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:MaxCasters*6 options:MTLResourceStorageModePrivate];}
+        if(!frame.resourceTable)frame.resourceTable=[device_ newBufferWithLength:resourceEncoder.encodedLength options:MTLResourceStorageModeShared];
+        return frame.faceBuffer&&frame.icb&&frame.resourceTable;
+    }
+
     bool buildGpuTables(FrameResources& frame){
         std::vector<GpuDraw> gpuDraws(draws.size());std::vector<GpuBounds> bounds(draws.size());
         for(size_t i=0;i<draws.size();++i){const auto&d=draws[i].draw;gpuDraws[i].vertexOffset=uint32_t(d.vertexOffset);gpuDraws[i].indexOffset=uint32_t(d.indexOffset);gpuDraws[i].indexCount=uint32_t(d.indexCount);gpuDraws[i].indexType=d.indexType==MTLIndexTypeUInt32;gpuDraws[i].materialIndex=uint32_t(i);gpuDraws[i].primitive=uint32_t(d.primitive);gpuDraws[i].cull=uint32_t(d.cull);gpuDraws[i].stride=d.stride;gpuDraws[i].uvOffset=d.uvOffset;gpuDraws[i].colorOffset=d.colorOffset;gpuDraws[i].useColorAlpha=d.useColorAlpha;gpuDraws[i].skinned=d.skinPalette!=nil;gpuDraws[i].boneCount=d.boneCount;gpuDraws[i].baseVertex=d.baseVertex;gpuDraws[i].alpha={d.alphaReference,float(d.alphaFunction),float(d.alphaTest),0};gpuDraws[i].world=d.world;bounds[i]={simd_make_float4(d.bounds.minimum,1),simd_make_float4(d.bounds.maximum,1)};}
         if(!frame.drawBuffer)frame.drawBuffer=[device_ newBufferWithLength:MaxCasters*sizeof(GpuDraw) options:MTLResourceStorageModeShared];
         if(!frame.boundsBuffer)frame.boundsBuffer=[device_ newBufferWithLength:MaxCasters*sizeof(GpuBounds) options:MTLResourceStorageModeShared];
-        if(!frame.faceBuffer)frame.faceBuffer=[device_ newBufferWithLength:sizeof(GpuFace)*6 options:MTLResourceStorageModeShared];
-        if(!frame.drawBuffer||!frame.boundsBuffer||!frame.faceBuffer)return false;
+        if(!frame.drawBuffer||!frame.boundsBuffer||!ensureFrameResources(frame))return false;
         std::memcpy(frame.drawBuffer.contents,gpuDraws.data(),gpuDraws.size()*sizeof(GpuDraw));
         std::memcpy(frame.boundsBuffer.contents,bounds.data(),bounds.size()*sizeof(GpuBounds));
-        if(!frame.icb){auto descriptor=[MTLIndirectCommandBufferDescriptor new];descriptor.commandTypes=MTLIndirectCommandTypeDrawIndexed;descriptor.inheritPipelineState=NO;descriptor.inheritBuffers=NO;descriptor.maxVertexBufferBindCount=5;descriptor.maxFragmentBufferBindCount=1;frame.icb=[device_ newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:MaxCasters*6 options:MTLResourceStorageModePrivate];}
-        if(!frame.resourceTable)frame.resourceTable=[device_ newBufferWithLength:resourceEncoder.encodedLength options:MTLResourceStorageModeShared];
         if(!frame.materialTable)frame.materialTable=[device_ newBufferWithLength:materialEncoder.encodedLength options:MTLResourceStorageModeShared];
         if(!frame.icb||!frame.resourceTable||!frame.materialTable)return false;
         [materialEncoder setArgumentBuffer:frame.materialTable offset:0];
@@ -333,6 +356,10 @@ private:
         [resourceEncoder setRenderPipelineState:cutout_ atIndex:2];
         [resourceEncoder setBuffer:frame.materialTable offset:0 atIndex:3];
         for(size_t i=0;i<draws.size();++i){const auto&d=draws[i].draw;[materialEncoder setTexture:d.alphaTexture atIndex:i];[resourceEncoder setBuffer:d.vertices offset:0 atIndex:4+i];[resourceEncoder setBuffer:d.indices offset:0 atIndex:4+MaxCasters+i];[resourceEncoder setBuffer:d.skinPalette offset:d.skinPaletteOffset atIndex:4+MaxCasters*2+i];}
+        frame.geometryResources.clear();frame.geometryResources.reserve(draws.size()*4);
+        for(const auto&item:draws){frame.geometryResources.push_back(item.draw.vertices);frame.geometryResources.push_back(item.draw.indices);if(item.draw.alphaTexture)frame.geometryResources.push_back(item.draw.alphaTexture);if(item.draw.skinPalette)frame.geometryResources.push_back(item.draw.skinPalette);}
+        std::sort(frame.geometryResources.begin(),frame.geometryResources.end(),std::less<id<MTLResource>>{});
+        frame.geometryResources.erase(std::unique(frame.geometryResources.begin(),frame.geometryResources.end()),frame.geometryResources.end());
         return true;
     }
 
