@@ -1,0 +1,167 @@
+# Ordered src/libs/ship/include/ship_base.h preimage SHA256: 3e8e065f585fdadee56903ec70d44bf28bf18286d3494cbcd82b9a0d82e60f18
+diff --git a/src/libs/ship/include/ship_base.h b/src/libs/ship/include/ship_base.h
+--- a/src/libs/ship/include/ship_base.h
++++ b/src/libs/ship/include/ship_base.h
+@@ -72,6 +72,7 @@
+ 
+     virtual float GetCurrentSpeed() = 0;
+ 
++    virtual void ApplyWreckContact(const CVECTOR &displacement) {}
+     virtual void SetDead() = 0;
+     virtual bool isDead() = 0;
+ 
+# Ordered src/libs/ship/src/ship.h preimage SHA256: b0994a2197ccc689c5c5364861b05c323cc1ac0e0ac0a96a7508d4fb401a0795
+diff --git a/src/libs/ship/src/ship.h b/src/libs/ship/src/ship.h
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -162,6 +162,7 @@
+     BOOL LoadShipParameters();
+     void CalcRealBoxsize();
+ 
++    void ApplyWreckContact(const CVECTOR &displacement) override;
+     void SetDead() override;
+ 
+     bool isDead() override
+# Ordered src/libs/ship/src/ship.cpp preimage SHA256: 8cb844cae5f0cc163af072af2cb8f3e67d5a79ec3de019ef4fef8dad87ac1c09
+diff --git a/src/libs/ship/src/ship.cpp b/src/libs/ship/src/ship.cpp
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -2,6 +2,7 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ 
+ #include <chrono>
++#include <cmath>
+ 
+ #include "ai_flow_graph.h"
+ #include "sailing_floor.h"
+@@ -471,6 +472,19 @@
+ {
+     if (!pTPOld && !pTPNew)
+         return false;
++    // Execute anchors a sinking hull to vOldPos/vOldAng. Predict that same
++    // pose, rather than translation/yaw from impulses it will later discard.
++    if (isDead())
++    {
++        TOUCH_PARAMS wreck{};
++        wreck.vPos = State.vPos;
++        wreck.vAng = State.vAng;
++        wreck.vPos.x += fXOffset;
++        wreck.vPos.z += fZOffset;
++        if (pTPOld) *pTPOld = wreck;
++        if (pTPNew) *pTPNew = wreck;
++        return true;
++    }
+     const auto old_state = State;
+     const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false);
+ 
+@@ -640,6 +654,23 @@
+         bShip2Strand = bNewShip2Strand;
+         core.Event(SHIP_TO_STRAND, "ll", GetIndex(GetACharacter()), bShip2Strand);
+     }
++}
++
++void SHIP::ApplyWreckContact(const CVECTOR &displacement)
++{
++    if (!isDead() || !std::isfinite(displacement.x) ||
++        !std::isfinite(displacement.y) || !std::isfinite(displacement.z) || displacement.y < 0.0f)
++        return;
++    if (displacement.x == 0.0f && displacement.y == 0.0f && displacement.z == 0.0f)
++        return;
++    // The death pose must retain the shove on the next Execute. Save already
++    // owns vPos/State and reconstructs vOldPos when loading a dead ship.
++    vOldPos.x += displacement.x;
++    vOldPos.z += displacement.z;
++    State.vPos.x = vPos.x = vOldPos.x;
++    State.vPos.z = vPos.z = vOldPos.z;
++    // Existing saved sink displacement also owns absorbed downward travel.
++    vCurDeadDir.y += displacement.y;
+ }
+ 
+ void SHIP::SetDead()
+# Ordered src/libs/touch/src/touch.cpp preimage SHA256: 0a52fd82628ecabe964c9e9abf9e5d2713ca707f4372731cb2af6d8a4fb59f84
+diff --git a/src/libs/touch/src/touch.cpp b/src/libs/touch/src/touch.cpp
+--- a/src/libs/touch/src/touch.cpp
++++ b/src/libs/touch/src/touch.cpp
+@@ -499,8 +499,11 @@
+     auto fCos = cosf(-pShips[idx]->TP[1].vAng.y + PI);
+     auto fSin = sinf(-pShips[idx]->TP[1].vAng.y + PI);
+ 
+-    if (IsSinked(idx))
++    if (IsSinked(idx) || pOur->isDead())
++    {
++        CurDepth--;
+         return 0.0f;
++    }
+ 
+     // apply blow power if exist
+     if (vPos && vAng && fPower != 0.0f)
+@@ -543,7 +546,31 @@
+                 continue;
+             if (IsIntersectShipsReal(idx, i, &vPos1, &vAng1, &vRecoil, &fPower1, &fSlide1))
+             {
+-                if (i != ISLAND_CODE)
++                if (i != ISLAND_CODE && pShips[i]->pShip->isDead())
++                {
++                    // Wrecks yield instead of recursively reflecting an impulse.
++                    // Separating overlap is not another hit. Scale the contact
++                    // by elapsed time, mass and the hull still above the water.
++                    auto *wreck = pShips[i]->pShip;
++                    auto normal = vRecoil;
++                    auto towardsWreck = pShips[i]->TP[1].vPos - pShips[idx]->TP[1].vPos;
++                    towardsWreck.y = 0.0f;
++                    if ((normal | towardsWreck) < 0.0f)
++                        normal = -normal;
++                    fPower1 *= vAng1 | normal;
++                    if (!(fPower1 > 0.0f))
++                        continue;
++                    vRecoil = normal;
++                    const float height = wreck->GetBoxsize().y;
++                    const float exposed = height > 0.0f ? CLAMP(1.0f + 3.0f * wreck->GetPos().y / height) : 0.0f;
++                    const float seconds = MIN(0.1f, static_cast<float>(iDeltaTime) * 0.001f);
++                    const float weight = wreck->State.fWeight /
++                                         MAX(pOur->State.fWeight, wreck->State.fWeight);
++                    const float travel = KNOTS2METERS(fPower1) * seconds * exposed;
++                    wreck->ApplyWreckContact(CVECTOR(0.0f, travel * (1.0f - 0.15f * weight), 0.0f));
++                    fPower1 *= 0.15f * weight * seconds * exposed;
++                }
++                else if (i != ISLAND_CODE)
+                     fPower1 = Touch(i, idx, &vPos1, &vAng1, fPower1, fSlide1); // return recoil power
+ 
+                 auto vPosTemp = vPos1, vDirTemp = vRecoil;
+@@ -595,7 +622,7 @@
+ 
+     for (i = 0; i < iNumShips; i++)
+     {
+-        if (IsSinked(i))
++        if (IsSinked(i) || pShips[i]->pShip->isDead())
+             continue;
+         for (j = ISLAND_CODE; j < iNumShips; j++)
+             if (i != j && IsIntersectShipsRects(i, j))
+@@ -614,15 +641,24 @@
+                         auto fOurWeight = pOur->State.fWeight;
+                         auto fEnemyWeight = pEnemy->State.fWeight;
+                         const auto k = 0.5f + (fEnemyWeight - fOurWeight) / (2 * MAX(fOurWeight, fEnemyWeight));
+-                        const auto vDV = !CVECTOR(pEnemy->State.vPos - pOur->State.vPos);
++                        const bool wreck = pEnemy->isDead();
++                        auto separation = pEnemy->State.vPos - pOur->State.vPos;
++                        if (wreck) separation.y = 0.0f;
++                        const auto vDV = !separation;
+                         const auto fMul = 0.02f;
+                         const auto oldOurPos = pOur->State.vPos;
+                         const auto oldEnemyPos = pEnemy->State.vPos;
+ 
+                         pOur->State.vPos.x -= (k * vDV.x * fMul);
+-                        pEnemy->State.vPos.x += ((1.0f - k) * vDV.x * fMul);
+                         pOur->State.vPos.z -= (k * vDV.z * fMul);
+-                        pEnemy->State.vPos.z += ((1.0f - k) * vDV.z * fMul);
++                        if (wreck)
++                            pEnemy->ApplyWreckContact(CVECTOR((1.0f - k) * vDV.x * fMul, 0.0f,
++                                                              (1.0f - k) * vDV.z * fMul));
++                        else
++                        {
++                            pEnemy->State.vPos.x += ((1.0f - k) * vDV.x * fMul);
++                            pEnemy->State.vPos.z += ((1.0f - k) * vDV.z * fMul);
++                        }
+                         // A wave can keep predicted hulls overlapping without an XZ step.
+                         if (pOur->State.vPos.x == oldOurPos.x && pOur->State.vPos.z == oldOurPos.z &&
+                             pEnemy->State.vPos.x == oldEnemyPos.x && pEnemy->State.vPos.z == oldEnemyPos.z)
