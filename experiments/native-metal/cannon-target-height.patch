@@ -1,9 +1,72 @@
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -525,12 +525,17 @@
+@@ -17,6 +17,12 @@
+
+ namespace
+ {
++float CannonHeightAboveWater(const CVECTOR &shipPos)
++{
++    auto *sea = dynamic_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
++    return shipPos.y - (sea ? sea->WaveXZ(shipPos.x, shipPos.z) : 0.f);
++}
++
+ float SalvoWindowForCount(float qualityWindow, size_t count)
+ {
+     // Two firing guns take half a second; 108 reach the full quality window.
+@@ -261,6 +267,7 @@
+     UpdateParameters();
+
+     const CVECTOR vOurPos = GetAIShip()->GetPos();
++    const float fOurHeight = CannonHeightAboveWater(vOurPos);
+
+     if (bReload)
+     {
+@@ -302,7 +309,7 @@
+         {
+             // set maximum MaxFireDistance for all cannons
+             const float fMaxBortFireDistance =
+-                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + vOurPos.y, GetSpeedV0(), bort.fFireAngMax);
++                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, GetSpeedV0(), bort.fFireAngMax);
+             for (auto &aCannon : bort.aCannons)
+             {
+                 aCannon.SetMaxFireDistance(fMaxBortFireDistance);
+@@ -394,13 +401,14 @@
+     const float fSpeedV0 = GetSpeedV0();
+
+     const CVECTOR vOurPos = GetAIShip()->GetPos();
++    const float fOurHeight = CannonHeightAboveWater(vOurPos);
+
+     for (const auto &bort : aShipBorts)
+     {
+         if (!bort.aCannons.empty())
+         {
+             const float fMaxFireDistance =
+-                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + vOurPos.y, fSpeedV0,
++                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, fSpeedV0,
+                                               GetBortHeightAngle(bort) + bort.fFireAngMax);
+             if (bMaxFireDistance && fDistance < fMaxFireDistance)
+                 fDistance = fMaxFireDistance;
+@@ -414,6 +422,7 @@
+ bool AIShipCannonController::UpdateParameters()
+ {
+     const CVECTOR vOurPos = GetAIShip()->GetPos();
++    const float fOurHeight = CannonHeightAboveWater(vOurPos);
+     const CVECTOR vZ = !(GetAIShip()->GetMatrix()->Vz());
+
+     // updates borts parameters
+@@ -423,7 +432,7 @@
+         if (!bort.aCannons.empty())
+         {
+             bort.fSpeedV0 = fSpeedV0;
+-            bort.fMaxFireDistance = AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + vOurPos.y, fSpeedV0, GetBortHeightAngle(
++            bort.fMaxFireDistance = AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, fSpeedV0, GetBortHeightAngle(
+                                                                            bort) + bort.fFireAngMax);
+             const float fDir = bort.fFireDir;
+             float fZone = bort.fFireZone;
+@@ -525,12 +534,17 @@
      if (bort.isBortDamaged())
          return false;
- 
+
 -    CVECTOR vFireDir = (vFirePos - pOurAIShip->GetPos());
 +    const CVECTOR vOurPos = pOurAIShip->GetPos();
 +    CVECTOR vFireDir = vFirePos - vOurPos;
@@ -14,23 +77,23 @@
 +        GetBortHeightAngle(bort) + bort.fFireAngMax);
      vFireDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
 -    const float fFireDist = sqrtf(~(vFirePos - pOurAIShip->GetPos()));
- 
+
      // check distance limit
 -    if (fFireDist > bort.fMaxFireDistance)
 +    if (!std::isfinite(fFireDist) || !std::isfinite(fMaxFireDistance) || fFireDist > fMaxFireDistance)
          return false;
- 
+
      const float fY0 = vFireDir | bort.vDirection;
-@@ -545,7 +550,7 @@
+@@ -545,7 +559,7 @@
      if ((SIGN(fY0) == SIGN(fY1)) || (SIGN(fY0) == 1)) return false;*/
- 
+
      if (pfZapasDistance)
 -        *pfZapasDistance = bort.fMaxFireDistance - fFireDist;
 +        *pfZapasDistance = fMaxFireDistance - fFireDist;
- 
+
      return true;
  }
-@@ -553,9 +558,10 @@
+@@ -553,9 +567,10 @@
  auto AIShipCannonController::GetBestFireBortOnlyDistance(CVECTOR vFirePos, float fZapasDistance)
      -> decltype(aShipBorts)::iterator
  {
@@ -42,9 +105,9 @@
      const auto vOurDir = CVECTOR(sinf(GetAIShip()->GetAng().y), 0.0f, cosf(GetAIShip()->GetAng().y));
      float fBestAng = 1e8f;
      for (auto bort = std::begin(aShipBorts); bort != std::end(aShipBorts); ++bort)
-@@ -566,9 +572,10 @@
+@@ -566,9 +581,10 @@
                  continue;
- 
+
              const float fSpeedV0 = GetSpeedV0();
 -            const float fMaxFireDistance = AICannon::CalcMaxFireDistance(bort->fOurBortFireHeight + vOurPos.y, fSpeedV0,
 -                                                                         GetBortHeightAngle(*bort) + bort->fFireAngMax);

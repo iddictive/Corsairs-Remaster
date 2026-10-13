@@ -9,7 +9,8 @@ player evidence: its3D slice understated water overshoot and outlined sail holes
 Revision10's flat screen-space ring also failed to conform to objects.
 Source-exact native/GPU checks pass for the new metric, receiver admission,
 inertia/reset, own exclusion and subdued contour. The player accepts revision12's
-shape/projection and reports excellent FPS in their sea replay. The installed
+shape/projection; their later ship-aim screenshot at26FPS reopens performance
+acceptance independently of the hull-center range correction. The installed
 brightness-local rim/keyline increase is rejected as insufficient: the player
 still barely sees the drape by day. A further source candidate uses the existing
 weather clock for daylight, including on dark receivers. Exact current MSL,
@@ -17,6 +18,10 @@ native uniform ABI and dawn/day/dusk/night value checks pass; the combined
 canonical engine build/staging is installed. The new player daytime replay remains pending. Installed
 signed-engine and source receipts belong to `docs/runtime.md`. No paired
 instrumented FPS measurement or exhaustive angle/zoom replay is claimed.
+
+The October13 target-center and exact plane-query preparation successor is
+canonically installed. The player's manual-hit and aiming-FPS checks are deferred;
+the previous FPS26 ship view is not accepted by CPU query timing alone.
 
 The player has reopened the airborne volume: its bright vertical column is
 rejected while revision12's surface footprint remains accepted. The current
@@ -356,6 +361,24 @@ existing read-only capture route is a debugger snapshot at
 payloads alone do not reveal the GPU-private depth/token/eligibility textures.
 
 ## Manual-aim CPU work
+
+Repeated density-station queries now prepare immutable trajectory/axis projection
+terms once per trajectory in the current overlay call. `PlaneQuery` retains the
+canonical quadratic solver; ordinary `forEachPlaneTime` delegates to it, so
+coplanarity, reversed motion, two roots, endpoint tolerance and invalid inputs
+have one owner. No data survives the call, and every gun, station, moment,
+stopped hull and shader remains unchanged.
+
+The live installed `e3e3564f` CPU capture has228/1310 main-thread samples in
+`DrawManualAimOverlay` (17.4%), principally density/hull/slab work; acquisition
+has one sample. A separate later water-facing view shows53FPS; changing the
+camera also changes scene demand, so these observations do not isolate GPU cost.
+The CPU candidate preserves bit-identical ordered roots in200,000 seeded cases
+and every query in1/32/52/112-gun warped launch fields. At168 stations, measured
+52-gun query time including per-frame preparation falls2.52→0.92ms;32 guns
+fall1.32→0.51ms. These are query-component timings under a live-game machine load,
+not complete overlay/frame timings or a promised FPS gain. Native staging,
+matched ship-aim FPS and actual manual shots remain separate replay requirements.
 
 The live October 7 profile of the installed cannon batch spent 1533/1951 main-thread
 samples in the manual overlay (78.6%). The dominant leaf work was BSP clipping,

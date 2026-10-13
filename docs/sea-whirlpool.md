@@ -7,10 +7,12 @@ and camera acceptance. The complete native patch now fixes oversized block
 admission, actual-ratio LOD seams and false underwater classification, and adds
 a finite real-model entry using the existing bow spray. Source-body CPU and
 canonical native compilation and installed staging pass. The next player replay
-shows covered sea but rejects low camera and steering. The stock camera uses
-absolute negative ship height in its box dimensions; that consumer and actual
-steering authority require a new falsifier. Earlier GPU field receipts do not
-accept these ship/camera interactions.
+shows covered sea but rejects low camera and steering. The successor corrects
+the stock camera's absolute-height dimensions using the shared physical field,
+and bounds inward/swirl/yaw against actual ship propulsion and inertia. The full
+canonical native build/staging passes. Radius, depth and geometry are preserved; actual
+camera, control and battle replay remain unresolved. Earlier GPU field receipts
+do not accept these ship/camera interactions.
 
 October 12, 2026: the earlier90m/24s field was installed and passed native/Metal
 component checks, but the player rejects the solo, small, short scene. The
@@ -77,6 +79,27 @@ Inactive/Clear topology is identical. No buffer enlargement or smaller funnel
 is used. Native camera already clamps to WaveXZ; the separate negative-world-Y
 underwater shortcut is disabled during the displaced field.
 
+The camera's box dimensions previously included absolute modelY, producing a
+negative height in the deep field. The successor subtracts the shared physical
+field height and translates the target cap by the same reference. Actual Move
+and native matrix bodies preserve243 ordinary outputs bitwise and pass729
+translated outputs within0.1mm; every original translated output fails. Another
+972 curved-field/zoom/pitch/yaw/entry-phase outputs remain finite and above local
+water using the actual installed manowar hull/rig bounds. Collision/ground adapters
+are bounded fixture stubs; complete player framing is still an actual-scene gate.
+
+The old maximum inward3.349m/s exceeded the weakest healthy fleet's2.767m/s
+quarter-speed floor; tangential12.36m/s dominated actual3.722m/s propulsion.
+The shared successor bounds those peaks to2.061/3.606m/s and intrinsic yaw
+to.025rad/s, retaining the boss's55% swirl without inward/yaw load. Actual stock
+speed/strength/drift/yaw/movement bodies pass120 hull/wind/heading cases with
+decoded inertia and exact1853/3600 knot conversion. The historical weak-wind
+flagship travels radius634→2104m over600s versus634→659m before; mastless zero
+propulsion still drifts123m inward over60s. Opposed rudder control remains available
+for every tested hull. Inactive movement preserves five hull states bitwise.
+These component trajectories use bounded rudder commands and do not accept AI,
+full marine passage or the visual relief of the player's battle.
+
 The existing tsunami geometry, scalar/SSE queries, temporary current inside
 Move/TouchMove, ordinary buoyancy, authored PENA foam and `seatrash` rect draw
 are reused. [Crest's maintained whirlpool input](https://docs.crest.waveharmonic.com/Components/Inputs/Whirlpool.html)
@@ -132,8 +155,8 @@ flow and foam have zero boundary support. Radius scales physical dimensions
 continuously; intensity and the time envelope scale all consumers together.
 Depth, ridge amplitudes, current speeds and debris size use physical length
 `min(radius,180m)`: a1600m battle theater is not a448m deep hole with110m/s flow.
-Maximum full-strength centre depression is50.4m; sampled total current speed
-is12.81m/s. Pattern/normal/foam clocks use the same physical-length/radius ratio.
+Maximum full-strength centre depression is50.4m; sampled successor total current
+speed is about4.16m/s. Pattern/normal/foam clocks use the same physical-length/radius ratio.
 Translation/yaw are temporary currents, never stored in propulsion/save state.
 Surface debris reuses the existing authored rect texture with a48-item event
 pool advected by the physical current; its draw uses a fixed stack buffer.
@@ -157,13 +180,13 @@ Same-age contact queries, nonzero origin translation, identical start, resume at
 SEA/SHIP compilation passes; actual prediction/grounding and game checks remain
 player-owned.
 
-The sustained-field ASan/UBSan pass covers finite-difference slopes at700/1600m
+The earlier sustained-field ASan/UBSan pass covers finite-difference slopes at700/1600m
 (maximum errors0.0001095/0.0000454), bounded50.4m height/12.81m/s current,
 600s descriptors,900s expiry, resume/pause, per-character cumulative cap and
 full-control zero radial velocity with55% preserved tangential current.
 Controlled and ordinary samples have exactly equal height/coarse slopes.
-Actual SEA/SHIP compilation and GPU/game checks are needed after this latest
-descriptor/control revision.
+Those receipts describe the original stronger flow. The camera/control successor
+has its own canonical compilation and body probes above; real game checks remain.
 
 At age12s/radius90m, angular height RMS at normalized radius0.50/0.65/0.78
 increases from0.716/0.933/0.741m to2.646/3.124/2.840m. The outer lip ranges

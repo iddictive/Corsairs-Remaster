@@ -839,13 +839,13 @@
 +    sample.slopeZ = radial * nz + angular * nx;
 +    sample.load = a * t2;
 +    const float flow = a * q * t2;
-+    const float inward = .065f * lengthScale * flow;
-+    const float swirl = .24f * lengthScale * flow;
++    const float inward = .04f * lengthScale * flow;
++    const float swirl = .07f * lengthScale * flow;
 +    sample.inwardX = -nx * inward; sample.inwardZ = -nz * inward;
 +    sample.velocityX = sample.inwardX - nz * swirl;
 +    sample.velocityZ = sample.inwardZ + nx * swirl;
 +    // Ship yaw in Storm is opposite mathematical XZ polar rotation.
-+    sample.yaw = -.065f * sample.load;
++    sample.yaw = -.025f * sample.load;
 +    const float bands = SeaWhirlpoolSmooth((std::sin(phase) - .1f) / .75f);
 +    const float whitewater = SeaWhirlpoolSmooth((std::sin(secondary) - .25f) / .70f);
 +    sample.foam = std::clamp(a * t * (.10f + .50f * bands + .40f * mouth * broken + .16f * whitewater), 0.f, .9f);
@@ -1078,3 +1078,28 @@
  };
 
  class SEAFOAM : public Entity
+diff --git a/src/libs/sea_cameras/src/ship_camera.cpp b/src/libs/sea_cameras/src/ship_camera.cpp
+--- a/src/libs/sea_cameras/src/ship_camera.cpp
++++ b/src/libs/sea_cameras/src/ship_camera.cpp
+@@ -124,8 +124,11 @@
+
+     const auto *modelMtx = GetAIObj()->GetMatrix();
+     auto boxSize = GetAIObj()->GetBoxsize();
++    // Physical field translation must not change the camera's hull dimensions.
++    // Ordinary wave/immersion framing retains its inherited zero-field behavior.
++    const float seaReference = pSea->GetWhirlpoolSample(modelMtx->v.pos.x, modelMtx->v.pos.z).height;
+     // Recalculate box size: (box size + immersion) * hand-fitted scale
+-    boxSize.y += modelMtx->v.pos.y;
++    boxSize.y += modelMtx->v.pos.y - seaReference;
+     boxSize *= CVECTOR(SCMR_BOXSCALE_X * 0.5f, SCMR_BOXSCALE_Y * 0.5f, SCMR_BOXSCALE_Z * 0.5f);
+     // Project real height (with masts)
+     const auto realBoxSize = GetAIObj()->GetRealBoxsize();
+@@ -156,7 +159,7 @@
+     }
+     vPos = CMatrix(CVECTOR(0.0f, fModelAy, 0.0f), vCenter) * vPos;
+     vCenter.y += fDistance * 2.0f * boxSize.y;
+-    vCenter.y = std::min(vCenter.y, boxSize.y);
++    vCenter.y = std::min(vCenter.y, seaReference + boxSize.y);
+     if (vAng.x > 0.0f)
+         vCenter.y += realBoxSize.y * vAng.x * 6.0f;
+     // Limit the height from the bottom

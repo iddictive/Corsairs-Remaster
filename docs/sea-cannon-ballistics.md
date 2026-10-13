@@ -8,6 +8,19 @@ the corrected shared event header is delivered, and the current saved sea battle
 opens on the combined37598a37 engine. The sinking-ship firing action and visible
 sail-health replay remain unresolved; startup alone does not accept them.
 
+The October13 vortex successor fixes two range owners inside
+`cannon-target-height.patch`: automatic target admission uses horizontal travel
+and muzzle height relative to the target; cached battery/per-gun range uses
+height above physical `SEA_BASE::WaveXZ`. The latter reaches `CANNON_FIRE`,
+`Ball_AddBall`, `CurrentMaxBallDistance` and stock hull-damage falloff, so it is
+not merely a HUD readout. A220m gun at worldY−46m previously emitsNaN range and
+NaN falloff; a650m gun at80% strength understates the same hit multiplier by
+about15%. Existing ballistic math is reused, with no hull/ammunition correction.
+Actual-method metadata replay passes61 cases; flat sea is exact, joint ship/water
+translation is invariant, and normal±3m waves now remove about±4.3m of world-zero
+range wobble for a650m gun. The canonical native build/staging passes; installed firing
+and visible battle damage remain player-owned gates in `docs/runtime.md`.
+
 ## Contract
 
 Naval round shot, knippels, grapes and bombs fly the stock Storm trajectory and

@@ -1,8 +1,55 @@
 # Runtime state
 
-Last verified: October13. The combined vortex/capture, finite boss damage, native fire, cannon range, chart and graphics-helper batch is delivered through canonical stage-only. Installed signed engine: `e3e3564f0f2453eded1d69fa147a12470a4aa9e4461bd780ee43464e4ec013a4`. The subsequent player replay still rejects low vortex camera, steering and absent automatic fire; those acceptance branches are reopened. City/map FPS and the complete battle remain unresolved. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. The combined recovery batch and its delayed-relation, camera/current, range-metadata and aim-CPU correction are delivered through canonical stage-only. Installed signed engine: `1c220e8d34d9964d9c7123dedcb2f46b72f18cedbe7dff3701e266b8998f8310`. Global-map performance is accepted by the player at120 FPS. The previous vortex and FPS26 aiming replays remain rejected; the new installed battle, city/night performance and aiming replay await the player. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — relation, camera/current and range successor installed
+
+After the player closes the app, canonical `run.sh --stage-only` returns0 for
+the13 frozen source inputs. Unsigned engine:
+`f9dac7979a2fa0af1e6d1998acd551121ce4750d411d68d16cf6e6bd7d49a7ce`;
+installed signed engine: `1c220e8d34d9964d9c7123dedcb2f46b72f18cedbe7dff3701e266b8998f8310`.
+Deep/strict signature and all162 installed receipt rows pass. All249 fresh
+SAVE/userdata/named configuration hashes remain identical and all13 source
+inputs remain frozen. Installed actual PROGRAM compilation returns0/errors0;
+cache/app each report0 pending/compiler ready. The three separately committed
+sailor/raider/smuggler dialogue files are now delivered too.
+
+Native relation publication now synchronously refreshes an already published
+matrix after late insertion or changed commander; initial entry stays batched.
+Load reconciles actors before returning, with no redundant next-tick refresh.
+Actual-method45 cases pass against15 baseline failures, including immediate
+queries, old serialized size and surrender/captor/friend/neutral negatives.
+The installed script relation callback has no recursive native relation query.
+
+The field-relative camera keeps ordinary output bitwise equal. Stock movement
+and decoded hull inertia prove healthy low-wind outward control and opposed
+rudder authority, with no injected pose/velocity; a mastless vessel still drifts
+inward. Radius, depth and rough geometry are unchanged. The remaining cannon
+cache/report computations use physical local water:61 metadata cases pass,
+including the previouslyNaN small-gun range and hull-damage falloff. Target
+admission and the existing ammunition/firing lifecycle remain unchanged.
+
+The aiming plane solver prepares current-frame immutable coefficients once;
+200,000 ordered roots and all trajectory stations remain bitwise equal.
+Representative52-gun query work including preparation changes2.52→0.92ms;
+this is neither complete-overlay timing nor a GPU/game-FPS result. The player
+explicitly defers manual-hit and aiming-FPS checks. Full vortex fire, emergence,
+camera/control, capture and balance remain player-owned replays, not component
+acceptance. No game is launched, stopped or operated by the task.
+
+The new atmosphere-contour report has a separate read-only diagnosis owner;
+Fire hull/cloth expansion remains its next source batch. Neither is consumed
+by this frozen correction or silently dropped for a clean-tree claim.
+
+### October13 — player accepts global-map performance
+
+After the installed map-copy correction, the player reports «все норм120 фпс».
+This accepts their global-map performance replay. It does not establish a paired
+speedup, city/night performance, manual shots or the separate aiming-volume scene.
+That scene is reopened with a supplied FPS26 frame and has a continuing source
+diagnosis owner; its native build/staging remains serialized with this task.
 
 ### October13 — combined native batch delivered; battle acceptance reopened
 

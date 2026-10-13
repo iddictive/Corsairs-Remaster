@@ -210,7 +210,7 @@
 +    namespace gpu=storm::sea_ai::manual_aim;
 +    std::vector<CVECTOR> waterPoints,solidPoints;
 +    std::vector<double> waterWeights,solidWeights;
-+    struct DensitySample {Trajectory curve;double weight;float end;};
++    struct DensitySample {Trajectory curve;double weight;float end;manual_aim::PlaneQuery query;};
 +    std::vector<DensitySample> densitySamples;
 +    densitySamples.reserve(27*solution.guns.size());
 +    waterPoints.reserve(27*solution.guns.size());solidPoints.reserve(27*solution.guns.size());
@@ -450,7 +450,7 @@
 +                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity);
 +            const double weight=weights[yaw]*weights[v]*weights[elevation];
 +            const float limit=curve.timeToHeight(-world.waveBound-1.f);
-+            densitySamples.push_back({curve,weight,limit});
++            densitySamples.push_back({curve,weight,limit,{curve,axis,limit}});
 +            const float waterTime=curve.timeToHeight(0.f);
 +            if(std::isfinite(waterTime)&&waterTime>0.f)
 +            {waterPoints.push_back(curve.at(waterTime));waterWeights.push_back(weight);}
@@ -535,7 +535,7 @@
 +        for(const auto &sample:densitySamples)
 +        {
 +            float time=std::numeric_limits<float>::infinity();
-+            manual_aim::forEachPlaneTime(sample.curve,axis,station,sample.end,
++            sample.query.forEach(station,
 +                [&](float t){time=std::min(time,t);});
 +            if(std::isfinite(time))
 +            {densityPoints.push_back(sample.curve.at(time));probabilities.push_back(sample.weight);}
@@ -662,3 +662,84 @@
          std::vector<AICannon *> guns;
          std::vector<CVECTOR> gunTargets; // parallel to guns; rake spread, else target
      };
+--- a/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
++++ b/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp
+@@ -232,37 +232,50 @@
+ }
+ // A common plane can cross a quadratic path in either direction, or twice.
+ // Never discard a legitimate off-axis gun because its projected motion reverses.
++// Immutable projection terms shared by all stations of one current trajectory.
++struct PlaneQuery
++{
++    double a=0.,b=0.,origin=0.;float end;bool valid;
++    PlaneQuery(const Trajectory &path,const CVECTOR &axis,float limit):end(limit),
++        valid(finite(path.origin)&&finite(path.velocity)&&finite(path.acceleration)&&finite(axis)&&
++            std::isfinite(limit)&&limit>=0.f&&~axis>=1e-12f)
++    {
++        if(valid){a=.5*double(path.acceleration|axis);b=double(path.velocity|axis);origin=double(path.origin|axis);}
++    }
++    template<class Visit> void forEach(float station,Visit visit) const
++    {
++        if(!valid||!std::isfinite(station))return;
++        std::array<float,2> times;size_t count=0;
++        const double c=origin-station;
++        auto add=[&](double t)
++        {
++            if(std::isfinite(t)&&t>=-1e-5&&t<=double(end)+1e-5)
++                times[count++]=float(std::clamp(t,0.0,double(end)));
++        };
++        if(std::fabs(a)<1e-10)
++        {
++            if(std::fabs(b)>1e-10)add(-c/b);
++            else if(std::fabs(c)<1e-5){add(0.0);add(end);}
++        }
++        else
++        {
++            const double discriminant=b*b-4.0*a*c;
++            if(discriminant>=-1e-8)
++            {
++                const double root=std::sqrt(std::max(0.0,discriminant));
++                const double q=-.5*(b+std::copysign(root,b));
++                if(std::fabs(q)>1e-12){add(q/a);add(c/q);}else add(-b/(2.0*a));
++            }
++        }
++        if(count==2&&times[1]<times[0])std::swap(times[0],times[1]);
++        if(count)visit(times[0]);
++        if(count==2&&std::fabs(times[1]-times[0])>=1e-5f)visit(times[1]);
++    }
++};
+ template<class Visit>
+ inline void forEachPlaneTime(const Trajectory &path,const CVECTOR &axis,float station,float end,Visit visit)
+ {
+-    std::array<float,2> times;size_t count=0;
+-    if(!finite(path.origin)||!finite(path.velocity)||!finite(path.acceleration)||!finite(axis)||
+-       !std::isfinite(station)||!std::isfinite(end)||end<0.f||~axis<1e-12f)return;
+-    const double a=.5*double(path.acceleration|axis),b=double(path.velocity|axis);
+-    const double c=double(path.origin|axis)-station;
+-    auto add=[&](double t)
+-    {
+-        if(std::isfinite(t)&&t>=-1e-5&&t<=double(end)+1e-5)
+-            times[count++]=float(std::clamp(t,0.0,double(end)));
+-    };
+-    if(std::fabs(a)<1e-10)
+-    {
+-        if(std::fabs(b)>1e-10)add(-c/b);
+-        else if(std::fabs(c)<1e-5){add(0.0);add(end);}
+-    }
+-    else
+-    {
+-        const double discriminant=b*b-4.0*a*c;
+-        if(discriminant>=-1e-8)
+-        {
+-            const double root=std::sqrt(std::max(0.0,discriminant));
+-            const double q=-.5*(b+std::copysign(root,b));
+-            if(std::fabs(q)>1e-12){add(q/a);add(c/q);}else add(-b/(2.0*a));
+-        }
+-    }
+-    if(count==2&&times[1]<times[0])std::swap(times[0],times[1]);
+-    if(count)visit(times[0]);
+-    if(count==2&&std::fabs(times[1]-times[0])>=1e-5f)visit(times[1]);
++    PlaneQuery(path,axis,end).forEach(station,visit);
+ }
+ inline std::vector<float> planeTimes(const Trajectory &path,const CVECTOR &axis,float station,float end)
+ {

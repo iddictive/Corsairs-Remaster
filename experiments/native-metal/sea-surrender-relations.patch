@@ -182,7 +182,28 @@ new file mode 100644
 diff --git a/src/libs/sea_ai/src/ai_helper.cpp b/src/libs/sea_ai/src/ai_helper.cpp
 --- a/src/libs/sea_ai/src/ai_helper.cpp
 +++ b/src/libs/sea_ai/src/ai_helper.cpp
-@@ -114,6 +114,29 @@
+@@ -73,9 +73,19 @@
+     const auto it = std::find(aCharacters.begin(), aCharacters.end(), pACharacter); //~!~
+     if (it != aCharacters.end())
+     {
+-        aMainCharacters[it - aCharacters.begin()] = pAMainCharacter;
++        auto &commander = aMainCharacters[it - aCharacters.begin()];
++        if (commander != pAMainCharacter)
++        {
++            commander = pAMainCharacter;
++            if (pRelations)
++                CalculateRelations();
++        }
+         return;
+     }
+     aCharacters.push_back(pACharacter);
+     aMainCharacters.push_back(pAMainCharacter);
++    // First entry remains batched by SEA_AI::bFirstInit. Once published,
++    // relations must include this ship before any immediate query can see it.
++    if (pRelations)
++        CalculateRelations();
+ }
+@@ -114,6 +124,29 @@
      return &pRelations[x + y * dwRelationSize];
  }
  
@@ -212,7 +233,7 @@ diff --git a/src/libs/sea_ai/src/ai_helper.cpp b/src/libs/sea_ai/src/ai_helper.c
  uint32_t AIHelper::GetRelationSafe(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
  {
      Assert(pA1 && pA2);
-@@ -125,7 +148,7 @@
+@@ -125,7 +158,7 @@
      const auto dw2 = FindIndex(pA2);
      if (dw2 == INVALID_ARRAY_INDEX)
          return RELATION_NEUTRAL;
@@ -221,7 +242,7 @@ diff --git a/src/libs/sea_ai/src/ai_helper.cpp b/src/libs/sea_ai/src/ai_helper.c
  }
  
  uint32_t AIHelper::GetRelation(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const
-@@ -135,7 +158,7 @@
+@@ -135,7 +168,7 @@
      Assert(dw1 != INVALID_ARRAY_INDEX);
      const auto dw2 = FindIndex(pA2);
      Assert(dw2 != INVALID_ARRAY_INDEX);
@@ -249,3 +270,15 @@ diff --git a/src/libs/sea_ai/src/ai_helper.h b/src/libs/sea_ai/src/ai_helper.h
  };
  
  extern AIHelper Helper;
+diff --git a/src/libs/sea_ai/src/sea_ai.cpp b/src/libs/sea_ai/src/sea_ai.cpp
+--- a/src/libs/sea_ai/src/sea_ai.cpp
++++ b/src/libs/sea_ai/src/sea_ai.cpp
+@@ -397,4 +397,8 @@
+     if (AIFort::pAIFort)
+         AIFort::pAIFort->Load(&SL);
+     Helper.Init();
++    // Reconcile saved tables after all actors and commanders are restored.
++    // A saved late entry may have a smaller table than its character lists.
++    Helper.CalculateRelations();
++    bFirstInit = false;
+ }
