@@ -64,6 +64,18 @@ late animated-actor checks pass before and after. Finite near/tangent and unknow
 data negatives pass; NaN position/range keep the old mask. No whole-scene FPS
 gain is claimed. This independent performance source change is not installed.
 
+The local weather compute field now reuses identical same-frame, same-command
+inputs across pole-facing cube views while refreshing each view's sampling
+metadata. The key retains weather, eye, angular window, terrain revision and all
+pipeline/input/output identities; unknown inputs and encoder failures recompute.
+Paired actual Metal +Y/-Y readback reduces the two-kernel dispatch count4→2;
+all40,421,376 volume bytes and consumer metadata match the uncached baseline
+(SHA256 `0d9a0ed8f8d9d461bdc4e5f1963b8e407c082529ca2721b8e638abea42a04593`).
+The wet/dry/night/orographic, rebase, indoor and teardown GPU checks pass. This
+proves duplicate compute removal for matching cube inputs, not a50% scene FPS
+gain; above-water main/reflection reuse is not established. App staging remains
+pending.
+
 ### October12 — Great Recipe and rough native vortex installed; player replay pending
 
 The requested Great Recipe now has an eight-hook composer and two dedicated

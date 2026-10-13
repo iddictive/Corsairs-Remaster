@@ -104,6 +104,9 @@ struct LocalWeatherVolume {
     simd_float3 viewOrigin{};
     simd_float4x4 clipFromWorld=matrix_identity_float4x4;
     simd_float4 cameraRange{};
+    id<MTLCommandBuffer> computeCommand=nil;
+    std::array<id,12> computeResources{};
+    LocalWeatherUniform computeUniform{};
     bool matches(uint64_t frame,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin)const{
         const auto vp=simd_mul(projection,view);
         return current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&
@@ -149,7 +152,7 @@ struct LocalWeatherVolume {
     }
     bool encode(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&weather,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin,id<MTLTexture>shape,id<MTLTexture>detail,id<MTLTexture>regional,id<MTLTexture>atmosphere,id<MTLBuffer>lighting,bool outdoor){
         auto vp=simd_mul(projection,view);
-        if(outdoor&&matches(frame,view,projection,origin))return true;
+        const bool reusable=current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&command&&computeCommand==command;
         current=false;if(!outdoor)return true;
         auto inverse=simd_inverse(vp);
         if(!std::isfinite(simd_determinant(inverse)))return true;
@@ -171,10 +174,20 @@ struct LocalWeatherVolume {
         u.cameraRange=cameraRange;u.weather=weather;
         if(!weatherTerrain.heights.empty())u.terrainBounds={weatherTerrain.bounds[0],weatherTerrain.bounds[1],weatherTerrain.bounds[2],weatherTerrain.bounds[3]};
         absolute.columns[3]=simd_make_float4(origin,1);clipFromWorld=simd_mul(vp,absolute);
-        auto e=[command computeCommandEncoder];[e setComputePipelineState:segmentKernel];[e setBytes:&u length:sizeof(u) atIndex:0];
-        [e setTexture:segments atIndex:0];[e setTexture:terrain atIndex:1];[e setTexture:shape atIndex:2];[e setTexture:detail atIndex:3];[e setTexture:regional atIndex:4];[e setTexture:atmosphere atIndex:5];[e setBuffer:lighting offset:0 atIndex:1];
-        [e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,128) threadsPerThreadgroup:MTLSizeMake(4,4,4)];[e endEncoding];
-        e=[command computeCommandEncoder];[e setComputePipelineState:integrateKernel];[e setTexture:segments atIndex:0];[e setTexture:transport atIndex:1];[e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        // Both compute kernels use world rays, not worldFromClip. A different
+        // view can reuse the exact field, but its sampling metadata above must
+        // still follow that view (including reflection -> main restoration).
+        auto computeInput=u;computeInput.worldFromClip=matrix_identity_float4x4;
+        const std::array<id,12> resources{device,library,segmentKernel,integrateKernel,terrain,segments,transport,shape,detail,regional,atmosphere,lighting};
+        bool known=true;for(id resource:resources)known&=resource!=nil;
+        for(auto value:{u.cameraRange,u.terrainBounds,u.angles,u.weather.sunDirection_hour,u.weather.moonDirection_time,u.weather.wind_coverage_density,u.weather.options,u.weather.horizonFog})for(unsigned axis=0;axis<4;++axis)known&=std::isfinite(value[axis]);
+        if(!reusable||!known||resources!=computeResources||std::memcmp(&computeInput,&computeUniform,sizeof(computeInput))!=0){
+            auto e=[command computeCommandEncoder];if(!e)return false;[e setComputePipelineState:segmentKernel];[e setBytes:&u length:sizeof(u) atIndex:0];
+            [e setTexture:segments atIndex:0];[e setTexture:terrain atIndex:1];[e setTexture:shape atIndex:2];[e setTexture:detail atIndex:3];[e setTexture:regional atIndex:4];[e setTexture:atmosphere atIndex:5];[e setBuffer:lighting offset:0 atIndex:1];
+            [e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,128) threadsPerThreadgroup:MTLSizeMake(4,4,4)];[e endEncoding];
+            e=[command computeCommandEncoder];if(!e)return false;[e setComputePipelineState:integrateKernel];[e setTexture:segments atIndex:0];[e setTexture:transport atIndex:1];[e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+            computeCommand=command;computeResources=resources;computeUniform=computeInput;
+        }
         viewFrame=frame;viewProjection=vp;viewOrigin=origin;current=true;return true;
     }
     void bind(id<MTLRenderCommandEncoder>encoder,SkyFogDraw&draw,simd_float3 origin)const{
