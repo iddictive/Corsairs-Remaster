@@ -53,6 +53,17 @@ its textures/waves remain diagnostic approximations. RedBeard's actual GM/TX
 uploads and three115-bone GPU component poses pass; stock man animations,
 dialogue/spyglass portraits and player fights remain unreplayed.
 
+The October13 source audit additionally finds a neutral second draw for raw
+sea/deck receivers wholly outside a selected point lamp's authored range. The
+receiver now reuses exact known posed bounds and the registry's existing sphere
+intersection; unknown bounds or nonfinite source data retain admission, and
+mixed moon/sun correction remains. Paired actual-Metal full-color readback is
+byte-identical across all4096 pixels while the far point-only correction changes
+from applied1 to applied0. The existing point, mixed directional, cutout and
+late animated-actor checks pass before and after. Finite near/tangent and unknown
+data negatives pass; NaN position/range keep the old mask. No whole-scene FPS
+gain is claimed. This independent performance source change is not installed.
+
 ### October12 — Great Recipe and rough native vortex installed; player replay pending
 
 The requested Great Recipe now has an eight-hook composer and two dedicated

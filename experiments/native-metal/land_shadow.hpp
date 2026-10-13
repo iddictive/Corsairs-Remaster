@@ -46,6 +46,13 @@ struct LandShadow {
   bool raw=false;MTLIndexType indexType=MTLIndexTypeUInt32;NSInteger baseVertex=0;RawCasterUniform rawCaster{};RawReceiverUniform rawReceiver{};
   storm_metal::point_shadow::Key registryKey{};unsigned registryStride=0,registryUvOffset=0,registryColorOffset=0;storm_metal::point_shadow::Bounds registryBounds{},registryLocalBounds{};simd_float4x4 authoredWorld{};bool authoredWorldValid=false,registryUseColorAlpha=false;id<MTLBuffer> skinPalette=nil;NSUInteger skinPaletteOffset=0;unsigned boneCount=0;
  };
+ static bool knownRegistryBounds(const Packet&p){
+  const auto&b=p.registryBounds;
+  return p.raw&&p.registryKey.vertexIdentity&&
+   std::isfinite(b.minimum.x)&&std::isfinite(b.minimum.y)&&std::isfinite(b.minimum.z)&&
+   std::isfinite(b.maximum.x)&&std::isfinite(b.maximum.y)&&std::isfinite(b.maximum.z)&&
+   simd_all(b.maximum>=b.minimum)&&simd_any(b.maximum>b.minimum);
+ }
  struct Uniform {simd_float4x4 mvp,lightWorld;simd_float4 parameters,fogColor,fogParams,shadowTexel;simd_float4x4 lightWorldFar;};
  struct DirectLighting {simd_float4 sun,point,normal,diffuse;};
  struct PointLight {simd_float4 positionRange,color,attenuation;};
@@ -445,10 +452,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
    // Project known world bounds into the full light frustum, including depth.
    // Animated bind-pose and unknown bounds cannot safely reject a caster.
    const auto&b=p.registryBounds;
-   if(p.raw&&p.registryKey.vertexIdentity&&!p.skinPalette&&
-      std::isfinite(b.minimum.x)&&std::isfinite(b.minimum.y)&&std::isfinite(b.minimum.z)&&
-      std::isfinite(b.maximum.x)&&std::isfinite(b.maximum.y)&&std::isfinite(b.maximum.z)&&
-      simd_all(b.maximum>=b.minimum)&&simd_any(b.maximum>b.minimum)){
+   if(!p.skinPalette&&knownRegistryBounds(p)){
     auto center=(b.minimum+b.maximum)*.5f,extent=(b.maximum-b.minimum)*.5f;
     auto q=simd_mul(cascadeLight,simd_make_float4(center,1)).xyz;
     auto radius=simd_abs(cascadeLight.columns[0].xyz)*extent.x+simd_abs(cascadeLight.columns[1].xyz)*extent.y+simd_abs(cascadeLight.columns[2].xyz)*extent.z;
@@ -485,7 +489,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
  auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=color;pass.colorAttachments[0].loadAction=MTLLoadActionLoad;pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.depthAttachment.texture=depth;pass.depthAttachment.loadAction=MTLLoadActionLoad;pass.depthAttachment.storeAction=MTLStoreActionStore;
  auto e=[command renderCommandEncoderWithDescriptor:pass];[e setDepthStencilState:equalDepth];[e setFrontFacingWinding:MTLWindingClockwise];for(unsigned slot=0;slot<8;slot++)[e setFragmentTexture:prepass.points[slot].map atIndex:slot];[e setFragmentTexture:map atIndex:8];[e setFragmentTexture:farMap atIndex:9];DrawBindings bindings;bool drew=false;
  for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];if(!p.raw||!p.rawReceiver.receiverEnabled)continue;const auto&source=p.rawReceiver;PointReceiverUniform points{};points.sunEnabled=sunLight!=nullptr&&fallbackUniforms.size()==packets.size();points.sunWorld=points.sunEnabled?fallbackUniforms[i].lightWorld:matrix_identity_float4x4;points.sunWorldFar=points.sunEnabled?fallbackUniforms[i].lightWorldFar:matrix_identity_float4x4;points.shadowTexel={1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0};
-  for(unsigned selected=0;selected<lightCount;selected++){const auto&light=lights[selected];const unsigned cubeSlot=shadowSlot(light.lightId);if(!cubeSlot)continue;unsigned sourceSlot=0;while(sourceSlot<8&&(!(source.lightMask&(1u<<sourceSlot))||source.lightIds[sourceSlot]!=light.lightId))++sourceSlot;if(sourceSlot==8)continue;const auto snapshot=source.lightPositionRange[sourceSlot];if(snapshot.w<=.1f||simd_length(snapshot.xyz-light.position)>.001f||std::abs(snapshot.w-light.range)>.001f)continue;points.pointMask|=1u<<sourceSlot;points.cubeSlots[sourceSlot]=cubeSlot;points.positionRange[sourceSlot]=snapshot;points.weights[sourceSlot]=prepass.points[cubeSlot-1].weight;}
+  for(unsigned selected=0;selected<lightCount;selected++){const auto&light=lights[selected];const unsigned cubeSlot=shadowSlot(light.lightId);if(!cubeSlot)continue;unsigned sourceSlot=0;while(sourceSlot<8&&(!(source.lightMask&(1u<<sourceSlot))||source.lightIds[sourceSlot]!=light.lightId))++sourceSlot;if(sourceSlot==8)continue;const auto snapshot=source.lightPositionRange[sourceSlot];if(snapshot.w<=.1f||simd_length(snapshot.xyz-light.position)>.001f||std::abs(snapshot.w-light.range)>.001f)continue;if(std::isfinite(snapshot.x)&&std::isfinite(snapshot.y)&&std::isfinite(snapshot.z)&&std::isfinite(snapshot.w)&&knownRegistryBounds(p)&&!storm_metal::point_shadow::LifecycleModel::intersects(p.registryBounds,snapshot.xyz,snapshot.w))continue;points.pointMask|=1u<<sourceSlot;points.cubeSlots[sourceSlot]=cubeSlot;points.positionRange[sourceSlot]=snapshot;points.weights[sourceSlot]=prepass.points[cubeSlot-1].weight;}
   if(!points.pointMask&&!points.sunEnabled)continue;Uniform u{p.mvp,p.world,{0,0,0,0},p.fogColor,p.fogParams,{1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0},matrix_identity_float4x4};bindings.common(e,p,p.skinPalette?skinnedPointReceiver:rawPointReceiver);bindings.view(e,p,fogEnvironment,localFog,localVolume);[e setVertexBytes:&source length:sizeof(source) atIndex:3];[e setVertexBytes:&points length:sizeof(points) atIndex:6];if(p.skinPalette){SkinUniform skin{p.boneCount,{0,0,0}};bindings.skin(e,p);[e setVertexBytes:&skin length:sizeof(skin) atIndex:5];}[e setVertexBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&points length:sizeof(points) atIndex:6];draw(e,p);drew=true;
   }
   [e endEncoding];applied|=drew;return drew;
