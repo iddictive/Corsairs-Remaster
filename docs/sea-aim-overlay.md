@@ -35,8 +35,10 @@ annotation at 2048×1285 at 1x, scaled with the viewport. It compensates the act
 renderer magnification so zoom cannot narrow its angular/world support. That
 support grows linearly from 1x to 1.5x at maximum 5x zoom, with the same rectangle
 aspect. Actual mast/hull/fort polygons
-inside that view region supply depth. The target remains on the center camera
-ray at that depth: the rectangle does not redirect aim toward an off-center ship.
+inside that view region acquire the receiver. A selected ship supplies the
+transformed root hull center's horizontal range; other receivers retain their
+surface depth. The target remains on the center camera ray at that range:
+the rectangle does not redirect aim toward an off-center ship or snap aim height.
 Selection is instantaneous, with no retained target, tracking or dwell. A nearer
 center obstruction wins. Empty or genuinely out-of-range space uses common legal
 maximum reach; nearby mechanically unreachable targets stay unavailable.
@@ -589,6 +591,26 @@ fallback toward the original aim point remain; forts and water
 retain their existing targeting. A disposable driver of the actual C++ method
 checks a rotated 100 m hull, four distinct stern-aim stations, zero skill,
 reachability fallback, non-ship targets and unchanged aim height.
+
+Manual ship range uses `node->glob_mtx * info.boxcenter` from that same root hull,
+not the nearest visible edge, rigging bounds or ship origin. The selected depth is
+the center's projection onto the horizontal camera bearing divided by the camera
+ray's horizontal component. This preserves the centered ray and its pitch:
+moving the plus vertically changes target height and the physical water landing,
+while the captured hull's horizontal range stays stable. Original surface depth
+still governs hostility attribution; closer obstructions, non-ship selection,
+single-gun mapping, skill-based rake and mechanical reach checks keep their owners.
+Direct projection onto the pitched view axis was rejected: upward mast aim moved
+the low hull center nearer and could admit a previously unreachable shot.
+
+The October13 source candidate passes a disposable driver of the actual manual
+solution, rake, reach and cannon-angle bodies. A translated root boxcenter on a
+rotated hull selects its center range instead of the190-metre near edge; a pitch
+sweep moves warped water landings monotonically near/far. Single mode retains its
+full-battery station; zero skill, non-ship range, impossible high mast, steep near
+terrain and empty far intent pass. Selection/collision/events are fixture stubs.
+The installed first-person ship capture and firing replay remains unresolved;
+CPU evidence does not accept the player's actual impact pattern.
 
 Saved games serialize `ChrPerksList`, so startup registration alone does not add a
 new ability to an old save. `PROGRAM/interface/perks/perks.c` rebuilds the current
