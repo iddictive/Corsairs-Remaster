@@ -4,8 +4,8 @@
 # stripped, bundle Frameworks rpath wired, ad-hoc codesigned. Keeps one
 # backup per installed hash for instant rollback. Safe to run on every
 # stage: skips when the installed engine already matches the candidate.
-# Also syncs the reviewed public launcher resource (the player log redirect
-# owner) so a staged launcher change reaches the played app with the engine.
+# Also syncs the reviewed public launcher and graphics adapter so their
+# staged changes reach the played app even when the engine is unchanged.
 set -euo pipefail
 root=$(cd "$(dirname "$0")" && pwd)
 staged="$root/.cache/build/bin/engine-1"
@@ -92,23 +92,30 @@ for name, known in LEGACY_TECHNIQUES.items():
     state.track(relative, after)
     if before != after:
         changes[target] = (before, after)
-# The public launcher owns the player log redirect, so a stale copy keeps
-# unbounded logging. Sync it like a technique: reviewed revisions only.
-launcher_source = root / "public_launcher.py"
-launcher_target = app / "Contents/Resources/public_launcher.py"
-# Reviewed launcher revisions: the pre-rotation head and this bounded one.
-launcher_known = {
-    "89aa9a965743798983d0b06e69f585edab0961c9a5fdbff265861b32e94e32f8",
-    "fdeca54d99f34062f7bc858e7ab60066743183df266fd076e90e29a215e761fd",
+# The public launcher imports the graphics adapter on each normal app start.
+# Deliver both through the same transaction, retaining reviewed bootstrap
+# bytes and source snapshots rather than relying on a fresh public export.
+repo = root.parents[1]
+launch_helpers = {
+    "public_launcher.py": (root / "public_launcher.py", {
+        "89aa9a965743798983d0b06e69f585edab0961c9a5fdbff265861b32e94e32f8",
+        "fdeca54d99f34062f7bc858e7ab60066743183df266fd076e90e29a215e761fd",
+    }),
+    "metal_graphics_settings.py": (repo / "tools/metal_graphics_settings.py", {
+        "3474827dcd0a911e4efbee8ce3b9db4f4ab8f51b8bb4e503d49aa25fdb16f4ea",
+    }),
 }
-for path in (launcher_source, launcher_target):
-    if path.is_symlink() or not path.is_file():
-        raise RuntimeError(f"Missing or linked launcher: {path}")
-before, after = launcher_target.read_bytes(), launcher_source.read_bytes()
-state.admit("public_launcher.py", before, after, launcher_known)
-state.track("public_launcher.py", after)
-if before != after:
-    changes[launcher_target] = (before, after)
+for relative, (source, known) in launch_helpers.items():
+    target = app / "Contents/Resources" / relative
+    for path in (source, target):
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError(f"Missing or linked launch helper: {path}")
+    before, after = target.read_bytes(), source.read_bytes()
+    state.admit(relative, before, after, known)
+    state.track(relative, after, source=source.relative_to(repo).as_posix())
+    changes[source] = (after, after)
+    if before != after:
+        changes[target] = (before, after)
 before, after = engine.read_bytes(), candidate.read_bytes()
 # Existing installations predate receipts. Preserve their signed-engine
 # bootstrap contract; subsequent replacements require the recorded bytes.
@@ -123,7 +130,7 @@ changes[runtime_state.receipt] = runtime_state.change()
 with player_guard(app):
     updated = transact(changes, app)
 if not updated:
-    print("Played app engine, script header, techniques and launcher already match; install skipped.")
+    print("Played app engine, script header, techniques and launch helpers already match; install skipped.")
 else:
     print("Engine resource delivery completed; ownership receipts updated.")
 INSTALL

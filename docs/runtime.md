@@ -1,8 +1,43 @@
 # Runtime state
 
-Last verified: October13. Physical captivity/moonlit cache, bounded storm escape, inline graphics settings and ambient tavern rumors are delivered through the canonical stage-only path, following corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26`. Installed signed engine: `f14d7cbd33346db3a88529e76e850235311ecf4ba49ba66e0a4eeb466ffd673d`. Player replay now rejects the first vortex battle/capture and Options restart persistence; repairs are source candidates. City/map FPS remains unresolved. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. The combined vortex/capture, finite boss damage, native fire, cannon range, chart and graphics-helper batch is delivered through canonical stage-only. Installed signed engine: `e3e3564f0f2453eded1d69fa147a12470a4aa9e4461bd780ee43464e4ec013a4`. The subsequent player replay still rejects low vortex camera, steering and absent automatic fire; those acceptance branches are reopened. City/map FPS and the complete battle remain unresolved. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — combined native batch delivered; battle acceptance reopened
+
+Canonical `experiments/native-metal/run.sh --stage-only` returns0 after the final
+ordered patches, CMake and source changes. Unsigned engine:
+`1dd9dd3bff9dd856c5d4fd94be4974775b8b4e2838337b8cea0757dec2cc37ea`.
+The installed deep/strict signature passes and all160 ownership receipt rows
+match actual bytes. The12 frozen native/composer inputs remain identical.
+An actual installed PROGRAM copy compiles0/errors0; its fixture alone renames
+the game's Main to avoid the probe driver's duplicate entrypoint.
+Exactly three later, separately owned dialogue files await the next content batch.
+
+The batch includes full-fleet flagship centering, island-free first sea entry,
+finite physical Beard emergence, sea mesh/seam and underwater corrections,
+target-relative automatic cannon reach, stock death/capture recovery and8× boss
+hull without healing. Native fire/SAVE codec and production posed-bound probes
+pass their recorded component scopes. Current GPU skinning parity, offscreen
+skinning and water-camera probes pass after rebuilding their actual targets.
+The land shader probe now compiles with the existing Objective-C++ interop;
+its grass-fog assertion fails identically against the intact predecessor backend
+and the candidate, so no fog product change or scene FPS acceptance is inferred.
+
+The actual installed launcher and bundled Python accept an isolated prior profile:
+saved VSync1 is applied on restart, FXAA1/high shadow2 and unrelated configuration
+remain intact. The complete Changes resource matches its27e29448… projection.
+No game is launched by the task. After the player restarts,243 of248 baseline
+state hashes remain identical; one autosave, engine.ini and three engine logs
+change during that player session. Task delivery does not edit SAVE/configuration.
+
+New player frames show sea coverage without the earlier exposed brown floor,
+but the camera remains low and automatic fire is still absent. Source inspection
+finds delayed ship insertion without refreshing the native relations matrix and
+absolute negative ship height entering the stock camera's box dimensions.
+These are continuing repair hypotheses with owning falsifiers; the installed
+batch does not accept them, vortex steering, three-manowar balance or city FPS.
 
 ### October13 — chart copy hot spot and diagnostic command source accepted
 

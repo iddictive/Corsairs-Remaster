@@ -412,6 +412,20 @@ void GreatRecipe_MapCalendar()
     string clock = worldMap.date.year + ":" + worldMap.date.month + ":" + worldMap.date.day + ":" + sti(worldMap.date.hour) + ":" + GreatRecipe_Phase();
     if (CheckAttribute(pchar, "GreatRecipe.MapClock") && pchar.GreatRecipe.MapClock == clock) return;
     pchar.GreatRecipe.MapClock = clock;
+    if (CheckAttribute(pchar, "GreatRecipe.MapCaptain"))
+    {
+        // A ship first sighted at night remains reachable for its native day
+        // lifetime; dawn does not erase it while the player is approaching.
+        aref encounters; makearef(encounters, worldMap.encounters);
+        for (int active = 0; active < GetAttributesNum(encounters); active++)
+        {
+            aref encounter = GetAttributeN(encounters, active);
+            if (CheckAttribute(encounter, "quest.chrID") && encounter.quest.chrID == pchar.GreatRecipe.MapCaptain &&
+                (phase == "search" || phase == "lost")) return;
+        }
+        Map_ReleaseQuestEncounter(pchar.GreatRecipe.MapCaptain);
+        DeleteAttribute(pchar, "GreatRecipe.MapCaptain");
+    }
     bool window = phase == "search" && GreatRecipe_Moonlit();
     if (phase == "lost") window = GreatRecipe_Window() && Whr_IsStorm();
     if (!window)
@@ -428,16 +442,18 @@ void GreatRecipe_MapCalendar()
     float centerZ = stf(worldMap.islands.Bermudes.position.z);
     for (int attempt = 0; attempt < 8; attempt++)
     {
-        float x1 = centerX - 160.0 - attempt * 12.0;
-        float z1 = centerZ - 100.0 - attempt * 8.0;
-        float x2 = x1 - 80.0;
-        float z2 = z1 + 50.0;
+        float angle = 3.14 + attempt * 0.3927;
+        float radius = 90.0 + (attempt / 4) * 30.0;
+        float x1 = centerX + cos(angle) * radius;
+        float z1 = centerZ + sin(angle) * radius;
+        float x2 = x1 + sin(angle) * 40.0;
+        float z2 = z1 - cos(angle) * 40.0;
         bool clear = true;
         for (int point = 0; point < 5; point++)
         {
             float x = x1 + (x2 - x1) * point / 4.0;
             float z = z1 + (z2 - z1) * point / 4.0;
-            if (!SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z, 70.0)) clear = false;
+            if (!SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z, 35.0)) clear = false;
         }
         if (!clear) continue;
         string id = "GreatRecipeDreamBeard";
@@ -450,8 +466,19 @@ void GreatRecipe_MapCalendar()
         }
         captain.MapEnc.Type = "war";
         captain.name = "Красная"; captain.lastname = "Борода";
+        int slot = -1;
+        if (!GenerateMapEncounter_Alone(id, &slot)) return;
+        string encounterID = "";
+        if (!wdmCreateMerchantShipXZByIndex(0.2, slot, &encounterID, x1, z1, x2, z2, 1))
+        {
+            ManualReleaseMapEncounter(slot);
+            return;
+        }
+        string path = "encounters." + encounterID;
+        worldMap.(path).quest.event = "Map_TraderSucces";
+        worldMap.(path).quest.chrID = id;
         pchar.GreatRecipe.MapCaptain = id;
-        Map_CreateTraderXZ(x1, z1, x2, z2, id, 1);
+        wdmReconcileQuestShipCounter();
         return;
     }
 }
@@ -1129,7 +1156,8 @@ void GreatRecipe_Boss(ref dream)
 {
     GreatRecipe_Ship(dream, SHIP_FRIGATEQUEEN, "Красный прилив", 100);
     ref flagship = GetRealShip(sti(dream.Ship.Type));
-    flagship.HP = stf(flagship.HP) * 24.0;
+    flagship.HP = stf(flagship.HP) * 8.0;
+    dream.Ship.GreatRecipeHullScale = 8;
     if (stf(flagship.SpeedRate) < 18.0) flagship.SpeedRate = 18.0;
     if (stf(flagship.TurnRate) < 51.0) flagship.TurnRate = 51.0;
     dream.Ship.HP = flagship.HP;
@@ -1218,12 +1246,17 @@ void GreatRecipe_PrepareSea(ref login)
 {
     GreatRecipe_Upgrade();
     string phase = GreatRecipe_Phase();
-    if (login.Island != "Bermudes" && !GreatRecipe_OwnMapLogin(login)) return;
-    if (phase == "search" && GreatRecipe_Moonlit() && GreatRecipe_LoginFree(login) &&
+    bool firstBattle = phase == "whirlpool" || phase == "assault" || phase == "boarding";
+    if (login.Island != "Bermudes" && !GreatRecipe_OwnMapLogin(login) && !firstBattle) return;
+    if (phase == "search" && (GreatRecipe_Moonlit() || GreatRecipe_OwnMapLogin(login)) && GreatRecipe_LoginFree(login) &&
         !CheckAttribute(pchar, "Custody") && !bAbordageStarted && !bQuestDisableMapEnter && GreatRecipe_FleetFree())
     {
         if (!GreatRecipe_ShipRooms()) return;
         GreatRecipe_Snapshot();
+        // This offshore encounter needs room below the full funnel. Use the
+        // stock island-free sea mode; coordinates, geography and weather stay.
+        login.Island = "";
+        login.GreatRecipeOpenSea = true;
         pchar.GreatRecipe.Phase = "whirlpool";
         pchar.GreatRecipe.Elapsed = 0;
         pchar.GreatRecipe.Vortex.X = stf(login.PlayerGroup.x) + 245.0;
@@ -1246,6 +1279,8 @@ void GreatRecipe_PrepareSea(ref login)
     }
     if (phase == "whirlpool" || phase == "assault" || phase == "boarding")
     {
+        login.Island = "";
+        login.GreatRecipeOpenSea = true;
         int dreamIndex = GetCharacterIndex("GreatRecipeDreamBeard");
         if (dreamIndex >= 0)
         {
@@ -1261,7 +1296,7 @@ void GreatRecipe_PrepareSea(ref login)
             if (CheckAttribute(captain, "Ship.Pos.x"))
                 Group_SetXZ_AY("GreatRecipeSea", stf(captain.Ship.Pos.x), stf(captain.Ship.Pos.z), stf(captain.Ship.Ang.y));
             if (phase == "whirlpool") { Group_SetTaskNone("GreatRecipeSea"); GreatRecipe_DelayBossLogin(login); }
-            if (phase == "boarding") Group_SetTaskNone("GreatRecipeSea");
+            if (phase == "boarding") Ship_SetTaskAbordage(SECONDARY_TASK, dreamIndex, nMainCharacterIndex);
         }
         return;
     }
@@ -1295,6 +1330,12 @@ void GreatRecipe_PrepareSea(ref login)
 
 void GreatRecipe_ClearVortex(bool immediate)
 {
+    int boss = GetCharacterIndex("GreatRecipeDreamBeard");
+    if (boss >= 0)
+    {
+        ref captain = GetCharacter(boss);
+        if (CheckAttribute(captain, "Ship.SeaEmergence")) captain.Ship.SeaEmergence.Clear = 1;
+    }
     if (isEntity(&Sea))
     {
         if (immediate) Sea.Whirlpool.Clear = 1;
@@ -1369,7 +1410,7 @@ void GreatRecipe_Queue()
     PostEvent("GreatRecipePulse", 500, "l", sti(pchar.GreatRecipe.Generation));
 }
 
-void GreatRecipe_SeaReady()
+void GreatRecipe_PlaceVortex()
 {
     if (!GreatRecipe_Locked()) return;
     GreatRecipe_Locks();
@@ -1378,25 +1419,8 @@ void GreatRecipe_SeaReady()
         // All live admitted ships fit inside the authored field after fleet placement.
         if (!CheckAttribute(pchar, "GreatRecipe.Vortex.Placed"))
         {
-            float minX = stf(pchar.Ship.Pos.x);
-            float maxX = minX;
-            float minZ = stf(pchar.Ship.Pos.z);
-            float maxZ = minZ;
-            for (int member = 0; member < COMPANION_MAX; member++)
-            {
-                int memberIndex = GetCompanionIndex(pchar, member);
-                if (memberIndex < 0) continue;
-                ref ship = GetCharacter(memberIndex);
-                if (!CheckAttribute(ship, "Ship.Pos.x")) continue;
-                float sx = stf(ship.Ship.Pos.x);
-                float sz = stf(ship.Ship.Pos.z);
-                if (sx < minX) minX = sx;
-                if (sx > maxX) maxX = sx;
-                if (sz < minZ) minZ = sz;
-                if (sz > maxZ) maxZ = sz;
-            }
-            pchar.GreatRecipe.Vortex.X = (minX + maxX) * 0.5 + 120.0;
-            pchar.GreatRecipe.Vortex.Z = (minZ + maxZ) * 0.5;
+            pchar.GreatRecipe.Vortex.X = stf(pchar.Ship.Pos.x) + 120.0;
+            pchar.GreatRecipe.Vortex.Z = stf(pchar.Ship.Pos.z);
             float radius = 700.0;
             for (int slot = 0; slot < COMPANION_MAX; slot++)
             {
@@ -1425,13 +1449,34 @@ void GreatRecipe_SeaReady()
         if (CheckAttribute(pchar, "GreatRecipe.Vortex.Sound")) StopSound(sti(pchar.GreatRecipe.Vortex.Sound), 0);
         pchar.GreatRecipe.Vortex.Sound = Play3DSound("storm_sea_water", stf(pchar.GreatRecipe.Vortex.X), 0.0, stf(pchar.GreatRecipe.Vortex.Z));
     }
+}
+
+void GreatRecipe_SeaReady()
+{
+    if (!GreatRecipe_Locked()) return;
+    GreatRecipe_Locks();
+    // FirstInit precedes native position readback. The first normal pulse
+    // places a fresh field from live positions; saved fields keep their center.
+    if (CheckAttribute(pchar, "GreatRecipe.Vortex.Placed")) GreatRecipe_PlaceVortex();
     if (GreatRecipe_Phase() == "storm") Whr_RequestWeather(1.0, 1.0, 28.0, 2.0, false, true);
     GreatRecipe_Queue();
+}
+
+void GreatRecipe_RecoverHero()
+{
+    if (!LAi_IsDead(pchar)) return;
+    // Stock land death sets this lock before GameOver. HP alone does not
+    // release it or revive the dead native entity; the location reload does.
+    InterfaceStates.Launched = false;
+    Dead_DelLoginedCharacter(pchar);
+    LAi_SetCurHPMax(pchar);
+    LAi_SetPlayerType(pchar);
 }
 
 void GreatRecipe_Capture(string unused)
 {
     if (GreatRecipe_Phase() != "capturing") return;
+    GreatRecipe_RecoverHero();
     if (CheckAttribute(pchar, "pause") || sti(InterfaceStates.Launched) || sQuestNameAfterReload != "_")
     {
         GreatRecipe_Delay("GreatRecipe_Capture", 1.0);
@@ -1463,10 +1508,14 @@ void GreatRecipe_BeginCapture(bool bossBeaten)
     if (GreatRecipe_Phase() != "whirlpool" && GreatRecipe_Phase() != "assault" && GreatRecipe_Phase() != "boarding") return;
     pchar.GreatRecipe.BossBeaten = bossBeaten;
     pchar.GreatRecipe.Phase = "capturing";
+    GreatRecipe_RecoverHero();
     GreatRecipe_ClearVortex(true);
     LAi_SetImmortal(pchar, true);
     Group_SetTaskNone("GreatRecipeSea");
-    GreatRecipe_Journal("Борода приказал прекратить огонь. От его борта идут шлюпки.", false);
+    string note = "Борода приказал прекратить огонь. От его борта идут шлюпки.";
+    if (bAbordageStarted) note = "Я проиграл бой на палубе. Борода приказал взять меня живым и увести в трюм.";
+    else if (stf(pchar.Ship.HP) <= 0.0) note = "Флагман пошёл ко дну. Матросы Бороды вытащили меня из воды и связали.";
+    GreatRecipe_Journal(note, false);
     GreatRecipe_Delay("GreatRecipe_Capture", 1.0);
 }
 
@@ -1491,12 +1540,20 @@ bool GreatRecipe_EmergeBoss()
             DeleteAttribute(group, "AlreadyLoaded");
             Group_SetXZ_AY("GreatRecipeSea", stf(pchar.GreatRecipe.Vortex.X) + stf(pchar.GreatRecipe.Vortex.Radius) * 0.12,
                 stf(pchar.GreatRecipe.Vortex.Z), 3.14);
+            if (GreatRecipe_Phase() == "whirlpool" && !CheckAttribute(captain, "Ship.SeaEmergence"))
+            {
+                captain.Ship.SeaEmergence.Generation = sti(pchar.GreatRecipe.Generation);
+                captain.Ship.SeaEmergence.Age = 0.0;
+                captain.Ship.SeaEmergence.Duration = 6.35;
+                captain.Ship.SeaEmergence.Active = 1;
+            }
             Sea_LoginGroup("GreatRecipeSea");
         }
         if (IsEntity(captain))
         {
             pchar.GreatRecipe.Emerged = true;
             DeleteAttribute(pchar, "GreatRecipe.EmergeRetries");
+            if (CheckAttribute(captain, "Ship.SeaEmergence.Active") && sti(captain.Ship.SeaEmergence.Active)) return false;
             return true;
         }
     }
@@ -1514,6 +1571,65 @@ bool GreatRecipe_EmergeBoss()
     return false;
 }
 
+void GreatRecipe_BoardingApproach()
+{
+    if (GreatRecipe_Phase() != "assault" || bAbordageStarted || bSeaReloadStarted) return;
+    if (stf(pchar.Ship.HP) <= 0.0) { GreatRecipe_BeginCapture(false); return; }
+    int index = GetCharacterIndex("GreatRecipeDreamBeard");
+    if (index < 0) return;
+    ref captain = GetCharacter(index);
+    if (!IsEntity(captain) || LAi_IsDead(captain) || stf(captain.Ship.HP) <= 0.0) return;
+    bool vulnerable = GetHullPercent(pchar) <= 30.0 || GetSailPercent(pchar) <= 12.0;
+    if (!vulnerable && CheckAttribute(pchar, "Ship.Masts"))
+    {
+        aref masts; makearef(masts, pchar.Ship.Masts);
+        int total = 0;
+        int standing = 0;
+        for (int mast = 0; mast < GetAttributesNum(masts); mast++)
+        {
+            aref part = GetAttributeN(masts, mast);
+            int number = BI_MastRepairMainNumber(GetAttributeName(part));
+            if (number <= 0 || number >= 100) continue;
+            total++;
+            if (stf(GetAttributeValue(part)) < 1.0) standing++;
+        }
+        vulnerable = total > 0 && standing == 0;
+    }
+    if (!vulnerable)
+    {
+        if (CheckAttribute(captain, "GreatRecipeBoardingApproach"))
+        {
+            DeleteAttribute(captain, "GreatRecipeBoardingApproach");
+            DeleteAttribute(captain, "Ship_SetTaskAbordage");
+            Ship_SetTaskAttack(SECONDARY_TASK, index, nMainCharacterIndex);
+        }
+        return;
+    }
+    captain.GreatRecipeBoardingApproach = true;
+    captain.Ship_SetTaskAbordage = true;
+    Ship_SetTaskAbordage(SECONDARY_TASK, index, nMainCharacterIndex);
+    // Reuse stock grappling reach/angle/speed; steering remains native and
+    // the player may escape or win the actual deck fight.
+    if (!CheckAttribute(captain, "SeaAI.Update.Ships")) return;
+    aref ships; makearef(ships, captain.SeaAI.Update.Ships);
+    float grappling = stf(captain.TmpSkill.Grappling);
+    float reach = Ship_CalcMaxAbordageDistance(grappling, Ship_CalcGrapplingPerk(captain));
+    float distance = Ship_GetDistance2D(captain, pchar) -
+        (stf(captain.Ship.BoxSize.x) + stf(pchar.Ship.BoxSize.x)) * 0.5;
+    if (distance >= reach) return;
+    for (int ship = 0; ship < GetAttributesNum(ships); ship++)
+    {
+        aref target = GetAttributeN(ships, ship);
+        if (sti(target.idx) != nMainCharacterIndex) continue;
+        if (abs(stf(target.d_ay)) >= Ship_CalcMaxAbordageAngle(grappling) ||
+            abs(stf(target.RelativeSpeed)) >= Ship_CalcMaxAbordageSpeed(grappling)) return;
+        pchar.GreatRecipe.Phase = "boarding";
+        GreatRecipe_Journal("Красный прилив сблизился с повреждённым флагманом. Люди Бороды бросают абордажные крючья.", false);
+        GreatRecipe_FirstBoarding("");
+        return;
+    }
+}
+
 void GreatRecipe_FirstBoarding(string unused)
 {
     if (GreatRecipe_Phase() != "boarding" || bAbordageStarted) return;
@@ -1528,6 +1644,13 @@ void GreatRecipe_FirstBoarding(string unused)
         return;
     }
     int index = GetCharacterIndex("GreatRecipeDreamBeard");
+    if (stf(pchar.Ship.HP) <= 1.0)
+    {
+        // Older saves preserved a destroyed hull at one HP for forced boarding.
+        // Recover that real loss without attempting to board the wreck.
+        GreatRecipe_BeginCapture(false);
+        return;
+    }
     pchar.GreatRecipe.BoardingStarted = true;
     LAi_SetImmortal(pchar, false);
     Sea_AbordageStartNow(SHIP_ABORDAGE, index, false, false);
@@ -1537,15 +1660,10 @@ bool GreatRecipe_ClaimHullDefeat(ref captain)
 {
     if (sti(captain.index) != nMainCharacterIndex) return false;
     if (GreatRecipe_Phase() != "whirlpool" && GreatRecipe_Phase() != "assault") return false;
-    // This hook runs only after real damage has reached zero: preserve the
-    // wreck long enough for stock enemy-initiated boarding, not a live HP floor.
-    captain.Ship.HP = 1.0;
-    pchar.GreatRecipe.Phase = "boarding";
-    GreatRecipe_ClearVortex(true);
-    Group_SetTaskNone("GreatRecipeSea");
-    LAi_SetImmortal(pchar, true);
-    GreatRecipe_Journal("Корпус разбит. Люди Бороды идут на абордаж.", false);
-    GreatRecipe_Delay("GreatRecipe_FirstBoarding", 0.1);
+    // Only actual lethal hull damage reaches this hook. Rescue is the loss
+    // continuation; boarding belongs to an afloat, nearby damaged flagship.
+    captain.Ship.HP = 0.0;
+    GreatRecipe_BeginCapture(false);
     return true;
 }
 
@@ -1630,16 +1748,20 @@ bool GreatRecipe_ClaimDeath(int index)
         return false;
     }
     if (index != nMainCharacterIndex || !GreatRecipe_Locked()) return false;
+    bool heroDead = LAi_IsDead(pchar);
+    GreatRecipe_RecoverHero();
     if (phase == "whirlpool" || phase == "assault" || phase == "boarding")
     {
         GreatRecipe_BeginCapture(false);
         return true;
     }
-    if (phase == "capturing") return true;
+    if (phase == "capturing") { GreatRecipe_RecoverHero(); return true; }
     if (phase == "captive")
     {
         if (CheckAttribute(pchar, "GreatRecipe.Fight.Active")) GreatRecipe_FightFinish(false);
         LAi_SetCurHPMax(pchar);
+        if (heroDead && sQuestNameAfterReload == "_")
+            DoQuestReloadToLocation("GreatRecipeHold", "goto", "goto3", "");
         return true;
     }
     if (phase == "returning") return true;
@@ -1913,7 +2035,11 @@ void GreatRecipe_OnLoad()
     }
     if (GreatRecipe_Phase() == "boarding" && !bAbordageStarted)
         GreatRecipe_Delay("GreatRecipe_FirstBoarding", 0.1);
-    if (GreatRecipe_Phase() == "capturing") GreatRecipe_Delay("GreatRecipe_Capture", 0.1);
+    if (GreatRecipe_Phase() == "capturing")
+    {
+        GreatRecipe_RecoverHero();
+        GreatRecipe_Delay("GreatRecipe_Capture", 0.1);
+    }
     int index = FindLoadedLocation();
     if (index >= 0) GreatRecipe_LocationLoaded(&Locations[index]);
     if (bSeaActive && bSeaLoaded) GreatRecipe_SeaReady();
@@ -1939,6 +2065,26 @@ void GreatRecipe_PreLoadActors()
 
 void GreatRecipe_Upgrade()
 {
+    string current = GreatRecipe_Phase();
+    if ((current == "search" || current == "whirlpool" || current == "assault" || current == "boarding") &&
+        CheckAttribute(pchar, "GreatRecipe.Version") && sti(pchar.GreatRecipe.Version) >= 2)
+    {
+        int boss = GetCharacterIndex("GreatRecipeDreamBeard");
+        if (boss >= 0)
+        {
+            ref bossCaptain = GetCharacter(boss);
+            if (CheckAttribute(bossCaptain, "Ship.GreatRecipeAirburstOnly") &&
+                !CheckAttribute(bossCaptain, "Ship.GreatRecipeHullScale") && !LAi_IsDead(bossCaptain))
+            {
+                // Version-two first bosses used 24x hull. Preserve their
+                // damage fraction, cargo and skills when lowering it to 8x.
+                ref ship = GetRealShip(sti(bossCaptain.Ship.Type));
+                ship.HP = stf(ship.HP) / 3.0;
+                bossCaptain.Ship.HP = stf(bossCaptain.Ship.HP) / 3.0;
+                bossCaptain.Ship.GreatRecipeHullScale = 8;
+            }
+        }
+    }
     if (GreatRecipe_Phase() == "" || (CheckAttribute(pchar, "GreatRecipe.Version") && sti(pchar.GreatRecipe.Version) >= 2)) return;
     string phase = GreatRecipe_Phase();
     if (phase == "lost" && CheckAttribute(pchar, "GreatRecipe.HuntTaken"))
@@ -1992,6 +2138,10 @@ void GreatRecipe_Pulse()
     float elapsed = stf(pchar.GreatRecipe.Elapsed);
     if (phase == "whirlpool" || phase == "assault")
     {
+        if (!CheckAttribute(pchar, "GreatRecipe.Vortex.Placed")) GreatRecipe_PlaceVortex();
+        if (GreatRecipe_Phase() != phase) return;
+        if (phase == "assault") GreatRecipe_BoardingApproach();
+        if (GreatRecipe_Phase() != phase) return;
         if (!CheckAttribute(&Sea, "Whirlpool.Age"))
         {
             PostEvent("GreatRecipePulse", 500, "l", generation);

@@ -19,17 +19,17 @@
 @@ -676,13 +678,25 @@
      const int32_t iSize = static_cast<int32_t>(dwMaxDim >> iLev);
      const float fGSize = fGridStep * iSize;
- 
+
 -    const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize, -fMaxSeaHeight / 2.0f, iTY * fGSize);
 -    const CVECTOR v2 = v1 + CVECTOR(fGSize, fMaxSeaHeight + tsunami.HeightBound(), fGSize);
 +    const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
 +        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound(), iTY * fGSize);
 +    const CVECTOR v2 = v1 + CVECTOR(fGSize,
 +        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound(), fGSize);
- 
+
      if (!isVisibleBBox(vSeaCenterPos, v1, v2))
          return;
- 
+
      CalculateLOD(v1, v2, iMaxLOD, iMinLOD);
 +    const auto &vortex = whirlpool.Frame();
 +    if (vortex.active && vortex.envelope > 0.f) {
@@ -38,10 +38,10 @@
 +        if (std::hypot(nearX - vortex.centerX, nearZ - vortex.centerZ) < vortex.radius) {
 +            const int localLOD = std::max(4, static_cast<int>(std::ceil(std::log2(vortex.radius / (48.f * fGridStep)))));
 +            iMinLOD = std::min(iMinLOD, localLOD);
-+            if (fGSize <= vortex.radius * .5f) iMaxLOD = iMinLOD;
++            if (fGSize <= vortex.radius * .5f) iMaxLOD = std::min(iMaxLOD, localLOD);
 +        }
 +    }
- 
+
      if (iSize <= static_cast<int32_t>(dwMinDim) || iMaxLOD - iMinLOD <= 1)
      {
 @@ -703,18 +717,19 @@
@@ -83,12 +83,30 @@
 @@ -980,7 +995,7 @@
          *pNormal = vNormal;
      }
- 
+
 -    if (tsunami.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
 +    if (tsunami.Frame().active || whirlpool.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
      return fRes;
  }
- 
+
+@@ -1036,7 +1051,7 @@
+                         pIndices[iAddDst + j] = pIndices[iAddSrc + iStartSrcX + (j - iStartDstX)];
+                 else
+                     for (j = iStartDstX; j <= iEndDstX; j++)
+-                        pIndices[iAddDst + j] = pIndices[iAddSrc + iStartSrcX + (j - iStartDstX) / 2];
++                        pIndices[iAddDst + j] = pIndices[iAddSrc + iStartSrcX + ((j - iStartDstX) >> (pB2->iLOD - pB->iLOD))];
+
+                 continue;
+             }
+@@ -1069,7 +1084,7 @@
+                 else
+                     for (j = iStartDstY; j <= iEndDstY; j++)
+                         pIndices[iAddDst + j * (pB->iSize0 + 1)] =
+-                            pIndices[iAddSrc + (iStartSrcY + (j - iStartDstY) / 2) * (pB2->iSize0 + 1)];
++                            pIndices[iAddSrc + (iStartSrcY + ((j - iStartDstY) >> (pB2->iLOD - pB->iLOD))) * (pB2->iSize0 + 1)];
+             }
+         }
+     }
 @@ -1268,8 +1283,9 @@
              pVSea[dwVIndex].tu = (cx - vNormal.x * 5.3f) * fBumpScale;
              pVSea[dwVIndex].tv = (cz - vNormal.z * 5.3f) * fBumpScale;
@@ -98,18 +116,22 @@
 +            const auto vortexSample = GetWhirlpoolSample(cx, cz);
 +            pVSea[dwVIndex].eventMaterial[0] = std::max(eventSample.height / eventSample.amplitude, vortexSample.load);
 +            pVSea[dwVIndex].eventMaterial[1] = std::max(eventSample.foam, vortexSample.foam);
- 
+
              iIStart1++;
          }
-@@ -1415,7 +1431,7 @@
-     if (vCamPos.y < 0.0f)
+@@ -1412,10 +1428,10 @@
+
+     bUnderSea = false;
+
+-    if (vCamPos.y < 0.0f)
++    if (vCamPos.y < 0.0f && !whirlpool.Frame().active)
          bUnderSea = true;
- 
+
 -    if (vCamPos.y < (tsunami.Frame().active ? WaveXZ(vCamPos.x, vCamPos.z) :
 +    if (vCamPos.y < ((tsunami.Frame().active || whirlpool.Frame().active) ? WaveXZ(vCamPos.x, vCamPos.z) :
                                              WaveXZ(vCamPos.x, vCamPos.z && bStarted)))
          bUnderSea = true;
- 
+
 @@ -1626,7 +1642,12 @@
          rs->SetVertexShaderConstantF(241, (const float *)&eventOrigin, 1);
          rs->SetVertexShaderConstantF(242, (const float *)&eventFront, 1);
@@ -150,13 +172,13 @@
 +            rs->DrawRects(debris, debrisCount, "seatrash", 2, 2);
 +        }
 +    }
- 
+
      if (bUnderSea && bUnderSeaEnable)
      {
 @@ -1902,6 +1945,37 @@
      return fRes;
  }
- 
+
 +void SEA::PublishWhirlpool()
 +{
 +    if (!ATTRIBUTES::IsLive(AttributesPointer)) return;
@@ -225,7 +247,7 @@
 @@ -1984,6 +2082,30 @@
      ATTRIBUTES *pParent = pAttribute->GetParent();
      ATTRIBUTES *pParent2 = (pParent) ? pParent->GetParent() : nullptr;
- 
+
 +    if (pParent && pParent2 == AttributesPointer && *pParent == "Whirlpool") {
 +        if (*pAttribute == "Clear" && pAttribute->GetAttributeAsDword() != 0) ResetWhirlpool();
 +        if (*pAttribute == "Start") {
@@ -260,7 +282,7 @@
 +    ResetWhirlpool();
      rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
                        &pRenderTargetBumpMap);
- 
+
 --- a/src/libs/sea/src/sea.h
 +++ b/src/libs/sea/src/sea.h
 @@ -75,6 +75,13 @@
@@ -280,7 +302,7 @@
 @@ -226,6 +233,11 @@
          return EvaluateSeaTsunami(tsunami.Frame(), x, z);
      }
- 
+
 +    SeaWhirlpoolSample GetWhirlpoolSample(float x, float z) const override
 +    {
 +        return EvaluateSeaWhirlpool(whirlpool.Frame(), x, z);
@@ -305,11 +327,11 @@
 --- a/src/libs/sea/include/sea_base.h
 +++ b/src/libs/sea/include/sea_base.h
 @@ -2,10 +2,12 @@
- 
+
  #include "cannon_trace.h"
  #include "shared/sea_tsunami.hpp"
 +#include "shared/sea_whirlpool.hpp"
- 
+
  class SEA_BASE : public CANNON_TRACE_BASE
  {
    public:
@@ -319,10 +341,10 @@
  };
 --- a/src/libs/ship/src/ship.cpp
 +++ b/src/libs/ship/src/ship.cpp
-@@ -467,17 +467,47 @@
+@@ -467,21 +467,60 @@
      return local;
  }
- 
+
 +float SHIP::WhirlpoolControl()
 +{
 +    auto *character = GetACharacter();
@@ -360,7 +382,7 @@
 -    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false);
 +    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false) + WhirlpoolDriftSpeed();
 +    const float eventYaw = WhirlpoolYawSpeed();
- 
+
      if (pTPOld)
      {
          pTPOld->vSpeed = State.vSpeed + eventSpeed;
@@ -369,7 +391,20 @@
          pTPOld->vPos = State.vPos;
          pTPOld->vAng = State.vAng;
          pTPOld->vPos.x += fXOffset;
-@@ -489,7 +519,7 @@
+         pTPOld->vPos.z += fZOffset;
++        const auto emergence = SeaEmergencePose(0.f);
++        pTPOld->vPos.y += emergence.height;
++        pTPOld->vAng.x += emergence.pitch;
++        pTPOld->vAng.z += emergence.roll;
++        pTPOld->vSpeed.y += emergence.velocity;
++        if (emergenceQueryActive) {
++            pTPOld->vPos = GetPos();
++            pTPOld->vAng = GetAng();
++        }
+     }
+
+     Move(DeltaTime, true);
+@@ -489,11 +528,16 @@
      if (pTPNew)
      {
          pTPNew->vSpeed = State.vSpeed + eventSpeed;
@@ -378,7 +413,16 @@
          pTPNew->vPos = State.vPos;
          pTPNew->vAng = State.vAng;
          pTPNew->vPos.x += fXOffset;
-@@ -505,8 +535,10 @@
+         pTPNew->vPos.z += fZOffset;
++        const auto emergence = SeaEmergencePose(DELTA_TIME(DeltaTime));
++        pTPNew->vPos.y += emergence.height;
++        pTPNew->vAng.x += emergence.pitch;
++        pTPNew->vAng.z += emergence.roll;
++        pTPNew->vSpeed.y += emergence.velocity;
+     }
+
+     State = old_state;
+@@ -505,8 +549,10 @@
  {
      const auto dtime = DELTA_TIME(DeltaTime);
      ApplyStrength(dtime, bCollision);
@@ -390,15 +434,15 @@
      if (!bCollision && !isDead())
      {
          State.vAng = ShipRocking(dtime);
-@@ -551,6 +583,7 @@
+@@ -551,6 +597,7 @@
      // Only grounding mutates translational velocity after the temporary current.
      // Its zero velocity is authoritative; never subtract a stale current from it.
      if (bCollision || !bGroundMoveBlocked) State.vSpeed -= eventSpeed;
 +    State.vRotate.y -= eventYaw;
      return true;
  }
- 
-@@ -785,7 +818,9 @@
+
+@@ -785,7 +832,9 @@
      {
          const auto pos = GetPos();
          const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
@@ -409,7 +453,7 @@
          {
              // Match this frame's sampled buoyancy and drift before event rotation.
              vPos = State.vPos;
-@@ -803,6 +838,11 @@
+@@ -803,6 +852,11 @@
          tsunamiMotion.Update(sample, head, beam, protection, fDeltaTime);
          vAng.x += tsunamiMotion.pitch;
          vAng.z += tsunamiMotion.roll;
@@ -419,49 +463,256 @@
 +        vAng.x += whirlpoolMotion.pitch;
 +        vAng.z += whirlpoolMotion.roll;
      }
- 
+
      auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
-@@ -2352,6 +2392,7 @@
+@@ -905,30 +959,13 @@
+     {
+     }
+
+-    // set attributes for script
+-    auto *pAPos = GetACharacter()->FindAClass(GetACharacter(), "ship.pos");
+-    auto *pAAng = GetACharacter()->FindAClass(GetACharacter(), "ship.ang");
+-    if (!pAPos)
+-    {
+-        pAPos = GetACharacter()->CreateSubAClass(GetACharacter(), "ship.pos");
+-        Assert(pAPos);
+-    }
+-    if (!pAAng)
+-    {
+-        pAAng = GetACharacter()->CreateSubAClass(GetACharacter(), "ship.ang");
+-        Assert(pAAng);
+-    }
+-    pAPos->SetAttributeUseFloat("x", State.vPos.x + fXOffset);
+-    pAPos->SetAttributeUseFloat("y", State.vPos.y);
+-    pAPos->SetAttributeUseFloat("z", State.vPos.z + fZOffset);
+-    pAAng->SetAttributeUseFloat("x", State.vAng.x);
+-    pAAng->SetAttributeUseFloat("y", State.vAng.y);
+-    pAAng->SetAttributeUseFloat("z", State.vAng.z);
++    PublishShipPose();
+
+     // check strand
+     if (!bDead && bKeelContour)
+         CheckShip2Strand(fDeltaTime);
+
++    ApplySeaEmergence(fDeltaTime);
+     RecalculateWorldOffset();
+     mRoot = CMatrix(vAng.x + vCurDeadDir.x, vAng.y, vAng.z + vCurDeadDir.z, vPos.x + fXOffset,
+                     vPos.y - State.fShipImmersion - SP.fWaterLine, vPos.z + fZOffset);
+@@ -1919,6 +1956,17 @@
+     pABox->SetAttributeUseFloat("z", State.vRealBoxSize.z);
+
+     bMounted = true;
++    if (auto *entry = GetACharacter()->FindAClass(GetACharacter(), "Ship.SeaEmergence")) {
++        if (entry->GetAttributeAsDword("Active", 0)) {
++            vPos = State.vPos;
++            vAng = State.vAng;
++            ApplySeaEmergence(0.f);
++            mRoot = CMatrix(vAng.x, vAng.y, vAng.z, vPos.x + fXOffset,
++                vPos.y - State.fShipImmersion - SP.fWaterLine, vPos.z + fZOffset);
++            SetMatrix(mRoot);
++            UpdateModelMatrix();
++        }
++    }
+     return true;
+ }
+
+@@ -2221,12 +2269,13 @@
+
+ CVECTOR SHIP::GetAng() const
+ {
+-    return State.vAng;
++    return emergenceQueryActive ? State.vAng + emergenceQueryAngles : State.vAng;
+ }
+
+ CVECTOR SHIP::GetPos() const
+ {
+-    return CVECTOR(State.vPos.x + fXOffset, State.vPos.y, State.vPos.z + fZOffset);
++    const auto position = emergenceQueryActive ? State.vPos + emergenceQueryPosition : State.vPos;
++    return CVECTOR(position.x + fXOffset, position.y, position.z + fZOffset);
+ }
+
+ void SHIP::SetPos(const CVECTOR &vNewPos)
+@@ -2352,6 +2401,10 @@
  {
      uint32_t i;
      tsunamiDrift.Reset();
 +    whirlpoolMotion.Reset();
- 
++    emergenceSerial = 0;
++    emergenceQueryActive = false;
++    emergenceQueryPosition = emergenceQueryAngles = CVECTOR(0.f);
+
      SetACharacter(pSL->LoadAPointer("character"));
      pAShip = pSL->LoadAPointer("ship");
+@@ -2424,6 +2477,18 @@
+         pHulls[i].fDamage = pSL->LoadFloat();
+     }
+
++    if (auto *entry = GetACharacter()->FindAClass(GetACharacter(), "Ship.SeaEmergence")) {
++        if (entry->GetAttributeAsDword("Active", 0)) {
++            vPos = State.vPos;
++            vAng = State.vAng;
++            ApplySeaEmergence(0.f);
++            mRoot = CMatrix(vAng.x, vAng.y, vAng.z, vPos.x + fXOffset,
++                vPos.y - State.fShipImmersion - SP.fWaterLine, vPos.z + fZOffset);
++            SetMatrix(mRoot);
++            UpdateModelMatrix();
++        }
++    }
++
+     uint32_t dwNum = pSL->LoadDword();
+     for (i = 0; i < dwNum; i++)
+     {
+@@ -2441,3 +2506,111 @@
+     bSetFixed = _bSetFixed;
+     fFixedSpeed = _fFixedSpeed;
+ }
++
++SeaShipEmergenceSample SHIP::SeaEmergencePose(float seconds)
++{
++    auto *character = GetACharacter();
++    auto *entry = character ? character->FindAClass(character, "Ship.SeaEmergence") : nullptr;
++    if (!entry || !entry->GetAttributeAsDword("Active", 0)) return {};
++    seconds = std::clamp(seconds, 0.f, .1f);
++    if (entry->GetAttribute("CancelAge")) {
++        SeaShipEmergenceSample start;
++        start.height = entry->GetAttributeAsFloat("CancelHeight");
++        start.velocity = entry->GetAttributeAsFloat("CancelVelocity");
++        start.pitch = entry->GetAttributeAsFloat("CancelPitch");
++        start.roll = entry->GetAttributeAsFloat("CancelRoll");
++        return SettleSeaShipEmergence(entry->GetAttributeAsFloat("CancelAge") + seconds, start);
++    }
++    return EvaluateSeaShipEmergence(entry->GetAttributeAsFloat("Age") + seconds,
++        entry->GetAttributeAsFloat("Duration", 6.35f), entry->GetAttributeAsFloat("Depth", 30.f));
++}
++
++void SHIP::PublishShipPose()
++{
++    auto *pAPos = GetACharacter()->FindAClass(GetACharacter(), "ship.pos");
++    auto *pAAng = GetACharacter()->FindAClass(GetACharacter(), "ship.ang");
++    if (!pAPos) {
++        pAPos = GetACharacter()->CreateSubAClass(GetACharacter(), "ship.pos");
++        Assert(pAPos);
++    }
++    if (!pAAng) {
++        pAAng = GetACharacter()->CreateSubAClass(GetACharacter(), "ship.ang");
++        Assert(pAAng);
++    }
++    const auto position = GetPos(), angles = GetAng();
++    pAPos->SetAttributeUseFloat("x", position.x);
++    pAPos->SetAttributeUseFloat("y", position.y);
++    pAPos->SetAttributeUseFloat("z", position.z);
++    pAAng->SetAttributeUseFloat("x", angles.x);
++    pAAng->SetAttributeUseFloat("y", angles.y);
++    pAAng->SetAttributeUseFloat("z", angles.z);
++}
++
++void SHIP::ApplySeaEmergence(float seconds)
++{
++    const bool wasEmerging = emergenceQueryActive;
++    emergenceQueryActive = false;
++    auto *character = GetACharacter();
++    auto *entry = character ? character->FindAClass(character, "Ship.SeaEmergence") : nullptr;
++    if (!entry || !entry->GetAttributeAsDword("Active", 0)) {
++        if (wasEmerging) PublishShipPose();
++        return;
++    }
++    if (isDead()) {
++        entry->SetAttributeUseDword("Active", 0);
++        entry->SetAttributeUseFloat("Splash", 0.f);
++        if (wasEmerging) PublishShipPose();
++        return;
++    }
++    float age = entry->GetAttributeAsFloat("Age"), duration = entry->GetAttributeAsFloat("Duration", 6.35f);
++    if (!std::isfinite(age) || !std::isfinite(duration) || age < 0.f || duration <= 0.f || age >= duration) {
++        entry->SetAttributeUseDword("Active", 0);
++        entry->SetAttributeUseFloat("Splash", 0.f);
++        if (wasEmerging) PublishShipPose();
++        return;
++    }
++    duration = std::clamp(duration, 3.f, 15.f);
++    entry->SetAttributeUseFloat("Duration", duration);
++    if (!entry->GetAttribute("Depth"))
++        entry->SetAttributeUseFloat("Depth", std::max(20.f, State.vRealBoxSize.y + 5.f));
++    const auto position = GetPos();
++    const auto wave = pSea ? pSea->GetWhirlpoolSample(position.x, position.z) : SeaWhirlpoolSample{};
++    if (!entry->GetAttribute("CancelAge") && (entry->GetAttributeAsDword("Clear", 0) ||
++        (emergenceSerial != 0 && wave.serial != emergenceSerial))) {
++        const auto pose = SeaEmergencePose(0.f);
++        entry->SetAttributeUseFloat("CancelAge", 0.f);
++        entry->SetAttributeUseFloat("CancelHeight", pose.height);
++        entry->SetAttributeUseFloat("CancelVelocity", pose.velocity);
++        entry->SetAttributeUseFloat("CancelPitch", pose.pitch);
++        entry->SetAttributeUseFloat("CancelRoll", pose.roll);
++    }
++    if (emergenceSerial == 0 && wave.serial != 0) emergenceSerial = wave.serial;
++    seconds = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
++    const bool cancelling = entry->GetAttribute("CancelAge") != nullptr;
++    if (cancelling)
++        entry->SetAttributeUseFloat("CancelAge", std::min(1.5f, entry->GetAttributeAsFloat("CancelAge") + seconds));
++    else
++        entry->SetAttributeUseFloat("Age", std::min(duration, age + seconds));
++    const auto pose = SeaEmergencePose(0.f);
++    vPos.x = State.vPos.x;
++    vPos.y = State.vPos.y + pose.height;
++    vPos.z = State.vPos.z;
++    vAng.y = State.vAng.y;
++    vAng.x += pose.pitch;
++    vAng.z += pose.roll;
++    entry->SetAttributeUseFloat("Offset", pose.height);
++    entry->SetAttributeUseFloat("Velocity", pose.velocity);
++    entry->SetAttributeUseFloat("Pitch", pose.pitch);
++    entry->SetAttributeUseFloat("Roll", pose.roll);
++    entry->SetAttributeUseFloat("Splash", pose.splash);
++    if ((cancelling && entry->GetAttributeAsFloat("CancelAge") >= 1.5f) ||
++        (!cancelling && entry->GetAttributeAsFloat("Age") >= duration)) {
++        entry->SetAttributeUseFloat("Age", duration);
++        entry->SetAttributeUseDword("Active", 0);
++    }
++    // Query the exact visible live pose without adding it to saved buoyancy.
++    emergenceQueryActive = entry->GetAttributeAsDword("Active", 0) != 0;
++    emergenceQueryPosition = vPos - State.vPos;
++    emergenceQueryAngles = vAng - State.vAng;
++    PublishShipPose();
++}
 --- a/src/libs/ship/src/ship.h
 +++ b/src/libs/ship/src/ship.h
-@@ -115,6 +115,7 @@
+@@ -115,6 +115,10 @@
      CVECTOR vDeadDir, vCurDeadDir;
      SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
      SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
 +    SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
++    unsigned emergenceSerial = 0; // rebound to the restored field, never serialized
++    bool emergenceQueryActive = false;
++    CVECTOR emergenceQueryPosition = CVECTOR(0.f), emergenceQueryAngles = CVECTOR(0.f);
      CVECTOR vKeelContour[MAX_KEEL_POINTS];
      int32_t iNumMasts;
      int32_t iNumHulls;
-@@ -145,6 +146,9 @@
+@@ -145,6 +149,12 @@
      BOOL ApplyStrength(float dtime, BOOL bCollision);
      float TsunamiProtection();
      CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
 +    float WhirlpoolControl();
 +    CVECTOR WhirlpoolDriftSpeed();
 +    float WhirlpoolYawSpeed();
++    SeaShipEmergenceSample SeaEmergencePose(float seconds);
++    void ApplySeaEmergence(float seconds);
++    void PublishShipPose();
      BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate);
      void CalculateImmersion(); //
      void CheckShip2Strand(float fDeltaTime);
 --- a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
 +++ b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
 @@ -3,6 +3,7 @@
- 
+
  //
  #define SEA_GET_LAYERS "SeaGetLayers"
 +#define MSG_SEA_WHIRLPOOL_CONTACT 50204 // "lae": character; cumulative fraction of maximum hull, capped .5
  #define MSG_SEA_TSUNAMI_CONTACT 50202 // "laeeee": character; exposure, damage fraction, capsize int, signed beam
  #define MSG_SEA_TSUNAMI_SHORE_SPLASH 50203 // "llfffffff": serial; hit xyz, seaward xyz, strength; serial0 clears owned pool
- 
+
 --- a/src/libs/shared_headers/include/shared/sea_whirlpool.hpp
 +++ b/src/libs/shared_headers/include/shared/sea_whirlpool.hpp
-@@ -0,0 +1,228 @@
+@@ -0,0 +1,290 @@
 +#pragma once
 +#include <algorithm>
 +#include <cmath>
@@ -690,3 +941,140 @@
 +        roll += (std::clamp(beamSlope * .15f - sample.load * .10f, -.24f, .24f) * protection - roll) * blend;
 +    }
 +};
++
++
++struct SeaShipEmergenceSample
++{
++    float height = 0.f, velocity = 0.f, pitch = 0.f, roll = 0.f, splash = 0.f;
++};
++
++inline float SeaShipHermite(float u, float p, float v, float duration)
++{
++    return (2.f*u*u*u - 3.f*u*u + 1.f)*p + (u*u*u - 2.f*u*u + u)*duration*v;
++}
++inline float SeaShipHermiteVelocity(float u, float p, float v, float duration)
++{
++    return (6.f*u*u - 6.f*u)*p/duration + (3.f*u*u - 4.f*u + 1.f)*v;
++}
++
++// One finite vertical impulse relative to ordinary, displaced-water buoyancy.
++// Hermite entry/return match the ballistic segment's position and velocity.
++inline SeaShipEmergenceSample EvaluateSeaShipEmergence(float age, float duration, float depth)
++{
++    if (!std::isfinite(age) || !std::isfinite(duration) || !std::isfinite(depth) ||
++        duration <= 0.f || age < 0.f || age >= duration || depth <= 0.f) return {};
++    constexpr float launch = 14.f, gravity = 9.81f, entry = 2.f, settle = 1.5f;
++    constexpr float flight = 2.f*launch/gravity, total = entry + flight + settle;
++    const float scale = total/duration, time = age*scale;
++    SeaShipEmergenceSample sample;
++    if (time < entry) {
++        const float u = time/entry;
++        sample.height = SeaShipHermite(u, -depth, 0.f, entry) +
++            (u*u*u-u*u)*entry*launch;
++        sample.velocity = SeaShipHermiteVelocity(u, -depth, 0.f, entry) +
++            (3.f*u*u-2.f*u)*launch;
++        sample.pitch = .31415927f*u*u*(3.f-2.f*u);
++    } else if (time < entry + flight) {
++        const float t = time-entry;
++        sample.height = launch*t - .5f*gravity*t*t;
++        sample.velocity = launch-gravity*t;
++        sample.pitch = .31415927f*std::cos(3.14159265f*t/flight);
++    } else {
++        const float u = (time-entry-flight)/settle;
++        sample.height = SeaShipHermite(u, 0.f, -launch, settle);
++        sample.velocity = SeaShipHermiteVelocity(u, 0.f, -launch, settle);
++        sample.pitch = -.31415927f*(1.f-u*u*(3.f-2.f*u));
++    }
++    sample.velocity *= scale;
++    const float u = time/total;
++    sample.roll = .17453293f*std::sin(6.2831853f*u)*std::sin(3.14159265f*u);
++    const float wet = std::clamp((10.f-std::abs(sample.height))/6.f,0.f,1.f);
++    const float impact = std::clamp((std::abs(sample.velocity)-3.f)/6.f,0.f,1.f);
++    sample.splash = wet*wet*(3.f-2.f*wet)*impact*impact*(3.f-2.f*impact);
++    return sample;
++}
++
++inline SeaShipEmergenceSample SettleSeaShipEmergence(float age, SeaShipEmergenceSample start)
++{
++    if (!std::isfinite(age) || !std::isfinite(start.height) || !std::isfinite(start.velocity) ||
++        !std::isfinite(start.pitch) || !std::isfinite(start.roll) || age < 0.f || age >= 1.5f) return {};
++    const float u = age/1.5f, decay = 1.f-u*u*(3.f-2.f*u);
++    return {SeaShipHermite(u,start.height,start.velocity,1.5f),
++        SeaShipHermiteVelocity(u,start.height,start.velocity,1.5f),
++        start.pitch*decay,start.roll*decay,0.f};
++}
+--- a/src/libs/sea_foam/src/seafoam.cpp
++++ b/src/libs/sea_foam/src/seafoam.cpp
+@@ -111,6 +111,9 @@
+     foamInfo->previousBowY = 0.f;
+     foamInfo->previousBowValid = false;
+     foamInfo->tsunamiSerial = 0;
++    foamInfo->whirlpoolSerial = 0;
++    foamInfo->emergenceGeneration = 0;
++    foamInfo->emergenceSplashOwned = false;
+ }
+
+ //--------------------------------------------------------------------
+@@ -414,6 +417,20 @@
+
+     const auto bow = _shipFoamInfo.shipModel->mtx * frontEmitterPos;
+     const auto wave = sea->GetTsunamiSample(bow.x, bow.z);
++    const auto vortex = sea->GetWhirlpoolSample(bow.x, bow.z);
++    auto *character = _shipFoamInfo.ship->GetACharacter();
++    auto *emergence = character ? character->FindAClass(character, "Ship.SeaEmergence") : nullptr;
++    const bool emerging = emergence && emergence->GetAttributeAsDword("Active", 0) != 0;
++    const float entrySplash = emerging ? std::clamp(emergence->GetAttributeAsFloat("Splash"), 0.f, 1.f) : 0.f;
++    const unsigned generation = emergence ? emergence->GetAttributeAsDword("Generation", 0) : 0;
++    if (generation != _shipFoamInfo.emergenceGeneration ||
++        (vortex.serial == 0 && _shipFoamInfo.whirlpoolSerial != 0)) {
++        if (_shipFoamInfo.emergenceSplashOwned && wave.serial == 0)
++            _shipFoamInfo.frontEmitter[2]->ClearParticles();
++        _shipFoamInfo.emergenceSplashOwned = false;
++    }
++    _shipFoamInfo.emergenceGeneration = generation;
++    _shipFoamInfo.whirlpoolSerial = vortex.serial;
+     if (wave.serial != _shipFoamInfo.tsunamiSerial)
+     {
+         _shipFoamInfo.tsunamiSerial = wave.serial;
+@@ -428,19 +445,26 @@
+     if (waveSplash) _shipFoamInfo.tsunamiSplashOwned = true;
+     _shipFoamInfo.previousBowY = frontEmitterPos.y;
+     _shipFoamInfo.previousBowValid = true;
+-    _shipFoamInfo.doSplash = stormSplash || waveSplash;
++    const bool emergenceSplash = _dTime > 0 && entrySplash > 0.f;
++    if (emergenceSplash) _shipFoamInfo.emergenceSplashOwned = true;
++    _shipFoamInfo.doSplash = stormSplash || waveSplash || emergenceSplash;
++    _shipFoamInfo.frontEmitter[2]->SetSplashScale(emergenceSplash ? 1.f + 2.f * entrySplash : 1.f);
+     _shipFoamInfo.frontEmitter[2]->EnableEmit(_shipFoamInfo.doSplash);
+-    if (isStorm || wave.serial != 0)
++    if (isStorm || wave.serial != 0 || _shipFoamInfo.emergenceSplashOwned)
+     {
+         auto mtx2 = _shipFoamInfo.shipModel->mtx;
+         mtx2.Pos() = 0.f;
+         const auto a = waveSplash ? !CVECTOR(-wave.slopeX, 1.f, -wave.slopeZ) :
+                                    mtx2 * CVECTOR(0.f, 1.0f, -.15f);
+-        _shipFoamInfo.frontEmitter[2]->SetEmitter(bow, a);
++        auto emitter = bow;
++        if (emergenceSplash) emitter.y = sea->WaveXZ(emitter.x, emitter.z) + .5f;
++        _shipFoamInfo.frontEmitter[2]->SetEmitter(emitter, a);
+         _shipFoamInfo.frontEmitter[2]->Realize(_dTime);
+     }
+
+-    if (soundService && (_shipFoamInfo.doSplash))
++    // Vortex/entry motion is flowing water, not a repeated bow impact.
++    // The ordinary storm producer and real collision/cannon aliases stay owned.
++    if (soundService && _shipFoamInfo.doSplash && vortex.serial == 0 && !emerging)
+     {
+         auto pos = _shipFoamInfo.shipModel->mtx * CVECTOR(0.f, 0.f, _shipFoamInfo.hullInfo.boxsize.z / 2.f);
+         pos.y = sea->WaveXZ(pos.x, pos.z);
+--- a/src/libs/sea_foam/src/seafoam.h
++++ b/src/libs/sea_foam/src/seafoam.h
+@@ -39,6 +39,8 @@
+     bool previousBowValid = false;
+     unsigned tsunamiSerial = 0;
+     bool tsunamiSplashOwned = false;
++    unsigned whirlpoolSerial = 0, emergenceGeneration = 0;
++    bool emergenceSplashOwned = false;
+ };
+
+ class SEAFOAM : public Entity

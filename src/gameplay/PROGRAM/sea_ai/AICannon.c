@@ -109,9 +109,20 @@ float Cannon_GetFireAccuracy()
 	return Ball_GetAccuracy(aCharacter);
 }
 
+float Cannon_EffectiveCrew(aref aCharacter)
+{
+	float duty = 0.0;
+	if (CheckAttribute(aCharacter, "Ship.FireState.duty")) duty = stf(aCharacter.Ship.FireState.duty);
+	if (duty < 0.0) duty = 0.0;
+	if (duty > 0.48) duty = 0.48;
+	return GetCrewQuantity(aCharacter) * (1.0 - duty);
+}
+
 float Cannon_GetRakeCrewQuality(aref aCharacter)
 {
 	float quality = GetCrewExp(aCharacter, "Cannoners") / GetCrewExpRate();
+	float actualCrew = GetCrewQuantity(aCharacter);
+	if (actualCrew > 0.0) quality *= Cannon_EffectiveCrew(aCharacter) / actualCrew;
 	if (quality < 0.0) { quality = 0.0; }
 	if (quality > 1.0) { quality = 1.0; }
 	return 0.1 + 0.9 * quality;
@@ -212,7 +223,7 @@ float Cannon_GetFireHeight()
 	ref rShooterShip = GetRealShip(sti(aCharacter.Ship.Type));
 	if (!CheckAttribute(rShooterShip, "isFort") || !sti(rShooterShip.isFort))
 	{
-		float fCrewQty = GetCrewQuantity(aCharacter);
+		float fCrewQty = Cannon_EffectiveCrew(aCharacter);
 		float fOptCrew = GetOptCrewQuantity(aCharacter);
 		if (fOptCrew > 0.0)
 		{
@@ -264,7 +275,7 @@ float Cannon_GetRechargeTime()
 		    fReloadTime -= MOD_SKILL_ENEMY_RATE; // -10c на невозможном
 		}
 		// boal <--
-		float crewQty  = GetCrewQuantity(aCharacter);
+		float crewQty  = Cannon_EffectiveCrew(aCharacter);
 	    float OptCrew  = GetOptCrewQuantity(aCharacter); 
 	    float MaxCrew  = GetMaxCrewQuantity(aCharacter); 
 	    float fMorale  = GetCharacterCrewMorale(aCharacter); 
@@ -301,7 +312,7 @@ float Cannon_SalvoWindow(aref aCharacter)
 	float fCannonSkill = stf(aCharacter.TmpSkill.Cannons);
 	if (fCannonSkill < 0.0) fCannonSkill = 0.0;
 	if (fCannonSkill > 1.0) fCannonSkill = 1.0;
-	float crewQ   = GetCrewQuantity(aCharacter);
+	float crewQ   = Cannon_EffectiveCrew(aCharacter);
 	float crewMax = stf(refBaseShip.MaxCrew);
 	float crewOpt = stf(refBaseShip.OptCrew);
 	if (crewMax < crewQ) crewQ = crewMax;

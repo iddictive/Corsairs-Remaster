@@ -82,6 +82,8 @@ void DeleteShipEnvironment()
 	DelEventHandler(SHIP_DETONATE_SMALL, "Ship_DetonateSmall");
 	DelEventHandler(SHIP_BRANDER_DETONATE, "Ship_BranderDetonate");
 	DelEventHandler(SHIP_FIRE_DAMAGE, "Ship_FireDamage");
+	DelEventHandler("Ship_FireContext", "Ship_FireContext");
+	DelEventHandler("Ship_FireStep", "Ship_FireStep");
 	DelEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext");
 	DelEventHandler(SHIP_BORT_RELOADED, "Ship_OnBortReloaded");
 	DelEventHandler(SHIP_ACTIVATE_FIRE_PLACE, "Ship_ActivateFirePlace");
@@ -178,6 +180,8 @@ void CreateShipEnvironment()
 	SetEventHandler(SHIP_SHIP2SHIP_COLLISION, "Ship_Ship2ShipCollision", 0);
 	SetEventHandler(SHIP_SAIL_DAMAGE, "Ship_SailDamage", 0);
 	SetEventHandler(SHIP_FIRE_DAMAGE, "Ship_FireDamage", 0);
+	SetEventHandler("Ship_FireContext", "Ship_FireContext", 0);
+	SetEventHandler("Ship_FireStep", "Ship_FireStep", 0);
 	SetEventHandler(SHIP_CHECK_SITUATION, "Ship_CheckSituation", 0);
 	SetEventHandler(SHIP_TO_STRAND, "Ship_OnStrand", 0);
 	SetEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext", 0);
@@ -2618,6 +2622,27 @@ int Ship_GetCurrentBallsNum()
 	return GetCargoGoods(aCharacter,sti(aCharacter.Ship.Cannons.Charge.Type));
 }
 
+float Ship_FireIgnitionChance(int attackerIndex, int ballType, bool critical)
+{
+	// A critical supersedes the ordinary shell chance; callers roll only once.
+	if (!critical)
+	{
+		if (ballType == GOOD_BOMBS) return 0.005;
+		return 0.0;
+	}
+	if (attackerIndex < 0) return 0.10;
+	ref attacker = GetCharacter(attackerIndex);
+	float accuracy = 0.0;
+	float cannons = 0.0;
+	if (CheckAttribute(attacker, "TmpSkill.Accuracy")) accuracy = Clampf(stf(attacker.TmpSkill.Accuracy));
+	if (CheckAttribute(attacker, "TmpSkill.Cannons")) cannons = Clampf(stf(attacker.TmpSkill.Cannons));
+	float chance = 0.10 + 0.05 * accuracy + 0.05 * cannons;
+	if (CheckAttribute(attacker, "TmpPerks.CriticalShoot") && sti(attacker.TmpPerks.CriticalShoot)) chance += 0.025;
+	if (CheckAttribute(attacker, "TmpPerks.CannonProfessional") && sti(attacker.TmpPerks.CannonProfessional)) chance += 0.025;
+	if (chance > 0.25) chance = 0.25;
+	return chance;
+}
+
 void Ship_SailDamage()
 {
 	float x, y, z;
@@ -2625,6 +2650,7 @@ void Ship_SailDamage()
 	x = GetEventData();
 	y = GetEventData();
 	z = GetEventData();
+	int iBallOwner = GetEventData();
 
 	string sSound;
 	int	iBallType = sti(AIBalls.CurrentBallType);
@@ -2639,6 +2665,13 @@ void Ship_SailDamage()
 
 	Play3DSound(sSound, x, y, z);
 	if (rand(100) < 15) { Play3DSound("fly_ball_misc", x, y, z); }
+	if (iBallType == GOOD_BOMBS && iCharacterIndex >= 0)
+	{
+		ref burningShip = GetCharacter(iCharacterIndex);
+		float chance = Ship_FireIgnitionChance(iBallOwner, iBallType, false);
+		if (!LAi_IsImmortal(burningShip) && !LAi_IsDead(burningShip) && frnd() < chance)
+			SendMessage(burningShip, "lffffll", MSG_SHIP_FIRE_IGNITE, x, y, z, 0.58, iBallOwner, 1);
+	}
 }
 
 void Ship_Ship2IslandCollision()
@@ -3275,7 +3308,6 @@ void Ship_HullHitEvent()
 	bool	bDead = LAi_IsDead(rOurCharacter) && CheckAttribute(rBallCharacter, "Ship.Cannons.Type");  // boal fix
 
 	bool	bSeriousBoom = false;
-	bool	bInflame = false;
     bool    isOurCompanion   = IsCompanion(rOurCharacter);
     float   fTmpCannonDamage = 0;
     
@@ -3299,7 +3331,6 @@ void Ship_HullHitEvent()
 	{
 		case GOOD_BALLS:
 			if (rand(85) == 17) { bSeriousBoom = true; }  // boal 35
-			if (rand(30) == 15) { bInflame = true; }
 			Play3DSound("ball2bort", x, y, z);
 		break;
 		case GOOD_GRAPES:
@@ -3313,7 +3344,6 @@ void Ship_HullHitEvent()
 		break;
 		case GOOD_BOMBS:
 			if (rand(50) == 10) { bSeriousBoom = true; }  // boal 20
-			if (rand(5) == 1) { bInflame = true; }
 			Play3DSound("bomb2bort", x, y, z);
 		break;
 		case GOOD_AIRBURST:
@@ -3355,8 +3385,15 @@ void Ship_HullHitEvent()
 
 	if (bSeriousBoom)
 	{
-		fCrewDamage = fCrewDamage * 7.0;
-		fHP = fDistanceDamageMultiply * fCannonDamageMultiply * stf(rBall.DamageHull) * (8.0 + frnd() * 4.0); // 4.0
+		float criticalHull = 8.0 + frnd() * 4.0;
+		float criticalCrew = 7.0;
+		if (iBallType == GOOD_BOMBS)
+		{
+			criticalHull = 1.6 + frnd() * 0.8;
+			criticalCrew = 2.0;
+		}
+		fCrewDamage *= criticalCrew;
+		fHP = fDistanceDamageMultiply * fCannonDamageMultiply * stf(rBall.DamageHull) * criticalHull;
 		Ship_ApplyHullHitpoints(rOurCharacter, fHP, KILL_BY_BALL, iBallCharacterIndex);
 
 		if (iBallCharacterIndex == nMainCharacterIndex)
@@ -3402,13 +3439,15 @@ void Ship_HullHitEvent()
 	}
 	Ship_ApplyCrewHitpoints(rOurCharacter, fCrewDamage);
 
-	if (bInflame == true && fFirePlaceDistance < 4.0 && iFirePlaceIndex >= 0)
+	if (!LAi_IsImmortal(rOurCharacter) && !LAi_IsDead(rOurCharacter))
 	{
-		int iRandStartTime = rand(1000);
-		float fTotalFireTime = Ship_GetTotalFireTime(rOurCharacter); 
-
-		PostEvent(SHIP_ACTIVATE_FIRE_PLACE, iRandStartTime, "ialsfl", rShipObject, rOurCharacter, iFirePlaceIndex, "ship_onfire", fTotalFireTime, iBallCharacterIndex);
-		PostEvent(SHIP_FIRE_DAMAGE, iRandStartTime, "lllf", iOurCharacterIndex, iBallCharacterIndex, iFirePlaceIndex, fTotalFireTime);
+		float ignitionChance = Ship_FireIgnitionChance(iBallCharacterIndex, iBallType, bSeriousBoom);
+		if (ignitionChance > 0.0 && frnd() < ignitionChance)
+		{
+			float ignitionHeat = 0.60;
+			if (iBallType == GOOD_BOMBS) ignitionHeat = 0.76;
+			SendMessage(rShipObject, "lffffll", MSG_SHIP_FIRE_IGNITE, x, y, z, ignitionHeat, iBallCharacterIndex, 0);
+		}
 	}
 
 	if (bSeriousBoom == true) 
@@ -3417,9 +3456,10 @@ void Ship_HullHitEvent()
 		{
 			Ship_Serious_Boom(x, y, z); 
 		}
-		fTmpCannonDamage = fTmpCannonDamage * 6.0;
+		if (iBallType == GOOD_BOMBS) fTmpCannonDamage *= 1.5;
+		else fTmpCannonDamage *= 6.0;
 		//boal 27.09.05 -->
-		if ((GetCargoGoods(rOurCharacter, GOOD_POWDER) / 20.0) > (GetCargoMaxSpace(rOurCharacter) * 0.25) && rand(1) == 1)
+		if (iBallType != GOOD_BOMBS && (GetCargoGoods(rOurCharacter, GOOD_POWDER) / 20.0) > (GetCargoMaxSpace(rOurCharacter) * 0.25) && rand(1) == 1)
 		{
 			Ship_SetExplosion(rOurCharacter, rShipObject);
 			Log_Info("На корабле " + rOurCharacter.Ship.Name + " сдетонировал весь пороховой запас.");
@@ -3449,33 +3489,48 @@ float Ship_GetTotalFireTime(ref rCharacter)
 
 void Ship_FireDamage()
 {
+	// Drain historical queued events. Native spatial fire owns all new damage;
+	// restarting this independent DOT would charge every old/new fire twice.
 	int iOurCharacterIndex = GetEventData();
 	int iBallCharacterIndex = GetEventData();
-
 	int iFirePlaceIndex = GetEventData();
 	float fTotalFireTime = GetEventData();
+}
 
-	ref rOurCharacter = GetCharacter(iOurCharacterIndex);
-	//ref rBallCharacter = GetCharacter(iBallCharacterIndex);
-	
-	int iSClass = GetCharacterShipClass(rOurCharacter);
+void Ship_FireContext()
+{
+	aref rCharacter = GetEventData();
+	rCharacter.Ship.FireState.enabled = false;
+	if (!bSeaActive || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
+	if (LAi_IsDead(rCharacter) || LAi_IsImmortal(rCharacter) || GetCharacterShipType(rCharacter) == SHIP_NOTUSED) return;
+	float optimal = GetOptCrewQuantity(rCharacter);
+	float crewRatio = 0.0;
+	if (optimal > 0.0) crewRatio = GetCrewQuantity(rCharacter) / optimal;
+	rCharacter.Ship.FireState.crewRatio = crewRatio;
+	rCharacter.Ship.FireState.morale = GetCharacterCrewMorale(rCharacter) / MORALE_NORMAL;
+	rCharacter.Ship.FireState.repair = stf(rCharacter.TmpSkill.Repair);
+	// Active repair parties already have their own duration/material lifecycle.
+	if (CheckOfficersPerk(rCharacter, "LightRepair") || CheckOfficersPerk(rCharacter, "InstantRepair")) rCharacter.Ship.FireState.repair = 1.0;
+	rCharacter.Ship.FireState.rain = Whr_NativeValue(2);
+	rCharacter.Ship.FireState.windSpeed = Whr_NativeValue(1);
+	rCharacter.Ship.FireState.windAngle = Whr_NativeValue(0);
+	rCharacter.Ship.FireState.enabled = true;
+}
 
-	float fHP = (8 - iSClass) * (0.5 + frnd() * 0.5);
-
-	int iTime = 1000 + rand(500);
-
-	// if abordage or interface launched
-	if (!bAbordageStarted && !sti(InterfaceStates.Launched)) 
-	{ 
-		Ship_ApplyHullHitpoints(rOurCharacter, fHP, KILL_BY_BALL, iBallCharacterIndex); 
-
-		fTotalFireTime = fTotalFireTime - MakeFloat(iTime) / 250.0;
-	}
-
-	if (fTotalFireTime > 0.0)
+void Ship_FireStep()
+{
+	aref rCharacter = GetEventData();
+	float hullFraction = GetEventData();
+	float crewFraction = GetEventData();
+	int killer = GetEventData();
+	if (!bSeaActive || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
+	if (LAi_IsDead(rCharacter) || LAi_IsImmortal(rCharacter) || GetCharacterShipType(rCharacter) == SHIP_NOTUSED) return;
+	if (crewFraction > 0.0)
 	{
-		PostEvent(SHIP_FIRE_DAMAGE, iTime, "lllf", iOurCharacterIndex, iBallCharacterIndex, iFirePlaceIndex, fTotalFireTime);
+		Ship_ApplyCrewHitpoints(rCharacter, GetCrewQuantity(rCharacter) * crewFraction);
 	}
+	ref baseShip = GetRealShip(GetCharacterShipType(rCharacter));
+	if (hullFraction > 0.0) Ship_ApplyHullHitpoints(rCharacter, stf(baseShip.HP) * hullFraction, KILL_BY_BALL, killer);
 }
 
 void Ship_Serious_Boom(float x, float y, float z)
@@ -4869,7 +4924,6 @@ void Ship_Lightning()
 				float fTotalFireTime = Ship_GetTotalFireTime(rCharacter);
 
 				PostEvent(SHIP_ACTIVATE_FIRE_PLACE, iRandStartTime, "ialsfl", rCharacter, rCharacter, j, "ship_onfire", fTotalFireTime, -1);
-				PostEvent(SHIP_FIRE_DAMAGE, iRandStartTime, "lllf", Ships[i], -1, j, fTotalFireTime);
 			}
 		}
 	}
@@ -4941,7 +4995,7 @@ void Ship_LoadShipActivateFirePlace()
 	Dev_Trace("iBallCharacterIndex = " + iBallCharacterIndex);
 	int iStartTime = 500;
 
-	PostEvent(SHIP_FIRE_DAMAGE, iStartTime, "lllf", iOurCharacterIndex, iBallCharacterIndex, iFirePlaceIndex, fTotalFireTime);
+	// The native Load path migrates saved active anchors once into FireState.
 }
 
 void SetTextureForShip(aref refBaseShip, aref rCharacter)

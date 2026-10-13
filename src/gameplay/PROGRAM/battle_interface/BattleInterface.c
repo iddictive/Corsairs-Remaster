@@ -574,6 +574,9 @@ void BI_LaunchCommand()
     case "BI_MastRepair":
         BI_MastRepairOpen();
         break;
+    case "BI_FireFighting":
+        if (charIdx == GetMainCharacterIndex()) BI_ToggleFireFighting();
+        break;
 	case "BI_MilitaryParley":
 		WdmMilitaryParleyCommand();
 		break;
@@ -1082,6 +1085,33 @@ void BI_SetPossibleCommands()
     Event("evntSetUsingAbility","l", chIdx);
     BI_MastRepairRefresh(mainIdx, chIdx);
     BI_FireModeRefresh(mainIdx, chIdx);
+    BI_FireFightingRefresh(mainIdx, chIdx);
+}
+
+void BI_FireFightingRefresh(int mainIndex, int selectedIndex)
+{
+    bool priority = CheckAttribute(pchar, "Ship.FireState.priority") &&
+        sti(pchar.Ship.FireState.priority) == 1;
+    bool burning = CheckAttribute(pchar, "Ship.FireState.active") &&
+        stf(pchar.Ship.FireState.active) > 0.0;
+    BattleInterface.Commands.FireFighting.enable = selectedIndex == mainIndex &&
+        bSeaActive && !bAbordageStarted && !LAi_IsDead(pchar) && (burning || priority);
+    if (priority)
+        BattleInterface.Commands.FireFighting.note = "Вернуть расчёты к пушкам";
+    else
+        BattleInterface.Commands.FireFighting.note = "Тушить пожар: меньше людей у пушек";
+}
+
+void BI_ToggleFireFighting()
+{
+    if (!bSeaActive || bAbordageStarted || LAi_IsDead(pchar)) return;
+    bool priority = CheckAttribute(pchar, "Ship.FireState.priority") &&
+        sti(pchar.Ship.FireState.priority) == 1;
+    if (!priority && (!CheckAttribute(pchar, "Ship.FireState.active") ||
+        stf(pchar.Ship.FireState.active) <= 0.0)) return;
+    pchar.Ship.FireState.priority = !priority;
+    BI_FireFightingRefresh(GetMainCharacterIndex(), GetMainCharacterIndex());
+    RefreshBattleInterface();
 }
 
 void BI_FireModeRefresh(int mainIndex, int selectedIndex)
@@ -1297,6 +1327,13 @@ void BI_InitializeCommands()
     BattleInterface.Commands.MastRepair.texNum = 5;
     BattleInterface.Commands.MastRepair.event = "BI_MastRepair";
     BattleInterface.Commands.MastRepair.note = "Ремонт мачт";
+
+    BattleInterface.Commands.FireFighting.enable = false;
+    BattleInterface.Commands.FireFighting.picNum = 54;
+    BattleInterface.Commands.FireFighting.selPicNum = 38;
+    BattleInterface.Commands.FireFighting.texNum = BI_ICONS_TEXTURE_COMMAND;
+    BattleInterface.Commands.FireFighting.event = "BI_FireFighting";
+    BI_FireFightingRefresh(GetMainCharacterIndex(), -1);
 
 	BattleInterface.Commands.LightRepair.enable			= false;
 	BattleInterface.Commands.LightRepair.picNum			= 54;

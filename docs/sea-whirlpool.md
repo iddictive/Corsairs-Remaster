@@ -2,6 +2,16 @@
 
 ## Status
 
+October13 corrective candidate: the player's missing-water scene reopens mesh
+and camera acceptance. The complete native patch now fixes oversized block
+admission, actual-ratio LOD seams and false underwater classification, and adds
+a finite real-model entry using the existing bow spray. Source-body CPU and
+canonical native compilation and installed staging pass. The next player replay
+shows covered sea but rejects low camera and steering. The stock camera uses
+absolute negative ship height in its box dimensions; that consumer and actual
+steering authority require a new falsifier. Earlier GPU field receipts do not
+accept these ship/camera interactions.
+
 October 12, 2026: the earlier90m/24s field was installed and passed native/Metal
 component checks, but the player rejects the solo, small, short scene. The
 sustained fleet-theater revision is delivered on October13 in batch `8bacecb`:
@@ -27,6 +37,45 @@ SHIP current/pose. `sea_shaders.hpp` owns advected normal detail and foam using
 the existing water/reflection/depth/aim paths. Great Recipe script owns phase,
 persisted centre/elapsed time, hull damage application and save restoration.
 `build.sh` remains the ordered patch and shared-header delivery owner.
+
+`seafoam.cpp/h` are additional native consumers in the same patch. Vortex
+contact and the entry suppress their repeated `ship_bow` impacts; ordinary
+storm spray and real cannon/ram sounds keep their existing owners. The quest's
+water-exposure hull helper produces no impact sound and is not disabled.
+
+The first quest scene admits the existing island-free sea mode. A50.4m bowl
+over a shallow authored island seabed can reveal terrain and ground vessels;
+fixing sea indices cannot create room below that terrain. Ordinary island
+scenes and terrain are unchanged.
+
+## Ship entry and mesh correction
+
+The existing SHIP model and rigging have one root transform. Additive
+`Ship.SeaEmergence.Generation/Age/Duration/Active` attributes drive one6.35s
+trajectory: fully submerged rigging, a two-second continuous launch to the
+waterline at14m/s, a gravity9.81 arc with a9.99m apex, then heavy continuous
+settling into the same buoyancy/current. Pitch/roll are bounded18/10 degrees.
+The existing third bow emitter uses authored `seafoam_front`, scales at most3x
+near breach/return and follows the local displaced waterline; no shader,
+particle pool or new asset is introduced.
+
+Native time owns age; zero delta pauses it. Restored age does not restart the
+entry. Clear/replacement cancels into a1.5s settlement; expired/dead entries
+stop safely. A transient cache keeps GetPos/GetAng, script pose publication,
+root matrix, cannon position and TouchMove prediction consistent while leaving
+raw buoyancy and binary SAVE fields unchanged. The old query bodies fail the
+matrix-agreement counterprobe. Inactive/final ordinary pose identity passes.
+
+The earlier `iMaxLOD=iMinLOD` prematurely stopped subdivision and could produce
+a block larger than the entire65,500-vertex budget. Normal subdivision plus the
+bounded event ceiling restores near-camera admission. Seam indexing now uses
+the actual power-of-two LOD ratio. Actual extracted mesh bodies pass36 cases
+at grid.07/.12/.17 and radii90/700/1600 over four views: zero dropped blocks,
+zero invalid references or inverted lattice faces, and drawn area equal to
+admitted area. Existing duplicate-index seam degenerates are preserved.
+Inactive/Clear topology is identical. No buffer enlargement or smaller funnel
+is used. Native camera already clamps to WaveXZ; the separate negative-world-Y
+underwater shortcut is disabled during the displaced field.
 
 The existing tsunami geometry, scalar/SSE queries, temporary current inside
 Move/TouchMove, ordinary buoyancy, authored PENA foam and `seatrash` rect draw

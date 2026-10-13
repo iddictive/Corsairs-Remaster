@@ -44,6 +44,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "resource/shared/" + name for name in LEGACY_SHARED_HEADERS
 ) + (
     "public_launcher.py",
+    "metal_graphics_settings.py",
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx",
     "RESOURCE/Textures/battle_interface/fire_mode.tga.tx",
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx",

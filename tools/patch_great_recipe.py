@@ -9,7 +9,7 @@ SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "00a62b3be2b684880c7be2d233330222f9793161ab078362e5468d8bd20f002c",
     "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
-    "PROGRAM/sea_ai/AIShip.c": "d404ec17a822573a3b7bfc9a20fcf88083561bfaf76b6af2fc2fabd627b6385b",
+    "PROGRAM/sea_ai/AIShip.c": "8ec68cd247620f3051dfead490b3832f55c4673878524557b37cb75141c278b6",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",
@@ -145,6 +145,7 @@ EDITS = {
         ('void Sea_LandLoad()\n{', 'void Sea_LandLoad()\n{\n    if (GreatRecipe_Locked()) return;'),
         ('void Sea_MapLoad()\n{', 'void Sea_MapLoad()\n{\n    if (GreatRecipe_Locked()) return;'),
         ('\t// Quest check\n\tEvent(EVENT_SEA_LOGIN, "");', '\t// Quest check\n    GreatRecipe_PrepareSea(Login);\n\tEvent(EVENT_SEA_LOGIN, "");'),
+        ('    GreatRecipe_PrepareSea(Login);', '    GreatRecipe_PrepareSea(Login);\n    if (CheckAttribute(Login, "GreatRecipeOpenSea") && sti(Login.GreatRecipeOpenSea))\n    { sIslandID = ""; pchar.location = ""; DeleteAttribute(Login, "GreatRecipeOpenSea"); }'),
         ('\tbSeaLoaded = true;', '\tbSeaLoaded = true;\n    GreatRecipe_SeaReady();'),
         ('\t\tEncounter_DeleteDeadQuestMapEncounters();', '\t\tEncounter_DeleteDeadQuestMapEncounters();\n    GreatRecipe_AfterSceneUnload();'),
         ('\n            rFantom.RealEncounterType = iEncounterType;//boal', '\n            rFantom.RealEncounterType = iEncounterType;//boal\n            if (CheckAttribute(rEncounter, "GreatRecipeBarrel")) rFantom.GreatRecipeBarrel = true;'),

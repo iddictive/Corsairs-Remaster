@@ -1,0 +1,583 @@
+--- a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
++++ b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
+@@ -35,6 +35,8 @@
+ #define SHIP_CREATE "ShpCreate"
+ #define SHIP_DELETE "ShpDelete"
+ #define SHIP_FIRE_DAMAGE "ShpFDamage"
++#define MSG_SHIP_FIRE_IGNITE 1463890433
++#define MSG_SHIP_FIRE_BURN_SAIL 1463890434
+ #define SHIP_TO_STRAND "Shp2Strand"
+ #define SHIP_TO_STRAND_NEXT "Shp2StrandNext"
+ #define SHIP_MAST_DAMAGE "ShpMastDamage"
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -14,6 +14,10 @@
+ #include "sea_base.h"
+ #include "ship_base.h"
+ #include "ship_msg.h"
++#ifdef STORM_METAL_SHIP_FIRE
++#include "ship_fire_model.hpp"
++#include "ship_fire_bridge.hpp"
++#endif
+ 
+ #define DELTA_TIME(x) ((x)*0.001f)
+ #define DELTA_TIME_ROTATE(x) ((x)*1.0f / 10.0f)
+@@ -96,6 +100,27 @@
+ 
+     // Fire places
+     std::vector<FirePlace> aFirePlaces;
++#ifdef STORM_METAL_SHIP_FIRE
++    struct FireSailLink {
++        std::string node;int group=0;CVECTOR center=0.f;
++        unsigned corners=0;float radius=0.f,lastDamage=0.f;
++        std::size_t cell=storm_ship_fire::MaxPoints;
++    };
++    storm_ship_fire::Model shipFire;
++    std::vector<FireSailLink> fireSails;
++    float fireStepClock=0.f,fireCheckpointClock=0.f,firePendingHull=0.f,firePendingCrew=0.f;
++    bool fireLoading=false,fireRunning=false,fireStateDirty=false;
++    float fireClothClock=0.f;
++    float fireVisualSeconds=0.f;
++    int32_t firePendingOwner=-1;
++    CVECTOR fireWind=0.f;
++    void InitializeShipFire();
++    void SaveShipFire();
++    void ExecuteShipFire(uint32_t deltaTime);
++    bool ReconcileFireSails();
++    void IgniteShipFire(const CVECTOR &world,float energy,int32_t owner,bool cloth);
++    std::vector<StormMetalShipFirePoint> ShipFirePoints() const;
++#endif
+ 
+     // Sound section
+ 
+--- a/src/libs/ship/src/fire_place.h
++++ b/src/libs/ship/src/fire_place.h
+@@ -19,6 +19,8 @@
+         Assert(GetShip());
+         return *GetShip()->GetMatrix() * vOrigPos;
+     };
++
++    CVECTOR GetLocalPos() const { return vOrigPos; }
+ 
+     void SetPos(CVECTOR &vPos)
+     {
+--- a/src/libs/ship/src/fire_place.cpp
++++ b/src/libs/ship/src/fire_place.cpp
+@@ -24,6 +24,9 @@
+ 
+ bool FirePlace::CreateParticle(const char *pParticleSmokeName, const char *pParticleFireName)
+ {
++#ifdef STORM_METAL_SHIP_FIRE
++    return true; // Native fire owns smoke/flames; retain this anchor's audio/SAVE.
++#endif
+     if (const auto eidParticle = core.GetEntityId("particles"))
+     {
+         const auto vPos = GetPos();
+@@ -68,7 +71,13 @@
+                     const char *pSoundName, float _fRunTime)
+ {
+     if (isActive())
++    {
++#ifdef STORM_METAL_SHIP_FIRE
++        fRunTime = _fRunTime;
++        if (_iBallCharacterIndex >= 0) iBallCharacterIndex = _iBallCharacterIndex;
++#endif
+         return;
++    }
+     if (!CreateParticle(pParticleSmokeName, pParticleFireName))
+         return;
+     const auto vPos = GetPos();
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -747,6 +747,277 @@
+             pShipsLights->SetDead(this);
+     }
+ }
++
++
++#ifdef STORM_METAL_SHIP_FIRE
++void SHIP::InitializeShipFire()
++{
++    shipFire = {}; fireSails.clear(); fireStepClock = fireCheckpointClock = 0.f;
++    firePendingHull = firePendingCrew = 0.f;
++    fireVisualSeconds=fireClothClock=0.f;fireRunning=false;fireStateDirty=false;firePendingOwner=-1;
++    auto *model = GetModel();
++    // Authored hull locators remain useful audio anchors. The extra samples are
++    // admitted only by the existing hull mesh ray, never by a replacement mesh.
++    for (std::size_t i=0; i<aFirePlaces.size() && shipFire.count<16; ++i) {
++        const auto p=aFirePlaces[i].GetLocalPos();
++        shipFire.add(p.x,p.y,p.z,2.2f);
++    }
++    const float radius=std::clamp(State.vBoxSize.x*.18f,1.4f,3.5f);
++    for (int z=0;z<6 && shipFire.count<28;++z) for (int side=-1;side<=1;side+=2) {
++        const float x=side*State.vBoxSize.x*.31f, fz=State.vBoxSize.z*(float(z)/5.f-.5f)*.78f;
++        const CVECTOR a=model->mtx*CVECTOR(x,State.vBoxSize.y*.55f+2.f,fz);
++        const CVECTOR b=model->mtx*CVECTOR(x,-State.vBoxSize.y*.5f-2.f,fz);
++        const float t=model->Trace(a,b);
++        if (t>=0.f && t<=1.f) {
++            CVECTOR p; model->mtx.MulToInv(a+(b-a)*t,p);
++            const auto nearest=shipFire.nearest(p.x,p.y,p.z);
++            if (nearest<shipFire.count) {
++                const auto &c=shipFire.cells[nearest];
++                const float dx=c.x-p.x,dy=c.y-p.y,dz=c.z-p.z;
++                if (dx*dx+dy*dy+dz*dz<2.f) continue;
++            }
++            shipFire.add(p.x,p.y,p.z,radius);
++        }
++    }
++    // Derive each cloth cell from its actual authored corners, keyed by the
++    // same node/group pair used by saved sail holes and the repair owner.
++    for (uint32_t n=0; auto *node=model->GetNode(n); ++n) {
++        if (!node->geo) continue;
++        GEOS::INFO info; node->geo->GetInfo(info);
++        for (int l=0;l<info.nlabels;++l) {
++            GEOS::LABEL label; node->geo->GetLabel(l,label);
++            if (strncmp(label.name,"sail",4) || label.name[4]<'1' || label.name[4]>'4' ||
++                strlen(label.group_name)<6) continue;
++            const int group=atoi(label.group_name+5);
++            auto link=std::find_if(fireSails.begin(),fireSails.end(),[&](const FireSailLink &s) {
++                return s.node==node->GetName() && s.group==group;
++            });
++            if (link==fireSails.end()) {
++                if (fireSails.size()==16) continue;
++                fireSails.push_back({}); link=fireSails.end()-1;
++                link->node=node->GetName(); link->group=group;
++            }
++            const CVECTOR p(label.m[3][0],label.m[3][1],label.m[3][2]);
++            link->center+=p; ++link->corners;
++            link->radius=std::max(link->radius,sqrtf(~p));
++        }
++    }
++    for (auto &link:fireSails) {
++        link.center*=1.f/std::max(1u,link.corners);
++        auto *node=model->FindNode(link.node.c_str()); CVECTOR p;
++        model->mtx.MulToInv(node->glob_mtx*link.center,p);
++        // Radius is recomputed from the real corners instead of node distance.
++        float r=1.f; GEOS::INFO info; node->geo->GetInfo(info);
++        for (int l=0;l<info.nlabels;++l) {
++            GEOS::LABEL label; node->geo->GetLabel(l,label);
++            if (!strncmp(label.name,"sail",4) && label.name[4]>='1' && label.name[4]<='4' &&
++                strlen(label.group_name)>=6 && atoi(label.group_name+5)==link.group)
++                r=std::max(r,sqrtf(~(CVECTOR(label.m[3][0],label.m[3][1],label.m[3][2])-link.center)));
++        }
++        link.cell=shipFire.add(p.x,p.y,p.z,std::clamp(r*.55f,1.2f,6.f),true);
++    }
++    auto *state=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
++    const bool saved=state && state->GetAttributeAsDword("schema")==1 &&
++        state->GetAttribute("model") && !strcmp(state->GetAttribute("model"),cShipIniName);
++    if (saved) {
++        const auto savedCount=std::min<std::size_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));
++        for (std::size_t i=0;i<savedCount;++i) {
++            char path[40]; snprintf(path,sizeof(path),"cells.p%zu",i);
++            auto *a=state->FindAClass(state,path); if (!a) continue;
++            if (i>=shipFire.count) shipFire.add(a->GetAttributeAsFloat("x"),a->GetAttributeAsFloat("y"),
++                a->GetAttributeAsFloat("z"),a->GetAttributeAsFloat("radius",2.f),a->GetAttributeAsDword("cloth")!=0);
++            shipFire.restore(i,a->GetAttributeAsFloat("heat"),a->GetAttributeAsFloat("fuel",1.f),
++                a->GetAttributeAsFloat("charred"),a->GetAttributeAsFloat("burned"),int32_t(a->GetAttributeAsDword("owner",uint32_t(-1))));
++        }
++        shipFire.seconds=state->GetAttributeAsFloat("seconds");
++        fireVisualSeconds=state->GetAttributeAsFloat("visualSeconds",shipFire.seconds);
++        firePendingHull=state->GetAttributeAsFloat("pendingHull");
++        firePendingCrew=state->GetAttributeAsFloat("pendingCrew");
++        firePendingOwner=int32_t(state->GetAttributeAsDword("pendingOwner",uint32_t(-1)));
++        for (auto &link:fireSails) {
++            char path[40];snprintf(path,sizeof(path),"cells.p%zu",link.cell);
++            if (auto *a=state->FindAClass(state,path)) link.lastDamage=a->GetAttributeAsFloat("lastSailDamage");
++        }
++    } else {
++        // A historical binary fireplace is converted once. Its saved bytes and
++        // field order are unchanged; the attribute schema prevents reinjection.
++        for (auto &place:aFirePlaces) if (place.isActive()) {
++            const auto p=place.GetLocalPos(); const auto i=shipFire.nearest(p.x,p.y,p.z);
++            shipFire.ignite(i,.65f,place.GetBallCharacterIndex());
++        }
++    }
++    SaveShipFire();
++    auto *summary=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
++    uint32_t active=0;float intensity=0.f,heat=0.f;
++    for (std::size_t i=0;i<shipFire.count;++i) {
++        const auto &c=shipFire.cells[i];if (c.intensity()>.025f) ++active;
++        intensity=std::max(intensity,c.intensity());heat=std::max(heat,c.heat);
++    }
++    summary->SetAttributeUseDword("active",active);summary->SetAttributeUseFloat("duty",0.f);
++    summary->SetAttributeUseFloat("intensity",intensity);summary->SetAttributeUseFloat("heat",heat);
++}
++
++void SHIP::SaveShipFire()
++{
++    auto *root=GetACharacter();
++    auto *state=root->CreateSubAClass(root,"Ship.FireState");
++    state->SetAttributeUseDword("schema",1);state->SetAttribute("model",cShipIniName);
++    state->SetAttributeUseDword("count",uint32_t(shipFire.count));
++    state->SetAttributeUseFloat("seconds",shipFire.seconds);
++    state->SetAttributeUseFloat("visualSeconds",fireVisualSeconds);
++    state->SetAttributeUseFloat("pendingHull",firePendingHull);state->SetAttributeUseFloat("pendingCrew",firePendingCrew);
++    state->SetAttributeUseDword("pendingOwner",uint32_t(firePendingOwner));
++    for (std::size_t i=0;i<shipFire.count;++i) {
++        char path[40];snprintf(path,sizeof(path),"cells.p%zu",i);
++        auto *a=state->CreateSubAClass(state,path);const auto &c=shipFire.cells[i];
++        a->SetAttributeUseFloat("x",c.x);a->SetAttributeUseFloat("y",c.y);a->SetAttributeUseFloat("z",c.z);
++        a->SetAttributeUseFloat("radius",c.radius);a->SetAttributeUseFloat("heat",c.heat);
++        a->SetAttributeUseFloat("fuel",c.fuel);a->SetAttributeUseFloat("charred",c.charred);
++        a->SetAttributeUseFloat("burned",c.burned);a->SetAttributeUseDword("owner",uint32_t(c.owner));
++        a->SetAttributeUseDword("cloth",c.cloth);a->SetAttributeUseDword("available",c.available);
++    }
++    for (const auto &link:fireSails) {
++        char path[40];snprintf(path,sizeof(path),"cells.p%zu",link.cell);
++        auto *a=state->FindAClass(state,path);if (!a) continue;
++        a->SetAttribute("node",link.node.c_str());a->SetAttributeUseDword("group",link.group);
++        a->SetAttributeUseFloat("lastSailDamage",link.lastDamage);
++    }
++    fireStateDirty=false;
++}
++
++void SHIP::IgniteShipFire(const CVECTOR &world, float energy, int32_t owner, bool cloth)
++{
++    if (!bMounted || isDead()) return;
++    CVECTOR p;GetMatrix()->MulToInv(world,p);
++    auto i=shipFire.nearest(p.x,p.y,p.z,cloth);
++    if (!cloth && shipFire.count<storm_ship_fire::MaxPoints) {
++        float distance=1e9f;
++        if (i<shipFire.count) {
++            const auto &c=shipFire.cells[i];distance=std::sqrt((p.x-c.x)*(p.x-c.x)+(p.y-c.y)*(p.y-c.y)+(p.z-c.z)*(p.z-c.z));
++        }
++        if (distance>2.f) i=shipFire.add(p.x,p.y,p.z,2.2f);
++    }
++    shipFire.ignite(i,energy,owner);fireStateDirty=true;SaveShipFire();
++}
++
++bool SHIP::ReconcileFireSails()
++{
++    bool changed=false;
++    for (auto &link:fireSails) {
++        auto &c=shipFire.cells[link.cell];auto *node=GetModel()->FindNode(link.node.c_str());
++        if (c.available!=(node!=nullptr)) changed=true;
++        c.available=node!=nullptr;if (!node) { c.heat=0.f;continue; }
++        CVECTOR p;GetMatrix()->MulToInv(node->glob_mtx*link.center,p);c.x=p.x;c.y=p.y;c.z=p.z;
++        const std::string path="Ship.Sails."+link.node+"."+std::to_string(link.group);
++        auto *sail=GetACharacter()->FindAClass(GetACharacter(),path.c_str());
++        const float damage=sail?sail->GetAttributeAsFloat("dmg"):0.f;
++        const float power=sail?sail->GetAttributeAsFloat("sp",.05f):.05f;
++        const float maximum=std::max(1.f,GetAShip()->GetAttributeAsFloat("SP",100.f)*power);
++        if (damage<link.lastDamage) {
++            const float restored=std::clamp((link.lastDamage-damage)/maximum,0.f,1.f);
++            c.fuel=storm_ship_fire::unit(c.fuel+restored);c.charred=std::max(0.f,c.charred-restored*3.3f);
++            c.heat=std::max(0.f,c.heat-restored*.8f);
++        }
++        if (damage!=link.lastDamage) changed=true;
++        link.lastDamage=damage;
++    }
++    return changed;
++}
++
++void SHIP::ExecuteShipFire(uint32_t deltaTime)
++{
++    const float frameSeconds=std::min(1.f,float(deltaTime)*.001f);
++    bool thermal=false,charredCloth=false;
++    for (std::size_t i=0;i<shipFire.count;++i) {
++        const auto &c=shipFire.cells[i];thermal|=c.heat>.0001f || c.burned>.000001f;
++        charredCloth|=c.cloth && c.charred>.001f;
++    }
++    if (!thermal && firePendingHull==0.f && firePendingCrew==0.f) {
++        if (fireRunning) {
++            if (auto *state=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState")) {
++                state->SetAttributeUseDword("active",0);state->SetAttributeUseFloat("duty",0.f);
++                state->SetAttributeUseFloat("intensity",0.f);state->SetAttributeUseFloat("heat",0.f);
++            }
++            fireRunning=false;fireStateDirty=true;
++        }
++        // Cold hulls cross no script/attribute boundary. Charred cloth alone
++        // gets one read-only repair check per second; only a real change writes.
++        if (charredCloth) {
++            fireClothClock+=frameSeconds;
++            if (fireClothClock>=1.f) { fireClothClock=0.f;fireStateDirty|=ReconcileFireSails(); }
++        }
++        if (fireStateDirty) SaveShipFire();
++        return;
++    }
++    fireRunning=true;
++    fireStepClock+=frameSeconds;
++    while (fireStepClock>=storm_ship_fire::StepSeconds) {
++        fireStepClock-=storm_ship_fire::StepSeconds;
++        core.Event("Ship_FireContext","a",GetACharacter());
++        auto *state=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");if (!state) break;
++        storm_ship_fire::Context context;
++        context.enabled=state->GetAttributeAsDword("enabled")!=0 || isDead();context.dead=isDead();
++        context.priority=state->GetAttributeAsDword("priority")!=0;
++        context.crewRatio=state->GetAttributeAsFloat("crewRatio");context.morale=state->GetAttributeAsFloat("morale");
++        context.repair=state->GetAttributeAsFloat("repair");context.rain=state->GetAttributeAsFloat("rain");
++        const float angle=state->GetAttributeAsFloat("windAngle"),speed=state->GetAttributeAsFloat("windSpeed");
++        fireWind=CVECTOR(sinf(angle)*speed,0.f,cosf(angle)*speed);
++        const float sy=sinf(State.vAng.y),cy=cosf(State.vAng.y);
++        context.windX=cy*fireWind.x-sy*fireWind.z;context.windZ=sy*fireWind.x+cy*fireWind.z;
++        if (!context.enabled) { state->SetAttributeUseFloat("duty",0.f);continue; }
++        fireStateDirty|=ReconcileFireSails();
++        if (pSea) for (std::size_t i=0;i<shipFire.count;++i) {
++            auto &c=shipFire.cells[i];const CVECTOR world=*GetMatrix()*CVECTOR(c.x,c.y,c.z);
++            if (world.y<pSea->WaveXZ(world.x,world.z)-.25f) c.heat=std::max(0.f,c.heat-.16f);
++        }
++        const auto output=shipFire.step(context);
++        fireStateDirty=true;
++        state->SetAttributeUseDword("active",output.active);state->SetAttributeUseFloat("duty",output.duty);
++        state->SetAttributeUseFloat("intensity",output.intensity);state->SetAttributeUseFloat("heat",output.heat);
++        firePendingHull+=output.hullFraction;firePendingCrew+=output.crewFraction;
++        if (output.owner>=0 && (output.hullFraction>0.f || output.crewFraction>0.f)) firePendingOwner=output.owner;
++        fireCheckpointClock+=storm_ship_fire::StepSeconds;
++        const bool checkpoint=fireCheckpointClock>=1.f;
++        if (checkpoint) {
++            fireCheckpointClock=0.f;
++            if (!isDead() && (firePendingHull>0.f || firePendingCrew>0.f))
++                core.Event("Ship_FireStep","affl",GetACharacter(),firePendingHull,firePendingCrew,firePendingOwner);
++            firePendingHull=firePendingCrew=0.f;firePendingOwner=-1;
++        }
++        if (!isDead()) for (auto &link:fireSails) {
++            auto &c=shipFire.cells[link.cell];
++            if (c.burned>0.f && c.available && core.Send_Message(sail_id,"llslf",MSG_SHIP_FIRE_BURN_SAIL,
++                GetIndex(GetACharacter()),link.node.c_str(),link.group,c.burned)) {
++                c.burned=0.f;
++                const std::string path="Ship.Sails."+link.node+"."+std::to_string(link.group);
++                if (auto *sail=GetACharacter()->FindAClass(GetACharacter(),path.c_str())) link.lastDamage=sail->GetAttributeAsFloat("dmg");
++            }
++        }
++        for (auto &place:aFirePlaces) {
++            const auto p=place.GetLocalPos();const auto i=shipFire.nearest(p.x,p.y,p.z);
++            if (i<shipFire.count && shipFire.cells[i].intensity()>.025f)
++                place.Run("ship_smoke","ship_fire",shipFire.cells[i].owner,"ship_onfire",2.f);
++            else place.Stop();
++        }
++        if (checkpoint && fireStateDirty) SaveShipFire();
++    }
++    // Realize can run reflection and main passes; only Execute advances visual
++    // phase. Fixed thermal steps never quantize/reset flame and ember motion.
++    auto *visualState=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
++    if (isDead() || (visualState && visualState->GetAttributeAsDword("enabled")))
++        fireVisualSeconds+=frameSeconds;
++}
++
++std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints() const
++{
++    std::vector<StormMetalShipFirePoint> points;points.reserve(shipFire.count);
++    for (std::size_t i=0;i<shipFire.count;++i) {
++        const auto &c=shipFire.cells[i];if (!c.available || (c.heat<=.01f && c.charred<=.001f)) continue;
++        points.push_back({{c.x,c.y,c.z},c.radius,c.intensity(),c.charred,c.heat,float(i)*17.31f+float(uniIDX)*.71f});
++    }
++    return points;
++}
++#endif
+ 
+ void SHIP::Execute(uint32_t DeltaTime)
+ {
+@@ -1083,6 +1354,9 @@
+       fSailState = 0.0f;
+     }*/
+ 
++#ifdef STORM_METAL_SHIP_FIRE
++    ExecuteShipFire(DeltaTime);
++#endif
+     // execute fire places
+     for (uint32_t i = 0; i < aFirePlaces.size(); i++)
+         aFirePlaces[i].Execute(fDeltaTime);
+@@ -1357,7 +1631,14 @@
+     SetLights();
+ 
+     pRS->SetRenderState(D3DRS_LIGHTING, true);
++#ifdef STORM_METAL_SHIP_FIRE
++    const auto firePoints=ShipFirePoints();
++    StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
++#endif
+     pM->ProcessStage(Stage::realize, dtime);
++#ifdef STORM_METAL_SHIP_FIRE
++    StormMetalEndShipFireSurface(pRS->GetD3DDevice());
++#endif
+     pRS->SetRenderState(D3DRS_LIGHTING, false);
+ 
+     UnSetLights();
+@@ -1370,9 +1651,19 @@
+         m1.BuildMatrix(0.0f, fUpperShipAY, 0.0f, State.vPos.x + fXOffset, State.vPos.y + fUpperShipY,
+                        State.vPos.z + fZOffset);
+         pModelUpperShip->mtx = m1;
++#ifdef STORM_METAL_SHIP_FIRE
++        StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
++#endif
+         pModelUpperShip->ProcessStage(Stage::realize, dtime);
+-    }
+-
++#ifdef STORM_METAL_SHIP_FIRE
++        StormMetalEndShipFireSurface(pRS->GetD3DDevice());
++#endif
++    }
++
++#ifdef STORM_METAL_SHIP_FIRE
++    StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()),
++                          &fireWind.x,fireVisualSeconds);
++#endif
+     if (bMassaShow)
+     {
+         pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
+@@ -1483,6 +1774,15 @@
+         fXOffset = fZOffset = 0.f;
+         RecalculateWorldOffset();
+         break;
++#ifdef STORM_METAL_SHIP_FIRE
++    case MSG_SHIP_FIRE_IGNITE: {
++        const float x=message.Float(),y=message.Float(),z=message.Float();
++        const CVECTOR hit(x,y,z);
++        const float energy=message.Float();const int32_t owner=message.Long();const bool cloth=message.Long()!=0;
++        IgniteShipFire(hit,energy,owner,cloth);
++        break;
++    }
++#endif
+     case MSG_SHIP_ACTIVATE_FIRE_PLACE: {
+         const auto dwFPIndex = static_cast<uint32_t>(message.Long());
+         const std::string &str = message.String();
+@@ -1492,7 +1792,12 @@
+         const auto fRunTime = message.Float();
+         const auto iBallCharacterIndex = message.Long();
+         Assert(dwFPIndex != INVALID_ARRAY_INDEX && dwFPIndex < aFirePlaces.size());
++#ifdef STORM_METAL_SHIP_FIRE
++        const auto p=aFirePlaces[dwFPIndex].GetPos();
++        IgniteShipFire(p,std::clamp(.45f+fRunTime*.008f,.45f,.8f),iBallCharacterIndex,false);
++#else
+         aFirePlaces[dwFPIndex].Run(str.c_str(), str1.c_str(), iBallCharacterIndex, str2.c_str(), fRunTime);
++#endif
+     }
+     break;
+     case MSG_SHIP_GET_CHARACTER_INDEX: {
+@@ -1964,6 +2269,9 @@
+         pModelUpperShip = static_cast<MODEL *>(core.GetEntityPointer(model_uppership_id));
+     }
+ 
++#ifdef STORM_METAL_SHIP_FIRE
++    if (!fireLoading) InitializeShipFire();
++#endif
+     // event to script
+     core.Event(SHIP_CREATE, "li", GetACharacter()->GetAttributeAsDword("index"), GetId());
+     core.Event("Ship_EndLoad", "a", GetACharacter());
+@@ -2239,8 +2547,8 @@
+         float fMinDistance = 1e8f;
+         int32_t iBestIndex = -1;
+         for (uint32_t i = 0; i < aFirePlaces.size(); i++)
+-            if (!aFirePlaces[i].isActive())
+-            {
++            { // Repeated impacts use the same nearest anchor, including active ones.
++
+                 const float fDistance = aFirePlaces[i].GetDistance(vTemp);
+                 if (fDistance < fMinDistance)
+                 {
+@@ -2357,6 +2665,9 @@
+ 
+ void SHIP::Save(CSaveLoad *pSL)
+ {
++#ifdef STORM_METAL_SHIP_FIRE
++    SaveShipFire();
++#endif
+     uint32_t i;
+ 
+     pSL->SaveAPointer("character", GetACharacter());
+@@ -2436,6 +2747,9 @@
+     fGravity = pSL->LoadFloat();
+     fSailState = pSL->LoadFloat();
+ 
++#ifdef STORM_METAL_SHIP_FIRE
++    fireLoading=true;
++#endif
+     Mount(pAShip);
+ 
+     uniIDX = pSL->LoadLong();
+@@ -2506,6 +2820,10 @@
+     }
+ 
+     ShipPoints = {};
++#ifdef STORM_METAL_SHIP_FIRE
++    fireLoading=false;
++    InitializeShipFire();
++#endif
+ }
+ 
+ void SHIP::SetFixedSpeed(bool _bSetFixed, float _fFixedSpeed)
+--- a/src/libs/rigging/src/sail.cpp
++++ b/src/libs/rigging/src/sail.cpp
+@@ -2,6 +2,10 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #endif
+ #include "sail.h"
++#ifdef STORM_METAL_SHIP_FIRE
++#include "ship_fire_bridge.hpp"
++#include "ship_fire_model.hpp"
++#endif
+ #include "shared/sea_ai/manual_aim_geometry.hpp"
+ 
+ #include "core.h"
+@@ -618,6 +622,29 @@
+                     }
+                     else
+                         RenderService->TextureSet(1, m_nEmptyGerbTex);
++
++#ifdef STORM_METAL_SHIP_FIRE
++                    std::array<StormMetalShipFirePoint,storm_ship_fire::MaxPoints> firePoints{};
++                    uint32_t fireCount=0;
++                    auto *fireShip=gdata[j].bYesShip?static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI)):nullptr;
++                    auto *character=fireShip?fireShip->GetACharacter():nullptr;
++                    auto *state=character?character->FindAClass(character,"Ship.FireState"):nullptr;
++                    if (state) for (uint32_t cell=0;cell<std::min<uint32_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));++cell) {
++                        char path[40];snprintf(path,sizeof(path),"cells.p%u",cell);auto *a=state->FindAClass(state,path);
++                        if (!a || !a->GetAttributeAsDword("cloth") || !a->GetAttributeAsDword("available",1) ||
++                            !a->GetAttribute("node") || strcmp(a->GetAttribute("node"),slist[i]->hostNode->GetName()) ||
++                            int(a->GetAttributeAsDword("group"))!=slist[i]->groupNum) continue;
++                        const float heat=a->GetAttributeAsFloat("heat"),fuel=a->GetAttributeAsFloat("fuel",1.f);
++                        CVECTOR center=0.f;const unsigned corners=slist[i]->ss.eSailType==SAIL_TREANGLE?3u:4u;
++                        for (unsigned corner=0;corner<corners;++corner) center+=slist[i]->ss.hardPoints[corner];
++                        center*=1.f/float(corners);CVECTOR local;
++                        fireShip->GetMatrix()->MulToInv(*slist[i]->pMatWorld*center,local);
++                        firePoints[fireCount++]={{local.x,local.y,local.z},
++                            a->GetAttributeAsFloat("radius",2.f),storm_ship_fire::unit((heat-.32f)/.62f)*sqrtf(storm_ship_fire::unit(fuel)),
++                            a->GetAttributeAsFloat("charred"),heat,float(cell)*17.31f};
++                    }
++                    if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetD3DDevice(),&fireShip->GetMatrix()->m[0][0],firePoints.data(),fireCount);
++#endif
+                     // Draw hole texture sail
+                     uint32_t dwOld;
+                     RenderService->GetSamplerState(2, D3DSAMP_ADDRESSU, &dwOld);
+@@ -645,6 +672,9 @@
+                         RenderService->DrawBuffer(sg.vertBuf, sizeof(SAILVERTEX), sg.indxBuf, slist[i]->ss.sVert,
+                                                   slist[i]->ss.nVert, slist[i]->ss.sIndx, slist[i]->ss.nnormIndx);
+                     }
++#ifdef STORM_METAL_SHIP_FIRE
++                    if (fireShip) StormMetalEndShipFireSurface(RenderService->GetD3DDevice());
++#endif
+                     if (gdata[j].bYesShip)
+                     {
+                         static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI))->UnSetLights();
+@@ -671,6 +701,32 @@
+ 
+     switch (message.Long())
+     {
++
++#ifdef STORM_METAL_SHIP_FIRE
++    case MSG_SHIP_FIRE_BURN_SAIL: {
++        const int character=message.Long();const std::string node=message.String();const int group=message.Long();
++        const float fraction=message.Float();
++        auto *sail=static_cast<SAILONE *>(FindSailForCharacter(character,node.c_str(),group));
++        const int gn=FindGroupForCharacter(character);
++        if (!sail || gn<0 || fraction<=0.f || gdata[gn].speed_m<=0.f || sail->bFreeSail) return 0;
++        const int maximum=sail->GetMaxHoleCount();
++        int hole=0;while (hole<maximum && sail->ss.hole[hole]) ++hole;
++        const bool addHole=hole<maximum;
++        const int count=sail->ss.holeCount+(addHole?1:0);
++        if (addHole) sail->ss.hole[hole]=true;
++        const uint32_t mask=sail->GetHoleDword();
++        if (addHole) sail->ss.hole[hole]=false;
++        const float power=float(sail->maxSpeed)/gdata[gn].speed_m;
++        auto *result=core.Event("evntRandomSailDmg","lslfflll",character,node.c_str(),group,
++            fraction*float(gdata[gn].maxSP)*power,power,count,maximum,mask);
++        if (!result) return 0;
++        if (result->GetFloat()>0.f && addHole) {
++            sail->ss.hole[hole]=true;sail->ss.holeCount=count;
++            sail->CalculateMirrorSailIndex();sail->SetGeometry();
++        }
++        return 1; // Existing script owns cumulative damage/SP, including sub-hole loss.
++    }
++#endif
+     case MSG_SAIL_INIT: // format "liil" (code,shipEntity,modelEntity,bSailUp)
+     {
+         // resize group data block

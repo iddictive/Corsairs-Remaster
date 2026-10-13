@@ -1,5 +1,10 @@
+#import <Metal/Metal.h>
 #include <SDL.h>
+#undef TRUE
+#undef FALSE
+#define BOOL D3D_NATIVE_BOOL
 #include <d3d9.h>
+#undef BOOL
 #include "land_shaders.hpp"
 #include <vector>
 #include <fstream>
