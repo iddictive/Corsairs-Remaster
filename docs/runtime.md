@@ -1,10 +1,51 @@
 # Runtime state
 
-Last verified: October13. The rim/captivity correction is installed through canonical stage-only. Signed engine: `8ad0c4b3795f806862555a70ac585e9a2edd9a3a529381841b61e296ca59cc03`. Global-map performance is accepted by the player at120 FPS. The corrected circular battle and captive progression await actual player replay; installation and component checks do not accept them. City/night performance remains unresolved; manual-hit and aiming-FPS checks are player-deferred. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. The living-ship damage batch is installed through canonical stage-only from `f664c28`. Signed engine: `2becdd6995703d71db16276a6233a224ca661a6980cfd550fd3de65d3e1a952e`. Its163 ownership rows match and249 player-state hashes are unchanged. The installed app opens its menu on an isolated copy of player state; changed battle behavior and matched CPU/thermal/FPS remain unresolved. The last player-approved global-map120 FPS observation belongs to the preceding installation. Full quest and city/night replay remain pending; manual-hit and aiming checks are player-deferred. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
 
-### October13 — living-ship damage source integrated; installation pending
+### October13 — subsequent water-composite fog correction; source only
+
+The separate fog owner delivered a27-insertion/10-deletion candidate in
+`sea_shaders.hpp`, SHA-256
+`63cd9626a29067d957552c7113e4f7f0f2d53a1de0dc5fb357b6733932aac8b5`.
+It applies existing local transport only to the new water contribution, leaving
+the already transported scene snapshot untouched. Sea2/Sea3 and their aiming
+variants share this correction. Texture/uniform/host interfaces are unchanged;
+the no-depth fallback retains its previous route.
+
+Exactly two8-pixel native compute submissions pass. The independent transmitted
+background derivative error changes from0.06002282 to0.00000002; volume-off
+output is byte-identical to the extracted predecessor. Opaque and HDR references
+pass. Final clipping intentionally follows local transport, so saturated HDR
+water is allowed to differ. This is component evidence; Bermuda/underwater and
+whole-scene FPS remain unresolved. The source is a subsequent batch; current
+installed2bec and the paired Fire comparison inputs remain unchanged. Its full
+21-file evidence closure was copied and hash-verified before original cleanup.
+
+### October13 — living-ship damage installed; matched battle replay pending
+
+Canonical `experiments/native-metal/run.sh --stage-only` returns0 after the
+focused source checkpoint `f664c28`. Unsigned engine:
+`e272b7291bbb424a1eb7caaf85d9a6ad8480bf95a217cdea876c04fad6bc6b27`;
+installed signed engine:
+`2becdd6995703d71db16276a6233a224ca661a6980cfd550fd3de65d3e1a952e`.
+All163 installed receipt rows,249 original SAVE/userdata/configuration hashes
+and34 activated inputs match. Cache/app each have0 files pending and compiler
+ready; deep/strict signature passes. The signed8ad0 engine and its exact
+five predecessor PROGRAM files are preserved by the existing backup owner.
+Its162-row receipt was reconstructed and matches the recorded pre-stage hash.
+
+Normal app startup with the supported `CORSAIRS_USER_DIR` override opens the
+menu on a249-file clone. Menu animation and a125FPS counter are visible;
+neither proves battle performance. Keyboard input through computer use returns
+`frontmostApplicationChanged`; coordinate input also returns
+`noWindowsAvailable`. Window AX selection succeeds but does not resolve the
+keyboard precondition. The pending request asks the player to foreground this
+owned test window before continuing scene control. No actual saved scene or
+dense-battle measurement has passed. The derived blanket no-launch statement
+is superseded by the active human request for a demo and matched performance
+verification; unrelated quest walkthrough acceptance remains player-owned.
 
 The next batch integrates authored-cloth sail capacity, committed-hole damage
 admission, stable saved thermal cells, actual hull perforations and bounded
@@ -20,7 +61,7 @@ passes after exact staging. New patch-file blank context markers and whitespace
 in the admitted stock interface file are preserved rather than reformatting
 their upstream content. Source/component checks do not accept player behavior.
 
-The installed signed8ad0 engine remains the baseline. The fresh player manifest
+The preserved signed8ad0 engine is the comparison baseline. The fresh player manifest
 captures SAVE, userdata and configuration before activation. The shared thermal
 model performs no hot-path allocations and advances at0.25game-second steps;
 20dense63-cell steps total0.327ms in a CPU-only comparison. Renderer point limits
