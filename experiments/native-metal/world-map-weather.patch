@@ -119,14 +119,22 @@
  #include "wdm_storm.h"
  #include "world_map.h"
  
-@@ -97,6 +98,9 @@
+@@ -97,6 +98,17 @@
      // Storm
      auto i = TestInStorm();
 -    if (i >= 0)
-+    // Regional cores have no legacy storm-array index. Dispatch their contact
-+    // through the same throttle, while retaining -2 for the action-icon state.
-+    if (i >= 0 || (i == -2 && wdmObjects->wm->AttributesPointer->GetAttributeAsDword(
-+            "nativeWeatherStorm",0)))
++    // Moderate regional weather retains manual entry; only the strongest local
++    // core forces sea entry. Keep the regional marker for weather/escape owners.
++    bool nativeStormEntry = false;
++    if (i == -2 && wdmObjects->wm->AttributesPointer->GetAttributeAsDword("nativeWeatherStorm",0)) {
++        if (const auto id=core.GetEntityId("weather")) {
++            float rain=0.f, storm=0.f, coverage=0.f;
++            static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->GetWeatherAt(
++                mtx.Pos().x,mtx.Pos().z,rain,storm,coverage);
++            nativeStormEntry = storm >= .9f;
++        }
++    }
++    if (i >= 0 || nativeStormEntry)
      {
          if (stormEventTime <= 0.0f)
          {
