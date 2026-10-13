@@ -1,6 +1,25 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/dialogs/russian/Quest/sailors_dialog.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "ea4ee22216f2e1a472489b6a70b2b1aadd21d213bc33084bf95abca93835f8c8"
+      ]
+    },
+    "PROGRAM/dialogs/russian/Enc_Raiders_dialog.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "9e070de796a2370d53ed6bac5a47cc05724e98e60df9c9a71f4f262b0ebb63e8"
+      ]
+    },
+    "PROGRAM/dialogs/russian/Smuggler_OnShore_dialog.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "b1df7478366fba8b96464f30184562a12d7f691b22110b074f37cea275fb772c",
+        "039e80171c801800bd99e250892c330549c4a77c24c25aaf6c4c12aadd9e1c19"
+      ]
+    },
     "PROGRAM/interface/store.c": {
       "encoding": "utf-8",
       "legacy": [
