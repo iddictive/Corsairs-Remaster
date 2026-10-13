@@ -155,6 +155,16 @@ def recipe_sources(source_set, paths=None):
         if path in inputs and inputs[path] != pair:
             raise RuntimeError("Concurrent recipe source change; no files changed")
         inputs[path] = pair
+    import changelog_content
+    changelog_sources, changelog_inputs = changelog_content.read()
+    for name, entry in changelog_sources.items():
+        if name in sources and sources[name] != entry:
+            raise RuntimeError("Conflicting changelog source; no files changed")
+        sources[name] = entry
+    for path, pair in changelog_inputs.items():
+        if path in inputs and inputs[path] != pair:
+            raise RuntimeError("Concurrent changelog source change; no files changed")
+        inputs[path] = pair
     return sources, inputs
 
 

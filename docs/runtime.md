@@ -4,6 +4,19 @@ Last verified: October13. Physical captivity/moonlit cache, bounded storm escape
 
 ## Current verdict
 
+### October13 — complete remaster changelog source projection
+
+The existing main-menu Changes resource now composes the complete authored
+Russian remaster inventory above its unchanged imported ReConstruction body.
+The generated output is212,383 bytes, SHA-256
+`27e2944842d0b6d23df703bef07fdc912a6c4915907627318ddd0746fb91f06e`.
+All161 non-table authored lines retain order and all33 table cells/headers are
+preserved as readable plain text. The original170,024-byte body reconstructs
+exactly; input snapshots, deterministic projection, full source composition
+and seven malformed-input negatives pass. The existing text/scroller and menu
+layout are unchanged. Source projection accepted; installation and actual
+first/scroll/reopen interaction remain pending.
+
 ### October13 — player replay reopens vortex battle, capture and Options
 
 The player's night battle shows missing water blocks and exposed terrain. Manual
