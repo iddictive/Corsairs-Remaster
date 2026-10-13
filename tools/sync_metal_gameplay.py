@@ -22,6 +22,7 @@ import metal_fleet_sea as fleet_sea
 import metal_fleet_ui as fleet_ui
 import metal_military_integration as military_callbacks
 import metal_lighting_consumers as lighting_consumers
+import patch_great_recipe as great_recipe
 from patch_mod_journal import UPDATED_SHA256
 from patch_sea_battle_mode_reset import UPDATED_SHA256 as COMBAT_UPDATED_SHA256
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
@@ -94,6 +95,7 @@ def compiler_ready():
             and record.get("engine_deck_patch_sha256") == digest(ENGINE_DECK_PATCH.read_bytes())
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("sea_tsunami_patch_sha256") == digest((METAL / "sea-tsunami.patch").read_bytes())
+            and record.get("sea_whirlpool_patch_sha256") == digest((METAL / "sea-whirlpool.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
             and record.get("mast_repair_patch_sha256") == digest((METAL / "mast-repair.patch").read_bytes())
             and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
@@ -133,6 +135,25 @@ def source_changes(target_root, source_set, state=None, managed=None):
     return {path.relative_to(target_root).as_posix(): (before, after)
             for path, (before, after) in delivery.items()
             if path.is_relative_to(target_root) and path.name != RECEIPT and before != after}
+
+
+def recipe_sources(source_set, paths=None):
+    sources, inputs = source_set
+    if paths is not None and great_recipe.HOOKS.intersection(paths):
+        raise RuntimeError("Recipe quest hooks require the complete gameplay composition; omit --path")
+    sources, inputs = dict(sources), dict(inputs)
+    if paths is not None:
+        return sources, inputs
+    for name, (data, legacy, encoding) in list(sources.items()):
+        if name in great_recipe.HOOKS:
+            sources[name] = (great_recipe.prepare(name, data), legacy, encoding)
+    for name, data in great_recipe.created().items():
+        sources[name] = (data, (), "utf-8")
+    for path, pair in great_recipe.inputs().items():
+        if path in inputs and inputs[path] != pair:
+            raise RuntimeError("Concurrent recipe source change; no files changed")
+        inputs[path] = pair
+    return sources, inputs
 
 
 def legacy_admission():
@@ -185,7 +206,7 @@ def ui_asset_changes(target_root, state, managed=None, inputs=None):
 def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None):
     if target_root is None:
         target_root = TARGET
-    source_set = gameplay_sources.read(paths) if source_set is None else source_set
+    source_set = recipe_sources(gameplay_sources.read(paths) if source_set is None else source_set, paths)
     app = target_root.parent.parent if target_root.name == "Resources" and target_root.parent.name == "Contents" else None
     state = DeliveryState(target_root, app) if state is None else state
     if state.resources != target_root or state.app != app:
@@ -270,7 +291,8 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
                 reviewed = incoming
             else:
                 if (relative not in bootstrap
-                        and relative not in deck.PATCHES and relative not in military_callbacks.HOOKS):
+                        and relative not in deck.PATCHES and relative not in military_callbacks.HOOKS
+                        and relative not in great_recipe.HOOKS):
                     # No composer owns this file. Preserve runtime edits.
                     continue
                 reviewed, _ = background_alpha.prepare_file(relative, incoming)
@@ -281,6 +303,8 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
                             else military_callbacks.prepare(relative, reviewed))
             if relative == lighting_consumers.PATH:
                 reviewed = lighting_consumers.prepare(reviewed)
+            if relative in great_recipe.HOOKS:
+                reviewed = great_recipe.prepare(relative, reviewed)
             if script_bytes(relative, original, reviewed) == reviewed:
                 reviewed = original
             admitted = original if relative in state.files else script_bytes(relative, original, reviewed)
@@ -288,7 +312,8 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
                 normalized = admitted.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
                 if digest(normalized) in bootstrap.get(relative, ()):
                     admitted = normalized
-            state.admit(relative, admitted, reviewed, bootstrap.get(relative, ()))
+            legacy = tuple(bootstrap.get(relative, ())) + great_recipe.BASE_HASHES.get(relative, ())
+            state.admit(relative, admitted, reviewed, legacy)
             state.track(relative, reviewed, owner=state.files.get(relative, {}).get("owner", "stage"),
                         source=identity if variant is not None else None)
             if managed is not None:
@@ -301,7 +326,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
 
 
 def delivery_content(target_root, sources=None):
-    source_set = gameplay_sources.read()
+    source_set = recipe_sources(gameplay_sources.read())
     managed = {}
     app = target_root.parent.parent if target_root.name == "Resources" and target_root.parent.name == "Contents" else None
     state = DeliveryState(target_root, app)
@@ -322,9 +347,9 @@ def apply(changes, paths=None, source_set=None):
 
 def apply_locked(changes, paths=None, source_set=None):
     if not compiler_ready():
-        raise RuntimeError("build and stage Metal with the current compiler, deck, sea-surrender and contact-activity patches before applying gameplay")
+        raise RuntimeError("build and stage Metal with the current compiler and native gameplay patches before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
-    source_set = gameplay_sources.read(paths) if source_set is None else source_set
+    source_set = recipe_sources(gameplay_sources.read(paths) if source_set is None else source_set, paths)
     runtime_state = DeliveryState(TARGET)
     app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
     runtime_managed, app_managed, variant_inputs = {}, {}, {}

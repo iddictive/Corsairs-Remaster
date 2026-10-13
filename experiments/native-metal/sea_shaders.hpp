@@ -152,6 +152,19 @@ float4 seaBump(float3 uv,constant SeaU& u,texture2d<float> flat,texture3d<float>
     if(u.bumpIsVolume)return volume.sample(s,uv);
     return flat.sample(s,uv.xy);
 }
+// The CPU field owns displacement and coarse slopes. Advect only fine texture
+// detail here, using its bounded current, not a second water-height evaluator.
+float2 seaWhirlpoolUV(SeaO o,constant SeaU& u,float2 uv) {
+    if(u.vc[245].w<=0.f)return uv;
+    float2 delta=o.worldXZ-u.vc[245].xy;
+    float q=length(delta)/max(u.vc[245].z,1.f);
+    if(q>=1.f)return uv;
+    float edge=1.f-q*q;
+    float clock=u.vc[246].x*u.vc[245].w*edge*edge;
+    float angle=-.24f*clock,c=cos(angle),s=sin(angle);
+    float2 transported=float2(c*delta.x-s*delta.y,s*delta.x+c*delta.y)*exp(min(.065f*clock,2.f));
+    return uv+(transported-delta)*.07f;
+}
 float3 seaReflected(SeaO o,float3 sampled) {
     float3 bump=sampled*2.f-1.f;
     float3 n=float3(dot(o.t1.xyz,bump),dot(o.t2.xyz,bump),dot(o.t3.xyz,bump));
@@ -205,13 +218,31 @@ float4 seaTsunamiFoam(SeaO o,constant SeaU& u,texture2d<float> texture,sampler s
     float illumination=.72f+.28f*saturate(normal.y);
     return seaFog(float4(tint*illumination,coverage),o,u);
 }
+float4 seaEventFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
+    float4 result=authored;
+    if(u.vc[240].y>0.f)
+        result=mix(result,seaTsunamiFoam(o,u,texture,state),smoothstep(0.f,.05f,o.eventMaterial.x));
+    if(u.vc[245].w<=0.f)return result;
+    float2 delta=o.worldXZ-u.vc[245].xy;
+    float q=length(delta)/max(u.vc[245].z,1.f);
+    // Evaluate texture derivatives coherently; blend is compact at the edge.
+    float2 uv=seaWhirlpoolUV(o,u,o.worldXZ/5.5f);
+    float4 pattern=antiTilingSampleNatural(texture,state,uv,0x56525458u);
+    float density=min(o.eventMaterial.y,.86f);
+    float feather=max(.1f,fwidth(pattern.r)*1.3f);
+    float coverage=smoothstep(1.f-density,1.f-density+feather,pattern.r);
+    float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
+    float3 n=seaNormalize(o.surfaceNormal);
+    float4 vortex=seaFog(float4(tint*(.67f+.33f*saturate(n.y)),coverage),o,u);
+    return mix(result,vortex,u.vc[245].w*(1.f-smoothstep(.86f,1.f,q)));
+}
 fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
     // Original ps_1_4 computes a perturbed normal in r5 but never consumes it.
     // Phase two samples the foam texture using unperturbed r3.xy, alpha=r3.z.
     // Uniform admission keeps derivative evaluation coherent across quads.
-    if(u.vc[240].x>.5f&&u.vc[240].y>0.f&&u.stride>=40u) {
+    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u) {
         float4 authored=seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
-        return mix(authored,seaTsunamiFoam(o,u,t[0],s[0]),smoothstep(0.f,.05f,o.eventMaterial.x));
+        return seaEventFoam(authored,o,u,t[0],s[0]);
     }
     return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
 }
@@ -219,8 +250,8 @@ float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,ar
     float4 foam=t[0].sample(s[0],o.t3.xy);
     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
     // RGB follows available weather light; authored coverage and blending stay exact.
-    if(u.vc[240].x>.5f&&u.vc[240].y>0.f&&u.stride>=40u)
-        return mix(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),seaTsunamiFoam(o,u,t[0],s[0]),smoothstep(0.f,.05f,o.eventMaterial.x));
+    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u)
+        return seaEventFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
     return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
 }
 fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {return seaFoamModernColor(o,u,t,s);}
@@ -359,8 +390,9 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
 
 // Base water and its additive sun-road share one normal reconstruction.
 float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture3d<float> bump,sampler sampleState) {
-    float3 raw=seaBump(o.t0.xyz,u,flat,bump,sampleState).rgb;
-    float3 fine=seaBump(float3(o.t0.xy*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,flat,bump,sampleState).rgb;
+    float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
+    float3 raw=seaBump(float3(flowUV,o.t0.z),u,flat,bump,sampleState).rgb;
+    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,flat,bump,sampleState).rgb;
     // BuildVolumeTexture writes ARGB(blue, green, red): restore world XYZ order.
     return modernSeaRainNormal(o,u,modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f));
 }
@@ -406,8 +438,9 @@ float4 seaSunModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,tex
 }
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],depth2d<float> sceneDepth [[texture(11)]]) {return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo,sceneDepth);}
 float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth,texture2d<float> cloudFrom,texture2d<float> cloudTo) {
-    float3 raw=seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb;
-    float3 fine=seaBump(float3(o.t0.xy*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,t[0],bump,s[0]).rgb;
+    float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
+    float3 raw=seaBump(float3(flowUV,o.t0.z),u,t[0],bump,s[0]).rgb;
+    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,t[0],bump,s[0]).rgb;
     // SimpleSea packs horizontal normal X in B and Z in R (R duplicated to G).
     float3 coarse=float3(raw.b*2.f-1.f,1,raw.r*2.f-1.f);
     float3 detail=float3(fine.b*2.f-1.f,1,fine.r*2.f-1.f);

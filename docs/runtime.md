@@ -4,6 +4,77 @@ Last verified: October11. Canonical staging installs signed engine `0dbca948864a
 
 ## Current verdict
 
+### October12 — Great Recipe native vortex, integration in progress
+
+The requested Great Recipe now has an eight-hook composer and two dedicated
+scripts: Bermuda offer, moonlit vortex/assault, persistent captivity, fair
+shrapnel duel, both dream outcomes and post-loss real Red Beard encounter.
+Full candidate PROGRAM and both dialogue segments compile with zero VM errors.
+State/save-codec probes pass restoration, distinct chores, success-only Bermuda
+stock, unique reward row, foreign-row alias, full cargo, duplicate reward,
+paused phases and resumed damage cap. Removing GC reservation fails113; removing
+the exposure cap fails304. These fixtures stub world/audio/scene/native-query
+boundaries; they do not accept the whole player quest.
+
+Native vortex shares world-space deformation/slopes/current between SEA and
+SHIP, with explicit saved descriptor/age restoration, finite onset/fade,
+spiral foam and debris. Native source build and ordinary/modern water probes
+pass. Actual shader component readback distinguishes active and moving output,
+then restores byte-identical ordinary water. The first diagnostic replay used
+multiple captures without normal frame reset; adding Present and restoring
+the initial depth comparison fixed that fixture-only identity failure.
+The player rejected the component's smooth bowl. Revised patch74f86e75
+adds sheared folds, two secondary geometric scales and a lip varying in radius
+and height, with identical current/load behavior. Paired actual-Metal readback
+using the same approximate ordinary waves and synthetic textures shows broken
+spiral crests:21,901active pixels,21,240age-changing pixels, Clear identity.
+Those diagnostic assets are not full-game appearance evidence.
+Disposition: core state/compiler and revised field component accepted;
+combined canonical staging and player quest/sea replay remain pending.
+
+### October12 — safe pushable wreck contact, source accepted; staging pending
+
+The separately authorized collision repair is committed as f309db56 with
+exact-context followup fd62f1e0. Accepted patchbf6f673f keeps dead-hull prediction
+at the actual displaced pose, suppresses
+phantom impulses and recursive/negative-power damage, and splits contact
+displacement by mass. Its new native method retains XZ in existing anchor/current
+position and absorbed downward travel in existing saved sinking displacement.
+No save fields are added. Its final zero-fuzz dry-run composes after the quest
+vortex under one build owner; only predecessor context changed, and all native
+added/removed lines match the accepted physics patch.
+
+Actual-method broadside/oblique probes reduce damage1774.61→36.7633 and
+917.045→15.681; live/live output stays identical. A10:1 live:wreck mass pair
+moves the live hull0.301m and wreck5.719m; equal and reversed masses, departure,
+old impulses, depth/dt and next death-pose persistence pass. Full native source
+syntax passes. Disposition: source/component accepted; canonical staging and
+the player's original battle/save replay remain pending. Topic owner:
+docs/ship-wreck-contact.md.
+
+### October12 — night table preparation, source verified; installation pending
+
+The separate night-performance request targets repeated point-lamp CPU work
+without reducing lamps, resolution, selected-source budgets or shadow faces.
+The actual pre-change registry builds equal geometry/argument tables eight
+times for eight refreshed cubes. The candidate shares their immutable snapshot
+within one Metal command and observation epoch; each cube keeps an independent
+ICB, face buffer and argument buffer. Observation, scene/command/device changes
+invalidate reuse, including a changed palette offset with unchanged caster key.
+Completion-owned flight slots retain the geometry resources.
+
+A disposable actual-Metal replay with2048casters reduces preparations8→1.
+Full depth readback is byte-identical before/after. After three warm-up batches,
+six batches average1.083ms→0.496ms for eight-cube CPU encoding and
+0.377ms→0.150ms in table building; first-use allocation is excluded. Completed
+commands release borrowed snapshots and geometry references before slot reuse.
+Same-key palette-offset GPU depths retain
+independent0.3/0.6 values; new command, scene,24-slot exhaustion and completion
+reuse pass. Rebuilt dynamic-lighting and sea-point-shadow fixtures pass. No
+permanent test is added. These are component timings, not player FPS.
+Disposition: source/native GPU checks accepted; canonical staging and the
+player's same-save night-city/sea replay remain pending.
+
 ### October11 — public archive prepared; delivery pending
 
 The public app export contains the current installed code/data sections, neutral

@@ -1,0 +1,649 @@
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -128,6 +128,7 @@
+ SEA::~SEA()
+ {
+     ResetTsunami();
++    ResetWhirlpool();
+     rs->Release(pReflection);
+     rs->Release(pReflectionSunroad);
+     rs->Release(pEnvMap);
+@@ -195,6 +196,7 @@
+ bool SEA::Init()
+ {
+     ResetTsunami();
++    ResetWhirlpool();
+     if (ATTRIBUTES::IsLive(AttributesPointer))
+         if (auto *state = AttributesPointer->GetAttributeClass("Tsunami")) state->SetAttributeUseDword("Start", 0);
+     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+@@ -676,13 +678,25 @@
+     const int32_t iSize = static_cast<int32_t>(dwMaxDim >> iLev);
+     const float fGSize = fGridStep * iSize;
+ 
+-    const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize, -fMaxSeaHeight / 2.0f, iTY * fGSize);
+-    const CVECTOR v2 = v1 + CVECTOR(fGSize, fMaxSeaHeight + tsunami.HeightBound(), fGSize);
++    const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
++        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound(), iTY * fGSize);
++    const CVECTOR v2 = v1 + CVECTOR(fGSize,
++        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound(), fGSize);
+ 
+     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
+         return;
+ 
+     CalculateLOD(v1, v2, iMaxLOD, iMinLOD);
++    const auto &vortex = whirlpool.Frame();
++    if (vortex.active && vortex.envelope > 0.f) {
++        const float nearX = std::clamp(vortex.centerX, v1.x, v2.x);
++        const float nearZ = std::clamp(vortex.centerZ, v1.z, v2.z);
++        if (std::hypot(nearX - vortex.centerX, nearZ - vortex.centerZ) < vortex.radius) {
++            const int localLOD = std::max(4, static_cast<int>(std::ceil(std::log2(vortex.radius / (48.f * fGridStep)))));
++            iMinLOD = std::min(iMinLOD, localLOD);
++            if (fGSize <= vortex.radius * .5f) iMaxLOD = iMinLOD;
++        }
++    }
+ 
+     if (iSize <= static_cast<int32_t>(dwMinDim) || iMaxLOD - iMinLOD <= 1)
+     {
+@@ -703,18 +717,19 @@
+ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *eventMaterial)
+ {
+     const auto sample = EvaluateSeaTsunami(tsunami.Frame(), x, z);
+-    height += sample.height;
++    const auto vortex = GetWhirlpoolSample(x, z);
++    height += sample.height + vortex.height;
+     if (eventMaterial)
+     {
+-        eventMaterial[0] = sample.height / sample.amplitude;
+-        eventMaterial[1] = sample.foam;
+-    }
+-    if (normal && sample.height != 0.f)
++        eventMaterial[0] = std::max(sample.height / sample.amplitude, vortex.load);
++        eventMaterial[1] = std::max(sample.foam, vortex.foam);
++    }
++    if (normal && (sample.height != 0.f || vortex.height != 0.f))
+     {
+         // Compose gradients with the existing normal, then renormalize once.
+         // This also handles the ordinary flat-water distance cutoff.
+-        normal->x -= sample.slopeX * normal->y;
+-        normal->z -= sample.slopeZ * normal->y;
++        normal->x -= (sample.slopeX + vortex.slopeX) * normal->y;
++        normal->z -= (sample.slopeZ + vortex.slopeZ) * normal->y;
+         *normal = !(*normal);
+     }
+ }
+@@ -872,7 +887,7 @@
+     {
+         if (pNormal)
+             *pNormal = CVECTOR(0.0f, 1.0f, 0.0f);
+-        if (tsunami.Frame().active)
++        if (tsunami.Frame().active || whirlpool.Frame().active)
+         {
+             float height = 0.f;
+             ApplyTsunami(x, z, height, pNormal);
+@@ -980,7 +995,7 @@
+         *pNormal = vNormal;
+     }
+ 
+-    if (tsunami.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
++    if (tsunami.Frame().active || whirlpool.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
+     return fRes;
+ }
+ 
+@@ -1268,8 +1283,9 @@
+             pVSea[dwVIndex].tu = (cx - vNormal.x * 5.3f) * fBumpScale;
+             pVSea[dwVIndex].tv = (cz - vNormal.z * 5.3f) * fBumpScale;
+             const auto eventSample = GetTsunamiSample(cx, cz);
+-            pVSea[dwVIndex].eventMaterial[0] = eventSample.height / eventSample.amplitude;
+-            pVSea[dwVIndex].eventMaterial[1] = eventSample.foam;
++            const auto vortexSample = GetWhirlpoolSample(cx, cz);
++            pVSea[dwVIndex].eventMaterial[0] = std::max(eventSample.height / eventSample.amplitude, vortexSample.load);
++            pVSea[dwVIndex].eventMaterial[1] = std::max(eventSample.foam, vortexSample.foam);
+ 
+             iIStart1++;
+         }
+@@ -1415,7 +1431,7 @@
+     if (vCamPos.y < 0.0f)
+         bUnderSea = true;
+ 
+-    if (vCamPos.y < (tsunami.Frame().active ? WaveXZ(vCamPos.x, vCamPos.z) :
++    if (vCamPos.y < ((tsunami.Frame().active || whirlpool.Frame().active) ? WaveXZ(vCamPos.x, vCamPos.z) :
+                                             WaveXZ(vCamPos.x, vCamPos.z && bStarted)))
+         bUnderSea = true;
+ 
+@@ -1626,7 +1642,12 @@
+         rs->SetVertexShaderConstantF(241, (const float *)&eventOrigin, 1);
+         rs->SetVertexShaderConstantF(242, (const float *)&eventFront, 1);
+         rs->SetVertexShaderConstantF(243, (const float *)&eventSeverity, 1);
+-        const bool tsunamiFoam = event.active && event.envelope > 0.f;
++        const auto &vortex = whirlpool.Frame();
++        const CVECTOR4 vortexOrigin(vortex.centerX, vortex.centerZ, vortex.radius, vortex.active ? vortex.envelope * vortex.intensity : 0.f);
++        const CVECTOR4 vortexTime(vortex.age, 0.f, 0.f, 0.f);
++        rs->SetVertexShaderConstantF(245, (const float *)&vortexOrigin, 1);
++        rs->SetVertexShaderConstantF(246, (const float *)&vortexTime, 1);
++        const bool tsunamiFoam = (event.active && event.envelope > 0.f) || vortexOrigin.w > 0.f;
+         const auto drawSeaFoam = [&] {
+             const auto vec = CVECTOR4(fFoamTextureDisturb, 0.0f, 0.0f, 0.0f);
+             rs->SetPixelShaderConstantF(0, (const float *)&vec, 1);
+@@ -1707,6 +1728,28 @@
+     //rs->SetTexture(0, pReflection);
+     rs->SetTexture(0, pReflectionSunroad);
+     rs->DrawSprites(spr, 1, "Telescope");*/
++
++    if (whirlpool.Frame().active && whirlpool.Frame().envelope > 0.f && iSeaTrashTexture >= 0) {
++        // Reuse authored floating debris; never borrow the ordinary underwater pool.
++        RS_RECT debris[48]{};
++        size_t debrisCount = 0;
++        for (size_t i = 0; i < whirlpoolDebris.size(); ++i) {
++            const auto &position = whirlpoolDebris[i];
++            const auto sample = GetWhirlpoolSample(position.x, position.z);
++            if (sample.serial == 0) continue;
++            RS_RECT rect{};
++            rect.vPos = CVECTOR(position.x, WaveXZ(position.x, position.z) + .15f, position.z);
++            rect.fSize = (.5f + .15f * (i % 5)) * whirlpool.Frame().radius / 90.f;
++            rect.fAngle = std::atan2(sample.velocityZ, sample.velocityX);
++            rect.dwColor = ARGB(180.f * std::min(1.f, sample.load * 3.f), 155, 145, 120);
++            rect.dwSubTexture = i % 4;
++            debris[debrisCount++] = rect;
++        }
++        if (debrisCount > 0) {
++            rs->TextureSet(0, iSeaTrashTexture);
++            rs->DrawRects(debris, debrisCount, "seatrash", 2, 2);
++        }
++    }
+ 
+     if (bUnderSea && bUnderSeaEnable)
+     {
+@@ -1902,6 +1945,37 @@
+     return fRes;
+ }
+ 
++void SEA::PublishWhirlpool()
++{
++    if (!ATTRIBUTES::IsLive(AttributesPointer)) return;
++    auto *state = AttributesPointer->GetAttributeClass("Whirlpool");
++    if (!state) state = AttributesPointer->CreateSubAClass(AttributesPointer, "Whirlpool");
++    const auto &frame = whirlpool.Frame();
++    const uint32_t active = frame.active ? 1 : 0;
++    if (!state->GetAttribute("Active") || state->GetAttributeAsDword("Active") != active)
++        state->SetAttributeUseDword("Active", active);
++    if (!state->GetAttribute("Age") || state->GetAttributeAsFloat("Age") != frame.age)
++        state->SetAttributeUseFloat("Age", frame.age);
++    if (!state->GetAttribute("Envelope") || state->GetAttributeAsFloat("Envelope") != frame.envelope)
++        state->SetAttributeUseFloat("Envelope", frame.envelope);
++}
++
++void SEA::AdvanceWhirlpool(float seconds)
++{
++    if (!(seconds > 0.f) || !std::isfinite(seconds) || !whirlpool.Frame().active) return;
++    const int steps = std::clamp(static_cast<int>(std::ceil(seconds / .05f)), 1, 1800);
++    const float delta = seconds / steps;
++    for (int i = 0; i < steps; ++i) {
++        whirlpool.Advance(delta);
++        for (auto &position : whirlpoolDebris) {
++            const auto sample = GetWhirlpoolSample(position.x, position.z);
++            position.x += sample.velocityX * delta;
++            position.z += sample.velocityZ * delta;
++        }
++    }
++    if (!whirlpool.Frame().active) whirlpoolDebris.clear();
++}
++
+ void SEA::PublishTsunamiActive()
+ {
+     if (!ATTRIBUTES::IsLive(AttributesPointer)) return;
+@@ -1920,6 +1994,28 @@
+     const auto code=message.Long();
+     if (code==1464336400) {
+         if (auto *out=message.ScriptVariablePointer()) out->Set(bStop?0.f:std::max(0.f,fAmp1+fAmp2));
++        return 0;
++    }
++    if (code == MSG_SEA_WHIRLPOOL_CONTACT) {
++        auto *character = message.AttributePointer();
++        auto *result = message.ScriptVariablePointer();
++        if (!result) return 0;
++        result->Set(0.f);
++        if (!character) return 0;
++        for (const auto shipID : core.GetEntityIds("ship")) {
++            auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(shipID));
++            if (!ship || ship->GetACharacter() != character) continue;
++            auto entry = std::find_if(whirlpoolContacts.begin(), whirlpoolContacts.end(),
++                [shipID](const auto &record) { return record.ship == shipID; });
++            if (entry == whirlpoolContacts.end()) {
++                if (whirlpool.Frame().serial == 0) break;
++                whirlpoolContacts.push_back({shipID, {}});
++                entry = whirlpoolContacts.end() - 1;
++            }
++            const auto pos = ship->GetPos();
++            result->Set(entry->contact.Query(whirlpool.Frame(), pos.x, pos.z));
++            break;
++        }
+         return 0;
+     }
+     if (code != MSG_SEA_TSUNAMI_CONTACT) return 0;
+@@ -1984,6 +2080,30 @@
+     ATTRIBUTES *pParent = pAttribute->GetParent();
+     ATTRIBUTES *pParent2 = (pParent) ? pParent->GetParent() : nullptr;
+ 
++    if (pParent && pParent2 == AttributesPointer && *pParent == "Whirlpool") {
++        if (*pAttribute == "Clear" && pAttribute->GetAttributeAsDword() != 0) ResetWhirlpool();
++        if (*pAttribute == "Start") {
++            if (pAttribute->GetAttributeAsDword() != 0) {
++                if (whirlpool.Start(pParent->GetAttributeAsFloat("CenterX"), pParent->GetAttributeAsFloat("CenterZ"),
++                    pParent->GetAttributeAsFloat("Radius", 90.f), pParent->GetAttributeAsFloat("Intensity", 1.f),
++                    pParent->GetAttributeAsFloat("Duration", 90.f), pParent->GetAttributeAsFloat("ResumeAge", 0.f))) {
++                    whirlpoolContacts.clear();
++                    whirlpoolDebris.clear();
++                    const auto &frame = whirlpool.Frame();
++                    for (int i = 0; frame.active && i < 48; ++i) {
++                        const float q = .35f + .60f * (static_cast<float>((i * 17) % 48) / 48.f);
++                        const float angle = static_cast<float>(i) * 2.39996323f;
++                        whirlpoolDebris.emplace_back(frame.centerX + std::cos(angle) * q * frame.radius,
++                            0.f, frame.centerZ + std::sin(angle) * q * frame.radius);
++                    }
++                }
++            } else whirlpool.Stop();
++        }
++        if (*pAttribute == "Start" || *pAttribute == "Clear") pAttribute->SetValue(std::string_view("0"));
++        PublishWhirlpool();
++        return 0;
++    }
++
+     if (pParent && pParent2 == AttributesPointer && *pParent == "Tsunami")
+     {
+         if (*pAttribute == "Start")
+@@ -2222,6 +2342,7 @@
+ void SEA::RestoreRender()
+ {
+     ResetTsunami();
++    ResetWhirlpool();
+     rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+                       &pRenderTargetBumpMap);
+ 
+--- a/src/libs/sea/src/sea.h
++++ b/src/libs/sea/src/sea.h
+@@ -75,6 +75,13 @@
+     uint32_t dwMaxDim, dwMinDim;
+     float fMaxSeaHeight;
+     float fMaxSeaDistance;
++    SeaWhirlpool whirlpool;
++    struct WhirlpoolShipContact { entid_t ship; SeaWhirlpoolContact contact; };
++    std::vector<WhirlpoolShipContact> whirlpoolContacts;
++    std::vector<CVECTOR> whirlpoolDebris;
++    void PublishWhirlpool();
++    void AdvanceWhirlpool(float seconds);
++    void ResetWhirlpool() { whirlpool.Clear(); whirlpoolContacts.clear(); whirlpoolDebris.clear(); PublishWhirlpool(); }
+     SeaTsunami tsunami;
+     bool tsunamiPlayerPassed = false;
+     struct TsunamiShipContact { entid_t ship; SeaTsunamiContact contact; bool capsizeReported = false; };
+@@ -226,6 +233,11 @@
+         return EvaluateSeaTsunami(tsunami.Frame(), x, z);
+     }
+ 
++    SeaWhirlpoolSample GetWhirlpoolSample(float x, float z) const override
++    {
++        return EvaluateSeaWhirlpool(whirlpool.Frame(), x, z);
++    }
++
+     void ProcessStage(Stage stage, uint32_t delta) override
+     {
+         switch (stage)
+@@ -233,7 +245,11 @@
+         case Stage::execute:
+             // Sea already belongs to the simulation layer; pausing that layer
+             // freezes this transient clock even if rendering continues.
+-            if (!bStop) tsunami.Advance(static_cast<float>(delta) * 0.001f);
++            if (!bStop) {
++                tsunami.Advance(static_cast<float>(delta) * 0.001f);
++                AdvanceWhirlpool(static_cast<float>(delta) * 0.001f);
++            }
++            PublishWhirlpool();
+             if (!tsunami.Frame().active) tsunamiContacts.clear();
+             PublishTsunamiActive();
+             break;
+--- a/src/libs/sea/include/sea_base.h
++++ b/src/libs/sea/include/sea_base.h
+@@ -2,10 +2,12 @@
+ 
+ #include "cannon_trace.h"
+ #include "shared/sea_tsunami.hpp"
++#include "shared/sea_whirlpool.hpp"
+ 
+ class SEA_BASE : public CANNON_TRACE_BASE
+ {
+   public:
+     virtual float WaveXZ(float x, float z, CVECTOR *vNormal = nullptr) = 0;
+     virtual SeaTsunamiSample GetTsunamiSample(float x, float z) const { return {}; }
++    virtual SeaWhirlpoolSample GetWhirlpoolSample(float x, float z) const { return {}; }
+ };
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -467,17 +467,36 @@
+     return local;
+ }
+ 
++CVECTOR SHIP::WhirlpoolDriftSpeed()
++{
++    if (!pSea || isDead() || bSetFixed) return CVECTOR(0.f);
++    const auto pos = GetPos();
++    const auto sample = pSea->GetWhirlpoolSample(pos.x, pos.z);
++    const float protection = TsunamiProtection();
++    CVECTOR local(METERS2KNOTS(sample.velocityX * protection), 0.f, METERS2KNOTS(sample.velocityZ * protection));
++    RotateAroundY(local.x, local.z, cosf(-State.vAng.y), sinf(-State.vAng.y));
++    return local;
++}
++
++float SHIP::WhirlpoolYawSpeed()
++{
++    if (!pSea || isDead() || bSetFixed) return 0.f;
++    const auto pos = GetPos();
++    return pSea->GetWhirlpoolSample(pos.x, pos.z).yaw * TsunamiProtection();
++}
++
+ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTPNew)
+ {
+     if (!pTPOld && !pTPNew)
+         return false;
+     const auto old_state = State;
+-    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false);
++    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false) + WhirlpoolDriftSpeed();
++    const float eventYaw = WhirlpoolYawSpeed();
+ 
+     if (pTPOld)
+     {
+         pTPOld->vSpeed = State.vSpeed + eventSpeed;
+-        pTPOld->vRotate = State.vRotate;
++        pTPOld->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
+         pTPOld->vPos = State.vPos;
+         pTPOld->vAng = State.vAng;
+         pTPOld->vPos.x += fXOffset;
+@@ -489,7 +508,7 @@
+     if (pTPNew)
+     {
+         pTPNew->vSpeed = State.vSpeed + eventSpeed;
+-        pTPNew->vRotate = State.vRotate;
++        pTPNew->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
+         pTPNew->vPos = State.vPos;
+         pTPNew->vAng = State.vAng;
+         pTPNew->vPos.x += fXOffset;
+@@ -505,8 +524,10 @@
+ {
+     const auto dtime = DELTA_TIME(DeltaTime);
+     ApplyStrength(dtime, bCollision);
+-    const auto eventSpeed = TsunamiDriftSpeed(dtime, !bCollision);
++    const auto eventSpeed = TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed();
++    const float eventYaw = WhirlpoolYawSpeed();
+     State.vSpeed += eventSpeed;
++    State.vRotate.y += eventYaw;
+     if (!bCollision && !isDead())
+     {
+         State.vAng = ShipRocking(dtime);
+@@ -551,6 +572,7 @@
+     // Only grounding mutates translational velocity after the temporary current.
+     // Its zero velocity is authoritative; never subtract a stale current from it.
+     if (bCollision || !bGroundMoveBlocked) State.vSpeed -= eventSpeed;
++    State.vRotate.y -= eventYaw;
+     return true;
+ }
+ 
+@@ -785,7 +807,9 @@
+     {
+         const auto pos = GetPos();
+         const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
+-        if (sample.serial != 0 || tsunamiMotion.serial != 0)
++        const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
++        if (sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
++            whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
+         {
+             // Match this frame's sampled buoyancy and drift before event rotation.
+             vPos = State.vPos;
+@@ -803,6 +827,9 @@
+         tsunamiMotion.Update(sample, head, beam, protection, fDeltaTime);
+         vAng.x += tsunamiMotion.pitch;
+         vAng.z += tsunamiMotion.roll;
++        whirlpoolMotion.Update(vortexSample, State.vAng.y, bSetFixed ? 0.f : protection, fDeltaTime);
++        vAng.x += whirlpoolMotion.pitch;
++        vAng.z += whirlpoolMotion.roll;
+     }
+ 
+     auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
+@@ -2352,6 +2379,7 @@
+ {
+     uint32_t i;
+     tsunamiDrift.Reset();
++    whirlpoolMotion.Reset();
+ 
+     SetACharacter(pSL->LoadAPointer("character"));
+     pAShip = pSL->LoadAPointer("ship");
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -115,6 +115,7 @@
+     CVECTOR vDeadDir, vCurDeadDir;
+     SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
+     SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
++    SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
+     CVECTOR vKeelContour[MAX_KEEL_POINTS];
+     int32_t iNumMasts;
+     int32_t iNumHulls;
+@@ -145,6 +146,8 @@
+     BOOL ApplyStrength(float dtime, BOOL bCollision);
+     float TsunamiProtection();
+     CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
++    CVECTOR WhirlpoolDriftSpeed();
++    float WhirlpoolYawSpeed();
+     BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate);
+     void CalculateImmersion(); //
+     void CheckShip2Strand(float fDeltaTime);
+--- a/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
++++ b/src/libs/shared_headers/include/shared/sea_ai/script_defines.h
+@@ -3,6 +3,7 @@
+ 
+ //
+ #define SEA_GET_LAYERS "SeaGetLayers"
++#define MSG_SEA_WHIRLPOOL_CONTACT 50204 // "lae": character; cumulative fraction of maximum hull, capped .5
+ #define MSG_SEA_TSUNAMI_CONTACT 50202 // "laeeee": character; exposure, damage fraction, capsize int, signed beam
+ #define MSG_SEA_TSUNAMI_SHORE_SPLASH 50203 // "llfffffff": serial; hit xyz, seaward xyz, strength; serial0 clears owned pool
+ 
+--- a/src/libs/shared_headers/include/shared/sea_whirlpool.hpp
++++ b/src/libs/shared_headers/include/shared/sea_whirlpool.hpp
+@@ -0,0 +1,201 @@
++#pragma once
++#include <algorithm>
++#include <cmath>
++
++inline float SeaWhirlpoolSmooth(float t)
++{
++    t = std::clamp(t, 0.f, 1.f);
++    return t * t * (3.f - 2.f * t);
++}
++
++struct SeaWhirlpoolFrame
++{
++    bool active = false;
++    unsigned serial = 0;
++    float centerX = 0.f, centerZ = 0.f, radius = 90.f, intensity = 1.f;
++    float age = 0.f, duration = 90.f, envelope = 0.f;
++    float stopAge = -1.f, stopEnvelope = 0.f;
++};
++
++inline float SeaWhirlpoolEnvelope(const SeaWhirlpoolFrame &frame, float age)
++{
++    const float life = SeaWhirlpoolSmooth(age / 5.f) * SeaWhirlpoolSmooth((frame.duration - age) / 3.f);
++    return frame.stopAge < 0.f ? life :
++        std::min(life, frame.stopEnvelope * (1.f - SeaWhirlpoolSmooth((age - frame.stopAge) / 3.f)));
++}
++
++struct SeaWhirlpoolSample
++{
++    unsigned serial = 0;
++    float height = 0.f, slopeX = 0.f, slopeZ = 0.f, foam = 0.f, load = 0.f;
++    float velocityX = 0.f, velocityZ = 0.f, yaw = 0.f;
++};
++
++// One compact physical field, consumed by scalar/SSE water, hull and debris.
++// Analytic gradients avoid finite-difference work in the per-vertex sea jobs.
++inline SeaWhirlpoolSample EvaluateSeaWhirlpool(const SeaWhirlpoolFrame &frame, float x, float z)
++{
++    if (!frame.active || frame.envelope <= 0.f || !std::isfinite(x) || !std::isfinite(z)) return {};
++    const float dx = x - frame.centerX, dz = z - frame.centerZ;
++    const float r = std::hypot(dx, dz), q = r / frame.radius;
++    if (q >= 1.f) return {};
++    SeaWhirlpoolSample sample;
++    sample.serial = frame.serial;
++    const float a = frame.envelope * frame.intensity;
++    const float t = 1.f - q * q, t2 = t * t, t3 = t2 * t;
++    const float depth = .28f * frame.radius * a;
++    const float theta = r > .0001f ? std::atan2(dz, dx) : 0.f;
++    const float q2 = q * q, q3 = q2 * q;
++    // A torn lip instead of a rotationally symmetric raised ring. Both its
++    // radius and height vary coherently; q^2 keeps height/gradient zero at eye.
++    const float lipA = 5.f * theta - .48f * frame.age;
++    const float lipB = 9.f * theta + .31f * frame.age;
++    const float lip = .78f + .04f * std::sin(lipA) + .015f * std::sin(lipB);
++    const float dLipTheta = .20f * std::cos(lipA) + .135f * std::cos(lipB);
++    const float rimQ = (q - lip) / .085f;
++    const float mouth = std::exp(-rimQ * rimQ);
++    const float breakA = 7.f * theta - 1.5f * q - .65f * frame.age;
++    const float breakB = 11.f * theta + 3.f * q + .32f * frame.age;
++    const float broken = .75f + .30f * std::sin(breakA) + .18f * std::sin(breakB);
++    const float dBrokenQ = -.45f * std::cos(breakA) + .54f * std::cos(breakB);
++    const float dBrokenTheta = 2.10f * std::cos(breakA) + 1.98f * std::cos(breakB);
++    const float rimScale = .30f * frame.radius * a;
++    const float rimEnvelope = q2 * t2;
++    const float rim = rimScale * rimEnvelope * mouth * broken;
++    sample.height = -depth * t3 + rim;
++    float dQ = 6.f * depth * q * t2 + rimScale * mouth *
++        ((2.f * q * t2 - 4.f * q3 * t) * broken +
++         rimEnvelope * (-2.f * rimQ / .085f * broken + dBrokenQ));
++    float dTheta = rimScale * rimEnvelope * mouth *
++        (2.f * rimQ / .085f * dLipTheta * broken + dBrokenTheta);
++    const auto addFold = [&](float envelope, float derivativeQ, float phase,
++                             float phaseQ, float phaseTheta, float sharpness) {
++        const float shape = std::sin(phase) + sharpness * std::sin(2.f * phase);
++        const float derivative = std::cos(phase) + 2.f * sharpness * std::cos(2.f * phase);
++        sample.height += envelope * shape;
++        dQ += derivativeQ * shape + envelope * derivative * phaseQ;
++        dTheta += envelope * derivative * phaseTheta;
++    };
++    // Strong sheared primary folds, plus two secondary wave scales. These
++    // actually displace the water/hull; shader noise cannot supply their shape.
++    const float shear = 2.f * theta - 3.f * q - .30f * frame.age;
++    const float phase = 3.f * theta - 13.f * q - .90f * frame.age + .7f * std::sin(shear);
++    const float foldScale = .55f * frame.radius * a;
++    addFold(foldScale * q3 * t2, foldScale * (3.f * q2 * t2 - 4.f * q2 * q2 * t),
++        phase, -13.f - 2.1f * std::cos(shear), 3.f + 1.4f * std::cos(shear), .28f);
++    const float secondary = 5.f * theta + 19.f * q - .75f * frame.age;
++    const float crossScale = .15f * frame.radius * a;
++    addFold(crossScale * q2 * t3, crossScale * (2.f * q * t3 - 6.f * q3 * t2),
++        secondary, 19.f, 5.f, .18f);
++    const float shortScale = .09f * frame.radius * a;
++    addFold(shortScale * q3 * t2, shortScale * (3.f * q2 * t2 - 4.f * q2 * q2 * t),
++        11.f * theta - 37.f * q + 1.31f * frame.age, -37.f, 11.f, .0f);
++    // dh/dr and (dh/dtheta)/r. All angular terms have q^2 or stronger support,
++    // so slopes converge to zero at the fixed eye and at the outer boundary.
++    const float radial = dQ / frame.radius;
++    const float angular = r > .0001f ? dTheta / r : 0.f;
++    const float nx = r > .0001f ? dx / r : 0.f, nz = r > .0001f ? dz / r : 0.f;
++    sample.slopeX = radial * nx - angular * nz;
++    sample.slopeZ = radial * nz + angular * nx;
++    sample.load = a * t2;
++    const float flow = a * q * t2;
++    const float inward = .065f * frame.radius * flow;
++    const float swirl = .24f * frame.radius * flow;
++    sample.velocityX = -nx * inward - nz * swirl;
++    sample.velocityZ = -nz * inward + nx * swirl;
++    // Ship yaw in Storm is opposite mathematical XZ polar rotation.
++    sample.yaw = -.065f * sample.load;
++    const float bands = SeaWhirlpoolSmooth((std::sin(phase) - .1f) / .75f);
++    const float whitewater = SeaWhirlpoolSmooth((std::sin(secondary) - .25f) / .70f);
++    sample.foam = std::clamp(a * t * (.10f + .50f * bands + .40f * mouth * broken + .16f * whitewater), 0.f, .9f);
++    return sample;
++}
++
++class SeaWhirlpool
++{
++    SeaWhirlpoolFrame frame_;
++    unsigned serial_ = 0;
++  public:
++    const SeaWhirlpoolFrame &Frame() const { return frame_; }
++    float HeightBound() const { return frame_.active ? frame_.radius * .5f * frame_.intensity : 0.f; }
++    void Clear() { frame_ = {}; }
++    void Stop()
++    {
++        if (frame_.active && frame_.stopAge < 0.f)
++        { frame_.stopAge = frame_.age; frame_.stopEnvelope = frame_.envelope; }
++    }
++    bool Start(float x, float z, float radius = 90.f, float intensity = 1.f,
++               float duration = 90.f, float resumeAge = 0.f)
++    {
++        if (!std::isfinite(x) || !std::isfinite(z) || !std::isfinite(radius) ||
++            !std::isfinite(intensity) || !std::isfinite(duration) || !std::isfinite(resumeAge)) return false;
++        radius = std::clamp(radius, 30.f, 240.f);
++        intensity = std::clamp(intensity, 0.f, 1.f);
++        duration = std::clamp(duration, 6.f, 90.f);
++        if (frame_.active && frame_.centerX == x && frame_.centerZ == z && frame_.radius == radius &&
++            frame_.intensity == intensity && frame_.duration == duration) return false;
++        Clear();
++        frame_.centerX = x; frame_.centerZ = z; frame_.radius = radius;
++        frame_.intensity = intensity; frame_.duration = duration;
++        frame_.age = std::clamp(resumeAge, 0.f, duration);
++        frame_.serial = ++serial_;
++        if (frame_.serial == 0) frame_.serial = ++serial_;
++        frame_.active = intensity > 0.f && frame_.age < duration;
++        frame_.envelope = SeaWhirlpoolEnvelope(frame_, frame_.age);
++        return true;
++    }
++    void Advance(float seconds)
++    {
++        if (!frame_.active || !(seconds > 0.f) || !std::isfinite(seconds)) return;
++        frame_.age = std::min(frame_.age + seconds, frame_.duration);
++        frame_.envelope = SeaWhirlpoolEnvelope(frame_, frame_.age);
++        if (frame_.age >= frame_.duration ||
++            (frame_.stopAge >= 0.f && frame_.age >= frame_.stopAge + 3.f)) frame_.active = false;
++    }
++};
++
++struct SeaWhirlpoolContact
++{
++    unsigned serial = 0;
++    bool initialized = false;
++    float x = 0.f, z = 0.f, age = 0.f, paid = 0.f;
++    float Query(const SeaWhirlpoolFrame &frame, float nextX, float nextZ)
++    {
++        if (frame.serial == 0) return paid;
++        if (serial != frame.serial) { *this = {}; serial = frame.serial; }
++        if (!std::isfinite(nextX) || !std::isfinite(nextZ) || (initialized && frame.age <= age)) return paid;
++        if (initialized)
++        {
++            const float seconds = frame.age - age;
++            const int steps = std::clamp(static_cast<int>(std::ceil(seconds / .125f)), 1, 256);
++            for (int i = 0; i < steps; ++i)
++            {
++                const float u = (static_cast<float>(i) + .5f) / steps;
++                auto crossing = frame;
++                crossing.active = true;
++                crossing.age = age + u * seconds;
++                crossing.envelope = SeaWhirlpoolEnvelope(frame, crossing.age);
++                paid = std::min(.5f, paid + EvaluateSeaWhirlpool(crossing,
++                    x + (nextX - x) * u, z + (nextZ - z) * u).load * seconds / (40.f * steps));
++            }
++        }
++        initialized = true; x = nextX; z = nextZ; age = frame.age;
++        return paid;
++    }
++};
++
++struct SeaWhirlpoolMotion
++{
++    float pitch = 0.f, roll = 0.f;
++    void Reset() { *this = {}; }
++    void Update(const SeaWhirlpoolSample &sample, float heading, float protection, float seconds)
++    {
++        if (sample.serial == 0 || protection <= 0.f) { Reset(); return; }
++        if (!(seconds > 0.f) || !std::isfinite(seconds)) return;
++        const float bowSlope = sample.slopeX * std::sin(heading) + sample.slopeZ * std::cos(heading);
++        const float beamSlope = sample.slopeX * std::cos(heading) - sample.slopeZ * std::sin(heading);
++        const float blend = 1.f - std::exp(-3.f * std::min(seconds, .25f));
++        pitch += (std::clamp(bowSlope * .10f, -.12f, .12f) * protection - pitch) * blend;
++        roll += (std::clamp(beamSlope * .15f - sample.load * .10f, -.24f, .24f) * protection - roll) * blend;
++    }
++};
