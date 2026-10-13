@@ -9,7 +9,7 @@ SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "e62a616a69fe93d5b12b281376fc1cb2b287c95cb780becf3845028062159220",
     "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
-    "PROGRAM/sea_ai/AIShip.c": "0e1dd2354f7be200a3207de983d0e363fae2f1ece3503f005e538c2dceb8233a",
+    "PROGRAM/sea_ai/AIShip.c": "0ec2efa765cc1e8d125280db8ac5c779a38f9fa0ac3f3a32aca619ebf6ccc26c",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",
@@ -23,7 +23,7 @@ NORMALIZED_HASHES = {
     "PROGRAM/worldmap/worldmap_events.c": "52598a4baec8bec7c66270aa156705043f9e0ab7d93ade5420ec9b0d8bcc613b",
     "PROGRAM/worldmap/worldmap_reload.c": "d7b845b968e7015503d360b80dbf3281c4a3418c064ed031fbffa98d589a1930",
     "PROGRAM/Loc_ai/LAi_fightparams.c": "e886b558dbbb64565baca70ab512064a5f7b82183a946bc516722bb96611836e",
-    "RESOURCE/INI/interfaces/pictures.ini": "bd8774f43bc7a5fe2ec22825ea6d4a0d5f189d36946c92b79bf65b3e8b60eedb",
+    "RESOURCE/INI/interfaces/pictures.ini": "13ba2c23d21ac11c76c42c89bf4ea94a4ac7d1299c86ee4c9b2fe0477bf20f0b",
     "PROGRAM/Loc_ai/LAi_boarding.c": "ea8c00a89e783640199a11d1fd798344ba4e91bca70e6169a08968899891b632",
     "PROGRAM/interface/store.c": "9bf6299cc923045a9166afa2a0fa4be664a37bcf4faeccc9969186358a389a76",
     "PROGRAM/nations/nations.c": "f5918635df437b06166823970df1c120f1ac08d4ed21a719e53769644580f435",

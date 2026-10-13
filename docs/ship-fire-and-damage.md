@@ -85,6 +85,11 @@ There is no ship-class or salvo-size override; small ships retain the same
 per-hit ammunition/critical contract.
 No new unlimited chain explosion or duplicate legacy DOT. Round shot,
 grapeshot, knippels and airburst retain their existing independent contracts.
+The October 13 `HeatedShot` source candidate adds 20% ignition admission only
+to the 20% of round shots tagged hot at launch; a hot hull critical combines
+with the existing 50% into one 60% roll. It uses this same simulation and
+damage-control lifecycle. Its perk/projectile contract and pending installed
+battle replay are owned by `naval-ammunition-and-damage.md`.
 Preserve quest immunity, attribution, death, repair and interface/boarding guards.
 
 Persist additive fire state in existing character attributes, preserving the

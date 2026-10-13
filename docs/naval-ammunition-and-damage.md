@@ -113,6 +113,46 @@ Mathematical degradation on a healthy target (100% hull):
 
 ## Specification for New Ammunition Types
 
+### Heated-shot perk
+
+October 13 source candidate. `HeatedShot` is a passive ship perk learned by the
+hero or inherited from the assigned cannoner, requiring `CannonProfessional`
+and `ImmediateReload` through the existing perk tree. Old saves rebuild the
+registry through `PerkLoad` without granting or clearing learned perks.
+
+`AIBalls.c` rolls `rand(4) == 0` once at launch, only for `GOOD_BALLS` with the
+effective perk. The existing saved projectile event string carries
+`@heated-shot`; cargo, velocity, direct damage and the binary SAVE layout remain
+unchanged. `native-metal/heated-shot.patch` consumes that tag as data (never as
+a script callback), tints the ordinary sprite warm red and resets
+`CurrentBallHeated` before each projectile collision. Ordinary shots and other
+ammunition must not inherit a preceding heated shot's flag.
+
+`AIShip.c` admits local hull/cloth ignition with 20% probability for a heated
+hit through the existing fire owner. A true hull critical retains its 50%
+chance and combines the independent 20% hot-shot contribution into one 60%
+roll and one fire site. A noncritical round-shot hit therefore has a 4% overall
+hot-shot ignition probability before suppression, not a guaranteed fifth shot
+or fifth hit. Other ammunition retains its existing fire probabilities.
+The perk reuses the existing cannon-professional icon in enabled/disabled
+atlases; it adds no goods, atlas payload or extra fire timer.
+
+Acceptance requires learning from both the hero and assigned cannoner,
+red shots mixed with ordinary shots, local ignition on a vulnerable target,
+and unchanged non-perk/other-ammunition behavior in the installed Metal game.
+The canonical native build consumed the new last-stack patch successfully.
+The refreshed `script-vm-probe` compiled the full installed PROGRAM chain with
+the current read-only delivery projection and passed `HeatedShotCases=0`,
+`script_errors=0`: registry/prerequisites, preservation of a prior learned perk,
+hero/officer inheritance and removal, 20%/60% chances, and unchanged other ammo.
+Only the fixture's `Main` is renamed to prevent real game startup. Calling
+the dynamically unloaded perk-init segment twice within one uninterrupted probe
+run produces an existing extern-call error; the accepted fixture uses the
+normal single initialization and makes no claim about complete SAVE reload.
+Source/native VM checks cannot accept the battle replay. Installation and
+game input remain outside this source batch while the prior game-control stop
+is in force.
+
 To add custom ammunition cleanly without breaking native engine stability:
 
 1. **Registry**: Extend `PROGRAM/store/goods.h` (`GOODS_QUANTITY` and `GOOD_*` defines) and `initGoods.c`.

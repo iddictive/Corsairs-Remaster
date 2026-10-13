@@ -1,0 +1,53 @@
+--- a/src/libs/sea_ai/src/ai_balls.cpp
++++ b/src/libs/sea_ai/src/ai_balls.cpp
+@@ -586,6 +586,8 @@
+ 
+             const int airburstGood = AirburstGood(*pBall);
+             const bool fragment = AirburstFragment(*pBall);
++            // The saved event string carries shot identity without changing the binary codec.
++            const bool heated = pBall->sBallEvent == "@heated-shot";
+             // An unarmed/direct shell uses the ordinary native Bombs contract,
+             // including forts and rigging. Only the radial burst changes goods.
+             AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
+@@ -593,6 +595,7 @@
+             ResetAirburstHull(AttributesPointer);
+             AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
+             AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
++            AttributesPointer->SetAttributeUseDword("CurrentBallHeated", heated ? 1 : 0);
+ 
+             AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
+             AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
+@@ -621,7 +624,7 @@
+ 
+             vDst = pBall->vPos;
+ 
+-            if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment)
++            if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated)
+                 core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
+                            pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
+                            vSrc.z);
+@@ -725,7 +728,7 @@
+             // delete ball
+             if (fRes <= 1.0f)
+             {
+-                if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment)
++                if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated)
+                 {
+                     core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
+                                pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
+@@ -746,13 +749,13 @@
+                 continue;
+             }
+ 
+-            if (pBall->sBallEvent.empty() || airburstGood >= 0 || fragment)
++            if (pBall->sBallEvent.empty() || airburstGood >= 0 || fragment || heated)
+             {
+                 aBallRects.push_back(RS_RECT{});
+                 // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
+                 RS_RECT *pRSR = &aBallRects.back();
+                 pRSR->vPos = pBall->vPos;
+-                pRSR->dwColor = 0xFFFFFF;
++                pRSR->dwColor = heated ? 0x00FF6040 : 0xFFFFFF;
+                 pRSR->dwSubTexture = fragment && grapes != aBallTypes.end() ? grapes->dwSubTexIndex : pBallsType->dwSubTexIndex;
+                 pRSR->fAngle = pBall->fTime * 3.0f;
+                 pRSR->fSize = fragment ? 0.30f : pBallsType->fSize * pBall->fSizeMultiply;

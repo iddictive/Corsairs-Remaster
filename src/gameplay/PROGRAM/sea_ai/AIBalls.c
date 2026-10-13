@@ -35,6 +35,7 @@ void CreateBallsEnvironment()
 	AIBalls.AirburstFxBusy = false;
 	AIBalls.CurrentAirburstDetonated = false;
 	AIBalls.CurrentAirburstDistance = 0.0;
+	AIBalls.CurrentBallHeated = false;
 
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
 	AIBalls.Texture = "AllBalls.tga";
@@ -210,6 +211,8 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	AIBalls.Ang = fHeightAng + fAccuracy * (fTempDispersionX) * (frnd() - 0.5);
 
 	AIBalls.Event = "";
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_BALLS && CheckAttribute(aCharacter, "TmpPerks.HeatedShot") && sti(aCharacter.TmpPerks.HeatedShot) && rand(4) == 0)
+		AIBalls.Event = "@heated-shot";
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_AIRBURST)
 	{
 		// Preserve the four native lanes and the existing in-flight save codec.

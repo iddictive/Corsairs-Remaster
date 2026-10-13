@@ -2624,7 +2624,14 @@ int Ship_GetCurrentBallsNum()
 
 float Ship_FireIgnitionChance(int attackerIndex, int ballType, bool critical)
 {
-	// A critical supersedes the ordinary shell chance; callers roll only once.
+	// Callers roll once; hot shot adds its independent chance to a critical.
+	bool heated = ballType == GOOD_BALLS && CheckAttribute(AIBalls, "CurrentBallHeated") && sti(AIBalls.CurrentBallHeated);
+	// Combine the existing critical with hot-shot admission in one roll/fire site.
+	if (heated)
+	{
+		if (critical) return 0.60;
+		return 0.20;
+	}
 	if (!critical)
 	{
 		if (ballType == GOOD_BOMBS) return 0.005;
@@ -2655,7 +2662,7 @@ void Ship_SailDamage()
 
 	Play3DSound(sSound, x, y, z);
 	if (rand(100) < 15) { Play3DSound("fly_ball_misc", x, y, z); }
-	if (iBallType == GOOD_BOMBS && iCharacterIndex >= 0)
+	if (iCharacterIndex >= 0 && (iBallType == GOOD_BOMBS || (iBallType == GOOD_BALLS && CheckAttribute(AIBalls, "CurrentBallHeated") && sti(AIBalls.CurrentBallHeated))))
 	{
 		ref burningShip = GetCharacter(iCharacterIndex);
 		float chance = Ship_FireIgnitionChance(iBallOwner, iBallType, false);
@@ -4865,6 +4872,7 @@ void Ship_UpdatePerks()
 	aTmpPerks.LongRangeShoot			= CheckOfficersPerk(rCharacter, "LongRangeShoot");
 	aTmpPerks.CannonProfessional		= CheckOfficersPerk(rCharacter, "CannonProfessional");
 	aTmpPerks.RakingFire			= CheckOfficersPerk(rCharacter, "RakingFire");
+	aTmpPerks.HeatedShot			= CheckOfficersPerk(rCharacter, "HeatedShot");
 	aTmpPerks.LongRangeGrappling		= CheckOfficersPerk(rCharacter, "LongRangeGrappling");
 	aTmpPerks.GrapplingProfessional		= CheckOfficersPerk(rCharacter, "GrapplingProfessional");
 	aTmpPerks.BasicBattleState			= CheckOfficersPerk(rCharacter, "BasicBattleState");
