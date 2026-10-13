@@ -1190,7 +1190,7 @@ void ProcessControls()
         }
         else
         {   // без боя
-            if (bSeaActive && !bAbordageStarted )
+            if ((bSeaActive && !bAbordageStarted) || IsEntity(worldMap))
             {
             	if (TimeScaleCounter > 28) TimeScaleCounter = 28; // море
             }
@@ -1198,10 +1198,6 @@ void ProcessControls()
             {
             	if (TimeScaleCounter > 8) TimeScaleCounter = 8; // суша
             }
-        }
-        if (IsEntity(worldMap))
-        {
-            if (TimeScaleCounter > 8) TimeScaleCounter = 8;
         }
      	float newTimeScale = 1 + (TimeScaleCounter)*0.25; // GetSeaTimeScale()
      	if (newTimeScale < 0) //don't wanna crash the game

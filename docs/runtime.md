@@ -1,8 +1,38 @@
 # Runtime state
 
-Last verified: October13. Physical captivity/moonlit cache, bounded storm escape, inline graphics settings and ambient tavern rumors are delivered through the canonical stage-only path, following corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26`. Installed signed engine: `f14d7cbd33346db3a88529e76e850235311ecf4ba49ba66e0a4eeb466ffd673d`. Game scenes and FPS remain unaccepted until player replay. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Physical captivity/moonlit cache, bounded storm escape, inline graphics settings and ambient tavern rumors are delivered through the canonical stage-only path, following corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26`. Installed signed engine: `f14d7cbd33346db3a88529e76e850235311ecf4ba49ba66e0a4eeb466ffd673d`. Player replay now rejects the first vortex battle/capture and Options restart persistence; repairs are source candidates. City/map FPS remains unresolved. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — player replay reopens vortex battle, capture and Options
+
+The player's night battle shows missing water blocks and exposed terrain. Manual
+fire works, but neither Beard nor companions automatically fire; Beard does not
+approach a damaged or mastless flagship. A captain-duel loss leaves the hero dead
+on deck after a journal notification. The night map patrol is difficult to reach.
+Options chosen with OK also revert after quitting and restarting the installed app.
+These observations reject the corresponding gameplay/restart acceptance; prior
+VM and GPU component passes retain only their recorded scopes.
+
+Source diagnosis proves two defects: vortex subdivision can create blocks larger
+than the unchanged sea vertex budget, and swallowed boarding death leaves the
+stock interface/death state blocking the deferred captive reload. Native ship
+camera already clamps against displaced `WaveXZ`; a camera hypothesis does not
+replace the demonstrated mesh defect. Auto-fire, capture approach, encounter
+reachability, water/camera classification and Options persistence have continuing
+source repair owners. No current candidate has been staged or replayed by the player.
+
+The independently frozen chart-speed source admits the existing counter28/x8
+branch on the global map and removes its redundant counter8/x3 override. Real
+ProcessControls VM input events pass x8, slower/floor, ordinary sea, land,
+boarding, pause, dialogue/interface and quest-lock cases. Its complete source
+hash is admitted by the recipe composer; composing twice is identical. Installed
+activation is pending, using the existing engine after the player session ends.
+
+The frozen backend posed-bound scratch/span reuse passes exact CPU parity,
+including source replacement, NaNs, signed-zero order and disabled/sparse/span
+fallbacks. Those per-draw measurements do not establish scene FPS. Native build,
+GPU parity and installed activation await the combined source batch.
 
 ### October13 — ordinary drinking now includes contradictory Beard tales
 
