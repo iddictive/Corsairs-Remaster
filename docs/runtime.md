@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified: October11. Canonical staging installs signed engine `0dbca948864a69d81f1873fe2bd9d6ebb92f033a713aa94886e9e1eeb568dc7c` into the supported player app. Current source adds phase-dependent lunar reflection to the continuous chart rain and sliced fleet refresh batch. Component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. The player explicitly authorized the portfolio case, installer-facing Russian changelog and latest ZIP/Drive publication, superseding the earlier weather-review release hold. Archive extraction and public case delivery are verified; the player took ownership of future cloud upload. No task launches or operates the game.
+Last verified: October12. Canonical staging installs signed engine `1763605379170486f369e1cc36fbf80fffcccb08d37e3c3fd8ef9db0f5820b18` into the supported player app. Current batch adds Great Recipe, a physical rough sea whirlpool, shared night-shadow preparation and safe pushable wreck contact. Native/component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. All249 snapshotted SAVE, userdata and configuration files are unchanged. The October11 archive and public case are historical delivery evidence; future cloud upload remains player-owned. No task launches or operates the game.
 
 ## Current verdict
 
-### October12 — Great Recipe native vortex, integration in progress
+### October12 — Great Recipe and rough native vortex installed; player replay pending
 
 The requested Great Recipe now has an eight-hook composer and two dedicated
 scripts: Bermuda offer, moonlit vortex/assault, persistent captivity, fair
@@ -30,9 +30,9 @@ using the same approximate ordinary waves and synthetic textures shows broken
 spiral crests:21,901active pixels,21,240age-changing pixels, Clear identity.
 Those diagnostic assets are not full-game appearance evidence.
 Disposition: core state/compiler and revised field component accepted;
-combined canonical staging and player quest/sea replay remain pending.
+combined canonical staging accepted; player quest/sea replay remains pending.
 
-### October12 — safe pushable wreck contact, source accepted; staging pending
+### October12 — safe pushable wreck contact installed; player replay pending
 
 The separately authorized collision repair is committed as f309db56 with
 exact-context followup fd62f1e0. Accepted patchbf6f673f keeps dead-hull prediction
@@ -48,11 +48,11 @@ Actual-method broadside/oblique probes reduce damage1774.61→36.7633 and
 917.045→15.681; live/live output stays identical. A10:1 live:wreck mass pair
 moves the live hull0.301m and wreck5.719m; equal and reversed masses, departure,
 old impulses, depth/dt and next death-pose persistence pass. Full native source
-syntax passes. Disposition: source/component accepted; canonical staging and
-the player's original battle/save replay remain pending. Topic owner:
+syntax passes. Disposition: source/component and canonical staging accepted;
+the player's original battle/save replay remains pending. Topic owner:
 docs/ship-wreck-contact.md.
 
-### October12 — night table preparation, source verified; installation pending
+### October12 — night table preparation installed; player FPS replay pending
 
 The separate night-performance request targets repeated point-lamp CPU work
 without reducing lamps, resolution, selected-source budgets or shadow faces.
@@ -72,8 +72,33 @@ Same-key palette-offset GPU depths retain
 independent0.3/0.6 values; new command, scene,24-slot exhaustion and completion
 reuse pass. Rebuilt dynamic-lighting and sea-point-shadow fixtures pass. No
 permanent test is added. These are component timings, not player FPS.
-Disposition: source/native GPU checks accepted; canonical staging and the
-player's same-save night-city/sea replay remain pending.
+Disposition: source/native GPU checks and canonical staging accepted; the
+player's same-save night-city/sea replay remains pending. Separate source
+checkpoint95411d4 preserves the independent performance result.
+
+### October12 — final combined delivery receipt
+
+Canonical `experiments/native-metal/run.sh --stage-only` succeeds after source
+checkpointa63b778, with final ordered whirlpool74f86e75 and wreckbf6f673f
+patches. Five native source files update from the preceding cache; the source
+stack, full native build and resource transaction pass. The previous installed
+engine0dbca948 is retained by the existing hash-keyed backup owner.
+The delivery transaction verifies the complete app with strict/deep codesign.
+The installed engine hash matches the signed candidate above; its delivered
+script message header matches the built header. The C++ field header is an
+engine build input, not an installed script requirement.
+
+Cache and installed gameplay both report0 pending files and compiler ready.
+An isolated copy of the actual installed PROGRAM/header compiles the whole
+chain and both Great Recipe dialogue segments: RecipeCompile=0,
+script_errors=0. It renames only the fixture's entry point and creates its own
+userdata; player SAVE is never executed or modified. All249 pre-delivery player
+files retain their hashes. Exact phase/state/save-codec and GPU proofs above
+remain component evidence; no game was launched.
+The preexisting aggregate `agent_context.py --check` error remains:
+`environment has no project-context check action`. Owned source hygiene has
+zero nonignored untracked paths; that unrelated environment defect does not
+invalidate the successful canonical stage or installed compile.
 
 ### October11 — public archive prepared; delivery pending
 

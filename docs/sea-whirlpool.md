@@ -2,11 +2,12 @@
 
 ## Status
 
-October 12, 2026: native source candidate. Disposable ASan/UBSan field checks
+October 12, 2026: installed through the canonical build/stage path. Disposable ASan/UBSan field checks
 pass. The revised field passes an actual Metal water/foam component readback,
 with the same synthetic textures and ordinary-wave approximation as its smooth
-predecessor. Canonical build/staging and installed Great Recipe scene replay
-remain integration-owned checks.
+predecessor. Full SEA/SHIP compilation, exact patch consumption and installed
+message-header delivery pass. Installed Great Recipe scene replay remains
+player-owned.
 Source or component checks do not accept the cinematic in the player save.
 
 ## Contract and owners
@@ -80,7 +81,8 @@ escapes. These are point-current/header trajectories; they do not include a real
 ship's controls, footprint, inertia, collisions or shore depth.
 Same-age contact queries, nonzero origin translation, identical start, resume at
 12s, three-second stop, Clear and invalid-coordinate rejection pass. Actual
-SEA/SHIP compilation, prediction/grounding and GPU/game checks are still needed.
+SEA/SHIP compilation passes; actual prediction/grounding and game checks remain
+player-owned.
 
 At age12s/radius90m, angular height RMS at normalized radius0.50/0.65/0.78
 increases from0.716/0.933/0.741m to2.646/3.124/2.840m. The outer lip ranges
