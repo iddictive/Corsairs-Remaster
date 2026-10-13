@@ -2,7 +2,8 @@
 
 ## Status
 
-October 13, 2026: source candidate for the current Great Recipe batch. Root owns
+October 13, 2026: source/VM/SAVE checks and canonical staging to the played app
+pass for the current Great Recipe batch. Root owns
 composition, native VM/SAVE probes, staging and installed delivery. The player
 owns the actual landing, visible moon, exploration, combat, chest pickup and
 return acceptance. Source inspection alone does not accept those scenes.
@@ -174,7 +175,8 @@ codec reloads. Presentation, reload and actor creation are bounded fixture
 adapters; two enemy deaths are seeded state rather than played kills. The first
 fixture's integer-only HP/damage literals produced return-type errors; valid
 float inputs matching the game owner pass. These probes do not accept physical
-combat, box UI, helper pathfinding or installed delivery.
+combat, box UI or helper pathfinding. Installed delivery is accepted separately
+through the canonical batch recorded in `docs/runtime.md`.
 
 Remaining player scenarios: visibly moonlit complete bay/crypt scene, door and
 chest access, solo and respected-Beard combat, escape/defeat/retry, in-combat and

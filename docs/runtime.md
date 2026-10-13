@@ -1,8 +1,51 @@
 # Runtime state
 
-Last verified: October13. Corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26` are delivered through the canonical stage-only path. Installed signed engine: `d8cbdc916ca5549fb6ac5c3749258d9fa34babd4749604d9dae9efda82d03f1f`. The current game scenes and FPS remain unaccepted until player replay. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Physical captivity/moonlit cache, bounded storm escape, inline graphics settings and ambient tavern rumors are delivered through the canonical stage-only path, following corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26`. Installed signed engine: `f14d7cbd33346db3a88529e76e850235311ecf4ba49ba66e0a4eeb466ffd673d`. Game scenes and FPS remain unaccepted until player replay. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — ordinary drinking now includes contradictory Beard tales
+
+The separate content stage returns0 and correctly reuses the identical installed
+engine. `Habitue_dialog.c` admits four tales only in its ordinary continued-drinking
+branch; fights, gambling, French/Dutchman stories, drink cost and intoxication
+remain stock. The tales contradict each other and provide uncertain Bermuda/Laki
+leads without starting the quest or writing a walkthrough journal. Every branch
+returns to the paid drink or exit; insufficient money leaves exit available.
+
+The first fragment's default/return switch form fails native compilation with
+duplicate-label/syntax errors. An explicit unknown-node guard and terminating
+break restore compilation without changing the prose or existing stock nodes.
+Real-VM entry/four-follow-up/poor-player/unhandled-node probes return0/errors0;
+actual installed PROGRAM plus ten dialogue/interface segments also compiles0.
+Final cache/app composition each reports0 pending/compiler ready; all247 player
+state hashes remain unchanged. Source/component/installed delivery accepted;
+actual tavern conversation and the broader quest/scene replays remain unresolved.
+
+### October13 — physical quest, bounded storm and inline Options installed
+
+The combined canonical `run.sh --stage-only` returns0 after the final one-OK
+correction. The installed signed engine is `f14d7cbd33346db3a88529e76e850235311ecf4ba49ba66e0a4eeb466ffd673d`;
+the unsigned frozen native build is `3cee0d45986c005c673990c034b08f2dbdba9d00f117e3868acc76bea9d9dbd0`.
+The canonical transaction verifies its deep/strict signature and retains the
+previous signed engine for rollback. Cache and app each report0 pending managed
+files/compiler ready; all156 installed receipt rows match their SHA-256 bytes.
+A fresh247-file SAVE/userdata/named configuration snapshot is unchanged.
+
+Storm119.9/120-second and authored-contact negatives plus four SAVE-codec rounds
+pass. The inline Options controller now uses the stock saver once: the rejected
+double-load predecessor raises an invalid function, while the corrected one-OK
+callback passes one primary write, one graphics write and transient-result cleanup.
+Actual native format/disk reentry preserves FXAA/VSync/custom dimensions and Cancel
+does not rewrite them; message IO/render-only adapters bound that component proof.
+The complete PROGRAM plus nine dialogue/interface segments compiles without errors.
+
+Disposition: source/components and exact installed delivery accepted; physical
+quest actions, moonlit/helper combat, full ending/balance/playtime, real storm
+departure/save replay, rendered Options input/restart and city/map FPS remain
+player-owned. Local source checkpoint remains pending automatic Git transaction
+reconciliation; installation is identified by actual hashes, not the older HEAD
+printed in its log. Four new ambient tavern tales are a separate next content batch.
 
 ### October13 — physical captivity and moonlit cache source candidate
 
@@ -15,7 +58,8 @@ exactly two scripted skeletons with random monster generation disabled, optional
 earned Beard assistance and guarded rescue/return. The helper withdraws alive.
 Only the active bay requests the stock full-moon presentation; no calendar edit.
 
-Disposition: source/state candidate accepted. Current combined composition
+Disposition: source/state candidate accepted at local checkpoint `481aa60`.
+Current combined composition
 admits the frozen storm successor of the448b9ff predecessors. Complete PROGRAM
 plus seven dialogue/interface segments compiles
 with zero VM errors;26 composed hooks are consumed/idempotent. Isolated supply,
