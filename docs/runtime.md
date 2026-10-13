@@ -4,6 +4,26 @@ Last verified: October13. Physical captivity/moonlit cache, bounded storm escape
 
 ## Current verdict
 
+### October13 — chart copy hot spot and diagnostic command source accepted
+
+A ten-second player chart profile attributes771 of1467 main-thread samples to
+the frame event's direct object/attribute copy. `WdmTrafficRefreshFrame` now
+borrows `worldMap` for `IsEntity`, preserving the same native entity check and
+the existing scheduler. The real-VM callback fixture passes valid/deleted entity,
+idle, partial/completed slice, cancellation and retained-state cases; its process
+timings support eliminating the clone, not a scene FPS multiplier.
+
+The requested `sh tools/profile-game.sh` command and local Environment action
+wait five seconds and record ten seconds of the exact installed engine's CPU
+stacks. Shell/TOML checks and a real player invocation pass. They do not operate
+the game or measure GPU time.
+
+An idle isolated canonical map apply is attempted but rejected before mutation:
+the compiler receipt still binds the previous whirlpool patch. The alternative
+dev workspace has47 different, unsnapshotted files; those are preserved.
+The248-file player-state snapshot remains identical. Source accepted; map
+activation awaits the canonical combined native stage and the chart replay.
+
 ### October13 — complete remaster changelog source projection
 
 The existing main-menu Changes resource now composes the complete authored

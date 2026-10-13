@@ -1974,3 +1974,39 @@ manual cancellation, map exit, live list edits and four save-codec rounds pass;
 normal entry cancels restored pending state. Whole shared PROGRAM compilation
 also passes with zero VM errors. Native staging and the player's chart replay
 own delivery and perceptual acceptance, separately from these checks.
+
+### Frame guard must borrow the world-map object
+
+The periodic callback's liveness guard uses `IsEntity(&worldMap)`. Passing
+`worldMap` by value makes the script VM's `DATA::Copy(VAR_OBJECT)` recursively
+clone its complete attributes before checking the entity ID. The guard runs
+before the pending-work check, so the old spelling copied encounters, rosters
+and cargo even on frames without a fleet slice. The native `IsEntity` function
+dereferences its argument and reads the same entity ID in both forms; no
+scheduler, fleet update or entity-liveness semantics change.
+
+The player's October13 ten-second chart capture binds PID85934 to installed
+engine `f14d7cbd`. Of1467 main-thread samples,940 enter the float-valued world-map
+event and771 enter its direct `DATA::Copy` / `ATTRIBUTES::Copy` branch (52.6%).
+Presentation has only two samples; this capture identifies a script-copy hot
+spot, not a measured GPU limit or an after-repair FPS result. The earlier
+three-second capture mixed the chart with sea-entry loading and is unsuitable
+for steady-state comparison.
+
+A disposable real-VM fixture extracts the production callback and cancellation
+bodies, seeds60 fleets ×6 hulls ×16 fields and creates a valid CPU-only file-list
+entity in its own directory. Native entity checks agree for value/reference
+arguments both before and after deletion. Idle callbacks leave fleet state
+untouched; phase0.1 visits six fleets, phase0 repeats none, phase1 completes60
+and reviews once. Invalid-entity cancellation and an untouched seeded field pass.
+All baseline/candidate executions return zero with no script errors. Fleet
+service/review bodies are stubs; existing full-service slice evidence above
+retains its separate scope.
+
+Three process-time runs have medians457.36ms for initialization/control,
+584.99ms for120 old idle callbacks and462.87ms for120 borrowed callbacks.
+Subtracting the control estimates1.06ms versus0.046ms per callback in this
+fixture; process startup variance makes the small residual imprecise. These
+component measurements support removing the redundant clone, not a player FPS
+multiplier. Normal installed-content delivery and the same chart's FPS/stutter
+replay remain unresolved.

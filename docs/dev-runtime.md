@@ -58,12 +58,19 @@ their durable source before canonical staging or clean-checkout delivery.
 ## Codex environment actions
 
 The saved Corsairs project's local `.codex/environments/environment.toml`
-exposes two player outcomes:
+exposes the installed-game actions and a read-only diagnostic capture:
 
 | Action | Effect |
 | --- | --- |
 | Обновить установленную игру | Runs `experiments/native-metal/run.sh --stage-only`: builds the current engine, prepares reviewed resources and updates the played app in `/Applications`. The game must be closed; this action does not launch it. |
 | Открыть установленную игру | Opens `/Applications/Corsairs Iddictive Remaster.app` through `/usr/bin/open`. It does not build or update the game and uses the installed launcher's existing player-state owner. |
+| Записать профиль FPS (через 5 секунд) | Runs `sh tools/profile-game.sh`: waits five seconds, then records ten seconds of the installed engine's CPU stacks without game input or settings changes. |
+
+`sh tools/profile-game.sh` also works from the repository terminal. Each capture
+uses a separate timestamped file under the ignored
+`experiments/native-metal/.cache/diagnostics` directory. Leave the scene being
+measured open for the whole capture. CPU samples identify active work and waits;
+they do not measure GPU time or replace the game's visible FPS counter.
 
 Setup checks the existing development tools only; it builds neither engine.
 The internal word `stage` names file preparation, not a separate player

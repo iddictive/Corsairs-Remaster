@@ -789,7 +789,7 @@ void WdmTrafficBeginRefresh()
 #event_handler("WorldMap_TrafficFrame", "WdmTrafficRefreshFrame");
 void WdmTrafficRefreshFrame()
 {
-	if (!IsEntity(worldMap)) { WdmTrafficCancelRefresh(); return; }
+	if (!IsEntity(&worldMap)) { WdmTrafficCancelRefresh(); return; }
 	if (!wdmTrafficRefreshPending) return;
 	float phase = GetEventData();
 	if (phase < 0.0) return;
