@@ -70,6 +70,11 @@ The existing `SetPos` cannot own this shift: it resets wave height/world offsets
 and does not retain the dead pose anchor. Contact absorption and retained
 translation therefore share the native displacement method, without new state.
 
+The patch follows `sea-whirlpool.patch` in the canonical stack. Its TouchMove
+insertion stops at `old_state`, leaving the subsequent current/yaw expressions
+with their owning field. Exact zero-fuzz composition against the vortex-patched
+source passes; the native correction is unchanged by this context adjustment.
+
 ## Acceptance and rejected alternatives
 
 Final source-bound checks reduce the broadside case from 1774.61 to 36.7633 raw
