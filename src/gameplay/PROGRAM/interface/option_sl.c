@@ -5,7 +5,7 @@ void OSL_WriteGameOption()
 	PrepareDefaultOption(&gopt);
 	GetRealOptions(&gopt);
 	SaveSavedOptions(&gopt);
-	if(!SaveMetalGraphicsOptions()) {}
+	InterfaceStates.MetalGraphicsSaveSucceeded = SaveMetalGraphicsOptions();
 }
 
 void OSL_ReadGameOption()
@@ -27,6 +27,7 @@ void PrepareDefaultMetalGraphics(ref optref)
 	optref.light_shafts = true;
 	optref.dynamic_sky = true;
 	optref.antialiasing = false;
+	optref.vsync = false;
 	optref.full_screen = true;
 	optref.resolution = 2;
 	optref.resolution_width = 1920;
@@ -61,6 +62,7 @@ void GetMetalGraphicsOptions(ref optref)
 	optref.light_shafts = InterfaceStates.MetalLightShafts;
 	optref.dynamic_sky = InterfaceStates.MetalDynamicSky;
 	optref.antialiasing = InterfaceStates.MetalAntialiasing;
+	optref.vsync = InterfaceStates.MetalVSync;
 	optref.full_screen = InterfaceStates.MetalFullScreen;
 	optref.resolution = InterfaceStates.MetalResolution;
 	optref.resolution_width = InterfaceStates.MetalResolutionWidth;
@@ -80,6 +82,7 @@ void SetMetalGraphicsOptions(ref optref)
 	InterfaceStates.MetalLightShafts = sti(optref.light_shafts);
 	InterfaceStates.MetalDynamicSky = sti(optref.dynamic_sky);
 	InterfaceStates.MetalAntialiasing = sti(optref.antialiasing);
+	InterfaceStates.MetalVSync = sti(optref.vsync);
 	InterfaceStates.MetalFullScreen = sti(optref.full_screen);
 	InterfaceStates.MetalResolution = sti(optref.resolution);
 	InterfaceStates.MetalResolutionWidth = sti(optref.resolution_width);

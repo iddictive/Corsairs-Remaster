@@ -7,27 +7,16 @@ float 	fHUDRatio 	= 1.0;
 int 	iHUDBase 	= screenscaling;
 int 	newBase 	= screenscaling;
 
-int metalGraphicsSnapshotDynamicLighting;
-int metalGraphicsSnapshotShadowQuality;
-int metalGraphicsSnapshotModernWater;
-int metalGraphicsSnapshotModernLighting;
-int metalGraphicsSnapshotCinematic;
-int metalGraphicsSnapshotLightShafts;
-int metalGraphicsSnapshotDynamicSky;
-int metalGraphicsSnapshotAntialiasing;
-int metalGraphicsSnapshotFullScreen;
-int metalGraphicsSnapshotResolution;
-int metalGraphicsSnapshotResolutionWidth;
-int metalGraphicsSnapshotResolutionHeight;
-bool metalGraphicsEditing = false;
+int metalGraphicsInitialFlags = 0;
+int metalGraphicsInitialShadowQuality = 1;
 int metalGraphicsDesktopWidth = 1920;
 int metalGraphicsDesktopHeight = 1080;
-int metalGraphicsPendingFlags = 0;
-int metalGraphicsPendingShadowQuality = 1;
-int metalGraphicsPendingFullscreen = 1;
-int metalGraphicsPendingWidth = 1920;
-int metalGraphicsPendingHeight = 1080;
-int metalGraphicsPendingDesktop = 0;
+int settingsTop = 0;
+
+#define SETTINGS_ROW_COUNT 33
+#define SETTINGS_VISIBLE_ROWS 18
+#define SETTINGS_ROW_HEIGHT 25
+#define SETTINGS_TOP 60
 
 #define BI_LOW_RATIO 	0.25
 #define BI_HI_RATIO 	4.0
@@ -91,8 +80,12 @@ void InitInterface(string iniName)
 	SetEventHandler("ievnt_command","ProcessMetalGraphicsCommand",0);
 	SetEventHandler("OnTableClick","ClickMetalGraphicsRow",0);
 	SetEventHandler("TableActivate","ActivateMetalGraphicsRow",0);
-	SetEventHandler("evApplyMetalGraphicsDeferred","ApplyMetalGraphicsDeferred",0);
-	SetEventHandler("evPollMetalGraphicsApply","PollMetalGraphicsApply",0);
+	SetEventHandler("SettingsPrevious","SettingsPrevious",0);
+	SetEventHandler("SettingsNext","SettingsNext",0);
+	SetEventHandler("SettingsScrollUp","SettingsScrollUp",0);
+	SetEventHandler("SettingsScrollDown","SettingsScrollDown",0);
+	SetEventHandler("ScrollPosChange","SettingsScrollPosition",0);
+	SetEventHandler("ScrollTopChange","SettingsScrollStep",0);
 
 	aref ar; makearef(ar,objControlsState.key_codes);
 	SendMessage(&GameInterface,"lsla",MSG_INTERFACE_MSG_TO_NODE,"KEY_CHOOSER", 0,ar);
@@ -140,23 +133,28 @@ void InitInterface(string iniName)
 
 void ProcessCancelExit()
 {
-	if(metalGraphicsEditing) {
-		RestoreMetalGraphicsOptions();
-		CloseMetalGraphicsWindow();
-		return;
-	}
 	LoadGameOptions();
 	ProcessExit();
 }
 
 void ProcessOkExit()
 {
+	if(!PrepareMetalGraphicsOptions()) return;
 	screenscaling = newBase;
 	
 	// Warship 07.07.09 Эффект свечения
 	SetGlowParams(1.0, sti(InterfaceStates.GlowEffect), 2));
 
+	// The stock saver owns the one option_sl load/unload for this callback.
+	InterfaceStates.MetalGraphicsSaveSucceeded = false;
 	SaveGameOptions();
+	bool graphicsSaved = sti(InterfaceStates.MetalGraphicsSaveSucceeded);
+	DeleteAttribute(&InterfaceStates,"MetalGraphicsSaveSucceeded");
+	if(!graphicsSaved) {
+		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Save Error"));
+		return;
+	}
+	if(!ApplyMetalGraphicsOptions()) return;
 	ProcessExit();
 	Event("eventChangeOption");
 
@@ -195,8 +193,12 @@ void IDoExit(int exitCode)
 	DelEventHandler("ievnt_command","ProcessMetalGraphicsCommand");
 	DelEventHandler("OnTableClick","ClickMetalGraphicsRow");
 	DelEventHandler("TableActivate","ActivateMetalGraphicsRow");
-	DelEventHandler("evApplyMetalGraphicsDeferred","ApplyMetalGraphicsDeferred");
-	DelEventHandler("evPollMetalGraphicsApply","PollMetalGraphicsApply");
+	DelEventHandler("SettingsPrevious","SettingsPrevious");
+	DelEventHandler("SettingsNext","SettingsNext");
+	DelEventHandler("SettingsScrollUp","SettingsScrollUp");
+	DelEventHandler("SettingsScrollDown","SettingsScrollDown");
+	DelEventHandler("ScrollPosChange","SettingsScrollPosition");
+	DelEventHandler("ScrollTopChange","SettingsScrollStep");
 	DelEventHandler("InterfaceBreak","ProcessCancelExit");  // boal
 
 	LanguageCloseFile( g_ControlsLngFile );
@@ -220,6 +222,9 @@ void IReadVariableBeforeInit()
 void IReadVariableAfterInit()
 {
 	GetMetalGraphicsData();
+	metalGraphicsInitialFlags = MetalGraphicsFlags();
+	metalGraphicsInitialShadowQuality = sti(InterfaceStates.MetalShadowQuality);
+	InitSettingsRows();
 	GetHerbOptionsData();
 	GetControlsStatesData();
 	
@@ -337,25 +342,7 @@ void procBtnAction()
 		RestoreDefaultKeys();
 		return;
 	}
-	if( sNodName == "METAL_GRAPHICS_BTN" ) {
-		SnapshotMetalGraphicsOptions();
-		metalGraphicsEditing = true;
-		SetFormatedText("METAL_GRAPHICS_ERROR", "");
-		XI_WindowDisable("MAIN_WINDOW", true);
-		XI_WindowShow("METAL_GRAPHICS_WINDOW", true);
-		XI_WindowDisable("METAL_GRAPHICS_WINDOW", false);
-		SetCurrentNode("METAL_GRAPHICS_LIST");
-		return;
-	}
-	if( sNodName == "METAL_GRAPHICS_APPLY" ) {
-		ApplyMetalGraphicsOptions();
-		return;
-	}
-	if( sNodName == "METAL_GRAPHICS_CANCEL" ) {
-		RestoreMetalGraphicsOptions();
-		CloseMetalGraphicsWindow();
-		return;
-	}
+
 }
 
 void procCheckBoxChange()
@@ -432,8 +419,12 @@ void procCheckBoxChange()
 	if( sNodName == "METAL_LIGHT_SHAFTS_CHECKBOX" ) InterfaceStates.MetalLightShafts = bBtnState;
 	if( sNodName == "METAL_DYNAMIC_SKY_CHECKBOX" ) InterfaceStates.MetalDynamicSky = bBtnState;
 	if( sNodName == "METAL_ANTIALIASING_CHECKBOX" ) InterfaceStates.MetalAntialiasing = bBtnState;
-	if( sNodName == "METAL_FULLSCREEN_CHECKBOX" ) InterfaceStates.MetalFullScreen = bBtnState;
-	// Resolution is owned by the bounded previous/next picker.
+	if( sNodName == "METAL_VSYNC_CHECKBOX" ) InterfaceStates.MetalVSync = bBtnState;
+	if( sNodName == "METAL_FULLSCREEN_CHECKBOX" ) {
+		InterfaceStates.MetalFullScreen = bBtnState;
+		if(!bBtnState && sti(InterfaceStates.MetalResolution)==5) InterfaceStates.MetalResolution = 4;
+		GetMetalGraphicsData();
+	}
 }
 
 void procSlideChange()
@@ -800,46 +791,111 @@ void GetControlsStatesData()
 	SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,"INVERT_MOUSE_CHECKBOX", 2, 1, nInvertCam );
 }
 
-void SnapshotMetalGraphicsOptions()
+void SetSettingsRow(int nRow, string sControl)
 {
-	metalGraphicsSnapshotDynamicLighting = sti(InterfaceStates.MetalDynamicLighting);
-	metalGraphicsSnapshotShadowQuality = sti(InterfaceStates.MetalShadowQuality);
-	metalGraphicsSnapshotModernWater = sti(InterfaceStates.MetalModernWater);
-	metalGraphicsSnapshotModernLighting = sti(InterfaceStates.MetalModernLighting);
-	metalGraphicsSnapshotCinematic = sti(InterfaceStates.MetalCinematic);
-	metalGraphicsSnapshotLightShafts = sti(InterfaceStates.MetalLightShafts);
-	metalGraphicsSnapshotDynamicSky = sti(InterfaceStates.MetalDynamicSky);
-	metalGraphicsSnapshotAntialiasing = sti(InterfaceStates.MetalAntialiasing);
-	metalGraphicsSnapshotFullScreen = sti(InterfaceStates.MetalFullScreen);
-	metalGraphicsSnapshotResolution = sti(InterfaceStates.MetalResolution);
-	metalGraphicsSnapshotResolutionWidth = sti(InterfaceStates.MetalResolutionWidth);
-	metalGraphicsSnapshotResolutionHeight = sti(InterfaceStates.MetalResolutionHeight);
+	string sRow = "r" + nRow;
+	GameInterface.settings_rows.(sRow).control = sControl;
 }
 
-void RestoreMetalGraphicsOptions()
+void InitSettingsRows()
 {
-	InterfaceStates.MetalDynamicLighting = metalGraphicsSnapshotDynamicLighting;
-	InterfaceStates.MetalShadowQuality = metalGraphicsSnapshotShadowQuality;
-	InterfaceStates.MetalModernWater = metalGraphicsSnapshotModernWater;
-	InterfaceStates.MetalModernLighting = metalGraphicsSnapshotModernLighting;
-	InterfaceStates.MetalCinematic = metalGraphicsSnapshotCinematic;
-	InterfaceStates.MetalLightShafts = metalGraphicsSnapshotLightShafts;
-	InterfaceStates.MetalDynamicSky = metalGraphicsSnapshotDynamicSky;
-	InterfaceStates.MetalAntialiasing = metalGraphicsSnapshotAntialiasing;
-	InterfaceStates.MetalFullScreen = metalGraphicsSnapshotFullScreen;
-	InterfaceStates.MetalResolution = metalGraphicsSnapshotResolution;
-	InterfaceStates.MetalResolutionWidth = metalGraphicsSnapshotResolutionWidth;
-	InterfaceStates.MetalResolutionHeight = metalGraphicsSnapshotResolutionHeight;
-	GetMetalGraphicsData();
+	settingsTop = 0;
+	SetSettingsRow(0, "");
+	SetSettingsRow(1, "GAMMA_SLIDE");
+	SetSettingsRow(2, "BRIGHT_SLIDE");
+	SetSettingsRow(3, "CONTRAST_SLIDE");
+	SetSettingsRow(4, "GLOW_SLIDE");
+	SetSettingsRow(5, "SEA_DETAILS_SLIDE");
+	SetSettingsRow(6, "");
+	SetSettingsRow(7, "METAL_FULLSCREEN_CHECKBOX");
+	SetSettingsRow(8, "");
+	SetSettingsRow(9, "METAL_RESOLUTION_PICKER");
+	SetSettingsRow(10, "METAL_VSYNC_CHECKBOX");
+	SetSettingsRow(11, "METAL_ANTIALIASING_CHECKBOX");
+	SetSettingsRow(12, "METAL_DYNAMIC_LIGHTING_CHECKBOX");
+	SetSettingsRow(13, "METAL_SHADOW_QUALITY_PICKER");
+	SetSettingsRow(14, "METAL_MODERN_LIGHTING_CHECKBOX");
+	SetSettingsRow(15, "METAL_LIGHT_SHAFTS_CHECKBOX");
+	SetSettingsRow(16, "METAL_DYNAMIC_SKY_CHECKBOX");
+	SetSettingsRow(17, "METAL_CINEMATIC_CHECKBOX");
+	SetSettingsRow(18, "METAL_MODERN_WATER_CHECKBOX");
+	SetSettingsRow(19, "");
+	SetSettingsRow(20, "SEA_CAM_PERSP_SLIDE");
+	SetSettingsRow(21, "LAND_CAM_RAD_SLIDE");
+	SetSettingsRow(22, "");
+	SetSettingsRow(23, "HERB_CHECKBOX");
+	SetSettingsRow(24, "");
+	SetSettingsRow(25, "MUSIC_SLIDE");
+	SetSettingsRow(26, "SOUND_SLIDE");
+	SetSettingsRow(27, "DIALOG_SLIDE");
+	SetSettingsRow(28, "");
+	SetSettingsRow(29, "SIMPLESEA_CHECKBOX");
+	SetSettingsRow(30, "AUTOSAVE_CHECKBOX");
+	SetSettingsRow(31, "BATTLE_MODE_CHECKBOX");
+	SetSettingsRow(32, "SHIPMARK_CHECKBOX");
+	ScrollSettings(0);
 }
 
-void CloseMetalGraphicsWindow()
+void ScrollSettings(int nTop)
 {
-	metalGraphicsEditing = false;
-	XI_WindowShow("METAL_GRAPHICS_WINDOW", false);
-	XI_WindowDisable("MAIN_WINDOW", false);
-	SetCurrentNode("METAL_GRAPHICS_BTN");
+	if(nTop < 0) nTop = 0;
+	if(nTop > SETTINGS_ROW_COUNT - SETTINGS_VISIBLE_ROWS) nTop = SETTINGS_ROW_COUNT - SETTINGS_VISIBLE_ROWS;
+	settingsTop = nTop;
+	for(int nRow = 0; nRow < SETTINGS_ROW_COUNT; nRow++) {
+		string sWindow = "SETTINGS_ROW_" + nRow;
+		bool visible = nRow >= settingsTop && nRow < settingsTop + SETTINGS_VISIBLE_ROWS;
+		int offset = SETTINGS_TOP + (nRow - settingsTop) * SETTINGS_ROW_HEIGHT;
+		SendMessage(&GameInterface,"lsllllll",MSG_INTERFACE_MSG_TO_NODE,sWindow,-1,4,0,offset,0,offset);
+		XI_WindowShow(sWindow,visible);
+		XI_WindowDisable(sWindow,!visible);
+	}
+	float position = settingsTop * 1.0 / (SETTINGS_ROW_COUNT - SETTINGS_VISIBLE_ROWS);
+	SendMessage(&GameInterface,"lsf",MSG_INTERFACE_SET_SCROLLER,"OPTIONS_SCROLL",position);
 }
+
+void SettingsScrollPosition()
+{
+	float position = GetEventData();
+	string sNode = GetEventData();
+	if(sNode != "OPTIONS_SCROLL") return;
+	ScrollSettings(makeint(position * (SETTINGS_ROW_COUNT - SETTINGS_VISIBLE_ROWS) + 0.5));
+}
+
+void SettingsScrollStep()
+{
+	int direction = GetEventData();
+	if(GetCurrentNode() == "OPTIONS_SCROLL") ScrollSettings(settingsTop + direction);
+}
+
+void SettingsScrollUp() { ScrollSettings(settingsTop - 1); }
+void SettingsScrollDown() { ScrollSettings(settingsTop + 1); }
+
+void NavigateSettings(int direction)
+{
+	string sNode = GetCurrentNode();
+	int nCurrent = -1;
+	for(int n = 0; n < SETTINGS_ROW_COUNT; n++) {
+		string sRow = "r" + n;
+		if(GameInterface.settings_rows.(sRow).control == sNode) nCurrent = n;
+	}
+	if(nCurrent < 0) return;
+	int nNext = nCurrent + direction;
+	while(nNext >= 0 && nNext < SETTINGS_ROW_COUNT) {
+		string sNextRow = "r" + nNext;
+		string sNext = GameInterface.settings_rows.(sNextRow).control;
+		if(sNext != "") {
+			if(nNext < settingsTop) ScrollSettings(nNext);
+			if(nNext >= settingsTop + SETTINGS_VISIBLE_ROWS) ScrollSettings(nNext - SETTINGS_VISIBLE_ROWS + 1);
+			SetCurrentNode(sNext);
+			return;
+		}
+		nNext = nNext + direction;
+	}
+	SetCurrentNode("BTN_OK");
+}
+
+void SettingsPrevious() { NavigateSettings(-1); }
+void SettingsNext() { NavigateSettings(1); }
 
 void ResolveMetalResolution(ref result, int nResolution)
 {
@@ -895,12 +951,6 @@ string FormatMetalResolution()
 	return sPrefix + resolved.width + " x " + resolved.height + "  (" + FormatMetalAspect(sti(resolved.width),sti(resolved.height)) + ")";
 }
 
-string MetalGraphicsToggleLabel(int nEnabled)
-{
-	if(nEnabled) return XI_ConvertString("Yes");
-	return XI_ConvertString("No");
-}
-
 string MetalGraphicsShadowLabel()
 {
 	int nQuality = sti(InterfaceStates.MetalShadowQuality);
@@ -909,73 +959,50 @@ string MetalGraphicsShadowLabel()
 	return XI_ConvertString("Shadow Quality Medium");
 }
 
-void SetMetalGraphicsRow(int nRow, string sGroup, string sName, string sValue)
+void SetMetalGraphicsCheckbox(string sNode, int enabled)
 {
-	string sRow = "tr" + nRow;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td1.str = sGroup;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td2.str = sName;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td3.str = "<  " + sValue + "  >";
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td1.scale = 0.78;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td2.scale = 0.82;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td3.scale = 0.82;
-	GameInterface.METAL_GRAPHICS_LIST.(sRow).td3.align = "center";
+	SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,sNode,2,1,enabled);
 }
 
 void GetMetalGraphicsData()
 {
-	int nSelected = 1;
-	int nTop = 0;
 	RefreshMetalDesktopSize();
-	if(CheckAttribute(&GameInterface,"METAL_GRAPHICS_LIST.select")) nSelected = sti(GameInterface.METAL_GRAPHICS_LIST.select);
-	if(CheckAttribute(&GameInterface,"METAL_GRAPHICS_LIST.top")) nTop = sti(GameInterface.METAL_GRAPHICS_LIST.top);
-	DeleteAttribute(&GameInterface,"METAL_GRAPHICS_LIST");
-	GameInterface.METAL_GRAPHICS_LIST.select = nSelected;
-	GameInterface.METAL_GRAPHICS_LIST.top = nTop;
-	GameInterface.METAL_GRAPHICS_LIST.hr.td1.str = XI_ConvertString("Metal Graphics Group");
-	GameInterface.METAL_GRAPHICS_LIST.hr.td2.str = XI_ConvertString("Metal Graphics Setting");
-	GameInterface.METAL_GRAPHICS_LIST.hr.td3.str = XI_ConvertString("Metal Graphics Value");
-	SetMetalGraphicsRow(1, XI_ConvertString("Metal Display Group"), XI_ConvertString("Metal Fullscreen"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalFullScreen)));
-	SetMetalGraphicsRow(2, "", XI_ConvertString("Resolution"), FormatMetalResolution());
-	SetMetalGraphicsRow(3, XI_ConvertString("Metal Lighting Group"), XI_ConvertString("Metal Dynamic Shadows"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalDynamicLighting)));
-	SetMetalGraphicsRow(4, "", XI_ConvertString("Metal Shadow Quality"), MetalGraphicsShadowLabel());
-	SetMetalGraphicsRow(5, "", XI_ConvertString("Metal Modern Lighting"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalModernLighting)));
-	SetMetalGraphicsRow(6, "", XI_ConvertString("Metal Light Shafts"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalLightShafts)));
-	SetMetalGraphicsRow(7, "", XI_ConvertString("Metal Dynamic Sky"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalDynamicSky)));
-	SetMetalGraphicsRow(8, "", XI_ConvertString("Metal Cinematic Interior"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalCinematic)));
-	SetMetalGraphicsRow(9, XI_ConvertString("Metal Effects Group"), XI_ConvertString("Metal Modern Water"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalModernWater)));
-	SetMetalGraphicsRow(10, "", XI_ConvertString("Metal FXAA"), MetalGraphicsToggleLabel(sti(InterfaceStates.MetalAntialiasing)));
-	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_GRAPHICS_LIST",0);
+	SetMetalGraphicsCheckbox("METAL_FULLSCREEN_CHECKBOX",sti(InterfaceStates.MetalFullScreen));
+	SetMetalGraphicsCheckbox("METAL_VSYNC_CHECKBOX",sti(InterfaceStates.MetalVSync));
+	SetMetalGraphicsCheckbox("METAL_ANTIALIASING_CHECKBOX",sti(InterfaceStates.MetalAntialiasing));
+	SetMetalGraphicsCheckbox("METAL_DYNAMIC_LIGHTING_CHECKBOX",sti(InterfaceStates.MetalDynamicLighting));
+	SetMetalGraphicsCheckbox("METAL_MODERN_LIGHTING_CHECKBOX",sti(InterfaceStates.MetalModernLighting));
+	SetMetalGraphicsCheckbox("METAL_LIGHT_SHAFTS_CHECKBOX",sti(InterfaceStates.MetalLightShafts));
+	SetMetalGraphicsCheckbox("METAL_DYNAMIC_SKY_CHECKBOX",sti(InterfaceStates.MetalDynamicSky));
+	SetMetalGraphicsCheckbox("METAL_CINEMATIC_CHECKBOX",sti(InterfaceStates.MetalCinematic));
+	SetMetalGraphicsCheckbox("METAL_MODERN_WATER_CHECKBOX",sti(InterfaceStates.MetalModernWater));
+	GameInterface.METAL_RESOLUTION_PICKER.select = 1;
+	GameInterface.METAL_RESOLUTION_PICKER.tr1.td1.str = "<  " + FormatMetalResolution() + "  >";
+	GameInterface.METAL_RESOLUTION_PICKER.tr1.td1.align = "center";
+	GameInterface.METAL_SHADOW_QUALITY_PICKER.select = 1;
+	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td1.str = XI_ConvertString("Metal Shadow Quality");
+	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td2.str = "<  " + MetalGraphicsShadowLabel() + "  >";
+	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td2.align = "center";
+	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_RESOLUTION_PICKER",0);
+	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_SHADOW_QUALITY_PICKER",0);
 }
 
-void ChangeMetalGraphicsRow(int nRow, int nDirection)
+void ChangeMetalGraphicsPicker(string sNode, int direction)
 {
-	if(nDirection==0) nDirection = 1;
-	if(nRow==1) {
-		InterfaceStates.MetalFullScreen = !sti(InterfaceStates.MetalFullScreen);
-		if(!sti(InterfaceStates.MetalFullScreen) && sti(InterfaceStates.MetalResolution)==5) InterfaceStates.MetalResolution = 4;
+	if(sNode == "METAL_RESOLUTION_PICKER") {
+		int last = 4;
+		if(sti(InterfaceStates.MetalFullScreen)) last = 5;
+		int resolution = sti(InterfaceStates.MetalResolution) + direction;
+		if(resolution < 0) resolution = last;
+		if(resolution > last) resolution = 0;
+		InterfaceStates.MetalResolution = resolution;
 	}
-	if(nRow==2) {
-		InterfaceStates.MetalResolution = sti(InterfaceStates.MetalResolution) + nDirection;
-		if(sti(InterfaceStates.MetalFullScreen)) {
-			if(sti(InterfaceStates.MetalResolution)<0) InterfaceStates.MetalResolution = 5;
-			if(sti(InterfaceStates.MetalResolution)>5) InterfaceStates.MetalResolution = 0;
-		} else {
-			if(sti(InterfaceStates.MetalResolution)<0) InterfaceStates.MetalResolution = 4;
-			if(sti(InterfaceStates.MetalResolution)>4) InterfaceStates.MetalResolution = 0;
-		}
+	if(sNode == "METAL_SHADOW_QUALITY_PICKER") {
+		int quality = sti(InterfaceStates.MetalShadowQuality) + direction;
+		if(quality < 0) quality = 2;
+		if(quality > 2) quality = 0;
+		InterfaceStates.MetalShadowQuality = quality;
 	}
-	if(nRow==3) InterfaceStates.MetalDynamicLighting = !sti(InterfaceStates.MetalDynamicLighting);
-	if(nRow==4) {
-		InterfaceStates.MetalShadowQuality = sti(InterfaceStates.MetalShadowQuality) + nDirection;
-		if(sti(InterfaceStates.MetalShadowQuality)<0) InterfaceStates.MetalShadowQuality = 2;
-		if(sti(InterfaceStates.MetalShadowQuality)>2) InterfaceStates.MetalShadowQuality = 0;
-	}
-	if(nRow==5) InterfaceStates.MetalModernLighting = !sti(InterfaceStates.MetalModernLighting);
-	if(nRow==6) InterfaceStates.MetalLightShafts = !sti(InterfaceStates.MetalLightShafts);
-	if(nRow==7) InterfaceStates.MetalDynamicSky = !sti(InterfaceStates.MetalDynamicSky);
-	if(nRow==8) InterfaceStates.MetalCinematic = !sti(InterfaceStates.MetalCinematic);
-	if(nRow==9) InterfaceStates.MetalModernWater = !sti(InterfaceStates.MetalModernWater);
-	if(nRow==10) InterfaceStates.MetalAntialiasing = !sti(InterfaceStates.MetalAntialiasing);
 	GetMetalGraphicsData();
 }
 
@@ -983,9 +1010,9 @@ void ProcessMetalGraphicsCommand()
 {
 	string sCommand = GetEventData();
 	string sNode = GetEventData();
-	if(sNode != "METAL_GRAPHICS_LIST") return;
-	if(sCommand=="leftstep" || sCommand=="speedleft") ChangeMetalGraphicsRow(sti(GameInterface.METAL_GRAPHICS_LIST.select),-1);
-	if(sCommand=="rightstep" || sCommand=="speedright") ChangeMetalGraphicsRow(sti(GameInterface.METAL_GRAPHICS_LIST.select),1);
+	if(sNode != "METAL_RESOLUTION_PICKER" && sNode != "METAL_SHADOW_QUALITY_PICKER") return;
+	if(sCommand=="leftstep" || sCommand=="speedleft") ChangeMetalGraphicsPicker(sNode,-1);
+	if(sCommand=="rightstep" || sCommand=="speedright") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 void ClickMetalGraphicsRow()
@@ -993,38 +1020,19 @@ void ClickMetalGraphicsRow()
 	string sNode = GetEventData();
 	int nRow = GetEventData();
 	int nColumn = GetEventData();
-	if(sNode=="METAL_GRAPHICS_LIST") ChangeMetalGraphicsRow(nRow+1,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 void ActivateMetalGraphicsRow()
 {
 	string sNode = GetEventData();
 	int nRow = GetEventData();
-	if(sNode=="METAL_GRAPHICS_LIST") ChangeMetalGraphicsRow(nRow+1,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
-extern bool SaveMetalGraphicsOptions();
-
-bool SaveMetalGraphicsOptionsNow()
+int MetalGraphicsFlags()
 {
-	bool saved = false;
-	if(LoadSegment("interface\option_sl.c")) {
-		saved = SaveMetalGraphicsOptions();
-		UnloadSegment("interface\option_sl.c");
-	}
-	return saved;
-}
-
-void ApplyMetalGraphicsOptions()
-{
-	object resolved;
 	int flagsMask = 0;
-	int nResolution = sti(InterfaceStates.MetalResolution);
-	if(nResolution < 0 || nResolution > 5) {
-		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Apply Error"));
-		return;
-	}
-	if(!sti(InterfaceStates.MetalFullScreen) && nResolution==5) { nResolution = 4; InterfaceStates.MetalResolution = 4; }
 	if(sti(InterfaceStates.MetalDynamicLighting)) flagsMask = flagsMask + 1;
 	if(sti(InterfaceStates.MetalModernWater)) flagsMask = flagsMask + 2;
 	if(sti(InterfaceStates.MetalModernLighting)) flagsMask = flagsMask + 4;
@@ -1032,35 +1040,37 @@ void ApplyMetalGraphicsOptions()
 	if(sti(InterfaceStates.MetalLightShafts)) flagsMask = flagsMask + 16;
 	if(sti(InterfaceStates.MetalDynamicSky)) flagsMask = flagsMask + 32;
 	if(sti(InterfaceStates.MetalAntialiasing)) flagsMask = flagsMask + 64;
-	ResolveMetalResolution(&resolved,nResolution);
+	return flagsMask;
+}
+
+bool PrepareMetalGraphicsOptions()
+{
+	int resolution = sti(InterfaceStates.MetalResolution);
+	if(resolution < 0 || resolution > 5) {
+		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Apply Error"));
+		return false;
+	}
+	if(!sti(InterfaceStates.MetalFullScreen) && resolution==5) InterfaceStates.MetalResolution = 4;
 	InterfaceStates.MetalDisplayWidth = metalGraphicsDesktopWidth;
 	InterfaceStates.MetalDisplayHeight = metalGraphicsDesktopHeight;
-	if(!SaveMetalGraphicsOptionsNow()) {
-		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Save Error"));
-		return;
+	return true;
+}
+
+bool ApplyMetalGraphicsOptions()
+{
+	int flagsMask = MetalGraphicsFlags();
+	int quality = sti(InterfaceStates.MetalShadowQuality);
+	if(flagsMask != metalGraphicsInitialFlags || quality != metalGraphicsInitialShadowQuality) {
+		// Consume the preceding frame's result before queuing a new request.
+		SendMessage(&GameInterface,"l",45065);
+		// Display geometry and VSync are applied by the normal launcher on restart.
+		int queued = SendMessage(&GameInterface,"lllllll",45062,flagsMask,quality,sti(Render.full_screen),sti(Render.screen_x),sti(Render.screen_y),0);
+		if(queued != 3) {
+			SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Apply Error"));
+			return false;
+		}
 	}
-	metalGraphicsPendingFlags = flagsMask;
-	metalGraphicsPendingShadowQuality = sti(InterfaceStates.MetalShadowQuality);
-	metalGraphicsPendingFullscreen = sti(Render.full_screen);
-	metalGraphicsPendingWidth = sti(Render.screen_x);
-	metalGraphicsPendingHeight = sti(Render.screen_y);
-	metalGraphicsPendingDesktop = 0;
-	SnapshotMetalGraphicsOptions();
-	CloseMetalGraphicsWindow();
-	PostEvent("evApplyMetalGraphicsDeferred",1);
-}
-
-void ApplyMetalGraphicsDeferred()
-{
-	int queued = SendMessage(&GameInterface,"lllllll",45062,metalGraphicsPendingFlags,metalGraphicsPendingShadowQuality,metalGraphicsPendingFullscreen,metalGraphicsPendingWidth,metalGraphicsPendingHeight,metalGraphicsPendingDesktop);
-	if(queued != 3) return;
-	PostEvent("evPollMetalGraphicsApply",50);
-}
-
-void PollMetalGraphicsApply()
-{
-	int result = SendMessage(&GameInterface,"l",45065);
-	if(result == 0) { PostEvent("evPollMetalGraphicsApply",50); return; }
+	return true;
 }
 
 void RefreshMetalDesktopSize()

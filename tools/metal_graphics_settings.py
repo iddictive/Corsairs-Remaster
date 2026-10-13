@@ -40,6 +40,7 @@ DEFAULTS = {
     "light_shafts": True,
     "dynamic_sky": True,
     "antialiasing": False,
+    "vsync": False,
     "full_screen": True,
     "resolution": 2,
     "resolution_width": DEFAULT_RESOLUTION_WIDTH,
@@ -175,6 +176,10 @@ def graphics_values(runtime: Path) -> dict[str, int | bool]:
         values, "shadow_quality", SHADOW_QUALITY_MIN, SHADOW_QUALITY_MAX
     )
     result["full_screen"] = bool_value(values, "full_screen")
+    result["vsync"] = (
+        bool_value(values, "vsync") if "vsync" in values
+        else current_vsync(runtime / "engine.ini")
+    )
     resolution = int(values.get("resolution", DEFAULTS["resolution"]))
     if resolution < 0 or resolution > DESKTOP_RESOLUTION:
         raise ValueError("resolution: unsupported preset or custom choice")
@@ -196,6 +201,20 @@ def graphics_values(runtime: Path) -> dict[str, int | bool]:
         resolution, base_width, base_height, display_width, display_height
     )
     return result
+
+def current_vsync(engine_ini: Path) -> bool:
+    """Read the same unnamed section as the native device constructor."""
+    if engine_ini.is_file():
+        for raw in engine_ini.read_text(encoding="utf-8-sig").splitlines():
+            line = raw.strip()
+            if line.startswith("["):
+                break
+            if re.match(r"^vsync\s*=", line):
+                value = line.split("=", 1)[1].split(";", 1)[0].strip()
+                if value not in {"0", "1"}:
+                    raise ValueError(f"{engine_ini}: vsync must be 0 or 1")
+                return value == "1"
+    return False
 
 def current_engine(engine_ini: Path) -> tuple[bool, int, int, int]:
     values: dict[str, str] = {}
@@ -265,10 +284,11 @@ def apply_engine(runtime: Path) -> None:
         "screen_x": str(width),
         "screen_y": str(height),
         "display_mode": str(display_mode),
+        "vsync": str(int(values["vsync"])),
     }
     for key, value in replacements.items():
         global_values, count = re.subn(rf"(?m)^{re.escape(key)}\s*=.*$", f"{key} = {value}", global_values)
-        if count == 0 and key == "display_mode":
+        if count == 0 and key in {"display_mode", "vsync"}:
             suffix = "" if global_values.endswith("\n") else "\n"
             global_values += f"{suffix}{key} = {value}\n"
             count = 1
@@ -280,6 +300,12 @@ def initialize_record(runtime: Path) -> None:
     record = runtime / METAL_OPTIONS
     if record.exists():
         graphics_values(runtime)  # Reject malformed persisted input before launch.
+        if "vsync" not in parse_record(record):
+            # Upgrade only the missing field; retain existing choices and bytes.
+            source = record.read_bytes()
+            separator = b"" if not source or source.endswith(b"\n") else b"\n"
+            value = int(current_vsync(runtime / "engine.ini"))
+            atomic_write(record, source + separator + f"vsync={value}\n".encode())
         return
     values = dict(DEFAULTS)
     (
@@ -290,6 +316,7 @@ def initialize_record(runtime: Path) -> None:
     ) = current_engine(runtime / "engine.ini")
     values["display_width"] = values["resolution_width"]
     values["display_height"] = values["resolution_height"]
+    values["vsync"] = current_vsync(runtime / "engine.ini")
     atomic_write(record, "".join(f"{key}={int(value)}\n" for key, value in values.items()).encode())
 
 def launch_environment(runtime: Path, inherited: dict[str, str]) -> dict[str, str]:
