@@ -31,6 +31,13 @@ transaction/receipt path. An existing unrecorded atlas is admitted only by the
 manifest's exact `original_sha256`; subsequent changes use the receipt.
 Arbitrary texture paths and SAVE remain excluded.
 
+The Great Recipe's three additive item locator GMs are admitted at the exact
+Hold/Deck2/Camp_Deck destinations in `tools/delivery_state.py`. Their manifest
+in `src/assets/quests/great-recipe` binds the stock dummy mesh and prepared bytes;
+`prepare.py` reconstructs them from the retained template and exact stock locator
+matrices in `layout.json`. They add native `item` locators only to cloned quest
+rooms through `models.always.greatRecipeItems`; no stock location GM is replaced.
+
 Engine staging delivers the built `shared/messages.h` and
 `shared/sea_ai/script_defines.h` to both runtime and installed script consumers.
 Their finite bootstrap hashes and delivery paths belong to

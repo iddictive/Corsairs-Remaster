@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "36cfa57fd6d14fd3ab76894a91a3646d0467d7cf68a188c50ff84958b30de26d",
-    "PROGRAM/sea_ai/sea.c": "354723a2b9226290fd55eb5a49b486f30f0d5e937e6f70ef27564147dd4a502c",
-    "PROGRAM/sea_ai/AIShip.c": "3c893df554cf3e318d8801e308d9d40ef042eac9b7d4d164f70e46ad53c0589c",
+    "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
+    "PROGRAM/sea_ai/AIShip.c": "d404ec17a822573a3b7bfc9a20fcf88083561bfaf76b6af2fc2fabd627b6385b",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",
@@ -29,6 +29,10 @@ NORMALIZED_HASHES = {
     "PROGRAM/dialogs/russian/Mayor/Jackman.c": "58d50e63f43c27cb9b87bcd3913c5584dfb8504b5d8df5980d111a00a87e157a",
     "PROGRAM/dialogs/russian/Common_Mayor.c": "6b338fc115310528701af4900f9599a7c45c92d1f6b2865e0207ce6329125341",
     "PROGRAM/quests/quests_reaction.c": "b9588c174a3cf04f646e6e5fb03f5ba8583d46576f27298d626510a5e50397d4",
+    "PROGRAM/ITEMS/itemLogic.c": "b977d9034f15c435f704b468634f9dd7e51a338ab41fb13c88811d7ff43b170a",
+    "PROGRAM/ITEMS/items_utilite.c": "c141fb1bb21a38ee7d9c6d97a439a729ae85e7d1ae9b4d8151c1fa69a89c72cf",
+    "PROGRAM/characters/QuestsUtilite.c": "bea1955c7e95618ad98a41191aade92eec2072fb784dfde8089bca33d89e9b36",
+    "PROGRAM/weather/WhrSun.c": "b03af527509bbe563bccf728e651bfe2f7ac497ac7cd5a173f41a86f1e1281d8",
 }
 BASE_HASHES = {
     "PROGRAM/seadogs.c": ("36cfa57fd6d14fd3ab76894a91a3646d0467d7cf68a188c50ff84958b30de26d",),
@@ -53,6 +57,10 @@ BASE_HASHES = {
     "PROGRAM/dialogs/russian/Mayor/Jackman.c": ("b8acc1b596b56e26fe57c71201cc94e976f1445c097de29fe48c1040eb92c3c5",),
     "PROGRAM/dialogs/russian/Common_Mayor.c": ("92b94fab040d31dbc9fbe17993904c5d452c8d53f676b0c8480bdf838f1d4b31",),
     "PROGRAM/quests/quests_reaction.c": ("8d8169d2f22e550c64aa5c1771fa035bcf518945cf6508c1f596b50e23242ffd",),
+    "PROGRAM/ITEMS/itemLogic.c": ("8635ea2d76349ff573eb4e46f4e98ac14f28f27bb35de6a77e3a287a6d1364f9",),
+    "PROGRAM/ITEMS/items_utilite.c": ("9c929be67e6c139ef65e6bbcf5bb18c78b6166bb54e559bebda85fa33d23e9ab",),
+    "PROGRAM/characters/QuestsUtilite.c": ("5555e137c190e17cd440958e4ee4ee9d097415d8f07e12e741c5eb21aec59707",),
+    "PROGRAM/weather/WhrSun.c": ("1c66f837695367ea53c5386219fd4df8d6a817575b84ee5a5806690ddb860a3e",),
 }
 HOOKS = frozenset(BASE_HASHES)
 CREATED = {
@@ -60,6 +68,8 @@ CREATED = {
     "PROGRAM/dialogs/russian/GreatRecipe.c": "great-recipe-dialog.c",
     "PROGRAM/scripts/great_recipe_alliance.c": "great-recipe-alliance.c",
     "PROGRAM/dialogs/russian/GreatRecipeAlliance.c": "great-recipe-alliance-dialog.c",
+    "PROGRAM/scripts/great_recipe_shore.c": "great-recipe-shore.c",
+    "PROGRAM/dialogs/russian/GreatRecipeShore.c": "great-recipe-shore-dialog.c",
 }
 
 TAVERN_CASES = '''
@@ -121,6 +131,7 @@ EDITS = {
     "PROGRAM/seadogs.c": [
         ('#include "interactive.c"', '#include "interactive.c"\n#include "scripts\\great_recipe.c"'),
         ('#include "scripts\\great_recipe.c"', '#include "scripts\\great_recipe.c"\n#include "scripts\\great_recipe_alliance.c"'),
+        ('#include "scripts\\great_recipe_alliance.c"', '#include "scripts\\great_recipe_alliance.c"\n#include "scripts\\great_recipe_shore.c"'),
         ('void GameOverE()\n{', 'void GameOverE()\n{\n    if (GreatRecipe_ClaimDeath(nMainCharacterIndex)) return;'),
         ('void GameOver(string sName)\n{', 'void GameOver(string sName)\n{\n    if (sName != "MainMenu" && GreatRecipe_ClaimDeath(nMainCharacterIndex)) return;'),
         ('void OnLoad()\n{', 'void OnLoad()\n{\n    GreatRecipe_PreLoadActors();'),
@@ -166,6 +177,7 @@ EDITS = {
     "PROGRAM/locations/locations_loader.c": [
         ('\tLoginCharactersInLocation(loc);', '\tGreatRecipe_AllianceResidence(loc);\n\tLoginCharactersInLocation(loc);'),
         ('\tItem_OnLoadLocation(loc.id);', '\tItem_OnLoadLocation(loc.id);\n    GreatRecipe_LocationLoaded(loc);'),
+        ('\tItem_OnLoadLocation(loc.id);', '    GreatRecipe_PreLoadItems(loc);\n\tItem_OnLoadLocation(loc.id);'),
         ('\tDeleteClass(&locCamera);', '\tDeleteClass(&locCamera);\n    GreatRecipe_AfterSceneUnload();'),
     ],
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": [
@@ -188,6 +200,17 @@ EDITS = {
     ],
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": [
         ('itmname_jewelry11\t{Большая жемчужина}', 'itmname_GreatRecipeRedPearl {Красная жемчужина Бороды}\nitmdescr_GreatRecipeRedPearl {Тяжёлая кроваво-красная жемчужина из капитанского сундука. Лаки Росин узнает клеймо и поможет наладить изготовление шрапнельных бомб на Бермудах.}\n\nitmname_jewelry11\t{Большая жемчужина}'),
+        ('itmname_jewelry11\t{Большая жемчужина}', 'itmname_GreatRecipeOil {Масло для блока}\nitmdescr_GreatRecipeOil {Бутылка масла для заклинившего блока грота-шкота. Одного масла мало: нужен новый нагель.}\nitmname_GreatRecipePin {Дубовый нагель}\nitmdescr_GreatRecipePin {Крепкий дубовый нагель взамен разбитой оси блока. Перед установкой смазать маслом.}\nitmname_GreatRecipeLinen {Чистое полотно}\nitmdescr_GreatRecipeLinen {Чистое полотно для перевязки раны Диего.}\nitmname_GreatRecipeWater {Кипячёная вода}\nitmdescr_GreatRecipeWater {Кипячёная остывшая вода для промывания раны Диего.}\nitmname_GreatRecipeFuse {Сухой красный фитиль}\nitmdescr_GreatRecipeFuse {Сухой фитиль с красной нитью для заряда с замедленным разрывом. Сверить его с капитанской накладной.}\n\nitmname_jewelry11\t{Большая жемчужина}'),
+        ('itmname_jewelry11\t{Большая жемчужина}', 'itmname_GreatRecipeCacheKey {Ключ от тайника}\nitmdescr_GreatRecipeCacheKey {Ржавый ключ из ящика у восточных скал. Открывает проход к тайнику старой команды Бороды.}\nitmname_GreatRecipeCacheLedger {Судовая книга старой команды}\nitmdescr_GreatRecipeCacheLedger {Промасленная книга с невыплаченными долями и подписью Ратли под последней выдачей пороха. Борода приказал принести её в каюту.}\n\nitmname_jewelry11\t{Большая жемчужина}'),
+    ],
+    "PROGRAM/ITEMS/items_utilite.c": [
+        ('void QuestCheckTakeItem(aref _location, string _itemId)\n{', 'void QuestCheckTakeItem(aref _location, string _itemId)\n{\n    GreatRecipe_TakeSupply(_location, _itemId);'),
+        ('void QuestCheckUseButton(aref _location, string _locator, string _itemId) /// <<< квестовые действия при установке предметов в button <<<\n{', 'void QuestCheckUseButton(aref _location, string _locator, string _itemId) /// <<< квестовые действия при установке предметов в button <<<\n{\n    GreatRecipe_UseSupply(_location, _locator, _itemId);'),
+    ],
+    "PROGRAM/ITEMS/itemLogic.c": [
+        ('\tint itemN;\n\n\tif (findsubstr(_locator, "button", 0) != -1)', '\tint itemN;\n    int recipeItemStart = ItemsForLocators_start;\n    int recipeItemEnd = ItemsForLocators_end;\n    if (GreatRecipe_Phase() == "captive" && (_location.id == "GreatRecipeHold" || _location.id == "GreatRecipeMess" || _location.id == "GreatRecipeDeck"))\n    { recipeItemStart = 0; recipeItemEnd = ITEMS_QUANTITY; }\n\n\tif (findsubstr(_locator, "button", 0) != -1)'),
+        ('itemN=ItemsForLocators_start; itemN<ItemsForLocators_end; itemN++', 'itemN=recipeItemStart; itemN<recipeItemEnd; itemN++', 2),
+        ('\tmakearef(activeLocation, Locations[sti(chr.itemLocationIndex)]);\n\n\tmakearef (aloc, activeLocation.items);', '\tmakearef(activeLocation, Locations[sti(chr.itemLocationIndex)]);\n    if (!GreatRecipe_CanUseSupply(activeLocation, chr.activeLocator, Items[activeItem].id)) return;\n\n\tmakearef (aloc, activeLocation.items);'),
     ],
     "PROGRAM/worldmap/worldmap_globals.c": [
         ('\tencID = worldMap.EncounterID1;\n\treturn res;\n}\n\n//Торговец', '\tencID = worldMap.EncounterID1;\n    if (res) GreatRecipe_MarkRecoveryBarrel(worldMap.EncounterID1);\n\treturn res;\n}\n\n//Торговец'),
@@ -199,6 +222,7 @@ EDITS = {
         ('\tif(CheckAttribute(enemy, "cirassId"))\n\t{\n\t\tdmg = dmg * (1.0 - stf(Items[sti(enemy.cirassId)].CirassLevel));\n\t}',
          '\tfloat recipeArmor = 0.0;\n    if (CheckAttribute(enemy, "cirassId")) recipeArmor = stf(Items[sti(enemy.cirassId)].CirassLevel);\n    dmg = GreatRecipe_BeardBladeDamage(attack, enemy, dmg, recipeArmor);'),
         ('\tdamage = LAi_LimitMainCharacterFirearmDamage(enemy, damage);', '\tdamage = LAi_LimitMainCharacterFirearmDamage(enemy, damage);\n    damage = GreatRecipe_BeardFireDamage(attack, enemy, damage);', 2),
+        ('    dmg = GreatRecipe_BeardBladeDamage(attack, enemy, dmg, recipeArmor);', '    dmg = GreatRecipe_BeardBladeDamage(attack, enemy, dmg, recipeArmor);\n    dmg = GreatRecipe_ShoreBladeDamage(attack, enemy, dmg);'),
     ],
     "RESOURCE/INI/interfaces/pictures.ini": [
         ('[TABS]', '[FACE128_2006]\nsTextureName = portraits\\128\\face_2006.tga\nwTextureWidth = 128\nwTextureHeight = 128\npicture = face,0,0,128,128\n\n[TABS]'),
@@ -234,6 +258,12 @@ EDITS = {
         ('        case "City":', '        case "City":\n            if (GreatRecipe_AllianceRefuseCapture(NPChar.City)) { DialogExit(); break; }'),
         ('        case "City_patent":', '        case "City_patent":\n            if (GreatRecipe_AllianceRefuseCapture(NPChar.City)) { DialogExit(); break; }'),
         ('        case "City_nation":', '        case "City_nation":\n            if (GreatRecipe_AllianceRefuseCapture(NPChar.City)) { DialogExit(); break; }'),
+    ],
+    "PROGRAM/characters/QuestsUtilite.c": [
+        ('bool SetLocationQuestBox(ref _location, string _locatorName)\n{', 'bool SetLocationQuestBox(ref _location, string _locatorName)\n{\n    if (GreatRecipe_ShoreQuestBox(_location, _locatorName)) return true;'),
+    ],
+    "PROGRAM/weather/WhrSun.c": [
+        ('\n}\n\nvoid MoveSunGlowToLayers', '\n    if (GreatRecipe_ShoreMoonScene())\n    {\n        SunGlow.Moon = true;\n        SunGlow.Glow.MoonTexture = "weather\\sun\\glow\\moon\\moon15.tga";\n        SunGlow.Glow.MoonSize = 300;\n        SunGlow.Glow.Size = 300;\n        SunGlow.Reflection.Texture = "weather\\sun\\reflection\\refl_night.tga";\n    }\n}\n\nvoid MoveSunGlowToLayers'),
     ],
 }
 

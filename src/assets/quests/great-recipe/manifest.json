@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/MODELS/locations/decks/hold/great_recipe_items.gm": {
+      "source": "hold_l.original.gm",
+      "source_sha256": "55c7148d25dfb0c0a2e50b9f4f5d266b5f61382259e0383304d068e6c72a185c",
+      "prepared": "hold_items.gm",
+      "sha256": "36e35fd23b498651498b2b2284ac7917241948da81b31fc7c72bb2270dba71b7",
+      "consumer": "GreatRecipeHold.models.always.greatRecipeItems"
+    },
+    "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm": {
+      "source": "hold_l.original.gm",
+      "source_sha256": "55c7148d25dfb0c0a2e50b9f4f5d266b5f61382259e0383304d068e6c72a185c",
+      "prepared": "deck_items.gm",
+      "sha256": "998d044bf749593fc9e58d87452e46d558871fd8089d68156b8edf8cf95ddb4c",
+      "consumer": "GreatRecipeDeck.models.always.greatRecipeItems"
+    },
+    "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm": {
+      "source": "hold_l.original.gm",
+      "source_sha256": "55c7148d25dfb0c0a2e50b9f4f5d266b5f61382259e0383304d068e6c72a185c",
+      "prepared": "mess_items.gm",
+      "sha256": "536b5520c2ba8e95f0e2c303152dc6e4e11c89a8f792167b336a3a492d0f6101",
+      "consumer": "GreatRecipeMess.models.always.greatRecipeItems"
+    }
+  }
+}

@@ -4,6 +4,36 @@ Last verified: October13. Corrective batch `8bacecb` and performance commits `33
 
 ## Current verdict
 
+### October13 — physical captivity and moonlit cache source candidate
+
+The next quest batch repairs witness chronology, the hidden doctor lead,
+the named Ratli duel and its saved state, and the fixed mutiny choice. Five
+real inventory supplies replace dialogue-only chores. Three checksum-bound
+additive GM files register native item pickup/use locators on quest clones.
+The new shore chapter uses stock shore/dungeon geometry, a key and real cache,
+exactly two scripted skeletons with random monster generation disabled, optional
+earned Beard assistance and guarded rescue/return. The helper withdraws alive.
+Only the active bay requests the stock full-moon presentation; no calendar edit.
+
+Disposition: source/state candidate accepted. Current combined composition
+admits the frozen storm successor of the448b9ff predecessors. Complete PROGRAM
+plus seven dialogue/interface segments compiles
+with zero VM errors;26 composed hooks are consumed/idempotent. Isolated supply,
+cache/handover, active wounded-enemy and pending rescue probes pass with zero
+errors and SAVE-codec rounds. World/presentation/reload adapters and seeded
+enemy deaths limit this evidence: physical pickup, chest UI, fights, pathfinding,
+moon appearance and elapsed playtime remain player replays.
+
+The player has saved/closed the game and authorized installation. Storm sources
+are frozen; the new native engine builds. The graphics source lane is resolving
+an observed same-callback option-segment lifetime gap before the combined stage.
+No installed-readiness claim is made yet. Thirty-nine quest journal entries now
+retain heard facts, goals, deadlines and consequences, removing internal
+schedules, prescribed tactics and unknown future branches. Other custom debt,
+custody and crime records are unchanged: their details express current state.
+The decisive probe outcomes and their limits are recorded here; disposable
+fixtures are removed after their final accepting consumer.
+
 ### October13 — corrective quest and performance batch installed; player replay unresolved
 
 `experiments/native-metal/run.sh --stage-only` completes after the frozen source

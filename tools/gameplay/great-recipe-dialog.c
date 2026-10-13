@@ -24,7 +24,8 @@ void ProcessDialogEvent()
         return;
     }
     if (Dialog.CurrentNode != "First time" && Dialog.CurrentNode != "Exit" &&
-        Dialog.CurrentNode != "Duel" && Dialog.CurrentNode != "Fight" && Dialog.CurrentNode != "Pledge")
+        Dialog.CurrentNode != "Duel" && Dialog.CurrentNode != "Fight" && Dialog.CurrentNode != "Pledge" &&
+        Dialog.CurrentNode != "ShoreSolo" && Dialog.CurrentNode != "ShoreHelp" && Dialog.CurrentNode != "ShoreHandOver")
     {
         dialog.text = GreatRecipe_TaskAction(Dialog.CurrentNode);
         if (CheckAttribute(pchar, "GreatRecipe.Fight.Pending"))
@@ -41,20 +42,32 @@ void ProcessDialogEvent()
                 dialog.text = "Капитан сохранил тебе жизнь. Хочешь ходить без цепи — заработай. Из кладовой исчезла бочка сухарей. Расспроси Тома в кубрике, Джека у пушек и Диего в трюме. Потом приходи с именем, а не с байкой.";
                 if (task == "rations")
                 {
+                    if (CheckAttribute(pchar, "GreatRecipe.Clue.Cook") && CheckAttribute(pchar, "GreatRecipe.Clue.Prisoner") && CheckAttribute(pchar, "GreatRecipe.Clue.Gunner") && !CheckAttribute(pchar, "GreatRecipe.Clue.Alibi"))
+                    {
+                        dialog.text = "Ключ был у Ратли, Джек видел его ночью с бочкой. Но Диего тоже её катал. Нужен человек, который подтвердит время: доктор Вейн спускался к нему после ужина. Найди врача в кубрике и принеси его показания.";
+                        link.l1 = "Проверю время кражи у врача."; link.l1.go = "Exit";
+                    }
                     if (CheckAttribute(pchar, "GreatRecipe.Clue.Cook") && CheckAttribute(pchar, "GreatRecipe.Clue.Prisoner") && CheckAttribute(pchar, "GreatRecipe.Clue.Gunner") && CheckAttribute(pchar, "GreatRecipe.Clue.Alibi"))
                     { link.l1 = "Показания сходятся. Хочу обвинить помощника."; link.l1.go = "accuse"; }
                     if (CheckAttribute(pchar, "GreatRecipe.Clue.Prisoner"))
-                    { link.l2 = "Диего катил бочку. Виноват он."; link.l2.go = "betray"; }
+                    { link.l2 = "Диего катил бочку. Обвини его — с остальным разберётесь сами."; link.l2.go = "betray"; }
                 }
                 if (task == "rigging") dialog.text = "Грот заклинило, и мы теряем ход. Джек у пушек знает снасти. Поговори с ним; нужное добро найдётся у Тома и Диего.";
                 if (task == "medicine") dialog.text = "Диего едва стоит. Лекарь в кубрике, полотно в трюме, вода у Тома. Поможешь — может, услышишь то, чего он мне не сказал.";
                 if (task == "training") dialog.text = "Джек требует два поединка у орудий. Не ради забавы: Ратли точит людей на драку, и кто-то должен удержать прислугу на палубе.";
-                if (task == "powder") dialog.text = "Капитан обнаружил подмену в крюйт-камере. Поднимись к нему за накладной, возьми верные фитили у Диего и помоги Джеку собрать заряды.";
+                if (task == "powder") dialog.text = "Капитан обнаружил подмену в крюйт-камере. Поднимись к нему за накладной. Диего скажет, где в кубрике спрятаны сухие фитили; затем найди орудийный пост у Джека.";
                 if (task == "mutiny" || task == "mutiny_final")
                 {
                     dialog.text = "Ратли поднимает мятеж. Кто-нибудь сегодня останется за бортом. Решай, с кем стоишь.";
                     link.l1 = "Сохраню корабль. Людей Ратли надо разоружить."; link.l1.go = "loyal";
                     link.l2 = "Борода держит нас в цепях. Я с мятежниками."; link.l2.go = "rebel";
+                    if (CheckAttribute(pchar, "GreatRecipe.MutinySide") || task == "mutiny_final")
+                    {
+                        if (sti(pchar.GreatRecipe.Rebel))
+                        { DeleteAttribute(Link, "l1"); dialog.text = "Ты пошёл с Ратли. Его люди ждут: оставшаяся вахта Бороды ещё держит палубу."; }
+                        else
+                        { DeleteAttribute(Link, "l2"); dialog.text = "Ты встал против Ратли. Его люди ещё держат палубу; доведи начатое до конца."; }
+                    }
                 }
                 if (task == "ready") dialog.text = "Своё ты сделал. Капитан ждёт в каюте; не заставляй его звать дважды.";
             }
@@ -93,7 +106,8 @@ void ProcessDialogEvent()
                 dialog.text = "Пленникам полагается работать, а не вынюхивать. Держись подальше от моих людей.";
                 if ((task == "rations" && CheckAttribute(pchar, "GreatRecipe.Clue.Cook") && CheckAttribute(pchar, "GreatRecipe.Clue.Prisoner") && CheckAttribute(pchar, "GreatRecipe.Clue.Gunner") && CheckAttribute(pchar, "GreatRecipe.Clue.Alibi")) || (task == "rigging" && CheckAttribute(pchar, "GreatRecipe.Betrayed") && !CheckAttribute(pchar, "GreatRecipe.Reconciled")))
                 { link.l1 = "Ключ от кладовой был у тебя. И синие сапоги тоже твои."; link.l1.go = "accuse"; }
-                if (task == "mutiny") { link.l1 = "Ты обещал свободу. Я с тобой."; link.l1.go = "rebel"; }
+                if (task == "mutiny" && (!CheckAttribute(pchar, "GreatRecipe.MutinySide") || sti(pchar.GreatRecipe.Rebel)))
+                { link.l1 = "Ты обещал свободу. Я с тобой."; link.l1.go = "rebel"; }
                 link.l4 = "Чего хотят твои люди?"; link.l4.go = "history";
             }
             if (NPChar.id == "GreatRecipeSurgeon")
@@ -115,6 +129,13 @@ void ProcessDialogEvent()
                 }
                 else if (task == "powder" || task == "mutiny_final")
                 { dialog.text = "Подменённые заряды могли перебить мою команду. Хочешь заслужить доверие — сверяй накладную."; link.l1 = "Покажи накладную на жемчуг."; link.l1.go = "captain"; }
+                else if (task == "shore")
+                {
+                    dialog.text = "До Ратли у меня были другие люди. Их имена и доли остались в судовой книге, которую я спрятал на берегу. В эту луну проход открыт. Ключ у восточных скал; книгу принеси мне. Остальное в том ящике можешь взять за работу.";
+                    link.l1 = "Возьму шлюпку и найду твою книгу."; link.l1.go = "ShoreSolo";
+                    if (GreatRecipe_ShoreHelpAllowed()) { link.l8 = "Идём вместе. Свои долги лучше увидеть самому."; link.l8.go = "ShoreHelp"; }
+                    if (GetCharacterItem(pchar, "GreatRecipeCacheLedger") > 0) { link.l1 = "Вот судовая книга из тайника."; link.l1.go = "ShoreHandOver"; }
+                }
                 else dialog.text = "За рецепт работают кровью, а не просьбами. Боцман найдёт тебе дело. Закончи его — тогда поговорим.";
                 if (task == "mutiny_final") { dialog.text = "Твою драку я слышал отсюда. Ну, кого теперь назначишь хозяином корабля?"; link.l1 = "Поговорим о тех, кто ещё держит палубу."; }
                 link.l2 = "Кто оставил тебе этот шрам и выбил глаз?"; link.l2.go = "scar";
@@ -133,6 +154,19 @@ void ProcessDialogEvent()
         case "Duel":
             DialogExit();
             AddDialogExitQuestFunction("GreatRecipe_LaunchDuel");
+        break;
+        case "ShoreSolo":
+            DialogExit();
+            GreatRecipe_ShoreStart(false);
+        break;
+        case "ShoreHelp":
+            DialogExit();
+            GreatRecipe_ShoreStart(true);
+        break;
+        case "ShoreHandOver":
+            if (GreatRecipe_ShoreHandOver()) dialog.text = "Почерк тот же... Вот где кончились доли моей старой команды. Книга останется у меня. А ты к боцману: Ратли снова собирает людей у пушек.";
+            else dialog.text = "Мне нужна сама книга, а не рассказ о ней. Вернись к тайнику, если оставил её там.";
+            link.l1 = "Пойду на палубу."; link.l1.go = "Exit";
         break;
         case "Pledge":
             if (GreatRecipe_AlliancePledge()) dialog.text = "Мой корабль ещё придётся взять, а клинок — выбить из руки. Сумеешь — приму твоё слово. Но мир с берегом за людей не подпишешь: с ними придётся говорить самому.";

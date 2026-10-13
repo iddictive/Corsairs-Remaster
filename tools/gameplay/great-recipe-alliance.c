@@ -36,7 +36,7 @@ bool GreatRecipe_AlliancePledge()
     if (GreatRecipe_Phase() != "captive" || pchar.GreatRecipe.Task != "ready" || !GreatRecipe_AllianceEligible()) return false;
     if (GreatRecipe_AllianceStage() != "") return false;
     pchar.GreatRecipe.Alliance.Stage = "pledged";
-    GreatRecipe_Journal("Борода уважает мой клинок и дела на корабле. Я обещал принять его сдачу, если выиграю честную морскую дуэль. Нужно взять шлюп на абордаж и одолеть капитана в каюте; потопленный корабль не оставит нам переговоров.", false);
+    GreatRecipe_Journal("Я пообещал принять сдачу Бороды. Если отправлю его на дно, обещание ничего не будет стоить.", false);
     return true;
 }
 
@@ -111,7 +111,7 @@ bool GreatRecipe_AllianceMercy(ref actor, bool spare)
         return true;
     }
     pchar.GreatRecipe.Alliance.Spared = true;
-    GreatRecipe_Journal("Борода сдался. В обычной форме раздела добычи нужно отпустить капитана с командой: только свободный человек сможет заключить наш мир. Взятие в плен или убийство закончит дело обычной победой.", false);
+    GreatRecipe_Journal("Борода сложил клинок. Он ждёт свободы для себя и команды; пленником вести переговоры не станет.", false);
     // Stock surrender owns the captured event, live captain and boarding cleanup.
     QuestAboardCabinDialogSurrender();
     return true;
@@ -149,7 +149,7 @@ void GreatRecipe_AllianceNavalWin(bool alive)
     }
     pchar.GreatRecipe.Alliance.Stage = "parley";
     pchar.GreatRecipe.Alliance.NavalWin = true;
-    GreatRecipe_Journal("Шлюп взят, Борода сложил клинок, и я сохранил ему жизнь. На Бермудах он согласен говорить в резиденции. Но Лаки и Джекмен не простят его по одному моему слову: нужны освобождение пленников, возмещение семьям и договор о прекращении нападений.", false);
+    GreatRecipe_Journal("Борода свободен и готов говорить на Бермудах. Мой клинок он признал; признает ли его берег — ещё вопрос.", false);
 }
 
 void GreatRecipe_AllianceReturned()
@@ -195,7 +195,7 @@ bool GreatRecipe_AllianceDecline()
     DeleteAttribute(pchar, "GreatRecipe.Alliance.SeatPending");
     int index = GetCharacterIndex("GreatRecipeKingBeard");
     if (index >= 0) ChangeCharacterAddress(GetCharacter(index), "none", "");
-    string body = "Я отказался ручаться за Бороду и принимать пиратский союз. Короны и особых отношений не будет. Обычное поручение Лаки и изготовление шрапнели остаются в силе.";
+    string body = "Я отказался ручаться за Бороду. Наши дороги разошлись, но обещанное Лаки дело остаётся за мной.";
     if (CheckAttribute(pchar, "GreatRecipe.Alliance.PrisonerFreed")) body = body + " Диего остаётся свободным.";
     if (CheckAttribute(pchar, "GreatRecipe.Alliance.RecipeShared")) body = body + " Уже переданный рецепт Борода не отзывает.";
     GreatRecipe_Journal(body, false);
@@ -232,7 +232,7 @@ string GreatRecipe_AllianceAction(string actor, string action)
             pchar.GreatRecipe.Alliance.RecipeShared = true;
         }
         pchar.GreatRecipe.Alliance.Terms = true;
-        GreatRecipe_Journal("Борода освободил Диего: тот уже на берегу в пиратском поселении. Красная жемчужина и секрет заряда переданы для бермудской мастерской; отнести жемчужину Лаки в таверну. Но рецепт и победы не прощают убийств: Лаки требует возмещения семьям, а Джекмен — гарантии безопасности берега, прежде чем допустить Бороду к общему флоту.", false);
+        GreatRecipe_Journal("Диего свободен. Борода передал жемчужину для бермудских мастеров. Это первые уступки, но Лаки потерял брата; одного рецепта для мира мало.", false);
         return "Диего уже свободен, можешь найти его на берегу. Вот жемчужина: пусть Лаки передаст секрет своим мастерам. Я умею вести бой, а бермудцы умеют строить и торговать. Вместе будет флот, с которым считаются. Только Лаки сперва потребует ответа за своих, а Джекмен — за берег. Поручился за меня — внесёшь пятьдесят тысяч семьям и ты.";
     }
     if (actor == "Pirates_tavernkeeper" && action == "restitution")
@@ -242,14 +242,14 @@ string GreatRecipe_AllianceAction(string actor, string action)
         if (sti(pchar.money) < 50000) return "Пятьдесят тысяч от тебя — помощь семьям, за которых ты поручился. Пока денег нет, я не стану свидетельствовать перед Джекменом. Вернёшься с ними — договорим.";
         AddMoneyToCharacter(pchar, -50000);
         pchar.GreatRecipe.Alliance.Restitution = true;
-        GreatRecipe_Journal("Диего свободен, рецепт передан, пятьдесят тысяч получил Лаки для бермудских семей. Лаки не простил убийство брата, но готов засвидетельствовать мир ради живых. Теперь говорить с Джекменом: он решит, как подчинить силу Бороды общим интересам, сохранив управление поселением и свои договоры.", false);
+        GreatRecipe_Journal("Лаки получил деньги для семей погибших. Брата он не простил, но ради живых готов засвидетельствовать мир. Решение поселения остаётся за Джекменом.", false);
         return "Диего я видел. Рецепт ты принёс, деньги семьям переданы. Моего брата это не вернёт, и другом Бороды я не стану. Но свободные люди и работающая мастерская лучше новой войны. Я засвидетельствую мир. Джекмену скажи: за следующий выстрел по нашему берегу отвечать будете оба.";
     }
     if (actor == "Jackman" && action == "treaty")
     {
         if (!CheckAttribute(pchar, "GreatRecipe.Alliance.Terms") || !GreatRecipe_AllianceConcessions() || !CheckAttribute(pchar, "GreatRecipe.Alliance.Restitution")) return "Сначала свобода Диего, рецепт для мастерской и возмещение семьям через Лаки. Флот нам нужен, но ещё одного хозяина, который кормит нас обещаниями, я здесь не потерплю.";
         pchar.GreatRecipe.Alliance.Treaty = true;
-        GreatRecipe_Journal("Джекмен предложил Бороде власть морского вождя: его доказанная сила и переданный рецепт усилят общий флот, а не станут новой угрозой Бермудам. Управление поселением, дипломатия и прежние поручения остаются у Джекмена. Я, победивший и отпустивший Бороду, должен стать поручителем мира и обещать не захватывать пиратские поселения; последний разговор — с Бородой.", false);
+        GreatRecipe_Journal("Джекмен готов доверить Бороде общий флот, сохранив береговые дела за собой. Условие — я ручаюсь за мир и отказываюсь от захвата пиратских поселений. Осталось узнать, примет ли это сам Борода.", false);
         return "Силу его флота мы знаем. Теперь у наших мастеров есть его рецепт, а Диего свободен и семьи получили помощь. Лучше поставить такую силу во главе общих кораблей, чем снова ждать красных парусов у своего берега. Пусть зовётся королём пиратов — морским вождём, не хозяином наших кошельков. Управление, договоры и мои поручения остаются у меня. Ты победил его и отпустил: станешь поручителем. И поклянешься не брать наши поселения силой.";
     }
     if (actor == "GreatRecipeKingBeard" && action == "friendship")

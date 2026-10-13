@@ -7,7 +7,8 @@ object GreatRecipeRestoreBuffer;
 bool GreatRecipe_DeferredFunction(string function)
 {
     return function == "GreatRecipe_Capture" || function == "GreatRecipe_FirstBoarding" ||
-        function == "GreatRecipe_LaunchStorm" || function == "GreatRecipe_Return";
+        function == "GreatRecipe_LaunchStorm" || function == "GreatRecipe_Return" ||
+        function == "GreatRecipe_ShoreLand" || function == "GreatRecipe_ShoreReturn";
 }
 
 void GreatRecipe_Delay(string function, float delay)
@@ -33,12 +34,14 @@ void GreatRecipe_Deferred()
 
 void GreatRecipe_RearmDeferred()
 {
-    for (int pending = 0; pending < 4; pending++)
+    for (int pending = 0; pending < 6; pending++)
     {
         string function = "GreatRecipe_Capture";
         if (pending == 1) function = "GreatRecipe_FirstBoarding";
         if (pending == 2) function = "GreatRecipe_LaunchStorm";
         if (pending == 3) function = "GreatRecipe_Return";
+        if (pending == 4) function = "GreatRecipe_ShoreLand";
+        if (pending == 5) function = "GreatRecipe_ShoreReturn";
         if (CheckAttribute(pchar, "GreatRecipe.Deferred." + function)) GreatRecipe_Delay(function, 0.1);
     }
 }
@@ -59,6 +62,52 @@ bool GreatRecipe_Locked()
 bool GreatRecipe_Unlocked()
 {
     return GreatRecipe_Phase() == "won";
+}
+
+string GreatRecipe_SupplyName(int supply)
+{
+    if (supply == 0) return "Oil";
+    if (supply == 1) return "Pin";
+    if (supply == 2) return "Linen";
+    if (supply == 3) return "Water";
+    return "Fuse";
+}
+
+int GreatRecipe_SupplyIndex(string name)
+{
+    return Items_FindItemIdx("GreatRecipe" + name);
+}
+
+void GreatRecipe_EnsureSupplies()
+{
+    for (int supply = 0; supply < 5; supply++)
+    {
+        string name = GreatRecipe_SupplyName(supply);
+        if (GreatRecipe_SupplyIndex(name) >= 0) continue;
+        for (int item = 0; item < ITEMS_QUANTITY; item++)
+        {
+            if (!CheckAttribute(&Items[item], "id") || Items[item].id != "item" + (item + 1)) continue;
+            ref material = &Items[item];
+            DeleteAttribute(material, "");
+            material.id = "GreatRecipe" + name;
+            material.index = item;
+            material.name = "itmname_GreatRecipe" + name;
+            material.describe = "itmdescr_GreatRecipe" + name;
+            material.model = "pursel";
+            material.picIndex = 9;
+            material.picTexture = "ITEMS_1";
+            if (name == "Oil" || name == "Water") { material.model = "potion"; material.picIndex = 7; }
+            material.ItemType = "QUESTITEMS";
+            material.Weight = 0.2;
+            material.price = 0;
+            material.rare = 0;
+            material.uniq = true;
+            material.shown = false;
+            material.startLocation = ""; material.startLocator = "";
+            material.useLocation = ""; material.useLocator = "";
+            break;
+        }
+    }
 }
 
 int GreatRecipe_InitPearl(int index)
@@ -83,6 +132,8 @@ int GreatRecipe_InitPearl(int index)
     pearl.uniq = true;
     DeleteAttribute(pearl, "Generation");
     DeleteAttribute(pearl, "groupID");
+    GreatRecipe_EnsureSupplies();
+    GreatRecipe_ShoreItems();
     return index + 1;
 }
 
@@ -90,12 +141,114 @@ void GreatRecipe_EnsurePearl()
 {
     // Old saves restore the item catalogue; NewGame's InitItems is not replayed.
     int empty = -1;
+    bool found = false;
     for (int item = 0; item < ITEMS_QUANTITY; item++)
     {
-        if (CheckAttribute(&Items[item], "id") && Items[item].id == "GreatRecipeRedPearl") return;
+        if (CheckAttribute(&Items[item], "id") && Items[item].id == "GreatRecipeRedPearl") found = true;
         if (empty < 0 && CheckAttribute(&Items[item], "id") && Items[item].id == "item" + (item + 1)) empty = item;
     }
-    if (empty >= 0) GreatRecipe_InitPearl(empty);
+    if (!found && empty >= 0) GreatRecipe_InitPearl(empty);
+    GreatRecipe_EnsureSupplies();
+    GreatRecipe_ShoreItems();
+}
+
+void GreatRecipe_PreLoadItems(aref location)
+{
+    GreatRecipe_EnsurePearl();
+    for (int supply = 0; supply < 5; supply++)
+    {
+        string name = GreatRecipe_SupplyName(supply);
+        int index = GreatRecipe_SupplyIndex(name);
+        if (index < 0) continue;
+        ref material = &Items[index];
+        // A completed old task is authoritative; never invent its materials,
+        // treatment, journal history or alliance deeds during migration.
+        bool pending = false;
+        if (GreatRecipe_Phase() == "captive" && CheckAttribute(pchar, "GreatRecipe.Task") && !CheckAttribute(pchar, "GreatRecipe.Fight.Active"))
+        {
+            string task = pchar.GreatRecipe.Task;
+            pending = (task == "rigging" && (name == "Oil" || name == "Pin")) ||
+                (task == "medicine" && (name == "Linen" || name == "Water")) ||
+                (task == "powder" && name == "Fuse");
+            if (name == "Pin" && CheckAttribute(pchar, "GreatRecipe.Betrayed") && !CheckAttribute(pchar, "GreatRecipe.Reconciled")) pending = false;
+        }
+        material.shown = false;
+        material.useLocation = ""; material.useLocator = "";
+        if (!pending) continue;
+        string room = "GreatRecipeMess";
+        string locator = "gr_oil";
+        if (name == "Pin") { room = "GreatRecipeHold"; locator = "gr_pin"; }
+        if (name == "Linen") { room = "GreatRecipeHold"; locator = "gr_linen"; }
+        if (name == "Water") locator = "gr_water";
+        if (name == "Fuse") locator = "gr_fuse";
+        material.startLocation = room;
+        material.startLocator = locator;
+        if (GetCharacterItem(pchar, material.id) == 0) material.shown = true;
+        if (name == "Pin" || name == "Fuse")
+        {
+            // The stock use action validates and consumes this actual item.
+            material.useLocation = "GreatRecipeDeck";
+            material.useLocator = "gr_button_rigging";
+            if (name == "Fuse") material.useLocator = "gr_button_powder";
+        }
+    }
+}
+
+void GreatRecipe_TakeSupply(aref location, string itemId)
+{
+    if (GreatRecipe_Phase() != "captive") return;
+    for (int supply = 0; supply < 5; supply++)
+    {
+        string name = GreatRecipe_SupplyName(supply);
+        if (itemId != "GreatRecipe" + name || GetCharacterItem(pchar, itemId) == 0) continue;
+        pchar.GreatRecipe.Supply.(name) = true;
+    }
+}
+
+bool GreatRecipe_CanUseSupply(aref location, string locator, string itemId)
+{
+    if (itemId != "GreatRecipePin" && itemId != "GreatRecipeFuse") return true;
+    bool valid = GreatRecipe_Phase() == "captive" && location.id == "GreatRecipeDeck" && !CheckAttribute(pchar, "GreatRecipe.Fight.Active");
+    if (itemId == "GreatRecipePin") valid = valid && locator == "gr_button_rigging" && pchar.GreatRecipe.Task == "rigging" && CheckAttribute(pchar, "GreatRecipe.Clue.Block") && GetCharacterItem(pchar, "GreatRecipeOil") > 0;
+    else valid = valid && locator == "gr_button_powder" && pchar.GreatRecipe.Task == "powder" && CheckAttribute(pchar, "GreatRecipe.Clue.Manifest");
+    if (!valid) Log_Info("Сначала сверить работу с Джеком: для блока нужны нагель и масло, для заряда — капитанская накладная.");
+    return valid;
+}
+
+void GreatRecipe_UseSupply(aref location, string locator, string itemId)
+{
+    if (itemId != "GreatRecipePin" && itemId != "GreatRecipeFuse") return;
+    bool valid = GreatRecipe_CanUseSupply(location, locator, itemId);
+    if (!valid)
+    {
+        // Stock has consumed the active item before this callback. Restore it
+        // when the second material/instruction is missing, without advancing.
+        GiveItem2Character(pchar, itemId);
+        int unusedIndex = GreatRecipe_SupplyIndex("Pin");
+        if (itemId == "GreatRecipeFuse") unusedIndex = GreatRecipe_SupplyIndex("Fuse");
+        if (unusedIndex < 0) return;
+        ref unused = &Items[unusedIndex];
+        unused.shown = false;
+        DeleteAttribute(unused, "shown.used");
+        return;
+    }
+    if (itemId == "GreatRecipePin")
+    {
+        TakeItemFromCharacter(pchar, "GreatRecipeOil");
+        pchar.GreatRecipe.World.BlockRepaired = true;
+        GreatRecipe_TaskAdvance("training", "Блок снова ходит. Джек хочет проверить, как я держусь у орудий.");
+    }
+    else
+    {
+        pchar.GreatRecipe.World.ChargeReady = true;
+        GreatRecipe_TaskAdvance("shore", "У орудийного поста я заменил подложенный фитиль сухим красным и сверил заряд по накладной. Борода вызывает в каюту: ему нужна судовая книга из тайника в лунной бухте.");
+    }
+    int usedIndex = GreatRecipe_SupplyIndex("Pin");
+    if (itemId == "GreatRecipeFuse") usedIndex = GreatRecipe_SupplyIndex("Fuse");
+    if (usedIndex < 0) return;
+    ref material = &Items[usedIndex];
+    material.shown = false;
+    material.useLocation = ""; material.useLocator = "";
 }
 
 bool GreatRecipe_NeedsPearl()
@@ -129,7 +282,7 @@ bool GreatRecipe_PickupBarrel(int index)
     }
     DeleteAttribute(pchar, "GreatRecipe.Loot.MapID");
     DeleteAttribute(pchar, "GreatRecipe.Loot.SeaPending");
-    GreatRecipe_Journal("В бочке найдена красная жемчужина с клеймом Бороды. Отнести её Лаки Росину в бермудскую таверну: он поможет разобраться с рецептом.", false);
+    GreatRecipe_Journal("В бочке оказалась тяжёлая красная жемчужина с клеймом Бороды. Лаки ждал вестей об этой истории.", false);
     return true;
 }
 
@@ -174,7 +327,7 @@ bool GreatRecipe_TurnInPearl()
             Stores[store].GreatRecipeProduction.ThroughDay = 6;
         }
     }
-    GreatRecipe_Journal("Жемчужина передана Лаки Росину. Мастерская на Бермудах готовит шрапнель: первая партия через семь игровых дней. Затем магазин получает 20–30 бомб в день, не больше 200 в наличии.", false);
+    GreatRecipe_Journal("Лаки передал жемчужину мастерам. На первую партию им нужна неделя; продавать будут в бермудском магазине, небольшими партиями.", false);
     return true;
 }
 
@@ -214,7 +367,7 @@ void GreatRecipe_StoreDaily(ref store, int recoveryOffset)
     if (GreatRecipe_Phase() == "production")
     {
         pchar.GreatRecipe.Phase = "won";
-        GreatRecipe_Journal("Первая партия шрапнельных бомб готова в бермудском магазине. Выпуск идёт каждый игровой день по 20–30 бомб; запас ограничен 200. За пределами Бермуд обычной продажи нет.", true);
+        GreatRecipe_Journal("Бермудские мастера наладили изготовление шрапнели. Первая партия поступила в магазин.", true);
     }
 }
 
@@ -320,7 +473,7 @@ bool GreatRecipe_Accept()
     if (CheckAttribute(pchar, "Custody")) return false;
     pchar.GreatRecipe.Phase = "search";
     pchar.GreatRecipe.Version = 1;
-    GreatRecipe_Journal("Лаки слышал о кровавом капитане и жемчуге черепахи. Проверить слухи в открытом море у Бермуд в ясную лунную ночь: с 22 до 4 часов, с 12 по 18 число. Искать странный корабль на глобальной карте и подойти к нему всей эскадрой; оставаться подальше от берегов.", false);
+    GreatRecipe_Journal("Лаки потерял брата и слышал о корабле с красными парусами. Рыбаки видели что-то у Бермуд, далеко от берега, в ясную ночь при полной луне. Их рассказы расходятся даже в том, был ли это остров.", false);
     return true;
 }
 
@@ -457,6 +610,18 @@ bool GreatRecipe_ShipRooms()
     ref cabin = &Locations[FindLocation("GreatRecipeCabin")];
     cabin.reload.l1.go = "GreatRecipeDeck";
     cabin.reload.l1.emerge = "reload_cabin";
+    // Supplemental GMs register real item-group labels through the stock model
+    // loader. Refresh existing saved clones as well as newly created rooms.
+    for (int supplies = 0; supplies < 3; supplies++)
+    {
+        string supplyRoom = "GreatRecipeHold";
+        if (supplies == 1) supplyRoom = "GreatRecipeMess";
+        if (supplies == 2) supplyRoom = "GreatRecipeDeck";
+        ref supplyLocation = &Locations[FindLocation(supplyRoom)];
+        supplyLocation.models.always.greatRecipeItems = "great_recipe_items";
+        DeleteAttribute(supplyLocation, "models.always.greatRecipeItems.tech");
+        supplyLocation.locators_radius.item = 0.8;
+    }
     return true;
 }
 
@@ -477,6 +642,20 @@ void GreatRecipe_Locks()
     bQuestDisableMapEnter = true;
     // Character/ship panels stay usable for a fair duel's charge/control setup.
     chrDisableReloadToLocation = CheckAttribute(pchar, "GreatRecipe.Fight.Active");
+}
+
+void GreatRecipe_MateFighter(ref mate)
+{
+    if (!CheckAttribute(mate, "GreatRecipe.MateDuel"))
+    {
+        FantomMakeCoolFighter(mate, sti(pchar.rank), 65, 55, "blade25", "", 30);
+        LAi_SetCurHPMax(mate);
+        mate.GreatRecipe.MateDuel = true;
+    }
+    LAi_SetImmortal(mate, false);
+    LAi_SetWarriorTypeNoGroup(mate);
+    LAi_group_MoveCharacter(mate, "GreatRecipeFightGroup");
+    LAi_SetCheckMinHP(mate, 10.0, true, "");
 }
 
 void GreatRecipe_CaptiveActors()
@@ -501,10 +680,34 @@ void GreatRecipe_CaptiveActors()
         if (role == 4) { id = "GreatRecipeMate"; name = "Ратли"; locator = "loc10"; }
         if (role == 5) { id = "GreatRecipeSurgeon"; name = "Доктор Вейн"; room = "GreatRecipeMess"; group = "goto"; locator = "goto6"; }
         ref actor = GreatRecipe_Actor(id, "pirate_1");
+        if (role == 2 && !CheckAttribute(actor, "GreatRecipe.Wounded") && !CheckAttribute(pchar, "GreatRecipe.Helped") &&
+            (pchar.GreatRecipe.Task == "rations" || pchar.GreatRecipe.Task == "rigging" || pchar.GreatRecipe.Task == "training" || pchar.GreatRecipe.Task == "medicine"))
+        {
+            actor.GreatRecipe.Wounded = true;
+            LAi_SetCurHP(actor, LAi_GetCharacterMaxHP(actor) * 0.4);
+        }
         actor.name = name; actor.lastname = "";
         actor.Dialog.Filename = "GreatRecipe.c";
         actor.Dialog.CurrentNode = "First time";
         actor.Dialog.TempNode = "First time";
+        if (role == 4 && CheckAttribute(pchar, "GreatRecipe.Fight.Active") &&
+            (pchar.GreatRecipe.Fight.Active == "rations" || pchar.GreatRecipe.Fight.Active == "redeem"))
+        {
+            // A saved duel from the former generic-opponent path keeps the task,
+            // but only its named opponent remains on deck.
+            for (int fighter = 0; fighter < 3; fighter++)
+            {
+                int old = GetCharacterIndex("GreatRecipeFighter" + fighter);
+                if (old < 0) continue;
+                ref extra = GetCharacter(old);
+                LAi_RemoveCheckMinHP(extra); LAi_SetImmortal(extra, true); LAi_SetStayType(extra);
+                LAi_group_MoveCharacter(extra, "GreatRecipeHoldGroup");
+                ChangeCharacterAddress(extra, "none", "");
+            }
+            GreatRecipe_MateFighter(actor);
+            if (actor.location != "GreatRecipeDeck") ChangeCharacterAddressGroup(actor, "GreatRecipeDeck", "rld", "loc10");
+            continue;
+        }
         LAi_SetImmortal(actor, true);
         LAi_SetStayType(actor);
         LAi_group_MoveCharacter(actor, "GreatRecipeHoldGroup");
@@ -647,9 +850,9 @@ string GreatRecipe_TaskAction(string action)
     if (action == "cook" && pchar.location == "GreatRecipeMess" && task == "rations")
     { pchar.GreatRecipe.Clue.Cook = true; return "Из кладовой ушла бочка сухарей. Я запер её после ужина; ключ был у помощника капитана. А на крышке осталась синяя краска."; }
     if (action == "prisoner" && pchar.location == "GreatRecipeHold" && task == "rations")
-    { pchar.GreatRecipe.Clue.Prisoner = true; return "Ратли заставил меня катить бочку в кубрик. Грозился выбросить за борт. Сухари он прячет, чтоб потом купить голоса команды."; }
+    { pchar.GreatRecipe.Clue.Prisoner = true; return "До ужина Ратли велел мне перекатить бочку в кладовую. Потом меня приковали в трюме; после ужина я никуда не выходил. Ночью слышал, как он спускал сухари через люк: прячет их, чтоб купить голоса команды."; }
     if (action == "gunner" && pchar.location == "GreatRecipeDeck" && task == "rations")
-    { pchar.GreatRecipe.Clue.Gunner = true; return "Синие сапоги? Только у Ратли. Я видел его у люка после вахты. Диего тогда был прикован внизу."; }
+    { pchar.GreatRecipe.Clue.Gunner = true; return "Синяя краска на сапогах? У Ратли: он красил ими люк. После ужина я видел его с бочкой у люка. Диего тогда был прикован внизу; доктор спускался к нему."; }
     if (action == "surgeon" && task == "rations" && pchar.location == "GreatRecipeMess")
     { pchar.GreatRecipe.Clue.Alibi = true; return GreatRecipe_Story("GreatRecipeSurgeon", "history"); }
     if (action == "accuse" && task == "rations" && pchar.location == "GreatRecipeDeck")
@@ -659,23 +862,22 @@ string GreatRecipe_TaskAction(string action)
         return "Ратли: врёшь, крыса! Выходи на палубу, посмотрим, кто кого заставит замолчать.";
     }
     if (action == "betray" && task == "rations" && pchar.location == "GreatRecipeDeck" && CheckAttribute(pchar, "GreatRecipe.Clue.Prisoner"))
-    { pchar.GreatRecipe.Betrayed = true; GreatRecipe_TaskAdvance("rigging", "Я выдал Диего боцману. Ратли прикрыл кражу; теперь велено вернуть ход заклинившему грота-шкоту. Канонир знает, где искать поломку."); return "Боцман: пленника запру. А ты к Джеку — грот опять не слушается руля."; }
+    { pchar.GreatRecipe.Betrayed = true; GreatRecipe_TaskAdvance("rigging", "Я выдал Диего боцману. Ратли остался в стороне. Теперь на корабле заклинило грота-шкот; Джек недоволен тем, как с ним обращались."); return "Боцман: пленника запру. А ты к Джеку — грот опять не слушается руля."; }
     if (action == "gunner" && task == "rigging" && pchar.location == "GreatRecipeDeck")
     { pchar.GreatRecipe.Clue.Block = true; return "Шкот цел, но блок заклинило железным штифтом. Нужен новый деревянный нагель, пропитанный маслом. У Тома масло, у Диего обрезки дуба."; }
     if (action == "cook" && task == "rigging" && pchar.location == "GreatRecipeMess" && CheckAttribute(pchar, "GreatRecipe.Clue.Block"))
-    { pchar.GreatRecipe.Supply.Oil = true; return "Бери масло. Только не лей на канат — смажь ось блока. Вчера Ратли расспрашивал меня, как остановить грот незаметно."; }
+    { return "Бутылка масла стоит возле переборки у камбуза. Забери её сам. Не лей на канат — смажь ось блока. Вчера Ратли расспрашивал меня, как остановить грот незаметно."; }
     if (action == "prisoner" && task == "rigging" && pchar.location == "GreatRecipeHold" && CheckAttribute(pchar, "GreatRecipe.Clue.Block"))
     {
         if (CheckAttribute(pchar, "GreatRecipe.Betrayed") && !CheckAttribute(pchar, "GreatRecipe.Reconciled")) return "Ты выдал меня вместо Ратли. Хочешь моей помощи — заставь его признаться перед командой. Тогда поговорим.";
-        pchar.GreatRecipe.Supply.Pin = true; return "Дубовый нагель лежал под бочкой; вот он. Не бей молотком: сначала ослабь шкот, потом вынь железо. Ратли хочет, чтоб нас настигли его дружки.";
+        return "Дубовый нагель в свёртке у бочек в трюме; забери его. Не бей молотком: сначала ослабь шкот, потом вынь железо. Ратли хочет, чтоб нас настигли его дружки.";
     }
     if (action == "accuse" && task == "rigging" && pchar.location == "GreatRecipeDeck" && CheckAttribute(pchar, "GreatRecipe.Betrayed"))
     { pchar.GreatRecipe.Fight.Pending = "redeem"; return "Ратли: назад берёшь свои слова? Сначала попробуй отнять у меня саблю — тогда получишь признание."; }
     if (action == "repair" && task == "rigging" && pchar.location == "GreatRecipeDeck")
     {
-        if (!CheckAttribute(pchar, "GreatRecipe.Supply.Oil") || !CheckAttribute(pchar, "GreatRecipe.Supply.Pin")) return "Без нагеля и масла блок не оживёт. Возвращайся к коку и пленнику.";
-        GreatRecipe_TaskAdvance("training", "Заклинивший блок заменён. Джек устроит два поединка на палубе: нужно научиться защищать орудийную прислугу. Поговорить с ним и принять вызов; поражение позволяет повторить попытку.");
-        return "Джек: снасть ходит. Теперь другое дело: у пушек нужны люди, которые не побегут от первого клинка. Два моих матроса выйдут по очереди — покажи, что умеешь.";
+        if (GetCharacterItem(pchar, "GreatRecipeOil") == 0 || GetCharacterItem(pchar, "GreatRecipePin") == 0) return "Без настоящих нагеля и масла блок не оживёт. Забери бутылку в кубрике и свёрток в трюме.";
+        return "Джек: верно. Блок справа от грот-мачты. Подойди к нему и поставь нагель; масло тоже уйдёт в работу. Разговором снасть не починишь.";
     }
     if (action == "rigging_wrong" && task == "rigging" && pchar.location == "GreatRecipeDeck")
     { pchar.GreatRecipe.Fight.Pending = "rigging_lesson"; return "Джек: рубить натянутый шкот? Он тебя за бортом пополам сложит. Прежде чем трогать снасти, научись стоять на ногах. Ко мне, с клинком."; }
@@ -686,34 +888,47 @@ string GreatRecipe_TaskAction(string action)
     if (action == "surgeon" && task == "medicine" && pchar.location == "GreatRecipeMess")
     { pchar.GreatRecipe.Clue.Medicine = true; return "Принеси чистое полотно из трюма и кипячёную воду от кока. В рану порох не сыпать, ром не лить. Диего нужен живой — он видел, кто вскрыл крюйт-камеру."; }
     if (action == "prisoner" && task == "medicine" && pchar.location == "GreatRecipeHold" && CheckAttribute(pchar, "GreatRecipe.Clue.Medicine"))
-    { pchar.GreatRecipe.Supply.Linen = true; return "Чистое полотно под койкой. Бери... Я видел Ратли у пороха. Но сперва помоги — лихорадка меня добьёт."; }
+    { return "Чистое полотно в свёртке возле моей койки. Забери... Я видел Ратли у пороха. Но сперва помоги — лихорадка меня добьёт."; }
     if (action == "cook" && task == "medicine" && pchar.location == "GreatRecipeMess" && CheckAttribute(pchar, "GreatRecipe.Clue.Medicine"))
-    { pchar.GreatRecipe.Supply.Water = true; return "Вот котелок воды. Уже остыла. Врач велел тебе промыть рану и стянуть края чистым полотном, а не жечь её ромом."; }
+    { return "Бутылка кипячёной воды стоит у прохода в кубрике. Уже остыла. Забери и промой рану: чистое полотно лучше рома."; }
     if (action == "heal" && task == "medicine" && pchar.location == "GreatRecipeHold")
     {
-        if (!CheckAttribute(pchar, "GreatRecipe.Supply.Linen") || !CheckAttribute(pchar, "GreatRecipe.Supply.Water")) return "Нужны чистая вода и полотно. Лекарь ждёт в кубрике.";
+        if (!CheckAttribute(pchar, "GreatRecipe.Clue.Medicine") || GetCharacterItem(pchar, "GreatRecipeLinen") == 0 || GetCharacterItem(pchar, "GreatRecipeWater") == 0) return "Нужны чистая вода и полотно в твоём инвентаре. Лекарь в кубрике объяснит, где их взять.";
+        TakeItemFromCharacter(pchar, "GreatRecipeLinen");
+        TakeItemFromCharacter(pchar, "GreatRecipeWater");
+        ref prisoner = characterFromId("GreatRecipePrisoner");
+        prisoner.GreatRecipe.Wounded = false;
+        LAi_SetCurHPMax(prisoner);
         pchar.GreatRecipe.Helped = true;
-        GreatRecipe_TaskAdvance("powder", "Рана Диего перевязана. Он видел вскрытую крюйт-камеру и подменённые фитили. Нужно сверить накладную у Бороды и восстановить боезапас с канониром.");
+        GreatRecipe_TaskAdvance("powder", "Диего перевязан. Он утверждает, что Ратли возился в крюйт-камере и подменил фитили. Если это правда, следующий залп может погубить своих.");
         return "Диего: теперь верю тебе. В журнале капитана три меры пороха и сухой фитиль. Ратли подменил его промасленной паклей.";
     }
     if (action == "captain" && task == "powder" && pchar.location == "GreatRecipeCabin")
     { pchar.GreatRecipe.Clue.Manifest = true; return "Борода: три меры, сухая оболочка, фитиль с красной нитью. Не путать с белым: тот горит быстрее. Проверить с Джеком; свои пальцы мне ни к чему."; }
     if (action == "prisoner" && task == "powder" && pchar.location == "GreatRecipeHold" && CheckAttribute(pchar, "GreatRecipe.Clue.Manifest"))
-    { pchar.GreatRecipe.Supply.Fuse = true; return "Вот сухие фитили с красной нитью. Белые Ратли подкинул нарочно — снаряд рванёт ещё у борта. Скажи Джеку, что я не с ним."; }
+    { return "Я спрятал сухие фитили в свёртке у стола в кубрике. Там красная нить. Белые Ратли подкинул нарочно — снаряд рванёт ещё у борта. Скажи Джеку, что я не с ним."; }
     if (action == "powder" && task == "powder" && pchar.location == "GreatRecipeDeck")
     {
-        if (!CheckAttribute(pchar, "GreatRecipe.Clue.Manifest") || !CheckAttribute(pchar, "GreatRecipe.Supply.Fuse")) return "Джек: сперва накладная у капитана и сухие фитили из трюма. На глаз заряжать не стану.";
-        GreatRecipe_TaskAdvance("mutiny", "Боезапас проверен по капитанской накладной. Ратли готовит мятеж: его люди требуют открыть оружейный шкаф. Нужно решить, чью сторону принять, и остановить их на палубе.");
-        return "Джек: заряды сухие. Ратли собирает своих у люка. С ним нельзя договориться — готовь клинок.";
+        if (!CheckAttribute(pchar, "GreatRecipe.Clue.Manifest") || GetCharacterItem(pchar, "GreatRecipeFuse") == 0) return "Джек: сперва накладная у капитана и сухие фитили из кубрика. На глаз заряжать не стану.";
+        return "Джек: пост у орудия по левому борту. Подойди и поставь сухой красный фитиль по накладной. Затем поговорим о людях Ратли.";
     }
     if (action == "captain" && task == "mutiny_final" && pchar.location == "GreatRecipeCabin")
-    { pchar.GreatRecipe.Clue.CaptainOrder = true; return "Борода: Ратли ещё держит носовую палубу. Своих ты уже выбрал; теперь ответь за них. Отбери у его последней тройки оружие. Или у моей — если всё ещё веришь в его свободу."; }
+    {
+        pchar.GreatRecipe.Clue.CaptainOrder = true;
+        if (sti(pchar.GreatRecipe.Rebel)) return "Борода: мою первую вахту ты разоружил, но нос ещё держат трое верных мне матросов. Свободу обещал Ратли — а кровь за неё проливаешь ты. Решил идти с ним? Тогда отвечай за своих до конца.";
+        return "Борода: Ратли ещё держит носовую палубу. Своих ты уже выбрал; теперь ответь за них. Отбери у его последней тройки оружие.";
+    }
     if (action == "wrong_fuse" && task == "powder" && pchar.location == "GreatRecipeDeck")
     { pchar.GreatRecipe.Fight.Pending = "powder_lesson"; return "Джек вырывает фитиль из рук: белая нить! Такой разрыв перебьёт наших. Хочешь командовать пушками — сперва докажи, что способен остановиться. Выходи к носовому орудию."; }
     if ((action == "loyal" || action == "rebel") && (task == "mutiny" || task == "mutiny_final") && pchar.location == "GreatRecipeDeck")
     {
         if (task == "mutiny_final" && !CheckAttribute(pchar, "GreatRecipe.Clue.CaptainOrder")) return "Боцман: капитан вызывает в каюту. Не лезь на нос, пока не поговорил с ним.";
-        pchar.GreatRecipe.Rebel = action == "rebel";
+        if (CheckAttribute(pchar, "GreatRecipe.MutinySide") || task == "mutiny_final")
+        {
+            if (sti(pchar.GreatRecipe.Rebel) != (action == "rebel")) return "Свою сторону ты уже выбрал. Твои люди ждут на палубе.";
+        }
+        else pchar.GreatRecipe.Rebel = action == "rebel";
+        pchar.GreatRecipe.MutinySide = true;
         pchar.GreatRecipe.Fight.Pending = task;
         return "На палубе уже обнажили клинки. От слов теперь толку нет.";
     }
@@ -741,11 +956,18 @@ void GreatRecipe_StartFight(string unused)
         ChangeCharacterAddressGroup(beard, "GreatRecipeDeck", "rld", "loc9");
         LAi_SetCheckMinHP(beard, 40.0, true, "");
     }
+    if (task == "rations" || task == "redeem")
+    {
+        ref mate = GreatRecipe_Actor("GreatRecipeMate", "pirate_1");
+        GreatRecipe_MateFighter(mate);
+        LAi_SetCurHPMax(mate);
+        ChangeCharacterAddressGroup(mate, "GreatRecipeDeck", "rld", "loc10");
+    }
     int opponents = 1;
     if (task == "mutiny" || task == "mutiny_final") opponents = 3;
     if (task == "mutiny" && CheckAttribute(pchar, "GreatRecipe.Helped") && (!CheckAttribute(pchar, "GreatRecipe.Betrayed") || CheckAttribute(pchar, "GreatRecipe.Reconciled"))) opponents = 2;
     pchar.GreatRecipe.Fight.Remaining = opponents;
-    for (int fighter = 0; task != "captain" && fighter < opponents; fighter++)
+    for (int fighter = 0; task != "captain" && task != "rations" && task != "redeem" && fighter < opponents; fighter++)
     {
         ref enemy = GreatRecipe_Actor("GreatRecipeFighter" + fighter, "pirate_2");
         int fencing = 65;
@@ -787,6 +1009,12 @@ void GreatRecipe_FighterDown(string unused)
         if (LAi_GetCharacterHP(beard) <= 40.0) GreatRecipe_FightFinish(true);
         return;
     }
+    if (pchar.GreatRecipe.Fight.Active == "rations" || pchar.GreatRecipe.Fight.Active == "redeem")
+    {
+        ref mate = characterFromId("GreatRecipeMate");
+        if (LAi_GetCharacterHP(mate) <= 10.0) GreatRecipe_FightFinish(true);
+        return;
+    }
     int remaining = 0;
     for (int fighter = 0; fighter < 3; fighter++)
     {
@@ -822,8 +1050,17 @@ void GreatRecipe_FightFinish(bool won)
         LAi_group_MoveCharacter(beard, "GreatRecipeHoldGroup");
         ChangeCharacterAddressGroup(beard, "GreatRecipeCabin", "rld", "loc0");
         if (won) pchar.GreatRecipe.CaptainRespect = true;
-        if (won) GreatRecipe_Journal("Борода уступил в поединке на палубе. Я заслужил уважение его клинка; теперь нужно удержать слово и довести корабельные дела до конца. В каюте можно поговорить о том, чем закончится наша морская дуэль.", false);
-        else GreatRecipe_Journal("Я уступил Бороде в поединке. Он оставил меня в живых; за новым вызовом можно прийти в каюту. Корабельные дела продолжаются.", false);
+        if (won) GreatRecipe_Journal("Борода уступил в поединке. После боя он смотрел на меня иначе. Посмотрим, чего стоит это уважение.", false);
+        else GreatRecipe_Journal("Борода разоружил меня и оставил в живых. По его словам, следующий вызов он примет.", false);
+    }
+    if (task == "rations" || task == "redeem")
+    {
+        ref mate = characterFromId("GreatRecipeMate");
+        LAi_RemoveCheckMinHP(mate); LAi_SetImmortal(mate, true); LAi_SetStayType(mate);
+        LAi_SetCurHPMax(mate);
+        DeleteAttribute(mate, "AlwaysEnemy");
+        LAi_group_MoveCharacter(mate, "GreatRecipeHoldGroup");
+        ChangeCharacterAddressGroup(mate, "GreatRecipeDeck", "rld", "loc10");
     }
     for (int fighter = 0; fighter < 3; fighter++)
     {
@@ -837,21 +1074,26 @@ void GreatRecipe_FightFinish(bool won)
     else if (!won)
         GreatRecipe_Journal("Команда разняла драку. Я уступил, но жив; боцман разрешает вернуться к тому же делу после перевязки.", false);
     else if (task == "rations")
-        GreatRecipe_TaskAdvance("rigging", "Ратли признался в краже пайков, Диего оправдан. Следующее дело — заклинивший грота-шкот; нужно расспросить Джека на палубе.");
+        GreatRecipe_TaskAdvance("rigging", "Ратли признался в краже. Диего оправдан, но на палубе неспокойно: грота-шкот заклинило, и Джек подозревает новую пакость.");
     else if (task == "redeem")
     {
         pchar.GreatRecipe.Reconciled = true;
-        GreatRecipe_Journal("Ратли вынужден признаться. Диего оправдан перед командой; можно вернуться за дубовым нагелем в трюм.", false);
+        GreatRecipe_Journal("Ратли признался перед командой. Диего больше не считают вором; теперь с ним можно говорить без этой лжи между нами.", false);
     }
     else if (task == "training")
     {
         pchar.GreatRecipe.TrainingWins = sti(pchar.GreatRecipe.TrainingWins) + 1;
-        if (sti(pchar.GreatRecipe.TrainingWins) >= 2) GreatRecipe_TaskAdvance("medicine", "Оба поединка у орудий выиграны. Лекарь в кубрике просит помочь раненому Диего: узнать, что нужно для перевязки.");
-        else GreatRecipe_Journal("Первый поединок у орудий выигран. Поговорить с Джеком: следующий матрос предпочитает тяжёлые рубящие удары.", false);
+        if (sti(pchar.GreatRecipe.TrainingWins) >= 2) GreatRecipe_TaskAdvance("medicine", "Оба поединка позади. Лекарь беспокоится о Диего: рана хуже, чем тот показывает.");
+        else GreatRecipe_Journal("Первый матрос уступил. Джек обещал ещё одного противника, с другой манерой боя.", false);
     }
-    else if (task == "powder_lesson") GreatRecipe_Journal("Джек остановил неверную сборку заряда. Вернуться к капитанской накладной, сверить цвет фитиля и вновь поговорить с канониром.", false);
-    else if (task == "rigging_lesson") GreatRecipe_Journal("Джек показал, как держаться у натянутой снасти. Достать нагель и масло, ослабить шкот перед заменой блока; затем вернуться к канониру.", false);
-    else if (task == "mutiny") GreatRecipe_TaskAdvance("mutiny_final", "Первый отряд сложил оружие, но носовую палубу удерживают трое опытных матросов. Капитан вызывает в каюту: поговорить с ним, затем вернуться к боцману перед решающей схваткой.");
+    else if (task == "powder_lesson") GreatRecipe_Journal("Джек остановил меня у заряда. Я не разобрался в его устройстве и едва не погубил орудийную прислугу.", false);
+    else if (task == "rigging_lesson") GreatRecipe_Journal("Джек показал, чем кончается спешка у натянутой снасти. Блок всё ещё неисправен.", false);
+    else if (task == "mutiny")
+    {
+        string side = "Ратли";
+        if (sti(pchar.GreatRecipe.Rebel)) side = "Бороды";
+        GreatRecipe_TaskAdvance("mutiny_final", "Первый отряд сложил оружие, но носовую палубу удерживают трое опытных матросов " + side + ". Борода требует объяснений.");
+    }
     else
         GreatRecipe_TaskAdvance("ready", "Мятеж на палубе закончился. Борода зовёт в каюту: теперь он согласен поставить свой рецепт на кон в честной морской дуэли.");
     LAi_SetCurHPMax(pchar);
@@ -999,7 +1241,7 @@ void GreatRecipe_PrepareSea(ref login)
         Group_SetTaskNone("GreatRecipeSea");
         GreatRecipe_DelayBossLogin(login);
         GreatRecipe_Locks();
-        GreatRecipe_Journal("Остров под луной распался на кольца пены. Водоворот захватил всю эскадру. Из глубины поднимаются мачты огромного корабля — держаться вместе, орудия к бою!", false);
+        GreatRecipe_Journal("Тёмный силуэт распался на кольца пены. Воронка захватила эскадру; среди воды поднимаются чужие мачты.", false);
         return;
     }
     if (phase == "whirlpool" || phase == "assault" || phase == "boarding")
@@ -1172,7 +1414,7 @@ void GreatRecipe_SeaReady()
                 pchar.GreatRecipe.Cancelled = true;
                 pchar.GreatRecipe.Won = false;
                 pchar.GreatRecipe.Phase = "returning";
-                GreatRecipe_Journal("Эскадра растянулась слишком далеко. Нужно собрать корабли вместе и снова проверить открытую воду у Бермуд в ясную ночь, с 22 до 4 часов, между 12-м и 18-м числами.", false);
+                GreatRecipe_Journal("Эскадра растянулась, и странный силуэт пропал из виду. Если искать его снова, лучше держать корабли рядом.", false);
                 GreatRecipe_Delay("GreatRecipe_Return", 0.1);
                 return;
             }
@@ -1224,7 +1466,7 @@ void GreatRecipe_BeginCapture(bool bossBeaten)
     GreatRecipe_ClearVortex(true);
     LAi_SetImmortal(pchar, true);
     Group_SetTaskNone("GreatRecipeSea");
-    GreatRecipe_Journal("Борода приказал прекратить огонь. Его люди спускают шлюпки; впереди чужой трюм и разговор с капитаном.", false);
+    GreatRecipe_Journal("Борода приказал прекратить огонь. От его борта идут шлюпки.", false);
     GreatRecipe_Delay("GreatRecipe_Capture", 1.0);
 }
 
@@ -1266,7 +1508,7 @@ bool GreatRecipe_EmergeBoss()
         pchar.GreatRecipe.Won = false;
         pchar.GreatRecipe.Phase = "returning";
         GreatRecipe_ClearVortex(true);
-        GreatRecipe_Journal("Мачты скрылись в пене, а воронка распалась. Вернуться в открытую воду у Бермуд в ясную ночь, с 22 до 4 часов между 12-м и 18-м числами. Моя эскадра останется при мне.", false);
+        GreatRecipe_Journal("Мачты скрылись в пене, воронка распалась. Корабли целы. Рассказ рыбаков остаётся единственной зацепкой.", false);
         GreatRecipe_Delay("GreatRecipe_Return", 0.1);
     }
     return false;
@@ -1302,7 +1544,7 @@ bool GreatRecipe_ClaimHullDefeat(ref captain)
     GreatRecipe_ClearVortex(true);
     Group_SetTaskNone("GreatRecipeSea");
     LAi_SetImmortal(pchar, true);
-    GreatRecipe_Journal("Корпус разбит. Люди Бороды идут на абордаж — защищать палубу; если одолею капитана, его трофей останется за мной.", false);
+    GreatRecipe_Journal("Корпус разбит. Люди Бороды идут на абордаж.", false);
     GreatRecipe_Delay("GreatRecipe_FirstBoarding", 0.1);
     return true;
 }
@@ -1339,7 +1581,7 @@ void GreatRecipe_Win()
     pchar.GreatRecipe.Phase = "storm";
     pchar.GreatRecipe.Won = true;
     pchar.GreatRecipe.Elapsed = 0;
-    GreatRecipe_Journal("Борода проиграл. Его секрет — шрапнельное ядро, а не жемчуг. Но море закрылось штормом: дуэльный корабль уже не спасти.", false);
+    GreatRecipe_Journal("Борода проиграл. Теперь я знаю, что скрывается внутри его жемчуга. Над морем сгущаются тучи.", false);
     GreatRecipe_Delay("GreatRecipe_LaunchStorm", 1.0);
 }
 
@@ -1360,6 +1602,7 @@ void GreatRecipe_LaunchStorm(string unused)
 
 bool GreatRecipe_ClaimDeath(int index)
 {
+    if (GreatRecipe_ShoreClaimDeath(index)) return true;
     string phase = GreatRecipe_Phase();
     if ((phase == "whirlpool" || phase == "assault" || phase == "boarding") && index == GetCharacterIndex("GreatRecipeDreamBeard"))
     {
@@ -1369,7 +1612,7 @@ bool GreatRecipe_ClaimDeath(int index)
         GreatRecipe_ClearVortex(true);
         GreatRecipe_RestoreLocks();
         GreatRecipe_SpawnBarrel(GetCharacter(index), false);
-        GreatRecipe_Journal("Красный прилив побеждён всей эскадрой. У его борта плавает трофейная бочка — подойти и поднять её. Если уплывёт, искать бочонок на глобальной карте. Красную жемчужину отнести Лаки Росину в бермудскую таверну.", false);
+        GreatRecipe_Journal("Красный прилив побеждён. Среди обломков у его борта заметна бочка с капитанским клеймом.", false);
         return false;
     }
     if (phase == "duel" && index == GetCharacterIndex("GreatRecipeDuelBeard"))
@@ -1383,7 +1626,7 @@ bool GreatRecipe_ClaimDeath(int index)
         pchar.GreatRecipe.HuntTaken = true;
         pchar.GreatRecipe.Phase = "pearl_search";
         GreatRecipe_SpawnBarrel(GetCharacter(index), false);
-        GreatRecipe_Journal("Настоящий Борода побеждён. Поднять трофейную бочку у его корвета; если она уплывёт, искать бочонок на глобальной карте. Красную жемчужину принести Лаки Росину в бермудскую таверну.", false);
+        GreatRecipe_Journal("Борода побеждён. У его корабля осталась бочка с капитанским клеймом; течение уже уносит обломки.", false);
         return false;
     }
     if (index != nMainCharacterIndex || !GreatRecipe_Locked()) return false;
@@ -1572,6 +1815,7 @@ void GreatRecipe_AfterSceneUnload()
     }
     if (!CheckAttribute(pchar, "GreatRecipe.Restored"))
     {
+        GreatRecipe_ShoreCleanup();
         bool won = sti(pchar.GreatRecipe.Won) && !seaLoot;
         if (!GreatRecipe_RestoreFleet(won)) return;
         LAi_SetCurHP(pchar, stf(pchar.GreatRecipe.Escrow.Health));
@@ -1608,8 +1852,8 @@ void GreatRecipe_Returned()
     if (won) pchar.GreatRecipe.Phase = "pearl_search";
     else pchar.GreatRecipe.Phase = "lost";
     LAi_SetPlayerType(pchar);
-    string body = "Кошмар кончился на Бермудах. Исходная эскадра и вещи целы. Искать Красную Бороду в открытой воде у Бермуд во время грозы, с 22 до 4 часов между 12-м и 18-м числами. Победа даст трофейную бочку: красную жемчужину нужно отнести Лаки Росину, чтобы начать изготовление шрапнельных бомб.";
-    if (won) body = "Кошмар закончился на Бермудах. Моя эскадра и вещи целы, флагман полностью восстановлен. Но красная жемчужина пропала с дуэльным судном: искать трофейную бочку на глобальной карте, затем отнести жемчужину Лаки Росину в таверну. Магазин пока её не производит.";
+    string body = "Я очнулся на Бермудах. Эскадра и вещи при мне, но история Бороды кажется слишком настоящей для сна. Лаки всё ещё ждёт вестей.";
+    if (won) body = "Я очнулся на Бермудах. Эскадра цела, флагман восстановлен, а красная жемчужина осталась в море. Обломки Бороды ещё может принести течением.";
     if (CheckAttribute(pchar, "GreatRecipe.Cancelled"))
     {
         pchar.GreatRecipe.Phase = "search";
@@ -1625,6 +1869,8 @@ void GreatRecipe_Returned()
 
 void GreatRecipe_LocationLoaded(aref location)
 {
+    GreatRecipe_ShoreLocationLoaded(location);
+    if (GreatRecipe_ShoreActive()) return;
     if (GreatRecipe_Phase() == "captive" && (location.id == "GreatRecipeHold" || location.id == "GreatRecipeDeck" || location.id == "GreatRecipeMess" || location.id == "GreatRecipeCabin"))
     {
         if (!CheckAttribute(pchar, "GreatRecipe.Task")) pchar.GreatRecipe.Task = "rations";
@@ -1654,6 +1900,7 @@ void GreatRecipe_OnLoad()
     GreatRecipe_Upgrade();
     DeleteAttribute(pchar, "GreatRecipe.Loot.SeaPending");
     GreatRecipe_AllianceOnLoad();
+    GreatRecipe_ShoreOnLoad();
     GreatRecipe_RearmDeferred();
     if (!GreatRecipe_Locked()) return;
     if (GreatRecipe_Phase() == "captive") GreatRecipe_ShipRooms();
@@ -1697,7 +1944,7 @@ void GreatRecipe_Upgrade()
     if (phase == "lost" && CheckAttribute(pchar, "GreatRecipe.HuntTaken"))
     {
         pchar.GreatRecipe.Phase = "pearl_search";
-        GreatRecipe_Journal("Борода уже побеждён, но красной жемчужины нет. Искать трофейную бочку на глобальной карте; жемчужину отнести Лаки Росину в таверну на Бермудах.", false);
+        GreatRecipe_Journal("Борода побеждён, но жемчужины у меня нет. На воде по-прежнему попадаются обломки и бочонки с его клеймом.", false);
     }
     if (phase == "captive" && !CheckAttribute(pchar, "GreatRecipe.Task"))
     {
@@ -1783,7 +2030,7 @@ void GreatRecipe_Pulse()
             pchar.GreatRecipe.Phase = "assault";
             pchar.GreatRecipe.Elapsed = 0;
             Group_SetTaskAttack("GreatRecipeSea", PLAYER_GROUP);
-            GreatRecipe_Journal("Из воронки вышел Красный прилив — быстрый бронированный фрегат Бороды. Его шрапнель рвёт паруса и людей; сам он идёт по кругу будто по тихой воде. Разворачивать эскадру, отвечать бортовым огнём!", false);
+            GreatRecipe_Journal("Из воронки вышел Красный прилив. Борода идёт по кругу будто по тихой воде; его железные жемчужины рвутся за бортом.", false);
         }
     }
     if (phase == "storm")

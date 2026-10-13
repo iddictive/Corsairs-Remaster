@@ -55,6 +55,9 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/Textures/INTERFACES/PORTRAITS/64/face_2006.tga.tx",
     "RESOURCE/Textures/INTERFACES/PORTRAITS/128/face_2006.tga.tx",
     "RESOURCE/Textures/INTERFACES/PORTRAITS/256/face_2006.tga.tx",
+    "RESOURCE/MODELS/locations/decks/hold/great_recipe_items.gm",
+    "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm",
+    "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm",
 )
 
 

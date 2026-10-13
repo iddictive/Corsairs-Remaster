@@ -31,6 +31,7 @@ from contextlib import nullcontext
 PROJECT = Path(__file__).resolve().parents[1]
 UI_ASSETS = PROJECT / "src/assets/ui"
 CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
+RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
 # Portable input is a reviewed read-only baseline, never a second game runtime.
 INPUTS = PROJECT / "experiments/native-metal/inputs"
 if (INPUTS / "manifest.json").is_file():
@@ -220,7 +221,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     if paths is not None:
         return canonical
     assets, asset_targets = {}, set()
-    for asset_root in (UI_ASSETS, CHARACTER_ASSETS):
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS):
         changes = asset_changes(asset_root, state, managed, inputs, asset_targets)
         assets.update(changes)
     living_caribbean.verify_fort_layout_assets(target_root)
