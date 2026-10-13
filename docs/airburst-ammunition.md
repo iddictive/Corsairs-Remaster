@@ -26,6 +26,50 @@ when no earlier proximity wins. Previously this path selected ordinary Bombs
 damage and `Ball_FortHit`, whose visual blast runs only on `rand(4) == 1`.
 Native dispatch and translation-unit compilation pass; real fort replay is open.
 
+### Next near-hull ignition candidate
+
+A noncritical shrapnel burst within2m of the actual hull gets one0.5% small-fire
+roll per shell/ship. A final true critical uses50% once. Sail and cosmetic
+fragments add no fire rolls. These are next-batch source candidates, not installed
+player acceptance; fuze1–7m,35m arming, fixed spherical fragment directions and
+the existing radial damage curve stay unchanged.
+
+The existing all-node box distance is a coarse damage/proximity metric. On the
+actual FrigateQueen1 tapered prow it reports1m while the hull mesh is6.86607m
+away; a mast-only approach reports approximately0 while the hull is19.1228m away.
+The next native patch queries original collision BSP on the root body and the
+engine's shatter body nodes. Nose, sides, stern and detached-body geometry are
+included when collision-enabled; mast, yard and decorative child boxes cannot
+supply a hull-fire witness. Later visual hull cuts preserve the original
+collision contract.
+
+The synchronous SHIP_HULL_HIT callback reads CurrentAirburstHullValid,
+CurrentAirburstHullDistance and HullX/Y/Z independently of unchanged damage
+coordinates/distance. Native Init, each projectile and each completed radial
+callback clear that witness. Exact world-space admission remains≤2m. Stock
+GEOS::Clip supplies original triangles; a scoped traceid restore preserves prior
+collision details and leaves ordinary Clip semantics intact. The existing
+Triangle::FindClosestPoint failed37 of30,000 independent cases, so the query
+uses verified plane projection plus all three segments.
+
+The cheap prefilter uses2.14m plus float world-coordinate allowance. Auditing57
+definitions (55 sailing, Boat, Fort),56 ship roots,132 body nodes and127 BSP
+bodies found maximum collision-vertex box slack0.1270163m. A tighter2.01m filter
+is rejected: actual Sloop proxy2.12602m corresponds to physical distance1.999m.
+The margin is proven for the current model corpus; custom/unknown GM is outside
+that evidence. Distant burst paths avoid the exact query.
+
+Queued native activation follows airburst-shell.patch and needs the candidate
+root include for sea_ai; geometry already owns it. The paired script patch
+preserves critical50 and the existing single frnd roll, anchors accepted fire
+at the native hull point, and passes31 real-VM admission/anchor cases plus full
+PROGRAM compilation with zero script errors. Native query tests preserve prior
+triangle/object/plane/barycentrics and ordinary clipping, and pass exact2m,
+rotated pose, tapered bow, mast and reset cases. Full build/link, installed battle
+ignition and paired CPU/FPS remain required. Stock Trace's existing _stack-1
+sanitizer finding is separate and unchanged; query/math/state sanitizer checks
+pass.
+
 ### Earlier delivery evidence (historical)
 
 The first installed version40c8c300 was rejected by player replay: no overhead

@@ -4,6 +4,37 @@ Last verified: October13. The rim/captivity correction is installed through cano
 
 ## Current verdict
 
+### October13 — living-ship damage source integrated; installation pending
+
+The next batch integrates authored-cloth sail capacity, committed-hole damage
+admission, stable saved thermal cells, actual hull perforations and bounded
+chips, plus the exact-hull witness for near-airburst ignition. Existing critical
+ignition remains one50% roll; ordinary bombs and admitted explosions within2m
+use0.5%. Native and gameplay changes activate together. The preceding quest,
+rim, weather and Beard normalization remain in their existing owners.
+
+The canonical native build returns0 with17 patched source files and all nine
+renderer consumer classes admitted. The full prepared PROGRAM compiler returns
+0 with0 script errors, including31 actual ignition/anchor cases. Source hygiene
+passes after exact staging. New patch-file blank context markers and whitespace
+in the admitted stock interface file are preserved rather than reformatting
+their upstream content. Source/component checks do not accept player behavior.
+
+The installed signed8ad0 engine remains the baseline. The fresh player manifest
+captures SAVE, userdata and configuration before activation. The shared thermal
+model performs no hot-path allocations and advances at0.25game-second steps;
+20dense63-cell steps total0.327ms in a CPU-only comparison. Renderer point limits
+remain48 and global chip geometry remains64pieces. The256-cut cold hull rebuild
+measured19.263ms; whole-battle CPU/GPU frame time and thermal state remain
+unresolved. Prior-save masks/repair, shared-table display, burning cloth, actual
+shell impacts and matching dense battles require installed-runtime replay.
+
+The previously frozen13-line seabed-fog fix is included in this source batch.
+Its component evidence is retained; the later water-composite hypothesis is a
+separate batch and has not changed current shader inputs. The local environment
+adds the existing repository check action; disk consistency passes, while its
+visible Codex menu remains unverified because computer use cannot access Codex.
+
 ### October13 — rim battle and captivity correction installed
 
 Canonical `experiments/native-metal/run.sh --stage-only` returns0 for the frozen

@@ -86,6 +86,33 @@ native binary SAVE layout. Old saves without it admit a cold/default state or
 their active legacy fire once. Pause, load, boarding, death and removal cannot
 duplicate updates or leave an emitter/surface scope alive.
 
+## Next damage integration
+
+Measured sail capacity and the paired cumulative-hole adapter are documented in
+[sail-capacity.md](sail-capacity.md). Activation includes the repository model
+capacity patch, native admission/projection and hull geometry/chips; installing
+only the HP adapter with the old provisional-hole engine is not supported.
+Saved thermal records must be imported before newly supported cloth allocates
+cells. Keyed schema2 keeps one Ship.FireState authority and preserves prior hull,
+cloth, pending damage and missing-mast records. The simulation pool can exceed48;
+the render ABI remains32-byte records with48 points, hull char stays on hull and
+each sail reads its own char. Repeated-save component evidence does not accept
+the installed game's complete OnLoad or battle.
+
+Near-burst fire also needs the independent actual-hull witness described in
+[airburst-ammunition.md](airburst-ammunition.md). Its paired script admission
+uses the existing ordinary-bomb probability owner and one final roll; critical
+50% stays authoritative. Airburst fuze radius and fragment distribution retain
+their current contracts.
+
+The player explicitly requires preserved FPS and bounded CPU load. Thermal
+updates run once per0.25 game-seconds with preallocated scratch. Exact near-hull
+geometry queries run only for already admitted close detonations; finite chips
+keep the global64-piece draw cap. Accept complete CPU/GPU frame time in the same
+battle before/after, including a dense broadside, several burning ships and
+restored damage. An isolated renderer demo or CPU kernel timing cannot accept
+that scene; the cold256-cut hull rebuild remains an unresolved component bound.
+
 ## Visual direction and Mac budget
 
 Ignition starts near the hit; growth follows the ship surface; intense fire
@@ -210,5 +237,8 @@ Acceptance includes progressively burned cloth losing SP and forming holes,
 suppression stopping growth, and repair/save/load preserving the correct state.
 Shell impacts must show local chips and holes which remain registered while the
 ship and camera move. Unhit nearby wood/cloth, depth/reflection consumers and
-frame cost are the nearest negatives. Implementation remains pending source
-ownership release after the current build/staging transaction.
+frame cost are the nearest negatives. The native geometry, damage-admission,
+capacity and near-hull ignition changes are integrated into the next source
+batch after the preceding transaction released its owners. The combined native
+build and full prepared PROGRAM compile pass. Installation and the accepting
+player scenarios remain unresolved.

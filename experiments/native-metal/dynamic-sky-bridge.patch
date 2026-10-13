@@ -131,3 +131,16 @@
      pRS->DrawBuffer(iFogVertsID, sizeof(FOGVERTEX), iFogIndexID, 0, kFogVertsNum, 0, kFogTrgsNum / 3,
                      sTechSkyFog.c_str());
  }
+--- a/src/libs/island/src/island.cpp
++++ b/src/libs/island/src/island.cpp
+@@ -203,5 +203,10 @@
+     pRS->SetNearFarPlane(fOldNear, fOldFar / 2.0f);
+     if (!bDrawReflections)
+     {
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        // Authored seabed includes above-water shore skirts. Use the scene fog.
++        pRS->SetRenderState(D3DRS_FOGENABLE, bFogEnable);
++#else
+         pRS->SetRenderState(D3DRS_FOGENABLE, false);
++#endif
+         // pRS->SetRenderState(D3DRS_AMBIENT, RGB(dwAmbient/4,dwAmbient/4,dwAmbient/4));

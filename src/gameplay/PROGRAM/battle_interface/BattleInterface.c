@@ -2039,7 +2039,6 @@ ref ProcessSailDamage()
 	
 	if (LAi_IsImmortal(chref)) 
 	{ 
-		arSail.hd = DeleteOneSailHole(sti(chref.index), groupName, reyName, holeData, 1); //мгновенная заплатка
 		BI_g_fRetVal = 0.0;
 		return &BI_g_fRetVal;
 	}
@@ -2618,7 +2617,7 @@ float GetRigDamage(int shootIdx, int iBallType, ref damage_chr)
 			if (CheckOfficersPerk(damage_chr,"BasicBattleState") )	{ fDmgRig *= 0.85; } // fix
 		}
 	}
-	return fDmgRig;
+	return Ship_SailHitDamageToSP(damage_chr, fDmgRig);
 }
 
 void MakeSailDmg(int chrIdx, float dmg)

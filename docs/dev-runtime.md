@@ -65,6 +65,7 @@ exposes the installed-game actions and a read-only diagnostic capture:
 | Обновить установленную игру | Runs `experiments/native-metal/run.sh --stage-only`: builds the current engine, prepares reviewed resources and updates the played app in `/Applications`. The game must be closed; this action does not launch it. |
 | Открыть установленную игру | Opens `/Applications/Corsairs Iddictive Remaster.app` through `/usr/bin/open`. It does not build or update the game and uses the installed launcher's existing player-state owner. |
 | Записать профиль FPS (через 5 секунд) | Runs `sh tools/profile-game.sh`: waits five seconds, then records ten seconds of the installed engine's CPU stacks without game input or settings changes. |
+| Проверить проект | Runs the existing `python3 tools/agent_context.py --check` repository consistency check. It does not build or launch the game. |
 
 `sh tools/profile-game.sh` also works from the repository terminal. Each capture
 uses a separate timestamped file under the ignored

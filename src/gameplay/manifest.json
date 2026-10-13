@@ -328,6 +328,16 @@
         "f322bc2e89371c8e679d1b728061b6bc0034c3932e6fd7b98f23da618b550715"
       ]
     },
+    "PROGRAM/scripts/sail_capacity.c": {
+      "encoding": "utf-8",
+      "legacy": []
+    },
+    "PROGRAM/interface/interface_utils.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "a7f931bd8d492d16e1f2d216140bf57166b28d249d6571fc931f9a7ab3349d0b"
+      ]
+    },
     "PROGRAM/scripts/Crew.c": {
       "encoding": "utf-8",
       "legacy": [

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
+#include <limits>
+#include <vector>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -9,7 +10,8 @@
 // Ship-local, bounded thermal cells. Geometry, SAVE attributes and damage
 // admission belong to SHIP; drawing never advances this model.
 namespace storm_ship_fire {
-constexpr std::size_t MaxPoints = 48;
+constexpr std::size_t MaxPoints = 48; // fixed rendering ABI, not a simulation capacity
+constexpr std::size_t InvalidCell = std::numeric_limits<std::size_t>::max();
 constexpr float StepSeconds = .25f;
 inline float unit(float x) { return std::isfinite(x) ? std::clamp(x, 0.f, 1.f) : 0.f; }
 
@@ -37,12 +39,19 @@ struct Output {
 
 class Model {
 public:
-    std::array<Cell, MaxPoints> cells{};
+    std::vector<Cell> cells = std::vector<Cell>(MaxPoints);
     std::size_t count = 0;
     float seconds = 0.f;
 
+    // SHIP sizes this once from its preserved hull budget and cloth keys.
+    // No scratch allocation occurs in the fixed-step hot path.
+    void setCapacity(std::size_t capacity) {
+        capacity=std::max(capacity,count);
+        cells.resize(capacity);flame.resize(capacity);incoming.resize(capacity);
+    }
+
     std::size_t add(float x, float y, float z, float radius, bool cloth = false) {
-        if (count == MaxPoints) return MaxPoints;
+        if (count == cells.size()) return InvalidCell;
         auto &c = cells[count];
         c = {}; c.x = x; c.y = y; c.z = z;
         c.radius = std::clamp(radius, .8f, 8.f); c.cloth = cloth;
@@ -50,7 +59,7 @@ public:
     }
 
     std::size_t nearest(float x, float y, float z, bool cloth = false) const {
-        std::size_t best = MaxPoints; float closest = 1.e30f;
+        std::size_t best = InvalidCell; float closest = 1.e30f;
         for (std::size_t i = 0; i < count; ++i) {
             const auto &c = cells[i];
             if (c.cloth != cloth || !c.available) continue;
@@ -81,7 +90,8 @@ public:
         Output out;
         if (!ctx.enabled || dt <= 0.f || !std::isfinite(dt)) return out;
         dt = std::min(dt, StepSeconds); seconds += dt;
-        std::array<float, MaxPoints> flame{}, incoming{};
+        std::fill(flame.begin(),flame.end(),0.f);
+        std::fill(incoming.begin(),incoming.end(),0.f);
         float woodArea = 0.f, woodExposure = 0.f, allArea = 0.f, demand = 0.f;
         for (std::size_t i = 0; i < count; ++i) {
             const auto &c = cells[i];
@@ -141,5 +151,8 @@ public:
         }
         return out;
     }
+private:
+    std::vector<float> flame = std::vector<float>(MaxPoints);
+    std::vector<float> incoming = std::vector<float>(MaxPoints);
 };
 } // namespace storm_ship_fire

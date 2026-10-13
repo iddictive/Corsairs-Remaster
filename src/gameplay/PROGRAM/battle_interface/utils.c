@@ -326,6 +326,7 @@ void DeleteBlots(ref chref, int repBlots)
 		blotsQ--;
 		curblots = GetAttributeN(blref,blotsQ);
 		DeleteAttribute(blref,GetAttributeName(curblots));
+		repBlots--;
 	}
 }
 

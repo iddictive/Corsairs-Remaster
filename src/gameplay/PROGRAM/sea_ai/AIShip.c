@@ -3432,11 +3432,33 @@ void Ship_HullHitEvent()
 	if (!LAi_IsImmortal(rOurCharacter) && !LAi_IsDead(rOurCharacter))
 	{
 		float ignitionChance = Ship_FireIgnitionChance(iBallCharacterIndex, iBallType, bSeriousBoom);
+		bool hullFirePoint = airburst && CheckAttribute(AIBalls, "CurrentAirburstHullValid") && sti(AIBalls.CurrentAirburstHullValid) == 1;
+		if (hullFirePoint)
+		{
+			hullFirePoint = CheckAttribute(AIBalls, "CurrentAirburstHullDistance") && CheckAttribute(AIBalls, "CurrentAirburstHullX") && CheckAttribute(AIBalls, "CurrentAirburstHullY") && CheckAttribute(AIBalls, "CurrentAirburstHullZ");
+			if (hullFirePoint)
+			{
+				float hullFireDistance = stf(AIBalls.CurrentAirburstHullDistance);
+				hullFirePoint = hullFireDistance >= 0.0 && hullFireDistance <= 2.0;
+			}
+		}
+		// One radial hit owns one roll; cloth/cosmetic fragments cannot repeat it.
+		if (airburst && !bSeriousBoom && hullFirePoint)
+			ignitionChance = Ship_FireIgnitionChance(iBallCharacterIndex, GOOD_BOMBS, false);
 		if (ignitionChance > 0.0 && frnd() < ignitionChance)
 		{
 			float ignitionHeat = 0.60;
 			if (iBallType == GOOD_BOMBS) ignitionHeat = 0.76;
-			SendMessage(rShipObject, "lffffll", MSG_SHIP_FIRE_IGNITE, x, y, z, ignitionHeat, iBallCharacterIndex, 0);
+			float fireX = x;
+			float fireY = y;
+			float fireZ = z;
+			if (hullFirePoint)
+			{
+				fireX = stf(AIBalls.CurrentAirburstHullX);
+				fireY = stf(AIBalls.CurrentAirburstHullY);
+				fireZ = stf(AIBalls.CurrentAirburstHullZ);
+			}
+			SendMessage(rShipObject, "lffffll", MSG_SHIP_FIRE_IGNITE, fireX, fireY, fireZ, ignitionHeat, iBallCharacterIndex, 0);
 		}
 	}
 

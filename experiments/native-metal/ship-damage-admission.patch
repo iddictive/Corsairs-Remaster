@@ -1,0 +1,750 @@
+--- a/src/libs/ship/src/ship.cpp
++++ b/src/libs/ship/src/ship.cpp
+@@ -1,4 +1,8 @@
+ #include "ship.h"
++#include "ship_sail_damage.hpp"
++#include "ship_fire_projection.hpp"
++#include "ship_hull_hit_admission.hpp"
++#include "ship_hull_damage_bridge.hpp"
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ 
+ #include <chrono>
+@@ -764,105 +768,155 @@
+ 
+ 
+ #ifdef STORM_METAL_SHIP_FIRE
++namespace {
++storm_ship_fire::Cell ReadShipFireCell(ATTRIBUTES *a,bool cloth)
++{
++    storm_ship_fire::Cell c;
++    c.x=a->GetAttributeAsFloat("x");c.y=a->GetAttributeAsFloat("y");c.z=a->GetAttributeAsFloat("z");
++    c.radius=a->GetAttributeAsFloat("radius",2.f);c.heat=a->GetAttributeAsFloat("heat");
++    c.fuel=a->GetAttributeAsFloat("fuel",1.f);c.charred=a->GetAttributeAsFloat("charred");
++    c.burned=a->GetAttributeAsFloat("burned");c.owner=int32_t(a->GetAttributeAsDword("owner",uint32_t(-1)));
++    c.cloth=cloth;c.available=a->GetAttributeAsDword("available",1)!=0;
++    return c;
++}
++void WriteShipFireCell(ATTRIBUTES *a,const storm_ship_fire::Cell &c,std::size_t order)
++{
++    a->SetAttributeUseFloat("x",c.x);a->SetAttributeUseFloat("y",c.y);a->SetAttributeUseFloat("z",c.z);
++    a->SetAttributeUseFloat("radius",c.radius);a->SetAttributeUseFloat("heat",c.heat);
++    a->SetAttributeUseFloat("fuel",c.fuel);a->SetAttributeUseFloat("charred",c.charred);
++    a->SetAttributeUseFloat("burned",c.burned);a->SetAttributeUseDword("owner",uint32_t(c.owner));
++    a->SetAttributeUseDword("available",c.available);a->SetAttributeUseDword("order",uint32_t(order));
++}
++}
++
+ void SHIP::InitializeShipFire()
+ {
+-    shipFire = {}; fireSails.clear(); fireStepClock = fireCheckpointClock = 0.f;
+-    firePendingHull = firePendingCrew = 0.f;
++    shipFire={};fireSails.clear();fireHulls.clear();fireNextHullKey=0;
++    fireStepClock=fireCheckpointClock=0.f;firePendingHull=firePendingCrew=0.f;
+     fireVisualSeconds=fireClothClock=0.f;fireRunning=false;fireStateDirty=false;firePendingOwner=-1;
+-    auto *model = GetModel();
+-    // Authored hull locators remain useful audio anchors. The extra samples are
+-    // admitted only by the existing hull mesh ray, never by a replacement mesh.
+-    for (std::size_t i=0; i<aFirePlaces.size() && shipFire.count<16; ++i) {
+-        const auto p=aFirePlaces[i].GetLocalPos();
+-        shipFire.add(p.x,p.y,p.z,2.2f);
+-    }
+-    const float radius=std::clamp(State.vBoxSize.x*.18f,1.4f,3.5f);
+-    for (int z=0;z<6 && shipFire.count<28;++z) for (int side=-1;side<=1;side+=2) {
+-        const float x=side*State.vBoxSize.x*.31f, fz=State.vBoxSize.z*(float(z)/5.f-.5f)*.78f;
+-        const CVECTOR a=model->mtx*CVECTOR(x,State.vBoxSize.y*.55f+2.f,fz);
+-        const CVECTOR b=model->mtx*CVECTOR(x,-State.vBoxSize.y*.5f-2.f,fz);
+-        const float t=model->Trace(a,b);
+-        if (t>=0.f && t<=1.f) {
+-            CVECTOR p; model->mtx.MulToInv(a+(b-a)*t,p);
+-            const auto nearest=shipFire.nearest(p.x,p.y,p.z);
+-            if (nearest<shipFire.count) {
+-                const auto &c=shipFire.cells[nearest];
+-                const float dx=c.x-p.x,dy=c.y-p.y,dz=c.z-p.z;
+-                if (dx*dx+dy*dy+dz*dz<2.f) continue;
++    auto *model=GetModel();auto *character=GetACharacter();
++    auto *state=character->FindAClass(character,"Ship.FireState");
++    const uint32_t schema=state?state->GetAttributeAsDword("schema"):0;
++    const bool saved=state && (schema==1 || schema==2) && state->GetAttribute("model") &&
++        !strcmp(state->GetAttribute("model"),cShipIniName);
++    struct Record {storm_ship_fire::Cell cell;std::string node;int group=0;uint32_t key=0,order=0;float lastDamage=0.f;};
++    std::vector<Record> records;
++    if (saved && schema==1) {
++        const auto count=std::min<std::size_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));
++        for (std::size_t i=0;i<count;++i) {
++            char path[40];snprintf(path,sizeof(path),"cells.p%zu",i);
++            auto *a=state->FindAClass(state,path);if (!a) continue;
++            Record r;r.cell=ReadShipFireCell(a,a->GetAttributeAsDword("cloth")!=0);r.key=r.order=uint32_t(i);
++            if (r.cell.cloth) {
++                r.node=a->GetAttribute("node")?a->GetAttribute("node"):"";
++                r.group=int(a->GetAttributeAsDword("group"));r.lastDamage=a->GetAttributeAsFloat("lastSailDamage");
+             }
+-            shipFire.add(p.x,p.y,p.z,radius);
+-        }
+-    }
+-    // Derive each cloth cell from its actual authored corners, keyed by the
+-    // same node/group pair used by saved sail holes and the repair owner.
+-    for (uint32_t n=0; auto *node=model->GetNode(n); ++n) {
+-        if (!node->geo) continue;
+-        GEOS::INFO info; node->geo->GetInfo(info);
++            records.push_back(r);
++        }
++    } else if (saved) {
++        if (auto *hulls=state->GetAttributeClass("hull")) for (uint32_t i=0;i<hulls->GetAttributesNum();++i) {
++            auto *a=hulls->GetAttributeClass(i);Record r;r.cell=ReadShipFireCell(a,false);
++            r.key=uint32_t(strtoul(a->GetThisName()+1,nullptr,10));r.order=a->GetAttributeAsDword("order");
++            records.push_back(r);
++        }
++        if (auto *cloth=state->GetAttributeClass("cloth")) for (uint32_t n=0;n<cloth->GetAttributesNum();++n) {
++            auto *node=cloth->GetAttributeClass(n);
++            for (uint32_t g=0;g<node->GetAttributesNum();++g) {
++                auto *a=node->GetAttributeClass(g);Record r;r.cell=ReadShipFireCell(a,true);
++                r.node=node->GetThisName();r.group=atoi(a->GetThisName());r.order=a->GetAttributeAsDword("order");
++                r.lastDamage=a->GetAttributeAsFloat("lastSailDamage");records.push_back(r);
++            }
++        }
++        std::stable_sort(records.begin(),records.end(),[](const Record &a,const Record &b){return a.order<b.order;});
++    }
++    // Geometry discovery creates descriptors only. Every old thermal record is
++    // imported before a newly supported sail is allowed to allocate a cell.
++    std::vector<FireSailLink> authored;
++    for (uint32_t n=0;auto *node=model->GetNode(n);++n) {
++        if (!node->geo) continue;GEOS::INFO info;node->geo->GetInfo(info);
+         for (int l=0;l<info.nlabels;++l) {
+-            GEOS::LABEL label; node->geo->GetLabel(l,label);
++            GEOS::LABEL label;node->geo->GetLabel(l,label);int group;
+             if (strncmp(label.name,"sail",4) || label.name[4]<'1' || label.name[4]>'4' ||
+-                strlen(label.group_name)<6) continue;
+-            const int group=atoi(label.group_name+5);
+-            auto link=std::find_if(fireSails.begin(),fireSails.end(),[&](const FireSailLink &s) {
+-                return s.node==node->GetName() && s.group==group;
+-            });
+-            if (link==fireSails.end()) {
+-                if (fireSails.size()==16) continue;
+-                fireSails.push_back({}); link=fireSails.end()-1;
+-                link->node=node->GetName(); link->group=group;
++                !storm_sail_damage::groupNumber(label.group_name,group)) continue;
++            auto link=std::find_if(authored.begin(),authored.end(),[&](const FireSailLink &s){return s.node==node->GetName() && s.group==group;});
++            if (link==authored.end()) {
++                authored.push_back({});link=authored.end()-1;link->node=node->GetName();link->group=group;
++                link->authored=true;link->legacy=strlen(label.group_name)>=6;
+             }
+-            const CVECTOR p(label.m[3][0],label.m[3][1],label.m[3][2]);
+-            link->center+=p; ++link->corners;
+-            link->radius=std::max(link->radius,sqrtf(~p));
+-        }
+-    }
+-    for (auto &link:fireSails) {
+-        link.center*=1.f/std::max(1u,link.corners);
+-        auto *node=model->FindNode(link.node.c_str()); CVECTOR p;
+-        model->mtx.MulToInv(node->glob_mtx*link.center,p);
+-        // Radius is recomputed from the real corners instead of node distance.
+-        float r=1.f; GEOS::INFO info; node->geo->GetInfo(info);
++            link->center+=CVECTOR(label.m[3][0],label.m[3][1],label.m[3][2]);++link->corners;
++        }
++    }
++    for (auto &link:authored) {
++        link.center*=1.f/float(std::max(1u,link.corners));
++        auto *node=model->FindNode(link.node.c_str());GEOS::INFO info;node->geo->GetInfo(info);float radius=1.f;
+         for (int l=0;l<info.nlabels;++l) {
+-            GEOS::LABEL label; node->geo->GetLabel(l,label);
++            GEOS::LABEL label;node->geo->GetLabel(l,label);int group;
+             if (!strncmp(label.name,"sail",4) && label.name[4]>='1' && label.name[4]<='4' &&
+-                strlen(label.group_name)>=6 && atoi(label.group_name+5)==link.group)
+-                r=std::max(r,sqrtf(~(CVECTOR(label.m[3][0],label.m[3][1],label.m[3][2])-link.center)));
+-        }
+-        link.cell=shipFire.add(p.x,p.y,p.z,std::clamp(r*.55f,1.2f,6.f),true);
+-    }
+-    auto *state=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
+-    const bool saved=state && state->GetAttributeAsDword("schema")==1 &&
+-        state->GetAttribute("model") && !strcmp(state->GetAttribute("model"),cShipIniName);
++                storm_sail_damage::groupNumber(label.group_name,group) && group==link.group)
++                radius=std::max(radius,sqrtf(~(CVECTOR(label.m[3][0],label.m[3][1],label.m[3][2])-link.center)));
++        }
++        link.radius=std::clamp(radius*.55f,1.2f,6.f);
++    }
++    std::size_t savedHullCount=0;
++    for (const auto &r:records) {
++        if (!r.cell.cloth) {++savedHullCount;continue;}
++        auto link=std::find_if(fireSails.begin(),fireSails.end(),[&](const FireSailLink &s){return s.node==r.node && s.group==r.group;});
++        if (link==fireSails.end()) {
++            fireSails.push_back({});link=fireSails.end()-1;link->node=r.node;link->group=r.group;link->lastDamage=r.lastDamage;
++        }
++    }
++    for (const auto &a:authored) {
++        auto link=std::find_if(fireSails.begin(),fireSails.end(),[&](const FireSailLink &s){return s.node==a.node && s.group==a.group;});
++        if (link==fireSails.end()) fireSails.push_back(a);
++        else {link->center=a.center;link->corners=a.corners;link->radius=a.radius;link->authored=true;link->legacy=a.legacy;}
++    }
++    const std::size_t legacyCloth=std::min<std::size_t>(16,std::count_if(authored.begin(),authored.end(),[](const FireSailLink &s){return s.legacy;}));
++    std::size_t hullBudget=storm_ship_fire::MaxPoints-legacyCloth;
++    if (saved && schema==2) hullBudget=std::min<std::size_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("hullCapacity",uint32_t(hullBudget)));
++    fireHullCapacity=std::max(savedHullCount,hullBudget);
++    fireHulls.reserve(fireHullCapacity);
++    shipFire.setCapacity(fireHullCapacity+fireSails.size());
++    for (const auto &r:records) {
++        const auto &c=r.cell;const auto i=shipFire.add(c.x,c.y,c.z,c.radius,c.cloth);
++        shipFire.restore(i,c.heat,c.fuel,c.charred,c.burned,c.owner);shipFire.cells[i].available=c.available;
++        if (!c.cloth) {fireHulls.push_back({i,r.key});fireNextHullKey=std::max(fireNextHullKey,r.key+1);}
++        else for (auto &link:fireSails) if (link.node==r.node && link.group==r.group) {link.cell=i;break;}
++    }
++    if (!saved) {
++        for (const char *name:{"cells","hull","cloth"}) if (state) {
++            if (auto *old=state->GetAttributeClass(name)) state->DeleteAttributeClassX(old);
++        }
++        for (std::size_t i=0;i<aFirePlaces.size() && fireHulls.size()<16;++i) {
++            const auto p=aFirePlaces[i].GetLocalPos();AddFireHull(p.x,p.y,p.z,2.2f);
++        }
++        const float radius=std::clamp(State.vBoxSize.x*.18f,1.4f,3.5f);
++        for (int z=0;z<6 && fireHulls.size()<28;++z) for (int side=-1;side<=1;side+=2) {
++            const float x=side*State.vBoxSize.x*.31f,fz=State.vBoxSize.z*(float(z)/5.f-.5f)*.78f;
++            const CVECTOR a=model->mtx*CVECTOR(x,State.vBoxSize.y*.55f+2.f,fz);
++            const CVECTOR b=model->mtx*CVECTOR(x,-State.vBoxSize.y*.5f-2.f,fz);const float t=model->Trace(a,b);
++            if (t>=0.f && t<=1.f) {
++                CVECTOR p;model->mtx.MulToInv(a+(b-a)*t,p);const auto nearest=shipFire.nearest(p.x,p.y,p.z);
++                if (nearest<shipFire.count) {
++                    const auto &c=shipFire.cells[nearest];
++                    if ((p.x-c.x)*(p.x-c.x)+(p.y-c.y)*(p.y-c.y)+(p.z-c.z)*(p.z-c.z)<2.f) continue;
++                }
++                AddFireHull(p.x,p.y,p.z,radius);
++            }
++        }
++    }
++    for (auto &link:fireSails) if (link.cell==storm_ship_fire::InvalidCell && link.authored) {
++        auto *node=model->FindNode(link.node.c_str());CVECTOR p;
++        model->mtx.MulToInv(node->glob_mtx*link.center,p);link.cell=shipFire.add(p.x,p.y,p.z,link.radius,true);
++    }
+     if (saved) {
+-        const auto savedCount=std::min<std::size_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));
+-        for (std::size_t i=0;i<savedCount;++i) {
+-            char path[40]; snprintf(path,sizeof(path),"cells.p%zu",i);
+-            auto *a=state->FindAClass(state,path); if (!a) continue;
+-            if (i>=shipFire.count) shipFire.add(a->GetAttributeAsFloat("x"),a->GetAttributeAsFloat("y"),
+-                a->GetAttributeAsFloat("z"),a->GetAttributeAsFloat("radius",2.f),a->GetAttributeAsDword("cloth")!=0);
+-            shipFire.restore(i,a->GetAttributeAsFloat("heat"),a->GetAttributeAsFloat("fuel",1.f),
+-                a->GetAttributeAsFloat("charred"),a->GetAttributeAsFloat("burned"),int32_t(a->GetAttributeAsDword("owner",uint32_t(-1))));
+-        }
+-        shipFire.seconds=state->GetAttributeAsFloat("seconds");
+-        fireVisualSeconds=state->GetAttributeAsFloat("visualSeconds",shipFire.seconds);
+-        firePendingHull=state->GetAttributeAsFloat("pendingHull");
+-        firePendingCrew=state->GetAttributeAsFloat("pendingCrew");
++        shipFire.seconds=state->GetAttributeAsFloat("seconds");fireVisualSeconds=state->GetAttributeAsFloat("visualSeconds",shipFire.seconds);
++        firePendingHull=state->GetAttributeAsFloat("pendingHull");firePendingCrew=state->GetAttributeAsFloat("pendingCrew");
+         firePendingOwner=int32_t(state->GetAttributeAsDword("pendingOwner",uint32_t(-1)));
+-        for (auto &link:fireSails) {
+-            char path[40];snprintf(path,sizeof(path),"cells.p%zu",link.cell);
+-            if (auto *a=state->FindAClass(state,path)) link.lastDamage=a->GetAttributeAsFloat("lastSailDamage");
+-        }
+-    } else {
+-        // A historical binary fireplace is converted once. Its saved bytes and
+-        // field order are unchanged; the attribute schema prevents reinjection.
+-        for (auto &place:aFirePlaces) if (place.isActive()) {
+-            const auto p=place.GetLocalPos(); const auto i=shipFire.nearest(p.x,p.y,p.z);
+-            shipFire.ignite(i,.65f,place.GetBallCharacterIndex());
+-        }
++    } else for (auto &place:aFirePlaces) if (place.isActive()) {
++        const auto p=place.GetLocalPos();shipFire.ignite(shipFire.nearest(p.x,p.y,p.z),.65f,place.GetBallCharacterIndex());
+     }
+     SaveShipFire();
+-    auto *summary=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
+-    uint32_t active=0;float intensity=0.f,heat=0.f;
++    auto *summary=character->FindAClass(character,"Ship.FireState");uint32_t active=0;float intensity=0.f,heat=0.f;
+     for (std::size_t i=0;i<shipFire.count;++i) {
+         const auto &c=shipFire.cells[i];if (c.intensity()>.025f) ++active;
+         intensity=std::max(intensity,c.intensity());heat=std::max(heat,c.heat);
+@@ -873,30 +927,36 @@
+ 
+ void SHIP::SaveShipFire()
+ {
+-    auto *root=GetACharacter();
+-    auto *state=root->CreateSubAClass(root,"Ship.FireState");
+-    state->SetAttributeUseDword("schema",1);state->SetAttribute("model",cShipIniName);
+-    state->SetAttributeUseDword("count",uint32_t(shipFire.count));
+-    state->SetAttributeUseFloat("seconds",shipFire.seconds);
+-    state->SetAttributeUseFloat("visualSeconds",fireVisualSeconds);
++    auto *root=GetACharacter();auto *state=root->CreateSubAClass(root,"Ship.FireState");
++    state->SetAttribute("model",cShipIniName);state->SetAttributeUseDword("count",uint32_t(shipFire.count));
++    state->SetAttributeUseDword("hullCapacity",uint32_t(fireHullCapacity));
++    state->SetAttributeUseFloat("seconds",shipFire.seconds);state->SetAttributeUseFloat("visualSeconds",fireVisualSeconds);
+     state->SetAttributeUseFloat("pendingHull",firePendingHull);state->SetAttributeUseFloat("pendingCrew",firePendingCrew);
+     state->SetAttributeUseDword("pendingOwner",uint32_t(firePendingOwner));
+-    for (std::size_t i=0;i<shipFire.count;++i) {
+-        char path[40];snprintf(path,sizeof(path),"cells.p%zu",i);
+-        auto *a=state->CreateSubAClass(state,path);const auto &c=shipFire.cells[i];
+-        a->SetAttributeUseFloat("x",c.x);a->SetAttributeUseFloat("y",c.y);a->SetAttributeUseFloat("z",c.z);
+-        a->SetAttributeUseFloat("radius",c.radius);a->SetAttributeUseFloat("heat",c.heat);
+-        a->SetAttributeUseFloat("fuel",c.fuel);a->SetAttributeUseFloat("charred",c.charred);
+-        a->SetAttributeUseFloat("burned",c.burned);a->SetAttributeUseDword("owner",uint32_t(c.owner));
+-        a->SetAttributeUseDword("cloth",c.cloth);a->SetAttributeUseDword("available",c.available);
+-    }
++    auto *hull=&state->CreateAttribute("hull");
++    for (const auto &link:fireHulls) {
++        char key[40];snprintf(key,sizeof(key),"h%u",link.key);auto *a=&hull->CreateAttribute(key);
++        WriteShipFireCell(a,shipFire.cells[link.cell],link.cell);
++    }
++    auto *cloth=&state->CreateAttribute("cloth");
+     for (const auto &link:fireSails) {
+-        char path[40];snprintf(path,sizeof(path),"cells.p%zu",link.cell);
+-        auto *a=state->FindAClass(state,path);if (!a) continue;
+-        a->SetAttribute("node",link.node.c_str());a->SetAttributeUseDword("group",link.group);
++        if (link.cell>=shipFire.count) continue;
++        auto *node=&cloth->CreateAttribute(link.node);char key[40];snprintf(key,sizeof(key),"%d",link.group);
++        auto *a=&node->CreateAttribute(key);WriteShipFireCell(a,shipFire.cells[link.cell],link.cell);
+         a->SetAttributeUseFloat("lastSailDamage",link.lastDamage);
+     }
++    // Publish the new schema only after every record and pending output exists.
++    state->SetAttributeUseDword("schema",2);
++    if (auto *legacy=state->GetAttributeClass("cells")) state->DeleteAttributeClassX(legacy);
+     fireStateDirty=false;
++}
++
++std::size_t SHIP::AddFireHull(float x,float y,float z,float radius)
++{
++    if (fireHulls.size()>=fireHullCapacity) return storm_ship_fire::InvalidCell;
++    const auto i=shipFire.add(x,y,z,radius);
++    if (i<shipFire.count) fireHulls.push_back({i,fireNextHullKey++});
++    return i;
+ }
+ 
+ void SHIP::IgniteShipFire(const CVECTOR &world, float energy, int32_t owner, bool cloth)
+@@ -904,12 +964,12 @@
+     if (!bMounted || isDead()) return;
+     CVECTOR p;GetMatrix()->MulToInv(world,p);
+     auto i=shipFire.nearest(p.x,p.y,p.z,cloth);
+-    if (!cloth && shipFire.count<storm_ship_fire::MaxPoints) {
++    if (!cloth && fireHulls.size()<fireHullCapacity) {
+         float distance=1e9f;
+         if (i<shipFire.count) {
+             const auto &c=shipFire.cells[i];distance=std::sqrt((p.x-c.x)*(p.x-c.x)+(p.y-c.y)*(p.y-c.y)+(p.z-c.z)*(p.z-c.z));
+         }
+-        if (distance>2.f) i=shipFire.add(p.x,p.y,p.z,2.2f);
++        if (distance>2.f) i=AddFireHull(p.x,p.y,p.z,2.2f);
+     }
+     shipFire.ignite(i,energy,owner);fireStateDirty=true;SaveShipFire();
+ }
+@@ -1022,14 +1082,10 @@
+         fireVisualSeconds+=frameSeconds;
+ }
+ 
+-std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints() const
+-{
+-    std::vector<StormMetalShipFirePoint> points;points.reserve(shipFire.count);
+-    for (std::size_t i=0;i<shipFire.count;++i) {
+-        const auto &c=shipFire.cells[i];if (!c.available || (c.heat<=.01f && c.charred<=.001f)) continue;
+-        points.push_back({{c.x,c.y,c.z},c.radius,c.intensity(),c.charred,c.heat,float(i)*17.31f+float(uniIDX)*.71f});
+-    }
+-    return points;
++std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints(bool hullSurface) const
++{
++    const float seed=float(uniIDX)*.71f;
++    return hullSurface?storm_ship_fire::hullSurfacePoints(shipFire,seed):storm_ship_fire::volumePoints(shipFire,seed);
+ }
+ #endif
+ 
+@@ -1629,7 +1685,7 @@
+ 
+     pRS->SetRenderState(D3DRS_LIGHTING, true);
+ #ifdef STORM_METAL_SHIP_FIRE
+-    const auto firePoints=ShipFirePoints();
++    const auto firePoints=ShipFirePoints(true);
+     StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
+ #endif
+     pM->ProcessStage(Stage::realize, dtime);
+@@ -1658,7 +1714,8 @@
+     }
+ 
+ #ifdef STORM_METAL_SHIP_FIRE
+-    StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()),
++    const auto fireVolumes=ShipFirePoints(false);
++    StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
+                           &fireWind.x,fireVisualSeconds);
+ #endif
+     if (bMassaShow)
+@@ -2551,6 +2608,31 @@
+     {
+         CVECTOR vDir = !(vDst - vSrc);
+         CVECTOR vTemp = vSrc + fRes * (vDst - vSrc);
++        // Snapshot the actual traced receiver before the script can trace,
++        // detach a mast or otherwise overwrite geometry collision details.
++        NODE *hitNode=pModel->GetCollideNode();
++        GEOS::TRACE_INFO hitInfo{};
++        TRIANGLE hitTriangle{};
++        std::string hitName;
++        CVECTOR hitNormal(0.f);
++        bool structural=hitNode && hitNode->geo &&
++            hitNode->geo->GetCollisionDetails(hitInfo) && hitInfo.obj>=0 &&
++            pModel->GetCollideTriangle(hitTriangle);
++        if (structural) {
++            hitName=hitNode->GetName() ? hitNode->GetName() : "";
++            if (hitName.empty() && hitNode!=pModel->GetNode(0)) structural=false;
++            hitNormal=(hitTriangle.vrt[1]-hitTriangle.vrt[0]) ^
++                      (hitTriangle.vrt[2]-hitTriangle.vrt[0]);
++            const float length2=~hitNormal;
++            structural=structural && std::isfinite(length2) && length2>1e-8f;
++            if (structural) {
++                hitNormal*=1.f/std::sqrt(length2);
++                if ((hitNormal|vDir)>0.f) hitNormal*=-1.f;
++            }
++        }
++        ATTRIBUTES *shipBefore=GetACharacter()->GetAttributeClass("Ship");
++        const bool hpBeforePresent=shipBefore && shipBefore->GetAttribute("HP") && !isDead();
++        const float hpBefore=hpBeforePresent ? shipBefore->GetAttributeAsFloat("HP") : 0.f;
+         // search nearest fire place
+         float fMinDistance = 1e8f;
+         int32_t iBestIndex = -1;
+@@ -2566,7 +2648,18 @@
+             }
+         core.Event(SHIP_HULL_HIT, "illffflf", GetId(), iBallOwner, iOurIndex, vTemp.x, vTemp.y, vTemp.z, iBestIndex,
+                    fMinDistance);
+-        core.Send_Message(blots_id, "lffffff", MSG_BLOTS_HIT, vTemp.x, vTemp.y, vTemp.z, vDir.x, vDir.y, vDir.z);
++        ATTRIBUTES *shipAfter=GetACharacter()->GetAttributeClass("Ship");
++        const bool hpAfterPresent=shipAfter && shipAfter->GetAttribute("HP");
++        const float hpAfter=hpAfterPresent ? shipAfter->GetAttributeAsFloat("HP") : 0.f;
++        const float admitted=storm_hull_damage::admittedDamage(hpBeforePresent,hpBefore,hpAfterPresent,hpAfter);
++        if (structural && admitted>0.f) {
++            core.Send_Message(blots_id,"lffffffslffll",storm_hull_damage::HullHitMessage,
++                vTemp.x,vTemp.y,vTemp.z,hitNormal.x,hitNormal.y,hitNormal.z,
++                hitName.c_str(),hitInfo.obj,storm_hull_damage::radius(admitted),admitted,
++                int32_t(ExecuteLayer),int32_t(RealizeLayer));
++        } else {
++            core.Send_Message(blots_id, "lffffff", MSG_BLOTS_HIT, vTemp.x, vTemp.y, vTemp.z, vDir.x, vDir.y, vDir.z);
++        }
+     }
+     return fRes;
+ }
+--- a/src/libs/rigging/src/sail.cpp
++++ b/src/libs/rigging/src/sail.cpp
+@@ -2,6 +2,7 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #endif
+ #include "sail.h"
++#include "ship_sail_damage.hpp"
+ #ifdef STORM_METAL_SHIP_FIRE
+ #include "ship_fire_bridge.hpp"
+ #include "ship_fire_model.hpp"
+@@ -503,7 +504,7 @@
+                     {
+                         int sn = gdata[i].sailIdx[j];
+                         fSPow = (float)gdata[i].maxSP * (float)slist[sn]->maxSpeed / gdata[i].speed_m;
+-                        fSDmg += fSPow * slist[sn]->ss.holeCount / slist[sn]->GetMaxHoleCount();
++                        fSDmg += fSPow * slist[sn]->clothDamage;
+                         curSP += fSPow;
+                     }
+                     curSP -= fSDmg;
+@@ -524,7 +525,7 @@
+                 {
+                     ATTRIBUTES *pA = pVai->GetACharacter()->GetAttributeClass("Ship");
+                     if (pA != nullptr)
+-                        pA->SetAttributeUseDword("SP", fftoi(curSP));
++                        pA->SetAttributeUseFloat("SP", std::max(0.f,curSP));
+                     // pA->SetAttributeUseDword("SP", (int32_t)fSP);
+                 }
+             }
+@@ -624,26 +625,34 @@
+                         RenderService->TextureSet(1, m_nEmptyGerbTex);
+ 
+ #ifdef STORM_METAL_SHIP_FIRE
+-                    std::array<StormMetalShipFirePoint,storm_ship_fire::MaxPoints> firePoints{};
+-                    uint32_t fireCount=0;
++                    StormMetalShipFirePoint firePoint{};uint32_t fireCount=0,fireOrder=0;
+                     auto *fireShip=gdata[j].bYesShip?static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI)):nullptr;
+                     auto *character=fireShip?fireShip->GetACharacter():nullptr;
+                     auto *state=character?character->FindAClass(character,"Ship.FireState"):nullptr;
+-                    if (state) for (uint32_t cell=0;cell<std::min<uint32_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));++cell) {
++                    ATTRIBUTES *fireRecord=nullptr;
++                    if (state && state->GetAttributeAsDword("schema")==2) {
++                        auto *cloth=state->GetAttributeClass("cloth");
++                        auto *node=cloth?cloth->GetAttributeClass(slist[i]->hostNode->GetName()):nullptr;
++                        char key[40];snprintf(key,sizeof(key),"%d",slist[i]->groupNum);
++                        fireRecord=node?node->GetAttributeClass(key):nullptr;
++                        if (fireRecord) fireOrder=fireRecord->GetAttributeAsDword("order");
++                    } else if (state) for (uint32_t cell=0;cell<std::min<uint32_t>(storm_ship_fire::MaxPoints,state->GetAttributeAsDword("count"));++cell) {
+                         char path[40];snprintf(path,sizeof(path),"cells.p%u",cell);auto *a=state->FindAClass(state,path);
+-                        if (!a || !a->GetAttributeAsDword("cloth") || !a->GetAttributeAsDword("available",1) ||
+-                            !a->GetAttribute("node") || strcmp(a->GetAttribute("node"),slist[i]->hostNode->GetName()) ||
+-                            int(a->GetAttributeAsDword("group"))!=slist[i]->groupNum) continue;
+-                        const float heat=a->GetAttributeAsFloat("heat"),fuel=a->GetAttributeAsFloat("fuel",1.f);
++                        if (a && a->GetAttributeAsDword("cloth") && a->GetAttribute("node") &&
++                            !strcmp(a->GetAttribute("node"),slist[i]->hostNode->GetName()) &&
++                            int(a->GetAttributeAsDword("group"))==slist[i]->groupNum) {fireRecord=a;fireOrder=cell;break;}
++                    }
++                    if (fireRecord && fireRecord->GetAttributeAsDword("available",1)) {
++                        const float heat=fireRecord->GetAttributeAsFloat("heat"),fuel=fireRecord->GetAttributeAsFloat("fuel",1.f);
+                         CVECTOR center=0.f;const unsigned corners=slist[i]->ss.eSailType==SAIL_TREANGLE?3u:4u;
+                         for (unsigned corner=0;corner<corners;++corner) center+=slist[i]->ss.hardPoints[corner];
+                         center*=1.f/float(corners);CVECTOR local;
+                         fireShip->GetMatrix()->MulToInv(*slist[i]->pMatWorld*center,local);
+-                        firePoints[fireCount++]={{local.x,local.y,local.z},
+-                            a->GetAttributeAsFloat("radius",2.f),storm_ship_fire::unit((heat-.32f)/.62f)*sqrtf(storm_ship_fire::unit(fuel)),
+-                            a->GetAttributeAsFloat("charred"),heat,float(cell)*17.31f};
++                        firePoint={{local.x,local.y,local.z},fireRecord->GetAttributeAsFloat("radius",2.f),
++                            storm_ship_fire::unit((heat-.32f)/.62f)*sqrtf(storm_ship_fire::unit(fuel)),
++                            fireRecord->GetAttributeAsFloat("charred"),heat,float(fireOrder)*17.31f};fireCount=1;
+                     }
+-                    if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetD3DDevice(),&fireShip->GetMatrix()->m[0][0],firePoints.data(),fireCount);
++                    if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetD3DDevice(),&fireShip->GetMatrix()->m[0][0],&firePoint,fireCount);
+ #endif
+                     // Draw hole texture sail
+                     uint32_t dwOld;
+@@ -1091,7 +1100,7 @@
+ {
+     SAILONE *cs;
+     int grNum, i;
+-    grNum = atoi(&lbl.group_name[5]);
++    if (!storm_sail_damage::groupNumber(lbl.group_name,grNum)) return;
+     for (i = 0; i < sailQuantity; i++)
+         if (slist[i]->hostNode == nod && slist[i]->groupNum == grNum)
+         {
+@@ -1136,6 +1145,11 @@
+ 
+         switch (lbl.group_name[4])
+         {
++        case '\0': // authored untyped three-corner `sail`, existing default material
++            cs->ss.eSailType = SAIL_TREANGLE;
++            cs->ss.texNum = 0;
++            cs->ss.rollingSail = false;
++            break;
+         case 't': // triangle sail
+             cs->ss.eSailType = SAIL_TREANGLE;
+             cs->ss.texNum = 1;
+@@ -2105,8 +2119,9 @@
+         {
+             GEOS::LABEL gl;
+             tgeo->GetLabel(i, gl);
+-            if (!strncmp(gl.group_name, "sail", 4))                                  // this is a group of sails
+-                if (atoi(&gl.group_name[5]) == slist[sn]->groupNum)                  // with the correct group number
++            int group;
++            if (storm_sail_damage::groupNumber(gl.group_name,group))
++                if (group == slist[sn]->groupNum)
+                     if (!strncmp(gl.name, "rope", 4) || !strncmp(gl.name, "fal", 3)) // and the sail is tied with a rope
+                     {
+                         int32_t nRopeNum;
+--- a/src/libs/rigging/src/sailone.cpp
++++ b/src/libs/rigging/src/sailone.cpp
+@@ -3,6 +3,7 @@
+ //////////////////////////////////////////////////////////////////////
+ 
+ #include "sailone.h"
++#include "ship_sail_damage.hpp"
+ #include "entity.h"
+ #include "vai_objbase.h"
+ #include "core.h"
+@@ -1545,6 +1546,8 @@
+ 
+ float SAILONE::Trace(const CVECTOR &src, const CVECTOR &dst, bool bCannonTrace)
+ {
++    cannonContactHoles=0;
++    cannonContactCallback=false;
+     if (bRolling)
+         return 2.f;
+ 
+@@ -1661,8 +1664,6 @@
+ 
+     if (DoHole)
+     {
+-        CalculateMirrorSailIndex(); // new triangulation for sail reflection
+-        SetGeometry();
+         if (pp->gdata[HostNum].bDeleted != true && pp->gdata[HostNum].bYesShip)
+         {
+             auto *pVai = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(pp->gdata[HostNum].shipEI));
+@@ -1673,12 +1674,15 @@
+             {
+                 const CVECTOR hit = *pMatWorld * (src + (dst-src)*retVal);
+                 core.Event("Ball_AirburstSailDistance", "f", sqrtf(~(hit - (*pMatWorld * src))));
++                cannonContactCallback=true;
+                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
+                            ss.holeCount, GetHoleDword(), 12, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
+-            }
+-        }
+-    }
+-
++                cannonContactCallback=false;
++            }
++        }
++    }
++
++    cannonContactHoles=0;
+     return retVal;
+ }
+ 
+@@ -1725,7 +1729,6 @@
+ 
+     if (DoHole)
+     {
+-        CalculateMirrorSailIndex(); // new triangulation for sail reflection
+         if (pp->gdata[HostNum].bDeleted != true && pp->gdata[HostNum].bYesShip)
+         {
+             auto *pVai = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(pp->gdata[HostNum].shipEI));
+@@ -1736,13 +1739,22 @@
+             {
+                 const CVECTOR hit = *pMatWorld * (src + (dst-src)*retVal);
+                 core.Event("Ball_AirburstSailDistance", "f", sqrtf(~(hit - (*pMatWorld * src))));
++                cannonContactCallback=true;
+                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
+                            ss.holeCount, GetHoleDword(), 10, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
+-            }
+-        }
+-    }
+-
++                cannonContactCallback=false;
++            }
++        }
++    }
++
++    cannonContactHoles=0;
+     return retVal;
++}
++
++uint32_t SAILONE::TakeCannonContactHoles(uint32_t mask, int maximum, int &requested) const
++{
++    return storm_sail_damage::preferredHoles(mask,
++        cannonContactCallback ? cannonContactHoles : 0,maximum,requested);
+ }
+ 
+ void SAILONE::CalculateSailWind()
+@@ -1750,8 +1762,22 @@
+     // translation of the wind vector into the sail coordinate system
+     pMatWorld->MulToInvNorm(*(CVECTOR *)&pp->globalWind.ang, sailWind);
+ 
+-    // Take into account holes in the sail
+-    curSpeed = GetSailSpeed(ss.holeCount, GetMaxHoleCount(), maxSpeed);
++    // The committed mask is the visible floor; fractional saved .dmg must
++    // survive Execute and affect propulsion before the next hole opens.
++    float savedDamage=0.f;
++    const auto &group=pp->gdata[HostNum];
++    const float capacity=group.speed_m>0.f ? float(group.maxSP)*maxSpeed/group.speed_m : 0.f;
++    if (group.bYesShip && !bFreeSail) {
++        auto *ship=static_cast<VAI_OBJBASE *>(core.GetEntityPointer(group.shipEI));
++        auto *character=ship ? ship->GetACharacter() : nullptr;
++        auto *sails=character ? character->FindAClass(character,"Ship.Sails") : nullptr;
++        auto *node=sails && hostNode ? sails->GetAttributeClass(hostNode->GetName()) : nullptr;
++        char key[32]; snprintf(key,sizeof(key),"%d",groupNum);
++        auto *entry=node ? node->GetAttributeClass(key) : nullptr;
++        if (entry) savedDamage=entry->GetAttributeAsFloat("dmg");
++    }
++    clothDamage=storm_sail_damage::loss(savedDamage,capacity,ss.holeCount,GetMaxHoleCount());
++    curSpeed=storm_sail_damage::speed(maxSpeed,clothDamage,g_fSailHoleDepend);
+ 
+     pp->gdata[HostNum].maxSpeed += curSpeed;
+ 
+@@ -1838,15 +1864,12 @@
+                               bool bCannonTrace)
+ {
+     auto retVal = 2.f;
+-    // Radius contacts must commit the same hole state as legacy triangle hits
+-    // before DoSailHole. Returning only a fraction loses cumulative damage.
++    // Physical contact records a bounded preference; only the script's
++    // cumulative damage threshold may commit a new hole.
+     const auto acceptHit = [this, i, bCannonTrace](float fraction)
+     {
+-        if (fraction <= 1.f && bCannonTrace && !ss.hole[i])
+-        {
+-            ss.hole[i] = true;
+-            ss.holeCount++;
+-        }
++        if (fraction <= 1.f && bCannonTrace && i>=0 && i<int(GetMaxHoleCount()))
++            cannonContactHoles |= uint32_t(1)<<i;
+         return fraction;
+     };
+ 
+--- a/src/libs/rigging/src/sailone.h
++++ b/src/libs/rigging/src/sailone.h
+@@ -201,6 +201,7 @@
+     float TSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace);
+     float CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst, bool bCannonTrace);
+     void SetAllHole(uint32_t holeData) override;
++    uint32_t TakeCannonContactHoles(uint32_t mask, int maximum, int &requested) const;
+     // number of vertices vertically and horizontally
+     uint32_t m_dwRow, m_dwCol;
+     float sailWidth, sailHeight;
+@@ -262,6 +263,9 @@
+     // physics of influence on ship speed
+     float maxSpeed; // Maximum sail speed
+     float curSpeed; // Current speed
++    float clothDamage = 0.f; // transient continuous loss, saved .dmg remains authoritative
++    uint32_t cannonContactHoles = 0;
++    bool cannonContactCallback = false;
+ 
+     // wind
+     CVECTOR sailWind{};
+--- a/src/libs/rigging/src/script_func.cpp
++++ b/src/libs/rigging/src/script_func.cpp
+@@ -3,6 +3,7 @@
+ #include "core.h"
+ #include "s_import_func.h"
+ #include "sail.h"
++#include "sailone.h"
+ #include "v_s_stack.h"
+ #include <algorithm>
+ 
+@@ -178,14 +179,14 @@
+                     ->FindSailForCharacter(_chrIdx, _reyName, _groupNum);
+     }
+ 
++    uint32_t holeMask = _holeData;
++    if (pSail) holeMask=static_cast<SAILONE *>(pSail)->TakeCannonContactHoles(holeMask,_maxHole,_addHoleQ);
+     int holeArraySize = 0;
+     int holeIdx[20];
+-    uint32_t holeMask = _holeData;
+-    for (int i = 0; i < std::min(_maxHole, 20); i++, holeMask >>= 1)
+-        if (!(holeMask & 1))
++    for (int i = 0; i < std::min(_maxHole, 20); i++)
++        if (!(holeMask & (uint32_t(1)<<i)))
+             holeIdx[holeArraySize++] = i;
+ 
+-    holeMask = _holeData;
+     while (holeArraySize > 0 && _addHoleQ > 0)
+     {
+         const int i = rand() % holeArraySize;
+--- a/src/libs/rigging/src/rope.cpp
++++ b/src/libs/rigging/src/rope.cpp
+@@ -2,6 +2,7 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #endif
+ #include "rope.h"
++#include "ship_sail_damage.hpp"
+ #include "entity.h"
+ #include "core.h"
+ #include "math_inlines.h"
+@@ -609,9 +610,7 @@
+     else
+         rd = rlist[rn];
+ 
+-    if (!strncmp(lbl.group_name, "sail", 4))
+-        grNum = atoi(&lbl.group_name[5]);
+-    else
++    if (!storm_sail_damage::groupNumber(lbl.group_name,grNum))
+         grNum = -1;
+ 
+     switch (bDontSage ? lbl.name[3] : lbl.name[4])
+--- a/src/libs/ship/src/ship.h
++++ b/src/libs/ship/src/ship.h
+@@ -104,10 +104,15 @@
+     struct FireSailLink {
+         std::string node;int group=0;CVECTOR center=0.f;
+         unsigned corners=0;float radius=0.f,lastDamage=0.f;
+-        std::size_t cell=storm_ship_fire::MaxPoints;
++        std::size_t cell=storm_ship_fire::InvalidCell;
++        bool authored=false,legacy=false;
+     };
+     storm_ship_fire::Model shipFire;
+     std::vector<FireSailLink> fireSails;
++    struct FireHullLink {std::size_t cell;uint32_t key;};
++    std::vector<FireHullLink> fireHulls;
++    std::size_t fireHullCapacity=storm_ship_fire::MaxPoints;
++    uint32_t fireNextHullKey=0;
+     float fireStepClock=0.f,fireCheckpointClock=0.f,firePendingHull=0.f,firePendingCrew=0.f;
+     bool fireLoading=false,fireRunning=false,fireStateDirty=false;
+     float fireClothClock=0.f;
+@@ -116,10 +121,11 @@
+     CVECTOR fireWind=0.f;
+     void InitializeShipFire();
+     void SaveShipFire();
++    std::size_t AddFireHull(float x,float y,float z,float radius);
+     void ExecuteShipFire(uint32_t deltaTime);
+     bool ReconcileFireSails();
+     void IgniteShipFire(const CVECTOR &world,float energy,int32_t owner,bool cloth);
+-    std::vector<StormMetalShipFirePoint> ShipFirePoints() const;
++    std::vector<StormMetalShipFirePoint> ShipFirePoints(bool hullSurface) const;
+ #endif
+ 
+     // Sound section

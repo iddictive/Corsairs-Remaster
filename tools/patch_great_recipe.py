@@ -7,9 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
-    "PROGRAM/seadogs.c": "00a62b3be2b684880c7be2d233330222f9793161ab078362e5468d8bd20f002c",
+    "PROGRAM/seadogs.c": "e62a616a69fe93d5b12b281376fc1cb2b287c95cb780becf3845028062159220",
     "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
-    "PROGRAM/sea_ai/AIShip.c": "77a8bf364470bba4a6b50a18922acddb6c1f7924a41ddfc508080191c50b0d5d",
+    "PROGRAM/sea_ai/AIShip.c": "0e1dd2354f7be200a3207de983d0e363fae2f1ece3503f005e538c2dceb8233a",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",

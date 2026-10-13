@@ -37,9 +37,14 @@ target_link_libraries(storm_metal PUBLIC SDL2::SDL2 cloud_noise_assets
 set(NATIVE_D3D9_LIBS storm_metal CACHE STRING "Direct Metal backend" FORCE)
 # WEATHER_BASE has conditional virtuals; every consumer needs the same ABI.
 add_compile_definitions(FMT_CONSTEVAL= STORM_METAL_AIM_VOLUME_BRIDGE=1 STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 STORM_METAL_SCENE_HUD_BOUNDARY=1 STORM_METAL_INTERFACE_BACK_SCENE=1 STORM_METAL_DYNAMIC_SKY_BRIDGE=1 STORM_METAL_WEATHER_VISUAL_STATE=1 STORM_METAL_ROCKK2=1 STORM_METAL_LIGHT_SHAFT_OPENINGS=1 STORM_METAL_RENDERER_CONSUMERS=1 STORM_METAL_PARTICLE_BRIDGE=1 STORM_METAL_GRASS_BRIDGE=1)
+# GEOS has conditional hull-cut virtuals; every consumer needs the same ABI.
+add_compile_definitions(STORM_METAL_SHIP_HULL_DAMAGE=1)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.cache/native-project" native-storm)
 target_include_directories(sound_service PRIVATE "${NATIVE_ROOT}/audio")
 target_include_directories(geometry PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(blot PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(locator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(sea_ai PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(ship PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_definitions(ship PRIVATE STORM_METAL_SHIP_FIRE=1)

@@ -1,0 +1,528 @@
+--- a/src/libs/geometry/include/geos.h
++++ b/src/libs/geometry/include/geos.h
+@@ -12,6 +12,10 @@
+ 
+ #include <cstdint>
+ #include <fstream>
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include <vector>
++namespace storm_ship_hull {struct Impact;}
++#endif
+ 
+ class GEOS
+ {
+@@ -88,6 +92,10 @@
+     };
+ 
+     virtual void GetInfo(INFO &i) const = 0;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    virtual bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts)=0;
++    virtual void ClearHullCuts(uint64_t owner)=0;
++#endif
+ 
+     //-----------------------------------------
+     // label
+--- a/src/libs/geometry/src/geom.h
++++ b/src/libs/geometry/src/geom.h
+@@ -13,6 +13,10 @@
+ #include "geos.h"
+ 
+ #include <vector>
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include <map>
++#include "ship_hull_geometry.hpp"
++#endif
+ 
+ #define EPSILON 4e-7
+ 
+@@ -60,6 +64,15 @@
+     OBJECT *object = nullptr;
+     int32_t idx_buff;
+     VERTEX_BUFFER *vbuff = nullptr;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    struct HullOriginal {int type=0,stride=0;std::vector<uint8_t>vertices;std::vector<uint16_t>indices;storm_ship_hull::Broadphase broadphase;};
++    struct HullDraw {int vb=-1,ib=-1,vertices=0,triangles=0,stride=0;};
++    std::map<int,HullOriginal> hullOriginals;
++    std::map<int,std::vector<HullDraw>> hullDraws;
++    uint64_t hullOwner=0,hullSignature=0;
++    bool CaptureHullObject(int objectIndex);
++    void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
++#endif
+ #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+     struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
+     std::vector<std::vector<IslandDraw>> islandDraws;
+@@ -104,6 +117,10 @@
+ 
+     virtual void GetInfo(INFO &i) const;
+     virtual void Draw(const PLANE *pl, int32_t np, MATERIAL_FUNC mtf) const;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
++    void ClearHullCuts(uint64_t owner) override;
++#endif
+ 
+     virtual float Trace(VERTEX &src, VERTEX &dst);
+     virtual bool Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, float radius, ADD_POLYGON_FUNC addpoly);
+--- a/src/libs/geometry/src/geom_static.cpp
++++ b/src/libs/geometry/src/geom_static.cpp
+@@ -23,6 +23,9 @@
+ #include <cstring>
+ #include <fmt/format.h>
+ #include <vector>
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include <unordered_map>
++#endif
+ 
+ #include "../../util/include/string_compare.hpp"
+ 
+@@ -418,6 +421,9 @@
+ // delete all textures, buffers, memory
+ GEOM::~GEOM()
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    ReleaseHullDraws(hullDraws);
++#endif
+ #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+     storm_metal::weatherTerrain.clear(this);
+     for(const auto& objectDraws:islandDraws)for(const auto& draw:objectDraws){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}
+@@ -484,6 +490,13 @@
+         srv.SetMaterial(material[object[o].material]);
+         if (mtf != nullptr)
+             mtf(material[object[o].material]);
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        const auto damaged=hullDraws.find(o);
++        if(damaged!=hullDraws.end()){
++            for(const auto&draw:damaged->second){srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);}
++            srv.SetIndexBuffer(idx_buff);continue;
++        }
++#endif
+ #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+         if(size_t(o)<islandDraws.size()&&!islandDraws[o].empty()) {
+             for(const auto& draw:islandDraws[o]) {
+@@ -498,6 +511,67 @@
+                                  object[o].ntriangles);
+     }
+ }
++
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++void GEOM::ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws)
++{
++    for(auto&entry:draws)for(auto&draw:entry.second){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}draws.clear();
++}
++void GEOM::ClearHullCuts(uint64_t owner)
++{
++    if(owner!=hullOwner)return;ReleaseHullDraws(hullDraws);hullOwner=hullSignature=0;
++}
++bool GEOM::CaptureHullObject(int objectIndex)
++{
++    if(hullOriginals.count(objectIndex))return true;
++    if(objectIndex<0||objectIndex>=rhead.nobjects)return false;const auto&ob=object[objectIndex];
++    if(ob.vertex_buff<0||ob.vertex_buff>=rhead.nvrtbuffs||ob.num_vertices<=0||ob.ntriangles<=0||ob.start_vertex<0||ob.striangle<0)return false;
++    const auto&vb=vbuff[ob.vertex_buff];if((vb.type>>2)||vb.stride<36||vb.stride>60||ob.start_vertex+ob.num_vertices>vb.nverts||ob.striangle+ob.ntriangles>rhead.ntriangles)return false;
++    auto*vertices=static_cast<uint8_t*>(srv.LockVertexBuffer(vb.dev_buff));if(!vertices)return false;
++    HullOriginal source;source.type=vb.type;source.stride=vb.stride;source.vertices.assign(vertices+size_t(ob.start_vertex)*vb.stride,vertices+size_t(ob.start_vertex+ob.num_vertices)*vb.stride);srv.UnlockVertexBuffer(vb.dev_buff);
++    auto*indices=static_cast<uint16_t*>(srv.LockIndexBuffer(idx_buff));if(!indices)return false;source.indices.assign(indices+ob.striangle*3,indices+(ob.striangle+ob.ntriangles)*3);srv.UnlockIndexBuffer(idx_buff);
++    for(auto index:source.indices)if(index>=ob.num_vertices)return false;
++    source.broadphase.build(source.vertices,source.stride,source.indices);hullOriginals.emplace(objectIndex,std::move(source));return true;
++}
++bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts)
++{
++    if(!owner||(hullOwner&&hullOwner!=owner)||cuts.size()>256)return false;
++    if(cuts.empty()){ClearHullCuts(owner);return true;}const auto signature=storm_ship_hull::signature(cuts);if(owner==hullOwner&&signature==hullSignature)return true;
++    std::map<int,std::vector<storm_ship_hull::Impact>>groups;
++    for(const auto&cut:cuts){if(!storm_ship_hull::valid(cut)||!CaptureHullObject(cut.object))return false;groups[cut.object].push_back(cut);}
++    std::map<int,std::vector<HullDraw>>replacement;
++    for(const auto&group:groups){const auto&source=hullOriginals.at(group.first);
++        struct PreparedCut {storm_ship_hull::Impact impact;std::array<storm_ship_hull::Plane,10>planes;};std::vector<PreparedCut>prepared;prepared.reserve(group.second.size());
++        std::vector<std::vector<const PreparedCut*>>localCuts(source.indices.size()/3);std::vector<uint32_t>candidates;
++        for(const auto&cut:group.second){prepared.push_back({cut,storm_ship_hull::prism(cut)});source.broadphase.query(cut,candidates,.055f);for(auto triangle:candidates)localCuts[triangle].push_back(&prepared.back());}
++        std::vector<uint8_t>vertices;std::vector<uint16_t>indices;vertices.reserve(source.vertices.size());indices.reserve(source.indices.size());
++        std::unordered_map<std::string,uint16_t>weld;std::vector<int32_t>originalLookup(source.vertices.size()/source.stride,-1);bool changed=false,failed=false;
++        const auto upload=[&](){if(indices.empty())return true;HullDraw draw;draw.vertices=int(vertices.size()/source.stride);draw.triangles=int(indices.size()/3);draw.stride=source.stride;draw.vb=srv.CreateVertexBuffer(source.type,int(vertices.size()));draw.ib=srv.CreateIndexBuffer(int(indices.size()*2));
++            auto*v=draw.vb>=0?srv.LockVertexBuffer(draw.vb):nullptr;auto*i=draw.ib>=0?srv.LockIndexBuffer(draw.ib):nullptr;
++            if(!v||!i){if(v)srv.UnlockVertexBuffer(draw.vb);if(i)srv.UnlockIndexBuffer(draw.ib);srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);return false;}
++            std::memcpy(v,vertices.data(),vertices.size());std::memcpy(i,indices.data(),indices.size()*2);srv.UnlockVertexBuffer(draw.vb);srv.UnlockIndexBuffer(draw.ib);replacement[group.first].push_back(draw);vertices.clear();indices.clear();weld.clear();std::fill(originalLookup.begin(),originalLookup.end(),-1);return true;};
++        const auto appendOriginal=[&](size_t triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
++            for(unsigned corner=0;corner<3;corner++){auto original=source.indices[triangle*3+corner];auto&mapped=originalLookup[original];if(mapped<0){mapped=int32_t(vertices.size()/source.stride);auto*start=source.vertices.data()+size_t(original)*source.stride;vertices.insert(vertices.end(),start,start+source.stride);}indices.push_back(uint16_t(mapped));}};
++        const auto append=[&](const storm_ship_hull::Triangle&triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
++            for(const auto&vertex:triangle){std::string bytes(size_t(source.stride),'\0');storm_ship_hull::encode(vertex,reinterpret_cast<uint8_t*>(bytes.data()),source.stride);auto found=weld.find(bytes);uint16_t index;
++                if(found==weld.end()){index=uint16_t(vertices.size()/source.stride);vertices.insert(vertices.end(),bytes.begin(),bytes.end());weld.emplace(std::move(bytes),index);}else index=found->second;indices.push_back(index);}};
++        for(size_t triangle=0;triangle<localCuts.size();triangle++){if(localCuts[triangle].empty()){appendOriginal(triangle);if(failed)break;continue;}storm_ship_hull::Triangle original;for(unsigned corner=0;corner<3;corner++)original[corner]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[triangle*3+corner])*source.stride,source.stride);
++            struct GeneratedRim {storm_ship_hull::Triangle triangle;const PreparedCut*owner;};std::vector<storm_ship_hull::Triangle>pieces{original};std::vector<GeneratedRim>rims;bool triangleChanged=false;
++            for(const auto*cut:localCuts[triangle]){std::vector<storm_ship_hull::Triangle>next;
++                for(const auto&piece:pieces){auto result=storm_ship_hull::subtract(piece,cut->impact,cut->planes);triangleChanged|=result.removedArea>0;next.insert(next.end(),result.surface.begin(),result.surface.end());for(const auto&rim:result.rim)rims.push_back({rim,cut});}pieces=std::move(next);}
++            changed|=triangleChanged;if(!triangleChanged)appendOriginal(triangle);else{for(const auto&piece:pieces)append(piece);const auto receiverNormal=storm_ship_hull::normalized(original[0].normal+original[1].normal+original[2].normal);
++                for(const auto&rim:rims){std::vector<storm_ship_hull::Triangle>rimPieces{rim.triangle};for(const auto*cut:localCuts[triangle]){if(cut==rim.owner||storm_ship_hull::dot(receiverNormal,cut->impact.normal)<.30f)continue;std::vector<storm_ship_hull::Triangle>outside;
++                        for(const auto&piece:rimPieces){auto clipped=storm_ship_hull::clipRim(piece,cut->impact,cut->planes);outside.insert(outside.end(),clipped.begin(),clipped.end());}rimPieces=std::move(outside);if(rimPieces.empty())break;}for(const auto&piece:rimPieces)append(piece);}}
++            if(failed)break;
++        }
++        if(failed||!upload()){ReleaseHullDraws(replacement);return false;}if(changed)replacement.try_emplace(group.first);
++        if(!changed){auto found=replacement.find(group.first);if(found!=replacement.end()){for(auto&draw:found->second){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}replacement.erase(found);}}
++    }
++    // Only geometry instances own these buffers. File names are never cache keys.
++    // Existing resource identities/revisions invalidate ordinary and shadow draws.
++    ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);hullOwner=owner;hullSignature=signature;return true;
++}
++#endif
+ 
+ bool GEOM::GetCollisionDetails(TRACE_INFO &ti) const
+ {
+--- a/src/libs/blot/src/blots.h
++++ b/src/libs/blot/src/blots.h
+@@ -13,6 +13,13 @@
+ #include "dx9render.h"
+ #include "model.h"
+ #include "vma.hpp"
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include "ship_hull_damage_bridge.hpp"
++#include "ship_hull_geometry.hpp"
++#include <array>
++#include <map>
++#include <string>
++#endif
+ 
+ #define BLOTS_NTRGS 32    // Triangles in 1 blot
+ #define BLOTS_MAX 256     // Total blots
+@@ -59,6 +66,9 @@
+     {
+         switch (stage)
+         {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        case Stage::execute: SynchronizeHullState(); break;
++#endif
+             // case Stage::execute:
+             //    Execute(delta); break;
+         case Stage::realize:
+@@ -88,6 +98,18 @@
+     void SaveBlot(int32_t i);
+     // Load blot parameters
+     void LoadBlot(int32_t i);
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    struct HullMark {bool used=false;std::string node;storm_ship_hull::Impact cut;float hp=0;};
++    std::array<HullMark,BLOTS_MAX> hullMarks{};
++    std::map<std::string,std::vector<storm_ship_hull::Impact>> hullBindings;
++    std::vector<std::string> hullBoundNodes;
++    uint64_t hullAttributeSignature=0;
++    bool restoringHullState=false,hullGeometryDirty=true;
++    NODE* HullNode(const std::string&name) const;
++    void ClearHullBindings();
++    void SynchronizeHullState(bool applyGeometry=true);
++    void AcceptedHullHit(MESSAGE&message);
++#endif
+ 
+   private:
+     VDX9RENDER *rs;
+--- a/src/libs/blot/src/blots.cpp
++++ b/src/libs/blot/src/blots.cpp
+@@ -14,6 +14,9 @@
+ 
+ #include "entity.h"
+ #include "shared/messages.h"
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include <cctype>
++#endif
+ 
+ CREATE_CLASS(Blots)
+ 
+@@ -44,6 +47,9 @@
+ 
+ Blots::~Blots()
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    ClearHullBindings();
++#endif
+     if (rs && textureID >= 0)
+         rs->TextureRelease(textureID);
+ }
+@@ -71,6 +77,9 @@
+     switch (message.Long())
+     {
+     case MSG_BLOTS_SETMODEL:
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        ClearHullBindings();hullBindings.clear();hullAttributeSignature=0;hullGeometryDirty=true;useVrt=0;for(auto&mark:hullMarks)mark={};for(auto&mark:blot)mark.isUsed=false;
++#endif
+         model = message.EntityID();
+         pCharAttributeRoot = message.AttributePointer();
+         if (pCharAttributeRoot)
+@@ -79,13 +88,23 @@
+             char buf[32];
+             sprintf_s(buf, "%i", BLOTS_MAX);
+             blotsInfo->SetValue(buf);
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++            SynchronizeHullState();
++#else
+             for (int32_t i = 0; i < BLOTS_MAX; i++)
+                 LoadBlot(i);
++#endif
+         }
+         break;
+     case MSG_BLOTS_HIT:
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        SynchronizeHullState(false);
++#endif
+         Hit(message);
+         break;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    case storm_hull_damage::HullHitMessage: AcceptedHullHit(message); break;
++#endif
+     }
+     return 0;
+ }
+@@ -129,6 +148,60 @@
+     m->mtx.MulToInvNorm(dir, ldir);
+     AddBlot(i, rand(), lpos, ldir, 0.0f);
+ }
++
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++NODE* Blots::HullNode(const std::string&name) const
++{
++    auto*m=static_cast<MODEL*>(core.GetEntityPointer(model));return m?(name.empty()?m->GetNode(0):m->FindNode(name.c_str())):nullptr;
++}
++void Blots::ClearHullBindings()
++{
++    for(const auto&name:hullBoundNodes){auto*node=HullNode(name);if(node&&node->geo)node->geo->ClearHullCuts(GetId());}hullBoundNodes.clear();
++}
++void Blots::SynchronizeHullState(bool applyGeometry)
++{
++    if(!pCharAttributeRoot||restoringHullState)return;
++    blotsInfo=pCharAttributeRoot->FindAClass(pCharAttributeRoot,"ship.blots");uint64_t signature=1469598103934665603ull;
++    const auto hashString=[&](const char*text){if(text)for(const auto*p=text;*p;p++){signature^=uint8_t(*p);signature*=1099511628211ull;}signature^=255;signature*=1099511628211ull;};
++    for(int i=0;i<BLOTS_MAX;i++){char name[16];sprintf_s(name,"b%.3i",i);auto*a=blotsInfo?blotsInfo->FindAClass(blotsInfo,name):nullptr;if(!a)continue;hashString(name);
++        for(size_t n=0;n<a->GetAttributesNum();n++){auto*field=a->GetAttributeClass(uint32_t(n));hashString(field->GetThisName());if(field->HasValue())hashString(field->GetValue().c_str());}}
++    if(signature!=hullAttributeSignature){
++        useVrt=0;hullBindings.clear();for(auto&mark:hullMarks)mark={};for(auto&mark:blot)mark.isUsed=false;
++        restoringHullState=true;if(blotsInfo)for(int i=0;i<BLOTS_MAX;i++)LoadBlot(i);restoringHullState=false;
++        for(const auto&mark:hullMarks)if(mark.used)hullBindings[mark.node].push_back(mark.cut);hullAttributeSignature=signature;hullGeometryDirty=true;
++    }
++    // Same signature returns without topology/upload work. Calling the GEOM
++    // owner also covers lost/restored geometry with a reused allocation address.
++    if(!applyGeometry)return;
++    if(hullGeometryDirty)for(auto it=hullBoundNodes.begin();it!=hullBoundNodes.end();){if(!hullBindings.count(*it)){auto*node=HullNode(*it);if(node&&node->geo)node->geo->ClearHullCuts(GetId());it=hullBoundNodes.erase(it);}else ++it;}bool success=true;
++    for(const auto&entry:hullBindings){auto*node=HullNode(entry.first);if(node&&node->geo){if(!node->geo->SetHullCuts(GetId(),entry.second)){core.Trace("Hull cut rejected for node '%s'",entry.first.c_str());success=false;}else if(std::find(hullBoundNodes.begin(),hullBoundNodes.end(),entry.first)==hullBoundNodes.end())hullBoundNodes.push_back(entry.first);}}
++    hullGeometryDirty=!success;
++}
++void Blots::AcceptedHullHit(MESSAGE&message)
++{
++    CVECTOR position,normal;position.x=message.Float();position.y=message.Float();position.z=message.Float();normal.x=message.Float();normal.y=message.Float();normal.z=message.Float();
++    const std::string nodeName=message.String();const int objectIndex=message.Long();const float radius=message.Float(),hp=message.Float();const int executeLayer=message.Long(),realizeLayer=message.Long();
++    storm_ship_hull::Vec3 p{position.x,position.y,position.z},n{normal.x,normal.y,normal.z};
++    if(!storm_ship_hull::finite(p)||!storm_ship_hull::finite(n)||!std::isfinite(radius)||!std::isfinite(hp)||hp<=0||radius<storm_hull_damage::MinHitRadius||radius>storm_hull_damage::MaxHitRadius||storm_ship_hull::length(n)<.9f||storm_ship_hull::length(n)>1.1f)return;
++    auto*node=HullNode(nodeName);if(!node||!node->geo)return;GEOS::INFO info;node->geo->GetInfo(info);if(objectIndex<0||objectIndex>=info.nobjects)return;
++    std::string lower=nodeName;for(auto&c:lower)c=char(std::tolower(static_cast<unsigned char>(c)));for(const auto*excluded:{"rey","mast","path","shatter"})if(lower.rfind(excluded,0)==0)return;
++    if(!pCharAttributeRoot)return;SynchronizeHullState(false);if(!blotsInfo)blotsInfo=pCharAttributeRoot->CreateSubAClass(pCharAttributeRoot,"ship.blots");
++    CVECTOR local,localNormal;node->glob_mtx.MulToInv(position,local);node->glob_mtx.MulToInvNorm(normal,localNormal);
++    storm_ship_hull::Impact cut;cut.center={local.x,local.y,local.z};cut.normal=storm_ship_hull::normalized({localNormal.x,localNormal.y,localNormal.z});cut.object=objectIndex;cut.radiusU=radius;cut.radiusV=radius*.88f;cut.halfDepth=std::clamp(radius*.35f,.05f,.12f);
++    int slot=-1;for(int i=0;i<BLOTS_MAX;i++){auto&mark=hullMarks[i];if(!blot[i].isUsed&&slot<0)slot=i;
++        if(!mark.used||mark.node!=nodeName||mark.cut.object!=objectIndex||storm_ship_hull::dot(mark.cut.normal,cut.normal)<.92f)continue;
++        auto delta=cut.center-mark.cut.center;float depth=std::abs(storm_ship_hull::dot(delta,mark.cut.normal));float distance=storm_ship_hull::length(delta-mark.cut.normal*storm_ship_hull::dot(delta,mark.cut.normal));
++        if(depth>mark.cut.halfDepth+cut.halfDepth||distance>mark.cut.radiusU+radius)continue;
++        slot=i;cut=mark.cut;cut.radiusU=std::min(storm_hull_damage::MaxMergedRadius,std::max(cut.radiusU,radius+distance));cut.radiusV=std::min(storm_hull_damage::MaxMergedRadius,std::max(cut.radiusV,(radius+distance)*.88f));break;
++    }
++    if(slot<0)return;if(!hullMarks[slot].used)cut.seed=uint32_t(rand());
++    auto&mark=hullMarks[slot];mark.used=true;mark.node=nodeName;mark.cut=cut;mark.hp+=hp;blot[slot].isUsed=true;blot[slot].numTrgs=0;SaveBlot(slot);
++    // Short-lived geometry chips share this admitted hit, but never SAVE state.
++    if(executeLayer<0||realizeLayer<0)return;auto chips=core.CreateEntity("ship_hull_chips");if(!chips)return;
++    core.Send_Message(chips,"lfffffffl",storm_hull_damage::ChipBurstMessage,position.x,position.y,position.z,normal.x,normal.y,normal.z,radius,cut.seed);
++    auto*priority=static_cast<VDATA*>(core.GetScriptVariable("iShipPriorityRealize"));core.AddToLayer(layer_index_t(executeLayer),chips,0);core.AddToLayer(layer_index_t(realizeLayer),chips,(priority?priority->GetInt():31)+5);
++}
++#endif
+ 
+ // Add blot
+ void Blots::AddBlot(int32_t i, int32_t rnd, const CVECTOR &lpos, const CVECTOR &dir, float time)
+@@ -290,11 +363,21 @@
+ // Save blot parameters
+ void Blots::SaveBlot(int32_t i)
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if(restoringHullState)return;
++#endif
+     if (!blotsInfo)
+         return;
+     // Attribute name
+     char name[16];
+     sprintf_s(name, "b%.3i", i);
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if(hullMarks[i].used){const auto&m=hullMarks[i];auto*a=blotsInfo->CreateSubAClass(blotsInfo,name);
++        a->SetAttributeUseDword("kind",1);a->SetAttribute("node",std::string_view(m.node));a->SetAttributeUseDword("object",uint32_t(m.cut.object));a->SetAttributeUseDword("rnd",m.cut.seed);
++        a->SetAttributeUseFloat("x",m.cut.center.x);a->SetAttributeUseFloat("y",m.cut.center.y);a->SetAttributeUseFloat("z",m.cut.center.z);
++        a->SetAttributeUseFloat("nx",m.cut.normal.x);a->SetAttributeUseFloat("ny",m.cut.normal.y);a->SetAttributeUseFloat("nz",m.cut.normal.z);
++        a->SetAttributeUseFloat("ru",m.cut.radiusU);a->SetAttributeUseFloat("rv",m.cut.radiusV);a->SetAttributeUseFloat("depth",m.cut.halfDepth);a->SetAttributeUseFloat("hp",m.hp);return;}
++#endif
+     if (blot[i].isUsed)
+     {
+         auto *blt = blotsInfo->CreateSubAClass(blotsInfo, name);
+@@ -324,6 +407,16 @@
+     auto *blt = blotsInfo->FindAClass(blotsInfo, name);
+     if (blt)
+     {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        if(blt->GetAttributeAsDword("kind")==1){
++            const char*required[]={"node","object","rnd","x","y","z","nx","ny","nz","ru","rv","depth","hp"};for(auto key:required)if(!blt->GetAttributeClass(key))return;
++            HullMark mark;mark.node=blt->GetAttributeClass("node")->GetValue();auto&cut=mark.cut;cut.object=int32_t(blt->GetAttributeAsDword("object"));cut.seed=blt->GetAttributeAsDword("rnd");
++            cut.center={blt->GetAttributeAsFloat("x"),blt->GetAttributeAsFloat("y"),blt->GetAttributeAsFloat("z")};cut.normal={blt->GetAttributeAsFloat("nx"),blt->GetAttributeAsFloat("ny"),blt->GetAttributeAsFloat("nz")};
++            cut.radiusU=blt->GetAttributeAsFloat("ru");cut.radiusV=blt->GetAttributeAsFloat("rv");cut.halfDepth=blt->GetAttributeAsFloat("depth");mark.hp=blt->GetAttributeAsFloat("hp");
++            if(!storm_ship_hull::valid(cut)||cut.radiusU>storm_hull_damage::MaxMergedRadius||cut.radiusV>storm_hull_damage::MaxMergedRadius||!std::isfinite(mark.hp)||mark.hp<=0)return;
++            mark.used=true;hullMarks[i]=std::move(mark);blot[i].isUsed=true;blot[i].numTrgs=0;return;
++        }
++#endif
+         if (!blt->GetAttribute("rnd"))
+             return;
+         if (!blt->GetAttribute("x"))
+@@ -355,6 +448,9 @@
+ // Update
+ void Blots::Realize(uint32_t delta_time)
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if(!pCharAttributeRoot)return;SynchronizeHullState(false);
++#endif
+     // Updating the state
+     blotsInfo = pCharAttributeRoot->FindAClass(pCharAttributeRoot, "ship.blots");
+     updateBlot++;
+@@ -387,6 +483,9 @@
+         // Skip unused
+         if (!blot[i].isUsed)
+             continue;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        if(hullMarks[i].used)continue;
++#endif
+         // Lifetime
+ 
+         // !!!
+--- a/src/libs/locator/src/blast.h
++++ b/src/libs/locator/src/blast.h
+@@ -6,6 +6,10 @@
+ #include "dx9render.h"
+ #include "geometry.h"
+ #include "vma.hpp"
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include "ship_hull_chips.hpp"
++#include "ship_hull_damage_bridge.hpp"
++#endif
+ 
+ using GEOPARTICLE = struct
+ {
+@@ -17,6 +21,10 @@
+     float speed;
+     bool bDouble;
+     bool bEffect;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    storm_ship_hull::Chip chip;
++    float chipScale=1;
++#endif
+ };
+ 
+ class BLAST : public Entity
+@@ -30,10 +38,20 @@
+     uint32_t ItemsNum;
+     CMatrix Center;
+     entid_t Splash;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    bool hullChipMode=false;
++    storm_ship_hull::ChipLease hullChipLease;
++    void LaunchHullChips(MESSAGE&message);
++    void StepHullChips(uint32_t delta);
++#endif
+ 
+   public:
+     ~BLAST() override;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    explicit BLAST(bool hullChips=false);
++#else
+     BLAST();
++#endif
+     bool Init() override;
+     uint64_t ProcessMessage(MESSAGE &message) override;
+     uint32_t AttributeChanged(ATTRIBUTES *) override;
+@@ -46,6 +64,9 @@
+     {
+         switch (stage)
+         {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        case Stage::execute: if(hullChipMode)StepHullChips(delta);break;
++#endif
+             // case Stage::execute:
+             //    Execute(delta); break;
+         case Stage::realize:
+--- a/src/libs/locator/src/blast.cpp
++++ b/src/libs/locator/src/blast.cpp
+@@ -2,11 +2,20 @@
+ #include "entity.h"
+ #include "core.h"
+ #include "shared/messages.h"
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++class SHIP_HULL_CHIPS final:public BLAST {public:SHIP_HULL_CHIPS():BLAST(true){}};
++CREATE_CLASS(SHIP_HULL_CHIPS)
++#endif
+ 
+ #define ANGLESPEED_MUL 0.2f
+ 
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++BLAST::BLAST(bool hullChips)
++    : sea_eid(0), Splash(0),hullChipMode(hullChips)
++#else
+ BLAST::BLAST()
+     : sea_eid(0), Splash(0)
++#endif
+ {
+     rs = nullptr;
+     gs = nullptr;
+@@ -30,6 +39,14 @@
+     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+     if (!rs)
+         return false;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if(hullChipMode){
++        if(!hullChipLease.acquire())return false;
++        char one[]="particles\\palka01",two[]="particles\\palka02",four[]="particles\\palka04";AddGeometry(one,2);AddGeometry(two,4);AddGeometry(four,2);
++        for(auto&item:Item){item.chip.alive=false;if(!item.geo)return false;}
++        return true;
++    }
++#endif
+ 
+     //    int32_t n;
+     auto ini = fio->OpenIniFile("resource\\ini\\particles\\particles.ini");
+@@ -171,6 +188,23 @@
+         core.EraseEntity(GetId());
+ }
+ 
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++void BLAST::LaunchHullChips(MESSAGE&message)
++{
++    storm_ship_hull::Vec3 position,normal;position.x=message.Float();position.y=message.Float();position.z=message.Float();normal.x=message.Float();normal.y=message.Float();normal.z=message.Float();float radius=message.Float();uint32_t seed=uint32_t(message.Long());if(!seed)seed=1;
++    if(!storm_ship_hull::finite(position)||!storm_ship_hull::finite(normal)||storm_ship_hull::length(normal)<.9f||!std::isfinite(radius)||radius<storm_hull_damage::MinHitRadius||radius>storm_hull_damage::MaxHitRadius){core.EraseEntity(GetId());return;}
++    normal=storm_ship_hull::normalized(normal);for(auto&item:Item){item.chip=storm_ship_hull::launchChip(position,normal,seed,radius);item.chipScale=.12f+storm_ship_hull::randomUnit(seed)*std::min(.25f,radius);}
++}
++void BLAST::StepHullChips(uint32_t delta)
++{
++    if(!delta||core.GetTimeScale()<=0)return;
++    if(!core.GetEntityPointer(sea_eid)){sea_eid=core.GetEntityId("sea");pSea=static_cast<CANNON_TRACE_BASE*>(core.GetEntityPointer(sea_eid));}
++    bool alive=false;for(auto&item:Item){auto before=item.chip.position;storm_ship_hull::step(item.chip,float(delta)*.001f);auto after=item.chip.position;
++        if(item.chip.alive&&pSea&&pSea->Cannon_Trace(-1,CVECTOR(before.x,before.y,before.z),CVECTOR(after.x,after.y,after.z))<=1.f)item.chip.alive=false;alive|=item.chip.alive;}
++    if(!alive)core.EraseEntity(GetId());
++}
++#endif
++
+ uint64_t BLAST::ProcessMessage(MESSAGE &message)
+ {
+     int32_t code;
+@@ -179,6 +213,9 @@
+     code = message.Long();
+     switch (code)
+     {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    case storm_hull_damage::ChipBurstMessage: if(hullChipMode)LaunchHullChips(message);break;
++#endif
+     case LM_SETPOINT:
+         ang.x = ang.y = ang.z = 0;
+         ang.x = -1.57f;
+@@ -207,6 +244,11 @@
+ 
+ void BLAST::Realize(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if(hullChipMode){gs->SetTechnique("");for(auto&item:Item)if(item.chip.alive&&item.geo){auto&c=item.chip;
++        Center.BuildMatrix(CVECTOR(c.angles.x,c.angles.y,c.angles.z),CVECTOR(c.position.x,c.position.y,c.position.z));for(unsigned row=0;row<3;row++)for(unsigned col=0;col<3;col++)Center.m[row][col]*=item.chipScale;
++        rs->SetTransform(D3DTS_WORLD,Center);item.geo->Draw((GEOS::PLANE*)rs->GetPlanes(),0,nullptr);}return;}
++#endif
+     uint32_t n;
+ 
+     if (Item.empty())
