@@ -40,6 +40,7 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
                                   entry?entry->GetAttributeAsDword("sun"):0u};
         }
         weatherEngine.month=season; weatherRainStatus=weatherStormStatus=-1;
+        weatherRealClock=-1.0;
         SaveWeatherEngine(); UpdateVisualState(0);
     } else if (code==1464336386) {
         const auto field=message.Long(); auto *out=message.ScriptVariablePointer();
@@ -49,6 +50,13 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
             case 0: value=c.angle; break; case 1: value=c.speed; break;
             case 2: value=c.rain; break; case 3: value=c.storm; break;
             case 4: value=visualState.fogDensity; break; case 5: value=c.coverage; break;
+            case 6: {
+                const double now=std::chrono::duration<double>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+                if (weatherRealClock>=0.0) value=static_cast<float>(std::max(0.0,now-weatherRealClock));
+                weatherRealClock=now;
+                break;
+            }
             }
             out->Set(value);
         }

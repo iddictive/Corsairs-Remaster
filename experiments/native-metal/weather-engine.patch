@@ -21,7 +21,7 @@
      CVECTOR vVectors[MAX_VECTORS_PARAMS];
      char *pStrings[MAX_STRINGS_PARAMS];
  
-@@ -40,6 +41,16 @@
+@@ -40,6 +41,17 @@
  #ifdef STORM_METAL_WEATHER_VISUAL_STATE
      storm_weather_visual::State visualState;
      float visualRainTarget = 0.f;
@@ -31,6 +31,7 @@
 +    bool weatherPaletteValid = false;
 +    bool weatherOutside = true;
 +    float weatherCheckpoint = 0.f;
++    double weatherRealClock = -1.0;
 +    int weatherRainStatus = -1, weatherStormStatus = -1;
 +    void UpdateWeatherEngine(uint32_t deltaTime);
 +    void ApplyWeatherConditions();

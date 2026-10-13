@@ -48,6 +48,28 @@ bool	bSeaQuestGroupHere = false;
 bool 	bSeaCanGenerateShipSituation = true; 
 
 int		iStormLockSeconds = 0;
+float   fSeaStormRealSeconds = 0.0;
+bool    bSeaStormMapOnlyLock = false;
+
+#event_handler("frame", "Sea_StormEscapeFrame");
+void Sea_StormEscapeFrame()
+{
+    // WEATHER supplies uncapped monotonic elapsed time, independent of time scale.
+    float seconds = Whr_NativeValue(6);
+    if (IsEntity(&worldMap))
+    {
+        if (CheckAttribute(&worldMap, "stormEscape") && !Whr_IsStorm())
+            DeleteAttribute(&worldMap, "stormEscape");
+        return;
+    }
+    if (!bSeaActive || bAbordageStarted || bSeaReloadStarted || bTornado || iStormLockSeconds <= 0) return;
+    fSeaStormRealSeconds = fSeaStormRealSeconds + seconds;
+    if (fSeaStormRealSeconds < 120.0) return;
+    iStormLockSeconds = 0;
+    // Release only the weather restriction; combat, quests and tsunami still own theirs.
+    if (bSeaStormMapOnlyLock && !bQuestDisableMapEnter && !bSeaTsunamiEncounter) bDisableMapEnter = false;
+    bSeaStormMapOnlyLock = false;
+}
 
 object	Island, IslandReflModel, sLightModel, lighthouseLightModel;
 object	Touch, AISea;
@@ -216,6 +238,8 @@ void CreateSeaEnvironment()
 	InterfaceStates.Buttons.Resume.enable = true;
 	
 	bSeaActive = true;
+	fSeaStormRealSeconds = 0.0;
+	bSeaStormMapOnlyLock = false;
 
 	LayerSetRealize(SEA_REALIZE);
 	LayerSetExecute(SEA_EXECUTE);
@@ -467,6 +491,9 @@ void Sea_MapLoad()
     // рассчет времени на карте от скорости кораблей <--
     pchar.CheckEnemyCompanionType = "Sea_MapLoad"; // откуда вход
     if (!CheckEnemyCompanionDistance2GoAway(true)) return; // && !bBettaTestMode  табличка выхода из боя
+
+    if (Whr_IsStorm()) worldMap.stormEscape = 1;
+    else DeleteAttribute(&worldMap, "stormEscape");
     
 	LAi_SetAlcoholNormal(pchar);
     

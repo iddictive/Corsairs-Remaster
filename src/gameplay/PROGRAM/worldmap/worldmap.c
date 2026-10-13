@@ -63,7 +63,7 @@
 
 
 #event_handler("WorldMap_EncounterCreate", "wdmEvent_EncounterCreate");
-#event_handler("WorldMap_PlayerInStorm", "wdmEvent_PlayerInStorm");
+#event_handler("WorldMap_PlayerInStorm", "wdmEvent_StormEntry");
 #event_handler("WorldMap_ShipEncounter", "wdmEvent_ShipEncounter");
 #event_handler("WorldMap_UpdateDate", "wdmEvent_UpdateDate");
 #event_handler("ExitFromWorldMap", "wdmReloadToSea");
@@ -83,6 +83,15 @@ int wdmMapToSeaScale()
         || worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo"
         || worldMap.island == "Caracas" || worldMap.island == "Cumana") return 25;
     return WDM_MAP_TO_SEA_SCALE;
+}
+
+void wdmEvent_StormEntry()
+{
+    // Escaping an ordinary storm must not immediately restart the same encounter.
+    // Native authored tornado/tsunami contacts do not set nativeWeatherStorm.
+    if (CheckAttribute(&worldMap, "stormEscape") &&
+        CheckAttribute(&worldMap, "nativeWeatherStorm") && sti(worldMap.nativeWeatherStorm)) return;
+    wdmEvent_PlayerInStorm();
 }
 
 void wdmCreateMap(float x, float z, float ay)

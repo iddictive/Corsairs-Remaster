@@ -3912,6 +3912,7 @@ void Ship_CheckMainCharacter()
         else if (CheckAttribute(&Sea, "Tsunami.PlayerPassed") && sti(Sea.Tsunami.PlayerPassed))
             tsunamiEncounterActive = false;
     }
+	bSeaStormMapOnlyLock = iStormLockSeconds > 0 && !bDisableMapEnter && !tsunamiEncounterActive;
 	if (iStormLockSeconds || tsunamiEncounterActive)
 	{
 		bDisableMapEnter = true;
