@@ -18,8 +18,9 @@ duplicate-label/syntax errors. An explicit unknown-node guard and terminating
 break restore compilation without changing the prose or existing stock nodes.
 Real-VM entry/four-follow-up/poor-player/unhandled-node probes return0/errors0;
 actual installed PROGRAM plus ten dialogue/interface segments also compiles0.
-Final cache/app composition each reports0 pending/compiler ready; all247 player
-state hashes remain unchanged. Source/component/installed delivery accepted;
+Final cache/app composition each reports0 pending/compiler ready; the158-file
+installed ownership receipt matches every SHA-256 row and all247 player-state
+hashes remain unchanged during delivery. Source/component/installed delivery accepted;
 actual tavern conversation and the broader quest/scene replays remain unresolved.
 
 ### October13 — physical quest, bounded storm and inline Options installed
@@ -43,9 +44,12 @@ The complete PROGRAM plus nine dialogue/interface segments compiles without erro
 Disposition: source/components and exact installed delivery accepted; physical
 quest actions, moonlit/helper combat, full ending/balance/playtime, real storm
 departure/save replay, rendered Options input/restart and city/map FPS remain
-player-owned. Local source checkpoint remains pending automatic Git transaction
-reconciliation; installation is identified by actual hashes, not the older HEAD
-printed in its log. Four new ambient tavern tales are a separate next content batch.
+player-owned. Local source checkpoints are `481aa60` (physical quest), `febae07`
+(storm), `7aa95b6` (Options) and `a100279` (tavern tales). The original selected
+staged commit replay passes after automatic transaction reconciliation is repaired;
+no product workaround was used. Installation is identified by actual hashes,
+not the older HEAD printed in its log. The following entry records the separate
+tavern content delivery. No push occurred.
 
 ### October13 — physical captivity and moonlit cache source candidate
 
