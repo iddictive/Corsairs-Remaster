@@ -239,6 +239,7 @@ void extrnInitPerks()
 	ChrPerksList.list.RakingFire.OfficerType = "cannoner";
 
 	ChrPerksList.list.HeatedShot.descr = "perkHeatedShot";
+	ChrPerksList.list.HeatedShot.TextureGroup = "PERK_HEATEDSHOT";
 	ChrPerksList.list.HeatedShot.condition.CannonProfessional = true;
 	ChrPerksList.list.HeatedShot.condition.ImmediateReload = true;
 	ChrPerksList.list.HeatedShot.BaseType = "ship";

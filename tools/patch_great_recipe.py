@@ -23,7 +23,7 @@ NORMALIZED_HASHES = {
     "PROGRAM/worldmap/worldmap_events.c": "52598a4baec8bec7c66270aa156705043f9e0ab7d93ade5420ec9b0d8bcc613b",
     "PROGRAM/worldmap/worldmap_reload.c": "d7b845b968e7015503d360b80dbf3281c4a3418c064ed031fbffa98d589a1930",
     "PROGRAM/Loc_ai/LAi_fightparams.c": "e886b558dbbb64565baca70ab512064a5f7b82183a946bc516722bb96611836e",
-    "RESOURCE/INI/interfaces/pictures.ini": "13ba2c23d21ac11c76c42c89bf4ea94a4ac7d1299c86ee4c9b2fe0477bf20f0b",
+    "RESOURCE/INI/interfaces/pictures.ini": "3ad4482385d8b1382e62942ea9845f652c6c8a0df95b6ea33c7ce6390fbfb6ea",
     "PROGRAM/Loc_ai/LAi_boarding.c": "ea8c00a89e783640199a11d1fd798344ba4e91bca70e6169a08968899891b632",
     "PROGRAM/interface/store.c": "9bf6299cc923045a9166afa2a0fa4be664a37bcf4faeccc9969186358a389a76",
     "PROGRAM/nations/nations.c": "f5918635df437b06166823970df1c120f1ac08d4ed21a719e53769644580f435",

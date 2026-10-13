@@ -80,6 +80,23 @@
       "prompt": "Preserve the Corsairs antique-brass frame, brown/navy insets and iron cannon artwork; produce two empty state frames plus isolated single-cannon and three-cannon broadside cutouts with actual alpha and transparent gutters, without text or decorations.",
       "preparation": "Extract generated parts by their alpha>8 bounds. Register each frame to564x564 at18,18 in a600px square. Center each gun group within450x450 and composite the identical foreground layer onto both state frames; pack four tiles into1200x1200. LANCZOS-resize to128x128 and encode one A8R8G8B8 BGRA mip. Every64px frame has visible bounds2,2,62,62 and center31.5,31.5; single foreground bounds8,12,56,52 and broadside8,10,56,54 share that center. Normal/selected foreground displacement is exactly0px; decoded payload is byte-exact to prepared RGBA."
     },
+    "RESOURCE/Textures/INTERFACES/PERKS/heated_shot.tga.tx": {
+      "source": "heated-shot.png",
+      "source_sha256": "3cdec9f54d7e3de001b14c692127d2d92f2f670621e3595c6cbccd005f3a3f14",
+      "prepared": "heated-shot.tga.tx",
+      "sha256": "0868fad820c1a2b4c9c787057826d3aeaf1e3d516506b153365636dc81798b99",
+      "dimensions": [256, 128],
+      "source_dimensions": [1774, 887],
+      "format": "A8R8G8B8",
+      "consumer": "ChrPerksList.list.HeatedShot.TextureGroup; learned/unlearned 128px tiles in character menus and prerequisites",
+      "generation": "built-in imagegen; exact generated-source cleanup and two-state edit",
+      "generation_source": "heated-shot-original.png",
+      "generation_source_sha256": "595e7fc75ac4b44968dbe8fe7a8b27360f30e7289d1fe3ba90dc9e078e0fdca6",
+      "style_reference": "docs/images/raking-fire-capstone-128.png",
+      "prompt": "Corsairs painted perk icon: cherry-red hot solid iron cannonball supported by furnace tongs above embers, two cold balls behind it; existing gold rope border and warm parchment inset, no fuse, text or explosion.",
+      "cleanup": "Keep sphere, tong contact and framing; calm fine iron/ember detail at 128px. Left learned warm-red state, right aligned muted sepia unlearned state. Review both final TX tiles and the existing reference at delivery size.",
+      "preparation": "python3 src/assets/ui/prepare_perk.py src/assets/ui/heated-shot.png src/assets/ui/heated-shot.tga.tx; LANCZOS resize the 2:1 full-bleed sheet to 256x128 and encode one BGRA A8R8G8B8 mip. Existing perk/atlas bytes remain unchanged."
+    },
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx": {
       "source": "raking-fire.png",
       "source_sha256": "59fa82b8a61fe83b40f56a4c66c348e873c2380b5001ee5ac10c20856c4aacf1",

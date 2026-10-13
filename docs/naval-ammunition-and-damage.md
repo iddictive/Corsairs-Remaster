@@ -134,8 +134,28 @@ chance and combines the independent 20% hot-shot contribution into one 60%
 roll and one fire site. A noncritical round-shot hit therefore has a 4% overall
 hot-shot ignition probability before suppression, not a guaranteed fifth shot
 or fifth hit. Other ammunition retains its existing fire probabilities.
-The perk reuses the existing cannon-professional icon in enabled/disabled
-atlases; it adds no goods, atlas payload or extra fire timer.
+The initial cannon-professional icon alias was rejected as incomplete identity.
+The corrected source uses `PERK_HEATEDSHOT_ENABLE` / `PERK_HEATEDSHOT_DISABLE`
+and a distinct hot iron ball held by furnace tongs, matching the existing rope
+frame and golden perk inset. `src/assets/ui/manifest.json` owns the retained
+generation/cleanup sources and the checksum-bound 256x128 TX sheet: learned
+128px tile on the left, sepia unlearned tile on the right. Character menus and
+prerequisite links both use `GetPerkPictureGroup`; the two old generic aliases
+are removed. `prepare_perk.py` reproduces this format and the existing raking
+sheet without changing that prior asset. It adds no cargo goods or fire timer.
+The read-only installed delivery plan admits the exact new texture and rejects
+an unrelated texture path. Decoded TX pixels equal the resized canonical source,
+both full-bleed 128px states were reviewed beside the existing perk, and the
+real script VM passes `HeatedShotArtCases=0`, `script_errors=0` for learned /
+unlearned group selection and unchanged raking / ordinary perk groups.
+This accepts source, format and consumer selection; the installed menu remains
+unreplayed while game control is stopped.
+
+Random NPC acquisition is a separate existing limitation:
+`PROGRAM/Loc_ai/LAi_equip.c:LAi_NPC_EquipPerk` grants a fixed eight-tier cannon
+list, not the dynamic registry. It currently includes neither `HeatedShot` nor
+`RakingFire`; player learning/assigned-officer inheritance does not imply random
+NPC acquisition. The NPC selector remains unchanged in this source/art batch.
 
 Acceptance requires learning from both the hero and assigned cannoner,
 red shots mixed with ordinary shots, local ignition on a vulnerable target,

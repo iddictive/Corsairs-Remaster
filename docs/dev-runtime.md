@@ -30,8 +30,8 @@ integer override (for example1 for the lowest concurrent build load). Invalid
 values fail before source preparation or configuration. This controls compilation,
 not the game's simulation or renderer; build success does not activate the app.
 
-Canonical staging also admits the six exact UI texture destinations declared in
-`tools/delivery_state.py`: mast repair, fire mode, raking fire, goods, command and navigator icons.
+Canonical staging also admits the seven exact UI texture destinations declared in
+`tools/delivery_state.py`: mast repair, fire mode, raking fire, heated shot, goods, command and navigator icons.
 The three atlases preserve existing pixels outside the airburst cells. Their sources and prepared
 TX bytes are checksum-bound by `src/assets/ui/manifest.json` and use the existing
 transaction/receipt path. An existing unrecorded atlas is admitted only by the
