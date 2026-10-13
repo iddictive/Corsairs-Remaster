@@ -160,7 +160,9 @@ float2 seaWhirlpoolUV(SeaO o,constant SeaU& u,float2 uv) {
     float q=length(delta)/max(u.vc[245].z,1.f);
     if(q>=1.f)return uv;
     float edge=1.f-q*q;
-    float clock=u.vc[246].x*u.vc[245].w*edge*edge;
+    // vc246.y is native physicalScale/radius: a large battle theater must not
+    // turn capped12m/s water flow into radius-proportional texture transport.
+    float clock=u.vc[246].x*u.vc[246].y*u.vc[245].w*edge*edge;
     float angle=-.24f*clock,c=cos(angle),s=sin(angle);
     float2 transported=float2(c*delta.x-s*delta.y,s*delta.x+c*delta.y)*exp(min(.065f*clock,2.f));
     return uv+(transported-delta)*.07f;

@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/MODELS/Characters/RedBeard.gm": {
+      "source": "original.gm",
+      "source_sha256": "901358b19edd12162360a09c89dd6a5da19365373425eb8a059d83435cb5c423",
+      "prepared": "RedBeard.gm",
+      "sha256": "dd7ed486cd101e3bba399ec23f597eb87fc4ae748586e5f8862b0864bf4b0412",
+      "consumer": "Great Recipe RedBeard: dream, captive, duel, real captain",
+      "animation": "man (existing Hugtorp skeleton and packed head weights)",
+      "preparation": "Append same-material head-weighted beard shell; remap only left eye component; preserve all original geometry/weights and all other UVs.",
+      "original_vertices": 4267,
+      "added_beard_vertices": 50,
+      "original_triangles": 4506,
+      "added_beard_triangles": 96,
+      "blind_eye_vertices": [
+        344,
+        345,
+        346,
+        347,
+        348,
+        349,
+        350,
+        351,
+        352,
+        353,
+        354,
+        355,
+        356,
+        357,
+        358,
+        359,
+        360,
+        361,
+        362,
+        363,
+        364,
+        365,
+        366,
+        367,
+        368,
+        369,
+        370,
+        371,
+        372,
+        373,
+        374,
+        375,
+        376,
+        377,
+        378,
+        379,
+        380,
+        381,
+        382,
+        383,
+        384
+      ],
+      "healthy_eye_vertices": [
+        303,
+        304,
+        305,
+        306,
+        307,
+        308,
+        309,
+        310,
+        311,
+        312,
+        313,
+        314,
+        315,
+        316,
+        317,
+        318,
+        319,
+        320,
+        321,
+        322,
+        323,
+        324,
+        325,
+        326,
+        327,
+        328,
+        329,
+        330,
+        331,
+        332,
+        333,
+        334,
+        335,
+        336,
+        337,
+        338,
+        339,
+        340,
+        341,
+        342,
+        343
+      ],
+      "beard_head_influence": {
+        "weight": 1.0,
+        "packed_bone_ids": 32
+      },
+      "blind_eye_atlas_rect": [
+        272,
+        944,
+        320,
+        992
+      ]
+    },
+    "RESOURCE/Textures/Characters/RedBeard.tga.tx": {
+      "source": "generated.png",
+      "source_sha256": "733883ed8cdb9eebfce4716b10e2a0d0c240404346d75c66e90fd4809e02294d",
+      "prepared": "RedBeard.tga.tx",
+      "sha256": "919d3be40e12238899ddf2cee4a1734acfc97ada6a07951cdade94b825e4a1fd",
+      "consumer": "RESOURCE/MODELS/Characters/RedBeard.gm",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "source_dimensions": [
+        1254,
+        1254
+      ],
+      "packed_atlas": "packed.png",
+      "packed_atlas_sha256": "610f2a7e754c767caaf962120fe3409541f7aa34f039bf3bb24c3230e3a62d33",
+      "supporting_inputs": {
+        "original.png": "599913ee6ff0952dd75cad2300d28863f3237c1f46fd558146e5d18e30f4b6b4",
+        "original.tga.tx": "dfd982ca735f3e73a93785fbb37901d6b50ff4f8508a9829df45759b9519a66d"
+      },
+      "format": "DXT1",
+      "mip_count": 5,
+      "alpha": "opaque",
+      "generation": "built-in imagegen edit of original Hugtorp atlas",
+      "preparation": "Uniform square downsample; extract generated blind-eye sprite into unused272,944..320,992; restore former accidental296,920..363,1000 footprint from original; all remaining pixels unchanged by packing. Five opaqueDXT1mips matching Hugtorp."
+    },
+    "RESOURCE/Textures/INTERFACES/PORTRAITS/64/face_2006.tga.tx": {
+      "source": "portrait.png",
+      "source_sha256": "9540bb8e2fad1b23391c4e61a9726639068d22add60fe23ff04e0bc9545e7ae1",
+      "prepared": "face_2006-64.tga.tx",
+      "sha256": "0384fb4a9b5df6f2f05a050ce35facb0f96c1242b247184b3712e5fcf168b21d",
+      "consumer": "RedBeard FaceId2006: spyglass, character UI, cargo transfer and list portraits",
+      "dimensions": [
+        64,
+        64
+      ],
+      "source_dimensions": [
+        512,
+        512
+      ],
+      "format": "X8R8G8B8",
+      "mip_count": 1,
+      "alpha": "opaque",
+      "face_id": 2006,
+      "model_sha256": "dd7ed486cd101e3bba399ec23f597eb87fc4ae748586e5f8862b0864bf4b0412",
+      "diffuse_sha256": "919d3be40e12238899ddf2cee4a1734acfc97ada6a07951cdade94b825e4a1fd",
+      "generation": "Deterministic CPU3Dscene from finalRedBeardGM and decodednativeTX; no raster repaint.",
+      "preparation": "Uniform head/shoulders portrait downsample; stock native rawBGRA portrait format and mip counts.",
+      "picture_group": "FACE128_2006"
+    },
+    "RESOURCE/Textures/INTERFACES/PORTRAITS/128/face_2006.tga.tx": {
+      "source": "portrait.png",
+      "source_sha256": "9540bb8e2fad1b23391c4e61a9726639068d22add60fe23ff04e0bc9545e7ae1",
+      "prepared": "face_2006-128.tga.tx",
+      "sha256": "e3a87bc677114460c2a51d9beb54e15312183f94a5327382e7931ca08c039c64",
+      "consumer": "RedBeard FaceId2006: spyglass, character UI, cargo transfer and list portraits",
+      "dimensions": [
+        128,
+        128
+      ],
+      "source_dimensions": [
+        512,
+        512
+      ],
+      "format": "A8R8G8B8",
+      "mip_count": 8,
+      "alpha": "opaque",
+      "face_id": 2006,
+      "model_sha256": "dd7ed486cd101e3bba399ec23f597eb87fc4ae748586e5f8862b0864bf4b0412",
+      "diffuse_sha256": "919d3be40e12238899ddf2cee4a1734acfc97ada6a07951cdade94b825e4a1fd",
+      "generation": "Deterministic CPU3Dscene from finalRedBeardGM and decodednativeTX; no raster repaint.",
+      "preparation": "Uniform head/shoulders portrait downsample; stock native rawBGRA portrait format and mip counts.",
+      "picture_group": "FACE128_2006"
+    },
+    "RESOURCE/Textures/INTERFACES/PORTRAITS/256/face_2006.tga.tx": {
+      "source": "portrait.png",
+      "source_sha256": "9540bb8e2fad1b23391c4e61a9726639068d22add60fe23ff04e0bc9545e7ae1",
+      "prepared": "face_2006-256.tga.tx",
+      "sha256": "19ccf883c688f888aa3d7e498ee4385e068e4b947493bd2f54ee0eb32029343c",
+      "consumer": "RedBeard FaceId2006: spyglass, character UI, cargo transfer and list portraits",
+      "dimensions": [
+        256,
+        256
+      ],
+      "source_dimensions": [
+        512,
+        512
+      ],
+      "format": "A8R8G8B8",
+      "mip_count": 9,
+      "alpha": "opaque",
+      "face_id": 2006,
+      "model_sha256": "dd7ed486cd101e3bba399ec23f597eb87fc4ae748586e5f8862b0864bf4b0412",
+      "diffuse_sha256": "919d3be40e12238899ddf2cee4a1734acfc97ada6a07951cdade94b825e4a1fd",
+      "generation": "Deterministic CPU3Dscene from finalRedBeardGM and decodednativeTX; no raster repaint.",
+      "preparation": "Uniform head/shoulders portrait downsample; stock native rawBGRA portrait format and mip counts.",
+      "picture_group": "FACE128_2006"
+    }
+  }
+}

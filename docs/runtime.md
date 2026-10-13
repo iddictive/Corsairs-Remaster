@@ -76,6 +76,33 @@ proves duplicate compute removal for matching cube inputs, not a50% scene FPS
 gain; above-water main/reflection reuse is not established. App staging remains
 pending.
 
+October13 quest-ending probes reproduce two defects in the previous candidate:
+stock self-rescheduled delays lose their replacement entry (`601`), and an early
+flagship wreck can wait forever for an unlogged boss (`603`). A quest-local,
+save-rearmed deferred event clears its token before invoking the continuation;
+normal and early boarding now share boss emergence and bounded recovery.
+Current deferred/pause/stale-token, early-wreck continuation and missing-entity
+recovery probes return0 with zero VM errors. Winning now restores every original
+companion ship; a full900-row registry falls back to the reserved original ship
+without rewriting a shared row. Unique reward/foreign-row and full-registry
+probes also return0. The post-loss sea-entry hook no longer requires Lightning
+before CreateSeaEnvironment creates it: rainy-storm admission fails650 before
+and passes0 after, while dry/nonstorm entry remains excluded.
+
+The optional alliance requires actual won ship-work/practice, boarding mercy
+and release through the stock prize panel, then actual Diego freedom, shared
+recipe, restitution and a Bermuda treaty. It offers a permanent political
+refusal while preserving ordinary production. Jackman's identity, authored
+dialogue/work and scripted scenes remain his own; only ordinary residence poses
+move him beside the seated naval king. The actual VM exposes a local `pirate`
+identifier shadowing the `PIRATE` constant; renaming it restores the promised
+pirate-flag friendship. The integrated eligibility/release/concession/relation/
+residence/land/capture probes and two SAVE-codec rounds pass with zero VM errors.
+All22 composer hooks are idempotent, and the full current PROGRAM plus six
+dialogue/interface segments compile. Native scene, boarding-panel, political
+dialogue and main-plot replays remain player-owned and unresolved; fixtures
+replace unavailable world/presentation boundaries. Corrective staging is next.
+
 ### October12 — Great Recipe and rough native vortex installed; player replay pending
 
 The requested Great Recipe now has an eight-hook composer and two dedicated

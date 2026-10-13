@@ -1016,7 +1016,7 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
  #endif
          encTime = 0.0f;
      }
-@@ -592,6 +615,11 @@
+@@ -592,6 +615,19 @@
      break;
      case MSG_WORLDMAP_CREATEENC_RELEASE:
          ReleaseEncounters();
@@ -1026,6 +1026,14 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
 +        for (auto *ship : wdmObjects->ships) ship->isSelect = false;
 +        core.Event("ExitFromWorldMap");
          break;
++    case MSG_WORLDMAP_WATER_POINT: {
++        const float x = message.Float();
++        const float z = message.Float();
++        const float clearance = message.Float();
++        if (!wdmObjects || !wdmObjects->islands || !std::isfinite(x) || !std::isfinite(z) ||
++            !std::isfinite(clearance) || clearance <= 0.0f || clearance > 1000.0f) return 0;
++        return WdmShip::CheckPosition(x, z, clearance) ? 1 : 0;
++    }
      case MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA:
          if (wdmObjects->playerShip)
 @@ -934,7 +962,8 @@
@@ -1078,11 +1086,12 @@ diff --git a/src/libs/worldmap/src/world_map.h b/src/libs/worldmap/src/world_map
 diff --git a/src/libs/shared_headers/include/shared/messages.h b/src/libs/shared_headers/include/shared/messages.h
 --- a/src/libs/shared_headers/include/shared/messages.h
 +++ b/src/libs/shared_headers/include/shared/messages.h
-@@ -247,6 +247,7 @@
+@@ -247,6 +247,8 @@
  #define MSG_WORLDMAP_CREATEENC_RELEASE 31200 // ""
  // Launch going out to sea from script
  #define MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA 31130 // ""
 +#define MSG_WORLDMAP_ENTER_SEA_DIRECT 31131 // "l" Enter without selecting an encounter
++#define MSG_WORLDMAP_WATER_POINT 31132 // "lfff" x,z,clearance; returns free water
  // Setting a flag on the map
  #define MSG_WORLDMAP_SET_NATION_FLAG 31150 // "ll" nation
  // Print line with coordinates

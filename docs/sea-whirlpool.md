@@ -2,20 +2,22 @@
 
 ## Status
 
-October 12, 2026: installed through the canonical build/stage path. Disposable ASan/UBSan field checks
-pass. The revised field passes an actual Metal water/foam component readback,
-with the same synthetic textures and ordinary-wave approximation as its smooth
-predecessor. Full SEA/SHIP compilation, exact patch consumption and installed
-message-header delivery pass. Installed Great Recipe scene replay remains
-player-owned.
-Source or component checks do not accept the cinematic in the player save.
+October 12, 2026: the earlier90m/24s field was installed and passed native/Metal
+component checks, but the player rejects the solo, small, short scene. The
+sustained fleet-theater revision is a source candidate: ASan/UBSan field/control
+checks pass at90/700/1600m and the complete seven-section patch parses.
+Canonical rebuild, large-field GPU/game readback and whole-fleet combat replay
+remain integration-owned checks. Source or component checks do not accept the
+battle in the player save. The prior local-field receipts below retain their
+original scope.
 
 ## Contract and owners
 
 The Great Recipe sea scene uses a fixed world-space depression, rotating water
 and broken spiral foam. The hull follows that same displaced water, drifts inward
 and around its centre, can steer out, and loses hull in proportion to actual
-exposure. A ring of splash particles is not a whirlpool.
+exposure. The support must contain the fleet's live circular battle and remain
+active through combat. A ring of splash particles is not a whirlpool.
 
 `experiments/native-metal/sea-whirlpool.patch` owns native transient state and the
 shared field in `shared/sea_whirlpool.hpp`, SEA deformation/commands/debris and
@@ -35,24 +37,37 @@ an engine migration; adapt that separation inside the existing native field.
 
 Write `Sea.Whirlpool.CenterX`, `CenterZ`, `Radius`, `Intensity`, `Duration`,
 `ResumeAge`, then `Start=1`. Radius defaults to90, intensity to1; finite native
-bounds are radius30–240, intensity0–1 and duration6–90 seconds. Repeating the
+bounds are radius30–1600, intensity0–1 and duration6–900 seconds. The fleet
+scene chooses700–1600m from actual spawn extent and600s duration. Repeating the
 same live configuration is idempotent. A changed descriptor replaces the field.
-`Start=0` starts a three-second decay; `Clear=1` clears immediately. Commands are
+`Start=0` starts a smooth decay; `Clear=1` clears immediately. Commands are
 consumed, so saved Sea attributes cannot silently restart an event.
 
-Native execute time owns age, five-second onset and the final three-second fade;
-pause freezes age. `ResumeAge` seeds a new native activation from saved quest
+Native execute time owns age. Radius smoothly scales onset/fade from5/3s below
+240m to20/10s at1000m and above;700m uses14.83/7.59s. Pause freezes age.
+`ResumeAge` seeds a new native activation from saved quest
 elapsed time. Active/Age/Envelope are readbacks. Init, teardown and render reset
 discard native state; an eligible restored quest explicitly reissues its descriptor.
 
 `MSG_SEA_WHIRLPOOL_CONTACT`50204 uses `"lae"`: character attributes and a float
 script-variable result. It returns this activation's cumulative fraction of maximum
-hull, at most0.5. The script applies only positive query deltas, preserves existing
-damage and guards, and caps saved total across native resets at0.5. The native
+hull, at most0.5, with an independent record per ship. The script queries every
+companion, applies only positive query deltas, preserves existing damage and
+guards, and caps each character's saved total across native resets at0.5. The native
 clock/sample integrates contact; no script impulse or independent radius damage
 may duplicate it. Full core exposure needs20 integrated seconds to reach the cap;
 onset, rim dwell and escape reduce damage. An ordinary collision remains owned
 by the existing collision/damage chain.
+
+`character.Ship.WhirlpoolControl` is a generic finite0–1 handling coefficient,
+default0. Full control removes inward trapping, additional yaw/tilt and native
+exposure, while retaining55% of the tangential water current. The boss rides the
+swirl and uses ordinary steering/propulsion; there is no native identity rule,
+teleport or hull-height override. Intermediate values blend continuously.
+Every ship, including full control, samples the same displaced water and ordinary
+buoyancy. Dead/fixed and storm-protection guards retain their existing owners.
+Spawning on the inner face and navigating outward rises along the funnel; the
+quest/combat owner controls the entrance and actual attack.
 
 ## Mechanism and verification
 
@@ -64,12 +79,19 @@ The short wave is about15m long at radius90m; it is actual geometry rather than
 fine normal-map or particle detail. Analytical slopes drive buoyancy and rendered normals. Height,
 flow and foam have zero boundary support. Radius scales physical dimensions
 continuously; intensity and the time envelope scale all consumers together.
+Depth, ridge amplitudes, current speeds and debris size use physical length
+`min(radius,180m)`: a1600m battle theater is not a448m deep hole with110m/s flow.
+Maximum full-strength centre depression is50.4m; sampled total current speed
+is12.81m/s. Pattern/normal/foam clocks use the same physical-length/radius ratio.
 Translation/yaw are temporary currents, never stored in propulsion/save state.
 Surface debris reuses the existing authored rect texture with a48-item event
 pool advected by the physical current; its draw uses a fixed stack buffer.
 Ordinary underwater trash has its separate existing lifecycle. Existing adaptive
 sea blocks refine only inside the active footprint, with spacing proportional
-to radius; the original vertex/index buffer limits remain authoritative.
+to radius; original65,500-vertex/165,000-triangle limits and block admission
+remain authoritative. There is no new fullscreen mesh or buffer expansion.
+Ordinary near-camera blocks keep their finer spacing. Actual fleet-scene timing
+remains required before a performance claim.
 
 Disposable header probes compare analytical slopes with independently sampled
 height differences after the fold correction: maximum error0.0003366 with3cm
@@ -83,6 +105,14 @@ Same-age contact queries, nonzero origin translation, identical start, resume at
 12s, three-second stop, Clear and invalid-coordinate rejection pass. Actual
 SEA/SHIP compilation passes; actual prediction/grounding and game checks remain
 player-owned.
+
+The sustained-field ASan/UBSan pass covers finite-difference slopes at700/1600m
+(maximum errors0.0001095/0.0000454), bounded50.4m height/12.81m/s current,
+600s descriptors,900s expiry, resume/pause, per-character cumulative cap and
+full-control zero radial velocity with55% preserved tangential current.
+Controlled and ordinary samples have exactly equal height/coarse slopes.
+Actual SEA/SHIP compilation and GPU/game checks are needed after this latest
+descriptor/control revision.
 
 At age12s/radius90m, angular height RMS at normalized radius0.50/0.65/0.78
 increases from0.716/0.933/0.741m to2.646/3.124/2.840m. The outer lip ranges

@@ -30,6 +30,7 @@ from contextlib import nullcontext
 
 PROJECT = Path(__file__).resolve().parents[1]
 UI_ASSETS = PROJECT / "src/assets/ui"
+CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
 # Portable input is a reviewed read-only baseline, never a second game runtime.
 INPUTS = PROJECT / "experiments/native-metal/inputs"
 if (INPUTS / "manifest.json").is_file():
@@ -169,27 +170,31 @@ def legacy_admission():
     return record["files"]
 
 
-def ui_asset_changes(target_root, state, managed=None, inputs=None):
-    manifest = UI_ASSETS / "manifest.json"
+def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None):
+    manifest = asset_root / "manifest.json"
     raw = manifest.read_bytes()
     record = json.loads(raw)
     if set(record) != {"version", "files"} or record["version"] != 1 or not isinstance(record["files"], dict):
-        raise RuntimeError("Invalid UI asset manifest")
+        raise RuntimeError(f"Invalid asset manifest: {manifest}")
     if inputs is not None:
         if manifest in inputs and inputs[manifest] != (raw, raw):
-            raise RuntimeError("Concurrent UI asset manifest; no files changed")
+            raise RuntimeError("Concurrent asset manifest; no files changed")
         inputs[manifest] = (raw, raw)
     changes = {}
     for name, spec in record["files"].items():
+        if claimed is not None:
+            if name in claimed:
+                raise RuntimeError("Asset manifests overlap; no files changed")
+            claimed.add(name)
         data = None
         for key, checksum in (("source", "source_sha256"), ("prepared", "sha256")):
-            path = gameplay_sources.safe_path(UI_ASSETS, Path(spec[key]))
+            path = gameplay_sources.safe_path(asset_root, Path(spec[key]))
             data = path.read_bytes()
             if digest(data) != spec[checksum]:
-                raise RuntimeError(f"Unreviewed UI asset: {name}")
+                raise RuntimeError(f"Unreviewed asset: {name}")
             if inputs is not None:
                 if path in inputs and inputs[path] != (data, data):
-                    raise RuntimeError("Concurrent UI asset input; no files changed")
+                    raise RuntimeError("Concurrent asset input; no files changed")
                 inputs[path] = (data, data)
         target = state.path(name)
         original = target.read_bytes() if target.exists() else None
@@ -214,7 +219,10 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     canonical = source_changes(target_root, source_set, state, managed)
     if paths is not None:
         return canonical
-    assets = ui_asset_changes(target_root, state, managed, inputs)
+    assets, asset_targets = {}, set()
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS):
+        changes = asset_changes(asset_root, state, managed, inputs, asset_targets)
+        assets.update(changes)
     living_caribbean.verify_fort_layout_assets(target_root)
     living_caribbean.verify_land_layout_assets(target_root)
     # Regenerated suite consumers come from exact-hash originals, not the
