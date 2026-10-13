@@ -265,7 +265,7 @@ struct Device : StubIDirect3DDevice9 {
  storm_metal::ShipFireSurfaceScope shipFireSurface;
  id<MTLLibrary> shipFireMaterialLibrary=nil;bool shipFireMaterialFailed=false,shipFireMaterialDraw=false,shipFireSceneClosed=false;
  std::string materialShaderSource;
- bool aimDirectPass=false;
+ bool aimDirectPass=false,riggingMaterialDraw=false;
  struct AimModelScope {storm::sea_ai::manual_aim::AimRenderedReceiver receiver{};storm_metal::AimReceiverStamp stamp{};bool open=false,rigging=false,attempted=false,captured=false,water=false;}aimModelScope;
  storm_metal::AmbientOcclusionComposite ambientOcclusion;bool ambientOcclusionLogged=false;storm_metal::VolumetricLightShafts lightShafts;std::vector<storm_metal::LightShaftOpening> lightShaftMeshes,lightShaftAuthored;bool lightShaftsEnabled=true;size_t loggedShaftApertures=~size_t(0);
  uint64_t telemetryFrame=0,rawLocationDraws=0,rawSkinnedDraws=0,rawWorldDraws=0,nativeUnlitDraws=0,nativeUnlitVertices=0,legacyUnlitCpuDraws=0,legacyUnlitCpuVertices=0;unsigned worldMapModelRole=0,telemetryReceiverDraws=0,telemetryCasterRejects=0,telemetryReceiverRejects=0;bool backdropAlphaTraced=false;uint64_t diagnosticTick=0;
@@ -951,7 +951,7 @@ auto*landTexture=boundTextures[0].flat;const bool inferredWorldCoverage=(landSha
 // objects. Caster capture remains conservative because alpha-tested geometry must
 // reproduce authored coverage; a completed prepass can relight every opaque FFP
 // partition, including untextured/lightmapped partitions and generated UV passes.
-const bool worldDraw=landShadow.collecting()&&target==back&&zbuffer==depth&&(fvf&D3DFVF_NORMAL)&&((fvf&D3DFVF_POSITION_MASK)==D3DFVF_XYZ)&&(landShadow.scope==1||landShadow.scope==2)&&rs[D3DRS_ZENABLE]&&(t==D3DPT_TRIANGLELIST||t==D3DPT_TRIANGLESTRIP||t==D3DPT_TRIANGLEFAN);
+const bool worldDraw=!riggingMaterialDraw&&landShadow.collecting()&&target==back&&zbuffer==depth&&(fvf&D3DFVF_NORMAL)&&((fvf&D3DFVF_POSITION_MASK)==D3DFVF_XYZ)&&(landShadow.scope==1||landShadow.scope==2)&&rs[D3DRS_ZENABLE]&&(t==D3DPT_TRIANGLELIST||t==D3DPT_TRIANGLESTRIP||t==D3DPT_TRIANGLEFAN);
 const bool blendedCharacterReceiver=landShadow.scope==2&&landShadow.locationLightingReady();
 const bool opaqueReceiver=rs[D3DRS_ZWRITEENABLE]&&!rs[D3DRS_ALPHABLENDENABLE];
 const bool receiverEligible=worldDraw&&landShadow.prepass.finished&&(blendedCharacterReceiver||opaqueReceiver);
@@ -1094,8 +1094,8 @@ const bool rawSeaLit=!landShadow.locationActive&&!dynamicDraw&&actualLighting&&b
 // in the shadow caster instead of dropping the whole ship from the registry.
 const bool seaShadowDepthCoverage=rs[D3DRS_ZWRITEENABLE]&&
  (!effectiveAlphaTest||(landTexture&&(alphaContract||!rs[D3DRS_ALPHABLENDENABLE])));
-const bool rawSeaShadow=rawSeaLit&&landShadow.enabled&&!landShadow.prepass.frame&&!landShadow.resolved&&target==back&&zbuffer==depth&&seaShadowDepthCoverage;
-const bool seaGeometryCandidate=!landShadow.locationActive&&!depthPass&&landShadow.enabled&&target==back&&zbuffer==depth&&
+const bool rawSeaShadow=!riggingMaterialDraw&&rawSeaLit&&landShadow.enabled&&!landShadow.prepass.frame&&!landShadow.resolved&&target==back&&zbuffer==depth&&seaShadowDepthCoverage;
+const bool seaGeometryCandidate=!riggingMaterialDraw&&!landShadow.locationActive&&!depthPass&&landShadow.enabled&&target==back&&zbuffer==depth&&
  (fvf&D3DFVF_NORMAL)&&((fvf&D3DFVF_POSITION_MASK)==D3DFVF_XYZ)&&
  (t==D3DPT_TRIANGLELIST||t==D3DPT_TRIANGLESTRIP||t==D3DPT_TRIANGLEFAN);
 if(seaGeometryCandidate){++seaGeometryCandidates;++seaCandidateScopes[std::min(landShadow.scope,2u)];if(rawSeaLit)++seaRawEligible;if(rawSeaShadow)++seaShadowEligible;
@@ -1129,7 +1129,7 @@ if(rawOutdoor||rawIndoor||rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWd
  RawLandUniform raw{};raw.m=u.m;raw.world=worldMatrix;raw.materialDiffuse=materialDiffuse;raw.materialAmbient=rawOutdoor?materialDiffuse:materialAmbient;raw.materialEmissive=materialEmissive;raw.materialSpecular=materialSpecular;raw.materialPower=material.Power;raw.sceneAmbient=sceneAmbient;std::copy(skyLight.begin(),skyLight.end(),raw.skyLight);raw.cameraPosition=cameraWorld;raw.cameraPosition.w=0.f;raw.cameraPosition.xyz=rs[D3DRS_LOCALVIEWER]?cameraWorld.xyz:infiniteViewer;raw.specularEnable=rs[D3DRS_SPECULARENABLE]!=FALSE;raw.localViewer=rs[D3DRS_LOCALVIEWER]!=FALSE;raw.stride=st;raw.normalOffset=12;raw.colorOffset=colorOffset;raw.specularOffset=specularOffset;raw.uvOffset=uvOffset;raw.uvCount=textureCoordinates;raw.hasColor=(fvf&D3DFVF_DIFFUSE)!=0;raw.hasSpecular=(fvf&D3DFVF_SPECULAR)!=0;raw.unlit=unlitRawModel;raw.diffuseFromColor=raw.unlit||(raw.hasColor&&rs[D3DRS_COLORVERTEX]&&rs[D3DRS_DIFFUSEMATERIALSOURCE]==D3DMCS_COLOR1);raw.ambientFromColor=authoredOutdoorAlbedo||(raw.hasColor&&rs[D3DRS_COLORVERTEX]&&rs[D3DRS_AMBIENTMATERIALSOURCE]==D3DMCS_COLOR1);raw.specularFromColor=raw.hasSpecular&&rs[D3DRS_COLORVERTEX]&&rs[D3DRS_SPECULARMATERIALSOURCE]==D3DMCS_COLOR2;raw.outdoorResponse=rawOutdoor||(rawSkinned&&outdoorLighting&&!authoredOutdoorAlbedo);raw.authoredAlpha=rawOutdoor;raw.worldMapLighting=rawWdmModel;
  for(unsigned li=0;li<8;li++)if(enabled[li]&&((rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWdmModel||rawOutdoor||rawIndoor)||li==0)){auto&light=lights[li];if(prepassLit&&li>0&&light.Type!=D3DLIGHT_DIRECTIONAL&&lightingScene.authoredCatalog())continue;if(prepassLit&&li==0&&light.Type==D3DLIGHT_DIRECTIONAL&&(landShadow.indoor||!landShadow.locationActive)&&!landShadow.prepass.sunValid)continue;raw.lightMask|=1u<<li;const bool catalogPoint=modernLit&&lightingScene.authoredCatalog()&&light.Type==D3DLIGHT_POINT;raw.lightDiffuse[li]=catalogPoint?simd_make_float4(0):lightDiffuse[li];raw.lightAmbient[li]=catalogPoint?simd_make_float4(0):lightAmbient[li];raw.lightSpecular[li]=catalogPoint?simd_make_float4(0):lightSpecular[li];if(light.Type==D3DLIGHT_DIRECTIONAL){raw.directionalMask|=1u<<li;raw.lightDirection[li]={light.Direction.x,light.Direction.y,light.Direction.z,0};}else{raw.lightPositionRange[li]={light.Position.x,light.Position.y,light.Position.z,light.Range};raw.lightAttenuation[li]={light.Attenuation0,light.Attenuation1,light.Attenuation2,0};if(light.Type==D3DLIGHT_SPOT){raw.spotMask|=1u<<li;raw.lightDirection[li]={light.Direction.x,light.Direction.y,light.Direction.z,0};raw.lightSpot[li]={light.Theta,light.Phi,light.Falloff,0};}}}
 if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnapshot();raw.lightMask|=1u;raw.directionalMask|=1u;raw.lightDiffuse[0]=sun.diffuse*solarGain;raw.lightAmbient[0]=sun.ambient;raw.lightDirection[0]=simd_make_float4(sun.direction,0.f);}
- const bool captureRawShadow=rs[D3DRS_ZWRITEENABLE]&&(offscreenPointCasterDepth||rawSeaShadow||(traversalCapture&&(rawWorld||rawDynamicSail||rawSkinned))||(landShadow.locationActive&&prepassLit&&(rawOutdoor||rawIndoor||rawSkinned)));
+ const bool captureRawShadow=!riggingMaterialDraw&&rs[D3DRS_ZWRITEENABLE]&&(offscreenPointCasterDepth||rawSeaShadow||(traversalCapture&&(rawWorld||rawDynamicSail||rawSkinned))||(landShadow.locationActive&&prepassLit&&(rawOutdoor||rawIndoor||rawSkinned)));
 // Do not walk the index stream when neither light admission nor registry
  // capture consumes the bounds. Keep baseline mode identical to the old path.
  const bool needRawBounds=!backendOptimizationEnabled||lightingScene.authoredCatalog()||captureRawShadow;
@@ -1368,6 +1368,7 @@ extern "C" void StormMetalEndAimWater(void*pointer){if(pointer)static_cast<Devic
 extern "C" void StormMetalSetAimRenderedReceivers(void*pointer,const storm::sea_ai::manual_aim::AimRenderedReceiver*receivers,uint32_t count){if(pointer){auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));d->aimModelScope={};d->aimVolume.setReceivers(receivers,count);}}
 extern "C" bool StormMetalBeginAimModel(void*pointer,uint64_t modelId){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginAimModel(modelId);}
 extern "C" bool StormMetalBeginAimRigging(void*pointer,uint64_t modelId){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginAimModel(modelId,true);}
+extern "C" bool StormMetalSetRiggingDraw(void*pointer,bool active){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));const bool previous=d->riggingMaterialDraw;d->riggingMaterialDraw=active;return previous;}
 extern "C" void StormMetalEndAimModel(void*pointer){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->endAimModel();}
 extern "C" bool StormMetalDrawAimVolume(void*pointer,const storm::sea_ai::manual_aim::AimVolumeSection*sections,uint32_t sectionCount,
     const storm::sea_ai::manual_aim::AimVolumePlane*planes,uint32_t planeCount,

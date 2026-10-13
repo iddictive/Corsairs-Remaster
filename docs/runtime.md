@@ -4,6 +4,43 @@ Last verified: October13. The living-ship damage batch is installed through cano
 
 ## Current verdict
 
+### October13 — directional rigging lighting; source candidate
+
+The noon deck screenshot shows bright ratlines beside a dark mast and crew.
+Rope/Vant/Flag had no vertex normals, so their outdoor fallback assigned every
+face upward sky and solar energy. The source candidate adds geometry normals
+and uses the existing raw fixed-function lighting decoder. Animated ropes,
+moving vants and cloth folds update normals in their current vertex writers.
+Scoped neutral material prevents inherited emissive/specular state; a dedicated
+producer role preserves prior no-caster participation, ordinary hull admission
+and aim behavior. `ship/Flag.fx` joins exact predecessor resource admission.
+
+The scoped patch roundtrip, CPU geometry, material restoration and unchanged
+alpha/fade/depth/unlit-recipe checks pass. Full build/GPU and the matching
+installed deck replay are unresolved. No app input, launch, stop or staging is
+performed for this candidate; installed signed2bec remains the player runtime.
+See `metal-normal-less-surfaces.md` for the mechanism and remaining acceptance.
+
+The first integrated canonical build rejected the rope include context before
+compilation: the isolated patch baseline incorrectly retained a later fire
+header. Cache/app bytes remained unchanged. The corrected candidate is generated
+at its recorded insertion point and passes the full current 92-patch stack and
+its complete reverse/forward roundtrip in a task-local copy. Native compilation
+and installed replay remain unresolved until the shared build owner retries it.
+
+The canonical retry applied all 92 patches (15 changed source files), then
+compilation rejected the helper's `Vector`/`CVECTOR` mismatch. The source cache
+is migrated; engine/app bytes remain unchanged. The helper now uses real
+`CVECTOR`, the corrected geometry fixture passes, and Rope/Flag/Vant actual
+translation-unit syntax checks pass with current Ninja flags (1.12/0.85/0.79s).
+The shared build owner's next canonical retry returns 0: 64 remaining native
+steps compile/link in 24.35s with two compiler workers, all frozen inputs
+unchanged. The corrected normal patch is
+`bedbf142987e54216b777ea5d034fcc378150d04e49f901c71940fe784dfd83f`;
+typed helper is `57a44a0db44b4bc03eee60dbcde58b02cc253d6de64ca37a8eedf20b3e154fcd`.
+The installed signed2bec and its running process remain untouched. No staging,
+GPU or player-scene acceptance is inferred from the compiler/link result.
+
 ### October13 — subsequent water-composite fog correction; source only
 
 The separate fog owner delivered a27-insertion/10-deletion candidate in
