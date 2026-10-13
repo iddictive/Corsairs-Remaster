@@ -1,8 +1,57 @@
 # Runtime state
 
-Last verified: October12. Canonical staging installs signed engine `1763605379170486f369e1cc36fbf80fffcccb08d37e3c3fd8ef9db0f5820b18` into the supported player app. Current batch adds Great Recipe, a physical rough sea whirlpool, shared night-shadow preparation and safe pushable wreck contact. Native/component/script delivery checks pass; complete scene/FPS/gameplay replay stays player-owned. All249 snapshotted SAVE, userdata and configuration files are unchanged. The October11 archive and public case are historical delivery evidence; future cloud upload remains player-owned. No task launches or operates the game.
+Last verified: October12. The installed signed engine remains `1763605379170486f369e1cc36fbf80fffcccb08d37e3c3fd8ef9db0f5820b18`; the player rejected its first Great Recipe battle and reports low night-city/global-map FPS and moving-lamp shadow jitter. The corrective source batch is active and is not installed yet. The earlier249-file preservation receipt belongs to that earlier delivery; a fresh snapshot is required for the next stage. No task launches or operates the game.
 
 ## Current verdict
+
+### October12 — player rejection reopens battle, dialogue and performance acceptance
+
+The player observed a small solo vortex, no convincing boss emergence, immediate
+capture after firing, little battle and a dialogue crash. Source inspection
+confirms the old eight-second scripted loss and forced companion destruction;
+that behavior does not meet a playable battle contract. The supplied crash lands
+in DIALOG::AttributeChanged after parent access. The old quest dialogue bound
+Dialog.Links before deleting it; the corrected ordering follows the stock
+delete-before-bind owner. The report does not establish any other crash cause.
+
+The requested replacement admits the whole fleet to a sustained large vortex,
+lets an agile heavily armored class2–3 Red Beard fight exclusively with shrapnel
+bombs, and permits a genuine early victory. The final balance target is one boss
+defeating three ordinary manowars. Captivity stays aboard ship, with richer
+investigation, fights and character dialogue; the journal provides clear goals.
+RedBeard receives an independent Hugtorp-derived model/texture with long red hair,
+a head-weighted beard shell and one blind eye. A recoverable real barrel, unique
+red pearl, Laki handoff and seven-day Bermuda production gate replace free bulk
+bomb rewards. Daily production is20–30 with a hard stock cap200. Offshore global
+map appearances must use the same admitted dates and encounter state.
+
+The night/global-map investigation captured an active two-second sample with
+493/914 main-thread samples inside CAMetalLayer nextDrawable. The earlier
+inactive sample is rejected as FPS evidence. Source proves that the renderer
+requests immediate presentation when vsync=0, while the Metal layer retained
+its default display synchronization. Constructor and Reset now honor the same
+presentation interval. A real hidden Metal device probe fails before the edit
+and passes after it: immediate0, interval-one1, immediate0, default1; invalid
+Reset preserves the preceding valid interval. This proves presentation behavior,
+not a city or map FPS gain. The lamp patch separately repairs persistent light
+identity through deletion, compaction and reset; actual-method probes pass.
+
+The full canonical native build consumes the revised lamp and large-vortex
+patch stack with six changed native source files and succeeds. Script/asset
+integration and canonical stage-only remain pending. Disposition: source/native
+components accepted; corrected delivery and all changed player scenes unresolved.
+
+The subsequent exact-WORLD repair also builds through the canonical stack.
+Before/after actual-Metal fractional-camera replay reduces redundant cube
+refreshes6→0 while baseline, camera-return and moved-geometry4096-pixel outputs
+remain byte-identical. Physical movement and caster removal still invalidate.
+The exported counter counts complete cubes, despite the temporary fixture's
+misleading extraCubeFaces label. This is component quality/reuse evidence,
+not an installed-city FPS verdict. The R900/duration600 actual sea shader
+component shows62132 active and61294 age-changing pixels with Clear identity;
+its textures/waves remain diagnostic approximations. RedBeard's actual GM/TX
+uploads and three115-bone GPU component poses pass; stock man animations,
+dialogue/spyglass portraits and player fights remain unreplayed.
 
 ### October12 — Great Recipe and rough native vortex installed; player replay pending
 

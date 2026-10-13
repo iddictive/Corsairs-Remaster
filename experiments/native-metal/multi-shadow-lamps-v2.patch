@@ -7,6 +7,14 @@
 +#include "metal_shadow_selection.hpp"
 +#endif
 
+@@ -58,4 +61,7 @@
+         int32_t type; // Source type index
+         uint8_t intensity;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        uint64_t metalLightId=0;
++#endif
+     };
+
 @@ -130,6 +130,9 @@
      void UnsetLights();
  #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
@@ -17,11 +25,12 @@
      void PublishMetalSceneLights();
  #endif
 
-@@ -172,3 +175,7 @@
+@@ -172,3 +178,8 @@
      } lt[8];
 
 +#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 +    metal_shadow::Selector metalShadowSelector;
++    uint64_t nextMetalLightId=1;
 +#endif
 +
      // Types of light sources
@@ -38,6 +47,13 @@
  #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
  extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
  extern "C" void StormMetalBeginSceneLights(void*);
+@@ -424,3 +427,6 @@
+     lights[numLights].intensity = 0;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    lights[numLights].metalLightId=nextMetalLightId++;
++#endif
+
+     // Send a message to the lighter
 @@ -446,6 +449,9 @@
  void Lights::DelAllLights()
  {
@@ -48,7 +64,18 @@
      numLights = 0;
  }
 
-@@ -502,6 +510,48 @@
+@@ -497,14 +506,59 @@
+         if (aMovingLight[n].id == id)
+         {
++            const auto removedIndex=aMovingLight[n].light;
+             numLights--;
+             for (auto i = aMovingLight[n].light; i < numLights; i++)
+                 lights[i] = lights[i + 1];
+             aMovingLight.erase(aMovingLight.begin() + n);
++            for (auto& source:aMovingLight)
++                if (source.light>removedIndex) --source.light;
+             return;
+         }
  }
  
  #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
@@ -75,7 +102,7 @@
 +        const float position[]={source.pos.x,source.pos.y,source.pos.z};
 +        if(!metal_shadow::overlapsView(planes,position,type.dxLight.Range))continue;
 +        auto light=type.dxLight; light.Position=source.pos; light.Diffuse=source.color;
-+        candidates.push_back({distanceSquared,uint64_t(index)+1,light});
++        candidates.push_back({distanceSquared,source.metalLightId,light});
 +    }
 +    const auto candidateFor=[&](uint64_t id)->const Candidate*{
 +        const auto it=std::find_if(candidates.begin(),candidates.end(),[&](const Candidate& candidate){return candidate.id==id;});
@@ -97,6 +124,16 @@
  void Lights::PublishMetalSceneLights()
  {
      // One source-owned catalog for the whole frame. Camera/player selection of
+@@ -550,3 +598,3 @@
+         if(light.Diffuse.r<=0 && light.Diffuse.g<=0 && light.Diffuse.b<=0)continue;
+-        if(!StormMetalSceneLight(rs->GetD3DDevice(),uint64_t(index)+1,&light))break;
++        if(!StormMetalSceneLight(rs->GetD3DDevice(),source.metalLightId,&light))break;
+     }
+@@ -625,3 +673,3 @@
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+-        StormMetalSetLightIdentity(rs->GetD3DDevice(), d3d_light_index, uint64_t(*i) + 1);
++        StormMetalSetLightIdentity(rs->GetD3DDevice(), d3d_light_index, lights[*i].metalLightId);
+ #endif
 --- a/src/libs/location/src/location.cpp
 +++ b/src/libs/location/src/location.cpp
 @@ -86,11 +87,17 @@
