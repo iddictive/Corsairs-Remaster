@@ -1,8 +1,33 @@
 # Runtime state
 
-Last verified: October12. The installed signed engine remains `1763605379170486f369e1cc36fbf80fffcccb08d37e3c3fd8ef9db0f5820b18`; the player rejected its first Great Recipe battle and reports low night-city/global-map FPS and moving-lamp shadow jitter. The corrective source batch is active and is not installed yet. The earlier249-file preservation receipt belongs to that earlier delivery; a fresh snapshot is required for the next stage. No task launches or operates the game.
+Last verified: October13. Corrective batch `8bacecb` and performance commits `33fc67e`, `7bf988e`, `e847b26` are delivered through the canonical stage-only path. Installed signed engine: `d8cbdc916ca5549fb6ac5c3749258d9fa34babd4749604d9dae9efda82d03f1f`. The current game scenes and FPS remain unaccepted until player replay. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — corrective quest and performance batch installed; player replay unresolved
+
+`experiments/native-metal/run.sh --stage-only` completes after the frozen source
+batch. Its canonical build recompiles the Metal backend and links the engine;
+the composed patch stack is verified. Gameplay delivery applies29 reviewed
+paths, including the four quest/dialogue scripts and five RedBeard model,
+texture and portrait assets. Both cache and installed app report0 pending
+gameplay files and compiler ready. The transaction signs and verifies the app
+with strict/deep checks; the prior signed engine is retained for rollback.
+Installed managed `messages.h` and `sea_ai/script_defines.h` match the built
+owners. An isolated copy of the installed PROGRAM compiles the complete shared
+chain plus six dialogue/interface segments with0 VM errors.
+
+A fresh pre-stage hash snapshot of246 SAVE/userdata and named configuration
+files matches after delivery. It is distinct from the older249-file receipt.
+The installed executable hash is
+`d8cbdc916ca5549fb6ac5c3749258d9fa34babd4749604d9dae9efda82d03f1f`.
+Disposition: corrective source, component checks and exact installed delivery
+accepted; startup, whole-fleet vortex battle, solo1-vs-3 balance, both boarding
+paths, captivity/ordinary endings, earned royal ending and main-plot coexistence
+remain player-owned replays. Night-city/global-map FPS and moving-lamp shadow
+stability also remain actual-scene measurements; no numeric gain is claimed.
+The repository context check still reports the pre-existing missing environment
+project-context action; no unrelated environment change is included.
 
 ### October12 — player rejection reopens battle, dialogue and performance acceptance
 

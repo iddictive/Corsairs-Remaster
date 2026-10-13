@@ -4,10 +4,12 @@
 
 October 12, 2026: the earlier90m/24s field was installed and passed native/Metal
 component checks, but the player rejects the solo, small, short scene. The
-sustained fleet-theater revision is a source candidate: ASan/UBSan field/control
-checks pass at90/700/1600m and the complete seven-section patch parses.
-Canonical rebuild, large-field GPU/game readback and whole-fleet combat replay
-remain integration-owned checks. Source or component checks do not accept the
+sustained fleet-theater revision is delivered on October13 in batch `8bacecb`:
+ASan/UBSan field/control checks pass at90/700/1600m, the complete seven-section
+patch is consumed by the canonical build/stage, and the R900/duration600 actual
+water/foam GPU component passes motion and Clear identity. Diagnostic textures
+and approximate waves do not accept the whole-fleet battle; real-scene appearance
+and combat remain player-owned replays. Source or component checks do not accept the
 battle in the player save. The prior local-field receipts below retain their
 original scope.
 

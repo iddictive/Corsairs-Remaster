@@ -2,8 +2,9 @@
 
 ## Status
 
-October 13, 2026: source-only optional module. The root task owns integration
-into `patch_great_recipe.py`, compilation, staging and installed-app replay.
+October 13, 2026: optional module integrated and canonically staged in batch
+`8bacecb`; the installed PROGRAM compiles. The player owns accepting the actual
+boarding, political dialogue, residence and authored-story scenes.
 No source inspection or VM result accepts this ending in the player runtime.
 
 The integrated source/state probe and two native SAVE-codec rounds pass.
