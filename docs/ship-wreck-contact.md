@@ -3,8 +3,18 @@
 ## Status
 
 October 12, 2026: original repeated-contact defect reproduced; final safe-contact,
-mass/persistence probes and native CMake compiler syntax checks pass. Canonical build, installed
-delivery and player battle replay remain pending with the batch integration owner.
+mass/persistence probes and native CMake compiler syntax checks pass. Canonical
+`run.sh --stage-only` succeeded after the final ordered integration; the signed
+player app contains the correction. Original battle and real save-file replay
+remain unresolved; no game was launched.
+
+Installed engine SHA-256:
+`1763605379170486f369e1cc36fbf80fffcccb08d37e3c3fd8ef9db0f5820b18`.
+The consumed wreck patch is
+`bf6f673f65b8914700058d405790db667ce61b9b0cac21dfaf55d4fbf0336ccd`.
+The installed binary exports `SHIP::ApplyWreckContact`; all 249 snapshotted
+player SAVE/userdata/config files were preserved by the delivery owner. The
+canonical receipt and current combined batch belong to `docs/runtime.md`.
 
 ## Contract
 
