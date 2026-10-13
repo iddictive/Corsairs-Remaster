@@ -6,10 +6,16 @@ October 13 fire source candidate passed current compiler/component checks and
 the corrected offscreen prototype replay. The first representation was rejected
 for repeated cones/stipple, and its demo cloth was corrected for twisted corners.
 The canonical native build/stage consumes those inputs and the installed receipt
-matches them. Later requested hull chips/holes and measured sail capacity belong
-to the next delivery batch. The installed Metal app remains the accepting runtime;
+matches them. The living-ship batch `f664c28` also installs hull chips/holes,
+measured sail capacity and exact near-hull ignition. The installed Metal app remains the accepting runtime;
 no installed visual, fleet performance or battle-balance acceptance is claimed yet.
 Existing models and their assets remain unchanged.
+
+The player subsequently reports ocean visible through hull openings and a weak
+ship-of-the-line fire at game speed x8, explicitly on another liner rather than
+Beard. These reopen visual and gameplay
+acceptance independently; the installed engine remains signed2bec until a later
+activation. No game control or replacement of the player's SAVE is authorized.
 
 ## Player outcome
 
@@ -86,7 +92,7 @@ native binary SAVE layout. Old saves without it admit a cold/default state or
 their active legacy fire once. Pause, load, boarding, death and removal cannot
 duplicate updates or leave an emitter/surface scope alive.
 
-## Next damage integration
+## Damage integration
 
 Measured sail capacity and the paired cumulative-hole adapter are documented in
 [sail-capacity.md](sail-capacity.md). Activation includes the repository model
@@ -215,7 +221,7 @@ serializer fixtures. Normal old-active-fire migration and new-fire save/load,
 burning cloth/hole/repair, installed bomb balance, complete visual lifecycle
 and multi-ship GPU performance still require the consuming runtime.
 
-## Next batch: progressive holes and chipped hull
+## Progressive holes and chipped hull
 
 The player subsequently requested small fragments at shell impacts and lasting
 holes in the hull, plus explicit gradual cloth burn-through into holes with
@@ -240,5 +246,58 @@ ship and camera move. Unhit nearby wood/cloth, depth/reflection consumers and
 frame cost are the nearest negatives. The native geometry, damage-admission,
 capacity and near-hull ignition changes are integrated into the next source
 batch after the preceding transaction released its owners. The combined native
-build and full prepared PROGRAM compile pass. Installation and the accepting
-player scenarios remain unresolved.
+build and full prepared PROGRAM compile pass. That batch is installed through
+canonical stage-only; the accepting player scenarios remain unresolved.
+
+### Ocean seen beyond the opposite hull
+
+The player explicitly distinguishes ocean beyond the vessel from a horizontal
+water surface inside it. Installed FrigateQueen1 and WarShip1 GM receivers have
+outward-facing exterior shells without an inner lining at the inspected rays.
+The old CCW culling removes the opposite wall viewed through a genuine cut.
+
+The source correction in `ship-hull-damage.patch` scopes two-sided drawing to
+the complete damaged GEOM node, including its untouched material objects.
+The geometry service applies NONE after each named technique pass publishes
+state, then restores prior native culling; GEOM restores the prior service scope.
+It adds no vertices, primitives or submissions, and preserves the real opening.
+Repair and an undamaged instance retain their prior path. Current native syntax,
+exact patch replay, actual-Frigate cut/far-wall and CPU draw-state checks pass.
+The tested replacement topology remains byte-identical (16242 triangles,
+26186 vertices, one draw); additional GPU rasterization and installed appearance
+remain unmeasured. This correction does not exclude sea inside a hollow hull or
+establish physically correct inward lighting; those are different mechanisms.
+The integrated canonical native build passes; installed replay remains pending.
+
+### Reopened weak-fire report and keyed state
+
+At x8 the core scales Execute delta before the existing0.25game-second thermal
+steps; this path does not bypass accelerated time. A controlled CPU replay uses
+the same .76 ignition, dry wind and300game seconds on each geometry. With86%
+staffing and repair .51, both Manowar and Battleship extinguish the single site.
+At17.5% staffing and repair .14, Manowar spreads after46.75seconds and reaches
+five active sites; Battleship spreads after57.5seconds and reaches ten. Raw hull
+loss is2.36% and3.52%, and crew loss1.49 and2.68, before real damage defences.
+This proves the suppression/transport mechanism for those inputs; it does not
+identify the player's observed target or accept battle balance. Constants stay
+unchanged until target/state and installed exposure can be observed.
+
+The persistence writer had a separate confirmed defect. Native
+`ATTRIBUTES::CreateAttribute` appends, so every checkpoint created new hull/cloth
+snapshots and duplicate mast nodes. Live SAIL lookups and direct SHIP remount
+read the first stale branch. Full script SAVE decoding already merges duplicate
+names through `SetAttribute`, so raw-file duplication alone does not prove loss
+after the ordinary full load.
+
+The source correction in `ship-damage-admission.patch` uses native
+`VerifyAttributeClass` for updates. Initialization imports all historical keyed
+records in insertion order, preserves the newest value per key and detached
+records, then rebuilds the two owned trees once. Pending damage, clocks and the
+existing schema/version remain intact. Real ATTRIBUTES/STRING_CODEC and the
+actual native attribute codec replace the former upsert mock:736 prior-state
+cases, the archived duplicated states,100 bounded checkpoints, repair/orphan
+negatives and two codec rounds pass under ASan/UBSan. SHIP syntax and the
+integrated canonical native build pass.
+Live flames multiply native intensity; char-only state cannot sustain a flame,
+and the macro disables independent legacy flame particles. Installed fire
+damage, complete OnLoad and matching CPU/FPS remain unresolved.

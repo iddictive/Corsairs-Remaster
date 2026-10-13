@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+metal_build_jobs=${CORSAIRS_METAL_BUILD_JOBS:-2}
+if [[ ! "$metal_build_jobs" =~ ^[1-9][0-9]*$ ]]; then
+ echo 'CORSAIRS_METAL_BUILD_JOBS must be a positive integer.' >&2
+ exit 2
+fi
 root=$(cd "$(dirname "$0")" && pwd)
 native=$(cd "$root/../native-storm" && pwd)
 inputs="$root/inputs"
@@ -166,7 +171,7 @@ PY
  exit 1
 }
 # Normal staging needs the engine only; diagnostic probes remain explicit CMake targets.
-cmake --build "$root/.cache/build" --target engine -j 10 > "$root/.cache/build.log" 2>&1 || {
+cmake --build "$root/.cache/build" --target engine -j "$metal_build_jobs" > "$root/.cache/build.log" 2>&1 || {
  rg 'error:|FAILED:|undefined|Undefined|ld:' "$root/.cache/build.log" >&2 || true
  exit 1
 }

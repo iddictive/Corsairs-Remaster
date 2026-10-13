@@ -23,6 +23,27 @@ The October13 target-center and exact plane-query preparation successor is
 canonically installed. The player's manual-hit and aiming-FPS checks are deferred;
 the previous FPS26 ship view is not accepted by CPU query timing alone.
 
+The later October13 player screenshot reports34FPS while aiming at a ship.
+The first new CPU capture is rejected because the main thread was sleeping.
+A subsequent foreground capture of the same installed2bec engine has1234
+main-thread samples,191 under the aiming camera (15.5%); sorting stopped-path
+contours and preparing their intersections are visible costs. This capture
+does not bind the player's screenshot to a target-versus-water comparison.
+Whole-scene render submission, sea work and GPU waits remain present.
+
+The source successor prepares the existing `PlaneQuery` once per stopped path
+for the current overlay, consumes roots without temporary vectors, and moves
+the discarded input contour into `hull`. There is no cross-frame cache or
+sampling/receiver/launch-law reduction. A temporary native comparison preserves
+512360 roots and interval occupancy exactly across500 varied scenarios.
+Its query-only component changes from125.6 to28.5microseconds at52 guns and
+207.4 to47.2microseconds at108 guns, including32 support paths and65 stations;
+these savings do not establish a scene FPS fix. Ordered predecessor reversal,
+successor application and the current native compiler's syntax check pass.
+The canonical native build passes with two compiler workers. Activation and
+matched installed FPS remain pending under the player's explicit stop on agent
+game control; the later process exit does not authorize another game launch.
+
 The player has reopened the airborne volume: its bright vertical column is
 rejected while revision12's surface footprint remains accepted. The current
 source candidate fits air to the same launch moments as the solid drape and

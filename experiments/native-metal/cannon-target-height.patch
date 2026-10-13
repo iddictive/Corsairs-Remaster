@@ -119,3 +119,57 @@
                  continue;
              if (fMaxFireDistance - fFireDist < fZapasDistance)
                  continue;
+@@ -1604,6 +1604,10 @@
+     }
+     if(contactSections.empty())return;
+     const CVECTOR up=!(axis^lateral);
++    std::vector<manual_aim::PlaneQuery> pathQueries;
++    pathQueries.reserve(paths.size());
++    for(const auto &path:paths)
++        pathQueries.emplace_back(path.curve,axis,path.end);
+     std::vector<float> stations;
+     float first=1e20f,last=-1e20f,mouthEnd=-1e20f;
+     for(const auto &path:paths)
+@@ -1635,17 +1639,18 @@
+         // gun by its own impact time would flatten distant and nearby hits into
+         // one fake end plane and reintroduce the crossed-sheet artifact.
+         CVECTOR center(0.f);std::vector<CVECTOR> points;
+-        for(const auto &path:paths)
+-        {
++        for(size_t pathIndex=0;pathIndex<paths.size();++pathIndex)
++        {
++            const auto &path=paths[pathIndex];
+             if(std::fabs(station-(path.curve.origin|axis))<.005f)
+             {points.push_back(path.curve.origin);center+=path.curve.origin;}
+             if(std::fabs(station-(path.hit.point|axis))<.005f)
+             {points.push_back(path.hit.point);center+=path.hit.point;}
+-            for(float t:manual_aim::planeTimes(path.curve,axis,station,path.end))
++            pathQueries[pathIndex].forEach(station,[&](float t)
+             {
+                 const CVECTOR point=path.curve.at(t);
+                 points.push_back(point);center+=point;
+-            }
++            });
+         }
+         if(points.empty())continue;
+         center*=1.f/points.size();
+@@ -1660,7 +1665,7 @@
+             const float pad=.08f*(1.f-u);
+             for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
+         }
+-        auto stoppedHull=manual_aim::hull(plane);
++        auto stoppedHull=manual_aim::hull(std::move(plane));
+         // The mouth still spans every eligible muzzle, including rare locators
+         // outside the aggregate main-density contour. Near-gun alpha is weak.
+         if(station<=mouthEnd+.005f)
+@@ -1747,8 +1752,8 @@
+             if(section.hull.size()<3||sections[i+1].hull.size()<3)
+             {densitySections.push_back(record);continue;}
+             const float midpoint=(section.station+sections[i+1].station)*.5f;
+-            const bool occupied=std::any_of(paths.begin(),paths.end(),[&](const AimPath &path)
+-            {return !manual_aim::planeTimes(path.curve,axis,midpoint,path.end).empty();});
++            const bool occupied=std::any_of(pathQueries.begin(),pathQueries.end(),[&](const manual_aim::PlaneQuery &query)
++            {bool crossed=false;query.forEach(midpoint,[&](float){crossed=true;});return crossed;});
+             // Zero planes explicitly mean zero density, never an unbounded slab.
+             // Keep empty intervals empty even when no regular station fell in them.
+             if(!occupied){densitySections.push_back(record);continue;}

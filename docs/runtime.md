@@ -1,8 +1,54 @@
 # Runtime state
 
-Last verified: October13. The living-ship damage batch is installed through canonical stage-only from `f664c28`. Signed engine: `2becdd6995703d71db16276a6233a224ca661a6980cfd550fd3de65d3e1a952e`. Its163 ownership rows match and249 player-state hashes are unchanged. The installed app opens its menu on an isolated copy of player state; changed battle behavior and matched CPU/thermal/FPS remain unresolved. The last player-approved global-map120 FPS observation belongs to the preceding installation. Full quest and city/night replay remain pending; manual-hit and aiming checks are player-deferred. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. The living-ship damage batch remains installed from `f664c28`, signed engine `2becdd6995703d71db16276a6233a224ca661a6980cfd550fd3de65d3e1a952e`. The subsequent source batch builds successfully, but is not activated. The player has played the isolated state copy and reopened aiming FPS, hull openings and weak liner-fire acceptance. New SAVE progress is hash-verified in the private player archive; original SAVE is not replaced. Agent game control remains explicitly stopped, and the former PID7512 has subsequently exited. Full quest and city/night replay remain pending. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — reopened battle defects; compiled successor, activation pending
+
+The player reports34FPS while aiming at a ship, ocean visible beyond the
+opposite hull through real openings, and negligible fire damage/spread/crew loss
+at x8 on another liner rather than Beard. These reports reopen their individual
+acceptance; neither the earlier menu nor component probes close them.
+
+The source correction prepares existing aiming plane queries once per current
+stopped path and consumes roots without temporary vectors. Exact roots and
+occupancy match the predecessor; measured query-only cost falls substantially.
+A foreground CPU sample has191 aiming-camera samples out of1234, but it is not
+a matched ship-versus-water or GPU/FPS comparison. Whole-frame FPS is unresolved.
+Damaged geometry draws its opposite exterior wall two-sided, restoring technique
+and service state without added geometry or submissions. Its actual GM ray and
+draw-state probes pass; installed hull appearance and rasterization cost remain
+unresolved. See `sea-aim-overlay.md` and `ship-fire-and-damage.md`.
+
+Real native attribute creation appends duplicate fire-state branches. The new
+writer updates keyed branches; initialization imports the newest historical
+records and canonicalizes only the owned trees. Real attribute/codec probes
+pass, including archived duplicates, bounded checkpoints and old-state negatives.
+Ordinary full SAVE decoding already merges names, so this defect does not prove
+the reported weak fire's cause. The x8 thermal path advances game time; target
+suppression, actual ignition and crew-damage integration remain under investigation.
+
+The integrated canonical build first rejects the rigging patch's insertion
+context before compilation, then rejects a `Vector`/`CVECTOR` mismatch after
+source preparation. Both attempts are rejected; the last intact installed
+engine is preserved. After the rigging owner supplies its corrected patch and
+typed helper, canonical `build.sh` returns0:64 remaining native steps compile
+and link in24.35s with two workers and unchanged frozen inputs. Unsigned engine:
+`3b807fe45351922e382d188a23a34aead2e951613114ae27410829c9a9682270`.
+The normal source checkpoint is `4a027cd`; the fire/aim/hull corrections remain
+a subsequent candidate until their focused checkpoint. This accepts compilation,
+not installed visuals, damage balance or FPS. The build now defaults to two
+compiler workers through its existing CMake/Ninja owner; invalid overrides fail
+before preparation. Sampled process-group RSS does not include every compiler.
+
+The249-file original player manifest is unchanged. The user played the supported
+isolated `CORSAIRS_USER_DIR` copy; its251-file snapshot, including the changed
+Autosave, is hash-verified under the existing private player archive. A later
+readonly comparison finds no newer SAVE change. The actual engine process has
+exited without agent input or termination. No app launch or stage-only occurs
+after the explicit stop on game control. Disposition: compiled source accepted;
+activation, matched FPS, hull view and ordinary-liner fire balance unresolved.
 
 ### October13 — directional rigging lighting; source candidate
 
@@ -78,13 +124,13 @@ menu on a249-file clone. Menu animation and a125FPS counter are visible;
 neither proves battle performance. Keyboard input through computer use returns
 `frontmostApplicationChanged`; coordinate input also returns
 `noWindowsAvailable`. Window AX selection succeeds but does not resolve the
-keyboard precondition. The pending request asks the player to foreground this
-owned test window before continuing scene control. No actual saved scene or
-dense-battle measurement has passed. The derived blanket no-launch statement
-is superseded by the active human request for a demo and matched performance
-verification; unrelated quest walkthrough acceptance remains player-owned.
+keyboard precondition. The player declines foreground/control with an explicit
+stop, superseding the earlier demo-control request. The player subsequently
+plays the isolated copy and reports the battle defects above; its new Autosave
+is preserved. No matched dense-battle measurement has passed. Unrelated quest
+walkthrough acceptance remains player-owned.
 
-The next batch integrates authored-cloth sail capacity, committed-hole damage
+This installed batch integrates authored-cloth sail capacity, committed-hole damage
 admission, stable saved thermal cells, actual hull perforations and bounded
 chips, plus the exact-hull witness for near-airburst ignition. Existing critical
 ignition remains one50% roll; ordinary bombs and admitted explosions within2m

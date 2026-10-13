@@ -23,6 +23,13 @@ Editable existing files are limited to PROGRAM .c/.h, RESOURCE/INI .ini and
 RESOURCE/techniques .fx. SAVE, userdata, root configuration, shared message
 headers, artwork and native binaries are outside content synchronization.
 
+Native changes use `experiments/native-metal/build.sh`; its default is two
+compiler workers so an interactive game retains CPU capacity. The existing
+CMake/Ninja parallelism owner accepts `CORSAIRS_METAL_BUILD_JOBS` as a positive
+integer override (for example1 for the lowest concurrent build load). Invalid
+values fail before source preparation or configuration. This controls compilation,
+not the game's simulation or renderer; build success does not activate the app.
+
 Canonical staging also admits the six exact UI texture destinations declared in
 `tools/delivery_state.py`: mast repair, fire mode, raking fire, goods, command and navigator icons.
 The three atlases preserve existing pixels outside the airburst cells. Their sources and prepared

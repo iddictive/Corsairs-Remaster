@@ -22,6 +22,17 @@
  
      //-----------------------------------------
      // label
+@@ -296,6 +304,10 @@
+     virtual GEOS::ID CreateTexture(const char *fname) = 0;
+     virtual void ReleaseTexture(GEOS::ID tex) = 0;
+     virtual void SetMaterial(const GEOS::MATERIAL &mt) = 0;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    // Return the prior service scope; the native draw owns render-state restore.
++    virtual bool SetHullTwoSided(bool) { return false; }
++#endif
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+     virtual bool BeginOffscreenPointCaster(const GEOS::VERTEX &, float) { return false; }
+     virtual void EndOffscreenPointCaster() {}
 --- a/src/libs/geometry/src/geom.h
 +++ b/src/libs/geometry/src/geom.h
 @@ -13,6 +13,10 @@
@@ -84,7 +95,25 @@
  #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
      storm_metal::weatherTerrain.clear(this);
      for(const auto& objectDraws:islandDraws)for(const auto& draw:objectDraws){srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);}
-@@ -484,6 +490,13 @@
+@@ -447,6 +453,17 @@
+ // visible analyze and draw all objects
+ void GEOM::Draw(const PLANE *pl, int32_t np, MATERIAL_FUNC mtf) const
+ {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    // A cut exposes the inside of the opposite, potentially uncut material.
++    // Scope the complete node without duplicating any geometry or closing holes.
++    struct HullSurfaceScope {
++        GEOM_SERVICE &service;
++        bool active, previous;
++        HullSurfaceScope(GEOM_SERVICE &service, bool active)
++            : service(service), active(active), previous(active ? service.SetHullTwoSided(true) : false) {}
++        ~HullSurfaceScope() { if (active) service.SetHullTwoSided(previous); }
++    } hullSurface(srv, !hullDraws.empty());
++#endif
+     srv.SetIndexBuffer(idx_buff);
+     for (int32_t o = 0; o < rhead.nobjects; o++)
+     {
+@@ -484,6 +501,13 @@
          srv.SetMaterial(material[object[o].material]);
          if (mtf != nullptr)
              mtf(material[object[o].material]);
@@ -98,7 +127,7 @@
  #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
          if(size_t(o)<islandDraws.size()&&!islandDraws[o].empty()) {
              for(const auto& draw:islandDraws[o]) {
-@@ -498,6 +511,67 @@
+@@ -498,6 +522,67 @@
                                   object[o].ntriangles);
      }
  }
@@ -526,3 +555,102 @@
      uint32_t n;
  
      if (Item.empty())
+--- a/src/libs/geometry/src/geometry_r.h
++++ b/src/libs/geometry/src/geometry_r.h
+@@ -37,6 +37,9 @@
+     GEOS::ID CurentVertexBuffer;
+     uint32_t CurentVertexBufferSize;
+     bool bCaustic;
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    bool hullTwoSided = false;
++#endif
+
+   public:
+     void SetRenderService(VDX9RENDER *render_service);
+@@ -50,6 +53,14 @@
+
+     GEOS::ID CreateTexture(const char *fname);
+     void SetMaterial(const GEOS::MATERIAL &mt);
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    bool SetHullTwoSided(bool enabled) override
++    {
++        const bool previous = hullTwoSided;
++        hullTwoSided = enabled;
++        return previous;
++    }
++#endif
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+     bool BeginOffscreenPointCaster(const GEOS::VERTEX &center, float radius) override;
+     void EndOffscreenPointCaster() override;
+--- a/src/libs/geometry/src/geometry.cpp
++++ b/src/libs/geometry/src/geometry.cpp
+@@ -493,6 +493,30 @@
+     if (!RenderService)
+         return;
+
++    const auto submit = [&](const char *block, const auto &draw) {
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++        if (hullTwoSided) {
++            uint32_t previous = D3DCULL_CCW;
++            RenderService->GetRenderState(D3DRS_CULLMODE, &previous);
++            struct CullRestore {
++                VDX9RENDER *renderer;
++                uint32_t previous;
++                ~CullRestore() { renderer->SetRenderState(D3DRS_CULLMODE, previous); }
++            } restore{RenderService, previous};
++            // Techniques can publish cull state on every pass. Apply the hull
++            // scope after publication, then submit that pass without reentry.
++            const bool named = block && block[0];
++            if (!named || RenderService->TechniqueExecuteStart(block))
++                do {
++                    RenderService->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
++                    draw(nullptr);
++                } while (named && RenderService->TechniqueExecuteNext());
++            return;
++        }
++#endif
++        draw(block);
++    };
++
+     // uint32_t oldZBias;
+
+     if (bCaustic)
+@@ -535,24 +559,31 @@
+             RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
+             RenderService->SetFVF(cavb.fvf);
+
+-            RenderService->DrawBuffer(-1, cavb.stride, CurentIndexBuffer, minv, numv, startidx, numtrg, technique);
++            submit(technique, [&](const char *block) {
++                RenderService->DrawBuffer(-1, cavb.stride, CurentIndexBuffer, minv, numv, startidx, numtrg, block);
++            });
+         }
+         else
+         {
+             RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
+-            RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, 0, CurentIndexBuffer,
+-                                                         minv, numv, startidx, numtrg, "caustic");
++            submit("caustic", [&](const char *block) {
++                RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, 0, CurentIndexBuffer,
++                                                            minv, numv, startidx, numtrg, block);
++            });
+         }
+         return;
+     }
+     if (CurentIndexBuffer != INVALID_BUFFER_ID)
+     {
+         if (!bCaustic)
+-            RenderService->DrawBuffer(CurentVertexBuffer, vrtsize, CurentIndexBuffer, minv, numv, startidx, numtrg,
+-                                      technique);
++            submit(technique, [&](const char *block) {
++                RenderService->DrawBuffer(CurentVertexBuffer, vrtsize, CurentIndexBuffer, minv, numv, startidx, numtrg, block);
++            });
+         else
+-            RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, vrtsize,
+-                                                         CurentIndexBuffer, minv, numv, startidx, numtrg, "caustic");
++            submit("caustic", [&](const char *block) {
++                RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, vrtsize,
++                                                            CurentIndexBuffer, minv, numv, startidx, numtrg, block);
++            });
+     }
+
+     // if (bCaustic)

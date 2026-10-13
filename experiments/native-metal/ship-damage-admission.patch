@@ -9,7 +9,7 @@
  #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
  
  #include <chrono>
-@@ -764,105 +768,155 @@
+@@ -764,105 +768,173 @@
  
  
  #ifdef STORM_METAL_SHIP_FIRE
@@ -89,17 +89,31 @@
 +            records.push_back(r);
 +        }
 +    } else if (saved) {
-+        if (auto *hulls=state->GetAttributeClass("hull")) for (uint32_t i=0;i<hulls->GetAttributesNum();++i) {
-+            auto *a=hulls->GetAttributeClass(i);Record r;r.cell=ReadShipFireCell(a,false);
-+            r.key=uint32_t(strtoul(a->GetThisName()+1,nullptr,10));r.order=a->GetAttributeAsDword("order");
-+            records.push_back(r);
-+        }
-+        if (auto *cloth=state->GetAttributeClass("cloth")) for (uint32_t n=0;n<cloth->GetAttributesNum();++n) {
-+            auto *node=cloth->GetAttributeClass(n);
-+            for (uint32_t g=0;g<node->GetAttributesNum();++g) {
-+                auto *a=node->GetAttributeClass(g);Record r;r.cell=ReadShipFireCell(a,true);
-+                r.node=node->GetThisName();r.group=atoi(a->GetThisName());r.order=a->GetAttributeAsDword("order");
-+                r.lastDamage=a->GetAttributeAsFloat("lastSailDamage");records.push_back(r);
++        // Shipped schema2 appended snapshots and duplicate mast nodes. Walk
++        // insertion order: the newest value owns each key, while an absent key
++        // retains its earlier record (including a detached mast's damage).
++        auto retain=[&](Record r) {
++            auto old=std::find_if(records.begin(),records.end(),[&](const Record &v) {
++                return v.cell.cloth==r.cell.cloth && (r.cell.cloth ?
++                    v.node==r.node && v.group==r.group : v.key==r.key);
++            });
++            if (old==records.end()) records.push_back(std::move(r));
++            else *old=std::move(r);
++        };
++        for (uint32_t tree=0;tree<state->GetAttributesNum();++tree) {
++            auto *branch=state->GetAttributeClass(tree);
++            if (*branch=="hull") for (uint32_t i=0;i<branch->GetAttributesNum();++i) {
++                auto *a=branch->GetAttributeClass(i);Record r;r.cell=ReadShipFireCell(a,false);
++                r.key=uint32_t(strtoul(a->GetThisName()+1,nullptr,10));r.order=a->GetAttributeAsDword("order");
++                retain(std::move(r));
++            }
++            else if (*branch=="cloth") for (uint32_t n=0;n<branch->GetAttributesNum();++n) {
++                auto *node=branch->GetAttributeClass(n);
++                for (uint32_t g=0;g<node->GetAttributesNum();++g) {
++                    auto *a=node->GetAttributeClass(g);Record r;r.cell=ReadShipFireCell(a,true);
++                    r.node=node->GetThisName();r.group=atoi(a->GetThisName());r.order=a->GetAttributeAsDword("order");
++                    r.lastDamage=a->GetAttributeAsFloat("lastSailDamage");retain(std::move(r));
++                }
 +            }
 +        }
 +        std::stable_sort(records.begin(),records.end(),[](const Record &a,const Record &b){return a.order<b.order;});
@@ -241,9 +255,14 @@
 -            const auto p=place.GetLocalPos(); const auto i=shipFire.nearest(p.x,p.y,p.z);
 -            shipFire.ignite(i,.65f,place.GetBallCharacterIndex());
 -        }
+-    }
 +    } else for (auto &place:aFirePlaces) if (place.isActive()) {
 +        const auto p=place.GetLocalPos();shipFire.ignite(shipFire.nearest(p.x,p.y,p.z),.65f,place.GetBallCharacterIndex());
-     }
++    }
++    // Rebuild the two owned keyed trees once at startup/load, after importing
++    // every old record. Ordinary checkpoints then update this bounded tree.
++    if (state) for (const char *name:{"hull","cloth"})
++        while (auto *old=state->GetAttributeClass(name)) state->DeleteAttributeClassX(old);
      SaveShipFire();
 -    auto *summary=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
 -    uint32_t active=0;float intensity=0.f,heat=0.f;
@@ -251,7 +270,7 @@
      for (std::size_t i=0;i<shipFire.count;++i) {
          const auto &c=shipFire.cells[i];if (c.intensity()>.025f) ++active;
          intensity=std::max(intensity,c.intensity());heat=std::max(heat,c.heat);
-@@ -873,30 +927,36 @@
+@@ -873,30 +945,36 @@
  
  void SHIP::SaveShipFire()
  {
@@ -276,19 +295,19 @@
 -        a->SetAttributeUseFloat("burned",c.burned);a->SetAttributeUseDword("owner",uint32_t(c.owner));
 -        a->SetAttributeUseDword("cloth",c.cloth);a->SetAttributeUseDword("available",c.available);
 -    }
-+    auto *hull=&state->CreateAttribute("hull");
++    auto *hull=state->VerifyAttributeClass("hull");
 +    for (const auto &link:fireHulls) {
-+        char key[40];snprintf(key,sizeof(key),"h%u",link.key);auto *a=&hull->CreateAttribute(key);
++        char key[40];snprintf(key,sizeof(key),"h%u",link.key);auto *a=hull->VerifyAttributeClass(key);
 +        WriteShipFireCell(a,shipFire.cells[link.cell],link.cell);
 +    }
-+    auto *cloth=&state->CreateAttribute("cloth");
++    auto *cloth=state->VerifyAttributeClass("cloth");
      for (const auto &link:fireSails) {
 -        char path[40];snprintf(path,sizeof(path),"cells.p%zu",link.cell);
 -        auto *a=state->FindAClass(state,path);if (!a) continue;
 -        a->SetAttribute("node",link.node.c_str());a->SetAttributeUseDword("group",link.group);
 +        if (link.cell>=shipFire.count) continue;
-+        auto *node=&cloth->CreateAttribute(link.node);char key[40];snprintf(key,sizeof(key),"%d",link.group);
-+        auto *a=&node->CreateAttribute(key);WriteShipFireCell(a,shipFire.cells[link.cell],link.cell);
++        auto *node=cloth->VerifyAttributeClass(link.node);char key[40];snprintf(key,sizeof(key),"%d",link.group);
++        auto *a=node->VerifyAttributeClass(key);WriteShipFireCell(a,shipFire.cells[link.cell],link.cell);
          a->SetAttributeUseFloat("lastSailDamage",link.lastDamage);
      }
 +    // Publish the new schema only after every record and pending output exists.
@@ -306,7 +325,7 @@
  }
  
  void SHIP::IgniteShipFire(const CVECTOR &world, float energy, int32_t owner, bool cloth)
-@@ -904,12 +964,12 @@
+@@ -904,12 +982,12 @@
      if (!bMounted || isDead()) return;
      CVECTOR p;GetMatrix()->MulToInv(world,p);
      auto i=shipFire.nearest(p.x,p.y,p.z,cloth);
@@ -321,7 +340,7 @@
      }
      shipFire.ignite(i,energy,owner);fireStateDirty=true;SaveShipFire();
  }
-@@ -1022,14 +1082,10 @@
+@@ -1022,14 +1100,10 @@
          fireVisualSeconds+=frameSeconds;
  }
  
@@ -340,7 +359,7 @@
  }
  #endif
  
-@@ -1629,7 +1685,7 @@
+@@ -1629,7 +1703,7 @@
  
      pRS->SetRenderState(D3DRS_LIGHTING, true);
  #ifdef STORM_METAL_SHIP_FIRE
@@ -349,7 +368,7 @@
      StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
  #endif
      pM->ProcessStage(Stage::realize, dtime);
-@@ -1658,7 +1714,8 @@
+@@ -1658,7 +1732,8 @@
      }
  
  #ifdef STORM_METAL_SHIP_FIRE
@@ -359,7 +378,7 @@
                            &fireWind.x,fireVisualSeconds);
  #endif
      if (bMassaShow)
-@@ -2551,6 +2608,31 @@
+@@ -2551,6 +2626,31 @@
      {
          CVECTOR vDir = !(vDst - vSrc);
          CVECTOR vTemp = vSrc + fRes * (vDst - vSrc);
@@ -391,7 +410,7 @@
          // search nearest fire place
          float fMinDistance = 1e8f;
          int32_t iBestIndex = -1;
-@@ -2566,7 +2648,18 @@
+@@ -2566,7 +2666,18 @@
              }
          core.Event(SHIP_HULL_HIT, "illffflf", GetId(), iBallOwner, iOurIndex, vTemp.x, vTemp.y, vTemp.z, iBestIndex,
                     fMinDistance);
