@@ -122,10 +122,11 @@ public:
                 const float dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
                 const float vertical = b.cloth && dy > 0.f ? .16f : .8f;
                 const float distance = std::sqrt(dx*dx+dz*dz+dy*dy*vertical);
-                const float reach = a.radius+b.radius+1.5f;
-                if (distance >= reach || dy > 18.f) continue;
+                const float gap = std::max(0.f,distance-a.radius-b.radius);
+                const float reach = 1.5f;
+                if (gap >= reach || dy > 18.f) continue;
                 const float downwind = unit(.5f+(dx*ctx.windX+dz*ctx.windZ)/(std::max(1.f,distance)*32.f));
-                const float transfer = .042f*flame[i]*(1.f-distance/reach)*(.55f+downwind)*(1.f-.8f*rain);
+                const float transfer = .042f*flame[i]*(1.f-gap/reach)*(.55f+downwind)*(1.f-.8f*rain);
                 incoming[j] += transfer;
                 if (transfer > .002f && b.heat < .32f) cells[j].owner = a.owner;
             }
@@ -134,7 +135,7 @@ public:
             auto &c = cells[i];
             if (!c.available) { c.heat = 0.f; continue; }
             // Cloth burns faster, but rain reaches it and repair crews cool it.
-            const float cooling = .010f+rain*(c.cloth ? .23f : .16f)+(ctx.dead ? 0.f : .075f*work);
+            const float cooling = .010f*c.heat+rain*(c.cloth ? .23f : .16f)+(ctx.dead ? 0.f : .075f*work);
             const float heating = flame[i]*(.028f+.018f*wind)+std::min(.08f,incoming[i]);
             c.heat = std::clamp(c.heat + dt*(heating-cooling), 0.f, 1.25f);
             const float burned = std::min(c.fuel, dt*flame[i]*(c.cloth ? .0032f : .0013f));

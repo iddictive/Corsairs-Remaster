@@ -4,11 +4,62 @@ Last verified: October13. The living-ship damage batch remains installed from `f
 
 ## Current verdict
 
+### October13 — Redoutable heat transport repaired; compiled, not activated
+
+The player confirms the weak x8 fire was on «Редутабль». Its actual saved
+Battleship1 context reproduces .58 cloth ignition fading after about29game
+seconds without spread or casualties. The existing model removed a fixed ambient
+amount from cold neighbours and attenuated conduction by centre distance.
+The successor scales only ambient cooling by heat and attenuates by existing
+support gaps; crew/rain rates, damage rates and all118 neighbour links remain.
+The all-cooling variant is rejected for weakening emergency suppression.
+
+Production-model CPU replay now spreads the four low/high cloth starts in
+25.5–35.75game seconds, with3.58–11.53% hull loss and3.29–14.20 crew loss after
+300game seconds. Healthy single, rain and priority negatives recover; healthy
+three-site ignition extinguishes in19.5seconds with0.128% hull loss. Exact
+source/context, rejected hypotheses and wave/rocking limits live in
+`ship-fire-and-damage.md`. The player subsequently requests70%-crew medium-ship
+and six-site large-ship balance; that arithmetic/gameplay expectation remains
+under the same source owner rather than inferred from this single-site matrix.
+
+Canonical `experiments/native-metal/build.sh` returns0 with two workers: nine
+incremental native steps, nine renderer consumer classes, unchanged183 frozen
+native inputs. Model SHA-256:
+`c15cd9b1c4bfc0e9d30a01bbaed314fe47cf0d3cfbc338324af7adccba787819`.
+Unsigned engine:
+`eb313850e534fc2dd1af502d9ee2efb2dc242dd3de1b257ade7f8c0116c51743`.
+The serialized HeatedShot checkpoint completes during this build without changing
+its frozen native inputs. Installed signed2bec remains unchanged; no stage or
+game control is performed. Disposition: source/component and compilation accepted;
+activation, medium/multiple-site balance, actual battle visuals and FPS unresolved.
+
+### October13 — heated round-shot perk; source-only integration
+
+The separate ammunition owner checkpoints `d975645`: the high-tier passive
+HeatedShot perk tags20% of hero/cannoner round shots at launch, shades that
+projectile warm red, and gives tagged hits20% ignition. Tagged critical hits
+combine the existing critical admission into one60% roll. Native event tagging
+uses the existing SAVE codec; ordinary projectiles clear the transient marker.
+The two exact recipe-projection predecessor hashes advance with AIShip/atlas
+source; unknown edits remain rejected. No quest behavior changes.
+
+That owner reports canonical native build0 before the thermal successor, and
+the serialized script-vm-probe refresh0. Full current PROGRAM is materialized
+through actual sync.plan/recipe_sources over the installed baseline: compiler0,
+HeatedShotCases0 and script_errors0. Learned FastReload, hero/assigned-cannoner,
+unassigned negative and ordinary/bomb/other-ammunition cases pass. Only fixture
+Main is renamed to prevent real startup. Final thermal build above consumes
+this same native patch. Installed perk/UI/projectile and battle replay remain
+unresolved; no SAVE, launch or app staging occurs. Topic owner:
+`naval-ammunition-and-damage.md`.
+
 ### October13 — reopened battle defects; compiled successor, activation pending
 
 The player reports34FPS while aiming at a ship, ocean visible beyond the
 opposite hull through real openings, and negligible fire damage/spread/crew loss
-at x8 on another liner rather than Beard. These reports reopen their individual
+at x8 on another liner rather than Beard, subsequently identified by the player
+as «Редутабль». These reports reopen their individual
 acceptance; neither the earlier menu nor component probes close them.
 
 The source correction prepares existing aiming plane queries once per current
@@ -26,8 +77,13 @@ writer updates keyed branches; initialization imports the newest historical
 records and canonicalizes only the owned trees. Real attribute/codec probes
 pass, including archived duplicates, bounded checkpoints and old-state negatives.
 Ordinary full SAVE decoding already merges names, so this defect does not prove
-the reported weak fire's cause. The x8 thermal path advances game time; target
-suppression, actual ignition and crew-damage integration remain under investigation.
+the reported weak fire's cause. The x8 thermal path advances game time. A later
+production-model replay binds the player's «Редутабль»/Battleship1 context:
+98/559 crew, repair/defence .14, passive Doctor2 and the archived wind. Four
+admitted .58 cloth sites extinguish in28.75–29.5game seconds, without spread or
+crew loss; .76 hull sites vary by position. Fractional crew damage is preserved
+by the real float attribute writer. Thermal transport/cooling is the remaining
+repair owner; it is separate from the earlier state-persistence correction.
 
 The integrated canonical build first rejects the rigging patch's insertion
 context before compilation, then rejects a `Vector`/`CVECTOR` mismatch after
@@ -36,8 +92,8 @@ engine is preserved. After the rigging owner supplies its corrected patch and
 typed helper, canonical `build.sh` returns0:64 remaining native steps compile
 and link in24.35s with two workers and unchanged frozen inputs. Unsigned engine:
 `3b807fe45351922e382d188a23a34aead2e951613114ae27410829c9a9682270`.
-The normal source checkpoint is `4a027cd`; the fire/aim/hull corrections remain
-a subsequent candidate until their focused checkpoint. This accepts compilation,
+The normal source checkpoint is `4a027cd`; the fire-state/aim/hull corrections
+are checkpointed as `82b09c2`. This accepts compilation,
 not installed visuals, damage balance or FPS. The build now defaults to two
 compiler workers through its existing CMake/Ninja owner; invalid overrides fail
 before preparation. Sampled process-group RSS does not include every compiler.

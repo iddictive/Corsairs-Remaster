@@ -284,8 +284,8 @@ At17.5% staffing and repair .14, Manowar spreads after46.75seconds and reaches
 five active sites; Battleship spreads after57.5seconds and reaches ten. Raw hull
 loss is2.36% and3.52%, and crew loss1.49 and2.68, before real damage defences.
 This proves the suppression/transport mechanism for those inputs; it does not
-identify the player's observed target or accept battle balance. Constants stay
-unchanged until target/state and installed exposure can be observed.
+accept battle balance. The player later identifies «Редутабль»; the admitted
+cloth route below supersedes this hull-only oracle for the reported defect.
 
 The persistence writer had a separate confirmed defect. Native
 `ATTRIBUTES::CreateAttribute` appends, so every checkpoint created new hull/cloth
@@ -306,3 +306,36 @@ integrated canonical native build pass.
 Live flames multiply native intensity; char-only state cannot sustain a flame,
 and the macro disables independent legacy flame particles. Installed fire
 damage, complete OnLoad and matching CPU/FPS remain unresolved.
+
+### Redoutable cloth transport correction
+
+The player identifies «Редутабль». Its archived Battleship1 has98/559 crew,
+repair/defence .14, morale73, passive Doctor2 and BasicBattleState, without
+active LightRepair or firefighting priority. The saved ship heading and weather
+produce local wind(-2.258879,-3.835098). Fresh bomb cloth ignition has energy .58.
+The actual35-cell production model extinguishes four low/high cloth starts in
+28.75–29.5game seconds, without spread or crew loss. Crew fractions do accumulate;
+the failure is heat transport, not truncation or x8 time skipping.
+
+`ship_fire_model.hpp` corrects two equations: ambient cooling follows cell heat,
+while crew/rain removal keeps its previous rate; conduction attenuation uses
+the gap between existing cell supports within the same1.5m reach. All118 directed
+neighbour links are unchanged. Existing radii and anisotropic plume distance
+remain approximations; no new cells, loops, allocations, rates or state appear.
+The variant scaling all cooling by heat is rejected because it weakens emergency
+suppression; the accepted split preserves deliberate crew and rain removal.
+
+With the same poor crew, four admitted cloth starts spread in25.5–35.75game
+seconds. At300game seconds (37.5real at x8), hull loss ranges3.58–11.53% and
+crew loss3.29–14.20 after the archived defences. Full crew suppresses the tested
+single fires in4.75–8.75seconds; rain in1.25–2.75seconds. Priority suppresses
+the poor-crew hull start without spread. Full-crew three-site ignition dies in
+19.5seconds, with0.128% hull and0.574 crew loss over its60-second observation.
+These figures are fixed-geometry CPU evidence, not installed battle promises.
+SHIP moving wave/rocking cooling and active repair remain outside that replay.
+
+Canonical native build passes for the exact model SHA-256
+`c15cd9b1c4bfc0e9d30a01bbaed314fe47cf0d3cfbc338324af7adccba787819`.
+The player subsequently asks for medium-ship70%-crew and six-site large-ship
+balance; that quantitative scenario is a separate open acceptance within this
+same mechanic. Activation, installed spread/crew losses and FPS remain unresolved.
