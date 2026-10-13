@@ -61,6 +61,12 @@ new geometry and a separate quest framework were rejected as unnecessary.
 
 ## Physical layout evidence
 
+Новый сундук содержит только ключ/книгу, необходимые для прохождения. Две potion2
+и jewelry5 становятся отложенной наградой при настоящей передаче книги и выдаются
+ядром квеста только после окончательного `won`. Старый ещё запертый нетронутый
+сундук с точными прежними количествами переводится на тот же порядок; после
+`VaultClear` чужие внесённые или уже взятые вещи сохраняются без повторной выдачи.
+
 Read-only binary extraction uses the stock `rdf.h` 72-byte header, names plus
 offset array, 56-byte material and 108-byte label records.
 
@@ -122,8 +128,14 @@ door consumes the active excursion through `GreatRecipe_ShoreReturned`, hides
 only its actors, and restores the normal captive scene. Unfinished two-enemy
 combat resets enemy HP after retreat; cleared combat and depleted chests remain
 cleared. Reload inside a fight preserves enemy HP/deaths rather than healing
-or granting victory. At 20% hero HP the existing check-min-HP protection and
-death bridge rescue him to the ship at at least 30% HP; it does not set victory.
+or granting victory. At 20% hero HP the stock check-min-HP callback records a
+defeat and rescues him to the ship at at least 30% HP; it does not set victory.
+The helper's 40-HP callback records withdrawal before moving him to the boat.
+Both callbacks carry the excursion sequence; old or duplicate events cannot
+change a later attempt. Reload recognizes a consumed checker before rearming,
+including an older shore save with no sequence. That recovery applies only in
+the bay/crypt; the helper must still be in the uncleared crypt. His intentionally
+immortal boat state, a cleared crypt and a pending landing are not defeats.
 `ReturnPending` persists the interrupted rescue. On load it rearms return,
 including a save inside the shore; it never falls through to landing. A saved
 pending landing in the cabin or on deck rearms landing instead. The deck's
@@ -167,6 +179,13 @@ disable dungeon monsters. This preserves the requested two enemies. Opening
 the crypt records actual key possession, so later storing the key cannot lock
 the player out. The helper uses the stock 40-HP safeguard and withdraws to the
 boat on a heavy wound; his scene copy cannot die while the main captain lives.
+
+The old empty-callback threshold could be missed after stock regeneration
+raised HP above the floor. Retained component probes reproduce this for both
+actors, then pass the named callback and old-save recovery paths, stale-event
+negatives and two native SAVE codec rounds per actor. Stock damage, regeneration
+and quest-delay processing execute unchanged; scene/native-world operations are
+fixture ports. Physical shore combat and the player's SAVE replay remain open.
 
 The source candidate compiles with the current native VM. Isolated state probes
 cover supply consumption, single cache seed, one-live-enemy negative, return

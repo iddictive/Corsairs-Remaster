@@ -64,19 +64,19 @@ Their hull critical is 1.6–2.4x and crew critical is 2x; they cannot trigger t
 old bomb-specific instant magazine catastrophe alongside the new fire.
 Player-directed ignition admission uses one roll per hit: an ordinary bomb has
 0.5%, other noncritical ammunition has no added roll, and a final true critical
-has 10–25%. Normalized Accuracy/Cannons contribute five percentage points each;
-CriticalShoot/CannonProfessional contribute 2.5 each. Target defence can suppress
-the critical before this roll. A critical bomb uses the critical probability
-once, rather than stacking another ordinary-bomb roll. Direct sail bomb hits
+has50%, for every ammunition type. Skills/perks and target defence determine
+whether the underlying hit is critical; they do not scale this ignition roll.
+A critical bomb uses that probability once, without another ordinary-bomb roll.
+Direct sail bomb hits
 use the same ordinary-bomb admission.
 
 Fifty independent noncritical bomb hits yield about 22.17% probability of at
-least one ignition and 0.25 expected ignitions. With the existing maximum
-critical perks and maximum ignition skill, the same fifty hits can average
-about 2.23 ignitions before target defence and damage control. These are
+least one ignition and0.25 expected ignitions. For ten independently admitted
+critical hits, the expected number of successful
+ignition rolls is five, before same-site saturation and damage control. These are
 probability examples, not guarantees of a surviving fire or battle measurements.
 There is no ship-class or salvo-size override; small ships retain the same
-per-hit ammunition/skill contract.
+per-hit ammunition/critical contract.
 No new unlimited chain explosion or duplicate legacy DOT. Round shot,
 grapeshot, knippels and airburst retain their existing independent contracts.
 Preserve quest immunity, attribution, death, repair and interface/boarding guards.

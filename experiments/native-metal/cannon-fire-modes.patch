@@ -393,9 +393,26 @@
      void Recharge();
 --- a/src/libs/sea_ai/src/ai_ship.cpp
 +++ b/src/libs/sea_ai/src/ai_ship.cpp
-@@ -399,13 +399,14 @@
+@@ -399,13 +399,30 @@
              // aShipFire.Sort();
-             std::sort(aShipFire.begin(), aShipFire.end());
+-            std::sort(aShipFire.begin(), aShipFire.end());
++            auto *const seaAI = GetACharacter()->FindAClass(GetACharacter(), "SeaAI");
++            auto *const task = GetTaskController()->GetCurrentTask();
++            if (seaAI && seaAI->GetAttributeAsDword("PreferTaskTarget", 0) != 0 &&
++                task && task->isActive() && task->dwTaskType == AITASK_ATTACK && task->pATaskCharacter)
++            {
++                auto *const target = task->pATaskCharacter;
++                std::sort(aShipFire.begin(), aShipFire.end(), [target](const can_fire_t &a, const can_fire_t &b) {
++                    const bool aTarget = a.pShip && a.pShip->GetACharacter() == target;
++                    const bool bTarget = b.pShip && b.pShip->GetACharacter() == target;
++                    if (aTarget != bTarget) return aTarget;
++                    return a < b;
++                });
++            }
++            else
++            {
++                std::sort(aShipFire.begin(), aShipFire.end());
++            }
 
 +            const bool single = GetCannonController()->IsSingleFireMode();
              for (i = 0; i < aShipFire.size(); i++)

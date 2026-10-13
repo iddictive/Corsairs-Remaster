@@ -1,8 +1,98 @@
 # Runtime state
 
-Last verified: October13. The combined recovery batch and its delayed-relation, camera/current, range-metadata and aim-CPU correction are delivered through canonical stage-only. Installed signed engine: `1c220e8d34d9964d9c7123dedcb2f46b72f18cedbe7dff3701e266b8998f8310`. Global-map performance is accepted by the player at120 FPS. The previous vortex and FPS26 aiming replays remain rejected; the new installed battle, city/night performance and aiming replay await the player. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. The rim/captivity correction is installed through canonical stage-only. Signed engine: `8ad0c4b3795f806862555a70ac585e9a2edd9a3a529381841b61e296ca59cc03`. Global-map performance is accepted by the player at120 FPS. The corrected circular battle and captive progression await actual player replay; installation and component checks do not accept them. City/night performance remains unresolved; manual-hit and aiming-FPS checks are player-deferred. No task launches or operates the game. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — rim battle and captivity correction installed
+
+Canonical `experiments/native-metal/run.sh --stage-only` returns0 for the frozen
+packet. Unsigned engine: `1008c9ae6b3567c7cd666cafdba58a7b42ed892815f1236207d43bdc04457ffa`;
+installed signed engine: `8ad0c4b3795f806862555a70ac585e9a2edd9a3a529381841b61e296ca59cc03`.
+All162 installed ownership receipt rows match actual bytes. All249 fresh
+SAVE/userdata/configuration hashes and all15 frozen source/launcher inputs remain
+unchanged. The full compiler fixture's146 materialized PROGRAM files match the
+installed code, with only Main renamed to avoid a duplicate driver entrypoint;
+its remaining linked inputs read the installed PROGRAM. That closure returns0
+with0 script errors. Cache/app each report0 files pending and compiler ready;
+the installed deep/strict signature passes. No actual game is started or operated.
+
+The previous healthy outward-control correction preserved steering but missed
+the requested sustained circular fight. Its escape result is superseded as the
+gameplay goal; camera, relation publication, real-water range and finite damage
+corrections remain. The fresh placement candidate fits the unchanged stock
+column to the rim, keeps saved centers and existing actors intact, and places
+the first new boss on the same ring within real gun range. Its actual VM changes
+71 violations to0, with two SAVE-codec rounds and full PROGRAM compilation.
+Strong tangential transport and signed radial support now pass actual stock
+movement/ShipRocking checks:135 tangent seeds and675 unchanged-column cases
+remain around the ring, while4 of15 powered outward-control cases escape.
+Propulsion and rudder remain native. One scalar body emits both C++ and
+MSL flow;288 parity and240 UV-advection checks pass. These do not accept boss AI
+or a complete player battle.
+
+The player's later explicit visual correction also requires a deep, visibly
+turbulent maelstrom with large moving waves. Preserving the earlier50.4m capped
+depth is superseded. The candidate blends large fields into a0.16-radius bowl,
+with208–256m center depression and sampled27–36m crest-to-trough height around
+the fighting ring. Small fields retain bitwise geometry identity. Expanded
+conservative bounds and the positive-crest trace correction pass actual native
+mesh/camera bodies. The canonical native build returns0 with five source files
+regenerated and all nine renderer consumer classes admitted. Paired native GPU
+day/night views use installed sea/foam/sky assets, but the first low camera shows
+apparently flat foreground and almost-black night; this is an inconclusive
+component view, not visual or FPS acceptance. A higher supported camera exposes
+the deeper curved wall, torn spiral folds and crest foam; another age shows their
+motion. Night stays unreadable in this component, whose fallback lighting omits
+the native weather/dynamic-sky irradiance used by the real marine scene. Its
+finite grid, simplified reflection cube, absent ship and uncaptured player lens
+remain declared limits. No game-lighting change follows from those fixture
+inputs; full night/fleet appearance and FPS remain player-owned acceptance.
+
+Captivity dialogue mismatches are reproduced through the stock dialogue wrapper:
+answers precede diagnosis, unsupported actions remain visible, and re-entry
+restores a generic prompt. The existing HP checker also leaves a fight active
+when stock regeneration precedes recipe polling; the opposite order passes.
+This is an order-sensitive component counterexample, not proof of the player's
+exact handler registration. Named stock quest callbacks pass the bounded
+terminal fixture. The core implements resumable capture context,
+earned cabin access, contextual prompts/actions, finite lessons and six distinct
+existing character models, preserving advanced saves and royal-ending gates.
+The explicitly requested ship-hull reduction from8× to4× shares its existing
+normalizer and preserves damage fraction without repeat scaling. Stock wrapper,
+finite fight, final reward and owned SAVE-lifecycle component fixtures pass.
+Independent review finds the same polling hazard in the mandatory shore battle's
+hero/helper HP checkers and an optional drill answer under Jack's powder prompt.
+The final dialogue keeps both contexts. Named shore callbacks reproduce the
+two old stock damage→regeneration failures, then pass both corrected roles,
+stale/duplicate callbacks and two SAVE-codec rounds each. Legacy recovery is
+restricted to the active shore hero and an actual helper in the uncleared vault.
+Full PROGRAM compilation and the composed stock quest dispatch pass. Native
+world-transition ports in behavioral fixtures do not accept a player round trip.
+
+Further player steering makes Beard deliver the first hold conversation himself,
+with contempt based on the saved pre-battle flagship's class, then leave for his
+gated cabin before the bosun's explanation. All earned quest rewards are deferred
+to successful final completion; failed return to Bermuda gives0 quest XP.
+Existing property restitution remains distinct. Stock ship tasks now select
+squadron-first attacks and useful broadside positioning; actual
+powered/rudder escape cases remain possible. Search sea admission must consume
+the owned offshore encounter, preserving ordinary Bermuda port exits. No current
+seabed grounding is inferred merely from a map clearance query, which tests
+navigation collision rather than depth. The native firing consumer prioritizes
+the selected task target only after normal enemy/range/friendly-fire admission;
+its22 extracted-body checks pass. Selected-target failure still allows ordinary
+fallback fire. The shared critical-hit ignition policy is50% for each admitted
+critical event, without a second skill multiplier; noncritical bombs remain0.5%.
+
+The minimal strongest-core storm auto-entry correction is committed as5fd7792
+and admitted to this batch; its54 actual-method cases
+pass against6 baseline failures. Fire hull/cloth expansion and the separate
+fog-contour correction remain their next batch. Full scene/dialogue/combat
+acceptance stays with the player after canonical installation.
+The broader repository context gate remains nonzero for the separate untracked
+fire/cloth candidate and a missing environment context-check action. Neither is
+consumed or silently reclassified by this packet.
 
 ### October13 — relation, camera/current and range successor installed
 

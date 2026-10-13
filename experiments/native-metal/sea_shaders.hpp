@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <string>
 #include "anti_tiling_msl.hpp"
+#include "shared/sea_whirlpool.hpp"
 
 // Exact FNV-1a fingerprints of the shipped shader token streams, including END.
 // Unknown shaders stay unsupported: no heuristic substitution of unrelated effects.
@@ -154,17 +155,19 @@ float4 seaBump(float3 uv,constant SeaU& u,texture2d<float> flat,texture3d<float>
 }
 // The CPU field owns displacement and coarse slopes. Advect only fine texture
 // detail here, using its bounded current, not a second water-height evaluator.
+)MSL"+SeaWhirlpoolMetalFlow+R"MSL(
 float2 seaWhirlpoolUV(SeaO o,constant SeaU& u,float2 uv) {
     if(u.vc[245].w<=0.f)return uv;
     float2 delta=o.worldXZ-u.vc[245].xy;
-    float q=length(delta)/max(u.vc[245].z,1.f);
+    float radius=max(u.vc[245].z,1.f),r=length(delta),q=r/radius;
     if(q>=1.f)return uv;
-    float edge=1.f-q*q;
-    // vc246.y is native physicalScale/radius: a large battle theater must not
-    // turn capped12m/s water flow into radius-proportional texture transport.
-    float clock=u.vc[246].x*u.vc[246].y*u.vc[245].w*edge*edge;
-    float angle=-.24f*clock,c=cos(angle),s=sin(angle);
-    float2 transported=float2(c*delta.x-s*delta.y,s*delta.x+c*delta.y)*exp(min(.065f*clock,2.f));
+    if(r<=.0001f)return uv;
+    float3 flow=seaWhirlpoolFlow(r,radius,u.vc[245].w);
+    // Inverse local-flow transport for fine detail; the shared profile owns
+    // direction/speed and its stable rim, while the CPU owns all displacement.
+    float age=u.vc[246].x,angle=-flow.y*age/r,c=cos(angle),s=sin(angle);
+    float backRadius=clamp(r-flow.x*age,.0001f,radius);
+    float2 transported=float2(c*delta.x-s*delta.y,s*delta.x+c*delta.y)*(backRadius/r);
     return uv+(transported-delta)*.07f;
 }
 float3 seaReflected(SeaO o,float3 sampled) {

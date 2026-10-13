@@ -9,7 +9,7 @@ SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "00a62b3be2b684880c7be2d233330222f9793161ab078362e5468d8bd20f002c",
     "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
-    "PROGRAM/sea_ai/AIShip.c": "8ec68cd247620f3051dfead490b3832f55c4673878524557b37cb75141c278b6",
+    "PROGRAM/sea_ai/AIShip.c": "77a8bf364470bba4a6b50a18922acddb6c1f7924a41ddfc508080191c50b0d5d",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",
@@ -21,6 +21,7 @@ NORMALIZED_HASHES = {
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": "656c445b97680e5f5842650acecf6dc2e714e1bf487816316dcc513a29a2c535",
     "PROGRAM/worldmap/worldmap_globals.c": "f31e89898b25f4f9864e2cc54abd58b28f91d1b10146879d0987cd32b34cd8c1",
     "PROGRAM/worldmap/worldmap_events.c": "52598a4baec8bec7c66270aa156705043f9e0ab7d93ade5420ec9b0d8bcc613b",
+    "PROGRAM/worldmap/worldmap_reload.c": "d7b845b968e7015503d360b80dbf3281c4a3418c064ed031fbffa98d589a1930",
     "PROGRAM/Loc_ai/LAi_fightparams.c": "e886b558dbbb64565baca70ab512064a5f7b82183a946bc516722bb96611836e",
     "RESOURCE/INI/interfaces/pictures.ini": "bd8774f43bc7a5fe2ec22825ea6d4a0d5f189d36946c92b79bf65b3e8b60eedb",
     "PROGRAM/Loc_ai/LAi_boarding.c": "ea8c00a89e783640199a11d1fd798344ba4e91bca70e6169a08968899891b632",
@@ -50,6 +51,7 @@ BASE_HASHES = {
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": ("5f334cb8437b243175d0ef80af90ee104efe5ef62a2e7c51ff737d635f1a6bc0",),
     "PROGRAM/worldmap/worldmap_globals.c": ("184ce121f96c9347ae8ea6c7304af77dee74cf15b117891c3f0e0b04f3ac6885",),
     "PROGRAM/worldmap/worldmap_events.c": ("29d8e42010ed08ee0e8861e2b2e101e2e6073823b0f0a653070812c64ac429b7",),
+    "PROGRAM/worldmap/worldmap_reload.c": ("eb77e881d82dbe21ddf60a79a45c02cc00f3d5ecb3ce3b99de35a7bd35a018d8",),
     "PROGRAM/Loc_ai/LAi_fightparams.c": ("5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",),
     "RESOURCE/INI/interfaces/pictures.ini": ("045d5d3e07be77ca6259dc64b826a68145c16fd3114e64c6337578205fea9634",),
     "PROGRAM/Loc_ai/LAi_boarding.c": ("ff47f627f7ab264585f751653d85949bee70f7c40a61b013ceb04118acc17934",),
@@ -157,6 +159,8 @@ EDITS = {
          '\tif (iFantomType == ENCOUNTER_TYPE_BARREL && CheckAttribute(rChar, "GreatRecipeBarrel"))\n    { GreatRecipe_SpawnBarrel(rChar, true); iFantomType = -1; }\n\tif(iFantomType == ENCOUNTER_TYPE_BARREL)\n\t{'),
         ('void Ship_ChangeCharge(ref rCharacter, int iNewChargeType)\n{',
          'void Ship_ChangeCharge(ref rCharacter, int iNewChargeType)\n{\n    if (CheckAttribute(rCharacter, "Ship.GreatRecipeAirburstOnly")) iNewChargeType = GOOD_AIRBURST;'),
+        ('void Ship_SetTaskBrander(int iTaskPriority, int iCharacterIndex, int iCharacterIndexBranderTo)\n{\n\tref rCharacter = GetCharacter(iCharacterIndex);',
+         'void Ship_SetTaskBrander(int iTaskPriority, int iCharacterIndex, int iCharacterIndexBranderTo)\n{\n\tref rCharacter = GetCharacter(iCharacterIndex);\n    if (GreatRecipe_IsBeard(rCharacter)) return;'),
         ('\t\tShipDead(sti(rOurCharacter.index), iKillStatus, iKillerCharacterIndex);',
          '\t\tif (GreatRecipe_ClaimHullDefeat(rOurCharacter)) return;\n\t\tShipDead(sti(rOurCharacter.index), iKillStatus, iKillerCharacterIndex);'),
         ('\tbool bIsCompanion = IsCompanion(rCharacter);',
@@ -227,6 +231,9 @@ EDITS = {
     "PROGRAM/worldmap/worldmap_events.c": [
         ('\tEnvironment.time = GetEventData();', '\tEnvironment.time = GetEventData();\n    GreatRecipe_MapCalendar();'),
     ],
+    "PROGRAM/worldmap/worldmap_reload.c": [
+        ('\tisShipEncounterType = WdmAddEncountersData();', '\tisShipEncounterType = WdmAddEncountersData();\n    GreatRecipe_MapAdmission(wdmLoginToSea);'),
+    ],
     "PROGRAM/Loc_ai/LAi_fightparams.c": [
         ('\tif(CheckAttribute(enemy, "cirassId"))\n\t{\n\t\tdmg = dmg * (1.0 - stf(Items[sti(enemy.cirassId)].CirassLevel));\n\t}',
          '\tfloat recipeArmor = 0.0;\n    if (CheckAttribute(enemy, "cirassId")) recipeArmor = stf(Items[sti(enemy.cirassId)].CirassLevel);\n    dmg = GreatRecipe_BeardBladeDamage(attack, enemy, dmg, recipeArmor);'),
@@ -256,6 +263,7 @@ EDITS = {
         ('void LAi_group_SetRelation(string group1, string group2, string curRelation)\n{', 'void LAi_group_SetRelation(string group1, string group2, string curRelation)\n{\n    curRelation = GreatRecipe_AllianceLandRelation(group1, group2, curRelation);'),
     ],
     "PROGRAM/quests/quests_reaction.c": [
+        ('\tswitch(sQuestName)\n', '    if (findsubstr(sQuestName, "GreatRecipeFightYield_", 0) == 0)\n    {\n        GreatRecipe_FightTerminal(sQuestName);\n        return;\n    }\n    if (findsubstr(sQuestName, "GreatRecipeShoreYield_", 0) == 0)\n    {\n        GreatRecipe_ShoreTerminal(sQuestName);\n        return;\n    }\n\tswitch(sQuestName)\n'),
         ('\tDoQuestCheckDelay("NationUpdate", 3.0);\n\tUpdateRelations();', '\tDoQuestCheckDelay("NationUpdate", 3.0);\n    GreatRecipe_AllianceRefreshLand();\n\tUpdateRelations();'),
         ('    DoQuestCheckDelay("NationUpdate", 3.0);\n    UpdateRelations();', '    DoQuestCheckDelay("NationUpdate", 3.0);\n    GreatRecipe_AllianceRefreshLand();\n    UpdateRelations();', 4),
     ],

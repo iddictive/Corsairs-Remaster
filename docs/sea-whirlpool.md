@@ -2,17 +2,19 @@
 
 ## Status
 
-October13 corrective candidate: the player's missing-water scene reopens mesh
-and camera acceptance. The complete native patch now fixes oversized block
-admission, actual-ratio LOD seams and false underwater classification, and adds
-a finite real-model entry using the existing bow spray. Source-body CPU and
-canonical native compilation and installed staging pass. The next player replay
-shows covered sea but rejects low camera and steering. The successor corrects
-the stock camera's absolute-height dimensions using the shared physical field,
-and bounds inward/swirl/yaw against actual ship propulsion and inertia. The full
-canonical native build/staging passes. Radius, depth and geometry are preserved; actual
-camera, control and battle replay remain unresolved. Earlier GPU field receipts
-do not accept these ship/camera interactions.
+October13 reopened candidate: the player's desired battle is sustained fighting
+around a deep, turbulent rim, with steering and powered escape still available.
+The shared field now has signed radial support toward normalized radius0.78,
+strong tangential transport and propulsion-aware curvature. Large theaters have
+a radius-aware bowl and stronger moving folds; small fields retain their earlier
+geometry. The complete ordered native build and canonical stage-only pass.
+Component ship, camera, mesh and CPU/MSL checks pass; the player's complete
+fleet battle remains pending. The low-angle native GPU pair is inconclusive for
+bowl anatomy; a supported higher view shows the curved inner wall, torn spiral
+folds and crest foam, with visible motion between ages290 and305. The component
+night is almost black but uses fallback lighting rather than the game's native
+weather/dynamic-sky irradiance; it cannot judge live night readability.
+The earlier installed camera/relation correction remains the player baseline.
 
 October 12, 2026: the earlier90m/24s field was installed and passed native/Metal
 component checks, but the player rejects the solo, small, short scene. The
@@ -28,8 +30,8 @@ original scope.
 ## Contract and owners
 
 The Great Recipe sea scene uses a fixed world-space depression, rotating water
-and broken spiral foam. The hull follows that same displaced water, drifts inward
-and around its centre, can steer out, and loses hull in proportion to actual
+and broken spiral foam. The hull follows that same displaced water, drifts toward
+the fighting ring and around its centre, can steer out, and loses hull in proportion to actual
 exposure. The support must contain the fleet's live circular battle and remain
 active through combat. A ring of splash particles is not a whirlpool.
 
@@ -45,7 +47,7 @@ contact and the entry suppress their repeated `ship_bow` impacts; ordinary
 storm spray and real cannon/ram sounds keep their existing owners. The quest's
 water-exposure hull helper produces no impact sound and is not disabled.
 
-The first quest scene admits the existing island-free sea mode. A50.4m bowl
+The first quest scene admits the existing island-free sea mode. A deep bowl
 over a shallow authored island seabed can reveal terrain and ground vessels;
 fixing sea indices cannot create room below that terrain. Ordinary island
 scenes and terrain are unchanged.
@@ -88,17 +90,24 @@ translated outputs within0.1mm; every original translated output fails. Another
 water using the actual installed manowar hull/rig bounds. Collision/ground adapters
 are bounded fixture stubs; complete player framing is still an actual-scene gate.
 
-The old maximum inward3.349m/s exceeded the weakest healthy fleet's2.767m/s
-quarter-speed floor; tangential12.36m/s dominated actual3.722m/s propulsion.
-The shared successor bounds those peaks to2.061/3.606m/s and intrinsic yaw
-to.025rad/s, retaining the boss's55% swirl without inward/yaw load. Actual stock
-speed/strength/drift/yaw/movement bodies pass120 hull/wind/heading cases with
-decoded inertia and exact1853/3600 knot conversion. The historical weak-wind
-flagship travels radius634→2104m over600s versus634→659m before; mastless zero
-propulsion still drifts123m inward over60s. Opposed rudder control remains available
-for every tested hull. Inactive movement preserves five hull states bitwise.
-These component trajectories use bounded rudder commands and do not accept AI,
-full marine passage or the visual relief of the player's battle.
+The installed weaker current restored outward control but made leaving the
+fight too easy. Its orbital successor has peak signed radial6.3m/s and
+tangential9.9m/s support, blended to zero at the boundary. Radial flow points
+outward inside the fighting ring and inward outside it. Yaw combines the water's
+turn with live propulsion curvature and remains bounded; it does not set a
+heading or position. The boss retains55% swirl without radial/yaw load.
+One scalar flow body emits both C++ and MSL consumers:288 sampled parity and240
+UV-advection derivative checks pass, avoiding the earlier CPU/render mismatch.
+
+Actual stock movement, ShipRocking, decoded hull inertia and rudder bodies pass
+135 tangent-seeded and675 untouched-column/onset cases. Over480s the latter
+remain at normalized radii0.713–0.871. Outward rudder and real propulsion escape
+in4 of15 installed hull/wind cases: three galleons after70–93s and a battleship
+after362s. Weak/zero-wind cases retain finite equilibria. These are prescribed
+control inputs, not a production autopilot or player acceptance. Fixed/dead
+guards and five ordinary hull motions remain unchanged. Mastless zero-propulsion
+ships still move with the field; exact-center symmetry is not advertised as
+guaranteed outward transport for every ship.
 
 The existing tsunami geometry, scalar/SSE queries, temporary current inside
 Move/TouchMove, ordinary buoyancy, authored PENA foam and `seatrash` rect draw
@@ -112,7 +121,9 @@ an engine migration; adapt that separation inside the existing native field.
 Write `Sea.Whirlpool.CenterX`, `CenterZ`, `Radius`, `Intensity`, `Duration`,
 `ResumeAge`, then `Start=1`. Radius defaults to90, intensity to1; finite native
 bounds are radius30–1600, intensity0–1 and duration6–900 seconds. The fleet
-scene chooses700–1600m from actual spawn extent and600s duration. Repeating the
+fresh scene fits the stock column at1300m for up to four ships or1500m for five,
+within the1600m native bound, and uses600s duration. Saved active descriptors
+retain their existing center and radius. Repeating the
 same live configuration is idempotent. A changed descriptor replaces the field.
 `Start=0` starts a smooth decay; `Clear=1` clears immediately. Commands are
 consumed, so saved Sea attributes cannot silently restart an event.
@@ -153,10 +164,17 @@ The short wave is about15m long at radius90m; it is actual geometry rather than
 fine normal-map or particle detail. Analytical slopes drive buoyancy and rendered normals. Height,
 flow and foam have zero boundary support. Radius scales physical dimensions
 continuously; intensity and the time envelope scale all consumers together.
-Depth, ridge amplitudes, current speeds and debris size use physical length
-`min(radius,180m)`: a1600m battle theater is not a448m deep hole with110m/s flow.
-Maximum full-strength centre depression is50.4m; sampled successor total current
-speed is about4.16m/s. Pattern/normal/foam clocks use the same physical-length/radius ratio.
+Flow, debris and short-wave scales retain physical length `min(radius,180m)`.
+Depth instead blends smoothly from the earlier capped profile into0.16 of the
+radius over240–1000m; the large-field bowl uses a C1 quadratic profile. At
+radii1300/1500/1600m its center depression is208/240/256m. Existing sheared folds,
+cross waves and torn lip gain amplitude without adding geometric frequencies.
+At the fighting ring their peak-to-trough height is about27–36m across sampled
+ages. Analytical-gradient error is at most0.002257; large-field sampled maximum
+slopes are0.541/0.527/0.491. This slope bound does not describe the inherited
+small-radius geometry. Geometry/slopes/foam at radii up to240m remain bitwise
+equal over8,448 samples. Authored PENA foam follows the moving crests and actual
+slope turbulence, with bounded density. Pattern/normal/foam clocks use the same physical-length/radius ratio.
 Translation/yaw are temporary currents, never stored in propulsion/save state.
 Surface debris reuses the existing authored rect texture with a48-item event
 pool advected by the physical current; its draw uses a fixed stack buffer.
@@ -166,6 +184,34 @@ to radius; original65,500-vertex/165,000-triangle limits and block admission
 remain authoritative. There is no new fullscreen mesh or buffer expansion.
 Ordinary near-camera blocks keep their finer spacing. Actual fleet-scene timing
 remains required before a performance claim.
+
+The culling bound includes the new depth and crest envelope:285m at radius1500,
+where the earlier90m bound could exclude the player's camera. The actual
+`SEA::Trace` above-water shortcut also includes the positive crest bound; a
+reproduced radius500 ray previously skipped visible raised water. Inactive and
+cleared bounds retain their old behavior. Actual native tree/index/morph probes
+cover36 views, with at most40,170 vertices and80,288 triangles inside the original
+budgets. Inherited collapsed seam triangles remain; all four sea passes have
+culling disabled. Actual ShipRocking and player-camera bodies cover43,983 poses,
+with the eye at least1m above the physical field. No ship pose clamp or enlarged
+buffer is introduced. These checks do not prove complete scene coverage or FPS.
+
+The GPU component uses original installed PENA,64 sea-normal frames and authored
+sky images through the real native sea/foam shaders. Native camera controls
+distance1/elevation−1.1/orbitπ/2 expose the bowl, while the lower view can be
+clamped1m above a rising wave. The component has a finite regular grid,
+resampled sky cube, no ship/rigging, no real marine reflection capture and a
+fixture lens rather than the player's persisted perspective. It does not publish
+the native weather packet, so its near-black night follows fallback water/fog/
+ambient inputs. Real marine lighting uses `Whr_BindNativeState` through WEATHER
+and dynamic sky to compute outdoor water irradiance. A fixture brightness
+correction cannot accept or repair that separate live scene. Whole fleet scale,
+night visibility, emergence, combat and FPS still require the player's scene.
+
+## Earlier component receipts
+
+The numbers below describe earlier installed fields, not the current large
+theater profile or its stronger orbital current.
 
 Disposable header probes compare analytical slopes with independently sampled
 height differences after the fold correction: maximum error0.0003366 with3cm

@@ -2630,17 +2630,7 @@ float Ship_FireIgnitionChance(int attackerIndex, int ballType, bool critical)
 		if (ballType == GOOD_BOMBS) return 0.005;
 		return 0.0;
 	}
-	if (attackerIndex < 0) return 0.10;
-	ref attacker = GetCharacter(attackerIndex);
-	float accuracy = 0.0;
-	float cannons = 0.0;
-	if (CheckAttribute(attacker, "TmpSkill.Accuracy")) accuracy = Clampf(stf(attacker.TmpSkill.Accuracy));
-	if (CheckAttribute(attacker, "TmpSkill.Cannons")) cannons = Clampf(stf(attacker.TmpSkill.Cannons));
-	float chance = 0.10 + 0.05 * accuracy + 0.05 * cannons;
-	if (CheckAttribute(attacker, "TmpPerks.CriticalShoot") && sti(attacker.TmpPerks.CriticalShoot)) chance += 0.025;
-	if (CheckAttribute(attacker, "TmpPerks.CannonProfessional") && sti(attacker.TmpPerks.CannonProfessional)) chance += 0.025;
-	if (chance > 0.25) chance = 0.25;
-	return chance;
+	return 0.50;
 }
 
 void Ship_SailDamage()

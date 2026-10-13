@@ -6,6 +6,49 @@ bool GreatRecipe_ShoreActive()
     return GreatRecipe_Phase() == "captive" && CheckAttribute(pchar, "GreatRecipe.Shore.Active") && sti(pchar.GreatRecipe.Shore.Active);
 }
 
+void GreatRecipe_ShoreTerminal(string name)
+{
+    if (!GreatRecipe_ShoreActive() || CheckAttribute(pchar, "GreatRecipe.Shore.ReturnPending") ||
+        !GreatRecipe_ShoreLocation(pchar.location) || !CheckAttribute(pchar, "GreatRecipe.Shore.Sequence")) return;
+    int sequence = sti(pchar.GreatRecipe.Shore.Sequence);
+    string prefix = "GreatRecipeShoreYield_" + sequence + "_";
+    if (name == prefix + "hero")
+    {
+        if (!CheckAttribute(pchar, "GreatRecipeShoreSequence") || sti(pchar.GreatRecipeShoreSequence) != sequence) return;
+        pchar.GreatRecipe.Shore.Yield.hero = true;
+        GreatRecipe_ShoreRetreat(true);
+        return;
+    }
+    if (name != prefix + "helper" || !sti(pchar.GreatRecipe.Shore.Help) || CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear")) return;
+    int index = GetCharacterIndex("GreatRecipeShoreBeard");
+    if (index < 0) return;
+    ref helper = GetCharacter(index);
+    if (helper.location != "GreatRecipeVault" || CheckAttribute(helper, "GreatRecipeShoreWithdrawn") ||
+        !CheckAttribute(helper, "GreatRecipeShoreSequence") || sti(helper.GreatRecipeShoreSequence) != sequence) return;
+    pchar.GreatRecipe.Shore.Yield.helper = true;
+    helper.GreatRecipeShoreWithdrawn = true;
+    LAi_RemoveCheckMinHP(helper); LAi_SetStayType(helper); LAi_SetImmortal(helper, true);
+    ChangeCharacterAddressGroup(helper, "GreatRecipeBay", "goto", "goto10");
+    GreatRecipe_Journal("Борода ранен и отходит к шлюпке. Дальше придётся справиться самому; проход обратно в бухту остаётся открыт.", false);
+}
+
+bool GreatRecipe_ShoreArm(ref actor, string role, float floor)
+{
+    int sequence = sti(pchar.GreatRecipe.Shore.Sequence);
+    bool owned = CheckAttribute(actor, "GreatRecipeShoreSequence") && sti(actor.GreatRecipeShoreSequence) == sequence;
+    bool recover = role == "hero" || (actor.location == "GreatRecipeVault" && !CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear"));
+    bool yielded = CheckAttribute(pchar, "GreatRecipe.Shore.Yield." + role);
+    if (recover && (owned || CheckAttribute(pchar, "GreatRecipe.Shore.LegacyThresholds")) &&
+        !CheckAttribute(actor, "chr_ai.hpchecker") && LAi_IsImmortal(actor)) yielded = true;
+    if (recover && LAi_GetCharacterHP(actor) <= floor) yielded = true;
+    actor.GreatRecipeShoreSequence = sequence;
+    string name = "GreatRecipeShoreYield_" + sequence + "_" + role;
+    if (yielded) { GreatRecipe_ShoreTerminal(name); return false; }
+    LAi_SetImmortal(actor, false);
+    LAi_SetCheckMinHP(actor, floor, true, name);
+    return true;
+}
+
 bool GreatRecipe_ShoreLocation(string id)
 {
     return id == "GreatRecipeBay" || id == "GreatRecipeVault";
@@ -99,14 +142,25 @@ bool GreatRecipe_ShoreQuestBox(ref place, string box)
 
 void GreatRecipe_ShoreSeed()
 {
-    if (CheckAttribute(pchar, "GreatRecipe.Shore.Seeded")) return;
     ref bay = &Locations[FindLocation("GreatRecipeBay")];
     ref vault = &Locations[FindLocation("GreatRecipeVault")];
+    if (CheckAttribute(pchar, "GreatRecipe.Shore.Seeded"))
+    {
+        // Only the untouched, still locked former reward bundle has provenance.
+        if (!CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear") && !CheckAttribute(pchar, "GreatRecipe.Shore.RewardDeferred") &&
+            CheckAttribute(vault, "box2.QuestClosed") && sti(vault.box2.QuestClosed) &&
+            CheckAttribute(vault, "box2.items.potion2") && sti(vault.box2.items.potion2) == 2 &&
+            CheckAttribute(vault, "box2.items.jewelry5") && sti(vault.box2.items.jewelry5) == 1)
+        {
+            DeleteAttribute(vault, "box2.items.potion2"); DeleteAttribute(vault, "box2.items.jewelry5");
+            pchar.GreatRecipe.Shore.RewardDeferred = true;
+        }
+        return;
+    }
     bay.box1.items.GreatRecipeCacheKey = 1;
     vault.box2.items.GreatRecipeCacheLedger = 1;
-    vault.box2.items.potion2 = 2;
-    vault.box2.items.jewelry5 = 1;
     vault.box2.QuestClosed = true;
+    pchar.GreatRecipe.Shore.RewardDeferred = true;
     pchar.GreatRecipe.Shore.Seeded = true;
 }
 
@@ -118,6 +172,10 @@ void GreatRecipe_ShoreStart(bool help)
     if (!GreatRecipe_ShoreRooms()) { Log_Info("Шлюпка пока не готова к высадке."); return; }
     GreatRecipe_ShoreSeed();
     pchar.GreatRecipe.Shore.Help = help && GreatRecipe_ShoreHelpAllowed();
+    if (!CheckAttribute(pchar, "GreatRecipe.Shore.Sequence")) pchar.GreatRecipe.Shore.Sequence = 0;
+    pchar.GreatRecipe.Shore.Sequence = sti(pchar.GreatRecipe.Shore.Sequence) + 1;
+    DeleteAttribute(pchar, "GreatRecipe.Shore.Yield");
+    DeleteAttribute(pchar, "GreatRecipe.Shore.LegacyThresholds");
     pchar.GreatRecipe.Shore.Active = true;
     DeleteAttribute(pchar, "GreatRecipe.Shore.ReturnPending");
     DeleteAttribute(pchar, "GreatRecipe.Deferred.GreatRecipe_ShoreLand");
@@ -214,8 +272,7 @@ void GreatRecipe_ShoreFriends(string room)
     LAi_group_MoveCharacter(captain, "GreatRecipeShoreFriends");
     if (room == "GreatRecipeVault" && !CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear"))
     {
-        LAi_SetImmortal(captain, false);
-        LAi_SetCheckMinHP(captain, 40.0, true, "");
+        if (!GreatRecipe_ShoreArm(captain, "helper", 40.0)) return;
         LAi_SetWarriorTypeNoGroup(captain);
         LAi_group_SetRelation("GreatRecipeBones", "GreatRecipeShoreFriends", LAI_GROUP_ENEMY);
         LAi_group_FightGroups("GreatRecipeBones", "GreatRecipeShoreFriends", true);
@@ -247,11 +304,14 @@ void GreatRecipe_ShoreLocationLoaded(aref place)
     }
     if (!GreatRecipe_ShoreLocation(place.id)) return;
     if (CheckAttribute(pchar, "GreatRecipe.Shore.ReturnPending")) { GreatRecipe_Delay("GreatRecipe_ShoreReturn", 0.1); return; }
+    if (!CheckAttribute(pchar, "GreatRecipe.Shore.Sequence"))
+    { pchar.GreatRecipe.Shore.Sequence = 1; pchar.GreatRecipe.Shore.LegacyThresholds = true; }
     GreatRecipe_Locks();
     chrDisableReloadToLocation = false;
-    LAi_SetPlayerType(pchar); LAi_SetImmortal(pchar, false);
-    LAi_SetCheckMinHP(pchar, LAi_GetCharacterMaxHP(pchar) * 0.2, true, "");
+    if (!GreatRecipe_ShoreArm(pchar, "hero", LAi_GetCharacterMaxHP(pchar) * 0.2)) return;
+    LAi_SetPlayerType(pchar);
     GreatRecipe_ShoreFriends(place.id);
+    DeleteAttribute(pchar, "GreatRecipe.Shore.LegacyThresholds");
     if (place.id == "GreatRecipeBay")
     {
         LocatorReloadEnterDisable("GreatRecipeBay", "reload2_back", GetCharacterItem(pchar, "GreatRecipeCacheKey") < 1 && !CheckAttribute(pchar, "GreatRecipe.Shore.KeyFound"));
@@ -263,18 +323,20 @@ void GreatRecipe_ShoreLocationLoaded(aref place)
 void GreatRecipe_ShoreCheck()
 {
     if (!GreatRecipe_ShoreActive() || !GreatRecipe_ShoreLocation(pchar.location) || CheckAttribute(pchar, "GreatRecipe.Shore.ReturnPending")) return;
-    if (LAi_GetCharacterHP(pchar) <= LAi_GetCharacterMaxHP(pchar) * 0.2) { GreatRecipe_ShoreRetreat(true); return; }
+    if (!CheckAttribute(pchar, "GreatRecipe.Shore.Sequence")) return;
+    string prefix = "GreatRecipeShoreYield_" + pchar.GreatRecipe.Shore.Sequence + "_";
+    if (LAi_GetCharacterHP(pchar) <= LAi_GetCharacterMaxHP(pchar) * 0.2 ||
+        (!CheckAttribute(pchar, "chr_ai.hpchecker") && LAi_IsImmortal(pchar) && CheckAttribute(pchar, "GreatRecipeShoreSequence") &&
+         sti(pchar.GreatRecipeShoreSequence) == sti(pchar.GreatRecipe.Shore.Sequence)))
+    { GreatRecipe_ShoreTerminal(prefix + "hero"); return; }
     int helperIndex = GetCharacterIndex("GreatRecipeShoreBeard");
     if (helperIndex >= 0 && !CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear"))
     {
         ref helper = GetCharacter(helperIndex);
-        if (helper.location == "GreatRecipeVault" && LAi_GetCharacterHP(helper) <= 40.0 && !CheckAttribute(helper, "GreatRecipeShoreWithdrawn"))
-        {
-            helper.GreatRecipeShoreWithdrawn = true;
-            LAi_RemoveCheckMinHP(helper); LAi_SetStayType(helper); LAi_SetImmortal(helper, true);
-            ChangeCharacterAddressGroup(helper, "GreatRecipeBay", "goto", "goto10");
-            GreatRecipe_Journal("Борода ранен и отходит к шлюпке. Дальше придётся справиться самому; проход обратно в бухту остаётся открыт.", false);
-        }
+        if (helper.location == "GreatRecipeVault" && !CheckAttribute(helper, "GreatRecipeShoreWithdrawn") &&
+            (LAi_GetCharacterHP(helper) <= 40.0 || (!CheckAttribute(helper, "chr_ai.hpchecker") && LAi_IsImmortal(helper) &&
+             CheckAttribute(helper, "GreatRecipeShoreSequence") && sti(helper.GreatRecipeShoreSequence) == sti(pchar.GreatRecipe.Shore.Sequence))))
+            GreatRecipe_ShoreTerminal(prefix + "helper");
     }
     string room = pchar.location;
     if (room == "GreatRecipeVault" && !CheckAttribute(pchar, "GreatRecipe.Shore.VaultClear"))
@@ -370,6 +432,7 @@ bool GreatRecipe_ShoreHandOver()
     TakeItemFromCharacter(pchar, "GreatRecipeCacheLedger");
     TakeItemFromCharacter(pchar, "GreatRecipeCacheKey");
     pchar.GreatRecipe.Shore.Delivered = true;
+    if (CheckAttribute(pchar, "GreatRecipe.Shore.RewardDeferred")) pchar.GreatRecipe.Rewards.ShorePending = true;
     GreatRecipe_TaskAdvance("mutiny", "Борода забрал книгу и вызвал Ратли. Спор о долях перекинулся на палубу.");
     return true;
 }
