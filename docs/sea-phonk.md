@@ -1,5 +1,17 @@
 # Phonk Mode
 
+## Status
+
+Installed October 13 through the canonical Metal stage-only path. The exact
+native patch, controller/menu and Faster input passed component, full PROGRAM
+compile and installed-byte/signature checks; installation preserved SAVE/settings.
+The player's sea replay found insufficient speed, barely visible illumination
+and braking that changes the sliding direction. Native acceptance is reopened;
+the successor remains separate from the installed batch. Music disposal before
+death/scene replacement is repaired and VM-verified in source, pending delivery.
+No agent game input or launch was performed. The current engine and chronological
+installation receipt belong to `runtime.md`.
+
 ## Contract and owners
 
 At local sea, **Esc → Phonk Mode** sits directly below **Цунами**. The same

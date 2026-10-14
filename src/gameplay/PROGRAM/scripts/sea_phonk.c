@@ -11,7 +11,12 @@ bool SeaPhonk_IsActive()
 
 bool SeaPhonk_Music(string requested)
 {
-    if (!SeaPhonk_IsActive()) return false;
+    if (!SeaPhonk_IsActive())
+    {
+        // Retire our loop before ordinary scene/death music replaces musicID.
+        if (musicName == SEA_PHONK_TRACK) SeaPhonk_Reset(false);
+        return false;
+    }
     if (requested != SEA_PHONK_TRACK && requested != "") Sea.Phonk.ReturnMusic = requested;
     if (musicName == SEA_PHONK_TRACK) return true;
     KZ|MusicEventsOff();
