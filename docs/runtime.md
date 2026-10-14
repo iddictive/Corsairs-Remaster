@@ -1,8 +1,34 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the Phonk hull-support departure, damped landing, airborne wake/foam contact gates and numeric250-knot HUD correction, preserving adjustable throttle, brighter lilac glow, accepted NPC generation source `122053c`, and Beard fixed-coordinate constructor repair `a3e879b`. Signed engine `179d8fe10eb8cb5af4194b20fe9c7fd07a0da1b64f101838f566400b06b5e791`; all eight built source files match the verified packet and delivery check reports zero pending cache/app files, compiler ready.492 fresh closed-game SAVE/config hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player flight activation is observed, but the previous jump/landing/water effects are rejected; revised sea motion/contact/HUD, NPC scene and accelerated-map Beard appearance remain unresolved. Previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the controllable500-knot Phonk ceiling with120kn/s acceleration and240kn/s braking, preserving hull-support departure, damped landing, airborne wake/foam contact gates, native-knot HUD, brighter lilac glow, NPC `122053c` and Beard source/diagnostics through `5eac985`. Signed engine `6349eb2addb21151d998b5b7245f8bbe1d44f4fd7a270420ca4bde578301f7ce`; compiler receipt binds the final speed patch and its built header byte-matches the production probe. Delivery check reports zero pending cache/app files, compiler ready.492 fresh closed-game SAVE/config hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player flight activation is observed, but earlier jump/landing/contact and250 speed are rejected; revised sea speed/motion/contact/HUD, NPC scene and accelerated-map Beard appearance remain unresolved. Previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — player rejects250 speed; controllable500 successor installed
+
+The player finds250 too slow, superseding the earlier chosen ceiling. This is a
+speed preference, not evidence of another physical clamp. A single native
+constant line doubles ceiling/motor/brake to500/120/240 while retaining W/S speed
+choice, coasting, world-vector braking and approximately4.2s rest-to-maximum.
+Flight/contact/glow/HUD/music and ordinary motion code are unchanged.
+
+Exact production Drift and effective-current cap ASan/UBSan fixture passes
+120kn after1s, heldW500 ceiling, release/coasting, S240kn/s bearing preservation
+and stop, airborne inertia, combined-current500 cap and untouched OFF branch.
+Canonical `run.sh --stage-only` returns0 with two workers after the final source
+change; exactly one source file changes. Built header byte-matches the probe and
+compiler receipt binds patch SHA256:
+`7fe9c366e173cbb7c78430395bf8dbd5783a330b6679e94a12e6b6b9975e3aa1`.
+Unsigned engine:
+`62becaa7b2d4eff9737c351f15220c33a34088acca0a083663dfd4901d327690`.
+Installed signed engine:
+`6349eb2addb21151d998b5b7245f8bbe1d44f4fd7a270420ca4bde578301f7ce`.
+Canonical transaction verifies the complete app signature and retains prior
+179d8fe engine backup. All492 fresh closed-game SAVE/config hashes are unchanged;
+Beard diagnostic content checkpoint5eac985 is preserved. Delivery check reports
+zero pending cache/app files, compiler ready. No game launch/input occurs.
+Disposition: source/component, build and exact app delivery accepted; player500
+speed/control and revised jump/landing/contact replay remain unresolved.
 
 ### October13 — Beard appearance rejected again; file diagnostics installed
 

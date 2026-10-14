@@ -22,11 +22,11 @@ installation receipt belong to `runtime.md`.
 At local sea, **Esc → Phonk Mode** sits directly below **Цунами**. The same
 button turns it off and resumes play. Map, land and boarding retain their menus.
 W accelerates, releasing W coasts, S brakes, and A/D turn the hull through the
-existing remappable ship controls. Speed is controllable below a hard **250-knot**
+existing remappable ship controls. Speed is controllable below a hard **500-knot**
 effective horizontal ceiling, including tsunami/whirlpool transport. There is no
 minimum cruising speed or automatic acceleration to the maximum. Toggle-on
-preserves current velocity. The independent motor accelerates at 60 knots/second;
-the brake removes 120 knots/second along the current world vector. The hull turns
+preserves current velocity. The independent motor accelerates at 120 knots/second;
+the brake removes 240 knots/second along the current world vector. The hull turns
 while momentum keeps carrying it sideways; countersteering and recovering
 traction straighten the course. NPC ships and never-active off-mode physics
 are unchanged. Mode exit caps its own residual motion to ordinary propulsion.
@@ -61,6 +61,11 @@ The navigator's numeric speed uses raw native knots for the live player in
 Phonk mode. Ordinary arcade scaling previously displayed250 as100; the physical
 ceiling was already250. Ordinary, dead and NPC readouts retain their existing
 scale, as does the spyglass. The saturated dial angle does not clamp the number.
+The player subsequently rejects250 as too slow; the source ceiling and matching
+motor/brake rates are doubled. This changes the speed range while preserving
+approximately4.2seconds of held W from rest to maximum. Canonical stage-only
+delivery installs this speed packet; the compiler receipt binds its exact patch
+and built header. Player assessment of the new speed range remains unresolved.
 
 The lilac halo peaks in the exposed area around the hull rather than underneath
 it. Four local light sources sit outside the port/starboard surfaces so outward

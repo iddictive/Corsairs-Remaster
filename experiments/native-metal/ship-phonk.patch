@@ -578,7 +578,7 @@
 +
 +namespace storm::ship::phonk
 +{
-+constexpr float speedCeiling = 250.f, motorAcceleration = 60.f, brakeDeceleration = 120.f;
++constexpr float speedCeiling = 500.f, motorAcceleration = 120.f, brakeDeceleration = 240.f;
 +constexpr float yawBoost = 2.1f;
 +inline float yawSpeed(float stock, float turn)
 +{
