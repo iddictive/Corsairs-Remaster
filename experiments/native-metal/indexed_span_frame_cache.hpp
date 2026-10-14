@@ -25,11 +25,17 @@ struct IndexedSpanFrameCache {
     using Key = std::array<std::uint64_t, 10>;
     using IdentitySpans = std::map<std::uint64_t, std::vector<Key>>;
 
-    struct Entry { IndexedSpan span; std::list<Key>::iterator recent; };
+    struct Entry {
+        IndexedSpan span;
+        std::list<Key>::iterator recent;
+        std::vector<std::uint32_t> topology;
+    };
     std::map<Key, Entry> entries;
     std::list<Key> recency;
     std::map<std::uint64_t, std::uint64_t> indexRevisions, vertexRevisions;
     IdentitySpans indexSpans, vertexSpans;
+    static constexpr std::size_t topologyBudget = 4 * 1024 * 1024;
+    std::size_t topologyBytes = 0;
 
     void observe(const Key &key)
     {
@@ -59,11 +65,49 @@ struct IndexedSpanFrameCache {
         if (entries.size() >= 8192)
             erase(entries.find(recency.front()));
         recency.push_back(key);
-        entries.emplace(key, Entry{span, std::prev(recency.end())});
+        entries.emplace(key, Entry{span, std::prev(recency.end()), {}});
         indexRevisions[key[0]] = key[1];
         vertexRevisions[key[2]] = key[3];
         indexSpans[key[0]].push_back(key);
         vertexSpans[key[2]].push_back(key);
+    }
+
+    // Poses change bounds, never validated index addressing. Keep this derived
+    // list with its span so revisions, identity recycling and LRU eviction have
+    // one owner; ordinary static draws do not allocate topology payloads.
+    template<class ReadIndex>
+    const std::vector<std::uint32_t> *unique(const Key &key, ReadIndex read)
+    {
+        const auto entry = entries.find(key);
+        if (entry == entries.end())
+            return nullptr;
+        const auto span = entry->second.span;
+        if (span.last < span.first || std::uint64_t(span.last) - span.first + 1 > 4096 || !key[5])
+            return nullptr;
+        recency.splice(recency.end(), recency, entry->second.recent);
+        if (!entry->second.topology.empty())
+            return &entry->second.topology;
+        std::array<std::uint8_t, 4096> seen{};
+        std::vector<std::uint32_t> unique;
+        unique.reserve(span.vertices());
+        for (std::uint64_t i = 0; i < key[5]; ++i) {
+            const auto vertex = read(i);
+            if (vertex < span.first || vertex > span.last)
+                return nullptr;
+            if (!seen[vertex - span.first]) {
+                seen[vertex - span.first] = 1;
+                unique.push_back(vertex);
+            }
+        }
+        const auto bytes = unique.capacity() * sizeof(std::uint32_t);
+        if (bytes > topologyBudget)
+            return nullptr;
+        // The current entry is most recent and its bounded list fits alone.
+        while (topologyBytes + bytes > topologyBudget)
+            erase(entries.find(recency.front()));
+        entry->second.topology = std::move(unique);
+        topologyBytes += bytes;
+        return &entry->second.topology;
     }
 
     void clear()
@@ -74,6 +118,7 @@ struct IndexedSpanFrameCache {
         vertexRevisions.clear();
         indexSpans.clear();
         vertexSpans.clear();
+        topologyBytes = 0;
     }
 
   private:
@@ -95,6 +140,7 @@ struct IndexedSpanFrameCache {
     void erase(std::map<Key, Entry>::iterator entry)
     {
         const Key key = entry->first;
+        topologyBytes -= entry->second.topology.capacity() * sizeof(std::uint32_t);
         recency.erase(entry->second.recent);
         entries.erase(entry);
         unlink(indexSpans, indexRevisions, key, 0);

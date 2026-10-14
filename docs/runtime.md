@@ -4,6 +4,25 @@ Last verified delivery: October14. Native fleet profiling and the foam/cloud bat
 
 ## Current verdict
 
+### October14 — sailor topology cache unified; staging pending
+
+The actual native CPU sample finds UniqueIndexCache rebuilds under Sailors.
+Eight ships create280 independent crew sources, exceeding its256-entry four-way
+owner. Seeded actual-body replay reads1116 indices every warm cycle (186 lists);
+the nearest one-source case already caches correctly. Topology now attaches to
+the existing8192-span LRU with4MiB payload budget and the same4096-index fallback.
+Actual-header ASan/UBSan checks pass280 sources×120 changed poses with zero warm
+reads and unchanged bounds; revision/addressing/invalid/eviction/reset negatives
+pass. The original span-cache probe also passes.
+
+Matched native `20261014-152752` preserves152 sail/311 animated/one sea/one current
+sky/eight complete point-cube minima,1717 median draws,20 allocations and the
+whole scene. CPU median12.738ms/p9915.217ms; GPU median14.407ms/p9918.129ms.
+The CPU work is removed; the8.33ms whole-workload target remains unmet. Larger
+Metal groups/occupancy hints show no stable material gain and are rejected.
+This source batch has not been staged; installed signed13180929 still consumes
+the preceding3d15e6a. No game launch, controls or SAVE mutation occurred.
+
 ### October14 — autonomous native fleet benchmark; >120FPS unresolved
 
 The hidden engine-linked fixture runs without CUA, game startup, SAVE or focus

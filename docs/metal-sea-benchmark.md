@@ -101,6 +101,25 @@ unchanged baseline shader and the repaired shader. Keep that negative visible;
 this work does not repair its separate fixture/star contract or claim a green
 aggregate sky suite.
 
+Animated topology now belongs to `IndexedSpanFrameCache`, alongside the validated
+addressing it derives from. The former256-entry four-way topology cache cannot
+retain280 independent sailor sources. Actual old bodies rebuild186 lists on
+every warmed cycle; the unified owner retains all280 through120 changed poses
+with zero warm index reads. Revisions, source identities, LRU eviction, Reset
+and teardown release both span and list. Only animated draws request topology;
+the4096-index eligibility and4MiB payload budget remain, with full-index fallback.
+ASan/UBSan covers16/32-bit indices, negative base, offset, invalid revisions,
+recycled identities, oversized fallback and budget eviction. The existing span
+probe remains valid. Exact posed bounds, draw order and all GPU passes remain.
+
+The bounded Metal dispatch experiment uses the current native pipeline's
+reported SIMD width32 and maximum1024 threads. Larger groups and128/256/512
+occupancy hints preserve bytes but show no stable material gain over8×8 after
+warming. Retain the existing dispatch. Native compiler occupancy hints are the
+strongest applicable built-in facility; see Apple's
+[Metal renderer tuning](https://developer.apple.com/videos/play/wwdc2023/10127/).
+This rejected component variant does not establish a hardware FPS ceiling.
+
 Reflection layers15/16/17 are SEA query lists. Registering them as ordinary
 Realize layers draws reflection sky after main sea and erases the water;
 reject such a fixture instead of repairing the game. SKY.dir requires its stock
