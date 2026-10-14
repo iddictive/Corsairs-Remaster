@@ -4,6 +4,29 @@ Last verified delivery: October14. Native fleet profiling, foam/cloud work, sail
 
 ## Current verdict
 
+### October14 — corrected-material profile shifts priority to scene shading
+
+Hidden capture20261014-170328 uses the corrected Hull1 materials. Native
+overlapping GPU profile ranks main geometry23.54%, reflection geometry10.02%,
+traversal receivers8.89%, cloud tile8.33%. Main shading has44.77% instruction
+throughput limiter and17.68% fragment occupancy; receiver replay has79.34% clip
+limiter. Earlier cloud-first ranking belongs to the incomplete-material fixture.
+The4.865ms cloud compute statistic is not serialized frame time. Capture/sample
+timings are instrumented and do not replace warmed whole-frame acceptance.
+
+Separate cloud-deck kernels give no warmed gain and change optical fields;
+a conservative static noise envelope adds about10–15% cost. Both remain rejected
+diagnostic prototypes. A current-pose solar caster rejection passes393216 exact
+GPU depth bytes over12 changed poses and unknown-state negatives. Full native
+171431 retains all coverage minima, CPU median14.919ms/p9918.452ms and GPU union
+median16.622ms/p9921.767ms; no whole gain is established against corrected165042.
+Time-separated runs do not prove a causal regression. The source predicate is
+restored and the candidate is not installed. Original signedee5a226b engine and
+uncapped pacing remain the last verified delivery; no game launch/control,
+SAVE or player configuration changes occurred. Next bounded investigation:
+specialize the existing material pipeline without changing its states or pixels.
+Disposition: dominant complete-scene owner identified; >120FPS unresolved.
+
 ### October14 — white benchmark hulls corrected; earlier fidelity verdict withdrawn
 
 The user's white-hull observation is a fixture defect. Native Mount emits

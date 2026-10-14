@@ -160,6 +160,45 @@ empty-scene FPS. A valid one-ship control retains sails, crew, water/current sky
 and point cubes. It is a causal scaling control, not a substitute for the fleet
 target. Required stock-root absence also rejects before scene process creation.
 
+## Corrected-material profiling and rejected component work
+
+Native capture20261014-170328 binds the repaired Hull1 fixture. Its overlapping
+profile ranks main Scene geometry23.54%, reflection geometry10.02%, traversal
+receivers8.89%, then cloud tile8.33%. These costs are not serialized durations;
+the cloud compute statistic4.865ms does not establish that many milliseconds
+of critical-path frame time. Main scene reports Instruction Throughput
+Limiter44.77% and FS Occupancy17.68%; traversal receivers report Clip Unit
+Limiter79.34%. The earlier cloud-first ranking came from incomplete materials
+and must not govern the complete-scene priority.
+
+Two shader-only prototypes are rejected after paired native measurements across
+eight actual2048-map tile offsets. Separate deck kernels, retaining RGBA32
+intermediate optical moments, do not improve warmed cost; four256 fields also
+change2634 of2097152 bytes, alpha error up to0.003173828. A static32-cube base-noise
+envelope uses R maxima/GBA minima over periodic trilinear support to reject only
+empty samples, retaining original higher-mip evaluation. It matches the four
+fields exactly but adds about10–15% cost; one full-resolution tile differs in10
+bytes. Neither prototype enters production source. This is the local fit limit
+of [min/max empty-space bounds](https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-39-volume-rendering-techniques),
+not evidence that volume acceleration in general cannot work.
+
+A separate actual LandShadow encoder comparison admits known current-pose
+animated bounds to the existing solar cascade rejection.393216 GPU depth bytes
+match across12 changing poses, both cascades and retained unknown bounds/poses.
+Full native20261014-171431 keeps all pass minima but CPU median14.919ms and GPU
+median16.622ms establish no whole-workload gain over corrected baseline165042.
+The runs are separated in time: they cannot establish a causal slowdown either.
+The production predicate is restored; the candidate/proof stays diagnostic.
+
+Next bounded owner is backend material shader specialization. The current
+`shadeFixedFunction` evaluates up to eight uniform-driven stages and general
+argument/operation branches; applyState owns the shared pipeline cache across
+raw, compact, bridge, fog, fire and aiming consumers. Apple's
+[function specialization](https://developer.apple.com/videos/play/wwdc2023/10127/)
+is the compatible built-in candidate. Before production changes, prove an
+actual-shader pixel oracle and material-state/cache-key transitions; do not
+duplicate the shader or accept a fixed common material that breaks other stages.
+
 Reflection layers15/16/17 are SEA query lists. Registering them as ordinary
 Realize layers draws reflection sky after main sea and erases the water;
 reject such a fixture instead of repairing the game. SKY.dir requires its stock
