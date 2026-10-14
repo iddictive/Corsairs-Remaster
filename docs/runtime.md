@@ -4,7 +4,7 @@ Last verified delivery: October13. Canonical stage-only installs the frozen Phon
 
 ## Current verdict
 
-### October14 — first sea/map camera rejected; overhead successor awaiting installation
+### October14 — first sea/map camera rejected; overhead successor installed, replay pending
 
 The requested menu transition lifts and tilts around the live player ship in
 three nonlinear impulses, matches its projected area to the map miniature and
@@ -30,7 +30,20 @@ incoming view and nearly opaque white clouds. A read-only game capture confirms
 the white veil covers almost the complete scene. The successor removes cloud/
 fog quads, tilts to the overhead axis before a vertical nonlinear lift, holds
 that pitch in the map and reverses the same trajectory. Native build passes.
-Actual successor motion and duration remain unresolved before installation.
+Successor canonical stage exits0 at a48a5dd and installs signed engine
+`e87082489e406ec79bcd5214118782325246923c8f00b14023afa1532a02a8f1`;
+d92e is backed up. The overhead projection oracle and27 ship/height/yaw cases
+pass against the shipped miniature. Actual successor motion and duration
+remain unresolved until the player's replay.
+
+Canonical sea.c was repeatedly restored to the exact219f prior source by an
+unidentified writer while other camera owners remained intact. One stage
+stopped at the existing recipe hash gate before app mutation. The accepting
+retry starts from the committed c14d source and completes; instrumentation
+observes another source change during install-engine's resource transaction,
+but does not identify the writer. c14d is restored afterward. This is not
+attributed to Beard, a Python import or a hook; future source/staging must bind
+that file to its committed camera owner again before composition.
 
 The additional adjacent-island report is separately unresolved. Installed
 DIRECTSAIL is0; its historical loader is not included/called by the active
