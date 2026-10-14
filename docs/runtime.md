@@ -4,6 +4,61 @@ Last verified delivery: October14. Native fleet profiling, foam/cloud work, sail
 
 ## Current verdict
 
+### October14 — current CPU/GPU owners; cloud replacement deferred
+
+Restored canonical source is rebuilt by the normal benchmark path for corrected
+fleet768-frame CPU sample181629. All pass minima remain present,20 allocations.
+Instrumented CPU median13.280ms/p9922.071ms and GPU union14.603ms/p9917.982ms
+are profiling observations, not new uninstrumented speedup evidence. Of348
+main-thread samples,335 are in ProcessRealize and12 in ProcessExecute;213 are
+under Device::draw,71 under reflection traversal and46 under shadow resolve.
+These inclusive populations overlap and must not be added. No main-thread
+GPU-wait symbol appears in the sampled branch; background wait threads do not
+establish a main-thread stall. About1700 draw submissions remain per frame.
+The corrected GPU capture below independently points to scene shading,
+reflection geometry and vertex/clip-heavy receiver replay. Priority is now the
+CPU render submission/state path and GPU material/receiver work. No performance
+repair or120FPS acceptance follows merely from the profile.
+
+### October14 — cloud candidates; selected appearance, no proven FPS gain
+
+The player requests detailed real volume clouds with substantially lower cost,
+all weather/rain/storm/day/night and sun scattering; the accepted fog/atmosphere
+is retained. The player subsequently prioritizes the CPU/GPU bottleneck because
+cloud replacement has not established a whole-scene performance benefit.
+SunshineClouds2a73a80b is adapted in a task-owned native diagnostic with its
+published NoiseTexture recipes/curl and example mask. Standalone Metal2048²
+fields complete in35.9–45.6ms; individual256² tiles range0.18–1.54ms in these
+limited states. These are isolated dispatches, not critical-path sea timings.
+
+Full2560×1655 corrected-material sea175734 passes152 sails/311 animated/one sea/
+current sky/eight complete point cubes,20 allocations: CPU median14.152ms,
+GPU union15.510ms. Source-specific light/mask adapter180023 passes the same
+coverage, CPU14.034ms/p9916.079ms, GPU15.121ms/p9917.712ms. Time-separated runs
+do not prove a stable whole-scene speedup; neither meets8.33ms. Whole images
+retain textured hulls/water/reflections. Initial author contour/flatness concerns
+are superseded by the player's explicit approval of175734's Sunshine image,
+with a request for slight softness. Preserve that exact shape/light direction;
+do not substitute180023's source-specific lighting or clear static-mask region.
+The static mask is not an all-weather test. Godot compositor/reprojection is not
+ported; no conclusion about upstream visual quality follows from this adapter.
+
+At the player's request, Flower17b5ebd is rendered in the same scene181020.
+Its native ambient/ground-light adapter is unverified and gives a dark/dense
+result. The player rejects Flower and ends that branch. It is not installed and
+receives no further tuning. CPU median13.686ms, GPU union15.328ms, all pass
+minima retained; this is not evidence of a meaningful whole-scene speedup.
+
+Both temporary native headers are restored byte-for-byte toHEAD; candidates,
+exact resource hashes and images remain in the ignored cloud-replacement native
+research owner. No app stage/launch, SAVE or configuration mutation occurred;
+installed signedee5a226b is unchanged. The benchmark cache is a diagnostic build
+was subsequently rebuilt from the restored source for181629. Both candidate
+branches leave the original engine unchanged. Sunshine appearance is selected,
+but softness, all weather, motion, source integration and staging remain deferred
+behind the performance investigation. Disposition: Flower rejected; Sunshine
+not delivered; >120FPS unresolved.
+
 ### October14 — corrected-material profile shifts priority to scene shading
 
 Hidden capture20261014-170328 uses the corrected Hull1 materials. Native

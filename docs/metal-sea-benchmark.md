@@ -199,6 +199,22 @@ is the compatible built-in candidate. Before production changes, prove an
 actual-shader pixel oracle and material-state/cache-key transitions; do not
 duplicate the shader or accept a fixed common material that breaks other stages.
 
+The corrected-material CPU sample181629 localizes the main-thread work to
+rendering: ProcessRealize335/348 samples, ProcessExecute12/348 and Device::draw
+213/348 inclusive. Reflection traversal71 and shadow resolve46 overlap those
+parents; they are not additional percentages. The main branch has no sampled
+GPU-wait symbol. Background semaphore/condition waits are not evidence that
+the rendering thread is blocked. Its approximately1700 draws expose repeated
+geometry traversal, state/resource binding, constant uploads and driver command
+encoding. Existing frame/geometry/index caches have not removed that submission
+work. Instrumented frame times cannot establish an optimization gain.
+
+Keep the two limits separate: CPU submission/state preparation, GPU interpreted
+material/light shading and repeated geometry/receiver rasterization. The
+shader's general eight-stage combiner and up-to64-lamp fragment loop identify
+specialization/admission candidates, not measured savings. Do not halve rendering
+quality, remove reflections/crew/shadows or claim120FPS from an isolated pass.
+
 Reflection layers15/16/17 are SEA query lists. Registering them as ordinary
 Realize layers draws reflection sky after main sea and erases the water;
 reject such a fixture instead of repairing the game. SKY.dir requires its stock
