@@ -243,7 +243,7 @@
          if (newPenetration > oldPenetration + 0.0001f)
          {
              State.vPos.x = beforeTranslation.vPos.x;
-@@ -617,8 +747,69 @@
+@@ -617,8 +747,75 @@
  
      // Only grounding mutates translational velocity after the temporary current.
      // Its zero velocity is authoritative; never subtract a stale current from it.
@@ -271,50 +271,56 @@
 +        float surface = State.vPos.y;
 +        CVECTOR surfaceAngle = State.vAng;
 +        ShipRocking(0.f, &surface, &surfaceAngle);
-+        const bool wasAirborne = phonkFlight.airborne;
-+        const bool wasBuoyant = phonkFlight.buoyant;
 +        float draft = State.fShipImmersion + SP.fWaterLine;
 +        if (bKeelContour)
 +            for (const auto &point : vKeelContour) draft = std::max(draft,
 +                State.fShipImmersion + SP.fWaterLine - point.y);
-+        const float supportedHeight = State.vPos.y + std::min(dtime / .025f * fRockingY, 1.f) *
-+            (surface - State.vPos.y);
-+        const bool departed = phonkFlight.support(surface, dtime, fGravity,
-+            waveAfter.serial, waveAfter.height > 0.f, State.vPos.y, draft, supportedHeight);
-+        if (departed && !wasBuoyant)
++        if (!phonkFlight.sampled)
 +        {
-+            // Execute's water-torque state resets out of water. Carry the
-+            // actual presented hull attitude into flight before that reset.
++            GEOS::INFO hull;
++            auto *node = GetModel()->GetNode(0);
++            node->geo->GetInfo(hull);
++            phonkFlight.hullTop = hull.boxcenter.y + hull.boxsize.y * .5f;
++            phonkFlight.hullBottom = hull.boxcenter.y - hull.boxsize.y * .5f;
++            // Carry the already presented ordinary tilt into the finite owner.
 +            State.vAng.x = beforeTranslation.vAng.x + tsunamiMotion.pitch + whirlpoolMotion.pitch;
 +            State.vAng.z = beforeTranslation.vAng.z + tsunamiMotion.roll + whirlpoolMotion.roll +
 +                std::clamp(State.vRotate.y, -.25f, .25f);
 +        }
++        phonkFlight.freeboard = std::max(.5f, phonkFlight.hullTop - State.fShipImmersion - SP.fWaterLine);
++        draft = std::max(draft, State.fShipImmersion + SP.fWaterLine - phonkFlight.hullBottom);
++        const bool wasAirborne = phonkFlight.airborne, wasBuoyant = phonkFlight.buoyant;
++        const float ratio = std::clamp(phonkDrift.magnitude() / storm::ship::phonk::speedCeiling, 0.f, 1.f);
++        // Phonk's cinematic vertical scale leaves ordinary native gravity and
++        // horizontal speed untouched. High-speed flight stays short/readable.
++        const float verticalGravity = fGravity * (1.f + 7.f * ratio * ratio * ratio);
++        const float supportedHeight = State.vPos.y + std::min(dtime / .025f * fRockingY, 1.f) *
++            (surface - State.vPos.y);
++        const bool departed = phonkFlight.support(surface, dtime, verticalGravity,
++            waveAfter.serial, waveAfter.height > 0.f, State.vPos.y, draft, supportedHeight);
++        const unsigned previousImpact = phonkFlight.impactGeneration;
 +        if (wasAirborne || (wasBuoyant && !departed))
-+            State.vPos.y = phonkFlight.advance(beforeTranslation.vPos.y, dtime, fGravity, draft);
-+        else if (wasBuoyant && departed)
-+            State.vPos.y = beforeTranslation.vPos.y;
-+        else
++            State.vPos.y = phonkFlight.advance(beforeTranslation.vPos.y, surface, dtime, fGravity, draft);
++        else if (wasBuoyant && departed) State.vPos.y = beforeTranslation.vPos.y;
++        else State.vPos.y = supportedHeight;
++        if (phonkFlight.impactGeneration != previousImpact)
 +        {
-+            State.vPos.y = supportedHeight;
-+            if (!departed)
-+                State.vAng += std::min(dtime / .025f * fRockingAZ, 1.f) * (surfaceAngle - State.vAng);
++            const float t = phonkFlight.impactFraction;
++            phonkFlight.impactX = beforeTranslation.vPos.x + t * (State.vPos.x - beforeTranslation.vPos.x) + fXOffset;
++            phonkFlight.impactZ = beforeTranslation.vPos.z + t * (State.vPos.z - beforeTranslation.vPos.z) + fZOffset;
++            phonkFlight.impactY = pSea->WaveXZ(phonkFlight.impactX, phonkFlight.impactZ) + .5f;
 +        }
-+        // Keep the actual departure attitude in air; water entry recovers it
-+        // continuously instead of instantaneously pointing along velocity.
-+        if (phonkFlight.buoyant && !phonkFlight.airborne)
-+        {
-+            surfaceAngle.x += tsunamiMotion.pitch + whirlpoolMotion.pitch;
-+            surfaceAngle.z += tsunamiMotion.roll + whirlpoolMotion.roll + std::clamp(State.vRotate.y, -.25f, .25f);
-+            const float omega = std::sqrt(fGravity / std::max(.5f, draft));
-+            const float recovery = -std::expm1(-omega * std::clamp(dtime, 0.f, .1f));
-+            State.vAng.x += recovery * (surfaceAngle.x - State.vAng.x);
-+            State.vAng.z += recovery * (surfaceAngle.z - State.vAng.z);
-+        }
++        surfaceAngle.x += tsunamiMotion.pitch + whirlpoolMotion.pitch;
++        surfaceAngle.z += tsunamiMotion.roll + whirlpoolMotion.roll + std::clamp(State.vRotate.y, -.25f, .25f);
++        phonkFlight.attitude(State.vAng.x, State.vAng.z, surfaceAngle.x, surfaceAngle.z,
++            dtime, fGravity, State.vBoxSize.z, State.vBoxSize.x,
++            KNOTS2METERS(phonkDrift.worldX * std::sin(State.vAng.y) + phonkDrift.worldZ * std::cos(State.vAng.y)),
++            KNOTS2METERS(phonkDrift.worldX * std::cos(State.vAng.y) - phonkDrift.worldZ * std::sin(State.vAng.y)));
 +    }
      return true;
  }
  
-@@ -731,6 +922,8 @@
+@@ -731,6 +928,8 @@
  {
      if (!isDead())
      {
@@ -323,7 +329,7 @@
          const CVECTOR eventTilt(tsunamiMotion.pitch, 0.f, tsunamiMotion.roll);
          State.vAng = vAng - eventTilt;
  
-@@ -760,6 +953,8 @@
+@@ -760,6 +959,8 @@
          vCurDeadDir = eventTilt;
          tsunamiMotion.Reset();
          tsunamiDrift.Reset();
@@ -332,7 +338,7 @@
  
          bDead = true;
          core.RemoveFromLayer(SEA_REFLECTION2, GetId());
-@@ -1213,7 +1408,7 @@
+@@ -1213,7 +1414,7 @@
          const auto pos = GetPos();
          const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
          const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
@@ -341,12 +347,12 @@
              whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
          {
              // Match this frame's sampled buoyancy and drift before event rotation.
-@@ -1225,18 +1420,25 @@
+@@ -1225,18 +1426,25 @@
              fRotate = 0.25f;
          if (fRotate < -0.25f)
              fRotate = -0.25f;
 -        vAng.z += fRotate;
-+        const bool phonkPose = PhonkActive() && (phonkFlight.airborne || phonkFlight.buoyant);
++        const bool phonkPose = PhonkActive() && phonkFlight.sampled;
 +        if (!phonkPose) vAng.z += fRotate;
          const float protection = TsunamiProtection();
          const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
@@ -374,7 +380,7 @@
      }
  
      auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
-@@ -1409,6 +1611,8 @@
+@@ -1409,6 +1617,8 @@
          core.Controls->GetControlState("Ship_TurnRight1", cs1);
          if (cs.state == CST_ACTIVE || cs1.state == CST_ACTIVE)
              Strength[STRENGTH_MAIN].vRotate.y = 1.0f;
@@ -383,7 +389,7 @@
          core.Controls->GetControlState("Ship_SailUp", cs);
          core.Controls->GetControlState("Ship_SailUp1", cs1);
          if (cs.state == CST_ACTIVATED || cs1.state == CST_ACTIVATED)
-@@ -1422,6 +1626,7 @@
+@@ -1422,6 +1632,7 @@
              fSailState = 0.0f;
          if (fSailState > 1.0f)
              fSailState = 1.0f;
@@ -391,7 +397,7 @@
      }
  
      /*if (isDead())
-@@ -1671,6 +1876,107 @@
+@@ -1671,6 +1882,107 @@
      }
  }
  
@@ -433,7 +439,7 @@
 +void SHIP::DrawPhonkGlow(uint32_t)
 +{
 +#ifdef STORM_METAL_RENDERER_CONSUMERS
-+    if (!PhonkActive() || !bVisible || !pSea) return;
++    if (!PhonkActive() || !bVisible || !pSea || !HasWaterContact()) return;
 +    struct Vertex { float x, y, z; uint32_t color; };
 +    constexpr unsigned segments = 32, rings = 8;
 +    std::array<Vertex, segments * (rings * 2 - 1) * 3> vertices{};
@@ -499,7 +505,7 @@
  void SHIP::Realize(uint32_t dtime)
  {
      if (!bMounted)
-@@ -1702,6 +2008,7 @@
+@@ -1702,6 +2014,7 @@
  
      bSetLightAndFog = false;
  
@@ -507,7 +513,7 @@
      SetLightAndFog(true);
      SetLights();
  
-@@ -1740,6 +2047,7 @@
+@@ -1740,6 +2053,7 @@
      StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
                            &fireWind.x,fireVisualSeconds);
  #endif
@@ -515,7 +521,7 @@
      if (bMassaShow)
      {
          pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
-@@ -2858,6 +3166,9 @@
+@@ -2858,6 +3172,9 @@
  {
      uint32_t i;
      tsunamiDrift.Reset();
@@ -560,17 +566,22 @@
      float TsunamiProtection();
      CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
      float WhirlpoolControl();
-@@ -300,6 +309,7 @@
+@@ -300,6 +309,12 @@
      MODEL *GetModel() const override;
      entid_t GetModelEID() const override;
      CVECTOR GetPos() const override;
 +    bool HasWaterContact() const override { return !phonkFlight.airborne; }
++    SHIP_WATER_IMPACT GetWaterImpact() const override
++    {
++        return {phonkFlight.impact, phonkFlight.impactGeneration,
++            CVECTOR(phonkFlight.impactX, phonkFlight.impactY, phonkFlight.impactZ)};
++    }
      CVECTOR GetAng() const override;
      CVECTOR GetBoxsize() const override;
      CVECTOR GetRealBoxsize() const override;
 --- /dev/null
 +++ b/src/libs/ship/src/ship_phonk.hpp
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,223 @@
 +#pragma once
 +#include <algorithm>
 +#include <cmath>
@@ -651,11 +662,16 @@
 +{
 +    bool airborne = false, settling = false, buoyant = false, sampled = false;
 +    unsigned launchedSerial = 0;
-+    float velocity = 0.f, surface = 0.f, tangent = 0.f, supportVelocity = 0.f;
-+    float sampleTime = 0.f, entryAge = 0.f;
++    unsigned impactGeneration = 0;
++    float velocity = 0.f, surface = 0.f, previousSurface = 0.f, entryAge = 0.f, entryOmega = 0.f;
++    float entryOffset = 0.f, entryRelativeVelocity = 0.f;
++    float tangent = 0.f, supportVelocity = 0.f, sampleTime = 0.f, flightGravity = 9.81f;
++    float pitchRate = 0.f, rollRate = 0.f, freeboard = 0.f, hullTop = 0.f, hullBottom = 0.f;
++    float impact = 0.f, impactStrength = 0.f, impactAge = 0.f, impactFraction = 0.f;
++    float impactX = 0.f, impactY = 0.f, impactZ = 0.f;
 +    void reset() { *this = {}; }
-+    // The existing hull-averaged buoyancy surface owns height. Its material
-+    // derivative includes ship motion AND the moving wave, without a crest kick.
++    // Keep the authoritative hull support on the ramp. The Phonk flight scale
++    // is separate from ordinary gravity and cannot change the launch velocity.
 +    bool support(float height, float seconds, float gravity, unsigned serial, bool wavePresent,
 +                 float bodyHeight, float draft, float supportedHeight)
 +    {
@@ -668,42 +684,114 @@
 +        const bool depart = !airborne && !settling && sampled && wavePresent && serial &&
 +            serial != launchedSerial && bodyTangent > 0.f && gravity + acceleration < 0.f &&
 +            (!buoyant || (velocity > 0.f && bodyHeight >= height - std::max(.5f, draft)));
++        previousSurface = sampled ? surface : height;
 +        surface = height; tangent = nextTangent; supportVelocity = bodyTangent; sampleTime = dt; sampled = true;
-+        if (depart) { airborne = true; launchedSerial = serial; if (!buoyant) velocity = bodyTangent; }
++        if (depart)
++        {
++            airborne = true; launchedSerial = serial; flightGravity = gravity;
++            if (!buoyant) velocity = bodyTangent;
++        }
 +        else if (!airborne && !buoyant) velocity = bodyTangent;
 +        return depart;
 +    }
-+    float advance(float height, float seconds, float gravity, float draft)
++    float advance(float height, float water, float seconds,
++                  float gravity, float draft)
 +    {
 +        const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
 +        if (!std::isfinite(gravity) || gravity <= 0.f) gravity = 9.81f;
++        draft = std::max(.5f, draft);
++        freeboard = std::max(.5f, freeboard);
++        const float naturalOmega = std::sqrt(gravity / draft);
++        const unsigned steps = std::max(1u, unsigned(std::ceil(dt * 240.f)));
++        const float step = dt / steps;
++        for (unsigned i = 0; i < steps; ++i)
++        {
++            const float contactWater = previousSurface + (water - previousSurface) * float(i + 1) / steps;
++            if (airborne)
++            {
++                height += velocity * step - .5f * flightGravity * step * step;
++                velocity -= flightGravity * step;
++                // Enter the moving contact boundary; a crest receding faster
++                // than the hull is not an impact or an attachment to that crest.
++                if (velocity < tangent && height <= contactWater + draft)
++                {
++                    airborne = false;
++                    buoyant = true;
++                    settling = true;
++                    entryAge = impactAge = 0.f;
++                    ++impactGeneration;
++                    impactFraction = float(i + 1) / steps;
++                    const float incoming = std::max(0.f, tangent - velocity);
++                    const float energyDepth = incoming * incoming / (2.f * gravity);
++                    const float offset = height - contactWater;
++                    const float dip = std::min(.92f * freeboard,
++                        std::max(energyDepth, std::max(0.f, -offset) + .01f));
++                    // Solve the exact critical-response minimum from actual
++                    // contact offset and velocity. This bounds the heavy dip
++                    // at the hull deck, without a position/velocity hard clamp.
++                    float low = .001f, high = std::max(naturalOmega, incoming / .01f);
++                    for (unsigned iteration = 0; iteration < 28; ++iteration)
++                    {
++                        const float omega = (low + high) * .5f;
++                        const float b = -incoming + omega * offset;
++                        const float minimum = b < 0.f ?
++                            (offset - incoming / omega) * std::exp(incoming / b) : 0.f;
++                        if (-minimum > dip) low = omega; else high = omega;
++                    }
++                    // A gentle skim uses ordinary hydrostatic recovery; a
++                    // low-energy, near-zero root must not suspend the hull.
++                    entryOmega = energyDepth >= freeboard ? high : naturalOmega;
++                    entryOffset = offset;
++                    entryRelativeVelocity = velocity - tangent;
++                    impactStrength = std::clamp(energyDepth / freeboard, 0.f, 1.f);
++                }
++            }
++            else if (buoyant)
++            {
++                entryAge += step;
++                const float b = entryRelativeVelocity + entryOmega * entryOffset;
++                const float decay = std::exp(-entryOmega * entryAge);
++                // Like native emergence, the finite compression is relative
++                // to today's supported water surface, never a future target.
++                const float offset = (entryOffset + b * entryAge) * decay;
++                const float relative = (entryRelativeVelocity - entryOmega * b * entryAge) * decay;
++                height = contactWater + offset;
++                velocity = tangent + relative;
++                if (entryOmega * entryAge >= 6.f) settling = false;
++                if (!settling && std::abs(offset) < .01f && std::abs(relative) < .05f)
++                    buoyant = false;
++            }
++            impactAge += step;
++        }
++        impact = airborne ? 0.f : impactStrength * std::exp(-6.f * impactAge);
++        if (impact < .01f) impact = 0.f;
++        return height;
++    }
++    void attitude(float &pitch, float &roll, float targetPitch, float targetRoll,
++                  float seconds, float gravity, float length, float beam,
++                  float forwardVelocity, float sideVelocity)
++    {
++        const float dt = std::clamp(seconds, 0.f, .1f);
 +        if (airborne)
 +        {
-+            const float next = height + velocity * dt - .5f * gravity * dt * dt;
-+            velocity -= gravity * dt;
-+            if (velocity < tangent && next <= surface)
-+            {
-+                airborne = false;
-+                buoyant = true;
-+                settling = true; // preserve incoming position/velocity at contact
-+                entryAge = 0.f;
-+            }
-+            return next;
++            const float horizontal = std::max(1.f, std::hypot(forwardVelocity, sideVelocity));
++            const float pathAngle = std::atan2(velocity, horizontal);
++            targetPitch = -pathAngle * forwardVelocity / horizontal;
++            targetRoll = pathAngle * sideVelocity / horizontal;
 +        }
-+        if (!buoyant) return height;
-+        // Hydrostatic restoring force from existing gravity and hull draft;
-+        // critically damped water entry, solved exactly for a moving target.
-+        const float omega = std::sqrt(gravity / std::max(.5f, draft));
-+        entryAge += dt;
-+        // The impact's homogeneous response decays even when ordinary waves
-+        // keep forcing buoyancy. Do not wait for a permanently flat surface.
-+        if (omega * entryAge >= 6.f) settling = false;
-+        const float offset = height - (surface - tangent * dt);
-+        const float relativeVelocity = velocity - tangent;
-+        const float b = relativeVelocity + omega * offset;
-+        const float decay = std::exp(-omega * dt);
-+        velocity = tangent + (relativeVelocity - omega * b * dt) * decay;
-+        return surface + (offset + b * dt) * decay;
++        {
++            const auto settle = [dt](float &angle, float &rate, float target, float omega) {
++                const float offset = angle - target;
++                const float b = rate + omega * offset, decay = std::exp(-omega * dt);
++                angle = target + (offset + b * dt) * decay;
++                rate = (rate - omega * b * dt) * decay;
++            };
++            // Continuous angular response: water pressure when wet, Phonk's
++            // flight orientation when airborne, both scaled by the real hull.
++            const float angularGravity = airborne ? 4.f * flightGravity : 12.f * gravity;
++            settle(pitch, pitchRate, targetPitch, std::sqrt(angularGravity / std::max(1.f, length)));
++            settle(roll, rollRate, targetRoll, std::sqrt(angularGravity / std::max(1.f, beam)));
++        }
 +    }
 +};
 +inline float haloOpacity(float radius, float seconds)
@@ -719,13 +807,28 @@
 +} // namespace storm::ship::phonk
 --- a/src/libs/ship/include/ship_base.h
 +++ b/src/libs/ship/include/ship_base.h
-@@ -86,4 +86,7 @@
+@@ -34,6 +34,13 @@
+     CVECTOR vSpeed;  // speed vector
+     CVECTOR vRotate; // rotate speed vector
+     CVECTOR vPos, vAng;
++};
++
++struct SHIP_WATER_IMPACT
++{
++    float strength = 0.f;
++    unsigned generation = 0;
++    CVECTOR position = CVECTOR(0.f);
+ };
+ 
+ class SHIP_BASE : public VAI_OBJBASE
+@@ -86,4 +93,8 @@
  
      virtual void SetFixedSpeed(bool bSetFixed, float fFixedSpeed) = 0;
      virtual bool CanNavigate() const { return false; }
 +    // Physical water support, not a script/save flag. Other ship kinds retain
 +    // their established water effects unless they explicitly leave the water.
 +    virtual bool HasWaterContact() const { return true; }
++    virtual SHIP_WATER_IMPACT GetWaterImpact() const { return {}; }
  };
 --- a/src/libs/ship/src/track.cpp
 +++ b/src/libs/ship/src/track.cpp
@@ -772,6 +875,15 @@
  
      aTrack1.clear();
      aTrack2.clear();
+@@ -439,7 +454,7 @@
+ 
+ void ShipTracks::ShipTrack::Realize(float fDeltaTime)
+ {
+-    if (!pShip || !pSea)
++    if (!pShip || !pSea || !pShip->HasWaterContact())
+         return;
+ 
+     // pRS->SetTransform(D3DTS_WORLD, CMatrix());
 @@ -447,17 +462,29 @@
      m.Pos() = pShip->GetPos();
      pRS->SetTransform(D3DTS_WORLD, m);
@@ -829,7 +941,16 @@
          CVECTOR vLastPos, vLastAng;
 --- a/src/libs/sea_foam/src/seafoam.cpp
 +++ b/src/libs/sea_foam/src/seafoam.cpp
-@@ -370,6 +370,19 @@
+@@ -114,6 +114,8 @@
+     foamInfo->whirlpoolSerial = 0;
+     foamInfo->emergenceGeneration = 0;
+     foamInfo->emergenceSplashOwned = false;
++    foamInfo->waterImpactGeneration = 0;
++    foamInfo->waterImpactOwned = false;
+ }
+ 
+ //--------------------------------------------------------------------
+@@ -370,6 +372,19 @@
  //--------------------------------------------------------------------
  void SEAFOAM::RealizeShipFoam_Particles(tShipFoamInfo &_shipFoamInfo, uint32_t _dTime)
  {
@@ -838,7 +959,7 @@
 +        for (auto *emitter : _shipFoamInfo.frontEmitter)
 +        {
 +            emitter->EnableEmit(false);
-+            emitter->Realize(_dTime); // existing world particles still age
++            emitter->ProcessParticles(_dTime); // age old particles without a water draw
 +        }
 +        _shipFoamInfo.previousBowValid = false;
 +        _shipFoamInfo.doSplash = false;
@@ -849,7 +970,87 @@
      // MODEL *arrow = (MODEL*)core.GetEntityPointer(arrowModel);
  
      for (auto z = 0; z < TRACE_STEPS_Z; ++z)
-@@ -485,6 +498,7 @@
+@@ -403,7 +418,14 @@
+     auto speedDeltaY = 0.f;
+     if (shipSpeed < START_FADE_SPEED)
+         speedDeltaY = 1.f * (1.f - shipSpeed / START_FADE_SPEED);
+-    frontEmitterPos.z += FOAM_SHIFT_Z + .25f * shipSpeed;
++    const auto *shipCharacter = _shipFoamInfo.ship->GetACharacter();
++    auto *seaAttributes = sea ? sea->AttributesPointer : nullptr;
++    const auto *phonkMode = seaAttributes ? seaAttributes->FindAClass(seaAttributes, "Phonk.Active") : nullptr;
++    const bool phonkShip = !_shipFoamInfo.ship->isDead() && shipCharacter &&
++        shipCharacter->GetAttributeAsDword("MainCharacter", 0) != 0 &&
++        phonkMode && phonkMode->GetAttributeAsDword() != 0;
++    frontEmitterPos.z += FOAM_SHIFT_Z + (phonkShip ?
++        std::min(.25f * shipSpeed, .08f * _shipFoamInfo.hullInfo.boxsize.z) : .25f * shipSpeed);
+     frontEmitterPos.y -= speedDeltaY;
+     frontEmitterPos.x -= FOAM_SHIFT_X;
+     _shipFoamInfo.frontEmitter[0]->SetEmitter(_shipFoamInfo.shipModel->mtx * frontEmitterPos, CVECTOR(0.f, 1.f, 0.f));
+@@ -447,29 +469,56 @@
+     _shipFoamInfo.previousBowValid = true;
+     const bool emergenceSplash = _dTime > 0 && entrySplash > 0.f;
+     if (emergenceSplash) _shipFoamInfo.emergenceSplashOwned = true;
+-    _shipFoamInfo.doSplash = stormSplash || waveSplash || emergenceSplash;
+-    _shipFoamInfo.frontEmitter[2]->SetSplashScale(emergenceSplash ? 1.f + 2.f * entrySplash : 1.f);
++    const auto impact = _shipFoamInfo.ship->GetWaterImpact();
++    const bool impactSplash = _dTime > 0 && impact.strength > 0.f;
++    const bool newImpact = impactSplash && impact.generation != _shipFoamInfo.waterImpactGeneration;
++    if (newImpact)
++    {
++        _shipFoamInfo.frontEmitter[2]->ClearParticles();
++        _shipFoamInfo.waterImpactOwned = true;
++    }
++    _shipFoamInfo.waterImpactGeneration = impact.generation;
++    if (!impactSplash && _shipFoamInfo.waterImpactOwned &&
++        !_shipFoamInfo.frontEmitter[2]->HasLivingParticles())
++        _shipFoamInfo.waterImpactOwned = false;
++    _shipFoamInfo.doSplash = stormSplash || waveSplash || emergenceSplash || impactSplash;
++    _shipFoamInfo.frontEmitter[2]->SetSplashScale(impactSplash ? 1.f + 2.f * impact.strength :
++        emergenceSplash ? 1.f + 2.f * entrySplash : 1.f);
+     _shipFoamInfo.frontEmitter[2]->EnableEmit(_shipFoamInfo.doSplash);
+-    if (isStorm || wave.serial != 0 || _shipFoamInfo.emergenceSplashOwned)
++    if (isStorm || wave.serial != 0 || _shipFoamInfo.emergenceSplashOwned ||
++        impactSplash || _shipFoamInfo.waterImpactOwned)
+     {
+         auto mtx2 = _shipFoamInfo.shipModel->mtx;
+         mtx2.Pos() = 0.f;
+-        const auto a = waveSplash ? !CVECTOR(-wave.slopeX, 1.f, -wave.slopeZ) :
++        const auto impactWave = impactSplash ? sea->GetTsunamiSample(impact.position.x, impact.position.z) : wave;
++        const auto a = impactSplash ? !CVECTOR(-impactWave.slopeX, 1.f, -impactWave.slopeZ) :
++                      waveSplash ? !CVECTOR(-wave.slopeX, 1.f, -wave.slopeZ) :
+                                    mtx2 * CVECTOR(0.f, 1.0f, -.15f);
+         auto emitter = bow;
+         if (emergenceSplash) emitter.y = sea->WaveXZ(emitter.x, emitter.z) + .5f;
++        if (impactSplash)
++        {
++            emitter = impact.position;
++            emitter.y = sea->WaveXZ(emitter.x, emitter.z) + .5f;
++        }
+         _shipFoamInfo.frontEmitter[2]->SetEmitter(emitter, a);
+         _shipFoamInfo.frontEmitter[2]->Realize(_dTime);
+     }
+ 
+     // Vortex/entry motion is flowing water, not a repeated bow impact.
+     // The ordinary storm producer and real collision/cannon aliases stay owned.
+-    if (soundService && _shipFoamInfo.doSplash && vortex.serial == 0 && !emerging)
++    if (soundService && _shipFoamInfo.doSplash && (impactSplash || (vortex.serial == 0 && !emerging)))
+     {
+         auto pos = _shipFoamInfo.shipModel->mtx * CVECTOR(0.f, 0.f, _shipFoamInfo.hullInfo.boxsize.z / 2.f);
+         pos.y = sea->WaveXZ(pos.x, pos.z);
+-
+-        if (!_shipFoamInfo.sound || !soundService->SoundIsPlaying(_shipFoamInfo.sound))
++        if (impactSplash)
++        {
++            pos = impact.position;
++            pos.y = sea->WaveXZ(pos.x, pos.z) + .5f;
++        }
++
++        if ((impactSplash && newImpact) || (!impactSplash &&
++            (!_shipFoamInfo.sound || !soundService->SoundIsPlaying(_shipFoamInfo.sound))))
+         {
+             _shipFoamInfo.sound = soundService->SoundPlay("ship_bow", PCM_3D, VOLUME_FX, false, false, true, 0, &pos);
+         }
+@@ -485,6 +534,7 @@
  
  void SEAFOAM::RealizeShipFoam_Mesh(tShipFoamInfo &_shipFoamInfo, uint32_t _dTime)
  {
@@ -878,3 +1079,29 @@
      if (m_fShipSpeed > m_fMaxShipSpeed)
          m_fCurAnglShipSpeed = m_fEndAnglShipSpeed;
      else
+--- a/src/libs/sea_foam/src/seafoam.h
++++ b/src/libs/sea_foam/src/seafoam.h
+@@ -41,6 +41,8 @@
+     bool tsunamiSplashOwned = false;
+     unsigned whirlpoolSerial = 0, emergenceGeneration = 0;
+     bool emergenceSplashOwned = false;
++    unsigned waterImpactGeneration = 0;
++    bool waterImpactOwned = false;
+ };
+ 
+ class SEAFOAM : public Entity
+--- a/src/libs/sea_foam/src/seafoam_ps.h
++++ b/src/libs/sea_foam/src/seafoam_ps.h
+@@ -201,6 +201,12 @@
+     void Execute(uint32_t DeltaTime);
+     void ProcessParticles(uint32_t DeltaTime);
+     bool Complete();
++    bool HasLivingParticles() const
++    {
++        for (int i = 0; i < ParticlesNum; ++i)
++            if (Particle[i].live) return true;
++        return false;
++    }
+ 
+     void Stop() override
+     {

@@ -12,7 +12,13 @@ activation but rejects its jump/landing motion and water foam under an airborne
 hull. The current correction replaces the crest kick and instantaneous landing
 with hull-support departure and damped water entry, and gates both water effects
 through one native contact query. Component acceptance and delivery are recorded
-in `runtime.md`; the revised player jump/landing/wake replay remains unresolved.
+in `runtime.md`. The player now rejects that revision too: frozen/weightless
+flight, weak landing without a deep hull dip or impact splash, and a water trace
+still visible beneath the airborne ship. Retained track/particle draws and the
+water-projected glow were not covered by the earlier insertion/emission checks.
+The successor passes complete movement/model-matrix, particle/render, sound and
+lifecycle component checks. Canonical delivery and the exact installed engine
+belong to `runtime.md`; player assessment of this successor remains unresolved.
 Music disposal before death/scene replacement is already installed in `802fbde`.
 No agent game input or launch was performed. The current engine and chronological
 installation receipt belong to `runtime.md`.
@@ -37,25 +43,42 @@ Climbing a tsunami increases acceleration toward the same ceiling. The existing
 Departure occurs when a rising hull would require a negative support reaction
 to follow that surface; the moving wave and ship motion determine its actual
 vertical velocity. There is no fixed upward kick or minimum launch speed.
-Flight preserves the launch velocity and presented hull attitude without motor,
-braking, traction or water currents; gravity brings it back to the water.
-Contact retains incoming position and velocity, then recovers height and attitude
-through damped buoyancy using native gravity and hull draft. Controls resume on
-contact. The initial impact decays even on moving water, allowing a later tsunami
-serial to launch; the same serial cannot launch twice. Ordinary waves alone do
-not activate flight. Flight and momentum reset on load/death/mode exit.
+Phonk alone uses a cinematic vertical scale: gravity grows smoothly with the
+cube of horizontal speed from native gravity to8× at500. Native support remains
+authoritative on the ramp, and measured launch velocity is conserved. This
+shortens the high-speed flight; it is an arcade choice, not ordinary gravity.
+Flight retains horizontal inertia without motor/braking/traction/currents, while
+continuous angular response follows momentum in the hull's forward/side axes.
+
+Contact requires a closing boundary and uses hull draft, including the root
+geometry's bottom. It retains incoming position/velocity. The finite compression
+then follows the current hull-supported water surface using latched normal
+impact velocity; its response is solved for a minimum up to92% of root-hull
+freeboard. No position/velocity hard clamp is used. A strong landing therefore
+submerges most of the hull before recovery; a low-energy crest skim settles
+without a fake slam. The response returns to ordinary supported heave when it
+decays. Controls resume on contact. A later wave serial can launch again; the
+same serial cannot launch twice. Ordinary waves alone do not activate flight.
+Flight and momentum reset on load/death/mode exit.
 Existing shoreline grounding remains authoritative during flight. The inherited
 TOUCH hull-admission solver can miss thin ships on extreme long frames; no new
 collision bypass or all-frame no-tunnelling guarantee is introduced.
 
 `SHIP_BASE::HasWaterContact` defaults to the existing wet behavior; the Phonk
 ship overrides it from transient flight state. ShipTracks stops new wake inserts
-in air while existing rows age normally. Landing begins a separate strip, so
-rendered triangles cannot bridge the flight. SEAFOAM hides hull foam and stops
-particle emission while existing particles age; wet contact restores the existing
-storm/tsunami/emergence emission rules. Neither consumer invents another contact
-flag or changes SAVE layout. TOUCH prediction restores hull samples and all
-transient motion after its speculative movement.
+AND retained-row draws in air while rows age normally. Landing begins a separate
+strip, so rendered triangles cannot bridge the flight. SEAFOAM hides hull foam
+and stops particle emission/draws in air, using the existing particle processor
+to age retained particles. The water-projected halo is hidden in air; purple
+ship-local lights remain. Wet contact restores normal emission rules.
+
+One default-zero native `GetWaterImpact` snapshot supplies strength, generation
+and the interpolated contact position to the existing seafoam_front particle
+system and ship_bow sound. The pulse is emitted at that fixedXZ, reprojected onto
+current WaveXZ; sound starts once per new impact. Existing particle lifetime
+ends the extra impact draw. Only Phonk caps the stock speed-based bow offset to
+hull length. No parallel script flag or SAVE layout is introduced. TOUCH restores
+hull samples and all transient motion after speculative movement.
 
 The navigator's numeric speed uses raw native knots for the live player in
 Phonk mode. Ordinary arcade scaling previously displayed250 as100; the physical
@@ -108,5 +131,13 @@ show lateral movement after a turn and retain exact ordinary-off behavior.
 Canonical `run.sh --stage-only` must consume the final patch and music input.
 Installed menu, real ship movement and lilac appearance/music require an actual
 sea replay; source/probe/build/staging results remain separate evidence.
+
+The reopened jump contract requires the complete ramp/air/entry/recovery sequence
+at the current500 ceiling: continuously changing hull attitude, preserved impact
+inertia, a visible hull dip bounded by real hull geometry, a waterline-anchored
+impact splash, and a continuous return to buoyancy. No wake, retained contact
+particles or water-projected halo may draw beneath the detached player hull;
+purple ship lights remain. Ordinary/NPC wet motion and effects, predictor
+restoration, OFF/death/load cleanup and shoreline guards remain required.
 
 Current attempt disposition and installed receipt belong to `runtime.md`.
