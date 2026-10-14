@@ -19,6 +19,13 @@ The corrected GPU capture below independently points to scene shading,
 reflection geometry and vertex/clip-heavy receiver replay. Priority is now the
 CPU render submission/state path and GPU material/receiver work. No performance
 repair or120FPS acceptance follows merely from the profile.
+Source/counter follow-up: authored lamps are already filtered by object bounds;
+the64-lamp shader capacity is not the actual per-fragment count. Median6.869M
+submitted vertex/index references include repeated passes and are not unique
+vertices. Bounds preparation alone times about1.9ms/frame in the existing
+optimization counters; current-pose skinning contributes. Software rasterization
+is not the observed path. Specializing material branches and reducing redundant
+submission/geometry work remain hypotheses until equal-output paired measurements.
 
 ### October14 — cloud candidates; selected appearance, no proven FPS gain
 
