@@ -1,8 +1,9 @@
 --- a/src/libs/sea_cameras/src/sea_cameras.cpp
 +++ b/src/libs/sea_cameras/src/sea_cameras.cpp
-@@ -1,8 +1,26 @@
+@@ -1,8 +1,49 @@
  #include "sea_cameras.h"
 +#include "sea_map_transition.hpp"
++#include "world_map_ship_visual.hpp"
  #include "deck_camera.h"
  #include "free_camera.h"
  #include "ship_camera.h"
@@ -22,6 +23,28 @@
 +    }
 +    return false;
 +}
++
++// Reuse the native main-ship owner; copied visuals outlive sea teardown.
++static VAI_OBJBASE *mainVisualShip()
++{
++    for (auto id : core.GetEntityIds("ship"))
++    {
++        auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(id));
++        if (ship && ship->GetACharacter() && ship->GetACharacter()->GetAttributeAsDword("MainCharacter")) return ship;
++    }
++    return nullptr;
++}
++bool storm_map_player::seaVisualBounds(CVECTOR &size, CVECTOR &center)
++{
++    auto *ship = mainVisualShip();
++    return ship && liveVisualBounds(ship->GetModel(), size, center);
++}
++bool storm_map_player::prepareSeaVisual(const char *modelName)
++{
++    auto *ship = mainVisualShip();
++    return ship && preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), modelName);
++}
++void storm_map_player::discardSeaVisual() { discardPlayerVisual(); }
 +
 +CREATE_CLASS(SeaMapTransition)
  

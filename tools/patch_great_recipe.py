@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "253f4a94d231bc4d99dede9feef57bddfbbe6faa1d5d2a68fbcc39525f839eea",
-    "PROGRAM/sea_ai/sea.c": "c14d46805d9ed335b213ef6567a951d83b61c9e3ff70c5f4817b014721697d05",
+    "PROGRAM/sea_ai/sea.c": "b5cacb138d27f544363e4522a1088b413c62e41c4e1cd17cf06ef3e5c38495be",
     "PROGRAM/sea_ai/AIShip.c": "24d07be089438ed69cadc5220b403f1afc27672e6c79b6f18a06bfce67e6dc20",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
@@ -21,7 +21,7 @@ NORMALIZED_HASHES = {
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": "656c445b97680e5f5842650acecf6dc2e714e1bf487816316dcc513a29a2c535",
     "PROGRAM/worldmap/worldmap_globals.c": "f31e89898b25f4f9864e2cc54abd58b28f91d1b10146879d0987cd32b34cd8c1",
     "PROGRAM/worldmap/worldmap_events.c": "52598a4baec8bec7c66270aa156705043f9e0ab7d93ade5420ec9b0d8bcc613b",
-    "PROGRAM/worldmap/worldmap.c": "57000ba0d40f8440c99488b5ef054e0f33562b90c99e5bb6eec228c5a86abb6a",
+    "PROGRAM/worldmap/worldmap.c": "9dac80ecaa1cdeb34599b93e5d6db79ce7e8e0aa7294c1d8870cc18ae16e7bdc",
     "PROGRAM/worldmap/worldmap_reload.c": "c3647838b4a36bc0e3b9204059f660f3428b78cab5a564fd684bc3a665cff4f9",
     "PROGRAM/Loc_ai/LAi_fightparams.c": "e886b558dbbb64565baca70ab512064a5f7b82183a946bc516722bb96611836e",
     "RESOURCE/INI/interfaces/pictures.ini": "3ad4482385d8b1382e62942ea9845f652c6c8a0df95b6ea33c7ce6390fbfb6ea",

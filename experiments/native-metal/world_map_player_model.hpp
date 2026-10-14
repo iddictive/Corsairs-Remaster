@@ -12,6 +12,10 @@ inline constexpr float perspective = (1.57f + 1.0f) / 2;
 inline constexpr float minHeight = 50, maxHeight = 300;
 inline constexpr float overheadPitch = 1.565f;
 bool seaBounds(CVECTOR &size, float &yaw, CVECTOR &position);
+bool seaVisualBounds(CVECTOR &size, CVECTOR &center);
+float miniatureScale(const CVECTOR &size);
+bool prepareSeaVisual(const char *modelName);
+void discardSeaVisual();
 inline bool bounds(CVECTOR &size, CVECTOR &center)
 {
     // Read the geometry owner's header, without creating a second map, loading

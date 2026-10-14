@@ -17,6 +17,8 @@ class SeaMapTransition final : public Entity
     using Clock = std::chrono::steady_clock;
     VDX9RENDER *rs = nullptr;
     IDirect3DTexture9 *frame = nullptr;
+    int32_t cloud = -1;
+    uint32_t cloudTint = 0x00c8d0d8;
     Clock::time_point started;
     float flightTime = 0, landingTime = 0;
     uint64_t pauseRevision = 0;
@@ -24,8 +26,8 @@ class SeaMapTransition final : public Entity
     float perspective = 1.285f;
     float targetArea = 0, targetDistance = 0, shipYaw = 0, baseShipYaw = 0, mapYaw = 0, mapPitch = 1.0f;
     float mapWorldYaw = 0, mapDistance = 0;
-    static constexpr float flightDuration = 1.05f, tiltDuration = .30f, revealDuration = .18f;
-    CVECTOR miniatureSize{}, miniatureCenter{};
+    static constexpr float flightDuration = 1.90f, tiltDuration = .70f, revealDuration = .40f;
+    CVECTOR miniatureSize{}, miniatureCenter{}, visualSize{}, visualCenter{};
     bool mapLocked = false;
     bool captured = false, committed = false, ready = false;
     bool reverse = false;
@@ -47,9 +49,19 @@ class SeaMapTransition final : public Entity
         if (mapLocked) mapYaw = mapWorldYaw - shipYaw;
         targetArea = storm_map_player::area(miniatureSize, miniatureCenter, mapYaw, mapPitch,
                                             storm_map_player::perspective, mapDistance);
-        const CVECTOR center(0, size.y * .5f, 0);
-        targetDistance = storm_map_player::distance(size, center, mapYaw, mapPitch, storm_map_player::perspective, targetArea);
+        targetDistance = storm_map_player::distance(visualSize, visualCenter, mapYaw, mapPitch,
+                                                    storm_map_player::perspective, targetArea);
         return std::isfinite(targetDistance) && targetDistance > 0;
+    }
+    bool measureShip()
+    {
+        // Read the complete hull/mast/cloth bounds once, never during flight.
+        if (!storm_map_player::seaVisualBounds(visualSize, visualCenter)) return false;
+        const float scale = storm_map_player::miniatureScale(visualSize);
+        if (!(scale > 0) || !std::isfinite(scale)) return false;
+        miniatureSize = visualSize * scale;
+        miniatureCenter = visualCenter * scale;
+        return matchShip();
     }
     void camera(float time)
     {
@@ -118,6 +130,8 @@ class SeaMapTransition final : public Entity
             // deleting sea entities. No readback, synchronization or screenshot.
             if (!capture()) core.Trace("SeaMapTransition: GPU frame capture failed");
             captured = true;
+            if (!reverse && !storm_map_player::prepareSeaVisual(AttributesPointer->GetAttribute("shipModel")))
+                core.Trace("SeaMapTransition: live player miniature unavailable");
         }
         if (reverse && committed && !ready && AttributesPointer->GetAttributeAsDword("scenePrepared"))
         {
@@ -128,7 +142,7 @@ class SeaMapTransition final : public Entity
                             AttributesPointer->GetAttributeAsFloat("y"),
                             AttributesPointer->GetAttributeAsFloat("z"));
             offset = origin - focus;
-            if (!matchShip()) core.Trace("SeaMapTransition: destination ship bounds unavailable");
+            if (!measureShip()) core.Trace("SeaMapTransition: destination ship bounds unavailable");
             baseShipYaw = shipYaw;
             const float distance = std::max(20.0f, std::sqrt(~offset));
             look = origin + CVECTOR(std::sin(angles.y) * std::cos(angles.x), -std::sin(angles.x),
@@ -150,6 +164,18 @@ class SeaMapTransition final : public Entity
             quad((static_cast<uint32_t>((1 - reveal) * 255) << 24) | 0x00ffffff,
                  0, 0, 1, 1);
         }
+        if (cloud >= 0)
+        {
+            // Thin textured wisps, never an opaque screen-wide fog substrate.
+            const float haze = ease(reverse ? time / tiltDuration : (time - tiltDuration) / .65f) * (1 - reveal);
+            if (haze > 0)
+            {
+                rs->TextureSet(0, cloud);
+                const float travel = .08f + seconds() * .008f;
+                quad((static_cast<uint32_t>(haze * 28) << 24) | cloudTint,
+                     travel, travel * .7f, travel + .85f, travel * .7f + .85f, "iImageCollection");
+            }
+        }
         if (ready && (reverse ? landing >= flightDuration : reveal >= 1))
         {
             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
@@ -157,7 +183,7 @@ class SeaMapTransition final : public Entity
         }
     }
 public:
-    static bool Loading() { return active && active->committed && !active->ready; }
+    static bool Loading() { return active && active->captured && !active->ready; }
     static void DrawProgress() { if (active) active->drawOverlay(); }
     static bool OverrideMapCamera()
     {
@@ -177,6 +203,8 @@ public:
     {
         if (active == this) active = nullptr;
         if (frame) frame->Release();
+        if (cloud >= 0 && rs) rs->TextureRelease(cloud);
+        storm_map_player::discardSeaVisual();
     }
     bool Init() override
     {
@@ -200,7 +228,7 @@ public:
         targetArea = storm_map_player::area(miniatureSize, miniatureCenter, mapYaw, mapPitch,
                                             storm_map_player::perspective, mapDistance);
         if (!(targetArea > 0) || !std::isfinite(targetArea)) return false;
-        if (!reverse && !matchShip()) return false;
+        if (!reverse && !measureShip()) return false;
         baseShipYaw = shipYaw;
         focus = CVECTOR(AttributesPointer->GetAttributeAsFloat("x"),
                         AttributesPointer->GetAttributeAsFloat("y"),
@@ -209,6 +237,11 @@ public:
         const float distance = std::max(20.0f, std::sqrt(~offset));
         look = origin + CVECTOR(std::sin(angles.y) * std::cos(angles.x), -std::sin(angles.x),
                                 std::cos(angles.y) * std::cos(angles.x)) * distance;
+        if (auto *weather = core.GetEntityPointer(core.GetEntityId("weather")))
+            if (auto *attributes = weather->AttributesPointer)
+                if (auto *fog = attributes->FindAClass(attributes, "Fog"))
+                    cloudTint = fog->GetAttributeAsDword("Color", cloudTint) & 0x00ffffff;
+        cloud = rs->TextureCreate("\\WorldMap\\clouds.tga");
         started = Clock::now();
         pauseRevision = core.GetScenePauseRevision();
         active = this;

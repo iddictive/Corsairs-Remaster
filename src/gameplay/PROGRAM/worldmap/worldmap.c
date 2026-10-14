@@ -179,6 +179,24 @@ void wdmUpdatePortDangerZones(int iFlagNation)
 	}
 }
 
+#event_handler("WorldMap_PlayerShipVisual", "wdmPlayerShipVisualInfo");
+ref wdmPlayerShipVisualInfo()
+{
+    wdmPreparePlayerShipVisual();
+    return &worldMap;
+}
+
+void wdmPreparePlayerShipVisual()
+{
+    DeleteAttribute(&worldMap, "playerShipVisual");
+    int shipType = GetCharacterShipType(pchar);
+    if (shipType == SHIP_NOTUSED) return;
+    ref realShip = GetRealShip(shipType);
+    worldMap.playerShipVisual.model = realShip.Name;
+    worldMap.playerShipVisual.characterIndex = sti(pchar.index);
+    worldMap.playerShipVisual.shipType = shipType;
+}
+
 void wdmCreateWorldMap()
 {
 	WdmMilitaryParticipationWorldMap();
@@ -205,6 +223,7 @@ void wdmCreateWorldMap()
 	wdmReset();
 	//Создаём карту
 	Whr_BindMapWeather();
+    wdmPreparePlayerShipVisual();
 	if (cinematic) SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
 	CreateEntity(&worldMap,"worldmap");
 	if (cinematic) return;

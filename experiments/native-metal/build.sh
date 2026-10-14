@@ -136,7 +136,7 @@ python3 "$root/apply_source_patches.py" --source "$root/.cache/storm" \
  "$root/pickup-glow.patch" "$root/mast-repair.patch" "$root/airburst-shell.patch" "$root/cannon-fire-modes.patch" "$root/adaptive-fencing.patch" \
  "$root/cannon-depth-drape.patch" "$root/cannon-target-height.patch" \
  "$root/sea-tsunami.patch" "$root/cpu-parallel-sea.patch" "$root/normal-less-surface-lighting.patch" "$root/offscreen-point-casters.patch" "$root/authored-emission.patch" "$root/ship-source-catalog.patch" "$root/lighting-consumer-coverage.patch" "$root/weather-engine.patch" "$root/world-map-weather.patch" "$root/sea-whirlpool.patch" "$root/wreck-collision.patch" "$root/ship-fire.patch" \
- "$root/ship-damage-admission.patch" "$root/ship-hull-damage.patch" "$root/ship-airburst-hull-proximity.patch" "$root/heated-shot.patch" "$root/ship-phonk.patch" "$root/sea-map-load.patch" "$root/sea-map-transition.patch"
+ "$root/ship-damage-admission.patch" "$root/ship-hull-damage.patch" "$root/ship-airburst-hull-proximity.patch" "$root/heated-shot.patch" "$root/ship-phonk.patch" "$root/sea-map-load.patch" "$root/sea-map-transition.patch" "$root/real-player-ship-visual.patch"
 printf '%s\n' "$fingerprint" > "$root/.cache/source-fingerprint"
 python3 "$root/renderer_consumer_coverage_probe.py"
 # Reuse installed headers and dependencies without rebuilding the playable port.

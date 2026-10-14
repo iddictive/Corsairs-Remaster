@@ -547,6 +547,9 @@ void Sea_MapLoad()
 	SeaMapTransition.mapRotLock = 0;
 	if (CheckAttribute(&worldMap, "wdmCameraRotLock")) SeaMapTransition.mapRotLock = sti(worldMap.wdmCameraRotLock);
 	if (CheckAttribute(&worldMap, "wdmCameraAY")) SeaMapTransition.mapYaw = stf(worldMap.wdmCameraAY);
+    wdmPreparePlayerShipVisual();
+    if (CheckAttribute(&worldMap, "playerShipVisual.model"))
+        SeaMapTransition.shipModel = worldMap.playerShipVisual.model;
 	CreateEntity(&SeaMapTransition, "SeaMapTransition");
 	if (IsEntity(&SeaMapTransition))
 	{

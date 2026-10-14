@@ -4,6 +4,26 @@ Last verified delivery: October14. Camera successor a48a5dd, Beard dialogue/admi
 
 ## Current verdict
 
+### October14 — actual player miniature and softer overhead motion candidate
+
+The player finds the overhead successor better but still abrupt, with no clouds,
+and rejects the generic player model as an actual ship miniature. The next batch
+extends tilt/lift/reveal to700/1200/400ms and restores only thin textured wisps,
+with no opaque fog substrate. An independent visual copies the current hull,
+visible mast hierarchy and cloth before sea teardown. Map-save startup obtains
+the current player/RealShips descriptor through the normal map creation path;
+existing sail geometry/material functions and the shared saved hull-cut parser
+own reconstruction. NPC models and map collision footprint stay unchanged.
+
+Canonical native build exits0 and consumes the new ordered seven-path visual
+patch plus the sea-camera bridge. Full composed installed PROGRAM compiles in
+the real isolated VM with zero errors; current-model descriptor, shipless cleanup
+and inactive sea admission return0. Sea/worldmap composition is idempotent.
+Native source checks cover independent cloth ownership, visibility flags and
+saved-cut validation. No player SAVE or game controls are accessed. This is
+source/build evidence only; canonical installation and visible two-way replay,
+actual miniature loading and saved-map reconstruction remain unresolved.
+
 ### October14 — stationary Beard guide installed; player requests nightly patrol instead
 
 The player requires a visible ship pointing to the same place on a missed
