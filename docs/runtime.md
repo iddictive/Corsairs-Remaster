@@ -4,7 +4,7 @@ Last verified delivery: October13. Canonical stage-only installs the frozen Phon
 
 ## Current verdict
 
-### October14 — stepped sea/map camera source integrated; installation pending
+### October14 — first sea/map camera rejected; overhead successor awaiting installation
 
 The requested menu transition lifts and tilts around the live player ship in
 three nonlinear impulses, matches its projected area to the map miniature and
@@ -15,15 +15,31 @@ Canonical source composition is idempotent and the complete script VM compiles
 with inactive-sea and locked-map guards returning0 and no errors. Native syntax
 and27 independent scale fixtures pass. The first canonical build rejected p0
 patch path headers; both new patches now follow the existing a/b owner format,
-and the stack applies9 changed native files. Build/staging and actual menu
-motion remain unresolved; the running player game has not been controlled.
+and the stack applies9 changed native files. Canonical `run.sh --stage-only`
+subsequently exits0 at0740387+6dc1d99 and installs signed engine
+`d92e0f8db16641abbd9ad53519bd2b711563f380cdbbac6cb8d325c844c2e7e0`.
+The formerb3 engine is backed up. Sea/worldmap/reload prepared hashes are
+eab3cc00/00daf129/c7ee4648; accepted Beard scripts5c4d5588/a90675cc are included.
+The player explicitly closed the game and authorized installation. No agent
+game input or player SAVE edit occurred. Actual motion remains unresolved.
+The temporary extra pause-menu button was explicitly rejected and removed
+before delivery; the existing native map/sea actions own the transition.
+
+The player replay rejects the first camera: excessive duration, mismatched
+incoming view and nearly opaque white clouds. A read-only game capture confirms
+the white veil covers almost the complete scene. The successor removes cloud/
+fog quads, tilts to the overhead axis before a vertical nonlinear lift, holds
+that pitch in the map and reverses the same trajectory. Native build passes.
+Actual successor motion and duration remain unresolved before installation.
 
 The additional adjacent-island report is separately unresolved. Installed
 DIRECTSAIL is0; its historical loader is not included/called by the active
 script chain, and both distance expressions are commented out. N-map projects
 live local coordinates but the sea loads one island. This proves absence of
-direct island admission, not the reported return-position reset. A real
-coordinate round-trip and safe neighbouring scene admission remain required.
+direct island admission. Native map initialization also clamps an exit position
+back to the old island's area; the successor skips that clamp only for cinematic
+sea exit, preserving ordinary saved-map initialization and hull collision.
+Actual coordinate round-trip and neighbouring scene admission remain required.
 
 ### October13 — contact yaw and mode-owned saved velocity successor installed
 

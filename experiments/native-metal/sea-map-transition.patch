@@ -187,3 +187,40 @@
 +        camera->Move(0.0f, rs);
 +        RenderObjects();
          return;
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -190,6 +190,12 @@
+         wdmObjects->SetWindSaveString(nullptr);
+     }
+     camera->Init(camAy, camH);
++    camera->ang.x = AttributesPointer ? AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x) : camera->ang.x;
++    if (transitionLoad)
++    {
++        camera->ang.x = storm_map_player::overheadPitch;
++        AttributesPointer->SetAttributeUseFloat("wdmCameraAX", camera->ang.x);
++    }
+     camera->lock = camLock;
+     // create the player's ship
+     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
+@@ -330,7 +336,7 @@
+     auto *playerShip = static_cast<WdmPlayerShip *>(wdmObjects->playerShip);
+     playerShip->PushOutFromIsland();
+     auto *const atrData = AttributesPointer->FindAClass(AttributesPointer, "island");
+-    if (atrData)
++    if (atrData && !transitionLoad)
+     {
+         float x, z, ay;
+         playerShip->GetPosition(x, z, ay);
+@@ -426,5 +432,11 @@
+ // Execution
+ void WorldMap::Execute(uint32_t delta_time)
+ {
+-    if (transitionLoad && !loadComplete) LoadNext();
++    if (transitionLoad && !loadComplete)
++    {
++        // Consume cheap phases together; one slow indivisible resource is the
++        // only possible overrun, rather than one full frame per descriptor.
++        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(6);
++        do { LoadNext(); } while (!loadComplete && std::chrono::steady_clock::now() < until);
++    }
+ }

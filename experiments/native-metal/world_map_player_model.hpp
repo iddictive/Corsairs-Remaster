@@ -10,6 +10,7 @@ namespace storm_map_player
 inline constexpr const char *model = "Ship";
 inline constexpr float perspective = (1.57f + 1.0f) / 2;
 inline constexpr float minHeight = 50, maxHeight = 300;
+inline constexpr float overheadPitch = 1.565f;
 bool seaBounds(CVECTOR &size, float &yaw, CVECTOR &position);
 inline bool bounds(CVECTOR &size, CVECTOR &center)
 {

@@ -2,23 +2,23 @@
 
 ## Contract
 
-Both directions use a stepped, nonlinear camera move like the requested GTA V
-character switch. Sea exit keeps the player's ship as the focal object, lifts
-and tilts the camera through three scale impulses, and completes the visual
-handoff when its projected size approximately matches the map miniature. Return
-to sea reverses that scale path. No loading artwork or black frame belongs to
+Sea exit first tilts smoothly to an overhead view of the player's ship, then
+lifts vertically with nonlinear scale easing. The visual handoff completes when
+its projected size approximately matches the map miniature. Return to sea
+reverses that scale path. The native map and sea actions invoke the transition;
+there is no extra menu button. No loading artwork or black frame belongs to
 this transition. Completion requires a real installed-game recording in both
 directions, including the first usable destination frame and a denied entry.
 
 ## Owners
 
 - `experiments/native-metal/sea_map_transition.hpp`: one transient entity owns
-  camera, GPU frame capture, cloud veil, readiness-gated reveal and disposal.
+  camera, GPU frame capture, readiness-gated reveal and disposal.
 - `world_map_player_model.hpp`: the map player model name, shipped GM-header
   bounds and projected-area math. WorldMap and the transition consume that name.
   Sea hull/mast bounds come from the actual main-character native ship.
 - `sea-map-transition.patch`: native registration, map camera input exclusion,
-  and the existing progress-present route's animated handoff branch.
+  the existing progress-present route, map load budget and coordinate handoff.
 - `sea-map-load.patch`: incremental map preparation. Ordinary map/save loads
   drain the same preparation synchronously; cinematic loads prepare islands,
   water textures and encounter records on regular engine frames. A complete
@@ -32,7 +32,10 @@ height/yaw, north-up rotation lock, perspective and actual ship bounds. Equal pr
 an approximation of visual size, not proof of equal silhouettes. No fixed sky
 height or extra map zoom follows the size match. The same-size `StretchRect`
 snapshot stays on GPU; the legacy fader's synchronous CPU readback is avoided.
-Clouds reuse the shipped map texture and existing interface blend technique.
+The rejected near-opaque fog/cloud veil is removed. Only matched live frames
+crossfade for180ms. The camera tilts for300ms before its750ms vertical lift.
+The map retains the matching overhead pitch through its optional `wdmCameraAX`
+attribute; prior saves without that attribute retain their ordinary initial view.
 
 Live ship translation and heading remain followed during ascent/descent; the
 ordinary exit commits its final position, while explicit XZ/AY exits retain their
@@ -45,7 +48,7 @@ Map-to-sea preserves `WdmAddEncountersData` then `GreatRecipe_MapAdmission(&wdmL
 before releasing the map, and `GreatRecipe_PrepareSea` before the ordinary
 `EVENT_SEA_LOGIN`. The destination's initial rendered frame gates descent.
 Reverse sea construction still uses the established synchronous SeaLogin;
-resource progress calls present moving clouds over the retained GPU map frame.
+resource progress calls present the retained GPU map frame.
 This is not an asynchronous sea loader, and indivisible I/O remains measurable.
 
 ## Evidence and rejected approaches
@@ -66,11 +69,14 @@ block the engine thread. Background-thread map construction is also rejected:
 renderer/core tables, geometry paths, weather and map registries have shared
 mutable owners. Incremental preparation occurs after sea teardown, while the
 GPU handoff remains alive; no second active weather or fleet owner is introduced.
+Cheap loader phases share one6ms frame budget instead of each consuming a full
+frame. A cinematic sea exit also skips the old island-area clamp; ordinary
+saved-map initialization keeps it. Native land collision still protects the hull.
 
 ## Unresolved acceptance
 
-Installed sea → map → sea replay must prove ship-size/anchor continuity, cloud
-appearance at day/night, absence of visible loading stalls, retained encounter
+Installed sea → map → sea replay must prove ship-size/anchor continuity,
+day/night visibility, absence of visible loading stalls, retained encounter
 and fleet semantics, normal controls after reveal and no stranded transition.
 One model load or label/font batch can still exceed a frame budget. A compiler,
 staging receipt or scalar size check must not promote that gap to a visual pass.

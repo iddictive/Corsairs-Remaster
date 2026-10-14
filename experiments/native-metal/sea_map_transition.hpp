@@ -17,8 +17,6 @@ class SeaMapTransition final : public Entity
     using Clock = std::chrono::steady_clock;
     VDX9RENDER *rs = nullptr;
     IDirect3DTexture9 *frame = nullptr;
-    int32_t cloud = -1;
-    uint32_t cloudColor = 0x008090a0;
     Clock::time_point started;
     float flightTime = 0, landingTime = 0;
     uint64_t pauseRevision = 0;
@@ -26,6 +24,7 @@ class SeaMapTransition final : public Entity
     float perspective = 1.285f;
     float targetArea = 0, targetDistance = 0, shipYaw = 0, baseShipYaw = 0, mapYaw = 0, mapPitch = 1.0f;
     float mapWorldYaw = 0, mapDistance = 0;
+    static constexpr float flightDuration = 1.05f, tiltDuration = .30f, revealDuration = .18f;
     CVECTOR miniatureSize{}, miniatureCenter{};
     bool mapLocked = false;
     bool captured = false, committed = false, ready = false;
@@ -65,18 +64,16 @@ class SeaMapTransition final : public Entity
             shipYaw = yawNow;
             if (mapLocked) matchShip();
         }
-        // Three separate impulses, with short breathing intervals. Distances
-        // interpolate logarithmically so every stage reads as a scale change.
-        const float step = ease((time - .08f) / .42f) * .25f +
-                           ease((time - .57f) / .48f) * .34f +
-                           ease((time - 1.13f) / .67f) * .41f;
+        // Establish the overhead view first; then change only vertical range.
+        // Quintic easing and logarithmic distance keep both ends continuous.
+        const float step = ease((time - tiltDuration) / (flightDuration - tiltDuration));
         const float distance = std::max(1.0f, std::sqrt(~offset));
         const float range = distance * std::pow(targetDistance / distance, step);
-        const float tilt = ease(time / .65f);
+        const float tilt = ease(time / tiltDuration);
         const float fromYaw = std::atan2(-offset.x, -offset.z) + std::remainder(shipYaw - baseShipYaw, 6.283185307f);
         const float deltaYaw = std::remainder(shipYaw + mapYaw - fromYaw, 6.283185307f);
-        const float yaw = fromYaw + deltaYaw * step;
-        const float pitch = std::asin(std::clamp(offset.y / distance, -1.0f, 1.0f)) * (1 - step) + mapPitch * step;
+        const float yaw = fromYaw + deltaYaw * tilt;
+        const float pitch = std::asin(std::clamp(offset.y / distance, -1.0f, 1.0f)) * (1 - tilt) + mapPitch * tilt;
         const CVECTOR position = focus + CVECTOR(-std::sin(yaw) * std::cos(pitch), std::sin(pitch),
                                                  -std::cos(yaw) * std::cos(pitch)) * range;
         const CVECTOR target = look + (focus - look) * tilt;
@@ -115,7 +112,7 @@ class SeaMapTransition final : public Entity
     void realize()
     {
         const float time = flightTime;
-        if (!captured && time >= (reverse ? .4f : 1.85f))
+        if (!captured && time >= (reverse ? tiltDuration : flightDuration))
         {
             // Capture the rendered apex, before drawing the cloud veil or
             // deleting sea entities. No readback, synchronization or screenshot.
@@ -145,7 +142,7 @@ class SeaMapTransition final : public Entity
     {
         const float time = flightTime;
         const float landing = ready ? landingTime : 0;
-        const float reveal = ready ? ease(landing / .95f) : 0;
+        const float reveal = ready ? ease(landing / revealDuration) : 0;
         if (committed && frame)
         {
             rs->SetTexture(0, frame);
@@ -153,21 +150,7 @@ class SeaMapTransition final : public Entity
             quad((static_cast<uint32_t>((1 - reveal) * 255) << 24) | 0x00ffffff,
                  0, 0, 1, 1);
         }
-        const float cover = ease(reverse ? time / .4f : (time - 1.18f) / .67f) * (1 - reveal);
-        if (cover > 0)
-        {
-            // Atmosphere tint follows the outgoing weather, including night.
-            rs->TextureSet(0, -1);
-            quad((static_cast<uint32_t>(cover * 245) << 24) | cloudColor);
-            if (cloud >= 0)
-            {
-                rs->TextureSet(0, cloud);
-                const float travel = .12f + .1f * std::sin(seconds() * .3f);
-                quad((static_cast<uint32_t>(cover * 150) << 24) | cloudColor,
-                     travel, travel * .7f, travel + .65f, travel * .7f + .65f, "iImageCollection");
-            }
-        }
-        if (ready && (reverse ? landing >= 1.85f : reveal >= 1))
+        if (ready && (reverse ? landing >= flightDuration : reveal >= 1))
         {
             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
             core.EraseEntity(GetId());
@@ -179,8 +162,14 @@ public:
     static bool OverrideMapCamera()
     {
         if (!active || !active->reverse || active->committed) return false;
-        // Preserve the exact miniature size until the reverse handoff.
-        active->rs->SetCamera(active->origin, active->angles, active->perspective);
+        // Tilt the map to the same overhead axis before starting descent.
+        CVECTOR view = active->angles;
+        view.x += (storm_map_player::overheadPitch - view.x) * ease(active->flightTime / tiltDuration);
+        const float range = active->origin.y / std::sin(view.x);
+        const CVECTOR cameraPosition = active->focus +
+            CVECTOR(-std::sin(view.y) * std::cos(view.x), std::sin(view.x),
+                    -std::cos(view.y) * std::cos(view.x)) * range;
+        active->rs->SetCamera(cameraPosition, view, active->perspective);
         return true;
     }
     static bool Active() { return active != nullptr; }
@@ -188,13 +177,13 @@ public:
     {
         if (active == this) active = nullptr;
         if (frame) frame->Release();
-        if (cloud >= 0 && rs) rs->TextureRelease(cloud);
     }
     bool Init() override
     {
         rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
         if (!rs || !AttributesPointer || active) return false;
         reverse = AttributesPointer->GetAttributeAsDword("reverse") != 0;
+        mapPitch = storm_map_player::overheadPitch;
         rs->GetCamera(origin, angles, perspective);
         mapYaw = AttributesPointer->GetAttributeAsFloat("mapYaw");
         if (!storm_map_player::bounds(miniatureSize, miniatureCenter)) return false;
@@ -203,7 +192,6 @@ public:
         mapLocked = reverse || AttributesPointer->GetAttributeAsDword("mapRotLock");
         if (reverse)
         {
-            mapPitch = angles.x;
             shipYaw = AttributesPointer->GetAttributeAsFloat("shipHeading");
             mapWorldYaw = angles.y;
             mapYaw = mapWorldYaw - shipYaw;
@@ -221,11 +209,6 @@ public:
         const float distance = std::max(20.0f, std::sqrt(~offset));
         look = origin + CVECTOR(std::sin(angles.y) * std::cos(angles.x), -std::sin(angles.x),
                                 std::cos(angles.y) * std::cos(angles.x)) * distance;
-        if (auto *weather = core.GetEntityPointer(core.GetEntityId("weather")))
-            if (auto *attributes = weather->AttributesPointer)
-                if (auto *fog = attributes->FindAClass(attributes, "Fog"))
-                    cloudColor = fog->GetAttributeAsDword("Color", cloudColor) & 0x00ffffff;
-        cloud = rs->TextureCreate("\\WorldMap\\clouds.tga");
         started = Clock::now();
         pauseRevision = core.GetScenePauseRevision();
         active = this;
@@ -249,7 +232,7 @@ public:
             pauseRevision = revision;
             if (!committed && !reverse) camera(flightTime);
             else if (reverse && ready)
-                camera(std::max(0.0f, 1.85f - landingTime));
+                camera(std::max(0.0f, flightDuration - landingTime));
             if (captured && !committed)
             {
                 committed = true;
