@@ -4,6 +4,40 @@ Last verified: October13. Canonical stage-only installs the controllable500-knot
 
 ## Current verdict
 
+### October13 — Beard native-message boolean corrected after player trace
+
+Player replay21:38:49–21:39:20 logs search, eligible date/night and clear weather,
+but repeatedly reports `navigation rejected x=620.738 z=820.767`. The route check
+introduced in6c65f91 combines integer comparisons with a right-hand `SendMessage`
+result. The real compiler converts only the left operand of `&&`; its comparison
+owner lacks the right-hand VAR_PTR case, so a native1 is treated asfalse.
+The diagnostic label described a failed wrapper, not a measured geometry refusal.
+
+An isolated copy of the existing VM probe registers one tiny native entity that
+returns the message answer; it executes the full installed PROGRAM without game
+Main, SAVE or rendered scene. Original helper reproduces
+`native=1 original=0 normalized=1`; the corrected actual helper accepts both route
+endpoints/native1 and rejects native0 and coordinates outside the west corridor.
+BeardPointerCases0/script_errors0. Only the message return is substituted; native
+water geometry and player appearance are not accepted by this fixture.
+
+One source line compares `SendMessage(...) !=0` before the logical combination;
+no coordinate, calendar, weather, occupancy, captain or TTL change is made.
+Canonical content-only `sync_metal_gameplay.py apply` returns0 and strictly
+verifies the resealed app. Installed quest byte-matches the candidate, comparison
+reports0 cache/0app pending and compiler ready; signed native engine remains
+`6349eb2addb21151d998b5b7245f8bbe1d44f4fd7a270420ca4bde578301f7ce`.
+Firea9837c remains source-only for the FPS-owned next native batch.
+Disposition: boolean mechanism and source/content delivery accepted; the ship's
+visible appearance remains unresolved until player replay. No agent game control
+or SAVE inspection occurs.
+
+The same player reports severe global-map stalls. This script log has no CPU/GPU
+frame timings. Its21:39:08.973→11.884 gap contains Sea_FirstInit and player-group
+initialization; that correlation does not establish the cause or whether it is
+the reported4:00 stall. Matching live profiling remains pending with Beard root
+in `TASKS.md`, separate from the manual-aim FPS root's scope.
+
 ### October13 — player rejects250 speed; controllable500 successor installed
 
 The player finds250 too slow, superseding the earlier chosen ceiling. This is a
