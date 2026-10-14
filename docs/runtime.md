@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified delivery: October14. Camera successor a48a5dd and Beard dialogue/admission6dc1d99 are installed with signed engine `e87082489e406ec79bcd5214118782325246923c8f00b14023afa1532a02a8f1`; the prior d92e engine is backed up. The player observed the first Beard battle/captivity, then rejected the map search because its ship was invisible and later sea exits lacked Beard. The new stationary-guide/continuous-approach candidate passes full script compilation and controller/codec checks; four content files remain pending. The installed engine supports their existing map APIs and compiler is ready. The next camera motion/miniature candidate remains source-only. No agent game input or player SAVE read/edit occurs in this attempt. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
+Last verified delivery: October14. Camera successor a48a5dd, Beard dialogue/admission6dc1d99 and guide/controller68c3334 are installed with signed engine `e87082489e406ec79bcd5214118782325246923c8f00b14023afa1532a02a8f1`; the prior d92e engine is backed up. The player observed the first Beard battle/captivity, then rejected the map search because its ship was invisible and later sea exits lacked Beard. The new stationary guide and continuous approach pass full script compilation and controller/codec checks; the canonical content transaction installs all four files and reports zero pending, compiler ready. The engine is unchanged. Guide visibility and the new night/day route remain unresolved in the game. The next camera motion/miniature candidate remains source-only. No agent game input or player SAVE read/edit occurs in this attempt. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
 
 ## Current verdict
 
-### October14 — Beard invisible search rejected; stationary guide candidate
+### October14 — stationary Beard guide installed; player requests nightly patrol instead
 
 The player requires a visible ship pointing to the same place on a missed
 night, with the battle still restricted to nighttime. The former first-search
@@ -33,10 +33,22 @@ remain original; only native map messaging is substituted and ordinary game
 OnSave/OnLoad is excluded in the headless codec fixture. Three consumer outputs
 are idempotent. These checks do not accept model visibility, real game loading,
 the physical attack or map-frame performance. The player owns that replay.
-Canonical content check finds exactly four pending files and compiler ready;
-installation waits for the already-requested game close. No engine rebuild or
-unready camera source is part of this batch. `docs/great-recipe-quest.md` owns
-the controller and lifecycle contract.
+After the player closes the game, canonical `tools/sync_metal_gameplay.py apply`
+exits0, reseals/verifies the app and installs exactly four files. Its post-check
+reports0 pending in both cache and app, compiler ready. Installed GRC/worldmap/
+events/reload raw SHA-256 prefixes are11a7e034/446bc483/d33f8583/9b767abd;
+all four bytes match the actual VM inputs. Signed engine remains e8708248.
+No engine rebuild or unready camera source is consumed. The user is told the
+installation is complete and may launch; no game controls or SAVE reads occur.
+The feature still requires the player's visible guide/next-night/night-vs-day
+replay. `docs/great-recipe-quest.md` owns the controller/lifecycle contract.
+
+After installation, the player rejects the permanent stationary-guide choice
+and explicitly requests a ship that appears/patrols the same region only at
+night and disappears at dawn. Encountered ordinary non-quest NPC ships must
+be sunk almost immediately; quest ships must survive. This supersedes the
+standing-guide contract. The installed batch remains an intermediate delivery,
+not accepted gameplay; patrol and NPC-combat ownership discovery is pending.
 
 ### October14 — first sea/map camera rejected; overhead successor installed, replay pending
 
