@@ -16,7 +16,7 @@
 +
 +bool SHIP::PhonkMotionAllowed()
 +{
-+    if (!PhonkActive() || bSetFixed || bGroundMoveBlocked || bShip2Strand || !(fSailState >= .3f))
++    if (!PhonkActive() || bSetFixed || bGroundMoveBlocked || bShip2Strand)
 +        return false;
 +    auto *character = GetACharacter();
 +    const auto *stopped = character->FindAClass(character, "Ship.Stopped");
@@ -30,10 +30,10 @@
 +    return false;
 +}
 +
-+CVECTOR SHIP::PhonkDriftSpeed(float seconds, bool consume)
++CVECTOR SHIP::PhonkDriftSpeed(float, bool)
 +{
-+    const auto drift = phonkDrift.speed(PhonkMotionAllowed(), Strength[STRENGTH_MAIN].vRotate.y,
-+                                       State.vSpeed.z, State.vSpeed.x, State.vAng.y, seconds, consume);
++    if (!PhonkMotionAllowed()) return CVECTOR(0.f);
++    const auto drift = phonkDrift.projection(State.vAng.y, State.vSpeed.x, State.vSpeed.z);
 +    return CVECTOR(drift.x, 0.f, drift.z);
 +}
 +
@@ -47,91 +47,281 @@
 +
 +    if (PhonkMotionAllowed())
 +    {
-+        Speed->z *= storm::ship::phonk::speedBoost;
++        Speed->z = storm::ship::phonk::speedCeiling;
 +        Rotate->y = storm::ship::phonk::yawSpeed(GetMaxSpeedY(), Strength[STRENGTH_MAIN].vRotate.y);
 +    }
  
      return true;
  }
-@@ -408,6 +447,19 @@
+@@ -408,6 +447,50 @@
          new_rotate.y = SIGN(fInitialPerkAngle) * GetMaxSpeedY();
      }
  
 +    if (PhonkMotionAllowed())
 +    {
 +        const float dt = std::isfinite(dtime) ? std::clamp(dtime, 0.f, .1f) : 0.f;
-+        const float drive = -std::expm1(-2.4f * dt);
 +        const float steering = -std::expm1(-5.f * dt);
 +        const float oldForward = State.vSpeed.z;
-+        State.vSpeed.x += (new_speed.x - State.vSpeed.x) * drive;
-+        State.vSpeed.z += (new_speed.z - State.vSpeed.z) * drive;
++        CONTROL_STATE gas, gas1, brake, brake1;
++        core.Controls->GetControlState("Ship_SailUp", gas);
++        core.Controls->GetControlState("Ship_SailUp1", gas1);
++        core.Controls->GetControlState("Ship_SailDown", brake);
++        core.Controls->GetControlState("Ship_SailDown1", brake1);
++        const auto held = [](const CONTROL_STATE &c) { return c.state == CST_ACTIVE || c.state == CST_ACTIVATED; };
++        const auto wave = pSea ? pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset) : SeaTsunamiSample{};
++        const float rise = wave.slopeX * (KNOTS2METERS(phonkDrift.worldX) + wave.directionX * wave.speed) +
++                           wave.slopeZ * (KNOTS2METERS(phonkDrift.worldZ) + wave.directionZ * wave.speed);
++        float acceleration = storm::ship::phonk::motorAcceleration;
++        if (wave.serial && wave.height > 3.f && rise > 3.f && !phonkFlight.airborne)
++            acceleration *= 1.f + .65f * std::clamp(wave.height / wave.amplitude, 0.f, 1.f);
++        phonkDrift.advance(acceleration, Strength[STRENGTH_MAIN].vRotate.y, State.vAng.y, dt,
++                           State.vSpeed.x, State.vSpeed.z, held(gas) || held(gas1),
++                           held(brake) || held(brake1), phonkFlight.airborne);
++        State.vSpeed.x = 0.f;
++        State.vSpeed.z = phonkDrift.magnitude();
 +        vSpeedAccel.z = oldForward - State.vSpeed.z;
 +        State.vRotate.y += (new_rotate.y - State.vRotate.y) * steering;
 +        return true;
 +    }
++    if (phonkDrift.initialized)
++    {
++        // Restore the mode-owned velocity only. A never-active ordinary ship
++        // retains every stock State byte and follows its existing inertia.
++        const float speed = phonkDrift.magnitude();
++        const float ordinary = std::max(0.f, new_speed.z);
++        const float scale = speed > .001f ? std::min(speed, ordinary) / speed : 0.f;
++        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
++        State.vSpeed.x = (phonkDrift.worldX * c - phonkDrift.worldZ * s) * scale;
++        State.vSpeed.z = (phonkDrift.worldX * s + phonkDrift.worldZ * c) * scale;
++        const float yawLimit = std::abs(GetMaxSpeedY());
++        State.vRotate.y = std::clamp(State.vRotate.y, -yawLimit, yawLimit);
++    }
++    phonkDrift.reset();
++    if (phonkFlight.airborne && pSea)
++        State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
++    phonkFlight.reset();
 +
  #define SMALL_DELTA(x) (fabsf((x)-0.00001f) > 0.00001f)
      for (i = 0; i < 3; i++)
      {
-@@ -522,12 +574,13 @@
+@@ -522,12 +605,15 @@
          return true;
      }
      const auto old_state = State;
+-    const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false) + WhirlpoolDriftSpeed();
+-    const float eventYaw = WhirlpoolYawSpeed();
 +    const auto old_phonk = phonkDrift;
-     const auto eventSpeed = TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false) + WhirlpoolDriftSpeed();
-     const float eventYaw = WhirlpoolYawSpeed();
++    const auto old_flight = phonkFlight;
++    const auto eventSpeed = phonkFlight.airborne ? CVECTOR(0.f) :
++        TsunamiDriftSpeed(DELTA_TIME(DeltaTime), false) + WhirlpoolDriftSpeed();
++    const float eventYaw = phonkFlight.airborne ? 0.f : WhirlpoolYawSpeed();
  
      if (pTPOld)
      {
 -        pTPOld->vSpeed = State.vSpeed + eventSpeed;
-+        pTPOld->vSpeed = State.vSpeed + eventSpeed + PhonkDriftSpeed(0.f, false);
++        pTPOld->vSpeed = State.vSpeed + (PhonkMotionAllowed() ? CVECTOR(0.f) : eventSpeed) + PhonkDriftSpeed(0.f, false);
          pTPOld->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
          pTPOld->vPos = State.vPos;
          pTPOld->vAng = State.vAng;
-@@ -548,7 +601,7 @@
+@@ -538,6 +624,7 @@
+         pTPOld->vAng.x += emergence.pitch;
+         pTPOld->vAng.z += emergence.roll;
+         pTPOld->vSpeed.y += emergence.velocity;
++        pTPOld->vSpeed.y += phonkFlight.velocity;
+         if (emergenceQueryActive) {
+             pTPOld->vPos = GetPos();
+             pTPOld->vAng = GetAng();
+@@ -548,8 +635,8 @@
  
      if (pTPNew)
      {
 -        pTPNew->vSpeed = State.vSpeed + eventSpeed;
-+        pTPNew->vSpeed = State.vSpeed + eventSpeed + PhonkDriftSpeed(0.f, false);
-         pTPNew->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
+-        pTPNew->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
++        pTPNew->vSpeed = State.vSpeed + (PhonkMotionAllowed() || phonkFlight.airborne ? CVECTOR(0.f) : eventSpeed) + PhonkDriftSpeed(0.f, false);
++        pTPNew->vRotate = State.vRotate + CVECTOR(0.f, phonkFlight.airborne ? 0.f : eventYaw, 0.f);
          pTPNew->vPos = State.vPos;
          pTPNew->vAng = State.vAng;
-@@ -562,6 +615,7 @@
+         pTPNew->vPos.x += fXOffset;
+@@ -559,9 +646,12 @@
+         pTPNew->vAng.x += emergence.pitch;
+         pTPNew->vAng.z += emergence.roll;
+         pTPNew->vSpeed.y += emergence.velocity;
++        pTPNew->vSpeed.y += phonkFlight.velocity;
      }
  
      State = old_state;
 +    phonkDrift = old_phonk;
++    phonkFlight = old_flight;
  
      return true;
  }
-@@ -570,7 +624,8 @@
+@@ -569,15 +659,45 @@
+ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
  {
      const auto dtime = DELTA_TIME(DeltaTime);
++    const auto waveBefore = PhonkMotionAllowed() && pSea ?
++        pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset) : SeaTsunamiSample{};
      ApplyStrength(dtime, bCollision);
 -    const auto eventSpeed = TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed();
-+    const auto eventSpeed = TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed() +
-+                            PhonkDriftSpeed(dtime, true);
-     const float eventYaw = WhirlpoolYawSpeed();
+-    const float eventYaw = WhirlpoolYawSpeed();
++    const auto waterSpeed = phonkFlight.airborne ? CVECTOR(0.f) :
++        TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed();
++    auto eventSpeed = waterSpeed + PhonkDriftSpeed(dtime, true);
++    const float eventYaw = phonkFlight.airborne ? 0.f : WhirlpoolYawSpeed();
++    const bool phonkMoving = PhonkMotionAllowed();
++    if (phonkMoving && !phonkFlight.airborne)
++    {
++        CVECTOR previousWater(phonkDrift.waterX, 0.f, phonkDrift.waterZ);
++        RotateAroundY(previousWater.x, previousWater.z, std::cos(-State.vAng.y), std::sin(-State.vAng.y));
++        eventSpeed -= previousWater;
++    }
      State.vSpeed += eventSpeed;
      State.vRotate.y += eventYaw;
-@@ -618,6 +673,7 @@
+-    if (!bCollision && !isDead())
++    if (phonkMoving)
++    {
++        // Cap the effective world velocity after all surface-current transport.
++        const float speed = std::hypot(State.vSpeed.x, State.vSpeed.z);
++        if (speed > storm::ship::phonk::speedCeiling)
++        {
++            const float scale = storm::ship::phonk::speedCeiling / speed;
++            State.vSpeed.x *= scale;
++            State.vSpeed.z *= scale;
++        }
++        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
++        phonkDrift.worldX = State.vSpeed.x * c + State.vSpeed.z * s;
++        phonkDrift.worldZ = State.vSpeed.z * c - State.vSpeed.x * s;
++        phonkDrift.lastForward = phonkDrift.magnitude();
++        phonkDrift.waterX = waterSpeed.x * c + waterSpeed.z * s;
++        phonkDrift.waterZ = waterSpeed.z * c - waterSpeed.x * s;
++    }
++    if (!bCollision && !isDead() && !phonkFlight.airborne)
+     {
+         State.vAng = ShipRocking(dtime);
+     }
++    if (PhonkMotionAllowed() && !phonkFlight.airborne && pSea)
++        State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+ 
+     const SHIP_STATE beforeTranslation = State;
+     if (!bCollision)
+@@ -604,8 +724,15 @@
+     {
+         SHIP_STATE baseline = beforeTranslation;
+         baseline.vAng = State.vAng; // allow turning; compare translation at one orientation
++        SHIP_STATE grounding = State;
++        if (phonkFlight.airborne && pSea)
++        {
++            // A jump may clear water, never skip the existing shoreline barrier.
++            baseline.vPos.y = pSea->WaveXZ(baseline.vPos.x + fXOffset, baseline.vPos.z + fZOffset);
++            grounding.vPos.y = pSea->WaveXZ(grounding.vPos.x + fXOffset, grounding.vPos.z + fZOffset);
++        }
+         const float oldPenetration = GroundPenetration(baseline);
+-        const float newPenetration = GroundPenetration(State);
++        const float newPenetration = GroundPenetration(grounding);
+         if (newPenetration > oldPenetration + 0.0001f)
+         {
+             State.vPos.x = beforeTranslation.vPos.x;
+@@ -617,8 +744,41 @@
+ 
      // Only grounding mutates translational velocity after the temporary current.
      // Its zero velocity is authoritative; never subtract a stale current from it.
-     if (bCollision || !bGroundMoveBlocked) State.vSpeed -= eventSpeed;
-+    if (!bCollision && bGroundMoveBlocked) phonkDrift.reset();
+-    if (bCollision || !bGroundMoveBlocked) State.vSpeed -= eventSpeed;
++    if (bCollision || !bGroundMoveBlocked)
++    {
++        if (phonkMoving)
++        {
++            State.vSpeed.x = 0.f;
++            State.vSpeed.z = phonkDrift.magnitude();
++        }
++        else State.vSpeed -= eventSpeed;
++    }
++    if (!bCollision && bGroundMoveBlocked)
++    {
++        const bool wasAirborne = phonkFlight.airborne;
++        phonkDrift.reset();
++        phonkFlight.reset();
++        if (wasAirborne && pSea) State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
++    }
      State.vRotate.y -= eventYaw;
++    if (PhonkMotionAllowed() && pSea)
++    {
++        const auto waveAfter = pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
++        const float water = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
++        if (phonkFlight.airborne)
++            State.vPos.y = phonkFlight.advance(beforeTranslation.vPos.y, water, dtime, fGravity);
++        else
++        {
++            const float rise = waveBefore.slopeX * (KNOTS2METERS(phonkDrift.worldX) + waveBefore.directionX * waveBefore.speed) +
++                               waveBefore.slopeZ * (KNOTS2METERS(phonkDrift.worldZ) + waveBefore.directionZ * waveBefore.speed);
++            phonkFlight.crest(waveBefore, waveAfter, rise, KNOTS2METERS(phonkDrift.magnitude()));
++        }
++        if (phonkFlight.airborne)
++        {
++            State.vAng.x = -std::atan2(phonkFlight.velocity, std::max(1.f, KNOTS2METERS(phonkDrift.magnitude())));
++            State.vAng.z *= std::exp(-2.f * std::clamp(dtime, 0.f, .1f));
++        }
++    }
      return true;
  }
-@@ -760,6 +816,7 @@
+ 
+@@ -731,6 +891,8 @@
+ {
+     if (!isDead())
+     {
++        if (phonkFlight.airborne && pSea)
++            State.vPos.y = vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+         const CVECTOR eventTilt(tsunamiMotion.pitch, 0.f, tsunamiMotion.roll);
+         State.vAng = vAng - eventTilt;
+ 
+@@ -760,6 +922,8 @@
          vCurDeadDir = eventTilt;
          tsunamiMotion.Reset();
          tsunamiDrift.Reset();
 +        phonkDrift.reset();
++        phonkFlight.reset();
  
          bDead = true;
          core.RemoveFromLayer(SEA_REFLECTION2, GetId());
-@@ -1670,6 +1727,108 @@
+@@ -1213,7 +1377,7 @@
+         const auto pos = GetPos();
+         const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
+         const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
+-        if (sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
++        if (PhonkActive() || sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
+             whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
+         {
+             // Match this frame's sampled buoyancy and drift before event rotation.
+@@ -1229,10 +1393,10 @@
+         const float protection = TsunamiProtection();
+         const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
+         const float beam = sample.directionX * std::cos(State.vAng.y) - sample.directionZ * std::sin(State.vAng.y);
+-        tsunamiMotion.Update(sample, head, beam, protection, fDeltaTime);
++        tsunamiMotion.Update(sample, head, beam, phonkFlight.airborne ? 0.f : protection, fDeltaTime);
+         vAng.x += tsunamiMotion.pitch;
+         vAng.z += tsunamiMotion.roll;
+-        const float vortexProtection = vortexSample.serial == 0 || bSetFixed ? 0.f :
++        const float vortexProtection = vortexSample.serial == 0 || bSetFixed || phonkFlight.airborne ? 0.f :
+             protection * SeaWhirlpoolControlMultiplier(WhirlpoolControl());
+         whirlpoolMotion.Update(vortexSample, State.vAng.y, vortexProtection, fDeltaTime);
+         vAng.x += whirlpoolMotion.pitch;
+@@ -1409,6 +1573,8 @@
+         core.Controls->GetControlState("Ship_TurnRight1", cs1);
+         if (cs.state == CST_ACTIVE || cs1.state == CST_ACTIVE)
+             Strength[STRENGTH_MAIN].vRotate.y = 1.0f;
++        if (!PhonkActive())
++        {
+         core.Controls->GetControlState("Ship_SailUp", cs);
+         core.Controls->GetControlState("Ship_SailUp1", cs1);
+         if (cs.state == CST_ACTIVATED || cs1.state == CST_ACTIVATED)
+@@ -1422,6 +1588,7 @@
+             fSailState = 0.0f;
+         if (fSailState > 1.0f)
+             fSailState = 1.0f;
++        }
+     }
+ 
+     /*if (isDead())
+@@ -1671,6 +1838,107 @@
      }
  }
  
@@ -151,19 +341,20 @@
 +    // Reuse the scene's per-frame source catalog; off/unload publishes nothing.
 +    // Its light IDs live outside ShipLights' high-bit domain and location IDs.
 +    const float pulse = storm::ship::phonk::pulse(phonkSeconds);
-+    for (unsigned i = 0; i < 2; ++i)
++    for (unsigned i = 0; i < 4; ++i)
 +    {
 +        const CVECTOR center = GetModel()->mtx *
-+            CVECTOR(0.f, State.vBoxSize.y * .15f, State.vBoxSize.z * (i ? .22f : -.22f));
++            CVECTOR(State.vBoxSize.x * (i & 1 ? .65f : -.65f), State.vBoxSize.y * .3f,
++                    State.vBoxSize.z * (i & 2 ? .22f : -.22f));
 +        D3DLIGHT9 light{};
 +        light.Type = D3DLIGHT_POINT;
 +        light.Position = {center.x, center.y, center.z};
-+        light.Diffuse = {.64f * pulse, .18f * pulse, 1.15f * pulse, 1.f};
++        light.Diffuse = {1.8f * pulse, .65f * pulse, 2.8f * pulse, 1.f};
 +        light.Range = std::max(State.vBoxSize.x * 2.f, State.vBoxSize.z * .45f);
 +        light.Attenuation0 = 1.f;
 +        light.Attenuation2 = 6.f / std::max(light.Range * light.Range, 1.f);
 +        const uint64_t id = (uint64_t(1) << 61) |
-+            ((uint64_t(GetId()) & ((uint64_t(1) << 59) - 1)) << 1) | i;
++            ((uint64_t(GetId()) & ((uint64_t(1) << 58) - 1)) << 2) | i;
 +        StormMetalSceneLight(pRS->GetD3DDevice(), id, &light);
 +    }
 +#endif
@@ -174,20 +365,18 @@
 +#ifdef STORM_METAL_RENDERER_CONSUMERS
 +    if (!PhonkActive() || !bVisible || !pSea) return;
 +    struct Vertex { float x, y, z; uint32_t color; };
-+    constexpr unsigned segments = 32, rings = 5;
++    constexpr unsigned segments = 32, rings = 8;
 +    std::array<Vertex, segments * (rings * 2 - 1) * 3> vertices{};
 +    std::array<Vertex, (rings + 1) * segments> points{};
 +    unsigned at = 0;
-+    const float pulse = storm::ship::phonk::pulse(phonkSeconds);
 +    const auto point = [&](unsigned ring, unsigned segment) {
 +        const float r = float(ring) / rings;
 +        const float a = float(segment) * 6.28318530718f / segments;
 +        const CVECTOR p = GetModel()->mtx * CVECTOR(
 +            r * State.vBoxSize.x * .85f * std::cos(a), 0.f,
 +            r * State.vBoxSize.z * .65f * std::sin(a));
-+        const float edge = 1.f - r * r;
-+        const uint32_t alpha = uint32_t(.30f * pulse * edge * edge * 255.f);
-+        return Vertex{p.x, pSea->WaveXZ(p.x, p.z) + .18f, p.z, (alpha << 24) | 0x00bb65ff};
++        const uint32_t alpha = uint32_t(storm::ship::phonk::haloOpacity(r, phonkSeconds) * 255.f);
++        return Vertex{p.x, pSea->WaveXZ(p.x, p.z) + .55f, p.z, (alpha << 24) | 0x00ce80ff};
 +    };
 +    for (unsigned ring = 0; ring <= rings; ++ring)
 +        for (unsigned s = 0; s < segments; ++s)
@@ -240,7 +429,7 @@
  void SHIP::Realize(uint32_t dtime)
  {
      if (!bMounted)
-@@ -1701,6 +1860,7 @@
+@@ -1702,6 +1970,7 @@
  
      bSetLightAndFog = false;
  
@@ -248,7 +437,7 @@
      SetLightAndFog(true);
      SetLights();
  
-@@ -1739,6 +1899,7 @@
+@@ -1740,6 +2009,7 @@
      StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
                            &fireWind.x,fireVisualSeconds);
  #endif
@@ -256,11 +445,12 @@
      if (bMassaShow)
      {
          pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
-@@ -2857,6 +3018,8 @@
+@@ -2858,6 +3128,9 @@
  {
      uint32_t i;
      tsunamiDrift.Reset();
 +    phonkDrift.reset();
++    phonkFlight.reset();
 +    phonkSeconds = 0.f;
      whirlpoolMotion.Reset();
      emergenceSerial = 0;
@@ -275,16 +465,17 @@
  #ifdef STORM_METAL_SHIP_FIRE
  #include "ship_fire_model.hpp"
  #include "ship_fire_bridge.hpp"
-@@ -146,6 +147,8 @@
+@@ -146,6 +147,9 @@
      CVECTOR vDeadDir, vCurDeadDir;
      SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
      SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
 +    storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity
++    storm::ship::phonk::Flight phonkFlight; // crest launch/landing; no save layout fields
 +    float phonkSeconds = 0.f;
      SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
      unsigned emergenceSerial = 0; // rebound to the restored field, never serialized
      bool emergenceQueryActive = false;
-@@ -178,6 +181,11 @@
+@@ -178,6 +182,11 @@
      // executed functions
      CVECTOR ShipRocking(float fDeltaTime);
      BOOL ApplyStrength(float dtime, BOOL bCollision);
@@ -298,14 +489,15 @@
      float WhirlpoolControl();
 --- /dev/null
 +++ b/src/libs/ship/src/ship_phonk.hpp
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,130 @@
 +#pragma once
 +#include <algorithm>
 +#include <cmath>
++#include "shared/sea_tsunami.hpp"
 +
 +namespace storm::ship::phonk
 +{
-+constexpr float speedBoost = 20.f;
++constexpr float speedCeiling = 250.f, motorAcceleration = 60.f, brakeDeceleration = 120.f;
 +constexpr float yawBoost = 2.1f;
 +inline float yawSpeed(float stock, float turn)
 +{
@@ -313,45 +505,116 @@
 +}
 +
 +struct Velocity { float x = 0.f, z = 0.f; };
-+// Momentum keeps its world heading while the hull turns beneath it. Speed still
-+// follows the engine's propulsion/impulses; traction gradually realigns travel.
-+// TOUCH snapshots/restores this transient owner with its predicted ship State.
++// World velocity belongs to the enabled mode. Engine velocity carries magnitude
++// and collision impulses; the temporary projection supplies its actual bearing.
 +struct Drift
 +{
 +    bool initialized = false;
-+    float heading = 0.f, lastSideways = 0.f;
++    bool driving = false;
++    float worldX = 0.f, worldZ = 0.f, lastForward = 0.f;
++    float waterX = 0.f, waterZ = 0.f; // prior field transport, not per-frame thrust
 +    void reset() { *this = {}; }
-+    Velocity speed(bool allowed, float turn, float forward, float sideways,
-+                   float yaw, float seconds, bool consume)
++    float magnitude() const { return std::hypot(worldX, worldZ); }
++    void advance(float acceleration, float turn, float yaw, float seconds,
++                 float localX, float localZ, bool gas, bool brake, bool airborne)
 +    {
-+        if (!allowed || !std::isfinite(turn) || !std::isfinite(forward) ||
-+            !std::isfinite(sideways) || !std::isfinite(yaw) || forward <= 0.f)
++        if (!std::isfinite(localX) || !std::isfinite(localZ) || !std::isfinite(yaw))
 +        {
-+            if (consume) reset();
-+            return {};
++            reset(); return;
 +        }
-+        const float target = yaw + std::atan2(sideways, forward);
-+        float next = initialized ? heading : target;
-+        // Existing lateral collision impulses turn momentum immediately, before
-+        // the softer tyre-like traction. Propulsion speed reductions are likewise
-+        // immediate through magnitude, preventing momentum through a stopped hull.
-+        if (initialized && sideways != lastSideways)
++        const float c = std::cos(yaw), s = std::sin(yaw);
++        if (!initialized)
 +        {
-+            const float magnitude = std::hypot(forward, lastSideways);
-+            const float impulse = sideways - lastSideways;
-+            next = std::atan2(std::sin(next) * magnitude + std::cos(yaw) * impulse,
-+                              std::cos(next) * magnitude - std::sin(yaw) * impulse);
++            worldX = localX * c + localZ * s;
++            worldZ = localZ * c - localX * s;
++            initialized = true;
 +        }
++        else
++        {
++            // State's previous base was (0, magnitude): only the delta comes
++            // from native contact/impulses, never from yaw or lowered sails.
++            const float impulseZ = localZ - lastForward;
++            worldX += localX * c + impulseZ * s;
++            worldZ += impulseZ * c - localX * s;
++        }
++        driving = gas && !brake;
 +        const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
-+        const float traction = .6f - .42f * std::clamp(std::abs(turn), 0.f, 1.f);
-+        next += std::remainder(target - next, 6.28318530718f) * -std::expm1(-traction * dt);
-+        if (consume) { initialized = true; heading = next; lastSideways = sideways; }
-+        const float magnitude = std::hypot(forward, sideways);
-+        const float slip = next - yaw;
-+        return {std::sin(slip) * magnitude - sideways,
-+                std::cos(slip) * magnitude - forward};
++        float speed = std::min(magnitude(), speedCeiling);
++        float bearing = speed > .01f ? std::atan2(worldX, worldZ) : yaw;
++        if (!airborne)
++        {
++            if (brake) speed = std::max(0.f, speed - brakeDeceleration * dt);
++            else if (driving) speed = std::min(speedCeiling, speed + acceleration * dt);
++            else speed *= std::exp(-.055f * dt);
++            // A brake acts on the current vector, not the hull's forward axis.
++            if (!brake)
++            {
++                const float traction = driving ? .6f - .42f * std::clamp(std::abs(turn), 0.f, 1.f) : .12f;
++                bearing += std::remainder(yaw - bearing, 6.28318530718f) * -std::expm1(-traction * dt);
++            }
++        }
++        worldX = std::sin(bearing) * speed;
++        worldZ = std::cos(bearing) * speed;
++        lastForward = speed;
++    }
++    Velocity projection(float yaw, float localX, float localZ) const
++    {
++        if (!initialized) return {};
++        const float c = std::cos(yaw), s = std::sin(yaw);
++        return {worldX * c - worldZ * s - localX,
++                worldX * s + worldZ * c - localZ};
 +    }
 +};
++
++struct Flight
++{
++    bool airborne = false, armed = false;
++    unsigned waveSerial = 0, launchedSerial = 0;
++    float velocity = 0.f, peakRise = 0.f;
++    void reset() { *this = {}; }
++    bool crest(const SeaTsunamiSample &before, const SeaTsunamiSample &after,
++               float rise, float speedMeters)
++    {
++        if (airborne || !before.serial || before.serial != after.serial) return false;
++        if (waveSerial != before.serial) { waveSerial = before.serial; armed = false; peakRise = 0.f; }
++        if (before.height > 3.f && rise > 3.f)
++        {
++            armed = true;
++            peakRise = std::max(peakRise, rise);
++        }
++        const bool crossing = before.signedDistance * after.signedDistance <= 0.f &&
++            before.signedDistance != after.signedDistance;
++        if (!armed || !crossing || launchedSerial == before.serial || speedMeters < 45.f ||
++            std::max(before.height, after.height) < before.amplitude * .65f)
++            return false;
++        airborne = true;
++        velocity = std::clamp(peakRise * .8f, 12.f, 42.f);
++        launchedSerial = before.serial;
++        armed = false;
++        return true;
++    }
++    float advance(float height, float water, float seconds, float gravity)
++    {
++        if (!airborne) return height;
++        const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
++        if (!std::isfinite(gravity) || gravity <= 0.f) gravity = 9.81f;
++        const float next = height + velocity * dt - .5f * gravity * dt * dt;
++        velocity -= gravity * dt;
++        if (velocity <= 0.f && next <= water)
++        {
++            airborne = false;
++            velocity = 0.f;
++            return water;
++        }
++        return next;
++    }
++};
++inline float haloOpacity(float radius, float seconds)
++{
++    const float inner = SeaTsunamiSmooth((radius - .32f) / .24f);
++    const float outer = 1.f - SeaTsunamiSmooth((radius - .78f) / .22f);
++    return .86f * inner * outer * (.9f + .1f * std::sin(seconds * 7.539822369f));
++}
 +inline float pulse(float seconds)
 +{
 +    return std::isfinite(seconds) ? .85f + .15f * std::sin(seconds * 7.539822369f) : 0.f;

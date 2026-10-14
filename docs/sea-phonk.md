@@ -6,9 +6,10 @@ Installed October 13 through the canonical Metal stage-only path. The exact
 native patch, controller/menu and Faster input passed component, full PROGRAM
 compile and installed-byte/signature checks; installation preserved SAVE/settings.
 The player's sea replay found insufficient speed, barely visible illumination
-and braking that changes the sliding direction. Native acceptance is reopened;
-the successor remains separate from the installed batch. Music disposal before
-death/scene replacement is repaired and VM-verified in source, pending delivery.
+and braking that changes the sliding direction. The successor passes native
+syntax, production-method component checks and canonical staging, and is installed.
+Actual throttle, braking, glow and tsunami-jump replay remains unresolved.
+Music disposal before death/scene replacement is already installed in `802fbde`.
 No agent game input or launch was performed. The current engine and chronological
 installation receipt belong to `runtime.md`.
 
@@ -16,11 +17,31 @@ installation receipt belong to `runtime.md`.
 
 At local sea, **Esc → Phonk Mode** sits directly below **Цунами**. The same
 button turns it off and resumes play. Map, land and boarding retain their menus.
-The player's ship gains roughly twentyfold target speed, rapid acceleration,
-inertial drift and lilac illumination. The hull turns while world-space momentum
-keeps carrying it sideways; countersteering and recovering traction straighten
-the course. NPC ships and ordinary off-mode physics are unchanged.
+W accelerates, releasing W coasts, S brakes, and A/D turn the hull through the
+existing remappable ship controls. Speed is controllable below a hard **250-knot**
+effective horizontal ceiling, including tsunami/whirlpool transport. There is no
+minimum cruising speed or automatic acceleration to the maximum. Toggle-on
+preserves current velocity. The independent motor accelerates at 60 knots/second;
+the brake removes 120 knots/second along the current world vector. The hull turns
+while momentum keeps carrying it sideways; countersteering and recovering
+traction straighten the course. NPC ships and never-active off-mode physics
+are unchanged. Mode exit caps its own residual motion to ordinary propulsion.
 Grounding, collision, death, stopped/fixed/surrendered ships retain their guards.
+
+Climbing a tsunami increases acceleration toward the same ceiling. A sufficiently
+fast rising approach (at least 45 m/s) launches once at the real crest crossing.
+Flight preserves the launch velocity without motor, braking, traction or water
+currents; gravity brings the ship back to the water. Landing resumes the current
+controls. Ordinary waves, slow crossings and the same crest after landing do not
+launch it. Flight and momentum are transient and reset on load/death/mode exit.
+Existing shoreline grounding remains authoritative during flight. The inherited
+TOUCH hull-admission solver can miss thin ships on extreme long frames; no new
+collision bypass or all-frame no-tunnelling guarantee is introduced.
+
+The lilac halo peaks in the exposed area around the hull rather than underneath
+it. Four local light sources sit outside the port/starboard surfaces so outward
+hull normals receive light. The existing scene source catalogue and additive
+water-surface rendering own these effects; all changed render states are restored.
 
 `PROGRAM/scripts/sea_phonk.c` owns transient `Sea.Phonk.Active` and one looped
 music voice, using the existing music-volume bus. `PROGRAM/sound.c` routes

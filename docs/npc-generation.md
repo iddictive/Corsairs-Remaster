@@ -1,7 +1,7 @@
 # Random NPC generation
 
-Status: source/isolated VM accepted October13; installed activation and player
-interaction pending under the shared Phonk installation window.
+Status: installed October13; source and actual installed isolated VM accepted.
+Player combat/hiring/loot and real scene OnLoad replay remain pending.
 
 ## Contract
 
@@ -83,3 +83,13 @@ entities and is not accepted from this entity-free probe. Real player SAVE,
 startup upgrade and combat/hiring/body scenes remain untested. Authored special
 rewards, officer inventory, PGG SaveItemsForDead and GhostShipCrew retain their
 existing paths; no generic broken-item or repair subsystem was added.
+
+## Installed delivery — October13
+
+Source checkpoint `122053c` enters the canonical Phonk/Beard batch.
+`experiments/native-metal/run.sh --stage-only` returns0; all nine installed
+projections match their frozen bytes. Actual installed PROGRAM/shared headers
+return `NPCGenerationCases=0`, `script_errors=0` under the same entity-free
+Main/OnLoad limit. Delivery reports no pending cache/app files, and243 fresh
+closed-game SAVE/config hashes remain unchanged. No game launch/input occurs.
+The current signed-engine receipt and chronology belong to `runtime.md`.

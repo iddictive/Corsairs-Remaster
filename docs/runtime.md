@@ -1,8 +1,57 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the Beard navigation correction and Phonk death-music cleanup over the finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and Phonk batch. Signed engine `22179cb17ab929049f647de0ced1145894b40bc58f24d78c9b022dc9bd8c2332`; installed PROGRAM and native headers compile without errors and delivery check reports zero pending cache/app files. The player previously reopened34FPS aiming, hull sightlines and weak x8 fire; those battle/visual/FPS cases and the accelerated-map Beard encounter remain unresolved. Agent game input and launch remain explicitly stopped. The player closes the game for installation; no game process remains at this delivery. NPC generation and the new Phonk speed/glow/brake successor remain outside this batch. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the adjustable250-knot Phonk successor, tsunami jump and brighter lilac glow, accepted NPC generation source `122053c`, and Beard fixed-coordinate constructor repair `a3e879b`. Signed engine `97a8a84ac04e29c89c11d3481510de08f16f283f410de1a53a8ffb0a29d05195`; actual installed PROGRAM/shared VM returns0/errors0 and delivery check reports zero pending cache/app files.243 closed-game SAVE/config hashes are unchanged. The earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player sea throttle/brake/glow/jump, NPC scene and accelerated-map Beard appearance are unresolved; previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — adjustable Phonk speed, crest jump and integrated app delivery
+
+The player's real sea replay rejects insufficient speed, barely visible lilac
+light and braking that changes motion direction. The native source confirms S
+lowers sails below the old mode gate, resetting world momentum into ordinary
+forward motion. The user then requests a tsunami launch, direct W/S speed control
+and a maximum250 rather than fixed400. The successor keeps existing remappable
+controls: heldW adds60knots/second, releasedW coasts, S removes120knots/second
+along the world vector, and A/D rotate the hull. No minimum cruise or autonomous
+maximum acceleration remains. Effective horizontal movement, including currents,
+is capped250. Exit restores only mode-owned motion to ordinary propulsion.
+
+A real rising tsunami approach arms a single crest launch above45m/s. Flight
+preserves its launch vector without water currents, traction, motor or braking;
+gravity and descending water interception complete landing. Transient flight is
+included in TOUCH prediction snapshots and resets on load/death/exit. Shoreline
+grounding remains authoritative. The light annulus peaks outside the hull, and
+four brighter sources sit outside its surfaces. Topic owner: `sea-phonk.md`.
+
+Frozen native patch SHA256:
+`4369361cc4e3d48e5fe7338d2a6273da11e54430b8edebd2e8478d509cae8cf5`.
+Exact production ApplyStrength/Move/TouchMove ASan/UBSan cases pass adjustable
+59.7kn/1s and120kn/2s acceleration, release/coast, braking bearing/stop, nonzero
+current ceiling, inertial flight, real tsunami launch/95m reference apex/landing,
+repeat/slow/unsupported rejection, predictor XYZ/transient restoration and seeded
+ordinary-mode exit. Ordinary groundedY, never-active OFF and dead negatives pass.
+Native syntax and halo/state restoration probes pass; these are component
+evidence, not a player's visual or driving acceptance.
+
+At the user's install request, the exact Phonk packet is integrated with the
+already accepted/frozen NPC `122053c` and one-line Beard constructor `a3e879b`.
+Canonical `experiments/native-metal/run.sh --stage-only` returns0 after the final
+source changes; four native files change, and all three ship sources byte-match
+the tested successor. Its compiler receipt binds the final Phonk patch.
+Unsigned engine:
+`b53c2c8f483941aa2810a7340d4b7b182da9613bcbd94095f807020c85bbd12b`.
+Signed installed engine:
+`97a8a84ac04e29c89c11d3481510de08f16f283f410de1a53a8ffb0a29d05195`.
+The canonical delivery transaction verifies the complete app signature strictly.
+All nine NPC projections are delivered; actual installed PROGRAM/shared VM returns
+NPCGenerationCases0/script_errors0 with game Main/scene OnLoad disabled only in
+the disposable fixture. Delivery check reports0 cache/0app pending, compiler ready.
+The Faster MP3 hash matches its manifest;243 fresh closed-game SAVE/config hashes
+remain unchanged. Prior signed22179 engine is retained by the canonical backup.
+No game launch/input occurs. Disposition: source/component, build and exact app
+delivery accepted; player throttle/brake/glow/jump, NPC scene and fixed-coordinate
+Beard appearance remain unresolved. Historical TOUCH long-frame hull admission
+is preserved, so no all-frame no-tunnelling claim is made.
 
 ### October13 — Beard map navigation installed; accelerated encounter replay pending
 
