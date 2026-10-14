@@ -105,7 +105,7 @@ fragment ShipFireVolumePixel ship_fire_volume_fs(ShipFireVolumeO o [[stage_in]],
  float3 ray=normalize(nearPoint-c.eye.xyz);float2 span=shipFireRayBox(c.eye.xyz,ray,v.boundsMin.xyz,v.boundsMax.xyz);
  span.x=max(span.x,length(nearPoint-c.eye.xyz));
  float depth=sceneDepth.read(uint2(pixel));
- if(depth<1.f){float3 solid=shipFireUnproject(o.p.xy,depth,c);span.y=min(span.y,dot(solid-c.eye.xyz,ray));}
+ if(depth<1.f){float3 solid=shipFireUnproject(pixel,depth,c);span.y=min(span.y,dot(solid-c.eye.xyz,ray));}
  if(span.y<=span.x)discard_fragment();
  uint steps=uint(v.lod.x);float step=(span.y-span.x)/float(steps),radius=v.sourceRadius.w;
  // Enough coherent samples plus filtered backing pixels replace the noisy
@@ -136,14 +136,29 @@ vertex ShipFireCompositeO ship_fire_composite_vs(uint id [[vertex_id]]){float2 q
 fragment float4 ship_fire_composite_fs(ShipFireCompositeO o [[stage_in]],constant ShipFireCamera&c [[buffer(1)]],texture2d<float,access::read>volume [[texture(0)]],texture2d<float,access::read>frontDepth [[texture(1)]],depth2d<float,access::read>sceneDepth [[texture(2)]]){
  float scale=c.lighting.y;float2 sample=o.p.xy*scale-.5f,weight=fract(sample);int2 base=int2(floor(sample));
  float solid=sceneDepth.read(uint2(o.p.xy));float4 value=0;float total=0;
+ float solidLinear=1.f/max(abs((c.inverseViewProjection*float4(0,0,solid,1)).w),1.e-8f);
+ float4 guidedValue=0;float guidedTotal=0;bool allSky=true;
  for(uint i=0;i<4;i++){int2 offset=int2(i&1u,i>>1u);int2 at=clamp(base+offset,int2(0),int2(volume.get_width()-1,volume.get_height()-1));float w=(offset.x?weight.x:1.f-weight.x)*(offset.y?weight.y:1.f-weight.y);
-  // Full-size geometry wins at silhouettes: a coarse fire sample behind this
-  // hull/mast cannot bleed through merely because it had empty depth nearby.
-  if(frontDepth.read(uint2(at)).r>solid+1.e-6f)continue;
-  value+=volume.read(uint2(at))*w;total+=w;
+  float2 mapped=clamp((float2(at)+.5f)/max(scale,.125f),float2(.5f),float2(sceneDepth.get_width(),sceneDepth.get_height())-.5f);
+  float tapDepth=sceneDepth.read(uint2(mapped));
+  float tapLinear=1.f/max(abs((c.inverseViewProjection*float4(0,0,tapDepth,1)).w),1.e-8f);
+  float guidedWeight=w/(abs(tapLinear-solidLinear)+1.e-5f),front=frontDepth.read(uint2(at)).r;float4 tap=volume.read(uint2(at));
+  allSky=allSky&&(tapDepth==1.f);
+  // Occluded taps are transparent, but their weights remain in the sum:
+  // matching opaque samples must suppress sky taps instead of amplifying them.
+  guidedTotal+=guidedWeight;
+  if(front>solid+1.e-6f)continue;
+  guidedValue+=tap*guidedWeight;
+  value+=tap*w;total+=w;
  }
- if(total<=.0001f||value.a<.001f)discard_fragment();
- value/=max(total,.35f);
+ if(scale==1.f||(solid==1.f&&allSky)){
+  if(total<=.0001f||value.a<.001f)discard_fragment();
+  value/=max(total,.35f);
+ }else{
+  if(guidedTotal<=.0001f)discard_fragment();
+  value=guidedValue/guidedTotal;
+  if(value.a<.001f)discard_fragment();
+ }
  // Compress HDR emission before the legacy LDR scene, preserving hot/red
  // structure that the old per-zone BGRA clamp flattened into yellow mounds.
  float3 straight=value.rgb/max(value.a,.001f);straight=straight/(1.f+straight*.58f);

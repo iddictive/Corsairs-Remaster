@@ -2,20 +2,17 @@
 
 ## Status
 
-October 13 fire source candidate passed current compiler/component checks and
-the corrected offscreen prototype replay. The first representation was rejected
-for repeated cones/stipple, and its demo cloth was corrected for twisted corners.
-The canonical native build/stage consumes those inputs and the installed receipt
-matches them. The living-ship batch `f664c28` also installs hull chips/holes,
-measured sail capacity and exact near-hull ignition. The installed Metal app remains the accepting runtime;
-no installed visual, fleet performance or battle-balance acceptance is claimed yet.
-Existing models and their assets remain unchanged.
+Spatial fire, finite crew suppression, keyed saved state and paired hull/cloth
+damage are integrated. The current installed engine and delivery verdict are
+owned by `runtime.md`; earlier component evidence below is historical, not a
+second installed-state inventory. Existing models and their assets are unchanged.
 
-The player subsequently reports ocean visible through hull openings and a weak
-ship-of-the-line fire at game speed x8, explicitly on another liner rather than
-Beard. These reopen visual and gameplay
-acceptance independently; the installed engine remains signed2bec until a later
-activation. No game control or replacement of the player's SAVE is authorized.
+The player's night-fire screenshot reopens visual acceptance for enlarged black
+spots around rigging. The reduced-depth coordinate and bilateral reconstruction
+repair below passes the actual Metal component scene; its native delivery and
+player replay remain pending. Installed whole-scene visuals, fleet performance
+and battle balance still require the accepting Metal app. No game control or
+replacement of the player's SAVE is authorized.
 
 ## Player outcome
 
@@ -422,3 +419,47 @@ new live-context writer. The installed PROGRAM matches its prepared projection,
 and its actual context/codec fixture returns0 with script_errors0.277 frozen
 inputs and488 SAVE/config hashes are unchanged. The signed installed engine and
 the integrated batch's pending player scenarios are recorded in `runtime.md`.
+
+## Reduced fire depth and rigging silhouettes
+
+The reported black spots are reproduced by a one-pixel opaque diagonal rope in
+front of the production flame renderer. The full-resolution reference preserves
+the rope's own silhouette; quarter-resolution fire broadens it into dark cells.
+Two source defects contribute: solid unprojection used reduced fragment
+coordinates while the ray/depth read used full coordinates, and bilinear
+composition spread occluded coarse samples into adjacent background pixels.
+
+`ship_fire_shaders.hpp` reconstructs the solid with the same full pixel as the
+ray. Its existing four composition taps use symmetric linear scene-depth
+weights, adapting the maintained
+[HDRP bilateral upsampler](https://github.com/Unity-Technologies/Graphics/blob/a7e4c051d256a781ab362c64316b125a1e104694/Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/ScreenSpaceLighting/BilateralUpsample.hlsl)
+with its fixed `1e-5` tolerance. The local AO upsampler already establishes the
+same symmetric depth-guidance responsibility; fire retains its own premultiplied
+color and first-contribution-depth semantics. Occluded taps add transparent
+color but keep their weight in the denominator, so a matching opaque sample
+cannot be replaced by amplified sky fire. Full-resolution and all-sky pixels
+retain the previous composition path. Mapped full-depth coordinates are clamped
+at allocated ceil-sized backing boundaries.
+
+The one-sided depth-rejection attempt removed most rope loss but increased
+opaque-edge bleed; it is rejected. The maintained HDRP nearest-depth transparent
+upsampler removed that bleed but left hard staircase transitions and21 rope-loss
+pixels at quarter resolution; it is also rejected. Symmetric reconstruction
+preserves the smooth flame and panel/rope coverage in the same rendered scene.
+At quarter backing, enlarged rope-loss pixels fall31→1, an isolated pixel0.98px
+outside the rope. At the minimum eighth backing the count is0. Opaque rope and
+flat-panel edge leaks are0 in both fixtures. Panel RGB error against the full
+reference falls0.005018→0.002400 at quarter backing; eighth backing is0.004655.
+Clear and full-resolution controls are byte-identical. Ordinary reduced-resolution
+interpolation error remains; these are component observations, not whole-game
+quality or FPS acceptance.
+
+The assembled canonical MSL byte-matches the rendered candidate, SHA-256
+`46557dac4ac0a1f2acbfc68adf400a4d8d1cd3d21060437f50d2671b9defc595`.
+Receiver scorch/irradiance and embers remain byte-identical. Camera/material ABI,
+32 ray steps, fleet sample budget, texture/pass count and gameplay CPU path are
+unchanged; four scene-depth reads are added to the existing composition taps.
+Retained one-off inputs, rejected variants and accepted evidence live under the
+ignored `experiments/native-metal/.cache/diagnostics/fire-raster-20261013` owner.
+No permanent test infrastructure is added. Canonical stage and the player's same
+night-fire scene/FPS replay are separate remaining delivery/acceptance steps.
