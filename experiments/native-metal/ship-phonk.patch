@@ -17,15 +17,16 @@
      //(ShipPoints[2][2].fY + ShipPoints[3][2].fY + ShipPoints[2][3].fY + ShipPoints[3][3].fY) / 4.0f;
      State.vPos.y = State.vPos.y + Min(fDelta * fRockingY, 1.0f) * (fNewPos - State.vPos.y);
  
-@@ -280,8 +281,42 @@
+@@ -280,11 +281,57 @@
          fAng += static_cast<float>(atan((fHeight - fHeight1) / 2.0f * x));
      }
      vAng2.z = -fAng / 3.0f;
 +    if (surfaceAngle) *surfaceAngle = vAng2;
  
      return vAng + Min(fRockingAZ * fDelta, 1.0f) * (vAng2 - vAng);
-+}
-+
+ }
+ 
+-BOOL SHIP::CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate)
 +bool SHIP::PhonkActive()
 +{
 +    const auto *character = GetACharacter();
@@ -57,26 +58,85 @@
 +    if (!PhonkMotionAllowed()) return CVECTOR(0.f);
 +    const auto drift = phonkDrift.projection(State.vAng.y, State.vSpeed.x, State.vSpeed.z);
 +    return CVECTOR(drift.x, 0.f, drift.z);
- }
- 
- BOOL SHIP::CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate)
-@@ -368,6 +403,12 @@
-         }
++}
++
++void SHIP::RestorePhonkVelocity(SHIP_STATE &state, float ordinarySpeed)
++{
++    const float speed = phonkDrift.magnitude();
++    const float ordinary = std::max(0.f, ordinarySpeed);
++    const float scale = speed > .001f ? std::min(speed, ordinary) / speed : 0.f;
++    const float c = std::cos(state.vAng.y), s = std::sin(state.vAng.y);
++    state.vSpeed.x = (phonkDrift.worldX * c - phonkDrift.worldZ * s) * scale;
++    state.vSpeed.z = (phonkDrift.worldX * s + phonkDrift.worldZ * c) * scale;
++    const float yawLimit = std::abs(GetMaxSpeedY());
++    state.vRotate.y = std::clamp(state.vRotate.y, -yawLimit, yawLimit);
++}
++
++BOOL SHIP::CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool includePhonk)
+ {
+     int32_t i;
+     CVECTOR result(0.0f, 0.0f, 0.0f);
+@@ -369,6 +416,12 @@
      }
      Rotate->y *= GetMaxSpeedY();
-+
-+    if (PhonkMotionAllowed())
+ 
++    if (includePhonk && PhonkMotionAllowed())
 +    {
 +        Speed->z = storm::ship::phonk::speedCeiling;
 +        Rotate->y = storm::ship::phonk::yawSpeed(GetMaxSpeedY(), Strength[STRENGTH_MAIN].vRotate.y);
 +    }
- 
++
      return true;
  }
-@@ -408,6 +449,50 @@
+ 
+@@ -376,6 +429,9 @@
+ {
+     float sign, fK;
+     int32_t i;
++    const float previousCollisionYaw = collisionYaw;
++    State.vRotate.y -= previousCollisionYaw;
++    float angularImpulse = 0.f, linearImpulse = 0.f;
+ 
+     // apply impulse strength
+     for (i = RESERVED_STRENGTH; i < MAX_STRENGTH; i++)
+@@ -384,8 +440,17 @@
+             // State.vRotate.x += Strength[i].vSpeed.z * 1.3f;
+             State.vSpeed += Strength[i].vSpeed;
+             State.vRotate += Strength[i].vRotate;
++            if (collisionStrength[i])
++            {
++                angularImpulse += Strength[i].vRotate.y;
++                State.vRotate.y -= Strength[i].vRotate.y;
++                linearImpulse += std::hypot(Strength[i].vSpeed.x, Strength[i].vSpeed.z);
++            }
+             if (!bCollision)
++            {
+                 Strength[i].bUse = false;
++                collisionStrength[i] = false;
++            }
+         }
+ 
+     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+@@ -408,6 +473,61 @@
          new_rotate.y = SIGN(fInitialPerkAngle) * GetMaxSpeedY();
      }
  
++    collisionYaw = 0.f;
++    if (angularImpulse != 0.f || previousCollisionYaw != 0.f)
++    {
++        // Admit the queued contact torque once, within the hull's turn and
++        // linear-kick budget. Steering/perks and linear recoil stay native.
++        const float radius = std::sqrt(std::max(1.f,
++            (State.vBoxSize.x * State.vBoxSize.x + State.vBoxSize.z * State.vBoxSize.z) / 12.f));
++        const float turnCapacity = PhonkMotionAllowed() ?
++            std::abs(storm::ship::phonk::yawSpeed(GetMaxSpeedY(), 1.f)) :
++            2.f * std::max(std::abs(GetMaxSpeedY()), std::abs(State.fShipSpeedY));
++        const float impulseLimit = 2.f * KNOTS2METERS(linearImpulse) / radius;
++        const float admitted = std::clamp(angularImpulse, -impulseLimit, impulseLimit);
++        collisionYaw = std::clamp(previousCollisionYaw + admitted, -turnCapacity, turnCapacity);
++        State.vRotate.y += collisionYaw;
++    }
++
 +    if (PhonkMotionAllowed())
 +    {
 +        const float dt = std::isfinite(dtime) ? std::clamp(dtime, 0.f, .1f) : 0.f;
@@ -101,20 +161,15 @@
 +        State.vSpeed.z = phonkDrift.magnitude();
 +        vSpeedAccel.z = oldForward - State.vSpeed.z;
 +        State.vRotate.y += (new_rotate.y - State.vRotate.y) * steering;
++        collisionYaw *= 1.f - steering;
 +        return true;
 +    }
 +    if (phonkDrift.initialized)
 +    {
 +        // Restore the mode-owned velocity only. A never-active ordinary ship
 +        // retains every stock State byte and follows its existing inertia.
-+        const float speed = phonkDrift.magnitude();
-+        const float ordinary = std::max(0.f, new_speed.z);
-+        const float scale = speed > .001f ? std::min(speed, ordinary) / speed : 0.f;
-+        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
-+        State.vSpeed.x = (phonkDrift.worldX * c - phonkDrift.worldZ * s) * scale;
-+        State.vSpeed.z = (phonkDrift.worldX * s + phonkDrift.worldZ * c) * scale;
-+        const float yawLimit = std::abs(GetMaxSpeedY());
-+        State.vRotate.y = std::clamp(State.vRotate.y, -yawLimit, yawLimit);
++        RestorePhonkVelocity(State, new_speed.z);
++        collisionYaw = 0.f;
 +    }
 +    phonkDrift.reset();
 +    if (phonkFlight.airborne && pSea)
@@ -124,7 +179,18 @@
  #define SMALL_DELTA(x) (fabsf((x)-0.00001f) > 0.00001f)
      for (i = 0; i < 3; i++)
      {
-@@ -522,12 +607,20 @@
+@@ -450,6 +570,10 @@
+         }
+     }
+ 
++    // Track only the admitted contact contribution through the SAME native
++    // yaw damping; unrelated script impulses retain their original response.
++    collisionYaw *= 1.f - dtime * State.fMassInertia *
++        (SMALL_DELTA(new_rotate.y) ? State.vInertiaAccel.y : State.vInertiaBrake.y);
+     return true;
+ }
+ 
+@@ -522,12 +646,21 @@
          return true;
      }
      const auto old_state = State;
@@ -132,6 +198,7 @@
 -    const float eventYaw = WhirlpoolYawSpeed();
 +    const auto old_phonk = phonkDrift;
 +    const auto old_flight = phonkFlight;
++    const float old_collisionYaw = collisionYaw;
 +    // Phonk predicts the same buoyancy samples as consumed motion. Restore its
 +    // sample cache too; ordinary collision prediction keeps its original path.
 +    decltype(ShipPoints) old_points;
@@ -148,7 +215,7 @@
          pTPOld->vRotate = State.vRotate + CVECTOR(0.f, eventYaw, 0.f);
          pTPOld->vPos = State.vPos;
          pTPOld->vAng = State.vAng;
-@@ -538,6 +631,7 @@
+@@ -538,6 +671,7 @@
          pTPOld->vAng.x += emergence.pitch;
          pTPOld->vAng.z += emergence.roll;
          pTPOld->vSpeed.y += emergence.velocity;
@@ -156,7 +223,7 @@
          if (emergenceQueryActive) {
              pTPOld->vPos = GetPos();
              pTPOld->vAng = GetAng();
-@@ -548,8 +642,8 @@
+@@ -548,8 +682,8 @@
  
      if (pTPNew)
      {
@@ -167,7 +234,7 @@
          pTPNew->vPos = State.vPos;
          pTPNew->vAng = State.vAng;
          pTPNew->vPos.x += fXOffset;
-@@ -559,9 +653,13 @@
+@@ -559,9 +693,14 @@
          pTPNew->vAng.x += emergence.pitch;
          pTPNew->vAng.z += emergence.roll;
          pTPNew->vSpeed.y += emergence.velocity;
@@ -177,11 +244,12 @@
      State = old_state;
 +    phonkDrift = old_phonk;
 +    phonkFlight = old_flight;
++    collisionYaw = old_collisionYaw;
 +    if (predictSurface) ShipPoints = old_points;
  
      return true;
  }
-@@ -570,15 +668,40 @@
+@@ -570,15 +709,40 @@
  {
      const auto dtime = DELTA_TIME(DeltaTime);
      ApplyStrength(dtime, bCollision);
@@ -226,7 +294,7 @@
      const SHIP_STATE beforeTranslation = State;
      if (!bCollision)
          bGroundMoveBlocked = false;
-@@ -604,8 +727,15 @@
+@@ -604,8 +768,15 @@
      {
          SHIP_STATE baseline = beforeTranslation;
          baseline.vAng = State.vAng; // allow turning; compare translation at one orientation
@@ -243,7 +311,7 @@
          if (newPenetration > oldPenetration + 0.0001f)
          {
              State.vPos.x = beforeTranslation.vPos.x;
-@@ -617,8 +747,75 @@
+@@ -617,8 +788,75 @@
  
      // Only grounding mutates translational velocity after the temporary current.
      // Its zero velocity is authoritative; never subtract a stale current from it.
@@ -320,7 +388,7 @@
      return true;
  }
  
-@@ -731,6 +928,8 @@
+@@ -731,6 +969,8 @@
  {
      if (!isDead())
      {
@@ -329,16 +397,18 @@
          const CVECTOR eventTilt(tsunamiMotion.pitch, 0.f, tsunamiMotion.roll);
          State.vAng = vAng - eventTilt;
  
-@@ -760,6 +959,8 @@
+@@ -760,6 +1000,10 @@
          vCurDeadDir = eventTilt;
          tsunamiMotion.Reset();
          tsunamiDrift.Reset();
 +        phonkDrift.reset();
 +        phonkFlight.reset();
++        collisionStrength = {};
++        collisionYaw = 0.f;
  
          bDead = true;
          core.RemoveFromLayer(SEA_REFLECTION2, GetId());
-@@ -1213,7 +1414,7 @@
+@@ -1213,7 +1457,7 @@
          const auto pos = GetPos();
          const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
          const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
@@ -347,7 +417,7 @@
              whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
          {
              // Match this frame's sampled buoyancy and drift before event rotation.
-@@ -1225,18 +1426,25 @@
+@@ -1225,18 +1469,25 @@
              fRotate = 0.25f;
          if (fRotate < -0.25f)
              fRotate = -0.25f;
@@ -380,7 +450,7 @@
      }
  
      auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
-@@ -1409,6 +1617,8 @@
+@@ -1409,6 +1660,8 @@
          core.Controls->GetControlState("Ship_TurnRight1", cs1);
          if (cs.state == CST_ACTIVE || cs1.state == CST_ACTIVE)
              Strength[STRENGTH_MAIN].vRotate.y = 1.0f;
@@ -389,7 +459,7 @@
          core.Controls->GetControlState("Ship_SailUp", cs);
          core.Controls->GetControlState("Ship_SailUp1", cs1);
          if (cs.state == CST_ACTIVATED || cs1.state == CST_ACTIVATED)
-@@ -1422,6 +1632,7 @@
+@@ -1422,6 +1675,7 @@
              fSailState = 0.0f;
          if (fSailState > 1.0f)
              fSailState = 1.0f;
@@ -397,7 +467,7 @@
      }
  
      /*if (isDead())
-@@ -1671,6 +1882,107 @@
+@@ -1671,6 +1925,107 @@
      }
  }
  
@@ -505,7 +575,7 @@
  void SHIP::Realize(uint32_t dtime)
  {
      if (!bMounted)
-@@ -1702,6 +2014,7 @@
+@@ -1702,6 +2057,7 @@
  
      bSetLightAndFog = false;
  
@@ -513,7 +583,7 @@
      SetLightAndFog(true);
      SetLights();
  
-@@ -1740,6 +2053,7 @@
+@@ -1740,6 +2096,7 @@
      StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
                            &fireWind.x,fireVisualSeconds);
  #endif
@@ -521,9 +591,78 @@
      if (bMassaShow)
      {
          pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
-@@ -2858,6 +3172,9 @@
+@@ -1794,6 +2151,7 @@
+     if (iIdx < RESERVED_STRENGTH || iIdx >= MAX_STRENGTH)
+         return false;
+     Strength[iIdx].bUse = false;
++    collisionStrength[iIdx] = false;
+     return true;
+ }
+ 
+@@ -1805,9 +2163,17 @@
+         {
+             Strength[i] = *strength;
+             Strength[i].bUse = true;
++            collisionStrength[i] = false;
+             return i;
+         }
+     return -1;
++}
++
++int32_t SHIP::AddCollisionStrength(STRENGTH *strength)
++{
++    const int32_t slot = AddStrength(strength);
++    if (slot >= 0) collisionStrength[slot] = true;
++    return slot;
+ }
+ 
+ uint64_t SHIP::ProcessMessage(MESSAGE &message)
+@@ -2793,6 +3159,21 @@
+     SaveShipFire();
+ #endif
+     uint32_t i;
++    SHIP_STATE ordinaryState;
++    const SHIP_STATE *savedState = &State;
++    float savedY = vPos.y;
++    if (PhonkActive() && phonkDrift.initialized)
++    {
++        // The scene mode is transient. Save its ordinary exit projection,
++        // leaving the live 500-knot world momentum and binary layout intact.
++        std::memcpy(&ordinaryState, &State, sizeof(State));
++        CVECTOR ordinarySpeed(0.f), ordinaryRotate(0.f);
++        CalculateNewSpeedVector(&ordinarySpeed, &ordinaryRotate, false);
++        RestorePhonkVelocity(ordinaryState, ordinarySpeed.z);
++        if (phonkFlight.airborne && pSea)
++            ordinaryState.vPos.y = savedY = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
++        savedState = &ordinaryState;
++    }
+ 
+     pSL->SaveAPointer("character", GetACharacter());
+     pSL->SaveAPointer("ship", pAShip);
+@@ -2808,7 +3189,7 @@
+     pSL->SaveBuffer((const char *)&ShipPoints[0][0], sizeof(ShipPoints));
+     pSL->SaveVector(vSpeedAccel);
+     pSL->SaveBuffer((const char *)&SP, sizeof(SP));
+-    pSL->SaveVector(CVECTOR(vPos.x + fXOffset, vPos.y, vPos.z + fZOffset));
++    pSL->SaveVector(CVECTOR(vPos.x + fXOffset, savedY, vPos.z + fZOffset));
+     pSL->SaveVector(vAng);
+     pSL->SaveFloat(fWaterLine);
+     pSL->SaveDword(bDead);
+@@ -2827,7 +3208,7 @@
+     pSL->SaveDword(dwSaveAmbient);
+     pSL->SaveDword(dwSaveFogColor);
+     pSL->SaveBuffer((const char *)&saveLight, sizeof(saveLight));
+-    pSL->SaveBuffer((const char *)&State, sizeof(State));
++    pSL->SaveBuffer((const char *)savedState, sizeof(State));
+ 
+     pSL->SaveLong(iNumMasts);
+     for (i = 0; i < static_cast<uint32_t>(iNumMasts); i++)
+@@ -2857,7 +3238,12 @@
+ void SHIP::Load(CSaveLoad *pSL)
  {
      uint32_t i;
++    collisionStrength = {};
++    collisionYaw = 0.f;
      tsunamiDrift.Reset();
 +    phonkDrift.reset();
 +    phonkFlight.reset();
@@ -551,7 +690,13 @@
      SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
      unsigned emergenceSerial = 0; // rebound to the restored field, never serialized
      bool emergenceQueryActive = false;
-@@ -176,8 +180,13 @@
+@@ -172,12 +176,20 @@
+     float fInitialPerkAngle, fResultPerkAngle;
+ 
+     std::array<STRENGTH, MAX_STRENGTH> Strength;
++    std::array<bool, MAX_STRENGTH> collisionStrength{};
++    float collisionYaw = 0.f;
+ 
      DTimer dtMastTrace, dtUpdateParameters;
  
      // executed functions
@@ -561,12 +706,30 @@
 +    bool PhonkActive();
 +    bool PhonkMotionAllowed();
 +    CVECTOR PhonkDriftSpeed(float seconds, bool consume);
++    void RestorePhonkVelocity(SHIP_STATE &state, float ordinarySpeed);
 +    void PublishPhonkLights(uint32_t deltaTime);
 +    void DrawPhonkGlow(uint32_t deltaTime);
      float TsunamiProtection();
      CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
      float WhirlpoolControl();
-@@ -300,6 +309,12 @@
+@@ -186,7 +198,7 @@
+     SeaShipEmergenceSample SeaEmergencePose(float seconds);
+     void ApplySeaEmergence(float seconds);
+     void PublishShipPose();
+-    BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate);
++    BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool includePhonk = true);
+     void CalculateImmersion(); //
+     void CheckShip2Strand(float fDeltaTime);
+     void MastFall(mast_t *pM);
+@@ -231,6 +243,7 @@
+     float GetMaxSpeedY() override;
+     float GetWindAgainst() override;
+     int32_t AddStrength(STRENGTH *strength) override;
++    int32_t AddCollisionStrength(STRENGTH *strength) override;
+     bool DelStrength(int32_t iIdx) override;
+ 
+     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
+@@ -300,6 +313,12 @@
      MODEL *GetModel() const override;
      entid_t GetModelEID() const override;
      CVECTOR GetPos() const override;
@@ -807,21 +970,29 @@
 +} // namespace storm::ship::phonk
 --- a/src/libs/ship/include/ship_base.h
 +++ b/src/libs/ship/include/ship_base.h
-@@ -34,6 +34,13 @@
-     CVECTOR vSpeed;  // speed vector
-     CVECTOR vRotate; // rotate speed vector
+@@ -36,6 +36,13 @@
      CVECTOR vPos, vAng;
-+};
-+
+ };
+ 
 +struct SHIP_WATER_IMPACT
 +{
 +    float strength = 0.f;
 +    unsigned generation = 0;
 +    CVECTOR position = CVECTOR(0.f);
- };
- 
++};
++
  class SHIP_BASE : public VAI_OBJBASE
-@@ -86,4 +93,8 @@
+ {
+   protected:
+@@ -55,6 +62,7 @@
+ 
+     virtual BOOL TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTPNew) = 0;
+     virtual int32_t AddStrength(STRENGTH *strength) = 0;
++    virtual int32_t AddCollisionStrength(STRENGTH *strength) { return AddStrength(strength); }
+     virtual bool DelStrength(int32_t iIdx) = 0;
+ 
+     virtual float GetMaxSpeedZ() = 0;
+@@ -86,4 +94,8 @@
  
      virtual void SetFixedSpeed(bool bSetFixed, float fFixedSpeed) = 0;
      virtual bool CanNavigate() const { return false; }
@@ -1105,3 +1276,14 @@
  
      void Stop() override
      {
+--- a/src/libs/touch/src/touch.cpp
++++ b/src/libs/touch/src/touch.cpp
+@@ -466,7 +466,7 @@
+     if (vPos.x * vPos.z >= 0.0f)
+         strength.vRotate.y = -strength.vRotate.y;
+ 
+-    return pS1->pShip->AddStrength(&strength);
++    return pS1->pShip->AddCollisionStrength(&strength);
+ }
+ 
+ int32_t TOUCH::GetTouchPoint(int32_t iIdx, const CVECTOR &vPos)

@@ -1,8 +1,80 @@
 # Runtime state
 
-Last verified native delivery: October13. Canonical stage-only installs Phonk complete jump/impact lifecycle `55d5b72` and physical-wave reflection phases `cad4858`, preserving the controllable500 ceiling, aiming CPU successor `5b496ac`, fire repair `a9837cd`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `cfe07b6eac1216c3c4adea8ee693c65ccc8cc5603921ff09a68e753410a4172b`; all10 frozen Phonk source owners match the compiled tree. At that transaction, sync reports zero pending cache/app files, compiler ready;502 fresh closed-game SAVE/archive/settings hashes are unchanged. Subsequent night-only Beard auto-ambush content `d5c97c4` is installed with the same engine and strict signature verified; sea/map camera remains a separate uninstalled candidate. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player jump/landing/wake, reflection and aiming-FPS acceptance remain unresolved. A new player report reopens ordinary/NPC collision and Phonk-exit movement: retained speed and tight curved trajectories are under diagnosis; no cause or repair is accepted yet. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified delivery: October13. Canonical stage-only installs the frozen Phonk collision/save successor patch95264981 and Beard map-admission reference repair `f7b49f9`. Signed engine `b3e7c48fbc93629493360a3eb1df0a40c4e9fdd49bf40e1ab0af91ed7e1320e8`; all11 frozen native owners match the compiled tree. Cache/app check reports0 pending, compiler ready;502 protected SAVE/archive/settings hashes are unchanged across installation. Installed worldmap_reload SHA97e41648 matches the accepted Beard hook. The500 ceiling, jump/impact packet55d5b72, reflectioncad4858, aiming5b496ac, firea9837cd and NPC122053c remain. Sea/map camera stays an uninstalled candidate. The installed app reaches a local sea and then the upper deck; active user input prevents the agent collision/exit replay. Calculation, serializer and exact delivery are accepted; actual tight-circle contact, jump feel, reflection, FPS and first Beard battle remain unresolved. Already-written unmarked high-speed/yaw saves remain a compatibility limitation. No agent input was delivered by the refused UI attempts; no private SAVE was edited. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — contact yaw and mode-owned saved velocity successor installed
+
+The player reopens movement outside Phonk: tight arcs at high speed or after
+contact, including another ordinary ship and retained speed after mode exit.
+Exact native contact power/producer/queue/movement with Flyingdutchman mass.10,
+Y acceleration.5 and braking2.5 reproduces excessive contact rotation. A high
+single hit changes3.566→.099rad/s and11.054→.307rad total turn after correction.
+Repeated forced-contact stress is synthetic persistence, not accepted actual
+pair detection. No-input/no-contact500 stays straight. Initialized live mode
+exit already caps ordinary velocity; its behavior is preserved.
+
+Full native Save/Load and speed calculation expose a separate lifecycle defect:
+saved500 State outlives the transient mode and reloads493.56kn/2.975rad/s on its
+first ordinary frame. The successor saves the existing ordinary exit projection
+only for active initialized Phonk, leaving live momentum intact. An airborne
+State at500/yaw3/Y80 saves12/.05/Y7, including both existing position records;
+State152-byte format and record counts stay unchanged. Ordinary500 payloads are
+byte-identical. Old unmarked saved500/yaw cannot be distinguished from legitimate
+script motion and are deliberately unrepaired; do not infer old-save repair from
+the new serializer probe.
+
+Only TOUCH-origin impulses use the default-compatible collision adapter and
+transient slot tags. A separate contact component follows the exact existing
+yaw damping; hull/linear-kick and turn capacity bound its admission. Linear
+recoil, pure scripted rotation, mixed/queued impulses, helm and perks retain
+their response. Verified modest contact, slot reuse/delete, no-input motion and
+live exit match; prediction restores tags/counter and load/death clear them.
+Ordinary saved small contact becomes an unmarked baseline on load; its finite
+native decay and separately bounded next contact pass. Geometric admission can
+change low-linear/large-lever contact torque; only verified modest fixtures are
+claimed equivalent. The rejected blanket AddStrength clamp erased pure script
+rotation. Prior full jump lifecycle and18 trajectories pass with7 flight/effect/
+HUD owners unchanged. `sea-phonk.md` owns contracts and upstream/reuse evidence.
+
+Frozen patch SHA256
+`952649812ca7e28941d3534cefe7d0e8af544830b52807a3c21a7ef7bbd53db7`
+is promoted from8246 only after source/probe review. Canonical
+`run.sh --stage-only` exits0, changing4 prepared native source files. All11 frozen
+owners match the compiled tree. Unsigned engine
+`ec68dc79aa65d939d64bdaa5d84d3bc54da9d26b70d42bde9b770fb3470349e2`;
+signed installed engine
+`b3e7c48fbc93629493360a3eb1df0a40c4e9fdd49bf40e1ab0af91ed7e1320e8`.
+Canonical signature verification completes; previouscfe is backed up. Cache/app
+check reports0 pending, compiler ready; all502 freshly protected state hashes
+remain unchanged. The accepted Beard reference hook `f7b49f9` is consumed in the
+same transaction; installed worldmap_reload raw SHA
+`97e41648234f2a3bc78dd9454025bdcd9e15e4625471315fe30b32fc7b765ff5`.
+
+After delivery, the app is selected for bounded runtime inspection. Screenshots
+show interactive local sea at03:43, ordinary displayed speed2.8, then upper deck
+at04:05. Two Escape attempts are refused because the user changed the app, with
+fresh state read between attempts; no agent input is delivered. One pending
+question selects player test versus relinquishing input. This is a current UI
+ownership conflict, not a recovered global human ban on gameplay inspection.
+Disposition: source/component/serializer and exact installation accepted;
+actual collision/exit and save/reload gameplay remain unresolved. The inherited
+thin-hull/long-frame admission and linear contact impulses are unchanged.
+
+### October13 — Beard actual map admission call reopened and corrected
+
+The player rejects three automatic sea exits at22:03/23:09/00:00 with no first
+battle. Actual-VM reproduction distinguishes the consumer call: passing
+wdmLoginToSea by value writes the admission flag to a copy; explicit reference
+preserves it. The prior component probe incorrectly supplied that reference,
+so it did not test the actual installed caller. Source/topic checkpoint
+`f7b49f9` corrects only the hook/accepted whole-file bootstrap. Full installed
+PROGRAM compiles without errors, actual composer/reference forwarding passes,
+and night-only GRC01f9549 remains unchanged. Canonical stage consumes the accepted
+rawreload97e416 above; no camera candidate is promoted. Disposition: exact source/
+VM/delivery accepted; visible zone entry→whirlpool/assault remains unresolved and
+owned by the Beard task. `great-recipe-quest.md` owns continuation.
 
 ### October13 — night-only Beard zone ambush content installed
 

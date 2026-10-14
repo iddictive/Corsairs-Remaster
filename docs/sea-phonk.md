@@ -34,8 +34,10 @@ minimum cruising speed or automatic acceleration to the maximum. Toggle-on
 preserves current velocity. The independent motor accelerates at 120 knots/second;
 the brake removes 240 knots/second along the current world vector. The hull turns
 while momentum keeps carrying it sideways; countersteering and recovering
-traction straighten the course. NPC ships and never-active off-mode physics
-are unchanged. Mode exit caps its own residual motion to ordinary propulsion.
+traction straighten the course. Ordinary/NPC propulsion, steering and scripted
+impulses retain their existing response. The reopened high-speed contact repair
+bounds collision-induced turning for all ships. Mode exit caps its own residual
+motion to ordinary propulsion.
 Grounding, collision, death, stopped/fixed/surrendered ships retain their guards.
 
 Climbing a tsunami increases acceleration toward the same ceiling. The existing
@@ -106,6 +108,45 @@ to the existing ordered native patch stack.
 The strongest existing facilities are the native transient drift/collision path,
 ship point-light rendering, and script music bus. Reuse them; no replacement
 physics engine, renderer, playlist scheduler or UI shell is required.
+
+## Reopened tight-circle movement and saved mode exit
+
+The player reports ordinary ships following tight arcs after high-speed contact,
+and speed remaining after Phonk exit. The native contact producer converts power
+to yaw using a size-independent `.02` multiplier; repeated contacts accumulate.
+Full consumed movement with Flyingdutchman mass/inertia reproduces excessive yaw.
+No-input/no-contact high-speed motion stays straight, and initialized live mode
+exit already restores ordinary velocity. A separate full Save/Load reproduction
+shows that serializing500 while clearing transient mode state on load bypasses
+that exit projection. These are distinct source mechanisms, not proof of which
+one produced an individual player observation.
+
+The source successor identifies contact origin through the default-compatible
+`SHIP_BASE::AddCollisionStrength` adapter and transient per-slot tags in `SHIP`.
+Only the contact yaw component is admitted within hull lever/linear-kick and turn
+capacity budgets; its remainder follows the exact native yaw damping. Linear
+recoil, script impulses, helm and perks remain separate. Slot reuse/delete,
+prediction, death, load and live mode exit own transient cleanup. No new saved
+`STRENGTH` field or binary layout is introduced. Blanket impulse clamping was
+rejected because it erased a pure scripted rotation.
+
+An active initialized Phonk save writes the same ordinary exit projection to a
+fixed-size state snapshot, retaining live momentum. Airborne saves normalize
+both existing position records to the water surface; ordinary/NPC serialized
+bytes remain unchanged. Full serializer/loader, mixed and queued forces,
+prediction and prior jump lifecycle checks pass. Already-written unmarked
+high-speed/yaw saves cannot be classified as mode motion versus scripted motion;
+they remain unchanged and are an explicit compatibility limitation. Persistent
+forced-contact stress is synthetic; it does not accept actual pair detection or
+remove the inherited long-frame thin-hull admission limitation. Exact canonical
+delivery and actual player movement replay remain owned by `runtime.md`.
+
+A bounded October13 upstream scan finds the same geometry-independent angular
+producer in [develop](https://github.com/storm-devs/storm-engine/blob/develop/src/libs/touch/src/touch.cpp).
+The [release list](https://github.com/storm-devs/storm-engine/releases) and indexed
+open/closed issue/PR search supply no applicable collision-yaw correction for the
+pinned native source. The local change reuses its hull geometry, contact queue
+and damping instead of replacing the collision solver.
 
 ## Music input
 
