@@ -146,7 +146,11 @@ void Main()
         // precedes mounting and crew construction without changing game code.
         BenchmarkSeed(1337 + i);
         SendMessage(&Fleet[i], "lll", 51015, 2, 3);
+        // Stock Ship_StartLoad selects the hull texture directory before Mount;
+        // this isolated bootstrap has no AIShip event handlers.
+        SetTexturePath(0, "ships\\" + ShipType.Name + "\\hull1\\");
         SendMessage(&Fleet[i], "laa", 50300, &Fleet[i], &ShipType);
+        SetTexturePath(0, "");
         SendMessage(&Sailors, "lis", 51001, &Fleet[i], "Manowar1");
     }
     CreateEntity(&Seafoam, "Seafoam");

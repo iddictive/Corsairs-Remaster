@@ -56,6 +56,21 @@ water/reflections, hulls, rigging, crew, sky and material consistency. Missing
 coverage fails the run. `performance_acceptance=false` is deliberate until the
 requested whole workload and delivery acceptance are established.
 
+Stock `Ship_StartLoad` selects `ships/<name>/hull<variant>/` before native
+Mount, and `Ship_EndLoad` clears the directory. The isolated fixture does not
+load AIShip's handlers: it now selects the installed Manowar1 Hull1 directory
+around Mount and clears it before sailors load. Earlier runs through
+`20261014-160729` omitted this step. Main hull materials were untextured and
+white; some other materials resolved unrelated root textures. Those runs prove
+their recorded mechanisms/counters only, not complete material fidelity or
+matching whole-scene performance. The former visual-fidelity verdict is withdrawn.
+Corrected `20261014-165042` renders the authored yellow/dark hulls and retains
+all eight-ship pass minima: CPU median13.983ms/p9916.617ms; GPU union
+median15.599ms/p9919.779ms. Its material workload differs from the old baseline,
+so the two timings are not a matched optimization comparison. The target remains
+unmet. Native texture labels confirm the selected directory; sails, crew, sea,
+sky and reflections remain present after the directory reset.
+
 ## Native profiling routes
 
 `--profile cpu` attaches `/usr/bin/sample` to the owned benchmark PID after cold
@@ -94,9 +109,10 @@ positive-density calculation remain composed. GPU before/after comparison must
 cover clear, ordinary, overcast and storm fields, positive and empty samples.
 The four-weather GPU comparison covers2097152 output bytes;88 differ by at
 most one half-float ULP (upper/solar/alpha errors at most0.000488281, optical
-distance0.0625). This is rounding equivalence, not byte identity. The complete
-matched scene preserves all pass minima and shows no visible loss. Whole-scene
-checks and matched frame distributions remain the acceptance owner.
+distance0.0625). This is rounding equivalence, not byte identity. The historical
+scene preserves pass minima but its omitted hull material selection invalidates
+the complete-scene fidelity claim. Whole-scene checks and matched frame
+distributions remain the acceptance owner.
 The pre-existing dynamic_sky-probe star-opacity assertion fails with both the
 unchanged baseline shader and the repaired shader. Keep that negative visible;
 this work does not repair its separate fixture/star contract or claim a green

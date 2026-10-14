@@ -4,6 +4,27 @@ Last verified delivery: October14. Native fleet profiling, foam/cloud work, sail
 
 ## Current verdict
 
+### October14 — white benchmark hulls corrected; earlier fidelity verdict withdrawn
+
+The user's white-hull observation is a fixture defect. Native Mount emits
+Ship_StartLoad/Ship_EndLoad; the isolated scene has no stock AIShip handlers and
+left the geometry texture directory empty. Earlier logs contain unbound ship
+materials, and the installed hull textures exist under Ships/Manowar1/Hull1.
+The fixture now selects that stock directory around Mount and resets it before
+loading sailors. No renderer, installed asset, game config or player state changes.
+
+Corrected hidden run20261014-165042 renders yellow/dark textured hulls; native
+texture labels resolve Hull1. Sails, crew, water, reflections and current sky
+remain present, with152 sail/311 animated/one sea/current sky/eight complete
+point-cube minima. CPU median13.983ms/p9916.617ms; GPU union median15.599ms/
+p9919.779ms;20 allocations. Performance remains unresolved. Earlier fleet runs
+through20261014-160729 have incomplete materials: their whole-scene fidelity
+verdict is rejected and their timings cannot compare directly with this corrected
+workload. Independent foam/topology body proofs and cloud-field parity remain
+valid for those properties. The installed engine/pacing delivery above is
+unchanged; no game launch/control occurred. Disposition: fixture material repair
+accepted; >120FPS and player-runtime acceptance unresolved.
+
 ### October14 — empty cloud-ray support preserved; whole target still unresolved
 
 The post-repair native capture `20261014-154733` still ranks cloud tile first:
