@@ -1,6 +1,12 @@
 --- a/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
 +++ b/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp
-@@ -17,6 +17,12 @@
+@@ -12,11 +12,18 @@
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+ #include "shared/sea_ai/script_defines.h"
+ #include "math_inlines.h"
++#include "metal_cpu_parallel.h"
+
+ namespace { float AimHeightScale(ATTRIBUTES *character); float AimRakeFactor(ATTRIBUTES *character); }
 
  namespace
  {
@@ -13,7 +19,7 @@
  float SalvoWindowForCount(float qualityWindow, size_t count)
  {
      // Two firing guns take half a second; 108 reach the full quality window.
-@@ -261,6 +267,7 @@
+@@ -261,6 +268,7 @@
      UpdateParameters();
 
      const CVECTOR vOurPos = GetAIShip()->GetPos();
@@ -21,7 +27,7 @@
 
      if (bReload)
      {
-@@ -302,7 +309,7 @@
+@@ -302,7 +310,7 @@
          {
              // set maximum MaxFireDistance for all cannons
              const float fMaxBortFireDistance =
@@ -30,7 +36,7 @@
              for (auto &aCannon : bort.aCannons)
              {
                  aCannon.SetMaxFireDistance(fMaxBortFireDistance);
-@@ -394,13 +401,14 @@
+@@ -394,13 +402,14 @@
      const float fSpeedV0 = GetSpeedV0();
 
      const CVECTOR vOurPos = GetAIShip()->GetPos();
@@ -46,7 +52,7 @@
                                                GetBortHeightAngle(bort) + bort.fFireAngMax);
              if (bMaxFireDistance && fDistance < fMaxFireDistance)
                  fDistance = fMaxFireDistance;
-@@ -414,6 +422,7 @@
+@@ -414,6 +423,7 @@
  bool AIShipCannonController::UpdateParameters()
  {
      const CVECTOR vOurPos = GetAIShip()->GetPos();
@@ -54,7 +60,7 @@
      const CVECTOR vZ = !(GetAIShip()->GetMatrix()->Vz());
 
      // updates borts parameters
-@@ -423,7 +432,7 @@
+@@ -423,7 +433,7 @@
          if (!bort.aCannons.empty())
          {
              bort.fSpeedV0 = fSpeedV0;
@@ -63,7 +69,7 @@
                                                                             bort) + bort.fFireAngMax);
              const float fDir = bort.fFireDir;
              float fZone = bort.fFireZone;
-@@ -525,12 +534,17 @@
+@@ -525,12 +535,17 @@
      if (bort.isBortDamaged())
          return false;
 
@@ -84,7 +90,7 @@
          return false;
 
      const float fY0 = vFireDir | bort.vDirection;
-@@ -545,7 +559,7 @@
+@@ -545,7 +560,7 @@
      if ((SIGN(fY0) == SIGN(fY1)) || (SIGN(fY0) == 1)) return false;*/
 
      if (pfZapasDistance)
@@ -93,7 +99,7 @@
 
      return true;
  }
-@@ -553,9 +567,10 @@
+@@ -553,9 +568,10 @@
  auto AIShipCannonController::GetBestFireBortOnlyDistance(CVECTOR vFirePos, float fZapasDistance)
      -> decltype(aShipBorts)::iterator
  {
@@ -105,7 +111,7 @@
      const auto vOurDir = CVECTOR(sinf(GetAIShip()->GetAng().y), 0.0f, cosf(GetAIShip()->GetAng().y));
      float fBestAng = 1e8f;
      for (auto bort = std::begin(aShipBorts); bort != std::end(aShipBorts); ++bort)
-@@ -566,9 +581,10 @@
+@@ -566,9 +582,10 @@
                  continue;
 
              const float fSpeedV0 = GetSpeedV0();
@@ -119,7 +125,21 @@
                  continue;
              if (fMaxFireDistance - fFireDist < fZapasDistance)
                  continue;
-@@ -1617,4 +1617,8 @@
+@@ -1587,11 +1604,6 @@
+         contactSections.push_back(field);
+     }
+     if(contactSections.empty())return;
+-    // Workspaces are current-call only; clear retains capacity across stations.
+-    std::vector<CVECTOR> densityPoints;
+-    std::vector<double> probabilities;
+-    densityPoints.reserve(densitySamples.size());probabilities.reserve(densitySamples.size());
+-    std::vector<manual_aim::Point> clipped;
+     std::array<std::array<double,2>,24> unitCircle;
+     for(int i=0;i<24;++i)
+     {
+@@ -1599,6 +1611,10 @@
+         unitCircle[i]={std::cos(angle),std::sin(angle)};
+     }
      const CVECTOR up=!(axis^lateral);
 +    std::vector<manual_aim::PlaneQuery> pathQueries;
 +    pathQueries.reserve(paths.size());
@@ -128,39 +148,232 @@
      std::vector<float> stations;
      float first=1e20f,last=-1e20f,mouthEnd=-1e20f;
      for(const auto &path:paths)
-@@ -1635,17 +1639,18 @@
-         // gun by its own impact time would flatten distant and nearby hits into
-         // one fake end plane and reintroduce the crossed-sheet artifact.
-         CVECTOR center(0.f);std::vector<CVECTOR> points;
+@@ -1623,104 +1639,129 @@
+     std::sort(stations.begin(),stations.end());
+     stations.erase(std::unique(stations.begin(),stations.end(),[](float a,float b){return std::fabs(a-b)<.005f;}),stations.end());
+     struct CorridorSection {float station;CVECTOR center;std::vector<manual_aim::Point> hull;};
+-    std::vector<CorridorSection> sections;
+-    for(float station:stations)
+-    {
+-        // Intersect all paths with the SAME downrange plane. Normalizing each
+-        // gun by its own impact time would flatten distant and nearby hits into
+-        // one fake end plane and reintroduce the crossed-sheet artifact.
+-        CVECTOR center(0.f);std::vector<CVECTOR> points;
 -        for(const auto &path:paths)
 -        {
-+        for(size_t pathIndex=0;pathIndex<paths.size();++pathIndex)
-+        {
-+            const auto &path=paths[pathIndex];
-             if(std::fabs(station-(path.curve.origin|axis))<.005f)
-             {points.push_back(path.curve.origin);center+=path.curve.origin;}
-             if(std::fabs(station-(path.hit.point|axis))<.005f)
-             {points.push_back(path.hit.point);center+=path.hit.point;}
+-            if(std::fabs(station-(path.curve.origin|axis))<.005f)
+-            {points.push_back(path.curve.origin);center+=path.curve.origin;}
+-            if(std::fabs(station-(path.hit.point|axis))<.005f)
+-            {points.push_back(path.hit.point);center+=path.hit.point;}
 -            for(float t:manual_aim::planeTimes(path.curve,axis,station,path.end))
-+            pathQueries[pathIndex].forEach(station,[&](float t)
-             {
-                 const CVECTOR point=path.curve.at(t);
-                 points.push_back(point);center+=point;
+-            {
+-                const CVECTOR point=path.curve.at(t);
+-                points.push_back(point);center+=point;
 -            }
-+            });
-         }
-         if(points.empty())continue;
-         center*=1.f/points.size();
-@@ -1660,7 +1665,7 @@
+-        }
+-        if(points.empty())continue;
+-        center*=1.f/points.size();
+-        // Keep the geometric center on the actual ordered station plane;
+-        // endpoint epsilon merging must not perturb slab ordering.
+-        center+=axis*(station-(center|axis));
+-        const float u=std::clamp((station-first)/std::max(.01f,last-first),0.f,1.f);
+-        std::vector<manual_aim::Point> plane;
+-        for(const auto &p:points)
+-        {
+-            const CVECTOR d=p-center;const float x=d|lateral,y=d|up;
++    const size_t chunks=std::min(stations.size(),size_t{4});
++    std::vector<CorridorSection> slots(stations.size());
++    std::vector<unsigned char> populated(stations.size()),failed(chunks);
++    // Pure geometry only: each station owns one slot; VM/traces/rendering stay serial.
++    MetalCpuParallelFor(chunks,[&](size_t chunk) noexcept
++    {
++        // Each joined chunk owns its reusable current-call workspace.
++        std::vector<CVECTOR> densityPoints;
++        std::vector<double> probabilities;
++        densityPoints.reserve(densitySamples.size());probabilities.reserve(densitySamples.size());
++        std::vector<manual_aim::Point> clipped;
++
++        for(size_t stationIndex=chunk;stationIndex<stations.size();stationIndex+=chunks)
++        {
++            const float station=stations[stationIndex];
++            // Intersect all paths with the SAME downrange plane. Normalizing each
++            // gun by its own impact time would flatten distant and nearby hits into
++            // one fake end plane and reintroduce the crossed-sheet artifact.
++            CVECTOR center(0.f);std::vector<CVECTOR> points;
++            for(size_t pathIndex=0;pathIndex<paths.size();++pathIndex)
++            {
++                const auto &path=paths[pathIndex];
++                if(std::fabs(station-(path.curve.origin|axis))<.005f)
++                {points.push_back(path.curve.origin);center+=path.curve.origin;}
++                if(std::fabs(station-(path.hit.point|axis))<.005f)
++                {points.push_back(path.hit.point);center+=path.hit.point;}
++                pathQueries[pathIndex].forEach(station,[&](float t)
++                {
++                    const CVECTOR point=path.curve.at(t);
++                    points.push_back(point);center+=point;
++                });
++            }
++            if(points.empty())continue;
++            center*=1.f/points.size();
++            // Keep the geometric center on the actual ordered station plane;
++            // endpoint epsilon merging must not perturb slab ordering.
++            center+=axis*(station-(center|axis));
++            const float u=std::clamp((station-first)/std::max(.01f,last-first),0.f,1.f);
++            std::vector<manual_aim::Point> plane;
++            plane.reserve(points.size());
++            for(const auto &p:points)
++            {
++                const CVECTOR d=p-center;
++                plane.push_back({d|lateral,d|up});
++            }
++            auto support=manual_aim::hull(std::move(plane));
              const float pad=.08f*(1.f-u);
-             for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
-         }
+-            for(int corner=0;corner<4;++corner)plane.push_back({x+((corner&1)?pad:-pad),y+((corner&2)?pad:-pad)});
+-        }
 -        auto stoppedHull=manual_aim::hull(plane);
-+        auto stoppedHull=manual_aim::hull(std::move(plane));
-         // The mouth still spans every eligible muzzle, including rare locators
-         // outside the aggregate main-density contour. Near-gun alpha is weak.
-         if(station<=mouthEnd+.005f)
-@@ -1747,8 +1752,8 @@
+-        // The mouth still spans every eligible muzzle, including rare locators
+-        // outside the aggregate main-density contour. Near-gun alpha is weak.
+-        if(station<=mouthEnd+.005f)
+-        {sections.push_back({station,center,std::move(stoppedHull)});continue;}
+-        // Air and solid drape describe the same launch law at this downrange
+-        // plane. Extrema still stop the corridor, but no longer define its
+-        // visual density: a rare corner must not fill a tall opaque column.
+-        densityPoints.clear();probabilities.clear();
+-        for(const auto &sample:densitySamples)
+-        {
+-            float time=std::numeric_limits<float>::infinity();
+-            sample.query.forEach(station,
+-                [&](float t){time=std::min(time,t);});
+-            if(std::isfinite(time))
+-            {densityPoints.push_back(sample.curve.at(time));probabilities.push_back(sample.weight);}
+-        }
+-        const auto density=AimContactRegion(densityPoints,probabilities);
+-        if(density.empty()){sections.push_back({station,center,{}});continue;}
+-        const auto &field=density.front();
+-        const CVECTOR mean(field.center[0],field.center[1],field.center[2]);
+-        auto cov=[&](const CVECTOR &a,const CVECTOR &b)
+-        {
+-            const auto &c=field.covariance;
+-            return double(a.x)*(c[0]*b.x+c[1]*b.y+c[2]*b.z)+
+-                double(a.y)*(c[1]*b.x+c[3]*b.y+c[4]*b.z)+
+-                double(a.z)*(c[2]*b.x+c[4]*b.y+c[5]*b.z);
+-        };
+-        const double xx=cov(lateral,lateral),xy=cov(lateral,up),yy=cov(up,up);
+-        const double rootDet=std::sqrt(std::max(0.,xx*yy-xy*xy));
+-        const double rootTrace=std::sqrt(xx+yy+2.*rootDet);
+-        if(!(rootTrace>0.)||!std::isfinite(rootTrace))return;
+-        const double rootXX=(xx+rootDet)/rootTrace,rootXY=xy/rootTrace,rootYY=(yy+rootDet)/rootTrace;
+-        const CVECTOR shift=mean-center;
+-        for(auto &p:stoppedHull){p.x-=shift|lateral;p.y-=shift|up;}
+-        std::vector<manual_aim::Point> hull;hull.reserve(24);
+-        // Inscribed24-gon differs by at most0.86% from the contact's q=1 ellipse.
+-        for(int i=0;i<24;++i)
+-        {
+-            const double x=unitCircle[i][0],y=unitCircle[i][1];
+-            hull.push_back({float(rootXX*x+rootXY*y),float(rootXY*x+rootYY*y)});
+-        }
+-        // Keep the existing stopped-path boundary. A statistical continuation
+-        // must not reappear past an obstruction or bridge an empty slab.
+-        for(size_t edge=0;edge<stoppedHull.size()&&!hull.empty();++edge)
+-        {
+-            const auto a=stoppedHull[edge],b=stoppedHull[(edge+1)%stoppedHull.size()];
+-            clipped.clear();
+-            clipped.reserve(hull.size()+2);
+-            auto previous=hull.back();float previousSide=manual_aim::cross(a,b,previous);
+-            for(const auto &current:hull)
+-            {
+-                const float side=manual_aim::cross(a,b,current);
+-                if((side>=0.f)!=(previousSide>=0.f))
++            plane.clear();plane.reserve(4*support.size());
++            for(const auto &p:support)
++                for(int corner=0;corner<4;++corner)
++                    plane.push_back({p.x+((corner&1)?pad:-pad),p.y+((corner&2)?pad:-pad)});
++            auto stoppedHull=manual_aim::hull(std::move(plane));
++            // The mouth still spans every eligible muzzle, including rare locators
++            // outside the aggregate main-density contour. Near-gun alpha is weak.
++            if(station<=mouthEnd+.005f)
++            {slots[stationIndex]={station,center,std::move(stoppedHull)};populated[stationIndex]=1;continue;}
++            // Air and solid drape describe the same launch law at this downrange
++            // plane. Extrema still stop the corridor, but no longer define its
++            // visual density: a rare corner must not fill a tall opaque column.
++            densityPoints.clear();probabilities.clear();
++            for(const auto &sample:densitySamples)
++            {
++                float time=std::numeric_limits<float>::infinity();
++                sample.query.forEach(station,
++                    [&](float t){time=std::min(time,t);});
++                if(std::isfinite(time))
++                {densityPoints.push_back(sample.curve.at(time));probabilities.push_back(sample.weight);}
++            }
++            const auto density=AimContactRegion(densityPoints,probabilities);
++            if(density.empty()){slots[stationIndex]={station,center,{}};populated[stationIndex]=1;continue;}
++            const auto &field=density.front();
++            const CVECTOR mean(field.center[0],field.center[1],field.center[2]);
++            auto cov=[&](const CVECTOR &a,const CVECTOR &b)
++            {
++                const auto &c=field.covariance;
++                return double(a.x)*(c[0]*b.x+c[1]*b.y+c[2]*b.z)+
++                    double(a.y)*(c[1]*b.x+c[3]*b.y+c[4]*b.z)+
++                    double(a.z)*(c[2]*b.x+c[4]*b.y+c[5]*b.z);
++            };
++            const double xx=cov(lateral,lateral),xy=cov(lateral,up),yy=cov(up,up);
++            const double rootDet=std::sqrt(std::max(0.,xx*yy-xy*xy));
++            const double rootTrace=std::sqrt(xx+yy+2.*rootDet);
++            if(!(rootTrace>0.)||!std::isfinite(rootTrace)){failed[chunk]=1;return;}
++            const double rootXX=(xx+rootDet)/rootTrace,rootXY=xy/rootTrace,rootYY=(yy+rootDet)/rootTrace;
++            const CVECTOR shift=mean-center;
++            for(auto &p:stoppedHull){p.x-=shift|lateral;p.y-=shift|up;}
++            std::vector<manual_aim::Point> hull;hull.reserve(24);
++            // Inscribed24-gon differs by at most0.86% from the contact's q=1 ellipse.
++            for(int i=0;i<24;++i)
++            {
++                const double x=unitCircle[i][0],y=unitCircle[i][1];
++                hull.push_back({float(rootXX*x+rootXY*y),float(rootXY*x+rootYY*y)});
++            }
++            // Keep the existing stopped-path boundary. A statistical continuation
++            // must not reappear past an obstruction or bridge an empty slab.
++            for(size_t edge=0;edge<stoppedHull.size()&&!hull.empty();++edge)
++            {
++                const auto a=stoppedHull[edge],b=stoppedHull[(edge+1)%stoppedHull.size()];
++                clipped.clear();
++                clipped.reserve(hull.size()+2);
++                auto previous=hull.back();float previousSide=manual_aim::cross(a,b,previous);
++                for(const auto &current:hull)
+                 {
+-                    const float t=previousSide/(previousSide-side);
+-                    clipped.push_back({previous.x+(current.x-previous.x)*t,previous.y+(current.y-previous.y)*t});
++                    const float side=manual_aim::cross(a,b,current);
++                    if((side>=0.f)!=(previousSide>=0.f))
++                    {
++                        const float t=previousSide/(previousSide-side);
++                        clipped.push_back({previous.x+(current.x-previous.x)*t,previous.y+(current.y-previous.y)*t});
++                    }
++                    if(side>=0.f)clipped.push_back(current);
++                    previous=current;previousSide=side;
+                 }
+-                if(side>=0.f)clipped.push_back(current);
+-                previous=current;previousSide=side;
+-            }
+-            hull.swap(clipped);
+-        }
+-        center=mean;center+=axis*(station-(center|axis));
+-        sections.push_back({station,center,std::move(hull)});
+-    }
++                hull.swap(clipped);
++            }
++            center=mean;center+=axis*(station-(center|axis));
++            slots[stationIndex]={station,center,std::move(hull)};populated[stationIndex]=1;
++        }
++    });
++    if(std::any_of(failed.begin(),failed.end(),[](unsigned char x){return x!=0;}))return;
++    std::vector<CorridorSection> sections;sections.reserve(stations.size());
++    for(size_t i=0;i<slots.size();++i)if(populated[i])sections.push_back(std::move(slots[i]));
++
++
+ #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
+     // These are analytic section boundaries, not renderable alpha walls.
+     // Preserve every true hull-edge normal in adjacent slabs, including the
+@@ -1742,8 +1783,8 @@
              if(section.hull.size()<3||sections[i+1].hull.size()<3)
              {densitySections.push_back(record);continue;}
              const float midpoint=(section.station+sections[i+1].station)*.5f;

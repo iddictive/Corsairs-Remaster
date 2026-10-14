@@ -1,8 +1,55 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs aiming revision13's rasterized trajectory fog and within-call CPU scratch reuse, plus fire rigging-depth/bilateral repair `a9837cd`. It preserves the controllable500-knot Phonk inputs `c8de907`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `d4efee59cbc2f67a50a4dbf80919ee3d1ad0428e8688a70f34959ed0426cdc38`. Delivery check reports zero pending cache/app files, compiler ready.502 fresh closed-game SAVE/archive/settings hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Component checks accept source properties only; matched player aiming FPS, revised fire appearance,500 speed/jump/landing/contact, NPC scene and Beard appearance remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the aiming revision13 CPU successor: four synchronous station chunks, reduced hull sorting and exact-normal deduplication, retaining rasterized fog and fire rigging-depth/bilateral repair `a9837cd`. It preserves the controllable500-knot Phonk inputs `c8de907`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `f238f3571d19459f69528121548c8c247668d8dc33afe89feb497706ee7644a7`. The frozen FPS batch reports zero pending cache/app files, compiler ready;503 fresh closed-game SAVE/archive/settings hashes are unchanged. Later unready sea/map camera script sources are separate candidates and are not installed. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. The preceding player aiming scene still shows23FPS and roughly2x with aim off; the CPU successor's player FPS remains unresolved. Other feature replay belongs to its named topic/owner. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — aiming CPU successor after unresolved23FPS replay
+
+The player reopens the installed03be2be/d4efee59 batch. The actual ship/fort/water
+scene shows23FPS with contact highlighting; the10-second foreground CPU sample
+`game-20261013-215934-65827.sample.txt` contains431/1297 main-thread samples under
+aiming (33.2%), including stopped-hull sorting and range-aperture polygon clipping.
+The log confirms v13 and reports a degenerate tube boundary. The player declines
+an aim-off capture but reports roughly twice the FPS without aim. This does not
+provide a paired instrumented baseline and keeps the original FPS fix unresolved.
+The shader component improvement alone is insufficient as player acceptance.
+
+The successor deduplicates identical float normals at their canonical producer
+and reuses the existing bounded synchronous CPU helper for pure station math.
+Immutable current-call inputs, separate chunk scratch/slots and ordered join
+preserve34,312 sections/33,832 slab sets across480 fixtures, including empty slabs
+and complete invalid-density rejection. Hull-before-pad reduces interior sorting;
+its independent worst adversarial support difference is.322micrometres.
+Interleaved whole-station component medians change1.017→.260ms at52 guns and
+3.253→.702ms at112 guns.50,000 canonical support fixtures remove11,847 duplicate
+edges with2,500,000 identical occupancy queries; actual renderer CPU construction
+restores48 air vertices from the reproduced0-vertex failure and retains contact.
+These observations prove the source mechanisms, not whole-game FPS. Full evidence
+and responsibility/lifetime boundaries belong to `sea-aim-overlay.md`.
+
+After the user's explicit closure, canonical `run.sh --stage-only` returns0,
+changes two prepared source files and reseals/verifies the app. The final prepared
+controller byte-matches the component/syntax-accepted source; the normal correction
+is present in the built shared header. Final source SHA256:
+- `cannon-trajectory-aim.patch`: `f00abc3382977ea7bf4c1cf140a499146b5faff0a1aa6e8d7fabfe2d0a0c55c9`
+- `cannon-target-height.patch`: `5e207bc0d6b4a482724e6462eb824d0cbf93b6ff4bf502432801d5f107a5e4ed`
+
+Unsigned engine `8c6cab41da7dc786252e12e3e2919e75fb28ee52c5ce4b439fbad80ff15f7b58`;
+installed signed engine
+`f238f3571d19459f69528121548c8c247668d8dc33afe89feb497706ee7644a7`.
+The preceding d4efee59 engine remains in canonical recovery storage. Exact7fe9
+Phonk and502029 fire shader inputs remain; unready later flight/landing candidates
+are excluded. Post-stage comparison reports0 cache/0app pending, compiler ready;
+all503 fresh protected SAVE/archive/settings hashes are unchanged.
+
+Subsequent camera-transition source edits to sea/worldmap scripts and an unconsumed
+new header are later unready candidates; their owner preserves them in isolated
+scratch and restores only its exact hunks before this checkpoint. No further
+sync/apply consumes them in this FPS batch. No agent game launch/input occurs.
+Disposition: component/source/
+build/exact installed delivery accepted; the original player aiming-FPS/air replay
+remains unresolved. The declined paired capture is not requested again.
 
 ### October13 — aiming revision13 and accepted fire repair installed
 

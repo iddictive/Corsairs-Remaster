@@ -7,8 +7,16 @@ rounded closed trajectory tube and constant-cost fog integration at its faces.
 The fog strengthens downrange, caps alpha at.07 and stops at current scene depth.
 Revision12's accepted surface footprint and firing/raking calculation remain.
 CPU workspaces are reused within one overlay calculation without cached state.
-Component CPU/GPU checks pass and canonical native staging is installed. A matched
-water/ship player FPS replay remains pending. Current receipts belong to `runtime.md`.
+Component CPU/GPU checks pass and canonical native staging is installed. The
+player's next ship/fort scene shows23FPS; they report roughly twice the FPS with
+aim disabled and decline a paired capture. The original performance acceptance
+remains open. A new10-second installed CPU sample puts431/1297 main-thread samples
+under aiming (33.2%), including stopped-hull sorting and aperture polygon clipping.
+The log also reports a degenerate tube boundary, suppressing air while retaining
+contact. Source corrections reject exact duplicate normals and move pure station
+preparation onto the existing synchronous four-chunk CPU pool; both are installed
+through canonical staging. Their player FPS replay remains unresolved; no further
+paired capture is requested. Current receipts belong to `runtime.md`.
 
 ### Historical revision12 evidence
 
@@ -99,6 +107,9 @@ water's landing distribution remains an event statistic, not a flight slice.
   per-gun manual/automatic raking and curved-receiver support
 - `cannon-depth-drape.patch` replaces sampled contact support with two aggregate
   impact charts and removes the extra contact discovery marches
+- `cannon-target-height.patch` owns prepared plane queries and pure station jobs;
+  `metal_cpu_parallel.h` from `cpu-parallel-sea.patch` supplies the existing bounded
+  synchronous worker pool. VM/events, model traces and Metal submission stay on main
 - Canonical `PROGRAM/sea_ai/AIBalls.c` owns height warp and shot dispersion.
   `AICannon.c` supplies their query events and the crew-quality multiplier;
   preview and fire read the same helpers without guessed C++ fallbacks
@@ -237,6 +248,49 @@ without application-attributed encoder events is rejected as game GPU evidence.
 The remaining acceptance is the installed water/ship/fort scene at1x–5x, with
 the same camera and aim enabled/disabled, plus own-deck/sky/nearer-obstruction
 exclusion. Component success does not establish whole-game FPS or appearance.
+
+### Duplicate air support normals
+
+The float-normalized producer can retain two exactly identical normals:
+their rounded squared length can be.9999998807907104, below its dot-product
+deduplication threshold. The rasterizer then sees determinant0 between adjacent
+planes and suppresses the whole tube. Exact coordinate equality before the
+existing angular test removes only redundant identical constraints. Across50,000
+canonical `slabPlanes` fixtures it removes11,847 degenerate edges, leaves zero,
+and preserves2,500,000 sampled halfspace admissions. The actual `SoftAimVolume`
+CPU builder reproduces air0vertices before/48 after with contact retained in both.
+This proves a valid-input mechanism, not the exact numeric planes of the live
+scene; the correction is installed, with player replay still necessary.
+
+### Parallel current-call station preparation
+
+The live CPU profile also exposes serial hull sorting/density preparation. Each
+axial station depends only on current-call immutable paths, plane queries and
+density samples. The successor reuses `MetalCpuParallelFor` with at most four
+synchronous chunks, each owning reusable density/probability/clipping buffers.
+Each station writes its own slot and populated byte; each chunk owns its failure
+byte. The main thread merges in the original station order after all workers join.
+An invalid covariance root still discards the entire overlay. No events, mutable
+engine objects, RNG, model traces, firing or GPU commands enter a worker; no state
+or reference outlives the current call and no cross-frame cache is added.
+
+Stopped support first takes the convex hull of the input points, then expands
+only its boundary by the existing rectangle pad. Convex-hull/rectangle Minkowski
+sum equality removes four-way duplication of interior points. An independent
+support oracle covers67,485 cases/4,357,317 points;67,275 are bit-identical and the
+worst specially near-collinear difference is.322micrometres. Integrated480
+source-exact fixtures preserve34,312 sections and33,832 slab-plane sets bit-for-bit,
+including2,655 empty sections. Forced invalid-density/rootTrace cases preserve
+complete rejection;40,000 disjoint writes are visible after synchronous join.
+
+Interleaved component medians for complete station preparation are52-gun
+water1.017→.260ms/wall1.006→.265ms and112-gun water3.135→.691ms/wall3.253→.702ms.
+Reserve-only is weaker; parallel without the boundary hull takes.316ms at52 guns
+and.882–.903ms at112. Current Ninja defines/includes compile the exact successor
+without CMake/helper changes. Reverse of the prior ordered patch and application
+of the successor succeed; normalized patch context produces byte-identical
+accepted controller source. These timings exclude range selection, world traces,
+GPU work and the complete game. Installed player FPS remains unresolved.
 
 ### Historical air and contact moment ownership
 

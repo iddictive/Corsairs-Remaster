@@ -1402,7 +1402,7 @@ index 0000000..a2c711d
 +    {
 +        const float length=std::sqrt(x*x+y*y);if(length<1e-8f)return;
 +        x/=length;y/=length;
-+        for(const auto &n:directions)if(n.x*x+n.y*y>1.f-1e-7f)return;
++        for(const auto &n:directions)if((n.x==x&&n.y==y)||n.x*x+n.y*y>1.f-1e-7f)return;
 +        directions.push_back({x,y});
 +    };
 +    for(const auto *h:{&a,&b})
