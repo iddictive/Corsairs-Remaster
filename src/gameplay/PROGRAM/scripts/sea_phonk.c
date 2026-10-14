@@ -18,7 +18,8 @@ bool SeaPhonk_Music(string requested)
         return false;
     }
     if (requested != SEA_PHONK_TRACK && requested != "") Sea.Phonk.ReturnMusic = requested;
-    if (musicName == SEA_PHONK_TRACK) return true;
+    if (musicName == SEA_PHONK_TRACK && musicID >= 0 &&
+        SendMessage(Sound, "ll", MSG_SOUND_IS_PLAYING, musicID)) return true;
     KZ|MusicEventsOff();
     InitSound();
     if (oldMusicID >= 0) StopSound(oldMusicID, 0);

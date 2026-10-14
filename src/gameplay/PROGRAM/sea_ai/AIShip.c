@@ -3256,8 +3256,11 @@ void ShipTakenFree(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacte
 
 void Ship_PlayVictory(string sSound, int iSoundTime)
 {
-	StopSound(musicID, 0);
-	PlayStereoOgg(sSound);
+	if (!SeaPhonk_Music(SEA_PHONK_TRACK))
+	{
+		StopSound(musicID, 0);
+		PlayStereoOgg(sSound);
+	}
 	iVicSoundTime = iSoundTime;
 }
   /// странные методы ??? не было их в ПКМ и всё было гут

@@ -76,7 +76,13 @@ their own renderer references and share the exact original34-texture sequence.
 After static preparation, that entity warms the owning player model. At the apex
 it refreshes live nodes and cloth without rereading its GM; unchanged hull-cut
 signatures retain prepared geometry. Repair/removal invalidates cut state.
-Core reset disposes pending visual references before renderer destruction; abort
+Core reset disposes pending visual references before renderer destruction. Normal
+application exit separately calls the same `discardSeaVisual` owner after
+`ExitApplication` and before `CoreImpl::CleanUp` releases renderer services.
+The pending visual is a static owner; resource-entity reset alone does not cover
+Cmd-Q, which otherwise leaves its sail handles for static destruction after the
+renderer is gone. This shutdown correction is local source only; installed
+Cmd-Q replay remains pending. Abort
 rearms an existing resource owner without reset-time entity creation. An immediate
 exit before warmup completes still uses cold loading, and one GM operation is
 indivisible. Reverse SeaLogin stays synchronous. These limits prevent claiming

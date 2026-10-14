@@ -17,6 +17,10 @@
 #include "fs.h"
 #include "watermark.hpp"
 
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+namespace storm_map_player { void discardSeaVisual(); }
+#endif
+
 namespace
 {
 
@@ -286,6 +290,10 @@ int main(int argc, char *argv[])
 
     // Release
     core_private->Event("ExitApplication");
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+    // The prepared map miniature owns renderer handles; release it before services.
+    storm_map_player::discardSeaVisual();
+#endif
     core_private->CleanUp();
     core_private->ReleaseBase();
 #ifdef _WIN32 // FIX_LINUX Cursor

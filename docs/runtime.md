@@ -4,6 +4,41 @@ Last verified delivery: October14. Oblique global-map camera and resource prewar
 
 ## Current verdict
 
+### October14 — Phonk combat music and Cmd-Q cleanup corrected locally; installed replay pending
+
+The player reports Phonk music stopping across combat/noncombat changes and
+supplies incident `7ED1FFE1-AD0C-4224-B4F1-5CE99FA59D1A` from13:09:01 EDT.
+The report identifies the installed arm64 `metal-engine`, UUID
+`e7bd6392-f13b-3baf-9049-e6e66422d4d9`, with `EXC_BAD_ACCESS` at0x280 in
+`OwnedStaticSails::Mesh::~Mesh` during `__cxa_finalize_ranges`/`exit`.
+This is a shutdown crash, not evidence of a combat crash or save corruption.
+
+An actual-script-body fixture in the native VM reproduces the fallback victory
+path stopping the active loop on WAR→SAIL (`RunCases=3`, zero script errors).
+`Ship_PlayVictory` now consults the existing Phonk music owner before stopping
+the voice; its ordinary victory behavior/timer stays intact. That owner now
+checks native playback state before returning for a matching track name.
+The same VM fixture passes SAIL→WAR→SAIL→WAR without a voice restart/stop,
+ordinary victory after mode exit, a stopped-voice request, and death/boarding/
+sea teardown (`RunCases=0`, zero script errors). Audio messaging/entity presence
+are mocked; this proves script lifecycle, not audible player acceptance.
+
+The crash owner is the static pending player miniature. Ordinary quit releases
+renderer services before that owner destructs; resource-entity disposal covers
+reset but does not run on this exit path. Native main now calls the existing
+`discardSeaVisual` after `ExitApplication`, before `CleanUp`. An actual-body
+ASan/UBSan lifecycle fixture reproduces use-after-free before this correction
+and passes populated/empty pending, prior resource reset and consumed-map
+ownership afterward, with exactly-once buffer/texture/model release. Renderer
+dependencies are mocked. Native main syntax passes with the canonical build
+flags; full engine build and actual Cmd-Q replay have not run.
+
+Disposition: unresolved in the installed player runtime. These changes are
+local source only; the last verified installed inventory above is unchanged.
+No staging, app launch/control or player SAVE access occurs. The inherited
+`backend.mm` changes remain outside this batch. Owners: `docs/sea-phonk.md`
+and `docs/sea-map-transition.md`.
+
 ### October14 — oblique global view and prewarmed map resources installed, player replay pending
 
 The player rejects the fixed perpendicular global-map view, artificial clouds

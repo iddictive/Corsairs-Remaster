@@ -20,6 +20,10 @@ The successor passes complete movement/model-matrix, particle/render, sound and
 lifecycle component checks. Canonical delivery and the exact installed engine
 belong to `runtime.md`; player assessment of this successor remains unresolved.
 Music disposal before death/scene replacement is already installed in `802fbde`.
+The October14 music successor is local source only: the player reports silence
+across combat-state changes. The reproduced fallback victory path stops the loop
+before its routed replacement is suppressed; the repair and its player-replay
+boundary are recorded in `runtime.md`.
 No agent game input or launch was performed. The current engine and chronological
 installation receipt belong to `runtime.md`.
 
@@ -104,6 +108,13 @@ requested ordinary track for restoration. Sea teardown/initialization, boarding
 and death dispose the mode. No separate setting, permanent perk or save layout
 is introduced. Native motion/light are owned by `ship-phonk.patch`, appended
 to the existing ordered native patch stack.
+
+Combat entry/exit retains the same live Phonk voice. `AIShip.c`'s
+`Ship_PlayVictory` asks that owner before stopping music; its ordinary victory
+sound and timer remain unchanged when the mode is off. `SeaPhonk_Music` checks
+the existing native `MSG_SOUND_IS_PLAYING` query, rather than trusting the track
+name alone, so a previously stopped voice can restart on the next music request.
+This does not add a per-frame playback poll or alter scene/death disposal.
 
 The strongest existing facilities are the native transient drift/collision path,
 ship point-light rendering, and script music bus. Reuse them; no replacement
