@@ -1,6 +1,7 @@
 // Bermuda's dream owns its fleet escrow; ordinary sea/death paths remain stock.
 #event_handler("GreatRecipePulse", "GreatRecipe_Pulse");
 #event_handler("GreatRecipeMapAttack", "GreatRecipe_MapAttack");
+#event_handler("WorldMap_TrafficFrame", "GreatRecipe_MapApproach");
 #event_handler("GreatRecipeDeferred", "GreatRecipe_Deferred");
 #event_handler("CharactersStateUpdate", "GreatRecipe_CombatCheck");
 object GreatRecipeRestoreBuffer;
@@ -472,12 +473,70 @@ bool GreatRecipe_MapWestPoint(float x, float z)
         (SendMessage(&worldMap, "lfff", MSG_WORLDMAP_NAVIGABLE_POINT, x, z, 40.0) != 0);
 }
 
-bool GreatRecipe_MapZone(float x, float z)
+bool GreatRecipe_MapGuide(string id)
 {
-    float dx = x - (stf(worldMap.islands.Bermudes.position.x) - 300.0);
-    float dz = z - (stf(worldMap.islands.Bermudes.position.z) - 80.0);
+    return id == "GreatRecipeGuide" && CheckAttribute(&worldMap, "encounters." + id + ".GreatRecipeGuide");
+}
+
+void GreatRecipe_MapSeed()
+{
+    // Called after the stock off-map collector, before native restoration.
+    // A guide is scenery, never an ALONE encounter or an ordinary sea opponent.
+    DeleteAttribute(&worldMap, "GreatRecipeZoneAttack");
+    DeleteAttribute(&worldMap, "GreatRecipeGuideBlocked");
+    DeleteAttribute(&worldMap, "encounters.GreatRecipeGuide");
+    if (GreatRecipe_Phase() != "search") return;
+    aref encounters; makearef(encounters, worldMap.encounters);
+    for (int slot = GetAttributesNum(encounters) - 1; slot >= 0; slot--)
+    {
+        aref old = GetAttributeN(encounters, slot);
+        if (CheckAttribute(old, "quest.chrID") && old.quest.chrID == "GreatRecipeDreamBeard")
+        {
+            DeleteAttribute(old, "quest.event");
+            wdmDeleteLoginEncounter(GetAttributeName(old));
+        }
+    }
+    if (CheckAttribute(pchar, "GreatRecipe.MapCaptain") && pchar.GreatRecipe.MapCaptain == "GreatRecipeDreamBeard") DeleteAttribute(pchar, "GreatRecipe.MapCaptain");
+    if (CheckAttribute(pchar, "GreatRecipe.MapReissue.ID") && pchar.GreatRecipe.MapReissue.ID == "GreatRecipeDreamBeard") DeleteAttribute(pchar, "GreatRecipe.MapReissue");
+    wdmReconcileQuestShipCounter();
+    worldMap.encounters.GreatRecipeGuide.type = "Merchant";
+    worldMap.encounters.GreatRecipeGuide.modelName = Nations[PIRATE].worldMapShip + "_bark";
+    worldMap.encounters.GreatRecipeGuide.GreatRecipeGuide = true;
+    worldMap.encounters.GreatRecipeGuide.qID = "GreatRecipeGuide";
+    worldMap.encounters.GreatRecipeGuide.x = stf(worldMap.islands.Bermudes.position.x) - 300.0;
+    worldMap.encounters.GreatRecipeGuide.z = stf(worldMap.islands.Bermudes.position.z) - 80.0;
+    worldMap.encounters.GreatRecipeGuide.speed = 0.0;
+    worldMap.encounters.GreatRecipeGuide.kMaxSpeed = 0.0;
+    worldMap.encounters.GreatRecipeGuide.rspeed_x = 0.0;
+    worldMap.encounters.GreatRecipeGuide.rspeed_y = 0.0;
+    worldMap.encounters.GreatRecipeGuide.rspeed_z = 0.0;
+    worldMap.encounters.GreatRecipeGuide.isEnableKill = false;
+    worldMap.encounters.GreatRecipeGuide.isEnemy = false;
+    worldMap.encounters.GreatRecipeGuide.killMe = false;
+    worldMap.encounters.GreatRecipeGuide.brnAlpha = 1.0;
+    Trace("GreatRecipe map: guide seeded x=" + worldMap.encounters.GreatRecipeGuide.x + " z=" + worldMap.encounters.GreatRecipeGuide.z);
+}
+
+bool GreatRecipe_MapNearGuide()
+{
+    if (!GreatRecipe_MapGuide("GreatRecipeGuide")) return false;
+    float dx = stf(worldMap.playerShipX) - stf(worldMap.encounters.GreatRecipeGuide.x);
+    float dz = stf(worldMap.playerShipZ) - stf(worldMap.encounters.GreatRecipeGuide.z);
     return dx * dx + dz * dz <= 10000.0 &&
-        (SendMessage(&worldMap, "lfff", MSG_WORLDMAP_NAVIGABLE_POINT, x, z, 40.0) != 0);
+        (SendMessage(&worldMap, "lfff", MSG_WORLDMAP_NAVIGABLE_POINT, stf(worldMap.playerShipX), stf(worldMap.playerShipZ), 40.0) != 0);
+}
+
+bool GreatRecipe_MapGuideSelected(int index)
+{
+    if (index < 0 || !wdmSetCurrentShipData(index)) return false;
+    return GreatRecipe_MapGuide(worldMap.encounter.id);
+}
+
+void GreatRecipe_MapApproach()
+{
+    // Native TrafficFrame follows the player's movement/coordinate publication.
+    // Calendar throttling must never throttle physical approach.
+    GreatRecipe_QueueMapAttack();
 }
 
 float GreatRecipe_MapReissueSeconds()
@@ -502,16 +561,20 @@ bool GreatRecipe_MapAttackEligible()
         CheckAttribute(pchar, "pause") || !CheckAttribute(&worldMap, "date.hourPerSec") || stf(worldMap.date.hourPerSec) <= 0.0 ||
         !CheckAttribute(&worldMap, "playerShipX") || !CheckAttribute(&worldMap, "playerShipZ")) return false;
     if (CheckAttribute(pchar, "GreatRecipe.MapCaptain") && pchar.GreatRecipe.MapCaptain != "GreatRecipeDreamBeard") return false;
-    if (!GreatRecipe_MapZone(stf(worldMap.playerShipX), stf(worldMap.playerShipZ))) return false;
-    return GreatRecipe_Moonlit();
+    if (!GreatRecipe_Moonlit()) return false;
+    return GreatRecipe_MapNearGuide();
 }
 
 void GreatRecipe_QueueMapAttack()
 {
     if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack") || !GreatRecipe_MapAttackEligible()) return;
-    string blocked = GreatRecipe_FirstBattleBlock();
-    if (blocked != "") { Trace("GreatRecipe map: zone blocked " + blocked); return; }
-    if (!GreatRecipe_ShipRooms()) { Trace("GreatRecipe map: zone blocked room templates/capacity"); return; }
+    if (GreatRecipe_FirstBattleBlock() != "" || CheckAttribute(&worldMap, "GreatRecipeGuideBlocked")) return;
+    if (!GreatRecipe_ShipRooms())
+    {
+        worldMap.GreatRecipeGuideBlocked = true;
+        Trace("GreatRecipe map: approach blocked room templates/capacity");
+        return;
+    }
     worldMap.GreatRecipeZoneAttack = true;
     PostEvent("GreatRecipeMapAttack", 1);
 }
@@ -533,23 +596,13 @@ void GreatRecipe_MapAdmission(ref login)
     DeleteAttribute(login, "GreatRecipeMapAttack");
     if (GreatRecipe_Phase() != "search" || !IsEntity(&worldMap) || !GreatRecipe_Moonlit() ||
         !CheckAttribute(&worldMap, "playerShipX") || !CheckAttribute(&worldMap, "playerShipZ")) return;
-    bool zoneAttack = CheckAttribute(&worldMap, "GreatRecipeZoneAttack");
-    if (!zoneAttack && !GreatRecipe_OwnMapLogin(login)) return;
-    if (!GreatRecipe_MapZone(stf(worldMap.playerShipX), stf(worldMap.playerShipZ))) return;
+    if (!CheckAttribute(&worldMap, "GreatRecipeZoneAttack") || !GreatRecipe_MapNearGuide()) return;
     login.GreatRecipeOffshore = true;
     login.GreatRecipeMapAttack = "GreatRecipeDreamBeard";
     Trace("GreatRecipe map: admission confirmed time=" + GetTime());
-    if (!zoneAttack) return;
     DeleteAttribute(&worldMap, "GreatRecipeZoneAttack");
-    aref encounters; makearef(encounters, worldMap.encounters);
-    for (int slot = 0; slot < GetAttributesNum(encounters); slot++)
-    {
-        aref encounter = GetAttributeN(encounters, slot);
-        if (CheckAttribute(encounter, "quest.chrID") && encounter.quest.chrID == "GreatRecipeDreamBeard") DeleteAttribute(encounter, "quest.event");
-    }
-    Map_ReleaseQuestEncounter("GreatRecipeDreamBeard");
-    if (CheckAttribute(pchar, "GreatRecipe.MapCaptain") && pchar.GreatRecipe.MapCaptain == "GreatRecipeDreamBeard") DeleteAttribute(pchar, "GreatRecipe.MapCaptain");
-    if (CheckAttribute(pchar, "GreatRecipe.MapReissue.ID") && pchar.GreatRecipe.MapReissue.ID == "GreatRecipeDreamBeard") DeleteAttribute(pchar, "GreatRecipe.MapReissue");
+    // Keep the guide if PrepareSea rejects a foreign quest/fleet. The next map
+    // restores it at the same position; advancing phase removes it on creation.
 }
 bool GreatRecipe_MapCreateWest(string id, float seconds)
 {
@@ -607,7 +660,7 @@ void GreatRecipe_MapCalendar()
             " playerX=" + GreatRecipe_MapTraceValue(&worldMap, "playerShipX") + " playerZ=" + GreatRecipe_MapTraceValue(&worldMap, "playerShipZ") +
             " hoursPerSec=" + GreatRecipe_MapTraceValue(&worldMap, "date.hourPerSec") + " previousClock=" + GreatRecipe_MapTraceValue(pchar, "GreatRecipe.MapClock"));
     }
-    if (GreatRecipe_Locked()) return;
+    if (GreatRecipe_Locked() || phase == "search") return;
     if (!CheckAttribute(&worldMap, "date.hourPerSec") || stf(worldMap.date.hourPerSec) <= 0.0) return;
     if (CheckAttribute(pchar, "GreatRecipe.MapCaptain") &&
         pchar.GreatRecipe.MapCaptain != "GreatRecipeDreamBeard" && pchar.GreatRecipe.MapCaptain != "GreatRecipeRealBeard") return;
@@ -616,7 +669,6 @@ void GreatRecipe_MapCalendar()
     if (phase != "search" && CheckAttribute(pchar, "GreatRecipe.MapReissue")) clock = clock + ":retry:" + makeint(stf(worldMap.date.hour) * 60.0);
     if (CheckAttribute(pchar, "GreatRecipe.MapClock") && pchar.GreatRecipe.MapClock == clock) return;
     pchar.GreatRecipe.MapClock = clock;
-    if (phase == "search") { GreatRecipe_QueueMapAttack(); return; }
     if (CheckAttribute(pchar, "GreatRecipe.MapCaptain"))
     {
         // A ship first sighted at night remains reachable for its native day

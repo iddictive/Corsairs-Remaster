@@ -1,8 +1,42 @@
 # Runtime state
 
-Last verified delivery: October13. Canonical stage-only installs the frozen Phonk collision/save successor patch95264981 and Beard map-admission reference repair `f7b49f9`. Signed engine `b3e7c48fbc93629493360a3eb1df0a40c4e9fdd49bf40e1ab0af91ed7e1320e8`; all11 frozen native owners match the compiled tree. Cache/app check reports0 pending, compiler ready;502 protected SAVE/archive/settings hashes are unchanged across installation. Installed worldmap_reload SHA97e41648 matches the accepted Beard hook. The500 ceiling, jump/impact packet55d5b72, reflectioncad4858, aiming5b496ac, firea9837cd and NPC122053c remain. Sea/map camera stays an uninstalled candidate. The installed app reaches a local sea and then the upper deck; active user input prevents the agent collision/exit replay. Calculation, serializer and exact delivery are accepted; actual tight-circle contact, jump feel, reflection, FPS and first Beard battle remain unresolved. Already-written unmarked high-speed/yaw saves remain a compatibility limitation. No agent input was delivered by the refused UI attempts; no private SAVE was edited. Earlier inventories and receipts below are historical snapshots.
+Last verified delivery: October14. Camera successor a48a5dd and Beard dialogue/admission6dc1d99 are installed with signed engine `e87082489e406ec79bcd5214118782325246923c8f00b14023afa1532a02a8f1`; the prior d92e engine is backed up. The player observed the first Beard battle/captivity, then rejected the map search because its ship was invisible and later sea exits lacked Beard. The new stationary-guide/continuous-approach candidate passes full script compilation and controller/codec checks; four content files remain pending. The installed engine supports their existing map APIs and compiler is ready. The next camera motion/miniature candidate remains source-only. No agent game input or player SAVE read/edit occurs in this attempt. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
 
 ## Current verdict
+
+### October14 — Beard invisible search rejected; stationary guide candidate
+
+The player requires a visible ship pointing to the same place on a missed
+night, with the battle still restricted to nighttime. The former first-search
+controller creates no ship and checks approach only on an hourly calendar key.
+The October14 00:01–00:05 log records search/admitted0, no queued ambush and a
+nearest nighttime sample102.77 from the hidden radius100; movement between
+samples is unobserved. Thus the hourly query and invisible target cannot accept
+the requested route; the reported05:00 exit is not attributed to Beard.
+
+The replacement seeds one stock passive Merchant guide before map creation
+at the proven navigable western point620.738/840.767. Its zero propulsion and
+disabled native expiration use saved-descriptor restoration, without a new
+native patch or recurring encounter allocation. It remains a visible guide
+in daytime/next night; only moonlit nighttime proximity can request the battle.
+The existing per-frame TrafficFrame event reads fresh player coordinates.
+Selected-guide events and actual stock sea import exclude only that guide.
+Legacy Dream markers migrate without success callbacks; foreign encounters,
+advanced battle states and the lost storm patrol remain intact.
+
+Full installed PROGRAM plus the candidate compiles without errors. A temporary
+real VM fixture passes same-hour approach from the recorded route, one-time
+reference admission through actual WdmAddEncountersData, exact dawn/day
+exclusion, next-night eligibility, delayed dawn cancellation, pause, land-water
+rejection, protected companion and generated-state codec/migration. GRC bodies
+remain original; only native map messaging is substituted and ordinary game
+OnSave/OnLoad is excluded in the headless codec fixture. Three consumer outputs
+are idempotent. These checks do not accept model visibility, real game loading,
+the physical attack or map-frame performance. The player owns that replay.
+Canonical content check finds exactly four pending files and compiler ready;
+installation waits for the already-requested game close. No engine rebuild or
+unready camera source is part of this batch. `docs/great-recipe-quest.md` owns
+the controller and lifecycle contract.
 
 ### October14 — first sea/map camera rejected; overhead successor installed, replay pending
 

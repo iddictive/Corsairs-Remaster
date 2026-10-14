@@ -21,6 +21,7 @@ NORMALIZED_HASHES = {
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": "656c445b97680e5f5842650acecf6dc2e714e1bf487816316dcc513a29a2c535",
     "PROGRAM/worldmap/worldmap_globals.c": "f31e89898b25f4f9864e2cc54abd58b28f91d1b10146879d0987cd32b34cd8c1",
     "PROGRAM/worldmap/worldmap_events.c": "52598a4baec8bec7c66270aa156705043f9e0ab7d93ade5420ec9b0d8bcc613b",
+    "PROGRAM/worldmap/worldmap.c": "57000ba0d40f8440c99488b5ef054e0f33562b90c99e5bb6eec228c5a86abb6a",
     "PROGRAM/worldmap/worldmap_reload.c": "c3647838b4a36bc0e3b9204059f660f3428b78cab5a564fd684bc3a665cff4f9",
     "PROGRAM/Loc_ai/LAi_fightparams.c": "e886b558dbbb64565baca70ab512064a5f7b82183a946bc516722bb96611836e",
     "RESOURCE/INI/interfaces/pictures.ini": "3ad4482385d8b1382e62942ea9845f652c6c8a0df95b6ea33c7ce6390fbfb6ea",
@@ -51,6 +52,7 @@ BASE_HASHES = {
     "RESOURCE/INI/texts/russian/ItemsDescribe.txt": ("5f334cb8437b243175d0ef80af90ee104efe5ef62a2e7c51ff737d635f1a6bc0",),
     "PROGRAM/worldmap/worldmap_globals.c": ("184ce121f96c9347ae8ea6c7304af77dee74cf15b117891c3f0e0b04f3ac6885",),
     "PROGRAM/worldmap/worldmap_events.c": ("29d8e42010ed08ee0e8861e2b2e101e2e6073823b0f0a653070812c64ac429b7",),
+    "PROGRAM/worldmap/worldmap.c": ("57000ba0d40f8440c99488b5ef054e0f33562b90c99e5bb6eec228c5a86abb6a",),
     "PROGRAM/worldmap/worldmap_reload.c": ("eb77e881d82dbe21ddf60a79a45c02cc00f3d5ecb3ce3b99de35a7bd35a018d8",),
     "PROGRAM/Loc_ai/LAi_fightparams.c": ("5eed196c397d59475474b0f2c5964402167ba024dd33621cc10c785cd007f553",),
     "RESOURCE/INI/interfaces/pictures.ini": ("045d5d3e07be77ca6259dc64b826a68145c16fd3114e64c6337578205fea9634",),
@@ -230,9 +232,14 @@ EDITS = {
     ],
     "PROGRAM/worldmap/worldmap_events.c": [
         ('\tEnvironment.time = GetEventData();', '\tEnvironment.time = GetEventData();\n    GreatRecipe_MapCalendar();'),
+        ('\tpchar.eshipIndex = eshipIndex;', '\tif (GreatRecipe_MapGuideSelected(eshipIndex)) return;\n\tpchar.eshipIndex = eshipIndex;'),
+    ],
+    "PROGRAM/worldmap/worldmap.c": [
+        ('\tCreateEntity(&worldMap,"worldmap");', '    GreatRecipe_MapSeed();\n\tCreateEntity(&worldMap,"worldmap");'),
     ],
     "PROGRAM/worldmap/worldmap_reload.c": [
         ('\tisShipEncounterType = WdmAddEncountersData();', '\tisShipEncounterType = WdmAddEncountersData();\n    GreatRecipe_MapAdmission(&wdmLoginToSea);'),
+        ('\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);', '\t\t\tif (GreatRecipe_MapGuide(worldMap.encounter.id)) continue;\n\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);'),
     ],
     "PROGRAM/Loc_ai/LAi_fightparams.c": [
         ('\tif(CheckAttribute(enemy, "cirassId"))\n\t{\n\t\tdmg = dmg * (1.0 - stf(Items[sti(enemy.cirassId)].CirassLevel));\n\t}',
