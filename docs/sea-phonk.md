@@ -115,6 +115,9 @@ sound and timer remain unchanged when the mode is off. `SeaPhonk_Music` checks
 the existing native `MSG_SOUND_IS_PLAYING` query, rather than trusting the track
 name alone, so a previously stopped voice can restart on the next music request.
 This does not add a per-frame playback poll or alter scene/death disposal.
+The Great Recipe composer pins the complete normalized `AIShip.c` input in
+`tools/patch_great_recipe.py`; its reviewed input fingerprint must include this
+victory-path correction. The frozen pre-receipt delivery bootstrap is unchanged.
 
 The strongest existing facilities are the native transient drift/collision path,
 ship point-light rendering, and script music bus. Reuse them; no replacement
