@@ -27,6 +27,7 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
         const int year=message.Long();
         const unsigned day=static_cast<unsigned>(message.Long());
         const float hour=message.Float();
+        fFloats[whf_time_counter]=hour;
         weatherEngine.calendarHours=storm_weather::Engine::calendar(year,season,day,hour);
         weatherEngine.mapX=message.Float(); weatherEngine.mapZ=message.Float();
         auto *palette=weatherState->GetAttributeClass("palette");
@@ -41,7 +42,13 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
         }
         weatherEngine.month=season; weatherRainStatus=weatherStormStatus=-1;
         weatherRealClock=-1.0;
-        SaveWeatherEngine(); UpdateVisualState(0);
+        SaveWeatherEngine();
+        // Bind owns a new scene snapshot. Seed its current solar/parcel state,
+        // not the previous scene or the constructor's midnight defaults.
+        UpdateSunMoonPos();
+        visualState.initialized=false;
+        visualSceneBindPending=true;
+        UpdateVisualState(0);
     } else if (code==1464336386) {
         const auto field=message.Long(); auto *out=message.ScriptVariablePointer();
         if (out) {
@@ -65,6 +72,9 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
         const bool tornado=message.Long()!=0, lock=message.Long()!=0;
         weatherEngine.request(rain,storm,wind,duration,tornado,lock); SaveWeatherEngine();
     } else if (code==1464336388) { weatherOutside=message.Long()!=0;
+        // Map binding has no isDone; its outside flag completes setup instead.
+        UpdateSunMoonPos();
+        UpdateVisualState(0,true);
     } else if (code==1464336389) { SaveWeatherEngine();
     } else if (code==1464336390) { weatherEngine.locked=false; SaveWeatherEngine();
     } else if (code==1464336391) {

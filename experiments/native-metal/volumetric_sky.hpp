@@ -53,19 +53,19 @@ struct VolumetricSky {
     bool encode(id<MTLDevice> device,id<MTLLibrary> library,id<MTLCommandBuffer> command,uint64_t frame,const DynamicSkyUniform&live) {
         if(lastFrame==frame)return true;
         if(!prepare(device,library))return false;
-        auto compute=[&](id<MTLComputePipelineState> pipeline,id<MTLTexture>output){auto e=[command computeCommandEncoder];[e setComputePipelineState:pipeline];[e setTexture:output atIndex:0];return e;};
+        auto compute=[&](id<MTLComputePipelineState> pipeline,id<MTLTexture>output,NSString*label){auto e=[command computeCommandEncoder];e.label=label;[e setComputePipelineState:pipeline];[e setTexture:output atIndex:0];return e;};
         auto dispatch=[&](id<MTLComputeCommandEncoder>e,unsigned w,unsigned h,unsigned depth=1){[e dispatchThreads:MTLSizeMake(w,h,depth) threadsPerThreadgroup:depth>1?MTLSizeMake(4,4,4):MTLSizeMake(8,8,1)];[e endEncoding];};
         if(!primed){
             auto b=[command blitCommandEncoder];[b generateMipmapsForTexture:shape];[b generateMipmapsForTexture:detail];[b endEncoding];
-            dispatch(compute(transmitKernel,transmittance),256,64);
+            dispatch(compute(transmitKernel,transmittance,@"Sky transmittance"),256,64);
         }
-        auto a=compute(atmosKernel,atmosphere);[a setTexture:transmittance atIndex:1];[a setBytes:&live length:sizeof(live) atIndex:0];dispatch(a,256,128);
+        auto a=compute(atmosKernel,atmosphere,@"Sky atmosphere");[a setTexture:transmittance atIndex:1];[a setBytes:&live length:sizeof(live) atIndex:0];dispatch(a,256,128);
         // A long absence/load or a discontinuous light jump cannot reuse old
         // optical shadows. Ordinary weather transitions finish their visible cycle.
         const bool invalidate=primed&&(frame-lastFrame>120||simd_dot(lastVisual.sunDirection_hour.xyz,live.sunDirection_hour.xyz)<.8f);
         if(invalidate){primed=false;snapshot=live;from=0;to=1;write=2;tile=0;surfaceTransmission=1.f;surfaceSpectrum={1,1,1};surfaceLightingReady=false;surfaceIrradiance={};surfaceSolarFrame=frame;}
         if(!primed||tile==0)snapshot=live;
-        auto c=compute(cloudKernel,clouds[primed?write:from]);[c setTexture:shape atIndex:1];[c setTexture:detail atIndex:2];[c setTexture:weatherNoise atIndex:3];[c setBytes:&snapshot length:sizeof(snapshot) atIndex:0];
+        auto c=compute(cloudKernel,clouds[primed?write:from],@"Sky cloud tile");[c setTexture:shape atIndex:1];[c setTexture:detail atIndex:2];[c setTexture:weatherNoise atIndex:3];[c setBytes:&snapshot length:sizeof(snapshot) atIndex:0];
         simd_uint4 region={side,primed?(tile%8)*tileSide:0,primed?(tile/8)*tileSide:0,primed?tileSide:side};[c setBytes:&region length:sizeof(region) atIndex:1];dispatch(c,region.w,region.w);
         if(!primed){auto b=[command blitCommandEncoder];for(unsigned index:{to,write})[b copyFromTexture:clouds[from] sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0) sourceSize:MTLSizeMake(side,side,1) toTexture:clouds[index] destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];[b endEncoding];primed=true;tile=0;blend=0;}
         else {blend=float(++tile)/tiles;if(tile==tiles){unsigned old=from;from=to;to=write;write=old;tile=0;blend=0;}}
@@ -82,13 +82,13 @@ struct VolumetricSky {
         }
         const unsigned solarSlot=frame%solarSamples.size();
         if(!solarCommands[solarSlot]||solarCommands[solarSlot].status>=MTLCommandBufferStatusCompleted){
-            auto s=[command computeCommandEncoder];[s setComputePipelineState:solarKernel];
+            auto s=[command computeCommandEncoder];s.label=@"Sky surface solar";[s setComputePipelineState:solarKernel];
             [s setTexture:clouds[from] atIndex:0];[s setTexture:clouds[to] atIndex:1];
             [s setTexture:atmosphere atIndex:2];[s setTexture:transmittance atIndex:3];
             [s setBytes:&visible length:sizeof(visible) atIndex:0];[s setBuffer:solarSamples[solarSlot] offset:0 atIndex:1];
             dispatch(s,1,1);solarFrames[solarSlot]=frame;solarCommands[solarSlot]=command;
         }
-        auto f=compute(fogKernel,fogEnvironment);[f setTexture:clouds[from] atIndex:1];[f setTexture:clouds[to] atIndex:2];[f setTexture:atmosphere atIndex:3];[f setTexture:transmittance atIndex:4];[f setBytes:&visible length:sizeof(visible) atIndex:0];dispatch(f,256,128);
+        auto f=compute(fogKernel,fogEnvironment,@"Sky fog environment");[f setTexture:clouds[from] atIndex:1];[f setTexture:clouds[to] atIndex:2];[f setTexture:atmosphere atIndex:3];[f setTexture:transmittance atIndex:4];[f setBytes:&visible length:sizeof(visible) atIndex:0];dispatch(f,256,128);
         lastFrame=frame;lastVisual=live;return true;
     }
     void bind(id<MTLRenderCommandEncoder> encoder,unsigned first=2) const {

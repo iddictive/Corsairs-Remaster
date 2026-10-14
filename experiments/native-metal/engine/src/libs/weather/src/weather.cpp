@@ -406,8 +406,13 @@ float WEATHER::GetFloat(uint32_t dwCode)
 }
 
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
-void WEATHER::UpdateVisualState(uint32_t deltaTime)
+void WEATHER::UpdateVisualState(uint32_t deltaTime, bool completeSceneBind)
 {
+    if (completeSceneBind && visualSceneBindPending)
+    {
+        visualState.initialized = false;
+        visualSceneBindPending = false;
+    }
     ApplyWeatherConditions();
     visualState.update(fFloats[whf_fog_density], dwColors[whc_fog_color], dwColors[whc_sun_ambient],
                        dwColors[whc_sun_color], fFloats[whf_wind_angle], fFloats[whf_wind_speed],
@@ -599,7 +604,7 @@ uint32_t WEATHER::AttributeChanged(ATTRIBUTES *pAttribute)
     {
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
         UpdateSunMoonPos();
-        UpdateVisualState(0);
+        UpdateVisualState(0, true);
 #endif
         SetCommonStates();
     }

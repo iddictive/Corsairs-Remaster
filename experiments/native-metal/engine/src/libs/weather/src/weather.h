@@ -40,6 +40,7 @@ class WEATHER : public WEATHER_BASE
     float fMoonEndTime;
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
     storm_weather_visual::State visualState;
+    bool visualSceneBindPending = false;
     float visualRainTarget = 0.f;
     storm_weather::Engine weatherEngine;
     ATTRIBUTES *weatherState = nullptr;
@@ -52,7 +53,7 @@ class WEATHER : public WEATHER_BASE
     void UpdateWeatherEngine(uint32_t deltaTime);
     void ApplyWeatherConditions();
     void SaveWeatherEngine();
-    void UpdateVisualState(uint32_t deltaTime);
+    void UpdateVisualState(uint32_t deltaTime, bool completeSceneBind = false);
 #endif
 
     void SetBeginData();

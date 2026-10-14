@@ -252,8 +252,24 @@ fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],ar
     }
     return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
 }
+uint modernSeaProfileCount(constant SeaU& u) {
+    return u.vc[247].w==1.f?uint(clamp(u.vc[247].x,0.f,7.f)):0u;
+}
+float2 modernSeaProfileSubstrate(SeaO o,constant SeaU& u) {
+    // Undo authored horizontal mesh displacement before sampling fixed world
+    // lattices. Blending their values must never stretch absolute-world UVs.
+    return o.worldXZ+o.surfaceNormal.xz*(3.f*u.vc[247].y-5.3f);
+}
 float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,array<sampler,8> s) {
-    float4 foam=t[0].sample(s[0],o.t3.xy);
+    const uint profiles=modernSeaProfileCount(u);
+    float4 foam=float4(0);
+    if(profiles) {
+        float2 substrate=modernSeaProfileSubstrate(o,u);
+        for(uint i=0;i<profiles;++i) {
+            float4 profile=u.vc[248+i];
+            foam+=t[0].sample(s[0],substrate*(profile.x*profile.z))*profile.y;
+        }
+    } else foam=t[0].sample(s[0],o.t3.xy);
     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
     // RGB follows available weather light; authored coverage and blending stay exact.
     if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u)
@@ -410,13 +426,31 @@ float2 modernSeaBumpPhases(SeaO o,constant SeaU& u) {
     float2 phase=(u.bumpIsVolume&&u.vc[2].w==1.f)?u.vc[2].yz:float2(o.t0.z);
     return float2(phase.x,fract(phase.y+.231f));
 }
-float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture3d<float> bump,sampler sampleState) {
-    float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
+struct SeaBumpSamples {float3 coarse;float3 fine;};
+SeaBumpSamples modernSeaBumps(SeaO o,constant SeaU& u,texture2d<float> flat,
+                             texture3d<float> bump,sampler sampleState) {
     float2 phase=modernSeaBumpPhases(o,u);
-    float3 raw=seaBump(float3(flowUV,phase.x),u,flat,bump,sampleState).rgb;
-    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),phase.y),u,flat,bump,sampleState).rgb;
+    const uint profiles=modernSeaProfileCount(u);
+    SeaBumpSamples result{float3(0),float3(0)};
+    if(profiles) {
+        float2 substrate=modernSeaProfileSubstrate(o,u);
+        for(uint i=0;i<profiles;++i) {
+            float4 profile=u.vc[248+i];
+            float2 uv=seaWhirlpoolUV(o,u,substrate*profile.x);
+            result.coarse+=seaBump(float3(uv,phase.x),u,flat,bump,sampleState).rgb*profile.y;
+            result.fine+=seaBump(float3(uv*2.17f+float2(.137f,.319f),phase.y),u,flat,bump,sampleState).rgb*profile.y;
+        }
+    } else {
+        float2 uv=seaWhirlpoolUV(o,u,o.t0.xy);
+        result.coarse=seaBump(float3(uv,phase.x),u,flat,bump,sampleState).rgb;
+        result.fine=seaBump(float3(uv*2.17f+float2(.137f,.319f),phase.y),u,flat,bump,sampleState).rgb;
+    }
+    return result;
+}
+float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture3d<float> bump,sampler sampleState) {
+    SeaBumpSamples samples=modernSeaBumps(o,u,flat,bump,sampleState);
     // BuildVolumeTexture writes ARGB(blue, green, red): restore world XYZ order.
-    return modernSeaRainNormal(o,u,modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f));
+    return modernSeaRainNormal(o,u,modernSeaNormal(o,samples.coarse.bgr*2.f-1.f,samples.fine.bgr*2.f-1.f));
 }
 // Preserve the depth of the existing same-frame cube capture, without rendering
 // the scene again. The cube's 2D-array view shares its six R32F faces.
@@ -525,13 +559,10 @@ float4 seaSunModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,tex
 }
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],depth2d<float> sceneDepth [[texture(11)]]) {return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo,sceneDepth);}
 float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth,texture2d<float> cloudFrom,texture2d<float> cloudTo,float4 localTransport=float4(0,0,0,1)) {
-    float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
-    float2 phase=modernSeaBumpPhases(o,u);
-    float3 raw=seaBump(float3(flowUV,phase.x),u,t[0],bump,s[0]).rgb;
-    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),phase.y),u,t[0],bump,s[0]).rgb;
+    SeaBumpSamples samples=modernSeaBumps(o,u,t[0],bump,s[0]);
     // SimpleSea packs horizontal normal X in B and Z in R (R duplicated to G).
-    float3 coarse=float3(raw.b*2.f-1.f,1,raw.r*2.f-1.f);
-    float3 detail=float3(fine.b*2.f-1.f,1,fine.r*2.f-1.f);
+    float3 coarse=float3(samples.coarse.b*2.f-1.f,1,samples.coarse.r*2.f-1.f);
+    float3 detail=float3(samples.fine.b*2.f-1.f,1,samples.fine.r*2.f-1.f);
     float3 n=modernSeaNormal(o,coarse,detail);
     float2 perturb=coarse.xz*.25f+detail.xz*.06f;
     if(u.vc[244].w>=.5f&&u.vc[244].x>0.f) {

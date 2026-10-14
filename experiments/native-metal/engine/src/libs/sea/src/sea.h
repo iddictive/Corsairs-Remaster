@@ -8,6 +8,7 @@
 #include "dx9render.h"
 #include "vma.hpp"
 #include "shared/sea_tsunami.hpp"
+#include <array>
 
 
 class SEA : public SEA_BASE
@@ -77,6 +78,7 @@ class SEA : public SEA_BASE
     float fMaxSeaDistance;
     struct WeatherWaveProfile
     {
+        float weight = 0.f, wind = 0.f;
         float minWind = 0.f;
         float amp1, amp2, ampWind1 = 0.f, ampWind2 = 0.f;
         float scale1, scale2, anim1, anim2, posShift, bumpScale;
@@ -85,10 +87,22 @@ class SEA : public SEA_BASE
     };
     std::vector<WeatherWaveProfile> weatherWaveProfiles;
     WeatherWaveProfile stormWaveProfile;
+    struct WeatherWaveSample
+    {
+        float scale1, scale2, amp1, amp2, weight, bumpScale, foamUV;
+    };
+    static constexpr size_t MaxWeatherWaveProfiles = 7;
+    std::array<WeatherWaveSample, MaxWeatherWaveProfiles> weatherWaveSamples{};
+    size_t weatherWaveSampleCount = 0;
+    bool weatherWaveProfilesInitialized = false;
+    float weatherWaveHeightGain = 1.f;
     static WeatherWaveProfile ReadWeatherWaveProfile(ATTRIBUTES *attributes);
     void LoadWeatherWaveProfiles();
+    void ResetWeatherWaveProfiles();
     void UpdateWeatherWaveProfile(float wind, float storm, float seconds);
     void LimitWaveAmplitudes();
+    void SampleOrdinaryWaves(float x, float z, float &height, CVECTOR &normal) const;
+    void PublishWeatherWaveLattices();
     SeaWhirlpool whirlpool;
     struct WhirlpoolShipContact { entid_t ship; SeaWhirlpoolContact contact; };
     std::vector<WhirlpoolShipContact> whirlpoolContacts;

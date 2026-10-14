@@ -1,8 +1,93 @@
 # Runtime state
 
-Last verified delivery: October14. The direct-source engine, revised procedural sun/stars, depth-corrected water reflections, authored storm wave profiles and native movie playback are installed with signed engine `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e`. Prior `e8cbbe75336de0570ac4618c02b38debe05ee3524b31cfe649a944ed72fbdf42` is backed up. This batch also integrates the separately authorized ship-fire/crew, sea CPU and merchant changes. Canonical staging exits0; source/component checks accept the mechanisms, while the player's sun/storm/reflection/movie scenes remain unresolved. The graphics integration task performs no autonomous game launch, controls or player SAVE inspection. The separate FPS task owns its already-authorized isolated runtime comparison. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. Scene lighting initialization and fixed-lattice water transitions are installed with signed engine `95887b017b90c981cbfabc927c220502e07b357d8a8d45021f92374987250d2e`; prior `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e` is backed up. The direct-source engine and previous astronomy/reflection/storm/video/fire/crew/sea CPU/merchant batch remain composed. Canonical staging exits0 with0 pending content and compiler ready. Source/component checks accept the mechanisms; the player's scene transitions and graphics/FPS acceptance remain unresolved. This graphics integration task performs no autonomous game launch, controls or player SAVE inspection. The separate FPS task owns its authorized named-pass trace follow-up. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October14 — scene lighting bind and water temporal repair installed; player replay unresolved
+
+The player reopens water acceptance: after loading a scene, ordinary water
+accelerates into rapid boiling and later slows. They clarify that entering a
+building or the sea also leaves light/weather visibly catching up. Baseline is
+the installed arm64 engine `987efaf3` from source `c4b3d51`, modern water enabled.
+The FPS owner returns its completed trace/build lease and reports normal game
+exit; this graphics root launches no game, sends no input and reads no player SAVE.
+
+Two independent source/body falsifiers reproduce contract violations. The sea
+profile updater changes scale in `(world + move) * scale`, producing position-
+dependent transient motion that decays with its8s easing. Clean60Hz replay on
+64 original height frames measures RMS44.683 at10000 and234.669 at−100000 for a
+partial-storm load. Fixed authored lattices blended by continuous profile weights
+reduce these to2.229/1.615 while leaving the settled original field exact.
+Scalar buoyancy and the four-vertex mesh share one sampler; phase/map generation
+retains its common visual clock. The same active weights publish fixed bump and
+foam scales to Metal. Actual fragment checks pass endpoint-mix oracles for coarse
+normal, fine normal and foam, full periodic world translation, a single authored
+profile and the changing-UV negative. The historical timer discards load-stall
+debt and does not reproduce sustained catch-up; no clock-speed clamp is added.
+
+Integration additionally catches a cap6→200 restoration jump: the next frame
+previously jumped to67.15. Shared amplitude gain now gives6.127 on the next frame
+and continuous recovery; cap decreases remain immediate. Actual ATTRIBUTES
+cases retain hourly weights/gain/phase/move, all-zero publication on clear or
+bank absence, direct location/fog fallback and additive tsunami/whirlpool.
+
+WEATHER scene bind previously sampled before the current script hour/setup and
+retained its initialized old snapshot at dt0. Fresh load12 published ambient
+101010 instead of282828; prior-state interior20/sea8 retained123456 instead of
+383838/202020. The bind now seeds its current hour and reseeds once when setup
+completes (`isDone`, or map `outside`). Actual production-body first-consumer
+checks now match complete current state; early getters, late authored solar
+parameters, post-bind quest unlock and map completion pass. Ordinary later
+`isDone` keeps its smoothing; RNG/lock/request lifetime/rain are preserved.
+The mechanism and detailed evidence belong to `docs/metal-graphics-parity.md`.
+
+The FPS handoff adds only static native encoder labels to identify GPU passes;
+source review removes those labels back to the previous byte-identical behavior.
+Its initial readonly pipeline-state label assignment is rejected during review
+and replaced with writable command-encoder labels before canonical compilation.
+No dispatch, visual detail, resolution or reflection cadence changes here.
+Source, component and existing routing/waterline checks pass. Canonical
+`run.sh --stage-only` exits0 against the frozen combined batch, with8248 active
+payload inputs verified, no pending content and compiler ready. Signed installed
+engine is `95887b017b90c981cbfabc927c220502e07b357d8a8d45021f92374987250d2e`;
+unsigned build `a696b94d972f5e7387816d1ddf8e61b1276c77c6e9182acd34a10fb0f40fe852`,
+source fingerprint `1e5bedd4f397c6f25aca48e97d7a10661b92f1eb378395890189ecae2ea9db63`.
+The printed Git labelc4b3d51 precedes this source checkpoint; the fingerprint
+binds the actual batch. Installation is accepted. The original enter-building/
+enter-sea first frame and subsequent water motion require player-scene replay;
+no game launch/input or player SAVE inspection occurs in this graphics task.
+
+### October14 — installed sea performance replay remains unresolved
+
+The separate FPS owner replays signed `987efaf3` from source checkpoint
+`c4b3d51` using its isolated state. The player's10:54:12 island/fleet screenshot
+shows53FPS, so the original performance request remains unresolved. This does
+not reopen the source or installation receipts below as failed deliveries.
+
+The retained candidate's selected steady cohorts report wall16.53–17.52ms,
+whole-command GPU14.46–15.15ms, about1735–1794 draws and18.7–19.3MiB upload per
+frame. Posed bounds CPU is.328–.5ms versus the earlier.46–1.05ms; the selected
+120-frame index scan falls from about50M to5.45M. Camera/geometry differ between
+the old and new captures, so these are not a matched FPS ratio or evidence of a
+GPU regression. Other candidate cohorts and loading transitions are excluded
+from these ranges. No readbacks or explicit syncs appear in the selected rows.
+
+`FrameProfile` reads `GPUStartTime`/`GPUEndTime` for the whole command buffer;
+the existing logs contain no per-pass GPU timing or retained GPU trace. Source
+shows the coherent reflection cube and finite-depth water tracing, but neither
+is established as the costly pass. FPS owns the next bounded diagnosis through
+the installed Xcode Metal System Trace before any further renderer change.
+Its logs remain under `experiments/native-metal/.cache/diagnostics/sea-fps-20261014`.
+
+The FPS owner reports unchanged original player-state hashes and zero game
+holders after exit. Near/player crew and ordinary zoom/spyglass acceptance
+remain incomplete because the computer-use session reached its user-change
+boundary; no alternate input route was used. This graphics root launches no
+game and performs no player input or SAVE inspection. Disposition: installation
+accepted, visible graphics and the original FPS episode unresolved; FPS owns
+subsequent performance source/build/stage, while the player owns the graphics
+scene acceptance described below.
 
 ### October14 — full graphics repair and editable engine installed; player acceptance open
 

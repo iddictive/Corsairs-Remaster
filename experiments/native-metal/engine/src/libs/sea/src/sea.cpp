@@ -737,266 +737,90 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
 // INTEL COMMENT:
 // This version of the function takes in 4 at a time, to take advantage of SSE.
 // In particular I have converted the normalise and square roots over to SSE.
+void SEA::SampleOrdinaryWaves(float x, float z, float &height, CVECTOR &normal) const
+{
+    height = 0.f;
+    normal = CVECTOR(0.f);
+    const auto sample = [this, x, z, &height, &normal](const WeatherWaveSample &profile) {
+        for (unsigned layer = 0; layer < 2; ++layer) {
+            const float scale = layer == 0 ? profile.scale1 : profile.scale2;
+            const float amp = layer == 0 ? profile.amp1 : profile.amp2;
+            const auto &move = layer == 0 ? vMove1 : vMove2;
+            const float *heights = layer == 0 ? pSeaFrame1 : pSeaFrame2;
+            const float *normals = layer == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2;
+            const float u = (x + move.x) * scale, v = (z + move.z) * scale;
+            const int ix = ffloor(u), iz = ffloor(v);
+            const float fx = u - ix, fz = v - iz;
+            const int a = (ix & (XWIDTH - 1)) + (iz & (YWIDTH - 1)) * XWIDTH;
+            const int b = ((ix + 1) & (XWIDTH - 1)) + (iz & (YWIDTH - 1)) * XWIDTH;
+            const int c = (ix & (XWIDTH - 1)) + ((iz + 1) & (YWIDTH - 1)) * XWIDTH;
+            const int d = ((ix + 1) & (XWIDTH - 1)) + ((iz + 1) & (YWIDTH - 1)) * XWIDTH;
+            const auto interpolate = [=](const float *values, int stride, int channel) {
+                const float h1 = values[a * stride + channel], h2 = values[b * stride + channel];
+                const float h3 = values[c * stride + channel], h4 = values[d * stride + channel];
+                return h1 + fx * (h2 - h1) + fz * (h3 - h1) + fx * fz * (h4 + h1 - h2 - h3);
+            };
+            height += amp * interpolate(heights, 1, 0);
+            const float nx = interpolate(normals, 2, 0), nz = interpolate(normals, 2, 1);
+            normal.x += scale * amp * nx;
+            normal.z += scale * amp * nz;
+            normal.y += profile.weight * sqrtf(std::max(0.f, 1.f - nx * nx - nz * nz));
+        }
+    };
+    if (weatherWaveSampleCount == 0) {
+        sample({fScale1, fScale2, fAmp1, fAmp2, 1.f, fBumpScale, fFoamUV});
+    } else if (weatherWaveSampleCount == 1) {
+        sample(weatherWaveSamples[0]);
+    } else {
+        for (size_t i = 0; i < weatherWaveSampleCount; ++i) sample(weatherWaveSamples[i]);
+    }
+}
+
 void SEA::SSE_WaveXZ(SeaVertex **pArray)
 {
-    CVECTOR vNormal[4];
-    float nY1[4];
-    float nY2[4];
-    bool bDistancePass = false;
-
-    for (int i = 0; i < 4; i++)
-    {
-        int32_t iX11, iX12, iX21, iX22, iY11, iY12, iY21, iY22;
-
-        float fDistance = Sqr(pArray[i]->vPos.x - vCamPos.x) + Sqr(pArray[i]->vPos.z - vCamPos.z);
-        if (fDistance > fMaxSeaDistance * fMaxSeaDistance)
-        {
-            vNormal[i].x = 0.0f;
-            nY1[i] = 1.0f;
-            nY2[i] = 1.0f;
-            vNormal[i].y = 1.0f;
-            vNormal[i].z = 0.0f;
-            pArray[i]->vPos.y = 0.0f;
-            continue;
+    CVECTOR normals[4];
+    bool distancePass = false;
+    for (unsigned i = 0; i < 4; ++i) {
+        auto &vertex = *pArray[i];
+        if (Sqr(vertex.vPos.x - vCamPos.x) + Sqr(vertex.vPos.z - vCamPos.z) > Sqr(fMaxSeaDistance)) {
+            vertex.vPos.y = 0.f;
+            normals[i] = CVECTOR(0.f, 1.f, 0.f);
+        } else {
+            SampleOrdinaryWaves(vertex.vPos.x, vertex.vPos.z, vertex.vPos.y, normals[i]);
+            distancePass = true;
         }
-
-        bDistancePass = true;
-
-        float x1 = (pArray[i]->vPos.x + vMove1.x) * fScale1;
-        float z1 = (pArray[i]->vPos.z + vMove1.z) * fScale1;
-        iX11 = ffloor(x1 + 0.0f), iX12 = iX11 + 1;
-        iY11 = ffloor(z1 + 0.0f), iY12 = iY11 + 1;
-        float fX1 = (x1 - iX11);
-        float fZ1 = (z1 - iY11);
-        iX11 &= (XWIDTH - 1);
-        iX12 &= (XWIDTH - 1);
-        iY11 &= (XWIDTH - 1);
-        iY12 &= (XWIDTH - 1);
-
-        float x2 = (pArray[i]->vPos.x + vMove2.x) * fScale2;
-        float z2 = (pArray[i]->vPos.z + vMove2.z) * fScale2;
-        iX21 = ffloor(x2 + 0.0f), iX22 = iX21 + 1;
-        iY21 = ffloor(z2 + 0.0f), iY22 = iY21 + 1;
-        float fX2 = (x2 - iX21);
-        float fZ2 = (z2 - iY21);
-        iX21 &= (XWIDTH - 1);
-        iX22 &= (XWIDTH - 1);
-        iY21 &= (XWIDTH - 1);
-        iY22 &= (XWIDTH - 1);
-
-        float a1, a2, a3, a4;
-
-        a1 = pSeaFrame1[iX11 + iY11 * XWIDTH];
-        a2 = pSeaFrame1[iX12 + iY11 * XWIDTH];
-        a3 = pSeaFrame1[iX11 + iY12 * XWIDTH];
-        a4 = pSeaFrame1[iX12 + iY12 * XWIDTH];
-        pArray[i]->vPos.y = fAmp1 * (a1 + fX1 * (a2 - a1) + fZ1 * (a3 - a1) + fX1 * fZ1 * (a4 + a1 - a2 - a3));
-
-        a1 = pSeaFrame2[iX21 + iY21 * XWIDTH];
-        a2 = pSeaFrame2[iX22 + iY21 * XWIDTH];
-        a3 = pSeaFrame2[iX21 + iY22 * XWIDTH];
-        a4 = pSeaFrame2[iX22 + iY22 * XWIDTH];
-        pArray[i]->vPos.y += fAmp2 * (a1 + fX2 * (a2 - a1) + fZ2 * (a3 - a1) + fX2 * fZ2 * (a4 + a1 - a2 - a3));
-
-        float nx1, nx2, nx3, nx4, nz1, nz2, nz3, nz4;
-
-        nx1 = pSeaNormalsFrame1[2 * (iX11 + iY11 * XWIDTH) + 0];
-        nz1 = pSeaNormalsFrame1[2 * (iX11 + iY11 * XWIDTH) + 1];
-        nx2 = pSeaNormalsFrame1[2 * (iX12 + iY11 * XWIDTH) + 0];
-        nz2 = pSeaNormalsFrame1[2 * (iX12 + iY11 * XWIDTH) + 1];
-        nx3 = pSeaNormalsFrame1[2 * (iX11 + iY12 * XWIDTH) + 0];
-        nz3 = pSeaNormalsFrame1[2 * (iX11 + iY12 * XWIDTH) + 1];
-        nx4 = pSeaNormalsFrame1[2 * (iX12 + iY12 * XWIDTH) + 0];
-        nz4 = pSeaNormalsFrame1[2 * (iX12 + iY12 * XWIDTH) + 1];
-
-        float nX1 = (nx1 + fX1 * (nx2 - nx1) + fZ1 * (nx3 - nx1) + fX1 * fZ1 * (nx4 + nx1 - nx2 - nx3));
-        float nZ1 = (nz1 + fX1 * (nz2 - nz1) + fZ1 * (nz3 - nz1) + fX1 * fZ1 * (nz4 + nz1 - nz2 - nz3));
-
-        nx1 = pSeaNormalsFrame2[2 * (iX21 + iY21 * XWIDTH) + 0];
-        nz1 = pSeaNormalsFrame2[2 * (iX21 + iY21 * XWIDTH) + 1];
-        nx2 = pSeaNormalsFrame2[2 * (iX22 + iY21 * XWIDTH) + 0];
-        nz2 = pSeaNormalsFrame2[2 * (iX22 + iY21 * XWIDTH) + 1];
-        nx3 = pSeaNormalsFrame2[2 * (iX21 + iY22 * XWIDTH) + 0];
-        nz3 = pSeaNormalsFrame2[2 * (iX21 + iY22 * XWIDTH) + 1];
-        nx4 = pSeaNormalsFrame2[2 * (iX22 + iY22 * XWIDTH) + 0];
-        nz4 = pSeaNormalsFrame2[2 * (iX22 + iY22 * XWIDTH) + 1];
-
-        float nX2 = (nx1 + fX2 * (nx2 - nx1) + fZ2 * (nx3 - nx1) + fX2 * fZ2 * (nx4 + nx1 - nx2 - nx3));
-        float nZ2 = (nz1 + fX2 * (nz2 - nz1) + fZ2 * (nz3 - nz1) + fX2 * fZ2 * (nz4 + nz1 - nz2 - nz3));
-
-        nY1[i] = 1.0f - (Sqr(nX1) + Sqr(nZ1));
-        nY2[i] = 1.0f - (Sqr(nX2) + Sqr(nZ2));
-
-        vNormal[i].x = fScale1 * fAmp1 * nX1 + fScale2 * fAmp2 * nX2;
-        vNormal[i].z = fScale1 * fAmp1 * nZ1 + fScale2 * fAmp2 * nZ2;
     }
-
-    if (bDistancePass)
-    {
-        // INTEL COMMENT:
-        // xmm variables.
-        __m128 m128X, m128Y, m128Z;
-        __m128 m128NX, m128NY, m128NZ;
-        __m128 m128Y1, m128Y2;
-        __m128 m128SY1, m128SY2;
-
-        // INTEL COMMENT:
-        // Gather the Y's.
-        SSE_GatherFourFloats(&nY1[0], &nY1[1], &nY1[2], &nY1[3], &m128Y1);
-        SSE_GatherFourFloats(&nY2[0], &nY2[1], &nY2[2], &nY2[3], &m128Y2);
-        m128SY1 = _mm_sqrt_ps(m128Y1);
-        m128SY2 = _mm_sqrt_ps(m128Y2);
-        m128Y = _mm_add_ps(m128SY1, m128SY2);
-
-        // INTEL COMMENT:
-        // Gather the X's and Z's.
-        SSE_GatherFourFloats(&vNormal[0].x, &vNormal[1].x, &vNormal[2].x, &vNormal[3].x, &m128X);
-        SSE_GatherFourFloats(&vNormal[0].z, &vNormal[1].z, &vNormal[2].z, &vNormal[3].z, &m128Z);
-
-        // INTEL COMMENT:
-        // Normalise.
-        SSE_Normalise(m128X, m128Y, m128Z, &m128NX, &m128NY, &m128NZ);
-
-        // INTEL COMMENT:
-        // Scatter back out.
-        SSE_ScatterFourFloats(&pArray[0]->vNormal.x, &pArray[1]->vNormal.x, &pArray[2]->vNormal.x,
-                              &pArray[3]->vNormal.x, m128NX);
-        SSE_ScatterFourFloats(&pArray[0]->vNormal.y, &pArray[1]->vNormal.y, &pArray[2]->vNormal.y,
-                              &pArray[3]->vNormal.y, m128NY);
-        SSE_ScatterFourFloats(&pArray[0]->vNormal.z, &pArray[1]->vNormal.z, &pArray[2]->vNormal.z,
-                              &pArray[3]->vNormal.z, m128NZ);
+    if (distancePass) {
+        __m128 x, y, z, nx, ny, nz;
+        SSE_GatherFourFloats(&normals[0].x, &normals[1].x, &normals[2].x, &normals[3].x, &x);
+        SSE_GatherFourFloats(&normals[0].y, &normals[1].y, &normals[2].y, &normals[3].y, &y);
+        SSE_GatherFourFloats(&normals[0].z, &normals[1].z, &normals[2].z, &normals[3].z, &z);
+        SSE_Normalise(x, y, z, &nx, &ny, &nz);
+        SSE_ScatterFourFloats(&pArray[0]->vNormal.x, &pArray[1]->vNormal.x, &pArray[2]->vNormal.x, &pArray[3]->vNormal.x, nx);
+        SSE_ScatterFourFloats(&pArray[0]->vNormal.y, &pArray[1]->vNormal.y, &pArray[2]->vNormal.y, &pArray[3]->vNormal.y, ny);
+        SSE_ScatterFourFloats(&pArray[0]->vNormal.z, &pArray[1]->vNormal.z, &pArray[2]->vNormal.z, &pArray[3]->vNormal.z, nz);
+    } else {
+        for (unsigned i = 0; i < 4; ++i) pArray[i]->vNormal = normals[i];
     }
-    else
-    {
-        pArray[0]->vNormal = vNormal[0];
-        pArray[1]->vNormal = vNormal[1];
-        pArray[2]->vNormal = vNormal[2];
-        pArray[3]->vNormal = vNormal[3];
-    }
-    for (int i = 0; i < 4; ++i)
+    for (unsigned i = 0; i < 4; ++i)
         ApplyTsunami(pArray[i]->vPos.x, pArray[i]->vPos.z, pArray[i]->vPos.y,
                      &pArray[i]->vNormal, pArray[i]->eventMaterial);
 }
 
 float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
 {
-    int32_t iX11, iX12, iX21, iX22, iY11, iY12, iY21, iY22;
-
-    const float fDistance = Sqr(x - vCamPos.x) + Sqr(z - vCamPos.z);
-    if (fDistance > fMaxSeaDistance * fMaxSeaDistance)
-    {
-        if (pNormal)
-            *pNormal = CVECTOR(0.0f, 1.0f, 0.0f);
-        if (tsunami.Frame().active || whirlpool.Frame().active)
-        {
-            float height = 0.f;
-            ApplyTsunami(x, z, height, pNormal);
-            return height;
-        }
-        return 0.0f;
+    if (Sqr(x - vCamPos.x) + Sqr(z - vCamPos.z) > Sqr(fMaxSeaDistance)) {
+        if (pNormal) *pNormal = CVECTOR(0.f, 1.f, 0.f);
+        float height = 0.f;
+        if (tsunami.Frame().active || whirlpool.Frame().active) ApplyTsunami(x, z, height, pNormal);
+        return height;
     }
-
-    const float x1 = (x + vMove1.x) * fScale1;
-    const float z1 = (z + vMove1.z) * fScale1;
-    iX11 = ffloor(x1 + 0.0f), iX12 = iX11 + 1;
-    iY11 = ffloor(z1 + 0.0f), iY12 = iY11 + 1;
-    const float fX1 = (x1 - iX11);
-    const float fZ1 = (z1 - iY11);
-    iX11 &= (XWIDTH - 1);
-    iX12 &= (XWIDTH - 1);
-    iY11 &= (XWIDTH - 1);
-    iY12 &= (XWIDTH - 1);
-
-    const float x2 = (x + vMove2.x) * fScale2;
-    const float z2 = (z + vMove2.z) * fScale2;
-    iX21 = ffloor(x2 + 0.0f), iX22 = iX21 + 1;
-    iY21 = ffloor(z2 + 0.0f), iY22 = iY21 + 1;
-    const float fX2 = (x2 - iX21);
-    const float fZ2 = (z2 - iY21);
-    iX21 &= (XWIDTH - 1);
-    iX22 &= (XWIDTH - 1);
-    iY21 &= (XWIDTH - 1);
-    iY22 &= (XWIDTH - 1);
-
-    float a1, a2, a3, a4;
-
-    a1 = pSeaFrame1[iX11 + iY11 * XWIDTH];
-    a2 = pSeaFrame1[iX12 + iY11 * XWIDTH];
-    a3 = pSeaFrame1[iX11 + iY12 * XWIDTH];
-    a4 = pSeaFrame1[iX12 + iY12 * XWIDTH];
-    float fRes = fAmp1 * (a1 + fX1 * (a2 - a1) + fZ1 * (a3 - a1) + fX1 * fZ1 * (a4 + a1 - a2 - a3));
-
-    a1 = pSeaFrame2[iX21 + iY21 * XWIDTH];
-    a2 = pSeaFrame2[iX22 + iY21 * XWIDTH];
-    a3 = pSeaFrame2[iX21 + iY22 * XWIDTH];
-    a4 = pSeaFrame2[iX22 + iY22 * XWIDTH];
-    fRes += fAmp2 * (a1 + fX2 * (a2 - a1) + fZ2 * (a3 - a1) + fX2 * fZ2 * (a4 + a1 - a2 - a3));
-
-    float nx1, nx2, nx3, nx4, nz1, nz2, nz3, nz4;
-
-    nx1 = pSeaNormalsFrame1[2 * (iX11 + iY11 * XWIDTH) + 0];
-    nz1 = pSeaNormalsFrame1[2 * (iX11 + iY11 * XWIDTH) + 1];
-    nx2 = pSeaNormalsFrame1[2 * (iX12 + iY11 * XWIDTH) + 0];
-    nz2 = pSeaNormalsFrame1[2 * (iX12 + iY11 * XWIDTH) + 1];
-    nx3 = pSeaNormalsFrame1[2 * (iX11 + iY12 * XWIDTH) + 0];
-    nz3 = pSeaNormalsFrame1[2 * (iX11 + iY12 * XWIDTH) + 1];
-    nx4 = pSeaNormalsFrame1[2 * (iX12 + iY12 * XWIDTH) + 0];
-    nz4 = pSeaNormalsFrame1[2 * (iX12 + iY12 * XWIDTH) + 1];
-
-    const float nX1 = (nx1 + fX1 * (nx2 - nx1) + fZ1 * (nx3 - nx1) + fX1 * fZ1 * (nx4 + nx1 - nx2 - nx3));
-    const float nZ1 = (nz1 + fX1 * (nz2 - nz1) + fZ1 * (nz3 - nz1) + fX1 * fZ1 * (nz4 + nz1 - nz2 - nz3));
-
-    nx1 = pSeaNormalsFrame2[2 * (iX21 + iY21 * XWIDTH) + 0];
-    nz1 = pSeaNormalsFrame2[2 * (iX21 + iY21 * XWIDTH) + 1];
-    nx2 = pSeaNormalsFrame2[2 * (iX22 + iY21 * XWIDTH) + 0];
-    nz2 = pSeaNormalsFrame2[2 * (iX22 + iY21 * XWIDTH) + 1];
-    nx3 = pSeaNormalsFrame2[2 * (iX21 + iY22 * XWIDTH) + 0];
-    nz3 = pSeaNormalsFrame2[2 * (iX21 + iY22 * XWIDTH) + 1];
-    nx4 = pSeaNormalsFrame2[2 * (iX22 + iY22 * XWIDTH) + 0];
-    nz4 = pSeaNormalsFrame2[2 * (iX22 + iY22 * XWIDTH) + 1];
-
-    const float nX2 = (nx1 + fX2 * (nx2 - nx1) + fZ2 * (nx3 - nx1) + fX2 * fZ2 * (nx4 + nx1 - nx2 - nx3));
-    const float nZ2 = (nz1 + fX2 * (nz2 - nz1) + fZ2 * (nz3 - nz1) + fX2 * fZ2 * (nz4 + nz1 - nz2 - nz3));
-    // float nX2 = 0.0f;
-    // float nZ2 = 0.0f;
-
-    /*float fDistance = sqrt_ss(Sqr(x - vCamPos.x) + Sqr(fRes - vCamPos.y) + Sqr(z - vCamPos.z));
-    {
-      float distance_mul = 1.0f - fDistance / 1900.0f;
-      if (distance_mul < 0.0f) distance_mul = 0.0f;
-
-      fRes *= distance_mul;
-
-      nX1 *= distance_mul;
-      nZ1 *= distance_mul;
-
-      nX2 *= distance_mul;
-      nZ2 *= distance_mul;
-    }*/
-
-    if (pNormal)
-    {
-        /*pNormal->x = 0.0f;
-        pNormal->y = 1.0f;
-        pNormal->z = 0.0f;*/
-        const float nY1 = sqrtf(1.0f - (Sqr(nX1) + Sqr(nZ1)));
-        const float nY2 = sqrtf(1.0f - (Sqr(nX2) + Sqr(nZ2)));
-
-        CVECTOR vNormal;
-
-        vNormal.x = fScale1 * fAmp1 * nX1 + fScale2 * fAmp2 * nX2;
-        vNormal.z = fScale1 * fAmp1 * nZ1 + fScale2 * fAmp2 * nZ2;
-        vNormal.y = nY1 + nY2;
-
-        // vNormal.x += 2.0f * vNormal.x;
-        // vNormal.z += 2.0f * vNormal.z;
-        vNormal = !vNormal;
-
-        *pNormal = vNormal;
-    }
-
-    if (tsunami.Frame().active || whirlpool.Frame().active) ApplyTsunami(x, z, fRes, pNormal);
-    return fRes;
+    float height;
+    CVECTOR normal;
+    SampleOrdinaryWaves(x, z, height, normal);
+    if (pNormal) *pNormal = !normal;
+    if (tsunami.Frame().active || whirlpool.Frame().active) ApplyTsunami(x, z, height, pNormal);
+    return height;
 }
 
 void SEA::PrepareIndicesForBlock(uint32_t dwBlockIndex)
@@ -1376,14 +1200,16 @@ SEA::WeatherWaveProfile SEA::ReadWeatherWaveProfile(ATTRIBUTES *attributes)
 
 void SEA::LoadWeatherWaveProfiles()
 {
-    weatherWaveProfiles.clear();
     auto *bank = AttributesPointer->GetAttributeClass("NativeSeaProfiles");
-    if (!bank || !bank->GetAttributeClass("Storm")) return;
+    if (!bank || !bank->GetAttributeClass("Storm")) { ResetWeatherWaveProfiles(); return; }
     const auto count = bank->GetAttributeAsDword("Count");
+    if (count == 0 || count >= MaxWeatherWaveProfiles) { ResetWeatherWaveProfiles(); return; }
+    std::vector<WeatherWaveProfile> incoming;
+    incoming.reserve(count);
     for (uint32_t i = 0; i < count; ++i) {
         auto *entry = bank->GetAttributeClass("p" + std::to_string(i));
         if (!entry || !entry->GetAttributeClass("AtZero") || !entry->GetAttributeClass("AtOne")) {
-            weatherWaveProfiles.clear();
+            ResetWeatherWaveProfiles();
             return;
         }
         auto profile = ReadWeatherWaveProfile(entry->GetAttributeClass("AtZero"));
@@ -1392,9 +1218,41 @@ void SEA::LoadWeatherWaveProfiles()
         profile.ampWind1 = one.amp1 - profile.amp1;
         profile.ampWind2 = one.amp2 - profile.amp2;
         profile.foamWindV = one.foamV - profile.foamV;
-        weatherWaveProfiles.push_back(profile);
+        incoming.push_back(profile);
     }
-    stormWaveProfile = ReadWeatherWaveProfile(bank->GetAttributeClass("Storm"));
+    auto rough = ReadWeatherWaveProfile(bank->GetAttributeClass("Storm"));
+    bool sameBank = incoming.size() == weatherWaveProfiles.size() &&
+                    rough.scale1 == stormWaveProfile.scale1 && rough.scale2 == stormWaveProfile.scale2;
+    for (size_t i = 0; sameBank && i < incoming.size(); ++i)
+        sameBank = incoming[i].minWind == weatherWaveProfiles[i].minWind &&
+                   incoming[i].scale1 == weatherWaveProfiles[i].scale1 &&
+                   incoming[i].scale2 == weatherWaveProfiles[i].scale2;
+    if (sameBank) {
+        for (size_t i = 0; i < incoming.size(); ++i) {
+            incoming[i].weight = weatherWaveProfiles[i].weight;
+            incoming[i].wind = weatherWaveProfiles[i].wind;
+        }
+        rough.weight = stormWaveProfile.weight;
+    } else {
+        weatherWaveProfilesInitialized = false;
+        weatherWaveSampleCount = 0;
+        weatherWaveHeightGain = 1.f;
+    }
+    weatherWaveProfiles = std::move(incoming);
+    stormWaveProfile = rough;
+    // Seed current conditions before the first mesh or buoyancy sample. Hourly
+    // authoring refreshes retain weights and the existing move/frame phases.
+    if (const auto id = core.GetEntityId("weather"))
+        if (auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(id)))
+            UpdateWeatherWaveProfile(weather->GetVisualFloat(whf_wind_speed), weather->GetStormStrength(), 0.f);
+}
+
+void SEA::ResetWeatherWaveProfiles()
+{
+    weatherWaveProfiles.clear();
+    weatherWaveSampleCount = 0;
+    weatherWaveProfilesInitialized = false;
+    weatherWaveHeightGain = 1.f;
 }
 
 void SEA::UpdateWeatherWaveProfile(float wind, float storm, float seconds)
@@ -1402,32 +1260,62 @@ void SEA::UpdateWeatherWaveProfile(float wind, float storm, float seconds)
     // Missing profiles (older content or location/cabin overrides) preserve the
     // authored Sea2 state. WEATHER never invents a second wave preset here.
     if (weatherWaveProfiles.empty()) return;
-    const auto *normal = &weatherWaveProfiles.front();
-    for (const auto &profile : weatherWaveProfiles)
+    auto *normal = &weatherWaveProfiles.front();
+    for (auto &profile : weatherWaveProfiles)
         if (wind > profile.minWind) normal = &profile;
+    // A retiring wind regime keeps its last authored amplitude while fading;
+    // feeding storm wind into a calm formula would itself create a height jump.
+    normal->wind = wind;
     storm = std::clamp(storm, 0.f, 1.f);
-    const auto mix = [storm](float calm, float rough) { return calm + (rough - calm) * storm; };
-    const float blend = 1.f - expf(-std::max(0.f, seconds) / 8.f);
-    const auto update = [blend](float &value, float target) { value += (target - value) * blend; };
-    _fAmp1 = mix(normal->amp1 + wind * normal->ampWind1, stormWaveProfile.amp1);
-    _fAmp2 = mix(normal->amp2 + wind * normal->ampWind2, stormWaveProfile.amp2);
+    const float blend = weatherWaveProfilesInitialized ? 1.f - expf(-std::max(0.f, seconds) / 8.f) : 1.f;
+    const auto updateWeight = [blend](WeatherWaveProfile &profile, float target) {
+        profile.weight += (target - profile.weight) * blend;
+        if (profile.weight < 0.0001f) profile.weight = 0.f;
+        return profile.weight;
+    };
+    float total = updateWeight(stormWaveProfile, storm);
+    for (auto &profile : weatherWaveProfiles) total += updateWeight(profile, &profile == normal ? 1.f - storm : 0.f);
+    stormWaveProfile.weight /= total;
+    for (auto &profile : weatherWaveProfiles) profile.weight /= total;
+    const bool initialize = !weatherWaveProfilesInitialized;
+    weatherWaveProfilesInitialized = true;
+    weatherWaveSampleCount = 0;
+    _fAmp1 = _fAmp2 = fAnimSpeed1 = fAnimSpeed2 = fPosShift = 0.f;
+    fFoamV = fFoamK = fFoamUV = fFoamTextureDisturb = 0.f;
+    vMoveSpeed1 = vMoveSpeed2 = CVECTOR(0.f);
+    const auto append = [this](const WeatherWaveProfile &profile) {
+        if (profile.weight == 0.f) return;
+        const float weight = profile.weight;
+        const float amp1 = (profile.amp1 + profile.wind * profile.ampWind1) * weight;
+        const float amp2 = (profile.amp2 + profile.wind * profile.ampWind2) * weight;
+        weatherWaveSamples[weatherWaveSampleCount++] = {profile.scale1, profile.scale2, amp1, amp2, weight, profile.bumpScale, profile.foamUV};
+        _fAmp1 += amp1; _fAmp2 += amp2;
+        fAnimSpeed1 += profile.anim1 * weight; fAnimSpeed2 += profile.anim2 * weight;
+        fPosShift += profile.posShift * weight;
+        fFoamV += (profile.foamV + profile.wind * profile.foamWindV) * weight;
+        fFoamK += profile.foamK * weight; fFoamUV += profile.foamUV * weight;
+        fFoamTextureDisturb += profile.foamDisturb * weight;
+        vMoveSpeed1 += profile.move1 * weight; vMoveSpeed2 += profile.move2 * weight;
+    };
+    for (const auto &profile : weatherWaveProfiles) append(profile);
+    append(stormWaveProfile);
     const float sum = _fAmp1 + _fAmp2;
-    const float cap = sum > 0.f ? std::min(1.f, std::max(0.f, fMaxSeaHeight) / sum) : 0.f;
-    update(fAmp1, _fAmp1 * cap);
-    update(fAmp2, _fAmp2 * cap);
+    const float allowed = sum > 0.f ? std::min(1.f, std::max(0.f, fMaxSeaHeight) / sum) : 0.f;
+    if (initialize || allowed < weatherWaveHeightGain) weatherWaveHeightGain = allowed;
+    else weatherWaveHeightGain += (allowed - weatherWaveHeightGain) * blend;
+    for (size_t i = 0; i < weatherWaveSampleCount; ++i) {
+        weatherWaveSamples[i].amp1 *= weatherWaveHeightGain;
+        weatherWaveSamples[i].amp2 *= weatherWaveHeightGain;
+    }
+    fAmp1 = _fAmp1 * weatherWaveHeightGain; fAmp2 = _fAmp2 * weatherWaveHeightGain;
     LimitWaveAmplitudes();
-    update(fScale1, mix(normal->scale1, stormWaveProfile.scale1));
-    update(fScale2, mix(normal->scale2, stormWaveProfile.scale2));
-    update(fAnimSpeed1, mix(normal->anim1, stormWaveProfile.anim1));
-    update(fAnimSpeed2, mix(normal->anim2, stormWaveProfile.anim2));
-    update(fPosShift, mix(normal->posShift, stormWaveProfile.posShift));
-    update(fBumpScale, mix(normal->bumpScale, stormWaveProfile.bumpScale));
-    update(fFoamV, mix(normal->foamV + wind * normal->foamWindV, stormWaveProfile.foamV));
-    update(fFoamK, mix(normal->foamK, stormWaveProfile.foamK));
-    update(fFoamUV, mix(normal->foamUV, stormWaveProfile.foamUV));
-    update(fFoamTextureDisturb, mix(normal->foamDisturb, stormWaveProfile.foamDisturb));
-    vMoveSpeed1 += (normal->move1 + (stormWaveProfile.move1 - normal->move1) * storm - vMoveSpeed1) * blend;
-    vMoveSpeed2 += (normal->move2 + (stormWaveProfile.move2 - normal->move2) * storm - vMoveSpeed2) * blend;
+    // Legacy single-lattice UVs remain exact at settled endpoints. Modern water
+    // receives every fixed bump lattice and the same normalized weights below.
+    fBumpScale = weatherWaveSamples[0].bumpScale;
+    if (weatherWaveSampleCount == 1) {
+        fScale1 = weatherWaveSamples[0].scale1;
+        fScale2 = weatherWaveSamples[0].scale2;
+    }
 }
 
 void SEA::LimitWaveAmplitudes()
@@ -1438,7 +1326,34 @@ void SEA::LimitWaveAmplitudes()
     if (actual > std::max(0.f, fMaxSeaHeight)) {
         const float limit = std::max(0.f, fMaxSeaHeight) / actual;
         fAmp1 *= limit; fAmp2 *= limit;
+        if (weatherWaveSampleCount) weatherWaveHeightGain *= limit;
+        for (size_t i = 0; i < weatherWaveSampleCount; ++i) {
+            weatherWaveSamples[i].amp1 *= limit;
+            weatherWaveSamples[i].amp2 *= limit;
+        }
     }
+}
+
+void SEA::PublishWeatherWaveLattices()
+{
+    float constants[1 + MaxWeatherWaveProfiles][4]{};
+    size_t count = 0;
+    for (size_t i = 0; i < weatherWaveSampleCount; ++i) {
+        const auto &sample = weatherWaveSamples[i];
+        size_t slot = 0;
+        while (slot < count && (constants[1 + slot][0] != sample.bumpScale || constants[1 + slot][2] != sample.foamUV)) ++slot;
+        if (slot == count) {
+            constants[1 + count][0] = sample.bumpScale;
+            constants[1 + count++][2] = sample.foamUV;
+        }
+        constants[1 + slot][1] += sample.weight;
+    }
+    if (count) {
+        constants[0][0] = static_cast<float>(count);
+        constants[0][1] = fPosShift;
+        constants[0][3] = 1.f;
+    }
+    rs->SetVertexShaderConstantF(247, &constants[0][0], 1 + MaxWeatherWaveProfiles);
 }
 
 void SEA::Realize(uint32_t dwDeltaTime)
@@ -1729,6 +1644,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
         const CVECTOR4 vortexTime(vortex.age, SeaWhirlpoolLengthScale(vortex.radius) / vortex.radius, 0.f, 0.f);
         rs->SetVertexShaderConstantF(245, (const float *)&vortexOrigin, 1);
         rs->SetVertexShaderConstantF(246, (const float *)&vortexTime, 1);
+        PublishWeatherWaveLattices();
         const bool tsunamiFoam = (event.active && event.envelope > 0.f) || vortexOrigin.w > 0.f;
         const auto drawSeaFoam = [&] {
             const auto vec = CVECTOR4(fFoamTextureDisturb, 0.0f, 0.0f, 0.0f);
@@ -2168,7 +2084,7 @@ uint32_t SEA::AttributeChanged(ATTRIBUTES *pAttribute)
     for (auto *branch = pParent; branch && branch != AttributesPointer; branch = branch->GetParent())
         if (branch->GetParent() == AttributesPointer && *branch == "NativeSeaProfiles") return 0;
 
-    if (pParent == AttributesPointer && *pAttribute == "Clear") weatherWaveProfiles.clear();
+    if (pParent == AttributesPointer && *pAttribute == "Clear") ResetWeatherWaveProfiles();
     if (pParent == AttributesPointer && *pAttribute == "NativeSeaProfilesReady") {
         LoadWeatherWaveProfiles();
         return 0;
