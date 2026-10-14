@@ -232,7 +232,7 @@ EDITS = {
         ('\tEnvironment.time = GetEventData();', '\tEnvironment.time = GetEventData();\n    GreatRecipe_MapCalendar();'),
     ],
     "PROGRAM/worldmap/worldmap_reload.c": [
-        ('\tisShipEncounterType = WdmAddEncountersData();', '\tisShipEncounterType = WdmAddEncountersData();\n    GreatRecipe_MapAdmission(wdmLoginToSea);'),
+        ('\tisShipEncounterType = WdmAddEncountersData();', '\tisShipEncounterType = WdmAddEncountersData();\n    GreatRecipe_MapAdmission(&wdmLoginToSea);'),
     ],
     "PROGRAM/Loc_ai/LAi_fightparams.c": [
         ('\tif(CheckAttribute(enemy, "cirassId"))\n\t{\n\t\tdmg = dmg * (1.0 - stf(Items[sti(enemy.cirassId)].CirassLevel));\n\t}',
@@ -294,6 +294,10 @@ def prepare(relative: str, incoming: bytes) -> bytes:
         return incoming
     text = incoming.decode("utf-8").replace("\r\n", "\n")
     base = text
+    if relative == "PROGRAM/worldmap/worldmap_reload.c" and "GreatRecipe_MapAdmission(wdmLoginToSea);" in base:
+        if digest(base.encode()) != "5659f7f8e6fbf739b159332c2f6c9e9f352a4aa20658ae0c7988a0a0fbc56ddc":
+            raise ValueError("unreviewed prior recipe map admission")
+        base = base.replace("GreatRecipe_MapAdmission(wdmLoginToSea);", "GreatRecipe_MapAdmission(&wdmLoginToSea);", 1)
     if relative.endswith("Pirates_Tavern.c") and TAVERN_CASES not in base:
         marker = '\n        case "GreatRecipe_Offer":\n'
         if marker in base:
