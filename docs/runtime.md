@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified delivery: October14. Sea submission allocation repair and the phonk/Cmd-Q batch5568bed+54f61fa are installed in the supported application with signed engine `20bf56a4a147c7b80c55970edf4430cec76d3ca84e9816988b426d706d24af2e`; prior919af997 is backed up. Oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. Installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. Native fleet profiling and the foam/cloud batch3d15e6a are installed in the supported application with signed engine `13180929e8d235ea61316e6ac202739e72ff932f868347f4c90c87bc60a47161`; prior20bf56a4 is backed up. Sea submission, phonk/Cmd-Q, oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. The equivalent fleet workload remains above the8.33ms target; installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
@@ -35,11 +35,14 @@ dynamic_sky-probe star-opacity assertion fails both the untouched baseline shade
 and current shader; it is an independent pre-existing negative, not a passed gate.
 All benchmark timing/profiling artifacts belong to the ignored native diagnostic
 owner; durable contracts and rejected fixture paths are in
-`docs/metal-sea-benchmark.md`. Installed signed20bf56a4 remains unchanged at this
-observation; final canonical build/staging and player acceptance are pending.
+`docs/metal-sea-benchmark.md`. Canonical `run.sh --stage-only` subsequently exits0
+for frozen3d15e6a, installing signed13180929 with prior20bf56a4 backed up. Independent
+installed hash matches; source fingerprintac434511 and unsigned3248914a bind
+the exact native build. Independent gameplay check reports0 pending in cache/app,
+compiler ready. Player SAVE/config remain outside the delivery transaction.
 
 Disposition: benchmark coverage, foam mechanism and bounded cloud repair accepted;
->120FPS whole-workload performance and original-app delivery unresolved. No game process was launched,
+>120FPS whole-workload performance unresolved; original-app delivery passes. No game process was launched,
 controlled or stopped; player SAVE/userdata remain untouched.
 
 ### October14 — sea index allocation repair installed; player FPS verdict pending
