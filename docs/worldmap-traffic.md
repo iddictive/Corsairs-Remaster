@@ -1,5 +1,30 @@
 # World-map traffic
 
+## Authored actors and finite map sinking — October14
+
+`worldmap-authored-actors.patch` owns the native live descriptor bridge.
+`worldMap.restoreEncounter=<saved child name>` reuses the existing factory and
+rejects a duplicate live identity; `retireEncounter` detaches that actor before
+marking it for the normal collector. The caller deletes its descriptor afterward.
+Pre-map restoration and live restoration share the same owner. The native
+`authoredPatrol.loaded` acknowledgment requires successful model creation.
+`authoredPatrol.returnX/returnZ/radius` reverse a Merchant's existing Goto route
+without enrolling it into ordinary traffic. Sinking/authored actors are excluded
+from native ordinary battle/reinforcement. The quest producer is documented in
+[great-recipe-quest.md](great-recipe-quest.md).
+
+`sinking.age/duration` projects a retired map hull downward with bounded opacity
+for0.1–10 real seconds, pauses with the map and preserves age. A valid active
+projection keeps its saved pointer through `DeleteUpdate`; `needDelete` already
+blocks script traffic/service/campaign/import scheduling. The producer owns
+ordinary/quest/sea/player eligibility and canonical roster/cargo death.
+On completion the native actor detaches before the existing deletion callback,
+because it may synchronously free the descriptor. A veto retries without
+resuming AI or reviving the roster. A full map restart may collect an already
+dead descriptor immediately. Cannon smoke is shared with the existing Warring
+actor rather than copied into a second emitter. Source/body checks pass;
+rendered/gameplay acceptance remains player-owned.
+
 ## Hourly work admission — October 9
 
 The hourly campaign sweep formerly refreshed/updated every colony and reviewed

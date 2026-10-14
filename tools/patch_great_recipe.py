@@ -239,7 +239,7 @@ EDITS = {
     ],
     "PROGRAM/worldmap/worldmap_reload.c": [
         ('\tisShipEncounterType = WdmAddEncountersData();', '\tisShipEncounterType = WdmAddEncountersData();\n    GreatRecipe_MapAdmission(&wdmLoginToSea);'),
-        ('\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);', '\t\t\tif (GreatRecipe_MapGuide(worldMap.encounter.id)) continue;\n\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);'),
+        ('\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);', '\t\t\tif (GreatRecipe_MapImportBlocked(worldMap.encounter.id)) continue;\n\t\t\tbool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);'),
     ],
     "PROGRAM/Loc_ai/LAi_fightparams.c": [
         ('\tif(CheckAttribute(enemy, "cirassId"))\n\t{\n\t\tdmg = dmg * (1.0 - stf(Items[sti(enemy.cirassId)].CirassLevel));\n\t}',
@@ -301,6 +301,10 @@ def prepare(relative: str, incoming: bytes) -> bytes:
         return incoming
     text = incoming.decode("utf-8").replace("\r\n", "\n")
     base = text
+    if relative == "PROGRAM/worldmap/worldmap_reload.c" and "GreatRecipe_MapGuide(worldMap.encounter.id)) continue;" in base:
+        if digest(base.encode()) != "19958f19626bb76c00fc41a6cc07e2791e1796e9619436e82e2d380fc15027cb":
+            raise ValueError("unreviewed prior recipe guide import")
+        base = base.replace("GreatRecipe_MapGuide(worldMap.encounter.id)) continue;", "GreatRecipe_MapImportBlocked(worldMap.encounter.id)) continue;", 1)
     if relative == "PROGRAM/worldmap/worldmap_reload.c" and "GreatRecipe_MapAdmission(wdmLoginToSea);" in base:
         if digest(base.encode()) != "5659f7f8e6fbf739b159332c2f6c9e9f352a4aa20658ae0c7988a0a0fbc56ddc":
             raise ValueError("unreviewed prior recipe map admission")

@@ -1,0 +1,271 @@
+--- src/apps/engine/src/main.cpp
++++ src/apps/engine/src/main.cpp
+@@ -1,4 +1,6 @@
+ #include <thread>
++#include <cstdlib>
++#include <cstring>
+ 
+ #include <SDL2/SDL.h>
+ #include <mimalloc-new-delete.h>
+@@ -58,6 +60,11 @@
+ 
+ void mimalloc_fun(const char *msg, void *arg)
+ {
++    if (spdlog::get_level() == spdlog::level::off)
++    {
++        fputs(msg, stderr);
++        return;
++    }
+     static std::filesystem::path mimalloc_log_path;
+     if (mimalloc_log_path.empty())
+     {
+@@ -121,6 +128,10 @@
+ 
+ int main(int argc, char *argv[])
+ {
++    const char *quietMode = std::getenv("STORM_QUIET_CLIENT");
++    const bool quietClient = quietMode && std::strcmp(quietMode, "1") == 0;
++    if (quietClient)
++        spdlog::set_level(spdlog::level::off);
+     // Prevent multiple instances
+ #ifdef _WIN32 // CreateEventA
+     if (!CreateEventA(nullptr, false, false, "Global\\FBBD2286-A9F1-4303-B60C-743C3D7AA7BE") ||
+@@ -141,7 +152,8 @@
+     mi_option_set(mi_option_reserve_huge_os_pages, 1);
+     //mi_option_set(mi_option_segment_cache, 16);
+ #ifdef _DEBUG
+-    mi_option_set(mi_option_verbose, 4);
++    if (!quietClient)
++        mi_option_set(mi_option_verbose, 4);
+ #endif
+ 
+     SDL_InitSubSystem(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+@@ -166,7 +178,8 @@
+     create_directories(fs::GetSaveDataPath());
+ 
+     // Init logging
+-    spdlog::set_default_logger(storm::logging::getOrCreateLogger(defaultLoggerName));
++    if (!quietClient)
++        spdlog::set_default_logger(storm::logging::getOrCreateLogger(defaultLoggerName));
+     spdlog::info("Logging system initialized. Running on {}", STORM_BUILD_WATERMARK_STRING);
+     spdlog::info("mimalloc-redirect status: {}", mi_is_redirected());
+ #ifdef STORM_AUDIO_DISABLED
+@@ -218,6 +231,8 @@
+     }
+     catch (const std::exception &e)
+     {
++        if (quietClient)
++            fprintf(stderr, "%s\n", e.what());
+         spdlog::critical(e.what());
+         return EXIT_FAILURE;
+     }
+--- src/libs/core/src/core_impl.cpp
++++ src/libs/core/src/core_impl.cpp
+@@ -560,6 +560,8 @@
+ 
+ void CoreImpl::Trace(const char *format, ...)
+ {
++    if (!spdlog::default_logger_raw()->should_log(spdlog::level::info))
++        return;
+     static char buffer_4k[4096];
+ 
+     va_list args;
+--- src/libs/core/src/compiler.cpp
++++ src/libs/core/src/compiler.cpp
+@@ -137,9 +137,16 @@
+     // bScriptTrace = false;
+ 
+     using storm::logging::getOrCreateLogger;
+-    logTrace_ = getOrCreateLogger("compile");
+-    logError_ = getOrCreateLogger("error");
+-    logStack_ = getOrCreateLogger("script_stack");
++    if (spdlog::get_level() == spdlog::level::off)
++    {
++        logTrace_ = logError_ = logStack_ = spdlog::default_logger();
++    }
++    else
++    {
++        logTrace_ = getOrCreateLogger("compile");
++        logError_ = getOrCreateLogger("error");
++        logStack_ = getOrCreateLogger("script_stack");
++    }
+     logStack_->set_pattern("%v");
+ }
+ 
+@@ -287,7 +294,7 @@
+ #ifdef TRACE_OFF
+     return;
+ #endif
+-    if (data_PTR == nullptr)
++    if (data_PTR == nullptr || !logTrace_->should_log(spdlog::level::trace))
+         return;
+     char LogBuffer[4096];
+     va_list args;
+@@ -303,7 +310,7 @@
+ #ifdef DTRACEOFF
+     return;
+ #endif
+-    if (data_PTR == nullptr)
++    if (data_PTR == nullptr || !logTrace_->should_log(spdlog::level::trace))
+         return;
+     char LogBuffer[4096];
+     va_list args;
+@@ -416,7 +423,10 @@
+     }
+     va_end(args);
+ 
+-    logError_->error(ErrorBuffer);
++    if (spdlog::get_level() == spdlog::level::off)
++        fprintf(stderr, "%s\n", ErrorBuffer);
++    else
++        logError_->error(ErrorBuffer);
+ 
+ #ifdef _WIN32 // S_DEBUG
+     if (bBreakOnError)
+@@ -429,6 +439,8 @@
+ #ifdef WARNINGS_OFF
+     return;
+ #endif
++    if (!logTrace_->should_log(spdlog::level::warn))
++        return;
+     if (bDebugExpressionRun)
+         return;
+     char LogBuffer[BUFSIZ];
+@@ -474,7 +486,7 @@
+         else
+             bWriteCodeFile = true;
+ 
+-        if (engine_ini->GetInt("script", "runtimelog", 0) == 0)
++        if (engine_ini->GetInt("script", "runtimelog", 0) == 0 || spdlog::get_level() == spdlog::level::off)
+             bRuntimeLog = false;
+         else
+             bRuntimeLog = true;
+@@ -732,11 +744,12 @@
+ 
+     uint64_t dwRDTSC, nTicks;
+ 
+-    RDTSC_B(dwRDTSC);
++    if (bRuntimeLog)
++        RDTSC_B(dwRDTSC);
+ 
+     bEventsBreak = false;
+ 
+-    uint32_t nTimeOnEvent = SDL_GetTicks();
++    uint32_t nTimeOnEvent = bRuntimeLog ? SDL_GetTicks() : 0;
+ #ifdef _WIN32 // S_DEBUG
+     current_debug_mode = CDebug->GetTraceMode();
+ #endif
+@@ -764,9 +777,11 @@
+         }
+ 
+         const uint32_t nStackVars = SStack.GetDataNum(); // remember stack elements num
+-        RDTSC_B(nTicks);
++        if (bRuntimeLog)
++            RDTSC_B(nTicks);
+         BC_Execute(ei.pFuncInfo[n].func_code, pResult);
+-        RDTSC_E(nTicks);
++        if (bRuntimeLog)
++            RDTSC_E(nTicks);
+ 
+         FuncInfo fi;
+         // if(FuncTab.GetFuncX(fi,ei.pFuncInfo[n].func_code))
+@@ -780,7 +795,7 @@
+ 
+         if (EventTab.GetEvent(ei, event_code)) // to be sure event still exist
+         {
+-            if (n < ei.elements)
++            if (bRuntimeLog && n < ei.elements)
+             {
+                 if (!FuncTab.AddTime(ei.pFuncInfo[n].func_code, nTicks))
+                 {
+@@ -806,9 +821,8 @@
+             break;
+     }
+ 
+-    nTimeOnEvent = SDL_GetTicks() - nTimeOnEvent;
+-
+-    nRuntimeTicks += nTimeOnEvent;
++    if (bRuntimeLog)
++        nRuntimeTicks += SDL_GetTicks() - nTimeOnEvent;
+ 
+     pRun_fi = nullptr;
+ 
+@@ -818,10 +832,11 @@
+ #endif
+     // SetFocus(core_internal.App_Hwnd);        // VANO CHANGES
+ 
+-    RDTSC_E(dwRDTSC);
++    if (bRuntimeLog)
++        RDTSC_E(dwRDTSC);
+ 
+     // VANO CHANGES - remove in release
+-    if (core_internal.Controls->GetDebugAsyncKeyState('5') < 0 &&
++    if (bRuntimeLog && core_internal.Controls->GetDebugAsyncKeyState('5') < 0 &&
+         core_internal.Controls->GetDebugAsyncKeyState(VK_SHIFT) < 0)
+     {
+         core_internal.Trace("evnt: %d, %s", dwRDTSC, event_name);
+@@ -3793,11 +3808,13 @@
+         }
+ 
+         // BC_CallIntFunction(func_code,pVResult,arguments);
+-        RDTSC_B(nTicks);
++        if (bRuntimeLog)
++            RDTSC_B(nTicks);
+         BC_CallIntFunction(func_code, pVResult, arguments);
+-        RDTSC_E(nTicks);
+-
+-        if (!FuncTab.AddTime(func_code, nTicks))
++        if (bRuntimeLog)
++            RDTSC_E(nTicks);
++
++        if (bRuntimeLog && !FuncTab.AddTime(func_code, nTicks))
+         {
+             core_internal.Trace("Invalid func_code = %u for AddTime", func_code);
+         }
+@@ -3805,7 +3822,8 @@
+     else if (call_fi.segment_id == IMPORTED_SEGMENT_ID)
+     {
+         pVResult = nullptr;
+-        RDTSC_B(nTicks);
++        if (bRuntimeLog)
++            RDTSC_B(nTicks);
+         const uint32_t nResult = call_fi.imported_func(&SStack);
+         if (nResult == IFUNCRESULT_OK)
+         {
+@@ -3814,8 +3832,9 @@
+                 pVResult = SStack.Read();
+             }
+         }
+-        RDTSC_E(nTicks);
+-        if (!FuncTab.AddTime(func_code, nTicks))
++        if (bRuntimeLog)
++            RDTSC_E(nTicks);
++        if (bRuntimeLog && !FuncTab.AddTime(func_code, nTicks))
+         {
+             core_internal.Trace("Invalid func_code = %u for AddTime", func_code);
+         }
+@@ -3823,10 +3842,12 @@
+     else
+     {
+         // BC_Execute(func_code,pVResult);
+-        RDTSC_B(nTicks);
++        if (bRuntimeLog)
++            RDTSC_B(nTicks);
+         BC_Execute(func_code, pVResult);
+-        RDTSC_E(nTicks);
+-        if (!FuncTab.AddTime(func_code, nTicks))
++        if (bRuntimeLog)
++            RDTSC_E(nTicks);
++        if (bRuntimeLog && !FuncTab.AddTime(func_code, nTicks))
+         {
+             core_internal.Trace("Invalid func_code = %u for AddTime", func_code);
+         }
+@@ -7306,6 +7327,8 @@
+ 
+ void COMPILER::CollectCallStack() const
+ {
++    if (!logStack_->should_log(spdlog::level::trace))
++        return;
+     logStack_->trace("Call stack:");
+     auto callStackCopy = callStack_;
+     while (!callStackCopy.empty())

@@ -99,6 +99,8 @@ def compiler_ready():
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("sea_tsunami_patch_sha256") == digest((METAL / "sea-tsunami.patch").read_bytes())
             and record.get("sea_whirlpool_patch_sha256") == digest((METAL / "sea-whirlpool.patch").read_bytes())
+            and record.get("worldmap_authored_actors_patch_sha256") == digest((METAL / "worldmap-authored-actors.patch").read_bytes())
+            and record.get("quiet_client_patch_sha256") == digest((METAL / "quiet-client.patch").read_bytes())
             and record.get("ship_phonk_patch_sha256") == digest((METAL / "ship-phonk.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
             and record.get("mast_repair_patch_sha256") == digest((METAL / "mast-repair.patch").read_bytes())

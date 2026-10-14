@@ -88,11 +88,15 @@ def build_launch_environment(user_dir: Path, inherited: dict[str, str]) -> dict[
     """Compute engine runtime environment variables with graphics options."""
     env = dict(inherited)
     env["STORM_USERDATA"] = str((user_dir / "userdata").resolve())
+    env.setdefault("STORM_QUIET_CLIENT", "1")
     env.setdefault("STORM_METAL_MODERN_EFFECTS", "1")
     env.setdefault("STORM_METAL_ISLAND_GEOMETRY", "0")
     env.setdefault("STORM_METAL_PROFILE", "0")
     env.setdefault("STORM_METAL_ROCKK2", "0")
     env.setdefault("STORM_TRACE_DECK_WALK", "0")
+    if env["STORM_QUIET_CLIENT"] == "1":
+        env["STORM_METAL_PROFILE"] = "0"
+        env["STORM_TRACE_DECK_WALK"] = "0"
 
     for key in ("DXVK_CONFIG_FILE", "DXVK_WSI_DRIVER", "DXVK_LOG_LEVEL", "MVK_CONFIG_LOG_LEVEL"):
         env.pop(key, None)
@@ -209,14 +213,14 @@ def main() -> int:
         os.close(lock_fd)
         sys.exit(f"Error: Engine executable not found or not executable: {engine_binary}")
 
-    # Redirect logging to user state logs/launch.log, rotating one previous
-    # session to launch.log.1 before the engine starts appending.
-    log_file = user_dir / "logs" / "launch.log"
-    rotate_launch_log(log_file)
-    log_fd = os.open(str(log_file), os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
-    os.dup2(log_fd, 1)
-    os.dup2(log_fd, 2)
-    os.close(log_fd)
+    # Diagnostic launches retain bounded session logs; ordinary play writes none.
+    if env["STORM_QUIET_CLIENT"] != "1":
+        log_file = user_dir / "logs" / "launch.log"
+        rotate_launch_log(log_file)
+        log_fd = os.open(str(log_file), os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
+        os.dup2(log_fd, 1)
+        os.dup2(log_fd, 2)
+        os.close(log_fd)
 
     # Transfer control to metal-engine with lock_fd held
     os.chdir(str(user_dir))

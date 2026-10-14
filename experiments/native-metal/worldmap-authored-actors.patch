@@ -1,0 +1,555 @@
+--- src/libs/worldmap/src/wdm_enemy_ship.cpp
++++ src/libs/worldmap/src/wdm_enemy_ship.cpp
+@@ -15,6 +15,9 @@
+ #include "wdm_islands.h"
+ #include "world_map.h"
+ #include <algorithm>
++#include <cmath>
++#include <cstring>
++#include "storm_assert.h"
+ 
+ //============================================================================================
+ 
+@@ -52,6 +55,7 @@
+ 
+ WdmEnemyShip::~WdmEnemyShip()
+ {
++    if (texture >= 0) wdmObjects->rs->TextureRelease(texture);
+     // Paired encounters expose this pointer to the player and sea-import cursor.
+     for (auto *ship : wdmObjects->ships)
+         if (ship != this && ship != wdmObjects->playerShip)
+@@ -74,27 +78,19 @@
+ {
+     if (!wdmObjects->playerShip)
+         return;
++    if (IsSinking())
++    {
++        UpdateSinking(dltTime);
++        UpdateCannonSmoke(dltTime);
++        return;
++    }
+     // Moving
+     Move(dltTime);
+     // Distance from us to the player
+     const auto dx = wdmObjects->playerShip->mtx.Pos().x - mtx.Pos().x;
+     const auto dz = wdmObjects->playerShip->mtx.Pos().z - mtx.Pos().z;
+     const auto d = sqrtf(dx * dx + dz * dz);
+-    // Visibility
+-    // depending on the distance from player
+-    alpha = 1.0f - (d - wdmObjects->enemyshipViewDistMin) /
+-                       (wdmObjects->enemyshipViewDistMax - wdmObjects->enemyshipViewDistMin);
+-    // depending on the time of appearance
+-    brnAlpha += WDM_ENEMYSHIP_BRNSPD * dltTime;
+-    if (brnAlpha > 1.0f)
+-        brnAlpha = 1.0f;
+-    alpha *= brnAlpha;
+-    // depending on the time of removal
+-    alpha *= slowingAlfa; // deleteAlpha;
+-    if (alpha < 0.0f)
+-        alpha = 0.0f;
+-    if (alpha > 1.0f)
+-        alpha = 1.0f;
++    UpdateVisibility(dltTime);
+     // Life completion check
+     if (isEnableKill)
+     {
+@@ -148,6 +144,30 @@
+     WdmShip::Update(dltTime);
+     // Updating parameters
+     UpdateSaveData();
++    UpdateCannonSmoke(dltTime);
++}
++
++void WdmEnemyShip::UpdateVisibility(float dltTime)
++{
++    if (!wdmObjects->playerShip) return;
++    const float dx = wdmObjects->playerShip->mtx.Pos().x - mtx.Pos().x;
++    const float dz = wdmObjects->playerShip->mtx.Pos().z - mtx.Pos().z;
++    const float d = sqrtf(dx * dx + dz * dz);
++    // Visibility
++    // depending on the distance from player
++    alpha = 1.0f - (d - wdmObjects->enemyshipViewDistMin) /
++                       (wdmObjects->enemyshipViewDistMax - wdmObjects->enemyshipViewDistMin);
++    // depending on the time of appearance
++    brnAlpha += WDM_ENEMYSHIP_BRNSPD * dltTime;
++    if (brnAlpha > 1.0f)
++        brnAlpha = 1.0f;
++    alpha *= brnAlpha;
++    // depending on the time of removal
++    alpha *= slowingAlfa; // deleteAlpha;
++    if (alpha < 0.0f)
++        alpha = 0.0f;
++    if (alpha > 1.0f)
++        alpha = 1.0f;
+ }
+ 
+ void WdmEnemyShip::LRender(VDX9RENDER *rs)
+@@ -166,6 +186,11 @@
+         wdmObjects->DrawVector(mtx.Pos(), mtx.Pos() + CVECTOR(dx, 0.0f, dz) * 10.0f, 0xffffff | a);
+     }
+     WdmShip::LRender(rs);
++    if (isWMRender && numRects > 0)
++    {
++        rs->TextureSet(0, texture);
++        rs->DrawRects(rect, numRects, "WdmWarringShipClouds");
++    }
+ }
+ 
+ // Find the pulling force in the desired direction
+@@ -422,6 +447,10 @@
+     {
+         deleteAlpha = 0.001f;
+     }
++    if (auto *patrol = saveAttribute->GetAttributeClass("authoredPatrol"))
++        patrol->SetAttributeUseDword("loaded", 1);
++    UpdateVisibility(0.0f);
++    if (IsSinking()) UpdateSinking(0.0f);
+     UpdateSaveData();
+ }
+ 
+@@ -432,10 +461,66 @@
+     const char *pnt = saveAttribute->GetAttribute("needDelete");
+     if (pnt)
+     {
++        // Script loss retires its roster immediately; keep only the finite
++        // native sinking projection attached until its normal delete callback.
++        auto *sink = saveAttribute->GetAttributeClass("sinking");
++        if (sink)
++        {
++            const float age = sink->GetAttributeAsFloat("age", -1.0f);
++            const float duration = sink->GetAttributeAsFloat("duration");
++            if (std::isfinite(age) && std::isfinite(duration) &&
++                age >= 0.0f && duration >= 0.1f && duration <= 10.0f && age < duration)
++                return;
++        }
+         isEnableKill = true;
+         deleteAlpha = 0.999999f;
+         saveAttribute = nullptr;
+     }
++}
++
++void WdmEnemyShip::RetireEncounter()
++{
++    saveAttribute = nullptr;
++    isLive = false;
++    isEnemy = false;
++    isSelect = false;
++    attack = nullptr;
++    killMe = true;
++}
++
++bool WdmEnemyShip::IsSinking() const
++{
++    return saveAttribute && ATTRIBUTES::IsLive(saveAttribute) && saveAttribute->GetAttributeClass("sinking");
++}
++
++void WdmEnemyShip::UpdateSinking(float dltTime)
++{
++    auto *sink = saveAttribute->GetAttributeClass("sinking");
++    const float savedDuration = sink->GetAttributeAsFloat("duration", 1.0f);
++    const float duration = std::isfinite(savedDuration) ? std::clamp(savedDuration, 0.1f, 10.0f) : 1.0f;
++    sink->SetAttributeUseFloat("duration", duration);
++    const float savedAge = sink->GetAttributeAsFloat("age");
++    float age = std::isfinite(savedAge) ? std::clamp(savedAge, 0.0f, duration) : 0.0f;
++    if (!wdmObjects->isPause && dltTime > 0.0f) age = std::min(duration, age + dltTime);
++    sink->SetAttributeUseFloat("age", age);
++    isLive = false;
++    isEnemy = isSelect = isEntryPlayer = false;
++    attack = nullptr;
++    speed = turnspd = 0.0f;
++    rspeed = 0.0f;
++    const float progress = age / duration;
++    mtx.Pos().y = -std::max(4.0f, modelRadius) * progress;
++    UpdateVisibility(0.0f);
++    alpha *= 1.0f - progress;
++    UpdateSaveData();
++    if (age < duration || dltTime <= 0.0f || wdmObjects->isPause) return;
++    const std::string name = GetAttributeName();
++    auto *saved = saveAttribute;
++    saveAttribute = nullptr;
++    auto *result = name.empty() ? nullptr : core.Event("WorldMap_EncounterDelete", "s", name.c_str());
++    if (!result || result->GetInt() != 0) killMe = true;
++    else if (ATTRIBUTES::IsLive(saved)) saveAttribute = saved;
++    else killMe = true;
+ }
+ 
+ // Find the position for the ship relative to the player
+@@ -504,7 +589,8 @@
+ ATTRIBUTES *WdmEnemyShip::GetTrafficData() const
+ {
+     if (!saveAttribute || !ATTRIBUTES::IsLive(saveAttribute) ||
+-        saveAttribute->GetAttribute("quest") || saveAttribute->GetAttribute("needDelete")) return nullptr;
++        saveAttribute->GetAttribute("quest") || saveAttribute->GetAttribute("needDelete") || IsSinking() ||
++        saveAttribute->GetAttributeClass("authoredPatrol")) return nullptr;
+     auto *enc = saveAttribute->FindAClass(saveAttribute, "encdata");
+     if (!enc || enc->GetAttribute("qID") || enc->GetAttributeAsDword("RealEncounterType") == 19) return nullptr;
+     const auto role = saveAttribute->GetAttributeAsDword("trafficRole");
+@@ -553,3 +639,84 @@
+     }
+     return theirs > ours * risk;
+ }
++
++void WdmEnemyShip::UpdateCannonSmoke(float dltTime)
++{
++    const CVECTOR *victimPosition = nullptr;
++    auto *patrol = saveAttribute ? saveAttribute->GetAttributeClass("authoredPatrol") : nullptr;
++    const char *target = patrol ? patrol->GetAttribute("attackTarget") : nullptr;
++    const std::string targetID = target ? target : "";
++    if (!IsSinking() && !targetID.empty())
++        for (auto *ship : wdmObjects->ships)
++            if (ship != this && ship != wdmObjects->playerShip && !ship->killMe &&
++                std::strcmp(static_cast<WdmEnemyShip *>(ship)->GetAttributeName(), targetID.c_str()) == 0)
++            { victimPosition = &ship->mtx.Pos(); break; }
++    if (victimPosition && targetID != authoredAttackTarget) brnTime = 26.0f;
++    authoredAttackTarget = targetID;
++    const bool firing = !IsSinking() && (shipType == wdmest_warring || victimPosition);
++    if (!firing && numRects == 0) return;
++    if (texture < 0) texture = wdmObjects->rs->TextureCreate("\\WorldMap\\csmoke.tga");
++    // Smoke
++    // spawn if necessary
++    brnTime += dltTime;
++    if (firing && dltTime > 0.0f && !wdmObjects->isPause && !numRects && rand() * (20.0f / RAND_MAX) < brnTime - 5.0f)
++    {
++        brnTime = 0.0f;
++        // Half for the left side
++        for (size_t i = 0; i < sizeof(move) / sizeof(move[0]) / 2; i++, numRects++)
++        {
++            rect[numRects].vPos = mtx.Pos() + CVECTOR(0.0f, 2.0f, 0.0f);
++            rect[numRects].vPos += mtx.Vz() * 2.5f * (1.0f - rand() * 2.0f / RAND_MAX);
++            rect[numRects].dwColor = 0;
++            rect[numRects].dwSubTexture = 0;
++            rect[numRects].fAngle = rand() * 6.0f / RAND_MAX;
++            rect[numRects].fSize = 0.0f;
++            move[numRects].dAng = 0.3f * (1.0f - rand() * 2.0f / RAND_MAX);
++            move[numRects].time = 0.0f;
++            move[numRects].kTime = 1.0f / (2.0f + rand() * 2.0f / RAND_MAX);
++            move[numRects].v = mtx.Vx() * 30.0f * (0.6f + rand() * (0.4f / RAND_MAX));
++        }
++        // Half for the right side
++        for (size_t i = 0; i < sizeof(move) / sizeof(move[0]) / 2; i++, numRects++)
++        {
++            rect[numRects].vPos = (victimPosition ? *victimPosition : mtx.Pos()) + CVECTOR(0.0f, 2.0f, 0.0f);
++            rect[numRects].vPos += mtx.Vz() * 2.5f * (1.0f - rand() * 2.0f / RAND_MAX);
++            rect[numRects].dwColor = 0;
++            rect[numRects].dwSubTexture = 0;
++            rect[numRects].fAngle = rand() * 6.0f / RAND_MAX;
++            rect[numRects].fSize = 0.0f;
++            move[numRects].dAng = 0.3f * (1.0f - rand() * 2.0f / RAND_MAX);
++            move[numRects].time = 0.0f;
++            move[numRects].kTime = 1.0f / (2.0f + rand() * 2.0f / RAND_MAX);
++            move[numRects].v = mtx.Vx() * -30.0f * (0.6f + rand() * (0.4f / RAND_MAX));
++        }
++    }
++    // Moving
++    for (int32_t i = 0; i < numRects; i++)
++    {
++        auto &mi = move[i];
++        mi.time += mi.kTime * dltTime;
++        if (mi.time >= 1.0f)
++        {
++            // Killing the Particle
++            numRects--;
++            for (auto j = i; j < numRects; j++)
++            {
++                rect[j] = rect[j + 1];
++                move[j] = move[j + 1];
++            }
++            continue;
++        }
++        auto k = 1.0f - 12.0f * mi.time;
++        if (k < 0.0f)
++            k = 0.0f;
++        rect[i].vPos += mi.v * k * k * dltTime;
++        rect[i].fAngle += mi.dAng * dltTime;
++        rect[i].fSize = 3.0f * (0.5f + mi.time * mi.time * 0.9f);
++        auto alpha = sqrtf(mi.time);
++        alpha = 1.0f - 4.0f * (alpha - 0.5f) * (alpha - 0.5f);
++        Assert(alpha >= 0.0f && alpha <= 1.0f);
++        alpha *= 255.0f * 0.3f * this->alpha;
++        rect[i].dwColor = (static_cast<int32_t>(alpha) << 24) | 0xffffff;
++    }
++}
+--- src/libs/worldmap/src/wdm_enemy_ship.h
++++ src/libs/worldmap/src/wdm_enemy_ship.h
+@@ -12,6 +12,7 @@
+ 
+ #include "wdm_ship.h"
+ #include "attributes.h"
++#include <string>
+ 
+ class WdmEnemyShip : public WdmShip
+ {
+@@ -73,6 +74,8 @@
+     // Setting parameters
+     virtual void SetSaveAttribute(ATTRIBUTES *save);
+     void DeleteUpdate();
++    void RetireEncounter();
++    bool IsSinking() const;
+ 
+     // --------------------------------------------------------------------------------------------
+     // Encapsulation
+@@ -90,6 +93,22 @@
+     ATTRIBUTES *saveAttribute;
+ 
+   private:
++    void UpdateVisibility(float dltTime);
++    void UpdateSinking(float dltTime);
++    void UpdateCannonSmoke(float dltTime);
++    struct MoveInfo
++    {
++        CVECTOR v;
++        float dAng;
++        float time;
++        float kTime;
++    };
++    RS_RECT rect[24];
++    MoveInfo move[24];
++    int32_t numRects = 0;
++    float brnTime = 5.0f;
++    int32_t texture = -1;
++    std::string authoredAttackTarget;
+     float brnAlpha;
+     float deleteAlpha;
+     float liveTime;
+--- src/libs/worldmap/src/wdm_merchant_ship.cpp
++++ src/libs/worldmap/src/wdm_merchant_ship.cpp
+@@ -96,6 +96,21 @@
+ void WdmMerchantShip::FindMoveForce()
+ {
+     isEnableSetDir = false;
++    auto *patrol = saveAttribute ? saveAttribute->GetAttributeClass("authoredPatrol") : nullptr;
++    if (patrol && !wdmObjects->isPause && patrol->GetAttribute("returnX") && patrol->GetAttribute("returnZ"))
++    {
++        const float radius = std::max(1.0f, patrol->GetAttributeAsFloat("radius", gotoRad));
++        const float x = gotoPos.x - mtx.Pos().x, z = gotoPos.z - mtx.Pos().z;
++        if (x * x + z * z <= radius * radius)
++        {
++            const float returnX = patrol->GetAttributeAsFloat("returnX");
++            const float returnZ = patrol->GetAttributeAsFloat("returnZ");
++            patrol->SetAttributeUseFloat("returnX", gotoPos.x);
++            patrol->SetAttributeUseFloat("returnZ", gotoPos.z);
++            Goto(returnX, returnZ, radius);
++            UpdateSaveData();
++        }
++    }
+     const CVECTOR destination = trafficSteering ? trafficDestination : gotoPos;
+     CVECTOR dir;
+     if (wdmObjects->islands)
+@@ -123,6 +138,7 @@
+ // Completion check
+ bool WdmMerchantShip::KillTest()
+ {
++    if (saveAttribute && saveAttribute->GetAttributeClass("authoredPatrol")) return false;
+     if (GetTrafficData() && (trafficSteering || attack)) return false;
+     const auto dx = gotoPos.x - mtx.Pos().x;
+     const auto dz = gotoPos.z - mtx.Pos().z;
+--- src/libs/worldmap/src/wdm_warring_ship.cpp
++++ src/libs/worldmap/src/wdm_warring_ship.cpp
+@@ -9,7 +9,6 @@
+ //============================================================================================
+ 
+ #include "wdm_warring_ship.h"
+-#include "storm_assert.h"
+ 
+ // ============================================================================================
+ // Construction, destruction
+@@ -18,16 +17,6 @@
+ WdmWarringShip::WdmWarringShip()
+ {
+     shipType = wdmest_warring;
+-    numRects = 0;
+-    brnTime = 5.0f;
+-    texture = -1;
+-
+-}
+-
+-WdmWarringShip::~WdmWarringShip()
+-{
+-    if (texture >= 0)
+-        wdmObjects->rs->TextureRelease(texture);
+ }
+ 
+ // Calculations
+@@ -42,83 +31,4 @@
+         if (killMe)
+             attack->killMe = true;
+     }
+-    // Routed ships retain the same model/identity when a local clash begins.
+-    if (shipType != wdmest_warring && numRects == 0) return;
+-    if (texture < 0) texture = wdmObjects->rs->TextureCreate("\\WorldMap\\csmoke.tga");
+-    // Smoke
+-    // spawn if necessary
+-    brnTime += dltTime;
+-    if (shipType == wdmest_warring && !numRects && rand() * (20.0f / RAND_MAX) < brnTime - 5.0f)
+-    {
+-        brnTime = 0.0f;
+-        // Half for the left side
+-        for (size_t i = 0; i < sizeof(move) / sizeof(move[0]) / 2; i++, numRects++)
+-        {
+-            rect[numRects].vPos = mtx.Pos() + CVECTOR(0.0f, 2.0f, 0.0f);
+-            rect[numRects].vPos += mtx.Vz() * 2.5f * (1.0f - rand() * 2.0f / RAND_MAX);
+-            rect[numRects].dwColor = 0;
+-            rect[numRects].dwSubTexture = 0;
+-            rect[numRects].fAngle = rand() * 6.0f / RAND_MAX;
+-            rect[numRects].fSize = 0.0f;
+-            move[numRects].dAng = 0.3f * (1.0f - rand() * 2.0f / RAND_MAX);
+-            move[numRects].time = 0.0f;
+-            move[numRects].kTime = 1.0f / (2.0f + rand() * 2.0f / RAND_MAX);
+-            move[numRects].v = mtx.Vx() * 30.0f * (0.6f + rand() * (0.4f / RAND_MAX));
+-        }
+-        // Half for the right side
+-        for (size_t i = 0; i < sizeof(move) / sizeof(move[0]) / 2; i++, numRects++)
+-        {
+-            rect[numRects].vPos = mtx.Pos() + CVECTOR(0.0f, 2.0f, 0.0f);
+-            rect[numRects].vPos += mtx.Vz() * 2.5f * (1.0f - rand() * 2.0f / RAND_MAX);
+-            rect[numRects].dwColor = 0;
+-            rect[numRects].dwSubTexture = 0;
+-            rect[numRects].fAngle = rand() * 6.0f / RAND_MAX;
+-            rect[numRects].fSize = 0.0f;
+-            move[numRects].dAng = 0.3f * (1.0f - rand() * 2.0f / RAND_MAX);
+-            move[numRects].time = 0.0f;
+-            move[numRects].kTime = 1.0f / (2.0f + rand() * 2.0f / RAND_MAX);
+-            move[numRects].v = mtx.Vx() * -30.0f * (0.6f + rand() * (0.4f / RAND_MAX));
+-        }
+-    }
+-    // Moving
+-    for (int32_t i = 0; i < numRects; i++)
+-    {
+-        auto &mi = move[i];
+-        mi.time += mi.kTime * dltTime;
+-        if (mi.time >= 1.0f)
+-        {
+-            // Killing the Particle
+-            numRects--;
+-            for (auto j = i; j < numRects; j++)
+-            {
+-                rect[j] = rect[j + 1];
+-                move[j] = move[j + 1];
+-            }
+-            continue;
+-        }
+-        auto k = 1.0f - 12.0f * mi.time;
+-        if (k < 0.0f)
+-            k = 0.0f;
+-        rect[i].vPos += mi.v * k * k * dltTime;
+-        rect[i].fAngle += mi.dAng * dltTime;
+-        rect[i].fSize = 3.0f * (0.5f + mi.time * mi.time * 0.9f);
+-        auto alpha = sqrtf(mi.time);
+-        alpha = 1.0f - 4.0f * (alpha - 0.5f) * (alpha - 0.5f);
+-        Assert(alpha >= 0.0f && alpha <= 1.0f);
+-        alpha *= 255.0f * 0.3f * this->alpha;
+-        rect[i].dwColor = (static_cast<int32_t>(alpha) << 24) | 0xffffff;
+-    }
+ }
+-
+-// Rendering
+-void WdmWarringShip::LRender(VDX9RENDER *rs)
+-{
+-    WdmEnemyShip::LRender(rs);
+-    // Smoke
+-    if (isWMRender && numRects > 0)
+-    {
+-        rs->TextureSet(0, texture);
+-        // Render
+-        rs->DrawRects(rect, numRects, "WdmWarringShipClouds");
+-    }
+-}
+--- src/libs/worldmap/src/wdm_warring_ship.h
++++ src/libs/worldmap/src/wdm_warring_ship.h
+@@ -14,39 +14,17 @@
+ 
+ class WdmWarringShip : public WdmEnemyShip
+ {
+-    struct MoveInfo
+-    {
+-        CVECTOR v;
+-        float dAng;
+-        float time;
+-        float kTime;
+-    };
+-
+     // --------------------------------------------------------------------------------------------
+     // Construction, destruction
+     // --------------------------------------------------------------------------------------------
+   public:
+     WdmWarringShip();
+-    ~WdmWarringShip() override;
+ 
+     // Calculations
+     void Update(float dltTime) override;
+-
+-    // Rendering
+-    void LRender(VDX9RENDER *rs) override;
+ 
+   protected:
+     // All move calculations together
+     void Move(float dltTime) override{};
+ 
+-    // --------------------------------------------------------------------------------------------
+-    // Encapsulation
+-    // --------------------------------------------------------------------------------------------
+-  private:
+-    // Particles for cannon smoke
+-    RS_RECT rect[24];
+-    MoveInfo move[24];
+-    int32_t numRects;
+-    float brnTime;
+-    int32_t texture;
+ };
+--- src/libs/worldmap/src/world_map.cpp
++++ src/libs/worldmap/src/world_map.cpp
+@@ -358,6 +358,10 @@
+ void WorldMap::RestoreEncounter(ATTRIBUTES *a)
+ {
+     if (!a) return;
++    for (auto *ship : wdmObjects->ships)
++        if (ship != wdmObjects->playerShip && !ship->killMe &&
++            storm::iEquals(static_cast<WdmEnemyShip *>(ship)->GetAttributeName(), a->GetThisName()))
++            return;
+     // A tagged fleet is owned by the sea scene until its survivor handback.
+     if (a->GetAttributeAsDword("trafficInSea")) return;
+     const char *type = a->GetAttribute("type");
+@@ -391,6 +395,10 @@
+             auto *a1 = saveData->FindAClass(saveData, attacked);
+             if (a1)
+             {
++                for (auto *ship : wdmObjects->ships)
++                    if (ship != wdmObjects->playerShip && !ship->killMe &&
++                        storm::iEquals(static_cast<WdmEnemyShip *>(ship)->GetAttributeName(), a1->GetThisName()))
++                        return;
+                 const char *modelName1 = a1->GetAttribute("modelName");
+                 if (modelName1 && modelName1[0])
+                 {
+@@ -777,7 +785,21 @@
+     float x, z, ay;
+     if (!apnt || !AttributesPointer || !loadComplete)
+         return 0;
+-    if (storm::iEquals(apnt->GetThisName(), "deleteUpdate"))
++    if (apnt->GetParent() == AttributesPointer && storm::iEquals(apnt->GetThisName(), "restoreEncounter"))
++    {
++        const char *name = apnt->GetThisAttr();
++        if (saveData && name && name[0]) RestoreEncounter(saveData->GetAttributeClass(name));
++    }
++    else if (apnt->GetParent() == AttributesPointer && storm::iEquals(apnt->GetThisName(), "retireEncounter"))
++    {
++        const char *name = apnt->GetThisAttr();
++        if (name && name[0])
++            for (auto *ship : wdmObjects->ships)
++                if (ship != wdmObjects->playerShip && !ship->killMe &&
++                    storm::iEquals(static_cast<WdmEnemyShip *>(ship)->GetAttributeName(), name))
++                    static_cast<WdmEnemyShip *>(ship)->RetireEncounter();
++    }
++    else if (storm::iEquals(apnt->GetThisName(), "deleteUpdate"))
+     {
+         for (int32_t i = 0; i < wdmObjects->ships.size(); i++)
+         {
+@@ -1087,7 +1109,8 @@
+ {
+     if (kSpeed < 0.1f)
+         kSpeed = 0.1f;
+-    WdmShip *ship = new WdmMerchantShip((save && save->GetAttribute("trafficRole")) ||
++    WdmShip *ship = new WdmMerchantShip((save && (save->GetAttribute("trafficRole") ||
++        save->GetAttributeClass("authoredPatrol") || save->GetAttributeClass("sinking"))) ||
+         AttributesPointer->GetAttributeAsDword("trafficRequestRole") != 0);
+     if (ship->killMe)
+     {

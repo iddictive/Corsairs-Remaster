@@ -4,6 +4,46 @@ Last verified delivery: October14. Actual player miniature and softer camera8f18
 
 ## Current verdict
 
+### October14 — nightly Beard patrol, rapid NPC sinking and quiet client candidate
+
+The player supersedes the permanent guide with a ship appearing only during
+the inherited clear22–04/date12–18 window, patrolling the same Bermuda corridor
+and disappearing at dawn. Ordinary non-quest NPCs encountered there must sink
+almost immediately. The player also requests miscellaneous client diagnostics
+off to avoid logging/profiling costs. The accepting game remains the installed
+arm64 Metal app; current engine76511506 has zero running holders. Its ordinary
+player ini has runtimelog1/tracefiles1 and no logs key. The candidate does not
+edit that config or SAVE; normal launcher environment owns quiet activation.
+
+GRC now restores one named native actor at full appearance alpha, checks its
+native loaded acknowledgment, preserves same-night route position and resets
+to the same start on the next watch. Continuous post-movement proximity owns
+player admission. Native authored endpoints reverse through existing navigation;
+an exact named retirement detaches before script deletion and normal collection.
+Ordinary NPC admission preserves qID/quest/ALONE, player/companions, sea-owned,
+deleting and dead fleets. Stock roster/cargo losses close the fleet immediately,
+with immutable slot bounds. Its native model sinks/fades for about one second
+with shared stock cannon smoke, then uses the original deletion callback.
+The existing needDelete predicate blocks the traffic/service/campaign consumers;
+only the finite native projection retains that pointer until completion.
+
+Full GRC PROGRAM compilation and actual selected sea importer/reference
+admission pass with no script errors. Real VM/codec cases cover midnight/dawn,
+next-night reset, missing native actor, ten protected NPC classes, total roster/
+cargo loss, no revival, daytime legacy migration and advanced battle state.
+Four native units pass syntax. Actual native body execution covers both route
+ends/pause, finite sinking/saved age, normal deletion/veto and immediate retire;
+their environment is substituted, with no rendering or game launch. Actual
+quiet-body instrumentation passes zero diagnostic formatting, file factories,
+profiling timer/sink work with unchanged event/call returns and stack cleanup.
+Normal public startup defaults quiet; diagnostic mode remains explicit. Backend
+periodic matrix/shadow reports stop before collecting data when profiling is off.
+Gameplay Log_Info remains unchanged. The two new ordered native patches bind
+the same compile receipt as content activation; source checks show two script
+files pending and compiler build/stage pending. Installation and native build
+are not yet accepted. No autonomous game test, launch, controls or SAVE read occurs.
+The player owns visible patrol, attack, NPC sinking and measured FPS replay.
+
 ### October14 — actual player miniature and softer overhead motion installed, player replay pending
 
 The player finds the overhead successor better but still abrupt, with no clouds,
