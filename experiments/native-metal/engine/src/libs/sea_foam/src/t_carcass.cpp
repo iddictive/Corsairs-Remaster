@@ -178,20 +178,22 @@ void TCarcass::Execute(uint32_t _dTime, CMatrix &_mtx, const CVECTOR *_starts)
     for (auto level = 0; level < levelsCount; level++)
         levelStarts[level] = _starts[level];
 
+    const auto createIndexes = !indexesCreated;
     auto *vBufferPointer = static_cast<tCarcassVertex *>(renderer->LockVertexBuffer(vBuffer));
-    auto *iBufferPointer = static_cast<uint16_t *>(renderer->LockIndexBuffer(iBuffer));
 
     if (indexesCreated)
         RebuildLevels(vBufferPointer, false, _dTime);
     else
     {
+        auto *iBufferPointer = static_cast<uint16_t *>(renderer->LockIndexBuffer(iBuffer));
         RebuildIndexes(iBufferPointer);
         RebuildLevels(vBufferPointer, true, _dTime);
         indexesCreated = true;
     }
 
     renderer->UnLockVertexBuffer(vBuffer);
-    renderer->UnLockIndexBuffer(iBuffer);
+    if (createIndexes)
+        renderer->UnLockIndexBuffer(iBuffer);
     time += _dTime;
 }
 

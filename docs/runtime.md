@@ -4,6 +4,44 @@ Last verified delivery: October14. Sea submission allocation repair and the phon
 
 ## Current verdict
 
+### October14 — autonomous native fleet benchmark; >120FPS unresolved
+
+The hidden engine-linked fixture runs without CUA, game startup, SAVE or focus
+changes, using original app assets, eight Manowar1 ships and2560×1655 with VSync
+off. The384-frame baseline `20261014-144800` has256 warmed frames: CPU Core wall
+median12.754ms/p9916.626ms, completed GPU execution union median15.432ms/
+p9921.285ms,36 allocations/frame. Actual coverage minima are152 sail draws,
+311 animated draws, one main sea/current cloud field and eight complete point
+cubes. Full native readback contains water, reflections, ships, rigging and sky.
+This proves a representative rendering workload, not whole-game FPS or battle AI.
+
+The foam index repair's matched run `20261014-150339` preserves draw/pass minima
+and reduces allocations36→20; GPU median15.344ms does not support a major FPS
+claim. Native sea capture `20261014-145742` contains113 encoders/3098 draws;
+embedded overlapping M3 Max profiling attributes26.68% cost to Sky cloud tile
+(7.171ms compute statistic, not a serial addition to frame time). xctrace's
+unfinished `20261014-145352` document is rejected evidence. CPU sample
+`20261014-151002` succeeds after rejecting a too-short symbol-processing timeout:
+252/333 main samples are Realize, including73 Sailors and66 reflected ship
+traversal. Inclusive groups overlap; they are not added.
+
+Source now avoids noise reads for algebraically empty cloud samples. Intermediate
+detail-only repair `20261014-150924` has GPU median14.669ms/p9918.665ms and CPU
+median12.773ms/p9915.569ms with the same coverage; target remains unmet. Final
+height-envelope variant `20261014-151505` passes the same coverage and whole-scene
+visual check: GPU median13.601ms/p9917.964ms, CPU median13.258ms/p9913.854ms.
+Four-weather old/new GPU fields differ by at most one half-float ULP. The existing
+dynamic_sky-probe star-opacity assertion fails both the untouched baseline shader
+and current shader; it is an independent pre-existing negative, not a passed gate.
+All benchmark timing/profiling artifacts belong to the ignored native diagnostic
+owner; durable contracts and rejected fixture paths are in
+`docs/metal-sea-benchmark.md`. Installed signed20bf56a4 remains unchanged at this
+observation; final canonical build/staging and player acceptance are pending.
+
+Disposition: benchmark coverage, foam mechanism and bounded cloud repair accepted;
+>120FPS whole-workload performance and original-app delivery unresolved. No game process was launched,
+controlled or stopped; player SAVE/userdata remain untouched.
+
 ### October14 — sea index allocation repair installed; player FPS verdict pending
 
 The active919af997 fleet profile binds substantial main-thread draw work:

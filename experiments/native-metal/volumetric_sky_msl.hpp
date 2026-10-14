@@ -433,18 +433,23 @@ float density(float3 pip, float3 weather, float mip, texture3d<float> large_scal
 
 	// Base wind follows exact world-space displacement.
 	p.xz += w.options.yz*layer.shear+float2(layer.base*3.1f,layer.base*1.7f);
+	float type=clamp(layer.type+(macro.r-.5f)*.18f,0.f,1.f);
+	float g = densityHeightGradient(height_fraction, type);
+	// A zero height envelope cannot produce density at any noise value.
+	if (g <= 0.0f) return 0.0f;
 
 	// Define the base of the cloud.
 	float4 n = large_scale_noise.sample(ns, float3(p.x*layer.scale,(length(pip)-g_radius-layer.base)*2500.f/(layer.top-layer.base),p.z*layer.scale) * float3(.00012f,.00008f,.00012f), level(max(0.f,mip-2.f)));
 	float fbm = n.g * 0.625 + n.b * 0.25 + n.a * 0.125;
 
 	// Remap based on weather, coverage, and cloud shape gradient.
-	float type=clamp(layer.type+(macro.r-.5f)*.18f,0.f,1.f);
-	float g = densityHeightGradient(height_fraction, type);
 	float base_cloud = remap(n.r, -(1.0 - fbm), 1.0, 0.0, 1.0);
 	float weather_coverage = clamp(w.wind_coverage_density.z * layer.coverage * weather.b * (.65f+.60f*macro.b),.001f,1.f);
 	base_cloud = remap(base_cloud * g, 1.0 - (weather_coverage), 1.0, 0.0, 1.0);
 	base_cloud *= weather_coverage;
+	// Detail only erodes the nonnegative base. Empty samples remain exactly
+	// zero for every normalized noise value, without another 3D texture read.
+	if (base_cloud <= 0.0f) return 0.0f;
 
 	// Detailed wind.
 	p.xz -= w.options.yz * (6.5f*layer.shear);
