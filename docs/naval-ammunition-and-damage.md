@@ -151,11 +151,14 @@ unlearned group selection and unchanged raking / ordinary perk groups.
 This accepts source, format and consumer selection; the installed menu remains
 unreplayed while game control is stopped.
 
-Random NPC acquisition is a separate existing limitation:
-`PROGRAM/Loc_ai/LAi_equip.c:LAi_NPC_EquipPerk` grants a fixed eight-tier cannon
-list, not the dynamic registry. It currently includes neither `HeatedShot` nor
+Random NPC acquisition was a separate limitation in the original perk batch:
+`PROGRAM/Loc_ai/LAi_equip.c:LAi_NPC_EquipPerk` granted a fixed eight-tier cannon
+list, rather than the dynamic registry. It included neither `HeatedShot` nor
 `RakingFire`; player learning/assigned-officer inheritance does not imply random
-NPC acquisition. The NPC selector remains unchanged in this source/art batch.
+NPC acquisition. The original source/art batch did not change that selector.
+The subsequent registry-driven NPC replacement and its delivery state belong
+to `npc-generation.md`; its isolated VM proves HeatedShot reachability with
+actual prerequisites, while real encounter replay remains pending.
 
 Acceptance requires learning from both the hero and assigned cannoner,
 red shots mixed with ordinary shots, local ignition on a vulnerable target,

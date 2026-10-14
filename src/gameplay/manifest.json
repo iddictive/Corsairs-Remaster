@@ -462,6 +462,60 @@
     "PROGRAM/scripts/sea_phonk.c": {
       "encoding": "utf-8",
       "legacy": []
+    },
+    "PROGRAM/characters/GeneratorUtilite.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "69d4fedb0243c9d1393fe0d6e276fd5d5b7772825eb178041b630e42f067a70f"
+      ]
+    },
+    "PROGRAM/scripts/utils.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "f63b3a41f3744daaa1793b396dd1c26830fb7973ba39afd8f6a01306dffc2061"
+      ]
+    },
+    "PROGRAM/scripts/officers.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "71e36edd92016eeae8bc784f4f92e004ebddbc5c79c849347bc3a81aac80ce9b"
+      ]
+    },
+    "PROGRAM/scripts/PsHero.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "eca44b348f0de9bb5bde37141f283833a2a0c4d5a251449dbc7f0f565dd8d5fc"
+      ]
+    },
+    "PROGRAM/Loc_ai/LAi_utilites.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "b76b427775e1ad0555865bb6c05b3e04307b694f03d0812bc3c876b6ae5a0449"
+      ]
+    },
+    "PROGRAM/Loc_ai/LAi_zLoadUtils.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "9e60f576bdb62c7fadb61b81335e78666f57cbaea5d65a9899c11fec9232ce76"
+      ]
+    },
+    "PROGRAM/characters/RPGUtilite.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "99ab58e9f707ba25f812c2a0381e9b45919cf506663873d14cca8c6706132735"
+      ]
+    },
+    "PROGRAM/Loc_ai/LAi_equip.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "76831abc69be5d819a9c4457b0c733ca280cdb0cf5939bc7631fb828f0fe8351"
+      ]
+    },
+    "PROGRAM/Loc_ai/LAi_utils.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "87e2e8f5af40ab975bf1378b6dd40173fcc8767c470bc0a8ab58ca607a5fc988"
+      ]
     }
   }
 }
