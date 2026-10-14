@@ -1,5 +1,5 @@
---- src/libs/worldmap/src/wdm_enemy_ship.cpp
-+++ src/libs/worldmap/src/wdm_enemy_ship.cpp
+--- a/src/libs/worldmap/src/wdm_enemy_ship.cpp
++++ b/src/libs/worldmap/src/wdm_enemy_ship.cpp
 @@ -15,6 +15,9 @@
  #include "wdm_islands.h"
  #include "world_map.h"
@@ -269,8 +269,8 @@
 +        rect[i].dwColor = (static_cast<int32_t>(alpha) << 24) | 0xffffff;
 +    }
 +}
---- src/libs/worldmap/src/wdm_enemy_ship.h
-+++ src/libs/worldmap/src/wdm_enemy_ship.h
+--- a/src/libs/worldmap/src/wdm_enemy_ship.h
++++ b/src/libs/worldmap/src/wdm_enemy_ship.h
 @@ -12,6 +12,7 @@
  
  #include "wdm_ship.h"
@@ -311,8 +311,8 @@
      float brnAlpha;
      float deleteAlpha;
      float liveTime;
---- src/libs/worldmap/src/wdm_merchant_ship.cpp
-+++ src/libs/worldmap/src/wdm_merchant_ship.cpp
+--- a/src/libs/worldmap/src/wdm_merchant_ship.cpp
++++ b/src/libs/worldmap/src/wdm_merchant_ship.cpp
 @@ -96,6 +96,21 @@
  void WdmMerchantShip::FindMoveForce()
  {
@@ -343,8 +343,8 @@
      if (GetTrafficData() && (trafficSteering || attack)) return false;
      const auto dx = gotoPos.x - mtx.Pos().x;
      const auto dz = gotoPos.z - mtx.Pos().z;
---- src/libs/worldmap/src/wdm_warring_ship.cpp
-+++ src/libs/worldmap/src/wdm_warring_ship.cpp
+--- a/src/libs/worldmap/src/wdm_warring_ship.cpp
++++ b/src/libs/worldmap/src/wdm_warring_ship.cpp
 @@ -9,7 +9,6 @@
  //============================================================================================
  
@@ -454,8 +454,8 @@
 -        rs->DrawRects(rect, numRects, "WdmWarringShipClouds");
 -    }
 -}
---- src/libs/worldmap/src/wdm_warring_ship.h
-+++ src/libs/worldmap/src/wdm_warring_ship.h
+--- a/src/libs/worldmap/src/wdm_warring_ship.h
++++ b/src/libs/worldmap/src/wdm_warring_ship.h
 @@ -14,39 +14,17 @@
  
  class WdmWarringShip : public WdmEnemyShip
@@ -496,8 +496,8 @@
 -    float brnTime;
 -    int32_t texture;
  };
---- src/libs/worldmap/src/world_map.cpp
-+++ src/libs/worldmap/src/world_map.cpp
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
 @@ -358,6 +358,10 @@
  void WorldMap::RestoreEncounter(ATTRIBUTES *a)
  {

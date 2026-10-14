@@ -1,5 +1,5 @@
---- src/apps/engine/src/main.cpp
-+++ src/apps/engine/src/main.cpp
+--- a/src/apps/engine/src/main.cpp
++++ b/src/apps/engine/src/main.cpp
 @@ -1,4 +1,6 @@
  #include <thread>
 +#include <cstdlib>
@@ -59,8 +59,8 @@
          spdlog::critical(e.what());
          return EXIT_FAILURE;
      }
---- src/libs/core/src/core_impl.cpp
-+++ src/libs/core/src/core_impl.cpp
+--- a/src/libs/core/src/core_impl.cpp
++++ b/src/libs/core/src/core_impl.cpp
 @@ -560,6 +560,8 @@
  
  void CoreImpl::Trace(const char *format, ...)
@@ -70,8 +70,8 @@
      static char buffer_4k[4096];
  
      va_list args;
---- src/libs/core/src/compiler.cpp
-+++ src/libs/core/src/compiler.cpp
+--- a/src/libs/core/src/compiler.cpp
++++ b/src/libs/core/src/compiler.cpp
 @@ -137,9 +137,16 @@
      // bScriptTrace = false;
  

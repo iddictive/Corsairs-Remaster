@@ -44,6 +44,12 @@ files pending and compiler build/stage pending. Installation and native build
 are not yet accepted. No autonomous game test, launch, controls or SAVE read occurs.
 The player owns visible patrol, attack, NPC sinking and measured FPS replay.
 
+The first canonical stage rejects the two new patches before source/app mutation:
+their scratch dry-run used p0 headers, while the owning ordered loader requires
+a/b paths. Both patch headers now follow that existing format; the loader's
+exact path validator passes for all nine native source targets. Native bodies
+are unchanged. This was an input-format rejection, not gameplay acceptance.
+
 ### October14 — actual player miniature and softer overhead motion installed, player replay pending
 
 The player finds the overhead successor better but still abrupt, with no clouds,
