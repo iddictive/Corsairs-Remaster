@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified delivery: October14. Actual player miniature and softer camera8f18c51 are installed with signed engine `765115069b6ad2b5e0eefa13028cf4afefb01d0fcc2fe341d65806a184ad65f8`; prior e870 is backed up. Beard dialogue/admission6dc1d99 and guide/controller68c3334 remain composed; their nightly-patrol replacement is excluded scratch. Canonical stage exits0 and content parity reports zero pending, compiler ready. Actual camera/miniature and guide/patrol gameplay remain unresolved. The user requested the game closed and forbids autonomous game testing; the launched process is terminated and no further launch or game input is authorized without a new request. No player SAVE read/edit occurs. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
+Last verified delivery: October14. Nightly Beard patrol, rapid ordinary-NPC sinking and quiet client3932940/5d06725 are installed with signed engine `d3f21a3f5a1ce929511b882ca1f6694ca4ce45fd23d71cedbea4404a5f630acf`; prior76511506 is backed up. Actual player miniature/camera8f18c51 and Beard dialogue/admission6dc1d99 remain composed. Canonical stage exits0 and content parity reports zero pending, compiler ready. Actual camera/miniature, patrol/sinking gameplay and same-scene FPS remain unresolved. The user requested the game closed and forbids autonomous game testing; no further launch or game input is authorized without a new request. No player SAVE read/edit occurs. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
 
 ## Current verdict
 
-### October14 — nightly Beard patrol, rapid NPC sinking and quiet client candidate
+### October14 — nightly Beard patrol, rapid NPC sinking and quiet client installed; player replay pending
 
 The player supersedes the permanent guide with a ship appearing only during
 the inherited clear22–04/date12–18 window, patrolling the same Bermuda corridor
@@ -39,9 +39,9 @@ profiling timer/sink work with unchanged event/call returns and stack cleanup.
 Normal public startup defaults quiet; diagnostic mode remains explicit. Backend
 periodic matrix/shadow reports stop before collecting data when profiling is off.
 Gameplay Log_Info remains unchanged. The two new ordered native patches bind
-the same compile receipt as content activation; source checks show two script
-files pending and compiler build/stage pending. Installation and native build
-are not yet accepted. No autonomous game test, launch, controls or SAVE read occurs.
+the same compile receipt as content activation. Initial source checks show two
+script files pending and compiler build/stage pending. No autonomous game test,
+launch, controls or SAVE read occurs.
 The player owns visible patrol, attack, NPC sinking and measured FPS replay.
 
 The first canonical stage rejects the two new patches before source/app mutation:
@@ -49,6 +49,24 @@ their scratch dry-run used p0 headers, while the owning ordered loader requires
 a/b paths. Both patch headers now follow that existing format; the loader's
 exact path validator passes for all nine native source targets. Native bodies
 are unchanged. This was an input-format rejection, not gameplay acceptance.
+
+Canonical `experiments/native-metal/run.sh --stage-only` subsequently exits0
+at5d06725. Installed signed engine is d3f21a3f5a1ce929511b882ca1f6694ca4ce45fd23d71cedbea4404a5f630acf;
+built engine receipt is19977b752124f87277dd2b7226263d7d8bc6beeb47debd466d79f96a741bc68d.
+It binds authored-actor patch b460c11c504b2e97c9c4a65acafa48ccea4166deb5c1fda7fdbdd4662dffc5f8
+and quiet patch433868621affc93ab01d550a1d9e0f5649a97934fb14e806d28b7007a2110070.
+Installed launcher SHA6393b971a2979c92803e9f61ed04f12c642d35b8be81323a589b9a1782378e75
+matches the source whose ordinary startup selects quiet1/profile0/deck-trace0.
+Installed GRC de7763f05e01dd86637d479efc80c49ca8520423310f85c2f7eba207ea93697c
+and reload e55cb52abd271c40c03ebf4beda0fd01676c3af8ed61b30d4e43620d68711d6d
+match the isolated VM inputs. The fixture is refreshed with the installed
+camera/miniature sea077d2061 and worldmap5fb39db4 consumers; its full PROGRAM
+compilation, NightCases and NightAfterLoad still return0 with zero script errors.
+Post-stage content comparison reports zero pending for cache and installed app,
+compiler ready. The prior signed76511506 engine is retained for recovery.
+Strict installed-bundle signature verification passes; game process holders0.
+Installation is accepted; visible gameplay and measured performance remain
+unresolved and belong to the player's next ordinary app session.
 
 ### October14 — actual player miniature and softer overhead motion installed, player replay pending
 

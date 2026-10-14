@@ -73,7 +73,7 @@ the canonical engine build/stage consumes them; script compilation alone does
 not provide the new native attribute bridge. Ordinary installed startup defaults
 to `STORM_QUIET_CLIENT=1` through the public launcher. Explicit diagnostic
 launches may set it to0; candidate/headless probes retain their diagnostic owner.
-The flag activates existing-player runtime logging/profiling without changing
+The flag disables existing-player runtime logging/profiling without changing
 their persistent engine.ini or other settings. Quiet mode avoids diagnostic file
 sinks, trace formatting and script call/event timers, and forces frame profiling/
 deck tracing off. Gameplay Log_Info notifications and fatal stderr remain.
