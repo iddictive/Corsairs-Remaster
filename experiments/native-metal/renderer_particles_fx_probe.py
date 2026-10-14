@@ -3,14 +3,10 @@
 
 from pathlib import Path
 import re
-import shutil
-import subprocess
-import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT.parent / "native-storm" / ".cache" / "storm"
-PATCH = ROOT / "renderer-particles-fx.patch"
+SOURCE = ROOT / "engine"
 
 
 def need(condition: bool, message: str) -> None:
@@ -23,11 +19,6 @@ def block(text: str, signature: str, following: str) -> str:
     end = text.index(following, start)
     return text[start:end]
 
-
-patch_text = PATCH.read_text()
-need("backend.mm" not in patch_text, "consumer patch must not mutate the shared backend")
-need("build.sh" not in patch_text and "CMakeLists.txt" not in patch_text,
-     "consumer patch must not mutate build/staging owners")
 
 # Frozen inventory: the K2 fire/smoke/general system is already a programmable,
 # indexed dynamic-buffer path; tornado particles and smoke cloud are the two UP
@@ -51,30 +42,14 @@ fire = block(particle_fx, "technique particlesfire", "technique AdvancedParticle
 need(re.search(r"Srcblend\s*=\s*srcalpha", fire, re.I) is not None and
      re.search(r"Destblend\s*=\s*one", fire, re.I) is not None,
      "legacy additive fire must remain SRCALPHA/ONE")
-need(sum(path.read_text().count("DrawPrimitiveUP") for path in tornado_sources) == 3,
-     "expected the two batched particle UP calls plus one cloud UP call")
 
-with tempfile.TemporaryDirectory(prefix="renderer-particles-fx-") as temp_name:
-    temp = Path(temp_name)
-    for relative in (
-        "src/libs/particles/src/system/particle_processor/bb_processor.cpp",
-        "src/libs/particles/src/system/particle_processor/bb_processor.h",
-        "src/libs/tornado/src/tornado_particles.cpp",
-        "src/libs/tornado/src/tornado_particles.h",
-        "src/libs/tornado/src/noise_cloud.cpp",
-        "src/libs/tornado/src/noise_cloud.h",
-    ):
-        destination = temp / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(SOURCE / relative, destination)
-    subprocess.run(["patch", "--batch", "--silent", "-p1", "-d", str(temp), "-i", str(PATCH)], check=True)
-    tornado = (temp / "src/libs/tornado/src/tornado_particles.cpp").read_text()
-    cloud = (temp / "src/libs/tornado/src/noise_cloud.cpp").read_text()
-    patched_k2 = (temp / "src/libs/particles/src/system/particle_processor/bb_processor.cpp").read_text()
-    bridge = (temp / "src/libs/renderer/include/metal_particle_bridge.h").read_text()
+tornado = tornado_sources[0].read_text()
+cloud = tornado_sources[1].read_text()
+patched_k2 = k2
+bridge = (SOURCE / "src/libs/renderer/include/metal_particle_bridge.h").read_text()
 
 need("DrawPrimitiveUP" not in tornado + cloud and "DrawIndexedPrimitiveUP" not in tornado + cloud,
-     "classified tornado paths must contain no UP submission after patching")
+     "classified tornado paths must contain no UP submission in engine source")
 k2_guard = block(patched_k2, "#ifdef STORM_METAL_PARTICLE_BRIDGE", "#else")
 need("StormMetalAdvancedParticle" in k2_guard,
      "K2 Metal path must allocate compact logical-particle records")

@@ -19,13 +19,16 @@ float4 solarShapeColor(float2 uv,float3 tint,constant SolarShapeU&shape,float4 d
         float disc=1.f-smoothstep(1.f-edge,1.f+edge,r);
         coverage=disc*(.6f+.4f*sqrt(saturate(1.f-r*r)));
     }else{
-        // Normalized Henyey-Greenstein forward lobe. The same atmospheric
-        // spectrum controls its strength and hue rather than a painted halo.
-        constexpr float g=.96f;
-        float denominator=max((1.f-g)*(1.f-g)+2.f*g*(1.f-cosine),.000001f);
-        float phase=pow((1.f-g)*(1.f-g)/denominator,1.5f);
-        float extinction=1.f-saturate(min(spectrum.r,min(spectrum.g,spectrum.b)));
-        coverage=phase*(.04f+.16f*extinction)*(1.f-smoothstep(.8f,1.f,length(p)));
+        // Filament's skybox.mat uses angular power falloff for its source halo:
+        // https://github.com/google/filament/blob/main/filament/src/materials/skybox.mat
+        // Evaluate optical spread here, before the LDR target clips the sun;
+        // the existing interior-only bloom cannot recover that source energy.
+        // Optical spread retains the authored source's apparent footprint;
+        // neither lobe changes the photosphere or atmospheric spectrum.
+        float radius=angle/skySolarAngularRadius;
+        float halo=pow(saturate(1.f-radius*radius/(30.f*30.f)),4.f);
+        float optical=exp(-.5f*radius*radius/(4.f*4.f));
+        coverage=(1.05f*optical+.22f*halo)*(1.f-smoothstep(.8f,1.f,length(p)));
     }
     // Resolve cloud cover per source pixel. A cloud edge may cover part of the
     // photosphere while the exposed portion retains the same atmospheric tint.

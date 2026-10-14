@@ -69,7 +69,10 @@ struct ShipFireVisualBudget {
         auto area=[&](const ShipFireVolume&v){return double(v.clipRect.z-v.clipRect.x)*double(v.clipRect.w-v.clipRect.y)*double(viewport.z)*double(viewport.w)*.25;};
         requestedWork=0;for(const auto&v:volumes)requestedWork+=area(v)*v.lod.x;
         renderScale=1.f;
-        while(renderScale>.125f&&requestedWork*renderScale*renderScale>targetSampleWork)renderScale*=.5f;
+        // Spend the existing budget continuously: power-of-two drops threw
+        // away up to three quarters of it and enlarged the fire into blocks.
+        if(requestedWork>targetSampleWork)
+            renderScale=float(std::clamp(std::sqrt(targetSampleWork/requestedWork),.125,1.0));
         admittedWork=requestedWork*renderScale*renderScale;
     }
 };
@@ -152,8 +155,12 @@ struct ShipFireRenderer {
         budget.apply(volumes,camera.viewport);
         camera.lighting.y=budget.renderScale;
         const NSUInteger renderWidth=std::max(NSUInteger(1),NSUInteger(std::ceil(target.width*budget.renderScale))),renderHeight=std::max(NSUInteger(1),NSUInteger(std::ceil(target.height*budget.renderScale)));
-        if(!volumeColor||volumeColor.width!=renderWidth||volumeColor.height!=renderHeight){
-            auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:renderWidth height:renderHeight mipmapped:NO];descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;volumeColor=[device newTextureWithDescriptor:descriptor];descriptor.pixelFormat=MTLPixelFormatR32Float;volumeFront=[device newTextureWithDescriptor:descriptor];
+        // Keep capacity across camera/fire changes. Logical backing still uses
+        // renderScale; only growth or a smaller scene target reallocates.
+        if(!volumeColor||volumeColor.width<renderWidth||volumeColor.height<renderHeight||volumeColor.width>target.width||volumeColor.height>target.height){
+            const NSUInteger capacityWidth=std::min(target.width,std::max(volumeColor?volumeColor.width:0,((renderWidth+63)/64)*64));
+            const NSUInteger capacityHeight=std::min(target.height,std::max(volumeColor?volumeColor.height:0,((renderHeight+63)/64)*64));
+            auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:capacityWidth height:capacityHeight mipmapped:NO];descriptor.storageMode=MTLStorageModePrivate;descriptor.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;volumeColor=[device newTextureWithDescriptor:descriptor];descriptor.pixelFormat=MTLPixelFormatR32Float;volumeFront=[device newTextureWithDescriptor:descriptor];
         }
         if(!volumeColor||!volumeFront){clear();return false;}
         std::stable_sort(volumes.begin(),volumes.end(),[](const auto&a,const auto&b){return a.lod.y>b.lod.y;});

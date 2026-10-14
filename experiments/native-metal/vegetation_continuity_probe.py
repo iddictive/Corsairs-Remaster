@@ -6,7 +6,7 @@ import math
 import re
 
 
-PATCH = (Path(__file__).resolve().parent / "vegetation-continuity.patch").read_text()
+SOURCE = (Path(__file__).resolve().parent / "engine/src/libs/location/src/grass.cpp").read_text()
 
 
 def need(condition: bool, message: str) -> None:
@@ -25,20 +25,23 @@ def visibility(distance: float, maximum: float, block_size: float) -> float:
     return t * t * (3.0 - 2.0 * t)
 
 
-# The patch may only attenuate records already present in the authored .grs map.
-need("metalInstances.push_back" not in PATCH and "GRSMapElementEx &el = b[i]" not in PATCH,
-     "continuity patch must not synthesize vegetation placements")
-need("LoadData" not in PATCH and "SetTexture" not in PATCH,
-     "authored biome/data and material owners must remain unchanged")
-need("collision" not in PATCH.lower() and "trace" not in PATCH.lower(),
+# Visibility attenuates the existing authored blade records.
+need("GRSMapElementEx &el = b[i]" in SOURCE and "metalInstances.push_back" in SOURCE,
+     "visibility must consume authored blade records")
+fade = SOURCE.split("float GrassVisibilityAlpha(", 1)[1].split("} // namespace", 1)[0]
+need("metalInstances.push_back" not in fade and "GRSMapElementEx" not in fade,
+     "visibility must not synthesize vegetation placements")
+need("LoadData" not in fade and "SetTexture" not in fade,
+     "visibility must preserve authored biome/data and material owners")
+need("collision" not in fade.lower() and "trace" not in fade.lower(),
      "visual continuity must not alter collision or terrain queries")
 
 # Every inclusive minimap edge is visited; fading is per authored blade alpha.
-need("mx <= right" in PATCH and "mz <= bottom" in PATCH,
+need("mx <= right" in SOURCE and "mz <= bottom" in SOURCE,
      "visible minimap bounds must not omit their final row or column")
-need("alpha *= visibilityAlpha" in PATCH,
+need("alpha *= visibilityAlpha" in SOURCE,
      "outer visibility must retain LOD density and fade authored blades")
-need(re.search(r"if \(kLod > 1\.0f\)\s*\+\s*kLod = 1\.0f", PATCH),
+need(re.search(r"if \(kLod > 1\.0f\)\s*kLod = 1\.0f", SOURCE),
      "LOD input must remain bounded at the visibility edge")
 
 # Primary falsifier: monotonic, continuous fade to zero across the outer band.

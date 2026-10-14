@@ -162,6 +162,10 @@ void CreateWeatherEnvironment()
         WeatherParams.Storm=false; WeatherParams.Tornado=false;
     }
     if (requestedPreset >= 0) Whr_RequestWeatherPreset(requestedPreset);
+    // Clearable request flags are not the active native condition.
+    bWeatherIsStorm = Whr_IsStorm();
+    bCurWeatherStorm = bWeatherIsStorm;
+    if (bSeaActive) bStorm = bWeatherIsStorm;
     aref aCurWeather = GetCurrentWeather();
     sLightingPath=Whr_GetString(aCurWeather,"Lighting");
     sLmLightingPath=Whr_GetString(aCurWeather,"LightingLm");
@@ -334,7 +338,11 @@ void Whr_UpdateWeatherHour()
 	    if (IsEntity(&Sea))
             isSeaEnt = true;
         Whr_WindChange();
-        // Waves now follow native wind continuously; location limits were set at creation.
+        // Native profiles follow wind continuously; refresh moving island limits.
+        if (isSeaEnt) {
+            WhrUpdateNativeSeaCap();
+            WhrBindNativeSeaProfiles();
+        }
         if(doLightChange && isSeaEnt) {
             doShipLightChange(aCurWeather);
         }
@@ -605,7 +613,10 @@ void Whr_NativeChanged()
     bool rain=GetEventData();
     bool storm=GetEventData();
     bWeatherIsRain=rain; bWeatherIsStorm=storm; bCurWeatherStorm=storm;
-    if (bSeaActive) bStorm=storm;
+    if (bSeaActive) {
+        bStorm=storm;
+        if (isEntity(&Sea)) WhrUpdateNativeSeaCap();
+    }
     // Menu/transition weather has no active gameplay sound scene yet.
     if (!bSeaActive && !bLandInterfaceStart) return;
     if (!isEntity(&worldMap)) Whr_SetRainSound(rain && Whr_isRainEnable(),bWeatherIsNight);

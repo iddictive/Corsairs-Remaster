@@ -1,8 +1,75 @@
 # Runtime state
 
-Last verified delivery: October14. Initial single-sky astronomy/camera-origin repair is installed with signed engine `638da3c83b8f649877e5581a1de44239a59d4bdc14f250d9a5b8f288f077e9e6`; prior `d3f21a3f` is backed up. Procedural solar/stars and geometry-aware reflection successors pass canonical build/component checks but remain uninstalled: final staging refuses while the player's app is running. The graphics task owns the next canonical stage after normal game exit. The previous patrol/miniature/gameplay batch remains composed; its player acceptance is unchanged. Autonomous game launch/testing, controls and player SAVE inspection remain disabled. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
+Last verified delivery: October14. The direct-source engine, revised procedural sun/stars, depth-corrected water reflections, authored storm wave profiles and native movie playback are installed with signed engine `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e`. Prior `e8cbbe75336de0570ac4618c02b38debe05ee3524b31cfe649a944ed72fbdf42` is backed up. This batch also integrates the separately authorized ship-fire/crew, sea CPU and merchant changes. Canonical staging exits0; source/component checks accept the mechanisms, while the player's sun/storm/reflection/movie scenes remain unresolved. The graphics integration task performs no autonomous game launch, controls or player SAVE inspection. The separate FPS task owns its already-authorized isolated runtime comparison. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October14 — full graphics repair and editable engine installed; player acceptance open
+
+The player expands the original audit to repair all confirmed losses, rejects
+the first procedural sun as a tiny white point, and requests ordinary Git source,
+installation, commit and push. The first requested procedural installation
+succeeded at signed `e8cbbe75`; its visible sun is rejected by the player's screenshot.
+
+`experiments/native-metal/engine` now owns the exact previously composed engine
+source, followed by the bounded repairs below. Normal builds compile that tree;
+engine archives, ordered patch replay, generated CMake and historical Git objects
+are no longer engine inputs. The original license remains with the source.
+One shared source fingerprint binds source, built engine and staged engine.
+An actual source edit invalidates readiness; clean temporary CMake configuration
+and the complete442-target native build pass without the retired source paths.
+Retired engine-archive absence is allowed; changed active dependency content is
+rejected. Existing diagnostic consumers now inspect the direct source owner.
+
+The revised solar shader retains the hot disc and adds compact optical bloom
+and a soft angular aureole. Its radius37/50px at the two reference thresholds
+matches the original sun's visible support; actual Device rendering measures
+36px at the stronger threshold. Missing/black artwork gives the same sun,
+ordinary materials and corners remain clean, and dense cloud attenuates it98.6%.
+These are actual Metal component scenes, not screenshots from the player's game.
+Star origin and depth-aware reflection evidence below remains valid.
+
+Storm geometry now consumes the authored weather presets, including amplitude,
+scale, movement and foam, blended continuously with native storm strength.
+The independent shipped-heightfield fixture spans1.4373 calm to31.8906 storm
+instead of retaining calm geometry. The existing sea-height limiter preserves
+shore, island and cabin policy. An integration review reproduced nested profile
+attribute notifications changing the live sea while loading the bank; the
+branch guard removes all281 live mutations across283 callbacks, and explicit
+Ready applies the completed profiles. Direct sea/fog updates remain active.
+The underwater camera test also uses actual camera Z under every event guard.
+
+macOS movie playback now uses AVPlayer through the existing video entity.
+The15 original hash-bound WMVs remain intact; a finite manifest prepares
+H.264/AAC companions for the unsupported original codec. Canonical staging
+delivers them through the existing content transaction. Actual media components
+show94 changing Seaward frames through completion and261 France02 frames with
+correct aspect; skip, destroy, missing/unsupported media and reuse negatives
+pass. Full future PROGRAM compilation passes without executing Main.
+
+The separately authorized fire batch adds smoother bounded fire resolution,
+continuous occlusion tolerance, severe-fire damage and fire-directed crew
+movement. Its real native fire/crew fixtures pass; visible player acceptance is
+still open. The sea CPU batch caches immutable skin index topology, enumerates
+actual blot children and hides only subpixel foreign crew with hysteresis while
+preserving simulation and player crew. Bounds/sanitizer and projection cases
+pass. The old unindexed lighting probe still fails its historical outdoor
+ambient-floor expectation; no claim is made that every diagnostic passes.
+The merchant handoff adds the requested200 shrapnel bombs once per seven complete
+game days, with isolated real-VM/codec/idempotence checks; player replay is open.
+
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 after all final
+source integration.8248 active payload inputs and renderer/material gates pass;
+20 pending content paths (five scripts and15 movies) are delivered. Signed
+installed engine is `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e`;
+unsigned build receipt is `71deb36cd16fd2a07eb7fa9d65e4ac2d4fe7c11e27d6b7c0666f9bfde01764d0`,
+source fingerprint `1dca5490437c19f05c5a1ea74f481fc904b0b87b57967447ea133e23ad534732`.
+Its printed Git label69f1dd4 precedes this working-tree checkpoint; the source
+fingerprint, rather than that label, binds the installed batch. Installation
+is accepted. Sun, storm size/foam, moving/stationary reflections and scripted
+movies require the corresponding player scenes; component checks do not close
+their visible acceptance. The separate FPS owner has the installed hash for
+its isolated comparison; this integration task starts no game.
 
 ### October14 — astronomy repair installed; procedural sources and reflection successor pending
 

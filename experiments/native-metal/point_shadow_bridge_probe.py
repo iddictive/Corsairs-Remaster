@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parent
-patch = (root / "scene-lighting.patch").read_text()
+source = (root / "engine/src/libs/location/src/location.cpp").read_text()
 backend = (root / "backend.mm").read_text()
 shadow = (root / "land_shadow.hpp").read_text()
 resources = (root / "resources.hpp").read_text()
 
-assert "StormMetalRenderPointShadowCube(device, lampId, position, lamp.Range);" in patch
-assert "for (unsigned face = 0; face < 6; ++face) renderPass(1" not in patch
-assert "renderPass(0, 0, 1, ray, StormMetalSunShadowCoverage(device, 0));" in patch
-assert "renderPass(0, 1, 1, ray, StormMetalSunShadowCoverage(device, 1));" in patch
+assert re.search(r"StormMetalRenderPointShadowCube\(device,\s*selected\[index\]\.id,\s*position,\s*selected\[index\]\.light.Range\);", source)
+assert "for (unsigned face = 0; face < 6; ++face) renderPass(1" not in source
+assert "renderPass(0, 0, 1, ray, StormMetalSunShadowCoverage(device, 0));" in source
+assert "renderPass(0, 1, 1, ray, StormMetalSunShadowCoverage(device, 1));" in source
 assert "StormMetalSunShadowCoverage" in backend
 for contract in (
     "NearSunCoverage=96.f", "FarSunCoverage=288.f", "SunCascadeSplit=42.f",
@@ -18,7 +19,7 @@ for contract in (
     "SunDepthEnvelope=240.f",
 ):
     assert contract in shadow
-assert "float texel=FarSunCoverage/float(sunShadowResolution)" in shadow
+assert "float texel=range/float(sunShadowResolution)" in shadow
 assert "StormMetalRenderPointShadowCube" in backend and "encodePointCube" in shadow
 assert "StormMetalPointShadowCpuFaceTraversals" in backend
 assert "StormMetalPointShadowCpuDraws" in backend

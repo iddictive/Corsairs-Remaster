@@ -7,7 +7,7 @@ import struct
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME = ROOT / ".cache/runtime"
-PATCH = ROOT / "baked-static-shadow-casters.patch"
+SOURCE = ROOT / "engine/src/libs"
 
 
 def require(value: bool, message: str) -> None:
@@ -63,7 +63,9 @@ def main() -> None:
                     for _, stages, types in fd_materials),
             "Beliz_fd has no baked base; per-model gating would leave adjacent casters")
 
-    patch = PATCH.read_text()
+    patch = "\n".join(path.read_text() for owner in ("geometry", "model", "location")
+                      for path in sorted((SOURCE / owner).rglob("*"))
+                      if path.suffix in (".cpp", ".h"))
     require("stormMetalBakedBaseShadow" in patch and "HasBakedBaseShadow" in patch,
             "visible base-shadow metadata is exposed from geometry through model nodes")
     require("if ((object[o].flags & VISIBLE)" in patch and
@@ -83,7 +85,7 @@ def main() -> None:
     require("RenderMetalShadowCasters(kind != 0 || !bakedStaticEnvironment)" in patch,
             "only the directional-sun static producer set is suppressed")
     static_gate = patch.index("RenderMetalShadowCasters(kind != 0 || !bakedStaticEnvironment)")
-    location_source = (ROOT / ".cache/storm/src/libs/location/src/location.cpp").read_text()
+    location_source = (SOURCE / "location/src/location.cpp").read_text()
     character_loop = location_source.index("for (const auto& entry : supervisor.character)")
     static_loop = location_source.index("for (int32_t i = 0; includeStatic && i < model.Models(); ++i)")
     require(character_loop > static_loop > 0 and static_gate > 0,

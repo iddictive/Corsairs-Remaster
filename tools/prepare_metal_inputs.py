@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Capture the reviewed build/gameplay inputs once; never copy an old game runtime."""
+"""Capture build dependencies and reviewed gameplay inputs; engine source lives in Git."""
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -28,19 +27,19 @@ def verify(root):
     record = json.loads((root / 'manifest.json').read_text())
     if record['engine_revision'] != REVISION:
         raise RuntimeError('Unreviewed engine revision')
-    for name, expected in record['sha256'].items():
+    active = {name: expected for name, expected in record['sha256'].items()
+              if name != 'engine.tar' and not name.startswith('baseline/')}
+    for name, expected in active.items():
         path = root / name
         if not path.resolve().is_relative_to(root.resolve()):
             raise RuntimeError(f'Input outside payload: {name}')
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise RuntimeError(f'Input changed: {name}')
-    print(f'Verified {len(record["sha256"])} portable inputs')
+    print(f'Verified {len(active)} portable dependency/content inputs')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--engine-repo', type=Path, default=Path(os.environ.get(
-        'STORM_ENGINE_REPO', '/REQUIRED_EXTERNAL_INPUT/05_Repo/StormEngine-Corsairs')))
     parser.add_argument('--conan-data', type=Path, default=Path.home() /
                         'Library/Application Support/CorsairsBuild/conan-home/.conan/data')
     parser.add_argument('--check', action='store_true')
@@ -59,18 +58,6 @@ def main():
     originals = suite._read_originals(suite.NATIVE_ROOT, state)
     baseline = suite.NATIVE_ROOT
     target.mkdir()
-    with (target / 'engine.tar').open('wb') as output:
-        subprocess.run(['git', '-C', str(args.engine_repo), 'archive', REVISION],
-                       stdout=output, check=True)
-    baseline_objects = {
-        'CMakeLists.txt': 'df1e021ffa18f43daf35d01645978f6f22a9b238:experiments/native-storm/CMakeLists.txt',
-        'native.patch': 'df1e021ffa18f43daf35d01645978f6f22a9b238:experiments/native-storm/native.patch',
-        'platform-legacy.patch': '9d111d61c6aaab1be9f1f7335f8d9766100f41e6:experiments/native-metal/platform.patch',
-    }
-    (target / 'baseline').mkdir()
-    for name, object_name in baseline_objects.items():
-        (target / 'baseline' / name).write_bytes(subprocess.check_output(
-            ['git', '-C', str(PROJECT), 'show', object_name]))
     native = PROJECT / 'experiments/native-storm/.cache'
     for relative in ('sse2neon.h', 'stb_image.h',
                      'd3d9/dxvk-native/include', 'd3d9/sdl2-fixed'):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the shipped deck patch's expressions against engine matrix conventions."""
+"""Exercise tracked deck expressions against engine matrix conventions."""
 from pathlib import Path
 import math
 import re
@@ -10,10 +10,9 @@ import sys
 from island_geometry import load_static_gm
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / ".cache/storm/src"
-patch = (ROOT / "deck-walk.patch").read_text()
-added = "\n".join(line[1:] for line in patch.splitlines()
-                  if line.startswith("+") and not line.startswith("+++"))
+SOURCE = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "engine/src"
+added = (SOURCE / "libs/sea_cameras/src/deck_camera.cpp").read_text() + "\n" + (
+    SOURCE / "libs/shared_headers/include/shared/sea_ai/deck_collision.hpp").read_text()
 motion = re.search(r"const float walkSin = .*?;\s*vShift = CVECTOR\(.*?;", added, re.S)
 assert motion, "deck motion owner must exist"
 assert 'ResolveWalkerSupport(camera_pos, support)' in added and 'walker.Pos() = support;' in added, \
@@ -206,7 +205,7 @@ binary = ROOT / ".cache/probes/deck-motion"
 binary.parent.mkdir(parents=True, exist_ok=True)
 subprocess.run(["clang++", "-std=c++20", "-O2", "-Wno-implicit-const-int-float-conversion",
                 "-include", "initializer_list",
-                "-I" + str(ROOT / ".cache/storm/src/libs/math/include"),
+                "-I" + str(SOURCE / "libs/math/include"),
                 "-I" + str(SOURCE / "libs/shared_headers/include"),
                 "-I" + str(headers / "directx"), "-I" + str(headers / "windows"),
                 "-x", "c++", "-", "-o", str(binary)], input=source, text=True, check=True)

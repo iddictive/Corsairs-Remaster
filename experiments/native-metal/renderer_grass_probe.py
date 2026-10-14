@@ -6,9 +6,9 @@ import re
 
 
 ROOT = Path(__file__).resolve().parent
-PATCH = (ROOT / "renderer-grass.patch").read_text()
-SOURCE = (ROOT / ".cache/storm/src/libs/location/src/grass.cpp").read_text()
-TECHNIQUE = (ROOT / ".cache/storm/src/techniques/effects/grass.fx").read_text()
+SOURCE = (ROOT / "engine/src/libs/location/src/grass.cpp").read_text()
+HEADER = (ROOT / "engine/src/libs/location/src/grass.h").read_text()
+TECHNIQUE = (ROOT / "engine/src/techniques/effects/grass.fx").read_text()
 SHADERS = (ROOT / "land_shaders.hpp").read_text()
 BACKEND = (ROOT / "backend.mm").read_text()
 
@@ -29,26 +29,26 @@ need(all(f"v[{corner}].offset" in SOURCE for corner in range(4)),
 
 # The native branch submits one compact blade record to a dedicated Metal path;
 # the legacy expanded dynamic VB remains only in the Windows branch.
-need("struct MetalInstance" in PATCH and
-     "metalInstances.push_back({el.x, el.y, el.z, el.data, winx, winz, alpha})" in PATCH,
+need("struct MetalInstance" in HEADER and
+     "metalInstances.push_back({el.x, el.y, el.z, el.data, winx, winz, alpha})" in SOURCE,
      "Metal grass must retain one compact record per authored blade")
-need("sizeof(MetalInstance) == 28" in PATCH and "sizeof(MetalInstance)" in PATCH,
+need("sizeof(MetalInstance) == 28" in HEADER and "sizeof(MetalInstance)" in SOURCE,
      "consumer and bridge must share an explicit seven-lane instance ABI")
-need("StormMetalDrawGrass" in PATCH and "vertex_id" in PATCH,
+need("StormMetalDrawGrass" in SOURCE and "vertex_id" in SOURCE,
      "Metal grass must use its native shader-bound draw contract")
-need("const float *shaderConstants" in PATCH and
-     "reinterpret_cast<const float *>(consts)" in PATCH,
+need("const float *shaderConstants" in SOURCE and
+     "reinterpret_cast<const float *>(consts)" in SOURCE,
      "native grass shader must receive the authored matrix/light/atlas constant block")
-need(PATCH.count("STORM_METAL_GRASS_BRIDGE") >= 8,
+need((SOURCE + HEADER).count("STORM_METAL_GRASS_BRIDGE") >= 8,
      "native grass path must have a dedicated compile-time owner")
-need(re.search(r"\+#ifndef STORM_METAL_GRASS_BRIDGE\n     vb = rs->CreateVertexBuffer", PATCH) is not None,
+need(re.search(r"#ifndef STORM_METAL_GRASS_BRIDGE\n    vb = rs->CreateVertexBuffer", SOURCE) is not None,
      "expanded dynamic vertex buffer must remain only in the non-Metal fallback")
-need("+        v[0].x = el.x;" not in PATCH and "+        v[3].alpha = alpha;" not in PATCH,
-     "Metal migration must not introduce another CPU-expanded quad")
-need("DrawPrimitiveUP" not in PATCH and "DrawIndexedPrimitiveUP" not in PATCH,
-     "Metal grass patch must not add UP submission")
-need("+#ifdef STORM_METAL_GRASS_BRIDGE" in PATCH and
-     "+#ifndef STORM_METAL_GRASS_BRIDGE" in PATCH,
+need(re.search(r"#ifndef STORM_METAL_GRASS_BRIDGE(?:(?!#endif).)*Vertex \*v", SOURCE, re.S) is not None,
+     "CPU-expanded quad writes must be guarded by the non-Metal fallback")
+need("DrawPrimitiveUP" not in SOURCE and "DrawIndexedPrimitiveUP" not in SOURCE,
+     "Metal grass source must not add UP submission")
+need("#ifdef STORM_METAL_GRASS_BRIDGE" in SOURCE and
+     "#ifndef STORM_METAL_GRASS_BRIDGE" in SOURCE,
      "Metal native path and non-Metal legacy fallback must both remain classified")
 
 # Exact cutout/blend parity is part of the bridge rather than inferred from a
@@ -63,14 +63,14 @@ for name in ("Grass", "GrassDark"):
          f"{name} blend factors changed")
     need("ColorOp[1] = disable" in body and "AlphaOp[1] = disable" in body,
          f"{name} must terminate after the base texture stage")
-need("bool alphaTestEnable" in PATCH and "bool alphaBlendEnable" in PATCH and
-     "true, 80u, true, static_cast<unsigned>(D3DBLEND_SRCALPHA)" in PATCH and
-     "static_cast<unsigned>(D3DBLEND_INVSRCALPHA)" in PATCH,
+need("bool alphaTestEnable" in SOURCE and "bool alphaBlendEnable" in SOURCE and
+     "true, 80u, true, static_cast<unsigned>(D3DBLEND_SRCALPHA)" in SOURCE and
+     "static_cast<unsigned>(D3DBLEND_INVSRCALPHA)" in SOURCE,
      "native bridge must receive enabled cutout and exact straight-alpha blend state")
-need("isGrassLightsOn == 1" in PATCH,
+need("isGrassLightsOn == 1" in SOURCE,
      "Grass and GrassDark selection must remain distinct")
-need("if (!accepted)" in PATCH and "throw std::runtime_error" in PATCH and
-     "metalInstances.clear()" in PATCH,
+need("if (!accepted)" in SOURCE and "throw std::runtime_error" in SOURCE and
+     "metalInstances.clear()" in SOURCE,
      "accepted Metal builds must fail closed rather than re-enter CPU-expanded fallback")
 
 # The compact bridge bypasses the original effect executor.  It must therefore

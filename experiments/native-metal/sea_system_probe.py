@@ -1,82 +1,16 @@
 #!/usr/bin/env python3
-"""Source-level acceptance for ordered sea/reflection and ship-light patches.
+"""Source contracts for coherent sea geometry and owner-scoped ship lights."""
 
-The canonical source cache is expected to contain the complete applied patch
-stack.  Re-applying one member to that tree is therefore not a valid probe.
-Instead, reconstruct the pristine sources from the recorded transaction state
-inside a temporary directory and replay the complete ordered stack, replacing
-the two patches under test with their current on-disk bytes.
-"""
-
-import importlib.util
-import json
 from pathlib import Path
-import tempfile
-
+import sys
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT / ".cache" / "storm"
-STATE = ROOT / ".cache" / "source-patches.json"
-
-
-def load_patch_stack_helpers():
-    path = ROOT / "apply_source_patches.py"
-    spec = importlib.util.spec_from_file_location("source_patch_stack", path)
-    require(spec is not None and spec.loader is not None, "cannot load patch stack helper")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+SOURCE = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "engine"
 
 
 def require(value, message):
     if not value:
         raise AssertionError(message)
-
-
-def replay_ordered_stack():
-    require(STATE.is_file(), "missing canonical source patch state")
-    state = json.loads(STATE.read_text())
-    require(state.get("version") == 1, "unsupported source patch state")
-    require(Path(state.get("source", "")).resolve() == SOURCE.resolve(), "patch state source mismatch")
-
-    helpers = load_patch_stack_helpers()
-    recorded = state.get("patches", [])
-    require(recorded, "recorded source patch stack is empty")
-    replacements = {}
-    for name in ("sea-reflection-budget.patch", "ship-light-ownership.patch"):
-        patch = ROOT / name
-        require(patch.is_file(), f"missing {name}")
-        replacements[name] = patch.read_text()
-        require(sum(item["name"] == name for item in recorded) == 1, f"{name} is not unique in ordered stack")
-
-    proposed = [
-        {"name": item["name"], "text": replacements.get(item["name"], item["text"])}
-        for item in recorded
-    ]
-    paths = helpers.touched(recorded) | helpers.touched(proposed)
-    with tempfile.TemporaryDirectory(prefix="sea-system-probe-") as directory:
-        target = Path(directory)
-        helpers.restore(target, helpers.capture(SOURCE, paths))
-        # The cache is the recorded stack result. Reversing the stack recovers
-        # the exact pristine input without mutating the canonical source tree.
-        helpers.apply_stack(target, recorded, reverse=True)
-        pristine = helpers.capture(target, paths)
-        helpers.apply_stack(target, proposed)
-        result = helpers.capture(target, paths)
-        # Prove the proposed current stack is reversible as a whole.
-        helpers.apply_stack(target, proposed, reverse=True)
-        require(helpers.capture(target, paths) == pristine, "ordered stack is not reversible")
-        helpers.apply_stack(target, proposed)
-        require(helpers.capture(target, paths) == result, "ordered stack replay is not deterministic")
-        return {
-            relative: (target / relative).read_text()
-            for relative in (
-                "src/libs/sea/src/sea.h",
-                "src/libs/sea/src/sea.cpp",
-                "src/libs/sea/src/env_map.cpp",
-                "src/libs/ship/src/ship_lights.cpp",
-            )
-        }
 
 
 def reflection_faces(underwater, frames):
@@ -97,20 +31,34 @@ def reflection_faces(underwater, frames):
     return counts, visited
 
 
-replayed = replay_ordered_stack()
-sea = replayed
-require("SEA_REFLECTION" in sea["src/libs/sea/src/env_map.cpp"], "reflection layer removed")
-require("SEA_REFLECTION2" in sea["src/libs/sea/src/env_map.cpp"], "second reflection layer removed")
-require("SEA_SUNROAD" in sea["src/libs/sea/src/env_map.cpp"], "sun-road layer removed")
+sea = {relative: (SOURCE / relative).read_text() for relative in (
+    "src/libs/sea/src/sea.h", "src/libs/sea/src/sea.cpp",
+    "src/libs/sea/src/env_map.cpp", "src/libs/ship/src/ship_lights.cpp")}
+env = sea["src/libs/sea/src/env_map.cpp"]
+for layer in ("SEA_REFLECTION", "SEA_REFLECTION2", "SEA_SUNROAD"):
+    require(layer in env, f"{layer} reflection layer removed")
+environment = env.split("bool SEA::EnvMap_Render()", 1)[1]
+sunroad = env.split("bool SEA::SunRoad_Render()", 1)[1].split("bool SEA::EnvMap_Render()", 1)[0]
+require("for (uint32_t i = 0; i < 6; i++)" in environment,
+        "dynamic geometry reflection must retain complete same-frame faces")
+require("envMapFace" not in environment and "envMapPrimed" not in environment,
+        "dynamic geometry reflection must not retain mixed-frame faces")
+require("sunRoadPrimed ? sunRoadFace : 0" in sunroad and
+        "sunRoadPrimed ? sunRoadFace + 1 : 6" in sunroad,
+        "sun-road must prime all faces before amortizing")
+require("sunRoadFace = (sunRoadFace + 1) % 6" in sunroad and
+        "!bUnderSea && sunRoadFace == D3DCUBEMAP_FACE_NEGATIVE_Y" in sunroad,
+        "sun-road cursor must cover all allowed faces")
+require("hash != dwShipCode && hash != dwSailCode && hash != dwIslandCode" in sunroad,
+        "amortized sun-road must exclude moving geometry")
 above, above_faces = reflection_faces(False, 11)
 below, below_faces = reflection_faces(True, 13)
-require(above[0] == 5 and max(above[1:]) == 1, "above-water budget is not 5 then 1 face")
-require(below[0] == 6 and max(below[1:]) == 1, "underwater budget is not 6 then 1 face")
+require(above[0] == 5 and max(above[1:]) == 1, "above-water sun-road budget is not 5 then 1 face")
+require(below[0] == 6 and max(below[1:]) == 1, "underwater sun-road budget is not 6 then 1 face")
 require(above_faces == {0, 1, 2, 4, 5}, "above-water face coverage changed")
 require(below_faces == set(range(6)), "underwater face coverage changed")
-require("envMapPrimed = sunRoadPrimed = false" in sea["src/libs/sea/src/sea.cpp"], "reset reprime missing")
+require("sunRoadPrimed = false" in sea["src/libs/sea/src/sea.cpp"], "reset reprime missing")
+require("!light.bOff && light.pObject == pObject" in sea["src/libs/ship/src/ship_lights.cpp"],
+        "ship light reset is still fleet-global")
 
-body = replayed["src/libs/ship/src/ship_lights.cpp"]
-require("!light.bOff && light.pObject == pObject" in body, "ship light reset is still fleet-global")
-
-print("PASS: pristine baseline reconstructed; exact ordered stack replays and reverses; cube faces are complete and amortized; ship light reset is owner-scoped")
+print("PASS: direct sea source keeps coherent geometry reflections, complete amortized sun-road faces and owner-scoped ship light reset")

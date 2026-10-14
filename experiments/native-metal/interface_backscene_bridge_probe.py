@@ -2,26 +2,23 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
-patch = (root / "interface-back-scene-metal.patch").read_text()
-build = (root / "build.sh").read_text()
+source = (root / "engine/src/libs/xinterface/src/back_scene/back_scene.cpp").read_text()
 cmake = (root / "CMakeLists.txt").read_text()
 
 def need(condition, message):
     if not condition:
         raise SystemExit(f"FAIL: {message}")
 
-need(patch.count('extern "C" void StormMetalInterfaceBackScene(void *, bool);') == 1,
+need(source.count('extern "C" void StormMetalInterfaceBackScene(void *, bool);') == 1,
      "InterfaceBackScene bridge declaration")
-need(patch.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);") == 1,
+need(source.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);") == 1,
      "single menu-domain enter")
-need(patch.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") == 1,
+need(source.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") == 1,
      "single menu-domain exit")
-need(patch.index("m_pRS = static_cast<VDX9RENDER") < patch.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);"),
+need(source.index("m_pRS = static_cast<VDX9RENDER") < source.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);"),
      "enter follows renderer acquisition")
-need(patch.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") < patch.index("RestoreLight();"),
+need(source.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") < source.index("RestoreLight();"),
      "exit precedes renderer-owned teardown")
-need('"$root/interface-back-scene-metal.patch"' in build,
-     "ordered engine-source patch registration")
 need("STORM_METAL_INTERFACE_BACK_SCENE=1" in cmake,
      "bridge compile definition")
 need("menu_unlit_native" in cmake,

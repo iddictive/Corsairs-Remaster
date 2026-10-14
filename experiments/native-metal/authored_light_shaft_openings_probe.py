@@ -15,7 +15,7 @@ root = Path(__file__).resolve().parent
 runtime = Path(sys.argv[1]) if len(sys.argv) > 1 else root / ".cache/runtime"
 program = runtime / "PROGRAM/locations/init"
 models = runtime / "RESOURCE/MODELS/Locations"
-patch = (root / "authored-window-light-shaft-mesh.patch").read_text()
+source = (root / "engine/src/libs/location/src/location.cpp").read_text()
 
 assignments: list[tuple[Path, str]] = []
 assignment_re = re.compile(r"models\.always\.([A-Za-z0-9_]+)\s*=\s*\"([^\"]+)\"", re.I)
@@ -29,15 +29,16 @@ for script in program.glob("*.c"):
             assignments.append((script, values[key]))
 
 require(assignments, "no authored LocationWindows assignments found")
-require("std::strcmp(tech, \"LocationWindows\") == 0" in patch,
+require("std::strcmp(tech, \"LocationWindows\") == 0" in source,
         "runtime bridge is not gated by the authored technique")
-require("geometry->GetObj" in patch and "buffer->Lock" in patch and "LockIndexBuffer" in patch,
+require("geometry->GetObj" in source and "buffer->Lock" in source and "LockIndexBuffer" in source,
         "runtime bridge does not consume authored GM vertex/index data")
-require("StormMetalLightShaftMesh" in patch and "positions.data()" in patch and "indices.data()" in patch,
+require("StormMetalLightShaftMesh" in source and "positions.data()" in source and "indices.data()" in source,
         "runtime bridge does not submit exact authored aperture triangles")
-require("FindLocatorsGroup(\"lightshafts\")" not in patch,
-        "invented lightshafts locator convention remains")
-require("StormMetalResetLightShaftOpenings(rs->GetD3DDevice())" in patch,
+mesh = source.split("void SubmitAuthoredWindowMeshes", 1)[1].split("} // namespace", 1)[0]
+require("FindLocatorsGroup(\"lightshafts\")" not in mesh,
+        "authored window mesh producer must not depend on a locator convention")
+require("StormMetalResetLightShaftOpenings(rs->GetD3DDevice())" in source,
         "location transition does not clear stale openings")
 
 available = {path.stem.casefold() for path in models.rglob("*.gm")}

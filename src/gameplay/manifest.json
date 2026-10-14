@@ -1,6 +1,12 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/interface/interface.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "7f37bbf8e7f0b49b75f6600f92e6c0ff77c65508b285c19cfee2301dabcda57e"
+      ]
+    },
     "PROGRAM/dialogs/russian/Quest/sailors_dialog.c": {
       "encoding": "utf-8",
       "legacy": [
@@ -360,6 +366,18 @@
       "encoding": "utf-8",
       "legacy": [
         "c66e496f39ea89b0452a505528cf5906df477de186cc46644b0ca3949e8c94d9"
+      ]
+    },
+    "PROGRAM/weather/WhrSea.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "679ec646261a63445436b960e46bea756e5cd21cd570825ba0d716a8eff84cd4"
+      ]
+    },
+    "PROGRAM/weather/WhrSeaPresets.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "a53130d5153a7e95194360c95974ea6a6e6c93d91fedc50751ebc5089be4d4c0"
       ]
     },
     "PROGRAM/weather/WhrLightning.c": {

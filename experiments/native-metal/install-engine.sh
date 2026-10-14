@@ -65,7 +65,7 @@ runtime_state = DeliveryState(root / ".cache/runtime")
 # Shared messages are compiled by the script VM as well as the engine. Deliver
 # the built header to both consumers; stale commands abort startup compilation.
 for name, known in LEGACY_SHARED_HEADERS.items():
-    header_source = root / ".cache/storm/src/libs/shared_headers/include/shared" / name
+    header_source = root / "engine/src/libs/shared_headers/include/shared" / name
     if header_source.is_symlink() or not header_source.is_file():
         raise RuntimeError(f"Missing or linked built header: {name}")
     header_after = header_source.read_bytes()
@@ -85,7 +85,7 @@ for name, known in LEGACY_TECHNIQUES.items():
     if source.is_symlink() or target.is_symlink() or not source.is_file() or not target.is_file():
         raise RuntimeError(f"Missing or linked technique: {name}")
     before, after = target.read_bytes(), source.read_bytes()
-    if after != (root / ".cache/storm/src/techniques" / name).read_bytes():
+    if after != (root / "engine/src/techniques" / name).read_bytes():
         raise RuntimeError(f"Technique does not match the built source: {name}")
     relative = "RESOURCE/techniques/" + name
     state.admit(relative, before, after, known)

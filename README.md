@@ -58,7 +58,7 @@ Requires Apple Silicon and macOS 15 or newer. Saves and settings live separately
 | Package | Use it for | Where to get it |
 | --- | --- | --- |
 | macOS app | Playing; engine, game data and runtime libraries included | [Google Drive folder](https://drive.google.com/drive/folders/1JDiOAg3S3OgKAATjjA7TZfIHW39u2Wi8) |
-| Pinned build inputs | Building from source; engine source, headers, tools and reviewed originals | [Experimental release](https://github.com/iddictive/Corsairs-Remaster/releases/tag/experimental-metal) |
+| Pinned build inputs | Building from source; dependency headers, tools and reviewed originals | [Experimental release](https://github.com/iddictive/Corsairs-Remaster/releases/tag/experimental-metal) |
 | Source checkout | Editing the renderer, launchers and reviewed gameplay adapters | [This repository](https://github.com/iddictive/Corsairs-Remaster) |
 
 The app ZIP is 11,298,197,161 bytes. The smaller build-input archive is not the full game download.
@@ -78,7 +78,12 @@ experiments/native-metal/run.sh --stage-only
 experiments/native-metal/run.sh --launch-installed
 ```
 
-The input archive pins engine source, headers, dependencies, tools and reviewed originals. Its SHA-256 is `2e7f68269941db86aef14a4130a91054c59ac473b34119333df30f4efbd877a8`. It is not the full game download.
+Engine sources are directly editable under `experiments/native-metal/engine`;
+ordinary builds compile them without unpacking an archive or applying patches.
+The input archive supplies dependency headers, tools and reviewed originals.
+Its SHA-256 is `2e7f68269941db86aef14a4130a91054c59ac473b34119333df30f4efbd877a8`.
+Its historical engine archive is unused. FFmpeg with H.264/AAC support is needed
+once to prepare the original WMV cutscenes; verified prepared movies are reused.
 
 Development staging has separate saves and never imports or overwrites the installed app’s saves. [Development instructions](docs/DEVELOPMENT.md) explain the owners, staging and packaging commands.
 
@@ -93,7 +98,7 @@ Restart after a resolution change if borders or incomplete interface graphics ap
 
 ## Attribution
 
-`experiments/native-metal` is the supported runtime. `experiments/native-storm` retains source adapters required by the build; its old runtime is unsupported. Original engine source and dependency notices are included in the pinned inputs. This repository does not grant ownership of third-party game content.
+`experiments/native-metal` is the supported runtime. `experiments/native-storm` retains source adapters required by the build; its old runtime is unsupported. The engine's original GPLv3 license is retained in `experiments/native-metal/engine/LICENSE.txt`; dependency notices accompany the build inputs. This repository does not grant ownership of third-party game content.
 
 ---
 

@@ -5,7 +5,7 @@ import math
 import re
 
 root = Path(__file__).resolve().parent
-patch = (root / "smooth-location-lights.patch").read_text()
+source = (root / "engine/src/libs/location/src/lights.cpp").read_text()
 ini = (root / ".cache/runtime/RESOURCE/INI/lights.ini").read_text(errors="replace")
 
 lamp = re.search(r"\[lamp\](.*?)(?=\n\s*\[|\Z)", ini, re.S | re.I)
@@ -17,13 +17,12 @@ def setting(name):
 
 amplitude, frequency = setting("flicker"), setting("freq")
 assert (amplitude, frequency) == (0.19, 9.0), "unexpected authored lamp curve"
-assert "while (ls.time >= l.p)" in patch
-assert "ls.itensTarget - ls.itensDltFast + kFast * ls.itensDltFast" in patch
-assert "if (l.freq > 0.0f)" in patch and "if (l.freqSlow > 0.0f)" in patch
-assert "+            lights[*i].intensity = 0" not in patch
-assert "-            lights[*i].intensity = 0" in patch
-assert "visibility += (target - lights[*i].visibility) * blend" in patch
-assert "1.0f - expf(-elapsed / seconds)" in patch
+assert "while (ls.time >= l.p)" in source
+assert "ls.itensTarget - ls.itensDltFast + kFast * ls.itensDltFast" in source
+assert "if (l.freq > 0.0f)" in source and "if (l.freqSlow > 0.0f)" in source
+assert "lights[*i].intensity = 0" not in source
+assert "visibility += (target - lights[*i].visibility) * blend" in source
+assert "1.0f - expf(-elapsed / seconds)" in source
 
 # Adjacent extrema are the strongest authored transition: +A to -A. The old
 # sample-and-hold curve jumps by 2A at a boundary; interpolation keeps the same
@@ -48,8 +47,8 @@ assert abs(curve(boundary - 1e-7) - curve(boundary + 1e-7)) < 1e-5
 # The exponential activation envelope is a function of elapsed time. Equal
 # target spans therefore agree across frame rates, and a rapid reversal starts
 # from the current value instead of resetting or stepping to either endpoint.
-attack_match = re.search(r"attackSeconds\s*=\s*([0-9.]+)f", patch)
-release_match = re.search(r"releaseSeconds\s*=\s*([0-9.]+)f", patch)
+attack_match = re.search(r"attackSeconds\s*=\s*([0-9.]+)f", source)
+release_match = re.search(r"releaseSeconds\s*=\s*([0-9.]+)f", source)
 assert attack_match and release_match, "production envelope constants missing"
 attack, release = float(attack_match.group(1)), float(release_match.group(1))
 assert 0.0 < attack <= release

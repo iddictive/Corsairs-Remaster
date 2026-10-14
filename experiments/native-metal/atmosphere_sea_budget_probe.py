@@ -8,7 +8,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 sky = (ROOT / "dynamic_sky.hpp").read_text()
 sea = (ROOT / "sea_shaders.hpp").read_text()
-cube = (ROOT / "sea-reflection-budget.patch").read_text()
+cube = (ROOT / "engine/src/libs/sea/src/env_map.cpp").read_text()
 
 
 def need(value, message):

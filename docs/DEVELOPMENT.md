@@ -2,13 +2,29 @@
 
 ## Owners
 
-`experiments/native-metal/build.sh` owns the ordered engine patch stack and canonical build. `run.sh` owns staging and launch. `backend.mm` and the Metal shader headers own rendering. `src/gameplay` owns complete editable scripts and interface definitions registered in its manifest, including the trade journal, main menu, graphics settings and independently retained sea/ship/fort behavior; `tools/gameplay_sources.py` projects them to runtime files. `tools/sync_metal_gameplay.py` delivers these sources and the remaining domain generators; `metal_graphics_settings.py` owns runtime settings synchronization and launch environment.
+`experiments/native-metal/engine` owns ordinary C++ engine edits, its CMake
+definition and upstream GPLv3 license. The initial import preserves947 source,
+technique and CMake inputs byte-for-byte from verified batch `69f1dd4`; three
+patch backup files were excluded. `build.sh` compiles the tracked sources
+directly. It never extracts `engine.tar`, applies patches or rewrites sources.
+Old `.patch` files and `.cache/storm` are historical evidence. `run.sh` owns
+staging and launch. `backend.mm` and adjacent Metal headers own rendering.
+`src/gameplay` owns registered complete scripts and interface definitions;
+`tools/gameplay_sources.py` projects them to runtime files.
+`tools/sync_metal_gameplay.py` delivers these and remaining domain generators;
+`metal_graphics_settings.py` owns settings and the launch environment.
 
-Captured `experiments/native-metal/inputs` are the portable build dependency owner. The manifest verifies pinned engine source, baseline scripts, headers and toolchain. Builds with those inputs do not depend on the original developer’s machine or old engine checkout. Keep inputs and generated `.cache` out of Git.
+Captured `experiments/native-metal/inputs` own dependency headers, baseline
+scripts and toolchain. Existing payloads remain compatible; their historical
+engine archive/baseline build files are unused. Keep inputs and generated
+`.cache` out of Git. `tools/metal_engine_source.py` owns compiler readiness from
+the real engine/renderer input fingerprint and built/staged binary hashes.
+An edit after a build invalidates readiness; a build never rolls it back.
 
 ## Edit and stage
 
-Stop the development game before rebuilding or staging. Preserve the ordered patch stack; do not replace complete PROGRAM or RESOURCE trees. Unknown script bytes must be reviewed rather than overwritten.
+Close the game before staging. Edit tracked engine files directly; do not
+replace complete PROGRAM or RESOURCE trees. Unknown runtime edits require review.
 
 ```sh
 python3 tools/prepare_metal_inputs.py --check
@@ -16,7 +32,16 @@ experiments/native-metal/run.sh --stage-only
 python3 tools/sync_metal_gameplay.py check
 ```
 
-For a complete update, close the game and run `experiments/native-metal/run.sh --stage-only` once. This applies the ordered engine patches, builds, stages the reviewed scripts and techniques, and updates the installed app when present. Then reopen the game. Unknown runtime or installed-app edits stop delivery for review rather than being overwritten; a signing failure is an error, not a successful install.
+For a complete update, close the game and run `experiments/native-metal/run.sh --stage-only` once. It builds directly from tracked engine/renderer sources, stages reviewed scripts and techniques, and updates the installed app when present. Then reopen the game. Unknown runtime or installed-app edits stop delivery for review rather than being overwritten; a signing failure is an error, not a successful install.
+
+`src/assets/video/manifest.json` owns15 original WMV identities and their H.264/AAC
+recipe. Canonical staging prepares `.wmv.mp4` siblings with FFmpeg once, then
+reuses SHA-verified cached outputs. Original videos remain intact; AVFoundation
+plays the derived files with the original script IDs, aspect, audio and completion
+events. Exact movie paths join ordinary delivery receipts/export. FFmpeg is a
+preparation tool, not a shipped runtime dependency. The startup-video preference
+still controls startup; story videos are no longer skipped by the historical
+Wine workaround.
 
 The installer also delivers the built `resource/shared/messages.h` to the installed app and development runtime in the same rollback transaction as the engine. The script VM reads this header during startup; updating the engine and PROGRAM alone can leave new command names undefined and abort before the menu. Header compilation checks must use the delivered app header, not the source checkout.
 

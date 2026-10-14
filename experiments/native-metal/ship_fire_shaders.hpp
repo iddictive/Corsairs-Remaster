@@ -135,14 +135,17 @@ struct ShipFireCompositeO {float4 p [[position]];};
 vertex ShipFireCompositeO ship_fire_composite_vs(uint id [[vertex_id]]){float2 q=float2((id<<1)&2,id&2);return {float4(q*float2(2,-2)+float2(-1,1),0,1)};}
 fragment float4 ship_fire_composite_fs(ShipFireCompositeO o [[stage_in]],constant ShipFireCamera&c [[buffer(1)]],texture2d<float,access::read>volume [[texture(0)]],texture2d<float,access::read>frontDepth [[texture(1)]],depth2d<float,access::read>sceneDepth [[texture(2)]]){
  float scale=c.lighting.y;float2 sample=o.p.xy*scale-.5f,weight=fract(sample);int2 base=int2(floor(sample));
+ int2 backingSize=min(int2(volume.get_width(),volume.get_height()),int2(ceil(float2(sceneDepth.get_width(),sceneDepth.get_height())*scale)));
  float solid=sceneDepth.read(uint2(o.p.xy));float4 value=0;float total=0;
  float solidLinear=1.f/max(abs((c.inverseViewProjection*float4(0,0,solid,1)).w),1.e-8f);
  float4 guidedValue=0;float guidedTotal=0;bool allSky=true;
- for(uint i=0;i<4;i++){int2 offset=int2(i&1u,i>>1u);int2 at=clamp(base+offset,int2(0),int2(volume.get_width()-1,volume.get_height()-1));float w=(offset.x?weight.x:1.f-weight.x)*(offset.y?weight.y:1.f-weight.y);
+ for(uint i=0;i<4;i++){int2 offset=int2(i&1u,i>>1u);int2 at=clamp(base+offset,int2(0),backingSize-1);float w=(offset.x?weight.x:1.f-weight.x)*(offset.y?weight.y:1.f-weight.y);
   float2 mapped=clamp((float2(at)+.5f)/max(scale,.125f),float2(.5f),float2(sceneDepth.get_width(),sceneDepth.get_height())-.5f);
   float tapDepth=sceneDepth.read(uint2(mapped));
   float tapLinear=1.f/max(abs((c.inverseViewProjection*float4(0,0,tapDepth,1)).w),1.e-8f);
-  float guidedWeight=w/(abs(tapLinear-solidLinear)+1.e-5f),front=frontDepth.read(uint2(at)).r;float4 tap=volume.read(uint2(at));
+  // A fixed world-depth epsilon chooses almost one tap on sloping sails.
+  // Relative tolerance keeps those surfaces smooth without crossing rigging.
+  float guidedWeight=w/(abs(tapLinear-solidLinear)+max(1.e-5f,solidLinear*.005f)),front=frontDepth.read(uint2(at)).r;float4 tap=volume.read(uint2(at));
   allSky=allSky&&(tapDepth==1.f);
   // Occluded taps are transparent, but their weights remain in the sum:
   // matching opaque samples must suppress sky taps instead of amplifying them.

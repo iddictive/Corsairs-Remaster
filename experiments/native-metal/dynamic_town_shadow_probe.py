@@ -7,7 +7,7 @@ import struct
 
 ROOT = Path(__file__).resolve().parent
 GM = ROOT / ".cache/runtime/RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm"
-PATCH = ROOT / "dynamic-town-shadows.patch"
+GEOMETRY = ROOT / "engine/src/libs/geometry/src/geometry.cpp"
 
 
 def require(value: bool, message: str) -> None:
@@ -75,15 +75,14 @@ def main() -> None:
             "actual Cozumel ground also combines shadow base with bump detail")
     require(len(grounds) >= 10, "real shore corpus covers repeated base-shadow consumers")
 
-    patch = PATCH.read_text()
-    require("return false" not in patch and "bool SetMaterial" not in patch and
-            "!srv.SetMaterial" not in patch,
-            "no filename-based whole-geometry rejection")
-    require("mt.stormMetalBakedShadowMask & (1u << 1)" in patch,
+    source = GEOMETRY.read_text()
+    require("!srv.SetMaterial" not in source,
+            "material classification does not reject whole geometry")
+    require("mt.stormMetalBakedShadowMask & (1u << 1)" in source,
             "slot-1 authored modulation is neutralized independently")
-    require('storm::iEquals(mt.group_name, "shadow")' not in patch,
+    require('storm::iEquals(mt.group_name, "shadow")' not in source,
             "unreliable GM group name is not used as the shadow classifier")
-    require(patch.count("StormMetalOutdoorSunShadowsReady") >= 2,
+    require(source.count("StormMetalOutdoorSunShadowsReady") >= 2,
             "slot-1 replacement preserves the dynamic-ready fallback gate")
     print(f"PASS dynamic town shadows: 6 slot-1 neutralized, {len(grounds)} shore base materials preserved; Cozumel consumer bound")
 

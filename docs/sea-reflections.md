@@ -65,12 +65,12 @@ and waterline face sets, wrong target, missing depth and sky-only capture pass.
 Existing rebuilt original/modern sea and depth-water probes also pass.
 This proves source/component behavior, not installed player placement or FPS.
 
-The combined canonical native build passes. Final `run.sh --stage-only` refuses
-while the player's app is running; the successor is not installed. The parent
-graphics task owns that next stage after normal game exit. Player acceptance is
-still the real ship/shore scene while moving the camera, then holding stationary,
-with both small and sloping waves. No autonomous game launch/input/SAVE inspection
-was performed.
+The initial final-stage attempt refused while the player's app was running.
+The subsequent direct-source batch passes canonical `run.sh --stage-only` and
+installs signed engine `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e`.
+Player acceptance remains the real ship/shore scene while moving the camera,
+then holding stationary, with both small and sloping waves. This graphics task
+performs no autonomous game launch/input/SAVE inspection.
 
 ### Reopened camera-stop report
 

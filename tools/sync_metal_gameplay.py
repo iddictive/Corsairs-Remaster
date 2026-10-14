@@ -17,6 +17,8 @@ import patch_squad_common_supply as squad_supply
 import metal_governor_dialog as governor_dialog
 import metal_living_caribbean as living_caribbean
 import gameplay_sources
+import metal_engine_source
+import prepare_native_movies
 import metal_fleet_gameplay as fleet_gameplay
 import metal_fleet_sea as fleet_sea
 import metal_fleet_ui as fleet_ui
@@ -43,9 +45,7 @@ METAL = PROJECT / "experiments/native-metal"
 TARGET = METAL / ".cache/runtime"
 INSTALLED_APP = Path("/Applications/Corsairs Iddictive Remaster.app")
 ENGINE = METAL / ".cache/CorsairsMetal.app/Contents/MacOS/metal-engine"
-PATCH = PROJECT / "experiments/native-storm/compiler-extern.patch"
-DECK_PATCHES = (PATCH.with_name("deck-walk.patch"),)
-ENGINE_DECK_PATCH = METAL / "deck-walk.patch"
+DECK_PACKAGE = PROJECT / "experiments/native-storm/deck_walk.py"
 BACKGROUND_ALPHA = METAL / "background_alpha.py"
 # Independently delivered cannon aiming; this package does not replace it.
 PRESERVED_RUNTIME = {
@@ -69,7 +69,7 @@ def script_bytes(relative, data, *representations):
 
 
 def deck_package():
-    spec = importlib.util.spec_from_file_location("native_deck_walk", PATCH.with_name("deck_walk.py"))
+    spec = importlib.util.spec_from_file_location("native_deck_walk", DECK_PACKAGE)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -83,30 +83,8 @@ def background_alpha_package():
 
 
 def compiler_ready():
-    receipt = METAL / ".cache/gameplay-compiler.json"
-    if not receipt.is_file() or not ENGINE.is_file():
-        return False
-    record = json.loads(receipt.read_text())
     built = METAL / ".cache/build/bin/engine-1"
-    return (record.get("patch_sha256") == digest(PATCH.read_bytes())
-            and built.is_file()
-            and record.get("engine_sha256") == digest(built.read_bytes())
-            and record["engine_sha256"] == digest(ENGINE.read_bytes())
-            and record.get("gameplay_patches") == {
-                patch.name: digest(patch.read_bytes()) for patch in DECK_PATCHES
-            }
-            and record.get("engine_deck_patch_sha256") == digest(ENGINE_DECK_PATCH.read_bytes())
-            and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
-            and record.get("sea_tsunami_patch_sha256") == digest((METAL / "sea-tsunami.patch").read_bytes())
-            and record.get("sea_whirlpool_patch_sha256") == digest((METAL / "sea-whirlpool.patch").read_bytes())
-            and record.get("worldmap_authored_actors_patch_sha256") == digest((METAL / "worldmap-authored-actors.patch").read_bytes())
-            and record.get("quiet_client_patch_sha256") == digest((METAL / "quiet-client.patch").read_bytes())
-            and record.get("ship_phonk_patch_sha256") == digest((METAL / "ship-phonk.patch").read_bytes())
-            and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
-            and record.get("mast_repair_patch_sha256") == digest((METAL / "mast-repair.patch").read_bytes())
-            and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
-            and record.get("pickup_patch_sha256") == digest((METAL / "pickup-glow.patch").read_bytes())
-            and record.get("external_url_patch_sha256") == digest((METAL / "external-url.patch").read_bytes()))
+    return metal_engine_source.ready(built, ENGINE)
 
 
 # Compose after the existing gameplay owners, notably the AIShip fleet layer.
@@ -238,6 +216,18 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS):
         changes = asset_changes(asset_root, state, managed, inputs, asset_targets)
         assets.update(changes)
+    for relative, source in prepare_native_movies.prepared().items():
+        target = state.path(relative)
+        previous = target.read_bytes() if target.is_file() else None
+        incoming = source.read_bytes()
+        state.admit(relative, previous, incoming, create=True)
+        state.track(relative, incoming, source="src/assets/video/manifest.json")
+        if managed is not None:
+            managed[relative] = (previous, incoming)
+        if inputs is not None:
+            inputs[source] = (incoming, incoming)
+        if previous != incoming:
+            assets[relative] = (previous, incoming)
     living_caribbean.verify_fort_layout_assets(target_root)
     living_caribbean.verify_land_layout_assets(target_root)
     # Regenerated suite consumers come from exact-hash originals, not the
@@ -370,7 +360,7 @@ def apply(changes, paths=None, source_set=None):
 
 def apply_locked(changes, paths=None, source_set=None):
     if not compiler_ready():
-        raise RuntimeError("build and stage Metal with the current compiler and native gameplay patches before applying gameplay")
+        raise RuntimeError("build and stage Metal with the current engine sources before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
     source_set = recipe_sources(gameplay_sources.read(paths) if source_set is None else source_set, paths)
     runtime_state = DeliveryState(TARGET)

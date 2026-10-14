@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "consumer": "CAviPlayer (macOS AVPlayerItemVideoOutput); StartVideo / CXI_VIDEORECT",
+  "ffmpeg_args": [
+    "-map",
+    "0:v:0",
+    "-map",
+    "0:a:0?",
+    "-map_metadata",
+    "-1",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    "18",
+    "-pix_fmt",
+    "yuv420p",
+    "-threads:v",
+    "1",
+    "-fps_mode",
+    "passthrough",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-threads:a",
+    "1",
+    "-fflags",
+    "+bitexact",
+    "-flags:v",
+    "+bitexact",
+    "-flags:a",
+    "+bitexact",
+    "-movflags",
+    "+faststart"
+  ],
+  "files": {
+    "RESOURCE/VIDEOS/AkellaLogo.wmv": {
+      "source_sha256": "1c513eb1070ac0b7d29a9e6ef343eb053aafaf33d5dba4e3ceb0e3423bbfcb5b",
+      "output": "RESOURCE/VIDEOS/AkellaLogo.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Credits_BMS.wmv": {
+      "source_sha256": "03e84e9d53ef899892f6a3f6f9b32571dbd11f0d5c1e8c2091afd39c2e749e1e",
+      "output": "RESOURCE/VIDEOS/Credits_BMS.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/England.wmv": {
+      "source_sha256": "2882d55060575f8362ddadfbad23d62e3e7d16e2c4fcf1ab30964842b8681e5b",
+      "output": "RESOURCE/VIDEOS/England.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France/01.wmv": {
+      "source_sha256": "94e79b35e0bbc21823b43f816e1f310e9e19d4594778b6943450220875ad6cfb",
+      "output": "RESOURCE/VIDEOS/France/01.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France/02.wmv": {
+      "source_sha256": "933b3c11f9c322b96e4bfbe311418ec54e9b1199f9c0dd73df8655cb30a93893",
+      "output": "RESOURCE/VIDEOS/France/02.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France/03.wmv": {
+      "source_sha256": "38748c63bfc2707f6ca49d04187fe169f30e6a8964c4060864c7ddc081a0d144",
+      "output": "RESOURCE/VIDEOS/France/03.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France/04.wmv": {
+      "source_sha256": "03ad98fdc372f8186deb7cdaa3567dea327fe2a10d2de8f7868899053b86054b",
+      "output": "RESOURCE/VIDEOS/France/04.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France/05.wmv": {
+      "source_sha256": "981540854a79d5a5e3dc2796084a055960407893e42cf8341fa70299d703af56",
+      "output": "RESOURCE/VIDEOS/France/05.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/France.wmv": {
+      "source_sha256": "c76503893418a44bf002ab9d43597f345067bca90ca982954547cf872a369d86",
+      "output": "RESOURCE/VIDEOS/France.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Holland.wmv": {
+      "source_sha256": "7a5e8a8660b5a40ae7bec73e767b59c579e852d60521f9d3faed08d30069d7ed",
+      "output": "RESOURCE/VIDEOS/Holland.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Pirate.wmv": {
+      "source_sha256": "d07d0675337b35f0c4e44d1a8b6dd7211c28f925c01fe5b8ce825c7c5c6620b8",
+      "output": "RESOURCE/VIDEOS/Pirate.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Seaward.wmv": {
+      "source_sha256": "2440d4ee4632b746011465b640762cfd060e805b1b82c4e9d828da6d5bb60ebf",
+      "output": "RESOURCE/VIDEOS/Seaward.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Spain.wmv": {
+      "source_sha256": "6a29c5d2601d61a538507f4c52f6efbdd993d15f5e8d25271345360eda90121b",
+      "output": "RESOURCE/VIDEOS/Spain.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/Title.wmv": {
+      "source_sha256": "3aea09fbe79d99a6be5d09b01ee583c19251ad6dcfc86aead28480889423c221",
+      "output": "RESOURCE/VIDEOS/Title.wmv.mp4"
+    },
+    "RESOURCE/VIDEOS/slave.wmv": {
+      "source_sha256": "61087abe9d70a57166deff2f1b2caa05dee1c3fd15f2c260cbec906f4be63323",
+      "output": "RESOURCE/VIDEOS/slave.wmv.mp4"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Portable zoom/input regression checks against the canonically patched engine.
+"""Portable zoom/input regression checks against the tracked engine.
 
-python3 deck_aim_zoom_probe.py --engine-source .cache/storm \
+python3 deck_aim_zoom_probe.py --engine-source engine \
     --gameplay-source inputs/gameplay
 No native renderer or gameplay execution is claimed by this probe.
 """
@@ -28,12 +28,12 @@ def function(source, name, prefix='void DECK_CAMERA::'):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--engine-source', type=Path, default=ROOT / '.cache/storm')
+    parser.add_argument('--engine-source', type=Path, default=ROOT / 'engine')
     parser.add_argument('--gameplay-source', type=Path)
     args = parser.parse_args()
     camera = args.engine_source.resolve() / 'src/libs/sea_cameras/src'
     if not (camera / 'deck_aim_zoom.h').is_file():
-        parser.error('apply the canonical build patch stack first, then pass its engine source')
+        parser.error('pass a complete engine source containing deck_aim_zoom.h')
     source = (camera / 'deck_camera.cpp').read_text()
     with tempfile.TemporaryDirectory(prefix='deck-aim-zoom-') as folder:
         folder = Path(folder)

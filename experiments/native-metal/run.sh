@@ -64,7 +64,7 @@ changes = {}
 state = DeliveryState(runtime)
 for name, known in LEGACY_TECHNIQUES.items():
     relative = Path("techniques") / name
-    source = root / ".cache/storm/src" / relative
+    source = root / "engine/src" / relative
     target = runtime / "RESOURCE" / relative
     backup = root / ".cache/material-originals" / relative
     if any(path.is_symlink() for path in (source, target, backup)):
@@ -120,10 +120,11 @@ python3 "$root/dynamic_town_shadow_probe.py"
 python3 "$root/baked_static_shadow_caster_probe.py"
 python3 "$root/branding/stage.py" "$runtime"
 python3 "$root/../../tools/prepare_phonk_music.py"
+python3 "$root/../../tools/prepare_native_movies.py" --source-root "$runtime"
 python3 "$root/../../tools/sync_metal_gameplay.py" check
 python3 "$root/../../tools/sync_metal_gameplay.py" apply
 python3 "$root/../../tools/metal_graphics_settings.py" initialize "$runtime"
-/bin/cp -cR "$root/.cache/storm/src/libs/shared_headers/include/shared" "$bundle/Contents/Resources/resource/"
+/bin/cp -cR "$root/engine/src/libs/shared_headers/include/shared" "$bundle/Contents/Resources/resource/"
 # Every stage also refreshes the played /Applications engine (skips when the
 # game bundle is absent or already matches; refuses while the game runs).
 "$root/install-engine.sh"

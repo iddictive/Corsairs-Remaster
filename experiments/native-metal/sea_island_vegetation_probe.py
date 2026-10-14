@@ -3,8 +3,7 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
-patch = (root / "sea-island-vegetation.patch").read_text()
-grass = (root / ".cache/storm/src/libs/location/src/grass.cpp").read_text()
+grass = (root / "engine/src/libs/location/src/grass.cpp").read_text()
 sea = (root / ".cache/runtime/PROGRAM/sea_ai/sea.c").read_text()
 
 def need(value, message):
@@ -15,16 +14,16 @@ need('CreateGrass("resource\\models\\islands\\"+' in sea,
      "sea consumer must load each island's authored .grs distribution")
 need('Islands[iIslandIndex].jungle.patch' in sea and 'Islands[iIslandIndex].jungle.texture' in sea,
      "sea vegetation must retain authored distribution and atlas")
-need('entid_t eidIsland = core.GetEntityId("ISLAND")' in patch,
+need('entid_t eidIsland = core.GetEntityId("ISLAND")' in grass,
      "extended range must be restricted to the sea-island consumer")
-need('kSeaIslandVegetationDistance = 3000.0f' in patch,
+need('kSeaIslandVegetationDistance = 3000.0f' in grass,
      "sea island vegetation needs a bounded visible distance")
-need('linearDistance > m_fMaxVisibleDist && kLod < 0.7501f' in patch,
+need('linearDistance > m_fMaxVisibleDist && kLod < 0.7501f' in grass,
      "distant sea vegetation must force the sparsest authored LOD")
-need('& 3u) != 0u' in patch,
+need('& 3u) != 0u' in grass,
      "far-field authored blocks need a stable quarter-density budget")
 need('StormMetalDrawGrass' in grass and 'metalInstances.push_back' in grass,
      "vegetation must remain Metal-native compact instancing")
-need('jungle1.tga' not in patch,
-     "fix must not paint vegetation into island terrain")
+need('jungle1.tga' not in grass,
+     "sea vegetation must not paint vegetation into island terrain")
 print("PASS sea island vegetation: authored .grs reaches compact Metal instances to 3000 units; distant population is fixed at authored LOD3")

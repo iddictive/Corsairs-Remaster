@@ -30,6 +30,11 @@ integer override (for example1 for the lowest concurrent build load). Invalid
 values fail before source preparation or configuration. This controls compilation,
 not the game's simulation or renderer; build success does not activate the app.
 
+Engine changes are ordinary edits in `experiments/native-metal/engine`; Metal
+changes remain in adjacent renderer files. The normal build no longer rewrites
+cached source or replays patches. Compiler readiness fingerprints actual native
+inputs and detects edits after the last build; old patch hashes are historical.
+
 Canonical staging also admits the seven exact UI texture destinations declared in
 `tools/delivery_state.py`: mast repair, fire mode, raking fire, heated shot, goods, command and navigator icons.
 The three atlases preserve existing pixels outside the airburst cells. Their sources and prepared

@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Audit the UI/font/point-sprite consumer migration patch without staging it."""
+"""Audit the tracked UI/font/point-sprite consumer source contracts."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT / ".cache" / "storm"
-PATCH = ROOT / "renderer-ui-fonts.patch"
+SOURCE = ROOT / "engine"
 
 LANES = {
     "font": SOURCE / "src/libs/renderer/src/font.cpp",
@@ -42,33 +40,16 @@ def main() -> int:
     failures: list[str] = []
     if not SOURCE.is_dir():
         failures.append(f"missing source owner: {SOURCE}")
-    if not PATCH.is_file():
-        failures.append(f"missing patch: {PATCH}")
     if failures:
         print(json.dumps({"verdict": "FAIL", "failures": failures}, indent=2))
         return 1
 
-    check = subprocess.run(
-        ["git", "-C", str(SOURCE), "apply", "--check", str(PATCH)],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if check.returncode:
-        failures.append("patch does not apply cleanly: " + check.stderr.strip())
-
-    patch = PATCH.read_text()
-    touched = re.findall(r"^diff --git a/(\S+) b/\S+$", patch, re.MULTILINE)
-    allowed = {
-        "src/libs/renderer/src/font.cpp",
-        "src/libs/renderer/src/s_device.cpp",
-        "src/libs/renderer/include/metal_renderer_consumers.h",
-    }
-    unexpected = sorted(set(touched) - allowed)
-    if unexpected:
-        failures.append("unexpected patch owners: " + ", ".join(unexpected))
-    if "backend.mm" in patch or "build.sh" in patch or "CMakeLists.txt" in patch:
-        failures.append("forbidden integration owner touched")
+    owners = (
+        LANES["font"], LANES["renderer"],
+        SOURCE / "src/libs/renderer/include/metal_renderer_consumers.h")
+    source = "\n".join(path.read_text(errors="replace") for path in owners)
+    native_font = LANES["font"].read_text().split(
+        "#ifdef STORM_METAL_RENDERER_CONSUMERS", 1)[1].split("#else", 1)[0]
 
     required = {
         "compact_primitive_abi": "StormMetalDrawCompactPrimitive",
@@ -77,18 +58,17 @@ def main() -> int:
         "metal_gate": "STORM_METAL_RENDERER_CONSUMERS",
     }
     for name, needle in required.items():
-        if needle not in patch:
+        if needle not in source:
             failures.append(f"missing contract: {name}")
 
-    if "sizeof(StormMetalGlyphInstance) == 36" not in patch or "offsetof(StormMetalGlyphInstance, color) == 32" not in patch:
+    if "sizeof(StormMetalGlyphInstance) == 36" not in source or "offsetof(StormMetalGlyphInstance, color) == 32" not in source:
         failures.append("glyph ABI lacks fixed size/offset assertions")
-    if "StormMetalDrawGlyphInstances(&device_" in patch:
+    if "StormMetalDrawGlyphInstances(&device_" in source:
         failures.append("glyph path passes renderer address instead of the raw D3D device")
 
-    added = "\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
-    if re.search(r"Draw(?:Indexed)?PrimitiveUP\s*\(", added):
-        failures.append("new UP submission introduced")
-    added_blend = re.findall(r"SetRenderState\s*\([^\n]+", added)
+    if re.search(r"Draw(?:Indexed)?PrimitiveUP\s*\(", native_font):
+        failures.append("Metal font path uses UP submission")
+    added_blend = re.findall(r"SetRenderState\s*\([^\n]+", native_font)
     allowed_blend = {
         "SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);",
         "SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);",
@@ -110,16 +90,16 @@ def main() -> int:
     # All xinterface/battle direct calls terminate in these two canonical methods.
     # Under the Metal gate their D3D UP statements exist only in the #else fallback.
     central_routes = ["StormMetalDrawCompactIndexedPrimitive(d3d9", "StormMetalDrawCompactPrimitive(d3d9"]
-    if patch.count("#ifdef STORM_METAL_RENDERER_CONSUMERS") < 4 or any(route not in patch for route in central_routes):
+    if source.count("#ifdef STORM_METAL_RENDERER_CONSUMERS") < 4 or any(route not in source for route in central_routes):
         failures.append("direct UI UP consumers are not covered by both canonical compact routes")
     if not re.search(
         r"#ifdef STORM_METAL_RENDERER_CONSUMERS.*StormMetalDrawGlyphInstances.*#else.*UpdateVertexBuffer",
-        patch,
+        source,
         re.DOTALL,
     ):
         failures.append("font Metal path does not bypass expanded glyph vertex upload")
 
-    # The consumer patch is not independently usable until the coordinated
+    # The consumer source is not independently usable until the coordinated
     # backend owns all ABI definitions. Declarations and call sites are not proof.
     backend = (ROOT / "backend.mm").read_text(errors="replace")
     for symbol in ("StormMetalDrawCompactPrimitive", "StormMetalDrawCompactIndexedPrimitive", "StormMetalDrawGlyphInstances"):
@@ -128,11 +108,11 @@ def main() -> int:
             failures.append(f"coordinated backend definition missing: {symbol}")
 
     fallback_patterns = (
-        r"\+#else\n\s+CHECKD3DERR\(d3d9->DrawIndexedPrimitiveUP",
-        r"\+#else\n\s+CHECKD3DERR\(d3d9->DrawPrimitiveUP",
-        r"\+#else\n\+\s+if \(drawShadows\)",
+        r"#else\n\s+CHECKD3DERR\(d3d9->DrawIndexedPrimitiveUP",
+        r"#else\n\s+CHECKD3DERR\(d3d9->DrawPrimitiveUP",
+        r"#else\n\s+if \(drawShadows\)",
     )
-    if not all(re.search(pattern, patch) for pattern in fallback_patterns):
+    if not all(re.search(pattern, source) for pattern in fallback_patterns):
         failures.append("non-Metal fallback is not preserved under the renderer-consumer gate")
 
     stars = LANES["point_sprites"].read_text(errors="replace")
@@ -144,8 +124,8 @@ def main() -> int:
     verdict = "FAIL" if failures or blockers else "PASS"
     print(json.dumps({
         "verdict": verdict,
-        "patch_applies": check.returncode == 0,
-        "touched": touched,
+        "source_owner": str(SOURCE),
+        "owners": [str(path.relative_to(SOURCE)) for path in owners],
         "inventory": report,
         "preserved": {
             "font_shadow_blend": "ZERO, INVSRCALPHA",

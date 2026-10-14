@@ -12,9 +12,8 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT / ".cache/storm/src/libs"
+SOURCE = ROOT / "engine/src/libs"
 BACKEND = (ROOT / "backend.mm").read_text()
-BUILD = (ROOT / "build.sh").read_text()
 CMAKE = (ROOT / "CMakeLists.txt").read_text()
 
 
@@ -23,22 +22,21 @@ def need(condition: bool, message: str) -> None:
         raise SystemExit("FAIL: " + message)
 
 
-need(SOURCE.is_dir(), "staged patched Storm source is missing")
+need(SOURCE.is_dir(), "tracked Storm source is missing")
 
 bridges = {
-    "town": ("rawOutdoor", "dynamic-town-shadows.patch"),
-    "interior": ("StormMetalBeginLandModel", "scene-lighting.patch"),
-    "sea": ("rawSeaLit", "sea-geometry.patch"),
-    "ship": ("rawSeaLit", "ship-light-ownership.patch"),
-    "weather": ("StormMetalDrawBillboards", "renderer-rain-weather.patch"),
-    "worldmap": ("StormMetalBeginWdmModel", "renderer-world-map.patch"),
-    "ui": ("StormMetalDrawCompactPrimitive", "renderer-ui-fonts.patch"),
-    "particles": ("StormMetalDrawAdvancedParticles", "renderer-particles-fx.patch"),
-    "characters": ("rawSkinned", "model-gpu-skinning.patch"),
+    "town": "rawOutdoor",
+    "interior": "StormMetalBeginLandModel",
+    "sea": "rawSeaLit",
+    "ship": "rawSeaLit",
+    "weather": "StormMetalDrawBillboards",
+    "worldmap": "StormMetalBeginWdmModel",
+    "ui": "StormMetalDrawCompactPrimitive",
+    "particles": "StormMetalDrawAdvancedParticles",
+    "characters": "rawSkinned",
 }
-for consumer, (backend_symbol, patch_name) in bridges.items():
+for consumer, backend_symbol in bridges.items():
     need(backend_symbol in BACKEND, f"{consumer}: backend hook {backend_symbol} absent")
-    need(f'"$root/{patch_name}"' in BUILD, f"{consumer}: {patch_name} absent from ordered source stack")
 
 need("STORM_METAL_RENDERER_CONSUMERS=1" in CMAKE, "common compact consumer bridge is not compiled")
 need("STORM_METAL_PARTICLE_BRIDGE=1" in CMAKE, "particle bridge is not compiled")

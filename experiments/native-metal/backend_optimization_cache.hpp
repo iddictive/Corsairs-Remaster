@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 namespace storm_metal {
 namespace backend_optimization {
@@ -87,6 +88,35 @@ public:
         victim->key=key;
         victim->value=value;
         victim->used=now;
+    }
+};
+
+// Immutable indexed addressing is shared by all animation poses. Keep only
+// referenced vertices: scanning a dense span would include unused geometry.
+// At most 256 lists of 4096 indices (4 MiB); no GPU/resource ownership.
+class UniqueIndexCache {
+    BoundsCache<std::vector<std::uint32_t>,64,4> entries_;
+public:
+    void clear() noexcept { entries_.clear(); }
+    template<class ReadIndex>
+    const std::vector<std::uint32_t>* resolve(const BoundsKey& key,
+            std::uint32_t first,std::uint32_t last,ReadIndex read) {
+        if(last<first || std::uint64_t(last)-first+1>4096 || !key.indexCount)
+            return nullptr;
+        if(const auto* found=entries_.find(key)) return found;
+        std::array<std::uint8_t,4096> seen{};
+        std::vector<std::uint32_t> unique;
+        unique.reserve(std::size_t(last)-first+1);
+        for(std::uint64_t i=0;i<key.indexCount;++i) {
+            const auto vertex=read(i);
+            if(vertex<first || vertex>last) return nullptr;
+            if(!seen[vertex-first]) {
+                seen[vertex-first]=1;
+                unique.push_back(vertex);
+            }
+        }
+        entries_.insert(key,unique);
+        return entries_.find(key);
     }
 };
 

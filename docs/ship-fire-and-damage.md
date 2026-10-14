@@ -463,3 +463,95 @@ Retained one-off inputs, rejected variants and accepted evidence live under the
 ignored `experiments/native-metal/.cache/diagnostics/fire-raster-20261013` owner.
 No permanent test infrastructure is added. Canonical stage and the player's same
 night-fire scene/FPS replay are separate remaining delivery/acceptance steps.
+
+## Developed-fire damage and continuous fire backing
+
+The October14 player report reopens slow hull loss and pixelated flames while
+retaining the flame design. The previous damage model limits even complete wood
+exposure to about4.26% of maximum hull HP per game-minute before hull protection.
+`ship_fire_model.hpp` adds structural loss from area-weighted developed wood:
+`intensity * clamp((heat-.80)/.45,0,1)`, at an additional .0030 hull fraction
+per game-second for complete exposure. Fresh .76 ignition retains its recovery
+window. Damage remains one native output through the existing AIShip defences;
+there is no second timer, per-site multiplication or change to thermal state,
+crew casualties, sail wear, SAVE schema or suppression capacity.
+
+In the same fixed-pose production replay, Frigate1 at70% staffing with six .76
+starts loses15.23% hull at60game seconds and94.58% at300, versus3.41/18.60%.
+Its single fire still dies at13.5seconds with .0582% hull loss; six-site priority
+still dies at19.75seconds with .2825% loss. The rain case remains2.75seconds
+and .0404%. A developed18%-staffed Manowar with35% hull protection loses12.68%
+at60seconds and57.72% at300, versus2.44/11.09%. Twelve paired scenarios preserve
+crew/duty/heat/fuel/char/cloth outputs exactly across14,400steps; cold, pause
+and death still produce no damage. These are component rates, not battle balance
+or a guarantee about waves, further hits and active repairs.
+
+The render budget previously stepped1→½→¼→⅛, wasting up to75% of its existing
+sample target at each transition. `ship_fire_render.hpp` now derives backing
+scale from `sqrt(target/requested)`, retaining the8million target,32ray steps
+and⅛minimum. This target is an estimate, not a hard cap: the inherited minimum
+can exceed it in an extreme fleet. Actual pixel work can increase over the old
+underused budget; installed battle FPS remains an acceptance gap.
+Color/front backing textures retain high-water capacity rounded to64pixels,
+bounded by the scene target. Small camera/fire changes reuse both textures;
+the compositor samples only logical backing dimensions, excluding padding.
+Actual encode changes552×311→548×309→544×306 while both576×320objects stay
+identical. The first whole-ship frame remains byte-identical before/after this
+capacity change. Independent source/pixel review accepts that component boundary.
+
+The existing depth-guided four-tap compositor also approached nearest-neighbour
+selection on sloping sails because its fixed world-depth tolerance was1e-5.
+`ship_fire_shaders.hpp` retains the same symmetric depth weights and occluded-tap
+denominator but gives them0.5% relative linear-depth tolerance. The current
+[HDRP bilateral implementation](https://github.com/Unity-Technologies/Graphics/blob/master/Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/ScreenSpaceLighting/BilateralUpsample.hlsl)
+remains the reused pattern; a full temporal upscaler would need motion/history
+inputs absent from this fire pass and is unnecessary for this bounded repair.
+
+Actual Metal component pixels reduce sloping-panel RGB error .004135→.003423
+at¼ backing and .008038→.007639 at⅛. Opaque rope and flat-panel leaks remain0;
+the prior quarter-resolution single rope-loss pixel is unchanged. Full-resolution
+output remains byte-identical. The complete FrigateQueen1 inspection scene spends
+2.69million→8million predicted samples at .25→.431 backing. Whole-frame review
+retains attached flames, smoke, original cloth/hull and warm material response,
+with smoother tongues and rigging; it does not accept the player's game scene.
+Retained source snapshots, GPU outputs and the hull-rate replay belong to
+`experiments/native-metal/.cache/diagnostics/fire-quality-20261014`.
+No permanent test files are added. Canonical build, installed delivery and the
+player's burning-ship/FPS replay remain separate evidence levels.
+
+## Visible deck-crew fire response
+
+The old Sailors/ShipMan movement has no fire-state consumer; sailors continue
+their ordinary walk/cannon routes through burning deck cells. Direct engine
+`ship/include/ship_base.h` and `ship/src/ship.h` expose the existing live thermal
+model through a nullable const getter. `sailors/src/sailors.cpp` reads that model
+and the existing FireState active/enabled/duty summary. It writes no fire,
+damage or SAVE state. Canonical CMake gives sailors the same native helper
+include path already used by ship/rigging.
+
+One per-ship planner masks hazardous authored points and complete link segments,
+allowing an engulfed sailor only a monotonically outward escape. It reuses the
+waypoint graph and existing run/sit_down/stand_up animations. Visible suppression
+staffing follows actual finite duty; workers run to a safe edge and crouch facing
+the fire, while others seek safer deck points. A trapped sailor stops when no
+safe authored route exists. Installed Lo_Man has no bucket animation or prop:
+this represents suppression work and evacuation, not bucket throwing.
+Pause freezes responses; extinction restores ordinary behavior; death, jumps,
+swimming and detached actors retain their existing ownership.
+
+Hazards/graph distances are shared per ship at the thermal revision or bounded
+.25game-second cadence. Frame movement adds no cell/graph scans. An initial
+planner reset each route at that cadence, leaving an actual-body worker at x=-8
+for12ticks on a5m safe edge. That candidate is rejected. The successor retains
+validated path progress, replans toward the forward endpoint and invalidates
+on changed hazard/target/duty. Interleaved native bodies reach x=-3 and working
+state at tick7; fleeing reaches the safe wait state. Pause, cold restoration,
+newly blocked routes, role changes, death/detachment and escape negatives pass
+under ASan/UBSan, with full Sailors translation and SHIP header syntax checks.
+
+The installed Frigate1 graph fixture has43points/46links and50sailors/39fires.
+Planning is23.88µs for dense deck fire and90.27µs for the all-reachable overhead
+control in that component; neither measures complete installed frame time.
+Replayable rejected/final body evidence lives under
+`experiments/native-metal/.cache/diagnostics/fire-crew-20261014`.
+The player's full animation/fire lifecycle and dense-battle FPS remain unresolved.

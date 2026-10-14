@@ -13,6 +13,7 @@ NORMALIZED_HASHES = {
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",
+    "PROGRAM/dialogs/russian/Store/Pirates_Store.c": "3b2dece67be7e739dd7761576a474e591fd6693e410bd99b3708337588ccd596",
     "PROGRAM/dialogs/russian/Habitue_dialog.c": "de7fc10028b0250a28403144b09338c6959ba45c1e88feae4dc9841f8e3b7034",
     "PROGRAM/QuestBook/QuestBook_New.txt": "ef54267b32f27962b710acdc9a116eac2cc17302fe2bdc67dfafbac687f255a0",
     "PROGRAM/scripts/ShipsUtilites.c": "2cd9ca95f3e8eb79b4ebe2371a2ce6812e9a1f8048bbba2c273cc267d77459e7",
@@ -44,6 +45,7 @@ BASE_HASHES = {
     "PROGRAM/store/storeutilite.c": ("4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",),
     "PROGRAM/locations/locations_loader.c": ("2e496b1da697478553b24f22145ced5fe5011a63e76ecb02faf8f21ac0693fd2",),
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": ("62b40971c7ede802cb47353990e99af909a14d33d869bcca86b8700edae85b06",),
+    "PROGRAM/dialogs/russian/Store/Pirates_Store.c": ("d5d227e25763ac06b176927715490856edaffca9a4ed2a420035bdc44e2a816a",),
     "PROGRAM/dialogs/russian/Habitue_dialog.c": ("ad61192b45501d54b6af727d74c976556e180a0483bbb9aa69ae032dd73b3dad",),
     "PROGRAM/QuestBook/QuestBook_New.txt": ("0b44d01978f7bc69d1fecb95138a1e66bcf194295b6ae18915cd3272a860f3cf",),
     "PROGRAM/scripts/ShipsUtilites.c": ("d4cb33dc34420e88cad1ebb5e784b4d06dd65783ea98506cfd71a01ea2c37183",),
@@ -134,6 +136,31 @@ TAVERN_CASES = '''
         break;
 '''
 
+# Development-only supply; remove these two store edits when the quest is accepted.
+# Keep the date outside GreatRecipe, whose state is cleared on a quest restart.
+STORE_DEV_CASE = '''        case "GreatRecipe_DevBombs":
+            if (CheckAttribute(pchar, "GreatRecipeDevSupply.control_year") && GetQuestPastDayParam("GreatRecipeDevSupply") < 7)
+                dialog.text = "Эту партию ты уже получил. Следующую дам через семь дней после выдачи.";
+            else
+            {
+                if (!CheckAttribute(pchar, "Ship.Type") || sti(pchar.Ship.Type) == SHIP_NOTUSED)
+                    dialog.text = "Нужен собственный корабль, чтобы погрузить бомбы.";
+                else
+                {
+                    if (GetGoodQuantityByWeight(GOOD_AIRBURST, GetCargoFreeSpace(pchar)) < 200)
+                        dialog.text = "Все 200 бомб в трюм не поместятся. Освободи место и возвращайся — партия останется за тобой.";
+                    else
+                    {
+                        AddCharacterGoodsSimple(pchar, GOOD_AIRBURST, 200);
+                        SaveCurrentQuestDateParam("GreatRecipeDevSupply");
+                        dialog.text = "200 шрапнельных бомб погружены на твой корабль. За следующей партией приходи через семь дней.";
+                    }
+                }
+            }
+            link.l1 = "Понятно."; link.l1.go = "exit";
+        break;
+'''
+
 EDITS = {
     "PROGRAM/seadogs.c": [
         ('#include "interactive.c"', '#include "interactive.c"\n#include "scripts\\great_recipe.c"'),
@@ -194,6 +221,10 @@ EDITS = {
         ('\t\t\t// ==> Проверяем поле состояния квестов.',
          '\t\t\t// ==> Проверяем поле состояния квестов.\n            link.l9 = "О жемчуге черепахи и Великом рецепте."; link.l9.go = "GreatRecipe_Offer";'),
         ('\t\t//шебека Синяя Птица', TAVERN_CASES + '\n\t\t//шебека Синяя Птица'),
+    ],
+    "PROGRAM/dialogs/russian/Store/Pirates_Store.c": [
+        ('\t\tcase "quests":', '\t\tcase "node_1":\n            link.l6 = "Дай 200 шрапнельных бомб (квест пока не готов)"; link.l6.go = "GreatRecipe_DevBombs";\n        break;\n\t\tcase "quests":'),
+        ('\t\tcase "BlueBird_1":', STORE_DEV_CASE + '\t\tcase "BlueBird_1":'),
     ],
     "PROGRAM/dialogs/russian/Habitue_dialog.c": [
         ('#include "DIALOGS\\russian\\Rumours\\Common_rumours.c"  //homo 25/06/06', '#include "DIALOGS\\russian\\Rumours\\Common_rumours.c"  //homo 25/06/06\n#include "DIALOGS\\russian\\GreatRecipeRumors.c"'),

@@ -3,9 +3,9 @@
 from pathlib import Path
 import math
 
-patch = Path(__file__).with_name("character-skinning-normals.patch").read_text()
-assert "XMVector3TransformNormal" in patch
-assert "mtx.matrix[0] * n.x + mtx.matrix[4] * n.y + mtx.matrix[8] * n.z" in patch
+source = (Path(__file__).parent / "engine/src/libs/model/src/model.cpp").read_text()
+assert "XMVector3TransformNormal" in source
+assert "mtx.matrix[0] * n.x + mtx.matrix[4] * n.y + mtx.matrix[8] * n.z" in source
 
 
 def point_transform(matrix, vector):

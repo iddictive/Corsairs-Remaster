@@ -93,14 +93,19 @@ public:
         dt = std::min(dt, StepSeconds); seconds += dt;
         std::fill(flame.begin(),flame.end(),0.f);
         std::fill(incoming.begin(),incoming.end(),0.f);
-        float woodArea = 0.f, woodExposure = 0.f, allArea = 0.f, demand = 0.f;
+        float woodArea = 0.f, woodExposure = 0.f, developedWoodExposure = 0.f, allArea = 0.f, demand = 0.f;
         for (std::size_t i = 0; i < count; ++i) {
             const auto &c = cells[i];
             if (!c.available) continue;
             flame[i] = c.intensity();
             const float area = c.radius*c.radius;
             allArea += area; demand += area*flame[i];
-            if (!c.cloth) { woodArea += area; woodExposure += area*flame[i]; }
+            if (!c.cloth) {
+                woodArea += area; woodExposure += area*flame[i];
+                // Fresh ignition retains its recovery window. Developed heat
+                // burns structure faster, weighted by the affected wood area.
+                developedWoodExposure += area*flame[i]*unit((c.heat-.80f)/.45f);
+            }
             if (flame[i] > out.intensity) { out.intensity = flame[i]; out.owner = c.owner; }
             out.heat = std::max(out.heat, c.heat);
             if (flame[i] > .025f) ++out.active;
@@ -176,6 +181,7 @@ public:
             // the entire crew. Existing script defences and the crew floor apply.
             const float exposure = woodExposure/woodArea;
             out.hullFraction = dt*(.00065f*exposure+.00006f*out.intensity);
+            out.hullFraction += dt*.0030f*developedWoodExposure/woodArea;
             out.crewFraction = dt*.0010f*exposure*(1.f+out.duty);
         }
         return out;
