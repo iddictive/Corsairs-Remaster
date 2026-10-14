@@ -3,6 +3,7 @@
 #event_handler("GreatRecipeDeferred", "GreatRecipe_Deferred");
 #event_handler("CharactersStateUpdate", "GreatRecipe_CombatCheck");
 object GreatRecipeRestoreBuffer;
+string GreatRecipeMapTraceClock = "";
 
 bool GreatRecipe_DeferredFunction(string function)
 {
@@ -481,19 +482,23 @@ void GreatRecipe_MapAdmission(ref login)
 bool GreatRecipe_MapCreateWest(string id, float seconds)
 {
     // Native creation clamps TTL below three seconds; never extend an expiring marker.
-    if (seconds < 3.0) return false;
+    if (seconds < 3.0) { Trace("GreatRecipe map: expired ttl=" + seconds); return false; }
     float x = stf(worldMap.islands.Bermudes.position.x) - 300.0;
     float z = stf(worldMap.islands.Bermudes.position.z) - 100.0;
     for (int point = 0; point < 5; point++)
     {
-        if (!GreatRecipe_MapWestPoint(x, z + point * 10.0) ||
-            !SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z + point * 10.0, 40.0)) return false;
+        if (!GreatRecipe_MapWestPoint(x, z + point * 10.0))
+        { Trace("GreatRecipe map: navigation rejected x=" + x + " z=" + (z + point * 10.0)); return false; }
+        if (!SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z + point * 10.0, 40.0))
+        { Trace("GreatRecipe map: occupied x=" + x + " z=" + (z + point * 10.0)); return false; }
     }
     int slot = -1;
-    if (!GenerateMapEncounter_Alone(id, &slot)) return false;
+    if (!GenerateMapEncounter_Alone(id, &slot))
+    { Trace("GreatRecipe map: encounter allocation rejected captain=" + id + " slot=" + slot); return false; }
     string model = wdmEncounterModelName(slot);
     // Same stock creation owner, with exact remaining native seconds rather than a new day.
     bool created = SendMessage(&worldMap, "lsffffff", MSG_WORLDMAP_CREATEENC_MER_XZ, model, x, z, x, z + 40.0, 0.2, seconds);
+    Trace("GreatRecipe map: create=" + created + " captain=" + id + " model=" + model + " x=" + x + " z=" + z + " ttl=" + seconds);
     if (created)
     {
         ref encounter = GetMapEncounterRef(slot);
@@ -508,10 +513,28 @@ bool GreatRecipe_MapCreateWest(string id, float seconds)
     return created;
 }
 
+string GreatRecipe_MapTraceValue(aref data, string path)
+{
+    if (!CheckAttribute(data, path)) return "missing";
+    return data.(path);
+}
+
 void GreatRecipe_MapCalendar()
 {
     if (!IsEntity(&worldMap)) return;
     string phase = GreatRecipe_Phase();
+    // Hourly file-only evidence for the actual player route; no quest state or UI changes.
+    string traceClock = worldMap.date.year + ":" + worldMap.date.month + ":" + worldMap.date.day + ":" + sti(worldMap.date.hour) + ":" + phase;
+    if (GreatRecipeMapTraceClock != traceClock)
+    {
+        GreatRecipeMapTraceClock = traceClock;
+        string captainID = "none";
+        if (CheckAttribute(pchar, "GreatRecipe.MapCaptain")) captainID = pchar.GreatRecipe.MapCaptain;
+        Trace("GreatRecipe map: clock=" + traceClock + " time=" + GetTime() + " locked=" + GreatRecipe_Locked() +
+            " rain=" + Whr_IsRain() + " storm=" + Whr_IsStorm() + " captain=" + captainID +
+            " playerX=" + GreatRecipe_MapTraceValue(&worldMap, "playerShipX") + " playerZ=" + GreatRecipe_MapTraceValue(&worldMap, "playerShipZ") +
+            " hoursPerSec=" + GreatRecipe_MapTraceValue(&worldMap, "date.hourPerSec") + " previousClock=" + GreatRecipe_MapTraceValue(pchar, "GreatRecipe.MapClock"));
+    }
     if (GreatRecipe_Locked()) return;
     if (!CheckAttribute(&worldMap, "date.hourPerSec") || stf(worldMap.date.hourPerSec) <= 0.0) return;
     if (CheckAttribute(pchar, "GreatRecipe.MapCaptain") &&
@@ -532,7 +555,10 @@ void GreatRecipe_MapCalendar()
             if (CheckAttribute(encounter, "quest.chrID") && encounter.quest.chrID == pchar.GreatRecipe.MapCaptain &&
                 !CheckAttribute(encounter, "needDelete") && (phase == "search" || phase == "lost"))
             {
-                if (!CheckAttribute(encounter, "liveTime") || stf(encounter.liveTime) < 3.0) return;
+                if (!CheckAttribute(encounter, "liveTime")) { Trace("GreatRecipe map: retained marker without ttl"); return; }
+                Trace("GreatRecipe map: existing x=" + GreatRecipe_MapTraceValue(encounter, "x") + " z=" + GreatRecipe_MapTraceValue(encounter, "z") +
+                    " gotoX=" + GreatRecipe_MapTraceValue(encounter, "gotoX") + " gotoZ=" + GreatRecipe_MapTraceValue(encounter, "gotoZ") + " ttl=" + encounter.liveTime);
+                if (stf(encounter.liveTime) < 3.0) return;
                 float west = stf(worldMap.islands.Bermudes.position.x) - 300.0;
                 float end = stf(worldMap.islands.Bermudes.position.z) - 60.0;
                 bool safe = CheckAttribute(encounter, "x") && CheckAttribute(encounter, "z") && CheckAttribute(encounter, "gotoX") && CheckAttribute(encounter, "gotoZ");
@@ -550,6 +576,7 @@ void GreatRecipe_MapCalendar()
                 break;
             }
         }
+        Trace("GreatRecipe map: releasing missing or unsafe marker captain=" + pchar.GreatRecipe.MapCaptain);
         Map_ReleaseQuestEncounter(pchar.GreatRecipe.MapCaptain);
         DeleteAttribute(pchar, "GreatRecipe.MapCaptain");
     }

@@ -4,6 +4,37 @@ Last verified: October13. Canonical stage-only installs the Phonk hull-support d
 
 ## Current verdict
 
+### October13 — Beard appearance rejected again; file diagnostics installed
+
+The player reports no ship after the two delivered map repairs, suggesting a
+wrong coordinate. The installed quest still targets the documented navigable
+west route; this does not establish the live failure cause. Diagnostic-only
+source now records hourly calendar/phase/weather/player position and the exact
+navigation, occupancy, slot-allocation or native-creation outcome in the stock
+`userdata/Logs/compile.log`. Owned marker checks also record position, target and
+remaining TTL. No window, coordinate, encounter cleanup or quest-state behavior
+is changed; no player UI messages are added.
+
+Full PROGRAM from final Phonk `c6e99f7`, installed shared headers and the candidate
+compile in the real VM: BeardTraceCompile0/script_errors0. Missing/present
+attribute reads and the actual TTL<3 negative pass and produce file-only evidence.
+A separate calendar fixture substitutes only map entity presence; two calls in
+one hour produce one line and preserve absent quest state/rate/clock.
+
+Content-only `sync_metal_gameplay.py apply` initially refuses the reopened
+player process8179 with no files changed. After the user's second explicit
+closure it returns0 and strictly verifies the resealed app. Only
+`PROGRAM/scripts/great_recipe.c` changes in the cache/app; installed quest bytes
+match the source and the installed native engine remains
+`179d8fe10eb8cb5af4194b20fe9c7fd07a0da1b64f101838f566400b06b5e791`.
+Delivery comparison reports0 cache/0app pending. The following Phonk500 source
+patch makes the compiler receipt pending for that separate native batch; it is
+not an installed engine change. No SAVE inspection or agent game input/launch
+occurs. Disposition: diagnostics source/compiler/content delivery accepted;
+original ship appearance remains unresolved until the player's normal map replay
+yields the recorded gate and creation/lifetime evidence. Two reproduced
+component defects are not accepted as the cause of this continued failure.
+
 ### October13 — Phonk support departure, continuous landing and airborne water contact
 
 The player's screenshot shows an airborne hull with hull foam and a connected
