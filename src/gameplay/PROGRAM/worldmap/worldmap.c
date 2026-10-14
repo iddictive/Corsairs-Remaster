@@ -191,7 +191,9 @@ void wdmCreateWorldMap()
 	//Уберём все сообщения для игрока
 	ClearAllLogStrings();
 	//
-	ReloadProgressStart();
+	bool cinematic = CheckAttribute(&worldMap, "seaTransition");
+	if (cinematic) wdmLockReload = true;
+	if (!cinematic) ReloadProgressStart();
 	wdmCreateWindInterface();
 	//Удалим все устаревшие энкаунтеры
 	wdmRemoveOldEncounters();
@@ -203,22 +205,39 @@ void wdmCreateWorldMap()
 	wdmReset();
 	//Создаём карту
 	Whr_BindMapWeather();
+	if (cinematic) SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
 	CreateEntity(&worldMap,"worldmap");
+	if (cinematic) return;
+	wdmFinishWorldMap(false);
+}
+
+void wdmTransitionReady()
+{
+	DelEventHandler("WorldMap_TransitionReady", "wdmTransitionReady");
+	wdmFinishWorldMap(true);
+	SeaMapTransition.mapReady = 1;
+}
+
+void wdmFinishWorldMap(bool cinematic)
+{
 	worldMap.isLoaded = "true";
 	//Обновляем параметры
 	worldMap.update = "";
 	//Фейдер
+	if (!cinematic)
+	{
 	CreateEntity(&wdm_fader, "fader");
 	if(IsEntity(wdm_fader) == 0) Trace("Fader not created!!!");	
 	float fadeInTime = 0.5;
 	SendMessage(&wdm_fader, "lfl", FADER_IN, fadeInTime, true);
 	//SendMessage(&wdm_fader, "ls", FADER_PICTURE0, "interfaces\card_desk.tga");
 	SendMessage(&wdm_fader, "ls", FADER_PICTURE0, GetLoadingImage_Sea());
+	}
 	//Установим звуковую схему
 	SetSchemeForMap();
 	//Сообщим, что загрузились
 	PostEvent("EventWorldMapInit", 830); //fix boal
-	ReloadProgressEnd();
+	if (!cinematic) ReloadProgressEnd();
 	PostEvent("EventTimeUpdate", 1000);	
 	//Создаём накопившиеся квестовые энкоунтеры
 	worldMap.addQuestEncounters = "updateQuest";

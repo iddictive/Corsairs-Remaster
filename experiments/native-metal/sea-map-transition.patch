@@ -1,0 +1,189 @@
+--- a/src/libs/sea_cameras/src/sea_cameras.cpp
++++ b/src/libs/sea_cameras/src/sea_cameras.cpp
+@@ -1,8 +1,26 @@
+ #include "sea_cameras.h"
++#include "sea_map_transition.hpp"
+ #include "deck_camera.h"
+ #include "free_camera.h"
+ #include "ship_camera.h"
+ #include "shared/sea_ai/script_defines.h"
++
++// Keep sea entity knowledge in its existing native module, outside the renderer.
++bool storm_map_player::seaBounds(CVECTOR &size, float &yaw, CVECTOR &position)
++{
++    for (auto id : core.GetEntityIds("ship"))
++    {
++        auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(id));
++        if (!ship || !ship->GetACharacter() || !ship->GetACharacter()->GetAttributeAsDword("MainCharacter")) continue;
++        size = ship->GetRealBoxsize();
++        yaw = ship->GetAng().y;
++        position = ship->GetPos();
++        return size.x > 0 && size.y > 0 && size.z > 0 && std::isfinite(~size);
++    }
++    return false;
++}
++
++CREATE_CLASS(SeaMapTransition)
+ 
+ CREATE_CLASS(SEA_CAMERAS)
+ 
+--- a/src/libs/worldmap/src/wdm_camera.cpp
++++ b/src/libs/worldmap/src/wdm_camera.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "wdm_camera.h"
++#include "sea_map_transition.hpp"
+ #include "wdm_player_ship.h"
+ 
+ //============================================================================================
+@@ -60,7 +61,9 @@
+     const auto pi = 3.14159265f;
+     if (dltTime > 0.1f)
+         dltTime = 0.1f;
+-    CtrlProcess(dltTime);
++    if (SeaMapTransition::OverrideMapCamera()) return;
++    const bool cinematic = SeaMapTransition::Active();
++    if (!cinematic) CtrlProcess(dltTime);
+     auto ang = this->ang;
+     auto k = dltTime * 2.0f;
+     if (k > 1.0f)
+@@ -76,7 +79,7 @@
+     if (!isInit)
+         elasticAy = shipAy;
+ 
+-    const auto freeMode = CurrentFreeMode();
++    const auto freeMode = cinematic ? false : CurrentFreeMode();
+     if (isFreeMode != freeMode)
+     {
+         if (freeMode)
+@@ -102,16 +105,16 @@
+     const auto sn = sinf(ang.y);
+     const auto csX = cosf(ang.x);
+     const auto snX = sinf(ang.x);
+-    const auto movelrspd = 50.0f * MoveLeftRight(dltTime);
+-    const auto moveudspd = 50.0f * MoveUpDown(dltTime);
+-    const auto rotspd = 1.0f * RotLeftRight(dltTime);
+-    const auto zoomspd = 30.0f * ZoomInOut(dltTime);
++    const auto movelrspd = cinematic ? 0.0f : 50.0f * MoveLeftRight(dltTime);
++    const auto moveudspd = cinematic ? 0.0f : 50.0f * MoveUpDown(dltTime);
++    const auto rotspd = cinematic ? 0.0f : 1.0f * RotLeftRight(dltTime);
++    const auto zoomspd = cinematic ? 0.0f : 30.0f * ZoomInOut(dltTime);
+     // The point at height 0 at which we are looking relative to the current camera position
+     const auto cx = sn * pos.y * csX / snX;
+     const auto cz = cs * pos.y * csX / snX;
+     auto r = sqrtf(cx * cx + cz * cz);
+     // Moving free camera
+-    if (CurrentFreeMode() && isInit)
++    if (freeMode && isInit)
+     {
+         pos.x += moveudspd * sn - movelrspd * cs;
+         pos.z += moveudspd * cs + movelrspd * sn;
+@@ -157,7 +160,7 @@
+     // Set the new camera position
+     float height;
+     k = dltTime * 2000.0f;
+-    if (!GetHightHeight(height))
++    if (cinematic || !GetHightHeight(height))
+     {
+         height = pos.y;
+     }
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,4 +1,5 @@
+ #include "s_device.h"
++#include "sea_map_transition.hpp"
+ #include "metal_renderer_consumers.h"
+ #ifdef STORM_METAL_ROCKK2
+ extern "C" void storm_metal_label_texture(IDirect3DBaseTexture9 *, const char *);
+@@ -4503,6 +4504,12 @@
+ 
+ void DX9RENDER::StartProgressView()
+ {
++    if (SeaMapTransition::Loading())
++    {
++        progressSafeCounter = 0;
++        progressUpdateTime = SDL_GetTicks() - 1000;
++        return;
++    }
+     progressSafeCounter = 0;
+     if (progressTexture < 0)
+     {
+@@ -4563,6 +4570,21 @@
+ 
+ void DX9RENDER::ProgressView()
+ {
++    if (SeaMapTransition::Loading())
++    {
++        const uint32_t time = SDL_GetTicks();
++        if (isInPViewProcess || time - progressUpdateTime < 16) return;
++        progressUpdateTime = time;
++        isInPViewProcess = true;
++        progressSafeCounter = 0;
++        BeginScene();
++        SeaMapTransition::DrawProgress();
++        EndScene();
++        d3d9->Present(nullptr, nullptr, nullptr, nullptr);
++        BeginScene();
++        isInPViewProcess = false;
++        return;
++    }
+     // get the texture
+     if (progressTexture < 0)
+         return;
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -9,6 +9,7 @@
+ //============================================================================================
+ 
+ #include "world_map.h"
++#include "sea_map_transition.hpp"
+ 
+ #include <chrono>
+ 
+@@ -166,7 +167,7 @@
+     camera->Init(camAy, camH);
+     camera->lock = camLock;
+     // create the player's ship
+-    ro = CreateModel(new WdmPlayerShip(), "Ship");
++    ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
+     Assert(ro);
+     AddLObject(ro, wdm::render_levels::Ship);
+     auto psX = 50.0f;
+--- a/src/libs/worldmap/src/wdm_camera.cpp
++++ b/src/libs/worldmap/src/wdm_camera.cpp
+@@ -13,8 +13,8 @@
+ 
+ //============================================================================================
+ 
+-#define WDM_CAMERA_HEIGHT_MIN 50.0f
+-#define WDM_CAMERA_HEIGHT_MAX 300.0f
++#define WDM_CAMERA_HEIGHT_MIN storm_map_player::minHeight
++#define WDM_CAMERA_HEIGHT_MAX storm_map_player::maxHeight
+ #define WdmCamera_myPI 3.1415926535897932384626433832795f
+ 
+ // ============================================================================================
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -117,7 +117,7 @@
+     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+     if (!rs)
+         throw std::runtime_error("No service: dx9render");
+-    rs->SetPerspective((1.57f + 1.0f) / 2);
++    rs->SetPerspective(storm_map_player::perspective);
+     wdmObjects->rs = rs;
+     // GS
+     wdmObjects->gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -443,2 +443,10 @@
+         core.PostEvent("WorldMap_TransitionReady", 0, nullptr);
++        return;
++    }
++    if (SeaMapTransition::Active())
++    {
++        // Admission has already captured the map date/encounter. Keep that
++        // state fixed until its visual handoff completes (notably night quests).
++        camera->Move(0.0f, rs);
++        RenderObjects();
+         return;

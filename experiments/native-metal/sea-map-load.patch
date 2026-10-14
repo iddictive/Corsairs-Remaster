@@ -1,0 +1,726 @@
+--- a/src/libs/worldmap/src/world_map.cpp
++++ b/src/libs/worldmap/src/world_map.cpp
+@@ -121,28 +121,53 @@
+     wdmObjects->rs = rs;
+     // GS
+     wdmObjects->gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
+-    // Create map objects
++    transitionLoad = AttributesPointer && AttributesPointer->GetAttributeAsDword("seaTransition", 0);
++    if (transitionLoad)
++    {
++        // This is transient readiness, never a saved gameplay state.
++        AttributesPointer->SetAttributeUseDword("transitionReady", 0);
++        return true;
++    }
++    while (!LoadNext()) {}
++    return true;
++}
++
++// One preparation step per ordinary engine frame. Default loads drain the same
++// steps synchronously, preserving their resource and descriptor order.
++bool WorldMap::LoadNext()
++{
+     WdmRenderObject *ro;
+-    // Create islands
+-    auto *islands = new WdmIslands();
+-    ro = AddObject(islands);
+-    AddObject(ro, -100000);
+-    AddLObject(ro, wdm::render_levels::Label);
+-    AddLObject(AddObject(new WdmPortDangerZones(islands)), wdm::render_levels::PortDanger);
+-    //
+-    rs->ProgressView();
+-    // Create the sea
+-    auto *sea = new WdmSea();
+-    AddObject(sea);
+-    AddPObject(sea, 10);
+-    AddLObject(sea, wdm::render_levels::Sea);
+-    // create clouds
+-    if (const auto id=core.GetEntityId("weather"))
+-        static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->SetWeatherWorldSize(
+-            wdmObjects->worldSizeX,wdmObjects->worldSizeZ);
+-    // Fronts precede label/UI layers, preserving names and navigation controls.
+-    AddLObject(AddObject(new WdmWeatherRegions()), wdm::render_levels::Ship+1);
+-    rs->ProgressView();
++    switch (loadPhase)
++    {
++    case 0:
++        AddObject(new WdmIslands(transitionLoad));
++        ++loadPhase;
++        return false;
++    case 1:
++        if (!wdmObjects->islands->LoadNext()) return false;
++        AddObject(wdmObjects->islands, -100000);
++        AddLObject(wdmObjects->islands, wdm::render_levels::Label);
++        AddLObject(AddObject(new WdmPortDangerZones(wdmObjects->islands)), wdm::render_levels::PortDanger);
++        if (!transitionLoad) rs->ProgressView();
++        ++loadPhase;
++        return false;
++    case 2:
++        AddObject(new WdmSea(transitionLoad));
++        ++loadPhase;
++        return false;
++    case 3:
++        if (!wdmObjects->sea->LoadNext()) return false;
++        AddPObject(wdmObjects->sea, 10);
++        AddLObject(wdmObjects->sea, wdm::render_levels::Sea);
++        if (const auto id = core.GetEntityId("weather"))
++            static_cast<WEATHER_BASE *>(core.GetEntityPointer(id))->SetWeatherWorldSize(
++                wdmObjects->worldSizeX, wdmObjects->worldSizeZ);
++        AddLObject(AddObject(new WdmWeatherRegions()), wdm::render_levels::Ship + 1);
++        if (!transitionLoad) rs->ProgressView();
++        ++loadPhase;
++        return false;
++    case 4:
++    {
+     // Create a camera
+     camera = new WdmCameraStdCtrl();
+     auto camAy = 0.0f;
+@@ -206,7 +231,12 @@
+     }
+     static_cast<WdmShip *>(ro)->Teleport(psX, psZ, psAy);
+     static_cast<WdmPlayerShip *>(ro)->SetActionRadius(psRad);
+-    rs->ProgressView();
++    if (!transitionLoad) rs->ProgressView();
++        ++loadPhase;
++        return false;
++    }
++    case 5:
++    {
+     // Create a location descriptor
+     wdmObjects->islands->SetIslandsData(AttributesPointer, false);
+     // Script interface attributes
+@@ -256,7 +286,12 @@
+         timeScale = aDate->GetAttributeAsFloat("hourPerSec", timeScale);
+     }
+     ResetScriptInterfaces();
+-    rs->ProgressView();
++    if (!transitionLoad) rs->ProgressView();
++        ++loadPhase;
++        return false;
++    }
++    case 6:
++    {
+     // Creating interface elements
+ 
+     // Date
+@@ -275,89 +310,21 @@
+     // Icon
+     AddLObject(AddObject(new WdmIcon(), 1000), 10099);
+ 
+-    // load encounters, if any
+-    if (saveData)
+-    {
+-        const auto num = saveData->GetAttributesNum();
+-        for (uint32_t i = 0; i < num; i++)
+-        {
+-            auto *a = saveData->GetAttributeClass(i);
+-            if (!a)
+-                continue;
+-            // A tagged fleet is owned by the sea scene until its survivor handback.
+-            if (a->GetAttributeAsDword("trafficInSea")) continue;
+-            const char *type = a->GetAttribute("type");
+-            const char *modelName = a->GetAttribute("modelName");
+-            if (!type || !type[0])
+-            {
+-                saveData->DeleteAttributeClassX(a);
+-                continue;
+-            }
+-            if (storm::iEquals(type, "Merchant") && modelName && modelName[0])
+-            {
+-                if (!CreateMerchantShip(modelName, nullptr, nullptr, 1.0f, -1.0f, a))
+-                {
+-                    core.Trace("WoldMap: not loaded merchant encounter.");
+-                }
+-                continue;
+-            }
+-            if (storm::iEquals(type, "Follow") && modelName && modelName[0])
+-            {
+-                if (!CreateFollowShip(modelName, 1.0f, -1.0f, a))
+-                {
+-                    core.Trace("WoldMap: not loaded follow encounter.");
+-                }
+-                continue;
+-            }
+-            if (storm::iEquals(type, "Warring") && modelName && modelName[0])
+-            {
+-                const char *attacked = a->GetAttribute("attacked");
+-                if (attacked)
+-                {
+-                    auto *a1 = saveData->FindAClass(saveData, attacked);
+-                    if (a1)
+-                    {
+-                        const char *modelName1 = a1->GetAttribute("modelName");
+-                        if (modelName1 && modelName1[0])
+-                        {
+-                            if (!CreateWarringShips(modelName, modelName1, -1.0f, a, a1))
+-                            {
+-                                core.Trace("WoldMap: not loaded warring encounter.");
+-                            }
+-                        }
+-                        else
+-                        {
+-                            core.Trace("WoldMap: not loaded warring encounter.");
+-                            saveData->DeleteAttributeClassX(a);
+-                            saveData->DeleteAttributeClassX(a1);
+-                        }
+-                    }
+-                }
+-                continue;
+-            }
+-            if (storm::iEquals(type, "Attacked"))
+-            {
+-                continue;
+-            }
+-            if (storm::iEquals(type, "Storm"))
+-            {
+-                // Old random ordinary storms are superseded by the shared field.
+-                // Keep explicit tornado and tsunami event descriptors intact.
+-                if (!a->GetAttribute("tsunamiSeverity") && !a->GetAttributeAsDword("isTornado",0))
+-                    continue;
+-                const auto isTornado = (a->GetAttributeAsDword("isTornado", 0) != 0);
+-                if (!CreateStorm(isTornado, -1.0f, a))
+-                {
+-                    core.Trace("WoldMap: not loaded storm encounter.");
+-                }
+-                continue;
+-            }
+-            saveData->DeleteAttributeClassX(a);
+-        }
+-    }
+-
+-    rs->ProgressView();
+-
++        loadEncounterCount = saveData ? saveData->GetAttributesNum() : 0;
++        ++loadPhase;
++        return false;
++    }
++    case 7:
++        if (loadEncounterIndex < loadEncounterCount)
++        {
++            RestoreEncounter(saveData->GetAttributeClass(loadEncounterIndex++));
++            return false;
++        }
++        if (!transitionLoad) rs->ProgressView();
++        ++loadPhase;
++        return false;
++    case 8:
++    {
+     // Adjusting the player's ship
+     auto *playerShip = static_cast<WdmPlayerShip *>(wdmObjects->playerShip);
+     playerShip->PushOutFromIsland();
+@@ -372,17 +339,109 @@
+             playerShip->Teleport(x, z, ay);
+         }
+     }
+-    return true;
+-    // UNGUARD
++        loadComplete = true;
++        ++loadPhase;
++        return true;
++    }
++    default:
++        return true;
++    }
++}
++
++void WorldMap::RestoreEncounter(ATTRIBUTES *a)
++{
++    if (!a) return;
++    // A tagged fleet is owned by the sea scene until its survivor handback.
++    if (a->GetAttributeAsDword("trafficInSea")) return;
++    const char *type = a->GetAttribute("type");
++    const char *modelName = a->GetAttribute("modelName");
++    if (!type || !type[0])
++    {
++        saveData->DeleteAttributeClassX(a);
++        return;
++    }
++    if (storm::iEquals(type, "Merchant") && modelName && modelName[0])
++    {
++        if (!CreateMerchantShip(modelName, nullptr, nullptr, 1.0f, -1.0f, a))
++        {
++            core.Trace("WoldMap: not loaded merchant encounter.");
++        }
++        return;
++    }
++    if (storm::iEquals(type, "Follow") && modelName && modelName[0])
++    {
++        if (!CreateFollowShip(modelName, 1.0f, -1.0f, a))
++        {
++            core.Trace("WoldMap: not loaded follow encounter.");
++        }
++        return;
++    }
++    if (storm::iEquals(type, "Warring") && modelName && modelName[0])
++    {
++        const char *attacked = a->GetAttribute("attacked");
++        if (attacked)
++        {
++            auto *a1 = saveData->FindAClass(saveData, attacked);
++            if (a1)
++            {
++                const char *modelName1 = a1->GetAttribute("modelName");
++                if (modelName1 && modelName1[0])
++                {
++                    if (!CreateWarringShips(modelName, modelName1, -1.0f, a, a1))
++                    {
++                        core.Trace("WoldMap: not loaded warring encounter.");
++                    }
++                }
++                else
++                {
++                    core.Trace("WoldMap: not loaded warring encounter.");
++                    saveData->DeleteAttributeClassX(a);
++                    saveData->DeleteAttributeClassX(a1);
++                }
++            }
++        }
++        return;
++    }
++    if (storm::iEquals(type, "Attacked"))
++    {
++        return;
++    }
++    if (storm::iEquals(type, "Storm"))
++    {
++        // Old random ordinary storms are superseded by the shared field.
++        // Keep explicit tornado and tsunami event descriptors intact.
++        if (!a->GetAttribute("tsunamiSeverity") && !a->GetAttributeAsDword("isTornado",0))
++            return;
++        const auto isTornado = (a->GetAttributeAsDword("isTornado", 0) != 0);
++        if (!CreateStorm(isTornado, -1.0f, a))
++        {
++            core.Trace("WoldMap: not loaded storm encounter.");
++        }
++        return;
++    }
++    saveData->DeleteAttributeClassX(a);
+ }
+ 
+ // Execution
+ void WorldMap::Execute(uint32_t delta_time)
+ {
++    if (transitionLoad && !loadComplete) LoadNext();
+ }
+ 
+ void WorldMap::Realize(uint32_t delta_time)
+ {
++    if (!loadComplete) return;
++    if (transitionLoad && !transitionPresented)
++    {
++        // Prepare the complete first image without consuming input, advancing
++        // the calendar or dispatching encounters while the overlay is visible.
++        camera->Move(0.0f, rs);
++        RenderObjects();
++        transitionPresented = true;
++        AttributesPointer->SetAttributeUseDword("transitionReady", 1);
++        core.PostEvent("WorldMap_TransitionReady", 0, nullptr);
++        return;
++    }
+     if (AttributesPointer && wdmObjects->playerShip)
+     {
+         CVECTOR wind(0.0f);
+@@ -555,23 +614,7 @@
+ #endif
+         encTime = 0.0f;
+     }
+-    rs->SetRenderState(D3DRS_FOGENABLE, FALSE);
+-    rs->SetRenderState(D3DRS_LIGHTING, FALSE);
+-    for (auto i = firstPrObject; i >= 0; i = object[i].next)
+-    {
+-        if (!object[i].ro->killMe)
+-            object[i].ro->PRender(rs);
+-    }
+-    for (auto i = firstMrObject; i >= 0; i = object[i].next)
+-    {
+-        if (!object[i].ro->killMe)
+-            object[i].ro->MRender(rs);
+-    }
+-    for (auto i = firstLrObject; i >= 0; i = object[i].next)
+-    {
+-        if (!object[i].ro->killMe)
+-            object[i].ro->LRender(rs);
+-    }
++    RenderObjects();
+     // renew the wind
+     wdmObjects->UpdateWind(dltTime);
+     wdmObjects->isNextDayUpdate = false;
+@@ -596,10 +639,32 @@
+     }
+ }
+ 
++void WorldMap::RenderObjects()
++{
++    rs->SetRenderState(D3DRS_FOGENABLE, FALSE);
++    rs->SetRenderState(D3DRS_LIGHTING, FALSE);
++    for (auto i = firstPrObject; i >= 0; i = object[i].next)
++    {
++        if (!object[i].ro->killMe)
++            object[i].ro->PRender(rs);
++    }
++    for (auto i = firstMrObject; i >= 0; i = object[i].next)
++    {
++        if (!object[i].ro->killMe)
++            object[i].ro->MRender(rs);
++    }
++    for (auto i = firstLrObject; i >= 0; i = object[i].next)
++    {
++        if (!object[i].ro->killMe)
++            object[i].ro->LRender(rs);
++    }
++}
++
+ // Messages
+ uint64_t WorldMap::ProcessMessage(MESSAGE &message)
+ {
+     const auto code = message.Long();
++    if (!loadComplete) return 0;
+     switch (code)
+     {
+     case MSG_WORLDMAP_CREATESTORM: {
+@@ -689,7 +754,7 @@
+ uint32_t WorldMap::AttributeChanged(ATTRIBUTES *apnt)
+ {
+     float x, z, ay;
+-    if (!apnt || !AttributesPointer)
++    if (!apnt || !AttributesPointer || !loadComplete)
+         return 0;
+     if (storm::iEquals(apnt->GetThisName(), "deleteUpdate"))
+     {
+--- a/src/libs/worldmap/src/world_map.h
++++ b/src/libs/worldmap/src/world_map.h
+@@ -129,6 +129,15 @@
+     bool FindIslandPosition(const char *name, float &x, float &z, float &r);
+ 
+     void ResetScriptInterfaces() const;
++    bool LoadNext();
++    void RestoreEncounter(ATTRIBUTES *a);
++    void RenderObjects();
++    uint32_t loadPhase = 0;
++    uint32_t loadEncounterIndex = 0;
++    uint32_t loadEncounterCount = 0;
++    bool transitionLoad = false;
++    bool loadComplete = false;
++    bool transitionPresented = false;
+ 
+   private:
+     // Render service
+--- a/src/libs/worldmap/src/wdm_islands.cpp
++++ b/src/libs/worldmap/src/wdm_islands.cpp
+@@ -87,23 +87,38 @@
+ // Construction, destruction
+ // ============================================================================================
+ 
+-WdmIslands::WdmIslands()
++WdmIslands::WdmIslands(bool incremental)
+ {
+     labelSort.reserve(1024);
+     icons.texture = -1;
+     LabelsRelease();
++    baseModel = nullptr;
++    patch = nullptr;
++    loadCenter = 0.0f;
+     wdmObjects->islands = this;
+-    // Loading the base model
+-    baseModel = static_cast<WdmRenderModel *>(
+-        wdmObjects->wm->CreateModel(new WdmRenderModel(), "islands\\islands", false, false, false, 1));
+-    if (!baseModel || !baseModel->geo)
+-        return;
++    if (!incremental) while (!LoadNext()) {}
++}
++
++// Every resource load is one indivisible native operation. No renderer/core
++// state is touched by a worker thread, and partial islands are never rendered.
++bool WdmIslands::LoadNext()
++{
++    switch (loadPhase)
++    {
++    case 0:
++        baseModel = static_cast<WdmRenderModel *>(
++            wdmObjects->wm->CreateModel(new WdmRenderModel(), "islands\\islands", false, false, false, 1));
++        if (!baseModel || !baseModel->geo) { loadPhase = 7; return true; }
++        ++loadPhase;
++        return false;
++    case 1:
++    {
+     // Geometry information
+     GEOS::INFO ginfo;
+     GEOS::LABEL label;
+     baseModel->geo->GetInfo(ginfo);
+     // Finding the size of the world and iterating over the locators
+-    CVECTOR vmin, vmax, center = 0.0f, vmn, vmx;
++    CVECTOR vmin, vmax, vmn, vmx;
+     auto isMin = false, isMax = false;
+     for (int32_t i = 0; i < ginfo.nlabels; i++)
+     {
+@@ -143,89 +158,91 @@
+         vmax.x = std::max(vmn.x, vmx.x);
+         vmax.y = 0.0f;
+         vmax.z = std::max(vmn.z, vmx.z);
+-        center = (vmin + vmax) * -0.5f;
+-        vmin += center;
+-        vmax += center;
++        loadCenter = (vmin + vmax) * -0.5f;
++        vmin += loadCenter;
++        vmax += loadCenter;
+         wdmObjects->SetWorldSize(vmax.x * 2.0f, vmax.z * 2.0f);
+     }
+-    // Reading the islands
+-    std::string name;
+-    for (int32_t i = 0; i < ginfo.nlabels; i++)
+-    {
+-        // receive information
+-        baseModel->geo->GetLabel(i, label);
+-        if (!label.group_name || !label.group_name[0])
+-            continue;
+-        if (!label.name || !label.name[0])
+-            continue;
+-        if (!storm::iEquals(label.group_name, "islands"))
+-            continue;
+-        // Skip if added
+-        int32_t j;
+-        for (j = 0; j < islands.size(); j++)
+-        {
+-            if (islands[j].modelName == label.name)
+-                break;
+-        }
+-        if (j < islands.size())
+-            continue;
+-        name = "islands\\";
+-        name += label.name;
+-        // Loading
+-        auto *model = static_cast<WdmRenderModel *>(
+-            wdmObjects->wm->CreateModel(new WdmRenderModel(), name.c_str(), false, false, true, 2,
+-                                        wdm::render_levels::Island));
+-        if (model)
+-        {
+-            // General
++        ++loadPhase;
++        return false;
++    }
++    case 2:
++    {
++        GEOS::INFO ginfo;
++        baseModel->geo->GetInfo(ginfo);
++        GEOS::LABEL label;
++        while (loadLabel < ginfo.nlabels)
++        {
++            baseModel->geo->GetLabel(loadLabel++, label);
++            if (!label.group_name || !label.group_name[0] || !label.name || !label.name[0] ||
++                !storm::iEquals(label.group_name, "islands")) continue;
++            bool present = false;
++            for (const auto &island : islands)
++                if (island.modelName == label.name) { present = true; break; }
++            if (present) continue;
++            const std::string name = std::string("islands\\") + label.name;
++            auto *model = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
++                new WdmRenderModel(), name.c_str(), false, false, true, 2, wdm::render_levels::Island));
++            if (!model)
++            {
++                core.Trace("World map: can't load model of island: %s", name.c_str());
++                return false;
++            }
+             islands.push_back(Islands{});
+-            // Islands & isl = islands[islands.Add()];
+-            auto &isl = islands.back();
+-            isl.model = model;
++            auto &island = islands.back();
++            island.model = model;
+             model->mtx = *((CMatrix *)label.m);
+-            model->mtx.Pos() += center;
+-            isl.toLocal = model->mtx;
+-            isl.toLocal.Transposition();
+-            isl.modelName = label.name;
+-            isl.worldPosition = model->mtx.Pos();
+-            // Model describing the area of the island
+-            name += "_area";
+-            isl.area = static_cast<WdmRenderModel *>(
+-                wdmObjects->wm->CreateModel(new WdmRenderModel(), name.c_str(), false, false, false, 3));
+-            if (!isl.area)
+-            {
+-                core.Trace("World map: can't load model of island's area: %s", name.c_str());
+-            }
+-            // Palm trees
+-            name = "islands\\";
+-            name += label.name;
+-            name += "_palms";
+-            isl.palms = static_cast<WdmRenderModel *>(
+-                wdmObjects->wm->CreateModel(new WdmRenderModel(), name.c_str(), false, false, true, 4, 800));
+-            if (isl.palms)
+-            {
+-                static const auto *techName = "WdmModelDrawStdAlphaTest";
+-                isl.palms->SetTech(techName, techName);
+-            }
+-            // Foam
+-            name = "islands\\";
+-            name += label.name;
+-            name += "_waves";
+-            isl.waves = static_cast<WdmIslandWaves *>(
+-                wdmObjects->wm->CreateModel(new WdmIslandWaves(), name.c_str(), false, false, true, 4,
+-                                            wdm::render_levels::Island));
+-        }
+-        else
+-        {
+-            core.Trace("World map: can't load model of island: %s", name.c_str());
+-        }
+-    }
+-    // Loading the patch
+-    patch = new PtcData();
+-    if (!patch->Load("RESOURCE\\MODELS\\WorldMap\\islands\\islands_patch.ptc"))
+-    {
+-        delete patch;
+-        patch = nullptr;
++            model->mtx.Pos() += loadCenter;
++            island.toLocal = model->mtx;
++            island.toLocal.Transposition();
++            island.modelName = label.name;
++            island.worldPosition = model->mtx.Pos();
++            ++loadPhase;
++            return false;
++        }
++        loadPhase = 6;
++        return false;
++    }
++    case 3:
++    {
++        auto &island = islands.back();
++        const std::string name = "islands\\" + island.modelName + "_area";
++        island.area = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
++            new WdmRenderModel(), name.c_str(), false, false, false, 3));
++        if (!island.area) core.Trace("World map: can't load model of island's area: %s", name.c_str());
++        ++loadPhase;
++        return false;
++    }
++    case 4:
++    {
++        auto &island = islands.back();
++        const std::string name = "islands\\" + island.modelName + "_palms";
++        island.palms = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
++            new WdmRenderModel(), name.c_str(), false, false, true, 4, 800));
++        if (island.palms) island.palms->SetTech("WdmModelDrawStdAlphaTest", "WdmModelDrawStdAlphaTest");
++        ++loadPhase;
++        return false;
++    }
++    case 5:
++    {
++        auto &island = islands.back();
++        const std::string name = "islands\\" + island.modelName + "_waves";
++        island.waves = static_cast<WdmIslandWaves *>(wdmObjects->wm->CreateModel(
++            new WdmIslandWaves(), name.c_str(), false, false, true, 4, wdm::render_levels::Island));
++        loadPhase = 2;
++        return false;
++    }
++    case 6:
++        patch = new PtcData();
++        if (!patch->Load("RESOURCE\\MODELS\\WorldMap\\islands\\islands_patch.ptc"))
++        {
++            delete patch;
++            patch = nullptr;
++        }
++        ++loadPhase;
++        return true;
++    default:
++        return true;
+     }
+ }
+ 
+--- a/src/libs/worldmap/src/wdm_islands.h
++++ b/src/libs/worldmap/src/wdm_islands.h
+@@ -97,7 +97,8 @@
+   public:
+     WdmIslands(WdmIslands &&) = delete;
+     WdmIslands(const WdmIslands &) = delete;
+-    WdmIslands();
++    explicit WdmIslands(bool incremental = false);
++    bool LoadNext();
+     ~WdmIslands() override;
+ 
+     // Check for possible collision
+@@ -161,6 +162,9 @@
+   private:
+     // Model containing all locators
+     WdmRenderModel *baseModel;
++    uint32_t loadPhase = 0;
++    int32_t loadLabel = 0;
++    CVECTOR loadCenter;
+     // Pathfinder patch
+     PtcData *patch;
+     // Island models
+--- a/src/libs/worldmap/src/wdm_sea.cpp
++++ b/src/libs/worldmap/src/wdm_sea.cpp
+@@ -40,7 +40,7 @@
+ // Construction, destruction
+ // ============================================================================================
+ 
+-WdmSea::WdmSea()
++WdmSea::WdmSea(bool incremental)
+ {
+     seaSizeX = wdmObjects->worldSizeX * 3.0f;
+     seaSizeZ = wdmObjects->worldSizeZ * 3.0f;
+@@ -125,27 +125,32 @@
+     vertex[WDM_SEA_NV + 2].tu = 1.0f;
+     vertex[WDM_SEA_NV + 2].tv = 1.0f;
+     wdmObjects->rs->UnLockVertexBuffer(vb);
+-    // Loading textures
+-    char buf[256];
+-    baseTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\sea.tga");
+-    for (int32_t i = 0; i < sizeof(aniTextures) / sizeof(int32_t); i++)
+-    {
+-        sprintf_s(buf, "\\WorldMap\\Sea\\Ani\\wave_%.4i.tga", i);
+-        aniTextures[i] = wdmObjects->rs->TextureCreate(buf);
+-    }
+-    for (int32_t i = 0; i < sizeof(whiteHorses) / sizeof(int32_t); i++)
+-    {
+-        sprintf_s(buf, "\\WorldMap\\Sea\\WhiteHorses\\wh%.3i.tga", i);
+-        whiteHorses[i] = -1; // wdmObjects->rs->TextureCreate(buf);
+-    }
+     for (int32_t i = 0; i < sizeof(flare) / sizeof(flare[0]); i++)
+     {
+         flare[i].index = -1;
+     }
+-    flareTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\flare.tga");
++    flareTexture = -1;
+     flareCount = 0;
+     flareCerateCounter = 0.0f;
+     wdmObjects->sea = this;
++    if (!incremental) while (!LoadNext()) {}
++}
++
++bool WdmSea::LoadNext()
++{
++    char buf[256];
++    if (loadTexture == 0)
++        baseTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\sea.tga");
++    else if (loadTexture <= sizeof(aniTextures) / sizeof(aniTextures[0]))
++    {
++        sprintf_s(buf, "\\WorldMap\\Sea\\Ani\\wave_%.4i.tga", loadTexture - 1);
++        aniTextures[loadTexture - 1] = wdmObjects->rs->TextureCreate(buf);
++    }
++    else if (loadTexture == sizeof(aniTextures) / sizeof(aniTextures[0]) + 1)
++        flareTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\flare.tga");
++    else
++        return true;
++    return ++loadTexture == sizeof(aniTextures) / sizeof(aniTextures[0]) + 2;
+ }
+ 
+ WdmSea::~WdmSea()
+--- a/src/libs/worldmap/src/wdm_sea.h
++++ b/src/libs/worldmap/src/wdm_sea.h
+@@ -54,7 +54,8 @@
+     // Construction, destruction
+     // --------------------------------------------------------------------------------------------
+   public:
+-    WdmSea();
++    explicit WdmSea(bool incremental = false);
++    bool LoadNext();
+     ~WdmSea() override;
+ 
+     void Update(float dltTime) override;
+@@ -81,6 +82,7 @@
+     WhiteHorses wh[16];
+     // Textures
+     int32_t baseTexture;
++    int32_t loadTexture = 0;
+     int32_t aniTextures[32];
+     float aniFrame;
+     int32_t whiteHorses[1];

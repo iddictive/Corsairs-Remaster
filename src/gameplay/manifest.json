@@ -392,6 +392,12 @@
         "b29cbe7d92497415cbf807c41fda72da6f9b4816b774bd02e445405abb13409f"
       ]
     },
+    "PROGRAM/worldmap/worldmap_reload.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "97e41648234f2a3bc78dd9454025bdcd9e15e4625471315fe30b32fc7b765ff5"
+      ]
+    },
     "PROGRAM/interface/ship.c": {
       "encoding": "utf-8",
       "legacy": [

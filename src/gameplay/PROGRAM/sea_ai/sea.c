@@ -42,6 +42,7 @@ bool    bSeaTsunamiEncounter = false;
 bool 	bSkipSeaLogin = false;
 bool	bIslandLoaded = false;
 bool	bSeaReloadStarted = false;
+object SeaMapTransition;
 bool	bNotEnoughBalls;
 bool	bStorm, bTornado;
 bool	bSeaQuestGroupHere = false;
@@ -423,6 +424,31 @@ void Sea_MapEndFade()
 	wdmCreateMap(SeaMapLoadX, SeaMapLoadZ, SeaMapLoadAY);
 }
 
+void Sea_MapTransitionCommit()
+{
+	DelEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit");
+	if (!CheckAttribute(&SeaMapTransition, "fixedDestination"))
+	{
+		SeaMapLoadX = stf(pchar.Ship.Pos.x);
+		SeaMapLoadZ = stf(pchar.Ship.Pos.z);
+		SeaMapLoadAY = stf(pchar.Ship.Ang.y);
+	}
+	worldMap.seaTransition = 1;
+	Sea_MapStartFade();
+	Sea_MapEndFade();
+}
+
+void Sea_MapTransitionDone()
+{
+	DelEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone");
+	wdmLockReload = false;
+	bSeaReloadStarted = false;
+	bCanSwitchCameras = true;
+	if (bSeaActive) BI_ShowInterface(true);
+	DeleteAttribute(&worldMap, "seaTransition");
+	DeleteAttribute(&worldMap, "transitionReady");
+}
+
 void Sea_MapLoadXZ_AY(float x, float z, float ay)
 {
 	Sea_MapLoad();
@@ -430,10 +456,12 @@ void Sea_MapLoadXZ_AY(float x, float z, float ay)
 	SeaMapLoadX = x;
 	SeaMapLoadZ = z;
 	SeaMapLoadAY = ay;
+	if (IsEntity(&SeaMapTransition)) SeaMapTransition.fixedDestination = 1;
 }
 
 void Sea_MapLoad()
 {
+	if (!bSeaActive || bSeaReloadStarted || IsEntity(&SeaMapTransition)) return;
 	// boal 201004 проверка на перегруз и мин команду -->
 	ref  rPlayer = GetMainCharacter();
     int  i, cn;
@@ -504,20 +532,39 @@ void Sea_MapLoad()
  	//ResetSoundScheme();
 	ResetSound(); // new
 		
-	SetEventHandler("FaderEvent_StartFade", "Sea_MapStartFade", 0);
-	SetEventHandler("FaderEvent_EndFade", "Sea_MapEndFade", 0);
-
-	CreateEntity(&SeaFader, "fader");
-	//SendMessage(&SeaFader, "ls", FADER_PICTURE0, "interfaces\card_desk.tga");
-	SendMessage(&SeaFader, "lfl", FADER_OUT, 0.7, true);
-	SendMessage(&SeaFader, "l", FADER_STARTFRAME);
-	SendMessage(&SeaFader, "ls", FADER_PICTURE0, GetLoadingImage_Sea());
-
 	bSkipSeaLogin = true;
 
 	SeaMapLoadX = stf(pchar.Ship.Pos.x);
 	SeaMapLoadZ = stf(pchar.Ship.Pos.z);
 	SeaMapLoadAY = stf(pchar.Ship.Ang.y);
+	DeleteAttribute(&SeaMapTransition, "");
+	SeaMapTransition.x = SeaMapLoadX;
+	SeaMapTransition.y = stf(pchar.Ship.Pos.y);
+	SeaMapTransition.z = SeaMapLoadZ;
+	SeaMapTransition.mapHeight = 50.0;
+	if (CheckAttribute(&worldMap, "wdmCameraY")) SeaMapTransition.mapHeight = stf(worldMap.wdmCameraY);
+	SeaMapTransition.mapYaw = 0.0;
+	SeaMapTransition.mapRotLock = 0;
+	if (CheckAttribute(&worldMap, "wdmCameraRotLock")) SeaMapTransition.mapRotLock = sti(worldMap.wdmCameraRotLock);
+	if (CheckAttribute(&worldMap, "wdmCameraAY")) SeaMapTransition.mapYaw = stf(worldMap.wdmCameraAY);
+	CreateEntity(&SeaMapTransition, "SeaMapTransition");
+	if (IsEntity(&SeaMapTransition))
+	{
+		BI_ShowInterface(false);
+		bCanSwitchCameras = false;
+		SetEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit", 0);
+		SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
+	}
+	else
+	{
+		// Keep the established recovery path if the native transition is absent.
+		SetEventHandler("FaderEvent_StartFade", "Sea_MapStartFade", 0);
+		SetEventHandler("FaderEvent_EndFade", "Sea_MapEndFade", 0);
+		CreateEntity(&SeaFader, "fader");
+		SendMessage(&SeaFader, "lfl", FADER_OUT, 0.7, true);
+		SendMessage(&SeaFader, "l", FADER_STARTFRAME);
+		SendMessage(&SeaFader, "ls", FADER_PICTURE0, GetLoadingImage_Sea());
+	}
 }
 
 // нигде не пользуетя, может глючить для абордажа
@@ -670,8 +717,11 @@ void SeaLogin(ref Login)
 	// Sea Fader start
 	if (!CheckAttribute(&Login, "ImageName")) { Login.ImageName = GetLoadingImage_Sea(); }
 
-	CreateEntity(&SeaFader, "fader");
-	SendMessage(&SeaFader, "lfl", FADER_IN, 0.5, true);
+	if (!IsEntity(&SeaMapTransition))
+	{
+		CreateEntity(&SeaFader, "fader");
+		SendMessage(&SeaFader, "lfl", FADER_IN, 0.5, true);
+	}
 	//SendMessage(&SeaFader, "ls", FADER_PICTURE0, "interfaces\card_desk.tga");
 	//SendMessage(&SeaFader, "ls", FADER_PICTURE0, Login.ImageName);
 
@@ -1493,6 +1543,16 @@ void Sea_FirstInit()
 	InitBattleInterface();
 	StartBattleInterface();
 	RefreshBattleInterface();
+	if (IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "reverse"))
+	{
+		SeaMapTransition.x = stf(pchar.Ship.Pos.x);
+		SeaMapTransition.y = stf(pchar.Ship.Pos.y);
+		SeaMapTransition.z = stf(pchar.Ship.Pos.z);
+		SeaMapTransition.scenePrepared = 1;
+		bSeaReloadStarted = true;
+		bCanSwitchCameras = false;
+		BI_ShowInterface(false);
+	}
 }
 
 void Sea_Reload()

@@ -4,6 +4,27 @@ Last verified delivery: October13. Canonical stage-only installs the frozen Phon
 
 ## Current verdict
 
+### October14 — stepped sea/map camera source integrated; installation pending
+
+The requested menu transition lifts and tilts around the live player ship in
+three nonlinear impulses, matches its projected area to the map miniature and
+reverses on sea entry. GPU-only frame retention and moving clouds replace the
+ordinary loading artwork; the map prepares incrementally on engine frames.
+`docs/sea-map-transition.md` owns the contract and the remaining visual checks.
+Canonical source composition is idempotent and the complete script VM compiles
+with inactive-sea and locked-map guards returning0 and no errors. Native syntax
+and27 independent scale fixtures pass. The first canonical build rejected p0
+patch path headers; both new patches now follow the existing a/b owner format,
+and the stack applies9 changed native files. Build/staging and actual menu
+motion remain unresolved; the running player game has not been controlled.
+
+The additional adjacent-island report is separately unresolved. Installed
+DIRECTSAIL is0; its historical loader is not included/called by the active
+script chain, and both distance expressions are commented out. N-map projects
+live local coordinates but the sea loads one island. This proves absence of
+direct island admission, not the reported return-position reset. A real
+coordinate round-trip and safe neighbouring scene admission remain required.
+
 ### October13 — contact yaw and mode-owned saved velocity successor installed
 
 The player reopens movement outside Phonk: tight arcs at high speed or after
