@@ -1,8 +1,64 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the adjustable250-knot Phonk successor, tsunami jump and brighter lilac glow, accepted NPC generation source `122053c`, and Beard fixed-coordinate constructor repair `a3e879b`. Signed engine `97a8a84ac04e29c89c11d3481510de08f16f283f410de1a53a8ffb0a29d05195`; actual installed PROGRAM/shared VM returns0/errors0 and delivery check reports zero pending cache/app files.243 closed-game SAVE/config hashes are unchanged. The earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player sea throttle/brake/glow/jump, NPC scene and accelerated-map Beard appearance are unresolved; previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the Phonk hull-support departure, damped landing, airborne wake/foam contact gates and numeric250-knot HUD correction, preserving adjustable throttle, brighter lilac glow, accepted NPC generation source `122053c`, and Beard fixed-coordinate constructor repair `a3e879b`. Signed engine `179d8fe10eb8cb5af4194b20fe9c7fd07a0da1b64f101838f566400b06b5e791`; all eight built source files match the verified packet and delivery check reports zero pending cache/app files, compiler ready.492 fresh closed-game SAVE/config hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player flight activation is observed, but the previous jump/landing/water effects are rejected; revised sea motion/contact/HUD, NPC scene and accelerated-map Beard appearance remain unresolved. Previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — Phonk support departure, continuous landing and airborne water contact
+
+The player's screenshot shows an airborne hull with hull foam and a connected
+stern wake still projected on water; the player rejects both jump and landing
+motion. The previous source applies an artificial12–42m/s crest kick, aligns hull
+pitch to flight velocity, and resets height/vertical velocity at contact. Both
+water-effect consumers ignore flight. These source mechanisms independently
+explain the visible mismatch; the screenshot alone is not a trajectory recording.
+
+The correction reuses the existing6×6 hull-averaged ShipRocking support and native
+gravity/draft. Negative required support reaction detaches a rising hull with its
+actual supported velocity and presented attitude. Gravity drives flight; water
+contact preserves incoming position/velocity before damped height and angular
+recovery. Initial impact decay allows a subsequent wave serial even on moving
+water; the same serial cannot relaunch. TOUCH prediction restores its sample cache
+and transient states. Existing ordinary behavior and shoreline grounding remain.
+The inherited long-frame TOUCH hull-admission limitation remains unresolved.
+
+One native HasWaterContact query gates ShipTracks and SEAFOAM. Airborne wake
+insertion stops while old rows age; segmented draws prevent a bridge across
+landing. Foam/contact mesh and emission stop in air, but existing particles age
+normally. Landing restores existing wet emission rules without a fake storm
+burst. No new script flag, SAVE layout or replacement physics engine is added.
+
+The speed100 report has a separate proven display owner: ordinary arcade HUD
+scales native speed by0.4, so physical250 displays100. The live player Phonk
+numeric readout now uses native knots. Physical cap250, ordinary/dead/NPC HUD
+scaling and spyglass scaling are preserved. Topic owner: `sea-phonk.md`.
+
+Exact production-method component fixtures at30/83/125FPS with a seeded100-knot
+approach and moving50m tsunami yield departure16.05–16.21m/s and apex51.46–51.64m
+instead of the previous95m reference. Contact retains incoming approximately
+−30.1m/s and maximum angular frame step is0.0178rad. Moving-water recovery/new
+serial, predictor cache restoration, adjustable throttle/brake/bearing/current
+cap, grounded/ordinary/dead and inertial flight negatives pass. Exact wake
+Execute/Realize fixtures preserve wet rows, age old wake, reject airborne inserts
+and landing bridges; foam emission/lifetime checks pass. Numeric HUD fixture
+shows250 in live Phonk and100 in preserved OFF/dead cases. Full native syntax and
+zero-fuzz eight-path reconstruction pass. These are component results, not a
+player's assessment of landing feel or rendered foam.
+
+Final native patch SHA256:
+`982674867e713217be40ca9d6dbdc61677126ec770dd1f9bafe72d4d9a89fa93`.
+After the player closes the game, canonical `run.sh --stage-only` returns0 with
+two build workers and binds this patch in the compiler receipt. All eight built
+source owners byte-match the accepted packet. Unsigned engine:
+`f9b680464d094492b269d5e6c5e47f3bdb4a4a7ad82fa6ce04751d881b8b710c`.
+Signed installed engine:
+`179d8fe10eb8cb5af4194b20fe9c7fd07a0da1b64f101838f566400b06b5e791`.
+Canonical transaction verifies the complete app signature; prior97a8 engine is
+retained by its backup owner. Delivery check reports0 cache/0app pending, compiler
+ready. All492 fresh closed-game SAVE/config hashes remain unchanged. No game
+launch/input occurs. Disposition: prior player jump/landing/contact rejected;
+revised source/component, build and exact app delivery accepted; revised player
+jump/landing/wake/foam/HUD replay unresolved.
 
 ### October13 — adjustable Phonk speed, crest jump and integrated app delivery
 

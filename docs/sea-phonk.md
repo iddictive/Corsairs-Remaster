@@ -6,9 +6,13 @@ Installed October 13 through the canonical Metal stage-only path. The exact
 native patch, controller/menu and Faster input passed component, full PROGRAM
 compile and installed-byte/signature checks; installation preserved SAVE/settings.
 The player's sea replay found insufficient speed, barely visible illumination
-and braking that changes the sliding direction. The successor passes native
-syntax, production-method component checks and canonical staging, and is installed.
-Actual throttle, braking, glow and tsunami-jump replay remains unresolved.
+and braking that changes the sliding direction. The installed successor adds
+adjustable throttle and tsunami flight. A subsequent screenshot confirms flight
+activation but rejects its jump/landing motion and water foam under an airborne
+hull. The current correction replaces the crest kick and instantaneous landing
+with hull-support departure and damped water entry, and gates both water effects
+through one native contact query. Component acceptance and delivery are recorded
+in `runtime.md`; the revised player jump/landing/wake replay remains unresolved.
 Music disposal before death/scene replacement is already installed in `802fbde`.
 No agent game input or launch was performed. The current engine and chronological
 installation receipt belong to `runtime.md`.
@@ -28,15 +32,35 @@ traction straighten the course. NPC ships and never-active off-mode physics
 are unchanged. Mode exit caps its own residual motion to ordinary propulsion.
 Grounding, collision, death, stopped/fixed/surrendered ships retain their guards.
 
-Climbing a tsunami increases acceleration toward the same ceiling. A sufficiently
-fast rising approach (at least 45 m/s) launches once at the real crest crossing.
-Flight preserves the launch velocity without motor, braking, traction or water
-currents; gravity brings the ship back to the water. Landing resumes the current
-controls. Ordinary waves, slow crossings and the same crest after landing do not
-launch it. Flight and momentum are transient and reset on load/death/mode exit.
+Climbing a tsunami increases acceleration toward the same ceiling. The existing
+6×6 hull-averaged `ShipRocking` surface owns buoyancy height and inclination.
+Departure occurs when a rising hull would require a negative support reaction
+to follow that surface; the moving wave and ship motion determine its actual
+vertical velocity. There is no fixed upward kick or minimum launch speed.
+Flight preserves the launch velocity and presented hull attitude without motor,
+braking, traction or water currents; gravity brings it back to the water.
+Contact retains incoming position and velocity, then recovers height and attitude
+through damped buoyancy using native gravity and hull draft. Controls resume on
+contact. The initial impact decays even on moving water, allowing a later tsunami
+serial to launch; the same serial cannot launch twice. Ordinary waves alone do
+not activate flight. Flight and momentum reset on load/death/mode exit.
 Existing shoreline grounding remains authoritative during flight. The inherited
 TOUCH hull-admission solver can miss thin ships on extreme long frames; no new
 collision bypass or all-frame no-tunnelling guarantee is introduced.
+
+`SHIP_BASE::HasWaterContact` defaults to the existing wet behavior; the Phonk
+ship overrides it from transient flight state. ShipTracks stops new wake inserts
+in air while existing rows age normally. Landing begins a separate strip, so
+rendered triangles cannot bridge the flight. SEAFOAM hides hull foam and stops
+particle emission while existing particles age; wet contact restores the existing
+storm/tsunami/emergence emission rules. Neither consumer invents another contact
+flag or changes SAVE layout. TOUCH prediction restores hull samples and all
+transient motion after its speculative movement.
+
+The navigator's numeric speed uses raw native knots for the live player in
+Phonk mode. Ordinary arcade scaling previously displayed250 as100; the physical
+ceiling was already250. Ordinary, dead and NPC readouts retain their existing
+scale, as does the spyglass. The saturated dial angle does not clamp the number.
 
 The lilac halo peaks in the exposed area around the hull rather than underneath
 it. Four local light sources sit outside the port/starboard surfaces so outward
