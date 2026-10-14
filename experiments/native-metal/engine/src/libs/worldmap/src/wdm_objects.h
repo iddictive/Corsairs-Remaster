@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <memory>
+
+namespace storm_map_resources { class StaticAssets; }
 
 class WdmIslands;
 class WdmSea;
@@ -147,6 +150,7 @@ class WdmObjects
     std::vector<Model> models; // Models
     int32_t entryModels[1024];    // Geometry Quick Find Table
     std::string modelPath;
+    std::shared_ptr<storm_map_resources::StaticAssets> staticAssets;
 
     // Get wind direction and strength
     float GetWind(float x, float z, CVECTOR &dir);

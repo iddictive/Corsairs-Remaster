@@ -1,6 +1,7 @@
 #include "sea_cameras.h"
 #include "sea_map_transition.hpp"
 #include "world_map_ship_visual.hpp"
+#include "world_map_resources.hpp"
 #include "deck_camera.h"
 #include "free_camera.h"
 #include "ship_camera.h"
@@ -41,7 +42,27 @@ bool storm_map_player::prepareSeaVisual(const char *modelName)
     auto *ship = mainVisualShip();
     return ship && preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), modelName);
 }
-void storm_map_player::discardSeaVisual() { discardPlayerVisual(); }
+void storm_map_player::discardSeaVisual()
+{
+    discardPlayerVisual();
+    storm_map_resources::RearmPlayerVisual();
+}
+
+bool storm_map_player::warmSeaVisual()
+{
+    auto *ship = mainVisualShip();
+    if (!ship || !ship->GetModel()) return false;
+    // Scripts own the current hull/model identity. This event only projects
+    // metadata; it starts no map, weather, calendar or encounter simulation.
+    auto *data = core.Event("WorldMap_PlayerShipVisual");
+    auto *attributes = data ? data->GetAClass() : nullptr;
+    auto *descriptor = attributes ? attributes->GetAttributeClass("playerShipVisual") : nullptr;
+    const char *name = descriptor ? descriptor->GetAttribute("model") : nullptr;
+    if (!name) return false;
+    if (pendingPlayerVisual && pendingPlayerVisual->alive() && pendingPlayerVisual->modelName == name &&
+        pendingPlayerVisual->characterIndex == int(descriptor->GetAttributeAsDword("characterIndex", -1))) return true;
+    return preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), name);
+}
 
 CREATE_CLASS(SeaMapTransition)
 
@@ -62,6 +83,12 @@ SEA_CAMERAS::SEA_CAMERAS()
 SEA_CAMERAS::~SEA_CAMERAS()
 {
     //    ShowCursor(true);
+}
+
+bool SEA_CAMERAS::Init()
+{
+    storm_map_resources::Ensure();
+    return true;
 }
 
 void SEA_CAMERAS::ProcessMessage(uint32_t iMsg, uint32_t wParam, uint32_t lParam)

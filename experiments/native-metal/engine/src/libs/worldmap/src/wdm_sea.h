@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "world_map_resources.hpp"
+
 #include "wdm_render_object.h"
 
 class WdmSea : public WdmRenderObject
@@ -83,7 +85,7 @@ class WdmSea : public WdmRenderObject
     // Textures
     int32_t baseTexture;
     int32_t loadTexture = 0;
-    int32_t aniTextures[32];
+    int32_t aniTextures[storm_map_resources::SeaAnimationTextureCount];
     float aniFrame;
     int32_t whiteHorses[1];
     float seaSizeX;

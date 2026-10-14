@@ -11,10 +11,18 @@ inline constexpr const char *model = "Ship";
 inline constexpr float perspective = (1.57f + 1.0f) / 2;
 inline constexpr float minHeight = 50, maxHeight = 300;
 inline constexpr float overheadPitch = 1.565f;
+inline constexpr float mapViewPitch = 1.0f;
+inline float savedMapPitch(float pitch)
+{
+    // The former transition persisted its temporary overhead axis. Restore
+    // the ordinary oblique map view while retaining existing oblique saves.
+    return !std::isfinite(pitch) || std::abs(pitch - overheadPitch) < .01f ? mapViewPitch : pitch;
+}
 bool seaBounds(CVECTOR &size, float &yaw, CVECTOR &position);
 bool seaVisualBounds(CVECTOR &size, CVECTOR &center);
 float miniatureScale(const CVECTOR &size);
 bool prepareSeaVisual(const char *modelName);
+bool warmSeaVisual();
 void discardSeaVisual();
 inline bool bounds(CVECTOR &size, CVECTOR &center)
 {

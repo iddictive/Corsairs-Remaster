@@ -188,21 +188,40 @@ class ShipVisual
         geometry->SetTexturePath("");
         const std::string path = "ships\\" + result->modelName + "\\" + result->modelName;
         if (!core.Send_Message(result->modelId, "ls", MSG_MODEL_LOAD_GEO, path.c_str())) return nullptr;
-        auto *model = result->model();
-        if (!model || !model->GetNode(0)) return nullptr;
-        restoreNodes(model->GetNode(0), live, character->FindAClass(character, "Ship.Masts"));
-        model->Update();
-        if (!restoreHullCuts(model, character, result->modelId)) return nullptr;
-        result->sails = live ? captureStaticSails(live) : nullptr;
-        if (!result->sails) result->sails = buildStaticSails(model, character);
-        if (!result->sails) return nullptr;
-        VisualBounds bounds; CMatrix identity;
-        modelBounds(model->GetNode(0), identity, bounds);
-        result->sails->addBounds(bounds);
-        if (!bounds.get(result->size, result->center)) return nullptr;
-        result->scale = miniatureScale(result->size);
-        if (!(result->scale > 0.f)) return nullptr;
+        if (!result->refresh(character, live)) return nullptr;
         return result;
+    }
+
+    bool refresh(ATTRIBUTES *character, MODEL *live)
+    {
+        auto *owned = model();
+        if (!owned || !character || !owned->GetNode(0)) return false;
+        restoreNodes(owned->GetNode(0), live, character->FindAClass(character, "Ship.Masts"));
+        owned->Update();
+        uint64_t signature = 1469598103934665603ull;
+        hashVisualAttributes(signature, character->FindAClass(character, "Ship.Blots"));
+        hashVisualAttributes(signature, character->FindAClass(character, "Ship.Masts"));
+        if (!hullReady || signature != hullSignature)
+        {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+            for (int i = 0; auto *node = owned->GetNode(i); ++i)
+                if (node->geo) node->geo->ClearHullCuts(modelId);
+#endif
+            if (!restoreHullCuts(owned, character, modelId)) return false;
+            hullSignature = signature;
+            hullReady = true;
+        }
+        auto currentSails = live ? captureStaticSails(live) : nullptr;
+        if (!currentSails) currentSails = buildStaticSails(owned, character);
+        if (!currentSails) return false;
+        VisualBounds bounds; CMatrix identity;
+        modelBounds(owned->GetNode(0), identity, bounds);
+        currentSails->addBounds(bounds);
+        if (!bounds.get(size, center)) return false;
+        scale = miniatureScale(size);
+        if (!(scale > 0.f)) return false;
+        sails = std::move(currentSails);
+        return true;
     }
 
     void draw(VDX9RENDER *renderer, const CMatrix &mapMatrix) const
@@ -218,6 +237,8 @@ class ShipVisual
         renderer->SetTransform(D3DTS_WORLD, oldWorld);
     }
 
+    bool alive() const { return model() != nullptr; }
+
     CVECTOR size = 0.f, center = 0.f;
     float scale = 0.f;
     std::string modelName;
@@ -228,12 +249,17 @@ class ShipVisual
     MODEL *model() const { return static_cast<MODEL *>(core.GetEntityPointer(modelId)); }
     entid_t modelId = 0;
     std::unique_ptr<StaticSails> sails;
+    uint64_t hullSignature = 0;
+    bool hullReady = false;
 };
 
 inline std::unique_ptr<ShipVisual> pendingPlayerVisual;
 inline void discardPlayerVisual() { pendingPlayerVisual.reset(); }
 inline bool preparePlayerVisual(MODEL *live, ATTRIBUTES *character, const char *actualModel)
 {
+    if (pendingPlayerVisual && character && actualModel && pendingPlayerVisual->modelName == actualModel &&
+        pendingPlayerVisual->characterIndex == int(character->GetAttributeAsDword("index", -1)) &&
+        pendingPlayerVisual->refresh(character, live)) return true;
     auto visual = ShipVisual::create(actualModel, character, live);
     pendingPlayerVisual = std::move(visual);
     return bool(pendingPlayerVisual);

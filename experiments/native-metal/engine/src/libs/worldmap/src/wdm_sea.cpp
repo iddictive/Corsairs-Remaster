@@ -138,16 +138,17 @@ WdmSea::WdmSea(bool incremental)
 
 bool WdmSea::LoadNext()
 {
-    char buf[256];
+    if (loadTexture >= static_cast<int32_t>(storm_map_resources::SeaTextureCount)) return true;
+    const auto path = storm_map_resources::SeaTexturePath(loadTexture);
+    const auto texture = wdmObjects->rs->TextureCreate(path.c_str());
     if (loadTexture == 0)
-        baseTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\sea.tga");
+        baseTexture = texture;
     else if (loadTexture <= sizeof(aniTextures) / sizeof(aniTextures[0]))
     {
-        sprintf_s(buf, "\\WorldMap\\Sea\\Ani\\wave_%.4i.tga", loadTexture - 1);
-        aniTextures[loadTexture - 1] = wdmObjects->rs->TextureCreate(buf);
+        aniTextures[loadTexture - 1] = texture;
     }
     else if (loadTexture == sizeof(aniTextures) / sizeof(aniTextures[0]) + 1)
-        flareTexture = wdmObjects->rs->TextureCreate("\\WorldMap\\Sea\\flare.tga");
+        flareTexture = texture;
     else
         return true;
     return ++loadTexture == sizeof(aniTextures) / sizeof(aniTextures[0]) + 2;

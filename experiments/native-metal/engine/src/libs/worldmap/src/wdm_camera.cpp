@@ -25,7 +25,7 @@
 WdmCamera::WdmCamera()
 {
     pos = CVECTOR(0.0f, 120.0f, 0.0f);
-    ang = CVECTOR(1.0f, 0.0f, 0.0f);
+    ang = CVECTOR(storm_map_player::mapViewPitch, 0.0f, 0.0f);
     wdmObjects->camera = this;
     isInit = false;
     realHeight = 0.0f;
@@ -65,6 +65,7 @@ void WdmCamera::Move(float dltTime, VDX9RENDER *rs)
     const bool cinematic = SeaMapTransition::Active();
     if (!cinematic) CtrlProcess(dltTime);
     auto ang = this->ang;
+    if (cinematic) ang.x = SeaMapTransition::MapViewPitch(ang.x);
     auto k = dltTime * 2.0f;
     if (k > 1.0f)
         k = 1.0f;

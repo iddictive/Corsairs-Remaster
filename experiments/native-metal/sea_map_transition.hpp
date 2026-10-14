@@ -7,26 +7,21 @@
 #include "world_map_player_model.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 
 // One owner for the outgoing camera and GPU-only handoff. The map loader owns
 // readiness; elapsed time never exposes an incomplete destination.
 class SeaMapTransition final : public Entity
 {
-    using Clock = std::chrono::steady_clock;
     VDX9RENDER *rs = nullptr;
     IDirect3DTexture9 *frame = nullptr;
-    int32_t cloud = -1;
-    uint32_t cloudTint = 0x00c8d0d8;
-    Clock::time_point started;
     float flightTime = 0, landingTime = 0;
     uint64_t pauseRevision = 0;
     CVECTOR origin{}, angles{}, focus{}, look{}, offset{};
     float perspective = 1.285f;
     float targetArea = 0, targetDistance = 0, shipYaw = 0, baseShipYaw = 0, mapYaw = 0, mapPitch = 1.0f;
     float mapWorldYaw = 0, mapDistance = 0;
-    static constexpr float flightDuration = 1.90f, tiltDuration = .70f, revealDuration = .40f;
+    static constexpr float flightDuration = 1.25f, tiltDuration = .40f, revealDuration = .30f;
     CVECTOR miniatureSize{}, miniatureCenter{}, visualSize{}, visualCenter{};
     bool mapLocked = false;
     bool captured = false, committed = false, ready = false;
@@ -37,10 +32,6 @@ class SeaMapTransition final : public Entity
     {
         t = std::clamp(t, 0.0f, 1.0f);
         return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
-    }
-    float seconds() const
-    {
-        return std::chrono::duration<float>(Clock::now() - started).count();
     }
     bool matchShip()
     {
@@ -126,8 +117,8 @@ class SeaMapTransition final : public Entity
         const float time = flightTime;
         if (!captured && time >= (reverse ? tiltDuration : flightDuration))
         {
-            // Capture the rendered apex, before drawing the cloud veil or
-            // deleting sea entities. No readback, synchronization or screenshot.
+            // Capture the rendered apex before deleting sea entities.
+            // No readback, synchronization or screenshot.
             if (!capture()) core.Trace("SeaMapTransition: GPU frame capture failed");
             captured = true;
             if (!reverse && !storm_map_player::prepareSeaVisual(AttributesPointer->GetAttribute("shipModel")))
@@ -154,7 +145,6 @@ class SeaMapTransition final : public Entity
     }
     void drawOverlay()
     {
-        const float time = flightTime;
         const float landing = ready ? landingTime : 0;
         const float reveal = ready ? ease(landing / revealDuration) : 0;
         if (committed && frame)
@@ -164,18 +154,6 @@ class SeaMapTransition final : public Entity
             quad((static_cast<uint32_t>((1 - reveal) * 255) << 24) | 0x00ffffff,
                  0, 0, 1, 1);
         }
-        if (cloud >= 0)
-        {
-            // Thin textured wisps, never an opaque screen-wide fog substrate.
-            const float haze = ease(reverse ? time / tiltDuration : (time - tiltDuration) / .65f) * (1 - reveal);
-            if (haze > 0)
-            {
-                rs->TextureSet(0, cloud);
-                const float travel = .08f + seconds() * .008f;
-                quad((static_cast<uint32_t>(haze * 28) << 24) | cloudTint,
-                     travel, travel * .7f, travel + .85f, travel * .7f + .85f, "iImageCollection");
-            }
-        }
         if (ready && (reverse ? landing >= flightDuration : reveal >= 1))
         {
             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
@@ -183,6 +161,12 @@ class SeaMapTransition final : public Entity
         }
     }
 public:
+    static float MapViewPitch(float destination)
+    {
+        if (!active || active->reverse) return destination;
+        const float blend = active->ready ? ease(active->landingTime / revealDuration) : 0;
+        return storm_map_player::overheadPitch + (destination - storm_map_player::overheadPitch) * blend;
+    }
     static bool Loading() { return active && active->captured && !active->ready; }
     static void DrawProgress() { if (active) active->drawOverlay(); }
     static bool OverrideMapCamera()
@@ -203,7 +187,6 @@ public:
     {
         if (active == this) active = nullptr;
         if (frame) frame->Release();
-        if (cloud >= 0 && rs) rs->TextureRelease(cloud);
         storm_map_player::discardSeaVisual();
     }
     bool Init() override
@@ -237,12 +220,6 @@ public:
         const float distance = std::max(20.0f, std::sqrt(~offset));
         look = origin + CVECTOR(std::sin(angles.y) * std::cos(angles.x), -std::sin(angles.x),
                                 std::cos(angles.y) * std::cos(angles.x)) * distance;
-        if (auto *weather = core.GetEntityPointer(core.GetEntityId("weather")))
-            if (auto *attributes = weather->AttributesPointer)
-                if (auto *fog = attributes->FindAClass(attributes, "Fog"))
-                    cloudTint = fog->GetAttributeAsDword("Color", cloudTint) & 0x00ffffff;
-        cloud = rs->TextureCreate("\\WorldMap\\clouds.tga");
-        started = Clock::now();
         pauseRevision = core.GetScenePauseRevision();
         active = this;
         core.SetLayerType(FADER_EXECUTE, layer_type_t::execute);

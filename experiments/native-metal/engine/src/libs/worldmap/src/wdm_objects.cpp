@@ -17,6 +17,7 @@
 
 #include "geometry.h"
 #include "string_compare.hpp"
+#include "world_map_resources.hpp"
 
 //============================================================================================
 
@@ -149,6 +150,8 @@ GEOS *WdmObjects::CreateGeometry(const char *path)
 {
     if (!path || !path[0] || !gs)
         return nullptr;
+    if (storm_map_resources::IsStaticGeometry(path))
+        return storm_map_resources::BorrowGeometry(staticAssets, gs, path);
     // Looking among added
     const uint32_t hash = MakeHashValue(path);
     int32_t i = hash & (sizeof(entryModels) / sizeof(entryModels[0]) - 1);
@@ -165,15 +168,17 @@ GEOS *WdmObjects::CreateGeometry(const char *path)
     // Loading geometry
     modelPath = "WorldMap\\";
     modelPath += path;
+    const std::string previousTexturePath = gs->GetTexturePath();
     gs->SetTexturePath("WorldMap\\Geometry\\");
     auto *const geo = gs->CreateGeometry(modelPath.c_str(), "", 0);
-    gs->SetTexturePath("");
+    gs->SetTexturePath(previousTexturePath.c_str());
     // Add to the table
     // Model & m = models[models.Add()];
     // m.path = path;
     // m.hash = hash;
     // m.next = -1;
     // m.geo = geo;
+    i = static_cast<int32_t>(models.size());
     models.push_back(Model{geo, path, hash, -1});
     int32_t index = hash & (sizeof(entryModels) / sizeof(entryModels[0]) - 1);
     if (entryModels[index] < 0)

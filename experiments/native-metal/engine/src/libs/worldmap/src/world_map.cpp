@@ -190,12 +190,9 @@ bool WorldMap::LoadNext()
         wdmObjects->SetWindSaveString(nullptr);
     }
     camera->Init(camAy, camH);
-    camera->ang.x = AttributesPointer ? AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x) : camera->ang.x;
-    if (transitionLoad)
-    {
-        camera->ang.x = storm_map_player::overheadPitch;
-        AttributesPointer->SetAttributeUseFloat("wdmCameraAX", camera->ang.x);
-    }
+    camera->ang.x = storm_map_player::savedMapPitch(AttributesPointer ?
+        AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x) : camera->ang.x);
+    if (AttributesPointer) AttributesPointer->SetAttributeUseFloat("wdmCameraAX", camera->ang.x);
     camera->lock = camLock;
     // create the player's ship
     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);

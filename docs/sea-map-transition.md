@@ -5,7 +5,8 @@
 Sea exit first tilts smoothly to an overhead view of the player's ship, then
 lifts vertically with nonlinear scale easing. The visual handoff completes when
 its projected size approximately matches the map miniature. Return to sea
-reverses that scale path. The native map and sea actions invoke the transition;
+reverses that scale path. Overhead is only the scale-matching handoff pose; the
+global map settles to its ordinary oblique view. The native map and sea actions invoke the transition;
 there is no extra menu button. No loading artwork or black frame belongs to
 this transition. Completion requires a real installed-game recording in both
 directions, including the first usable destination frame and a denied entry.
@@ -16,15 +17,19 @@ directions, including the first usable destination frame and a denied entry.
   camera, GPU frame capture, readiness-gated reveal and disposal.
 - `world_map_player_model.hpp`: generic GM footprint and projected-area math;
   it normalizes the actual miniature without changing map collision or NPCs.
-- `world_map_ship_visual.hpp` and `real-player-ship-visual.patch`: independently
+- `world_map_ship_visual.hpp` and direct engine rigging/worldmap sources: independently
   owned actual player hull, mast hierarchy and static cloth. Live sea departure
   copies the current visual before teardown; saved-map entry reconstructs from
   the canonical player/RealShips descriptor and existing sail-material event.
 - `ship_hull_state.hpp`: one persisted hull-cut parser shared by live BLOTS and
   the map reconstruction; malformed records retain the existing rejection.
-- `sea-map-transition.patch`: native registration, map camera input exclusion,
-  the existing progress-present route, map load budget and coordinate handoff.
-- `sea-map-load.patch`: incremental map preparation. Ordinary map/save loads
+- Direct engine `sea_cameras.cpp`, `wdm_camera.cpp`, `world_map.cpp` and renderer
+  progress route own registration, camera exclusion, reveal and readiness.
+- `world_map_resources.hpp` and engine `world_map_resources.cpp`: immutable
+  island geometry and the shared34 sea-texture paths, prepared during ordinary
+  sea frames. The resource entity owns them within a core epoch; map consumers
+  keep a shared lease through reset. Mutable counter-sky geometry stays local.
+- Engine WorldMap/Islands/Sea `LoadNext`: incremental map preparation. Ordinary map/save loads
   drain the same preparation synchronously; cinematic loads prepare islands,
   water textures and encounter records on regular engine frames. A complete
   first map render precedes `WorldMap_TransitionReady`.
@@ -37,12 +42,11 @@ height/yaw, north-up rotation lock, perspective and its normalized miniature. Eq
 an approximation of visual size, not proof of equal silhouettes. No fixed sky
 height or extra map zoom follows the size match. The same-size `StretchRect`
 snapshot stays on GPU; the legacy fader's synchronous CPU readback is avoided.
-The rejected near-opaque fog substrate stays absent. Thin textured wisps peak at
-28/255 alpha. Matched frames crossfade for400ms; the camera tilts for700ms before
-its1200ms vertical lift. These timing changes follow the player's abrupt-motion
-report and still require visible replay.
-The map retains the matching overhead pitch through its optional `wdmCameraAX`
-attribute; prior saves without that attribute retain their ordinary initial view.
+The rejected near-opaque fog and artificial flat cloud overlay stay absent.
+Natural scene weather retains its existing owner. The camera tilts for400ms
+before an850ms lift; matched frames reveal for300ms while the map eases to its
+ordinary1-radian pitch. Saves carrying the former forced1.565 overhead pitch
+normalize to that ordinary angle; existing oblique values remain intact.
 
 Live ship translation and heading remain followed during ascent/descent; the
 ordinary exit commits its final position, while explicit XZ/AY exits retain their
@@ -59,6 +63,24 @@ discarded when the transition aborts. No sea SHIP, collision, weather or live
 node callback is retained. Broken branches and saved cloth holes remain visible
 state inputs. Ship/material/damage changes invalidate only the player's visual;
 ordinary map ships and the physical reference footprint retain their owners.
+
+SEA_CAMERAS Init starts or rearms a resource-only prewarm entity. Each ordinary
+sea Execute performs at most one static GM or texture operation; no second map,
+weather, calendar, traffic or encounter owner is initialized. WdmObjects cache
+misses previously inserted index−1, reloading repeated models; insertion is now
+corrected. Immutable islands borrow the retained pool; mutable counter models
+keep per-map ownership. Geometry loading restores the caller's texture path.
+Missing optional models are memoized within the same epoch. Sea consumers retain
+their own renderer references and share the exact original34-texture sequence.
+
+After static preparation, that entity warms the owning player model. At the apex
+it refreshes live nodes and cloth without rereading its GM; unchanged hull-cut
+signatures retain prepared geometry. Repair/removal invalidates cut state.
+Core reset disposes pending visual references before renderer destruction; abort
+rearms an existing resource owner without reset-time entity creation. An immediate
+exit before warmup completes still uses cold loading, and one GM operation is
+indivisible. Reverse SeaLogin stays synchronous. These limits prevent claiming
+universally stall-free transitions.
 
 Map-to-sea preserves `WdmAddEncountersData` then `GreatRecipe_MapAdmission(&wdmLoginToSea)`
 before releasing the map, and `GreatRecipe_PrepareSea` before the ordinary
@@ -103,3 +125,11 @@ and fleet semantics, normal controls after reveal and no stranded transition.
 One model load or label/font batch can still exceed a frame budget. A compiler,
 staging receipt or scalar size check must not promote that gap to a visual pass.
 Current installation/replay verdict belongs to `docs/runtime.md`.
+
+The oblique-view successor passes the actual angle-body lifecycle, historical
+overhead normalization/ordinary-angle negative and27 existing size matches.
+Resource actual-body ASan/UBSan cases cover repeat/case/collision keys, null and
+missing models, texture scope, reset leases, inactive/transition gates and callback
+retry/rearm/disposal. Old/new WdmSea paths/readiness match over36 calls. These are
+component/source receipts; no autonomous game launch or player SAVE inspection
+is authorized. Player replay owns actual timing/appearance.
