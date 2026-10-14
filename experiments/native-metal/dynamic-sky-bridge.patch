@@ -67,7 +67,7 @@
  namespace
  {
  
-@@ -336,6 +395,15 @@
+@@ -336,6 +395,30 @@
      pMatRotate.BuildRotateY(fAngleY + fSkyAngle);
      pMatWorld = pMatRotate * pMatWorld;
      pRS->SetTransform(D3DTS_WORLD, pMatWorld);
@@ -80,10 +80,25 @@
 +#else
 +    const bool drawLowerSky = Delta_Time == 0;
 +#endif
++
++    const auto realizeAstronomy = [&]() {
++        entid_t eid;
++        if (!pAstronomy)
++            if (eid = core.GetEntityId("Astronomy"))
++                pAstronomy = static_cast<Entity *>(core.GetEntityPointer(eid));
++        if (!pSunGlow)
++            if (eid = core.GetEntityId("SUNGLOW"))
++                pSunGlow = static_cast<Entity *>(core.GetEntityPointer(eid));
++        if (pAstronomy)
++            pAstronomy->ProcessStage(Stage::realize, Delta_Time);
++        if (pSunGlow)
++            static_cast<SUNGLOW *>(pSunGlow)->DrawSunMoon();
++        return pAstronomy || pSunGlow;
++    };
 
      if (aSkyDirArray.size() > 1)
      {
-@@ -348,6 +416,9 @@
+@@ -348,6 +431,9 @@
          uint32_t dwColor = (dwSkyColor & 0x00FFFFFF) | (static_cast<int32_t>(0xFF000000 * fBlendFactor) & 0xFF000000);
          pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
  
@@ -93,7 +108,7 @@
          if (pRS->TechniqueExecuteStart(sTechSkyBlend.c_str()))
              do
              {
-@@ -356,7 +427,7 @@
+@@ -356,7 +442,7 @@
                      pRS->TextureSet(0, TexturesID[i]);
                      pRS->TextureSet(1, TexturesNextID[i]);
                      pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
@@ -102,6 +117,29 @@
                          pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
                  }
              } while (pRS->TechniqueExecuteNext());
+@@ -369,21 +455,6 @@
+         if (Delta_Time != 0)
+         {
+-            entid_t eid;
+-
+-            if (!pAstronomy)
+-                if (eid = core.GetEntityId("Astronomy"))
+-                    pAstronomy = static_cast<Entity *>(core.GetEntityPointer(eid));
+-
+-            if (!pSunGlow)
+-                if (eid = core.GetEntityId("SUNGLOW"))
+-                    pSunGlow = static_cast<Entity *>(core.GetEntityPointer(eid));
+-
+-            if (pAstronomy || pSunGlow)
++            if (realizeAstronomy())
+             {
+-                if (pAstronomy)
+-                    pAstronomy->ProcessStage(Stage::realize, Delta_Time);
+-                if (pSunGlow)
+-                    static_cast<SUNGLOW *>(pSunGlow)->DrawSunMoon();
+-
+                 pRS->SetTransform(D3DTS_WORLD, pMatWorld);
+                 if (pRS->TechniqueExecuteStart(sTechSkyBlendAlpha.c_str()))
 @@ -405,6 +476,9 @@
      {
          pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwSkyColor);
@@ -112,7 +150,7 @@
          if (pRS->TechniqueExecuteStart(sTechSky.c_str()))
              do
              {
-@@ -412,7 +486,7 @@
+@@ -412,8 +486,13 @@
                  {
                      pRS->TextureSet(0, TexturesID[i]);
                      pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
@@ -121,6 +159,12 @@
                          pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
                  }
              } while (pRS->TechniqueExecuteNext());
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        // Native weather selects one sky directory; astronomy is still present.
++        if (Delta_Time != 0)
++            realizeAstronomy();
++#endif
+     }
 @@ -422,6 +496,9 @@
      pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
      pMatWorld = pMatWorld * pMatTranslate;

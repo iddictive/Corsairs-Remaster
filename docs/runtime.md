@@ -1,8 +1,66 @@
 # Runtime state
 
-Last verified delivery: October14. Nightly Beard patrol, rapid ordinary-NPC sinking and quiet client3932940/5d06725 are installed with signed engine `d3f21a3f5a1ce929511b882ca1f6694ca4ce45fd23d71cedbea4404a5f630acf`; prior76511506 is backed up. Actual player miniature/camera8f18c51 and Beard dialogue/admission6dc1d99 remain composed. Canonical stage exits0 and content parity reports zero pending, compiler ready. Actual camera/miniature, patrol/sinking gameplay and same-scene FPS remain unresolved. The user requested the game closed and forbids autonomous game testing; no further launch or game input is authorized without a new request. No player SAVE read/edit occurs. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
+Last verified delivery: October14. Initial single-sky astronomy/camera-origin repair is installed with signed engine `638da3c83b8f649877e5581a1de44239a59d4bdc14f250d9a5b8f288f077e9e6`; prior `d3f21a3f` is backed up. Procedural solar/stars and geometry-aware reflection successors pass canonical build/component checks but remain uninstalled: final staging refuses while the player's app is running. The graphics task owns the next canonical stage after normal game exit. The previous patrol/miniature/gameplay batch remains composed; its player acceptance is unchanged. Autonomous game launch/testing, controls and player SAVE inspection remain disabled. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
 
 ## Current verdict
+
+### October14 — astronomy repair installed; procedural sources and reflection successor pending
+
+The player reports an absent solar object, stars clustered at the horizon and
+ship reflections displaced on water. They subsequently require procedural Metal
+sun/stars and a representative audit of remaining visual losses, naming small
+waves during strong storms. No autonomous game testing is authorized.
+
+Source discovery proves native weather always selects one sky directory while
+the old SKY branch dispatches astronomy/disc only for multiple directories.
+The shared astronomy dispatch now also runs after the single opaque sky.
+An actual-body fixture fails the old ordinary single-sky case and passes the
+successor, multi-sky, missing-entity and reflection-call negatives. Actual Metal
+star placement also reproduces the missing world-origin transform: translated
+cameras move or lose the point while the unchanged ordinary billboard stays put.
+The common view transform corrects that mismatch. Owners and numeric component
+evidence are in `docs/metal-dynamic-sky.md`.
+
+The first canonical `run.sh --stage-only` exits0 and installs signed638da3c8,
+backing up d3f21a3f. Content checks report0 pending and compiler ready. No game
+launch or SAVE read occurs. This accepts installation, not the player's scene.
+
+After the player's procedural requirement, solar photosphere/aureole and star
+fragments no longer sample artwork. The advanced solar source uses a shared
+.00465rad radius, limb darkening, atmospheric forward scattering, existing
+transmittance-LUT spectrum and per-pixel cloud cover. Actual-backend GPU checks
+accept identical source shapes with missing/black texture (centers247/12), black
+square corners, nested scope rejection, source cleanup and an unchanged ordinary
+material. Production-helper Metal optics change clear halves242/240 to covered
+242/0; LUT spectral RGB230/90/43 and outside-disc black pass. Stars retain the
+same21-pixel point at38/38 under three camera translations with no sprite texture;
+ordinary planet geometry retains its25-pixel negative. The moon keeps its
+authored phase path. Owners are in `docs/metal-dynamic-sky.md`.
+
+Reflection placement is reopened at the actual user's on-water condition.
+Flat Sea2 passes an independent mirrored-geometry oracle, while modern Sea3
+projection fails. Tilted-wave finite-object rays expose a single-origin cube
+parallax error. A hit-only SSR experiment is rejected because the old displaced
+cube image remains as a ghost. The successor retains background/radial depth
+from the existing capture and traces the actual water ray. Eight tilted markers
+have maximum0.154px error; actual native bridge depth conversion, correct-hit/
+background behavior and stale/invalid capture negatives pass. Existing rebuilt
+original/modern sea and depth-water probes pass; `docs/sea-reflections.md` owns
+the mechanism and remaining limits.
+The audit in `docs/metal-graphics-parity.md` separately records the proven
+storm heightfield/profile loss and absent macOS video playback; neither is
+claimed repaired by this batch. Actual game appearance/FPS remain unresolved.
+
+The final ordered stack reverse/replay and canonical build pass. Two solar patch
+attempts were rejected transactionally (zero-context, then overlapping hunks);
+comparison with the exact pre-patch source established the overlap, which was
+merged into the existing vector-read hunks before successful replay. No partial
+source migration was accepted. Compiled unsigned successor engine SHA256 is
+`2b6ec78126d4d3ecad989326344aaf23f0796bd0831a2c894cc75f5cdf2dc02c`.
+Final `run.sh --stage-only` exits1 before mutation: the player has reopened the
+installed app (observed PID16865); its signed engine remains638da3c8. Disposition:
+source/component accepted, delivery and player scene unresolved. No game process
+was stopped or launched, and player SAVE was not inspected.
 
 ### October14 — nightly Beard patrol, rapid NPC sinking and quiet client installed; player replay pending
 

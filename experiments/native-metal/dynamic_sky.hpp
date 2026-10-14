@@ -49,6 +49,11 @@ struct alignas(16) DynamicStarDrawUniform {
     simd_float4 scale_blend;
 };
 
+struct alignas(16) DynamicSolarShapeUniform {
+    simd_float4 cameraRight_shape;
+    simd_float4 cameraUp_extent;
+};
+
 inline float wrapSkyHour(float hour) {
     if (!std::isfinite(hour)) return 12.f;
     hour = std::fmod(hour, 24.f);

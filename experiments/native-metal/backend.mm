@@ -28,6 +28,7 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "aim_volume.hpp"
 #include "light_shaft_apertures.hpp"
 #include "dynamic_sky.hpp"
+#include "solar_shapes_msl.hpp"
 #include "volumetric_sky.hpp"
 #include "local_weather.hpp"
 #include "weather_surface_color.hpp"
@@ -58,7 +59,7 @@ using namespace sm;
 extern "C" void* objc_autoreleasePoolPush(void);
 extern "C" void objc_autoreleasePoolPop(void*);
 namespace {
-const char* shaders=R"MSL(
+const std::string shaders=std::string(storm_metal::solarShapesMSL)+R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct V { packed_float4 p; packed_float4 c; packed_float4 uv01; packed_float4 uv23; packed_float4 specular;packed_float4 cameraNormal,cameraPosition; };
@@ -132,6 +133,12 @@ fragment float4 fs_solar(O v [[stage_in]],constant U& u [[buffer(1)]],array<text
     float4 value=shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);
     value.rgb*=pow(skySolarTransmission(directionBlend,cloudFrom,cloudTo),1.f/2.2f);
     return value;
+}
+fragment float4 fs_solar_shape(O v [[stage_in]],constant SolarShapeU&shape [[buffer(10)]],constant float4&directionBlend [[buffer(8)]],texture2d<float>cloudFrom [[texture(16)]],texture2d<float>cloudTo [[texture(17)]],texture2d<float>transmittance [[texture(18)]]){
+    return solarShapeColor(v.uv01.xy,v.c.rgb,shape,directionBlend,cloudFrom,cloudTo,transmittance);
+}
+fragment float4 fs_solar_shape_skyfog(O v [[stage_in]],constant SolarShapeU&shape [[buffer(10)]],constant float4&directionBlend [[buffer(8)]],texture2d<float>cloudFrom [[texture(16)]],texture2d<float>cloudTo [[texture(17)]],texture2d<float>transmittance [[texture(18)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]){
+    float4 value=solarShapeColor(v.uv01.xy,v.c.rgb,shape,directionBlend,cloudFrom,cloudTo,transmittance);return skyLocalComposite(value,v.p.xyz,fogDraw,localVolume,true);
 }
 fragment AimReceiverO fs_aim(O v [[stage_in]],constant U&u [[buffer(1)]],constant uint2&identity [[buffer(7)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]]){return {shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb),v.p.z,identity};}
 fragment float4 fs_skyfog(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {float3 fogColor=skyFogColor(v.p.xy,u.fogColor.rgb,fogDraw,fogEnvironment);float4 value=shadeFixedFunction(v,u,t,sam,cubes,fogColor);if(fogDraw.options.y>.5f)value.rgb=fogColor;return skyLocalComposite(value,v.p.xyz,fogDraw,localVolume);}
@@ -219,7 +226,7 @@ simd_float3 stableSunDirection(simd_float3 direction){
 }
 void caps(D3DCAPS9* c){memset(c,0,sizeof(*c));c->DeviceType=D3DDEVTYPE_HAL;c->MaxTextureWidth=c->MaxTextureHeight=16384;c->MaxVolumeExtent=2048;c->MaxTextureBlendStages=8;c->MaxSimultaneousTextures=8;c->MaxStreams=16;c->MaxStreamStride=2048;c->MaxPrimitiveCount=0xffffff;c->MaxVertexIndex=0xffffff;c->MaxActiveLights=8;c->MaxAnisotropy=16;c->MaxPointSize=256;c->VertexShaderVersion=0;c->PixelShaderVersion=0;c->MaxVertexShaderConst=256;c->TextureCaps=D3DPTEXTURECAPS_MIPMAP|D3DPTEXTURECAPS_CUBEMAP|D3DPTEXTURECAPS_MIPCUBEMAP;c->DevCaps=D3DDEVCAPS_HWTRANSFORMANDLIGHT;c->RasterCaps=D3DPRASTERCAPS_FOGVERTEX|D3DPRASTERCAPS_FOGTABLE;c->TextureFilterCaps=0xffffffff;}
 struct Declaration:StubIDirect3DVertexDeclaration9 {std::vector<D3DVERTEXELEMENT9> elements;explicit Declaration(const D3DVERTEXELEMENT9*p){for(int i=0;i<32;i++){elements.push_back(p[i]);if(p[i].Stream==255)break;}} HRESULT GetDeclaration(D3DVERTEXELEMENT9*p,UINT*n)override{if(!n)return D3DERR_INVALIDCALL;if(p){if(*n<elements.size())return D3DERR_INVALIDCALL;memcpy(p,elements.data(),elements.size()*sizeof(*p));}*n=elements.size();return S_OK;}};
-struct SeaUniform {simd_float4 vc[256],pc[32],fogColor,bump1,bump3;uint32_t stride,fogEnabled,bumpIsVolume,padding;simd_float4x4 inverseProjection,projection,viewMatrix;simd_float4 viewport,sceneSize;uint32_t depthRefractionEnabled,padScene[3];simd_float4 waterIrradiance,weatherWater,weatherFoam,solarDirectionBlend,sunScreen,solarSpectrum;};
+struct SeaUniform {simd_float4 vc[256],pc[32],fogColor,bump1,bump3;uint32_t stride,fogEnabled,bumpIsVolume,padding;simd_float4x4 inverseProjection,projection,viewMatrix;simd_float4 viewport,sceneSize;uint32_t depthRefractionEnabled,padScene[3];simd_float4 waterIrradiance,weatherWater,weatherFoam,solarDirectionBlend,sunScreen,solarSpectrum,reflectionCameraOffset;};
 enum class ProgramKind:uint32_t {None=0,Particles=10,Caustic=11,Grass=12,Worldmap=13,Postprocess=14};
 struct LandUniform {simd_float4 vc[256];uint32_t stride;};
 struct VertexShader:StubIDirect3DVertexShader9 {SeaShaderKind kind;ProgramKind program=ProgramKind::None;explicit VertexShader(const DWORD*p):kind(identifySeaVertexShader(p)) {if(identifyParticlesVertexShader(p))program=ProgramKind::Particles;else if(identifyCausticVertexShader(p))program=ProgramKind::Caustic;else if(identifyLandVertexShader(p)==LandShaderKind::Grass)program=ProgramKind::Grass;else if(identifyLandVertexShader(p)==LandShaderKind::Worldmap)program=ProgramKind::Worldmap;}};
@@ -255,9 +262,10 @@ struct Device : StubIDirect3DDevice9 {
  struct Flight {id<MTLCommandBuffer> command=nil;bool luminancePending=false;};
  FrameFlightRing flightRing;std::array<Flight,FrameFlightRing::count> flights;
  id<MTLTexture> sceneColorSnapshot,sceneDepthSnapshot,hudSceneSnapshot;bool sceneDepthReady=false,waterSnapshotTaken=false,waterSnapshotReady=false,hudSceneSnapshotReady=false,snapshotLogged=false;D3DVIEWPORT9 snapshotViewport{};simd_float4x4 snapshotProjection{},snapshotView{};
+ id<MTLComputePipelineState>seaReflectionDepthKernel=nil;uint64_t seaReflectionFrame=1;
  ULONG childRefs=0;bool draining=false,drained=false;bool modernWater=false,modernEffects=false,modernLighting=false,cinematic=false;id<MTLRenderPipelineState> cinematicPipeline;
  storm_metal::FXAAPass fxaaPass;bool fxaaEnabled=false;uint64_t fxaaFrames=0;
- bool dynamicSkyEnabled=true,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
+ bool dynamicSkyEnabled=true,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;uint32_t solarShape=0;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
  storm_metal::VolumetricSky volumetricSky;storm_metal::LocalWeatherVolume localWeather;uint64_t dynamicSkyFrame=0,dynamicSkyWeatherFrame=~uint64_t(0);bool dynamicSkyWeatherSeeded=false;
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
@@ -408,7 +416,7 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
  }
  void retireFlight(size_t slot,bool wait){auto&flight=flights[slot];if(!flight.command)return;if(wait&&flight.command.status<MTLCommandBufferStatusCompleted){double waitBegin=profile.enabled?FrameProfile::now():0;[flight.command waitUntilCompleted];if(profile.enabled)profile.waitMs+=FrameProfile::now()-waitBegin;}if(flight.command.status<MTLCommandBufferStatusCompleted)return;if(profile.enabled)profile.commandComplete(flight.command);if(flight.command.GPUStartTime>0&&flight.command.GPUEndTime>=flight.command.GPUStartTime)lightShafts.observeFrameGPU((flight.command.GPUEndTime-flight.command.GPUStartTime)*1000.);if(flight.command.error)fprintf(stderr,"[StormMetal] command error %s\n",flight.command.error.localizedDescription.UTF8String);if(flight.luminancePending&&flight.command.status==MTLCommandBufferStatusCompleted){float luminance=0;auto texture=cinematicLuminance[slot];[texture getBytes:&luminance bytesPerRow:sizeof(luminance) fromRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0];auto now=std::chrono::steady_clock::now();float seconds=cinematicLastFrame.time_since_epoch().count()?std::chrono::duration<float>(now-cinematicLastFrame).count():1.f/60.f;cinematicLastFrame=now;if(std::isfinite(luminance))cinematicExposure.update(luminance,seconds);}frameArena.rewindAfterCompletion(slot,flight.command);flight={};flightRing.retire(slot);}
  void retireCompletedFlights(){for(size_t slot=0;slot<flights.size();++slot)retireFlight(slot,false);}
- void prepareFrameSlot(){++dynamicSkyFrame;retireCompletedFlights();const size_t slot=flightRing.current;if(flightRing.mustWaitBeforeReuse())retireFlight(slot,true);frameArena.select(slot);}
+ void prepareFrameSlot(){++dynamicSkyFrame;++seaReflectionFrame;retireCompletedFlights();const size_t slot=flightRing.current;if(flightRing.mustWaitBeforeReuse())retireFlight(slot,true);frameArena.select(slot);}
  bool beginDynamicSky(float hour,float deltaSeconds,float coverage,float density,float windAngle,float windSpeed,float legacyBlend,float sunX,float sunY,float sunZ,uint32_t fogColor){
   dynamicSkyInput.hour=hour; // Weather remains the aim daylight owner with authored sky too.
   dynamicSkyActive=false;if(!dynamicSkyEnabled||!metal)return false;
@@ -462,17 +470,33 @@ ULONG Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){
   return simd_make_float4(input.sunDirection_hour.xyz,volumetricSky.blend);
  }
  bool beginSolarVisual(){if(solarVisualActive)return false;solarVisualActive=true;return true;}
- void endSolarVisual(){solarVisualActive=false;}
+ void endSolarVisual(){solarVisualActive=false;solarShape=0;}
+ storm_metal::DynamicSolarShapeUniform solarShapeParameters{};
+ bool beginSolarShape(uint32_t shape,float halfSize,float distance){
+  if(solarShape||!solarVisualActive||!cloudFieldCurrent()||shape<1||shape>2||!std::isfinite(halfSize)||!std::isfinite(distance)||halfSize<=0.f||distance<=0.f)return false;
+  solarShape=shape;solarShapeParameters.cameraUp_extent.w=halfSize/distance;return true;
+ }
+ void endSolarShape(){solarShape=0;}
  void bindSolarVisual(){
   const auto direction=solarDirectionBlend();[encoder setFragmentBytes:&direction length:sizeof(direction) atIndex:8];
+  simd_float4x4 view;memcpy(&view,&matrices[D3DTS_VIEW],64);auto camera=simd_inverse(view);
+  solarShapeParameters.cameraRight_shape=simd_make_float4(simd_normalize(camera.columns[0].xyz),float(solarShape));
+  solarShapeParameters.cameraUp_extent.xyz=simd_normalize(camera.columns[1].xyz);
+  [encoder setFragmentBytes:&solarShapeParameters length:sizeof(solarShapeParameters) atIndex:10];
   [encoder setFragmentTexture:volumetricSky.clouds[volumetricSky.from] atIndex:16];[encoder setFragmentTexture:volumetricSky.clouds[volumetricSky.to] atIndex:17];
+  [encoder setFragmentTexture:volumetricSky.transmittance atIndex:18];
+ }
+ simd_float4x4 worldBillboardView()const{
+  simd_float4x4 view;memcpy(&view,&matrices.at(D3DTS_VIEW),64);
+  auto origin=matrix_identity_float4x4;origin.columns[3]=simd_make_float4(landShadow.worldOrigin,1.f);
+  return simd_mul(view,origin);
  }
  bool drawSkyStars(const BridgeBillboard*stars,uint32_t count,float scaleX,float scaleY){
-  auto*texture=boundTextures[0].flat;if(!dynamicSkyEnabled||!volumetricSky.primed||volumetricSky.lastFrame!=dynamicSkyFrame||!dynamicSkyLibrary||!texture)return false;
+  if(!dynamicSkyEnabled||!volumetricSky.primed||volumetricSky.lastFrame!=dynamicSkyFrame||!dynamicSkyLibrary)return false;
   auto vertices=submissionBuffer(stars,size_t(count)*sizeof(*stars));if(!vertices.buffer)return false;
   if(FAILED(applyState(0x10000ull,dynamicSkyLibrary,@"dynamic_stars_vs",@"dynamic_stars_fs")))return false;
-  prepareFixedFunction();storm_metal::DynamicStarDrawUniform draw{};memcpy(&draw.view,&matrices[D3DTS_VIEW],64);memcpy(&draw.projection,&matrices[D3DTS_PROJECTION],64);draw.camera=simd_inverse(draw.view).columns[3];draw.scale_blend={scaleX,scaleY,volumetricSky.blend,0};
-  [encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentTexture:texture->gpu() atIndex:0];volumetricSky.bind(encoder);bindSkyFog();[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:size_t(count)*6];return true;
+  prepareFixedFunction();storm_metal::DynamicStarDrawUniform draw{};draw.view=worldBillboardView();memcpy(&draw.projection,&matrices[D3DTS_PROJECTION],64);draw.camera=simd_inverse(draw.view).columns[3];draw.scale_blend={scaleX,scaleY,volumetricSky.blend,0};
+  [encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBytes:&draw length:sizeof(draw) atIndex:1];[encoder setFragmentBytes:&draw length:sizeof(draw) atIndex:1];volumetricSky.bind(encoder);bindSkyFog();[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:size_t(count)*6];return true;
  }
  bool beginSkyFog(uint32_t fogColor){skyFogActive=false;if(!metal)return false;skyFogColor=color(fogColor).xyz;skyFogActive=true;return true;}
  void endSkyFog(){skyFogActive=false;}
@@ -556,7 +580,8 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   if(!shadowChanged&&modernWater==nextModernWater&&modernLighting==nextModernLighting&&cinematic==nextCinematic&&lightShaftsEnabled==nextShafts&&dynamicSkyEnabled==nextDynamicSky&&fxaaEnabled==nextFxaa)return true;
   synchronize();
   if(dynamicSkyEnabled!=nextDynamicSky){volumetricSky.reset();dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);}
-  modernWater=nextModernWater;modernLighting=nextModernLighting;cinematic=nextCinematic;lightShaftsEnabled=nextShafts;dynamicSkyEnabled=nextDynamicSky;fxaaEnabled=nextFxaa;dynamicSkyActive=skyFogActive=solarVisualActive=false;
+  modernWater=nextModernWater;modernLighting=nextModernLighting;cinematic=nextCinematic;lightShaftsEnabled=nextShafts;dynamicSkyEnabled=nextDynamicSky;fxaaEnabled=nextFxaa;dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;
+  ++seaReflectionFrame;
   sceneColorSnapshot=nil;sceneDepthSnapshot=nil;hudSceneSnapshot=nil;sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=hudSceneSnapshotReady=false;fxaaPass={};ambientOcclusion={};ambientOcclusionLogged=false;lightShafts.reset();cinematicBloomA=nil;cinematicBloomB=nil;for(auto&texture:cinematicLuminance)texture=nil;cinematicLuminancePending=false;
   if(shadowChanged)landShadow.reconfigure(nextDynamicLighting,nextQuality);
   return true;
@@ -573,7 +598,7 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   auto*nextDepth=pp->EnableAutoDepthStencil?new Surface(metal,pp->BackBufferWidth,pp->BackBufferHeight,pp->AutoDepthStencilFormat,true):nullptr;
   if(!nextBack->gpu||(nextDepth&&!nextDepth->gpu)){nextBack->Release();if(nextDepth)nextDepth->Release();return E_OUTOFMEMORY;}
   const bool previousLandLocation=landShadow.locationActive,previousLandIndoor=landShadow.indoor;const auto previousLandOrigin=landShadow.worldOrigin;
-  dynamicSkyActive=skyFogActive=solarVisualActive=false;synchronize();clearBindings();drained=false;
+  dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;++seaReflectionFrame;synchronize();clearBindings();drained=false;
   volumetricSky.reset();dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);
   back=nextBack;depth=nextDepth;back->bindOwner(this);if(depth)depth->bindOwner(this);target=back;zbuffer=depth;
   initializeStates();landShadow.locationActive=previousLandLocation;landShadow.indoor=previousLandIndoor;landShadow.worldOrigin=previousLandOrigin;fvf=D3DFVF_XYZ;stride=offset=0;vp={0,0,pp->BackBufferWidth,pp->BackBufferHeight,0,1};layer.displaySyncEnabled=pp->PresentationInterval!=D3DPRESENT_INTERVAL_IMMEDIATE;layer.drawableSize=CGSizeMake(pp->BackBufferWidth,pp->BackBufferHeight);
@@ -582,7 +607,7 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
  void reportDiagnostics(){if(!profile.enabled||(++diagnosticTick&127u)!=0u)return;const auto&o=landShadow.worldOrigin;const auto&p=landShadow.prepass;simd_float4x4 view;memcpy(&view,&matrices[D3DTS_VIEW],64);simd_float4x4 inverse=simd_inverse(view);simd_float3 camera=inverse.columns[3].xyz;simd_float3 aim=simd_mul(inverse,simd_make_float4(0.f,0.f,1.f,0.f)).xyz;float aimLength=simd_length(aim);if(aimLength>1e-5f)aim/=aimLength;float pitch=asin(std::clamp(aim.y,-1.f,1.f))*57.2957795f;unsigned complete=0;for(unsigned i=0;i<p.pointCount;i++)complete+=p.points[i].faces==63;fprintf(stderr,"[StormMetal] diag: origin=(%.1f,%.1f,%.1f) camRel=(%.2f,%.2f,%.2f) focus=(%.1f,%.1f,%.1f) indoor=%d active=%d applied=%d sun=%u lamps=%u complete=%u caster=%u openings=%llu shaftFrames=%llu tier=%u aimY=%.2f pitch=%.1f draws=%llu verts=%llu uploadMB=%.1f legacy3D=%llu legacyShadow=%llu\n",o.x,o.y,o.z,camera.x,camera.y,camera.z,p.focus.x,p.focus.y,p.focus.z,landShadow.indoor?1:0,landShadow.locationActive?1:0,landShadow.applied?1:0,p.sunValid,p.pointCount,complete,p.casterDraws,(unsigned long long)lightShaftMeshes.size(),(unsigned long long)lightShafts.encodedFrames(),lightShafts.budget().tier(),aim.y,pitch,profile.draws,profile.vertices,profile.bytes/1048576.0,profile.legacy3DDraws,profile.legacyShadowDraws);}
  void publishTelemetry(){if(!StormMetalTelemetryEnabled())return;captureTelemetryCamera(false);StormMetalTelemetryBeginLights(lightingScene.authoredCount(),landShadow.prepass.pointId);for(unsigned i=0;i<lightingScene.authoredCount();i++){const auto&light=lightingScene.authoredLight(i);float positionRange[4],color[4];memcpy(positionRange,&light.positionRange,sizeof(positionRange));memcpy(color,&light.diffuse,sizeof(color));const auto id=lightingScene.authoredId(i);StormMetalTelemetryLight(i,id,positionRange,color,id==landShadow.prepass.pointId,landShadow.shadowSlot(id)!=0);}unsigned complete=0;for(unsigned i=0;i<landShadow.prepass.pointCount;i++)complete+=landShadow.prepass.points[i].faces==63;StormMetalTelemetryShadows(landShadow.prepass.casterDraws,landShadow.prepass.casterVertices,telemetryReceiverDraws,telemetryCasterRejects,telemetryReceiverRejects,landShadow.prepass.pointCount,complete,landShadow.prepass.failed,landShadow.applied);StormMetalTelemetryPublish(telemetryFrame++);}
 HRESULT Present(const RECT*,const RECT*,HWND,const RGNDATA*)override {resolveTraversalShadow();flushShipFire();finish(true);if(!hudSceneSnapshotReady&&(fxaaEnabled||modernLighting||cinematicSceneEnabled(cinematic,landShadow.locationActive,landShadow.indoor)||storm_metal::lightShaftsEnabled(lightShaftsEnabled,landShadow.locationActive,landShadow.indoor,unsigned(lightShaftMeshes.size()),depth&&depth->gpu.pixelFormat==MTLPixelFormatDepth32Float)))markSceneHudBoundary(true);finish();if(!command)command=[queue commandBuffer];double drawableBegin=profile.enabled?FrameProfile::now():0;drawable=[layer nextDrawable];if(profile.enabled)profile.drawableMs+=FrameProfile::now()-drawableBegin;if(drawable){if(!encodeCinematicPresent(command,back->gpu,drawable.texture,nil,false))return E_FAIL;[command presentDrawable:drawable];}const size_t submittedSlot=flightRing.current;[command commit];flights[submittedSlot]={command,cinematicLuminancePending};flightRing.submitCurrent();command=nil;dynamicVertexUploads.clear();drawable=nil;cinematicLuminancePending=false;hudSceneSnapshotReady=false;publishTelemetry();reportDiagnostics();landShadow.resetFrame();telemetryReceiverDraws=telemetryCasterRejects=telemetryReceiverRejects=0;seaGeometryCandidates=seaRawEligible=seaShadowEligible=seaRawPackets=seaFastReturns=seaConvertedPackets=0;memset(seaCandidateScopes,0,sizeof(seaCandidateScopes));memset(seaRejects,0,sizeof(seaRejects));sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;aimModelScope={};aimVolume.endFrame();prepareFrameSlot();reportBackendOptimization();if(profile.enabled)profile.present((SDL_GetWindowFlags(profileWindow)&SDL_WINDOW_INPUT_FOCUS)!=0);if(framePool){objc_autoreleasePoolPop(framePool);}framePool=objc_autoreleasePoolPush();return S_OK;}
- HRESULT Clear(DWORD,const D3DRECT*,DWORD f,D3DCOLOR c,float z,DWORD)override{dynamicSkyActive=skyFogActive=solarVisualActive=false;finish();if(target==back&&(f&(D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER))){landShadow.resetFrame();lightingScene.beginFrame();waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;if(f&D3DCLEAR_ZBUFFER){sceneDepthReady=z==1.f;aimModelScope={};aimVolume.beginFrame();}else sceneDepthReady=false;}begin(true,f,c,z);return S_OK;}
+ HRESULT Clear(DWORD,const D3DRECT*,DWORD f,D3DCOLOR c,float z,DWORD)override{dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;finish();if(target==back&&(f&(D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER))){landShadow.resetFrame();lightingScene.beginFrame();waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;if(f&D3DCLEAR_ZBUFFER){sceneDepthReady=z==1.f;aimModelScope={};aimVolume.beginFrame();}else sceneDepthReady=false;}begin(true,f,c,z);return S_OK;}
  HRESULT CreateTexture(UINT w,UINT h,UINT l,DWORD u,D3DFORMAT f,D3DPOOL,IDirect3DTexture9**p,HANDLE*)override{auto* resource=new Texture(metal,w,h,l,u,f);resource->bindOwner(this);*p=resource;return S_OK;}
  HRESULT CreateCubeTexture(UINT edge,UINT l,DWORD u,D3DFORMAT f,D3DPOOL,IDirect3DCubeTexture9**p,HANDLE*)override{if(!p)return D3DERR_INVALIDCALL;auto* resource=new CubeTexture(metal,edge,l,u,f);resource->bindOwner(this);*p=resource;return S_OK;}
  HRESULT CreateVolumeTexture(UINT w,UINT h,UINT depth,UINT l,DWORD u,D3DFORMAT f,D3DPOOL,IDirect3DVolumeTexture9**p,HANDLE*)override{if(!p)return D3DERR_INVALIDCALL;*p=nullptr;if(f!=D3DFMT_A8R8G8B8&&f!=D3DFMT_X8R8G8B8)return unsupported("volume texture format");auto* resource=new VolumeTexture(metal,w,h,depth,l,u,f);resource->bindOwner(this);*p=resource;return S_OK;}
@@ -692,7 +717,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   if(encoder&&aimDirectPass!=direct)finish();
   // Select once here: raw, compact, cached and bridge draws share the same fog.
   const bool skyFog=cloudFieldCurrent()&&(rs[D3DRS_FOGENABLE]||skyFogActive||(localWeather.current&&rs[D3DRS_ZENABLE]&&(fvf&D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW&&!interfaceBackSceneActive))&&
-      ((materialLibrary&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]||[pixelName isEqualToString:@"bridge_advanced_fs"]))||
+      ((materialLibrary&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]||[pixelName isEqualToString:@"fs_solar_shape"]||[pixelName isEqualToString:@"bridge_advanced_fs"]))||
        shaderLibrary==particlesLibrary||
        (shaderLibrary==seaLibrary&&([pixelName isEqualToString:@"sea2_modern_fs"]||[pixelName isEqualToString:@"sea3_modern_fs"]||[pixelName isEqualToString:@"seafoam_modern_fs"]||[pixelName isEqualToString:@"seasun_modern_fs"])));
   if(skyFog&&!prepareLocalWeather())return E_FAIL;
@@ -813,6 +838,11 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  if(outdoorSkyLightingReady()){auto incident=outdoorWaterIllumination();uniforms.waterIrradiance=simd_make_float4(incident,1.f);uniforms.weatherWater.xyz=simd_make_float3(authoredWater[0],authoredWater[1],authoredWater[2])*incident;uniforms.weatherWater.w=std::max(.00001f,simd_dot(outdoorSkyIrradiance({0,1,0}),simd_make_float3(.2126f,.7152f,.0722f)));uniforms.weatherFoam=simd_make_float4(incident,1.f);}
  uniforms.solarDirectionBlend=solarDirectionBlend();if(cloudFieldCurrent()){simd_float4x4 v,p;memcpy(&v,&matrices[D3DTS_VIEW],64);memcpy(&p,&matrices[D3DTS_PROJECTION],64);simd_float4 clip=simd_mul(p,simd_mul(v,simd_make_float4(uniforms.solarDirectionBlend.x,uniforms.solarDirectionBlend.y,uniforms.solarDirectionBlend.z,0.f)));if(clip.w>0.001f)uniforms.sunScreen={clip.x/clip.w*.5f+.5f,1.f-(clip.y/clip.w*.5f+.5f),1.f,0.f};}
  auto*volume=boundTextures[kind==SeaShaderKind::Foam?4:0].volume;auto*cube=boundTextures[3].cube;uniforms.bumpIsVolume=volume!=nullptr;
+ if(modernWater&&kind==SeaShaderKind::Sea2&&cube&&cube->reflectionExpected&&cube->reflectionFrame==seaReflectionFrame&&cube->reflectionDepthMask==cube->reflectionExpected&&cube->reflectionBackgroundMask==cube->reflectionExpected){
+  simd_float4x4 viewMatrix;memcpy(&viewMatrix,&matrices[D3DTS_VIEW],64);
+  auto camera=inverseViewForDraw(viewMatrix).columns[3].xyz;
+  uniforms.reflectionCameraOffset=simd_make_float4(camera-simd_make_float3(cube->reflectionOrigin[0],cube->reflectionOrigin[1],cube->reflectionOrigin[2]),float(cube->reflectionExpected));
+ }
  if((kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sun)&&!cube)return unsupported("sea cube map absent");
  bool modernPass=modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Foam||kind==SeaShaderKind::Sun);
  if(modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Sun))prepareSeaScene(uniforms);
@@ -823,6 +853,7 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
  for(int stage=0;stage<8;stage++){auto* texture=boundTextures[stage].flat;[encoder setFragmentTexture:texture?texture->gpu():nil atIndex:stage];[encoder setFragmentSamplerState:samplerFor(stage) atIndex:stage];}
  [encoder setFragmentTexture:volume?volume->gpu():nil atIndex:8];[encoder setFragmentTexture:cube?cube->gpu():nil atIndex:9];[encoder setFragmentTexture:uniforms.depthRefractionEnabled?sceneColorSnapshot:nil atIndex:10];[encoder setFragmentTexture:uniforms.depthRefractionEnabled?sceneDepthSnapshot:nil atIndex:11];
  [encoder setFragmentTexture:volumetricSky.clouds[volumetricSky.from] atIndex:12];[encoder setFragmentTexture:volumetricSky.clouds[volumetricSky.to] atIndex:13];
+ [encoder setFragmentTexture:uniforms.reflectionCameraOffset.w>0?cube->reflectionDepth:nil atIndex:14];[encoder setFragmentTexture:uniforms.reflectionCameraOffset.w>0?cube->reflectionBackground:nil atIndex:15];
 	 if(indexData){UINT indexCount=primitives*3;auto indices=submissionBuffer(indexData,size_t(indexCount)*(indexFormat==D3DFMT_INDEX32?4:2));if(!indices.buffer)return E_OUTOFMEMORY;[encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexFormat==D3DFMT_INDEX32?MTLIndexTypeUInt32:MTLIndexTypeUInt16 indexBuffer:indices.buffer indexBufferOffset:indices.offset instanceCount:1 baseVertex:base baseInstance:0];}else [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:primitives*3];
  return S_OK;
  }
@@ -879,7 +910,7 @@ return u;}
   auto hr=applyState((0x8000ull+key)|(solar?0x20000ull:0),library,vertexName,solar?@"fs_solar":fragmentName);if(FAILED(hr))return false;
   Uniform u=prepareFixedFunction();BridgeUniform bridge{};bridge.m=u.m;memcpy(&bridge.view,&matrices[D3DTS_VIEW],64);memcpy(&bridge.projection,&matrices[D3DTS_PROJECTION],64);bridge.viewport=u.viewport;bridge.mode=mode;bridge.params=params;
   if(solar)bindSolarVisual();
-  simd_float4x4 v;memcpy(&v,&matrices[D3DTS_VIEW],64);simd_float4x4 originTranslate=matrix_identity_float4x4;originTranslate.columns[3]=simd_make_float4(landShadow.worldOrigin,1.f);bridge.view=simd_mul(v,originTranslate);
+  bridge.view=worldBillboardView();
 	  [encoder setVertexBuffer:buffer.buffer offset:buffer.offset atIndex:0];bindFixedFunction(u);[encoder setVertexBytes:&bridge length:sizeof(bridge) atIndex:2];
   [encoder drawPrimitives:primitive vertexStart:0 vertexCount:vertices];if(profile.enabled){++profile.draws;profile.vertices+=vertices;}return true;
  }
@@ -1298,7 +1329,7 @@ if(fan)t=D3DPT_TRIANGLELIST;
   [encoder setRenderPipelineState:landShadow.caster];[encoder setDepthStencilState:landShadow.writeDepth];[encoder setCullMode:rs[D3DRS_CULLMODE]==D3DCULL_NONE?MTLCullModeNone:rs[D3DRS_CULLMODE]==D3DCULL_CW?MTLCullModeFront:MTLCullModeBack];[encoder setVertexBuffer:vertexSlice.buffer offset:vertexSlice.offset atIndex:0];[encoder setVertexBytes:&shadow length:sizeof(shadow) atIndex:1];[encoder setFragmentBytes:&shadow length:sizeof(shadow) atIndex:1];[encoder setFragmentTexture:texture?texture->gpu():nil atIndex:0];[encoder setFragmentSamplerState:samplerFor(0) atIndex:0];auto type=t==D3DPT_TRIANGLESTRIP?MTLPrimitiveTypeTriangleStrip:MTLPrimitiveTypeTriangle;if(indexed)[encoder drawIndexedPrimitives:type indexCount:drawCount indexType:MTLIndexTypeUInt32 indexBuffer:indexSlice.buffer indexBufferOffset:indexSlice.offset];else [encoder drawPrimitives:type vertexStart:0 vertexCount:num];return S_OK;
  }
  const bool solar=solarVisualActive&&cloudFieldCurrent()&&!prepassLit&&special==ProgramKind::None;
- auto stateResult=applyState(uint64_t(special)|(prepassLit?0x800ull:0)|(solar?0x20000ull:0),library,prepassLit?@"vs_landlit":@"vs",prepassLit?@"fs_landlit":special==ProgramKind::Postprocess?@"postprocess_fs":solar?@"fs_solar":@"fs");if(FAILED(stateResult)){if(prepassLit)++telemetryReceiverRejects;return stateResult;}if(prepassLit)++telemetryReceiverDraws;Uniform u=prepareFixedFunction();if(solar)bindSolarVisual();
+ auto stateResult=applyState(uint64_t(special)|(prepassLit?0x800ull:0)|(solar?0x20000ull:0)|(uint64_t(solar?solarShape:0)<<24),library,prepassLit?@"vs_landlit":@"vs",prepassLit?@"fs_landlit":special==ProgramKind::Postprocess?@"postprocess_fs":solar?(solarShape?@"fs_solar_shape":@"fs_solar"):@"fs");if(FAILED(stateResult)){if(prepassLit)++telemetryReceiverRejects;return stateResult;}if(prepassLit)++telemetryReceiverDraws;Uniform u=prepareFixedFunction();if(solar)bindSolarVisual();
  if(prepassLit){auto lighting=landShadow.sampling(worldMatrix);unsigned count=0;
  if(lightingScene.authoredCatalog()){lighting.flags.z=1;
  storm_metal::Bounds3 receiver{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};
@@ -1332,6 +1363,42 @@ namespace sm {
 void retainDeviceResource(IDirect3DDevice9* d){auto*p=static_cast<Device*>(d);++p->childRefs;p->AddRef();}
 void releaseDeviceResource(IDirect3DDevice9* d){auto*p=static_cast<Device*>(d);--p->childRefs;p->Release();}
 HRESULT synchronizeDevice(IDirect3DDevice9* d){if(!d)return D3DERR_INVALIDCALL;auto*device=static_cast<Device*>(d);if(device->profile.enabled)++device->profile.readbacks;device->synchronize();return S_OK;}
+}
+extern "C" void StormMetalBeginSeaReflectionCube(void*pointer,void*texture,uint32_t faces,const float*origin){
+ if(!pointer||!texture)return;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto*cube=dynamic_cast<CubeTexture*>(static_cast<IDirect3DCubeTexture9*>(texture));if(!cube)return;
+ cube->reflectionExpected=cube->reflectionDepthMask=cube->reflectionBackgroundMask=0;
+ if(!d->modernWater||!origin||(faces!=0x37u&&faces!=0x3fu)||!cube->gpu())return;
+ simd_float4x4 projection;memcpy(&projection,&d->matrices[D3DTS_PROJECTION],64);
+ if(!std::isfinite(simd_determinant(projection))||std::abs(simd_determinant(projection))<1.e-12f)return;
+ if(!d->seaLibrary){NSError*error=nil;d->seaLibrary=[d->metal newLibraryWithSource:[NSString stringWithUTF8String:seaShaderSource] options:nil error:&error];if(!d->seaLibrary){fprintf(stderr,"[StormMetal] sea reflection shader: %s\n",error.localizedDescription.UTF8String);return;}}
+ if(!d->seaReflectionDepthKernel){NSError*error=nil;d->seaReflectionDepthKernel=[d->metal newComputePipelineStateWithFunction:[d->seaLibrary newFunctionWithName:@"sea_reflection_depth"] error:&error];if(!d->seaReflectionDepthKernel)return;}
+ if(!cube->reflectionDepth||!cube->reflectionDepthArray||!cube->reflectionBackground){
+  auto desc=[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:MTLPixelFormatR32Float size:cube->gpu().width mipmapped:NO];desc.storageMode=MTLStorageModePrivate;desc.usage=MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite|MTLTextureUsagePixelFormatView;
+  cube->reflectionDepth=[d->metal newTextureWithDescriptor:desc];cube->reflectionDepthArray=[cube->reflectionDepth newTextureViewWithPixelFormat:MTLPixelFormatR32Float textureType:MTLTextureType2DArray levels:NSMakeRange(0,1) slices:NSMakeRange(0,6)];
+  desc.pixelFormat=cube->gpu().pixelFormat;desc.usage=MTLTextureUsageShaderRead;cube->reflectionBackground=[d->metal newTextureWithDescriptor:desc];
+  if(!cube->reflectionDepth||!cube->reflectionDepthArray||!cube->reflectionBackground)return;
+ }
+ for(unsigned i=0;i<3;i++){if(!std::isfinite(origin[i]))return;cube->reflectionOrigin[i]=origin[i];}
+ memcpy(cube->reflectionProjection,&projection,64);cube->reflectionFrame=d->seaReflectionFrame;cube->reflectionExpected=faces;
+}
+static bool seaReflectionCaptureValid(Device*d,CubeTexture*cube,uint32_t face){
+ if(!cube||!cube->reflectionExpected||cube->reflectionFrame!=d->seaReflectionFrame||face>=6||!(cube->reflectionExpected&(1u<<face)))return false;
+ if(!d->target||d->target->gpu!=cube->gpu()||d->target->slice!=face||d->target->mip||!d->zbuffer||d->zbuffer->gpu.pixelFormat!=MTLPixelFormatDepth32Float||d->zbuffer->gpu.width!=cube->gpu().width||d->zbuffer->gpu.height!=cube->gpu().height||d->vp.X||d->vp.Y||d->vp.Width!=cube->gpu().width||d->vp.Height!=cube->gpu().height||d->vp.MinZ!=0.f||d->vp.MaxZ!=1.f||memcmp(cube->reflectionProjection,&d->matrices[D3DTS_PROJECTION],64))return false;
+ simd_float4x4 view;memcpy(&view,&d->matrices[D3DTS_VIEW],64);auto origin=simd_inverse(view).columns[3].xyz;
+ auto expected=simd_make_float3(cube->reflectionOrigin[0],cube->reflectionOrigin[1],cube->reflectionOrigin[2]);return simd_length(origin-expected)<=std::max(.01f,simd_length(expected)*1.e-6f);
+}
+extern "C" void StormMetalCaptureSeaReflectionBackground(void*pointer,void*texture,uint32_t face){
+ if(!pointer||!texture)return;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto*cube=dynamic_cast<CubeTexture*>(static_cast<IDirect3DCubeTexture9*>(texture));
+ if(!seaReflectionCaptureValid(d,cube,face)){if(cube)cube->reflectionExpected=0;return;}
+ d->finish();if(!d->command)d->command=[d->queue commandBuffer];auto blit=[d->command blitCommandEncoder];if(!blit){cube->reflectionExpected=0;return;}
+ [blit copyFromTexture:cube->gpu() sourceSlice:face sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0) sourceSize:MTLSizeMake(cube->gpu().width,cube->gpu().height,1) toTexture:cube->reflectionBackground destinationSlice:face destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];[blit endEncoding];cube->reflectionBackgroundMask|=1u<<face;
+}
+extern "C" void StormMetalCaptureSeaReflectionDepth(void*pointer,void*texture,uint32_t face){
+ if(!pointer||!texture)return;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto*cube=dynamic_cast<CubeTexture*>(static_cast<IDirect3DCubeTexture9*>(texture));
+ if(!seaReflectionCaptureValid(d,cube,face)||!(cube->reflectionBackgroundMask&(1u<<face))){if(cube)cube->reflectionExpected=0;return;}
+ d->finish();if(!d->command)d->command=[d->queue commandBuffer];auto compute=[d->command computeCommandEncoder];if(!compute){cube->reflectionExpected=0;return;}
+ simd_float4x4 projection;memcpy(&projection,cube->reflectionProjection,64);auto inverse=simd_inverse(projection);
+ [compute setComputePipelineState:d->seaReflectionDepthKernel];[compute setTexture:d->zbuffer->gpu atIndex:0];[compute setTexture:cube->reflectionDepthArray atIndex:1];[compute setBytes:&inverse length:64 atIndex:0];[compute setBytes:&face length:4 atIndex:1];[compute dispatchThreads:MTLSizeMake(cube->gpu().width,cube->gpu().height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[compute endEncoding];cube->reflectionDepthMask|=1u<<face;
 }
 extern "C" void StormMetalDrawBillboards(void*pointer,const BridgeBillboard*rects,uint32_t count,const char*technique,uint32_t atlasX,uint32_t atlasY,float scaleX,float scaleY){if(!pointer||!rects||!count||!technique)return;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));if(std::strcmp(technique,"stars")==0&&d->drawSkyStars(rects,count,scaleX,scaleY))return;d->drawBridge(rects,size_t(count)*sizeof(*rects),size_t(count)*6,@"bridge_billboard_vs",1,0,{float(std::max(1u,atlasX)),float(std::max(1u,atlasY)),scaleX,scaleY});}
 extern "C" void StormMetalBeginShipFireSurface(void*pointer,const float*world,const StormMetalShipFirePoint*points,uint32_t count){
@@ -1430,6 +1497,8 @@ extern "C" bool StormMetalSkyFogActive(void*pointer){return pointer&&static_cast
 extern "C" bool StormMetalBeginSolarVisual(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginSolarVisual();}
 extern "C" void StormMetalEndSolarVisual(void*pointer){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->endSolarVisual();}
 extern "C" bool StormMetalSolarVisualActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->solarVisualActive;}
+extern "C" bool StormMetalBeginSolarShape(void*pointer,uint32_t shape,float halfSize,float distance){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->beginSolarShape(shape,halfSize,distance);}
+extern "C" void StormMetalEndSolarShape(void*pointer){if(pointer)static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->endSolarShape();}
 extern "C" bool StormMetalCloudFieldCurrent(void*pointer){return pointer&&static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer))->cloudFieldCurrent();}
 extern "C" unsigned StormMetalBeginLandModel(void*pointer,unsigned role){if(!pointer)return 0;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));auto previous=d->landShadow.scope;d->landShadow.scope=role;return previous;}
 extern "C" bool StormMetalSetGeometryEmitter(void*pointer,bool active){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<IDirect3DDevice9*>(pointer));const bool previous=d->authoredGeometryEmitter;d->authoredGeometryEmitter=active;return previous;}

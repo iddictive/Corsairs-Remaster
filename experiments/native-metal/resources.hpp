@@ -151,6 +151,11 @@ namespace sm {
 struct CubeTexture:StubIDirect3DCubeTexture9,ResourceParent{
  HRESULT STDMETHODCALLTYPE GetDevice(IDirect3DDevice9**out)override{return getOwner(out);}
  std::vector<Surface*>faces[6];id<MTLTexture>texture=nil;DWORD lod=0;
+ // The sea producer publishes a coherent face set; SunRoad and ordinary cubes
+ // never allocate these optional captures. Their lifetime follows this cube.
+ id<MTLTexture>reflectionDepth=nil,reflectionDepthArray=nil,reflectionBackground=nil;
+ uint64_t reflectionFrame=0;uint32_t reflectionExpected=0,reflectionDepthMask=0,reflectionBackgroundMask=0;
+ float reflectionOrigin[3]{},reflectionProjection[16]{};
  CubeTexture(id<MTLDevice>dev,UINT edge,UINT count,DWORD usage,D3DFORMAT fmt){unsigned max=1;for(unsigned n=edge;n>1;n>>=1)max++;count=count?std::min(count,max):max;
   auto*d=[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm size:edge mipmapped:count>1];d.mipmapLevelCount=count;d.storageMode=MTLStorageModeShared;d.usage=MTLTextureUsageShaderRead|MTLTextureUsageRenderTarget;texture=[dev newTextureWithDescriptor:d];
   for(unsigned face=0;face<6;face++)for(unsigned i=0;i<count;i++){auto*s=new Surface(dev,std::max(1u,edge>>i),std::max(1u,edge>>i),fmt);s->gpu=texture;s->mip=i;s->slice=face;s->desc.Usage=usage;faces[face].push_back(s);}

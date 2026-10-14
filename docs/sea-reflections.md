@@ -25,6 +25,53 @@ introduce torn or lagging ship reflections (historical evidence in
 
 ## Evidence and acceptance
 
+### October14 — displaced reflections on water
+
+The player specifies spatially detached reflections on water. An independent
+mirrored-geometry oracle accepts flat modern Sea2 (six markers, three cameras,
+maximum0.493px centroid error). Modern SimpleSea/Sea3 instead interpolates
+already-divided per-vertex projection coordinates and carries an old vertical
+bias. Its modern fragments now derive projection UV from fragment position and
+the viewport; original-fidelity entries remain unchanged.
+
+Default Sea2 additionally samples finite objects from one mirrored-camera cube
+origin rather than the physical water point. Tilted-normal component scenes
+reproduce3–9px displacement. A hit-only screen-space experiment was rejected:
+it left the old displaced cube geometry as a second image and failed when the
+source geometry was outside the main view.
+
+The existing same-frame capture now retains background after SEA_REFLECTION
+(sky/cloud/lightning) and radial depth after SEA_REFLECTION2 (finite geometry).
+`CubeTexture` owns an optional R32F depth cube/array view and RGBA8 background
+cube, about3MiB at256². No scene rerender, CPU readback or temporal history is
+added. `modernSeaCubeReflection` traces the physical reflected water ray through
+that depth, samples corrected finite hits and reveals captured background on a
+miss. Modern Sea2 ordinary/aim/fog variants share this owner. Original water,
+foam and SunRoad retain their prior functions.
+
+The backend publishes only a matching complete face set with the same frame,
+origin, projection, target, viewport and depth surface. Above-water face mask
+omits negative-Y. Rebegin clears prior masks; Present, Reset and graphics changes
+expire old captures. Invalid/missing captures retain the original cube path.
+A single depth layer cannot recover geometry hidden from the capture origin.
+
+Current-source Metal component evidence: eight tilted markers, translated/yawed
+cameras and a steep downward view have maximum0.154px centroid error. The actual
+exported native bridge converts depth104.885582 versus independent104.885544,
+preserves background RGB4/8/12 beneath finite red geometry and moves the corrected
+reflection toY72.066 (oracle72). Present expiry and actual Device Reset restore
+the legacyY67, proving stale captures are rejected. Seeded complete→incomplete
+and waterline face sets, wrong target, missing depth and sky-only capture pass.
+Existing rebuilt original/modern sea and depth-water probes also pass.
+This proves source/component behavior, not installed player placement or FPS.
+
+The combined canonical native build passes. Final `run.sh --stage-only` refuses
+while the player's app is running; the successor is not installed. The parent
+graphics task owns that next stage after normal game exit. Player acceptance is
+still the real ship/shore scene while moving the camera, then holding stationary,
+with both small and sloping waves. No autonomous game launch/input/SAVE inspection
+was performed.
+
 ### Reopened camera-stop report
 
 The player rejects `cad4858` as a jitter fix: ship/shore reflections still
