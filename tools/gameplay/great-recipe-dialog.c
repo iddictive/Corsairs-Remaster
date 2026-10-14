@@ -14,6 +14,10 @@ void ProcessDialogEvent()
         link.l1.go = "Exit";
         return;
     }
+    bool pearlKnown = CheckAttribute(pchar, "GreatRecipe.Clue.Manifest") ||
+        pchar.GreatRecipe.Task == "shore" || pchar.GreatRecipe.Task == "mutiny" ||
+        pchar.GreatRecipe.Task == "mutiny_final" || pchar.GreatRecipe.Task == "ready";
+    if (Dialog.CurrentNode == "pearl_story" && !pearlKnown) Dialog.CurrentNode = "First time";
     if (NPChar.id == "GreatRecipeDreamBeard" && GreatRecipe_IntroPending() &&
         (!CheckAttribute(pchar, "GreatRecipe.Arrival.Stage") || pchar.GreatRecipe.Arrival.Stage == "captain") && Dialog.CurrentNode != "Exit")
     {
@@ -116,7 +120,8 @@ void ProcessDialogEvent()
     switch (Dialog.CurrentNode)
     {
         case "First time":
-            string task = pchar.GreatRecipe.Task;
+            string task = "";
+            if (!GreatRecipe_IntroPending()) task = pchar.GreatRecipe.Task;
             if (NPChar.id == "GreatRecipeBosun")
             {
                 dialog.text = "На палубе мне нужны живые люди, а не ещё одна драка. Что узнал?";
@@ -270,7 +275,7 @@ void ProcessDialogEvent()
                 link.l3 = "Зачем ты мучаешь людей у берега?"; link.l3.go = "history";
                 link.l4 = "Почему меня не убили вместе с кораблём?"; link.l4.go = "mercy";
                 link.l5 = "Что твоя команда думает о тебе?"; link.l5.go = "crew";
-                link.l6 = "Жемчуг — порох, скорлупа или сам разрыв?"; link.l6.go = "pearl_story";
+                if (pearlKnown) { link.l6 = "Жемчуг — порох, скорлупа или сам разрыв?"; link.l6.go = "pearl_story"; }
                 link.l7 = "Скрестим клинки на палубе. До сдачи."; link.l7.go = "captain_practice";
             }
             link.l9 = "До встречи."; link.l9.go = "Exit";
@@ -304,7 +309,8 @@ void ProcessDialogEvent()
         break;
         case "Exit":
             NextDiag.CurrentNode = "First time";
-            if (GreatRecipe_IntroPending() && CheckAttribute(pchar, "GreatRecipe.Arrival.Resume")) NextDiag.CurrentNode = pchar.GreatRecipe.Arrival.Resume;
+            if ((NPChar.id == "GreatRecipeDreamBeard" || NPChar.id == "GreatRecipeBosun") &&
+                GreatRecipe_IntroPending() && CheckAttribute(pchar, "GreatRecipe.Arrival.Resume")) NextDiag.CurrentNode = pchar.GreatRecipe.Arrival.Resume;
             DialogExit();
         break;
     }

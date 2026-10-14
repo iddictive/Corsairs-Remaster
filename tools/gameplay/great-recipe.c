@@ -527,6 +527,8 @@ void GreatRecipe_MapAttack()
 
 void GreatRecipe_MapAdmission(ref login)
 {
+    Trace("GreatRecipe map: admission phase=" + GreatRecipe_Phase() + " time=" + GetTime() +
+        " queued=" + CheckAttribute(&worldMap, "GreatRecipeZoneAttack"));
     DeleteAttribute(login, "GreatRecipeOffshore");
     DeleteAttribute(login, "GreatRecipeMapAttack");
     if (GreatRecipe_Phase() != "search" || !IsEntity(&worldMap) || !GreatRecipe_Moonlit() ||
@@ -536,6 +538,7 @@ void GreatRecipe_MapAdmission(ref login)
     if (!GreatRecipe_MapZone(stf(worldMap.playerShipX), stf(worldMap.playerShipZ))) return;
     login.GreatRecipeOffshore = true;
     login.GreatRecipeMapAttack = "GreatRecipeDreamBeard";
+    Trace("GreatRecipe map: admission confirmed time=" + GetTime());
     if (!zoneAttack) return;
     DeleteAttribute(&worldMap, "GreatRecipeZoneAttack");
     aref encounters; makearef(encounters, worldMap.encounters);
@@ -1312,6 +1315,7 @@ string GreatRecipe_Story(string id, string topic)
 string GreatRecipe_TaskAction(string action)
 {
     if (GreatRecipe_Phase() != "captive" || CheckAttribute(pchar, "GreatRecipe.Fight.Active")) return "Сначала разберёмся с дракой.";
+    if (GreatRecipe_IntroPending()) return "Сначала выслушай капитана и Моргана.";
     string task = pchar.GreatRecipe.Task;
     if (action == "cook" && pchar.location == "GreatRecipeMess" && task == "rations")
     { pchar.GreatRecipe.Clue.Cook = true; return "Из кладовой ушла бочка сухарей. Я запер её после ужина; ключ был у помощника капитана. А на крышке осталась синяя краска."; }
@@ -1776,6 +1780,7 @@ void GreatRecipe_PrepareSea(ref login)
     bool firstBattle = phase == "whirlpool" || phase == "assault" || phase == "boarding";
     bool admitted = CheckAttribute(login, "GreatRecipeMapAttack") && login.GreatRecipeMapAttack == "GreatRecipeDreamBeard" &&
         CheckAttribute(login, "GreatRecipeOffshore") && sti(login.GreatRecipeOffshore);
+    Trace("GreatRecipe sea: prepare phase=" + phase + " time=" + GetTime() + " admitted=" + admitted + " island=" + login.Island);
     if (login.Island != "Bermudes" && !admitted && !GreatRecipe_OwnMapLogin(login) && !firstBattle) return;
     if (phase == "search" && admitted)
     {
@@ -1791,6 +1796,7 @@ void GreatRecipe_PrepareSea(ref login)
         login.Island = "";
         login.GreatRecipeOpenSea = true;
         pchar.GreatRecipe.Phase = "whirlpool";
+        Trace("GreatRecipe sea: first battle started time=" + GetTime());
         pchar.GreatRecipe.Elapsed = 0;
         pchar.GreatRecipe.Vortex.X = stf(login.PlayerGroup.x) + 245.0;
         pchar.GreatRecipe.Vortex.Z = stf(login.PlayerGroup.z);
