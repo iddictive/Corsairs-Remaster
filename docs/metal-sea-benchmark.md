@@ -35,7 +35,8 @@ evidence remain there while the performance investigation is active.
 ## Measurement contract
 
 The default backbuffer is 2560×1655, checked through the actual D3D surface;
-VSync and frame cap are disabled only in the fixture. Graphics options come from
+The runner disables VSync and frame cap in its fixture; separately delivered
+original-app pacing is recorded in `docs/runtime.md`. Graphics options come from
 the normal settings adapter. Core simulation/visual delta is fixed at16ms;
 native wall and GPU clocks remain real. Run384frames with128warm-up frames for
 the matched short population. Report cold and warmed data separately.

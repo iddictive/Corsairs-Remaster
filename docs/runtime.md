@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified delivery: October14. Native fleet profiling and the foam/cloud batch3d15e6a are installed in the supported application with signed engine `13180929e8d235ea61316e6ac202739e72ff932f868347f4c90c87bc60a47161`; prior20bf56a4 is backed up. Sea submission, phonk/Cmd-Q, oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. The equivalent fleet workload remains above the8.33ms target; installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. Native fleet profiling, foam/cloud work, sailor topology and empty-ray support through8b74436 are installed in the supported application with signed engine `ee5a226b798ab07b8fbabbbb8d97a8b09d573d1b6fdaae9fe5d50a80dbb763d5`; prior13180929 is backed up. Sea submission, phonk/Cmd-Q, oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. Requested player pacing is configured as VSync0/max_fps0, with all other config lines unchanged and private config backups retained. The equivalent fleet workload remains above the8.33ms target; installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
@@ -22,8 +22,15 @@ now centers variable populations while preserving every eight-ship position.
 Corrected control `20261014-160729` passes19 sails/62 animated/one sea/current sky/
 seven complete point cubes: CPU median8.420ms, GPU median9.816ms. Even this
 control exceeds8.33ms, so reducing fleet submission alone cannot accept the goal.
-Installed signed13180929 remains the previous3d15e6a; this source batch's staging
-is pending. No game launch, controls or SAVE mutation occurred.
+Canonical `run.sh --stage-only` subsequently exits0 for frozen8b74436, installing
+signedee5a226b with prior13180929 backed up. Independent installed hash matches;
+source fingerprintacaa0757/unsignedc11c40e2 bind the exact native batch. Independent
+content check reports0 pending cache/app and compiler ready. The player's explicit
+uncapped/no-VSync condition is now reflected in the original state's canonical
+graphics record and engine config: VSync0/max_fps0. Every other config line is
+byte-preserved; original configs are backed up in their private data owner.
+No game launch, controls or SAVE/userdata-directory mutation occurred. This
+accepts installation/configuration, not the requested performance target.
 
 ### October14 — sailor topology cache unified; staging pending
 
