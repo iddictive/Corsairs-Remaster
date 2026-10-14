@@ -1,8 +1,57 @@
 # Runtime state
 
-Last verified: October13. The living-ship damage batch remains installed from `f664c28`, signed engine `2becdd6995703d71db16276a6233a224ca661a6980cfd550fd3de65d3e1a952e`. The subsequent source batch builds successfully, but is not activated. The player has played the isolated state copy and reopened aiming FPS, hull openings and weak liner-fire acceptance. New SAVE progress is hash-verified in the private player archive; original SAVE is not replaced. Agent game control remains explicitly stopped, and the former PID7512 has subsequently exited. Full quest and city/night replay remain pending. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and Phonk batch. Signed engine `1ed666c5cfad7485b98b3be32cafead29777942c994664213f239938f8e1ba9c`;277 frozen inputs and488 SAVE/config hashes remain unchanged. Installed PROGRAM/context compilation and two isolated codec rounds pass. The player previously reopened34FPS aiming, hull sightlines and weak x8 fire; their actual battle/visual/FPS acceptance remains pending. Original SAVE and the archived isolated session are preserved. Agent game input and launch remain explicitly stopped; no engine process is running at delivery. New Beard navigation and NPC-generation changes belong to later batches. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — finite suppression budget and integrated app delivery
+
+The player requires recoverable small fires, meaningful crew shortage and severe
+multiple-site overload. The previous model gave every burning cell the complete
+crew cooling rate. The new model shares a finite ship-wide budget, prioritizes
+burning cells, preserves rain and per-site limits, and derives count/ratio from
+one current crew snapshot. It adds one bounded cell pass with no hot-path
+allocations. Defence protects casualties; Repair, morale and staffing govern
+suppression. Exact owners, previous-state guards and counterexamples live in
+`ship-fire-and-damage.md`.
+
+Production CPU replay: Frigate1 with259/370 crew recovers1–3 fresh fires in
+7.5–16.75game seconds. Six normal fires spread and lose11.83–18.60% hull and
+28.87–45.97 crew over300game seconds; priority can recover this medium reference.
+At148/370 crew with Defence1.0, six remain burning and cost18.28–18.67% hull
+normally; maximum Defence reduces deaths without replacing missing crew.
+The complete20-wood/19-cloth Manowar union confirms the full skilled crew can
+recover six fresh fires. Redoutable's98/559 crew can fail even a single priority
+fire. These fixed-pose numbers omit waves, rocking and active repair; they are
+component evidence, not accepted player battle balance.
+
+Full prepared PROGRAM and the actual context event return0 with script_errors0.
+Missing/stale projections, changed quantity and inactive/dead/zero-crew negatives
+pass. Two real VM codec rounds pass with fixture game Main/OnLoad disabled.
+The first entity-free full-program codec attempt invoked ordinary game OnLoad
+and crashed; it is rejected as a scene-load oracle. Real saved-game OnLoad
+and battle replay remain unresolved under the explicit game-control stop.
+
+Frozen Phonk source checkpoints `3cef104`; the final native patch is4bca1bde.
+The previously generic reused HeatedShot icon is replaced by the dedicated
+hot-ball/tongs artwork in `825cb5e`, now installed with its checksum-bound texture.
+No later navigation or NPC source enters this batch. Canonical
+`experiments/native-metal/run.sh --stage-only` returns0 after the last model,
+context and ordered-patch change, using two compiler workers. Unsigned engine:
+`c34deca6d6d66afe1c5fbe95eace338a41dc4f00770927934f46ecee90b4373d`.
+Signed installed engine:
+`1ed666c5cfad7485b98b3be32cafead29777942c994664213f239938f8e1ba9c`.
+All277 frozen inputs,488 original/isolated SAVE/config hashes and55 prepared
+PROGRAM projections match. Gameplay check reports0 cache and0 installed files
+pending, compiler ready. The actual installed PROGRAM/context and two isolated
+codec rounds again return0 with script_errors0. No game is launched or controlled.
+Disposition: integrated source/component, compilation and exact file delivery
+accepted; fire balance/visuals, hull appearance, Phonk interaction and whole-frame
+aiming FPS remain player-replay requirements.
+The exact Phonk sea replay still needs drift/countersteer, purple glow, audible
+track and on/off restoration; its checksum-bound controller/menu/music match
+the installed app, whose strict signature verification passes. No launch/input
+is performed for that independent delivery check.
 
 ### October13 — Redoutable heat transport repaired; compiled, not activated
 

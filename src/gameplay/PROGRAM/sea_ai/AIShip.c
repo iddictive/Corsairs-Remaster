@@ -3523,8 +3523,10 @@ void Ship_FireContext()
 	if (!bSeaActive || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
 	if (LAi_IsDead(rCharacter) || LAi_IsImmortal(rCharacter) || GetCharacterShipType(rCharacter) == SHIP_NOTUSED) return;
 	float optimal = GetOptCrewQuantity(rCharacter);
+	float crewCount = GetCrewQuantity(rCharacter);
 	float crewRatio = 0.0;
-	if (optimal > 0.0) crewRatio = GetCrewQuantity(rCharacter) / optimal;
+	if (optimal > 0.0) crewRatio = crewCount / optimal;
+	rCharacter.Ship.FireState.crewCount = crewCount;
 	rCharacter.Ship.FireState.crewRatio = crewRatio;
 	rCharacter.Ship.FireState.morale = GetCharacterCrewMorale(rCharacter) / MORALE_NORMAL;
 	rCharacter.Ship.FireState.repair = stf(rCharacter.TmpSkill.Repair);

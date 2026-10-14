@@ -339,3 +339,86 @@ Canonical native build passes for the exact model SHA-256
 The player subsequently asks for medium-ship70%-crew and six-site large-ship
 balance; that quantitative scenario is a separate open acceptance within this
 same mechanic. Activation, installed spread/crew losses and FPS remain unresolved.
+
+### Finite crew suppression capacity
+
+The medium-ship replay exposes a separate allocation error: each thermal cell
+received the complete per-site crew suppression regardless of simultaneous
+fires. Six fresh sites on Frigate1 with70% staffing therefore disappeared in
+8.25–16.75game seconds. The player requires playable fires with meaningful
+understaffing and severe multiple-site overload; six is an example, not a fixed
+fatality threshold.
+
+`ship_fire_model.hpp` now owns one finite ship-wide cooling budget. Existing
+crew ratio, morale, Repair, rain and priority multipliers remain. Current crew
+quantity supplies a base suppression slot plus one slot per150 crew units;
+150 is a gameplay calibration, not a historical firefighting headcount. Burning
+cells receive the budget first, with remaining capacity shared among warm cells.
+One local demand evaluator owns the allocation and application equations.
+Duty follows budget utilization within the existing20% normal/48% priority
+limits. The fixed-step path adds one bounded cell pass and allocates no memory.
+
+Canonical `Ship_FireContext` reads `GetCrewQuantity` once and derives both count
+and ratio from that integer snapshot; fractional casualty debits remain in the
+authoritative quantity. SHIP reads the new count immediately after the existing
+synchronous event. Restored absent or stale count projections are overwritten
+before every enabled step. No SAVE codec or fire schema changes. Full prepared
+PROGRAM and the real context event pass the native VM, including missing/stale
+count, quantity changes, zero/negative crew, reload, boarding, interface, dead,
+immortal and unused-ship negatives. Two real VM codec rounds also pass in the
+entity-free fixture with its ordinary game Main/OnLoad disabled; this does not
+accept the real game's OnLoad. The first full-program codec attempt called the
+uninitialized game's OnLoad and crashed; it is rejected as a scene-load oracle.
+
+Dry, fixed-pose production-model replay uses Frigate1's complete13 wood/13 cloth
+cells, HP4732,259/370 crew, Repair/Defence .5, morale70 and no Doctor or hull
+defence perks. Fresh independent hull sites give:
+
+| Initial fires | Energy | Normal extinction | Hull loss at300s | Crew lost at300s |
+| --- | --- | --- | --- | --- |
+| 1 | .60 / .76 | 7.5 / 13.5s | .02 / .06% | .02 / .07 |
+| 3 | .60 / .76 | 8.75 / 16.75s | .05 / .14% | .10 / .31 |
+| 6 | .60 / .76 | Still burning | 11.83 / 18.60% | 28.87 / 45.97 |
+
+Priority recovers the medium six-site cases in7.25/19.75s at up to48% crew duty.
+It is not a guarantee for an understaffed ship: Frigate1 with148/370 crew and
+Defence1.0, otherwise the same context, still burns after300s. Normal six-site
+.60/.76 loses18.28/18.67% hull and10.92/11.15 crew. Priority loses11.73/18.60%
+hull and8.30/13.57 crew; the strong-fire case retains the existing higher crew
+exposure while on duty.
+
+Defence1.0 reduces fire casualties by75% through `Ship_ApplyCrewHitpoints`.
+Doctor2/Doctor1 separately multiply crew damage by .8/.9. Hull protection uses
+the strongest BasicBattleState/AdvancedBattleState/ShipDefenseProfessional
+perk (.15/.25/.35); Defence skill does not directly quench fire or reduce hull
+damage here. Repair, staffing and morale own suppression strength. Active repair
+perks retain their existing context override.
+
+The full saved Manowar1 union is20 wood plus19 cloth cells; reading only the
+first duplicated cloth branch omitted three sails and was an incomplete oracle.
+The complete39-cell replay confirms six .60/.76 sites recover in4.5/8s, or
+1.75/3s at priority, with836/836 crew, Repair/Defence .9, morale85, Doctor2 and
+ShipDefenseProfessional. This is a skilled full-crew reference, not a promise
+that every large ship survives six developed fires.
+
+Redoutable's98/559 crew can now lose a single .76 hull fire even at priority:
+spread begins12.5s and it reaches34 active cells,12.25% hull loss and18.25 crew
+loss at300s. The former unlimited-cell priority recovery is intentionally
+superseded; the player did not require an18%-staffed ship to extinguish every
+fire. The rejected cold-cell-first variant starved active suppression. Current
+active-first conservation and normalized-model parity pass:22 baseline cases
+plus8 complete-population cases, no hot-step allocations. Model SHA-256:
+`e4baa80130d82cf5e1b6fd0bfb1b07dbad1394ec658f4e50f1b0edec3703617f`.
+
+CPU numbers omit moving waves/rocking seawater cooling, new direct shell damage,
+active repair and later battle actions.300game seconds equals37.5real seconds
+at x8. Evidence is retained under the canonical ignored diagnostics owner
+`experiments/native-metal/.cache/diagnostics/fire-state-repair/crew-capacity`.
+Installed battle balance, visible spread and FPS require player replay; game
+input and launch remain explicitly stopped.
+
+Canonical `run.sh --stage-only` subsequently returns0 for this exact model and
+new live-context writer. The installed PROGRAM matches its prepared projection,
+and its actual context/codec fixture returns0 with script_errors0.277 frozen
+inputs and488 SAVE/config hashes are unchanged. The signed installed engine and
+the integrated batch's pending player scenarios are recorded in `runtime.md`.

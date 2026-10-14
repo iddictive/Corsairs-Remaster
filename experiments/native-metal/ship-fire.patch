@@ -89,7 +89,7 @@
      const auto vPos = GetPos();
 --- a/src/libs/ship/src/ship.cpp
 +++ b/src/libs/ship/src/ship.cpp
-@@ -747,6 +747,277 @@
+@@ -747,6 +747,278 @@
              pShipsLights->SetDead(this);
      }
  }
@@ -305,6 +305,7 @@
 +        context.enabled=state->GetAttributeAsDword("enabled")!=0 || isDead();context.dead=isDead();
 +        context.priority=state->GetAttributeAsDword("priority")!=0;
 +        context.crewRatio=state->GetAttributeAsFloat("crewRatio");context.morale=state->GetAttributeAsFloat("morale");
++        context.crewCount=state->GetAttributeAsFloat("crewCount");
 +        context.repair=state->GetAttributeAsFloat("repair");context.rain=state->GetAttributeAsFloat("rain");
 +        const float angle=state->GetAttributeAsFloat("windAngle"),speed=state->GetAttributeAsFloat("windSpeed");
 +        fireWind=CVECTOR(sinf(angle)*speed,0.f,cosf(angle)*speed);
@@ -367,7 +368,7 @@
  
  void SHIP::Execute(uint32_t DeltaTime)
  {
-@@ -1083,6 +1354,9 @@
+@@ -1083,6 +1355,9 @@
        fSailState = 0.0f;
      }*/
  
@@ -377,7 +378,7 @@
      // execute fire places
      for (uint32_t i = 0; i < aFirePlaces.size(); i++)
          aFirePlaces[i].Execute(fDeltaTime);
-@@ -1357,7 +1631,14 @@
+@@ -1357,7 +1632,14 @@
      SetLights();
  
      pRS->SetRenderState(D3DRS_LIGHTING, true);
@@ -392,7 +393,7 @@
      pRS->SetRenderState(D3DRS_LIGHTING, false);
  
      UnSetLights();
-@@ -1370,9 +1651,19 @@
+@@ -1370,9 +1652,19 @@
          m1.BuildMatrix(0.0f, fUpperShipAY, 0.0f, State.vPos.x + fXOffset, State.vPos.y + fUpperShipY,
                         State.vPos.z + fZOffset);
          pModelUpperShip->mtx = m1;
@@ -414,7 +415,7 @@
      if (bMassaShow)
      {
          pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
-@@ -1483,6 +1774,15 @@
+@@ -1483,6 +1775,15 @@
          fXOffset = fZOffset = 0.f;
          RecalculateWorldOffset();
          break;
@@ -430,7 +431,7 @@
      case MSG_SHIP_ACTIVATE_FIRE_PLACE: {
          const auto dwFPIndex = static_cast<uint32_t>(message.Long());
          const std::string &str = message.String();
-@@ -1492,7 +1792,12 @@
+@@ -1492,7 +1793,12 @@
          const auto fRunTime = message.Float();
          const auto iBallCharacterIndex = message.Long();
          Assert(dwFPIndex != INVALID_ARRAY_INDEX && dwFPIndex < aFirePlaces.size());
@@ -443,7 +444,7 @@
      }
      break;
      case MSG_SHIP_GET_CHARACTER_INDEX: {
-@@ -1964,6 +2269,9 @@
+@@ -1964,6 +2270,9 @@
          pModelUpperShip = static_cast<MODEL *>(core.GetEntityPointer(model_uppership_id));
      }
  
@@ -453,7 +454,7 @@
      // event to script
      core.Event(SHIP_CREATE, "li", GetACharacter()->GetAttributeAsDword("index"), GetId());
      core.Event("Ship_EndLoad", "a", GetACharacter());
-@@ -2239,8 +2547,8 @@
+@@ -2239,8 +2548,8 @@
          float fMinDistance = 1e8f;
          int32_t iBestIndex = -1;
          for (uint32_t i = 0; i < aFirePlaces.size(); i++)
@@ -464,7 +465,7 @@
                  const float fDistance = aFirePlaces[i].GetDistance(vTemp);
                  if (fDistance < fMinDistance)
                  {
-@@ -2357,6 +2665,9 @@
+@@ -2357,6 +2666,9 @@
  
  void SHIP::Save(CSaveLoad *pSL)
  {
@@ -474,7 +475,7 @@
      uint32_t i;
  
      pSL->SaveAPointer("character", GetACharacter());
-@@ -2436,6 +2747,9 @@
+@@ -2436,6 +2748,9 @@
      fGravity = pSL->LoadFloat();
      fSailState = pSL->LoadFloat();
  
@@ -484,7 +485,7 @@
      Mount(pAShip);
  
      uniIDX = pSL->LoadLong();
-@@ -2506,6 +2820,10 @@
+@@ -2506,6 +2821,10 @@
      }
  
      ShipPoints = {};

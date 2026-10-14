@@ -26,6 +26,7 @@ struct Cell {
 
 struct Context {
     float crewRatio = 1.f, morale = 1.f, repair = .5f;
+    float crewCount = 0.f;
     float rain = 0.f, windX = 0.f, windZ = 0.f;
     bool priority = false, enabled = true, dead = false;
 };
@@ -108,8 +109,6 @@ public:
         const float crew = std::clamp(ctx.crewRatio, 0.f, 1.25f);
         const float quality = crew*(.45f+.55f*unit(ctx.morale))*(.55f+.45f*unit(ctx.repair));
         const float work = quality*(ctx.priority ? 2.5f : 1.f)/(1.f+coverage*6.f);
-        out.duty = ctx.dead || out.active == 0 ? 0.f :
-            std::min(ctx.priority ? .48f : .20f, (.025f+coverage*.65f)*(ctx.priority ? 2.4f : 1.f));
         const float wind = unit(std::sqrt(ctx.windX*ctx.windX+ctx.windZ*ctx.windZ)/16.f);
         const float rain = unit(ctx.rain);
         // A single previous-state pass makes spread independent of cell order.
@@ -131,13 +130,42 @@ public:
                 if (transfer > .002f && b.heat < .32f) cells[j].owner = a.owner;
             }
         }
+        const float perSiteCooling = ctx.dead ? 0.f : .075f*work;
+        constexpr float CrewPerSuppressionSite = 150.f;
+        const float crewCount = std::isfinite(ctx.crewCount) ? std::max(0.f,ctx.crewCount) : 0.f;
+        const float slots = crewCount > 0.f ? 1.f+crewCount/CrewPerSuppressionSite : 0.f;
+        const float crewBudget = perSiteCooling*slots;
+        struct CoolingDemand { float ambientRain, heating, crew; };
+        const auto coolingDemand = [&](std::size_t i) {
+            const auto &c = cells[i];
+            const float ambientRain = .010f*c.heat+rain*(c.cloth ? .23f : .16f);
+            const float heating = flame[i]*(.028f+.018f*wind)+std::min(.08f,incoming[i]);
+            return CoolingDemand{ambientRain,heating,
+                std::min(perSiteCooling,std::max(0.f,c.heat/dt+heating-ambientRain))};
+        };
+        float burningWanted = 0.f, warmWanted = 0.f;
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto &c = cells[i];
+            if (!c.available) continue;
+            const float wanted = coolingDemand(i).crew;
+            if (flame[i] > .025f) burningWanted += wanted;
+            else warmWanted += wanted;
+        }
+        const float burningShare = burningWanted > 0.f ? std::min(1.f,crewBudget/burningWanted) : 0.f;
+        const float burningUsed = burningWanted*burningShare;
+        const float residualBudget = std::max(0.f,crewBudget-burningUsed);
+        const float warmShare = warmWanted > 0.f ? std::min(1.f,residualBudget/warmWanted) : 0.f;
+        const float usedBudget = burningUsed+warmWanted*warmShare;
+        out.duty = ctx.dead || out.active == 0 || crewBudget <= 0.f ? 0.f :
+            (ctx.priority ? .48f : .20f)*unit(usedBudget/crewBudget);
         for (std::size_t i = 0; i < count; ++i) {
             auto &c = cells[i];
             if (!c.available) { c.heat = 0.f; continue; }
             // Cloth burns faster, but rain reaches it and repair crews cool it.
-            const float cooling = .010f*c.heat+rain*(c.cloth ? .23f : .16f)+(ctx.dead ? 0.f : .075f*work);
-            const float heating = flame[i]*(.028f+.018f*wind)+std::min(.08f,incoming[i]);
-            c.heat = std::clamp(c.heat + dt*(heating-cooling), 0.f, 1.25f);
+            const auto demand = coolingDemand(i);
+            const float crewCooling = demand.crew*(flame[i] > .025f ? burningShare : warmShare);
+            const float cooling = demand.ambientRain+crewCooling;
+            c.heat = std::clamp(c.heat + dt*(demand.heating-cooling), 0.f, 1.25f);
             const float burned = std::min(c.fuel, dt*flame[i]*(c.cloth ? .0032f : .0013f));
             c.fuel -= burned; c.charred = unit(c.charred+burned*3.3f);
             if (c.cloth) c.burned += burned;
