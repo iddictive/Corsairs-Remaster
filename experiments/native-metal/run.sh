@@ -119,6 +119,7 @@ python3 "$root/../../tools/patch_metal_portobello_shore.py" --apply-runtime "$ru
 python3 "$root/dynamic_town_shadow_probe.py"
 python3 "$root/baked_static_shadow_caster_probe.py"
 python3 "$root/branding/stage.py" "$runtime"
+python3 "$root/../../tools/prepare_phonk_music.py"
 python3 "$root/../../tools/sync_metal_gameplay.py" check
 python3 "$root/../../tools/sync_metal_gameplay.py" apply
 python3 "$root/../../tools/metal_graphics_settings.py" initialize "$runtime"

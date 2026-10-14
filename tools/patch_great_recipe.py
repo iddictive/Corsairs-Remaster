@@ -7,8 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
-    "PROGRAM/seadogs.c": "e62a616a69fe93d5b12b281376fc1cb2b287c95cb780becf3845028062159220",
-    "PROGRAM/sea_ai/sea.c": "7d6336aa7e2181a44cde67753b6aa6a394ef8e07e78adfd5f559eb4e2f9e35ca",
+    "PROGRAM/seadogs.c": "253f4a94d231bc4d99dede9feef57bddfbbe6faa1d5d2a68fbcc39525f839eea",
+    "PROGRAM/sea_ai/sea.c": "219ffed64ddeb14e8be9e263a103da25090941410412459d48a015d771b1bf45",
     "PROGRAM/sea_ai/AIShip.c": "0ec2efa765cc1e8d125280db8ac5c779a38f9fa0ac3f3a32aca619ebf6ccc26c",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",

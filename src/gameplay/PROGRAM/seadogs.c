@@ -5,6 +5,7 @@
 #include "animals.c"
 #include "NumberUtilities.c" // Warship 26.07.09. Работа с числами
 #include "sea_ai\sea.c"
+#include "scripts\sea_phonk.c"
 #include "ships\ships.c"
 #include "scripts\sail_capacity.c"
 #include "Encounters\Encounters.c"

@@ -32,6 +32,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 UI_ASSETS = PROJECT / "src/assets/ui"
 CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
 RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
+MUSIC_ASSETS = PROJECT / "src/assets/audio"
 # Portable input is a reviewed read-only baseline, never a second game runtime.
 INPUTS = PROJECT / "experiments/native-metal/inputs"
 if (INPUTS / "manifest.json").is_file():
@@ -98,6 +99,7 @@ def compiler_ready():
             and record.get("sea_surrender_patch_sha256") == digest((METAL / "sea-surrender-relations.patch").read_bytes())
             and record.get("sea_tsunami_patch_sha256") == digest((METAL / "sea-tsunami.patch").read_bytes())
             and record.get("sea_whirlpool_patch_sha256") == digest((METAL / "sea-whirlpool.patch").read_bytes())
+            and record.get("ship_phonk_patch_sha256") == digest((METAL / "ship-phonk.patch").read_bytes())
             and record.get("cannon_loaded_patch_sha256") == digest((METAL / "cannon-loaded-count.patch").read_bytes())
             and record.get("mast_repair_patch_sha256") == digest((METAL / "mast-repair.patch").read_bytes())
             and record.get("sea_contact_patch_sha256") == digest((METAL / "sea-contact-activity.patch").read_bytes())
@@ -231,7 +233,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     if paths is not None:
         return canonical
     assets, asset_targets = {}, set()
-    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS):
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS):
         changes = asset_changes(asset_root, state, managed, inputs, asset_targets)
         assets.update(changes)
     living_caribbean.verify_fort_layout_assets(target_root)

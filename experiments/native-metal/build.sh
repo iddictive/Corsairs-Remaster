@@ -136,7 +136,7 @@ python3 "$root/apply_source_patches.py" --source "$root/.cache/storm" \
  "$root/pickup-glow.patch" "$root/mast-repair.patch" "$root/airburst-shell.patch" "$root/cannon-fire-modes.patch" "$root/adaptive-fencing.patch" \
  "$root/cannon-depth-drape.patch" "$root/cannon-target-height.patch" \
  "$root/sea-tsunami.patch" "$root/cpu-parallel-sea.patch" "$root/normal-less-surface-lighting.patch" "$root/offscreen-point-casters.patch" "$root/authored-emission.patch" "$root/ship-source-catalog.patch" "$root/lighting-consumer-coverage.patch" "$root/weather-engine.patch" "$root/world-map-weather.patch" "$root/sea-whirlpool.patch" "$root/wreck-collision.patch" "$root/ship-fire.patch" \
- "$root/ship-damage-admission.patch" "$root/ship-hull-damage.patch" "$root/ship-airburst-hull-proximity.patch" "$root/heated-shot.patch"
+ "$root/ship-damage-admission.patch" "$root/ship-hull-damage.patch" "$root/ship-airburst-hull-proximity.patch" "$root/heated-shot.patch" "$root/ship-phonk.patch"
 printf '%s\n' "$fingerprint" > "$root/.cache/source-fingerprint"
 python3 "$root/renderer_consumer_coverage_probe.py"
 # Reuse installed headers and dependencies without rebuilding the playable port.
@@ -193,6 +193,7 @@ digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
  'sea_surrender_patch_sha256': digest(root / 'sea-surrender-relations.patch'),
  'sea_tsunami_patch_sha256': digest(root / 'sea-tsunami.patch'),
  'sea_whirlpool_patch_sha256': digest(root / 'sea-whirlpool.patch'),
+ 'ship_phonk_patch_sha256': digest(root / 'ship-phonk.patch'),
  'wreck_collision_patch_sha256': digest(root / 'wreck-collision.patch'),
  'cannon_loaded_patch_sha256': digest(root / 'cannon-loaded-count.patch'),
  'mast_repair_patch_sha256': digest(root / 'mast-repair.patch'),

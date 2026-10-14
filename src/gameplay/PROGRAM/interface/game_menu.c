@@ -11,6 +11,9 @@ void InitInterface_gm(string iniName)
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
 	SetNodeUsing("MB_TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SetNodeUsing("MB_TSUNAMI_RING", !bAbordageStarted && IsEntity(&worldMap));
+	SetNodeUsing("MB_PHONK", !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap));
+	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Phonk Mode");
+	if (SeaPhonk_IsActive()) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Выключить фонк");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами");
 	if (IsEntity(&worldMap)) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами: дуга");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_RING",0,"#Цунами: кольцо");
@@ -180,7 +183,18 @@ void ProcessCommandExecute()
 
 	switch(nodName)
 	{
+		case "MB_PHONK":
+			if (comName == "click" || comName == "activate")
+			{
+				if (SeaPhonk_Toggle()) ResumeClick();
+			}
+		break;
 		case "MB_TSUNAMI_START":
+			if (comName == "downstep")
+			{
+				if (IsEntity(&worldMap)) SetCurrentNode("MB_TSUNAMI_RING");
+				else SetCurrentNode("MB_PHONK");
+			}
 			if (comName == "click" || comName == "activate")
 			{
 				if (SeaTsunami_Start()) ResumeClick();

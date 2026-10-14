@@ -125,6 +125,7 @@ void SeaTsunami_ClearPending()
 
 void DeleteSeaEnvironment()
 {
+	SeaPhonk_Reset(false);
 	SeaTsunami_ClearPending();
 	WdmMilitaryParleyClear();
     PauseParticles(true); //fix
@@ -1462,6 +1463,7 @@ void Sea_LoginGroup(string sGroupID)
 
 void Sea_FirstInit()
 { 
+	SeaPhonk_Reset(false);
 	trace("Sea_FirstInit");
 	bSeaLoaded = true;
     if (CheckAttribute(&Sea, "Tsunami.PendingSeverity"))

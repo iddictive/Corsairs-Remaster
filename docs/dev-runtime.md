@@ -38,6 +38,14 @@ transaction/receipt path. An existing unrecorded atlas is admitted only by the
 manifest's exact `original_sha256`; subsequent changes use the receipt.
 Arbitrary texture paths and SAVE remain excluded.
 
+Phonk Mode additionally admits the exact music destination
+`RESOURCE/Sounds/MUSIC/phonk-drive.mp3`. Its checksum/download recipe belongs to
+`src/assets/audio/manifest.json`; canonical staging prepares the official input
+through `tools/prepare_phonk_music.py` before gameplay sync. Existing verified
+bytes require no network access. The recording is a player-local input, excluded
+from Git; its public redistribution/licensing boundary and feature lifecycle
+belong to `sea-phonk.md`.
+
 The Great Recipe's three additive item locator GMs are admitted at the exact
 Hold/Deck2/Camp_Deck destinations in `tools/delivery_state.py`. Their manifest
 in `src/assets/quests/great-recipe` binds the stock dummy mesh and prepared bytes;

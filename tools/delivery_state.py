@@ -61,6 +61,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/MODELS/locations/decks/hold/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm",
+    "RESOURCE/Sounds/MUSIC/phonk-drive.mp3",
 )
 
 
