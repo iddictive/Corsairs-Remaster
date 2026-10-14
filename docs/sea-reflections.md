@@ -25,6 +25,47 @@ introduce torn or lagging ship reflections (historical evidence in
 
 ## Evidence and acceptance
 
+### Reopened camera-stop report
+
+The player rejects `cad4858` as a jitter fix: ship/shore reflections still
+jitter while moving the camera and after stopping it, at ordinary 1x speed
+with Phonk off. The installed engine was independently rechecked as `cfe07b6e`.
+The phase change's component evidence remains valid; player acceptance is OPEN.
+
+A disposable GPU fixture uses the current `modernSeaCubeNormal`, normals from
+all 64 shipped 128-by-128 height frames, a high-contrast 256-face cube, and 90
+frames at 120 Hz: 15 camera-moving frames followed by a stationary camera while
+wave phases continue. Single-level sampling has maximum channel step 17;
+Metal's built-in mip filtering reduces it to 6. Neither arm shows an abrupt
+over-24 step in this fixture. This does not reproduce the player's discontinuity
+and does not justify a mip-filter implementation or a blur-based acceptance.
+The native API probe generates cube and 3D mipmaps successfully; no resource,
+shader or engine input was changed by this experiment. Metal's supported route
+is [generateMipmaps(for:)](https://developer.apple.com/documentation/metal/mtlblitcommandencoder/generatemipmaps%28for%3A%29).
+
+Checked source preserves world-space UV before camera-relative subtraction and
+restores the reflected view/projection. However geometric normals animate the
+UV displacement by `normalXZ * 5.3`; the phase repair does not remove that
+independent spatial modulation. The dynamic cube has one level and omits its
+negative-Y face above water, while tilted modern normals can reflect a grazing
+eye into that face. Neither observation alone proves the actual scene's cause.
+
+A separate concrete classification defect remains in `SEA::Realize`: ordinary
+water calls `WaveXZ(vCamPos.x, vCamPos.z && bStarted)`, so the second coordinate
+is 0 or 1 rather than the camera's Z. Its event branch uses actual Z. This can
+change underwater classification and sun-road reprime while waves continue
+after camera stop, but only if camera height overlaps the wave surface; camera
+above the maximum height is the nearest unaffected case. Actual scene camera
+height and mode transitions are still missing, so this is a conditional cause,
+not an accepted jitter repair.
+
+The next decisive evidence is the installed ship/shore scene during camera
+movement followed by a stationary hold, distinguishing pixel aliasing from
+underwater mode changes or changed cube/background coverage. No second native
+repair is accepted by these source/component observations.
+
+### Phase-rate component
+
 The exact ordered stack reverse/replay and canonical native build pass.
 Explicitly rebuilt `sea-probe` passes original and modern texture/Fresnel/night/
 foam/cube-direction/unsupported cases. A disposable real-Metal kernel compiles
