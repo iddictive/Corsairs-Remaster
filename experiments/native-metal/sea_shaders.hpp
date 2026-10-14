@@ -403,10 +403,17 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
 }
 
 // Base water and its additive sun-road share one normal reconstruction.
+float2 modernSeaBumpPhases(SeaO o,constant SeaU& u) {
+    // Native publishes physical wave phases in the otherwise unused Y/Z lanes.
+    // Old fixtures and the preblended 2D fallback retain their original phase.
+    float2 phase=(u.bumpIsVolume&&u.vc[2].w==1.f)?u.vc[2].yz:float2(o.t0.z);
+    return float2(phase.x,fract(phase.y+.231f));
+}
 float3 modernSeaCubeNormal(SeaO o,constant SeaU& u,texture2d<float> flat,texture3d<float> bump,sampler sampleState) {
     float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
-    float3 raw=seaBump(float3(flowUV,o.t0.z),u,flat,bump,sampleState).rgb;
-    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,flat,bump,sampleState).rgb;
+    float2 phase=modernSeaBumpPhases(o,u);
+    float3 raw=seaBump(float3(flowUV,phase.x),u,flat,bump,sampleState).rgb;
+    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),phase.y),u,flat,bump,sampleState).rgb;
     // BuildVolumeTexture writes ARGB(blue, green, red): restore world XYZ order.
     return modernSeaRainNormal(o,u,modernSeaNormal(o,raw.bgr*2.f-1.f,fine.bgr*2.f-1.f));
 }
@@ -453,8 +460,9 @@ float4 seaSunModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,tex
 fragment float4 seasun_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> cloudFrom [[texture(12)]],texture2d<float> cloudTo [[texture(13)]],depth2d<float> sceneDepth [[texture(11)]]) {return seaSunModernColor(o,u,t,bump,reflection,s,cloudFrom,cloudTo,sceneDepth);}
 float4 sea3ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s,texture2d<float> scene,depth2d<float> sceneDepth,texture2d<float> cloudFrom,texture2d<float> cloudTo,float4 localTransport=float4(0,0,0,1)) {
     float2 flowUV=seaWhirlpoolUV(o,u,o.t0.xy);
-    float3 raw=seaBump(float3(flowUV,o.t0.z),u,t[0],bump,s[0]).rgb;
-    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),fract(o.t0.z+.231f)),u,t[0],bump,s[0]).rgb;
+    float2 phase=modernSeaBumpPhases(o,u);
+    float3 raw=seaBump(float3(flowUV,phase.x),u,t[0],bump,s[0]).rgb;
+    float3 fine=seaBump(float3(flowUV*2.17f+float2(.137f,.319f),phase.y),u,t[0],bump,s[0]).rgb;
     // SimpleSea packs horizontal normal X in B and Z in R (R duplicated to G).
     float3 coarse=float3(raw.b*2.f-1.f,1,raw.r*2.f-1.f);
     float3 detail=float3(fine.b*2.f-1.f,1,fine.r*2.f-1.f);
