@@ -1,10 +1,43 @@
 # Runtime state
 
-Last verified delivery: October14. Oblique global-map camera and resource prewarma008432 plus the FPS-owned opt-in captured45de5e are installed with signed engine `919af997d35f60a58ab755a69dac4bad8e7fc2d1334bc4d7c8c99608c41186ea`; prior95887b0 is backed up. Scene lighting, fixed-lattice water and the previous direct-source astronomy/reflection/storm/video/fire/crew/sea CPU/merchant batch remain composed. Canonical staging exits0 with0 pending content and compiler ready. Player appearance, transition latency and graphics/FPS acceptance remain unresolved. This camera task performs no autonomous game launch, controls or player SAVE inspection; game holders are0 at delivery. FPS owns its authorized capture follow-up. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. Sea submission allocation repair and the phonk/Cmd-Q batch5568bed+54f61fa are installed in the supported application with signed engine `20bf56a4a147c7b80c55970edf4430cec76d3ca84e9816988b426d706d24af2e`; prior919af997 is backed up. Oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. Installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
-### October14 — Phonk combat music and Cmd-Q cleanup corrected locally; installed replay pending
+### October14 — sea index allocation repair installed; player FPS verdict pending
+
+The active919af997 fleet profile binds substantial main-thread draw work:
+137 inclusive samples in residentBuffer,118 inside native buffer creation;
+62 of65 samples at the raw index residency call come from sail realization.
+Actual source rewrites the shared sail IB before each sail, advancing revision
+and creating another Metal resource. Sea raw-sail indices now use the existing
+completion-owned three-flight upload arena. Rewrites preserve queued bytes;
+partitions reuse a revision; physical draw/packet offsets and logical geometry
+keys stay distinct. Location residency is preserved. Warm shader-name creation
+and native bulk FFP bindings remove smaller repeated submission work.
+
+Native actual-resource checks pass23,544 assertions, addressing/readback and
+three blocked/completed flight lifetimes;120 warm frames/3,840 rewrites create
+zero arena buffers. Actual FFP table cases and shader variant checks pass;
+rebuilt sea GPU pixels and two animated coverage/depth/pixel oracles pass.
+The player's383-frame trace has14.991ms median GPU frame span; timings overlap,
+so these CPU repairs do not establish that all remaining time is CPU-only.
+The earlier one-frame capture is rejected sea evidence because it captured the
+menu cabin; capture admission now excludes that existing domain. Mechanism,
+negative cases and evidence owners: docs/metal-frame-pacing.md.
+
+The first canonical stage built the engine but stopped on an unreviewed
+AIShip composition fingerprint from the separate phonk change. Its source owner
+proved the exact victory-guard delta and corrected admission in54f61fa.
+The immediate canonical stage-only retry exits0 and installs signed20bf56a4;
+919af997 is backed up. Native source fingerprint655896c6 and unsigned98ca670c
+bind the dirty backend actually built, rather than only the printed54f61fa ref.
+Independent installed hash and gameplay checks pass,
+with0 pending content and compiler ready. This accepts delivery, not a measured
+FPS multiplier. The player requests original-app installation and owns the
+remaining live fleet/zoom/spyglass check; no CUA/test-copy launch follows.
+
+### October14 — Phonk combat music and Cmd-Q cleanup installed; player replay pending
 
 The player reports Phonk music stopping across combat/noncombat changes and
 supplies incident `7ED1FFE1-AD0C-4224-B4F1-5CE99FA59D1A` from13:09:01 EDT.
@@ -31,12 +64,13 @@ ASan/UBSan lifecycle fixture reproduces use-after-free before this correction
 and passes populated/empty pending, prior resource reset and consumed-map
 ownership afterward, with exactly-once buffer/texture/model release. Renderer
 dependencies are mocked. Native main syntax passes with the canonical build
-flags; full engine build and actual Cmd-Q replay have not run.
+flags; the combined delivery above supplies full native build/installation.
+Actual Cmd-Q and audible gameplay replay remain pending.
 
-Disposition: unresolved in the installed player runtime. These changes are
-local source only; the last verified installed inventory above is unchanged.
-No staging, app launch/control or player SAVE access occurs. The inherited
-`backend.mm` changes remain outside this batch. Owners: `docs/sea-phonk.md`
+Disposition: source/component checks and installation pass; player acceptance
+remains unresolved. The source-only phonk task performs no staging or game
+controls; the FPS delivery owner installs its committed changes in the combined
+batch above. Owners: `docs/sea-phonk.md`
 and `docs/sea-map-transition.md`.
 
 ### October14 — oblique global view and prewarmed map resources installed, player replay pending
