@@ -1,8 +1,52 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the controllable500-knot Phonk ceiling with120kn/s acceleration and240kn/s braking, preserving hull-support departure, damped landing, airborne wake/foam contact gates, native-knot HUD, brighter lilac glow, NPC `122053c` and Beard source/diagnostics through `5eac985`. Signed engine `6349eb2addb21151d998b5b7245f8bbe1d44f4fd7a270420ca4bde578301f7ce`; compiler receipt binds the final speed patch and its built header byte-matches the production probe. Delivery check reports zero pending cache/app files, compiler ready.492 fresh closed-game SAVE/config hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player flight activation is observed, but earlier jump/landing/contact and250 speed are rejected; revised sea speed/motion/contact/HUD, NPC scene and accelerated-map Beard appearance remain unresolved. Previous battle/visual/FPS cases remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs aiming revision13's rasterized trajectory fog and within-call CPU scratch reuse, plus fire rigging-depth/bilateral repair `a9837cd`. It preserves the controllable500-knot Phonk inputs `c8de907`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `d4efee59cbc2f67a50a4dbf80919ee3d1ad0428e8688a70f34959ed0426cdc38`. Delivery check reports zero pending cache/app files, compiler ready.502 fresh closed-game SAVE/archive/settings hashes are unchanged. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Component checks accept source properties only; matched player aiming FPS, revised fire appearance,500 speed/jump/landing/contact, NPC scene and Beard appearance remain unresolved. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — aiming revision13 and accepted fire repair installed
+
+The player reports severe manual-aim FPS drops on water and ships and requests a
+simple rounded trajectory tube with light fog, nearly clear at the guns and denser
+downrange. Foreground CPU samples attribute16.2%/18.4% of main-thread samples to
+aim preparation; there is no matched scene FPS baseline. The former air fragment
+walks sections/support planes per covered pixel. Revision13 rasterizes the same
+stopped convex slabs and analytically integrates linear fog at their boundaries,
+then composites one retained optical target. Contact geometry/color, target
+selection, actual firing and raking remain unchanged. Current-call CPU buffers
+reuse allocation capacity and circle directions without cross-frame caching.
+
+Exact component geometry parity, unchanged contact-only image and independent
+outside/inside/opaque/far-cut GPU oracles pass; the air GPU example drops9–26ms
+to roughly2ms at1024×640. These measurements exclude the player scene and do not
+accept its FPS or appearance. `sea-aim-overlay.md` owns the full bounded evidence.
+
+The first canonical stage refuses a downstream target-height patch context after
+scratch declarations move; the next refuses an incorrect hunk line count. Neither
+attempt installs an engine. Narrowing only that patch's context and correcting its
+count preserves its complete behavior. The final `run.sh --stage-only` returns0,
+verifies the ordered stack and changes one prepared controller source. The built
+engine contains the v13 marker. The installation transaction reseals/verifies the
+app and retains the preceding6349 signed engine as recovery.
+
+Source SHA256 receipts:
+- `aim_volume.hpp`: `3198d5f057e23277eb4a3456e683881bcaaa36ccc85b1a04a6f3f2c7a6ae6b3c`
+- `backend.mm`: `d3032c50472faf4014be6eb5661f0c105ed2b2f089f6d80858fca2d6a9df773a`
+- `cannon-depth-drape.patch`: `5882f4611189a6e0186d453ec29b7c7710dc728695a6af12d43e7dbdfb1522c5`
+- `cannon-target-height.patch`: `6e2f4bd4a18a457000b574b7406c7ad936baea6b28444f8e3daf17b2702db87e`
+
+The same frozen batch consumes fire shader SHA
+`502029bc9b19165a872e2b84f57d39a99393c66e9ccce24de49b2da548d16f1c`
+and retains Phonk patch SHA
+`7fe9c366e173cbb7c78430395bf8dbd5783a330b6679e94a12e6b6b9975e3aa1`.
+Unsigned engine `d708cf93875d6774b1d9394f02f44548beb3d8c8e118dc6cfcac892654811c84`;
+installed signed engine
+`d4efee59cbc2f67a50a4dbf80919ee3d1ad0428e8688a70f34959ed0426cdc38`.
+Post-stage comparison reports0 cache/0app pending, compiler ready. All502 protected
+SAVE/archive/settings hashes remain unchanged. No game launch/input occurs.
+Disposition: component/source/build/exact app delivery accepted; original aiming
+FPS and full player visual acceptance unresolved, awaiting the same water/ship
+scene with stable camera at1x–5x. Fire player replay remains with its owning chat.
 
 ### October13 — Beard native-message boolean corrected after player trace
 

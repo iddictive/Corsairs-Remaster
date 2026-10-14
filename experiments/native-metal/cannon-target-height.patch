@@ -119,9 +119,7 @@
                  continue;
              if (fMaxFireDistance - fFireDist < fZapasDistance)
                  continue;
-@@ -1604,6 +1604,10 @@
-     }
-     if(contactSections.empty())return;
+@@ -1617,4 +1617,8 @@
      const CVECTOR up=!(axis^lateral);
 +    std::vector<manual_aim::PlaneQuery> pathQueries;
 +    pathQueries.reserve(paths.size());

@@ -27,7 +27,7 @@ static_assert(sizeof(aim_volume::AimVolumeRelationVertex) == 16);
 static_assert(offsetof(aim_volume::AimVolumeRelationVertex, color) == 12);
 static_assert(sizeof(aim_volume::AimWaterContactVertex) == 8);
 static_assert(aim_volume::maxWaterContactVertices == 49152);
-static_assert(aim_volume::maxVolumeSections == 1024); // shader traversal bound
+static_assert(aim_volume::maxVolumeSections == 1024); // tube geometry bound
 static_assert(sizeof(aim_volume::AimRenderedReceiver)==16);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,color)==8);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,receiverToken)==12);
@@ -66,6 +66,8 @@ struct AimVolumeFrame {
   AimReceiverStamp stamp{};
   std::vector<aim_volume::AimWaterContactVertex> waterVertices;
   NSUInteger waterWidth=2048,waterHeight=2048; // fixed retained capacity, no per-wave allocation churn
+  struct AirVertex {float position[3],normal[3];};
+  std::vector<AirVertex> airVertices;
 };
 
 inline float aimSurfaceDaylight(float hour) {
@@ -104,78 +106,6 @@ uint aim_slab(float station,const device AimSection*sections,uint count,constant
   uint lo=0,hi=count;
   while(lo<hi) {uint mid=lo+(hi-lo)/2; if(dot(float3(sections[mid].center),u.axis.xyz)<=station)lo=mid+1;else hi=mid;}
   return min(lo?lo-1:0,count-2);
-}
-float aim_air(float3 origin,float3 ray,float nearDistance,float farDistance,float receiverDistance,
-    constant AimU&u,const device AimSection*sections,const device AimPlane*planes) {
-  float lo=max(0.f,nearDistance),hi=min(farDistance,receiverDistance-.025f);
-  float3 base=aim_basis(origin,u),direction=aim_basis(ray,u);
-  for(uint dim=0;dim<3;++dim)
-    if(!aim_clip(base[dim]-u.boundsMin[dim],direction[dim],lo,hi)||
-       !aim_clip(u.boundsMax[dim]-base[dim],-direction[dim],lo,hi))return 0.f;
-  if(hi<=lo)return 0.f;
-  uint count=uint(u.params.x);
-  int slab=int(aim_slab(base.x+direction.x*lo,sections,count,u));
-  int last=int(aim_slab(base.x+direction.x*hi,sections,count,u));
-  int increment=direction.x<0.f?-1:1;
-  float opticalDepth=0.f;
-  for(uint visit=0;visit<1023;++visit,slab+=increment) {
-    if(slab<0||slab>=int(count)-1)break;
-    AimSection a=sections[slab],b=sections[slab+1];
-    // Zero-plane slabs are explicit gaps in the union of physical paths.
-    // They must never become an unconstrained, screen-filling axial box.
-    if(!a.planeCount){if(slab==last)break;continue;}
-    float3 start=float3(a.center),delta=float3(b.center)-start;
-    float lengthAlongAxis=dot(delta,u.axis.xyz);
-    float axialOffset=dot(origin-start,u.axis.xyz),axialSpeed=dot(ray,u.axis.xyz);
-    float stationSlope=axialSpeed/lengthAlongAxis;
-    float begin=lo,end=hi;
-    // Half-open ownership for a ray parallel to an internal station avoids
-    // counting both neighboring slabs when the ray lies exactly on that plane.
-    bool parallel=abs(axialSpeed)<1.e-10f;
-    bool hit=!(parallel&&(axialOffset<0.f||axialOffset>lengthAlongAxis||(axialOffset>=lengthAlongAxis&&slab<int(count)-2)));
-    hit=hit&&aim_clip(axialOffset,axialSpeed,begin,end)&&aim_clip(lengthAlongAxis-axialOffset,-axialSpeed,begin,end);
-    // Start plane arithmetic inside this slab instead of extrapolating its
-    // center/support to the camera across hundreds of tiny contact stations.
-    // That avoids cancellation for near-parallel rays and short axial slabs.
-    float rayStart=begin;
-    float station0=clamp((axialOffset+axialSpeed*rayStart)/lengthAlongAxis,0.f,1.f);
-    end-=rayStart;begin=0.f;
-    float3 relative0=origin+ray*rayStart-start-delta*station0,relativeSlope=ray-delta*stationSlope;
-    float2 p=float2(dot(relative0,u.lateral.xyz),dot(relative0,u.up.xyz));
-    float2 d=float2(dot(relativeSlope,u.lateral.xyz),dot(relativeSlope,u.up.xyz));
-    // Union of BOTH endpoint hulls' exact edge normals. Interpolated support
-    // planes are affine along this ray, so thin tilted muzzles cannot fall
-    // between fixed spatial raymarch samples or inflate into a rectangular roof.
-    for(uint j=0;j<a.planeCount&&hit;++j) {
-      AimPlane plane=planes[a.firstPlane+j];float2 n=float2(plane.x,plane.y);
-      float change=plane.offset1-plane.offset0;
-      hit=aim_clip(plane.offset0+change*station0-dot(n,p),change*stationSlope-dot(n,d),begin,end);
-    }
-    if(hit&&end>begin) {
-      // Three-point Gauss integration of smooth SIDE density. No feather is
-      // applied to internal axial station caps, which would produce bands.
-      const float3 sampleFraction=float3(.1127016654f,.5f,.8872983346f);
-      const float3 weight=float3(.2777777778f,.4444444444f,.2777777778f);
-      float3 t=begin+(end-begin)*sampleFraction;
-      float3 localStation=clamp(station0+stationSlope*t,0.f,1.f);
-      float3 density=1.f;
-      for(uint j=0;j<a.planeCount;++j) {
-        AimPlane plane=planes[a.firstPlane+j];float2 n=float2(plane.x,plane.y);
-        float3 support=mix(float3(plane.offset0),float3(plane.offset1),localStation);
-        float3 margin=support-(dot(n,p)+dot(n,d)*t);
-        float3 feather=clamp(abs(support)*.35f,.035f,2.8f);
-        density=min(density,smoothstep(float3(0.f),feather,margin));
-      }
-      float3 progress=mix(float3(a.progress),float3(b.progress),localStation);
-      density*=.07f+.93f*smoothstep(float3(.04f),float3(.72f),progress);
-      density*=1.f-smoothstep(float3(.96f),float3(1.f),progress); // only the true far end fades
-      density*=smoothstep(float3(0.f),float3(.18f),receiverDistance-(rayStart+t));
-      opticalDepth+=dot(density,weight)*(end-begin)*u.params.w;
-      if(opticalDepth>=6.f)break;
-    }
-    if(slab==last)break;
-  }
-  return opticalDepth;
 }
 // Project each boundary into the receiver surface's pixel directions BEFORE
 // taking a minimum. A terminal plane coplanar with a cliff/water receiver gates
@@ -378,6 +308,46 @@ fragment AimModelOutput aim_model_fs(float4 pixel [[position]],
   if(!isfinite(a)||!isfinite(b)||b>=a||b<0.f||b>=1.f)discard_fragment();
   AimModelOutput result;result.depth=b;result.identity=identity;return result;
 }
+// Rasterized closed tube: each boundary contributes a signed fog integral.
+// Front/back surfaces behind an opaque receiver cancel at the same clipped depth.
+struct AimAirVertex {packed_float3 position,normal;};
+struct AimAirO {float4 position [[position]];float3 world;float3 normal [[flat]];};
+vertex AimAirO aim_air_vs(uint id [[vertex_id]],constant AimU&u [[buffer(0)]],
+    const device AimAirVertex*vertices [[buffer(1)]]) {
+  float3 p=float3(vertices[id].position);
+  return {u.viewProjection*float4(p,1.f),p,float3(vertices[id].normal)};
+}
+fragment float aim_air_fs(AimAirO o [[stage_in]],constant AimU&u [[buffer(0)]],
+    constant float4&span [[buffer(1)]],depth2d<float,access::read> sceneDepth [[texture(0)]]) {
+  float3 delta=o.world-u.camera.xyz;float boundary=length(delta);
+  if(boundary<1.e-6f)return 0.f;
+  float3 ray=delta/boundary;float2 ndc=(o.position.xy-u.viewport.xy)/u.viewport.zw;
+  ndc=float2(ndc.x*2.f-1.f,1.f-ndc.y*2.f);
+  float4 near4=u.inverseViewProjection*float4(ndc,0.f,1.f);
+  if(abs(near4.w)<1.e-8f)return 0.f;
+  float nearDistance=dot(near4.xyz/near4.w-u.camera.xyz,ray);
+  float receiver=boundary;
+  float4 far4=u.inverseViewProjection*float4(ndc,1.f,1.f);
+  if(abs(far4.w)>1.e-8f)receiver=min(receiver,dot(far4.xyz/far4.w-u.camera.xyz,ray));
+  uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
+  float depth=sceneDepth.read(min(uint2(o.position.xy),size-1));
+  if(!isfinite(depth)||depth<0.f||depth>1.f)return 0.f;
+  if(depth<1.f){float4 p=u.inverseViewProjection*float4(ndc,depth,1.f);
+    if(abs(p.w)<1.e-8f)return 0.f;
+    receiver=min(receiver,dot(p.xyz/p.w-u.camera.xyz,ray));}
+  float t=max(0.f,receiver-nearDistance);
+  float progress=(dot(u.camera.xyz+ray*nearDistance,u.axis.xyz)-span.x)*span.y;
+  float slope=dot(ray,u.axis.xyz)*span.y;
+  // Linear density: almost clear at the guns, stronger at the far end.
+  float integral=.03f*t+.97f*(progress*t+.5f*slope*t*t);
+  return dot(o.normal,ray)>0.f?integral:-integral;
+}
+fragment float4 aim_air_composite_fs(float4 pixel [[position]],constant AimU&u [[buffer(0)]],
+    texture2d<float,access::read> fog [[texture(0)]]) {
+  float optical=max(0.f,fog.read(uint2(pixel.xy)).r)*u.params.w;
+  float alpha=u.params.z*(1.f-exp(-optical));
+  return float4(float3(.7215686f,.7686275f,.7843137f)*alpha,alpha);
+}
 fragment float4 aim_volume_fs(float4 pixel [[position]],
     depth2d<float,access::read> sceneDepth [[texture(0)]],
     texture2d<uint,access::read> relation [[texture(1)]],
@@ -390,28 +360,6 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   uint2 pixelIndex=min(uint2(pixel.xy),size-1);float depth=sceneDepth.read(pixelIndex);
   bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
   bool hasReceiver=validDepth&&depth<1.f;
-  if(!u.receiverFlags.z) {
-  float2 uv=(pixel.xy-u.viewport.xy)/u.viewport.zw;
-  float2 ndc=float2(uv.x*2.f-1.f,1.f-uv.y*2.f);
-  float4 mid4=u.inverseViewProjection*float4(ndc,.5f,1.f);
-  float4 near4=u.inverseViewProjection*float4(ndc,0.f,1.f);
-  if(abs(mid4.w)<1.e-8f||abs(near4.w)<1.e-8f)return float4(0.f);
-  float3 origin=u.camera.xyz,ray=mid4.xyz/mid4.w-origin;
-  float rayLength=length(ray);if(!isfinite(rayLength)||rayLength<1.e-6f)return float4(0.f);
-  ray/=rayLength;
-  float nearDistance=dot(near4.xyz/near4.w-origin,ray),farDistance=1.e8f;
-  float4 far4=u.inverseViewProjection*float4(ndc,1.f,1.f);
-  if(abs(far4.w)>1.e-8f){float farZ=dot(far4.xyz/far4.w-origin,ray);if(isfinite(farZ))farDistance=farZ;}
-  float3 receiver=origin+ray*farDistance;float receiverDistance=1.e8f;
-  if(hasReceiver) {
-    float4 p=u.inverseViewProjection*float4(ndc,depth,1.f);
-    hasReceiver=abs(p.w)>1.e-8f;
-    if(hasReceiver){receiver=p.xyz/p.w;receiverDistance=dot(receiver-origin,ray);hasReceiver=isfinite(receiverDistance)&&receiverDistance>=nearDistance;}
-  }
-  float opticalDepth=validDepth?aim_air(origin,ray,nearDistance,farDistance,receiverDistance,u,sections,planes):0.f;
-  float airAlpha=u.params.z*(1.f-exp(-min(opticalDepth,6.f)));
-  return float4(float3(.7215686f,.7686275f,.7843137f)*airAlpha,airAlpha);
-  }
   bool actualOwn=false;
   bool actualModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(pixelIndex).r==depth;
   uint2 identity=actualModel?relation.read(pixelIndex).xy:uint2(0u);
@@ -491,7 +439,7 @@ class SoftAimVolume {
   void cancelModel(){model_.active=false;}
   bool enabled()const{return enabled_;}
   void cancelOwner(unsigned kind){if(kind<owners_.size())owners_[kind].active=false;}
-  void reset() { depthSnapshot_=nil;colorSnapshot_=nil;emptyIdentity_=nil;solidSupport_=nil;prismPipeline_=nil;model_={};modelPipeline_=nil;receivers_.clear();smoothedContact_.clear();waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
+  void reset() { airOptical_=nil;airPipeline_=nil;airCompositePipeline_=nil;depthSnapshot_=nil;colorSnapshot_=nil;emptyIdentity_=nil;solidSupport_=nil;prismPipeline_=nil;model_={};modelPipeline_=nil;receivers_.clear();smoothedContact_.clear();waterMask_=nil;waterPipeline_=nil;ownerPipeline_=nil;waterSampler_=nil;owners_={};enabled_=false;loggedOwners_=0; pipeline_=nil; library_=nil; format_=MTLPixelFormatInvalid; shaderFailed_=false; loggedSuccess_=false; }
   bool beginOwner(unsigned kind,id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>depth,MTLPixelFormat colorFormat,const AimReceiverStamp&stamp) {
     // Own model/rigging tags now arrive with their ordinary geometry draws.
     // Neither own ship nor water needs another full-frame copy/pass.
@@ -713,15 +661,52 @@ class SoftAimVolume {
     const auto right=NSUInteger(std::clamp(std::ceil(maxX)+4.f,viewport.x,viewport.x+viewport.z));
     const auto bottom=NSUInteger(std::clamp(std::ceil(maxY)+4.f,viewport.y,viewport.y+viewport.w));
     frame.scissor={x,y,right>x?right-x:0,bottom>y?bottom-y:0};
+    frame.airVertices.clear();
+    if(frame.scissor.width&&frame.scissor.height)frame.airVertices.reserve(planeCount*12);
+    std::vector<unsigned> order;order.reserve(maxVolumePlanesPerSlab);
+    std::vector<simd_float3> ring0,ring1;ring0.reserve(maxVolumePlanesPerSlab);ring1.reserve(maxVolumePlanesPerSlab);
+    auto triangle=[&](simd_float3 a,simd_float3 b,simd_float3 c){
+      const auto n=simd_cross(b-a,c-a);if(simd_length_squared(n)<1.e-12f)return;
+      for(auto v:{a,b,c})frame.airVertices.push_back({{v.x,v.y,v.z},{n.x,n.y,n.z}});
+    };
+    bool airValid=true;
+    for(unsigned i=0;airValid&&frame.scissor.width&&frame.scissor.height&&i+1<count;++i){
+      const auto&a=frame.sections[i];const auto&b=frame.sections[i+1];
+      if(!a.planeCount)continue;
+      order.clear();ring0.clear();ring1.clear();
+      for(unsigned j=0;j<a.planeCount;++j)order.push_back(a.firstPlane+j);
+      auto upper=[](const AimVolumePlane&p){return p.y>0.f||(p.y==0.f&&p.x>=0.f);};
+      std::sort(order.begin(),order.end(),[&](unsigned i,unsigned j){const auto&p=planes[i];const auto&q=planes[j];
+        if(upper(p)!=upper(q))return upper(p)>upper(q);
+        return double(p.x)*q.y-double(p.y)*q.x>0.;});
+      const simd_float3 ca={a.center[0],a.center[1],a.center[2]},cb={b.center[0],b.center[1],b.center[2]};
+      for(unsigned j=0;j<order.size();++j){
+        const auto&p=planes[order[j]];const auto&q=planes[order[(j+1)%order.size()]];
+        const double determinant=double(p.x)*q.y-double(p.y)*q.x;
+        if(std::abs(determinant)<1.e-10){airValid=false;break;}
+        auto point=[&](float pOffset,float qOffset,simd_float3 center){
+          const float x=float((double(pOffset)*q.y-double(qOffset)*p.y)/determinant);
+          const float y=float((double(p.x)*qOffset-double(q.x)*pOffset)/determinant);
+          return center+lat*x+vertical*y;
+        };
+        ring0.push_back(point(p.offset0,q.offset0,ca));ring1.push_back(point(p.offset1,q.offset1,cb));
+      }
+      if(!airValid)break;
+      for(unsigned j=0;j<order.size();++j){const unsigned k=(j+1)%order.size();
+        triangle(ring0[j],ring0[k],ring1[j]);triangle(ring1[j],ring0[k],ring1[k]);
+        triangle(ca,ring0[k],ring0[j]);triangle(cb,ring1[j],ring1[k]);
+      }
+    }
+    if(!airValid){frame.airVertices.clear();fail(Input,"degenerate tube boundary; contact remains available");}
     return true;
   }
 
   bool encode(id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>target,id<MTLTexture>currentDepth,
       id<MTLBuffer>sections,NSUInteger sectionOffset,id<MTLBuffer>planes,NSUInteger planeOffset,
       id<MTLBuffer>waterVertices,NSUInteger waterOffset,id<MTLBuffer>contactSections,NSUInteger contactSectionOffset,
-      id<MTLBuffer>contactTriangles,NSUInteger contactTriangleOffset,const AimVolumeFrame&frame) {
+      id<MTLBuffer>contactTriangles,NSUInteger contactTriangleOffset,id<MTLBuffer>airVertices,NSUInteger airOffset,const AimVolumeFrame&frame) {
     if(!enabled_||!device||!command||!target||!currentDepth||!sections||!planes||(!frame.waterVertices.empty()&&!waterVertices)||
-       (!frame.contactSections.empty()&&!contactSections)||(!frame.contactTriangles.empty()&&!contactTriangles)||
+       (!frame.contactSections.empty()&&!contactSections)||(!frame.contactTriangles.empty()&&!contactTriangles)||(!frame.airVertices.empty()&&!airVertices)||
        target.textureType!=MTLTextureType2D||currentDepth.textureType!=MTLTextureType2D||
        target.sampleCount!=1||currentDepth.sampleCount!=1||currentDepth.pixelFormat!=MTLPixelFormatDepth32Float||
        target.width!=currentDepth.width||target.height!=currentDepth.height||
@@ -757,6 +742,36 @@ class SoftAimVolume {
         sourceSize:MTLSizeMake(roi.width,roi.height,1) toTexture:colorSnapshot_
         destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(roi.x,roi.y,0)];
     [blit endEncoding];
+    if(frame.scissor.width&&frame.scissor.height){
+    if(!airOptical_||airOptical_.width!=target.width||airOptical_.height!=target.height){
+      auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float width:target.width height:target.height mipmapped:NO];
+      d.storageMode=MTLStorageModePrivate;d.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;
+      airOptical_=[device newTextureWithDescriptor:d];
+    }
+    if(!airOptical_)return fail(Snapshot,"cannot allocate tube fog target");
+    auto airPass=[MTLRenderPassDescriptor renderPassDescriptor];
+    airPass.colorAttachments[0].texture=airOptical_;airPass.colorAttachments[0].loadAction=MTLLoadActionClear;
+    airPass.colorAttachments[0].storeAction=MTLStoreActionStore;
+    auto airEncoder=[command renderCommandEncoderWithDescriptor:airPass];
+    if(!airEncoder)return fail(Encoder,"cannot begin tube fog encoder");
+    const auto&airViewport=frame.uniforms.viewport;
+    [airEncoder setRenderPipelineState:airPipeline_];[airEncoder setCullMode:MTLCullModeNone];
+    [airEncoder setDepthClipMode:MTLDepthClipModeClamp];
+    [airEncoder setViewport:MTLViewport{airViewport.x,airViewport.y,airViewport.z,airViewport.w,0.,1.}];
+    [airEncoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [airEncoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    const auto&a=frame.sections.front();const auto&b=frame.sections.back();
+    const float first=simd_dot(simd_make_float3(a.center[0],a.center[1],a.center[2]),uniforms.axis.xyz);
+    const float last=simd_dot(simd_make_float3(b.center[0],b.center[1],b.center[2]),uniforms.axis.xyz);
+    const simd_float4 span={first,1.f/(last-first),0.f,0.f};
+    [airEncoder setFragmentBytes:&span length:sizeof(span) atIndex:1];
+    [airEncoder setFragmentTexture:depthSnapshot_ atIndex:0];
+    if(!frame.airVertices.empty()){
+      [airEncoder setVertexBuffer:airVertices offset:airOffset atIndex:1];
+      [airEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:frame.airVertices.size()];
+    }
+    [airEncoder endEncoding];
+    }
     const auto&v=frame.uniforms.viewport;
     auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
     pass.colorAttachments[0].texture=target;pass.colorAttachments[0].loadAction=MTLLoadActionLoad;
@@ -780,12 +795,13 @@ class SoftAimVolume {
       [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     }
     if(frame.scissor.width&&frame.scissor.height){
-      uniforms.receiverFlags.z=0u;[encoder setScissorRect:frame.scissor];
+      [encoder setRenderPipelineState:airCompositePipeline_];[encoder setScissorRect:frame.scissor];
+      [encoder setFragmentTexture:airOptical_ atIndex:0];
       [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
       [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     }
     [encoder endEncoding];
-    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v12: impact-plane dispersion projectors (air alpha <= 0.22)\n");}
+    if(!loggedSuccess_){loggedSuccess_=true;std::fprintf(stderr,"[StormMetal] soft aim volume v13: impact-plane projectors and rasterized tube fog (air alpha <= 0.07)\n");}
     return true;
   }
 
@@ -795,7 +811,7 @@ class SoftAimVolume {
   std::vector<aim_volume::AimRenderedReceiver>receivers_;
   static bool sameStamp(const AimReceiverStamp&a,const AimReceiverStamp&b){return std::memcmp(&a,&b,sizeof(a))==0;}
   bool prepare(id<MTLDevice>device,MTLPixelFormat format) {
-    if(pipeline_&&modelPipeline_&&ownerPipeline_&&format_==format)return true;
+    if(pipeline_&&airPipeline_&&airCompositePipeline_&&modelPipeline_&&ownerPipeline_&&format_==format)return true;
     if(shaderFailed_)return false;
     NSError*error=nil;
     if(!library_)library_=[device newLibraryWithSource:[NSString stringWithUTF8String:aimVolumeShaderSource] options:nil error:&error];
@@ -807,6 +823,15 @@ class SoftAimVolume {
     attachment.sourceAlphaBlendFactor=MTLBlendFactorZero;attachment.destinationAlphaBlendFactor=MTLBlendFactorOne;
     pipeline_=[device newRenderPipelineStateWithDescriptor:descriptor error:&error];format_=format;
     if(!pipeline_){shaderFailed_=true;if(!(loggedFailures_&(1u<<Shader)))std::fprintf(stderr,"[StormMetal] aim volume pipeline: %s\n",error.localizedDescription.UTF8String);return fail(Shader,"volume pipeline creation failed");}
+    descriptor.fragmentFunction=[library_ newFunctionWithName:@"aim_air_composite_fs"];
+    airCompositePipeline_=[device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+    auto airDescriptor=[MTLRenderPipelineDescriptor new];
+    airDescriptor.vertexFunction=[library_ newFunctionWithName:@"aim_air_vs"];
+    airDescriptor.fragmentFunction=[library_ newFunctionWithName:@"aim_air_fs"];
+    auto air=airDescriptor.colorAttachments[0];air.pixelFormat=MTLPixelFormatR32Float;air.blendingEnabled=YES;
+    air.sourceRGBBlendFactor=MTLBlendFactorOne;air.destinationRGBBlendFactor=MTLBlendFactorOne;
+    airPipeline_=[device newRenderPipelineStateWithDescriptor:airDescriptor error:&error];
+    if(!airPipeline_||!airCompositePipeline_){shaderFailed_=true;return fail(Shader,"tube fog pipeline creation failed");}
     if(!modelPipeline_){
       auto descriptor=[MTLRenderPipelineDescriptor new];descriptor.vertexFunction=[library_ newFunctionWithName:@"aim_volume_vs"];
       descriptor.fragmentFunction=[library_ newFunctionWithName:@"aim_model_fs"];
@@ -833,6 +858,8 @@ class SoftAimVolume {
   id<MTLSamplerState>waterSampler_=nil;id<MTLTexture>waterMask_=nil;
   id<MTLLibrary>library_=nil;
   id<MTLRenderPipelineState>pipeline_=nil,modelPipeline_=nil,prismPipeline_=nil;
+  id<MTLRenderPipelineState>airPipeline_=nil,airCompositePipeline_=nil;
+  id<MTLTexture>airOptical_=nil;
   id<MTLTexture>depthSnapshot_=nil,colorSnapshot_=nil,emptyIdentity_=nil,solidSupport_=nil;
   MTLPixelFormat format_=MTLPixelFormatInvalid;
   unsigned loggedFailures_=0;

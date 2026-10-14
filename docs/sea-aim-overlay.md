@@ -2,6 +2,16 @@
 
 ## Status
 
+Revision13 replaces the expensive per-pixel section/plane traversal with a
+rounded closed trajectory tube and constant-cost fog integration at its faces.
+The fog strengthens downrange, caps alpha at.07 and stops at current scene depth.
+Revision12's accepted surface footprint and firing/raking calculation remain.
+CPU workspaces are reused within one overlay calculation without cached state.
+Component CPU/GPU checks pass and canonical native staging is installed. A matched
+water/ship player FPS replay remains pending. Current receipts belong to `runtime.md`.
+
+### Historical revision12 evidence
+
 Revision12 projects two approximate impact-plane densities onto the current
 rendered surface: actual sea receives the water-landing distribution; solids
 receive the selected-range lateral/up distribution. Revision11 is rejected by
@@ -106,6 +116,8 @@ water's landing distribution remains an event statistic, not a flight slice.
   geometry; `manual_aim_volume_bridge.hpp` defines checked 64/48/32/16/8-byte records
 - `aim_volume.hpp` inverts each2D marginal covariance once per current camera. It draws
   the world-depth decal within conservative bounds, followed by stopped air.
+  Air reconstructs the existing convex slab boundaries as triangles; `backend.mm`
+  uploads them through its existing submission arena, whose lifetime covers GPU use.
   `backend.mm` supplies current post-water depth and exact rendered ownership
 - `ship_surrender.h` supplies live per-ship display state to the controller and
   battle interface. Surrendered aim highlighting and overhead markers use gold
@@ -189,7 +201,44 @@ The inspected maintained reference is [Godot's finite decal projection](https://
 Its bounded world-space projection principle is adapted to the existing native
 depth owner; integrating another engine or generating receiver meshes adds no value.
 
-### Air and contact moment ownership
+### Rasterized air and bounded performance evidence
+
+The existing stopped sections/planes remain the geometry owner. Sorted adjacent
+support planes reconstruct each closed convex slab; outward faces accumulate a
+signed analytic path integral into one retained R32Float target. Shared slab caps
+cancel, including when the camera is inside. Current opaque depth and the camera's
+near/far planes clip the integral. Metal depth clamp preserves a tube exit beyond
+the far plane; ordinary clipping would discard that exit and erase visible fog.
+The final bounded composite uses the existing premultiplied tint and alpha ceiling.
+Density is linear from.03 near the guns to1 downrange, with extinction.004.
+There is no per-fragment traversal of trajectory sections or support planes.
+Degenerate air geometry suppresses only air; the contact field remains available.
+No bridge ABI, projectile law, range choice or persistent player state changes.
+
+Two10-second foreground CPU samples contain219/1353 and265/1443 main-thread
+samples under aiming (16.2%/18.4%). These expose sorting/clipping/allocation cost;
+the player's changing camera prevents a paired water-versus-ship FPS claim.
+Within-call density/clipping buffers and24 precomputed circle directions preserve
+36,858 sections,1,016,910 planes and25,292 moments bit-for-bit across240 varied
+fixtures, including1/32/52/112 guns and empty stopped slabs. Whole construction
+changes2.315→2.134ms on water and2.488→2.335ms on a stopped wall at52 guns;
+allocations fall14,107→5,176 and13,898→4,944. These are component timings.
+
+The actual Metal encoder at1024×640, using source-exact52-gun inputs, changes
+the air GPU example from9.07ms at1x/26.25ms at5x to2.26/2.29ms. Machine load is
+not frequency-controlled, and these values exclude the player scene. A112-gun
+stopped-wall example remains bounded at1.84/2.12ms. The unchanged contact-only
+output byte-matches revision12. An independent analytic box oracle passes outside,
+inside, fully occluded and far-plane-cut views (zero pixel mismatches within1.1
+8-bit levels); full occlusion changes zero pixels. Source review checks plane
+ordering, normals, queue lifetime and contact preservation. A Metal System Trace
+without application-attributed encoder events is rejected as game GPU evidence.
+
+The remaining acceptance is the installed water/ship/fort scene at1x–5x, with
+the same camera and aim enabled/disabled, plus own-deck/sky/nearer-obstruction
+exclusion. Component success does not establish whole-game FPS or appearance.
+
+### Historical air and contact moment ownership
 
 The former air hull joined nominal guns and the eight extrema of a few spatial
 support guns with equal geometric weight. The contact drape instead used all
@@ -197,7 +246,7 @@ guns'27 weighted launch samples and covariance scaled by3. Filling the extrema
 hull did not display that main density; reducing opacity alone would preserve
 the geometry mismatch.
 
-The source candidate retains those already computed27 trajectories, weights
+The revision12 source candidate retains those already computed27 trajectories, weights
 and sea-floor limits. At each existing axial station it takes the earliest
 crossing per launch sample, then reuses `AimContactRegion`'s mean and3C covariance.
 The lateral/up covariance root produces an inscribed24-gon of the q=1 ellipse,
@@ -205,9 +254,9 @@ with at most0.86% radial error before clipping. It is intersected with the old
 stopped-path hull; empty or degenerate sections give zero-density slabs. The
 original hull remains through the last muzzle station, retaining every eligible
 gun's mouth even when a rare locator lies outside the main density. Existing
-slab planes, current depth occlusion, ray integration, bridge records, surface
-fields and receiver ownership remain the implementation owners. No new trace,
-GPU pass, buffer ABI or player state is introduced.
+slab planes, current depth occlusion, bridge records, surface fields and receiver
+ownership remain the implementation owners. Revision13 changes their air
+rasterization as described above; the moment fit remains unchanged.
 
 At a common selected target plane, air and solid contact use the same crossings,
 mean and covariance. Per-gun rake depths can differ; air remains a flight-state

@@ -9,8 +9,8 @@ second installed-state inventory. Existing models and their assets are unchanged
 
 The player's night-fire screenshot reopens visual acceptance for enlarged black
 spots around rigging. The reduced-depth coordinate and bilateral reconstruction
-repair below passes the actual Metal component scene; its native delivery and
-player replay remain pending. Installed whole-scene visuals, fleet performance
+repair below passes the actual Metal component scene and is installed in the
+revision13 aiming batch; player replay remains pending. Whole-scene visuals, fleet performance
 and battle balance still require the accepting Metal app. No game control or
 replacement of the player's SAVE is authorized.
 

@@ -771,13 +771,18 @@ HRESULT applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLibrary,NSStrin
   const auto contactSectionSlice=submissionBuffer(frame.contactSections.data(),frame.contactSections.size()*sizeof(storm::sea_ai::manual_aim::AimContactSection));
   const auto contactTriangleSlice=submissionBuffer(frame.contactTriangles.data(),frame.contactTriangles.size()*sizeof(storm::sea_ai::manual_aim::AimContactTriangle));
   const auto waterSlice=submissionBuffer(frame.waterVertices.data(),frame.waterVertices.size()*sizeof(storm::sea_ai::manual_aim::AimWaterContactVertex));
-  if(!sectionSlice.buffer||!planeSlice.buffer||(contactSectionCount&&!contactSectionSlice.buffer)||(contactTriangleCount&&!contactTriangleSlice.buffer)||(waterVertexCount&&!waterSlice.buffer))return aimVolume.fail(storm_metal::SoftAimVolume::Resources,"cannot upload volume hull");
+  const auto airSlice=submissionBuffer(frame.airVertices.data(),frame.airVertices.size()*sizeof(frame.airVertices[0]));
+  if(!sectionSlice.buffer||!planeSlice.buffer||(contactSectionCount&&!contactSectionSlice.buffer)||(contactTriangleCount&&!contactTriangleSlice.buffer)||(waterVertexCount&&!waterSlice.buffer)||(!frame.airVertices.empty()&&!airSlice.buffer))return aimVolume.fail(storm_metal::SoftAimVolume::Resources,"cannot upload volume hull");
   finish();if(!command)command=[queue commandBuffer];
   const bool drawn=aimVolume.encode(metal,command,target->gpu,zbuffer->gpu,sectionSlice.buffer,sectionSlice.offset,
-      planeSlice.buffer,planeSlice.offset,waterSlice.buffer,waterSlice.offset,contactSectionSlice.buffer,contactSectionSlice.offset,contactTriangleSlice.buffer,contactTriangleSlice.offset,frame);
+      planeSlice.buffer,planeSlice.offset,waterSlice.buffer,waterSlice.offset,contactSectionSlice.buffer,contactSectionSlice.offset,contactTriangleSlice.buffer,contactTriangleSlice.offset,airSlice.buffer,airSlice.offset,frame);
   // The private pass is ended and Device.encoder stays nil. The next scene/HUD
   // draw restores its normal color/depth attachments and all D3D render state.
-  if(drawn){target->gpuDirty=true;if(profile.enabled){profile.draws+=1+(contactTriangleCount?1:0)+(waterVertexCount?1:0);profile.vertices+=3+24*contactTriangleCount+waterVertexCount;}}
+  if(drawn){target->gpuDirty=true;if(profile.enabled){
+   if(frame.contactScissor.width&&frame.contactScissor.height){++profile.draws;profile.vertices+=3;}
+   if(frame.scissor.width&&frame.scissor.height){++profile.draws;profile.vertices+=3;
+    if(!frame.airVertices.empty()){++profile.draws;profile.vertices+=frame.airVertices.size();}}
+  }}
   return drawn;
  }
  bool prepareSeaScene(SeaUniform& u){
