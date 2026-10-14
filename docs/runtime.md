@@ -1,8 +1,39 @@
 # Runtime state
 
-Last verified delivery: October14. Scene lighting initialization and fixed-lattice water transitions are installed with signed engine `95887b017b90c981cbfabc927c220502e07b357d8a8d45021f92374987250d2e`; prior `987efaf34220f0d0b25bb94bd5e5709e359fa457ca7997fe96619ef0cb7fd74e` is backed up. The direct-source engine and previous astronomy/reflection/storm/video/fire/crew/sea CPU/merchant batch remain composed. Canonical staging exits0 with0 pending content and compiler ready. Source/component checks accept the mechanisms; the player's scene transitions and graphics/FPS acceptance remain unresolved. This graphics integration task performs no autonomous game launch, controls or player SAVE inspection. The separate FPS task owns its authorized named-pass trace follow-up. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. Oblique global-map camera and resource prewarma008432 plus the FPS-owned opt-in captured45de5e are installed with signed engine `919af997d35f60a58ab755a69dac4bad8e7fc2d1334bc4d7c8c99608c41186ea`; prior95887b0 is backed up. Scene lighting, fixed-lattice water and the previous direct-source astronomy/reflection/storm/video/fire/crew/sea CPU/merchant batch remain composed. Canonical staging exits0 with0 pending content and compiler ready. Player appearance, transition latency and graphics/FPS acceptance remain unresolved. This camera task performs no autonomous game launch, controls or player SAVE inspection; game holders are0 at delivery. FPS owns its authorized capture follow-up. Earlier inventories and receipts below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October14 — oblique global view and prewarmed map resources installed, player replay pending
+
+The player rejects the fixed perpendicular global-map view, artificial clouds
+and slow/stalled transition. Source binds the persisted1.565 pitch, flat cloud
+quad and preparation after sea teardown. Sourcea008432 retains overhead only
+at size handoff, eases to the native1-radian map angle during reveal, normalizes
+former forced-overhead saves and removes the decorative cloud overlay.
+Tilt/lift/reveal become400/850/300ms; native scene weather remains composed.
+
+An ordinary-sea resource entity prepares one immutable island GM or sea texture
+per frame before the button is pressed. Existing local cache misses stored−1,
+causing repeated geometry loads; insertion is corrected. Shared island leases
+preserve reset lifetime; mutable counter geometry stays per-map. One shared
+34-texture path definition feeds prewarm and ordinary WdmSea. The owning player
+miniature model warms before flight and refreshes current cloth, nodes and
+changed hull cuts at handoff. Reset/abort disposes/rearms existing owners without
+a second map/weather/encounter state or reset-time entity creation.
+
+Actual-body CPU cases pass angle lifecycle, prior overhead normalization,
+ordinary/reverse negatives and27 size matches. ASan/UBSan resource cases pass
+repeat/case/collision keys, null/missing memoization, texture scope, reset lease,
+inactive/transition gates and callback retry/rearm/disposal. Old/new sea texture
+paths/readiness match over36 calls. Native syntax passes. Canonical build/stage
+exits0 and consumes frozena008432+d45de5e (FPS owns its opt-in capture).
+Signed installed engine919af997 matches its candidate;95887b0 is backed up.
+Unsigned engine54a4595a and source fingerprint520147b5 bind this native batch.
+Content post-check reports0 pending in cache and installed app, compiler ready;
+game holders0. No game launch, controls or player SAVE inspection occur.
+Player timing remains pending; immediate exit before warmup, first Metal residency/pipeline creation
+and synchronous reverse SeaLogin remain latency limits rather than visual passes.
 
 ### October14 — scene lighting bind and water temporal repair installed; player replay unresolved
 
