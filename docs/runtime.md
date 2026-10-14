@@ -60,6 +60,20 @@ no game launch/input or player SAVE inspection occurs in this graphics task.
 
 ### October14 — installed sea performance replay remains unresolved
 
+The subsequent FPS replay binds signed engine `95887b01` from `e823a7d`.
+A pre-trace fleet/battle view still shows47FPS. Its eight-second named Metal
+System Trace contains350frames; the combined compute interval overlaps multiple
+dispatches and GPU stages. Separate production-kernel benchmarks are substantially
+shorter, so the trace does not establish a7ms sky shader culprit. No visual-quality
+cut is accepted from these numbers. Source opt-in one-frame native GPU capture
+passes Objective-C++ syntax and native state/pixel probes; actual sea capture,
+canonical delivery and Xcode replay remain pending with the FPS owner.
+Retained958trace/log live in the same diagnostic directory as the older captures.
+Its isolated launcher exits0, six baseline player inputs remain unchanged, and
+new copied AutoSave5 is backed up under the Application Support data owner's
+`diagnostic-replays/sea-fps-20261014/SAVE`. Disposition: original FPS acceptance
+unresolved. The following987cohorts are historical.
+
 The separate FPS owner replays signed `987efaf3` from source checkpoint
 `c4b3d51` using its isolated state. The player's10:54:12 island/fleet screenshot
 shows53FPS, so the original performance request remains unresolved. This does
@@ -74,7 +88,7 @@ GPU regression. Other candidate cohorts and loading transitions are excluded
 from these ranges. No readbacks or explicit syncs appear in the selected rows.
 
 `FrameProfile` reads `GPUStartTime`/`GPUEndTime` for the whole command buffer;
-the existing logs contain no per-pass GPU timing or retained GPU trace. Source
+those profile logs contain no per-pass GPU timing. Source
 shows the coherent reflection cube and finite-depth water tracing, but neither
 is established as the costly pass. FPS owns the next bounded diagnosis through
 the installed Xcode Metal System Trace before any further renderer change.
