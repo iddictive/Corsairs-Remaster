@@ -1057,13 +1057,12 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
      if (ship->killMe)
      {
          delete ship;
-@@ -1010,7 +1039,8 @@
+@@ -1010,7 +1039,7 @@
  {
      if (kSpeed < 0.1f)
          kSpeed = 0.1f;
 -    WdmShip *ship = new WdmMerchantShip();
-+    WdmShip *ship = new WdmMerchantShip((save && save->GetAttribute("trafficRole")) ||
-+        AttributesPointer->GetAttributeAsDword("trafficRequestRole") != 0);
++    WdmShip *ship = new WdmMerchantShip(true);
      if (ship->killMe)
      {
          delete ship;
