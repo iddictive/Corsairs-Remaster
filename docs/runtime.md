@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified delivery: October14. Camera successor a48a5dd, Beard dialogue/admission6dc1d99 and guide/controller68c3334 are installed with signed engine `e87082489e406ec79bcd5214118782325246923c8f00b14023afa1532a02a8f1`; the prior d92e engine is backed up. The player observed the first Beard battle/captivity, then rejected the map search because its ship was invisible and later sea exits lacked Beard. The new stationary guide and continuous approach pass full script compilation and controller/codec checks; the canonical content transaction installs all four files and reports zero pending, compiler ready. The engine is unchanged. Guide visibility and the new night/day route remain unresolved in the game. The next camera motion/miniature candidate remains source-only. No agent game input or player SAVE read/edit occurs in this attempt. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
+Last verified delivery: October14. Actual player miniature and softer camera8f18c51 are installed with signed engine `765115069b6ad2b5e0eefa13028cf4afefb01d0fcc2fe341d65806a184ad65f8`; prior e870 is backed up. Beard dialogue/admission6dc1d99 and guide/controller68c3334 remain composed; their nightly-patrol replacement is excluded scratch. Canonical stage exits0 and content parity reports zero pending, compiler ready. Actual camera/miniature and guide/patrol gameplay remain unresolved. The user requested the game closed and forbids autonomous game testing; the launched process is terminated and no further launch or game input is authorized without a new request. No player SAVE read/edit occurs. Earlier inventories and receipts below are historical snapshots; feature acceptance is scoped to each recorded replay.
 
 ## Current verdict
 
-### October14 — actual player miniature and softer overhead motion candidate
+### October14 — actual player miniature and softer overhead motion installed, player replay pending
 
 The player finds the overhead successor better but still abrupt, with no clouds,
 and rejects the generic player model as an actual ship miniature. The next batch
@@ -21,8 +21,21 @@ the real isolated VM with zero errors; current-model descriptor, shipless cleanu
 and inactive sea admission return0. Sea/worldmap composition is idempotent.
 Native source checks cover independent cloth ownership, visibility flags and
 saved-cut validation. No player SAVE or game controls are accessed. This is
-source/build evidence only; canonical installation and visible two-way replay,
-actual miniature loading and saved-map reconstruction remain unresolved.
+source/build evidence only. Canonical `run.sh --stage-only` exits0 at8f18c51 and
+installs signed engine76511506, backing up e870. Installed sea/worldmap cooked
+SHA prefixes077d2061/5fb39db4 match the VM inputs; reload9b767abd and the existing
+GRC layers remain unchanged. Content post-check reports0 pending in both cache
+and installed app, compiler ready; canonical raw sea matches the committed
+b5cacb source through this delivery. The prior unidentified raw-source drift
+does not recur in this batch; its cause remains unassigned.
+
+The ordinary app launch creates a process, but native window capture fails with
+cgWindowNotFound/ScreenCaptureKit errors, so no startup or visual acceptance is
+claimed. The user then requests closure and explicitly forbids autonomous game
+testing. The exact installed engine process receives SIGTERM and a process read
+confirms zero remaining game processes. No game controls or player SAVE reads
+occur. Visible two-way replay, actual miniature loading and saved-map
+reconstruction belong to the player; no automatic relaunch follows installation.
 
 ### October14 — stationary Beard guide installed; player requests nightly patrol instead
 
