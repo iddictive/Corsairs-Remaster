@@ -421,6 +421,7 @@ float intersectSphere(float3 pos, float3 dir,float r) {
 
 // Returns density at a given point
 // Heavily based on method from Schneider
+constant float cloudTypeVariation = .18f;
 float density(float3 pip, float3 weather, float mip, texture3d<float> large_scale_noise, texture3d<float> small_scale_noise, texture2d<float> weather_noise, constant SkyWeather &w,CloudLayer layer) {
 	float altitude=length(pip)-g_radius;
 	if(altitude<=layer.base||altitude>=layer.top)return 0.f;
@@ -433,7 +434,7 @@ float density(float3 pip, float3 weather, float mip, texture3d<float> large_scal
 
 	// Base wind follows exact world-space displacement.
 	p.xz += w.options.yz*layer.shear+float2(layer.base*3.1f,layer.base*1.7f);
-	float type=clamp(layer.type+(macro.r-.5f)*.18f,0.f,1.f);
+	float type=clamp(layer.type+(macro.r-.5f)*cloudTypeVariation,0.f,1.f);
 	float g = densityHeightGradient(height_fraction, type);
 	// A zero height envelope cannot produce density at any noise value.
 	if (g <= 0.0f) return 0.0f;
@@ -487,6 +488,12 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 	// Stack multiple phase functions to emulate some backscattering
 	float phase = max(max(henyey_greenstein(costheta, 0.6), henyey_greenstein(costheta, (0.4 - 1.4 * ldir.y))), henyey_greenstein(costheta, -0.2));
 
+	// Normalized macro noise bounds type through the same density coefficient.
+	// The gradient end is
+	// monotone in type; keep a conservative margin around its empty envelope.
+	const float envelopeMargin = .0001f;
+	const float emptyBottom = min(min(mixGradients(0.f).x, mixGradients(.5f).x), mixGradients(1.f).x) - envelopeMargin;
+	const float emptyTop = mixGradients(clamp(layer.type + .5f * cloudTypeVariation, 0.f, 1.f)).w + envelopeMargin;
 	const float weather_scale = 0.00006;
 	float2 weather_pos = w.options.yz * weather_scale;
 
@@ -495,8 +502,12 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 		// Planet-space Y is about six million metres: repeatedly adding small
 		// steps rounds the same error into every sample and bands the whole ray.
 		p = pos + dir * (ss * (float(i) + 1.f + jitter));
-		float3 weather_sample = weather_noise.sample(ns, p.xz * weather_scale + .5f + weather_pos).xyz;
 		float height_fraction = GetHeightFractionForPoint(length(p),layer);
+		if (height_fraction < emptyBottom) continue;
+		// This outward ray's radius only increases. Every later sample has zero
+		// density, so skipping it preserves all optical moments and march state.
+		if (height_fraction > emptyTop) break;
+		float3 weather_sample = weather_noise.sample(ns, p.xz * weather_scale + .5f + weather_pos).xyz;
 
 		t = density(p, weather_sample, max(0.f,log2(ss*.001f)), large_scale_noise, small_scale_noise, weather_noise, w,layer);
 		float dt = exp(-(.025f+.055f*w.wind_coverage_density.w) * t * ss);

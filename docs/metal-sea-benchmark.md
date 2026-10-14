@@ -120,6 +120,29 @@ strongest applicable built-in facility; see Apple's
 [Metal renderer tuning](https://developer.apple.com/videos/play/wwdc2023/10127/).
 This rejected component variant does not establish a hardware FPS ceiling.
 
+The subsequent native counter profile still ranks cloud tile first (27.80% cost,
+4.077ms compute statistic versus the former7.171ms). Moving the weather lookup
+inside density is rejected at the chosen numerical gate:319 of2097152 bytes
+change, up to four half-float ULPs. That experimental source is not installed.
+
+The accepted ray window uses the existing height-gradient support: below every
+profile start and above the maximum possible profile end, density is exactly
+zero. Macro noise is RGBA8Unorm; `cloudTypeVariation` owns both the density's
+perturbation and the envelope bound. Gradient extrema and a conservative margin
+define the interval. Outward ray radius increases monotonically; point positions
+are computed directly from index, so skipped empty samples cannot alter later
+positions, transmission or optical moments. Four complete weather fields compare
+2097152 bytes with zero differences. This reuses the existing spherical deck and
+gradient owners, adding no density hierarchy, texture assets or temporal state.
+Whole eight-ship timing still exceeds the requested budget.
+
+Population scaling retains the frozen eight-ship placement and centers smaller
+populations. The former fixed offset put a single ship's crew outside the camera;
+the native animated-coverage check correctly rejected it instead of reporting
+empty-scene FPS. A valid one-ship control retains sails, crew, water/current sky
+and point cubes. It is a causal scaling control, not a substitute for the fleet
+target. Required stock-root absence also rejects before scene process creation.
+
 Reflection layers15/16/17 are SEA query lists. Registering them as ordinary
 Realize layers draws reflection sky after main sea and erases the water;
 reject such a fixture instead of repairing the game. SKY.dir requires its stock

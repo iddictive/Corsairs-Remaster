@@ -132,7 +132,7 @@ void Main()
         Fleet[i].nation = 0;
         Fleet[i].MainCharacter = 0;
         if (i == 0) Fleet[i].MainCharacter = 1;
-        Fleet[i].ship.pos.x = (i - 3) * 70.0;
+        Fleet[i].ship.pos.x = (i - (FleetCount - 2) * 0.5) * 70.0;
         Fleet[i].ship.pos.z = 100.0 + (i % 2) * 100.0;
         Fleet[i].ship.ang.y = 0.1;
         Fleet[i].ship.speed.z = 4.0;

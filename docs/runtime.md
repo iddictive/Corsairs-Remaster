@@ -4,6 +4,27 @@ Last verified delivery: October14. Native fleet profiling and the foam/cloud bat
 
 ## Current verdict
 
+### October14 — empty cloud-ray support preserved; whole target still unresolved
+
+The post-repair native capture `20261014-154733` still ranks cloud tile first:
+27.80% cost and4.077ms compute statistic. A weather-lookup relocation changes up
+to four half-float ULPs and is rejected. Its experimental shader never enters
+the installed app. The accepted conservative ray window instead skips only the
+existing height profile's guaranteed empty support; four weather fields match
+2097152 bytes exactly. One shader coefficient now owns density and its bound.
+
+Full native `20261014-160222` retains all prior eight-ship draw/coverage minima
+and scene composition,20 allocations: CPU median12.653ms/p9914.990ms and GPU
+median14.485ms/p9917.861ms. This is not a large whole-frame speedup or>120FPS.
+The one-ship scaling control first rejects missing animated coverage because
+the old fixed layout puts it at the edge (`20261014-160422`, exit74). The formula
+now centers variable populations while preserving every eight-ship position.
+Corrected control `20261014-160729` passes19 sails/62 animated/one sea/current sky/
+seven complete point cubes: CPU median8.420ms, GPU median9.816ms. Even this
+control exceeds8.33ms, so reducing fleet submission alone cannot accept the goal.
+Installed signed13180929 remains the previous3d15e6a; this source batch's staging
+is pending. No game launch, controls or SAVE mutation occurred.
+
 ### October14 — sailor topology cache unified; staging pending
 
 The actual native CPU sample finds UniqueIndexCache rebuilds under Sailors.
