@@ -1,8 +1,107 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the aiming revision13 CPU successor: four synchronous station chunks, reduced hull sorting and exact-normal deduplication, retaining rasterized fog and fire rigging-depth/bilateral repair `a9837cd`. It preserves the controllable500-knot Phonk inputs `c8de907`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `f238f3571d19459f69528121548c8c247668d8dc33afe89feb497706ee7644a7`. The frozen FPS batch reports zero pending cache/app files, compiler ready;503 fresh closed-game SAVE/archive/settings hashes are unchanged. Later unready sea/map camera script sources are separate candidates and are not installed. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. The preceding player aiming scene still shows23FPS and roughly2x with aim off; the CPU successor's player FPS remains unresolved. Other feature replay belongs to its named topic/owner. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
+Last verified native delivery: October13. Canonical stage-only installs Phonk complete jump/impact lifecycle `55d5b72` and physical-wave reflection phases `cad4858`, preserving the controllable500 ceiling, aiming CPU successor `5b496ac`, fire repair `a9837cd`, NPC `122053c` and Beard boolean repair `a02b187`. Signed engine `cfe07b6eac1216c3c4adea8ee693c65ccc8cc5603921ff09a68e753410a4172b`; all10 frozen Phonk source owners match the compiled tree. At that transaction, sync reports zero pending cache/app files, compiler ready;502 fresh closed-game SAVE/archive/settings hashes are unchanged. Subsequent night-only Beard auto-ambush content `d5c97c4` is installed with the same engine and strict signature verified; sea/map camera remains a separate uninstalled candidate. Earlier finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and music-cleanup inputs remain. Player jump/landing/wake, reflection and aiming-FPS acceptance remain unresolved. A new player report reopens ordinary/NPC collision and Phonk-exit movement: retained speed and tight curved trajectories are under diagnosis; no cause or repair is accepted yet. Agent game input and launch remain explicitly stopped. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — night-only Beard zone ambush content installed
+
+The Beard owner delivers source/topic checkpoint `d5c97c4` through the canonical
+content sync. Current installed normalized Great Recipe source SHA256 is
+`01f9549c8928d4f205fba5c6ffec62d73f729d20e9d451eaf61e7cd828e46f54`.
+Final apply exits0 including strict app signature verification; native engine
+remains cfe07b6e, and cache/app check reports0 pending, compiler ready. No native
+build, launch or game input occurs. The owner does not read or mutate player SAVE.
+
+The player changes admission to NIGHT ONLY, including previously issued Dream
+markers. Full installed PROGRAM plus the new quest compiles without errors;
+isolated actual-VM queue/admission/escrow cases pass daytime and04:00 rejection,
+queued03.99→04 cancellation and22:00 admission. Codec plus actual quest OnLoad
+stays in search during daytime and activates once the next night. Component
+replay substitutes Boss/Upgrade/Journal and native sea-loading boundaries;
+unchanged bodies separately full-compile. Disposition: source/content delivery
+accepted; visible zone autoattack remains player-replay unresolved. Reported map
+freezes remain unmeasured. `great-recipe-quest.md` owns admission and continuation.
+
+### October13 — Phonk complete jump/impact lifecycle and reflection delivery
+
+The player rejects weightless flight, weak landing and retained water effects
+under an airborne hull. Complete movement/model-matrix replay of the prior500
+candidate finds a50m stress crest gives297–305m apex and15.1–15.4s flight with
+no pitch evolution. The prior entry already penetrates water; the defect is not
+absence of all penetration. Track and particle insertion gates still allow
+retained draws, and there is no native impact snapshot for a landing splash.
+
+The successor preserves native6×6 hull support and measured departure velocity.
+Phonk vertical gravity rises smoothly to8× at500, and continuous angular response
+follows actual flight momentum in body axes. Closing contact preserves incoming
+position/velocity; finite compression follows current supported water, with
+maximum dip92% of root-hull freeboard and continuous buoyant recovery. Native
+impact generation/contactXZ owns one bow sound and existing front particles;
+their normal lifetime ends the extra draw. Airborne tracks, contact particles
+and water-projected glow stop drawing while retained state ages. Ordinary/NPC
+motion,500 controls, shoreline guards, prediction and transient cleanup remain.
+
+Eighteen complete-frame component cases at45/33/12/8ms pass: default500 crest
+apex29.8–30.3m, severe116.8–118.7m and50m stress66.2–67.1m. The6m-freeboard
+fixture dips5.52m and leaves the deck.09–.46m above moving water. Actual installed
+Flyingdutchman1 root geometry gives11.70m freeboard and10.764m dip with.936m deck
+clearance. Retained air track draws change2→0 and particle draws3→0. Coupled
+contact/particle/sound, W/S/coast/current transport, seeded mode exit, ordinary
+moving water, predictor restoration, load/death and grounding checks pass.
+These component fixtures do not resolve the later player collision/exit report.
+Rejected finite-heave approach tunnels32m below a wave; a constant entry target
+fails moving-crest depth bounds. Final native ramp/current-water response avoids
+both. `sea-phonk.md` owns the mechanism and remaining player scenarios.
+
+After source integration, canonical `run.sh --stage-only` returns0 with two build
+workers and8 changed prepared source files. All10 frozen Phonk source owners
+byte-match the compiled tree; the compiler receipt binds final patch
+`8246fa23a1ce834b7eef3833f12a52ad315255772e50b5ad2d8c4d6d4a73636a`.
+Unsigned engine `f4eeaf4cb1e90f22d489ce7df39ea754f425259ce1ab3a14d986b8cb8a064e98`;
+installed signed engine
+`cfe07b6eac1216c3c4adea8ee693c65ccc8cc5603921ff09a68e753410a4172b`.
+Strict app signature passes; preceding f238 engine remains in recovery storage.
+All502 fresh protected SAVE/archive/settings hashes remain unchanged. Post-stage
+sync reports0 cache/0app pending, compiler ready. No agent launch/input occurs.
+
+The same transaction consumes reflection inputs4d43fa4a/b4250832 from `cad4858`;
+their source/GPU evidence is below and `sea-reflections.md` owns the contract.
+Disposition: source/component and exact build/delivery accepted; actual player
+jump/impact/wake feel, stationary/moving reflection and FPS remain unresolved.
+Inherited TOUCH can miss thin hulls on extreme long frames; this packet does not
+claim all-frame collision coverage. The player's subsequent ordinary/NPC curved
+trajectory report is a new reopened movement scenario, not a passed proxy.
+
+### October13 — reflection normals follow physical waves; compiled candidate
+
+Player reports rapidly changing ship/shore reflections even with stationary
+camera. Source binds a64-slice/s normal-volume cycle against the physical wave
+phases'1–8 slices/s. The64 shipped height frames have a continuous loop; no wrap
+fault is established. `renderer-rain-weather.patch` now publishes existing
+physical phases in constant2.Y/Z; `sea_shaders.hpp` uses them only for marked
+modern volume normals. Legacy X, rain244, original shaders, preblended2D
+fallback, ripple amplitude and coherent dynamic reflection-cube cadence remain.
+
+The initial disposable ordered-stack attempt rejects an early phase edit because
+the later rain patch consumes that context. Moving publication to the existing
+rain/sea uniform hunk preserves patch order and passes complete reversal/replay.
+Canonical `build.sh` returns0, changing exactly one prepared engine source.
+Explicit rebuilt `sea-probe` passes original and modern GPU cases. A disposable
+current-MSL kernel accepts marked phases, unmarked/2D fallback and120-frame
+periodic-volume variation0.223287 versus old1.578761. These are component checks;
+they do not accept the player's scene or FPS. Dynamic-cube coherence guard passes.
+
+Source SHA256:
+- `renderer-rain-weather.patch`: `4d43fa4af788001033186a2c60eb2e67d8c8c28a360b2fd69dd7819497c5fd0b`
+- `sea_shaders.hpp`: `b42508321134816a30fdd57d53b5a703f54d27b15dd490d3e1e97043a81b064c`
+- Compiled unsigned engine: `67566646efbfaa16914c50df376a9c950b908fdf1d8933eff2b1f0cd46857c49`
+
+No app stage, launch, game input or SAVE/config mutation occurs in this task.
+Build/GPU ownership is returned to the active Phonk integration root; its next
+batch may consume these ready inputs. Disposition: compiled component candidate;
+installed delivery and stationary/moving-camera player reflection replay unresolved.
+`sea-reflections.md` owns the phase contract and rejected loop hypothesis.
 
 ### October13 — aiming CPU successor after unresolved23FPS replay
 
