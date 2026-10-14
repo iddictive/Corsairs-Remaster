@@ -467,7 +467,7 @@ bool GreatRecipe_MapWestPoint(float x, float z)
     float west = stf(worldMap.islands.Bermudes.position.x) - 300.0;
     float start = stf(worldMap.islands.Bermudes.position.z) - 100.0;
     return abs(x - west) <= 40.0 && z >= start - 40.0 && z <= start + 80.0 &&
-        SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z, 40.0);
+        SendMessage(&worldMap, "lfff", MSG_WORLDMAP_NAVIGABLE_POINT, x, z, 40.0);
 }
 
 void GreatRecipe_MapAdmission(ref login)
@@ -486,7 +486,8 @@ bool GreatRecipe_MapCreateWest(string id, float seconds)
     float z = stf(worldMap.islands.Bermudes.position.z) - 100.0;
     for (int point = 0; point < 5; point++)
     {
-        if (!GreatRecipe_MapWestPoint(x, z + point * 10.0)) return false;
+        if (!GreatRecipe_MapWestPoint(x, z + point * 10.0) ||
+            !SendMessage(&worldMap, "lfff", MSG_WORLDMAP_WATER_POINT, x, z + point * 10.0, 40.0)) return false;
     }
     int slot = -1;
     if (!GenerateMapEncounter_Alone(id, &slot)) return false;

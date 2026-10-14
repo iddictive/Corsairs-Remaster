@@ -1,8 +1,45 @@
 # Runtime state
 
-Last verified: October13. Canonical stage-only installs the finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and Phonk batch. Signed engine `1ed666c5cfad7485b98b3be32cafead29777942c994664213f239938f8e1ba9c`;277 frozen inputs and488 SAVE/config hashes remain unchanged. Installed PROGRAM/context compilation and two isolated codec rounds pass. The player previously reopened34FPS aiming, hull sightlines and weak x8 fire; their actual battle/visual/FPS acceptance remains pending. Original SAVE and the archived isolated session are preserved. Agent game input and launch remain explicitly stopped. After stage and source checkpoint `8037c06`, installed PID59400 is observed running with start time20:14:01; this task issues no launch or input and does not observe its scene. New Beard navigation and NPC-generation changes belong to later batches; further installation requires the active game to close. Earlier inventories and receipts below are historical snapshots.
+Last verified: October13. Canonical stage-only installs the Beard navigation correction and Phonk death-music cleanup over the finite-crew fire, aiming-query, hull-opening, rigging, HeatedShot and Phonk batch. Signed engine `22179cb17ab929049f647de0ced1145894b40bc58f24d78c9b022dc9bd8c2332`; installed PROGRAM and native headers compile without errors and delivery check reports zero pending cache/app files. The player previously reopened34FPS aiming, hull sightlines and weak x8 fire; those battle/visual/FPS cases and the accelerated-map Beard encounter remain unresolved. Agent game input and launch remain explicitly stopped. The player closes the game for installation; no game process remains at this delivery. NPC generation and the new Phonk speed/glow/brake successor remain outside this batch. Earlier inventories and receipts below are historical snapshots.
 
 ## Current verdict
+
+### October13 — Beard map navigation installed; accelerated encounter replay pending
+
+The player reports no ship while accelerating the global map across the12th and
+following days, and rejects using another SAVE as acceptance of that route.
+Source investigation isolates a concrete defect: the shared water-point query
+uses ship occupancy for existing actor/player coordinates. The actual extracted
+native function rejects its own live actor; it therefore invalidates an existing
+quest marker and denies player admission. This is a reproduced mechanism, not
+proof of every missing sighting in the player's reported session.
+
+`worldmap-traffic.patch` now exposes navigation-only water admission through the
+existing bounds/island owner; stock positioning retains ship occupancy by default.
+`great-recipe.c` uses navigation for existing actors and separately retains all
+five placement occupancy checks. Calendar, weather, route, TTL, captain state and
+ordinary port exits are unchanged. The complete ordered stack applies, reverses
+and reapplies identically; four changed native files byte-match the C++ candidate.
+The actor/player positive and occupied-spawn/island/map-edge negatives pass.
+Full PROGRAM plus candidate headers compiles with zero VM errors; no permanent
+test or SAVE migration is added.
+
+Canonical native build returns0 with two workers. Once the player closes the
+installed game, canonical `experiments/native-metal/run.sh --stage-only` returns0
+and consumes the frozen native Phonk4bca predecessor plus its independently
+verified death-music source checkpoint `802fbde`; unfinished NPC and later Phonk
+native changes are excluded. Unsigned engine:
+`c76303aef3d81a5039ff6d31bda19543fc9d3c6d330bc57f718f32caf8298274`.
+Installed signed engine:
+`22179cb17ab929049f647de0ced1145894b40bc58f24d78c9b022dc9bd8c2332`.
+Installed quest bytes match source after line-ending normalization, the delivered
+native header declares the new query, installed full PROGRAM/header compilation
+returns0/errors0, and sync check reports0 pending cache and installed files.
+The previous installed engine is retained by the canonical rollback owner.
+No game launch/input or further SAVE inspection occurs. Disposition: source,
+component, build and file delivery accepted; visible accelerated-map appearance,
+continued marker lifetime and entering the encounter remain unresolved.
+Topic owner: `great-recipe-quest.md`.
 
 ### October13 — finite suppression budget and integrated app delivery
 

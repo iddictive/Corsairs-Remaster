@@ -1016,7 +1016,17 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
  #endif
          encTime = 0.0f;
      }
-@@ -592,6 +615,19 @@
+@@ -573,7 +596,8 @@
+ // Messages
+ uint64_t WorldMap::ProcessMessage(MESSAGE &message)
+ {
+-    switch (message.Long())
++    const auto code = message.Long();
++    switch (code)
+     {
+     case MSG_WORLDMAP_CREATESTORM: {
+         const auto isTornado = message.Long() != 0;
+@@ -592,6 +615,20 @@
      break;
      case MSG_WORLDMAP_CREATEENC_RELEASE:
          ReleaseEncounters();
@@ -1026,13 +1036,14 @@ diff --git a/src/libs/worldmap/src/world_map.cpp b/src/libs/worldmap/src/world_m
 +        for (auto *ship : wdmObjects->ships) ship->isSelect = false;
 +        core.Event("ExitFromWorldMap");
          break;
-+    case MSG_WORLDMAP_WATER_POINT: {
++    case MSG_WORLDMAP_WATER_POINT:
++    case MSG_WORLDMAP_NAVIGABLE_POINT: {
 +        const float x = message.Float();
 +        const float z = message.Float();
 +        const float clearance = message.Float();
 +        if (!wdmObjects || !wdmObjects->islands || !std::isfinite(x) || !std::isfinite(z) ||
 +            !std::isfinite(clearance) || clearance <= 0.0f || clearance > 1000.0f) return 0;
-+        return WdmShip::CheckPosition(x, z, clearance) ? 1 : 0;
++        return WdmShip::CheckPosition(x, z, clearance, code == MSG_WORLDMAP_WATER_POINT) ? 1 : 0;
 +    }
      case MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA:
          if (wdmObjects->playerShip)
@@ -1086,12 +1097,13 @@ diff --git a/src/libs/worldmap/src/world_map.h b/src/libs/worldmap/src/world_map
 diff --git a/src/libs/shared_headers/include/shared/messages.h b/src/libs/shared_headers/include/shared/messages.h
 --- a/src/libs/shared_headers/include/shared/messages.h
 +++ b/src/libs/shared_headers/include/shared/messages.h
-@@ -247,6 +247,8 @@
+@@ -247,6 +247,9 @@
  #define MSG_WORLDMAP_CREATEENC_RELEASE 31200 // ""
  // Launch going out to sea from script
  #define MSG_WORLDMAP_LAUNCH_EXIT_TO_SEA 31130 // ""
 +#define MSG_WORLDMAP_ENTER_SEA_DIRECT 31131 // "l" Enter without selecting an encounter
 +#define MSG_WORLDMAP_WATER_POINT 31132 // "lfff" x,z,clearance; returns free water
++#define MSG_WORLDMAP_NAVIGABLE_POINT 31133 // "lfff" x,z,clearance; ignores ship occupancy
  // Setting a flag on the map
  #define MSG_WORLDMAP_SET_NATION_FLAG 31150 // "ll" nation
  // Print line with coordinates
@@ -1157,3 +1169,45 @@ diff --git a/src/libs/shared_headers/include/shared/messages.h b/src/libs/shared
  }
 
  void AIFort::Fire(const CVECTOR &vPos)
+diff --git a/src/libs/worldmap/src/wdm_ship.cpp b/src/libs/worldmap/src/wdm_ship.cpp
+--- a/src/libs/worldmap/src/wdm_ship.cpp
++++ b/src/libs/worldmap/src/wdm_ship.cpp
+@@ -431,7 +431,7 @@
+ }
+
+ // true if free
+-bool WdmShip::CheckPosition(float x, float z, float objRadius)
++bool WdmShip::CheckPosition(float x, float z, float objRadius, bool checkShips)
+ {
+     // World
+     if (x - objRadius < -0.5f * wdmObjects->worldSizeX)
+@@ -444,7 +444,7 @@
+         return false;
+     // The ships
+     int32_t i;
+-    for (i = 0; i < wdmObjects->ships.size(); i++)
++    for (i = 0; checkShips && i < wdmObjects->ships.size(); i++)
+     {
+         if (!wdmObjects->ships[i]->isLive)
+             continue;
+@@ -457,7 +457,7 @@
+             return false;
+     }
+     // Islands
+-    if (i >= wdmObjects->ships.size())
++    if (!checkShips || i >= wdmObjects->ships.size())
+     {
+         if (wdmObjects->islands)
+         {
+diff --git a/src/libs/worldmap/src/wdm_ship.h b/src/libs/worldmap/src/wdm_ship.h
+--- a/src/libs/worldmap/src/wdm_ship.h
++++ b/src/libs/worldmap/src/wdm_ship.h
+@@ -59,7 +59,7 @@
+     void LRender(VDX9RENDER *rs) override;
+
+     // true if free
+-    static bool CheckPosition(float x, float z, float objRadius);
++    static bool CheckPosition(float x, float z, float objRadius, bool checkShips = true);
+
+     bool isLive;
+     bool isSelect;
