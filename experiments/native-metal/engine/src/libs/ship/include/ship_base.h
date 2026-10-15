@@ -63,6 +63,8 @@ class SHIP_BASE : public VAI_OBJBASE
 
     virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) = 0;
     virtual unsigned GetHullContourRevision() const { return 0; }
+    // Ship-model-local support: all retained cut half-spaces must contain it.
+    virtual bool IsHullPositionRetained(const CVECTOR &localPosition) const { return true; }
     virtual void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                                  float specificEnergy, int32_t otherCharacterIndex) {}
     virtual void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,

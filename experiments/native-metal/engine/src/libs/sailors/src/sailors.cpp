@@ -206,7 +206,7 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
 {
     if (auto model = static_cast<MODEL *>(core.GetEntityPointer(modelID)))
     {
-        if (ship_base && (shipState.dead || jumpSpeedY))
+        if (ship_base && shipState.sea && (shipState.dead || mode == MAN_JUMP || jumpSpeedY))
         {
             // If got in the water - detach from the ship and swim
             if (!inWater && model->mtx.Pos().y < shipState.sea->WaveXZ(model->mtx.Pos().x, model->mtx.Pos().z) - 1.4f)
@@ -232,6 +232,9 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
         if (!inWater)
         {
             CMatrix mPos, mRot, m1, m2;
+
+            if (mode != MAN_JUMP && ship_base && !ship_base->IsHullPositionRetained(pos + spos))
+                spos = CVECTOR(0.f, 0.f, 0.f);
 
             mPos.BuildMatrix(CVECTOR(ang.x, ang.y, ang.z),
                              pos + spos /*CVECTOR(pos.x+ spos.x, pos.y+ spos.y, pos.z+ spos.z)*/);
@@ -295,7 +298,7 @@ int ShipMan::FindRandomPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
         {
             const int ran = rand() % sailorsPoints.points.count;
 
-            if (sailorsPoints.points.point[ran].IsCannon())
+            if (sailorsPoints.points.point[ran].IsAvailable() && sailorsPoints.points.point[ran].IsCannon())
             {
                 if (ran != targetWayPoint && !sailorsPoints.points.point[ran].buisy &&
                     (!sailorsPoints.points.point[ran].cannonReloaded || shipState.mode == SHIP_WAR))
@@ -317,7 +320,7 @@ int ShipMan::FindRandomPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
             {
                 const int ran = rand() % sailorsPoints.points.count;
 
-                if (!sailorsPoints.points.point[ran].disabled)
+                if (sailorsPoints.points.point[ran].IsAvailable())
                 {
                     if (sailorsPoints.points.point[ran].IsMast())
                     {
@@ -340,7 +343,8 @@ int ShipMan::FindRandomPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
         {
             const int ran = rand() % sailorsPoints.points.count;
 
-            if (ran != targetWayPoint && !sailorsPoints.points.point[ran].buisy &&
+            if (ran != targetWayPoint && sailorsPoints.points.point[ran].IsAvailable() &&
+                !sailorsPoints.points.point[ran].buisy &&
                 sailorsPoints.points.point[ran].pointType == PT_TYPE_NORMAL)
             {
                 moveTo = MOVE_TO_POINT;
@@ -358,13 +362,17 @@ int ShipMan::FindRandomPointWithoutType(const SailorsPoints &sailorsPoints) cons
     for (size_t i = 0; i != sailorsPoints.points.count; ++i)
     {
         const auto idx = rand() % sailorsPoints.points.count;
-        if (sailorsPoints.points.point[idx].pointType == PT_TYPE_NORMAL)
+        if (sailorsPoints.points.point[idx].IsAvailable() &&
+            sailorsPoints.points.point[idx].pointType == PT_TYPE_NORMAL)
         {
             return idx;
         }
     }
 
-    return newWayPoint;
+    for (int i = 0; i < sailorsPoints.points.count; ++i)
+        if (sailorsPoints.points.point[i].IsAvailable() && sailorsPoints.points.point[i].IsNormal())
+            return i;
+    return -1;
 }
 
 void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
@@ -390,6 +398,12 @@ void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
                 newWayPoint = path.point[path.currentPointPosition];
             }
 
+            if (path.min == -1)
+            {
+                sailorsPoints.points.point[targetWayPoint].buisy = false;
+                ptTo = pos;
+                mode = MAN_STAY;
+            }
             return;
         }
     }
@@ -419,7 +433,14 @@ void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
             ApplyTargetPoint(CVECTOR(sailorsPoints.points.point[newWayPoint].x,
                                      sailorsPoints.points.point[newWayPoint].y,
                                      sailorsPoints.points.point[newWayPoint].z),
-                             (sailorsPoints.points.point[newWayPoint].pointType == PT_TYPE_NORMAL));
+                             (sailorsPoints.points.point[newWayPoint].pointType == PT_TYPE_NORMAL), shipState.hull);
+        }
+        else
+        {
+            if (targetWayPoint >= 0 && targetWayPoint < sailorsPoints.points.count)
+                sailorsPoints.points.point[targetWayPoint].buisy = false;
+            ptTo = pos;
+            mode = MAN_STAY;
         }
 
         // Select the next waypoint
@@ -431,7 +452,7 @@ void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
 
         newWayPoint = path.point[path.currentPointPosition];
 
-        if (sailorsPoints.points.point[targetWayPoint].disabled)
+        if (!sailorsPoints.points.point[targetWayPoint].IsAvailable())
         {
             path.length = 0;
             FindNextPoint(sailorsPoints, shipState);
@@ -444,11 +465,11 @@ void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
 
         ApplyTargetPoint(CVECTOR(sailorsPoints.points.point[newWayPoint].x, sailorsPoints.points.point[newWayPoint].y,
                                  sailorsPoints.points.point[newWayPoint].z),
-                         (sailorsPoints.points.point[newWayPoint].pointType == PT_TYPE_NORMAL));
+                         (sailorsPoints.points.point[newWayPoint].pointType == PT_TYPE_NORMAL), shipState.hull);
     }
 }
 
-void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk)
+void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk, const SHIP_BASE *hull)
 {
     if (randomWalk)
     {
@@ -462,6 +483,9 @@ void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk)
     {
         ptTo = pt;
     }
+
+    if (hull && !hull->IsHullPositionRetained(ptTo))
+        ptTo = pt;
 
     dir = !(ptTo - pos);
 
@@ -494,9 +518,8 @@ bool ShipMan::MoveToPosition(uint32_t &dltTime, SailorsPoints &sailorsPoints, Sh
             if (RotateToAngle(dltTime, sailorsPoints) || mode == MAN_RUN ||
                 (mode == MAN_WALK && fabs(angTo.y - ang.y) < PI / 8))
             {
-                pos.x += manSpeed * dir.x * dltTime / 100.0f;
-                pos.y += manSpeed * dir.y * dltTime / 100.0f;
-                pos.z += manSpeed * dir.z * dltTime / 100.0f;
+                const CVECTOR next = pos + dir * (manSpeed * dltTime / 100.0f);
+                pos = shipState.hull && !shipState.hull->IsHullPositionRetained(next) ? ptTo : next;
             }
 
             return false;
@@ -519,7 +542,7 @@ int ShipMan::GetNearestEmptyCannon(SailorsPoints &sailorsPoints) const
 
     for (auto i = 0; i < sailorsPoints.points.count; i++)
         if (sailorsPoints.points.point[i].IsCannon() && sailorsPoints.points.point[i].buisy == false &&
-            sailorsPoints.points.point[i].cannonReloaded == false && sailorsPoints.points.point[i].disabled == false)
+            sailorsPoints.points.point[i].cannonReloaded == false && sailorsPoints.points.point[i].IsAvailable())
         {
             dest = Dest(CVECTOR(sailorsPoints.points.point[i].x, sailorsPoints.points.point[i].y,
                                 sailorsPoints.points.point[i].z),
@@ -802,7 +825,7 @@ void ShipMan::UpdatePos(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipSta
             {
                 lastWayPoint = newWayPoint;
                 newWayPoint = path.point[path.currentPointPosition];
-                ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[newWayPoint]), false);
+                ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[newWayPoint]), false, shipState.hull);
             }
             else if (distance <= step)
             {
@@ -911,7 +934,7 @@ void ShipWalk::RespondToFire(uint32_t dltTime)
         for (int i = 0; i < count; ++i)
         {
             const auto &p = sailorsPoints.points.point[i];
-            safe[i] = !p.disabled && !p.IsMast() && CrewFireSegmentSafe(*fire, CrewPoint(p), CrewPoint(p));
+            safe[i] = p.IsAvailable() && !p.IsMast() && CrewFireSegmentSafe(*fire, CrewPoint(p), CrewPoint(p));
             if (safe[i])
                 fireDistance[i] = CrewFireDistance(*fire, CrewPoint(p), &fireSource[i]);
         }
@@ -1027,7 +1050,7 @@ void ShipWalk::RespondToFire(uint32_t dltTime)
             if (length > 1 || distance > .12f)
             {
                 man.mode = MAN_RUN;
-                man.ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[start]), false);
+                man.ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[start]), false, ship);
             }
             else if (man.fireWorker)
                 man.mode = MAN_FIRE_WORK;
@@ -1048,6 +1071,81 @@ void ShipWalk::ReloadCannons(int bort)
 
 }
 
+void ShipWalk::ReconcileHullSupport()
+{
+    if (!ship)
+        return;
+    shipState.hull = ship;
+    const unsigned revision = ship->GetHullContourRevision();
+    const bool changed = !hullSupportInitialized || hullRevision != revision;
+    if (changed)
+    {
+        hullSupportInitialized = true;
+        hullRevision = revision;
+        for (auto &point : sailorsPoints.points.point)
+            point.hullRetained = ship->IsHullPositionRetained(CrewPoint(point));
+        sailorsPoints.UpdateLinks();
+        fireModelSeconds = -1.f;
+    }
+    const int count = sailorsPoints.points.count;
+    const auto available = [&](int i) {
+        return i >= 0 && i < count && sailorsPoints.points.point[i].IsAvailable();
+    };
+    for (auto &man : shipMan)
+    {
+        if (man.inWater || man.mode == MAN_SWIM || man.mode == MAN_JUMP)
+            continue;
+        const bool onMast = man.mode == MAN_CLIMB_UP || man.mode == MAN_CLIMB_DOWN || man.mode == MAN_OFF;
+        if (!ship->IsHullPositionRetained(man.pos) ||
+            (onMast && (!available(man.newWayPoint) || !available(man.lastWayPoint))))
+        {
+            for (const int i : {man.targetWayPoint, man.lastTargetPoint, man.newWayPoint})
+                if (i >= 0 && i < count)
+                    sailorsPoints.points.point[i].buisy = false;
+            man.path = {};
+            man.fireResponding = man.fireWorker = man.fireWorkRise = false;
+            man.mode = MAN_JUMP;
+            man.jumpSpeedX = JUMP_SPEED_X_MASTFALL;
+            man.jumpSpeedY = 0.f;
+            man.spos = CVECTOR(0.f, 0.f, 0.f);
+            continue;
+        }
+        if (!changed)
+            continue;
+        bool routeValid = available(man.newWayPoint) && available(man.targetWayPoint) &&
+            ship->IsHullPositionRetained(man.ptTo);
+        for (int i = std::max(0, man.path.currentPointPosition); routeValid && i < man.path.length; ++i)
+            routeValid = available(man.path.point[i]);
+        if (routeValid)
+            continue;
+        for (const int i : {man.targetWayPoint, man.lastTargetPoint})
+            if (i >= 0 && i < count)
+                sailorsPoints.points.point[i].buisy = false;
+        // Keep the current position and rejoin the surviving end of the authored
+        // edge, rather than teleporting or continuing toward a removed station.
+        int start = -1;
+        float distance = INFINITY;
+        for (const int i : {man.newWayPoint, man.lastWayPoint})
+            if (available(i) && Dest(man.pos, CrewPoint(sailorsPoints.points.point[i])) < distance)
+            {
+                start = i;
+                distance = Dest(man.pos, CrewPoint(sailorsPoints.points.point[i]));
+            }
+        man.path = {};
+        man.fireResponding = man.fireWorker = man.fireWorkRise = false;
+        man.moveTo = MOVE_TO_POINT;
+        man.mode = start < 0 ? MAN_STAY : MAN_WALK;
+        if (start >= 0)
+        {
+            man.newWayPoint = man.lastWayPoint = man.targetWayPoint = start;
+            man.ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[start]), false, ship);
+        }
+        else
+            man.ptTo = man.pos;
+        man.lastMode = MAN_OFF;
+    }
+}
+
 void ShipWalk::CreateNewMan(SailorsPoints &sailorsPoints)
 {
     if (std::size(shipMan) >= 50 || !sailorsPoints.points.count)
@@ -1055,6 +1153,10 @@ void ShipWalk::CreateNewMan(SailorsPoints &sailorsPoints)
         return;
     }
 
+    ShipMan candidate;
+    const int spawn = candidate.FindRandomPointWithoutType(sailorsPoints);
+    if (spawn < 0)
+        return;
     auto & man = shipMan.emplace_back();
     man.modelID = core.CreateEntity("MODELR");
     int modelIdx = rand() % std::size(shipManModels_);
@@ -1069,7 +1171,7 @@ void ShipWalk::CreateNewMan(SailorsPoints &sailorsPoints)
 
     if (sailorsPoints.points.count > 0)
     {
-        man.newWayPoint = man.FindRandomPointWithoutType(sailorsPoints);
+        man.newWayPoint = man.lastWayPoint = man.targetWayPoint = spawn;
 
         man.pos.x = sailorsPoints.points.point[man.newWayPoint].x;
         man.pos.y = sailorsPoints.points.point[man.newWayPoint].y;
@@ -1093,6 +1195,7 @@ bool ShipWalk::Init(entid_t _shipID, int editorMode, const char *shipType, std::
         // Game mode - ship created
 
         ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(_shipID));
+        shipState.hull = ship;
         shipModel = ship->GetModel();
 
         // Load points
@@ -1124,6 +1227,8 @@ bool ShipWalk::Init(entid_t _shipID, int editorMode, const char *shipType, std::
             if (mastsAttr->GetAttributeClass(i)->GetAttributeAsFloat())
                 SetMastBroken(((iNumMasts - 1) - i) + 1); // ??? The masts are opposite ???
         }
+
+        ReconcileHullSupport();
 
         if (!shipManModels.empty())
         {
@@ -1336,6 +1441,7 @@ void Sailors::Realize(uint32_t dltTime)
             return;
         }
 
+        walk->ReconcileHullSupport();
         walk->RespondToFire(dltTime);
 
         auto *character = walk->ship ? walk->ship->GetACharacter() : nullptr;

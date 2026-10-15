@@ -266,6 +266,9 @@ Path SailorsPoints::getPath(int src, int dst, int l)
     Path x;
 
     mPath.min = -1;
+    if (src < 0 || dst < 0 || src >= points.count || dst >= points.count || l >= MAX_POINTS ||
+        !points.point[src].IsAvailable() || !points.point[dst].IsAvailable())
+        return mPath;
     mPath.point[l] = src;
 
     if (src == dst)
@@ -333,7 +336,7 @@ void SailorsPoints::UpdateLinks()
         for (auto i = 0; i < points.count; i++)
 
             for (auto _l = 0; _l < links.count; _l++)
-                if ( //! links.link[_l].disabled &&
+                if (points.point[i].IsAvailable() && points.point[m].IsAvailable() &&
                     ((links.link[_l].first == m && links.link[_l].next == i) ||
                      (links.link[_l].first == i && links.link[_l].next == m)))
                 {

@@ -103,6 +103,7 @@ void MAST::Execute(uint32_t Delta_Time)
 {
     // GUARD(void MAST::Execute(uint32_t Delta_Time))
 
+    FlushPendingMount();
     if (bUse)
     {
         // ====================================================
@@ -133,11 +134,7 @@ void MAST::Realize(uint32_t Delta_Time)
 {
     // GUARD(void MAST::Realize(uint32_t Delta_Time))
 
-    if (m_mount_param.pNode)
-    {
-        Mount(m_mount_param.modelEI, m_mount_param.shipEI, m_mount_param.pNode);
-        m_mount_param.pNode = nullptr;
-    }
+    FlushPendingMount();
 
     MODEL *mdl;
     if ((mdl = static_cast<MODEL *>(core.GetEntityPointer(model_id))) != nullptr)
@@ -193,6 +190,14 @@ uint64_t MAST::ProcessMessage(MESSAGE &message)
 }
 
 #define ADD_MINIMUM .01f
+
+void MAST::FlushPendingMount()
+{
+    if (!m_mount_param.pNode) return;
+    const auto pending = m_mount_param;
+    m_mount_param.pNode = nullptr;
+    Mount(pending.modelEI, pending.shipEI, pending.pNode);
+}
 
 void MAST::Mount(entid_t modelEI, entid_t shipEI, NODE *mastNodePointer)
 {
@@ -717,11 +722,7 @@ int MAST::GetSlide(entid_t mod, CVECTOR &pbeg, CVECTOR &pend, CVECTOR &dp, CVECT
 
 void MAST::AllRelease()
 {
-    if (m_mount_param.pNode)
-    {
-        Mount(m_mount_param.modelEI, m_mount_param.shipEI, m_mount_param.pNode);
-        m_mount_param.pNode = nullptr;
-    }
+    FlushPendingMount();
 
     // delete sail group
     core.Send_Message(core.GetEntityId("sail"), "li", MSG_SAIL_DEL_GROUP, GetId());

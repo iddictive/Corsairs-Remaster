@@ -2304,6 +2304,8 @@ uint64_t SHIP::ProcessMessage(MESSAGE &message)
         {
             pShipsLights->KillMast(this, pNode, true);
         }
+        for (auto &mast : pMasts)
+            if (mast.pNode == pNode) mast.pNode = nullptr;
     }
     break;
     case MSG_SHIP_SAFE_DELETE:

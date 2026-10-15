@@ -66,12 +66,15 @@ struct LaserState
     std::vector<LaserBinding> bindings;
     HullWork impact;
     std::vector<CVECTOR> contour;
+    std::vector<CVECTOR> originalKeel;
+    float originalWaterplaneArea = 0.f;
     unsigned contourRevision = 0;
     float remaining = 1.f;
     float flooded = 0.f, floodCapacity = 0.f, floodClock = 0.f;
     int floodOwner = -1;
     bool wetCut = false;
     bool restored = false;
+    bool structuralFailure = false, failureReported = false;
 };
 constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .65f;
 constexpr float laserBeamLife = .10f, laserFragmentLife = 6.f;

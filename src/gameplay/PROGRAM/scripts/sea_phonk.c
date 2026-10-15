@@ -38,7 +38,6 @@ void SeaPhonk_Reset(bool restoreMusic)
     if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
     DeleteAttribute(&Sea, "Phonk");
     DelEventHandler("frame", "SeaPhonk_Frame");
-    DelEventHandler("SeaPhonk_LaserHit", "SeaPhonk_LaserHit");
     if (musicName != SEA_PHONK_TRACK) return;
     StopSound(musicID, 200);
     musicID = -1;
@@ -66,7 +65,6 @@ bool SeaPhonk_Toggle()
     Sea.Phonk.Active = 1;
     Sea.Phonk.ReturnMusic = musicName;
     SetEventHandler("frame", "SeaPhonk_Frame", 0);
-    SetEventHandler("SeaPhonk_LaserHit", "SeaPhonk_LaserHit", 0);
     SeaPhonk_Music(SEA_PHONK_TRACK);
     return true;
 }
@@ -134,21 +132,33 @@ bool SeaPhonk_LiveShip(aref target)
         stf(target.Ship.HP) > 0.0 && !LAi_IsDead(target);
 }
 
-void SeaPhonk_LaserHit()
+int SeaPhonk_HullCut()
 {
     aref target = GetEventData();
     int owner = GetEventData();
     float fraction = GetEventData();
-    int severed = GetEventData();
-    if (!SeaPhonk_IsActive() || bSeaReloadStarted || LAi_IsDead(pchar)) return;
-    if (owner != GetMainCharacterIndex() || !SeaPhonk_LiveShip(target)) return;
-    if (sti(target.index) == owner) return;
+    int fatal = GetEventData();
+    int applyPartialDamage = GetEventData();
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
+    // Invalid, removed and already-dead ships settle a native reconciliation.
+    if (owner < -1 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return 1;
+    if (fatal > 0)
+    {
+        int cause = KILL_BY_TOUCH;
+        if (owner == -1) cause = KILL_BY_ISLAND;
+        if (applyPartialDamage > 0) cause = KILL_BY_BALL;
+        Ship_ApplyStructuralHullFailure(target, cause, owner);
+        return 1;
+    }
+    // TOUCH already paid mechanical damage; restored cuts never replay it.
+    if (applyPartialDamage <= 0 || sti(target.index) == owner) return 1;
+    float multiplier = Ship_HullDamageMultiplier(target, owner);
+    if (multiplier <= 0.0) return 1;
     float damage = GetCharacterShipHP(target) * Clampf(fraction);
-    float limit = stf(target.Ship.HP) * 0.5 / Ship_HullDamageMultiplier(target, owner);
+    float limit = stf(target.Ship.HP) * 0.5 / multiplier;
     if (damage > limit) damage = limit;
-    // Only the native structural/keel test may request immediate sinking.
-    if (severed > 0) damage = stf(target.Ship.HP) * 10.0;
     Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
+    return 1;
 }
 
 void SeaPhonk_Flood()

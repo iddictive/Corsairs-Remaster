@@ -62,6 +62,7 @@ class MAST : public Entity
 
   protected:
     void AllRelease();
+    void FlushPendingMount();
     void Mount(entid_t modelEI, entid_t shipEI, NODE *mastNodePointer);
     void LoadIni();
     void doMove(uint32_t DeltaTime);

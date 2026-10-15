@@ -38,6 +38,7 @@ struct ShipState
     bool dead;
     bool firePaused = false;
     SEA_BASE *sea;
+    SHIP_BASE *hull = nullptr;
 
     ShipState()
         : sea(nullptr)
@@ -64,7 +65,7 @@ class ShipMan
     void FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState);
     int FindRandomPoint(SailorsPoints &sailorsPoints, ShipState &shipState);
     int FindRandomPointWithoutType(const SailorsPoints &sailorsPoints) const;
-    void ApplyTargetPoint(CVECTOR pt, bool randomWalk);
+    void ApplyTargetPoint(CVECTOR pt, bool randomWalk, const SHIP_BASE *hull = nullptr);
 
     void UpdatePos(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState);
     // Update animation and speed 
@@ -118,6 +119,7 @@ class ShipWalk
     void SetMastBroken(int iMastIndex);
     void OnHullHit(const CVECTOR &v);
     void RespondToFire(uint32_t dltTime);
+    void ReconcileHullSupport();
 
     SHIP_BASE *ship;
     MODEL *shipModel;
@@ -125,6 +127,8 @@ class ShipWalk
     bool bHide;
     uint32_t fireRouteClock = 0;
     float fireModelSeconds = -1.f;
+    unsigned hullRevision = 0;
+    bool hullSupportInitialized = false;
 
     entid_t shipID;
 

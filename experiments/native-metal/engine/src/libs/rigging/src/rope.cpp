@@ -9,6 +9,7 @@
 #include "shared/sail_msg.h"
 #include "ship_base.h"
 #include "rigging_lighting.hpp"
+#include "hull_support.h"
 
 extern void sailPrint(VDX9RENDER *rs, const CVECTOR &pos3D, float rad, int32_t line, const char *format, ...);
 
@@ -97,6 +98,20 @@ void ROPE::Execute(uint32_t Delta_Time)
 
     if (bFirstRun)
         FirstRun();
+    for (int gn = 0; gn < groupQuantity; ++gn)
+    {
+        if (gdata[gn].bDeleted) continue;
+        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI));
+        RiggingHullSupport support(ship, static_cast<MODEL *>(core.GetEntityPointer(gdata[gn].modelEI)));
+        if (!support.NeedsCheck(gdata[gn].hullSupport)) continue;
+        for (int i = 0; i < gdata[gn].ropeQuantity; ++i)
+        {
+            auto *rope = rlist[gdata[gn].ropeIdx[i]];
+            if (!rope->bDeleted && (!support.Retains(rope->bMatWorld, rope->pBeg) ||
+                                  !support.Retains(rope->eMatWorld, rope->pEnd)))
+            { rope->bDeleted = true; bYesDeleted = true; }
+        }
+    }
     if (bYesDeleted)
         DoSTORM_DELETE();
 

@@ -1,11 +1,15 @@
 # Phonk Mode
 
-## October15 source candidate — boost, hull survival and cutting laser
+## October15 source candidate — integrated fracture lifecycle
 
 This is a source candidate, not installed or player-accepted behavior. The
 canonical native build/stage integration owner records delivery in `runtime.md`.
 The engine source owner is now `experiments/native-metal/engine`; historical
 patch references below describe prior receipts, not the current edit path.
+The player rejects the installed fracture behavior: half-hulls remain alive,
+crew walk over removed decks and loose rigging remains above absent structure.
+The successor binds geometry, retained support and structural death for both
+laser and mechanical cuts; source evidence below is not player acceptance.
 
 The current request keeps ordinary Phonk at500 knots and adds held left/right
 Shift, using the existing `ILeftShift`/`IRightShift` controls, to accelerate
@@ -19,6 +23,9 @@ and the post-perk contact-episode budget: at most5% maximum hull or25% entry
 hull, whichever is smaller, until0.75seconds without damaging contact. Pause,
 reload, death and mode disposal retain their existing guards. The three actual
 ship/island/grounding producers share the final budget in `sea_ai/AIShip.c`.
+This budget protects an intact ship from contact damage. Critical loss of hull
+support is fatal even for the player's Phonk ship; regeneration cannot keep a
+structurally broken half-hull sailing.
 
 The existing mapped `Ship_Fire` input owns the Phonk laser; native camera fire
 does not spend cannon ammunition or alter its reload during the mode. The aimed
@@ -45,9 +52,14 @@ ship, four retained fragment snapshots per node and64 active piece records.
 Damage follows the actually removed geometry. Closed meshes use validated
 volume; the authored open Flyingdutchman mesh falls back to surface area, which
 must not be described as measured mass. Dry upper cuts cause no hull HP loss.
-Partial wet cuts cannot themselves kill; a large wet structural split sinks
-through the existing death/quest-guard path. Up to16 length-weighted seam samples
-per cut query current `WaveXZ` at4Hz. Submerged openings admit water with a
+Small wet cuts feed progressive flooding. Losing35% of the original waterplane,
+or35% of the draft at three of five original keel stations, marks critical
+structural failure through the existing death/quest-guard path. Dry top trims
+retain waterplane/keel support and are not fatal. Up to16 actual seam points in
+height bands per cut query current `WaveXZ` at4Hz; lengths are grouped within
+those bands, conservatively sampling their lowest actual opening. Mixing upper
+and lower seams into one averaged point was rejected: it could move an entire
+wet opening above water. Submerged openings admit water with a
 simplified head/area flow; capacity derives from the original waterline contour
 and draft. Flooding continues with Phonk OFF and restores after load. A separate
 global sea event applies its progressive HP ceiling, with ordinary immortality
@@ -62,6 +74,24 @@ attributes enter unchanged. Native pause advances neither burn nor ingress.
 Renderer resets rebind saved planes to each new geometry generation without
 duplicating damage, ingress or fragments. Source-node techniques and lighting
 are scoped around independent fragment draws.
+
+Every successful cut publishes `SeaPhonk_HullCut` (`alfll`) after its geometry,
+owner attributes and attack consequences. The sea-lifetime handler owns both
+laser partial damage and structural failure; mechanical partial cuts never pay
+HP twice. A structural hit uses the existing death/quest path independently of
+Phonk and combat multipliers. Restored critical cuts request fatal-only
+reconciliation on usable frames until acknowledged; pause/reload cannot lose
+the request, and partial HP damage is not replayed.
+
+`SHIP_BASE::IsHullPositionRetained` owns model-local support as the intersection
+of the saved cut half-spaces, defaulting to true for intact/legacy ships.
+Sailor graph points, routes, work targets and offsets consume it; removed support
+enters the existing fall/swim lifecycle. Mast/yard subtrees stay intact under
+their native attachment owner rather than being cut beneath unchanged cloth.
+The lowest unsupported/intersected authored mast falls through `MastFall` even
+on restoration. Pending mounting precedes either Execute or Realize exactly
+once, and deleted mast references are cleared. Individual hull-root rope/shroud
+anchors also consume support, cached by revision and model/root generation.
 
 Mechanical impacts reuse the same geometry, plane history, fragments, contact
 revision and flooding owner through `SHIP_BASE::ApplyHullImpact`. Their explicit
@@ -92,6 +122,15 @@ collision; this open mesh result is surface proportion, not measured mass. Nativ
 translation-unit syntax checks pass. These
 checks do not prove appearance, game frame cost or actual player acceptance.
 
+The reopened lifecycle passes source-derived ASan/UBSan checks combining the
+actual native cut/event body with real mesh splitting: ownership and attack
+ordering, waterplane/keel failure, dry/small-wet negatives, mast exclusion and
+load/pause/ack retry. The actual script VM passes own-Phonk structural death,
+OFF, duplicate settlement, partial damage, environmental ownership, quest and
+immortality guards and saved-attribute reconciliation. Crew fall/swim and
+route/offset negatives, both mast stage orders and attachment cache invalidation
+pass component checks; none proves the repaired battle frame.
+
 Required replay remains held Shift/ordinary return, tsunami launch/landing,
 contact survival/regen, aim hold/sweep/cut/fragment/char lifecycle, dry top trim,
 wave-driven flooding, bisection, pause/OFF/save/load and an ordinary cannon shot
@@ -105,6 +144,16 @@ disables lighting and their installed texture contains no visible black texels.
 The player clarified that the unresolved effect is surface wake/splashes while
 sailing, visible at particular camera angles. That producer remains under
 investigation; do not close it from the ordinary splash correction.
+The latest tentative location is ahead of the bow. `SEAFOAM::RealizeShipFoam_Particles`
+uses `frontEmitter[0/1]` (`seafoam`/`seafoam2`, `water1`) for ordinary bow spray;
+`frontEmitter[2]` (`seafoam_front`, `Sparcle2`) also serves tsunami and Phonk
+water entry. Both use unlit particles with culling disabled; installed `water1` has no black
+visible texels in any of its five mip levels (minimum visible luma80.06/255).
+The hull-side carcass starts at zero alpha at the nose. Missing normals and
+local particle lighting do not explain the camera dependence. The next decisive
+evidence is the same splash in correct/black camera views, or its texture label,
+shader entry and fog/local-volume inputs; source arithmetic alone cannot bind
+the reported black patch to one of these producers.
 
 ## Status
 

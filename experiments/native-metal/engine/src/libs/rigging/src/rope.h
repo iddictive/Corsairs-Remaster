@@ -4,6 +4,7 @@
 #include "geos.h"
 #include "matrix.h"
 #include "sail_base.h"
+#include "hull_support.h"
 
 class NODE;
 
@@ -129,6 +130,7 @@ class ROPE : public ROPE_BASE
         CMatrix *pMatWorld;
         int32_t sv, nv;
         int32_t st, nt;
+        RiggingHullSupport::Stamp hullSupport;
     };
 
     int groupQuantity;

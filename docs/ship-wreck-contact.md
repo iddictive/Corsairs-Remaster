@@ -8,7 +8,11 @@ That follow-up is source complete: sustained pressure, transient contact-work
 accumulation, catastrophic midship fracture and contact-budget-safe flooding pass
 their source/native component checks. Follow-up `1bc5325` passes canonical staging
 with signed engine `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`;
-the installed collision/fracture player replay remains pending.
+the player subsequently rejects structural survival and floating crew/rigging
+after ram/laser. A coherent structural-death/support repair is source verified
+in the shared ship owner (`sea-phonk.md`); its next canonical staging and player
+collision/fracture replay remain pending. Earlier component results do not close
+that reported failure.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 

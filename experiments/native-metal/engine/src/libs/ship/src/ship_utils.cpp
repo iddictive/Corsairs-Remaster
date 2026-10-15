@@ -9,11 +9,11 @@ BOOL SHIP::BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthSca
 {
     iNumVContour = 0;
 
-    if (phonkLaser.contourRevision && phonkLaser.contour.size() >= 3)
+    if (phonkLaser.contourRevision)
     {
         for (const auto &point : phonkLaser.contour)
             vContour[iNumVContour++] = CVECTOR(point.x * widthScale, 0.f, point.z);
-        return true;
+        return iNumVContour >= 3;
     }
 
     auto *pEnt = GetModel();

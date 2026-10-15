@@ -85,6 +85,7 @@ void DeleteShipEnvironment()
 	DelEventHandler("Ship_FireContext", "Ship_FireContext");
 	DelEventHandler("Ship_FireStep", "Ship_FireStep");
 	DelEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood");
+	DelEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut");
 	DelEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext");
 	DelEventHandler(SHIP_BORT_RELOADED, "Ship_OnBortReloaded");
 	DelEventHandler(SHIP_ACTIVATE_FIRE_PLACE, "Ship_ActivateFirePlace");
@@ -184,6 +185,7 @@ void CreateShipEnvironment()
 	SetEventHandler("Ship_FireContext", "Ship_FireContext", 0);
 	SetEventHandler("Ship_FireStep", "Ship_FireStep", 0);
 	SetEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood", 0);
+	SetEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut", 0);
 	SetEventHandler(SHIP_CHECK_SITUATION, "Ship_CheckSituation", 0);
 	SetEventHandler(SHIP_TO_STRAND, "Ship_OnStrand", 0);
 	SetEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext", 0);
@@ -2816,12 +2818,17 @@ void Ship_ApplyCrewHitpoints(ref rOurCharacter, float fCrewHP)
 
 void Ship_ApplyHullHitpoints(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex)
 {
-	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, false);
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, false, false);
 }
 
 void Ship_ApplyCollisionHitpoints(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex)
 {
-	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, true);
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, true, false);
+}
+
+void Ship_ApplyStructuralHullFailure(ref rOurCharacter, int iKillStatus, int iKillerCharacterIndex)
+{
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, stf(rOurCharacter.Ship.HP), iKillStatus, iKillerCharacterIndex, false, true);
 }
 
 float Ship_HullDamageMultiplier(ref rOurCharacter, int iKillerCharacterIndex)
@@ -2839,7 +2846,7 @@ float Ship_HullDamageMultiplier(ref rOurCharacter, int iKillerCharacterIndex)
 	return 1.0 + fPlus - fMinus;
 }
 
-void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex, bool collision)
+void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex, bool collision, bool structuralFailure)
 {
 	if (LAi_IsImmortal(rOurCharacter)) { return; }
 
@@ -2874,8 +2881,9 @@ void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStat
 		fMultiply = fMultiply * 0.5; 
 	} */
 	//fCurHP = stf(rOurCharacter.Ship.HP) - fHP * fMultiply * (1.0 + fPlus - fMinus);
-	float damage = fHP * Ship_HullDamageMultiplier(rOurCharacter, iKillerCharacterIndex);
-	if (collision) damage = SeaPhonk_CollisionDamage(rOurCharacter, damage);
+	float damage = stf(rOurCharacter.Ship.HP);
+	if (!structuralFailure) damage = fHP * Ship_HullDamageMultiplier(rOurCharacter, iKillerCharacterIndex);
+	if (collision && !structuralFailure) damage = SeaPhonk_CollisionDamage(rOurCharacter, damage);
 	fCurHP = stf(rOurCharacter.Ship.HP) - damage;
 	WdmMilitaryNavalContribution(rOurCharacter, iKillerCharacterIndex, stf(rOurCharacter.Ship.HP), fCurHP);
 	if (fCurHP <= 0.0)

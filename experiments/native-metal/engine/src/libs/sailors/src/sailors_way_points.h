@@ -81,6 +81,7 @@ struct Point
 
     bool buisy;
     bool disabled;
+    bool hullRetained = true; // Transient projection of the ship's saved hull cuts.
     bool cannonReloaded;
 
     int climbPosition; // If there is more than one person on the mast
@@ -100,6 +101,7 @@ struct Point
     bool IsMast() const;
     bool IsCannon() const;
     bool IsNormal() const;
+    bool IsAvailable() const { return !disabled && hullRetained; }
 };
 
 //-----------------------------------------------------------------------------------------------

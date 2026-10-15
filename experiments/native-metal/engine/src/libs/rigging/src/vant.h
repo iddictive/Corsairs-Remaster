@@ -4,6 +4,7 @@
 #include "dx9render.h"
 #include "geos.h"
 #include "vma.hpp"
+#include "hull_support.h"
 
 #include <filesystem>
 
@@ -116,6 +117,7 @@ class VANT_BASE : public Entity
         CMatrix *pMatWorld;
         entid_t model_id;
         entid_t shipEI;
+        RiggingHullSupport::Stamp hullSupport;
     };
 
     int groupQuantity;

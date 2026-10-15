@@ -64,9 +64,71 @@ std::vector<CVECTOR> clipContour(const std::vector<CVECTOR> &source, const Laser
     }
     return result;
 }
+float contourArea(const std::vector<CVECTOR> &contour)
+{
+    double area = 0.;
+    for (size_t n = 0; n < contour.size(); ++n)
+    {
+        const auto &a = contour[n], &b = contour[(n + 1) % contour.size()];
+        area += double(a.x) * b.z - double(b.x) * a.z;
+    }
+    return float(std::abs(area) * .5);
+}
 }
 
-bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring)
+bool SHIP::IsAuthoredMastNode(const NODE *node) const
+{
+    for (auto *ancestor = node; ancestor; ancestor = ancestor->parent)
+        for (const auto &mast : pMasts)
+            if (mast.pNode == ancestor) return true;
+    return false;
+}
+
+void SHIP::DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane)
+{
+    std::vector<mast_t *> detached;
+    const auto retained = [&](const CVECTOR &point)
+    { return IsHullPositionRetained(point) && (plane.normal | point) <= plane.distance + .05f; };
+    for (auto &mast : pMasts)
+        if (!mast.bBroken && mast.pNode && (!retained(mast.vSrc) || !retained(mast.vDst)))
+            detached.push_back(&mast);
+    std::sort(detached.begin(), detached.end(), [](const auto *a, const auto *b)
+    { return std::min(a->vSrc.y, a->vDst.y) < std::min(b->vSrc.y, b->vDst.y); });
+    for (auto *mast : detached)
+        if (!mast->bBroken && mast->pNode)
+        { mast->fDamage = 1.f; MastFall(mast); }
+}
+
+void SHIP::UpdateCutStructuralFailure()
+{
+    if (phonkLaser.originalWaterplaneArea > .001f &&
+        contourArea(phonkLaser.contour) <= phonkLaser.originalWaterplaneArea * .65f)
+        phonkLaser.structuralFailure = true;
+    // A bottom cut can retain the entire waterplane while removing the keel.
+    // Measure lost draft at the original keel samples, not projected substitutes.
+    unsigned failed = 0;
+    for (const auto &point : phonkLaser.originalKeel)
+    {
+        float bottom = point.y;
+        for (const auto &cut : phonkLaser.cuts)
+            if (cut.normal.y < -.5f)
+                bottom = std::max(bottom, (cut.distance - cut.normal.x * point.x - cut.normal.z * point.z) / cut.normal.y);
+        if (bottom - point.y >= std::max(.5f, -point.y) * .35f) ++failed;
+    }
+    if (!phonkLaser.originalKeel.empty() && failed * 5 >= phonkLaser.originalKeel.size() * 3)
+        phonkLaser.structuralFailure = true;
+}
+
+void SHIP::PublishHullCut(float removed, bool partial)
+{
+    auto *result = core.Event("SeaPhonk_HullCut", "alfll", GetACharacter(), phonkLaser.floodOwner,
+                              removed, int32_t(phonkLaser.structuralFailure), int32_t(partial));
+    if (phonkLaser.structuralFailure && result && result->GetInt() != 0)
+        phonkLaser.failureReported = true;
+}
+
+bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring,
+                            int32_t sourceOwner, ATTRIBUTES *attacker)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     using namespace storm::ship::phonk;
@@ -77,7 +139,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     auto *root = model ? model->GetNode(0) : nullptr;
     if (!root || !root->geo) return false;
     CMatrix modelWorld = model->mtx;
-    if (phonkLaser.contour.empty())
+    if (phonkLaser.cuts.empty() && phonkLaser.contour.empty())
     {
         CVECTOR contour[128]; int32_t count = 0;
         BuildContour(contour, count, 1.f);
@@ -85,9 +147,12 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         model->Update();
         if (count < 3 || count > 128) return false;
         phonkLaser.contour.assign(contour, contour + count);
+        phonkLaser.originalWaterplaneArea = contourArea(phonkLaser.contour);
+        if (bKeelContour) phonkLaser.originalKeel.assign(std::begin(vKeelContour), std::end(vKeelContour));
     }
-    const auto contour = clipContour(phonkLaser.contour, plane);
-    if (contour.size() < 3 || contour.size() > 128) return false;
+    auto contour = clipContour(phonkLaser.contour, plane);
+    if (contour.size() > 128) return false;
+    if (contour.size() < 3) contour.clear();
     const CVECTOR worldPoint = modelWorld * (plane.normal * plane.distance);
     const CVECTOR worldNormal = modelWorld * plane.normal - modelWorld.Pos();
     const auto localPlane = [&](NODE *node)
@@ -104,21 +169,17 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     if (!root->geo->CutByLaser(owner, localPlane(root), hull) || !hull.changed) return false;
     if (phonkLaser.floodCapacity <= 0.f)
     {
-        float area = 0.f;
-        for (size_t n = 0; n < phonkLaser.contour.size(); ++n)
-        {
-            const auto &a = phonkLaser.contour[n], &b = phonkLaser.contour[(n + 1) % phonkLaser.contour.size()];
-            area += a.x * b.z - b.x * a.z;
-        }
         GEOS::INFO info{}; root->geo->GetInfo(info);
         const float draft = std::max(.5f, State.fShipImmersion + SP.fWaterLine - info.boxcenter.y + info.boxsize.y * .5f);
-        phonkLaser.floodCapacity = std::max(1.f, std::abs(area) * .5f * draft * .35f);
+        phonkLaser.floodCapacity = std::max(1.f, phonkLaser.originalWaterplaneArea * draft * .35f);
     }
     phonkLaser.wetCut = false;
-    // Keep sixteen length-weighted samples per cut. Flooding samples actual
-    // moving water at4Hz, rather than running a fluid solver or per-frame rays.
+    // Keep actual opening points in sixteen height bands. Averaging upper and
+    // lower seams can put every sample above water while the keel is open.
     constexpr unsigned bins = 16;
     std::array<LaserBreach, bins> samples{};
+    std::vector<LaserBreach> openings;
+    float low = 0.f, high = 0.f;
     for (size_t n = 0; n < hull.seam.size(); ++n)
     {
         const auto &segment = hull.seam[n];
@@ -129,15 +190,25 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         modelWorld.MulToInv(root->glob_mtx * localB, b);
         const float length = std::sqrt(~(b - a));
         if (length <= .0001f) continue;
-        auto &sample = samples[n % bins];
-        sample.point += (a + b) * (.5f * length); sample.length += length;
+        const CVECTOR midpoint = (a + b) * .5f;
+        const CVECTOR world = modelWorld * midpoint;
+        if (openings.empty()) low = high = world.y;
+        low = std::min(low, world.y); high = std::max(high, world.y);
+        openings.push_back({midpoint, length, 0.f});
         if (!restoring && plane.charred && phonkLaser.edges.size() < 512) phonkLaser.edges.push_back({a, b, 0.f});
-        const CVECTOR world = modelWorld * ((a + b) * .5f);
         if (pSea && world.y < pSea->WaveXZ(world.x, world.z)) phonkLaser.wetCut = true;
+    }
+    for (const auto &opening : openings)
+    {
+        const float height = (modelWorld * opening.point).y;
+        const unsigned bin = std::min(bins - 1, unsigned(std::max(0.f, height - low) * bins / std::max(.001f, high - low)));
+        auto &sample = samples[bin];
+        if (sample.length == 0.f || height < (modelWorld * sample.point).y) sample.point = opening.point;
+        sample.length += opening.length;
     }
     for (auto &sample : samples)
         if (sample.length > .0001f)
-        { sample.point *= 1.f / sample.length; phonkLaser.breaches.push_back(sample); }
+            phonkLaser.breaches.push_back(sample);
     const auto fragment = [&](NODE *node, const storm_ship_laser::Result &result)
     {
         if (!result.fragment) return;
@@ -158,18 +229,11 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     rememberBinding(phonkLaser, root, unsigned(phonkLaser.cuts.size() + 1));
     // Reuse mast detachment so sails, ropes and flags leave with their support.
     // Geometry pointers retained below always belong to nodes still on this ship.
-    if (!restoring)
-        for (auto &mast : pMasts)
-            if (!mast.bBroken && mast.pNode)
-            {
-                const auto base = mast.vSrc.y < mast.vDst.y ? mast.vSrc : mast.vDst;
-                if ((plane.normal | base) > plane.distance + .05f)
-                { mast.fDamage = 1.f; MastFall(&mast); }
-            }
+    DetachUnsupportedCutMasts(plane);
     model->Update();
     for (int n = 1; auto *node = model->GetNode(n); ++n)
     {
-        if (!node->geo) continue;
+        if (!node->geo || IsAuthoredMastNode(node)) continue;
         storm_ship_laser::Result result;
         if (node->geo->CutByLaser(owner, localPlane(node), result))
         {
@@ -181,6 +245,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     const float removed = phonkLaser.remaining * std::clamp(hull.removedFraction, 0.f, 1.f);
     phonkLaser.remaining = std::max(0.f, phonkLaser.remaining - removed);
     phonkLaser.contour = contour;
+    UpdateCutStructuralFailure();
     ++phonkLaser.contourRevision;
     for (auto &point : vKeelContour)
     {
@@ -202,6 +267,15 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         saved->SetAttributeUseFloat("remaining", phonkLaser.remaining);
         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
         flood->SetAttributeUseFloat("capacity", phonkLaser.floodCapacity);
+        phonkLaser.floodOwner = sourceOwner;
+        flood->SetAttributeUseDword("owner", uint32_t(sourceOwner));
+        if (attacker)
+        {
+            const auto relation = Helper.GetRelationSafe(attacker, GetACharacter());
+            if (relation != RELATION_UNKNOWN)
+                core.Event(SHIP_FIRE_ACTION, "aal", GetACharacter(), Helper.GetMainCharacter(GetACharacter()), relation);
+        }
+        PublishHullCut(phonkLaser.wetCut ? removed : 0.f, plane.charred);
     }
     return true;
 #else
@@ -244,7 +318,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         auto *model = GetModel();
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
-            if (!node->geo) continue;
+            if (!node->geo || IsAuthoredMastNode(node)) continue;
             const std::string name = node->GetName() ? node->GetName() : "";
             const auto binding = std::find_if(phonkLaser.bindings.begin(), phonkLaser.bindings.end(), [&](const auto &b)
                 { return b.node == name && b.generation == node->geo->GeometryGeneration() && b.planes == phonkLaser.cuts.size(); });
@@ -267,6 +341,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         }
     }
     if (!deltaTime) return;
+    if (phonkLaser.structuralFailure && !phonkLaser.failureReported)
+        PublishHullCut(0.f, false);
     const float seconds = deltaTime * .001f;
     phonkLaser.impact.age = std::min(2.f, phonkLaser.impact.age + seconds);
     if (phonkLaser.impact.age > 1.f) phonkLaser.impact.energy = 0.f;
@@ -423,19 +499,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     if ((plane.normal | center) > plane.distance)
     { plane.normal *= -1.f; plane.distance *= -1.f; }
     phonkLaser.burn = 0.f; phonkLaser.contact = 0; phonkLaser.reload = laserReload;
-    if (!target->ApplyPhonkLaserCut(plane)) return;
-    target->phonkLaser.floodOwner = GetACharacter()->GetAttributeAsDword("index");
-    auto *flood = target->GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
-    flood->SetAttributeUseDword("owner", uint32_t(target->phonkLaser.floodOwner));
-    auto *victim = target->GetACharacter();
-    const auto relation = Helper.GetRelationSafe(GetACharacter(), victim);
-    if (relation != RELATION_UNKNOWN)
-        core.Event(SHIP_FIRE_ACTION, "aal", victim, Helper.GetMainCharacter(victim), relation);
-    auto *saved = victim->FindAClass(victim, "Ship.PhonkLaserCuts");
-    const float fraction = saved && target->phonkLaser.wetCut ? saved->GetAttributeAsFloat("lastFraction") : 0.f;
-    core.Event("SeaPhonk_LaserHit", "alfl", victim, GetACharacter()->GetAttributeAsDword("index"),
-               fraction, int32_t(target->phonkLaser.wetCut && target->phonkLaser.remaining <= .65f &&
-                                 std::abs(plane.normal.y) < .75f));
+    target->ApplyPhonkLaserCut(plane, false, int32_t(GetACharacter()->GetAttributeAsDword("index")), GetACharacter());
 }
 
 void SHIP::DrawPhonkLaser()
@@ -605,11 +669,8 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         plane.distance = plane.normal.z * point.z;
     }
     const size_t firstPiece = phonkLaser.fragments.size();
-    if (!ApplyPhonkLaserCut(plane)) return;
+    if (!ApplyPhonkLaserCut(plane, false, otherCharacterIndex)) return;
     work.energy = 0.f;
-    phonkLaser.floodOwner = otherCharacterIndex;
-    auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
-    flood->SetAttributeUseDword("owner", uint32_t(otherCharacterIndex));
     for (size_t n = firstPiece; n < phonkLaser.fragments.size(); ++n)
         phonkLaser.fragments[n].velocity += !outwardNormal * (std::sqrt(2.f * energy) * .18f);
 }

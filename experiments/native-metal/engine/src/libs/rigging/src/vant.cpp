@@ -9,6 +9,7 @@
 #include "shared/sail_msg.h"
 #include "ship_base.h"
 #include "v_file_service.h"
+#include "hull_support.h"
 
 static const char *RIGGING_INI_FILE = "resource\\ini\\rigging.ini";
 
@@ -88,6 +89,21 @@ void VANT_BASE::Execute(uint32_t Delta_Time)
 {
     if (bRunFirstTime)
         FirstRun();
+    for (int gn = 0; gn < groupQuantity; ++gn)
+    {
+        if (gdata[gn].bDeleted) continue;
+        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI));
+        RiggingHullSupport support(ship, static_cast<MODEL *>(core.GetEntityPointer(gdata[gn].model_id)));
+        if (!support.NeedsCheck(gdata[gn].hullSupport)) continue;
+        for (int i = 0; i < gdata[gn].vantQuantity; ++i)
+        {
+            auto *vant = vlist[gdata[gn].vantIdx[i]];
+            if (!vant->bDeleted && (!support.Retains(vant->pUpMatWorld, vant->pUp) ||
+                                  !support.Retains(vant->pDownMatWorld, vant->pLeft) ||
+                                  !support.Retains(vant->pDownMatWorld, vant->pRight)))
+            { vant->bDeleted = true; bYesDeleted = true; }
+        }
+    }
     if (bYesDeleted)
         DoSTORM_DELETE();
 

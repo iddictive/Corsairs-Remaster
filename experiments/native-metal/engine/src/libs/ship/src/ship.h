@@ -194,7 +194,12 @@ class SHIP : public SHIP_BASE
     void DrawPhonkGlow(uint32_t deltaTime);
     void ExecutePhonkLaser(uint32_t deltaTime);
     void DrawPhonkLaser();
-    bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false);
+    bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false,
+                           int32_t owner = -1, ATTRIBUTES *attacker = nullptr);
+    bool IsAuthoredMastNode(const NODE *node) const;
+    void DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane);
+    void UpdateCutStructuralFailure();
+    void PublishHullCut(float removed, bool partial);
     float TsunamiProtection();
     CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
     float WhirlpoolControl();
@@ -256,6 +261,12 @@ class SHIP : public SHIP_BASE
 
     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
     unsigned GetHullContourRevision() const override { return phonkLaser.contourRevision; }
+    bool IsHullPositionRetained(const CVECTOR &localPosition) const override
+    {
+        for (const auto &plane : phonkLaser.cuts)
+            if ((plane.normal | localPosition) > plane.distance + .05f) return false;
+        return true;
+    }
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;
     void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,

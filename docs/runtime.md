@@ -4,6 +4,20 @@ Last verified delivery: October15. Gameplay commits `f4d3c58` and `1bc5325` are 
 
 ## Current verdict
 
+### October15 — installed fracture acceptance reopened; coherent repair ready
+
+The player rejects the4c14ef scene: half hulls survive and crew/rigging remain
+over removed support after both ram and laser. Their new explicit structural
+fatality requirement also covers their own Phonk hull; intact-contact HP limits
+remain. This reopens acceptance of the earlier component-verified delivery.
+The source owner freezes21 paths for one cut/death event, waterplane/keel
+failure, pause/load acknowledgement, retained crew support and native mast/rig
+detachment. Actual-method/real-mesh ASan/UBSan, native syntax and VM cases pass;
+these do not accept the player's scene. `sea-phonk.md` owns detailed evidence.
+The root's current process check finds no game holder. Root integrates this
+coherent packet with the separately committed wake and MetalFX identity fixes
+for the next immediate canonical stage; no renderer experiment is included.
+
 ### October15 — early-HUD MetalFX sea identity correction source verified
 
 The player reports missing ordinary-sea aim draping on installed4c14ef with
