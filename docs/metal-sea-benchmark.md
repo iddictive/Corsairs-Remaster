@@ -225,6 +225,60 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 
 ## Proven local work and rejection rules
 
+### Reflection aggregation fit
+
+`sea/src/env_map.cpp::EnvMap_Render` visits five cube directions above water and
+six below. Eight fixture ships therefore receive40 above-water reflection
+realizations, each repeating model/node/material visibility traversal; this is
+not40 complete GPU hull draws because each view culls separately. The warm
+sun-road producer updates one direction per frame and explicitly excludes Ship,
+Sail and Island. Fixture ShipLights handles that message. Sail and Flag list
+membership does not imply drawing: their message handlers lack the reflection
+case; Sailors belongs only to the main SEA_REALIZE layer. Do not multiply all311
+animated fixture draws through reflection faces.
+
+The player's whole-vessel aggregation idea maps most closely to reusable
+geometry/material command templates plus Metal layered cubemap rendering.
+Apple's [reflection sample](https://developer.apple.com/documentation/metal/rendering-reflections-with-fewer-render-passes)
+and [texture-slice contract](https://developer.apple.com/documentation/metal/rendering-to-multiple-texture-slices-in-a-draw-command)
+support per-instance face matrices and render-target array selection. This can
+remove repeated traversal/encoding; vertices and fragments still execute for
+every admitted direction. Different materials, skinning, alpha/cull/blend and
+view-dependent fog/specular require preserved packet/per-view state. Main-camera
+color cannot reconstruct surfaces hidden from that camera. A separately baked
+vessel image must first pay its current geometry rendering and retain depth for
+inter-vessel composition.
+
+Next admission is an existing-reflection-stream inventory: draw count D, unique
+compatible packet count C, face masks, and traversal/preparation time separate
+from encoding. The observed800-draw refresh exclusion is an opportunity budget,
+not proof that D/C is large or that aggregation reaches120FPS. Preserve the
+current background/depth split and modern water's depth-aware reprojection;
+then require per-face color/depth, camera/pose and material negative cases before
+a whole-fleet comparison. No aggregation candidate is implemented or installed.
+
+Captured012905 command lists now bound this proposal before implementation:
+environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
+face has10 dynamic-sky draws and1 generic sky/fog draw, leaving138/75/0/531/0
+raw-lit ship draws. Without merging different packets, layered execution needs
+at least542 calls (the largest face), so removes at most257/799 calls; for raw
+ship geometry the bound is213/744, not a fivefold reduction. This does not bound
+CPU traversal savings or prove actual packet equivalence. Native command output
+and `opportunity.json` belong to001520/reflection-aggregation-fit; no new GPU
+workload or game control was used.
+
+The separate proposal to gather packets before color, build maps and fuse sea
+shadows into main color also needs a different preserving shader path. Existing
+Location `shadeLand` applies shadow before material/fog; sea's receiver multiplies
+the already fogged material output by a lighting-only ratio. A single-channel
+analytical counterexample (lighting.8→.32, texture.5, fog transmission.5/color.2)
+gives.156 post-receiver versus.18 direct. This is an expression incompatibility,
+not a Metal pixel result or proof of desired appearance. The retained
+`direct-shadow-expression-fit.json` binds the source hash. Coincident Equal-depth
+packets, receiver/main alpha differences, solar sampling and current late-map
+availability remain separate gates; do not substitute the Location shader as
+an already equivalent implementation.
+
 The pending mixed-precision cloud candidate changes only normalized shape/detail
 fBm sums to half intermediates and half literals, then returns to float before
 the existing remaps. Large planet/world positions, domain warp, gradient,
