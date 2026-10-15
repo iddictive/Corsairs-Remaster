@@ -13,7 +13,7 @@ int metalGraphicsDesktopWidth = 1920;
 int metalGraphicsDesktopHeight = 1080;
 int settingsTop = 0;
 
-#define SETTINGS_ROW_COUNT 33
+#define SETTINGS_ROW_COUNT 34
 #define SETTINGS_VISIBLE_ROWS 18
 #define SETTINGS_ROW_HEIGHT 25
 #define SETTINGS_TOP 60
@@ -812,27 +812,28 @@ void InitSettingsRows()
 	SetSettingsRow(9, "METAL_RESOLUTION_PICKER");
 	SetSettingsRow(10, "METAL_VSYNC_CHECKBOX");
 	SetSettingsRow(11, "METAL_ANTIALIASING_CHECKBOX");
-	SetSettingsRow(12, "METAL_DYNAMIC_LIGHTING_CHECKBOX");
-	SetSettingsRow(13, "METAL_SHADOW_QUALITY_PICKER");
-	SetSettingsRow(14, "METAL_MODERN_LIGHTING_CHECKBOX");
-	SetSettingsRow(15, "METAL_LIGHT_SHAFTS_CHECKBOX");
-	SetSettingsRow(16, "METAL_DYNAMIC_SKY_CHECKBOX");
-	SetSettingsRow(17, "METAL_CINEMATIC_CHECKBOX");
-	SetSettingsRow(18, "METAL_MODERN_WATER_CHECKBOX");
-	SetSettingsRow(19, "");
-	SetSettingsRow(20, "SEA_CAM_PERSP_SLIDE");
-	SetSettingsRow(21, "LAND_CAM_RAD_SLIDE");
-	SetSettingsRow(22, "");
-	SetSettingsRow(23, "HERB_CHECKBOX");
-	SetSettingsRow(24, "");
-	SetSettingsRow(25, "MUSIC_SLIDE");
-	SetSettingsRow(26, "SOUND_SLIDE");
-	SetSettingsRow(27, "DIALOG_SLIDE");
-	SetSettingsRow(28, "");
-	SetSettingsRow(29, "SIMPLESEA_CHECKBOX");
-	SetSettingsRow(30, "AUTOSAVE_CHECKBOX");
-	SetSettingsRow(31, "BATTLE_MODE_CHECKBOX");
-	SetSettingsRow(32, "SHIPMARK_CHECKBOX");
+	SetSettingsRow(12, "METAL_UPSCALING_PICKER");
+	SetSettingsRow(13, "METAL_DYNAMIC_LIGHTING_CHECKBOX");
+	SetSettingsRow(14, "METAL_SHADOW_QUALITY_PICKER");
+	SetSettingsRow(15, "METAL_MODERN_LIGHTING_CHECKBOX");
+	SetSettingsRow(16, "METAL_LIGHT_SHAFTS_CHECKBOX");
+	SetSettingsRow(17, "METAL_DYNAMIC_SKY_CHECKBOX");
+	SetSettingsRow(18, "METAL_CINEMATIC_CHECKBOX");
+	SetSettingsRow(19, "METAL_MODERN_WATER_CHECKBOX");
+	SetSettingsRow(20, "");
+	SetSettingsRow(21, "SEA_CAM_PERSP_SLIDE");
+	SetSettingsRow(22, "LAND_CAM_RAD_SLIDE");
+	SetSettingsRow(23, "");
+	SetSettingsRow(24, "HERB_CHECKBOX");
+	SetSettingsRow(25, "");
+	SetSettingsRow(26, "MUSIC_SLIDE");
+	SetSettingsRow(27, "SOUND_SLIDE");
+	SetSettingsRow(28, "DIALOG_SLIDE");
+	SetSettingsRow(29, "");
+	SetSettingsRow(30, "SIMPLESEA_CHECKBOX");
+	SetSettingsRow(31, "AUTOSAVE_CHECKBOX");
+	SetSettingsRow(32, "BATTLE_MODE_CHECKBOX");
+	SetSettingsRow(33, "SHIPMARK_CHECKBOX");
 	ScrollSettings(0);
 }
 
@@ -959,6 +960,15 @@ string MetalGraphicsShadowLabel()
 	return XI_ConvertString("Shadow Quality Medium");
 }
 
+string MetalGraphicsUpscalingLabel()
+{
+	int mode = sti(InterfaceStates.MetalUpscaling);
+	if(mode==1) return XI_ConvertString("MetalFX Quality");
+	if(mode==2) return XI_ConvertString("MetalFX Balanced");
+	if(mode==3) return XI_ConvertString("MetalFX Performance");
+	return XI_ConvertString("MetalFX Off");
+}
+
 void SetMetalGraphicsCheckbox(string sNode, int enabled)
 {
 	SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,sNode,2,1,enabled);
@@ -983,8 +993,13 @@ void GetMetalGraphicsData()
 	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td1.str = XI_ConvertString("Metal Shadow Quality");
 	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td2.str = "<  " + MetalGraphicsShadowLabel() + "  >";
 	GameInterface.METAL_SHADOW_QUALITY_PICKER.tr1.td2.align = "center";
+	GameInterface.METAL_UPSCALING_PICKER.select = 1;
+	GameInterface.METAL_UPSCALING_PICKER.tr1.td1.str = XI_ConvertString("MetalFX");
+	GameInterface.METAL_UPSCALING_PICKER.tr1.td2.str = "<  " + MetalGraphicsUpscalingLabel() + "  >";
+	GameInterface.METAL_UPSCALING_PICKER.tr1.td2.align = "center";
 	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_RESOLUTION_PICKER",0);
 	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_SHADOW_QUALITY_PICKER",0);
+	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_UPSCALING_PICKER",0);
 }
 
 void ChangeMetalGraphicsPicker(string sNode, int direction)
@@ -1003,6 +1018,12 @@ void ChangeMetalGraphicsPicker(string sNode, int direction)
 		if(quality > 2) quality = 0;
 		InterfaceStates.MetalShadowQuality = quality;
 	}
+	if(sNode == "METAL_UPSCALING_PICKER") {
+		int mode = sti(InterfaceStates.MetalUpscaling) + direction;
+		if(mode < 0) mode = 3;
+		if(mode > 3) mode = 0;
+		InterfaceStates.MetalUpscaling = mode;
+	}
 	GetMetalGraphicsData();
 }
 
@@ -1010,7 +1031,7 @@ void ProcessMetalGraphicsCommand()
 {
 	string sCommand = GetEventData();
 	string sNode = GetEventData();
-	if(sNode != "METAL_RESOLUTION_PICKER" && sNode != "METAL_SHADOW_QUALITY_PICKER") return;
+	if(sNode != "METAL_RESOLUTION_PICKER" && sNode != "METAL_SHADOW_QUALITY_PICKER" && sNode != "METAL_UPSCALING_PICKER") return;
 	if(sCommand=="leftstep" || sCommand=="speedleft") ChangeMetalGraphicsPicker(sNode,-1);
 	if(sCommand=="rightstep" || sCommand=="speedright") ChangeMetalGraphicsPicker(sNode,1);
 }
@@ -1020,14 +1041,14 @@ void ClickMetalGraphicsRow()
 	string sNode = GetEventData();
 	int nRow = GetEventData();
 	int nColumn = GetEventData();
-	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER") ChangeMetalGraphicsPicker(sNode,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 void ActivateMetalGraphicsRow()
 {
 	string sNode = GetEventData();
 	int nRow = GetEventData();
-	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER") ChangeMetalGraphicsPicker(sNode,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 int MetalGraphicsFlags()
@@ -1040,13 +1061,15 @@ int MetalGraphicsFlags()
 	if(sti(InterfaceStates.MetalLightShafts)) flagsMask = flagsMask + 16;
 	if(sti(InterfaceStates.MetalDynamicSky)) flagsMask = flagsMask + 32;
 	if(sti(InterfaceStates.MetalAntialiasing)) flagsMask = flagsMask + 64;
+	flagsMask = flagsMask + sti(InterfaceStates.MetalUpscaling) * 128;
 	return flagsMask;
 }
 
 bool PrepareMetalGraphicsOptions()
 {
 	int resolution = sti(InterfaceStates.MetalResolution);
-	if(resolution < 0 || resolution > 5) {
+	string upscaling = InterfaceStates.MetalUpscaling;
+	if(resolution < 0 || resolution > 5 || (upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3")) {
 		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Apply Error"));
 		return false;
 	}

@@ -38,7 +38,7 @@ require("StormMetalLightShaftMesh" in source and "positions.data()" in source an
 mesh = source.split("void SubmitAuthoredWindowMeshes", 1)[1].split("} // namespace", 1)[0]
 require("FindLocatorsGroup(\"lightshafts\")" not in mesh,
         "authored window mesh producer must not depend on a locator convention")
-require("StormMetalResetLightShaftOpenings(rs->GetD3DDevice())" in source,
+require("StormMetalResetLightShaftOpenings(rs->GetNativeDevice())" in source,
         "location transition does not clear stale openings")
 
 available = {path.stem.casefold() for path in models.rglob("*.gm")}

@@ -40,6 +40,7 @@ DEFAULTS = {
     "light_shafts": True,
     "dynamic_sky": True,
     "antialiasing": False,
+    "upscaling": 0,
     "vsync": False,
     "full_screen": True,
     "resolution": 2,
@@ -64,10 +65,13 @@ ENV_KEYS = {
 
 INTEGER_ENV_KEYS = {
     "shadow_quality": "STORM_METAL_SHADOW_QUALITY",
+    "upscaling": "STORM_METAL_UPSCALING",
 }
 
 SHADOW_QUALITY_MIN = 0
 SHADOW_QUALITY_MAX = 2
+UPSCALING_MIN = 0
+UPSCALING_MAX = 3
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -175,6 +179,9 @@ def graphics_values(runtime: Path) -> dict[str, int | bool]:
     result["shadow_quality"] = integer_value(
         values, "shadow_quality", SHADOW_QUALITY_MIN, SHADOW_QUALITY_MAX
     )
+    if "upscaling" in values and values["upscaling"] not in {"0", "1", "2", "3"}:
+        raise ValueError("upscaling: expected a mode from 0 to 3")
+    result["upscaling"] = integer_value(values, "upscaling", UPSCALING_MIN, UPSCALING_MAX)
     result["full_screen"] = bool_value(values, "full_screen")
     result["vsync"] = (
         bool_value(values, "vsync") if "vsync" in values
@@ -300,12 +307,18 @@ def initialize_record(runtime: Path) -> None:
     record = runtime / METAL_OPTIONS
     if record.exists():
         graphics_values(runtime)  # Reject malformed persisted input before launch.
-        if "vsync" not in parse_record(record):
-            # Upgrade only the missing field; retain existing choices and bytes.
+        stored = parse_record(record)
+        additions = {}
+        if "vsync" not in stored:
+            additions["vsync"] = int(current_vsync(runtime / "engine.ini"))
+        if "upscaling" not in stored:
+            additions["upscaling"] = DEFAULTS["upscaling"]
+        if additions:
+            # Upgrade only missing fields; retain existing choices and bytes.
             source = record.read_bytes()
             separator = b"" if not source or source.endswith(b"\n") else b"\n"
-            value = int(current_vsync(runtime / "engine.ini"))
-            atomic_write(record, source + separator + f"vsync={value}\n".encode())
+            suffix = "".join(f"{key}={value}\n" for key, value in additions.items()).encode()
+            atomic_write(record, source + separator + suffix)
         return
     values = dict(DEFAULTS)
     (

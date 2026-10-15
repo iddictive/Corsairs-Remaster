@@ -90,7 +90,7 @@ def main() -> None:
     static_loop = location_source.index("for (int32_t i = 0; includeStatic && i < model.Models(); ++i)")
     require(character_loop > static_loop > 0 and static_gate > 0,
             "character caster loop remains separate from the static sun gate")
-    require("!StormMetalBakedStaticEnvironment(RenderService->GetD3DDevice())" in patch,
+    require("!StormMetalBakedStaticEnvironment(RenderService->GetNativeDevice())" in patch,
             "slot-1 neutralization preserves the authored baked receiver in the same scope")
     require("RenderMetalShadowCasters(false)" not in patch and
             "!bakedStaticEnvironment && i < model.Models()" not in patch,

@@ -33,7 +33,7 @@ target_include_directories(storm_metal PUBLIC
   "${PLATFORM_TYPES_SOURCE}")
 target_include_directories(storm_metal PRIVATE "${STORM_SOURCE}/src/libs/shared_headers/include")
 target_link_libraries(storm_metal PUBLIC SDL2::SDL2 cloud_noise_assets
-  "-framework Metal" "-framework Cocoa" "-framework QuartzCore")
+  "-framework Metal" "-framework MetalFX" "-framework Cocoa" "-framework QuartzCore")
 set(NATIVE_RENDERER_LIB storm_metal CACHE STRING "Direct Metal backend" FORCE)
 # WEATHER_BASE has conditional virtuals; every consumer needs the same ABI.
 add_compile_definitions(FMT_CONSTEVAL= STORM_METAL_AIM_VOLUME_BRIDGE=1 STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 STORM_METAL_SCENE_HUD_BOUNDARY=1 STORM_METAL_INTERFACE_BACK_SCENE=1 STORM_METAL_DYNAMIC_SKY_BRIDGE=1 STORM_METAL_WEATHER_VISUAL_STATE=1 STORM_METAL_ROCKK2=1 STORM_METAL_LIGHT_SHAFT_OPENINGS=1 STORM_METAL_RENDERER_CONSUMERS=1 STORM_METAL_PARTICLE_BRIDGE=1 STORM_METAL_GRASS_BRIDGE=1)

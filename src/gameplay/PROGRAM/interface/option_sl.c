@@ -27,6 +27,7 @@ void PrepareDefaultMetalGraphics(ref optref)
 	optref.light_shafts = true;
 	optref.dynamic_sky = true;
 	optref.antialiasing = false;
+	optref.upscaling = 0;
 	optref.vsync = false;
 	optref.full_screen = true;
 	optref.resolution = 2;
@@ -46,6 +47,8 @@ void ReadMetalGraphicsOptions()
 
 bool SaveMetalGraphicsOptions()
 {
+	string upscaling = InterfaceStates.MetalUpscaling;
+	if(upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3") return false;
 	object gopt;
 	PrepareDefaultMetalGraphics(&gopt);
 	GetMetalGraphicsOptions(&gopt);
@@ -62,6 +65,7 @@ void GetMetalGraphicsOptions(ref optref)
 	optref.light_shafts = InterfaceStates.MetalLightShafts;
 	optref.dynamic_sky = InterfaceStates.MetalDynamicSky;
 	optref.antialiasing = InterfaceStates.MetalAntialiasing;
+	optref.upscaling = InterfaceStates.MetalUpscaling;
 	optref.vsync = InterfaceStates.MetalVSync;
 	optref.full_screen = InterfaceStates.MetalFullScreen;
 	optref.resolution = InterfaceStates.MetalResolution;
@@ -73,6 +77,9 @@ void GetMetalGraphicsOptions(ref optref)
 
 void SetMetalGraphicsOptions(ref optref)
 {
+	string upscaling = optref.upscaling;
+	if(upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3") return;
+	InterfaceStates.MetalUpscaling = sti(upscaling);
 	InterfaceStates.MetalDynamicLighting = sti(optref.dynamic_lighting);
 	InterfaceStates.MetalShadowQuality = sti(optref.shadow_quality);
 	if(sti(InterfaceStates.MetalShadowQuality)<0 || sti(InterfaceStates.MetalShadowQuality)>2) InterfaceStates.MetalShadowQuality = 1;

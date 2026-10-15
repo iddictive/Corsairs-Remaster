@@ -11,13 +11,13 @@ def need(condition, message):
 
 need(source.count('extern "C" void StormMetalInterfaceBackScene(void *, bool);') == 1,
      "InterfaceBackScene bridge declaration")
-need(source.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);") == 1,
+need(source.count("StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), true);") == 1,
      "single menu-domain enter")
-need(source.count("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") == 1,
+need(source.count("StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), false);") == 1,
      "single menu-domain exit")
-need(source.index("m_pRS = static_cast<VDX9RENDER") < source.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);"),
+need(source.index("m_pRS = static_cast<VDX9RENDER") < source.index("StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), true);"),
      "enter follows renderer acquisition")
-need(source.index("StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);") < source.index("RestoreLight();"),
+need(source.index("StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), false);") < source.index("RestoreLight();"),
      "exit precedes renderer-owned teardown")
 need("STORM_METAL_INTERFACE_BACK_SCENE=1" in cmake,
      "bridge compile definition")

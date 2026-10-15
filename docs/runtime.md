@@ -1,10 +1,50 @@
 # Runtime state
 
-Last verified delivery: October14. Native fleet profiling, foam/cloud work, sailor topology and empty-ray support through8b74436 are installed in the supported application with signed engine `ee5a226b798ab07b8fbabbbb8d97a8b09d573d1b6fdaae9fe5d50a80dbb763d5`; prior13180929 is backed up. Sea submission, phonk/Cmd-Q, oblique map/resource prewarm, scene lighting, fixed-lattice water and previous native changes remain composed. Canonical staging exits0; independent content check reports0 pending in cache/app and compiler ready. Requested player pacing is configured as VSync0/max_fps0, with all other config lines unchanged and private config backups retained. The equivalent fleet workload remains above the8.33ms target; installed sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. The native render API replacement, submission cache and MetalFX Spatial/Options batch are installed in the supported application with signed engine `d50531dd5fa49be0973a185b960a5f143e3a4b5fc36a586c31f3fd48c15261ec`; prior `ee5a226b798ab07b8fbabbbb8d97a8b09d573d1b6fdaae9fe5d50a80dbb763d5` is backed up. Canonical stage-only exits0 and the graphics adapter matches its source; content check reports0 pending in cache/app and compiler ready. Prior sea/weather, phonk/Cmd-Q, map/resource, lighting and fixed-lattice water changes remain composed. Native is the default upscaling mode; player state/configuration is preserved. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
-### October14 — submission cache; MetalFX requested before delivery
+### October14 — MetalFX Spatial delivered;120FPS remains unmet
+
+The requested MetalFX picker and native Spatial scaler are integrated with the
+native API/cache batch. Options adds Off/Quality/Balanced/Performance after FXAA;
+the existing message ABI carries the mode in flags bits7–8. Native0 remains the
+default. The owning contract is `docs/metal-graphics-settings.md`.
+
+The engine and embedded scaler/copy/depth shaders compile on the M3 Max.
+One-off native GPU checks pass all four modes, internal/native dimensions,
+mid-scene readback with the frozen slot, an exact one-pixel markerless glyph,
+HUD/repeated markers/depth clear, Present fallback, mode toggles, resize/reset
+and unknown-mask rejection. Existing menu/interior FXAA/bloom, resource pixels,
+authored alpha and GPU skinning probes pass. Actual script VM execution passes
+the settings default, four mode/flag round trips, picker wrap and malformed
+value preserving prior state, with zero script errors. No new permanent tests
+were added. Full Options input/rendering and player-world replay remain pending.
+
+Sequential frozen fleet runs use2560x1655,8 Manowars and256 measured frames
+after128 warmup. Native213124: CPU12.914/GPU14.651ms medians; Quality213207:
+12.146/14.867ms; Performance213357:12.240/14.037ms; closing Native213627:
+13.006/14.623ms. GPU p99:17.955/19.790/18.401/17.861ms respectively. Each
+retains152 sails,311 animated draws, sea/current sky and8 complete point cubes.
+Quality does not improve GPU time here; Performance saves about0.6ms, roughly4%,
+with a lower-resolution scene. Neither meets the8.33ms CPU/GPU budget. The
+reviewed whole-frame exports retain scene composition and water/reflections;
+thin rigging loses detail with spatial scaling. Motion/weather/player fidelity
+is not inferred from still exports. The legacy underwater offscreen path remains
+Native and has no measured scaling benefit.
+
+Canonical staging first stopped at an old baked-shadow source spelling check:
+its GetD3DDevice assertion no longer matched the migrated GetNativeDevice call.
+The existing five affected getter-contract probes were aligned with the actual
+native owner, retaining their receiver/caster/lifecycle checks; all pass. The
+second exact `experiments/native-metal/run.sh --stage-only` exits0 and installs
+signed d50531dd with the previous engine backup, matching launch adapter and0
+pending gameplay files. Nine app/cache protected files and526 player-state files
+retain their recorded hashes. No game launch, SAVE/config preference change or
+push was performed. The separately documented inherited grass-fog mismatch is
+unchanged and outside this batch.
+
+### Historical October14 snapshot — submission cache; MetalFX requested before delivery
 
 The native API milestone is committed as821c3ab. The subsequent backend-only
 candidate shares encoder-local raster/depth/blend/viewport and shadow-texture
@@ -40,7 +80,7 @@ temporal capability alone does not supply motion vectors/history. No new app
 delivery or game launch has occurred. Installed signed engineee5a226b remains
 the last delivered runtime while the requested scaler and settings are integrated.
 
-### October14 — native API candidate; installed app unchanged
+### Historical October14 snapshot — native API candidate; installed app unchanged
 
 The engine and all existing CMake targets compile after removing the shipping
 D3D9/COM API and graphics-header dependency. Twelve existing native checks pass,

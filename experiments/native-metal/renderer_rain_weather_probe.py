@@ -25,15 +25,15 @@ need('extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rect
      "shared semantic RS_RECT C bridge ABI missing")
 need("virtual void DrawWeatherSprites" not in (SOURCE / "src/libs/renderer/include/dx9render.h").read_text(),
      "renderer interface must not gain an unimplemented pure virtual")
-need(len(re.findall(r"StormMetalDrawBillboards\([^;]*GetD3DDevice\(\)", native)) == 4,
+need(len(re.findall(r"StormMetalDrawBillboards\([^;]*GetNativeDevice\(\)", native)) == 4,
      "every Metal weather call must use the shared device bridge")
-need('StormMetalDrawBillboards(rs->GetD3DDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1' in rain,
+need('StormMetalDrawBillboards(rs->GetNativeDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1' in rain,
      "rain atlas ABI drift")
-need('StormMetalDrawBillboards(rs->GetD3DDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f' in rain,
+need('StormMetalDrawBillboards(rs->GetNativeDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f' in rain,
      "rainbow ABI drift")
-need("StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->sTechnique.c_str(), dwSubTexX" in lightning,
+need("StormMetalDrawBillboards(pRS->GetNativeDevice(), pR, 1, pL->sTechnique.c_str(), dwSubTexX" in lightning,
      "lightning atlas/scale ABI drift")
-need("StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->Flash.sTechnique.c_str(), 1, 1" in lightning,
+need("StormMetalDrawBillboards(pRS->GetNativeDevice(), pR, 1, pL->Flash.sTechnique.c_str(), 1, 1" in lightning,
      "flash ABI drift")
 need("255.0f * pL->fAlpha" in lightning and "255.0f * pL->fAlpha * pL->fPower" in lightning and
      lightning.count("makeRGB(dwAlpha, dwAlpha, dwAlpha)") == 2, "lightning alpha equations changed")
