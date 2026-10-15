@@ -1,8 +1,37 @@
 # Runtime state
 
-Last verified delivery: October15. Coherent source `9288f64`, including structural-death/support, long-wake and MetalFX sea-identity corrections, is installed with signed engine `498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db`; prior `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All508 freshly recorded protected player files retain their hashes, including SAVE/userdata/settings; no game was launched. Earlier renderer/MetalFX/sea/weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of repaired fracture/crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Coherent source `50daab4`, including pressure admission, protected contact material and shared jagged mechanical fractures, is installed with signed engine `d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18`; prior `498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no game was launched. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of contact/Phonk/jagged fracture, crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — pressure, protected material and jagged fracture canonically delivered
+
+Canonical `run.sh --stage-only` of `50daab4` exits0 and installs signed engine
+`d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18`.
+The native/AIShip batch is coherent; canonical strict/deep sealing passes and
+independent content check reports0 pending in cache/app with compiler ready.
+Fresh guarded518-file before/after hashes have0 changes/additions; no game was
+launched. Log, source commit and protection receipt belong to
+`experiments/native-metal/.cache/diagnostics/contact-jagged-stage-20261015.log`
+and matching `.json`/`-player-before.json`. Previous498cc8dc is backed up.
+This accepts delivery only. Player contact/protected-hull/jagged-frame replay,
+renderer-crash cause and the120FPS goal remain unresolved.
+
+### October15 — bounded order and diagnostic-cost controls
+
+Captured compatible main draws admit390→234 under conservative screen-disjoint
+stable grouping, preserving original instance order and all9009 reversed-pair
+separations. Existing local AABB corners retain the same156 reductions. This
+is5% of3125 native captured draw calls, not a measured FPS gain. Frozen linked
+profile1/0/1 Core means13.937/13.712/13.894ms bound diagnostic overhead near0.2ms;
+it does not account for the missing time to120FPS. `metal-sea-benchmark.md` owns
+source-bound assumptions, runs and the viewport/visual proof ceiling.
+
+The original cache crash remains unreproduced. Actual production mimalloc cache
+churn passes, and a partially instrumented real GEOM/Device/renderer/TCarcass
+run135700 passes23 changed cuts, two resets and six foam lifetimes in24 hidden
+frames. `metal-frame-pacing.md` owns that narrower negative evidence. No native
+performance change or renderer-crash fix is delivered by these diagnostics.
 
 ### October15 — pressure, protected material and jagged fracture source integrated
 

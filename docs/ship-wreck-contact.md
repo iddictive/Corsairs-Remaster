@@ -17,9 +17,10 @@ The player then rejects a small NPC grinding against a passive heavy hull and
 Phonk losing physical hull despite its contact budget. A source-verified
 successor requires inward acceleration supplied by the heavier ship's native
 step, applies accepted Phonk HP protection to material work, and gives mechanical
-fractures one persisted jagged field. Canonical staging/player replay remain
-pending for this successor; the renderer cache crash is a separate unresolved
-branch, not repaired by these changes.
+fractures one persisted jagged field. The coherent successor50daab4 passes
+canonical staging with signed engined660336f... and fresh518-file protection;
+player replay remains pending. The renderer cache crash is a separate unresolved
+branch, not repaired by these changes. `runtime.md` owns the delivery receipt.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 

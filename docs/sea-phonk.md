@@ -2,8 +2,8 @@
 
 ## October15 — integrated fracture lifecycle
 
-Source `9288f64` passes canonical native build/staging with signed engine
-`498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db`.
+Source `50daab4` passes canonical native build/staging with signed engine
+`d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18`.
 Fresh protected player hashes remain unchanged; player acceptance is unresolved.
 The integration owner records complete delivery evidence in `runtime.md`.
 The engine source owner is now `experiments/native-metal/engine`; historical
@@ -35,8 +35,10 @@ mesh cases pass ASan/UBSan; the latter has40445 input triangles/20 objects,
 0.0003m. A repeated overlapping micro-sliver cut rejects while preserving the
 prior watertight mesh. Shared native support/contour/keel/mast probes retain a
 17-point waterplane, nonfatal upper trim and fatal keel/half loss. These checks
-do not accept a rendered fracture or prior-save replay. Canonical staging of
-the coherent native+AIShip successor remains pending in `runtime.md`.
+do not accept a rendered fracture or prior-save replay. The coherent native+
+AIShip successor is canonically staged in50daab4; `runtime.md` owns the fresh
+518-file protection and signature/content receipts. The separate indexed-span
+renderer corruption remains unresolved and is not fixed by this gameplay batch.
 
 The current request keeps ordinary Phonk at500 knots and adds held left/right
 Shift, using the existing `ILeftShift`/`IRightShift` controls, to accelerate

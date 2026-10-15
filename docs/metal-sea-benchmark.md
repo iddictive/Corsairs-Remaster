@@ -180,6 +180,25 @@ cache proof and remaining production gates are owned by `docs/metal-frame-pacing
 
 ## Native profiling routes
 
+### In-process diagnostic overhead is bounded separately
+
+October15 frozen-linked full-fleet control133653 runs384 frames/128 warm-up
+with `STORM_METAL_PROFILE`1/0/1 and otherwise identical generated inputs/settings.
+Core means13.937/13.712/13.894ms bound the observed diagnostic cost near0.2ms;
+enabled main-completion means14.020/13.969ms retain every expected pass minimum.
+Disabled diagnostics intentionally produce no matching GPU/counter population,
+so its Core wall time is the comparison, not invented GPU throughput. Final
+images differ even between the two enabled controls; their hashes are retained,
+not presented as pixel parity. This does not explain several missing frame
+milliseconds or establish current installed-engine FPS. Earlier "uninstrumented"
+timings mean no external sample/capture; in-process counters remain enabled.
+The frozen ablation binary/input receipt is reused without rebuilding current
+gameplay. Source/results belong to the private profile-cost-fit owner and run
+outputs to133653-profile-cost-*; the source identity is the historical frozen
+baseline, not the current installed gameplay batch.
+
+### External sample and capture
+
 `--profile cpu` attaches `/usr/bin/sample` to the owned benchmark PID after cold
 setup, with bounded duration and symbol-processing timeout. `--profile metal`
 uses native xctrace; a trace that never finalizes or lacks its template is
@@ -299,6 +318,27 @@ Source, provenance and readbacks belong to the private ship-instance-probe owner
 This proves synthetic shader payload equivalence, not captured hull/material
 replay, safe reordered queues, damaged-geometry lifetime or whole-frame cadence.
 There is no production instancing delta or FPS gain.
+
+The follow-up screen-disjoint admission computes the actual captured main MVP
+against referenced vertices and then the eight corners of each local AABB.
+Stable greedy grouping moves a compatible later draw only across disjoint
+expanded rectangles; every9009 reversed pair is independently checked. Both
+models admit390→234 draws:78 batches of three and156 singles,156 calls removed.
+That is5% of3125 captured native render draws, not the full earlier312 ceiling.
+Touching/overlapping rectangles reject390 merge attempts; original instance
+order remains. Eight-corner bounds retain all merges with26 full-viewport clip
+fallbacks versus13 for exact referenced positions. Transform count falls from
+737275 to3120; this counts operations, not time. Existing rawBoundsCache owns
+the reusable local bounds, so a prototype must not rescan geometry per frame.
+
+Results agree across2–32px margins at logical2560×1655,2px at256×166 and0.05NDC.
+Actual native viewport fields are opaque in the API inventory, so pixel margins
+remain conditional; runtime must use its actual raster viewport. The outward
+binary32 dot envelope does not independently certify Metal fast-math or raster
+coverage. Private rigid-order-admission source/result bind217 inputs and retain
+the accepted/rejected moves. This supports a bounded gather prototype, not
+production enablement or a120FPS promise; unchanged shader payload, actual
+resource lifetime, ordered GPU parity and whole-frame cost still own acceptance.
 
 Captured012905 command lists now bound this proposal before implementation:
 environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
