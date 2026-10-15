@@ -1,8 +1,47 @@
 # Runtime state
 
-Last verified delivery: October15. The native MSAA4+FXAA and checkbox-input batch is installed with signed engine `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9`; prior `a61220effc04784c8ad8088d94d50087feb34f387ffb36ad44f1672ec7a607ba` is backed up. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October15. The frozen late-laser/hitch candidate, retaining the native MSAA4+FXAA and checkbox fixes, is installed with signed engine `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611`; prior `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9` is backed up. Hidden RAM/laser/water acceptance for this candidate remains with the physics chat; no player acceptance is claimed. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October15 — frozen late laser/hitch batch staged; native acceptance pending
+
+The physics owner freezes six native files, including the final deltaTime guard
+on early contact-light publication. Canonical stage-only exits0 in97.612s and
+installs signed6a6be8eb, with526 protected player files unchanged and0 added.
+Exact final source map and delivery receipt belong to
+20261015-192931-physics-late-fx-final-delivery. An earlier delivery was interrupted
+after engine installation during bundle sealing; completing canonical seal_app
+restored strict verification before the final successful stage. Its exit-15
+receipt is not an accepted delivery. The frozen batch keeps opaque fragments
+early and moves transparent laser FX after Sea; it also shares chip meshes and
+hashes closed-volume edges. sea-phonk.md owns its causal evidence and limits.
+The physics chat owns serialized native RAM401/laser401/water151 acceptance
+against the final canonical libraries; root retains Git/build/install ownership.
+No original app launch or sustained-FPS acceptance occurs.
+
+### October15 — point-shadow cost isolated; no production shadow change
+
+Hypothesis: tiny sailor shadows dominate the eight-lamp fleet scene. Private
+native stage-boundary counters attribute about5ms of vertex/fragment stage sums
+to48 point-cube passes, about6.7ms to main geometry and about2ms to reflection;
+overlapping GPU stages cannot be summed into whole-frame time. The unmodified
+counter observer adds.233ms in its paired control. A separate conservative
+receiver observer requests43/48 cube faces in the tested frame, so whole-face
+pruning alone has a small ceiling. Paired136-frame skinned-caster Off/On tests
+retain normal models/receivers and45164 animated draws: removing only their
+point/sun casting saves about1ms command time, while point stages still total
+about4.1ms. This is GPU-skinned-caster evidence, not a semantic sailor policy
+or a120FPS result. Exact sources, hashes and CSVs belong to private
+gpu-pass-counters and shadow-face-demand-observer evidence; frame-pacing owns
+the detailed result. Disposition: diagnostic accepted, production optimization
+unresolved; no shadow LOD or daytime lamp gate is installed.
+
+The separately frozen full-ASan395-TU native fleet exits0 for384 frames with
+no ASan report, using system allocation and actual engine instrumentation.
+It omits BattleInterface/HUD, so it does not cover the latest player's crash
+producer or accept the recurring span-cache corruption. Retained binary/dSYM,
+source manifest and run384 receipts belong to full-asan-native-fleet.
 
 ### October15 — thin-rope MSAA and Options label input delivered
 
