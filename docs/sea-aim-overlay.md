@@ -30,9 +30,10 @@ the current backend with the candidate retains230/294 and restores240 after HUD,
 with zero pixels above the water region. Own-model, changed-camera and
 changed-viewport negatives remain zero. A relation-colored solid retains its
 red contour across the same transition (142 native/146 scaled red pixels).
-These are component readbacks, not a player scene or FPS result. Shared engine
-build, canonical staging and installed ordinary-sea replay remain unresolved;
-the running player app and state were not changed.
+These are component readbacks, not a player scene or FPS result. Focused source
+`8ee4ab4` is canonically built/staged in the coherent `9288f64` batch with signed
+engine498cc8dc... and unchanged fresh protected player hashes. Installed
+ordinary-sea replay remains unresolved; `runtime.md` owns the delivery receipt.
 
 ### Installed revision13 baseline
 

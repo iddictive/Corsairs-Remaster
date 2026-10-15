@@ -10,9 +10,9 @@ their source/native component checks. Follow-up `1bc5325` passes canonical stagi
 with signed engine `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`;
 the player subsequently rejects structural survival and floating crew/rigging
 after ram/laser. A coherent structural-death/support repair is source verified
-in the shared ship owner (`sea-phonk.md`); its next canonical staging and player
-collision/fracture replay remain pending. Earlier component results do not close
-that reported failure.
+in the shared ship owner (`sea-phonk.md`) and canonically staged in `9288f64`
+(signed engine498cc8dc...). Player collision/fracture replay remains pending.
+Earlier component results do not close that reported failure.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 

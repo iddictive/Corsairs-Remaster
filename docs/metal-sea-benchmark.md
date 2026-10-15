@@ -257,6 +257,49 @@ current background/depth split and modern water's depth-aware reprojection;
 then require per-face color/depth, camera/pose and material negative cases before
 a whole-fleet comparison. No aggregation candidate is implemented or installed.
 
+The stronger current candidate instances compatible rigid partitions across
+ships within each unchanged view. Exact referenced vertex/index normalization
+of the captured registry finds390 rigid draws in78 groups of five, each with
+five distinct VB identities and WORLD matrices. Stride/UV/color/cull/primitive,
+alpha reference/function/test and encoded alpha-resource token retain all78
+groups. This is geometry repetition, not full color-material or FPS proof.
+Source geometry loads allocate separate VB/IB owners; residency is keyed by
+identity/revision, so equal authored models do not already share native meshes.
+
+The follow-up actual33404-call API inventory and two bound uniform buffers
+qualify770 main/reflection draws into154 groups (main390→78 and one reflection
+view380→76), preserving PSO/depth/cull/textures/samplers and exact1328-byte FFP
+material payload after excluding only MVP. Another364 reflection draws are
+outside the receiver geometry lookup and remain unknown. WORLD/raw lighting,
+catalogue selection and local fog are per-instance/per-view responsibilities;
+captured catalogue counts vary0–9 and cannot be replaced by one shared lamp set.
+Safe ordering/Equal-depth overlap, damaged geometry invalidation, mixed fleets
+and whole-frame benefit remain unproved. Private CPU helpers belong to
+`.local-archives/metal-renderer-evidence/ship-instance-fit`; hash-bound outputs
+and native fetch/API receipts belong to001520/reflection-aggregation-fit.
+Actual command order further restricts the proposal: among3125 native render
+draw calls, no two adjacent qualified draws share a batch key. There are12
+uninterrupted qualified-draw blocks; grouping inside those blocks has a ceiling
+of312 eliminated draws, versus616 only with wider reordering. The390-draw main
+block is the first bounded gather candidate. Reflection groups spanning other
+draws require an additional ordering contract. These are call-count bounds,
+not measured savings. The retained order receipt is
+`command-instance-order-fit.json` beside the other capture outputs.
+A separate64² offscreen fixture on the actual M3 Max now compares ten original
+raw-hull draws with one instanced draw using derived current production shaders.
+All four cases have zero changed color/depth bytes: separated instances with
+catalogue counts0–9, depth overlap, Equal-depth original order and changed camera.
+Synthetic alpha holes remain exact. Sharing the first instance's catalogue or
+raw lighting changes380/870 separated pixels; reversing coincident instances
+changes50 pixels, confirming that ordering and individual lighting matter.
+Actual CPU ABI and complete shader-source assembly are hash-bound; a CPU C++
+emitter evaluates the production macro-composed cloud source, and fragment
+functions use the backend's empty function-constant specialization contract.
+Source, provenance and readbacks belong to the private ship-instance-probe owner.
+This proves synthetic shader payload equivalence, not captured hull/material
+replay, safe reordered queues, damaged-geometry lifetime or whole-frame cadence.
+There is no production instancing delta or FPS gain.
+
 Captured012905 command lists now bound this proposal before implementation:
 environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
 face has10 dynamic-sky draws and1 generic sky/fog draw, leaving138/75/0/531/0

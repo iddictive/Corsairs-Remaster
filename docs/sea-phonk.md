@@ -1,12 +1,14 @@
 # Phonk Mode
 
-## October15 source candidate — integrated fracture lifecycle
+## October15 — integrated fracture lifecycle
 
-This is a source candidate, not installed or player-accepted behavior. The
-canonical native build/stage integration owner records delivery in `runtime.md`.
+Source `9288f64` passes canonical native build/staging with signed engine
+`498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db`.
+Fresh protected player hashes remain unchanged; player acceptance is unresolved.
+The integration owner records complete delivery evidence in `runtime.md`.
 The engine source owner is now `experiments/native-metal/engine`; historical
 patch references below describe prior receipts, not the current edit path.
-The player rejects the installed fracture behavior: half-hulls remain alive,
+The player rejected the preceding4c14ef fracture behavior: half-hulls remain alive,
 crew walk over removed decks and loose rigging remains above absent structure.
 The successor binds geometry, retained support and structural death for both
 laser and mechanical cuts; source evidence below is not player acceptance.

@@ -3,8 +3,9 @@
 ## Status
 
 October15: long-wake index overflow reproduced in the actual reservation/draw
-methods; a bounded local-index correction is source verified. Native staging
-and the reported player's moving scene remain pending.
+methods; bounded local indices are committed in `13b2e36` and canonically staged
+in the coherent `9288f64` batch (signed engine498cc8dc...). The reported player's
+moving-scene replay remains pending; `runtime.md` owns the delivery receipt.
 
 ## Contract and owners
 

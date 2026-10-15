@@ -1,8 +1,48 @@
 # Runtime state
 
-Last verified delivery: October15. Gameplay commits `f4d3c58` and `1bc5325` are installed with signed engine `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`; prior `51666fe49dc69f9564b1976cd14de2b09db0866f0a0377cf632476857509a6e6` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. Earlier renderer, submission cache, MetalFX and sea/weather changes remain composed; rejected FPS experiments are absent. SAVE/userdata hashes match the older526-entry player snapshot. Two configuration differences from that older snapshot predate this stage; no fresh complete player snapshot was captured immediately before staging. The target sustained120FPS is unmet; no new FPS result follows from this gameplay delivery. Installed Options, sea FPS, visuals, zoom/spyglass, phonk and physical collision/fracture acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Coherent source `9288f64`, including structural-death/support, long-wake and MetalFX sea-identity corrections, is installed with signed engine `498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db`; prior `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All508 freshly recorded protected player files retain their hashes, including SAVE/userdata/settings; no game was launched. Earlier renderer/MetalFX/sea/weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of repaired fracture/crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — installed renderer crash; cache corruption cause unresolved
+
+The player's original app exits with EXC_BAD_ACCESS at13:09:14, PID87823,
+UUID `A63B31D4-322A-3B02-902C-B614D3FA0D17`. Independent installed hash/UUID
+inspection binds it to the498cc8dc delivery above. Main-thread removal of an
+actual indexed-span map node faults inside `std::__tree_remove`, reached through
+revision eviction from `TCarcass::Realize`/`SEAFOAM::Realize`. This identifies the
+failure site, not the earlier memory-corruption producer. The actual cache
+header passes300000 mixed revision/topology operations,40000 LRU insertions and
+192 crossed invalidations under ASan/UBSan with membership/iterator/byte checks.
+No cache guard or renderer fix follows from that negative reproduction.
+`metal-frame-pacing.md` owns the evidence and remaining diagnostic boundary;
+installed renderer stability is unresolved. No game process remains in the
+integration owner's subsequent process check; no autonomous launch follows.
+
+### October15 — rigid instancing shader equivalence, no production change
+
+Captured material/geometry fit qualifies770 draws into154 conditional groups,
+but complete command order has zero adjacent compatible draws; limiting gather
+to uninterrupted qualified blocks lowers the reduction ceiling from616 to312.
+The first bounded candidate is the390-draw main block. A64² M3 Max fixture then
+compares ten original draws against one instance draw with current raw-hull
+shaders, separate transforms/raw lighting/catalogues and unchanged synthetic
+textures/fog/shadows. Four color/depth comparisons are bit-exact, including
+cutouts and coincident Equal-depth original order; deliberately shared payloads
+and reversed order change pixels. `metal-sea-benchmark.md` owns the retained
+sources, provenance and proof ceiling. No production renderer source, installed
+app or player state changes; no whole-frame or120FPS result is established.
+
+### October15 — structural, wake and MetalFX corrections canonically delivered
+
+Canonical stage-only of `9288f64` exits0 and installs signed candidate
+`498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db`.
+Strict/deep `seal_app` verification passes, independent content check reports0
+pending in cache/app, and a fresh guarded508-file before/after snapshot has0
+changed/added protected files. No game was launched. Log and proof belong to
+`experiments/native-metal/.cache/diagnostics/structural-fracture-stage-20261015.log`
+and the matching `.json` receipt. This delivers source/component corrections,
+not acceptance of the player's rejected fracture frame or a120FPS improvement.
 
 ### October15 — installed fracture acceptance reopened; coherent repair ready
 
