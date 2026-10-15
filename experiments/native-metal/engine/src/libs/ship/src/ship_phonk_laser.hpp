@@ -44,6 +44,12 @@ struct LaserRay
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f), localHit = CVECTOR(0.f);
     uint64_t target = 0;
 };
+struct HullWork
+{
+    CVECTOR point = CVECTOR(0.f), normal = CVECTOR(0.f);
+    float energy = 0.f, age = 2.f;
+    int32_t other = -1;
+};
 struct LaserState
 {
     float reload = 0.f, beamAge = 1.f;
@@ -58,6 +64,7 @@ struct LaserState
     std::vector<LaserEdge> edges;
     std::vector<LaserBreach> breaches;
     std::vector<LaserBinding> bindings;
+    HullWork impact;
     std::vector<CVECTOR> contour;
     unsigned contourRevision = 0;
     float remaining = 1.f;

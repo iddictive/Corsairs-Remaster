@@ -2,8 +2,12 @@
 
 ## Status
 
-The expanded collision source is complete; canonical staging and player replay
-remain pending with the shared integration owner.
+The first expanded collision source is committed in `f4d3c58`; installation was
+interrupted when the user clarified sustained crushing and catastrophic breakup.
+That follow-up is source complete: sustained pressure, transient contact-work
+accumulation, catastrophic midship fracture and contact-budget-safe flooding pass
+their source/native component checks. Staging and player replay remain pending
+with the shared integration owner.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 
@@ -12,8 +16,12 @@ of ordinary ramming. Native integration remains with the shared build owner.
 All hulls use their geometry, mass, relative point velocity and contact normal;
 there is no ship-name or class exception. A bow ram damages the rammer locally
 as well as the struck hull; tangential scraping does not spend head-on impact
-energy. Sustained low-speed pushing transmits momentum without repeatedly
-charging HP: an elastic specific-energy allowance precedes structural damage.
+energy. Comparable hulls can push at low speed without repeatedly paying ram
+damage. With more than a twofold mass mismatch, continuing drive can overload
+the smaller hull and progressively damage both, with much less damage to the
+heavier hull. A passive mass difference without contact force causes no damage.
+The elastic specific-energy allowance applies to impact work; sustained crushing
+uses accumulated normal impulse divided by frame duration, not closing speed.
 Collision mass is bare `State.fWeight` plus canonical `Ship.Cargo.Load`, both
 in cwt; the latter already includes goods, installed guns and crew, and is not
 capped at nominal hold capacity. Existing cargo writers/invalidation and
@@ -29,6 +37,7 @@ binary SAVE layout remain with their existing owners.
   point-effective-mass impulses, signed torque, friction and dissipated energy.
 - `ship_contact_frame.hpp`: transient earliest-contact integration of all hulls,
   mass-weighted overlap correction and one accumulated impact per pair/frame.
+  That row also carries the summed normal impulse for continuous contact load.
   Rotating separating-plane bounds release sliding contacts without false
   stalls; a spent safety budget blocks only the unresolved contact component.
 - `touch.cpp`: one pair owner, native world/local unit conversion, bounded
@@ -39,6 +48,13 @@ binary SAVE layout remain with their existing owners.
 - `SHIP_BASE::ApplyHullImpact`: shared physical damage seam; the ship/geometry
   owner retains mesh cuts, fragments, contour invalidation, flooding and saved
   damage. TOUCH must not copy that state or add a parallel fracture path.
+- Mechanical contact work accumulates only for the same nearby contact and
+  expires after one second without it. That accumulator is transient; resulting
+  cuts/fragments use the existing saved damage owner. Catastrophic lateral hits
+  near midship cut across the keel rather than applying a bow-only exception.
+  Actual Flyingdutchman center/+/-0.15-length cuts detach42.04/43.01/28.26 percent
+  of authored surface, with valid seams and retained/removed-side BVH checks;
+  these are real-mesh component results, not rendered gameplay acceptance.
 - Native State/TouchMove remain the movement and prediction owners. Existing
   script collision events retain HP, perks, crime and kill attribution.
 
@@ -65,6 +81,24 @@ at 16/50/100ms with no exhausted frames; an unrelated third hull stays untouched
 Pair-level checks cover momentum, nonincreasing kinetic energy and energy-loss
 accounting. Native compiler syntax checks pass. These do not prove full native
 movement, mesh breakup in a rendered battle, prior-save loading or installation.
+
+The follow-up source-bound falsifier reproduces zero damage while a fourfold-
+heavier hull drives continuously into a lighter one. The corrected actual TOUCH
+publisher, with real frame contact solving, gives 1667.04–1671.12/10000 raw HP
+damage to the lighter hull over ten seconds at 16/50/100ms; the heavy hull pays
+59.54–59.68. Equal and twofold masses retain zero pushing damage. With a
+1000:1 ratio the heavy hull pays only 0.00266 raw HP. Opposing equal hulls at
+5/6 knots each retain 226.415/330.664 raw HP damage; at 500 knots each the
+raw collision is catastrophic (9960.272). Native script protection still owns
+the player's Phonk HP budget. These material thresholds are game balance, not
+a timber constitutive model: overload begins above 0.015 m/s² of mean normal
+load per lighter-hull mass, contrast ramps continuously above 2:1, work rate is
+bounded and reciprocal damage follows squared inverse mass and bow/side strength.
+A single 500-knot broadside ram against a stationary equal-mass hull gives
+9842.953/9909.650 raw HP damage and 8226.355 specific work per hull. A 1000:1
+mass contact reduces the heavier ship's forward speed by only 0.107892%.
+The final TOUCH syntax check and repeated supported Phonk CCD/sliding negative
+pass after the normal-impulse field addition; no movement equation changed.
 
 The bounded upstream search found the same heuristic in the maintained
 [PiratesAhoy TOUCH](https://github.com/PiratesAhoy/storm-engine/blob/main/src/libs/touch/src/touch.cpp).

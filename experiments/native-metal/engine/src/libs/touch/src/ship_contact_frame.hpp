@@ -24,7 +24,8 @@ struct Impact
     std::size_t a{}, b{};
     Vec2 point{}, normal{}; // A toward B, at the event with greatest dissipated work
     Vec2 localPointA{}, localPointB{}, localNormalA{}, localNormalB{};
-    double normalClosing{}, energyLostA{}, energyLostB{}, specificEnergyA{}, specificEnergyB{};
+    double normalClosing{}, normalImpulse{}; // accumulated compressive impulse, mass * m/s
+    double energyLostA{}, energyLostB{}, specificEnergyA{}, specificEnergyB{};
 };
 struct FrameLimits
 {
@@ -304,6 +305,7 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                     impact.localNormalB = detail::rotate(-impact.normal, -b.pose.yaw);
                 }
                 impact.normalClosing = std::max(impact.normalClosing, r.normalClosing);
+                impact.normalImpulse += std::max(0.0, -dot(r.deltaVA, event.contact.normal) * a.sweep.mass);
                 impact.energyLostA += r.energyLostA; impact.energyLostB += r.energyLostB;
                 impact.specificEnergyA = impact.energyLostA / a.sweep.mass;
                 impact.specificEnergyB = impact.energyLostB / b.sweep.mass;

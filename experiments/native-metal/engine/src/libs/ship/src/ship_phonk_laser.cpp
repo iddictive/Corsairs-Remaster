@@ -268,6 +268,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     }
     if (!deltaTime) return;
     const float seconds = deltaTime * .001f;
+    phonkLaser.impact.age = std::min(2.f, phonkLaser.impact.age + seconds);
+    if (phonkLaser.impact.age > 1.f) phonkLaser.impact.energy = 0.f;
     phonkLaser.reload = std::max(0.f, phonkLaser.reload - seconds);
     phonkLaser.beamAge += seconds;
     phonkLaser.sampleClock += seconds;
@@ -562,14 +564,15 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
 {
     // TOUCH owns collision work and HP damage. This hook owns only actual
     // material loss; the same retained geometry/contour/ingress serves both jobs.
-    if (!bMounted || PhonkActive() || !finite(worldPoint) || !finite(outwardNormal) ||
+    if (!bMounted || !GetACharacter() || !GetModel() || !GetModel()->GetNode(0) || !GetModel()->GetNode(0)->geo ||
+        phonkLaser.cuts.size() >= storm::ship::phonk::maxLaserCuts ||
+        !finite(worldPoint) || !finite(outwardNormal) ||
         !std::isfinite(specificEnergy) || specificEnergy <= 0.f) return;
     auto *ship = GetACharacter() ? GetACharacter()->GetAttributeClass("Ship") : nullptr;
     const float hp = ship ? ship->GetAttributeAsFloat("HP", 1.f) : 1.f;
     const float maximum = GetAShip() ? GetAShip()->GetAttributeAsFloat("HP", hp) : hp;
     const float integrity = isDead() ? 0.f : std::clamp(hp / std::max(1.f, maximum), 0.f, 1.f);
     const float threshold = 4.f + 36.f * integrity;
-    if (specificEnergy < threshold) return;
     storm::ship::phonk::LaserPlane plane;
     plane.charred = false;
     CVECTOR point;
@@ -580,14 +583,33 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
     GEOS::INFO info{}; GetModel()->GetNode(0)->geo->GetInfo(info);
     const float support = std::abs(plane.normal.x) * info.boxsize.x +
                           std::abs(plane.normal.y) * info.boxsize.y + std::abs(plane.normal.z) * info.boxsize.z;
-    const float depth = support * std::clamp((std::sqrt(specificEnergy) - std::sqrt(threshold)) * .025f,
-                                            .015f, isDead() ? .55f : .24f);
+    if (!std::isfinite(support) || support <= .01f) return;
+    auto &work = phonkLaser.impact;
+    const float radius = std::max(.75f, support * .05f);
+    if (work.age > 1.f || work.other != otherCharacterIndex ||
+        (~(work.point - point)) > radius * radius || (work.normal | plane.normal) < .9f)
+        work = {point, plane.normal, 0.f, 0.f, otherCharacterIndex};
+    work.age = 0.f;
+    work.energy = std::min(1.e6f, work.energy + specificEnergy);
+    if (work.energy < threshold) return;
+    const float energy = work.energy;
+    const float depth = support * std::clamp((std::sqrt(energy) - std::sqrt(threshold)) * .025f,
+                                            .015f, .55f);
     plane.distance = (plane.normal | point) - depth;
+    // A catastrophic broadside load near midship breaks across the keel.
+    // Scrapes and end contacts keep the local chip/bow cut above.
+    if (energy >= threshold * 16.f && std::abs(plane.normal.x) > std::abs(plane.normal.z) &&
+        std::abs(plane.normal.y) < .5f && std::abs(point.z - info.boxcenter.z) < info.boxsize.z * .25f)
+    {
+        plane.normal = CVECTOR(0.f, 0.f, point.z >= info.boxcenter.z ? 1.f : -1.f);
+        plane.distance = plane.normal.z * point.z;
+    }
     const size_t firstPiece = phonkLaser.fragments.size();
     if (!ApplyPhonkLaserCut(plane)) return;
+    work.energy = 0.f;
     phonkLaser.floodOwner = otherCharacterIndex;
     auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
     flood->SetAttributeUseDword("owner", uint32_t(otherCharacterIndex));
     for (size_t n = firstPiece; n < phonkLaser.fragments.size(); ++n)
-        phonkLaser.fragments[n].velocity += !outwardNormal * (std::sqrt(2.f * specificEnergy) * .18f);
+        phonkLaser.fragments[n].velocity += !outwardNormal * (std::sqrt(2.f * energy) * .18f);
 }

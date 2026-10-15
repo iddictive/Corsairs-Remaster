@@ -410,22 +410,34 @@ void TOUCH::ResolveShips()
     // presented model transform. A fast TOI may be far from that old transform.
     for (const auto &impact : result.impacts)
     {
+        const double lightMass = std::min(bodies[impact.a].body.mass, bodies[impact.b].body.mass);
+        const double heavyMass = std::max(bodies[impact.a].body.mass, bodies[impact.b].body.mass);
+        // A continuing drive supplies contact force even after closing speed
+        // has become tiny. Comparable hulls push elastically; a large mass
+        // mismatch can overload the lighter hull. These are game material
+        // limits, not extra impulses or a class-specific movement exception.
+        const double contrast = std::max(0.0, 1.0 - 2.0 * lightMass / heavyMass);
+        const double load = impact.normalImpulse / (seconds * lightMass);
+        const double crushRate = std::min(8.0, contrast * std::max(0.0, load / .015 - 1.0));
         const auto publish = [&](size_t own, size_t other, Vec2 localPoint, Vec2 localNormal,
                                   double specificEnergy)
         {
             auto *ship = currentShip(own);
             auto *opponent = currentShip(other);
-            // Elastic low-speed compression transmits pushing force without
-            // continually charging HP as a series of new ramming impacts.
+            // Do not repeatedly charge elastic low-speed contacts as rams.
+            // Actual overload is integrated separately, in proportion to time
+            // and each hull's compliance, so the heavy hull pays much less.
             constexpr double elasticEnergy = .25; // J per unit mass, m²/s²
             specificEnergy = std::max(0.0, specificEnergy - elasticEnergy);
-            if (!ship || !opponent || !(specificEnergy > 0)) return;
+            const double compliance = lightMass / bodies[own].body.mass;
+            const double crushWork = 1.5 * crushRate * seconds * compliance * compliance;
+            if (!ship || !opponent || !(specificEnergy + crushWork > 0)) return;
             const auto matrix = ship->GetMatrix();
             const CVECTOR point(float(localPoint.x), 0.f, float(localPoint.z));
             const CVECTOR normal(float(localNormal.x), 0.f, float(localNormal.z));
             if (matrix)
                 ship->ApplyHullImpact(*matrix * point, *matrix * normal - matrix->Pos(),
-                                      float(specificEnergy), GetIndex(opponent->GetACharacter()));
+                                      float(specificEnergy + crushWork), GetIndex(opponent->GetACharacter()));
             if (ship->isDead()) return;
             const auto attributes = ship->GetAShip();
             const float maximum = attributes ? attributes->GetAttributeAsFloat("HP") : 0.f;
@@ -435,7 +447,8 @@ void TOUCH::ResolveShips()
             const double halfLength = std::max(1.f, ship->State.vBoxSize.z * .5f);
             const double bow = std::clamp(localPoint.z / halfLength, 0.0, 1.0);
             const double strength = 75.0 * (1.0 + .75 * localNormal.z * localNormal.z * (.5 + .5 * bow));
-            const float hp = float(maximum * specificEnergy / (specificEnergy + strength));
+            const float hp = float(maximum * std::min(1.0,
+                specificEnergy / (specificEnergy + strength) + crushWork / strength));
             core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
                        GetIndex(opponent->GetACharacter()), hp * .1f, 0.f, 1,
                        float(impact.point.x), float((bodies[own].yStart + bodies[other].yStart) * .5),

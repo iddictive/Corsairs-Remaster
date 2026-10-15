@@ -110,6 +110,13 @@ float SeaPhonk_CollisionDamage(ref character, float damage)
         Sea.Phonk.ContactRemaining = budget;
     }
     Sea.Phonk.ContactQuiet = 0.0;
+    return SeaPhonk_ConsumeContactDamage(character, damage);
+}
+
+float SeaPhonk_ConsumeContactDamage(ref character, float damage)
+{
+    if (damage <= 0.0) return 0.0;
+    float hp = stf(character.Ship.HP);
     if (damage > stf(Sea.Phonk.ContactRemaining)) damage = stf(Sea.Phonk.ContactRemaining);
     // Other damage may have reduced hull since this episode began.
     if (damage > hp * 0.25) damage = hp * 0.25;
@@ -152,13 +159,19 @@ void SeaPhonk_Flood()
     // Native seams own cumulative ingress and its save/load projection. The sea
     // handler survives mode exit; no new water enters during a paused frame.
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
-    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    if (owner < -1 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
     float maximum = GetCharacterShipHP(target);
     if (maximum <= 0.0) return;
     fraction = Clampf(fraction);
     float damage = stf(target.Ship.HP) - maximum * (1.0 - fraction);
+    float multiplier = Ship_HullDamageMultiplier(target, owner);
+    if (fraction >= 1.0) damage = stf(target.Ship.HP) * 10.0 * multiplier;
+    // Ingress during contact belongs to the real impact's HP budget. It must
+    // not refresh contact: later flooding remains a separate, lethal hazard.
+    if (SeaPhonk_IsActive() && sti(target.index) == GetMainCharacterIndex() &&
+        CheckAttribute(&Sea, "Phonk.ContactQuiet") && CheckAttribute(&Sea, "Phonk.ContactRemaining") &&
+        stf(Sea.Phonk.ContactQuiet) < 0.75)
+        damage = SeaPhonk_ConsumeContactDamage(target, damage);
     // Combat perks cannot leave hull above the physical flooding ceiling.
-    damage = damage / Ship_HullDamageMultiplier(target, owner);
-    if (fraction >= 1.0) damage = stf(target.Ship.HP) * 10.0;
-    Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
+    Ship_ApplyHullHitpoints(target, damage / multiplier, KILL_BY_BALL, owner);
 }

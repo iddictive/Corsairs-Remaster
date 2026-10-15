@@ -66,15 +66,30 @@ are scoped around independent fragment draws.
 Mechanical impacts reuse the same geometry, plane history, fragments, contact
 revision and flooding owner through `SHIP_BASE::ApplyHullImpact`. Their explicit
 non-charred plane style emits no beam, glow or burn. TOUCH owns collision work
-and ordinary HP damage; that hook never charges HP a second time. The separate
-contact-motion adapter belongs to the collision solver.
+and ordinary HP damage; that hook never charges HP a second time. Small material
+work doses accumulate at the same local contact/normal/other ship, expiring after
+one game second without more work. A large dose cuts immediately; up to55% of
+the hull's support along the impact normal can separate, at the actual hit point.
+Catastrophic broadside work near midship cuts across the keel at the contact's
+longitudinal position, separating fore/aft pieces; end contacts retain local cuts.
+Phonk protects contact HP, not physical geometry. The separate contact-motion
+adapter and slow mass-dependent yielding policy belong to the collision solver.
+Active-player ingress during the real contact episode shares its final HP budget
+without extending that episode; later flooding remains an ordinary sinking hazard.
+Environmental contact uses the existing owner index-1, with the same ingress path.
 
 Source evidence:6000 baseline motion comparisons, held boost/release/brake/air
 and complete launch/landing checks; native VM contact/regen/laser/flood/OFF/pause
 and saved-attribute reload cases; actual Flyingdutchman cut geometry with512
 BVH-vs-linear ray comparisons (max51 candidate triangles, mean6.88). These
 include frame-independent energy, dry/wet/paused ingress and plain-versus-charred
-cut checks. Native translation-unit syntax checks pass. These
+cut checks. Mechanical work-dose/expiry/contact-change and catastrophic transverse
+plane checks pass at16/50/100ms; the native VM also verifies shared impact/ingress
+HP budgets, environmental owner admission and saved-attribute reload. Actual
+Flyingdutchman transverse cuts at the centre and±15% hull length separate
+28–43% of authored surface into fore/aft chunks, with valid seams and retained
+collision; this open mesh result is surface proportion, not measured mass. Native
+translation-unit syntax checks pass. These
 checks do not prove appearance, game frame cost or actual player acceptance.
 
 Required replay remains held Shift/ordinary return, tsunami launch/landing,
