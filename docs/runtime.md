@@ -1,8 +1,48 @@
 # Runtime state
 
-Last verified delivery: October15. Guarded animated bounds, the graphics-record readback repair and material specialization are installed with signed engine `6f761a93e059cad8df73fc7295e6f261f68d8dd452f590a5bab02f5a5fa11d75`; prior `f70393af7f86224c030a8d63cc3ce1647e41a069da7b34f04b3dd7a36197cc6c` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready. Native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Guarded bounds and specialization are enabled by default with exact/generic fallbacks. All526 recorded player-state files retain their hashes, including the existing MetalFX choice. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Prepared material/resource reuse, guarded animated bounds, the graphics-record readback repair and material specialization are installed with signed engine `51666fe49dc69f9564b1976cd14de2b09db0866f0a0377cf632476857509a6e6`; prior `6f761a93e059cad8df73fc7295e6f261f68d8dd452f590a5bab02f5a5fa11d75` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready. Native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Prepared materials, guarded bounds and specialization are enabled by default with direct/exact/generic fallbacks. All526 recorded player-state files retain their hashes, including the existing MetalFX choice. The equivalent fleet workload remains about12ms, above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — prepared materials installed; CPU saving does not yet improve throughput
+
+The existing backend now reuses unchanged fixed-function stages and encoder
+texture/sampler bindings. Texture-stage/transform/reset and temporary grass
+overrides invalidate their stage entries; external sky bindings invalidate the
+resource cache. World/view/projection, lighting, fog and mutable texture handles
+remain live. Final1328-byte base or3008-byte fire uniforms use one aligned,
+completion-owned arena upload for both shader stages, with direct-byte fallback.
+Default is enabled; `STORM_METAL_PREPARED_MATERIALS=0` selects the old path.
+
+Same-binary Native2560x1655 fleet384/warmup128:
+
+| Run | Prepared materials | Core wall mean ms | CPU preparation estimate median ms |
+| --- | --- | --- | --- |
+|002903|0|12.019|10.213|
+|002948|1|12.012|9.899|
+|003109|0|12.043|10.114|
+
+Subtracting measured GPU/drawable waits suggests about0.25ms less CPU work;
+whole-workload throughput does not improve. Cross-frame overlap makes individual
+frame-tagged GPU intervals unsuitable as FPS estimates, including the closing
+Off GPU median13.119ms. All152 sails/311 animated/sea/sky/8 complete cube minima,
+1717 median draws and20 allocations remain; explicit arena accounting raises
+reported upload bytes from15.28 to17.47MB without increasing geometry detail.
+Eleven rebuilt native resource, lighting, sampler, skinning, point/sun, sea and
+MetalFX/HUD probes pass. A task-local actual-method CPU driver covers dynamic
+uniform/resource transitions and cache/fallback lifetimes with ASan/UBSan; its
+source/receipt is retained, without a second parent replay or raw child log.
+The entire ON scene was inspected. These are component/workload checks, not a
+player-world replay. Evidence belongs to capture001520's prepared-materials and
+prepared-probe/delivery receipts. Canonical stage-only exits0, content plans are
+empty, compiler ready and all526 player-state files match pre-stage hashes.
+
+A separate tile-local cloud light-factor cache is rejected and not installed.
+The32/64-height variants reduce isolated warmed compute from0.435 to0.220/0.275ms,
+but fair-day RGB differences reach about0.38 and wet-day0.16. Even helper-only
+extraction changes some half-float results. Both variants fail the fidelity gate;
+no whole-fleet integration follows. Source, output and exact commands remain in
+capture001520's ignored cloud-light-rejected owner. The120FPS goal remains open.
 
 ### October15 — separate-queue cloud experiment rejected
 

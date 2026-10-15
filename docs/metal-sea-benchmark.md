@@ -115,6 +115,39 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 
 ## Proven local work and rejection rules
 
+Prepared fixed-function stages and material bindings belong to `backend.mm`'s
+existing Device/EncoderBindings lifetimes. Stage state/texture-transform changes,
+reset and grass's temporary state writes invalidate stage entries. Effective
+texture type/presence/stochastic flags are checked each draw; GPU handles and
+samplers remain live. Encoder finish resets bindings, and external volumetric-sky
+bindings invalidate them. Draw-specific matrices, viewport, fog, light and alpha
+inference are never cached. One completion-owned256-aligned arena upload holds
+the final1328-byte base or3008-byte fire uniform for both stages; allocation or
+alignment failure retains direct bytes. `STORM_METAL_PREPARED_MATERIALS=0` is the
+matched control; default is enabled. No shader or geometry arithmetic changes.
+
+Matched002903/002948/003109 Off/On/Off reduces CPU preparation estimates by about
+0.25ms, but Core wall means12.019/12.012/12.043ms show no throughput gain. The
+receipt retains the switch missing from the runner manifest. Eleven existing
+native GPU probes cover resource transitions, material/lighting/alpha, sea,
+skinning, point/sun and MetalFX/HUD composition. A task-local ASan/UBSan driver
+compares complete final uniforms and seeded dynamic/reset/fallback cases; its
+sources/claim receipt remain under001520, without a raw child log or parent rerun.
+The CPU profile's48/326 samples in preparation/binding were an inclusive ceiling,
+not a predicted saving. Its remaining20 warm allocations are mostly dynamic
+vertex uploads; FrameArena samples are bookkeeping, not proof of allocation.
+
+Tile-local3D cloud light-factor reuse is rejected. The prototype retains view
+density, march/decks/resolution and lighting queries as its untouched oracle,
+then approximates only the seven-query light attenuation.32/64 height grids give
+about2x/1.6x isolated warmed speed, but daytime RGB max errors about0.38/0.16
+and mean about0.02 fail fidelity. Helper extraction also changes half-float
+rounding, so bit identity is not claimed. Native whole-scene integration stops
+at that gate; production shaders remain unchanged. Rejected sources, mosaics,
+commands and timings belong to001520/cloud-light-rejected. The applicable reuse
+reference is [Nubis Cubed's lighting acceleration](https://advances.realtimerendering.com/s2023/Nubis%20Cubed%20%28Advances%202023%29.pdf);
+its applicability does not prove this particular approximation acceptable.
+
 The foam carcass index topology is immutable between creation and destruction.
 `TCarcass::Execute` now locks/unlocks its IB only on first index creation; VB
 updates and draw geometry are unchanged. Actual old/new bodies match over
