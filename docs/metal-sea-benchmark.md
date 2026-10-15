@@ -175,6 +175,18 @@ statistic is not serialized critical-path time. Bounded cloud loop-unrolling
 and platform size-optimization experiments preserve16,777,216 compared bytes
 but improve aggregate component timings by only about2%; they are not installed.
 
+Separate-queue scheduling is also rejected. The prototype moved unseen tiles
+only, ordered recycled writes and visible rotation through two MTLEvents, and
+counted both queues. Matched000857/001001/001058 Off/On/Off main-completion
+cadence means12.055/11.941/12.076ms establish only about1% throughput improvement;
+Core median worsens. Added cross-queue lifecycle complexity is not justified.
+The source and runner are restored; rejected inputs and the unrun pixel/lifecycle
+fixture stay in capture234159's diagnostic owner. For future multi-queue work,
+frame-tagged GPU interval union alone is not throughput: report completed main
+cadence, warmed wall cost and both-queue coverage without adding overlapping
+durations. Follow Apple's [cross-queue event ordering](https://developer.apple.com/documentation/metal/synchronizing-events-within-a-single-device);
+tracked-resource ordering on one queue does not order independent queues.
+
 The bounded Metal dispatch experiment uses the current native pipeline's
 reported SIMD width32 and maximum1024 threads. Larger groups and128/256/512
 occupancy hints preserve bytes but show no stable material gain over8×8 after

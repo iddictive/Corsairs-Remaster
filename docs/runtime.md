@@ -4,6 +4,37 @@ Last verified delivery: October15. Guarded animated bounds, the graphics-record 
 
 ## Current verdict
 
+### October15 — separate-queue cloud experiment rejected
+
+The conditional async prototype moved only unseen256x256 cloud tiles to a
+bounded second queue. Initial2048x2048 priming remained serial, two monotonic
+events ordered recycling and completed-field rotation, and Reset/readback/split
+submissions drained both queues. Native tracing tagged main/cloud commands and
+capture targeted the device. The diagnostic runner counted both queues and
+reported main-completion cadence separately from frame-tagged execution union.
+A disposable arithmetic oracle passed overlapping interval union, legacy CSV,
+unknown queue, failed command and missing-main negatives.
+
+Frozen Native fleet384/warmup128, specialization and guarded bounds enabled:
+
+| Run | Async clouds | Core wall mean ms | Main completion cadence mean ms | Core median/p99 ms |
+| --- | --- | --- | --- | --- |
+|000857|0|12.003|12.055|11.294 /14.649|
+|001001|1|11.834|11.941|11.625 /14.621|
+|001058|0|12.023|12.076|11.537 /14.435|
+
+The ON trace includes256 warmed cloud commands and256 main commands; every
+coverage/draw/upload/allocation minimum remains. Cross-frame overlap makes the
+ON frame-tagged GPU union13.666ms unsuitable as an FPS estimate. Whole-workload
+mean throughput improves only about1%, while the median worsens. The added queue
+and synchronization lifecycle do not justify that gain. The source candidate and
+runner changes are restored to the installed21ad2b9 behavior; no async code is
+installed or retained in production. Candidate patch, source identities, exact
+invocations/results and an unrun lifecycle fixture remain under capture234159's
+ignored `async-cloud-rejected/` diagnostics owner. Pixel/lifecycle and capture
+replay acceptance were deliberately not expanded after the throughput gate
+rejected this candidate. Player state and installed engine6f761a93 are unchanged.
+
 ### October15 — animated bounds CPU cost reduced; whole-frame target remains unmet
 
 Immutable per-bone bounds now belong to the existing indexed-span cache and its
@@ -41,10 +72,8 @@ player-state files match their pre-stage hashes. No game launch/control or push.
 Current GPU capture234159 ranks cloud tile30.59%, main geometry13.43% and point
 receivers8.41%. Cloud loop/size compiler controls preserve compared output but
 only improve aggregate component cost about2%; those prototypes are rejected.
-Separate-queue cloud scheduling is a viable next conditional experiment, not an
-accepted change: preserve triple-buffer snapshots/cadence and account for both
-queues, recycling, invalidation, split submissions, capture and teardown before
-measuring whole-workload throughput. Even CPU preparation still exceeds8.33ms.
+Separate-queue cloud scheduling was a viable conditional experiment; its later
+matched throughput rejection is recorded above. Even CPU preparation still exceeds8.33ms.
 The full120FPS goal and installed player acceptance remain unresolved.
 
 ### Historical October14 snapshot — Options readback repaired; material specialization verified
