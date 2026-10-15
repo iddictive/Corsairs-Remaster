@@ -4,9 +4,10 @@
 
 The player rejects the staged50daab4 destruction: open paper-like hull sections,
 pieces passing through ships, and severe material loss leaving a live remnant.
-The current source candidate is not built, staged or accepted in the player scene.
-Canonical build, serialized native scene verification and app delivery remain
-pending before destruction acceptance.
+Successor `88b3ebe` passes canonical build and installed-app delivery in frozen
+`4ee15fd`; `runtime.md` owns the exact delivery receipt. Native scene motion,
+prior-save restore and real death/quest handling remain unverified, so player
+destruction acceptance remains open.
 
 Actual installed Flyingdutchman geometry reproduces a missing fatal case:
 `y<=0.01` removes84.48% of authored root surface while retaining the original

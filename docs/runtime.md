@@ -1,8 +1,23 @@
 # Runtime state
 
-Last verified delivery: October15. Coherent source `50daab4`, including pressure admission, protected contact material and shared jagged mechanical fractures, is installed with signed engine `d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18`; prior `498cc8dc8236fe1e622be129fa439a20eceb450da71bc75d86df0346700077db` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no game was launched. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of contact/Phonk/jagged fracture, crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Frozen source `4ee15fd`, including destruction successor `88b3ebe`, is installed with signed engine `7433ec35692b1a04344d0dcd204fbf479067b8ac184d152450ab199a71d15f31`; prior `d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no game was launched. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of contact/Phonk/fracture, crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — hollow-hull and fragment-contact successor installed
+
+The player requests immediate installation and confirms the game is closed.
+Frozen `4ee15fd` includes `88b3ebe`; canonical `run.sh --stage-only` exits0
+and installs signed engine7433ec35... in the sole supported player app.
+The previous d660336f engine is backed up; transactional strict/deep sealing
+passes. Cache/app gameplay checks report0 pending with compiler ready.
+Fresh518-file protection has0 changes/additions. Receipt, before snapshot and
+stage log are in `.cache/diagnostics/fragment-delivery-20261015-151248/`
+under `experiments/native-metal`. No game or GPU diagnostic was launched.
+This proves coherent build and delivery only: rendered fragment motion,
+severe-loss death/quest handling, prior-save restore and player acceptance
+remain unresolved. No reflection LOD prototype, FPS gain or renderer-crash
+repair is included. The source-only status below is historical.
 
 ### October15 — coarse reflection geometry candidate, not delivered
 

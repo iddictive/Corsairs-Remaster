@@ -4,13 +4,13 @@
 
 The latest player frame reopens destruction acceptance again: hollow sections,
 loose pieces crossing hulls, and a live remnant after most root material is gone.
-The source-only successor adds wood shell thickness, measured detached bodies,
+The installed successor adds wood shell thickness, measured detached bodies,
 native convex contact and severe cumulative-loss fatality in the shared owner
 described in `sea-phonk.md`. Ordinary ramming and Phonk use that same fracture
 path; Phonk retains its separate intact-contact HP allowance. Component checks
-pass, but this successor has no native build, stage, player-motion or save/death
-acceptance yet. Native build, serialized scene verification and app delivery
-remain pending.
+pass; `88b3ebe` also passes canonical build and installed-app delivery in frozen
+`4ee15fd` (`runtime.md` owns the receipt). Player-motion and save/death acceptance
+remain open; successful staging does not close the rejected scene quality.
 
 The first expanded collision source is committed in `f4d3c58`; installation was
 interrupted when the user clarified sustained crushing and catastrophic breakup.
