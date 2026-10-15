@@ -18,7 +18,8 @@ inline const char *convert_path_sep(const char *cPath)
 #include <cstdio>
 #include <cstring>
 
-#include "d3dx9.hpp"
+#include "image_import.hpp"
+#include "windows_base.h"
 #include "winuser.rh"
 
 #undef EXTERN // fix for token.h:72:5: error: expected identifier EXTERN,

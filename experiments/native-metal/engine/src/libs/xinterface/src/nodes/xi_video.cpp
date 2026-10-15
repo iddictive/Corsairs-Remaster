@@ -45,7 +45,7 @@ void CXI_VIDEO::Draw(bool bSelected, uint32_t Delta_Time)
 
         m_rs->SetTexture(0, pTex ? pTex->m_pTexture : nullptr);
         if (vid_counter++ > 10)
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX), "iVideo");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX), "iVideo");
     }
 }
 

@@ -112,7 +112,7 @@ void CXI_BOUNDER::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const
     // create index and vertex buffers
     m_nVert = 4 * 4 + m_nHorzLineQuantity * 4 * 2 + m_nVertLineQuantity * 4 * 2;
     m_nIndx = 2 * 4 + 2 * m_nHorzLineQuantity * 2 + 2 * m_nVertLineQuantity * 2;
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
     m_idIBuf = m_rs->CreateIndexBuffer(m_nIndx * 3 * 2);
 
     // Fill buffers

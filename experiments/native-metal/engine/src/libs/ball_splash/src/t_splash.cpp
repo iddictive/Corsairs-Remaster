@@ -77,7 +77,7 @@ TSplash::~TSplash()
 }
 
 //--------------------------------------------------------------------
-void TSplash::Initialize(INIFILE *_ini, IDirect3DDevice9 *_device, SEA_BASE *_sea, VDX9RENDER *_renderer)
+void TSplash::Initialize(INIFILE *_ini, storm_render::Device *_device, SEA_BASE *_sea, VDX9RENDER *_renderer)
 {
     ambientColor = 0;
     sea = _sea;
@@ -93,12 +93,12 @@ void TSplash::Initialize(INIFILE *_ini, IDirect3DDevice9 *_device, SEA_BASE *_se
         vBuffer2 = new GRID_VERTEX[VPLANES_COUNT*4];
         */
         iBuffer =
-            renderer->CreateIndexBuffer(MAX_SPLASHES * TRIANGLES_COUNT * 3 * sizeof(uint16_t), D3DUSAGE_WRITEONLY);
+            renderer->CreateIndexBuffer(MAX_SPLASHES * TRIANGLES_COUNT * 3 * sizeof(uint16_t), storm_render::usage::writeOnly);
         vBuffer = renderer->CreateVertexBuffer(GRID_FVF, MAX_SPLASHES * GRID_STEPS * GRID_STEPS * sizeof(GRID_VERTEX),
-                                               D3DUSAGE_WRITEONLY);
-        iBuffer2 = renderer->CreateIndexBuffer(MAX_SPLASHES * VPLANES_COUNT * 6 * sizeof(uint16_t), D3DUSAGE_WRITEONLY);
+                                               storm_render::usage::writeOnly);
+        iBuffer2 = renderer->CreateIndexBuffer(MAX_SPLASHES * VPLANES_COUNT * 6 * sizeof(uint16_t), storm_render::usage::writeOnly);
         vBuffer2 = renderer->CreateVertexBuffer(GRID_FVF2, MAX_SPLASHES * VPLANES_COUNT * 4 * sizeof(GRID_VERTEX2),
-                                                D3DUSAGE_WRITEONLY);
+                                                storm_render::usage::writeOnly);
 
         texture = renderer->TextureCreate("explos.tga");
         texture2 = renderer->TextureCreate("splash.tga");
@@ -163,7 +163,7 @@ void TSplash::Start(const CVECTOR &_pos, const CVECTOR &_dir)
 
     if (!ambientColor)
     {
-        renderer->GetRenderState(D3DRS_AMBIENT, &ambientColor);
+        renderer->GetRenderState(storm_render::RenderAmbient, &ambientColor);
         ambientColor = Desaturate(ambientColor, 1.0f);
     }
 }
@@ -382,7 +382,7 @@ void TSplash::Realize(uint32_t _dTime)
 
     static uint32_t ambient, tfactor, oldAmbient, alpha;
     const CMatrix m;
-    renderer->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(m));
+    renderer->SetTransform(storm_render::TransformWorld, static_cast<storm_render::Matrix *>(m));
     renderer->TextureSet(0, texture);
 
     renderer->DrawBuffer(vBuffer, sizeof(GRID_VERTEX), iBuffer, 0, GRID_STEPS * GRID_STEPS * topIndex, 0,
@@ -403,7 +403,7 @@ void TSplash::Realize2(uint32_t _dTime)
 
     static uint32_t ambient, fogColor, oldAmbient;
     const CMatrix m;
-    renderer->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(m));
+    renderer->SetTransform(storm_render::TransformWorld, static_cast<storm_render::Matrix *>(m));
     renderer->TextureSet(0, texture2);
     renderer->TextureSet(1, texture2);
 

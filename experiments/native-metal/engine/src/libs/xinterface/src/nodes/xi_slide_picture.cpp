@@ -56,12 +56,12 @@ void CXI_SLIDEPICTURE::Draw(bool bSelected, uint32_t Delta_Time)
     {
         Update(Delta_Time);
         m_rs->TextureSet(0, m_idTex);
-        m_rs->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        m_rs->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        m_rs->SetSamplerState(0, storm_render::SamplerAddressU, storm_render::TextureAddressWrap);
+        m_rs->SetSamplerState(0, storm_render::SamplerAddressV, storm_render::TextureAddressWrap);
         if (strTechniqueName == nullptr)
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX), "iVideo");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX), "iVideo");
         else
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
                                   strTechniqueName);
     }
 }

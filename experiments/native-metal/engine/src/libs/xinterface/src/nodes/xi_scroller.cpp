@@ -65,11 +65,11 @@ void CXI_SCROLLER::Draw(bool bSelected, uint32_t Delta_Time)
         }
 
         m_rs->TextureSet(0, m_idBaseTex);
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2, "iStatusLine");
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iStatusLine");
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iStatusLine");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2, "iStatusLine");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iStatusLine");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iStatusLine");
         m_rs->TextureSet(0, m_idRollerTex);
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 12, 2, "iStatusLine");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 12, 2, "iStatusLine");
     }
 }
 
@@ -159,7 +159,7 @@ void CXI_SCROLLER::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, cons
     m_ScrollTexRect = GetIniFloatRect(ini1, name1, ini2, name2, "scrollTexPos", FXYRECT(0.f, 0.f, 1.f, 1.f));
     m_RollTexRect = GetIniFloatRect(ini1, name1, ini2, name2, "rollTexPos", FXYRECT(0.f, 0.f, 1.f, 1.f));
 
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 16 * sizeof(XI_ONLYONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 16 * sizeof(XI_ONLYONETEX_VERTEX), storm_render::usage::writeOnly);
     FillVertexBuffer();
 }
 

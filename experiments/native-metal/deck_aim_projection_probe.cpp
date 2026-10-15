@@ -4,10 +4,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
-struct D3DMATRIX { float _11=0,_22=0,_33=0,_43=0,_34=0; };
-constexpr int D3DTS_PROJECTION=1;
+struct storm_render::Matrix { float _11=0,_22=0,_33=0,_43=0,_34=0; };
+constexpr int storm_render::TransformProjection=1;
 #define CHECKD3DERR(x) ((x)!=0)
-struct Device { D3DMATRIX projection; int SetTransform(int,const D3DMATRIX *m) { projection=*m; return 0; } };
+struct Device { storm_render::Matrix projection; int SetTransform(int,const storm_render::Matrix *m) { projection=*m; return 0; } };
 struct DX9RENDER {
     Device device; Device *d3d9=&device;
     struct { float x=2048.f,y=1285.f; } screen_size;

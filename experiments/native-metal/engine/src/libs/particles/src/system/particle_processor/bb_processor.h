@@ -19,7 +19,7 @@ class ParticleSystem;
 
 class BillBoardProcessor
 {
-    static IDirect3DVertexDeclaration9 *vertexDecl_;
+    static storm_render::VertexLayout *vertexDecl_;
     void CreateVertexDeclaration() const;
 
     struct RECT_VERTEX

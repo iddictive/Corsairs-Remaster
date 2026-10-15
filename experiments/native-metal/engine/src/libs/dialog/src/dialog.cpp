@@ -93,7 +93,7 @@ void DIALOG::DlgTextDescribe::ChangeText(const std::string_view text)
     pageBreaks_ = storm::dialog::SplitIntoPages(asText.size(), nShowQuantity, forced_page_breaks);
 }
 
-void DIALOG::DlgTextDescribe::Init(VDX9RENDER *pRS, D3DVIEWPORT9 &vp, INIFILE *pIni)
+void DIALOG::DlgTextDescribe::Init(VDX9RENDER *pRS, storm_render::Viewport &vp, INIFILE *pIni)
 {
     Assert(pRS);
 
@@ -245,7 +245,7 @@ void DIALOG::CreateBack()
 
     if (m_idVBufBack == -1)
         m_idVBufBack =
-            RenderService->CreateVertexBuffer(XI_TEX_FVF, m_nVQntBack * sizeof(XI_TEX_VERTEX), D3DUSAGE_WRITEONLY);
+            RenderService->CreateVertexBuffer(XI_TEX_FVF, m_nVQntBack * sizeof(XI_TEX_VERTEX), storm_render::usage::writeOnly);
     if (m_idIBufBack == -1)
         m_idIBufBack = RenderService->CreateIndexBuffer(m_nIQntBack * sizeof(uint16_t));
 
@@ -369,7 +369,7 @@ void DIALOG::CreateButtons()
 
     if (m_idVBufButton == -1)
         m_idVBufButton =
-            RenderService->CreateVertexBuffer(XI_TEX_FVF, m_nVQntButton * sizeof(XI_TEX_VERTEX), D3DUSAGE_WRITEONLY);
+            RenderService->CreateVertexBuffer(XI_TEX_FVF, m_nVQntButton * sizeof(XI_TEX_VERTEX), storm_render::usage::writeOnly);
     if (m_idIBufButton == -1)
         m_idIBufButton = RenderService->CreateIndexBuffer(m_nIQntButton * sizeof(uint16_t));
 
@@ -486,7 +486,7 @@ void DIALOG::LoadFromIni()
         fpScrSize.y = static_cast<float>(screenSize.height);
     m_nScrBaseWidth = static_cast<int32_t>(fpScrSize.x);
     m_nScrBaseHeight = static_cast<int32_t>(fpScrSize.y);
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     RenderService->GetViewport(&vp);
     m_frScreenData.right = vp.Width / (fpScrSize.x + fpScrOffset.x);
     m_frScreenData.bottom = vp.Height / (fpScrSize.y + fpScrOffset.y);
@@ -615,14 +615,14 @@ bool DIALOG::Init()
     return true;
 }
 
-void DIALOG::InitLinks(VDX9RENDER *pRS, D3DVIEWPORT9 &vp, INIFILE *pIni)
+void DIALOG::InitLinks(VDX9RENDER *pRS, storm_render::Viewport &vp, INIFILE *pIni)
 {
     linkDescribe_.Init();
 
     linkDescribe_.SetAttributes(AttributesPointer);
     linkDescribe_.SetRenderer(pRS);
 
-    POINT offset{20, 0};
+    storm_render::Point offset{20, 0};
     offset.x += vp.X;
     linkDescribe_.SetOffset(offset);
 
@@ -659,7 +659,7 @@ void DIALOG::InitLinks(VDX9RENDER *pRS, D3DVIEWPORT9 &vp, INIFILE *pIni)
 //--------------------------------------------------------------------
 void DIALOG::Realize(uint32_t Delta_Time)
 {
-    RenderService->MakePostProcess();
+    RenderService->FinalizeSceneEffects();
     // delayed exit from pause
     if (unfadeTime <= UNFADE_TIME)
     {

@@ -69,7 +69,7 @@ void CXI_STATUSLINE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, co
     m_nVert = 2 * 4;
     m_nIndx = 2 * 6;
     // Create vertex and index buffers
-    m_vBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, m_nVert * sizeof(XI_ONLYONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_vBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, m_nVert * sizeof(XI_ONLYONETEX_VERTEX), storm_render::usage::writeOnly);
     m_iBuf = m_rs->CreateIndexBuffer(m_nIndx * 2);
     m_nIndx /= 3;
 

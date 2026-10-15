@@ -667,8 +667,8 @@ void WorldMap::Realize(uint32_t delta_time)
 
 void WorldMap::RenderObjects()
 {
-    rs->SetRenderState(D3DRS_FOGENABLE, FALSE);
-    rs->SetRenderState(D3DRS_LIGHTING, FALSE);
+    rs->SetRenderState(storm_render::RenderFog, FALSE);
+    rs->SetRenderState(storm_render::RenderLighting, FALSE);
     for (auto i = firstPrObject; i >= 0; i = object[i].next)
     {
         if (!object[i].ro->killMe)

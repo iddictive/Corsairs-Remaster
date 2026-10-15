@@ -189,7 +189,7 @@ void CXI_TITLE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const c
     const int rectangleQuantity = 1 + 2 + 2 * m_nTiledQuantity;
     m_nVert = 4 * rectangleQuantity;
     m_nIndx = 6 * rectangleQuantity;
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
     m_idIBuf = m_rs->CreateIndexBuffer(m_nIndx * 2);
     m_nIndx /= 3;
 

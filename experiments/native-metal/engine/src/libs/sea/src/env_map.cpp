@@ -14,33 +14,33 @@ extern "C" void StormMetalCaptureSeaReflectionBackground(void*,void*,uint32_t);
 extern "C" void StormMetalCaptureSeaReflectionDepth(void*,void*,uint32_t);
 #endif
 
-void SEA::EnvMap_GetSideMatrix(D3DCUBEMAP_FACES Face, CMatrix &mView)
+void SEA::EnvMap_GetSideMatrix(storm_render::CubeFace Face, CMatrix &mView)
 {
     CVECTOR vLookTo, vUp;
 
     switch (Face)
     {
-    case D3DCUBEMAP_FACE_POSITIVE_X:
+    case storm_render::CubeFace::PositiveX:
         vLookTo = CVECTOR(1.0f, 0.0f, 0.0f);
         vUp = CVECTOR(0.0f, 1.0f, 0.0f);
         break;
-    case D3DCUBEMAP_FACE_NEGATIVE_X:
+    case storm_render::CubeFace::NegativeX:
         vLookTo = CVECTOR(-1.0f, 0.0f, 0.0f);
         vUp = CVECTOR(0.0f, 1.0f, 0.0f);
         break;
-    case D3DCUBEMAP_FACE_POSITIVE_Y:
+    case storm_render::CubeFace::PositiveY:
         vLookTo = CVECTOR(0.0f, 1.0f, 0.0f);
         vUp = CVECTOR(0.0f, 0.0f, -1.0f);
         break;
-    case D3DCUBEMAP_FACE_NEGATIVE_Y:
+    case storm_render::CubeFace::NegativeY:
         vLookTo = CVECTOR(0.0f, -1.0f, 0.0f);
         vUp = CVECTOR(0.0f, 0.0f, 1.0f);
         break;
-    case D3DCUBEMAP_FACE_POSITIVE_Z:
+    case storm_render::CubeFace::PositiveZ:
         vLookTo = CVECTOR(0.0f, 0.0f, 1.0f);
         vUp = CVECTOR(0.0f, 1.0f, 0.0f);
         break;
-    case D3DCUBEMAP_FACE_NEGATIVE_Z:
+    case storm_render::CubeFace::NegativeZ:
         vLookTo = CVECTOR(0.0f, 0.0f, -1.0f);
         vUp = CVECTOR(0.0f, 1.0f, 0.0f);
         break;
@@ -80,12 +80,12 @@ bool SEA::SunRoad_Render2()
         // if (i == D3DCUBEMAP_FACE_NEGATIVE_Y) continue;
         // if (i != D3DCUBEMAP_FACE_NEGATIVE_Z) continue;
 
-        IDirect3DSurface9 *pReflectionSurface;
+        storm_render::Surface *pReflectionSurface;
         pReflectionSunroad->GetSurfaceLevel(0, &pReflectionSurface);
 
         rs->BeginScene();
         bool bCool = rs->SetRenderTarget(pReflectionSurface, pZStencil);
-        bCool = D3D_OK != rs->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0x0, 1.0f, 0);
+        bCool = storm_render::result::ok != rs->Clear(storm_render::clear::depth | storm_render::clear::color, 0x0, 1.0f);
 
         // CMatrix mView;
         // EnvMap_GetSideMatrix((D3DCUBEMAP_FACES)i, mView);
@@ -159,14 +159,14 @@ bool SEA::EnvMap_Render2()
         // if (i == D3DCUBEMAP_FACE_NEGATIVE_Y) continue;
         // if (i != D3DCUBEMAP_FACE_NEGATIVE_Z) continue;
 
-        IDirect3DSurface9 *pReflectionSurface;
+        storm_render::Surface *pReflectionSurface;
         pReflection->GetSurfaceLevel(0, &pReflectionSurface);
 
         rs->BeginScene();
         // bool bCool = rs->SetRenderTarget(pEnvMap, i, 0, pZStencil);
         // bool bCool = rs->SetRenderTarget(pEnvMap, i, 0, pZStencil);
         bool bCool = rs->SetRenderTarget(pReflectionSurface, pReflectionSurfaceDepth);
-        bCool = D3D_OK != rs->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0x0, 1.0f, 0);
+        bCool = storm_render::result::ok != rs->Clear(storm_render::clear::depth | storm_render::clear::color, 0x0, 1.0f);
 
         // CMatrix mView;
         // EnvMap_GetSideMatrix((D3DCUBEMAP_FACES)i, mView);
@@ -234,15 +234,15 @@ bool SEA::SunRoad_Render()
     const uint32_t endFace = sunRoadPrimed ? sunRoadFace + 1 : 6;
     for (uint32_t i = firstFace; i < endFace; i++)
     {
-        if (!bUnderSea && i == D3DCUBEMAP_FACE_NEGATIVE_Y)
+        if (!bUnderSea && i == uint32_t(storm_render::CubeFace::NegativeY))
             continue;
 
         rs->BeginScene();
         bool bCool = rs->SetRenderTarget(pSunRoadMap, i, 0, pZStencil);
-        bCool = D3D_OK != rs->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0x0, 1.0f, 0);
+        bCool = storm_render::result::ok != rs->Clear(storm_render::clear::depth | storm_render::clear::color, 0x0, 1.0f);
 
         CMatrix mView;
-        EnvMap_GetSideMatrix(static_cast<D3DCUBEMAP_FACES>(i), mView);
+        EnvMap_GetSideMatrix(static_cast<storm_render::CubeFace>(i), mView);
 
         mView.m[3][0] = -(mView.m[0][0] * vCamPos.x - mView.m[1][0] * vCamPos.y + mView.m[2][0] * vCamPos.z);
         mView.m[3][1] = -(mView.m[0][1] * vCamPos.x - mView.m[1][1] * vCamPos.y + mView.m[2][1] * vCamPos.z);
@@ -273,7 +273,7 @@ bool SEA::SunRoad_Render()
     {
         sunRoadFace = (sunRoadFace + 1) % 6;
     }
-    while (!bUnderSea && sunRoadFace == D3DCUBEMAP_FACE_NEGATIVE_Y);
+    while (!bUnderSea && sunRoadFace == uint32_t(storm_render::CubeFace::NegativeY));
 
     rs->PopRenderTarget();
     rs->SetView(mOldView);
@@ -296,22 +296,22 @@ bool SEA::EnvMap_Render()
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     const float captureOrigin[] = {vCamPos.x, -vCamPos.y, vCamPos.z};
-    StormMetalBeginSeaReflectionCube(rs->GetD3DDevice(), pEnvMap, bUnderSea ? 0x3fu : 0x37u, captureOrigin);
+    StormMetalBeginSeaReflectionCube(rs->GetNativeDevice(), pEnvMap, bUnderSea ? 0x3fu : 0x37u, captureOrigin);
 #endif
 
     uint32_t Colors[6] = {0xd934c8, 0x2FFF1F, 0x0000FF, 0xFF00, 0xb28e11, 0x0};
     for (uint32_t i = 0; i < 6; i++)
     {
-        if (!bUnderSea && i == D3DCUBEMAP_FACE_NEGATIVE_Y)
+        if (!bUnderSea && i == uint32_t(storm_render::CubeFace::NegativeY))
             continue;
         // if (i != D3DCUBEMAP_FACE_NEGATIVE_Z) continue;
 
         rs->BeginScene();
         bool bCool = rs->SetRenderTarget(pEnvMap, i, 0, pZStencil);
-        bCool = D3D_OK != rs->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, Colors[i] /*0x0*/, 1.0f, 0);
+        bCool = storm_render::result::ok != rs->Clear(storm_render::clear::depth | storm_render::clear::color, Colors[i] /*0x0*/, 1.0f);
 
         CMatrix mView;
-        EnvMap_GetSideMatrix(static_cast<D3DCUBEMAP_FACES>(i), mView);
+        EnvMap_GetSideMatrix(static_cast<storm_render::CubeFace>(i), mView);
 
         mView.m[3][0] = -(mView.m[0][0] * vCamPos.x - mView.m[1][0] * vCamPos.y + mView.m[2][0] * vCamPos.z);
         mView.m[3][1] = -(mView.m[0][1] * vCamPos.x - mView.m[1][1] * vCamPos.y + mView.m[2][1] * vCamPos.z);
@@ -331,7 +331,7 @@ bool SEA::EnvMap_Render()
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
         // Current background layer owns sky/clouds/lightning; finite island,
         // sails and ship geometry belong to SEA_REFLECTION2 below.
-        StormMetalCaptureSeaReflectionBackground(rs->GetD3DDevice(), pEnvMap, i);
+        StormMetalCaptureSeaReflectionBackground(rs->GetNativeDevice(), pEnvMap, i);
 #endif
         {
             auto &&entities = core.GetEntityIds(SEA_REFLECTION2);
@@ -343,7 +343,7 @@ bool SEA::EnvMap_Render()
 
         rs->EndScene();
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
-        StormMetalCaptureSeaReflectionDepth(rs->GetD3DDevice(), pEnvMap, i);
+        StormMetalCaptureSeaReflectionDepth(rs->GetNativeDevice(), pEnvMap, i);
 #endif
     }
 

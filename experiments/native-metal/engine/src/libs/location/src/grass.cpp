@@ -147,7 +147,7 @@ bool Grass::Init()
     CreateVertexDeclaration();
     // Buffer for dynamic data
 #ifndef STORM_METAL_GRASS_BRIDGE
-    vb = rs->CreateVertexBuffer(0, GRASS_MAX_POINTS * 4 * sizeof(Vertex), D3DUSAGE_DYNAMIC);
+    vb = rs->CreateVertexBuffer(0, GRASS_MAX_POINTS * 4 * sizeof(Vertex), storm_render::usage::dynamic);
     if (vb < 0)
         return false;
     // Vertex Addressing Indexes
@@ -437,20 +437,20 @@ void Grass::Realize(uint32_t delta_time)
     if (quality == rq_off)
         return;
 #endif
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     // Remove textures
     rs->TextureSet(0, -1);
     rs->TextureSet(1, -1);
     // States
-    rs->SetRenderState(D3DRS_ZENABLE, false);
-    rs->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-    rs->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-    rs->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    rs->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    rs->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    rs->SetRenderState(storm_render::RenderDepthTest, false);
+    rs->SetRenderState(storm_render::RenderDepthWrite, FALSE);
+    rs->SetRenderState(storm_render::RenderAlphaTest, FALSE);
+    rs->SetRenderState(storm_render::RenderBlend, TRUE);
+    rs->SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha);
+    rs->SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
     // Fog
     uint32_t dwOldFogDensity;
-    rs->GetRenderState(D3DRS_FOGDENSITY, &dwOldFogDensity);
+    rs->GetRenderState(storm_render::RenderFogDensity, &dwOldFogDensity);
     entid_t eidIsland = core.GetEntityId("ISLAND");
     // Sea islands use the same authored .grs distribution as nearby shores.
     // The historical 1000-unit range hid it before an island filled the sea
@@ -464,21 +464,21 @@ void Grass::Realize(uint32_t delta_time)
         ATTRIBUTES *pA = core.Entity_GetAttributePointer(eidIsland);
         if (pA)
             fIslandFogDensity = pA->GetAttributeAsFloat("FogDensity", 0.0f);
-        rs->SetRenderState(D3DRS_FOGDENSITY, F2DW(fIslandFogDensity));
+        rs->SetRenderState(storm_render::RenderFogDensity, F2DW(fIslandFogDensity));
     }
     // Set up the stages
     uint32_t cop, carg1, cop1, aop, aarg1;
-    rs->GetTextureStageState(0, D3DTSS_COLOROP, &cop);
-    rs->GetTextureStageState(1, D3DTSS_COLOROP, &cop1);
-    rs->GetTextureStageState(0, D3DTSS_COLORARG1, &carg1);
-    rs->GetTextureStageState(0, D3DTSS_ALPHAOP, &aop);
-    rs->GetTextureStageState(0, D3DTSS_ALPHAARG1, &aarg1);
+    rs->GetTextureStageState(0, storm_render::StageColorOp, &cop);
+    rs->GetTextureStageState(1, storm_render::StageColorOp, &cop1);
+    rs->GetTextureStageState(0, storm_render::StageColorArg1, &carg1);
+    rs->GetTextureStageState(0, storm_render::StageAlphaOp, &aop);
+    rs->GetTextureStageState(0, storm_render::StageAlphaArg1, &aarg1);
 
-    rs->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    rs->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    rs->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-    rs->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-    rs->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+    rs->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1);
+    rs->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    rs->SetTextureStageState(1, storm_render::StageColorOp, storm_render::TextureOpDisable);
+    rs->SetTextureStageState(0, storm_render::StageAlphaOp, storm_render::TextureOpSelectArg1);
+    rs->SetTextureStageState(0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse);
 
     struct SphVertex
     {
@@ -491,15 +491,15 @@ void Grass::Realize(uint32_t delta_time)
     lineVertex[1].c = 0xff00ffff;
 
     // Restore the stages
-    rs->SetTextureStageState(0, D3DTSS_COLOROP, cop);
-    rs->SetTextureStageState(0, D3DTSS_COLORARG1, carg1);
-    rs->SetTextureStageState(1, D3DTSS_COLOROP, cop1);
-    rs->SetTextureStageState(0, D3DTSS_ALPHAOP, aop);
-    rs->SetTextureStageState(0, D3DTSS_ALPHAARG1, aarg1);
+    rs->SetTextureStageState(0, storm_render::StageColorOp, cop);
+    rs->SetTextureStageState(0, storm_render::StageColorArg1, carg1);
+    rs->SetTextureStageState(1, storm_render::StageColorOp, cop1);
+    rs->SetTextureStageState(0, storm_render::StageAlphaOp, aop);
+    rs->SetTextureStageState(0, storm_render::StageAlphaArg1, aarg1);
     // restore the states
-    rs->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-    rs->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    rs->SetRenderState(D3DRS_ZENABLE, TRUE);
+    rs->SetRenderState(storm_render::RenderAlphaTest, TRUE);
+    rs->SetRenderState(storm_render::RenderDepthWrite, TRUE);
+    rs->SetRenderState(storm_render::RenderDepthTest, TRUE);
 
     // if(core.Controls->GetDebugAsyncKeyState('H') < 0) return;
 
@@ -509,7 +509,7 @@ void Grass::Realize(uint32_t delta_time)
     // Light source parameters
     BOOL isLight = FALSE;
     rs->GetLightEnable(0, &isLight);
-    D3DLIGHT9 light;
+    storm_render::Light light;
     if (isLight && rs->GetLight(0, &light))
     {
         // Installed source
@@ -543,7 +543,7 @@ void Grass::Realize(uint32_t delta_time)
         lColor.z = powf(lColor.z, 0.2f);
         // Diffused light
         uint32_t aclr;
-        if (rs->GetRenderState(D3DRS_AMBIENT, &aclr) != D3D_OK)
+        if (rs->GetRenderState(storm_render::RenderAmbient, &aclr) != storm_render::result::ok)
             aclr = 0xffffffff;
         aColor.z = static_cast<uint8_t>(aclr >> 16) * 1.0f / 255.0f;
         aColor.y = static_cast<uint8_t>(aclr >> 8) * 1.0f / 255.0f;
@@ -563,7 +563,7 @@ void Grass::Realize(uint32_t delta_time)
         // Default source
         // Diffused light
         uint32_t aclr;
-        if (rs->GetRenderState(D3DRS_AMBIENT, &aclr) != D3D_OK)
+        if (rs->GetRenderState(storm_render::RenderAmbient, &aclr) != storm_render::result::ok)
             aclr = 0xffffffff;
         aColor.z = static_cast<uint8_t>(aclr >> 16) * 1.0f / 255.0f;
         aColor.y = static_cast<uint8_t>(aclr >> 8) * 1.0f / 255.0f;
@@ -600,8 +600,8 @@ void Grass::Realize(uint32_t delta_time)
 
     // matrix
     CMatrix view, prj;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
 #ifdef _WIN32 // Effects
     CMatrix cmtx;
     cmtx.EqMultiply(view, prj);
@@ -692,7 +692,7 @@ void Grass::Realize(uint32_t delta_time)
         camz = miniZ - 1;
     // Preparing blocks for rendering
     numPoints = 0;
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     
     if (right != miniX - 1 || bottom != miniZ - 1)
     {
@@ -720,7 +720,7 @@ void Grass::Realize(uint32_t delta_time)
     // Draw a buffer
     DrawBuffer();
 
-    rs->SetRenderState(D3DRS_FOGDENSITY, dwOldFogDensity);
+    rs->SetRenderState(storm_render::RenderFogDensity, dwOldFogDensity);
 
     for (size_t i = 0; i < characters.size(); i++)
     {
@@ -1077,13 +1077,13 @@ void Grass::DrawBuffer()
         // vertex_id while retaining the authored per-blade wind and LOD alpha.
         // These are the exact Grass.fx cutout/blend values.
         const bool accepted = StormMetalDrawGrass(
-            rs->GetD3DDevice(), metalInstances.data(), metalInstances.size(), sizeof(MetalInstance),
+            rs->GetNativeDevice(), metalInstances.data(), metalInstances.size(), sizeof(MetalInstance),
             // One float4 per VSConstant register: the same 42 registers the
             // Windows path uploads, in the float unit the bridge validates.
             reinterpret_cast<const float *>(consts), sizeof(consts) / sizeof(VSConstant) * 4u,
             isGrassLightsOn == 1, m_fDataScale, m_fMaxWidth, m_fMaxHeight,
-            true, 80u, true, static_cast<unsigned>(D3DBLEND_SRCALPHA),
-            static_cast<unsigned>(D3DBLEND_INVSRCALPHA));
+            true, 80u, true, static_cast<unsigned>(storm_render::BlendSourceAlpha),
+            static_cast<unsigned>(storm_render::BlendInverseSourceAlpha));
         if (!accepted)
             throw std::runtime_error("Metal grass bridge rejected a classified native batch");
         metalInstances.clear();
@@ -1117,12 +1117,12 @@ void Grass::CreateVertexDeclaration() const
 #ifndef STORM_METAL_GRASS_BRIDGE
     if (vertexDecl_ == nullptr)
     {
-        constexpr D3DVERTEXELEMENT9 VertexElements[] = {
-            {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-            {0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-            {0, 16, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 1},
-            {0, 20, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-            D3DDECL_END()};
+        constexpr storm_render::VertexElement VertexElements[] = {
+            {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+            {0, 12, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+            {0, 16, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 1},
+            {0, 20, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+            storm_render::vertexLayoutTerminator()};
 
         rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
     }

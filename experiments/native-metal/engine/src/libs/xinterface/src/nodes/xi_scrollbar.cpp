@@ -202,7 +202,7 @@ void CXI_SCROLLBAR::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, con
     m_nVert = 12 * 6;    //
     m_nIndx = 3 * 2 * 3; // 3 rectangle * 2 treangle into rectangle * 3 vertex into triangle
     m_idIBuf = m_rs->CreateIndexBuffer(m_nIndx * 2);
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
 
     // Lock buffers for write
     auto *pVert = static_cast<XI_ONETEX_VERTEX *>(m_rs->LockVertexBuffer(m_idVBuf));

@@ -4,6 +4,24 @@ Last verified delivery: October14. Native fleet profiling, foam/cloud work, sail
 
 ## Current verdict
 
+### October14 — native API candidate; installed app unchanged
+
+The engine and all existing CMake targets compile after removing the shipping
+D3D9/COM API and graphics-header dependency. Twelve existing native checks pass,
+including retained-device lifetime, reset/index negatives, exact draw pixels,
+HUD boundaries, point shadows, authored alpha and GPU skinning. A full-scene
+probe initially rejected the imported default R5G6B5 setting; that added check
+was removed because the prior Metal factory always created RGBA8 storage.
+The corrected uninstrumented fleet202818 passes all minima:152 sails,
+311 animated draws, sea/current sky and8 complete shadow cubes. Across256 warm
+frames CPU median13.378ms/p9915.752ms; GPU union14.802ms/p9918.258ms.
+The before-migration fleet192703 measured CPU14.710/GPU16.210ms medians;
+unpaired variation does not establish a causal migration speedup. Native API
+removal is source/component verified, not120FPS or player visual acceptance.
+This source batch is not staged or installed yet; installed signed engine
+ee5a226b remains the last delivered runtime. Quick submission reductions follow
+only after this parity baseline.
+
 ### October14 — current CPU/GPU owners; cloud replacement deferred
 
 Restored canonical source is rebuilt by the normal benchmark path for corrected

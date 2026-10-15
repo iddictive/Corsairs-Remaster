@@ -18,7 +18,7 @@
 #define WdmStormSizeMin 40.0f
 #define WdmStormSizeMax 60.0f
 
-IDirect3DVertexDeclaration9 *WdmCloud::vertexDecl_ = nullptr;
+storm_render::VertexLayout *WdmCloud::vertexDecl_ = nullptr;
 
 // ============================================================================================
 // Construction, destruction
@@ -262,7 +262,7 @@ void WdmCloud::Render(VDX9RENDER *rs)
 {
     // Inverse camera matrix
     CMatrix view;
-    rs->GetTransform(D3DTS_VIEW, view);
+    rs->GetTransform(storm_render::TransformView, view);
     view.Transposition();
     // Draw lightning if needed
     Vertex lght[4];
@@ -305,7 +305,7 @@ void WdmCloud::Render(VDX9RENDER *rs)
                 lght[3].c = lightningColor;
                 lght[3].u = u + kFrames;
                 lght[3].v = 0.99f;
-                rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, lght,
+                rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, lght,
                                     sizeof(Vertex), "WdmLightning");
             }
             r.dwColor = (r.dwColor & ~0x00000400) | ((rand() & 1) ? 0x00000400 : 0);
@@ -320,7 +320,7 @@ void WdmCloud::Render(VDX9RENDER *rs)
     rs->TextureSet(1, light);
     // Constants
     CMatrix prj;
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     rs->SetVertexShaderConstantF(0, prj, 4);
     prj.matrix[0] = view.matrix[1];
     prj.matrix[1] = view.matrix[5];
@@ -388,11 +388,11 @@ void WdmCloud::CreateVertexDeclaration(VDX9RENDER *rs)
     if (vertexDecl_ != nullptr)
         return;
 
-    const D3DVERTEXELEMENT9 VertexElements[] = {
-        {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-        {0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-        {0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-        D3DDECL_END()};
+    const storm_render::VertexElement VertexElements[] = {
+        {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+        {0, 12, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+        {0, 16, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+        storm_render::vertexLayoutTerminator()};
 
     rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
 }

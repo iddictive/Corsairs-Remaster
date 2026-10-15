@@ -61,10 +61,10 @@ class BI_ManagerBase : public Entity
         return m_pMouse;
     }
 
-    virtual BI_ManagerNodeBase *CreateImageNode(const char *texture, const FRECT &uv, const RECT &pos, uint32_t color,
+    virtual BI_ManagerNodeBase *CreateImageNode(const char *texture, const FRECT &uv, const storm_render::Rect &pos, uint32_t color,
                                                 int32_t nPrioritet) = 0;
     virtual BI_ManagerNodeBase *CreateStringNode(const char *text, const char *font, uint32_t color, float scale,
-                                                 const RECT &pos, int32_t nHAlign, int32_t nVAlign, int32_t prioritet) = 0;
+                                                 const storm_render::Rect &pos, int32_t nHAlign, int32_t nVAlign, int32_t prioritet) = 0;
     virtual void DeleteNode(BI_ManagerNodeBase *pNod) = 0;
 
   protected:

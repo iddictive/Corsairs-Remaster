@@ -103,7 +103,7 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
             if (pRS->TechniqueExecuteStart(pL->sTechnique.c_str()))
                 do
                 {
-                    StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->sTechnique.c_str(), dwSubTexX,
+                    StormMetalDrawBillboards(pRS->GetNativeDevice(), pR, 1, pL->sTechnique.c_str(), dwSubTexX,
                                              dwSubTexY, pL->fScaleX, pL->fScaleY * pRS->GetHeightDeformator());
                 } while (pRS->TechniqueExecuteNext());
 #else
@@ -129,7 +129,7 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
             if (pRS->TechniqueExecuteStart(pL->Flash.sTechnique.c_str()))
                 do
                 {
-                    StormMetalDrawBillboards(pRS->GetD3DDevice(), pR, 1, pL->Flash.sTechnique.c_str(), 1, 1,
+                    StormMetalDrawBillboards(pRS->GetNativeDevice(), pR, 1, pL->Flash.sTechnique.c_str(), 1, 1,
                                              1.0f, pRS->GetHeightDeformator());
                 } while (pRS->TechniqueExecuteNext());
 #else

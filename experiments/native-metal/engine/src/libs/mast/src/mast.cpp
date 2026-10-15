@@ -127,7 +127,7 @@ void MAST::Execute(uint32_t Delta_Time)
     // UNGUARD
 }
 
-#define D3DLXLINEVERTEX_FORMAT (D3DFVF_DIFFUSE | D3DFVF_XYZ | D3DFVF_TEX0)
+#define D3DLXLINEVERTEX_FORMAT (storm_render::vertexFormat::diffuse | storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex0)
 
 void MAST::Realize(uint32_t Delta_Time)
 {
@@ -142,9 +142,9 @@ void MAST::Realize(uint32_t Delta_Time)
     MODEL *mdl;
     if ((mdl = static_cast<MODEL *>(core.GetEntityPointer(model_id))) != nullptr)
     {
-        RenderService->SetRenderState(D3DRS_LIGHTING, true);
+        RenderService->SetRenderState(storm_render::RenderLighting, true);
         mdl->ProcessStage(Stage::realize, Delta_Time);
-        RenderService->SetRenderState(D3DRS_LIGHTING, false);
+        RenderService->SetRenderState(storm_render::RenderLighting, false);
 
         /*        CVECTOR bp=mdl->mtx*mm.bp;
                 CVECTOR ep=mdl->mtx*mm.ep;
@@ -804,9 +804,9 @@ void HULL::Realize(uint32_t Delta_Time)
     MODEL *mdl;
     if ((mdl = static_cast<MODEL *>(core.GetEntityPointer(model_id))) != nullptr)
     {
-        RenderService->SetRenderState(D3DRS_LIGHTING, true);
+        RenderService->SetRenderState(storm_render::RenderLighting, true);
         mdl->ProcessStage(Stage::realize, Delta_Time);
-        RenderService->SetRenderState(D3DRS_LIGHTING, false);
+        RenderService->SetRenderState(storm_render::RenderLighting, false);
     }
 }
 

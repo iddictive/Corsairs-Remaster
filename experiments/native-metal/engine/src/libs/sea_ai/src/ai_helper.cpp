@@ -213,11 +213,11 @@ void AIHelper::Print3D(CVECTOR vPos, float dy, float fScale, const char *pFormat
 {
     CMatrix mtx, view, prj;
     char Buff_4k[2048];
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     MTX_PRJ_VECTOR vrt;
 
-    pRS->GetTransform(D3DTS_VIEW, view);
-    pRS->GetTransform(D3DTS_PROJECTION, prj);
+    pRS->GetTransform(storm_render::TransformView, view);
+    pRS->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     view.Transposition();
 

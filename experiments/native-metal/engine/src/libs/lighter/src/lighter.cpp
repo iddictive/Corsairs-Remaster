@@ -113,7 +113,7 @@ void Lighter::PreparingData()
     // Lighting
     // Scattered
     auto amb = 0xff404040;
-    rs->GetRenderState(D3DRS_AMBIENT, &amb);
+    rs->GetRenderState(storm_render::RenderAmbient, &amb);
     CVECTOR clr;
     clr.x = ((amb >> 16) & 0xff) / 255.0f;
     clr.y = ((amb >> 8) & 0xff) / 255.0f;
@@ -128,14 +128,14 @@ void Lighter::PreparingData()
     // The sun
     auto isLight = FALSE;
     rs->GetLightEnable(0, &isLight);
-    D3DLIGHT9 lit;
+    storm_render::Light lit;
     if (isLight && rs->GetLight(0, &lit))
     {
         CVECTOR clr, dir = !CVECTOR(1.0f, 1.0f, 1.0f);
         clr.x = lit.Diffuse.r;
         clr.y = lit.Diffuse.g;
         clr.z = lit.Diffuse.b;
-        if (lit.Type == D3DLIGHT_DIRECTIONAL)
+        if (lit.Type == storm_render::LightKind::Directional)
         {
             dir.x = -lit.Direction.x;
             dir.y = -lit.Direction.y;

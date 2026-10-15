@@ -42,7 +42,7 @@ class SUNGLOW : public Entity
   private:
     enum
     {
-        SUNGLOWVERTEX_FORMAT = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+        SUNGLOWVERTEX_FORMAT = storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
         SUNGLOW_FORCE_DWORD = 0x7FFFFFFF
     };
 

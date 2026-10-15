@@ -14,7 +14,7 @@
 class SeaMapTransition final : public Entity
 {
     VDX9RENDER *rs = nullptr;
-    IDirect3DTexture9 *frame = nullptr;
+    storm_render::Texture *frame = nullptr;
     float flightTime = 0, landingTime = 0;
     uint64_t pauseRevision = 0;
     CVECTOR origin{}, angles{}, focus{}, look{}, offset{};
@@ -85,14 +85,14 @@ class SeaMapTransition final : public Entity
     }
     bool capture()
     {
-        IDirect3DSurface9 *source = nullptr, *destination = nullptr;
-        D3DSURFACE_DESC desc{};
-        bool ok = SUCCEEDED(rs->GetRenderTarget(&source)) && source &&
-                  SUCCEEDED(source->GetDesc(&desc)) &&
-                  SUCCEEDED(rs->CreateTexture(desc.Width, desc.Height, 1,
-                      D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &frame)) &&
-                  SUCCEEDED(frame->GetSurfaceLevel(0, &destination)) &&
-                  SUCCEEDED(rs->StretchRect(source, nullptr, destination, nullptr, D3DTEXF_NONE));
+        storm_render::Surface *source = nullptr, *destination = nullptr;
+        storm_render::SurfaceDesc desc{};
+        bool ok = storm_render::succeeded(rs->GetRenderTarget(&source)) && source &&
+                  storm_render::succeeded(source->GetDesc(&desc)) &&
+                  storm_render::succeeded(rs->CreateTexture(desc.Width, desc.Height, 1,
+                      storm_render::usage::renderTarget, desc.Format, storm_render::MemoryClass::Default, &frame)) &&
+                  storm_render::succeeded(frame->GetSurfaceLevel(0, &destination)) &&
+                  storm_render::succeeded(rs->StretchRect(source, nullptr, destination, nullptr, storm_render::TextureFilterNone));
         if (destination) destination->Release();
         if (source) source->Release();
         if (!ok && frame) { frame->Release(); frame = nullptr; }
@@ -101,7 +101,7 @@ class SeaMapTransition final : public Entity
     void quad(uint32_t color, float u0 = 0, float v0 = 0, float u1 = 1, float v1 = 1,
               const char *technique = "Fader")
     {
-        D3DVIEWPORT9 viewport{};
+        storm_render::Viewport viewport{};
         rs->GetViewport(&viewport);
         struct Vertex { float x, y, z, rhw; uint32_t color; float u, v; };
         const float w = static_cast<float>(viewport.Width), h = static_cast<float>(viewport.Height);
@@ -109,7 +109,7 @@ class SeaMapTransition final : public Entity
             {-.5f, -.5f, .5f, 1, color, u0, v0}, {w, -.5f, .5f, 1, color, u1, v0},
             {-.5f, h, .5f, 1, color, u0, v1}, {-.5f, h, .5f, 1, color, u0, v1},
             {w, -.5f, .5f, 1, color, u1, v0}, {w, h, .5f, 1, color, u1, v1}};
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                             2, vertices, sizeof(Vertex), technique);
     }
     void realize()

@@ -26,7 +26,7 @@ bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_
     CVECTOR visualSun;
     weather->GetVisualVector(whv_sun_pos, &visualSun);
     const auto prepare = skyDraw ? StormMetalBeginDynamicSky : StormMetalPrepareDynamicSky;
-    return prepare(renderer->GetD3DDevice(), weather->GetVisualFloat(whf_time_counter),
+    return prepare(renderer->GetNativeDevice(), weather->GetVisualFloat(whf_time_counter),
                                        static_cast<float>(deltaTime) * 0.001f, weather->GetCloudCoverage(),
                                        weather->GetCloudDensity(),
                                        weather->GetVisualFloat(whf_wind_angle),
@@ -38,7 +38,7 @@ class MetalDynamicSkyScope
 {
   public:
     MetalDynamicSkyScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
-        : device(renderer->GetD3DDevice())
+        : device(renderer->GetNativeDevice())
     {
         active = PrepareMetalAtmosphere(renderer, weather, deltaTime, true);
     }
@@ -56,7 +56,7 @@ class MetalDynamicSkyScope
 class MetalSkyFogScope
 {
   public:
-    MetalSkyFogScope(VDX9RENDER *renderer, WEATHER_BASE *weather) : device(renderer->GetD3DDevice())
+    MetalSkyFogScope(VDX9RENDER *renderer, WEATHER_BASE *weather) : device(renderer->GetNativeDevice())
     {
         if (weather)
             active = StormMetalBeginSkyFog(device, weather->GetVisualColor(whc_fog_color));
@@ -171,7 +171,7 @@ void SKY::UpdateFogSphere(const bool initialize)
         if (iFogVertsID < 0)
         {
             iFogVertsID =
-                pRS->CreateVertexBuffer(FOGVERTEX_FORMAT, kFogVertsNum * sizeof(SKYVERTEX), D3DUSAGE_WRITEONLY);
+                pRS->CreateVertexBuffer(FOGVERTEX_FORMAT, kFogVertsNum * sizeof(SKYVERTEX), storm_render::usage::writeOnly);
         }
         if (iFogIndexID < 0)
         {
@@ -248,7 +248,7 @@ void SKY::GenerateSky(const bool initialize)
 
     if (iSkyVertsID < 0)
     {
-        iSkyVertsID = pRS->CreateVertexBuffer(SKYVERTEX_FORMAT, SKY_NUM_VERTEX * sizeof(SKYVERTEX), D3DUSAGE_WRITEONLY);
+        iSkyVertsID = pRS->CreateVertexBuffer(SKYVERTEX_FORMAT, SKY_NUM_VERTEX * sizeof(SKYVERTEX), storm_render::usage::writeOnly);
         
     }
     if (iSkyIndexID < 0)
@@ -412,7 +412,7 @@ void SKY::Realize(uint32_t Delta_Time)
     pMatWorld = pMatWorld * pMatTranslate;
     pMatRotate.BuildRotateY(fAngleY + fSkyAngle);
     pMatWorld = pMatRotate * pMatWorld;
-    pRS->SetTransform(D3DTS_WORLD, pMatWorld);
+    pRS->SetTransform(storm_render::TransformWorld, pMatWorld);
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     WEATHER_BASE *metalWeather = nullptr;
@@ -447,7 +447,7 @@ void SKY::Realize(uint32_t Delta_Time)
         if (fBlendFactor > 1.f)
             fBlendFactor = 1.f;
         uint32_t dwColor = (dwSkyColor & 0x00FFFFFF) | (static_cast<int32_t>(0xFF000000 * fBlendFactor) & 0xFF000000);
-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+        pRS->SetRenderState(storm_render::RenderTextureFactor, dwColor);
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
         MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
@@ -469,7 +469,7 @@ void SKY::Realize(uint32_t Delta_Time)
         {
             if (realizeAstronomy())
             {
-                pRS->SetTransform(D3DTS_WORLD, pMatWorld);
+                pRS->SetTransform(storm_render::TransformWorld, pMatWorld);
                 if (pRS->TechniqueExecuteStart(sTechSkyBlendAlpha.c_str()))
                     do
                     {
@@ -492,7 +492,7 @@ void SKY::Realize(uint32_t Delta_Time)
     }
     else
     {
-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwSkyColor);
+        pRS->SetRenderState(storm_render::RenderTextureFactor, dwSkyColor);
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
         MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
@@ -518,7 +518,7 @@ void SKY::Realize(uint32_t Delta_Time)
     pMatWorld.SetIdentity();
     pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
     pMatWorld = pMatWorld * pMatTranslate;
-    pRS->SetTransform(D3DTS_WORLD, pMatWorld);
+    pRS->SetTransform(storm_render::TransformWorld, pMatWorld);
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     MetalSkyFogScope metalSkyFogScope(pRS, metalWeather);
 #endif
@@ -806,9 +806,9 @@ float SKY::CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize)
         if (nTexNum != -1)
         {
             const auto dwCol1 =
-                GetPixelColor(static_cast<IDirect3DTexture9 *>(pRS->GetTextureFromID(TexturesID[nTexNum])), fu, fv);
+                GetPixelColor(static_cast<storm_render::Texture *>(pRS->GetTextureFromID(TexturesID[nTexNum])), fu, fv);
             const auto dwCol2 =
-                GetPixelColor(static_cast<IDirect3DTexture9 *>(pRS->GetTextureFromID(TexturesNextID[nTexNum])), fu, fv);
+                GetPixelColor(static_cast<storm_render::Texture *>(pRS->GetTextureFromID(TexturesNextID[nTexNum])), fu, fv);
 
             const auto fK = fTimeFactor - static_cast<int32_t>(fTimeFactor);
             const auto fAlpha = (1.f - fK) * (dwCol1 >> 24) / 255.f + fK * (dwCol2 >> 24) / 255.f;
@@ -819,23 +819,23 @@ float SKY::CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize)
     return 1.f;
 }
 
-uint32_t SKY::GetPixelColor(IDirect3DTexture9 *pTex, float fu, float fv) const
+uint32_t SKY::GetPixelColor(storm_render::Texture *pTex, float fu, float fv) const
 {
-    HRESULT hok;
+    storm_render::Result hok;
     auto dwCol = 0xFFFFFFFF;
 
     if (!pTex)
         return dwCol;
 
-    D3DSURFACE_DESC texdesc;
+    storm_render::SurfaceDesc texdesc;
     pRS->GetLevelDesc(pTex, 0, &texdesc);
     const auto x = static_cast<int32_t>(Bring2Range(0.0f, static_cast<float>(texdesc.Width - 1), 0.0f,
                                                  static_cast<float>(texdesc.Width), texdesc.Width * fu));
     const auto y = static_cast<int32_t>(Bring2Range(0.0f, static_cast<float>(texdesc.Height - 1), 0.0f,
                                                  static_cast<float>(texdesc.Height), texdesc.Height * fv));
 
-    D3DLOCKED_RECT lockRect;
-    if ((hok = pRS->LockRect(pTex, 0, &lockRect, nullptr, D3DLOCK_READONLY)) == D3D_OK)
+    storm_render::LockedRect lockRect;
+    if ((hok = pRS->LockRect(pTex, 0, &lockRect, nullptr, storm_render::lock::readOnly)) == storm_render::result::ok)
     {
         auto *pLine = (uint32_t *)(static_cast<uint8_t *>(lockRect.pBits) + y * lockRect.Pitch);
         dwCol = pLine[x];

@@ -40,9 +40,9 @@ void WdmWindRose::Update(float dltTime)
 void WdmWindRose::LRender(VDX9RENDER *rs)
 {
     static CMatrix view, prj, oldView, oldPrj;
-    rs->GetTransform(D3DTS_VIEW, view);
+    rs->GetTransform(storm_render::TransformView, view);
     oldView = view;
-    rs->GetTransform(D3DTS_PROJECTION, oldPrj);
+    rs->GetTransform(storm_render::TransformProjection, oldPrj);
     view.Transposition();
     const auto kDef = rs->GetHeightDeformator();
     mtx.SetPosition(view * CVECTOR(0.34f, -0.247f * kDef, 10.0f));
@@ -51,7 +51,7 @@ void WdmWindRose::LRender(VDX9RENDER *rs)
     wdmObjects->GetVPSize(scrw, scrh);
     // prj.BuildProjectionMatrix(0.1f, scrw, scrh, 0.5f, 50.0f);
     prj.BuildProjectionMatrix(0.1f, 4.0f, 3.0f, 0.5f, 50.0f);
-    rs->SetTransform(D3DTS_PROJECTION, prj);
+    rs->SetTransform(storm_render::TransformProjection, prj);
     WdmRenderModel::LRender(rs);
     const auto size = 5.5f;
     const auto tsnap = 0.01f;
@@ -62,8 +62,8 @@ void WdmWindRose::LRender(VDX9RENDER *rs)
                                  {1.0f - tsnap, 1.0f - tsnap, -(1.0f - 2.0f * tsnap), -(1.0f - 2.0f * tsnap)}};
     if (WdmMetalDrawQuad3D(rs, compact, "WdmCompasShadow"))
     {
-        rs->SetTransform(D3DTS_PROJECTION, oldPrj);
-        rs->SetTransform(D3DTS_VIEW, oldView);
+        rs->SetTransform(storm_render::TransformProjection, oldPrj);
+        rs->SetTransform(storm_render::TransformView, oldView);
         return;
     }
 #endif
@@ -88,9 +88,9 @@ void WdmWindRose::LRender(VDX9RENDER *rs)
     v[0].c = v[1].c = v[2].c = v[3].c = 0x8f8f8f8f;
 
     rs->TextureSet(0, shadowTexture);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(Vertex),
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, v, sizeof(Vertex),
                         "WdmCompasShadow");
 
-    rs->SetTransform(D3DTS_PROJECTION, oldPrj);
-    rs->SetTransform(D3DTS_VIEW, oldView);
+    rs->SetTransform(storm_render::TransformProjection, oldPrj);
+    rs->SetTransform(storm_render::TransformView, oldView);
 }

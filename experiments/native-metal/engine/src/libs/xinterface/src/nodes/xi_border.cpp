@@ -147,7 +147,7 @@ void CXI_BORDER::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const 
 
     // create index and vertex buffers
     m_nSquareQ = 4 + 4 + 1; // 4 edge & 4 angle & 1 caption
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nSquareQ * 4 * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nSquareQ * 4 * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
     m_idIBuf = m_rs->CreateIndexBuffer(m_nSquareQ * 6 * 2);
     if (m_nCaptionHeight == 0 || !m_pCaptionImage)
         m_nSquareQ--; // don`t show caption

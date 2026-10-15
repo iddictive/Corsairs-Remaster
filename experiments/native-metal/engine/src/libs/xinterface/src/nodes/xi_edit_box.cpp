@@ -53,10 +53,10 @@ void CXI_EDITBOX::Draw(bool bSelected, uint32_t Delta_Time)
 
     // show back rectangle
     if (m_idVBRect >= 0)
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBRect, sizeof(XI_NOTEX_VERTEX), 0, 2, "iRectangle");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBRect, sizeof(XI_NOTEX_VERTEX), 0, 2, "iRectangle");
     // show background of the edit string
     if (m_idVBRect >= 0)
-        m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBRect, sizeof(XI_NOTEX_VERTEX), 4, 2, "iRectangle");
+        m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBRect, sizeof(XI_NOTEX_VERTEX), 4, 2, "iRectangle");
     // show buttons rectangles
     if (m_idVB >= 0 && m_idIB >= 0 && m_idBtnTex >= 0)
     {
@@ -436,9 +436,9 @@ void CXI_EDITBOX::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const
     m_nMaxSize = GetIniLong(ini1, name1, ini2, name2, "stringLength", -1);
 
     // Create buffers
-    m_idVBRect = m_rs->CreateVertexBuffer(XI_NOTEX_FVF, 8 * sizeof(XI_NOTEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBRect = m_rs->CreateVertexBuffer(XI_NOTEX_FVF, 8 * sizeof(XI_NOTEX_VERTEX), storm_render::usage::writeOnly);
     m_idVB = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, sizeof(XI_ONLYONETEX_VERTEX) * m_nAlphaQuantity * 4,
-                                      D3DUSAGE_WRITEONLY);
+                                      storm_render::usage::writeOnly);
     m_idIB = m_rs->CreateIndexBuffer(m_nAlphaQuantity * 6 * sizeof(uint16_t));
     if (m_idVBRect == -1 || m_idVB == -1 || m_idIB == -1)
         throw std::runtime_error("Can't create buffers");

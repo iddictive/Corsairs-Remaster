@@ -491,9 +491,9 @@ void Blots::Realize(uint32_t delta_time)
         dist = 0.0f;
     dist = (1.0f - dist) * 255.0f;
     auto color = static_cast<int32_t>(dist);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, (color << 24) | (color << 16) | (color << 8) | color);
+    rs->SetRenderState(storm_render::RenderTextureFactor, (color << 24) | (color << 16) | (color << 8) | color);
     // Settings
-    rs->SetTransform(D3DTS_WORLD, m->mtx);
+    rs->SetTransform(storm_render::TransformWorld, m->mtx);
     rs->TextureSet(0, textureID);
     // Draw all the added blots
     for (int32_t i = 0; i < BLOTS_MAX; i++)
@@ -603,7 +603,7 @@ void Blots::Realize(uint32_t delta_time)
     }
     // Draw
     if (useVrt > 3)
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, useVrt / 3, vrt,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, useVrt / 3, vrt,
                             sizeof(Vertex), "Blot");
 }
 

@@ -48,7 +48,7 @@ void LocModelRealizer::Realize(uint32_t delta_time) const
 {
     Lights* activeLights = lights;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (dynamicLights && StormMetalLandLightingReady(rs->GetD3DDevice())) activeLights = dynamicLights;
+    if (dynamicLights && StormMetalLandLightingReady(rs->GetNativeDevice())) activeLights = dynamicLights;
 #endif
     if (!bShow)
         return;
@@ -62,13 +62,13 @@ void LocModelRealizer::Realize(uint32_t delta_time) const
             static CVECTOR camPos, camAng;
             rs->GetCamera(camPos, camAng, camAng.x);
 
-            rs->GetRenderState(D3DRS_LIGHTING, &dwLighting);
+            rs->GetRenderState(storm_render::RenderLighting, &dwLighting);
             rs->GetLightEnable(0, &bLight0Enable);
 
             // calc lightning at camera pos
             activeLights->SetLightsAt(camPos);
 
-            rs->SetRenderState(D3DRS_LIGHTING, TRUE);
+            rs->SetRenderState(storm_render::RenderLighting, TRUE);
             rs->LightEnable(0, TRUE);
         }
 
@@ -77,17 +77,17 @@ void LocModelRealizer::Realize(uint32_t delta_time) const
             void *device;
             bool previous;
             ~EmitterScope() { StormMetalSetGeometryEmitter(device, previous); }
-        } emitter{rs->GetD3DDevice(), StormMetalSetGeometryEmitter(rs->GetD3DDevice(), geometryEmitter)};
-        const unsigned previousLandScope = StormMetalBeginLandModel(rs->GetD3DDevice(), 1);
+        } emitter{rs->GetNativeDevice(), StormMetalSetGeometryEmitter(rs->GetNativeDevice(), geometryEmitter)};
+        const unsigned previousLandScope = StormMetalBeginLandModel(rs->GetNativeDevice(), 1);
 #endif
         pE->ProcessStage(Stage::realize, delta_time);
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-        StormMetalEndLandModel(rs->GetD3DDevice(), previousLandScope);
+        StormMetalEndLandModel(rs->GetNativeDevice(), previousLandScope);
 #endif
         if (activeLights)
         {
             activeLights->UnsetLights();
-            rs->SetRenderState(D3DRS_LIGHTING, dwLighting);
+            rs->SetRenderState(storm_render::RenderLighting, dwLighting);
             rs->LightEnable(0, bLight0Enable);
         }
 

@@ -97,13 +97,13 @@ void CXI_FORMATEDTEXT::Draw(bool bSelected, uint32_t Delta_Time)
     {
         if (m_bBackRectangle)
         {
-            m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwBackColor);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 12, 2, "iTFRectangle");
+            m_rs->SetRenderState(storm_render::RenderTextureFactor, m_dwBackColor);
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 12, 2, "iTFRectangle");
         }
         if (m_pVidTex != nullptr)
         {
             m_rs->SetTexture(0, m_pVidTex->m_pTexture);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2, "iDinamicPictures");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2, "iDinamicPictures");
         }
     }
 
@@ -112,22 +112,22 @@ void CXI_FORMATEDTEXT::Draw(bool bSelected, uint32_t Delta_Time)
         if (m_bUpEnable && m_idUpEnableTexture >= 0)
         {
             m_rs->TextureSet(0, m_idUpEnableTexture);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iDinamicPictures");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iDinamicPictures");
         }
         if (!m_bUpEnable && m_idUpDisableTexture >= 0)
         {
             m_rs->TextureSet(0, m_idUpDisableTexture);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iDinamicPictures");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2, "iDinamicPictures");
         }
         if (m_bDownEnable && m_idDownEnableTexture >= 0)
         {
             m_rs->TextureSet(0, m_idDownEnableTexture);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iDinamicPictures");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iDinamicPictures");
         }
         if (!m_bDownEnable && m_idDownDisableTexture >= 0)
         {
             m_rs->TextureSet(0, m_idDownDisableTexture);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iDinamicPictures");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 8, 2, "iDinamicPictures");
         }
     }
 
@@ -498,7 +498,7 @@ void CXI_FORMATEDTEXT::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, 
 
     if (m_bSelectableCursor)
         m_bSelected = true;
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 4 * 4 * sizeof(XI_ONLYONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 4 * 4 * sizeof(XI_ONLYONETEX_VERTEX), storm_render::usage::writeOnly);
 
     m_rectCursorPosition.left = m_rect.left;
     m_rectCursorPosition.right = m_rect.right;

@@ -89,7 +89,7 @@ bool Window::Init(VDX9RENDER *rs)
         font = FONT_DEFAULT;
     fontHeight = static_cast<float>(rs->CharHeight(font));
     // Get the current vp sizes
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
     sw = static_cast<float>(vp.Width);
     sh = static_cast<float>(vp.Height);
@@ -105,10 +105,10 @@ bool Window::Init(VDX9RENDER *rs)
     textColor = 0xffffff8f;
     selColor = 0x00c0c000;
     // Picker texture
-    if (rs->CreateTexture(256, 256, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pickerTexture) == D3D_OK && pickerTexture)
+    if (rs->CreateTexture(256, 256, 1, 0, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Managed, &pickerTexture) == storm_render::result::ok && pickerTexture)
     {
-        D3DLOCKED_RECT lockedRect;
-        if (rs->LockRect(pickerTexture, 0, &lockedRect, nullptr, 0) == D3D_OK)
+        storm_render::LockedRect lockedRect;
+        if (rs->LockRect(pickerTexture, 0, &lockedRect, nullptr, 0) == storm_render::result::ok)
         {
             auto *pnt = static_cast<uint8_t *>(lockedRect.pBits);
             for (int32_t y = 0; y < 256; y++)
@@ -701,8 +701,8 @@ void Window::DrawRect(float x1, float y1, float x2, float y2, uint32_t color)
     v[3].y = y2;
     v[3].z = 0.5f;
     v[3].rhw = 2.0f;
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, color);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW, 2, v, sizeof(Vertex), "DbgDraw2DTFColor");
+    rs->SetRenderState(storm_render::RenderTextureFactor, color);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed, 2, v, sizeof(Vertex), "DbgDraw2DTFColor");
 }
 
 void Window::DrawLine(float x1, float y1, float x2, float y2, uint32_t color)
@@ -716,8 +716,8 @@ void Window::DrawLine(float x1, float y1, float x2, float y2, uint32_t color)
     v[1].y = y2;
     v[1].z = 0.5f;
     v[1].rhw = 2.0f;
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, color);
-    rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZRHW, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
+    rs->SetRenderState(storm_render::RenderTextureFactor, color);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyzwTransformed, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
 }
 
 void Window::DrawLRect(float x1, float y1, float x2, float y2, uint32_t bkgColor, uint32_t lnColor)
@@ -766,12 +766,12 @@ void Window::DrawCursor()
     v[2].y = p2y;
     v[2].z = 0.5f;
     v[2].rhw = 2.0f;
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff9f9f9f);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
+    rs->SetRenderState(storm_render::RenderTextureFactor, 0xff9f9f9f);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
     v[2].x = p3x;
     v[2].y = p3y;
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffcfcfcf);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
+    rs->SetRenderState(storm_render::RenderTextureFactor, 0xffcfcfcf);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed, 1, v, sizeof(Vertex), "DbgDraw2DTFColor");
     DrawLine(cursx, cursy, p2x, p2y, 0xcf404040);
     DrawLine(p2x, p2y, p1x, p1y, 0xcf404040);
     DrawLine(p1x, p1y, p3x, p3y, 0xcf404040);
@@ -908,7 +908,7 @@ bool Window::ColorPicker(int32_t id, float y, CVECTOR &ref, float st, CVECTOR &r
         v[3].v = 1.0f;
         rs->TextureSet(0, -1);
         rs->SetTexture(0, pickerTexture);
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_TEX1, 2, v, sizeof(v[0]), "DbgDraw2DTexture");
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1, 2, v, sizeof(v[0]), "DbgDraw2DTexture");
         rs->SetTexture(0, nullptr);
         //
         if (pikerWait < 0.0f && isMouseDown)

@@ -123,9 +123,9 @@ void MousePointer::SetCurrentCursor()
     m_pIcon->SetPosition(pos.left, pos.top, pos.right, pos.bottom);
 }
 
-RECT MousePointer::GetCurrentCursorIconPos() const
+storm_render::Rect MousePointer::GetCurrentCursorIconPos() const
 {
-    RECT pos;
+    storm_render::Rect pos;
     pos.left = static_cast<int32_t>(m_mousepos.x) + m_aCursors[m_nCurrentCursor].offset.x;
     pos.top = static_cast<int32_t>(m_mousepos.y) + m_aCursors[m_nCurrentCursor].offset.y;
     pos.right = pos.left + m_cursorsize.x;

@@ -160,7 +160,7 @@ InterfaceBackScene::InterfaceBackScene()
 InterfaceBackScene::~InterfaceBackScene()
 {
 #ifdef STORM_METAL_INTERFACE_BACK_SCENE
-    if (m_pRS) StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), false);
+    if (m_pRS) StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), false);
 #endif
 
     RestoreLight();
@@ -190,7 +190,7 @@ bool InterfaceBackScene::Init()
     m_pRS = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     Assert(m_pRS);
 #ifdef STORM_METAL_INTERFACE_BACK_SCENE
-    StormMetalInterfaceBackScene(m_pRS->GetD3DDevice(), true);
+    StormMetalInterfaceBackScene(m_pRS->GetNativeDevice(), true);
 #endif
     flyTex = m_pRS->TextureCreate("LocEfx\\firefly.tga");
     m_nFlareTexture = m_pRS->TextureCreate("ShipsFlares\\corona.tga");
@@ -288,7 +288,7 @@ void InterfaceBackScene::Realize(uint32_t Delta_Time)
     if (m_pModel)
     {
         SetLight();
-        m_pRS->SetRenderState(D3DRS_LIGHTING, true);
+        m_pRS->SetRenderState(storm_render::RenderLighting, true);
         m_pModel->ProcessStage(Stage::realize, Delta_Time);
         for (n = 0; n < m_aLights.size(); n++) // show all lights
             if (m_aLights[n]->pModel)
@@ -301,14 +301,14 @@ void InterfaceBackScene::Realize(uint32_t Delta_Time)
             if (m_apAniModel[n]->pModel)
             {
                 uint32_t dwTFactor;
-                m_pRS->GetRenderState(D3DRS_TEXTUREFACTOR, &dwTFactor);
+                m_pRS->GetRenderState(storm_render::RenderTextureFactor, &dwTFactor);
                 if (m_apAniModel[n]->bUseTFactor)
-                    m_pRS->SetRenderState(D3DRS_TEXTUREFACTOR, m_apAniModel[n]->dwTFactor);
+                    m_pRS->SetRenderState(storm_render::RenderTextureFactor, m_apAniModel[n]->dwTFactor);
                 m_apAniModel[n]->pModel->ProcessStage(Stage::realize, Delta_Time);
-                m_pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwTFactor);
+                m_pRS->SetRenderState(storm_render::RenderTextureFactor, dwTFactor);
             }
         }
-        m_pRS->SetRenderState(D3DRS_LIGHTING, false);
+        m_pRS->SetRenderState(storm_render::RenderLighting, false);
         RestoreLight();
     }
 
@@ -644,14 +644,14 @@ int32_t InterfaceBackScene::CheckMousePos(float fX, float fY)
     float fRelY = 2.f * fY / fH - 1.f;
 
     CMatrix mtxProj;
-    m_pRS->GetTransform(D3DTS_PROJECTION, mtxProj);
+    m_pRS->GetTransform(storm_render::TransformProjection, mtxProj);
     CVECTOR v;
     v.x = fRelX / mtxProj.m[0][0];
     v.y = -fRelY / mtxProj.m[1][1];
     v.z = 1.0f;
 
     CMatrix mtxView;
-    m_pRS->GetTransform(D3DTS_VIEW, mtxView);
+    m_pRS->GetTransform(storm_render::TransformView, mtxView);
     CVECTOR vDir;
     mtxView.MulToInvNorm(v, vDir);
     mtxView.Transposition();
@@ -676,7 +676,7 @@ void InterfaceBackScene::InitLight(ATTRIBUTES *pAParam)
     m_aLights.push_back(pLight);
 
     pLight->lightSource = {};
-    pLight->lightSource.Type = D3DLIGHT_POINT;
+    pLight->lightSource.Type = storm_render::LightKind::Point;
     pLight->lightSource.Attenuation0 = 0.0f;
     pLight->lightSource.Attenuation1 = 0.0f;
     pLight->lightSource.Attenuation2 = 1.0f;
@@ -763,8 +763,8 @@ void InterfaceBackScene::InitLight(ATTRIBUTES *pAParam)
 void InterfaceBackScene::SetLight()
 {
     int32_t nFreeLightIndex = 0;
-    D3DCAPS9 d3dcaps;
-    m_pRS->GetDeviceCaps(&d3dcaps);
+    storm_render::Capabilities d3dcaps;
+    m_pRS->GetCapabilities(&d3dcaps);
 
     for (int32_t n = 0; n < m_aLights.size(); n++)
     {
@@ -810,7 +810,7 @@ void InterfaceBackScene::FlareShow(int32_t idx)
     CVECTOR pos, ang;
     m_pRS->GetCamera(pos, ang, ang.x);
     CMatrix camMtx;
-    m_pRS->GetTransform(D3DTS_VIEW, camMtx);
+    m_pRS->GetTransform(storm_render::TransformView, camMtx);
 
     float dx = m_vFlarePos.x - pos.x;
     float dy = m_vFlarePos.y - pos.y;
@@ -893,7 +893,7 @@ void InterfaceBackScene::FlareShow(int32_t idx)
     CMatrix mtx;
     mtx.SetIdentity();
     m_pRS->SetWorld(mtx);
-    m_pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, buffer, sizeof(Vertex),
+    m_pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, buffer, sizeof(Vertex),
                            "Coronas");
 }
 
@@ -1047,7 +1047,7 @@ void InterfaceBackScene::AddLampFlys(CVECTOR &pos)
 void InterfaceBackScene::ProcessedFlys(float dltTime)
 {
     CMatrix view;
-    m_pRS->GetTransform(D3DTS_VIEW, view);
+    m_pRS->GetTransform(storm_render::TransformView, view);
     view.Transposition();
     const CVECTOR cam = view.Pos();
     const float dax = dltTime * 1.3f;
@@ -1121,9 +1121,9 @@ void InterfaceBackScene::DrawParticles(void *prts, int32_t num, int32_t size, in
                                        int32_t numU)
 {
     CMatrix camMtx;
-    m_pRS->GetTransform(D3DTS_VIEW, camMtx);
-    m_pRS->SetTransform(D3DTS_VIEW, CMatrix());
-    m_pRS->SetTransform(D3DTS_WORLD, CMatrix());
+    m_pRS->GetTransform(storm_render::TransformView, camMtx);
+    m_pRS->SetTransform(storm_render::TransformView, CMatrix());
+    m_pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     m_pRS->TextureSet(0, texture);
     int32_t n = 0;
     for (int32_t i = 0; i < num; i++)
@@ -1174,15 +1174,15 @@ void InterfaceBackScene::DrawParticles(void *prts, int32_t num, int32_t size, in
         n++;
         if (n * 2 == 256)
         {
-            m_pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+            m_pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, n * 2, buffer,
                                    sizeof(Vertex), (char *)tech);
             n = 0;
         }
     }
     if (n > 0)
     {
-        m_pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+        m_pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, n * 2, buffer,
                                sizeof(Vertex), (char *)tech);
     }
-    m_pRS->SetTransform(D3DTS_VIEW, camMtx);
+    m_pRS->SetTransform(storm_render::TransformView, camMtx);
 }

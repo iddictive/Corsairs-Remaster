@@ -166,7 +166,7 @@ void BATTLE_INTERFACE::Realize(uint32_t delta_time)
     {
         if (m_bVisible)
         {
-            rs->MakePostProcess();
+            rs->FinalizeSceneEffects();
 
             if (m_bShowBattleNavigator && m_pShipInfoImages)
                 m_pShipInfoImages->Draw();

@@ -22,9 +22,9 @@ class SOURCE_VIEW
     friend LRESULT CALLBACK SourceViewWndProc(HWND, UINT, WPARAM, LPARAM);
     HINSTANCE hInst;
     HWND hMain;
-    RECT Pos;
+    storm_render::Rect Pos;
     HFONT hFont;
-    POINT pntDragPos;
+    storm_render::Point pntDragPos;
     std::string sCopyPasteBuffer;
     bool bDrag;
     uint32_t nFontHeight;
@@ -46,7 +46,7 @@ class SOURCE_VIEW
   public:
     std::vector<std::string> aStrings;
     HWND hOwn;
-    RECT CopyPasteRect;
+    storm_render::Rect CopyPasteRect;
     std::vector<bool> pBookmarks;
     std::string sFindStr;
     std::unordered_map<std::string, uint32_t> htBookmarks;
@@ -54,7 +54,7 @@ class SOURCE_VIEW
     SOURCE_VIEW(HWND _hMain, HINSTANCE _hInst);
     ~SOURCE_VIEW();
     void ProcessMessage(uint32_t, uint32_t, uint32_t);
-    void SetPosition(RECT _Pos);
+    void SetPosition(storm_render::Rect _Pos);
     void SetFont(HFONT);
     void OnPaint();
     bool OpenSourceFile(const char *_filename);

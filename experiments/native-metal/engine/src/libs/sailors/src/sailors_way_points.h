@@ -25,10 +25,10 @@ enum PointType
     PT_TYPE_NOT_TARGETPOINT
 };
 
-#define COLOR_SHADOW D3DCOLOR_ARGB(150, 0, 0, 0);
-#define COLOR_SHADOW_SELECTED D3DCOLOR_ARGB(200, 150, 150, 150);
-#define COLOR_POINT D3DCOLOR_ARGB(255, 200, 200, 0);
-#define COLOR_GRAY D3DCOLOR_ARGB(200, 200, 200, 200);
+#define COLOR_SHADOW storm_render::packedArgb(150, 0, 0, 0);
+#define COLOR_SHADOW_SELECTED storm_render::packedArgb(200, 150, 150, 150);
+#define COLOR_POINT storm_render::packedArgb(255, 200, 200, 0);
+#define COLOR_GRAY storm_render::packedArgb(200, 200, 200, 200);
 #define COLOR_SELECTED 0xFFFFFFFF;
 
 //-----------------------------------------------------------------------------------------------

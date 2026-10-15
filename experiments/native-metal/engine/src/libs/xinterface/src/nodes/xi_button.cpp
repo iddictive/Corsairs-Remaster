@@ -108,14 +108,14 @@ void CXI_BUTTON::Draw(bool bSelected, uint32_t Delta_Time)
 
         if (m_idTex >= 0 || m_pTex != nullptr)
         {
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
             if (m_bClickable && m_bSelected)
-                m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX),
+                m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX),
                                       "iButton");
             else
             {
-                m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_argbDisableColor);
-                m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX),
+                m_rs->SetRenderState(storm_render::RenderTextureFactor, m_argbDisableColor);
+                m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX),
                                       "iDisabledNode");
             }
         }

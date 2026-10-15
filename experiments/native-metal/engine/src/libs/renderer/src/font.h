@@ -22,7 +22,7 @@ struct FONT_SYMBOL
 class FONT final
 {
   public:
-    FONT(VDX9RENDER &renderer, IDirect3DDevice9 &device);
+    FONT(VDX9RENDER &renderer, storm_render::Device &device);
     ~FONT();
     bool Init(const char *font_name, const char *iniName);
     void TempUnload();
@@ -53,8 +53,8 @@ class FONT final
     std::string textureName_{};
 
     VDX9RENDER &renderService_;
-    IDirect3DDevice9 &device_;
-    IDirect3DVertexBuffer9 *vertexBuffer_ = nullptr;
+    storm_render::Device &device_;
+    storm_render::VertexBuffer *vertexBuffer_ = nullptr;
 
     float scale_ = 1;
     float horizontalAspectRatio_ = 1;

@@ -109,7 +109,7 @@ void CXI_FOURIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
                 m_rs->TextureSet(0, m_oneBadTexture);
             else
                 m_rs->TextureSet(0, m_nTextureId[m_oneTexID[i]]);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, vBuf, sizeof(XI_ONETEX_VERTEX), i * 4, 2, "iFourImages_main");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, vBuf, sizeof(XI_ONETEX_VERTEX), i * 4, 2, "iFourImages_main");
         }
 
         // create select border
@@ -138,7 +138,7 @@ void CXI_FOURIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
             pV[3].pos.y = static_cast<float>(m_imgRect[m_nSelectItem].bottom);
             // show select border
             m_rs->TextureSet(0, m_texBorder);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
                                   "iFourImages_border");
         }
 
@@ -151,7 +151,7 @@ void CXI_FOURIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
                 m_rs->TextureSet(0, m_twoBadTexture);
             else
                 m_rs->TextureSet(0, m_nTextureId[m_twoTexID[i]]);
-            m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, vBuf, sizeof(XI_ONETEX_VERTEX), 16 + i * 4, 2, "iFourImages_main");
+            m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, vBuf, sizeof(XI_ONETEX_VERTEX), 16 + i * 4, 2, "iFourImages_main");
         }
 
         // out to screen the strings if that needed
@@ -449,7 +449,7 @@ void CXI_FOURIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, con
     }
 
     // create index & vertex buffers
-    vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, 4 * 4 * 2 * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, 4 * 4 * 2 * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
 }
 
 void CXI_FOURIMAGE::ReleaseAll()

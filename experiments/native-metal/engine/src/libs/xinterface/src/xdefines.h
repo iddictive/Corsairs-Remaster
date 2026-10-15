@@ -205,7 +205,7 @@ struct FXYRECT
 };
 
 // vertex formates
-#define XI_NOTEX_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX0)
+#define XI_NOTEX_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex0)
 
 struct XI_NOTEX_VERTEX
 {
@@ -213,7 +213,7 @@ struct XI_NOTEX_VERTEX
     uint32_t color;
 };
 
-#define XI_ONLYONETEX_FVF (D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define XI_ONLYONETEX_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct XI_ONLYONETEX_VERTEX
 {
@@ -221,7 +221,7 @@ struct XI_ONLYONETEX_VERTEX
     float tu, tv;
 };
 
-#define XI_ONETEX_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define XI_ONETEX_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct XI_ONETEX_VERTEX
 {
@@ -230,7 +230,7 @@ struct XI_ONETEX_VERTEX
     float tu, tv;
 };
 
-#define XI_TWOTEX_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX2 | D3DFVF_TEXTUREFORMAT2)
+#define XI_TWOTEX_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex2 | storm_render::vertexFormat::texCoord2)
 
 struct XI_TWOTEX_VERTEX
 {
@@ -240,7 +240,7 @@ struct XI_TWOTEX_VERTEX
     float tu2, tv2;
 };
 
-#define XI_THREETEX_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX3 | D3DFVF_TEXTUREFORMAT2)
+#define XI_THREETEX_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex3 | storm_render::vertexFormat::texCoord2)
 
 struct XI_THREETEX_VERTEX
 {

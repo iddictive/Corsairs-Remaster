@@ -96,21 +96,20 @@ int main(int argc, char **argv)
     }
     auto *renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!renderer || core.GetEntityIds("Ship").empty() || !core.GetEntityId("sea")) return 68;
-    auto *device = static_cast<IDirect3DDevice9 *>(renderer->GetD3DDevice());
-    IDirect3DSurface9 *target = nullptr, *readback = nullptr;
-    if (FAILED(device->GetRenderTarget(0, &target))) return 69;
-    D3DSURFACE_DESC desc{};
+    auto *device = static_cast<storm_render::Device *>(renderer->GetNativeDevice());
+    storm_render::Surface *target = nullptr, *readback = nullptr;
+    if (storm_render::failed(device->GetRenderTarget(&target))) return 69;
+    storm_render::SurfaceDesc desc{};
     target->GetDesc(&desc);
     std::printf("scene_backbuffer=%ux%u ships=%zu hidden=1\n", desc.Width, desc.Height,
                 core.GetEntityIds("Ship").size());
     std::printf("animated_draws=%llu\n", static_cast<unsigned long long>(StormMetalRawSkinnedDraws(device)));
     if (frames > 1 && !StormMetalRawSkinnedDraws(device)) return 74;
     if (desc.Width != unsigned(width) || desc.Height != unsigned(height)) return 70;
-    if (FAILED(device->CreateOffscreenPlainSurface(width, height, D3DFMT_A8R8G8B8,
-                                                  D3DPOOL_SYSTEMMEM, &readback, nullptr)) ||
-        FAILED(device->GetRenderTargetData(target, readback))) return 71;
-    D3DLOCKED_RECT pixels{};
-    if (FAILED(readback->LockRect(&pixels, nullptr, D3DLOCK_READONLY))) return 72;
+    if (storm_render::failed(device->CreateOffscreenPlainSurface(width, height, storm_render::AssetFormat::A8R8G8B8, &readback)) ||
+        storm_render::failed(device->GetRenderTargetData(target, readback))) return 71;
+    storm_render::LockedRect pixels{};
+    if (storm_render::failed(readback->LockRect(&pixels, nullptr, storm_render::lock::readOnly))) return 72;
     std::ofstream image(cwd / "scene.ppm", std::ios::binary);
     image << "P6\n" << width << ' ' << height << "\n255\n";
     for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {

@@ -196,7 +196,7 @@ void ISPYGLASS::Realize(uint32_t delta_time) const
 {
     if (m_bIsOn)
     {
-        rs->MakePostProcess();
+        rs->FinalizeSceneEffects();
         if (m_pImgRender)
             m_pImgRender->Render();
 
@@ -433,7 +433,7 @@ void ISPYGLASS::FindNewTargetShip()
 {
     // get trace ray
     CMatrix mtxv;
-    rs->GetTransform(D3DTS_VIEW, (D3DMATRIX *)&mtxv);
+    rs->GetTransform(storm_render::TransformView, (storm_render::Matrix *)&mtxv);
     CVECTOR src, dst;
     mtxv.MulToInv(CVECTOR(0.0f, 0.0f, 0.0f), src);
     mtxv.MulToInv(CVECTOR(0.0f, 0.0f, 10000.f), dst);

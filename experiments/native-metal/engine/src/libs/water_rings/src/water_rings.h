@@ -18,7 +18,7 @@ constexpr int GRID_STEPS_COUNT = 3;
 constexpr int TRIANGLES_COUNT = ((GRID_STEPS_COUNT - 1) * (GRID_STEPS_COUNT - 1) * 2);
 constexpr float Y_DELTA = .01f;
 
-constexpr int RING_FVF = (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2);
+constexpr int RING_FVF = (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2);
 } // namespace waterrings
 
 struct RING_VERTEX

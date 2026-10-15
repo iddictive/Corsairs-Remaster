@@ -152,13 +152,13 @@ class BICommandList
 
     void Release();
 
-    int32_t IconAdd(int32_t nPictureNum, int32_t nTextureNum, RECT &rpos);
-    int32_t ClockIconAdd(int32_t nForePictureNum, int32_t nBackPictureNum, int32_t nTextureNum, RECT &rpos,
+    int32_t IconAdd(int32_t nPictureNum, int32_t nTextureNum, storm_render::Rect &rpos);
+    int32_t ClockIconAdd(int32_t nForePictureNum, int32_t nBackPictureNum, int32_t nTextureNum, storm_render::Rect &rpos,
                          float fFactor);
     void AdditiveIconAdd(float fX, float fY, std::vector<UsedCommand::AdditiveIcon> &aList);
     FRECT &GetPictureUV(int32_t nTextureNum, int32_t nPictureNum, FRECT &uv);
-    RECT &GetCurrentPos(int32_t num, RECT &rpos) const;
-    RECT &GetAddingPos(int32_t num, RECT &rpos);
+    storm_render::Rect &GetCurrentPos(int32_t num, storm_render::Rect &rpos) const;
+    storm_render::Rect &GetAddingPos(int32_t num, storm_render::Rect &rpos);
 
     void UpdateShowIcon();
     void SetNote(const char *pcNote, int32_t nX, int32_t nY);

@@ -62,13 +62,13 @@ void WdmRenderModel::MRender(VDX9RENDER *rs)
     m.m[1][1] = -m.m[1][1];
     m.m[2][1] = -m.m[2][1];
     m.m[3][1] = -m.m[3][1];
-    rs->SetTransform(D3DTS_WORLD, m);
+    rs->SetTransform(storm_render::TransformWorld, m);
     Render(rs);
 }
 
 void WdmRenderModel::LRender(VDX9RENDER *rs)
 {
-    rs->SetTransform(D3DTS_WORLD, mtx);
+    rs->SetTransform(storm_render::TransformWorld, mtx);
     Render(rs);
 
     /*
@@ -130,12 +130,12 @@ void WdmRenderModel::Render(VDX9RENDER *rs) const
     else
     {
         wdmObjects->gs->SetTechnique(techa);
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, (static_cast<int32_t>(a) << 24) | 0xffffff);
+        rs->SetRenderState(storm_render::RenderTextureFactor, (static_cast<int32_t>(a) << 24) | 0xffffff);
     }
     // Check for visibility
     auto *const plane = rs->GetPlanes();
     static CMatrix mtx;
-    rs->GetTransform(D3DTS_WORLD, mtx);
+    rs->GetTransform(storm_render::TransformWorld, mtx);
     const auto v = mtx * center;
     for (int32_t i = 0; i < 4; i++)
     {

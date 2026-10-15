@@ -520,7 +520,7 @@ void BIShipIcon::UpdateBuffers(int32_t nShipQ)
         m_nVBufID = m_pRS->CreateVertexBuffer(
             BI_COLOR_VERTEX_FORMAT,
             (m_nBackSquareQ + m_nShipStateSquareQ + m_nShipClassSquareQ + m_nShipSquareQ) * 4 * sizeof(BI_COLOR_VERTEX),
-            D3DUSAGE_WRITEONLY);
+            storm_render::usage::writeOnly);
     }
     FillVertexBuffer();
 }

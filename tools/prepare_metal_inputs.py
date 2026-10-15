@@ -60,7 +60,7 @@ def main():
     target.mkdir()
     native = PROJECT / 'experiments/native-storm/.cache'
     for relative in ('sse2neon.h', 'stb_image.h',
-                     'd3d9/dxvk-native/include', 'd3d9/sdl2-fixed'):
+                     'd3d9/dxvk-native/include/native/windows', 'd3d9/sdl2-fixed'):
         copy(native / relative, target / 'native' / relative)
     if (native / 'Corsairs.icns').is_file():
         copy(native / 'Corsairs.icns', target / 'native/Corsairs.icns')

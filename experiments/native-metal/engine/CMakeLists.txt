@@ -7,8 +7,7 @@ endif()
 
 # Engine sources belong to this tracked directory; the parent owns dependencies.
 set(CONAN_DATA "$ENV{HOME}/Library/Application Support/CorsairsBuild/conan-home/.conan/data" CACHE PATH "Existing dependency sources")
-set(D3D9_SOURCE "${METAL_DEPENDENCIES}/d3d9/dxvk-native" CACHE PATH "Native D3D9 headers")
-set(NATIVE_D3D9_LIBS "dxvk_d3d9" CACHE STRING "Native D3D9 library")
+set(NATIVE_RENDERER_LIB "storm_metal" CACHE STRING "Native renderer library")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -23,9 +22,9 @@ file(GLOB fmt_headers "${CONAN_DATA}/fmt/8.0.1/_/_/package/*/include")
 include_directories(SYSTEM ${fmt_headers})
 
 add_compile_definitions(SPDLOG_FMT_EXTERNAL FMT_HEADER_ONLY)
-include_directories("${D3D9_SOURCE}/include/native/directx" "${D3D9_SOURCE}/include/native/windows")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/.." "${PLATFORM_TYPES_SOURCE}")
 
-foreach(dep IN ITEMS directx fast_float spdlog fmod)
+foreach(dep IN ITEMS render_api fast_float spdlog fmod)
   add_library(${dep} INTERFACE)
 endforeach()
 file(GLOB ff_headers "${CONAN_DATA}/fast_float/3.4.0/_/_/package/*/include")
@@ -69,8 +68,7 @@ endif()
 set(global_modules_list "" CACHE INTERNAL "Active native modules" FORCE)
 set(STORM_NATIVE_AUDIO_SOURCE "${METAL_AUDIO_SOURCE}")
 add_subdirectory("${STORM_SOURCE}/src" storm)
-target_sources(renderer PRIVATE "${NATIVE_ROOT}/raw_texture.cpp")
-target_include_directories(renderer PRIVATE "${NATIVE_ROOT}")
+target_sources(renderer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../image_import.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../texture_payload.cpp")
 
 # Apple ld preserves static module registration with force_load, not GNU whole-archive.
 set_property(TARGET engine PROPERTY LINK_FLAGS "")

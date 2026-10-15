@@ -160,7 +160,7 @@ void BIImageMaterial::RemakeBuffers()
     {
         m_pRS->ReleaseVertexBuffer(m_nVBufID);
         m_nVBufID =
-            m_pRS->CreateVertexBuffer(BI_IMAGE_VERTEX_FORMAT, nVQ * sizeof(BI_IMAGE_VERTEX), D3DUSAGE_WRITEONLY);
+            m_pRS->CreateVertexBuffer(BI_IMAGE_VERTEX_FORMAT, nVQ * sizeof(BI_IMAGE_VERTEX), storm_render::usage::writeOnly);
         m_nVertexQuantity = nVQ;
     }
     if (m_nTriangleQuantity != nTQ)

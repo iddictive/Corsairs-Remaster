@@ -133,7 +133,7 @@ void SailorsPoints::Draw(VDX9RENDER *rs, bool pointmode)
     CVECTOR _v2, _v1;
     RS_LINE pRSL[2];
 
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
     for (auto m = 0; m < links.count; m++)
     {
@@ -185,7 +185,7 @@ void SailorsPoints::Draw_(VDX9RENDER *rs, bool pointmode)
     CVECTOR _v2, _v1;
     RS_LINE pRSL[2];
 
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
     for (auto m = 0; m < links.count; m++)
     {
@@ -215,7 +215,7 @@ void SailorsPoints::DrawLinks(VDX9RENDER *rs)
     CVECTOR _v2, _v1;
     RS_LINE pRSL[2];
 
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
     for (auto m = 0; m < links.count; m++)
     {

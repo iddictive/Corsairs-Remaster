@@ -42,8 +42,8 @@ class S_DEBUG
     char BreakFileName[MAX_PATH];
     uint32_t BreakLineCode;
     char *pExpResBuffer;
-    RECT WatcherListRect;
-    RECT SourceViewRect;
+    storm_render::Rect WatcherListRect;
+    storm_render::Rect SourceViewRect;
     bool bTrace;
     uint32_t nTraceMode;
     uint32_t nTraceLine;

@@ -17,14 +17,14 @@ class InterfaceBackScene : public Entity
         bool bUse;
 
         int32_t indexLight;
-        D3DLIGHT9 lightSource;
-        D3DLIGHT9 lightOldSource;
+        storm_render::Light lightSource;
+        storm_render::Light lightOldSource;
 
         uint32_t dwFlareColor;
         float fMinFlareColor;
         float fMaxFlareColor;
 
-        D3DCOLORVALUE colorMin, colorMax;
+        storm_render::Color4 colorMin, colorMax;
         float fColorTimer;
         float fColorPeriod;
         float fAddPeriod;

@@ -212,7 +212,7 @@ void SoundService::RunStart()
         static CVECTOR pos, ang, nose, head;
         static CMatrix view;
 
-        rs->GetTransform(D3DTS_VIEW, view);
+        rs->GetTransform(storm_render::TransformView, view);
         view.Transposition();
         nose = view.Vz();
         head = view.Vy();
@@ -1406,10 +1406,10 @@ void SoundService::DebugPrint3D(const CVECTOR &pos3D, float rad, int32_t line, f
     buf[sizeof(buf) - 1] = 0;
     // Looking for a point position on the screen
     static CMatrix mtx, view, prj;
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     MTX_PRJ_VECTOR vrt;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     view.Transposition();
     float dist = ~(pos3D - view.Pos());

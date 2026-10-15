@@ -3,7 +3,7 @@
 #include "core.h"
 #include "../../image/img_render.h"
 
-BI_ImageNode::BI_ImageNode(BI_ManagerBase *pManager, const char *texture, const FRECT &uv, const RECT &pos,
+BI_ImageNode::BI_ImageNode(BI_ManagerBase *pManager, const char *texture, const FRECT &uv, const storm_render::Rect &pos,
                            uint32_t color, int32_t nPrioritet)
     : BI_BaseNode(pManager)
 {

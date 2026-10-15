@@ -84,13 +84,13 @@ void CXI_GLOWCURSOR::Draw(bool bSelected, uint32_t Delta_Time)
                 if (m_idBackTex >= 0)
                 {
                     m_rs->TextureSet(0, m_idBackTex);
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX),
                                           "iGlow");
                 }
                 if (m_pBackTex != nullptr)
                 {
                     m_rs->SetTexture(0, m_pBackTex->m_pTexture);
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX),
                                           "iGlow");
                 }
             }
@@ -102,13 +102,13 @@ void CXI_GLOWCURSOR::Draw(bool bSelected, uint32_t Delta_Time)
                 if (m_idBackTex >= 0)
                 {
                     m_rs->TextureSet(0, m_idBackTex);
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 8, &m_pTexVert[4],
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 8, &m_pTexVert[4],
                                           sizeof(XI_ONETEX_VERTEX), "iGlow");
                 }
                 if (m_pBackTex != nullptr)
                 {
                     m_rs->SetTexture(0, m_pBackTex->m_pTexture);
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 8, &m_pTexVert[4],
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 8, &m_pTexVert[4],
                                           sizeof(XI_ONETEX_VERTEX), "iGlow");
                 }
             }

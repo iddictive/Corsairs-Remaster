@@ -25,8 +25,8 @@ static const float farBlend = 16.0f;
 static const int32_t vbuff_size = 1024;
 static int32_t refcount = 0;
 #define TEXTURE_SIZE 128
-IDirect3DTexture9 *shTex = nullptr, *blurTex = nullptr;
-IDirect3DVertexBuffer9 *vbuff;
+storm_render::Texture *shTex = nullptr, *blurTex = nullptr;
+storm_render::VertexBuffer *vbuff;
 
 Shadow::Shadow()
 {
@@ -61,19 +61,19 @@ bool Shadow::Init()
 
     if (refcount == 0)
     {
-        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &shTex);
+        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &shTex);
         if (shTex == nullptr)
-            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,
+            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::X8R8G8B8, storm_render::MemoryClass::Default,
                               &shTex);
 
-        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,
+        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::X8R8G8B8, storm_render::MemoryClass::Default,
                           &blurTex);
         if (blurTex == nullptr)
-            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT,
+            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default,
                               &blurTex);
 
-        rs->CreateVertexBuffer(sizeof(SHADOW_VERTEX) * (vbuff_size + 128), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                               SHADOW_FVF, D3DPOOL_DEFAULT, &vbuff);
+        rs->CreateVertexBuffer(sizeof(SHADOW_VERTEX) * (vbuff_size + 128), storm_render::usage::writeOnly | storm_render::usage::dynamic,
+                               SHADOW_FVF, storm_render::MemoryClass::Default, &vbuff);
     }
     refcount++;
 
@@ -141,7 +141,7 @@ void Shadow::Realize(uint32_t Delta_Time)
 {
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     // Keep the legacy fallback unless the earlier complete land pass succeeded.
-    if (StormMetalLandShadowResolved(rs->GetD3DDevice())) return;
+    if (StormMetalLandShadowResolved(rs->GetNativeDevice())) return;
 #endif
     auto *obj = static_cast<MODEL *>(core.GetEntityPointer(entity));
     if (!obj)
@@ -151,7 +151,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     HEAD_DENSITY = ((VDATA *)pV->GetArrayElement(0))->GetInt();
     DENSITY = ((VDATA *)pV->GetArrayElement(1))->GetInt();
 
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
 
     pV = core.Event("EWhr_GetFogDensity");
@@ -167,7 +167,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     auto headPos = objPos;
     headPos.y += gi.radius;
 
-    D3DLIGHT9 dLight;
+    storm_render::Light dLight;
     BOOL bOk = false;
     rs->GetLightEnable(0, &bOk);
     if (bOk)
@@ -189,7 +189,7 @@ void Shadow::Realize(uint32_t Delta_Time)
 
     // check visibility of shadow
     CMatrix visView, visPoj;
-    rs->GetTransform(D3DTS_VIEW, visView);
+    rs->GetTransform(storm_render::TransformView, visView);
     camPos.x =
         -visView.m[3][0] * visView.m[0][0] - visView.m[3][1] * visView.m[0][1] - visView.m[3][2] * visView.m[0][2];
     camPos.y =
@@ -197,7 +197,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     camPos.z =
         -visView.m[3][0] * visView.m[2][0] - visView.m[3][1] * visView.m[2][1] - visView.m[3][2] * visView.m[2][2];
 
-    rs->GetTransform(D3DTS_PROJECTION, visPoj);
+    rs->GetTransform(storm_render::TransformProjection, visPoj);
     FindPlanes(visView, visPoj);
 
     const auto its = core.GetEntityIds(SHADOW);
@@ -286,34 +286,34 @@ void Shadow::Realize(uint32_t Delta_Time)
     //---------------------------------------------------------------
     // draw object into shadow texture
     CMatrix prev_view, prev_proj;
-    rs->GetTransform(D3DTS_VIEW, prev_view);
-    rs->GetTransform(D3DTS_PROJECTION, prev_proj);
+    rs->GetTransform(storm_render::TransformView, prev_view);
+    rs->GetTransform(storm_render::TransformProjection, prev_proj);
 
-    IDirect3DSurface9 *backbuff, *zbuff;
+    storm_render::Surface *backbuff, *zbuff;
     rs->GetRenderTarget(&backbuff);
     rs->GetDepthStencilSurface(&zbuff);
     rs->EndScene();
 
-    rs->SetTransform(D3DTS_PROJECTION, proj);
-    rs->SetTransform(D3DTS_VIEW, lightmtx);
+    rs->SetTransform(storm_render::TransformProjection, proj);
+    rs->SetTransform(storm_render::TransformView, lightmtx);
 
-    IDirect3DSurface9 *texsurf;
+    storm_render::Surface *texsurf;
     shTex->GetSurfaceLevel(0, &texsurf);
     rs->SetRenderTarget(texsurf, nullptr);
     rs->Release(texsurf);
 
-    rs->Clear(0L, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0L);
+    rs->Clear(storm_render::clear::color, 0, 0.0f);
     rs->BeginScene();
 
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, DENSITY);
+    rs->SetRenderState(storm_render::RenderTextureFactor, DENSITY);
     char tech[256];
     strcpy_s(tech, node->GetTechnique());
     node->SetTechnique("shadow_model");
     node->flags &= ~NODE::VISIBLE_TREE;
 
-    rs->SetRenderState(D3DRS_ZENABLE, FALSE);
+    rs->SetRenderState(storm_render::RenderDepthTest, FALSE);
     obj->ProcessStage(Stage::realize, 0);
-    rs->SetRenderState(D3DRS_ZENABLE, TRUE);
+    rs->SetRenderState(storm_render::RenderDepthTest, TRUE);
 
     node->flags |= NODE::VISIBLE_TREE;
     node->SetTechnique(tech);
@@ -325,8 +325,8 @@ void Shadow::Realize(uint32_t Delta_Time)
     rs->SetRenderTarget(backbuff, zbuff);
     rs->Release(backbuff);
     rs->Release(zbuff);
-    rs->SetTransform(D3DTS_VIEW, prev_view);
-    rs->SetTransform(D3DTS_PROJECTION, prev_proj);
+    rs->SetTransform(storm_render::TransformView, prev_view);
+    rs->SetTransform(storm_render::TransformProjection, prev_proj);
     rs->BeginScene();
 
     //---------------------------------------------------------------
@@ -345,20 +345,20 @@ void Shadow::Realize(uint32_t Delta_Time)
     planes[5].D = -pdir | (objPos - 3.5f * pdir);
 
     rs->SetTexture(0, blurTex);
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
     float dist = 3.0f * sqrtf(~(cen - camPos));
     shading *= powf(2.71f, -fogDensity * dist);
 
     int32_t shade = static_cast<int32_t>(fabsf(shading * 255.0f));
 
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, (shade << 16) | (shade << 8) | (shade << 0));
+    rs->SetRenderState(storm_render::RenderTextureFactor, (shade << 16) | (shade << 8) | (shade << 0));
     rs->SetFVF(SHADOW_FVF);
     // rs->SetIndices(0,0);
     rs->SetStreamSource(0, vbuff, sizeof(SHADOW_VERTEX));
 
     tot_verts = 0;
-    rs->VBLock(vbuff, 0, 0, (uint8_t **)&shadvert, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK);
+    rs->VBLock(vbuff, 0, 0, (uint8_t **)&shadvert, storm_render::lock::discard | storm_render::lock::noSystemLock);
     col->Clip(its, &planes[0], 5, cen, radius, AddPoly, &entity, 1);
 
     rs->VBUnlock(vbuff);
@@ -366,7 +366,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     if (tot_verts >= 3 && rs->TechniqueExecuteStart("shadow_draw"))
         do
         {
-            rs->DrawPrimitive(D3DPT_TRIANGLELIST, 0, tot_verts / 3);
+            rs->DrawPrimitive(storm_render::PrimitiveTriangleList, 0, tot_verts / 3);
         } while (rs->TechniqueExecuteNext());
     rs->SetViewport(&vp);
 }
@@ -474,12 +474,12 @@ void Shadow::Smooth()
     vrt[0].diffuse = vrt[3].diffuse = HEAD_DENSITY;
     vrt[1].diffuse = vrt[2].diffuse = 0xFFFFFFFF;
 
-    IDirect3DSurface9 *texsurf;
+    storm_render::Surface *texsurf;
     blurTex->GetSurfaceLevel(0, &texsurf);
     rs->SetRenderTarget(texsurf, nullptr);
     rs->Release(texsurf);
 
-    rs->Clear(0L, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0L);
+    rs->Clear(storm_render::clear::color, 0, 0.0f);
     rs->BeginScene();
 
     rs->SetTexture(0, shTex);
@@ -503,9 +503,9 @@ void Shadow::Smooth()
                     vrt[3].tu = 1.0f + ud;
                     vrt[3].tv = 0.0f + vd;
                     const int32_t col = static_cast<int32_t>(1.0f / (nIterations * nIterations) * 255.0f);
-                    rs->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFF000000 | (col << 16) | (col << 8) | (col << 0));
-                    rs->DrawPrimitiveUP(D3DPT_TRIANGLEFAN,
-                                        D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_DIFFUSE | D3DFVF_TEXTUREFORMAT2, 2, &vrt,
+                    rs->SetRenderState(storm_render::RenderTextureFactor, 0xFF000000 | (col << 16) | (col << 8) | (col << 0));
+                    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleFan,
+                                        storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::texCoord2, 2, &vrt,
                                         sizeof(SMOOTHVRT));
                 }
         } while (rs->TechniqueExecuteNext());
@@ -543,18 +543,18 @@ void Shadow::RestoreRender()
 {
     if (refcount++ == 0)
     {
-        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &shTex);
+        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &shTex);
         if (shTex == nullptr)
-            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,
+            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::X8R8G8B8, storm_render::MemoryClass::Default,
                               &shTex);
 
-        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,
+        rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::X8R8G8B8, storm_render::MemoryClass::Default,
                           &blurTex);
         if (blurTex == nullptr)
-            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT,
+            rs->CreateTexture(TEXTURE_SIZE, TEXTURE_SIZE, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default,
                               &blurTex);
 
-        rs->CreateVertexBuffer(sizeof(SHADOW_VERTEX) * (vbuff_size + 128), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                               SHADOW_FVF, D3DPOOL_DEFAULT, &vbuff);
+        rs->CreateVertexBuffer(sizeof(SHADOW_VERTEX) * (vbuff_size + 128), storm_render::usage::writeOnly | storm_render::usage::dynamic,
+                               SHADOW_FVF, storm_render::MemoryClass::Default, &vbuff);
     }
 }

@@ -45,9 +45,9 @@ void CXI_TWOPICTURE::Draw(bool bSelected, uint32_t Delta_Time)
     if (m_bUse)
     {
         m_rs->TextureSet(0, m_idOneTex);
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_vOne, sizeof(XI_ONETEX_VERTEX), "iIcon");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_vOne, sizeof(XI_ONETEX_VERTEX), "iIcon");
         m_rs->TextureSet(0, m_idTwoTex);
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_vTwo, sizeof(XI_ONETEX_VERTEX), "iIcon");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_vTwo, sizeof(XI_ONETEX_VERTEX), "iIcon");
     }
 }
 

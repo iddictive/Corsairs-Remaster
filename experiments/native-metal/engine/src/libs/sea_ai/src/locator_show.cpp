@@ -97,9 +97,9 @@ void SeaLocatorShow::PrintLocator(ATTRIBUTES *pA)
     m.BuildRotateY(fAng);
     m.SetPosition(vPos);
     // m.BuildPosition(vPos.x,vPos.y,vPos.z);
-    AIHelper::pRS->SetTransform(D3DTS_WORLD, m);
+    AIHelper::pRS->SetTransform(storm_render::TransformWorld, m);
 
-    AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, sphereNumTrgs, sphereVertex,
+    AIHelper::pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, sphereNumTrgs, sphereVertex,
                                    sizeof(SphVertex), "SeaLocatorsShow");
 
     mtx.Projection(&vPos, &vrt, 1, fWidth, fHeight, sizeof(CVECTOR), sizeof(MTX_PRJ_VECTOR));
@@ -134,8 +134,8 @@ void SeaLocatorShow::PrintLocator(ATTRIBUTES *pA)
         }
         CMatrix m_ident;
         m_ident.SetIdentity();
-        AIHelper::pRS->SetTransform(D3DTS_WORLD, m_ident);
-        AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, D3DFVF_XYZ | D3DFVF_DIFFUSE, Vrts.size() - 2, &Vrts[0],
+        AIHelper::pRS->SetTransform(storm_render::TransformWorld, m_ident);
+        AIHelper::pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleFan, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, Vrts.size() - 2, &Vrts[0],
                                        sizeof(SphVertex), "SeaLocatorsShow");
     }
 }
@@ -164,11 +164,11 @@ void SeaLocatorShow::Realize(uint32_t Delta_Time)
     if (!bShow || !pALocators)
         return;
     const CMatrix prj;
-    AIHelper::pRS->GetTransform(D3DTS_VIEW, view);
-    AIHelper::pRS->GetTransform(D3DTS_PROJECTION, prj);
+    AIHelper::pRS->GetTransform(storm_render::TransformView, view);
+    AIHelper::pRS->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
 
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
 
     AIHelper::pRS->GetViewport(&vp);
     fWidth = vp.Width * 0.5f;

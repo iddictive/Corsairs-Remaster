@@ -36,7 +36,7 @@ class InfoHandler : public Entity
     const char *GetCutString(const char *pstr, int nOutWidth, float fScale) const;
     bool DoPreOut();
 
-    IDirect3DTexture9 *tex;
+    storm_render::Texture *tex;
 
     struct
     {

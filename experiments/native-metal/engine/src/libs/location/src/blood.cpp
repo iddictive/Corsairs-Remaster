@@ -92,8 +92,8 @@ void Blood::Realize(uint32_t delta_time)
     {
         uint32_t dwOldTF;
 
-        pRS->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTF);
-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+        pRS->GetRenderState(storm_render::RenderTextureFactor, &dwOldTF);
+        pRS->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
 
         pRS->TextureSet(0, texID);
         CMatrix mtx;
@@ -102,20 +102,20 @@ void Blood::Realize(uint32_t delta_time)
 
         if (nStartT + nUsedTQ <= MAX_BLOOD_TRIANGLES)
         {
-            pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, nUsedTQ,
+            pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, nUsedTQ,
                                  static_cast<void *>(&pvBloodT[nStartT]), sizeof(BloodVertex), "Blood");
         }
         else
         {
-            pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+            pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                  MAX_BLOOD_TRIANGLES - nStartT, static_cast<void *>(&pvBloodT[nStartT]),
                                  sizeof(BloodVertex), "Blood");
-            pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+            pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                  nStartT + nUsedTQ - MAX_BLOOD_TRIANGLES, static_cast<void *>(pvBloodT),
                                  sizeof(BloodVertex), "Blood");
         }
 
-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwOldTF);
+        pRS->SetRenderState(storm_render::RenderTextureFactor, dwOldTF);
     }
 }
 

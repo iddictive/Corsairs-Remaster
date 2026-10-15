@@ -261,7 +261,7 @@ typedef struct
     int32_t dwUseSubCode;
     uint32_t SrsType;
     const char *cName;
-    D3DRENDERSTATETYPE State;
+    storm_render::RenderStateField State;
 } SRS;
 
 typedef struct
@@ -272,7 +272,7 @@ typedef struct
     int32_t dwUseSubCode;
     uint32_t SrsType;
     const char *cName;
-    D3DTEXTURESTAGESTATETYPE State;
+    storm_render::StageField State;
 } STSS;
 
 typedef struct
@@ -283,7 +283,7 @@ typedef struct
     int32_t dwUseSubCode;
     uint32_t SrsType;
     const char *cName;
-    D3DSAMPLERSTATETYPE State;
+    storm_render::SamplerField State;
 } SAMP;
 
 #define SRS_DWORD 0
@@ -291,289 +291,289 @@ typedef struct
 
 // ---------------------------------------------------------------------------------
 
-SRSPARAM MYDECLUSAGE[] = {{"position", D3DDECLUSAGE_POSITION},
-                          {"blendweight", D3DDECLUSAGE_BLENDWEIGHT},
-                          {"blendindices", D3DDECLUSAGE_BLENDINDICES},
-                          {"normal", D3DDECLUSAGE_NORMAL},
-                          {"psize", D3DDECLUSAGE_PSIZE},
-                          {"texcoord", D3DDECLUSAGE_TEXCOORD},
-                          {"tangent", D3DDECLUSAGE_TANGENT},
-                          {"binormal", D3DDECLUSAGE_BINORMAL},
-                          {"tessfactor", D3DDECLUSAGE_TESSFACTOR},
-                          {"positiont", D3DDECLUSAGE_POSITIONT},
-                          {"color", D3DDECLUSAGE_COLOR},
-                          {"fog", D3DDECLUSAGE_FOG},
-                          {"depth", D3DDECLUSAGE_DEPTH},
-                          {"sample", D3DDECLUSAGE_SAMPLE}};
+SRSPARAM MYDECLUSAGE[] = {{"position", storm_render::VertexSemantic::Position},
+                          {"blendweight", storm_render::VertexSemantic::BlendWeight},
+                          {"blendindices", storm_render::VertexSemantic::BlendIndices},
+                          {"normal", storm_render::VertexSemantic::Normal},
+                          {"psize", storm_render::VertexSemantic::PointSize},
+                          {"texcoord", storm_render::VertexSemantic::TexCoord},
+                          {"tangent", storm_render::VertexSemantic::Tangent},
+                          {"binormal", storm_render::VertexSemantic::Binormal},
+                          {"tessfactor", storm_render::VertexSemantic::TessFactor},
+                          {"positiont", storm_render::VertexSemantic::PositionTransformed},
+                          {"color", storm_render::VertexSemantic::Color},
+                          {"fog", storm_render::VertexSemantic::Fog},
+                          {"depth", storm_render::VertexSemantic::Depth},
+                          {"sample", storm_render::VertexSemantic::Sample}};
 
 SRSPARAM MYSETVERTEXSHADERCONSTANT[] = {{"worldviewproj", SUBCODE_SVSCONST_WORLDVIEWPROJ}};
 
 // SetRenderState parameters
-SRSPARAM MYD3DZB[] = {{"false", D3DZB_FALSE}, {"true", D3DZB_TRUE}, {"usew", D3DZB_USEW}};
+SRSPARAM MYD3DZB[] = {{"false", storm_render::DepthDisabled}, {"true", storm_render::DepthEnabled}, {"usew", storm_render::DepthWBuffer}};
 
-SRSPARAM MYD3DFILL[] = {{"point", D3DFILL_POINT}, {"wireframe", D3DFILL_WIREFRAME}, {"solid", D3DFILL_SOLID}};
+SRSPARAM MYD3DFILL[] = {{"point", storm_render::FillPoint}, {"wireframe", storm_render::FillWireframe}, {"solid", storm_render::FillSolid}};
 
-SRSPARAM MYD3DSHADE[] = {{"flat", D3DSHADE_FLAT},
-                         {"gouraud", D3DSHADE_GOURAUD}
+SRSPARAM MYD3DSHADE[] = {{"flat", storm_render::ShadeFlat},
+                         {"gouraud", storm_render::ShadeGouraud}
 #ifndef _XBOX
                          ,
-                         {"phong", D3DSHADE_PHONG}
+                         {"phong", storm_render::ShadePhong}
 #endif
 };
 
-SRSPARAM MYD3DBLEND[] = {{"zero", D3DBLEND_ZERO},
-                         {"one", D3DBLEND_ONE},
-                         {"srccolor", D3DBLEND_SRCCOLOR},
-                         {"invsrccolor", D3DBLEND_INVSRCCOLOR},
-                         {"srcalpha", D3DBLEND_SRCALPHA},
-                         {"invsrcalpha", D3DBLEND_INVSRCALPHA},
-                         {"destalpha", D3DBLEND_DESTALPHA},
-                         {"invdestalpha", D3DBLEND_INVDESTALPHA},
-                         {"destcolor", D3DBLEND_DESTCOLOR},
-                         {"invdestcolor", D3DBLEND_INVDESTCOLOR},
-                         {"srcalphasat", D3DBLEND_SRCALPHASAT},
+SRSPARAM MYD3DBLEND[] = {{"zero", storm_render::BlendZero},
+                         {"one", storm_render::BlendOne},
+                         {"srccolor", storm_render::BlendSourceColor},
+                         {"invsrccolor", storm_render::BlendInverseSourceColor},
+                         {"srcalpha", storm_render::BlendSourceAlpha},
+                         {"invsrcalpha", storm_render::BlendInverseSourceAlpha},
+                         {"destalpha", storm_render::BlendDestinationAlpha},
+                         {"invdestalpha", storm_render::BlendInverseDestinationAlpha},
+                         {"destcolor", storm_render::BlendDestinationColor},
+                         {"invdestcolor", storm_render::BlendInverseDestinationColor},
+                         {"srcalphasat", storm_render::BlendSourceAlphaSaturate},
 #ifndef _XBOX
-                         {"bothsrcalpha", D3DBLEND_BOTHSRCALPHA},
-                         {"bothinvsrcalpha", D3DBLEND_BOTHINVSRCALPHA}
+                         {"bothsrcalpha", storm_render::BlendBothSourceAlpha},
+                         {"bothinvsrcalpha", storm_render::BlendBothInverseSourceAlpha}
 #endif
 };
 
-SRSPARAM MYD3DCULL[] = {{"none", D3DCULL_NONE}, {"cw", D3DCULL_CW}, {"ccw", D3DCULL_CCW}};
+SRSPARAM MYD3DCULL[] = {{"none", storm_render::CullNone}, {"cw", storm_render::CullClockwise}, {"ccw", storm_render::CullCounterClockwise}};
 
-SRSPARAM MYD3DBLENDOP[] = {{"add", D3DBLENDOP_ADD},
-                           {"subtract", D3DBLENDOP_SUBTRACT},
-                           {"revsubtract", D3DBLENDOP_REVSUBTRACT},
-                           {"min", D3DBLENDOP_MIN},
-                           {"max", D3DBLENDOP_MAX}};
+SRSPARAM MYD3DBLENDOP[] = {{"add", storm_render::BlendOpAdd},
+                           {"subtract", storm_render::BlendOpSubtract},
+                           {"revsubtract", storm_render::BlendOpReverseSubtract},
+                           {"min", storm_render::BlendOpMin},
+                           {"max", storm_render::BlendOpMax}};
 
-SRSPARAM MYD3DCMPFUNC[] = {{"never", D3DCMP_NEVER},
-                           {"less", D3DCMP_LESS},
-                           {"equal", D3DCMP_EQUAL},
-                           {"lessequal", D3DCMP_LESSEQUAL},
-                           {"greater", D3DCMP_GREATER},
-                           {"notequal", D3DCMP_NOTEQUAL},
-                           {"greaterequal", D3DCMP_GREATEREQUAL},
-                           {"always", D3DCMP_ALWAYS}};
+SRSPARAM MYD3DCMPFUNC[] = {{"never", storm_render::CompareNever},
+                           {"less", storm_render::CompareLess},
+                           {"equal", storm_render::CompareEqual},
+                           {"lessequal", storm_render::CompareLessEqual},
+                           {"greater", storm_render::CompareGreater},
+                           {"notequal", storm_render::CompareNotEqual},
+                           {"greaterequal", storm_render::CompareGreaterEqual},
+                           {"always", storm_render::CompareAlways}};
 
 SRSPARAM MYD3DFOGMODE[] = {
-    {"none", D3DFOG_NONE}, {"exp", D3DFOG_EXP}, {"exp2", D3DFOG_EXP2}, {"linear", D3DFOG_LINEAR}};
+    {"none", storm_render::FogNone}, {"exp", storm_render::FogExponential}, {"exp2", storm_render::FogExponentialSquared}, {"linear", storm_render::FogLinear}};
 
-SRSPARAM MYD3DSTENCILOP[] = {{"keep", D3DSTENCILOP_KEEP},       {"zero", D3DSTENCILOP_ZERO},
-                             {"replace", D3DSTENCILOP_REPLACE}, {"incrsat", D3DSTENCILOP_INCRSAT},
-                             {"decrsat", D3DSTENCILOP_DECRSAT}, {"invert", D3DSTENCILOP_INVERT},
-                             {"incr", D3DSTENCILOP_INCR},       {"decr", D3DSTENCILOP_DECR}};
+SRSPARAM MYD3DSTENCILOP[] = {{"keep", storm_render::StencilOpKeep},       {"zero", storm_render::StencilOpZero},
+                             {"replace", storm_render::StencilOpReplace}, {"incrsat", storm_render::StencilOpIncrementSaturate},
+                             {"decrsat", storm_render::StencilOpDecrementSaturate}, {"invert", storm_render::StencilOpInvert},
+                             {"incr", storm_render::StencilOpIncrement},       {"decr", storm_render::StencilOpDecrement}};
 
 SRSPARAM MYD3DMATERIALCOLORSOURCE[] = {
-    {"material", D3DMCS_MATERIAL}, {"color1", D3DMCS_COLOR1}, {"color2", D3DMCS_COLOR2}};
+    {"material", storm_render::MaterialSourceMaterial}, {"color1", storm_render::MaterialSourceDiffuseColor}, {"color2", storm_render::MaterialSourceSpecularColor}};
 
 SRSPARAM MYD3DVERTEXBLENDFLAGS[] = {
-    {"disable", D3DVBF_DISABLE},   {"1weights", D3DVBF_1WEIGHTS}, {"2weights", D3DVBF_2WEIGHTS},
-    {"3weights", D3DVBF_3WEIGHTS},
+    {"disable", storm_render::VertexBlendDisable},   {"1weights", storm_render::VertexBlendOneWeight}, {"2weights", storm_render::VertexBlendTwoWeights},
+    {"3weights", storm_render::VertexBlendThreeWeights},
 #ifndef _XBOX
-    {"tweening", D3DVBF_TWEENING}, {"0WEIGHTS ", D3DVBF_0WEIGHTS}
+    {"tweening", storm_render::VertexBlendTweening}, {"0WEIGHTS ", storm_render::VertexBlendZeroWeights}
 #endif
 };
 
-SRSPARAM MYD3DPATCHEDGESTYLE[] = {{"discrete", D3DPATCHEDGE_DISCRETE}, {"continuous", D3DPATCHEDGE_CONTINUOUS}};
+SRSPARAM MYD3DPATCHEDGESTYLE[] = {{"discrete", storm_render::PatchEdgeDiscrete}, {"continuous", storm_render::PatchEdgeContinuous}};
 
-SRSPARAM MYD3DCOLORWRITEMASK[] = {{"alpha", D3DCOLORWRITEENABLE_ALPHA},
-                                  {"red", D3DCOLORWRITEENABLE_RED},
-                                  {"green", D3DCOLORWRITEENABLE_GREEN},
-                                  {"blue", D3DCOLORWRITEENABLE_BLUE}};
+SRSPARAM MYD3DCOLORWRITEMASK[] = {{"alpha", storm_render::colorWrite::alpha},
+                                  {"red", storm_render::colorWrite::red},
+                                  {"green", storm_render::colorWrite::green},
+                                  {"blue", storm_render::colorWrite::blue}};
 
-SRSPARAM MYD3DWRAP[] = {{"wrapcoord0", D3DWRAPCOORD_0}, {"wrapcoord1", D3DWRAPCOORD_1}, {"wrapcoord2", D3DWRAPCOORD_2},
-                        {"wrapcoord3", D3DWRAPCOORD_3}, {"wrapu", D3DWRAP_U},           {"wrapv", D3DWRAP_V}};
+SRSPARAM MYD3DWRAP[] = {{"wrapcoord0", storm_render::wrap::coord0}, {"wrapcoord1", storm_render::wrap::coord1}, {"wrapcoord2", storm_render::wrap::coord2},
+                        {"wrapcoord3", storm_render::wrap::coord3}, {"wrapu", storm_render::wrap::u},           {"wrapv", storm_render::wrap::v}};
 
 SRSPARAM MYTRUEFALSE[] = {{"true", true}, {"false", false}};
 
 SRS RenderStates[] = {
-    {DEFSIZE(MYD3DZB), SRS_DWORD, "ZEnable", D3DRS_ZENABLE},
-    {DEFSIZE(MYD3DFILL), SRS_DWORD, "FillMode", D3DRS_FILLMODE},
-    {DEFSIZE(MYD3DSHADE), SRS_DWORD, "ShadeMode", D3DRS_SHADEMODE},
+    {DEFSIZE(MYD3DZB), SRS_DWORD, "ZEnable", storm_render::RenderDepthTest},
+    {DEFSIZE(MYD3DFILL), SRS_DWORD, "FillMode", storm_render::RenderFillMode},
+    {DEFSIZE(MYD3DSHADE), SRS_DWORD, "ShadeMode", storm_render::RenderShadeMode},
 #ifndef _XBOX
 //{ DEFSIZE(0) , SRS_DWORD, "LinePattern",						D3DRS_LINEPATTERN },
 #endif
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ZWriteEnable", D3DRS_ZWRITEENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "AlphaTestEnable", D3DRS_ALPHATESTENABLE},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ZWriteEnable", storm_render::RenderDepthWrite},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "AlphaTestEnable", storm_render::RenderAlphaTest},
 #ifndef _XBOX
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "LastPixel", D3DRS_LASTPIXEL},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "LastPixel", storm_render::RenderLastPixel},
 #endif
-    {DEFSIZE(MYD3DBLEND), SRS_DWORD, "SrcBlend", D3DRS_SRCBLEND},
-    {DEFSIZE(MYD3DBLEND), SRS_DWORD, "DestBlend", D3DRS_DESTBLEND},
-    {DEFSIZE(MYD3DCULL), SRS_DWORD, "CullMode", D3DRS_CULLMODE},
-    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "ZFunc", D3DRS_ZFUNC},
-    {DEFSIZE(0), SRS_DWORD, "AlphaRef", D3DRS_ALPHAREF},
-    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "AlphaFunc", D3DRS_ALPHAFUNC},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "DitherEnable", D3DRS_DITHERENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "AlphaBlendEnable", D3DRS_ALPHABLENDENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "FogEnable", D3DRS_FOGENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "SpecularEnable", D3DRS_SPECULARENABLE},
+    {DEFSIZE(MYD3DBLEND), SRS_DWORD, "SrcBlend", storm_render::RenderSourceBlend},
+    {DEFSIZE(MYD3DBLEND), SRS_DWORD, "DestBlend", storm_render::RenderDestinationBlend},
+    {DEFSIZE(MYD3DCULL), SRS_DWORD, "CullMode", storm_render::RenderCullMode},
+    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "ZFunc", storm_render::RenderDepthCompare},
+    {DEFSIZE(0), SRS_DWORD, "AlphaRef", storm_render::RenderAlphaReference},
+    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "AlphaFunc", storm_render::RenderAlphaCompare},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "DitherEnable", storm_render::RenderDither},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "AlphaBlendEnable", storm_render::RenderBlend},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "FogEnable", storm_render::RenderFog},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "SpecularEnable", storm_render::RenderSpecular},
 #ifndef _XBOX
 //{ DEFSIZE(MYTRUEFALSE) , SRS_DWORD, "ZVisible",					D3DRS_ZVISIBLE },
 #endif
-    {DEFSIZE(0), SRS_DWORD, "FogColor", D3DRS_FOGCOLOR},
-    {DEFSIZE(MYD3DFOGMODE), SRS_DWORD, "FogTableMode", D3DRS_FOGTABLEMODE},
-    {DEFSIZE(0), SRS_FLOAT, "FogStart", D3DRS_FOGSTART},
-    {DEFSIZE(0), SRS_FLOAT, "FogEnd", D3DRS_FOGEND},
-    {DEFSIZE(0), SRS_FLOAT, "FogDensity", D3DRS_FOGDENSITY},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "EdgeAntialias", D3DRS_ANTIALIASEDLINEENABLE},
+    {DEFSIZE(0), SRS_DWORD, "FogColor", storm_render::RenderFogColor},
+    {DEFSIZE(MYD3DFOGMODE), SRS_DWORD, "FogTableMode", storm_render::RenderFogTableMode},
+    {DEFSIZE(0), SRS_FLOAT, "FogStart", storm_render::RenderFogStart},
+    {DEFSIZE(0), SRS_FLOAT, "FogEnd", storm_render::RenderFogEnd},
+    {DEFSIZE(0), SRS_FLOAT, "FogDensity", storm_render::RenderFogDensity},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "EdgeAntialias", storm_render::RenderAntialiasedLine},
 #ifdef USE_FX
-    {DEFSIZE(0), SRS_DWORD, "DepthBias", D3DRS_DEPTHBIAS},
-    {DEFSIZE(0), SRS_DWORD, "SlopeScaleDepthBias", D3DRS_SLOPESCALEDEPTHBIAS},
+    {DEFSIZE(0), SRS_DWORD, "DepthBias", storm_render::RenderDepthBias},
+    {DEFSIZE(0), SRS_DWORD, "SlopeScaleDepthBias", storm_render::RenderSlopeScaleDepthBias},
 #else
-    {DEFSIZE(0), SRS_DWORD, "Zbias", D3DRS_DEPTHBIAS},
-    {DEFSIZE(0), SRS_DWORD, "SSZbias", D3DRS_SLOPESCALEDEPTHBIAS},
+    {DEFSIZE(0), SRS_DWORD, "Zbias", storm_render::RenderDepthBias},
+    {DEFSIZE(0), SRS_DWORD, "SSZbias", storm_render::RenderSlopeScaleDepthBias},
 #endif
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "RangeFogEnable", D3DRS_RANGEFOGENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "StencilEnable", D3DRS_STENCILENABLE},
-    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilFail", D3DRS_STENCILFAIL},
-    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilZFail", D3DRS_STENCILZFAIL},
-    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilPass", D3DRS_STENCILPASS},
-    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "StencilFunc", D3DRS_STENCILFUNC},
-    {DEFSIZE(0), SRS_DWORD, "StencilRef", D3DRS_STENCILREF},
-    {DEFSIZE(0), SRS_DWORD, "StencilMask", D3DRS_STENCILMASK},
-    {DEFSIZE(0), SRS_DWORD, "StencilWriteMask", D3DRS_STENCILWRITEMASK},
-    {DEFSIZE(0), SRS_DWORD, "TextureFactor", D3DRS_TEXTUREFACTOR},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap0", D3DRS_WRAP0},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap1", D3DRS_WRAP1},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap2", D3DRS_WRAP2},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap3", D3DRS_WRAP3},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "RangeFogEnable", storm_render::RenderRangeFog},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "StencilEnable", storm_render::RenderStencil},
+    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilFail", storm_render::RenderStencilFail},
+    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilZFail", storm_render::RenderStencilDepthFail},
+    {DEFSIZE(MYD3DSTENCILOP), SRS_DWORD, "StencilPass", storm_render::RenderStencilPass},
+    {DEFSIZE(MYD3DCMPFUNC), SRS_DWORD, "StencilFunc", storm_render::RenderStencilCompare},
+    {DEFSIZE(0), SRS_DWORD, "StencilRef", storm_render::RenderStencilReference},
+    {DEFSIZE(0), SRS_DWORD, "StencilMask", storm_render::RenderStencilReadMask},
+    {DEFSIZE(0), SRS_DWORD, "StencilWriteMask", storm_render::RenderStencilWriteMask},
+    {DEFSIZE(0), SRS_DWORD, "TextureFactor", storm_render::RenderTextureFactor},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap0", storm_render::RenderWrap0},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap1", storm_render::RenderWrap1},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap2", storm_render::RenderWrap2},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap3", storm_render::RenderWrap3},
 #ifndef _XBOX
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap4", D3DRS_WRAP4},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap5", D3DRS_WRAP5},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap6", D3DRS_WRAP6},
-    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap7", D3DRS_WRAP7},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "Clipping", D3DRS_CLIPPING},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap4", storm_render::RenderWrap4},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap5", storm_render::RenderWrap5},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap6", storm_render::RenderWrap6},
+    {DEFSIZE(MYD3DWRAP), SRS_DWORD, "Wrap7", storm_render::RenderWrap7},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "Clipping", storm_render::RenderClipping},
 #endif
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "Lighting", D3DRS_LIGHTING},
-    {DEFSIZE(0), SRS_DWORD, "Ambient", D3DRS_AMBIENT},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "Lighting", storm_render::RenderLighting},
+    {DEFSIZE(0), SRS_DWORD, "Ambient", storm_render::RenderAmbient},
 #ifndef _XBOX
-    {DEFSIZE(MYD3DFOGMODE), SRS_DWORD, "FogVertexMode", D3DRS_FOGVERTEXMODE},
+    {DEFSIZE(MYD3DFOGMODE), SRS_DWORD, "FogVertexMode", storm_render::RenderFogVertexMode},
 #endif
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ColorVertex", D3DRS_COLORVERTEX},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "LocalViewer", D3DRS_LOCALVIEWER},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "NormalizeNormals", D3DRS_NORMALIZENORMALS},
-    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "DiffuseMaterialSource", D3DRS_DIFFUSEMATERIALSOURCE},
-    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "SpecularMaterialSource", D3DRS_SPECULARMATERIALSOURCE},
-    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "AmbientMaterialSource", D3DRS_AMBIENTMATERIALSOURCE},
-    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "EmissiveMaterialSource", D3DRS_EMISSIVEMATERIALSOURCE},
-    {DEFSIZE(MYD3DVERTEXBLENDFLAGS), SRS_DWORD, "VertexBlend", D3DRS_VERTEXBLEND},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ColorVertex", storm_render::RenderVertexColor},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "LocalViewer", storm_render::RenderLocalViewer},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "NormalizeNormals", storm_render::RenderNormalizeNormals},
+    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "DiffuseMaterialSource", storm_render::RenderDiffuseMaterialSource},
+    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "SpecularMaterialSource", storm_render::RenderSpecularMaterialSource},
+    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "AmbientMaterialSource", storm_render::RenderAmbientMaterialSource},
+    {DEFSIZE(MYD3DMATERIALCOLORSOURCE), SRS_DWORD, "EmissiveMaterialSource", storm_render::RenderEmissiveMaterialSource},
+    {DEFSIZE(MYD3DVERTEXBLENDFLAGS), SRS_DWORD, "VertexBlend", storm_render::RenderVertexBlend},
 #ifndef _XBOX
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ClipPlaneEnable", D3DRS_CLIPPLANEENABLE},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "ClipPlaneEnable", storm_render::RenderClipPlaneMask},
 //{ DEFSIZE(MYTRUEFALSE) , SRS_DWORD, "SoftwareVertexProcessing",	D3DRS_SOFTWAREVERTEXPROCESSING },
 #endif
-    {DEFSIZE(0), SRS_FLOAT, "PointSize", D3DRS_POINTSIZE},
-    {DEFSIZE(0), SRS_FLOAT, "PointSize_Min", D3DRS_POINTSIZE_MIN},
-    {DEFSIZE(0), SRS_FLOAT, "PointSize_Max", D3DRS_POINTSIZE_MAX},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "PointSpriteEnable", D3DRS_POINTSPRITEENABLE},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "PointScaleEnable", D3DRS_POINTSCALEENABLE},
-    {DEFSIZE(0), SRS_FLOAT, "PointScale_A", D3DRS_POINTSCALE_A},
-    {DEFSIZE(0), SRS_FLOAT, "PointScale_B", D3DRS_POINTSCALE_B},
-    {DEFSIZE(0), SRS_FLOAT, "PointScale_C", D3DRS_POINTSCALE_C},
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "MultiSampleAntialias", D3DRS_MULTISAMPLEANTIALIAS},
-    {DEFSIZE(0), SRS_DWORD, "MultiSampleMask", D3DRS_MULTISAMPLEMASK},
+    {DEFSIZE(0), SRS_FLOAT, "PointSize", storm_render::RenderPointSize},
+    {DEFSIZE(0), SRS_FLOAT, "PointSize_Min", storm_render::RenderPointSizeMin},
+    {DEFSIZE(0), SRS_FLOAT, "PointSize_Max", storm_render::RenderPointSizeMax},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "PointSpriteEnable", storm_render::RenderPointSprite},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "PointScaleEnable", storm_render::RenderPointScale},
+    {DEFSIZE(0), SRS_FLOAT, "PointScale_A", storm_render::RenderPointScaleA},
+    {DEFSIZE(0), SRS_FLOAT, "PointScale_B", storm_render::RenderPointScaleB},
+    {DEFSIZE(0), SRS_FLOAT, "PointScale_C", storm_render::RenderPointScaleC},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "MultiSampleAntialias", storm_render::RenderMultisampleAntialias},
+    {DEFSIZE(0), SRS_DWORD, "MultiSampleMask", storm_render::RenderMultisampleMask},
     //{ DEFSIZE(0), SRS_FLOAT, "PatchSegments",						D3DRS_PATCHSEGMENTS },
-    {DEFSIZE(MYD3DPATCHEDGESTYLE), SRS_DWORD, "PatchEdgeStyle", D3DRS_PATCHEDGESTYLE},
+    {DEFSIZE(MYD3DPATCHEDGESTYLE), SRS_DWORD, "PatchEdgeStyle", storm_render::RenderPatchEdgeStyle},
 #ifndef _XBOX
-    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "IndexedVertexBlendEnable", D3DRS_INDEXEDVERTEXBLENDENABLE},
+    {DEFSIZE(MYTRUEFALSE), SRS_DWORD, "IndexedVertexBlendEnable", storm_render::RenderIndexedVertexBlend},
 #endif
-    {DEFSIZE(MYD3DCOLORWRITEMASK), SRS_DWORD, "ColorWriteEnable", D3DRS_COLORWRITEENABLE},
+    {DEFSIZE(MYD3DCOLORWRITEMASK), SRS_DWORD, "ColorWriteEnable", storm_render::RenderColorWriteMask},
 #ifndef _XBOX
-    {DEFSIZE(0), SRS_FLOAT, "TweenFactor", D3DRS_TWEENFACTOR},
+    {DEFSIZE(0), SRS_FLOAT, "TweenFactor", storm_render::RenderTweenFactor},
 #endif
-    {DEFSIZE(MYD3DBLENDOP), SRS_DWORD, "BlendOp", D3DRS_BLENDOP}};
+    {DEFSIZE(MYD3DBLENDOP), SRS_DWORD, "BlendOp", storm_render::RenderBlendOp}};
 
 // ---------------------------------------------------------------------------------
 // SetTextureStageState parameters
-SRSPARAM MYD3DTEXTUREOP[] = {{"disable", D3DTOP_DISABLE},
-                             {"selectarg1", D3DTOP_SELECTARG1},
-                             {"selectarg2", D3DTOP_SELECTARG2},
-                             {"modulate", D3DTOP_MODULATE},
-                             {"modulate2x", D3DTOP_MODULATE2X},
-                             {"modulate4x", D3DTOP_MODULATE4X},
-                             {"add", D3DTOP_ADD},
-                             {"addsigned", D3DTOP_ADDSIGNED},
-                             {"addsigned2x", D3DTOP_ADDSIGNED2X},
-                             {"subtract", D3DTOP_SUBTRACT},
-                             {"substract", D3DTOP_SUBTRACT},
-                             {"addsmooth", D3DTOP_ADDSMOOTH},
-                             {"blenddiffusealpha", D3DTOP_BLENDDIFFUSEALPHA},
-                             {"blendtexturealpha", D3DTOP_BLENDTEXTUREALPHA},
-                             {"blendfactoralpha", D3DTOP_BLENDFACTORALPHA},
-                             {"blendcurrentalpha", D3DTOP_BLENDCURRENTALPHA},
-                             {"blendtexturealphapm", D3DTOP_BLENDTEXTUREALPHAPM},
-                             {"premodulate", D3DTOP_PREMODULATE},
-                             {"modulatealpha_addcolor", D3DTOP_MODULATEALPHA_ADDCOLOR},
-                             {"modulatecolor_addalpha", D3DTOP_MODULATECOLOR_ADDALPHA},
-                             {"modulateinvalpha_addcolor", D3DTOP_MODULATEINVALPHA_ADDCOLOR},
-                             {"modulateinvcolor_addalpha", D3DTOP_MODULATEINVCOLOR_ADDALPHA},
-                             {"bumpenvmap", D3DTOP_BUMPENVMAP},
-                             {"bumpenvmapluminance", D3DTOP_BUMPENVMAPLUMINANCE},
-                             {"dotproduct3", D3DTOP_DOTPRODUCT3},
-                             {"multiplyadd", D3DTOP_MULTIPLYADD},
-                             {"lerp", D3DTOP_LERP}};
+SRSPARAM MYD3DTEXTUREOP[] = {{"disable", storm_render::TextureOpDisable},
+                             {"selectarg1", storm_render::TextureOpSelectArg1},
+                             {"selectarg2", storm_render::TextureOpSelectArg2},
+                             {"modulate", storm_render::TextureOpModulate},
+                             {"modulate2x", storm_render::TextureOpModulate2X},
+                             {"modulate4x", storm_render::TextureOpModulate4X},
+                             {"add", storm_render::TextureOpAdd},
+                             {"addsigned", storm_render::TextureOpAddSigned},
+                             {"addsigned2x", storm_render::TextureOpAddSigned2X},
+                             {"subtract", storm_render::TextureOpSubtract},
+                             {"substract", storm_render::TextureOpSubtract},
+                             {"addsmooth", storm_render::TextureOpAddSmooth},
+                             {"blenddiffusealpha", storm_render::TextureOpBlendDiffuseAlpha},
+                             {"blendtexturealpha", storm_render::TextureOpBlendTextureAlpha},
+                             {"blendfactoralpha", storm_render::TextureOpBlendFactorAlpha},
+                             {"blendcurrentalpha", storm_render::TextureOpBlendCurrentAlpha},
+                             {"blendtexturealphapm", storm_render::TextureOpBlendTextureAlphaPremultiplied},
+                             {"premodulate", storm_render::TextureOpPremodulate},
+                             {"modulatealpha_addcolor", storm_render::TextureOpModulateAlphaAddColor},
+                             {"modulatecolor_addalpha", storm_render::TextureOpModulateColorAddAlpha},
+                             {"modulateinvalpha_addcolor", storm_render::TextureOpModulateInverseAlphaAddColor},
+                             {"modulateinvcolor_addalpha", storm_render::TextureOpModulateInverseColorAddAlpha},
+                             {"bumpenvmap", storm_render::TextureOpBumpEnvMap},
+                             {"bumpenvmapluminance", storm_render::TextureOpBumpEnvMapLuminance},
+                             {"dotproduct3", storm_render::TextureOpDotProduct3},
+                             {"multiplyadd", storm_render::TextureOpMultiplyAdd},
+                             {"lerp", storm_render::TextureOpLerp}};
 
-SRSPARAM MYD3DTAFLAGS[] = {{"current", D3DTA_CURRENT},
-                           {"diffuse", D3DTA_DIFFUSE},
-                           {"selectmask", D3DTA_SELECTMASK},
-                           {"specular", D3DTA_SPECULAR},
-                           {"temp", D3DTA_TEMP},
-                           {"texture", D3DTA_TEXTURE},
-                           {"tfactor", D3DTA_TFACTOR},
-                           {"alphareplicate", D3DTA_ALPHAREPLICATE},
-                           {"complement", D3DTA_COMPLEMENT},
-                           {"texture | complement", D3DTA_TEXTURE | D3DTA_COMPLEMENT},
-                           {"current_alphareplicate", D3DTA_CURRENT | D3DTA_ALPHAREPLICATE},
-                           {"diffuse_alphareplicate", D3DTA_DIFFUSE | D3DTA_ALPHAREPLICATE},
-                           {"specular_alphareplicate", D3DTA_SPECULAR | D3DTA_ALPHAREPLICATE},
-                           {"temp_alphareplicate", D3DTA_TEMP | D3DTA_ALPHAREPLICATE},
-                           {"texture_alphareplicate", D3DTA_TEXTURE | D3DTA_ALPHAREPLICATE},
-                           {"tfactor_alphareplicate", D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE},
-                           {"current_complement", D3DTA_CURRENT | D3DTA_COMPLEMENT},
-                           {"diffuse_complement", D3DTA_DIFFUSE | D3DTA_COMPLEMENT},
-                           {"specular_complement", D3DTA_SPECULAR | D3DTA_COMPLEMENT},
-                           {"temp_complement", D3DTA_TEMP | D3DTA_COMPLEMENT},
-                           {"texture_complement", D3DTA_TEXTURE | D3DTA_COMPLEMENT},
-                           {"tfactor_complement", D3DTA_TFACTOR | D3DTA_COMPLEMENT}};
+SRSPARAM MYD3DTAFLAGS[] = {{"current", storm_render::textureArg::current},
+                           {"diffuse", storm_render::textureArg::diffuse},
+                           {"selectmask", storm_render::textureArg::selectMask},
+                           {"specular", storm_render::textureArg::specular},
+                           {"temp", storm_render::textureArg::temporary},
+                           {"texture", storm_render::textureArg::texture},
+                           {"tfactor", storm_render::textureArg::factor},
+                           {"alphareplicate", storm_render::textureArg::alphaReplicate},
+                           {"complement", storm_render::textureArg::complement},
+                           {"texture | complement", storm_render::textureArg::texture | storm_render::textureArg::complement},
+                           {"current_alphareplicate", storm_render::textureArg::current | storm_render::textureArg::alphaReplicate},
+                           {"diffuse_alphareplicate", storm_render::textureArg::diffuse | storm_render::textureArg::alphaReplicate},
+                           {"specular_alphareplicate", storm_render::textureArg::specular | storm_render::textureArg::alphaReplicate},
+                           {"temp_alphareplicate", storm_render::textureArg::temporary | storm_render::textureArg::alphaReplicate},
+                           {"texture_alphareplicate", storm_render::textureArg::texture | storm_render::textureArg::alphaReplicate},
+                           {"tfactor_alphareplicate", storm_render::textureArg::factor | storm_render::textureArg::alphaReplicate},
+                           {"current_complement", storm_render::textureArg::current | storm_render::textureArg::complement},
+                           {"diffuse_complement", storm_render::textureArg::diffuse | storm_render::textureArg::complement},
+                           {"specular_complement", storm_render::textureArg::specular | storm_render::textureArg::complement},
+                           {"temp_complement", storm_render::textureArg::temporary | storm_render::textureArg::complement},
+                           {"texture_complement", storm_render::textureArg::texture | storm_render::textureArg::complement},
+                           {"tfactor_complement", storm_render::textureArg::factor | storm_render::textureArg::complement}};
 
-SRSPARAM MYD3DTEXCOORDINDEX[] = {{"passthru", D3DTSS_TCI_PASSTHRU},
-                                 {"cameraspacenormal", D3DTSS_TCI_CAMERASPACENORMAL},
-                                 {"cameraspaceposition", D3DTSS_TCI_CAMERASPACEPOSITION},
-                                 {"cameraspacereflectionvector", D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR}};
+SRSPARAM MYD3DTEXCOORDINDEX[] = {{"passthru", storm_render::textureCoord::passthrough},
+                                 {"cameraspacenormal", storm_render::textureCoord::cameraNormal},
+                                 {"cameraspaceposition", storm_render::textureCoord::cameraPosition},
+                                 {"cameraspacereflectionvector", storm_render::textureCoord::cameraReflection}};
 
-SRSPARAM MYD3DTEXTUREADDRESS[] = {{"wrap", D3DTADDRESS_WRAP},
-                                  {"mirror", D3DTADDRESS_MIRROR},
-                                  {"clamp", D3DTADDRESS_CLAMP},
-                                  {"border", D3DTADDRESS_BORDER},
+SRSPARAM MYD3DTEXTUREADDRESS[] = {{"wrap", storm_render::TextureAddressWrap},
+                                  {"mirror", storm_render::TextureAddressMirror},
+                                  {"clamp", storm_render::TextureAddressClamp},
+                                  {"border", storm_render::TextureAddressBorder},
 #ifndef _XBOX
-                                  {"mirroronce", D3DTADDRESS_MIRRORONCE}
+                                  {"mirroronce", storm_render::TextureAddressMirrorOnce}
 #endif
 };
 
 SRSPARAM MYD3DTEXTUREFILTERTYPE[] = {
-    {"none", D3DTEXF_NONE}, {"point", D3DTEXF_POINT}, {"linear", D3DTEXF_LINEAR}, {"anisotropic", D3DTEXF_ANISOTROPIC},
+    {"none", storm_render::TextureFilterNone}, {"point", storm_render::TextureFilterPoint}, {"linear", storm_render::TextureFilterLinear}, {"anisotropic", storm_render::TextureFilterAnisotropic},
 #ifndef _XBOX
 //{ "flatcubic", D3DTEXF_FLATCUBIC },
 #endif
     //{ "gaussiancubic", D3DTEXF_GAUSSIANCUBIC } };
 };
 
-SRSPARAM MYD3DTEXTURETRANSFORMFLAGS[] = {{"disable", D3DTTFF_DISABLE}, {"count1", D3DTTFF_COUNT1},
-                                         {"count2", D3DTTFF_COUNT2},   {"count3", D3DTTFF_COUNT3},
-                                         {"count4", D3DTTFF_COUNT4},   {"projected", D3DTTFF_PROJECTED}};
+SRSPARAM MYD3DTEXTURETRANSFORMFLAGS[] = {{"disable", storm_render::textureTransform::disabled}, {"count1", storm_render::textureTransform::count1},
+                                         {"count2", storm_render::textureTransform::count2},   {"count3", storm_render::textureTransform::count3},
+                                         {"count4", storm_render::textureTransform::count4},   {"projected", storm_render::textureTransform::projected}};
 
 STSS TexturesStageStates[] = {
-    {DEFSIZE(MYD3DTEXTUREOP), SRS_DWORD, "colorop", D3DTSS_COLOROP},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg1", D3DTSS_COLORARG1},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg2", D3DTSS_COLORARG2},
-    {DEFSIZE(MYD3DTEXTUREOP), SRS_DWORD, "alphaop", D3DTSS_ALPHAOP},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg1", D3DTSS_ALPHAARG1},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg2", D3DTSS_ALPHAARG2},
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat00", D3DTSS_BUMPENVMAT00},
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat01", D3DTSS_BUMPENVMAT01},
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat10", D3DTSS_BUMPENVMAT10},
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat11", D3DTSS_BUMPENVMAT11},
-    {DEFSIZE(MYD3DTEXCOORDINDEX), SRS_DWORD, "texcoordindex", D3DTSS_TEXCOORDINDEX},
+    {DEFSIZE(MYD3DTEXTUREOP), SRS_DWORD, "colorop", storm_render::StageColorOp},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg1", storm_render::StageColorArg1},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg2", storm_render::StageColorArg2},
+    {DEFSIZE(MYD3DTEXTUREOP), SRS_DWORD, "alphaop", storm_render::StageAlphaOp},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg1", storm_render::StageAlphaArg1},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg2", storm_render::StageAlphaArg2},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat00", storm_render::StageBumpEnvMatrix00},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat01", storm_render::StageBumpEnvMatrix01},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat10", storm_render::StageBumpEnvMatrix10},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvmat11", storm_render::StageBumpEnvMatrix11},
+    {DEFSIZE(MYD3DTEXCOORDINDEX), SRS_DWORD, "texcoordindex", storm_render::StageTexCoordIndex},
     /* { DEFSIZE(MYD3DTEXTUREADDRESS) , SRS_DWORD, "addressu",		D3DTSS_ADDRESSU },
      { DEFSIZE(MYD3DTEXTUREADDRESS) , SRS_DWORD, "addressv",		D3DTSS_ADDRESSV },
      { DEFSIZE(0), SRS_DWORD, "bordercolor",						D3DTSS_BORDERCOLOR },
@@ -583,33 +583,33 @@ STSS TexturesStageStates[] = {
      { DEFSIZE(0), SRS_FLOAT, "mipmaplodbias",					D3DTSS_MIPMAPLODBIAS },
      { DEFSIZE(0), SRS_DWORD, "maxmiplevel",						D3DTSS_MAXMIPLEVEL },
      { DEFSIZE(0), SRS_DWORD, "maxanisotropy",					D3DTSS_MAXANISOTROPY },*/
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvlscale", D3DTSS_BUMPENVLSCALE},
-    {DEFSIZE(0), SRS_FLOAT, "bumpenvloffset", D3DTSS_BUMPENVLOFFSET},
-    {DEFSIZE(MYD3DTEXTURETRANSFORMFLAGS), SRS_DWORD, "texturetransformflags", D3DTSS_TEXTURETRANSFORMFLAGS},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvlscale", storm_render::StageBumpEnvLuminanceScale},
+    {DEFSIZE(0), SRS_FLOAT, "bumpenvloffset", storm_render::StageBumpEnvLuminanceOffset},
+    {DEFSIZE(MYD3DTEXTURETRANSFORMFLAGS), SRS_DWORD, "texturetransformflags", storm_render::StageTextureTransform},
     // { DEFSIZE(MYD3DTEXTUREADDRESS) , SRS_DWORD, "addressw", D3DTSS_ADDRESSW },
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg0", D3DTSS_COLORARG0},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg0", D3DTSS_ALPHAARG0},
-    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "resultarg", D3DTSS_RESULTARG}};
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "colorarg0", storm_render::StageColorArg0},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "alphaarg0", storm_render::StageAlphaArg0},
+    {DEFSIZE(MYD3DTAFLAGS), SRS_DWORD, "resultarg", storm_render::StageResultArg}};
 
-SAMP SampleStates[] = {{DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressu", D3DSAMP_ADDRESSU},
-                       {DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressv", D3DSAMP_ADDRESSV},
-                       {DEFSIZE(0), SRS_DWORD, "bordercolor", D3DSAMP_BORDERCOLOR},
-                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "magfilter", D3DSAMP_MAGFILTER},
-                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "minfilter", D3DSAMP_MINFILTER},
-                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "mipfilter", D3DSAMP_MIPFILTER},
-                       {DEFSIZE(0), SRS_FLOAT, "mipmaplodbias", D3DSAMP_MIPMAPLODBIAS},
-                       {DEFSIZE(0), SRS_DWORD, "maxmiplevel", D3DSAMP_MAXMIPLEVEL},
-                       {DEFSIZE(0), SRS_DWORD, "maxanisotropy", D3DSAMP_MAXANISOTROPY},
-                       {DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressw", D3DSAMP_ADDRESSW}};
+SAMP SampleStates[] = {{DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressu", storm_render::SamplerAddressU},
+                       {DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressv", storm_render::SamplerAddressV},
+                       {DEFSIZE(0), SRS_DWORD, "bordercolor", storm_render::SamplerBorderColor},
+                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "magfilter", storm_render::SamplerMagFilter},
+                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "minfilter", storm_render::SamplerMinFilter},
+                       {DEFSIZE(MYD3DTEXTUREFILTERTYPE), SRS_DWORD, "mipfilter", storm_render::SamplerMipFilter},
+                       {DEFSIZE(0), SRS_FLOAT, "mipmaplodbias", storm_render::SamplerMipLodBias},
+                       {DEFSIZE(0), SRS_DWORD, "maxmiplevel", storm_render::SamplerMaxMipLevel},
+                       {DEFSIZE(0), SRS_DWORD, "maxanisotropy", storm_render::SamplerMaxAnisotropy},
+                       {DEFSIZE(MYD3DTEXTUREADDRESS), SRS_DWORD, "addressw", storm_render::SamplerAddressW}};
 
 // ---------------------------------------------------------------------------------
 // transform block
-SRSPARAM TRANSFORM_TYPES[] = {{"view", D3DTS_VIEW},     {"projection", D3DTS_PROJECTION}, {"world", D3DTS_WORLD},
-                              {"tex0", D3DTS_TEXTURE0}, {"tex1", D3DTS_TEXTURE1},         {"tex2", D3DTS_TEXTURE2},
-                              {"tex3", D3DTS_TEXTURE3},
+SRSPARAM TRANSFORM_TYPES[] = {{"view", storm_render::TransformView},     {"projection", storm_render::TransformProjection}, {"world", storm_render::TransformWorld},
+                              {"tex0", storm_render::TransformTexture0}, {"tex1", storm_render::TransformTexture1},         {"tex2", storm_render::TransformTexture2},
+                              {"tex3", storm_render::TransformTexture3},
 #ifndef _XBOX
-                              {"tex4", D3DTS_TEXTURE4}, {"tex5", D3DTS_TEXTURE5},         {"tex6", D3DTS_TEXTURE6},
-                              {"tex7", D3DTS_TEXTURE7}
+                              {"tex4", storm_render::TransformTexture4}, {"tex5", storm_render::TransformTexture5},         {"tex6", storm_render::TransformTexture6},
+                              {"tex7", storm_render::TransformTexture7}
 #endif
 };
 
@@ -1155,7 +1155,7 @@ uint32_t CTechnique::ProcessPass(char *pFile, uint32_t dwSize, char **pStr)
                 if (nullptr == (pTemp = SkipToken(*pStr, WORLD_TRANSFORM_CHECK)))
                     throw std::runtime_error("transform. error!");
                 sscanf(pTemp, "%u", &dwCode);
-                dwCode = (uint32_t)D3DTS_WORLDMATRIX(dwCode);
+                dwCode = (uint32_t)storm_render::worldTransform(dwCode);
             }
             *pPass++ = CODE_TRANSFORM;
             *pPass++ = dwCode;
@@ -1245,11 +1245,11 @@ uint32_t CTechnique::ProcessTechnique(char *pFile, uint32_t dwSize, char **pStr)
 void AddDeclElement(shader_t *pS)
 {
     pS->dwDeclSize++;
-    pS->pDecl = (D3DVERTEXELEMENT9 *)realloc(pS->pDecl, sizeof(D3DVERTEXELEMENT9) * pS->dwDeclSize);
-    pS->pDecl[pS->dwDeclSize - 1].Method = D3DDECLMETHOD_DEFAULT;
+    pS->pDecl = (storm_render::VertexElement *)realloc(pS->pDecl, sizeof(storm_render::VertexElement) * pS->dwDeclSize);
+    pS->pDecl[pS->dwDeclSize - 1].Method = storm_render::VertexMethod::Default;
 }
 
-D3DVERTEXELEMENT9 *CurDeclElement(shader_t *pS)
+storm_render::VertexElement *CurDeclElement(shader_t *pS)
 {
     return &pS->pDecl[pS->dwDeclSize - 1];
 }
@@ -1278,22 +1278,22 @@ uint32_t CTechnique::ProcessVertexDeclaration(shader_t *pS, char *pFile, uint32_
             switch (dwTemp)
             {
             case 1:
-                dwTemp = D3DDECLTYPE_FLOAT1;
+                dwTemp = static_cast<uint32_t>(storm_render::VertexComponent::Float1);
                 break;
             case 2:
-                dwTemp = D3DDECLTYPE_FLOAT2;
+                dwTemp = static_cast<uint32_t>(storm_render::VertexComponent::Float2);
                 break;
             case 3:
-                dwTemp = D3DDECLTYPE_FLOAT3;
+                dwTemp = static_cast<uint32_t>(storm_render::VertexComponent::Float3);
                 break;
             case 4:
-                dwTemp = D3DDECLTYPE_FLOAT4;
+                dwTemp = static_cast<uint32_t>(storm_render::VertexComponent::Float4);
                 break;
             }
             AddDeclElement(pS);
             CurDeclElement(pS)->Offset = dwOffset;
             CurDeclElement(pS)->Stream = dwStream;
-            CurDeclElement(pS)->Type = dwTemp;
+            CurDeclElement(pS)->Type = static_cast<storm_render::VertexComponent>(dwTemp);
             dwOffset += 4 * (dwTemp + 1);
 
             // Usage
@@ -1306,7 +1306,7 @@ uint32_t CTechnique::ProcessVertexDeclaration(shader_t *pS, char *pFile, uint32_
                     break;
                 }
             }
-            CurDeclElement(pS)->Usage = dwTemp;
+            CurDeclElement(pS)->Usage = static_cast<storm_render::VertexSemantic>(dwTemp);
             if (dwTemp != ~0)
                 CurDeclElement(pS)->UsageIndex = dwIndexes[dwTemp]++;
         }
@@ -1315,9 +1315,9 @@ uint32_t CTechnique::ProcessVertexDeclaration(shader_t *pS, char *pFile, uint32_
             AddDeclElement(pS);
             CurDeclElement(pS)->Offset = dwOffset;
             CurDeclElement(pS)->Stream = dwStream;
-            CurDeclElement(pS)->Type = D3DDECLTYPE_D3DCOLOR;
-            CurDeclElement(pS)->Usage = D3DDECLUSAGE_COLOR;
-            CurDeclElement(pS)->UsageIndex = dwIndexes[D3DDECLUSAGE_COLOR]++;
+            CurDeclElement(pS)->Type = storm_render::VertexComponent::Color;
+            CurDeclElement(pS)->Usage = storm_render::VertexSemantic::Color;
+            CurDeclElement(pS)->UsageIndex = dwIndexes[static_cast<uint32_t>(storm_render::VertexSemantic::Color)]++;
             dwOffset += 4;
         }
 
@@ -1325,10 +1325,10 @@ uint32_t CTechnique::ProcessVertexDeclaration(shader_t *pS, char *pFile, uint32_
     }
 
     AddDeclElement(pS);
-    *CurDeclElement(pS) = D3DDECL_END();
+    *CurDeclElement(pS) = storm_render::vertexLayoutTerminator();
 
-    HRESULT hr = pRS->CreateVertexDeclaration(pS->pDecl, &pS->pVertexDecl);
-    if (hr != S_OK)
+    storm_render::Result hr = pRS->CreateVertexDeclaration(pS->pDecl, &pS->pVertexDecl);
+    if (hr != storm_render::result::ok)
         core.Trace("ERROR: invalid shader declaration <%s>", pS->pName);
 
     return 0;
@@ -1505,7 +1505,7 @@ uint32_t CTechnique::ProcessShaderAsm(shader_t *pS, char *pFile, uint32_t dwSize
 #else
     LPXGBUFFER CompiledShader = null, ErrorShader = null;
 #endif
-    HRESULT hr;
+    storm_render::Result hr;
     pBuffer = Preprocessor(pBuffer, dwTotalLen);
 
     if (HLSL)
@@ -1524,7 +1524,7 @@ uint32_t CTechnique::ProcessShaderAsm(shader_t *pS, char *pFile, uint32_t dwSize
     /*#else
         hr = XGAssembleShader(0, pBuffer, dwTotalLen, 0, 0, &CompiledShader, &ErrorShader, 0, 0, 0,
     0);//D3DXAssembleShader(pBuffer,dwTotalLen,0,0,&CompiledShader,&ErrorShader); #endif*/
-    if (D3D_OK != hr && ErrorShader)
+    if (storm_render::result::ok != hr && ErrorShader)
     {
         const auto len = ErrorShader->GetBufferSize() + 1;
         char *pErrStr = new char[len];
@@ -1538,9 +1538,9 @@ uint32_t CTechnique::ProcessShaderAsm(shader_t *pS, char *pFile, uint32_t dwSize
         return 0;
     }
     if (dwShaderType == CODE_SVS)
-        hr = pRS->CreateVertexShader((uint32_t *)CompiledShader->GetBufferPointer(), &pS->pVertexShader);
+        hr = pRS->ImportVertexProgram((uint32_t *)CompiledShader->GetBufferPointer(), &pS->pVertexShader);
     else
-        hr = pRS->CreatePixelShader((uint32_t *)CompiledShader->GetBufferPointer(), &pS->pPixelShader);
+        hr = pRS->ImportFragmentProgram((uint32_t *)CompiledShader->GetBufferPointer(), &pS->pPixelShader);
 
     /*#ifndef _XBOX
     #else
@@ -1585,13 +1585,13 @@ uint32_t CTechnique::ProcessShaderBin(shader_t *pS, char *pFile, uint32_t dwShad
         return 0;
     }
 
-    HRESULT hr;
+    storm_render::Result hr;
     if (dwShaderType == CODE_SVS)
-        hr = pRS->CreateVertexShader((uint32_t *)pBuffer, &pS->pVertexShader);
+        hr = pRS->ImportVertexProgram((uint32_t *)pBuffer, &pS->pVertexShader);
     else
-        hr = pRS->CreatePixelShader((uint32_t *)pBuffer, &pS->pPixelShader);
+        hr = pRS->ImportFragmentProgram((uint32_t *)pBuffer, &pS->pPixelShader);
 
-    if (hr != D3D_OK)
+    if (hr != storm_render::result::ok)
         core.Trace("ERROR: can't create shader from %s\nfrom file: %s", pS->pName, pFile);
 
     STORM_DELETE(pBuffer);
@@ -1924,7 +1924,7 @@ bool CTechnique::ExecutePassNext()
 bool CTechnique::ExecutePassClose()
 {
     ClearSavedStates();
-    pRS->SetPixelShader(nullptr);
+    pRS->BindFragmentProgram(nullptr);
     return true;
 }
 
@@ -1982,7 +1982,7 @@ bool CTechnique::ExecutePass(bool bStart)
             // RESTORE:		CODE_RESTORE
         case CODE_SRS: // SetRenderState(
         {
-            D3DRENDERSTATETYPE State = (D3DRENDERSTATETYPE)(*pPass++);
+            storm_render::RenderStateField State = (storm_render::RenderStateField)(*pPass++);
             dwValue = GetPassParameter(*pPass++, dwSubCode);
             if (bSave)
             {
@@ -1997,7 +1997,7 @@ bool CTechnique::ExecutePass(bool bStart)
         case CODE_STSS: // SetTextureStageState(
         {
             dwStage = *pPass++;
-            D3DTEXTURESTAGESTATETYPE StageState = (D3DTEXTURESTAGESTATETYPE)(*pPass++);
+            storm_render::StageField StageState = (storm_render::StageField)(*pPass++);
             dwValue = GetPassParameter(*pPass++, dwSubCode);
             if (bSave)
             {
@@ -2013,7 +2013,7 @@ bool CTechnique::ExecutePass(bool bStart)
         case CODE_SAMP: // SetSamplerState(
         {
             dwStage = *pPass++;
-            D3DSAMPLERSTATETYPE StageState = (D3DSAMPLERSTATETYPE)(*pPass++);
+            storm_render::SamplerField StageState = (storm_render::SamplerField)(*pPass++);
             dwValue = GetPassParameter(*pPass++, dwSubCode);
             if (bSave)
             {
@@ -2037,7 +2037,7 @@ bool CTechnique::ExecutePass(bool bStart)
         break;
         case CODE_TRANSFORM: // SetTransform(
         {
-            D3DTRANSFORMSTATETYPE TransformType = (D3DTRANSFORMSTATETYPE)*pPass++;
+            storm_render::TransformSlot TransformType = (storm_render::TransformSlot)*pPass++;
             throw std::runtime_error("conversion from uint32_t to D3DMATRIX*");
             // pRS->SetTransform(TransformType,(D3DMATRIX*)GetPassParameter(*pPass++,dwSubCode));
         }
@@ -2060,14 +2060,14 @@ bool CTechnique::ExecutePass(bool bStart)
             {
                 if (bSave)
                 {
-                    pRS->GetVertexShader((IDirect3DVertexShader9 **)&dwSaveValue);
+                    pRS->GetVertexProgram((storm_render::Program **)&dwSaveValue);
                     AddState2Restore2(dwCode, dwSaveValue);
                 }
 
                 if (pShaders[dwShaderIndex].pVertexDecl != nullptr)
                     pRS->SetVertexDeclaration(pShaders[dwShaderIndex].pVertexDecl);
 
-                pRS->SetVertexShader(pShaders[dwShaderIndex].pVertexShader);
+                pRS->BindVertexProgram(pShaders[dwShaderIndex].pVertexShader);
             }
         }
         break;
@@ -2077,11 +2077,11 @@ bool CTechnique::ExecutePass(bool bStart)
             {
                 if (bSave)
                 {
-                    pRS->GetPixelShader((IDirect3DPixelShader9 **)&dwSaveValue);
+                    pRS->GetFragmentProgram((storm_render::Program **)&dwSaveValue);
                     AddState2Restore2(dwCode, dwSaveValue);
                 }
 
-                pRS->SetPixelShader(pShaders[dwShaderIndex].pPixelShader);
+                pRS->BindFragmentProgram(pShaders[dwShaderIndex].pPixelShader);
             }
         }
         break;
@@ -2102,11 +2102,11 @@ bool CTechnique::ExecutePass(bool bStart)
                 D3DXMATRIX matTemp, matWorldViewProj;
 
                 D3DXMATRIX matWorld;
-                pRS->GetTransform(D3DTS_WORLD, &matWorld);
+                pRS->GetTransform(storm_render::TransformWorld, &matWorld);
                 D3DXMATRIX matProj;
-                pRS->GetTransform(D3DTS_PROJECTION, &matProj);
+                pRS->GetTransform(storm_render::TransformProjection, &matProj);
                 D3DXMATRIX matView;
-                pRS->GetTransform(D3DTS_VIEW, &matView);
+                pRS->GetTransform(storm_render::TransformView, &matView);
 
                 D3DXMatrixMultiply(&matTemp, &matWorld, &matView);
                 D3DXMatrixMultiply(&matWorldViewProj, &matTemp, &matProj);
@@ -2206,21 +2206,21 @@ void CTechnique::RestoreSavedStates()
         switch (dwCode)
         {
         case CODE_SRS: {
-            D3DRENDERSTATETYPE State = (D3DRENDERSTATETYPE)pSavedStates[dwTempSavedStatesPos++];
+            storm_render::RenderStateField State = (storm_render::RenderStateField)pSavedStates[dwTempSavedStatesPos++];
             dwValue = pSavedStates[dwTempSavedStatesPos++];
             pRS->SetRenderState(State, dwValue);
         }
         break;
         case CODE_STSS: {
             uint32_t dwStage = pSavedStates[dwTempSavedStatesPos++];
-            D3DTEXTURESTAGESTATETYPE StageState = (D3DTEXTURESTAGESTATETYPE)pSavedStates[dwTempSavedStatesPos++];
+            storm_render::StageField StageState = (storm_render::StageField)pSavedStates[dwTempSavedStatesPos++];
             dwValue = pSavedStates[dwTempSavedStatesPos++];
             pRS->SetTextureStageState(dwStage, StageState, dwValue);
         }
         break;
         case CODE_SAMP: {
             uint32_t dwStage = pSavedStates[dwTempSavedStatesPos++];
-            D3DSAMPLERSTATETYPE StageState = (D3DSAMPLERSTATETYPE)pSavedStates[dwTempSavedStatesPos++];
+            storm_render::SamplerField StageState = (storm_render::SamplerField)pSavedStates[dwTempSavedStatesPos++];
             dwValue = pSavedStates[dwTempSavedStatesPos++];
             pRS->SetSamplerState(dwStage, StageState, dwValue);
         }

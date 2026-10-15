@@ -15,7 +15,7 @@ constexpr auto TILED_LINE_HEIGHT = 26;
 constexpr auto SBL = 6;
 #define TICK_SOUND "interface\\ok.wav"
 
-#define XI_TEX_FVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define XI_TEX_FVF (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 class INIFILE;
 
 struct XI_TEX_VERTEX
@@ -44,7 +44,7 @@ class DIALOG final : public Entity
     ~DIALOG();
 
     bool Init();
-    void InitLinks(VDX9RENDER *pRS, D3DVIEWPORT9 &vp, INIFILE *pIni);
+    void InitLinks(VDX9RENDER *pRS, storm_render::Viewport &vp, INIFILE *pIni);
     void Realize(uint32_t Delta_Time);
     uint32_t AttributeChanged(ATTRIBUTES *pA);
     uint64_t ProcessMessage(MESSAGE &message);
@@ -78,7 +78,7 @@ class DIALOG final : public Entity
     struct DlgTextDescribe
     {
       private:
-        POINT offset;
+        storm_render::Point offset;
         int32_t nWindowWidth;
         int32_t nFontID;
         uint32_t dwColor;
@@ -99,7 +99,7 @@ class DIALOG final : public Entity
         }
 
         void ChangeText(std::string_view text);
-        void Init(VDX9RENDER *pRS, D3DVIEWPORT9 &vp, INIFILE *pIni);
+        void Init(VDX9RENDER *pRS, storm_render::Viewport &vp, INIFILE *pIni);
         int32_t GetShowHeight();
         void Show(int32_t nY);
         bool IsLastPage();
@@ -220,7 +220,7 @@ class DIALOG final : public Entity
     VSoundService *snd;
     entid_t charId, persId;
     entid_t charMdl, persMdl;
-    D3DVIEWPORT9 textViewport;
+    storm_render::Viewport textViewport;
 
     int32_t curSnd;
     char soundName[256];

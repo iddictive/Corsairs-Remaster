@@ -24,7 +24,7 @@ class DlgLinkDescribe final
 
     DlgLinkDescribe &SetAttributes(ATTRIBUTES *attributes);
     DlgLinkDescribe &SetRenderer(VDX9RENDER *renderer);
-    DlgLinkDescribe &SetOffset(const POINT &offset);
+    DlgLinkDescribe &SetOffset(const storm_render::Point &offset);
     DlgLinkDescribe &SetWindowWidth(int32_t width);
     DlgLinkDescribe &SetFont(int32_t font_id);
     DlgLinkDescribe &SetFontScale(float scale);
@@ -48,7 +48,7 @@ class DlgLinkDescribe final
     void ShowEditMode(int32_t nX, int32_t nY, int32_t nTextIdx);
 
     VDX9RENDER *renderer_ = nullptr;
-    POINT offset_{};
+    storm_render::Point offset_{};
     int32_t fontId_ = -1;
     float fontScale_{1.0f};
     int32_t lineHeight_{};

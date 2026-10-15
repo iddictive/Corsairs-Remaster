@@ -36,7 +36,7 @@ class OwnedStaticSails final : public StaticSails
     {
         VDX9RENDER *rs = nullptr;
         int vb = -1, ib = -1, surface = -1, heraldry = -1, holes = -1;
-        IDirect3DTexture9 *heraldryPointer = nullptr;
+        storm_render::Texture *heraldryPointer = nullptr;
         uint32_t color = 0xffffffff;
         unsigned normalTriangles = 0, holeStart = 0, holeTriangles = 0;
         std::vector<SAILVERTEX> vertices;
@@ -62,7 +62,7 @@ class OwnedStaticSails final : public StaticSails
         }
     };
     std::vector<std::unique_ptr<Mesh>> meshes;
-    D3DMATERIAL9 material{};
+    storm_render::Material material{};
 
     void addBounds(VisualBounds &bounds) const override
     {
@@ -70,30 +70,30 @@ class OwnedStaticSails final : public StaticSails
     }
     void draw(VDX9RENDER *rs, const CMatrix &matrix) const override
     {
-        D3DMATERIAL9 drawMaterial = material;
+        storm_render::Material drawMaterial = material;
         uint32_t oldColor = 0, oldAddress = 0;
-        rs->GetRenderState(D3DRS_TEXTUREFACTOR, &oldColor);
-        rs->GetSamplerState(2, D3DSAMP_ADDRESSU, &oldAddress);
+        rs->GetRenderState(storm_render::RenderTextureFactor, &oldColor);
+        rs->GetSamplerState(2, storm_render::SamplerAddressU, &oldAddress);
         for (const auto &mesh : meshes)
         {
             if (!rs->TechniqueExecuteStart("ShipSail")) continue;
             do
             {
-                rs->SetMaterial(drawMaterial); rs->SetTransform(D3DTS_WORLD, matrix);
-                rs->SetRenderState(D3DRS_TEXTUREFACTOR, mesh->color);
+                rs->SetMaterial(drawMaterial); rs->SetTransform(storm_render::TransformWorld, matrix);
+                rs->SetRenderState(storm_render::RenderTextureFactor, mesh->color);
                 rs->TextureSet(0, mesh->surface); rs->TextureSet(2, mesh->holes);
                 if (mesh->heraldryPointer) rs->SetTexture(1, mesh->heraldryPointer);
                 else rs->TextureSet(1, mesh->heraldry);
-                rs->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_MIRROR);
+                rs->SetSamplerState(2, storm_render::SamplerAddressU, storm_render::TextureAddressMirror);
                 if (mesh->holeTriangles)
                     rs->DrawBuffer(mesh->vb, sizeof(SAILVERTEX), mesh->ib, 0, mesh->vertices.size(), mesh->holeStart, mesh->holeTriangles);
-                rs->SetSamplerState(2, D3DSAMP_ADDRESSU, oldAddress);
+                rs->SetSamplerState(2, storm_render::SamplerAddressU, oldAddress);
                 if (mesh->normalTriangles)
                     rs->DrawBuffer(mesh->vb, sizeof(SAILVERTEX), mesh->ib, 0, mesh->vertices.size(), 0, mesh->normalTriangles);
             } while (rs->TechniqueExecuteNext());
         }
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, oldColor);
-        rs->SetSamplerState(2, D3DSAMP_ADDRESSU, oldAddress);
+        rs->SetRenderState(storm_render::RenderTextureFactor, oldColor);
+        rs->SetSamplerState(2, storm_render::SamplerAddressU, oldAddress);
     }
 };
 }
@@ -784,8 +784,8 @@ void SAIL::Realize(uint32_t Delta_Time)
         RenderService->SetMaterial(mat);
         RenderService->TextureSet(2, texl);
         CMatrix matv, matp, matc;
-        RenderService->GetTransform(D3DTS_VIEW, matv);
-        RenderService->GetTransform(D3DTS_PROJECTION, matp);
+        RenderService->GetTransform(storm_render::TransformView, matv);
+        RenderService->GetTransform(storm_render::TransformProjection, matp);
         matc = matv * matp;
         if constexpr (false) // Delta_Time==0 )
         {
@@ -793,15 +793,15 @@ void SAIL::Realize(uint32_t Delta_Time)
             {
                 if (gdata[j].bDeleted)
                     continue;
-                RenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTextureFactor);
-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, gdata[j].dwSailsColor);
+                RenderService->GetRenderState(storm_render::RenderTextureFactor, &dwOldTextureFactor);
+                RenderService->SetRenderState(storm_render::RenderTextureFactor, gdata[j].dwSailsColor);
                 for (idx = 0; idx < gdata[j].sailQuantity; idx++)
                 {
                     i = gdata[j].sailIdx[idx];
                     if (slist[i]->bFreeSail)
                         continue;
                     // if(gdata[slist[i]->HostNum].bDeleted) continue;
-                    RenderService->SetTransform(D3DTS_WORLD, *slist[i]->pMatWorld);
+                    RenderService->SetTransform(storm_render::TransformWorld, *slist[i]->pMatWorld);
                     RenderService->TextureSet(0, slist[i]->surfaceTex);
                     if (slist[i]->m_bIsGerald)
                     {
@@ -825,7 +825,7 @@ void SAIL::Realize(uint32_t Delta_Time)
                                                   slist[i]->ss.nVert, slist[i]->ss.sni, slist[i]->ss.Nn);
                     }
                 }
-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwOldTextureFactor);
+                RenderService->SetRenderState(storm_render::RenderTextureFactor, dwOldTextureFactor);
             }
         }
         else
@@ -838,16 +838,16 @@ void SAIL::Realize(uint32_t Delta_Time)
                 struct AimRiggingScope {
                     void*device;bool active;
                     ~AimRiggingScope(){if(active)StormMetalEndAimModel(device);}
-                } aimRiggingScope{RenderService->GetD3DDevice(),false};
+                } aimRiggingScope{RenderService->GetNativeDevice(),false};
                 aimRiggingScope.active=StormMetalBeginAimRigging(aimRiggingScope.device,gdata[j].modelEI);
 #endif
-                RenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTextureFactor);
-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, gdata[j].dwSailsColor);
+                RenderService->GetRenderState(storm_render::RenderTextureFactor, &dwOldTextureFactor);
+                RenderService->SetRenderState(storm_render::RenderTextureFactor, gdata[j].dwSailsColor);
                 for (idx = 0; idx < gdata[j].sailQuantity; idx++)
                 {
                     i = gdata[j].sailIdx[idx];
                     // if(gdata[slist[i]->HostNum].bDeleted) continue;
-                    RenderService->SetTransform(D3DTS_WORLD, *slist[i]->pMatWorld);
+                    RenderService->SetTransform(storm_render::TransformWorld, *slist[i]->pMatWorld);
                     RenderService->TextureSet(0, slist[i]->surfaceTex);
                     if (slist[i]->m_bIsGerald)
                     {
@@ -887,14 +887,14 @@ void SAIL::Realize(uint32_t Delta_Time)
                             storm_ship_fire::unit((heat-.32f)/.62f)*sqrtf(storm_ship_fire::unit(fuel)),
                             fireRecord->GetAttributeAsFloat("charred"),heat,float(fireOrder)*17.31f};fireCount=1;
                     }
-                    if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetD3DDevice(),&fireShip->GetMatrix()->m[0][0],&firePoint,fireCount);
+                    if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetNativeDevice(),&fireShip->GetMatrix()->m[0][0],&firePoint,fireCount);
 #endif
                     // Draw hole texture sail
                     uint32_t dwOld;
-                    RenderService->GetSamplerState(2, D3DSAMP_ADDRESSU, &dwOld);
-                    RenderService->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_MIRROR);
+                    RenderService->GetSamplerState(2, storm_render::SamplerAddressU, &dwOld);
+                    RenderService->SetSamplerState(2, storm_render::SamplerAddressU, storm_render::TextureAddressMirror);
                     // slist[i]->FillIndex(pt);
-                    auto *pt = static_cast<uint16_t *>(RenderService->LockIndexBuffer(sg.indxBuf, D3DLOCK_DISCARD));
+                    auto *pt = static_cast<uint16_t *>(RenderService->LockIndexBuffer(sg.indxBuf, storm_render::lock::discard));
                     if (pt)
                         slist[i]->FillIndex(pt);
                     RenderService->UnLockIndexBuffer(sg.indxBuf);
@@ -910,14 +910,14 @@ void SAIL::Realize(uint32_t Delta_Time)
                                                   slist[i]->ss.nVert, slist[i]->ss.sholeIndx, slist[i]->ss.nholeIndx);
                     }
                     // Draw normal texture sail
-                    RenderService->SetSamplerState(2, D3DSAMP_ADDRESSU, dwOld);
+                    RenderService->SetSamplerState(2, storm_render::SamplerAddressU, dwOld);
                     if (slist[i]->ss.nnormIndx != 0)
                     {
                         RenderService->DrawBuffer(sg.vertBuf, sizeof(SAILVERTEX), sg.indxBuf, slist[i]->ss.sVert,
                                                   slist[i]->ss.nVert, slist[i]->ss.sIndx, slist[i]->ss.nnormIndx);
                     }
 #ifdef STORM_METAL_SHIP_FIRE
-                    if (fireShip) StormMetalEndShipFireSurface(RenderService->GetD3DDevice());
+                    if (fireShip) StormMetalEndShipFireSurface(RenderService->GetNativeDevice());
 #endif
                     if (gdata[j].bYesShip)
                     {
@@ -926,7 +926,7 @@ void SAIL::Realize(uint32_t Delta_Time)
                             ->RestoreLightAndFog();
                     }
                 }
-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, dwOldTextureFactor);
+                RenderService->SetRenderState(storm_render::RenderTextureFactor, dwOldTextureFactor);
             }
 
             //_asm rdtsc    _asm sub eax,tm_draw _asm mov tm_draw,eax
@@ -1613,8 +1613,8 @@ void SAIL::SetAllSails()
     INDEX_BUFFER_RELEASE(RenderService, sg.indxBuf);
 
     sg.vertBuf = RenderService->CreateVertexBuffer(SAILVERTEX_FORMAT, sg.nVert * sizeof(SAILVERTEX),
-                                                   D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
-    sg.indxBuf = RenderService->CreateIndexBuffer(sg.nIndx * 2, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+                                                   storm_render::usage::dynamic | storm_render::usage::writeOnly);
+    sg.indxBuf = RenderService->CreateIndexBuffer(sg.nIndx * 2, storm_render::usage::dynamic | storm_render::usage::writeOnly);
 
     SAILVERTEX *pv;
     pv = static_cast<SAILVERTEX *>(RenderService->LockVertexBuffer(sg.vertBuf));
@@ -2249,7 +2249,7 @@ void SAIL::DeleteSailGroup()
     {
         // create new buffers
         sg.vertBuf = RenderService->CreateVertexBuffer(SAILVERTEX_FORMAT, sg.nVert * sizeof(SAILVERTEX),
-                                                       D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+                                                       storm_render::usage::dynamic | storm_render::usage::writeOnly);
 
         SAILVERTEX *pv;
         pv = static_cast<SAILVERTEX *>(RenderService->LockVertexBuffer(sg.vertBuf));
@@ -2284,7 +2284,7 @@ void SAIL::SetAddSails(int firstSail)
     VERTEX_BUFFER_RELEASE(RenderService, sg.vertBuf);
     // create new buffers
     sg.vertBuf = RenderService->CreateVertexBuffer(SAILVERTEX_FORMAT, sg.nVert * sizeof(SAILVERTEX),
-                                                   D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+                                                   storm_render::usage::dynamic | storm_render::usage::writeOnly);
 
     // fill the vertex buffer and set the texture coordinates
     SAILVERTEX *pv;
@@ -2401,10 +2401,10 @@ void sailPrint(VDX9RENDER *rs, const CVECTOR &pos3D, float rad, int32_t line, co
     buf[sizeof(buf) - 1] = 0;
     // Looking for a point position on the screen
     static CMatrix mtx, view, prj;
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     MTX_PRJ_VECTOR vrt;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     view.Transposition();
     float dist = ~(pos3D - view.Pos());
@@ -2461,7 +2461,7 @@ void SAIL::SetSailTextures(int32_t grNum, VDATA *pvd) const
     // main texture
     const char *pcNormalName = pA->GetAttribute("normalTex");
     // coat of arms of a texture
-    auto *pGeraldTexture = (IDirect3DTexture9 *)pA->GetAttributeAsPointer("geraldTexPointer", 0);
+    auto *pGeraldTexture = (storm_render::Texture *)pA->GetAttributeAsPointer("geraldTexPointer", 0);
     const char *pcGeraldName = pA->GetAttribute("geraldTex");
     //
     gdata[grNum].dwSailsColor = pA->GetAttributeAsDword("sailscolor", 0xFFFFFFFF);
@@ -2561,7 +2561,7 @@ void SAIL::RestoreRender()
 {
     if (sg.nVert == 0)
         return;
-    sg.indxBuf = RenderService->CreateIndexBuffer(sg.nIndx * 2, D3DUSAGE_DYNAMIC);
+    sg.indxBuf = RenderService->CreateIndexBuffer(sg.nIndx * 2, storm_render::usage::dynamic);
 
     // Set triangle buffer for sea mirror
     auto *pt = static_cast<uint16_t *>(RenderService->LockIndexBuffer(sg.indxBuf));

@@ -109,7 +109,7 @@ uint64_t BI_InterfaceManager::ProcessMessage(MESSAGE &message)
     return 0;
 }
 
-BI_ManagerNodeBase *BI_InterfaceManager::CreateImageNode(const char *texture, const FRECT &uv, const RECT &pos,
+BI_ManagerNodeBase *BI_InterfaceManager::CreateImageNode(const char *texture, const FRECT &uv, const storm_render::Rect &pos,
                                                          uint32_t color, int32_t nPrioritet)
 {
     BI_ManagerNodeBase *pNod = new BI_ImageNode(this, texture, uv, pos, color, nPrioritet);
@@ -117,7 +117,7 @@ BI_ManagerNodeBase *BI_InterfaceManager::CreateImageNode(const char *texture, co
 }
 
 BI_ManagerNodeBase *BI_InterfaceManager::CreateStringNode(const char *text, const char *font, uint32_t color,
-                                                          float scale, const RECT &pos, int32_t nHAlign, int32_t nVAlign,
+                                                          float scale, const storm_render::Rect &pos, int32_t nHAlign, int32_t nVAlign,
                                                           int32_t prioritet)
 {
     BI_ManagerNodeBase *pNod = new BI_StringNode(this, text, font, color, scale, pos, nHAlign, nVAlign, prioritet);

@@ -1,5 +1,5 @@
 #include <SDL.h>
-#include <d3d9.h>
+#include "render_device_api.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -21,7 +21,7 @@ static void need(bool value, const char* label) {
     if (!value) { std::fprintf(stderr, "FAIL %s\n", label); std::exit(1); }
 }
 
-static void seedMaps(IDirect3DDevice9* device, uint64_t scene, unsigned sunExpected, unsigned pointExpected) {
+static void seedMaps(storm_render::Device* device, uint64_t scene, unsigned sunExpected, unsigned pointExpected) {
     const float focus[]={0,0,8}, sun[]={.6f,0,1}, point[]={0,2,0};
     float view[16]{}, projection[16]{};
     need(StormMetalBeginShadowFrame(device,scene,1,focus), "shadow frame retains active location");
@@ -38,15 +38,15 @@ static void verify(const char* tier, unsigned sunExpected, unsigned pointExpecte
     setenv("STORM_METAL_SHADOW_QUALITY", tier, 1);
     auto* window = SDL_CreateWindow("shadow quality", 0, 0, 32, 32, SDL_WINDOW_HIDDEN | SDL_WINDOW_METAL);
     need(window, "window");
-    auto* api = Direct3DCreate9(D3D_SDK_VERSION); need(api, "D3D9");
-    D3DPRESENT_PARAMETERS pp{}; pp.Windowed=TRUE; pp.BackBufferWidth=pp.BackBufferHeight=32;
-    pp.BackBufferFormat=D3DFMT_A8R8G8B8; pp.hDeviceWindow=window; pp.SwapEffect=D3DSWAPEFFECT_DISCARD;
-    IDirect3DDevice9* device=nullptr;
-    need(SUCCEEDED(api->CreateDevice(0,D3DDEVTYPE_HAL,window,0,&pp,&device)), "device");
+
+    storm_render::Presentation pp{};  pp.width=pp.height=32;
+    pp.colorFormat=storm_render::AssetFormat::A8R8G8B8;
+    storm_render::Device* device=nullptr;
+    need(storm_render::succeeded(storm_render::createMetalDevice(window, &pp, &device)), "device");
     StormMetalLandLocation(device,true);
     seedMaps(device,100+unsigned(tier[0]),sunExpected,pointExpected);
-    device->Present(nullptr,nullptr,nullptr,nullptr);
-    device->Release(); api->Release(); SDL_DestroyWindow(window);
+    device->Present();
+    device->Release();  SDL_DestroyWindow(window);
 }
 
 static void verifyLiveApply() {
@@ -54,18 +54,18 @@ static void verifyLiveApply() {
     setenv("STORM_METAL_SHADOW_QUALITY", "0", 1);
     auto* window = SDL_CreateWindow("live shadow quality", 0, 0, 32, 32, SDL_WINDOW_HIDDEN | SDL_WINDOW_METAL);
     need(window, "live window");
-    auto* api = Direct3DCreate9(D3D_SDK_VERSION); need(api, "live D3D9");
-    D3DPRESENT_PARAMETERS pp{}; pp.Windowed=TRUE; pp.BackBufferWidth=pp.BackBufferHeight=32;
-    pp.BackBufferFormat=D3DFMT_A8R8G8B8; pp.hDeviceWindow=window; pp.SwapEffect=D3DSWAPEFFECT_DISCARD;
-    IDirect3DDevice9* device=nullptr;
-    need(SUCCEEDED(api->CreateDevice(0,D3DDEVTYPE_HAL,window,0,&pp,&device)), "live device");
+
+    storm_render::Presentation pp{};  pp.width=pp.height=32;
+    pp.colorFormat=storm_render::AssetFormat::A8R8G8B8;
+    storm_render::Device* device=nullptr;
+    need(storm_render::succeeded(storm_render::createMetalDevice(window, &pp, &device)), "live device");
     StormMetalLandLocation(device,true);
     need(!StormMetalCanApplyGraphicsSettings(device, 1u << 7u, 0) &&
          !StormMetalApplyGraphicsSettings(device, 1u << 7u, 0), "unknown settings flag rejects without mutation");
     need(!StormMetalCanApplyGraphicsSettings(device, 1u, 3) &&
          !StormMetalApplyGraphicsSettings(device, 1u, 3), "invalid shadow tier rejects without mutation");
 
-    need(SUCCEEDED(device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.f, 0)),
+    need(storm_render::succeeded(device->Clear(storm_render::clear::color | storm_render::clear::depth, 0, 1.f)),
          "active encoder fixture");
     need(StormMetalCanApplyGraphicsSettings(device, 1u, 0),
          "valid transaction admitted with an active frame encoder");
@@ -101,11 +101,11 @@ static void verifyLiveApply() {
     need(!StormMetalBeginShadowFrame(device,202,1,focus), "off disables shadow frame admission");
     need(StormMetalApplyGraphicsSettings(device,dynamicLighting,2), "lighting on at high quality");
     seedMaps(device,203,4096,512);
-    need(SUCCEEDED(device->Reset(&pp)), "backbuffer reset");
+    need(storm_render::succeeded(device->Reset(&pp)), "backbuffer reset");
     seedMaps(device,204,4096,512);
 
-    device->Present(nullptr,nullptr,nullptr,nullptr);
-    device->Release(); api->Release(); SDL_DestroyWindow(window);
+    device->Present();
+    device->Release();  SDL_DestroyWindow(window);
 }
 
 int main() {

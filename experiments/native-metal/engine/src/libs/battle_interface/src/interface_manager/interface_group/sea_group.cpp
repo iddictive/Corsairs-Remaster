@@ -24,7 +24,7 @@ void BI_SeaGroup::Init()
     char texture[MAX_PATH];
     uint32_t color;
     FRECT uv;
-    RECT pos;
+    storm_render::Rect pos;
 
     // back
     pA = pARoot->GetAttributeClass("back");

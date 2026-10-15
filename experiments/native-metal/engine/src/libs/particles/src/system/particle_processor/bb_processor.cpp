@@ -29,7 +29,7 @@ Must be > 0
 #define PLOD 5.0f
 //=============================================================
 
-IDirect3DVertexDeclaration9 *BillBoardProcessor::vertexDecl_ = nullptr;
+storm_render::VertexLayout *BillBoardProcessor::vertexDecl_ = nullptr;
 
 BillBoardProcessor::BillBoardProcessor()
 {
@@ -48,7 +48,7 @@ BillBoardProcessor::BillBoardProcessor()
 
     const int RectVertexSize = sizeof(RECT_VERTEX);
 
-    pVBuffer = pRS->CreateVertexBuffer(0, MAX_BILLBOARDS * RectVertexSize * 4, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+    pVBuffer = pRS->CreateVertexBuffer(0, MAX_BILLBOARDS * RectVertexSize * 4, storm_render::usage::writeOnly | storm_render::usage::dynamic);
     Assert(pVBuffer != -1);
 
     pIBuffer = pRS->CreateIndexBuffer(MAX_BILLBOARDS * 6 * sizeof(uint16_t));
@@ -298,7 +298,7 @@ uint32_t BillBoardProcessor::CalcDistanceToCamera()
 {
     uint32_t VisParticles = 0;
     const Matrix mView;
-    pRS->GetTransform(D3DTS_VIEW, mView);
+    pRS->GetTransform(storm_render::TransformView, mView);
     for (uint32_t j = 0; j < Particles.size(); j++)
     {
         Particles[j]->CamDistance = Vector(Particles[j]->RenderPos * mView).z;
@@ -337,7 +337,7 @@ void BillBoardProcessor::Draw()
     std::vector<StormMetalAdvancedParticle> nativeParticles;
     nativeParticles.reserve(Particles.size());
 #else
-    auto *pVerts = static_cast<RECT_VERTEX *>(pRS->LockVertexBuffer(pVBuffer, D3DLOCK_DISCARD));
+    auto *pVerts = static_cast<RECT_VERTEX *>(pRS->LockVertexBuffer(pVBuffer, storm_render::lock::discard));
 #endif
     // RECT_VERTEX * pVerts = (RECT_VERTEX*)pVBuffer->Lock(0, 0, D3DLOCK_DISCARD);
     // RECT_VERTEX * pVerts = (RECT_VERTEX*)pVBuffer->Lock();
@@ -405,7 +405,7 @@ void BillBoardProcessor::Draw()
         if (SpeedOriented)
         {
             Matrix matView;
-            pRS->GetTransform(D3DTS_VIEW, matView);
+            pRS->GetTransform(storm_render::TransformView, matView);
             auto SpeedVector = pR->Velocity;
             // pR->RenderPos - pR->OldRenderPos;
             SpeedVector = matView.MulNormal(SpeedVector);
@@ -526,7 +526,7 @@ void BillBoardProcessor::Draw()
 #ifdef STORM_METAL_PARTICLE_BRIDGE
     // The Metal path submits compact records, so the CPU quad index stays unused.
     (void)Index;
-    StormMetalDrawAdvancedParticles(pRS->GetD3DDevice(), nativeParticles.data(), nativeParticles.size(),
+    StormMetalDrawAdvancedParticles(pRS->GetNativeDevice(), nativeParticles.data(), nativeParticles.size(),
                                      StormMetalParticlePremultipliedAlpha);
     return;
 #else
@@ -547,8 +547,8 @@ void BillBoardProcessor::Draw()
     pRS->SetVertexShaderConstantF(13, static_cast<const float *>(cGlobal.v4), 1);
 
     Matrix matOldView, matView, matProjection;
-    pRS->GetTransform(D3DTS_VIEW, matView);
-    pRS->GetTransform(D3DTS_PROJECTION, matProjection);
+    pRS->GetTransform(storm_render::TransformView, matView);
+    pRS->GetTransform(storm_render::TransformProjection, matProjection);
 
     matOldView = matView;
     matView.Transposition();
@@ -557,12 +557,12 @@ void BillBoardProcessor::Draw()
     pRS->SetVertexShaderConstantF(3, static_cast<const float *>(matView.matrix), 4);
     pRS->SetVertexShaderConstantF(7, static_cast<const float *>(matProjection.matrix), 4);
 
-    pRS->SetTransform(D3DTS_VIEW, Matrix());
-    pRS->SetTransform(D3DTS_WORLD, Matrix());
+    pRS->SetTransform(storm_render::TransformView, Matrix());
+    pRS->SetTransform(storm_render::TransformWorld, Matrix());
     pRS->DrawBuffer(pVBuffer, sizeof(RECT_VERTEX), pIBuffer, 0, ParticlesCount * 4, 0, ParticlesCount * 2,
                     "AdvancedParticles");
 
-    pRS->SetTransform(D3DTS_VIEW, matOldView);
+    pRS->SetTransform(storm_render::TransformView, matOldView);
 
     // pRS->Print(20, 20, "PSYS 2.0 : Draw %d billboard particles", ParticlesCount);
 }
@@ -603,16 +603,16 @@ void BillBoardProcessor::CreateVertexDeclaration() const
     if (vertexDecl_ != nullptr)
         return;
 
-    const D3DVERTEXELEMENT9 VertexElements[] = {
-        {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-        {0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-        {0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-        {0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1},
-        {0, 32, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TANGENT, 0},
-        {0, 36, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDWEIGHT, 0},
-        {0, 40, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 2},
-        {0, 52, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 3},
-        D3DDECL_END()};
+    const storm_render::VertexElement VertexElements[] = {
+        {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+        {0, 12, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+        {0, 16, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+        {0, 24, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 1},
+        {0, 32, storm_render::VertexComponent::Float1, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Tangent, 0},
+        {0, 36, storm_render::VertexComponent::Float1, storm_render::VertexMethod::Default, storm_render::VertexSemantic::BlendWeight, 0},
+        {0, 40, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 2},
+        {0, 52, storm_render::VertexComponent::Float1, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 3},
+        storm_render::vertexLayoutTerminator()};
 
     pRS->CreateVertexDeclaration(VertexElements, &vertexDecl_);
 }

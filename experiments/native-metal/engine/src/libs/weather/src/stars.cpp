@@ -159,16 +159,16 @@ void Astronomy::STARS::Init(ATTRIBUTES *pAP)
         uint32_t dwSize;
         fio->_ReadFile(fileS, &dwSize, sizeof(dwSize));
 
-        static D3DVERTEXELEMENT9 VertexElem[] = {
-            {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-            {1, 0, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-            D3DDECL_END()};
+        static storm_render::VertexElement VertexElem[] = {
+            {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+            {1, 0, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+            storm_render::vertexLayoutTerminator()};
 
         pRS->CreateVertexDeclaration(VertexElem, &pDecl);
 
-        iVertexBuffer = pRS->CreateVertexBuffer(0, dwSize * sizeof(CVECTOR), D3DUSAGE_WRITEONLY);
+        iVertexBuffer = pRS->CreateVertexBuffer(0, dwSize * sizeof(CVECTOR), storm_render::usage::writeOnly);
         iVertexBufferColors =
-            pRS->CreateVertexBuffer(0, dwSize * sizeof(uint32_t), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+            pRS->CreateVertexBuffer(0, dwSize * sizeof(uint32_t), storm_render::usage::writeOnly | storm_render::usage::dynamic);
 
         auto *const pVPos = static_cast<CVECTOR *>(pRS->LockVertexBuffer(iVertexBuffer));
         auto *pVColors = static_cast<uint32_t *>(pRS->LockVertexBuffer(iVertexBufferColors));
@@ -323,7 +323,7 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
         fTmpK[4] = 0.85f + 0.15f * sinf(m_fTwinklingTime * 7.f);
         for (int32_t n = 0; n < 7; n++)
             fTmpRnd[n] = 0.8f + FRAND(0.2f);
-        auto *pVColors = static_cast<uint32_t *>(pRS->LockVertexBuffer(iVertexBufferColors, D3DLOCK_DISCARD));
+        auto *pVColors = static_cast<uint32_t *>(pRS->LockVertexBuffer(iVertexBufferColors, storm_render::lock::discard));
         auto size = aStars.size();
 #ifdef STORM_METAL_RENDERER_CONSUMERS
         aMetalStarRects.resize(size);
@@ -352,29 +352,29 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     CMatrix mStarWorld;
     mStarWorld.BuildPosition(vCamPos.x, vCamPos.y, vCamPos.z);
-    pRS->SetTransform(D3DTS_WORLD, mStarWorld);
+    pRS->SetTransform(storm_render::TransformWorld, mStarWorld);
     pRS->TextureSet(0, iTexture);
     if (!aMetalStarRects.empty() && pRS->TechniqueExecuteStart("stars"))
         do
         {
-            StormMetalDrawBillboards(pRS->GetD3DDevice(), aMetalStarRects.data(),
+            StormMetalDrawBillboards(pRS->GetNativeDevice(), aMetalStarRects.data(),
                                       static_cast<uint32_t>(aMetalStarRects.size()), "stars", 1, 1, 1.0f,
                                       pRS->GetHeightDeformator());
         } while (pRS->TechniqueExecuteNext());
     return;
 #endif
 
-    pRS->SetRenderState(D3DRS_POINTSPRITEENABLE, true);
-    pRS->SetRenderState(D3DRS_POINTSCALEENABLE, true);
-    pRS->SetRenderState(D3DRS_POINTSIZE, F2DW(fSize));
-    pRS->SetRenderState(D3DRS_POINTSIZE_MIN, F2DW(0.0f));
-    pRS->SetRenderState(D3DRS_POINTSCALE_A, F2DW(0.0f));
-    pRS->SetRenderState(D3DRS_POINTSCALE_B, F2DW(0.0f));
-    pRS->SetRenderState(D3DRS_POINTSCALE_C, F2DW(1.0f));
+    pRS->SetRenderState(storm_render::RenderPointSprite, true);
+    pRS->SetRenderState(storm_render::RenderPointScale, true);
+    pRS->SetRenderState(storm_render::RenderPointSize, F2DW(fSize));
+    pRS->SetRenderState(storm_render::RenderPointSizeMin, F2DW(0.0f));
+    pRS->SetRenderState(storm_render::RenderPointScaleA, F2DW(0.0f));
+    pRS->SetRenderState(storm_render::RenderPointScaleB, F2DW(0.0f));
+    pRS->SetRenderState(storm_render::RenderPointScaleC, F2DW(1.0f));
 
     CMatrix mWorld;
     mWorld.BuildPosition(vCamPos.x, vCamPos.y, vCamPos.z);
-    pRS->SetTransform(D3DTS_WORLD, mWorld);
+    pRS->SetTransform(storm_render::TransformWorld, mWorld);
     pRS->TextureSet(0, iTexture);
     pRS->SetVertexDeclaration(pDecl);
     pRS->SetStreamSource(0, pRS->GetVertexBuffer(iVertexBuffer), sizeof(CVECTOR));
@@ -383,11 +383,11 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
     if (pRS->TechniqueExecuteStart("stars"))
         do
         {
-            pRS->DrawPrimitive(D3DPT_POINTLIST, 0, aStars.size());
+            pRS->DrawPrimitive(storm_render::PrimitivePointList, 0, aStars.size());
         } while (pRS->TechniqueExecuteNext());
 
-    pRS->SetRenderState(D3DRS_POINTSPRITEENABLE, false);
-    pRS->SetRenderState(D3DRS_POINTSCALEENABLE, false);
+    pRS->SetRenderState(storm_render::RenderPointSprite, false);
+    pRS->SetRenderState(storm_render::RenderPointScale, false);
 
     pRS->SetStreamSource(1, nullptr, 0);
 

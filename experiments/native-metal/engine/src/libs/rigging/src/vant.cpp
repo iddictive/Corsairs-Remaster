@@ -116,7 +116,7 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
         const auto bDraw = RenderService->TechniqueExecuteStart("ShipVant");
         if (!bDraw)
             return;
-        RiggingLightingScope lightingScope(RenderService->GetD3DDevice());
+        RiggingLightingScope lightingScope(RenderService->GetNativeDevice());
 
         // draw nature vants
         CVECTOR cp, ca;
@@ -130,15 +130,15 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
                 struct AimRiggingScope {
                     void*device;bool active;
                     ~AimRiggingScope(){if(active)StormMetalEndAimModel(device);}
-                } aimRiggingScope{RenderService->GetD3DDevice(),false};
+                } aimRiggingScope{RenderService->GetNativeDevice(),false};
                 aimRiggingScope.active=StormMetalBeginAimRigging(aimRiggingScope.device,gdata[gn].model_id);
 #endif
                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLights();
-                RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+                RenderService->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
                 RenderService->TextureSet(0, texl);
 
-                RenderService->SetTransform(D3DTS_WORLD, *gdata[gn].pMatWorld);
+                RenderService->SetTransform(storm_render::TransformWorld, *gdata[gn].pMatWorld);
                 RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, 0, nVert, gdata[gn].sIndx, gdata[gn].nIndx);
 
                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->UnSetLights();
@@ -1025,7 +1025,7 @@ void VANT_BASE::FirstRun()
     {
         VERTEX_BUFFER_RELEASE(RenderService, vBuf);
         INDEX_BUFFER_RELEASE(RenderService, iBuf);
-        vBuf = RenderService->CreateVertexBuffer(VANTVERTEX_FORMAT, nVert * sizeof(VANTVERTEX), D3DUSAGE_WRITEONLY);
+        vBuf = RenderService->CreateVertexBuffer(VANTVERTEX_FORMAT, nVert * sizeof(VANTVERTEX), storm_render::usage::writeOnly);
         iBuf = RenderService->CreateIndexBuffer(nIndx * 6);
         SetVertexes();
         SetIndex();
@@ -1155,7 +1155,7 @@ void VANT_BASE::DoSTORM_DELETE()
         groupQuantity = ngn;
         VERTEX_BUFFER_RELEASE(RenderService, vBuf);
         INDEX_BUFFER_RELEASE(RenderService, iBuf);
-        vBuf = RenderService->CreateVertexBuffer(VANTVERTEX_FORMAT, nVert * sizeof(VANTVERTEX), D3DUSAGE_WRITEONLY);
+        vBuf = RenderService->CreateVertexBuffer(VANTVERTEX_FORMAT, nVert * sizeof(VANTVERTEX), storm_render::usage::writeOnly);
         iBuf = RenderService->CreateIndexBuffer(nIndx * 6);
         SetVertexes();
         SetIndex();

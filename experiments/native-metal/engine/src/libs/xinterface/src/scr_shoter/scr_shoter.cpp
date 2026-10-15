@@ -8,11 +8,11 @@
 #define SS_TEXTURE_HEIGHT 128
 #define SS_TEXTURE_FONECOLOR 0xFF000000
 
-uint32_t GetA8R8G8B8_FromFMT(void *p, uint32_t fmt)
+uint32_t GetA8R8G8B8_FromFMT(void *p, storm_render::AssetFormat fmt)
 {
     uint32_t retVal;
 
-    if (fmt == D3DFMT_R5G6B5)
+    if (fmt == storm_render::AssetFormat::R5G6B5)
     {
         retVal = 0xFF000000 | (static_cast<uint32_t>(*static_cast<uint16_t *>(p) & 0xF800) << 8) |
                  (static_cast<uint32_t>(*static_cast<uint16_t *>(p) & 0x7E0) << 5) |
@@ -78,19 +78,19 @@ void SCRSHOTER::Realize(uint32_t Delta_Time)
 bool SCRSHOTER::MakeScreenShot()
 {
     int n;
-    D3DLOCKED_RECT inRect, outRect;
+    storm_render::LockedRect inRect, outRect;
 
-    auto hr = D3D_OK;
+    auto hr = storm_render::result::ok;
 
     // make the video card draw all unfinished tasks
     hr = rs->EndScene();
-    if (hr != D3D_OK)
+    if (hr != storm_render::result::ok)
     {
         core.Trace("ERROR!!! Can`t EndScene");
         return false;
     }
     hr = rs->BeginScene();
-    if (hr != D3D_OK)
+    if (hr != storm_render::result::ok)
     {
         core.Trace("ERROR!!! Can`t BeginScene");
         return false;
@@ -105,43 +105,43 @@ bool SCRSHOTER::MakeScreenShot()
     textureIndex_ = -1;
 
     // get data of the old render surface
-    D3DSURFACE_DESC desc;
-    IDirect3DSurface9 *pOldRenderTarg = nullptr;
+    storm_render::SurfaceDesc desc;
+    storm_render::Surface *pOldRenderTarg = nullptr;
     hr = rs->GetRenderTarget(&pOldRenderTarg);
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         hr = pOldRenderTarg->GetDesc(&desc);
 
     // get a copy of the render buffer
-    IDirect3DSurface9 *pRenderTarg = nullptr;
-    if (hr == D3D_OK)
+    storm_render::Surface *pRenderTarg = nullptr;
+    if (hr == storm_render::result::ok)
         hr = rs->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, &pRenderTarg);
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         hr = rs->GetRenderTargetData(pOldRenderTarg, pRenderTarg);
     pOldRenderTarg->Release();
 
     // create a new screen shot
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
     {
         textureIndex_ =
-            rs->TextureCreate(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED);
-        texture_ = static_cast<IDirect3DTexture9 *>(rs->GetTextureFromID(textureIndex_));
+            rs->TextureCreate(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, 0, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Managed);
+        texture_ = static_cast<storm_render::Texture *>(rs->GetTextureFromID(textureIndex_));
     }
 
     // get a buffer for a copy of the rendering surface
     void *pIn = nullptr;
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         hr = pRenderTarg->LockRect(&inRect, nullptr, 0);
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         pIn = inRect.pBits;
     // get a buffer for the texture
     void *pOut = nullptr;
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         hr = texture_->LockRect(0, &outRect, nullptr, 0);
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
         pOut = outRect.pBits;
 
     // fill this texture from a copy of our render buffer
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
     {
         for (int vi = 0; vi < SS_TEXTURE_HEIGHT; vi++)
         {
@@ -171,11 +171,11 @@ bool SCRSHOTER::MakeScreenShot()
     const int nTextureID = rs->TextureCreate("interfaces\\EmptyBorder.tga");
     if (nTextureID >= 0)
     {
-        IDirect3DTexture9 *pScrShotTex = nullptr;
-        if (D3D_OK == rs->CreateTexture(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
-                                        D3DPOOL_DEFAULT, &pScrShotTex))
+        storm_render::Texture *pScrShotTex = nullptr;
+        if (storm_render::result::ok == rs->CreateTexture(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8,
+                                        storm_render::MemoryClass::Default, &pScrShotTex))
         {
-            const uint32_t BI_SCRSHOTER_VERTEX_FORMAT = (D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2);
+            const uint32_t BI_SCRSHOTER_VERTEX_FORMAT = (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2);
             struct BI_SCRSHOTER_VERTEX
             {
                 CVECTOR pos;
@@ -200,16 +200,16 @@ bool SCRSHOTER::MakeScreenShot()
             pRenderTarg = nullptr;
             if (rs->GetRenderTarget(&pOldRenderTarg) == S_OK)
             {
-                IDirect3DSurface9 *pStencil = nullptr;
+                storm_render::Surface *pStencil = nullptr;
                 rs->GetDepthStencilSurface(&pStencil);
                 pScrShotTex->GetSurfaceLevel(0, &pRenderTarg);
                 if (rs->SetRenderTarget(pRenderTarg, nullptr) == S_OK)
                 {
                     rs->TextureSet(0, textureIndex_);
-                    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_SCRSHOTER_VERTEX_FORMAT, 2, vert,
+                    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, BI_SCRSHOTER_VERTEX_FORMAT, 2, vert,
                                         sizeof(BI_SCRSHOTER_VERTEX), "battle_icons");
                     rs->TextureSet(0, nTextureID);
-                    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_SCRSHOTER_VERTEX_FORMAT, 2, vert,
+                    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, BI_SCRSHOTER_VERTEX_FORMAT, 2, vert,
                                         sizeof(BI_SCRSHOTER_VERTEX), "battle_icons");
                     rs->SetRenderTarget(pOldRenderTarg, pStencil);
                 }
@@ -220,11 +220,11 @@ bool SCRSHOTER::MakeScreenShot()
                 if (pOldRenderTarg)
                     pOldRenderTarg->Release();
             }
-            IDirect3DSurface9 *pSurf1 = nullptr, *pSurf2 = nullptr;
+            storm_render::Surface *pSurf1 = nullptr, *pSurf2 = nullptr;
             rs->GetSurfaceLevel(texture_, 0, &pSurf1);
             rs->GetSurfaceLevel(pScrShotTex, 0, &pSurf2);
             // rs->UpdateSurface(pSurf2,null,0,pSurf1,null);
-            hr = D3DXLoadSurfaceFromSurface(pSurf1, nullptr, nullptr, pSurf2, nullptr, nullptr, D3DX_DEFAULT, 0);
+            hr = storm_render::ImageLoadSurfaceFromSurface(pSurf1, nullptr, nullptr, pSurf2, nullptr, nullptr, storm_render::ImageDefault, 0);
             if (pSurf1)
                 rs->Release(pSurf1);
             if (pSurf2)
@@ -235,7 +235,7 @@ bool SCRSHOTER::MakeScreenShot()
         rs->TextureRelease(nTextureID);
     }
 
-    return hr == D3D_OK;
+    return hr == storm_render::result::ok;
 }
 
 uint64_t SCRSHOTER::ProcessMessage(MESSAGE &message)
@@ -364,8 +364,8 @@ void SCRSHOTER::DelSaveTexture(const char *fileName)
 
 int32_t SCRSHOTER::GetTexFromSave(char *fileName, char **pDatStr) const
 {
-    HRESULT hr = D3D_OK;
-    D3DLOCKED_RECT outRect;
+    storm_render::Result hr = storm_render::result::ok;
+    storm_render::LockedRect outRect;
     int32_t textureId = -1;
     *pDatStr = nullptr; //~!~
 
@@ -382,10 +382,10 @@ int32_t SCRSHOTER::GetTexFromSave(char *fileName, char **pDatStr) const
     if (datSize > sizeof(SAVE_DATA_HANDLE) && datSize == startIdx + texSize &&
         texSize == 4 * SS_TEXTURE_WIDTH * SS_TEXTURE_HEIGHT)
     {
-        textureId = rs->TextureCreate(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED);
-        auto *pt = static_cast<IDirect3DTexture9 *>(rs->GetTextureFromID(textureId));
+        textureId = rs->TextureCreate(SS_TEXTURE_WIDTH, SS_TEXTURE_HEIGHT, 1, 0, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Managed);
+        auto *pt = static_cast<storm_render::Texture *>(rs->GetTextureFromID(textureId));
         hr = pt->LockRect(0, &outRect, nullptr, 0);
-        if (hr == D3D_OK)
+        if (hr == storm_render::result::ok)
         {
             memcpy(outRect.pBits, &pdat[startIdx], texSize);
             pt->UnlockRect(0);
@@ -416,7 +416,7 @@ int32_t SCRSHOTER::GetTexFromSave(char *fileName, char **pDatStr) const
       }*/
     delete pdat;
 
-    if (hr == D3D_OK)
+    if (hr == storm_render::result::ok)
     {
         return textureId;
     }

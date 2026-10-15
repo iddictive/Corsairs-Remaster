@@ -1,6 +1,6 @@
 #pragma once
 
-#include <d3d9.h>
+#include "render_device_api.hpp"
 #include <cmath>
 #include "c_vector.h"
 
@@ -19,17 +19,17 @@ extern "C" bool StormMetalSetRiggingDraw(void *device, bool active);
 // Restore both the material and draw role, including nested or failed draws.
 class RiggingLightingScope
 {
-    IDirect3DDevice9 *device;
-    D3DMATERIAL9 previous{};
+    storm_render::Device *device;
+    storm_render::Material previous{};
     bool previousRole;
 
 public:
     explicit RiggingLightingScope(void *pointer)
-        : device(static_cast<IDirect3DDevice9 *>(pointer)),
+        : device(static_cast<storm_render::Device *>(pointer)),
           previousRole(StormMetalSetRiggingDraw(pointer, true))
     {
         device->GetMaterial(&previous);
-        D3DMATERIAL9 material{};
+        storm_render::Material material{};
         material.Diffuse = material.Ambient = {1.f, 1.f, 1.f, 1.f};
         device->SetMaterial(&material);
     }

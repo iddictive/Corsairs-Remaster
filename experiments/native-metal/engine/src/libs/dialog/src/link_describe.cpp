@@ -214,7 +214,7 @@ DlgLinkDescribe &DlgLinkDescribe::SetRenderer(VDX9RENDER *renderer)
     return *this;
 }
 
-DlgLinkDescribe &DlgLinkDescribe::SetOffset(const POINT &new_offset)
+DlgLinkDescribe &DlgLinkDescribe::SetOffset(const storm_render::Point &new_offset)
 {
     offset_ = new_offset;
     return *this;

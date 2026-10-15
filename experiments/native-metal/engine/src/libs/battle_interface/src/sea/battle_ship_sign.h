@@ -132,12 +132,12 @@ class BIShipIcon
     int32_t m_idSailorFont;
     uint32_t m_dwSailorFontColor;
     float m_fSailorFontScale;
-    POINT m_SailorFontOffset;
+    storm_render::Point m_SailorFontOffset;
 
     int32_t m_idShipNameFont;
     uint32_t m_dwShipNameFontColor;
     float m_fShipNameFontScale;
-    POINT m_ShipNameFontOffset;
+    storm_render::Point m_ShipNameFontOffset;
 
     bool m_bMakeUpdate;
 

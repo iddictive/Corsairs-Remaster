@@ -38,8 +38,8 @@ class SKY : public Entity
   private:
     enum
     {
-        FOGVERTEX_FORMAT = D3DFVF_XYZ | D3DFVF_DIFFUSE,
-        SKYVERTEX_FORMAT = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX2 | D3DFVF_TEXTUREFORMAT2,
+        FOGVERTEX_FORMAT = storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
+        SKYVERTEX_FORMAT = storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex2 | storm_render::vertexFormat::texCoord2,
         SKY_NUM_TEXTURES = 5,
         SKY_NUM_VERTEX = 40,
 
@@ -87,5 +87,5 @@ class SKY : public Entity
     void GetSkyDirStrings(std::string &sSkyDir, std::string &sSkyDirNext);
     void UpdateTimeFactor();
 
-    uint32_t GetPixelColor(IDirect3DTexture9 *pTex, float fu, float fv) const;
+    uint32_t GetPixelColor(storm_render::Texture *pTex, float fu, float fv) const;
 };

@@ -15,7 +15,7 @@ extern "C" void StormMetalEndOffscreenPointCaster(void*);
 
 CREATE_SERVICE(GEOMETRY)
 
-IDirect3DVertexDeclaration9 *GEOM_SERVICE_R::vertexDecl_ = nullptr;
+storm_render::VertexLayout *GEOM_SERVICE_R::vertexDecl_ = nullptr;
 
 char technique[256] = "";
 char RenderServiceName[] = "dx9render";
@@ -193,12 +193,12 @@ void GEOM_SERVICE_R::SetRenderService(VDX9RENDER *render_service)
     CurentVertexBuffer = INVALID_BUFFER_ID;
     CurentVertexBufferSize = 0;
 
-    const D3DVERTEXELEMENT9 VertexElements[] = {
-        {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-        {0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-        {0, 24, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-        {0, 28, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1},
-        D3DDECL_END()};
+    const storm_render::VertexElement VertexElements[] = {
+        {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+        {0, 12, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+        {0, 24, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+        {0, 28, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 1},
+        storm_render::vertexLayoutTerminator()};
     if (vertexDecl_ == nullptr)
         RenderService->CreateVertexDeclaration(VertexElements, &vertexDecl_);
 }
@@ -287,42 +287,42 @@ void GEOM_SERVICE_R::SetMaterial(const GEOS::MATERIAL &mt)
     if (mt.texture_type[1] != GEOS::TEXTURE_NONE)
     {
         // path BASE texture through
-        RenderService->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+        RenderService->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg2);
 
         // stage #2
         RenderService->TextureSet(1, mt.texture[1]);
         // COLOR = BASE_C + DETAIL_C - 0.5
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
         const bool replaceBakedShadow = (mt.stormMetalBakedShadowMask & (1u << 1)) &&
-            StormMetalOutdoorSunShadowsReady(RenderService->GetD3DDevice()) &&
-            !StormMetalBakedStaticEnvironment(RenderService->GetD3DDevice());
+            StormMetalOutdoorSunShadowsReady(RenderService->GetNativeDevice()) &&
+            !StormMetalBakedStaticEnvironment(RenderService->GetNativeDevice());
 #else
         const bool replaceBakedShadow = false;
 #endif
-        RenderService->SetTextureStageState(1, D3DTSS_COLOROP, replaceBakedShadow ? D3DTOP_SELECTARG1 : D3DTOP_MODULATE2X);
+        RenderService->SetTextureStageState(1, storm_render::StageColorOp, replaceBakedShadow ? storm_render::TextureOpSelectArg1 : storm_render::TextureOpModulate2X);
 
         // COLOR = CURRENT_C * VERTEX_C * 2
         RenderService->TextureSet(2, 0);
-        RenderService->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_MODULATE2X);
+        RenderService->SetTextureStageState(2, storm_render::StageColorOp, storm_render::TextureOpModulate2X);
     }
     else
     {
-        RenderService->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE2X);
+        RenderService->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpModulate2X);
 
-        RenderService->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-        RenderService->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
+        RenderService->SetTextureStageState(1, storm_render::StageColorOp, storm_render::TextureOpDisable);
+        RenderService->SetTextureStageState(2, storm_render::StageColorOp, storm_render::TextureOpDisable);
     }
 
-    RenderService->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    RenderService->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    RenderService->SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    RenderService->SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    RenderService->SetTextureStageState(2, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    RenderService->SetTextureStageState(2, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    RenderService->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    RenderService->SetTextureStageState(0, storm_render::StageColorArg2, storm_render::textureArg::texture);
+    RenderService->SetTextureStageState(1, storm_render::StageColorArg1, storm_render::textureArg::current);
+    RenderService->SetTextureStageState(1, storm_render::StageColorArg2, storm_render::textureArg::texture);
+    RenderService->SetTextureStageState(2, storm_render::StageColorArg1, storm_render::textureArg::current);
+    RenderService->SetTextureStageState(2, storm_render::StageColorArg2, storm_render::textureArg::diffuse);
 
-    RenderService->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    RenderService->SetRenderState(storm_render::RenderBlend, FALSE);
 
-    D3DMATERIAL9 m;
+    storm_render::Material m;
     m.Diffuse.r = m.Diffuse.g = m.Diffuse.b = mt.diffuse;
     m.Diffuse.a = 1.0f;
     m.Ambient.r = m.Ambient.g = m.Ambient.b = m.Ambient.a = 0.0f;
@@ -332,7 +332,7 @@ void GEOM_SERVICE_R::SetMaterial(const GEOS::MATERIAL &mt)
     // RDF selfIllum also contains legacy weapon fill, not only luminous glass.
     // Only models registered as lamp fixtures may import it as emission.
     m.Emissive.r = m.Emissive.g = m.Emissive.b =
-        StormMetalGeometryEmitter(RenderService->GetD3DDevice()) ? mt.selfIllum : 0.0f;
+        StormMetalGeometryEmitter(RenderService->GetNativeDevice()) ? mt.selfIllum : 0.0f;
     m.Emissive.a = 0.0f;
 #else
     m.Emissive.r = m.Emissive.g = m.Emissive.b = m.Emissive.a = 0.0f;
@@ -346,11 +346,11 @@ void GEOM_SERVICE_R::SetMaterial(const GEOS::MATERIAL &mt)
 bool GEOM_SERVICE_R::BeginOffscreenPointCaster(const GEOS::VERTEX &center, float radius)
 {
     const float position[] = {center.x, center.y, center.z};
-    return StormMetalBeginOffscreenLocalPointCaster(RenderService->GetD3DDevice(), position, radius);
+    return StormMetalBeginOffscreenLocalPointCaster(RenderService->GetNativeDevice(), position, radius);
 }
 void GEOM_SERVICE_R::EndOffscreenPointCaster()
 {
-    StormMetalEndOffscreenPointCaster(RenderService->GetD3DDevice());
+    StormMetalEndOffscreenPointCaster(RenderService->GetNativeDevice());
 }
 #endif
 
@@ -367,8 +367,8 @@ GEOS::ID GEOM_SERVICE_R::CreateVertexBuffer(int32_t type, int32_t size)
     if (!RenderService)
         return INVALID_BUFFER_ID;
 
-    int32_t texset[4] = {D3DFVF_TEX1, D3DFVF_TEX2, D3DFVF_TEX3, D3DFVF_TEX4};
-    const int32_t fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEXTUREFORMAT2;
+    int32_t texset[4] = {storm_render::vertexFormat::tex1, storm_render::vertexFormat::tex2, storm_render::vertexFormat::tex3, storm_render::vertexFormat::tex4};
+    const int32_t fvf = storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::texCoord2;
     const auto FVF = fvf | texset[type & 3];
 
     // animated vertices
@@ -392,7 +392,7 @@ GEOS::ID GEOM_SERVICE_R::CreateVertexBuffer(int32_t type, int32_t size)
     }
 
     vrtSize += size;
-    return RenderService->CreateVertexBuffer(FVF, size, D3DUSAGE_WRITEONLY);
+    return RenderService->CreateVertexBuffer(FVF, size, storm_render::usage::writeOnly);
 }
 
 void *GEOM_SERVICE_R::LockVertexBuffer(GEOS::ID vb)
@@ -496,19 +496,19 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
     const auto submit = [&](const char *block, const auto &draw) {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
         if (hullTwoSided) {
-            uint32_t previous = D3DCULL_CCW;
-            RenderService->GetRenderState(D3DRS_CULLMODE, &previous);
+            uint32_t previous = storm_render::CullCounterClockwise;
+            RenderService->GetRenderState(storm_render::RenderCullMode, &previous);
             struct CullRestore {
                 VDX9RENDER *renderer;
                 uint32_t previous;
-                ~CullRestore() { renderer->SetRenderState(D3DRS_CULLMODE, previous); }
+                ~CullRestore() { renderer->SetRenderState(storm_render::RenderCullMode, previous); }
             } restore{RenderService, previous};
             // Techniques can publish cull state on every pass. Apply the hull
             // scope after publication, then submit that pass without reentry.
             const bool named = block && block[0];
             if (!named || RenderService->TechniqueExecuteStart(block))
                 do {
-                    RenderService->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+                    RenderService->SetRenderState(storm_render::RenderCullMode, storm_render::CullNone);
                     draw(nullptr);
                 } while (named && RenderService->TechniqueExecuteNext());
             return;
@@ -522,9 +522,9 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
     if (bCaustic)
     {
         CMatrix mWorld, mView, mProjection;
-        RenderService->GetTransform(D3DTS_WORLD, mWorld);
-        RenderService->GetTransform(D3DTS_PROJECTION, mProjection);
-        RenderService->GetTransform(D3DTS_VIEW, mView);
+        RenderService->GetTransform(storm_render::TransformWorld, mWorld);
+        RenderService->GetTransform(storm_render::TransformProjection, mProjection);
+        RenderService->GetTransform(storm_render::TransformView, mView);
 
         auto mWVP = (mWorld * mView) * mProjection;
 
@@ -553,7 +553,7 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
         const auto cavb = *buffer;
 
         auto *transformed_vb =
-            static_cast<IDirect3DVertexBuffer9 *>(transform_func(cavb.buff, minv, numv, cavb.nvertices));
+            static_cast<storm_render::VertexBuffer *>(transform_func(cavb.buff, minv, numv, cavb.nvertices));
         if (!bCaustic)
         {
             RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
@@ -567,7 +567,7 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
         {
             RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
             submit("caustic", [&](const char *block) {
-                RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, 0, CurentIndexBuffer,
+                RenderService->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, CurentVertexBuffer, 0, CurentIndexBuffer,
                                                             minv, numv, startidx, numtrg, block);
             });
         }
@@ -581,7 +581,7 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
             });
         else
             submit("caustic", [&](const char *block) {
-                RenderService->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, CurentVertexBuffer, vrtsize,
+                RenderService->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, CurentVertexBuffer, vrtsize,
                                                             CurentIndexBuffer, minv, numv, startidx, numtrg, block);
             });
     }

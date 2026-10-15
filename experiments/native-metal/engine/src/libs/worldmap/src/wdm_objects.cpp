@@ -220,8 +220,8 @@ void WdmObjects::DrawCircle(CMatrix &mtx, float radius, uint32_t color) const
     }
     rs->TextureSet(0, -1);
     rs->TextureSet(1, -1);
-    rs->SetTransform(D3DTS_WORLD, mtx);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, D3DFVF_XYZ | D3DFVF_DIFFUSE, 62, vertex, sizeof(vertex[0]), "WdmDebugDraw");
+    rs->SetTransform(storm_render::TransformWorld, mtx);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleFan, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, 62, vertex, sizeof(vertex[0]), "WdmDebugDraw");
 }
 
 void WdmObjects::DrawVector(const CVECTOR &start, const CVECTOR &end, uint32_t color) const
@@ -323,8 +323,8 @@ void WdmObjects::DrawVector(const CVECTOR &start, const CVECTOR &end, uint32_t c
     mtx.Vy() = yBs;
     mtx.Vz() = dir;
     mtx.SetPosition(start.x, start.y, start.z);
-    rs->SetTransform(D3DTS_WORLD, mtx);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, t, vertex, sizeof(vertex[0]), "WdmDebugDraw");
+    rs->SetTransform(storm_render::TransformWorld, mtx);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, t, vertex, sizeof(vertex[0]), "WdmDebugDraw");
 }
 
 void WdmObjects::DrawLine(const CVECTOR &start, const CVECTOR &end, uint32_t color) const
@@ -334,8 +334,8 @@ void WdmObjects::DrawLine(const CVECTOR &start, const CVECTOR &end, uint32_t col
     vertex[1].v = end;
     vertex[1].c = color;
     const CMatrix mtx;
-    rs->SetTransform(D3DTS_WORLD, mtx);
-    rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, 1, vertex, sizeof(vertex[0]), "WdmDebugDraw");
+    rs->SetTransform(storm_render::TransformWorld, mtx);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, 1, vertex, sizeof(vertex[0]), "WdmDebugDraw");
 }
 
 void WdmObjects::DrawBox2D(CMatrix &mtx, float l, float w, uint32_t color) const
@@ -356,15 +356,15 @@ void WdmObjects::DrawBox2D(CMatrix &mtx, float l, float w, uint32_t color) const
     vertex[6].c = color;
     vertex[7].v = CVECTOR(-w, 0.2f, l);
     vertex[7].c = color;
-    rs->SetTransform(D3DTS_WORLD, mtx);
-    rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, 4, vertex, sizeof(vertex[0]), "WdmDebugDraw");
+    rs->SetTransform(storm_render::TransformWorld, mtx);
+    rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, 4, vertex, sizeof(vertex[0]), "WdmDebugDraw");
 }
 
 // Get vp dimensions
 void WdmObjects::GetVPSize(float &w, float &h) const
 {
     // Get the current vp sizes
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
     w = static_cast<float>(vp.Width);
     h = static_cast<float>(vp.Height);

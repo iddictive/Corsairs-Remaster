@@ -28,7 +28,7 @@
 #include "model_realizer.h"
 extern "C" void StormMetalLandLocation(void*, bool);
 extern "C" void StormMetalLandInterior(void*, bool);
-extern "C" void StormMetalShadowLamp(void*, const D3DLIGHT9*);
+extern "C" void StormMetalShadowLamp(void*, const storm_render::Light*);
 extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
 extern "C" void StormMetalEndLandModel(void*, unsigned);
 extern "C" void StormMetalSetBakedStaticEnvironment(void*, bool);
@@ -51,7 +51,7 @@ public:
     bool Init() override { return true; }
     void ProcessStage(Stage stage, uint32_t) override {
         if (!renderer || !location) return;
-        void* device = renderer->GetD3DDevice();
+        void* device = renderer->GetNativeDevice();
         if (stage == Stage::execute) {
             StormMetalLandLocation(device, true);
         } else if (stage == Stage::realize) {
@@ -87,34 +87,34 @@ public:
             const bool bakedStaticEnvironment = location->HasBakedStaticEnvironment();
             StormMetalSetBakedStaticEnvironment(device, bakedStaticEnvironment);
             if (location->GetLights()) location->GetLights()->PublishMetalSceneLights();
-            D3DMATRIX world, view, projection;
-            D3DVIEWPORT9 viewport;
-            renderer->GetTransform(D3DTS_WORLD, &world);
-            renderer->GetTransform(D3DTS_VIEW, &view);
-            renderer->GetTransform(D3DTS_PROJECTION, &projection);
+            storm_render::Matrix world, view, projection;
+            storm_render::Viewport viewport;
+            renderer->GetTransform(storm_render::TransformWorld, &world);
+            renderer->GetTransform(storm_render::TransformView, &view);
+            renderer->GetTransform(storm_render::TransformProjection, &projection);
             renderer->GetViewport(&viewport);
             auto renderPass = [&](unsigned kind, unsigned face, uint64_t id, const float* direction, float range) {
-                D3DMATRIX lightView, lightProjection;
+                storm_render::Matrix lightView, lightProjection;
                 if (!StormMetalBeginShadowPass(device, kind, face, id, direction, range,
                                                &lightView.m[0][0], &lightProjection.m[0][0])) return;
-                static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_VIEW, &lightView);
-                static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &lightProjection);
+                static_cast<storm_render::Device*>(device)->SetTransform(storm_render::TransformView, &lightView);
+                static_cast<storm_render::Device*>(device)->SetTransform(storm_render::TransformProjection, &lightProjection);
                 // Daytime baked bases replace the whole static sun producer set:
                 // their atlas contains shadows cast by neighbouring static models.
                 // Point-light passes retain the static occluders.
                 location->RenderMetalShadowCasters(kind != 0 || !bakedStaticEnvironment);
                 StormMetalEndShadowPass(device);
             };
-            D3DLIGHT9 sun{}; BOOL sunEnabled = false;
+            storm_render::Light sun{}; BOOL sunEnabled = false;
             renderer->GetLightEnable(0, &sunEnabled);
             renderer->GetLight(0, &sun);
-            if (outdoor && sunEnabled && sun.Type == D3DLIGHT_DIRECTIONAL &&
+            if (outdoor && sunEnabled && sun.Type == storm_render::LightKind::Directional &&
                 (sun.Diffuse.r + sun.Diffuse.g + sun.Diffuse.b > 0.12f)) {
                 const float ray[] = {sun.Direction.x, sun.Direction.y, sun.Direction.z};
                 renderPass(0, 0, 1, ray, StormMetalSunShadowCoverage(device, 0));
                 renderPass(0, 1, 1, ray, StormMetalSunShadowCoverage(device, 1));
             }
-            if (auto* lights = ((!outdoor || !sunEnabled || sun.Type != D3DLIGHT_DIRECTIONAL || sun.Diffuse.r + sun.Diffuse.g + sun.Diffuse.b <= 0.12f) ? location->GetLights() : nullptr)) {
+            if (auto* lights = ((!outdoor || !sunEnabled || sun.Type != storm_render::LightKind::Directional || sun.Diffuse.r + sun.Diffuse.g + sun.Diffuse.b <= 0.12f) ? location->GetLights() : nullptr)) {
                 Lights::MetalShadowLight selected[metal_shadow::Capacity]{};
                 const unsigned count=lights->GetShadowLights(focus,selected,metal_shadow::Capacity);
                 for(unsigned index=0; index<count; ++index) {
@@ -126,13 +126,13 @@ public:
             } else if (auto* lights=location->GetLights()) {
                 lights->ResetMetalShadowSelection();
             }
-            renderer->SetTransform(D3DTS_WORLD, &world);
-            renderer->SetTransform(D3DTS_VIEW, &view);
-            static_cast<IDirect3DDevice9*>(device)->SetTransform(D3DTS_PROJECTION, &projection);
+            renderer->SetTransform(storm_render::TransformWorld, &world);
+            renderer->SetTransform(storm_render::TransformView, &view);
+            static_cast<storm_render::Device*>(device)->SetTransform(storm_render::TransformProjection, &projection);
             renderer->SetViewport(&viewport);
             {
-                D3DMATRIX restored{};
-                static_cast<IDirect3DDevice9*>(device)->GetTransform(D3DTS_VIEW, &restored);
+                storm_render::Matrix restored{};
+                static_cast<storm_render::Device*>(device)->GetTransform(storm_render::TransformView, &restored);
                 if (restored._41 > 1.f || restored._41 < -1.f || restored._42 > 1.f || restored._42 < -1.f ||
                     restored._43 > 1.f || restored._43 < -1.f)
                     fprintf(stderr, "[StormMetal] camera view restore drift: (%.2f,%.2f,%.2f)\n", restored._41, restored._42, restored._43);
@@ -156,7 +156,7 @@ bool Location::HasBakedStaticEnvironment()
 
 void Location::RenderMetalShadowCasters(bool includeStatic)
 {
-    void* device = rs->GetD3DDevice();
+    void* device = rs->GetNativeDevice();
     for (int32_t i = 0; includeStatic && i < model.Models(); ++i) {
         auto* realizer = static_cast<LocModelRealizer*>(core.GetEntityPointer(model.RealizerID(i)));
         auto* entity = model[i];
@@ -205,24 +205,24 @@ void SubmitAuthoredWindowMeshes(VDX9RENDER *rs, GEOS *geometry, const char *mode
 {
     GEOS::INFO info{};
     geometry->GetInfo(info);
-    auto *sourceIndices = static_cast<const uint16_t *>(rs->LockIndexBuffer(geometry->GetIndexBuffer(), D3DLOCK_READONLY));
+    auto *sourceIndices = static_cast<const uint16_t *>(rs->LockIndexBuffer(geometry->GetIndexBuffer(), storm_render::lock::readOnly));
     if (!sourceIndices) return;
     for (int32_t objectIndex = 0; objectIndex < info.nobjects; ++objectIndex)
     {
         GEOS::OBJECT object{};
         geometry->GetObj(objectIndex, object);
         auto *buffer = rs->GetVertexBuffer(object.vertex_buff);
-        D3DVERTEXBUFFER_DESC desc{};
-        if (!buffer || buffer->GetDesc(&desc) != D3D_OK || (desc.FVF & D3DFVF_POSITION_MASK) != D3DFVF_XYZ ||
+        storm_render::VertexBufferDesc desc{};
+        if (!buffer || buffer->GetDesc(&desc) != storm_render::result::ok || (desc.FVF & storm_render::vertexFormat::positionMask) != storm_render::vertexFormat::xyz ||
             object.start_vertex < 0 || object.num_vertices < 3 || object.ntriangles < 1) continue;
         uint32_t stride = 3 * sizeof(float);
-        if (desc.FVF & D3DFVF_NORMAL) stride += 3 * sizeof(float);
-        if (desc.FVF & D3DFVF_DIFFUSE) stride += sizeof(uint32_t);
-        if (desc.FVF & D3DFVF_SPECULAR) stride += sizeof(uint32_t);
-        stride += ((desc.FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT) * 2 * sizeof(float);
+        if (desc.FVF & storm_render::vertexFormat::normal) stride += 3 * sizeof(float);
+        if (desc.FVF & storm_render::vertexFormat::diffuse) stride += sizeof(uint32_t);
+        if (desc.FVF & storm_render::vertexFormat::specular) stride += sizeof(uint32_t);
+        stride += ((desc.FVF & storm_render::vertexFormat::texCountMask) >> storm_render::vertexFormat::texCountShift) * 2 * sizeof(float);
         if (uint64_t(object.start_vertex + object.num_vertices) * stride > desc.Size) continue;
         void *locked = nullptr;
-        if (buffer->Lock(0, 0, &locked, D3DLOCK_READONLY) != D3D_OK || !locked) continue;
+        if (buffer->Lock(0, 0, &locked, storm_render::lock::readOnly) != storm_render::result::ok || !locked) continue;
         const auto *bytes = static_cast<const uint8_t *>(locked) + uint64_t(object.start_vertex) * stride;
         std::vector<float> positions(static_cast<size_t>(object.num_vertices) * 3);
         for (int32_t i = 0; i < object.num_vertices; ++i)
@@ -243,7 +243,7 @@ void SubmitAuthoredWindowMeshes(VDX9RENDER *rs, GEOS *geometry, const char *mode
         }
         buffer->Unlock();
         if (valid)
-            StormMetalLightShaftMesh(rs->GetD3DDevice(), HashLightShaftMesh(modelName, object.name, objectIndex),
+            StormMetalLightShaftMesh(rs->GetNativeDevice(), HashLightShaftMesh(modelName, object.name, objectIndex),
                                      positions.data(), object.num_vertices, indices.data(), indices.size());
     }
     rs->UnLockIndexBuffer(geometry->GetIndexBuffer());
@@ -286,7 +286,7 @@ Location::~Location()
 {
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     core.EraseEntity(metalLandLighting);
-    if (metalLandLighting && rs) StormMetalLandLocation(rs->GetD3DDevice(), false);
+    if (metalLandLighting && rs) StormMetalLandLocation(rs->GetNativeDevice(), false);
 #endif
     if (!AttributesPointer)
         return;
@@ -317,9 +317,9 @@ bool Location::Init()
     if (!rs)
         throw std::runtime_error("No service: dx9render");
 #ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
-    StormMetalResetLightShaftOpenings(rs->GetD3DDevice());
+    StormMetalResetLightShaftOpenings(rs->GetNativeDevice());
 #endif
-    rs->SetRenderState(D3DRS_LIGHTING, FALSE);
+    rs->SetRenderState(storm_render::RenderLighting, FALSE);
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     metalLandLighting = core.CreateEntity("MetalLandLighting");
     if (auto* pass = static_cast<MetalLandLighting*>(core.GetEntityPointer(metalLandLighting))) {
@@ -580,7 +580,7 @@ uint64_t Location::ProcessMessage(MESSAGE &message)
         model.modelspath = message.String();
         model.UpdateModelsPath();
 #ifdef STORM_METAL_LIGHT_SHAFT_OPENINGS
-        StormMetalResetLightShaftOpenings(rs->GetD3DDevice());
+        StormMetalResetLightShaftOpenings(rs->GetNativeDevice());
 #endif
 
         core.Send_Message(lighter, "ss", "ModelsPath", model.modelspath.c_str());
@@ -1108,7 +1108,7 @@ void Location::DrawLocators(LocatorArray *la)
         rs->TextureSet(1, -1);
         // start the technique
         const bool isSet = rs->TechniqueExecuteStart("DbgDrawLocators");
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, la->color);
+        rs->SetRenderState(storm_render::RenderTextureFactor, la->color);
         // Draw
         for (int32_t i = 0; i < la->Num(); i++)
         {
@@ -1126,8 +1126,8 @@ void Location::DrawLocators(LocatorArray *la)
             mPos.m[2][0] *= rad;
             mPos.m[2][1] *= rad;
             mPos.m[2][2] *= rad;
-            rs->SetTransform(D3DTS_WORLD, mPos);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, sphereNumTrgs, sphereVertex,
+            rs->SetTransform(storm_render::TransformWorld, mPos);
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, sphereNumTrgs, sphereVertex,
                                 sizeof(SphVertex), nullptr);
         }
         if (isSet)
@@ -1137,11 +1137,11 @@ void Location::DrawLocators(LocatorArray *la)
     }
     // sign
     static CMatrix mtx, view, prj;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     // Get the current vp sizes
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     rs->GetViewport(&vp);
     const float w = vp.Width * 0.5f;
     const float h = vp.Height * 0.5f;
@@ -1172,7 +1172,7 @@ void Location::DrawLocators(LocatorArray *la)
         const int32_t lw = rs->StringWidth((char *)la->LocatorName(i)) / 2;
         rs->Print(static_cast<int32_t>(vrt.x - lw), static_cast<int32_t>(vrt.y), (char *)la->LocatorName(i));
     }
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
 }
 
 void Location::DrawLine(const CVECTOR &s, uint32_t cs, const CVECTOR &d, uint32_t cd, bool useZ) const
@@ -1182,19 +1182,19 @@ void Location::DrawLine(const CVECTOR &s, uint32_t cs, const CVECTOR &d, uint32_
     lineVertex[0].c = cs;
     lineVertex[1].v = d;
     lineVertex[1].c = cd;
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     // Remove textures
     rs->TextureSet(0, -1);
     rs->TextureSet(1, -1);
     // set Z
     uint32_t oldZState = 1;
-    rs->GetRenderState(D3DRS_ZENABLE, &oldZState);
-    rs->SetRenderState(D3DRS_ZENABLE, useZ);
+    rs->GetRenderState(storm_render::RenderDepthTest, &oldZState);
+    rs->SetRenderState(storm_render::RenderDepthTest, useZ);
     // Draw
-    rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, 1, lineVertex, sizeof(SphVertex),
+    rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, 1, lineVertex, sizeof(SphVertex),
                         "DbgLocationDrawLine");
     // restore
-    rs->SetRenderState(D3DRS_ZENABLE, oldZState);
+    rs->SetRenderState(storm_render::RenderDepthTest, oldZState);
 }
 
 void Location::CreateSphere()
@@ -1296,10 +1296,10 @@ void Location::Print(const CVECTOR &pos3D, float rad, int32_t line, float alpha,
     buf[sizeof(buf) - 1] = 0;
     // Find a position of a point on the screen
     static CMatrix mtx, view, prj;
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     MTX_PRJ_VECTOR vrt;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     view.Transposition();
     float dist = ~(pos3D - view.Pos());
@@ -1433,7 +1433,7 @@ void Location::DrawEnemyBars()
     const float alphaThresholdRelativeDist = 0.8f;
     // Current scene parameters
     static CMatrix mtx, view, prj;
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     struct SortElement
     {
         MTX_PRJ_VECTOR vrt;
@@ -1443,8 +1443,8 @@ void Location::DrawEnemyBars()
     } sort[sizeof(enemyBar) / sizeof(enemyBar[0])];
     SortElement *selements[sizeof(enemyBar) / sizeof(enemyBar[0])];
     int32_t sortCount = 0;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     view.Transposition();
     rs->GetViewport(&vp);
@@ -1580,7 +1580,7 @@ void Location::DrawEnemyBars()
         CorrectBar(selements[i]->energy, 0.03f, 0.97f, bar + 12);
         // Draw
         rs->TextureSet(0, enemyBarsTexture);
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, 6, bar, sizeof(bar[0]),
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 6, bar, sizeof(bar[0]),
                             "LocationModelBlend");
     }
 }

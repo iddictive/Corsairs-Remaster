@@ -19,7 +19,7 @@ class SEA : public SEA_BASE
     uint32_t dwShipCode = MakeHashValue("ship");
     uint32_t dwSailCode = MakeHashValue("sail");
 
-    static IDirect3DVertexDeclaration9 *vertexDecl_;
+    static storm_render::VertexLayout *vertexDecl_;
 
     struct SeaVertex
     {
@@ -131,12 +131,12 @@ class SEA : public SEA_BASE
 
     int32_t iVSeaBuffer, iISeaBuffer;
 
-    IDirect3DVolumeTexture9 *pVolumeTexture;
-    IDirect3DCubeTexture9 *pEnvMap, *pSunRoadMap;
-    IDirect3DSurface9 *pZStencil;
+    storm_render::VolumeTexture *pVolumeTexture;
+    storm_render::CubeTexture *pEnvMap, *pSunRoadMap;
+    storm_render::Surface *pZStencil;
 
-    IDirect3DTexture9 *pReflection, *pReflectionSunroad;
-    IDirect3DSurface9 *pReflectionSurfaceDepth;
+    storm_render::Texture *pReflection, *pReflectionSunroad;
+    storm_render::Surface *pReflectionSurfaceDepth;
 
     bool bSimpleSea;
 
@@ -168,8 +168,8 @@ class SEA : public SEA_BASE
 
     CVECTOR4 v4SeaColor, v4SkyColor, v4SeaParameters;
 
-    std::vector<IDirect3DTexture9 *> aBumpMaps;
-    IDirect3DTexture9 *pRenderTargetBumpMap;
+    std::vector<storm_render::Texture *> aBumpMaps;
+    storm_render::Texture *pRenderTargetBumpMap;
 
     float *pSeaFrame1, *pSeaFrame2, *pSeaNormalsFrame1, *pSeaNormalsFrame2;
 
@@ -221,7 +221,7 @@ class SEA : public SEA_BASE
     bool EnvMap_Render2();
     bool SunRoad_Render();
     bool EnvMap_Render();
-    void EnvMap_GetSideMatrix(D3DCUBEMAP_FACES Face, CMatrix &mView);
+    void EnvMap_GetSideMatrix(storm_render::CubeFace Face, CMatrix &mView);
 
     void SFLB_CreateBuffers();
     void CreateVertexDeclaration();

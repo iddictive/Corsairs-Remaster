@@ -8,8 +8,8 @@ namespace
 {
 void DrawManualAimPlus(VDX9RENDER *renderer,uint32_t rgb)
 {
-    D3DVIEWPORT9 viewport{};
-    if(renderer->GetViewport(&viewport)!=D3D_OK||!viewport.Width||!viewport.Height)return;
+    storm_render::Viewport viewport{};
+    if(renderer->GetViewport(&viewport)!=storm_render::result::ok||!viewport.Width||!viewport.Height)return;
     const float pixel=std::clamp(std::round(float(viewport.Height)/1080.f),1.f,2.f);
     const float x=viewport.X+viewport.Width*.5f,y=viewport.Y+viewport.Height*.5f;
     const float half=pixel*.5f,arm=pixel*3.f;
@@ -29,7 +29,7 @@ void DrawManualAimPlus(VDX9RENDER *renderer,uint32_t rgb)
     };
     plus(half+pixel,arm+pixel,0x700B1114u);
     plus(half,arm,0xD0000000u|(rgb&0xFFFFFFu));
-    renderer->DrawPrimitiveUP(D3DPT_TRIANGLELIST,D3DFVF_XYZRHW|D3DFVF_DIFFUSE,
+    renderer->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,storm_render::vertexFormat::xyzwTransformed|storm_render::vertexFormat::diffuse,
         uint32_t(vertices.size()/3),vertices.data(),sizeof(Vertex),"ShipAimReticle");
 }
 }
@@ -76,7 +76,7 @@ void AIShipCameraController::Execute(float fDeltaTime)
 #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
     if(GetAIShip()->isMainCharacter())
     {
-        StormMetalSetAimEnabled(AIHelper::pRS->GetD3DDevice(),!bCameraOutside);
+        StormMetalSetAimEnabled(AIHelper::pRS->GetNativeDevice(),!bCameraOutside);
         if(!bCameraOutside)GetAIShip()->GetCannonController()->RegisterManualAimReceivers();
     }
 #endif
@@ -103,7 +103,7 @@ void AIShipCameraController::Execute(float fDeltaTime)
         uint32_t i, j, iMax;
         CMatrix m;
 
-        AIHelper::pRS->GetTransform(D3DTS_VIEW, m);
+        AIHelper::pRS->GetTransform(storm_render::TransformView, m);
         m.Transposition();
         const auto vZ = m.Vz();
 
@@ -185,7 +185,7 @@ bool AIShipCameraController::Fire()
 {
     CMatrix m;
 
-    AIHelper::pRS->GetTransform(D3DTS_VIEW, m);
+    AIHelper::pRS->GetTransform(storm_render::TransformView, m);
     m.Transposition();
     const auto vZ = m.Vz();
     // CVECTOR vZ = m * CVECTOR(0.0f, 0.0f, 1.0f);
@@ -218,7 +218,7 @@ void AIShipCameraController::Realize(float fDeltaTime)
 
     // AIHelper::pRS->GetTransform(D3DTS_VIEW, m); m.Transposition();    CVECTOR vZ = m.Vz();
     const auto mOldView = m;
-    AIHelper::pRS->GetTransform(D3DTS_VIEW, mOldView);
+    AIHelper::pRS->GetTransform(storm_render::TransformView, mOldView);
     m = mOldView;
     m.Transposition();
     const auto vZ = m.Vz();
@@ -237,7 +237,7 @@ void AIShipCameraController::Realize(float fDeltaTime)
         return;
 
     m.SetIdentity();
-    AIHelper::pRS->SetTransform(D3DTS_VIEW, m);
+    AIHelper::pRS->SetTransform(storm_render::TransformView, m);
 
     rCam.dwColor = Colors[dwTarget];
 
@@ -253,7 +253,7 @@ void AIShipCameraController::Realize(float fDeltaTime)
     AIHelper::pRS->TextureSet(0, iCrosshairTex);
     AIHelper::pRS->DrawRects(&rCam, 1, pACrosshair->GetAttribute("Technique"), dwSubTexturesX, dwSubTexturesY);
 
-    AIHelper::pRS->SetTransform(D3DTS_VIEW, mOldView);
+    AIHelper::pRS->SetTransform(storm_render::TransformView, mOldView);
 }
 
 void AIShipCameraController::Save(CSaveLoad *pSL) const

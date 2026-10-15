@@ -15,7 +15,7 @@ TSink::~TSink()
 }
 
 //--------------------------------------------------------------------
-void TSink::Initialize(INIFILE *_ini, IDirect3DDevice9 *_device, SEA_BASE *_sea, VDX9RENDER *_renderer)
+void TSink::Initialize(INIFILE *_ini, storm_render::Device *_device, SEA_BASE *_sea, VDX9RENDER *_renderer)
 {
     sea = _sea;
     renderer = _renderer;
@@ -162,10 +162,10 @@ void TSink::Realize(uint32_t _dTime)
 
     const CMatrix m;
 
-    renderer->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(m));
+    renderer->SetTransform(storm_render::TransformWorld, static_cast<storm_render::Matrix *>(m));
     renderer->TextureSet(0, texture);
 
-    renderer->SetRenderState(D3DRS_TEXTUREFACTOR, 0x55ffffff);
+    renderer->SetRenderState(storm_render::RenderTextureFactor, 0x55ffffff);
     ivManager->DrawBuffers("sink");
 
     for (auto i = 0; i < sink_effect::MAX_SPLASHES; i++)

@@ -2,8 +2,8 @@
 """Source-level coverage gate for the staged Storm Metal renderer consumers.
 
 This does not claim visual acceptance.  It proves that every shipping consumer
-class reaches either a dedicated compact bridge or the common Metal D3D facade,
-and rejects accidental direct UP submission around that facade.
+class reaches either a dedicated compact bridge or the native render API,
+and rejects accidental direct UP submission around that API.
 """
 
 from pathlib import Path
@@ -46,25 +46,25 @@ renderer = (SOURCE / "renderer/src/s_device.cpp").read_text()
 need("StormMetalDrawCompactPrimitive" in renderer, "DrawPrimitiveUP does not route to compact Metal")
 need("StormMetalDrawCompactIndexedPrimitive" in renderer,
      "DrawIndexedPrimitiveUP does not route to compact Metal")
-postprocess = re.search(r"void DX9RENDER::MakePostProcess\(\)\s*\{(?P<body>.*?)\n\}", renderer, re.DOTALL)
+postprocess = re.search(r"void DX9RENDER::FinalizeSceneEffects\(\)\s*\{(?P<body>.*?)\n\}", renderer, re.DOTALL)
 need(postprocess is not None, "renderer post-process handoff is missing")
 postprocess_body = postprocess.group("body")
-need('D3DPERF_SetMarker(0, L"Storm.SceneHudBoundary")' in postprocess_body,
+need('markSceneBoundary(GetNativeDevice(), storm_render::SceneBoundary::Hud)' in postprocess_body,
      "renderer post-process handoff does not mark the scene/HUD boundary")
-need(postprocess_body.find("Storm.SceneHudBoundary") < postprocess_body.find("if (bPostProcessError)"),
-     "scene/HUD marker runs after a post-process early return")
+need("if (bPostProcessError)" not in postprocess_body,
+     "scene/HUD boundary depends on disabled legacy post-processing")
 
 battle = (SOURCE / "battle_interface/src/sea/i_battle.cpp").read_text()
 battle_realize = re.search(r"void BATTLE_INTERFACE::Realize\([^)]*\)\s*\{(?P<body>.*?)\n\}", battle, re.DOTALL)
 need(battle_realize is not None, "sea battle HUD realize owner is missing")
 battle_body = battle_realize.group("body")
-need(battle_body.find("MakePostProcess()") < battle_body.find("BattleNavigator.Draw()"),
+need(0 <= battle_body.find("FinalizeSceneEffects()") < battle_body.find("BattleNavigator.Draw()"),
      "sea battle HUD draws before its scene/HUD boundary")
 
-# A consumer calling IDirect3DDevice9::Draw*UP directly would bypass the common
+# A consumer calling native Device::Draw*UP directly would bypass the common
 # compact bridge. Calls through DX9RENDER are expected and are covered above.
 direct = []
-pattern = re.compile(r"(?:GetD3DDevice\(\)|\bd3d9|\bdevice_)\s*(?:->|\.)\s*Draw(?:Indexed)?PrimitiveUP\s*\(")
+pattern = re.compile(r"(?:GetNativeDevice\(\)|\brenderDevice|\bdevice_)\s*(?:->|\.)\s*Draw(?:Indexed)?PrimitiveUP\s*\(")
 for path in SOURCE.rglob("*.cpp"):
     if path.as_posix().endswith("renderer/src/s_device.cpp"):
         continue

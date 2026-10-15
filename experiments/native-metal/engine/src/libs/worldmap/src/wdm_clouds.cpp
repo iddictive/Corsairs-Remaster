@@ -20,7 +20,7 @@
 #define WdmCloudsSizeMin 30.0f
 #define WdmCloudsSizeMax 50.0f
 
-IDirect3DVertexDeclaration9 *WdmClouds::vertexDecl_ = nullptr;
+storm_render::VertexLayout *WdmClouds::vertexDecl_ = nullptr;
 
 WdmClouds::Cloud::Cloud()
 {
@@ -321,7 +321,7 @@ void WdmClouds::LRender(VDX9RENDER *rs)
     auto *plane = rs->GetPlanes();
     // Determine the global alpha depending on the distance to the camera
     CMatrix view;
-    rs->GetTransform(D3DTS_VIEW, view);
+    rs->GetTransform(storm_render::TransformView, view);
     CVECTOR camPos;
     view.MulToInv(CVECTOR(0.0f), camPos);
     auto alpha = (camPos.y - WdmCloudsCloudHeight - 10.0f) * 1.0f / 80.0f;
@@ -362,7 +362,7 @@ void WdmClouds::LRender(VDX9RENDER *rs)
         rs->TextureSet(1, light);
 
         CMatrix prj;
-        rs->GetTransform(D3DTS_PROJECTION, prj);
+        rs->GetTransform(storm_render::TransformProjection, prj);
         view.Transposition();
         rs->SetVertexShaderConstantF(0, prj, 4);
         prj.matrix[0] = view.matrix[1];
@@ -384,11 +384,11 @@ void WdmClouds::CreateVertexDeclaration(VDX9RENDER *rs)
     if (vertexDecl_ != nullptr)
         return;
 
-    const D3DVERTEXELEMENT9 VertexElements[] = {
-        {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-        {0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
-        {0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-        D3DDECL_END()};
+    const storm_render::VertexElement VertexElements[] = {
+        {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+        {0, 12, storm_render::VertexComponent::Color, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Color, 0},
+        {0, 16, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+        storm_render::vertexLayoutTerminator()};
 
     rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
 }

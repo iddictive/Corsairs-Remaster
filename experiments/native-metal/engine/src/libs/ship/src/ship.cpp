@@ -1884,12 +1884,12 @@ void SHIP::SetLightAndFog(bool bSetLight)
 
         // ambient
         const auto fScale = Bring2Range(0.0f, 1.0f, -35.0f, 0.0f, State.vPos.y);
-        pRS->GetRenderState(D3DRS_AMBIENT, &dwSaveAmbient);
+        pRS->GetRenderState(storm_render::RenderAmbient, &dwSaveAmbient);
         const CVECTOR vAmbient = fScale * COLOR2VECTOR(dwSaveAmbient);
-        pRS->SetRenderState(D3DRS_AMBIENT, ARGB((dwSaveAmbient >> 24L), vAmbient.x, vAmbient.y, vAmbient.z));
+        pRS->SetRenderState(storm_render::RenderAmbient, ARGB((dwSaveAmbient >> 24L), vAmbient.x, vAmbient.y, vAmbient.z));
 
         // light
-        D3DLIGHT9 newLight;
+        storm_render::Light newLight;
         pRS->GetLight(0, &saveLight);
         newLight = saveLight;
         newLight.Diffuse.r *= fScale;
@@ -1908,9 +1908,9 @@ void SHIP::SetLightAndFog(bool bSetLight)
 
         // fog
         const auto fFogScale = Bring2Range(0.0f, 1.0f, -30.0f, 0.0f, State.vPos.y);
-        pRS->GetRenderState(D3DRS_FOGCOLOR, &dwSaveFogColor);
+        pRS->GetRenderState(storm_render::RenderFogColor, &dwSaveFogColor);
         const CVECTOR vFogColor = fFogScale * COLOR2VECTOR(dwSaveFogColor);
-        pRS->SetRenderState(D3DRS_FOGCOLOR, ARGB((dwSaveFogColor >> 24L), vFogColor.x, vFogColor.y, vFogColor.z));
+        pRS->SetRenderState(storm_render::RenderFogColor, ARGB((dwSaveFogColor >> 24L), vFogColor.x, vFogColor.y, vFogColor.z));
     }
 }
 
@@ -1919,14 +1919,14 @@ void SHIP::RestoreLightAndFog()
     if (bSetLightAndFog)
     {
         bSetLightAndFog = false;
-        pRS->SetRenderState(D3DRS_AMBIENT, dwSaveAmbient);
-        pRS->SetRenderState(D3DRS_FOGCOLOR, dwSaveFogColor);
+        pRS->SetRenderState(storm_render::RenderAmbient, dwSaveAmbient);
+        pRS->SetRenderState(storm_render::RenderFogColor, dwSaveFogColor);
         pRS->SetLight(0, &saveLight);
     }
 }
 
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-extern "C" bool StormMetalSceneLight(void *, uint64_t, const D3DLIGHT9 *);
+extern "C" bool StormMetalSceneLight(void *, uint64_t, const storm_render::Light *);
 #endif
 #ifdef STORM_METAL_RENDERER_CONSUMERS
 extern "C" bool StormMetalDrawCompactPrimitive(void *, uint32_t, uint32_t, uint32_t,
@@ -1946,8 +1946,8 @@ void SHIP::PublishPhonkLights(uint32_t deltaTime)
         const CVECTOR center = GetModel()->mtx *
             CVECTOR(State.vBoxSize.x * (i & 1 ? .65f : -.65f), State.vBoxSize.y * .3f,
                     State.vBoxSize.z * (i & 2 ? .22f : -.22f));
-        D3DLIGHT9 light{};
-        light.Type = D3DLIGHT_POINT;
+        storm_render::Light light{};
+        light.Type = storm_render::LightKind::Point;
         light.Position = {center.x, center.y, center.z};
         light.Diffuse = {1.8f * pulse, .65f * pulse, 2.8f * pulse, 1.f};
         light.Range = std::max(State.vBoxSize.x * 2.f, State.vBoxSize.z * .45f);
@@ -1955,7 +1955,7 @@ void SHIP::PublishPhonkLights(uint32_t deltaTime)
         light.Attenuation2 = 6.f / std::max(light.Range * light.Range, 1.f);
         const uint64_t id = (uint64_t(1) << 61) |
             ((uint64_t(GetId()) & ((uint64_t(1) << 58) - 1)) << 2) | i;
-        StormMetalSceneLight(pRS->GetD3DDevice(), id, &light);
+        StormMetalSceneLight(pRS->GetNativeDevice(), id, &light);
     }
 #endif
 }
@@ -1995,32 +1995,32 @@ void SHIP::DrawPhonkGlow(uint32_t)
                 vertices[at++] = cached(ring - 1, s + 1);
             }
         }
-    auto *device = static_cast<IDirect3DDevice9 *>(pRS->GetD3DDevice());
-    struct RenderState { D3DRENDERSTATETYPE type; DWORD value, previous; };
+    auto *device = static_cast<storm_render::Device *>(pRS->GetNativeDevice());
+    struct RenderState { storm_render::RenderStateField type; DWORD value, previous; };
     RenderState states[] = {
-        {D3DRS_LIGHTING, FALSE, 0}, {D3DRS_FOGENABLE, TRUE, 0},
-        {D3DRS_SPECULARENABLE, FALSE, 0}, {D3DRS_ALPHATESTENABLE, FALSE, 0},
-        {D3DRS_ALPHABLENDENABLE, TRUE, 0}, {D3DRS_SRCBLEND, D3DBLEND_SRCALPHA, 0},
-        {D3DRS_DESTBLEND, D3DBLEND_ONE, 0}, {D3DRS_BLENDOP, D3DBLENDOP_ADD, 0},
-        {D3DRS_SEPARATEALPHABLENDENABLE, FALSE, 0},
-        {D3DRS_CULLMODE, D3DCULL_NONE, 0}, {D3DRS_ZENABLE, D3DZB_TRUE, 0},
-        {D3DRS_ZFUNC, D3DCMP_LESSEQUAL, 0}, {D3DRS_ZWRITEENABLE, FALSE, 0}
+        {storm_render::RenderLighting, FALSE, 0}, {storm_render::RenderFog, TRUE, 0},
+        {storm_render::RenderSpecular, FALSE, 0}, {storm_render::RenderAlphaTest, FALSE, 0},
+        {storm_render::RenderBlend, TRUE, 0}, {storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha, 0},
+        {storm_render::RenderDestinationBlend, storm_render::BlendOne, 0}, {storm_render::RenderBlendOp, storm_render::BlendOpAdd, 0},
+        {storm_render::RenderSeparateAlphaBlend, FALSE, 0},
+        {storm_render::RenderCullMode, storm_render::CullNone, 0}, {storm_render::RenderDepthTest, storm_render::DepthEnabled, 0},
+        {storm_render::RenderDepthCompare, storm_render::CompareLessEqual, 0}, {storm_render::RenderDepthWrite, FALSE, 0}
     };
-    struct TextureState { DWORD stage; D3DTEXTURESTAGESTATETYPE type; DWORD value, previous; };
+    struct TextureState { DWORD stage; storm_render::StageField type; DWORD value, previous; };
     TextureState stages[] = {
-        {0, D3DTSS_COLOROP, D3DTOP_SELECTARG1, 0}, {0, D3DTSS_COLORARG1, D3DTA_DIFFUSE, 0},
-        {0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1, 0}, {0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE, 0},
-        {0, D3DTSS_RESULTARG, D3DTA_CURRENT, 0},
-        {1, D3DTSS_COLOROP, D3DTOP_DISABLE, 0}, {1, D3DTSS_ALPHAOP, D3DTOP_DISABLE, 0}
+        {0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1, 0}, {0, storm_render::StageColorArg1, storm_render::textureArg::diffuse, 0},
+        {0, storm_render::StageAlphaOp, storm_render::TextureOpSelectArg1, 0}, {0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse, 0},
+        {0, storm_render::StageResultArg, storm_render::textureArg::current, 0},
+        {1, storm_render::StageColorOp, storm_render::TextureOpDisable, 0}, {1, storm_render::StageAlphaOp, storm_render::TextureOpDisable, 0}
     };
     for (auto &s : states) { device->GetRenderState(s.type, &s.previous); device->SetRenderState(s.type, s.value); }
     for (auto &s : stages) { device->GetTextureStageState(s.stage, s.type, &s.previous); device->SetTextureStageState(s.stage, s.type, s.value); }
     CMatrix world;
-    pRS->GetTransform(D3DTS_WORLD, world);
-    pRS->SetTransform(D3DTS_WORLD, CMatrix());
-    StormMetalDrawCompactPrimitive(device, D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE,
+    pRS->GetTransform(storm_render::TransformWorld, world);
+    pRS->SetTransform(storm_render::TransformWorld, CMatrix());
+    StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
                                    vertices.size() / 3, vertices.data(), sizeof(Vertex));
-    pRS->SetTransform(D3DTS_WORLD, world);
+    pRS->SetTransform(storm_render::TransformWorld, world);
     for (const auto &s : stages) device->SetTextureStageState(s.stage, s.type, s.previous);
     for (const auto &s : states) device->SetRenderState(s.type, s.previous);
 #endif
@@ -2035,7 +2035,7 @@ void SHIP::Realize(uint32_t dtime)
     {
         void *device;bool active;
         ~AimOwnScope(){if(active)StormMetalEndAimOwnShip(device);}
-    } aimOwnScope{pRS->GetD3DDevice(),false};
+    } aimOwnScope{pRS->GetNativeDevice(),false};
     if(GetACharacter()&&GetACharacter()->GetAttributeAsDword("MainCharacter",0))
         aimOwnScope.active=StormMetalBeginAimOwnShip(aimOwnScope.device);
 #endif
@@ -2051,7 +2051,7 @@ void SHIP::Realize(uint32_t dtime)
     struct AimModelScope {
         void*device;bool active;
         ~AimModelScope(){if(active)StormMetalEndAimModel(device);}
-    } aimModelScope{pRS->GetD3DDevice(),false};
+    } aimModelScope{pRS->GetNativeDevice(),false};
     aimModelScope.active=StormMetalBeginAimModel(aimModelScope.device,pM->GetId());
 #endif
 
@@ -2061,16 +2061,16 @@ void SHIP::Realize(uint32_t dtime)
     SetLightAndFog(true);
     SetLights();
 
-    pRS->SetRenderState(D3DRS_LIGHTING, true);
+    pRS->SetRenderState(storm_render::RenderLighting, true);
 #ifdef STORM_METAL_SHIP_FIRE
     const auto firePoints=ShipFirePoints(true);
-    StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
+    StormMetalBeginShipFireSurface(pRS->GetNativeDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
 #endif
     pM->ProcessStage(Stage::realize, dtime);
 #ifdef STORM_METAL_SHIP_FIRE
-    StormMetalEndShipFireSurface(pRS->GetD3DDevice());
+    StormMetalEndShipFireSurface(pRS->GetNativeDevice());
 #endif
-    pRS->SetRenderState(D3DRS_LIGHTING, false);
+    pRS->SetRenderState(storm_render::RenderLighting, false);
 
     UnSetLights();
     RestoreLightAndFog();
@@ -2083,17 +2083,17 @@ void SHIP::Realize(uint32_t dtime)
                        State.vPos.z + fZOffset);
         pModelUpperShip->mtx = m1;
 #ifdef STORM_METAL_SHIP_FIRE
-        StormMetalBeginShipFireSurface(pRS->GetD3DDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
+        StormMetalBeginShipFireSurface(pRS->GetNativeDevice(),&pM->mtx.m[0][0],firePoints.data(),uint32_t(firePoints.size()));
 #endif
         pModelUpperShip->ProcessStage(Stage::realize, dtime);
 #ifdef STORM_METAL_SHIP_FIRE
-        StormMetalEndShipFireSurface(pRS->GetD3DDevice());
+        StormMetalEndShipFireSurface(pRS->GetNativeDevice());
 #endif
     }
 
 #ifdef STORM_METAL_SHIP_FIRE
     const auto fireVolumes=ShipFirePoints(false);
-    StormMetalDrawShipFire(pRS->GetD3DDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
+    StormMetalDrawShipFire(pRS->GetNativeDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
                           &fireWind.x,fireVisualSeconds);
 #endif
     DrawPhonkGlow(dtime);

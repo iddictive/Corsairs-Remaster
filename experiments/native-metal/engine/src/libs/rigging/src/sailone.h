@@ -20,7 +20,7 @@ class NODE;
 
 #define SAIL_COL_MAX 13
 #define SAIL_ROW_MAX 17
-#define SAILVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX3 | D3DFVF_TEXTUREFORMAT2)
+#define SAILVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::tex3 | storm_render::vertexFormat::texCoord2)
 
 struct SAILVERTEX
 {
@@ -284,7 +284,7 @@ class SAILONE : public SAILONE_BASE
     int32_t surfaceTex;
     bool m_bIsGerald;
     int32_t m_nGeraldTex;
-    IDirect3DTexture9 *m_pGeraldTex;
+    storm_render::Texture *m_pGeraldTex;
 
     float m_fHorzGeraldScale;
     float m_fVertGeraldScale;

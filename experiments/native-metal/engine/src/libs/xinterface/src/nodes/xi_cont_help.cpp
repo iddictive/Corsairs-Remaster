@@ -35,7 +35,7 @@ void CXI_CONTEXTHELP::Draw(bool bSelected, uint32_t Delta_Time)
     if (m_bUse)
     {
         // outputting the context help rectangle
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_NOTEX_FVF, 2, m_pVert, sizeof(XI_NOTEX_VERTEX), "iRectangle");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_NOTEX_FVF, 2, m_pVert, sizeof(XI_NOTEX_VERTEX), "iRectangle");
         if (m_bBorder)
             m_rs->DrawLines(m_pLines, 4, "iRectangle");
 

@@ -8,7 +8,7 @@
 #define FILE_PATH "TextureSequence\\%s.tga"
 static const char *INI_FILENAME = "resource\\ini\\TextureSequence.ini";
 
-#define TS_VERTEX_FRMT (D3DFVF_XYZRHW | D3DFVF_TEX2 | D3DFVF_TEXTUREFORMAT2)
+#define TS_VERTEX_FRMT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex2 | storm_render::vertexFormat::texCoord2)
 
 struct TS_VERTEX
 {
@@ -53,7 +53,7 @@ TextureSequence::~TextureSequence()
     Release();
 }
 
-IDirect3DTexture9 *TextureSequence::Initialize(VDX9RENDER *pRS, const char *cTSfileName, bool bCicled)
+storm_render::Texture *TextureSequence::Initialize(VDX9RENDER *pRS, const char *cTSfileName, bool bCicled)
 {
     m_bCicled = bCicled;
     if (pRS == nullptr || cTSfileName == nullptr)
@@ -97,8 +97,8 @@ IDirect3DTexture9 *TextureSequence::Initialize(VDX9RENDER *pRS, const char *cTSf
 
     m_pTexture = nullptr;
     // create output texture
-    if (S_OK != m_pRS->CreateTexture(m_texWidth, m_texHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
-                                     D3DPOOL_DEFAULT, &m_pTexture))
+    if (S_OK != m_pRS->CreateTexture(m_texWidth, m_texHeight, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8,
+                                     storm_render::MemoryClass::Default, &m_pTexture))
     {
         m_pTexture = nullptr;
         core.Trace("Can`t create texture");
@@ -138,17 +138,17 @@ void TextureSequence::ToTextureRender(float blendValue) const
                                  static_cast<int32_t>(255.f * blendValue), static_cast<int32_t>(255.f * blendValue));
 
     // set texture as render target
-    IDirect3DSurface9 *pRenderTarg = nullptr, *pOldRenderTarg = nullptr;
+    storm_render::Surface *pRenderTarg = nullptr, *pOldRenderTarg = nullptr;
     if (m_pRS->GetRenderTarget(&pOldRenderTarg) == S_OK)
     {
         if (m_pRS->GetSurfaceLevel(m_pTexture, 0, &pRenderTarg) == S_OK)
         {
-            IDirect3DSurface9 *pStencil;
+            storm_render::Surface *pStencil;
             m_pRS->GetDepthStencilSurface(&pStencil);
             if (m_pRS->SetRenderTarget(pRenderTarg, nullptr) == S_OK)
             {
                 CMatrix matw;
-                m_pRS->SetTransform(D3DTS_WORLD, (D3DMATRIX *)&matw);
+                m_pRS->SetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&matw);
                 m_pRS->TextureSet(0, m_AllTex);
                 m_pRS->TextureSet(1, m_AllTex);
 
@@ -189,8 +189,8 @@ void TextureSequence::ToTextureRender(float blendValue) const
                 v[3].tv2 = m_rectTex.top;
 
                 // draw rectangle
-                m_pRS->SetRenderState(D3DRS_TEXTUREFACTOR, newTFactor);
-                m_pRS->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, TS_VERTEX_FRMT, 2, v, sizeof(TS_VERTEX), "TextureSequence");
+                m_pRS->SetRenderState(storm_render::RenderTextureFactor, newTFactor);
+                m_pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, TS_VERTEX_FRMT, 2, v, sizeof(TS_VERTEX), "TextureSequence");
 
                 m_pRS->SetRenderTarget(pOldRenderTarg, pStencil);
             }
@@ -222,6 +222,6 @@ void TextureSequence::LostRender() const
 
 void TextureSequence::RestoreRender()
 {
-    m_pRS->CreateTexture(m_texWidth, m_texHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+    m_pRS->CreateTexture(m_texWidth, m_texHeight, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Default,
                          &m_pTexture);
 }

@@ -44,7 +44,7 @@ void CXI_ToolTip::Draw()
     if (m_nSquareQ > 0)
     {
         m_rs->TextureSet(0, m_nTextureID);
-        m_rs->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, m_nSquareQ * 4, m_nSquareQ * 2, m_pI, D3DFMT_INDEX16, m_pV,
+        m_rs->DrawIndexedPrimitiveUP(storm_render::PrimitiveTriangleList, 0, m_nSquareQ * 4, m_nSquareQ * 2, m_pI, storm_render::IndexFormat::UInt16, m_pV,
                                      sizeof(XI_ONETEX_VERTEX), "iVideo");
     }
 

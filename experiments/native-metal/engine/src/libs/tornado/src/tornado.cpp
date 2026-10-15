@@ -70,8 +70,8 @@ bool Tornado::Init()
     ib = rs->CreateIndexBuffer(pillar.GetNumTriangles() * 3 * sizeof(uint16_t));
     if (ib < 0)
         return false;
-    vb = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE, pillar.GetNumVerteces() * sizeof(Pillar::Vertex),
-                                D3DUSAGE_WRITEONLY);
+    vb = rs->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, pillar.GetNumVerteces() * sizeof(Pillar::Vertex),
+                                storm_render::usage::writeOnly);
     if (vb < 0)
         return false;
     auto *ibpnt = static_cast<uint16_t *>(rs->LockIndexBuffer(ib));
@@ -132,7 +132,7 @@ void Tornado::Realize(uint32_t delta_time)
     // Wreckage
     debris.Draw(rs);
     // World identity matrix
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     // The clouds
     noiseCloud.Draw(rs);
     // Pillar
@@ -142,8 +142,8 @@ void Tornado::Realize(uint32_t delta_time)
     rs->TextureSet(0, -1);
     pillar.FillVertexBuffer(vrt);
     rs->UnLockVertexBuffer(vb);
-    rs->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
-    rs->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, vb, sizeof(Pillar::Vertex), ib, 0, pillar.GetNumVerteces(), 0,
+    rs->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse);
+    rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, vb, sizeof(Pillar::Vertex), ib, 0, pillar.GetNumVerteces(), 0,
                                       pillar.GetNumTriangles(), "TornadoPillar");
     // Particle systems
     particles.Draw(rs);

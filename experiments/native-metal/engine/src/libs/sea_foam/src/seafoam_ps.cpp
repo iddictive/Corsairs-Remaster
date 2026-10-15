@@ -315,7 +315,7 @@ bool SEAFOAM_PS::Init(INIFILE *ini, const char *psname)
 
     // create vertex buffer
     RenderService->CreateVertexBuffer(sizeof(PARTICLE_VERTEX) * VERTEXS_ON_PARTICLE * ParticlesNum,
-                                      D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, PARTICLE_FVF, D3DPOOL_SYSTEMMEM, &VBuffer);
+                                      storm_render::usage::dynamic | storm_render::usage::writeOnly, PARTICLE_FVF, storm_render::MemoryClass::SystemMemory, &VBuffer);
     if (VBuffer == nullptr)
         throw std::runtime_error("vbuffer error");
 
@@ -494,15 +494,15 @@ void SEAFOAM_PS::Realize(uint32_t DeltaTime)
         }
     }
 
-    RenderService->GetTransform(D3DTS_VIEW, Matrix);
+    RenderService->GetTransform(storm_render::TransformView, Matrix);
 
     // Camera_EmitterPos = Matrix * Emitter;
 
     RenderService->GetCamera(CameraPos, CameraAng, Perspective);
 
     const CMatrix IMatrix;
-    RenderService->SetTransform(D3DTS_VIEW, IMatrix);
-    RenderService->SetTransform(D3DTS_WORLD, IMatrix);
+    RenderService->SetTransform(storm_render::TransformView, IMatrix);
+    RenderService->SetTransform(storm_render::TransformWorld, IMatrix);
     ProcessParticles(DeltaTime);
     SetParticlesTracks(DeltaTime);
     UpdateVertexBuffer();
@@ -520,13 +520,13 @@ void SEAFOAM_PS::Realize(uint32_t DeltaTime)
     bDraw = RenderService->TechniqueExecuteStart(TechniqueName);
     if (bDraw)
     {
-        RenderService->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2 * ParticlesNum);
+        RenderService->DrawPrimitive(storm_render::PrimitiveTriangleList, 0, 2 * ParticlesNum);
         while (RenderService->TechniqueExecuteNext())
         {
         }
     }
 
-    RenderService->SetTransform(D3DTS_VIEW, Matrix);
+    RenderService->SetTransform(storm_render::TransformView, Matrix);
 }
 
 bool SEAFOAM_PS::EmitParticle()

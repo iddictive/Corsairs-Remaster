@@ -45,7 +45,7 @@ LRESULT CALLBACK SourceViewWndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM l
     int fwKeys, zDelta;
     int xPos, yPos;
     uint32_t aline;
-    RECT SelectionRect;
+    storm_render::Rect SelectionRect;
 
     if (CDebug->SourceView)
         switch (iMsg)
@@ -175,7 +175,7 @@ LRESULT CALLBACK SourceViewWndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM l
         case WM_MOUSEMOVE:
             if (CDebug->SourceView->bDrag)
             {
-                POINT pnt;
+                storm_render::Point pnt;
                 GetCursorPos(&pnt);
 
                 auto bPointerInWatchWindow = WindowFromPoint(pnt) == CDebug->WatcherList->GetWindowHandle();
@@ -190,7 +190,7 @@ LRESULT CALLBACK SourceViewWndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM l
                     ScreenToClient(CDebug->WatcherList->GetWindowHandle(), &pnt);
                     for (int32_t i = 0; i < iItemCount; i++)
                     {
-                        RECT rect;
+                        storm_render::Rect rect;
                         auto bRes = ListView_GetItemRect(CDebug->WatcherList->GetWindowHandle(), i, &rect, LVIR_BOUNDS);
                         if (PtInRect(&rect, pnt))
                         {
@@ -241,7 +241,7 @@ LRESULT CALLBACK SourceViewWndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM l
                     InvalidateRect(hwnd, &CDebug->SourceView->CopyPasteRect, true);
                 }
 
-                POINT pnt;
+                storm_render::Point pnt;
                 GetCursorPos(&pnt);
 
                 if (CDebug->SourceView->sCopyPasteBuffer.size() &&
@@ -495,7 +495,7 @@ SOURCE_VIEW::~SOURCE_VIEW()
     }
 }
 
-void SOURCE_VIEW::SetPosition(RECT _Pos)
+void SOURCE_VIEW::SetPosition(storm_render::Rect _Pos)
 {
     Pos = _Pos;
     if (hOwn)
@@ -664,7 +664,7 @@ void SOURCE_VIEW::OnPaint()
 
             {
                 const uint32_t nLineStatus = CDebug->GetLineStatus(SourceFileName, n);
-                RECT SelectionRect;
+                storm_render::Rect SelectionRect;
                 SelectionRect = Pos;
                 SelectionRect.top = y;
                 SelectionRect.bottom = SelectionRect.top + nFontHeight;
@@ -794,7 +794,7 @@ void SOURCE_VIEW::SetProgramDirectory(const char *dir_name)
 
 void SOURCE_VIEW::SetActiveLine(uint32_t line)
 {
-    RECT SelectionRect;
+    storm_render::Rect SelectionRect;
 
     nStartSelection = 0;
     nEndSelection = 0;
@@ -835,7 +835,7 @@ void SOURCE_VIEW::SetActiveLine(uint32_t line)
 
 void SOURCE_VIEW::StartSelection(uint32_t x_pos)
 {
-    RECT RR;
+    storm_render::Rect RR;
 
     nStartSelection = 0;
     nEndSelection = 0;
@@ -883,7 +883,7 @@ void SOURCE_VIEW::StartSelection(uint32_t x_pos)
 
 void SOURCE_VIEW::MoveSelection(uint32_t x_pos)
 {
-    RECT RR;
+    storm_render::Rect RR;
 
     if (nActiveLine >= nLinesNum)
         return;
@@ -955,7 +955,7 @@ void SOURCE_VIEW::InvalidateLineSection(uint32_t line, uint32_t r1, uint32_t r2)
     uint32_t nSymNum = 0;
     uint32_t nLen = 0;
 
-    RECT SelectionRect = Pos;
+    storm_render::Rect SelectionRect = Pos;
     SelectionRect.top = (line - nTopLine) * nFontHeight;
     SelectionRect.bottom = SelectionRect.top + nFontHeight;
     SelectionRect.left = LOWORD(GetTabbedTextExtent(dc, LineW.c_str(), r1 + 1, 0, nullptr));
@@ -1011,7 +1011,7 @@ void SOURCE_VIEW::DetCursorPos(uint32_t x_pos, uint32_t y_pos)
         }
     }
 
-    RECT SelectionRect = Pos;
+    storm_render::Rect SelectionRect = Pos;
     SelectionRect.top = (nActiveLine - nTopLine) * nFontHeight;
     SelectionRect.bottom = SelectionRect.top + nFontHeight;
     InvalidateRect(hOwn, &SelectionRect, true);

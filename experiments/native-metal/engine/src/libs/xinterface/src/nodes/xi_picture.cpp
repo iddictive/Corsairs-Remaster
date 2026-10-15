@@ -58,7 +58,7 @@ void CXI_PICTURE::Draw(bool bSelected, uint32_t Delta_Time)
                 m_rs->TextureSet(0, m_idTex);
             else
                 m_rs->SetTexture(0, m_pTex ? m_pTex->m_pTexture : nullptr);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX), "iVideo");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX), "iVideo");
         }
     }
 }
@@ -414,7 +414,7 @@ void CXI_PICTURE::SetPictureSize(int32_t &nWidth, int32_t &nHeight)
 
 void CXI_PICTURE::SetNewPictureByPointer(int32_t textureId)
 {
-    IDirect3DBaseTexture9 *texture = m_rs->GetTextureFromID(textureId);
+    storm_render::BaseTexture *texture = m_rs->GetTextureFromID(textureId);
     m_rs->TextureIncReference(textureId);
     if (texture)
         texture->AddRef();

@@ -48,7 +48,7 @@ namespace { constexpr uint32_t kReflectionSize = 256; }
 #define GC_FREE 28
 
 SEA *SEA::pSea = nullptr;
-IDirect3DVertexDeclaration9 *SEA::vertexDecl_ = nullptr;
+storm_render::VertexLayout *SEA::vertexDecl_ = nullptr;
 
 SEA::SEA()
 {
@@ -171,8 +171,8 @@ SEA::~SEA()
 
 void SEA::SFLB_CreateBuffers()
 {
-    iVSeaBuffer = rs->CreateVertexBuffer(0, NUM_VERTEXS * sizeof(SeaVertex), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
-    iISeaBuffer = rs->CreateIndexBuffer(NUM_INDICES * 3 * sizeof(uint16_t), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+    iVSeaBuffer = rs->CreateVertexBuffer(0, NUM_VERTEXS * sizeof(SeaVertex), storm_render::usage::writeOnly | storm_render::usage::dynamic);
+    iISeaBuffer = rs->CreateIndexBuffer(NUM_INDICES * 3 * sizeof(uint16_t), storm_render::usage::writeOnly | storm_render::usage::dynamic);
 
     pIndices = new uint32_t[NUM_VERTEXS * 3];
     pVSea = new SeaVertex[NUM_VERTEXS];
@@ -183,12 +183,12 @@ void SEA::CreateVertexDeclaration()
     if (vertexDecl_ != nullptr)
         return;
 
-    const D3DVERTEXELEMENT9 VertexElements[] = {
-        {0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-        {0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
-        {0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
-        {0, 32, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1},
-        D3DDECL_END()};
+    const storm_render::VertexElement VertexElements[] = {
+        {0, 0, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Position, 0},
+        {0, 12, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Normal, 0},
+        {0, 24, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+        {0, 32, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 1},
+        storm_render::vertexLayoutTerminator()};
 
     rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
 }
@@ -208,22 +208,22 @@ bool SEA::Init()
 
     iFoamTexture = rs->TextureCreate("weather\\sea\\pena\\pena.tga");
 
-    rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+    rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Default,
                       &pRenderTargetBumpMap);
 
     SFLB_CreateBuffers();
 
-    pVolumeTexture = rs->CreateVolumeTexture(XWIDTH, YWIDTH, FRAMES, 4, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED);
+    pVolumeTexture = rs->CreateVolumeTexture(XWIDTH, YWIDTH, FRAMES, 4, 0, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Managed);
     /*pAnimTexture = rs->CreateAnimationTexture(pVolumeTexture, _FL_);
     pAnimTexture->SetAnimSpeed(20.0f);*/
 
-    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
-    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
-    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
+    rs->CreateCubeTexture(kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pEnvMap);
+    rs->CreateCubeTexture(kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pSunRoadMap);
+    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, storm_render::AssetFormat::D24S8, storm_render::SampleCount::None, &pZStencil);
 
-    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
-    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
-    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
+    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pReflection);
+    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pReflectionSunroad);
+    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, storm_render::AssetFormat::D24S8, storm_render::SampleCount::None, &pReflectionSurfaceDepth);
 
     iSeaTrashTexture = rs->TextureCreate("seatrash.tga");
     iSeaLightTexture = rs->TextureCreate("sealight.tga");
@@ -310,7 +310,7 @@ void SEA::BuildVolumeTexture()
         delete normal;
     aNormals.clear();
 
-    D3DLOCKED_BOX box[4];
+    storm_render::LockedBox box[4];
 
     if (pVolumeTexture)
         for (i = 0; i < 4; i++)
@@ -403,14 +403,14 @@ void SEA::BuildVolumeTexture()
 
         if (!pVolumeTexture)
         {
-            D3DSURFACE_DESC d3dsd;
-            D3DLOCKED_RECT d3dlr;
-            HRESULT hr;
+            storm_render::SurfaceDesc d3dsd;
+            storm_render::LockedRect d3dlr;
+            storm_render::Result hr;
 
             aBumpMaps.push_back(nullptr);
             // pBumpMap = &aBumpMaps[aBumpMaps.Add()];
-            IDirect3DTexture9 **pBumpMap = &aBumpMaps.back();
-            hr = rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, 0, D3DFMT_X8R8G8B8, D3DPOOL_MANAGED, pBumpMap);
+            storm_render::Texture **pBumpMap = &aBumpMaps.back();
+            hr = rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, 0, storm_render::AssetFormat::X8R8G8B8, storm_render::MemoryClass::Managed, pBumpMap);
 
             // generate mip levels for random bump
             for (uint32_t lev = 0; lev < MIPSLVLS; lev++)
@@ -1409,7 +1409,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
     RDTSC_B(dwTotalRDTSC);
 
     CMatrix mView, mIView;
-    rs->GetTransform(D3DTS_VIEW, mView);
+    rs->GetTransform(storm_render::TransformView, mView);
     mIView = mView;
     mIView.Transposition();
 
@@ -1467,7 +1467,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
 
     if (!pVolumeTexture && aBumpMaps.size())
     {
-        IDirect3DSurface9 *pFace;
+        storm_render::Surface *pFace;
 
         static float fBumpMapFrame = 0.0f;
         fBumpMapFrame += waveDeltaTime * fBumpSpeed * 48.0f;
@@ -1476,7 +1476,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
         uint32_t dw2 = static_cast<int32_t>(fBumpMapFrame + 1.0f) % aBumpMaps.size();
 
         float fAlpha = 255.0f * (fBumpMapFrame - static_cast<float>(static_cast<int32_t>(fBumpMapFrame)));
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, ARGB(fAlpha, 0, 0, 0));
+        rs->SetRenderState(storm_render::RenderTextureFactor, ARGB(fAlpha, 0, 0, 0));
 
         rs->SetTexture(0, aBumpMaps[dw1]);
         rs->SetTexture(1, aBumpMaps[dw2]);
@@ -1485,7 +1485,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
         rs->PushRenderTarget();
         for (uint32_t i = 0; i < MIPSLVLS; i++)
         {
-            HRESULT hr = pRenderTargetBumpMap->GetSurfaceLevel(i, &pFace);
+            storm_render::Result hr = pRenderTargetBumpMap->GetSurfaceLevel(i, &pFace);
             rs->SetRenderTarget(pFace, nullptr);
             pFace->Release();
             float w, h;
@@ -1540,8 +1540,8 @@ void SEA::Realize(uint32_t dwDeltaTime)
         }
     }
 
-    auto pVSea2 = static_cast<SeaVertex *>(rs->LockVertexBuffer(iVSeaBuffer, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK));
-    pTriangles = static_cast<uint16_t *>(rs->LockIndexBuffer(iISeaBuffer, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK));
+    auto pVSea2 = static_cast<SeaVertex *>(rs->LockVertexBuffer(iVSeaBuffer, storm_render::lock::discard | storm_render::lock::noSystemLock));
+    pTriangles = static_cast<uint16_t *>(rs->LockIndexBuffer(iISeaBuffer, storm_render::lock::discard | storm_render::lock::noSystemLock));
 
     for (i = 0; i < aBlocks.size(); i++) {
         PrepareIndicesForBlock(i);
@@ -1567,7 +1567,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
         {
             void *device;bool active;
             ~AimWaterScope(){if(active)StormMetalEndAimWater(device);}
-        } aimWaterScope{rs->GetD3DDevice(),false};
+        } aimWaterScope{rs->GetNativeDevice(),false};
         aimWaterScope.active=StormMetalBeginAimWater(aimWaterScope.device);
 #endif
         CMatrix mWorldView, mWorldViewProj;
@@ -1650,9 +1650,9 @@ void SEA::Realize(uint32_t dwDeltaTime)
             const auto vec = CVECTOR4(fFoamTextureDisturb, 0.0f, 0.0f, 0.0f);
             rs->SetPixelShaderConstantF(0, (const float *)&vec, 1);
             rs->TextureSet(0, iFoamTexture);
-            rs->SetTexture(4, (pVolumeTexture) ? static_cast<IDirect3DBaseTexture9 *>(pVolumeTexture)
-                                               : static_cast<IDirect3DBaseTexture9 *>(pRenderTargetBumpMap));
-            rs->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
+            rs->SetTexture(4, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                               : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
+            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2_Foam");
         };
 
@@ -1661,25 +1661,25 @@ void SEA::Realize(uint32_t dwDeltaTime)
             rs->SetVertexShaderConstantF(GC_FREE + 8, (const float *)&mTexProjection, 4); // Matrix!!
 
             // rs->SetTexture(0, pVolumeTexture);
-            rs->SetTexture(0, (pVolumeTexture) ? static_cast<IDirect3DBaseTexture9 *>(pVolumeTexture)
-                                               : static_cast<IDirect3DBaseTexture9 *>(pRenderTargetBumpMap));
+            rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                               : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(1, pReflection);
             // rs->SetTexture(2, pVolumeTexture);
-            rs->SetTexture(2, (pVolumeTexture) ? static_cast<IDirect3DBaseTexture9 *>(pVolumeTexture)
-                                               : static_cast<IDirect3DBaseTexture9 *>(pRenderTargetBumpMap));
+            rs->SetTexture(2, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                               : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(3, pReflectionSunroad);
 
-            rs->SetTextureStageState(1, D3DTSS_BUMPENVMAT00, F2DW(0.08f));
-            rs->SetTextureStageState(1, D3DTSS_BUMPENVMAT10, F2DW(0.0f));
-            rs->SetTextureStageState(1, D3DTSS_BUMPENVMAT01, F2DW(0.0f));
-            rs->SetTextureStageState(1, D3DTSS_BUMPENVMAT11, F2DW(0.08f));
+            rs->SetTextureStageState(1, storm_render::StageBumpEnvMatrix00, F2DW(0.08f));
+            rs->SetTextureStageState(1, storm_render::StageBumpEnvMatrix10, F2DW(0.0f));
+            rs->SetTextureStageState(1, storm_render::StageBumpEnvMatrix01, F2DW(0.0f));
+            rs->SetTextureStageState(1, storm_render::StageBumpEnvMatrix11, F2DW(0.08f));
 
-            rs->SetTextureStageState(3, D3DTSS_BUMPENVMAT00, F2DW(0.05f));
-            rs->SetTextureStageState(3, D3DTSS_BUMPENVMAT10, F2DW(0.0f));
-            rs->SetTextureStageState(3, D3DTSS_BUMPENVMAT01, F2DW(0.0f));
-            rs->SetTextureStageState(3, D3DTSS_BUMPENVMAT11, F2DW(0.05f));
+            rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix00, F2DW(0.05f));
+            rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix10, F2DW(0.0f));
+            rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix01, F2DW(0.0f));
+            rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix11, F2DW(0.05f));
 
-            rs->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
+            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea3");
             if (tsunamiFoam) drawSeaFoam();
         }
@@ -1688,18 +1688,18 @@ void SEA::Realize(uint32_t dwDeltaTime)
             const auto vec1 = CMatrix(0.0f, 0.0f, PId2);
             rs->SetVertexShaderConstantF(GC_FREE + 8, (const float *)&vec1, 4); // Matrix!!
 
-            rs->SetTexture(0, (pVolumeTexture) ? static_cast<IDirect3DBaseTexture9 *>(pVolumeTexture)
-                                               : static_cast<IDirect3DBaseTexture9 *>(pRenderTargetBumpMap));
+            rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                               : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(3, pEnvMap);
-            rs->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
+            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2");
 
             if (tsunamiFoam || (fFoamK > 0.0f && bFoamEnable && bIniFoamEnable)) drawSeaFoam();
 
-            rs->SetTexture(0, (pVolumeTexture) ? static_cast<IDirect3DBaseTexture9 *>(pVolumeTexture)
-                                               : static_cast<IDirect3DBaseTexture9 *>(pRenderTargetBumpMap));
+            rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                               : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(3, pSunRoadMap);
-            rs->DrawIndexedPrimitiveNoVShader(D3DPT_TRIANGLELIST, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
+            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2_SunRoad");
         }
     }
@@ -2354,14 +2354,14 @@ void SEA::RestoreRender()
 {
     ResetTsunami();
     ResetWhirlpool();
-    rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+    rs->CreateTexture(XWIDTH, YWIDTH, MIPSLVLS, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Default,
                       &pRenderTargetBumpMap);
 
-    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pEnvMap);
-    rs->CreateCubeTexture(kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pSunRoadMap);
-    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pZStencil);
+    rs->CreateCubeTexture(kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pEnvMap);
+    rs->CreateCubeTexture(kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pSunRoadMap);
+    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, storm_render::AssetFormat::D24S8, storm_render::SampleCount::None, &pZStencil);
 
-    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflection);
-    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &pReflectionSunroad);
-    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, &pReflectionSurfaceDepth);
+    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pReflection);
+    rs->CreateTexture(kReflectionSize, kReflectionSize, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5, storm_render::MemoryClass::Default, &pReflectionSunroad);
+    rs->CreateDepthStencilSurface(kReflectionSize, kReflectionSize, storm_render::AssetFormat::D24S8, storm_render::SampleCount::None, &pReflectionSurfaceDepth);
 }

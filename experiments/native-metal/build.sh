@@ -23,7 +23,7 @@ if [[ -f "$inputs/manifest.json" ]]; then
  conan_data="$inputs/conan"
 fi
 for required in "$dependency_root/sse2neon.h" "$dependency_root/stb_image.h" \
- "$dependency_root/d3d9/dxvk-native/include/native/directx/d3d9.h" \
+ "$dependency_root/d3d9/dxvk-native/include/native/windows/windows_base.h" \
  "$dependency_root/d3d9/sdl2-fixed/lib/libSDL2-2.0.0.dylib"; do
  test -f "$required" || { echo "Missing baseline dependency: $required" >&2; exit 1; }
 done

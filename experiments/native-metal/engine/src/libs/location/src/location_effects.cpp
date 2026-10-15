@@ -169,9 +169,9 @@ inline void LocationEffects::DrawParticles(void *prts, int32_t num, int32_t size
     if (num <= 0)
         return;
     CMatrix camMtx;
-    rs->GetTransform(D3DTS_VIEW, camMtx);
-    rs->SetTransform(D3DTS_VIEW, CMatrix());
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->GetTransform(storm_render::TransformView, camMtx);
+    rs->SetTransform(storm_render::TransformView, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     rs->TextureSet(0, texture);
     int32_t n = 0;
     for (int32_t i = 0; i < num; i++)
@@ -222,17 +222,17 @@ inline void LocationEffects::DrawParticles(void *prts, int32_t num, int32_t size
         n++;
         if (n * 2 == 256)
         {
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, n * 2, buffer,
                                 sizeof(Vertex), (char *)tech);
             n = 0;
         }
     }
     if (n > 0)
     {
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buffer,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, n * 2, buffer,
                             sizeof(Vertex), (char *)tech);
     }
-    rs->SetTransform(D3DTS_VIEW, camMtx);
+    rs->SetTransform(storm_render::TransformView, camMtx);
 }
 
 void LocationEffects::CreateSplash(const CVECTOR &pos, float power)
@@ -357,7 +357,7 @@ void LocationEffects::AddLampFlys(CVECTOR &pos)
 void LocationEffects::ProcessedFlys(float dltTime)
 {
     CMatrix view;
-    rs->GetTransform(D3DTS_VIEW, view);
+    rs->GetTransform(storm_render::TransformView, view);
     view.Transposition();
     const CVECTOR cam = view.Pos();
     const float dax = dltTime * 1.3f;

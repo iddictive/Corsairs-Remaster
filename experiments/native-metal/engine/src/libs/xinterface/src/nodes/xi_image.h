@@ -20,7 +20,7 @@ class CXI_IMAGE
     void LoadFromFile(const char *sFileName);
     void LoadFromBase(const char *sListName, const char *sPictureName, bool bGetSizeFromSource = false);
     void LoadAccordingToString(const char *pcImageParam);
-    void SetPointerToTexture(IDirect3DTexture9 *pTex);
+    void SetPointerToTexture(storm_render::Texture *pTex);
 
     void Draw();
     void Draw(int32_t nX, int32_t nY, ImagePointType alignment);
@@ -76,7 +76,7 @@ class CXI_IMAGE
     FXYPOINT m_nLeftTopCutUV;
 
     int32_t m_nTextureID;
-    IDirect3DTexture9 *m_pTexture;
+    storm_render::Texture *m_pTexture;
 
     FXYRECT m_frUV;
 

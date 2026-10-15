@@ -23,7 +23,7 @@ class MousePointer : public BI_MousePointerBase
     IBIImage *m_pIcon;
     FPOINT m_mousepos;
     FPOINT m_mousesensivity;
-    RECT m_cursorzone;
+    storm_render::Rect m_cursorzone;
 
     struct MouseCursorInfo
     {
@@ -39,5 +39,5 @@ class MousePointer : public BI_MousePointerBase
     void InitMouseCursors();
     void MoveCursor();
     void SetCurrentCursor();
-    RECT GetCurrentCursorIconPos() const;
+    storm_render::Rect GetCurrentCursorIconPos() const;
 };

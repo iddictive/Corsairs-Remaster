@@ -7,7 +7,7 @@
 
 #include <filesystem>
 
-#define FLAGLXVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define FLAGLXVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct FLAGLXVERTEX
 {

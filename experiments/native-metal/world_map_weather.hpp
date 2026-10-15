@@ -16,7 +16,7 @@ class WdmWeatherRegions final : public WdmRenderObject
     static constexpr unsigned puffs=18;
     std::array<RS_RECT,storm_weather::Engine::frontCount*puffs> cloudRects{};
     std::array<WdmMetalQuad3D,storm_weather::Engine::frontCount> rainQuads{};
-    IDirect3DVertexDeclaration9 *declaration=nullptr;
+    storm_render::VertexLayout *declaration=nullptr;
     int32_t cloudTexture=-1, cloudLight=-1, lightningTexture=-1;
     double animationSeconds=0;
     static float noise(uint32_t id,unsigned index)
@@ -31,8 +31,8 @@ class WdmWeatherRegions final : public WdmRenderObject
         rs->SetVertexDeclaration(declaration);
         rs->TextureSet(0,cloudTexture); rs->TextureSet(1,light);
         CMatrix view, constants;
-        rs->GetTransform(D3DTS_VIEW,view); view.Transposition();
-        rs->GetTransform(D3DTS_PROJECTION,constants);
+        rs->GetTransform(storm_render::TransformView,view); view.Transposition();
+        rs->GetTransform(storm_render::TransformProjection,constants);
         rs->SetVertexShaderConstantF(0,constants,4);
         constants.matrix[0]=view.matrix[1]; constants.matrix[1]=view.matrix[5];
         constants.matrix[2]=view.matrix[9]; constants.matrix[3]=view.matrix[13]-24.f;
@@ -55,10 +55,10 @@ public:
         cloudTexture=rs->TextureCreate("\\WorldMap\\clouds.tga");
         cloudLight=rs->TextureCreate("\\WorldMap\\cloudslight.tga");
         lightningTexture=rs->TextureCreate("\\WorldMap\\lightnings.tga");
-        const D3DVERTEXELEMENT9 elements[]={
-            {0,0,D3DDECLTYPE_FLOAT3,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_POSITION,0},
-            {0,12,D3DDECLTYPE_D3DCOLOR,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_COLOR,0},
-            {0,16,D3DDECLTYPE_FLOAT2,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_TEXCOORD,0},D3DDECL_END()};
+        const storm_render::VertexElement elements[]={
+            {0,0,storm_render::VertexComponent::Float3,storm_render::VertexMethod::Default,storm_render::VertexSemantic::Position,0},
+            {0,12,storm_render::VertexComponent::Color,storm_render::VertexMethod::Default,storm_render::VertexSemantic::Color,0},
+            {0,16,storm_render::VertexComponent::Float2,storm_render::VertexMethod::Default,storm_render::VertexSemantic::TexCoord,0},storm_render::vertexLayoutTerminator()};
         rs->CreateVertexDeclaration(elements,&declaration);
     }
     ~WdmWeatherRegions() override
@@ -74,7 +74,7 @@ public:
         if (!id || !rs || !wdmObjects || !declaration || cloudTexture<0) return;
         auto *weather=static_cast<WEATHER_BASE *>(core.GetEntityPointer(id));
         if (!weather) return;
-        CMatrix view; rs->GetTransform(D3DTS_VIEW,view);
+        CMatrix view; rs->GetTransform(storm_render::TransformView,view);
         CVECTOR camera; view.MulToInv(CVECTOR(0.f),camera);
         // The native Tab overview rises to500; ship view starts at50.
         float zoom=std::clamp((camera.y-60.f)/360.f,0.f,1.f);
@@ -122,7 +122,7 @@ public:
             if (phase>.18f) continue;
             rs->TextureSet(0,lightningTexture); rs->TextureSet(1,-1);
             const uint32_t color=(uint32_t(200.f*opacity*front.storm)<<24)|0x00e0e8ffu;
-            CMatrix cameraView; rs->GetTransform(D3DTS_VIEW,cameraView); cameraView.Transposition();
+            CMatrix cameraView; rs->GetTransform(storm_render::TransformView,cameraView); cameraView.Transposition();
             const WdmMetalQuad3D bolt{{front.x,12.f,front.z},cameraView.Vx(),
                 {0.f,-1.f,0.f},6.f,12.f,color,{float(front.id%4)*.25f,.01f,.25f,.98f}};
             WdmMetalDrawQuad3D(rs,bolt,"WdmLightning");

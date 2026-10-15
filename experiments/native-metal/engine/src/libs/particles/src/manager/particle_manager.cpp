@@ -258,7 +258,7 @@ void ParticleManager::Execute(float DeltaTime)
         pSysFont->Release();
         */
 
-        D3DVIEWPORT9 ViewPort;
+        storm_render::Viewport ViewPort;
         pRS->GetViewport(&ViewPort);
         RS_SPRITE spr[4];
         const auto x1 = -1.0f;

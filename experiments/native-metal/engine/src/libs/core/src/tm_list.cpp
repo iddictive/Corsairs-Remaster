@@ -56,7 +56,7 @@ void TM_LIST::Initialize(HWND hwnd, HINSTANCE hinst, uint32_t style, uint32_t st
     // ListView_SetTextColor(hOwn,0xff);
 }
 
-void TM_LIST::SetPosition(RECT pos)
+void TM_LIST::SetPosition(storm_render::Rect pos)
 {
     Pos = pos;
     if (hOwn)
@@ -183,7 +183,7 @@ void TM_LIST::UpdatePosition()
     if (!hOwn)
         return;
 
-    RECT r;
+    storm_render::Rect r;
     GetClientRect(hMain, &r);
     const uint32_t width = r.right - r.left;
     const uint32_t height = r.bottom - r.top;
@@ -224,12 +224,12 @@ void TM_LIST::ProcessMessageBase(uint64_t iMsg, uint64_t wParam, uint64_t lParam
     // POINT point;
     // HMENU hSubMenu;
     LPNMLISTVIEW lpnmlv;
-    RECT item_rect;
+    storm_render::Rect item_rect;
     uint32_t NotifyCode;
     char TextEditBuffer[MAX_STR_SIZE]{};
     uint16_t vKey;
 
-    RECT EditPos;
+    storm_render::Rect EditPos;
 
     switch (iMsg)
     {

@@ -207,7 +207,7 @@ subprocess.run(["clang++", "-std=c++20", "-O2", "-Wno-implicit-const-int-float-c
                 "-include", "initializer_list",
                 "-I" + str(SOURCE / "libs/math/include"),
                 "-I" + str(SOURCE / "libs/shared_headers/include"),
-                "-I" + str(headers / "directx"), "-I" + str(headers / "windows"),
+                "-I" + str(ROOT), "-I" + str(headers / "windows"),
                 "-x", "c++", "-", "-o", str(binary)], input=source, text=True, check=True)
 subprocess.run([str(binary)], check=True)
 

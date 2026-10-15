@@ -38,7 +38,7 @@ void SoundService::RunStart()
     if (auto *rs = static_cast<VDX9RENDER *>(core.GetService("dx9render")))
     {
         CMatrix view;
-        rs->GetTransform(D3DTS_VIEW, (D3DMATRIX *)&view);
+        rs->GetTransform(storm_render::TransformView, (storm_render::Matrix *)&view);
         view.Transposition();
         const CVECTOR nose = view.Vz();
         const CVECTOR head = view.Vy();

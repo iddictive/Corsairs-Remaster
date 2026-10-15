@@ -100,7 +100,7 @@ void BLADE::BLADE_INFO::DrawBlade(VDX9RENDER *rs, unsigned int blendValue, MODEL
 
         //--------------------------------------------------------------------------
         rs->SetTexture(0, nullptr);
-        rs->SetTransform(D3DTS_WORLD, CMatrix());
+        rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
         // move to the beginning
         int32_t first = 0; // end vertex 2 draw
@@ -156,7 +156,7 @@ void BLADE::BLADE_INFO::DrawBlade(VDX9RENDER *rs, unsigned int blendValue, MODEL
                 if (bDraw)
                 {
                     if (first > 0)
-                        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, FVF, first * 2, &vrt[0], sizeof vrt[0]);
+                        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, FVF, first * 2, &vrt[0], sizeof vrt[0]);
                 }
                 while (rs->TechniqueExecuteNext())
                 {
@@ -261,11 +261,11 @@ void BLADE::Realize(uint32_t Delta_Time)
     rs->TextureSet(3, -1);
 
     CMatrix mtx;
-    rs->GetTransform(D3DTS_VIEW, mtx);
+    rs->GetTransform(storm_render::TransformView, mtx);
     mtx.Transposition();
     mtx.Pos() = 0.0f;
-    rs->SetTransform(D3DTS_TEXTURE1, mtx);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, blendValue);
+    rs->SetTransform(storm_render::TransformTexture1, mtx);
+    rs->SetRenderState(storm_render::RenderTextureFactor, blendValue);
 
     //------------------------------------------------------
     // draw gun
@@ -331,7 +331,7 @@ void BLADE::Realize(uint32_t Delta_Time)
             items[n].DrawItem(rs, blendValue, mdl, manNode);
 
     mtx.SetIdentity();
-    rs->SetTransform(D3DTS_TEXTURE1, mtx);
+    rs->SetTransform(storm_render::TransformTexture1, mtx);
 }
 
 bool BLADE::LoadBladeModel(MESSAGE &message)

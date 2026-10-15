@@ -102,7 +102,7 @@ void CXI_QUESTTITLE::Draw(bool bSelected, uint32_t Delta_Time)
             selV[2].pos.x = selV[3].pos.x = static_cast<float>(m_rect.right);
             selV[0].pos.y = selV[2].pos.y = static_cast<float>(curY);
             selV[1].pos.y = selV[3].pos.y = static_cast<float>(curY) + m_strList[i].lineQuantity * m_vertOffset;
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_NOTEX_FVF, 2, selV, sizeof(XI_NOTEX_VERTEX), "iRectangle");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_NOTEX_FVF, 2, selV, sizeof(XI_NOTEX_VERTEX), "iRectangle");
         }
 
         // display progress icon
@@ -127,7 +127,7 @@ void CXI_QUESTTITLE::Draw(bool bSelected, uint32_t Delta_Time)
             v[1].tv = v[3].tv = m_texNonComplete.bottom;
         }
         m_rs->TextureSet(0, m_texId);
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, v, sizeof(XI_ONLYONETEX_VERTEX),
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, v, sizeof(XI_ONLYONETEX_VERTEX),
                               "iDinamicPictures");
 
         // display lines

@@ -9,9 +9,9 @@ backend = (root / "backend.mm").read_text()
 start = backend.index("std::array<uint64_t,8> conversionParts{};")
 end = backend.index("return h;};", start) + len("return h;};")
 signature = backend[start:end]
-stabilizer = backend[backend.index("simd_float3 stableSunDirection("):backend.index("\nvoid caps(")]
+stabilizer = backend[backend.index("simd_float3 stableSunDirection("):backend.index("\nstruct Declaration", backend.index("simd_float3 stableSunDirection("))]
 source = r'''
-#include <d3d9.h>
+#include "render_device_api.hpp"
 #include <simd/simd.h>
 #include <array>
 #include <algorithm>
@@ -27,12 +27,13 @@ int main(){
  bool actualLighting=true,dynamicDraw=true,bakedRelight=true,prepassLit=true,modernLit=true;
  simd_float4x4 worldMatrix=matrix_identity_float4x4;
  simd_float4 materialSpecular={0,0,0,1},cameraWorld={0,0,0,1};
- simd_float3 infiniteViewer={0,0,1};D3DMATERIAL9 material{};
+ simd_float3 infiniteViewer={0,0,1};storm_render::Material material{};
  simd_float4 materialDiffuse={1,1,1,1},materialAmbient={.2f,.3f,.4f,1},materialEmissive={0,0,0,1},sceneAmbient={.1f,.1f,.1f,1};
- D3DLIGHT9 lights[8]{};bool enabled[8]={true,true};
- lights[0].Type=D3DLIGHT_DIRECTIONAL;lights[0].Direction={0,-1,0};lights[0].Diffuse={.6f,.5f,.4f,1};
- lights[1].Type=D3DLIGHT_POINT;lights[1].Position={2,3,4};lights[1].Range=30;lights[1].Attenuation0=1;
- std::array<DWORD,256>rs{};
+ storm_render::Light lights[8]{};bool enabled[8]={true,true};
+ lights[0].Type=storm_render::LightKind::Directional;lights[0].Direction={0,-1,0};lights[0].Diffuse={.6f,.5f,.4f,1};
+ lights[1].Type=storm_render::LightKind::Point;lights[1].Position={2,3,4};lights[1].Range=30;lights[1].Attenuation0=1;
+ std::array<uint32_t,256>rs{};
+ float solarGain=1.f;std::array<simd_float4,4>skyLight{};
  struct {bool catalog=true;bool authoredCatalog()const{return catalog;}}lightingScene;
  struct {bool indoor=false,locationActive=true;unsigned scope=1;struct {unsigned sunValid=3;uint64_t pointId=23,lightIds[8]={0,23};} prepass;}landShadow;
 ''' + signature + r'''
@@ -78,10 +79,9 @@ int main(){
  puts("PASS: actual FFP key reuses 120 camera-relative sun/catalog frames; consumed light, transform, alpha and shadow changes invalidate");
 }
 '''
-headers = root.parent / "native-storm/.cache/d3d9/dxvk-native/include/native"
 work = Path(sys.argv[1])
 cpp, binary = work / "probe.cpp", work / "probe"
 cpp.write_text(source)
-subprocess.run(["clang++", "-std=c++20", "-O2", "-I" + str(headers / "directx"),
-                "-I" + str(headers / "windows"), str(cpp), "-o", str(binary)], check=True)
+subprocess.run(["clang++", "-std=c++20", "-O2", "-I" + str(root),
+                str(cpp), "-o", str(binary)], check=True)
 subprocess.run([str(binary)], check=True)

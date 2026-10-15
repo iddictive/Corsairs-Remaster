@@ -8,7 +8,7 @@
 #include "ship_base.h"
 
 // define the vertices
-#define SPV_FORMAT (D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define SPV_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct SPV_VERTEX
 {
@@ -39,7 +39,7 @@ bool SHIPPOINTER::Init()
         throw std::runtime_error("Can`t create render service");
     }
 
-    m_idVBuf = rs->CreateVertexBuffer(SPV_FORMAT, 4 * sizeof(SPV_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = rs->CreateVertexBuffer(SPV_FORMAT, 4 * sizeof(SPV_VERTEX), storm_render::usage::writeOnly);
     if (m_idVBuf < 0)
         return false;
 
@@ -91,14 +91,14 @@ void SHIPPOINTER::Realize(uint32_t delta_time) const
         return;
 
     CMatrix matw;
-    rs->SetTransform(D3DTS_WORLD, matw);
+    rs->SetTransform(storm_render::TransformWorld, matw);
 
     if (m_bFriend)
         rs->TextureSet(0, m_idFriendTex);
     else
         rs->TextureSet(0, m_idEnemyTex);
 
-    rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(SPV_VERTEX), 0, 2, "battle_shippointer");
+    rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(SPV_VERTEX), 0, 2, "battle_shippointer");
 }
 
 uint64_t SHIPPOINTER::ProcessMessage(MESSAGE &message)

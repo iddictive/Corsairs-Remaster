@@ -25,8 +25,8 @@ class Lights : public Entity
     struct LightType
     {
         char *name;
-        D3DLIGHT9 dxLight;
-        D3DCOLORVALUE color;
+        storm_render::Light dxLight;
+        storm_render::Color4 color;
         float flicker;
         float flickerSlow;
         float freq;
@@ -43,8 +43,8 @@ class Lights : public Entity
     // Source
     struct Light
     {
-        D3DCOLORVALUE color; // Current source color
-        D3DVECTOR pos;       // Source position
+        storm_render::Color4 color; // Current source color
+        storm_render::Vector3 pos;       // Source position
         float time;          // Time since last change of flickering intensity
         float timeSlow;      // Time since the last change in the interpolated intensity
         float itens;         // Shimmering intensity
@@ -135,8 +135,8 @@ class Lights : public Entity
     void SetLightsAt(const CVECTOR &pos);
     void UnsetLights();
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    bool GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, bool stableIndoor = false);
-    struct MetalShadowLight { uint64_t id=0; D3DLIGHT9 light{}; float weight=0; };
+    bool GetShadowLight(const CVECTOR& pos, uint64_t& id, storm_render::Light& light, bool stableIndoor = false);
+    struct MetalShadowLight { uint64_t id=0; storm_render::Light light{}; float weight=0; };
     unsigned GetShadowLights(const CVECTOR& pos, MetalShadowLight* out, unsigned capacity);
     void ResetMetalShadowSelection();
     void PublishMetalSceneLights();

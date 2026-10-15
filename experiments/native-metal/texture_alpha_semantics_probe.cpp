@@ -16,7 +16,7 @@ static void require(bool condition, const char *message) {
 
 static std::vector<uint8_t> decode(const std::array<uint8_t, 8> &block) {
     std::vector<uint8_t> rgba;
-    require(decodeToRgba(D3DFMT_DXT1, 4, 4, block.data(), block.size(), 8, rgba),
+    require(decodeToRgba(storm_render::AssetFormat::DXT1, 4, 4, block.data(), block.size(), 8, rgba),
             "DXT1 block decodes");
     return rgba;
 }

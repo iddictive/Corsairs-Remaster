@@ -104,7 +104,7 @@ void CAviPlayer::Realize(uint32_t delta_time)
     // rs->BeginScene();
 #ifdef _WIN32 // FIX_LINUX ddraw.h and amstream.h
     int i;
-    HRESULT hr;
+    storm_render::Result hr;
     DDSURFACEDESC ddsd;
     ddsd.dwSize = sizeof(ddsd);
     if (pSample == nullptr)
@@ -115,7 +115,7 @@ void CAviPlayer::Realize(uint32_t delta_time)
 
     if (m_bFirstDraw)
     {
-        rs->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0, 0);
+        rs->Clear(storm_render::clear::color, 0, 0);
         m_bFirstDraw = false;
     }
 
@@ -126,7 +126,7 @@ void CAviPlayer::Realize(uint32_t delta_time)
         if (hr != S_OK)
             return;
 
-        D3DLOCKED_RECT d3dlkRect;
+        storm_render::LockedRect d3dlkRect;
         hr = pTex->LockRect(0, &d3dlkRect, &lockRect, 0);
         if (hr != S_OK)
             return;
@@ -148,7 +148,7 @@ void CAviPlayer::Realize(uint32_t delta_time)
         if (m_bShowVideo)
         {
             rs->SetTexture(0, pTex);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_AVIVIDEO_FVF, 2, v, sizeof(XI_AVIVIDEO_VERTEX), "battle_icons");
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_AVIVIDEO_FVF, 2, v, sizeof(XI_AVIVIDEO_VERTEX), "battle_icons");
         }
     }
     else if (hr == MS_S_ENDOFSTREAM && bLoop)
@@ -190,10 +190,10 @@ void CAviPlayer::Realize(uint32_t delta_time)
                 rs->Release(pTex);
             pTex = nullptr;
             lockRect = {0, 0, static_cast<LONG>(frame.width), static_cast<LONG>(frame.height)};
-            if (FAILED(rs->CreateTexture(frame.width, frame.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pTex)))
+            if (FAILED(rs->CreateTexture(frame.width, frame.height, 1, 0, storm_render::AssetFormat::A8R8G8B8, storm_render::MemoryClass::Managed, &pTex)))
                 m_bContinue = false;
         }
-        D3DLOCKED_RECT locked;
+        storm_render::LockedRect locked;
         if (pTex && SUCCEEDED(pTex->LockRect(0, &locked, nullptr, 0)))
         {
             for (uint32_t row = 0; row < frame.height; ++row)
@@ -206,10 +206,10 @@ void CAviPlayer::Realize(uint32_t delta_time)
 
     if (m_bShowVideo)
     {
-        rs->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0, 0);
+        rs->Clear(storm_render::clear::color, 0, 0);
         if (pTex)
         {
-            D3DVIEWPORT9 viewport{};
+            storm_render::Viewport viewport{};
             rs->GetViewport(&viewport);
             const float height = std::min(float(viewport.Height), float(viewport.Width) / nativeAspect);
             const float width = height * nativeAspect;
@@ -223,7 +223,7 @@ void CAviPlayer::Realize(uint32_t delta_time)
                 v[i].tv = i % 2 ? 1.f : 0.f;
             }
             rs->SetTexture(0, pTex);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_AVIVIDEO_FVF, 2, v, sizeof(XI_AVIVIDEO_VERTEX), "battle_icons");
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_AVIVIDEO_FVF, 2, v, sizeof(XI_AVIVIDEO_VERTEX), "battle_icons");
         }
     }
 #else
@@ -319,7 +319,7 @@ bool CAviPlayer::PlayMedia(const char *fileName)
         return false;
     }
 
-    RECT dstRect;
+    storm_render::Rect dstRect;
     GetWindowRect(static_cast<HWND>(core.GetWindow()->OSHandle()), &dstRect);
     auto dstWidth = dstRect.right - dstRect.left;
     auto dstHeight = dstRect.bottom - dstRect.top;
@@ -340,15 +340,15 @@ bool CAviPlayer::PlayMedia(const char *fileName)
     dstRect.right += dstRect.left;
     dstRect.bottom += dstRect.top;
 
-    D3DSURFACE_DESC d3d9surf_desc;
+    storm_render::SurfaceDesc d3d9surf_desc;
 
-    IDirect3DSurface9 *pd3dsurf = nullptr;
+    storm_render::Surface *pd3dsurf = nullptr;
     rs->GetRenderTarget(&pd3dsurf);
     pd3dsurf->GetDesc(&d3d9surf_desc);
     pd3dsurf->Release();
 
     hr = rs->CreateTexture(AVI_GetTextureSize(srcWidth), AVI_GetTextureSize(srcHeight), 1, 0, d3d9surf_desc.Format,
-                           D3DPOOL_MANAGED, &pTex);
+                           storm_render::MemoryClass::Managed, &pTex);
     if (FAILED(hr))
     {
         core.Trace("Video Error!!! Can`t create texture for this video");
@@ -410,7 +410,7 @@ bool CAviPlayer::PlayMedia(const char *fileName)
 
 bool CAviPlayer::GetInterfaces()
 {
-    HRESULT hr = S_OK;
+    storm_render::Result hr = S_OK;
 
 #ifdef _WIN32 // FIX_LINUX ddraw.h and amstream.h
     // Initialize COM

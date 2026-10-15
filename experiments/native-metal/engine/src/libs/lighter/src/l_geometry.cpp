@@ -160,18 +160,18 @@ bool LGeometry::Process(VDX9RENDER *rs, int32_t numLights)
             vbuffer[numVBuffers++].start = numVrt;
             // get the vertices
             auto *vbuf = rs->GetVertexBuffer(vbID);
-            D3DVERTEXBUFFER_DESC desc;
-            if (!vbuf || vbuf->GetDesc(&desc) != D3D_OK)
+            storm_render::VertexBufferDesc desc;
+            if (!vbuf || vbuf->GetDesc(&desc) != storm_render::result::ok)
             {
                 core.Trace("Location lighter: vertex buffer error, model %s, vbID %i", object[i].nameReal, vbID);
                 return false;
             }
             // Analyzing the type
             auto isEnabledType = true;
-            isEnabledType &= ((desc.FVF & D3DFVF_POSITION_MASK) == D3DFVF_XYZ);
-            isEnabledType &= ((desc.FVF & D3DFVF_NORMAL) != 0);
-            isEnabledType &= ((desc.FVF & D3DFVF_DIFFUSE) != 0);
-            isEnabledType &= ((desc.FVF & D3DFVF_PSIZE) == 0);
+            isEnabledType &= ((desc.FVF & storm_render::vertexFormat::positionMask) == storm_render::vertexFormat::xyz);
+            isEnabledType &= ((desc.FVF & storm_render::vertexFormat::normal) != 0);
+            isEnabledType &= ((desc.FVF & storm_render::vertexFormat::diffuse) != 0);
+            isEnabledType &= ((desc.FVF & storm_render::vertexFormat::pointSize) == 0);
             if (!isEnabledType)
             {
                 core.Trace("Location lighter: incorrect fvf of vertex buffer, model %s, vbID %i", object[i].nameReal,
@@ -180,8 +180,8 @@ bool LGeometry::Process(VDX9RENDER *rs, int32_t numLights)
             }
             // Vertex size
             int32_t stride = 6 * sizeof(float) + sizeof(uint32_t);
-            stride += ((desc.FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT) * 2 * sizeof(float);
-            if (desc.FVF & D3DFVF_SPECULAR)
+            stride += ((desc.FVF & storm_render::vertexFormat::texCountMask) >> storm_render::vertexFormat::texCountShift) * 2 * sizeof(float);
+            if (desc.FVF & storm_render::vertexFormat::specular)
                 stride += sizeof(uint32_t);
             // Number of vertices
             auto num = desc.Size / stride;
@@ -199,7 +199,7 @@ bool LGeometry::Process(VDX9RENDER *rs, int32_t numLights)
             }
             // Copy
             uint8_t *pnt = nullptr;
-            if (vbuf->Lock(0, desc.Size, (void **)&pnt, 0) != D3D_OK)
+            if (vbuf->Lock(0, desc.Size, (void **)&pnt, 0) != storm_render::result::ok)
             {
                 core.Trace("Location lighter: vertex buffer no locked, model %s, vbID %i", object[i].nameReal, vbID);
                 return false;
@@ -376,7 +376,7 @@ void LGeometry::DrawNormals(VDX9RENDER *rs)
 {
     if (!drawbuf)
         drawbuf = new CVECTOR[1024];
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff00ff00);
+    rs->SetRenderState(storm_render::RenderTextureFactor, 0xff00ff00);
     int32_t p = 0;
     for (int32_t i = 0; i < numVrt; i++)
     {
@@ -385,13 +385,13 @@ void LGeometry::DrawNormals(VDX9RENDER *rs)
         p += 2;
         if (p >= 1024)
         {
-            rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, 512, drawbuf, sizeof(CVECTOR), "DbgDrawLines");
+            rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, 512, drawbuf, sizeof(CVECTOR), "DbgDrawLines");
             p = 0;
         }
     }
     if (p > 1)
     {
-        rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, p / 2, drawbuf, sizeof(CVECTOR), "DbgDrawLines");
+        rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, p / 2, drawbuf, sizeof(CVECTOR), "DbgDrawLines");
     }
 }
 

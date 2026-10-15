@@ -20,7 +20,7 @@ TCarcass::TCarcass(int _levelsCount, int _measurePointsCount, VDX9RENDER *_rende
     uSpeed = 15e-5f;
     iBuffer = renderer->CreateIndexBuffer(3 * 2 * (MEASURE_POINTS - 1) * (TRACE_STEPS_Z - 1) * sizeof(uint16_t));
     vBuffer = renderer->CreateVertexBuffer(
-        CARCASS_VERTEX_FORMAT, MEASURE_POINTS * (TRACE_STEPS_Z + 1) * sizeof(tCarcassVertex), 0, D3DPOOL_MANAGED);
+        CARCASS_VERTEX_FORMAT, MEASURE_POINTS * (TRACE_STEPS_Z + 1) * sizeof(tCarcassVertex), 0, storm_render::MemoryClass::Managed);
 }
 
 //--------------------------------------------------------------------
@@ -200,7 +200,7 @@ void TCarcass::Execute(uint32_t _dTime, CMatrix &_mtx, const CVECTOR *_starts)
 //--------------------------------------------------------------------
 void TCarcass::Realize(const char *_technique)
 {
-    renderer->SetTransform(D3DTS_WORLD, sceneMatrix);
+    renderer->SetTransform(storm_render::TransformWorld, sceneMatrix);
     renderer->DrawBuffer(vBuffer, sizeof(tCarcassVertex), iBuffer, 0, MEASURE_POINTS * (TRACE_STEPS_Z + 1), 0,
                          2 * (MEASURE_POINTS - 1) * (TRACE_STEPS_Z - 1), const_cast<char *>(_technique));
 }

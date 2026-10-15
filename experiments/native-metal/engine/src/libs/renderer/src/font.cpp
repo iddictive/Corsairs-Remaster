@@ -13,7 +13,7 @@ constexpr size_t MAX_SYMBOLS = 512;
 constexpr size_t SYM_VERTEXS = 6;
 constexpr size_t USED_CODES = 0x2070; // end of https://unicode-table.com/en/blocks/general-punctuation/
 
-constexpr auto FONT_CHAR_FVF = (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2);
+constexpr auto FONT_CHAR_FVF = (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2);
 
 struct FONT_CHAR_VERTEX
 {
@@ -54,7 +54,7 @@ bool MakeLong(char **pDataPointer, int32_t *result)
 
 } // namespace
 
-FONT::FONT(VDX9RENDER &renderer, IDirect3DDevice9 &device)
+FONT::FONT(VDX9RENDER &renderer, storm_render::Device &device)
     : charDescriptors_(USED_CODES), renderService_(renderer), device_(device)
 {
 }
@@ -178,9 +178,7 @@ bool FONT::Init(const char *font_name, const char *iniName)
     ini->CaseSensitive(false);
 
     FONT_CHAR_VERTEX *pVertex;
-    device_.CreateVertexBuffer(sizeof(FONT_CHAR_VERTEX) * MAX_SYMBOLS * SYM_VERTEXS,
-                               D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, FONT_CHAR_FVF, D3DPOOL_SYSTEMMEM, &vertexBuffer_,
-                               nullptr);
+    device_.CreateVertexBuffer(sizeof(FONT_CHAR_VERTEX) * MAX_SYMBOLS * SYM_VERTEXS, storm_render::usage::dynamic | storm_render::usage::writeOnly, FONT_CHAR_FVF, &vertexBuffer_);
     if (vertexBuffer_ == nullptr)
         throw std::runtime_error("vbuffer error");
     vertexBuffer_->Lock(0, sizeof(FONT_CHAR_VERTEX) * MAX_SYMBOLS * SYM_VERTEXS, (void **)&pVertex, 0);
@@ -411,31 +409,31 @@ int32_t FONT::Print(int32_t x, int32_t y, char *data_PTR, const FONT_PRINT_OVERR
     if (drawShadows)
     {
         makeGlyphs(x + shadowOffsetX_, y + shadowOffsetY_, color, glyphs);
-        device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-        device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-        StormMetalDrawGlyphInstances(renderService_.GetD3DDevice(), glyphs.data(),
+        device_.SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendZero);
+        device_.SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+        StormMetalDrawGlyphInstances(renderService_.GetNativeDevice(), glyphs.data(),
                                      static_cast<uint32_t>(glyphs.size()), 0.5f, scale);
         glyphs.clear();
     }
     xoffset = makeGlyphs(x, y, color, glyphs);
-    device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    StormMetalDrawGlyphInstances(renderService_.GetD3DDevice(), glyphs.data(),
+    device_.SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha);
+    device_.SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+    StormMetalDrawGlyphInstances(renderService_.GetNativeDevice(), glyphs.data(),
                                  static_cast<uint32_t>(glyphs.size()), 0.5f, scale);
 #else
     if (drawShadows)
     {
         UpdateVertexBuffer(x + shadowOffsetX_, y + shadowOffsetY_, data_PTR, s_num, scale, color);
 
-        device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-        device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+        device_.SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendZero);
+        device_.SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
 
-        device_.DrawPrimitive(D3DPT_TRIANGLELIST, 0, s_num * 2);
+        device_.DrawPrimitive(storm_render::PrimitiveTriangleList, 0, s_num * 2);
     }
     xoffset = UpdateVertexBuffer(x, y, data_PTR, s_num, scale, color);
-    device_.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    device_.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    device_.DrawPrimitive(D3DPT_TRIANGLELIST, 0, s_num * 2);
+    device_.SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha);
+    device_.SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+    device_.DrawPrimitive(storm_render::PrimitiveTriangleList, 0, s_num * 2);
 #endif
     while (renderService_.TechniqueExecuteNext())
         ;

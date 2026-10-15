@@ -41,7 +41,7 @@
 #define BI_COMMANDS_DOWNSTEP "BICommandsDown"
 #define BI_COMMANDS_CANCEL "BICommandsCancel"
 
-#define BI_ONETEX_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define BI_ONETEX_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct BI_ONETEXTURE_VERTEX
 {
@@ -104,7 +104,7 @@ struct BIFPOINT
     // FPOINT operator FPOINT() {return *(FPOINT*)this;}
 };
 
-#define BI_COLOR_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define BI_COLOR_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct BI_COLOR_VERTEX
 {
@@ -114,7 +114,7 @@ struct BI_COLOR_VERTEX
     float tu, tv;
 };
 
-#define BI_NOTEX_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_TEX0)
+#define BI_NOTEX_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex0)
 
 struct BI_NOTEXTURE_VERTEX
 {
@@ -122,7 +122,7 @@ struct BI_NOTEXTURE_VERTEX
     float w;
 };
 
-#define BI_COLORONLY_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX0)
+#define BI_COLORONLY_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex0)
 
 struct BI_COLORONLY_VERTEX
 {
@@ -131,7 +131,7 @@ struct BI_COLORONLY_VERTEX
     uint32_t col;
 };
 
-#define BI_3D_VERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define BI_3D_VERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct BI_3D_VERTEX
 {

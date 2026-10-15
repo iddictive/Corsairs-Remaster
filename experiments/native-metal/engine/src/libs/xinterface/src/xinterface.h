@@ -57,7 +57,7 @@ class XINTERFACE : public XINTERFACE_BASE
     int32_t lock_x, lock_y; // center position for mouse pointer
     float fXMousePos, fYMousePos;
     int32_t m_lXMouse, m_lYMouse; // mouse pointer corrector for calculate active point
-    POINT MouseSize;
+    storm_render::Point MouseSize;
     int32_t m_idTex;
     XI_ONLYONETEX_VERTEX vMouse[4];
     int32_t m_lMouseSensitive;
@@ -377,8 +377,8 @@ class XINTERFACE : public XINTERFACE_BASE
     int32_t m_ChangeType;       // exchange type
     float m_fAngle;
     int32_t m_nBlendColor;
-    IDirect3DTexture9 *m_pTexture;
-    IDirect3DTexture9 *m_pPrevTexture;
+    storm_render::Texture *m_pTexture;
+    storm_render::Texture *m_pPrevTexture;
 
     // vertex & index data
     int32_t vBuf, iBuf;

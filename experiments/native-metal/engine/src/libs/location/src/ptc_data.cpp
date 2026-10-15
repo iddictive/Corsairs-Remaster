@@ -893,9 +893,9 @@ void PtcData::DebugDraw(VDX9RENDER *rs, float dltTime)
         }
     }
     auto tech = "DbgPatchViewZ";
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, numTriangles, dbgTriangles, sizeof(DbgVertex),
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, numTriangles, dbgTriangles, sizeof(DbgVertex),
                         tech);
-    rs->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, numTriangles * 3, dbgEdges, sizeof(DbgVertex),
+    rs->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, numTriangles * 3, dbgEdges, sizeof(DbgVertex),
                         tech);
 }

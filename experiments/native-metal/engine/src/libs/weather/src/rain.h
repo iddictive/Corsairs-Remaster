@@ -8,8 +8,8 @@
 #include <vector>
 
 #define NUM_SEA_DROPS 500
-#define D3DRAINVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_DIFFUSE)
-#define D3DSEADROPVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1)
+#define D3DRAINVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse)
+#define D3DSEADROPVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1)
 
 using RAINVERTEX = struct
 {

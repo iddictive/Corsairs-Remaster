@@ -226,21 +226,21 @@ int camSteps = 0;
 void CameraFollow::DrawDebug()
 {
 #ifdef LFC_DEBUG
-    lc->location->GetRS()->SetTransform(D3DTS_WORLD, CMatrix());
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff00ff00);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ, numTrg, fndv, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffff00);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_POINTLIST, D3DFVF_XYZ, numP1, fndvP1, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_POINTLIST, D3DFVF_XYZ, numP2, fndvP2, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffff0000);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, numP3 / 2, fndvP3, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffff00ff);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, numN / 2, fndvN, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff0000ff);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, numE / 2, fndvE, sizeof(CVECTOR), "DebugTrs");
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff00ffff);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZ, numU / 2, fndvU, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetTransform(storm_render::TransformWorld, CMatrix());
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xff00ff00);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz, numTrg, fndv, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xffffff00);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitivePointList, storm_render::vertexFormat::xyz, numP1, fndvP1, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitivePointList, storm_render::vertexFormat::xyz, numP2, fndvP2, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xffff0000);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, numP3 / 2, fndvP3, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xffff00ff);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, numN / 2, fndvN, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xff0000ff);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, numE / 2, fndvE, sizeof(CVECTOR), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xff00ffff);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyz, numU / 2, fndvU, sizeof(CVECTOR), "DebugTrs");
     lc->location->GetRS()->Print(10, 90, "NumEdges: %i, NumU %i", numE / 2, numU / 2);
 #endif
 }
@@ -271,8 +271,8 @@ float CameraFollow::FindRadius(float curAng) const
         vrt[ii * 2 + 1].p.z = 0.5f;
         vrt[ii * 2 + 1].rhw = 2.0f;
     }
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffff0000);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZRHW, 32, vrt, sizeof(Vrt), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xffff0000);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyzwTransformed, 32, vrt, sizeof(Vrt), "DebugTrs");
 
     for (ii = 0; ii < 32; ii++)
     {
@@ -290,8 +290,8 @@ float CameraFollow::FindRadius(float curAng) const
         vrt[ii * 2 + 1].p.z = 0.5f;
         vrt[ii * 2 + 1].rhw = 2.0f;
     }
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff00ff00);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZRHW, 32, vrt, sizeof(Vrt), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xff00ff00);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyzwTransformed, 32, vrt, sizeof(Vrt), "DebugTrs");
 
     for (ii = 0; ii < 32; ii++)
     {
@@ -305,8 +305,8 @@ float CameraFollow::FindRadius(float curAng) const
         vrt[ii * 2 + 1].p.z = 0.5f;
         vrt[ii * 2 + 1].rhw = 2.0f;
     }
-    lc->location->GetRS()->SetRenderState(D3DRS_TEXTUREFACTOR, 0xff0000ff);
-    lc->location->GetRS()->DrawPrimitiveUP(D3DPT_LINELIST, D3DFVF_XYZRHW, 32, vrt, sizeof(Vrt), "DebugTrs");
+    lc->location->GetRS()->SetRenderState(storm_render::RenderTextureFactor, 0xff0000ff);
+    lc->location->GetRS()->DrawPrimitiveUP(storm_render::PrimitiveLineList, storm_render::vertexFormat::xyzwTransformed, 32, vrt, sizeof(Vrt), "DebugTrs");
 
 #endif
 

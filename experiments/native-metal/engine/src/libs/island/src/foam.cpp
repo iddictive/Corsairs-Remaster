@@ -42,9 +42,9 @@ bool CoastFoam::Init()
 {
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
 
-    iVBuffer = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2,
-                                      sizeof(FoamVertex) * 5000, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
-    iIBuffer = rs->CreateIndexBuffer(10000 * 2 * 3, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+    iVBuffer = rs->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2,
+                                      sizeof(FoamVertex) * 5000, storm_render::usage::dynamic | storm_render::usage::writeOnly);
+    iIBuffer = rs->CreateIndexBuffer(10000 * 2 * 3, storm_render::usage::dynamic | storm_render::usage::writeOnly);
 
     iCursorTex = rs->TextureCreate("cursor.tga");
 
@@ -60,7 +60,7 @@ void CoastFoam::Execute(uint32_t Delta_Time)
     auto fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
 }
 
-void CoastFoam::ExtractRay(const D3DVIEWPORT9 &viewport, float fCursorX, float fCursorY, CVECTOR &raystart,
+void CoastFoam::ExtractRay(const storm_render::Viewport &viewport, float fCursorX, float fCursorY, CVECTOR &raystart,
                            CVECTOR &rayend)
 {
     auto matProj = rs->GetProjection();
@@ -95,7 +95,7 @@ void CoastFoam::Realize(uint32_t Delta_Time)
     }
 
     auto fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
 
     CMatrix mWorld;
@@ -513,8 +513,8 @@ void CoastFoam::ExecuteFoamType2(Foam *pF, float fDeltaTime)
 
         pF->fMove[k] += pF->fSpeed[k] * fDeltaTime;
 
-        auto *pFV = static_cast<FoamVertex *>(rs->LockVertexBuffer(iVBuffer, D3DLOCK_DISCARD));
-        auto *pI = static_cast<uint16_t *>(rs->LockIndexBuffer(iIBuffer, D3DLOCK_DISCARD));
+        auto *pFV = static_cast<FoamVertex *>(rs->LockVertexBuffer(iVBuffer, storm_render::lock::discard));
+        auto *pI = static_cast<uint16_t *>(rs->LockIndexBuffer(iIBuffer, storm_render::lock::discard));
 
         int32_t iNumVertices = 0;
 
@@ -631,8 +631,8 @@ void CoastFoam::ExecuteFoamType1(Foam *pF, float fDeltaTime)
     if (IsClipped(pF))
         return;
 
-    auto *pFV = static_cast<FoamVertex *>(rs->LockVertexBuffer(iVBuffer, D3DLOCK_DISCARD));
-    auto *pI = static_cast<uint16_t *>(rs->LockIndexBuffer(iIBuffer, D3DLOCK_DISCARD));
+    auto *pFV = static_cast<FoamVertex *>(rs->LockVertexBuffer(iVBuffer, storm_render::lock::discard));
+    auto *pI = static_cast<uint16_t *>(rs->LockIndexBuffer(iIBuffer, storm_render::lock::discard));
 
     int32_t iNumVertices = 0;
 

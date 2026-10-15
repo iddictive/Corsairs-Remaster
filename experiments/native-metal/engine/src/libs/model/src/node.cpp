@@ -399,9 +399,9 @@ void NODER::Draw()
         bool active = false;
         bool begin(const CVECTOR& center, float radius) {
             const float position[] = {center.x, center.y, center.z};
-            return active = StormMetalBeginOffscreenPointCaster(NODER::rs->GetD3DDevice(), position, radius);
+            return active = StormMetalBeginOffscreenPointCaster(NODER::rs->GetNativeDevice(), position, radius);
         }
-        ~PointCasterScope() { if (active) StormMetalEndOffscreenPointCaster(NODER::rs->GetD3DDevice()); }
+        ~PointCasterScope() { if (active) StormMetalEndOffscreenPointCaster(NODER::rs->GetNativeDevice()); }
     } subtreeCaster;
 #endif
 
@@ -454,7 +454,7 @@ void NODER::Draw()
         CMatrix sc;
         sc.m[0][0] = sc.m[1][1] = sc.m[2][2] = radius;
         CMatrix rm = sc * sm;
-        rs->SetTransform(D3DTS_WORLD, (D3DMATRIX *)&rm);
+        rs->SetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&rm);
         sphere->Draw(0, 0, 0);
     }
 #endif
@@ -479,14 +479,14 @@ void NODER::Draw()
         if (p == 4)
 #endif
         {
-            rs->SetTransform(D3DTS_WORLD, (D3DMATRIX *)&glob_mtx);
+            rs->SetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&glob_mtx);
             gs->SetTechnique(&technique[0]);
             if (max_view_dist > 0.f && distance_blend > 0.f)
             {
                 gs->SetTechnique("geomdistanceblend");
                 uint32_t dwTFColor;
                 dwTFColor = (static_cast<uint32_t>(255.f - 255.f * distance_blend) << 24) | 0xFFFFFF;
-                rs->SetRenderState(D3DRS_TEXTUREFACTOR, dwTFColor);
+                rs->SetRenderState(storm_render::RenderTextureFactor, dwTFColor);
             }
             // transform viewplanes
             for (p = 0; p < 4; p++)

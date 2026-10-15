@@ -15,7 +15,7 @@ extern "C" void StormMetalEndWdmModel(void*, unsigned);
 #ifdef STORM_METAL_RENDERER_CONSUMERS
 class WdmMetalModelScope {
 public:
-    explicit WdmMetalModelScope(VDX9RENDER *rs): device(rs ? rs->GetD3DDevice() : nullptr), previous(device ? StormMetalBeginWdmModel(device, 1) : 0) {}
+    explicit WdmMetalModelScope(VDX9RENDER *rs): device(rs ? rs->GetNativeDevice() : nullptr), previous(device ? StormMetalBeginWdmModel(device, 1) : 0) {}
     ~WdmMetalModelScope(){if(device)StormMetalEndWdmModel(device,previous);}
 private:void *device;unsigned previous;
 };
@@ -23,7 +23,7 @@ private:void *device;unsigned previous;
 // The Metal backend consumes compact records but not the fixed-function stage
 // state, so each submission first applies the technique pass the legacy draw
 // ran before it submitted geometry. The backend only receives the device.
-inline bool WdmMetalDrawScreenRects(VDX9RENDER *rs,const WdmMetalScreenRect *rects,uint32_t count,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmScreenRects(rs->GetD3DDevice(),rects,count,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
-inline bool WdmMetalDrawQuad3D(VDX9RENDER *rs,const WdmMetalQuad3D &quad,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmQuad(rs->GetD3DDevice(),quad,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
-inline bool WdmMetalDrawDangerDisc(VDX9RENDER *rs,const WdmMetalDangerDisc &disc,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmDangerDisc(rs->GetD3DDevice(),disc,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
-inline bool WdmMetalDrawShipWake(VDX9RENDER *rs,const WdmMetalShipWake &wake,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmShipWake(rs->GetD3DDevice(),wake,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
+inline bool WdmMetalDrawScreenRects(VDX9RENDER *rs,const WdmMetalScreenRect *rects,uint32_t count,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmScreenRects(rs->GetNativeDevice(),rects,count,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
+inline bool WdmMetalDrawQuad3D(VDX9RENDER *rs,const WdmMetalQuad3D &quad,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmQuad(rs->GetNativeDevice(),quad,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
+inline bool WdmMetalDrawDangerDisc(VDX9RENDER *rs,const WdmMetalDangerDisc &disc,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmDangerDisc(rs->GetNativeDevice(),disc,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}
+inline bool WdmMetalDrawShipWake(VDX9RENDER *rs,const WdmMetalShipWake &wake,const char *technique){if(!rs||!technique||!rs->TechniqueExecuteStart(technique))return false;bool ok=true;do{ok=StormMetalDrawWdmShipWake(rs->GetNativeDevice(),wake,technique);}while(ok&&rs->TechniqueExecuteNext());return ok;}

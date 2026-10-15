@@ -49,7 +49,7 @@ IBIImage *BIImageRender::CreateImage(BIImageType type, const char *pcTextureName
 }
 
 IBIImage *BIImageRender::CreateImage(BIImageType type, const char *pcTextureName, uint32_t color, const FRECT &uv,
-                                     const RECT &pos, int32_t nPrior, const char *pcTechniqueName)
+                                     const storm_render::Rect &pos, int32_t nPrior, const char *pcTechniqueName)
 {
     auto *pMaterial = CreateMaterial(pcTextureName, pcTechniqueName);
     if (pMaterial)
@@ -152,7 +152,7 @@ IBIString *BIImageRender::CreateString(const char *text, const char *font_name, 
 }
 
 IBIString *BIImageRender::CreateString(const char *text, const char *font_name, float font_scale, uint32_t font_color,
-                                       int32_t valign, int32_t halign, const RECT &pos, int32_t nPrior)
+                                       int32_t valign, int32_t halign, const storm_render::Rect &pos, int32_t nPrior)
 {
     return CreateString(text, font_name, font_scale, font_color, valign, halign, pos.left, pos.top, pos.right,
                         pos.bottom, nPrior);
@@ -183,7 +183,7 @@ void BIImageRender::CutPrioritetRangeByStrings()
 
 void BIImageRender::SetBaseScreenSize(int32_t nHSize, int32_t nVSize, int32_t nHOffset, int32_t nVOffset)
 {
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     m_pRS->GetViewport(&vp);
 
     if (vp.Width == nHSize && nHOffset == 0)

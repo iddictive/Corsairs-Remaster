@@ -9,7 +9,7 @@
 #include "shared/messages.h"
 
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-extern "C" void D3DPERF_SetMarker(uint32_t color, const wchar_t *name);
+#include "render_device_api.hpp"
 #endif
 
 PARTICLES::PARTICLES()
@@ -287,7 +287,7 @@ void PARTICLES::Realize(uint32_t Delta_Time)
     // Sea actors have finished. Resolve their shadows before alpha smoke/fire:
     // applying per-channel light removal later also recolors the blended effects.
     // The backend keeps reflection targets and already-resolved frames untouched.
-    D3DPERF_SetMarker(0, L"Storm.SceneEffectsBoundary");
+    storm_render::markSceneBoundary(storm_render::SceneBoundary::Effects);
 #endif
     bSystemDelete = true;
     const float fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;

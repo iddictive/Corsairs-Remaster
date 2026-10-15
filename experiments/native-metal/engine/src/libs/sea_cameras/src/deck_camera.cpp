@@ -258,10 +258,10 @@ void DECK_CAMERA::Realize(uint32_t Delta_Time)
     if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(walkerId)))
     {
         uint32_t lighting;
-        RenderService->GetRenderState(D3DRS_LIGHTING, &lighting);
-        RenderService->SetRenderState(D3DRS_LIGHTING, true);
+        RenderService->GetRenderState(storm_render::RenderLighting, &lighting);
+        RenderService->SetRenderState(storm_render::RenderLighting, true);
         model->ProcessStage(Entity::Stage::realize, Delta_Time);
-        RenderService->SetRenderState(D3DRS_LIGHTING, lighting);
+        RenderService->SetRenderState(storm_render::RenderLighting, lighting);
     }
 }
 

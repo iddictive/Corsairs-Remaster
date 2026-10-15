@@ -20,7 +20,7 @@ static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count,
         return;
     do
     {
-        StormMetalDrawBillboards(renderer->GetD3DDevice(), rects, count, technique, subTexturesX,
+        StormMetalDrawBillboards(renderer->GetNativeDevice(), rects, count, technique, subTexturesX,
                                  subTexturesY, scaleX, scaleY * renderer->GetHeightDeformator());
     } while (renderer->TechniqueExecuteNext());
 }
@@ -43,7 +43,7 @@ bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_
 
 static float SolarSourceSize(VDX9RENDER *renderer, bool moon, float authored, float distance)
 {
-    return !moon && StormMetalCloudFieldCurrent(renderer->GetD3DDevice())
+    return !moon && StormMetalCloudFieldCurrent(renderer->GetNativeDevice())
                ? distance * std::tan(storm_metal::solarAngularRadius) : authored;
 }
 
@@ -51,7 +51,7 @@ class MetalSolarShapeScope
 {
   public:
     MetalSolarShapeScope(VDX9RENDER *renderer, uint32_t shape, float halfSize, float distance)
-        : device(renderer->GetD3DDevice())
+        : device(renderer->GetNativeDevice())
     {
         active = StormMetalBeginSolarShape(device, shape, halfSize, distance);
     }
@@ -68,19 +68,19 @@ class MetalSolarShapeScope
 static float MoonReflectionGain(VDX9RENDER *renderer, int32_t textureId)
 {
     auto *base = renderer->GetTextureFromID(textureId);
-    if (!base || base->GetType() != D3DRTYPE_TEXTURE)
+    if (!base || base->GetType() != storm_render::ResourceKind::Texture)
         return 1.f;
-    auto *texture = static_cast<IDirect3DTexture9 *>(base);
+    auto *texture = static_cast<storm_render::Texture *>(base);
     const auto levels = texture->GetLevelCount();
     if (!levels)
         return 1.f;
     const auto level = levels - 1;
-    D3DSURFACE_DESC desc{};
+    storm_render::SurfaceDesc desc{};
     if (FAILED(texture->GetLevelDesc(level, &desc)) || desc.Width != 64 || desc.Height != 64 ||
-        (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_A8R8G8B8))
+        (desc.Format != storm_render::AssetFormat::X8R8G8B8 && desc.Format != storm_render::AssetFormat::A8R8G8B8))
         return 1.f;
-    D3DLOCKED_RECT lock{};
-    if (FAILED(texture->LockRect(level, &lock, nullptr, D3DLOCK_READONLY)))
+    storm_render::LockedRect lock{};
+    if (FAILED(texture->LockRect(level, &lock, nullptr, storm_render::lock::readOnly)))
         return 1.f;
     double energy = 0.;
     for (uint32_t y = 0; y < desc.Height; ++y)
@@ -105,7 +105,7 @@ class MetalSolarVisualScope
 {
   public:
     MetalSolarVisualScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
-        : device(renderer->GetD3DDevice())
+        : device(renderer->GetNativeDevice())
     {
         if (!StormMetalCloudFieldCurrent(device))
             PrepareMetalAtmosphere(renderer, weather, deltaTime, false);
@@ -210,7 +210,7 @@ void SUNGLOW::SetDevice()
         pSky = nullptr;
 
     if (idRectBuf == -1)
-        idRectBuf = pRS->CreateVertexBuffer(SUNGLOWVERTEX_FORMAT, sizeof(SUNGLOWVERTEX) * 8, D3DUSAGE_WRITEONLY);
+        idRectBuf = pRS->CreateVertexBuffer(SUNGLOWVERTEX_FORMAT, sizeof(SUNGLOWVERTEX) * 8, storm_render::usage::writeOnly);
 }
 
 void SUNGLOW::Release()
@@ -318,8 +318,8 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
     MetalSolarVisualScope solarVisual(pRS, pWeather, Delta_Time);
 #endif
     CMatrix OldMatrix, IMatrix, View;
-    pRS->GetTransform(D3DTS_VIEW, OldMatrix);
-    pRS->GetTransform(D3DTS_VIEW, View);
+    pRS->GetTransform(storm_render::TransformView, OldMatrix);
+    pRS->GetTransform(storm_render::TransformView, View);
 
     float fFov;
     CVECTOR vSun, vSunPos, vSunDir;
@@ -778,7 +778,7 @@ void SUNGLOW::DrawRect(uint32_t dwColor, const CVECTOR &pos, float fSize, float 
         return;
 
     static CMatrix camMtx;
-    pRS->GetTransform(D3DTS_VIEW, camMtx);
+    pRS->GetTransform(storm_render::TransformView, camMtx);
     CVECTOR vx, vy, vp1, vp2, vp3, vp4;
     const auto sn = sinf(fAngle);
     const auto cs = cosf(fAngle);
@@ -903,8 +903,8 @@ void SUNGLOW::DrawRect(uint32_t dwColor, const CVECTOR &pos, float fSize, float 
 
     if (nv > 2)
     {
-        pRS->SetTransform(D3DTS_WORLD, CMatrix());
-        pRS->DrawPrimitive(D3DPT_TRIANGLEFAN, idRectBuf, sizeof(SUNGLOWVERTEX), 0, nv - 2, pcTechnique);
+        pRS->SetTransform(storm_render::TransformWorld, CMatrix());
+        pRS->DrawPrimitive(storm_render::PrimitiveTriangleFan, idRectBuf, sizeof(SUNGLOWVERTEX), 0, nv - 2, pcTechnique);
     }
 
     /*
@@ -923,7 +923,7 @@ float SUNGLOW::GetSunFadeoutFactor(const CVECTOR &vSunPos, float fSunSize)
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     // Procedural cloud opacity is applied by the native consumers. Sampling
     // unrelated legacy sky alpha here would attenuate a second cloud field.
-    if (StormMetalCloudFieldCurrent(pRS->GetD3DDevice()))
+    if (StormMetalCloudFieldCurrent(pRS->GetNativeDevice()))
         return 1.0f;
 #endif
     // get a pointer to the sky

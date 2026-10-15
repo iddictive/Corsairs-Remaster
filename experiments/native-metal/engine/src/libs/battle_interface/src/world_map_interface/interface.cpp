@@ -37,7 +37,7 @@ void WM_INTERFACE::Realize(uint32_t delta_time)
 {
     if (m_bVisible)
     {
-        rs->MakePostProcess();
+        rs->FinalizeSceneEffects();
 
         if (m_pShipIcon)
         {

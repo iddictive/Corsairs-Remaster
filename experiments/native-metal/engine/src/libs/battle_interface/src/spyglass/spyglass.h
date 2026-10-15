@@ -16,7 +16,7 @@ class ISPYGLASS : public Entity
         std::string sTextureName;
         uint32_t dwColor;
         FRECT rUV;
-        RECT rPos;
+        storm_render::Rect rPos;
 
         ImageParam()
         {

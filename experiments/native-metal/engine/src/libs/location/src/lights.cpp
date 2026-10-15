@@ -15,7 +15,7 @@
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
 extern "C" void StormMetalBeginSceneLights(void*);
-extern "C" bool StormMetalSceneLight(void*, uint64_t, const D3DLIGHT9*);
+extern "C" bool StormMetalSceneLight(void*, uint64_t, const storm_render::Light*);
 #endif
 
 #include "core.h"
@@ -96,7 +96,7 @@ bool Lights::Init()
             types[numTypes].color.g = ini->GetFloat(lName, "g", 1.0f);
             types[numTypes].color.r = ini->GetFloat(lName, "r", 1.0f);
             types[numTypes].color.a = 1.0f;
-            types[numTypes].dxLight.Type = D3DLIGHT_POINT;
+            types[numTypes].dxLight.Type = storm_render::LightKind::Point;
             types[numTypes].dxLight.Diffuse = types[numTypes].color;
             types[numTypes].dxLight.Range = ini->GetFloat(lName, "range", 10.0f);
             types[numTypes].dxLight.Attenuation0 = ini->GetFloat(lName, "att0", 0.0f);
@@ -247,9 +247,9 @@ void Lights::Realize(uint32_t delta_time)
     ////////////////
     // Draw coronas
     CMatrix camMtx;
-    rs->GetTransform(D3DTS_VIEW, camMtx);
-    rs->SetTransform(D3DTS_VIEW, CMatrix());
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->GetTransform(storm_render::TransformView, camMtx);
+    rs->SetTransform(storm_render::TransformView, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     const auto camPDist = -(pos.x * camMtx.Vx().z + pos.y * camMtx.Vy().z + pos.z * camMtx.Vz().z);
     for (int32_t i = 0, n = 0; i < numLights; i++)
     {
@@ -373,11 +373,11 @@ void Lights::Realize(uint32_t delta_time)
         buf[n * 6 + 5].v = 1.0f;
         n++;
         rs->TextureSet(0, l.corona);
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, n * 2, buf, sizeof(Vertex),
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, n * 2, buf, sizeof(Vertex),
                             "Coronas");
         n = 0;
     }
-    rs->SetTransform(D3DTS_VIEW, camMtx);
+    rs->SetTransform(storm_render::TransformView, camMtx);
 
     // Debug
     if (core.Controls->GetDebugAsyncKeyState(VK_SHIFT) < 0 && core.Controls->GetDebugAsyncKeyState(VK_SPACE) < 0)
@@ -490,7 +490,7 @@ void Lights::UpdateMovingLight(int32_t id, const CVECTOR &pos)
         {
             const auto i = aMovingLight[n].light;
             if (i >= 0 && i < numLights)
-                lights[i].pos = *(D3DVECTOR *)&pos;
+                lights[i].pos = *(storm_render::Vector3 *)&pos;
             return;
         }
     }
@@ -521,14 +521,14 @@ void Lights::ResetMetalShadowSelection()
 
 unsigned Lights::GetShadowLights(const CVECTOR& pos, MetalShadowLight* out, unsigned capacity)
 {
-    struct Candidate { float distanceSquared; uint64_t id; D3DLIGHT9 light; };
+    struct Candidate { float distanceSquared; uint64_t id; storm_render::Light light; };
     std::vector<Candidate> candidates;
     metal_shadow::Plane planes[4];
     const auto* viewPlanes=rs->GetPlanes();
     for(unsigned i=0;i<4;i++)planes[i]={viewPlanes[i].Nx,viewPlanes[i].Ny,viewPlanes[i].Nz,viewPlanes[i].D};
     for (int32_t index=0; index<numLights; ++index) {
         const auto& source=lights[index]; const auto& type=types[source.type];
-        if(type.dxLight.Type!=D3DLIGHT_POINT || type.dxLight.Range<=.1f)continue;
+        if(type.dxLight.Type!=storm_render::LightKind::Point || type.dxLight.Range<=.1f)continue;
         if(source.color.r<=0 && source.color.g<=0 && source.color.b<=0)continue;
         const float dx=pos.x-source.pos.x,dy=pos.y-source.pos.y,dz=pos.z-source.pos.z;
         const float distanceSquared=dx*dx+dy*dy+dz*dz;
@@ -560,21 +560,21 @@ void Lights::PublishMetalSceneLights()
 {
     // One source-owned catalog for the whole frame. Camera/player selection of
     // legacy D3D slots must never switch lighting on a fixed world receiver.
-    StormMetalBeginSceneLights(rs->GetD3DDevice());
+    StormMetalBeginSceneLights(rs->GetNativeDevice());
     for (int32_t index=0; index<numLights; ++index) {
         const auto& source=lights[index];
         auto light=types[source.type].dxLight;
-        if(light.Type!=D3DLIGHT_POINT || light.Range<=.1f)continue;
+        if(light.Type!=storm_render::LightKind::Point || light.Range<=.1f)continue;
         light.Position=source.pos;
         light.Diffuse.r=source.color.r;
         light.Diffuse.g=source.color.g;
         light.Diffuse.b=source.color.b;
         if(light.Diffuse.r<=0 && light.Diffuse.g<=0 && light.Diffuse.b<=0)continue;
-        if(!StormMetalSceneLight(rs->GetD3DDevice(),source.metalLightId,&light))break;
+        if(!StormMetalSceneLight(rs->GetNativeDevice(),source.metalLightId,&light))break;
     }
 }
 
-bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, bool stableIndoor)
+bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, storm_render::Light& light, bool stableIndoor)
 {
     // One cube is available. Pin its owner to authored scene order indoors,
     // never nearest camera/player distance or instantaneous flicker intensity.
@@ -583,7 +583,7 @@ bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, 
         for (int32_t index=0; index<numLights; ++index) {
             const auto& source=lights[index];
             light=types[source.type].dxLight;
-            if(light.Type!=D3DLIGHT_POINT || light.Range<=.1f)continue;
+            if(light.Type!=storm_render::LightKind::Point || light.Range<=.1f)continue;
             light.Position=source.pos;
             light.Diffuse.r=source.color.r;
             light.Diffuse.g=source.color.g;
@@ -596,7 +596,7 @@ bool Lights::GetShadowLight(const CVECTOR& pos, uint64_t& id, D3DLIGHT9& light, 
     for (auto index : GetLightsAt(pos)) {
         const auto& source = lights[index];
         light = types[source.type].dxLight;
-        if (light.Type != D3DLIGHT_POINT || light.Range <= .1f) continue;
+        if (light.Type != storm_render::LightKind::Point || light.Range <= .1f) continue;
         const float dx = pos.x-source.pos.x, dy = pos.y-source.pos.y, dz = pos.z-source.pos.z;
         if (dx*dx+dy*dy+dz*dz >= light.Range*light.Range) continue;
         light.Diffuse.r = source.color.r;
@@ -634,7 +634,7 @@ void Lights::SetLightsAt(const CVECTOR &pos)
 
         rs->SetLight(d3d_light_index, &l.dxLight);
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-        StormMetalSetLightIdentity(rs->GetD3DDevice(), d3d_light_index, lights[*i].metalLightId);
+        StormMetalSetLightIdentity(rs->GetNativeDevice(), d3d_light_index, lights[*i].metalLightId);
 #endif
         rs->LightEnable(d3d_light_index, true);
         lt[d3d_light_index].light = *i;
@@ -669,7 +669,7 @@ void Lights::UpdateLightTypes(int32_t i)
     types[i].color.g = ini->GetFloat(lName, "g", 1.0f);
     types[i].color.r = ini->GetFloat(lName, "r", 1.0f);
     types[i].color.a = 1.0f;
-    types[i].dxLight.Type = D3DLIGHT_POINT;
+    types[i].dxLight.Type = storm_render::LightKind::Point;
     types[i].dxLight.Diffuse = types[i].color;
     types[i].dxLight.Range = ini->GetFloat(lName, "range", 10.0f);
     types[i].dxLight.Attenuation0 = ini->GetFloat(lName, "att0", 0.0f);
@@ -727,10 +727,10 @@ void Lights::PrintDebugInfo()
         auto scale = 1.0f;
 
         static CMatrix mtx, view, prj;
-        static D3DVIEWPORT9 vp;
+        static storm_render::Viewport vp;
         MTX_PRJ_VECTOR vrt;
-        rs->GetTransform(D3DTS_VIEW, view);
-        rs->GetTransform(D3DTS_PROJECTION, prj);
+        rs->GetTransform(storm_render::TransformView, view);
+        rs->GetTransform(storm_render::TransformProjection, prj);
         mtx.EqMultiply(view, prj);
         view.Transposition();
         rs->GetViewport(&vp);
@@ -760,21 +760,21 @@ void Lights::PrintDebugInfo()
         if (!isVisible)
             continue;
 
-        rs->SetTransform(D3DTS_VIEW, CMatrix());
-        rs->SetTransform(D3DTS_WORLD, CMatrix());
+        rs->SetTransform(storm_render::TransformView, CMatrix());
+        rs->SetTransform(storm_render::TransformWorld, CMatrix());
 
-        rs->ExtPrint(FONT_DEFAULT, D3DCOLOR_ARGB(255, 255, 255, 255), 0x00000000, PR_ALIGN_CENTER, 
+        rs->ExtPrint(FONT_DEFAULT, storm_render::packedArgb(255, 255, 255, 255), 0x00000000, PR_ALIGN_CENTER,
             false, scale, 0, 0,
                      static_cast<int32_t>(vrt.x), static_cast<int32_t>(vrt.y), fmt::format("{}", d).c_str());
 
         // print idx
-        auto color = D3DCOLOR_ARGB(255, 233, 30, 30);
+        auto color = storm_render::packedArgb(255, 233, 30, 30);
         vrt.y -= 1.5 * rs->CharHeight(FONT_DEFAULT) / 2;
         for (const auto [_, light] : lt)
         {
             if (i == light)
             {
-                color = D3DCOLOR_ARGB(255, 30, 233, 30);
+                color = storm_render::packedArgb(255, 30, 233, 30);
             }
         }
         rs->ExtPrint(FONT_DEFAULT, color, 0x00000000, PR_ALIGN_CENTER, false, scale, 0, 0, static_cast<int32_t>(vrt.x),
@@ -782,6 +782,6 @@ void Lights::PrintDebugInfo()
                      fmt::format("{}", i).c_str());
 
         
-        rs->SetTransform(D3DTS_VIEW, view);
+        rs->SetTransform(storm_render::TransformView, view);
     }
 }

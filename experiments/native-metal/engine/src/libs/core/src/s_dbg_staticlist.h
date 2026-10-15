@@ -18,7 +18,7 @@ class SDBG_STATICLIST
 
     ~SDBG_STATICLIST(){};
 
-    bool Init(int32_t lines, RECT rParent, RECT rChild, HINSTANCE hInstance, HWND _hmain)
+    bool Init(int32_t lines, storm_render::Rect rParent, storm_render::Rect rChild, HINSTANCE hInstance, HWND _hmain)
     {
         if (lines == 0)
             return false;

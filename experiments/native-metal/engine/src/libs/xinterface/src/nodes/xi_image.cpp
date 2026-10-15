@@ -161,7 +161,7 @@ void CXI_IMAGE::LoadAccordingToString(const char *pcImageParam)
         m_bThisIsColorRectangle = false;
 }
 
-void CXI_IMAGE::SetPointerToTexture(IDirect3DTexture9 *pTex)
+void CXI_IMAGE::SetPointerToTexture(storm_render::Texture *pTex)
 {
     Unload();
     if (!pTex)
@@ -177,7 +177,7 @@ void CXI_IMAGE::Draw()
 
     if (m_bThisIsColorRectangle)
     {
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_vrtx, sizeof(XI_ONETEX_VERTEX), "iRectangle");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_vrtx, sizeof(XI_ONETEX_VERTEX), "iRectangle");
         return;
     }
 
@@ -187,7 +187,7 @@ void CXI_IMAGE::Draw()
             m_rs->SetTexture(0, m_pTexture);
         else
             m_rs->TextureSet(0, m_nTextureID);
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_vrtx, sizeof(XI_ONETEX_VERTEX), "iVideo");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_vrtx, sizeof(XI_ONETEX_VERTEX), "iVideo");
     }
 }
 

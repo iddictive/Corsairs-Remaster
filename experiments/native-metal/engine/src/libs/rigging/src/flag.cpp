@@ -128,12 +128,12 @@ void FLAG::Realize(uint32_t Delta_Time)
 {
     if (bUse)
     {
-        RiggingLightingScope lightingScope(RenderService->GetD3DDevice());
+        RiggingLightingScope lightingScope(RenderService->GetNativeDevice());
         //_asm rdtsc _asm mov rtm,eax
 
         RenderService->TextureSet(0, texl);
-        RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
-        RenderService->SetTransform(D3DTS_WORLD, rootMatrix);
+        RenderService->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
+        RenderService->SetTransform(storm_render::TransformWorld, rootMatrix);
 
         // draw nature flag
         if (nVert != 0 && nIndx != 0)
@@ -697,7 +697,7 @@ void FLAG::FirstRun()
         bUse = true;
         iBuf = RenderService->CreateIndexBuffer(nIndx * 2);
         SetTreangle();
-        vBuf = RenderService->CreateVertexBuffer(FLAGLXVERTEX_FORMAT, nVert * sizeof(FLAGLXVERTEX), D3DUSAGE_WRITEONLY);
+        vBuf = RenderService->CreateVertexBuffer(FLAGLXVERTEX_FORMAT, nVert * sizeof(FLAGLXVERTEX), storm_render::usage::writeOnly);
         verticesNeedUpdate_ = true;
         SetTextureCoordinate();
         nIndx /= 3;
@@ -785,7 +785,7 @@ void FLAG::DoSTORM_DELETE()
     {
         VERTEX_BUFFER_RELEASE(RenderService, vBuf);
         INDEX_BUFFER_RELEASE(RenderService, iBuf);
-        vBuf = RenderService->CreateVertexBuffer(FLAGLXVERTEX_FORMAT, nVert * sizeof(FLAGLXVERTEX), D3DUSAGE_WRITEONLY);
+        vBuf = RenderService->CreateVertexBuffer(FLAGLXVERTEX_FORMAT, nVert * sizeof(FLAGLXVERTEX), storm_render::usage::writeOnly);
         iBuf = RenderService->CreateIndexBuffer(nIndx * 6);
 
         flagQuantity = nfn;

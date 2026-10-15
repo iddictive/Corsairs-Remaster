@@ -5,7 +5,7 @@
 #include "ship_base.h"
 #include <vector>
 
-#define D3DTLVERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
+#define D3DTLVERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse)
 
 using D3DTLVERTEX = struct
 {
@@ -64,7 +64,7 @@ class TOUCH : public Entity
     void DrawLine(std::vector<RS_LINE2D> &aLines, float x1, float y1, float x2, float y2, uint32_t color);
     void DrawShips();
     CVECTOR GetPoint(float x, float y, float xx, float yy, float xscale, float yscale, float fCos, float fSin,
-                     POINT ss);
+                     storm_render::Point ss);
 
     void SetDevices();
 

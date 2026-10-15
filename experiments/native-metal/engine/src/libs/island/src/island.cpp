@@ -115,11 +115,11 @@ void ISLAND::Realize(uint32_t Delta_Time)
 
     uint32_t bFogEnable;
     uint32_t bLighting;
-    pRS->GetRenderState(D3DRS_FOGENABLE, &bFogEnable);
-    pRS->GetRenderState(D3DRS_AMBIENT, &dwAmbientOld);
-    pRS->GetRenderState(D3DRS_LIGHTING, &bLighting);
+    pRS->GetRenderState(storm_render::RenderFog, &bFogEnable);
+    pRS->GetRenderState(storm_render::RenderAmbient, &dwAmbientOld);
+    pRS->GetRenderState(storm_render::RenderLighting, &bLighting);
 
-    pRS->SetRenderState(D3DRS_LIGHTING, dynamicLightsOn);
+    pRS->SetRenderState(storm_render::RenderLighting, dynamicLightsOn);
     dwAmbient = dwAmbientOld & 0xFF;
 
     CVECTOR vCamPos, vCamAng;
@@ -149,23 +149,23 @@ void ISLAND::Realize(uint32_t Delta_Time)
         AIFortEID = core.GetEntityId("AIFort");
     }
 
-    pRS->GetRenderState(D3DRS_FOGDENSITY, (uint32_t *)&fOldFogDensity);
-    pRS->SetRenderState(D3DRS_FOGDENSITY, F2DW(fIslandFogDensity));
+    pRS->GetRenderState(storm_render::RenderFogDensity, (uint32_t *)&fOldFogDensity);
+    pRS->SetRenderState(storm_render::RenderFogDensity, F2DW(fIslandFogDensity));
     int32_t j;
     for (j = static_cast<int32_t>(fMaxDistance / fOldFar); j >= 0; j--)
     {
         if (j != 0)
-            pRS->SetRenderState(D3DRS_ZWRITEENABLE, false);
+            pRS->SetRenderState(storm_render::RenderDepthWrite, false);
         pRS->SetNearFarPlane((j == 0) ? fOldNear : fOldFar * static_cast<float>(j),
                              fOldFar * static_cast<float>(j + 1));
         pModel->ProcessStage(Stage::realize, Delta_Time);
-        pRS->SetRenderState(D3DRS_LIGHTING, true);
-        D3DLIGHT9 lt, ltold;
+        pRS->SetRenderState(storm_render::RenderLighting, true);
+        storm_render::Light lt, ltold;
         pRS->GetLight(0, &ltold);
         if (!dynamicLightsOn)
         {
             lt = {};
-            lt.Type = D3DLIGHT_POINT;
+            lt.Type = storm_render::LightKind::Point;
             lt.Diffuse.a = 0.0f;
             lt.Diffuse.r = 1.0f;
             lt.Diffuse.g = 1.0f;
@@ -196,19 +196,19 @@ void ISLAND::Realize(uint32_t Delta_Time)
             static_cast<MODEL *>(ent)->mtx = mOld;
         }
         pRS->SetLight(0, &ltold);
-        pRS->SetRenderState(D3DRS_LIGHTING, dynamicLightsOn);
-        pRS->SetRenderState(D3DRS_ZWRITEENABLE, true);
+        pRS->SetRenderState(storm_render::RenderLighting, dynamicLightsOn);
+        pRS->SetRenderState(storm_render::RenderDepthWrite, true);
     }
-    pRS->SetRenderState(D3DRS_FOGDENSITY, F2DW(fOldFogDensity));
+    pRS->SetRenderState(storm_render::RenderFogDensity, F2DW(fOldFogDensity));
 
     pRS->SetNearFarPlane(fOldNear, fOldFar / 2.0f);
     if (!bDrawReflections)
     {
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
         // Authored seabed includes above-water shore skirts. Use the scene fog.
-        pRS->SetRenderState(D3DRS_FOGENABLE, bFogEnable);
+        pRS->SetRenderState(storm_render::RenderFog, bFogEnable);
 #else
-        pRS->SetRenderState(D3DRS_FOGENABLE, false);
+        pRS->SetRenderState(storm_render::RenderFog, false);
 #endif
         // pRS->SetRenderState(D3DRS_AMBIENT, RGB(dwAmbient/4,dwAmbient/4,dwAmbient/4));
 
@@ -219,10 +219,10 @@ void ISLAND::Realize(uint32_t Delta_Time)
 
     pRS->SetNearFarPlane(fOldNear, fOldFar);
 
-    pRS->SetRenderState(D3DRS_LIGHTING, false);
-    pRS->SetRenderState(D3DRS_FOGENABLE, bFogEnable);
-    pRS->SetRenderState(D3DRS_AMBIENT, dwAmbientOld);
-    pRS->SetRenderState(D3DRS_LIGHTING, bLighting);
+    pRS->SetRenderState(storm_render::RenderLighting, false);
+    pRS->SetRenderState(storm_render::RenderFog, bFogEnable);
+    pRS->SetRenderState(storm_render::RenderAmbient, dwAmbientOld);
+    pRS->SetRenderState(storm_render::RenderLighting, bLighting);
 
     uint32_t i;
     for (i = 0; i < aSpheres.size(); i++)
@@ -245,7 +245,7 @@ void ISLAND::Realize(uint32_t Delta_Time)
             aLines.push_back(RS_LINE{AIPath.GetPointPos(pE->dw2), 0xFFFFFF});
         }
         CMatrix m;
-        pRS->SetTransform(D3DTS_WORLD, m);
+        pRS->SetTransform(storm_render::TransformWorld, m);
         pRS->DrawLines(&aLines[0], aLines.size() / 2, "Line");
     }
 }

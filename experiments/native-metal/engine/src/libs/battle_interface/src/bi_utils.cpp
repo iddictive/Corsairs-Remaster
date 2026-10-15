@@ -88,7 +88,7 @@ bool BIUtils::ReadRectFromAttr(ATTRIBUTES *pA, const char *name, FRECT &rOut, FR
     return false;
 }
 
-bool BIUtils::ReadRectFromAttr(ATTRIBUTES *pA, const char *name, RECT &rOut, RECT &rDefault)
+bool BIUtils::ReadRectFromAttr(ATTRIBUTES *pA, const char *name, storm_render::Rect &rOut, storm_render::Rect &rDefault)
 {
     rOut = rDefault;
     if (pA && name)
@@ -183,7 +183,7 @@ bool BIUtils::ReadVectorFormAttr(ATTRIBUTES *pA, const char *name, CVECTOR &vOut
     return false;
 }
 
-bool BIUtils::ComparePoint(POINT &p1, POINT &p2)
+bool BIUtils::ComparePoint(storm_render::Point &p1, storm_render::Point &p2)
 {
     return ((p1.x == p2.x) && (p1.y == p2.y));
 }
@@ -487,7 +487,7 @@ void BIImagesInfo::Init(VDX9RENDER *rs, ATTRIBUTES *pA)
         FRECT rUV;
         FULLRECT(rUV);
         BIUtils::ReadRectFromAttr(pAImg, "uv", rUV, rUV);
-        RECT rPos{};
+        storm_render::Rect rPos{};
         BIUtils::ReadRectFromAttr(pAImg, "pos", rPos, rPos);
         IBIImage *pCurImg =
             pImgRender->CreateImage(BIType_square, pAImg->GetAttribute("texture"),
@@ -526,7 +526,7 @@ void BIBorderInfo::Release()
 void BIBorderInfo::Init(VDX9RENDER *rs, ATTRIBUTES *pA)
 {
     pRS = rs;
-    nVBuf = rs->CreateVertexBuffer(BI_COLOR_VERTEX_FORMAT, 2 * 5 * sizeof(BI_COLOR_VERTEX), D3DUSAGE_WRITEONLY);
+    nVBuf = rs->CreateVertexBuffer(BI_COLOR_VERTEX_FORMAT, 2 * 5 * sizeof(BI_COLOR_VERTEX), storm_render::usage::writeOnly);
     dwColor1 = dwColor2 = ARGB(255, 255, 255, 255);
     ext_pos.left = 0.f;
     ext_pos.top = 0.f;
@@ -619,5 +619,5 @@ void BIBorderInfo::Draw()
     pRS->UnLockVertexBuffer(nVBuf);
 
     pRS->TextureSet(0, nTexID);
-    pRS->DrawPrimitive(D3DPT_TRIANGLESTRIP, nVBuf, sizeof(BI_COLOR_VERTEX), 0, 8, "battle_msg");
+    pRS->DrawPrimitive(storm_render::PrimitiveTriangleStrip, nVBuf, sizeof(BI_COLOR_VERTEX), 0, 8, "battle_msg");
 }

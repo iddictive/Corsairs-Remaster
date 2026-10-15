@@ -34,10 +34,10 @@ class BI_InterfaceManager : public BI_ManagerBase
         }
     }
 
-    BI_ManagerNodeBase *CreateImageNode(const char *texture, const FRECT &uv, const RECT &pos, uint32_t color,
+    BI_ManagerNodeBase *CreateImageNode(const char *texture, const FRECT &uv, const storm_render::Rect &pos, uint32_t color,
                                         int32_t nPrioritet) override;
     BI_ManagerNodeBase *CreateStringNode(const char *text, const char *font, uint32_t color, float scale,
-                                         const RECT &pos, int32_t nHAlign, int32_t nVAlign, int32_t prioritet) override;
+                                         const storm_render::Rect &pos, int32_t nHAlign, int32_t nVAlign, int32_t prioritet) override;
     void DeleteNode(BI_ManagerNodeBase *pNod) override;
 
   protected:

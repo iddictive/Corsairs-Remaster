@@ -25,12 +25,12 @@ void CXI_SLIDELINE::Draw(bool bSelected, uint32_t Delta_Time)
             DoMouseControl();
 
             uint32_t dwOldTF;
-            m_rs->GetRenderState(D3DRS_TEXTUREFACTOR, &dwOldTF);
+            m_rs->GetRenderState(storm_render::RenderTextureFactor, &dwOldTF);
 
             if (m_bSelected)
-                m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFF808080);
+                m_rs->SetRenderState(storm_render::RenderTextureFactor, 0xFF808080);
             else
-                m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwDisableColor);
+                m_rs->SetRenderState(storm_render::RenderTextureFactor, m_dwDisableColor);
 
             if (m_idTexLine >= 0 && m_idTexSelLine >= 0)
             {
@@ -38,18 +38,18 @@ void CXI_SLIDELINE::Draw(bool bSelected, uint32_t Delta_Time)
                     m_rs->TextureSet(0, m_idTexSelLine);
                 else
                     m_rs->TextureSet(0, m_idTexLine);
-                m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2,
+                m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 0, 2,
                                     "iBlindPictures");
             }
 
             if (m_idTexPointer >= 0)
             {
                 m_rs->TextureSet(0, m_idTexPointer);
-                m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2,
+                m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONLYONETEX_VERTEX), 4, 2,
                                     "iBlindPictures");
             }
 
-            m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, dwOldTF);
+            m_rs->SetRenderState(storm_render::RenderTextureFactor, dwOldTF);
         }
     }
 }
@@ -250,7 +250,7 @@ void CXI_SLIDELINE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, con
     if (ReadIniString(ini1, name1, ini2, name2, "pointerTexture", param, sizeof(param), ""))
         m_idTexPointer = m_rs->TextureCreate(param);
 
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 8 * sizeof(XI_ONLYONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONLYONETEX_FVF, 8 * sizeof(XI_ONLYONETEX_VERTEX), storm_render::usage::writeOnly);
     if (m_idVBuf == -1)
         throw std::runtime_error("can not create the vertex buffers");
 

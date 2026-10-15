@@ -155,7 +155,7 @@ class Window
     // Picker
     bool isPikerActive;
     float pikerWait;
-    IDirect3DTexture9 *pickerTexture;
+    storm_render::Texture *pickerTexture;
     // Presets
     int32_t lastPreset;
     char prsComment[64];

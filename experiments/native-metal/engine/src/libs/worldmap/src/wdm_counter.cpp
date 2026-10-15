@@ -124,14 +124,14 @@ void WdmCounter::LRender(VDX9RENDER *rs)
 {
     // Camera matrix
     static CMatrix view, prj, oldPrj;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, oldPrj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, oldPrj);
     float scrw, scrh;
     wdmObjects->GetVPSize(scrw, scrh);
     // prj.BuildProjectionMatrix(0.1f, scrw, scrh, 10.0f, 100.0f);
     prj.BuildProjectionMatrix(0.1f, 4.0f, 3.0f, 10.0f, 100.0f);
-    rs->SetTransform(D3DTS_PROJECTION, prj);
-    rs->SetTransform(D3DTS_VIEW, CMatrix());
+    rs->SetTransform(storm_render::TransformProjection, prj);
+    rs->SetTransform(storm_render::TransformView, CMatrix());
     // Sky
     const int32_t numSkys = sizeof(skyseq) / sizeof(int32_t);
     if (dayCounter < 0)
@@ -164,7 +164,7 @@ void WdmCounter::LRender(VDX9RENDER *rs)
     sky->SetTexture(0, skyseq[one]);
     sky->SetTexture(1, skyseq[two]);
     rs->TextureSet(1, skyseq[two]);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, (static_cast<int32_t>(hr * 255.0f) << 24) | 0x00ffffff);
+    rs->SetRenderState(storm_render::RenderTextureFactor, (static_cast<int32_t>(hr * 255.0f) << 24) | 0x00ffffff);
     sky->LRender(rs);
     // Housing
     WdmRenderModel::LRender(rs);
@@ -266,8 +266,8 @@ void WdmCounter::LRender(VDX9RENDER *rs)
         kMove = 0.0f;
     low = static_cast<float>((year / 1000) % 10);
     DrawNum(rs, y[0], 0.0f, (low + kMove) * 0.1f);
-    rs->SetTransform(D3DTS_PROJECTION, oldPrj);
-    rs->SetTransform(D3DTS_VIEW, view);
+    rs->SetTransform(storm_render::TransformProjection, oldPrj);
+    rs->SetTransform(storm_render::TransformView, view);
 }
 
 bool WdmCounter::LoadModel(WdmRenderModel *&pnt, const char *name, const char *tech) const
@@ -286,12 +286,12 @@ void WdmCounter::DrawNum(VDX9RENDER *rs, WdmRenderModel *m, float u, float v)
     mtx.m[0][0] = 0.25f;
     mtx.m[2][0] = u;
     mtx.m[2][1] = v;
-    rs->SetTransform(D3DTS_TEXTURE0, mtx);
-    rs->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+    rs->SetTransform(storm_render::TransformTexture0, mtx);
+    rs->SetTextureStageState(0, storm_render::StageTextureTransform, storm_render::textureTransform::count2);
     m->LRender(rs);
     mtx.m[0][0] = 1.0f;
     mtx.m[2][0] = 0.0f;
     mtx.m[2][1] = 0.0f;
-    rs->SetTransform(D3DTS_TEXTURE0, mtx);
-    rs->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    rs->SetTransform(storm_render::TransformTexture0, mtx);
+    rs->SetTextureStageState(0, storm_render::StageTextureTransform, storm_render::textureTransform::disabled);
 }

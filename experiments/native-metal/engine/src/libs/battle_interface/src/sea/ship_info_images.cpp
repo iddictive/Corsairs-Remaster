@@ -4,7 +4,7 @@
 #include "ship_base.h"
 
 // define the vertices
-#define SPV_FORMAT (D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define SPV_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 #define MAX_SHIPINFO_DIST_IN_POW2 1000000.f
 
 ShipInfoImages::ShipInfoImages(VDX9RENDER *rs, ATTRIBUTES *pAttr)
@@ -42,20 +42,20 @@ void ShipInfoImages::Draw()
         return;
 
     CMatrix matw;
-    pRS->SetTransform(D3DTS_WORLD, matw);
+    pRS->SetTransform(storm_render::TransformWorld, matw);
 
     if (m_idRelationTexture != -1)
     {
         pRS->TextureSet(0, m_idRelationTexture);
         uint32_t previousFactor = 0;
-        pRS->GetRenderState(D3DRS_TEXTUREFACTOR, &previousFactor);
+        pRS->GetRenderState(storm_render::RenderTextureFactor, &previousFactor);
         if (pRS->TechniqueExecuteStart("battle_shippointer"))
         {
             do
             {
                 uint32_t previousColorOp = 0, previousColorArg2 = 0;
-                pRS->GetTextureStageState(0, D3DTSS_COLOROP, &previousColorOp);
-                pRS->GetTextureStageState(0, D3DTSS_COLORARG2, &previousColorArg2);
+                pRS->GetTextureStageState(0, storm_render::StageColorOp, &previousColorOp);
+                pRS->GetTextureStageState(0, storm_render::StageColorArg2, &previousColorArg2);
                 int32_t n = 0, first = 0;
                 for (auto *ship = g_ShipList.GetShipRoot(); ship; ship = ship->next)
                 {
@@ -67,13 +67,13 @@ void ShipInfoImages::Draw()
                                             first * 6, (n - first) * 2, nullptr);
                         // Tint the neutral atlas cell without losing its frame,
                         // highlights, shading, alpha mask or ordinary depth test.
-                        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFE6C663);
-                        pRS->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-                        pRS->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+                        pRS->SetRenderState(storm_render::RenderTextureFactor, 0xFFE6C663);
+                        pRS->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpModulate);
+                        pRS->SetTextureStageState(0, storm_render::StageColorArg2, storm_render::textureArg::factor);
                         pRS->DrawBuffer(m_vbRelation, sizeof(SII_VERTEX), m_ibRelation, 0, m_nShipQ * 4,
                                         n * 6, 2, nullptr);
-                        pRS->SetTextureStageState(0, D3DTSS_COLOROP, previousColorOp);
-                        pRS->SetTextureStageState(0, D3DTSS_COLORARG2, previousColorArg2);
+                        pRS->SetTextureStageState(0, storm_render::StageColorOp, previousColorOp);
+                        pRS->SetTextureStageState(0, storm_render::StageColorArg2, previousColorArg2);
                         first = n + 1;
                     }
                     ++n;
@@ -83,16 +83,16 @@ void ShipInfoImages::Draw()
                                     first * 6, (n - first) * 2, nullptr);
             } while (pRS->TechniqueExecuteNext());
         }
-        pRS->SetRenderState(D3DRS_TEXTUREFACTOR, previousFactor);
+        pRS->SetRenderState(storm_render::RenderTextureFactor, previousFactor);
     }
 
     if (m_idProgressTexture != -1)
     {
         pRS->TextureSet(0, m_idProgressTexture);
-        pRS->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+        pRS->SetRenderState(storm_render::RenderDepthWrite, FALSE);
         pRS->DrawBuffer(m_vbBackProgress, sizeof(SII_VERTEX), m_ibBackProgress, 0, m_nShipQ * 4, 0, m_nShipQ * 2,
                         "battle_shippointer");
-        pRS->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+        pRS->SetRenderState(storm_render::RenderDepthWrite, TRUE);
         pRS->DrawBuffer(m_vbProgress, sizeof(SII_VERTEX), m_ibProgress, 0, m_nShipQ * 3 * 4, 0, m_nShipQ * 3 * 2,
                         "battle_shippointer");
     }
@@ -182,11 +182,11 @@ void ShipInfoImages::CheckAndRecreateBuffers(int32_t nShipQ)
         INDEX_BUFFER_RELEASE(pRS, m_ibBackProgress);
 
         // create new buffers
-        m_vbRelation = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 4 * sizeof(SII_VERTEX), D3DUSAGE_WRITEONLY);
+        m_vbRelation = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 4 * sizeof(SII_VERTEX), storm_render::usage::writeOnly);
         m_ibRelation = pRS->CreateIndexBuffer(nShipQ * 6 * sizeof(uint16_t));
-        m_vbProgress = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 3 * 4 * sizeof(SII_VERTEX), D3DUSAGE_WRITEONLY);
+        m_vbProgress = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 3 * 4 * sizeof(SII_VERTEX), storm_render::usage::writeOnly);
         m_ibProgress = pRS->CreateIndexBuffer(nShipQ * 3 * 6 * sizeof(uint16_t));
-        m_vbBackProgress = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 4 * sizeof(SII_VERTEX), D3DUSAGE_WRITEONLY);
+        m_vbBackProgress = pRS->CreateVertexBuffer(SPV_FORMAT, nShipQ * 4 * sizeof(SII_VERTEX), storm_render::usage::writeOnly);
         m_ibBackProgress = pRS->CreateIndexBuffer(nShipQ * 6 * sizeof(uint16_t));
 
         // fill there index buffers

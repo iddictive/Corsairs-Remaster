@@ -149,9 +149,9 @@ void RAIN::GenerateRain()
     iVertexBuffer =
         rs->CreateVertexBuffer(D3DRAINVERTEX_FORMAT,
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
-                               50000u * 2 * sizeof(RAINVERTEX), D3DUSAGE_WRITEONLY);
+                               50000u * 2 * sizeof(RAINVERTEX), storm_render::usage::writeOnly);
 #else
-                               dwNumDrops * 2 * sizeof(RAINVERTEX), D3DUSAGE_WRITEONLY);
+                               dwNumDrops * 2 * sizeof(RAINVERTEX), storm_render::usage::writeOnly);
 #endif
     if (iVertexBuffer < 0)
         return;
@@ -189,9 +189,9 @@ void RAIN::GenerateRain()
     rs->UnLockVertexBuffer(iVertexBuffer);
 
     iIBSeaDrops =
-        rs->CreateIndexBuffer(NUM_SEA_DROPS * 2 * 3 * sizeof(uint16_t), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+        rs->CreateIndexBuffer(NUM_SEA_DROPS * 2 * 3 * sizeof(uint16_t), storm_render::usage::dynamic | storm_render::usage::writeOnly);
     iVBSeaDrops = rs->CreateVertexBuffer(D3DSEADROPVERTEX_FORMAT, NUM_SEA_DROPS * 4 * sizeof(SEADROPVERTEX),
-                                         D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
+                                         storm_render::usage::dynamic | storm_render::usage::writeOnly);
 
     auto *pI = static_cast<uint16_t *>(rs->LockIndexBuffer(iIBSeaDrops));
     if (pI)
@@ -269,7 +269,7 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
     static auto dwShipName = MakeHashValue("SHIP");
 
     CMatrix mView;
-    rs->GetTransform(D3DTS_VIEW, mView);
+    rs->GetTransform(storm_render::TransformView, mView);
     mView.Transposition();
 
     float fFov;
@@ -432,7 +432,7 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
     if (rs->TechniqueExecuteStart("rain_drops"))
         do
         {
-            StormMetalDrawBillboards(rs->GetD3DDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1,
+            StormMetalDrawBillboards(rs->GetNativeDevice(), aRects.data(), aRects.size(), "rain_drops", 8, 1,
                                      1.0f, rs->GetHeightDeformator());
         } while (rs->TechniqueExecuteNext());
 #else
@@ -449,11 +449,11 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
     rs->TextureSet(0, iSeaDropTex);
 
     uint32_t ambient = 0;
-    rs->GetRenderState(D3DRS_AMBIENT, &ambient);
+    rs->GetRenderState(storm_render::RenderAmbient, &ambient);
     const float illumination = static_cast<float>(std::max({(ambient >> 16) & 255u,
                                                              (ambient >> 8) & 255u, ambient & 255u})) / 255.f;
 
-    auto pVSeaDropBuffer = static_cast<SEADROPVERTEX *>(rs->LockVertexBuffer(iVBSeaDrops, D3DLOCK_DISCARD));
+    auto pVSeaDropBuffer = static_cast<SEADROPVERTEX *>(rs->LockVertexBuffer(iVBSeaDrops, storm_render::lock::discard));
     int32_t n = 0;
     if (pVSeaDropBuffer)
         for (int32_t i = 0; i < aSeaDrops.size(); i++)
@@ -511,7 +511,7 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
                 rs->DrawBuffer(iVBSeaDrops, sizeof(SEADROPVERTEX), iIBSeaDrops, 0, n * 4, 0, n * 2, "sea_rain_drops");
 
                 n = 0;
-                pVSeaDropBuffer = static_cast<SEADROPVERTEX *>(rs->LockVertexBuffer(iVBSeaDrops, D3DLOCK_DISCARD));
+                pVSeaDropBuffer = static_cast<SEADROPVERTEX *>(rs->LockVertexBuffer(iVBSeaDrops, storm_render::lock::discard));
             }
         }
 
@@ -556,7 +556,7 @@ void RAIN::Realize(uint32_t Delta_Time)
                     dwAlpha = dwRainMaxBlend;
                 dwAlpha = std::min(dwAlpha, 255u); // ARGB packs an 8-bit alpha.
                 uint32_t dwColor = ARGB(dwAlpha, dwRainR, dwRainG, dwRainB);
-                rs->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+                rs->SetRenderState(storm_render::RenderTextureFactor, dwColor);
 
                 CMatrix mY1, mX, mY2, mWorld;
 
@@ -585,9 +585,9 @@ void RAIN::Realize(uint32_t Delta_Time)
                     pRainBlocks[i].dwTime = 0;
                 }
 
-                rs->SetTransform(D3DTS_WORLD, mWorld);
+                rs->SetTransform(storm_render::TransformWorld, mWorld);
 
-                rs->DrawPrimitive(D3DPT_LINELIST, iVertexBuffer, sizeof(RAINVERTEX), 0,
+                rs->DrawPrimitive(storm_render::PrimitiveLineList, iVertexBuffer, sizeof(RAINVERTEX), 0,
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
                                   static_cast<uint32_t>(std::clamp(pWeather->GetVisualRainDrops(), 0.f, 50000.f)));
 #else
@@ -617,7 +617,7 @@ void RAIN::Realize(uint32_t Delta_Time)
         if (rs->TechniqueExecuteStart("rainbow"))
             do
             {
-                StormMetalDrawBillboards(rs->GetD3DDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f,
+                StormMetalDrawBillboards(rs->GetNativeDevice(), &rs_rect, 1, "rainbow", 1, 1, 1.0f,
                                          rs->GetHeightDeformator());
             } while (rs->TechniqueExecuteNext());
 #else

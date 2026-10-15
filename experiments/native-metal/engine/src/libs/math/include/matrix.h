@@ -5,9 +5,7 @@
 #include "c_vector.h"
 #include "math3d/matrix.h"
 
-struct _D3DMATRIX;
-typedef _D3DMATRIX D3DMATRIX;
-struct D3DXMATRIX;
+#include "render_value_types.hpp"
 
 //============================================================================================
 
@@ -166,7 +164,7 @@ class CMatrix
 #ifdef _WIN32 // for Effects (see libs/location/src/grass.cpp)
     operator D3DXMATRIX *() const;
 #endif
-    operator D3DMATRIX *() const;
+    operator storm_render::Matrix *() const;
     operator const float *() const;
 };
 
@@ -905,9 +903,9 @@ inline CMatrix::operator D3DXMATRIX *() const
 #endif
 
 // D3D extends (return (D3DMATRIX *)pointer)
-inline CMatrix::operator D3DMATRIX *() const
+inline CMatrix::operator storm_render::Matrix *() const
 {
-    return ((D3DMATRIX *)matrix);
+    return ((storm_render::Matrix *)matrix);
 };
 
 inline CMatrix::operator const float *() const

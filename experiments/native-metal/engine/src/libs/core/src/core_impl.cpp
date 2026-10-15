@@ -16,7 +16,7 @@
 Core &core = core_internal;
 
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-extern "C" void D3DPERF_SetMarker(uint32_t color, const wchar_t *name);
+#include "render_device_api.hpp"
 #endif
 
 #ifdef _WIN32
@@ -607,7 +607,7 @@ void CoreImpl::ProcessRealize()
     for (layer_index_t layer = 0; layer < layerCount; ++layer)
     {
         if (layer == INTERFACE_REALIZE)
-            D3DPERF_SetMarker(0, L"Storm.SceneHudBoundary");
+            storm_render::markSceneBoundary(storm_render::SceneBoundary::Hud);
         if (entity_manager_.IsLayerFrozen(layer) || entity_manager_.GetLayerType(layer) != layer_type_t::realize)
             continue;
         for (auto id : entity_manager_.GetEntityIds(layer))

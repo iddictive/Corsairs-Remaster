@@ -20,7 +20,7 @@ class BITextInfo final
 
     VDX9RENDER *pRS;
     std::string sText;
-    POINT pos;
+    storm_render::Point pos;
     float fScale;
     int32_t nFont;
     uint32_t dwColor;
@@ -92,14 +92,14 @@ class BIUtils
     static const char *GetStringFromAttr(ATTRIBUTES *pA, const char *name, const char *defVal);
     static int32_t GetTextureFromAttr(VDX9RENDER *rs, ATTRIBUTES *pA, const char *sAttrName);
     static bool ReadRectFromAttr(ATTRIBUTES *pA, const char *name, FRECT &rOut, FRECT &rDefault);
-    static bool ReadRectFromAttr(ATTRIBUTES *pA, const char *name, RECT &rOut, RECT &rDefault);
+    static bool ReadRectFromAttr(ATTRIBUTES *pA, const char *name, storm_render::Rect &rOut, storm_render::Rect &rDefault);
     static bool ReadPosFromAttr(ATTRIBUTES *pA, const char *name, float &fX, float &fY, float fXDef, float fYDef);
     static bool ReadPosFromAttr(ATTRIBUTES *pA, const char *name, int32_t &nX, int32_t &nY, int32_t nXDef, int32_t nYDef);
     static int32_t GetAlignmentFromAttr(ATTRIBUTES *pA, const char *name, int32_t nDefAlign);
     static int32_t GetFontIDFromAttr(ATTRIBUTES *pA, const char *name, VDX9RENDER *rs, const char *pcDefFontName);
     static bool ReadVectorFormAttr(ATTRIBUTES *pA, const char *name, CVECTOR &vOut, const CVECTOR &vDef);
 
-    static bool ComparePoint(POINT &p1, POINT &p2);
+    static bool ComparePoint(storm_render::Point &p1, storm_render::Point &p2);
 
     static ATTRIBUTES *GetAttributesFromPath(ATTRIBUTES *pA, ...);
 

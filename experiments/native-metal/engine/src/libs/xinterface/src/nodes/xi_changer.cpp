@@ -14,7 +14,7 @@ CXI_CHANGER::CXI_CHANGER()
     m_yOffset = 0.f;
 
     m_idBackTex = -1;
-    IDirect3DTexture9 *m_pTex = nullptr;
+    storm_render::Texture *m_pTex = nullptr;
 
     m_bClickable = true;
     m_nNodeType = NODETYPE_CHANGER;
@@ -56,16 +56,16 @@ void CXI_CHANGER::Draw(bool bSelected, uint32_t Delta_Time)
         if (m_idBackTex >= 0)
         {
             m_rs->TextureSet(0, m_idBackTex);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, &m_pTexVert[4], sizeof(XI_ONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, &m_pTexVert[4], sizeof(XI_ONETEX_VERTEX),
                                   "iGlow");
         }
         else
         {
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, &m_pTexVert[4], sizeof(XI_ONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, &m_pTexVert[4], sizeof(XI_ONETEX_VERTEX),
                                   "iRectangle");
         }
         m_rs->SetTexture(0, m_pTex ? m_pTex->m_pTexture : nullptr);
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX), "iChanger");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_pTexVert, sizeof(XI_ONETEX_VERTEX), "iChanger");
     }
 }
 

@@ -151,7 +151,7 @@ void CXI_SCROLLIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
         if (m_bShowBorder /*&& !m_bLockStatus*/ && m_nShowOrder < 0)
         {
             m_rs->TextureSet(0, m_texBorder);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
                                   "iScrollImages_border");
         }
 
@@ -251,12 +251,12 @@ void CXI_SCROLLIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
                     v[0].color = v[1].color = v[2].color = v[3].color = m_dwNormalColor[n];
                 if (m_Image[pScroll->imageNum].slots[n].useSpecTechnique)
                 {
-                    m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwSpecTechniqueARGB);
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->SetRenderState(storm_render::RenderTextureFactor, m_dwSpecTechniqueARGB);
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX),
                                           m_sSpecTechniqueName);
                 }
                 else
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, v, sizeof(XI_ONETEX_VERTEX),
                                           "iScrollImages_main");
 
                 pScroll = pScroll->next;
@@ -318,7 +318,7 @@ void CXI_SCROLLIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
             {
                 // show select border
                 m_rs->TextureSet(0, m_texBorder);
-                m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
+                m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
                                       "iScrollImages_border");
                 bDoShowBorder = true;
             }
@@ -328,7 +328,7 @@ void CXI_SCROLLIMAGE::Draw(bool bSelected, uint32_t Delta_Time)
         {
             // show select border
             m_rs->TextureSet(0, m_texBorder);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
                                   "iScrollImages_border");
         }
     }

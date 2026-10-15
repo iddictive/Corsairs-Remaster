@@ -78,7 +78,7 @@ void CXI_IMGCOLLECTION::AddImage(const char *pcPicName, uint32_t dwColor, XYRECT
     nVert = m_aEditInfo.size() * 4;
     nIndx = m_aEditInfo.size() * 6;
     // Create vertex and index buffers
-    vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
     iBuf = m_rs->CreateIndexBuffer(nIndx * 2);
     nIndx /= 3;
 
@@ -122,7 +122,7 @@ void CXI_IMGCOLLECTION::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2,
     // Create vertex and index buffers
     if (nVert && nIndx)
     {
-        vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+        vBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
         iBuf = m_rs->CreateIndexBuffer(nIndx * 2);
         nIndx /= 3;
 

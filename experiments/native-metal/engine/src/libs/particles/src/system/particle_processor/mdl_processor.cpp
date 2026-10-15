@@ -295,7 +295,7 @@ void ModelProcessor::Draw()
     {
         const auto pR = Particles[j];
 
-        pMasterManager->Render()->SetTransform(D3DTS_WORLD, Matrix(pR->RenderAngle, pR->RenderPos));
+        pMasterManager->Render()->SetTransform(storm_render::TransformWorld, Matrix(pR->RenderAngle, pR->RenderPos));
         pR->pScene->Draw(nullptr, 0, nullptr);
     }
 

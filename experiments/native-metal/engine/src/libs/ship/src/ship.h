@@ -260,7 +260,7 @@ class SHIP : public SHIP_BASE
     // inherit functions SHIP_BASE
     bool bSetLightAndFog;
     uint32_t dwSaveAmbient, dwSaveFogColor;
-    D3DLIGHT9 saveLight;
+    storm_render::Light saveLight;
 
     void SetLightAndFog(bool bSetLight) override;
     void RestoreLightAndFog() override;

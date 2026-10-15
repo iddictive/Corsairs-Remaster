@@ -8,7 +8,7 @@
 
 #include "plane.h"
 #include "vector4.h"
-#include <d3d9.h>
+#include "render_device_api.hpp"
 
 //============================================================================================
 
@@ -237,7 +237,7 @@ class Matrix
     float &operator()(int32_t i, int32_t j);
 
     // Get a pointer to a D3D matrix
-    operator D3DMATRIX *() const;
+    operator storm_render::Matrix *() const;
 
     // Get a vector for calculating the X component
     Vector4 GetVectorX() const;
@@ -1478,9 +1478,9 @@ inline float &Matrix::operator()(int32_t i, int32_t j)
 }
 
 // Get a pointer to a D3D matrix
-inline Matrix::operator D3DMATRIX *() const
+inline Matrix::operator storm_render::Matrix *() const
 {
-    return ((D3DMATRIX *)matrix);
+    return ((storm_render::Matrix *)matrix);
 }
 
 // Get a vector for calculating the X component

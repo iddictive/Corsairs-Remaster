@@ -15,6 +15,11 @@ struct SRSPARAM
         this->cName = strdup(cName);
         this->dwCode = dwCode;
     }
+
+    SRSPARAM(const char *cName, storm_render::VertexSemantic usage)
+        : SRSPARAM(cName, static_cast<uint32_t>(usage))
+    {
+    }
 };
 
 struct pass_t
@@ -50,10 +55,10 @@ struct shader_t // pixel/vertex shader structure
     uint32_t dwHashName; // hash code for shader name
     uint32_t dwShaderType;
 
-    D3DVERTEXELEMENT9 *pDecl; // declarations for vertex shader
-    IDirect3DVertexDeclaration9 *pVertexDecl;
-    IDirect3DVertexShader9 *pVertexShader;
-    IDirect3DPixelShader9 *pPixelShader;
+    storm_render::VertexElement *pDecl; // declarations for vertex shader
+    storm_render::VertexLayout *pVertexDecl;
+    storm_render::Program *pVertexShader;
+    storm_render::Program *pPixelShader;
     uint32_t dwDeclSize;
     // uint32_t	dwShaderHandle;		// shader handle
 };
@@ -75,7 +80,7 @@ class CTechnique
 {
   protected:
     VDX9RENDER *pRS;
-    IDirect3DDevice9 *d3d9;
+    storm_render::Device *d3d9;
 
     // shaders
     uint32_t dwNumShaders;

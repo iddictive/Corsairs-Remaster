@@ -5,7 +5,7 @@
 
 #include "../xdefines.h"
 
-#define HCHOOSER_FVF (D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define HCHOOSER_FVF (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct HCHOOSER_VERTEX
 {
@@ -161,18 +161,18 @@ void HELPCHOOSER::Realize(uint32_t Delta_Time) const
     if (m_idBackTexture != -1)
     {
         rs->TextureSet(0, m_idBackTexture);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(HCHOOSER_VERTEX), 0, 8, "iHelpChooser");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(HCHOOSER_VERTEX), 0, 8, "iHelpChooser");
     }
     if (m_idPicTexture != -1)
     {
         rs->TextureSet(0, m_idPicTexture);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(HCHOOSER_VERTEX), 10, 2, "iHelpChooser");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(HCHOOSER_VERTEX), 10, 2, "iHelpChooser");
     }
 
     if (m_idMouseTexture != -1)
     {
         rs->TextureSet(0, m_idMouseTexture);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(HCHOOSER_VERTEX), 14, 2, "iHelpChooser");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(HCHOOSER_VERTEX), 14, 2, "iHelpChooser");
     }
 }
 
@@ -227,9 +227,9 @@ bool HELPCHOOSER::RunChooser(const char *ChooserGroup)
     texHeight = ini->GetFloat(ChooserGroup, "TextureHeight", 512.f);
 
     // Get the size of the output surface (window size)
-    IDirect3DSurface9 *pRenderTarget;
+    storm_render::Surface *pRenderTarget;
     rs->GetRenderTarget(&pRenderTarget);
-    D3DSURFACE_DESC dscrSurface;
+    storm_render::SurfaceDesc dscrSurface;
     pRenderTarget->GetDesc(&dscrSurface);
     m_fScreenWidth = static_cast<float>(dscrSurface.Width);
     m_fScreenHeight = static_cast<float>(dscrSurface.Height);
@@ -307,7 +307,7 @@ bool HELPCHOOSER::RunChooser(const char *ChooserGroup)
             m_idMouseTexture = rs->TextureCreate(param);
 
     // create a vertex buffer
-    m_idVBuf = rs->CreateVertexBuffer(HCHOOSER_FVF, 18 * sizeof(HCHOOSER_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = rs->CreateVertexBuffer(HCHOOSER_FVF, 18 * sizeof(HCHOOSER_VERTEX), storm_render::usage::writeOnly);
     if (m_idVBuf == -1)
         core.Trace("WARNING! Can`t create vertex buffer for help chooser");
     else

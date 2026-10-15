@@ -27,7 +27,7 @@ class Grass : public Entity
 {
 #ifdef _WIN32 // Effects
     static inline ID3DXEffect *fx_;
-    static inline IDirect3DVertexDeclaration9 *vertexDecl_;
+    static inline storm_render::VertexLayout *vertexDecl_;
     static inline D3DXHANDLE hgVP_;
     static inline D3DXHANDLE haAngles_;
     static inline D3DXHANDLE haUV_;
@@ -38,7 +38,7 @@ class Grass : public Entity
     static inline D3DXHANDLE hfDataScale_;
     static inline D3DXHANDLE haSize_;
 #else
-    static inline IDirect3DVertexDeclaration9 *vertexDecl_;
+    static inline storm_render::VertexLayout *vertexDecl_;
 #endif
 
 #pragma pack(push, 1)

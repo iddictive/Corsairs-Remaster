@@ -142,7 +142,7 @@ BOOL TOUCH::IsIntersectShipsRects(int32_t idx1, int32_t idx2)
 }
 
 CVECTOR TOUCH::GetPoint(float x, float y, float xx, float yy, float xscale, float yscale, float fCos, float fSin,
-                        POINT ss)
+                        storm_render::Point ss)
 {
     CVECTOR vPos;
     vPos.x = xscale * xx;
@@ -171,7 +171,7 @@ void TOUCH::DrawShips()
 {
     int32_t i, j;
     CVECTOR p1, p2;
-    POINT ss;
+    storm_render::Point ss;
     std::vector<RS_LINE2D> aLines;
 
     ss.x = 800;

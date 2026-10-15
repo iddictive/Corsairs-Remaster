@@ -309,7 +309,7 @@ void LegacyDialog::LoadIni()
 
 void LegacyDialog::UpdateScreenSize()
 {
-    D3DVIEWPORT9 viewport;
+    storm_render::Viewport viewport;
     RenderService->GetViewport(&viewport);
     const auto screenSize = core.GetScreenSize();
 
@@ -338,7 +338,7 @@ void LegacyDialog::CreateBackBuffers()
     constexpr auto index_count = SPRITE_COUNT * 6;
 
     backVertexBuffer_ =
-        RenderService->CreateVertexBuffer(XI_TEX_FVF, vertex_count * sizeof(XI_TEX_VERTEX), D3DUSAGE_WRITEONLY);
+        RenderService->CreateVertexBuffer(XI_TEX_FVF, vertex_count * sizeof(XI_TEX_VERTEX), storm_render::usage::writeOnly);
 
     backIndexBuffer_ = RenderService->CreateIndexBuffer(index_count * sizeof(uint16_t));
     FillIndexBuffer(*RenderService, backIndexBuffer_, SPRITE_COUNT);
@@ -527,25 +527,25 @@ void LegacyDialog::DrawHeadModel(uint32_t deltaTime)
 {
     if (headModel_ != invalid_entity)
     {
-        D3DVIEWPORT9 viewport;
+        storm_render::Viewport viewport;
         RenderService->GetViewport(&viewport);
 
         CMatrix mtx, view, prj;
         uint32_t lightingState, zenableState;
         uint32_t zWriteState{};
-        RenderService->GetTransform(D3DTS_VIEW, view);
-        RenderService->GetTransform(D3DTS_PROJECTION, prj);
-        RenderService->GetRenderState(D3DRS_LIGHTING, &lightingState);
-        RenderService->GetRenderState(D3DRS_ZENABLE, &zenableState);
-        RenderService->GetRenderState(D3DRS_ZWRITEENABLE, &zWriteState);
+        RenderService->GetTransform(storm_render::TransformView, view);
+        RenderService->GetTransform(storm_render::TransformProjection, prj);
+        RenderService->GetRenderState(storm_render::RenderLighting, &lightingState);
+        RenderService->GetRenderState(storm_render::RenderDepthTest, &zenableState);
+        RenderService->GetRenderState(storm_render::RenderDepthWrite, &zWriteState);
 
         mtx.BuildViewMatrix(CVECTOR(0.0f, 0.0f, 0.0f), CVECTOR(0.0f, 0.0f, 1.0f), CVECTOR(0.0f, 1.0f, 0.0f));
-        RenderService->SetTransform(D3DTS_VIEW, (D3DMATRIX *)&mtx);
+        RenderService->SetTransform(storm_render::TransformView, (storm_render::Matrix *)&mtx);
 
         mtx.BuildProjectionMatrix(PId2 - 1.49f, screenScale_.x * 116, screenScale_.y * 158, 1.0f, 10.0f);
-        RenderService->SetTransform(D3DTS_PROJECTION, (D3DMATRIX *)&mtx);
+        RenderService->SetTransform(storm_render::TransformProjection, (storm_render::Matrix *)&mtx);
 
-        D3DVIEWPORT9 headViewport{};
+        storm_render::Viewport headViewport{};
         headViewport.X = static_cast<int32_t>(screenScale_.x * 31);
         headViewport.Y = static_cast<int32_t>(screenScale_.y * 28);
         headViewport.Width = static_cast<int32_t>(screenScale_.x * 115);
@@ -554,18 +554,18 @@ void LegacyDialog::DrawHeadModel(uint32_t deltaTime)
         headViewport.MaxZ = 1.0f;
 
         RenderService->SetViewport(&headViewport);
-        RenderService->Clear(0, 0, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-        RenderService->SetRenderState(D3DRS_LIGHTING, TRUE);
-        RenderService->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
-        RenderService->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+        RenderService->Clear(storm_render::clear::depth, 0, 1.0f);
+        RenderService->SetRenderState(storm_render::RenderLighting, TRUE);
+        RenderService->SetRenderState(storm_render::RenderDepthTest, storm_render::DepthEnabled);
+        RenderService->SetRenderState(storm_render::RenderDepthWrite, TRUE);
 
-        D3DLIGHT9 oldLight{};
+        storm_render::Light oldLight{};
         BOOL oldLightEnabled = FALSE;
         RenderService->GetLight(0, &oldLight);
         RenderService->GetLightEnable(0, &oldLightEnabled);
 
-        D3DLIGHT9 headLight{};
-        headLight.Type = D3DLIGHT_DIRECTIONAL;
+        storm_render::Light headLight{};
+        headLight.Type = storm_render::LightKind::Directional;
         headLight.Diffuse.r = 1.f;
         headLight.Diffuse.g = 1.f;
         headLight.Diffuse.b = 1.f;
@@ -581,12 +581,12 @@ void LegacyDialog::DrawHeadModel(uint32_t deltaTime)
 
         RenderService->SetLight(0, &oldLight);
         RenderService->LightEnable(0, oldLightEnabled);
-        RenderService->SetTransform(D3DTS_VIEW, (D3DMATRIX *)&view);
-        RenderService->SetTransform(D3DTS_PROJECTION, (D3DMATRIX *)&prj);
+        RenderService->SetTransform(storm_render::TransformView, (storm_render::Matrix *)&view);
+        RenderService->SetTransform(storm_render::TransformProjection, (storm_render::Matrix *)&prj);
         RenderService->SetViewport(&viewport);
-        RenderService->SetRenderState(D3DRS_LIGHTING, lightingState);
-        RenderService->SetRenderState(D3DRS_ZENABLE, zenableState);
-        RenderService->SetRenderState(D3DRS_ZWRITEENABLE, zWriteState);
+        RenderService->SetRenderState(storm_render::RenderLighting, lightingState);
+        RenderService->SetRenderState(storm_render::RenderDepthTest, zenableState);
+        RenderService->SetRenderState(storm_render::RenderDepthWrite, zWriteState);
     }
 }
 
@@ -596,7 +596,7 @@ void LegacyDialog::UpdateLinks()
 
     const auto oldHeight = linkDescribe_.GetShowHeight();
 
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     RenderService->GetViewport(&vp);
 
     const auto text_width_limit = static_cast<int32_t>(570.f * (vp.Width / 640.f));
@@ -630,7 +630,7 @@ void LegacyDialog::UpdateDialogText()
     formattedDialogText_.clear();
     if (!dialogText_.empty())
     {
-        D3DVIEWPORT9 vp;
+        storm_render::Viewport vp;
         RenderService->GetViewport(&vp);
 
         const int32_t text_width_limit = static_cast<int32_t>(570.f * (vp.Width / 640.f));

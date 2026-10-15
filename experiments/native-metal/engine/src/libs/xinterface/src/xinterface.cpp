@@ -334,25 +334,25 @@ void XINTERFACE::Realize(uint32_t)
     if (!m_bUse || !bActive)
         return;
 
-    pRenderService->MakePostProcess();
+    pRenderService->FinalizeSceneEffects();
 
     auto Delta_Time = core.GetRDeltaTime();
 
     CMatrix moldv, moldp, moldw;
 
     uint32_t dwFogFlag;
-    pRenderService->GetRenderState(D3DRS_FOGENABLE, &dwFogFlag);
+    pRenderService->GetRenderState(storm_render::RenderFog, &dwFogFlag);
     if (pRenderService->TechniqueExecuteStart("iStartTechnique"))
         while (pRenderService->TechniqueExecuteNext())
             ;
 
     // Get old transformation
-    pRenderService->GetTransform(D3DTS_VIEW, moldv);
-    pRenderService->GetTransform(D3DTS_PROJECTION, moldp);
+    pRenderService->GetTransform(storm_render::TransformView, moldv);
+    pRenderService->GetTransform(storm_render::TransformProjection, moldp);
     // Set new transformation
-    pRenderService->SetTransform(D3DTS_WORLD, matw);
-    pRenderService->SetTransform(D3DTS_VIEW, matv);
-    pRenderService->SetTransform(D3DTS_PROJECTION, matp);
+    pRenderService->SetTransform(storm_render::TransformWorld, matw);
+    pRenderService->SetTransform(storm_render::TransformView, matv);
+    pRenderService->SetTransform(storm_render::TransformProjection, matp);
 
     DrawNode(m_pNodes, Delta_Time, 0, 80);
 
@@ -370,7 +370,7 @@ void XINTERFACE::Realize(uint32_t)
         pV[i].pos.z = 1.f;
     auto *pImg = m_imgLists;
     uint32_t oldTFactor;
-    pRenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &oldTFactor);
+    pRenderService->GetRenderState(storm_render::RenderTextureFactor, &oldTFactor);
     while (pImg != nullptr)
     {
         if (pImg->idTexture != -1 && pImg->imageID != -1)
@@ -388,24 +388,24 @@ void XINTERFACE::Realize(uint32_t)
             pV[2].tv = pV[3].tv = frect.bottom;
             if (pImg->doBlind)
             {
-                pRenderService->SetRenderState(D3DRS_TEXTUREFACTOR,
+                pRenderService->SetRenderState(storm_render::RenderTextureFactor,
                                                GetBlendColor(pImg->argbBlindMin, pImg->argbBlindMax, m_fBlindFactor));
-                pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV,
+                pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV,
                                                 sizeof(XI_ONLYONETEX_VERTEX), "iBlindPictures");
             }
             else
             {
                 if (pImg->sTechniqueName == nullptr)
-                    pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV,
+                    pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV,
                                                     sizeof(XI_ONLYONETEX_VERTEX), "iDinamicPictures");
                 else
-                    pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV,
+                    pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV,
                                                     sizeof(XI_ONLYONETEX_VERTEX), pImg->sTechniqueName);
             }
         }
         pImg = pImg->next;
     }
-    pRenderService->SetRenderState(D3DRS_TEXTUREFACTOR, oldTFactor);
+    pRenderService->SetRenderState(storm_render::RenderTextureFactor, oldTFactor);
 
     DrawNode(m_pNodes, Delta_Time, 81, 90);
 
@@ -439,7 +439,7 @@ void XINTERFACE::Realize(uint32_t)
     if (m_bShowMouse)
     {
         pRenderService->TextureSet(0, m_idTex);
-        pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, vMouse, sizeof(XI_ONLYONETEX_VERTEX),
+        pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, vMouse, sizeof(XI_ONLYONETEX_VERTEX),
                                         "iMouseCurShow");
     }
 
@@ -449,11 +449,11 @@ void XINTERFACE::Realize(uint32_t)
     if (pRenderService->TechniqueExecuteStart("iExitTechnique"))
         while (pRenderService->TechniqueExecuteNext())
             ;
-    pRenderService->SetRenderState(D3DRS_FOGENABLE, dwFogFlag);
+    pRenderService->SetRenderState(storm_render::RenderFog, dwFogFlag);
 
     // Restore old transformation
-    pRenderService->SetTransform(D3DTS_VIEW, moldv);
-    pRenderService->SetTransform(D3DTS_PROJECTION, moldp);
+    pRenderService->SetTransform(storm_render::TransformView, moldv);
+    pRenderService->SetTransform(storm_render::TransformProjection, moldp);
 }
 
 int32_t oldCurNum = -1L;
@@ -1162,7 +1162,7 @@ void XINTERFACE::LoadIni()
     m_nMouseLastClickTimeMax = ini->GetInt(section, "mouseDblClickInterval", 300);
 
     CMatrix oldmatp;
-    pRenderService->GetTransform(D3DTS_PROJECTION, (D3DMATRIX *)&oldmatp);
+    pRenderService->GetTransform(storm_render::TransformProjection, (storm_render::Matrix *)&oldmatp);
     GlobalRect.left = GlobalScreenRect.left;
     GlobalRect.top = GlobalScreenRect.top;
     GlobalRect.right = GlobalScreenRect.right;
@@ -2578,13 +2578,13 @@ void XINTERFACE::ShowPrevTexture()
     }
 
     pRenderService->SetTexture(0, m_pPrevTexture);
-    pRenderService->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
-    pRenderService->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    pRenderService->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    pRenderService->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-    pRenderService->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-    pRenderService->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
-    pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 30, pV, sizeof(XI_ONETEX_VERTEX));
+    pRenderService->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg2);
+    pRenderService->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::current);
+    pRenderService->SetTextureStageState(0, storm_render::StageColorArg2, storm_render::textureArg::texture);
+    pRenderService->SetTextureStageState(0, storm_render::StageAlphaOp, storm_render::TextureOpModulate);
+    pRenderService->SetTextureStageState(0, storm_render::StageAlphaArg1, storm_render::textureArg::texture);
+    pRenderService->SetTextureStageState(0, storm_render::StageAlphaArg2, storm_render::textureArg::current);
+    pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 30, pV, sizeof(XI_ONETEX_VERTEX));
 }
 
 void XINTERFACE::ReleaseOld()
@@ -2743,9 +2743,9 @@ bool XINTERFACE::SFLB_DoSaveFileData(const char *saveName, const char *saveData)
     if (textureId == -1)
         return false;
 
-    auto *pTex = static_cast<IDirect3DTexture9 *>(pRenderService->GetTextureFromID(textureId));
+    auto *pTex = static_cast<storm_render::Texture *>(pRenderService->GetTextureFromID(textureId));
 
-    D3DSURFACE_DESC dscr;
+    storm_render::SurfaceDesc dscr;
     pTex->GetLevelDesc(0, &dscr);
 
     auto pdat = static_cast<char *>(malloc(sizeof(SAVE_DATA_HANDLE) + slen));
@@ -2761,8 +2761,8 @@ bool XINTERFACE::SFLB_DoSaveFileData(const char *saveName, const char *saveData)
     int32_t ssize = 0;
     if (dscr.Height > 0)
     {
-        D3DLOCKED_RECT lockRect;
-        if (pTex->LockRect(0, &lockRect, nullptr, 0) == D3D_OK)
+        storm_render::LockedRect lockRect;
+        if (pTex->LockRect(0, &lockRect, nullptr, 0) == storm_render::result::ok)
         {
             ssize = lockRect.Pitch * dscr.Height;
             pdat = static_cast<char *>(realloc(pdat, sizeof(SAVE_DATA_HANDLE) + slen + ssize));
@@ -3345,7 +3345,7 @@ void XINTERFACE::ShowContextHelp()
         pV[i].pos.z = 1.f;
 
     uint32_t oldTFactor;
-    pRenderService->GetRenderState(D3DRS_TEXTUREFACTOR, &oldTFactor);
+    pRenderService->GetRenderState(storm_render::RenderTextureFactor, &oldTFactor);
 
     pRenderService->TextureSet(0, m_idHelpTexture);
 
@@ -3361,10 +3361,10 @@ void XINTERFACE::ShowContextHelp()
     pV[2].pos.y = pV[3].pos.y = static_cast<float>(dwScreenHeight); //(float)GlobalRect.bottom;
     pV[2].tv = pV[3].tv = m_frectHelpTextureUV.bottom;
 
-    pRenderService->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwContHelpColor);
-    pRenderService->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
+    pRenderService->SetRenderState(storm_render::RenderTextureFactor, m_dwContHelpColor);
+    pRenderService->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONLYONETEX_FVF, 2, pV, sizeof(XI_ONLYONETEX_VERTEX),
                                     "iBlindPictures");
-    pRenderService->SetRenderState(D3DRS_TEXTUREFACTOR, oldTFactor);
+    pRenderService->SetRenderState(storm_render::RenderTextureFactor, oldTFactor);
 }
 
 int XINTERFACE::LoadIsExist()

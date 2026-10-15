@@ -17,7 +17,7 @@ class Shadow : public Entity
     uint32_t blendValue;
 
   public:
-#define SHADOW_FVF (D3DFVF_XYZ | D3DFVF_TEXTUREFORMAT2 | D3DFVF_TEX1)
+#define SHADOW_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::texCoord2 | storm_render::vertexFormat::tex1)
 
     struct SHADOW_VERTEX
     {

@@ -162,7 +162,7 @@ class BATTLE_NAVIGATOR
     int32_t m_idPowderTexture{-1}; // current gunpowder
     int32_t m_idWindTexture{-1};   // wind speed
     int32_t m_idSailTexture{-1};   // sail position / ship speed
-    IDirect3DTexture9 *m_pIslandTexture{};
+    storm_render::Texture *m_pIslandTexture{};
 
     uint32_t m_dwSeaColor{};                 // color of the sea on the minimap
     uint32_t m_dwFireZoneColor = 0x20FF0050; // color of the fire zone on the minimap
@@ -203,26 +203,26 @@ class BATTLE_NAVIGATOR
     ATTRIBUTES *m_pAWeather{};
 
     // icon of the current cannon charge type
-    POINT m_ChargeGreed{};
-    POINT m_ChargePos{};
-    POINT m_ChargeSize{};
+    storm_render::Point m_ChargeGreed{};
+    storm_render::Point m_ChargePos{};
+    storm_render::Point m_ChargeSize{};
     int32_t m_curCharge{-1};
     // gunpowder icon
-    POINT m_PowderGreed{};
-    POINT m_PowderPos{};
-    POINT m_PowderSize{};
+    storm_render::Point m_PowderGreed{};
+    storm_render::Point m_PowderPos{};
+    storm_render::Point m_PowderSize{};
     int32_t m_curPowder{};
     bool m_bPowderRunOut{}; // for blinking
     // wind icon
     int32_t m_curWindPic{};
-    POINT m_WindGreed{};
-    POINT m_WindPos{};
-    POINT m_WindSize{};
+    storm_render::Point m_WindGreed{};
+    storm_render::Point m_WindPos{};
+    storm_render::Point m_WindSize{};
     // sail position icon
     int32_t m_curSailState{};
-    POINT m_SailGreed{};
-    POINT m_SailPos{};
-    POINT m_SailSize{};
+    storm_render::Point m_SailGreed{};
+    storm_render::Point m_SailPos{};
+    storm_render::Point m_SailSize{};
 
     float m_fFontScale{};
 

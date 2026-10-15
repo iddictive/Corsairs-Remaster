@@ -8,7 +8,7 @@ IVBufferManager::IVBufferManager(VDX9RENDER *renderer_, int32_t vertex_type, int
     : renderer_(renderer_), max_size_(max_size),
       index_buffer_(renderer_->CreateIndexBuffer(max_size * index_count * sizeof(uint16_t))),
       vertex_buffer_(
-          renderer_->CreateVertexBuffer(vertex_type, max_size * vertex_count * vertex_size, D3DUSAGE_WRITEONLY)),
+          renderer_->CreateVertexBuffer(vertex_type, max_size * vertex_count * vertex_size, storm_render::usage::writeOnly)),
       vertex_type_(vertex_type), vertex_size_(vertex_size), index_count_(index_count), vertex_count_(vertex_count),
       actual_size_(0), locked_(false), indexes_(nullptr), vertices_(nullptr)
 {

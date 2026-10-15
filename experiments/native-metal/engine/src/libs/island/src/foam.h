@@ -123,7 +123,7 @@ class CoastFoam : public Entity
 
     VDX9RENDER *rs;
 
-    void ExtractRay(const D3DVIEWPORT9 &viewport, float fCursorX, float fCursorY, CVECTOR &raystart, CVECTOR &rayend);
+    void ExtractRay(const storm_render::Viewport &viewport, float fCursorX, float fCursorY, CVECTOR &raystart, CVECTOR &rayend);
 
     bool IsClipped(Foam *pF);
 

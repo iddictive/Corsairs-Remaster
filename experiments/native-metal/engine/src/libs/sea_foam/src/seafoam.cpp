@@ -675,7 +675,7 @@ void SEAFOAM::Realize(uint32_t _dTime)
     }
 
     static CMatrix wMatrix;
-    renderer->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(wMatrix));
+    renderer->SetTransform(storm_render::TransformWorld, static_cast<storm_render::Matrix *>(wMatrix));
 
     renderer->TextureSet(0, carcassTexture);
     const auto techniqueStarted = renderer->TechniqueExecuteStart("new_seafoam");

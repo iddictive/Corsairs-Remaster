@@ -53,7 +53,7 @@ void BATTLE_LAND_INTERFACE::Realize(uint32_t delta_time)
 {
     if (m_bShowCommandos)
     {
-        m_pRS->MakePostProcess();
+        m_pRS->FinalizeSceneEffects();
         if (m_pManSign)
             m_pManSign->Draw();
 

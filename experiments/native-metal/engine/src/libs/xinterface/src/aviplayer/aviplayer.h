@@ -9,7 +9,7 @@
 #include <ddraw.h>
 #endif
 
-#define XI_AVIVIDEO_FVF (D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define XI_AVIVIDEO_FVF (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct XI_AVIVIDEO_VERTEX
 {
@@ -53,7 +53,7 @@ class CAviPlayer : public xiBaseVideo
         m_bShowVideo = bShowVideo;
     }
 
-    IDirect3DTexture9 *GetCurrentVideoTexture() override
+    storm_render::Texture *GetCurrentVideoTexture() override
     {
         return pTex;
     }
@@ -78,13 +78,13 @@ class CAviPlayer : public xiBaseVideo
     float nativeAspect{1.f};
 #endif
 
-    POINT dstPnt;
-    RECT lockRect;
+    storm_render::Point dstPnt;
+    storm_render::Rect lockRect;
 
     XI_AVIVIDEO_VERTEX v[4];
 
-    IDirect3DSurface9 *pTmpRenderTarget;
-    IDirect3DTexture9 *pTex;
+    storm_render::Surface *pTmpRenderTarget;
+    storm_render::Texture *pTex;
 
     void ReleaseAll();
     bool PlayMedia(const char *fileName);

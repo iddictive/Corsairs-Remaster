@@ -209,7 +209,7 @@ void WdmInterfaceObject::FillRectColor(Vertex *vrt, uint32_t color)
 // Draw buffer of rectangles
 void WdmInterfaceObject::DrawRects(Vertex *vrt, int32_t numRects, const char *techName)
 {
-    wdmObjects->rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2, numRects * 2, vrt,
+    wdmObjects->rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex2, numRects * 2, vrt,
                                     sizeof(Vertex), techName);
 }
 

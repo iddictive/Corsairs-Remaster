@@ -7,7 +7,7 @@
 
 class NODE;
 
-#define ROPEVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define ROPEVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct ROPEVERTEX
 {

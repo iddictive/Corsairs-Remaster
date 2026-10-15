@@ -133,8 +133,8 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
   return {};
  }
  bool hasTraversalSunSnapshot()const{return traversalSunSnapshot().valid;}
- void captureTraversalSun(const D3DLIGHT9&light){
-  if(locationActive||traversalFrameSun.valid||light.Type!=D3DLIGHT_DIRECTIONAL)return;
+ void captureTraversalSun(const storm_render::Light&light){
+  if(locationActive||traversalFrameSun.valid||light.Type!=storm_render::LightKind::Directional)return;
   const simd_float3 direction={light.Direction.x,light.Direction.y,light.Direction.z};
   const simd_float4 diffuse={light.Diffuse.r,light.Diffuse.g,light.Diffuse.b,light.Diffuse.a};
   if(!std::isfinite(direction.x)||!std::isfinite(direction.y)||!std::isfinite(direction.z)||

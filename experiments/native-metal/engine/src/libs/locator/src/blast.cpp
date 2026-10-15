@@ -247,7 +247,7 @@ void BLAST::Realize(uint32_t Delta_Time)
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(hullChipMode){gs->SetTechnique("");for(auto&item:Item)if(item.chip.alive&&item.geo){auto&c=item.chip;
         Center.BuildMatrix(CVECTOR(c.angles.x,c.angles.y,c.angles.z),CVECTOR(c.position.x,c.position.y,c.position.z));for(unsigned row=0;row<3;row++)for(unsigned col=0;col<3;col++)Center.m[row][col]*=item.chipScale;
-        rs->SetTransform(D3DTS_WORLD,Center);item.geo->Draw((GEOS::PLANE*)rs->GetPlanes(),0,nullptr);}return;}
+        rs->SetTransform(storm_render::TransformWorld,Center);item.geo->Draw((GEOS::PLANE*)rs->GetPlanes(),0,nullptr);}return;}
 #endif
     uint32_t n;
 
@@ -262,7 +262,7 @@ void BLAST::Realize(uint32_t Delta_Time)
         if (Item[n].geo)
         {
             Center.BuildMatrix(Item[n].ang, Item[n].pos);
-            rs->SetTransform(D3DTS_WORLD, Center);
+            rs->SetTransform(storm_render::TransformWorld, Center);
             Item[n].geo->Draw((GEOS::PLANE *)rs->GetPlanes(), 0, nullptr);
         }
     }

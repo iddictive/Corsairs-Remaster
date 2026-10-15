@@ -54,9 +54,9 @@ void NoiseCloud::EnsureBuffers(VDX9RENDER *rs)
     if (vertexBuffer >= 0 && indexBuffer >= 0)
         return;
     renderer = rs;
-    vertexBuffer = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    vertexBuffer = rs->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            64 * 4 * sizeof(Vertex),
-                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+                                           storm_render::usage::writeOnly | storm_render::usage::dynamic);
     indexBuffer = rs->CreateIndexBuffer(64 * 6 * sizeof(uint16_t));
     auto *indices = static_cast<uint16_t *>(rs->LockIndexBuffer(indexBuffer));
     for (int32_t i = 0; i < 64; ++i)
@@ -154,13 +154,13 @@ void NoiseCloud::Draw(VDX9RENDER *rs)
     if (rs->TechniqueExecuteStart("TornadoClouds"))
         do
         {
-            StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(),
+            StormMetalDrawParticleSprites(rs->GetNativeDevice(), sprites.data(), sprites.size(),
                                           StormMetalParticleWorldXZ, StormMetalParticleStraightAlpha);
         } while (rs->TechniqueExecuteNext());
     return;
 #endif
     EnsureBuffers(rs);
-    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, D3DLOCK_DISCARD));
+    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, storm_render::lock::discard));
     rs->TextureSet(0, texture);
     for (int32_t i = 0; i < sizeof(rect) / sizeof(Rect); i++)
     {

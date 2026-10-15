@@ -14,7 +14,7 @@ class TM_LIST
     HWND hMain;
     HWND hOwn;
     HWND hEdit;
-    RECT Pos{};
+    storm_render::Rect Pos{};
     uint32_t Columns_Num;
     uint32_t Items_Num;
     uint32_t Bind_Mask;
@@ -45,9 +45,9 @@ class TM_LIST
     };
     void Initialize(HWND hwnd, HINSTANCE hinst, uint32_t style, uint32_t style_ex);
     void Initialize(HWND hwnd, HINSTANCE hinst, uint32_t style, uint32_t style_ex, uint32_t icon_rid);
-    void SetPosition(RECT pos);
+    void SetPosition(storm_render::Rect pos);
 
-    RECT GetPosition()
+    storm_render::Rect GetPosition()
     {
         return Pos;
     };

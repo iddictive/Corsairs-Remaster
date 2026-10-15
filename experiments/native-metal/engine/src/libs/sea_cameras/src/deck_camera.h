@@ -10,7 +10,7 @@
 #include "model.h"
 #include "vma.hpp"
 
-#define D3DFVF_VERTEX (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1)
+#define DECK_VERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1)
 #define AIM_SIZE 0.05f
 
 namespace storm { class OSWindow; }
@@ -19,8 +19,8 @@ class DECK_CAMERA : public COMMON_CAMERA
 {
     struct VERTEX
     {
-        D3DVECTOR v;
-        D3DCOLOR color;
+        storm_render::Vector3 v;
+        storm_render::PackedColor color;
         float tu;
         float tv;
     };
@@ -47,7 +47,7 @@ class DECK_CAMERA : public COMMON_CAMERA
     VDX9RENDER *RenderService;
     CVECTOR camera_pos, camera_ang;
     float h_eye;
-    RECT Screen_Rect;
+    storm_render::Rect Screen_Rect;
     int32_t lock_x;
     int32_t lock_y;
     int32_t vb_id;

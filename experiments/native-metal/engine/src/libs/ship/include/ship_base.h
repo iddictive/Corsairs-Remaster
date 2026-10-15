@@ -1,4 +1,5 @@
 #pragma once
+#include "windows_base.h"
 
 #include "c_vector.h"
 #include "vai_objbase.h"

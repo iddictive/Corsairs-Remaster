@@ -27,8 +27,6 @@ def source_files():
             paths.add(p)
     for directory in (METAL / "audio", METAL.parent / "native-storm/audio"):
         paths.update(p for p in directory.rglob("*") if p.is_file())
-    paths.update((METAL.parent / "native-storm" / name)
-                 for name in ("raw_texture.cpp", "raw_texture.hpp"))
     paths.add(Path(__file__).resolve())
     manifest = METAL / "inputs/manifest.json"
     if manifest.is_file():

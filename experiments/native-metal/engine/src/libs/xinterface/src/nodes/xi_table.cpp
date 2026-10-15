@@ -59,7 +59,7 @@ void XI_TableLineDescribe::DrawSpecColor(float fTop) const
         v[2].pos.y = fTop;
         v[3].pos.x = fRight;
         v[3].pos.y = fBottom;
-        m_pTable->m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_NOTEX_FVF, 2, v, sizeof(XI_NOTEX_VERTEX), "iRectangle");
+        m_pTable->m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_NOTEX_FVF, 2, v, sizeof(XI_NOTEX_VERTEX), "iRectangle");
     }
 }
 
@@ -321,7 +321,7 @@ void XI_TableCellDescribe::LoadImageParam(ImgDescribe *pImg, ATTRIBUTES *pA) con
             pImg->pImage->LoadFromFile(pA->GetAttribute("texture"));
 
         if (pA->GetAttribute("texturepointer"))
-            pImg->pImage->SetPointerToTexture((IDirect3DTexture9 *)pA->GetAttributeAsPointer("texturepointer"));
+            pImg->pImage->SetPointerToTexture((storm_render::Texture *)pA->GetAttributeAsPointer("texturepointer"));
 
         auto fL = 0.f, fT = 0.f, fR = 1.f, fB = 1.f;
         if (pA->GetAttribute("uv"))
@@ -1037,7 +1037,7 @@ void CXI_TABLE::UpdateBorders()
         m_rs->UnLockIndexBuffer(m_idBorderIBuf);
 
         // vertex buffer
-        m_idBorderVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, q * 4 * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+        m_idBorderVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, q * 4 * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
         Assert(m_idBorderVBuf != -1);
     }
 

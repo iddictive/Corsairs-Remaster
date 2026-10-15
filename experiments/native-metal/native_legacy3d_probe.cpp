@@ -1,5 +1,5 @@
 #include <SDL.h>
-#include <d3d9.h>
+#include "render_device_api.hpp"
 
 #include <cstdio>
 #include <cstdint>
@@ -21,35 +21,35 @@ static void need(bool ok, const char *message)
 }
 
 template <class Vertex, class Index>
-static void exercise(IDirect3DDevice9 *device, IDirect3DSurface9 *target,
-                     IDirect3DSurface9 *readback, DWORD fvf,
+static void exercise(storm_render::Device *device, storm_render::Surface *target,
+                     storm_render::Surface *readback, uint32_t fvf,
                      std::vector<Vertex> &vertices, bool dynamic, bool uniqueIndices,
-                     D3DPRIMITIVETYPE primitive = D3DPT_TRIANGLELIST)
+                     storm_render::Primitive primitive = storm_render::PrimitiveTriangleList)
 {
-    const std::vector<Index> indices = primitive == D3DPT_TRIANGLEFAN
+    const std::vector<Index> indices = primitive == storm_render::PrimitiveTriangleFan
         ? std::vector<Index>{2, 3, 5, 4}
-        : primitive == D3DPT_TRIANGLESTRIP
+        : primitive == storm_render::PrimitiveTriangleStrip
         ? std::vector<Index>{2, 3, 4, 5}
         : uniqueIndices
         ? std::vector<Index>{2, 3, 4}
         : std::vector<Index>{2, 3, 4, 4, 3, 5};
-    const UINT primitiveCount = primitive == D3DPT_TRIANGLESTRIP ||
-                                primitive == D3DPT_TRIANGLEFAN ? 2 :
+    const uint32_t primitiveCount = primitive == storm_render::PrimitiveTriangleStrip ||
+                                primitive == storm_render::PrimitiveTriangleFan ? 2 :
                                 uniqueIndices ? 1 : 2;
     auto pixels = [&] {
-        need(SUCCEEDED(device->GetRenderTargetData(target, readback)), "readback");
-        D3DLOCKED_RECT lock{};
-        need(SUCCEEDED(readback->LockRect(&lock, nullptr, D3DLOCK_READONLY)), "readback lock");
-        std::vector<DWORD> result(64 * 64);
+        need(storm_render::succeeded(device->GetRenderTargetData(target, readback)), "readback");
+        storm_render::LockedRect lock{};
+        need(storm_render::succeeded(readback->LockRect(&lock, nullptr, storm_render::lock::readOnly)), "readback lock");
+        std::vector<uint32_t> result(64 * 64);
         for (int y = 0; y < 64; ++y)
             std::memcpy(result.data() + y * 64, static_cast<char *>(lock.pBits) + y * lock.Pitch, 64 * 4);
         readback->UnlockRect();
         return result;
     };
     auto reference = [&] {
-        const std::vector<unsigned> expandedIndices = primitive == D3DPT_TRIANGLEFAN
+        const std::vector<unsigned> expandedIndices = primitive == storm_render::PrimitiveTriangleFan
             ? std::vector<unsigned>{0, 1, 3, 2}
-            : primitive == D3DPT_TRIANGLESTRIP
+            : primitive == storm_render::PrimitiveTriangleStrip
             ? std::vector<unsigned>{0, 1, 2, 3}
             : uniqueIndices
             ? std::vector<unsigned>{0, 1, 2}
@@ -58,46 +58,46 @@ static void exercise(IDirect3DDevice9 *device, IDirect3DSurface9 *target,
         for (unsigned index : expandedIndices)
             expanded.push_back(vertices[index]);
         unsetenv("STORM_METAL_REQUIRE_NATIVE_3D");
-        device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xff102030, 1, 0);
+        device->Clear(storm_render::clear::color, 0xff102030, 1);
         device->BeginScene();
-        need(SUCCEEDED(device->DrawPrimitiveUP(primitive, primitiveCount, expanded.data(), sizeof(Vertex))),
+        need(storm_render::succeeded(device->DrawPrimitiveUP(primitive, primitiveCount, expanded.data(), sizeof(Vertex))),
              "compatibility reference");
         device->EndScene();
         return pixels();
     };
 
-    IDirect3DVertexBuffer9 *vb = nullptr;
-    IDirect3DIndexBuffer9 *ib = nullptr;
-    const DWORD usage = dynamic ? D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY : 0;
-    const D3DPOOL pool = dynamic ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
-    need(SUCCEEDED(device->CreateVertexBuffer(UINT(vertices.size() * sizeof(Vertex)), usage, fvf, pool, &vb, nullptr)), "VB");
-    need(SUCCEEDED(device->CreateIndexBuffer(UINT(indices.size() * sizeof(Index)), usage, sizeof(Index) == 4 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, pool, &ib, nullptr)), "IB");
+    storm_render::VertexBuffer *vb = nullptr;
+    storm_render::IndexBuffer *ib = nullptr;
+    const uint32_t usage = dynamic ? storm_render::usage::dynamic | storm_render::usage::writeOnly : 0;
+    const storm_render::MemoryClass pool = dynamic ? storm_render::MemoryClass::Default : storm_render::MemoryClass::Managed;
+    need(storm_render::succeeded(device->CreateVertexBuffer(uint32_t(vertices.size() * sizeof(Vertex)), usage, fvf, &vb)), "VB");
+    need(storm_render::succeeded(device->CreateIndexBuffer(uint32_t(indices.size() * sizeof(Index)), usage, sizeof(Index) == 4 ? storm_render::IndexFormat::UInt32 : storm_render::IndexFormat::UInt16, &ib)), "IB");
     auto upload = [&] {
         void *bytes = nullptr;
-        need(SUCCEEDED(vb->Lock(0, 0, &bytes, dynamic ? D3DLOCK_DISCARD : 0)), "VB lock");
+        need(storm_render::succeeded(vb->Lock(0, 0, &bytes, dynamic ? storm_render::lock::discard : 0)), "VB lock");
         std::memcpy(bytes, vertices.data(), vertices.size() * sizeof(Vertex));
-        need(SUCCEEDED(vb->Unlock()), "VB unlock");
-        need(SUCCEEDED(ib->Lock(0, 0, &bytes, dynamic ? D3DLOCK_DISCARD : 0)), "IB lock");
+        need(storm_render::succeeded(vb->Unlock()), "VB unlock");
+        need(storm_render::succeeded(ib->Lock(0, 0, &bytes, dynamic ? storm_render::lock::discard : 0)), "IB lock");
         std::memcpy(bytes, indices.data(), indices.size() * sizeof(Index));
-        need(SUCCEEDED(ib->Unlock()), "IB unlock");
+        need(storm_render::succeeded(ib->Unlock()), "IB unlock");
     };
     upload();
     device->SetStreamSource(0, vb, 0, sizeof(Vertex));
     device->SetIndices(ib);
 
-    auto drawNative = [&](const std::vector<DWORD> &expected) {
+    auto drawNative = [&](const std::vector<uint32_t> &expected) {
         setenv("STORM_METAL_REQUIRE_NATIVE_3D", "1", 1);
-        device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xff102030, 1, 0);
+        device->Clear(storm_render::clear::color, 0xff102030, 1);
         device->BeginScene();
-        const HRESULT drawResult = device->DrawIndexedPrimitive(
+        const storm_render::Result drawResult = device->DrawIndexedPrimitive(
             primitive, -2, 2,
-            primitive == D3DPT_TRIANGLESTRIP || primitive == D3DPT_TRIANGLEFAN
+            primitive == storm_render::PrimitiveTriangleStrip || primitive == storm_render::PrimitiveTriangleFan
                 ? 4 : uniqueIndices ? 3 : 4,
             0, primitiveCount);
-        if (FAILED(drawResult))
+        if (storm_render::failed(drawResult))
             std::fprintf(stderr, "native draw failed: 0x%08x primitive=%u\n",
                          unsigned(drawResult), unsigned(primitive));
-        need(SUCCEEDED(drawResult), "validated indexed FVF stays native");
+        need(storm_render::succeeded(drawResult), "validated indexed FVF stays native");
         device->EndScene();
         const auto actual = pixels();
         std::size_t coverageMismatch = 0, colorMismatch = 0;
@@ -141,97 +141,93 @@ int main()
     auto *window = SDL_CreateWindow("Native legacy-3D coverage", 0, 0, 64, 64,
                                     SDL_WINDOW_HIDDEN | SDL_WINDOW_METAL);
     need(window != nullptr, SDL_GetError());
-    auto *api = Direct3DCreate9(D3D_SDK_VERSION);
-    D3DPRESENT_PARAMETERS present{};
-    present.BackBufferWidth = present.BackBufferHeight = 64;
-    present.BackBufferFormat = D3DFMT_A8R8G8B8;
-    present.BackBufferCount = 1;
-    present.Windowed = TRUE;
-    present.hDeviceWindow = window;
-    present.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    IDirect3DDevice9 *device = nullptr;
-    need(SUCCEEDED(api->CreateDevice(0, D3DDEVTYPE_HAL, window, 0, &present, &device)), "device");
 
-    D3DMATRIX identity{};
+    storm_render::Presentation present{};
+    present.width = present.height = 64;
+    present.colorFormat = storm_render::AssetFormat::A8R8G8B8;
+    storm_render::Device *device = nullptr;
+    need(storm_render::succeeded(storm_render::createMetalDevice(window, &present, &device)), "device");
+
+    storm_render::Matrix identity{};
     identity._11 = identity._22 = identity._33 = identity._44 = 1;
-    device->SetTransform(D3DTS_WORLD, &identity);
-    device->SetTransform(D3DTS_VIEW, &identity);
-    device->SetTransform(D3DTS_PROJECTION, &identity);
-    device->SetRenderState(D3DRS_ZENABLE, FALSE);
-    device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-    device->SetRenderState(D3DRS_LIGHTING, TRUE);
-    device->SetRenderState(D3DRS_AMBIENT, 0xff303030);
-    device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-    D3DMATERIAL9 material{};
+    device->SetTransform(storm_render::TransformWorld, &identity);
+    device->SetTransform(storm_render::TransformView, &identity);
+    device->SetTransform(storm_render::TransformProjection, &identity);
+    device->SetRenderState(storm_render::RenderDepthTest, false);
+    device->SetRenderState(storm_render::RenderCullMode, storm_render::CullNone);
+    device->SetRenderState(storm_render::RenderLighting, true);
+    device->SetRenderState(storm_render::RenderAmbient, 0xff303030);
+    device->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    device->SetTextureStageState(1, storm_render::StageColorOp, storm_render::TextureOpDisable);
+    storm_render::Material material{};
     material.Diffuse = {.8f, .65f, .5f, 1};
     material.Ambient = {.3f, .25f, .2f, 1};
     device->SetMaterial(&material);
-    D3DLIGHT9 light{};
-    light.Type = D3DLIGHT_DIRECTIONAL;
+    storm_render::Light light{};
+    light.Type = storm_render::LightKind::Directional;
     light.Direction = {0, 0, 1};
     light.Diffuse = {.7f, .8f, .9f, 1};
     device->SetLight(0, &light);
-    device->LightEnable(0, TRUE);
+    device->LightEnable(0, true);
 
-    IDirect3DSurface9 *target = nullptr, *readback = nullptr;
-    device->GetRenderTarget(0, &target);
-    device->CreateOffscreenPlainSurface(64, 64, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &readback, nullptr);
+    storm_render::Surface *target = nullptr, *readback = nullptr;
+    device->GetRenderTarget(&target);
+    device->CreateOffscreenPlainSurface(64, 64, storm_render::AssetFormat::A8R8G8B8, &readback);
 
-    struct RichVertex { float x, y, z, nx, ny, nz; DWORD diffuse, specular; float u0, v0, u1, v1; };
+    struct RichVertex { float x, y, z, nx, ny, nz; uint32_t diffuse, specular; float u0, v0, u1, v1; };
     std::vector<RichVertex> rich = {
         {-.8f, -.8f, .5f, 0, 0, -1, 0xffff3030, 0xff102030, 0, 0, 0, 0},
         { .8f, -.8f, .5f, 0, 0, -1, 0xff30ff30, 0xff203040, 1, 0, 1, 0},
         {-.8f,  .8f, .5f, 0, 0, -1, 0xff3030ff, 0xff304050, 0, 1, 0, 1},
         { .8f,  .8f, .5f, 0, 0, -1, 0xffeeeeee, 0xff405060, 1, 1, 1, 1},
     };
-    device->SetFVF(D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2);
+    device->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::specular | storm_render::vertexFormat::tex2);
     exercise<RichVertex, std::uint16_t>(device, target, readback,
-        D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2, rich, false, false);
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::specular | storm_render::vertexFormat::tex2, rich, false, false);
     exercise<RichVertex, std::uint32_t>(device, target, readback,
-        D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2,
-        rich, false, false, D3DPT_TRIANGLEFAN);
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::specular | storm_render::vertexFormat::tex2,
+        rich, false, false, storm_render::PrimitiveTriangleFan);
 
     struct CompactVertex { float x, y, z, nx, ny, nz; };
     std::vector<CompactVertex> compact = {
         {-.8f, -.8f, .5f, 0, 0, -1}, { .8f, -.8f, .5f, 0, 0, -1},
         {-.8f,  .8f, .5f, 0, 0, -1}, { .8f,  .8f, .5f, 0, 0, -1},
     };
-    device->SetFVF(D3DFVF_XYZ | D3DFVF_NORMAL);
+    device->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal);
     exercise<CompactVertex, std::uint32_t>(device, target, readback,
-        D3DFVF_XYZ | D3DFVF_NORMAL, compact, true, true);
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal, compact, true, true);
 
-    device->SetRenderState(D3DRS_LIGHTING, FALSE);
-    device->SetFVF(D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2);
+    device->SetRenderState(storm_render::RenderLighting, false);
+    device->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::specular | storm_render::vertexFormat::tex2);
     exercise<RichVertex, std::uint32_t>(device, target, readback,
-        D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2,
-        rich, true, true, D3DPT_TRIANGLESTRIP);
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::specular | storm_render::vertexFormat::tex2,
+        rich, true, true, storm_render::PrimitiveTriangleStrip);
 
     // The authored map is unlit. Opening a model role must not inject stale
     // scene lights, alter vertex alpha or leak the role into the next draw.
-    const DWORD mapFVF=D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_SPECULAR|D3DFVF_TEX2;
+    const uint32_t mapFVF=storm_render::vertexFormat::xyz|storm_render::vertexFormat::normal|storm_render::vertexFormat::diffuse|storm_render::vertexFormat::specular|storm_render::vertexFormat::tex2;
     device->SetFVF(mapFVF);
-    device->SetRenderState(D3DRS_LIGHTING,FALSE);
-    device->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
-    device->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_DIFFUSE);
+    device->SetRenderState(storm_render::RenderLighting,false);
+    device->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);
     for(auto &v:rich)v.diffuse=(v.diffuse&0xffffff)|0x80000000;
-    const WORD mapIndices[]={0,1,2,2,1,3};
-    IDirect3DVertexBuffer9 *mapVB=nullptr; IDirect3DIndexBuffer9 *mapIB=nullptr;
-    need(SUCCEEDED(device->CreateVertexBuffer(UINT(rich.size()*sizeof(RichVertex)),0,mapFVF,D3DPOOL_MANAGED,&mapVB,nullptr)),"map VB");
-    need(SUCCEEDED(device->CreateIndexBuffer(sizeof(mapIndices),0,D3DFMT_INDEX16,D3DPOOL_MANAGED,&mapIB,nullptr)),"map IB");
+    const uint16_t mapIndices[]={0,1,2,2,1,3};
+    storm_render::VertexBuffer *mapVB=nullptr; storm_render::IndexBuffer *mapIB=nullptr;
+    need(storm_render::succeeded(device->CreateVertexBuffer(uint32_t(rich.size()*sizeof(RichVertex)), 0, mapFVF, &mapVB)),"map VB");
+    need(storm_render::succeeded(device->CreateIndexBuffer(sizeof(mapIndices), 0, storm_render::IndexFormat::UInt16, &mapIB)),"map IB");
     void *bytes=nullptr; mapVB->Lock(0,0,&bytes,0); std::memcpy(bytes,rich.data(),rich.size()*sizeof(RichVertex));mapVB->Unlock();
     mapIB->Lock(0,0,&bytes,0);std::memcpy(bytes,mapIndices,sizeof(mapIndices));mapIB->Unlock();
     device->SetStreamSource(0,mapVB,0,sizeof(RichVertex));device->SetIndices(mapIB);
     auto mapPixels=[&] {
-        device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff102030,1,0);device->BeginScene();
-        need(SUCCEEDED(device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,4,0,2)),"map draw");device->EndScene();
-        need(SUCCEEDED(device->GetRenderTargetData(target,readback)),"map readback");D3DLOCKED_RECT r{};
-        need(SUCCEEDED(readback->LockRect(&r,nullptr,D3DLOCK_READONLY)),"map readback lock");
-        std::vector<DWORD> result(64*64);for(int y=0;y<64;y++)std::memcpy(result.data()+y*64,static_cast<char*>(r.pBits)+y*r.Pitch,64*4);
+        device->Clear(storm_render::clear::color, 0xff102030, 1);device->BeginScene();
+        need(storm_render::succeeded(device->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList,0,0,4,0,2)),"map draw");device->EndScene();
+        need(storm_render::succeeded(device->GetRenderTargetData(target,readback)),"map readback");storm_render::LockedRect r{};
+        need(storm_render::succeeded(readback->LockRect(&r,nullptr,storm_render::lock::readOnly)),"map readback lock");
+        std::vector<uint32_t> result(64*64);for(int y=0;y<64;y++)std::memcpy(result.data()+y*64,static_cast<char*>(r.pBits)+y*r.Pitch,64*4);
         readback->UnlockRect();return result;
     };
-    device->SetRenderState(D3DRS_SPECULARENABLE,TRUE);
+    device->SetRenderState(storm_render::RenderSpecular,true);
     const auto mapReference=mapPixels();const auto worldBefore=StormMetalRawWorldDraws(device);
     const unsigned previous=StormMetalBeginWdmModel(device,1);need(previous==0,"map scope starts empty");
     const auto mapActual=mapPixels();
@@ -247,7 +243,7 @@ int main()
     readback->Release();
     target->Release();
     device->Release();
-    api->Release();
+
     SDL_DestroyWindow(window);
     SDL_Quit();
 }

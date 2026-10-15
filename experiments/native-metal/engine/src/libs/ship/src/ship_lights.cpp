@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-extern "C" bool StormMetalSceneLight(void*, uint64_t, const D3DLIGHT9*);
+extern "C" bool StormMetalSceneLight(void*, uint64_t, const storm_render::Light*);
 extern "C" void StormMetalSetLightIdentity(void*, unsigned, uint64_t);
 extern "C" bool StormMetalModernLighting(void*);
 #endif
@@ -182,7 +182,7 @@ void ShipLights::AddDynamicLights(VAI_OBJBASE *pObject, const CVECTOR &vPos)
     light.bDead = false;
     light.fTotalBrokenTime = 0.0f;
     light.Light = {};
-    light.Light.Type = D3DLIGHT_POINT;
+    light.Light.Type = storm_render::LightKind::Point;
     light.Light.Diffuse.r = pLT->cLightColor.r;
     light.Light.Diffuse.g = pLT->cLightColor.g;
     light.Light.Diffuse.b = pLT->cLightColor.b;
@@ -281,7 +281,7 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
     pL->bFlareSource = !bLight;
     LightType *illumination = pLT;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (!bLight && StormMetalModernLighting(pRS->GetD3DDevice()))
+    if (!bLight && StormMetalModernLighting(pRS->GetNativeDevice()))
     {
         illumination = FindLightType("default");
         if (!illumination) return;
@@ -307,7 +307,7 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
     {
         pL->Light = {};
         pL->bCoronaOnly = false;
-        pL->Light.Type = D3DLIGHT_POINT;
+        pL->Light.Type = storm_render::LightKind::Point;
         pL->Light.Diffuse.r = illumination->cLightColor.r;
         pL->Light.Diffuse.g = illumination->cLightColor.g;
         pL->Light.Diffuse.b = illumination->cLightColor.b;
@@ -467,9 +467,9 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
         // Publish physical sources independently of the receiver and corona.
         // The renderer updates repeated source IDs within this frame.
         if (!aLights[i].bCoronaOnly &&
-            aLights[i].Light.Type == D3DLIGHT_POINT && aLights[i].Light.Range > 0.1f)
+            aLights[i].Light.Type == storm_render::LightKind::Point && aLights[i].Light.Range > 0.1f)
         {
-            StormMetalSceneLight(pRS->GetD3DDevice(), aLights[i].metalId, &aLights[i].Light);
+            StormMetalSceneLight(pRS->GetNativeDevice(), aLights[i].metalId, &aLights[i].Light);
         }
 #endif
 
@@ -499,7 +499,7 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
         // The deferred sea shadow pass consumes the exact D3D slot snapshot
         // captured with this draw; do not derive identity from aLights index.
-        StormMetalSetLightIdentity(pRS->GetD3DDevice(), i + 1, pL->metalId);
+        StormMetalSetLightIdentity(pRS->GetNativeDevice(), i + 1, pL->metalId);
 #endif
         pRS->LightEnable(i + 1, true);
 
@@ -717,7 +717,7 @@ void ShipLights::UnSetLights(VAI_OBJBASE *pObject)
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
         // A disabled slot must not keep a removed/day-off lamp eligible for
         // the deferred boundary resolver.
-        StormMetalSetLightIdentity(pRS->GetD3DDevice(), unsigned(i), 0);
+        StormMetalSetLightIdentity(pRS->GetNativeDevice(), unsigned(i), 0);
 #endif
     }
 

@@ -11,7 +11,7 @@ class NODE;
 
 #define VANT_EDGE 5 // number of edges in the rope section
 
-#define VANTVERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define VANTVERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct VANTVERTEX
 {

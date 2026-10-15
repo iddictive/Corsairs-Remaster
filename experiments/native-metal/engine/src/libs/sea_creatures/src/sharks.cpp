@@ -731,9 +731,9 @@ void Sharks::Realize(uint32_t delta_time)
     if (num)
     {
         rs->TextureSet(0, trackTx);
-        rs->SetTransform(D3DTS_WORLD, CMatrix());
-        rs->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-        rs->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, num, num, indeces, D3DFMT_INDEX16, vrt, sizeof(Vertex),
+        rs->SetTransform(storm_render::TransformWorld, CMatrix());
+        rs->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1);
+        rs->DrawIndexedPrimitiveUP(storm_render::PrimitiveTriangleList, 0, num, num, indeces, storm_render::IndexFormat::UInt16, vrt, sizeof(Vertex),
                                    "SharkTrack");
     }
 

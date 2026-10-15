@@ -61,8 +61,8 @@ WdmSea::WdmSea(bool incremental)
     // Create a buffer for indexes
     ib = wdmObjects->rs->CreateIndexBuffer(WDM_SEA_NT * 3 * 2);
     // Create a vertex buffer
-    vb = wdmObjects->rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
-                                            (WDM_SEA_NV + 4) * sizeof(Vertex), D3DUSAGE_WRITEONLY);
+    vb = wdmObjects->rs->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
+                                            (WDM_SEA_NV + 4) * sizeof(Vertex), storm_render::usage::writeOnly);
     Assert(ib >= 0 && vb >= 0);
     // Indexes
     auto *triangle = static_cast<Triangle *>(wdmObjects->rs->LockIndexBuffer(ib));
@@ -306,7 +306,7 @@ void WdmSea::LRender(VDX9RENDER *rs)
     rs->TextureSet(0, baseTexture);
     PresetMain(rs);
     // RenderState
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, WDM_SEA_CLR(0xff - WDM_SEA_MBR, 0xff));
+    rs->SetRenderState(storm_render::RenderTextureFactor, WDM_SEA_CLR(0xff - WDM_SEA_MBR, 0xff));
     // Render
     Render(rs, "WdmSeaDraw2");
     // Drawing an animated texture
@@ -316,7 +316,7 @@ void WdmSea::LRender(VDX9RENDER *rs)
     if (flareCount > 0)
     {
         CMatrix view;
-        rs->GetTransform(D3DTS_VIEW, view);
+        rs->GetTransform(storm_render::TransformView, view);
         view.Transposition();
         auto y = view.Pos().y;
         const auto maxy = 130.0f;
@@ -329,7 +329,7 @@ void WdmSea::LRender(VDX9RENDER *rs)
             y = (1.0f - y) * (1.0f - y);
             const auto c = static_cast<int32_t>(y * 255.0f) << 24;
             rs->TextureSet(0, flareTexture);
-            rs->SetRenderState(D3DRS_TEXTUREFACTOR, (c << 24) | (c << 16) | (c << 8) | c);
+            rs->SetRenderState(storm_render::RenderTextureFactor, (c << 24) | (c << 16) | (c << 8) | c);
             rs->DrawRects(flareRect, flareCount, "WdmSeaDrawFlare");
         }
     }
@@ -340,10 +340,10 @@ void WdmSea::DrawTsunamiSurface(VDX9RENDER *rs, const void *vertices, uint32_t t
     if (!vertices || !triangles) return;
     rs->TextureSet(0, baseTexture);
     PresetMain(rs);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
         triangles, vertices, stride, "WdmTsunamiWaterBase");
     PresetAnimated(rs);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
         triangles, vertices, stride, "WdmTsunamiWaterAnimated");
 }
 
@@ -363,9 +363,9 @@ void WdmSea::PresetAnimated(VDX9RENDER *rs) const
     mtx.m[1][1] = aniTiling;
     mtx.m[2][2] = aniTiling;
     mtx.Pos() = 0.0f;
-    rs->SetTransform(D3DTS_TEXTURE0, mtx);
-    rs->SetTransform(D3DTS_TEXTURE1, mtx);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, WDM_SEA_CLR(WDM_SEA_ANIALPHA, k));
+    rs->SetTransform(storm_render::TransformTexture0, mtx);
+    rs->SetTransform(storm_render::TransformTexture1, mtx);
+    rs->SetRenderState(storm_render::RenderTextureFactor, WDM_SEA_CLR(WDM_SEA_ANIALPHA, k));
 }
 
 void WdmSea::Render(VDX9RENDER *rs, const char *tech) const
@@ -373,7 +373,7 @@ void WdmSea::Render(VDX9RENDER *rs, const char *tech) const
     static CMatrix identity;
     if (vb < 0 || ib < 0)
         return;
-    rs->SetTransform(D3DTS_WORLD, identity);
+    rs->SetTransform(storm_render::TransformWorld, identity);
     rs->DrawBuffer(vb, sizeof(Vertex), ib, 0, WDM_SEA_NV, 0, WDM_SEA_NT, (char *)tech);
 }
 
@@ -386,5 +386,5 @@ void WdmSea::PresetMain(VDX9RENDER *rs) const
     mtx.m[1][1] = mtx.m[0][0];
     mtx.m[2][0] = (1.0f - mtx.m[0][0]) * 0.5f;
     mtx.m[2][1] = (1.0f - mtx.m[0][0]) * 0.5f;
-    rs->SetTransform(D3DTS_TEXTURE0, mtx);
+    rs->SetTransform(storm_render::TransformTexture0, mtx);
 }

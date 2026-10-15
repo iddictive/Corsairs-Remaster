@@ -303,7 +303,7 @@ void Character::RTuner::Set(MODEL *model, VDX9RENDER *rs)
     if (!isVisible)
         a = 0.0f;
     if (a < 0.5f)
-        rs->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+        rs->SetRenderState(storm_render::RenderDepthWrite, FALSE);
     if (a > 1.0f)
         a = 1.0f;
     if (selected < 0.0f)
@@ -313,7 +313,7 @@ void Character::RTuner::Set(MODEL *model, VDX9RENDER *rs)
     const auto r = static_cast<int32_t>(0x40 * selected);
     const auto g = static_cast<int32_t>(0x10 * selected);
     const auto b = static_cast<int32_t>(0x10 * selected);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, (static_cast<uint32_t>(a * 255.0f) << 24) | (r << 16) | (g << 8) | b);
+    rs->SetRenderState(storm_render::RenderTextureFactor, (static_cast<uint32_t>(a * 255.0f) << 24) | (r << 16) | (g << 8) | b);
     if (selected > 0.0f)
     {
         if (a >= 1.0f)
@@ -359,7 +359,7 @@ void Character::RTuner::Restore(MODEL *model, VDX9RENDER *rs)
     if (*((uint32_t *)chr) != 'minA' || *((uint32_t *)(chr + 4)) != 'oita')
         return;
     n->SetTechnique("");
-    rs->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+    rs->SetRenderState(storm_render::RenderDepthWrite, TRUE);
 }
 
 float Character::RTuner::GetAlpha() const
@@ -3153,7 +3153,7 @@ void Character::SetSoundPosition(int32_t id)
         if (rs)
         {
             static CMatrix view, cur;
-            rs->GetTransform(D3DTS_VIEW, view);
+            rs->GetTransform(storm_render::TransformView, view);
             cur.BuildMatrix(CVECTOR(0.0f, ay, 0.0f), location->supervisor.player->curPos);
             cur.MulToInv(CVECTOR(pos), pos);
             view.MulToInv(CVECTOR(pos), pos);

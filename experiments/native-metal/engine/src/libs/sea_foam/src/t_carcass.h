@@ -7,7 +7,7 @@
 
 #define MAX_MEASURE_POINTS 10
 #define MAX_LEVELS 20
-#define CARCASS_VERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define CARCASS_VERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 #define BOUND_UPPER(a, b)                                                                                              \
     if ((a) > (b))                                                                                                     \

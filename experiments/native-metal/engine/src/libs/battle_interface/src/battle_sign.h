@@ -102,7 +102,7 @@ class BISignIcon
     int32_t m_idSignTextFont;
     uint32_t m_dwSignTextFontColor;
     float m_fSignTextFontScale;
-    POINT m_SignTextFontOffset;
+    storm_render::Point m_SignTextFontOffset;
 
     bool m_bMakeUpdate;
     bool m_bActive;

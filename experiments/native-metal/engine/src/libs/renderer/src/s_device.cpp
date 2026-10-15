@@ -2,11 +2,11 @@
 #include "sea_map_transition.hpp"
 #include "metal_renderer_consumers.h"
 #ifdef STORM_METAL_ROCKK2
-extern "C" void storm_metal_label_texture(IDirect3DBaseTexture9 *, const char *);
+extern "C" void storm_metal_label_texture(storm_render::BaseTexture *, const char *);
 #endif
 
 #ifndef _WIN32
-#include "raw_texture.hpp"
+#include "texture_payload.hpp"
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" void StormMetalSetWorldOrigin(void*, const float*);
 extern "C" void StormMetalSetAuthoredWorld(void*, const float*);
@@ -48,7 +48,7 @@ CREATE_SERVICE(DX9RENDER)
 
 CREATE_SCRIPTLIBRIARY(DX9RENDER_SCRIPT_LIBRIARY)
 
-#define POST_PROCESS_FVF (D3DFVF_XYZRHW | D3DFVF_TEX4)
+#define POST_PROCESS_FVF (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex4)
 
 #define S_RELEASE(a, b)                                                                                                \
     if (a)                                                                                                             \
@@ -122,18 +122,18 @@ class LostDeviceSentinel : public SERVICE
 {
     void RunStart() override
     {
-        if (auto d3d9 = static_cast<IDirect3DDevice9 *>(DX9RENDER::pRS->GetD3DDevice()))
+        if (auto renderDevice = static_cast<storm_render::Device *>(DX9RENDER::pRS->GetNativeDevice()))
         {
-            switch (d3d9->TestCooperativeLevel())
+            switch (renderDevice->GetStatus())
             {
-            case D3DERR_DEVICENOTRESET:
+            case storm_render::result::notAvailable:
                 if (!DX9RENDER::pRS->ResetDevice())
                 {
                     core.stopFrameProcessing();
                 }
                 break;
 
-            case D3DERR_DEVICELOST:
+            case storm_render::result::failure:
                 core.stopFrameProcessing();
                 break;
             }
@@ -353,20 +353,20 @@ void CreateSphere()
 struct SD_TEXTURE_FORMAT
 {
     TX_FORMAT txFormat;
-    D3DFORMAT d3dFormat;
+    storm_render::AssetFormat d3dFormat;
     bool isSwizzled;
     const char *format;
 };
 
 SD_TEXTURE_FORMAT textureFormats[] = {
-    {TXF_DXT1, D3DFMT_DXT1, true, "D3DFMT_DXT1"},
-    {TXF_DXT3, D3DFMT_DXT3, true, "D3DFMT_DXT3"},
-    {TXF_DXT5, D3DFMT_DXT5, true, "D3DFMT_DXT5"},
-    {TXF_A8R8G8B8, D3DFMT_A8R8G8B8, false, "D3DFMT_A8R8G8B8"},
-    {TXF_X8R8G8B8, D3DFMT_X8R8G8B8, false, "D3DFMT_X8R8G8B8"},
-    {TXF_R5G6B5, D3DFMT_R5G6B5, false, "D3DFMT_R5G6B5"},
-    {TXF_A4R4G4B4, D3DFMT_A4R4G4B4, false, "D3DFMT_A4R4G4B4"},
-    {TXF_A1R5G5B5, D3DFMT_A1R5G5B5, false, "D3DFMT_A1R5G5B5"},
+    {TXF_DXT1, storm_render::AssetFormat::DXT1, true, "D3DFMT_DXT1"},
+    {TXF_DXT3, storm_render::AssetFormat::DXT3, true, "D3DFMT_DXT3"},
+    {TXF_DXT5, storm_render::AssetFormat::DXT5, true, "D3DFMT_DXT5"},
+    {TXF_A8R8G8B8, storm_render::AssetFormat::A8R8G8B8, false, "D3DFMT_A8R8G8B8"},
+    {TXF_X8R8G8B8, storm_render::AssetFormat::X8R8G8B8, false, "D3DFMT_X8R8G8B8"},
+    {TXF_R5G6B5, storm_render::AssetFormat::R5G6B5, false, "D3DFMT_R5G6B5"},
+    {TXF_A4R4G4B4, storm_render::AssetFormat::A4R4G4B4, false, "D3DFMT_A4R4G4B4"},
+    {TXF_A1R5G5B5, storm_render::AssetFormat::A1R5G5B5, false, "D3DFMT_A1R5G5B5"},
 };
 
 uint32_t dwSoundBuffersCount = 0;
@@ -389,9 +389,9 @@ uint32_t dwSoundBytesCached = 0;
 
 #define CHECKD3DERR(expr) ErrorHandler(expr, __FILE__, __LINE__, __func__, #expr)
 
-inline bool ErrorHandler(HRESULT hr, const char *file, unsigned line, const char *func, const char *expr)
+inline bool ErrorHandler(storm_render::Result hr, const char *file, unsigned line, const char *func, const char *expr)
 {
-    if (hr != D3D_OK)
+    if (hr != storm_render::result::ok)
     {
 #ifdef _WIN32
         core.Trace("[%s:%s:%d] %s: %s (%s)", file, func, line, DXGetErrorStringA(hr), DXGetErrorDescriptionA(hr), expr);
@@ -429,8 +429,7 @@ DX9RENDER::DX9RENDER()
     pOriginalDepthSurface = nullptr;
 
     pRS = this;
-    d3d = nullptr;
-    d3d9 = nullptr;
+    renderDevice = nullptr;
     aniVBuffer = nullptr;
     numAniVerteces = 0;
     pVTL = nullptr;
@@ -502,8 +501,7 @@ bool DX9RENDER::Init()
     for (int32_t i = 0; i < MAX_STEXTURES; i++)
         Textures[i].ref = NULL;
 
-    d3d = nullptr;
-    d3d9 = nullptr;
+    renderDevice = nullptr;
 
     create_directories(fs::GetScreenshotsPath());
 
@@ -561,37 +559,26 @@ bool DX9RENDER::Init()
         fFarClipPlane = ini->GetFloat(nullptr, "FarClipPlane", 4000.0f);
         bBackBufferCanLock = ini->GetInt(nullptr, "lockable_back_buffer", 0) != 0;
         ini->ReadString(nullptr, "screen_bpp", str, sizeof(str), "D3DFMT_R5G6B5");
-        screen_bpp = D3DFMT_R5G6B5;
-        stencil_format = D3DFMT_D16;
+        screen_bpp = storm_render::AssetFormat::R5G6B5;
+        stencil_format = storm_render::AssetFormat::D16;
         if (storm::iEquals(str, "D3DFMT_A8R8G8B8"))
         {
-            screen_bpp = D3DFMT_A8R8G8B8;
-            stencil_format = D3DFMT_D24S8;
+            screen_bpp = storm_render::AssetFormat::A8R8G8B8;
+            stencil_format = storm_render::AssetFormat::D24S8;
         }
         if (storm::iEquals(str, "D3DFMT_X8R8G8B8"))
         {
-            screen_bpp = D3DFMT_X8R8G8B8;
-            stencil_format = D3DFMT_D24S8;
+            screen_bpp = storm_render::AssetFormat::X8R8G8B8;
+            stencil_format = storm_render::AssetFormat::D24S8;
         }
         if (storm::iEquals(str, "D3DFMT_R5G6B5"))
         {
-            screen_bpp = D3DFMT_R5G6B5;
-            stencil_format = D3DFMT_D16;
+            screen_bpp = storm_render::AssetFormat::R5G6B5;
+            stencil_format = storm_render::AssetFormat::D16;
         }
 
         // new renderer settings
         vSyncEnabled = ini->GetInt(nullptr, "vsync", 0);
-
-        msaa = ini->GetInt(nullptr, "msaa", D3DMULTISAMPLE_NONE);
-        if (msaa != D3DMULTISAMPLE_NONE)
-        {
-            if (msaa < D3DMULTISAMPLE_2_SAMPLES || msaa > D3DMULTISAMPLE_16_SAMPLES)
-            {
-                msaa = D3DMULTISAMPLE_16_SAMPLES;
-            }
-        }
-
-        videoAdapterIndex = ini->GetInt(nullptr, "adapter", std::numeric_limits<int32_t>::max());
 
         // stencil_format = D3DFMT_D24S8;
         if (!InitDevice(bWindow, static_cast<HWND>(core.GetWindow()->OSHandle()), screen_size.x, screen_size.y))
@@ -659,10 +646,8 @@ bool DX9RENDER::Init()
 
     pDropConveyorVBuffer = nullptr;
     rectsVBuffer = nullptr;
-    d3d9->CreateVertexBuffer(2 * sizeof(CVECTOR), D3DUSAGE_WRITEONLY, D3DFVF_XYZ, D3DPOOL_MANAGED,
-                             &pDropConveyorVBuffer, nullptr);
-    d3d9->CreateVertexBuffer(rectsVBuffer_SizeInRects * 6 * sizeof(RECT_VERTEX), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                             RS_RECT_VERTEX_FORMAT, D3DPOOL_DEFAULT, &rectsVBuffer, nullptr); // D3DPOOL_MANAGED
+    renderDevice->CreateVertexBuffer(2 * sizeof(CVECTOR), storm_render::usage::writeOnly, storm_render::vertexFormat::xyz, &pDropConveyorVBuffer);
+    renderDevice->CreateVertexBuffer(rectsVBuffer_SizeInRects * 6 * sizeof(RECT_VERTEX), storm_render::usage::writeOnly | storm_render::usage::dynamic, RS_RECT_VERTEX_FORMAT, &rectsVBuffer); // D3DPOOL_MANAGED
     if (!pDropConveyorVBuffer || !rectsVBuffer)
     {
         return false;
@@ -694,7 +679,7 @@ bool DX9RENDER::Init()
 //################################################################################
 DX9RENDER::~DX9RENDER()
 {
-    // d3d9->SetRenderTarget(NULL, NULL); //~!~
+    // renderDevice->SetRenderTarget(NULL, NULL); //~!~
 
     S_RELEASE(pSmallPostProcessSurface2, 0);
     S_RELEASE(pPostProcessSurface, 1);
@@ -741,135 +726,29 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
     bWindow = windowed;
 
     hwnd = _hwnd;
-    core.Trace("Initializing DirectX 9");
-    d3d = Direct3DCreate9(D3D_SDK_VERSION);
-    if (d3d == nullptr)
-    {
-        // MessageBox(hwnd, "Direct3DCreate9 error", "InitDevice::Direct3DCreate9", MB_OK);
-        core.Trace("Direct3DCreate9 error : InitDevice::Direct3DCreate9");
-        return false;
-    }
-
+    core.Trace("Initializing native Metal renderer");
     d3dpp = {};
-    d3dpp.BackBufferWidth = width;
-    d3dpp.BackBufferHeight = height;
-    d3dpp.BackBufferFormat = screen_bpp;
-    d3dpp.BackBufferCount = 1;
-    d3dpp.hDeviceWindow = hwnd;
-#ifdef __APPLE__
-    // SDL owns the macOS fullscreen Space. Do not let DXVK capture the display.
-    d3dpp.Windowed = TRUE;
-#else
-    d3dpp.Windowed = windowed;
-#endif
-    d3dpp.EnableAutoDepthStencil = TRUE;
-    d3dpp.AutoDepthStencilFormat = stencil_format;
-
-    if (windowed)
-    {
-        D3DDISPLAYMODE d3ddm;
-        if (FAILED(d3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3ddm)))
-            throw std::runtime_error("failed to GetAdapterDisplayMode");
-        d3dpp.BackBufferFormat = d3ddm.Format;
-        if (d3dpp.BackBufferFormat == D3DFMT_R5G6B5)
-            d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
-        else
-            d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
-        stencil_format = d3dpp.AutoDepthStencilFormat;
-        if (!bUseLargeBackBuffer)
-            if (d3ddm.Width < static_cast<uint32_t>(width) || d3ddm.Height < static_cast<uint32_t>(height))
-            {
-                d3dpp.BackBufferWidth = d3ddm.Width;
-                d3dpp.BackBufferHeight = d3ddm.Height;
-                width = d3ddm.Width;
-                height = d3ddm.Height;
-            }
-    }
-
-    d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
-    for (auto samples = msaa; msaa > D3DMULTISAMPLE_2_SAMPLES; samples--)
-    {
-        if (SUCCEEDED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp.BackBufferFormat, false,
-                                                      static_cast<D3DMULTISAMPLE_TYPE>(samples), nullptr)))
-        {
-            d3dpp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(samples);
-            break;
-        }
-    }
-
-    if (bBackBufferCanLock)
-        d3dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-    else
-        d3dpp.Flags = 0;
-    // d3dpp.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
-    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    // d3dpp.SwapEffect = D3DSWAPEFFECT_COPY;
-    // if(windowed) d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;//FLIP;
-    // else d3dpp.SwapEffect = D3DSWAPEFFECT_FLIP;
-
-    if (vSyncEnabled)
-    {
-        d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-    }
-    else
-    {
-        d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    }
-
-    // Choose desired video adapter
-    auto adapters_num = d3d->GetAdapterCount();
-    if (videoAdapterIndex > adapters_num - 1)
-        videoAdapterIndex = 0U;
-
-    spdlog::info("Querying available DirectX 9 adapters... detected {}:", adapters_num);
-    for (UINT i = 0; i != adapters_num; ++i)
-    {
-        D3DCAPS9 caps;
-        d3d->GetDeviceCaps(i, D3DDEVTYPE_HAL, &caps);
-        if (caps.DeviceType == D3DDEVTYPE_HAL)
-        {
-            D3DADAPTER_IDENTIFIER9 id;
-            d3d->GetAdapterIdentifier(i, 0, &id);
-            spdlog::info("{}: {} ({}) ", i, id.Description, id.DeviceName);
-        }
-    }
-    spdlog::info("Using adapter with index {} (configurable by setting adapter=<index> inside engine.ini)",
-             videoAdapterIndex);
-
-    // Create device
-    if (CHECKD3DERR(d3d->CreateDevice(videoAdapterIndex, D3DDEVTYPE_HAL, hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                      &d3dpp, &d3d9)))
-    {
-        if (CHECKD3DERR(d3d->CreateDevice(videoAdapterIndex, D3DDEVTYPE_HAL, hwnd, D3DCREATE_MIXED_VERTEXPROCESSING,
-                                          &d3dpp, &d3d9)))
-        {
-            if (CHECKD3DERR(d3d->CreateDevice(videoAdapterIndex, D3DDEVTYPE_HAL, hwnd,
-                                              D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3d9)))
-            {
-                return false;
-            }
-        }
-    }
-#ifdef _WIN32 // Effects
-    effects_.setDevice(d3d9);
-#endif
+    d3dpp.width = width;
+    d3dpp.height = height;
+    d3dpp.colorFormat = screen_bpp;
+    d3dpp.depthEnabled = true;
+    d3dpp.depthFormat = stencil_format;
+    d3dpp.vSync = vSyncEnabled;
+    if (CHECKD3DERR(storm_render::createMetalDevice(hwnd, &d3dpp, &renderDevice)))
+        return false;
 
     // Create render targets for POST PROCESS effects
-    d3d9->GetRenderTarget(0, &pOriginalScreenSurface);
-    d3d9->GetDepthStencilSurface(&pOriginalDepthSurface);
+    renderDevice->GetRenderTarget(&pOriginalScreenSurface);
+    renderDevice->GetDepthStencilSurface(&pOriginalDepthSurface);
 
     fSmallWidth = 128;
     fSmallHeight = 128;
 
     if (bPostProcessEnabled)
     {
-        d3d9->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
-                            &pPostProcessTexture, nullptr);
-        d3d9->CreateTexture(static_cast<int>(fSmallWidth), static_cast<int>(fSmallHeight), 1, D3DUSAGE_RENDERTARGET,
-                            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pSmallPostProcessTexture, nullptr);
-        d3d9->CreateTexture(static_cast<int>(fSmallWidth * 2.0f), static_cast<int>(fSmallHeight * 2.0f), 1,
-                            D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pSmallPostProcessTexture2,
-                            nullptr);
+        renderDevice->CreateTexture(width, height, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pPostProcessTexture);
+        renderDevice->CreateTexture(static_cast<int>(fSmallWidth), static_cast<int>(fSmallHeight), 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pSmallPostProcessTexture);
+        renderDevice->CreateTexture(static_cast<int>(fSmallWidth * 2.0f), static_cast<int>(fSmallHeight * 2.0f), 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pSmallPostProcessTexture2);
     }
 
     if (!pPostProcessTexture || !pSmallPostProcessTexture || !pSmallPostProcessTexture2)
@@ -926,37 +805,37 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
     for (int32_t s = 0; s < num_stages; s++)
     {
         // texture operation
-        SetTextureStageState(s, D3DTSS_COLORARG1, D3DTA_CURRENT);
-        SetTextureStageState(s, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-        SetTextureStageState(s, D3DTSS_COLOROP, D3DTOP_DISABLE);
+        SetTextureStageState(s, storm_render::StageColorArg1, storm_render::textureArg::current);
+        SetTextureStageState(s, storm_render::StageColorArg2, storm_render::textureArg::texture);
+        SetTextureStageState(s, storm_render::StageColorOp, storm_render::TextureOpDisable);
 
         // texture coord
-        SetTextureStageState(s, D3DTSS_TEXCOORDINDEX, s);
+        SetTextureStageState(s, storm_render::StageTexCoordIndex, s);
 
         // texture filtering
-        SetSamplerState(s, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        SetSamplerState(s, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        SetSamplerState(s, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+        SetSamplerState(s, storm_render::SamplerMagFilter, storm_render::TextureFilterLinear);
+        SetSamplerState(s, storm_render::SamplerMinFilter, storm_render::TextureFilterLinear);
+        SetSamplerState(s, storm_render::SamplerMipFilter, storm_render::TextureFilterLinear);
     }
 
     // set base texture and diffuse+specular lighting
-    SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_ADDSIGNED);
+    SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpAddSigned);
 
     // texture op for lightmaps
     // SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_ADDSIGNED);
 
     SetCamera(CVECTOR(0.0f, 0.0f, 0.0f), CVECTOR(0.0f, 0.0f, 0.0f), 1.0f);
 
-    D3DLIGHT9 l{};
-    l.Type = D3DLIGHT_POINT;
+    storm_render::Light l{};
+    l.Type = storm_render::LightKind::Point;
     l.Range = 100.0f;
     l.Attenuation0 = 1.0f;
 
     for (int i = 0; i < 8; i++)
     {
-        d3d9->SetLight(i, &l);
-        d3d9->LightEnable(i, false);
+        renderDevice->SetLight(i, &l);
+        renderDevice->LightEnable(i, false);
     }
 
     SetCommonStates();
@@ -997,21 +876,18 @@ bool DX9RENDER::ReleaseDevice()
             delete Textures[t].name;
         }
 
-    if (d3d9 != nullptr && CHECKD3DERR(d3d9->Release()) == false)
+    if (renderDevice != nullptr && CHECKD3DERR(renderDevice->Release()) == false)
         res = false;
-    d3d9 = nullptr;
-    if (d3d != nullptr && CHECKD3DERR(d3d->Release()) == false)
-        res = false;
-    d3d = nullptr;
+    renderDevice = nullptr;
     return res;
 }
 
 //################################################################################
 bool DX9RENDER::DX9Clear(int32_t type)
 {
-    if (CHECKD3DERR(d3d9->Clear(0L, NULL, type, dwBackColor, 1.0f, 0L)) == true)
+    if (CHECKD3DERR(renderDevice->Clear(type, dwBackColor, 1.0f)) == true)
         return false;
-    // if(CHECKD3DERR(d3d9->Clear(0L, NULL, type, 0x0, 1.0f, 0L))==true)    return false;
+    // if(CHECKD3DERR(renderDevice->Clear(0L, NULL, type, 0x0, 1.0f, 0L))==true)    return false;
     return true;
 }
 
@@ -1083,7 +959,7 @@ void DX9RENDER::BlurGlowTexture()
     SetTexture(2, pPostProcessTexture);
     SetTexture(3, pPostProcessTexture);
     SetRenderTarget(pSmallPostProcessSurface2, nullptr);
-    DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessBlur");
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessBlur");
 
     // pre-blur iBlurPasses times
     for (int i = 0; i < iBlurPasses; i++)
@@ -1095,7 +971,7 @@ void DX9RENDER::BlurGlowTexture()
         SetTexture(2, pSmallPostProcessTexture2);
         SetTexture(3, pSmallPostProcessTexture2);
         SetRenderTarget(pSmallPostProcessSurface, nullptr);
-        DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex),
+        DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex),
                         "PostProcessBlur");
 
         CreateRenderQuad(fSmallWidth * 2.0f, fSmallHeight * 2.0f, fSmallWidth, fSmallHeight);
@@ -1105,7 +981,7 @@ void DX9RENDER::BlurGlowTexture()
         SetTexture(2, pSmallPostProcessTexture);
         SetTexture(3, pSmallPostProcessTexture);
         SetRenderTarget(pSmallPostProcessSurface2, nullptr);
-        DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex),
+        DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex),
                         "PostProcessBlur");
     }
 
@@ -1115,7 +991,7 @@ void DX9RENDER::BlurGlowTexture()
     SetTexture(2, pSmallPostProcessTexture2);
     SetTexture(3, pSmallPostProcessTexture2);
     SetRenderTarget(pSmallPostProcessSurface, nullptr);
-    DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessBlur");
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessBlur");
 }
 
 void DX9RENDER::CopyGlowToScreen()
@@ -1147,14 +1023,14 @@ void DX9RENDER::CopyGlowToScreen()
     const uint32_t dwTFactor = (bGLOW << 24) | (bGLOW << 16) | (bGLOW << 8) | bGLOW;
 
     // Draw the GLOW screen
-    SetRenderState(D3DRS_TEXTUREFACTOR, dwTFactor);
+    SetRenderState(storm_render::RenderTextureFactor, dwTFactor);
 
     SetTexture(0, pSmallPostProcessTexture);
     SetTexture(1, pSmallPostProcessTexture);
     SetTexture(2, pSmallPostProcessTexture);
     SetTexture(3, pSmallPostProcessTexture);
 
-    DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessGlow");
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcessGlow");
 }
 
 void DX9RENDER::CopyPostProcessToScreen()
@@ -1186,20 +1062,20 @@ void DX9RENDER::CopyPostProcessToScreen()
     if (bSeaEffect)
     {
         SetFVF(POST_PROCESS_FVF);
-        DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 32 * 32, 31 * 31 * 2, qi, D3DFMT_INDEX16, qv, sizeof(QuadVertex),
+        DrawIndexedPrimitiveUP(storm_render::PrimitiveTriangleList, 0, 32 * 32, 31 * 31 * 2, qi, storm_render::IndexFormat::UInt16, qv, sizeof(QuadVertex),
                                "PostProcess");
     }
     else
     {
-        DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcess");
+        DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, POST_PROCESS_FVF, 2, PostProcessQuad, sizeof(QuadVertex), "PostProcess");
     }
 }
 
-void DX9RENDER::ClearPostProcessSurface(IDirect3DSurface9 *pSurf)
+void DX9RENDER::ClearPostProcessSurface(storm_render::Surface *pSurf)
 {
-    HRESULT hr = SetRenderTarget(pSurf, nullptr);
+    storm_render::Result hr = SetRenderTarget(pSurf, nullptr);
     hr = BeginScene();
-    hr = d3d9->Clear(0, nullptr, D3DCLEAR_TARGET, 0x0, 0.0f, 0x0);
+    hr = renderDevice->Clear(storm_render::clear::color, 0x0, 0.0f);
     hr = EndScene();
 }
 
@@ -1215,40 +1091,12 @@ void DX9RENDER::SetPostProcessTextureAsRenderTarget()
     SetViewport(&OriginalViewPort);
 }
 
-void DX9RENDER::MakePostProcess()
+void DX9RENDER::FinalizeSceneEffects()
 {
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-    // Sea and land battle HUDs live in scene realize layers. Their existing
-    // post-process handoff is the first reliable boundary before HUD drawing.
-    D3DPERF_SetMarker(0, L"Storm.SceneHudBoundary");
-#endif
-    if (bPostProcessError)
-        return;
-    if (!bSeaEffect && !bPostProcessEnabled)
-        return;
-    if (!bNeedCopyToScreen)
-        return;
-
-    IDirect3DStateBlock9 *pStateBlock = nullptr;
-    d3d9->CreateStateBlock(D3DSBT_ALL, &pStateBlock);
-    pStateBlock->Capture();
-
-    bNeedCopyToScreen = false;
-
-    CopyPostProcessToScreen();
-    BlurGlowTexture();
-    CopyGlowToScreen();
-
-    pStateBlock->Apply();
-    pStateBlock->Release();
-
-    SetScreenAsRenderTarget();
-    /*
-    Print (0, 0, "Blur = %3.2f",    fBlurSize);
-    Print (0, 16, "Intensity = %d",    GlowIntensity);
-    Print (0, 32, "BlurPasses = %d",    iBlurPasses);
-    */
+    storm_render::markSceneBoundary(GetNativeDevice(), storm_render::SceneBoundary::Hud);
 }
+
+
 
 //################################################################################
 bool DX9RENDER::DX9EndScene()
@@ -1312,7 +1160,7 @@ bool DX9RENDER::DX9EndScene()
         }
 
         CMatrix mView;
-        GetTransform(D3DTS_VIEW, mView);
+        GetTransform(storm_render::TransformView, mView);
         mView.Transposition();
         Print(80, 50, "Cam: %.3f, %.3f, %.3f", mView.Pos().x, mView.Pos().y, mView.Pos().z);
         Print(80, 70, "t : %d, %.3f Mb", dwTotalTexNum, float(dwTotalTexSize) / (1024.0f * 1024.0f));
@@ -1330,9 +1178,9 @@ bool DX9RENDER::DX9EndScene()
         for (int32_t i = 0; i < 2; i++)
             pV[i] = CVECTOR(1e6f, 1e6f, 1e6f);
         pDropConveyorVBuffer->Unlock();
-        d3d9->SetStreamSource(0, pDropConveyorVBuffer, 0, sizeof(CVECTOR));
-        SetFVF(D3DFVF_XYZ);
-        DrawPrimitive(D3DPT_LINELIST, 0, 1);
+        renderDevice->SetStreamSource(0, pDropConveyorVBuffer, 0, sizeof(CVECTOR));
+        SetFVF(storm_render::vertexFormat::xyz);
+        DrawPrimitive(storm_render::PrimitiveLineList, 0, 1);
     }
 
     if (CHECKD3DERR(EndScene()))
@@ -1341,9 +1189,9 @@ bool DX9RENDER::DX9EndScene()
     if (bMakeShoot)
         MakeScreenShot();
 
-    const HRESULT hRes = d3d9->Present(nullptr, nullptr, nullptr, nullptr);
+    const storm_render::Result hRes = renderDevice->Present();
 
-    if (hRes == D3DERR_DEVICELOST)
+    if (hRes == storm_render::result::failure)
     {
         LostRender();
     }
@@ -1461,9 +1309,9 @@ int32_t DX9RENDER::TextureCreate(const char *fname)
     return -1;
 }
 
-int32_t DX9RENDER::TextureCreate(UINT width, UINT height, UINT levels, uint32_t usage, D3DFORMAT format, D3DPOOL pool)
+int32_t DX9RENDER::TextureCreate(UINT width, UINT height, UINT levels, uint32_t usage, storm_render::AssetFormat format, storm_render::MemoryClass pool)
 {
-    IDirect3DTexture9 *texture = nullptr;
+    storm_render::Texture *texture = nullptr;
 
     const auto result = CreateTexture(width, height, levels, usage, format, pool, &texture);
     if (CHECKD3DERR(result))
@@ -1560,7 +1408,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
         return false;
     }
     // Analyzing the format
-    D3DFORMAT d3dFormat = D3DFMT_UNKNOWN;
+    storm_render::AssetFormat d3dFormat = storm_render::AssetFormat::Unknown;
     int32_t textureFI;
     for (textureFI = 0; textureFI < sizeof(textureFormats) / sizeof(SD_TEXTURE_FORMAT); textureFI++)
     {
@@ -1637,9 +1485,8 @@ bool DX9RENDER::TextureLoad(int32_t t)
             fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
         }
         // create the texture
-        IDirect3DTexture9 *tex = nullptr;
-        if (CHECKD3DERR(d3d9->CreateTexture(head.width, head.height, head.nmips, 0, d3dFormat, D3DPOOL_MANAGED, &tex,
-                                            NULL)) == true ||
+        storm_render::Texture *tex = nullptr;
+        if (CHECKD3DERR(renderDevice->CreateTexture(head.width, head.height, head.nmips, 0, d3dFormat, &tex)) == true ||
             !tex)
         {
             if (bTrace)
@@ -1663,7 +1510,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
             Textures[t].dwSize += mipSize;
             // Getting the mip surface
             bool isError = false;
-            IDirect3DSurface9 *surface = nullptr;
+            storm_render::Surface *surface = nullptr;
             if (CHECKD3DERR(tex->GetSurfaceLevel(m, &surface)) == true || !surface)
             {
                 isError = true;
@@ -1719,8 +1566,8 @@ bool DX9RENDER::TextureLoad(int32_t t)
             return false;
         }
         // Number of mips
-        D3DCAPS9 devcaps;
-        if (CHECKD3DERR(d3d9->GetDeviceCaps(&devcaps)))
+        storm_render::Capabilities devcaps;
+        if (CHECKD3DERR(renderDevice->GetCapabilities(&devcaps)))
         {
             if (bTrace)
             {
@@ -1732,13 +1579,13 @@ bool DX9RENDER::TextureLoad(int32_t t)
             fio->_CloseFile(fileS);
             return false;
         }
-        if (!(devcaps.TextureCaps & D3DPTEXTURECAPS_MIPCUBEMAP))
+        if (!devcaps.mipCubeMap)
         {
             head.nmips = 1;
         }
         // create the texture
-        IDirect3DCubeTexture9 *tex = nullptr;
-        if (CHECKD3DERR(d3d9->CreateCubeTexture(head.width, head.nmips, 0, d3dFormat, D3DPOOL_MANAGED, &tex, NULL)) ==
+        storm_render::CubeTexture *tex = nullptr;
+        if (CHECKD3DERR(renderDevice->CreateCubeTexture(head.width, head.nmips, 0, d3dFormat, &tex)) ==
                 true ||
             !tex)
         {
@@ -1759,7 +1606,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
             fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
         }
         uint32_t sz =
-            LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_POSITIVE_Z, head.nmips, head.mip_size, head.width, isSwizzled);
+            LoadCubmapSide(fileS, tex, storm_render::CubeFace::PositiveZ, head.nmips, head.mip_size, head.width, isSwizzled);
         if (sz)
         {
             Textures[t].dwSize += sz;
@@ -1767,7 +1614,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
             {
                 fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
             }
-            sz = LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_POSITIVE_X, head.nmips, head.mip_size, head.width,
+            sz = LoadCubmapSide(fileS, tex, storm_render::CubeFace::PositiveX, head.nmips, head.mip_size, head.width,
                                 isSwizzled);
             if (sz)
             {
@@ -1776,7 +1623,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
                 {
                     fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
                 }
-                sz = LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_NEGATIVE_Z, head.nmips, head.mip_size, head.width,
+                sz = LoadCubmapSide(fileS, tex, storm_render::CubeFace::NegativeZ, head.nmips, head.mip_size, head.width,
                                     isSwizzled);
                 if (sz)
                 {
@@ -1785,7 +1632,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
                     {
                         fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
                     }
-                    sz = LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_NEGATIVE_X, head.nmips, head.mip_size, head.width,
+                    sz = LoadCubmapSide(fileS, tex, storm_render::CubeFace::NegativeX, head.nmips, head.mip_size, head.width,
                                         isSwizzled);
                     if (sz)
                     {
@@ -1794,7 +1641,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
                         {
                             fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
                         }
-                        sz = LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_POSITIVE_Y, head.nmips, head.mip_size,
+                        sz = LoadCubmapSide(fileS, tex, storm_render::CubeFace::PositiveY, head.nmips, head.mip_size,
                                             head.width, isSwizzled);
                         if (sz)
                         {
@@ -1803,7 +1650,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
                             {
                                 fio->_SetFilePointer(fileS, seekposition, std::ios::cur);
                             }
-                            sz = LoadCubmapSide(fileS, tex, D3DCUBEMAP_FACE_NEGATIVE_Y, head.nmips, head.mip_size,
+                            sz = LoadCubmapSide(fileS, tex, storm_render::CubeFace::NegativeY, head.nmips, head.mip_size,
                                                 head.width, isSwizzled);
                             if (!sz)
                             {
@@ -1882,11 +1729,11 @@ bool DX9RENDER::TextureLoad(int32_t t)
 bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
 {
     // TODO: reimplement the whole thing in a tidy way
-    IDirect3DTexture9 *pTex;
+    storm_render::Texture *pTex;
 #ifdef _WIN32
-    if(CHECKD3DERR(D3DXCreateTextureFromFileA(d3d9, path, &pTex)))
+    if(CHECKD3DERR(D3DXCreateTextureFromFileA(renderDevice, path, &pTex)))
 #else
-    if(CHECKD3DERR(LoadNativeRawTexture(d3d9, path, &pTex)))
+    if(CHECKD3DERR(storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex)))
 #endif
     {
         delete Textures[t].name;
@@ -1894,7 +1741,7 @@ bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
         return false;
     }
 
-    D3DSURFACE_DESC desc;
+    storm_render::SurfaceDesc desc;
     pTex->GetLevelDesc(0, &desc);
 
     Textures[t].hash = 0;
@@ -1907,12 +1754,12 @@ bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
     return true;
 }
 
-IDirect3DBaseTexture9 *DX9RENDER::GetBaseTexture(int32_t iTexture)
+storm_render::BaseTexture *DX9RENDER::GetBaseTexture(int32_t iTexture)
 {
     return (iTexture >= 0) ? Textures[iTexture].d3dtex : nullptr;
 }
 
-uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *tex, D3DCUBEMAP_FACES face,
+uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, storm_render::CubeTexture *tex, storm_render::CubeFace face,
                                    uint32_t numMips, uint32_t mipSize, uint32_t size, bool isSwizzled)
 {
     uint32_t texsize = 0;
@@ -1921,14 +1768,14 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *t
     {
         // Getting the mip surface
         bool isError = false;
-        IDirect3DSurface9 *surface = nullptr;
+        storm_render::Surface *surface = nullptr;
         if (CHECKD3DERR(tex->GetCubeMapSurface(face, m, &surface)) == true || !surface)
         {
             isError = true;
         }
         else
         {
-            D3DSURFACE_DESC desc{};
+            storm_render::SurfaceDesc desc{};
             const auto mipBytes = CHECKD3DERR(surface->GetDesc(&desc)) ? 0 :
                 storm::renderer::TextureMipSize(static_cast<uint32_t>(desc.Format), desc.Width, desc.Height);
             // read the mip
@@ -1959,15 +1806,15 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *t
     return texsize;
 }
 
-bool DX9RENDER::LoadTextureSurface(std::fstream &fileS, IDirect3DSurface9 *suface, uint32_t mipSize, uint32_t width,
+bool DX9RENDER::LoadTextureSurface(std::fstream &fileS, storm_render::Surface *suface, uint32_t mipSize, uint32_t width,
                                    uint32_t height, bool isSwizzled)
 {
     //------------------------------------------------------------------------------------------
     // PC version
     // ------------------------------------------------------------------------------------------
     // Surface pointer
-    D3DLOCKED_RECT lock;
-    D3DSURFACE_DESC desc{};
+    storm_render::LockedRect lock;
+    storm_render::SurfaceDesc desc{};
     if (CHECKD3DERR(suface->GetDesc(&desc)) == true)
     {
         return false;
@@ -2019,7 +1866,7 @@ bool DX9RENDER::TextureSet(int32_t stage, int32_t texid)
 {
     if (texid == -1)
     {
-        if (CHECKD3DERR(d3d9->SetTexture(stage, NULL)) == true)
+        if (CHECKD3DERR(renderDevice->SetTexture(stage, NULL)) == true)
         {
             return false;
         }
@@ -2053,7 +1900,7 @@ bool DX9RENDER::TextureSet(int32_t stage, int32_t texid)
     }
     */
 
-    if (CHECKD3DERR(d3d9->SetTexture(stage, Textures[texid].d3dtex)) == true)
+    if (CHECKD3DERR(renderDevice->SetTexture(stage, Textures[texid].d3dtex)) == true)
     {
         return false;
     }
@@ -2159,7 +2006,7 @@ bool DX9RENDER::SetCamera(const CVECTOR &pos, const CVECTOR &ang)
     {
       if (!pos && !ang) return true;
       //if(CHECKD3DERR(GetTransform(D3DTS_VIEW, mtx))==true) return false;
-      d3d9->GetTransform(D3DTS_VIEW, mtx);
+      renderDevice->GetTransform(D3DTS_VIEW, mtx);
       if (pos)
       {
         //mtx.SetInversePosition(pos->x, pos->y, pos->z);
@@ -2187,18 +2034,18 @@ bool DX9RENDER::SetCamera(const CVECTOR &pos, const CVECTOR &ang)
     }
     // if(CHECKD3DERR(SetTransform(D3DTS_VIEW, mtx))==true)    return false;
 
-    d3d9->SetTransform(D3DTS_VIEW, mtx);
+    renderDevice->SetTransform(storm_render::TransformView, mtx);
     vViewRelationPos = -(mtx * vWordRelationPos);
-    d3d9->GetTransform(D3DTS_WORLD, mtx);
+    renderDevice->GetTransform(storm_render::TransformWorld, mtx);
     mtx.Pos() += vWordRelationPos - vOldWordRelationPos;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    StormMetalRebaseWorld(d3d9, mtx);
-    StormMetalSetWorldOrigin(d3d9, &vWordRelationPos.x);
+    StormMetalRebaseWorld(renderDevice, mtx);
+    StormMetalSetWorldOrigin(renderDevice, &vWordRelationPos.x);
 #else
-    d3d9->SetTransform(D3DTS_WORLD, mtx);
+    renderDevice->SetTransform(storm_render::TransformWorld, mtx);
 #endif
 
-    FindPlanes(d3d9);
+    FindPlanes(renderDevice);
     ProcessScriptPosAng(pos, ang);
     return true;
 }
@@ -2209,10 +2056,10 @@ bool DX9RENDER::SetCamera(CVECTOR lookFrom, CVECTOR lookTo, CVECTOR up)
     if (!mtx.BuildViewMatrix(lookFrom, lookTo, up))
         return false;
     // if(CHECKD3DERR(SetTransform(D3DTS_VIEW, mtx))==true)    return false;
-    SetTransform(D3DTS_VIEW, mtx);
+    SetTransform(storm_render::TransformView, mtx);
     Pos = lookFrom;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    StormMetalSetWorldOrigin(d3d9, &vWordRelationPos.x);
+    StormMetalSetWorldOrigin(renderDevice, &vWordRelationPos.x);
 #endif
 
     // calculate the angle of the camera
@@ -2222,7 +2069,7 @@ bool DX9RENDER::SetCamera(CVECTOR lookFrom, CVECTOR lookTo, CVECTOR up)
     Ang.x = atan2f(-vNorm.y, sqrtf(vNorm.x * vNorm.x + vNorm.z * vNorm.z));
     Ang.z = 0.f;
 
-    FindPlanes(d3d9);
+    FindPlanes(renderDevice);
     ProcessScriptPosAng(lookFrom, Ang);
     return true;
 }
@@ -2279,7 +2126,7 @@ bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio, float magn
     const float h = 1.0f / tanf(fov_vert * 0.5f);
     const float Q = far_plane / (far_plane - near_plane);
 
-    D3DMATRIX mtx{};
+    storm_render::Matrix mtx{};
 
     // Scale the existing projection equally on both axes. This preserves
     // legacy vertical-FOV policy and user fov_multiplier without distortion.
@@ -2289,59 +2136,63 @@ bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio, float magn
     mtx._43 = -Q * near_plane;
     mtx._34 = 1.0f;
 
-    if (CHECKD3DERR(d3d9->SetTransform(D3DTS_PROJECTION, &mtx)) == true)
+    if (CHECKD3DERR(renderDevice->SetTransform(storm_render::TransformProjection, &mtx)) == true)
         return false;
     perspectiveInput = inputPerspective;
     projectionMagnification = magnification;
     Fov = magnification == 1.f ? perspective : 2.f * atanf(tanf(perspective * .5f) / magnification);
-    FindPlanes(d3d9);
+    FindPlanes(renderDevice);
     return true;
 }
 
 //################################################################################
-bool DX9RENDER::SetCurrentMatrix(D3DMATRIX *mtx)
+bool DX9RENDER::SetCurrentMatrix(storm_render::Matrix *mtx)
 {
     // return CHECKD3DERR(SetTransform(D3DTS_WORLD, mtx)) == D3D_OK;
-    SetTransform(D3DTS_WORLD, mtx);
+    SetTransform(storm_render::TransformWorld, mtx);
     return true;
 }
 
-bool DX9RENDER::SetMaterial(D3DMATERIAL9 &m)
+bool DX9RENDER::SetMaterial(storm_render::Material &m)
 {
-    if (CHECKD3DERR(d3d9->SetMaterial(&m)))
+    if (CHECKD3DERR(renderDevice->SetMaterial(&m)))
         return false;
     return true;
 }
 
-bool DX9RENDER::SetLight(uint32_t dwIndex, const D3DLIGHT9 *pLight)
+bool DX9RENDER::SetLight(uint32_t dwIndex, const storm_render::Light *pLight)
 {
     // Set the property information for the first light.
-    D3DLIGHT9 tmpLight = *pLight;
+    storm_render::Light tmpLight = *pLight;
     tmpLight.Position.x += vWordRelationPos.x;
     tmpLight.Position.y += vWordRelationPos.y;
     tmpLight.Position.z += vWordRelationPos.z;
-    if (CHECKD3DERR(d3d9->SetLight(dwIndex, &tmpLight)))
+    if (CHECKD3DERR(renderDevice->SetLight(dwIndex, &tmpLight)))
         return false;
     return true;
 }
 
 bool DX9RENDER::LightEnable(uint32_t dwIndex, bool bOn)
 {
-    if (CHECKD3DERR(d3d9->LightEnable(dwIndex, bOn)))
+    if (CHECKD3DERR(renderDevice->LightEnable(dwIndex, bOn)))
         return false;
     return true;
 }
 
 bool DX9RENDER::GetLightEnable(uint32_t dwIndex, BOOL *pEnable)
 {
-    if (CHECKD3DERR(d3d9->GetLightEnable(dwIndex, pEnable)))
+    if (!pEnable)
         return false;
+    bool enabled = false;
+    if (CHECKD3DERR(renderDevice->GetLightEnable(dwIndex, &enabled)))
+        return false;
+    *pEnable = enabled;
     return true;
 }
 
-bool DX9RENDER::GetLight(uint32_t dwIndex, D3DLIGHT9 *pLight)
+bool DX9RENDER::GetLight(uint32_t dwIndex, storm_render::Light *pLight)
 {
-    if (CHECKD3DERR(d3d9->GetLight(dwIndex, pLight)))
+    if (CHECKD3DERR(renderDevice->GetLight(dwIndex, pLight)))
         return false;
 
     pLight->Position.x -= vWordRelationPos.x;
@@ -2352,7 +2203,7 @@ bool DX9RENDER::GetLight(uint32_t dwIndex, D3DLIGHT9 *pLight)
 
 //################################################################################
 
-int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsage, uint32_t dwPool)
+int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsage, storm_render::MemoryClass dwPool)
 {
     if (size <= 0)
         return -1; // fix
@@ -2368,8 +2219,7 @@ int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsag
         return -1;
     }
 
-    if (CHECKD3DERR(d3d9->CreateVertexBuffer(size, dwUsage, type, static_cast<D3DPOOL>(dwPool),
-                                             &VertexBuffers[b].buff, NULL)))
+    if (CHECKD3DERR(renderDevice->CreateVertexBuffer(size, dwUsage, type, &VertexBuffers[b].buff)))
         return -1;
 
     VertexBuffers[b].type = type;
@@ -2379,7 +2229,7 @@ int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsag
     return b;
 }
 
-IDirect3DVertexBuffer9 *DX9RENDER::GetVertexBuffer(int32_t id)
+storm_render::VertexBuffer *DX9RENDER::GetVertexBuffer(int32_t id)
 {
     if (id < 0 || id >= MAX_BUFFERS)
         return nullptr;
@@ -2407,9 +2257,9 @@ int32_t DX9RENDER::CreateIndexBuffer(size_t size, uint32_t dwUsage)
         return -1;
     }
 
-    // d3d9->CreateIndexBuffer(size, D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
+    // renderDevice->CreateIndexBuffer(size, D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
     if (CHECKD3DERR(
-            d3d9->CreateIndexBuffer(size, dwUsage, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &IndexBuffers[b].buff, NULL)))
+            renderDevice->CreateIndexBuffer(size, dwUsage, storm_render::IndexFormat::UInt16, &IndexBuffers[b].buff)))
         return -1;
 
     IndexBuffers[b].size = size;
@@ -2452,11 +2302,11 @@ void DX9RENDER::DrawBuffer(int32_t vbuff, int32_t stride, int32_t ibuff, int32_t
             return;
     // else VertexBuffer already set
 
-    if (CHECKD3DERR(d3d9->SetIndices(IndexBuffers[ibuff].buff)))
+    if (CHECKD3DERR(renderDevice->SetIndices(IndexBuffers[ibuff].buff)))
         return;
 
     if (vbuff >= 0)
-        if (CHECKD3DERR(d3d9->SetStreamSource(0, VertexBuffers[vbuff].buff, 0, stride)))
+        if (CHECKD3DERR(renderDevice->SetStreamSource(0, VertexBuffers[vbuff].buff, 0, stride)))
             return;
     // else VertexBuffer already set
 
@@ -2467,11 +2317,11 @@ void DX9RENDER::DrawBuffer(int32_t vbuff, int32_t stride, int32_t ibuff, int32_t
         do
         {
             dwNumDrawPrimitive++;
-            CHECKD3DERR(d3d9->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, minv, 0, numv, startidx, numtrg));
+            CHECKD3DERR(renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg));
         } while (cBlockName && cBlockName[0] && TechniqueExecuteNext());
 }
 
-void DX9RENDER::DrawIndexedPrimitiveNoVShader(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iIBuff,
+void DX9RENDER::DrawIndexedPrimitiveNoVShader(storm_render::Primitive dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iIBuff,
                                               int32_t iMinV, int32_t iNumV, int32_t iStartIdx, int32_t iNumTrg,
                                               const char *cBlockName)
 {
@@ -2483,7 +2333,7 @@ void DX9RENDER::DrawIndexedPrimitiveNoVShader(D3DPRIMITIVETYPE dwPrimitiveType, 
         return;
     }
 
-    if (CHECKD3DERR(d3d9->SetIndices(IndexBuffers[iIBuff].buff)) == true)
+    if (CHECKD3DERR(renderDevice->SetIndices(IndexBuffers[iIBuff].buff)) == true)
         return;
 
     if (iVBuff >= 0)
@@ -2493,7 +2343,7 @@ void DX9RENDER::DrawIndexedPrimitiveNoVShader(D3DPRIMITIVETYPE dwPrimitiveType, 
             ReportRejectedBuffer("DrawIndexedPrimitiveNoVShader", iVBuff, iIBuff);
             return;
         }
-        if (CHECKD3DERR(d3d9->SetStreamSource(0, VertexBuffers[iVBuff].buff, 0, iStride)) == true)
+        if (CHECKD3DERR(renderDevice->SetStreamSource(0, VertexBuffers[iVBuff].buff, 0, iStride)) == true)
             return;
     }
 
@@ -2503,12 +2353,12 @@ void DX9RENDER::DrawIndexedPrimitiveNoVShader(D3DPRIMITIVETYPE dwPrimitiveType, 
         do
         {
             dwNumDrawPrimitive++;
-            CHECKD3DERR(d3d9->DrawIndexedPrimitive(dwPrimitiveType, iMinV, 0, iNumV, iStartIdx, iNumTrg));
+            CHECKD3DERR(renderDevice->DrawIndexedPrimitive(dwPrimitiveType, iMinV, 0, iNumV, iStartIdx, iNumTrg));
         } while (cBlockName && TechniqueExecuteNext());
 }
 
-void DX9RENDER::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwMinIndex, uint32_t dwNumVertices,
-                                       uint32_t dwPrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat,
+void DX9RENDER::DrawIndexedPrimitiveUP(storm_render::Primitive dwPrimitiveType, uint32_t dwMinIndex, uint32_t dwNumVertices,
+                                       uint32_t dwPrimitiveCount, const void *pIndexData, storm_render::IndexFormat IndexDataFormat,
                                        const void *pVertexData, uint32_t dwVertexStride, const char *cBlockName)
 {
     bool bDraw = true;
@@ -2519,19 +2369,19 @@ void DX9RENDER::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_
         {
             dwNumDrawPrimitive++;
 #ifdef STORM_METAL_RENDERER_CONSUMERS
-            if (!StormMetalDrawCompactIndexedPrimitive(d3d9, dwPrimitiveType, dwMinIndex, dwNumVertices,
-                                                        dwPrimitiveCount, pIndexData, IndexDataFormat,
+            if (!StormMetalDrawCompactIndexedPrimitive(renderDevice, dwPrimitiveType, dwMinIndex, dwNumVertices,
+                                                        dwPrimitiveCount, pIndexData, uint32_t(IndexDataFormat),
                                                         pVertexData, dwVertexStride))
-                CHECKD3DERR(d3d9->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
+                CHECKD3DERR(renderDevice->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
                                                          pIndexData, IndexDataFormat, pVertexData, dwVertexStride));
 #else
-            CHECKD3DERR(d3d9->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
+            CHECKD3DERR(renderDevice->DrawIndexedPrimitiveUP(dwPrimitiveType, dwMinIndex, dwNumVertices, dwPrimitiveCount,
                                                      pIndexData, IndexDataFormat, pVertexData, dwVertexStride));
 #endif
         } while (cBlockName && TechniqueExecuteNext());
 }
 
-void DX9RENDER::DrawPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwVertexBufferFormat, uint32_t dwNumPT,
+void DX9RENDER::DrawPrimitiveUP(storm_render::Primitive dwPrimitiveType, uint32_t dwVertexBufferFormat, uint32_t dwNumPT,
                                 const void *pVerts, uint32_t dwStride, const char *cBlockName)
 {
     bool bDraw = true;
@@ -2546,16 +2396,16 @@ void DX9RENDER::DrawPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwVer
         {
             dwNumDrawPrimitive++;
 #ifdef STORM_METAL_RENDERER_CONSUMERS
-            if (!StormMetalDrawCompactPrimitive(d3d9, dwPrimitiveType, dwVertexBufferFormat, dwNumPT,
+            if (!StormMetalDrawCompactPrimitive(renderDevice, dwPrimitiveType, dwVertexBufferFormat, dwNumPT,
                                                  pVerts, dwStride))
-                CHECKD3DERR(d3d9->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
+                CHECKD3DERR(renderDevice->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
 #else
-            CHECKD3DERR(d3d9->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
+            CHECKD3DERR(renderDevice->DrawPrimitiveUP(dwPrimitiveType, dwNumPT, pVerts, dwStride));
 #endif
         } while (cBlockName && TechniqueExecuteNext());
 }
 
-void DX9RENDER::DrawPrimitive(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iStartV, int32_t iNumPT,
+void DX9RENDER::DrawPrimitive(storm_render::Primitive dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iStartV, int32_t iNumPT,
                               const char *cBlockName)
 {
     bool bDraw = true;
@@ -2569,7 +2419,7 @@ void DX9RENDER::DrawPrimitive(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, 
     if (CHECKD3DERR(SetFVF(VertexBuffers[iVBuff].type)) == true)
         return;
 
-    if (CHECKD3DERR(d3d9->SetStreamSource(0, VertexBuffers[iVBuff].buff, 0, iStride)) == true)
+    if (CHECKD3DERR(renderDevice->SetStreamSource(0, VertexBuffers[iVBuff].buff, 0, iStride)) == true)
         return;
 
     if (cBlockName && cBlockName[0])
@@ -2578,7 +2428,7 @@ void DX9RENDER::DrawPrimitive(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, 
         do
         {
             dwNumDrawPrimitive++;
-            CHECKD3DERR(d3d9->DrawPrimitive(dwPrimitiveType, iStartV, iNumPT));
+            CHECKD3DERR(renderDevice->DrawPrimitive(dwPrimitiveType, iStartV, iNumPT));
         } while (cBlockName && TechniqueExecuteNext());
 }
 
@@ -2588,7 +2438,7 @@ void DX9RENDER::RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t 
 {
     if (numVrts <= 0 || !src || ib < 0)
         return;
-    const uint32_t type = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
+    const uint32_t type = storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::tex1;
     const int32_t size = numVrts * sizeof(FVF_VERTEX);
     if (isUpdateVB || numVrts > numAniVerteces || !aniVBuffer)
     {
@@ -2599,8 +2449,7 @@ void DX9RENDER::RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t 
                 aniVBuffer->Release();
             aniVBuffer = nullptr;
             numAniVerteces = 0;
-            if (CHECKD3DERR(d3d9->CreateVertexBuffer(size, D3DUSAGE_WRITEONLY, type, D3DPOOL_MANAGED, &aniVBuffer,
-                                                     NULL)) == true)
+            if (CHECKD3DERR(renderDevice->CreateVertexBuffer(size, storm_render::usage::writeOnly, type, &aniVBuffer)) == true)
                 return;
             numAniVerteces = numVrts;
         }
@@ -2624,13 +2473,13 @@ void DX9RENDER::RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t 
         return;
     }
 
-    if (CHECKD3DERR(d3d9->SetIndices(IndexBuffers[ib].buff)) == true)
+    if (CHECKD3DERR(renderDevice->SetIndices(IndexBuffers[ib].buff)) == true)
         return;
 
-    if (CHECKD3DERR(d3d9->SetStreamSource(0, aniVBuffer, 0, sizeof(FVF_VERTEX))) == true)
+    if (CHECKD3DERR(renderDevice->SetStreamSource(0, aniVBuffer, 0, sizeof(FVF_VERTEX))) == true)
         return;
 
-    CHECKD3DERR(d3d9->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, minv, 0, numv, startidx, numtrg));
+    CHECKD3DERR(renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg));
 
     dwNumDrawPrimitive++;
 }
@@ -2712,10 +2561,10 @@ void DX9RENDER::ReleaseIndexBuffer(int32_t id)
     IndexBuffers[id].dwNumLocks = 0;
 }
 
-void DX9RENDER::SetTransform(int32_t type, D3DMATRIX *mtx)
+void DX9RENDER::SetTransform(int32_t type, storm_render::Matrix *mtx)
 {
     CMatrix m = *(CMatrix *)mtx;
-    if (type == D3DTS_VIEW)
+    if (type == storm_render::TransformView)
     {
         vViewRelationPos.x = -mtx->_41;
         vViewRelationPos.y = -mtx->_42;
@@ -2725,42 +2574,42 @@ void DX9RENDER::SetTransform(int32_t type, D3DMATRIX *mtx)
         m.MulToInvNorm(-vViewRelationPos, vWordRelationPos);
         vDeltaWorld -= vWordRelationPos;
         CMatrix mw;
-        d3d9->GetTransform(D3DTS_WORLD, (D3DMATRIX *)&mw);
+        renderDevice->GetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&mw);
         mw.Pos() -= vDeltaWorld;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-        StormMetalRebaseWorld(d3d9, mw);
+        StormMetalRebaseWorld(renderDevice, mw);
 #else
-        d3d9->SetTransform(D3DTS_WORLD, mw);
+        renderDevice->SetTransform(storm_render::TransformWorld, mw);
 #endif
 
         m.Pos() += vViewRelationPos;
     }
-    else if (type == D3DTS_WORLD)
+    else if (type == storm_render::TransformWorld)
     {
         m.Pos() += vWordRelationPos;
     }
 
-    CHECKD3DERR(d3d9->SetTransform(static_cast<D3DTRANSFORMSTATETYPE>(type), (D3DMATRIX *)&m));
+    CHECKD3DERR(renderDevice->SetTransform(static_cast<storm_render::TransformSlot>(type), (storm_render::Matrix *)&m));
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (type == D3DTS_WORLD)
-        StormMetalSetAuthoredWorld(d3d9, &mtx->_11);
+    if (type == storm_render::TransformWorld)
+        StormMetalSetAuthoredWorld(renderDevice, &mtx->_11);
 #endif
 }
 
-void DX9RENDER::GetTransform(int32_t type, D3DMATRIX *mtx)
+void DX9RENDER::GetTransform(int32_t type, storm_render::Matrix *mtx)
 {
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (type == D3DTS_WORLD && mtx && StormMetalGetAuthoredWorld(d3d9, &mtx->_11)) return;
+    if (type == storm_render::TransformWorld && mtx && StormMetalGetAuthoredWorld(renderDevice, &mtx->_11)) return;
 #endif
-    CHECKD3DERR(d3d9->GetTransform(static_cast<D3DTRANSFORMSTATETYPE>(type), mtx));
+    CHECKD3DERR(renderDevice->GetTransform(static_cast<storm_render::TransformSlot>(type), mtx));
 
-    if (type == D3DTS_VIEW)
+    if (type == storm_render::TransformView)
     {
         mtx->_41 -= vViewRelationPos.x;
         mtx->_42 -= vViewRelationPos.y;
         mtx->_43 -= vViewRelationPos.z;
     }
-    else if (type == D3DTS_WORLD)
+    else if (type == storm_render::TransformWorld)
     {
         mtx->_41 -= vWordRelationPos.x;
         mtx->_42 -= vWordRelationPos.y;
@@ -2778,8 +2627,7 @@ bool DX9RENDER::LoadState(ENTITY_STATE *state)
 {
     // GUARD(DX9RENDER::Init)
     // for(int32_t t=0; t<MAX_STEXTURES; t++)    Textures[t].d3dtex = NULL;
-    // d3d = NULL;
-    // d3d9 = NULL;
+    // renderDevice = NULL;
     // state->Struct(sizeof(screen_size),(char *)&screen_size);
     // state->MemoryBlock(sizeof(bool),(char *)&window);
     // InitDevice(window,core.GetAppHWND(),screen_size.x,screen_size.y);
@@ -2796,9 +2644,9 @@ void DX9RENDER::LostRender()
 
     // Metal keeps references to bound geometry. Drop them before the legacy
     // table releases its own references, or the refcount assertion will trap.
-    d3d9->SetIndices(nullptr);
+    renderDevice->SetIndices(nullptr);
     for (uint32_t stream = 0; stream < 16; ++stream)
-        d3d9->SetStreamSource(stream, nullptr, 0, 0);
+        renderDevice->SetStreamSource(stream, nullptr, 0, 0);
 
     InvokeEntitiesLostRender();
 
@@ -2824,19 +2672,15 @@ void DX9RENDER::LostRender()
 
 void DX9RENDER::RestoreRender()
 {
-    d3d9->GetRenderTarget(0, &pOriginalScreenSurface);
-    d3d9->GetDepthStencilSurface(&pOriginalDepthSurface);
+    renderDevice->GetRenderTarget(&pOriginalScreenSurface);
+    renderDevice->GetDepthStencilSurface(&pOriginalDepthSurface);
     fSmallWidth = 128;
     fSmallHeight = 128;
     if (bPostProcessEnabled)
     {
-        d3d9->CreateTexture(screen_size.x, screen_size.y, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
-                            &pPostProcessTexture, nullptr);
-        d3d9->CreateTexture(static_cast<int>(fSmallWidth), static_cast<int>(fSmallHeight), 1, D3DUSAGE_RENDERTARGET,
-                            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pSmallPostProcessTexture, nullptr);
-        d3d9->CreateTexture(static_cast<int>(fSmallWidth * 2.0f), static_cast<int>(fSmallHeight * 2.0f), 1,
-                            D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pSmallPostProcessTexture2,
-                            nullptr);
+        renderDevice->CreateTexture(screen_size.x, screen_size.y, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pPostProcessTexture);
+        renderDevice->CreateTexture(static_cast<int>(fSmallWidth), static_cast<int>(fSmallHeight), 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pSmallPostProcessTexture);
+        renderDevice->CreateTexture(static_cast<int>(fSmallWidth * 2.0f), static_cast<int>(fSmallHeight * 2.0f), 1, storm_render::usage::renderTarget, storm_render::AssetFormat::A8R8G8B8, &pSmallPostProcessTexture2);
     }
     if (!pPostProcessTexture || !pSmallPostProcessTexture || !pSmallPostProcessTexture2)
     {
@@ -2862,19 +2706,16 @@ void DX9RENDER::RestoreRender()
         ClearPostProcessSurface(pSmallPostProcessSurface2);
     }
     ClearPostProcessSurface(pOriginalScreenSurface);
-    d3d9->CreateVertexBuffer(rectsVBuffer_SizeInRects * 6 * sizeof(RECT_VERTEX), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                             RS_RECT_VERTEX_FORMAT, D3DPOOL_DEFAULT, &rectsVBuffer, nullptr);
+    renderDevice->CreateVertexBuffer(rectsVBuffer_SizeInRects * 6 * sizeof(RECT_VERTEX), storm_render::usage::writeOnly | storm_render::usage::dynamic, RS_RECT_VERTEX_FORMAT, &rectsVBuffer);
     for (int32_t b = 0; b < MAX_BUFFERS; b++)
     {
         if (VertexBuffers[b].buff)
         {
-            CHECKD3DERR(d3d9->CreateVertexBuffer(VertexBuffers[b].size, VertexBuffers[b].dwUsage, VertexBuffers[b].type,
-                                                 D3DPOOL_DEFAULT, &VertexBuffers[b].buff, NULL));
+            CHECKD3DERR(renderDevice->CreateVertexBuffer(VertexBuffers[b].size, VertexBuffers[b].dwUsage, VertexBuffers[b].type, &VertexBuffers[b].buff));
         }
         if (IndexBuffers[b].buff)
         {
-            CHECKD3DERR(d3d9->CreateIndexBuffer(IndexBuffers[b].size, IndexBuffers[b].dwUsage, D3DFMT_INDEX16,
-                                                D3DPOOL_DEFAULT, &IndexBuffers[b].buff, NULL));
+            CHECKD3DERR(renderDevice->CreateIndexBuffer(IndexBuffers[b].size, IndexBuffers[b].dwUsage, storm_render::IndexFormat::UInt16, &IndexBuffers[b].buff));
         }
     }
     int32_t num_stages;
@@ -2882,29 +2723,29 @@ void DX9RENDER::RestoreRender()
     for (int32_t s = 0; s < num_stages; s++)
     {
         // texture operation
-        SetTextureStageState(s, D3DTSS_COLORARG1, D3DTA_CURRENT);
-        SetTextureStageState(s, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-        SetTextureStageState(s, D3DTSS_COLOROP, D3DTOP_DISABLE);
+        SetTextureStageState(s, storm_render::StageColorArg1, storm_render::textureArg::current);
+        SetTextureStageState(s, storm_render::StageColorArg2, storm_render::textureArg::texture);
+        SetTextureStageState(s, storm_render::StageColorOp, storm_render::TextureOpDisable);
 
         // texture coord
-        SetTextureStageState(s, D3DTSS_TEXCOORDINDEX, s);
+        SetTextureStageState(s, storm_render::StageTexCoordIndex, s);
 
         // texture filtering
-        SetSamplerState(s, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        SetSamplerState(s, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        SetSamplerState(s, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+        SetSamplerState(s, storm_render::SamplerMagFilter, storm_render::TextureFilterLinear);
+        SetSamplerState(s, storm_render::SamplerMinFilter, storm_render::TextureFilterLinear);
+        SetSamplerState(s, storm_render::SamplerMipFilter, storm_render::TextureFilterLinear);
     }
     // set base texture and diffuse+specular lighting
-    SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_ADDSIGNED);
-    D3DLIGHT9 l{};
-    l.Type = D3DLIGHT_POINT;
+    SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpAddSigned);
+    storm_render::Light l{};
+    l.Type = storm_render::LightKind::Point;
     l.Range = 100.0f;
     l.Attenuation0 = 1.0f;
     for (int i = 0; i < 8; i++)
     {
-        CHECKD3DERR(d3d9->SetLight(i, &l));
-        CHECKD3DERR(d3d9->LightEnable(i, false));
+        CHECKD3DERR(renderDevice->SetLight(i, &l));
+        CHECKD3DERR(renderDevice->LightEnable(i, false));
     }
     SetCommonStates();
 
@@ -2945,7 +2786,7 @@ int32_t DX9RENDER::ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality
                  flagsMask, shadowQuality, fullscreen, renderWidth, renderHeight, requestedDesktopMode);
     if ((flagsMask & ~knownFlags) != 0 || shadowQuality > 2 || (fullscreen != 0 && fullscreen != 1) ||
         (requestedDesktopMode != 0 && requestedDesktopMode != 1) || renderWidth < 320 || renderHeight < 200 ||
-        (requestedDesktopMode != 0 && fullscreen == 0) || renderWidth > 16384 || renderHeight > 16384 || !d3d9)
+        (requestedDesktopMode != 0 && fullscreen == 0) || renderWidth > 16384 || renderHeight > 16384 || !renderDevice)
     {
         std::fprintf(stderr, "[StormMetal graphics] reject=invalid-payload\n");
         return 0;
@@ -2956,7 +2797,7 @@ int32_t DX9RENDER::ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality
 #else
     auto *window = core.GetWindow();
     if (!window || pendingMetalGraphics.queued || metalGraphicsApplyResult != 0 ||
-        !StormMetalCanApplyGraphicsSettings(d3d9, flagsMask, shadowQuality))
+        !StormMetalCanApplyGraphicsSettings(renderDevice, flagsMask, shadowQuality))
     {
         std::fprintf(stderr, "[StormMetal graphics] reject=unsafe-phase window=%d queued=%d result=%d\n",
                      window ? 1 : 0, pendingMetalGraphics.queued ? 1 : 0, metalGraphicsApplyResult);
@@ -2989,15 +2830,15 @@ void DX9RENDER::ProcessPendingMetalGraphics()
     return;
 #else
     auto *window = core.GetWindow();
-    if (!window || !d3d9 || bInsideScene || resourcesReleased || !stRenderTarget.empty() ||
-        !StormMetalCanApplyGraphicsSettings(d3d9, request.flagsMask, request.shadowQuality))
+    if (!window || !renderDevice || bInsideScene || resourcesReleased || !stRenderTarget.empty() ||
+        !StormMetalCanApplyGraphicsSettings(renderDevice, request.flagsMask, request.shadowQuality))
     {
         std::fprintf(stderr, "[StormMetal graphics] deferred reject=unsafe-frame window=%d scene=%d released=%d targets=%zu\n",
                      window ? 1 : 0, bInsideScene ? 1 : 0, resourcesReleased ? 1 : 0, stRenderTarget.size());
         return;
     }
 
-    if (!StormMetalApplyGraphicsSettings(d3d9, request.flagsMask, request.shadowQuality))
+    if (!StormMetalApplyGraphicsSettings(renderDevice, request.flagsMask, request.shadowQuality))
     {
         std::fprintf(stderr, "[StormMetal graphics] deferred reject=backend-apply\n");
         return;
@@ -3013,7 +2854,7 @@ bool DX9RENDER::ResetDevice()
 {
     LostRender();
 
-    if (CHECKD3DERR(d3d9->Reset(&d3dpp)))
+    if (CHECKD3DERR(renderDevice->Reset(&d3dpp)))
         return false;
 
     RestoreRender();
@@ -3094,7 +2935,7 @@ void DX9RENDER::RunStart()
         SetScreenAsRenderTarget();
     }
 
-    DX9Clear(D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | ((stencil_format == D3DFMT_D24S8) ? D3DCLEAR_STENCIL : 0));
+    DX9Clear(storm_render::clear::color | storm_render::clear::depth | ((stencil_format == storm_render::AssetFormat::D24S8) ? storm_render::clear::stencil : 0));
 
     dwNumDrawPrimitive = 0;
     dwNumLV = 0;
@@ -3120,7 +2961,7 @@ void DX9RENDER::RunStart()
         InvokeEntitiesRestoreRender();
     }
 
-    SetRenderState(D3DRS_FILLMODE, (core.Controls->GetDebugAsyncKeyState('F') < 0) ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
+    SetRenderState(storm_render::RenderFillMode, (core.Controls->GetDebugAsyncKeyState('F') < 0) ? storm_render::FillWireframe : storm_render::FillSolid);
     // SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID); eddy
 
     PlayToTexture();
@@ -3135,7 +2976,6 @@ void DX9RENDER::RunStart()
 
 void DX9RENDER::RunEnd()
 {
-    // MakePostProcess();
 
     bInsideScene = false;
     DX9EndScene();
@@ -3249,9 +3089,9 @@ int32_t DX9RENDER::ExtPrint(int32_t nFontNum, uint32_t foreColor, uint32_t backC
     vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
-    IDirect3DSurface9 *pRenderTarget;
+    storm_render::Surface *pRenderTarget;
     GetRenderTarget(&pRenderTarget);
-    D3DSURFACE_DESC dscrSurface;
+    storm_render::SurfaceDesc dscrSurface;
     pRenderTarget->GetDesc(&dscrSurface);
     const int32_t xs = dscrSurface.Width;
     const int32_t ys = dscrSurface.Height;
@@ -3322,7 +3162,7 @@ int32_t DX9RENDER::LoadFont(const char *fontName)
         }
     if (nFontQuantity < MAX_FONTS)
     {
-        if ((FontList[i].font = new FONT(*this, *d3d9)) == nullptr)
+        if ((FontList[i].font = new FONT(*this, *renderDevice)) == nullptr)
             throw std::runtime_error("allocate memory error");
         if (!FontList[i].font->Init(fontName, fontIniFileName))
         {
@@ -3463,7 +3303,7 @@ bool DX9RENDER::SetFontIniFileName(const char *iniName)
     {
         delete FontList[n].font;
 
-        if ((FontList[n].font = new FONT(*this, *d3d9)) == nullptr)
+        if ((FontList[n].font = new FONT(*this, *renderDevice)) == nullptr)
             throw std::runtime_error("allocate memory error");
         FontList[n].font->Init(FontList[n].name, fontIniFileName);
         if (FontList[n].ref == 0)
@@ -3475,111 +3315,111 @@ bool DX9RENDER::SetFontIniFileName(const char *iniName)
 
 void DX9RENDER::SetCommonStates()
 {
-    SetRenderState(D3DRS_DITHERENABLE, TRUE);
-    SetRenderState(D3DRS_ALPHATESTENABLE, true);
+    SetRenderState(storm_render::RenderDither, TRUE);
+    SetRenderState(storm_render::RenderAlphaTest, true);
     //----------Z---------
-    SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
-    SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+    SetRenderState(storm_render::RenderDepthTest, storm_render::DepthEnabled);
+    SetRenderState(storm_render::RenderDepthWrite, TRUE);
+    SetRenderState(storm_render::RenderDepthCompare, storm_render::CompareLessEqual);
 
-    SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-    SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-    SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-    SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    SetRenderState(storm_render::RenderCullMode, storm_render::CullCounterClockwise);
+    SetRenderState(storm_render::RenderBlend, true);
+    SetSamplerState(0, storm_render::SamplerMagFilter, storm_render::TextureFilterLinear);
+    SetSamplerState(0, storm_render::SamplerMinFilter, storm_render::TextureFilterLinear);
+    SetSamplerState(0, storm_render::SamplerMipFilter, storm_render::TextureFilterLinear);
 
-    SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_EXP);
+    SetRenderState(storm_render::RenderFogTableMode, storm_render::FogExponential);
 
-    SetRenderState(D3DRS_LIGHTING, TRUE);
-    SetRenderState(D3DRS_LOCALVIEWER, FALSE);
-    SetRenderState(D3DRS_AMBIENT, 0x505050);
-    SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+    SetRenderState(storm_render::RenderLighting, TRUE);
+    SetRenderState(storm_render::RenderLocalViewer, FALSE);
+    SetRenderState(storm_render::RenderAmbient, 0x505050);
+    SetRenderState(storm_render::RenderAmbientMaterialSource, storm_render::MaterialSourceDiffuseColor);
 
-    SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-    SetRenderState(D3DRS_COLORVERTEX, TRUE);
-    SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-    SetRenderState(D3DRS_ALPHAREF, 0xa0);
-    SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    SetRenderState(storm_render::RenderSpecular, FALSE);
+    SetRenderState(storm_render::RenderVertexColor, TRUE);
+    SetRenderState(storm_render::RenderBlend, TRUE);
+    SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha);
+    SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+    SetRenderState(storm_render::RenderAlphaTest, TRUE);
+    SetRenderState(storm_render::RenderAlphaReference, 0xa0);
+    SetRenderState(storm_render::RenderAlphaCompare, storm_render::CompareGreater);
 
     // *****************************************************************88
     // texture filtering
-    SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-    SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
-    SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-    SetSamplerState(0, D3DSAMP_MAXANISOTROPY, 3);
+    SetSamplerState(0, storm_render::SamplerMagFilter, storm_render::TextureFilterLinear);
+    SetSamplerState(0, storm_render::SamplerMinFilter, storm_render::TextureFilterAnisotropic);
+    SetSamplerState(0, storm_render::SamplerMipFilter, storm_render::TextureFilterLinear);
+    SetSamplerState(0, storm_render::SamplerMaxAnisotropy, 3);
 
     // unchanged texture stage states - both for base and detal texture
-    SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    SetTextureStageState(2, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    SetTextureStageState(2, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    SetTextureStageState(0, storm_render::StageColorArg2, storm_render::textureArg::texture);
+    SetTextureStageState(1, storm_render::StageColorArg1, storm_render::textureArg::current);
+    SetTextureStageState(1, storm_render::StageColorArg2, storm_render::textureArg::texture);
+    SetTextureStageState(2, storm_render::StageColorArg1, storm_render::textureArg::current);
+    SetTextureStageState(2, storm_render::StageColorArg2, storm_render::textureArg::diffuse);
 
-    SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-    SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-    SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    SetTextureStageState(0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse);
+    SetTextureStageState(0, storm_render::StageAlphaArg2, storm_render::textureArg::texture);
+    SetTextureStageState(0, storm_render::StageAlphaOp, storm_render::TextureOpModulate);
 
     // general
-    SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-    SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-    SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    SetRenderState(D3DRS_ALPHAREF, 0xa0);
-    SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    SetRenderState(storm_render::RenderCullMode, storm_render::CullCounterClockwise);
+    SetRenderState(storm_render::RenderBlend, TRUE);
+    SetRenderState(storm_render::RenderAlphaTest, TRUE);
+    SetRenderState(storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha);
+    SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+    SetRenderState(storm_render::RenderAlphaReference, 0xa0);
+    SetRenderState(storm_render::RenderAlphaCompare, storm_render::CompareGreater);
 
     // lighting effects
-    SetRenderState(D3DRS_AMBIENT, 0x404040);
-    SetRenderState(D3DRS_LIGHTING, FALSE); // TRUE);
-    SetRenderState(D3DRS_COLORVERTEX, TRUE);
-    SetRenderState(D3DRS_SPECULARENABLE, FALSE); // TRUE);
+    SetRenderState(storm_render::RenderAmbient, 0x404040);
+    SetRenderState(storm_render::RenderLighting, FALSE); // TRUE);
+    SetRenderState(storm_render::RenderVertexColor, TRUE);
+    SetRenderState(storm_render::RenderSpecular, FALSE); // TRUE);
 
     // AA
-    SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, TRUE);
+    SetRenderState(storm_render::RenderMultisampleAntialias, TRUE);
 }
 
-HRESULT DX9RENDER::GetViewport(D3DVIEWPORT9 *pViewport)
+storm_render::Result DX9RENDER::GetViewport(storm_render::Viewport *pViewport)
 {
-    return CHECKD3DERR(d3d9->GetViewport(pViewport));
+    return CHECKD3DERR(renderDevice->GetViewport(pViewport));
 }
 
-HRESULT DX9RENDER::SetViewport(const D3DVIEWPORT9 *pViewport)
+storm_render::Result DX9RENDER::SetViewport(const storm_render::Viewport *pViewport)
 {
-    return CHECKD3DERR(d3d9->SetViewport(pViewport));
+    return CHECKD3DERR(renderDevice->SetViewport(pViewport));
 }
 
 uint32_t DX9RENDER::SetRenderState(uint32_t State, uint32_t Value)
 {
-    return CHECKD3DERR(d3d9->SetRenderState(static_cast<D3DRENDERSTATETYPE>(State), Value));
+    return CHECKD3DERR(renderDevice->SetRenderState(static_cast<storm_render::RenderStateField>(State), Value));
 }
 
 uint32_t DX9RENDER::GetRenderState(uint32_t State, uint32_t *pValue)
 {
-    return CHECKD3DERR(d3d9->GetRenderState(static_cast<D3DRENDERSTATETYPE>(State), (DWORD *)pValue));
+    return CHECKD3DERR(renderDevice->GetRenderState(static_cast<storm_render::RenderStateField>(State), (DWORD *)pValue));
 }
 
-uint32_t DX9RENDER::GetSamplerState(uint32_t Sampler, D3DSAMPLERSTATETYPE Type, uint32_t *pValue)
+uint32_t DX9RENDER::GetSamplerState(uint32_t Sampler, storm_render::SamplerField Type, uint32_t *pValue)
 {
-    return CHECKD3DERR(d3d9->GetSamplerState(Sampler, Type, (DWORD *)pValue));
+    return CHECKD3DERR(renderDevice->GetSamplerState(Sampler, Type, (DWORD *)pValue));
 }
 
-uint32_t DX9RENDER::SetSamplerState(uint32_t Sampler, D3DSAMPLERSTATETYPE Type, uint32_t Value)
+uint32_t DX9RENDER::SetSamplerState(uint32_t Sampler, storm_render::SamplerField Type, uint32_t Value)
 {
-    return CHECKD3DERR(d3d9->SetSamplerState(Sampler, Type, Value));
+    return CHECKD3DERR(renderDevice->SetSamplerState(Sampler, Type, Value));
 }
 
 uint32_t DX9RENDER::SetTextureStageState(uint32_t Stage, uint32_t Type, uint32_t Value)
 {
-    return CHECKD3DERR(d3d9->SetTextureStageState(Stage, static_cast<D3DTEXTURESTAGESTATETYPE>(Type), Value));
+    return CHECKD3DERR(renderDevice->SetTextureStageState(Stage, static_cast<storm_render::StageField>(Type), Value));
 }
 
 uint32_t DX9RENDER::GetTextureStageState(uint32_t Stage, uint32_t Type, uint32_t *pValue)
 {
-    return CHECKD3DERR(d3d9->GetTextureStageState(Stage, static_cast<D3DTEXTURESTAGESTATETYPE>(Type), (DWORD *)pValue));
+    return CHECKD3DERR(renderDevice->GetTextureStageState(Stage, static_cast<storm_render::StageField>(Type), (DWORD *)pValue));
 }
 
 void DX9RENDER::GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective)
@@ -3615,22 +3455,22 @@ void DX9RENDER::MakeScreenShot()
 {
     bMakeShoot = false;
 
-    IDirect3DSurface9 *renderTarget;
+    storm_render::Surface *renderTarget;
     if (FAILED(GetRenderTarget(&renderTarget)))
     {
         core.Trace("Failed to make screenshot");
         return;
     }
 
-    IDirect3DSurface9 *surface;
-    if (FAILED(CreateOffscreenPlainSurface(screen_size.x, screen_size.y, D3DFMT_X8R8G8B8, &surface)))
+    storm_render::Surface *surface;
+    if (FAILED(CreateOffscreenPlainSurface(screen_size.x, screen_size.y, storm_render::AssetFormat::X8R8G8B8, &surface)))
     {
         renderTarget->Release();
         core.Trace("Failed to make screenshot");
         return;
     }
 
-    if (CHECKD3DERR(D3DXLoadSurfaceFromSurface(surface, NULL, NULL, renderTarget, NULL, NULL, D3DX_DEFAULT, 0)))
+    if (CHECKD3DERR(storm_render::ImageLoadSurfaceFromSurface(surface, NULL, NULL, renderTarget, NULL, NULL, storm_render::ImageDefault, 0)))
     {
         surface->Release();
         renderTarget->Release();
@@ -3656,15 +3496,15 @@ void DX9RENDER::MakeScreenShot()
 
 PLANE *DX9RENDER::GetPlanes()
 {
-    FindPlanes(d3d9);
+    FindPlanes(renderDevice);
     return viewplane;
 }
 
-void DX9RENDER::FindPlanes(IDirect3DDevice9 *d3dDevice)
+void DX9RENDER::FindPlanes(storm_render::Device *d3dDevice)
 {
-    D3DMATRIX m;
+    storm_render::Matrix m;
     CVECTOR v[4];
-    GetTransform(D3DTS_PROJECTION, static_cast<D3DMATRIX *>(&m));
+    GetTransform(storm_render::TransformProjection, static_cast<storm_render::Matrix *>(&m));
     // left
     v[0].x = m.m[0][0];
     v[0].y = 0.0f;
@@ -3686,7 +3526,7 @@ void DX9RENDER::FindPlanes(IDirect3DDevice9 *d3dDevice)
     v[2] = !v[2];
     v[3] = !v[3];
 
-    GetTransform(D3DTS_VIEW, static_cast<D3DMATRIX *>(&m));
+    GetTransform(storm_render::TransformView, static_cast<storm_render::Matrix *>(&m));
     CVECTOR pos;
 
     pos.x = -m._41 * m._11 - m._42 * m._12 - m._43 * m._13;
@@ -3750,8 +3590,8 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
     bool bDraw = true;
 
     static CMatrix camMtx, oldWorldMatrix, IMatrix;
-    d3d9->GetTransform(D3DTS_VIEW, camMtx);
-    d3d9->GetTransform(D3DTS_WORLD, oldWorldMatrix);
+    renderDevice->GetTransform(storm_render::TransformView, camMtx);
+    renderDevice->GetTransform(storm_render::TransformWorld, oldWorldMatrix);
 
     fScaleY *= GetHeightDeformator();
 
@@ -3778,8 +3618,8 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
         dv = 1.0f;
     }
 
-    d3d9->SetTransform(D3DTS_VIEW, IMatrix);
-    d3d9->SetTransform(D3DTS_WORLD, IMatrix);
+    renderDevice->SetTransform(storm_render::TransformView, IMatrix);
+    renderDevice->SetTransform(storm_render::TransformWorld, IMatrix);
 
     for (uint32_t cnt = 0; cnt < dwRectsNum;)
     {
@@ -3789,7 +3629,7 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
             drawCount = rectsVBuffer_SizeInRects;
         // Buffer
         RECT_VERTEX *data = nullptr;
-        if (rectsVBuffer->Lock(0, drawCount * 6 * sizeof(RECT_VERTEX), (void **)&data, D3DLOCK_DISCARD) != D3D_OK)
+        if (rectsVBuffer->Lock(0, drawCount * 6 * sizeof(RECT_VERTEX), (void **)&data, storm_render::lock::discard) != storm_render::result::ok)
             return;
         if (!data)
             return;
@@ -3853,18 +3693,18 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
             do
             {
                 CHECKD3DERR(SetStreamSource(0, rectsVBuffer, sizeof(RECT_VERTEX)));
-                CHECKD3DERR(DrawPrimitive(D3DPT_TRIANGLELIST, 0, drawCount * 2));
+                CHECKD3DERR(DrawPrimitive(storm_render::PrimitiveTriangleList, 0, drawCount * 2));
             } while (cBlockName && TechniqueExecuteNext());
     }
 
-    d3d9->SetTransform(D3DTS_VIEW, camMtx);
-    d3d9->SetTransform(D3DTS_WORLD, oldWorldMatrix);
+    renderDevice->SetTransform(storm_render::TransformView, camMtx);
+    renderDevice->SetTransform(storm_render::TransformWorld, oldWorldMatrix);
 }
 
 void DX9RENDER::DrawSprites(RS_SPRITE *pRSS, uint32_t dwSpritesNum, const char *cBlockName)
 {
     uint32_t i;
-#define RS_SPRITE_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
+#define RS_SPRITE_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1)
     if (dwSpritesNum == 0)
         return;
 
@@ -3888,7 +3728,7 @@ void DX9RENDER::DrawSprites(RS_SPRITE *pRSS, uint32_t dwSpritesNum, const char *
     if (bDraw)
         do
         {
-            DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, dwSpritesNum * 4, dwSpritesNum * 2, pIndices, D3DFMT_INDEX16,
+            DrawIndexedPrimitiveUP(storm_render::PrimitiveTriangleList, 0, dwSpritesNum * 4, dwSpritesNum * 2, pIndices, storm_render::IndexFormat::UInt16,
                                    pRSS, sizeof(RS_SPRITE));
         } while (cBlockName && TechniqueExecuteNext());
     delete[] pIndices;
@@ -3899,7 +3739,7 @@ void DX9RENDER::DrawLines(RS_LINE *pRSL, uint32_t dwLinesNum, const char *cBlock
     if (!pRSL || dwLinesNum == 0)
         return;
 
-#define RS_LINE_VERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_DIFFUSE)
+#define RS_LINE_VERTEX_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse)
 
     bool bDraw = true;
 
@@ -3908,7 +3748,7 @@ void DX9RENDER::DrawLines(RS_LINE *pRSL, uint32_t dwLinesNum, const char *cBlock
     if (bDraw)
         do
         {
-            DrawPrimitiveUP(D3DPT_LINELIST, RS_LINE_VERTEX_FORMAT, dwLinesNum, pRSL, sizeof(RS_LINE));
+            DrawPrimitiveUP(storm_render::PrimitiveLineList, RS_LINE_VERTEX_FORMAT, dwLinesNum, pRSL, sizeof(RS_LINE));
         } while (cBlockName && TechniqueExecuteNext());
 }
 
@@ -3917,7 +3757,7 @@ void DX9RENDER::DrawLines2D(RS_LINE2D *pRSL2D, size_t dwLinesNum, const char *cB
     if (!pRSL2D || dwLinesNum == 0)
         return;
 
-#define RS_LINE2D_VERTEX_FORMAT (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
+#define RS_LINE2D_VERTEX_FORMAT (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse)
 
     bool bDraw = true;
 
@@ -3926,52 +3766,52 @@ void DX9RENDER::DrawLines2D(RS_LINE2D *pRSL2D, size_t dwLinesNum, const char *cB
     if (bDraw)
         do
         {
-            DrawPrimitiveUP(D3DPT_LINELIST, RS_LINE2D_VERTEX_FORMAT, dwLinesNum, pRSL2D, sizeof(RS_LINE2D));
+            DrawPrimitiveUP(storm_render::PrimitiveLineList, RS_LINE2D_VERTEX_FORMAT, dwLinesNum, pRSL2D, sizeof(RS_LINE2D));
         } while (cBlockName && TechniqueExecuteNext());
 }
 
 //-----------------------
-HRESULT DX9RENDER::CreateVertexBuffer(UINT Length, uint32_t Usage, uint32_t FVF, D3DPOOL Pool,
-                                      IDirect3DVertexBuffer9 **ppVertexBuffer)
+storm_render::Result DX9RENDER::CreateVertexBuffer(UINT Length, uint32_t Usage, uint32_t FVF, storm_render::MemoryClass Pool,
+                                      storm_render::VertexBuffer **ppVertexBuffer)
 {
-    return CHECKD3DERR(d3d9->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, NULL));
+    return CHECKD3DERR(renderDevice->CreateVertexBuffer(Length, Usage, FVF, ppVertexBuffer));
 }
 
-HRESULT DX9RENDER::VBLock(IDirect3DVertexBuffer9 *pVB, UINT OffsetToLock, UINT SizeToLock, uint8_t **ppbData,
+storm_render::Result DX9RENDER::VBLock(storm_render::VertexBuffer *pVB, UINT OffsetToLock, UINT SizeToLock, uint8_t **ppbData,
                           uint32_t Flags)
 {
     dwNumLV++;
     return CHECKD3DERR(pVB->Lock(OffsetToLock, SizeToLock, (void **)ppbData, Flags));
 }
 
-void DX9RENDER::VBUnlock(IDirect3DVertexBuffer9 *pVB)
+void DX9RENDER::VBUnlock(storm_render::VertexBuffer *pVB)
 {
     CHECKD3DERR(pVB->Unlock());
 }
 
-HRESULT DX9RENDER::SetFVF(uint32_t handle)
+storm_render::Result DX9RENDER::SetFVF(uint32_t handle)
 {
-    return CHECKD3DERR(d3d9->SetVertexShader(NULL)) || CHECKD3DERR(d3d9->SetFVF(handle));
+    return CHECKD3DERR(renderDevice->BindVertexProgram(NULL)) || CHECKD3DERR(renderDevice->SetFVF(handle));
 }
 
-HRESULT DX9RENDER::SetStreamSource(UINT StreamNumber, void *pStreamData, UINT Stride)
+storm_render::Result DX9RENDER::SetStreamSource(UINT StreamNumber, void *pStreamData, UINT Stride)
 {
     return CHECKD3DERR(
-        d3d9->SetStreamSource(StreamNumber, static_cast<IDirect3DVertexBuffer9 *>(pStreamData), 0, Stride));
+        renderDevice->SetStreamSource(StreamNumber, static_cast<storm_render::VertexBuffer *>(pStreamData), 0, Stride));
 }
 
-HRESULT DX9RENDER::SetIndices(void *pIndexData)
+storm_render::Result DX9RENDER::SetIndices(void *pIndexData)
 {
-    return CHECKD3DERR(d3d9->SetIndices(static_cast<IDirect3DIndexBuffer9 *>(pIndexData)));
+    return CHECKD3DERR(renderDevice->SetIndices(static_cast<storm_render::IndexBuffer *>(pIndexData)));
 }
 
-HRESULT DX9RENDER::DrawPrimitive(D3DPRIMITIVETYPE dwPrimitiveType, UINT StartVertex, UINT PrimitiveCount)
+storm_render::Result DX9RENDER::DrawPrimitive(storm_render::Primitive dwPrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
     dwNumDrawPrimitive++;
-    return CHECKD3DERR(d3d9->DrawPrimitive(dwPrimitiveType, StartVertex, PrimitiveCount));
+    return CHECKD3DERR(renderDevice->DrawPrimitive(dwPrimitiveType, StartVertex, PrimitiveCount));
 }
 
-HRESULT DX9RENDER::Release(IUnknown *pObject)
+storm_render::Result DX9RENDER::Release(storm_render::RefCounted *pObject)
 {
     if (pObject)
     {
@@ -3980,140 +3820,139 @@ HRESULT DX9RENDER::Release(IUnknown *pObject)
         return result;
     }
 
-    return D3D_OK;
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::GetRenderTarget(IDirect3DSurface9 **ppRenderTarget)
+storm_render::Result DX9RENDER::GetRenderTarget(storm_render::Surface **ppRenderTarget)
 {
-    return CHECKD3DERR(d3d9->GetRenderTarget(0, ppRenderTarget));
+    return CHECKD3DERR(renderDevice->GetRenderTarget(ppRenderTarget));
 }
 
-HRESULT DX9RENDER::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
+storm_render::Result DX9RENDER::GetDepthStencilSurface(storm_render::Surface **ppZStencilSurface)
 {
-    return CHECKD3DERR(d3d9->GetDepthStencilSurface(ppZStencilSurface));
+    return CHECKD3DERR(renderDevice->GetDepthStencilSurface(ppZStencilSurface));
 }
 
-HRESULT DX9RENDER::GetCubeMapSurface(IDirect3DCubeTexture9 *ppCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level,
-                                     IDirect3DSurface9 **ppCubeMapSurface)
+storm_render::Result DX9RENDER::GetCubeMapSurface(storm_render::CubeTexture *ppCubeTexture, storm_render::CubeFace FaceType, UINT Level,
+                                     storm_render::Surface **ppCubeMapSurface)
 {
     return ppCubeTexture->GetCubeMapSurface(FaceType, Level, ppCubeMapSurface);
 }
 
-HRESULT DX9RENDER::SetRenderTarget(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pNewZStencil)
+storm_render::Result DX9RENDER::SetRenderTarget(storm_render::Surface *pRenderTarget, storm_render::Surface *pNewZStencil)
 {
-    auto result = !CHECKD3DERR(d3d9->SetDepthStencilSurface(pNewZStencil)) &&
-                  !CHECKD3DERR(d3d9->SetRenderTarget(0, pRenderTarget));
-    return result ? D3D_OK : S_FALSE;
+    auto result = !CHECKD3DERR(renderDevice->SetDepthStencilSurface(pNewZStencil)) &&
+                  !CHECKD3DERR(renderDevice->SetRenderTarget(pRenderTarget));
+    return result ? storm_render::result::ok : S_FALSE;
 }
 
-HRESULT DX9RENDER::Clear(uint32_t Count, const D3DRECT *pRects, uint32_t Flags, D3DCOLOR Color, float Z,
-                         uint32_t Stencil)
+storm_render::Result DX9RENDER::Clear(uint32_t Flags, storm_render::PackedColor Color, float Z)
 {
-    return CHECKD3DERR(d3d9->Clear(Count, pRects, Flags, Color, Z, Stencil));
+    return CHECKD3DERR(renderDevice->Clear(Flags, Color, Z));
 }
 
 static bool isInScene = false;
 
-HRESULT DX9RENDER::BeginScene()
+storm_render::Result DX9RENDER::BeginScene()
 {
     if (!isInScene)
     {
         isInScene = true;
-        return CHECKD3DERR(d3d9->BeginScene());
+        return CHECKD3DERR(renderDevice->BeginScene());
     }
 
-    return D3D_OK;
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::EndScene()
+storm_render::Result DX9RENDER::EndScene()
 {
     if (isInScene)
     {
         isInScene = false;
-        return CHECKD3DERR(d3d9->EndScene());
+        return CHECKD3DERR(renderDevice->EndScene());
     }
 
-    return D3D_OK;
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::SetClipPlane(uint32_t Index, const float *pPlane)
+storm_render::Result DX9RENDER::SetClipPlane(uint32_t Index, const float *pPlane)
 {
-    // return d3d9->SetClipPlane( Index, pPlane );
-    return D3D_OK;
+    // return renderDevice->SetClipPlane( Index, pPlane );
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::CreateTexture(UINT Width, UINT Height, UINT Levels, uint32_t Usage, D3DFORMAT Format, D3DPOOL Pool,
-                                 IDirect3DTexture9 **ppTexture)
+storm_render::Result DX9RENDER::CreateTexture(UINT Width, UINT Height, UINT Levels, uint32_t Usage, storm_render::AssetFormat Format, storm_render::MemoryClass Pool,
+                                 storm_render::Texture **ppTexture)
 {
-    return CHECKD3DERR(d3d9->CreateTexture(Width, Height, Levels, Usage, Format, Pool, ppTexture, NULL));
+    return CHECKD3DERR(renderDevice->CreateTexture(Width, Height, Levels, Usage, Format, ppTexture));
 }
 
-HRESULT DX9RENDER::CreateCubeTexture(UINT EdgeLength, UINT Levels, uint32_t Usage, D3DFORMAT Format, D3DPOOL Pool,
-                                     IDirect3DCubeTexture9 **ppCubeTexture)
+storm_render::Result DX9RENDER::CreateCubeTexture(UINT EdgeLength, UINT Levels, uint32_t Usage, storm_render::AssetFormat Format, storm_render::MemoryClass Pool,
+                                     storm_render::CubeTexture **ppCubeTexture)
 {
-    return CHECKD3DERR(d3d9->CreateCubeTexture(EdgeLength, Levels, Usage, Format, Pool, ppCubeTexture, NULL));
+    return CHECKD3DERR(renderDevice->CreateCubeTexture(EdgeLength, Levels, Usage, Format, ppCubeTexture));
 }
 
-HRESULT DX9RENDER::CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface9 **ppSurface)
+storm_render::Result DX9RENDER::CreateOffscreenPlainSurface(UINT Width, UINT Height, storm_render::AssetFormat Format, storm_render::Surface **ppSurface)
 {
-    return CHECKD3DERR(d3d9->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, ppSurface, NULL));
+    return CHECKD3DERR(renderDevice->CreateOffscreenPlainSurface(Width, Height, Format, ppSurface));
     //~!~D3DERR_OUTOFVIDEOMEMORY
     // GetAvailableTextureMem
 }
 
-HRESULT DX9RENDER::CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample,
-                                             IDirect3DSurface9 **ppSurface)
+storm_render::Result DX9RENDER::CreateDepthStencilSurface(UINT Width, UINT Height, storm_render::AssetFormat Format, storm_render::SampleCount MultiSample,
+                                             storm_render::Surface **ppSurface)
 {
-    return CHECKD3DERR(d3d9->CreateDepthStencilSurface(Width, Height, Format, MultiSample, 0, TRUE, ppSurface, NULL));
+    return CHECKD3DERR(renderDevice->CreateDepthStencilSurface(Width, Height, Format, ppSurface));
 }
 
-HRESULT DX9RENDER::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements,
-                                           IDirect3DVertexDeclaration9 **ppDecl)
+storm_render::Result DX9RENDER::CreateVertexDeclaration(const storm_render::VertexElement *pVertexElements,
+                                           storm_render::VertexLayout **ppDecl)
 {
-    return CHECKD3DERR(d3d9->CreateVertexDeclaration(pVertexElements, ppDecl));
+    return CHECKD3DERR(renderDevice->CreateVertexDeclaration(pVertexElements, ppDecl));
 }
 
-HRESULT DX9RENDER::SetVertexDeclaration(IDirect3DVertexDeclaration9 *pDecl)
+storm_render::Result DX9RENDER::SetVertexDeclaration(storm_render::VertexLayout *pDecl)
 {
-    return CHECKD3DERR(d3d9->SetVertexDeclaration(pDecl));
+    return CHECKD3DERR(renderDevice->SetVertexDeclaration(pDecl));
 }
 
-HRESULT DX9RENDER::CreateVertexShader(const uint32_t *pFunction, IDirect3DVertexShader9 **ppShader)
+storm_render::Result DX9RENDER::ImportVertexProgram(const uint32_t *pFunction, storm_render::Program **ppShader)
 {
-    return CHECKD3DERR(d3d9->CreateVertexShader((const DWORD *)pFunction, ppShader));
+    return CHECKD3DERR(renderDevice->ImportVertexProgram((const DWORD *)pFunction, ppShader));
 }
 
-HRESULT DX9RENDER::CreatePixelShader(const uint32_t *pFunction, IDirect3DPixelShader9 **ppShader)
+storm_render::Result DX9RENDER::ImportFragmentProgram(const uint32_t *pFunction, storm_render::Program **ppShader)
 {
-    return CHECKD3DERR(d3d9->CreatePixelShader((const DWORD *)pFunction, ppShader));
+    return CHECKD3DERR(renderDevice->ImportFragmentProgram((const DWORD *)pFunction, ppShader));
 }
 
-HRESULT DX9RENDER::DeleteVertexShader(IDirect3DVertexShader9 *pShader)
+storm_render::Result DX9RENDER::DeleteVertexShader(storm_render::Program *pShader)
 {
     if (pShader)
     {
         return pShader->Release();
     }
-    return D3D_OK;
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::DeletePixelShader(IDirect3DPixelShader9 *pShader)
+storm_render::Result DX9RENDER::DeletePixelShader(storm_render::Program *pShader)
 {
     if (pShader)
     {
         return pShader->Release();
     }
-    return D3D_OK;
+    return storm_render::result::ok;
 }
 
-HRESULT DX9RENDER::GetVertexShader(IDirect3DVertexShader9 **ppShader)
+storm_render::Result DX9RENDER::GetVertexProgram(storm_render::Program **ppShader)
 {
-    return CHECKD3DERR(d3d9->GetVertexShader(ppShader));
+    return CHECKD3DERR(renderDevice->GetVertexProgram(ppShader));
 }
 
-HRESULT DX9RENDER::GetPixelShader(IDirect3DPixelShader9 **ppShader)
+storm_render::Result DX9RENDER::GetFragmentProgram(storm_render::Program **ppShader)
 {
-    return CHECKD3DERR(d3d9->GetPixelShader(ppShader));
+    return CHECKD3DERR(renderDevice->GetFragmentProgram(ppShader));
 }
 
 #ifdef _WIN32 // Effects
@@ -4123,92 +3962,91 @@ ID3DXEffect *DX9RENDER::GetEffectPointer(const char *techniqueName)
 }
 #endif
 
-HRESULT DX9RENDER::SetTexture(uint32_t Stage, IDirect3DBaseTexture9 *pTexture)
+storm_render::Result DX9RENDER::SetTexture(uint32_t Stage, storm_render::BaseTexture *pTexture)
 {
-    return CHECKD3DERR(d3d9->SetTexture(Stage, pTexture));
+    return CHECKD3DERR(renderDevice->SetTexture(Stage, pTexture));
 }
 
-HRESULT DX9RENDER::GetLevelDesc(IDirect3DTexture9 *ppTexture, UINT Level, D3DSURFACE_DESC *pDesc)
+storm_render::Result DX9RENDER::GetLevelDesc(storm_render::Texture *ppTexture, UINT Level, storm_render::SurfaceDesc *pDesc)
 {
     return CHECKD3DERR(ppTexture->GetLevelDesc(Level, pDesc));
 }
 
-HRESULT DX9RENDER::GetLevelDesc(IDirect3DCubeTexture9 *ppCubeTexture, UINT Level, D3DSURFACE_DESC *pDesc)
+storm_render::Result DX9RENDER::GetLevelDesc(storm_render::CubeTexture *ppCubeTexture, UINT Level, storm_render::SurfaceDesc *pDesc)
 {
     return CHECKD3DERR(ppCubeTexture->GetLevelDesc(Level, pDesc));
 }
 
-HRESULT DX9RENDER::LockRect(IDirect3DCubeTexture9 *ppCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level,
-                            D3DLOCKED_RECT *pLockedRect, const RECT *pRect, uint32_t Flags)
+storm_render::Result DX9RENDER::LockRect(storm_render::CubeTexture *ppCubeTexture, storm_render::CubeFace FaceType, UINT Level,
+                            storm_render::LockedRect *pLockedRect, const storm_render::Rect *pRect, uint32_t Flags)
 {
     return CHECKD3DERR(ppCubeTexture->LockRect(FaceType, Level, pLockedRect, pRect, Flags));
 }
 
-HRESULT DX9RENDER::LockRect(IDirect3DTexture9 *ppTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect,
+storm_render::Result DX9RENDER::LockRect(storm_render::Texture *ppTexture, UINT Level, storm_render::LockedRect *pLockedRect, const storm_render::Rect *pRect,
                             uint32_t Flags)
 {
     return CHECKD3DERR(ppTexture->LockRect(Level, pLockedRect, pRect, Flags));
 }
 
-HRESULT DX9RENDER::UnlockRect(IDirect3DCubeTexture9 *pCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level)
+storm_render::Result DX9RENDER::UnlockRect(storm_render::CubeTexture *pCubeTexture, storm_render::CubeFace FaceType, UINT Level)
 {
     return CHECKD3DERR(pCubeTexture->UnlockRect(FaceType, Level));
 }
 
-HRESULT DX9RENDER::UnlockRect(IDirect3DTexture9 *pTexture, UINT Level)
+storm_render::Result DX9RENDER::UnlockRect(storm_render::Texture *pTexture, UINT Level)
 {
     return CHECKD3DERR(pTexture->UnlockRect(Level));
 }
 
-HRESULT DX9RENDER::GetSurfaceLevel(IDirect3DTexture9 *ppTexture, UINT Level, IDirect3DSurface9 **ppSurfaceLevel)
+storm_render::Result DX9RENDER::GetSurfaceLevel(storm_render::Texture *ppTexture, UINT Level, storm_render::Surface **ppSurfaceLevel)
 {
     return CHECKD3DERR(ppTexture->GetSurfaceLevel(Level, ppSurfaceLevel));
 }
 
-HRESULT DX9RENDER::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRectsArray, UINT cRects,
-                                 IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPointsArray)
+storm_render::Result DX9RENDER::UpdateSurface(storm_render::Surface *pSourceSurface, const storm_render::Rect *pSourceRectsArray, UINT cRects,
+                                 storm_render::Surface *pDestinationSurface, const storm_render::Point *pDestPointsArray)
 {
-    return CHECKD3DERR(D3DXLoadSurfaceFromSurface(pDestinationSurface, nullptr, nullptr, pSourceSurface, nullptr,
-                                                  nullptr, D3DX_DEFAULT, 0));
-    //return CHECKD3DERR(d3d9->UpdateSurface(pSourceSurface, pSourceRectsArray, pDestinationSurface, pDestPointsArray));
+    return CHECKD3DERR(storm_render::ImageLoadSurfaceFromSurface(pDestinationSurface, nullptr, nullptr, pSourceSurface, nullptr,
+                                                  nullptr, storm_render::ImageDefault, 0));
+    //return CHECKD3DERR(renderDevice->UpdateSurface(pSourceSurface, pSourceRectsArray, pDestinationSurface, pDestPointsArray));
 }
 
-HRESULT DX9RENDER::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect,
-                               IDirect3DSurface9 *pDestSurface, const RECT *pDestRect, D3DTEXTUREFILTERTYPE Filter)
+storm_render::Result DX9RENDER::StretchRect(storm_render::Surface *pSourceSurface, const storm_render::Rect *pSourceRect,
+                               storm_render::Surface *pDestSurface, const storm_render::Rect *pDestRect, storm_render::TextureFilter Filter)
 {
-    return CHECKD3DERR(d3d9->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter));
+    return CHECKD3DERR(renderDevice->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter));
 }
 
-HRESULT DX9RENDER::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
+storm_render::Result DX9RENDER::GetRenderTargetData(storm_render::Surface *pRenderTarget, storm_render::Surface *pDestSurface)
 {
-    D3DSURFACE_DESC desc;
+    storm_render::SurfaceDesc desc;
     if (CHECKD3DERR(pRenderTarget->GetDesc(&desc)))
-        return D3DERR_WRONGTEXTUREFORMAT;
+        return storm_render::result::notAvailable;
 
-    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+    if (desc.MultiSampleType != storm_render::SampleCount::None)
     {
-        IDirect3DSurface9 *pNonsampledSurface = nullptr;
+        storm_render::Surface *pNonsampledSurface = nullptr;
 
-        if(CHECKD3DERR(d3d9->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE,
-                                             &pNonsampledSurface, nullptr)))
+        if(CHECKD3DERR(renderDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, &pNonsampledSurface)))
         {
-            return D3DERR_WRONGTEXTUREFORMAT;
+            return storm_render::result::notAvailable;
         }
 
         if (CHECKD3DERR(pDestSurface->GetDesc(&desc)))
         {
-            return D3DERR_WRONGTEXTUREFORMAT;
+            return storm_render::result::notAvailable;
         }
 
-        if (CHECKD3DERR(d3d9->StretchRect(pRenderTarget, nullptr, pNonsampledSurface, nullptr, D3DTEXF_NONE)))
+        if (CHECKD3DERR(renderDevice->StretchRect(pRenderTarget, nullptr, pNonsampledSurface, nullptr, storm_render::TextureFilterNone)))
         {
-            return D3DERR_WRONGTEXTUREFORMAT;
+            return storm_render::result::notAvailable;
         }
 
         bool error;
-        if (desc.Pool == D3DPOOL_SYSTEMMEM || desc.Pool == D3DPOOL_SCRATCH)
+        if (desc.Pool == storm_render::MemoryClass::SystemMemory || desc.Pool == storm_render::MemoryClass::Scratch)
         {
-            error = CHECKD3DERR(d3d9->GetRenderTargetData(pNonsampledSurface, pDestSurface));
+            error = CHECKD3DERR(renderDevice->GetRenderTargetData(pNonsampledSurface, pDestSurface));
         }
         else
         {
@@ -4216,35 +4054,35 @@ HRESULT DX9RENDER::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect
         }
 
         pNonsampledSurface->Release();
-        return error ? D3DERR_WRONGTEXTUREFORMAT : D3D_OK;
+        return error ? storm_render::result::notAvailable : storm_render::result::ok;
     }
 
-    return CHECKD3DERR(d3d9->GetRenderTargetData(pRenderTarget, pDestSurface));
+    return CHECKD3DERR(renderDevice->GetRenderTargetData(pRenderTarget, pDestSurface));
 }
 
-HRESULT DX9RENDER::SetVertexShader(IDirect3DVertexShader9 *pShader)
+storm_render::Result DX9RENDER::BindVertexProgram(storm_render::Program *pShader)
 {
-    return CHECKD3DERR(d3d9->SetVertexShader(pShader));
+    return CHECKD3DERR(renderDevice->BindVertexProgram(pShader));
 }
 
-HRESULT DX9RENDER::SetPixelShader(IDirect3DPixelShader9 *pShader)
+storm_render::Result DX9RENDER::BindFragmentProgram(storm_render::Program *pShader)
 {
-    return CHECKD3DERR(d3d9->SetPixelShader(pShader));
+    return CHECKD3DERR(renderDevice->BindFragmentProgram(pShader));
 }
 
-HRESULT DX9RENDER::SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
+storm_render::Result DX9RENDER::SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
 {
-    return CHECKD3DERR(d3d9->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4iCount));
+    return CHECKD3DERR(renderDevice->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4iCount));
 }
 
-HRESULT DX9RENDER::SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
+storm_render::Result DX9RENDER::SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
 {
-    return CHECKD3DERR(d3d9->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4iCount));
+    return CHECKD3DERR(renderDevice->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4iCount));
 }
 
-HRESULT DX9RENDER::GetDeviceCaps(D3DCAPS9 *pCaps)
+storm_render::Result DX9RENDER::GetCapabilities(storm_render::Capabilities *pCaps)
 {
-    return CHECKD3DERR(d3d9->GetDeviceCaps(pCaps));
+    return CHECKD3DERR(renderDevice->GetCapabilities(pCaps));
 }
 
 CVideoTexture *DX9RENDER::GetVideoTexture(const char *sVideoName)
@@ -4360,16 +4198,16 @@ void DX9RENDER::PlayToTexture()
     }
 }
 
-HRESULT DX9RENDER::ImageBlt(int32_t TextureID, RECT *pDstRect, RECT *pSrcRect)
+storm_render::Result DX9RENDER::ImageBlt(int32_t TextureID, storm_render::Rect *pDstRect, storm_render::Rect *pSrcRect)
 {
     struct F3DVERTEX
     {
         float x, y, z, rhw;
         float tu, tv;
     };
-    RECT dr;
+    storm_render::Rect dr;
     F3DVERTEX v[6];
-    HRESULT hRes;
+    storm_render::Result hRes;
 
     if (pDstRect)
     {
@@ -4425,19 +4263,19 @@ HRESULT DX9RENDER::ImageBlt(int32_t TextureID, RECT *pDstRect, RECT *pSrcRect)
     if (bDraw)
         do
         {
-            SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2);
-            hRes = d3d9->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, &v, sizeof(F3DVERTEX));
+            SetFVF(storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2);
+            hRes = renderDevice->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, 2, &v, sizeof(F3DVERTEX));
             dwNumDrawPrimitive++;
         } while (TechniqueExecuteNext());
 
     return hRes;
 }
 
-HRESULT DX9RENDER::ImageBlt(const char *pName, RECT *pDstRect, RECT *pSrcRect)
+storm_render::Result DX9RENDER::ImageBlt(const char *pName, storm_render::Rect *pDstRect, storm_render::Rect *pSrcRect)
 {
     int32_t TextureID;
     TextureID = TextureCreate(pName);
-    const HRESULT hRes = ImageBlt(TextureID, pDstRect, pSrcRect);
+    const storm_render::Result hRes = ImageBlt(TextureID, pDstRect, pSrcRect);
     TextureRelease(TextureID);
     SetProgressImage(pName);
     return hRes;
@@ -4580,7 +4418,7 @@ void DX9RENDER::ProgressView()
         BeginScene();
         SeaMapTransition::DrawProgress();
         EndScene();
-        d3d9->Present(nullptr, nullptr, nullptr, nullptr);
+        renderDevice->Present();
         BeginScene();
         isInPViewProcess = false;
         return;
@@ -4615,7 +4453,7 @@ void DX9RENDER::ProgressView()
         v[i].color = 0xffffffff;
     }
     // Calculate the rectangle in which to draw
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     GetViewport(&vp);
 
     v[0].x = msaaOffset;
@@ -4640,7 +4478,7 @@ void DX9RENDER::ProgressView()
             v[i].color = 0;
     if (back0Texture >= 0)
     {
-        DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(v[0]),
+        DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, v, sizeof(v[0]),
                         "ProgressBackTech");
     }
 
@@ -4682,12 +4520,12 @@ void DX9RENDER::ProgressView()
         if (progressTipsTexture >= 0)
         {
             TextureSet(1, progressTipsTexture);
-            DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(v[0]),
+            DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, v, sizeof(v[0]),
                             "ProgressBackTechWithTips");
         }
         else
         {
-            DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(v[0]),
+            DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, v, sizeof(v[0]),
                             "ProgressBackTech");
         }
     }
@@ -4726,10 +4564,10 @@ void DX9RENDER::ProgressView()
     v[3].v = (fy + 1.0f) / float(sizeY);
     // Draw
     TextureSet(0, progressTexture);
-    DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(v[0]),
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, 2, v, sizeof(v[0]),
                     "ProgressTech");
     EndScene();
-    d3d9->Present(nullptr, nullptr, nullptr, nullptr);
+    renderDevice->Present();
     BeginScene();
     // Next frame
     loadFrame++;
@@ -4828,10 +4666,10 @@ void DX9RENDER::DrawVector(const CVECTOR &v1, const CVECTOR &v2, uint32_t dwColo
     MakeDrawVector(&lines[0], 50, mView, CVECTOR(1.0f, 1.0f, 0.0f), mView.Pos(), mView.Vz(), fScale, dwColor);
 
     const CMatrix mWorldSave;
-    GetTransform(D3DTS_WORLD, mWorldSave);
-    SetTransform(D3DTS_WORLD, CMatrix());
+    GetTransform(storm_render::TransformWorld, mWorldSave);
+    SetTransform(storm_render::TransformWorld, CMatrix());
     DrawLines(lines, 51, pTechniqueName);
-    SetTransform(D3DTS_WORLD, mWorldSave);
+    SetTransform(storm_render::TransformWorld, mWorldSave);
 }
 
 void DX9RENDER::DrawSphere(const CVECTOR &vPos, float fRadius, uint32_t dwColor)
@@ -4842,9 +4680,9 @@ void DX9RENDER::DrawSphere(const CVECTOR &vPos, float fRadius, uint32_t dwColor)
     m.m[1][1] = fRadius;
     m.m[2][2] = fRadius;
 
-    SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
-    SetTransform(D3DTS_WORLD, m);
-    DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, DX9sphereNumTrgs, DX9sphereVertex,
+    SetRenderState(storm_render::RenderTextureFactor, dwColor);
+    SetTransform(storm_render::TransformWorld, m);
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, DX9sphereNumTrgs, DX9sphereVertex,
                     sizeof(DX9SphVertex), "DXSphere");
 }
 
@@ -4856,9 +4694,9 @@ void DX9RENDER::DrawEllipsoid(const CVECTOR &vPos, float a, float b, float c, fl
     scale.BuildScale(a, b, c);
     rot.BuildRotateY(ay);
 
-    SetTransform(D3DTS_WORLD, scale * rot * trans);
-    SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
-    DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, DX9sphereNumTrgs, DX9sphereVertex,
+    SetTransform(storm_render::TransformWorld, scale * rot * trans);
+    SetRenderState(storm_render::RenderTextureFactor, dwColor);
+    DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, DX9sphereNumTrgs, DX9sphereVertex,
                     sizeof(DX9SphVertex), "DXEllipsoid");
 }
 
@@ -4867,11 +4705,11 @@ void DX9RENDER::SetLoadTextureEnable(bool bEnable)
     bLoadTextureEnabled = bEnable;
 }
 
-IDirect3DVolumeTexture9 *DX9RENDER::CreateVolumeTexture(uint32_t Width, uint32_t Height, uint32_t Depth,
-                                                        uint32_t Levels, uint32_t Usage, D3DFORMAT Format, D3DPOOL Pool)
+storm_render::VolumeTexture *DX9RENDER::CreateVolumeTexture(uint32_t Width, uint32_t Height, uint32_t Depth,
+                                                        uint32_t Levels, uint32_t Usage, storm_render::AssetFormat Format, storm_render::MemoryClass Pool)
 {
-    IDirect3DVolumeTexture9 *pVolumeTexture = nullptr;
-    CHECKD3DERR(d3d9->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, Pool, &pVolumeTexture, NULL));
+    storm_render::VolumeTexture *pVolumeTexture = nullptr;
+    CHECKD3DERR(renderDevice->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, &pVolumeTexture));
     return pVolumeTexture;
 }
 
@@ -4879,7 +4717,7 @@ bool DX9RENDER::PushRenderTarget()
 {
     RenderTarget renderTarget{};
     GetRenderTarget(&renderTarget.pRenderTarget);
-    CHECKD3DERR(d3d9->GetDepthStencilSurface(&renderTarget.pDepthSurface));
+    CHECKD3DERR(renderDevice->GetDepthStencilSurface(&renderTarget.pDepthSurface));
     GetViewport(&renderTarget.ViewPort);
     stRenderTarget.push(renderTarget);
 
@@ -4904,70 +4742,70 @@ bool DX9RENDER::PopRenderTarget()
     return true;
 }
 
-bool DX9RENDER::SetRenderTarget(IDirect3DCubeTexture9 *pRenderTarget, uint32_t FaceType, uint32_t dwLevel,
-                                IDirect3DSurface9 *pZStencil)
+bool DX9RENDER::SetRenderTarget(storm_render::CubeTexture *pRenderTarget, uint32_t FaceType, uint32_t dwLevel,
+                                storm_render::Surface *pZStencil)
 {
-    IDirect3DSurface9 *pSurface;
-    return !CHECKD3DERR(pRenderTarget->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(FaceType), dwLevel, &pSurface)) &&
-           !CHECKD3DERR(SetRenderTarget(pSurface, pZStencil)) && Release(pSurface) == D3D_OK;
+    storm_render::Surface *pSurface;
+    return !CHECKD3DERR(pRenderTarget->GetCubeMapSurface(static_cast<storm_render::CubeFace>(FaceType), dwLevel, &pSurface)) &&
+           !CHECKD3DERR(SetRenderTarget(pSurface, pZStencil)) && Release(pSurface) == storm_render::result::ok;
 }
 
 void DX9RENDER::SetView(const CMatrix &mView)
 {
-    SetTransform(D3DTS_VIEW, mView);
+    SetTransform(storm_render::TransformView, mView);
 }
 
 void DX9RENDER::SetWorld(const CMatrix &mWorld)
 {
-    SetTransform(D3DTS_WORLD, mWorld);
+    SetTransform(storm_render::TransformWorld, mWorld);
 }
 
 void DX9RENDER::SetProjection(const CMatrix &mProjection)
 {
-    SetTransform(D3DTS_PROJECTION, mProjection);
+    SetTransform(storm_render::TransformProjection, mProjection);
 }
 
 const CMatrix &DX9RENDER::GetView()
 {
-    GetTransform(D3DTS_VIEW, mView);
+    GetTransform(storm_render::TransformView, mView);
     return mView;
 }
 
 const CMatrix &DX9RENDER::GetWorld()
 {
-    GetTransform(D3DTS_WORLD, mWorld);
+    GetTransform(storm_render::TransformWorld, mWorld);
     return mWorld;
 }
 
 const CMatrix &DX9RENDER::GetProjection()
 {
-    GetTransform(D3DTS_PROJECTION, mProjection);
+    GetTransform(storm_render::TransformProjection, mProjection);
     return mProjection;
 }
 
-IDirect3DBaseTexture9 *DX9RENDER::GetTextureFromID(int32_t nTextureID)
+storm_render::BaseTexture *DX9RENDER::GetTextureFromID(int32_t nTextureID)
 {
     if (nTextureID < 0)
         return nullptr;
     return Textures[nTextureID].d3dtex;
 }
 
-bool DX9RENDER::GetRenderTargetAsTexture(IDirect3DTexture9 **tex)
+bool DX9RENDER::GetRenderTargetAsTexture(storm_render::Texture **tex)
 {
     Release(*tex);
-    IDirect3DSurface9 *renderTarget;
-    D3DSURFACE_DESC desc;
+    storm_render::Surface *renderTarget;
+    storm_render::SurfaceDesc desc;
 
     auto success = false;
 
-    if (GetRenderTarget(&renderTarget) == D3D_OK && renderTarget->GetDesc(&desc) == D3D_OK)
+    if (GetRenderTarget(&renderTarget) == storm_render::result::ok && renderTarget->GetDesc(&desc) == storm_render::result::ok)
     {
-        if (CreateTexture(desc.Width, desc.Height, 0, 0, desc.Format, D3DPOOL_DEFAULT, tex) == D3D_OK)
+        if (CreateTexture(desc.Width, desc.Height, 0, 0, desc.Format, storm_render::MemoryClass::Default, tex) == storm_render::result::ok)
         {
-            IDirect3DSurface9 *pTexSurface;
-            if ((*tex)->GetSurfaceLevel(0, &pTexSurface) == D3D_OK)
+            storm_render::Surface *pTexSurface;
+            if ((*tex)->GetSurfaceLevel(0, &pTexSurface) == storm_render::result::ok)
             {
-                if (GetRenderTargetData(renderTarget, pTexSurface) == D3D_OK)
+                if (GetRenderTargetData(renderTarget, pTexSurface) == storm_render::result::ok)
                 {
                     success = true;
                 }

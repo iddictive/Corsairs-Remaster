@@ -100,8 +100,8 @@ void CXI_LRCHANGER::Draw(bool bSelected, uint32_t Delta_Time)
             SetRectanglePosition(vFace, m_posLRect);
             SetRectanglePosition(vShadow, m_posLRect + m_ShadowShift);
         }
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX), "iIcon");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX), "iIcon");
         // show right button
         SetOneTextureCoordinate(vFace, m_tRRect);
         SetOneTextureCoordinate(vShadow, m_tRRect);
@@ -115,8 +115,8 @@ void CXI_LRCHANGER::Draw(bool bSelected, uint32_t Delta_Time)
             SetRectanglePosition(vFace, m_posRRect);
             SetRectanglePosition(vShadow, m_posRRect + m_ShadowShift);
         }
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
-        m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX), "iIcon");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vShadow, sizeof(XI_ONETEX_VERTEX), "iShadow");
+        m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, vFace, sizeof(XI_ONETEX_VERTEX), "iIcon");
     }
 }
 

@@ -45,7 +45,7 @@ bool ILogAndActions::Init()
     {
         throw std::runtime_error("Can`t create render service");
     }
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
     core.Event("SetWindowSize", "lll", static_cast<int32_t>(vp.Width), static_cast<int32_t>(vp.Height), false);
     return true;
@@ -224,19 +224,19 @@ void ILogAndActions::Realize(uint32_t delta_time)
     if (m_bDontShowAll)
         return;
 
-    rs->MakePostProcess();
+    rs->FinalizeSceneEffects();
 
     // Show Active Action
     //---------------------
     if (m_bShowActiveCommand)
     {
         CMatrix matw;
-        rs->SetTransform(D3DTS_WORLD, matw);
+        rs->SetTransform(storm_render::TransformWorld, matw);
         // show icon
         if ((m_idIconTexture != -1L) && m_bThatRealAction)
         {
             rs->TextureSet(0, m_idIconTexture);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_ONETEX_VERTEX_FORMAT, 2, m_IconVertex,
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, BI_ONETEX_VERTEX_FORMAT, 2, m_IconVertex,
                                 sizeof(BI_ONETEXTURE_VERTEX), "battle_rectangle");
 
             m_ActionHint1.Print();

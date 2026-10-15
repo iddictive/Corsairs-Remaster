@@ -466,7 +466,7 @@ CVECTOR AIShipCannonController::GetBortDirection(const AISHIP_BORT &bort) const
 CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDistance)
 {
     CMatrix camera;
-    AIHelper::pRS->GetTransform(D3DTS_VIEW, camera);
+    AIHelper::pRS->GetTransform(storm_render::TransformView, camera);
     camera.Transposition();
     MANUAL_AIM_SOLUTION solution;
     if (!BuildManualAimSolution(camera.Pos(), vFireDir, solution))
@@ -487,7 +487,7 @@ CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDista
 CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir)
 {
     CMatrix camera;
-    AIHelper::pRS->GetTransform(D3DTS_VIEW, camera);
+    AIHelper::pRS->GetTransform(storm_render::TransformView, camera);
     camera.Transposition();
     MANUAL_AIM_SOLUTION solution;
     return BuildManualAimSolution(camera.Pos(), vFireDir, solution) ? solution.target : CVECTOR(1e5f,0.f,1e5f);
@@ -719,7 +719,7 @@ void AIShipCannonController::Realize(float fDeltaTime)
 
     if (!Lines.empty())
     {
-        AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
+        AIHelper::pRS->SetTransform(storm_render::TransformWorld, CMatrix());
         AIHelper::pRS->DrawLines(Lines.data(), Lines.size() / 2, "Line");
     }
 
@@ -784,8 +784,8 @@ void AIShipCannonController::Realize(float fDeltaTime)
 
     if (!Verts.empty())
     {
-        AIHelper::pRS->SetTransform(D3DTS_WORLD, CMatrix());
-        AIHelper::pRS->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, Verts.size() / 3, &Verts[0],
+        AIHelper::pRS->SetTransform(storm_render::TransformWorld, CMatrix());
+        AIHelper::pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, Verts.size() / 3, &Verts[0],
                                        sizeof(tr_vertex), "ShipCannonAngles");
     }
 }
@@ -1199,7 +1199,7 @@ void AIShipCannonController::RegisterManualAimReceivers()
     if(AIFort::pAIFort)
         for(uint32_t i=0;i<AIFort::pAIFort->GetNumForts();++i)
         {auto *fort=AIFort::pAIFort->GetFort(i);add(fort->GetModel(),fort->GetACharacter());}
-    StormMetalSetAimRenderedReceivers(AIHelper::pRS->GetD3DDevice(),receivers.data(),uint32_t(receivers.size()));
+    StormMetalSetAimRenderedReceivers(AIHelper::pRS->GetNativeDevice(),receivers.data(),uint32_t(receivers.size()));
 #endif
 }
 
@@ -1344,8 +1344,8 @@ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const 
     // The invisible range region keeps its unzoomed angular support and grows
     // gently with zoom. It selects depth only: no retained target or aim snap.
     CMatrix projection,view;
-    AIHelper::pRS->GetTransform(D3DTS_PROJECTION,projection);
-    AIHelper::pRS->GetTransform(D3DTS_VIEW,view);view.Transposition();
+    AIHelper::pRS->GetTransform(storm_render::TransformProjection,projection);
+    AIHelper::pRS->GetTransform(storm_render::TransformView,view);view.Transposition();
     const CVECTOR right=!view.Vx(),up=!view.Vy();
     const float magnification=AIHelper::pRS->GetCameraMagnification();
     const float tx=manual_aim::rangeApertureSlope(60.f/2048.f,projection.m[0][0],magnification);
@@ -1799,7 +1799,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     densityValid=densityValid&&densityPlanes.size()<=gpu::maxVolumePlanes;
     if(densityValid)
     {
-        const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetD3DDevice(),densitySections.data(),
+        const bool drawn=StormMetalDrawAimVolume(AIHelper::pRS->GetNativeDevice(),densitySections.data(),
             uint32_t(densitySections.size()),densityPlanes.data(),uint32_t(densityPlanes.size()),
             nullptr,0,
             nullptr,0,

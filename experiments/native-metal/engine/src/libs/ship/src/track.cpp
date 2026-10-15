@@ -181,11 +181,11 @@ bool ShipTracks::ShipTrack::Reserve1(uint32_t dwSize)
     pRS->ReleaseIndexBuffer(iITmpBuffer1);
     iITmpBuffer1 = -1;
 
-    iVTmpBuffer1 = pRS->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    iVTmpBuffer1 = pRS->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            dwMaxBufferSize1 * dwTrackStep1 * sizeof(TrackVertex),
-                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+                                           storm_render::usage::writeOnly | storm_render::usage::dynamic);
     iITmpBuffer1 = pRS->CreateIndexBuffer(dwMaxBufferSize1 * dwTrackStep1 * 6 * sizeof(uint16_t),
-                                          D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+                                          storm_render::usage::writeOnly | storm_render::usage::dynamic);
 
     if (iVTmpBuffer1 == -1 || iITmpBuffer1 == -1)
     {
@@ -228,10 +228,10 @@ bool ShipTracks::ShipTrack::Reserve2(uint32_t dwSize)
     pRS->ReleaseIndexBuffer(iITmpBuffer2);
     iITmpBuffer2 = -1;
 
-    iVTmpBuffer2 = pRS->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    iVTmpBuffer2 = pRS->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            dwMaxBufferSize2 * dwTrackStep2 * sizeof(TrackVertex),
-                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
-    iITmpBuffer2 = pRS->CreateIndexBuffer(dwMaxBufferSize2 * dwTrackStep2 * 6 * sizeof(uint16_t), D3DUSAGE_WRITEONLY);
+                                           storm_render::usage::writeOnly | storm_render::usage::dynamic);
+    iITmpBuffer2 = pRS->CreateIndexBuffer(dwMaxBufferSize2 * dwTrackStep2 * 6 * sizeof(uint16_t), storm_render::usage::writeOnly);
 
     if (iVTmpBuffer2 == -1 || iITmpBuffer2 == -1)
     {
@@ -363,7 +363,7 @@ void ShipTracks::ShipTrack::Execute(float fDeltaTime)
     if (Reserve1(aTrack1.size()))
         if (aTrack1.size() > 1)
         {
-            auto *pV = static_cast<TrackVertex *>(pRS->LockVertexBuffer(iVTmpBuffer1, D3DLOCK_DISCARD));
+            auto *pV = static_cast<TrackVertex *>(pRS->LockVertexBuffer(iVTmpBuffer1, storm_render::lock::discard));
             for (int32_t i = 0; i < aTrack1.size(); i++)
             {
                 auto &T = aTrack1[i];
@@ -405,7 +405,7 @@ void ShipTracks::ShipTrack::Execute(float fDeltaTime)
     if (Reserve2(aTrack2.size()))
         if (aTrack2.size() > 1)
         {
-            auto *pV = static_cast<TrackVertex *>(pRS->LockVertexBuffer(iVTmpBuffer2, D3DLOCK_DISCARD));
+            auto *pV = static_cast<TrackVertex *>(pRS->LockVertexBuffer(iVTmpBuffer2, storm_render::lock::discard));
             for (int32_t i = 0; i < aTrack2.size(); i++)
             {
                 auto &T = aTrack2[i];
@@ -460,7 +460,7 @@ void ShipTracks::ShipTrack::Realize(float fDeltaTime)
     // pRS->SetTransform(D3DTS_WORLD, CMatrix());
     const CMatrix m;
     m.Pos() = pShip->GetPos();
-    pRS->SetTransform(D3DTS_WORLD, m);
+    pRS->SetTransform(storm_render::TransformWorld, m);
 
     // Each contact interval is its own strip. Keep the old wake visible until
     // its natural lifetime ends without triangles connecting it to landing.

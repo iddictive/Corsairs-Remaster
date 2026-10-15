@@ -150,7 +150,7 @@ void ROPE::Realize(uint32_t Delta_Time)
 
             if (bDraw)
             {
-                RiggingLightingScope lightingScope(RenderService->GetD3DDevice());
+                RiggingLightingScope lightingScope(RenderService->GetNativeDevice());
                 for (auto i = 0; i < groupQuantity; i++)
                     if (!gdata[i].bDeleted && gdata[i].nt != 0 && nVert != 0)
                         if ((~(gdata[i].pMatWorld->Pos() - cp)) * pr < fMaxRopeDist)
@@ -160,13 +160,13 @@ void ROPE::Realize(uint32_t Delta_Time)
                             struct AimRiggingScope {
                                 void*device;bool active;
                                 ~AimRiggingScope(){if(active)StormMetalEndAimModel(device);}
-                            } aimRiggingScope{RenderService->GetD3DDevice(),false};
+                            } aimRiggingScope{RenderService->GetNativeDevice(),false};
                             aimRiggingScope.active=StormMetalBeginAimRigging(aimRiggingScope.device,gdata[i].modelEI);
 #endif
                             static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[i].shipEI))
                                 ->SetLightAndFog(true);
-                            RenderService->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
-                            RenderService->SetTransform(D3DTS_WORLD, *gdata[i].pMatWorld);
+                            RenderService->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
+                            RenderService->SetTransform(storm_render::TransformWorld, *gdata[i].pMatWorld);
 
                             RenderService->TextureSet(0, texl);
                             RenderService->DrawBuffer(vBuf, sizeof(ROPEVERTEX), iBuf, 0, nVert, gdata[i].st,
@@ -912,7 +912,7 @@ void ROPE::FirstRun()
                 VERTEX_BUFFER_RELEASE(RenderService, vBuf);
                 INDEX_BUFFER_RELEASE(RenderService, iBuf);
             }
-            vBuf = RenderService->CreateVertexBuffer(ROPEVERTEX_FORMAT, nVert * sizeof(ROPEVERTEX), D3DUSAGE_WRITEONLY);
+            vBuf = RenderService->CreateVertexBuffer(ROPEVERTEX_FORMAT, nVert * sizeof(ROPEVERTEX), storm_render::usage::writeOnly);
             iBuf = RenderService->CreateIndexBuffer(nIndx * 2);
 
             if (vBuf >= 0 && iBuf >= 0)
@@ -1127,7 +1127,7 @@ void ROPE::DoSTORM_DELETE()
         INDEX_BUFFER_RELEASE(RenderService, iBuf);
 
         if (nVert > 0)
-            vBuf = RenderService->CreateVertexBuffer(ROPEVERTEX_FORMAT, nVert * sizeof(ROPEVERTEX), D3DUSAGE_WRITEONLY);
+            vBuf = RenderService->CreateVertexBuffer(ROPEVERTEX_FORMAT, nVert * sizeof(ROPEVERTEX), storm_render::usage::writeOnly);
         if (nIndx > 0)
             iBuf = RenderService->CreateIndexBuffer(nIndx * 6);
 

@@ -19,7 +19,7 @@ extern "C" void StormMetalEndLandModel(void*, unsigned);
 
 CREATE_CLASS(MODELR)
 
-IDirect3DVertexBuffer9 *dest_vb;
+storm_render::VertexBuffer *dest_vb;
 
 MODELR::MODELR()
 {
@@ -77,7 +77,7 @@ void *VBTransform(void *vb, int32_t startVrt, int32_t nVerts, int32_t totVerts)
     auto *src = static_cast<GEOS::AVERTEX0 *>(vb);
 
     GEOS::VERTEX0 *dst;
-    dest_vb->Lock(0, 0, (void **)&dst, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK);
+    dest_vb->Lock(0, 0, (void **)&dst, storm_render::lock::discard | storm_render::lock::noSystemLock);
 
 #ifndef _WIN32 // FIX_LINUX DirectXMath
     CMatrix mtx;
@@ -201,35 +201,35 @@ extern "C" bool StormMetalDrawCompactPrimitive(void *, uint32_t, uint32_t, uint3
 static bool DrawPickupGlow(VDX9RENDER *rs, const CVECTOR &worldCenter, float seconds)
 {
     CMatrix view, world;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_WORLD, world);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformWorld, world);
     const CVECTOR center = view * worldCenter;
     // Camera-space disc remains attached to the item as the camera rotates.
     const float alpha = storm::metal::pickup::opacity(std::sqrt(~center), seconds);
     if (center.z <= 0.4f || alpha < 1.0f / 255.0f) return true;
     const auto vertices = storm::metal::pickup::mesh(center.x, center.y, center.z, alpha);
-    auto *device = static_cast<IDirect3DDevice9 *>(rs->GetD3DDevice());
+    auto *device = static_cast<storm_render::Device *>(rs->GetNativeDevice());
     // Only local fixed-function state is changed. No textures, shaders, FVF,
     // streams, declarations, lights or renderer registries are replaced.
-    struct RenderState { D3DRENDERSTATETYPE type; DWORD value, previous; };
+    struct RenderState { storm_render::RenderStateField type; DWORD value, previous; };
     RenderState states[] = {
-        {D3DRS_LIGHTING, FALSE, 0}, {D3DRS_FOGENABLE, FALSE, 0},
-        {D3DRS_SPECULARENABLE, FALSE, 0}, {D3DRS_ALPHATESTENABLE, FALSE, 0},
-        {D3DRS_ALPHABLENDENABLE, TRUE, 0}, {D3DRS_SRCBLEND, D3DBLEND_SRCALPHA, 0},
-        {D3DRS_DESTBLEND, D3DBLEND_ONE, 0}, {D3DRS_BLENDOP, D3DBLENDOP_ADD, 0},
-        {D3DRS_SEPARATEALPHABLENDENABLE, FALSE, 0},
-        {D3DRS_CULLMODE, D3DCULL_NONE, 0}, {D3DRS_ZENABLE, D3DZB_TRUE, 0},
-        {D3DRS_ZFUNC, D3DCMP_LESSEQUAL, 0}, {D3DRS_ZWRITEENABLE, FALSE, 0}
+        {storm_render::RenderLighting, FALSE, 0}, {storm_render::RenderFog, FALSE, 0},
+        {storm_render::RenderSpecular, FALSE, 0}, {storm_render::RenderAlphaTest, FALSE, 0},
+        {storm_render::RenderBlend, TRUE, 0}, {storm_render::RenderSourceBlend, storm_render::BlendSourceAlpha, 0},
+        {storm_render::RenderDestinationBlend, storm_render::BlendOne, 0}, {storm_render::RenderBlendOp, storm_render::BlendOpAdd, 0},
+        {storm_render::RenderSeparateAlphaBlend, FALSE, 0},
+        {storm_render::RenderCullMode, storm_render::CullNone, 0}, {storm_render::RenderDepthTest, storm_render::DepthEnabled, 0},
+        {storm_render::RenderDepthCompare, storm_render::CompareLessEqual, 0}, {storm_render::RenderDepthWrite, FALSE, 0}
     };
-    struct TextureState { DWORD stage; D3DTEXTURESTAGESTATETYPE type; DWORD value, previous; };
+    struct TextureState { DWORD stage; storm_render::StageField type; DWORD value, previous; };
     TextureState stages[] = {
-        {0, D3DTSS_COLOROP, D3DTOP_SELECTARG1, 0},
-        {0, D3DTSS_COLORARG1, D3DTA_DIFFUSE, 0},
-        {0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1, 0},
-        {0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE, 0},
-        {0, D3DTSS_RESULTARG, D3DTA_CURRENT, 0},
-        {1, D3DTSS_COLOROP, D3DTOP_DISABLE, 0},
-        {1, D3DTSS_ALPHAOP, D3DTOP_DISABLE, 0}
+        {0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1, 0},
+        {0, storm_render::StageColorArg1, storm_render::textureArg::diffuse, 0},
+        {0, storm_render::StageAlphaOp, storm_render::TextureOpSelectArg1, 0},
+        {0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse, 0},
+        {0, storm_render::StageResultArg, storm_render::textureArg::current, 0},
+        {1, storm_render::StageColorOp, storm_render::TextureOpDisable, 0},
+        {1, storm_render::StageAlphaOp, storm_render::TextureOpDisable, 0}
     };
     for (auto &state : states) {
         device->GetRenderState(state.type, &state.previous);
@@ -239,13 +239,13 @@ static bool DrawPickupGlow(VDX9RENDER *rs, const CVECTOR &worldCenter, float sec
         device->GetTextureStageState(stage.stage, stage.type, &stage.previous);
         device->SetTextureStageState(stage.stage, stage.type, stage.value);
     }
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
-    rs->SetTransform(D3DTS_VIEW, CMatrix());
-    const bool drawn = StormMetalDrawCompactPrimitive(device, D3DPT_TRIANGLELIST,
-        D3DFVF_XYZ | D3DFVF_DIFFUSE, vertices.size() / 3,
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
+    rs->SetTransform(storm_render::TransformView, CMatrix());
+    const bool drawn = StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList,
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, vertices.size() / 3,
         vertices.data(), sizeof(storm::metal::pickup::Vertex));
-    rs->SetTransform(D3DTS_VIEW, view);
-    rs->SetTransform(D3DTS_WORLD, world);
+    rs->SetTransform(storm_render::TransformView, view);
+    rs->SetTransform(storm_render::TransformWorld, world);
     for (const auto &stage : stages)
         device->SetTextureStageState(stage.stage, stage.type, stage.previous);
     for (const auto &state : states)
@@ -261,7 +261,7 @@ void MODELR::Realize(uint32_t Delta_Time)
     struct LandScope {
         void* device; unsigned previous; bool active;
         ~LandScope() { if (active) StormMetalEndLandModel(device, previous); }
-    } landScope{rs->GetD3DDevice(), 0, true};
+    } landScope{rs->GetNativeDevice(), 0, true};
     // Enrol characters, separate equipment and authored static object models.
     // The bridge preserves an enclosing location-geometry scope.
     landScope.previous = StormMetalBeginSceneModel(landScope.device);
@@ -273,7 +273,7 @@ void MODELR::Realize(uint32_t Delta_Time)
     struct AimModelScope {
         void*device;bool active;
         ~AimModelScope(){if(active)StormMetalEndAimModel(device);}
-    } aimModelScope{rs->GetD3DDevice(),false};
+    } aimModelScope{rs->GetNativeDevice(),false};
     aimModelScope.active=StormMetalBeginAimModel(aimModelScope.device,GetId());
 #endif
 
@@ -281,11 +281,11 @@ void MODELR::Realize(uint32_t Delta_Time)
     float fOldFogDensity;
     if (bSetupFog)
     {
-        rs->GetRenderState(D3DRS_FOGENABLE, &dwOldFogEnable);
-        rs->GetRenderState(D3DRS_FOGDENSITY, (uint32_t *)&fOldFogDensity);
+        rs->GetRenderState(storm_render::RenderFog, &dwOldFogEnable);
+        rs->GetRenderState(storm_render::RenderFogDensity, (uint32_t *)&fOldFogDensity);
 
-        rs->SetRenderState(D3DRS_FOGENABLE, (bFogEnable) ? true : false);
-        rs->SetRenderState(D3DRS_FOGDENSITY, F2DW(fFogDensity));
+        rs->SetRenderState(storm_render::RenderFog, (bFogEnable) ? true : false);
+        rs->SetRenderState(storm_render::RenderFogDensity, F2DW(fFogDensity));
     }
 
     if (renderTuner)
@@ -304,7 +304,7 @@ void MODELR::Realize(uint32_t Delta_Time)
         */
         {
             static uint32_t ambient;
-            rs->GetRenderState(D3DRS_AMBIENT, &ambient);
+            rs->GetRenderState(storm_render::RenderAmbient, &ambient);
             ambient &= 0x00FFFFFF;
             float timeK = static_cast<float>(passedTime) / blendTime;
             if (timeK > 1.0f)
@@ -312,13 +312,13 @@ void MODELR::Realize(uint32_t Delta_Time)
             float alpha = alpha1 + (alpha2 - alpha1) * timeK;
             ambient |= static_cast<unsigned char>(255.0 * alpha) << 24;
             // ambient |= 0x05 << 24;
-            rs->SetRenderState(D3DRS_TEXTUREFACTOR, ambient);
+            rs->SetRenderState(storm_render::RenderTextureFactor, ambient);
         }
     }
 
     CMatrix view, proj;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, proj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, proj);
     FindPlanes(view, proj);
 
     CVECTOR tmp;
@@ -341,7 +341,7 @@ void MODELR::Realize(uint32_t Delta_Time)
         }
         bones = &ani->GetAnimationMatrix(0);
         gpuSkinning = gpuSkinning && storm::metal::skinning::beginPose(
-            rs->GetD3DDevice(), reinterpret_cast<const storm::metal::skinning::Matrix4x4 *>(bones),
+            rs->GetNativeDevice(), reinterpret_cast<const storm::metal::skinning::Matrix4x4 *>(bones),
             boneCount);
         struct SkinningScope {
             bool active;
@@ -367,9 +367,9 @@ void MODELR::Realize(uint32_t Delta_Time)
                 nAniVerts = 0;
             else
             {
-            int32_t fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEXTUREFORMAT2 | D3DFVF_TEX1;
-            rs->CreateVertexBuffer(sizeof(GEOS::VERTEX0) * nAniVerts, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, fvf,
-                                   D3DPOOL_DEFAULT, &d3dDestVB);
+            int32_t fvf = storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::texCoord2 | storm_render::vertexFormat::tex1;
+            rs->CreateVertexBuffer(sizeof(GEOS::VERTEX0) * nAniVerts, storm_render::usage::writeOnly | storm_render::usage::dynamic, fvf,
+                                   storm_render::MemoryClass::Default, &d3dDestVB);
             }
         }
         dest_vb = d3dDestVB;
@@ -432,8 +432,8 @@ void MODELR::Realize(uint32_t Delta_Time)
 
     if (bSetupFog)
     {
-        rs->SetRenderState(D3DRS_FOGENABLE, dwOldFogEnable);
-        rs->SetRenderState(D3DRS_FOGDENSITY, F2DW(fOldFogDensity));
+        rs->SetRenderState(storm_render::RenderFog, dwOldFogEnable);
+        rs->SetRenderState(storm_render::RenderFogDensity, F2DW(fOldFogDensity));
     }
 
     // UNGUARD
@@ -907,8 +907,8 @@ void MODELR::LostRender()
 void MODELR::RestoreRender()
 {
     root->RestoreGeometry();
-    const int32_t fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEXTUREFORMAT2 | D3DFVF_TEX1;
+    const int32_t fvf = storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::texCoord2 | storm_render::vertexFormat::tex1;
     if (nAniVerts)
-        rs->CreateVertexBuffer(sizeof(GEOS::VERTEX0) * nAniVerts, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, fvf,
-                               D3DPOOL_DEFAULT, &d3dDestVB);
+        rs->CreateVertexBuffer(sizeof(GEOS::VERTEX0) * nAniVerts, storm_render::usage::writeOnly | storm_render::usage::dynamic, fvf,
+                               storm_render::MemoryClass::Default, &d3dDestVB);
 }

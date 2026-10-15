@@ -202,7 +202,7 @@ bool MESSAGE_ICONS::InitData(entid_t host_eid, VDX9RENDER *_rs, ATTRIBUTES *pARo
 
     m_vMsgIconBufID = rs->CreateVertexBuffer(
         BI_COLOR_VERTEX_FORMAT, m_nMsgIconRowQnt * MESSAGE_ICONS_COLUMN_QUANTITY * 4 * sizeof(BI_COLOR_VERTEX),
-        D3DUSAGE_WRITEONLY);
+        storm_render::usage::writeOnly);
     m_iMsgIconBufID = rs->CreateIndexBuffer(m_nMsgIconRowQnt * MESSAGE_ICONS_COLUMN_QUANTITY * 6 * 2);
     m_nMsgIconQnt = 0;
     m_bShowMsgIcon = false;

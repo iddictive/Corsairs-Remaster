@@ -189,7 +189,7 @@ bool WEATHER::LoadState(ENTITY_STATE *state)
 
 void WEATHER::CleanUP()
 {
-    pRS->SetRenderState(D3DRS_FOGENABLE, false);
+    pRS->SetRenderState(storm_render::RenderFog, false);
     pRS->LightEnable(0, false);
 }
 
@@ -277,7 +277,7 @@ void WEATHER::CleanUP()
 
 void WEATHER::SetCommonStates()
 {
-    pRS->SetRenderState(D3DRS_FOGENABLE, GetInt(whi_fog_enable));
+    pRS->SetRenderState(storm_render::RenderFog, GetInt(whi_fog_enable));
 
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
     auto fDensity = visualState.fogDensity;
@@ -294,14 +294,14 @@ void WEATHER::SetCommonStates()
     const auto fSunHeightAngle = GetFloat(whf_sun_height_angle);
     const auto fSunAzimuthAngle = GetFloat(whf_sun_azimuth_angle);
 #endif
-    pRS->SetRenderState(D3DRS_FOGCOLOR, fogColor);
-    pRS->SetRenderState(D3DRS_FOGDENSITY, *((uint32_t *)&fDensity));
+    pRS->SetRenderState(storm_render::RenderFogColor, fogColor);
+    pRS->SetRenderState(storm_render::RenderFogDensity, *((uint32_t *)&fDensity));
 
-    pRS->SetRenderState(D3DRS_AMBIENT, dwAmbient);
+    pRS->SetRenderState(storm_render::RenderAmbient, dwAmbient);
 
     // setup sun light
     CVECTOR vSun, vSunColor, vSunLight;
-    D3DLIGHT9 sun;
+    storm_render::Light sun;
 
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
     vSun.x = 5000.0f;
@@ -336,7 +336,7 @@ void WEATHER::SetCommonStates()
     // while the moon is up whf_sun_height_angle carries its height.
     vSunColor = vSunColor * CLAMP((fSunHeightAngle + 0.12f) / 0.14f);
 
-    sun.Type = D3DLIGHT_DIRECTIONAL;
+    sun.Type = storm_render::LightKind::Directional;
     sun.Diffuse.r = vSunColor.x;
     sun.Diffuse.g = vSunColor.y;
     sun.Diffuse.b = vSunColor.z;
@@ -361,7 +361,7 @@ void WEATHER::SetCommonStates()
     pRS->SetLight(0, &sun);
     pRS->LightEnable(0, true);
 
-    pRS->SetRenderState(D3DRS_LIGHTING, false);
+    pRS->SetRenderState(storm_render::RenderLighting, false);
 }
 
 /*bool WEATHER::SetHour(int32_t hour)

@@ -14,7 +14,7 @@ class BIImageRender
     IBIImage *CreateImage(BIImageType type, const char *pcTextureName, uint32_t color, const FRECT &uv, int32_t nLeft,
                           int32_t nTop, int32_t nRight, int32_t nBottom, int32_t nPrior = ImagePrioritet_DefaultValue,
                           const char *pcTechniqueName = nullptr);
-    IBIImage *CreateImage(BIImageType type, const char *pcTextureName, uint32_t color, const FRECT &uv, const RECT &pos,
+    IBIImage *CreateImage(BIImageType type, const char *pcTextureName, uint32_t color, const FRECT &uv, const storm_render::Rect &pos,
                           int32_t nPrior = ImagePrioritet_DefaultValue, const char *pcTechniqueName = nullptr);
 
     BIImageMaterial *FindMaterial(const char *pcTextureName, const char *pcTechniqueName);
@@ -33,7 +33,7 @@ class BIImageRender
                             int32_t halign, int32_t nLeft, int32_t nTop, int32_t nRight, int32_t nBottom,
                             int32_t nPrior = ImagePrioritet_DefaultValue);
     IBIString *CreateString(const char *text, const char *font_name, float font_scale, uint32_t font_color, int32_t valign,
-                            int32_t halign, const RECT &pos, int32_t nPrior = ImagePrioritet_DefaultValue);
+                            int32_t halign, const storm_render::Rect &pos, int32_t nPrior = ImagePrioritet_DefaultValue);
     void DeleteString(IBIString *str);
     void CutPrioritetRangeByStrings();
 

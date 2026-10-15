@@ -63,7 +63,7 @@ void ActivePerkShower::Realize(uint32_t delta_time) const
 {
     if (m_pTexDescr == nullptr)
         return;
-    rs->MakePostProcess();
+    rs->FinalizeSceneEffects();
 
     for (auto i = 0; i < m_nTextureQ; i++)
     {
@@ -170,7 +170,7 @@ void ActivePerkShower::RefreshShowPlaces(ATTRIBUTES *pAPlacesRoot)
         m_nSpaceVert = pAttr->GetAttributeAsDword("vert", 4);
     }
 
-    RECT rectBound;
+    storm_render::Rect rectBound;
     rectBound.left = 488;
     rectBound.top = 192;
     rectBound.right = 624;
@@ -376,7 +376,7 @@ FRECT ActivePerkShower::GetTextureRect(int textIdx, int picIdx) const
 bool ActivePerkShower::InitCommonBuffers()
 {
     m_idVBuf = rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, m_nShowPlaceQ * 4 * sizeof(BI_ONETEXTURE_VERTEX),
-                                      D3DUSAGE_WRITEONLY);
+                                      storm_render::usage::writeOnly);
     m_idIBuf = rs->CreateIndexBuffer(m_nShowPlaceQ * 6 * 2);
     if (m_idIBuf == -1 || m_idVBuf == -1)
         return false;

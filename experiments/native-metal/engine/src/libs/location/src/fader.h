@@ -53,7 +53,7 @@ class Fader : public Entity
     // --------------------------------------------------------------------------------------------
   private:
     VDX9RENDER *rs;
-    IDirect3DTexture9 *tex;
+    storm_render::Texture *tex;
 
     bool isWork;
     bool haveFrame;

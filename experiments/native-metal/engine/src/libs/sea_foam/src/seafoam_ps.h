@@ -53,7 +53,7 @@ struct PARTICLE_VERTEX
     float tu, tv;
 };
 
-#define PARTICLE_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define PARTICLE_FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 struct PARTICLE
 {
@@ -116,7 +116,7 @@ class SEAFOAM_PS : VPARTICLE_SYSTEM
     int32_t ParticlesNum;
     PARTICLE *Particle;
 
-    IDirect3DVertexBuffer9 *VBuffer;
+    storm_render::VertexBuffer *VBuffer;
 
     CVECTOR Camera_EmitterPos;
     CVECTOR Camera_EmitterPosA;

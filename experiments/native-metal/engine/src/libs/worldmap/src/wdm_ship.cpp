@@ -333,7 +333,7 @@ void WdmShip::LRender(VDX9RENDER *rs)
 #ifdef STORM_METAL_RENDERER_CONSUMERS
         rs->TextureSet(0, wmtexture);
         static CMatrix wmIdentity;
-        rs->SetTransform(D3DTS_WORLD, wmIdentity);
+        rs->SetTransform(storm_render::TransformWorld, wmIdentity);
         const WdmMetalShipWake compact{mtx.Pos(), lines, WDM_SHIP_WMSZ, y, baseV, al,
                                        WDM_SHIP_SPEED / 5.0f};
         if (WdmMetalDrawShipWake(rs, compact, "WdmShipWaterTrack"))
@@ -376,9 +376,9 @@ void WdmShip::LRender(VDX9RENDER *rs)
         rs->TextureSet(0, wmtexture);
         // Transform
         static CMatrix identity;
-        rs->SetTransform(D3DTS_WORLD, identity);
+        rs->SetTransform(storm_render::TransformWorld, identity);
         // Render
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, WDM_SHIP_WMSZ * 2 - 1, vrt,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1, WDM_SHIP_WMSZ * 2 - 1, vrt,
                             sizeof(Vertex), "WdmShipWaterTrack");
     }
     else

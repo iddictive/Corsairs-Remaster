@@ -432,7 +432,7 @@ void WdmIslands::BuildTsunamiLand()
         GEOS::INFO info{};
         geo->GetInfo(info);
         const auto *indices = static_cast<const uint16_t *>(
-            wdmObjects->rs->LockIndexBuffer(geo->GetIndexBuffer(), D3DLOCK_READONLY));
+            wdmObjects->rs->LockIndexBuffer(geo->GetIndexBuffer(), storm_render::lock::readOnly));
         if (!indices) continue;
         for (int32_t oi = 0; oi < info.nobjects; ++oi)
         {
@@ -442,14 +442,14 @@ void WdmIslands::BuildTsunamiLand()
                 object.num_vertices < 3 || object.striangle < 0 || object.ntriangles < 1 ||
                 int64_t(object.striangle) + object.ntriangles > info.ntriangles) continue;
             auto *vb = wdmObjects->rs->GetVertexBuffer(object.vertex_buff);
-            D3DVERTEXBUFFER_DESC desc{};
-            if (!vb || vb->GetDesc(&desc) != D3D_OK ||
-                (desc.FVF & D3DFVF_POSITION_MASK) != D3DFVF_XYZ) continue;
+            storm_render::VertexBufferDesc desc{};
+            if (!vb || vb->GetDesc(&desc) != storm_render::result::ok ||
+                (desc.FVF & storm_render::vertexFormat::positionMask) != storm_render::vertexFormat::xyz) continue;
             uint32_t stride = 3 * sizeof(float);
-            if (desc.FVF & D3DFVF_NORMAL) stride += 3 * sizeof(float);
-            if (desc.FVF & D3DFVF_DIFFUSE) stride += sizeof(uint32_t);
-            if (desc.FVF & D3DFVF_SPECULAR) stride += sizeof(uint32_t);
-            const auto uvCount = (desc.FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+            if (desc.FVF & storm_render::vertexFormat::normal) stride += 3 * sizeof(float);
+            if (desc.FVF & storm_render::vertexFormat::diffuse) stride += sizeof(uint32_t);
+            if (desc.FVF & storm_render::vertexFormat::specular) stride += sizeof(uint32_t);
+            const auto uvCount = (desc.FVF & storm_render::vertexFormat::texCountMask) >> storm_render::vertexFormat::texCountShift;
             for (uint32_t uv = 0; uv < uvCount; ++uv)
             {
                 const uint32_t dimensions = (desc.FVF >> (16 + 2 * uv)) & 3;
@@ -457,7 +457,7 @@ void WdmIslands::BuildTsunamiLand()
             }
             if ((uint64_t(object.start_vertex) + object.num_vertices) * stride > desc.Size) continue;
             void *locked = nullptr;
-            if (vb->Lock(0, 0, &locked, D3DLOCK_READONLY) != D3D_OK || !locked) continue;
+            if (vb->Lock(0, 0, &locked, storm_render::lock::readOnly) != storm_render::result::ok || !locked) continue;
             const auto *bytes = static_cast<const uint8_t *>(locked) + uint64_t(object.start_vertex) * stride;
             std::vector<CVECTOR> vertices(object.num_vertices);
             for (int32_t v = 0; v < object.num_vertices; ++v)
@@ -977,11 +977,11 @@ void WdmIslands::LRender(VDX9RENDER *rs)
     icons.f[1] *= icons.u;
     // get the current transformation matrix
     static CMatrix mtx, view, prj;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, prj);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, prj);
     mtx.EqMultiply(view, prj);
     // Get the current vp sizes
-    static D3DVIEWPORT9 vp;
+    static storm_render::Viewport vp;
     rs->GetViewport(&vp);
     const auto w = static_cast<float>(vp.Width);
     const auto h = static_cast<float>(vp.Height);
@@ -1080,7 +1080,7 @@ void WdmIslands::LRender(VDX9RENDER *rs)
             continue;
         rs->TextureSet(0, icons.texture);
         rs->TextureSet(1, icons.texture);
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, static_cast<uint32_t>(icons.blend));
+        rs->SetRenderState(storm_render::RenderTextureFactor, static_cast<uint32_t>(icons.blend));
 #ifdef STORM_METAL_RENDERER_CONSUMERS
         const WdmMetalScreenRect compact{label.l + label.iconX, label.t + label.iconY, icons.w, icons.h,
                                          0.0f, 0.0f, 0.5f, color,
@@ -1138,7 +1138,7 @@ void WdmIslands::LRender(VDX9RENDER *rs)
         drawbuf[3].tu2 = drawbuf[2].tu2;
         drawbuf[3].tv2 = drawbuf[3].tv1;
         // draw the result
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2, 2, drawbuf,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex2, 2, drawbuf,
                             sizeof(drawbuf[0]), "WdmDrawLabelIcon");
     }
 }
@@ -1158,7 +1158,7 @@ void WdmIslands::RenderDangerZones(VDX9RENDER *rs) const
 
     rs->TextureSet(0, -1);
     rs->TextureSet(1, -1);
-    rs->SetTransform(D3DTS_WORLD, identity);
+    rs->SetTransform(storm_render::TransformWorld, identity);
 
     for (const Label &label : labels)
     {
@@ -1178,7 +1178,7 @@ void WdmIslands::RenderDangerZones(VDX9RENDER *rs) const
                                           label.dangerPos.z + std::cos(angle) * label.dangerRadius);
             vertices[i + 1].color = 0x00b51f24;
         }
-        rs->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, D3DFVF_XYZ | D3DFVF_DIFFUSE, segments, vertices,
+        rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleFan, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse, segments, vertices,
                             sizeof(vertices[0]), "WdmPortDangerZone");
     }
 }
@@ -1454,11 +1454,11 @@ void WdmIslandWaves::Render(VDX9RENDER *rs, float k)
     CMatrix mtx;
     mtx.m[1][1] = 0.3f + 1.0f * sinf(k * PI);
     mtx.m[2][1] = 0.0f; // 0.2f*sinf((k - 0.25f)*2.0f*PI) - 0.5f;
-    rs->SetTransform(D3DTS_TEXTURE0, mtx);
+    rs->SetTransform(storm_render::TransformTexture0, mtx);
     // set the overall transparency
     const float a = sinf(k * PI) * (1.0f - k * 0.5f) * 1.25f;
     // Draw the model
     SetTech("WdmIslandWaves", nullptr);
-    rs->SetRenderState(D3DRS_TEXTUREFACTOR, (static_cast<int32_t>(a * a * a * a * 255.0f) << 24) | 0xffffff);
+    rs->SetRenderState(storm_render::RenderTextureFactor, (static_cast<int32_t>(a * a * a * a * 255.0f) << 24) | 0xffffff);
     WdmRenderModel::LRender(rs);
 }

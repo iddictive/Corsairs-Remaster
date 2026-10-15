@@ -122,9 +122,9 @@ void CXI_TEXTBUTTON::Draw(bool bSelected, uint32_t Delta_Time)
         {
             m_rs->TextureSet(0, m_idShadowTex);
             if (m_nPressedDelay > 0)
-                m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONETEX_VERTEX), 4 * 3 * 4, 2, "iIcon");
+                m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONETEX_VERTEX), 4 * 3 * 4, 2, "iIcon");
             else
-                m_rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idVBuf, sizeof(XI_ONETEX_VERTEX), 4 * 3 * 4 + 4, 2, "iIcon");
+                m_rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idVBuf, sizeof(XI_ONETEX_VERTEX), 4 * 3 * 4 + 4, 2, "iIcon");
         }
         else
         {
@@ -142,20 +142,20 @@ void CXI_TEXTBUTTON::Draw(bool bSelected, uint32_t Delta_Time)
             {
                 m_rs->SetTexture(0, m_pTex->m_pTexture);
                 if (m_nPressedDelay > 0)
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
                                           "iVideo");
                 else
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
                                           "iVideo");
             }
             else if (m_dwBackColor != 0)
             {
-                m_rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwBackColor);
+                m_rs->SetRenderState(storm_render::RenderTextureFactor, m_dwBackColor);
                 if (m_nPressedDelay > 0)
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
                                           "iTFRectangle");
                 else
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
                                           "iTFRectangle");
             }
         }
@@ -174,10 +174,10 @@ void CXI_TEXTBUTTON::Draw(bool bSelected, uint32_t Delta_Time)
             {
                 m_rs->SetTexture(0, m_pTex->m_pTexture);
                 if (m_nPressedDelay > 0)
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, &m_v[4], sizeof(XI_ONETEX_VERTEX),
                                           "iVideo");
                 else
-                    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
+                    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, XI_ONETEX_FVF, 2, m_v, sizeof(XI_ONETEX_VERTEX),
                                           "iVideo");
             }
         }
@@ -320,7 +320,7 @@ void CXI_TEXTBUTTON::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, co
     if (m_idShadowTex >= 0)
         m_nVert += 8;
     m_idIBuf = m_rs->CreateIndexBuffer(m_nIndx * 2);
-    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), D3DUSAGE_WRITEONLY);
+    m_idVBuf = m_rs->CreateVertexBuffer(XI_ONETEX_FVF, m_nVert * sizeof(XI_ONETEX_VERTEX), storm_render::usage::writeOnly);
 
     // Lock buffers for write
     auto *pVert = static_cast<XI_ONETEX_VERTEX *>(m_rs->LockVertexBuffer(m_idVBuf));

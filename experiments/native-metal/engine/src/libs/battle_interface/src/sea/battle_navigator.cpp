@@ -53,42 +53,42 @@ void BATTLE_NAVIGATOR::Draw() const
 
     // set world matrix
     const CMatrix matw;
-    rs->SetTransform(D3DTS_WORLD, matw);
+    rs->SetTransform(storm_render::TransformWorld, matw);
 
     // gradient background
     // rs->DrawPrimitive(D3DPT_TRIANGLEFAN,m_idGradBackVBuf,sizeof(BI_COLORONLY_VERTEX),0,1,"battle_only_color");
 
     // Isle
-    rs->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-    rs->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    rs->SetSamplerState(0, storm_render::SamplerAddressU, storm_render::TextureAddressClamp);
+    rs->SetSamplerState(0, storm_render::SamplerAddressU, storm_render::TextureAddressClamp);
 
-    rs->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    rs->SetSamplerState(0, storm_render::SamplerAddressV, storm_render::TextureAddressClamp);
     if (m_idIslandTexture >= 0)
         rs->TextureSet(0, m_idIslandTexture);
     if (m_pIslandTexture != nullptr)
         rs->SetTexture(0, m_pIslandTexture);
     if (m_bYesIsland)
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idMapVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, RADIAL_QUANTITY,
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idMapVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, RADIAL_QUANTITY,
                           "battle_island");
     else
     {
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwSeaColor);
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idMapVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, RADIAL_QUANTITY,
+        rs->SetRenderState(storm_render::RenderTextureFactor, m_dwSeaColor);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idMapVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, RADIAL_QUANTITY,
                           "battle_only_tfactor");
     }
-    rs->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-    rs->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+    rs->SetSamplerState(0, storm_render::SamplerAddressU, storm_render::TextureAddressWrap);
+    rs->SetSamplerState(0, storm_render::SamplerAddressV, storm_render::TextureAddressWrap);
 
     // ships
     if (m_nvShips > 0)
-        rs->DrawPrimitive(D3DPT_TRIANGLELIST, m_idShipsVBuf, sizeof(BI_COLORONLY_VERTEX), 0, m_nvShips / 3,
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleList, m_idShipsVBuf, sizeof(BI_COLORONLY_VERTEX), 0, m_nvShips / 3,
                           "battle_only_color");
 
     // cannons fire range
     if (m_idFireZoneVBuf != -1L)
     {
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwFireZoneColor);
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idFireZoneVBuf, sizeof(BI_NOTEXTURE_VERTEX), 0, FIRERANGE_QUANTITY - 2,
+        rs->SetRenderState(storm_render::RenderTextureFactor, m_dwFireZoneColor);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idFireZoneVBuf, sizeof(BI_NOTEXTURE_VERTEX), 0, FIRERANGE_QUANTITY - 2,
                           "battle_only_tfactor");
     }
 
@@ -97,10 +97,10 @@ void BATTLE_NAVIGATOR::Draw() const
     {
         // background of the minimap
         rs->TextureSet(0, m_idEmptyTex);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2, "battle_rectangle");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2, "battle_rectangle");
         // compass
         rs->TextureSet(0, m_idCompasTex);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
     }
 
     // cannons charge indicator
@@ -108,22 +108,22 @@ void BATTLE_NAVIGATOR::Draw() const
     n = 0;
     if (m_nvCannonCharge > 0)
     {
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwChargeCannon);
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonCharge,
+        rs->SetRenderState(storm_render::RenderTextureFactor, m_dwChargeCannon);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonCharge,
                           "battle_tf_rectangle");
         n += m_nvCannonCharge + 2;
     }
     if (m_nvCannonReady > 0)
     {
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwReadyCannon);
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonReady,
+        rs->SetRenderState(storm_render::RenderTextureFactor, m_dwReadyCannon);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonReady,
                           "battle_tf_rectangle");
         n += m_nvCannonReady + 2;
     }
     if (m_nvCannonDamage > 0)
     {
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, m_dwDamagedCannon);
-        rs->DrawPrimitive(D3DPT_TRIANGLEFAN, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonDamage,
+        rs->SetRenderState(storm_render::RenderTextureFactor, m_dwDamagedCannon);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleFan, m_idCannonVBuf, sizeof(BI_ONETEXTURE_VERTEX), n, m_nvCannonDamage,
                           "battle_tf_rectangle");
     }
 
@@ -136,15 +136,15 @@ void BATTLE_NAVIGATOR::Draw() const
     if (m_idEmptyVBuf != -1L)
     {
         rs->TextureSet(0, m_idWindTex);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 8, 2, "battle_rectangle");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idEmptyVBuf, sizeof(BI_ONETEXTURE_VERTEX), 8, 2, "battle_rectangle");
     }
 
     // show heading angles
     if (m_idCourseVBuf != -1L && m_idBestCourseTex != -1L)
     {
         rs->TextureSet(0, m_idBestCourseTex);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCourseVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2, "battle_rectangle");
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCourseVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCourseVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2, "battle_rectangle");
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCourseVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
     }
 
     // print wind and ship speed
@@ -157,23 +157,23 @@ void BATTLE_NAVIGATOR::Draw() const
     if (m_curCharge >= 0)
     {
         rs->TextureSet(0, m_idChargeTexture);
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, (BIUtils::g_dwBlinkColor << 24L) | 0xFFFFFF);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2,
+        rs->SetRenderState(storm_render::RenderTextureFactor, (BIUtils::g_dwBlinkColor << 24L) | 0xFFFFFF);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2,
                           m_bNotEnoughBallFlag ? "battle_texure_blend_tf" : "battle_rectangle");
     }
     if (m_idPowderTexture >= 0 && m_curPowder >= 0)
     {
         rs->TextureSet(0, m_idPowderTexture);
-        rs->SetRenderState(D3DRS_TEXTUREFACTOR, (BIUtils::g_dwBlinkColor << 24L) | 0xFFFFFF);
-        rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 12, 2,
+        rs->SetRenderState(storm_render::RenderTextureFactor, (BIUtils::g_dwBlinkColor << 24L) | 0xFFFFFF);
+        rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 12, 2,
                           m_bPowderRunOut ? "battle_texure_blend_tf" : "battle_rectangle");
     }
     // show wind icon
     rs->TextureSet(0, m_idWindTexture);
-    rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
+    rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 4, 2, "battle_rectangle");
     // show sails position icon
     rs->TextureSet(0, m_idSailTexture);
-    rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 8, 2, "battle_rectangle");
+    rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 8, 2, "battle_rectangle");
 }
 
 void BATTLE_NAVIGATOR::Update()
@@ -643,23 +643,23 @@ void BATTLE_NAVIGATOR::Init(VDX9RENDER *RenderService, Entity *pOwnerEI)
 
     // create buffers
     m_idEmptyVBuf =
-        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, (4 + 4 + 4) * sizeof(BI_ONETEXTURE_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, (4 + 4 + 4) * sizeof(BI_ONETEXTURE_VERTEX), storm_render::usage::writeOnly);
     m_idCourseVBuf =
-        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, (4 + 4) * sizeof(BI_ONETEXTURE_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, (4 + 4) * sizeof(BI_ONETEXTURE_VERTEX), storm_render::usage::writeOnly);
     m_idCannonVBuf =
-        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 7 * 4 * sizeof(BI_ONETEXTURE_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 7 * 4 * sizeof(BI_ONETEXTURE_VERTEX), storm_render::usage::writeOnly);
     m_idSpeedVBuf =
-        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 7 * 2 * sizeof(BI_ONETEXTURE_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 7 * 2 * sizeof(BI_ONETEXTURE_VERTEX), storm_render::usage::writeOnly);
     m_idMapVBuf = rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, (RADIAL_QUANTITY + 3) * sizeof(BI_ONETEXTURE_VERTEX),
-                                         D3DUSAGE_WRITEONLY);
+                                         storm_render::usage::writeOnly);
     m_idFireZoneVBuf = rs->CreateVertexBuffer(BI_NOTEX_VERTEX_FORMAT, FIRERANGE_QUANTITY * sizeof(BI_NOTEXTURE_VERTEX),
-                                              D3DUSAGE_WRITEONLY);
+                                              storm_render::usage::writeOnly);
     m_idShipsVBuf = rs->CreateVertexBuffer(
-        BI_COLORONLY_VERTEX_FORMAT, MAX_ENEMY_SHIP_QUANTITY * 3 * sizeof(BI_COLORONLY_VERTEX), D3DUSAGE_WRITEONLY);
+        BI_COLORONLY_VERTEX_FORMAT, MAX_ENEMY_SHIP_QUANTITY * 3 * sizeof(BI_COLORONLY_VERTEX), storm_render::usage::writeOnly);
     m_idGradBackVBuf =
-        rs->CreateVertexBuffer(BI_COLORONLY_VERTEX_FORMAT, 3 * sizeof(BI_COLORONLY_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_COLORONLY_VERTEX_FORMAT, 3 * sizeof(BI_COLORONLY_VERTEX), storm_render::usage::writeOnly);
     m_idCurChargeVBuf =
-        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 4 * 4 * sizeof(BI_ONETEXTURE_VERTEX), D3DUSAGE_WRITEONLY);
+        rs->CreateVertexBuffer(BI_ONETEX_VERTEX_FORMAT, 4 * 4 * sizeof(BI_ONETEXTURE_VERTEX), storm_render::usage::writeOnly);
     if (m_idEmptyVBuf == -1 || m_idCourseVBuf == -1 || m_idCannonVBuf == -1 || m_idSpeedVBuf == -1 ||
         m_idMapVBuf == -1 || m_idFireZoneVBuf == -1 || m_idShipsVBuf == -1 || m_idGradBackVBuf == -1 ||
         m_idCurChargeVBuf == -1)
@@ -1351,33 +1351,33 @@ void BATTLE_NAVIGATOR::SetIsland()
         islSize = (xMax - xMin) > (zMax - zMin) ? (xMax - xMin) : (zMax - zMin);
         islSize *= 1.1f;
 
-        IDirect3DSurface9 *pRenderTarg = nullptr, *pOldRenderTarg = nullptr;
-        if (rs->GetRenderTarget(&pOldRenderTarg) == D3D_OK)
+        storm_render::Surface *pRenderTarg = nullptr, *pOldRenderTarg = nullptr;
+        if (rs->GetRenderTarget(&pOldRenderTarg) == storm_render::result::ok)
         {
-            if (rs->CreateTexture(MAP_TEXTURE_WIDTH, MAP_TEXTURE_HEIGHT, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5,
-                                  D3DPOOL_DEFAULT, &m_pIslandTexture) == D3D_OK)
+            if (rs->CreateTexture(MAP_TEXTURE_WIDTH, MAP_TEXTURE_HEIGHT, 1, storm_render::usage::renderTarget, storm_render::AssetFormat::R5G6B5,
+                                  storm_render::MemoryClass::Default, &m_pIslandTexture) == storm_render::result::ok)
             {
                 // SIMPLE OUT
-                if (rs->GetSurfaceLevel(m_pIslandTexture, 0, &pRenderTarg) == D3D_OK)
+                if (rs->GetSurfaceLevel(m_pIslandTexture, 0, &pRenderTarg) == storm_render::result::ok)
                 {
-                    IDirect3DSurface9 *pStencil;
+                    storm_render::Surface *pStencil;
                     rs->GetDepthStencilSurface(&pStencil);
-                    if (rs->SetRenderTarget(pRenderTarg, nullptr) == D3D_OK)
+                    if (rs->SetRenderTarget(pRenderTarg, nullptr) == storm_render::result::ok)
                     {
                         CMatrix matw, matv, oldmatv;
-                        D3DMATRIX matp, oldmatp;
+                        storm_render::Matrix matp, oldmatp;
                         matv.BuildViewMatrix(posCenter + CVECTOR(0.f, islSize / 2.f, 0.f), posCenter,
                                              CVECTOR(0.f, 0.f, 1.f));
-                        rs->GetTransform(D3DTS_VIEW, oldmatv);
-                        rs->SetTransform(D3DTS_VIEW, matv);
-                        rs->GetTransform(D3DTS_PROJECTION, &oldmatp);
+                        rs->GetTransform(storm_render::TransformView, oldmatv);
+                        rs->SetTransform(storm_render::TransformView, matv);
+                        rs->GetTransform(storm_render::TransformProjection, &oldmatp);
                         matp = {};
                         matp._11 = matp._22 = 2.f / islSize;
                         matp._33 = 1.f / islSize;
                         matp._44 = 1.f;
-                        rs->SetTransform(D3DTS_PROJECTION, &matp);
+                        rs->SetTransform(storm_render::TransformProjection, &matp);
                         // fill fone color
-                        rs->Clear(0, nullptr, D3DCLEAR_TARGET, m_dwSeaColor, 1.f, 0);
+                        rs->Clear(storm_render::clear::color, m_dwSeaColor, 1.f);
                         // show island
                         if (rs->TechniqueExecuteStart("battle_island_gettexture"))
                         {
@@ -1386,8 +1386,8 @@ void BATTLE_NAVIGATOR::SetIsland()
                                 ;
                         }
                         rs->SetRenderTarget(pOldRenderTarg, pStencil);
-                        rs->SetTransform(D3DTS_VIEW, oldmatv);
-                        rs->SetTransform(D3DTS_PROJECTION, &oldmatp);
+                        rs->SetTransform(storm_render::TransformView, oldmatv);
+                        rs->SetTransform(storm_render::TransformProjection, &oldmatp);
                     }
                     pStencil->Release();
                     pRenderTarg->Release();

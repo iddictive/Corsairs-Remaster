@@ -140,7 +140,7 @@ void TButterflies::Realize(uint32_t dTime)
 
     const CMatrix wMatrix;
 
-    renderService->SetTransform(D3DTS_WORLD, static_cast<D3DMATRIX *>(wMatrix));
+    renderService->SetTransform(storm_render::TransformWorld, static_cast<storm_render::Matrix *>(wMatrix));
     renderService->TextureSet(0, texture);
     // for (int i = 0; i<butterfliesCount; i++)
     //    butterflies[i].Draw(renderService, butterfly);

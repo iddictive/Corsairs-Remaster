@@ -227,14 +227,14 @@ class ShipVisual
     void draw(VDX9RENDER *renderer, const CMatrix &mapMatrix) const
     {
         auto *owned = model(); if (!owned || !renderer) return;
-        CMatrix oldWorld; renderer->GetTransform(D3DTS_WORLD, oldWorld);
+        CMatrix oldWorld; renderer->GetTransform(storm_render::TransformWorld, oldWorld);
         CMatrix matrix = mapMatrix;
         matrix.Vx() *= scale; matrix.Vy() *= scale; matrix.Vz() *= scale;
         // Keep the actual ship's waterline and origin anchored to map position.
         owned->mtx = matrix;
         owned->ProcessStage(Entity::Stage::realize, 0);
         sails->draw(renderer, matrix);
-        renderer->SetTransform(D3DTS_WORLD, oldWorld);
+        renderer->SetTransform(storm_render::TransformWorld, oldWorld);
     }
 
     bool alive() const { return model() != nullptr; }

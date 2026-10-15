@@ -78,7 +78,7 @@ bool Fader::Init()
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
         throw std::runtime_error("No service: dx9render");
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
     w = static_cast<float>(vp.Width);
     h = static_cast<float>(vp.Height);
@@ -317,8 +317,8 @@ void Fader::Realize(uint32_t delta_time)
             }
             else {
                 rs->SetTexture(0, tex);
-                rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-                                    D3DFVF_XYZRHW  | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2, 2, drawbuf_base, sizeof(drawbuf_base[0]), "Fader");
+                rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,
+                                    storm_render::vertexFormat::xyzwTransformed  | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2, 2, drawbuf_base, sizeof(drawbuf_base[0]), "Fader");
             }
         }
     }
@@ -347,7 +347,7 @@ void Fader::Realize(uint32_t delta_time)
     drawbuf_back[5].color = color;
 
     rs->TextureSet(0, textureBackID);
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2, 2,
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2, 2,
                         drawbuf_back, sizeof(drawbuf_back[0]), "Fader");
 
     if (textureID >= 0)
@@ -363,14 +363,14 @@ void Fader::Realize(uint32_t delta_time)
         if (tipsID >= 0)
         {
             rs->TextureSet(1, tipsID);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-                                D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2, 2, drawbuf_front,
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,
+                                storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2, 2, drawbuf_front,
                                 sizeof(drawbuf_front[0]), "FaderWithTips");
         }
         else
         {
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-                                D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2, 2, drawbuf_front,
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,
+                                storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2, 2, drawbuf_front,
                                 sizeof(drawbuf_front[0]), "Fader");
         }
     }

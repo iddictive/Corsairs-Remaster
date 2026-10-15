@@ -62,9 +62,9 @@ void TornadoParticles::EnsureBuffers(VDX9RENDER *rs)
     if (vertexBuffer >= 0 && indexBuffer >= 0)
         return;
     renderer = rs;
-    vertexBuffer = rs->CreateVertexBuffer(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+    vertexBuffer = rs->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            MaxParticles * 4 * sizeof(Vertex),
-                                           D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
+                                           storm_render::usage::writeOnly | storm_render::usage::dynamic);
     indexBuffer = rs->CreateIndexBuffer(MaxParticles * 6 * sizeof(uint16_t));
     auto *indices = static_cast<uint16_t *>(rs->LockIndexBuffer(indexBuffer));
     for (int32_t i = 0; i < MaxParticles; ++i)
@@ -169,16 +169,16 @@ void TornadoParticles::Update(float dltTime)
 
 void TornadoParticles::Draw(VDX9RENDER *rs)
 {
-    rs->GetTransform(D3DTS_VIEW, camMtx);
-    rs->SetTransform(D3DTS_VIEW, CMatrix());
-    rs->SetTransform(D3DTS_WORLD, CMatrix());
+    rs->GetTransform(storm_render::TransformView, camMtx);
+    rs->SetTransform(storm_render::TransformView, CMatrix());
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
     rs->TextureSet(0, txtPillarPrts);
     DrawParticles(rs, pillarPrt, sizeof(pillarPrt) / sizeof(PillarParticle), sizeof(PillarParticle), -1,
                   "TornadoPillarParticles");
     rs->TextureSet(0, txtGroundPrts);
     DrawParticles(rs, groundPrt, sizeof(groundPrt) / sizeof(GroundParticle), sizeof(GroundParticle), -1,
                   "TornadoGroundParticles");
-    rs->SetTransform(D3DTS_VIEW, camMtx);
+    rs->SetTransform(storm_render::TransformView, camMtx);
 }
 
 inline void TornadoParticles::DrawParticles(VDX9RENDER *rs, void *prts, int32_t num, int32_t size, int32_t texture,
@@ -206,13 +206,13 @@ inline void TornadoParticles::DrawParticles(VDX9RENDER *rs, void *prts, int32_t 
     if (rs->TechniqueExecuteStart(tech))
         do
         {
-            StormMetalDrawParticleSprites(rs->GetD3DDevice(), sprites.data(), sprites.size(),
+            StormMetalDrawParticleSprites(rs->GetNativeDevice(), sprites.data(), sprites.size(),
                                           StormMetalParticleCameraXY, StormMetalParticleStraightAlpha);
         } while (rs->TechniqueExecuteNext());
     return;
 #endif
     EnsureBuffers(rs);
-    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, D3DLOCK_DISCARD));
+    auto *vertices = static_cast<Vertex *>(rs->LockVertexBuffer(vertexBuffer, storm_render::lock::discard));
     int32_t n = 0;
     for (int32_t i = 0; i < num; i++)
     {

@@ -18,7 +18,7 @@ class XI_TableCellDescribe
     struct ImgDescribe
     {
         CXI_IMAGE *pImage;
-        POINT offset;
+        storm_render::Point offset;
 
         ImgDescribe()
         {

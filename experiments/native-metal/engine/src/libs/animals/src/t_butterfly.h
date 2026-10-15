@@ -25,7 +25,7 @@
 #define Y_SPEED 1.0f
 #define SINGLE_SIZE 0.25f
 
-#define BUTTERFLY_VERTEX_TYPE (D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2)
+#define BUTTERFLY_VERTEX_TYPE (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
 
 #pragma pack(push, 1)
 struct tButterflyVertex

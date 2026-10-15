@@ -642,14 +642,14 @@ void WdmStorm::LRender(VDX9RENDER *rs)
         if (!wdmObjects->sea) return;
         if (tsunamiFoamTexture < 0) tsunamiFoamTexture = rs->TextureCreate("\\WorldMap\\geometry\\Wave001.tga");
         CMatrix identity;
-        rs->SetTransform(D3DTS_WORLD, identity);
+        rs->SetTransform(storm_render::TransformWorld, identity);
         wdmObjects->sea->DrawTsunamiSurface(rs, water.data(), uint32_t(water.size() / 3), sizeof(TsunamiVertex));
-        rs->SetTransform(D3DTS_TEXTURE0, identity);
-        rs->SetTransform(D3DTS_TEXTURE1, identity);
+        rs->SetTransform(storm_render::TransformTexture0, identity);
+        rs->SetTransform(storm_render::TransformTexture1, identity);
         const auto draw = [&](std::vector<TsunamiVertex> &mesh, int32_t texture) {
             if (mesh.empty() || texture < 0) return;
             rs->TextureSet(0, texture);
-            rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
+            rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                 uint32_t(mesh.size() / 3), mesh.data(), sizeof(TsunamiVertex), "WdmTsunamiWave");
         };
         draw(foam, tsunamiFoamTexture);

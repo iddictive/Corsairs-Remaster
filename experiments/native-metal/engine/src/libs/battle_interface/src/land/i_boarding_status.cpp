@@ -46,9 +46,9 @@ void IBoardingStatus::Realize(uint32_t delta_time)
     if (rs == nullptr)
         return;
 
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_COLORONLY_VERTEX_FORMAT, 2, m_MyChar, sizeof(BI_COLORONLY_VERTEX),
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, BI_COLORONLY_VERTEX_FORMAT, 2, m_MyChar, sizeof(BI_COLORONLY_VERTEX),
                         "battle_only_color");
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_COLORONLY_VERTEX_FORMAT, 2, m_EnemyChar, sizeof(BI_COLORONLY_VERTEX),
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, BI_COLORONLY_VERTEX_FORMAT, 2, m_EnemyChar, sizeof(BI_COLORONLY_VERTEX),
                         "battle_only_color");
 }
 

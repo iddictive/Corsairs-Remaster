@@ -10,7 +10,7 @@ class xiBaseVideo : public Entity
     {
     }
 
-    virtual IDirect3DTexture9 *GetCurrentVideoTexture()
+    virtual storm_render::Texture *GetCurrentVideoTexture()
     {
         return nullptr;
     }

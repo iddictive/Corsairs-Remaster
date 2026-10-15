@@ -1,7 +1,7 @@
 #include "gpu_skinning_bridge.hpp"
 
 #include <SDL.h>
-#include <d3d9.h>
+#include "render_device_api.hpp"
 
 #include <array>
 #include <cmath>
@@ -16,10 +16,10 @@ using storm::metal::skinning::Matrix4x4;
 extern "C" std::uint64_t StormMetalRawSkinnedDraws(void *);
 
 namespace {
-constexpr UINT kWidth = 64;
-constexpr UINT kHeight = 64;
-constexpr DWORD kClear = 0x7f102030u;
-constexpr DWORD kLayout = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+constexpr uint32_t kWidth = 64;
+constexpr uint32_t kHeight = 64;
+constexpr uint32_t kClear = 0x7f102030u;
+constexpr uint32_t kLayout = storm_render::vertexFormat::xyz | storm_render::vertexFormat::normal | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1;
 
 struct CpuVertex {
     float position[3];
@@ -70,22 +70,22 @@ CpuVertex cpuSkin(const AnimatedVertex &vertex, const Matrix4x4 *palette)
     return result;
 }
 
-std::vector<DWORD> readPixels(IDirect3DDevice9 *device, IDirect3DSurface9 *target,
-                              IDirect3DSurface9 *readback)
+std::vector<uint32_t> readPixels(storm_render::Device *device, storm_render::Surface *target,
+                              storm_render::Surface *readback)
 {
-    require(SUCCEEDED(device->GetRenderTargetData(target, readback)), "GPU readback");
-    D3DLOCKED_RECT locked{};
-    require(SUCCEEDED(readback->LockRect(&locked, nullptr, D3DLOCK_READONLY)), "readback lock");
-    std::vector<DWORD> pixels(kWidth * kHeight);
-    for (UINT y = 0; y < kHeight; ++y)
+    require(storm_render::succeeded(device->GetRenderTargetData(target, readback)), "GPU readback");
+    storm_render::LockedRect locked{};
+    require(storm_render::succeeded(readback->LockRect(&locked, nullptr, storm_render::lock::readOnly)), "readback lock");
+    std::vector<uint32_t> pixels(kWidth * kHeight);
+    for (uint32_t y = 0; y < kHeight; ++y)
         std::memcpy(pixels.data() + y * kWidth,
                     static_cast<const char *>(locked.pBits) + y * locked.Pitch,
-                    kWidth * sizeof(DWORD));
+                    kWidth * sizeof(uint32_t));
     readback->UnlockRect();
     return pixels;
 }
 
-void compare(const std::vector<DWORD> &cpu, const std::vector<DWORD> &gpu, int pose)
+void compare(const std::vector<uint32_t> &cpu, const std::vector<uint32_t> &gpu, int pose)
 {
     require(cpu.size() == gpu.size(), "matching readback sizes");
     std::size_t covered = 0;
@@ -122,59 +122,56 @@ int main()
                                           SDL_WINDOWPOS_UNDEFINED, kWidth, kHeight,
                                           SDL_WINDOW_METAL | SDL_WINDOW_HIDDEN);
     require(window != nullptr, SDL_GetError());
-    IDirect3D9 *api = Direct3DCreate9(D3D_SDK_VERSION);
-    require(api != nullptr, "Direct3DCreate9");
-    D3DPRESENT_PARAMETERS parameters{};
-    parameters.Windowed = TRUE;
-    parameters.BackBufferWidth = kWidth;
-    parameters.BackBufferHeight = kHeight;
-    parameters.BackBufferFormat = D3DFMT_A8R8G8B8;
-    parameters.BackBufferCount = 1;
-    parameters.hDeviceWindow = window;
-    parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    parameters.EnableAutoDepthStencil = TRUE;
-    parameters.AutoDepthStencilFormat = D3DFMT_D24S8;
-    IDirect3DDevice9 *device = nullptr;
-    require(SUCCEEDED(api->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                        &parameters, &device)) && device,
+
+
+    storm_render::Presentation parameters{};
+
+    parameters.width = kWidth;
+    parameters.height = kHeight;
+    parameters.colorFormat = storm_render::AssetFormat::A8R8G8B8;
+
+
+
+    parameters.depthEnabled = true;
+    parameters.depthFormat = storm_render::AssetFormat::D24S8;
+    storm_render::Device *device = nullptr;
+    require(storm_render::succeeded(storm_render::createMetalDevice(window, &parameters, &device)) && device,
             "CreateDevice");
 
-    IDirect3DSurface9 *target = nullptr;
-    IDirect3DSurface9 *readback = nullptr;
-    require(SUCCEEDED(device->GetRenderTarget(0, &target)) && target, "render target");
-    require(SUCCEEDED(device->CreateOffscreenPlainSurface(kWidth, kHeight, D3DFMT_A8R8G8B8,
-                                                          D3DPOOL_SYSTEMMEM, &readback, nullptr)) && readback,
+    storm_render::Surface *target = nullptr;
+    storm_render::Surface *readback = nullptr;
+    require(storm_render::succeeded(device->GetRenderTarget(&target)) && target, "render target");
+    require(storm_render::succeeded(device->CreateOffscreenPlainSurface(kWidth, kHeight, storm_render::AssetFormat::A8R8G8B8, &readback)) && readback,
             "readback surface");
 
-    D3DMATRIX identity{};
+    storm_render::Matrix identity{};
     identity._11 = identity._22 = identity._33 = identity._44 = 1.0f;
-    device->SetTransform(D3DTS_WORLD, &identity);
-    device->SetTransform(D3DTS_VIEW, &identity);
-    device->SetTransform(D3DTS_PROJECTION, &identity);
+    device->SetTransform(storm_render::TransformWorld, &identity);
+    device->SetTransform(storm_render::TransformView, &identity);
+    device->SetTransform(storm_render::TransformProjection, &identity);
     device->SetFVF(kLayout);
-    device->SetRenderState(D3DRS_LIGHTING, FALSE);
-    device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-    device->SetRenderState(D3DRS_ZENABLE, TRUE);
-    device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    device->SetRenderState(storm_render::RenderLighting, false);
+    device->SetRenderState(storm_render::RenderCullMode, storm_render::CullNone);
+    device->SetRenderState(storm_render::RenderDepthTest, true);
+    device->SetRenderState(storm_render::RenderDepthWrite, true);
+    device->SetRenderState(storm_render::RenderBlend, false);
     device->SetTexture(0, nullptr);
-    device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-    device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-    device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    device->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    device->SetTextureStageState(0, storm_render::StageAlphaOp, storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse);
+    device->SetTextureStageState(1, storm_render::StageColorOp, storm_render::TextureOpDisable);
 
     const std::array<std::uint16_t, 6> indices{{0, 1, 2, 3, 4, 5}};
-    IDirect3DIndexBuffer9 *indexBuffer = nullptr;
-    require(SUCCEEDED(device->CreateIndexBuffer(sizeof(indices), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED,
-                                                 &indexBuffer, nullptr)) && indexBuffer,
+    storm_render::IndexBuffer *indexBuffer = nullptr;
+    require(storm_render::succeeded(device->CreateIndexBuffer(sizeof(indices), 0, storm_render::IndexFormat::UInt16, &indexBuffer)) && indexBuffer,
             "fixture index buffer");
     void *mappedIndices = nullptr;
-    require(SUCCEEDED(indexBuffer->Lock(0, 0, &mappedIndices, 0)) && mappedIndices,
+    require(storm_render::succeeded(indexBuffer->Lock(0, 0, &mappedIndices, 0)) && mappedIndices,
             "fixture index buffer lock");
     std::memcpy(mappedIndices, indices.data(), sizeof(indices));
     indexBuffer->Unlock();
-    require(SUCCEEDED(device->SetIndices(indexBuffer)), "bind fixture indices");
+    require(storm_render::succeeded(device->SetIndices(indexBuffer)), "bind fixture indices");
 
     const std::array<AnimatedVertex, 6> vertices{{
         {{0.72f, -0.72f, 0.72f}, 1, 0x00000100u, {0, 0, -1}, std::int32_t(0xd04080c0u), {0, 1}},
@@ -207,23 +204,22 @@ int main()
         for (std::size_t i = 0; i < vertices.size(); ++i)
             cpuVertices[i] = cpuSkin(vertices[i], poses[poseIndex].data());
 
-        auto draw = [&](IDirect3DVertexBuffer9 *buffer, UINT stride) {
-            require(SUCCEEDED(device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, kClear, 1.0f, 0)),
+        auto draw = [&](storm_render::VertexBuffer *buffer, uint32_t stride) {
+            require(storm_render::succeeded(device->Clear(storm_render::clear::color | storm_render::clear::depth, kClear, 1.0f)),
                     "clear fixture");
-            require(SUCCEEDED(device->BeginScene()), "BeginScene");
-            require(SUCCEEDED(device->SetStreamSource(0, buffer, 0, stride)), "bind fixture vertices");
-            require(SUCCEEDED(device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 6, 0, 2)),
+            require(storm_render::succeeded(device->BeginScene()), "BeginScene");
+            require(storm_render::succeeded(device->SetStreamSource(0, buffer, 0, stride)), "bind fixture vertices");
+            require(storm_render::succeeded(device->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, 0, 0, 6, 0, 2)),
                     "draw fixture triangles");
-            require(SUCCEEDED(device->EndScene()), "EndScene");
+            require(storm_render::succeeded(device->EndScene()), "EndScene");
             return readPixels(device, target, readback);
         };
 
-        IDirect3DVertexBuffer9 *cpuBuffer = nullptr;
-        require(SUCCEEDED(device->CreateVertexBuffer(sizeof(cpuVertices), 0, kLayout, D3DPOOL_MANAGED,
-                                                     &cpuBuffer, nullptr)) && cpuBuffer,
+        storm_render::VertexBuffer *cpuBuffer = nullptr;
+        require(storm_render::succeeded(device->CreateVertexBuffer(sizeof(cpuVertices), 0, kLayout, &cpuBuffer)) && cpuBuffer,
                 "CPU oracle vertex buffer");
         void *mapped = nullptr;
-        require(SUCCEEDED(cpuBuffer->Lock(0, 0, &mapped, 0)) && mapped, "CPU oracle buffer lock");
+        require(storm_render::succeeded(cpuBuffer->Lock(0, 0, &mapped, 0)) && mapped, "CPU oracle buffer lock");
         std::memcpy(mapped, cpuVertices.data(), sizeof(cpuVertices));
         cpuBuffer->Unlock();
         const auto cpuPixels = draw(cpuBuffer, sizeof(CpuVertex));
@@ -231,7 +227,7 @@ int main()
 
         require(storm::metal::skinning::beginPose(device, poses[poseIndex].data(), poses[poseIndex].size()),
                 "begin GPU pose");
-        auto *gpuBuffer = static_cast<IDirect3DVertexBuffer9 *>(storm::metal::skinning::bindVertices(
+        auto *gpuBuffer = static_cast<storm_render::VertexBuffer *>(storm::metal::skinning::bindVertices(
             vertices.data(), 0, vertices.size(), vertices.size()));
         require(gpuBuffer != nullptr, "bind AVERTEX0 GPU buffer");
         const auto gpuPixels = draw(gpuBuffer, sizeof(CpuVertex));
@@ -246,7 +242,7 @@ int main()
     readback->Release();
     target->Release();
     device->Release();
-    api->Release();
+
     SDL_DestroyWindow(window);
     SDL_Quit();
     std::puts("PASS: two AVERTEX0 GPU poses match the CPU 36-byte oracle in coverage, depth and pixels");

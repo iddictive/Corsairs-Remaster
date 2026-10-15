@@ -124,12 +124,12 @@ void Astronomy::PLANETS::Realize(double dDeltaTime, double dHour)
     float fFov;
     pRS->GetCamera(vCamPos, vCamAng, fFov);
     uint32_t bLighting, dwAmbient;
-    pRS->GetRenderState(D3DRS_LIGHTING, &bLighting);
-    pRS->GetRenderState(D3DRS_AMBIENT, &dwAmbient);
+    pRS->GetRenderState(storm_render::RenderLighting, &bLighting);
+    pRS->GetRenderState(storm_render::RenderAmbient, &dwAmbient);
 
-    pRS->SetRenderState(D3DRS_FOGENABLE, false);
-    pRS->SetRenderState(D3DRS_LIGHTING, false);
-    pRS->SetRenderState(D3DRS_AMBIENT, 0x00FFFFFF);
+    pRS->SetRenderState(storm_render::RenderFog, false);
+    pRS->SetRenderState(storm_render::RenderLighting, false);
+    pRS->SetRenderState(storm_render::RenderAmbient, 0x00FFFFFF);
 
     for (uint32_t i = 0; i < aPlanets.size(); i++)
     {
@@ -157,7 +157,7 @@ void Astronomy::PLANETS::Realize(double dDeltaTime, double dHour)
         if (pRS->TechniqueExecuteStart("planet"))
             do
             {
-                StormMetalDrawBillboards(pRS->GetD3DDevice(), &p, 1, "planet", 1, 1, 1.0f,
+                StormMetalDrawBillboards(pRS->GetNativeDevice(), &p, 1, "planet", 1, 1, 1.0f,
                                          pRS->GetHeightDeformator());
             } while (pRS->TechniqueExecuteNext());
 #else
@@ -171,9 +171,9 @@ void Astronomy::PLANETS::Realize(double dDeltaTime, double dHour)
           aPlanets[i].pGeo->Draw((GEOS::PLANE*)Astronomy::pRS->GetPlanes(), 0, null);
         }*/
     }
-    pRS->SetRenderState(D3DRS_LIGHTING, bLighting);
-    pRS->SetRenderState(D3DRS_AMBIENT, dwAmbient);
-    pRS->SetRenderState(D3DRS_FOGENABLE, true);
+    pRS->SetRenderState(storm_render::RenderLighting, bLighting);
+    pRS->SetRenderState(storm_render::RenderAmbient, dwAmbient);
+    pRS->SetRenderState(storm_render::RenderFog, true);
 }
 
 void Astronomy::PLANETS::TimeUpdate(ATTRIBUTES *pAP)

@@ -21,7 +21,7 @@ constexpr float JUMP_SPEED_X_MASTFALL = 3.0f;
 constexpr float JUMP_SPEED_Y_EXPLOSION = 30.0f;
 
 bool CrewDetailVisible(MODEL &model, const CMatrix &viewProjection,
-                       const D3DVIEWPORT9 &viewport, bool wasVisible)
+                       const storm_render::Viewport &viewport, bool wasVisible)
 {
     auto *node = model.GetNode(0);
     if (!node || !node->geo || !node->next.empty() || !viewport.Width || !viewport.Height)
@@ -1305,13 +1305,13 @@ void Sailors::Realize(uint32_t dltTime)
     if (disabled)
         return;
 
-    rs->SetRenderState(D3DRS_LIGHTING, true);
+    rs->SetRenderState(storm_render::RenderLighting, true);
 
     CMatrix view, projection;
-    rs->GetTransform(D3DTS_VIEW, view);
-    rs->GetTransform(D3DTS_PROJECTION, projection);
+    rs->GetTransform(storm_render::TransformView, view);
+    rs->GetTransform(storm_render::TransformProjection, projection);
     const CMatrix viewProjection = view * projection;
-    D3DVIEWPORT9 viewport{};
+    storm_render::Viewport viewport{};
     const bool detailViewportValid = SUCCEEDED(rs->GetViewport(&viewport));
 
 #ifdef SAILORS_DEBUG
@@ -1332,7 +1332,7 @@ void Sailors::Realize(uint32_t dltTime)
         if (walk->shipState.dead && walk->shipMan.empty())
         {
             shipWalk.erase(walk);
-            rs->SetRenderState(D3DRS_LIGHTING, false);
+            rs->SetRenderState(storm_render::RenderLighting, false);
             return;
         }
 
@@ -1366,7 +1366,7 @@ void Sailors::Realize(uint32_t dltTime)
             if (man->dieTime > 10 || man->pos.y < -100)
             {
                 walk->shipMan.erase(man);
-                rs->SetRenderState(D3DRS_LIGHTING, false);
+                rs->SetRenderState(storm_render::RenderLighting, false);
                 return;
             }
         }
@@ -1389,7 +1389,7 @@ void Sailors::Realize(uint32_t dltTime)
         }
     }
 
-    rs->SetRenderState(D3DRS_LIGHTING, false);
+    rs->SetRenderState(storm_render::RenderLighting, false);
 }
 
 uint64_t Sailors::ProcessMessage(MESSAGE &message)

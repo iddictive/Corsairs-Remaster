@@ -32,7 +32,7 @@ void BITimer::Realize(uint32_t delta_time)
                 m_pForeImage->CutSide(0.f, 1.f - m_fCurTimerCounter / m_fMaxTimerCounter, 0.f, 0.f);
             if (m_pImgRndr)
             {
-                m_pRender->MakePostProcess();
+                m_pRender->FinalizeSceneEffects();
                 m_pImgRndr->Render();
             }
         }
@@ -65,7 +65,7 @@ bool BITimer::ReadAndCreate()
         return false;
 
     // read position
-    RECT rBackPos, rForePos;
+    storm_render::Rect rBackPos, rForePos;
     rBackPos.left = rBackPos.top = rBackPos.right = rBackPos.bottom = 0;
     rForePos.left = rForePos.top = rForePos.right = rForePos.bottom = 0;
     BIUtils::ReadRectFromAttr(AttributesPointer, "timerpos", rBackPos, rBackPos);

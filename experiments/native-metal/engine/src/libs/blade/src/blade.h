@@ -17,7 +17,7 @@ model binded to an animated locator
 
 class BLADE : public Entity
 {
-#define FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
+#define FVF (storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse)
 
     struct VERTEX
     {

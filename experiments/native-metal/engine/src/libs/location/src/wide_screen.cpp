@@ -36,7 +36,7 @@ bool WideScreen::Init()
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
         throw std::runtime_error("No service: dx9render");
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     rs->GetViewport(&vp);
     w = static_cast<float>(vp.Width);
     h = static_cast<float>(vp.Height);
@@ -122,5 +122,5 @@ void WideScreen::Realize(uint32_t delta_time)
     buf[11].y = h;
     buf[11].z = 0.5f;
     buf[11].rhw = 2.0f;
-    rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW, 4, buf, sizeof(buf[0]), "WideScreen");
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed, 4, buf, sizeof(buf[0]), "WideScreen");
 }

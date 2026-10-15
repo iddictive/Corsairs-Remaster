@@ -25,7 +25,7 @@ bool InfoHandler::Init()
     }
     if (m_rs->IsInsideScene())
     {
-        m_rs->MakePostProcess();
+        m_rs->FinalizeSceneEffects();
     }
 
     if(!DoPreOut())
@@ -40,7 +40,7 @@ bool InfoHandler::Init()
         return false;
     }
 
-    D3DVIEWPORT9 vp;
+    storm_render::Viewport vp;
     m_rs->GetViewport(&vp);
     const auto w = static_cast<float>(vp.Width);
     const auto h = static_cast<float>(vp.Height);
@@ -95,10 +95,10 @@ void InfoHandler::Realize(uint32_t delta_time) const
 {
     if (tex == nullptr)
         return;
-    m_rs->MakePostProcess();
+    m_rs->FinalizeSceneEffects();
     // keep the screen constant
     m_rs->SetTexture(0, tex);
-    m_rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2, 2, drawbuf_base,
+    m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2, 2, drawbuf_base,
                         sizeof(drawbuf_base[0]), "Fader");
 }
 
@@ -123,7 +123,7 @@ bool InfoHandler::DoPreOut()
     uint32_t dwBCol, dwFCol;
     const char *inStrStart;
     char outStr[1048];
-    D3DSURFACE_DESC desc;
+    storm_render::SurfaceDesc desc;
     float fScale;
     int nOutOffset, nOutWidth, nBorderWidth, nInsideRectWidth, nInsideRectHeight;
     int nRowQ;
@@ -140,7 +140,7 @@ bool InfoHandler::DoPreOut()
 
     const char *picTexureFile = AttributesPointer->GetAttribute("picfilename");
     const char *picBackTexureFile = AttributesPointer->GetAttribute("picbackfilename");
-    const uint32_t TMP_VERTEX_FORMAT = (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 | D3DFVF_TEXTUREFORMAT2);
+    const uint32_t TMP_VERTEX_FORMAT = (storm_render::vertexFormat::xyzwTransformed | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2);
     struct TMP_VERTEX
     {
         CVECTOR pos;
@@ -158,13 +158,13 @@ bool InfoHandler::DoPreOut()
     pV[3].pos.z = 1.f;
     pV[3].w = .5f;
 
-    IDirect3DSurface9 *pRenderTarget;
-    if (m_rs->GetRenderTarget(&pRenderTarget) != D3D_OK)
+    storm_render::Surface *pRenderTarget;
+    if (m_rs->GetRenderTarget(&pRenderTarget) != storm_render::result::ok)
     {
         return false;
     }
     
-    if (pRenderTarget->GetDesc(&desc) != D3D_OK)
+    if (pRenderTarget->GetDesc(&desc) != storm_render::result::ok)
     {
         m_rs->Release(pRenderTarget);
         return false;
@@ -199,7 +199,7 @@ bool InfoHandler::DoPreOut()
     if (!isOK)
     {
         bMakeEndScene = true;
-        isOK = (m_rs->BeginScene() == D3D_OK);
+        isOK = (m_rs->BeginScene() == storm_render::result::ok);
     }
 
     if (isOK)
@@ -228,7 +228,7 @@ bool InfoHandler::DoPreOut()
                 pV[2].tv = 0.f;
                 pV[3].tu = 1.f;
                 pV[3].tv = 1.f;
-                m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX),
+                m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX),
                                       "iInfoShowerPic");
                 m_rs->TextureRelease(picBackID);
                 m_rs->SetProgressBackImage(picBackTexureFile);
@@ -278,7 +278,7 @@ bool InfoHandler::DoPreOut()
                     m_rs->TextureSet(1, tipsID);
                 }
 
-                m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX),
+                m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX),
                                       "iInfoShowerPicWithTips");
                 m_rs->TextureRelease(picID);
                 m_rs->SetProgressImage(picTexureFile);
@@ -297,7 +297,7 @@ bool InfoHandler::DoPreOut()
             pV[2].pos.y = 0.f;
             pV[3].pos.x = static_cast<float>(desc.Width);
             pV[3].pos.y = static_cast<float>(desc.Height);
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX), "iInfoShower");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX), "iInfoShower");
 
             // show fore
             pV[0].col = pV[1].col = pV[2].col = pV[3].col = dwFCol;
@@ -305,7 +305,7 @@ bool InfoHandler::DoPreOut()
             pV[3].pos.x = pV[2].pos.x = pV[0].pos.x + nInsideRectWidth;
             pV[2].pos.y = pV[0].pos.y = static_cast<float>(desc.Height - nInsideRectHeight) / 2;
             pV[3].pos.y = pV[1].pos.y = pV[0].pos.y + nInsideRectHeight;
-            m_rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX), "iInfoShower");
+            m_rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleStrip, TMP_VERTEX_FORMAT, 2, &pV, sizeof(TMP_VERTEX), "iInfoShower");
 
             // show strings
             auto ntmp = 0;

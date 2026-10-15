@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <d3d9.h>
+#include "render_device_api.hpp"
+#include "windows_base.h"
 #ifdef _WIN32
 #include <d3dx9.h>
 #endif
@@ -189,7 +190,8 @@ class VDX9RENDER : public SERVICE
 
     // DX9Render: Return d3d9 device
     // virtual void * GetDevice() = 0;            // (very bad function/don't use!!!)
-    virtual void *GetD3DDevice() = 0; // (very bad function/don't use!!!)
+    virtual storm_render::Device *GetNativeDevice() = 0;
+    virtual void FinalizeSceneEffects() = 0;
 
     // DX9Render: Render Target/Begin/End/Clear
     virtual bool DX9Clear(int32_t type) = 0; // D3DCLEAR_STENCIL | D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER
@@ -197,22 +199,22 @@ class VDX9RENDER : public SERVICE
     virtual bool DX9EndScene() = 0;
 
     // DX9Render: Materials/Lights Section
-    virtual bool SetLight(uint32_t dwIndex, const D3DLIGHT9 *pLight) = 0;
+    virtual bool SetLight(uint32_t dwIndex, const storm_render::Light *pLight) = 0;
     virtual bool LightEnable(uint32_t dwIndex, bool bOn) = 0;
-    virtual bool SetMaterial(D3DMATERIAL9 &material) = 0;
+    virtual bool SetMaterial(storm_render::Material &material) = 0;
     virtual bool GetLightEnable(uint32_t dwIndex, BOOL *pEnable) = 0;
-    virtual bool GetLight(uint32_t dwIndex, D3DLIGHT9 *pLight) = 0;
+    virtual bool GetLight(uint32_t dwIndex, storm_render::Light *pLight) = 0;
 
     // DX9Render: Screenshot Section
     virtual void SaveShoot() = 0;
 
     // DX9Render: Clip Planes Section
-    virtual HRESULT SetClipPlane(uint32_t Index, const float *pPlane) = 0;
+    virtual storm_render::Result SetClipPlane(uint32_t Index, const float *pPlane) = 0;
     virtual PLANE *GetPlanes() = 0;
 
     // DX9Render: Camera Section
-    virtual void SetTransform(int32_t type, D3DMATRIX *mtx) = 0;
-    virtual void GetTransform(int32_t type, D3DMATRIX *mtx) = 0;
+    virtual void SetTransform(int32_t type, storm_render::Matrix *mtx) = 0;
+    virtual void GetTransform(int32_t type, storm_render::Matrix *mtx) = 0;
 
     virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective) = 0;
     virtual bool SetCamera(const CVECTOR &pos, const CVECTOR &ang, float perspective, float magnification) = 0;
@@ -222,11 +224,11 @@ class VDX9RENDER : public SERVICE
     virtual void GetCamera(CVECTOR &pos, CVECTOR &ang, float &perspective) = 0;
     virtual float GetCameraMagnification() const { return 1.f; }
 
-    virtual bool SetCurrentMatrix(D3DMATRIX *mtx) = 0;
+    virtual bool SetCurrentMatrix(storm_render::Matrix *mtx) = 0;
 
     // DX9Render: Textures Section
     virtual int32_t TextureCreate(const char *fname) = 0;
-    virtual int32_t TextureCreate(UINT width, UINT height, UINT levels, uint32_t usage, D3DFORMAT format, D3DPOOL pool) = 0;
+    virtual int32_t TextureCreate(UINT width, UINT height, UINT levels, uint32_t usage, storm_render::AssetFormat format, storm_render::MemoryClass pool) = 0;
     virtual bool TextureSet(int32_t stage, int32_t texid) = 0;
     virtual bool TextureRelease(int32_t texid) = 0;
     virtual bool TextureIncReference(int32_t texid) = 0;
@@ -267,15 +269,15 @@ class VDX9RENDER : public SERVICE
 
     virtual void DrawBuffer(int32_t vbuff, int32_t stride, int32_t ibuff, int32_t minv, size_t numv, size_t startidx, size_t numtrg,
                             const char *cBlockName = nullptr) = 0;
-    virtual void DrawIndexedPrimitiveNoVShader(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iIBuff,
+    virtual void DrawIndexedPrimitiveNoVShader(storm_render::Primitive dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iIBuff,
                                                int32_t iMinV, int32_t iNumV, int32_t iStartIdx, int32_t iNumTrg,
                                                const char *cBlockName = nullptr) = 0;
-    virtual void DrawPrimitive(D3DPRIMITIVETYPE dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iStartV, int32_t iNumPT,
+    virtual void DrawPrimitive(storm_render::Primitive dwPrimitiveType, int32_t iVBuff, int32_t iStride, int32_t iStartV, int32_t iNumPT,
                                const char *cBlockName = nullptr) = 0;
-    virtual void DrawPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwVertexBufferFormat, uint32_t dwNumPT,
+    virtual void DrawPrimitiveUP(storm_render::Primitive dwPrimitiveType, uint32_t dwVertexBufferFormat, uint32_t dwNumPT,
                                  const void *pVerts, uint32_t dwStride, const char *cBlockName = nullptr) = 0;
-    virtual void DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwMinIndex, uint32_t dwNumVertices,
-                                        uint32_t dwPrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat,
+    virtual void DrawIndexedPrimitiveUP(storm_render::Primitive dwPrimitiveType, uint32_t dwMinIndex, uint32_t dwNumVertices,
+                                        uint32_t dwPrimitiveCount, const void *pIndexData, storm_render::IndexFormat IndexDataFormat,
                                         const void *pVertexData, uint32_t dwVertexStride,
                                         const char *cBlockName = nullptr) = 0;
 
@@ -286,10 +288,10 @@ class VDX9RENDER : public SERVICE
 
     // DX9Render: Vertex/Index Buffers Section
     virtual int32_t CreateVertexBuffer(int32_t type, size_t nverts, uint32_t usage,
-                                       uint32_t dwPool = D3DPOOL_DEFAULT) = 0;
-    virtual int32_t CreateIndexBuffer(size_t ntrgs, uint32_t dwUsage = D3DUSAGE_WRITEONLY) = 0;
+                                       storm_render::MemoryClass dwPool = storm_render::MemoryClass::Default) = 0;
+    virtual int32_t CreateIndexBuffer(size_t ntrgs, uint32_t dwUsage = storm_render::usage::writeOnly) = 0;
 
-    virtual IDirect3DVertexBuffer9 *GetVertexBuffer(int32_t id) = 0;
+    virtual storm_render::VertexBuffer *GetVertexBuffer(int32_t id) = 0;
     virtual int32_t GetVertexBufferFVF(int32_t id) = 0;
     virtual void *LockVertexBuffer(int32_t id, uint32_t dwFlags = 0) = 0;
     virtual void UnLockVertexBuffer(int32_t id) = 0;
@@ -302,96 +304,95 @@ class VDX9RENDER : public SERVICE
     // DX9Render: Render/Texture States Section
     virtual uint32_t SetRenderState(uint32_t State, uint32_t Value) = 0;
     virtual uint32_t GetRenderState(uint32_t State, uint32_t *pValue) = 0;
-    virtual uint32_t GetSamplerState(uint32_t Sampler, D3DSAMPLERSTATETYPE Type, uint32_t *pValue) = 0;
-    virtual uint32_t SetSamplerState(uint32_t Sampler, D3DSAMPLERSTATETYPE Type, uint32_t Value) = 0;
+    virtual uint32_t GetSamplerState(uint32_t Sampler, storm_render::SamplerField Type, uint32_t *pValue) = 0;
+    virtual uint32_t SetSamplerState(uint32_t Sampler, storm_render::SamplerField Type, uint32_t Value) = 0;
     virtual uint32_t SetTextureStageState(uint32_t Stage, uint32_t Type, uint32_t Value) = 0;
     virtual uint32_t GetTextureStageState(uint32_t Stage, uint32_t Type, uint32_t *pValue) = 0;
 
     // aspect ratio section
     virtual float GetHeightDeformator() = 0;
-    virtual POINT GetScreenSize() = 0;
+    virtual storm_render::Point GetScreenSize() = 0;
     // ===============================================================================================
     // --------------------===================== D3D SECTION =====================--------------------
     // ===============================================================================================
 
     // D3D Device/Viewport Section
-    virtual HRESULT GetViewport(D3DVIEWPORT9 *pViewport) = 0;
-    virtual HRESULT SetViewport(const D3DVIEWPORT9 *pViewport) = 0;
-    virtual HRESULT GetDeviceCaps(D3DCAPS9 *pCaps) = 0;
+    virtual storm_render::Result GetViewport(storm_render::Viewport *pViewport) = 0;
+    virtual storm_render::Result SetViewport(const storm_render::Viewport *pViewport) = 0;
+    virtual storm_render::Result GetCapabilities(storm_render::Capabilities *pCaps) = 0;
 
     // D3D
-    virtual HRESULT SetStreamSource(UINT StreamNumber, void *pStreamData, UINT Stride) = 0;
-    virtual HRESULT SetIndices(void *pIndexData) = 0;
-    virtual HRESULT DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) = 0;
+    virtual storm_render::Result SetStreamSource(UINT StreamNumber, void *pStreamData, UINT Stride) = 0;
+    virtual storm_render::Result SetIndices(void *pIndexData) = 0;
+    virtual storm_render::Result DrawPrimitive(storm_render::Primitive PrimitiveType, UINT StartVertex, UINT PrimitiveCount) = 0;
 
-    virtual HRESULT Release(IUnknown *pSurface) = 0;
+    virtual storm_render::Result Release(storm_render::RefCounted *pSurface) = 0;
 
     // Vertex/Index Buffers Section
-    virtual HRESULT CreateVertexBuffer(UINT Length, uint32_t Usage, uint32_t FVF, D3DPOOL Pool,
-                                       IDirect3DVertexBuffer9 **ppVertexBuffer) = 0;
-    virtual HRESULT VBLock(IDirect3DVertexBuffer9 *pVB, UINT OffsetToLock, UINT SizeToLock, uint8_t **ppbData,
+    virtual storm_render::Result CreateVertexBuffer(UINT Length, uint32_t Usage, uint32_t FVF, storm_render::MemoryClass Pool,
+                                       storm_render::VertexBuffer **ppVertexBuffer) = 0;
+    virtual storm_render::Result VBLock(storm_render::VertexBuffer *pVB, UINT OffsetToLock, UINT SizeToLock, uint8_t **ppbData,
                            uint32_t Flags) = 0;
-    virtual void VBUnlock(IDirect3DVertexBuffer9 *pVB) = 0;
+    virtual void VBUnlock(storm_render::VertexBuffer *pVB) = 0;
 
     // D3D Textures/Surfaces Section
-    virtual HRESULT GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface) = 0;
-    virtual HRESULT GetCubeMapSurface(IDirect3DCubeTexture9 *ppCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level,
-                                      IDirect3DSurface9 **ppCubeMapSurface) = 0;
-    virtual HRESULT CreateTexture(UINT Width, UINT Height, UINT Levels, uint32_t Usage, D3DFORMAT Format, D3DPOOL Pool,
-                                  IDirect3DTexture9 **ppTexture) = 0;
-    virtual HRESULT CreateCubeTexture(UINT EdgeLength, UINT Levels, uint32_t Usage, D3DFORMAT Format, D3DPOOL Pool,
-                                      IDirect3DCubeTexture9 **ppCubeTexture) = 0;
-    virtual HRESULT CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format,
-                                                IDirect3DSurface9 **ppSurface) = 0;
-    virtual HRESULT CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT Format,
-                                              D3DMULTISAMPLE_TYPE MultiSample, IDirect3DSurface9 **ppSurface) = 0;
-    virtual HRESULT SetTexture(uint32_t Stage, IDirect3DBaseTexture9 *pTexture) = 0;
-    virtual HRESULT GetLevelDesc(IDirect3DTexture9 *ppTexture, UINT Level, D3DSURFACE_DESC *pDesc) = 0;
-    virtual HRESULT GetLevelDesc(IDirect3DCubeTexture9 *ppCubeTexture, UINT Level, D3DSURFACE_DESC *pDesc) = 0;
-    virtual HRESULT LockRect(IDirect3DCubeTexture9 *ppCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level,
-                             D3DLOCKED_RECT *pLockedRect, const RECT *pRect, uint32_t Flags) = 0;
-    virtual HRESULT LockRect(IDirect3DTexture9 *ppTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect,
+    virtual storm_render::Result GetDepthStencilSurface(storm_render::Surface **ppZStencilSurface) = 0;
+    virtual storm_render::Result GetCubeMapSurface(storm_render::CubeTexture *ppCubeTexture, storm_render::CubeFace FaceType, UINT Level,
+                                      storm_render::Surface **ppCubeMapSurface) = 0;
+    virtual storm_render::Result CreateTexture(UINT Width, UINT Height, UINT Levels, uint32_t Usage, storm_render::AssetFormat Format, storm_render::MemoryClass Pool,
+                                  storm_render::Texture **ppTexture) = 0;
+    virtual storm_render::Result CreateCubeTexture(UINT EdgeLength, UINT Levels, uint32_t Usage, storm_render::AssetFormat Format, storm_render::MemoryClass Pool,
+                                      storm_render::CubeTexture **ppCubeTexture) = 0;
+    virtual storm_render::Result CreateOffscreenPlainSurface(UINT Width, UINT Height, storm_render::AssetFormat Format,
+                                                storm_render::Surface **ppSurface) = 0;
+    virtual storm_render::Result CreateDepthStencilSurface(UINT Width, UINT Height, storm_render::AssetFormat Format,
+                                              storm_render::SampleCount MultiSample, storm_render::Surface **ppSurface) = 0;
+    virtual storm_render::Result SetTexture(uint32_t Stage, storm_render::BaseTexture *pTexture) = 0;
+    virtual storm_render::Result GetLevelDesc(storm_render::Texture *ppTexture, UINT Level, storm_render::SurfaceDesc *pDesc) = 0;
+    virtual storm_render::Result GetLevelDesc(storm_render::CubeTexture *ppCubeTexture, UINT Level, storm_render::SurfaceDesc *pDesc) = 0;
+    virtual storm_render::Result LockRect(storm_render::CubeTexture *ppCubeTexture, storm_render::CubeFace FaceType, UINT Level,
+                             storm_render::LockedRect *pLockedRect, const storm_render::Rect *pRect, uint32_t Flags) = 0;
+    virtual storm_render::Result LockRect(storm_render::Texture *ppTexture, UINT Level, storm_render::LockedRect *pLockedRect, const storm_render::Rect *pRect,
                              uint32_t Flags) = 0;
-    virtual HRESULT UnlockRect(IDirect3DCubeTexture9 *pCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level) = 0;
-    virtual HRESULT UnlockRect(IDirect3DTexture9 *pTexture, UINT Level) = 0;
-    virtual HRESULT GetSurfaceLevel(IDirect3DTexture9 *ppTexture, UINT Level, IDirect3DSurface9 **ppSurfaceLevel) = 0;
-    virtual HRESULT UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRectsArray, UINT cRects,
-                                  IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPointsArray) = 0;
-    virtual HRESULT StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect,
-                                IDirect3DSurface9 *pDestSurface, const RECT *pDestRect,
-                                D3DTEXTUREFILTERTYPE Filter) = 0;
-    virtual HRESULT GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface) = 0;
+    virtual storm_render::Result UnlockRect(storm_render::CubeTexture *pCubeTexture, storm_render::CubeFace FaceType, UINT Level) = 0;
+    virtual storm_render::Result UnlockRect(storm_render::Texture *pTexture, UINT Level) = 0;
+    virtual storm_render::Result GetSurfaceLevel(storm_render::Texture *ppTexture, UINT Level, storm_render::Surface **ppSurfaceLevel) = 0;
+    virtual storm_render::Result UpdateSurface(storm_render::Surface *pSourceSurface, const storm_render::Rect *pSourceRectsArray, UINT cRects,
+                                  storm_render::Surface *pDestinationSurface, const storm_render::Point *pDestPointsArray) = 0;
+    virtual storm_render::Result StretchRect(storm_render::Surface *pSourceSurface, const storm_render::Rect *pSourceRect,
+                                storm_render::Surface *pDestSurface, const storm_render::Rect *pDestRect,
+                                storm_render::TextureFilter Filter) = 0;
+    virtual storm_render::Result GetRenderTargetData(storm_render::Surface *pRenderTarget, storm_render::Surface *pDestSurface) = 0;
 
     // D3D Pixel/Vertex Shaders Section
-    virtual HRESULT CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements,
-                                            IDirect3DVertexDeclaration9 **ppDecl) = 0;
-    virtual HRESULT SetVertexDeclaration(IDirect3DVertexDeclaration9 *pDecl) = 0;
-    virtual HRESULT CreatePixelShader(const uint32_t *pFunction, IDirect3DPixelShader9 **ppShader) = 0;
-    virtual HRESULT CreateVertexShader(const uint32_t *pFunction, IDirect3DVertexShader9 **ppShader) = 0;
-    virtual HRESULT DeletePixelShader(IDirect3DPixelShader9 *pShader) = 0;
-    virtual HRESULT DeleteVertexShader(IDirect3DVertexShader9 *pShader) = 0;
-    virtual HRESULT SetVertexShader(IDirect3DVertexShader9 *pShader) = 0;
-    virtual HRESULT SetPixelShader(IDirect3DPixelShader9 *pShader) = 0;
+    virtual storm_render::Result CreateVertexDeclaration(const storm_render::VertexElement *pVertexElements,
+                                            storm_render::VertexLayout **ppDecl) = 0;
+    virtual storm_render::Result SetVertexDeclaration(storm_render::VertexLayout *pDecl) = 0;
+    virtual storm_render::Result ImportFragmentProgram(const uint32_t *pFunction, storm_render::Program **ppShader) = 0;
+    virtual storm_render::Result ImportVertexProgram(const uint32_t *pFunction, storm_render::Program **ppShader) = 0;
+    virtual storm_render::Result DeletePixelShader(storm_render::Program *pShader) = 0;
+    virtual storm_render::Result DeleteVertexShader(storm_render::Program *pShader) = 0;
+    virtual storm_render::Result BindVertexProgram(storm_render::Program *pShader) = 0;
+    virtual storm_render::Result BindFragmentProgram(storm_render::Program *pShader) = 0;
     /*virtual HRESULT SetFVFConstant(DWORD Register, const void * pConstantData, DWORD  ConstantCount ) = 0;*/
-    virtual HRESULT SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount) = 0;
-    virtual HRESULT SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount) = 0;
-    virtual HRESULT SetFVF(uint32_t handle) = 0;
-    virtual HRESULT GetVertexShader(IDirect3DVertexShader9 **ppShader) = 0;
-    virtual HRESULT GetPixelShader(IDirect3DPixelShader9 **ppShader) = 0;
+    virtual storm_render::Result SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount) = 0;
+    virtual storm_render::Result SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount) = 0;
+    virtual storm_render::Result SetFVF(uint32_t handle) = 0;
+    virtual storm_render::Result GetVertexProgram(storm_render::Program **ppShader) = 0;
+    virtual storm_render::Result GetFragmentProgram(storm_render::Program **ppShader) = 0;
 #ifdef _WIN32 // Effects
     virtual ID3DXEffect *GetEffectPointer(const char *techniqueName) = 0;
 #endif
 
     // D3D Render Target/Begin/End/Clear
-    virtual HRESULT GetRenderTarget(IDirect3DSurface9 **ppRenderTarget) = 0;
-    virtual HRESULT SetRenderTarget(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pNewZStencil) = 0;
-    virtual HRESULT Clear(uint32_t Count, const D3DRECT *pRects, uint32_t Flags, D3DCOLOR Color, float Z,
-                          uint32_t Stencil) = 0;
-    virtual HRESULT BeginScene() = 0;
-    virtual HRESULT EndScene() = 0;
+    virtual storm_render::Result GetRenderTarget(storm_render::Surface **ppRenderTarget) = 0;
+    virtual storm_render::Result SetRenderTarget(storm_render::Surface *pRenderTarget, storm_render::Surface *pNewZStencil) = 0;
+    virtual storm_render::Result Clear(uint32_t Flags, storm_render::PackedColor Color, float Z) = 0;
+    virtual storm_render::Result BeginScene() = 0;
+    virtual storm_render::Result EndScene() = 0;
 
-    virtual HRESULT ImageBlt(const char *pName, RECT *pDstRect = nullptr, RECT *pSrcRect = nullptr) = 0;
-    virtual HRESULT ImageBlt(int32_t nTextureId, RECT *pDstRect = nullptr, RECT *pSrcRect = nullptr) = 0;
+    virtual storm_render::Result ImageBlt(const char *pName, storm_render::Rect *pDstRect = nullptr, storm_render::Rect *pSrcRect = nullptr) = 0;
+    virtual storm_render::Result ImageBlt(int32_t nTextureId, storm_render::Rect *pDstRect = nullptr, storm_render::Rect *pSrcRect = nullptr) = 0;
 
     virtual void SetProgressImage(const char *image) = 0;
     virtual void SetProgressBackImage(const char *image) = 0;
@@ -411,12 +412,12 @@ class VDX9RENDER : public SERVICE
     virtual void SetNearFarPlane(float fNear, float fFar) = 0;
 
     virtual void SetLoadTextureEnable(bool bEnable = true) = 0;
-    virtual IDirect3DBaseTexture9 *GetBaseTexture(int32_t iTexture) = 0;
+    virtual storm_render::BaseTexture *GetBaseTexture(int32_t iTexture) = 0;
 
     virtual bool PushRenderTarget() = 0;
     virtual bool PopRenderTarget() = 0;
-    virtual bool SetRenderTarget(IDirect3DCubeTexture9 *pCubeTex, uint32_t dwFaceType, uint32_t dwLevel,
-                                 IDirect3DSurface9 *pNewZStencil) = 0;
+    virtual bool SetRenderTarget(storm_render::CubeTexture *pCubeTex, uint32_t dwFaceType, uint32_t dwLevel,
+                                 storm_render::Surface *pNewZStencil) = 0;
     virtual void SetView(const CMatrix &mView) = 0;
     virtual void SetWorld(const CMatrix &mView) = 0;
     virtual void SetProjection(const CMatrix &mView) = 0;
@@ -424,14 +425,13 @@ class VDX9RENDER : public SERVICE
     virtual const CMatrix &GetWorld() = 0;
     virtual const CMatrix &GetProjection() = 0;
 
-    virtual IDirect3DVolumeTexture9 *CreateVolumeTexture(uint32_t Width, uint32_t Height, uint32_t Depth,
-                                                         uint32_t Levels, uint32_t Usage, D3DFORMAT Format,
-                                                         D3DPOOL Pool) = 0;
+    virtual storm_render::VolumeTexture *CreateVolumeTexture(uint32_t Width, uint32_t Height, uint32_t Depth,
+                                                         uint32_t Levels, uint32_t Usage, storm_render::AssetFormat Format,
+                                                         storm_render::MemoryClass Pool) = 0;
 
-    virtual void MakePostProcess() = 0;
     virtual void SetGLOWParams(float _fBlurBrushSize, int32_t _GlowIntensity, int32_t _GlowPasses) = 0;
 
-    virtual IDirect3DBaseTexture9 *GetTextureFromID(int32_t nTextureID) = 0;
+    virtual storm_render::BaseTexture *GetTextureFromID(int32_t nTextureID) = 0;
 
-    virtual bool GetRenderTargetAsTexture(IDirect3DTexture9 **tex) = 0;
+    virtual bool GetRenderTargetAsTexture(storm_render::Texture **tex) = 0;
 };
