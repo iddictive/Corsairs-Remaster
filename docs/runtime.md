@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified delivery: October15. Frozen source `87b4acb` is installed with signed engine `61af9725b7e4473f676ca85ed51c74721d50d0fa93ff9b33fd4bc1d01263d55c`; prior `e3fbcf906e01230215b8aad3c7c8ebe7f77a418ecccd96e69abd4b5ed738d88f` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. This batch preserves explicitly removed GM objects through fracture refinement; real fracture/contact acceptance remains open after the preceding player rejection. Installed indexed-span corruption recurs in the16:32 and16:50 player reports and remains unfixed. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; diagnostic-only FPS/lighting experiments are absent. Sustained120FPS remains unmet. Reflection LOD measured6.8–12.1% uplift privately; generic ordered batching is slower in two brackets and rejected. Actual main-thread CPU remains about12.1ms amid measured background load, not an isolated-machine ceiling. Daytime ship/sail darkness, crew/rigging, long wake and ordinary-sea aim draping remain open. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Frozen source `2b8e6e4` is installed with signed engine `a61220effc04784c8ad8088d94d50087feb34f387ffb36ad44f1672ec7a607ba`; prior `61af9725b7e4473f676ca85ed51c74721d50d0fa93ff9b33fd4bc1d01263d55c` is backed up. Canonical stage-only exits0 and content check reports0 pending in cache/app with compiler ready. All526 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. This batch restores authored sky-ambient reflectance: native daylight cloth brightness/detail and compatibility GPU cases pass; real-player and completed-night-SH appearance remain pending. Whole-hull daytime brightness is not closed. Fracture/contact acceptance remains open; installed indexed-span corruption repeats in the16:32 and16:50 reports and is not repaired here. Sustained120FPS remains unmet. Reflection LOD measured6.8–12.1% uplift privately; generic ordered batching and both measured VideoToolbox interpolation routes are rejected for FPS integration. Actual main-thread CPU remains about12.1ms amid measured background load, not an isolated-machine ceiling. Crew/rigging, long wake and ordinary-sea aim draping remain open. Other existing gameplay/renderer/weather changes remain composed. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories are historical; acceptance is scoped to each replay.
 
 ## Current verdict
 
@@ -16,8 +16,12 @@ not a demonstrated whole-hull brightness correction. The existing actual-backend
 dynamic-lighting GPU fixture passes against this candidate at171817, including
 COLOR1, CPU/native skinning, sun, indoor/outdoor points and absent-sky fallback.
 Night completed-SH appearance and installed player acceptance remain open.
-The two canonical source files now hash-identically match the tested private
-candidate. Canonical build/staging is pending; installed engine remains61af9725.
+The two canonical source files hash-identically match the tested private
+candidate. Canonical run.sh --stage-only for2b8e6e4 exits0 and installs a61220ef,
+backing up61af9725. Fresh526 protected files retain hashes with0 changed/added.
+Receipt and logs belong to20261015-173029-ambient-delivery; no agent game launch
+occurs. Native correctness evidence does not accept player/night appearance,
+whole-hull brightness, the recurring cache crash or120FPS.
 
 ### October15 — installed87, repeated cache crash and CPU contention separated
 
@@ -12145,3 +12149,18 @@ Probe result: the composed `map.c` loads as its own VM segment with zero script
 errors and zero duplicate local names.
 Disposition: `staged/installed`; player replay pending. Ambush is deliberately
 not ported in this batch.
+
+
+### 2026-10-15 — image-derived frame generation: rejected integration
+
+Hypothesis: GPU-generated intermediate images could deliver the user's large FPS
+gain without replacing the Metal renderer. Exact delta: private native87 backend
+adds pre-HUD VideoToolbox temporal work; normal native presentation/settings and
+the installed app remain unchanged. Serialized384/128 Off/On/Off full-fleet tests
+produce valid one- and three-phase images, but reduce native cadence to41.85 and
+25.28frames/s; even free presentation caps their output at83.71 and101.12/s.
+`docs/metal-sea-benchmark.md` owns the timings, API constraints and retained evidence.
+Disposition: both measured variants rejected for integration; no HUD/pacer,
+canonical engine build/stage or player replay. Prototypes and failed getter-guard
+attempt remain private/recoverable. Native optimization and unmeasured alternative
+frame-generation mechanisms remain separate work.

@@ -828,3 +828,58 @@ Remaining acceptance: primary CPU/GPU repair and stutter reduction must improve
 the complete equivalent workload past the requested budget without quality loss;
 canonical staging must consume that batch in the original app. Installed player
 FPS, camera/zoom/spyglass and scene transitions are not proven by this fixture.
+
+### October15 image-derived frame interpolation
+
+VideoToolbox low-latency temporal interpolation produces valid GPU-generated
+frames on this M3Max/macOS27.0.1. The private module loads its session off the
+render thread and retains CoreVideo surfaces/session through command completion.
+It converts only the new native2560×1655 input to NV12 1280×828, retains the previous
+input in the ordered three-flight ring, and reconstructs generated BGRA separately.
+Real/native scene color and the ordinary presentation path remain unchanged.
+Disabled, pending-setup cancellation, unsupported dimensions, history gap/reset
+and reset during an in-flight command pass the standalone caller. Its60 warmed
+samples measure10.389ms median GPU generation and0.044ms median CPU encoding.
+
+Both full-fleet variants use frozen native87b4acb archives and the same CPU-timed
+driver,384frames/128warm-up, native2560×1655 and Off/On/Off controls. Fifty linked
+inputs remain hash-identical before/after; each warmed population retains152sail
+draws,334animated draws,1sea,1current sky and8complete shadow cubes.
+
+| Generated images per native frame | Off/On/Off completion cadence ms | Native frames/s during On | Free-presentation output ceiling |
+| --- | --- | --- | --- |
+| One midpoint |14.188 /23.892 /13.132|41.85|83.71/s|
+| Three phases, .25/.5/.75 |13.724 /39.557 /13.121|25.28|101.12/s|
+
+These ceilings are arithmetic upper bounds, not displayed FPS: generated images
+are encoded before HUD but deliberately never presented. Actual output pacing,
+HUD integration, motion smoothness, end-to-end input latency and player replay
+are unproven. Main-thread CPU medians remain about12ms; generation adds GPU work
+rather than removing that preparation. Three-phase GPU median/p99/max is
+40.140/51.278/67.112ms. Raw per-process CPU samples and clocks remain with each run.
+Each On run generates383pairs with one seed and zero fallback. The three-phase
+run proves all six NV12 planes fully replace their sentinels and all three phase
+images have distinct hashes. Whole-frame observation retains the complete visible
+fleet/sky/water composition; generated rigging and hull detail are visibly softer.
+Stills do not accept temporal artifacts or HUD behavior.
+
+SDK sizing matters: temporal-only mode uses spatialScaleFactor1 and explicit
+macOS27 maximum-dimension/pixel queries. The earlier spatial2 request exceeded
+its supported input size and produced a uniform green image despite successful
+session/command completion; reject its timing. Optical-flow/full-RGB conversion
+attempts contain cold samples only, not warmed performance verdicts. Constructor
+argument2 permits three dyadic phases; the installed configuration getter reports
+zero for both arguments1 and2, so an echo-equals2 guard was invalid. Its failed
+attempt is retained separately; actual phase writes are the runtime oracle.
+
+Disposition: reject both measured NV12/VideoToolbox variants for integration.
+They fail the requested large FPS gain while reducing native update cadence and
+softening generated images. No backend, settings or installed-app change is
+delivered. This does not reject unmeasured motion-vector-based MetalFX or other
+frame-generation implementations. Editable prototypes, API probes, binary/input
+receipts and results remain under private `frame-interpolation-candidate` and
+`frame-interpolation-multi-candidate` in the renderer-evidence owner. Raw full-fleet
+runs are `20261015-170122-fi-cost-*` and `20261015-172134-fi-multi-cost-*`.
+The pre-lighting canonical renderer archive and its two source owners are
+retained under frozen-87-renderer/manifest.json for coherent reconstruction;
+later canonical archive replacement is not the measured87 input generation.

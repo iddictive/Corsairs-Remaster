@@ -9,16 +9,43 @@ On actual Flyingdutchman first rough and flat→rough cuts,18 removed objects
 reappeared. A four-line successor preserves the object domain in refinement
 and both split halves: exact native draw invocations fall18→0. ASan/UBSan
 rebuild, saved-plane replay and failed-upload ownership checks pass. This is a
-source repair pending canonical delivery and native rendered replay.
+source repair installed by canonical87b4acb staging as signed61af9725; exact
+delivery evidence belongs to `runtime.md`.
+
+Coherent engine-linked native runs20261015-165616 (RAM),165708 (laser) and
+165809 (water aim) complete401/401/151 frames without a cache crash. The private
+fixture first required an enrollment-order correction: SEAFOAM must start after
+both native ship models mount, rather than dereferencing their still-empty models
+in Main. No production source or installed app changes implement that correction.
+Binary497292c3 binds87b4acb headers and50 unchanged linked inputs; all runs use
+two Flyingdutchman1 ships and1920×1200 captures.
+
+RAM removes34.49% atframe101, with retained probes17→10. Laser cuts at680ms,
+retained probes17→9 and structural failure published; charge falls1→0.8624 and
+recovers to1 by3s. The detached left hull/mast is absent from the retained ship
+in the6s captures, without the earlier original-half resurrection. The oblique,
+partly submerged cut faces do not accept section appearance or continuous
+fragment contact. The fixture directly calls ApplyHullImpact and acknowledges
+no death events: its unchanged6999HP/alive state proves neither gameplay death
+nor its failure. Ordinary TOUCH, prior-save, sinking and quest replay remain open.
+
+Hitch acceptance is rejected by the full native action: RAM frame101 costs
+132.417ms versus8–9ms neighbors; laser frame134 costs54.825ms versus7–9ms.
+Neither action frame performs image readback. Allocations rise8→128/110 and
+uploads roughly6.5→12.5/12.7MB; GPU waits are7.064/0ms. These include native
+preparation, uploads, collision, child nodes, chips and the remaining frame,
+which the earlier warmed header timing excludes. Causal stage timing remains
+necessary before another optimization. At200ms the whole laser/water frames
+show no readily distinguishable bright beam or water-contact ring; visible
+heat/faint violet marks do not accept the requested beam visibility. These
+negative results remain open independently of the renderer-cache crash.
 
 The15:20:32 player replay rejects installed7433ec35: layered sections, breakup
 hitches, dragged pieces, water-aim beam visibility and nonphysical wrecks.
-The source mechanics have component verification only.
-Canonical5e9af7f is now installed (exact receipt in `runtime.md`), but the
+Canonical5e9af7f reached the installed app (exact receipt in `runtime.md`), but the
 player's16:02/16:04 replay still rejects pass-through and detached stern ghost
-geometry. Native acceptance is rejected; successful component/build/delivery
-checks do not close that defect. The source mechanism below remains the
-rejected candidate pending real native-owner reproduction.
+geometry. Its87b4acb successor corrects the reproduced draw/geometry divergence
+above; complete player acceptance remains open, including the native rejects.
 
 Timber interiors precede
 fracture in one cached tagged surface: outer triangles are clipped once while
