@@ -48,6 +48,16 @@ compared with012905's native0 despite identical binary/stock/model hashes and
 output resolution. Record changed power state separately; a4% Battery Power
 readback accompanies that outlier but does not prove its cause.
 
+Do not assume a hidden SDL window means the benchmark needs an App Nap wrapper.
+The linked SDL2.32.10 disables the screensaver by default and its Cocoa backend
+creates an IOKit PreventUserIdleDisplaySleep assertion. CPU-only runtime readback
+confirms one level255 assertion during video initialization and zero before/after
+SDL_Quit; Low Power Mode is false and thermal state nominal. This matches
+[SDL's implementation](https://github.com/libsdl-org/SDL/blob/release-2.32.10/src/video/cocoa/SDL_cocoaevents.m)
+and [Apple's App Nap conditions](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/AppNap.html).
+001520/power-policy-probe retains source and output. An extra activity token has
+no demonstrated missing responsibility or performance benefit.
+
 `STORM_METAL_FRAME_TRACE` enables buffered renderer diagnostics. Ordinary clients
 leave it disabled. Completed command buffers carry frame IDs, GPUStartTime,
 GPUEndTime and completion status. The runner validates matching CPU/render/GPU

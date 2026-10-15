@@ -22,6 +22,15 @@ Disabling MetalFX does not eliminate the degraded context. Battery later reports
 control belong to001520/native-power-control.json. A physical-charge question is
 pending; low charge alone is not a blanket prohibition on bounded component work.
 
+A CPU-only platform probe reports Low Power Mode disabled, thermal state nominal
+and thread QoS33. The exact linked SDL2.32.10 creates one active
+PreventUserIdleDisplaySleep assertion during video initialization and releases it
+at SDL_Quit; none exists before/after. An added NSProcessInfo activity token is
+supported but redundant with SDL's existing facility. Ordinary App Nap is not an
+evidenced cause; no benchmark activity wrapper or power preference is changed.
+Probe source/output and decision belong to001520/power-policy-probe. Stable
+whole-scene timing and the physical-charge response remain outstanding.
+
 A narrow mixed-precision normalized-noise candidate and reused A/B driver run
 under001520/cloud-half-pending.
 Only two fBm sums use half intermediates/coefficients; coordinates, sampling,
