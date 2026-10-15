@@ -4,6 +4,25 @@ Last verified delivery: October15. Gameplay commits `f4d3c58` and `1bc5325` are 
 
 ## Current verdict
 
+### October15 — long wake correction source verified; delivery waits for idle app
+
+The reported straight/angular wake prompted an actual-source reproduction:
+12-column absolute16-bit indices wrap at5462 rows, joining remote samples.
+Both wake grids now reuse bounded local indices with the existing base-vertex
+draw; all history, spacing, lifetime, UV, alpha and contact segments remain.
+Actual reservation/draw ASan/UBSan cases across4/12 columns and up to16385 rows
+prove adjacent same-segment triangles and exact ordered grid coverage; native
+syntax passes. `ship-wake.md` owns the independent source/runtime limits.
+The498.4-knot screenshot alone does not prove the required earlier speed history;
+the player recalls a possible Shift boost. Rendered acceptance stays unresolved.
+
+The integration owner confirms original installed player process74058 is live.
+No stage, launch or process interruption follows this source correction. The
+separate structural-death/crew/rigging unit has also reopened after the player
+reported surviving half hulls and floating attachments; its source is not frozen.
+Root retains the later build/stage transaction after that coherent packet and
+an idle-player check. Installed engine remains the4c14ef delivery below.
+
 ### October15 — revised gameplay batch canonically staged
 
 The coherent sustained-crushing, transverse midship-fracture and contact-budget

@@ -4,6 +4,31 @@
 #include "math3d.h"
 #include "math_inlines.h"
 
+#include <algorithm>
+#include <limits>
+
+namespace
+{
+constexpr uint32_t maxTrackRows(uint32_t columns)
+{
+    return (uint32_t(std::numeric_limits<uint16_t>::max()) + 1u) / columns;
+}
+
+void fillTrackIndices(uint16_t *indices, uint32_t rows, uint32_t columns)
+{
+    for (uint32_t y = 0; y + 1 < rows; ++y)
+        for (uint32_t x = 0; x + 1 < columns; ++x)
+        {
+            *indices++ = static_cast<uint16_t>(y * columns + x);
+            *indices++ = static_cast<uint16_t>((y + 1) * columns + x);
+            *indices++ = static_cast<uint16_t>(y * columns + x + 1);
+            *indices++ = static_cast<uint16_t>((y + 1) * columns + x);
+            *indices++ = static_cast<uint16_t>((y + 1) * columns + x + 1);
+            *indices++ = static_cast<uint16_t>(y * columns + x + 1);
+        }
+}
+}
+
 VDX9RENDER *ShipTracks::ShipTrack::pRS = nullptr;
 SEA_BASE *ShipTracks::ShipTrack::pSea = nullptr;
 int32_t ShipTracks::ShipTrack::iRefCount = 0;
@@ -184,7 +209,8 @@ bool ShipTracks::ShipTrack::Reserve1(uint32_t dwSize)
     iVTmpBuffer1 = pRS->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            dwMaxBufferSize1 * dwTrackStep1 * sizeof(TrackVertex),
                                            storm_render::usage::writeOnly | storm_render::usage::dynamic);
-    iITmpBuffer1 = pRS->CreateIndexBuffer(dwMaxBufferSize1 * dwTrackStep1 * 6 * sizeof(uint16_t),
+    const auto indexRows = std::min(dwNewSize, maxTrackRows(dwTrackStep1));
+    iITmpBuffer1 = pRS->CreateIndexBuffer((indexRows - 1) * (dwTrackStep1 - 1) * 6 * sizeof(uint16_t),
                                           storm_render::usage::writeOnly | storm_render::usage::dynamic);
 
     if (iVTmpBuffer1 == -1 || iITmpBuffer1 == -1)
@@ -198,17 +224,7 @@ bool ShipTracks::ShipTrack::Reserve1(uint32_t dwSize)
     }
 
     auto *pI = static_cast<uint16_t *>(pRS->LockIndexBuffer(iITmpBuffer1));
-    for (uint32_t y = 0; y < dwNewSize; y++)
-        for (uint32_t x = 0; x < dwTrackStep1 - 1; x++)
-        {
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep1 + x);
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep1 + x);
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep1 + x + 1);
-
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep1 + x);
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep1 + x + 1);
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep1 + x + 1);
-        }
+    fillTrackIndices(pI, indexRows, dwTrackStep1);
     pRS->UnLockIndexBuffer(iITmpBuffer1);
 
     return true;
@@ -231,7 +247,8 @@ bool ShipTracks::ShipTrack::Reserve2(uint32_t dwSize)
     iVTmpBuffer2 = pRS->CreateVertexBuffer(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse | storm_render::vertexFormat::tex1,
                                            dwMaxBufferSize2 * dwTrackStep2 * sizeof(TrackVertex),
                                            storm_render::usage::writeOnly | storm_render::usage::dynamic);
-    iITmpBuffer2 = pRS->CreateIndexBuffer(dwMaxBufferSize2 * dwTrackStep2 * 6 * sizeof(uint16_t), storm_render::usage::writeOnly);
+    const auto indexRows = std::min(dwNewSize, maxTrackRows(dwTrackStep2));
+    iITmpBuffer2 = pRS->CreateIndexBuffer((indexRows - 1) * (dwTrackStep2 - 1) * 6 * sizeof(uint16_t), storm_render::usage::writeOnly);
 
     if (iVTmpBuffer2 == -1 || iITmpBuffer2 == -1)
     {
@@ -244,17 +261,7 @@ bool ShipTracks::ShipTrack::Reserve2(uint32_t dwSize)
     }
 
     auto *pI = static_cast<uint16_t *>(pRS->LockIndexBuffer(iITmpBuffer2));
-    for (uint32_t y = 0; y < dwNewSize; y++)
-        for (uint32_t x = 0; x < dwTrackStep2 - 1; x++)
-        {
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep2 + x);
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep2 + x);
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep2 + x + 1);
-
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep2 + x);
-            *pI++ = static_cast<uint16_t>((y + 1) * dwTrackStep2 + x + 1);
-            *pI++ = static_cast<uint16_t>((y + 0) * dwTrackStep2 + x + 1);
-        }
+    fillTrackIndices(pI, indexRows, dwTrackStep2);
     pRS->UnLockIndexBuffer(iITmpBuffer2);
 
     return true;
@@ -462,16 +469,21 @@ void ShipTracks::ShipTrack::Realize(float fDeltaTime)
     m.Pos() = pShip->GetPos();
     pRS->SetTransform(storm_render::TransformWorld, m);
 
-    // Each contact interval is its own strip. Keep the old wake visible until
-    // its natural lifetime ends without triangles connecting it to landing.
+    // Keep the full wake, but reuse a bounded local-index grid. On long fast
+    // tracks, global 16-bit indices wrap and join distant parts of the wake.
+    // Adjacent batches share one row; separate water contacts never do.
     const auto draw = [&](const auto &rows, uint32_t step, int32_t vb, int32_t ib) {
         for (size_t first = 0; first < rows.size();)
         {
             size_t end = first + 1;
             while (end < rows.size() && rows[end].segment == rows[first].segment) ++end;
-            if (end - first > 1)
-                pRS->DrawBuffer(vb, sizeof(TrackVertex), ib, 0, rows.size() * step,
-                    first * (step - 1) * 6, (step - 1) * (end - first - 1) * 2, "ShipTrack");
+            for (size_t row = first; row + 1 < end;)
+            {
+                const auto count = std::min(end - row, size_t(maxTrackRows(step)));
+                pRS->DrawBuffer(vb, sizeof(TrackVertex), ib, int32_t(row * step), count * step,
+                    0, (step - 1) * (count - 1) * 2, "ShipTrack");
+                row += count - 1;
+            }
             first = end;
         }
     };
