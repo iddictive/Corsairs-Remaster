@@ -4,6 +4,42 @@ Last verified delivery: October14. Native fleet profiling, foam/cloud work, sail
 
 ## Current verdict
 
+### October14 — submission cache; MetalFX requested before delivery
+
+The native API milestone is committed as821c3ab. The subsequent backend-only
+candidate shares encoder-local raster/depth/blend/viewport and shadow-texture
+bindings across raw, compact and converted paths, including solar slot reuse.
+Encoder completion/target and shadow transitions invalidate the cache. Sampler
+reuse includes the effective texture-label clamp and all imported sampler fields.
+An environment diagnostic switch compares the same binary with caching on/off.
+Fourteen existing native resource/shader/pixel fixtures pass in both modes;
+the broader grass-fog fixture fails identically on restored pre-migration355b7a
+and the native API candidate (depth3/table exponential:ff4484c4). That inherited
+oracle/behavior mismatch remains outside this batch; expectations were not changed.
+
+Frozen fleet204313 with caching disabled measured CPU median13.639ms and GPU
+union14.821ms. Enabled204500 measured13.157/14.781ms; restored512-point-map
+fleet204959 measured13.236/14.757ms. All required pass minima remain unchanged.
+The reduction is about3% CPU; whole-frame/GPU multiplication or120FPS is not
+established. Per120-frame blocks approximately1.43M raster setters and1.93M
+shadow texture setters are omitted, with1.74M sampler lookups reused.
+
+The point-map-only width experiment204830 changed High point maps512→256 while
+retaining sun4096 and every pass. CPU/GPU medians13.050/14.569ms show only about
+0.2ms GPU reduction against the two512 runs. Lower depth texel count does not
+remove six-face surviving vertex/skinning work. It is rejected as a meaningful
+FPS repair; shadow_quality.hpp is restored byte-for-byte. Adaptive screen LOD
+and static/dynamic shadow splitting remain candidates requiring their own
+camera/invalidation and visual evidence. Existing crew rendering already uses
+projected2/3-pixel hysteresis and preserves player crew/spyglass projection.
+
+The player then requests MetalFX upscaling plus its Options control. The M3 Max
+reports spatial and temporal support through the installed SDK's native queries.
+The pending batch must keep full-resolution UI and safe Native fallback;
+temporal capability alone does not supply motion vectors/history. No new app
+delivery or game launch has occurred. Installed signed engineee5a226b remains
+the last delivered runtime while the requested scaler and settings are integrated.
+
 ### October14 — native API candidate; installed app unchanged
 
 The engine and all existing CMake targets compile after removing the shipping
