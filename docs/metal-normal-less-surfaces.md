@@ -13,6 +13,42 @@ Their native streams are position/normal/UV (32 bytes); the existing raw FFP GPU
 decoder owns directional and sky lighting. RGB is texture × lit diffuse × the
 authored texture factor, while the original alpha recipes remain intact.
 
+## Thin rigging coverage
+
+The October15 enlarged player reference exposes dotted ropes and stair steps.
+The matching native fleet capture had antialiasing disabled. Enabling the
+existing FXAA softens edges but leaves missing rope samples. Geometry inspection
+finds continuous five-sided tubes, continuous longitudinal UVs and culling off;
+`sail_rope.tga.tx` is fully opaque at all five authored mip levels. The Vant
+ratline quad is separately alpha textured and must not be made opaque. Missing
+subpixel tube coverage is therefore a demonstrated problem beyond texture alpha.
+
+`scene_msaa.hpp` owns private main-scene multisample color/depth attachments.
+The existing antialiasing setting enables MSAA4 plus the existing FXAA; Off
+allocates neither. Public scene surfaces stay single-sample: encoder ends resolve
+color and minimum depth before water snapshots, shadows, postprocessing,
+MetalFX, readback or presentation. Stored samples survive ordinary encoder
+restarts; external color writers invalidate only sampled color so per-sample
+depth remains intact. Native and each MetalFX flight keep separate attachments,
+so rotating scaler slots do not allocate textures every frame. Target/size changes and graphics resets recreate resources.
+The existing aim identity MRT remains single-sample and invalidates both sampled
+attachments before subsequent scene draws; this preserves aim compatibility,
+but that capture scope does not gain geometric MSAA. Reflections, shadow maps
+and HUD retain their existing sample counts.
+
+The native136-frame fleet comparison at2560x1655 visibly improves thin ropes
+with4 samples;2 samples still leave conspicuous dotted spans. GPU medians after
+frame48 were13.681ms for FXAA,17.289ms for MSAA4+FXAA,14.908ms for MSAA2 alone
+and15.907ms for MSAA4 alone. These short serial cases establish the quality/cost
+tradeoff, not sustained FPS acceptance. Sources, full frames, crops, logs and
+private link receipts are retained in ignored
+`.local-archives/metal-renderer-evidence/rigging-alias-fit`.
+
+The Options checkbox label now names MSAA4+FXAA. Its nine single-control Metal
+siblings drop `individualpos=1`: native checkbox input otherwise accepts label
+hover while only the15px icon can toggle. Persistence and flag64 stay unchanged;
+no additional settings record or user configuration rewrite is introduced.
+
 Outdoors, the incident term is the existing completed sky packet's upward
 irradiance plus enabled directional light energy filtered by the same solar
 spectrum/transmission packet used by normal-bearing models and water. The old

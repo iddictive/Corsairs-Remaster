@@ -1,8 +1,42 @@
 # Runtime state
 
-Last verified delivery: October15. Frozen source `2b8e6e4` is installed with signed engine `a61220effc04784c8ad8088d94d50087feb34f387ffb36ad44f1672ec7a607ba`; prior `61af9725b7e4473f676ca85ed51c74721d50d0fa93ff9b33fd4bc1d01263d55c` is backed up. Canonical stage-only exits0 and content check reports0 pending in cache/app with compiler ready. All526 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. This batch restores authored sky-ambient reflectance: native daylight cloth brightness/detail and compatibility GPU cases pass; real-player and completed-night-SH appearance remain pending. Whole-hull daytime brightness is not closed. Fracture/contact acceptance remains open; installed indexed-span corruption repeats in the16:32 and16:50 reports and is not repaired here. Sustained120FPS remains unmet. Reflection LOD measured6.8–12.1% uplift privately; generic ordered batching and both measured VideoToolbox interpolation routes are rejected for FPS integration. Actual main-thread CPU remains about12.1ms amid measured background load, not an isolated-machine ceiling. Crew/rigging, long wake and ordinary-sea aim draping remain open. Other existing gameplay/renderer/weather changes remain composed. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories are historical; acceptance is scoped to each replay.
+Last verified delivery: October15. The native MSAA4+FXAA and checkbox-input batch is installed with signed engine `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9`; prior `a61220effc04784c8ad8088d94d50087feb34f387ffb36ad44f1672ec7a607ba` is backed up. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October15 — thin-rope MSAA and Options label input delivered
+
+The screenshot's native daylight source had AA disabled. FXAA alone leaves
+missing subpixel rope samples; inspected tube topology/UVs are continuous and
+all five sail_rope mip alphas are opaque. Native MSAA4+FXAA visibly improves
+coverage;2 samples leave conspicuous dotted spans. The existing checkbox and
+persisted boolean now enable4 samples plus FXAA, with no settings migration.
+The nine Metal checkbox labels drop individual-position input so label clicks
+can reach the native row-toggle branch. Details and compatibility limits belong
+to metal-normal-less-surfaces.md.
+
+The final integrated hidden136-frame fleet exits0 at native and MetalFX
+Performance modes, each recording678 MSAA passes,136 FXAA frames,8 ships and
+45164 animated draws. Existing actual-backend water, dynamic-lighting and
+scene/HUD probes all pass. Per-flight MSAA attachments are reused; after warmup
+GPU allocation varies between two plateaus3.7MB apart rather than growing each
+frame. Final unbracketed GPU medians are18.515ms native and16.768ms Performance;
+these are correctness runs, not an isolated performance comparison or120FPS.
+The older static metal_graphics_live_probe stops on obsolete `d3d9->` spelling
+in LostRender; current source uses `renderDevice->` for the same unbind calls.
+It is not reported as a passing check.
+
+Canonical stage-only completes in182.1s from the frozen AA source batch; its
+compiled watermark is3e02dba and source hashes are recorded in the receipt.
+The installed engine is35567395 and its prior a61220ef is backed up. Fresh526
+protected files retain hashes, including settings and SAVE. Installed INI bytes
+match source through the manifest's UTF8-to-CP1251 conversion. Receipt, source
+hashes and logs belong to20261015-181902-rigging-aa-delivery; private source,
+frames/crops and exact link evidence belong to rigging-alias-fit. Original-app
+click/OK/Cancel/reopen and moving-player-scene acceptance remain pending under
+the no-launch boundary. The aim identity capture scope retains its prior
+single-sample path, and Performance upscaling still sacrifices fine detail.
+
 
 ### October15 — authored sail ambient restored in source; native daylight and compatibility pass
 
