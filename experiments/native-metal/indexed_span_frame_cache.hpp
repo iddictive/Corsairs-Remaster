@@ -1,6 +1,7 @@
 #pragma once
 
 #include "indexed_geometry.hpp"
+#include "conservative_animated_bounds.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,6 +30,10 @@ struct IndexedSpanFrameCache {
         IndexedSpan span;
         std::list<Key>::iterator recent;
         std::vector<std::uint32_t> topology;
+        std::vector<storm_metal::animated_bounds::BoneBox> boneBoxes;
+        std::uint64_t boneVertexOffset = 0;
+        std::uint32_t boneStride = 0, boneCount = 0;
+        bool bonePrepared = false;
     };
     std::map<Key, Entry> entries;
     std::list<Key> recency;
@@ -65,7 +70,7 @@ struct IndexedSpanFrameCache {
         if (entries.size() >= 8192)
             erase(entries.find(recency.front()));
         recency.push_back(key);
-        entries.emplace(key, Entry{span, std::prev(recency.end()), {}});
+        entries.emplace(key, Entry{span, std::prev(recency.end()), {}, {}});
         indexRevisions[key[0]] = key[1];
         vertexRevisions[key[2]] = key[3];
         indexSpans[key[0]].push_back(key);
@@ -110,6 +115,39 @@ struct IndexedSpanFrameCache {
         return &entry->second.topology;
     }
 
+    template<class ReadVertex>
+    const std::vector<storm_metal::animated_bounds::BoneBox> *animatedBoxes(
+        const Key &key, std::uint64_t vertexOffset, std::uint32_t stride,
+        std::uint32_t bones, ReadVertex read)
+    {
+        const auto entry = entries.find(key);
+        if (entry == entries.end() || entry->second.topology.empty())
+            return nullptr;
+        recency.splice(recency.end(), recency, entry->second.recent);
+        auto &value = entry->second;
+        if (value.bonePrepared && value.boneVertexOffset == vertexOffset &&
+            value.boneStride == stride && value.boneCount == bones)
+            return value.boneBoxes.empty() ? nullptr : &value.boneBoxes;
+        topologyBytes -= value.boneBoxes.capacity() * sizeof(storm_metal::animated_bounds::BoneBox);
+        std::vector<storm_metal::animated_bounds::BoneBox>().swap(value.boneBoxes);
+        value.boneVertexOffset = vertexOffset;
+        value.boneStride = stride;
+        value.boneCount = bones;
+        value.bonePrepared = true;
+        std::vector<storm_metal::animated_bounds::BoneBox> boxes;
+        if (!storm_metal::animated_bounds::prepare(value.topology.size(), bones,
+                [&](std::size_t i) { return read(value.topology[i]); }, boxes))
+            return nullptr;
+        const auto bytes = boxes.capacity() * sizeof(storm_metal::animated_bounds::BoneBox);
+        if (bytes + value.topology.capacity() * sizeof(std::uint32_t) > topologyBudget)
+            return nullptr;
+        while (topologyBytes + bytes > topologyBudget)
+            erase(entries.find(recency.front()));
+        value.boneBoxes = std::move(boxes);
+        topologyBytes += bytes;
+        return &value.boneBoxes;
+    }
+
     void clear()
     {
         entries.clear();
@@ -141,6 +179,7 @@ struct IndexedSpanFrameCache {
     {
         const Key key = entry->first;
         topologyBytes -= entry->second.topology.capacity() * sizeof(std::uint32_t);
+        topologyBytes -= entry->second.boneBoxes.capacity() * sizeof(storm_metal::animated_bounds::BoneBox);
         recency.erase(entry->second.recent);
         entries.erase(entry);
         unlink(indexSpans, indexRevisions, key, 0);

@@ -392,7 +392,11 @@ struct DynamicRawBuffer {uint64_t revision=~0ull,uploadIdentity=0;SubmissionSlic
 std::map<uint64_t,DynamicRawBuffer> dynamicRawUploads;
 // backend-opt-20260918: CPU work only; no shadow-map or shader quality changes.
 bool backendOptimizationEnabled=true;
-struct RawDrawBounds {simd_float3 minimum{},maximum{};};
+bool conservativeAnimatedBoundsEnabled=[] {
+ const char* value=std::getenv("STORM_METAL_CONSERVATIVE_ANIMATED_BOUNDS");
+ return !value||std::strcmp(value,"0")!=0;
+}();
+struct RawDrawBounds {simd_float3 minimum{},maximum{};bool conservative=false;};
 storm_metal::backend_optimization::BoundsCache<RawDrawBounds> rawBoundsCache;
 std::vector<simd_float3> posedBoundsPositions;std::vector<uint8_t> posedBoundsReady;
 bool preparePosedBounds(const IndexedSpan& span,uint32_t references){
@@ -1309,6 +1313,14 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
 // Do not walk the index stream when neither light admission nor registry
  // capture consumes the bounds. Keep baseline mode identical to the old path.
  const bool needRawBounds=!backendOptimizationEnabled||lightingScene.authoredCatalog()||captureRawShadow;
+ // Larger receiver bounds may admit harmless out-of-range lamps, but must not
+ // fill the 64 slots ahead of a lamp selected by the exact posed bound.
+ bool allowConservativeBounds=rawSkinned&&conservativeAnimatedBoundsEnabled;
+ if(allowConservativeBounds&&lightingScene.authoredCatalog()){
+  unsigned potentialLights=lightingScene.authoredCount();
+  for(unsigned li=1;li<8;++li)if(enabled[li]&&lights[li].Type==storm_render::LightKind::Point&&!landShadow.prepass.lightIds[li])++potentialLights;
+  allowConservativeBounds=potentialLights<=64;
+ }
  simd_float3 rawMin={INFINITY,INFINITY,INFINITY},rawMax={-INFINITY,-INFINITY,-INFINITY};
  if(needRawBounds){
   const double boundsBegin=profile.enabled?FrameProfile::now():0;
@@ -1323,7 +1335,7 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
       uint64_t(data-vb->bytes.data()),uint64_t(static_cast<const uint8_t*>(indices)-ib->bytes.data()),
       uint64_t(drawCount),uint64_t(st),uint64_t(int64_t(base)),uint64_t(rawIndexWidth),uint64_t(fvf)};
   const auto* cachedBounds=cacheBounds?rawBoundsCache.find(boundsKey):nullptr;
-  if(cachedBounds){
+  if(cachedBounds&&(!cachedBounds->conservative||allowConservativeBounds)){
    rawMin=cachedBounds->minimum;rawMax=cachedBounds->maximum;
    if(profile.enabled){++backendOptimizationStats.boundsHits;backendOptimizationStats.indicesAvoided+=drawCount;}
   }else{
@@ -1336,9 +1348,18 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
     uniqueIndices=indexedSpanCache.unique(*validatedKey,
         [&](uint64_t i){return readIndex(indices,fmt==storm_render::IndexFormat::UInt32,i);});
    }
+   bool conservativeBounds=false;
+   if(allowConservativeBounds&&uniqueIndices){
+    const auto* boxes=indexedSpanCache.animatedBoxes(*validatedKey,offset,st,skinningBoneCount,
+        [&](uint32_t vertex){storm::metal::skinning::AnimatedVertex animated;std::memcpy(&animated,boundVertices+size_t(int64_t(vertex)+base)*st,sizeof(animated));return animated;});
+    storm_metal::animated_bounds::Bounds posed;
+    if(boxes&&storm_metal::animated_bounds::pose(*boxes,reinterpret_cast<const float*>(boundPalette),skinningBoneCount,posed)){
+     rawMin=simd_make_float3(posed.minimum[0],posed.minimum[1],posed.minimum[2]);rawMax=simd_make_float3(posed.maximum[0],posed.maximum[1],posed.maximum[2]);conservativeBounds=true;
+    }
+   }
    const uint32_t boundsCount=uniqueIndices?uint32_t(uniqueIndices->size()):drawCount;
    const bool reusePosedBounds=!uniqueIndices&&cacheBounds&&rawSkinned&&indexed&&preparePosedBounds(*indexed,drawCount);
-   for(uint32_t i=0;i<boundsCount;i++){
+   for(uint32_t i=0;i<(conservativeBounds?0:boundsCount);i++){
     uint32_t vertex=uniqueIndices?(*uniqueIndices)[i]:readIndex(indices,fmt==storm_render::IndexFormat::UInt32,i);auto*p=boundVertices+size_t(int64_t(vertex)+base)*st;simd_float3 position;
     if(reusePosedBounds){
      const uint32_t slot=vertex-indexed->first;
@@ -1348,8 +1369,8 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
     else std::memcpy(&position,p,12);
     rawMin=simd_min(rawMin,position);rawMax=simd_max(rawMax,position);
    }
-   if(cacheBounds)rawBoundsCache.insert(boundsKey,RawDrawBounds{rawMin,rawMax});
-   if(profile.enabled){backendOptimizationStats.indicesScanned+=boundsCount;backendOptimizationStats.indicesAvoided+=drawCount-boundsCount;if(cacheBounds)++backendOptimizationStats.boundsMisses;else ++backendOptimizationStats.boundsBypassed;}
+   if(cacheBounds)rawBoundsCache.insert(boundsKey,RawDrawBounds{rawMin,rawMax,conservativeBounds});
+   if(profile.enabled){const auto scanned=conservativeBounds?0:boundsCount;backendOptimizationStats.indicesScanned+=scanned;backendOptimizationStats.indicesAvoided+=drawCount-scanned;if(cacheBounds)++backendOptimizationStats.boundsMisses;else ++backendOptimizationStats.boundsBypassed;}
   }
   if(profile.enabled)backendOptimizationStats.boundsMilliseconds+=FrameProfile::now()-boundsBegin;
  }else if(profile.enabled){++backendOptimizationStats.boundsSkipped;backendOptimizationStats.indicesAvoided+=drawCount;}

@@ -148,7 +148,32 @@ and teardown release both span and list. Only animated draws request topology;
 the4096-index eligibility and4MiB payload budget remain, with full-index fallback.
 ASan/UBSan covers16/32-bit indices, negative base, offset, invalid revisions,
 recycled identities, oversized fallback and budget eviction. The existing span
-probe remains valid. Exact posed bounds, draw order and all GPU passes remain.
+probe remains valid. Draw order and all GPU passes remain.
+
+Guarded conservative animated bounds now reuse immutable per-bone boxes in that
+same entry and4MiB budget. The current palette and local X reflection transform
+their union; convex finite weights and outward rounding contain the exact skin.
+Invalid inputs, unavailable topology or more than64 potential receiver lamps
+retain exact bounds. A cached conservative result is rejected when the lamp
+guard closes. `STORM_METAL_CONSERVATIVE_ANIMATED_BOUNDS=0` restores the exact
+path; default is enabled. The CPU proof covers8,467,278 coordinates across11
+retained meshes plus revisions, addressing, eviction/reset and64/65-light
+transitions. Expanded boxes can increase point-shadow survivors, so containment
+alone is insufficient: existing GPU-skinned catalog receiver and point/sun
+shadow fixtures must pass, and the complete fleet must retain its pass mix.
+
+The matched Off/On/Off runs235049/235106/235140 reduce bounds preparation from
+about1.76 to1.07ms/frame. GPU union medians11.326/11.291/11.264ms establish no
+whole-frame FPS gain. Measured GPU waits grow by about0.6ms as CPU work shrinks;
+CPU wall time minus measured GPU/drawable waits has medians10.764/10.156/10.937ms.
+That subtraction is a CPU preparation estimate, not player FPS or a sum with GPU
+execution. All coverage, draws, uploads and allocations remain composed.
+
+After material specialization, native capture234159 ranks cloud tile30.59%,
+main geometry13.43% and traversal receivers8.41%. Its4.904ms cloud compute
+statistic is not serialized critical-path time. Bounded cloud loop-unrolling
+and platform size-optimization experiments preserve16,777,216 compared bytes
+but improve aggregate component timings by only about2%; they are not installed.
 
 The bounded Metal dispatch experiment uses the current native pipeline's
 reported SIMD width32 and maximum1024 threads. Larger groups and128/256/512

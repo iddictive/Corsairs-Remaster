@@ -1,10 +1,53 @@
 # Runtime state
 
-Last verified delivery: October14. The graphics-record readback repair and material specialization are installed with signed engine `f70393af7f86224c030a8d63cc3ce1647e41a069da7b34f04b3dd7a36197cc6c`; prior `d50531dd5fa49be0973a185b960a5f143e3a4b5fc36a586c31f3fd48c15261ec` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready, and the installed Options script matches its source projection. The native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Specialization is enabled by default with generic fallback; player preferences, including the existing MetalFX choice, are preserved. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Guarded animated bounds, the graphics-record readback repair and material specialization are installed with signed engine `6f761a93e059cad8df73fc7295e6f261f68d8dd452f590a5bab02f5a5fa11d75`; prior `f70393af7f86224c030a8d63cc3ce1647e41a069da7b34f04b3dd7a36197cc6c` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready. Native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Guarded bounds and specialization are enabled by default with exact/generic fallbacks. All526 recorded player-state files retain their hashes, including the existing MetalFX choice. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
-### October14 — Options readback repaired; material specialization verified
+### October15 — animated bounds CPU cost reduced; whole-frame target remains unmet
+
+Immutable per-bone bounds now belong to the existing indexed-span cache and its
+revision/LRU/reset/4MiB lifecycle. Current-pose transforms conservatively contain
+the exact skin; unsupported weights/palettes/topology and more than64 potential
+receiver lamps use the existing exact path. A light-cap transition invalidates
+cached conservative results. Geometry, pose, shader inputs, detail, reflections
+and shadow settings are unchanged. Default is enabled; the environment switch
+`STORM_METAL_CONSERVATIVE_ANIMATED_BOUNDS=0` retains the matched exact control.
+
+Same-binary fleet runs use Native2560x1655, specialization1,384frames/warmup128:
+
+| Run | Conservative bounds | CPU median/p99 ms | GPU union median/p99 ms |
+| --- | --- | --- | --- |
+|235049|0|11.283 /14.759|11.326 /14.755|
+|235106|1|11.244 /14.669|11.291 /14.732|
+|235140|0|11.301 /14.773|11.264 /14.765|
+
+Bounds preparation falls from about1.76 to1.07ms/frame, but the complete frame
+does not materially accelerate. GPU waits grow by about0.6ms; subtracting the
+measured GPU/drawable waits from CPU wall time gives preparation estimates
+10.764/10.156/10.937ms median. CPU sampling alone missed these waits and must
+not be interpreted as proving their absence. All sail/crew/sea/sky/cube minima,
+draws, uploads,20 warmed allocations and GPU memory remain composed. The full
+ON scene was inspected; ordinary solar/exposure and animation variability also
+changes OFF/OFF exports, so scene byte identity is not claimed.
+
+ASan/UBSan proves8,467,278 containment coordinates across11 retained meshes,
+cache/address/revision/budget/reset negatives and64/65-light transitions. Five
+rebuilt existing span, raw-skinned receiver, point/sun shadow, skinning and world
+registry probes pass with the candidate enabled. Independent source review found
+no actionable defect. The installed batch passed canonical stage-only; all526
+player-state files match their pre-stage hashes. No game launch/control or push.
+
+Current GPU capture234159 ranks cloud tile30.59%, main geometry13.43% and point
+receivers8.41%. Cloud loop/size compiler controls preserve compared output but
+only improve aggregate component cost about2%; those prototypes are rejected.
+Separate-queue cloud scheduling is a viable next conditional experiment, not an
+accepted change: preserve triple-buffer snapshots/cadence and account for both
+queues, recycling, invalidation, split submissions, capture and teardown before
+measuring whole-workload throughput. Even CPU preparation still exceeds8.33ms.
+The full120FPS goal and installed player acceptance remain unresolved.
+
+### Historical October14 snapshot — Options readback repaired; material specialization verified
 
 The player's renewed settings report is reproduced in the real script VM/native
 option-file path. The file already held MetalFX Quality1. `ReadMetalGraphicsOptions`
