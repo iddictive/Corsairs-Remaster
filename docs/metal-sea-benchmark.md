@@ -184,7 +184,21 @@ collinearity or subpixel claim follows. Probe source is removed; inputs and
 receipt belong to001520/animated-degenerate-rejected. Tighter conservative-bound
 fit now uses actual captured sources/palettes and eight cube matrices fetched
 from012905 through native gpudebug, under001520/captured-bounds-fit; its admission
-oracle and value remain pending.
+oracle remains unresolved. Native `Vertices` describes submitted vertices but
+does not define an ICB correction; the CLI has no working ICB info handler.
+CPU admission totals11367981 refs versus profiler11287218:45 faces differ by
+-701 and three have additional differences. Do not normalize those counters or
+attribute the531254 On/Off capture difference to bounds.
+
+The conditional same-pose fit nevertheless rejects a pair-bound prototype.
+Current/exact/pair CPU admission totals11367981/11346681/11364249 refs. Pair
+removes only3732 refs (0.0328%, one draw on one face), while bone-box transforms
+rise4434→10308 distinct blended endpoints (2.325x). Rebuilt current boxes give
+the same48 CPU admission totals as the fetched current boxes; maximum world
+coordinate delta is7.65e-6. Pair median volume/exact improves1.456→1.230 and
+contains this captured pose, but general float/FMA/padding/overflow containment
+is unproven. These CPU results are conditional opportunity evidence, not GPU
+or FPS acceptance; no new production module or GPU comparison follows.
 
 The traversal receiver ICB prototype is rejected as a standalone optimization.
 Fit run004432 admits701 receivers/311 skinned with one contiguous cull/viewport

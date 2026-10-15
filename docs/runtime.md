@@ -57,7 +57,16 @@ are now removed; together they reject an exact topology filter across all853479
 receiver triangles. Animated source/evidence belong to001520/animated-degenerate-
 rejected. Tighter conservative-bound feasibility remains pending on actual012905
 captured buffers/palettes/eight cube matrices, fetched through native gpudebug
-into001520/captured-bounds-fit;
+into001520/captured-bounds-fit. Its native oracle remains unresolved: CPU sphere/
+six-plane admission predicts11367981 refs versus profiler11287218, with no
+independently established ICB counter correction. The CLI's counter description
+does not resolve it and its advertised ICB info handler is unavailable.
+Conditional same-pose current/exact/pair admission is11367981/11346681/11364249:
+pair removes only3732 refs (0.0328%) for2.325x the box transforms. Rebuilt current
+matches all48 captured-box CPU admission counts, but general float containment
+is unproven. Pair bounds are rejected at the value gate; this does not explain
+the531254 difference between separate On/Off captures. Analyzer and input closure
+remain under the existing captured-bounds-fit owner. No product/runtime delta;
 no additional culling module or quality reduction is accepted from these probes.
 
 ### October15 — receiver ICB preserves pixels but reduces whole-frame throughput
