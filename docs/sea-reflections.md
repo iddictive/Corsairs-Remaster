@@ -8,6 +8,13 @@ visible reflection change.
 
 ## Owner and contract
 
+The October15 performance request explicitly permits coarse water reflections:
+fine vessel details may be omitted while the hull, masts, sails and large-scale
+silhouette remain recognizable. This does not authorize lowering main-view
+geometry, changing collision/damage geometry, delaying capture faces or accepting
+the unresolved reflection jitter. `metal-sea-benchmark.md` owns the measured
+geometry population and the current diagnostic LOD candidate.
+
 `renderer-rain-weather.patch` publishes existing physical phases
 `fFrame1 / FRAMES` and `fFrame2 / FRAMES` in vertex constant 2.Y/Z, with W=1 as
 the native marker. X retains original bump/foam animation; rain constant 244

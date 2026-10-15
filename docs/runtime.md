@@ -4,6 +4,19 @@ Last verified delivery: October15. Coherent source `50daab4`, including pressure
 
 ## Current verdict
 
+### October15 — coarse reflection geometry candidate, not delivered
+
+The player permits dropping fine vessel detail in water reflections. Actual
+captured geometry establishes a large small-primitive population; the bound
+and source owners are in `metal-sea-benchmark.md`. A private frozen backend
+builds against51 unchanged linked inputs and65 header dependencies, replacing
+only matching rigid reflection indices. Its78 cooked groups use45.87% fewer
+indices; this is not a measured reduction in complete reflection cost or FPS.
+The full-fleet Off/On/Off runner is ready but has not run: the live player
+process99471 is preserved. This candidate remains unresolved, without production
+source, installed engine, SAVE or configuration mutation. The120FPS goal and
+native scene quality checks remain open.
+
 ### October15 — hollow-hull, fragment contact and remnant survival reopened
 
 The player's14:02:59 frame rejects the staged50daab4 destruction. Actual

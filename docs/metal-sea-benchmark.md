@@ -340,7 +340,48 @@ the accepted/rejected moves. This supports a bounded gather prototype, not
 production enablement or a120FPS promise; unchanged shader payload, actual
 resource lifetime, ordered GPU parity and whole-frame cost still own acceptance.
 
-Captured012905 command lists now bound this proposal before implementation:
+### Reflection geometry budget and coarse-detail candidate
+
+The player explicitly permits omitting fine geometry from water reflections;
+main-view, physics and temporal capture contracts stay with `sea-reflections.md`.
+Captured390 rigid main draws submit538665 triangles at2560x1655;380 matching
+reflection draws submit538315 triangles at256x256. The reflection dimensions
+are independently bound by `sea.cpp::kReflectionSize` and its target/depth
+creation, as well as captured Uniform.viewport. In reflection522879 triangles
+have area below1px squared and diameter below2px; main has261615. These are
+small-primitive counts, not a safe removal fraction or a measured FPS saving.
+
+Topology matters:78 distinct geometry groups contain23447 indexed connected
+components, or5851 after exact-position grouping. Actual meshoptimizer v1.3,
+pinned to9e1f07b159d3cb777f1c67ed31fc11fd117986f4, reduces the largest33847-triangle
+cohort by68.7% at combined relative error.01. That cohort maps to Manowar1.gm
+Part20/inzanegun1.tga. Independent sampled surface/attribute errors reject using
+the QEM error as a pointwise main-view fidelity certificate. Conservative
+reflection-only component tiers preserve retained triangles but save only23.5%
+at1px across the three investigated cohorts, not97% of the reflected scene.
+
+A private diagnostic cooks all78 captured groups with normals/UV/color-aware
+simplification at relative error.01, retaining original vertex bytes. Distinct
+group indices fall323199 to174936 (45.87%). A content-hashed backend replacement
+selects these indices only for matching rigid raw geometry in the current sea
+reflection cube; main/sun/point/crew/sail geometry remains original. It preserves
+unknown/revised-source fallback, render uniforms and source index/base offsets.
+The exact source/header closure and51 frozen link inputs build successfully as
+binary d723dc5c669254dd98ca9b42dcc459d2a80736fde7d570dfe696808ef7880528.
+Source, cooked data, receipt and full-fleet Off/On/Off runner belong to the
+private reflection-lod-candidate owner. It is neither production code nor an
+installed candidate; source-associated reduction still needs actual admission,
+whole-scene native readback and full-workload cadence. Player process99471
+prevents that GPU comparison at this checkpoint and is not stopped.
+
+The five-vector source investigation also bounds alternatives: main/reflection
+batching must retain per-packet Raw/Sampling, and original-order compatibility
+alone removes only50 of770 qualified draws. The unoptimized sparse point-ICB
+candidate belongs to `metal-frame-pacing.md`; local-weather origin/window reuse
+belongs to `metal-dynamic-sky.md`. No standalone gain is inferred from either
+population.
+
+Captured012905 command lists now bound the reflection aggregation proposal:
 environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
 face has10 dynamic-sky draws and1 generic sky/fog draw, leaving138/75/0/531/0
 raw-lit ship draws. Without merging different packets, layered execution needs
