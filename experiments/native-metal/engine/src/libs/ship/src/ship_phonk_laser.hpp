@@ -13,6 +13,8 @@ struct LaserPlane
     CVECTOR normal = CVECTOR(0.f);
     float distance = 0.f;
     bool charred = true;
+    CVECTOR grain = CVECTOR(0.f, 1.f, 0.f);
+    float roughness = 0.f, spacing = 1.f, phase = 0.f;
 };
 struct LaserFragment
 {

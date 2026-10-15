@@ -13,6 +13,13 @@ after ram/laser. A coherent structural-death/support repair is source verified
 in the shared ship owner (`sea-phonk.md`) and canonically staged in `9288f64`
 (signed engine498cc8dc...). Player collision/fracture replay remains pending.
 Earlier component results do not close that reported failure.
+The player then rejects a small NPC grinding against a passive heavy hull and
+Phonk losing physical hull despite its contact budget. A source-verified
+successor requires inward acceleration supplied by the heavier ship's native
+step, applies accepted Phonk HP protection to material work, and gives mechanical
+fractures one persisted jagged field. Canonical staging/player replay remain
+pending for this successor; the renderer cache crash is a separate unresolved
+branch, not repaired by these changes.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 
@@ -24,9 +31,15 @@ as well as the struck hull; tangential scraping does not spend head-on impact
 energy. Comparable hulls can push at low speed without repeatedly paying ram
 damage. With more than a twofold mass mismatch, continuing drive can overload
 the smaller hull and progressively damage both, with much less damage to the
-heavier hull. A passive mass difference without contact force causes no damage.
+heavier hull. The heavier hull's native step must increase XZ kinetic energy
+and accelerate inward; passive drag against a small pusher supplies no crushing
+drive. Measured normal impulse still caps the admitted force.
 The elastic specific-energy allowance applies to impact work; sustained crushing
 uses accumulated normal impulse divided by frame duration, not closing speed.
+The script collision event returns accepted material fraction. For the player's
+Phonk ship the native owner maps that protected damage back through the existing
+inverse impact curve before applying physical cuts; scaling saturated energy
+directly would still destroy an HP-protected hull. Ordinary ships return1.
 Collision mass is bare `State.fWeight` plus canonical `Ship.Cargo.Load`, both
 in cwt; the latter already includes goods, installed guns and crew, and is not
 capped at nominal hold capacity. Existing cargo writers/invalidation and
@@ -62,6 +75,11 @@ binary SAVE layout remain with their existing owners.
   these are real-mesh component results, not rendered gameplay acceptance.
 - Native State/TouchMove remain the movement and prediction owners. Existing
   script collision events retain HP, perks, crime and kill attribution.
+- Mechanical fractures use a bounded diagonal piecewise-linear grain profile
+  in the existing split/cap owner; laser cuts remain planar. Geometry, retained
+  crew/rig support, waterplane contour, keel and save/rebind consume the same
+  signed field. Invalid topology, multiple waterplane components or a budget
+  failure preserve the previous mesh instead of substituting a planar cut.
 
 The source-bound baseline reproduces three detector failures: two30m hulls at
 28m center separation overlap but fail broadphase; perpendicular8×30m hulls
@@ -72,6 +90,17 @@ The decisive checks are the actual TOUCH adapter plus swept/overlap cases,
 linear/angular momentum and nonincreasing contact energy, both mass orders,
 bow/side damage, three-ship contact, separating/scraping negatives and a prior
 save through normal loading. Full installed ramming/fracture replay stays open.
+
+The successor's actual adapter/frame-solver ASan/UBSan falsifier reproduces120
+specific crush work for either driver role in the prior code. A small driver
+against a passive heavy hull now produces0 HP events/0 material work over10s
+at16/50/100ms while moving the heavy hull0.9105/0.9136/0.9182m. Real heavy drive
+retains120 work; braking, equal/twofold mass, separation/scraping/no-contact
+negatives pass. Native motion preserves endpoint within1.6e-6m and yaw within
+6e-9rad; no second motion fix is added. An unprotected1000-knot ram has32869.6
+work; accepted scale0.05 maps to5.40977 material work and zero scale makes no
+cut. Actual VM contact-budget, reload and structural-death cases pass; native
+syntax passes. These are source/component checks, not the player's battle.
 
 Final source-bound ASan/UBSan checks use the actual TOUCH and ship-contact
 method bodies with synthetic hull/native-motion adapters. A 20-knot equal-bare-

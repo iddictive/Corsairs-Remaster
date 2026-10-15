@@ -13,6 +13,31 @@ crew walk over removed decks and loose rigging remains above absent structure.
 The successor binds geometry, retained support and structural death for both
 laser and mechanical cuts; source evidence below is not player acceptance.
 
+The next source-verified contact correction applies the existing accepted HP
+budget to new physical contact work before geometry cuts. The collision event
+returns that fraction; TOUCH uses the inverse damage curve, so even a saturated
+1000-knot impact cannot bypass protection merely through its large raw energy.
+Zero accepted fraction adds no mechanical cut. Already critical structure and
+laser cuts retain their ordinary death reconciliation. This successor also
+requires the heavier hull to supply inward acceleration for sustained crushing;
+passive resistance to a small pusher no longer admits that work.
+
+Mechanical breakup now adds optional grain/roughness/spacing/phase to the same
+saved local cut owner; old cuts default to exact planes and lasers stay planar.
+One diagonal piecewise-linear signed field drives visible geometry, support,
+waterplane/keel, openings and geometry rebind. The existing mesh split/cap runs
+through a determinant-one shear with bounded knot/triangle/seam budgets; an
+explicit incomplete result preserves the previous geometry. Multiple retained
+waterplane components reject before mutation. No second fracture system or
+dependency is introduced. Actual closed-box volume and installed Flyingdutchman
+mesh cases pass ASan/UBSan; the latter has40445 input triangles/20 objects,
+35838 kept/22749 detached triangles,228 seam edges and field deviation below
+0.0003m. A repeated overlapping micro-sliver cut rejects while preserving the
+prior watertight mesh. Shared native support/contour/keel/mast probes retain a
+17-point waterplane, nonfatal upper trim and fatal keel/half loss. These checks
+do not accept a rendered fracture or prior-save replay. Canonical staging of
+the coherent native+AIShip successor remains pending in `runtime.md`.
+
 The current request keeps ordinary Phonk at500 knots and adds held left/right
 Shift, using the existing `ILeftShift`/`IRightShift` controls, to accelerate
 continuously toward1000 without a timer or consumable. Brake wins; release sheds

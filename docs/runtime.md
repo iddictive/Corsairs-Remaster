@@ -4,6 +4,20 @@ Last verified delivery: October15. Coherent source `9288f64`, including structur
 
 ## Current verdict
 
+### October15 — pressure, protected material and jagged fracture source integrated
+
+The source owner freezes eight native/gameplay/admission paths after the player's
+small-NPC grinder, protected Phonk hull and straight fracture-edge rejection.
+The heavier hull must supply inward native acceleration; accepted contact HP
+fraction bounds material through the inverse damage curve. Mechanical cuts use
+one persisted jagged signed field across geometry, support and saved restore;
+lasers/old cuts preserve planar behavior and geometric failure preserves the
+prior mesh. Actual adapter/frame solver, native motion, script VM and actual
+mesh ASan/UBSan checks pass within the limits in `ship-wreck-contact.md` and
+`sea-phonk.md`. Root reviews the exact frozen hashes and integrates one atomic
+native+AIShip batch for immediate canonical stage-only. Player replay and the
+separate installed renderer corruption remain unresolved; no FPS gain follows.
+
 ### October15 — installed renderer crash; cache corruption cause unresolved
 
 The player's original app exits with EXC_BAD_ACCESS at13:09:14, PID87823,

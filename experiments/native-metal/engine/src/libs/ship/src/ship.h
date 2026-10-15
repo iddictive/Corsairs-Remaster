@@ -261,12 +261,7 @@ class SHIP : public SHIP_BASE
 
     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
     unsigned GetHullContourRevision() const override { return phonkLaser.contourRevision; }
-    bool IsHullPositionRetained(const CVECTOR &localPosition) const override
-    {
-        for (const auto &plane : phonkLaser.cuts)
-            if ((plane.normal | localPosition) > plane.distance + .05f) return false;
-        return true;
-    }
+    bool IsHullPositionRetained(const CVECTOR &localPosition) const override;
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;
     void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,

@@ -2715,7 +2715,7 @@ float Ship_GetHP(ref rCharacter)
 	return stf(rCharacter.Ship.HP); 
 }
 
-void Ship_Ship2ShipCollision()
+float Ship_Ship2ShipCollision()
 {
 	int		iOurCharacterIndex, iEnemyCharacterIndex, iTouchPoint;
 	float	fPower, fSlide, x, y, z;
@@ -2732,6 +2732,10 @@ void Ship_Ship2ShipCollision()
 	ref rOurCharacter = GetCharacter(iOurCharacterIndex);
 
 	float fHP = (1.0 - fSlide) * fPower * 10.0;
+	bool protectedMaterial = SeaPhonk_IsActive() && iOurCharacterIndex == GetMainCharacterIndex();
+	float hullBefore = Ship_GetHP(rOurCharacter);
+	float requestedDamage = fHP;
+	if (protectedMaterial) requestedDamage = fHP * Ship_HullDamageMultiplier(rOurCharacter, iEnemyCharacterIndex);
 	// Capture a player ram before lethal damage can synchronously remove the reporter.
 	if (iEnemyCharacterIndex == GetMainCharacterIndex() && !IsCompanion(rOurCharacter) && GetRelation(sti(rOurCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)
 	{
@@ -2753,6 +2757,14 @@ void Ship_Ship2ShipCollision()
 	// зашита от потопления тараном <--
 
 	if (fPower>1.0) { Play3DSound("coll_ship2ship", x, y, z); }
+	// Return the accepted fraction to TOUCH before it publishes physical cuts.
+	// Other ships retain their ordinary material response and all death guards.
+	if (protectedMaterial)
+	{
+		if (requestedDamage <= 0.0) return 0.0;
+		return Clampf((hullBefore - Ship_GetHP(rOurCharacter)) / requestedDamage);
+	}
+	return 1.0;
 }
 
 float Ship_AmmoCrewLoss(ref rCharacter, float percent)

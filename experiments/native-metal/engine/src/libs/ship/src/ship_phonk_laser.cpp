@@ -50,19 +50,30 @@ bool completeModelBounds(MODEL *model, storm_ship_hull::Bounds &bounds)
     }
     return !first;
 }
-std::vector<CVECTOR> clipContour(const std::vector<CVECTOR> &source, const LaserPlane &plane)
+storm_ship_laser::Plane cutField(const LaserPlane &plane)
 {
-    std::vector<CVECTOR> result;
-    if (source.empty()) return result;
-    for (size_t i = 0; i < source.size(); ++i)
-    {
-        const auto &a = source[i], &b = source[(i + 1) % source.size()];
-        const float da = (plane.normal | a) - plane.distance;
-        const float db = (plane.normal | b) - plane.distance;
-        if (da <= 0.f) result.push_back(a);
-        if ((da <= 0.f) != (db <= 0.f)) result.push_back(a + (b - a) * (da / (da - db)));
-    }
-    return result;
+    return {{plane.normal.x, plane.normal.y, plane.normal.z}, plane.distance, plane.charred,
+            {plane.grain.x, plane.grain.y, plane.grain.z}, plane.roughness, plane.spacing, plane.phase};
+}
+float cutDistance(const LaserPlane &plane, const CVECTOR &point)
+{
+    return storm_ship_laser::distance(cutField(plane), {point.x, point.y, point.z});
+}
+storm_ship_laser::Plane nodeCutField(CMatrix &modelWorld, NODE *node, const LaserPlane &plane)
+{
+    CVECTOR origin, x, y, z;
+    modelWorld.MulToInv(node->glob_mtx.Pos(), origin);
+    modelWorld.MulToInvNorm(node->glob_mtx.Vx(), x);
+    modelWorld.MulToInvNorm(node->glob_mtx.Vy(), y);
+    modelWorld.MulToInvNorm(node->glob_mtx.Vz(), z);
+    CVECTOR normal(plane.normal | x, plane.normal | y, plane.normal | z);
+    CVECTOR grain(plane.grain | x, plane.grain | y, plane.grain | z);
+    const float n = std::max(1.e-8f, std::sqrt(~normal));
+    const float g = std::max(1.e-8f, std::sqrt(~grain));
+    normal *= 1.f / n; grain *= 1.f / g;
+    return {{normal.x, normal.y, normal.z}, (plane.distance - (plane.normal | origin)) / n,
+            plane.charred, {grain.x, grain.y, grain.z}, plane.roughness / n,
+            plane.spacing / g, (plane.phase + (plane.grain | origin)) / g};
 }
 float contourArea(const std::vector<CVECTOR> &contour)
 {
@@ -74,6 +85,13 @@ float contourArea(const std::vector<CVECTOR> &contour)
     }
     return float(std::abs(area) * .5);
 }
+}
+
+bool SHIP::IsHullPositionRetained(const CVECTOR &localPosition) const
+{
+    for (const auto &plane : phonkLaser.cuts)
+        if (cutDistance(plane, localPosition) > .05f) return false;
+    return true;
 }
 
 bool SHIP::IsAuthoredMastNode(const NODE *node) const
@@ -88,7 +106,7 @@ void SHIP::DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane
 {
     std::vector<mast_t *> detached;
     const auto retained = [&](const CVECTOR &point)
-    { return IsHullPositionRetained(point) && (plane.normal | point) <= plane.distance + .05f; };
+    { return IsHullPositionRetained(point) && cutDistance(plane, point) <= .05f; };
     for (auto &mast : pMasts)
         if (!mast.bBroken && mast.pNode && (!retained(mast.vSrc) || !retained(mast.vDst)))
             detached.push_back(&mast);
@@ -109,11 +127,12 @@ void SHIP::UpdateCutStructuralFailure()
     unsigned failed = 0;
     for (const auto &point : phonkLaser.originalKeel)
     {
-        float bottom = point.y;
+        CVECTOR support = point;
+        support.y += std::max(.5f, -point.y) * .35f;
+        bool lost = false;
         for (const auto &cut : phonkLaser.cuts)
-            if (cut.normal.y < -.5f)
-                bottom = std::max(bottom, (cut.distance - cut.normal.x * point.x - cut.normal.z * point.z) / cut.normal.y);
-        if (bottom - point.y >= std::max(.5f, -point.y) * .35f) ++failed;
+            if (cut.normal.y < -.5f && cutDistance(cut, support) >= 0.f) lost = true;
+        if (lost) ++failed;
     }
     if (!phonkLaser.originalKeel.empty() && failed * 5 >= phonkLaser.originalKeel.size() * 3)
         phonkLaser.structuralFailure = true;
@@ -150,23 +169,18 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         phonkLaser.originalWaterplaneArea = contourArea(phonkLaser.contour);
         if (bKeelContour) phonkLaser.originalKeel.assign(std::begin(vKeelContour), std::end(vKeelContour));
     }
-    auto contour = clipContour(phonkLaser.contour, plane);
-    if (contour.size() > 128) return false;
+    std::vector<storm_ship_laser::Vec3> waterline;
+    for (const auto &point : phonkLaser.contour) waterline.push_back({point.x, point.y, point.z});
+    const auto clipped = storm_ship_laser::clipContour(waterline, cutField(plane));
+    if (!clipped.valid || clipped.loops.size() > 1) return false;
+    std::vector<CVECTOR> contour;
+    if (!clipped.loops.empty())
+        for (const auto &point : clipped.loops.front()) contour.emplace_back(point.x, point.y, point.z);
     if (contour.size() < 3) contour.clear();
-    const CVECTOR worldPoint = modelWorld * (plane.normal * plane.distance);
     const CVECTOR worldNormal = modelWorld * plane.normal - modelWorld.Pos();
-    const auto localPlane = [&](NODE *node)
-    {
-        CVECTOR normal, point;
-        node->glob_mtx.MulToInvNorm(worldNormal, normal);
-        node->glob_mtx.MulToInv(worldPoint, point);
-        const float length = std::sqrt(~normal);
-        normal *= 1.f / std::max(length, 1.e-8f);
-        return storm_ship_laser::Plane{{normal.x, normal.y, normal.z}, normal | point, plane.charred};
-    };
     const uint64_t owner = uint64_t(blots_id);
     storm_ship_laser::Result hull;
-    if (!root->geo->CutByLaser(owner, localPlane(root), hull) || !hull.changed) return false;
+    if (!root->geo->CutByLaser(owner, nodeCutField(modelWorld, root, plane), hull) || !hull.changed) return false;
     if (phonkLaser.floodCapacity <= 0.f)
     {
         GEOS::INFO info{}; root->geo->GetInfo(info);
@@ -235,7 +249,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     {
         if (!node->geo || IsAuthoredMastNode(node)) continue;
         storm_ship_laser::Result result;
-        if (node->geo->CutByLaser(owner, localPlane(node), result))
+        if (node->geo->CutByLaser(owner, nodeCutField(modelWorld, node, plane), result))
         {
             if (result.changed) fragment(node, result);
             rememberBinding(phonkLaser, node, unsigned(phonkLaser.cuts.size() + 1));
@@ -249,7 +263,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     ++phonkLaser.contourRevision;
     for (auto &point : vKeelContour)
     {
-        const float outside = (plane.normal | point) - plane.distance;
+        const float outside = cutDistance(plane, point);
         if (outside > 0.f) point -= plane.normal * outside;
     }
     if (!restoring)
@@ -262,6 +276,12 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         entry->SetAttributeUseFloat("z", plane.normal.z);
         entry->SetAttributeUseFloat("d", plane.distance);
         entry->SetAttributeUseDword("charred", plane.charred);
+        entry->SetAttributeUseFloat("gx", plane.grain.x);
+        entry->SetAttributeUseFloat("gy", plane.grain.y);
+        entry->SetAttributeUseFloat("gz", plane.grain.z);
+        entry->SetAttributeUseFloat("roughness", plane.roughness);
+        entry->SetAttributeUseFloat("spacing", plane.spacing);
+        entry->SetAttributeUseFloat("phase", plane.phase);
         // Shared script damage owner consumes only a successfully removed part.
         saved->SetAttributeUseFloat("lastFraction", removed);
         saved->SetAttributeUseFloat("remaining", phonkLaser.remaining);
@@ -300,6 +320,11 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
                 LaserPlane plane{CVECTOR(entry->GetAttributeAsFloat("x"), entry->GetAttributeAsFloat("y"),
                                          entry->GetAttributeAsFloat("z")), entry->GetAttributeAsFloat("d"),
                                  entry->GetAttributeAsDword("charred", 1) != 0};
+                plane.grain = CVECTOR(entry->GetAttributeAsFloat("gx"), entry->GetAttributeAsFloat("gy", 1.f),
+                                      entry->GetAttributeAsFloat("gz"));
+                plane.roughness = entry->GetAttributeAsFloat("roughness");
+                plane.spacing = entry->GetAttributeAsFloat("spacing", 1.f);
+                plane.phase = entry->GetAttributeAsFloat("phase");
                 if (!ApplyPhonkLaserCut(plane, true)) break;
             }
         auto *flood = GetACharacter()->FindAClass(GetACharacter(), "Ship.PhonkFlood");
@@ -326,14 +351,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             unsigned completed = 0;
             for (const auto &plane : phonkLaser.cuts)
             {
-                const auto worldPoint = model->mtx * (plane.normal * plane.distance);
-                const auto worldNormal = model->mtx * plane.normal - model->mtx.Pos();
-                CVECTOR point, normal;
-                node->glob_mtx.MulToInv(worldPoint, point);
-                node->glob_mtx.MulToInvNorm(worldNormal, normal);
-                normal = !normal;
                 storm_ship_laser::Result result;
-                if (!node->geo->CutByLaser(uint64_t(blots_id), {{normal.x, normal.y, normal.z}, normal | point, plane.charred}, result)) break;
+                if (!node->geo->CutByLaser(uint64_t(blots_id), nodeCutField(model->mtx, node, plane), result)) break;
                 if (result.fragment) node->geo->ReleaseLaserFragment(uint64_t(blots_id), result.fragment);
                 ++completed;
             }
@@ -668,6 +687,12 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         plane.normal = CVECTOR(0.f, 0.f, point.z >= info.boxcenter.z ? 1.f : -1.f);
         plane.distance = plane.normal.z * point.z;
     }
+    const CVECTOR up = !(CVECTOR(0.f, 1.f, 0.f) - plane.normal * plane.normal.y);
+    plane.grain = !(up * .82f + !(up ^ plane.normal) * .58f);
+    const float timberSpan = std::max(.5f, std::min(info.boxsize.x, info.boxsize.y));
+    plane.roughness = std::min(depth * .65f, std::clamp(timberSpan * .11f, .25f, 1.2f));
+    plane.spacing = std::clamp(timberSpan * .17f, .55f, 1.6f);
+    plane.phase = point.x * .31f + point.y * .17f + point.z * .13f + float(phonkLaser.cuts.size()) * .47f;
     const size_t firstPiece = phonkLaser.fragments.size();
     if (!ApplyPhonkLaserCut(plane, false, otherCharacterIndex)) return;
     work.energy = 0.f;

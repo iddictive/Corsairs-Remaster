@@ -611,7 +611,7 @@ bool GEOM::RebuildLaserSurface(bool upload)
             triangles.insert(triangles.end(),pieces.begin(),pieces.end());const auto receiver=storm_ship_hull::normalized(triangle[0].normal+triangle[1].normal+triangle[2].normal);
             for(const auto&rim:rims){std::vector<storm_ship_hull::Triangle>pieces{rim.triangle};for(const auto&impact:hullCutInputs)if(impact.object==o && &impact!=rim.owner && storm_ship_hull::dot(receiver,impact.normal)>=.30f){std::vector<storm_ship_hull::Triangle>next;for(const auto&piece:pieces){auto clipped=storm_ship_hull::clipRim(piece,impact,storm_ship_hull::prism(impact));next.insert(next.end(),clipped.begin(),clipped.end());}pieces=std::move(next);}triangles.insert(triangles.end(),pieces.begin(),pieces.end());}}
     }
-    for(const auto&plane:laserPlanes)mesh=storm_ship_laser::split(mesh,plane).kept;
+    for(const auto&plane:laserPlanes){auto cut=storm_ship_laser::split(mesh,plane);if(!cut.complete)return false;mesh=std::move(cut.kept);}
     const double closedVolume=storm_ship_laser::closedVolume(mesh);
     if(!upload){laserSurface=std::move(mesh);laserClosedVolume=closedVolume;laserPrepared=true;return true;}
     std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(mesh,replacement))return false;
@@ -628,7 +628,7 @@ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_s
     result={};if(!owner||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=32)return false;
     // Capture/reconstruction is transactional; a rejected layout never hides the original.
     if(!laserOwner&&!laserPrepared&&!RebuildLaserSurface(false))return false;
-    auto split=storm_ship_laser::split(laserSurface,plane);const float total=split.keptArea+split.detachedArea;
+    auto split=storm_ship_laser::split(laserSurface,plane);if(!split.complete)return false;const float total=split.keptArea+split.detachedArea;
     if(split.detachedArea<=1.e-7f||total<=1.e-7f)return true;
     std::map<int,std::vector<HullDraw>>replacement;LaserFragment fragment;
     if(!UploadLaserMesh(split.kept,replacement))return false;

@@ -376,6 +376,11 @@ void TOUCH::ResolveShips()
     if (!(seconds > 0)) return;
     std::vector<FrameBody> bodies;
     std::vector<int> indices;
+    std::vector<Vec2> driveAccelerations;
+    const auto worldVelocity = [](const TOUCH_PARAMS &pose)
+    {
+        return detail::rotate({KNOTS2METERS(pose.vSpeed.x), KNOTS2METERS(pose.vSpeed.z)}, pose.vAng.y);
+    };
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
@@ -397,6 +402,11 @@ void TOUCH::ResolveShips()
         frame.yStart = entry->TP[0].vPos.y;
         frame.yEnd = entry->TP[1].vPos.y;
         frame.height = entry->pShip->GetBoxsize().y;
+        const auto before = worldVelocity(entry->TP[0]), after = worldVelocity(entry->TP[1]);
+        // Passive drag can resist a small pusher, but it supplies no crushing
+        // drive. Admit only native steps that add translational kinetic energy.
+        driveAccelerations.push_back(!frame.wreck && dot(after, after) > dot(before, before) ?
+                                     (after - before) / seconds : Vec2{});
         bodies.push_back(std::move(frame));
         indices.push_back(i);
     }
@@ -417,7 +427,11 @@ void TOUCH::ResolveShips()
         // mismatch can overload the lighter hull. These are game material
         // limits, not extra impulses or a class-specific movement exception.
         const double contrast = std::max(0.0, 1.0 - 2.0 * lightMass / heavyMass);
-        const double load = impact.normalImpulse / (seconds * lightMass);
+        const bool heavyA = bodies[impact.a].body.mass >= bodies[impact.b].body.mass;
+        const double inwardDrive = heavyA ? dot(driveAccelerations[impact.a], impact.normal) :
+                                           dot(driveAccelerations[impact.b], -impact.normal);
+        const double load = std::min(impact.normalImpulse / (seconds * lightMass),
+                                     std::max(0.0, inwardDrive) * heavyMass / lightMass);
         const double crushRate = std::min(8.0, contrast * std::max(0.0, load / .015 - 1.0));
         const auto publish = [&](size_t own, size_t other, Vec2 localPoint, Vec2 localNormal,
                                   double specificEnergy)
@@ -432,27 +446,47 @@ void TOUCH::ResolveShips()
             const double compliance = lightMass / bodies[own].body.mass;
             const double crushWork = 1.5 * crushRate * seconds * compliance * compliance;
             if (!ship || !opponent || !(specificEnergy + crushWork > 0)) return;
-            const auto matrix = ship->GetMatrix();
             const CVECTOR point(float(localPoint.x), 0.f, float(localPoint.z));
             const CVECTOR normal(float(localNormal.x), 0.f, float(localNormal.z));
+            const int owner = GetIndex(opponent->GetACharacter());
+            double materialWork = specificEnergy + crushWork;
+            if (!ship->isDead())
+            {
+                const auto attributes = ship->GetAShip();
+                const float maximum = attributes ? attributes->GetAttributeAsFloat("HP") : 0.f;
+                if (!(maximum > 0.f) || !std::isfinite(maximum)) return;
+                // Specific crush energy grows with closing speed squared; the bow's
+                // axial structure resists more than planking hit across the grain.
+                const double halfLength = std::max(1.f, ship->State.vBoxSize.z * .5f);
+                const double bow = std::clamp(localPoint.z / halfLength, 0.0, 1.0);
+                const double strength = 75.0 * (1.0 + .75 * localNormal.z * localNormal.z * (.5 + .5 * bow));
+                const double damageFraction = std::min(1.0,
+                    specificEnergy / (specificEnergy + strength) + crushWork / strength);
+                const float hp = float(maximum * damageFraction);
+                const auto accepted = core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
+                           owner, hp * .1f, 0.f, 1,
+                           float(impact.point.x), float((bodies[own].yStart + bodies[other].yStart) * .5),
+                           float(impact.point.z));
+                if (accepted)
+                {
+                    const float value = accepted->GetFloat();
+                    const double scale = std::isfinite(value) ? std::clamp(double(value), 0.0, 1.0) : 0.0;
+                    if (scale < 1.0)
+                    {
+                        // The same Phonk budget protects both HP and material.
+                        // Convert accepted hull damage back through the existing
+                        // impact curve; scaling saturated impact energy is unsafe.
+                        const double fraction = damageFraction * scale;
+                        materialWork = std::min(materialWork, strength * fraction / (1.0 - fraction));
+                    }
+                }
+            }
+            ship = currentShip(own);
+            if (!ship || !(materialWork > 0)) return;
+            const auto matrix = ship->GetMatrix();
             if (matrix)
                 ship->ApplyHullImpact(*matrix * point, *matrix * normal - matrix->Pos(),
-                                      float(specificEnergy + crushWork), GetIndex(opponent->GetACharacter()));
-            if (ship->isDead()) return;
-            const auto attributes = ship->GetAShip();
-            const float maximum = attributes ? attributes->GetAttributeAsFloat("HP") : 0.f;
-            if (!(maximum > 0.f) || !std::isfinite(maximum)) return;
-            // Specific crush energy grows with closing speed squared; the bow's
-            // axial structure resists more than planking hit across the grain.
-            const double halfLength = std::max(1.f, ship->State.vBoxSize.z * .5f);
-            const double bow = std::clamp(localPoint.z / halfLength, 0.0, 1.0);
-            const double strength = 75.0 * (1.0 + .75 * localNormal.z * localNormal.z * (.5 + .5 * bow));
-            const float hp = float(maximum * std::min(1.0,
-                specificEnergy / (specificEnergy + strength) + crushWork / strength));
-            core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
-                       GetIndex(opponent->GetACharacter()), hp * .1f, 0.f, 1,
-                       float(impact.point.x), float((bodies[own].yStart + bodies[other].yStart) * .5),
-                       float(impact.point.z));
+                                      float(materialWork), owner);
         };
         publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA);
         publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB);
