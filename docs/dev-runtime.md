@@ -30,6 +30,33 @@ integer override (for example1 for the lowest concurrent build load). Invalid
 values fail before source preparation or configuration. This controls compilation,
 not the game's simulation or renderer; build success does not activate the app.
 
+`tools/metal_storage.py` owns producer storage policy. Ordinary builds retain the
+single `.cache/build` and run trace-budget maintenance before and after the build;
+successful engine installation retains one newest prior-engine hash backup.
+The current build has an8GiB logical-size preflight ceiling and remains an active
+build consumer without age expiry; exceeding it fails for review without purge or
+automatic rebuild.
+Only regular `metal-engine.<64 lowercase hex>` backup files are eligible;
+unknown directories and resource/source backups remain untouched. Diagnostics
+have an8GiB aggregate budget: maintenance removes only oldest generated `.trace`
+and `.gputrace` bundles, preserving scripts, logs, receipts, raw geometry,
+lifetime-locked runs, the newest trace, exact still-live producer PID identities and cache-relative paths listed in the ignored
+`.cache/storage-pins.json` (`{"pins":["diagnostics/..."]}`). If protected evidence
+still exceeds the budget, the producer fails with an explicit retained-evidence
+error. Output checks require an8GiB free-space reserve on the destination volume.
+The sea benchmark additionally owns its process sessions and private per-run
+`TMPDIR`, monitors a3GiB run budget without following RESOURCE symlinks, and stops
+only its own sessions on a cap/deadline. Its benchmark deadline remains90s,
+Metal trace35s and CPU sample55s. Tool scratch is removed after those sessions
+exit; measurements and concise failure logs remain evidence. These are sampled
+limits, so an individual write can overshoot before the next monitor poll.
+SIGTERM, Ctrl+C and ordinary failures pass through the same owned-session cleanup;
+SIGKILL cannot run cleanup, so the PID identity receipt protects a surviving child
+from later trace pruning until it exits.
+Exporter output and packaging scratch share the same nested SIGTERM cleanup
+scope. Diagnostic session leaders remain unreaped until their groups stop, which
+preserves group identity after leader exit and prevents signaling a reused group.
+
 Engine changes are ordinary edits in `experiments/native-metal/engine`; Metal
 changes remain in adjacent renderer files. The normal build no longer rewrites
 cached source or replays patches. Compiler readiness fingerprints actual native

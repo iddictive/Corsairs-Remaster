@@ -75,6 +75,16 @@ codesign --verify --deep --strict "dist/Corsairs Iddictive Remaster.app"
 
 The exporter includes runtime dependencies and game assets, uses the native launcher and signs the complete bundle. It excludes saves, userdata, logs and repository source. Player state remains external to the replaceable app. Test the archive after native extraction into a different path; inspect library closure and strict signatures before distributing it.
 
+For a distributable ZIP, use `tools/package_metal_release.py` with `--output`
+pointing to a new ZIP in `dist` and `--installation-text` pointing to the reviewed
+player instructions. This producer exports directly into temporary packaging
+storage, preserves native ZIP64 metadata, verifies native extraction, signatures
+and relocated staging with an isolated profile, then retains only the ZIP and
+compact receipt. Payload/extracted apps and intermediate archives are removed on
+success, ordinary failure and SIGTERM. A full export/extraction replay of this
+new orchestration remains pending; syntax and the shared cleanup lifecycle have
+been checked. The installed player app remains the only supported game instance.
+
 ## Verification and troubleshooting
 
 Normal staging builds only the engine. Diagnostic executables remain available as explicit targets; for example, `cmake --build experiments/native-metal/.cache/build --target gpu-skinning-parity-probe` followed by `experiments/native-metal/.cache/build/bin/gpu-skinning-parity-probe`. Run only the diagnostics relevant to the change.

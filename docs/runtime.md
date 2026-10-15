@@ -4,7 +4,50 @@ Last verified delivery: October15. Prepared material/resource reuse, guarded ani
 
 ## Current verdict
 
-### October15 — cloud precision candidate; current performance context degraded
+### October15 — AC control restored; structural lamp-cache proof remains unintegrated
+
+AC-native083658/084358 retain every required fleet pass at2560×1655 with VSync
+off. Warm main-completion means13.4541/12.9805ms (about74–77 benchmark FPS)
+supersede the low-battery context below. Quality1 control084245 reaches12.3552ms
+(about81FPS), while CPU preparation remains about12.07ms.120FPS is unmet.
+AC half-sum cloud timing is1.0165× FP32 cost; reject that precision candidate.
+The small palette-hash candidate has no whole-frame gain and is fully restored;
+neither candidate was installed.
+
+The next architecture preserves rigid lamp/hull depth in model coordinates and
+composes dynamic depth with a native six-slice blit plus Load. The actual
+Registry/geometry probe passes88 cases and553,648,128 compared depth bytes with
+zero differences, including warm reuse, dynamic motion, invalidation and empty
+partitions. It uses synthetic checker alpha; original texture binding/mips,
+receiver appearance, complete offscreen membership and production frame lifetime
+remain open. This is a structural falsifier, not a production cache or FPS gain.
+`docs/metal-frame-pacing.md` owns the enabling contract and evidence paths.
+Installed engine/player data remain unchanged; no game/CUA launch occurred.
+
+### October15 — producer storage bounded; historical app cleanup incomplete
+
+Shared producer storage now retains one build, one prior-engine backup, the
+newest diagnostic trace and explicit protected evidence within an8GiB diagnostic
+budget. Per-run profiling has a3GiB cap and owns its process groups/private
+scratch; exporter/package failures and SIGTERM clean exclusively owned outputs.
+Shared process, signal, cap and protected-evidence probes pass. Python/shell
+syntax passes; no full app export/archive or engine build/install was run for
+this tooling change. Full packaging replay remains unresolved.
+
+The redundant native metadata ZIP was removed: available space increased by
+22,470,463,488 bytes in that observation. Old reproducible fleet traces were
+then pruned from18,338,312,208 to8,434,422,789 logical bytes; available space
+increased9,875,386,368 bytes. Removing162 obsolete regular engine-hash backups
+retains the immediate prior engine and the unrelated frozen-cannon directory;
+available space increased1,832,497,152 bytes in that observation. These are
+separate physical observations, subject
+to concurrent host activity. Current012905 geometry/profiling,001520 source
+evidence and player sea-fps captures remain protected. Unique older release
+differences/receipts were preserved before cleanup. Three dated release/payload/
+extracted app copies still remain; their removal is incomplete. The intended
+retention is one installed player app, with an optional actually used dev runtime.
+
+### Historical October15 — cloud precision candidate; degraded battery context
 
 Attempt022134 reuses the exact binary, native inputs, stock fixture/model and
 2560x1655/eight-ship output, but inherits MetalFX Quality1 from the normal player

@@ -9,6 +9,8 @@ root=$(cd "$(dirname "$0")" && pwd)
 native=$(cd "$root/../native-storm" && pwd)
 inputs="$root/inputs"
 mkdir -p "$root/.cache"
+python3 "$root/../../tools/metal_storage.py"
+trap 'build_status=$?; python3 "$root/../../tools/metal_storage.py" || { [[ "$build_status" -ne 0 ]] || exit 1; }; exit "$build_status"' EXIT
 if [[ -d "$inputs" ]]; then
  python3 "$root/../../tools/prepare_metal_inputs.py" --check
  export PATH="$inputs/toolchain/bin:$PATH"

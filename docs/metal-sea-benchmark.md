@@ -94,6 +94,24 @@ so the two timings are not a matched optimization comparison. The target remains
 unmet. Native texture labels confirm the selected directory; sails, crew, sea,
 sky and reflections remain present after the directory reset.
 
+## October15 AC control
+
+After the player's AC-power response, native Off/Quality1/Off runs083658,
+084245 and084358 bind the same full-quality fleet,384/128 frame population,
+2560×1655 output and all pass minima. Main completion means are13.4541,
+12.3552 and12.9805ms: about74.3/80.9/77.0 benchmark FPS. Native CPU preparation
+medians remain12.0749/12.0739ms; Quality1 remains12.0673ms. All runs retain
+20 allocations, about17.47MB uploads,1717 median draws,152 sails,311 animated
+draws and eight complete point cubes. These uninstrumented results supersede
+the critically low-battery timing context;120FPS remains unmet.
+
+The corresponding AC precision probe rejects the previous small half-sum
+candidate: summed medians25.4822ms versus25.0678ms FP32 across453 completed
+commands. The palette-hash micro candidate saves about0.28ms CPU preparation
+without improving whole-frame completion; it was restored to HEAD at the
+player's request. Neither candidate is installed. The next structural shadow
+cache proof and remaining production gates are owned by `docs/metal-frame-pacing.md`.
+
 ## Native profiling routes
 
 `--profile cpu` attaches `/usr/bin/sample` to the owned benchmark PID after cold

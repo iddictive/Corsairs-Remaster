@@ -12,6 +12,7 @@ import math
 import statistics
 import subprocess
 import time
+from metal_storage import diagnostic_run, ensure_build_size, ensure_space, maintain
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE = ROOT / "experiments/native-metal"
@@ -119,9 +120,13 @@ def main() -> int:
     if not binary.is_file():
         raise RuntimeError("build the sea-fleet-benchmark CMake target first")
     import metal_engine_source
+    ensure_build_size()
+    maintain()
+    ensure_space(path=NATIVE / ".cache/build")
     source_identity = metal_engine_source.fingerprint()
     # CMake's CONFIGURE_DEPENDS glob check always appears in a Ninja dry run;
     # use the real incremental target before measuring, then bind its inputs.
+    (NATIVE / ".cache/diagnostics").mkdir(parents=True, exist_ok=True)
     with (NATIVE / ".cache/diagnostics/sea-fleet-build.log").open("w") as build_log:
         subprocess.run(["cmake", "--build", str(NATIVE / ".cache/build"),
                         "--target", "sea-fleet-benchmark", "-j", "2"],
@@ -158,7 +163,13 @@ def main() -> int:
     if len(declarations) != 11:
         raise ValueError("native declaration population changed")
     run = NATIVE / ".cache/diagnostics/sea-fleet-benchmark" / time.strftime("%Y%m%d-%H%M%S")
-    run.mkdir(parents=True, exist_ok=False)
+    with diagnostic_run(run) as (tooltemp, budget):
+        return run_workload(args, run, tooltemp, budget, resources, texts, ship, declarations,
+                            binary, source_identity, sources, model)
+
+
+def run_workload(args, run, tooltemp, budget, resources, texts, ship, declarations,
+                 binary, source_identity, sources, model):
     (run / "RESOURCE").symlink_to(resources / "RESOURCE", target_is_directory=True)
     if texts["fixture"].count("int FleetCount = 8;") != 1 or texts["fixture"].count('#include "native-declarations.c"') != 1:
         raise ValueError("fixture population/declaration markers changed")
@@ -180,6 +191,7 @@ def main() -> int:
         "[script]\ndebuginfo=1\ncodefiles=0\nruntimelog=0\ntracefiles=0\n")
     import metal_graphics_settings as settings
     env = settings.launch_environment(Path.home() / "Library/Application Support/Iddictive Corsairs", dict(os.environ))
+    env["TMPDIR"] = str(tooltemp) + os.sep
     env.update(STORM_METAL_PROFILE="1", STORM_METAL_MODERN_EFFECTS="1", STORM_QUIET_CLIENT="1")
     env.pop("STORM_METAL_GPU_CAPTURE", None)
     env["STORM_METAL_FRAME_TRACE"] = str(run / "renderer-frames.csv")
@@ -200,29 +212,27 @@ def main() -> int:
     (run / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(f"pilot_output={run}", flush=True)
     with (run / "run.log").open("w") as log:
-        process = subprocess.Popen([str(binary), str(run), str(args.frames), str(args.width), str(args.height)],
-                                   env=env, stdout=log, stderr=subprocess.STDOUT)
-        try:
-            if args.profile:
-                with (run / "trace.log").open("w") as trace_log:
-                    if args.profile == "cpu":
-                        # Skip cold scene setup; sample only this owned process.
-                        time.sleep(2)
-                        trace = subprocess.run(["/usr/bin/sample", str(process.pid), "3", "5",
-                                                "-file", str(run / "cpu.sample.txt")],
-                                               stdout=trace_log, stderr=subprocess.STDOUT, timeout=55)
-                    else:
-                        trace = subprocess.run(["xcrun", "xctrace", "record", "--template", "Metal System Trace",
-                                            "--attach", str(process.pid), "--time-limit", "8s",
-                                            "--output", str(run / "profile.trace")],
-                                           stdout=trace_log, stderr=subprocess.STDOUT, timeout=35)
-                if trace.returncode:
-                    raise RuntimeError(f"native trace failed: {run / 'trace.log'}")
-            code = process.wait(timeout=90)
-        finally:
-            if process.poll() is None:
-                process.kill()
-                process.wait(timeout=10)
+        process = budget.start([str(binary), str(run), str(args.frames), str(args.width), str(args.height)],
+                               env=env, stdout=log, stderr=subprocess.STDOUT)
+        started = time.monotonic()
+        if args.profile:
+            with (run / "trace.log").open("w") as trace_log:
+                if args.profile == "cpu":
+                    # Skip cold scene setup; sample only this owned process.
+                    time.sleep(2)
+                    trace_args = ["/usr/bin/sample", str(process.pid), "3", "5",
+                                  "-file", str(run / "cpu.sample.txt")]
+                    trace_timeout = 55
+                else:
+                    trace_args = ["xcrun", "xctrace", "record", "--template", "Metal System Trace",
+                                  "--attach", str(process.pid), "--time-limit", "8s",
+                                  "--output", str(run / "profile.trace")]
+                    trace_timeout = 35
+                trace = budget.start(trace_args, env=env, stdout=trace_log, stderr=subprocess.STDOUT)
+                trace_code = budget.wait(trace, trace_timeout)
+            if trace_code:
+                raise RuntimeError(f"native trace failed: {run / 'trace.log'}")
+        code = budget.wait(process, max(0, 90 - (time.monotonic() - started)))
     print(f"pilot_exit={code}", flush=True)
     if code:
         print("\n".join((run / "run.log").read_text().splitlines()[-20:]))

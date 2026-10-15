@@ -2,7 +2,7 @@
 # Installs the staged Metal engine into the played /Applications bundle.
 # Same binary contract as tools/export_metal_app.py: machine-local rpaths
 # stripped, bundle Frameworks rpath wired, ad-hoc codesigned. Keeps one
-# backup per installed hash for instant rollback. Safe to run on every
+# prior-engine backup for instant rollback. Safe to run on every
 # stage: skips when the installed engine already matches the candidate.
 # Also syncs the reviewed public launcher and graphics adapter so their
 # staged changes reach the played app even when the engine is unchanged.
@@ -136,6 +136,7 @@ else:
 INSTALL
 rm -f "$tmp"
 final_hash=$(shasum -a 256 "$dest" | awk '{print $1}')
+python3 "$root/../../tools/metal_storage.py" --installed-hash "$final_hash"
 rev=$(git -C "$root/../.." rev-parse --short HEAD 2>/dev/null || echo unknown)
 echo "$final_hash  installed from $staged (commit $rev; signed candidate $candidate_hash)"
 echo "Played app engine: $final_hash at $dest_app"

@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from metal_storage import ensure_space, owned_output, tree_bytes
 
 DEFAULT_APP_NAME = "Corsairs Iddictive Remaster.app"
 BUNDLE_ID = "us.iddictive.corsairs"
@@ -268,7 +269,7 @@ def copy_or_clone(src: Path, dst: Path) -> None:
             if dst.exists():
                 sys.exit(
                     f"Error: Clone failed for {src} -> {dst} leaving partial target. "
-                    "Preserving partial destination per cleanup policy."
+                    "Export will remove its owned partial destination."
                 )
             shutil.copytree(src, dst, symlinks=True)
     else:
@@ -277,7 +278,7 @@ def copy_or_clone(src: Path, dst: Path) -> None:
             if dst.exists():
                 sys.exit(
                     f"Error: Clone failed for {src} -> {dst} leaving partial target. "
-                    "Preserving partial destination per cleanup policy."
+                    "Export will remove its owned partial destination."
                 )
             shutil.copy2(src, dst)
 
@@ -568,10 +569,19 @@ def verify_dependencies(bundle_dir: Path) -> None:
     print(f"Verified {count} Mach-O binaries: system and bundle internal references only.")
 
 
+def estimate_app_bytes(inputs: dict[str, Any]) -> int:
+    # Count the entire framework although packaging excludes modules. The fixed
+    # allowance covers signatures, generated launch code and delivery manifests.
+    roots = ("engine_bin", "sdl_dylib", "program_dir", "resource_dir", "shared_headers")
+    return (sum(tree_bytes(inputs[key]) for key in roots)
+            + tree_bytes(inputs["py_framework"], follow_symlinks=True) + 64 * 1024 * 1024)
+
+
 def export_bundle(dest_app: Path, repo_root: Path) -> None:
     check_active_game(repo_root)
     validate_destination(dest_app, repo_root)
     inputs = validate_inputs(repo_root)
+    ensure_space(estimate_app_bytes(inputs), path=dest_app)
 
     minos_str = "15.0"
     if inputs.get("minos_info"):
@@ -584,21 +594,22 @@ def export_bundle(dest_app: Path, repo_root: Path) -> None:
     resources_dir = contents_dir / "Resources"
     frameworks_dir = contents_dir / "Frameworks"
 
-    macos_dir.mkdir(parents=True, exist_ok=False)
-    resources_dir.mkdir(parents=True, exist_ok=False)
-    frameworks_dir.mkdir(parents=True, exist_ok=False)
+    with owned_output(dest_app, "directory"):
+        macos_dir.mkdir(parents=True, exist_ok=False)
+        resources_dir.mkdir(parents=True, exist_ok=False)
+        frameworks_dir.mkdir(parents=True, exist_ok=False)
 
-    package_python_framework(inputs["py_framework"], frameworks_dir)
-    package_engine_and_sdl(inputs, macos_dir, frameworks_dir, repo_root)
-    package_resources(inputs, resources_dir)
-    write_plist_and_launcher(contents_dir, minos_version=minos_str)
-    # Fresh output only: Finder metadata and host bytecode are not release inputs.
-    for directory, _, files in os.walk(dest_app):
-        for name in files:
-            if name == ".DS_Store" or name.endswith(".pyc"):
-                (Path(directory) / name).unlink()
-    sign_application(dest_app, inputs['gameplay_content'], inputs['gameplay_origins'])
-    verify_dependencies(dest_app)
+        package_python_framework(inputs["py_framework"], frameworks_dir)
+        package_engine_and_sdl(inputs, macos_dir, frameworks_dir, repo_root)
+        package_resources(inputs, resources_dir)
+        write_plist_and_launcher(contents_dir, minos_version=minos_str)
+        # Fresh output only: Finder metadata and host bytecode are not release inputs.
+        for directory, _, files in os.walk(dest_app):
+            for name in files:
+                if name == ".DS_Store" or name.endswith(".pyc"):
+                    (Path(directory) / name).unlink()
+        sign_application(dest_app, inputs['gameplay_content'], inputs['gameplay_origins'])
+        verify_dependencies(dest_app)
     print("Standalone application bundle export completed successfully.")
 
 
