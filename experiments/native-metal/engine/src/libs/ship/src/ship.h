@@ -194,6 +194,8 @@ class SHIP : public SHIP_BASE
     void DrawPhonkGlow(uint32_t deltaTime);
     void ExecutePhonkLaser(uint32_t deltaTime);
     void DrawPhonkLaser();
+    friend class SHIP_CUT_FRAGMENTS;
+    void AdvanceCutFragments();
     bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false,
                            int32_t owner = -1, ATTRIBUTES *attacker = nullptr);
     bool IsAuthoredMastNode(const NODE *node) const;

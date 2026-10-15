@@ -4,6 +4,30 @@ Last verified delivery: October15. Coherent source `50daab4`, including pressure
 
 ## Current verdict
 
+### October15 — hollow-hull, fragment contact and remnant survival reopened
+
+The player's14:02:59 frame rejects the staged50daab4 destruction. Actual
+Flyingdutchman CPU geometry reproduces84.48% root-surface loss with no prior
+fatal predicate; ordinary18.60% upper trim remains the allowed negative.
+The source candidate adds a cumulative remaining-material fatal floor, explicit
+wood inner surfaces/end rims, measured bounded detached bodies, existing wooden
+splinters, convex-body/native-BVH contact, wave support and waterlogging. A late
+sea Execute owner plus birth clocks resolves mixed receiver poses without render
+time simulation; generation guards preserve token ownership across GEOM resets.
+The rejected vertex-only collision and64-body damage gate are absent from the
+final source. Exact owners, resource bounds, coverage and proof limits belong to
+`sea-phonk.md`; ordinary ram consumption belongs to `ship-wreck-contact.md`.
+
+Actual ship/geometry/collision translation-unit syntax and focused ASan/UBSan
+geometry/contact/lifecycle checks pass. This is an unresolved source candidate:
+no canonical build/stage, native rendered fracture, real script death/quest or
+prior-save replay has occurred. The last installed engine remains d660336f.
+The player process remains active and is not stopped. Native build/GPU/app
+delivery is pending. The
+controlled Flyingdutchman fixture pins baseline header/archive identities and
+must bind candidate archives only after canonical build. No game/CUA launch,
+SAVE/config mutation, renderer-crash fix or FPS claim follows from this attempt.
+
 ### October15 — pressure, protected material and jagged fracture canonically delivered
 
 Canonical `run.sh --stage-only` of `50daab4` exits0 and installs signed engine

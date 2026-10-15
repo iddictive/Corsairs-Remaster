@@ -1,5 +1,53 @@
 # Phonk Mode
 
+## Reopened hollow-hull and loose-fragment candidate
+
+The player rejects the staged50daab4 destruction: open paper-like hull sections,
+pieces passing through ships, and severe material loss leaving a live remnant.
+The current source candidate is not built, staged or accepted in the player scene.
+Canonical build, serialized native scene verification and app delivery remain
+pending before destruction acceptance.
+
+Actual installed Flyingdutchman geometry reproduces a missing fatal case:
+`y<=0.01` removes84.48% of authored root surface while retaining the original
+waterplane and all five keel samples. Cumulative retained surface now also marks
+critical failure at35% or less. The ordinary `y<=8` upper trim removes18.60%
+and remains nonfatal; half-length, half-width and bottom-support cases keep their
+prior fatal result. Reconstructing the same sequential planes reproduces the
+remaining fraction. These are surface/predicate checks, not measured wood mass
+or acceptance of native SAVE/death/quest handling.
+
+The existing split/cap and native model collision facilities remain the owners.
+Disconnected authored surfaces are grouped into bounded bodies without dropping
+triangles/materials/UVs; bodies use measured surface centroids and actual vertex
+supports. Mechanical display pieces may split again unequally without changing
+retained support or saved cuts. Whole-node pivots were rejected: the actual
+detached half's centre differs by roughly12m from the original model centre.
+`ship_fragment_contact.hpp` supplies a bounded convex proxy and continuous
+triangle separation queries. Translation is exact for that proxy; rotation uses
+conservative angular bounds and can stop early. It is not full mesh-mesh physics.
+The ordinary ram path shares these owners outside Phonk.
+
+`ship_wood_surface_profiles.hpp` explicitly classifies112 root-model/base-texture
+pairs across57 of58 installed root models. This is partial surface-role coverage;
+Lugger_w1 and ambiguous mixed atlases remain unclassified. Render uploads alone
+add inward wood faces and boundary thickness; original outer UVs, ports, hollow
+holds and unclassified cloth/alpha/metal surfaces remain. The canonical mesh,
+collision, damage fraction and saved cuts do not acquire a fabricated solid
+volume. Actual Flyingdutchman z=0 retained/detached render triangles increase
+25104→31553 and15941→19822. A new Blast/PhysX asset/world integration was rejected
+for this candidate because it needs authored chunks/bonds and a new runtime
+adapter; local split, collision BVH and existing wooden-chip entities are reused.
+
+Actual native translation-unit syntax and bounded ASan/UBSan checks pass material
+preservation, port apertures, upload rollback, body ownership, broad-face contact,
+moving receivers in both ship execution orders, pure spin, separating seams,
+birth/pause/layer lifecycle and all32 eight-body cuts without retirement. A CPU
+smoke pass visits316 BVH candidates for eight bodies against25104 retained
+triangles in1112us, including proxy construction; it excludes native Clip/GPU
+cost and establishes no fleet FPS result. Native pixels, complete motion,
+gameplay death and prior-save replay remain unresolved.
+
 ## October15 — integrated fracture lifecycle
 
 Source `50daab4` passes canonical native build/staging with signed engine
@@ -73,16 +121,29 @@ shared bound includes transformed geometry centres and every model child.
 `ship_phonk_laser.cpp/.hpp` own input, transient beam/heat, separated-piece motion,
 native wave sampling and persistent plane/flood attributes. Geometry owns actual
 half-space splits, original materials/UVs, closed-contour caps, persistent0.08m
-char bands and retained-mesh collision. It reuses the hull BVH; fragments have
-immutable buffers and are released after6seconds. Actual intersection edges
-glow orange and cool over5seconds. The source limit is32 meaningful cuts per
-ship, four retained fragment snapshots per node and64 active piece records.
+char bands and retained-mesh collision. It reuses the hull BVH; immutable bodies
+have child draw/release tokens and a compatible aggregate token. Shared limits
+allow32 cuts and up to eight groups per node/cut, hence256 body buffers per GEOM;
+previous debris cannot exhaust admission before all supported cuts. SHIP shares
+eight new groups across non-mast nodes, reserving one for each remaining node.
+Fragments inherit point velocity, gravity, wave support and gradual waterlogging,
+collide through native MODEL::Clip, and retire only after full submergence.
+The existing globally bounded wooden-chip entity accompanies actual separation.
+Actual intersection edges glow orange and cool over5seconds.
+
+One `SHIP_CUT_FRAGMENTS` entity executes last in the active sea Execute layer,
+after all ships publish their poses. A transient per-ship clock and body birth
+clock prevent order-dependent receiver snapshots and double advancement of new
+pieces. Full elapsed time is subdivided; pause and render passes add none.
+Layer rebind and empty-fleet deletion own the helper lifecycle. Generation-bound
+tokens are never drawn or released against replacement GEOM instances.
 
 Damage follows the actually removed geometry. Closed meshes use validated
 volume; the authored open Flyingdutchman mesh falls back to surface area, which
 must not be described as measured mass. Dry upper cuts cause no hull HP loss.
-Small wet cuts feed progressive flooding. Losing35% of the original waterplane,
-or35% of the draft at three of five original keel stations, marks critical
+Small wet cuts feed progressive flooding. Retaining at most35% of the original
+root material measure, losing35% of the original waterplane, or35% of the draft
+at three of five original keel stations, marks critical
 structural failure through the existing death/quest-guard path. Dry top trims
 retain waterplane/keel support and are not fatal. Up to16 actual seam points in
 height bands per cut query current `WaveXZ` at4Hz; lengths are grouped within

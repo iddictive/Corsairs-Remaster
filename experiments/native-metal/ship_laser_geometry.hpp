@@ -1,6 +1,9 @@
 #pragma once
 #include "ship_hull_geometry.hpp"
+#include "ship_hull_damage_bridge.hpp"
 #include <map>
+#include <limits>
+#include <numeric>
 #include <utility>
 
 // A deterministic, node-local half-space split of the actual static GM mesh.
@@ -11,6 +14,8 @@ using storm_ship_hull::Vertex;
 using storm_ship_hull::Triangle;
 using storm_ship_hull::Bounds;
 using Mesh = std::map<int,std::vector<Triangle>>;
+using PositionKey=std::array<int64_t,3>;
+inline PositionKey positionKey(Vec3 p) {return {int64_t(std::llround(double(p.x)*10000)),int64_t(std::llround(double(p.y)*10000)),int64_t(std::llround(double(p.z)*10000))};}
 struct Plane { Vec3 normal; float distance=0; bool charred=true; Vec3 grain{0,1,0}; float roughness=0,spacing=1,phase=0; };
 inline bool valid(const Plane&p) {
     const float n=storm_ship_hull::length(p.normal),g=storm_ship_hull::length(p.grain);
@@ -30,14 +35,64 @@ inline float offset(const Plane&p,Vec3 v) {
 }
 inline float distance(const Plane&p,Vec3 v) { return storm_ship_hull::dot(p.normal,v)-p.distance-offset(p,v); }
 struct Segment { Vertex a,b; int object=0; };
-struct Result { bool changed=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; };
+// Open authored GM shells have no validated volume. These are measured surface
+// properties (a uniform surface-density proxy), never a claim of solid wood mass.
+struct Fragment { uint64_t fragment=0; Bounds bounds{}; Vec3 centroid{}; float surfaceArea=0; std::array<Vec3,14>support{}; };
+struct Result { bool changed=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; std::vector<Fragment>fragments; };
 struct Split { Mesh kept,detached; float keptArea=0,detachedArea=0; std::vector<Segment>seam; bool complete=true; };
 inline bool near(Vec3 a,Vec3 b) { auto d=a-b;return storm_ship_hull::dot(d,d)<1.e-8f; }
 inline Bounds bounds(const Mesh&m) { Bounds b{};bool first=true;for(const auto&o:m)for(const auto&t:o.second)for(const auto&v:t){if(first){b={v.position,v.position};first=false;}else b=storm_ship_hull::merge(b,{v.position,v.position});}return b; }
+inline Fragment fragmentProperties(const Mesh&mesh) {
+    Fragment result;result.bounds=bounds(mesh);double area=0,x=0,y=0,z=0;bool first=true;
+    const std::array<Vec3,14>directions={{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1},
+        {1,1,1},{1,1,-1},{1,-1,1},{1,-1,-1},{-1,1,1},{-1,1,-1},{-1,-1,1},{-1,-1,-1}}};
+    for(const auto&o:mesh)for(const auto&t:o.second){const double a=storm_ship_hull::area(t);area+=a;
+        x+=a*(double(t[0].position.x)+t[1].position.x+t[2].position.x)/3.;
+        y+=a*(double(t[0].position.y)+t[1].position.y+t[2].position.y)/3.;
+        z+=a*(double(t[0].position.z)+t[1].position.z+t[2].position.z)/3.;
+        for(const auto&v:t){for(size_t n=0;n<directions.size();++n)
+            if(first||storm_ship_hull::dot(v.position,directions[n])>storm_ship_hull::dot(result.support[n],directions[n]))result.support[n]=v.position;
+            first=false;}}
+    result.surfaceArea=float(area);result.centroid=area>1.e-12?Vec3{float(x/area),float(y/area),float(z/area)}:(result.bounds.lo+result.bounds.hi)*.5f;return result;
+}
+// Render-only thickness for explicitly classified structural wood. Canonical
+// cut/collision meshes never contain these faces, so reconstruction cannot grow
+// another inner shell on every saved cut. Open holds and ports stay open.
+inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses) {
+    Mesh result=mesh;
+    using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;
+    const auto key=positionKey;
+    const auto darken=[](Vertex&v,float factor){uint32_t color=v.color&0xff000000u;for(unsigned c=0;c<3;++c)color|=uint32_t(float((v.color>>(c*8))&255u)*factor)<<(c*8);v.color=color;};
+    struct Offset {Vec3 normal{};double thickness=0;size_t count=0;};std::map<Point,Offset>offsets;
+    // One inward position at shared corners, including UV/material seams. Using
+    // each face's own shading normal there would tear the new inner shell open.
+    for(const auto&o:mesh){const auto selected=thicknesses.find(o.first);if(selected==thicknesses.end()||!std::isfinite(selected->second)||selected->second<=0)continue;
+        for(const auto&t:o.second){const auto fallback=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));
+            for(const auto&v:t){auto&offset=offsets[key(v.position)];offset.normal=offset.normal+(storm_ship_hull::length(v.normal)>1.e-6f?storm_ship_hull::normalized(v.normal):fallback);offset.thickness+=selected->second;++offset.count;}}}
+    const auto inward=[&](const Vertex&v){const auto&offset=offsets.at(key(v.position));const auto normal=storm_ship_hull::length(offset.normal)>1.e-6f?storm_ship_hull::normalized(offset.normal):storm_ship_hull::normalized(v.normal);
+        return v.position-normal*float(offset.thickness/offset.count);};
+    struct Boundary{Vertex a,b;int object=0;unsigned count=0;};std::map<Edge,Boundary>edges;
+    for(const auto&o:mesh){const auto selected=thicknesses.find(o.first);if(selected==thicknesses.end()||!std::isfinite(selected->second)||selected->second<=0)continue;
+        auto&out=result[o.first];
+        for(const auto&t:o.second){const auto fallback=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));Triangle inner=t;
+            for(unsigned c=0;c<3;++c){const auto normal=storm_ship_hull::length(t[c].normal)>1.e-6f?storm_ship_hull::normalized(t[c].normal):fallback;
+                inner[c].position=inward(t[c]);inner[c].normal=normal*-1.f;darken(inner[c],.62f);
+                auto a=key(t[c].position),b=key(t[(c+1)%3].position);if(a==b)continue;if(b<a)std::swap(a,b);auto&edge=edges[{a,b}];if(!edge.count){edge.a=t[c];edge.b=t[(c+1)%3];edge.object=o.first;
+                    if(storm_ship_hull::length(edge.a.normal)<=1.e-6f)edge.a.normal=fallback;if(storm_ship_hull::length(edge.b.normal)<=1.e-6f)edge.b.normal=fallback;}++edge.count;}
+            std::swap(inner[1],inner[2]);out.push_back(inner);}}
+        for(const auto&entry:edges){const auto&edge=entry.second;if(edge.count!=1)continue;auto&out=result[edge.object];const float thickness=thicknesses.at(edge.object);auto a=edge.a,b=edge.b,c=b,d=a;
+            c.position=inward(b);d.position=inward(a);
+            const auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(d.position-a.position,c.position-a.position));
+            a.normal=b.normal=c.normal=d.normal=normal;darken(a,.78f);darken(b,.78f);darken(c,.78f);darken(d,.78f);
+            const float length=storm_ship_hull::length(b.position-a.position);if(length>1.e-6f)for(unsigned uv=0;uv<4;++uv){const float du=(b.uv[uv*2]-a.uv[uv*2])*thickness/length,dv=(b.uv[uv*2+1]-a.uv[uv*2+1])*thickness/length;
+                c.uv[uv*2]-=dv;d.uv[uv*2]-=dv;c.uv[uv*2+1]+=du;d.uv[uv*2+1]+=du;}
+            Triangle first={a,d,c},second={a,c,b};if(storm_ship_hull::area(first)>1.e-10f)out.push_back(first);if(storm_ship_hull::area(second)>1.e-10f)out.push_back(second);}
+    return result;
+}
 inline float cross2(Vec3 a,Vec3 b,Vec3 c,Vec3 normal) { return storm_ship_hull::dot(storm_ship_hull::cross(b-a,c-a),normal); }
 inline double closedVolume(const Mesh&mesh) {
     using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;std::map<Edge,std::pair<unsigned,int>>edges;double volume=0;
-    const auto key=[](Vec3 p)->Point{return {int64_t(std::llround(double(p.x)*10000)),int64_t(std::llround(double(p.y)*10000)),int64_t(std::llround(double(p.z)*10000))};};
+    const auto key=positionKey;
     for(const auto&o:mesh)for(const auto&t:o.second){const Point points[3]={key(t[0].position),key(t[1].position),key(t[2].position)};if(points[0]==points[1]||points[0]==points[2]||points[1]==points[2])continue;
         volume+=double(storm_ship_hull::dot(t[0].position,storm_ship_hull::cross(t[1].position,t[2].position)))/6.;
         for(unsigned n=0;n<3;++n){auto a=points[n],b=points[(n+1)%3];int direction=1;if(b<a){std::swap(a,b);direction=-1;}auto&e=edges[{a,b}];++e.first;e.second+=direction;}}
@@ -154,6 +209,45 @@ inline Split split(const Mesh&mesh,const Plane&p) {
     if(originalVolume>0){const double keptVolume=closedVolume(result.kept),detachedVolume=closedVolume(result.detached);if((result.keptArea>1.e-7f&&keptVolume<=0)||(result.detachedArea>1.e-7f&&detachedVolume<=0)||std::abs(keptVolume+detachedVolume-originalVolume)>std::max(.001,originalVolume*1.e-5))return unchanged();}
     return result;
 }
+// A GM object/material is not a rigid body: UV seams duplicate vertices and
+// authored ornaments contain hundreds of independent islands. Discover edge
+// connectivity by position without welding/changing the actual render vertices.
+inline std::vector<Mesh> fragmentGroups(const Mesh&mesh,const Plane&cut,unsigned limit=storm_hull_damage::MaxFragmentGroups) {
+    limit=std::min(limit,storm_hull_damage::MaxFragmentGroups);if(!limit)return {};
+    struct Face {int object;const Triangle*triangle;};std::vector<Face>faces;
+    for(const auto&o:mesh)for(const auto&t:o.second)faces.push_back({o.first,&t});
+    if(faces.empty())return {};
+    std::vector<size_t>parent(faces.size()),rank(faces.size());std::iota(parent.begin(),parent.end(),size_t(0));
+    const auto root=[&](size_t n){while(parent[n]!=n){parent[n]=parent[parent[n]];n=parent[n];}return n;};
+    using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;std::map<Edge,size_t>edges;
+    const auto key=positionKey;
+    for(size_t n=0;n<faces.size();++n){const auto&t=*faces[n].triangle;for(unsigned c=0;c<3;++c){auto a=key(t[c].position),b=key(t[(c+1)%3].position);if(a==b)continue;if(b<a)std::swap(a,b);
+        const auto inserted=edges.emplace(Edge{a,b},n);if(!inserted.second){auto x=root(n),y=root(inserted.first->second);if(x!=y){if(rank[x]<rank[y])std::swap(x,y);parent[y]=x;if(rank[x]==rank[y])++rank[x];}}}}
+    std::map<size_t,Mesh>components;for(size_t n=0;n<faces.size();++n)components[root(n)][faces[n].object].push_back(*faces[n].triangle);
+    struct Piece {Mesh mesh;Fragment properties;};std::vector<Piece>pieces;pieces.reserve(components.size());double total=0;
+    for(auto&entry:components){auto properties=fragmentProperties(entry.second);total+=properties.surfaceArea;pieces.push_back({std::move(entry.second),properties});}
+    const auto larger=[](const Piece&a,const Piece&b){return a.properties.surfaceArea>b.properties.surfaceArea;};std::stable_sort(pieces.begin(),pieces.end(),larger);
+    // Mechanical work may break an oversized detached shell again. Reuse the
+    // ordinary non-charred splitter only on the display mesh; kept geometry,
+    // persisted cuts, support and damage remain the original cut transaction.
+    if(!cut.charred&&limit>1&&pieces.front().properties.surfaceArea>total*.5){auto&largest=pieces.front();const auto b=largest.properties.bounds;const Vec3 size=b.hi-b.lo;
+        const bool longitudinal=size.z>=size.x;const float span=longitudinal?size.z:size.x,across=longitudinal?size.x:size.z;
+        if(span>std::max(6.f,across*2.f)){const Vec3 normal=longitudinal?Vec3{0,0,1}:Vec3{1,0,0};const float low=longitudinal?b.lo.z:b.lo.x;
+            auto divided=split(largest.mesh,{normal,low+span*.38f,false});
+            if(divided.complete&&divided.keptArea>largest.properties.surfaceArea*.1f&&divided.detachedArea>largest.properties.surfaceArea*.1f){
+                largest.mesh=std::move(divided.kept);largest.properties=fragmentProperties(largest.mesh);auto properties=fragmentProperties(divided.detached);pieces.push_back({std::move(divided.detached),properties});
+                std::stable_sort(pieces.begin(),pieces.end(),larger);}}}
+    const size_t count=std::min(size_t(limit),pieces.size());std::vector<Mesh>groups;groups.reserve(count);
+    for(size_t n=0;n<count;++n)groups.push_back(std::move(pieces[n].mesh));
+    // Keep every remaining triangle. Tiny authored islands follow their nearest
+    // primary body instead of exploding the body budget or disappearing.
+    for(size_t n=count;n<pieces.size();++n){size_t nearest=0;double best=std::numeric_limits<double>::infinity();const auto p=pieces[n].properties.centroid;
+        for(size_t g=0;g<count;++g){const auto&body=pieces[g].properties;const auto b=body.bounds;const Vec3 q={std::clamp(p.x,b.lo.x,b.hi.x),std::clamp(p.y,b.lo.y,b.hi.y),std::clamp(p.z,b.lo.z,b.hi.z)};
+            const auto delta=p-q,center=p-body.centroid;const double score=storm_ship_hull::dot(delta,delta)+storm_ship_hull::dot(center,center)*.001;
+            if(score<best){best=score;nearest=g;}}
+        for(auto&entry:pieces[n].mesh){auto&destination=groups[nearest][entry.first];destination.insert(destination.end(),entry.second.begin(),entry.second.end());}}
+    return groups;
+}
 struct Contour { bool valid=false;std::vector<std::vector<Vec3>>loops; };
 // Clip the authored waterplane through the same mesh field as the visible hull.
 // Return every connected boundary explicitly; the caller owns component policy.
@@ -170,7 +264,7 @@ inline Contour clipContour(const std::vector<Vec3>&polygon,const Plane&p) {
     if(sheet.empty()||sheet.begin()->second.empty())return {};
     auto cut=split(sheet,p);if(!cut.complete)return {};
     using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;
-    const auto key=[](Vec3 v)->Point{return {int64_t(std::llround(double(v.x)*10000)),int64_t(std::llround(double(v.y)*10000)),int64_t(std::llround(double(v.z)*10000))};};
+    const auto key=positionKey;
     struct Boundary {Vec3 a,b;unsigned count=0;};std::map<Edge,Boundary>boundary;
     for(const auto&o:cut.kept)for(const auto&t:o.second)for(unsigned n=0;n<3;++n){auto a=t[n].position,b=t[(n+1)%3].position;auto ka=key(a),kb=key(b);if(ka==kb)continue;if(kb<ka){std::swap(ka,kb);std::swap(a,b);}auto&edge=boundary[{ka,kb}];edge.a=a;edge.b=b;if(++edge.count>2)return {};}
     std::map<Point,std::vector<Point>>neighbors;std::map<Point,Vec3>positions;

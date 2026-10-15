@@ -78,6 +78,7 @@ class GEOM : public GEOS
     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
     std::vector<storm_ship_hull::Impact> hullCutInputs;
     storm_ship_laser::Mesh laserSurface;
+    std::map<int,float>laserWoodThickness;
     storm_ship_hull::Broadphase laserBroadphase;
     std::vector<std::pair<int,uint32_t>>laserCollisionTriangles;
     std::vector<uint32_t>laserRayCandidates;
@@ -85,7 +86,9 @@ class GEOM : public GEOS
     bool laserPrepared=false;
     std::vector<storm_ship_laser::Plane> laserPlanes;
     struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;};
-    std::vector<LaserFragment>laserFragments;
+    struct LaserBatch {uint64_t id=0;std::vector<LaserFragment>fragments;};
+    std::vector<LaserBatch>laserFragments;
+    void ReleaseLaserFragments();
     uint64_t laserOwner=0,laserSerial=0;
     int laserTraceObject=-1,laserTraceTriangle=-1;
     float laserTraceA=0,laserTraceB=0;
@@ -140,7 +143,7 @@ class GEOM : public GEOS
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
     void ClearHullCuts(uint64_t owner) override;
-    bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&) override;
+    bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups) override;
     uint64_t GeometryGeneration() const override { return geometryGeneration; }
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;

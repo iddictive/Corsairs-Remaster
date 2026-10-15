@@ -14,6 +14,7 @@ Import library main header
 #include <fstream>
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include <vector>
+#include "ship_hull_damage_bridge.hpp"
 namespace storm_ship_hull {struct Impact;}
 namespace storm_ship_laser {struct Plane;struct Result;}
 #endif
@@ -96,7 +97,7 @@ class GEOS
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     virtual bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts)=0;
     virtual void ClearHullCuts(uint64_t owner)=0;
-    virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&)=0;
+    virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups)=0;
     virtual uint64_t GeometryGeneration() const { return 0; }
     virtual bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const=0;
     virtual void ReleaseLaserFragment(uint64_t owner,uint64_t fragment)=0;
