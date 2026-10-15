@@ -41,7 +41,7 @@ void ReadMetalGraphicsOptions()
 {
 	object gopt;
 	PrepareDefaultMetalGraphics(&gopt);
-	SendMessage(&GameInterface, "lsa", MSG_INTERFACE_LOADOPTIONS, "metal_graphics", gopt);
+	SendMessage(&GameInterface, "lsa", MSG_INTERFACE_LOADOPTIONS, "metal_graphics", &gopt);
 	SetMetalGraphicsOptions(&gopt);
 }
 

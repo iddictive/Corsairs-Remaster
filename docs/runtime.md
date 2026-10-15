@@ -1,10 +1,69 @@
 # Runtime state
 
-Last verified delivery: October14. The native render API replacement, submission cache and MetalFX Spatial/Options batch are installed in the supported application with signed engine `d50531dd5fa49be0973a185b960a5f143e3a4b5fc36a586c31f3fd48c15261ec`; prior `ee5a226b798ab07b8fbabbbb8d97a8b09d573d1b6fdaae9fe5d50a80dbb763d5` is backed up. Canonical stage-only exits0 and the graphics adapter matches its source; content check reports0 pending in cache/app and compiler ready. Prior sea/weather, phonk/Cmd-Q, map/resource, lighting and fixed-lattice water changes remain composed. Native is the default upscaling mode; player state/configuration is preserved. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October14. The graphics-record readback repair and material specialization are installed with signed engine `f70393af7f86224c030a8d63cc3ce1647e41a069da7b34f04b3dd7a36197cc6c`; prior `d50531dd5fa49be0973a185b960a5f143e3a4b5fc36a586c31f3fd48c15261ec` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready, and the installed Options script matches its source projection. The native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Specialization is enabled by default with generic fallback; player preferences, including the existing MetalFX choice, are preserved. The equivalent fleet workload remains above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
-### October14 — MetalFX Spatial delivered;120FPS remains unmet
+### October14 — Options readback repaired; material specialization verified
+
+The player's renewed settings report is reproduced in the real script VM/native
+option-file path. The file already held MetalFX Quality1. `ReadMetalGraphicsOptions`
+passed a local OBJECT by value to `SendMessage`: native LOAD parsed chosen values
+into a temporary while the caller retained defaults. Native diagnostics saw3
+after parsing but script input/setter still saw0. The one-character `&gopt`
+correction restores all sixteen graphics fields. Legacy `ReadSavedOptions(ref
+gopt)` already references its caller and is unchanged. Real OK/save, fresh-VM
+read, next-frame reopen, Cancel without saves, invalid9 without saves and an old
+record missing upscaling all return0 with zero script errors. The corrected
+script exercised by that proof matches canonical SHA68f2ff7e. Attribute-only
+get/set checks from the earlier batch did not exercise the broken boundary.
+
+The conditional shader candidate is retained after a same-binary Off/On/Off
+fleet comparison. `ffp_specialization.hpp` specializes at most two structural
+material stages; dynamic values and the existing operation arithmetic remain
+unchanged. It caches up to128 variants asynchronously, uses generic pipelines
+while pending/unsupported/failed and cancels/drains on reset. Bindings remain
+under the shared encoder cache; MetalFX is composed. The first native Off run
+231508 aborted because the generic fragment also required explicit empty Metal
+function constants; the corrected factory passes the subsequent runs.
+
+Every invocation below uses `STORM_METAL_UPSCALING=0` and
+`python3 tools/run_sea_benchmark.py --frames 384 --warmup 128`:
+
+| Run | STORM_METAL_FFP_SPECIALIZATION | CPU median/p99 ms | GPU union median/p99 ms |
+| --- | --- | --- | --- |
+|231800|0|12.296 /15.503|12.320 /15.601|
+|231923|1|11.560 /14.748|11.277 /14.727|
+|232324|0|12.290 /15.561|12.334 /15.633|
+
+All retain152 sails,311 animated draws, sea/current sky,8 complete point cubes
+and equal draw/upload populations. Ten variants are ready after warm-up, with
+zero warmed fallback. The marginal gain is about8.5% GPU and6% CPU, including
+improved p99. Off already includes the generic loop/unrolling changes, so the
+comparison does not establish the full patch's causal gain against old source.
+The fleet manifests omit the specialization variable; the exact invocation map
+and source identities are retained in `ffp-measurement.json` under the ignored
+native-api-migration diagnostics owner. The target8.33ms remains unmet.
+
+The component oracle covers1,261,568 pixels with worst absolute difference
+1.19209e-7, undefined-constant fallback, dynamic transitions, seeded stale-key
+rejection and pending-reset safety. Seven rebuilt native resource/pixel,
+generated-coordinate, sampler, lighting, skinning, menu/fan and scene/HUD probes
+pass with specialization enabled, including MetalFX Quality HUD composition.
+Full-frame Off/On exports preserve scene composition/materials; stills do not
+accept motion or the player world. Independent source/evidence review found no
+actionable defect. Player Options interaction and world replay remain unverified
+under the existing launch/control stop. Delivery receipt follows this entry.
+
+Delivery: the final canonical `experiments/native-metal/run.sh --stage-only`
+exits0, installs signedf70393af and backs up d50531dd. Subsequent content plans
+are empty in cache/app, compiler ready, and the installed option_sl projection
+matches the passing canonical script. All248 recorded live player-state files,
+including graphics/options/engine config and SAVE, retain their hashes. No game
+launch/control or push occurred. Native persistence and shader evidence accept
+this installed source batch; the actual player menu/world remain unreplayed.
+
+### Historical October14 snapshot — MetalFX Spatial delivered;120FPS remains unmet
 
 The requested MetalFX picker and native Spatial scaler are integrated with the
 native API/cache batch. Options adds Off/Quality/Balanced/Performance after FXAA;

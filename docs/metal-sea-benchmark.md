@@ -88,6 +88,27 @@ execution and do not add vertex/fragment/compute durations as serial frame time.
 One-frame counter profiles identify expensive work; warmed uninstrumented runs
 determine whether its repair improves the whole workload.
 
+The fixed-function material specialization candidate uses Apple's function
+constants for at most two active structural stages. `ffp_specialization.hpp`
+owns its128-entry asynchronous cache, generic fallback and cancellation/drain;
+`backend.mm` supplies the final Uniform and binds through the shared encoder
+cache. Texture presence, alpha coverage, fog, colors, transforms, lighting and
+fire values stay dynamic. Generic FFP fragments also require an explicitly empty
+constant-values set when created from this library. Plain `newFunctionWithName`
+returns an unusable unspecialized fragment for the pipeline descriptor.
+
+`STORM_METAL_FFP_SPECIALIZATION=0|1` compares the same binary. The current fleet
+manifest does not capture that variable; retain the exact invocation-to-run map
+in the measurement receipt. Off includes the new generic loop/unrolling, so
+Off/On measures the marginal specialization gain, not the full patch against old
+source. See `docs/runtime.md` for accepted measurements. The native component
+proof must retain the untouched shader oracle, undefined-constant fallback,
+dynamic-value transitions and a seeded stale-key rejection; a faster inner
+shader alone is insufficient.
+
+The platform mechanism follows [Apple's function-specialization contract](https://developer.apple.com/documentation/metal/using-function-specialization-to-build-pipeline-variants)
+and its [asynchronous material compilation guidance](https://developer.apple.com/videos/play/wwdc2023/10127/).
+
 Apple contracts: [completed command GPU start](https://developer.apple.com/documentation/metal/mtlcommandbuffer/gpustarttime),
 [GPU end](https://developer.apple.com/documentation/metal/mtlcommandbuffer/gpuendtime),
 [GPU counter analysis](https://developer.apple.com/documentation/xcode/analyzing-apple-gpu-performance-using-counter-statistics).

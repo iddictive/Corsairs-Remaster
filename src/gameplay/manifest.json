@@ -179,6 +179,8 @@
     "PROGRAM/interface/option_sl.c": {
       "encoding": "utf-8",
       "legacy": [
+        "02ca05e57a08250b4424fd918a3f07089aec04deb5191f4a1f490028dd150fd1",
+        "06b978b6e42f7c9078dd8182f6679d5ec19d2b1a358aa6da5caffdd3e14c508a",
         "249778688a4b2afc411aa6661ee0f830b04b3c7ca2c82e02b45bebc5ffd37fae",
         "45933dde2fa45e50254a509af1d228e0f59fe955199c84b3085bec94b02b6af8",
         "4733a9cbf1f0e3d63c8252f91d95907c6dd2168e06ae2ab3e4054457a4521255",
