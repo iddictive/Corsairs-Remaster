@@ -1,8 +1,40 @@
 # Runtime state
 
-Last verified delivery: October15. Frozen source `4ee15fd`, including destruction successor `88b3ebe`, is installed with signed engine `7433ec35692b1a04344d0dcd204fbf479067b8ac184d152450ab199a71d15f31`; prior `d660336fae0108c01f6ba5e2a6ebb523822e0686030ec65c9a995f44b8ac7d18` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no game was launched. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; rejected and diagnostic-only FPS experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Player acceptance of contact/Phonk/fracture, crew/rigging, long wake and ordinary-sea aim draping remains unresolved. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Frozen source `5e9af7f` is installed with signed engine `e3fbcf906e01230215b8aad3c7c8ebe7f77a418ecccd96e69abd4b5ed738d88f`; prior `7433ec35692b1a04344d0dcd204fbf479067b8ac184d152450ab199a71d15f31` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. Player72459 subsequently rejects collision pass-through and a detached stern still visible on the source hull: destruction acceptance is rejected, not closed by component checks. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; diagnostic-only FPS/lighting experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Daytime ship/sail darkness, crew/rigging, long wake and ordinary-sea aim draping remain open. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — timber/contact/flight installed; player rejects contact and ghost geometry
+
+Canonical `run.sh --stage-only` for frozen5e9af7f exits0 and installs e3fbcf90
+with prior7433ec35 backed up. Strict/deep transactional sealing and content
+checks pass; all518 freshly hashed protected files retain their bytes.
+Receipt/snapshot/log belong to
+`experiments/native-metal/.cache/diagnostics/fragment-repair-delivery-20261015-155613/`.
+No agent game/CUA launch or FPS/lighting prototype is included. The destruction
+owner binds the subsequent16:02/16:04 player rejection to live72459 and this
+installed hash: collision pass-through persists and a detached stern remains
+visible on the source hull. Native fracture/contact acceptance is reopened
+and rejected; further variants wait for the real native owner reproduction.
+The destruction owner prepares the coherent5e9 private scene executable; root
+retains GPU/build/stage integration. The initial native diagnostic attempt
+stops before GPU creation while72459 plays. A later user closure and fresh
+holder check establish an idle app; the next serialized GPU slot is assigned
+to the requested interpolation pilot, followed by these root-owned diagnostics.
+
+### October15 — reflection cost measured; daytime lighting and ordered batching open
+
+The private frozen reflection candidate now completes native Off/On/Off, with
+actual47.4% reflected-reference reduction and6.8–12.1% bracketed FPS uplift.
+Full-scene cadence remains13.96ms with the candidate, far from120FPS;
+`metal-sea-benchmark.md` owns exact distributions, coverage and source scope.
+The main-view daytime ship/sail darkness is reported again and remains unfixed.
+A bounded lighting observation backend and a heterogeneous ordered-batch
+backend compile/link against the earlier coherent4ee15fd archive set; neither
+is installed. The lighting dump stops at the new live72459 holder assertion
+before device/GPU creation; the full ordered-batch comparison has not run.
+The player subsequently exits; execution awaits the serialized GPU slot.
+These frozen diagnostics are not performance evidence for installed5e9af7f.
 
 ### October15 — installed destruction rejected; timber/contact/flight source successor
 

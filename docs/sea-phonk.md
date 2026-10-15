@@ -4,7 +4,14 @@
 
 The15:20:32 player replay rejects installed7433ec35: layered sections, breakup
 hitches, dragged pieces, water-aim beam visibility and nonphysical wrecks.
-Current source is verified only at component level. Timber interiors precede
+The source mechanics have component verification only.
+Canonical5e9af7f is now installed (exact receipt in `runtime.md`), but the
+player's16:02/16:04 replay still rejects pass-through and detached stern ghost
+geometry. Native acceptance is rejected; successful component/build/delivery
+checks do not close that defect. The source mechanism below remains the
+rejected candidate pending real native-owner reproduction.
+
+Timber interiors precede
 fracture in one cached tagged surface: outer triangles are clipped once while
 canonical collision caps and render-only timber caps stay separate. Pinned
 unmodified [Mapbox earcut.hpp v3.2.3](https://github.com/mapbox/earcut.hpp/releases/tag/v3.2.3)

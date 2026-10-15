@@ -2,6 +2,11 @@
 
 ## Status
 
+Canonical5e9af7f is installed, with exact protection/signature receipt in
+`runtime.md`. The16:02/16:04 player replay still rejects pass-through and ghost
+stern geometry on that engine. The source checks below do not accept contact;
+the coherent native scene reproduction remains pending its serialized GPU slot.
+
 The15:20:32 player replay rejects installed7433ec35 frame cost and exposed-wreck
 pass-through. The source successor separates physical contact from the damaged
 waterplane: native Clip supplies the current root XZ convex projection, cached

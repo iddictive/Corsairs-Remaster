@@ -371,15 +371,77 @@ binary d723dc5c669254dd98ca9b42dcc459d2a80736fde7d570dfe696808ef7880528.
 Source, cooked data, receipt and full-fleet Off/On/Off runner belong to the
 private reflection-lod-candidate owner. It is neither production code nor an
 installed candidate; source-associated reduction still needs actual admission,
-whole-scene native readback and full-workload cadence. Player process99471
-prevents that GPU comparison at this checkpoint and is not stopped.
+whole-scene native readback and full-workload cadence. The former player99471
+wait is historical; the matched native comparison below ran after all player
+holders exited, without launching or controlling the installed game.
+
+The frozen d723dc5c binary now completes sequential Off/On/Off at2560x1655,
+384 frames with128 warmup. Runs153350-reflection-lod-0-0 and
+153632-reflection-lod-{1-1,2-0} on October15 retain identical coverage:
+152 sails,334 animated draws, one sea/current sky and eight complete point cubes.
+The candidate actually reduces repeated reflected index references by47.4%.
+Main GPU completion cadence is14.902/13.959/15.652ms, or67.1/71.6/63.9FPS;
+GPU execution-union medians are14.649/13.558/15.302ms. The bracketed FPS gain is
+6.8–12.1% (9.4% against the mean control cadence), not a2x result. Control drift
+precludes treating the midpoint as an exact speedup. CPU preparation medians
+remain12.856/12.831/12.587ms; this geometry change does not remove that CPU floor.
+Warm allocation counts remain20 and median uploads17.585MB; candidate maximum
+GPU allocation is6MiB above either control. Full-scene readbacks retain the
+visible fleet/water/sky, but the user reopens pre-existing daytime ship/sail
+darkness. Motion, other weather, mixed assets and installed-player acceptance
+remain open. The content-hashed78-group prototype is not a general delivered LOD
+pipeline and is not installed. Result and comparison images stay with the
+private reflection-lod-candidate owner.
 
 The five-vector source investigation also bounds alternatives: main/reflection
-batching must retain per-packet Raw/Sampling, and original-order compatibility
-alone removes only50 of770 qualified draws. The unoptimized sparse point-ICB
+batching must retain per-packet Raw/Sampling; retaining shared material bindings
+limits original-order merging to50 of770 qualified draws. The unoptimized sparse point-ICB
 candidate belongs to `metal-frame-pacing.md`; local-weather origin/window reuse
 belongs to `metal-dynamic-sky.md`. No standalone gain is inferred from either
 population.
+
+### Ordered heterogeneous materials: native candidate, not delivered
+
+The complete33404-call inventory qualifies770 rigid main/reflection draws into
+12 consecutive runs when geometry and material payloads become per-packet:
+main390→1, retained reflection380→11. Original triangle order, raster state and
+global shadow/fog textures16–27 remain barriers. This removes at most758 of the
+capture's3125 render draws; it is not a measured whole-frame improvement.
+Raw1280 and SkyFog192 inline bytes are opaque in the capture and must be retained
+from actual submission;95 distinct U and191 Sampling values in the main run
+rule out sharing a final draw's material/light state.
+
+The native Tier2 table is240 bytes per packet with five GPU addresses,
+signed baseVertex and eight native IDs each for2D textures, samplers and cubes.
+UInt32 indices encode high12 packet ID/low20 original source index; every one
+of3230940 captured references round-trips without triangle reordering. Source
+indices reach46397, below the20-bit limit. The combined index data is12.924MB;
+immutable IB identity/revision/offset/count/type and original packet boundaries
+own its cache key. CPU-only checks preserve prior valid data across revision,
+order/count/identity changes, reject range/packing/capacity overflow, and hold
+evicted immutable data safely. One thousand warm frames produce zero topology
+rebuilds, about0.0043ms lookup/frame; cold construction takes1.98ms separately
+from the5.85ms exhaustive oracle. These are CPU component measurements only.
+
+An actual Metal shader probe verifies the240-byte native ABI and exact depth
+on heterogeneous meshes/materials/lighting/fog. Color differs in144 of408
+covered separated-fixture pixels, maximum11/255; the user judges the displayed
+comparison visually indistinguishable. Color byte equality is diagnostic,
+not the requested product criterion. Per-input negative controls detect
+collapsed U/Raw/Sampling/fog/texture/sampler/cube state and changed packet IDs.
+No tiny-fixture result accepts the complete sea scene or other weather.
+
+A private full-backend adapter is compiled against51 frozen native link inputs
+from the coherent4ee15fd/88b3ebe source. The unchanged benchmark driver's1241
+recorded dependencies exclude all headers changed from its earlier source to
+that archive batch. The candidate defers original per-packet API binds,
+retains original registry packets and provides original-draw fallback,
+completion-owned resources, shared-binding barriers and bounded immutable
+index storage. Samplers explicitly support argument buffers; actual allocations
+and metadata uploads are counted. Its same-binary Off/On/Off fleet runner is
+prepared; whole-workload performance, visual acceptance and120FPS remain open.
+Private owners are ordered-material-batch-fit, ordered-material-batch-probe and
+ordered-material-batch-candidate; no production renderer change is delivered.
 
 Captured012905 command lists now bound the reflection aggregation proposal:
 environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
