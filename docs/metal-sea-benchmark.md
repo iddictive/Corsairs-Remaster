@@ -41,6 +41,13 @@ the normal settings adapter. Core simulation/visual delta is fixed at16ms;
 native wall and GPU clocks remain real. Run384frames with128warm-up frames for
 the matched short population. Report cold and warmed data separately.
 
+For native-quality comparisons explicitly set `STORM_METAL_UPSCALING=0` and
+verify the resulting manifest against the reference: the normal adapter otherwise
+inherits the player's MetalFX selection.022134's unpinned Quality1 cannot be
+compared with012905's native0 despite identical binary/stock/model hashes and
+output resolution. Record changed power state separately; a4% Battery Power
+readback accompanies that outlier but does not prove its cause.
+
 `STORM_METAL_FRAME_TRACE` enables buffered renderer diagnostics. Ordinary clients
 leave it disabled. Completed command buffers carry frame IDs, GPUStartTime,
 GPUEndTime and completion status. The runner validates matching CPU/render/GPU
@@ -123,6 +130,25 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 [GPU counter analysis](https://developer.apple.com/documentation/xcode/analyzing-apple-gpu-performance-using-counter-statistics).
 
 ## Proven local work and rejection rules
+
+The pending mixed-precision cloud candidate changes only normalized shape/detail
+fBm sums to half intermediates and half literals, then returns to float before
+the existing remaps. Large planet/world positions, domain warp, gradient,
+coverage, pow and repeated optical/light accumulators remain float. It reuses
+Apple's [16-bit intermediate guidance](https://developer.apple.com/videos/play/tech-talks/111373/)
+without reducing cloud resolution, rays or cadence. Host/source expansion and
+GPU compilation pass.453 completed commands cover eight production-domain tiles
+and four weathers; all optical/displayed outputs are finite, maximum RGB error
+0.003106. Paired partial-field images show no obvious candidate difference.
+Speed is unresolved: within-case timing varies up to9.76x, and2.74% gain from
+summed case medians does not establish a repeatable benefit. Three of four
+weather sums worsen. Keep it uninstalled pending stable value and full consumers.
+001520/cloud-half-pending retains the two-context derivation, frozen complete
+libraries, reused eight-tile/four-weather A/B driver and parent receipt. The
+historical one-ULP fixture exit rule is not the user's no-visible-loss contract:
+report finite moment/displayed-radiance errors and inspect paired output, then
+the actual full consumers if component timing earns that next step. Incomplete
+neighbour tiles are explicitly insufficient for full-field/motion acceptance.
 
 Actual-main Boolean query rejection is not currently safe for the traversal
 receiver. Temporary probe011928/012710 observes about240 zero results among701

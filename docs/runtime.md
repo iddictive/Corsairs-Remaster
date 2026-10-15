@@ -4,6 +4,38 @@ Last verified delivery: October15. Prepared material/resource reuse, guarded ani
 
 ## Current verdict
 
+### October15 — cloud precision candidate; current performance context degraded
+
+Attempt022134 reuses the exact binary, native inputs, stock fixture/model and
+2560x1655/eight-ship output, but inherits MetalFX Quality1 from the normal player
+settings adapter; the earlier native comparison explicitly sets upscaling0.
+Its warmed Core/completion means126.875/127.060ms therefore do not establish a
+source regression or optimization baseline. All pass minima remain present.
+The machine also reports Battery Power4%; no isolated cause of the slowdown is
+proven. No game, SAVE, player settings or power settings are changed.
+
+Control024227 explicitly pins every graphics setting to012905, including
+upscaling0, with the same source/binary/input/model/output/population hashes.
+Core/completion means remain140.892/145.112ms; GPU interval median142.794ms.
+Disabling MetalFX does not eliminate the degraded context. Battery later reports
+2%/Final warning, but a sole power cause is not proven. Readback and same-setting
+control belong to001520/native-power-control.json. A physical-charge question is
+pending; low charge alone is not a blanket prohibition on bounded component work.
+
+A narrow mixed-precision normalized-noise candidate and reused A/B driver run
+under001520/cloud-half-pending.
+Only two fBm sums use half intermediates/coefficients; coordinates, sampling,
+remaps, pow, march, optical moments and resource/cadence owners remain FP32 or
+unchanged. Host/source expansion and actual MSL compilation pass;453 GPU commands
+complete, including384 cloud/256 measured cloud and64 radiance commands. Four
+weathers have no nonfinite output and maximum displayed RGB difference0.003106;
+paired partial-field panels show no obvious change. Full-field/fog/light/motion
+quality remains unverified. Timing is inconclusive: summed case medians suggest
+2.74% component gain but within-case spread reaches9.76x and three weather sums
+worsen. No product shader is installed. Rejected-run receipt belongs to001520/
+cloud-next-baseline-rejected.json; the last comparable native12ms is historical,
+not a claim about this degraded context.120FPS remains unmet.
+
 ### October15 — main-draw visibility and whole-packet frustum routes rejected
 
 A temporary default-off probe queries the actual main raw draw, then disables
