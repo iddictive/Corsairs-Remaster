@@ -4,6 +4,21 @@ Last verified delivery: October15. Frozen source `87b4acb` is installed with sig
 
 ## Current verdict
 
+### October15 — authored sail ambient restored in source; native daylight and compatibility pass
+
+The private136-frame daylight candidate170936 restores resolved authored
+ambient reflectance for sky SH in raw/skinned/CPU lighting and all four matching
+shadow receiver totals. A separate raw coefficient preserves the authored value
+before legacy ambient-floor mutations. Direct sun/lamps, unlit paths, sky and
+exposure are unchanged. Native whole-scene readback visibly restores cloth
+detail/brightness; its27 measured GM hull material cohorts have A=D and are
+not a demonstrated whole-hull brightness correction. The existing actual-backend
+dynamic-lighting GPU fixture passes against this candidate at171817, including
+COLOR1, CPU/native skinning, sun, indoor/outdoor points and absent-sky fallback.
+Night completed-SH appearance and installed player acceptance remain open.
+The two canonical source files now hash-identically match the tested private
+candidate. Canonical build/staging is pending; installed engine remains61af9725.
+
 ### October15 — installed87, repeated cache crash and CPU contention separated
 
 Canonical staging succeeds for87b4acb; delivery receipt, log and518-file
