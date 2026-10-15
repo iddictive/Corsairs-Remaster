@@ -40,8 +40,24 @@ zero-area and about50.25% backface rejection. The prior234159 profile predates
 the animated-bound expansion. Single-frame counter timings do not establish
 whole-frame throughput; the initial early replay request's empty profile is
 rejected and replaced by a ready/nonempty profile. Inputs and counter receipt
-remain under001520/current-bounds-gpu-profile.json. Static topology fit and
-tighter conservative-bound feasibility are the pending bounded investigations;
+remain under001520/current-bounds-gpu-profile.json. Static topology fit015539
+then records701 receiver packets:390 qualified static packets/538665 triangles
+contain zero removable repeated-index or bit-identical finite-position pairs.
+311 animated packets/314814 triangles remain unknown. Only eight ordinary main
+draws share2752 repeated triangles, absent from the reflection/receiver population.
+Actual-class ASan/UBSan addressing, provenance, revision, deduplication and
+one-frame lifecycle pass. The diagnostic changes no GPU commands and is removed
+after its single fleet fit; retained source/fixture/receipt belong to001520/
+degenerate-static-rejected. Follow-up020528 qualifies every remaining311
+animated packet/314814 triangles through the real Shared44-byte upload/current
+palette: zero repeated indices or identical XYZ+weight+packedBones pairs.
+The actual-class ASan/UBSan fixture passes addressing, influences, validation,
+revision, deduplication and one-frame cases. Both static and animated probes
+are now removed; together they reject an exact topology filter across all853479
+receiver triangles. Animated source/evidence belong to001520/animated-degenerate-
+rejected. Tighter conservative-bound feasibility remains pending on actual012905
+captured buffers/palettes/eight cube matrices, fetched through native gpudebug
+into001520/captured-bounds-fit;
 no additional culling module or quality reduction is accepted from these probes.
 
 ### October15 — receiver ICB preserves pixels but reduces whole-frame throughput

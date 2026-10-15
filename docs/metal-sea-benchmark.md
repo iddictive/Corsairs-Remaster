@@ -155,12 +155,36 @@ bounds On/Off. The48 cube-face encoders submit11287218/10755964 vertices
 (On+4.94%); the receiver remains2560437 vertices/853479 primitives in both.
 Its zero-area counter is33.64/33.66%, while backface rejection is about50.25%.
 These are input/opportunity measurements, not a throughput win or proof that
-zero-area triangles are removable from source topology. Static repeated-index/
-exact-coincident-position fit and tighter conservative bounds remain unresolved.
+zero-area triangles are removable from source topology.
 Cloud tile remains the largest individual cost statistic,33.90/26.33%; its
 4.8961/4.5550ms compute statistic is not serial critical-path time. One captured
 frame cannot establish the bounds change's FPS cost. Retained receipt:
 001520/current-bounds-gpu-profile.json; production/app are unchanged.
+
+Static topology fit015539 rejects a receiver index-filter module: all390
+qualified static receiver packets/538665 triangles contain zero repeated-index
+or distinct-index bit-identical finite-position candidates. Its701-packet
+inventory matches the capture, but311 animated packets/314814 triangles remain
+unknown. Main geometry has2752 repeated triangles in eight draws of one VB/IB,
+absent from reflection/receiver; this is not the receiver's33.64% zero-area
+population. The actual-class ASan/UBSan fixture passes addressing, all-index
+validation before position access, revisions, provenance and one-frame lifetime.
+No GPU command changes; instrumented fit timings are not FPS acceptance. The
+probe is removed; artifacts belong to001520/degenerate-static-rejected.
+
+Animated topology fit020528 closes that remaining population using the actual
+immutable Shared44-byte bridge upload, its current valid palette and source/
+flight provenance. All311 animated packets/314814 triangles qualify: zero
+repeated indices or distinct-index bit-identical XYZ+weight+packedBones pairs.
+Lists/strips, signed base/offset, full addressing before vertex reads, changed
+revisions, distinct influences and nonfinite/bone/palette/capacity rejection
+pass the actual-class ASan/UBSan fixture. Together the probes cover all853479
+receiver triangles and reject this topology filter. No pose-only coincidence,
+collinearity or subpixel claim follows. Probe source is removed; inputs and
+receipt belong to001520/animated-degenerate-rejected. Tighter conservative-bound
+fit now uses actual captured sources/palettes and eight cube matrices fetched
+from012905 through native gpudebug, under001520/captured-bounds-fit; its admission
+oracle and value remain pending.
 
 The traversal receiver ICB prototype is rejected as a standalone optimization.
 Fit run004432 admits701 receivers/311 skinned with one contiguous cull/viewport
