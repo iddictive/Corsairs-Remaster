@@ -4,6 +4,18 @@ Last verified delivery: October15. Frozen source `5e9af7f` is installed with sig
 
 ## Current verdict
 
+### October15 — native draw ghost reproduced; empty-object domain source correction
+
+The16:04 player report is reproduced with actual Flyingdutchman geometry and
+the exact native `GEOM::Draw`: rough refinement/side partitioning loses empty
+object overrides, so original GM objects reappear visually with no retained
+collision. First rough and flat→rough cases resurrect18 objects. Four source
+lines preserve the object domain in refinement and both halves; false original
+draws become0. ASan/UBSan exact draw/rebuild/saved-plane/upload-rollback cases
+and native geometry syntax pass. Only `ship_laser_geometry.hpp` changes behavior;
+the installed engine remains rejected5e9/e3fbc until the next canonical stage.
+Native pixels/contact acceptance remains pending; no game/GPU action here.
+
 ### October15 — timber/contact/flight installed; player rejects contact and ghost geometry
 
 Canonical `run.sh --stage-only` for frozen5e9af7f exits0 and installs e3fbcf90

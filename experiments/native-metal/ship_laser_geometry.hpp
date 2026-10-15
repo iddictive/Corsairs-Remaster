@@ -229,6 +229,7 @@ inline bool refine(const Triangle&t,const Plane&p,std::vector<Triangle>&out,size
 // original geometric edges so neighboring far faces remain conforming without
 // refining every cannon, rope and distant hull triangle on every ram.
 inline bool refineNearCut(const Mesh&mesh,const Plane&p,Mesh&out,size_t&count) {
+    for(const auto&o:mesh)out.try_emplace(o.first);
     using Edge=std::pair<PositionKey,PositionKey>;struct Hash {size_t operator()(const Edge&e)const {size_t h=0;for(auto point:{e.first,e.second})for(auto q:point)h^=std::hash<int64_t>{}(q)+0x9e3779b9u+(h<<6)+(h>>2);return h;}};std::unordered_map<Edge,std::vector<float>,Hash>edgeKnots;
     std::vector<bool>active;size_t face=0;
     const auto grain=[&](Vec3 v){return double(p.grain.x)*v.x+double(p.grain.y)*v.y+double(p.grain.z)*v.z;};
@@ -252,6 +253,9 @@ inline Split split(const Mesh&mesh,const Plane&p,const std::map<int,float>*wood=
     if(!refineNearCut(mesh,p,refined,count))return unchanged();
     for(auto&o:refined)for(auto&t:o.second){float low=std::numeric_limits<float>::infinity(),high=-low;for(const auto&v:t){const float d=storm_ship_hull::dot(p.normal,v.position)-p.distance;low=std::min(low,d);high=std::max(high,d);}if(high<-p.roughness)farKept[o.first].push_back(std::move(t));else if(low>p.roughness)farDetached[o.first].push_back(std::move(t));else{for(auto&v:t)v.position=v.position-p.normal*offset(p,v.position);warped[o.first].push_back(std::move(t));}}
     const Plane flat{p.normal,p.distance,false};auto result=planarSplit(warped,flat,false,true);
+    // An empty object suppresses its original GM draw. Keep that override even
+    // when the object has no near-slab faces or was removed by an earlier cut.
+    for(const auto&o:mesh){result.kept.try_emplace(o.first);result.detached.try_emplace(o.first);}
     if(result.seam.size()>4096)return unchanged();
     Mesh keptCap,detachedCap;if(capped)cap(result.seam,flat,keptCap,detachedCap,wood);
     const auto restore=[&](Mesh&m){for(auto&o:m)for(auto&t:o.second)for(auto&v:t)v.position=v.position+p.normal*offset(p,v.position);};

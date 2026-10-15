@@ -2,6 +2,15 @@
 
 ## October15 — timber/contact/flight source successor
 
+The16:04 ghost report has a source-bound native draw reproduction: rough-cut
+refinement/side partitioning dropped explicit-empty object entries. `GEOM::Draw`
+then restored their original GM draw while collision retained zero triangles.
+On actual Flyingdutchman first rough and flat→rough cuts,18 removed objects
+reappeared. A four-line successor preserves the object domain in refinement
+and both split halves: exact native draw invocations fall18→0. ASan/UBSan
+rebuild, saved-plane replay and failed-upload ownership checks pass. This is a
+source repair pending canonical delivery and native rendered replay.
+
 The15:20:32 player replay rejects installed7433ec35: layered sections, breakup
 hitches, dragged pieces, water-aim beam visibility and nonphysical wrecks.
 The source mechanics have component verification only.

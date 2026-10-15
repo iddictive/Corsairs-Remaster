@@ -2,6 +2,13 @@
 
 ## Status
 
+The ghost report also reproduces in the native geometry draw owner: missing
+empty overrides resurrect original visual objects after rough cuts, while the
+retained collision mesh correctly excludes them. The four-line source repair
+in `ship_laser_geometry.hpp` retains those empty object domains; actual
+Flyingdutchman false original draws fall18→0. This explains a visible-but-absent
+collision mechanism; complete native contact replay remains unresolved.
+
 Canonical5e9af7f is installed, with exact protection/signature receipt in
 `runtime.md`. The16:02/16:04 player replay still rejects pass-through and ghost
 stern geometry on that engine. The source checks below do not accept contact;
