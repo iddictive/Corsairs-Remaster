@@ -4,6 +4,46 @@ Last verified delivery: October15. Prepared material/resource reuse, guarded ani
 
 ## Current verdict
 
+### October15 — main-draw visibility and whole-packet frustum routes rejected
+
+A temporary default-off probe queries the actual main raw draw, then disables
+the query. One2048x8-byte buffer follows each command's existing completion
+flight; results never change drawing. Native Off/On color+depth bytes match over
+occluded/visible, Less/Equal/LessEqual, discard, encoder Load, clear, unrelated/
+replaced depth, nonmonotonic state, unknown current/previous PSO, distinct slots,
+capacity/allocation and pending-command reset/destruction cases. The independent
+equal-depth/discard fixture demonstrates why an original-main zero result can
+still have a later Equal receiver contribution.
+
+Fleet011928/012710 queries701 receivers per frame. At240 completed warm commands,
+012710 records168240 queries,58095 zero and110145 visible; zero eligible under
+the conservative no-discard contract. Every packet retains alpha test;93600
+also pass through an uncertain pipeline epoch. The zero population is therefore
+opportunity evidence, not authorization to omit the existing receiver.
+
+A separate padded homogeneous clip classifier uses the captured current local
+bounds/MVP and validated pose/index metadata. Native six-plane, intersecting,
+W-crossing, invalid/boundary and375 independent-grid CPU cases pass; queried and
+unqueried color/depth match. The same fleet has164640 known and3600 unknown
+packets, zero fully off-frustum, zero contradictions and57855 zero-query packets
+whose bounds intersect the frustum. Whole-packet frustum rejection cannot save
+this workload. Neither probe is installed or retained in production: both source
+files are restored to c87e66d. Inputs, fixtures and receipts remain under001520's
+receiver-visibility-rejected diagnostic owner. Probe runs are instrumented and
+are not throughput acceptance, despite the runner's generic profile/capture flag.
+
+Fresh same-binary captures012905/012947 compare conservative/exact bounds at
+2560x1655 with all existing quality/pass settings. Across48 cube-face encoders,
+conservative submits11287218 vertices versus10755964 exact (+531254/+4.94%).
+Receiver input remains2560437 vertices/853479 primitives, with33.64/33.66%
+zero-area and about50.25% backface rejection. The prior234159 profile predates
+the animated-bound expansion. Single-frame counter timings do not establish
+whole-frame throughput; the initial early replay request's empty profile is
+rejected and replaced by a ready/nonempty profile. Inputs and counter receipt
+remain under001520/current-bounds-gpu-profile.json. Static topology fit and
+tighter conservative-bound feasibility are the pending bounded investigations;
+no additional culling module or quality reduction is accepted from these probes.
+
 ### October15 — receiver ICB preserves pixels but reduces whole-frame throughput
 
 The bounded fit counter observes701 admitted receivers/311 skinned, one exact

@@ -87,8 +87,11 @@ marked instrumented and are not used for matched timing acceptance.
 
 `--capture` uses the existing MTLCaptureManager sea-frame admission after120
 eligible frames. Native `gpudebug --oneshot` can replay/profile it without Xcode
-or UI automation. Embed profiling data in the owned diagnostic trace if a later
-session must inspect it. Directory navigation needs trailing `/`; inspect
+or UI automation. Wait for `Replayer ready` before `profile run --embed`:
+012905's early request reported success but returned empty encoder statistics.
+Only its later nonempty `gpu-profile-ready.jsonl` is accepted. Embed profiling
+data in the owned diagnostic trace if a later session must inspect it. Exit
+interactive sessions with `exit --terminate`. Directory navigation needs trailing `/`; inspect
 `/performance/encoders/` and each encoder's info/counters. Use overlapping GPU
 execution and do not add vertex/fragment/compute durations as serial frame time.
 One-frame counter profiles identify expensive work; warmed uninstrumented runs
@@ -120,6 +123,44 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 [GPU counter analysis](https://developer.apple.com/documentation/xcode/analyzing-apple-gpu-performance-using-counter-statistics).
 
 ## Proven local work and rejection rules
+
+Actual-main Boolean query rejection is not currently safe for the traversal
+receiver. Temporary probe011928/012710 observes about240 zero results among701
+receivers per frame, but every packet retains alpha test. Native fixtures prove
+that alpha discard or original Less can produce zero while the later Equal
+receiver still affects coincident geometry. All eligible counts remain zero;
+unknown pipeline/nonmonotonic/clear/depth-replacement epochs retain the original
+draw. Encoder finish and unrelated depth targets preserve their epochs. The
+probe never changes drawing and its complete Off/On color/depth, completion,
+fallback and reset/destruction cases pass. Apple's
+[visibility result contract](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor/visibilityresultbuffer)
+does not waive those receiver-specific conditions. `meaningfulAlpha()==false`
+also cannot prove opacity: that existing classifier returns false for an entirely
+transparent texture as well as an opaque one.
+
+Whole-packet clip-frustum rejection is separately disproven as a gain for this
+scene. The conservative eight-corner homogeneous classifier validates finite
+local bounds, current posed bounds/palette, matrix and index metadata, inflates
+rounding boundaries and retains W-crossing/unknown cases. Native clip planes,
+near/side intersections, invalid inputs, boundary cases and375 independently
+sampled CPU boxes pass.012710's240 warm completions contain164640 known/3600
+unknown packets and zero off-frustum packets;57855 zero-query packets still have
+intersecting bounds. Do not infer that Clip/Cull counter pressure implies whole
+draws can be culled. Both prototypes are restored; source/fixture/evidence belong
+to001520/receiver-visibility-rejected.
+
+Fresh current-source GPU captures012905/012947 use the same binary,2560x1655,
+eight ships and unchanged full-quality settings, with conservative animated
+bounds On/Off. The48 cube-face encoders submit11287218/10755964 vertices
+(On+4.94%); the receiver remains2560437 vertices/853479 primitives in both.
+Its zero-area counter is33.64/33.66%, while backface rejection is about50.25%.
+These are input/opportunity measurements, not a throughput win or proof that
+zero-area triangles are removable from source topology. Static repeated-index/
+exact-coincident-position fit and tighter conservative bounds remain unresolved.
+Cloud tile remains the largest individual cost statistic,33.90/26.33%; its
+4.8961/4.5550ms compute statistic is not serial critical-path time. One captured
+frame cannot establish the bounds change's FPS cost. Retained receipt:
+001520/current-bounds-gpu-profile.json; production/app are unchanged.
 
 The traversal receiver ICB prototype is rejected as a standalone optimization.
 Fit run004432 admits701 receivers/311 skinned with one contiguous cull/viewport
