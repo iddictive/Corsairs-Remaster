@@ -49,8 +49,6 @@ class TOUCH : public Entity
 
     BOOL BuildContour(int32_t ship_idx);
 
-    bool IsSinked(int32_t iIndex);
-
     void TouchIsland(int32_t idx);
     void ResolveShips();
     BOOL FakeTouch();

@@ -92,7 +92,6 @@ struct Drift
 struct Flight
 {
     bool airborne = false, settling = false, buoyant = false, sampled = false;
-    unsigned launchedSerial = 0;
     unsigned impactGeneration = 0;
     float velocity = 0.f, surface = 0.f, previousSurface = 0.f, entryAge = 0.f, entryOmega = 0.f;
     float entryOffset = 0.f, entryRelativeVelocity = 0.f;
@@ -106,20 +105,21 @@ struct Flight
     bool support(float height, float seconds, float gravity, unsigned serial, bool wavePresent,
                  float bodyHeight, float draft, float supportedHeight)
     {
-        const float dt = std::clamp(seconds, 0.f, .1f);
+        // Surface displacement and ship translation span the whole frame.
+        const float dt = std::isfinite(seconds) ? std::max(0.f, seconds) : 0.f;
         if (dt <= 0.f) return false;
         const float nextTangent = sampled ? (height - surface) / dt : 0.f;
         const float bodyTangent = buoyant ? nextTangent : (supportedHeight - bodyHeight) / dt;
         const float acceleration = sampled && sampleTime > 0.f ?
             (bodyTangent - supportVelocity) / (.5f * (dt + sampleTime)) : 0.f;
         const bool depart = !airborne && !settling && sampled && wavePresent && serial &&
-            serial != launchedSerial && bodyTangent > 0.f && gravity + acceleration < 0.f &&
+            bodyTangent > 0.f && gravity + acceleration < 0.f &&
             (!buoyant || (velocity > 0.f && bodyHeight >= height - std::max(.5f, draft)));
         previousSurface = sampled ? surface : height;
         surface = height; tangent = nextTangent; supportVelocity = bodyTangent; sampleTime = dt; sampled = true;
         if (depart)
         {
-            airborne = true; launchedSerial = serial; flightGravity = gravity;
+            airborne = true; flightGravity = gravity;
             if (!buoyant) velocity = bodyTangent;
         }
         else if (!airborne && !buoyant) velocity = bodyTangent;
@@ -128,12 +128,12 @@ struct Flight
     float advance(float height, float water, float seconds,
                   float gravity, float draft)
     {
-        const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
+        const float dt = std::isfinite(seconds) ? std::max(0.f, seconds) : 0.f;
         if (!std::isfinite(gravity) || gravity <= 0.f) gravity = 9.81f;
         draft = std::max(.5f, draft);
         freeboard = std::max(.5f, freeboard);
         const float naturalOmega = std::sqrt(gravity / draft);
-        const unsigned steps = std::max(1u, unsigned(std::ceil(dt * 240.f)));
+        const unsigned steps = static_cast<unsigned>(std::clamp(std::ceil(dt * 240.f), 1.f, 64.f));
         const float step = dt / steps;
         for (unsigned i = 0; i < steps; ++i)
         {
@@ -202,7 +202,7 @@ struct Flight
                   float seconds, float gravity, float length, float beam,
                   float forwardVelocity, float sideVelocity)
     {
-        const float dt = std::clamp(seconds, 0.f, .1f);
+        const float dt = std::isfinite(seconds) ? std::max(0.f, seconds) : 0.f;
         if (airborne)
         {
             const float horizontal = std::max(1.f, std::hypot(forwardVelocity, sideVelocity));

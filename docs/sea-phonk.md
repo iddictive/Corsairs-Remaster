@@ -1,6 +1,42 @@
 # Phonk Mode
 
-## Reopened hollow-hull and loose-fragment candidate
+## October15 — timber/contact/flight source successor
+
+The15:20:32 player replay rejects installed7433ec35: layered sections, breakup
+hitches, dragged pieces, water-aim beam visibility and nonphysical wrecks.
+Current source is verified only at component level. Timber interiors precede
+fracture in one cached tagged surface: outer triangles are clipped once while
+canonical collision caps and render-only timber caps stay separate. Pinned
+unmodified [Mapbox earcut.hpp v3.2.3](https://github.com/mapbox/earcut.hpp/releases/tag/v3.2.3)
+triangulates nested structural-wood contours with holes. Hollow-box/gunport
+centres remain empty; ambiguous open contours receive no invented disk.
+Mechanical pieces retain their complete spatial assembly, with at most one
+additional split of an oversized assembly. Grain refinement visits the fracture
+slab and shared neighboring edges. Actual Flyingdutchman first rough cut CPU
+split/group/assembly falls38.430→8.187ms; render triangles72,247→52,979. Initial
+timber preparation costs4.862ms once. GPU upload/BVH/fleet cost are excluded.
+Canonical half/upper/severe-horizontal fractions and saved-plane reconstruction
+remain unchanged; failed uploads preserve both caches and old fragment ownership.
+
+Fragment tangential impulse is bounded by0.18 times normal impulse, with angular
+effective mass. A0.001m/s grazing approach beside a1000-knot receiver transfers
+0.0002016m/s rather than92.6m/s; separating contact transfers none. Laser and
+ordinary aim share bounded wave-contact refinement. The visible air ray reaches
+the wave with a surface contact ring; its physical ray still cuts submerged
+hulls. An immersed middle gun prefers the nearest intact exposed gun on the
+same bort. Depth testing and solid hull/land occlusion remain enabled.
+
+Flight removes the once-per-tsunami-event launch latch; existing airborne,
+settling and contact gates admit a later crest departure after landing. Complete
+finite frame time is consumed with at most64 integration substeps, avoiding the
+reproduced200ms false support acceleration. Actual-header replay at
+16/50/100/200ms gives two departures/two landings on two same-event approaches,
+one per single crossing and none for flat/falling/parallel support. World
+trajectory governs departure, allowing sideways drift; Shift provides thrust,
+not an unconditional jump. Native pixels, trajectory, complete frame cost and
+prior-save acceptance remain unresolved.
+
+## Historical hollow-hull and loose-fragment successor
 
 The player rejects the staged50daab4 destruction: open paper-like hull sections,
 pieces passing through ships, and severe material loss leaving a live remnant.

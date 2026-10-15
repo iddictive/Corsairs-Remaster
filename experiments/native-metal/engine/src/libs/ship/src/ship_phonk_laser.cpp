@@ -4,6 +4,7 @@
 #include "../../sea_ai/src/ai_helper.h"
 #include "../../sea_ai/src/ai_ship.h"
 #include "shared/sea_ai/script_defines.h"
+#include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -551,10 +552,12 @@ void SHIP::AdvanceCutFragments()
                 if (inward < 0.f)
                 {
                     const float inverseInertia = .35f / piece.radiusSquared;
-                    const float impulse = -inward * 1.12f / (1.f + (~(lever ^ normal)) * inverseInertia);
-                    piece.velocity += normal * impulse;
-                    piece.velocity -= (relative - normal * inward) * .18f;
-                    piece.spin += (lever ^ (normal * impulse)) * inverseInertia;
+                    const auto push = storm::ship::fragment_contact::contactImpulse(
+                        {relative.x, relative.y, relative.z}, {lever.x, lever.y, lever.z},
+                        {normal.x, normal.y, normal.z}, inverseInertia);
+                    const CVECTOR impulse(push.x, push.y, push.z);
+                    piece.velocity += impulse;
+                    piece.spin += (lever ^ impulse) * inverseInertia;
                 }
                 piece.spin *= .8f;
             }
@@ -730,7 +733,19 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     // One intact cannon on the aimed bort emits the beam. Trace from that
     // actual muzzle so nearby hulls and land also occlude the cutting ray.
     {
-        const auto &muzzle = muzzles[muzzles.size() / 2];
+        auto muzzle = muzzles[muzzles.size() / 2];
+        // A lower gun deck may be under a crest. Prefer the nearest intact
+        // exposed gun on this same bort; keep its real origin and occlusion.
+        if (pSea && muzzle.y < pSea->WaveXZ(muzzle.x, muzzle.z) + .15f)
+        {
+            size_t nearestGun = muzzles.size();
+            for (size_t n = 0; n < muzzles.size(); ++n)
+                if (muzzles[n].y >= pSea->WaveXZ(muzzles[n].x, muzzles[n].z) + .15f &&
+                    (nearestGun == muzzles.size() ||
+                     std::abs(int(n) - int(muzzles.size() / 2)) < std::abs(int(nearestGun) - int(muzzles.size() / 2))))
+                    nearestGun = n;
+            if (nearestGun < muzzles.size()) muzzle = muzzles[nearestGun];
+        }
         const auto rayEnd = picked + !(picked - muzzle) * .5f;
         float fraction = 1.f;
         SHIP *receiver = nullptr;
@@ -851,7 +866,7 @@ void SHIP::DrawPhonkLaser()
         const float length = std::sqrt(~ray);
         const auto end = muzzle + ray * std::clamp(phonkLaser.triggerAge * 16000.f / std::max(.01f, length), 0.f, 1.f);
         auto side = ray ^ (camera - muzzle);
-        if ((~side) < 1.e-6f) side = ray ^ CVECTOR(0.f, 1.f, 0.f);
+        if ((~side) < 1.e-6f) side = ray ^ (std::abs((!ray).y) < .9f ? CVECTOR(0.f, 1.f, 0.f) : CVECTOR(1.f, 0.f, 0.f));
         if ((~side) > 1.e-6f)
         {
             side = !side;
@@ -866,11 +881,39 @@ void SHIP::DrawPhonkLaser()
                     if (auto *receiver = static_cast<SHIP *>(core.GetEntityPointer(beam.target)))
                         if (receiver->GetModel()) destination = receiver->GetModel()->mtx * beam.localHit;
                 const auto axis = destination - source;
-                destination = source + axis * std::clamp(phonkLaser.triggerAge * 16000.f / std::max(.01f, std::sqrt(~axis)), 0.f, 1.f);
+                const float travel = phonkLaser.triggerAge * 16000.f;
+                const float waterHit = pSea ? manual_aim::waterContact(source, destination,
+                    [&](float x, float z) { return pSea->WaveXZ(x, z); }) : 2.f;
+                // Keep the underwater damage ray. Render the air path up to
+                // the wave and a contact ring above it instead of burying the
+                // entire effect behind the opaque sea depth buffer.
+                CVECTOR waterPoint(0.f);
+                if (waterHit <= 1.f)
+                {
+                    waterPoint = source + axis * waterHit;
+                    waterPoint.y = pSea->WaveXZ(waterPoint.x, waterPoint.z) + .16f;
+                    destination = waterPoint;
+                }
+                const auto visibleAxis = destination - source;
+                destination = source + visibleAxis * std::clamp(travel / std::max(.01f, std::sqrt(~visibleAxis)), 0.f, 1.f);
                 strip(source, destination, side * (.32f * pulse), (alpha << 24) | 0x00be53ffu);
                 strip(source, destination, other * (.32f * pulse), (alpha << 24) | 0x00be53ffu);
                 strip(source, destination, side * .065f, (alpha << 24) | 0x00fff2ffu);
                 strip(source, destination, other * .065f, (alpha << 24) | 0x00fff2ffu);
+                if (waterHit <= 1.f && travel >= std::sqrt(~(waterPoint - source)))
+                {
+                    const float radius = .7f + .25f * pulse;
+                    for (unsigned n = 0; n < 20; ++n)
+                    {
+                        const float a = float(n) * .314159265f, b = float(n + 1) * .314159265f;
+                        auto from = waterPoint + CVECTOR(std::cos(a), 0.f, std::sin(a)) * radius;
+                        auto to = waterPoint + CVECTOR(std::cos(b), 0.f, std::sin(b)) * radius;
+                        from.y = pSea->WaveXZ(from.x, from.z) + .16f;
+                        to.y = pSea->WaveXZ(to.x, to.z) + .16f;
+                        strip(from, to, CVECTOR(std::cos((a + b) * .5f), 0.f, std::sin((a + b) * .5f)) * .075f,
+                              (alpha << 24) | 0x00ffa3ffu);
+                    }
+                }
             }
             if (phonkLaser.contact && length <= phonkLaser.triggerAge * 16000.f)
             {

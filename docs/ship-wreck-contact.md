@@ -2,6 +2,22 @@
 
 ## Status
 
+The15:20:32 player replay rejects installed7433ec35 frame cost and exposed-wreck
+pass-through. The source successor separates physical contact from the damaged
+waterplane: native Clip supplies the current root XZ convex projection, cached
+by GEOM identity/generation, collision-topology revision and Phonk cut revision.
+Cannon-after-laser success invalidates it; failed uploads preserve the revision.
+All58 installed root projections fit128 points (maximum51); actual cut cases
+use19/30. Current transformed retained-bounds corners provide conservative
+vertical band/exposure. The `y < -height/3` gate is removed: exposed wrecks
+remain physical and repeat rams reach the shared fracture hook, while fully
+submerged wrecks are excluded. Existing yaw-only convex XZ fidelity remains.
+ASan/UBSan actual-adapter/frame probes pass repeated impacts, empty-waterplane
+remnants, cache invalidation and submerged/airborne/no-contact negatives; native
+syntax passes. Installed scene motion and complete frame cost remain unresolved.
+
+The following installed predecessors are historical evidence.
+
 The latest player frame reopens destruction acceptance again: hollow sections,
 loose pieces crossing hulls, and a live remnant after most root material is gone.
 The installed successor adds wood shell thickness, measured detached bodies,

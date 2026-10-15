@@ -1,5 +1,8 @@
 #pragma once
 #include "ship_hull_geometry.hpp"
+// Mapbox earcut.hpp v3.2.3, c68c8835ccff2b7532d31d8fa8dfcf398f629498 (ISC).
+#include "third_party/mapbox-earcut/earcut.hpp"
+#include <unordered_map>
 #include "ship_hull_damage_bridge.hpp"
 #include <map>
 #include <limits>
@@ -111,7 +114,7 @@ inline void charBand(const std::vector<Vertex>&polygon,const Plane&p,bool kept,b
 // GM surfaces can have seams, disconnected shells and open deck/sail sheets.
 // Weld positions only for contour discovery, never surface UVs/normals. Cap only
 // closed, simple loops; an open authored sheet must not acquire a fabricated disk.
-inline void cap(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh&detached) {
+inline void capLegacy(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh&detached) {
     std::vector<bool>used(segments.size());
     for(size_t start=0;start<segments.size();++start){
         if(used[start])continue;used[start]=true;std::vector<Vertex>loop{segments[start].a,segments[start].b};const int object=segments[start].object;
@@ -145,6 +148,43 @@ inline void cap(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh&detac
         for(auto triangle:triangles){kept[object].push_back(triangle);std::swap(triangle[1],triangle[2]);for(auto&v:triangle)v.normal=p.normal*-1.f;detached[object].push_back(triangle);}
     }
 }
+// Render timber contours use polygon holes; canonical outer-mesh caps retain
+// their established policy. Unknown materials are independent authored solids.
+inline void cap(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh&detached,const std::map<int,float>*wood=nullptr) {
+    if(!wood){capLegacy(std::move(segments),p,kept,detached);return;}
+    std::vector<Segment>timber;std::map<int,std::vector<Segment>>other;
+    for(auto&edge:segments)(wood->count(edge.object)?timber:other[edge.object]).push_back(edge);
+    for(auto&entry:other)capLegacy(std::move(entry.second),p,kept,detached);
+    using Point=std::array<double,2>;using Edge=std::pair<PositionKey,PositionKey>;
+    std::map<PositionKey,std::vector<size_t>>adjacent;std::map<Edge,size_t>unique;
+    std::vector<Segment>edges;
+    for(const auto&edge:timber){auto a=positionKey(edge.a.position),b=positionKey(edge.b.position);if(a==b)continue;auto ordered=std::minmax(a,b);if(!unique.emplace(Edge{ordered.first,ordered.second},edges.size()).second)continue;adjacent[a].push_back(edges.size());adjacent[b].push_back(edges.size());edges.push_back(edge);}
+    const auto basis=storm_ship_hull::frame(p.normal);
+    const auto project=[&](Vec3 v){return Point{double(storm_ship_hull::dot(v,basis.tangent)),double(storm_ship_hull::dot(v,basis.bitangent))};};
+    struct Ring {std::vector<Vertex>vertices;std::vector<Point>points;double area=0;int object=0,parent=-1,depth=0;};std::vector<Ring>rings;std::vector<bool>used(edges.size());
+    for(size_t start=0;start<edges.size();++start){if(used[start])continue;Ring ring;ring.object=edges[start].object;auto first=positionKey(edges[start].a.position),current=first;size_t next=start;bool closed=false;
+        for(size_t steps=0;steps<=edges.size();++steps){if(used[next])break;used[next]=true;const auto&e=edges[next];const bool forward=positionKey(e.a.position)==current;ring.vertices.push_back(forward?e.a:e.b);current=positionKey((forward?e.b:e.a).position);if(current==first){closed=true;break;}const auto found=adjacent.find(current);if(found==adjacent.end()||found->second.size()!=2)break;next=used[found->second[0]]?found->second[1]:found->second[0];}
+        if(!closed||ring.vertices.size()<3)continue;
+        for(const auto&v:ring.vertices)ring.points.push_back(project(v.position));
+        for(size_t n=0;n<ring.points.size();++n){const auto a=ring.points[n],b=ring.points[(n+1)%ring.points.size()];ring.area+=a[0]*b[1]-b[0]*a[1];}ring.area=std::abs(ring.area)*.5;if(ring.area>1.e-8)rings.push_back(std::move(ring));
+    }
+    const auto contains=[](const std::vector<Point>&ring,Point q){bool inside=false;for(size_t n=0,j=ring.size()-1;n<ring.size();j=n++){auto a=ring[n],b=ring[j];if((a[1]>q[1])!=(b[1]>q[1])&&q[0]<(b[0]-a[0])*(q[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;};
+    for(size_t n=0;n<rings.size();++n){double enclosing=std::numeric_limits<double>::infinity();for(size_t j=0;j<rings.size();++j)if(j!=n&&rings[j].area>rings[n].area&&rings[j].area<enclosing&&contains(rings[j].points,rings[n].points.front())){rings[n].parent=int(j);enclosing=rings[j].area;}}
+    for(auto&ring:rings)for(int parent=ring.parent;parent>=0;parent=rings[parent].parent)++ring.depth;
+    for(size_t n=0;n<rings.size();++n){if(rings[n].depth%2)continue;std::vector<std::vector<Point>>polygon;std::vector<Vertex>vertices;double expected=0;
+        const auto append=[&](const Ring&ring,bool hole){polygon.push_back(ring.points);expected+=hole?-ring.area:ring.area;vertices.insert(vertices.end(),ring.vertices.begin(),ring.vertices.end());};append(rings[n],false);
+        for(size_t j=0;j<rings.size();++j)if(rings[j].parent==int(n)&&rings[j].depth%2)append(rings[j],true);
+        auto indices=mapbox::earcut<uint32_t>(polygon);std::vector<Triangle>triangles;double measured=0;
+        for(size_t k=0;k+2<indices.size();k+=3){Triangle t={vertices[indices[k]],vertices[indices[k+1]],vertices[indices[k+2]]};if(cross2(t[0].position,t[1].position,t[2].position,p.normal)<0)std::swap(t[1],t[2]);const double a=storm_ship_hull::area(t);if(a>1.e-10){measured+=a;triangles.push_back(t);}}
+        // Invalid authored/self-crossing rings must not fill a hold or port.
+        if(std::abs(measured-expected)>std::max(1.e-5,expected*1.e-4))continue;
+        // Restore collinear source subdivisions omitted by earcut. This keeps
+        // the cap conforming to the original surface on the next saved cut.
+        for(const auto&point:vertices){const size_t count=triangles.size();for(size_t k=0;k<count;++k)for(unsigned edge=0;edge<3;++edge){auto t=triangles[k];const unsigned b=(edge+1)%3,c=(edge+2)%3;const auto aPos=t[edge].position,bPos=t[b].position;if(near(point.position,aPos)||near(point.position,bPos))continue;const auto line=bPos-aPos,delta=point.position-aPos;const float length2=storm_ship_hull::dot(line,line),along=storm_ship_hull::dot(delta,line);if(along<=0||along>=length2||storm_ship_hull::length(storm_ship_hull::cross(line,delta))>1.e-5f*std::sqrt(length2))continue;triangles[k]={t[edge],point,t[c]};triangles.push_back({point,t[b],t[c]});break;}}
+        for(auto t:triangles){for(auto&v:t){v.normal=p.normal;if(p.charred)v.color=(v.color&0xff000000u)|0x00645140u;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=storm_ship_hull::dot(v.position,basis.tangent)*.12f;v.uv[uv*2+1]=storm_ship_hull::dot(v.position,basis.bitangent)*.12f;}}kept[rings[n].object].push_back(t);std::swap(t[1],t[2]);for(auto&v:t)v.normal=p.normal*-1.f;detached[rings[n].object].push_back(t);}
+    }
+}
+
 // Shared edges may be traversed in opposite directions. Use one endpoint order
 // for their intersections so repeated fractures do not open float-sized cracks.
 inline void linearSplit(const std::vector<Vertex>&polygon,const storm_ship_hull::Plane&p,std::vector<Vertex>&inside,std::vector<Vertex>&outside) {
@@ -154,7 +194,7 @@ inline void linearSplit(const std::vector<Vertex>&polygon,const storm_ship_hull:
     for(size_t n=0;n<polygon.size();++n){const auto&a=polygon[n];const auto&b=polygon[(n+1)%polygon.size()];const double da=side(a.position),db=side(b.position);const bool ai=da<=0,bi=db<=0;(ai?inside:outside).push_back(a);
         if(ai!=bi){const auto&first=before(a.position,b.position)?a:b;const auto&last=before(a.position,b.position)?b:a;const double d=side(first.position);auto vertex=storm_ship_hull::interpolate(first,last,float(std::clamp(d/(d-side(last.position)),0.,1.)));inside.push_back(vertex);outside.push_back(vertex);}}
 }
-inline Split planarSplit(const Mesh&mesh,const Plane&p,bool capped=true,bool stable=false) {
+inline Split planarSplit(const Mesh&mesh,const Plane&p,bool capped=true,bool stable=false,const std::map<int,float>*wood=nullptr) {
     Split result;std::vector<Segment>segments;
     for(const auto&o:mesh){result.kept.try_emplace(o.first);result.detached.try_emplace(o.first);
         for(const auto&t:o.second){std::vector<Vertex>inside,outside;if(stable)linearSplit(std::vector<Vertex>(t.begin(),t.end()),{p.normal,p.distance},inside,outside);else storm_ship_hull::split(std::vector<Vertex>(t.begin(),t.end()),{p.normal,p.distance},inside,outside);
@@ -168,7 +208,7 @@ inline Split planarSplit(const Mesh&mesh,const Plane&p,bool capped=true,bool sta
         }
     }
     if(result.detachedArea<=1.e-7f)return result;
-    result.seam=segments;if(capped)cap(std::move(segments),p,result.kept,result.detached);return result;
+    result.seam=segments;if(capped)cap(std::move(segments),p,result.kept,result.detached,wood);return result;
 }
 // A piecewise-linear shear has determinant one because grain is perpendicular
 // to normal. Refinement at its knots makes planar clipping exact, without moving
@@ -185,68 +225,91 @@ inline bool refine(const Triangle&t,const Plane&p,std::vector<Triangle>&out,size
     for(double cell=first;cell<=last;++cell){const float knot=float(cell*p.spacing-p.phase);linearSplit(remaining,{p.grain,knot},inside,outside);if(!append(inside))return false;remaining.swap(outside);}
     return append(remaining);
 }
-inline Split split(const Mesh&mesh,const Plane&p) {
+// Only the conservative fracture slab needs grain knots. Share knots through
+// original geometric edges so neighboring far faces remain conforming without
+// refining every cannon, rope and distant hull triangle on every ram.
+inline bool refineNearCut(const Mesh&mesh,const Plane&p,Mesh&out,size_t&count) {
+    using Edge=std::pair<PositionKey,PositionKey>;struct Hash {size_t operator()(const Edge&e)const {size_t h=0;for(auto point:{e.first,e.second})for(auto q:point)h^=std::hash<int64_t>{}(q)+0x9e3779b9u+(h<<6)+(h>>2);return h;}};std::unordered_map<Edge,std::vector<float>,Hash>edgeKnots;
+    std::vector<bool>active;size_t face=0;
+    const auto grain=[&](Vec3 v){return double(p.grain.x)*v.x+double(p.grain.y)*v.y+double(p.grain.z)*v.z;};
+    for(const auto&o:mesh)for(const auto&t:o.second){float lo=std::numeric_limits<float>::infinity(),hi=-lo;for(const auto&v:t){const float d=storm_ship_hull::dot(p.normal,v.position)-p.distance;lo=std::min(lo,d);hi=std::max(hi,d);}const bool local=lo<=p.roughness&&hi>=-p.roughness;active.push_back(local);if(!local)continue;
+        for(unsigned c=0;c<3;++c){auto a=positionKey(t[c].position),b=positionKey(t[(c+1)%3].position);if(a==b)continue;if(b<a)std::swap(a,b);auto inserted=edgeKnots.try_emplace({a,b});if(!inserted.second)continue;double low=grain(t[c].position),high=grain(t[(c+1)%3].position);if(high<low)std::swap(low,high);const double first=std::floor((low+p.phase)/p.spacing)+1,last=std::ceil((high+p.phase)/p.spacing)-1;if(last-first+1>256)return false;for(double cell=first;cell<=last;++cell)inserted.first->second.push_back(float(cell*p.spacing-p.phase));}}
+    for(const auto&o:mesh)for(const auto&t:o.second){auto&destination=out[o.first];if(active[face++]){if(!refine(t,p,destination,count))return false;continue;}
+        bool neighboring=false;for(unsigned c=0;c<3;++c){auto a=positionKey(t[c].position),b=positionKey(t[(c+1)%3].position);if(b<a)std::swap(a,b);auto found=edgeKnots.find({a,b});neighboring|=found!=edgeKnots.end()&&!found->second.empty();}if(!neighboring){destination.push_back(t);if(++count>262144)return false;continue;}
+        std::vector<Vertex>boundary;bool divided=false;
+        for(unsigned c=0;c<3;++c){const auto&a=t[c];const auto&b=t[(c+1)%3];boundary.push_back(a);auto ka=positionKey(a.position),kb=positionKey(b.position);if(kb<ka)std::swap(ka,kb);auto found=edgeKnots.find({ka,kb});if(found==edgeKnots.end()||found->second.empty())continue;
+            const bool before=a.position.x<b.position.x||(a.position.x==b.position.x&&(a.position.y<b.position.y||(a.position.y==b.position.y&&a.position.z<b.position.z)));const auto&first=before?a:b;const auto&last=before?b:a;const double fa=grain(first.position),fb=grain(last.position);std::vector<std::pair<double,Vertex>>points;
+            for(float knot:found->second){const double t=(fa-knot)/(fa-fb);if(t<=0||t>=1)continue;auto v=storm_ship_hull::interpolate(first,last,float(t));points.push_back({before?t:1-t,v});}std::sort(points.begin(),points.end(),[](const auto&a,const auto&b){return a.first<b.first;});for(const auto&point:points)boundary.push_back(point.second);divided|=!points.empty();}
+        if(!divided){destination.push_back(t);++count;}else{const auto center=storm_ship_hull::interpolate(storm_ship_hull::interpolate(t[0],t[1],.5f),t[2],1.f/3.f);for(size_t n=0;n<boundary.size();++n){Triangle face={center,boundary[n],boundary[(n+1)%boundary.size()]};if(storm_ship_hull::area(face)>1.e-10){destination.push_back(face);++count;}}}if(count>262144)return false;
+    }return true;
+}
+
+inline Split split(const Mesh&mesh,const Plane&p,const std::map<int,float>*wood=nullptr,bool capped=true) {
     const auto unchanged=[&](bool complete=false){Split result;result.complete=complete;result.kept=mesh;for(const auto&o:mesh)for(const auto&t:o.second)result.keptArea+=storm_ship_hull::area(t);return result;};
     if(!valid(p))return unchanged();
-    if(p.roughness==0)return planarSplit(mesh,p);
-    Mesh warped;size_t count=0;
-    for(const auto&o:mesh)for(const auto&t:o.second)if(!refine(t,p,warped[o.first],count))return unchanged();
-    for(auto&o:warped)for(auto&t:o.second)for(auto&v:t)v.position=v.position-p.normal*offset(p,v.position);
+    if(p.roughness==0)return planarSplit(mesh,p,capped,false,wood);
+    Mesh refined,warped,farKept,farDetached;size_t count=0;
+    if(!refineNearCut(mesh,p,refined,count))return unchanged();
+    for(auto&o:refined)for(auto&t:o.second){float low=std::numeric_limits<float>::infinity(),high=-low;for(const auto&v:t){const float d=storm_ship_hull::dot(p.normal,v.position)-p.distance;low=std::min(low,d);high=std::max(high,d);}if(high<-p.roughness)farKept[o.first].push_back(std::move(t));else if(low>p.roughness)farDetached[o.first].push_back(std::move(t));else{for(auto&v:t)v.position=v.position-p.normal*offset(p,v.position);warped[o.first].push_back(std::move(t));}}
     const Plane flat{p.normal,p.distance,false};auto result=planarSplit(warped,flat,false,true);
-    if(result.detachedArea<=1.e-7f)return unchanged(true);
     if(result.seam.size()>4096)return unchanged();
-    Mesh keptCap,detachedCap;cap(result.seam,flat,keptCap,detachedCap);
+    Mesh keptCap,detachedCap;if(capped)cap(result.seam,flat,keptCap,detachedCap,wood);
     const auto restore=[&](Mesh&m){for(auto&o:m)for(auto&t:o.second)for(auto&v:t)v.position=v.position+p.normal*offset(p,v.position);};
-    restore(result.kept);restore(result.detached);result.keptArea=result.detachedArea=0;
+    restore(result.kept);restore(result.detached);
+    for(auto&o:farKept){auto&out=result.kept[o.first];out.insert(out.end(),std::make_move_iterator(o.second.begin()),std::make_move_iterator(o.second.end()));}
+    for(auto&o:farDetached){auto&out=result.detached[o.first];out.insert(out.end(),std::make_move_iterator(o.second.begin()),std::make_move_iterator(o.second.end()));}
+    result.keptArea=result.detachedArea=0;
     for(const auto&o:result.kept)for(const auto&t:o.second)result.keptArea+=storm_ship_hull::area(t);
     for(const auto&o:result.detached)for(const auto&t:o.second)result.detachedArea+=storm_ship_hull::area(t);
+    if(result.detachedArea<=1.e-7f)return unchanged(true);
     const auto appendCap=[&](const Mesh&caps,Mesh&destination){for(const auto&o:caps)for(const auto&t:o.second){std::vector<Triangle>triangles;if(!refine(t,p,triangles,count))return false;
         for(auto triangle:triangles){for(auto&v:triangle)v.position=v.position+p.normal*offset(p,v.position);const auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(triangle[1].position-triangle[0].position,triangle[2].position-triangle[0].position));for(auto&v:triangle)v.normal=normal;destination[o.first].push_back(triangle);}}return true;};
     if(!appendCap(keptCap,result.kept)||!appendCap(detachedCap,result.detached))return unchanged();
     size_t total=0;for(const auto*piece:{&result.kept,&result.detached})for(const auto&o:*piece){total+=o.second.size();if(total>262144)return unchanged();}
     for(auto&edge:result.seam){edge.a.position=edge.a.position+p.normal*offset(p,edge.a.position);edge.b.position=edge.b.position+p.normal*offset(p,edge.b.position);}
-    const double originalVolume=closedVolume(mesh);
+    const double originalVolume=capped?closedVolume(mesh):0;
     if(originalVolume>0){const double keptVolume=closedVolume(result.kept),detachedVolume=closedVolume(result.detached);if((result.keptArea>1.e-7f&&keptVolume<=0)||(result.detachedArea>1.e-7f&&detachedVolume<=0)||std::abs(keptVolume+detachedVolume-originalVolume)>std::max(.001,originalVolume*1.e-5))return unchanged();}
     return result;
 }
-// A GM object/material is not a rigid body: UV seams duplicate vertices and
-// authored ornaments contain hundreds of independent islands. Discover edge
-// connectivity by position without welding/changing the actual render vertices.
+// The outer authored surface is shared by damage/collision and rendering.
+// Caps and timber interiors have separate policies; tagged clipping visits their
+// union once rather than independently clipping two complete ship meshes.
+struct Surface {Mesh outer,canonicalCaps,interior;};
+inline void appendMesh(Mesh&destination,const Mesh&source){for(const auto&o:source){auto&out=destination[o.first];out.insert(out.end(),o.second.begin(),o.second.end());}}
+inline Mesh canonicalMesh(const Surface&surface){Mesh result=surface.outer;appendMesh(result,surface.canonicalCaps);return result;}
+inline Mesh renderMesh(const Surface&surface){Mesh result=surface.outer;appendMesh(result,surface.interior);return result;}
+inline Surface timberSurface(Mesh mesh,const std::map<int,float>&wood){Surface result;auto rendered=shellForRender(mesh,wood);for(auto&o:rendered){const size_t original=mesh.at(o.first).size();if(o.second.size()>original)result.interior[o.first].assign(o.second.begin()+original,o.second.end());}result.outer=std::move(mesh);return result;}
+inline bool surfaceCaps(std::vector<Segment>seam,const Plane&p,Mesh&kept,Mesh&detached,const std::map<int,float>*wood=nullptr){
+    if(p.roughness==0){cap(std::move(seam),p,kept,detached,wood);return true;}
+    for(auto&e:seam){e.a.position=e.a.position-p.normal*offset(p,e.a.position);e.b.position=e.b.position-p.normal*offset(p,e.b.position);}
+    Mesh a,b;cap(std::move(seam),{p.normal,p.distance,false},a,b,wood);size_t count=0;
+    const auto append=[&](const Mesh&source,Mesh&destination){for(const auto&o:source)for(const auto&t:o.second){std::vector<Triangle>triangles;if(!refine(t,p,triangles,count))return false;for(auto triangle:triangles){for(auto&v:triangle)v.position=v.position+p.normal*offset(p,v.position);const auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(triangle[1].position-triangle[0].position,triangle[2].position-triangle[0].position));for(auto&v:triangle)v.normal=normal;destination[o.first].push_back(triangle);}}return true;};
+    return append(a,kept)&&append(b,detached);
+}
+struct SurfaceSplit {Surface kept,detached;float keptArea=0,detachedArea=0;std::vector<Segment>seam;bool complete=true;};
+inline SurfaceSplit splitSurface(const Surface&surface,const Plane&p,const std::map<int,float>&wood){
+    Mesh tagged;unsigned role=0;for(const auto*mesh:{&surface.outer,&surface.canonicalCaps,&surface.interior}){for(const auto&o:*mesh)tagged[o.first*3+int(role)]=o.second;++role;}
+    auto cut=split(tagged,p,nullptr,false);SurfaceSplit result;result.complete=cut.complete;if(!cut.complete)return result;
+    const auto unpack=[](Mesh&mesh,Surface&out){for(auto&o:mesh){auto&destination=o.first%3==0?out.outer:o.first%3==1?out.canonicalCaps:out.interior;destination[o.first/3]=std::move(o.second);}};unpack(cut.kept,result.kept);unpack(cut.detached,result.detached);
+    const auto measured=[](const Surface&s){float total=0;for(const auto*mesh:{&s.outer,&s.canonicalCaps})for(const auto&o:*mesh)for(const auto&t:o.second)total+=storm_ship_hull::area(t);return total;};result.keptArea=measured(result.kept);result.detachedArea=measured(result.detached);
+    std::vector<Segment>canonical,render;for(auto edge:cut.seam){const int role=edge.object%3;edge.object/=3;if(role!=2)canonical.push_back(edge);if(role!=1)render.push_back(edge);}result.seam=canonical;
+    if(!surfaceCaps(std::move(canonical),p,result.kept.canonicalCaps,result.detached.canonicalCaps)||!surfaceCaps(std::move(render),p,result.kept.interior,result.detached.interior,&wood))result.complete=false;
+    return result;
+}
+// Authored UV/material islands are attached parts, not independent wreck bodies.
+// A mechanical secondary break clips the entire assembly through one shared
+// spatial plane; lasers keep the detached assembly intact.
+inline std::vector<Surface> surfaceFragments(Surface surface,const Plane&cut,unsigned limit,const std::map<int,float>&wood){
+    if(!limit)return {};std::vector<Surface>result;
+    if(!cut.charred&&limit>1){const auto b=bounds(surface.outer);const auto size=b.hi-b.lo;const bool longitudinal=size.z>=size.x;const float span=longitudinal?size.z:size.x,across=longitudinal?size.x:size.z;
+        if(span>std::max(6.f,across*2.f)){const Vec3 normal=longitudinal?Vec3{0,0,1}:Vec3{1,0,0};const float low=longitudinal?b.lo.z:b.lo.x;auto divided=splitSurface(surface,{normal,low+span*.38f,false},wood);const float area=divided.keptArea+divided.detachedArea;if(divided.complete&&divided.keptArea>area*.1f&&divided.detachedArea>area*.1f){result.push_back(std::move(divided.kept));result.push_back(std::move(divided.detached));return result;}}}
+    result.push_back(std::move(surface));return result;
+}
+
+// Compatibility entry point for canonical-only callers; the spatial ownership
+// policy is shared with the complete rendered assembly.
 inline std::vector<Mesh> fragmentGroups(const Mesh&mesh,const Plane&cut,unsigned limit=storm_hull_damage::MaxFragmentGroups) {
-    limit=std::min(limit,storm_hull_damage::MaxFragmentGroups);if(!limit)return {};
-    struct Face {int object;const Triangle*triangle;};std::vector<Face>faces;
-    for(const auto&o:mesh)for(const auto&t:o.second)faces.push_back({o.first,&t});
-    if(faces.empty())return {};
-    std::vector<size_t>parent(faces.size()),rank(faces.size());std::iota(parent.begin(),parent.end(),size_t(0));
-    const auto root=[&](size_t n){while(parent[n]!=n){parent[n]=parent[parent[n]];n=parent[n];}return n;};
-    using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;std::map<Edge,size_t>edges;
-    const auto key=positionKey;
-    for(size_t n=0;n<faces.size();++n){const auto&t=*faces[n].triangle;for(unsigned c=0;c<3;++c){auto a=key(t[c].position),b=key(t[(c+1)%3].position);if(a==b)continue;if(b<a)std::swap(a,b);
-        const auto inserted=edges.emplace(Edge{a,b},n);if(!inserted.second){auto x=root(n),y=root(inserted.first->second);if(x!=y){if(rank[x]<rank[y])std::swap(x,y);parent[y]=x;if(rank[x]==rank[y])++rank[x];}}}}
-    std::map<size_t,Mesh>components;for(size_t n=0;n<faces.size();++n)components[root(n)][faces[n].object].push_back(*faces[n].triangle);
-    struct Piece {Mesh mesh;Fragment properties;};std::vector<Piece>pieces;pieces.reserve(components.size());double total=0;
-    for(auto&entry:components){auto properties=fragmentProperties(entry.second);total+=properties.surfaceArea;pieces.push_back({std::move(entry.second),properties});}
-    const auto larger=[](const Piece&a,const Piece&b){return a.properties.surfaceArea>b.properties.surfaceArea;};std::stable_sort(pieces.begin(),pieces.end(),larger);
-    // Mechanical work may break an oversized detached shell again. Reuse the
-    // ordinary non-charred splitter only on the display mesh; kept geometry,
-    // persisted cuts, support and damage remain the original cut transaction.
-    if(!cut.charred&&limit>1&&pieces.front().properties.surfaceArea>total*.5){auto&largest=pieces.front();const auto b=largest.properties.bounds;const Vec3 size=b.hi-b.lo;
-        const bool longitudinal=size.z>=size.x;const float span=longitudinal?size.z:size.x,across=longitudinal?size.x:size.z;
-        if(span>std::max(6.f,across*2.f)){const Vec3 normal=longitudinal?Vec3{0,0,1}:Vec3{1,0,0};const float low=longitudinal?b.lo.z:b.lo.x;
-            auto divided=split(largest.mesh,{normal,low+span*.38f,false});
-            if(divided.complete&&divided.keptArea>largest.properties.surfaceArea*.1f&&divided.detachedArea>largest.properties.surfaceArea*.1f){
-                largest.mesh=std::move(divided.kept);largest.properties=fragmentProperties(largest.mesh);auto properties=fragmentProperties(divided.detached);pieces.push_back({std::move(divided.detached),properties});
-                std::stable_sort(pieces.begin(),pieces.end(),larger);}}}
-    const size_t count=std::min(size_t(limit),pieces.size());std::vector<Mesh>groups;groups.reserve(count);
-    for(size_t n=0;n<count;++n)groups.push_back(std::move(pieces[n].mesh));
-    // Keep every remaining triangle. Tiny authored islands follow their nearest
-    // primary body instead of exploding the body budget or disappearing.
-    for(size_t n=count;n<pieces.size();++n){size_t nearest=0;double best=std::numeric_limits<double>::infinity();const auto p=pieces[n].properties.centroid;
-        for(size_t g=0;g<count;++g){const auto&body=pieces[g].properties;const auto b=body.bounds;const Vec3 q={std::clamp(p.x,b.lo.x,b.hi.x),std::clamp(p.y,b.lo.y,b.hi.y),std::clamp(p.z,b.lo.z,b.hi.z)};
-            const auto delta=p-q,center=p-body.centroid;const double score=storm_ship_hull::dot(delta,delta)+storm_ship_hull::dot(center,center)*.001;
-            if(score<best){best=score;nearest=g;}}
-        for(auto&entry:pieces[n].mesh){auto&destination=groups[nearest][entry.first];destination.insert(destination.end(),entry.second.begin(),entry.second.end());}}
-    return groups;
+    std::vector<Mesh>result;for(auto&surface:surfaceFragments({mesh,{},{}},cut,std::min(limit,storm_hull_damage::MaxFragmentGroups),{}))result.push_back(canonicalMesh(surface));return result;
 }
 struct Contour { bool valid=false;std::vector<std::vector<Vec3>>loops; };
 // Clip the authored waterplane through the same mesh field as the visible hull.

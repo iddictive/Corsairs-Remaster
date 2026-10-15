@@ -4,6 +4,7 @@
 #include "c_vector.h"
 #include "vai_objbase.h"
 #include "vma.hpp"
+#include <vector>
 
 namespace storm_ship_fire { class Model; }
 
@@ -63,6 +64,10 @@ class SHIP_BASE : public VAI_OBJBASE
 
     virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) = 0;
     virtual unsigned GetHullContourRevision() const { return 0; }
+    // Retained physical hull, independent of the waterplane used for support.
+    // XZ is model-local; lower/upper are the current world vertical band.
+    // False means no exposed retained hull is available for ship contact.
+    virtual bool GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, float &upper) { return false; }
     // Ship-model-local support: all retained cut half-spaces must contain it.
     virtual bool IsHullPositionRetained(const CVECTOR &localPosition) const { return true; }
     virtual void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,

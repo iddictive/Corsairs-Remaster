@@ -901,8 +901,6 @@ struct AimWorld
         }
         if(entry.lo.x<=entry.hi.x)models.push_back(entry);
     }
-    float waterGap(const CVECTOR &p) const
-    { return p.y-(sea?sea->WaveXZ(p.x,p.z):0.f); }
     AimHit trace(const CVECTOR &a,const CVECTOR &b,int onlySurface=-1,
                  const std::vector<size_t> *candidates=nullptr) const
     {
@@ -927,44 +925,16 @@ struct AimWorld
         }
         if((onlySurface<0||onlySurface==0) && std::min(a.y,b.y)<=waveBound)
         {
-            // Sample a bounded number of points, then refine the first wave crossing.
-            // Far-above-water segments never call WaveXZ.
-            const int samples=std::clamp(int(std::ceil((b-a).GetLength()/4.f)),2,32);
-            float previous=0.f,gap=waterGap(a);
-            if(gap<0.f)
+            const float fraction=manual_aim::waterContact(a,b,[&](float x,float z)
+                {return sea?sea->WaveXZ(x,z):0.f;});
+            if(fraction<hit.fraction)
             {
-                if(hit.valid&&hit.fraction<=0.f)return hit;
-                // Live SEA::Trace tests the segment origin too: an immersed
-                // muzzle splashes immediately instead of launching through a wave.
-                hit.valid=true;hit.fraction=0.f;hit.point=a;hit.surface=0;hit.character=nullptr;
+                hit.valid=true;hit.fraction=fraction;hit.point=a+(b-a)*fraction;
+                hit.surface=0;hit.character=nullptr;
                 hit.normal=CVECTOR(0.f,1.f,0.f);
-                if(sea)hit.point.y=sea->WaveXZ(a.x,a.z,&hit.normal);else hit.point.y=0.f;
-                return hit;
-            }
-            for(int i=1;i<=samples;++i)
-            {
-                const float t=float(i)/samples;
-                const float nextGap=waterGap(a+(b-a)*t);
-                if(gap>=0.f && nextGap<=0.f)
-                {
-                    float lo=previous,hi=t;
-                    for(int n=0;n<9;++n)
-                    {
-                        const float mid=(lo+hi)*.5f;
-                        if(waterGap(a+(b-a)*mid)>0.f)lo=mid;else hi=mid;
-                    }
-                    if(hi<hit.fraction)
-                    {
-                        hit.valid=true;hit.fraction=hi;hit.point=a+(b-a)*hi;
-                        hit.surface=0;hit.character=nullptr;hit.normal=CVECTOR(0.f,1.f,0.f);
-                        if(sea)hit.point.y=sea->WaveXZ(hit.point.x,hit.point.z,&hit.normal);
-                        else hit.point.y=0.f;
-                        if(~hit.normal>1e-12f)hit.normal=!hit.normal;
-                    }
-                    break;
-                }
-                previous=t;gap=nextGap;
-                if(t>=hit.fraction)break;
+                if(sea)hit.point.y=sea->WaveXZ(hit.point.x,hit.point.z,&hit.normal);
+                else hit.point.y=0.f;
+                if(~hit.normal>1e-12f)hit.normal=!hit.normal;
             }
         }
         return hit;

@@ -9,8 +9,6 @@
 #include "shared/messages.h"
 #include "shared/sea_ai/script_defines.h"
 
-#define ISLAND_CODE -1
-
 CREATE_CLASS(TOUCH)
 
 void TOUCH::SetDevices()
@@ -330,21 +328,6 @@ void TOUCH::TouchIsland(int32_t idx)
     bUseTouch = true;
 }
 
-bool TOUCH::IsSinked(int32_t iIndex)
-{
-    if (iIndex == ISLAND_CODE)
-        return false;
-
-    auto *pShip = pShips[iIndex]->pShip;
-    if (pShip->isDead())
-    {
-        const auto fY = pShip->GetBoxsize().y;
-        if (pShip->GetPos().y < -fY / 3.0f)
-            return true;
-    }
-    return false;
-}
-
 BOOL TOUCH::FakeTouch()
 {
     // Shore separation retains its previous response. Ship pairs have one
@@ -384,9 +367,27 @@ void TOUCH::ResolveShips()
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
-        if (!entry->pShip || IsSinked(i) || entry->iNumCoastContour < 3 || entry->iNumCoastContour > 128 ||
-            !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
+        if (!entry->pShip || !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
         FrameBody frame;
+        if (entry->pShip->isDead() || entry->pShip->GetHullContourRevision())
+        {
+            std::vector<CVECTOR> contour;
+            float lower, upper;
+            if (!entry->pShip->GetHullContactContour(contour, lower, upper)) continue;
+            for (const auto &point : contour) frame.body.hull.push_back({point.x, point.z});
+            frame.yStart = (lower + upper) * .5;
+            frame.yEnd = frame.yStart + entry->TP[1].vPos.y - entry->TP[0].vPos.y;
+            frame.height = std::max(.001f, upper - lower);
+        }
+        else
+        {
+            if (entry->iNumCoastContour < 3 || entry->iNumCoastContour > 128) continue;
+            for (int n = 0; n < entry->iNumCoastContour; ++n)
+                frame.body.hull.push_back({entry->vCoastContour[n].x, entry->vCoastContour[n].z});
+            frame.yStart = entry->TP[0].vPos.y;
+            frame.yEnd = entry->TP[1].vPos.y;
+            frame.height = entry->pShip->GetBoxsize().y;
+        }
         frame.body.mass = entry->pShip->State.fWeight;
         // Same cwt owner as GetCargoLoad: goods, installed guns and crew. Do
         // not cap an overloaded ship to its nominal hold capacity.
@@ -396,12 +397,7 @@ void TOUCH::ResolveShips()
         if (std::isfinite(load) && load > 0.f) frame.body.mass += load;
         frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
-        for (int n = 0; n < entry->iNumCoastContour; ++n)
-            frame.body.hull.push_back({entry->vCoastContour[n].x, entry->vCoastContour[n].z});
         frame.wreck = entry->pShip->isDead();
-        frame.yStart = entry->TP[0].vPos.y;
-        frame.yEnd = entry->TP[1].vPos.y;
-        frame.height = entry->pShip->GetBoxsize().y;
         const auto before = worldVelocity(entry->TP[0]), after = worldVelocity(entry->TP[1]);
         // Passive drag can resist a small pusher, but it supplies no crushing
         // drive. Admit only native steps that add translational kinetic energy.

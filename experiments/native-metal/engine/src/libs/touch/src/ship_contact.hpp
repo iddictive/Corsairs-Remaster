@@ -81,27 +81,22 @@ struct Hull
     std::vector<Vec2> points;
     double radius{}, inertia{};
 };
-inline Hull prepare(const Body &b)
+inline std::vector<Vec2> convexHull(std::vector<Vec2> p)
 {
-    Hull h;
-    if (b.hull.size() < 3 || b.hull.size() > maxHullPoints ||
-        !std::isfinite(b.mass) || b.mass <= 0 || !finite(b.start) || !finite(b.end) ||
-        !finite(b.end.position - b.start.position) || !std::isfinite(b.end.yaw - b.start.yaw))
-        return h;
-    auto p = b.hull;
+    double radius = 0;
     for (auto v : p)
     {
         if (!finite(v)) return {};
-        h.radius = std::max(h.radius, length(v));
+        radius = std::max(radius, length(v));
     }
-    if (!std::isfinite(h.radius) || h.radius <= 0) return {};
+    if (!std::isfinite(radius) || radius <= 0) return {};
     std::sort(p.begin(), p.end(), [](Vec2 a, Vec2 c) { return a.x < c.x || (a.x == c.x && a.z < c.z); });
     p.erase(std::unique(p.begin(), p.end(), [](Vec2 a, Vec2 c) { return a.x == c.x && a.z == c.z; }), p.end());
     if (p.size() < 3) return {};
     // Monotone-chain hull also removes zero-length and collinear edges.
     std::vector<Vec2> chain(2 * p.size());
     std::size_t n = 0;
-    const double areaEpsilon = 1e-14 * h.radius * h.radius;
+    const double areaEpsilon = 1e-14 * radius * radius;
     if (!std::isfinite(areaEpsilon)) return {};
     for (auto v : p)
     {
@@ -117,6 +112,19 @@ inline Hull prepare(const Body &b)
     }
     if (n < 4) return {};
     chain.resize(n - 1);
+    return chain;
+}
+inline Hull prepare(const Body &b)
+{
+    Hull h;
+    if (b.hull.size() < 3 || b.hull.size() > maxHullPoints ||
+        !std::isfinite(b.mass) || b.mass <= 0 || !finite(b.start) || !finite(b.end) ||
+        !finite(b.end.position - b.start.position) || !std::isfinite(b.end.yaw - b.start.yaw))
+        return h;
+    auto chain = convexHull(b.hull);
+    if (chain.empty()) return {};
+    for (auto v : b.hull) h.radius = std::max(h.radius, length(v));
+    const double areaEpsilon = 1e-14 * h.radius * h.radius;
     double area2 = 0, moment12 = 0;
     for (std::size_t i = 0; i < chain.size(); ++i)
     {

@@ -31,6 +31,25 @@ struct Hit
     Vec3 normal{}, point{}; // receiver -> fragment; point lies on receiver
 };
 
+// Unit-mass impulse at the actual contact, with the same scalar inertia used
+// by the body integrator. A grazing seam cannot entrain a piece at ship speed:
+// tangential work is bounded by Coulomb friction and the admitted normal load.
+inline Vec3 contactImpulse(Vec3 relative, Vec3 lever, Vec3 normal, float inverseInertia)
+{
+    const float inward = dot(relative, normal);
+    if (!(inward < 0.f)) return {};
+    const auto rn = cross(lever, normal);
+    const float normalImpulse = -inward * 1.12f / (1.f + dot(rn, rn) * inverseInertia);
+    const auto push = normal * normalImpulse;
+    const auto after = relative + push + cross(cross(lever, push) * inverseInertia, lever);
+    const auto tangent = after - normal * dot(after, normal);
+    const float speed = length(tangent);
+    if (speed < 1.e-7f) return push;
+    const auto direction = tangent * (1.f / speed), rt = cross(lever, direction);
+    const float friction = std::min(speed / (1.f + dot(rt, rt) * inverseInertia), .18f * normalImpulse);
+    return push - direction * friction;
+}
+
 namespace detail
 {
 inline double projection(Vec3 p, Vec3 n)

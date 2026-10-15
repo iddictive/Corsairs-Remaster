@@ -4,6 +4,26 @@ Last verified delivery: October15. Frozen source `4ee15fd`, including destructio
 
 ## Current verdict
 
+### October15 — installed destruction rejected; timber/contact/flight source successor
+
+Player15:20:32 frame/replay rejects installed7433ec35 sections, breakup hitches,
+dragged fragments, water-aim visibility and exposed wrecks losing contact. A
+later report adds inconsistent held-Shift tsunami launches. Source diagnosis
+reproduces post-cut sheet shelling, open caps,38.430ms rough-cut CPU work before
+upload, uncapped grazing friction and premature wreck gates. The successor
+clips shared outer/timber/cap roles once, preserves holes, retains spatial
+assemblies, bounds friction by normal impulse and caches separate physical
+contact with success-only topology invalidation. Rough-cut CPU work becomes
+8.187ms before upload/BVH; this is no FPS claim. Independent review reproduces
+stale contact after cannon-on-laser; producer/consumer revision checks now pass.
+Flight removes the once-per-event latch and consumes full time, fixing reproduced
+second-crossing rejection and200ms invented support acceleration. Exact owners,
+checks and negatives belong to `sea-phonk.md` and `ship-wreck-contact.md`.
+Native syntax/source-bound CPU+ASan/UBSan pass; canonical build/stage, native
+pixels/motion and prior-save replay remain pending. The installed identity and
+player data remain the last verified delivery above; no game/CUA, GPU comparison,
+SAVE or settings mutation occurs in this attempt.
+
 ### October15 — hollow-hull and fragment-contact successor installed
 
 The player requests immediate installation and confirms the game is closed.

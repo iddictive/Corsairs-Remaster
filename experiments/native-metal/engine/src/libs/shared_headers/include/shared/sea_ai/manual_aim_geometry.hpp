@@ -13,6 +13,33 @@ inline bool finite(const CVECTOR &v)
 {
     return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
 }
+// Shared visual water contact. The ray can continue below it (the laser cuts
+// submerged hulls), while its visible air segment ends on the actual wave.
+template<class Height>
+float waterContact(const CVECTOR &a, const CVECTOR &b, Height height)
+{
+    if (!finite(a) || !finite(b)) return 2.f;
+    const auto gap = [&](float t) { const auto p = a + (b - a) * t; return p.y - height(p.x, p.z); };
+    float previous = 0.f, before = gap(0.f);
+    if (before < 0.f) return 0.f;
+    const int samples = std::clamp(int(std::ceil((b - a).GetLength() / 4.f)), 2, 32);
+    for (int n = 1; n <= samples; ++n)
+    {
+        const float t = float(n) / samples, after = gap(t);
+        if (before >= 0.f && after <= 0.f)
+        {
+            float lo = previous, hi = t;
+            for (int iteration = 0; iteration < 9; ++iteration)
+            {
+                const float mid = (lo + hi) * .5f;
+                if (gap(mid) > 0.f) lo = mid; else hi = mid;
+            }
+            return hi;
+        }
+        previous = t; before = after;
+    }
+    return 2.f;
+}
 inline bool reachable(const CVECTOR &from, const CVECTOR &to, float speed, float gravity)
 {
     const CVECTOR d = to - from;

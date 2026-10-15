@@ -74,10 +74,12 @@ class GEOM : public GEOS
     uint64_t hullOwner=0,hullSignature=0;
     inline static std::atomic<uint64_t> nextGeometryGeneration{0};
     const uint64_t geometryGeneration = ++nextGeometryGeneration;
+    uint64_t collisionRevision = 0;
     bool CaptureHullObject(int objectIndex);
     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
     std::vector<storm_ship_hull::Impact> hullCutInputs;
     storm_ship_laser::Mesh laserSurface;
+    storm_ship_laser::Surface laserVisualSurface;
     std::map<int,float>laserWoodThickness;
     storm_ship_hull::Broadphase laserBroadphase;
     std::vector<std::pair<int,uint32_t>>laserCollisionTriangles;
@@ -145,6 +147,7 @@ class GEOM : public GEOS
     void ClearHullCuts(uint64_t owner) override;
     bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups) override;
     uint64_t GeometryGeneration() const override { return geometryGeneration; }
+    uint64_t CollisionRevision() const override { return collisionRevision; }
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;

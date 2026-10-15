@@ -180,6 +180,12 @@ class SHIP : public SHIP_BASE
     std::array<STRENGTH, MAX_STRENGTH> Strength;
     std::array<bool, MAX_STRENGTH> collisionStrength{};
     float collisionYaw = 0.f;
+    GEOS *contactGeometry = nullptr;
+    uint64_t contactGeneration = 0;
+    uint64_t contactCollisionRevision = 0;
+    unsigned contactRevision = 0;
+    std::vector<CVECTOR> contactContour;
+    CVECTOR contactLower = CVECTOR(0.f), contactUpper = CVECTOR(0.f);
 
     DTimer dtMastTrace, dtUpdateParameters;
 
@@ -263,6 +269,7 @@ class SHIP : public SHIP_BASE
 
     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
     unsigned GetHullContourRevision() const override { return phonkLaser.contourRevision; }
+    bool GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, float &upper) override;
     bool IsHullPositionRetained(const CVECTOR &localPosition) const override;
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;
