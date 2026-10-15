@@ -34,6 +34,72 @@ evidence remain there while the performance investigation is active.
 
 ## Measurement contract
 
+### October15 exclusion matrix
+
+The player's closed-app experiment uses one frozen linked engine baseline from
+105609, with only the diagnostic driver and SEA exclusion owner rebuilt. Native
+source writers in the separate gameplay tasks were not compiled or staged.
+`001520/ablation/build-receipt.json` binds the exact executable, compile/link
+commands and every linked input hash. No full-current-source fingerprint is
+claimed for this frozen diagnostic. The14 sequential112549 cases each run384
+frames/128warm-up at2560×1655 with native upscaling0 and the same fixture/settings.
+
+| Excluded rendering | Completion cadence ms | GPU execution median ms | Preparation estimate median ms |
+| --- | ---: | ---: | ---: |
+| None, opening control |15.275|16.091|14.419|
+| Dynamic shadows |12.047|7.610|11.895|
+| Volumetric sky/atmosphere and sky drawing |13.312|10.436|13.157|
+| Reflection refresh, both environment and sun road |12.183|12.294|11.335|
+| Ship hull/model rendering |8.873|5.240|8.596|
+| Sails |13.316|12.867|11.705|
+| Sailors |12.433|11.984|11.441|
+| Rigging/flags/vants |14.346|13.073|14.175|
+| Cinematic/shafts/AA flags |16.882|14.460|16.229|
+| Foam and ShipLights rendering |14.862|13.997|14.597|
+| Shadows, sky and reflection refresh together |8.755|2.961|8.202|
+| All listed render groups |8.332|1.432|1.112|
+| None, closing control |15.782|14.660|14.938|
+
+These are diagnostic exclusions, not FPS optimization acceptance. Costs are
+coupled and cannot be added: excluding Ship rendering also removes the receiver
+snapshots that seed all eight point cubes. Its8.873ms is not the cost of a hull
+fragment shader alone. Excluding clouds also disables atmosphere-to-surface
+lighting. The postfx toggle establishes no benefit; cinematic grading is already
+interior-only. Background host work and control drift limit small differences.
+
+The first no-water early return invalidates the comparison: animated draw count
+rises311→498, registry admission exceeds its budget and all point cubes vanish.
+Reject that18.006ms result. The corrected113132 driver replaces only water
+fragment shading with a constant, keeping CPU water geometry, depth, uploads,
+reflections and all152sail/311animated/1sea/1sky/8cube minima. Full/flat/full
+completion means16.617/16.751/16.962ms; GPU medians16.528/16.133/16.588ms.
+There is no material whole-frame saving. Whole-scene readbacks confirm the flat
+water material and preserved hull/sail/rigging/sky composition, not motion parity.
+
+The empty-render case spends6.834ms median in `nextDrawable`; the full controls
+spend0.023/0.025ms. Its approximately120FPS completion cadence is a presentation
+floor in that empty hidden-window experiment, not a CPU/GPU rendering ceiling
+or6.8ms recoverable from the populated fleet. Normal CPU/GPU work overlaps.
+All rows and per-run manifests/readbacks remain under001520/ablation and the
+timestamped run directories; retained driver is in the private renderer-evidence
+owner. The diagnostic-only native source is retained in `ablation-source` and
+restored from the next gameplay delivery batch. Installed runtime, SAVE and
+settings are unchanged.
+
+The embedded012905 overlapping GPU profile has53 shader/pipeline rows. GPU
+shader owners are unchanged fromc87e66d to current HEAD (the normal fragment
+path also excludes the diagnostic-only flat shader). Reopening its existing
+profile therefore requires no new capture or replay timing. Native `gpudebug`
+`/performance/shaders/` groups repeated pipeline variants as follows: sky_clouds
+33.905%, point_shadow_cutout+point_shadow_vertex14.954%, vs_landraw+vs_skinned+
+fs_landlit_skyfog18.879%, local_weather_segments+integrate8.895%, raw/skinned
+point receiver vertices+land_point_shadow8.700%, dynamic_sky_fs3.226%, and water/
+sun-road/foam fragments3.952%. These are profiler cost estimates, not additive
+critical-path milliseconds or warmed throughput.53 rows sum97.509%; unassigned
+overhead is not silently attributed to a shader. The cloud shader reports1239
+instructions,73temporary registers,32texture reads and zero spills. Full native
+outputs and normalized rows are in001520/ablation/shader-costs*.json*.
+
 The default backbuffer is 2560×1655, checked through the actual D3D surface;
 The runner disables VSync and frame cap in its fixture; separately delivered
 original-app pacing is recorded in `docs/runtime.md`. Graphics options come from
@@ -271,12 +337,11 @@ fields, sun/points/fog, then seeded no-light/capacity/allocation/lease/reset and
 destruction cases.005914/010009/010059 Off/On/Off Core means12.196/12.530/12.038ms
 and completion means12.258/12.586/12.108ms reject the module despite lower CPU
 preparation estimates. Source is restored; candidate/fixture/evidence remain in
-001520/receiver-icb-rejected, not production. GPU visibility is the only evidenced
-next enabling branch: query actual main draws and reject only valid zero results
-under matching rasterization, original LessEqual+depth-write and an unchanged
-monotonic depth epoch. Less alone is insufficient for later Equal receivers;
-clears/replaced depth/nonmonotonic writes must keep the original draw. First
-measure eligible/zero populations and query overhead before implementing it.
+001520/receiver-icb-rejected, not production. The proposed GPU visibility branch
+is superseded by the actual-main query/frustum fits above: its safely eligible
+population is zero. Less alone and alpha-discard zero results cannot reject the
+later Equal receiver, and no whole packet is outside the frustum. Do not reopen
+that module without a new independently proved admission population.
 
 Read-only adjacent finding: the existing caster registry kernel also supplies
 vertexOffset as the three-argument setter's stride. Its nonzero-offset runtime

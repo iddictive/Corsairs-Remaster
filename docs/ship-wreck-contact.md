@@ -6,8 +6,9 @@ The first expanded collision source is committed in `f4d3c58`; installation was
 interrupted when the user clarified sustained crushing and catastrophic breakup.
 That follow-up is source complete: sustained pressure, transient contact-work
 accumulation, catastrophic midship fracture and contact-budget-safe flooding pass
-their source/native component checks. Staging and player replay remain pending
-with the shared integration owner.
+their source/native component checks. Follow-up `1bc5325` passes canonical staging
+with signed engine `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`;
+the installed collision/fracture player replay remains pending.
 The previous wreck-only correction below is historical evidence, not acceptance
 of ordinary ramming. Native integration remains with the shared build owner.
 

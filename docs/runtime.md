@@ -1,10 +1,61 @@
 # Runtime state
 
-Last verified delivery: October15. Prepared material/resource reuse, guarded animated bounds, the graphics-record readback repair and material specialization are installed with signed engine `51666fe49dc69f9564b1976cd14de2b09db0866f0a0377cf632476857509a6e6`; prior `6f761a93e059cad8df73fc7295e6f261f68d8dd452f590a5bab02f5a5fa11d75` is backed up. Canonical stage-only exits0; content check reports0 pending in cache/app and compiler ready. Native API, submission cache, MetalFX and earlier sea/weather/gameplay changes remain composed. Prepared materials, guarded bounds and specialization are enabled by default with direct/exact/generic fallbacks. All526 recorded player-state files retain their hashes, including the existing MetalFX choice. The equivalent fleet workload remains about12ms, above the8.33ms target. Installed Options, sea FPS, visuals, zoom/spyglass and phonk/quit acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Gameplay commits `f4d3c58` and `1bc5325` are installed with signed engine `4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`; prior `51666fe49dc69f9564b1976cd14de2b09db0866f0a0377cf632476857509a6e6` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. Earlier renderer, submission cache, MetalFX and sea/weather changes remain composed; rejected FPS experiments are absent. SAVE/userdata hashes match the older526-entry player snapshot. Two configuration differences from that older snapshot predate this stage; no fresh complete player snapshot was captured immediately before staging. The target sustained120FPS is unmet; no new FPS result follows from this gameplay delivery. Installed Options, sea FPS, visuals, zoom/spyglass, phonk and physical collision/fracture acceptance remain player replay. The player explicitly prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
 
-### October15 — AC control restored; structural lamp-cache proof remains unintegrated
+### October15 — revised gameplay batch canonically staged
+
+The coherent sustained-crushing, transverse midship-fracture and contact-budget
+follow-up is committed in `1bc5325` atop the single-beam/physical-contact batch
+`f4d3c58`. Canonical stage-only exits0 and installs the exact signed candidate
+`4c14ef379c6a9ca248a6a0339222f830f0b33351b7ff2f5c23e4a7709e030467`.
+Canonical `transact`/`seal_app` verifies the strict/deep app signature; independent
+gameplay check finds0 pending in cache/app. No game was launched. The receipt is
+`experiments/native-metal/.cache/diagnostics/frozen-gameplay-stage-20261015-revised.json`.
+SAVE/userdata hashes match the older prepared-player snapshot; its two config
+differences (`engine.ini`, `metal_graphics`) have modification times before the
+current stage. This is not a new full-state before/after hash proof. The source
+component evidence belongs to `sea-phonk.md` and `ship-wreck-contact.md`; actual
+player ramming/fracture/beam/boost replay remains unresolved.
+
+### October15 — gameplay stage interrupted; installed state recovered
+
+Local source commit `f4d3c58` freezes the single-beam phonk and initial physical
+contact batch. A new direct player crushing/midship-fracture requirement reopened
+that source unit while canonical staging was running. The integration owner
+terminated its owned stage process (exit143); buffered output subsequently showed
+that two installed scripts had already changed and signing had started.
+
+Canonical delivery recovery restored the exact previous `sea_phonk.c` and
+GreatRecipe-composed `AIShip.c` bytes and their delivery-state entries. The
+installed engine remains `51666fe49dc69f9564b1976cd14de2b09db0866f0a0377cf632476857509a6e6`;
+canonical strict/deep signature verification passes and508 protected player files
+retain their hashes across recovery. No game was launched. The receipt is
+`experiments/native-metal/.cache/diagnostics/frozen-gameplay-stage-20261015-recovery.json`.
+Source commit and cached build were preserved; neither constituted accepted
+delivery. That hold was superseded by the coherent revised delivery above;
+the recovery remains evidence of the interrupted attempt, not current app state.
+
+### October15 — broad fleet exclusions measured; lamp cache rejected
+
+The player closed the original app before the sequential112549 ablation. With
+native2560×1655/eight ships/384frames/128warm-up, full controls are15.275/15.782ms;
+no dynamic shadows12.047, no volumetric sky13.312, no reflection refresh12.183,
+no sails13.316 and no sailors12.433ms. Disabling shadows+sky+reflection together
+reaches8.755ms. These remove work for diagnosis, not accepted quality settings.
+The separate113132 constant-water-fragment control retains all geometry/depth/
+reflection/shadow lifecycle and gives16.751ms against16.617/16.962ms full: no
+material whole-frame benefit. The first early-return no-water test changed
+other passes and is rejected. `docs/metal-sea-benchmark.md` owns the complete
+matrix, frozen linked-input provenance and limitations.
+
+The empty-render case has1.432ms median GPU work,1.112ms estimated preparation
+and6.834ms median `nextDrawable` wait, yielding8.332ms completion cadence. Full
+controls wait only0.023/0.025ms there. That empty-case presentation floor does
+not represent6.8ms recoverable from the full scene. The player reports dark
+daytime ships and excessive yellow lamp influence; source diagnosis and shader
+cost separation remain active. No installed app or player state was changed.
 
 AC-native083658/084358 retain every required fleet pass at2560×1655 with VSync
 off. Warm main-completion means13.4541/12.9805ms (about74–77 benchmark FPS)
@@ -14,17 +65,17 @@ AC half-sum cloud timing is1.0165× FP32 cost; reject that precision candidate.
 The small palette-hash candidate has no whole-frame gain and is fully restored;
 neither candidate was installed.
 
-The next architecture preserves rigid lamp/hull depth in model coordinates and
-composes dynamic depth with a native six-slice blit plus Load. The actual
-Registry/geometry probe passes88 cases and553,648,128 compared depth bytes with
-zero differences, including warm reuse, dynamic motion, invalidation and empty
-partitions. It uses synthetic checker alpha; original texture binding/mips,
-receiver appearance, complete offscreen membership and production frame lifetime
-remain open. This is a structural falsifier, not a production cache or FPS gain.
-`docs/metal-frame-pacing.md` owns the enabling contract and evidence paths.
-Installed engine/player data remain unchanged; no game/CUA launch occurred.
+Two ship-local lamp-cache compositors pass the88-case structural depth oracle,
+including native same-pass cached-depth seeding. Blit+Load worsens the fleet
+pilot; ideal warm seed timing is5.855ms versus5.870ms full for eight captured
+cubes, with synthetic checker alpha. There is no material saving. The complete
+candidate source is retained privately and its metadata/registry production
+delta is restored. `docs/metal-frame-pacing.md` owns this rejected architecture
+and its remaining fidelity gaps. Diagnostic exclusion sources and linked-input
+receipts are retained privately; their production hooks were restored before the
+gameplay source commit and were never staged into the installed app.
 
-### October15 — producer storage bounded; historical app cleanup incomplete
+### October15 — producer storage bounded; redundant app copies removed
 
 Shared producer storage now retains one build, one prior-engine backup, the
 newest diagnostic trace and explicit protected evidence within an8GiB diagnostic
@@ -43,9 +94,14 @@ available space increased1,832,497,152 bytes in that observation. These are
 separate physical observations, subject
 to concurrent host activity. Current012905 geometry/profiling,001520 source
 evidence and player sea-fps captures remain protected. Unique older release
-differences/receipts were preserved before cleanup. Three dated release/payload/
-extracted app copies still remain; their removal is incomplete. The intended
-retention is one installed player app, with an optional actually used dev runtime.
+differences/receipts were preserved before cleanup. After the player explicitly
+approved removing the three named copies, the dated release, archive payload
+and extracted app bundles were removed. Available space increased by
+22,672,351,232 bytes (21.12GiB physical); APFS sharing makes the earlier allocated
+size unsuitable as a freed-space estimate. All82 preserved unique hashes remain
+verified. The installed engine hash and strict deep code signature are unchanged.
+The receipt is `.local-archives/metal-release-evidence/2026-10-11-storage-audit-2026-10-15/three-app-cleanup.json`.
+Retention is one installed player app, with an optional actually used dev runtime.
 
 ### Historical October15 — cloud precision candidate; degraded battery context
 
