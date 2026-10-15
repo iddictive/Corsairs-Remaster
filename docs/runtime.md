@@ -1,8 +1,36 @@
 # Runtime state
 
-Last verified delivery: October15. Frozen source `5e9af7f` is installed with signed engine `e3fbcf906e01230215b8aad3c7c8ebe7f77a418ecccd96e69abd4b5ed738d88f`; prior `7433ec35692b1a04344d0dcd204fbf479067b8ac184d152450ab199a71d15f31` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. Player72459 subsequently rejects collision pass-through and a detached stern still visible on the source hull: destruction acceptance is rejected, not closed by component checks. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; diagnostic-only FPS/lighting experiments are absent. Sustained120FPS remains unmet; this gameplay delivery has no new FPS result. Daytime ship/sail darkness, crew/rigging, long wake and ordinary-sea aim draping remain open. The preceding installed indexed-span corruption is not fixed by this batch; its renderer diagnosis stays active. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
+Last verified delivery: October15. Frozen source `87b4acb` is installed with signed engine `61af9725b7e4473f676ca85ed51c74721d50d0fa93ff9b33fd4bc1d01263d55c`; prior `e3fbcf906e01230215b8aad3c7c8ebe7f77a418ecccd96e69abd4b5ed738d88f` is backed up. Canonical stage-only exits0; strict/deep sealing passes and content check reports0 pending in cache/app with compiler ready. All518 freshly recorded protected player files retain their hashes, including SAVE/settings; no agent game launch occurred. This batch preserves explicitly removed GM objects through fracture refinement; real fracture/contact acceptance remains open after the preceding player rejection. Installed indexed-span corruption recurs in the16:32 and16:50 player reports and remains unfixed. Earlier structural-support, long-wake, MetalFX, renderer and weather changes remain composed; diagnostic-only FPS/lighting experiments are absent. Sustained120FPS remains unmet. Reflection LOD measured6.8–12.1% uplift privately; generic ordered batching is slower in two brackets and rejected. Actual main-thread CPU remains about12.1ms amid measured background load, not an isolated-machine ceiling. Daytime ship/sail darkness, crew/rigging, long wake and ordinary-sea aim draping remain open. The player prohibits CUA and test-copy launches; no autonomous launch/control follows this delivery. Earlier inventories below are historical snapshots; acceptance is scoped to each replay.
 
 ## Current verdict
+
+### October15 — installed87, repeated cache crash and CPU contention separated
+
+Canonical staging succeeds for87b4acb; delivery receipt, log and518-file
+preservation snapshot belong to20261015-162232-ghost-repair-delivery. No agent
+game launch occurs. Player16:32 repeats IndexedSpanFrameCache removal through
+sea foam;16:50 repeats the same erase/evict offsets through BIShipIcon/HUD.
+This rejects a foam-only explanation; the earlier corrupting write is unknown.
+The private fracture scene initially exits-11 before action in SEAFOAM::AddShip:
+its fixture enrolls unmounted models. Its owner corrects enrollment ordering
+in fixture input only. The same coherent87 binary then completes RAM401 frames
+(165616), LASER401 (165708) and water-aim151 (165809), all exit0 without this
+cache crash. These narrower diagnostic cases do not accept player stability,
+contact-solver gameplay or final destruction pixels; their owner reviews them.
+
+Daylight dump163805 records27 real GM hull cohorts, one sail and three rigging
+cohorts. GM resolved ambient equals diffuse; their sun and SH are present.
+The sail resolves authored ambient1.5/diffuse0.3, while SH uses0.3: the distinct
+ambient response is lost. A material-coefficient correction is not installed;
+it would not by itself change the measured GM hull response.
+
+Generic ordered batching actually admits main GM geometry, but both complete
+Off/On/Off brackets regress. The165150 repeat also records actual CPU clocks
+and background processes: controls spend12.069/12.182ms on the main thread
+versus13.857/14.074ms completion cadence; candidate17.896ms. Background
+contention is real and isolation is unproven. Exact scope and distributions
+belong to metal-frame-pacing.md and metal-sea-benchmark.md. Neither disabling
+background work nor this batch is evidence of120FPS.
 
 ### October15 — native draw ghost reproduced; empty-object domain source correction
 
@@ -13,8 +41,8 @@ collision. First rough and flat→rough cases resurrect18 objects. Four source
 lines preserve the object domain in refinement and both halves; false original
 draws become0. ASan/UBSan exact draw/rebuild/saved-plane/upload-rollback cases
 and native geometry syntax pass. Only `ship_laser_geometry.hpp` changes behavior;
-the installed engine remains rejected5e9/e3fbc until the next canonical stage.
-Native pixels/contact acceptance remains pending; no game/GPU action here.
+This source correction is subsequently staged as87/61af above.
+Native pixels/contact acceptance remains pending.
 
 ### October15 — timber/contact/flight installed; player rejects contact and ghost geometry
 

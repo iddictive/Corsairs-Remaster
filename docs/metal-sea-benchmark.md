@@ -443,6 +443,25 @@ prepared; whole-workload performance, visual acceptance and120FPS remain open.
 Private owners are ordered-material-batch-fit, ordered-material-batch-probe and
 ordered-material-batch-candidate; no production renderer change is delivered.
 
+October15's corrected private adapter now includes rawWorld, the actual GM
+main-view family; a rawSeaLit-only gate omitted those hulls. It builds against
+87b4acb with a freshly compiled same-generation driver. Cumulative admission
+reports use the existing120-frame profile gate because Device teardown does
+not run in this diagnostic lifecycle. Actual admission includes390 main hull
+draws/frame plus reflection draws, about1100 packets into20 batches/frame,
+with zero original-draw fallback. This is real aggregation, not an FPS win.
+
+The complete384/128 Off/On/Off runs164207 give cadence13.335/16.694/14.705ms.
+A second bracket165150, with per-frame actual thread/process CPU clocks and
+background-process sampling, gives13.857/17.896/14.074ms; GPU medians are
+13.483/17.510/13.509ms. Coverage is identical:152 sails,334 animated draws,
+one sea/sky and eight complete cubes. Candidate uploads grow from17.585MB to
+19.482MB/frame. Reject this generic-shader adapter as a performance change;
+fewer API calls alone do not establish lower cost. Generic shading and added
+resource/table work remain candidate causes, not separately measured causes.
+The actual-CPU versus wall-time distinction and contention limits belong to
+metal-frame-pacing.md. No candidate from these runs is installed or accepted.
+
 Captured012905 command lists now bound the reflection aggregation proposal:
 environment face draws149/86/11/542/11 total799; sun-road adds1. Each environment
 face has10 dynamic-sky draws and1 generic sky/fog draw, leaving138/75/0/531/0
