@@ -199,6 +199,10 @@ class SHIP : public SHIP_BASE
     void PublishPhonkLights(uint32_t deltaTime);
     void DrawPhonkGlow(uint32_t deltaTime);
     void ExecutePhonkLaser(uint32_t deltaTime);
+    bool EnsureCutFragments();
+    CVECTOR PhonkLaserEndpoint();
+    void PublishPhonkLaserLight();
+    void DrawPhonkLaserFragments();
     void DrawPhonkLaser();
     friend class SHIP_CUT_FRAGMENTS;
     void AdvanceCutFragments();

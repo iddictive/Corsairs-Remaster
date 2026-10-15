@@ -13,33 +13,51 @@
 extern "C" bool StormMetalSceneLight(void *, uint64_t, const storm_render::Light *);
 #endif
 
-// One late Execute owner sees a coherent frame-end pose for every receiver.
-// SHIP entities share an earlier priority; advancing inside each SHIP::Execute
-// would mix current and previous poses according to fleet insertion order.
+// Late Execute sees coherent frame-end poses. Transparent laser effects must
+// also follow Sea (65530), which otherwise paints over their unwritten depth.
 class SHIP_CUT_FRAGMENTS final : public Entity
 {
-    layer_index_t layer{};
+    layer_index_t executeLayer{}, realizeLayer{};
     bool attached = false;
   public:
     bool Init() override { return true; }
-    void Attach(layer_index_t next)
+    void Attach(layer_index_t nextExecute, layer_index_t nextRealize)
     {
-        if (attached && layer == next) return;
-        if (attached) core.RemoveFromLayer(layer, GetId());
-        layer = next; attached = true;
-        core.AddToLayer(layer, GetId(), std::numeric_limits<priority_t>::max());
+        if (attached && executeLayer == nextExecute && realizeLayer == nextRealize) return;
+        if (attached)
+        {
+            core.RemoveFromLayer(executeLayer, GetId());
+            core.RemoveFromLayer(realizeLayer, GetId());
+        }
+        executeLayer = nextExecute; realizeLayer = nextRealize; attached = true;
+        core.AddToLayer(executeLayer, GetId(), std::numeric_limits<priority_t>::max());
+        core.AddToLayer(realizeLayer, GetId(), 65532);
     }
     void ProcessStage(Stage stage, uint32_t delta) override
     {
-        if (stage != Stage::execute || !delta) return;
+        if ((stage != Stage::execute && stage != Stage::realize) || !delta) return;
         const auto &ships = core.GetEntityIds("ship");
         if (ships.empty()) { core.EraseEntity(GetId()); return; }
+        const auto &visible = core.GetEntityIds(realizeLayer);
         for (const auto id : ships)
             if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
-                ship->AdvanceCutFragments();
+            {
+                if (stage == Stage::execute) ship->AdvanceCutFragments();
+                else if (std::find(visible.begin(), visible.end(), id) != visible.end()) ship->DrawPhonkLaser();
+            }
     }
 };
 CREATE_CLASS(SHIP_CUT_FRAGMENTS)
+
+bool SHIP::EnsureCutFragments()
+{
+    auto id = core.GetEntityId("ship_cut_fragments");
+    if (!id) id = core.CreateEntity("ship_cut_fragments");
+    auto *stepper = static_cast<SHIP_CUT_FRAGMENTS *>(core.GetEntityPointer(id));
+    if (!stepper) return false;
+    stepper->Attach(ExecuteLayer, RealizeLayer);
+    return true;
+}
 
 namespace
 {
@@ -222,14 +240,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     auto *model = GetModel();
     auto *root = model ? model->GetNode(0) : nullptr;
     if (!root || !root->geo) return false;
-    if (!restoring)
-    {
-        auto id = core.GetEntityId("ship_cut_fragments");
-        if (!id) id = core.CreateEntity("ship_cut_fragments");
-        auto *stepper = static_cast<SHIP_CUT_FRAGMENTS *>(core.GetEntityPointer(id));
-        if (!stepper) return false;
-        stepper->Attach(ExecuteLayer);
-    }
+    if (!restoring && !EnsureCutFragments()) return false;
     unsigned pendingNodes = 0;
     for (int n = 0; auto *node = model->GetNode(n); ++n)
         if (node->geo && !IsAuthoredMastNode(node)) ++pendingNodes;
@@ -804,12 +815,36 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     target->ApplyPhonkLaserCut(plane, false, int32_t(GetACharacter()->GetAttributeAsDword("index")), GetACharacter());
 }
 
-void SHIP::DrawPhonkLaser()
+CVECTOR SHIP::PhonkLaserEndpoint()
 {
+    if (phonkLaser.contact)
+        if (auto *target = static_cast<SHIP *>(core.GetEntityPointer(phonkLaser.contact)))
+            if (target->GetModel()) return target->GetModel()->mtx * phonkLaser.lastHit;
+    return phonkLaser.endpoint;
+}
+
+void SHIP::PublishPhonkLaserLight()
+{
+#if defined(STORM_METAL_SHIP_HULL_DAMAGE) && defined(STORM_METAL_DYNAMIC_LIGHTING_BRIDGE)
     using namespace storm::ship::phonk;
+    if (phonkLaser.beamAge >= laserBeamLife || phonkLaser.rays.empty() || !phonkLaser.contact) return;
+    const auto end = PhonkLaserEndpoint();
+    const auto muzzle = GetModel()->mtx * phonkLaser.rays[phonkLaser.rays.size() / 2].muzzle;
+    if (std::sqrt(~(end - muzzle)) > phonkLaser.triggerAge * 16000.f) return;
+    const float heat = std::clamp(phonkLaser.burn / laserBurnTime, 0.f, 1.f);
+    storm_render::Light light{};
+    light.Type = storm_render::LightKind::Point;
+    light.Position = {end.x, end.y, end.z};
+    light.Diffuse = {4.f + 3.f * heat, 1.5f + heat, .5f, 1.f};
+    light.Range = 14.f; light.Attenuation0 = 1.f; light.Attenuation2 = 6.f / (14.f * 14.f);
+    StormMetalSceneLight(pRS->GetNativeDevice(), (uint64_t(1) << 60) | uint64_t(GetId()), &light);
+#endif
+}
+
+void SHIP::DrawPhonkLaserFragments()
+{
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    if (phonkLaser.fragments.empty() && phonkLaser.edges.empty() &&
-        (phonkLaser.beamAge >= laserBeamLife || !PhonkActive())) return;
+    if (phonkLaser.fragments.empty()) return;
     CMatrix previous;
     pRS->GetTransform(storm_render::TransformWorld, previous);
     if (!phonkLaser.fragments.empty())
@@ -832,6 +867,17 @@ void SHIP::DrawPhonkLaser()
         pRS->SetRenderState(storm_render::RenderLighting, previousLighting);
         pGS->SetTechnique(previousTechnique.c_str());
     }
+    pRS->SetTransform(storm_render::TransformWorld, previous);
+#endif
+}
+
+void SHIP::DrawPhonkLaser()
+{
+    using namespace storm::ship::phonk;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if (phonkLaser.edges.empty() && (phonkLaser.beamAge >= laserBeamLife || !PhonkActive())) return;
+    CMatrix previous;
+    pRS->GetTransform(storm_render::TransformWorld, previous);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     struct Vertex { CVECTOR position; uint32_t color; };
     std::array<Vertex, 6400> vertices;
@@ -857,10 +903,7 @@ void SHIP::DrawPhonkLaser()
     }
     if (phonkLaser.beamAge < laserBeamLife && PhonkActive() && !phonkLaser.rays.empty())
     {
-        CVECTOR endpoint = phonkLaser.endpoint;
-        if (phonkLaser.contact)
-            if (auto *target = static_cast<SHIP *>(core.GetEntityPointer(phonkLaser.contact)))
-                if (target->GetModel()) endpoint = target->GetModel()->mtx * phonkLaser.lastHit;
+        const auto endpoint = PhonkLaserEndpoint();
         const auto muzzle = GetModel()->mtx * phonkLaser.rays[phonkLaser.rays.size() / 2].muzzle;
         const auto ray = endpoint - muzzle;
         const float length = std::sqrt(~ray);
@@ -929,14 +972,6 @@ void SHIP::DrawPhonkLaser()
                     strip(end - radial * extent, end + radial * extent,
                           (side * -std::sin(angle) + other * std::cos(angle)) * .035f, color);
                 }
-#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-                storm_render::Light light{};
-                light.Type = storm_render::LightKind::Point;
-                light.Position = {end.x, end.y, end.z};
-                light.Diffuse = {4.f + 3.f * heat, 1.5f + heat, .5f, 1.f};
-                light.Range = 14.f; light.Attenuation0 = 1.f; light.Attenuation2 = 6.f / (14.f * 14.f);
-                StormMetalSceneLight(pRS->GetNativeDevice(), (uint64_t(1) << 60) | uint64_t(GetId()), &light);
-#endif
             }
         }
     }

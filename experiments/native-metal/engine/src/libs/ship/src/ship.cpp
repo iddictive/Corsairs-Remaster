@@ -1964,6 +1964,7 @@ void SHIP::PublishPhonkLights(uint32_t deltaTime)
         StormMetalSceneLight(pRS->GetNativeDevice(), id, &light);
     }
 #endif
+    if (deltaTime) PublishPhonkLaserLight();
 }
 
 void SHIP::DrawPhonkGlow(uint32_t)
@@ -2108,7 +2109,7 @@ void SHIP::Realize(uint32_t dtime)
         pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
         pRS->Print(0, 140, "Volume: %.2f", GetAShip()->GetAttributeAsFloat("Volume"));
     }
-    if (dtime != 0) DrawPhonkLaser(); // reflection requests call Realize(0)
+    if (dtime != 0) DrawPhonkLaserFragments(); // reflection requests call Realize(0)
 }
 
 void SHIP::SetLights()
@@ -2749,6 +2750,9 @@ bool SHIP::Mount(ATTRIBUTES *_pAShip)
     pABox->SetAttributeUseFloat("z", State.vRealBoxSize.z);
 
     bMounted = true;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    EnsureCutFragments();
+#endif
     if (auto *entry = GetACharacter()->FindAClass(GetACharacter(), "Ship.SeaEmergence")) {
         if (entry->GetAttributeAsDword("Active", 0)) {
             vPos = State.vPos;

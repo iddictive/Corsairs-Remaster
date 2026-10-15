@@ -1,5 +1,48 @@
 # Phonk Mode
 
+## Beam visibility and fracture hitch follow-up
+
+The invisible-over-water beam is a render-order defect. Actual native submission
+passes SetFVF, the PhonkLaser technique and the compact Metal draw, with valid
+diffuse vertices, depth testing and no depth writes. An exposed muzzle and an
+air-only ray reject the submerged-gun hypothesis. SHIP draws at priority31;
+Sea follows at65530 and composites over the transparent beam. With the identical
+diagnostic binary, changing only SHIP's priority to65532 makes the white/violet
+beam clearly visible over water. Retained input plans and full frames live in
+`.local-archives/metal-renderer-evidence/destruction-scene/`; `dispatch-trace-87b4acb`
+binds the dispatch probe and `late-order-trace-87b4acb` the causal ordering probe.
+
+The source candidate reuses SHIP_CUT_FRAGMENTS for a65532 Realize callback in
+the resolved ship layer. Mount attaches it before the first shot and also covers
+Load. Only transparent beam, contact and hot-edge vertices move late; opaque
+fragment geometry remains in SHIP::Realize. Actual layer membership excludes
+removed ships, and reflection layers never invoke the helper. Contact-light
+publication stays early in PublishPhonkLights; moving it late would miss the
+opaque receivers before the next frame clears the light catalog. Both consumers
+resolve a moving target through PhonkLaserEndpoint. The contact light retains
+the original nonzero-delta/reflection exclusion. Canonical stage-only exits0
+and installs signed6a6be8eb, preserving all526 protected player files. Fresh
+current-header native RAM401/laser401/water151 runs193610/193617/193622 exit0,
+bound to50 canonical libraries and the frozen six-source map. Whole-frame
+inspection accepts the beam over water, its stop at the target hull and the
+short air segment/surface contact under downward aim. Cut, retained-geometry
+and charge/recharge invariants remain. Player/save/death/quest acceptance and
+the independent renderer-cache crash remain open.
+
+Inclusive native stage timing locates the first fracture's synchronous cost:
+ApplyHullImpact/ApplyPhonkLaserCut take60.3/59.4ms; chip creation takes23.1/25.4ms
+and cold closedVolume takes10.7/10.5ms. Nested stages overlap and are not additive
+frame totals. The hitch candidate shares the three immutable chip meshes through
+weak service-bound cache entries and per-burst strong leases, preserving each
+burst's2/4/2 mesh assignment and ordinary BLAST ownership. It reuses the existing
+quantized-edge hash for unordered closed-volume counts, preserving the closure
+predicate and volume accumulation. ASan/UBSan ownership, failed-init, service
+change, last-release/recreate and actual hull-volume probes pass. The integrated
+native action still hitches: RAM108.295ms includes42.668ms action plus65.567ms
+CORE; laser43.9756ms includes its43.936ms CORE action. No image readback occurs
+in those frames. The cold RAM CORE excess is not yet causally attributed;
+these measurements reject full hitch acceptance and are not an FPS claim.
+
 ## October15 — timber/contact/flight source successor
 
 The16:04 ghost report has a source-bound native draw reproduction: rough-cut
@@ -34,8 +77,8 @@ Hitch acceptance is rejected by the full native action: RAM frame101 costs
 Neither action frame performs image readback. Allocations rise8→128/110 and
 uploads roughly6.5→12.5/12.7MB; GPU waits are7.064/0ms. These include native
 preparation, uploads, collision, child nodes, chips and the remaining frame,
-which the earlier warmed header timing excludes. Causal stage timing remains
-necessary before another optimization. At200ms the whole laser/water frames
+which the earlier warmed header timing excludes. The causal timing and pending
+optimization are described above. At200ms these baseline laser/water frames
 show no readily distinguishable bright beam or water-contact ring; visible
 heat/faint violet marks do not accept the requested beam visibility. These
 negative results remain open independently of the renderer-cache crash.

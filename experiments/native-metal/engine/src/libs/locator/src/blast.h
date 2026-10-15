@@ -7,6 +7,8 @@
 #include "geometry.h"
 #include "vma.hpp"
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+#include <array>
+#include <memory>
 #include "ship_hull_chips.hpp"
 #include "ship_hull_damage_bridge.hpp"
 #endif
@@ -41,6 +43,7 @@ class BLAST : public Entity
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     bool hullChipMode=false;
     storm_ship_hull::ChipLease hullChipLease;
+    std::array<std::shared_ptr<GEOS>,3> hullChipGeometry;
     void LaunchHullChips(MESSAGE&message);
     void StepHullChips(uint32_t delta);
 #endif

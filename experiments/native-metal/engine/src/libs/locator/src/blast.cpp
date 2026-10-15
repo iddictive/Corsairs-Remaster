@@ -42,8 +42,19 @@ bool BLAST::Init()
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(hullChipMode){
         if(!hullChipLease.acquire())return false;
-        char one[]="particles\\palka01",two[]="particles\\palka02",four[]="particles\\palka04";AddGeometry(one,2);AddGeometry(two,4);AddGeometry(four,2);
-        for(auto&item:Item){item.chip.alive=false;if(!item.geo)return false;}
+        // These immutable meshes already serve several particles in one burst.
+        // Share them across live bursts too; the last entity owns their release.
+        static VGEOMETRY *assetService=nullptr;
+        static std::array<std::weak_ptr<GEOS>,3> assets;
+        if(assetService!=gs){assets={};assetService=gs;}
+        const char *names[]={"particles\\palka01","particles\\palka02","particles\\palka04"};
+        for(unsigned n=0;n<hullChipGeometry.size();++n){
+            auto geometry=assets[n].lock();
+            if(!geometry){geometry.reset(gs->CreateGeometry(names[n],nullptr,0));if(!geometry)return false;assets[n]=geometry;}
+            hullChipGeometry[n]=std::move(geometry);
+        }
+        Item.resize(storm_ship_hull::ChipLease::particlesPerBurst);ItemsNum=uint32_t(Item.size());
+        for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n<2?0:n<6?1:2].get();item.bDouble=true;item.chip.alive=false;}
         return true;
     }
 #endif

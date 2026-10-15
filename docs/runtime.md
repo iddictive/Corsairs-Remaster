@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified delivery: October15. The frozen late-laser/hitch candidate, retaining the native MSAA4+FXAA and checkbox fixes, is installed with signed engine `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611`; prior `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9` is backed up. Hidden RAM/laser/water acceptance for this candidate remains with the physics chat; no player acceptance is claimed. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October15. The frozen late-laser/hitch candidate, retaining the native MSAA4+FXAA and checkbox fixes, is installed with signed engine `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611`; prior `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9` is backed up. Hidden RAM/laser/water runs pass and beam visibility is accepted; severe action hitches and player acceptance remain open. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
 
-### October15 — frozen late laser/hitch batch staged; native acceptance pending
+### October15 — late laser/hitch batch staged; beam accepted, hitch open
 
 The physics owner freezes six native files, including the final deltaTime guard
 on early contact-light publication. Canonical stage-only exits0 in97.612s and
@@ -16,9 +16,14 @@ restored strict verification before the final successful stage. Its exit-15
 receipt is not an accepted delivery. The frozen batch keeps opaque fragments
 early and moves transparent laser FX after Sea; it also shares chip meshes and
 hashes closed-volume edges. sea-phonk.md owns its causal evidence and limits.
-The physics chat owns serialized native RAM401/laser401/water151 acceptance
-against the final canonical libraries; root retains Git/build/install ownership.
-No original app launch or sustained-FPS acceptance occurs.
+The physics chat completes serialized native RAM401/laser401/water151 runs
+193610/193617/193622, all exit0 against50 canonical libraries and the frozen
+source map. Whole-frame observation accepts air/water beam visibility and hull
+occlusion; cut/charge/retained-geometry invariants remain. Severe hitch acceptance
+is rejected: RAM108.295ms and laser43.9756ms remain, with cold RAM CORE cost
+unattributed. A same-binary warm RAM replay is queued with that owner after
+root releases the GPU. Root retains Git/build/install ownership. No original
+app launch, player/save/death/quest or sustained-FPS acceptance occurs.
 
 ### October15 — point-shadow cost isolated; no production shadow change
 
