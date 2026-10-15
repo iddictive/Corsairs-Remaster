@@ -4,6 +4,45 @@ Last verified delivery: October15. Prepared material/resource reuse, guarded ani
 
 ## Current verdict
 
+### October15 — receiver ICB preserves pixels but reduces whole-frame throughput
+
+The bounded fit counter observes701 admitted receivers/311 skinned, one exact
+cull+six-field viewport run and557 unique geometry resources on all383 steady
+frames. The default-off prototype packs original uniforms, uses completion-owned
+leases and encodes ordered commands on GPU. Apple's ICB fragment contract requires
+texture argument buffers; parent standalone texture bindings fail PSO creation.
+A derived resource wrapper retains the canonical fragment body. Installed MSL's
+three-argument vertex setter takes stride, not byte offset; pointer arithmetic
+corrects the prototype's initial addressing mismatch. The final native oracle
+matches every color/depth byte with raw/skinned, strips/lists, both index widths,
+offsets/base vertex, cull/viewports, sun/points/fog and allocation/capacity/lease/
+no-light/reset/destruction negatives. An initial capacity fixture counted total
+instead of admitted packets; its corrected rejection exceeds2048 admitted draws.
+
+Same-binary Native fleet384/warmup128, prepared materials/bounds/specialization:
+
+| Run | Receiver ICB | Core mean ms | Main completion cadence mean ms | CPU preparation estimate median ms |
+| --- | --- | --- | --- | --- |
+|005914|0|12.196|12.258|12.061|
+|010009|1|12.530|12.586|9.979|
+|010059|0|12.038|12.108|11.221|
+
+The preparation estimate falls, but whole throughput is about3–4% worse. Every
+existing coverage minimum remains. This module alone is rejected; production
+land_shadow.hpp is restored exactly and no ICB candidate is staged/installed.
+Source, patch, fixture, initial failure logs and final measurements remain in
+001520/receiver-icb-rejected. Reconsider only as an enabling transport for proven
+GPU visibility rejection, not another stand-alone draw-call optimization.
+
+The existing diagnostic runner now records Core mean, main completion cadence,
+CPU preparation estimate and the actual STORM_METAL environment. Retained-run
+arithmetic preserves previous distributions and rejects failed GPU commands;
+no permanent test or player-facing control is added. A separate private-storage
+cloud-noise experiment matches16,777,216 bytes but is slower: shared/private
+component medians0.440/0.543ms, sums126.471/205.947ms over192 samples each. It is
+also rejected; production noise storage and installed51666fe49 remain unchanged.
+The full120FPS and installed player-world acceptance remain unresolved.
+
 ### October15 — prepared materials installed; CPU saving does not yet improve throughput
 
 The existing backend now reuses unchanged fixed-function stages and encoder

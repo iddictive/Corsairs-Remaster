@@ -48,6 +48,12 @@ populations and merges overlapping command intervals before calculating GPU
 execution per frame. CPU Core wall time, GPU execution and overlapping stage
 costs are distinct quantities; none is independently displayed-game FPS.
 Percentiles use nearest rank and median uses the middle pair.
+The runner also records warmed Core mean, the mean interval between first/last
+main-frame GPU completions, and CPU wall minus explicit GPU/drawable waits as a
+preparation estimate. That estimate can still contain implicit driver stalls.
+GPU intervals may overlap across frames, so their median cannot establish
+throughput. The manifest retains the actual STORM_METAL environment, including
+experimental switches and generated trace paths, alongside normal settings.
 
 Coverage requires actual sail draws, animated draws, main sea, current cloud
 field and complete point-shadow cubes on every warmed frame. Presence counters
@@ -115,6 +121,34 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 
 ## Proven local work and rejection rules
 
+The traversal receiver ICB prototype is rejected as a standalone optimization.
+Fit run004432 admits701 receivers/311 skinned with one contiguous cull/viewport
+run and557 geometry resources. The prototype retains CPU light admission and
+original order, uses bounded completion-owned uploads/ICBs, and derives a texture
+argument wrapper from the unchanged canonical fragment body. Apple's
+[ICB fragment argument contract](https://developer.apple.com/documentation/metal/mtlindirectrendercommand/setfragmentbuffer(_:offset:at:))
+requires an argument buffer for textures: parent standalone texture bindings
+cannot create the supporting PSO. Native MSL `set_vertex_buffer(pointer,stride,index)`
+does not accept a byte offset; add it to the pointer and use the two-argument
+setter. The nonzero-offset fixture exposes this mismatch before acceptance.
+
+Final direct/ICB native color+depth bytes match across raw/skinned geometry,
+strips/lists,16/32-bit indices, offsets/base vertex, mixed cull/all-six viewport
+fields, sun/points/fog, then seeded no-light/capacity/allocation/lease/reset and
+destruction cases.005914/010009/010059 Off/On/Off Core means12.196/12.530/12.038ms
+and completion means12.258/12.586/12.108ms reject the module despite lower CPU
+preparation estimates. Source is restored; candidate/fixture/evidence remain in
+001520/receiver-icb-rejected, not production. GPU visibility is the only evidenced
+next enabling branch: query actual main draws and reject only valid zero results
+under matching rasterization, original LessEqual+depth-write and an unchanged
+monotonic depth epoch. Less alone is insufficient for later Equal receivers;
+clears/replaced depth/nonmonotonic writes must keep the original draw. First
+measure eligible/zero populations and query overhead before implementing it.
+
+Read-only adjacent finding: the existing caster registry kernel also supplies
+vertexOffset as the three-argument setter's stride. Its nonzero-offset runtime
+effect is unverified and it was not changed by the rejected receiver experiment.
+
 Prepared fixed-function stages and material bindings belong to `backend.mm`'s
 existing Device/EncoderBindings lifetimes. Stage state/texture-transform changes,
 reset and grass's temporary state writes invalidate stage entries. Effective
@@ -147,6 +181,15 @@ at that gate; production shaders remain unchanged. Rejected sources, mosaics,
 commands and timings belong to001520/cloud-light-rejected. The applicable reuse
 reference is [Nubis Cubed's lighting acceleration](https://advances.realtimerendering.com/s2023/Nubis%20Cubed%20%28Advances%202023%29.pdf);
 its applicability does not prove this particular approximation acceptable.
+
+Private storage for immutable cloud-noise textures is also rejected. Copying all
+shape/detail/weather mip levels to private textures preserves16,777,216 compared
+bytes, but192 paired warmed samples give shared/private medians0.440/0.543ms and
+sums126.471/205.947ms. The production shared textures already permit
+[GPU-optimized contents by default](https://developer.apple.com/documentation/metal/mtltexturedescriptor/allowgpuoptimizedcontents).
+Private storage is not an assumed speed guarantee; this exact-shader native probe
+does not justify a staging/upload change. Inputs/results stay under001520's
+cloud-storage-rejected diagnostics owner.
 
 The foam carcass index topology is immutable between creation and destruction.
 `TCarcass::Execute` now locks/unlocks its IB only on first index creation; VB

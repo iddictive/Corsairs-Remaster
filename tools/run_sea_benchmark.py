@@ -45,6 +45,10 @@ def summarize(run: Path, frames: int, warmup: int) -> dict:
     warm = list(range(warmup, frames))
     if not warm:
         raise ValueError("no warmed measurement population")
+    core_wall = [float(cpu[f]["cpu_wall_ms"]) for f in warm]
+    preparation = [float(cpu[f]["cpu_wall_ms"]) - float(rendered[f]["gpu_wait_ms"])
+                   - float(rendered[f]["drawable_wait_ms"]) for f in warm]
+    completions = [max(end for _, end in commands[f]) for f in warm]
     # All intervals belong to one command queue. Merge before adding; never
     # sum overlapping stages or mistake dispatch time for frame time.
     gpu = []
@@ -60,7 +64,12 @@ def summarize(run: Path, frames: int, warmup: int) -> dict:
                 for key in ("sails", "animated", "sea_draws", "sky_current", "shadow_cubes_complete")}
     summary = {"warmup_frames": warmup, "measured_frames": len(warm),
                "percentiles": "nearest rank; median uses middle pair",
-               "cpu_core_wall_ms": distribution([float(cpu[f]["cpu_wall_ms"]) for f in warm]),
+               "cpu_core_wall_ms": distribution(core_wall),
+               "cpu_core_wall_mean_ms": statistics.mean(core_wall),
+               "cpu_preparation_estimate_ms": distribution(preparation),
+               "main_completion_cadence_mean_ms": ((completions[-1] - completions[0]) * 1000
+                                                    / (len(completions) - 1)
+                                                    if len(completions) > 1 else None),
                "gpu_execution_union_ms": distribution(gpu), "required_pass_minima": coverage,
                "buffer_allocations": distribution([float(rendered[f]["buffers"]) for f in warm]),
                "upload_bytes": distribution([float(rendered[f]["upload_bytes"]) for f in warm]),
@@ -184,6 +193,8 @@ def main() -> int:
                 "model_sha256": hashlib.sha256(model.read_bytes()).hexdigest(),
                 "settings": {key: env[key] for key in (*settings.ENV_KEYS.values(), *settings.INTEGER_ENV_KEYS.values(),
                              "STORM_METAL_MODERN_EFFECTS", "STORM_METAL_PROFILE") if key in env},
+                "backend_environment": {key: value for key, value in sorted(env.items())
+                                        if key.startswith("STORM_METAL_")},
                 "resolution": [args.width, args.height], "frames": args.frames, "ships": args.ships,
                 "instrumented": args.profile is not None or args.capture}
     (run / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
