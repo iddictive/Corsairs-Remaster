@@ -6,6 +6,7 @@
 namespace storm::ship::phonk
 {
 constexpr float speedCeiling = 500.f, motorAcceleration = 120.f, brakeDeceleration = 240.f;
+constexpr float boostCeiling = 1000.f;
 constexpr float yawBoost = 2.1f;
 inline float yawSpeed(float stock, float turn)
 {
@@ -18,13 +19,14 @@ struct Velocity { float x = 0.f, z = 0.f; };
 struct Drift
 {
     bool initialized = false;
-    bool driving = false;
+    bool driving = false, boosting = false;
     float worldX = 0.f, worldZ = 0.f, lastForward = 0.f;
     float waterX = 0.f, waterZ = 0.f; // prior field transport, not per-frame thrust
     void reset() { *this = {}; }
     float magnitude() const { return std::hypot(worldX, worldZ); }
+    float speedLimit() const { return boosting ? boostCeiling : std::max(speedCeiling, lastForward); }
     void advance(float acceleration, float turn, float yaw, float seconds,
-                 float localX, float localZ, bool gas, bool brake, bool airborne)
+                 float localX, float localZ, bool gas, bool brake, bool airborne, bool boost = false)
     {
         if (!std::isfinite(localX) || !std::isfinite(localZ) || !std::isfinite(yaw))
         {
@@ -45,14 +47,20 @@ struct Drift
             worldX += localX * c + impulseZ * s;
             worldZ += impulseZ * c - localX * s;
         }
-        driving = gas && !brake;
+        boosting = boost && !brake;
+        driving = (gas || boosting) && !brake;
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.f, .1f) : 0.f;
-        float speed = std::min(magnitude(), speedCeiling);
+        // Releasing boost retains its existing momentum, not a new entitlement
+        // for currents/collisions to exceed the ordinary ceiling.
+        float speed = std::min(magnitude(), speedLimit());
         float bearing = speed > .01f ? std::atan2(worldX, worldZ) : yaw;
         if (!airborne)
         {
             if (brake) speed = std::max(0.f, speed - brakeDeceleration * dt);
-            else if (driving) speed = std::min(speedCeiling, speed + acceleration * dt);
+            else if (!boosting && speed > speedCeiling)
+                speed = std::max(speedCeiling, speed - motorAcceleration * dt);
+            else if (driving)
+                speed = std::min(boosting ? boostCeiling : speedCeiling, speed + acceleration * dt);
             else speed *= std::exp(-.055f * dt);
             // A brake acts on the current vector, not the hull's forward axis.
             if (!brake)
@@ -64,6 +72,13 @@ struct Drift
         worldX = std::sin(bearing) * speed;
         worldZ = std::cos(bearing) * speed;
         lastForward = speed;
+    }
+    float thrustPitch() const
+    {
+        if (!driving) return 0.f;
+        const float forward = std::clamp(magnitude() / speedCeiling, 0.f, 1.f);
+        const float boost = std::clamp((magnitude() - speedCeiling) / (boostCeiling - speedCeiling), 0.f, 1.f);
+        return -.12f * forward - .14f * boost;
     }
     Velocity projection(float yaw, float localX, float localZ) const
     {

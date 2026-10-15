@@ -125,6 +125,7 @@ class AIShipCannonController
     [[nodiscard]] bool isHaveEnoughBallsForBort(const AISHIP_BORT &bort) const;
 
     [[nodiscard]] CVECTOR GetBortDirection(const AISHIP_BORT &bort) const;
+    [[nodiscard]] std::vector<CVECTOR> GetLaserMuzzles(const CVECTOR &worldTarget) const;
     [[nodiscard]] decltype(aShipBorts)::iterator GetBestFireBortOnlyDistance(CVECTOR vFirePos,
                                                                              float fZapasDistance);
     CVECTOR GetFirePos(const CVECTOR &vFireDir);

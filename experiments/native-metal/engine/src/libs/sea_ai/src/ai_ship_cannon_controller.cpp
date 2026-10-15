@@ -463,6 +463,37 @@ CVECTOR AIShipCannonController::GetBortDirection(const AISHIP_BORT &bort) const
     return v;
 }
 
+std::vector<CVECTOR> AIShipCannonController::GetLaserMuzzles(const CVECTOR &worldTarget) const
+{
+    std::vector<CVECTOR> muzzles;
+    if (!pOurAIShip)
+        return muzzles;
+
+    const CVECTOR delta = worldTarget - pOurAIShip->GetPos();
+    const float distance = std::hypot(delta.x, delta.z);
+    if (!std::isfinite(distance) || distance <= 1e-4f)
+        return muzzles;
+    const CVECTOR direction(delta.x / distance, 0.f, delta.z / distance);
+    const AISHIP_BORT *facing = nullptr;
+    float bestAlignment = -1.f;
+    for (const auto &bort : aShipBorts)
+    {
+        if (std::none_of(bort.aCannons.begin(), bort.aCannons.end(),
+                         [](const AICannon &gun) { return !gun.isDamaged(); }))
+            continue;
+        const float alignment = direction | bort.vDirection;
+        if (alignment <= bort.fCosFireZone || alignment <= bestAlignment)
+            continue;
+        facing = &bort;
+        bestAlignment = alignment;
+    }
+    if (facing)
+        for (const auto &gun : facing->aCannons)
+            if (!gun.isDamaged())
+                muzzles.push_back(gun.GetPos());
+    return muzzles;
+}
+
 CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDistance)
 {
     CMatrix camera;

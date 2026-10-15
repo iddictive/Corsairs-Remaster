@@ -2,10 +2,11 @@
 #include "bi_utils.h"
 #include "ship_surrender.h"
 #include "ship_base.h"
+#include "shared/battle_interface/msg_control.h"
 
 // define the vertices
 #define SPV_FORMAT (storm_render::vertexFormat::xyz | storm_render::vertexFormat::tex1 | storm_render::vertexFormat::texCoord2)
-#define MAX_SHIPINFO_DIST_IN_POW2 1000000.f
+#define MAX_SHIPINFO_DIST_IN_POW2 4000000.f
 
 ShipInfoImages::ShipInfoImages(VDX9RENDER *rs, ATTRIBUTES *pAttr)
 {
@@ -60,14 +61,17 @@ void ShipInfoImages::Draw()
                 for (auto *ship = g_ShipList.GetShipRoot(); ship; ship = ship->next)
                 {
                     if (!IsEnableShowShipInfo(ship)) continue;
-                    if (IsShipSurrendered(ship->pShip ? ship->pShip->GetACharacter() : nullptr))
+                    const uint32_t tint = IsShipSurrendered(ship->pShip ? ship->pShip->GetACharacter() : nullptr)
+                                              ? 0xFFE6C663
+                                              : (ship->isMyShip ? 0xFF6699FF : 0);
+                    if (tint)
                     {
                         if (n > first)
                             pRS->DrawBuffer(m_vbRelation, sizeof(SII_VERTEX), m_ibRelation, 0, m_nShipQ * 4,
                                             first * 6, (n - first) * 2, nullptr);
                         // Tint the neutral atlas cell without losing its frame,
                         // highlights, shading, alpha mask or ordinary depth test.
-                        pRS->SetRenderState(storm_render::RenderTextureFactor, 0xFFE6C663);
+                        pRS->SetRenderState(storm_render::RenderTextureFactor, tint);
                         pRS->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpModulate);
                         pRS->SetTextureStageState(0, storm_render::StageColorArg2, storm_render::textureArg::factor);
                         pRS->DrawBuffer(m_vbRelation, sizeof(SII_VERTEX), m_ibRelation, 0, m_nShipQ * 4,
@@ -302,7 +306,7 @@ void ShipInfoImages::UpdateShipData(int32_t nShipNum, SHIP_DESCRIBE_LIST::SHIP_D
 
     // write relation square
     WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,
-                      GetUVForRelation(pSD->GetDisplayRelation()), 1.f);
+                      GetUVForRelation(pSD->isMyShip ? BI_RELATION_NEUTRAL : pSD->GetDisplayRelation()), 1.f);
 
     // write progress back square
     WriteSquareVertex(&m_pVBuffBackProgress[nShipNum * 4], shippos, m_vProgressBackOffset, m_fpProgressBackSize,

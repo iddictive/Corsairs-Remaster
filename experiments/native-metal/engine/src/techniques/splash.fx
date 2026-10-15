@@ -4,6 +4,7 @@ technique splash
     {
         CullMode = CCW;
         ColorVertex = true;
+        Lighting = false;
         AlphaTestEnable = false;
         AlphaRef = 0x0;
         AlphaBlendEnable = true;
@@ -29,6 +30,7 @@ technique splash2
     {
         CullMode = none;
         ColorVertex = false;
+        Lighting = false;
         AlphaTestEnable = true;
         AlphaBlendEnable = true;
         SrcBlend = srcalpha;

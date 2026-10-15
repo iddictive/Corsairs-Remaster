@@ -1,6 +1,81 @@
-# Contact with sinking ships
+# Ship collision and contact with sinking ships
 
 ## Status
+
+The expanded collision source is complete; canonical staging and player replay
+remain pending with the shared integration owner.
+The previous wreck-only correction below is historical evidence, not acceptance
+of ordinary ramming. Native integration remains with the shared build owner.
+
+## Expanded contract and implementation boundary
+
+All hulls use their geometry, mass, relative point velocity and contact normal;
+there is no ship-name or class exception. A bow ram damages the rammer locally
+as well as the struck hull; tangential scraping does not spend head-on impact
+energy. Sustained low-speed pushing transmits momentum without repeatedly
+charging HP: an elastic specific-energy allowance precedes structural damage.
+Collision mass is bare `State.fWeight` plus canonical `Ship.Cargo.Load`, both
+in cwt; the latter already includes goods, installed guns and crew, and is not
+capped at nominal hold capacity. Existing cargo writers/invalidation and
+`RecalculateCargoLoad` retain ownership of that published load.
+Live hulls must block each other across a frame, including high-speed
+crossings, initial overlap, containment and rotation. Separating contact corrects
+overlap without fresh damage. Sinking hulls yield and can lose real geometry
+through the same fracture/contour owner as other hull damage, without laser heat.
+Shore grounding, ordinary sailing controls, existing damage protections and the
+binary SAVE layout remain with their existing owners.
+
+- `engine/src/libs/touch/src/ship_contact.hpp`: swept convex-hull queries,
+  point-effective-mass impulses, signed torque, friction and dissipated energy.
+- `ship_contact_frame.hpp`: transient earliest-contact integration of all hulls,
+  mass-weighted overlap correction and one accumulated impact per pair/frame.
+  Rotating separating-plane bounds release sliding contacts without false
+  stalls; a spent safety budget blocks only the unresolved contact component.
+- `touch.cpp`: one pair owner, native world/local unit conversion, bounded
+  contact solving, nonpenetration and one damage publication per pair/body.
+- `ship/src/ship_hull_contact.cpp`: applies solved world velocity, torque and
+  endpoint through native `State`/`TouchMove`, including Phonk world drift;
+  no second persistent motion state or collision-strength slot is introduced.
+- `SHIP_BASE::ApplyHullImpact`: shared physical damage seam; the ship/geometry
+  owner retains mesh cuts, fragments, contour invalidation, flooding and saved
+  damage. TOUCH must not copy that state or add a parallel fracture path.
+- Native State/TouchMove remain the movement and prediction owners. Existing
+  script collision events retain HP, perks, crime and kill attribution.
+
+The source-bound baseline reproduces three detector failures: two30m hulls at
+28m center separation overlap but fail broadphase; perpendicular8×30m hulls
+cross without an admitted contact; intersecting horizontal/vertical segments
+return the sentinel(10000,10000) rather than(0,0). The old recursive path also
+publishes damage per traversal instead of solving one equal/opposite pair.
+The decisive checks are the actual TOUCH adapter plus swept/overlap cases,
+linear/angular momentum and nonincreasing contact energy, both mass orders,
+bow/side damage, three-ship contact, separating/scraping negatives and a prior
+save through normal loading. Full installed ramming/fracture replay stays open.
+
+Final source-bound ASan/UBSan checks use the actual TOUCH and ship-contact
+method bodies with synthetic hull/native-motion adapters. A 20-knot equal-bare-
+mass ram gives the target 1112.762/10000 raw HP damage; adding 3000 cwt of cargo
+to the rammer raises that to 2448.936 and lowers its own damage from 895.670 to
+139.434. Halving speed lowers target damage to 286.396. Two hundred frames of
+gentle pushing accelerate the target from 5 to 15.004 knots with zero HP events.
+Crossing, three-ship contact, initial overlap, wreck displacement/fracture
+callbacks and unaffected no-contact motion pass. The real 8-by-30m Phonk envelope
+(1000 knots, 0.7 rad/s) passes fast crossing and 120 frames of sliding contact
+at 16/50/100ms with no exhausted frames; an unrelated third hull stays untouched.
+Pair-level checks cover momentum, nonincreasing kinetic energy and energy-loss
+accounting. Native compiler syntax checks pass. These do not prove full native
+movement, mesh breakup in a rendered battle, prior-save loading or installation.
+
+The bounded upstream search found the same heuristic in the maintained
+[PiratesAhoy TOUCH](https://github.com/PiratesAhoy/storm-engine/blob/main/src/libs/touch/src/touch.cpp).
+[Box2D3.1.1 collision queries](https://github.com/erincatto/box2d/blob/v3.1.1/include/box2d/collision.h)
+are the strongest reusable alternative, but their8-vertex proxy cap requires
+lossy simplification/decomposition of the current128-point hulls. Adapt the
+[standard point-impulse equations](https://github.com/erincatto/box2d-lite/blob/master/src/Arbiter.cpp)
+inside TOUCH instead of introducing a second motion world; a detector that still
+misses swept/contained hulls rejects that choice regardless of the smaller diff.
+
+## Historical wreck-only correction
 
 October 12, 2026: original repeated-contact defect reproduced; final safe-contact,
 mass/persistence probes and native CMake compiler syntax checks pass. Canonical
@@ -16,7 +91,7 @@ The installed binary exports `SHIP::ApplyWreckContact`; all 249 snapshotted
 player SAVE/userdata/config files were preserved by the delivery owner. The
 canonical receipt and current combined batch belong to `docs/runtime.md`.
 
-## Contract
+## Historical contract
 
 Ramming an already dead, still visible hull causes mild contact resistance,
 pushes a lighter wreck aside and accelerates its sinking without a recursive

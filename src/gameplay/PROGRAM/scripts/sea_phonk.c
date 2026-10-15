@@ -38,6 +38,7 @@ void SeaPhonk_Reset(bool restoreMusic)
     if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
     DeleteAttribute(&Sea, "Phonk");
     DelEventHandler("frame", "SeaPhonk_Frame");
+    DelEventHandler("SeaPhonk_LaserHit", "SeaPhonk_LaserHit");
     if (musicName != SEA_PHONK_TRACK) return;
     StopSound(musicID, 200);
     musicID = -1;
@@ -65,11 +66,99 @@ bool SeaPhonk_Toggle()
     Sea.Phonk.Active = 1;
     Sea.Phonk.ReturnMusic = musicName;
     SetEventHandler("frame", "SeaPhonk_Frame", 0);
+    SetEventHandler("SeaPhonk_LaserHit", "SeaPhonk_LaserHit", 0);
     SeaPhonk_Music(SEA_PHONK_TRACK);
     return true;
 }
 
 void SeaPhonk_Frame()
 {
-    if (!SeaPhonk_IsActive()) SeaPhonk_Reset(false);
+    if (!SeaPhonk_IsActive() || LAi_IsDead(pchar))
+    {
+        SeaPhonk_Reset(false);
+        return;
+    }
+    if (bSeaReloadStarted || !CheckAttribute(pchar, "Ship.HP")) return;
+    // The core supplies scaled game seconds: paused menus advance neither hull
+    // repair nor the contact episode. Ignore excess stall time, not real frames.
+    float seconds = fHighPrecisionDeltaTime;
+    if (seconds <= 0.0) return;
+    if (seconds > 0.25) seconds = 0.25;
+    if (CheckAttribute(&Sea, "Phonk.ContactQuiet"))
+        Sea.Phonk.ContactQuiet = stf(Sea.Phonk.ContactQuiet) + seconds;
+    float hp = stf(pchar.Ship.HP);
+    float maximum = GetCharacterShipHP(pchar);
+    if (hp <= 0.0 || maximum <= 0.0) return;
+    hp = hp + maximum * 0.02 * seconds;
+    if (hp > maximum) hp = maximum;
+    pchar.Ship.HP = hp;
+}
+
+float SeaPhonk_CollisionDamage(ref character, float damage)
+{
+    if (!SeaPhonk_IsActive() || sti(character.index) != GetMainCharacterIndex()) return damage;
+    if (damage <= 0.0 || !CheckAttribute(character, "Ship.HP")) return 0.0;
+    float hp = stf(character.Ship.HP);
+    float maximum = GetCharacterShipHP(character);
+    if (hp <= 0.0 || maximum <= 0.0 || LAi_IsDead(character)) return 0.0;
+    // TOUCH can report one impact repeatedly, and grounding has its own timer.
+    // Share one final, post-perk damage budget until contact has gone quiet.
+    if (!CheckAttribute(&Sea, "Phonk.ContactQuiet") || stf(Sea.Phonk.ContactQuiet) >= 0.75)
+    {
+        float budget = maximum * 0.05;
+        if (budget > hp * 0.25) budget = hp * 0.25;
+        Sea.Phonk.ContactRemaining = budget;
+    }
+    Sea.Phonk.ContactQuiet = 0.0;
+    if (damage > stf(Sea.Phonk.ContactRemaining)) damage = stf(Sea.Phonk.ContactRemaining);
+    // Other damage may have reduced hull since this episode began.
+    if (damage > hp * 0.25) damage = hp * 0.25;
+    Sea.Phonk.ContactRemaining = stf(Sea.Phonk.ContactRemaining) - damage;
+    return damage;
+}
+
+bool SeaPhonk_LiveShip(aref target)
+{
+    if (!CheckAttribute(target, "index") || !CheckAttribute(target, "Ship.HP") ||
+        !CheckAttribute(target, "Ship.Type")) return false;
+    int index = sti(target.index);
+    int type = sti(target.Ship.Type);
+    return index >= 0 && index < TOTAL_CHARACTERS && type >= 0 && type < REAL_SHIPS_QUANTITY &&
+        stf(target.Ship.HP) > 0.0 && !LAi_IsDead(target);
+}
+
+void SeaPhonk_LaserHit()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float fraction = GetEventData();
+    int severed = GetEventData();
+    if (!SeaPhonk_IsActive() || bSeaReloadStarted || LAi_IsDead(pchar)) return;
+    if (owner != GetMainCharacterIndex() || !SeaPhonk_LiveShip(target)) return;
+    if (sti(target.index) == owner) return;
+    float damage = GetCharacterShipHP(target) * Clampf(fraction);
+    float limit = stf(target.Ship.HP) * 0.5 / Ship_HullDamageMultiplier(target, owner);
+    if (damage > limit) damage = limit;
+    // Only the native structural/keel test may request immediate sinking.
+    if (severed > 0) damage = stf(target.Ship.HP) * 10.0;
+    Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
+}
+
+void SeaPhonk_Flood()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float fraction = GetEventData();
+    // Native seams own cumulative ingress and its save/load projection. The sea
+    // handler survives mode exit; no new water enters during a paused frame.
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    float maximum = GetCharacterShipHP(target);
+    if (maximum <= 0.0) return;
+    fraction = Clampf(fraction);
+    float damage = stf(target.Ship.HP) - maximum * (1.0 - fraction);
+    // Combat perks cannot leave hull above the physical flooding ceiling.
+    damage = damage / Ship_HullDamageMultiplier(target, owner);
+    if (fraction >= 1.0) damage = stf(target.Ship.HP) * 10.0;
+    Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
 }

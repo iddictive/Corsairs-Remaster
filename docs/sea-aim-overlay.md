@@ -606,6 +606,19 @@ exterior; the actual `ShipInfoImages::Draw` driver passes interleaved surrender,
 hidden-ship indexing, ordinary batching and state restoration. Installed replay
 is still required.
 
+`ShipInfoImages` owns the local-sea overhead markers and their bars. The visibility
+radius is now2000m from the camera (squared cutoff4000000), previously1000m;
+existing main/companion/other visibility switches and dead-ship suppression remain.
+Player-squad membership comes from `SHIP_DESCR::isMyShip`, independently of allied
+relations. Squad markers use the neutral atlas cell modulated by blue `0xFF6699FF`;
+other allies keep the authored green cell. Surrender gold `0xFFE6C663` takes
+precedence over squad blue. Only marker paint changes, not tactical relations.
+The native translation unit passes syntax checking; a disposable actual-method
+ASan/UBSan driver passes the range boundary, visibility switches, neutral squad
+UVs, interleaved blue/gold/ordinary draws over two technique passes and render-state
+restoration. These checks do not prove installed delivery or player appearance;
+both remain pending with the shared native integration owner.
+
 The initial all-ammunition `Bomb_Smoke.xps` assignment made each shot luminous,
 but the player's installed replay rejected its identical smoke/trace appearance.
 Canonical `AIBalls.c::CreateBallsEnvironment` now selects three independent

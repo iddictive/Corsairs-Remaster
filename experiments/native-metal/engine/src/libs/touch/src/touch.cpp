@@ -1,4 +1,5 @@
 #include "touch.h"
+#include "ship_contact_frame.hpp"
 
 #include "core.h"
 
@@ -9,8 +10,6 @@
 #include "shared/sea_ai/script_defines.h"
 
 #define ISLAND_CODE -1
-#define INVALID_SHIP_IDX 0xACACAC
-#define DELTA_TIME 80
 
 CREATE_CLASS(TOUCH)
 
@@ -68,7 +67,6 @@ uint64_t TOUCH::ProcessMessage(MESSAGE &message)
     return 1;
 }
 
-int32_t MaxDepth, CurDepth;
 uint64_t dwRdtsc;
 CVECTOR vGlobalRecoil;
 
@@ -94,51 +92,24 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
     for (i = 0; i < iNumShips; i++)
     {
         pShips[i]->pShip = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[i]->eID));
-        if (pShips[i]->pShip && !pShips[i]->iNumVContour)
+        if (pShips[i]->pShip && (!pShips[i]->iNumVContour ||
+            pShips[i]->contourRevision != pShips[i]->pShip->GetHullContourRevision()))
         {
             pShips[i]->pShip->BuildContour(&pShips[i]->vContour[0], pShips[i]->iNumVContour);
             pShips[i]->pShip->BuildContour(&pShips[i]->vCoastContour[0], pShips[i]->iNumCoastContour, 1.0f);
+            pShips[i]->contourRevision = pShips[i]->pShip->GetHullContourRevision();
         }
     }
 
-    CurDepth = 0;
-    // if (!bUseTouch)
-    // int32_t iTempDeltaTime = dwCoreDeltaTime;
-    // while (iTempDeltaTime>0)
-    {
-        // iTempDeltaTime -= DELTA_TIME;
-        // iDeltaTime = (iTempDeltaTime>DELTA_TIME) ? DELTA_TIME : iTempDeltaTime;
-        iDeltaTime = dwCoreDeltaTime;
-        for (i = 0; i < iNumShips; i++)
-            Touch(i, INVALID_SHIP_IDX, nullptr, nullptr, 0.0f, 0.0f);
-    }
-
-    FakeTouch(); // just push out the ships that are still in each other
+    iDeltaTime = dwCoreDeltaTime;
+    for (i = 0; i < iNumShips; ++i) TouchIsland(i);
+    FakeTouch();
+    ResolveShips();
 
     // if (core.Controls->GetAsyncKeyState('5')) fScale -= 0.1f;
     // if (core.Controls->GetAsyncKeyState('6')) fScale += 0.1f;
 
     RDTSC_E(dwRdtsc);
-}
-
-BOOL TOUCH::IsIntersectShipsRects(int32_t idx1, int32_t idx2)
-{
-    Assert(idx1 >= 0 && idx1 <= iNumShips && idx2 <= iNumShips);
-    if (idx2 == ISLAND_CODE)
-        return true;
-
-    const auto pS1 = pShips[idx1]->pShip, pS2 = pShips[idx2]->pShip;
-
-    Assert(pS1 && pS2);
-
-    // boal fix float both_dist = SQR(pS1->State.vBoxSize.z) + SQR(pS2->State.vBoxSize.z) + 2.5f;
-    const auto both_dist = SQR(pS1->State.vBoxSize.z / 2.0f) + SQR(pS2->State.vBoxSize.z / 2.0f) + 2.5f;
-    const auto dist = SQR(pS1->State.vPos.x - pS2->State.vPos.x) + SQR(pS1->State.vPos.z - pS2->State.vPos.z);
-
-    const auto bRadiusIntersects = dist <= both_dist;
-
-    // must for optimization test rects
-    return (bRadiusIntersects);
 }
 
 CVECTOR TOUCH::GetPoint(float x, float y, float xx, float yy, float xscale, float yscale, float fCos, float fSin,
@@ -262,173 +233,34 @@ BOOL TOUCH::BuildContour(int32_t ship_idx)
     return true;
 }
 
-BOOL TOUCH::IsPointInContour(CVECTOR *vP, CVECTOR *vContourTemp, int32_t numvContourTemp)
+// Preserve the native shoreline query independently of ship-pair geometry.
+BOOL TOUCH::IsIntersectIsland(int32_t idx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil,
+                              float *fPower, float *fSlide)
 {
-    auto xx = 1.0f;
-    int32_t i;
-    Assert(vP && vContourTemp);
-    for (i = 0; i < numvContourTemp; i++)
+    auto *ship = pShips[idx];
+    if (!pIslandBase || !ship->pShip || !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
+        return false;
+    for (int pose = 0; pose < 2; ++pose)
     {
-        auto idx1 = i;
-        auto idx2 = (i == numvContourTemp - 1) ? 0 : i + 1;
-        if (vContourTemp[idx1].z < vContourTemp[idx2].z)
+        const float c = cosf(ship->TP[pose].vAng.y), s = sinf(ship->TP[pose].vAng.y);
+        for (int point = 0; point < ship->iNumCoastContour; ++point)
         {
-            idx1 = idx2;
-            idx2 = i;
+            float x = ship->vCoastContour[point].x, z = ship->vCoastContour[point].z;
+            RotateAroundY(x, z, c, s);
+            ship->vContourTemp[pose][point] = CVECTOR(ship->TP[pose].vPos.x + x, 0.f,
+                                                    ship->TP[pose].vPos.z + z);
         }
-        const auto z1 = vContourTemp[idx1].z - vP->z;
-        const auto z2 = vContourTemp[idx2].z - vP->z;
-        if (z1 * z2 > 0)
-            continue;
-        const auto dz = z1 - z2;
-        const auto x = vP->x - (vContourTemp[idx1].x + (vContourTemp[idx2].x - vContourTemp[idx1].x) * (z1 / dz));
-        xx *= x;
     }
-    return (xx <= 0.0f);
-}
-
-void TOUCH::GetLineABC(CVECTOR &v1, CVECTOR &v2, float &A, float &B, float &C)
-{
-    A = (v2.z - v1.z);
-    B = (v1.x - v2.x);
-    C = -v1.x * v2.z + v1.z * v2.x;
-}
-
-CVECTOR TOUCH::GetLineIntersectPoint(CVECTOR &v1, CVECTOR &v2, CVECTOR &o1, CVECTOR &o2)
-{
-    auto res = CVECTOR(10000.0f, 0.0f, 10000.0f);
-    float A1, B1, C1, A2, B2, C2;
-    GetLineABC(v1, v2, A1, B1, C1);
-    GetLineABC(o1, o2, A2, B2, C2);
-    const auto z_minus = (B2 * A1 - A2 * B1);
-    if (z_minus == 0.0f || A1 == 0.0f)
-        return res;
-    res.z = (A2 * C1 - C2 * A1) / z_minus;
-    res.x = (-B1 * res.z - C1) / A1;
-    return res;
-}
-
-// calculate collision point
-BOOL TOUCH::IsIntersectShipsReal(int32_t idx, int32_t cidx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil, float *fPower,
-                                 float *fSlide)
-{
-    int32_t i, j;
-    int32_t l_idx1 = -1, l_idx2 = -1;
-    TOUCH_SHIP *pS1, *pS2;
-
-    pS1 = pShips[idx];
-    Assert(pS1);
-
-    // island collision
-    if (cidx == ISLAND_CODE)
-    {
-        if (!pIslandBase)
-            return false; // if island collision
-        if (!pS1->pShip->TouchMove(iDeltaTime, &pS1->TP[0], &pS1->TP[1]))
-            return false;
-        // Use the unexpanded hull only for the coast; ship-to-ship contours stay unchanged.
-        for (int pose = 0; pose < 2; ++pose)
+    for (int i = 0; i < ship->iNumCoastContour; ++i)
+        if (pIslandBase->CheckDepthCollision(ship->vContourTemp[0][i], ship->vContourTemp[1][i],
+                                            fCollisionDepth, 0.f))
         {
-            const float c = cosf(pS1->TP[pose].vAng.y), s = sinf(pS1->TP[pose].vAng.y);
-            for (int point = 0; point < pS1->iNumCoastContour; ++point)
-            {
-                float x = pS1->vCoastContour[point].x, z = pS1->vCoastContour[point].z;
-                RotateAroundY(x, z, c, s);
-                pS1->vContourTemp[pose][point] = CVECTOR(pS1->TP[pose].vPos.x + x, 0.0f,
-                                                       pS1->TP[pose].vPos.z + z);
-            }
-        }
-        for (i = 0; i < pS1->iNumCoastContour; i++)
-            if (pIslandBase->CheckDepthCollision(pS1->vContourTemp[0][i], pS1->vContourTemp[1][i],
-                                                fCollisionDepth, 0.0f))
-            {
-                const auto v1 = &pS1->vContourTemp[0][i], v2 = &pS1->vContourTemp[1][i];
-                auto vTemp = !(*v2 - *v1);
-                *vRecoil = !(*v1 - pS1->TP[1].vPos);
-                *fSlide = 0.0f;
-                //*vRecoil = !(*vRecoil + vTemp);
-                //*vRecoil = vTemp;//!(*v1-pS1->TP[1].vPos);
-                *fPower = METERS2KNOTS(sqrtf(~(*v2 - *v1))) * (1000.0f / static_cast<float>(iDeltaTime));
-                *vPos = pS1->vContourTemp[0][i];
-                vPos->y = 0.0f;
-                return true;
-            }
-
-        return false;
-    }
-
-    pS2 = pShips[cidx];
-    Assert(pS2);
-
-    // build contours
-    if (!pS1->pShip->TouchMove(iDeltaTime, &pS1->TP[0], &pS1->TP[1]))
-        return false;
-    if (!pS2->pShip->TouchMove(iDeltaTime, &pS2->TP[0], &pS2->TP[1]))
-        return false;
-    if (!BuildContour(idx))
-        return false;
-    if (!BuildContour(cidx))
-        return false;
-
-    // calculate intersection point
-    for (i = 0; i < pS1->iNumVContour; i++)
-        if (IsPointInContour(&pS1->vContourTemp[1][i], &pS2->vContourTemp[1][0], pS2->iNumVContour))
-        // FIX ME and pS2->vContourTemp[1][0]!!!
-        {
-            auto min_dist = 10000.0f;
-            CVECTOR vIP; // intersection point
-            const auto v1 = &pS1->vContourTemp[0][i], v2 = &pS1->vContourTemp[1][i];
-            for (j = 0; j < pS2->iNumVContour; j++)
-            {
-                const auto idx1 = j;
-                const auto idx2 = (j == pS2->iNumVContour - 1) ? 0 : j + 1;
-                const auto vP = GetLineIntersectPoint(*v1, *v2, pS2->vContourTemp[0][idx1], pS2->vContourTemp[0][idx2]);
-                const auto dist = SQR(vP.x - v2->x) + SQR(vP.z - v2->z);
-                if (dist < min_dist)
-                {
-                    l_idx1 = idx1;
-                    l_idx2 = idx2;
-                    vIP = vP;
-                    min_dist = dist;
-                }
-            }
-            // strange!!!
-            if (l_idx1 == -1 || l_idx2 == -1)
-                continue;
-
-            // calculate power of blow, slide coeff,
-            // calculate vIP in pS2 ship system
-            auto vIPs = pS2->TP[1].vPos - vIP;
-            RotateAroundY(vIPs.x, vIPs.z, cosf(-PI - pS2->TP[1].vAng.y), sinf(-PI - pS2->TP[1].vAng.y));
-
-            // calculate common variables
-            // blow position
-            *vPos = vIP;
-            // blow direction
-            auto vBlow = (*v2 - *v1);
-            if ((~vBlow) == 0.0f)
-                continue;
-            *vAng = !vBlow;
-
-            // slide coefficient
-            *fSlide = *vAng | (!(pS2->vContourTemp[1][l_idx2] - pS2->vContourTemp[1][l_idx1]));
-            // recoil direction
-            *vRecoil = (pS2->vContourTemp[1][l_idx2] - pS2->vContourTemp[1][l_idx1]);
-            Assert((~(*vRecoil)) != 0.0f);
-            *vRecoil = !(*vRecoil);
-            RotateAroundY(vRecoil->x, vRecoil->z, cosf(-PId2), sinf(-PId2));
-            vRecoil->y = 0.0f;
-            // power of blow
-            const auto vSpeed2 = (pS2->vContourTemp[1][l_idx1] - pS2->vContourTemp[0][l_idx1]);
-            *fPower = METERS2KNOTS(sqrtf(~vBlow));
-            if ((~vSpeed2) != 0.0f)
-            {
-                const auto fTemp = (*vAng | (!vSpeed2));
-                *fPower -= METERS2KNOTS(fTemp * sqrtf(~vSpeed2));
-            }
-            // fPower must multiplied by Weight of ships
-            *fPower *= (1000.0f / static_cast<float>(iDeltaTime));
-            // rotate blow direction to ship system
+            const auto &before = ship->vContourTemp[0][i], &after = ship->vContourTemp[1][i];
+            *vRecoil = !(before - ship->TP[1].vPos);
+            *fSlide = 0.f;
+            *fPower = METERS2KNOTS(sqrtf(~(after - before))) * (1000.f / float(iDeltaTime));
+            *vPos = before;
+            vPos->y = 0.f;
             return true;
         }
     return false;
@@ -480,122 +312,22 @@ int32_t TOUCH::GetTouchPoint(int32_t iIdx, const CVECTOR &vPos)
 // vRecoil - recoil vector
 // fPower - blow power (without mass dependence)
 // fSlide - blow slide coefficient
-float TOUCH::Touch(int32_t idx, int32_t skip_idx, CVECTOR *vPos, CVECTOR *vAng, float fPower, float fSlide)
+void TOUCH::TouchIsland(int32_t idx)
 {
-    CVECTOR vPos1, vAng1, vRecoil;
-    float fPower1, fSlide1, fPowerReturn = 0.0f;
-    int32_t i;
-    SHIP_BASE *pOur, *pEnemy;
-
-    Assert(idx >= 0 && idx < iNumShips);
-
-    CurDepth++;
-    if (CurDepth >= 10)
-        return fPower;
-    if (MaxDepth < CurDepth)
-        MaxDepth = CurDepth;
-
-    pOur = static_cast<SHIP_BASE *>(pShips[idx]->pShip);
-    auto fCos = cosf(-pShips[idx]->TP[1].vAng.y + PI);
-    auto fSin = sinf(-pShips[idx]->TP[1].vAng.y + PI);
-
-    if (IsSinked(idx) || pOur->isDead())
-    {
-        CurDepth--;
-        return 0.0f;
-    }
-
-    // apply blow power if exist
-    if (vPos && vAng && fPower != 0.0f)
-    {
-        pEnemy = static_cast<SHIP_BASE *>(pShips[skip_idx]->pShip);
-
-        // calculate weight coefficient
-        auto fOurWeight = pOur->State.fWeight;
-        auto fEnemyWeight = pEnemy->State.fWeight;
-        Assert(fOurWeight != 0.0f && fEnemyWeight != 0.0f);
-
-        const auto fKWeight = 0.5f + (fEnemyWeight - fOurWeight) / (2 * MAX(fOurWeight, fEnemyWeight));
-
-        // add z,x impulse and y rotate impulse
-        const auto fPowerApplied = fKWeight * fPower;
-
-        // rotate vDir and vPos to ship system
-        auto vPosTemp = *vPos, vDirTemp = *vAng;
-        const auto fAngle = -pShips[idx]->TP[1].vAng.y;
-        vPosTemp -= pShips[idx]->TP[1].vPos;
-        RotateAroundY(vPosTemp.x, vPosTemp.z, cosf(fAngle), sinf(fAngle));
-        RotateAroundY(vDirTemp.x, vDirTemp.z, cosf(fAngle), sinf(fAngle));
-
-        // script event initiate
-
-        core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(pOur->GetACharacter()),
-                   GetIndex(pEnemy->GetACharacter()), fPowerApplied, fSlide, GetTouchPoint(idx, vPosTemp), vPos->x,
-                   vPos->y, vPos->z);
-
-        ProcessImpulse(idx, vPosTemp, vDirTemp, fPowerApplied);
-
-        fPowerReturn = 1.0f * (fPower - fPowerApplied);
-    }
-
-    // ship 2 ship collision
-    for (i = ISLAND_CODE; i < iNumShips; i++)
-        if (i != idx && i != skip_idx && IsIntersectShipsRects(idx, i))
-        {
-            if (IsSinked(i))
-                continue;
-            if (IsIntersectShipsReal(idx, i, &vPos1, &vAng1, &vRecoil, &fPower1, &fSlide1))
-            {
-                if (i != ISLAND_CODE && pShips[i]->pShip->isDead())
-                {
-                    // Wrecks yield instead of recursively reflecting an impulse.
-                    // Separating overlap is not another hit. Scale the contact
-                    // by elapsed time, mass and the hull still above the water.
-                    auto *wreck = pShips[i]->pShip;
-                    auto normal = vRecoil;
-                    auto towardsWreck = pShips[i]->TP[1].vPos - pShips[idx]->TP[1].vPos;
-                    towardsWreck.y = 0.0f;
-                    if ((normal | towardsWreck) < 0.0f)
-                        normal = -normal;
-                    fPower1 *= vAng1 | normal;
-                    if (!(fPower1 > 0.0f))
-                        continue;
-                    vRecoil = normal;
-                    const float height = wreck->GetBoxsize().y;
-                    const float exposed = height > 0.0f ? CLAMP(1.0f + 3.0f * wreck->GetPos().y / height) : 0.0f;
-                    const float seconds = MIN(0.1f, static_cast<float>(iDeltaTime) * 0.001f);
-                    const float weight = wreck->State.fWeight /
-                                         MAX(pOur->State.fWeight, wreck->State.fWeight);
-                    const float travel = KNOTS2METERS(fPower1) * seconds * exposed;
-                    wreck->ApplyWreckContact(CVECTOR(0.0f, travel * (1.0f - 0.15f * weight), 0.0f));
-                    fPower1 *= 0.15f * weight * seconds * exposed;
-                }
-                else if (i != ISLAND_CODE)
-                    fPower1 = Touch(i, idx, &vPos1, &vAng1, fPower1, fSlide1); // return recoil power
-
-                auto vPosTemp = vPos1, vDirTemp = vRecoil;
-                const auto fAngle = -PI - pShips[idx]->TP[1].vAng.y;
-                vPosTemp -= pShips[idx]->TP[1].vPos;
-                RotateAroundY(vPosTemp.x, vPosTemp.z, cosf(PI + fAngle), sinf(PI + fAngle));
-                RotateAroundY(vDirTemp.x, vDirTemp.z, cosf(fAngle), sinf(fAngle));
-
-                // script event initiate
-                const auto iEnemyCharacterIndex = (i == ISLAND_CODE) ? -1 : GetIndex(pShips[i]->pShip->GetACharacter());
-                core.Event((i != ISLAND_CODE) ? SHIP_SHIP2SHIP_COLLISION : SHIP_SHIP2ISLAND_COLLISION, "llfflfff",
-                           GetIndex(pOur->GetACharacter()), iEnemyCharacterIndex, fPower1, fSlide1,
-                           GetTouchPoint(idx, vPosTemp), vPos1.x, vPos1.y, vPos1.z);
-
-                if (i == ISLAND_CODE)
-                    vGlobalRecoil = vDirTemp;
-                ProcessImpulse(idx, vPosTemp, vDirTemp, fPower1);
-
-                fPowerReturn += fPower1; // must return projection to recoil direction!!!
-                bUseTouch = true;
-            }
-        }
-
-    CurDepth--;
-    return fPowerReturn;
+    auto *ship = pShips[idx]->pShip;
+    if (!ship || ship->isDead()) return;
+    CVECTOR point, direction, recoil;
+    float power, slide;
+    if (!IsIntersectIsland(idx, &point, &direction, &recoil, &power, &slide)) return;
+    auto localPoint = point - pShips[idx]->TP[1].vPos;
+    const float angle = -PI - pShips[idx]->TP[1].vAng.y;
+    RotateAroundY(localPoint.x, localPoint.z, cosf(PI + angle), sinf(PI + angle));
+    RotateAroundY(recoil.x, recoil.z, cosf(angle), sinf(angle));
+    core.Event(SHIP_SHIP2ISLAND_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()), -1,
+               power, slide, GetTouchPoint(idx, localPoint), point.x, point.y, point.z);
+    vGlobalRecoil = recoil;
+    ProcessImpulse(idx, localPoint, recoil, power);
+    bUseTouch = true;
 }
 
 bool TOUCH::IsSinked(int32_t iIndex)
@@ -615,79 +347,113 @@ bool TOUCH::IsSinked(int32_t iIndex)
 
 BOOL TOUCH::FakeTouch()
 {
-    CVECTOR vPos1, vAng1, vRecoil;
-    float fPower1, fSlide1, fPowerReturn = 0.0f;
-    int32_t i, j;
-    SHIP_BASE *pOur, *pEnemy;
-
-    for (i = 0; i < iNumShips; i++)
+    // Shore separation retains its previous response. Ship pairs have one
+    // continuous solver and must never enter this old per-vertex push loop.
+    for (int i = 0; i < iNumShips; ++i)
     {
-        if (IsSinked(i) || pShips[i]->pShip->isDead())
-            continue;
-        for (j = ISLAND_CODE; j < iNumShips; j++)
-            if (i != j && IsIntersectShipsRects(i, j))
-            {
-                int32_t iCycleIndex = 0;
-                // must add new simple intersection test function
-                if (IsSinked(j))
-                    continue;
-                while (IsIntersectShipsReal(i, j, &vPos1, &vAng1, &vRecoil, &fPower1, &fSlide1))
-                {
-                    if (j != ISLAND_CODE)
-                    {
-                        // from each other move out
-                        pOur = static_cast<SHIP_BASE *>(pShips[i]->pShip);
-                        pEnemy = static_cast<SHIP_BASE *>(pShips[j]->pShip);
-                        auto fOurWeight = pOur->State.fWeight;
-                        auto fEnemyWeight = pEnemy->State.fWeight;
-                        const auto k = 0.5f + (fEnemyWeight - fOurWeight) / (2 * MAX(fOurWeight, fEnemyWeight));
-                        const bool wreck = pEnemy->isDead();
-                        auto separation = pEnemy->State.vPos - pOur->State.vPos;
-                        if (wreck) separation.y = 0.0f;
-                        const auto vDV = !separation;
-                        const auto fMul = 0.02f;
-                        const auto oldOurPos = pOur->State.vPos;
-                        const auto oldEnemyPos = pEnemy->State.vPos;
-
-                        pOur->State.vPos.x -= (k * vDV.x * fMul);
-                        pOur->State.vPos.z -= (k * vDV.z * fMul);
-                        if (wreck)
-                            pEnemy->ApplyWreckContact(CVECTOR((1.0f - k) * vDV.x * fMul, 0.0f,
-                                                              (1.0f - k) * vDV.z * fMul));
-                        else
-                        {
-                            pEnemy->State.vPos.x += ((1.0f - k) * vDV.x * fMul);
-                            pEnemy->State.vPos.z += ((1.0f - k) * vDV.z * fMul);
-                        }
-                        // A wave can keep predicted hulls overlapping without an XZ step.
-                        if (pOur->State.vPos.x == oldOurPos.x && pOur->State.vPos.z == oldOurPos.z &&
-                            pEnemy->State.vPos.x == oldEnemyPos.x && pEnemy->State.vPos.z == oldEnemyPos.z)
-                            break;
-                    }
-                    else
-                    {
-                        // from island move out
-                        pOur = static_cast<SHIP_BASE *>(pShips[i]->pShip);
-                        const auto vDV = !CVECTOR(vPos1 - pOur->State.vPos);
-                        const auto fMul = 0.02f;
-
-                        const auto fAngle = -PI - pOur->State.vAng.y;
-                        auto vPosTemp = vPos1 - pOur->State.vPos;
-                        RotateAroundY(vPosTemp.x, vPosTemp.z, cosf(PI + fAngle), sinf(PI + fAngle));
-
-                        const auto fAng = 0.001f * (((vPosTemp.x * vPosTemp.z) >= 0.0f) ? 1.0f : -1.0f);
-                        pOur->State.vAng.y -= fAng;
-                        pOur->State.vPos.x -= (vDV.x * fMul);
-                        pOur->State.vPos.z -= (vDV.z * fMul);
-                    }
-                    // Both ship and island separation must yield to the next frame.
-                    if (++iCycleIndex == 1024)
-                        break;
-                }
-            }
+        auto *ship = pShips[i]->pShip;
+        if (!ship || ship->isDead()) continue;
+        CVECTOR point, angle, recoil;
+        float power, slide;
+        for (int cycle = 0; cycle < 1024 && IsIntersectIsland(i, &point, &angle, &recoil, &power, &slide); ++cycle)
+        {
+            const auto away = !(point - ship->State.vPos);
+            auto localPoint = point - ship->State.vPos;
+            const float yaw = -ship->State.vAng.y;
+            RotateAroundY(localPoint.x, localPoint.z, cosf(yaw), sinf(yaw));
+            ship->State.vAng.y -= .001f * (localPoint.x * localPoint.z >= 0.f ? 1.f : -1.f);
+            ship->State.vPos.x -= away.x * .02f;
+            ship->State.vPos.z -= away.z * .02f;
+        }
     }
-
     return true;
+}
+
+void TOUCH::ResolveShips()
+{
+    using namespace storm::ship::contact;
+    const double seconds = double(iDeltaTime) * .001;
+    if (!(seconds > 0)) return;
+    std::vector<FrameBody> bodies;
+    std::vector<int> indices;
+    for (int i = 0; i < iNumShips; ++i)
+    {
+        auto *entry = pShips[i];
+        if (!entry->pShip || IsSinked(i) || entry->iNumCoastContour < 3 || entry->iNumCoastContour > 128 ||
+            !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
+        FrameBody frame;
+        frame.body.mass = entry->pShip->State.fWeight;
+        // Same cwt owner as GetCargoLoad: goods, installed guns and crew. Do
+        // not cap an overloaded ship to its nominal hold capacity.
+        const auto character = entry->pShip->GetACharacter();
+        const auto cargo = character ? character->FindAClass(character, "Ship.Cargo") : nullptr;
+        const float load = cargo ? cargo->GetAttributeAsFloat("Load") : 0.f;
+        if (std::isfinite(load) && load > 0.f) frame.body.mass += load;
+        frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
+        frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
+        for (int n = 0; n < entry->iNumCoastContour; ++n)
+            frame.body.hull.push_back({entry->vCoastContour[n].x, entry->vCoastContour[n].z});
+        frame.wreck = entry->pShip->isDead();
+        frame.yStart = entry->TP[0].vPos.y;
+        frame.yEnd = entry->TP[1].vPos.y;
+        frame.height = entry->pShip->GetBoxsize().y;
+        bodies.push_back(std::move(frame));
+        indices.push_back(i);
+    }
+    if (bodies.size() < 2) return;
+    const auto result = integrateFrame(bodies, seconds);
+    const auto currentShip = [&](size_t n)
+    {
+        return static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[indices[n]]->eID));
+    };
+    // Publish material loss at the actual local contact, using the currently
+    // presented model transform. A fast TOI may be far from that old transform.
+    for (const auto &impact : result.impacts)
+    {
+        const auto publish = [&](size_t own, size_t other, Vec2 localPoint, Vec2 localNormal,
+                                  double specificEnergy)
+        {
+            auto *ship = currentShip(own);
+            auto *opponent = currentShip(other);
+            // Elastic low-speed compression transmits pushing force without
+            // continually charging HP as a series of new ramming impacts.
+            constexpr double elasticEnergy = .25; // J per unit mass, m²/s²
+            specificEnergy = std::max(0.0, specificEnergy - elasticEnergy);
+            if (!ship || !opponent || !(specificEnergy > 0)) return;
+            const auto matrix = ship->GetMatrix();
+            const CVECTOR point(float(localPoint.x), 0.f, float(localPoint.z));
+            const CVECTOR normal(float(localNormal.x), 0.f, float(localNormal.z));
+            if (matrix)
+                ship->ApplyHullImpact(*matrix * point, *matrix * normal - matrix->Pos(),
+                                      float(specificEnergy), GetIndex(opponent->GetACharacter()));
+            if (ship->isDead()) return;
+            const auto attributes = ship->GetAShip();
+            const float maximum = attributes ? attributes->GetAttributeAsFloat("HP") : 0.f;
+            if (!(maximum > 0.f) || !std::isfinite(maximum)) return;
+            // Specific crush energy grows with closing speed squared; the bow's
+            // axial structure resists more than planking hit across the grain.
+            const double halfLength = std::max(1.f, ship->State.vBoxSize.z * .5f);
+            const double bow = std::clamp(localPoint.z / halfLength, 0.0, 1.0);
+            const double strength = 75.0 * (1.0 + .75 * localNormal.z * localNormal.z * (.5 + .5 * bow));
+            const float hp = float(maximum * specificEnergy / (specificEnergy + strength));
+            core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
+                       GetIndex(opponent->GetACharacter()), hp * .1f, 0.f, 1,
+                       float(impact.point.x), float((bodies[own].yStart + bodies[other].yStart) * .5),
+                       float(impact.point.z));
+        };
+        publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA);
+        publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB);
+    }
+    for (size_t n = 0; n < result.motions.size(); ++n)
+    {
+        const auto &motion = result.motions[n];
+        if (!motion.touched) continue;
+        auto *ship = currentShip(n);
+        if (!ship) continue;
+        ship->ApplyHullContactMotion(CVECTOR(float(motion.deltaV.x), 0.f, float(motion.deltaV.z)),
+            float(motion.deltaW), CVECTOR(float(motion.finalPose.position.x), 0.f, float(motion.finalPose.position.z)),
+            float(motion.finalPose.yaw), uint32_t(iDeltaTime));
+    }
 }
 
 uint32_t TOUCH::AttributeChanged(ATTRIBUTES *pAttribute)

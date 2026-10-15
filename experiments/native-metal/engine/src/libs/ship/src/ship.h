@@ -15,6 +15,7 @@
 #include "ship_base.h"
 #include "ship_msg.h"
 #include "ship_phonk.hpp"
+#include "ship_phonk_laser.hpp"
 #ifdef STORM_METAL_SHIP_FIRE
 #include "ship_fire_model.hpp"
 #include "ship_fire_bridge.hpp"
@@ -149,6 +150,7 @@ class SHIP : public SHIP_BASE
     SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
     storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity
     storm::ship::phonk::Flight phonkFlight; // crest launch/landing; no save layout fields
+    storm::ship::phonk::LaserState phonkLaser;
     float phonkSeconds = 0.f;
     SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
     unsigned emergenceSerial = 0; // rebound to the restored field, never serialized
@@ -190,6 +192,9 @@ class SHIP : public SHIP_BASE
     void RestorePhonkVelocity(SHIP_STATE &state, float ordinarySpeed);
     void PublishPhonkLights(uint32_t deltaTime);
     void DrawPhonkGlow(uint32_t deltaTime);
+    void ExecutePhonkLaser(uint32_t deltaTime);
+    void DrawPhonkLaser();
+    bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false);
     float TsunamiProtection();
     CVECTOR TsunamiDriftSpeed(float seconds, bool consume);
     float WhirlpoolControl();
@@ -250,6 +255,11 @@ class SHIP : public SHIP_BASE
     bool DelStrength(int32_t iIdx) override;
 
     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
+    unsigned GetHullContourRevision() const override { return phonkLaser.contourRevision; }
+    void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
+                         float specificEnergy, int32_t otherCharacterIndex) override;
+    void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
+                                const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds) override;
     bool BuildMasts();
     bool BuildHulls();
     BOOL Move(uint32_t DeltaTime, BOOL bCollision);

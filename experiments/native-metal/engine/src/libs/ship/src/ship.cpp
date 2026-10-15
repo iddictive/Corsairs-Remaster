@@ -494,11 +494,13 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
         const float dt = std::isfinite(dtime) ? std::clamp(dtime, 0.f, .1f) : 0.f;
         const float steering = -std::expm1(-5.f * dt);
         const float oldForward = State.vSpeed.z;
-        CONTROL_STATE gas, gas1, brake, brake1;
+        CONTROL_STATE gas, gas1, brake, brake1, shift, shift1;
         core.Controls->GetControlState("Ship_SailUp", gas);
         core.Controls->GetControlState("Ship_SailUp1", gas1);
         core.Controls->GetControlState("Ship_SailDown", brake);
         core.Controls->GetControlState("Ship_SailDown1", brake1);
+        core.Controls->GetControlState("ILeftShift", shift);
+        core.Controls->GetControlState("IRightShift", shift1);
         const auto held = [](const CONTROL_STATE &c) { return c.state == CST_ACTIVE || c.state == CST_ACTIVATED; };
         const auto wave = pSea ? pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset) : SeaTsunamiSample{};
         const float rise = wave.slopeX * (KNOTS2METERS(phonkDrift.worldX) + wave.directionX * wave.speed) +
@@ -508,7 +510,7 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
             acceleration *= 1.f + .65f * std::clamp(wave.height / wave.amplitude, 0.f, 1.f);
         phonkDrift.advance(acceleration, Strength[STRENGTH_MAIN].vRotate.y, State.vAng.y, dt,
                            State.vSpeed.x, State.vSpeed.z, held(gas) || held(gas1),
-                           held(brake) || held(brake1), phonkFlight.airborne);
+                           held(brake) || held(brake1), phonkFlight.airborne, held(shift) || held(shift1));
         State.vSpeed.x = 0.f;
         State.vSpeed.z = phonkDrift.magnitude();
         vSpeedAccel.z = oldForward - State.vSpeed.z;
@@ -726,9 +728,10 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
     {
         // Cap the effective world velocity after all surface-current transport.
         const float speed = std::hypot(State.vSpeed.x, State.vSpeed.z);
-        if (speed > storm::ship::phonk::speedCeiling)
+        const float speedLimit = phonkDrift.speedLimit();
+        if (speed > speedLimit)
         {
-            const float scale = storm::ship::phonk::speedCeiling / speed;
+            const float scale = speedLimit / speed;
             State.vSpeed.x *= scale;
             State.vSpeed.z *= scale;
         }
@@ -851,6 +854,8 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
             phonkFlight.impactY = pSea->WaveXZ(phonkFlight.impactX, phonkFlight.impactZ) + .5f;
         }
         surfaceAngle.x += tsunamiMotion.pitch + whirlpoolMotion.pitch;
+        if (!phonkFlight.airborne && !phonkFlight.settling)
+            surfaceAngle.x += phonkDrift.thrustPitch();
         surfaceAngle.z += tsunamiMotion.roll + whirlpoolMotion.roll + std::clamp(State.vRotate.y, -.25f, .25f);
         phonkFlight.attitude(State.vAng.x, State.vAng.z, surfaceAngle.x, surfaceAngle.z,
             dtime, fGravity, State.vBoxSize.z, State.vBoxSize.x,
@@ -1603,6 +1608,7 @@ void SHIP::Execute(uint32_t DeltaTime)
     SetMatrix(mRoot);
 
     auto matrix = UpdateModelMatrix();
+    ExecutePhonkLaser(DeltaTime);
 
     // activate mast tracer
     if (dtMastTrace.Update(fDeltaTime))
@@ -2102,6 +2108,7 @@ void SHIP::Realize(uint32_t dtime)
         pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
         pRS->Print(0, 140, "Volume: %.2f", GetAShip()->GetAttributeAsFloat("Volume"));
     }
+    if (dtime != 0) DrawPhonkLaser(); // reflection requests call Realize(0)
 }
 
 void SHIP::SetLights()
@@ -3165,7 +3172,7 @@ void SHIP::Save(CSaveLoad *pSL)
     if (PhonkActive() && phonkDrift.initialized)
     {
         // The scene mode is transient. Save its ordinary exit projection,
-        // leaving the live 500-knot world momentum and binary layout intact.
+        // leaving live world momentum and binary layout intact.
         std::memcpy(&ordinaryState, &State, sizeof(State));
         CVECTOR ordinarySpeed(0.f), ordinaryRotate(0.f);
         CalculateNewSpeedVector(&ordinarySpeed, &ordinaryRotate, false);
@@ -3238,6 +3245,7 @@ void SHIP::Save(CSaveLoad *pSL)
 void SHIP::Load(CSaveLoad *pSL)
 {
     uint32_t i;
+    phonkLaser = {};
     collisionStrength = {};
     collisionYaw = 0.f;
     tsunamiDrift.Reset();

@@ -19,6 +19,12 @@ SAVAGE GEOM::_stack[256];
 
 float GEOM::Trace(VERTEX &start, VERTEX &finish)
 {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(laserOwner){laserTraceObject=laserTraceTriangle=-1;float nearest=2;
+        laserBroadphase.queryRay({start.x,start.y,start.z},{finish.x,finish.y,finish.z},laserRayCandidates);
+        for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(laserSurface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
+            if(hit<nearest||(hit==nearest&&hit<=1&&reference<std::make_pair(laserTraceObject,uint32_t(laserTraceTriangle)))){nearest=hit;laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}return nearest;}
+#endif
     if (!(rhead.flags & FLAGS_BSP_PRESENT))
         return 2.0f;
     src = DVECTOR(start.x, start.y, start.z);
@@ -288,6 +294,18 @@ static unsigned short trgclip[65536 * 4];
 bool GEOM::Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, float radius, ADD_POLYGON_FUNC addpoly)
 {
     storm_airburst_hull::TraceScope traceScope(traceid);
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(laserOwner){if(nplanes<0||nplanes>64||!std::isfinite(radius)||radius<0)return false;
+        for(const auto&entry:laserSurface){if(!(object[entry.first].flags&COLLISION_ENABLE))continue;
+            for(size_t n=0;n<entry.second.size();++n){const auto&triangle=entry.second[n];storm_ship_hull::Bounds box{triangle[0].position,triangle[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{triangle[c].position,triangle[c].position});
+                const float x=std::clamp(center.x,box.lo.x,box.hi.x)-center.x,y=std::clamp(center.y,box.lo.y,box.hi.y)-center.y,z=std::clamp(center.z,box.lo.z,box.hi.z)-center.z;if(x*x+y*y+z*z>radius*radius)continue;
+                for(unsigned c=0;c<3;++c)poly[c]={triangle[c].position.x,triangle[c].position.y,triangle[c].position.z};int count=3;
+                for(int p=0;p<nplanes&&count;++p)count=ClipByPlane(planes[p],count);
+                if(count){laserTraceObject=entry.first;laserTraceTriangle=int(n);laserTraceA=laserTraceB=0;if(!addpoly||!addpoly(reinterpret_cast<const VERTEX*>(poly),count))return true;}
+            }
+        }return false;
+    }
+#endif
     if (!(rhead.flags & FLAGS_BSP_PRESENT))
         return false;
     const DVECTOR src(center.x, center.y, center.z);

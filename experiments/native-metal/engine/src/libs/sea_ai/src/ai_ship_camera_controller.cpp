@@ -183,6 +183,11 @@ void AIShipCameraController::Execute(float fDeltaTime)
 
 bool AIShipCameraController::Fire()
 {
+    // Phonk's mapped fire input belongs to the native laser, with its own reload.
+    // Keep normal cannon inventory and reload state untouched while it is active.
+    auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *mode = sea && sea->AttributesPointer ? sea->AttributesPointer->FindAClass(sea->AttributesPointer, "Phonk.Active") : nullptr;
+    if (GetAIShip()->isMainCharacter() && mode && mode->GetAttributeAsDword()) return false;
     CMatrix m;
 
     AIHelper::pRS->GetTransform(storm_render::TransformView, m);

@@ -55,6 +55,11 @@ void GEOMETRY::SetTechnique(const char *name)
     strcpy_s(technique, name);
 }
 
+const char *GEOMETRY::GetTechnique() const
+{
+    return technique;
+}
+
 GEOMETRY::ANIMATION_VB GEOMETRY::GetAnimationVBDesc(int32_t vb)
 {
     const auto *buffer = AnimationBuffer(vb);

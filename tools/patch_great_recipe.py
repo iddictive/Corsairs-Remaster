@@ -9,7 +9,7 @@ SOURCE = ROOT / "gameplay"
 NORMALIZED_HASHES = {
     "PROGRAM/seadogs.c": "253f4a94d231bc4d99dede9feef57bddfbbe6faa1d5d2a68fbcc39525f839eea",
     "PROGRAM/sea_ai/sea.c": "b5cacb138d27f544363e4522a1088b413c62e41c4e1cd17cf06ef3e5c38495be",
-    "PROGRAM/sea_ai/AIShip.c": "c2d1d9dbdc724dd239c877b6d098ebf4613eb887852e5058236cfe767e743179",
+    "PROGRAM/sea_ai/AIShip.c": "21fa6178c00baaa921aa0a5bea1598ddcab0d32a55d678cd24d1308ee45c1aeb",
     "PROGRAM/store/storeutilite.c": "4d7633799afaa87be06c9c51c31e6dc96fc4c5ddc23e4de37403d74656ff81fa",
     "PROGRAM/locations/locations_loader.c": "2c2e69a4af9431a9bdda8d0978f09dbd5a5e9713f4e48560f2e193077ea19ea9",
     "PROGRAM/dialogs/russian/Tavern/Pirates_Tavern.c": "a96d00ebacfecab2702a55e143ba88a96416a0fe189734161bbf55a041daab28",

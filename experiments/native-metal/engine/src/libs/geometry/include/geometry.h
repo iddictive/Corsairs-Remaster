@@ -32,6 +32,7 @@ class VGEOMETRY : public SERVICE
     virtual void DeleteGeometry(GEOS *) = 0;
     virtual ANIMATION *LoadAnimation(const char *anim) = 0;
     virtual void SetTechnique(const char *name) = 0;
+    virtual const char *GetTechnique() const { return ""; }
     virtual void SetVBConvertFunc(VERTEX_TRANSFORM _transform_func) = 0;
     virtual ANIMATION_VB GetAnimationVBDesc(int32_t avb) = 0;
 

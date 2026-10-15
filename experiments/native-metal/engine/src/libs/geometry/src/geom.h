@@ -15,7 +15,9 @@ Import library class
 #include <vector>
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include <map>
+#include <atomic>
 #include "ship_hull_geometry.hpp"
+#include "ship_laser_geometry.hpp"
 #endif
 
 #define EPSILON 4e-7
@@ -70,8 +72,26 @@ class GEOM : public GEOS
     std::map<int,HullOriginal> hullOriginals;
     std::map<int,std::vector<HullDraw>> hullDraws;
     uint64_t hullOwner=0,hullSignature=0;
+    inline static std::atomic<uint64_t> nextGeometryGeneration{0};
+    const uint64_t geometryGeneration = ++nextGeometryGeneration;
     bool CaptureHullObject(int objectIndex);
     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
+    std::vector<storm_ship_hull::Impact> hullCutInputs;
+    storm_ship_laser::Mesh laserSurface;
+    storm_ship_hull::Broadphase laserBroadphase;
+    std::vector<std::pair<int,uint32_t>>laserCollisionTriangles;
+    std::vector<uint32_t>laserRayCandidates;
+    double laserClosedVolume=0;
+    bool laserPrepared=false;
+    std::vector<storm_ship_laser::Plane> laserPlanes;
+    struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;};
+    std::vector<LaserFragment>laserFragments;
+    uint64_t laserOwner=0,laserSerial=0;
+    int laserTraceObject=-1,laserTraceTriangle=-1;
+    float laserTraceA=0,laserTraceB=0;
+    bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&);
+    bool RebuildLaserSurface(bool upload=true);
+    void RebuildLaserCollision();
 #endif
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
     struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
@@ -120,6 +140,11 @@ class GEOM : public GEOS
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
     void ClearHullCuts(uint64_t owner) override;
+    bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&) override;
+    uint64_t GeometryGeneration() const override { return geometryGeneration; }
+    bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
+    void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
+    void ClearLaserCuts(uint64_t owner) override;
 #endif
 
     virtual float Trace(VERTEX &src, VERTEX &dst);

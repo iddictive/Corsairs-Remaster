@@ -1,5 +1,96 @@
 # Phonk Mode
 
+## October15 source candidate — boost, hull survival and cutting laser
+
+This is a source candidate, not installed or player-accepted behavior. The
+canonical native build/stage integration owner records delivery in `runtime.md`.
+The engine source owner is now `experiments/native-metal/engine`; historical
+patch references below describe prior receipts, not the current edit path.
+
+The current request keeps ordinary Phonk at500 knots and adds held left/right
+Shift, using the existing `ILeftShift`/`IRightShift` controls, to accelerate
+continuously toward1000 without a timer or consumable. Brake wins; release sheds
+excess speed continuously. Supported thrust raises the bow through the existing
+damped attitude response; airborne motion and water-entry compression keep their
+existing owners. Ordinary/NPC movement and the binary save layout remain.
+
+`PROGRAM/scripts/sea_phonk.c` owns2% maximum hull regeneration per game second
+and the post-perk contact-episode budget: at most5% maximum hull or25% entry
+hull, whichever is smaller, until0.75seconds without damaging contact. Pause,
+reload, death and mode disposal retain their existing guards. The three actual
+ship/island/grounding producers share the final budget in `sea_ai/AIShip.c`.
+
+The existing mapped `Ship_Fire` input owns the Phonk laser; native camera fire
+does not spend cannon ammunition or alter its reload during the mode. The aimed
+existing broadside supplies one intact cannon near its middle, emitting a
+single beam with muzzle-to-target occlusion. One battery drains16% per game second during
+fire and restores10% per second on release; zero charge stops the beam. Existing
+navigator charge arcs show it only in Phonk, retaining the ordinary charge and
+damage paths outside the mode. Holding
+fire visibly advances the beam and burns one target for0.65game seconds before
+the final material bridge parts; the next cut has0.20seconds recovery. Moving
+the aim over the same target supplies the cut plane, allowing vertical bisection
+or a horizontal upper-hull trim. A stationary aim defaults to a vertical plane.
+Camera picking and the selected muzzle's ray respect intervening ships/islands. The
+shared bound includes transformed geometry centres and every model child.
+
+`ship_phonk_laser.cpp/.hpp` own input, transient beam/heat, separated-piece motion,
+native wave sampling and persistent plane/flood attributes. Geometry owns actual
+half-space splits, original materials/UVs, closed-contour caps, persistent0.08m
+char bands and retained-mesh collision. It reuses the hull BVH; fragments have
+immutable buffers and are released after6seconds. Actual intersection edges
+glow orange and cool over5seconds. The source limit is32 meaningful cuts per
+ship, four retained fragment snapshots per node and64 active piece records.
+
+Damage follows the actually removed geometry. Closed meshes use validated
+volume; the authored open Flyingdutchman mesh falls back to surface area, which
+must not be described as measured mass. Dry upper cuts cause no hull HP loss.
+Partial wet cuts cannot themselves kill; a large wet structural split sinks
+through the existing death/quest-guard path. Up to16 length-weighted seam samples
+per cut query current `WaveXZ` at4Hz. Submerged openings admit water with a
+simplified head/area flow; capacity derives from the original waterline contour
+and draft. Flooding continues with Phonk OFF and restores after load. A separate
+global sea event applies its progressive HP ceiling, with ordinary immortality
+and quest guards. This is a simplified ingress model, not a fluid simulation.
+
+`Ship.PhonkLaserCuts` stores model-bound local planes; `Ship.PhonkFlood` stores
+ingress and attribution. Normal startup/load reconstructs cuts, chars, breach
+samples and the contact contour without replaying damage or spawning old pieces.
+TOUCH invalidates its existing cached contours through one default-zero hull
+revision; ordinary ships retain their prior path. Old saves without these
+attributes enter unchanged. Native pause advances neither burn nor ingress.
+Renderer resets rebind saved planes to each new geometry generation without
+duplicating damage, ingress or fragments. Source-node techniques and lighting
+are scoped around independent fragment draws.
+
+Mechanical impacts reuse the same geometry, plane history, fragments, contact
+revision and flooding owner through `SHIP_BASE::ApplyHullImpact`. Their explicit
+non-charred plane style emits no beam, glow or burn. TOUCH owns collision work
+and ordinary HP damage; that hook never charges HP a second time. The separate
+contact-motion adapter belongs to the collision solver.
+
+Source evidence:6000 baseline motion comparisons, held boost/release/brake/air
+and complete launch/landing checks; native VM contact/regen/laser/flood/OFF/pause
+and saved-attribute reload cases; actual Flyingdutchman cut geometry with512
+BVH-vs-linear ray comparisons (max51 candidate triangles, mean6.88). These
+include frame-independent energy, dry/wet/paused ingress and plain-versus-charred
+cut checks. Native translation-unit syntax checks pass. These
+checks do not prove appearance, game frame cost or actual player acceptance.
+
+Required replay remains held Shift/ordinary return, tsunami launch/landing,
+contact survival/regen, aim hold/sweep/cut/fragment/char lifecycle, dry top trim,
+wave-driven flooding, bisection, pause/OFF/save/load and an ordinary cannon shot
+with Phonk OFF.
+
+The black-splash source repair is separate: `splash`/`splash2` already bake
+ambient into vertex RGB and now explicitly disable a second lighting multiply.
+`splash.fx` joins canonical technique delivery. Black tsunami `SEAFOAM_PS`
+particles are not reproduced by this finding: their ordinary technique already
+disables lighting and their installed texture contains no visible black texels.
+The player clarified that the unresolved effect is surface wake/splashes while
+sailing, visible at particular camera angles. That producer remains under
+investigation; do not close it from the ordinary splash correction.
+
 ## Status
 
 Installed October 13 through the canonical Metal stage-only path. The exact

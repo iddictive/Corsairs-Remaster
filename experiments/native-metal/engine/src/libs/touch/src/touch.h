@@ -25,6 +25,7 @@ struct TOUCH_SHIP
     CVECTOR vContour[128];        // initial contour // must be dynamic
     CVECTOR vCoastContour[128];    // unexpanded model contour, rebuilt after load
     int32_t iNumCoastContour = 0;
+    unsigned contourRevision = 0;
     CVECTOR vContourRect[4];      // rect contour
     int32_t iNumVContour;            // num points in contour
 };
@@ -47,17 +48,14 @@ class TOUCH : public Entity
     int32_t iNumShips;
 
     BOOL BuildContour(int32_t ship_idx);
-    BOOL IsPointInContour(CVECTOR *vP, CVECTOR *vContour, int32_t numvcontour);
 
     bool IsSinked(int32_t iIndex);
 
-    float Touch(int32_t idx, int32_t skip_idx, CVECTOR *vPos, CVECTOR *vAng, float fPower, float fSlide);
+    void TouchIsland(int32_t idx);
+    void ResolveShips();
     BOOL FakeTouch();
-    BOOL IsIntersectShipsRects(int32_t idx1, int32_t idx2);
-    BOOL IsIntersectShipsReal(int32_t idx1, int32_t cidx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil, float *fPower,
-                              float *fSlide);
-    void GetLineABC(CVECTOR &v1, CVECTOR &v2, float &A, float &B, float &C);
-    CVECTOR GetLineIntersectPoint(CVECTOR &v1, CVECTOR &v2, CVECTOR &o1, CVECTOR &o2);
+    BOOL IsIntersectIsland(int32_t idx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil,
+                           float *fPower, float *fSlide);
     int32_t ProcessImpulse(int32_t iOurIdx, CVECTOR vPos, CVECTOR vDir, float fPowerApplied);
     int32_t GetTouchPoint(int32_t iIdx, const CVECTOR &vPos);
 

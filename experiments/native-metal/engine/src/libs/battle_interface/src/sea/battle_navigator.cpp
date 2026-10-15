@@ -968,6 +968,8 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
     m_fCurAnglRightCharge = m_fBegAnglRightCharge;
     m_fCurAnglForwardCharge = m_fBegAnglForwardCharge;
     m_fCurAnglBackCharge = m_fBegAnglBackCharge;
+    const auto *laserCharge = seaAttributes ? seaAttributes->FindAClass(seaAttributes, "Phonk.LaserCharge") : nullptr;
+    const float laserChargeRatio = laserCharge ? Clamp(laserCharge->GetAttributeAsFloat()) : 0.f;
     auto *pBortsAttr = BIUtils::GetAttributesFromPath(psd->pAttr, "cannons", "borts", 0);
     if (pBortsAttr != nullptr)
     {
@@ -976,7 +978,7 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
         // left cannons
         if ((pTmpAttr = pBortsAttr->GetAttributeClass("cannonl")) != nullptr)
         {
-            fCharge = pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
+            fCharge = phonkSpeed ? laserChargeRatio : pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
             fDamage = pTmpAttr->GetAttributeAsFloat("DamageRatio", 0);
             m_fCurAnglLeftDamage = GetBetwinFloat(m_fEndAnglLeftCharge, m_fBegAnglLeftCharge, fDamage); //~!~
             m_fCurAnglLeftCharge = GetBetwinFloat(m_fBegAnglLeftCharge, m_fCurAnglLeftDamage, fCharge);
@@ -984,7 +986,7 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
         // right cannons
         if ((pTmpAttr = pBortsAttr->GetAttributeClass("cannonr")) != nullptr)
         {
-            fCharge = pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
+            fCharge = phonkSpeed ? laserChargeRatio : pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
             fDamage = pTmpAttr->GetAttributeAsFloat("DamageRatio", 0);
             m_fCurAnglRightDamage = GetBetwinFloat(m_fEndAnglRightCharge, m_fBegAnglRightCharge, fDamage);
             m_fCurAnglRightCharge = GetBetwinFloat(m_fBegAnglRightCharge, m_fCurAnglRightDamage, fCharge);
@@ -992,7 +994,7 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
         // forward cannons
         if ((pTmpAttr = pBortsAttr->GetAttributeClass("cannonf")) != nullptr)
         {
-            fCharge = pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
+            fCharge = phonkSpeed ? laserChargeRatio : pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
             fDamage = pTmpAttr->GetAttributeAsFloat("DamageRatio", 0);
             m_fCurAnglForwardDamage = GetBetwinFloat(m_fEndAnglForwardCharge, m_fBegAnglForwardCharge, fDamage);
             m_fCurAnglForwardCharge = GetBetwinFloat(m_fBegAnglForwardCharge, m_fCurAnglForwardDamage, fCharge);
@@ -1000,7 +1002,7 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
         // backward cannons
         if ((pTmpAttr = pBortsAttr->GetAttributeClass("cannonb")) != nullptr)
         {
-            fCharge = pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
+            fCharge = phonkSpeed ? laserChargeRatio : pTmpAttr->GetAttributeAsFloat("ChargeRatio", 0);
             fDamage = pTmpAttr->GetAttributeAsFloat("DamageRatio", 0);
             m_fCurAnglBackDamage = GetBetwinFloat(m_fEndAnglBackCharge, m_fBegAnglBackCharge, fDamage);
             m_fCurAnglBackCharge = GetBetwinFloat(m_fBegAnglBackCharge, m_fCurAnglBackDamage, fCharge);

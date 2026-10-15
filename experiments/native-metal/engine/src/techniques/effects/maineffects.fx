@@ -219,3 +219,25 @@ technique Blood
         AlphaOp[1] = disable;
     }
 }
+
+technique PhonkLaser
+{
+    pass p0
+    {
+        Lighting = false;
+        FogEnable = false;
+        ZEnable = true;
+        ZWriteEnable = false;
+        CullMode = none;
+        AlphaTestEnable = false;
+        AlphaBlendEnable = true;
+        SrcBlend = srcalpha;
+        DestBlend = one;
+        ColorOp[0] = SelectArg1;
+        ColorArg1[0] = diffuse;
+        AlphaOp[0] = SelectArg1;
+        AlphaArg1[0] = diffuse;
+        ColorOp[1] = disable;
+        AlphaOp[1] = disable;
+    }
+}
