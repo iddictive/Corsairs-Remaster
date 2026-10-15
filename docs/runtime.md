@@ -4,6 +4,21 @@ Last verified delivery: October15. Gameplay commits `f4d3c58` and `1bc5325` are 
 
 ## Current verdict
 
+### October15 — early-HUD MetalFX sea identity correction source verified
+
+The player reports missing ordinary-sea aim draping on installed4c14ef with
+MetalFX Performance. An actual-backend Sea2 fixture reproduces230 native/294
+scaled contact pixels before HUD and0 after early HUD completion. The source
+candidate preserves the same camera/origin and proportional viewport, sampling
+identity with the normalized nearest texel used by restored native depth.
+Current component output is230/294/240 with no sky pixels; own-model, camera and
+viewport negatives remain0, and relation-colored solid contours retain coverage.
+`sea-aim-overlay.md` owns the cause, consumers and proof ceiling. No FPS gain or
+installed correction follows from these component checks. The game process is
+now absent in the integration owner's current observation; the independently
+active structural-death/crew/rigging source unit still prevents a coherent
+canonical delivery. Root retains build/stage and installed replay disposition.
+
 ### October15 — long wake correction source verified; delivery waits for idle app
 
 The reported straight/angular wake prompted an actual-source reproduction:

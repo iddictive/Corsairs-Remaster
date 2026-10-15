@@ -361,8 +361,12 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
   bool hasReceiver=validDepth&&depth<1.f;
   bool actualOwn=false;
-  bool actualModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(pixelIndex).r==depth;
-  uint2 identity=actualModel?relation.read(pixelIndex).xy:uint2(0u);
+  // MetalFX restores native depth with nearest sampling. Keep the captured
+  // receiver on that same texel when aiming follows an early HUD boundary.
+  uint2 relationSize=uint2(relationDepth.get_width(),relationDepth.get_height());
+  uint2 relationPixel=min(uint2((float2(pixelIndex)+.5f)*float2(relationSize)/float2(size)),relationSize-1u);
+  bool actualModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(relationPixel).r==depth;
+  uint2 identity=actualModel?relation.read(relationPixel).xy:uint2(0u);
   bool actualWater=actualModel&&(identity.x&0x20000000u);
   actualOwn=actualOwn||(actualModel&&(identity.x&0x40000000u));
   uint receiverToken=(!actualOwn&&!actualWater)?(identity.x&0x3fffffffu):0u;
@@ -714,8 +718,18 @@ class SoftAimVolume {
     if((!frame.scissor.width||!frame.scissor.height)&&(!frame.contactScissor.width||!frame.contactScissor.height))return true;
     if(!prepare(device,target.pixelFormat))return false;
     AimVolumeUniforms uniforms=frame.uniforms;
-    auto sizeMatches=[&](id<MTLTexture>texture){return texture&&texture.width==currentDepth.width&&texture.height==currentDepth.height;};
-    bool modelReady=model_.ready&&sizeMatches(model_.depth)&&sizeMatches(model_.identity)&&sameStamp(model_.stamp,frame.stamp);
+    bool modelReady=model_.ready&&model_.depth&&model_.identity&&
+        model_.depth.width==model_.identity.width&&model_.depth.height==model_.identity.height;
+    if(modelReady){
+      // The scene/HUD transition changes resolution, not camera or ownership.
+      // Accept only the same camera and proportionally identical viewport;
+      // current-depth equality below still rejects foreground/HUD occluders.
+      const simd_float4 scale={float(currentDepth.width)/model_.depth.width,float(currentDepth.height)/model_.depth.height,
+          float(currentDepth.width)/model_.depth.width,float(currentDepth.height)/model_.depth.height};
+      modelReady=std::memcmp(&model_.stamp.viewProjection,&frame.stamp.viewProjection,sizeof(frame.stamp.viewProjection))==0&&
+          std::memcmp(&model_.stamp.worldOrigin,&frame.stamp.worldOrigin,sizeof(frame.stamp.worldOrigin))==0&&
+          simd_all(simd_abs(model_.stamp.viewport*scale-frame.stamp.viewport)<.001f);
+    }
     uniforms.receiverFlags={1u,0u,1u,uint32_t(modelReady)};
     if(!depthSnapshot_||depthSnapshot_.width!=currentDepth.width||depthSnapshot_.height!=currentDepth.height) {
       auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float width:currentDepth.width height:currentDepth.height mipmapped:NO];

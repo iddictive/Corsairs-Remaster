@@ -2,6 +2,40 @@
 
 ## Status
 
+### October15 — sea drape lost after MetalFX scene completion
+
+The player reports missing draping on ordinary sea in the installed `4c14ef37`
+engine; their graphics record selects MetalFX Performance. The unchanged sea
+impact chart and shader still exist. The loss is at receiver consumption:
+`SoftAimVolume::encode` requires captured identity/depth textures and viewport
+to have the current scene's exact dimensions. MetalFX restores native depth
+before the late aim draw, leaving those identity textures at scene resolution.
+Water then loses its sea tag and cannot receive the sea-XZ chart.
+
+This ordering is reachable in the normal game: `InitBaseInterfaces` registers
+`ILogAndActions` in `SEA_REALIZE` before the later-created `AISea`, both at
+unsigned priority `-1`. EntityManager preserves insertion order for equal
+priorities. The log renderer calls `FinalizeSceneEffects` before the AI camera
+draws its drape. Native mode does not change dimensions at that boundary.
+
+The source candidate in `aim_volume.hpp` preserves identity across a proportional
+resolution change with the same camera, world origin and normalized viewport.
+Its receiver texel lookup follows the same normalized nearest sampling as
+`metalfx.hpp`'s native depth restoration; exact current-depth matching still
+rejects occluders. Impact statistics, contour style, air and firing are unchanged.
+
+A one-off128x128 Sea2 fixture linked to the actual backend reproduces230 contact
+pixels in Native and294 in Performance before HUD, but zero after HUD. Rebuilding
+the current backend with the candidate retains230/294 and restores240 after HUD,
+with zero pixels above the water region. Own-model, changed-camera and
+changed-viewport negatives remain zero. A relation-colored solid retains its
+red contour across the same transition (142 native/146 scaled red pixels).
+These are component readbacks, not a player scene or FPS result. Shared engine
+build, canonical staging and installed ordinary-sea replay remain unresolved;
+the running player app and state were not changed.
+
+### Installed revision13 baseline
+
 Revision13 replaces the expensive per-pixel section/plane traversal with a
 rounded closed trajectory tube and constant-cost fog integration at its faces.
 The fog strengthens downrange, caps alpha at.07 and stops at current scene depth.
@@ -101,6 +135,11 @@ support. Its flight sections share the launch law and moment fit of the drape;
 water's landing distribution remains an event statistic, not a flight slice.
 
 ## Owners and implementation
+
+Live controller and bridge sources are under `engine/src/libs/sea_ai` and
+`engine/src/libs/shared_headers/include/shared/sea_ai`; `backend.mm` and
+`aim_volume.hpp` own current receiver capture and consumption. Patch names below
+identify the historical import lineage, not the current build inputs.
 
 - `cannon-trajectory-aim.patch` owns the base controller, geometry and GPU bridge;
   `cannon-rake-spread.patch` layers cloth selection, live parameter queries,
