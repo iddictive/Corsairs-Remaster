@@ -7,6 +7,7 @@
 #include "shared/messages.h"
 #include "shared/sea_ai/script_defines.h"
 #include "ship_fire_model.hpp"
+#include "ship_auxiliary_detail.h"
 
 CREATE_CLASS(Sailors)
 
@@ -52,7 +53,7 @@ bool CrewDetailVisible(MODEL &model, const CMatrix &viewProjection,
     }
     const float pixels = std::max((highX - lowX) * .5f * viewport.Width,
                                   (highY - lowY) * .5f * viewport.Height);
-    // Player crew is excluded by the caller; only model rendering is skipped.
+    // Only model rendering is skipped; movement and crew work remain active.
     return pixels >= (wasVisible ? 2.f : 3.f);
 }
 
@@ -1445,8 +1446,9 @@ void Sailors::Realize(uint32_t dltTime)
         walk->RespondToFire(dltTime);
 
         auto *character = walk->ship ? walk->ship->GetACharacter() : nullptr;
-        const bool preserveDetail = editorMode || !detailViewportValid || !character ||
-                                    character->GetAttributeAsDword("MainCharacter", 0) != 0;
+        const bool preserveDetail = editorMode || !detailViewportValid || !character;
+        const bool shipDetailVisible = preserveDetail || !walk->ship || walk->ship->IsAuxiliaryDetailVisible();
+        storm::ship::AuxiliaryDetailScope auxiliaryDetailScope(rs->GetNativeDevice(), shipDetailVisible);
 
         // Updating and drawing
         for (auto &man : walk->shipMan)
@@ -1458,8 +1460,8 @@ void Sailors::Realize(uint32_t dltTime)
             {
                 if (const auto model = static_cast<MODEL *>(core.GetEntityPointer(man.modelID)))
                 {
-                    man.detailVisible = preserveDetail ||
-                        CrewDetailVisible(*model, viewProjection, viewport, man.detailVisible);
+                    man.detailVisible = preserveDetail || (shipDetailVisible &&
+                        CrewDetailVisible(*model, viewProjection, viewport, man.detailVisible));
                     if (man.detailVisible)
                         model->ProcessStage(Entity::Stage::realize, dltTime);
                 }

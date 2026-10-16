@@ -1174,7 +1174,7 @@ return u;}
   storm_render::Result result=draw(storm_render::PrimitiveTriangleList,uint32_t(quads.size()/3),(const uint8_t*)quads.data(),sizeof(PointQuad),nullptr,storm_render::IndexFormat::UInt16);
   declaration=savedDeclaration;fvf=savedFVF;rs[storm_render::RenderLighting]=savedLighting;rs[storm_render::RenderCullMode]=savedCull;return result;
  }
-storm_render::Result draw(storm_render::Primitive t,uint32_t n,const uint8_t* data,uint32_t st,const void* indices,storm_render::IndexFormat fmt,int32_t base=0,const IndexedSpan* indexed=nullptr,bool boundIndexed=false,const IndexedSpanFrameCache::Key* validatedKey=nullptr){bool depthPass=landShadow.prepass.inPass;if(!depthPass&&!fixedFunctionStagesSupported())return unsupported("fixed-function texture operation");if(depthPass&&(!landShadow.scope||(rs[storm_render::RenderBlend]&&!rs[storm_render::RenderDepthWrite])))return storm_render::result::ok;bool transformedFVF=!declaration&&(fvf&storm_render::vertexFormat::positionMask)==storm_render::vertexFormat::xyzwTransformed;auto*vsProgram=(transformedFVF||depthPass)?nullptr:vertexShader;auto*psProgram=depthPass?nullptr:pixelShader;ProgramKind special=ProgramKind::None;
+storm_render::Result draw(storm_render::Primitive t,uint32_t n,const uint8_t* data,uint32_t st,const void* indices,storm_render::IndexFormat fmt,int32_t base=0,const IndexedSpan* indexed=nullptr,bool boundIndexed=false,const IndexedSpanFrameCache::Key* validatedKey=nullptr){bool depthPass=landShadow.prepass.inPass;if(!landShadow.shipAuxiliaryDetail&&(depthPass||offscreenPointCasterDepth))return storm_render::result::ok;if(!depthPass&&!fixedFunctionStagesSupported())return unsupported("fixed-function texture operation");if(depthPass&&(!landShadow.scope||(rs[storm_render::RenderBlend]&&!rs[storm_render::RenderDepthWrite])))return storm_render::result::ok;bool transformedFVF=!declaration&&(fvf&storm_render::vertexFormat::positionMask)==storm_render::vertexFormat::xyzwTransformed;auto*vsProgram=(transformedFVF||depthPass)?nullptr:vertexShader;auto*psProgram=depthPass?nullptr:pixelShader;ProgramKind special=ProgramKind::None;
  if(vsProgram&&psProgram&&seaProgramKind(vsProgram)!=SeaShaderKind::None&&seaProgramKind(vsProgram)==seaProgramKind(psProgram))return drawSea(seaProgramKind(vsProgram),t,n,data,st,indices,fmt,base);
  if(vsProgram&&psProgram&&generalProgramKind(vsProgram)==generalProgramKind(psProgram)&&(generalProgramKind(vsProgram)==ProgramKind::Particles||generalProgramKind(vsProgram)==ProgramKind::Caustic))return drawEffect(generalProgramKind(vsProgram),t,n,data,st,indices,fmt,base);
  if(vsProgram&&!psProgram&&(generalProgramKind(vsProgram)==ProgramKind::Grass||generalProgramKind(vsProgram)==ProgramKind::Worldmap))special=generalProgramKind(vsProgram);
@@ -1771,8 +1771,15 @@ extern "C" bool StormMetalSetGeometryEmitter(void*pointer,bool active){if(!point
 extern "C" bool StormMetalGeometryEmitter(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->authoredGeometryEmitter;}
 extern "C" bool StormMetalModernLighting(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->modernLighting;}
 extern "C" unsigned StormMetalBeginSceneModel(void*pointer){if(!pointer)return 0;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));auto previous=d->landShadow.scope;if(!previous)d->landShadow.scope=2;return previous;}
+extern "C" bool StormMetalSetShipAuxiliaryDetail(void*pointer,bool visible){
+ // Reject foreign device pointers without dereferencing them. The renderer's
+ // marker owns the active native device; null/non-Metal consumers keep detail.
+ if(!pointer||pointer!=static_cast<storm_render::Device*>(markerDevice))return true;
+ auto&detail=markerDevice->landShadow.shipAuxiliaryDetail;const bool previous=detail;detail=visible;return previous;
+}
 extern "C" bool StormMetalBeginOffscreenPointCaster(void*pointer,const float*center,float radius){
  if(!pointer||!center)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(!d->landShadow.shipAuxiliaryDetail)return false;
  if(!d->landShadow.locationLightingReady())return false;
  {
   const auto&frame=d->landShadow.prepass;
@@ -1847,7 +1854,7 @@ extern "C" unsigned StormMetalPointShadowResolution(void*pointer){if(!pointer)re
 extern "C" bool StormMetalEndShadowFrame(void*pointer){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));const bool applied=d->landShadow.endFrame();d->preparePointCasterInfluences();return applied;}
 extern "C" void StormMetalSetLightIdentity(void*pointer,unsigned slot,uint64_t lightId){if(pointer&&slot<8)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->landShadow.prepass.lightIds[slot]=lightId;}
 extern "C" void StormMetalEndLandModel(void*pointer,unsigned previous){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->landShadow.scope=previous;}
-extern "C" void StormMetalLandLocation(void*pointer,bool active){if(!pointer)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));d->interfaceBackSceneActive=false;if(d->landShadow.locationActive!=active)d->authoredWorldValid=false;d->landShadow.locationActive=active;if(!active){d->landShadow.indoor=false;d->lightingScene.setDomain(storm_metal::LightingDomain::Sea);d->lightingScene.clearAuthoredLights();d->landShadow.resetFrame();}}
+extern "C" void StormMetalLandLocation(void*pointer,bool active){if(!pointer)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));d->interfaceBackSceneActive=false;if(d->landShadow.locationActive!=active){d->authoredWorldValid=false;d->landShadow.shipAuxiliaryDetail=true;}d->landShadow.locationActive=active;if(!active){d->landShadow.indoor=false;d->lightingScene.setDomain(storm_metal::LightingDomain::Sea);d->lightingScene.clearAuthoredLights();d->landShadow.resetFrame();}}
 extern "C" bool StormMetalLandShadowResolved(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->landShadow.applied;}
 extern "C" uint64_t StormMetalRawLocationDraws(void*pointer){return pointer?static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->rawLocationDraws:0;}
 extern "C" uint64_t StormMetalRawSkinnedDraws(void*pointer){return pointer?static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->rawSkinnedDraws:0;}

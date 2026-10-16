@@ -1,8 +1,42 @@
 # Runtime state
 
-Last verified delivery: October16. Conservative contact broad phase and case-insensitive parameter comparisons are staged in signed engine `cdbe5bf8608ee2a8579f3c14a8799efb6987280024e65f8d74ba40a902ac09e8`; night water strength and airborne shore support remain present. Prior `d370a07da2131bf85f6d782713640ec0471c3c1ffff92b286f48162571344eee` is backed up. Canonical stage-only exits0 in184.572s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October16. Zoom-aware ship auxiliary LOD and synchronous rope/sail endpoint invalidation are staged in signed engine `f931e4b5d0a338ab3e730a23d24733060a90382dbc0d31431df57cdd2a5c6c12`; the contact/string, night water and airborne shore corrections remain present. Prior `cdbe5bf8608ee2a8579f3c14a8799efb6987280024e65f8d74ba40a902ac09e8` is backed up. Canonical stage-only exits0 in149.811s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass/LOD replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Earlier reflection LOD measured6.8–12.1% uplift privately; the new auxiliary policy has no player FPS measurement. Ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October16 — ship auxiliary LOD and rope endpoint lifetime staged
+
+Canonical `run.sh --stage-only` exits0 in149.811s and installs signed engine
+f931e4b5d0a338ab3e730a23d24733060a90382dbc0d31431df57cdd2a5c6c12.
+All528 freshly hashed player files retain their bytes, with0 added; full app
+signature and frozen native source fingerprint pass. Prior cdbe5bf8 is retained.
+Exact source inventory and log belong to private
+20261016-015153-ship-lod-rigging-delivery. The installed engine consumes all11
+changed native inputs, including the shared auxiliary scope header.
+
+SHIP owns one main-camera projected-hull policy: below64 physical pixels it
+omits reflection submission, crew drawing and shadow casting, preserving hull
+draws, shadow receiving and simulation. Near/zoomed views restore detail; invalid
+camera/bounds fail open. GPU checks seed an existing caster, then remove it in
+the same sea frame: packets2→2, registry2→1; an independent caster still shadows
+the receiver. Sun depth/offscreen admission, restoration, nested scopes and
+Reset/domain changes pass. Actual-method CPU sanitizer checks cover near/far,
+ship sizes, zoom, reflection overrides and1000 transitions. Policy/GPU inputs
+and receipts belong to private ship-auxiliary-lod. No player FPS gain is claimed.
+
+A separate confirmed rigging defect writes sail-wave endpoints after actual
+rope deletion. Every rope free now synchronously clears matching signed ties
+and rotating attachments for that model before releasing storage. Actual core
+enrollment/message dispatch and rigging methods pass ASan/UBSan for live ties,
+individual removal, retie, group removal, destructor and removed receiver;
+other-model/unrelated-rope ties survive. Private rope-sail-lifetime owns the
+reproduction and corrected fixture. This invalid write is repaired; causation
+of the original renderer-tree corruption remains unproven.
+
+The fresh eight-ship composed replay was deferred by its live-game guard before
+build/run; PID87851 subsequently confirms the player app is running. No agent
+app launch/control or SAVE load occurred. New original-scene LOD/spyglass,
+stability and sustained-FPS acceptance remain unresolved.
 
 ### October16 — contact broad phase and string comparison CPU batch staged
 

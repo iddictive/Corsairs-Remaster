@@ -44,6 +44,7 @@ struct LandShadow {
   MTLPrimitiveType primitive;MTLCullMode cull;simd_float4x4 world,mvp;MTLViewport viewport;
   id<MTLTexture> alphaTexture;id<MTLSamplerState> sampler;float alphaRef;bool alphaTest;uint32_t alphaFunc;float modulation;simd_float4 fogColor,fogParams;
   bool raw=false;MTLIndexType indexType=MTLIndexTypeUInt32;NSInteger baseVertex=0;RawCasterUniform rawCaster{};RawReceiverUniform rawReceiver{};
+  bool casterEnabled=true;
   storm_metal::point_shadow::Key registryKey{};unsigned registryStride=0,registryUvOffset=0,registryColorOffset=0;storm_metal::point_shadow::Bounds registryBounds{},registryLocalBounds{};simd_float4x4 authoredWorld{};bool authoredWorldValid=false,registryUseColorAlpha=false;id<MTLBuffer> skinPalette=nil;NSUInteger skinPaletteOffset=0;unsigned boneCount=0;
  };
  static bool knownRegistryBounds(const Packet&p){
@@ -75,6 +76,7 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
  unsigned sunShadowResolution=0,pointShadowResolution=0;
  bool indoor=false;simd_float3 worldOrigin{};PointLight selectedLamp{};bool selectedLampValid=false;PendingPoint pendingPoint{};TraversalSun traversalFrameSun{};
  bool enabled=false,locationActive=false,bakedStaticEnvironment=false,resolved=false,applied=false,overBudget=false,loggedBudget=false,loggedRegistryCoverage=false;unsigned loggedPointCount=0;bool loggedCasterFailure=false;unsigned registryDraws[3]{};size_t registryVertices[3]{};uint64_t lastFrameReport=~uint64_t(0);
+ bool shipAuxiliaryDetail=true;
  unsigned scope=0;size_t convertedVertices=0;std::vector<Packet> packets;storm_metal::point_shadow::Registry pointRegistry;
  // CPU-only scratch, reused between frames. No new GPU resource-lifetime rules.
  std::vector<Uniform> fallbackUniforms;
@@ -142,7 +144,7 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
      !std::isfinite(diffuse.z)||(diffuse.x<=0.f&&diffuse.y<=0.f&&diffuse.z<=0.f))return;
   traversalFrameSun={direction,diffuse,{light.Ambient.r,light.Ambient.g,light.Ambient.b,light.Ambient.a},true};
  }
- void resetFrame(){fogEnvironment=nil;registryDraws[0]=registryDraws[1]=registryDraws[2]=0;registryVertices[0]=registryVertices[1]=registryVertices[2]=0;selectedLampValid=false;pendingPoint={};traversalFrameSun={};bakedStaticEnvironment=false;scope=0;resolved=applied=overBudget=false;convertedVertices=0;packets.clear();prepass.frame=prepass.finished=prepass.inPass=prepass.failed=prepass.sunValid=prepass.pointValid=false;prepass.pointFaces=0;prepass.pointCount=0;prepass.pointSlot=0;for(auto& point:prepass.points){point.lightId=0;point.weight=1;point.faces=0;}}
+ void resetFrame(){shipAuxiliaryDetail=true;fogEnvironment=nil;registryDraws[0]=registryDraws[1]=registryDraws[2]=0;registryVertices[0]=registryVertices[1]=registryVertices[2]=0;selectedLampValid=false;pendingPoint={};traversalFrameSun={};bakedStaticEnvironment=false;scope=0;resolved=applied=overBudget=false;convertedVertices=0;packets.clear();prepass.frame=prepass.finished=prepass.inPass=prepass.failed=prepass.sunValid=prepass.pointValid=false;prepass.pointFaces=0;prepass.pointCount=0;prepass.pointSlot=0;for(auto& point:prepass.points){point.lightId=0;point.weight=1;point.faces=0;}}
  static simd_float4x4 lookAt(simd_float3 eye,simd_float3 forward,simd_float3 up){auto z=simd_normalize(forward);auto x=simd_normalize(simd_cross(up,z));auto y=simd_cross(z,x);simd_float4x4 m;m.columns[0]={x.x,y.x,z.x,0};m.columns[1]={x.y,y.y,z.y,0};m.columns[2]={x.z,y.z,z.z,0};m.columns[3]={-simd_dot(x,eye),-simd_dot(y,eye),-simd_dot(z,eye),1};return m;}
  bool beginFrame(uint64_t scene,uint64_t generation,const float*focus){
   if(!enabled||!locationActive||!focus)return false;resetFrame();pointRegistry.beginScene(scene,generation);prepass.casterDraws=prepass.casterVertices=prepass.locationCasterDraws=prepass.sceneCasterDraws=0;prepass.frame=true;prepass.scene=scene;prepass.generation=generation;prepass.focus=simd_make_float3(focus[0],focus[1],focus[2]);prepass.sunId=prepass.pointId=0;prepass.pointRange=0;std::memset(prepass.lightIds,0,sizeof(prepass.lightIds));return true;
@@ -183,7 +185,7 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
  Sampling sampling(simd_float4x4 world)const {Sampling s{};s.sunWorld[0]=simd_mul(prepass.sunMatrix[0],world);s.sunWorld[1]=simd_mul(prepass.sunMatrix[1],world);s.world=world;s.point=simd_make_float4(prepass.pointPosition,prepass.pointRange);s.sunFocusSplits=simd_make_float4(prepass.focus+worldOrigin,0);s.shadowTexel={1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0};s.flags={prepass.sunValid,uint32_t(prepass.pointValid),0,0};for(unsigned i=0;i<8;i++){s.pointSlots[i]=simd_make_float4(prepass.points[i].position,prepass.points[i].range);s.pointWeights[i/4][i%4]=prepass.points[i].weight;}return s;}
  // Persistent cube casters outlive the camera origin that submitted them. Store
  // their transforms and bounds in absolute space; receivers remain frame-relative.
- void registerPacket(const Packet& packet){if(packet.raw&&packet.registryKey.vertexIdentity){storm_metal::point_shadow::Registry::Draw draw{};draw.key=packet.registryKey;draw.bounds=packet.registryBounds;draw.vertices=packet.vertices;draw.indices=packet.indices;draw.vertexOffset=packet.vertexOffset;draw.indexOffset=packet.indexOffset;draw.indexCount=packet.count;draw.indexType=packet.indexType;draw.primitive=packet.primitive;draw.cull=packet.cull;draw.world=packet.world;
+ void registerPacket(const Packet& packet){if(packet.casterEnabled&&packet.raw&&packet.registryKey.vertexIdentity){storm_metal::point_shadow::Registry::Draw draw{};draw.key=packet.registryKey;draw.bounds=packet.registryBounds;draw.vertices=packet.vertices;draw.indices=packet.indices;draw.vertexOffset=packet.vertexOffset;draw.indexOffset=packet.indexOffset;draw.indexCount=packet.count;draw.indexType=packet.indexType;draw.primitive=packet.primitive;draw.cull=packet.cull;draw.world=packet.world;
   if(packet.authoredWorldValid){
    // The renderer publishes WORLD before camera rebasing. Hash and rasterize
    // that exact matrix: adding then subtracting a float origin is not identity.
@@ -192,7 +194,7 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
    for(unsigned corner=0;corner<8;corner++){simd_float3 p={corner&1?b.maximum.x:b.minimum.x,corner&2?b.maximum.y:b.minimum.y,corner&4?b.maximum.z:b.minimum.z};const auto w=simd_mul(draw.world,simd_make_float4(p,1.f)).xyz;draw.bounds.minimum=simd_min(draw.bounds.minimum,w);draw.bounds.maximum=simd_max(draw.bounds.maximum,w);}
   }else{draw.world.columns[3].xyz-=worldOrigin;draw.bounds.minimum-=worldOrigin;draw.bounds.maximum-=worldOrigin;}
   draw.key.transformState=1469598103934665603ull;const auto*worldBytes=reinterpret_cast<const uint8_t*>(&draw.world);for(size_t i=0;i<sizeof(draw.world);++i){draw.key.transformState^=worldBytes[i];draw.key.transformState*=1099511628211ull;}draw.alphaTexture=packet.alphaTexture;draw.skinPalette=packet.skinPalette;draw.skinPaletteOffset=packet.skinPaletteOffset;draw.alphaReference=packet.alphaRef;draw.alphaFunction=packet.alphaFunc;draw.alphaTest=packet.alphaTest;draw.stride=packet.registryStride;draw.uvOffset=packet.registryUvOffset;draw.colorOffset=packet.registryColorOffset;draw.useColorAlpha=packet.registryUseColorAlpha;draw.boneCount=packet.boneCount;draw.baseVertex=packet.baseVertex;pointRegistry.observe(draw);}}
- void append(Packet packet,size_t vertices){if(overBudget)return;convertedVertices+=vertices;if(packets.size()>=2048||convertedVertices>1500000){overBudget=true;packets.clear();if(!loggedBudget){fprintf(stderr,"[StormMetal] world shadow registry exceeds 2048 draws/1.5M vertices; shadow pass skipped\n");loggedBudget=true;}return;}if(locationActive)registerPacket(packet);packets.push_back(packet);if(scope<3){++registryDraws[scope];registryVertices[scope]+=vertices;}}
+ void append(Packet packet,size_t vertices){packet.casterEnabled=shipAuxiliaryDetail;if(overBudget)return;convertedVertices+=vertices;if(packets.size()>=2048||convertedVertices>1500000){overBudget=true;packets.clear();if(!loggedBudget){fprintf(stderr,"[StormMetal] world shadow registry exceeds 2048 draws/1.5M vertices; shadow pass skipped\n");loggedBudget=true;}return;}if(locationActive)registerPacket(packet);packets.push_back(packet);if(scope<3){++registryDraws[scope];registryVertices[scope]+=vertices;}}
  struct TraversalPoint {uint64_t lightId{};simd_float3 position{};float range{};};
  struct PointReceiverUniform {uint32_t pointMask=0,sunEnabled=0,padding[2]{};uint32_t cubeSlots[8]{};simd_float4 positionRange[8]{};float weights[8]{};simd_float4x4 sunWorld=matrix_identity_float4x4,sunWorldFar=matrix_identity_float4x4;simd_float4 shadowTexel{};};
  bool beginTraversalPointFrame(){if(!enabled||locationActive||prepass.frame||overBudget||packets.empty())return false;prepass.frame=true;prepass.finished=prepass.inPass=prepass.failed=false;prepass.pointValid=false;prepass.pointCount=prepass.pointSlot=prepass.pointFaces=0;prepass.pointId=0;prepass.pointRange=0;for(auto&point:prepass.points){point.lightId=0;point.weight=1;point.faces=0;}pointRegistry.beginScene(0x534541ull,++prepass.generation);for(const auto&p:packets)registerPacket(p);return true;}
@@ -449,6 +451,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
   auto e=[command renderCommandEncoderWithDescriptor:pass];[e setDepthStencilState:writeDepth];[e setFrontFacingWinding:MTLWindingClockwise];[e setViewport:MTLViewport{0,0,double(sunShadowResolution),double(sunShadowResolution),0,1}];[e setDepthBias:0 slopeScale:1 clamp:0];
   DrawBindings depthBindings;
   for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];
+   if(!p.casterEnabled)continue;
    // Project known world bounds into the full light frustum, including depth.
    // Animated bind-pose and unknown bounds cannot safely reject a caster.
    const auto&b=p.registryBounds;

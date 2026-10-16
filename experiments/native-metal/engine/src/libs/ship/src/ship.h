@@ -348,6 +348,7 @@ class SHIP : public SHIP_BASE
     entid_t GetModelEID() const override;
     CVECTOR GetPos() const override;
     bool HasWaterContact() const override { return !phonkFlight.airborne && !bLandContact; }
+    bool IsAuxiliaryDetailVisible() override;
     SHIP_WATER_IMPACT GetWaterImpact() const override
     {
         return {phonkFlight.impact, phonkFlight.impactGeneration,

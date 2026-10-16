@@ -140,6 +140,7 @@ class ROPE : public ROPE_BASE
     void SetVertexes(ROPEDATA *pr, float dtime) const;
     void SetTextureGrid(ROPEDATA *pr) const;
     void SetIndex() const;
+    void DeleteRope(ROPEDATA *rope);
     void DoSTORM_DELETE();
     void AddLabel(GEOS::LABEL &lbl, NODE *nod, bool bDontSage);
     void SetAdd(int firstNum);

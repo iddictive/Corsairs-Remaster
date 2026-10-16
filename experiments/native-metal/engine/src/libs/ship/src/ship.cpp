@@ -3,6 +3,7 @@
 #include "ship_fire_projection.hpp"
 #include "ship_hull_hit_admission.hpp"
 #include "ship_hull_damage_bridge.hpp"
+#include "ship_auxiliary_detail.h"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
 
 #include <chrono>
@@ -2090,10 +2091,37 @@ void SHIP::DrawPhonkGlow(uint32_t)
 #endif
 }
 
+bool SHIP::IsAuxiliaryDetailVisible()
+{
+    const auto *character = GetACharacter();
+    if (!pRS || !character)
+        return true;
+
+    CVECTOR camera, angles;
+    float fov;
+    pRS->GetCamera(camera, angles, fov);
+    const auto screen = pRS->GetScreenSize();
+    const auto delta = GetPos() - camera;
+    const float radius = .5f * std::sqrt(~State.vBoxSize);
+    const float distance = std::sqrt(~delta);
+    const float lens = std::tan(fov * .5f);
+    if (screen.x <= 0 || !std::isfinite(radius) || radius <= 0.f ||
+        !std::isfinite(distance) || distance <= radius ||
+        !std::isfinite(lens) || lens <= 0.f || fov >= PI)
+        return true;
+
+    // GetCamera retains the effective main-camera lens during reflection cube
+    // VIEW/PROJECTION overrides. Use the near side of the hull's enclosing
+    // sphere, so any close or zoomed view restores detail conservatively.
+    const float pixels = screen.x * radius / (lens * (distance - radius));
+    return pixels >= 64.f;
+}
+
 void SHIP::Realize(uint32_t dtime)
 {
     if (!bMounted)
         return;
+    storm::ship::AuxiliaryDetailScope auxiliaryDetailScope(pRS->GetNativeDevice(), IsAuxiliaryDetailVisible());
 #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
     struct AimOwnScope
     {
@@ -2253,7 +2281,8 @@ uint64_t SHIP::ProcessMessage(MESSAGE &message)
     case MSG_SHIP_REPAIR_MASTS:
         return RepairMasts();
     case MSG_SEA_REFLECTION_DRAW:
-        Realize(0);
+        if (IsAuxiliaryDetailVisible())
+            Realize(0);
         break;
     case AI_MESSAGE_SET_LAYERS:
         ExecuteLayer = message.Long();

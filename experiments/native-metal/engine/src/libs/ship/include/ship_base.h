@@ -113,6 +113,9 @@ class SHIP_BASE : public VAI_OBJBASE
     // their established water effects unless they explicitly leave the water.
     virtual bool HasWaterContact() const { return true; }
     virtual SHIP_WATER_IMPACT GetWaterImpact() const { return {}; }
+    // Main-camera legibility for render-only crew, reflections and casters.
+    // Other ship implementations retain their existing detail by default.
+    virtual bool IsAuxiliaryDetailVisible() { return true; }
     // Read-only live thermal state; only SHIP advances or persists it.
     virtual const storm_ship_fire::Model *GetCrewFireModel() const { return nullptr; }
 };

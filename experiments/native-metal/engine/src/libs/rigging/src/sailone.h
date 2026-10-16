@@ -114,6 +114,7 @@ struct SAILTIEROPE
 {
     bool pnttie[4];
     CVECTOR *pPos[4];
+    int ropeNum[4]; // signed endpoint id from MSG_SAIL_ROPE_TIE
     ROTATEROPEDSAIL *rrs[2];
 };
 

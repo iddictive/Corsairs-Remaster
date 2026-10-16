@@ -2,6 +2,7 @@
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
 #endif
 #include "sail.h"
+#include "ship_auxiliary_detail.h"
 #include "ship_sail_damage.hpp"
 #ifdef STORM_METAL_SHIP_FIRE
 #include "ship_fire_bridge.hpp"
@@ -841,6 +842,10 @@ void SAIL::Realize(uint32_t Delta_Time)
                 } aimRiggingScope{RenderService->GetNativeDevice(),false};
                 aimRiggingScope.active=StormMetalBeginAimRigging(aimRiggingScope.device,gdata[j].modelEI);
 #endif
+                auto *detailShip = gdata[j].bYesShip ?
+                    static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI)) : nullptr;
+                storm::ship::AuxiliaryDetailScope auxiliaryDetailScope(RenderService->GetNativeDevice(),
+                    !detailShip || detailShip->IsAuxiliaryDetailVisible());
                 RenderService->GetRenderState(storm_render::RenderTextureFactor, &dwOldTextureFactor);
                 RenderService->SetRenderState(storm_render::RenderTextureFactor, gdata[j].dwSailsColor);
                 for (idx = 0; idx < gdata[j].sailQuantity; idx++)
@@ -1083,6 +1088,7 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
                 }
                 so->sailtrope.pnttie[posNum] = true;
                 so->sailtrope.pPos[posNum] = pos;
+                so->sailtrope.ropeNum[posNum] = ropenum;
 
                 CVECTOR epos;
                 if (so->ss.turningSail && posNum != 0) // setting for turning sails only
@@ -1155,6 +1161,34 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
             }
         }
         break;
+
+    case MSG_SAIL_ROPE_UNTIE: { // format "lil" (code,model,rope)
+        const auto model = message.EntityID();
+        const int64_t rope = message.Long();
+        for (int sn = 0; sn < sailQuantity; ++sn)
+        {
+            auto *so = slist[sn];
+            if (gdata[so->HostNum].modelEI != model)
+                continue;
+            for (int point = 0; point < 4; ++point)
+                if (so->sailtrope.pnttie[point] &&
+                    (so->sailtrope.ropeNum[point] == rope || so->sailtrope.ropeNum[point] == -rope))
+                {
+                    so->sailtrope.pnttie[point] = false;
+                    so->sailtrope.pPos[point] = nullptr;
+                    so->sailtrope.ropeNum[point] = 0;
+                }
+            for (auto &rotation : so->sailtrope.rrs)
+                if (rotation && (rotation->ropenum == rope || rotation->ropenum == -rope))
+                    STORM_DELETE(rotation);
+            if (so->sailtrope.rrs[0] == nullptr)
+            {
+                so->sailtrope.rrs[0] = so->sailtrope.rrs[1];
+                so->sailtrope.rrs[1] = nullptr;
+            }
+        }
+        break;
+    }
 
         // get the speed of the ship from the sails
     case MSG_SAIL_GET_SPEED:

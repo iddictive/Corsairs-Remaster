@@ -38,7 +38,7 @@ ROPE::~ROPE()
     if (rlist)
     {
         for (auto i = 0; i < ropeQuantity; i++)
-            STORM_DELETE(rlist[i]);
+            DeleteRope(rlist[i]);
         STORM_DELETE(rlist);
         ropeQuantity = 0;
     }
@@ -334,11 +334,6 @@ uint64_t ROPE::ProcessMessage(MESSAGE &message)
             {
                 rlist[i]->bDeleted = true;
                 bYesDeleted = true;
-                // rlist[i]->bUse=false;
-                /*entid_t sailEI;
-                if(core.FindClass(&sailEI,"sail",0))
-                    if(rlist[i]->btie || rlist[i]->etie) // untie the sail from the rope
-                        core.Send_Message(sailEI,"ll",MSG_SAIL_ROPE_UNTIE,rope_number);*/
                 break;
             }
         }
@@ -676,7 +671,7 @@ void ROPE::AddLabel(GEOS::LABEL &lbl, NODE *nod, bool bDontSage)
         if (rd->len < .1f || rd->len > 200.f)
         {
             core.Trace("Bad rope length = %f for rope num %d", rd->len, rd->ropeNum);
-            delete rd;
+            DeleteRope(rd);
             if (ropeQuantity == 1)
             {
                 delete[] rlist;
@@ -996,7 +991,7 @@ void ROPE::SetAdd(int firstNum)
                        rlist[rn]->ropeNum, rlist[rn]->bgnum, rlist[rn]->egnum);
             core.Trace("Begin pointer = %d? end pointer = %d", rlist[rn]->bMatWorld, rlist[rn]->eMatWorld);
             // throw std::runtime_error("Rope error: Not label");
-            delete rlist[rn];
+            DeleteRope(rlist[rn]);
             ropeQuantity--;
             if (ropeQuantity)
             {
@@ -1046,6 +1041,17 @@ void ROPE::SetAdd(int firstNum)
     }*/
 }
 
+void ROPE::DeleteRope(ROPEDATA *rope)
+{
+    // Sail wave/tension updates write through these endpoints. Invalidate their
+    // ties synchronously while the rope and its model group still exist.
+    if (rope->btie || rope->etie)
+        if (const auto sailEI = core.GetEntityId("sail"))
+            core.Send_Message(sailEI, "lil", MSG_SAIL_ROPE_UNTIE,
+                              gdata[rope->HostGroup].modelEI, rope->ropeNum);
+    delete rope;
+}
+
 void ROPE::DoSTORM_DELETE()
 {
     const uint32_t oldnVert = nVert;
@@ -1063,7 +1069,7 @@ void ROPE::DoSTORM_DELETE()
         if (rlist[rn]->bDeleted)
         {
             // remove rope
-            delete rlist[rn];
+            DeleteRope(rlist[rn]);
             continue;
         }
 
