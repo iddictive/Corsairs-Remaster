@@ -4,6 +4,8 @@
 #include "c_vector.h"
 #include "vai_objbase.h"
 #include "vma.hpp"
+#include <algorithm>
+#include <cmath>
 #include <vector>
 
 namespace storm_ship_fire { class Model; }
@@ -60,6 +62,25 @@ class SHIP_BASE : public VAI_OBJBASE
     virtual ATTRIBUTES *GetAShip()
     {
         return pAShip;
+    }
+
+    // Native contact mass in cwt: bare hull plus the published complete load
+    // (goods, installed guns and crew). Debris and TOUCH must use the same mass.
+    double GetHullContactMass()
+    {
+        const auto character = GetACharacter();
+        const auto cargo = character ? character->FindAClass(character, "Ship.Cargo") : nullptr;
+        const float load = cargo ? cargo->GetAttributeAsFloat("Load") : 0.f;
+        return double(State.fWeight) + (std::isfinite(load) && load > 0.f ? load : 0.f);
+    }
+
+    double GetHullContactStrength(double localZ, double normalZ) const
+    {
+        const double halfLength = std::max(1.f, State.vBoxSize.z * .5f);
+        const double bow = std::clamp(localZ / halfLength, 0.0, 1.0);
+        // The converging bow carries axial load better than side planking;
+        // the stern retains axial framing, with less reinforcement than bow.
+        return 75.0 * (1.0 + .75 * normalZ * normalZ * (.5 + .5 * bow));
     }
 
     virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) = 0;

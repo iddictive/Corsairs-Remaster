@@ -2678,7 +2678,15 @@ void Ship_SailDamage()
 	}
 }
 
-void Ship_Ship2IslandCollision()
+float Ship_ContactMaterialFraction(ref target, float hullBefore, float rawDamage, int owner)
+{
+	if (!SeaPhonk_IsActive() || sti(target.index) != GetMainCharacterIndex()) return 1.0;
+	float requestedDamage = rawDamage * Ship_HullDamageMultiplier(target, owner);
+	if (requestedDamage <= 0.0) return 0.0;
+	return Clampf((hullBefore - Ship_GetHP(target)) / requestedDamage);
+}
+
+float Ship_Ship2IslandCollision()
 {
 	float	fPower, fSlide, x, y, z;
 	int		iOurCharacterIndex, iEnemyCharacterIndex, iTouchPoint;
@@ -2697,10 +2705,13 @@ void Ship_Ship2IslandCollision()
     if (!CheckAttribute(rOurCharacter, "AlwaysSandbankManeuver"))  //boal
     {
 		float fHP = (1.0 - fSlide) * fPower * 3.0;
+		float hullBefore = Ship_GetHP(rOurCharacter);
 		Ship_ApplyCollisionHitpoints(rOurCharacter, fHP, KILL_BY_ISLAND, -1);
 
 		if (fPower > 1.0) { Play3DSound("coll_ship2rock", x, y, z); }
+		return Ship_ContactMaterialFraction(rOurCharacter, hullBefore, fHP, -1);
 	}
+	return 0.0;
 }
 
 float Ship_GetAttackHP(int iCharacterIndex, float fDistance)
@@ -2735,10 +2746,7 @@ float Ship_Ship2ShipCollision()
 	ref rOurCharacter = GetCharacter(iOurCharacterIndex);
 
 	float fHP = (1.0 - fSlide) * fPower * 10.0;
-	bool protectedMaterial = SeaPhonk_IsActive() && iOurCharacterIndex == GetMainCharacterIndex();
 	float hullBefore = Ship_GetHP(rOurCharacter);
-	float requestedDamage = fHP;
-	if (protectedMaterial) requestedDamage = fHP * Ship_HullDamageMultiplier(rOurCharacter, iEnemyCharacterIndex);
 	// Capture a player ram before lethal damage can synchronously remove the reporter.
 	if (iEnemyCharacterIndex == GetMainCharacterIndex() && !IsCompanion(rOurCharacter) && GetRelation(sti(rOurCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)
 	{
@@ -2762,12 +2770,7 @@ float Ship_Ship2ShipCollision()
 	if (fPower>1.0) { Play3DSound("coll_ship2ship", x, y, z); }
 	// Return the accepted fraction to TOUCH before it publishes physical cuts.
 	// Other ships retain their ordinary material response and all death guards.
-	if (protectedMaterial)
-	{
-		if (requestedDamage <= 0.0) return 0.0;
-		return Clampf((hullBefore - Ship_GetHP(rOurCharacter)) / requestedDamage);
-	}
-	return 1.0;
+	return Ship_ContactMaterialFraction(rOurCharacter, hullBefore, fHP, iEnemyCharacterIndex);
 }
 
 float Ship_AmmoCrewLoss(ref rCharacter, float percent)

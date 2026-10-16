@@ -24,6 +24,7 @@ struct Impact
     std::size_t a{}, b{};
     Vec2 point{}, normal{}; // A toward B, at the event with greatest dissipated work
     Vec2 localPointA{}, localPointB{}, localNormalA{}, localNormalB{};
+    double height{}; // centre of the overlapping vertical bands at this impact
     double normalClosing{}, normalImpulse{}; // accumulated compressive impulse, mass * m/s
     double energyLostA{}, energyLostB{}, specificEnergyA{}, specificEnergyB{};
 };
@@ -306,6 +307,11 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                     impact.localPointB = detail::rotate(impact.point - b.pose.position, -b.pose.yaw);
                     impact.localNormalA = detail::rotate(impact.normal, -a.pose.yaw);
                     impact.localNormalB = detail::rotate(-impact.normal, -b.pose.yaw);
+                    const auto &bodyA = bodies[event.a], &bodyB = bodies[event.b];
+                    const double ya = bodyA.yStart + (bodyA.yEnd - bodyA.yStart) * (elapsed / seconds);
+                    const double yb = bodyB.yStart + (bodyB.yEnd - bodyB.yStart) * (elapsed / seconds);
+                    impact.height = (std::max(ya - bodyA.height * .5, yb - bodyB.height * .5) +
+                                     std::min(ya + bodyA.height * .5, yb + bodyB.height * .5)) * .5;
                 }
                 impact.normalClosing = std::max(impact.normalClosing, r.normalClosing);
                 impact.normalImpulse += std::max(0.0, -dot(r.deltaVA, event.contact.normal) * a.sweep.mass);

@@ -2,6 +2,7 @@
 #include "ship_contact_frame.hpp"
 
 #include "core.h"
+#include "collide.h"
 
 #include "character.h"
 #include "entity.h"
@@ -101,7 +102,6 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
 
     iDeltaTime = dwCoreDeltaTime;
     for (i = 0; i < iNumShips; ++i) TouchIsland(i);
-    FakeTouch();
     ResolveShips();
 
     // if (core.Controls->GetAsyncKeyState('5')) fScale -= 0.1f;
@@ -231,105 +231,142 @@ BOOL TOUCH::BuildContour(int32_t ship_idx)
     return true;
 }
 
-// Preserve the native shoreline query independently of ship-pair geometry.
-BOOL TOUCH::IsIntersectIsland(int32_t idx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil,
-                              float *fPower, float *fSlide)
+BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
 {
     auto *ship = pShips[idx];
-    if (!pIslandBase || !ship->pShip || !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
+    if (iDeltaTime <= 0 || !pIslandBase || !ship->pShip ||
+        !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
         return false;
-    if (!ship->pShip->HasWaterContact())
-    {
-        // A dry hull is not an infinite sea-level extrusion of its waterplane.
-        // Sweep its retained vertical band against the actual island geometry.
-        std::vector<CVECTOR> contour;
-        float lower, upper;
-        if (!ship->pShip->GetHullContactContour(contour, lower, upper)) return false;
-        for (const auto &point : contour)
-            for (int level = 0; level < 3; ++level)
+    const bool wet = ship->pShip->HasWaterContact();
+    std::vector<CVECTOR> contour;
+    float lower = 0.f, upper = 0.f;
+    if (!wet && !ship->pShip->GetHullContactContour(contour, lower, upper)) return false;
+    const int count = wet ? ship->iNumCoastContour : int(contour.size());
+    bool found = false;
+    unsigned contacts = 0;
+    for (int point = 0; point < count; ++point)
+        for (int level = 0; level < (wet ? 1 : 3); ++level)
+        {
+            CVECTOR ends[2];
+            for (int pose = 0; pose < 2; ++pose)
             {
-                CVECTOR ends[2];
-                for (int pose = 0; pose < 2; ++pose)
-                {
-                    float x = point.x, z = point.z;
-                    RotateAroundY(x, z, cosf(ship->TP[pose].vAng.y), sinf(ship->TP[pose].vAng.y));
-                    const float y = lower + (upper - lower) * (.5f * level) +
-                        ship->TP[pose].vPos.y - ship->TP[0].vPos.y;
-                    ends[pose] = CVECTOR(ship->TP[pose].vPos.x + x, y, ship->TP[pose].vPos.z + z);
-                }
-                const CVECTOR travel = ends[1] - ends[0];
-                if (~travel <= .000001f) continue;
-                const float hit = pIslandBase->Trace(ends[0], ends[1]);
-                if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) continue;
-                *vPos = ends[0] + travel * hit;
-                CVECTOR radial = *vPos - ship->TP[1].vPos;
-                radial.y = 0.f;
-                *vRecoil = !radial;
-                *fSlide = 0.f;
-                *fPower = METERS2KNOTS(std::hypot(travel.x, travel.z)) * (1000.f / float(iDeltaTime));
-                return true;
+                const auto local = wet ? ship->vCoastContour[point] : contour[point];
+                float x = local.x, z = local.z;
+                RotateAroundY(x, z, cosf(ship->TP[pose].vAng.y), sinf(ship->TP[pose].vAng.y));
+                const float y = wet ? 0.f : lower + (upper - lower) * (.5f * level) +
+                    ship->TP[pose].vPos.y - ship->TP[0].vPos.y;
+                ends[pose] = CVECTOR(ship->TP[pose].vPos.x + x, y, ship->TP[pose].vPos.z + z);
             }
-        return false;
-    }
-    for (int pose = 0; pose < 2; ++pose)
-    {
-        const float c = cosf(ship->TP[pose].vAng.y), s = sinf(ship->TP[pose].vAng.y);
-        for (int point = 0; point < ship->iNumCoastContour; ++point)
-        {
-            float x = ship->vCoastContour[point].x, z = ship->vCoastContour[point].z;
-            RotateAroundY(x, z, c, s);
-            ship->vContourTemp[pose][point] = CVECTOR(ship->TP[pose].vPos.x + x, 0.f,
-                                                    ship->TP[pose].vPos.z + z);
+            const CVECTOR travel = ends[1] - ends[0];
+            if (travel.x == 0.f && travel.y == 0.f && travel.z == 0.f) continue;
+            const auto pointAt = [&](float time)
+            {
+                const auto local = wet ? ship->vCoastContour[point] : contour[point];
+                const float yaw = ship->TP[0].vAng.y +
+                    (ship->TP[1].vAng.y - ship->TP[0].vAng.y) * time;
+                float x = local.x, z = local.z;
+                RotateAroundY(x, z, cosf(yaw), sinf(yaw));
+                const auto center = ship->TP[0].vPos + (ship->TP[1].vPos - ship->TP[0].vPos) * time;
+                return CVECTOR(center.x + x, ends[0].y + travel.y * time, center.z + z);
+            };
+
+            // Query the same published island mesh as weapons and grounding.
+            // GetCollideTriangle belongs to the actual traced model, not ISLAND's stub.
+            float time = pIslandBase->Trace(ends[0], ends[1]);
+            CVECTOR normal(0.f);
+            const bool exact = std::isfinite(time) && time >= 0.f && time <= 1.f;
+            if (exact)
+            {
+                auto *collision = static_cast<COLLIDE *>(core.GetService("coll"));
+                auto *model = collision ? static_cast<COLLISION_OBJECT *>(
+                    core.GetEntityPointer(collision->GetObjectID())) : nullptr;
+                TRIANGLE triangle;
+                if (model && model->GetCollideTriangle(triangle))
+                    normal = -((triangle.vrt[1] - triangle.vrt[0]) ^ (triangle.vrt[2] - triangle.vrt[0]));
+            }
+            else if (!wet || !pIslandBase->CheckDepthCollision(ends[0], ends[1], fCollisionDepth, 0.f))
+                continue;
+
+            if (wet && !exact)
+            {
+                // Refine the existing depth barrier; never push an already
+                // overlapping hull out by a fixed distance or rotate its pose.
+                float safe = 0.f, blocked = 1.f;
+                if (pIslandBase->CheckDepthCollision(ends[0], ends[0], fCollisionDepth, 0.f)) blocked = 0.f;
+                else for (int iteration = 0; iteration < 12; ++iteration)
+                {
+                    const float middle = (safe + blocked) * .5f;
+                    if (pIslandBase->CheckDepthCollision(ends[0], pointAt(middle), fCollisionDepth, 0.f))
+                        blocked = middle;
+                    else safe = middle;
+                }
+                time = safe;
+            }
+            CVECTOR hit = pointAt(time);
+            normal.y = 0.f;
+            if (~normal < .000001f && wet)
+            {
+                // The depth field supplies the coast normal when a shallow
+                // raster cell has no horizontal triangle crossing. Expanding
+                // central differences also cover a cell-sized initial overlap.
+                for (float step = .5f; step <= std::max(2.f, ship->pShip->GetBoxsize().z); step *= 2.f)
+                {
+                    float xp = -500.f, xm = -500.f, zp = -500.f, zm = -500.f;
+                    pIslandBase->GetGroundDepth(hit.x + step, hit.z, 0.f, xp);
+                    pIslandBase->GetGroundDepth(hit.x - step, hit.z, 0.f, xm);
+                    pIslandBase->GetGroundDepth(hit.x, hit.z + step, 0.f, zp);
+                    pIslandBase->GetGroundDepth(hit.x, hit.z - step, 0.f, zm);
+                    normal = CVECTOR(xp - xm, 0.f, zp - zm);
+                    if (~normal > .000001f) break;
+                }
+            }
+            if (!std::isfinite(normal.x) || !std::isfinite(normal.z) || ~normal <= .000001f) continue;
+            normal = !normal;
+            if (exact)
+            {
+                const auto planePoint = ends[0] + travel * time;
+                if (((ends[0] - planePoint) | normal) <= 0.f &&
+                    ((ends[1] - planePoint) | normal) > 0.f)
+                {
+                    // A rotating bow follows an arc, not its endpoint chord.
+                    // Refine that same face on the separated side of the arc.
+                    float safe = 0.f, blocked = 1.f;
+                    for (int iteration = 0; iteration < 16; ++iteration)
+                    {
+                        const float middle = (safe + blocked) * .5f;
+                        if (((pointAt(middle) - planePoint) | normal) > 0.f) blocked = middle;
+                        else safe = middle;
+                    }
+                    time = safe;
+                    hit = pointAt(time);
+                }
+            }
+            const auto center = ship->TP[0].vPos + (ship->TP[1].vPos - ship->TP[0].vPos) * time;
+            const auto lever = hit - center;
+            const auto linear = (ship->TP[1].vPos - ship->TP[0].vPos) * (1000.f / float(iDeltaTime));
+            const float angular = (ship->TP[1].vAng.y - ship->TP[0].vAng.y) * (1000.f / float(iDeltaTime));
+            const float closing = ((linear + CVECTOR(angular * lever.z, 0.f, -angular * lever.x)) | normal);
+            // Separating and tangential movement must remain available even
+            // when a saved hull starts inside a shore cell.
+            if (!(closing > .0001f)) continue;
+            if (!found || time < contact.time)
+            {
+                contact.point = hit;
+                contact.normal = normal;
+                contact.time = time;
+                contact.closing = closing;
+                found = true;
+                contacts = 1;
+            }
+            else if (std::abs(time - contact.time) < .00001f && (normal | contact.normal) > .99f)
+            {
+                // Simultaneous points on a flat bow/side share one resultant;
+                // contour enumeration must not choose an arbitrary torque arm.
+                contact.point += (hit - contact.point) / float(++contacts);
+                contact.closing = std::max(contact.closing, closing);
+            }
         }
-    }
-    for (int i = 0; i < ship->iNumCoastContour; ++i)
-        if (pIslandBase->CheckDepthCollision(ship->vContourTemp[0][i], ship->vContourTemp[1][i],
-                                            fCollisionDepth, 0.f))
-        {
-            const auto &before = ship->vContourTemp[0][i], &after = ship->vContourTemp[1][i];
-            *vRecoil = !(before - ship->TP[1].vPos);
-            *fSlide = 0.f;
-            *fPower = METERS2KNOTS(sqrtf(~(after - before))) * (1000.f / float(iDeltaTime));
-            *vPos = before;
-            vPos->y = 0.f;
-            return true;
-        }
-    return false;
-}
-
-int32_t TOUCH::ProcessImpulse(int32_t iOurIdx, CVECTOR vPos, CVECTOR vDir, float fPowerApplied)
-{
-    STRENGTH strength{};
-    strength.bInertia = false;
-
-    auto *pS1 = pShips[iOurIdx];
-
-    const auto vSDirZ = CVECTOR(0.0f, 0.0f, 1.0f);
-    const auto vSDirX = CVECTOR(1.0f, 0.0f, 0.0f);
-
-    // calculate Z impulse
-    auto fkZ = (0.1f + 1.0f - fabsf(vPos.x / (0.5f * pS1->pShip->State.vBoxSize.x)));
-    fkZ = CLAMP(fkZ);
-    // Assert(fkZ>=0.0f && fkZ<=1.0f)
-    const auto fZMove = (vDir | vSDirZ) * fPowerApplied * fkZ;
-    strength.vSpeed.z = fZMove;
-
-    // calculate X impulse
-    auto fkX = (0.1f + 1.0f - fabsf(vPos.z / (0.5f * pS1->pShip->State.vBoxSize.z)));
-    fkX = CLAMP(fkX);
-    // Assert(fkX>=0.0f && fkX<=1.0f)
-    const auto fXMove = (vDir | vSDirX) * fPowerApplied * fkX;
-    strength.vSpeed.x = fXMove;
-
-    // calculate Y rotation impulse
-    const auto vSDirY = !(-vPos);
-    auto fkY = 0.1f + 1.0f - fabsf(vDir | vSDirY);
-    fkY = CLAMP(fkY);
-    strength.vRotate.y = fkY * fPowerApplied * 0.02f;
-    if (vPos.x * vPos.z >= 0.0f)
-        strength.vRotate.y = -strength.vRotate.y;
-
-    return pS1->pShip->AddCollisionStrength(&strength);
+    return found;
 }
 
 int32_t TOUCH::GetTouchPoint(int32_t iIdx, const CVECTOR &vPos)
@@ -337,52 +374,82 @@ int32_t TOUCH::GetTouchPoint(int32_t iIdx, const CVECTOR &vPos)
     return 1;
 }
 
-// ------------------------------- Main Cycle of TOUCH -------------------------
-// vPos - blow point
-// vAng - blow direction
-// vRecoil - recoil vector
-// fPower - blow power (without mass dependence)
-// fSlide - blow slide coefficient
 void TOUCH::TouchIsland(int32_t idx)
 {
     auto *ship = pShips[idx]->pShip;
     if (!ship || ship->isDead()) return;
-    CVECTOR point, direction, recoil;
-    float power, slide;
-    if (!IsIntersectIsland(idx, &point, &direction, &recoil, &power, &slide)) return;
-    auto localPoint = point - pShips[idx]->TP[1].vPos;
-    const float angle = -PI - pShips[idx]->TP[1].vAng.y;
-    RotateAroundY(localPoint.x, localPoint.z, cosf(PI + angle), sinf(PI + angle));
-    RotateAroundY(recoil.x, recoil.z, cosf(angle), sinf(angle));
-    core.Event(SHIP_SHIP2ISLAND_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()), -1,
-               power, slide, GetTouchPoint(idx, localPoint), point.x, point.y, point.z);
-    vGlobalRecoil = recoil;
-    ProcessImpulse(idx, localPoint, recoil, power);
-    bUseTouch = true;
-}
+    IslandContact contact;
+    if (!IsIntersectIsland(idx, contact)) return;
+    const auto impact = contact;
+    auto localPoint = impact.point - pShips[idx]->TP[0].vPos;
+    auto localNormal = impact.normal;
+    const float yaw = -pShips[idx]->TP[0].vAng.y;
+    RotateAroundY(localPoint.x, localPoint.z, cosf(yaw), sinf(yaw));
+    RotateAroundY(localNormal.x, localNormal.z, cosf(yaw), sinf(yaw));
+    const auto accepted = core.Event(SHIP_SHIP2ISLAND_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()), -1,
+        METERS2KNOTS(impact.closing), 0.f, GetTouchPoint(idx, localPoint),
+        impact.point.x, impact.point.y, impact.point.z);
+    const float fraction = accepted && std::isfinite(accepted->GetFloat()) ?
+        std::clamp(accepted->GetFloat(), 0.f, 1.f) : 0.f;
+    ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[idx]->eID));
+    if (!ship || ship->isDead()) return;
 
-BOOL TOUCH::FakeTouch()
-{
-    // Shore separation retains its previous response. Ship pairs have one
-    // continuous solver and must never enter this old per-vertex push loop.
-    for (int i = 0; i < iNumShips; ++i)
+    // Reuse the hull impulse owner with an immovable shore: weak restitution,
+    // signed r x J / I, friction and nonincreasing kinetic energy.
+    const float seconds = float(iDeltaTime) * .001f;
+    storm::ship::contact::Body body;
+    std::vector<CVECTOR> contour;
+    float lower, upper;
+    if (ship->HasWaterContact())
+        contour.assign(pShips[idx]->vCoastContour, pShips[idx]->vCoastContour + pShips[idx]->iNumCoastContour);
+    else if (!ship->GetHullContactContour(contour, lower, upper)) return;
+    for (const auto &point : contour) body.hull.push_back({point.x, point.z});
+    body.mass = ship->GetHullContactMass();
+    for (int iteration = 0; iteration < 4; ++iteration)
     {
-        auto *ship = pShips[i]->pShip;
-        if (!ship || ship->isDead()) continue;
-        CVECTOR point, angle, recoil;
-        float power, slide;
-        for (int cycle = 0; cycle < 1024 && IsIntersectIsland(i, &point, &angle, &recoil, &power, &slide); ++cycle)
+        const auto &before = pShips[idx]->TP[0];
+        const auto &after = pShips[idx]->TP[1];
+        CVECTOR travel = after.vPos - before.vPos;
+        travel.y = 0.f;
+        const float turn = after.vAng.y - before.vAng.y;
+        body.start = {{before.vPos.x, before.vPos.z}, before.vAng.y};
+        body.end = {{after.vPos.x, after.vPos.z}, after.vAng.y};
+        const storm::ship::contact::Contact query{true, contact.time,
+            {contact.point.x, contact.point.z}, {contact.normal.x, contact.normal.z}};
+        const auto response = storm::ship::contact::resolve(body, {}, query, seconds, true);
+        if (!(response.normalClosing > 0)) break;
+        const CVECTOR delta(float(response.deltaVA.x), 0.f, float(response.deltaVA.z));
+        const CVECTOR velocity = travel / seconds + delta;
+        const CVECTOR endpoint = before.vPos + travel * contact.time + velocity * (seconds * (1.f - contact.time));
+        const float endYaw = before.vAng.y + turn * contact.time +
+            (turn / seconds + float(response.deltaWA)) * (seconds * (1.f - contact.time));
+        ship->ApplyHullContactMotion(delta, float(response.deltaWA), endpoint, endYaw, uint32_t(iDeltaTime));
+        contact = IslandContact{};
+        if (!IsIntersectIsland(idx, contact)) break;
+        if (iteration == 3)
         {
-            const auto away = !(point - ship->State.vPos);
-            auto localPoint = point - ship->State.vPos;
-            const float yaw = -ship->State.vAng.y;
-            RotateAroundY(localPoint.x, localPoint.z, cosf(yaw), sinf(yaw));
-            ship->State.vAng.y -= .001f * (localPoint.x * localPoint.z >= 0.f ? 1.f : -1.f);
-            ship->State.vPos.x -= away.x * .02f;
-            ship->State.vPos.z -= away.z * .02f;
+            const auto &start = pShips[idx]->TP[0];
+            const auto &end = pShips[idx]->TP[1];
+            CVECTOR stop = (start.vPos - end.vPos) / seconds;
+            stop.y = 0.f;
+            ship->ApplyHullContactMotion(stop, (start.vAng.y - end.vAng.y) / seconds,
+                                        start.vPos, start.vAng.y, uint32_t(iDeltaTime));
         }
     }
-    return true;
+    // The existing shore event still owns HP/perks. Only admitted inward work
+    // reaches the same finite material-fracture owner as ship/ship impacts.
+    ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[idx]->eID));
+    if (ship && fraction > 0.f && impact.closing > 0.f)
+    {
+        double work = .5 * double(impact.closing) * impact.closing;
+        if (fraction < 1.f)
+        {
+            const double strength = ship->GetHullContactStrength(localPoint.z, localNormal.z);
+            const double admitted = (work / (work + strength)) * fraction;
+            work = std::min(work, strength * admitted / (1.0 - admitted));
+        }
+        ship->ApplyHullImpact(impact.point, impact.normal, float(work), -1);
+    }
 }
 
 void TOUCH::ResolveShips()
@@ -421,13 +488,7 @@ void TOUCH::ResolveShips()
             frame.yEnd = entry->TP[1].vPos.y;
             frame.height = entry->pShip->GetBoxsize().y;
         }
-        frame.body.mass = entry->pShip->State.fWeight;
-        // Same cwt owner as GetCargoLoad: goods, installed guns and crew. Do
-        // not cap an overloaded ship to its nominal hold capacity.
-        const auto character = entry->pShip->GetACharacter();
-        const auto cargo = character ? character->FindAClass(character, "Ship.Cargo") : nullptr;
-        const float load = cargo ? cargo->GetAttributeAsFloat("Load") : 0.f;
-        if (std::isfinite(load) && load > 0.f) frame.body.mass += load;
+        frame.body.mass = entry->pShip->GetHullContactMass();
         frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
         frame.wreck = entry->pShip->isDead();
@@ -486,15 +547,13 @@ void TOUCH::ResolveShips()
                 if (!(maximum > 0.f) || !std::isfinite(maximum)) return;
                 // Specific crush energy grows with closing speed squared; the bow's
                 // axial structure resists more than planking hit across the grain.
-                const double halfLength = std::max(1.f, ship->State.vBoxSize.z * .5f);
-                const double bow = std::clamp(localPoint.z / halfLength, 0.0, 1.0);
-                const double strength = 75.0 * (1.0 + .75 * localNormal.z * localNormal.z * (.5 + .5 * bow));
+                const double strength = ship->GetHullContactStrength(localPoint.z, localNormal.z);
                 const double damageFraction = std::min(1.0,
                     specificEnergy / (specificEnergy + strength) + crushWork / strength);
                 const float hp = float(maximum * damageFraction);
                 const auto accepted = core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
                            owner, hp * .1f, 0.f, 1,
-                           float(impact.point.x), float((bodies[own].yStart + bodies[other].yStart) * .5),
+                           float(impact.point.x), float(impact.height),
                            float(impact.point.z));
                 if (accepted)
                 {
@@ -514,8 +573,12 @@ void TOUCH::ResolveShips()
             if (!ship || !(materialWork > 0)) return;
             const auto matrix = ship->GetMatrix();
             if (matrix)
-                ship->ApplyHullImpact(*matrix * point, *matrix * normal - matrix->Pos(),
+            {
+                auto worldPoint = *matrix * point;
+                worldPoint.y = float(impact.height);
+                ship->ApplyHullImpact(worldPoint, *matrix * normal - matrix->Pos(),
                                       float(materialWork), owner);
+            }
         };
         publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA);
         publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB);

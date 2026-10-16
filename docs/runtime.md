@@ -4,6 +4,27 @@ Last verified delivery: October16. Corrected world destruction and6/7 bootstrap/
 
 ## Current verdict
 
+### October16 — island spin and recoil source correction
+
+The player rejects island contact that spins and repeatedly kicks the ship, and
+requires weak elasticity, speed loss and angle-dependent physical yaw. The actual
+shore methods reproduce stationary5m overlap as0.280rad yaw/5.582m displacement
+in one frame; parallel/reverse movement can also receive a false impulse.
+The source successor removes the fixed1024-step yaw/position loop and radial
+strength queue. It consumes the published island triangle/depth normal and the
+shared hull impulse with an immovable shore, preserving HP/material protection.
+Slow contact, angular time, mirrored yaw, weak rebound, initial overlap and
+separating/tangent negatives pass source-bound sanitizer checks;10000 live/live
+response comparisons preserve every output bit. Native touch.cpp syntax passes.
+`ship-shore-contact.md` owns the contract, limits and accepting player scenario.
+
+Disposition: unresolved. This is source evidence, not installed acceptance;
+the installed arm64 engine still hashes to the dcca image above, with normal
+PROGRAM/RESOURCE bundle roots and the player's separate SAVE owner. This task
+does not launch/control the game or change those runtime files. Shared integration
+owns the focused checkpoint, canonical build/staging and delivery;
+native damping/propulsion/Phonk and player-save coast replay remain pending.
+
 ### October16 — local laser and nuclear cloud repair reopened
 
 The player rejects oversized laser removal on terrain and ships, plus the smooth
@@ -44,10 +65,15 @@ laser/nuclear target acquisition is source-verified: canonical hostility,
 camera-independent range ordering, live laser muzzle occlusion, nuclear movement
 lead/arc/self-blast checks, preserved manual aiming and paused/exit-flight state.
 `phonk-auto-scene-20261016` retains source-body/syntax evidence and the unexecuted
-native adapter. World async preparation is a separate source candidate; repeated
-ship cuts currently fail the independent overlapping/ring material-boundary
-oracle and are not accepted. Native integration/build/staging must wait for that
-geometry prerequisite. Ground must remain solid material; ship interiors and
+native adapter. World async preparation is a separate source candidate. The
+ship kernel now passes all24 progressive solid-ring cuts, an independent volume
+oracle, hollow panels and an open-notch negative. Actual Flyingdutchman wood
+admits a0.03m shallow bore at exactly that depth while preserving its hollow hold;
+three progressive records preserve the remote ray. Full split/topology takes
+20–90ms CPU on that model, so synchronous publication cannot meet frame stability.
+Value-only ship preparation and its ordered main-thread transaction are under
+integration; native build/staging waits for that owner to freeze. Ground must
+remain solid material; ship interiors and
 gunports must remain genuine voids, without blanket filled cut disks.
 
 ### October16 — world destruction and old-control correction installed

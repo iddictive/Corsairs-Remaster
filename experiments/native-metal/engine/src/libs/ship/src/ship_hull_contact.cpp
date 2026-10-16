@@ -96,12 +96,13 @@ bool SHIP::GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, fl
 void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
                                   const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds)
 {
-    if (!milliseconds || !std::isfinite(deltaWorldVelocity.x) || !std::isfinite(deltaWorldVelocity.z) ||
+    if (!std::isfinite(deltaWorldVelocity.x) || !std::isfinite(deltaWorldVelocity.z) ||
         !std::isfinite(deltaYawVelocity) || !std::isfinite(endWorldPosition.x) ||
         !std::isfinite(endWorldPosition.z) || !std::isfinite(endYaw))
         return;
     if (isDead())
     {
+        if (!milliseconds) return;
         const auto position = GetPos();
         ApplyWreckContact(CVECTOR(endWorldPosition.x - position.x, 0.f, endWorldPosition.z - position.z));
         return;
@@ -131,6 +132,10 @@ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float delta
     // Physical torque comes from r x J / I. Legacy shore impulses keep their
     // separate admission rule; this path never competes for Strength slots.
     State.vRotate.y += deltaYawVelocity;
+
+    // Detached bodies execute after the ship's native step. Their reaction
+    // changes momentum only; predicting another step here would rewind pose.
+    if (!milliseconds) return;
 
     TOUCH_PARAMS predicted{};
     if (!TouchMove(milliseconds, nullptr, &predicted)) return;

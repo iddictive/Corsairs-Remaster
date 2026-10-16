@@ -254,26 +254,26 @@ inline Contact collide(const Body &a, const Body &b)
     return {};
 }
 
-inline Response resolve(const Body &a, const Body &b, const Contact &contact, double seconds)
+inline Response resolve(const Body &a, const Body &b, const Contact &contact, double seconds, bool fixedB = false)
 {
     Response out;
     if (!contact.hit || !std::isfinite(seconds) || seconds <= 0 ||
         !std::isfinite(contact.time) || contact.time < 0 || contact.time > 1 ||
         !detail::finite(contact.point) || !detail::finite(contact.normal)) return out;
-    const auto ha = detail::prepare(a), hb = detail::prepare(b);
+    const auto ha = detail::prepare(a), hb = fixedB ? detail::Hull{} : detail::prepare(b);
     const double normalLength = length(contact.normal);
-    if (ha.points.empty() || hb.points.empty() || !(normalLength > 0)) return out;
+    if (ha.points.empty() || (!fixedB && hb.points.empty()) || !(normalLength > 0)) return out;
     const Vec2 n = contact.normal / normalLength, t{-n.z, n.x};
     const Vec2 ra = contact.point - detail::poseAt(a, contact.time).position;
-    const Vec2 rb = contact.point - detail::poseAt(b, contact.time).position;
+    const Vec2 rb = fixedB ? Vec2{} : contact.point - detail::poseAt(b, contact.time).position;
     const Vec2 va = (a.end.position - a.start.position) / seconds;
-    const Vec2 vb = (b.end.position - b.start.position) / seconds;
-    const double wa = detail::yawTravel(a) / seconds, wb = detail::yawTravel(b) / seconds;
+    const Vec2 vb = fixedB ? Vec2{} : (b.end.position - b.start.position) / seconds;
+    const double wa = detail::yawTravel(a) / seconds, wb = fixedB ? 0 : detail::yawTravel(b) / seconds;
     const Vec2 relative = detail::pointVelocity(va, wa, ra) - detail::pointVelocity(vb, wb, rb);
     const double closing = dot(relative, n);
     if (!detail::finite(relative) || !std::isfinite(closing) || closing <= 0) return out;
-    const double invMA = 1 / a.mass, invMB = 1 / b.mass;
-    const double invIA = 1 / ha.inertia, invIB = 1 / hb.inertia;
+    const double invMA = 1 / a.mass, invMB = fixedB ? 0 : 1 / b.mass;
+    const double invIA = 1 / ha.inertia, invIB = fixedB ? 0 : 1 / hb.inertia;
     const double an = cross(ra, n), bn = cross(rb, n);
     const double knA = invMA + an * an * invIA, knB = invMB + bn * bn * invIB;
     const double kn = knA + knB;
@@ -320,7 +320,7 @@ inline Response resolve(const Body &a, const Body &b, const Contact &contact, do
     out.energyLostA = std::max(0.0, loss) * complianceA / (complianceA + complianceB);
     out.energyLostB = std::max(0.0, loss) * complianceB / (complianceA + complianceB);
     out.energyLost = out.energyLostA + out.energyLostB;
-    out.specificEnergyA = out.energyLostA / a.mass; out.specificEnergyB = out.energyLostB / b.mass;
+    out.specificEnergyA = out.energyLostA / a.mass; out.specificEnergyB = fixedB ? 0 : out.energyLostB / b.mass;
     if (!detail::finite(out.deltaVA) || !detail::finite(out.deltaVB) || !std::isfinite(out.deltaWA) ||
         !std::isfinite(out.deltaWB) || !std::isfinite(out.energyLost) || !std::isfinite(out.specificEnergyA) ||
         !std::isfinite(out.specificEnergyB)) return {};

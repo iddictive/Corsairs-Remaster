@@ -51,10 +51,12 @@ class TOUCH : public Entity
 
     void TouchIsland(int32_t idx);
     void ResolveShips();
-    BOOL FakeTouch();
-    BOOL IsIntersectIsland(int32_t idx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR *vRecoil,
-                           float *fPower, float *fSlide);
-    int32_t ProcessImpulse(int32_t iOurIdx, CVECTOR vPos, CVECTOR vDir, float fPowerApplied);
+    struct IslandContact
+    {
+        CVECTOR point, normal; // world normal points into solid ground
+        float time = 1.f, closing = 0.f;
+    };
+    BOOL IsIntersectIsland(int32_t idx, IslandContact &contact);
     int32_t GetTouchPoint(int32_t iIdx, const CVECTOR &vPos);
 
     void DrawLine(std::vector<RS_LINE2D> &aLines, float x1, float y1, float x2, float y2, uint32_t color);
