@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified installed delivery: October16,18:34EDT, `d03e571`, signed engine `1ce61b820ca779d808a25a90ffcbe443e85c2305c42a38db7dfa9be687af6454`. The player's18:36:58 sample and18:40:30 crash reject laser/FPS acceptance for that exact image. A source successor moves combined cannon/laser replay off main, adds a shared5% worker CPU allowance and repairs collision-detail ownership/index guards; canonical delivery is pending. No agent player launch, SAVE load or gameplay test follows this report. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,19:01EDT, source `a5a0fae`, signed engine `affdd4dd1b3925d203610f71abdf03f9da759a3040361c081a35109462163533`. Canonical staging exits0;249 protected files are unchanged and239 managed receipt rows match. Combined cannon/laser replay now runs off main, cut workers share a5% allowance, and ordinary trace detail ownership/index guards are repaired. The previous d03e571 player stall/crash is retained below; actual laser holes and CPU/FPS acceptance of this successor remain unresolved. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
 
-### October16 — actual player stall/crash localized; successor delivery pending
+### October16,19:01EDT — player stall/crash successor installed; manual replay pending
 
 The player reports no visible holes from laser fire, then a severe stall after
 one bomb salvo. Their ten-second sample binds1479/1518 main-thread stacks to
@@ -24,8 +24,17 @@ laser doses and freezes renderer-reset inputs. Live cut workers share an average
 main capture/upload or initial SAVE restoration remain outside that allowance.
 Collision detail state now follows the winning ordinary trace, with initialized
 node/index and range checks. No agent gameplay tests/profiles are run as requested.
-Disposition: source repaired, canonical staging pending; actual laser holes,
-CPU utilization/FPS and the remaining combat/shore behavior await player replay.
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 after source
+`a5a0fae26f2edb6daaa1fb62bbeb66b21d697ba5`. Native fingerprint is
+`c53b58be580a9f522fb6f478fae9aa4d939efb4c328283b8ac1be994fce28f18`, unsigned engine
+`1c26a1c7b383fcb653c61b560b176286b6bb2e88391eb8d3cdf831f3c315d05d`, signed installed
+engine `affdd4dd1b3925d203610f71abdf03f9da759a3040361c081a35109462163533`, UUID
+`8B297FCE-B108-3220-8615-8F97C28EE6A8`. All249 current protected files retain
+their hashes; all239 managed receipt rows match. No game process runs at handoff.
+Build/stage and preservation receipts remain in
+`.local-archives/installed-delivery/d03e571-successor-20261016/`.
+Disposition: installed; actual laser holes, CPU utilization/FPS and remaining
+combat/shore behavior await the owner's manual replay. No new ZIP or push.
 
 ### October16,18:34EDT — combat repair installed; player will test
 
