@@ -7,6 +7,7 @@
 #include "sea_base.h"
 #include "sailors_way_points.h"
 #include "shared/sea_ai/sea_people.h"
+#include "crew_gore.h"
 
 enum ManMode
 {
@@ -105,6 +106,7 @@ class ShipMan
     bool fireResponding = false, fireWorker = false, fireWorkRise = false;
     float fireFaceAngle = 0.f;
     bool detailVisible = true;
+    float panicSeconds = 0.f;
 };
 
 class ShipWalk
@@ -117,7 +119,14 @@ class ShipWalk
     bool Init(entid_t _shipID, int editorMode, const char *shipType, std::vector<std::string> &&shipManModels);
     void CheckPosition(const uint32_t &dltTime);
     void SetMastBroken(int iMastIndex);
-    void OnHullHit(const CVECTOR &v);
+    void OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse,
+                   CrewGore &gore, VDX9RENDER &renderer);
+    void OnHullCut(const CVECTOR &normal, float distance, bool laser,
+                   CrewGore &gore, VDX9RENDER &renderer);
+    void ReleaseWork(ShipMan &man);
+    void FleeImpact(ShipMan &man, const CVECTOR &localHit, float seconds);
+    void KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
+                 CrewGore &gore, VDX9RENDER &renderer);
     void RespondToFire(uint32_t dltTime);
     void ReconcileHullSupport();
 
@@ -131,6 +140,7 @@ class ShipWalk
     bool hullSupportInitialized = false;
 
     entid_t shipID;
+    entid_t bloodID = invalid_entity; // Owned and erased by Sailors, never saved.
 
     SailorsPoints sailorsPoints; // Points
     ShipState shipState;         // Ship state
@@ -145,6 +155,7 @@ class Sailors : public Entity
 {
   public:
     Sailors();
+    ~Sailors() override;
 
     bool Init() override;
     virtual void Realize(uint32_t dltTime);
@@ -166,4 +177,5 @@ class Sailors : public Entity
     std::vector<ShipWalk> shipWalk;
     bool editorMode;
     bool disabled;
+    CrewGore gore;
 };

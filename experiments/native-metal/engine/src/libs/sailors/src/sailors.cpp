@@ -19,8 +19,6 @@ constexpr float MOVE_SPEED = 0.15f;
 constexpr float CLIMB_SPEED = 0.065f;
 
 constexpr float JUMP_SPEED_X_MASTFALL = 3.0f;
-constexpr float JUMP_SPEED_Y_EXPLOSION = 30.0f;
-
 bool CrewDetailVisible(MODEL &model, const CMatrix &viewProjection,
                        const storm_render::Viewport &viewport, bool wasVisible)
 {
@@ -58,6 +56,14 @@ bool CrewDetailVisible(MODEL &model, const CMatrix &viewProjection,
 }
 
 CVECTOR CrewPoint(const Point &p) { return CVECTOR(p.x, p.y, p.z); }
+
+bool CrewCombatEnabled(SHIP_BASE *ship)
+{
+    auto *character = ship ? ship->GetACharacter() : nullptr;
+    if (!character || !core.GetDeltaTime()) return false;
+    const auto *immortal = character->FindAClass(character, "chr_ai.immortal");
+    return !immortal || !immortal->GetAttributeAsDword();
+}
 
 // The flame field rises from a cell: overhead cloth cannot block a deck below.
 // Include the sailor's body and the renderer's maximum flame-height envelope.
@@ -148,7 +154,8 @@ ShipMan::ShipMan(ShipMan &&other) noexcept: modelID{other.modelID},
                                             fireWorker{other.fireWorker},
                                             fireWorkRise{other.fireWorkRise},
                                             fireFaceAngle{other.fireFaceAngle},
-                                            detailVisible{other.detailVisible}
+                                            detailVisible{other.detailVisible},
+                                            panicSeconds{other.panicSeconds}
 {
     other.modelID = invalid_entity;
 }
@@ -184,6 +191,7 @@ ShipMan & ShipMan::operator=(ShipMan &&other) noexcept
     fireWorkRise = other.fireWorkRise;
     fireFaceAngle = other.fireFaceAngle;
     detailVisible = other.detailVisible;
+    panicSeconds = other.panicSeconds;
 
     other.modelID = invalid_entity;
     return *this;
@@ -810,9 +818,24 @@ void ShipMan::NewAction(SailorsPoints &sailorsPoints, ShipState &shipState, uint
 
 void ShipMan::UpdatePos(uint32_t &dltTime, SailorsPoints &sailorsPoints, ShipState &shipState)
 {
+    if (mode == MAN_JUMP || mode == MAN_SWIM || mode == MAN_OFF || inWater)
+        panicSeconds = 0.f;
+    if (panicSeconds > 0.f)
+    {
+        if (!dltTime || shipState.firePaused)
+            return;
+        panicSeconds = std::max(0.f, panicSeconds - float(dltTime) * .001f);
+        if (panicSeconds == 0.f)
+        {
+            path = {};
+            mode = MAN_STAY;
+            lastMode = MAN_OFF;
+            NewAction(sailorsPoints, shipState, dltTime);
+        }
+    }
     if (fireResponding && (mode == MAN_JUMP || mode == MAN_SWIM || mode == MAN_OFF || inWater))
         fireResponding = fireWorker = false;
-    if (fireResponding)
+    if (fireResponding || panicSeconds > 0.f)
     {
         if (shipState.firePaused || !dltTime)
             return;
@@ -900,7 +923,7 @@ void ShipWalk::RespondToFire(uint32_t dltTime)
         fireRouteClock = 0;
         fireModelSeconds = -1.f;
         for (auto &man : shipMan)
-            if (man.fireResponding)
+            if (man.fireResponding && man.panicSeconds <= 0.f)
             {
                 man.fireResponding = man.fireWorker = man.fireWorkRise = false;
                 man.path = {};
@@ -913,7 +936,8 @@ void ShipWalk::RespondToFire(uint32_t dltTime)
     }
 
     const auto eligible = std::count_if(shipMan.begin(), shipMan.end(), [](const ShipMan &man) {
-        return man.mode != MAN_JUMP && man.mode != MAN_SWIM && man.mode != MAN_OFF && !man.inWater;
+        return man.mode != MAN_JUMP && man.mode != MAN_SWIM && man.mode != MAN_OFF &&
+               !man.inWater && man.panicSeconds <= 0.f;
     });
     if (!eligible)
         return;
@@ -949,6 +973,8 @@ void ShipWalk::RespondToFire(uint32_t dltTime)
         int workers = int(std::ceil(float(eligible) * storm_ship_fire::unit(summary->GetAttributeAsFloat("duty"))));
         for (auto &man : shipMan)
         {
+            if (man.panicSeconds > 0.f)
+                continue;
             if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF ||
                 man.inWater)
             {
@@ -1294,37 +1320,184 @@ void ShipWalk::SetMastBroken(int iMastIndex)
     }
 }
 
-void ShipWalk::OnHullHit(const CVECTOR &v)
+void ShipWalk::ReleaseWork(ShipMan &man)
 {
+    for (int point : {man.targetWayPoint, man.lastTargetPoint})
+        if (point >= 0 && point < sailorsPoints.points.count)
+            sailorsPoints.points.point[point].buisy = false;
+    man.fireResponding = man.fireWorker = man.fireWorkRise = false;
+    man.panicSeconds = 0.f;
+    man.moveTo = MOVE_TO_POINT;
+    man.path = {};
+    man.lastMode = MAN_OFF;
+}
+
+void ShipWalk::FleeImpact(ShipMan &man, const CVECTOR &hit, float seconds)
+{
+    ReleaseWork(man);
+    const int count = std::min(sailorsPoints.points.count, MAX_POINTS);
+    const auto *fire = ship ? ship->GetCrewFireModel() : nullptr;
+    const auto safe = [&](int i) {
+        return i >= 0 && i < count && sailorsPoints.points.point[i].IsAvailable() &&
+            !sailorsPoints.points.point[i].IsMast();
+    };
+    const auto segmentSafe = [&](const CVECTOR &a, const CVECTOR &b) {
+        // An escape may leave its current danger, never cross towards the hit
+        // or enter flames. The existing retained graph owns deck connectivity.
+        return ((a - hit) | (b - a)) >= -.01f &&
+            (!fire || CrewFireSegmentSafe(*fire, a, b, true));
+    };
+    int start = -1;
+    float nearest = 1.e20f;
+    for (int i : {man.newWayPoint, man.lastWayPoint})
+        if (safe(i) && segmentSafe(man.pos, CrewPoint(sailorsPoints.points.point[i])))
+        {
+            const float d = Dest(man.pos, CrewPoint(sailorsPoints.points.point[i]));
+            if (d < nearest) { nearest = d; start = i; }
+        }
+    man.panicSeconds = seconds;
+    man.mode = MAN_FIRE_WAIT;
+    man.angTo.y = man.ang.y;
+    if (start < 0)
+        return;
+    int previous[MAX_POINTS], queue[MAX_POINTS], head = 0, tail = 0;
+    std::fill_n(previous, MAX_POINTS, -1);
+    previous[start] = start;
+    queue[tail++] = start;
+    int target = start;
+    float best = -1.e20f;
+    while (head < tail)
+    {
+        const int at = queue[head++];
+        const auto p = CrewPoint(sailorsPoints.points.point[at]);
+        const float score = std::min(12.f, Dest(hit, p)) - .08f * Dest(man.pos, p);
+        if (sailorsPoints.points.point[at].IsNormal() && score > best)
+        { best = score; target = at; }
+        for (const auto &link : sailorsPoints.links.link)
+        {
+            const int next = link.first == at ? link.next : link.next == at ? link.first : -1;
+            if (!safe(next) || previous[next] != -1 ||
+                !segmentSafe(p, CrewPoint(sailorsPoints.points.point[next]))) continue;
+            previous[next] = at;
+            queue[tail++] = next;
+        }
+    }
+    int reverse[MAX_POINTS], length = 0, at = target;
+    do { reverse[length++] = at; if (at == start) break; at = previous[at]; } while (length < count);
+    man.path.length = uint8_t(length);
+    man.path.currentPointPosition = 0;
+    man.path.min = 0.f;
+    for (int i = 0; i < length; ++i) man.path.point[i] = uint8_t(reverse[length - i - 1]);
+    man.targetWayPoint = target;
+    man.newWayPoint = start;
+    if (length > 1 || nearest > .12f)
+    {
+        man.mode = MAN_RUN;
+        man.ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[start]), false, ship);
+    }
+}
+
+void ShipWalk::KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
+                       CrewGore &gore, VDX9RENDER &renderer)
+{
+    auto *model = static_cast<MODEL *>(core.GetEntityPointer(man.modelID));
+    if (!model) return;
+    uint32_t zero = 0;
+    man.SetPos(shipModel, ship, zero, shipState);
+    const auto body = model->mtx * CVECTOR(0.f, .9f, 0.f);
+    if (auto particles = core.GetEntityId("particles"))
+        core.Send_Message(particles, "lsffffffl", PS_CREATE, "blood_big",
+            body.x, body.y, body.z, 0.f, 1.f, 0.f, 900);
+    if (!bloodID)
+    {
+        bloodID = core.CreateEntity("Blood");
+        if (bloodID) core.Send_Message(bloodID, "li", MSG_BLOOD_SET_SHIP, shipID);
+    }
+    if (bloodID)
+    {
+        const auto down = shipModel->mtx * CVECTOR(0.f, -1.f, 0.f) - shipModel->mtx.Pos();
+        // A central pool plus dispersed droplets; the Blood owner traces each
+        // ray against this receiver and clips the splat onto its actual mesh.
+        for (unsigned n = 0; n < 6; ++n)
+        {
+            const float angle = float(n) * 2.39996323f;
+            const float spread = n ? .35f + .28f * float(n) : 0.f;
+            const auto origin = shipModel->mtx * (man.pos + man.spos +
+                CVECTOR(std::cos(angle) * spread, 1.1f, std::sin(angle) * spread));
+            core.Send_Message(bloodID, "lffffff", MSG_BLOOD_SHIP_HIT, origin.x, origin.y, origin.z, down.x, down.y, down.z);
+        }
+        const float speed = std::sqrt(~impulse);
+        if (speed > .01f)
+        {
+            const auto direction = impulse * (1.f / speed);
+            core.Send_Message(bloodID, "lffffff", MSG_BLOOD_SHIP_HIT, body.x, body.y, body.z,
+                direction.x, direction.y, direction.z);
+        }
+    }
+    ReleaseWork(man);
+    if (gore.capture(*model, renderer, impulse, laser))
+    {
+        core.EraseEntity(man.modelID);
+        man.modelID = invalid_entity;
+        man.mode = MAN_OFF;
+        man.dieTime = 11.f;
+    }
+    else
+    {
+        // Exhausting the visual pool must never duplicate or respawn a body.
+        man.mode = MAN_JUMP;
+        man.jumpSpeedY = -std::max(8.f, impulse.y);
+        man.jumpSpeedX = std::sqrt(impulse.x * impulse.x + impulse.z * impulse.z) * .35f;
+        CVECTOR localImpulse;
+        shipModel->mtx.MulToInvNorm(impulse, localImpulse);
+        man.ang.y = std::atan2(-localImpulse.x, -localImpulse.z);
+    }
+}
+
+void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse,
+                         CrewGore &gore, VDX9RENDER &renderer)
+{
+    if (!CrewCombatEnabled(ship) || !shipModel || !std::isfinite(radius) || !std::isfinite(lethalRadius) ||
+        !std::isfinite(impulse) || radius <= 0.f || lethalRadius < 0.f || impulse <= 0.f) return;
+    radius = std::min(radius, 16.f);
+    lethalRadius = std::min(lethalRadius, radius);
+    impulse = std::min(impulse, 30.f);
+    CVECTOR localHit;
+    shipModel->mtx.MulToInv(v, localHit);
     for (auto &man : shipMan)
     {
-        if (10 * rand() / RAND_MAX < 3 && man.mode != MAN_JUMP && man.mode != MAN_SWIM)
+        if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF || man.inWater) continue;
+        const CVECTOR body = shipModel->mtx * (man.pos + man.spos + CVECTOR(0.f, .9f, 0.f));
+        const CVECTOR delta = body - v;
+        const float distance = std::sqrt(~delta);
+        if (!std::isfinite(distance) || distance > radius) continue;
+        if (distance <= lethalRadius)
         {
-            CVECTOR pos;
-            if (ship)
-                pos = shipModel->mtx * man.pos;
-            else
-                pos = man.pos;
-
-            if (sqrt((pos.x - v.x) * (pos.x - v.x) + (pos.z - v.z) * (pos.z - v.z)) < 1)
-            {
-                // Free the points
-                if (man.mode == MAN_CLIMB_DOWN)
-                {
-                    sailorsPoints.points.point[man.lastTargetPoint].buisy = false;
-                }
-                else
-                {
-                    sailorsPoints.points.point[man.targetWayPoint].buisy = false;
-                    sailorsPoints.points.point[man.newWayPoint].buisy = false;
-                }
-
-                man.mode = MAN_JUMP;
-                man.jumpSpeedY =
-                    -(JUMP_SPEED_Y_EXPLOSION + rand() * JUMP_SPEED_Y_EXPLOSION / static_cast<float>(RAND_MAX));
-                man.jumpSpeedX = -man.jumpSpeedY / 10;
-            }
+            const CVECTOR outward = distance > .01f ? delta * (1.f / distance) : CVECTOR(1.f, 0.f, 0.f);
+            KillMan(man, outward * impulse + CVECTOR(0.f, impulse * .55f, 0.f), false, gore, renderer);
         }
+        else FleeImpact(man, localHit, 2.f + 2.f * (1.f - distance / radius));
+    }
+}
+
+void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, bool laser,
+                         CrewGore &gore, VDX9RENDER &renderer)
+{
+    const float length = std::sqrt(~normal);
+    if (!CrewCombatEnabled(ship) || !shipModel || !std::isfinite(length) || !std::isfinite(distance) || length < .001f) return;
+    const CVECTOR n = normal * (1.f / length);
+    const CVECTOR worldNormal = shipModel->mtx * n - shipModel->mtx.Pos();
+    for (auto &man : shipMan)
+    {
+        if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF || man.inWater) continue;
+        const CVECTOR body = man.pos + man.spos + CVECTOR(0.f, .9f, 0.f);
+        const float offset = (body | n) - distance / length;
+        // Project the upright body envelope onto the same hull-cut plane.
+        const float bodyRadius = .3f + .65f * std::abs(n.y);
+        if (std::abs(offset) <= bodyRadius)
+            KillMan(man, worldNormal * (offset < 0.f ? -5.f : 5.f) + CVECTOR(0.f, 3.f, 0.f), laser, gore, renderer);
+        else if (std::abs(offset) < 5.f)
+            FleeImpact(man, body - n * offset, 3.f);
     }
 }
 
@@ -1391,6 +1564,12 @@ Sailors::Sailors()
     disabled = false;
 }
 
+Sailors::~Sailors()
+{
+    for (const auto &walk : shipWalk)
+        if (walk.bloodID) core.EraseEntity(walk.bloodID);
+}
+
 bool Sailors::Init()
 {
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
@@ -1437,6 +1616,17 @@ void Sailors::Realize(uint32_t dltTime)
         // If the ship and all people are dead then delete the object
         if (walk->shipState.dead && walk->shipMan.empty())
         {
+            // Blood belongs to the remaining wreck even after its final man
+            // dies; its receiver id, rather than the cached ship pointer, owns
+            // liveness throughout sinking and scene removal.
+            if (core.GetEntityPointer(walk->shipID))
+                if (auto *blood = core.GetEntityPointer(walk->bloodID))
+                {
+                    blood->ProcessStage(Entity::Stage::execute, dltTime);
+                    blood->ProcessStage(Entity::Stage::realize, dltTime);
+                    continue;
+                }
+            if (walk->bloodID) core.EraseEntity(walk->bloodID);
             shipWalk.erase(walk);
             rs->SetRenderState(storm_render::RenderLighting, false);
             return;
@@ -1468,15 +1658,14 @@ void Sailors::Realize(uint32_t dltTime)
             }
         }
 
-        for (auto man = std::begin(walk->shipMan); man != std::end(walk->shipMan); ++man)
+        std::erase_if(walk->shipMan, [](const ShipMan &man) {
+            return man.dieTime > 10 || man.pos.y < -100;
+        });
+
+        if (auto *blood = core.GetEntityPointer(walk->bloodID))
         {
-            // If died then delete
-            if (man->dieTime > 10 || man->pos.y < -100)
-            {
-                walk->shipMan.erase(man);
-                rs->SetRenderState(storm_render::RenderLighting, false);
-                return;
-            }
+            blood->ProcessStage(Entity::Stage::execute, dltTime);
+            blood->ProcessStage(Entity::Stage::realize, dltTime);
         }
 
         // Setting ship state
@@ -1497,6 +1686,8 @@ void Sailors::Realize(uint32_t dltTime)
         }
     }
 
+    auto *sea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
+    gore.updateDraw(*rs, sea, float(dltTime) * .001f, true);
     rs->SetRenderState(storm_render::RenderLighting, false);
 }
 
@@ -1601,10 +1792,32 @@ uint64_t Sailors::ProcessMessage(MESSAGE &message)
                 const auto y = message.Float();
                 const auto z = message.Float();
 
-                walk->OnHullHit(CVECTOR(x, y, z));
+                float radius = 4.f, lethalRadius = 1.f, impulse = 10.f;
+                if (message.GetFormat() == "laffffff")
+                {
+                    radius = message.Float();
+                    lethalRadius = message.Float();
+                    impulse = message.Float();
+                }
+                walk->OnHullHit(CVECTOR(x, y, z), radius, lethalRadius, impulse, gore, *rs);
             }
         }
 
+        break;
+    }
+
+    case MSG_PEOPLES_ON_SHIP_HULLCUT: {
+        auto *attrs = message.AttributePointer();
+        const auto walk = std::ranges::find_if(shipWalk, [attrs](const auto &walk) {
+            return attrs && walk.ship && walk.ship->GetACharacter() == attrs;
+        });
+        if (walk != shipWalk.end())
+        {
+            const float x = message.Float(), y = message.Float(), z = message.Float();
+            const float distance = message.Float();
+            const bool laser = message.Long() != 0;
+            walk->OnHullCut(CVECTOR(x, y, z), distance, laser, gore, *rs);
+        }
         break;
     }
 

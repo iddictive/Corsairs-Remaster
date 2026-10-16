@@ -5,6 +5,9 @@
 #include "vma.hpp"
 #include <vector>
 
+class MODEL;
+class SHIP_BASE;
+
 #define MAX_BLOOD_TRIANGLES 10000
 #define ON_LIVETIME_BLOOD_TRIANGLES (MAX_BLOOD_TRIANGLES * 3 / 4)
 #define MAX_CLIPPING_TRIANGLES 64
@@ -34,6 +37,14 @@ class Blood : public Entity
     struct ClipTriangle
     {
         CVECTOR v[3];
+    };
+
+    struct ShipStain
+    {
+        CVECTOR source, direction, hit; // receiver-model-local, including the replay ray
+        float life = 180.f;
+        unsigned atlas = 0;
+        std::vector<BloodTriangle> triangles;
     };
 
     // --------------------------------------------------------------------------------------------
@@ -83,11 +94,20 @@ class Blood : public Entity
 
     std::vector<entid_t> aModels;
 
+    bool attachedToShip = false;
+    entid_t shipReceiver = 0;
+    unsigned shipRevision = 0;
+    std::vector<ShipStain> shipStains;
+
     static ClipTriangle clipT[MAX_CLIPPING_TRIANGLES];
     static int32_t nClipTQ;
     static CVECTOR normal;
 
     void AddBlood(const CVECTOR &pos);
+    void AddAttachedBlood(const CVECTOR &source, const CVECTOR &direction);
+    void LimitShipBlood();
+    bool ProjectShipStain(ShipStain &stain, SHIP_BASE &ship, MODEL &model, bool replay);
+    void RealizeShipBlood();
     void BuildBloodDataByCollision(const CVECTOR &cpos);
     void SetVertexByPos(BloodVertex &v, const CVECTOR &pos, const CVECTOR &vc, float fU0, float fV0);
     int32_t CheckBloodQuantityInRadius(const CVECTOR &cpos, float fDist, int32_t nLimitQ);

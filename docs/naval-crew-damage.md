@@ -87,3 +87,47 @@ rounds at35% knippel accuracy:0.7625 scatter, with every other factor unchanged.
 Out-of-range catalogue accuracy clamps correctly.
 Actual installed ship/fort casualty and random-scatter replay remain required;
 compilation alone does not accept battle balance.
+
+## Deck crew combat visuals
+
+The October16 mod adds spatial reactions to the existing sea ammunition and
+successful native hull cuts. `AIShip.c::Ship_HullHitEvent` sends one visual
+impact after the normal damage calculation; `Sailors` owns temporary escape and
+death, and `crew_gore` snapshots the actual posed sailor mesh into textured
+body fragments. A native successful cut sends its local plane once, never on
+save restoration. Existing fire response, deck support and ammunition casualty
+calculations retain their owners. No new numeric crew loss or SAVE field.
+
+The explicit follow-up adds abundant blood spray and blood coating the struck
+ship. Reuse `location/src/blood`'s real mesh projection and `blood.tga` in an
+optional ship-attached mode. Stains store receiver-local geometry, follow motion,
+and reproject after hull cuts; land blood keeps its existing mode. They must
+stay on retained wood, never bridge a removed hull section or paint sails/sea.
+The finite per-ship stain pool expires with its sea scene; no save migration.
+
+Acceptance: a close deck hit produces blood and separated body parts; nearby
+survivors escape along retained deck links, then resume work. Bomb/airburst
+reach exceeds round shot; a laser cuts sailors at its actual cut plane. A hit
+well below deck, a distant sailor, paused gameplay and an immune ship must not
+produce spurious deaths. Fragment count, texture ownership and expiry remain
+bounded across repeated broadsides and scene removal. Ordinary unhit sailors,
+firefighting and cannon work must remain functional.
+
+Source and native syntax checks pass for the crew, fragment renderer and blood
+adapter. The actual script function passes the existing native VM for all five
+ammunition profiles and zero-damage/immunity/sea/reload/boarding/interface guards.
+An extracted actual-method CPU replay passes deck impact, true3D below-hull and
+distant negatives, scaled laser planes, outward graph escape, disabled/fire route
+rejection and no teleport. These component checks do not accept visible gore.
+
+`CrewGore` caps the scene at96 fragments, retains its own texture references and
+expires pieces after9–13 seconds (water shortens that lifetime). Attached Blood
+uses at most128 stains/2048 triangles per ship; each lasts180 game-seconds with
+a25-second fade. It follows the live wreck until the receiver disappears.
+Ordinary cannon-hole rendering still has a legacy BSP/mesh mismatch; that
+existing collision owner can admit blood over a cannon hole. Laser cuts expose
+their current retained geometry to projection and trigger reprojection.
+
+Canonical delivery and accepting battle replay remain pending; the installed
+runtime verdict is owned by `runtime.md`. The runtime integration chat owns the
+shared native build/stage. No game launch/control or player SAVE change occurs.

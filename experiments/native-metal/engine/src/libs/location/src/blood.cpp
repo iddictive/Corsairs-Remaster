@@ -2,11 +2,97 @@
 #include "character.h"
 #include "core.h"
 #include "math_inlines.h"
+#include "ship_base.h"
+#include "shared/messages.h"
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <string>
 
 #define BLOOD_RADIUS 1.f        // blood stain size
 #define BLOOD_LIVE_TIME 5.5f    // sec
 #define BLOOD_BLENDOUT_TIME 5.f // sec
 #define BLOOD_RANDOM_DIST 0.8f  // spread of blood around in meters
+
+namespace
+{
+constexpr size_t MaxShipStains = 128;
+constexpr size_t MaxShipTriangles = 2048;
+constexpr float ShipBloodReach = 3.5f;
+constexpr float ShipBloodFade = 25.f;
+
+CVECTOR TransformDirection(const CMatrix &matrix, const CVECTOR &v)
+{
+    return matrix.Vx() * v.x + matrix.Vy() * v.y + matrix.Vz() * v.z;
+}
+
+bool ShipBloodReceiver(NODE &node)
+{
+    std::string name = node.GetName() ? node.GetName() : "";
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char c) { return char(std::tolower(c)); });
+    for (const char *excluded : {"mast", "sail", "rey", "yard", "path", "rope", "vant", "shroud", "flag"})
+        if (name.find(excluded) != std::string::npos)
+            return false;
+    return true;
+}
+
+struct ShipBloodHit
+{
+    NODE *node = nullptr;
+    float distance = 2.f;
+    CVECTOR point, normal;
+};
+
+void TraceShipBlood(NODE *node, const CVECTOR &source, const CVECTOR &target,
+                    SHIP_BASE &ship, MODEL &model, ShipBloodHit &best)
+{
+    if (!node || !ShipBloodReceiver(*node))
+        return;
+    if (node->geo && (node->flags & NODE::TRACE_ENABLE))
+    {
+        CVECTOR a, b;
+        node->glob_mtx.MulToInv(source, a);
+        node->glob_mtx.MulToInv(target, b);
+        GEOS::VERTEX ga{a.x, a.y, a.z}, gb{b.x, b.y, b.z};
+        const float distance = node->geo->Trace(ga, gb);
+        GEOS::TRACE_INFO info;
+        if (std::isfinite(distance) && distance >= 0.f && distance <= 1.f &&
+            distance < best.distance && node->geo->GetCollisionDetails(info))
+        {
+            const CVECTOR point = a + (b - a) * distance;
+            CVECTOR local;
+            model.mtx.MulToInv(node->glob_mtx * point, local);
+            const CVECTOR n = CVECTOR(info.vrt[1].x - info.vrt[0].x, info.vrt[1].y - info.vrt[0].y,
+                                     info.vrt[1].z - info.vrt[0].z) ^
+                              CVECTOR(info.vrt[2].x - info.vrt[0].x, info.vrt[2].y - info.vrt[0].y,
+                                     info.vrt[2].z - info.vrt[0].z);
+            if ((~n) > 1.e-10f && ship.IsHullPositionRetained(local))
+            {
+                best.node = node;
+                best.distance = distance;
+                best.point = point;
+                best.normal = n * (1.f / std::sqrt(~n));
+                if ((best.normal | (b - a)) > 0.f)
+                    best.normal *= -1.f;
+            }
+        }
+    }
+    if (node->flags & NODE::TRACE_ENABLE_TREE)
+        for (auto *child : node->next)
+            TraceShipBlood(child, source, target, ship, model, best);
+}
+
+bool ClipShipBlood(const GEOS::VERTEX *vertices, int32_t count)
+{
+    if (count < 3 || count > 256)
+        return count < 3;
+    CVECTOR polygon[256];
+    for (int32_t i = 0; i < count; ++i)
+        polygon[i] = CVECTOR(vertices[i].x, vertices[i].y, vertices[i].z);
+    return Blood::AddClipPoligon(polygon, count);
+}
+} // namespace
 
 Blood::ClipTriangle Blood::clipT[MAX_CLIPPING_TRIANGLES];
 int32_t Blood::nClipTQ;
@@ -44,6 +130,14 @@ bool Blood::Init()
 // Work
 void Blood::Execute(uint32_t delta_time)
 {
+    if (attachedToShip)
+    {
+        for (auto &stain : shipStains)
+            stain.life -= delta_time * .001f;
+        shipStains.erase(std::remove_if(shipStains.begin(), shipStains.end(),
+                                      [](const ShipStain &stain) { return stain.life <= 0.f; }), shipStains.end());
+        return;
+    }
     if (nUsedTQ < ON_LIVETIME_BLOOD_TRIANGLES)
         return;
 
@@ -88,6 +182,11 @@ void Blood::Execute(uint32_t delta_time)
 
 void Blood::Realize(uint32_t delta_time)
 {
+    if (attachedToShip)
+    {
+        RealizeShipBlood();
+        return;
+    }
     if (nUsedTQ > 0)
     {
         uint32_t dwOldTF;
@@ -136,9 +235,167 @@ uint64_t Blood::ProcessMessage(MESSAGE &message)
         cv.z = message.Float();
         AddBlood(cv);
         break;
+    case MSG_BLOOD_SET_SHIP:
+        shipReceiver = message.EntityID();
+        attachedToShip = true;
+        shipRevision = 0;
+        shipStains.clear();
+        break;
+    case MSG_BLOOD_SHIP_HIT:
+    {
+        CVECTOR source, direction;
+        source.x = message.Float();
+        source.y = message.Float();
+        source.z = message.Float();
+        direction.x = message.Float();
+        direction.y = message.Float();
+        direction.z = message.Float();
+        AddAttachedBlood(source, direction);
+        break;
+    }
     }
 
     return 0;
+}
+
+void Blood::AddAttachedBlood(const CVECTOR &source, const CVECTOR &direction)
+{
+    if (!attachedToShip || !std::isfinite(~source) || !std::isfinite(~direction) || (~direction) < 1.e-8f)
+        return;
+    auto *ship = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(shipReceiver));
+    auto *model = ship ? dynamic_cast<MODEL *>(core.GetEntityPointer(ship->GetModelEID())) : nullptr;
+    if (!model)
+        return;
+    ShipStain stain;
+    model->mtx.MulToInv(source, stain.source);
+    model->mtx.MulToInvNorm(direction * (1.f / std::sqrt(~direction)), stain.direction);
+    stain.atlas = unsigned(rand() % 8);
+    if (!ProjectShipStain(stain, *ship, *model, false))
+        return;
+    shipStains.push_back(std::move(stain));
+    LimitShipBlood();
+}
+
+void Blood::LimitShipBlood()
+{
+    size_t triangles = 0;
+    for (const auto &old : shipStains)
+        triangles += old.triangles.size();
+    while (!shipStains.empty() && (shipStains.size() > MaxShipStains || triangles > MaxShipTriangles))
+    {
+        triangles -= shipStains.front().triangles.size();
+        shipStains.erase(shipStains.begin());
+    }
+}
+
+bool Blood::ProjectShipStain(ShipStain &stain, SHIP_BASE &ship, MODEL &model, bool replay)
+{
+    stain.triangles.clear();
+    const CVECTOR source = model.mtx * stain.source;
+    const CVECTOR direction = TransformDirection(model.mtx, stain.direction);
+    ShipBloodHit hit;
+    TraceShipBlood(model.GetNode(0), source, source + direction * ShipBloodReach, ship, model, hit);
+    if (!hit.node)
+        return false;
+    CVECTOR receiverHit;
+    model.mtx.MulToInv(hit.node->glob_mtx * hit.point, receiverHit);
+    // A removed deck must not transfer its old stain to a lower deck or another board.
+    if (replay && (~(receiverHit - stain.hit)) > .35f * .35f)
+        return false;
+    if (!replay)
+        stain.hit = receiverHit;
+
+    const CVECTOR axis = std::fabs(hit.normal.y) < .9f ? CVECTOR(0.f, 1.f, 0.f) : CVECTOR(1.f, 0.f, 0.f);
+    const CVECTOR u = !(axis ^ hit.normal);
+    const CVECTOR v = hit.normal ^ u;
+    const CVECTOR axes[] = {u, v, hit.normal};
+    GEOS::PLANE planes[6];
+    for (int i = 0; i < 3; ++i)
+    {
+        const float extent = i == 2 ? .15f : BLOOD_RADIUS;
+        const auto &n = axes[i];
+        planes[2 * i] = {{n.x, n.y, n.z}, (n | hit.point) + extent};
+        planes[2 * i + 1] = {{-n.x, -n.y, -n.z}, -(n | hit.point) + extent};
+    }
+    nClipTQ = 0;
+    const GEOS::VERTEX center{hit.point.x, hit.point.y, hit.point.z};
+    hit.node->geo->Clip(planes, 6, center, BLOOD_RADIUS * 1.5f, ClipShipBlood);
+    const float u0 = float(stain.atlas % 4) * .25f;
+    const float v0 = float(stain.atlas / 4) * .5f;
+    for (int32_t i = 0; i < nClipTQ; ++i)
+    {
+        const auto &clip = clipT[i];
+        const CVECTOR face = (clip.v[1] - clip.v[0]) ^ (clip.v[2] - clip.v[0]);
+        if ((~face) < 1.e-10f || std::fabs(face | hit.normal) < .45f * std::sqrt(~face))
+            continue;
+        BloodTriangle triangle;
+        bool retained = true;
+        for (int k = 0; k < 3; ++k)
+        {
+            CVECTOR local;
+            model.mtx.MulToInv(hit.node->glob_mtx * clip.v[k], local);
+            retained &= ship.IsHullPositionRetained(local);
+            const CVECTOR offset = clip.v[k] - hit.point;
+            auto &vertex = triangle.v[k];
+            model.mtx.MulToInv(hit.node->glob_mtx * (clip.v[k] + hit.normal * .012f), vertex.pos);
+            vertex.dwCol = 0xffffffff;
+            vertex.u = u0 + .125f + (offset | u) * .125f / BLOOD_RADIUS;
+            vertex.v = v0 + .25f + (offset | v) * .25f / BLOOD_RADIUS;
+        }
+        if (retained)
+            stain.triangles.push_back(triangle);
+    }
+    return !stain.triangles.empty();
+}
+
+void Blood::RealizeShipBlood()
+{
+    if (shipStains.empty() || texID < 0)
+        return;
+    auto *ship = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(shipReceiver));
+    auto *model = ship ? dynamic_cast<MODEL *>(core.GetEntityPointer(ship->GetModelEID())) : nullptr;
+    if (!model)
+        return;
+    if (shipRevision != ship->GetHullContourRevision())
+    {
+        for (auto &stain : shipStains)
+            ProjectShipStain(stain, *ship, *model, true);
+        LimitShipBlood();
+        shipRevision = ship->GetHullContourRevision();
+    }
+    CVECTOR camera, angles;
+    float perspective;
+    pRS->GetCamera(camera, angles, perspective);
+    if ((~(camera - model->mtx.Pos())) > 350.f * 350.f)
+        return;
+    size_t count = 0;
+    for (const auto &stain : shipStains)
+    {
+        const auto alpha = uint32_t(255.f * std::clamp(stain.life / ShipBloodFade, 0.f, 1.f));
+        for (const auto &triangle : stain.triangles)
+        {
+            if (count >= MaxShipTriangles)
+                break;
+            pvBloodT[count] = triangle;
+            for (auto &vertex : pvBloodT[count].v)
+                vertex.dwCol = (alpha << 24) | 0xffffff;
+            ++count;
+        }
+    }
+    if (!count)
+        return;
+    uint32_t oldFactor;
+    const CMatrix oldWorld = pRS->GetWorld();
+    pRS->GetRenderState(storm_render::RenderTextureFactor, &oldFactor);
+    pRS->SetRenderState(storm_render::RenderTextureFactor, 0xffffffff);
+    pRS->TextureSet(0, texID);
+    pRS->SetWorld(model->mtx);
+    pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,
+                         storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse |
+                             storm_render::vertexFormat::tex1,
+                         uint32_t(count), pvBloodT, sizeof(BloodVertex), "Blood");
+    pRS->SetWorld(oldWorld);
+    pRS->SetRenderState(storm_render::RenderTextureFactor, oldFactor);
 }
 
 bool Blood::AddClipPoligon(const CVECTOR *v, int32_t nv)

@@ -4,6 +4,25 @@ Last verified delivery: October16. Zoom-aware ship auxiliary LOD and synchronous
 
 ## Current verdict
 
+### October16 — deck crew gore and attached blood source candidate
+
+Hypothesis: actual spatial hit inputs and posed-mesh fragments can replace the
+old dormant random jump with weapon reactions while retaining script-owned crew
+loss. The explicit follow-up adds spray and blood coating the struck ship.
+`AIShip.c` now dispatches ordinary ammunition/bomb/airburst impacts; `Sailors`
+owns escape/death and a96-piece real posed-model fragment pool. Optional Blood
+receiver mode projects bounded stains onto the moving ship and reprojects on
+laser hull revision; ordinary land blood is unchanged. No SAVE schema or extra
+numerical casualty owner is introduced. `naval-crew-damage.md` owns the details.
+
+Native syntax checks pass; the existing native VM passes all five ammo profiles
+and suppressed-state cases with0 script errors. Actual-method CPU impact/cut/
+escape checks pass3D/distance/disabled/fire negatives. Native build, installed
+delivery and visible battle replay are unresolved. The active runtime integration
+chat owns the successful-cut hook and combined canonical build/stage; the player
+game is running, and this task launches/controls no game. The last verified
+installed inventory above is unchanged by this source candidate.
+
 ### October16 — ship auxiliary LOD and rope endpoint lifetime staged
 
 Canonical `run.sh --stage-only` exits0 in149.811s and installs signed engine
