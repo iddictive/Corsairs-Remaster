@@ -31,6 +31,10 @@ does not prove nonpenetration.
 - `SHIP::TouchMove`/`ApplyHullContactMotion`: native prediction, velocity and
   endpoint application, including the existing Phonk motion adapter. Grounding,
   land support, saved state and ordinary controls remain with `SHIP::Move`.
+  Supported land constrains Y without zeroing speed/yaw or returning before
+  controls. The existing worsening-penetration rejection blocks inward travel;
+  support is resampled at the accepted endpoint so reverse/turn-away can release
+  a partly grounded hull. This source successor is unbuilt and player-unverified.
 - `AIShip.c`'s shore collision event: HP/perks and accepted material fraction.
   Only inward point speed supplies `.5 * speed²` to the existing protected local
   fracture seam; tangential speed does not manufacture ram work.

@@ -93,10 +93,20 @@ compilation alone does not accept battle balance.
 The October16 mod adds spatial reactions to the existing sea ammunition and
 successful native hull cuts. `AIShip.c::Ship_HullHitEvent` sends one visual
 impact after the normal damage calculation; `Sailors` owns temporary escape and
-death, and `crew_gore` snapshots the actual posed sailor mesh into textured
-body fragments. A native successful cut sends its local plane once, never on
+death, and `crew_gore` snapshots the actual posed sailor mesh. Ordinary casualties
+usually retain one complete corpse, with one anatomical separation in20% of cases;
+laser casualties separate once into two complementary parts. Launch retains25%
+of the caller impulse with no second upward kick. A native successful cut sends its local plane once, never on
 save restoration. Existing fire response, deck support and ammunition casualty
 calculations retain their owners. No new numeric crew loss or SAVE field.
+
+Ordinary hit presentation receives the actual float casualty fraction after
+defence, doctors and the crew floor. Visible deaths scale to the live low-poly
+crew, carrying only a transient fractional remainder; a tiny hit cannot kill all
+nearby visible sailors. Positive actual loss can emit blood once from the nearest
+affected retained-deck sailor even without a whole visual death. Represented deaths
+already emit their blood and do not receive a duplicate wound burst. This latest
+source candidate has no tests, build or player replay by the owner's instruction.
 
 The explicit follow-up adds abundant blood spray and blood coating the struck
 ship. Reuse `location/src/blood`'s real mesh projection and `blood.tga` in an
@@ -105,7 +115,7 @@ and reproject after hull cuts; land blood keeps its existing mode. They must
 stay on retained wood, never bridge a removed hull section or paint sails/sea.
 The finite per-ship stain pool expires with its sea scene; no save migration.
 
-Acceptance: a close deck hit produces blood and separated body parts; nearby
+Acceptance: a close admitted crew hit produces blood and proportionate bodies; nearby
 survivors escape along retained deck links, then resume work. Bomb/airburst
 reach exceeds round shot; a laser cuts sailors at its actual cut plane. A hit
 well below deck, a distant sailor, paused gameplay and an immune ship must not

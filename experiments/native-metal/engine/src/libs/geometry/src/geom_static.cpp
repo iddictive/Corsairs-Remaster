@@ -685,7 +685,7 @@ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_s
 }
 bool GEOM::CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&plane,unsigned fragmentLimit,const storm_ship_hull::Vec3*supportAxis,storm_ship_laser::Input&input)
 {
-    if(worldOwner||!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
+    if(worldOwner||!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size()))return false;
     if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>=storm_hull_damage::MaxFragmentBuffers)return false;
     storm_ship_laser::Input next;next.surface=laserVisualSurface;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min(fragmentLimit,unsigned(storm_hull_damage::MaxFragmentBuffers-active));next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.hasSupportAxis=supportAxis!=nullptr;if(supportAxis)next.supportAxis=*supportAxis;next.enclosedFragments=laserEnclosedFragments&&!supportAxis;input=std::move(next);return true;
 }
@@ -693,7 +693,7 @@ bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&pro
 {
     result={};if(!owner||worldOwner||(laserOwner&&owner!=laserOwner)||(hullOwner&&owner!=hullOwner)||projection.generation!=geometryGeneration||projection.revision!=collisionRevision||(laserPendingOwner&&laserPendingOwner!=owner))return false;
     DiscardLaserProjection(owner);if(!projection.result.changed){try{laserPending=std::make_unique<storm_ship_laser::Projection>(std::move(projection));laserPendingOwner=owner;return true;}catch(...){return false;}}
-    if(!projection.kept||projection.result.fragments.size()!=projection.fragmentRender.size()||!storm_ship_laser::valid(projection.plane)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
+    if(!projection.kept||projection.result.fragments.size()!=projection.fragmentRender.size()||!storm_ship_laser::valid(projection.plane)||!storm_hull_damage::canAppendCut(laserPlanes,projection.plane.beams.size()))return false;
     std::map<int,std::vector<HullDraw>>replacement;LaserBatch batch;try{
         laserPlanes.reserve(laserPlanes.size()+1);laserFragments.reserve(laserFragments.size()+1);batch.fragments.resize(projection.fragmentRender.size());auto pending=std::make_unique<storm_ship_laser::Projection>(std::move(projection));
         uint64_t serial=laserSerial;if(serial>UINT64_MAX-batch.fragments.size()-1)return false;batch.id=++serial;pending->result.fragment=batch.id;for(size_t n=0;n<batch.fragments.size();++n){pending->result.fragments[n].fragment=batch.fragments[n].id=++serial;batch.fragments[n].physical=storm_ship_laser::standaloneFragment(pending->fragmentRender[n]);}auto published=pending->result;

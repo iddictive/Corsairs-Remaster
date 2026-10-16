@@ -118,8 +118,20 @@ oriented cut plane. Each sample subtracts an octagonal bore0.32m across flats;
 depth is4m per delivered second. Receiver-local coordinates follow a moving
 ship. A0.20s batch retains the union of its samples; disjoint aim positions and
 receivers are not bridged by a chord or bounding box. Membership and body-envelope
-queries share the geometry field without per-query allocation. Existing32 ship
-and64 world record limits remain; each finite record holds at most16 samples.
+queries share the geometry field without per-query allocation. Ship history has
+512 cost units: a finite record costs its actual sample count, and a legacy plane
+costs16. Thus legacy splits remain capped at32 while single-sample doses can use
+up to512 ordered records. Each record still holds at most16 samples; the separate
+pending-job limit remains32 and active fragment buffers remain256. World history
+keeps its64-record limit. More small ship operations can increase cumulative
+preparation/replay cost; this change is not a measured FPS improvement.
+
+Completed worker snapshots validate unchanged node identity/generation/revision,
+but an animated yard outside the cut no longer invalidates a changed hull.
+Changed nodes still require their captured local pose. Camera/contact updates
+precede dose backpressure, so a full queue cannot freeze manual aim. On a receiver
+switch, an unadmitted old dose is retried once then retired; it cannot block every
+later receiver. Accepted jobs retain their existing ordered publication contract.
 
 Repeated contact follows the center ray through the actual octagonal bore,
 including small aim/pose drift. It advances to the existing far cap only when

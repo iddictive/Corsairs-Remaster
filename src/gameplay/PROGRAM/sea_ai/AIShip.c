@@ -3485,8 +3485,12 @@ void Ship_HullHitEvent()
         }
         // boal <--
 	}
+	float crewBefore = stf(rOurCharacter.Ship.Crew.Quantity);
 	Ship_ApplyCrewHitpoints(rOurCharacter, fCrewDamage);
-	Ship_DeckCrewImpact(rOurCharacter, iBallType, airburst, x, y, z, fCrewDamage);
+	float crewLossFraction = 0.0;
+	if (crewBefore > 0.0)
+		crewLossFraction = Clampf((crewBefore - stf(rOurCharacter.Ship.Crew.Quantity)) / crewBefore);
+	Ship_DeckCrewImpact(rOurCharacter, iBallType, airburst, x, y, z, crewLossFraction);
 
 	if (!LAi_IsImmortal(rOurCharacter) && !LAi_IsDead(rOurCharacter))
 	{
@@ -3552,10 +3556,10 @@ void Ship_HullHitEvent()
     // boal 290704 раз в минуту проверяем обиду на гл героя, если жухлит через жёлтый прицел <--
 }
 
-void Ship_DeckCrewImpact(ref rCharacter, int ammo, bool airburst, float x, float y, float z, float crewDamage)
+void Ship_DeckCrewImpact(ref rCharacter, int ammo, bool airburst, float x, float y, float z, float crewLossFraction)
 {
 	if (!bSeaActive || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
-	if (LAi_IsImmortal(rCharacter) || crewDamage <= 0.0) return;
+	if (LAi_IsImmortal(rCharacter)) return;
 	// Presentation only: Ship_ApplyCrewHitpoints remains the sole casualty owner.
 	float radius = 5.0;
 	float lethalRadius = 1.2;
@@ -3567,8 +3571,8 @@ void Ship_DeckCrewImpact(ref rCharacter, int ammo, bool airburst, float x, float
 		radius = 9.0; lethalRadius = 3.2; impulse = 18.0;
 		if (airburst) { radius = 10.0; lethalRadius = 4.0; impulse = 16.0; }
 	}
-	SendMessage(&Sailors, "laffffff", MSG_PEOPLES_ON_SHIP_HULLHIT, rCharacter,
-		x, y, z, radius, lethalRadius, impulse);
+	SendMessage(&Sailors, "lafffffff", MSG_PEOPLES_ON_SHIP_HULLHIT, rCharacter,
+		x, y, z, radius, lethalRadius, impulse, crewLossFraction);
 }
 
 float Ship_GetTotalFireTime(ref rCharacter)

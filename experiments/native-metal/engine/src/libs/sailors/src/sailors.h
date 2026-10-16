@@ -119,12 +119,13 @@ class ShipWalk
     bool Init(entid_t _shipID, int editorMode, const char *shipType, std::vector<std::string> &&shipManModels);
     void CheckPosition(const uint32_t &dltTime);
     void SetMastBroken(int iMastIndex);
-    void OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse,
+    void OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse, float casualtyFraction,
                    CrewGore &gore, VDX9RENDER &renderer);
     void OnHullCut(const CVECTOR &normal, float distance, int cutMode,
                    CrewGore &gore, VDX9RENDER &renderer);
     void ReleaseWork(ShipMan &man);
     void FleeImpact(ShipMan &man, const CVECTOR &localHit, float seconds);
+    void BleedMan(ShipMan &man, const CVECTOR &impulse);
     void KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
                  CrewGore &gore, VDX9RENDER &renderer);
     void RespondToFire(uint32_t dltTime);
@@ -138,6 +139,7 @@ class ShipWalk
     float fireModelSeconds = -1.f;
     unsigned hullRevision = 0;
     bool hullSupportInitialized = false;
+    float casualtyVisualRemainder = 0.f; // Fractional visible bodies, never saved or applied to crew HP.
 
     entid_t shipID;
     entid_t bloodID = invalid_entity; // Owned and erased by Sailors, never saved.

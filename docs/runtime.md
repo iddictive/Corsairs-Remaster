@@ -4,6 +4,17 @@ Last verified installed delivery: October16,20:33UTC, source `23ac5eba107a3f5476
 
 ## Current verdict
 
+### October16 — source-only combat repair; tests explicitly declined
+
+The owner resumed code repair and will test personally. The source candidate
+addresses animated unchanged-yard cut cancellation, aim frozen behind pending
+laser admission, wasted finite-cut history, grounded control lock, discarded wreck
+momentum, high-energy ram depth, excessive full-anatomy gore and casualty/blood
+presentation. The owning topic documents record the changed contracts. Source and
+diff inspection only: no tests, compilation, staging, launch or player SAVE load.
+Installed gameplay/FPS and abrupt tiny-salvo sinking remain unresolved; no concrete
+script double-damage defect was found. The installed/public ZIP batch stays23ac5eb.
+
 ### October16 — player rejects shore recovery and live laser behavior
 
 The player reports hulls sticking to the coast, a laser that locks to an intangible

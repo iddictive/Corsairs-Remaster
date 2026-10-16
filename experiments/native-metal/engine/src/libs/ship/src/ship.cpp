@@ -636,17 +636,29 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
 {
     if (!pTPOld && !pTPNew)
         return false;
-    // Execute anchors a sinking hull to vOldPos/vOldAng. Predict that same
-    // pose, rather than translation/yaw from impulses it will later discard.
+    // Wreck prediction uses the same passive motion as Execute, without
+    // consuming the saved momentum or moving the death-pose anchor.
     if (isDead())
     {
         TOUCH_PARAMS wreck{};
         wreck.vPos = State.vPos;
         wreck.vAng = State.vAng;
+        wreck.vSpeed = State.vSpeed;
+        wreck.vRotate = State.vRotate;
         wreck.vPos.x += fXOffset;
         wreck.vPos.z += fZOffset;
         if (pTPOld) *pTPOld = wreck;
-        if (pTPNew) *pTPNew = wreck;
+        if (pTPNew)
+        {
+            const auto oldState = State;
+            Move(DeltaTime, true);
+            wreck.vPos = State.vPos + CVECTOR(fXOffset, 0.f, fZOffset);
+            wreck.vAng = State.vAng;
+            wreck.vSpeed = State.vSpeed;
+            wreck.vRotate = State.vRotate;
+            *pTPNew = wreck;
+            State = oldState;
+        }
         return true;
     }
     const auto old_state = State;
@@ -714,6 +726,44 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
 BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
 {
     const auto dtime = DELTA_TIME(DeltaTime);
+    if (isDead())
+    {
+        // Keep wreck momentum in the existing saved native state. Integrate
+        // passive drag exactly so a long frame cannot reverse or add energy.
+        const float seconds = std::max(0.f, dtime);
+        const float drag = std::exp(-.3f * seconds), yawDrag = std::exp(-.6f * seconds);
+        const float travel = -std::expm1(-.3f * seconds) / .3f;
+        const float turn = State.vRotate.y * -std::expm1(-.6f * seconds) / .6f;
+        const auto before = State;
+        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
+        State.vPos.x += KNOTS2METERS(State.vSpeed.x * c + State.vSpeed.z * s) * travel;
+        State.vPos.z += KNOTS2METERS(State.vSpeed.z * c - State.vSpeed.x * s) * travel;
+        State.vAng.y += turn;
+        State.vSpeed.x *= drag;
+        State.vSpeed.z *= drag;
+        RotateAroundY(State.vSpeed.x, State.vSpeed.z, std::cos(-turn), std::sin(-turn));
+        State.vRotate.y *= yawDrag;
+        // TOUCH excludes wreck/island pairs. Keep their new passive motion
+        // from driving farther into terrain, without an outward kick.
+        const bool moved = State.vPos.x != before.vPos.x || State.vPos.z != before.vPos.z ||
+            State.vAng.y != before.vAng.y;
+        if (moved && bKeelContour && GroundPenetration(State) > GroundPenetration(before) + .0001f)
+        {
+            State.vPos = before.vPos;
+            State.vAng.y = before.vAng.y;
+            State.vSpeed.x = State.vSpeed.z = State.vRotate.y = 0.f;
+        }
+        if (!bCollision)
+        {
+            vOldPos.x = State.vPos.x;
+            vOldPos.z = State.vPos.z;
+            vOldAng.y = State.vAng.y;
+            vPos.x = State.vPos.x;
+            vPos.z = State.vPos.z;
+            vAng.y = State.vAng.y;
+        }
+        return true;
+    }
     // A beached hull keeps its terrain support after mode exit and save/load.
     // Elevated saved poses are the existing owner; no new save fields are needed.
     if (!bDead && !bSetFixed && pSea && !phonkFlight.airborne)
@@ -724,14 +774,9 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
             ground > water && (bLandContact || std::abs(State.vPos.y - ground) < .05f))
         {
             State.vPos.y = ground;
-            State.vSpeed.x = State.vSpeed.z = State.vRotate.y = 0.f;
-            phonkDrift.reset();
-            phonkFlight.reset();
             bLandContact = true;
-            if (!bCollision) bGroundMoveBlocked = true;
-            return true;
         }
-        bLandContact = false;
+        else bLandContact = false;
     }
     ApplyStrength(dtime, bCollision);
     const auto waterSpeed = phonkFlight.airborne ? CVECTOR(0.f) :
@@ -765,7 +810,7 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
         phonkDrift.waterX = waterSpeed.x * c + waterSpeed.z * s;
         phonkDrift.waterZ = waterSpeed.z * c - waterSpeed.x * s;
     }
-    if (!bCollision && !isDead() && !phonkMoving)
+    if (!bCollision && !isDead() && !phonkMoving && !bLandContact)
     {
         State.vAng = ShipRocking(dtime);
     }
@@ -823,6 +868,15 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
         phonkDrift.reset();
         phonkFlight.reset();
         if (wasAirborne && pSea) State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+    }
+    if (bLandContact && pSea)
+    {
+        // Support constrains height, not the controls needed to slide free.
+        // Uphill translation was rejected above; resample the accepted pose.
+        float ground;
+        const float water = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+        bLandContact = LandSupport(State, ground) && ground > water;
+        if (bLandContact) State.vPos.y = ground;
     }
     State.vRotate.y -= eventYaw;
     if (PhonkMotionAllowed() && pSea)
@@ -1073,6 +1127,15 @@ void SHIP::SetDead()
 
         vOldAng = State.vAng;
         vOldPos = State.vPos;
+
+        // Phonk stores magnitude in State and its actual bearing in world
+        // drift. Transfer that bearing before retiring the live motion owner.
+        if (PhonkActive() && phonkDrift.initialized)
+        {
+            const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
+            State.vSpeed.x = phonkDrift.worldX * c - phonkDrift.worldZ * s;
+            State.vSpeed.z = phonkDrift.worldX * s + phonkDrift.worldZ * c;
+        }
 
         auto *pASinkSpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.sink.speed");
 

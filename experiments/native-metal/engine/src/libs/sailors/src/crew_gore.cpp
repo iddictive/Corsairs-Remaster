@@ -287,25 +287,17 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
     const auto bounds = storm_ship_laser::bounds(source);
     const auto size = bounds.hi - bounds.lo;
     if (size.y < .1f || size.x < .05f) return false;
-    auto head = split(source, {0, 1, 0}, bounds.lo.y + size.y * .82f);
-    auto legs = split(head.first, {0, 1, 0}, bounds.lo.y + size.y * .48f);
-    auto feet = split(legs.first, {1, 0, 0}, (bounds.lo.x + bounds.hi.x) * .5f);
-    const float centerX = (bounds.lo.x + bounds.hi.x) * .5f;
-    auto rightArm = split(legs.second, {1, 0, 0}, centerX + size.x * .2f);
-    auto leftArm = split(rightArm.first, {-1, 0, 0}, -centerX + size.x * .2f);
     std::vector<Mesh> pieces;
-    pieces.push_back(std::move(head.second));
-    pieces.push_back(std::move(feet.first));
-    pieces.push_back(std::move(feet.second));
-    pieces.push_back(std::move(rightArm.second));
-    pieces.push_back(std::move(leftArm.second));
-    if (laser) pieces.push_back(std::move(leftArm.first));
-    else
+    // One casualty leaves one body. Occasional blast dismemberment and laser
+    // cuts separate it once, retaining both complementary parts exactly once.
+    if (laser || randomUnit(impl_->seed) < .2f)
     {
-        auto torso = split(leftArm.first, {0, 1, 0}, bounds.lo.y + size.y * .65f);
-        pieces.push_back(std::move(torso.first));
-        pieces.push_back(std::move(torso.second));
+        const float cutHeight = laser ? .48f : .82f;
+        auto body = split(source, {0, 1, 0}, bounds.lo.y + size.y * cutHeight);
+        pieces.push_back(std::move(body.first));
+        pieces.push_back(std::move(body.second));
     }
+    else pieces.push_back(std::move(source));
     auto flesh = std::make_shared<Material>();
     flesh->renderer = &renderer;
     flesh->source.diffuse = .85f;
@@ -324,8 +316,9 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
         fragment.position = modelWorld * vector(properties.centroid);
         const auto radial = normalized(vector(fragment.position - modelWorld.Pos()) + Vec3{0, .2f, 0});
         const auto random = [&]() { return randomUnit(impl_->seed); };
-        fragment.velocity = impulse + vector(radial) * (1.f + 3.f * random());
-        fragment.velocity.y += 2.5f + 3.f * random();
+        // The caller already supplies blast direction and upward lift. Retain
+        // a fraction of it for body parts, with only local piece separation.
+        fragment.velocity = impulse * .25f + vector(radial) * (.25f + .75f * random());
         fragment.spin = CVECTOR(random() - .5f, random() - .5f, random() - .5f) * 12.f;
         fragment.life = 9.f + 4.f * random();
         for (const auto &object : piece)
@@ -348,7 +341,7 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
         }
         captured.push_back(std::move(fragment));
     }
-    if (captured.size() < 2) return false;
+    if (captured.empty()) return false;
     // Whole captures replace the oldest fragments; no partial man on overflow.
     const size_t overflow = impl_->fragments.size() + captured.size() > maxFragments ?
         impl_->fragments.size() + captured.size() - maxFragments : 0;

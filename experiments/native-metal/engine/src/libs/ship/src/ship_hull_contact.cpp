@@ -102,9 +102,21 @@ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float delta
         return;
     if (isDead())
     {
+        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
+        State.vSpeed.x += METERS2KNOTS(deltaWorldVelocity.x * c - deltaWorldVelocity.z * s);
+        State.vSpeed.z += METERS2KNOTS(deltaWorldVelocity.x * s + deltaWorldVelocity.z * c);
+        State.vRotate.y += deltaYawVelocity;
         if (!milliseconds) return;
-        const auto position = GetPos();
-        ApplyWreckContact(CVECTOR(endWorldPosition.x - position.x, 0.f, endWorldPosition.z - position.z));
+        TOUCH_PARAMS predicted{};
+        TouchMove(milliseconds, nullptr, &predicted);
+        const float turn = endYaw - predicted.vAng.y;
+        RotateAroundY(State.vSpeed.x, State.vSpeed.z, std::cos(-turn), std::sin(-turn));
+        State.vAng.y += turn;
+        vOldAng.y = State.vAng.y;
+        vAng.y = State.vAng.y;
+        TouchMove(milliseconds, nullptr, &predicted);
+        ApplyWreckContact(CVECTOR(endWorldPosition.x - predicted.vPos.x, 0.f,
+                                 endWorldPosition.z - predicted.vPos.z));
         return;
     }
 

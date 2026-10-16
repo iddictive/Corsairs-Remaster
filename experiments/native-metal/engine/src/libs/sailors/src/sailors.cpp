@@ -1398,8 +1398,7 @@ void ShipWalk::FleeImpact(ShipMan &man, const CVECTOR &hit, float seconds)
     }
 }
 
-void ShipWalk::KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
-                       CrewGore &gore, VDX9RENDER &renderer)
+void ShipWalk::BleedMan(ShipMan &man, const CVECTOR &impulse)
 {
     auto *model = static_cast<MODEL *>(core.GetEntityPointer(man.modelID));
     if (!model) return;
@@ -1435,6 +1434,14 @@ void ShipWalk::KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
                 direction.x, direction.y, direction.z);
         }
     }
+}
+
+void ShipWalk::KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
+                       CrewGore &gore, VDX9RENDER &renderer)
+{
+    auto *model = static_cast<MODEL *>(core.GetEntityPointer(man.modelID));
+    if (!model) return;
+    BleedMan(man, impulse);
     ReleaseWork(man);
     if (gore.capture(*model, renderer, impulse, laser))
     {
@@ -1455,16 +1462,29 @@ void ShipWalk::KillMan(ShipMan &man, const CVECTOR &impulse, bool laser,
     }
 }
 
-void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse,
+void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse, float casualtyFraction,
                          CrewGore &gore, VDX9RENDER &renderer)
 {
     if (!CrewCombatEnabled(ship) || !shipModel || !std::isfinite(radius) || !std::isfinite(lethalRadius) ||
-        !std::isfinite(impulse) || radius <= 0.f || lethalRadius < 0.f || impulse <= 0.f) return;
+        !std::isfinite(impulse) || !std::isfinite(casualtyFraction) ||
+        radius <= 0.f || lethalRadius < 0.f || impulse <= 0.f) return;
     radius = std::min(radius, 16.f);
     lethalRadius = std::min(lethalRadius, radius);
     impulse = std::min(impulse, 30.f);
+    const auto visibleCrew = std::count_if(shipMan.begin(), shipMan.end(), [](const ShipMan &man) {
+        return man.mode != MAN_JUMP && man.mode != MAN_SWIM && man.mode != MAN_OFF && !man.inWater;
+    });
+    // Low-poly sailors represent the real crew, not one person each. Consume
+    // this hit's whole quota even when no body is near the actual impact.
+    const float quota = float(visibleCrew) * std::clamp(casualtyFraction, 0.f, 1.f) + casualtyVisualRemainder;
+    int deathsRemaining = int(quota);
+    casualtyVisualRemainder = quota - float(deathsRemaining);
     CVECTOR localHit;
     shipModel->mtx.MulToInv(v, localHit);
+    ShipMan *wounded = nullptr;
+    CVECTOR woundedImpulse(0.f);
+    float woundedDistance = lethalRadius;
+    bool deathEmitted = false;
     for (auto &man : shipMan)
     {
         if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF || man.inWater) continue;
@@ -1472,13 +1492,25 @@ void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, flo
         const CVECTOR delta = body - v;
         const float distance = std::sqrt(~delta);
         if (!std::isfinite(distance) || distance > radius) continue;
-        if (distance <= lethalRadius)
+        const CVECTOR outward = distance > .01f ? delta * (1.f / distance) : CVECTOR(1.f, 0.f, 0.f);
+        const CVECTOR bodyImpulse = outward * impulse + CVECTOR(0.f, impulse * .55f, 0.f);
+        if (casualtyFraction > 0.f && distance <= woundedDistance && ship->IsHullPositionRetained(man.pos + man.spos))
         {
-            const CVECTOR outward = distance > .01f ? delta * (1.f / distance) : CVECTOR(1.f, 0.f, 0.f);
-            KillMan(man, outward * impulse + CVECTOR(0.f, impulse * .55f, 0.f), false, gore, renderer);
+            wounded = &man;
+            woundedDistance = distance;
+            woundedImpulse = bodyImpulse;
+        }
+        if (distance <= lethalRadius && deathsRemaining > 0)
+        {
+            KillMan(man, bodyImpulse, false, gore, renderer);
+            --deathsRemaining;
+            deathEmitted = true;
         }
         else FleeImpact(man, localHit, 2.f + 2.f * (1.f - distance / radius));
     }
+    // A fractional real casualty can bleed without deleting a whole deck
+    // sailor. A represented death already emitted this hit's blood feedback.
+    if (!deathEmitted && wounded) BleedMan(*wounded, woundedImpulse);
 }
 
 void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
@@ -1494,7 +1526,7 @@ void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
         // Mode 2's distance slot identifies the just-committed finite record;
         // modes 0/1 retain the original message arity and plane semantics.
         auto *saved = ship->GetACharacter()->FindAClass(ship->GetACharacter(), "Ship.PhonkLaserCuts");
-        auto *entry = saved && distance >= 0.f && distance < storm_hull_damage::MaxSplitPlanes ?
+        auto *entry = saved && distance >= 0.f && distance < storm_hull_damage::MaxCutRecords ?
             saved->GetAttributeClass("c" + std::to_string(unsigned(distance))) : nullptr;
         if (!entry) return;
         if (!storm_hull_damage::readBeamSamples(entry, samples) || samples.empty()) return;
@@ -1817,14 +1849,15 @@ uint64_t Sailors::ProcessMessage(MESSAGE &message)
                 const auto y = message.Float();
                 const auto z = message.Float();
 
-                float radius = 4.f, lethalRadius = 1.f, impulse = 10.f;
-                if (message.GetFormat() == "laffffff")
+                float radius = 4.f, lethalRadius = 1.f, impulse = 10.f, casualtyFraction = 1.f;
+                if (message.GetFormat() == "laffffff" || message.GetFormat() == "lafffffff")
                 {
                     radius = message.Float();
                     lethalRadius = message.Float();
                     impulse = message.Float();
+                    if (message.GetFormat() == "lafffffff") casualtyFraction = message.Float();
                 }
-                walk->OnHullHit(CVECTOR(x, y, z), radius, lethalRadius, impulse, gore, *rs);
+                walk->OnHullHit(CVECTOR(x, y, z), radius, lethalRadius, impulse, casualtyFraction, gore, *rs);
             }
         }
 

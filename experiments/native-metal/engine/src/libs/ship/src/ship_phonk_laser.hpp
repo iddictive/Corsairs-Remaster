@@ -145,5 +145,5 @@ struct LaserState
 };
 constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .20f;
 constexpr float laserBeamLife = .10f;
-constexpr unsigned maxLaserCuts = storm_hull_damage::MaxSplitPlanes;
+constexpr unsigned maxLaserCuts = storm_hull_damage::MaxCutRecords;
 }

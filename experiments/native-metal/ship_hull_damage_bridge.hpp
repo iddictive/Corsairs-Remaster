@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstddef>
 #include <cmath>
 #include <array>
 #include <string>
@@ -22,6 +23,20 @@ struct BeamSample {
     float radius=.16f, depth=0.f;
 };
 inline constexpr unsigned MaxBeamSamples=16;
+// Keep the former 32x16 finite-sample ceiling, without charging a one-sample
+// dose as a whole sixteen-sample record. Legacy split planes keep their32 cap.
+inline constexpr unsigned MaxCutRecords=MaxSplitPlanes*MaxBeamSamples;
+inline unsigned cutRecordCost(std::size_t samples) {
+    return samples ? (samples<=MaxBeamSamples ? unsigned(samples) : MaxCutRecords+1) : MaxBeamSamples;
+}
+template<class Planes> unsigned cutHistoryCost(const Planes&planes) {
+    unsigned cost=0;
+    for(const auto&plane:planes){cost+=cutRecordCost(plane.beams.size());if(cost>MaxCutRecords)return MaxCutRecords+1;}
+    return cost;
+}
+template<class Planes> bool canAppendCut(const Planes&planes,std::size_t samples) {
+    return planes.size()<MaxCutRecords&&cutHistoryCost(planes)+cutRecordCost(samples)<=MaxCutRecords;
+}
 // Admission limits are physical metres, before receiver-local conversion.
 // Geometry validates local positivity separately: a scaled node can require
 // local dimensions outside these physical input limits.
