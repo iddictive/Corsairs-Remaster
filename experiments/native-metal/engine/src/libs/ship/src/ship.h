@@ -348,6 +348,7 @@ class SHIP : public SHIP_BASE
 
     // inherit functions CANNON_TRACE_BASE
     float Cannon_Trace(int32_t iBallOwner, const CVECTOR &src, const CVECTOR &dst) override;
+    bool HasCannonContact(const CVECTOR &src, const CVECTOR &dst, float radius) override;
     void SetCannonTraceRadius(float fRadius) override
     {
         fCannonTraceRadius = fRadius;

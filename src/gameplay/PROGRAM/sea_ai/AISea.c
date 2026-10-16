@@ -305,7 +305,7 @@ int SeaAI_GetRelation(int iCharacterIndex1, int iCharacterIndex2)
 
 void UpdateRelations()
 {
-	if (bSeaActive)
+	if (bSeaActive || Port_IsResident())
 	{
 		SendMessage(&AISea, "l", AI_MESSAGE_UPDATE_RELATIONS);
 		// не было в ПКМ, помню даёт  доп тормоза, если частить RefreshBattleInterface();

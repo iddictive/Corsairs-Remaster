@@ -3,6 +3,7 @@
 #include <thread>
 
 #include "entity.h"
+#include "location.h"
 #include "fader.h"
 #include "core.h"
 #include "string_compare.hpp"
@@ -200,13 +201,7 @@ uint32_t slNativeFindLaodLocation(VS_STACK *pS)
     if (!pReturn)
         return IFUNCRESULT_FAILED;
     // Looking for a location
-    const auto loc = core.GetEntityId("location");
-    if (!loc)
-    {
-        pReturn->Set(-1);
-        return IFUNCRESULT_OK;
-    }
-    Entity *l = core.GetEntityPointer(loc);
+    Location *l = Location::ActiveContext();
     if (!l || !l->AttributesPointer)
     {
         pReturn->Set(-1);

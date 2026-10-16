@@ -11,6 +11,7 @@
 #include "character.h"
 #include "characters_groups.h"
 #include "lights.h"
+#include "port_entity_roles.hpp"
 
 #include "debug-trap.h"
 #include "geometry.h"
@@ -229,27 +230,27 @@ void Character::Detector::Check(float dltTime, Character *ch)
                 if (lastEventTime > 1.0f)
                 {
                     lastEventTime = 0.0f;
-                    core.Event("Location_CharacterInLocator", "iissff", location->GetId(), ch->GetId(),
+                    ch->ScriptEvent("Location_CharacterInLocator", "iissff", location->GetId(), ch->GetId(),
                                la->GetGroupName(), la->Name(lastLocator), dist, timeInLocator);
                 }
                 else
                     lastEventTime += dltTime;
                 return;
             }
-            core.Event("Location_CharacterExitFromLocator", "iissff", location->GetId(), ch->GetId(),
+            ch->ScriptEvent("Location_CharacterExitFromLocator", "iissff", location->GetId(), ch->GetId(),
                        la->GetGroupName(), la->Name(lastLocator), dist, timeInLocator);
         }
         timeInLocator = 0.0f;
         lastEventTime = 0.0f;
         lastLocator = lIndex;
-        core.Event("Location_CharacterEntryToLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
+        ch->ScriptEvent("Location_CharacterEntryToLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
                    la->Name(lastLocator), dist);
     }
     else
     {
         if (lastLocator >= 0)
         {
-            core.Event("Location_CharacterExitFromLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
+            ch->ScriptEvent("Location_CharacterExitFromLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
                        la->Name(lastLocator), timeInLocator + dltTime);
             lastLocator = -1;
         }
@@ -262,7 +263,7 @@ void Character::Detector::Exit(Character *ch)
 
     if (lastLocator >= 0)
     {
-        core.Event("Location_CharacterExitFromLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
+        ch->ScriptEvent("Location_CharacterExitFromLocator", "iissf", location->GetId(), ch->GetId(), la->GetGroupName(),
                    la->Name(lastLocator), timeInLocator);
     }
     timeInLocator = 0.0f;
@@ -672,7 +673,7 @@ bool Character::Init()
     auto *const location = GetLocation();
     if (!location)
         return false;
-    effects = core.GetEntityId("LocationEffects");
+    effects = location->EffectsId();
     soundService = static_cast<VSoundService *>(core.GetService("SoundService"));
     // register our appearance in the location
     location->supervisor.AddCharacter(this);
@@ -702,6 +703,13 @@ uint64_t Character::ProcessMessage(MESSAGE &message)
         return zPlaySound(message);
     }
     const auto messageID = message.Long();
+    if (storm::port::IsShipRoleMessage(messageID))
+    {
+        auto *ship = storm::port::FindShipRole(AttributesPointer);
+        if (!ship) return 0;
+        message.Move2Start();
+        return ship->ProcessMessage(message);
+    }
     if (messageID == MSG_CHARACTER_EX_MSG)
     {
         return zExMessage(message);
@@ -817,10 +825,14 @@ uint64_t Character::ProcessMessage(MESSAGE &message)
     case MSG_CHARACTER_HEADLOOK_CAMERA:
         curHeadLookState = HeadLookState::camera;
         return 1;
-    case MSG_CHARACTER_HEADLOOK_CHARACTER:
+    case MSG_CHARACTER_HEADLOOK_CHARACTER: {
+        const auto target = message.EntityID();
+        if (!ResolveScriptTarget(target, GetId()))
+            return 0;
+        headLookChrTarget = target;
         curHeadLookState = HeadLookState::character;
-        headLookChrTarget = message.EntityID();
         return 1;
+    }
     case MSG_CHARACTER_HEADLOOK_POINT: {
         curHeadLookState = HeadLookState::point;
 
@@ -1066,8 +1078,11 @@ void Character::SetSignModel()
 
     if (gs)
         gs->SetTexturePath("");
-    core.AddToLayer(REALIZE, sign, 20000);
-    core.AddToLayer(SUN_TRACE, sign, 10);
+    if (auto *context = GetLocation(); context && context->IsContextVisible())
+    {
+        core.AddToLayer(REALIZE, sign, 20000);
+        core.AddToLayer(SUN_TRACE, sign, 10);
+    }
 }
 
 void Character::SetSignTechnique()
@@ -1410,7 +1425,7 @@ bool Character::SetFightMode(bool _isFight, bool isPlayAni)
 bool Character::IsFightEnable() const
 {
     // Ask the script about the possibility of shooting
-    VDATA *vd = core.Event("Location_CharacterIsFight", "i", GetId());
+    VDATA *vd = ScriptEvent("Location_CharacterIsFight", "i", GetId());
     int32_t res = 0;
     if (vd && vd->Get(res))
     {
@@ -1858,7 +1873,7 @@ bool Character::IsGunLoad() const
     if (!isFight || liveValue < 0 || deadName)
         return false;
     // Ask the script about the possibility of shooting
-    VDATA *vd = core.Event("Location_CharacterIsFire", "i", GetId());
+    VDATA *vd = ScriptEvent("Location_CharacterIsFire", "i", GetId());
     int32_t res = 0;
     if (vd && vd->Get(res))
     {
@@ -2470,7 +2485,7 @@ void Character::Update(float dltTime)
             {
                 tuner.alpha = 1.0f;
                 liveValue = 0.0f;
-                core.Event("Location_CharacterEntryToLocation", "e", GetId());
+                ScriptEvent("Location_CharacterEntryToLocation", "e", GetId());
             }
         }
         else
@@ -2480,11 +2495,11 @@ void Character::Update(float dltTime)
                 tuner.alpha = 0.0f;
                 if (deadName)
                 {
-                    core.Event("Location_CharacterDead", "e", GetId());
+                    ScriptEvent("Location_CharacterDead", "e", GetId());
                 }
                 else
                 {
-                    core.Event("Location_CharacterExitFromLocation", "e", GetId());
+                    ScriptEvent("Location_CharacterExitFromLocation", "e", GetId());
                 }
                 core.EraseEntity(GetId());
             }
@@ -2577,7 +2592,7 @@ void Character::Update(float dltTime)
 
             if (curHeadLookState == HeadLookState::character)
             {
-                auto *targetChrPtr = static_cast<Character *>(core.GetEntityPointer(headLookChrTarget));
+                auto *targetChrPtr = ResolveScriptTarget(headLookChrTarget, GetId());
 
                 if (targetChrPtr)
                 {
@@ -2713,7 +2728,7 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
         {
             animation->Player(0).Pause();
             animation->Player(0).SetPosition(1.0f);
-            core.Event("Location_Character_Dead", "i", GetId());
+            ScriptEvent("Location_Character_Dead", "i", GetId());
         }
         else if (PriorityActionIsJump())
         {
@@ -2745,7 +2760,7 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
     {
         if (!storm::iEquals(actionName, userIdle.name))
             return;
-        core.Event("Location_Character_EndAction", "i", GetId());
+        ScriptEvent("Location_Character_EndAction", "i", GetId());
     }
 }
 
@@ -2894,7 +2909,7 @@ void Character::ActionEvent(Animation *animation, int32_t playerIndex, const cha
                         nIdx = atoi(&alliace[5]);
                 }
                 if (pcActionName)
-                    core.Event("Location_CharacterItemAction", "isl", GetId(), pcActionName, nIdx);
+                    ScriptEvent("Location_CharacterItemAction", "isl", GetId(), pcActionName, nIdx);
             }
             else if (priorityAction.name && storm::iEquals(actionName, priorityAction.name))
             {
@@ -2957,7 +2972,7 @@ void Character::ActionEvent(Animation *animation, int32_t playerIndex, const cha
                                     chr->Hit(fgt_hit_fire);
                                 }
                             }
-                            core.Event("Location_CharacterFire", "iifl", GetId(), enemy, kDist,
+                            ScriptEvent("Location_CharacterFire", "iifl", GetId(), enemy, kDist,
                                        chr != nullptr && isEnemyHitByGunfire);
                         }
                     }
@@ -3176,6 +3191,7 @@ void Character::ReleaseSound(int32_t id)
 
 bool Character::zLoadModel(MESSAGE &message)
 {
+    corpseGoreSuppressed = false;
     char mpath[300];
     core.EraseEntity(shadow);
     core.EraseEntity(waterrings);
@@ -3229,11 +3245,14 @@ bool Character::zLoadModel(MESSAGE &message)
     if (shadow = core.CreateEntity("shadow"))
     {
         core.Send_Message(shadow, "li", 0, mdl);
+        if (auto *context = GetLocation(); context && context->UsesContextReceivers())
+            core.Send_Message(shadow, "li", MSG_SHADOW_SET_LOCATION, context->GetId());
     }
     else
     {
         core.Trace("Shadow not created!");
     }
+    if (auto *context = GetLocation(); context && !context->IsContextVisible()) SetContextVisible(false);
     if (!core.GetEntityId("waterrings"))
     {
         waterrings = core.CreateEntity("waterrings");
@@ -3407,7 +3426,7 @@ bool Character::zTurnByLoc(MESSAGE &message)
 bool Character::zTurnByChr(MESSAGE &message)
 {
     const entid_t chr = message.EntityID();
-    auto *c = static_cast<Character *>(core.GetEntityPointer(chr));
+    auto *c = ResolveScriptTarget(chr, GetId());
     if (!c)
         return false;
     Turn(c->curPos.x - curPos.x, c->curPos.z - curPos.z);
@@ -3426,7 +3445,7 @@ bool Character::zTurnByPoint(MESSAGE &message)
 bool Character::zDistByCharacter(MESSAGE &message, bool is2D)
 {
     const entid_t chr = message.EntityID();
-    auto *c = static_cast<Character *>(core.GetEntityPointer(chr));
+    auto *c = ResolveScriptTarget(chr, GetId());
     if (!c)
         return false;
     const float dx = curPos.x - c->curPos.x;
@@ -5135,7 +5154,7 @@ inline void Character::CheckAttackHit(bool isGunBlade)
                                                                                   fc.c->blockStart)
                                 .count();
             }
-            core.Event("Location_CharacterAttack", "iislll", GetId(), fc.c->GetId(), aname,
+            ScriptEvent("Location_CharacterAttack", "iislll", GetId(), fc.c->GetId(), aname,
                        static_cast<int32_t>(isBlocked), static_cast<int32_t>(isGunBlade), blockTime);
             // boal 09/12/06 energy consumption after impact -->
             if (isUseEnergy && fgtCurType != fgt_attack_feintc)
@@ -5291,7 +5310,7 @@ void Character::FindNearCharacters(MESSAGE &message)
 // Check visibility
 bool Character::CharactersVisibleTest(MESSAGE &message)
 {
-    auto *chr = static_cast<Character *>(core.GetEntityPointer(message.EntityID()));
+    auto *chr = ResolveScriptTarget(message.EntityID(), GetId());
     if (!chr)
         return false;
     return VisibleTest(chr);
@@ -5327,7 +5346,7 @@ bool Character::VisibleTest(Character *chr)
 // Update weapon state
 void Character::UpdateWeapons()
 {
-    if (isFightWOWps)
+    if (isFightWOWps || (GetLocation() && !GetLocation()->IsContextVisible()))
     {
         core.RemoveFromLayer(REALIZE, blade);
     }
@@ -5532,15 +5551,84 @@ int32_t Character::GetRandomIndexByObstacle(ObstacleZone *pZone, int32_t num)
     return -1;
 }
 
+Character *Character::ResolveScriptTarget(entid_t target, entid_t source)
+{
+    // Script objects can currently name a ship; erased entities also remain
+    // allocated until the end of the frame. Validate both before any downcast.
+    auto *character = dynamic_cast<Character *>(core.GetEntityPointerSafe(target));
+    if (!character || !source)
+        return character;
+    auto *origin = dynamic_cast<Character *>(core.GetEntityPointerSafe(source));
+    auto *location = origin ? origin->GetLocation() : nullptr;
+    if (!location || core.GetEntityPointerSafe(location->GetId()) != location ||
+        character->GetLocation() != location)
+        return nullptr;
+    return character;
+}
+
 Location *Character::GetLocation()
 {
     auto *const location = static_cast<Location *>(core.GetEntityPointer(loc_id));
 
     if (location)
         return location;
+    if (loc_id)
+        return nullptr; // A retired binding must never attach to another town.
 
-    loc_id = core.GetEntityId("location");
-    return static_cast<Location *>(core.GetEntityPointer(loc_id));
+    // Bind once at login. A later active-context switch must not move the
+    // character out from under its supervisor (or steal its light handles).
+    const char *logicalId = AttributesPointer ? AttributesPointer->GetAttribute("location") : nullptr;
+    auto *resolved = Location::ResolveContext(logicalId);
+    loc_id = resolved ? resolved->GetId() : entid_t{};
+    return resolved;
+}
+
+void Character::SetContextVisible(bool visible)
+{
+    if (auto *context = GetLocation(); context && context->UsesContextReceivers())
+        core.Send_Message(shadow, "li", MSG_SHADOW_SET_LOCATION, context->GetId());
+    const auto layer = [&](entid_t id, int priority) {
+        if (visible) core.AddToLayer(REALIZE, id, priority);
+        else core.RemoveFromLayer(REALIZE, id);
+    };
+    const bool showBody = visible && !corpseGoreSuppressed;
+    if (showBody)
+    {
+        core.AddToLayer(REALIZE, mdl, 20);
+        core.AddToLayer(SUN_TRACE, mdl, 10);
+        core.AddToLayer(REALIZE, shadow, 900);
+    }
+    else
+    {
+        core.RemoveFromLayer(REALIZE, mdl);
+        core.RemoveFromLayer(SUN_TRACE, mdl);
+        core.RemoveFromLayer(REALIZE, shadow);
+    }
+    layer(sign, 20000);
+    if (visible) core.AddToLayer(SUN_TRACE, sign, 10);
+    else core.RemoveFromLayer(SUN_TRACE, sign);
+    if (visible) UpdateWeapons();
+    else core.RemoveFromLayer(REALIZE, blade);
+}
+
+bool Character::SetCorpseGorePresentation(bool active)
+{
+    if (active && (!IsDead() || !Model())) return false;
+    corpseGoreSuppressed = active;
+    auto *context = GetLocation();
+    if (!active && context && context->IsContextVisible())
+    {
+        core.AddToLayer(REALIZE, mdl, 20);
+        core.AddToLayer(SUN_TRACE, mdl, 10);
+        core.AddToLayer(REALIZE, shadow, 900);
+    }
+    else
+    {
+        core.RemoveFromLayer(REALIZE, mdl);
+        core.RemoveFromLayer(SUN_TRACE, mdl);
+        core.RemoveFromLayer(REALIZE, shadow);
+    }
+    return true;
 }
 
 bool Character::CheckShotOnlyEnemyTest() const

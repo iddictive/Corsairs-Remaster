@@ -281,7 +281,7 @@ void NPCharacter::Update(float dltTime)
         if (!id)
             id = "<none>";
         const char *fid = nullptr;
-        auto *chr = static_cast<Character *>(core.GetEntityPointer(task.target));
+        auto *chr = ResolveScriptTarget(task.target, GetId());
         if (chr)
         {
             if (chr->AttributesPointer)
@@ -416,6 +416,14 @@ bool NPCharacter::SetNewTask(NPCTask tsk, MESSAGE &message)
             return true;
     }
 
+    entid_t target{};
+    if (tsk == npct_followcharacter || tsk == npct_fight || tsk == npct_escape)
+    {
+        target = message.EntityID();
+        if (!dynamic_cast<NPCharacter *>(ResolveScriptTarget(target, GetId())))
+            return false;
+    }
+
     task.task = tsk;
     lastSetTask = tsk;
     memset(&task.target, 0, sizeof(task.target));
@@ -445,18 +453,16 @@ bool NPCharacter::SetNewTask(NPCTask tsk, MESSAGE &message)
         return CmdGotoPoint(task.to.x, task.to.y, task.to.z, NPC_STOP_GOTODIST * 2.0f);
     case npct_followcharacter:
         SetFightMode(false);
-        task.target = message.EntityID();
-        return InitFollowChartacter(task.target);
+        return InitFollowChartacter(target);
     case npct_fight:
-        task.target = message.EntityID();
-        return InitFightChartacter(task.target);
+        return InitFightChartacter(target);
     case npct_escape:
         if (bMusketerNoMove)
             return true;
         SetFightMode(false);
         SetRunMode(true);
-        task.target = message.EntityID();
-        return (core.GetEntityPointer(task.target) != nullptr);
+        task.target = target;
+        return true;
     case npct_dead:
         CmdStay();
         Dead();
@@ -467,18 +473,17 @@ bool NPCharacter::SetNewTask(NPCTask tsk, MESSAGE &message)
 
 bool NPCharacter::InitFollowChartacter(entid_t eid)
 {
+    if (!dynamic_cast<NPCharacter *>(ResolveScriptTarget(eid, GetId())))
+        return false;
     task.target = eid;
-    auto c = static_cast<Character *>(core.GetEntityPointer(eid));
-    if (c)
-    {
-        const char *id = c->AttributesPointer->GetAttribute("id");
-    }
     task.isFollowInit = 0;
     return true;
 }
 
 bool NPCharacter::InitFightChartacter(entid_t eid)
 {
+    if (!dynamic_cast<NPCharacter *>(ResolveScriptTarget(eid, GetId())))
+        return false;
     enemyFgtType = fgt_none;
     isFgtChanged = false;
     task.target = eid;
@@ -494,7 +499,7 @@ bool NPCharacter::InitFightChartacter(entid_t eid)
 void NPCharacter::UpdateFollowCharacter(float dltTime)
 {
     // goal
-    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
+    auto *c = dynamic_cast<NPCharacter *>(ResolveScriptTarget(task.target, GetId()));
     if (!c || c->deadName != nullptr || c->liveValue < 0)
     {
         const NPCTask tsk = task.task;
@@ -517,7 +522,7 @@ void NPCharacter::UpdateFollowCharacter(float dltTime)
         if (dst > NPC_START_DIST_NPC * NPC_START_DIST_NPC)
         {
             CmdGotoPoint(c->curPos.x, c->curPos.y, c->curPos.z, NPC_STOP_DIST_NPC, c->currentNode, false);
-            core.Event("Location_CharacterFollowGo", "si", GetTaskName(npct_followcharacter), GetId());
+            ScriptEvent("Location_CharacterFollowGo", "si", GetTaskName(npct_followcharacter), GetId());
         }
     }
     else
@@ -535,7 +540,7 @@ void NPCharacter::UpdateFollowCharacter(float dltTime)
 void NPCharacter::UpdateEscapeCharacter(float dltTime)
 {
     // The character we are running from
-    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
+    auto *c = dynamic_cast<NPCharacter *>(ResolveScriptTarget(task.target, GetId()));
     if (!c || c->deadName != nullptr || c->liveValue < 0)
     {
         const NPCTask tsk = task.task;
@@ -553,7 +558,7 @@ void NPCharacter::UpdateEscapeCharacter(float dltTime)
         task.task = npct_none;
         CmdStay();
         SetRunMode(false);
-        core.Event("Location_CharacterEscapeSlide", "si", GetTaskName(npct_escape), GetId());
+        ScriptEvent("Location_CharacterEscapeSlide", "si", GetTaskName(npct_escape), GetId());
     }
 }
 
@@ -564,7 +569,7 @@ void NPCharacter::UpdateFightCharacter(float dltTime)
 
     SetFightMode(true);
     // goal
-    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
+    auto *c = dynamic_cast<NPCharacter *>(ResolveScriptTarget(task.target, GetId()));
     if (!c || c->deadName != nullptr || c->liveValue < 0 || c == this)
     {
         const NPCTask tsk = task.task;
@@ -687,7 +692,7 @@ void NPCharacter::UpdateFightCharacter(float dltTime)
             {
                 // must come closer
                 CmdGotoPoint(c->curPos.x, c->curPos.y, c->curPos.z, fDistTo, c->currentNode, false);
-                core.Event("Location_CharacterFightGo", "si", GetTaskName(npct_followcharacter), GetId());
+                ScriptEvent("Location_CharacterFightGo", "si", GetTaskName(npct_followcharacter), GetId());
             } // else{
             // at war
             // }
@@ -1294,21 +1299,21 @@ void NPCharacter::EndGotoCommand()
         task.task = npct_none;
         CmdStay();
         SetRunMode(false);
-        core.Event("Location_CharacterEndTask", "si", GetTaskName(npct_gotopoint), GetId());
+        ScriptEvent("Location_CharacterEndTask", "si", GetTaskName(npct_gotopoint), GetId());
         return;
     case npct_runtopoint:
         task.task = npct_none;
         CmdStay();
         SetRunMode(false);
-        core.Event("Location_CharacterEndTask", "si", GetTaskName(npct_runtopoint), GetId());
+        ScriptEvent("Location_CharacterEndTask", "si", GetTaskName(npct_runtopoint), GetId());
         return;
     case npct_followcharacter:
         CmdStay();
-        core.Event("Location_CharacterFollowStay", "si", GetTaskName(npct_followcharacter), GetId());
+        ScriptEvent("Location_CharacterFollowStay", "si", GetTaskName(npct_followcharacter), GetId());
         return;
     case npct_fight:
         CmdStay();
-        core.Event("Location_CharacterFightStay", "si", GetTaskName(npct_followcharacter), GetId());
+        ScriptEvent("Location_CharacterFightStay", "si", GetTaskName(npct_followcharacter), GetId());
     }
 }
 
@@ -1318,13 +1323,13 @@ void NPCharacter::EndEscapeCommand()
     task.task = npct_stay;
     SetRunMode(false);
     CmdStay();
-    core.Event("Location_CharacterEndTask", "si", GetTaskName(npct_escape), GetId());
+    ScriptEvent("Location_CharacterEndTask", "si", GetTaskName(npct_escape), GetId());
 }
 
 // colliding with a character too often
 void NPCharacter::CollisionThreshold()
 {
-    core.Event("Location_CharacterColThreshold", "si", GetTaskName(task.task), GetId());
+    ScriptEvent("Location_CharacterColThreshold", "si", GetTaskName(task.task), GetId());
 }
 
 // Save task on stack
@@ -1380,7 +1385,7 @@ bool NPCharacter::PopTask()
 // Cannot further execute the command
 void NPCharacter::FailureCommand(NPCTask task) const
 {
-    core.Event("Location_CharacterTaskFailure", "si", GetTaskName(task), GetId());
+    ScriptEvent("Location_CharacterTaskFailure", "si", GetTaskName(task), GetId());
 }
 
 // Get task type by name

@@ -12,6 +12,7 @@ class Shadow : public Entity
     void FindPlanes(const CMatrix &view, const CMatrix &proj);
     PLANE planes[6];
     entid_t entity;
+    entid_t locationReceiver = 0;
     void Smooth();
     float shading;
     uint32_t blendValue;

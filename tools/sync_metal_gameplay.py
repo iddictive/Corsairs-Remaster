@@ -12,6 +12,7 @@ import gameplay_sources
 import metal_engine_source
 import prepare_native_movies
 import prepare_puerto_rico_city
+import prepare_port_rowboat
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -135,11 +136,16 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
         city.LAYOUT, city.MANIFEST, Path(city.__file__),
         Path(city.__file__).with_name("puerto_rico_city_blocks.py"))}
     city_specs = json.loads(recipe_inputs[city.MANIFEST])["files"]
+    rowboat = prepare_port_rowboat
+    recipe_inputs.update({path: path.read_bytes() for path in (
+        rowboat.LAYOUT, rowboat.MANIFEST, Path(rowboat.__file__))})
+    rowboat_specs = json.loads(recipe_inputs[rowboat.MANIFEST])["files"]
     if inputs is not None:
         inputs.update({path: (raw, raw) for path, raw in recipe_inputs.items()})
     for owner, prepared, specs in (
         ("src/assets/video/manifest.json", prepare_native_movies.prepared(), {}),
         ("src/assets/islands/puerto-rico/manifest.json", city.prepared(), city_specs),
+        ("src/assets/port-rowboat/manifest.json", rowboat.prepared(), rowboat_specs),
     ):
         for relative, source in prepared.items():
             target = state.path(relative)

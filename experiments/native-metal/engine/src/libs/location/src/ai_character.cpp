@@ -335,7 +335,7 @@ void AICharacter::CmdProcessGotoPoint(float dltTime)
                     }
                     else
                     {
-                        core.Event("Location_CharacterBusyPos", "ifff", GetId(), command.pnt.x, command.pnt.y,
+                        ScriptEvent("Location_CharacterBusyPos", "ifff", GetId(), command.pnt.x, command.pnt.y,
                                    command.pnt.z);
                         command.cnt++;
                         command.isWait = true;

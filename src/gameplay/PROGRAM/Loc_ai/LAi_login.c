@@ -1,10 +1,11 @@
 
-int LAi_loginedcharacters[MAX_CHARS_IN_LOC];
+int LAi_loginedcharacters[TOTAL_CHARACTERS];
 int LAi_numloginedcharacters = 0;
 
 
 bool LAi_CharacterLogin(aref chr, string locID)
 {
+	if (LocResidentSkipsCharacter(chr)) return false;
 	string func;
 	//Проверим адрес логина
 	if(CheckAttribute(chr, "location") == false)
@@ -80,7 +81,9 @@ bool LAi_CharacterLogin(aref chr, string locID)
 	if (!WdmMilitaryLandAdmitsCharacter(chr, locID)) return false;
 	if(!isLogin) return false;
 	//Если персонажей больше максимального числа, незагружаем больше
-	if(LAi_numloginedcharacters >= MAX_CHARS_IN_LOC)
+	int loginLimit = MAX_CHARS_IN_LOC;
+	if (Port_IsResident()) loginLimit = TOTAL_CHARACTERS;
+	if(LAi_numloginedcharacters >= loginLimit)
 	{
 		Trace("LAi_CharacterLogin -> many logined characters in location > " + MAX_CHARS_IN_LOC);
 		return false;
@@ -208,7 +211,7 @@ bool LAi_CharacterLogin(aref chr, string locID)
 void LAi_CharacterPostLogin(ref location)
 {
 	//Расставляем последователей
-	for(int i = 0; i < LAi_numloginedcharacters; i++)
+	for(int i = 0; !Port_PreparingContext() && i < LAi_numloginedcharacters; i++)
 	{
 		int idx = LAi_loginedcharacters[i];
 		if(idx >= 0)
@@ -237,7 +240,7 @@ void LAi_CharacterPostLogin(ref location)
 	}
 	if(!actLoadFlag)
 	{
-		QuestsCheck(); // в начале квесты, иначе нет перехвата
+		if (!Port_PreparingContext()) QuestsCheck(); // Arrival quests require the real land hero.
 		
 		//to_do: решить проблему с MAX_CHARS_IN_LOC
 		
@@ -299,7 +302,16 @@ bool LAi_CharacterLogoff(aref chr)
 
 void LAi_AddLoginedCharacter(aref chr)
 {
+	// Native SAVE restores the saved array length, including the old 64 slots.
+	// Keep one storage-capacity owner; growing it preserves existing entries.
+	if (GetArraySize(&LAi_loginedcharacters) < TOTAL_CHARACTERS)
+		SetArraySize(&LAi_loginedcharacters, TOTAL_CHARACTERS);
 	int index = sti(chr.index);
+	for (int existing = 0; existing < LAi_numloginedcharacters; existing++)
+	{
+		if (LAi_loginedcharacters[existing] == index) return;
+	}
+	if (LAi_numloginedcharacters >= TOTAL_CHARACTERS) return;
 	LAi_loginedcharacters[LAi_numloginedcharacters] = index;
 	LAi_numloginedcharacters = LAi_numloginedcharacters + 1;
 }
@@ -354,4 +366,5 @@ void LAi_PostLoginInit(aref chr)
 		func = "LAi_type_" + func + "_Init";
 		call func(&chr);
 	}
+	if (Port_IsResident()) chr.PortContext.initialized = true;
 }

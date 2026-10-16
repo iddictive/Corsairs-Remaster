@@ -11,6 +11,7 @@
 #include "ptc_data.h"
 
 #include <chrono>
+#include <algorithm>
 
 #include "core.h"
 #include "dx9render.h"
@@ -176,11 +177,48 @@ void PtcData::SFLB_PotectionLoad()
 }
 
 // Determine the current position
+void PtcData::ApplyWorldPlacement(const CMatrix &placement)
+{
+    if (!data || hasWorldPlacement)
+        return;
+    worldPlacement = placement;
+    gridMin = min;
+    hasWorldPlacement = true;
+    const CVECTOR localMin = min, localMax = max;
+    for (unsigned corner = 0; corner < 8; ++corner)
+    {
+        const CVECTOR world = worldPlacement * CVECTOR(corner & 1 ? localMax.x : localMin.x,
+            corner & 2 ? localMax.y : localMin.y, corner & 4 ? localMax.z : localMin.z);
+        if (corner == 0) min = max = world;
+        else
+        {
+            min.x = std::min(min.x, world.x); min.y = std::min(min.y, world.y); min.z = std::min(min.z, world.z);
+            max.x = std::max(max.x, world.x); max.y = std::max(max.y, world.y); max.z = std::max(max.z, world.z);
+        }
+    }
+    for (int32_t i = 0; i < numVerteces; ++i)
+    {
+        const CVECTOR world = worldPlacement * CVECTOR(vertex[i].x, vertex[i].y, vertex[i].z);
+        vertex[i] = {world.x, world.y, world.z};
+    }
+    CMatrix rotation = worldPlacement;
+    rotation.Pos() = 0.0f;
+    for (int32_t i = 0; i < numNormals; ++i)
+    {
+        const CVECTOR n = rotation * CVECTOR(normal[i].x, normal[i].y, normal[i].z);
+        normal[i] = {n.x, n.y, n.z};
+    }
+    middle = worldPlacement * middle;
+}
+
 int32_t PtcData::FindNode(const CVECTOR &pos, float &y)
 {
     // Position on the map
-    const auto mapX = static_cast<int32_t>((pos.x - min.x) / ws);
-    const auto mapZ = static_cast<int32_t>((pos.z - min.z) / ls);
+    CVECTOR gridPos = pos;
+    if (hasWorldPlacement) worldPlacement.MulToInv(pos, gridPos);
+    const auto &origin = hasWorldPlacement ? gridMin : min;
+    const auto mapX = static_cast<int32_t>((gridPos.x - origin.x) / ws);
+    const auto mapZ = static_cast<int32_t>((gridPos.z - origin.z) / ls);
     if (mapX < 0 || mapX >= w)
         return -1;
     if (mapZ < 0 || mapZ >= l)
@@ -616,25 +654,27 @@ float PtcData::Trace(const CVECTOR &s, const CVECTOR &d) const
 {
     // The area describing the segment
     float k = 2.0f;
-    CVECTOR pmin = s;
-    if (pmin.x > d.x)
-        pmin.x = d.x;
-    if (pmin.y > d.y)
-        pmin.y = d.y;
-    if (pmin.z > d.z)
-        pmin.z = d.z;
-    CVECTOR pmax = s;
-    if (pmax.x < d.x)
-        pmax.x = d.x;
-    if (pmax.y < d.y)
-        pmax.y = d.y;
-    if (pmax.z < d.z)
-        pmax.z = d.z;
+    CVECTOR gridS = s, gridD = d;
+    if (hasWorldPlacement)
+    {
+        CMatrix placement = worldPlacement;
+        placement.MulToInv(s, gridS);
+        placement.MulToInv(d, gridD);
+    }
+    CVECTOR pmin = gridS;
+    if (pmin.x > gridD.x) pmin.x = gridD.x;
+    if (pmin.y > gridD.y) pmin.y = gridD.y;
+    if (pmin.z > gridD.z) pmin.z = gridD.z;
+    CVECTOR pmax = gridS;
+    if (pmax.x < gridD.x) pmax.x = gridD.x;
+    if (pmax.y < gridD.y) pmax.y = gridD.y;
+    if (pmax.z < gridD.z) pmax.z = gridD.z;
+    const auto &origin = hasWorldPlacement ? gridMin : min;
     // Coordinates on the map
-    const int32_t mnX = static_cast<int32_t>((pmin.x - min.x) / ws);
-    const int32_t mnZ = static_cast<int32_t>((pmin.z - min.z) / ls);
-    const int32_t mxX = static_cast<int32_t>((pmax.x - min.x) / ws);
-    const int32_t mxZ = static_cast<int32_t>((pmax.z - min.z) / ls);
+    const int32_t mnX = static_cast<int32_t>((pmin.x - origin.x) / ws);
+    const int32_t mnZ = static_cast<int32_t>((pmin.z - origin.z) / ls);
+    const int32_t mxX = static_cast<int32_t>((pmax.x - origin.x) / ws);
+    const int32_t mxZ = static_cast<int32_t>((pmax.z - origin.z) / ls);
     // go through all the triangles in the zone
     for (int32_t zi = mnZ; zi <= mxZ; zi++)
     {

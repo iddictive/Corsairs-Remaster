@@ -13,14 +13,16 @@ class LocModelRealizer : public Entity
     VDX9RENDER *rs;
     VGEOMETRY *gs;
     bool bShow;
+    bool contextVisible = true;
 
     // --------------------------------------------------------------------------------------------
     // Construction, destruction
     // --------------------------------------------------------------------------------------------
   public:
     LocModelRealizer();
+    void SetContextVisible(bool visible) { contextVisible = visible; }
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    bool IsVisible() const { return bShow; }
+    bool IsVisible() const { return bShow && contextVisible; }
     void SetDynamicLights(Lights* value) { dynamicLights = value; }
     void SetGeometryEmitter(bool value) { geometryEmitter = value; }
   private:

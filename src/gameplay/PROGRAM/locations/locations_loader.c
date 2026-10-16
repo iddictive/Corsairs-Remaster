@@ -18,6 +18,101 @@ int	locNumShips = 0;
 float locTmpTime = 0.0;
 bool locDisableUpdateTime = false;
 
+// Preparation is synchronous and never owns the naval environment or hero.
+bool locResidentPreparing = false;
+
+bool LocPrepareResident(ref loc, float x, float y, float z, float yaw)
+{
+	if (IsEntity(loc) && CheckAttribute(loc, "PortContext.prepared")) return true;
+	int previousLocationIndex = FindLoadedLocation();
+	object previousAddress;
+	aref heroAddress;
+	makearef(heroAddress, pchar.location);
+	CopyAttributes(&previousAddress, heroAddress);
+	int previousReload = reload_cur_location_index;
+	// These are runtime projections, even when an old save serialized the attrs.
+	bool retainedPopulation = CheckAttribute(loc, "PortContext.population") || CheckAttribute(loc, "PortSave.population");
+	DeleteAttribute(loc, "PortContext");
+	if (retainedPopulation) loc.PortContext.population = true;
+	loc.PortContext.x = x;
+	loc.PortContext.y = y;
+	loc.PortContext.z = z;
+	loc.PortContext.yaw = yaw;
+	locResidentPreparing = true;
+	// Stock population generators use both their loc argument and pchar.location.
+	// Borrow the address only; the canonical hero remains the live ship entity.
+	pchar.location = loc.id;
+	pchar.location.group = "";
+	pchar.location.locator = "";
+	reload_cur_location_index = FindLocation(loc.id);
+	bool result = LoadLocation(loc);
+	DeleteAttribute(pchar, "location");
+	makearef(heroAddress, pchar.location);
+	CopyAttributes(heroAddress, &previousAddress);
+	reload_cur_location_index = previousReload;
+	if (previousLocationIndex >= 0)
+	{
+		makeref(loadedLocation, Locations[previousLocationIndex]);
+		SendMessage(loadedLocation, "lsl", MSG_LOCATION_EX_MSG, "SetActiveContext", true);
+	}
+	locResidentPreparing = false;
+	return result;
+}
+
+bool LocActivateResident(ref loc)
+{
+	if (!IsEntity(loc) || !CheckAttribute(loc, "PortContext.prepared")) return false;
+	if (!Port_IsLandHero()) return false;
+	SendMessage(loc, "lsl", MSG_LOCATION_EX_MSG, "SetActiveContext", true);
+	SendMessage(loc, "lsl", MSG_LOCATION_EX_MSG, "SetContextVisible", true);
+	loadedLocation = loc;
+	LAi_IsCapturedLocation = IsLocationCaptured(loc.id);
+	LAi_IsBoarding = false;
+	LAi_restoreStates = false;
+	LocSetEnvironmentTechnique(loc);
+	GreatRecipe_AllianceResidence(loc);
+	PostEvent(EVENT_LOCATION_LOAD, 0);
+	QuestsCheck();
+	return LocFinishLoadedLocation(loc, true);
+}
+
+void LocSuspendResident(ref loc)
+{
+	DialogExit();
+	CrimeLand_ResolveLocation(loc.id);
+	WdmMilitaryLandLocationLeaving(loc);
+	Event(EVENT_LOCATION_UNLOAD, "");
+	DelEventHandler("Control Activation", "locCameraSwitch");
+	DelEventHandler("Control Activation", "chrCharacterKeys");
+	Item_OnUnLoadLocation();
+	DeleteClass(&locCamera);
+}
+
+void LocRetireResident(ref loc)
+{
+	if (!IsEntity(loc))
+	{
+		DeleteAttribute(loc, "PortContext");
+		return;
+	}
+	// Corpses have already left LAi's live registry; retire by canonical address.
+	for (int i = 0; i < TOTAL_CHARACTERS; i++)
+	{
+		ref chr = &Characters[i];
+		if (!CheckAttribute(chr, "location")) continue;
+		if (chr.location != loc.id) continue;
+		if (IsEntity(chr))
+		{
+			if (CheckAttribute(chr, "chr_ai.login") && sti(chr.chr_ai.login)) LAi_CharacterLogoff(chr);
+			Dead_DelLoginedCharacter(chr);
+			DeleteCharacter(chr);
+		}
+		DeleteAttribute(chr, "PortContext");
+	}
+	DeleteClass(loc);
+	DeleteAttribute(loc, "PortContext");
+}
+
 int FindLocation(string id)
 {
 	/*
@@ -63,6 +158,8 @@ void SetCamShuttle(ref loc) // boal вынес в метод
 
 bool LoadLocation(ref loc)
 {
+	if (!locResidentPreparing && Port_IsResident() && IsEntity(loc) && CheckAttribute(loc, "PortContext.prepared"))
+		return LocActivateResident(loc);
 	
 	// EvgAnat - проверка перка на быстрое нахождение предметов -->
 	bool enableHE = false;
@@ -85,16 +182,18 @@ bool LoadLocation(ref loc)
 			}
 		}
 	}
-	SetHawkEye(enableHE);
+	if (!locResidentPreparing) SetHawkEye(enableHE);
 	// EvgAnat - проверка перка на быстрое нахождение предметов <--
 	
 	//trace("LoadLocation(ref loc) " + loc.id);
-	PostEvent(EVENT_LOCATION_LOAD,0);
+	if (!locResidentPreparing) PostEvent(EVENT_LOCATION_LOAD,0);
 
 	int i;
 	bool res;
 	
-	for (i = 0; i < MAX_SHIPS_IN_LOCATION; i++) { iShips[i] = -1; }
+	if (!locResidentPreparing)
+	{
+		for (i = 0; i < MAX_SHIPS_IN_LOCATION; i++) { iShips[i] = -1; }
 	
 	//Time update==========================================================================
 	locTmpTime += 5;
@@ -102,60 +201,15 @@ bool LoadLocation(ref loc)
 	//Environment==========================================================================
 	chrWaitReloadLocator = ""; // fix перехода в таверну при клики на диалог
 	chrWaitReloadIsNoLink = false;
+	}
 		
     loadedLocation = loc; // первое присвоение boal
 	//Environment==========================================================================
 
-	if(CheckAttribute(loc, "type"))
-	{
-		res = true;
-		switch(loc.type)
-		{
-		case "cave":			// пещера
-			ExecuteTechnique("amb_cave");
-			res = false;
-		break;
-		case "inca_temple":		// храм инков
-			ExecuteTechnique("amb_inca_temple");
-			res = false;
-			break;
-		case "house":			// дом
-			ExecuteTechnique("amb_house");
-			res = false;
-			break;
-		case "tavern":			// таверна
-			ExecuteTechnique("amb_tavern");
-			res = false;
-			break;
-		case "shop":			// магазин
-			ExecuteTechnique("amb_shop");
-			res = false;
-			break;
-		case "residence":		// резиденция
-			ExecuteTechnique("amb_residence");
-			res = false;
-			break;
-		case "church":			// церковь
-			ExecuteTechnique("amb_church");
-			res = false;
-			break;
-		case "fort_attack":			// тюрьма
-			ExecuteTechnique("amb_jail");
-			res = false;
-			break;
-		case "dungeon":
-			ExecuteTechnique("amb_dungeon");
-			res = false;
-			break;
-		}
-		if(res)
-		{
-			ExecuteTechnique("amb_other");
-		}
-	}
+	if (!locResidentPreparing) LocSetEnvironmentTechnique(loc);
 	//
 	
-	if(CheckAttribute(loc, "QuestlockWeather"))
+	if(!locResidentPreparing && CheckAttribute(loc, "QuestlockWeather"))
 	{		
 		if (CheckAttribute(loc, "QuestlockWeather.hours") && CheckAttribute(loc, "QuestlockWeather.minutes"))
 		{
@@ -178,7 +232,7 @@ bool LoadLocation(ref loc)
 			isFort = true;
 		}
 	}
-	if(isNoBoarding)
+	if(isNoBoarding && !locResidentPreparing)
 	{
 		//Sea
 		if(loc.environment.sea == "true") 
@@ -199,7 +253,7 @@ bool LoadLocation(ref loc)
 		//Ship env
 		CreateShipEnvironment();
 	}
-	if(isFort)
+	if(isFort && !locResidentPreparing)
 	{
 		//Sea
 		if(loc.environment.sea == "true") CreateSea(EXECUTE,REALIZE);//CreateEntity(&locSea, "sea");
@@ -207,11 +261,16 @@ bool LoadLocation(ref loc)
 		if(loc.environment.weather == "true") CreateWeather(EXECUTE,REALIZE);//CreateEntity(&locWeather, "weather");
 	}
 
-	ReloadProgressUpdate();
+	if (!locResidentPreparing) ReloadProgressUpdate();
 	//SendMessage(Sound,"lf",MSG_SOUND_SET_MASTER_VOLUME,0.0);
 
 	//Create location======================================================================
 	if(CreateEntity(&loc, "location") == 0) return 0;
+	if (locResidentPreparing)
+	{
+		SendMessage(loc, "lsl", MSG_LOCATION_EX_MSG, "SetActiveContext", true);
+		SendMessage(loc, "lsffff", MSG_LOCATION_EX_MSG, "WorldPlacement", stf(loc.PortContext.x), stf(loc.PortContext.y), stf(loc.PortContext.z), stf(loc.PortContext.yaw));
+	}
 	//Set models path
 	if(CheckAttribute(loc, "filespath.models"))
 	{		
@@ -258,7 +317,7 @@ bool LoadLocation(ref loc)
 		}		
 	}
 
-	ReloadProgressUpdate();
+	if (!locResidentPreparing) ReloadProgressUpdate();
 
 	//Loading day/night models=============================================================
 	//--> проверяем наличие контры для установки нужного патча
@@ -301,7 +360,7 @@ bool LoadLocation(ref loc)
 					return 0;
 				}
 			}
-			ReloadProgressUpdate();
+			if (!locResidentPreparing) ReloadProgressUpdate();
 		}
 		//Loading patches
 		if(CheckAttribute(loc, "models.day.charactersPatch") != 0)
@@ -349,7 +408,7 @@ bool LoadLocation(ref loc)
 					UnloadLocation(loc);
 					return 0;
 				}
-                                ReloadProgressUpdate();
+                                if (!locResidentPreparing) ReloadProgressUpdate();
 			}
 		}
 		
@@ -403,11 +462,11 @@ bool LoadLocation(ref loc)
 		}
 	}
 
-	ReloadProgressUpdate();
+	if (!locResidentPreparing) ReloadProgressUpdate();
 
 	//Locators=============================================================================
-	Sea.MaxSeaHeight = 0.5;
-	if(CheckAttribute(loc, "MaxWaveHeigh"))
+	if (!locResidentPreparing) Sea.MaxSeaHeight = 0.5;
+	if(!locResidentPreparing && CheckAttribute(loc, "MaxWaveHeigh"))
 	{
 		if(stf(loc.MaxWaveHeigh) > 0.0)
 		{
@@ -443,22 +502,52 @@ bool LoadLocation(ref loc)
 	SendMessage(loc, "l", MSG_LOCATION_UPDATELOCATORS);
 	loadedLocation = loc;
 
-	ReloadProgressUpdate();
+	if (!locResidentPreparing) ReloadProgressUpdate();
 
 	//Lights===============================================================================
 	LocationSetLights(loc);
 	//Particles============================================================================
-	CreateParticles(loc);
+	if (!locResidentPreparing) CreateParticles(loc);
 	//Ships================================================================================
-	if (isNoBoarding && loc.environment.sea == "true") 
+	if (isNoBoarding && !locResidentPreparing && loc.environment.sea == "true")
 	{
 		LocLoadShips(loc); // boal fix!!!!!!!!
 	}	
 	//Animals===========================================================================
-	CreateAnimals(loc);
+	if (!locResidentPreparing) CreateAnimals(loc);
 	//Characters===========================================================================
-	GreatRecipe_AllianceResidence(loc);
+	if (!locResidentPreparing) GreatRecipe_AllianceResidence(loc);
 	LoginCharactersInLocation(loc);
+	if (locResidentPreparing)
+	{
+		loc.PortContext.prepared = true;
+		if (loc.type != "town") SendMessage(loc, "lsl", MSG_LOCATION_EX_MSG, "SetContextVisible", false);
+		return true;
+	}
+	return LocFinishLoadedLocation(loc, isNoBoarding);
+}
+
+void LocSetEnvironmentTechnique(ref loc)
+{
+	if (!CheckAttribute(loc, "type")) return;
+	string technique = "amb_other";
+	switch (loc.type)
+	{
+		case "cave": technique = "amb_cave"; break;
+		case "inca_temple": technique = "amb_inca_temple"; break;
+		case "house": technique = "amb_house"; break;
+		case "tavern": technique = "amb_tavern"; break;
+		case "shop": technique = "amb_shop"; break;
+		case "residence": technique = "amb_residence"; break;
+		case "church": technique = "amb_church"; break;
+		case "fort_attack": technique = "amb_jail"; break;
+		case "dungeon": technique = "amb_dungeon"; break;
+	}
+	ExecuteTechnique(technique);
+}
+
+bool LocFinishLoadedLocation(ref loc, bool isNoBoarding)
+{
 	//CheckEnemyLocators(loc);
 	//Main character options===============================================================
 	ref mainCharacter = GetMainCharacter();
@@ -476,7 +565,7 @@ bool LoadLocation(ref loc)
 	AddCharacterLocatorGroup(mainCharacter, "box");
 	AddCharacterLocatorGroup(mainCharacter, "teleport");
 
-	ReloadProgressUpdate();
+	if (!Port_IsResident()) ReloadProgressUpdate();
 
  	//Camera===============================================================================
 	CreateEntity(&locCamera, "locationcamera");
@@ -706,12 +795,12 @@ bool LoadLocation(ref loc)
 		}
 	}
 
-	ReloadProgressUpdate();
+	if (!Port_IsResident()) ReloadProgressUpdate();
 
 	//ResumeAllSounds();
 	//SetSchemeForLocation(loc);
 
-	if (isNoBoarding) { Island_Start(); }
+	if (isNoBoarding && !Port_IsResident()) { Island_Start(); }
 
 	if(CheckAttribute(&mainCharacter, "lastFightMode") != 0)
 	{
@@ -782,7 +871,7 @@ bool LoadLocation(ref loc)
 			|| loc.type == "fort"
 			|| loc.type == "town")
 		{
-			WhrCreateSeaEnvironment();
+			if (!Port_IsResident()) WhrCreateSeaEnvironment();
 			// Sea.MaxSeaHeight 	= 3.01;
             // Sea.Sea2.LodScale 	= 1.0; 
             // Sea.Sea2.GridStep 	= 0.0375; 
@@ -860,6 +949,16 @@ void LocationSetLights(ref loc)
 
 bool UnloadLocation(aref loc)
 {
+	if (locResidentPreparing)
+	{
+		LocRetireResident(loc);
+		return true;
+	}
+	if (Port_IsResident() && CheckAttribute(loc, "PortContext.prepared"))
+	{
+		LocSuspendResident(loc);
+		return true;
+	}
 	// ADDED BY VANO
 	// сбрасываем цвет фона на 0
 	Render.BackColor = 0;
@@ -934,6 +1033,13 @@ bool UnloadLocation(aref loc)
 
 bool LocLoadModel(aref loc, string sat, string addition)
 {
+	// The resident port reuses the authored ISLAND city mesh and its cut state.
+	// Location still owns PTC/locators, lamps and animated models; drawing these
+	// static roles again would z-fight and hide the island's weapon damage.
+	if (CheckAttribute(loc, "PortResident") && loc.PortResident == "PuertoRico")
+	{
+		if (sat == "models.always.town" || sat == "models.always.seabed" || sat == "models.always.L1" || sat == "models.always.plan" || sat == "models.day.rinok") return true;
+	}
 	//Trace("Load model: " + loc.(sat) + " from:" + sat);
 
 	//Пропустим пустое имя

@@ -121,7 +121,7 @@ class ModelArray
     // Trace the ray through the location
     float Trace(const CVECTOR &src, const CVECTOR &dst);
     bool GetCollideTriangle(TRIANGLE &trg) const;
-    void Clip(PLANE *p, int32_t numPlanes, CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num));
+    bool Clip(const PLANE *p, int32_t numPlanes, const CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num));
 
     // --------------------------------------------------------------------------------------------
     // Encapsulation

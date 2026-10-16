@@ -65,6 +65,8 @@ struct Fragment
     CVECTOR position{0.f}, velocity{0.f}, angle{0.f}, spin{0.f};
     float age = 0.f, life = 0.f;
     bool wet = false;
+    uint64_t capture = 0;
+    float supportRadius = 0.0f;
 };
 
 // Split in bind space, carrying current posed positions through the unused UV
@@ -197,13 +199,15 @@ struct CrewGore::Impl
 {
     std::vector<Fragment> fragments;
     uint32_t seed = 0xc0de51u;
+    uint64_t nextCapture = 0;
 };
 
 CrewGore::CrewGore() : impl_(std::make_unique<Impl>()) {}
 CrewGore::~CrewGore() = default;
 
-bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool laser)
+bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool laser, uint64_t *token)
 {
+    if (token) *token = 0;
     if (!finite(vector(impulse))) return false;
     auto *geometryService = static_cast<VGEOMETRY *>(core.GetService("geometry"));
     auto *animation = model.GetAnimation();
@@ -321,6 +325,8 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
         const auto properties = storm_ship_laser::fragmentProperties(piece);
         if (properties.surfaceArea < 1.e-6f) continue;
         Fragment fragment;
+        const auto dimensions = properties.bounds.hi - properties.bounds.lo;
+        fragment.supportRadius = std::max(.035f, std::min({dimensions.x, dimensions.y, dimensions.z}) * .5f);
         fragment.position = modelWorld * vector(properties.centroid);
         const auto radial = normalized(vector(fragment.position - modelWorld.Pos()) + Vec3{0, .2f, 0});
         const auto random = [&]() { return randomUnit(impl_->seed); };
@@ -353,11 +359,28 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
     const size_t overflow = impl_->fragments.size() + captured.size() > maxFragments ?
         impl_->fragments.size() + captured.size() - maxFragments : 0;
     impl_->fragments.erase(impl_->fragments.begin(), impl_->fragments.begin() + overflow);
-    for (auto &fragment : captured) impl_->fragments.push_back(std::move(fragment));
+    const uint64_t capture = ++impl_->nextCapture;
+    for (auto &fragment : captured)
+    {
+        fragment.capture = capture;
+        impl_->fragments.push_back(std::move(fragment));
+    }
+    if (token) *token = capture;
     return true;
 }
 
-void CrewGore::updateDraw(VDX9RENDER &renderer, SEA_BASE *sea, float dt, bool draw)
+bool CrewGore::hasCapture(uint64_t token) const
+{
+    return token && std::any_of(impl_->fragments.begin(), impl_->fragments.end(),
+                              [token](const auto &fragment) { return fragment.capture == token; });
+}
+
+void CrewGore::discardCapture(uint64_t token)
+{
+    std::erase_if(impl_->fragments, [token](const auto &fragment) { return fragment.capture == token; });
+}
+
+void CrewGore::updateDraw(VDX9RENDER &renderer, SEA_BASE *sea, float dt, bool draw, const GroundTrace &ground)
 {
     if (!std::isfinite(dt) || dt < 0.f) return;
     const float elapsed = dt;
@@ -371,9 +394,23 @@ void CrewGore::updateDraw(VDX9RENDER &renderer, SEA_BASE *sea, float dt, bool dr
         fragment.age += elapsed;
         for (int s = 0; s < steps; ++s)
         {
+            const CVECTOR previous = fragment.position;
             fragment.velocity.y -= (fragment.wet ? 1.5f : 9.81f) * step;
             fragment.position += fragment.velocity * step;
             fragment.angle += fragment.spin * step;
+            if (ground && step > 0.0f)
+            {
+                CVECTOR contact, normal;
+                const CVECTOR support(0.0f, fragment.supportRadius, 0.0f);
+                if (ground(previous - support, fragment.position - support, contact, normal))
+                {
+                    fragment.position = contact + support;
+                    const float inward = fragment.velocity | normal;
+                    if (inward < 0.0f) fragment.velocity -= normal * (1.15f * inward);
+                    fragment.velocity *= std::exp(-8.0f * step);
+                    fragment.spin *= std::exp(-10.0f * step);
+                }
+            }
             const float water = sea ? sea->WaveXZ(fragment.position.x, fragment.position.z) : -10000.f;
             if (fragment.position.y < water)
             {

@@ -162,6 +162,7 @@ class Grass : public Entity
 
     // Load data for grass
     bool LoadData(const char *patchName);
+    void SetWorldPlacement(const CMatrix &placement) { worldPlacement = placement; hasWorldPlacement = true; }
     // Set texture
     void SetTexture(const char *texName);
 
@@ -188,6 +189,8 @@ class Grass : public Entity
   private:
     // Render service
     VDX9RENDER *rs;
+    CMatrix worldPlacement;
+    bool hasWorldPlacement = false;
     // Buffers
     int32_t vb, ib;
     int32_t numPoints;

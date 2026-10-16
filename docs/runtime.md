@@ -4,6 +4,29 @@ Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d
 
 ## Current verdict
 
+### October16 — seamless port source batch checkpoint; native journey pending
+
+The separate75-path San Juan candidate covers resident land/sea placement,
+deck/rowboat/land hero transitions, canonical NPC services/quests, guard and
+port/fort artillery routing, and SAVE reconstruction. Its source review found
+and repaired failed-landing actor rollback, absent native AI groups after load,
+the old64-entry NPC registry, and missing old-save rowboat controls. Restored
+custom travel keys remain intact. Full PROGRAM compilation, actual-source
+adapter cases and the exact old-SAVE global/reference reader matrix pass; the
+adapters are not native scene acceptance. The frozen v3 patch has SHA-256
+`079b167b3bdfac19b75791ba9b04bbf76289d5d73dc6a39bdba933754f1d196d`;
+all75 working paths match its receipt, only the two approved control paths
+changed from v2, and the other73 remain byte-identical. Source and check evidence
+belong to `.local-archives/seamless-port/integration-20261016`,
+`restoration-oracles-20261016`, `control-oldsave-20261016` and
+`save-reference-remap-20261016`; `seamless-san-juan.md` owns the implementation.
+
+Disposition: integrated source candidate only. Its matching canonical native
+build and full deck→boat→town→services/quest→combat→same-ship/SAVE journey remain
+queued after the isolated laser corrective batch. No port candidate is installed;
+installed a3b088fb and player state remain unchanged. No player app control or
+SAVE load occurred.
+
 ### October16 — frozen successor built; world held-fire passes, ship still open
 
 Source `cf75576` is built in a managed build-only checkout, isolating the city's

@@ -64,6 +64,7 @@ void ControlsInit(string sPlatformName,bool bFirst)
 	{
 		ExternControlsInit(bFirst);
 		UnloadSegment(initFileName);
+		Port_RegisterControls();
 	}
 	else
 	{
@@ -149,6 +150,7 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 	MapControlToGroup("ChrRun", "Sailing1Pers");
 	// Refresh the fixed aim binding even for profiles saved before it existed.
 	CI_CreateAndSetControls("Sailing1Pers", "DeckAimZoom", CI_GetKeyCode("VK_RBUTTON"), 0, false);
+	Port_RegisterControls();
 	RunControlsContainers();
 }
 
@@ -321,6 +323,8 @@ string GetCurControlGroup()
 	if( sti(InterfaceStates.Launched) == true ) return "MainInterface";
 
 	if( DialogRun ) return "DialogControls";
+	if (Port_IsResident() && CheckAttribute(pchar, "PortTravel.mode") && pchar.PortTravel.mode == "boat")
+		return "PortRowboat";
 
 	if(IsEntity(&worldMap))
 	{

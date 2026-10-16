@@ -18,11 +18,13 @@
 #include "model_array.h"
 #include "ptc_data.h"
 #include "supervisor.h"
+#include "object.h"
 
 class MODEL;
 class Lights;
+class ISLAND_BASE;
 
-class Location : public Entity
+class Location : public COLLISION_OBJECT
 {
     struct SphVertex
     {
@@ -64,6 +66,15 @@ class Location : public Entity
     // Initialization
     bool Init() override;
     bool InitBackgroundContext();
+    // Explicit selection affects unbound native lookups; existing characters
+    // retain their context until the script unloads/recreates them.
+    static Location *ActiveContext();
+    static uint64_t ActiveContextGeneration();
+    static Location *ResolveContext(const char *logicalId);
+    void SetActiveContext(bool active);
+    bool IsContextVisible() const { return contextVisible; }
+    void SetContextVisible(bool visible);
+    bool UsesContextReceivers() const;
     // Execution
     void Execute(uint32_t delta_time);
     void Realize(uint32_t delta_time);
@@ -105,11 +116,13 @@ class Location : public Entity
     bool VisibleTest(const CVECTOR &p1, const CVECTOR &p2);
 
     // Trace the ray through the location
-    float Trace(const CVECTOR &src, const CVECTOR &dst);
-    bool GetCollideTriangle(TRIANGLE &trg) const;
-    void Clip(PLANE *p, int32_t numPlanes, CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num));
+    float Trace(const CVECTOR &src, const CVECTOR &dst) override;
+    bool GetCollideTriangle(TRIANGLE &trg) override;
+    bool Clip(const PLANE *p, int32_t numPlanes, const CVECTOR &cnt, float rad, ADD_POLYGON_FUNC fnc) override;
+    const char *GetCollideMaterialName() override { return nullptr; }
 
     Lights *GetLights() const;
+    entid_t EffectsId() const { return loceffectsid; }
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     void RenderMetalShadowCasters(bool includeStatic);
     bool HasBakedStaticEnvironment();
@@ -156,9 +169,18 @@ class Location : public Entity
     void DrawEnemyBars();
     void DrawBar(const MTX_PRJ_VECTOR &vrt, uint32_t color, float hp, float energy);
     void CorrectBar(float v, float start, float end, BarVertex *vrt);
+    ISLAND_BASE *ResidentIsland() const;
 
   private:
     PtcData ptc;
+    CMatrix worldPlacement;
+    bool hasWorldPlacement = false;
+    bool placementLocked = false;
+    bool contextVisible = true;
+    bool ownsRealContext = false;
+    bool hasResidentCollision = false;
+    bool hasResidentTriangle = false;
+    TRIANGLE residentTriangle = {};
     int32_t patchJump;
 
     int32_t lastLoadStaticModel;
@@ -180,7 +202,7 @@ class Location : public Entity
     ModelArray model;
 
     // Grass
-    entid_t grass;
+    entid_t grass = {};
     // Eagle
     entid_t eagle;
     // Lizards
@@ -190,12 +212,12 @@ class Location : public Entity
     // Crabs
     entid_t crabs;
     // Blood
-    entid_t blood;
+    entid_t blood = {};
 
     entid_t lightsid;
     Lights *lights; // Pointer for the current frame
 
-    entid_t loceffectsid;
+    entid_t loceffectsid = {};
 
     SphVertex *sphereVertex;
     int32_t sphereNumTrgs;
@@ -235,33 +257,13 @@ inline VDX9RENDER *Location::GetRS() const
     return rs;
 }
 
-// Check the visibility of 2 points
-inline bool Location::VisibleTest(const CVECTOR &p1, const CVECTOR &p2)
-{
-    return model.VisibleTest(p1, p2);
-}
-
+// Location-owned lights
 inline Lights *Location::GetLights() const
 {
     return lights;
 }
 
-// Trace the ray through the location
-inline float Location::Trace(const CVECTOR &src, const CVECTOR &dst)
-{
-    return model.Trace(src, dst);
-}
-
-inline bool Location::GetCollideTriangle(TRIANGLE &trg) const
-{
-    return model.GetCollideTriangle(trg);
-}
-
-inline void Location::Clip(PLANE *p, int32_t numPlanes, CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num))
-{
-    model.Clip(p, numPlanes, cnt, rad, fnc);
-}
-
+// Pause state
 inline bool Location::IsPaused() const
 {
     return isPause;

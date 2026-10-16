@@ -6328,7 +6328,8 @@ char *COMPILER::ReadString()
     return pBuffer;
 }
 
-bool COMPILER::ReadVariable(char *name, /* DWORD code,*/ bool bDim, uint32_t a_index)
+bool COMPILER::ReadVariable(char *name, std::vector<SavedReference> &references, bool bDim,
+                            uint32_t a_index, S_TOKEN_TYPE array_type)
 {
     int32_t nLongValue;
     uintptr_t ptrValue;
@@ -6337,12 +6338,9 @@ bool COMPILER::ReadVariable(char *name, /* DWORD code,*/ bool bDim, uint32_t a_i
     uint32_t var_index;
     uint32_t array_index;
     uint32_t nElementsNum;
-    ATTRIBUTES *pA;
     S_TOKEN_TYPE eType;
     const VarInfo *real_var;
-    const VarInfo *real_var_ref;
     DATA *pV;
-    DATA *pVRef;
     entid_t eid;
     uint32_t var_code;
     bool bSkipVariable;
@@ -6395,14 +6393,10 @@ bool COMPILER::ReadVariable(char *name, /* DWORD code,*/ bool bDim, uint32_t a_i
     }
     else
     {
-        if (bSkipVariable)
-        {
-            SetError("Load - lost element");
-            return false;
-        }
         nElementsNum = 1;
-        eType = pV->GetType();
-        pV = pV->GetArrayElement(a_index);
+        eType = array_type;
+        if (!bSkipVariable)
+            pV = pV->GetArrayElement(a_index);
     }
 
     if (nElementsNum > 1) // array
@@ -6410,26 +6404,7 @@ bool COMPILER::ReadVariable(char *name, /* DWORD code,*/ bool bDim, uint32_t a_i
         // load array elements
         for (uint32_t n = 0; n < nElementsNum; n++)
         {
-            if (bSkipVariable)
-            {
-                if (eType == S_TOKEN_TYPE::VAR_INTEGER)
-                    ReadData(nullptr, sizeof(int32_t));
-                else if (eType == S_TOKEN_TYPE::VAR_FLOAT)
-                    ReadData(nullptr, sizeof(float));
-                else if (eType == S_TOKEN_TYPE::VAR_STRING)
-                    ReadString();
-                else if (eType == S_TOKEN_TYPE::VAR_OBJECT)
-                {
-                    ReadData(nullptr, sizeof(uint64_t));
-                    ATTRIBUTES TA(&SCodec);
-                    ReadAttributesData(&TA, nullptr);
-                }
-                else
-                    Assert(false);
-                continue;
-            }
-
-            if (!ReadVariable(name, /*code,*/ true, n))
+            if (!ReadVariable(name, references, true, n, eType))
                 return false;
         }
         return true;
@@ -6483,69 +6458,17 @@ bool COMPILER::ReadVariable(char *name, /* DWORD code,*/ bool bDim, uint32_t a_i
         break;
     case VAR_REFERENCE:
         var_index = ReadVDword();
-        if (var_index == 0xffffffff)
-            break; // uninitialized ref
-        array_index = ReadVDword();
-        if (bSkipVariable)
-            break;
-        real_var_ref = VarTab.GetVarX(var_index);
-        if (real_var_ref == nullptr)
-        {
-            SetError("State read error");
-            return false;
-        }
-
-        pVRef = real_var_ref->value.get();
-        if (pVRef != nullptr && array_index != 0xffffffff)
-        {
-            pVRef = pVRef->GetArrayElement(array_index);
-        }
-        pV->SetReference(pVRef);
+        array_index = var_index == 0xffffffff ? 0xffffffff : ReadVDword();
+        if (!bSkipVariable)
+            references.push_back({var_code, a_index, var_index, array_index, eType, {}});
         break;
     case VAR_AREFERENCE:
-        pA = nullptr;
         var_index = ReadVDword();
-        if (var_index == 0xffffffff)
-            break;
-        array_index = ReadVDword();
-        pString = ReadString();
-        if (bSkipVariable)
-        {
-            delete[] pString;
-            break;
-        }
-
-        real_var_ref = VarTab.GetVarX(var_index);
-        if (real_var_ref == nullptr)
-        {
-            delete[] pString;
-            SetError("State read error");
-            return false;
-        }
-
-        pVRef = real_var_ref->value.get();
-        if (pVRef != nullptr && array_index != 0xffffffff)
-        {
-            pVRef = pVRef->GetArrayElement(array_index);
-        }
-
-        if (pVRef == nullptr)
-        {
-            delete[] pString;
-            pV->SetAReference(nullptr);
-            SetError("Load - ARef to missing variable or array element");
-            break;
-        }
-
-        if (pVRef->AttributesClass == nullptr)
-            pVRef->AttributesClass = new ATTRIBUTES(&SCodec);
-        if (pString)
-        {
-            pA = pVRef->AttributesClass->CreateSubAClass(pVRef->AttributesClass, pString);
-            delete[] pString;
-        }
-        pV->SetAReference(pA);
-
+        array_index = var_index == 0xffffffff ? 0xffffffff : ReadVDword();
+        pString = var_index == 0xffffffff ? nullptr : ReadString();
+        if (!bSkipVariable)
+            references.push_back({var_code, a_index, var_index, array_index, eType, pString ? pString : ""});
+        delete[] pString;
         break;
     default:
         SetError("Unknown token type: %i", eType);
@@ -6859,6 +6782,8 @@ bool COMPILER::LoadState(std::fstream &fileS)
 
     // 5. Variables table, all variables created during previous step, just read value
     const uint32_t nVarNum = ReadVDword();
+    std::vector<uint32_t> saved_variables;
+    std::vector<SavedReference> references;
     for (n = 0; n < nVarNum; n++)
     {
         pString = ReadString();
@@ -6867,9 +6792,54 @@ bool COMPILER::LoadState(std::fstream &fileS)
             SetError("missing variable name");
             return false;
         }
-        ReadVariable(pString /*,n*/);
-
+        saved_variables.push_back(VarTab.FindVar(pString));
+        const bool loaded = ReadVariable(pString, references);
         delete[] pString;
+        if (!loaded)
+            return false;
+    }
+
+    // References use saved table ordinals, not the freshly compiled table's
+    // indices. Bind only after every name, array size and attribute tree is loaded.
+    for (const auto &reference : references)
+    {
+        const auto *variable = VarTab.GetVar(reference.variable);
+        DATA *destination = variable ? variable->value.get() : nullptr;
+        if (destination && reference.element != 0xffffffff)
+            destination = destination->GetArrayElement(reference.element);
+        if (!destination)
+            continue;
+
+        DATA *target = nullptr;
+        if (reference.target != 0xffffffff)
+        {
+            if (reference.target >= saved_variables.size())
+            {
+                SetError("State read error - invalid saved reference index");
+                return false;
+            }
+            const auto *target_variable = VarTab.GetVar(saved_variables[reference.target]);
+            target = target_variable ? target_variable->value.get() : nullptr;
+            if (target && reference.target_element != 0xffffffff)
+                target = target->GetArrayElement(reference.target_element);
+            if (!target)
+                SetWarning("Load - reference to missing variable or array element");
+        }
+        if (reference.type == VAR_REFERENCE)
+            destination->SetReference(target);
+        else
+        {
+            ATTRIBUTES *attributes = nullptr;
+            if (target)
+            {
+                if (!target->AttributesClass)
+                    target->AttributesClass = new ATTRIBUTES(&SCodec);
+                attributes = target->AttributesClass;
+                if (!reference.attribute_path.empty())
+                    attributes = attributes->CreateSubAClass(attributes, reference.attribute_path.c_str());
+            }
+            destination->SetAReference(attributes);
+        }
     }
 
     // call to script function "OnLoad()"

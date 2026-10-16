@@ -101,7 +101,7 @@ bool LocationCamera::Init()
     sea = core.GetEntityId("sea");
 
     // try to get the location
-    loc = core.GetEntityId("location");
+    if (auto *context = Location::ActiveContext()) loc = context->GetId();
 
     rs->SetPerspective(cameraPerspective);
     // rs->SetPerspective(1.0f);
@@ -377,6 +377,11 @@ uint64_t LocationCamera::ProcessMessage(MESSAGE &message)
             core.Trace("LocationCamera -> MSG_CAMERA_SETTARGET -> invalidate character id");
             return 0;
         }
+        if (auto *target = static_cast<Character *>(core.GetEntityPointer(chr)))
+        {
+            location = target->GetLocation();
+            loc = location ? location->GetId() : entid_t{};
+        }
         return 1;
     case MSG_CAMERA_FOLLOW:
         cf.isBrn = true;
@@ -506,7 +511,8 @@ bool LocationCamera::Set()
     lheight = height * lookHeight;
     chradius = c->GetRadius();
     character = c;
-    location = static_cast<Location *>(core.GetEntityPointer(loc));
+    location = c->GetLocation();
+    loc = location ? location->GetId() : entid_t{};
     return location != nullptr;
 }
 

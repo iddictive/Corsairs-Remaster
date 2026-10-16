@@ -18,6 +18,7 @@
 #include "model.h"
 #include "string_compare.hpp"
 #include "vma.hpp"
+#include "location_script_context.hpp"
 
 class Location;
 class MODEL;
@@ -199,6 +200,16 @@ class Character : public Entity
     // Initialization
     bool Init() override;
     void BindLocation(entid_t location);
+    Location *GetLocation();
+    static Character *ResolveScriptTarget(entid_t target, entid_t source = {});
+    template <typename... Args>
+    VDATA *ScriptEvent(const std::string_view &name, Args... args) const
+    {
+        LocationScriptContext context(loc_id);
+        return core.Event(name, args...);
+    }
+    void SetContextVisible(bool visible);
+    bool SetCorpseGorePresentation(bool active);
     // Messages
     uint64_t ProcessMessage(MESSAGE &message) override;
     // Changing an attribute
@@ -686,8 +697,6 @@ class Character : public Entity
     bool CheckObstacle(float fx, float fz, float fzlen);
     int32_t GetRandomIndexByObstacle(ObstacleZone *pZone, int32_t num);
 
-    Location *GetLocation();
-
     int32_t eventId = {};
 
     // Procedural head look
@@ -719,6 +728,7 @@ class Character : public Entity
   private:
     // The location the character is in
     entid_t loc_id;
+    bool corpseGoreSuppressed = false;
 
     std::chrono::steady_clock::time_point blockStart{};
 };

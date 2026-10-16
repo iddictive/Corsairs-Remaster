@@ -622,7 +622,9 @@ ref LAi_CreateFantomCharacterEx(string model, string ani, string group, string l
 	chr.chr_ai.FencingType  = "Fencing"; //fix
 	//chr.chr_ai.energy = LAI_DEFAULT_ENERGY;
 	SetEnergyToCharacter(chr); // boal
-	if(LAi_numloginedcharacters >= MAX_CHARS_IN_LOC)
+	int loginLimit = MAX_CHARS_IN_LOC;
+	if (Port_IsResident()) loginLimit = TOTAL_CHARACTERS;
+	if(LAi_numloginedcharacters >= loginLimit)
 	{
 		Trace("LAi_CreateFantomCharacter -> many logined characters in location > " + MAX_CHARS_IN_LOC);
 		return chr;
@@ -1041,6 +1043,7 @@ void Dead_AddLoginedCharacter(aref chr)
 	if(GetCharacterPos(chr, &x, &y, &z) == true && Dead_Char_num < (100))
 	{
 		Dead_Characters[Dead_Char_num].id = chr.id;
+		Dead_Characters[Dead_Char_num].location = chr.location;
 		Dead_Characters[Dead_Char_num].index = chr.index;
 		Dead_Characters[Dead_Char_num].name     = chr.name;
 		Dead_Characters[Dead_Char_num].lastname = chr.lastname;
@@ -1224,6 +1227,7 @@ int Dead_FindCloseBody()
 	
     for(int i = 0; i < Dead_Char_num; i++)
 	{
+		if (Port_IsResident() && (!CheckAttribute(&Dead_Characters[i], "location") || Dead_Characters[i].location != mainChr.location)) continue;
 	    x1 = Dead_Characters[i].px;
 		z1 = Dead_Characters[i].pz;
 		rd = sqrt(sqr(x1 - x) + sqr(z1 - z))

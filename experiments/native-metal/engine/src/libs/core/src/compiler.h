@@ -219,7 +219,14 @@ class COMPILER : public VIRTUAL_COMPILER
     char *ReadString();
 
     void SaveVariable(DATA *pV, bool bdim = false);
-    bool ReadVariable(char *name, /*DWORD code,*/ bool bdim = false, uint32_t a_index = 0);
+    struct SavedReference
+    {
+        uint32_t variable, element, target, target_element;
+        S_TOKEN_TYPE type;
+        std::string attribute_path;
+    };
+    bool ReadVariable(char *name, std::vector<SavedReference> &references, bool bdim = false,
+                      uint32_t a_index = 0xffffffff, S_TOKEN_TYPE array_type = TVOID);
     bool FindReferencedVariable(DATA *pRef, uint32_t &var_index, uint32_t &array_index);
     bool FindReferencedVariableByRootA(ATTRIBUTES *pA, uint32_t &var_index, uint32_t &array_index);
     ATTRIBUTES *TraceARoot(ATTRIBUTES *pA, const char *&pAccess);

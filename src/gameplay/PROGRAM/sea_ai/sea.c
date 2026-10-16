@@ -27,6 +27,7 @@
 
 #include "battle_interface\BattleInterface.c"
 #include "sea_ai\direct_sailing.c"
+#include "sea_ai\PortRegion.c"
 
 #event_handler("Sea_FirstInit", "Sea_FirstInit");
 #event_handler("SeaLoad_GetPointer", "SeaLoad_GetPointer");
@@ -135,6 +136,7 @@ void Sea_ClearTownPopulation()
 
 void DeleteSeaEnvironment()
 {
+    Port_RetireRegion();
     Sea_ClearTownPopulation();
     GreatRecipe_ClearVortex(true);
 	SeaPhonk_Reset(false);
@@ -353,6 +355,17 @@ string Sea_FindNearColony()
 // boal <--
 void Sea_LandLoad()
 {
+    if (Port_IsResident())
+    {
+        // Disembark through the live deck and physical launch, retaining sea.
+        if (SeaCameras.Camera != "SeaDeckCamera")
+        {
+            SeaCameras.Camera = "SeaDeckCamera";
+            SendMessage(&SeaCameras, "lia", AI_CAMERAS_SET_CAMERA, &SeaDeckCamera, pchar);
+        }
+        Port_EnterBoat();
+        return;
+    }
     if (GreatRecipe_Locked()) return;	
 	pchar.shipx = pchar.ship.pos.x;
 	pchar.shipz = pchar.ship.pos.z;
@@ -1716,6 +1729,7 @@ float SetMaxSeaHeight(int islandIdx)
 // boal <--
 void Sea_LoadIsland(string sIslandID)
 {
+	Port_RetireRegion();
 	Sea_ClearTownPopulation();
 	bIsFortAtIsland = false;
 	if (sIslandID == "") { return; }

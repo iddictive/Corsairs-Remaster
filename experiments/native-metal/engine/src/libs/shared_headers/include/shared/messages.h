@@ -381,6 +381,8 @@
 #define MSG_PEOPLES_ON_SHIP_HULLCUT 77601  //"laffffl": character, local plane normal/distance, laser
 #define MSG_BLOOD_SET_SHIP 3              // Blood entity: "li", receiver ship
 #define MSG_BLOOD_SHIP_HIT 4              // Blood entity: "lffffff", world ray origin/direction
+#define MSG_BLOOD_SET_LOCATION 5          // Blood entity: "li", explicit weak collision receiver
+#define MSG_SHADOW_SET_LOCATION 1         // Shadow entity: "li", explicit weak collision receiver
 //============================================================================================
 
 //============================================================================================
