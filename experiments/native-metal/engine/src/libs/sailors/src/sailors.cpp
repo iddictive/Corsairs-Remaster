@@ -8,6 +8,7 @@
 #include "shared/sea_ai/script_defines.h"
 #include "ship_fire_model.hpp"
 #include "ship_auxiliary_detail.h"
+#include "ship_laser_geometry.hpp"
 
 CREATE_CLASS(Sailors)
 
@@ -1480,22 +1481,46 @@ void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, flo
     }
 }
 
-void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, bool laser,
+void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
                          CrewGore &gore, VDX9RENDER &renderer)
 {
     const float length = std::sqrt(~normal);
     if (!CrewCombatEnabled(ship) || !shipModel || !std::isfinite(length) || !std::isfinite(distance) || length < .001f) return;
     const CVECTOR n = normal * (1.f / length);
     const CVECTOR worldNormal = shipModel->mtx * n - shipModel->mtx.Pos();
+    std::vector<storm_hull_damage::BeamSample> samples;
+    if (cutMode == 2)
+    {
+        // Mode 2's distance slot identifies the just-committed finite record;
+        // modes 0/1 retain the original message arity and plane semantics.
+        auto *saved = ship->GetACharacter()->FindAClass(ship->GetACharacter(), "Ship.PhonkLaserCuts");
+        auto *entry = saved && distance >= 0.f && distance < storm_hull_damage::MaxSplitPlanes ?
+            saved->GetAttributeClass("c" + std::to_string(unsigned(distance))) : nullptr;
+        if (!entry) return;
+        if (!storm_hull_damage::readBeamSamples(entry, samples) || samples.empty()) return;
+        for (const auto &beam : samples) if (!storm_ship_laser::valid(beam)) return;
+    }
     for (auto &man : shipMan)
     {
         if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF || man.inWater) continue;
         const CVECTOR body = man.pos + man.spos + CVECTOR(0.f, .9f, 0.f);
+        if (cutMode == 2)
+        {
+            bool hit = false, nearby = false;
+            for (const auto &beam : samples)
+            {
+                hit |= storm_ship_laser::beamIntersectsBox(beam, {body.x, body.y, body.z}, {.3f, .65f, .3f});
+                nearby |= storm_ship_laser::beamIntersectsBox(beam, {body.x, body.y, body.z}, {1.3f, 1.65f, 1.3f});
+            }
+            if (hit) KillMan(man, worldNormal * 5.f + CVECTOR(0.f, 3.f, 0.f), true, gore, renderer);
+            else if (nearby) FleeImpact(man, body - n, 3.f);
+            continue;
+        }
         const float offset = (body | n) - distance / length;
         // Project the upright body envelope onto the same hull-cut plane.
         const float bodyRadius = .3f + .65f * std::abs(n.y);
         if (std::abs(offset) <= bodyRadius)
-            KillMan(man, worldNormal * (offset < 0.f ? -5.f : 5.f) + CVECTOR(0.f, 3.f, 0.f), laser, gore, renderer);
+            KillMan(man, worldNormal * (offset < 0.f ? -5.f : 5.f) + CVECTOR(0.f, 3.f, 0.f), cutMode != 0, gore, renderer);
         else if (std::abs(offset) < 5.f)
             FleeImpact(man, body - n * offset, 3.f);
     }
@@ -1815,8 +1840,8 @@ uint64_t Sailors::ProcessMessage(MESSAGE &message)
         {
             const float x = message.Float(), y = message.Float(), z = message.Float();
             const float distance = message.Float();
-            const bool laser = message.Long() != 0;
-            walk->OnHullCut(CVECTOR(x, y, z), distance, laser, gore, *rs);
+            const int cutMode = message.Long();
+            walk->OnHullCut(CVECTOR(x, y, z), distance, cutMode, gore, *rs);
         }
         break;
     }

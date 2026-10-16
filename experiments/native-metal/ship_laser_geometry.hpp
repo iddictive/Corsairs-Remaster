@@ -21,8 +21,38 @@ using PositionKey=std::array<int64_t,3>;
 using PositionEdge=std::pair<PositionKey,PositionKey>;
 struct PositionEdgeHash {size_t operator()(const PositionEdge&e)const {size_t h=0;for(const auto&point:{e.first,e.second})for(auto q:point)h^=std::hash<int64_t>{}(q)+0x9e3779b9u+(h<<6)+(h>>2);return h;}};
 inline PositionKey positionKey(Vec3 p) {return {int64_t(std::llround(double(p.x)*10000)),int64_t(std::llround(double(p.y)*10000)),int64_t(std::llround(double(p.z)*10000))};}
-struct Plane { Vec3 normal; float distance=0; bool charred=true; Vec3 grain{0,1,0}; float roughness=0,spacing=1,phase=0; };
+using BeamSample=storm_hull_damage::BeamSample;
+inline Vec3 beamStart(const BeamSample&b){return {b.start[0],b.start[1],b.start[2]};}
+inline Vec3 beamDirection(const BeamSample&b){return {b.direction[0],b.direction[1],b.direction[2]};}
+inline Vec3 beamTangent(const BeamSample&b){return b.tangent==std::array<float,3>{} ? storm_ship_hull::frame(beamDirection(b)).tangent : Vec3{b.tangent[0],b.tangent[1],b.tangent[2]};}
+inline bool valid(const BeamSample&b){return storm_ship_hull::finite(beamStart(b))&&storm_ship_hull::finite(beamDirection(b))&&
+    std::abs(storm_ship_hull::length(beamDirection(b))-1.f)<.001f&&std::isfinite(b.radius)&&b.radius>=.01f&&b.radius<=2.f&&
+    std::isfinite(b.depth)&&b.depth>=.001f&&b.depth<=1000.f&&storm_ship_hull::finite(beamTangent(b))&&
+    std::abs(storm_ship_hull::length(beamTangent(b))-1.f)<.001f&&std::abs(storm_ship_hull::dot(beamTangent(b),beamDirection(b)))<.001f;}
+inline std::array<storm_ship_hull::Plane,10> beamPlanes(const BeamSample&b){
+    const auto start=beamStart(b),direction=beamDirection(b);const storm_ship_hull::Frame basis{beamTangent(b),storm_ship_hull::cross(direction,beamTangent(b))};
+    std::array<storm_ship_hull::Plane,10> result{};
+    result[0]={direction,storm_ship_hull::dot(direction,start)+b.depth};
+    result[1]={direction*-1.f,-storm_ship_hull::dot(direction,start)+b.radius*.15625f};
+    constexpr float diagonal=.7071067811865475f;
+    constexpr std::array<std::array<float,2>,8> octagon{{{1,0},{diagonal,diagonal},{0,1},{-diagonal,diagonal},
+        {-1,0},{-diagonal,-diagonal},{0,-1},{diagonal,-diagonal}}};
+    for(unsigned n=0;n<8;++n){const auto normal=basis.tangent*octagon[n][0]+basis.bitangent*octagon[n][1];
+        result[n+2]={normal,storm_ship_hull::dot(normal,start)+b.radius};}
+    return result;
+}
+inline float beamDistance(const BeamSample&b,Vec3 point){float inside=std::numeric_limits<float>::infinity();
+    for(const auto&p:beamPlanes(b))inside=std::min(inside,p.distance-storm_ship_hull::dot(p.normal,point));return inside;}
+inline bool beamIntersectsBox(const BeamSample&b,Vec3 center,Vec3 halfSize){
+    if(!valid(b))return false;for(const auto&p:beamPlanes(b)){
+        const float reach=std::abs(p.normal.x)*halfSize.x+std::abs(p.normal.y)*halfSize.y+std::abs(p.normal.z)*halfSize.z;
+        if(storm_ship_hull::dot(p.normal,center)-reach>p.distance)return false;}return true;
+}
+struct Plane { Vec3 normal; float distance=0; bool charred=true; Vec3 grain{0,1,0}; float roughness=0,spacing=1,phase=0;
+    std::vector<BeamSample> beams; };
 inline bool valid(const Plane&p) {
+    if(!p.beams.empty()){if(p.beams.size()>storm_hull_damage::MaxBeamSamples)return false;
+        for(const auto&b:p.beams)if(!valid(b))return false;return p.roughness==0;}
     const float n=storm_ship_hull::length(p.normal),g=storm_ship_hull::length(p.grain);
     return storm_ship_hull::finite(p.normal)&&std::isfinite(p.distance)&&n>.999f&&n<1.001f&&
         std::isfinite(p.roughness)&&p.roughness>=0&&p.roughness<=1000&&std::isfinite(p.spacing)&&p.spacing>=.01f&&p.spacing<=10000&&
@@ -38,12 +68,15 @@ inline float offset(const Plane&p,Vec3 v) {
     const auto sample=[](double cell){uint32_t h=uint32_t(std::fmod(std::fmod(cell,4294967296.)+4294967296.,4294967296.));h^=0x9e3779b9u;h^=h>>16;h*=0x7feb352du;h^=h>>15;h*=0x846ca68bu;h^=h>>16;return float(h&0xffffffu)*(2.f/16777215.f)-1.f;};
     const float a=sample(cell),b=sample(cell+1);return p.roughness*(a+(b-a)*float(coordinate-cell));
 }
-inline float distance(const Plane&p,Vec3 v) { return storm_ship_hull::dot(p.normal,v)-p.distance-offset(p,v); }
+inline float distance(const Plane&p,Vec3 v) { if(!p.beams.empty()){float result=-std::numeric_limits<float>::infinity();
+    for(const auto&b:p.beams)result=std::max(result,beamDistance(b,v));return result;}
+    return storm_ship_hull::dot(p.normal,v)-p.distance-offset(p,v); }
 struct Segment { Vertex a,b; int object=0; };
 // Open authored GM shells have no validated volume. These are measured surface
 // properties (a uniform surface-density proxy), never a claim of solid wood mass.
 struct Fragment { uint64_t fragment=0; Bounds bounds{}; Vec3 centroid{}; float surfaceArea=0; std::array<Vec3,14>support{}; };
-struct Result { bool changed=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; std::vector<Fragment>fragments; };
+struct Opening { Vec3 point; float area=0; };
+struct Result { bool changed=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; std::vector<Fragment>fragments; bool supportSevered=false; std::vector<Opening>openings; };
 struct Split { Mesh kept,detached; float keptArea=0,detachedArea=0; std::vector<Segment>seam; bool complete=true; };
 inline bool near(Vec3 a,Vec3 b) { auto d=a-b;return storm_ship_hull::dot(d,d)<1.e-8f; }
 inline Bounds bounds(const Mesh&m) { Bounds b{};bool first=true;for(const auto&o:m)for(const auto&t:o.second)for(const auto&v:t){if(first){b={v.position,v.position};first=false;}else b=storm_ship_hull::merge(b,{v.position,v.position});}return b; }
@@ -297,13 +330,65 @@ inline bool surfaceCaps(std::vector<Segment>seam,const Plane&p,Mesh&kept,Mesh&de
     return append(a,kept)&&append(b,detached);
 }
 struct SurfaceSplit {Surface kept,detached;float keptArea=0,detachedArea=0;std::vector<Segment>seam;bool complete=true;};
-inline SurfaceSplit splitSurface(const Surface&surface,const Plane&p,const std::map<int,float>&wood){
+inline std::vector<Segment> planeSeam(const Mesh&mesh,const storm_ship_hull::Plane&plane){
+    std::vector<Segment> result;
+    for(const auto&o:mesh)for(const auto&t:o.second){float d[3];bool positive=false,negative=false;
+        for(unsigned n=0;n<3;++n){d[n]=storm_ship_hull::dot(plane.normal,t[n].position)-plane.distance;positive|=d[n]>0;negative|=d[n]<=0;}
+        if(!positive||!negative)continue;std::vector<Vertex>edge;
+        for(unsigned n=0;n<3;++n){unsigned next=(n+1)%3;if((d[n]>0)==(d[next]>0))continue;
+            auto v=storm_ship_hull::interpolate(t[n],t[next],d[n]/(d[n]-d[next]));if(edge.empty()||!near(edge.front().position,v.position))edge.push_back(v);}
+        if(edge.size()!=2)continue;
+        const auto face=storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position);
+        if(storm_ship_hull::dot(edge[1].position-edge[0].position,storm_ship_hull::cross(plane.normal,face))<0)std::swap(edge[0],edge[1]);
+        result.push_back({edge[0],edge[1],o.first});}
+    return result;
+}
+inline SurfaceSplit splitPlaneSurface(const Surface&surface,const Plane&p,const std::map<int,float>&wood){
     Mesh tagged;unsigned role=0;for(const auto*mesh:{&surface.outer,&surface.canonicalCaps,&surface.interior}){for(const auto&o:*mesh)tagged[o.first*3+int(role)]=o.second;++role;}
     auto cut=split(tagged,p,nullptr,false);SurfaceSplit result;result.complete=cut.complete;if(!cut.complete)return result;
     const auto unpack=[](Mesh&mesh,Surface&out){for(auto&o:mesh){auto&destination=o.first%3==0?out.outer:o.first%3==1?out.canonicalCaps:out.interior;destination[o.first/3]=std::move(o.second);}};unpack(cut.kept,result.kept);unpack(cut.detached,result.detached);
     const auto measured=[](const Surface&s){float total=0;for(const auto*mesh:{&s.outer,&s.canonicalCaps})for(const auto&o:*mesh)for(const auto&t:o.second)total+=storm_ship_hull::area(t);return total;};result.keptArea=measured(result.kept);result.detachedArea=measured(result.detached);
     std::vector<Segment>canonical,render;for(auto edge:cut.seam){const int role=edge.object%3;edge.object/=3;if(role!=2)canonical.push_back(edge);if(role!=1)render.push_back(edge);}result.seam=canonical;
     if(!surfaceCaps(std::move(canonical),p,result.kept.canonicalCaps,result.detached.canonicalCaps)||!surfaceCaps(std::move(render),p,result.kept.interior,result.detached.interior,&wood))result.complete=false;
+    return result;
+}
+// Subtract each delivered prism, preserving every outside triangle and clipping
+// only its actual boundary caps. Sequential halfspace solids would leave hidden
+// full-size partition walls; here every new wall is bounded by all other faces.
+inline SurfaceSplit splitSurface(const Surface&surface,const Plane&p,const std::map<int,float>&wood){
+    if(p.beams.empty())return splitPlaneSurface(surface,p,wood);
+    SurfaceSplit result;result.kept=surface;if(!valid(p)){result.complete=false;return result;}
+    const auto trim=[](Mesh mesh,const std::vector<storm_ship_hull::Plane>&planes){
+        for(const auto&face:planes){Mesh next;for(const auto&o:mesh)for(const auto&t:o.second){std::vector<Vertex>in,out;
+            linearSplit(std::vector<Vertex>(t.begin(),t.end()),face,in,out);storm_ship_hull::fan(in,next[o.first]);}mesh=std::move(next);}return mesh;};
+    for(const auto&beam:p.beams){const auto faces=beamPlanes(beam);const auto source=std::move(result.kept);Surface kept,detached;
+        const auto subtract=[&](const Mesh&mesh,Mesh&outside,Mesh&inside){for(const auto&o:mesh){outside.try_emplace(o.first);for(const auto&t:o.second){
+            bool far=false;for(const auto&face:faces){bool beyond=true;for(const auto&v:t)beyond&=storm_ship_hull::dot(face.normal,v.position)>face.distance;if(beyond){far=true;break;}}
+            if(far){outside[o.first].push_back(t);continue;}std::vector<Vertex>remaining(t.begin(),t.end()),a,b;
+            for(const auto&face:faces){linearSplit(remaining,face,a,b);storm_ship_hull::fan(b,outside[o.first]);remaining.swap(a);if(remaining.size()<3)break;}
+            storm_ship_hull::fan(remaining,inside[o.first]);}}};
+        subtract(source.outer,kept.outer,detached.outer);subtract(source.canonicalCaps,kept.canonicalCaps,detached.canonicalCaps);
+        subtract(source.interior,kept.interior,detached.interior);
+        for(const auto*mesh:{&detached.outer,&detached.canonicalCaps})for(const auto&o:*mesh)for(const auto&t:o.second)result.detachedArea+=storm_ship_hull::area(t);
+        for(size_t side=0;side<faces.size();++side){const auto&face=faces[side];std::vector<storm_ship_hull::Plane>limits;
+            for(size_t n=0;n<faces.size();++n)if(n!=side)limits.push_back(faces[n]);
+            // Only the newly created cross-section belongs to this boundary;
+            // pre-existing cap/interior triangles are handled by subtract above.
+            auto canonical=planeSeam(source.outer,face),rendered=canonical;
+            auto prior=planeSeam(source.canonicalCaps,face);canonical.insert(canonical.end(),prior.begin(),prior.end());
+            prior=planeSeam(source.interior,face);rendered.insert(rendered.end(),prior.begin(),prior.end());
+            Mesh inCap,outCap,inRender,outRender;
+            if(!surfaceCaps(canonical,{face.normal,face.distance,p.charred},inCap,outCap)||
+               !surfaceCaps(rendered,{face.normal,face.distance,p.charred},inRender,outRender,&wood)){result.complete=false;return result;}
+            appendMesh(kept.canonicalCaps,trim(std::move(outCap),limits));appendMesh(detached.canonicalCaps,trim(std::move(inCap),limits));
+            appendMesh(kept.interior,trim(std::move(outRender),limits));appendMesh(detached.interior,trim(std::move(inRender),limits));
+            for(auto edge:canonical){bool alive=true;for(const auto&limit:limits){const float a=storm_ship_hull::dot(limit.normal,edge.a.position)-limit.distance,b=storm_ship_hull::dot(limit.normal,edge.b.position)-limit.distance;
+                if(a>0&&b>0){alive=false;break;}if((a>0)!=(b>0)){auto intersection=storm_ship_hull::interpolate(edge.a,edge.b,a/(a-b));if(a>0)edge.a=intersection;else edge.b=intersection;}}
+                if(alive&&!near(edge.a.position,edge.b.position))result.seam.push_back(edge);}
+        }
+        result.kept=std::move(kept);appendMesh(result.detached.outer,detached.outer);appendMesh(result.detached.canonicalCaps,detached.canonicalCaps);appendMesh(result.detached.interior,detached.interior);
+    }
+    for(const auto*mesh:{&result.kept.outer,&result.kept.canonicalCaps})for(const auto&o:*mesh)for(const auto&t:o.second)result.keptArea+=storm_ship_hull::area(t);
     return result;
 }
 // Authored UV/material islands are attached parts, not independent wreck bodies.
@@ -314,6 +399,30 @@ inline std::vector<Surface> surfaceFragments(Surface surface,const Plane&cut,uns
     if(!cut.charred&&limit>1){const auto b=bounds(surface.outer);const auto size=b.hi-b.lo;const bool longitudinal=size.z>=size.x;const float span=longitudinal?size.z:size.x,across=longitudinal?size.x:size.z;
         if(span>std::max(6.f,across*2.f)){const Vec3 normal=longitudinal?Vec3{0,0,1}:Vec3{1,0,0};const float low=longitudinal?b.lo.z:b.lo.x;auto divided=splitSurface(surface,{normal,low+span*.38f,false},wood);const float area=divided.keptArea+divided.detachedArea;if(divided.complete&&divided.keptArea>area*.1f&&divided.detachedArea>area*.1f){result.push_back(std::move(divided.kept));result.push_back(std::move(divided.detached));return result;}}}
     result.push_back(std::move(surface));return result;
+}
+
+inline std::vector<Mesh> components(const Mesh&source) {
+    struct Ref{int object;size_t triangle;};std::vector<Ref>refs;std::vector<size_t>parent;
+    std::unordered_map<PositionEdge,size_t,storm_ship_laser::PositionEdgeHash>edges;
+    const auto root=[&](size_t a){while(parent[a]!=a){parent[a]=parent[parent[a]];a=parent[a];}return a;};
+    for(const auto&o:source)for(size_t n=0;n<o.second.size();++n){const size_t id=refs.size();refs.push_back({o.first,n});parent.push_back(id);const auto&t=o.second[n];
+        for(unsigned c=0;c<3;++c){auto a=storm_ship_laser::positionKey(t[c].position),b=storm_ship_laser::positionKey(t[(c+1)%3].position);if(a==b)continue;auto ordered=std::minmax(a,b);
+            auto inserted=edges.emplace(PositionEdge{ordered.first,ordered.second},id);if(!inserted.second){const size_t x=root(id),y=root(inserted.first->second);parent[x]=y;}}}
+    std::map<size_t,Mesh>groups;for(size_t n=0;n<refs.size();++n)groups[root(n)][refs[n].object].push_back(source.at(refs[n].object)[refs[n].triangle]);
+    std::vector<Mesh>result;result.reserve(groups.size());for(auto&entry:groups)result.push_back(std::move(entry.second));return result;
+}
+
+inline bool beamSeversSupport(const Mesh&before,const Mesh&after,const std::vector<BeamSample>&samples,Vec3 axis){
+    if(std::abs(storm_ship_hull::length(axis)-1)> .001f)return false;
+    const auto authored=components(before);
+    for(const auto&beam:samples){const auto direction=beamDirection(beam);const auto center=beamStart(beam)+direction*(beam.depth*.5f);
+        const float middle=storm_ship_hull::dot(center,axis),reach=std::abs(storm_ship_hull::dot(direction,axis))*beam.depth*.5f+beam.radius*1.083f+.01f;
+        bool spanning=false;for(const auto&component:authored){float lo=INFINITY,hi=-INFINITY;for(const auto&o:component)for(const auto&t:o.second)for(const auto&v:t){const float position=storm_ship_hull::dot(v.position,axis);lo=std::min(lo,position);hi=std::max(hi,position);}spanning|=lo<middle-reach&&hi>middle+reach;}
+        // Overlapping authored pole sections need not share GM edges. Require
+        // disappearance of the entire actual support section, never a bbox hit
+        // or the disconnection of one decorative component.
+        if(spanning&&!planeSeam(before,{axis,middle}).empty()&&planeSeam(after,{axis,middle}).empty())return true;
+    }return false;
 }
 
 // Compatibility entry point for canonical-only callers; the spatial ownership
@@ -327,6 +436,9 @@ struct Contour { bool valid=false;std::vector<std::vector<Vec3>>loops; };
 inline Contour clipContour(const std::vector<Vec3>&polygon,const Plane&p) {
     if(valid(p)&&polygon.empty())return {true,{}};
     if(!valid(p)||polygon.size()<3||polygon.size()>128)return {};
+    // A single outer waterplane cannot represent bore holes. Keep its conservative
+    // broad-phase envelope; finite support and collision use the field/real mesh.
+    if(!p.beams.empty())return {true,{polygon}};
     if(p.roughness==0){std::vector<Vec3>loop;
         for(size_t n=0;n<polygon.size();++n){const auto a=polygon[n],b=polygon[(n+1)%polygon.size()];if(!storm_ship_hull::finite(a))return {};const float da=storm_ship_hull::dot(p.normal,a)-p.distance,db=storm_ship_hull::dot(p.normal,b)-p.distance;
             if(da<=0)loop.push_back(a);if((da<=0)!=(db<=0))loop.push_back(a+(b-a)*(da/(da-db)));}

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <vector>
 #include "ship_fire_shaders.hpp"
 #include "phonk_ordnance_shaders.hpp"
 
@@ -20,11 +21,26 @@ class PhonkNuclearRenderer
 {
     id<MTLLibrary> library = nil;
     id<MTLRenderPipelineState> pipeline = nil;
+    id<MTLTexture> noise = nil;
     MTLPixelFormat format = MTLPixelFormatInvalid;
     bool prepare(id<MTLDevice> device, MTLPixelFormat requested)
     {
         if (pipeline && requested == format) return true;
         NSError *error = nil;
+        if (!noise) {
+            // One immutable 64^3 scalar lattice replaces repeated ALU hashes
+            // in both the view and light marches; no simulation/history state.
+            constexpr unsigned side=64;
+            std::vector<uint8_t> values(side*side*side);
+            uint32_t seed=0x6d2b79f5u;
+            for(auto &value:values) { seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;value=uint8_t(seed>>24); }
+            auto descriptor=[MTLTextureDescriptor new];descriptor.textureType=MTLTextureType3D;
+            descriptor.pixelFormat=MTLPixelFormatR8Unorm;descriptor.width=descriptor.height=descriptor.depth=side;
+            descriptor.storageMode=MTLStorageModeShared;descriptor.usage=MTLTextureUsageShaderRead;
+            noise=[device newTextureWithDescriptor:descriptor];if(!noise)return false;
+            [noise replaceRegion:MTLRegionMake3D(0,0,0,side,side,side) mipmapLevel:0 slice:0
+                withBytes:values.data() bytesPerRow:side bytesPerImage:side*side];
+        }
         if (!library)
         {
             const auto source = std::string(shipFireCommonMSL) + phonkNuclearMSL;
@@ -91,6 +107,7 @@ class PhonkNuclearRenderer
         [encoder setScissorRect:MTLScissorRect{left,top,right-left,bottom-top}];
         [encoder setFragmentBytes:&uniform length:sizeof(uniform) atIndex:0];
         [encoder setFragmentTexture:depth atIndex:0];
+        [encoder setFragmentTexture:noise atIndex:1];
         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
         [encoder endEncoding];
         return true;

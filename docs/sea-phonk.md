@@ -18,7 +18,7 @@ hit the first intervening receiver and reload in4 game-seconds. Paused frames
 advance no launch, flight or damage; launched missiles continue after mode exit.
 
 `ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models.
-Halfspaces and deterministic26-plane crater volumes rebuild one retained mesh
+Legacy halfspaces, finite beam doses and deterministic26-plane crater volumes rebuild one retained mesh
 for drawing, tracing and clipping. Active PN terrain is the input when present;
 material/UV data and unaffected components remain intact. A world-only material
 classifier covers shipped ground families independently from PN subdivision
@@ -72,6 +72,48 @@ and HUD against old/remapped controls and ordinary/OFF cases. The actual Metal
 explosion helper separately passes shader/pipeline and foreground-depth checks.
 Integrated correction delivery and accepting player replay remain governed by
 `runtime.md`; component success alone does not close those gates.
+
+## Finite laser locality and nuclear cloud
+
+The live laser records actual muzzle-contact samples, never an automatically
+oriented cut plane. Each sample subtracts an octagonal bore0.32m across flats;
+depth is4m per delivered second. Receiver-local coordinates follow a moving
+ship. A0.20s batch retains the union of its samples; disjoint aim positions and
+receivers are not bridged by a chord or bounding box. Membership and body-envelope
+queries share the geometry field without per-query allocation. Existing32 ship
+and64 world record limits remain; each finite record holds at most16 samples.
+
+Ship records without `kind` retain their original plane semantics. Finite records
+carry the shared sample codec; world state accepts version1 and upgrades to2 on
+the next committed cut. Ordered geometry reconstruction restores the apertures,
+collision and support state without additional save-owned flood fields. Ordinary
+ship ram/nuclear cuts remain planes; world nuclear craters retain their bounded
+volume. A finite bore preserves the coarse outer contact
+waterplane; exact retained triangles and the finite field own its cavity. New
+flood aperture comes only from removed authored skin: synthetic caps, deeper
+drilling and overlapping doses cannot count the same entrance again, and finite
+openings never grow with seam age. Legacy separating-seam ingress is unchanged.
+Crew cut reactions use the same saved finite volume. A partial mast notch retains
+support; loss of an actual spanning section invokes the existing whole-mast
+`MastFall`, including its rigging ownership. Partial-stump simulation is not added.
+
+CPU sanitizer evidence covers actual Antigua/Cumana/Flyingdutchman meshes,
+old-plus-finite cuts, support notches/severing, exact aperture unions, codec
+rejection and rotated queries. It is not native input or player SAVE acceptance.
+The finite candidate still needs the integrated CORE firing/rebind/rollback and
+installed-player replay recorded in `runtime.md`.
+
+The nuclear renderer reuses its depth-stopped Metal volume and9s lifetime. One
+immutable256KiB noise lattice supplies coarse/mid/fine density; toroidal advection
+rolls the cap while the hot core cools into a lobed smoke plume. Two optical-depth
+taps provide internal light attenuation. The wide ground ring is analytic, so
+the64-sample cloud march avoids empty ring-space work. This adapts the maintained
+[three.js volume-fire optical model](https://github.com/mrdoob/three.js/blob/master/examples/webgpu_volume_fire.html) without its fluid-grid simulation lifecycle.
+Actual helper evidence contains217 consecutive1920x1200 frames plus exact zero,
+foreground-occlusion and expiry checks. Late smoke remains soft at its300px-class
+fixture footprint. The fixture backdrop proves neither terrain/rigging integration
+nor continuously viewed motion. Private evidence owners are `bounded-laser-20261016`
+and `laser-locality-nuclear-detail-20261016`; delivery remains separate.
 
 ## October16 — airborne coast contact and beached support
 

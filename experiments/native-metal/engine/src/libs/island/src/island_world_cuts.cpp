@@ -11,6 +11,12 @@ namespace
 {
 bool removed(const storm_world_cut::Cut &cut, const CVECTOR &point)
 {
+    if (cut.kind == storm_world_cut::Cut::Beam)
+    {
+        for (const auto &beam : cut.beams)
+            if (storm_ship_laser::beamDistance(beam, {point.x, point.y, point.z}) >= 0.f) return true;
+        return false;
+    }
     if (cut.kind == storm_world_cut::Cut::Halfspace)
         return cut.normal.x * point.x + cut.normal.y * point.y + cut.normal.z * point.z > cut.distance;
     // Match the geometry's convex sphere, including its edge/corner faces.
@@ -48,6 +54,17 @@ bool nodeCut(const storm_world_cut::Cut &world, const CMatrix &matrix, storm_wor
         local.center = {(delta | matrix.Vx()) / scale2, (delta | matrix.Vy()) / scale2,
                         (delta | matrix.Vz()) / scale2};
         const float scale = std::sqrt(scale2);
+        for (auto &beam : local.beams)
+        {
+            const CVECTOR start(beam.start[0], beam.start[1], beam.start[2]);
+            const CVECTOR direction(beam.direction[0], beam.direction[1], beam.direction[2]);
+            const auto t = storm_ship_laser::beamTangent(beam); const CVECTOR tangent(t.x, t.y, t.z);
+            const auto relative = start - matrix.Pos();
+            beam.start = {(relative | matrix.Vx()) / scale2, (relative | matrix.Vy()) / scale2, (relative | matrix.Vz()) / scale2};
+            beam.direction = {(direction | matrix.Vx()) / scale, (direction | matrix.Vy()) / scale, (direction | matrix.Vz()) / scale};
+            beam.tangent = {(tangent | matrix.Vx()) / scale, (tangent | matrix.Vy()) / scale, (tangent | matrix.Vz()) / scale};
+            beam.radius /= scale; beam.depth /= scale;
+        }
         local.radius = world.radius / scale;
         for (unsigned n = 0; n < local.axes.size(); ++n)
         {
@@ -217,7 +234,8 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
     auto *saved = state ? state->GetAttributeClass("PhonkWorldCuts") : nullptr;
     if (!saved) return; // Ordinary old saves retain their original geometry.
     const unsigned count = saved->GetAttributeAsDword("count");
-    if (saved->GetAttributeAsDword("version") != 1 || count > storm_world_cut::MaxCuts) return;
+    const auto version = saved->GetAttributeAsDword("version");
+    if ((version != 1 && version != 2) || count > storm_world_cut::MaxCuts) return;
     std::vector<WorldCutRecord> restored;
     for (unsigned n = 0; n < count; ++n)
     {
@@ -229,6 +247,8 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
         record.cut.distance = entry->GetAttributeAsFloat("distance");
         record.cut.center = {entry->GetAttributeAsFloat("x"), entry->GetAttributeAsFloat("y"), entry->GetAttributeAsFloat("z")};
         record.cut.radius = entry->GetAttributeAsFloat("radius", 1.f);
+        if (record.cut.kind == storm_world_cut::Cut::Beam &&
+            (!storm_hull_damage::readBeamSamples(entry, record.cut.beams) || record.cut.beams.empty())) return;
         const auto *scope = static_cast<const char *>(entry->GetAttribute("scope"));
         if (!scope || !*scope || !storm_world_cut::valid(record.cut)) return;
         record.scope = scope; restored.push_back(std::move(record));
@@ -290,9 +310,10 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
     entry->SetAttributeUseFloat("nz", record.cut.normal.z); entry->SetAttributeUseFloat("distance", record.cut.distance);
     entry->SetAttributeUseFloat("x", record.cut.center.x); entry->SetAttributeUseFloat("y", record.cut.center.y);
     entry->SetAttributeUseFloat("z", record.cut.center.z); entry->SetAttributeUseFloat("radius", record.cut.radius);
+    storm_hull_damage::writeBeamSamples(entry, record.cut.beams);
     worldCuts = std::move(candidate);
     worldCutsReady = true;
-    saved->SetAttributeUseDword("version", 1);
+    saved->SetAttributeUseDword("version", 2);
     saved->SetAttributeUseDword("count", unsigned(worldCuts.size()));
     if (AIFort::pAIFort) AIFort::pAIFort->ReconcileWorldCuts(*this, record.owner);
     if (const auto flags = core.GetEntityId("flag"))
@@ -377,6 +398,17 @@ bool ISLAND::BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner
     record.scope = "*"; record.cut.kind = storm_world_cut::Cut::Sphere;
     record.owner = owner;
     record.cut.center = {center.x, center.y, center.z}; record.cut.radius = radius;
+    return CommitWorldCut(std::move(record));
+#else
+    return false;
+#endif
+}
+
+bool ISLAND::CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner)
+{
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    WorldCutRecord record; record.scope = WorldModelKey(model); record.owner = owner;
+    record.cut.kind = storm_world_cut::Cut::Beam; record.cut.beams = samples;
     return CommitWorldCut(std::move(record));
 #else
     return false;

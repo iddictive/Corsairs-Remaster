@@ -121,7 +121,7 @@ class ShipWalk
     void SetMastBroken(int iMastIndex);
     void OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse,
                    CrewGore &gore, VDX9RENDER &renderer);
-    void OnHullCut(const CVECTOR &normal, float distance, bool laser,
+    void OnHullCut(const CVECTOR &normal, float distance, int cutMode,
                    CrewGore &gore, VDX9RENDER &renderer);
     void ReleaseWork(ShipMan &man);
     void FleeImpact(ShipMan &man, const CVECTOR &localHit, float seconds);

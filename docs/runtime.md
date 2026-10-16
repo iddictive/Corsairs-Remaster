@@ -4,6 +4,39 @@ Last verified delivery: October16. Corrected world destruction and6/7 bootstrap/
 
 ## Current verdict
 
+### October16 — local laser and nuclear cloud repair reopened
+
+The player rejects oversized laser removal on terrain and ships, plus the smooth
+orange nuclear cap/stem. The installed dcca image above is the rejected baseline;
+the new source candidate is not installed. `ExecutePhonkLaser` previously turned
+short exposure into a complete halfspace and chose its orientation/retained side,
+so reducing HP or delaying the same plane would not repair locality.
+
+The finite candidate retains actual muzzle-contact samples in0.32m-wide bores
+with4m/s delivered depth. CPU sanitizer cuts on actual Antigua/Cumana and
+Flyingdutchman meshes preserve remote triangles and move only local collision.
+Partial mast notches retain support; a complete sampled support section invokes
+stock whole-mast fall. Measured authored-skin aperture is0.0848309m² in the probe;
+deeper and overlapping cuts cannot charge its entrance twice. Legacy plane,
+nuclear and ram semantics remain separate. Complete native input/load/crew replay
+is pending.
+The nuclear helper renders217 consecutive1920x1200 Metal frames with nested
+density, cooling core and smoke lobes; exact foreground/zero/expiry checks pass.
+These frames use a plain fixture backdrop, not the player's island scene.
+The private evidence owner is `laser-locality-nuclear-detail-20261016`.
+Canonical build passes at native fingerprint
+`698b076b1de7ed54dca1f022b5c2cfd1ebc33280aacff97bf9f4238022149cbf`;
+unsigned built engine SHA-256 is
+`55127364d859e889838949760aec1cc9c8c8d2b992694338091df4181176bee5`.
+Both adapted native integration drivers compile/link against the current library closure;
+execution remains deferred while player PID25222 holds the installed engine.
+No game control or SAVE load occurs. Installation and accepting player action
+remain pending; the installed image is still dcca above.
+The current native fixture source/compile closure is retained at the same evidence
+owner's `native/{world,ship}` directories. After player exit, rebuild those private
+drivers with their `build.py`, run world Antigua/Cumana and held-fire/ram ship
+cases, then consume this unchanged source through canonical `run.sh --stage-only`.
+
 ### October16 — world destruction and old-control correction installed
 
 Actual CORE/MODELR/ISLAND reproduces the player's unchanged-island result:

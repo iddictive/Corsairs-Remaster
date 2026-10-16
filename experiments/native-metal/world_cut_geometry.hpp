@@ -34,14 +34,18 @@ inline bool terrainTextureStem(std::string_view stem) {
     return false;
 }
 struct Cut {
-    enum Kind : uint32_t { Halfspace=0, Sphere=1 };
+    enum Kind : uint32_t { Halfspace=0, Sphere=1, Beam=2 };
     Kind kind=Halfspace;
     Vec3 normal{0,1,0}; float distance=0;
     Vec3 center{}; float radius=1;
     uint32_t field=0; // Derived binding identity; never part of shape equality.
     std::array<Vec3,3>axes{{{1,0,0},{0,1,0},{0,0,1}}};
+    std::vector<storm_ship_laser::BeamSample> beams;
+    uint32_t faceOffset=0; // Derived identity of a sample within a saved stroke.
 };
 inline bool valid(const Cut&c) {
+    if(c.kind==Cut::Beam){if(c.beams.empty()||c.beams.size()>storm_hull_damage::MaxBeamSamples)return false;
+        for(const auto&b:c.beams)if(!storm_ship_laser::valid(b))return false;return true;}
     if(c.kind==Cut::Halfspace)return storm_ship_hull::finite(c.normal)&&std::isfinite(c.distance)&&
         std::abs(storm_ship_hull::length(c.normal)-1)<.001f&&std::abs(c.distance)<=10000000;
     if(c.kind!=Cut::Sphere||!storm_ship_hull::finite(c.center)||!std::isfinite(c.radius)||c.radius<.05f||c.radius>5000||
@@ -52,13 +56,18 @@ inline bool valid(const Cut&c) {
 }
 inline bool equal(const Cut&a,const Cut&b) {
     if(a.kind!=b.kind)return false;
+    if(a.kind==Cut::Beam){if(a.beams.size()!=b.beams.size())return false;for(size_t n=0;n<a.beams.size();++n){const auto&x=a.beams[n];const auto&y=b.beams[n];
+        if(x.start!=y.start||x.direction!=y.direction||x.tangent!=y.tangent||x.radius!=y.radius||x.depth!=y.depth)return false;}return true;}
     if(a.kind==Cut::Halfspace)return a.normal.x==b.normal.x&&a.normal.y==b.normal.y&&a.normal.z==b.normal.z&&a.distance==b.distance;
     if(a.center.x!=b.center.x||a.center.y!=b.center.y||a.center.z!=b.center.z||a.radius!=b.radius)return false;
     for(unsigned n=0;n<3;++n)if(a.axes[n].x!=b.axes[n].x||a.axes[n].y!=b.axes[n].y||a.axes[n].z!=b.axes[n].z)return false;return true;
 }
 inline size_t triangleCount(const Mesh&m){size_t n=0;for(const auto&o:m)n+=o.second.size();return n;}
 inline bool affects(const storm_ship_hull::Bounds&b,const std::vector<Cut>&cuts) {
-    for(const auto&c:cuts){if(c.kind==Cut::Halfspace){const Vec3 support{c.normal.x>=0?b.hi.x:b.lo.x,c.normal.y>=0?b.hi.y:b.lo.y,c.normal.z>=0?b.hi.z:b.lo.z};
+    for(const auto&c:cuts){if(c.kind==Cut::Beam){for(const auto&beam:c.beams){const auto a=storm_ship_laser::beamStart(beam),z=a+storm_ship_laser::beamDirection(beam)*beam.depth;
+            const float r=beam.radius*1.083f+.025f;const Vec3 lo{std::min(a.x,z.x)-r,std::min(a.y,z.y)-r,std::min(a.z,z.z)-r},hi{std::max(a.x,z.x)+r,std::max(a.y,z.y)+r,std::max(a.z,z.z)+r};
+            if(hi.x>=b.lo.x&&lo.x<=b.hi.x&&hi.y>=b.lo.y&&lo.y<=b.hi.y&&hi.z>=b.lo.z&&lo.z<=b.hi.z)return true;}}
+        else if(c.kind==Cut::Halfspace){const Vec3 support{c.normal.x>=0?b.hi.x:b.lo.x,c.normal.y>=0?b.hi.y:b.lo.y,c.normal.z>=0?b.hi.z:b.lo.z};
             if(double(c.normal.x)*support.x+double(c.normal.y)*support.y+double(c.normal.z)*support.z>c.distance)return true;
         }else {const Vec3 reach{c.radius*(std::abs(c.axes[0].x)+std::abs(c.axes[1].x)+std::abs(c.axes[2].x)),c.radius*(std::abs(c.axes[0].y)+std::abs(c.axes[1].y)+std::abs(c.axes[2].y)),c.radius*(std::abs(c.axes[0].z)+std::abs(c.axes[1].z)+std::abs(c.axes[2].z))};
             if(c.center.x+reach.x>=b.lo.x&&c.center.x-reach.x<=b.hi.x&&c.center.y+reach.y>=b.lo.y&&c.center.y-reach.y<=b.hi.y&&c.center.z+reach.z>=b.lo.z&&c.center.z-reach.z<=b.hi.z)return true;}}
@@ -183,16 +192,7 @@ inline void surfaceNormal(Triangle&t) {
 }
 // Connected closed components stay authored. Only open stone/town components
 // acquire the shared shell implementation, preserving doors and other openings.
-inline std::vector<Mesh> components(const Mesh&source) {
-    struct Ref{int object;size_t triangle;};std::vector<Ref>refs;std::vector<size_t>parent;
-    std::unordered_map<PositionEdge,size_t,storm_ship_laser::PositionEdgeHash>edges;
-    const auto root=[&](size_t a){while(parent[a]!=a){parent[a]=parent[parent[a]];a=parent[a];}return a;};
-    for(const auto&o:source)for(size_t n=0;n<o.second.size();++n){const size_t id=refs.size();refs.push_back({o.first,n});parent.push_back(id);const auto&t=o.second[n];
-        for(unsigned c=0;c<3;++c){auto a=storm_ship_laser::positionKey(t[c].position),b=storm_ship_laser::positionKey(t[(c+1)%3].position);if(a==b)continue;auto ordered=std::minmax(a,b);
-            auto inserted=edges.emplace(PositionEdge{ordered.first,ordered.second},id);if(!inserted.second){const size_t x=root(id),y=root(inserted.first->second);parent[x]=y;}}}
-    std::map<size_t,Mesh>groups;for(size_t n=0;n<refs.size();++n)groups[root(n)][refs[n].object].push_back(source.at(refs[n].object)[refs[n].triangle]);
-    std::vector<Mesh>result;result.reserve(groups.size());for(auto&entry:groups)result.push_back(std::move(entry.second));return result;
-}
+using storm_ship_laser::components;
 inline std::map<PositionKey,float> stoneClearance(const Mesh&source,float maximum,std::map<PositionKey,Vec3>&offsetNormals) {
     struct Point{Vec3 position{},normal{};float depth=0;std::vector<Vec3>faces;};std::map<PositionKey,Point>points;
     struct Feature{Vec3 normal{};unsigned count=0;bool sharp=false;float length=0,altitude=std::numeric_limits<float>::infinity();};
@@ -231,6 +231,7 @@ inline std::map<PositionKey,float> stoneClearance(const Mesh&source,float maximu
     }return limits;
 }
 inline std::vector<Plane> spherePlanes(const Cut&c) {
+    if(c.kind==Cut::Beam){const auto planes=storm_ship_laser::beamPlanes(c.beams.front());return {planes.begin(),planes.end()};}
     std::vector<Plane>planes;planes.reserve(26);
     for(int x=-1;x<=1;++x)for(int y=-1;y<=1;++y)for(int z=-1;z<=1;++z){if(!x&&!y&&!z)continue;
         const auto n=storm_ship_hull::normalized(c.axes[0]*float(x)+c.axes[1]*float(y)+c.axes[2]*float(z));planes.push_back({n,storm_ship_hull::dot(n,c.center)+c.radius});}
@@ -297,10 +298,10 @@ inline bool applySurfaceCuts(Mesh source,const std::vector<Cut>&cuts,size_t excl
 // planar union. No invented global basement contour can reject the whole scene.
 struct WorldPrism {std::array<Vec3,6>vertices;int object=0;};
 inline bool removedComponent(const Mesh&source,const std::vector<Cut>&cuts,float shellMargin) {
-    for(const auto&cut:cuts){bool inside=true;const auto planes=cut.kind==Cut::Sphere?spherePlanes(cut):std::vector<Plane>{{cut.normal,cut.distance}};
+    for(const auto&cut:cuts){bool inside=true;const auto planes=cut.kind!=Cut::Halfspace?spherePlanes(cut):std::vector<Plane>{{cut.normal,cut.distance}};
         for(const auto&o:source)for(const auto&t:o.second)for(const auto&v:t)for(const auto&p:planes){
             const double d=double(p.normal.x)*v.position.x+double(p.normal.y)*v.position.y+double(p.normal.z)*v.position.z-p.distance;
-            inside&=cut.kind==Cut::Sphere?d<=-shellMargin:d>=shellMargin;}
+            inside&=cut.kind!=Cut::Halfspace?d<=-shellMargin:d>=shellMargin;}
         if(inside)return true;}
     return false;
 }
@@ -402,7 +403,10 @@ struct CapPatch {
 };
 inline bool reconstructWorld(const Mesh&original,const std::set<int>&terrainObjects,const std::vector<Cut>&cuts,Mesh&out,Mesh*outerOutput=nullptr,Mesh*capOutput=nullptr,std::vector<CapPatch>*patchesOutput=nullptr) {
     if(cuts.size()>MaxCuts||!finite(original))return false;for(const auto&c:cuts)if(!valid(c))return false;
-    std::vector<Cut>unique;for(const auto&c:cuts){bool duplicate=false;for(const auto&p:unique)duplicate|=equal(c,p);if(!duplicate)unique.push_back(c);}
+    std::vector<Cut>unique;for(const auto&record:cuts){std::vector<Cut>expanded;
+        if(record.kind==Cut::Beam){for(size_t n=0;n<record.beams.size();++n){auto part=record;part.beams={record.beams[n]};part.faceOffset=uint32_t(n)*10;expanded.push_back(std::move(part));}}
+        else expanded.push_back(record);
+        for(const auto&c:expanded){bool duplicate=false;for(const auto&p:unique)duplicate|=equal(c,p);if(!duplicate)unique.push_back(c);}}
     Mesh surface,stone,closed;std::vector<WorldPrism>prisms;std::map<int,CapAppearance>appearances;
     for(const auto&o:original)appearances.emplace(o.first,capAppearance(o.second));
     const float floor=storm_ship_laser::bounds(original).lo.y-10032.f;
@@ -423,9 +427,9 @@ inline bool reconstructWorld(const Mesh&original,const std::set<int>&terrainObje
         if(triangleCount(surface)>MaxTriangles)return false;
     }
     Mesh outer,allCaps;std::vector<CapPatch>patches;if(!applySurfaceCuts(surface,unique,unique.size(),outer))return false;
-    for(size_t n=0;n<unique.size();++n){const auto&c=unique[n];const auto planes=c.kind==Cut::Sphere?spherePlanes(c):std::vector<Plane>{{c.normal,c.distance}};
+    for(size_t n=0;n<unique.size();++n){const auto&c=unique[n];const auto planes=c.kind!=Cut::Halfspace?spherePlanes(c):std::vector<Plane>{{c.normal,c.distance}};
         for(size_t side=0;side<planes.size();++side){const auto&plane=planes[side];const auto basis=storm_ship_hull::frame(plane.normal);const Vec3 origin=plane.normal*plane.distance;
-            std::vector<Plane>limits;if(c.kind==Cut::Sphere)for(size_t p=0;p<planes.size();++p)if(p!=side)limits.push_back(planes[p]);
+            std::vector<Plane>limits;if(c.kind!=Cut::Halfspace)for(size_t p=0;p<planes.size();++p)if(p!=side)limits.push_back(planes[p]);
             std::vector<PlanarRing>sections;int object=original.empty()?0:original.begin()->first;
             for(const auto&prism:prisms){const auto before=sections.size();if(!prismSection(prism,plane,limits,sections,basis,origin))return false;if(sections.size()!=before)object=prism.object;}
             // Closed authored components use their own oriented cross-section,
@@ -434,10 +438,10 @@ inline bool reconstructWorld(const Mesh&original,const std::set<int>&terrainObje
                 for(const auto&limit:limits){Mesh clipped;if(!retainHalfspaceSurface(cap,limit,clipped))return false;cap=std::move(clipped);}
                 for(const auto&o:cap)for(const auto&t:o.second){PlanarRing ring;for(const auto&v:t){auto p=v.position-origin;ring.push_back({storm_ship_hull::dot(p,basis.tangent),storm_ship_hull::dot(p,basis.bitangent)});}double area=0;for(unsigned j=0;j<3;++j)area+=ring[j][0]*ring[(j+1)%3][1]-ring[(j+1)%3][0]*ring[j][1];if(area<0)std::reverse(ring.begin(),ring.end());sections.push_back(std::move(ring));object=o.first;}}
             if(sections.empty())continue;Mesh cap;if(!planarCap(sections,plane,object,origin,cap,appearances.at(object)))return false;
-            if(c.kind==Cut::Sphere)for(auto&o:cap)for(auto&t:o.second){std::swap(t[1],t[2]);for(auto&v:t)v.normal=plane.normal*-1.f;}
-            const Plane boundary=c.kind==Cut::Sphere?Plane{plane.normal*-1.f,-plane.distance}:plane;Mesh retained;
+            if(c.kind!=Cut::Halfspace)for(auto&o:cap)for(auto&t:o.second){std::swap(t[1],t[2]);for(auto&v:t)v.normal=plane.normal*-1.f;}
+            const Plane boundary=c.kind!=Cut::Halfspace?Plane{plane.normal*-1.f,-plane.distance}:plane;Mesh retained;
             if(!applySurfaceCuts(std::move(cap),unique,n,retained,&boundary))return false;
-            if(patchesOutput&&triangleCount(retained)){CapPatch patch;patch.field=c.field;patch.face=uint32_t(side);patch.plane=plane;patch.origin=origin;patch.object=object;patch.reverse=c.kind==Cut::Sphere;patch.appearance=appearances.at(object);patch.surface=retained;patches.push_back(std::move(patch));}
+            if(patchesOutput&&triangleCount(retained)){CapPatch patch;patch.field=c.field;patch.face=c.faceOffset+uint32_t(side);patch.plane=plane;patch.origin=origin;patch.object=object;patch.reverse=c.kind!=Cut::Halfspace;patch.appearance=appearances.at(object);patch.surface=retained;patches.push_back(std::move(patch));}
             storm_ship_laser::appendMesh(allCaps,retained);if(triangleCount(outer)+triangleCount(allCaps)>MaxTriangles)return false;
         }}
     for(const auto&o:original)outer.try_emplace(o.first);Mesh result=outer;storm_ship_laser::appendMesh(result,allCaps);if(!finite(result))return false;

@@ -211,6 +211,7 @@ class ISLAND : public ISLAND_BASE
     };
     float TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &model) override;
     bool CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance, int32_t owner = -1) override;
+    bool CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner = -1) override;
     bool BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner = -1) override;
     bool IsWorldPositionRetained(entid_t model, const CVECTOR &point) override;
 };

@@ -18,6 +18,7 @@ struct LaserPlane
     bool charred = true;
     CVECTOR grain = CVECTOR(0.f, 1.f, 0.f);
     float roughness = 0.f, spacing = 1.f, phase = 0.f;
+    std::vector<storm_hull_damage::BeamSample> beams;
 };
 struct LaserFragment
 {
@@ -40,6 +41,7 @@ struct LaserBreach
     CVECTOR point = CVECTOR(0.f);
     float length = 0.f;
     float age = 0.f;
+    float area = 0.f; // Finite removed skin; zero retains legacy separating-seam growth.
 };
 struct LaserBinding
 {
@@ -69,6 +71,9 @@ struct LaserState
     CVECTOR firstHit = CVECTOR(0.f), lastHit = CVECTOR(0.f);
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f);
     std::vector<LaserRay> rays; // gun-local origins and each ray's own occlusion result
+    std::vector<storm_hull_damage::BeamSample> pendingBeam;
+    uint64_t pendingContact = 0;
+    bool pendingWorld = false;
     float charge = 1.f;
     std::vector<LaserPlane> cuts;
     std::vector<LaserFragment> fragments;
@@ -87,7 +92,7 @@ struct LaserState
     bool restored = false;
     bool structuralFailure = false, failureReported = false;
 };
-constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .65f;
+constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .20f;
 constexpr float laserBeamLife = .10f;
 constexpr unsigned maxLaserCuts = storm_hull_damage::MaxSplitPlanes;
 }

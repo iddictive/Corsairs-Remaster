@@ -113,10 +113,17 @@ bool completeModelBounds(MODEL *model, storm_ship_hull::Bounds &bounds)
 storm_ship_laser::Plane cutField(const LaserPlane &plane)
 {
     return {{plane.normal.x, plane.normal.y, plane.normal.z}, plane.distance, plane.charred,
-            {plane.grain.x, plane.grain.y, plane.grain.z}, plane.roughness, plane.spacing, plane.phase};
+            {plane.grain.x, plane.grain.y, plane.grain.z}, plane.roughness, plane.spacing, plane.phase, plane.beams};
 }
 float cutDistance(const LaserPlane &plane, const CVECTOR &point)
 {
+    if (!plane.beams.empty())
+    {
+        float inside = -std::numeric_limits<float>::infinity();
+        for (const auto &beam : plane.beams)
+            inside = std::max(inside, storm_ship_laser::beamDistance(beam, {point.x, point.y, point.z}));
+        return inside;
+    }
     return storm_ship_laser::distance(cutField(plane), {point.x, point.y, point.z});
 }
 storm_ship_laser::Plane nodeCutField(CMatrix &modelWorld, NODE *node, const LaserPlane &plane)
@@ -131,9 +138,25 @@ storm_ship_laser::Plane nodeCutField(CMatrix &modelWorld, NODE *node, const Lase
     const float n = std::max(1.e-8f, std::sqrt(~normal));
     const float g = std::max(1.e-8f, std::sqrt(~grain));
     normal *= 1.f / n; grain *= 1.f / g;
-    return {{normal.x, normal.y, normal.z}, (plane.distance - (plane.normal | origin)) / n,
+    storm_ship_laser::Plane result{{normal.x, normal.y, normal.z}, (plane.distance - (plane.normal | origin)) / n,
             plane.charred, {grain.x, grain.y, grain.z}, plane.roughness / n,
-            plane.spacing / g, (plane.phase + (plane.grain | origin)) / g};
+            plane.spacing / g, (plane.phase + (plane.grain | origin)) / g, plane.beams};
+    const float scale = std::sqrt(~x);
+    if (!plane.beams.empty() && (!std::isfinite(scale) || scale < 1.e-6f ||
+        std::abs((~y) - scale * scale) > .001f * scale * scale || std::abs((~z) - scale * scale) > .001f * scale * scale))
+    { result.beams.front().depth = -1.f; return result; }
+    for (auto &beam : result.beams)
+    {
+        const CVECTOR start(beam.start[0], beam.start[1], beam.start[2]);
+        const CVECTOR direction(beam.direction[0], beam.direction[1], beam.direction[2]);
+        const auto t = storm_ship_laser::beamTangent(beam); const CVECTOR tangent(t.x, t.y, t.z);
+        const auto delta = start - origin;
+        beam.start = {(delta | x) / (scale * scale), (delta | y) / (scale * scale), (delta | z) / (scale * scale)};
+        beam.direction = {(direction | x) / scale, (direction | y) / scale, (direction | z) / scale};
+        beam.tangent = {(tangent | x) / scale, (tangent | y) / scale, (tangent | z) / scale};
+        beam.radius /= scale; beam.depth /= scale;
+    }
+    return result;
 }
 float contourArea(const std::vector<CVECTOR> &contour)
 {
@@ -183,7 +206,7 @@ bool fragmentPolygon(const CVECTOR *vertices, int32_t count)
 bool SHIP::IsHullPositionRetained(const CVECTOR &localPosition) const
 {
     for (const auto &plane : phonkLaser.cuts)
-        if (cutDistance(plane, localPosition) > .05f) return false;
+        if (cutDistance(plane, localPosition) > (plane.beams.empty() ? .05f : 0.f)) return false;
     return true;
 }
 
@@ -197,9 +220,12 @@ bool SHIP::IsAuthoredMastNode(const NODE *node) const
 
 void SHIP::DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane)
 {
+    // A point inside a bore is not proof that the whole mast section is gone.
+    // Finite cuts use GEOM's retained support-section result below instead.
+    if (!plane.beams.empty()) return;
     std::vector<mast_t *> detached;
     const auto retained = [&](const CVECTOR &point)
-    { return IsHullPositionRetained(point) && cutDistance(plane, point) <= .05f; };
+    { return IsHullPositionRetained(point) && cutDistance(plane, point) <= (plane.beams.empty() ? .05f : 0.f); };
     for (auto &mast : pMasts)
         if (!mast.bBroken && mast.pNode && (!retained(mast.vSrc) || !retained(mast.vDst)))
             detached.push_back(&mast);
@@ -225,7 +251,7 @@ void SHIP::UpdateCutStructuralFailure()
         support.y += std::max(.5f, -point.y) * .35f;
         bool lost = false;
         for (const auto &cut : phonkLaser.cuts)
-            if (cut.normal.y < -.5f && cutDistance(cut, support) >= 0.f) lost = true;
+            if ((!cut.beams.empty() || cut.normal.y < -.5f) && cutDistance(cut, support) >= 0.f) lost = true;
         if (lost) ++failed;
     }
     if (!phonkLaser.originalKeel.empty() && failed * 5 >= phonkLaser.originalKeel.size() * 3)
@@ -245,7 +271,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     using namespace storm::ship::phonk;
-    if (!finite(plane.normal) || !std::isfinite(plane.distance) ||
+    if (!storm_ship_laser::valid(cutField(plane)) || !finite(plane.normal) || !std::isfinite(plane.distance) ||
         std::abs((~plane.normal) - 1.f) > .002f || phonkLaser.cuts.size() >= maxLaserCuts)
         return false;
     auto *model = GetModel();
@@ -254,7 +280,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     if (!restoring && !EnsureCutFragments()) return false;
     unsigned pendingNodes = 0;
     for (int n = 0; auto *node = model->GetNode(n); ++n)
-        if (node->geo && !IsAuthoredMastNode(node)) ++pendingNodes;
+        if (node->geo && (!IsAuthoredMastNode(node) || !plane.beams.empty())) ++pendingNodes;
     unsigned cutBudget = std::max(storm_hull_damage::MaxFragmentGroups, pendingNodes);
     const auto fragmentBudget = [&]
     { return restoring ? 1u : cutBudget - (pendingNodes ? pendingNodes - 1 : 0); };
@@ -281,7 +307,9 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     const CVECTOR worldNormal = modelWorld * plane.normal - modelWorld.Pos();
     const uint64_t owner = uint64_t(blots_id);
     storm_ship_laser::Result hull;
-    if (!root->geo->CutByLaser(owner, nodeCutField(modelWorld, root, plane), hull, fragmentBudget()) || !hull.changed) return false;
+    if (!root->geo->CutByLaser(owner, nodeCutField(modelWorld, root, plane), hull, fragmentBudget()) ||
+        (!hull.changed && plane.beams.empty())) return false;
+    bool changed = hull.changed;
     --pendingNodes;
     if (phonkLaser.floodCapacity <= 0.f)
     {
@@ -308,22 +336,37 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         if (length <= .0001f) continue;
         const CVECTOR midpoint = (a + b) * .5f;
         const CVECTOR world = modelWorld * midpoint;
-        if (openings.empty()) low = high = world.y;
-        low = std::min(low, world.y); high = std::max(high, world.y);
-        openings.push_back({midpoint, length, 0.f});
+        if (plane.beams.empty())
+        {
+            if (openings.empty()) low = high = world.y;
+            low = std::min(low, world.y); high = std::max(high, world.y);
+            openings.push_back({midpoint, length, 0.f});
+        }
         if (!restoring && plane.charred && phonkLaser.edges.size() < 512) phonkLaser.edges.push_back({a, b, 0.f});
         if (pSea && world.y < pSea->WaveXZ(world.x, world.z)) phonkLaser.wetCut = true;
+    }
+    // Only newly removed authored skin opens water ingress. Synthetic bore caps
+    // do not, so drilling deeper cannot count the same entrance a second time.
+    for (const auto &opening : hull.openings)
+    {
+        CVECTOR point;
+        modelWorld.MulToInv(root->glob_mtx * CVECTOR(opening.point.x, opening.point.y, opening.point.z), point);
+        const auto world = modelWorld * point;
+        if (openings.empty()) low = high = world.y;
+        low = std::min(low, world.y); high = std::max(high, world.y);
+        openings.push_back({point, 0.f, 0.f, opening.area});
     }
     for (const auto &opening : openings)
     {
         const float height = (modelWorld * opening.point).y;
         const unsigned bin = std::min(bins - 1, unsigned(std::max(0.f, height - low) * bins / std::max(.001f, high - low)));
         auto &sample = samples[bin];
-        if (sample.length == 0.f || height < (modelWorld * sample.point).y) sample.point = opening.point;
+        if ((sample.length == 0.f && sample.area == 0.f) || height < (modelWorld * sample.point).y) sample.point = opening.point;
         sample.length += opening.length;
+        sample.area += opening.area;
     }
     for (auto &sample : samples)
-        if (sample.length > .0001f)
+        if (sample.length > .0001f || sample.area > .0000001f)
             phonkLaser.breaches.push_back(sample);
     const auto fragment = [&](NODE *node, const storm_ship_laser::Result &result)
     {
@@ -364,21 +407,51 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     };
     fragment(root, hull);
     rememberBinding(phonkLaser, root, unsigned(phonkLaser.cuts.size() + 1));
-    // Reuse mast detachment so sails, ropes and flags leave with their support.
-    // Geometry pointers retained below always belong to nodes still on this ship.
-    DetachUnsupportedCutMasts(plane);
     model->Update();
+    std::vector<mast_t *> severedMasts;
     for (int n = 1; auto *node = model->GetNode(n); ++n)
     {
-        if (!node->geo || IsAuthoredMastNode(node)) continue;
+        if (!node->geo || (IsAuthoredMastNode(node) && plane.beams.empty())) continue;
         storm_ship_laser::Result result;
-        if (node->geo->CutByLaser(owner, nodeCutField(modelWorld, node, plane), result, fragmentBudget()))
+        mast_t *support = nullptr;
+        storm_ship_hull::Vec3 axis;
+        if (!plane.beams.empty()) for (auto &mast : pMasts)
+            if (!mast.bBroken && mast.pNode == node)
+            {
+                support = &mast; CVECTOR local;
+                node->glob_mtx.MulToInvNorm(modelWorld * (mast.vDst - mast.vSrc) - modelWorld.Pos(), local);
+                axis = storm_ship_hull::normalized({local.x, local.y, local.z}); break;
+            }
+        if (node->geo->CutByLaser(owner, nodeCutField(modelWorld, node, plane), result, fragmentBudget(), support ? &axis : nullptr))
         {
-            if (result.changed) fragment(node, result);
+            if (result.changed)
+            {
+                changed = true; fragment(node, result);
+                if (support && result.supportSevered) severedMasts.push_back(support);
+                if (!restoring && plane.charred)
+                    for (const auto &edge : result.seam)
+                    {
+                        if (phonkLaser.edges.size() >= 512) break;
+                        CVECTOR a, b;
+                        modelWorld.MulToInv(node->glob_mtx * CVECTOR(edge.a.position.x, edge.a.position.y, edge.a.position.z), a);
+                        modelWorld.MulToInv(node->glob_mtx * CVECTOR(edge.b.position.x, edge.b.position.y, edge.b.position.z), b);
+                        phonkLaser.edges.push_back({a, b, 0.f});
+                    }
+            }
             rememberBinding(phonkLaser, node, unsigned(phonkLaser.cuts.size() + 1));
         }
         --pendingNodes;
     }
+    if (!changed)
+    {
+        for (int n = 0; auto *node = model->GetNode(n); ++n)
+            if (node->geo && (!IsAuthoredMastNode(node) || !plane.beams.empty())) rememberBinding(phonkLaser, node, unsigned(phonkLaser.cuts.size()));
+        return false;
+    }
+    // Only accepted material removal can take its supported rigging with it.
+    DetachUnsupportedCutMasts(plane);
+    for (auto *mast : severedMasts)
+        if (!mast->bBroken && mast->pNode) { mast->fDamage = 1.f; MastFall(mast); }
     phonkLaser.cuts.push_back(plane);
     const float removed = phonkLaser.remaining * std::clamp(hull.removedFraction, 0.f, 1.f);
     phonkLaser.remaining = std::max(0.f, phonkLaser.remaining - removed);
@@ -388,7 +461,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     for (auto &point : vKeelContour)
     {
         const float outside = cutDistance(plane, point);
-        if (outside > 0.f) point -= plane.normal * outside;
+        if (outside > 0.f && plane.beams.empty()) point -= plane.normal * outside;
     }
     if (!restoring)
     {
@@ -423,6 +496,8 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         entry->SetAttributeUseFloat("roughness", plane.roughness);
         entry->SetAttributeUseFloat("spacing", plane.spacing);
         entry->SetAttributeUseFloat("phase", plane.phase);
+        entry->SetAttributeUseDword("kind", plane.beams.empty() ? 0 : 1);
+        storm_hull_damage::writeBeamSamples(entry, plane.beams);
         // Shared script damage owner consumes only a successfully removed part.
         saved->SetAttributeUseFloat("lastFraction", removed);
         saved->SetAttributeUseFloat("remaining", phonkLaser.remaining);
@@ -439,7 +514,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
         if (auto sailors = core.GetEntityId("sailors"))
             core.Send_Message(sailors, "laffffl", MSG_PEOPLES_ON_SHIP_HULLCUT,
                 GetACharacter(), plane.normal.x, plane.normal.y, plane.normal.z,
-                plane.distance, int32_t(plane.charred));
+                plane.beams.empty() ? plane.distance : float(phonkLaser.cuts.size() - 1), int32_t(plane.beams.empty() ? plane.charred : 2));
         PublishHullCut(payPartialDamage && phonkLaser.wetCut ? removed : 0.f, plane.charred);
     }
     return true;
@@ -630,6 +705,9 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
                 plane.roughness = entry->GetAttributeAsFloat("roughness");
                 plane.spacing = entry->GetAttributeAsFloat("spacing", 1.f);
                 plane.phase = entry->GetAttributeAsFloat("phase");
+                const auto kind = entry->GetAttributeAsDword("kind");
+                if (kind > 1 || !storm_hull_damage::readBeamSamples(entry, plane.beams) ||
+                    (kind == 1) != !plane.beams.empty()) break;
                 if (!ApplyPhonkLaserCut(plane, true)) break;
             }
         auto *flood = GetACharacter()->FindAClass(GetACharacter(), "Ship.PhonkFlood");
@@ -648,7 +726,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         auto *model = GetModel();
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
-            if (!node->geo || IsAuthoredMastNode(node)) continue;
+            if (!node->geo) continue;
             const std::string name = node->GetName() ? node->GetName() : "";
             const auto binding = std::find_if(phonkLaser.bindings.begin(), phonkLaser.bindings.end(), [&](const auto &b)
                 { return b.node == name && b.generation == node->geo->GeometryGeneration() && b.planes == phonkLaser.cuts.size(); });
@@ -656,6 +734,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             unsigned completed = 0;
             for (const auto &plane : phonkLaser.cuts)
             {
+                if (IsAuthoredMastNode(node) && plane.beams.empty()) { ++completed; continue; }
                 storm_ship_laser::Result result;
                 if (!node->geo->CutByLaser(uint64_t(blots_id), nodeCutField(model->mtx, node, plane), result)) break;
                 if (result.fragment) node->geo->ReleaseLaserFragment(uint64_t(blots_id), result.fragment);
@@ -669,6 +748,21 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     if (phonkLaser.structuralFailure && !phonkLaser.failureReported)
         PublishHullCut(0.f, false);
     const float seconds = deltaTime * .001f;
+    const auto commitBeam = [&] {
+        if (phonkLaser.pendingBeam.empty()) return;
+        auto samples = std::move(phonkLaser.pendingBeam);
+        phonkLaser.pendingBeam.clear(); phonkLaser.burn = 0.f;
+        const int32_t owner = int32_t(GetACharacter()->GetAttributeAsDword("index"));
+        if (phonkLaser.pendingWorld)
+        { if (pIsland) pIsland->CutWorldBeam(phonkLaser.pendingContact, samples, owner); }
+        else if (auto *receiver = dynamic_cast<SHIP *>(core.GetEntityPointer(phonkLaser.pendingContact)); receiver && receiver->bMounted)
+        {
+            LaserPlane field; field.beams = std::move(samples);
+            const auto &direction = field.beams.front().direction;
+            field.normal = CVECTOR(direction[0], direction[1], direction[2]);
+            receiver->ApplyPhonkLaserCut(field, false, owner, GetACharacter());
+        }
+    };
     phonkLaser.impact.age = std::min(2.f, phonkLaser.impact.age + seconds);
     if (phonkLaser.impact.age > 1.f) phonkLaser.impact.energy = 0.f;
     phonkLaser.reload = std::max(0.f, phonkLaser.reload - seconds);
@@ -687,8 +781,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             const auto point = GetModel()->mtx * sample.point;
             const float depth = pSea->WaveXZ(point.x, point.z) - point.y;
             if (depth <= 0.f) continue;
-            const float opening = std::min(2.5f, .18f + sample.age * 2.f);
-            phonkLaser.flooded += .62f * sample.length * opening * std::sqrt(2.f * 9.81f * depth) * elapsed;
+            const float opening = sample.area > 0.f ? sample.area : sample.length * std::min(2.5f, .18f + sample.age * 2.f);
+            phonkLaser.flooded += .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed;
         }
         const float fraction = std::clamp(phonkLaser.flooded / std::max(1.f, phonkLaser.floodCapacity), 0.f, 1.f);
         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
@@ -698,6 +792,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     }
     if (!PhonkActive())
     {
+        commitBeam();
         phonkLaser.charge = std::min(1.f, phonkLaser.charge + seconds * .10f);
         phonkLaser.beamAge = 1.f; phonkLaser.reload = 0.f; phonkLaser.contact = 0;
         phonkLaser.burn = phonkLaser.triggerAge = phonkLaser.sampleClock = 0.f;
@@ -713,6 +808,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     pSea->AttributesPointer->VerifyAttributeClass("Phonk")->SetAttributeUseFloat("LaserCharge", phonkLaser.charge);
     if (!held || phonkLaser.charge <= 0.f)
     {
+        commitBeam();
         phonkLaser.contact = 0; phonkLaser.burn = 0.f;
         phonkLaser.triggerAge = phonkLaser.sampleClock = 0.f;
         if (phonkLaser.charge <= 0.f) phonkLaser.beamAge = 1.f;
@@ -752,7 +848,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     auto *cannons = ai ? ai->GetCannonController() : nullptr;
     const auto muzzles = cannons ? cannons->GetLaserMuzzles(phonkLaser.endpoint) : std::vector<CVECTOR>{};
     if (muzzles.empty())
-    { phonkLaser.beamAge = 1.f; phonkLaser.contact = 0; phonkLaser.burn = 0.f; phonkLaser.rays.clear(); return; }
+    { commitBeam(); phonkLaser.beamAge = 1.f; phonkLaser.contact = 0; phonkLaser.burn = 0.f; phonkLaser.rays.clear(); return; }
     const CVECTOR picked = phonkLaser.endpoint;
     phonkLaser.rays.clear();
     phonkLaser.beamAge = 0.f;
@@ -807,49 +903,42 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         phonkLaser.endpoint = ray.endpoint;
         phonkLaser.rays.push_back(ray);
     }
-    if (!target && !worldTarget) { phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
+    if (!target && !worldTarget) { commitBeam(); phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
     CVECTOR hit = phonkLaser.endpoint;
     if (target) target->GetModel()->mtx.MulToInv(phonkLaser.endpoint, hit);
     const auto contact = worldTarget ? uint64_t(worldTarget) : uint64_t(target->GetId());
     if (phonkLaser.contact != contact || phonkLaser.contactWorld != bool(worldTarget))
     {
+        commitBeam();
         phonkLaser.contact = contact; phonkLaser.contactWorld = bool(worldTarget);
         phonkLaser.firstHit = hit; phonkLaser.burn = 0.f;
     }
     phonkLaser.lastHit = hit;
-    if (phonkLaser.reload > 0.f) return;
     if (phonkLaser.triggerAge * 16000.f < std::sqrt(~(phonkLaser.endpoint - phonkLaser.muzzle))) return;
-    phonkLaser.burn += sampleTime;
-    if (phonkLaser.burn < laserBurnTime) return;
-    const auto beamDirection = !(phonkLaser.endpoint - phonkLaser.muzzle);
-    CVECTOR worldNormal(beamDirection.z, 0.f, -beamDirection.x);
-    const CVECTOR sweep = worldTarget ? phonkLaser.lastHit - phonkLaser.firstHit :
-        target->GetModel()->mtx * phonkLaser.lastHit - target->GetModel()->mtx * phonkLaser.firstHit;
-    if ((~sweep) > .25f && (~(beamDirection ^ sweep)) > .04f) worldNormal = beamDirection ^ sweep;
-    if ((~worldNormal) < 1.e-6f) return;
-    worldNormal = !worldNormal;
-    if (worldTarget)
+    const auto directionWorld = !(phonkLaser.endpoint - phonkLaser.muzzle);
+    auto directionLocal = directionWorld;
+    if (target) target->GetModel()->mtx.MulToInvNorm(directionWorld, directionLocal);
+    directionLocal = !directionLocal;
+    storm_hull_damage::BeamSample sample;
+    sample.start = {hit.x, hit.y, hit.z}; sample.direction = {directionLocal.x, directionLocal.y, directionLocal.z};
+    const auto tangent = storm_ship_laser::beamTangent(sample); sample.tangent = {tangent.x, tangent.y, tangent.z};
+    // Metres of material removed per second delivered at this actual contact.
+    // Stationary dwell deepens one bore. New aim samples never become a chord
+    // or a bounding rectangle spanning unvisited material.
+    sample.depth = sampleTime * 4.f;
+    if (!storm_ship_laser::valid(sample)) return;
+    phonkLaser.pendingContact = contact; phonkLaser.pendingWorld = bool(worldTarget);
+    bool merged = false;
+    for (auto &prior : phonkLaser.pendingBeam)
     {
-        const auto point = (phonkLaser.firstHit + phonkLaser.lastHit) * .5f;
-        phonkLaser.burn = 0.f; phonkLaser.contact = 0; phonkLaser.reload = laserReload;
-        pIsland->CutWorldWeapon(worldTarget, worldNormal, worldNormal | point,
-            int32_t(GetACharacter()->GetAttributeAsDword("index")));
-        return;
+        const auto offset = storm_ship_laser::beamStart(sample) - storm_ship_laser::beamStart(prior);
+        if (storm_ship_hull::length(offset) < .005f &&
+            storm_ship_hull::dot(storm_ship_laser::beamDirection(prior), storm_ship_laser::beamDirection(sample)) > .99999f)
+        { prior.depth += sample.depth; merged = true; break; }
     }
-    LaserPlane plane;
-    CVECTOR point;
-    auto *model = target->GetModel();
-    model->mtx.MulToInvNorm(worldNormal, plane.normal);
-    plane.normal = !plane.normal;
-    point = (phonkLaser.firstHit + phonkLaser.lastHit) * .5f;
-    plane.distance = plane.normal | point;
-    // Keep the side containing the hull centre, allowing genuine glancing cuts.
-    GEOS::INFO info{}; model->GetNode(0)->geo->GetInfo(info);
-    const CVECTOR center(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
-    if ((plane.normal | center) > plane.distance)
-    { plane.normal *= -1.f; plane.distance *= -1.f; }
-    phonkLaser.burn = 0.f; phonkLaser.contact = 0; phonkLaser.reload = laserReload;
-    target->ApplyPhonkLaserCut(plane, false, int32_t(GetACharacter()->GetAttributeAsDword("index")), GetACharacter());
+    if (!merged) phonkLaser.pendingBeam.push_back(sample);
+    phonkLaser.burn += sampleTime;
+    if (phonkLaser.burn >= laserBurnTime || phonkLaser.pendingBeam.size() >= storm_hull_damage::MaxBeamSamples) commitBeam();
 }
 
 CVECTOR SHIP::PhonkLaserEndpoint()

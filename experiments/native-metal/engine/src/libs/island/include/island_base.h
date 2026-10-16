@@ -1,6 +1,8 @@
 #pragma once
 
 #include "cannon_trace.h"
+#include "ship_hull_damage_bridge.hpp"
+#include <vector>
 
 struct FRECT;
 
@@ -29,6 +31,7 @@ class ISLAND_BASE : public CANNON_TRACE_BASE
     virtual float TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &model)
     { model = 0; return Trace(from, to); }
     virtual bool CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance, int32_t owner = -1) { return false; }
+    virtual bool CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner = -1) { return false; }
     virtual bool BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner = -1) { return false; }
     virtual bool IsWorldPositionRetained(entid_t model, const CVECTOR &point) { return true; }
 };

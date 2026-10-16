@@ -652,7 +652,7 @@ void GEOM::RebuildLaserCollision()
     laserBroadphase.build(boxes);
     ++collisionRevision;
 }
-bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_ship_laser::Result&result,unsigned fragmentLimit)
+bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_ship_laser::Result&result,unsigned fragmentLimit,const storm_ship_hull::Vec3 *supportAxis)
 {
     result={};if(worldOwner||!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
     // Capture/reconstruction is transactional; a rejected layout never hides the original.
@@ -661,9 +661,13 @@ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_s
     if(split.detachedArea<=1.e-7f||total<=1.e-7f)return true;
     size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>=storm_hull_damage::MaxFragmentBuffers)return false;
     auto kept=storm_ship_laser::canonicalMesh(split.kept);auto detached=storm_ship_laser::canonicalMesh(split.detached);
+    const bool supportSevered=supportAxis&&!plane.beams.empty()&&storm_ship_laser::beamSeversSupport(laserSurface,kept,plane.beams,*supportAxis);
     const double originalVolume=laserClosedVolume;double keptVolume=0,detachedVolume=0;
     if(originalVolume>1.e-6){keptVolume=storm_ship_laser::closedVolume(kept);detachedVolume=storm_ship_laser::closedVolume(detached);
         if((split.keptArea>1.e-7f&&keptVolume<=0)||(split.detachedArea>1.e-7f&&detachedVolume<=0)||std::abs(originalVolume-keptVolume-detachedVolume)>std::max(.001,originalVolume*1.e-5))return false;}
+    std::vector<storm_ship_laser::Opening>openings;
+    if(!plane.beams.empty())for(const auto&object:split.detached.outer)for(const auto&t:object.second)
+        openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3),storm_ship_hull::area(t)});
     auto groups=storm_ship_laser::surfaceFragments(std::move(split.detached),plane,std::min(fragmentLimit,unsigned(storm_hull_damage::MaxFragmentBuffers-active)),laserWoodThickness);if(groups.empty())return false;
     std::map<int,std::vector<HullDraw>>replacement;LaserBatch batch;batch.fragments.resize(groups.size());result.fragments.reserve(groups.size());
     if(!UploadLaserMesh(storm_ship_laser::renderMesh(split.kept),replacement))return false;
@@ -673,7 +677,7 @@ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_s
     if(originalVolume>1.e-6&&detachedVolume>0&&std::abs(originalVolume-keptVolume-detachedVolume)<=std::max(1.e-5,originalVolume*.005)){result.volumeBased=true;result.removedFraction=float(std::clamp(detachedVolume/originalVolume,0.,1.));}
     uint64_t serial=laserSerial;batch.id=++serial;
     for(size_t n=0;n<groups.size();++n){auto properties=storm_ship_laser::fragmentProperties(storm_ship_laser::canonicalMesh(groups[n]));properties.fragment=batch.fragments[n].id=++serial;result.fragments.push_back(properties);}
-    result.changed=true;result.fragment=batch.id;result.keptBounds=storm_ship_laser::bounds(kept);result.seam=std::move(split.seam);
+    result.changed=true;result.fragment=batch.id;result.keptBounds=storm_ship_laser::bounds(kept);result.seam=std::move(split.seam);result.supportSevered=supportSevered;result.openings=std::move(openings);
     ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);laserSurface=std::move(kept);laserVisualSurface=std::move(split.kept);laserClosedVolume=result.volumeBased?keptVolume:0;laserPlanes.push_back(plane);laserOwner=hullOwner=owner;RebuildLaserCollision();laserTraceObject=laserTraceTriangle=-1;
     laserSerial=serial;laserFragments.push_back(std::move(batch));return true;
 }
