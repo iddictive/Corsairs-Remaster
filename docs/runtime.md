@@ -1,6 +1,6 @@
 # Runtime state
 
-Last verified delivery: October16. Corrected combat and procedural forest are installed in signed engine `5b57e16b57afb2d76dfc6e21f1601e5533212c1403ff8d66fa813a64ee92a97d`. Canonical `run.sh --stage-only` exits0; full deep/strict app signature verification passes after signing completes. Native source fingerprint `469b2025045b0ac2036ca2132eda33687f434b37e2227c40f2a0fcce8c116dd0` matches integrated source `844b1f6`, including combat `50acad3` and dormant native town context `12027f7`. Unsigned engine SHA-256 is `f0f1e56441c6b8c8fe8e1d8dbec2e75eaea3a71a02ce418c7542b53a3a90ae24`. The installer began from working-tree HEAD `d508fdc`; the later focused source commits do not change the built bytes. Gameplay parity reports0 pending files in cache and installed app. All251 observed player SAVE/userdata/config files retain their exact hashes. No agent game launch/control or player SAVE load occurred. Player-scene FPS, lighting and weapon/collision replay remain unresolved; earlier delivery identities below are historical.
+Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d400cccbd2ef4170cd079de5309d5f01cf1` is installed in the supported app, carrying corrected combat/forest, the native San Juan core, neighboring-island transitions and the entity-cache repair. Canonical `run.sh --stage-only` exits0 at source commit `130a1bc`; its final transaction verifies the complete app signature with deep/strict checks. Native source fingerprint is `80ea207cf43a8ea99d8335cfd8c9c5fa45a1c004543785ae5cbdde59d2472767`, unsigned engine SHA-256 `6fda3db4a88f48b010cb19159ed4693ada74d6494fa7a7cb05a6b3e69ff542f7`. Cache and installed gameplay each report0 pending files; the complete installed script include chain compiles with0 errors using installed shared headers. All251 observed player SAVE/userdata/config files retain exact hashes. All14 city assets match the accepted native fixture; the fort, gun/shore locators and seabed remain byte-identical. No agent game launch/control or player SAVE load occurred. Player-scene gameplay, FPS, lighting and region-transition replay remain unresolved; earlier delivery identities below are historical.
 
 ## Current verdict
 
@@ -81,20 +81,37 @@ The added orphan-weapon native fixture first reports an empty seed and then a
 mutex error. Exact record layouts identify its wrong ABI: unlike the actual SHIP
 target, the benchmark driver omits `STORM_METAL_SHIP_FIRE`, shifting protected
 Phonk fields192bytes. Correct native target defines repair the fixture: an actual
-fragment is created at frame42. Its next immediate-delete assertion runs before
-the normal deferred erase fence. These failures do not establish a product
-kernel defect. The collision owner retains corrected orphan weapon acceptance
-and the bounded serial GPU continuation; no production threshold is changed.
+fragment is created at frame42. Its immediate-delete assertion then runs before
+the normal deferred erase fence. The stronger individual live-SHIP deletion
+scenario also omits ordinary ShipLights/Seafoam/Sailors teardown; ordinary
+sinking keeps the native SHIP, while sea exit removes those consumers first.
+That unsupported orphan scenario stays unresolved; no product destructor or
+registry changes follow these fixture failures.
+
+The separate supported-lifetime scene keeps the parent SHIP/AI alive. Its first
+moving token2 legitimately becomes tokens3/4 from delayed birth-contact damage,
+with the same model/owner/GEOM generation and unchanged parent HP/cuts/revision.
+The deterministic fixture uses the existing synchronous cutter only to seed and
+move material before any contact step; real weapon dispatch and asynchronous
+secondary commit remain unchanged. Incoming impact, actual manual deck-camera
+laser and blast all pass native execution: old token2 retires at frames59/58/59,
+after weapon admission at53. Parent HP/saved cuts/hull revision/callbacks and
+intact emitter HP/geometry remain unchanged. The three-case serial batch takes
+28.725s; this is not player FPS or the complete AIBalls callback chain. Exact
+inputs, native archives, binaries and raw rows are retained under
+`ship-collision-20261016/secondary-scene/native-hook/attached-before-core-batch.json`.
+No product source, build or app bytes changed for these checks.
 Dormant sea-town native context is compiled but its new city content/scripts
 are excluded from this batch.
 
 Disposition: corrected successor installed and signed; combat/forest native
-component checks pass. Actual player replay of first/third-person fire,
-collision, forest lighting and FPS remains unresolved. Secondary orphan-weapon
-component acceptance remains with its collision continuation. Installation
+component checks pass, including moving-piece impact/laser/blast replacement.
+Actual player replay of first/third-person fire, collision, forest lighting and
+FPS remains unresolved. The stronger unsupported orphan scenario is separate
+from those accepted component cases. Installation
 receipt and preserved-state hashes live in `phonk-current-20261016`.
 
-### October16 — neighboring-island sailing source integrated
+### October16 — city, neighboring-island sailing and cache repair installed
 
 Direct-sailing source `0b436d0` is merged after the city candidate `891ce96`,
 preserving both histories and the city's disjoint sea load/clear hooks. The
@@ -111,11 +128,32 @@ commands, versions and raw results are in
 `.local-archives/direct-sailing-20261016/results.json`; `direct-sailing.md` owns
 the contract and the Barbados→Antigua/scale25↔50 acceptance scenario.
 
-Disposition: integrated source candidate; no canonical build/staging or player
-transition replay for this candidate. The played app remains signed5b57e16b
-from the combat/forest batch above. The city candidate's geometry, crowd
-retirement and appearance remain separate unresolved acceptance; no city or
-direct-sailing installation is implied by these source commits.
+The full city remains on its original navigation patch:14 assets totaling
+44,154,647bytes,32 residents and no background neighborhood expansion. Core
+`UpdateAdd` previously appended same-millisecond reused entity IDs out of order,
+breaking the lower-bound removal contract. Reusing its existing sorted `Add`
+repairs the actual-source CPU counterexample while preserving uncached updates
+and other classes. The canonical9-action native build passes for fingerprint
+80ea207c above. With identical fixture source/assets, the full native replay
+changes retired cached IDs from4 to0 and sorted state from0 to1. All32 residents
+move9.60..26.42m; skinning, zero-delta, land guard, retirement, reactivation and
+CORE cleanup pass. The three complete frames preserve the town, fort, coast and
+original waterways. Exact before/after evidence is linked from
+`puerto-rico-city.md` and `evidence/puerto-rico-city/native-postfix-20261016.json`.
+
+Canonical staging installs18 changed gameplay/resource paths and the coherent
+engine. Post-stage parity is0 cache/0 installed; full installed `seadogs.c`
+compilation is0 errors. All251 protected player-state hashes,14 native-tested
+city assets and4 fort/locator/seabed inputs verify. Previous signed5b57e16b is
+retained in the canonical prior-engine backup. Build archives, exact stage log,
+script inputs/raw logs and the delivery receipt are retained under
+`.local-archives/metal-renderer-evidence/phonk-current-20261016/`, with the final
+record in `integrated-region-city-delivery-receipt.json`.
+
+Disposition: installed delivery and private native city/component checks pass.
+Actual player sea/landing/fort interaction, neighboring-island handoff and
+combat/forest/FPS acceptance remain unresolved. No game launch/control or player
+SAVE load was performed.
 
 ## Earlier October16 verdicts (historical)
 

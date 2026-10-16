@@ -96,9 +96,57 @@ the projectile/blast bridges or actual manual laser input. Original character
 HP/cuts, hull callbacks and intact emitter geometry must remain unchanged while
 the old material token retires asynchronously. Exact inputs, native library
 hashes, model geometry and outputs are retained under `native-hook/runs` and
-`native-hook/assets`. Native compiler syntax passes; execution remains pending
-the integration owner's serialized GPU slot. This does not exercise the full
-AIBalls ballistic callback chain or accept player gameplay.
+`native-hook/assets`. The current native run commits the seed and creates a real
+token, then fails before weapon admission when its individual live-ship deletion
+leaves registered ShipLights entries. Exact binary UUID, faulting virtual dispatch,
+baseline6e2 sources and ordinary script cleanup ordering are retained in
+`native-hook/runs/impact-run-a61da8401bb235ed/crash-classification/receipt.json`.
+Ordinary sinking keeps the native SHIP; full sea exit deletes ShipLights first.
+The bounded fixture successor preserves the other ship's registered light, then
+exposes the same incomplete individual-deletion lifetime in SEAFOAM; its exact
+binary and consumer closure are retained in
+`native-hook/runs/impact-run-d453c214a86630d4/crash-classification/receipt.json`.
+Sailors also retains the native SHIP while men remain. This stronger immediate
+orphan-deletion case stays unresolved; these failures do not justify product
+destructor or registry changes.
+
+The distinct `DEBRIS_NATIVE_LIFETIME=attached` case preserves the original SHIP,
+AI and normal scene consumers, matching ordinary sinking's entity lifetime.
+The current native seed creates and traces token2. A logging-only replay binds
+the later failed Position lookup to legitimate secondary contact damage: token2
+moves at frames42–44, then becomes tokens3/4 at frame45 with the same model,
+owner and GEOM generation, before any fixture weapon is armed. The parent stays
+valid/mounted with unchanged HP/cuts/geometry, and the dry fragment's age0.08s
+and fleet count4 exclude lifetime/cap cleanup. The late birth-frame solver can
+queue damage before the fixture teleports the material; its camera then follows
+a retired token. Exact native body rows, binary and source binding live in
+`native-hook/runs/impact-attached-run-4f7bcd8a2743f1b3/classification.json`.
+This accepts native motion and secondary contact replacement for that component.
+The deterministic successor uses existing `ApplyPhonkLaserCutNow` only for its
+separating prerequisite, selecting/moving the real piece in the same beforeFrame
+call before any CORE/contact step. Actual weapon admission and asynchronous
+secondary preparation/commit stay unchanged. All three native cases pass:
+incoming impact retires token2 at frame59, manual deck-camera laser at58 and
+blast at59, each armed at53 after native motion and the outgoing-hit negative.
+Original parent HP/cuts/hull revision/callbacks and intact emitter HP/geometry
+remain unchanged. Exact commands, inputs, native archive hashes, binaries and
+rows are linked from `native-hook/attached-before-core-batch.json`; the serial
+batch completes in28.725s with no product/build/app change. This accepts those
+native weapon components, with `orphan=0` explicit in every result. It does not
+exercise the full AIBalls ballistic callback chain, post-parent orphan lifetime
+or accept player gameplay.
+
+Ordinary balls hitting an intact SHIP have a separate remaining boundary:
+`Cannon_Trace` sends admitted damage to `Blots::AcceptedHullHit`, which merges
+finite holes/chips through `GEOM::SetHullCuts`. That path does not publish newly
+detached whole-hull section bodies or call `UpdateCutStructuralFailure`; successful
+projectile damage to an already detached token does not prove that cannon fire
+alone can bisect an intact ship. The laser/ram cutter releases newly disconnected
+surface components, keeping the largest supported component of each original
+authored component. It does not solve stress in a surviving thin connection.
+The separate ship-fatality heuristics are retained material<=35%, waterplane
+area<=65% of baseline, or lost support at>=60% of original keel samples; these
+do not create an arbitrary cross-ship separation plane.
 
 The ghost report also reproduces in the native geometry draw owner: missing
 empty overrides resurrect original visual objects after rough cuts, while the

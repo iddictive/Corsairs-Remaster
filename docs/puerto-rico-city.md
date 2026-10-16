@@ -27,8 +27,8 @@ The finite CPU candidate contains the native waterfront core, its underwater
 child and32 pedestrian routes on the original1165-triangle navigation patch.
 No background houses, streets or foundations are emitted. Its14 prepared
 resources total44,154,647 bytes. Private native appearance and population
-checks pass; installed activation and player replay remain pending.
-The city resources and activation script are not installed.
+checks pass. Current installed delivery belongs to [`runtime.md`](runtime.md);
+player replay remains pending.
 
 Reuse Storm's existing `geometry` labels and MODEL child transforms. Retain the
 city's original geometry/BSP and materials. Remove only the original sea-town
@@ -159,7 +159,8 @@ ship-to-town NPC combat.
 ## Unresolved
 
 Candidate construction and private native geometry/navigation/movement/lifecycle
-checks pass. Installed delivery and player replay remain pending.
+checks pass. Current installed delivery belongs to [`runtime.md`](runtime.md);
+player replay remains pending.
 The labels-v3 run resolved54 geometry nodes, preserved all4160 fort triangles,
 and passed first-generation movement, animation, zero-delta and land guards.
 Its reactivated population retirement assertion failed. The later dispersed-v6
@@ -193,8 +194,9 @@ the actual live character/context records were absent in both runs.
 The three new native frames preserve the city/fort/coast and exclude the
 rejected neighborhoods. Full raw before/after closure identities and results:
 [`native-postfix-20261016.json`](evidence/puerto-rico-city/native-postfix-20261016.json).
-This accepts the private native component/visual candidate. It does not claim
-installed activation or the player's landing/fort interaction.
+This accepts the private native component/visual candidate. Installed activation
+is recorded separately in `runtime.md`; the player's landing/fort interaction
+remains unresolved.
 The raw run and frame identities are retained in
 [`native-labels-v3-20261016.json`](evidence/puerto-rico-city/native-labels-v3-20261016.json).
 Player sea/landing/fort replay remains the final acceptance boundary.
