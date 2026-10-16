@@ -79,10 +79,7 @@
 
 int wdmMapToSeaScale()
 {
-    if (worldMap.island == "Cuba1" || worldMap.island == "Cuba2" || worldMap.island == "Beliz" || worldMap.island == "SantaCatalina"
-        || worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo"
-        || worldMap.island == "Caracas" || worldMap.island == "Cumana") return 25;
-    return WDM_MAP_TO_SEA_SCALE;
+    return GetSeaToMapScale();
 }
 
 void wdmEvent_StormEntry()

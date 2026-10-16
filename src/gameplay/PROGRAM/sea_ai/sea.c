@@ -26,6 +26,7 @@
 #include "sea_ai\Telescope.c"
 
 #include "battle_interface\BattleInterface.c"
+#include "sea_ai\direct_sailing.c"
 
 #event_handler("Sea_FirstInit", "Sea_FirstInit");
 #event_handler("SeaLoad_GetPointer", "SeaLoad_GetPointer");
@@ -406,6 +407,7 @@ void Sea_LandLoad()
 void Sea_MapStartFade()
 {
 	DelEventHandler("FaderEvent_StartFade", "Sea_MapStartFade");
+	Sea_DirectSailCapture();
 	DeleteSeaEnvironment();
 	EmptyAllFantomCharacter(); // трем НПС
 	EmptyAllFantomShips();    // трем корабли
@@ -434,6 +436,7 @@ void Sea_MapEndFade()
 {
 	DelEventHandler("FaderEvent_EndFade", "Sea_MapEndFade");
 	Partition_SetValue("after");// Дележ добычи уход на карту
+	if (CheckAttribute(&worldMap, "directSail")) worldMap.seaTransition = 1;
 	wdmCreateMap(SeaMapLoadX, SeaMapLoadZ, SeaMapLoadAY);
 }
 
@@ -460,6 +463,8 @@ void Sea_MapTransitionDone()
 	if (bSeaActive) BI_ShowInterface(true);
 	DeleteAttribute(&worldMap, "seaTransition");
 	DeleteAttribute(&worldMap, "transitionReady");
+	if (IsEntity(&worldMap) && CheckAttribute(&worldMap, "directSail"))
+		PostEvent("Sea_DirectSailReturn", 100);
 }
 
 void Sea_MapLoadXZ_AY(float x, float z, float ay)
@@ -474,8 +479,13 @@ void Sea_MapLoadXZ_AY(float x, float z, float ay)
 
 void Sea_MapLoad()
 {
-    if (GreatRecipe_Locked()) return;
-	if (!bSeaActive || bSeaReloadStarted || IsEntity(&SeaMapTransition)) return;
+    Sea_TryMapLoad(false);
+}
+
+bool Sea_TryMapLoad(bool automatic)
+{
+    if (GreatRecipe_Locked()) return false;
+	if (!bSeaActive || bSeaReloadStarted || IsEntity(&SeaMapTransition)) return false;
 	// boal 201004 проверка на перегруз и мин команду -->
 	ref  rPlayer = GetMainCharacter();
     int  i, cn;
@@ -500,29 +510,32 @@ void Sea_MapLoad()
             if (GetCargoLoad(chref) > GetCargoMaxSpace(chref))
             {
                 ok = false;
-                Log_SetStringToLog("Корабль '" +  chref.Ship.Name + "' перегружен.");
+                if (!automatic) Log_SetStringToLog("Корабль '" +  chref.Ship.Name + "' перегружен.");
             }
             if (MOD_SKILL_ENEMY_RATE > 2) // халява и юнга - послабление
     		{
 	            if (i > 0 && GetMinCrewQuantity(chref) > GetCrewQuantity(chref))
 	            {
 	                ok = false;
-	                Log_SetStringToLog("На корабле '" +  chref.Ship.Name + "' нет минимального экипажа.");
+                    if (!automatic) Log_SetStringToLog("На корабле '" +  chref.Ship.Name + "' нет минимального экипажа.");
 	            }
 			}
 			
             if (GetMaxCrewQuantity(chref) < GetCrewQuantity(chref))
             {
                 ok = false;
-                Log_SetStringToLog("На корабле '" +  chref.Ship.Name + "' перегруз экипажа больше допустимого.");
+                if (!automatic) Log_SetStringToLog("На корабле '" +  chref.Ship.Name + "' перегруз экипажа больше допустимого.");
             }  
         }
     }
     if (!ok)
     {
-        Log_Info("Выход на карту невозможен.");
-        PlaySound("knock");
-        return;
+        if (!automatic)
+        {
+            Log_Info("Выход на карту невозможен.");
+            PlaySound("knock");
+        }
+        return false;
     }
     // boal 201004 проверка на перегруз и мин команду <--
     // рассчет времени на карте от скорости кораблей -->
@@ -533,7 +546,7 @@ void Sea_MapLoad()
     worldMap.date.hourPerSec = makefloat(12.5 / minShipSpeed * 4.0);  */
     // рассчет времени на карте от скорости кораблей <--
     pchar.CheckEnemyCompanionType = "Sea_MapLoad"; // откуда вход
-    if (!CheckEnemyCompanionDistance2GoAway(true)) return; // && !bBettaTestMode  табличка выхода из боя
+    if (!CheckEnemyCompanionDistance2GoAway(!automatic)) return false; // && !bBettaTestMode  табличка выхода из боя
 
     if (Whr_IsStorm()) worldMap.stormEscape = 1;
     else DeleteAttribute(&worldMap, "stormEscape");
@@ -582,6 +595,7 @@ void Sea_MapLoad()
 		SendMessage(&SeaFader, "l", FADER_STARTFRAME);
 		SendMessage(&SeaFader, "ls", FADER_PICTURE0, GetLoadingImage_Sea());
 	}
+	return true;
 }
 
 // нигде не пользуетя, может глючить для абордажа
@@ -1577,6 +1591,7 @@ void Sea_FirstInit()
 		bCanSwitchCameras = false;
 		BI_ShowInterface(false);
 	}
+	Sea_DirectSailRestore();
 }
 
 void Sea_Reload()
@@ -1858,6 +1873,7 @@ bool bSeaLoad = false;
 
 void Sea_Load()
 {
+	Sea_DirectSailCancel();
 	SeaTsunami_ClearPending();
 	bSeaTsunamiEncounter = false;
 	WdmMilitaryParleyClear();

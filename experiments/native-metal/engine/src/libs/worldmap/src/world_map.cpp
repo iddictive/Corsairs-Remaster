@@ -453,6 +453,7 @@ void WorldMap::Realize(uint32_t delta_time)
     {
         // Prepare the complete first image without consuming input, advancing
         // the calendar or dispatching encounters while the overlay is visible.
+        if (AttributesPointer->GetAttributeAsDword("directSail")) wdmObjects->islands->Update(0.f);
         camera->Move(0.0f, rs);
         RenderObjects();
         transitionPresented = true;
@@ -460,7 +461,7 @@ void WorldMap::Realize(uint32_t delta_time)
         core.PostEvent("WorldMap_TransitionReady", 0, nullptr);
         return;
     }
-    if (SeaMapTransition::Active())
+    if (SeaMapTransition::Active() || AttributesPointer->GetAttributeAsDword("directSail"))
     {
         // Admission has already captured the map date/encounter. Keep that
         // state fixed until its visual handoff completes (notably night quests).

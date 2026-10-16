@@ -94,6 +94,29 @@ collision, forest lighting and FPS remains unresolved. Secondary orphan-weapon
 component acceptance remains with its collision continuation. Installation
 receipt and preserved-state hashes live in `phonk-current-20261016`.
 
+### October16 — neighboring-island sailing source integrated
+
+Direct-sailing source `0b436d0` is merged after the city candidate `891ce96`,
+preserving both histories and the city's disjoint sea load/clear hooks. The
+existing immutable world-map resource pool queries the same authored `_area`
+predicate as the map. Ordinary sea→map→sea admission performs the short region
+handoff and retains the existing survivor/quest owners, fleet formation, motion,
+sails and Phonk state. This is not simultaneous island streaming.
+
+The source owner's three native syntax checks, full projected script VM,
+actual-body transition/denial/fallback-lock cases and468999 area-predicate
+comparisons on31 installed meshes pass. The optional SAVE-codec probe remains
+unaccepted because its unrelated minimal fixture also fails. Retained source,
+commands, versions and raw results are in
+`.local-archives/direct-sailing-20261016/results.json`; `direct-sailing.md` owns
+the contract and the Barbados→Antigua/scale25↔50 acceptance scenario.
+
+Disposition: integrated source candidate; no canonical build/staging or player
+transition replay for this candidate. The played app remains signed5b57e16b
+from the combat/forest batch above. The city candidate's geometry, crowd
+retirement and appearance remain separate unresolved acceptance; no city or
+direct-sailing installation is implied by these source commits.
+
 ## Earlier October16 verdicts (historical)
 
 ### October16 — current frozen batch installed

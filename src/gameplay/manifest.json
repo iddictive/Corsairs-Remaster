@@ -325,6 +325,10 @@
         "ff12aef66c491fbd5e57d20500ab0253096949f03e746bf92d7556f0e28fe356"
       ]
     },
+    "PROGRAM/sea_ai/direct_sailing.c": {
+      "encoding": "utf-8",
+      "legacy": []
+    },
     "PROGRAM/sea_ai/sea.c": {
       "encoding": "utf-8",
       "legacy": [
