@@ -66,6 +66,14 @@ bool FREE_CAMERA::LoadState(ENTITY_STATE *state)
     return true;
 }
 
+void FREE_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+{
+    const auto previousModel = GetEID();
+    pACharacter = _pACharacter;
+    if (_pACharacter && FindShip() && previousModel != GetEID())
+        pIslandBase = nullptr;
+}
+
 void FREE_CAMERA::Execute(uint32_t Delta_Time)
 {
     if (!isOn())

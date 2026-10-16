@@ -39,6 +39,26 @@ void wdmReloadToSea()
 	WdmStormEncounter();
 	//Удаляем атрибуты выделенных энкоунтеров
 	worldMap.deleteUpdate = "";
+	if (CheckAttribute(&worldMap, "directSail") && IsEntity(&SeaMapTransition) &&
+		CheckAttribute(&SeaMapTransition, "seaOnly"))
+	{
+		// One retained sea frame owns both legs. The map is only the existing
+		// descriptor/admission adapter; never start its reverse camera trip.
+		WdmStartFade();
+		ReloadProgressStart();
+		Sea_DirectSailLogin(&wdmLoginToSea);
+		ReloadProgressEnd();
+		if (bSkipSeaLogin)
+		{
+			DeleteClass(&SeaMapTransition);
+			DelEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone");
+			DeleteAttribute(&worldMap, "seaTransition");
+			DeleteAttribute(&worldMap, "transitionReady");
+			wdmLockReload = false;
+			// The redirect owns its destination, controls and HUD.
+		}
+		return;
+	}
 	// The same native handoff owns both directions. Keep encounter admission
 	// above this point, before the map is released.
 	DeleteAttribute(&SeaMapTransition, "");

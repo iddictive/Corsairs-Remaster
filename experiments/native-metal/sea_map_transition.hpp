@@ -25,7 +25,7 @@ class SeaMapTransition final : public Entity
     CVECTOR miniatureSize{}, miniatureCenter{}, visualSize{}, visualCenter{};
     bool mapLocked = false;
     bool captured = false, committed = false, ready = false;
-    bool reverse = false;
+    bool reverse = false, seaOnly = false;
     inline static SeaMapTransition *active = nullptr;
 
     static float ease(float t)
@@ -114,6 +114,38 @@ class SeaMapTransition final : public Entity
     }
     void realize()
     {
+        if (seaOnly)
+        {
+            if (!captured)
+            {
+                // Retain the ordinary sea view before any scene teardown.
+                rs->GetCamera(origin, angles, perspective);
+                CVECTOR size;
+                float yaw;
+                storm_map_player::seaBounds(size, yaw, focus);
+                if (!capture())
+                {
+                    core.Trace("SeaMapTransition: sea frame unavailable; region handoff cancelled");
+                    core.PostEvent("Sea_DirectSailAbort", 0, nullptr);
+                    core.EraseEntity(GetId());
+                    return;
+                }
+                captured = true;
+            }
+            if (committed && !ready && AttributesPointer->GetAttributeAsDword("scenePrepared"))
+            {
+                // The same physical view follows the ship into the new local
+                // origin. Retained orbit/deck cameras own subsequent motion.
+                const CVECTOR destination(AttributesPointer->GetAttributeAsFloat("x"),
+                                          AttributesPointer->GetAttributeAsFloat("y"),
+                                          AttributesPointer->GetAttributeAsFloat("z"));
+                rs->SetCamera(origin + destination - focus, angles, perspective);
+                ready = true;
+                landingTime = 0;
+            }
+            drawOverlay();
+            return;
+        }
         const float time = flightTime;
         if (!captured && time >= (reverse ? tiltDuration : flightDuration))
         {
@@ -154,7 +186,7 @@ class SeaMapTransition final : public Entity
             quad((static_cast<uint32_t>((1 - reveal) * 255) << 24) | 0x00ffffff,
                  0, 0, 1, 1);
         }
-        if (ready && (reverse ? landing >= flightDuration : reveal >= 1))
+        if (ready && (seaOnly ? reveal >= 1 : reverse ? landing >= flightDuration : reveal >= 1))
         {
             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
             core.EraseEntity(GetId());
@@ -193,9 +225,23 @@ public:
     {
         rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
         if (!rs || !AttributesPointer || active) return false;
+        seaOnly = AttributesPointer->GetAttributeAsDword("seaOnly") != 0;
         reverse = AttributesPointer->GetAttributeAsDword("reverse") != 0;
         mapPitch = storm_map_player::overheadPitch;
         rs->GetCamera(origin, angles, perspective);
+        focus = CVECTOR(AttributesPointer->GetAttributeAsFloat("x"),
+                        AttributesPointer->GetAttributeAsFloat("y"),
+                        AttributesPointer->GetAttributeAsFloat("z"));
+        pauseRevision = core.GetScenePauseRevision();
+        if (seaOnly)
+        {
+            active = this;
+            core.SetLayerType(FADER_EXECUTE, layer_type_t::execute);
+            core.SetLayerType(FADER_REALIZE, layer_type_t::realize);
+            core.AddToLayer(FADER_EXECUTE, GetId(), 65535);
+            core.AddToLayer(FADER_REALIZE, GetId(), 65535);
+            return true;
+        }
         mapYaw = AttributesPointer->GetAttributeAsFloat("mapYaw");
         if (!storm_map_player::bounds(miniatureSize, miniatureCenter)) return false;
         const float mapHeight = std::clamp(AttributesPointer->GetAttributeAsFloat("mapHeight", storm_map_player::minHeight),
@@ -240,7 +286,7 @@ public:
                 if (ready) landingTime += delta;
             }
             pauseRevision = revision;
-            if (!committed && !reverse) camera(flightTime);
+            if (!seaOnly && !committed && !reverse) camera(flightTime);
             else if (reverse && ready)
                 camera(std::max(0.0f, flightDuration - landingTime));
             if (captured && !committed)
@@ -248,7 +294,7 @@ public:
                 committed = true;
                 core.PostEvent(reverse ? "Wdm_SeaTransitionCommit" : "Sea_MapTransitionCommit", 0, nullptr);
             }
-            if (committed && !ready && AttributesPointer->GetAttributeAsDword("mapReady"))
+            if (!seaOnly && committed && !ready && AttributesPointer->GetAttributeAsDword("mapReady"))
             {
                 ready = true;
                 landingTime = 0;

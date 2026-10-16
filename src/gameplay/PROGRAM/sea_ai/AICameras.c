@@ -11,6 +11,10 @@ bool	bCanSwitchCameras = true;
 
 void DeleteSeaCamerasEnvironment()
 {
+	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
+		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
+		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera)) return;
+
 	DeleteClass(&SeaCameras);
 	DeleteClass(&SeaFreeCamera);
 	DeleteClass(&SeaShipCamera);
@@ -43,6 +47,14 @@ float CalcSeaPerspective()
 
 void CreateSeaCamerasEnvironment()
 {
+	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
+		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
+		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera))
+	{
+		SendMessage(&AISea, "la", AI_MESSAGE_SET_CAMERAS_ATTRIBUTE, &SeaCameras);
+		return;
+	}
+
 	bCanSwitchCameras = true;
 
 	CreateEntity(&SeaCameras, "SEA_CAMERAS");

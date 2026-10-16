@@ -4,6 +4,29 @@ Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d
 
 ## Current verdict
 
+### October16 — sea-only region handoff and raised spyglass source candidate
+
+The player rejects the installed visible sea→global-map→sea trip and asks to
+raise the spyglass above the rail like manual aim. The successor retains one
+outgoing sea framebuffer, uses the existing map only for hidden region/admission
+projection, and reveals the rebuilt sea in the retained camera mode/orbit/zoom.
+Failed capture cancels before teardown. Manual map travel keeps its cinematic;
+the held image does not imply continuous sea simulation during loading. The
+spyglass shares the standing-height floor plus0.5m without moving third person.
+
+Six canonical native syntax checks, complete projected PROGRAM compilation,
+actual-body script transition cases,54 CPU transition assertions and camera
+rebinding/eye-expression negatives pass. These do not prove native scene ordering
+or the installed appearance. Frozen13-path patch and exact inputs/results live in
+`.local-archives/direct-sailing-sea-only-20261016/`; `direct-sailing.md` and
+`deck-aim-zoom.md` own the contracts. The hidden map's inherited queued quest
+encounter materialization limit remains explicit.
+
+Disposition: source/component candidate only. Canonical build/staging and real
+Barbados→Antigua/scale25↔50, rotated/zoomed cameras and spyglass replay remain
+pending. Installed a3b088fb above is unchanged. Shared integration must exclude
+unfinished city/combat source from a delivery batch.
+
 ### October16 — corrected successor installed; player replay pending
 
 The player reports automatic laser aiming in first person, missed ship targets,

@@ -118,7 +118,8 @@ bool WorldMap::Init()
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
         throw std::runtime_error("No service: dx9render");
-    rs->SetPerspective(storm_map_player::perspective);
+    if (!AttributesPointer || !AttributesPointer->GetAttributeAsDword("directSail"))
+        rs->SetPerspective(storm_map_player::perspective);
     wdmObjects->rs = rs;
     // GS
     wdmObjects->gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
@@ -444,16 +445,25 @@ void WorldMap::Execute(uint32_t delta_time)
         const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(6);
         do { LoadNext(); } while (!loadComplete && std::chrono::steady_clock::now() < until);
     }
+    if (loadComplete && !transitionPresented && AttributesPointer->GetAttributeAsDword("directSail"))
+    {
+        // Direct sailing borrows descriptor/admission projection only. It
+        // never needs a rendered map frame or a map-camera movement.
+        wdmObjects->islands->Update(0.f);
+        transitionPresented = true;
+        AttributesPointer->SetAttributeUseDword("transitionReady", 1);
+        core.PostEvent("WorldMap_TransitionReady", 0, nullptr);
+    }
 }
 
 void WorldMap::Realize(uint32_t delta_time)
 {
+    if (AttributesPointer->GetAttributeAsDword("directSail")) return;
     if (!loadComplete) return;
     if (transitionLoad && !transitionPresented)
     {
         // Prepare the complete first image without consuming input, advancing
         // the calendar or dispatching encounters while the overlay is visible.
-        if (AttributesPointer->GetAttributeAsDword("directSail")) wdmObjects->islands->Update(0.f);
         camera->Move(0.0f, rs);
         RenderObjects();
         transitionPresented = true;

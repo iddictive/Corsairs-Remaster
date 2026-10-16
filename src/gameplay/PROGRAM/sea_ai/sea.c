@@ -443,6 +443,12 @@ void Sea_MapEndFade()
 void Sea_MapTransitionCommit()
 {
 	DelEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit");
+	if (CheckAttribute(&SeaMapTransition, "seaOnly"))
+	{
+		PauseAllSounds();
+		ResetSound();
+		bSkipSeaLogin = true;
+	}
 	if (!CheckAttribute(&SeaMapTransition, "fixedDestination"))
 	{
 		SeaMapLoadX = stf(pchar.Ship.Pos.x);
@@ -463,8 +469,6 @@ void Sea_MapTransitionDone()
 	if (bSeaActive) BI_ShowInterface(true);
 	DeleteAttribute(&worldMap, "seaTransition");
 	DeleteAttribute(&worldMap, "transitionReady");
-	if (IsEntity(&worldMap) && CheckAttribute(&worldMap, "directSail"))
-		PostEvent("Sea_DirectSailReturn", 100);
 }
 
 void Sea_MapLoadXZ_AY(float x, float z, float ay)
@@ -554,17 +558,21 @@ bool Sea_TryMapLoad(bool automatic)
 	LAi_SetAlcoholNormal(pchar);
     
 	bSeaReloadStarted = true;
-	PauseAllSounds();
+	if (!automatic)
+	{
+		PauseAllSounds();
 
  	//ResetSoundScheme();
 	ResetSound(); // new
 		
 	bSkipSeaLogin = true;
+	}
 
 	SeaMapLoadX = stf(pchar.Ship.Pos.x);
 	SeaMapLoadZ = stf(pchar.Ship.Pos.z);
 	SeaMapLoadAY = stf(pchar.Ship.Ang.y);
 	DeleteAttribute(&SeaMapTransition, "");
+	if (automatic) SeaMapTransition.seaOnly = 1;
 	SeaMapTransition.x = SeaMapLoadX;
 	SeaMapTransition.y = stf(pchar.Ship.Pos.y);
 	SeaMapTransition.z = SeaMapLoadZ;
@@ -580,13 +588,20 @@ bool Sea_TryMapLoad(bool automatic)
 	CreateEntity(&SeaMapTransition, "SeaMapTransition");
 	if (IsEntity(&SeaMapTransition))
 	{
-		BI_ShowInterface(false);
+		if (automatic) worldMap.directSail.retainCameras = 1;
+		else BI_ShowInterface(false);
 		bCanSwitchCameras = false;
 		SetEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit", 0);
 		SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
 	}
 	else
 	{
+		if (automatic)
+		{
+			bSeaReloadStarted = false;
+			Sea_DirectSailCancel();
+			return false;
+		}
 		// Keep the established recovery path if the native transition is absent.
 		SetEventHandler("FaderEvent_StartFade", "Sea_MapStartFade", 0);
 		SetEventHandler("FaderEvent_EndFade", "Sea_MapEndFade", 0);
@@ -1581,7 +1596,8 @@ void Sea_FirstInit()
 	InitBattleInterface();
 	StartBattleInterface();
 	RefreshBattleInterface();
-	if (IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "reverse"))
+	if (IsEntity(&SeaMapTransition) && (CheckAttribute(&SeaMapTransition, "reverse") ||
+		CheckAttribute(&SeaMapTransition, "seaOnly")))
 	{
 		SeaMapTransition.x = stf(pchar.Ship.Pos.x);
 		SeaMapTransition.y = stf(pchar.Ship.Pos.y);
@@ -1589,7 +1605,7 @@ void Sea_FirstInit()
 		SeaMapTransition.scenePrepared = 1;
 		bSeaReloadStarted = true;
 		bCanSwitchCameras = false;
-		BI_ShowInterface(false);
+		if (!CheckAttribute(&SeaMapTransition, "seaOnly")) BI_ShowInterface(false);
 	}
 	Sea_DirectSailRestore();
 }

@@ -569,14 +569,12 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
 
     // calculate camera position
     CVECTOR s_pos;
-    // Only the first-person firing view clears rails by half a meter.
-    // Do not lift the third-person orbit or telescope; h_eye stays saved.
-    const float firingEyeLift = walkMode && !telescope &&
-                                AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0 ? 0.5f : 0.f;
-    // Firing eye never drops below the design height: a low ship locator or a
-    // saved crouch must not bury the manual-aim view under the rails.
-    const float firingEye = firingEyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + firingEyeLift : h_eye;
-    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, firingEye, 0.f));
+    // First-person aim and the spyglass share the raised view over the rails.
+    // Keep the saved eye height and the third-person orbit unchanged.
+    const float eyeLift = walkMode && (telescope ||
+                          AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0) ? 0.5f : 0.f;
+    const float eyeHeight = eyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + eyeLift : h_eye;
+    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, eyeHeight, 0.f));
 
     if (walkMode)
     {
@@ -610,14 +608,25 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
 
 void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
 {
-    // Also called when reselecting this camera for the same character.
-    aimZoom.reset();
-    if (pACharacter != _pACharacter)
+    const bool sameCharacter = pACharacter == _pACharacter;
+    const bool hadPath = pathNode != nullptr;
+    const auto previousModel = GetEID();
+    pACharacter = _pACharacter;
+    const bool replacedModel = _pACharacter && FindShip() && previousModel != GetEID();
+    const bool retainedView = sameCharacter && hadPath && replacedModel;
+    // Ordinary reselection resets aim. A retained view crosses the scene's
+    // layer-freeze revision without turning a held aim into a fresh press.
+    if (retainedView) zoomPauseRevision = core.GetScenePauseRevision();
+    else aimZoom.reset();
+    if (!sameCharacter || replacedModel)
     {
         ReleaseWalker();
         walkerLoadFailed = false;
+        pathNode = nullptr;
+        pModel = nullptr;
+        bLoad = retainedView;
+        zoomLastUpdate = {};
     }
-    pACharacter = _pACharacter;
 }
 
 bool DECK_CAMERA::FindPath()

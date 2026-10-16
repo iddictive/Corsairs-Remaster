@@ -24,6 +24,7 @@ class FREE_CAMERA : public COMMON_CAMERA
     bool Init() override;
     void Move(uint32_t DeltaTime);
     void Execute(uint32_t Delta_Time);
+    void SetCharacter(ATTRIBUTES *_pACharacter) override;
     bool CreateState(ENTITY_STATE_GEN *state_gen) const;
     bool LoadState(ENTITY_STATE *state);
 

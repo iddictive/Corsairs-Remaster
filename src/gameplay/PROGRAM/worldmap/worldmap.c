@@ -209,7 +209,7 @@ void wdmCreateWorldMap()
 	bool cinematic = CheckAttribute(&worldMap, "seaTransition");
 	if (cinematic) wdmLockReload = true;
 	if (!cinematic) ReloadProgressStart();
-	wdmCreateWindInterface();
+	if (!CheckAttribute(&worldMap, "directSail")) wdmCreateWindInterface();
 	//Удалим все устаревшие энкаунтеры
 	wdmRemoveOldEncounters();
 //	Trace("Save check ---------------================--------------")
@@ -221,7 +221,8 @@ void wdmCreateWorldMap()
 	//Создаём карту
 	Whr_BindMapWeather();
     wdmPreparePlayerShipVisual();
-	if (cinematic) SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
+	if (cinematic && !CheckAttribute(&worldMap, "directSail"))
+		SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
     GreatRecipe_MapSeed();
 	CreateEntity(&worldMap,"worldmap");
 	if (cinematic) return;

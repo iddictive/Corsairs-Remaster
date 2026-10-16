@@ -3,7 +3,7 @@
 #event_handler("Sea_DirectSailPosition", "Sea_DirectSailPosition");
 #event_handler("Sea_DirectSailArea", "Sea_DirectSailArea");
 #event_handler("WorldMap_TransitionReady", "Sea_DirectSailMapReady");
-#event_handler("Sea_DirectSailReturn", "Sea_DirectSailReturn");
+#event_handler("Sea_DirectSailAbort", "Sea_DirectSailAbort");
 #event_handler("Sea_DirectSailShipPosition", "Sea_DirectSailShipPosition");
 
 float SeaDirectSailShipPosition[3];
@@ -68,9 +68,14 @@ void Sea_DirectSailBind()
 
 void Sea_DirectSailLogin(ref login)
 {
+    bool retainedCameras = CheckAttribute(&worldMap, "directSail.retainCameras");
     Sea_DirectSailBind();
     SeaLogin(login);
-    if (bSkipSeaLogin) Sea_DirectSailCancel();
+    if (bSkipSeaLogin)
+    {
+        Sea_DirectSailCancel();
+        if (retainedCameras) DeleteSeaCamerasEnvironment();
+    }
 }
 
 ref Sea_DirectSailShipPosition()
@@ -137,16 +142,25 @@ void Sea_DirectSailRestore()
 
 void Sea_DirectSailMapReady()
 {
-    if (CheckAttribute(&worldMap, "directSail") && !IsEntity(&SeaMapTransition))
-    {
-        // The fader fallback has no native Done event to release this lock.
-        Sea_MapTransitionDone();
-    }
+    if (!CheckAttribute(&worldMap, "directSail") || !IsEntity(&worldMap) ||
+        !IsEntity(&SeaMapTransition) || !CheckAttribute(&SeaMapTransition, "seaOnly")) return;
+    if (CheckAttribute(&worldMap, "directSail.returning")) return;
+    worldMap.directSail.returning = 1;
+    // Populate ordinary descriptors without starting the map interface,
+    // audio, calendar or its delayed EventWorldMapInit quest event.
+    worldMap.isLoaded = "true";
+    worldMap.update = "";
+    worldMap.addQuestEncounters = "updateQuest";
+    wdmSetNationFlag(sti(pchar.nation));
+    wdmLockReload = false;
+    wdmReloadToSea();
 }
 
-void Sea_DirectSailReturn()
+void Sea_DirectSailAbort()
 {
-    if (!CheckAttribute(&worldMap, "directSail") || !IsEntity(&worldMap) ||
-        IsEntity(&SeaMapTransition) || wdmLockReload) return;
-    wdmReloadToSea();
+    // Native capture failed before teardown. Keep the original sea and audio.
+    if (!CheckAttribute(&worldMap, "directSail") || !bSeaActive) return;
+    DelEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit");
+    Sea_DirectSailCancel();
+    Sea_MapTransitionDone();
 }

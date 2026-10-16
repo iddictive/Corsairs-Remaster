@@ -21,9 +21,15 @@ control locking, focus loss and pause. A pause revision lets the camera detect
 an interruption even if both sea callbacks were frozen. Resuming with the button
 held requires release before another zoom action. Transient zoom is not saved;
 the existing binary save layout and script base perspective are unchanged.
+An automatic neighboring-island handoff retains the same deck camera and held
+zoom; rebinding its replacement ship does not count as a camera reselection.
 
 The equipment-dependent spyglass limit is intentionally separate work. The
 existing Ctrl spyglass controls and non-aiming right-button actions are preserved.
+The spyglass now shares the raised aiming eye: at least the default standing
+height plus 0.5 m above the deck path. This clears low eye locators and rails;
+saved eye height, spyglass magnification and the third-person orbit are unchanged.
+The height correction is a source candidate until staged and replayed on a ship.
 
 ## Projection and ownership
 

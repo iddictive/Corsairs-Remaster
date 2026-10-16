@@ -184,7 +184,15 @@ void SHIP_CAMERA::Move(float fDeltaTime)
 
 void SHIP_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
 {
+    const auto previousModel = GetEID();
     pACharacter = _pACharacter;
+    auto *const currentSea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
+    if ((_pACharacter && FindShip() && previousModel != GetEID()) || pSea != currentSea)
+    {
+        pIsland = nullptr;
+        lIlsInitCnt = 0;
+    }
+    pSea = currentSea;
 }
 
 uint32_t SHIP_CAMERA::AttributeChanged(ATTRIBUTES *pAttr)
