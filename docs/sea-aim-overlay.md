@@ -2,6 +2,17 @@
 
 ## Status
 
+### October15 — water field visibility
+
+Water uses base fill alpha.30 and rim alpha.78, with a wider inward analytic
+rim. Other receivers retain.08 fill and.42/.48 rims; Gaussian density, receiver
+admission, depth rejection, airborne fog and firing remain unchanged. The
+complete1920x1200 Sea::Realize scene retains waves, foam, SunRoad, ships and
+eight point cubes in Native and MetalFX Performance,121 frames each, exit0.
+The field is visibly stronger in both complete frames; the player accepts the
+shown brightness. Private candidate source and captures belong to
+`aim-water-visibility`. Original-save cannon preview remains a separate replay.
+
 ### October15 — MSAA water-subpass depth mismatch
 
 The proportional MetalFX identity correction below remains present. The reopened
@@ -21,10 +32,11 @@ camera/viewport changes, foreground occluder and sky remain zero. All12 oracles
 pass with the identical frozen layered-point header in both backends. Retained
 source/input/run receipts belong to `aim-drape-water-coherent-depth` under private
 renderer evidence. Canonical delivery passes with signed enginec86eade9;
-`runtime.md` owns the receipt. The prepared real Sea::Realize projection replay
-remains pending: its preflight finds the original player running and stops before
-compile or GPU execution. The12-case component proof and delivery do not accept
-the player's ordinary cannon scene.
+`runtime.md` owns the receipt. After the player exits, the real Sea::Realize
+projection replay passes Native and Performance121 frames each, including the
+early HUD transition. Its known synthetic water field is visible in both full
+frames. Source and runs belong to `aim-real-sea-scene`; this accepts composed
+projection, while the player's ordinary cannon scene remains unverified.
 
 ### October15 — sea drape lost after MetalFX scene completion
 
@@ -253,18 +265,18 @@ Visual inertia uses a70ms exponential time constant on overlapping tangent means
 and covariance. Physical normal clips and firing selection remain current.
 Disjoint support, large camera-axis changes, disable and reset clear the history;
 switching from50 to500 metres never creates an intermediate receiver on145m.
-Fill alpha is.08 and the subdued rim is.42 on models/.48 on neutral surfaces,
-with a.52 composite cap. The current air candidate caps alpha at.07 instead of
-.22 and uses extinction.004 instead of.016; surface composition is unchanged.
+Water fill alpha is.30 and its rim is.78; other surfaces retain.08 fill and
+.42 on models/.48 on neutral surfaces. Air caps alpha at.07 and uses
+extinction.004. The base surface composite cap remains.52.
 Background brightness still ramps across luminance.18–.55 for the existing
-up-to16% rim boost, keyline.14→.17 and composite cap.52→.58. The new candidate
-adds another45% of base rim alpha in full daylight, keyline+.13 and composite
+up-to16% rim boost, keyline.14→.17 and composite cap.52→.58. Daylight
+adds another45% of base rim alpha, keyline+.13 and composite
 cap+.17. Its solar phase follows the sky's existing weather-clock formula, with
 smooth dawn/dusk ramps; night values remain unchanged. Reading a dark receiver
 no longer disables the daylight boost. Weather supplies the hour even with
 authored sky selected. The daylight scalar is calculated once per overlay draw;
-only constant-cost opacity math changes in the existing fragment composition. Line
-width, fill, geometry, air, pass count and texture copies remain unchanged.
+only constant-cost composition math changes. Water's wider inward rim leaves
+the impact field, geometry, air, pass count and texture copies unchanged.
 The projected world enclosing box plus2 pixels bounds contact work and its color
 snapshot; unlike a Jacobian at the center, it remains conservative across relief.
 Air uses its own conservative bounds and blends after the surface, preserving

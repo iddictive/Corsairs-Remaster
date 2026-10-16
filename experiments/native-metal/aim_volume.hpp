@@ -221,7 +221,8 @@ float3 aim_contact_shape(float2 pixel,float depth,float3 world,bool water,const 
     steps[i]=abs(p.w)>1.e-8f?p.xyz/p.w-world:float3(0.f);}
   float width=clamp(length(float2(dot(field.yzw,steps[0]),dot(field.yzw,steps[1]))),1.e-4f,.1f);
   float coverage=1.f-smoothstep(1.f-width,1.f+width,field.x);
-  float rim=(1.f-smoothstep(.35f*width,1.2f*width,abs(field.x-1.f)))*coverage;
+  float2 rimWidth=water?float2(.65f,2.f):float2(.35f,1.2f);
+  float rim=(1.f-smoothstep(rimWidth.x*width,rimWidth.y*width,abs(field.x-1.f)))*coverage;
   return float3(exp(-2.f*max(0.f,field.x))*coverage,rim,sqrt(rim)*coverage);
 }
 struct AimPrismO {float4 position [[position]];uint triangle [[flat]];};
@@ -383,7 +384,8 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   if(excludedReceiver){coverage=0.f;contour=0.f;contact.z=0.f;}
   float readiness=.72f+.28f*u.params.y;
   bool coloredReceiver=receiverToken!=0u;
-  float fillAlpha=.08f*coverage*readiness,lineAlpha=(coloredReceiver?.42f:.48f)*contour*readiness;
+  float fillAlpha=(actualWater?.30f:.08f)*coverage*readiness;
+  float lineAlpha=(actualWater?.78f:(coloredReceiver?.42f:.48f))*contour*readiness;
   uint rgb=identity.y;
   float3 tint=coloredReceiver?float3(float((rgb>>16)&255u),float((rgb>>8)&255u),float(rgb&255u))/255.f:
       float3(.85098f,.88627f,.89412f);

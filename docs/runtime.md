@@ -1,8 +1,27 @@
 # Runtime state
 
-Last verified delivery: October15. Layered point-shadow passes and coherent water-subpass depth are installed with signed engine `c86eade9e4d63adc472148bf83fd5520ad279caba6f65fcd65ae25fc5a9a49bd`; prior `d876fa0184ee309c0d407ff3d9a363149f9925654a13f3e485f14aadfd496bde` is backed up. Canonical stage-only exits0 in109.464s; all527 freshly recorded protected player files retain hashes with0 added. Fresh actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1, shadow tier2. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open; the new water guard has12-case component proof, not player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October15. The stronger water aiming field is installed with signed engine `d533f315ae1b1718dc964c822a523350ba0e7c1379ef4f0ef004566ab457a4c9`; prior `c86eade9e4d63adc472148bf83fd5520ad279caba6f65fcd65ae25fc5a9a49bd` is backed up. Canonical stage-only exits0 in116.879s; all530 freshly recorded player files retain hashes with0 added. Native and Performance121-frame composed sea scenes show the brighter field; the player accepts the shown visibility. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1, shadow tier2. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October15 — approved water aiming visibility staged
+
+Canonical `run.sh --stage-only` exits0 in116.879s and installs signed engine
+d533f315ae1b1718dc964c822a523350ba0e7c1379ef4f0ef004566ab457a4c9.
+All530 freshly hashed player files retain their bytes, with0 added; previous
+c86eade9 is retained by the installer. The complete app signature verifies.
+Source and delivery inventories belong to20261015-231928-aim-visibility-delivery.
+
+Water-only fill/rim strength and inward line width are increased; other surface
+colors, receiver/depth admission, air and firing remain unchanged. The exact
+header passes private Native/Performance121-frame complete Sea::Realize scenes
+with eight point cubes; complete frames show readable water fill and perimeter.
+The player accepts the shown visibility. The prior composed projection pair
+also passes after diagnostic relation enrollment is corrected; its initial
+AIHelper failure belongs to fixture setup, not the player's cache crash.
+sea-aim-overlay.md owns projection/style evidence. No original game launch,
+control, SAVE load, FPS result or original-save cannon acceptance is claimed.
+The repeated22:41 player cache crash remains a separate open investigation.
 
 ### October15 — layered shadows and coherent water depth staged
 
