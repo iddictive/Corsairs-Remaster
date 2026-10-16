@@ -1,8 +1,35 @@
 # Runtime state
 
-Last verified delivery: October16. Corrected world destruction and6/7 bootstrap/HUD are installed in signed engine `dcca1e411cefc815cbf8298911d383f054ede76c0293034c263f7e89190eb695`, from source `e0c71cd`, including direct-source migration `04fe2a3`. Canonical stage-only exits0; all528 player files remain unchanged, with0 added, and the full app signature passes. Native source fingerprint is `40c418e19b744d0e704379c6008865a8ab89e039e443ccc32c46593a8cbe3807`. Installed UTF-8 PROGRAM files resolve through the player's normal roots and contain the load bootstrap and selected-weapon labels. Actual CORE/Metal Antigua/Cumana cuts, fort removal, Trace and state rebind pass; the original player action/save replay remains unresolved after rejection of the earlier eac7 batch. Prior crew, LOD/rope, contact/string, night water and airborne shore corrections remain present. Original-scene FPS, recurring renderer corruption, fracture/contact and coast flight acceptance remain unresolved. No agent game launch/control or player SAVE load occurred. Earlier inventories below are historical.
+Last verified delivery: October16. The finite-cut/async/auto-target batch is installed in signed engine `476a3e9db29e66c6a4f1fc9c2d9fcaf8d3cfbb68bbd59bede2e9ed2b8ce5afea`, from source `6e2cc7b`, including direct-source migration `04fe2a3`, renderer culling `e0148be`, targeting `6b27616` and coast/contact `a53fba6`. Canonical `run.sh --stage-only` exits0 and verifies the full app signature. Native source fingerprint is `6da577b9a26d9e5741638f2720fc63bcce4430bdd110221dac55f6b4414ce544`; unsigned built engine SHA-256 is `949e3549677fe9b0697addbba6a0663bdd01c23b971a311ceccf904d73563a65`. Gameplay parity reports0 pending files in both cache and installed app. The installer preserves the separate player SAVE/config owner; no game launch/control or player SAVE load occurred. Actual player-scene FPS, visual destruction, targeting, fracture/contact and coast acceptance remain unresolved. Earlier delivery identities and inventories below are historical.
 
 ## Current verdict
+
+### October16 — current frozen batch installed
+
+The user explicitly requested installation before further worker/prewarm design.
+The174-action native build and canonical stage/install pass. The installed app
+contains proportional finite laser cuts, solid-ground/physical-timber geometry,
+hollow interiors, newly disconnected bow/ring pieces, original-face attachment
+support, outside-camera hostile targeting, nuclear cloud detail and the current
+renderer/contact corrections. Heavy world/ship mesh preparation runs in value-only
+workers; complete staged geometry, collision and saved records publish together.
+
+Current-source CPU/sanitizer checks pass solid/hollow24-dose rings, independent
+volume oracles, full-bow versus partial-notch, actual mast severing, actual
+Flyingdutchman shallow/legacy/progressive cuts and16 complete world roles.
+An independent directed-interval check accepts439 retained triangles with0 bad
+intervals after the coordinate-domain correction. Source-body probes pass queue
+pause/cancel/rejection recovery and GPU-stage failure rollback; Commit allocates0.
+These use a fake GPU where stated and do not accept complete native scene timing.
+
+Disposition: installed; player behavior unresolved. The prepared private CORE
+drivers at `phonk-auto-scene-20261016` and `phonk-world-async-20261016` have not
+been run for this batch. Actual main-frame upload/retirement cost and cold contour
+capture remain unmeasured. Gradual sea-side worker prewarm is deferred; current
+immutable input prewarm occurs during Mount. Secondary fracture/weapon hits on
+detached tokens remain with the separate collision continuation.
+
+## Earlier October16 verdicts (historical)
 
 ### October16 — island spin and recoil source correction
 
