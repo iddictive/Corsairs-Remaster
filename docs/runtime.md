@@ -1,10 +1,10 @@
 # Runtime state
 
-Last verified delivery: October16. The numbered Phonk ordnance, world geometry cuts and crew visuals are installed in signed engine `eac7cb3f3128bb28547e512af2cceac32ae7533eb1a83b2b7996e9bcf970427e`; canonical stage-only exits0 in191.519s, all528 player files remain unchanged and the full app signature passes. Native source fingerprint is `de7fe245a192a20ff702afc756a6cd7251fd7e8bc7401f474dc23d1eb616d2e2`. The player reports6/7 do not switch away from laser and islands do not cut: gameplay acceptance is reopened, not passed by this delivery. Installed symbols and scripts contain the new implementations; no running game was present at the follow-up identity check. The HUD has no Phonk selection consumer, a confirmed omission; actual control/receiver failure remains under investigation. Prior `f931e4b5` LOD/rope, `cdbe5bf8` contact/string, night water and airborne shore corrections remain present. Original-scene LOD/FPS, recurring renderer corruption, fracture/contact, coast flight and saved-game action acceptance remain unresolved. No agent game launch/control or SAVE load occurred; the player prohibits those routes. Earlier inventories below are historical.
+Last verified delivery: October16. Corrected world destruction and6/7 bootstrap/HUD are installed in signed engine `dcca1e411cefc815cbf8298911d383f054ede76c0293034c263f7e89190eb695`, from source `e0c71cd`, including direct-source migration `04fe2a3`. Canonical stage-only exits0; all528 player files remain unchanged, with0 added, and the full app signature passes. Native source fingerprint is `40c418e19b744d0e704379c6008865a8ab89e039e443ccc32c46593a8cbe3807`. Installed UTF-8 PROGRAM files resolve through the player's normal roots and contain the load bootstrap and selected-weapon labels. Actual CORE/Metal Antigua/Cumana cuts, fort removal, Trace and state rebind pass; the original player action/save replay remains unresolved after rejection of the earlier eac7 batch. Prior crew, LOD/rope, contact/string, night water and airborne shore corrections remain present. Original-scene FPS, recurring renderer corruption, fracture/contact and coast flight acceptance remain unresolved. No agent game launch/control or player SAVE load occurred. Earlier inventories below are historical.
 
 ## Current verdict
 
-### October16 — world destruction and old-control correction; delivery pending
+### October16 — world destruction and old-control correction installed
 
 Actual CORE/MODELR/ISLAND reproduces the player's unchanged-island result:
 Antigua's seabed and fort reject a220m blast, rolling back every receiver.
@@ -37,15 +37,19 @@ blast and clear/rebind/invalid-input cases pass. Evidence is private
 `world-cut-integration/coverage-*`; source fingerprint is
 `40c418e19b744d0e704379c6008865a8ab89e039e443ccc32c46593a8cbe3807`.
 This is a hidden fixture with real engine services, not a player scene or SAVE
-replay. Canonical delivery of this exact batch is next.
+replay. Canonical `run.sh --stage-only` now installs this exact source batch;
+the signed image and unchanged source/player inventory are verified above.
+Receipt and complete stage log belong to private
+`world-cut-integration/delivery-correction`.
 
 Old saved control maps have no6/7 actions. Actual VM/native controls retain user
 remaps through reconciliation after LoadGameOptions and battle-interface setup.
 The existing HUD now reads the selected weapon and native charge/reload; native
 negative sentinels suppress cannon/powder sprites only for6/7. Script positive/
 OFF/ordinary cases pass;126 native HUD rows retain ordinary output bit-for-bit.
-No app launch/control or player SAVE load occurs. The installed image remains
-the rejected eac7 batch until the next successful canonical stage.
+No app launch/control or player SAVE load occurs. The corrected dcca image
+supersedes the rejected eac7 batch; original saved-game weapon action remains
+unresolved until the player's replay.
 
 ### October16 — world cuts, numbered ordnance and crew installed; player rejects switching
 
