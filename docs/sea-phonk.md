@@ -1,5 +1,29 @@
 # Phonk Mode
 
+## October16 — airborne coast contact and beached support
+
+Airborne grounding previously replaced the ship's actual Y with wave height;
+TOUCH independently swept its coastline contour atY0. Both enforced a sea-level
+barrier even above low land. Airborne ships now skip only that wet-depth branch:
+the retained hull contour sweeps actual island geometry at three heights.
+Ordinary wet grounding and its complete TOUCH depth branch are unchanged.
+
+The existing island trace and five retained keel points supply terrain support.
+A descending hull stops at the solid terrain plus its draft, keeps its supported
+pose after Phonk exit, and reconstructs support from the saved elevated pose.
+No SAVE fields are added. Removing terrain or raising water above support clears
+the transient state; death clears it too. Beached hulls report no water contact.
+The existing wet depth raster is only a broad phase for terrain queries.
+
+Actual Move/TouchMove/LandSupport/PhonkMotionAllowed/CheckShip2Strand methods pass
+bounded ASan/UBSan adapter checks for low-coast traversal, higher-rock contact,
+landing, OFF/reconstructed pose, prediction restoration and support invalidation.
+Probe sources and limits belong to private `shore-airborne-contact` evidence.
+These are sampled hull checks: thin obstacles between rays, initial overlap and
+isolated bumps between keel points can be missed. Native delivery belongs to
+`runtime.md`; actual tsunami/Shift/coastline, tall-rock, ordinary wet grounding
+and saved beached-pose replay remain player-owned and unresolved.
+
 ## Beam visibility and fracture hitch follow-up
 
 The scene helper now owns one unlayered `SHIP_HULL_CHIP_ASSETS` entity, keeping
@@ -459,9 +483,10 @@ without a fake slam. The response returns to ordinary supported heave when it
 decays. Controls resume on contact. A later wave serial can launch again; the
 same serial cannot launch twice. Ordinary waves alone do not activate flight.
 Flight and momentum reset on load/death/mode exit.
-Existing shoreline grounding remains authoritative during flight. The inherited
-TOUCH hull-admission solver can miss thin ships on extreme long frames; no new
-collision bypass or all-frame no-tunnelling guarantee is introduced.
+Airborne shore contact uses actual-height island traces and retained keel support
+as described above. Ordinary wet grounding remains unchanged. The inherited
+TOUCH hull-admission solver can miss thin ships on extreme long frames; no
+all-frame no-tunnelling guarantee is introduced.
 
 `SHIP_BASE::HasWaterContact` defaults to the existing wet behavior; the Phonk
 ship overrides it from transient flight state. ShipTracks stops new wake inserts

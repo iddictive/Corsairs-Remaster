@@ -238,6 +238,39 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, CVECTOR *vPos, CVECTOR *vAng, CVECTOR
     auto *ship = pShips[idx];
     if (!pIslandBase || !ship->pShip || !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
         return false;
+    if (!ship->pShip->HasWaterContact())
+    {
+        // A dry hull is not an infinite sea-level extrusion of its waterplane.
+        // Sweep its retained vertical band against the actual island geometry.
+        std::vector<CVECTOR> contour;
+        float lower, upper;
+        if (!ship->pShip->GetHullContactContour(contour, lower, upper)) return false;
+        for (const auto &point : contour)
+            for (int level = 0; level < 3; ++level)
+            {
+                CVECTOR ends[2];
+                for (int pose = 0; pose < 2; ++pose)
+                {
+                    float x = point.x, z = point.z;
+                    RotateAroundY(x, z, cosf(ship->TP[pose].vAng.y), sinf(ship->TP[pose].vAng.y));
+                    const float y = lower + (upper - lower) * (.5f * level) +
+                        ship->TP[pose].vPos.y - ship->TP[0].vPos.y;
+                    ends[pose] = CVECTOR(ship->TP[pose].vPos.x + x, y, ship->TP[pose].vPos.z + z);
+                }
+                const CVECTOR travel = ends[1] - ends[0];
+                if (~travel <= .000001f) continue;
+                const float hit = pIslandBase->Trace(ends[0], ends[1]);
+                if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) continue;
+                *vPos = ends[0] + travel * hit;
+                CVECTOR radial = *vPos - ship->TP[1].vPos;
+                radial.y = 0.f;
+                *vRecoil = !radial;
+                *fSlide = 0.f;
+                *fPower = METERS2KNOTS(std::hypot(travel.x, travel.z)) * (1000.f / float(iDeltaTime));
+                return true;
+            }
+        return false;
+    }
     for (int pose = 0; pose < 2; ++pose)
     {
         const float c = cosf(ship->TP[pose].vAng.y), s = sinf(ship->TP[pose].vAng.y);

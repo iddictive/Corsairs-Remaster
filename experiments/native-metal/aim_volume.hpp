@@ -384,15 +384,16 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   if(excludedReceiver){coverage=0.f;contour=0.f;contact.z=0.f;}
   float readiness=.72f+.28f*u.params.y;
   bool coloredReceiver=receiverToken!=0u;
-  float fillAlpha=(actualWater?.30f:.08f)*coverage*readiness;
-  float lineAlpha=(actualWater?.78f:(coloredReceiver?.42f:.48f))*contour*readiness;
+  float daylight=u.surfaceStyle.x;
+  float waterStrength=actualWater?mix(.75f,1.f,daylight):1.f;
+  float fillAlpha=(actualWater?.30f:.08f)*coverage*readiness*waterStrength;
+  float lineAlpha=(actualWater?.78f:(coloredReceiver?.42f:.48f))*contour*readiness*waterStrength;
   uint rgb=identity.y;
   float3 tint=coloredReceiver?float3(float((rgb>>16)&255u),float((rgb>>8)&255u),float(rgb&255u))/255.f:
       float3(.85098f,.88627f,.89412f);
   float3 background=sceneColor.read(pixelIndex).rgb;
   float luminance=dot(background,float3(.2126f,.7152f,.0722f));
   float brightBackground=smoothstep(.18f,.55f,luminance);
-  float daylight=u.surfaceStyle.x;
   lineAlpha*=1.f+.16f*brightBackground+.45f*daylight;
   // Keep a bright relation-colored core rather than averaging bright/dark
   // tints into a disappearing midgray at some background luminance. The narrow

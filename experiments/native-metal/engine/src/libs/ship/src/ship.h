@@ -163,10 +163,12 @@ class SHIP : public SHIP_BASE
     std::vector<hull_t> pHulls;
     bool bShip2Strand;
     bool bGroundMoveBlocked = false; // transient; not part of the save layout
+    bool bLandContact = false; // terrain support; reconstructed from the saved pose
     // Volumetric cannon-ball radius (meters) for mast-pole capsule tests.
     // transient; not part of the save layout
     float fCannonTraceRadius = 0.0f;
     float GroundPenetration(const SHIP_STATE &state);
+    bool LandSupport(const SHIP_STATE &state, float &height);
     bool bMounted;
     bool bKeelContour;
     CVECTOR vOldAng, vOldPos;
@@ -345,7 +347,7 @@ class SHIP : public SHIP_BASE
     MODEL *GetModel() const override;
     entid_t GetModelEID() const override;
     CVECTOR GetPos() const override;
-    bool HasWaterContact() const override { return !phonkFlight.airborne; }
+    bool HasWaterContact() const override { return !phonkFlight.airborne && !bLandContact; }
     SHIP_WATER_IMPACT GetWaterImpact() const override
     {
         return {phonkFlight.impact, phonkFlight.impactGeneration,

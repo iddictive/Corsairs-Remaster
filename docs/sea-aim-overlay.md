@@ -2,6 +2,15 @@
 
 ## Status
 
+### October16 — night water strength
+
+The player's22:45 water field is clean after the depth repair but too bright.
+Water fill and rim now scale from.75 at night to1 in daylight using the existing
+solar weather factor; base alphas become.225/.585 at full night and remain
+.30/.78 by day. Other receivers, colors, widths, coverage, depth/identity
+rejection and firing are unchanged. Compilation/delivery and the original
+night scene have separate acceptance in `runtime.md`.
+
 ### October16 — water depth quantization pattern
 
 The stronger fill exposed a patterned rejection of valid water pixels. Native

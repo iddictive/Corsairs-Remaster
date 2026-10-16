@@ -650,6 +650,7 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
     const auto old_state = State;
     const auto old_phonk = phonkDrift;
     const auto old_flight = phonkFlight;
+    const bool old_landContact = bLandContact;
     const float old_collisionYaw = collisionYaw;
     // Phonk predicts the same buoyancy samples as consumed motion. Restore its
     // sample cache too; ordinary collision prediction keeps its original path.
@@ -701,6 +702,7 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
     State = old_state;
     phonkDrift = old_phonk;
     phonkFlight = old_flight;
+    bLandContact = old_landContact;
     collisionYaw = old_collisionYaw;
     if (predictSurface) ShipPoints = old_points;
 
@@ -710,6 +712,25 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
 BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
 {
     const auto dtime = DELTA_TIME(DeltaTime);
+    // A beached hull keeps its terrain support after mode exit and save/load.
+    // Elevated saved poses are the existing owner; no new save fields are needed.
+    if (!bDead && !bSetFixed && pSea && !phonkFlight.airborne)
+    {
+        const float water = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+        float ground;
+        if ((bLandContact || State.vPos.y > water + .01f) && LandSupport(State, ground) &&
+            ground > water && (bLandContact || std::abs(State.vPos.y - ground) < .05f))
+        {
+            State.vPos.y = ground;
+            State.vSpeed.x = State.vSpeed.z = State.vRotate.y = 0.f;
+            phonkDrift.reset();
+            phonkFlight.reset();
+            bLandContact = true;
+            if (!bCollision) bGroundMoveBlocked = true;
+            return true;
+        }
+        bLandContact = false;
+    }
     ApplyStrength(dtime, bCollision);
     const auto waterSpeed = phonkFlight.airborne ? CVECTOR(0.f) :
         TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed();
@@ -766,18 +787,12 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
 
     // Grounding resists motion into shallower water, without a collision recoil.
     // Prediction-only TOUCH calls must not repeat these geometry queries.
-    if (!bCollision && !bDead && !bSetFixed && bKeelContour &&
+    if (!bCollision && !bDead && !bSetFixed && !phonkFlight.airborne && bKeelContour &&
         (State.vPos.x != beforeTranslation.vPos.x || State.vPos.z != beforeTranslation.vPos.z))
     {
         SHIP_STATE baseline = beforeTranslation;
         baseline.vAng = State.vAng; // allow turning; compare translation at one orientation
         SHIP_STATE grounding = State;
-        if (phonkFlight.airborne && pSea)
-        {
-            // A jump may clear water, never skip the existing shoreline barrier.
-            baseline.vPos.y = pSea->WaveXZ(baseline.vPos.x + fXOffset, baseline.vPos.z + fZOffset);
-            grounding.vPos.y = pSea->WaveXZ(grounding.vPos.x + fXOffset, grounding.vPos.z + fZOffset);
-        }
         const float oldPenetration = GroundPenetration(baseline);
         const float newPenetration = GroundPenetration(grounding);
         if (newPenetration > oldPenetration + 0.0001f)
@@ -861,6 +876,17 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
             dtime, fGravity, State.vBoxSize.z, State.vBoxSize.x,
             KNOTS2METERS(phonkDrift.worldX * std::sin(State.vAng.y) + phonkDrift.worldZ * std::cos(State.vAng.y)),
             KNOTS2METERS(phonkDrift.worldX * std::cos(State.vAng.y) - phonkDrift.worldZ * std::sin(State.vAng.y)));
+        float ground;
+        if (wasAirborne && LandSupport(State, ground) && ground > surface && State.vPos.y <= ground)
+        {
+            // Solid terrain stops the keel; it has no water-entry compression.
+            State.vPos.y = ground;
+            State.vSpeed.x = State.vSpeed.z = State.vRotate.y = 0.f;
+            phonkDrift.reset();
+            phonkFlight.reset();
+            bLandContact = true;
+            if (!bCollision) bGroundMoveBlocked = true;
+        }
     }
     return true;
 }
@@ -943,9 +969,39 @@ float SHIP::GroundPenetration(const SHIP_STATE &state)
     return penetration;
 }
 
+bool SHIP::LandSupport(const SHIP_STATE &state, float &height)
+{
+    if (!pIsland || !bKeelContour || pIsland->GetCurrentImmersion() != 0.f)
+        return false;
+    CMatrix pose(state.vAng.x, state.vAng.y, state.vAng.z,
+                 state.vPos.x + fXOffset, -state.fShipImmersion - SP.fWaterLine,
+                 state.vPos.z + fZOffset);
+    bool supported = false;
+    for (const auto &keel : vKeelContour)
+    {
+        if (!IsHullPositionRetained(keel)) continue;
+        const CVECTOR point = pose * keel;
+        float coarse;
+        if (!pIsland->GetDepthFast(point.x, point.z, &coarse) || coarse < 0.f) continue;
+        // The existing sea-depth raster encodes dry land as zero. Its sea-level
+        // downward ray cannot recover relief; trace from the height-map's ceiling.
+        const CVECTOR top(point.x, std::max(1500.f, state.vPos.y + State.vBoxSize.y), point.z);
+        const CVECTOR bottom(point.x, -500.f, point.z + .001f);
+        const float hit = pIsland->Trace(top, bottom);
+        if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) continue;
+        const float terrain = top.y + hit * (bottom.y - top.y);
+        if (terrain < 0.f) continue;
+        const float support = terrain - point.y;
+        height = supported ? std::max(height, support) : support;
+        supported = true;
+    }
+    return supported;
+}
+
 void SHIP::CheckShip2Strand(float fDeltaTime)
 {
-    const bool bNewShip2Strand = bGroundMoveBlocked || GroundPenetration(State) > 0.0f;
+    const bool bNewShip2Strand = bLandContact || bGroundMoveBlocked ||
+        (!phonkFlight.airborne && GroundPenetration(State) > 0.0f);
     if (bShip2Strand != bNewShip2Strand)
     {
         bShip2Strand = bNewShip2Strand;
@@ -1007,6 +1063,7 @@ void SHIP::SetDead()
         tsunamiDrift.Reset();
         phonkDrift.reset();
         phonkFlight.reset();
+        bLandContact = false;
         collisionStrength = {};
         collisionYaw = 0.f;
 
@@ -1474,7 +1531,7 @@ void SHIP::Execute(uint32_t DeltaTime)
             fRotate = 0.25f;
         if (fRotate < -0.25f)
             fRotate = -0.25f;
-        const bool phonkPose = PhonkActive() && phonkFlight.sampled;
+        const bool phonkPose = bLandContact || (PhonkActive() && phonkFlight.sampled);
         if (!phonkPose) vAng.z += fRotate;
         const float protection = TsunamiProtection();
         const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
@@ -3258,6 +3315,7 @@ void SHIP::Load(CSaveLoad *pSL)
     phonkDrift.reset();
     phonkFlight.reset();
     phonkSeconds = 0.f;
+    bLandContact = false;
     whirlpoolMotion.Reset();
     emergenceSerial = 0;
     emergenceQueryActive = false;
