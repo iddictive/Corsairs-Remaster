@@ -10,6 +10,7 @@
 #include <array>
 #include <string>
 #include "point_shadow_registry.hpp"
+#include "draw_visibility.hpp"
 #include "shadow_quality.hpp"
 #include "sky_fog.hpp"
 #include "sky_irradiance.hpp"
@@ -44,9 +45,10 @@ struct LandShadow {
   MTLPrimitiveType primitive;MTLCullMode cull;simd_float4x4 world,mvp;MTLViewport viewport;
   id<MTLTexture> alphaTexture;id<MTLSamplerState> sampler;float alphaRef;bool alphaTest;uint32_t alphaFunc;float modulation;simd_float4 fogColor,fogParams;
   bool raw=false;MTLIndexType indexType=MTLIndexTypeUInt32;NSInteger baseVertex=0;RawCasterUniform rawCaster{};RawReceiverUniform rawReceiver{};
-  bool casterEnabled=true;
+  bool casterEnabled=true,receiverVisible=true;
   storm_metal::point_shadow::Key registryKey{};unsigned registryStride=0,registryUvOffset=0,registryColorOffset=0;storm_metal::point_shadow::Bounds registryBounds{},registryLocalBounds{};simd_float4x4 authoredWorld{};bool authoredWorldValid=false,registryUseColorAlpha=false;id<MTLBuffer> skinPalette=nil;NSUInteger skinPaletteOffset=0;unsigned boneCount=0;
  };
+ static bool canReceivePoints(const Packet&p){return p.receiverVisible&&p.raw&&p.rawReceiver.receiverEnabled;}
  static bool knownRegistryBounds(const Packet&p){
   const auto&b=p.registryBounds;
   return p.raw&&p.registryKey.vertexIdentity&&
@@ -436,6 +438,22 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
  bool encode(id<MTLDevice>device,id<MTLCommandBuffer>command,id<MTLTexture>color,id<MTLTexture>depth,simd_float4x4 view,simd_float3 direction,bool receivers=true,simd_float4x4*outLight=nullptr){
  if(receivers&&resolved)return applied;if(receivers)resolved=true;if(overBudget||packets.empty()||!depth||!prepare(device,color.pixelFormat,depth.pixelFormat))return false;
   auto inv=simd_inverse(view);simd_float3 focus=inv.columns[3].xyz;auto z=simd_normalize(direction);simd_float3 up=std::abs(z.y)>.95f?simd_make_float3(0,0,1):simd_make_float3(0,1,0);auto x=simd_normalize(simd_cross(up,z));auto y=simd_cross(z,x);
+  // A directional ray keeps its X/Y light coordinates. A caster outside the
+  // visible receivers' footprint cannot shade them, regardless of distance.
+  // Unknown receivers retain the original full-cascade path.
+  const simd_float3 lightAxes[]={x,y,z};
+  storm_metal::LightBounds receiversInLight{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};
+  bool receiverFootprintKnown=!locationActive,hasVisibleReceiver=false;
+  for(const auto&p:packets)if(p.receiverVisible){
+   hasVisibleReceiver=true;storm_metal::LightBounds bound;
+   if(!knownRegistryBounds(p)||!storm_metal::projectLightBounds(p.registryBounds.minimum,p.registryBounds.maximum,lightAxes,bound)){receiverFootprintKnown=false;break;}
+   receiversInLight.minimum=simd_min(receiversInLight.minimum,bound.minimum);
+   receiversInLight.maximum=simd_max(receiversInLight.maximum,bound.maximum);
+  }
+  receiverFootprintKnown&=hasVisibleReceiver;
+  // Existing sun PCF reaches five texels; retain bilinear support and rounding
+  // using the larger cascade's world texel size for both cascades.
+  const float receiverPadding=6.5f*FarSunCoverage/float(sunShadowResolution);
   auto makeCascade=[&](float coverage,simd_float3&outCenter){
   float cascadeTexel=coverage/float(sunShadowResolution);float lx=std::floor(simd_dot(x,focus)/cascadeTexel)*cascadeTexel,ly=std::floor(simd_dot(y,focus)/cascadeTexel)*cascadeTexel;
   outCenter=focus+x*(lx-simd_dot(x,focus))+y*(ly-simd_dot(y,focus));const float halfCoverage=coverage*.5f;
@@ -452,6 +470,13 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
   DrawBindings depthBindings;
   for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];
    if(!p.casterEnabled)continue;
+   if(receiverFootprintKnown&&knownRegistryBounds(p)){
+    storm_metal::LightBounds bound;
+    if(storm_metal::projectLightBounds(p.registryBounds.minimum,p.registryBounds.maximum,lightAxes,bound)&&
+       (bound.minimum.x>receiversInLight.maximum.x+receiverPadding||bound.maximum.x<receiversInLight.minimum.x-receiverPadding||
+        bound.minimum.y>receiversInLight.maximum.y+receiverPadding||bound.maximum.y<receiversInLight.minimum.y-receiverPadding||
+        bound.minimum.z>receiversInLight.maximum.z+.001f*SunDepthEnvelope))continue;
+   }
    // Project known world bounds into the full light frustum, including depth.
    // Animated bind-pose and unknown bounds cannot safely reject a caster.
    const auto&b=p.registryBounds;
@@ -478,6 +503,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
  auto e=[command renderCommandEncoderWithDescriptor:pass];[e setDepthStencilState:equalDepth];[e setFrontFacingWinding:MTLWindingClockwise];[e setFragmentTexture:map atIndex:0];[e setFragmentTexture:farMap atIndex:2];
   DrawBindings receiverBindings;
   for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];
+   if(!p.receiverVisible)continue;
    // Keep the receiver's original parameter values; only reuse the matrices.
    Uniform u=fallbackUniforms[i];u.parameters={p.modulation,0,0,0};
    receiverBindings.common(e,p,p.skinPalette?skinnedReceiver:(p.raw?rawReceiver:receiver));receiverBindings.view(e,p,fogEnvironment,localFog,localVolume);
@@ -491,7 +517,7 @@ fragment AimReceiverO fs_landlit_skyfog_aim(O v [[stage_in]],constant U&u [[buff
   if(!prepass.frame||overBudget||!lights||!lightCount||packets.empty()||!depth||!prepare(device,color.pixelFormat,depth.pixelFormat))return false;
  auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=color;pass.colorAttachments[0].loadAction=MTLLoadActionLoad;pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.depthAttachment.texture=depth;pass.depthAttachment.loadAction=MTLLoadActionLoad;pass.depthAttachment.storeAction=MTLStoreActionStore;
  auto e=[command renderCommandEncoderWithDescriptor:pass];[e setDepthStencilState:equalDepth];[e setFrontFacingWinding:MTLWindingClockwise];for(unsigned slot=0;slot<8;slot++)[e setFragmentTexture:prepass.points[slot].map atIndex:slot];[e setFragmentTexture:map atIndex:8];[e setFragmentTexture:farMap atIndex:9];DrawBindings bindings;bool drew=false;
- for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];if(!p.raw||!p.rawReceiver.receiverEnabled)continue;const auto&source=p.rawReceiver;PointReceiverUniform points{};points.sunEnabled=sunLight!=nullptr&&fallbackUniforms.size()==packets.size();points.sunWorld=points.sunEnabled?fallbackUniforms[i].lightWorld:matrix_identity_float4x4;points.sunWorldFar=points.sunEnabled?fallbackUniforms[i].lightWorldFar:matrix_identity_float4x4;points.shadowTexel={1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0};
+ for(size_t i=0;i<packets.size();++i){const auto&p=packets[i];if(!canReceivePoints(p))continue;const auto&source=p.rawReceiver;PointReceiverUniform points{};points.sunEnabled=sunLight!=nullptr&&fallbackUniforms.size()==packets.size();points.sunWorld=points.sunEnabled?fallbackUniforms[i].lightWorld:matrix_identity_float4x4;points.sunWorldFar=points.sunEnabled?fallbackUniforms[i].lightWorldFar:matrix_identity_float4x4;points.shadowTexel={1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0};
   for(unsigned selected=0;selected<lightCount;selected++){const auto&light=lights[selected];const unsigned cubeSlot=shadowSlot(light.lightId);if(!cubeSlot)continue;unsigned sourceSlot=0;while(sourceSlot<8&&(!(source.lightMask&(1u<<sourceSlot))||source.lightIds[sourceSlot]!=light.lightId))++sourceSlot;if(sourceSlot==8)continue;const auto snapshot=source.lightPositionRange[sourceSlot];if(snapshot.w<=.1f||simd_length(snapshot.xyz-light.position)>.001f||std::abs(snapshot.w-light.range)>.001f)continue;if(std::isfinite(snapshot.x)&&std::isfinite(snapshot.y)&&std::isfinite(snapshot.z)&&std::isfinite(snapshot.w)&&knownRegistryBounds(p)&&!storm_metal::point_shadow::LifecycleModel::intersects(p.registryBounds,snapshot.xyz,snapshot.w))continue;points.pointMask|=1u<<sourceSlot;points.cubeSlots[sourceSlot]=cubeSlot;points.positionRange[sourceSlot]=snapshot;points.weights[sourceSlot]=prepass.points[cubeSlot-1].weight;}
   if(!points.pointMask&&!points.sunEnabled)continue;Uniform u{p.mvp,p.world,{0,0,0,0},p.fogColor,p.fogParams,{1.f/float(sunShadowResolution),1.f/float(pointShadowResolution),0,0},matrix_identity_float4x4};bindings.common(e,p,p.skinPalette?skinnedPointReceiver:rawPointReceiver);bindings.view(e,p,fogEnvironment,localFog,localVolume);[e setVertexBytes:&source length:sizeof(source) atIndex:3];[e setVertexBytes:&points length:sizeof(points) atIndex:6];if(p.skinPalette){SkinUniform skin{p.boneCount,{0,0,0}};bindings.skin(e,p);[e setVertexBytes:&skin length:sizeof(skin) atIndex:5];}[e setVertexBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&u length:sizeof(u) atIndex:1];[e setFragmentBytes:&points length:sizeof(points) atIndex:6];draw(e,p);drew=true;
   }

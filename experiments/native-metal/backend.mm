@@ -45,6 +45,7 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "ambient_occlusion_composite.hpp"
 #include "indexed_geometry.hpp"
 #include "indexed_span_frame_cache.hpp"
+#include "draw_visibility.hpp"
 #include "resource_submission.hpp"
 #include "land_shadow.hpp"
 #include "local_light_bounds.hpp"
@@ -421,7 +422,7 @@ bool conservativeAnimatedBoundsEnabled=[] {
  const char* value=std::getenv("STORM_METAL_CONSERVATIVE_ANIMATED_BOUNDS");
  return !value||std::strcmp(value,"0")!=0;
 }();
-struct RawDrawBounds {simd_float3 minimum{},maximum{};bool conservative=false;};
+struct RawDrawBounds {simd_float3 minimum{},maximum{};bool conservative=false,finite=true;};
 storm_metal::backend_optimization::BoundsCache<RawDrawBounds> rawBoundsCache;
 std::vector<simd_float3> posedBoundsPositions;std::vector<uint8_t> posedBoundsReady;
 bool preparePosedBounds(const IndexedSpan& span,uint32_t references){
@@ -673,10 +674,14 @@ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRef
  }
  void resolveTraversalShadow(){
   if(!back||target!=back||!landShadow.enabled||landShadow.locationActive||landShadow.resolved||landShadow.packets.empty()||zbuffer!=depth)return;
+  if(std::none_of(landShadow.packets.begin(),landShadow.packets.end(),[](const auto&p){return p.receiverVisible;})){landShadow.resolved=true;return;}
   std::vector<storm_metal::sea_point_shadow::LightSnapshot> snapshots;
-  for(const auto&packet:landShadow.packets)if(packet.raw)for(unsigned slot=0;slot<8;slot++){
+  for(const auto&packet:landShadow.packets)if(LandShadow::canReceivePoints(packet))for(unsigned slot=0;slot<8;slot++){
    const auto&receiver=packet.rawReceiver;const uint32_t bit=1u<<slot;
    if(!(receiver.lightMask&bit)||receiver.directionalMask&bit||receiver.spotMask&bit)continue;
+   const auto influence=receiver.lightPositionRange[slot];
+   if(std::isfinite(influence.x)&&std::isfinite(influence.y)&&std::isfinite(influence.z)&&std::isfinite(influence.w)&&
+      LandShadow::knownRegistryBounds(packet)&&!storm_metal::point_shadow::LifecycleModel::intersects(packet.registryBounds,influence.xyz,influence.w))continue;
    snapshots.push_back({receiver.lightIds[slot],{receiver.lightPositionRange[slot].x,receiver.lightPositionRange[slot].y,receiver.lightPositionRange[slot].z},receiver.lightPositionRange[slot].w,{receiver.lightDiffuse[slot].x,receiver.lightDiffuse[slot].y,receiver.lightDiffuse[slot].z},true,true});
   }
   std::array<storm_metal::sea_point_shadow::LightSnapshot,8> selected{};
@@ -1050,7 +1055,7 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
   stage.coord=ts[i][storm_render::StageTexCoordIndex];stage.result=ts[i][storm_render::StageResultArg];stage.transformFlags=ts[i][storm_render::StageTextureTransform];stage.constantColor=color(ts[i][storm_render::StageConstant]);
   std::memcpy(&stage.transform,&matrices[storm_render::TransformTexture0+i],64);stage.textured=textured;stage.stochastic=stochastic;return stage;
  }
- Uniform prepareFixedFunction(){Uniform u{};simd_float4x4 w,v,p;memcpy(&w,&matrices[storm_render::TransformWorld],64);memcpy(&v,&matrices[storm_render::TransformView],64);memcpy(&p,&matrices[storm_render::TransformProjection],64);u.m=simd_mul(p,simd_mul(v,w));u.viewport={float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)};u.transformed=(fvf&storm_render::vertexFormat::positionMask)==storm_render::vertexFormat::xyzwTransformed;u.alphaTest=rs[storm_render::RenderAlphaTest]?rs[storm_render::RenderAlphaCompare]:0;u.alphaRef=rs[storm_render::RenderAlphaReference]/255.f;u.specularEnable=rs[storm_render::RenderSpecular]!=false;u.factor=color(rs[storm_render::RenderTextureFactor]);u.fogColor=color(rs[storm_render::RenderFogColor]);auto rf=[&](int state){float f;uint32_t bits=rs[state];memcpy(&f,&bits,4);return f;};u.fogParams={rf(storm_render::RenderFogStart),rf(storm_render::RenderFogEnd),rf(storm_render::RenderFogDensity),float(rs[storm_render::RenderFog]?(rs[storm_render::RenderFogTableMode]?rs[storm_render::RenderFogTableMode]:rs[storm_render::RenderFogVertexMode]):0)};
+ Uniform prepareFixedFunction(bool bindResources=true){Uniform u{};simd_float4x4 w,v,p;memcpy(&w,&matrices[storm_render::TransformWorld],64);memcpy(&v,&matrices[storm_render::TransformView],64);memcpy(&p,&matrices[storm_render::TransformProjection],64);u.m=simd_mul(p,simd_mul(v,w));u.viewport={float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)};u.transformed=(fvf&storm_render::vertexFormat::positionMask)==storm_render::vertexFormat::xyzwTransformed;u.alphaTest=rs[storm_render::RenderAlphaTest]?rs[storm_render::RenderAlphaCompare]:0;u.alphaRef=rs[storm_render::RenderAlphaReference]/255.f;u.specularEnable=rs[storm_render::RenderSpecular]!=false;u.factor=color(rs[storm_render::RenderTextureFactor]);u.fogColor=color(rs[storm_render::RenderFogColor]);auto rf=[&](int state){float f;uint32_t bits=rs[state];memcpy(&f,&bits,4);return f;};u.fogParams={rf(storm_render::RenderFogStart),rf(storm_render::RenderFogEnd),rf(storm_render::RenderFogDensity),float(rs[storm_render::RenderFog]?(rs[storm_render::RenderFogTableMode]?rs[storm_render::RenderFogTableMode]:rs[storm_render::RenderFogVertexMode]):0)};
 __unsafe_unretained id<MTLTexture> shaderTextures[16]{};
 __unsafe_unretained id<MTLSamplerState> shaderSamplers[8]{};
 for(unsigned i=0;i<8;i++){
@@ -1065,10 +1070,10 @@ for(unsigned i=0;i<8;i++){
  else u.stages[i]=fixedFunctionStage(i,textured,stochastic);
  shaderTextures[8+i]=cube?cube->gpu():nil;shaderTextures[i]=tex?tex->gpu():nil;shaderSamplers[i]=samplerFor(i);
 }
-if(preparedMaterialsEnabled){
+if(bindResources&&preparedMaterialsEnabled){
  for(unsigned i=0;i<16;i++)bindMaterialTexture(shaderTextures[i],i);
  for(unsigned i=0;i<8;i++)bindMaterialSampler(shaderSamplers[i],i);
-}else{
+}else if(bindResources){
  [encoder setFragmentTextures:shaderTextures withRange:NSMakeRange(0,16)];
  [encoder setFragmentSamplerStates:shaderSamplers withRange:NSMakeRange(0,8)];
 }
@@ -1326,12 +1331,12 @@ if(outdoorLocationShadow){if(profile.enabled){++profile.legacyShadowDraws;profil
 // bytes resident and evaluate the same ambient/sun response in Metal instead of
 // expanding 112-byte CPU vertices (plus lighting fractions) every frame.
 bool noLegacyPoints=true;if(!lightingScene.authoredCatalog())for(unsigned li=1;li<8;li++)noLegacyPoints&=!enabled[li]||lights[li].Type==storm_render::LightKind::Directional;
-const bool rawLocation=prepassLit&&landShadow.locationActive&&landShadow.scope==1&&boundIndexed&&indexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&!(fvf&storm_render::vertexFormat::specular)&&textureCoordinates<=4&&rawUV;const bool rawOutdoor=rawLocation&&!landShadow.indoor;const bool rawIndoor=rawLocation&&landShadow.indoor;
+const bool rawLocation=prepassLit&&landShadow.locationActive&&landShadow.scope==1&&boundIndexed&&rawIndexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&!(fvf&storm_render::vertexFormat::specular)&&textureCoordinates<=4&&rawUV;const bool rawOutdoor=rawLocation&&!landShadow.indoor;const bool rawIndoor=rawLocation&&landShadow.indoor;
 // Sea ship/deck FFP geometry has moving WORLD matrices. Baking its lighting on
 // the CPU therefore misses every frame although the authored stream is static.
 // Directional light is position-independent: Metal consumes the original FVF
 // stream and WORLD remains a per-draw uniform, preserving ship motion.
-const bool rawSeaLit=!landShadow.locationActive&&!dynamicDraw&&actualLighting&&boundIndexed&&indexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&textureCoordinates<=4&&rawUV;
+const bool rawSeaLit=!landShadow.locationActive&&!dynamicDraw&&actualLighting&&boundIndexed&&rawIndexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&textureCoordinates<=4&&rawUV;
 // The ship deck and hull use the ordinary lit sea FFP path rather than a
 // MODELR scope. They are the receivers for mast and character shadows, so keep
 // this already-classified world geometry in the traversal registry. Custom sea
@@ -1350,13 +1355,13 @@ const bool seaGeometryCandidate=!riggingMaterialDraw&&!landShadow.locationActive
  (t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip||t==storm_render::PrimitiveTriangleFan);
 if(seaGeometryCandidate){++seaGeometryCandidates;++seaCandidateScopes[std::min(landShadow.scope,2u)];if(rawSeaLit)++seaRawEligible;if(rawSeaShadow)++seaShadowEligible;
  if(!landShadow.collecting())++seaRejects[0];if(!rs[storm_render::RenderDepthTest]||!rs[storm_render::RenderDepthWrite])++seaRejects[1];if(!seaShadowDepthCoverage)++seaRejects[2];
- if(!boundIndexed||!indexed||!vb||!ib||vb->locked||ib->locked||base<0)++seaRejects[3];if(dynamicSource)++seaRejects[4];if(generatedCoordinates)++seaRejects[5];if(special!=ProgramKind::None)++seaRejects[6];if(textureCoordinates>4||!rawUV)++seaRejects[7];}
+ if(!boundIndexed||!rawIndexed||!vb||!ib||vb->locked||ib->locked||base<0)++seaRejects[3];if(dynamicSource)++seaRejects[4];if(generatedCoordinates)++seaRejects[5];if(special!=ProgramKind::None)++seaRejects[6];if(textureCoordinates>4||!rawUV)++seaRejects[7];}
 const size_t rawIndexWidth=fmt==storm_render::IndexFormat::UInt32?4u:2u;const uintptr_t rawIndexBegin=reinterpret_cast<uintptr_t>(indices),rawIndexStorageBegin=ib?reinterpret_cast<uintptr_t>(ib->bytes.data()):0;const bool rawIndexRange=indices&&ib&&rawIndexBegin>=rawIndexStorageBegin&&rawIndexBegin-rawIndexStorageBegin<=ib->bytes.size()&&uint64_t(inputCount)*rawIndexWidth<=ib->bytes.size()-(rawIndexBegin-rawIndexStorageBegin);
 storm::metal::sail::DrawContract sailDraw{};sailDraw.fvf=fvf;sailDraw.stride=st;sailDraw.textureCoordinates=textureCoordinates;sailDraw.boundIndexed=boundIndexed;sailDraw.hasVertexBuffer=vb!=nullptr;sailDraw.hasIndexBuffer=ib!=nullptr;sailDraw.hasIndexData=indices!=nullptr;sailDraw.indexRangeValid=rawIndexRange;sailDraw.vertexLocked=vb&&vb->locked;sailDraw.indexLocked=ib&&ib->locked;sailDraw.dynamicSource=dynamicSource;sailDraw.generatedCoordinates=generatedCoordinates;sailDraw.fixedFunctionProgram=special==ProgramKind::None;sailDraw.nonnegativeBase=base>=0;sailDraw.trianglePrimitive=t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip;sailDraw.rawUv=rawUV;
 const bool rawDynamicSail=rawIndexed&&storm::metal::sail::eligible(sailDraw);
 const bool rawWorld=traversalCapture&&boundIndexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&((fvf&storm_render::vertexFormat::positionMask)==storm_render::vertexFormat::xyz)&&(fvf&storm_render::vertexFormat::normal)&&textureCoordinates<=4&&rawUV;
 const bool rawSkinned=gpuSkinned&&boundIndexed&&ib&&!ib->locked&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip);
-const bool rawWdmModel=worldMapModelRole&&boundIndexed&&indexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&textureCoordinates<=4&&rawUV;
+const bool rawWdmModel=worldMapModelRole&&boundIndexed&&rawIndexed&&vb&&ib&&!vb->locked&&!ib->locked&&!dynamicSource&&!generatedCoordinates&&special==ProgramKind::None&&base>=0&&(t==storm_render::PrimitiveTriangleList||t==storm_render::PrimitiveTriangleStrip)&&(fvf&storm_render::vertexFormat::normal)&&textureCoordinates<=4&&rawUV;
 if(rawOutdoor||rawIndoor||rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWdmModel){
  if(rawOutdoor||rawIndoor)++rawLocationDraws;
  if(rawSkinned)++rawSkinnedDraws;
@@ -1366,15 +1371,8 @@ if(rawOutdoor||rawIndoor||rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWd
  // Location point cubes may consume last frame's registry before scene draws.
  // Sea traversal prunes unseen packets before cube encoding, so only that
  // domain may use frame-arena geometry; location keeps immutable residency.
- const bool transientSail=false;
- const auto sailUpload=transientSail?dynamicBuffer(vb):DynamicRawBuffer{};
- const bool transientIndices=rawDynamicSail&&!landShadow.locationActive;
- const auto sailIndexUpload=transientIndices?dynamicBuffer(ib):DynamicRawBuffer{};
- auto rawVertices=rawSkinned?vb->gpuSkinningBuffer:(transientSail?sailUpload.slice.buffer:residentBuffer(vb->bytes,vb->cacheIdentity,vb->cacheRevision));
- auto rawIndices=transientIndices?sailIndexUpload.slice.buffer:residentBuffer(ib->bytes,ib->cacheIdentity,ib->cacheRevision);if(!rawVertices||!rawIndices)return storm_render::result::outOfMemory;
  const bool unlitRawModel=(rawSkinned||rawWdmModel)&&!rs[storm_render::RenderLighting];
- if(!offscreenPointCasterDepth){auto stateResult=applyState((rawSkinned?0x1900ull:0x1800ull)|(unlitRawModel?1ull:0ull),library,rawSkinned?@"vs_skinned":@"vs_landraw",unlitRawModel?@"fs":@"fs_landlit");if(storm_render::failed(stateResult))return stateResult;++telemetryReceiverDraws;}
- Uniform u=prepareFixedFunction();
+ Uniform u{};simd_float4x4 rawProjection;memcpy(&rawProjection,&matrices[storm_render::TransformProjection],64);u.m=simd_mul(rawProjection,simd_mul(viewMatrix,worldMatrix));
  uint32_t colorOffset=rawSkinned?32:24,specularOffset=colorOffset+((fvf&storm_render::vertexFormat::diffuse)?4:0),uvOffset=rawSkinned?36:specularOffset+((fvf&storm_render::vertexFormat::specular)?4:0);
  const bool outdoorLighting=landShadow.locationActive&&!landShadow.indoor;
  const bool authoredOutdoorAlbedo=rawSkinned&&outdoorLighting&&rs[storm_render::RenderVertexColor]&&rs[storm_render::RenderDiffuseMaterialSource]==storm_render::MaterialSourceDiffuseColor&&materialAmbient.x==0.f&&materialAmbient.y==0.f&&materialAmbient.z==0.f;
@@ -1382,9 +1380,8 @@ if(rawOutdoor||rawIndoor||rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWd
  for(unsigned li=0;li<8;li++)if(enabled[li]&&((rawSeaLit||rawDynamicSail||rawWorld||rawSkinned||rawWdmModel||rawOutdoor||rawIndoor)||li==0)){auto&light=lights[li];if(prepassLit&&li>0&&light.Type!=storm_render::LightKind::Directional&&lightingScene.authoredCatalog())continue;if(prepassLit&&li==0&&light.Type==storm_render::LightKind::Directional&&(landShadow.indoor||!landShadow.locationActive)&&!landShadow.prepass.sunValid)continue;raw.lightMask|=1u<<li;const bool catalogPoint=modernLit&&lightingScene.authoredCatalog()&&light.Type==storm_render::LightKind::Point;raw.lightDiffuse[li]=catalogPoint?simd_make_float4(0):lightDiffuse[li];raw.lightAmbient[li]=catalogPoint?simd_make_float4(0):lightAmbient[li];raw.lightSpecular[li]=catalogPoint?simd_make_float4(0):lightSpecular[li];if(light.Type==storm_render::LightKind::Directional){raw.directionalMask|=1u<<li;raw.lightDirection[li]={light.Direction.x,light.Direction.y,light.Direction.z,0};}else{raw.lightPositionRange[li]={light.Position.x,light.Position.y,light.Position.z,light.Range};raw.lightAttenuation[li]={light.Attenuation0,light.Attenuation1,light.Attenuation2,0};if(light.Type==storm_render::LightKind::Spot){raw.spotMask|=1u<<li;raw.lightDirection[li]={light.Direction.x,light.Direction.y,light.Direction.z,0};raw.lightSpot[li]={light.Theta,light.Phi,light.Falloff,0};}}}
 if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnapshot();raw.lightMask|=1u;raw.directionalMask|=1u;raw.lightDiffuse[0]=sun.diffuse*solarGain;raw.lightAmbient[0]=sun.ambient;raw.lightDirection[0]=simd_make_float4(sun.direction,0.f);}
  const bool captureRawShadow=!riggingMaterialDraw&&rs[storm_render::RenderDepthWrite]&&(offscreenPointCasterDepth||rawSeaShadow||(traversalCapture&&(rawWorld||rawDynamicSail||rawSkinned))||(landShadow.locationActive&&prepassLit&&(rawOutdoor||rawIndoor||rawSkinned)));
-// Do not walk the index stream when neither light admission nor registry
- // capture consumes the bounds. Keep baseline mode identical to the old path.
- const bool needRawBounds=!backendOptimizationEnabled||lightingScene.authoredCatalog()||captureRawShadow;
+ // The shared view gate also consumes the bounds of non-casting rigging.
+ const bool needRawBounds=boundIndexed;
  // Larger receiver bounds may admit harmless out-of-range lamps, but must not
  // fill the 64 slots ahead of a lamp selected by the exact posed bound.
  bool allowConservativeBounds=rawSkinned&&conservativeAnimatedBoundsEnabled;
@@ -1394,6 +1391,7 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
   allowConservativeBounds=potentialLights<=64;
  }
  simd_float3 rawMin={INFINITY,INFINITY,INFINITY},rawMax={-INFINITY,-INFINITY,-INFINITY};
+ bool rawBoundsFinite=true;
  if(needRawBounds){
   const double boundsBegin=profile.enabled?FrameProfile::now():0;
   // The immutable animated facade has no CPU vertex payload. Its bounds must
@@ -1408,7 +1406,7 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
       uint64_t(drawCount),uint64_t(st),uint64_t(int64_t(base)),uint64_t(rawIndexWidth),uint64_t(fvf)};
   const auto* cachedBounds=cacheBounds?rawBoundsCache.find(boundsKey):nullptr;
   if(cachedBounds&&(!cachedBounds->conservative||allowConservativeBounds)){
-   rawMin=cachedBounds->minimum;rawMax=cachedBounds->maximum;
+   rawMin=cachedBounds->minimum;rawMax=cachedBounds->maximum;rawBoundsFinite=cachedBounds->finite;
    if(profile.enabled){++backendOptimizationStats.boundsHits;backendOptimizationStats.indicesAvoided+=drawCount;}
   }else{
    const auto* boundVertices=rawSkinned?static_cast<const uint8_t*>(vb->gpuSkinningBuffer.contents)+offset:data;
@@ -1439,13 +1437,24 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
      position=posedBoundsPositions[slot];
     }else if(rawSkinned){storm::metal::skinning::AnimatedVertex animated;std::memcpy(&animated,p,sizeof(animated));position=skinningBoundsPosition(animated,boundPalette);}
     else std::memcpy(&position,p,12);
+    rawBoundsFinite&=std::isfinite(position.x)&&std::isfinite(position.y)&&std::isfinite(position.z);
     rawMin=simd_min(rawMin,position);rawMax=simd_max(rawMax,position);
    }
-   if(cacheBounds)rawBoundsCache.insert(boundsKey,RawDrawBounds{rawMin,rawMax,conservativeBounds});
+   if(cacheBounds)rawBoundsCache.insert(boundsKey,RawDrawBounds{rawMin,rawMax,conservativeBounds,rawBoundsFinite});
    if(profile.enabled){const auto scanned=conservativeBounds?0:boundsCount;backendOptimizationStats.indicesScanned+=scanned;backendOptimizationStats.indicesAvoided+=drawCount-scanned;if(cacheBounds)++backendOptimizationStats.boundsMisses;else ++backendOptimizationStats.boundsBypassed;}
   }
   if(profile.enabled)backendOptimizationStats.boundsMilliseconds+=FrameProfile::now()-boundsBegin;
  }else if(profile.enabled){++backendOptimizationStats.boundsSkipped;backendOptimizationStats.indicesAvoided+=drawCount;}
+ const bool rawVisible=!offscreenPointCasterDepth&&(!rawBoundsFinite||!storm_metal::outsideDrawView(rawMin,rawMax,u.m));
+ if(!rawVisible&&!captureRawShadow)return storm_render::result::ok;
+ const bool transientSail=false;
+ const auto sailUpload=transientSail?dynamicBuffer(vb):DynamicRawBuffer{};
+ const bool transientIndices=rawDynamicSail&&!landShadow.locationActive;
+ const auto sailIndexUpload=transientIndices?dynamicBuffer(ib):DynamicRawBuffer{};
+ auto rawVertices=rawSkinned?vb->gpuSkinningBuffer:(transientSail?sailUpload.slice.buffer:residentBuffer(vb->bytes,vb->cacheIdentity,vb->cacheRevision));
+ auto rawIndices=transientIndices?sailIndexUpload.slice.buffer:residentBuffer(ib->bytes,ib->cacheIdentity,ib->cacheRevision);if(!rawVertices||!rawIndices)return storm_render::result::outOfMemory;
+ if(rawVisible){auto stateResult=applyState((rawSkinned?0x1900ull:0x1800ull)|(unlitRawModel?1ull:0ull),library,rawSkinned?@"vs_skinned":@"vs_landraw",unlitRawModel?@"fs":@"fs_landlit");if(storm_render::failed(stateResult))return stateResult;++telemetryReceiverDraws;}
+ u=prepareFixedFunction(rawVisible);
  auto lighting=landShadow.sampling(worldMatrix);if(!offscreenPointCasterDepth&&lightingScene.authoredCatalog()){lighting.flags.z=1;storm_metal::Bounds3 receiver{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};for(unsigned corner=0;corner<8;corner++){simd_float3 p={corner&1?rawMax.x:rawMin.x,corner&2?rawMax.y:rawMin.y,corner&4?rawMax.z:rawMin.z};auto world=simd_mul(worldMatrix,simd_make_float4(p,1)).xyz;for(unsigned axis=0;axis<3;axis++){receiver.min[axis]=std::min(receiver.min[axis],world[axis]);receiver.max[axis]=std::max(receiver.max[axis],world[axis]);}}unsigned count=0;for(unsigned i=0;i<lightingScene.authoredCount()&&count<64;i++){const auto&source=lightingScene.authoredLight(i);LandShadow::PointLight lamp{source.positionRange,source.diffuse,source.attenuation};const float position[]={lamp.positionRange.x,lamp.positionRange.y,lamp.positionRange.z};if(!storm_metal::sphereIntersectsBounds(position,lamp.positionRange.w,receiver))continue;lighting.lamps[count]=lamp;lighting.lamps[count++].attenuation.w=float(landShadow.shadowSlot(lightingScene.authoredId(i)));}for(unsigned li=1;li<8&&count<64;li++){const auto&source=lights[li];if(!enabled[li]||source.Type!=storm_render::LightKind::Point||landShadow.prepass.lightIds[li])continue;const float position[]={source.Position.x,source.Position.y,source.Position.z};if(!storm_metal::sphereIntersectsBounds(position,source.Range,receiver))continue;lighting.lamps[count++]={{source.Position.x,source.Position.y,source.Position.z,source.Range},lightDiffuse[li],{source.Attenuation0,source.Attenuation1,source.Attenuation2,0}};}lighting.flags.w=count;}
  NSUInteger rawVertexOffset=offset,rawIndexOffset=NSUInteger(static_cast<const uint8_t*>(indices)-ib->bytes.data());int32_t rawBaseVertex=base;
  if(rawDynamicSail){storm::metal::sail::IndexedBinding binding{};if(!storm::metal::sail::indexedBinding(offset,st,base,rawIndexed->first,rawIndexed->vertices(),vb->bytes.size(),rawIndexOffset/rawIndexWidth,rawIndexWidth,drawCount,ib->bytes.size(),binding))return storm_render::result::invalidCall;rawVertexOffset=NSUInteger(binding.vertexBufferOffset);rawIndexOffset=NSUInteger(binding.indexBufferOffset);rawBaseVertex=binding.metalBaseVertex;raw.normalOffset=storm::metal::sail::kNormalOffset;raw.uvOffset=storm::metal::sail::kUv0Offset;}
@@ -1453,15 +1462,16 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
  const NSUInteger logicalRawIndexOffset=rawIndexOffset;
  if(transientSail)rawVertexOffset+=sailUpload.slice.offset;
  if(transientIndices)rawIndexOffset+=sailIndexUpload.slice.offset;
- if(!offscreenPointCasterDepth){[encoder setVertexBuffer:rawVertices offset:rawVertexOffset atIndex:0];bindFixedFunction(u,rawDynamicSail);[encoder setVertexBytes:&raw length:sizeof(raw) atIndex:3];if(rawSkinned){SkinUniform skin{skinningBoneCount,uint32_t(!rs[storm_render::RenderLighting])};[encoder setVertexBuffer:skinningPalette offset:skinningPaletteOffset atIndex:4];[encoder setVertexBytes:&skin length:sizeof(skin) atIndex:5];}bindLandSampling(lighting,rawSkinned?6:4);bindShadowTexture(landShadow.map,16);bindShadowTexture(landShadow.farMap,17);for(unsigned slot=0;slot<8;slot++)bindShadowTexture(landShadow.prepass.points[slot].map,18+slot);
+ if(rawVisible){[encoder setVertexBuffer:rawVertices offset:rawVertexOffset atIndex:0];bindFixedFunction(u,rawDynamicSail);[encoder setVertexBytes:&raw length:sizeof(raw) atIndex:3];if(rawSkinned){SkinUniform skin{skinningBoneCount,uint32_t(!rs[storm_render::RenderLighting])};[encoder setVertexBuffer:skinningPalette offset:skinningPaletteOffset atIndex:4];[encoder setVertexBytes:&skin length:sizeof(skin) atIndex:5];}bindLandSampling(lighting,rawSkinned?6:4);bindShadowTexture(landShadow.map,16);bindShadowTexture(landShadow.farMap,17);for(unsigned slot=0;slot<8;slot++)bindShadowTexture(landShadow.prepass.points[slot].map,18+slot);
  }
- MTLPrimitiveType rawType=t==storm_render::PrimitiveTriangleStrip?MTLPrimitiveTypeTriangleStrip:MTLPrimitiveTypeTriangle;MTLIndexType rawIndexType=fmt==storm_render::IndexFormat::UInt32?MTLIndexTypeUInt32:MTLIndexTypeUInt16;if(!offscreenPointCasterDepth)[encoder drawIndexedPrimitives:rawType indexCount:drawCount indexType:rawIndexType indexBuffer:rawIndices indexBufferOffset:rawIndexOffset instanceCount:1 baseVertex:rawBaseVertex baseInstance:0];
+ MTLPrimitiveType rawType=t==storm_render::PrimitiveTriangleStrip?MTLPrimitiveTypeTriangleStrip:MTLPrimitiveTypeTriangle;MTLIndexType rawIndexType=fmt==storm_render::IndexFormat::UInt32?MTLIndexTypeUInt32:MTLIndexTypeUInt16;if(rawVisible)[encoder drawIndexedPrimitives:rawType indexCount:drawCount indexType:rawIndexType indexBuffer:rawIndices indexBufferOffset:rawIndexOffset instanceCount:1 baseVertex:rawBaseVertex baseInstance:0];
  if(captureRawShadow){
   ++seaRawPackets;
   LandShadow::Packet packet{};packet.vertices=rawVertices;packet.indices=rawIndices;packet.vertexOffset=rawVertexOffset;packet.indexOffset=rawIndexOffset;packet.count=drawCount;packet.primitive=rawType;packet.cull=rs[storm_render::RenderCullMode]==storm_render::CullNone?MTLCullModeNone:rs[storm_render::RenderCullMode]==storm_render::CullClockwise?MTLCullModeFront:MTLCullModeBack;packet.world=worldMatrix;packet.mvp=u.m;packet.viewport=rasterViewport(MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),vp.MinZ,vp.MaxZ});packet.alphaTexture=landTexture?landTexture->gpu():nil;packet.sampler=samplerFor(0);packet.alphaRef=effectiveAlphaRef/255.f;packet.alphaTest=effectiveAlphaTest;packet.alphaFunc=effectiveAlphaFunc;packet.modulation=ts[0][storm_render::StageColorOp]==storm_render::TextureOpModulate2X?2.f:1.f;packet.fogColor=u.fogColor;packet.fogParams=u.fogParams;packet.raw=true;packet.indexType=rawIndexType;packet.baseVertex=rawBaseVertex;packet.authoredWorld=authoredWorld;packet.authoredWorldValid=authoredWorldValid;packet.registryLocalBounds={rawMin,rawMax};
   uint64_t geometry[]={uint64_t(logicalRawVertexOffset),uint64_t(logicalRawIndexOffset),uint64_t(drawCount),uint64_t(raw.stride),uint64_t(fvf),uint64_t(rawBaseVertex),uint64_t(fmt)};uint64_t materialState[]={landTexture?landTexture->cacheIdentity:0,landTexture?landTexture->cacheRevision:0,uint64_t(effectiveAlphaTest),uint64_t(effectiveAlphaRef),uint64_t(effectiveAlphaFunc),uint64_t(rs[storm_render::RenderCullMode])};packet.registryKey={vb->cacheIdentity,transientSail?sailUpload.uploadIdentity:vb->cacheRevision,ib->cacheIdentity,transientIndices?sailIndexUpload.uploadIdentity:ib->cacheRevision,hashBytes(geometry,sizeof(geometry)),0,hashBytes(materialState,sizeof(materialState)),0};packet.registryStride=raw.stride;packet.registryUvOffset=raw.uvOffset;packet.registryColorOffset=raw.colorOffset;packet.registryBounds.minimum={INFINITY,INFINITY,INFINITY};packet.registryBounds.maximum={-INFINITY,-INFINITY,-INFINITY};for(unsigned corner=0;corner<8;corner++){simd_float3 p={corner&1?rawMax.x:rawMin.x,corner&2?rawMax.y:rawMin.y,corner&4?rawMax.z:rawMin.z};auto w=simd_mul(worldMatrix,simd_make_float4(p,1)).xyz;packet.registryBounds.minimum=simd_min(packet.registryBounds.minimum,w);packet.registryBounds.maximum=simd_max(packet.registryBounds.maximum,w);}
   const bool useColorAlpha=raw.hasColor&&(!rs[storm_render::RenderLighting]||(rs[storm_render::RenderVertexColor]&&rs[storm_render::RenderDiffuseMaterialSource]==storm_render::MaterialSourceDiffuseColor));packet.registryUseColorAlpha=useColorAlpha;packet.skinPalette=rawSkinned?skinningPalette:nil;packet.skinPaletteOffset=rawSkinned?skinningPaletteOffset:0;packet.boneCount=rawSkinned?skinningBoneCount:0;if(rawSkinned&&skinningPalette&&skinningBoneCount)packet.registryKey.poseState=currentSkinningPoseHash();packet.rawCaster={raw.stride,raw.colorOffset,raw.uvOffset,raw.hasColor,uint32_t(useColorAlpha),uint32_t(raw.uvCount!=0),materialDiffuse.w};
   auto&receiver=packet.rawReceiver;receiver.world=worldMatrix;receiver.materialDiffuse=raw.materialDiffuse;receiver.materialAmbient=raw.materialAmbient;receiver.materialEmissive=raw.materialEmissive;receiver.sceneAmbient=raw.sceneAmbient;std::copy(std::begin(raw.skyLight),std::end(raw.skyLight),receiver.skyLight);receiver.stride=raw.stride;receiver.normalOffset=raw.normalOffset;receiver.colorOffset=raw.colorOffset;receiver.hasColor=raw.hasColor;receiver.lightMask=raw.lightMask;receiver.directionalMask=raw.directionalMask;receiver.spotMask=raw.spotMask;receiver.diffuseFromColor=raw.diffuseFromColor;receiver.ambientFromColor=raw.ambientFromColor;receiver.receiverEnabled=!raw.unlit;for(unsigned li=0;li<8;li++){receiver.lightDiffuse[li]=enabled[li]?lightDiffuse[li]:simd_make_float4(0);receiver.lightAmbient[li]=enabled[li]?lightAmbient[li]:simd_make_float4(0);receiver.lightDirection[li]=raw.lightDirection[li];receiver.lightPositionRange[li]=raw.lightPositionRange[li];receiver.lightAttenuation[li]=raw.lightAttenuation[li];receiver.lightIds[li]=landShadow.prepass.lightIds[li];}
+  packet.receiverVisible=rawVisible;
   if(offscreenPointCasterDepth)landShadow.registerPacket(packet);else landShadow.append(packet,num);
  }
  return storm_render::result::ok;
