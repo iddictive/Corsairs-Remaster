@@ -1027,7 +1027,9 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
  if(modernWater&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3||kind==SeaShaderKind::Sun))prepareSeaScene(uniforms);
  const char* fragment=modernPass?(kind==SeaShaderKind::Sea2?"sea2_modern_fs":kind==SeaShaderKind::Sea3?"sea3_modern_fs":kind==SeaShaderKind::Foam?"seafoam_modern_fs":"seasun_modern_fs"):seaPixelFunction(kind);
  if(primitives&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3))captureAimModelBeforeDraw(true);
- auto hr=applyState(uint64_t(kind)|(modernPass?0x100ull:0),seaLibrary,[NSString stringWithUTF8String:seaVertexFunction(kind)],[NSString stringWithUTF8String:fragment]);if(storm_render::failed(hr))return hr;
+ const auto savedDepthWrite=rs[storm_render::RenderDepthWrite];
+ if(aimModelScope.water&&aimModelScope.captured&&(kind==SeaShaderKind::Foam||kind==SeaShaderKind::Sun))rs[storm_render::RenderDepthWrite]=false;
+ auto hr=applyState(uint64_t(kind)|(modernPass?0x100ull:0),seaLibrary,[NSString stringWithUTF8String:seaVertexFunction(kind)],[NSString stringWithUTF8String:fragment]);rs[storm_render::RenderDepthWrite]=savedDepthWrite;if(storm_render::failed(hr))return hr;
 	 auto constants=submissionBuffer(&uniforms,sizeof(uniforms));if(!constants.buffer)return storm_render::result::outOfMemory;[encoder setVertexBuffer:vertices.buffer offset:vertices.offset atIndex:0];[encoder setVertexBuffer:constants.buffer offset:constants.offset atIndex:1];[encoder setFragmentBuffer:constants.buffer offset:constants.offset atIndex:1];
  for(int stage=0;stage<8;stage++){auto* texture=boundTextures[stage].flat;bindMaterialTexture(texture?texture->gpu():nil,stage);bindMaterialSampler(samplerFor(stage),stage);}
  bindMaterialTexture(volume?volume->gpu():nil,8);bindMaterialTexture(cube?cube->gpu():nil,9);bindMaterialTexture(uniforms.depthRefractionEnabled?sceneColorSnapshot:nil,10);bindMaterialTexture(uniforms.depthRefractionEnabled?sceneDepthSnapshot:nil,11);

@@ -2,6 +2,27 @@
 
 ## Status
 
+### October16 — water depth quantization pattern
+
+The stronger fill exposed a patterned rejection of valid water pixels. Native
+GPU readback reproduces56921 samples whose captured depth is exactly one ULP
+above current depth, with the same stripes/dots as the player's night image.
+An explicit primary depth output alone does not fix it: later Foam/SunRoad
+passes still overwrite the captured surface depth.
+
+The captured sea fragment now emits the same float to its identity MRT and
+depth attachment. While that captured water scope is active, Foam/SunRoad shade
+the surface without rewriting its depth; the logical render state is restored
+immediately after binding. Other passes retain their existing behavior. Strict
+current/captured equality, own exclusion and foreground rejection remain.
+Native and Performance121-frame readbacks remove all one-ULP mismatches across
+about1.89 million tagged water pixels; larger foreground differences still
+reject. Complete frames retain the accepted fill and show no patterned holes.
+Source, original mismatch mask and readbacks belong to `aim-water-sample-audit`.
+Native processes exit0; the inherited fleet wrapper rejects cube coverage
+because the player's saved dynamic-lighting setting is0. These runs accept the
+water result, not full lighting/FPS or the player's subsequent night replay.
+
 ### October15 — water field visibility
 
 Water uses base fill alpha.30 and rim alpha.78, with a wider inward analytic

@@ -181,8 +181,8 @@ float3 seaReflected(SeaO o,float3 sampled) {
 float4 seaFog(float4 color,SeaO o,constant SeaU& u) {
     color=saturate(color);if(u.fogEnabled)color.rgb=mix(o.fogColor,color.rgb,saturate(o.fog));return color;
 }
-struct SeaAimOutput {float4 color [[color(0)]];float depth [[color(1)]];uint2 identity [[color(2)]];};
-SeaAimOutput seaAimOutput(float4 color,SeaO o,uint2 identity) {return {color,o.position.z,identity};}
+struct SeaAimOutput {float4 color [[color(0)]];float depth [[color(1)]];uint2 identity [[color(2)]];float receiverDepth [[depth(any)]];};
+SeaAimOutput seaAimOutput(float4 color,SeaO o,uint2 identity) {return {color,o.position.z,identity,o.position.z};}
 float4 sea2Color(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,texturecube<float> reflection,array<sampler,8> s) {
     float3 ray=seaReflected(o,seaBump(o.t0.xyz,u,t[0],bump,s[0]).rgb);
     float3 sky=reflection.sample(s[3],ray).rgb;

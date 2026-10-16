@@ -1,8 +1,33 @@
 # Runtime state
 
-Last verified delivery: October15. The stronger water aiming field is installed with signed engine `d533f315ae1b1718dc964c822a523350ba0e7c1379ef4f0ef004566ab457a4c9`; prior `c86eade9e4d63adc472148bf83fd5520ad279caba6f65fcd65ae25fc5a9a49bd` is backed up. Canonical stage-only exits0 in116.879s; all530 freshly recorded player files retain hashes with0 added. Native and Performance121-frame composed sea scenes show the brighter field; the player accepts the shown visibility. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1, shadow tier2. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October16. Water-pattern rejection and oversized zoomed stars are corrected in signed engine `4c69a6c30c86b7684db81918a9d43e54618cab6a87765ff844f86eaca9c9255d`; prior `d533f315ae1b1718dc964c822a523350ba0e7c1379ef4f0ef004566ab457a4c9` is backed up. Canonical stage-only exits0 in118.136s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October16 — water-pattern and star-size corrections staged
+
+Canonical `run.sh --stage-only` exits0 in118.136s and installs signed engine
+4c69a6c30c86b7684db81918a9d43e54618cab6a87765ff844f86eaca9c9255d.
+All528 fresh player-file hashes remain unchanged, with0 added; prior d533f315
+is retained and the complete app signature verifies. Exact source hashes and
+receipt belong to20261016-000502-water-stars-delivery.
+
+Native readback finds56921 water samples rejected by a one-ULP depth difference,
+forming the reported grid. One explicit captured depth plus non-writing
+Foam/SunRoad overlays in that captured scope remove every one-ULP mismatch in
+Native and Performance121-frame scenes; real foreground depth still rejects.
+Complete frames preserve brightness and have no patterned holes. No tolerance
+or ownership bypass is introduced. The saved dynamic-lighting setting is0;
+native processes exit0 but the inherited fleet wrapper rejects its unrelated
+eight-cube gate. No full-lighting or FPS acceptance follows from those runs.
+
+Actual production star MSL retains a4x4/5x5 subpixel-dependent footprint at
+1x/4x/16x, with pixel difference at most1.28e-5 and unchanged cloud attenuation.
+The existing cloud probe now checks its intended relative attenuation rather
+than a previous saturated centre sample. sea-aim-overlay.md and
+metal-dynamic-sky.md own component evidence. No original app/control/SAVE load
+occurred. Player night/spyglass acceptance and the recurring cache crash remain
+open independently.
 
 ### October15 — approved water aiming visibility staged
 

@@ -98,7 +98,8 @@ static void checkStars(id<MTLDevice> device,id<MTLLibrary> library) {
         auto e=[command renderCommandEncoderWithDescriptor:pass];[e setRenderPipelineState:pipeline];[e setVertexBytes:&star length:sizeof(star) atIndex:0];[e setVertexBytes:&draw length:sizeof(draw) atIndex:1];[e setFragmentBytes:&draw length:sizeof(draw) atIndex:1];auto fogDraw=makeSkyFogDraw(matrix_identity_float4x4,simd_make_float4(0,0,16,16),false);[e setFragmentBytes:&fogDraw length:sizeof(fogDraw) atIndex:9];[e setFragmentTexture:sprite atIndex:0];[e setFragmentTexture:cloud atIndex:2];[e setFragmentTexture:cloud atIndex:3];[e setFragmentTexture:inactiveVolume atIndex:27];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];[e endEncoding];[command commit];[command waitUntilCompleted];need(command.status==MTLCommandBufferStatusCompleted,"star GPU command");
         simd_float4 pixel{};[target getBytes:&pixel bytesPerRow:16 fromRegion:MTLRegionMake2D(8,4,1,1) mipmapLevel:0];return pixel.x;
     };
-    need(std::abs(render(0)-1)<1e-5f&&std::abs(render(.5f)-.5f)<1e-5f&&render(1)<1e-5f,
+    const float clearStar=render(0);
+    need(clearStar>0.f&&std::abs(render(.5f)-clearStar*.5f)<1e-5f&&render(1)<1e-5f,
          "catalogue stars survive clear sky and attenuate continuously through cloud opacity");
 }
 

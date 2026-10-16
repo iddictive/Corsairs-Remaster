@@ -603,11 +603,11 @@ vertex SkyStarOut dynamic_stars_vs(uint id [[vertex_id]],const device SkyStar*st
 }
 fragment float4 dynamic_stars_fs(SkyStarOut in [[stage_in]],constant SkyStarDraw&draw [[buffer(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
     float2 p=in.uv*2.f-1.f;
-    // A resolved stellar core with a soft diffraction skirt. Pixel derivatives
-    // preserve small stars under camera motion; the catalogue owns their energy.
-    float width=max(.18f,length(fwidth(p))*.5f);
-    float core=exp(-dot(p,p)/(2.f*width*width));
-    float coverage=core*.0324f/(width*width)+.04f*exp(-dot(p,p)*4.f);
+    // Catalogue stars are unresolved points: zoom changes their separation and
+    // magnitude threshold, not their apparent diameter. Filter in framebuffer
+    // pixels; a UV-sized core or skirt expands with the world-space billboard.
+    float2 pixel=p/max(fwidth(p),float2(.000001f));
+    float coverage=exp(-dot(pixel,pixel));
     float4 color=float4(in.color.rgb,in.color.a*saturate(coverage));
     float opacity=skyCloudMoments(normalize(in.direction),cloudFrom,cloudTo,draw.scale_blend.z).a;
     color.a*=(1.f-opacity)*skyLocalMedium(float3(in.position.xy,1.f),fogDraw,localVolume).a;return color;
