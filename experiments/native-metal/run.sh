@@ -119,6 +119,7 @@ python3 "$root/baked_static_shadow_caster_probe.py"
 python3 "$root/branding/stage.py" "$runtime"
 python3 "$root/../../tools/prepare_phonk_music.py"
 python3 "$root/../../tools/prepare_native_movies.py" --source-root "$runtime"
+python3 "$root/../../tools/prepare_puerto_rico_city.py" --source-root "$runtime"
 python3 "$root/../../tools/sync_metal_gameplay.py" check
 python3 "$root/../../tools/sync_metal_gameplay.py" apply
 python3 "$root/../../tools/metal_graphics_settings.py" initialize "$runtime"

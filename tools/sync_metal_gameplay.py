@@ -11,6 +11,7 @@ import changelog_content
 import gameplay_sources
 import metal_engine_source
 import prepare_native_movies
+import prepare_puerto_rico_city
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -129,18 +130,33 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     asset_targets = set()
     for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS):
         changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets))
-    for relative, source in prepare_native_movies.prepared().items():
-        target = state.path(relative)
-        previous = target.read_bytes() if target.is_file() else None
-        incoming = source.read_bytes()
-        state.admit(relative, previous, incoming, create=True)
-        state.track(relative, incoming, source="src/assets/video/manifest.json")
-        if managed is not None:
-            managed[relative] = (previous, incoming)
-        if inputs is not None:
-            inputs[source] = (incoming, incoming)
-        if previous != incoming:
-            changes[relative] = (previous, incoming)
+    city = prepare_puerto_rico_city
+    recipe_inputs = {path: path.read_bytes() for path in (
+        city.LAYOUT, city.MANIFEST, Path(city.__file__),
+        Path(city.__file__).with_name("puerto_rico_city_blocks.py"))}
+    city_specs = json.loads(recipe_inputs[city.MANIFEST])["files"]
+    if inputs is not None:
+        inputs.update({path: (raw, raw) for path, raw in recipe_inputs.items()})
+    for owner, prepared, specs in (
+        ("src/assets/video/manifest.json", prepare_native_movies.prepared(), {}),
+        ("src/assets/islands/puerto-rico/manifest.json", city.prepared(), city_specs),
+    ):
+        for relative, source in prepared.items():
+            target = state.path(relative)
+            previous = target.read_bytes() if target.is_file() else None
+            incoming = source.read_bytes()
+            spec = specs.get(relative, {})
+            if spec and digest(incoming) != spec["sha256"]:
+                raise RuntimeError(f"Concurrent prepared asset change: {relative}")
+            legacy = (spec["original_sha256"],) if "original_sha256" in spec else ()
+            state.admit(relative, previous, incoming, legacy=legacy, create=True)
+            state.track(relative, incoming, source=owner)
+            if managed is not None:
+                managed[relative] = (previous, incoming)
+            if inputs is not None:
+                inputs[source] = (incoming, incoming)
+            if previous != incoming:
+                changes[relative] = (previous, incoming)
     gameplay_sources.verify_layout_assets(target_root, inputs)
     return changes
 

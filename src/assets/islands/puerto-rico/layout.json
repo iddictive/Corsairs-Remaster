@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "translation": [1100.0, 0.0, 650.0],
+  "yaw_degrees": 0.0,
+  "town_bounds": [1040.0, 560.0, 1165.0, 680.0],
+  "blend_margin": 50.0,
+  "blend_step": 10.0,
+  "removed_objects": [4, 5],
+  "terrain_textures": ["beach.tga", "jungle_gray.tga"],
+  "shadow_texture": "lighting\\day1\\locations\\Town_PuertoRico\\Town\\Shadow.tga",
+  "inputs": {
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3",
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm": "81efb4158c52695b0e4196c2e3c51f0b8afb2eee565e62f27c97b92bc0f783aa",
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_sb.gm": "b2bcd9530b56332fa84924e2cdf84c6ca4a820428a419795516e0924c5e83193",
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_signsA.gm": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_rinok.gm": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/sanjuan_patch_day.ptc": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f"
+  },
+  "protected": {
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1.gm": "f6f3d7a109f670962567fa6946ae3487bd81025aaa67eeef18d7c02c60ddee9c",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1_locators.gm": "8b55b47f0add9fc89180af114cf9193d55b8c95616658649e4a0227883bece85",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_locators.gm": "31b4c9e4bffe50130dabf67ab47e81223ec34cc1d9c32f305b73bdb1ed15aad8",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_seabed.gm": "1b418ee3a94f784beaf2492297e651a2daac4f6434132859d575110e5f132944"
+  }
+}

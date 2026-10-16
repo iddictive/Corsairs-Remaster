@@ -1,0 +1,3146 @@
+{
+  "version": 1,
+  "command": "python3 -B tools/prepare_puerto_rico_city.py --source-root \"/Applications/Corsairs Iddictive Remaster.app/Contents/Resources\" --review",
+  "scale_command": "python3 -B tools/prepare_puerto_rico_city.py --source-root \"/Applications/Corsairs Iddictive Remaster.app/Contents/Resources\" --measure-scale",
+  "python": "3.14.7",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "conditions": {
+    "CPU_only": true,
+    "game_control": false,
+    "installed_mutation": false,
+    "units": "native MODEL units, no instance scaling"
+  },
+  "elapsed_seconds": 3.8370322909904644,
+  "max_rss_bytes": 235339776,
+  "layout": {
+    "version": 1,
+    "translation": [
+      1100.0,
+      0.0,
+      650.0
+    ],
+    "yaw_degrees": 0.0,
+    "town_bounds": [
+      1040.0,
+      560.0,
+      1165.0,
+      680.0
+    ],
+    "blend_margin": 50.0,
+    "blend_step": 10.0,
+    "removed_objects": [
+      4,
+      5
+    ],
+    "terrain_textures": [
+      "beach.tga",
+      "jungle_gray.tga"
+    ],
+    "shadow_texture": "lighting\\day1\\locations\\Town_PuertoRico\\Town\\Shadow.tga",
+    "inputs": {
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm": "81efb4158c52695b0e4196c2e3c51f0b8afb2eee565e62f27c97b92bc0f783aa",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_sb.gm": "b2bcd9530b56332fa84924e2cdf84c6ca4a820428a419795516e0924c5e83193",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_signsA.gm": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_rinok.gm": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/sanjuan_patch_day.ptc": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f"
+    },
+    "protected": {
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1.gm": "f6f3d7a109f670962567fa6946ae3487bd81025aaa67eeef18d7c02c60ddee9c",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1_locators.gm": "8b55b47f0add9fc89180af114cf9193d55b8c95616658649e4a0227883bece85",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_locators.gm": "31b4c9e4bffe50130dabf67ab47e81223ec34cc1d9c32f305b73bdb1ed15aad8",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_seabed.gm": "1b418ee3a94f784beaf2492297e651a2daac4f6434132859d575110e5f132944"
+    }
+  },
+  "manifest": {
+    "version": 1,
+    "layout_sha256": "007e8e1e0630301b1358df56fec78c3b68594c1346d4a6f65c837f48f6f46254",
+    "generator_sha256": "5d4063fe895a2bd6f6002227d1e39ab7663c2a67bffb34619b66c886ab87e485",
+    "blocks_sha256": "c765bc02934ce5b80b206944bcb60930c2b8414e461275f4512552cac9ddcf51",
+    "files": {
+      "RESOURCE/MODELS/Islands/PuertoRico/sea_town.ptc": {
+        "sha256": "eae1529f8aff695472cb94e04f420a0233b2b3a4965e1dccd4dd4e68c5e60867",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/INI/sea_towns/puerto_rico.ini": {
+        "sha256": "9cf8df61e0624f6ccfc074b96e57cd83efebe130364a6f80af51c7ce0a4e9669",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": {
+        "sha256": "a28a2e13385dedb09ce0aaf07965f77b87d00696a0b01e320d76a879db3c59db",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_cityblend.gm": {
+        "sha256": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house03.gm": {
+        "sha256": "27d2a72c674b5ae5e03e4df059573a40cfd5f69f6f9e19466c0feaeb7c80ef04",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house04.gm": {
+        "sha256": "f48f5ade2a945f89e00f75257bd0735e694897330ef335dbb225e1b35b84e139",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house06.gm": {
+        "sha256": "441952a78b47e3e4a87fb86fc6338156e74be085aba28b570807cea339b4b2ef",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house07.gm": {
+        "sha256": "21de0b1e066d68118b986dde467e3557d54188687c78e78f23cf9cc2e92f0dde",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house08.gm": {
+        "sha256": "ba5a59aeacba859018b8e55be31a564d29d7c6af536d2a90d776f34cc9d41010",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house09.gm": {
+        "sha256": "0eb1f913f015d46a1d4c249f8f21298ff326810b6cdff65435736e4e1b514c33",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house10.gm": {
+        "sha256": "7885c6811480c47711b848a43a7953ebc88cf66e0c44a47ffea86640f1e2a558",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house11.gm": {
+        "sha256": "84c9056bfaccc1343f3b02c6a876edcc1209e9a33814bf79fa635bef6957f299",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house12.gm": {
+        "sha256": "38f16bc695f737aca0c44625ca114fa5cd934a763a5c9f5e2596f2da8d64f79c",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house13.gm": {
+        "sha256": "11c5dc000d66bdff77303f055ba4d2b7d201ba8a50c11c9628bddf7ea1a3699d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house19.gm": {
+        "sha256": "7a57402b8434add62421287c98d14bbc7b7038856b5633629c9aa80163135fbf",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house22.gm": {
+        "sha256": "c636a4aa98be2036eb1d66135867712a225000cf0ff84000031d6f7f3033fd9e",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_foundation.gm": {
+        "sha256": "12c75090086179807a826fd77e21b85b1a3fe24b4c78af50a835b4fa823ad17b",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_streets.gm": {
+        "sha256": "6e2a86f512ce890025defb708e83b6e60ef7262f7625d36925eb9a1909ff0c15",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": {
+        "sha256": "c5eca1aa16ef3618f8a3eb958b75c42208a718ab39e1a51f10c44e9925571579",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_cityblend.gm": {
+        "sha256": "6897e367c6c01cfd80905ea62fcb7201d20ad03c41439ded8d23bc893784fe1a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house03.gm": {
+        "sha256": "27d2a72c674b5ae5e03e4df059573a40cfd5f69f6f9e19466c0feaeb7c80ef04",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house04.gm": {
+        "sha256": "f48f5ade2a945f89e00f75257bd0735e694897330ef335dbb225e1b35b84e139",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house06.gm": {
+        "sha256": "441952a78b47e3e4a87fb86fc6338156e74be085aba28b570807cea339b4b2ef",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house07.gm": {
+        "sha256": "21de0b1e066d68118b986dde467e3557d54188687c78e78f23cf9cc2e92f0dde",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house08.gm": {
+        "sha256": "ba5a59aeacba859018b8e55be31a564d29d7c6af536d2a90d776f34cc9d41010",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house09.gm": {
+        "sha256": "0eb1f913f015d46a1d4c249f8f21298ff326810b6cdff65435736e4e1b514c33",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house10.gm": {
+        "sha256": "7885c6811480c47711b848a43a7953ebc88cf66e0c44a47ffea86640f1e2a558",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house11.gm": {
+        "sha256": "84c9056bfaccc1343f3b02c6a876edcc1209e9a33814bf79fa635bef6957f299",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house12.gm": {
+        "sha256": "38f16bc695f737aca0c44625ca114fa5cd934a763a5c9f5e2596f2da8d64f79c",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house13.gm": {
+        "sha256": "11c5dc000d66bdff77303f055ba4d2b7d201ba8a50c11c9628bddf7ea1a3699d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house19.gm": {
+        "sha256": "7a57402b8434add62421287c98d14bbc7b7038856b5633629c9aa80163135fbf",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house22.gm": {
+        "sha256": "c636a4aa98be2036eb1d66135867712a225000cf0ff84000031d6f7f3033fd9e",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_foundation.gm": {
+        "sha256": "12c75090086179807a826fd77e21b85b1a3fe24b4c78af50a835b4fa823ad17b",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_streets.gm": {
+        "sha256": "6e2a86f512ce890025defb708e83b6e60ef7262f7625d36925eb9a1909ff0c15",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      }
+    }
+  },
+  "raw_geometry": {
+    "extension": {
+      "buildings": 67,
+      "blocks": 24,
+      "bounds": [
+        709.7105340480805,
+        379.37250919342046,
+        1396.7499980926514,
+        531.2937116622925
+      ],
+      "modules": {
+        "house03": {
+          "source_object": 3,
+          "triangles": 1934,
+          "bytes": 234137,
+          "bsp_nodes": 3442,
+          "bounds": [
+            [
+              22.422632217407227,
+              3.988870620727539,
+              -37.939476013183594
+            ],
+            [
+              32.1246337890625,
+              13.394991874694824,
+              -26.257474899291992
+            ]
+          ],
+          "exact_collision_faces": 1934
+        },
+        "house04": {
+          "source_object": 4,
+          "triangles": 1466,
+          "bytes": 169865,
+          "bsp_nodes": 2346,
+          "bounds": [
+            [
+              30.853607177734375,
+              3.918911933898926,
+              -39.95265579223633
+            ],
+            [
+              42.65873336791992,
+              14.154470443725586,
+              -28.54224967956543
+            ]
+          ],
+          "exact_collision_faces": 1466
+        },
+        "house06": {
+          "source_object": 6,
+          "triangles": 1422,
+          "bytes": 189209,
+          "bsp_nodes": 3055,
+          "bounds": [
+            [
+              -13.883352279663086,
+              4.0,
+              -32.9056282043457
+            ],
+            [
+              -4.904420375823975,
+              11.34783935546875,
+              -25.1774845123291
+            ]
+          ],
+          "exact_collision_faces": 1422
+        },
+        "house07": {
+          "source_object": 7,
+          "triangles": 1892,
+          "bytes": 244307,
+          "bsp_nodes": 3575,
+          "bounds": [
+            [
+              -37.73721694946289,
+              3.9988348484039307,
+              -39.670616149902344
+            ],
+            [
+              -27.837366104125977,
+              11.349555015563965,
+              -32.75637435913086
+            ]
+          ],
+          "exact_collision_faces": 1892
+        },
+        "house08": {
+          "source_object": 8,
+          "triangles": 1238,
+          "bytes": 159377,
+          "bsp_nodes": 2422,
+          "bounds": [
+            [
+              48.67171096801758,
+              3.9858553409576416,
+              -37.25033950805664
+            ],
+            [
+              55.87561798095703,
+              10.380661010742188,
+              -27.061595916748047
+            ]
+          ],
+          "exact_collision_faces": 1238
+        },
+        "house09": {
+          "source_object": 9,
+          "triangles": 1664,
+          "bytes": 219491,
+          "bsp_nodes": 3366,
+          "bounds": [
+            [
+              -39.93675231933594,
+              4.0,
+              -32.30939865112305
+            ],
+            [
+              -28.986751556396484,
+              11.899999618530273,
+              -23.53575897216797
+            ]
+          ],
+          "exact_collision_faces": 1664
+        },
+        "house10": {
+          "source_object": 10,
+          "triangles": 179,
+          "bytes": 24692,
+          "bsp_nodes": 230,
+          "bounds": [
+            [
+              -38.33430099487305,
+              3.568615436553955,
+              -2.5408685207366943
+            ],
+            [
+              -31.85902214050293,
+              7.723617076873779,
+              3.6663405895233154
+            ]
+          ],
+          "exact_collision_faces": 179
+        },
+        "house11": {
+          "source_object": 11,
+          "triangles": 1355,
+          "bytes": 160856,
+          "bsp_nodes": 2027,
+          "bounds": [
+            [
+              -49.08840560913086,
+              4.0,
+              -30.18870735168457
+            ],
+            [
+              -39.954551696777344,
+              10.800000190734863,
+              -21.915061950683594
+            ]
+          ],
+          "exact_collision_faces": 1355
+        },
+        "house12": {
+          "source_object": 12,
+          "triangles": 443,
+          "bytes": 55256,
+          "bsp_nodes": 603,
+          "bounds": [
+            [
+              -44.66121292114258,
+              4.0,
+              -39.67860794067383
+            ],
+            [
+              -40.161216735839844,
+              10.269042015075684,
+              -30.02362632751465
+            ]
+          ],
+          "exact_collision_faces": 443
+        },
+        "house13": {
+          "source_object": 13,
+          "triangles": 1444,
+          "bytes": 198575,
+          "bsp_nodes": 3525,
+          "bounds": [
+            [
+              -50.99515914916992,
+              3.9121687412261963,
+              -54.13338851928711
+            ],
+            [
+              -43.85730743408203,
+              12.829927444458008,
+              -43.25886917114258
+            ]
+          ],
+          "exact_collision_faces": 1444
+        },
+        "house19": {
+          "source_object": 19,
+          "triangles": 1052,
+          "bytes": 151559,
+          "bsp_nodes": 2667,
+          "bounds": [
+            [
+              39.60005187988281,
+              3.9844512939453125,
+              -49.40517044067383
+            ],
+            [
+              51.8759651184082,
+              10.570964813232422,
+              -35.574893951416016
+            ]
+          ],
+          "exact_collision_faces": 1052
+        },
+        "house22": {
+          "source_object": 22,
+          "triangles": 872,
+          "bytes": 128879,
+          "bsp_nodes": 2293,
+          "bounds": [
+            [
+              17.368812561035156,
+              3.2117462158203125,
+              -2.9289865493774414
+            ],
+            [
+              30.956235885620117,
+              11.269514083862305,
+              5.766756534576416
+            ]
+          ],
+          "exact_collision_faces": 872
+        }
+      },
+      "module_bytes": 2175127,
+      "foundation_triangles": 804,
+      "foundation_frame": "world; identity child",
+      "street_triangles": 703,
+      "street_rectangles": 267,
+      "navigation": {
+        "triangles": 1868,
+        "vertices": 1699,
+        "bytes": 949218,
+        "components": [
+          1161,
+          506,
+          153,
+          44,
+          1,
+          1,
+          1,
+          1
+        ],
+        "stock_triangles": 1165,
+        "street_triangles": 703
+      },
+      "routes": 28,
+      "route_points": 440,
+      "route_nodes": [
+        [
+          1167,
+          1289,
+          1293,
+          1296,
+          1175,
+          1316,
+          1319,
+          1322,
+          1177,
+          1301,
+          1299,
+          1297,
+          1169,
+          1287,
+          1286,
+          1281
+        ],
+        [
+          1175,
+          1325,
+          1327,
+          1331,
+          1181,
+          1357,
+          1362,
+          1366,
+          1183,
+          1339,
+          1338,
+          1334,
+          1177,
+          1322,
+          1319,
+          1316
+        ],
+        [
+          1181,
+          1368,
+          1372,
+          1375,
+          1187,
+          1400,
+          1402,
+          1405,
+          1189,
+          1381,
+          1379,
+          1378,
+          1183,
+          1366,
+          1362,
+          1357
+        ],
+        [
+          1193,
+          1432,
+          1434,
+          1436,
+          1199,
+          1454,
+          1456,
+          1459,
+          1201,
+          1444,
+          1442,
+          1439,
+          1195,
+          1429,
+          1426,
+          1424
+        ],
+        [
+          1199,
+          1461,
+          1462,
+          1464,
+          1203,
+          1474,
+          1478,
+          1480,
+          1205,
+          1473,
+          1469,
+          1467,
+          1201,
+          1459,
+          1456,
+          1454
+        ],
+        [
+          1203,
+          1483,
+          1487,
+          1489,
+          1207,
+          1500,
+          1502,
+          1505,
+          1209,
+          1499,
+          1494,
+          1492,
+          1205,
+          1480,
+          1478,
+          1474
+        ],
+        [
+          1207,
+          1507,
+          1508,
+          1510,
+          1213,
+          1534,
+          1536,
+          1540,
+          1215,
+          1519,
+          1515,
+          1513,
+          1209,
+          1505,
+          1502,
+          1500
+        ],
+        [
+          1213,
+          1543,
+          1545,
+          1551,
+          1221,
+          1595,
+          1596,
+          1598,
+          1223,
+          1557,
+          1554,
+          1552,
+          1215,
+          1540,
+          1536,
+          1534
+        ],
+        [
+          1221,
+          1600,
+          1604,
+          1606,
+          1231,
+          1634,
+          1639,
+          1641,
+          1233,
+          1616,
+          1614,
+          1612,
+          1223,
+          1598,
+          1596,
+          1595
+        ],
+        [
+          1231,
+          1643,
+          1644,
+          1646,
+          1235,
+          1660,
+          1662,
+          1665,
+          1239,
+          1656,
+          1653,
+          1650,
+          1233,
+          1641,
+          1639,
+          1634
+        ],
+        [
+          1235,
+          1669,
+          1677,
+          1678,
+          1241,
+          1686,
+          1689,
+          1694,
+          1243,
+          1684,
+          1682,
+          1680,
+          1239,
+          1665,
+          1662,
+          1660
+        ],
+        [
+          1241,
+          1697,
+          1698,
+          1700,
+          1249,
+          1728,
+          1730,
+          1733,
+          1251,
+          1708,
+          1706,
+          1702,
+          1243,
+          1694,
+          1689,
+          1686
+        ],
+        [
+          1249,
+          1735,
+          1736,
+          1739,
+          1255,
+          1772,
+          1774,
+          1777,
+          1257,
+          1748,
+          1747,
+          1743,
+          1251,
+          1733,
+          1730,
+          1728
+        ],
+        [
+          1255,
+          1779,
+          1782,
+          1784,
+          1267,
+          1836,
+          1839,
+          1843,
+          1269,
+          1790,
+          1788,
+          1787,
+          1257,
+          1777,
+          1774,
+          1772
+        ],
+        [
+          1172,
+          1309,
+          1311,
+          1314,
+          1179,
+          1341,
+          1343,
+          1347,
+          1181,
+          1331,
+          1327,
+          1325,
+          1175,
+          1307,
+          1305,
+          1304
+        ],
+        [
+          1179,
+          1350,
+          1351,
+          1353,
+          1185,
+          1387,
+          1395,
+          1399,
+          1187,
+          1375,
+          1372,
+          1368,
+          1181,
+          1347,
+          1343,
+          1341
+        ],
+        [
+          1191,
+          1416,
+          1420,
+          1422,
+          1197,
+          1446,
+          1448,
+          1451,
+          1199,
+          1436,
+          1434,
+          1432,
+          1193,
+          1411,
+          1408,
+          1406
+        ],
+        [
+          1211,
+          1529,
+          1530,
+          1532,
+          1219,
+          1574,
+          1578,
+          1584,
+          1221,
+          1551,
+          1545,
+          1543,
+          1213,
+          1527,
+          1523,
+          1520
+        ],
+        [
+          1219,
+          1589,
+          1590,
+          1592,
+          1229,
+          1626,
+          1629,
+          1633,
+          1231,
+          1606,
+          1604,
+          1600,
+          1221,
+          1584,
+          1578,
+          1574
+        ],
+        [
+          1246,
+          1721,
+          1724,
+          1726,
+          1253,
+          1750,
+          1754,
+          1758,
+          1255,
+          1739,
+          1736,
+          1735,
+          1249,
+          1718,
+          1714,
+          1711
+        ],
+        [
+          1253,
+          1765,
+          1768,
+          1770,
+          1265,
+          1818,
+          1820,
+          1822,
+          1267,
+          1784,
+          1782,
+          1779,
+          1255,
+          1758,
+          1754,
+          1750
+        ],
+        [
+          1265,
+          1827,
+          1832,
+          1834,
+          1275,
+          1858,
+          1861,
+          1864,
+          1277,
+          1848,
+          1846,
+          1845,
+          1267,
+          1822,
+          1820,
+          1818
+        ],
+        [
+          1217,
+          1567,
+          1568,
+          1571,
+          1226,
+          1619,
+          1622,
+          1625,
+          1229,
+          1592,
+          1590,
+          1589,
+          1219,
+          1563,
+          1560,
+          1558
+        ],
+        [
+          1260,
+          1803,
+          1804,
+          1806,
+          1271,
+          1850,
+          1854,
+          1857,
+          1273,
+          1817,
+          1812,
+          1811,
+          1263,
+          1799,
+          1796,
+          1792
+        ],
+        [
+          0,
+          272,
+          273,
+          274,
+          266,
+          265,
+          270,
+          271,
+          270,
+          265,
+          266,
+          274,
+          273,
+          272
+        ],
+        [
+          291,
+          290,
+          281,
+          285,
+          284,
+          283,
+          286,
+          289,
+          286,
+          283,
+          284,
+          285,
+          281,
+          290
+        ],
+        [
+          582,
+          581,
+          580,
+          583,
+          853,
+          852,
+          862,
+          593,
+          862,
+          852,
+          853,
+          583,
+          580,
+          581
+        ],
+        [
+          873,
+          872,
+          870,
+          868,
+          869,
+          551,
+          550,
+          224,
+          550,
+          551,
+          869,
+          868,
+          870,
+          872
+        ]
+      ],
+      "max_route_spacing": 10.905266102926046,
+      "max_foundation_height": 3.115671485984464,
+      "lots": [
+        {
+          "role": "house06",
+          "footprint": [
+            709.7105340480805,
+            520.3359281539917,
+            718.9894659519196,
+            528.3640718460083
+          ],
+          "base": 66.38583666742915,
+          "relief": 2.6672080663098043,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            723.7438863277436,
+            62.385836667429146,
+            553.3915563583374,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            730.0428791046143,
+            518.5500745773315,
+            737.2571208953857,
+            528.7499254226684
+          ],
+          "base": 67.8079422701226,
+          "relief": 3.115671485984464,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            769.8634952545166,
+            63.809107421718664,
+            490.86270847320554,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            748.4056282043457,
+            500.2480464935303,
+            758.8943717956543,
+            507.7519535064697
+          ],
+          "base": 73.64686010993768,
+          "relief": 2.5964836000729434,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            721.4940322875976,
+            69.66100476898004,
+            451.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            768.3749996185303,
+            499.8131801605225,
+            779.6250003814697,
+            508.88681983947754
+          ],
+          "base": 74.85216058552882,
+          "relief": 3.0395329768196007,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            808.4617519378662,
+            70.85216058552882,
+            532.2725788116455,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            751.09639544487,
+            520.2623605728149,
+            757.60360455513,
+            527.037639427185
+          ],
+          "base": 68.44188815527833,
+          "relief": 2.1994196838646616,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            753.7872639656067,
+            64.87327271872438,
+            488.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            768.9330730438232,
+            519.7131772994995,
+            778.3669269561767,
+            528.2868227005005
+          ],
+          "base": 69.76706925517013,
+          "relief": 2.841801392819164,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            729.1285213470459,
+            65.76706925517013,
+            497.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            791.2500019073486,
+            499.37250919342046,
+            796.0499980926513,
+            509.3274908065796
+          ],
+          "base": 75.8825246647244,
+          "relief": 2.823326379676189,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            836.0612148284912,
+            71.8825246647244,
+            539.2011171340943,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            808.4127403259278,
+            499.93107414245605,
+            819.5872596740722,
+            507.3689258575439
+          ],
+          "base": 77.50054524399064,
+          "relief": 2.7031381833233894,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            862.6961288452148,
+            73.58837650276445,
+            456.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            948.6489992141724,
+            497.6589994430542,
+            958.6510007858276,
+            509.64100055694576
+          ],
+          "base": 26.52140889428119,
+          "relief": 1.3545849349306067,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            926.3763669967651,
+            22.53253827355365,
+            535.7484754562378,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            968.1447969436646,
+            497.94743690490725,
+            979.8552030563354,
+            510.05256309509275
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1008.2474527359009,
+            21.45791202545166,
+            540.7561702728271,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            949.7105340480805,
+            520.3359281539917,
+            958.9894659519196,
+            528.3640718460083
+          ],
+          "base": 27.286451714537257,
+          "relief": 2.11962775518667,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            944.9561136722565,
+            23.286451714537257,
+            495.3084436416626,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            970.0428791046143,
+            518.5500745773315,
+            977.2571208953857,
+            528.7499254226684
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            937.4365047454834,
+            21.377989110946654,
+            556.4372915267944,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            988.4056282043457,
+            500.2480464935303,
+            998.8943717956543,
+            507.7519535064697
+          ],
+          "base": 25.376823959350588,
+          "relief": 0.2100000000000044,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1025.8059677124024,
+            21.390968618392947,
+            556.2736644744873,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1008.3749996185303,
+            499.8131801605225,
+            1019.6250003814697,
+            508.88681983947754
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            979.5382480621338,
+            21.376823959350585,
+            476.4274211883545,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            991.09639544487,
+            520.2623605728149,
+            997.60360455513,
+            527.037639427185
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            994.9127360343933,
+            21.80820852279663,
+            558.746661567688,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1008.9330730438232,
+            519.7131772994995,
+            1018.3669269561767,
+            528.2868227005005
+          ],
+          "base": 25.376823959350588,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1058.1714786529542,
+            21.376823959350588,
+            550.0518846511841,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1031.2500019073486,
+            499.37250919342046,
+            1036.0499980926515,
+            509.3274908065796
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            991.2387851715089,
+            21.376823959350585,
+            469.4988828659058,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1048.4127403259276,
+            499.93107414245605,
+            1059.5872596740724,
+            507.3689258575439
+          ],
+          "base": 25.376823959350588,
+          "relief": 0.2100000000000044,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1005.3038711547852,
+            21.464655218124392,
+            551.076233291626,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1049.152128458023,
+            517.4062883377076,
+            1058.147871541977,
+            531.2937116622925
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1052.2311150074006,
+            22.165077743530272,
+            548.5125242233277,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1067.6589994430542,
+            498.64899921417236,
+            1079.641000556946,
+            508.6510007858276
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1041.5515245437623,
+            21.387953338623046,
+            476.3763669967651,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            1087.9474369049071,
+            498.1447969436646,
+            1100.0525630950929,
+            509.8552030563354
+          ],
+          "base": 25.376823959350588,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1057.2438297271729,
+            21.457912025451662,
+            538.2474527359009,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1070.3359281539915,
+            519.7105340480805,
+            1078.3640718460083,
+            528.9894659519196
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1103.3915563583373,
+            21.376823959350585,
+            514.9561136722565,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            1088.5500745773315,
+            520.0428791046143,
+            1098.7499254226686,
+            527.2571208953857
+          ],
+          "base": 25.41595762332244,
+          "relief": 0.249133663971854,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1060.8627084732057,
+            21.41712277491851,
+            487.4365047454834,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1109.8980464935303,
+            498.7556282043457,
+            1117.40195350647,
+            509.2443717956543
+          ],
+          "base": 25.4148668091628,
+          "relief": 0.24804284981221159,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1061.3763355255128,
+            21.429011468205157,
+            536.1559677124023,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1129.4631801605224,
+            498.7249996185303,
+            1138.5368198394776,
+            509.9750003814697
+          ],
+          "base": 25.615195135472835,
+          "relief": 0.394669653177786,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1161.9225788116455,
+            21.615195135472835,
+            469.8882480621338,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1110.9623605728148,
+            520.39639544487,
+            1117.737639427185,
+            526.90360455513
+          ],
+          "base": 25.586305219079865,
+          "relief": 0.32842313206350227,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1079.253338432312,
+            22.01768978252591,
+            524.2127360343933,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1129.3631772994995,
+            519.2830730438233,
+            1137.9368227005007,
+            528.7169269561767
+          ],
+          "base": 25.788395659749877,
+          "relief": 0.37277965246028444,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1107.598115348816,
+            21.788395659749877,
+            568.5214786529541,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1148.6725091934204,
+            501.9500019073487,
+            1158.6274908065798,
+            506.74999809265137
+          ],
+          "base": 26.128129491867053,
+          "relief": 0.7011104356152522,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1188.5011171340943,
+            22.128129491867053,
+            461.9387851715088,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1170.281074142456,
+            498.06274032592773,
+            1177.718925857544,
+            509.2372596740722
+          ],
+          "base": 27.59736067205024,
+          "relief": 0.9206843951741845,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1126.573766708374,
+            23.685191930824043,
+            454.95387115478513,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1166.7062883377075,
+            519.8521284580231,
+            1180.5937116622927,
+            528.8478715419769
+          ],
+          "base": 28.13074419122262,
+          "relief": 1.3680376257230016,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1149.4874757766725,
+            24.91899797540231,
+            522.9311150074005,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1188.6489992141724,
+            497.6589994430542,
+            1198.6510007858278,
+            509.64100055694576
+          ],
+          "base": 27.881819928322958,
+          "relief": 1.2087528489200707,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1220.923633003235,
+            23.89294930759542,
+            471.5515245437622,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            1208.1447969436645,
+            497.94743690490725,
+            1219.8552030563355,
+            510.05256309509275
+          ],
+          "base": 27.581675904152295,
+          "relief": 1.2464294096275417,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1179.7525472640991,
+            23.66276397025337,
+            467.24382972717285,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1189.7105340480803,
+            520.3359281539917,
+            1198.9894659519196,
+            528.3640718460083
+          ],
+          "base": 29.125867985261763,
+          "relief": 0.8381133409839734,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1203.7438863277434,
+            25.125867985261763,
+            553.3915563583374,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            1210.0428791046143,
+            518.5500745773315,
+            1217.257120895386,
+            528.7499254226684
+          ],
+          "base": 28.885635041309186,
+          "relief": 1.0342833362974773,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1249.8634952545167,
+            24.886800192905255,
+            490.86270847320554,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1228.4056282043457,
+            500.2480464935303,
+            1238.8943717956545,
+            507.7519535064697
+          ],
+          "base": 27.074798194875022,
+          "relief": 1.1865546441531691,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1201.4940322875977,
+            23.08894285391738,
+            451.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1248.3749996185302,
+            499.8131801605225,
+            1259.6250003814698,
+            508.88681983947754
+          ],
+          "base": 25.86198998152274,
+          "relief": 1.1318795239871378,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1288.4617519378662,
+            21.86198998152274,
+            532.2725788116455,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1231.0963954448698,
+            520.2623605728149,
+            1237.60360455513,
+            527.037639427185
+          ],
+          "base": 27.90397696903294,
+          "relief": 1.0801424706709213,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1233.7872639656066,
+            24.335361532478984,
+            488.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1248.9330730438232,
+            519.7131772994995,
+            1258.366926956177,
+            528.2868227005005
+          ],
+          "base": 26.20627360939604,
+          "relief": 1.4396868355369428,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1209.128521347046,
+            22.20627360939604,
+            497.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1271.2500019073486,
+            499.37250919342046,
+            1276.0499980926515,
+            509.3274908065796
+          ],
+          "base": 27.373432871458068,
+          "relief": 1.4978846052721515,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1316.0612148284913,
+            23.373432871458068,
+            539.2011171340943,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1288.4127403259276,
+            499.93107414245605,
+            1299.5872596740724,
+            507.3689258575439
+          ],
+          "base": 29.430287135542134,
+          "relief": 1.8381110956868518,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1342.6961288452148,
+            25.518118394315938,
+            456.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1289.152128458023,
+            517.4062883377076,
+            1298.147871541977,
+            531.2937116622925
+          ],
+          "base": 27.69981145056261,
+          "relief": 2.2340630734197653,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1295.0688849925996,
+            24.488065234742297,
+            500.1874757766724,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1307.6589994430542,
+            498.64899921417236,
+            1319.641000556946,
+            508.6510007858276
+          ],
+          "base": 31.343840340624613,
+          "relief": 2.1454289530753208,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1345.7484754562379,
+            27.354969719897074,
+            530.9236330032348,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1310.3359281539915,
+            519.7105340480805,
+            1318.3640718460083,
+            528.9894659519196
+          ],
+          "base": 29.299237238016893,
+          "relief": 1.725045791205062,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1285.3084436416625,
+            25.299237238016893,
+            533.7438863277436,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1349.8980464935303,
+            498.7556282043457,
+            1357.40195350647,
+            509.2443717956543
+          ],
+          "base": 39.722261429548766,
+          "relief": 2.594154251932963,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1405.9236644744874,
+            35.736406088591124,
+            471.84403228759766,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1350.9623605728148,
+            520.39639544487,
+            1357.737639427185,
+            526.90360455513
+          ],
+          "base": 39.61744145794626,
+          "relief": 2.324201615713754,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1389.446661567688,
+            36.04882602139231,
+            523.0872639656067,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1369.3631772994995,
+            519.2830730438233,
+            1377.9368227005007,
+            528.7169269561767
+          ],
+          "base": 46.03437375006065,
+          "relief": 2.9231170606885613,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1399.7018846511842,
+            42.03437375006065,
+            479.4785213470459,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            750.612360572815,
+            480.39639544487,
+            757.387639427185,
+            486.90360455512996
+          ],
+          "base": 81.52912072789215,
+          "relief": 3.072405239313966,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            789.096661567688,
+            77.9605052913382,
+            483.08726396560667,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            789.3725091934205,
+            461.9500019073487,
+            799.3274908065796,
+            466.74999809265137
+          ],
+          "base": 88.58346812600071,
+          "relief": 2.4093230898705116,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            759.4988828659058,
+            84.58346812600071,
+            506.76121482849123,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            949.9859281539917,
+            479.7105340480805,
+            958.0140718460083,
+            488.98946595191956
+          ],
+          "base": 25.96527085667775,
+          "relief": 0.7984468973271639,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            983.0415563583374,
+            21.96527085667775,
+            474.9561136722565,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            969.2500745773316,
+            480.04287910461426,
+            979.4499254226685,
+            487.2571208953857
+          ],
+          "base": 25.59053907044701,
+          "relief": 0.4237151110964241,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            941.5627084732056,
+            21.59170422204308,
+            447.4365047454834,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1109.1056282043455,
+            460.2480464935303,
+            1119.5943717956543,
+            467.7519535064697
+          ],
+          "base": 27.070281926332047,
+          "relief": 1.4284032738950216,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1082.1940322875976,
+            23.084426585374406,
+            411.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1128.0249996185303,
+            459.8131801605225,
+            1139.27500038147,
+            468.88681983947754
+          ],
+          "base": 26.84491499061542,
+          "relief": 1.6715698687880227,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1168.1117519378663,
+            22.84491499061542,
+            492.27257881164553,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1110.74639544487,
+            480.26236057281494,
+            1117.25360455513,
+            487.037639427185
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.21000000000000085,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1113.4372639656067,
+            21.80820852279663,
+            448.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1129.633073043823,
+            479.71317729949953,
+            1139.0669269561768,
+            488.28682270050047
+          ],
+          "base": 25.41326494660578,
+          "relief": 0.2464409872551947,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1089.8285213470458,
+            21.41326494660578,
+            457.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1151.9500019073485,
+            459.37250919342046,
+            1156.7499980926514,
+            469.3274908065796
+          ],
+          "base": 26.543807855665186,
+          "relief": 1.3769838963146022,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1196.7612148284911,
+            22.543807855665186,
+            499.20111713409426,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1168.0627403259277,
+            459.93107414245605,
+            1179.2372596740724,
+            467.3689258575439
+          ],
+          "base": 27.156439738417607,
+          "relief": 1.6433478593516142,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1222.346128845215,
+            23.24427099719141,
+            416.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1169.852128458023,
+            477.40628833770757,
+            1178.847871541977,
+            491.2937116622925
+          ],
+          "base": 26.81503372460944,
+          "relief": 1.2544021700419314,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1175.7688849925994,
+            23.603287508789126,
+            460.1874757766724,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1309.3489992141722,
+            457.6589994430542,
+            1319.3510007858276,
+            469.64100055694576
+          ],
+          "base": 36.439202280030415,
+          "relief": 2.716614156904015,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1287.076366996765,
+            32.450331659302876,
+            495.74847545623777,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            1327.7947969436646,
+            457.94743690490725,
+            1339.5052030563356,
+            470.05256309509275
+          ],
+          "base": 38.19070330067868,
+          "relief": 2.88585020031136,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1367.897452735901,
+            34.27179136677975,
+            500.75617027282715,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1309.3605340480804,
+            480.33592815399174,
+            1318.6394659519196,
+            488.3640718460083
+          ],
+          "base": 33.18477562251768,
+          "relief": 1.9747233157111168,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1304.6061136722565,
+            29.184775622517677,
+            455.3084436416626,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            1330.742879104614,
+            478.55007457733154,
+            1337.9571208953857,
+            488.7499254226684
+          ],
+          "base": 35.15379147652297,
+          "relief": 2.064055066772184,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1298.1365047454833,
+            31.154956628119038,
+            516.4372915267944,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1350.74639544487,
+            480.26236057281494,
+            1357.25360455513,
+            487.037639427185
+          ],
+          "base": 41.23881815876992,
+          "relief": 3.016895265312243,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1354.5627360343933,
+            37.67020272221596,
+            518.746661567688,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1391.9500019073485,
+            459.37250919342046,
+            1396.7499980926514,
+            469.3274908065796
+          ],
+          "base": 57.419023644946094,
+          "relief": 2.3031109108850103,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1351.9387851715087,
+            53.419023644946094,
+            429.4988828659058,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1149.0225091934203,
+            421.9500019073487,
+            1158.9774908065797,
+            426.74999809265137
+          ],
+          "base": 32.10800100916502,
+          "relief": 0.9475689539939616,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1119.1488828659058,
+            28.108001009165022,
+            466.76121482849123,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1170.6310741424559,
+            418.06274032592773,
+            1178.068925857544,
+            429.2372596740722
+          ],
+          "base": 33.29584313001616,
+          "relief": 2.064438218290121,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1221.7762332916259,
+            29.383674388789963,
+            472.3461288452148,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1167.0562883377074,
+            439.8521284580231,
+            1180.9437116622926,
+            448.84787154197693
+          ],
+          "base": 30.1798879386042,
+          "relief": 1.9680405705102082,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1198.1625242233276,
+            26.968141722783887,
+            445.7688849925995,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1391.2500019073486,
+            379.37250919342046,
+            1396.0499980926515,
+            389.3274908065796
+          ],
+          "base": 62.835876367693515,
+          "relief": 2.80120906823673,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1436.0612148284913,
+            58.835876367693515,
+            419.20111713409426,
+            1.0
+          ]
+        }
+      ],
+      "rejected": {
+        "foundation_relief": 68,
+        "lot_fit": 13,
+        "steep_or_missing_road": 89
+      },
+      "native_house_scale": 1.0,
+      "core_ptc_sha256": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f",
+      "fort_clearance_xz": 718.4671582392821
+    },
+    "PuertoRico": {
+      "terrain": 23,
+      "town": 2755,
+      "pruned_bsp_refs": 5560,
+      "blend_triangles": 1371,
+      "blend_bytes": 286554
+    },
+    "PuertoRico_refl": {
+      "terrain": 17,
+      "town": 0,
+      "pruned_bsp_refs": 0,
+      "blend_triangles": 1423,
+      "blend_bytes": 303181
+    }
+  },
+  "raw_scale": {
+    "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm": {
+      "sha256": "81efb4158c52695b0e4196c2e3c51f0b8afb2eee565e62f27c97b92bc0f783aa",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm",
+      "bounds": [
+        [
+          -55.12171936035156,
+          -1.3503119945526123,
+          -83.44865417480469
+        ],
+        [
+          58.87145233154297,
+          33.76953125,
+          28.629154205322266
+        ]
+      ],
+      "dimensions_xyz": [
+        113.99317169189453,
+        35.11984324455261,
+        112.07780838012695
+      ],
+      "header_dimensions_xyz": [
+        113.99317169189453,
+        35.119842529296875,
+        112.07780456542969
+      ],
+      "vertices": 149071
+    },
+    "RESOURCE/MODELS/Characters/citiz_6.gm": {
+      "sha256": "69f8e80c03b17a51d8f30b3ffb26cfc8bf123b5819b39842c086bba8cad50bfe",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Characters/citiz_6.gm",
+      "bounds": [
+        [
+          -0.3412226140499115,
+          -0.0030720094218850136,
+          -0.21385659277439117
+        ],
+        [
+          0.33036184310913086,
+          1.8655887842178345,
+          0.26418957114219666
+        ]
+      ],
+      "dimensions_xyz": [
+        0.6715844571590424,
+        1.8686607936397195,
+        0.47804616391658783
+      ],
+      "header_dimensions_xyz": [
+        0.6715844869613647,
+        1.868660807609558,
+        0.478046178817749
+      ],
+      "vertices": 1519
+    },
+    "RESOURCE/MODELS/Characters/pirate_7.gm": {
+      "sha256": "16b6e1e025059ac3b77c25671f7d10f731c59c37fb4a66ae357089a5751b8cbb",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Characters/pirate_7.gm",
+      "bounds": [
+        [
+          -0.31927111744880676,
+          -0.0019359826110303402,
+          -0.1362016201019287
+        ],
+        [
+          0.31650280952453613,
+          1.8086243867874146,
+          0.1975068300962448
+        ]
+      ],
+      "dimensions_xyz": [
+        0.6357739269733429,
+        1.810560369398445,
+        0.3337084501981735
+      ],
+      "header_dimensions_xyz": [
+        0.6357738971710205,
+        1.8105603456497192,
+        0.3337084650993347
+      ],
+      "vertices": 1665
+    },
+    "RESOURCE/MODELS/Ships/Brig1/Brig1.gm": {
+      "sha256": "0dec3e566390bd410486861ad58844b7589f34684fe87520f1568b5e9a93eaec",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Ships/Brig1/Brig1.gm",
+      "bounds": [
+        [
+          -3.447331666946411,
+          -2.572248697280884,
+          -14.035502433776855
+        ],
+        [
+          3.447331666946411,
+          5.825162887573242,
+          14.533584594726562
+        ]
+      ],
+      "dimensions_xyz": [
+        6.894663333892822,
+        8.397411584854126,
+        28.569087028503418
+      ],
+      "header_dimensions_xyz": [
+        6.894663333892822,
+        8.397411346435547,
+        28.569087982177734
+      ],
+      "vertices": 9565
+    },
+    "RESOURCE/MODELS/Ships/Frigate1/frigate1.gm": {
+      "sha256": "3c89f1914b1e5f9ecd348fa0d9c42a1a38c2237cbdd86ccf83fe8b704668d422",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Ships/Frigate1/frigate1.gm",
+      "bounds": [
+        [
+          -6.641446113586426,
+          -4.608733177185059,
+          -25.400270462036133
+        ],
+        [
+          6.641446113586426,
+          12.598349571228027,
+          28.083829879760742
+        ]
+      ],
+      "dimensions_xyz": [
+        13.282892227172852,
+        17.207082748413086,
+        53.484100341796875
+      ],
+      "header_dimensions_xyz": [
+        13.282892227172852,
+        17.207082748413086,
+        53.484100341796875
+      ],
+      "vertices": 42872
+    },
+    "RESOURCE/MODELS/Ships/Manowar1/Manowar1.gm": {
+      "sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+      "captured": "experiments/native-metal/inputs/native/puerto-rico-city-originals/RESOURCE/MODELS/Ships/Manowar1/Manowar1.gm",
+      "bounds": [
+        [
+          -8.270500183105469,
+          -5.355504989624023,
+          -35.790977478027344
+        ],
+        [
+          8.270500183105469,
+          13.739493370056152,
+          33.69902420043945
+        ]
+      ],
+      "dimensions_xyz": [
+        16.541000366210938,
+        19.094998359680176,
+        69.4900016784668
+      ],
+      "header_dimensions_xyz": [
+        16.541000366210938,
+        19.09499740600586,
+        69.49000549316406
+      ],
+      "vertices": 109592
+    }
+  },
+  "rejected_approaches": [
+    {
+      "source": "3f79b2d0a0032ae1cdb5a1ee087d7182cfcdfab9c1fb5d04776c16757add0ea0",
+      "result": "canonical prepare IndexError in owner.lerp at color index6; extension discarded packed vertex fields before clipping",
+      "disposition": "preserve full vertex fields through clip; reduce to XYZ only at emitted road boundary"
+    },
+    {
+      "result": "scaled foundation label matrices violate NODER::Trace rigid MulToInv contract",
+      "source_evidence": [
+        "experiments/native-metal/engine/src/libs/model/src/node.cpp:156",
+        "experiments/native-metal/engine/src/libs/math/include/matrix.h:513"
+      ],
+      "disposition": "bake all67 boxes into one worldspace foundation GM; identity MODEL transform"
+    }
+  ]
+}

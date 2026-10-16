@@ -142,6 +142,13 @@ and launch-route inspection do not prove menu refresh.
 
 ## Ordinary content iteration
 
+The Puerto Rico GM/PTC city projection uses canonical `run.sh --stage-only`,
+not the text-only dev push. Its recipe and finite resource manifest live under
+`src/assets/islands/puerto-rico`; canonical staging prepares the geometry before
+content delivery. It requires the native SeaTown context plus `sea.c` activation.
+Fort/locator/seabed hashes are checked, player state is outside the transaction.
+Current candidate/replay status belongs to `docs/puerto-rico-city.md`.
+
 Open the installed app once to initialize its player state, then close it.
 
 ~~~sh

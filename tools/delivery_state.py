@@ -16,6 +16,7 @@ from pathlib import Path
 
 from runtime_script_patch import atomic_write
 from prepare_native_movies import movie_paths
+from prepare_puerto_rico_city import paths as city_paths
 
 RECEIPT = ".delivery-state.json"
 ENGINE = "@engine"
@@ -64,7 +65,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm",
     "RESOURCE/Sounds/MUSIC/phonk-drive.mp3",
-) + movie_paths()
+) + movie_paths() + city_paths()
 
 
 def digest(data: bytes) -> str:

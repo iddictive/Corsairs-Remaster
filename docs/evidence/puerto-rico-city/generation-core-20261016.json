@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-16",
+  "verdict": "source-coherent candidate; installed/visual/lifecycle acceptance unresolved",
+  "change": "Remove rejected background houses, foundations and street grids. Keep original core, sea-level placement and underwater child. Preserve possible original waterways pending proper ocean replay.",
+  "command": "python3 -B tools/prepare_puerto_rico_city.py --source-root '/Applications/Corsairs Iddictive Remaster.app/Contents/Resources' --review",
+  "elapsed_cpu_seconds": 1.1232875839341432,
+  "source_sha256": {
+    "tools/prepare_puerto_rico_city.py": "89f76cbeabcb3d8d3dde6b9e878dc5c95037349cd66375df3170f22e9fc5e472",
+    "tools/puerto_rico_city_blocks.py": "376624fe90fa23be1147a0ad71426bb2e6e6eef8bf9791791fb454f39779a634",
+    "src/assets/islands/puerto-rico/layout.json": "007e8e1e0630301b1358df56fec78c3b68594c1346d4a6f65c837f48f6f46254"
+  },
+  "manifest": {
+    "version": 1,
+    "layout_sha256": "007e8e1e0630301b1358df56fec78c3b68594c1346d4a6f65c837f48f6f46254",
+    "generator_sha256": "89f76cbeabcb3d8d3dde6b9e878dc5c95037349cd66375df3170f22e9fc5e472",
+    "blocks_sha256": "376624fe90fa23be1147a0ad71426bb2e6e6eef8bf9791791fb454f39779a634",
+    "files": {
+      "RESOURCE/MODELS/Islands/PuertoRico/sea_town.ptc": {
+        "sha256": "ef3b2cd887941f90183aabb319d4049c5b8ed2b5d890e5dc5612cb3e5e8bfc18",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/INI/sea_towns/puerto_rico.ini": {
+        "sha256": "6e785768fa5cf4b4b58419772a424fa358d667f10b381f73d984102c36e2a7b1",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": {
+        "sha256": "415978433a33384159e384c457f002dc128669ffef4c39f20e210360b96704a9",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_cityblend.gm": {
+        "sha256": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": {
+        "sha256": "70119987a36f9f449dc7ca59d4a9de9fe36bcbe96a3e835d7ea2b13556d36d1e",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_cityblend.gm": {
+        "sha256": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      }
+    }
+  },
+  "metrics": {
+    "extension": {
+      "buildings": 0,
+      "blocks": 0,
+      "street_triangles": 0,
+      "foundation_triangles": 0,
+      "navigation": {
+        "triangles": 1165,
+        "vertices": 1059,
+        "bytes": 383106,
+        "components": [
+          1161,
+          1,
+          1,
+          1,
+          1
+        ],
+        "stock_triangles": 1165,
+        "street_triangles": 0
+      },
+      "routes": 4,
+      "route_points": 56,
+      "route_nodes": [
+        [
+          0,
+          272,
+          273,
+          274,
+          266,
+          265,
+          270,
+          271,
+          270,
+          265,
+          266,
+          274,
+          273,
+          272
+        ],
+        [
+          291,
+          290,
+          281,
+          285,
+          284,
+          283,
+          286,
+          289,
+          286,
+          283,
+          284,
+          285,
+          281,
+          290
+        ],
+        [
+          582,
+          581,
+          580,
+          583,
+          853,
+          852,
+          862,
+          593,
+          862,
+          852,
+          853,
+          583,
+          580,
+          581
+        ],
+        [
+          873,
+          872,
+          870,
+          868,
+          869,
+          551,
+          550,
+          224,
+          550,
+          551,
+          869,
+          868,
+          870,
+          872
+        ]
+      ],
+      "bounds": [
+        1101.707275390625,
+        609.7188313802084,
+        1140.5363362630208,
+        631.214599609375
+      ],
+      "max_route_spacing": 2.2051914140723925,
+      "core_ptc_sha256": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f"
+    },
+    "PuertoRico": {
+      "terrain": 23,
+      "town": 2755,
+      "pruned_bsp_refs": 5560,
+      "blend_triangles": 1371,
+      "blend_bytes": 286554,
+      "terrain_source": "PuertoRico.gm",
+      "reflection_matches_primary": false
+    },
+    "PuertoRico_refl": {
+      "terrain": 23,
+      "town": 2755,
+      "pruned_bsp_refs": 5560,
+      "blend_triangles": 1371,
+      "blend_bytes": 286554,
+      "terrain_source": "PuertoRico.gm",
+      "reflection_matches_primary": true
+    }
+  },
+  "terrain_area_oracle": [
+    {
+      "object": 1,
+      "removed_faces": 16,
+      "source_xz_area": 31400.70531451702,
+      "replacement_xz_area": 31400.705314517025,
+      "area_difference": 3.637978807091713e-12
+    },
+    {
+      "object": 2,
+      "removed_faces": 7,
+      "source_xz_area": 28294.06851374358,
+      "replacement_xz_area": 28294.06851374358,
+      "area_difference": 0.0
+    }
+  ],
+  "terrain_area_procedure": "For each beach/jungle object, subtract retained active source triangle index tuples; sum absolute projected XZ triangle area for removed original faces and all replacement faces before float32 packing. Assert difference <1e-6. This proves footprint area conservation, not full rendered appearance.",
+  "resource_bytes": 44154064,
+  "protected_unchanged": {
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1.gm": "f6f3d7a109f670962567fa6946ae3487bd81025aaa67eeef18d7c02c60ddee9c",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1_locators.gm": "8b55b47f0add9fc89180af114cf9193d55b8c95616658649e4a0227883bece85",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_locators.gm": "31b4c9e4bffe50130dabf67ab47e81223ec34cc1d9c32f305b73bdb1ed15aad8",
+    "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_seabed.gm": "1b418ee3a94f784beaf2492297e651a2daac4f6434132859d575110e5f132944"
+  },
+  "waterway_evidence": {
+    "location_source": "src/gameplay/PROGRAM/locations/init/PuertoRico.c:28-56",
+    "underwater_model": "SanJuan_sb.gm",
+    "underwater_triangles": 500,
+    "underwater_model_sha256": "b2bcd9530b56332fa84924e2cdf84c6ca4a820428a419795516e0924c5e83193",
+    "native_fixture_limitation": "labels-v3 has no game weather context and used original shader mode; black/blue water is not evidence of infinite depth or missing terrain. No waterway sealed and no unverified vertical town shift retained."
+  }
+}

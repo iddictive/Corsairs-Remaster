@@ -1,0 +1,2253 @@
+{
+  "version": 1,
+  "supersedes": "generation-20261016.json",
+  "changed_conditions": [
+    "urban ground uses actual morphed primary receiver",
+    "native float32 street/PTC vertex identity before conformity",
+    "reflection primary geometry replaces mismatched simplified receiver"
+  ],
+  "command": "python3 -B tools/prepare_puerto_rico_city.py --source-root \"/Applications/Corsairs Iddictive Remaster.app/Contents/Resources\" --review",
+  "python": "3.14.7",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "conditions": {
+    "CPU_only": true,
+    "game_control": false,
+    "installed_mutation": false
+  },
+  "elapsed_seconds": 3.771375042037107,
+  "max_rss_bytes": 248512512,
+  "source_evidence": {
+    "tools/puerto_rico_city_blocks.py": "#!/usr/bin/env python3\n\"\"\"Native-unit San Juan house modules and terrain-bound sea-town streets.\n\nPure build(stock, spec): no runtime writes, launches, downloads or player state.\nMODEL geometry labels may repeat a role, sharing one compact GM module per role.\n\"\"\"\nfrom __future__ import annotations\n\nfrom collections import defaultdict, deque\nimport hashlib\nimport math\nimport struct\n\nfrom patch_metal_portobello_ground import HEADER, MATERIAL, OBJECT, parse_gm\n\nTOWN = \"RESOURCE/MODELS/Locations/Town_PuertoRico/Town/\"\nISLAND = \"RESOURCE/MODELS/Islands/PuertoRico/\"\nPATCH = TOWN + \"sanjuan_patch_day.ptc\"\nHOUSES = (3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 19, 22)\nPTC_HEADER = struct.Struct(\"<13i6f\")\nPTC_TRI = struct.Struct(\"<4H3h2b\")\n\n\ndef _box(points):\n    return ([min(v[k] for v in points) for k in range(3)],\n            [max(v[k] for v in points) for k in range(3)])\n\n\ndef _xyz32(point):\n    return struct.unpack(\"<3f\", struct.pack(\"<3f\", *point[:3]))\n\n\ndef _bounds(points):\n    lo, hi = _box(points)\n    center = [(a + b) / 2 for a, b in zip(lo, hi)]\n    return lo, hi, center, max(math.dist(p, center) for p in points)\n\n\ndef _header(g, points, objects, triangles, buffers, bsp):\n    h = list(g[\"header\"])\n    lo, hi, center, radius = _bounds(points)\n    h[1] = 2 if bsp else 0\n    h[6:11] = [0, 0, objects, triangles, buffers]\n    h[11:18] = [*(b - a for a, b in zip(lo, hi)), *center, radius]\n    return HEADER.pack(*h) + g[\"data\"][HEADER.size:g[\"materials_offset\"] + h[5] * MATERIAL.size]\n\n\ndef _bsp_source(g):\n    data, start = g[\"data\"], g[\"parsed_end\"]\n    nn, nv, nt = struct.unpack_from(\"<3i\", data, start)\n    ns, vs = start + 12, start + 12 + nn * 24\n    ts = vs + nv * 12\n    if ts + nt * 9 != len(data) or nt != g[\"header\"][9]:\n        raise ValueError(\"Stock GM collision/render face correspondence changed\")\n    nodes, order, active = {}, [], set()\n    stack = [(0, False)]\n    while stack:\n        index, done = stack.pop()\n        if done:\n            order.append(index)\n            active.remove(index)\n            continue\n        if index in nodes or index in active or not 0 <= index < nn:\n            raise ValueError(\"Stock BSP is not a valid tree\")\n        active.add(index)\n        off = ns + index * 24\n        bits = struct.unpack_from(\"<I\", data, off + 16)[0]\n        child, nf = bits & ((1 << 22) - 1), (bits >> 24) & 15\n        faces = tuple(int.from_bytes(data[off + 20 + j * 3:off + 23 + j * 3], \"little\") for j in range(nf))\n        if any(f >= nt for f in faces):\n            raise ValueError(\"Invalid stock BSP face reference\")\n        left = child if (bits >> 23) & 1 else None\n        rd = (bits >> 28) & 3\n        right = child + rd if rd else None\n        nodes[index] = (data[off:off + 16], bits, faces, left, right)\n        stack.append((index, True))\n        for sub in (right, left):\n            if sub is not None:\n                stack.append((sub, False))\n    return nodes, order, data[vs:ts], data[ts:]\n\n\ndef _compact_bsp(source, first, count):\n    nodes, order, vertex_bytes, face_bytes = source\n    retained, trees, used = {}, {}, set()\n    for index in order:\n        plane, bits, faces, left, right = nodes[index]\n        faces = tuple(f for f in faces if first <= f < first + count)\n        left, right = retained.get(left), retained.get(right)\n        if not faces and (left is None or right is None):\n            retained[index] = left if left is not None else right\n        elif faces or left is not None or right is not None:\n            retained[index] = index\n            trees[index] = plane, bits, faces, left, right\n            used.update(faces)\n        else:\n            retained[index] = None\n    if used != set(range(first, first + count)):\n        raise ValueError(\"House BSP does not cover every authored render face\")\n    face_map = {f: f - first for f in sorted(used)}\n    vertex_map, raw_vertices, raw_faces = {}, [], []\n    for face in range(first, first + count):\n        row = []\n        for j in range(3):\n            old = int.from_bytes(face_bytes[face * 9 + j * 3:face * 9 + j * 3 + 3], \"little\")\n            if old not in vertex_map:\n                vertex_map[old] = len(vertex_map)\n                raw_vertices.append(vertex_bytes[old * 12:old * 12 + 12])\n            row.append(vertex_map[old])\n        raw_faces.append(b\"\".join(v.to_bytes(3, \"little\") for v in row))\n    slots = []\n\n    def reserve(old):\n        if old is None:\n            return None\n        index = len(slots)\n        n = len(trees[old][2])\n        slots.extend(bytearray(24) for _ in range(1 + max(0, math.ceil((3 * n - 4) / 24))))\n        return index\n\n    pending = [(retained[0], reserve(retained[0]))]\n    while pending:\n        old, index = pending.pop()\n        plane, bits, faces, left, right = trees[old]\n        li, ri = reserve(left), reserve(right)\n        base = li if li is not None else (ri - 1 if ri is not None else 0)\n        rd = ri - base if ri is not None else 0\n        if not 0 <= rd <= 3 or base >= 1 << 22:\n            raise ValueError(\"Compacted BSP child encoding overflow\")\n        payload = b\"\".join(face_map[f].to_bytes(3, \"little\") for f in faces)\n        # Preserve plane-side/type flags; only child pointers/counts change.\n        newbits = (bits & ((1 << 22) | (3 << 30))) | base | ((li is not None) << 23) | (len(faces) << 24) | (rd << 28)\n        slots[index][:16] = plane\n        struct.pack_into(\"<I\", slots[index], 16, newbits)\n        for j, value in enumerate(payload):\n            if j < 4:\n                slots[index][20 + j] = value\n            else:\n                slots[index + 1 + (j - 4) // 24][(j - 4) % 24] = value\n        for child, sub in ((li, left), (ri, right)):\n            if sub is not None:\n                pending.append((sub, child))\n    return (struct.pack(\"<3i\", len(slots), len(raw_vertices), count) + b\"\".join(slots) +\n            b\"\".join(raw_vertices) + b\"\".join(raw_faces)), raw_vertices, raw_faces\n\n\ndef _house(g, index, bsp_source):\n    obj = list(g[\"objects\"][index])\n    buf = g[\"buffers\"][obj[7]]\n    raw = g[\"data\"][buf[\"payload_offset\"] + obj[11] * buf[\"stride\"]:\n                     buf[\"payload_offset\"] + (obj[11] + obj[10]) * buf[\"stride\"]]\n    points = [struct.unpack_from(\"<3f\", raw, j * buf[\"stride\"]) for j in range(obj[10])]\n    faces = g[\"triangles\"][obj[9]:obj[9] + obj[8]]\n    bsp, cv, cf = _compact_bsp(bsp_source, obj[9], obj[8])\n    # Independent oracle: each collision face must exactly match its render face.\n    for face, packed in zip(faces, cf):\n        collision = [cv[int.from_bytes(packed[j * 3:j * 3 + 3], \"little\")] for j in range(3)]\n        render = [raw[j * buf[\"stride\"]:j * buf[\"stride\"] + 12] for j in face]\n        if sorted(collision) != sorted(render):\n            raise ValueError(f\"House {index} collision/render geometry diverges\")\n    obj[7], obj[9], obj[11], obj[-1] = 0, 0, 0, obj[8]\n    obj[13:21] = [-1] * 8\n    result = (_header(g, points, 1, len(faces), 1, True) + OBJECT.pack(*obj) +\n              b\"\".join(struct.pack(\"<3H\", *f) for f in faces) +\n              struct.pack(\"<2i\", buf[\"type\"], len(raw)) + raw + bsp)\n    lo, hi = _box(points)\n    return result, lo, hi, {\"source_object\": index, \"triangles\": len(faces),\n                            \"bytes\": len(result), \"bsp_nodes\": struct.unpack_from(\"<i\", bsp)[0],\n                            \"bounds\": [lo, hi], \"exact_collision_faces\": len(faces)}\n\n\ndef _mesh(g, obj_index, triangles, with_collision=False):\n    import prepare_puerto_rico_city as owner\n    obj = list(g[\"objects\"][obj_index])\n    buf = g[\"buffers\"][obj[7]]\n    stride, typ = buf[\"stride\"], buf[\"type\"]\n    fmt = struct.Struct(\"<6fI\" + \"f\" * ((stride - 28) // 4))\n    raw, positions = [], []\n    for tri in triangles:\n        n, _ = owner.plane(tri)\n        for p in tri:\n            uv = [p[0] / 4, p[2] / 4] * ((stride - 28) // 8)\n            raw.append(fmt.pack(*p[:3], *n, 0xffffffff, *uv))\n            positions.append(p[:3])\n    if len(raw) >= 65536:\n        raise ValueError(\"Street mesh exceeds native 16-bit draw capacity\")\n    _, _, center, radius = _bounds(positions)\n    obj[3:7] = [*center, radius]\n    obj[7:12] = [0, len(triangles), 0, len(raw), 0]\n    obj[13:21], obj[-1] = [-1] * 8, len(triangles)\n    payload = b\"\".join(raw)\n    return (_header(g, positions, 1, len(triangles), 1, with_collision) + OBJECT.pack(*obj) +\n            b\"\".join(struct.pack(\"<3H\", j, j + 1, j + 2) for j in range(0, len(raw), 3)) +\n            struct.pack(\"<2i\", typ, len(payload)) + payload +\n            (owner.collision(triangles) if with_collision else b\"\"))\n\n\ndef _matrix(x, y, z, yaw=0):\n    c, s = math.cos(yaw), math.sin(yaw)\n    return (c, 0., -s, 0., 0., 1., 0., 0., s, 0., c, 0., x, y, z, 1.)\n\n\ndef _conform_streets(triangles):\n    \"\"\"Split T-junctions without moving the terrain surface or bridging gaps.\"\"\"\n    faces = [tuple(_xyz32(v) for v in tri) for tri in triangles]\n    vertices = sorted({v for tri in faces for v in tri})\n    cached, result, splits = {}, [], 0\n    for tri in faces:\n        boundary, divided = [], False\n        for a, b in zip(tri, tri[1:] + tri[:1]):\n            key = tuple(sorted((a, b)))\n            if key not in cached:\n                first, last = key\n                delta = tuple(y - x for x, y in zip(first, last))\n                length2 = sum(x * x for x in delta)\n                interior = []\n                if length2 > 1e-10:\n                    for v in vertices:\n                        t = sum((v[k] - first[k]) * delta[k] for k in range(3)) / length2\n                        if 1e-5 < t < 1 - 1e-5 and math.dist(v, tuple(first[k] + t * delta[k] for k in range(3))) < 1e-4:\n                            interior.append((t, v))\n                cached[key] = [first] + [v for _, v in sorted(interior)] + [last]\n            edge = cached[key]\n            if edge[0] != a:\n                edge = edge[::-1]\n            boundary.extend(edge[:-1])\n            divided |= len(edge) > 2\n        if not divided:\n            result.append(tri)\n            continue\n        splits += 1\n        center = tuple(sum(v[k] for v in tri) / 3 for k in range(3))\n        for a, b in zip(boundary, boundary[1:] + boundary[:1]):\n            area = abs((a[0] - center[0]) * (b[2] - center[2]) - (a[2] - center[2]) * (b[0] - center[0]))\n            if area > 1e-7:\n                result.append((center, a, b))\n    return result, splits\n\n\ndef _ptc(core, triangles, translation, yaw):\n    \"\"\"Merge translated stock PTC with the exact road triangles, rebuild all indices.\"\"\"\n    h = list(PTC_HEADER.unpack_from(core))\n    nt, nv, nn = h[6:9]\n    old = [PTC_TRI.unpack_from(core, PTC_HEADER.size + j * 16) for j in range(nt)]\n    off = PTC_HEADER.size + nt * 16\n    angle = math.radians(yaw)\n    c, s = math.cos(angle), math.sin(angle)\n    tx, ty, tz = translation\n    points = []\n    for j in range(nv):\n        x, y, z = struct.unpack_from(\"<3f\", core, off + j * 12)\n        points.append(_xyz32((c * x + s * z + tx, y + ty, -s * x + c * z + tz)))\n    off += nv * 12\n    normals = []\n    for j in range(nn):\n        x, y, z = struct.unpack_from(\"<3f\", core, off + j * 12)\n        normals.append((c * x + s * z, y, -s * x + c * z))\n    indices = [list(t[:3]) for t in old]\n    normal_ids = [t[3] for t in old]\n    material_flags = [t[7:] for t in old]\n    vertex_map = {p: j for j, p in enumerate(points)}\n    import prepare_puerto_rico_city as owner\n    for tri in triangles:\n        face = []\n        for p in tri:\n            key = _xyz32(p)\n            if key not in vertex_map:\n                vertex_map[key] = len(points)\n                points.append(key)\n            face.append(vertex_map[key])\n        a, b, d = (points[j] for j in face)\n        signed = (b[0] - a[0]) * (d[2] - a[2]) - (b[2] - a[2]) * (d[0] - a[0])\n        if abs(signed) < 1e-7:\n            continue\n        if signed > 0:\n            face[1], face[2] = face[2], face[1]\n        n, _ = owner.plane([points[j] for j in face])\n        normal_ids.append(len(normals))\n        normals.append(n)\n        indices.append(face)\n        material_flags.append((0, 0))\n    n = len(indices)\n    if n >= 32768 or len(points) >= 65536 or len(normals) >= 65536:\n        raise ValueError(\"Sea-town PTC exceeds native signed neighbor/index capacity\")\n    neighbors = [[-1] * 3 for _ in indices]\n    edges = {}\n    for j, tri in enumerate(indices):\n        for k in range(3):\n            edge = tuple(sorted((tri[k], tri[(k + 1) % 3])))\n            if edge in edges:\n                other, oe = edges.pop(edge)\n                neighbors[j][k], neighbors[other][oe] = other, j\n            else:\n                edges[edge] = (j, k)\n    # Core topology is authoritative: retain portals even when stock edge vertices differ.\n    for j, tri in enumerate(old):\n        neighbors[j] = list(tri[4:7])\n    line = (n + 3) // 4\n    table = bytearray(b\"\\xff\") * (n * line)\n    reverse = [[] for _ in indices]\n    for j, row in enumerate(neighbors):\n        for edge, dest in enumerate(row):\n            if dest >= 0:\n                reverse[dest].append((j, edge))\n    components, seen = [], set()\n    for start in range(n):\n        if start in seen:\n            continue\n        stack, comp = [start], []\n        seen.add(start)\n        while stack:\n            node = stack.pop()\n            comp.append(node)\n            for nb in neighbors[node]:\n                if nb >= 0 and nb not in seen:\n                    seen.add(nb)\n                    stack.append(nb)\n        components.append(comp)\n    for dest in range(n):\n        visited, queue = {dest}, deque([dest])\n        while queue:\n            cur = queue.popleft()\n            for node, edge in reverse[cur]:\n                if node not in visited:\n                    visited.add(node)\n                    queue.append(node)\n                    where, shift = node * line + dest // 4, (dest & 3) * 2\n                    table[where] = (table[where] & ~(3 << shift)) | edge << shift\n    lo, hi = _box(points)\n    lo[0] -= .01\n    lo[2] -= .01\n    hi[0] += .01\n    hi[2] += .01\n    width, length = max(1, math.ceil((hi[0] - lo[0]) / 20)), max(1, math.ceil((hi[2] - lo[2]) / 20))\n    cells = [[] for _ in range(width * length)]\n    for j, tri in enumerate(indices):\n        a, b = _box([points[k] for k in tri])\n        xs = [max(0, min(width - 1, int((v - lo[0]) / (hi[0] - lo[0]) * width))) for v in (a[0], b[0])]\n        zs = [max(0, min(length - 1, int((v - lo[2]) / (hi[2] - lo[2]) * length))) for v in (a[2], b[2])]\n        for z in range(zs[0], zs[1] + 1):\n            for x in range(xs[0], xs[1] + 1):\n                cells[z * width + x].append(j)\n    maps, flat = [], []\n    for cell in cells:\n        maps.append((len(flat), len(cell)))\n        flat.extend(cell)\n    h[6:13] = [n, len(points), len(normals), length, width, len(flat), line]\n    h[13:19] = [*lo, *hi]\n    old_end = (PTC_HEADER.size + nt * 16 + nv * 12 + nn * 12 +\n               PTC_HEADER.unpack_from(core)[9] * PTC_HEADER.unpack_from(core)[10] * 8 +\n               PTC_HEADER.unpack_from(core)[11] * 2 + PTC_HEADER.unpack_from(core)[12] * nt)\n    materials = core[old_end:]\n    if len(materials) != 260:\n        raise ValueError(\"Expected stock1.01 PTC material table\")\n    result = (PTC_HEADER.pack(*h) + b\"\".join(PTC_TRI.pack(*tri, ni, *nb, *mf) for tri, ni, nb, mf in\n              zip(indices, normal_ids, neighbors, material_flags)) +\n              b\"\".join(struct.pack(\"<3f\", *p) for p in points) +\n              b\"\".join(struct.pack(\"<3f\", *p) for p in normals) +\n              b\"\".join(struct.pack(\"<2i\", *cell) for cell in maps) +\n              struct.pack(f\"<{len(flat)}H\", *flat) + table + materials)\n    return result, {\"triangles\": n, \"vertices\": len(points), \"bytes\": len(result),\n                    \"components\": sorted((len(x) for x in components), reverse=True),\n                    \"stock_triangles\": nt, \"street_triangles\": n - nt}, (indices, points, neighbors, table, line)\n\n\ndef build(stock: dict[str, bytes], spec: dict) -> dict:\n    \"\"\"Return modules, repeated-role children, ancillary files and JSON metrics.\"\"\"\n    import prepare_puerto_rico_city as owner\n    ext = spec.get(\"extension\", {})\n    bounds = ext.get(\"bounds\", [700., 250., 1450., 550.])\n    step = float(ext.get(\"block_size\", 40.))\n    limit = min(150, int(ext.get(\"max_buildings\", 128)))\n    relief_limit = float(ext.get(\"max_foundation_relief\", 3.))\n    if step < 36 or not 1 <= limit <= 150 or relief_limit > 4:\n        raise ValueError(\"Unsafe city extension parameters\")\n    town = parse_gm(stock[TOWN + \"SanJuan.gm\"])\n    # Reuse the actual receiving surface: removed stock triangles must not\n    # survive here while the parent projects their morphed replacement.\n    receiving, replacement_groups, terrain_metrics = owner.terrain_candidate(stock[ISLAND + \"PuertoRico.gm\"], spec)\n    island = parse_gm(receiving)\n    source = _bsp_source(town)\n    modules, archetypes, module_metrics = {}, {}, {}\n    for index in HOUSES:\n        role = f\"house{index:02d}\"\n        data, lo, hi, metrics = _house(town, index, source)\n        modules[role], archetypes[index], module_metrics[role] = data, (lo, hi), metrics\n    del source\n    # Sample only primary beach/jungle/rock: never roofs, old town or reef.\n    ground, spatial = [], defaultdict(list)\n    allowed = {\"beach.tga\", \"jungle_gray.tga\", \"rockk1.tga\", \"rockk2.tga\"}\n    for object_index, obj in enumerate(island[\"objects\"]):\n        texture = island[\"textures\"][island[\"materials\"][obj[12]][10]].lower()\n        if texture not in allowed:\n            continue\n        faces = list(owner.vertices(island, obj))\n        if object_index in replacement_groups:\n            source_obj, replacements = replacement_groups[object_index]\n            stride = island[\"buffers\"][source_obj[7]][\"stride\"]\n            fmt = struct.Struct(\"<6fI\" + \"f\" * ((stride - 28) // 4))\n            # Exactly match patch_model's float32 packing and area admission.\n            for face in replacements:\n                rounded = tuple(fmt.unpack(fmt.pack(*v)) for v in face)\n                if owner.area(rounded) > 1e-7:\n                    faces.append(rounded)\n        for tri in faces:\n            # Keep packed color, normals and UVs through canonical clipping.\n            lo, hi = _box(tri)\n            if hi[0] < bounds[0] - 5 or lo[0] > bounds[2] + 5 or hi[2] < bounds[1] - 5 or lo[2] > bounds[3] + 5:\n                continue\n            a, b, c = tri\n            det = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2])\n            if abs(det) < 1e-8:\n                continue\n            j = len(ground)\n            ground.append((tri, det))\n            for x in range(math.floor(lo[0] / 20), math.floor(hi[0] / 20) + 1):\n                for z in range(math.floor(lo[2] / 20), math.floor(hi[2] / 20) + 1):\n                    spatial[x, z].append(j)\n\n    def height(x, z):\n        found = []\n        for j in spatial[math.floor(x / 20), math.floor(z / 20)]:\n            (a, b, c), det = ground[j]\n            u = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / det\n            v = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / det\n            if min(u, v, 1 - u - v) >= -1e-6:\n                found.append(u * a[1] + v * b[1] + (1 - u - v) * c[1])\n        return max(found) if found else None\n\n    children, lots, blocks, rejected = [], [], [], defaultdict(int)\n    x0, z0, x1, z1 = bounds\n    cols, rows = int((x1 - x0 - 8) // step), int((z1 - z0 - 8) // step)\n    # Waterfront rows first; fit actual terrain instead of scaling the town.\n    for row in reversed(range(rows)):\n        for col in range(cols):\n            bx, bz = x0 + 4 + col * step, z0 + 4 + row * step\n            corners = [(bx, bz), (bx + step, bz), (bx + step, bz + step), (bx, bz + step)]\n            perimeter = []\n            valid = True\n            for a, b in zip(corners, corners[1:] + corners[:1]):\n                segment = []\n                for k in range(5):\n                    x, z = a[0] + (b[0] - a[0]) * k / 4, a[1] + (b[1] - a[1]) * k / 4\n                    h = height(x, z)\n                    if h is None or h < 1:\n                        valid = False\n                        break\n                    segment.append((x, h + .06, z))\n                if not valid or any(abs(a[1] - b[1]) / math.dist((a[0], a[2]), (b[0], b[2])) > .45 for a, b in zip(segment, segment[1:])):\n                    valid = False\n                    break\n                perimeter.extend(segment[:-1])\n            if not valid:\n                rejected[\"steep_or_missing_road\"] += 1\n                continue\n            admitted = []\n            for cell, (dx, dz) in enumerate(((.25, .25), (.75, .25), (.25, .75), (.75, .75))):\n                index = HOUSES[(row * cols * 4 + col * 4 + cell) % len(HOUSES)]\n                lo, hi = archetypes[index]\n                yaw = ((row + col + cell) % 4) * math.pi / 2\n                c, s = round(math.cos(yaw)), round(math.sin(yaw))\n                sx, sz = (hi[0] - lo[0]) / 2, (hi[2] - lo[2]) / 2\n                wx, wz = abs(c) * sx + abs(s) * sz, abs(s) * sx + abs(c) * sz\n                if max(wx, wz) + .6 > step / 4 - 2.5:\n                    rejected[\"lot_fit\"] += 1\n                    continue\n                cx, cz = bx + dx * step + ((row + cell) % 3 - 1) * .35, bz + dz * step + ((col + cell) % 3 - 1) * .35\n                footprint = [(cx + ax * wx, cz + az * wz) for ax in (-1, 0, 1) for az in (-1, 0, 1)]\n                heights = [height(x, z) for x, z in footprint]\n                if any(y is None or y < 1 for y in heights) or max(heights) - min(heights) > relief_limit:\n                    rejected[\"foundation_relief\"] += 1\n                    continue\n                base = max(heights) + .06\n                ox, oz = (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2\n                placement = _matrix(cx - c * ox - s * oz, base - lo[1], cz + s * ox - c * oz, yaw)\n                admitted.append((f\"house{index:02d}\", placement, (cx - wx - .15, cz - wz - .15, cx + wx + .15, cz + wz + .15), base, min(heights) - .15))\n            if not admitted:\n                continue\n            admitted = admitted[:max(0, limit - len(lots))]\n            if not admitted:\n                continue\n            blocks.append((bx, bz, perimeter))\n            for role, placement, footprint, top, bottom in admitted:\n                children.append((role, placement))\n                lots.append({\"role\": role, \"footprint\": list(footprint), \"base\": top, \"relief\": top - bottom, \"matrix\": list(placement)})\n    if not lots:\n        raise ValueError(\"No native-size houses fit the protected terrain\")\n    # Tile non-overlapping junction squares and connecting strips, clipped against\n    # the original ground triangles. Every street/nav face has the same substrate.\n    junctions, edges = set(), set()\n    for bx, bz, _ in blocks:\n        points = [(bx, bz), (bx + step, bz), (bx + step, bz + step), (bx, bz + step)]\n        junctions.update(points)\n        edges.update(tuple(sorted((a, b))) for a, b in zip(points, points[1:] + points[:1]))\n    rectangles = [(x - 2, z - 2, x + 2, z + 2) for x, z in sorted(junctions)]\n    for a, b in sorted(edges):\n        if a[0] == b[0]:\n            for j in range(3):\n                lo, hi = a[1] + 2 + j * (step - 4) / 3, a[1] + 2 + (j + 1) * (step - 4) / 3\n                rectangles.append((a[0] - 2, lo, a[0] + 2, hi))\n        else:\n            for j in range(3):\n                lo, hi = a[0] + 2 + j * (step - 4) / 3, a[0] + 2 + (j + 1) * (step - 4) / 3\n                rectangles.append((lo, a[1] - 2, hi, a[1] + 2))\n    roads = []\n    for a, b, c, d in rectangles:\n        candidates = set()\n        for x in range(math.floor(a / 20), math.floor(c / 20) + 1):\n            for z in range(math.floor(b / 20), math.floor(d / 20) + 1):\n                candidates.update(spatial[x, z])\n        for j in sorted(candidates):\n            poly = list(ground[j][0])\n            for axis, edge, positive in ((0, a, True), (0, c, False), (2, b, True), (2, d, False)):\n                poly = owner.clip(poly, axis, edge, positive)\n            for k in range(1, len(poly) - 1):\n                tri = (poly[0], poly[k], poly[k + 1])\n                if owner.area(tri) > 1e-6:\n                    cx, cz = sum(v[0] for v in tri) / 3, sum(v[2] for v in tri) / 3\n                    if abs(sum(v[1] for v in tri) / 3 - height(cx, cz)) > .05:\n                        continue\n                    roads.append(tuple((v[0], v[1] + .06, v[2]) for v in tri))\n    roads, street_tjunctions = _conform_streets(roads)\n    # NODE::Trace uses a rigid inverse. Bake foundations in world coordinates;\n    # one identity child keeps rendered and collision vertices in the same frame.\n    box_faces = [(0, 2, 1), (0, 3, 2), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),\n                 (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]\n    foundations = []\n    for lot in lots:\n        a, b, c, d = lot[\"footprint\"]\n        top, bottom = lot[\"base\"], lot[\"base\"] - lot[\"relief\"]\n        cube = [(a, bottom, b), (c, bottom, b), (c, bottom, d), (a, bottom, d),\n                (a, top, b), (c, top, b), (c, top, d), (a, top, d)]\n        foundations.extend(tuple(cube[i] for i in reversed(face)) for face in box_faces)\n    modules[\"foundation\"] = _mesh(town, 26, foundations, True)\n    modules[\"streets\"] = _mesh(town, 26, roads)\n    children.append((\"foundation\", _matrix(0, 0, 0)))\n    children.append((\"streets\", _matrix(0, 0, 0)))\n    ptc, nav_metrics, nav = _ptc(stock[PATCH], roads, spec.get(\"translation\", [1100, 0, 650]), spec.get(\"yaw_degrees\", 0))\n    routes = [points for _, _, points in blocks][:60]\n    indices, points, neighbors, table, line = nav\n    # Keep some residents inside the actual port core as well as its extensions.\n    core_count = nav_metrics[\"stock_triangles\"]\n    centers = [tuple(sum(points[v][k] for v in tri) / 3 for k in range(3)) for tri in indices[:core_count]]\n    for start in (0, core_count // 4, core_count // 2, 3 * core_count // 4):\n        path, seen = [start], {start}\n        for _ in range(7):\n            eligible = [nb for nb in neighbors[path[-1]] if 0 <= nb < core_count and nb not in seen\n                        and math.dist(centers[path[-1]], centers[nb]) < 18]\n            if not eligible:\n                break\n            path.append(eligible[0])\n            seen.add(eligible[0])\n        if len(path) > 1:\n            route = [centers[j] for j in path]\n            routes.append(route + route[-2:0:-1])\n\n    def find_node(point):\n        x, y, z = point\n        for j, face in enumerate(indices):\n            tri = [points[k] for k in face]\n            if all((-(b[2] - a[2])) * (x - a[0]) + (b[0] - a[0]) * (z - a[2]) <= 1e-4 for a, b in zip(tri, tri[1:] + tri[:1])):\n                return j\n        return -1\n\n    route_nodes = []\n    for route in routes:\n        nodes = [find_node(p) for p in route]\n        if min(nodes) < 0:\n            raise ValueError(\"Street route point falls outside its PTC\")\n        for start, dest in zip(nodes, nodes[1:] + nodes[:1]):\n            cur, seen = start, set()\n            while cur != dest:\n                if cur in seen:\n                    raise ValueError(\"PTC route lookup contains a loop\")\n                seen.add(cur)\n                edge = (table[cur * line + dest // 4] >> ((dest & 3) * 2)) & 3\n                if edge == 3 or neighbors[cur][edge] < 0:\n                    raise ValueError(\"Street route crosses disconnected PTC components\")\n                cur = neighbors[cur][edge]\n        route_nodes.append(nodes)\n    for i, a in enumerate(lots):\n        ax, az, bx, bz = a[\"footprint\"]\n        for b in lots[i + 1:]:\n            cx, cz, dx, dz = b[\"footprint\"]\n            if min(bx, dx) > max(ax, cx) and min(bz, dz) > max(az, cz):\n                raise ValueError(\"House foundation footprints overlap\")\n    config = [\"[town]\", \"patch=RESOURCE\\\\MODELS\\\\Islands\\\\PuertoRico\\\\sea_town.ptc\", \"actors=32\",\n              f\"routes={len(routes)}\", \"activation_distance=1800\", \"animation=man\", \"\", \"[models]\",\n              \"model=citiz_6\", \"model=pirate_7\"]\n    for j, route in enumerate(routes):\n        config.extend([\"\", f\"[route{j}]\"] + [\"point=\" + \",\".join(f\"{v:.5f}\" for v in p) for p in route])\n    building_points = [(v, 0, z) for lot in lots for v, z in ((lot[\"footprint\"][0], lot[\"footprint\"][1]), (lot[\"footprint\"][2], lot[\"footprint\"][3]))]\n    lo, hi = _box(building_points)\n    metrics = {\"buildings\": len(lots), \"blocks\": len(blocks), \"bounds\": [lo[0], lo[2], hi[0], hi[2]],\n               \"modules\": module_metrics, \"module_bytes\": sum(map(len, modules.values())),\n               \"foundation_triangles\": len(foundations), \"foundation_frame\": \"world; identity child\",\n               \"receiving_terrain\": terrain_metrics, \"receiving_terrain_sha256\": hashlib.sha256(receiving).hexdigest(),\n               \"street_triangles\": len(roads), \"street_rectangles\": len(rectangles), \"navigation\": nav_metrics,\n               \"street_tjunction_faces_split\": street_tjunctions,\n               \"routes\": len(routes), \"route_points\": sum(map(len, routes)), \"route_nodes\": route_nodes,\n               \"max_route_spacing\": max(math.dist(a, b) for r in routes for a, b in zip(r, r[1:] + r[:1])),\n               \"max_foundation_height\": max(lot[\"relief\"] for lot in lots), \"lots\": lots,\n               \"rejected\": dict(rejected), \"native_house_scale\": 1.0,\n               \"core_ptc_sha256\": hashlib.sha256(stock[PATCH]).hexdigest(),\n               \"fort_clearance_xz\": min(math.hypot(max(1472 - lot[\"footprint\"][2], lot[\"footprint\"][0] - 1661, 0), max(1241 - lot[\"footprint\"][3], lot[\"footprint\"][1] - 1431, 0)) for lot in lots)}\n    return {\"modules\": modules, \"children\": children,\n            \"files\": {ISLAND + \"sea_town.ptc\": ptc, \"RESOURCE/INI/sea_towns/puerto_rico.ini\": (\"\\n\".join(config) + \"\\n\").encode(\"ascii\")},\n            \"metrics\": metrics}\n",
+    "tools/prepare_puerto_rico_city.py": "#!/usr/bin/env python3\n\"\"\"Project the native San Juan town into Puerto Rico's sea geometry.\n\nStock GM/BSP inputs are captured once in the native input owner. The small\ncoast replacement shares its render/collision triangles; stock partitions are\nonly pruned, never deformed. No engine, SAVE, fort or locator is rewritten.\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nfrom collections import defaultdict\nimport hashlib\nimport json\nimport math\nfrom pathlib import Path\nimport struct\n\nfrom patch_metal_portobello_ground import HEADER, LABEL, MATERIAL, OBJECT, parse_gm, _name\nfrom runtime_script_patch import atomic_write\n\nROOT = Path(__file__).resolve().parents[1]\nASSETS = ROOT / \"src/assets/islands/puerto-rico\"\nLAYOUT = ASSETS / \"layout.json\"\nMANIFEST = ASSETS / \"manifest.json\"\nORIGINALS = ROOT / \"experiments/native-metal/inputs/native/puerto-rico-city-originals\"\nOUTPUT = ROOT / \"experiments/native-metal/.cache/puerto-rico-city\"\nISLAND = \"RESOURCE/MODELS/Islands/PuertoRico/\"\nTOWN = \"RESOURCE/MODELS/Locations/Town_PuertoRico/Town/\"\n\n\ndef sha(data):\n    return hashlib.sha256(data).hexdigest()\n\n\ndef scale_measurements(source_root):\n    \"\"\"Report native unscaled GM bounds, including rigged character buffers.\"\"\"\n    names = (TOWN+\"SanJuan.gm\", \"RESOURCE/MODELS/Characters/citiz_6.gm\",\n             \"RESOURCE/MODELS/Characters/pirate_7.gm\",\n             \"RESOURCE/MODELS/Ships/Brig1/Brig1.gm\",\n             \"RESOURCE/MODELS/Ships/Frigate1/frigate1.gm\",\n             \"RESOURCE/MODELS/Ships/Manowar1/Manowar1.gm\")\n    result={}\n    for name in names:\n        captured=ORIGINALS/name\n        source=captured if captured.exists() else source_root/name\n        data=source.read_bytes()\n        if source.is_symlink():\n            raise ValueError(f\"Linked scale input: {name}\")\n        if not captured.exists():\n            captured.parent.mkdir(parents=True,exist_ok=True)\n            atomic_write(captured,data)\n        h=HEADER.unpack_from(data)\n        offset=(HEADER.size+h[2]+h[3]*4+h[4]*4+h[5]*MATERIAL.size+\n                h[6]*80+h[7]*LABEL.size+h[8]*OBJECT.size+h[9]*6)\n        descriptors=[struct.unpack_from(\"<2i\",data,offset+i*8) for i in range(h[10])]\n        offset+=h[10]*8\n        points=[]\n        for typ,size in descriptors:\n            stride=36+(typ&3)*8+(typ>>2)*8\n            if size%stride or offset+size>len(data):\n                raise ValueError(f\"Invalid scale buffer: {name}\")\n            points.extend(struct.unpack_from(\"<3f\",data,i) for i in range(offset,offset+size,stride))\n            offset+=size\n        low=[min(p[i] for p in points) for i in range(3)]\n        high=[max(p[i] for p in points) for i in range(3)]\n        result[name]={\"sha256\":sha(data),\"captured\":captured.relative_to(ROOT).as_posix(),\n                      \"bounds\":[low,high],\"dimensions_xyz\":[b-a for a,b in zip(low,high)],\n                      \"header_dimensions_xyz\":list(h[11:14]),\"vertices\":len(points)}\n    return result\n\n\ndef layout():\n    result = json.loads(LAYOUT.read_text())\n    if result[\"version\"] != 1:\n        raise ValueError(\"Unsupported city layout\")\n    return result\n\n\ndef paths():\n    return tuple(json.loads(MANIFEST.read_text())[\"files\"])\n\n\ndef prepared():\n    spec = json.loads(MANIFEST.read_text())\n    if (spec[\"layout_sha256\"] != sha(LAYOUT.read_bytes()) or\n            spec[\"generator_sha256\"] != sha(Path(__file__).read_bytes()) or\n            spec.get(\"blocks_sha256\") != sha(Path(__file__).with_name(\"puerto_rico_city_blocks.py\").read_bytes())):\n        raise ValueError(\"Puerto Rico recipe changed; prepare its candidate first\")\n    result = {}\n    for name, row in spec[\"files\"].items():\n        path = OUTPUT / name\n        if path.is_symlink() or not path.is_file() or sha(path.read_bytes()) != row[\"sha256\"]:\n            raise ValueError(f\"Puerto Rico output missing or changed: {name}\")\n        result[name] = path\n    return result\n\n\ndef metadata(data, children=(), texture_names=None):\n    \"\"\"Append native child labels without relocating any existing name index.\"\"\"\n    g = parse_gm(data)\n    h = list(g[\"header\"])\n    strings = bytearray(g[\"strings\"])\n    names = list(struct.unpack_from(f\"<{h[3]}i\", data, HEADER.size + h[2]))\n\n    def add(value):\n        index = len(strings)\n        strings.extend(value.encode(\"cp1251\") + b\"\\0\")\n        names.append(index)\n        return index\n\n    textures = list(struct.unpack_from(f\"<{h[4]}i\", data, g[\"texture_table_offset\"]))\n    for index, value in (texture_names or {}).items():\n        textures[index] = add(value)\n    labels_start = g[\"materials_offset\"] + h[5] * MATERIAL.size + h[6] * 80\n    labels_end = labels_start + h[7] * LABEL.size\n    records = []\n    for name, matrix in children:\n        records.append(LABEL.pack(add(\"geometry\"), add(name), 0, *matrix,\n                                  0, 0, 0, 0, 0., 0., 0., 0.))\n    old_material_start = g[\"materials_offset\"]\n    h[2], h[3], h[7] = len(strings), len(names), h[7] + len(records)\n    return (HEADER.pack(*h) + strings + struct.pack(f\"<{len(names)}i\", *names) +\n            struct.pack(f\"<{len(textures)}i\", *textures) +\n            data[old_material_start:labels_end] + b\"\".join(records) + data[labels_end:])\n\n\ndef vertices(g, obj):\n    buffer = g[\"buffers\"][obj[7]]\n    stride = buffer[\"stride\"]\n    fmt = struct.Struct(\"<6fI\" + \"f\" * ((stride - 28) // 4))\n    for tri in g[\"triangles\"][obj[9]:obj[9] + obj[8]]:\n        yield tuple(fmt.unpack_from(g[\"data\"], buffer[\"payload_offset\"] +\n                                    (index + obj[11]) * stride) for index in tri)\n\n\ndef lerp(a, b, t):\n    result = [x + (y - x) * t for x, y in zip(a, b)]\n    result[6] = sum(round(((a[6] >> shift) & 255) * (1 - t) +\n                          ((b[6] >> shift) & 255) * t) << shift\n                    for shift in (0, 8, 16, 24))\n    return tuple(result)\n\n\ndef clip(poly, axis, edge, positive):\n    result = []\n    if not poly:\n        return result\n    for a, b in zip(poly[-1:] + poly[:-1], poly):\n        da, db = a[axis] - edge, b[axis] - edge\n        ina, inb = (da >= -1e-7, db >= -1e-7) if positive else (da <= 1e-7, db <= 1e-7)\n        if ina != inb:\n            result.append(lerp(a, b, da / (da - db)))\n        if inb:\n            result.append(b)\n    return result\n\n\ndef area(tri):\n    a, b, c = tri\n    return abs((b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]))\n\n\ndef weight(x, z, spec):\n    x0, z0, x1, z1 = spec[\"town_bounds\"]\n    d = max(x0-x, x-x1, z0-z, z-z1, 0.) / spec[\"blend_margin\"]\n    d = max(0., min(1., d))\n    return 1. - d*d*(3.-2.*d)\n\n\ndef morph(vertex, spec):\n    v = list(vertex)\n    x, y, z = v[:3]\n    if y < 0:\n        return vertex\n    w = weight(x, z, spec)\n    delta = .01\n    wx = (weight(x+delta,z,spec)-weight(x-delta,z,spec))/(2*delta)\n    wz = (weight(x,z+delta,spec)-weight(x,z-delta,spec))/(2*delta)\n    nx, ny, nz = v[3:6]\n    n = ((1-w)*nx+y*wx*ny, ny, (1-w)*nz+y*wz*ny)\n    length = math.sqrt(sum(t*t for t in n))\n    v[1] = y*(1-w)\n    if length > 1e-12:\n        v[3:6] = [t/length for t in n]\n    return tuple(v)\n\n\ndef patch_triangles(tri, spec):\n    x0,z0,x1,z1 = spec[\"town_bounds\"]\n    margin, step = spec[\"blend_margin\"], spec[\"blend_step\"]\n    cuts = []\n    for axis, low, high in ((0,x0-margin,x1+margin),(2,z0-margin,z1+margin)):\n        first, last = min(v[axis] for v in tri), max(v[axis] for v in tri)\n        edges = [first, last]\n        for i in range(math.ceil((high-low)/step)+1):\n            value = min(high,low+i*step)\n            if first+1e-6 < value < last-1e-6:\n                edges.append(value)\n        # Explicit inner/outer boundaries make the flat pad and return exact.\n        for value in (low,low+margin,high-margin,high):\n            if first+1e-6 < value < last-1e-6:\n                edges.append(value)\n        cuts.append(sorted(set(edges)))\n    for a,b in zip(cuts[0],cuts[0][1:]):\n        for c,d in zip(cuts[1],cuts[1][1:]):\n            poly = list(tri)\n            for axis,edge,positive in ((0,a,True),(0,b,False),(2,c,True),(2,d,False)):\n                poly = clip(poly,axis,edge,positive)\n            for i in range(1,len(poly)-1):\n                piece = (poly[0],poly[i],poly[i+1])\n                if area(piece) > 1e-7:\n                    yield tuple(morph(v,spec) for v in piece)\n\n\ndef prune_bsp(data, g, removed):\n    \"\"\"Only delete face references; every retained plane/partition stays valid.\"\"\"\n    if not (g[\"header\"][1] & 2):\n        return data, 0\n    start = g[\"parsed_end\"]\n    count, _, triangles = struct.unpack_from(\"<3i\",data,start)\n    node_start = start+12\n    result = bytearray(data)\n    stack, visited, pruned = [0], set(), 0\n    while stack:\n        index = stack.pop()\n        if index in visited or not 0 <= index < count:\n            raise ValueError(\"Invalid stock BSP topology\")\n        visited.add(index)\n        offset = node_start+index*24\n        bits = struct.unpack_from(\"<I\",data,offset+16)[0]\n        child, left, right, n = bits & ((1<<22)-1), (bits>>23)&1, (bits>>28)&3, (bits>>24)&15\n        faces = [int.from_bytes(data[offset+20+j*3:offset+23+j*3],\"little\") for j in range(n)]\n        if any(face >= triangles for face in faces):\n            raise ValueError(\"Invalid stock BSP face\")\n        retained = [face for face in faces if face not in removed]\n        pruned += n-len(retained)\n        if len(retained) != n:\n            struct.pack_into(\"<I\",result,offset+16,(bits & ~(15<<24)) | (len(retained)<<24))\n            for j, face in enumerate(retained):\n                result[offset+20+j*3:offset+23+j*3] = face.to_bytes(3,\"little\")\n        if left:\n            stack.append(child)\n        if right:\n            stack.append(child+right)\n    return bytes(result), pruned\n\n\ndef terrain_candidate(data, spec):\n    g = parse_gm(data)\n    result = bytearray(data)\n    removed, patch, counts = set(), {}, defaultdict(int)\n    x0,z0,x1,z1 = spec[\"town_bounds\"]\n    m = spec[\"blend_margin\"]\n    bounds = x0-m,z0-m,x1+m,z1+m\n    for index,obj in enumerate(g[\"objects\"]):\n        name = _name(g[\"strings\"],obj[1])\n        material = g[\"materials\"][obj[12]]\n        texture = g[\"textures\"][material[10]].lower()\n        oldtown = name.lower() == \"town\"\n        keep = []\n        local = []\n        for j,(indices,tri) in enumerate(zip(g[\"triangles\"][obj[9]:obj[9]+obj[8]],vertices(g,obj))):\n            selected = False\n            if texture in spec[\"terrain_textures\"]:\n                polygon = list(tri)\n                for axis,edge,positive in ((0,bounds[0],True),(0,bounds[2],False),(2,bounds[1],True),(2,bounds[3],False)):\n                    polygon=clip(polygon,axis,edge,positive)\n                selected = any(area((polygon[0],polygon[k],polygon[k+1]))>1e-7 for k in range(1,len(polygon)-1))\n            if oldtown or selected:\n                removed.add(obj[9]+j)\n                counts[\"town\" if oldtown else \"terrain\"] += 1\n                if selected and not oldtown:\n                    local.extend(patch_triangles(tri,spec))\n            else:\n                keep.append(indices)\n        if local:\n            patch[index] = (obj,local)\n        if len(keep) != obj[8]:\n            row = list(obj)\n            row[8] = len(keep)\n            if not keep:\n                row[2] &= ~17\n            OBJECT.pack_into(result,g[\"objects_offset\"]+index*OBJECT.size,*row)\n            for j,tri in enumerate(keep):\n                struct.pack_into(\"<3H\",result,g[\"triangles_offset\"]+(obj[9]+j)*6,*tri)\n    if counts[\"town\"] not in (0, 2755) or not 1 <= counts[\"terrain\"] <= 40:\n        raise ValueError(f\"Unexpected Puerto Rico roles: {dict(counts)}\")\n    result, refs = prune_bsp(bytes(result),g,removed)\n    counts[\"pruned_bsp_refs\"] = refs\n    return result, patch, dict(counts)\n\n\ndef plane(tri):\n    a,b,c = tri\n    u,v = tuple(b[i]-a[i] for i in range(3)),tuple(c[i]-a[i] for i in range(3))\n    n=(u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0])\n    length=math.sqrt(sum(x*x for x in n))\n    if length < 1e-10:\n        raise ValueError(\"Degenerate generated terrain triangle\")\n    n=tuple(x/length for x in n)\n    return n,sum(n[i]*a[i] for i in range(3))\n\n\ndef collision(triangles):\n    \"\"\"Small triangle-plane BSP; native traversal orders both sides of a ray.\"\"\"\n    points=[tuple(v[:3]) for tri in triangles for v in tri]\n    positions=[tuple(points[3*i:3*i+3]) for i in range(len(triangles))]\n    planes=[plane(tri) for tri in positions]\n    node_count=0\n\n    def build(ids, depth):\n        nonlocal node_count\n        node_count+=1\n        if depth >= 220 or node_count > 100000:\n            raise ValueError(\"Local terrain BSP exceeds bounded construction\")\n        choices=ids if len(ids)<12 else [ids[round(j*(len(ids)-1)/11)] for j in range(12)]\n        best=None\n        for candidate in choices:\n            n,pd=planes[candidate]\n            left,right,middle=[],[],[]\n            split=0\n            for face in ids:\n                ds=[sum(n[i]*v[i] for i in range(3))-pd for v in positions[face]]\n                low,high=min(ds),max(ds)\n                if low>=-1e-4 and high<=1e-4:\n                    middle.append(face)\n                else:\n                    if low < -1e-4:\n                        left.append(face)\n                    if high > 1e-4:\n                        right.append(face)\n                    split += low < -1e-4 and high > 1e-4\n            score=4*split+abs(len(left)-len(right))-.5*len(middle)\n            if best is None or score<best[0]:\n                best=score,n,pd,left,right,middle\n        _,n,pd,left,right,middle=best\n        faces=middle[:15]\n        left.extend(middle[15:])\n        if not faces:\n            raise ValueError(\"BSP split lost its pivot\")\n        return n,pd,faces,(build(left,depth+1) if left else None),(build(right,depth+1) if right else None)\n\n    tree=build(list(range(len(triangles))),0)\n    slots=[]\n\n    def reserve(tree):\n        if tree is None:\n            return None\n        index=len(slots)\n        slots.extend(bytearray(24) for _ in range(1+max(0,math.ceil((len(tree[2])*3-4)/24))))\n        return index\n\n    def store(index, tree):\n        n,pd,faces,left,right=tree\n        children=[reserve(left),reserve(right)]\n        li,ri=children\n        base=li if li is not None else (ri-1 if ri is not None else 0)\n        right_delta=ri-base if ri is not None else 0\n        if right_delta>3:\n            raise ValueError(\"Native BSP child offset overflow\")\n        bits=base | ((li is not None)<<23) | (len(faces)<<24) | (right_delta<<28)\n        struct.pack_into(\"<4fI\",slots[index],0,*n,pd,bits)\n        payload=b\"\".join(face.to_bytes(3,\"little\") for face in faces)\n        slots[index][20:24]=payload[:4].ljust(4,b\"\\0\")\n        for offset in range(4,len(payload)):\n            slots[index+1+(offset-4)//24][(offset-4)%24]=payload[offset]\n        for child,subtree in zip(children,(left,right)):\n            if subtree:\n                store(child,subtree)\n\n    store(reserve(tree),tree)\n    verts=b\"\".join(struct.pack(\"<3f\",*p) for p in points)\n    indices=b\"\".join((i).to_bytes(3,\"little\") for i in range(len(points)))\n    return struct.pack(\"<3i\",len(slots),len(points),len(triangles))+b\"\".join(slots)+verts+indices\n\n\ndef patch_model(template, groups):\n    g=parse_gm(template)\n    h=list(g[\"header\"])\n    objects, buffers, indices, triangles=[],[],[],[]\n    positions=[]\n    cumulative=0\n    for obj,faces in groups.values():\n        typ=g[\"buffers\"][obj[7]][\"type\"]\n        fmt=struct.Struct(\"<6fI\"+\"f\"*((g[\"buffers\"][obj[7]][\"stride\"]-28)//4))\n        raw=[]\n        rounded=[]\n        for face in faces:\n            tri=[]\n            for v in face:\n                packed=fmt.pack(*v)\n                raw.append(packed)\n                tri.append(fmt.unpack(packed))\n            if area(tri)>1e-7:\n                rounded.append(tuple(tri))\n            else:\n                del raw[-3:]\n        count=len(rounded)*3\n        if count>=60000:\n            raise ValueError(\"Local terrain vertex capacity\")\n        row=list(obj)\n        row[7],row[8],row[9],row[10],row[11]=len(buffers),len(rounded),len(indices),count,0\n        row[13:21]=[-1]*8\n        cumulative+=len(rounded)\n        row[-1]=cumulative\n        objects.append(OBJECT.pack(*row))\n        buffers.append((typ,b\"\".join(raw)))\n        indices.extend((i,i+1,i+2) for i in range(0,count,3))\n        triangles.extend(rounded)\n        positions.extend(v[:3] for tri in rounded for v in tri)\n    low=[min(v[i] for v in positions) for i in range(3)]\n    high=[max(v[i] for v in positions) for i in range(3)]\n    center=[(a+b)/2 for a,b in zip(low,high)]\n    radius=max(math.dist(v,center) for v in positions)\n    h[1]=2\n    h[6:11]=[0,0,len(objects),len(indices),len(buffers)]\n    h[11:18]=[*(b-a for a,b in zip(low,high)),*center,radius]\n    metadata_end=g[\"materials_offset\"]+h[5]*MATERIAL.size\n    return (HEADER.pack(*h)+template[HEADER.size:metadata_end]+b\"\".join(objects)+\n            b\"\".join(struct.pack(\"<3H\",*tri) for tri in indices)+\n            b\"\".join(struct.pack(\"<2i\",typ,len(raw)) for typ,raw in buffers)+\n            b\"\".join(raw for _,raw in buffers)+collision(triangles))\n\n\ndef matrix(spec=None):\n    if spec is None:\n        return (1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.)\n    angle=math.radians(spec[\"yaw_degrees\"])\n    c,s=math.cos(angle),math.sin(angle)\n    x,y,z=spec[\"translation\"]\n    return (c,0.,-s,0.,0.,1.,0.,0.,s,0.,c,0.,x,y,z,1.)\n\n\ndef protected(root, spec=None):\n    spec=layout() if spec is None else spec\n    for name,expected in spec[\"protected\"].items():\n        path=root/name\n        if path.is_symlink() or not path.is_file() or sha(path.read_bytes())!=expected:\n            raise ValueError(f\"Protected Puerto Rico asset changed: {name}\")\n\n\ndef reflection_terrain(terrain):\n    \"\"\"Reflect the actual coast, without its underwater child or unused BSP.\"\"\"\n    g=parse_gm(terrain)\n    h=list(g[\"header\"])\n    start=g[\"materials_offset\"]+h[5]*MATERIAL.size+h[6]*80\n    if h[7] != 1:\n        raise ValueError(\"Unexpected primary island child layout\")\n    label=LABEL.unpack_from(terrain,start)\n    if (_name(g[\"strings\"],label[0]),_name(g[\"strings\"],label[1])) != (\"geometry\",\"seabed\"):\n        raise ValueError(\"Unexpected primary island seabed owner\")\n    h[1] &= ~2\n    h[7]=0\n    return HEADER.pack(*h)+terrain[HEADER.size:start]+terrain[start+LABEL.size:g[\"parsed_end\"]]\n\n\ndef prepare(source_root, review=False):\n    spec=layout()\n    source_root=source_root.resolve()\n    protected(source_root,spec)\n    stock={}\n    for name,expected in spec[\"inputs\"].items():\n        source=ORIGINALS/name\n        if not source.exists():\n            original=source_root/name\n            data=original.read_bytes()\n            if original.is_symlink() or sha(data)!=expected:\n                raise ValueError(f\"Stock city input missing or changed: {name}\")\n            source.parent.mkdir(parents=True,exist_ok=True)\n            atomic_write(source,data)\n        data=source.read_bytes()\n        if source.is_symlink() or sha(data)!=expected:\n            raise ValueError(f\"Captured city input changed: {name}\")\n        stock[name]=data\n    shadow=source_root/\"RESOURCE/Textures\"/Path(spec[\"shadow_texture\"].replace(\"\\\\\",\"/\")+\".tx\")\n    if not shadow.is_file():\n        raise ValueError(\"Native San Juan ground texture missing\")\n    children={}\n    for role,name in ((\"city\",\"SanJuan.gm\"),(\"citybed\",\"SanJuan_sb.gm\"),\n                      (\"citysigns\",\"SanJuan_signsA.gm\"),(\"citymarket\",\"SanJuan_rinok.gm\")):\n        data=stock[TOWN+name]\n        g=parse_gm(data)\n        replacements={i:spec[\"shadow_texture\"] for i,t in enumerate(g[\"textures\"]) if t.lower()==\"shadow.tga\"}\n        children[role]=metadata(data,texture_names=replacements) if replacements else data\n    from puerto_rico_city_blocks import build\n    extension=build(stock,spec)\n    modules={}\n    for role,data in extension[\"modules\"].items():\n        g=parse_gm(data)\n        replacements={i:spec[\"shadow_texture\"] for i,t in enumerate(g[\"textures\"]) if t.lower()==\"shadow.tga\"}\n        modules[role]=metadata(data,texture_names=replacements) if replacements else data\n    outputs=dict(extension[\"files\"])\n    metrics={\"extension\":extension[\"metrics\"]}\n    original=stock[ISLAND+\"PuertoRico.gm\"]\n    terrain,groups,counts=terrain_candidate(original,spec)\n    if counts[\"town\"] != 2755:\n        raise ValueError(\"Puerto Rico source town mismatch\")\n    blend=patch_model(original,groups)\n    counts[\"blend_triangles\"]=parse_gm(blend)[\"header\"][9]\n    counts[\"blend_bytes\"]=len(blend)\n    for stem in (\"PuertoRico\",\"PuertoRico_refl\"):\n        labels=([(role,matrix(spec)) for role in children]+[(\"cityblend\",matrix())]+\n                extension[\"children\"])\n        receiver=terrain if stem==\"PuertoRico\" else reflection_terrain(terrain)\n        outputs[ISLAND+stem+\".gm\"]=metadata(receiver,labels)\n        outputs[ISLAND+stem+\"_cityblend.gm\"]=blend\n        for role,data in children.items():\n            outputs[ISLAND+stem+\"_\"+role+\".gm\"]=data\n        for role,data in modules.items():\n            outputs[ISLAND+stem+\"_\"+role+\".gm\"]=data\n        metrics[stem]={**counts,\"terrain_source\":\"PuertoRico.gm\",\n                       \"reflection_matches_primary\":stem==\"PuertoRico_refl\"}\n    files={}\n    for name,data in outputs.items():\n        target=OUTPUT/name\n        if target.is_symlink():\n            raise ValueError(f\"Linked city output: {name}\")\n        target.parent.mkdir(parents=True,exist_ok=True)\n        if not target.exists() or target.read_bytes()!=data:\n            atomic_write(target,data)\n        row={\"sha256\":sha(data),\"consumer\":\"PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child\"}\n        if name in spec[\"inputs\"]:\n            row[\"original_sha256\"]=spec[\"inputs\"][name]\n        files[name]=row\n    record={\"version\":1,\"layout_sha256\":sha(LAYOUT.read_bytes()),\n            \"generator_sha256\":sha(Path(__file__).read_bytes()),\n            \"blocks_sha256\":sha(Path(__file__).with_name(\"puerto_rico_city_blocks.py\").read_bytes()),\n            \"files\":files}\n    if review:\n        atomic_write(MANIFEST,(json.dumps(record,indent=2)+\"\\n\").encode())\n    elif not MANIFEST.exists() or json.loads(MANIFEST.read_text())!=record:\n        raise ValueError(\"Unreviewed Puerto Rico outputs; inspect then freeze with --review\")\n    atomic_write(OUTPUT/\"metrics.json\",(json.dumps(metrics,indent=2)+\"\\n\").encode())\n    print(json.dumps(metrics,indent=2))\n    return outputs\n\n\ndef main():\n    parser=argparse.ArgumentParser(description=__doc__)\n    parser.add_argument(\"--source-root\",type=Path,required=True)\n    parser.add_argument(\"--review\",action=\"store_true\",help=\"Freeze exact candidate hashes after recipe edits\")\n    parser.add_argument(\"--measure-scale\",action=\"store_true\",help=\"Report and retain exact stock scale inputs\")\n    args=parser.parse_args()\n    if args.measure_scale:\n        print(json.dumps(scale_measurements(args.source_root.resolve()),indent=2))\n        return\n    prepare(args.source_root,args.review)\n\n\nif __name__==\"__main__\":\n    main()\n"
+  },
+  "layout": {
+    "version": 1,
+    "translation": [
+      1100.0,
+      0.0,
+      650.0
+    ],
+    "yaw_degrees": 0.0,
+    "town_bounds": [
+      1040.0,
+      560.0,
+      1165.0,
+      680.0
+    ],
+    "blend_margin": 50.0,
+    "blend_step": 10.0,
+    "removed_objects": [
+      4,
+      5
+    ],
+    "terrain_textures": [
+      "beach.tga",
+      "jungle_gray.tga"
+    ],
+    "shadow_texture": "lighting\\day1\\locations\\Town_PuertoRico\\Town\\Shadow.tga",
+    "inputs": {
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan.gm": "81efb4158c52695b0e4196c2e3c51f0b8afb2eee565e62f27c97b92bc0f783aa",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_sb.gm": "b2bcd9530b56332fa84924e2cdf84c6ca4a820428a419795516e0924c5e83193",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_signsA.gm": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/SanJuan_rinok.gm": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+      "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/sanjuan_patch_day.ptc": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f"
+    },
+    "protected": {
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1.gm": "f6f3d7a109f670962567fa6946ae3487bd81025aaa67eeef18d7c02c60ddee9c",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_fort1_locators.gm": "8b55b47f0add9fc89180af114cf9193d55b8c95616658649e4a0227883bece85",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_locators.gm": "31b4c9e4bffe50130dabf67ab47e81223ec34cc1d9c32f305b73bdb1ed15aad8",
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_seabed.gm": "1b418ee3a94f784beaf2492297e651a2daac4f6434132859d575110e5f132944"
+    }
+  },
+  "manifest": {
+    "version": 1,
+    "layout_sha256": "007e8e1e0630301b1358df56fec78c3b68594c1346d4a6f65c837f48f6f46254",
+    "generator_sha256": "4488dc4aeab1590868fe9237603a8c03a19f0e02836569b6d53afe6f478879e9",
+    "blocks_sha256": "14e05cfc71e5e37e1784f5a79b7a996b570c800fab6177fbf695d7df47b33420",
+    "files": {
+      "RESOURCE/MODELS/Islands/PuertoRico/sea_town.ptc": {
+        "sha256": "418588d0e375f1182a04d73b2c64064044853553386d54d70b8c1dea700ce935",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/INI/sea_towns/puerto_rico.ini": {
+        "sha256": "69bd99606915a9edb66006df610e9ded19044296fd22ab6e4bdd555a91dea1a5",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm": {
+        "sha256": "214fabffe1696193a7e32f3334c620fef5bfee49015332f410b9543d04c474cd",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "0c1c1576dd43a17dcd185b88e12047fb10ddfa48446663b9cf2302bc363e460f"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_cityblend.gm": {
+        "sha256": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house03.gm": {
+        "sha256": "27d2a72c674b5ae5e03e4df059573a40cfd5f69f6f9e19466c0feaeb7c80ef04",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house04.gm": {
+        "sha256": "f48f5ade2a945f89e00f75257bd0735e694897330ef335dbb225e1b35b84e139",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house06.gm": {
+        "sha256": "441952a78b47e3e4a87fb86fc6338156e74be085aba28b570807cea339b4b2ef",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house07.gm": {
+        "sha256": "21de0b1e066d68118b986dde467e3557d54188687c78e78f23cf9cc2e92f0dde",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house08.gm": {
+        "sha256": "ba5a59aeacba859018b8e55be31a564d29d7c6af536d2a90d776f34cc9d41010",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house09.gm": {
+        "sha256": "0eb1f913f015d46a1d4c249f8f21298ff326810b6cdff65435736e4e1b514c33",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house10.gm": {
+        "sha256": "7885c6811480c47711b848a43a7953ebc88cf66e0c44a47ffea86640f1e2a558",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house11.gm": {
+        "sha256": "84c9056bfaccc1343f3b02c6a876edcc1209e9a33814bf79fa635bef6957f299",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house12.gm": {
+        "sha256": "38f16bc695f737aca0c44625ca114fa5cd934a763a5c9f5e2596f2da8d64f79c",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house13.gm": {
+        "sha256": "11c5dc000d66bdff77303f055ba4d2b7d201ba8a50c11c9628bddf7ea1a3699d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house19.gm": {
+        "sha256": "7a57402b8434add62421287c98d14bbc7b7038856b5633629c9aa80163135fbf",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_house22.gm": {
+        "sha256": "c636a4aa98be2036eb1d66135867712a225000cf0ff84000031d6f7f3033fd9e",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_foundation.gm": {
+        "sha256": "bff5a79690eddaf089319966b1b82d26d5f8c971338f74a5b2818b1c16ce5ab3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_streets.gm": {
+        "sha256": "62a506643711dc53d5450e3cc614557997f67e6613857e9216e4376205e13061",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm": {
+        "sha256": "157f8c990c0050ccbd66700acef111079e777104615b6a717c222fbeb43b6f9a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child",
+        "original_sha256": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_cityblend.gm": {
+        "sha256": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_city.gm": {
+        "sha256": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citybed.gm": {
+        "sha256": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citysigns.gm": {
+        "sha256": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_citymarket.gm": {
+        "sha256": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house03.gm": {
+        "sha256": "27d2a72c674b5ae5e03e4df059573a40cfd5f69f6f9e19466c0feaeb7c80ef04",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house04.gm": {
+        "sha256": "f48f5ade2a945f89e00f75257bd0735e694897330ef335dbb225e1b35b84e139",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house06.gm": {
+        "sha256": "441952a78b47e3e4a87fb86fc6338156e74be085aba28b570807cea339b4b2ef",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house07.gm": {
+        "sha256": "21de0b1e066d68118b986dde467e3557d54188687c78e78f23cf9cc2e92f0dde",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house08.gm": {
+        "sha256": "ba5a59aeacba859018b8e55be31a564d29d7c6af536d2a90d776f34cc9d41010",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house09.gm": {
+        "sha256": "0eb1f913f015d46a1d4c249f8f21298ff326810b6cdff65435736e4e1b514c33",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house10.gm": {
+        "sha256": "7885c6811480c47711b848a43a7953ebc88cf66e0c44a47ffea86640f1e2a558",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house11.gm": {
+        "sha256": "84c9056bfaccc1343f3b02c6a876edcc1209e9a33814bf79fa635bef6957f299",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house12.gm": {
+        "sha256": "38f16bc695f737aca0c44625ca114fa5cd934a763a5c9f5e2596f2da8d64f79c",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house13.gm": {
+        "sha256": "11c5dc000d66bdff77303f055ba4d2b7d201ba8a50c11c9628bddf7ea1a3699d",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house19.gm": {
+        "sha256": "7a57402b8434add62421287c98d14bbc7b7038856b5633629c9aa80163135fbf",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_house22.gm": {
+        "sha256": "c636a4aa98be2036eb1d66135867712a225000cf0ff84000031d6f7f3033fd9e",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_foundation.gm": {
+        "sha256": "bff5a79690eddaf089319966b1b82d26d5f8c971338f74a5b2818b1c16ce5ab3",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      },
+      "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl_streets.gm": {
+        "sha256": "62a506643711dc53d5450e3cc614557997f67e6613857e9216e4376205e13061",
+        "consumer": "PuertoRico sea island/SEA_REFLECTION2 MODEL geometry child"
+      }
+    }
+  },
+  "raw_geometry": {
+    "extension": {
+      "buildings": 45,
+      "blocks": 18,
+      "bounds": [
+        709.7105340480805,
+        379.37250919342046,
+        1396.7499980926514,
+        531.2937116622925
+      ],
+      "modules": {
+        "house03": {
+          "source_object": 3,
+          "triangles": 1934,
+          "bytes": 234137,
+          "bsp_nodes": 3442,
+          "bounds": [
+            [
+              22.422632217407227,
+              3.988870620727539,
+              -37.939476013183594
+            ],
+            [
+              32.1246337890625,
+              13.394991874694824,
+              -26.257474899291992
+            ]
+          ],
+          "exact_collision_faces": 1934
+        },
+        "house04": {
+          "source_object": 4,
+          "triangles": 1466,
+          "bytes": 169865,
+          "bsp_nodes": 2346,
+          "bounds": [
+            [
+              30.853607177734375,
+              3.918911933898926,
+              -39.95265579223633
+            ],
+            [
+              42.65873336791992,
+              14.154470443725586,
+              -28.54224967956543
+            ]
+          ],
+          "exact_collision_faces": 1466
+        },
+        "house06": {
+          "source_object": 6,
+          "triangles": 1422,
+          "bytes": 189209,
+          "bsp_nodes": 3055,
+          "bounds": [
+            [
+              -13.883352279663086,
+              4.0,
+              -32.9056282043457
+            ],
+            [
+              -4.904420375823975,
+              11.34783935546875,
+              -25.1774845123291
+            ]
+          ],
+          "exact_collision_faces": 1422
+        },
+        "house07": {
+          "source_object": 7,
+          "triangles": 1892,
+          "bytes": 244307,
+          "bsp_nodes": 3575,
+          "bounds": [
+            [
+              -37.73721694946289,
+              3.9988348484039307,
+              -39.670616149902344
+            ],
+            [
+              -27.837366104125977,
+              11.349555015563965,
+              -32.75637435913086
+            ]
+          ],
+          "exact_collision_faces": 1892
+        },
+        "house08": {
+          "source_object": 8,
+          "triangles": 1238,
+          "bytes": 159377,
+          "bsp_nodes": 2422,
+          "bounds": [
+            [
+              48.67171096801758,
+              3.9858553409576416,
+              -37.25033950805664
+            ],
+            [
+              55.87561798095703,
+              10.380661010742188,
+              -27.061595916748047
+            ]
+          ],
+          "exact_collision_faces": 1238
+        },
+        "house09": {
+          "source_object": 9,
+          "triangles": 1664,
+          "bytes": 219491,
+          "bsp_nodes": 3366,
+          "bounds": [
+            [
+              -39.93675231933594,
+              4.0,
+              -32.30939865112305
+            ],
+            [
+              -28.986751556396484,
+              11.899999618530273,
+              -23.53575897216797
+            ]
+          ],
+          "exact_collision_faces": 1664
+        },
+        "house10": {
+          "source_object": 10,
+          "triangles": 179,
+          "bytes": 24692,
+          "bsp_nodes": 230,
+          "bounds": [
+            [
+              -38.33430099487305,
+              3.568615436553955,
+              -2.5408685207366943
+            ],
+            [
+              -31.85902214050293,
+              7.723617076873779,
+              3.6663405895233154
+            ]
+          ],
+          "exact_collision_faces": 179
+        },
+        "house11": {
+          "source_object": 11,
+          "triangles": 1355,
+          "bytes": 160856,
+          "bsp_nodes": 2027,
+          "bounds": [
+            [
+              -49.08840560913086,
+              4.0,
+              -30.18870735168457
+            ],
+            [
+              -39.954551696777344,
+              10.800000190734863,
+              -21.915061950683594
+            ]
+          ],
+          "exact_collision_faces": 1355
+        },
+        "house12": {
+          "source_object": 12,
+          "triangles": 443,
+          "bytes": 55256,
+          "bsp_nodes": 603,
+          "bounds": [
+            [
+              -44.66121292114258,
+              4.0,
+              -39.67860794067383
+            ],
+            [
+              -40.161216735839844,
+              10.269042015075684,
+              -30.02362632751465
+            ]
+          ],
+          "exact_collision_faces": 443
+        },
+        "house13": {
+          "source_object": 13,
+          "triangles": 1444,
+          "bytes": 198575,
+          "bsp_nodes": 3525,
+          "bounds": [
+            [
+              -50.99515914916992,
+              3.9121687412261963,
+              -54.13338851928711
+            ],
+            [
+              -43.85730743408203,
+              12.829927444458008,
+              -43.25886917114258
+            ]
+          ],
+          "exact_collision_faces": 1444
+        },
+        "house19": {
+          "source_object": 19,
+          "triangles": 1052,
+          "bytes": 151559,
+          "bsp_nodes": 2667,
+          "bounds": [
+            [
+              39.60005187988281,
+              3.9844512939453125,
+              -49.40517044067383
+            ],
+            [
+              51.8759651184082,
+              10.570964813232422,
+              -35.574893951416016
+            ]
+          ],
+          "exact_collision_faces": 1052
+        },
+        "house22": {
+          "source_object": 22,
+          "triangles": 872,
+          "bytes": 128879,
+          "bsp_nodes": 2293,
+          "bounds": [
+            [
+              17.368812561035156,
+              3.2117462158203125,
+              -2.9289865493774414
+            ],
+            [
+              30.956235885620117,
+              11.269514083862305,
+              5.766756534576416
+            ]
+          ],
+          "exact_collision_faces": 872
+        }
+      },
+      "module_bytes": 2123677,
+      "foundation_triangles": 540,
+      "foundation_frame": "world; identity child",
+      "receiving_terrain": {
+        "terrain": 23,
+        "town": 2755,
+        "pruned_bsp_refs": 5560
+      },
+      "receiving_terrain_sha256": "b8a672bd32cf32d081469060f608ddc66367b74a0f164405e9852f877d0b4c44",
+      "street_triangles": 670,
+      "street_rectangles": 215,
+      "navigation": {
+        "triangles": 1835,
+        "vertices": 1675,
+        "bytes": 917741,
+        "components": [
+          1161,
+          240,
+          153,
+          148,
+          85,
+          44,
+          1,
+          1,
+          1,
+          1
+        ],
+        "stock_triangles": 1165,
+        "street_triangles": 670
+      },
+      "street_tjunction_faces_split": 3,
+      "routes": 22,
+      "route_points": 344,
+      "route_nodes": [
+        [
+          1167,
+          1281,
+          1285,
+          1288,
+          1175,
+          1308,
+          1311,
+          1314,
+          1177,
+          1293,
+          1291,
+          1289,
+          1169,
+          1279,
+          1278,
+          1273
+        ],
+        [
+          1175,
+          1317,
+          1319,
+          1323,
+          1181,
+          1349,
+          1354,
+          1358,
+          1183,
+          1331,
+          1330,
+          1326,
+          1177,
+          1314,
+          1311,
+          1308
+        ],
+        [
+          1181,
+          1360,
+          1364,
+          1367,
+          1187,
+          1392,
+          1394,
+          1397,
+          1189,
+          1373,
+          1371,
+          1370,
+          1183,
+          1358,
+          1354,
+          1349
+        ],
+        [
+          1193,
+          1424,
+          1429,
+          1430,
+          1199,
+          1455,
+          1461,
+          1465,
+          1201,
+          1444,
+          1440,
+          1433,
+          1195,
+          1421,
+          1418,
+          1416
+        ],
+        [
+          1227,
+          1615,
+          1626,
+          1627,
+          1233,
+          1641,
+          1644,
+          1656,
+          1235,
+          1639,
+          1633,
+          1630,
+          1231,
+          1607,
+          1604,
+          1595
+        ],
+        [
+          1233,
+          1661,
+          1662,
+          1664,
+          1241,
+          1695,
+          1697,
+          1700,
+          1243,
+          1675,
+          1673,
+          1666,
+          1235,
+          1656,
+          1644,
+          1641
+        ],
+        [
+          1241,
+          1702,
+          1703,
+          1706,
+          1247,
+          1739,
+          1741,
+          1744,
+          1249,
+          1715,
+          1714,
+          1710,
+          1243,
+          1700,
+          1697,
+          1695
+        ],
+        [
+          1247,
+          1746,
+          1749,
+          1751,
+          1259,
+          1803,
+          1806,
+          1810,
+          1261,
+          1757,
+          1755,
+          1754,
+          1249,
+          1744,
+          1741,
+          1739
+        ],
+        [
+          1172,
+          1301,
+          1303,
+          1306,
+          1179,
+          1333,
+          1335,
+          1339,
+          1181,
+          1323,
+          1319,
+          1317,
+          1175,
+          1299,
+          1297,
+          1296
+        ],
+        [
+          1179,
+          1342,
+          1343,
+          1345,
+          1185,
+          1379,
+          1387,
+          1391,
+          1187,
+          1367,
+          1364,
+          1360,
+          1181,
+          1339,
+          1335,
+          1333
+        ],
+        [
+          1191,
+          1408,
+          1412,
+          1414,
+          1197,
+          1447,
+          1449,
+          1454,
+          1199,
+          1430,
+          1429,
+          1424,
+          1193,
+          1403,
+          1400,
+          1398
+        ],
+        [
+          1203,
+          1482,
+          1483,
+          1485,
+          1211,
+          1525,
+          1533,
+          1540,
+          1216,
+          1504,
+          1495,
+          1492,
+          1208,
+          1479,
+          1476,
+          1471
+        ],
+        [
+          1211,
+          1546,
+          1547,
+          1549,
+          1221,
+          1585,
+          1590,
+          1593,
+          1224,
+          1571,
+          1563,
+          1554,
+          1216,
+          1540,
+          1533,
+          1525
+        ],
+        [
+          1238,
+          1688,
+          1691,
+          1693,
+          1245,
+          1717,
+          1721,
+          1725,
+          1247,
+          1706,
+          1703,
+          1702,
+          1241,
+          1685,
+          1681,
+          1678
+        ],
+        [
+          1245,
+          1732,
+          1735,
+          1737,
+          1257,
+          1785,
+          1787,
+          1789,
+          1259,
+          1751,
+          1749,
+          1746,
+          1247,
+          1725,
+          1721,
+          1717
+        ],
+        [
+          1257,
+          1794,
+          1799,
+          1801,
+          1267,
+          1825,
+          1828,
+          1831,
+          1269,
+          1815,
+          1813,
+          1812,
+          1259,
+          1789,
+          1787,
+          1785
+        ],
+        [
+          1209,
+          1518,
+          1519,
+          1522,
+          1218,
+          1578,
+          1581,
+          1584,
+          1221,
+          1549,
+          1547,
+          1546,
+          1211,
+          1514,
+          1511,
+          1509
+        ],
+        [
+          1252,
+          1770,
+          1771,
+          1773,
+          1263,
+          1817,
+          1821,
+          1824,
+          1265,
+          1784,
+          1779,
+          1778,
+          1255,
+          1766,
+          1763,
+          1759
+        ],
+        [
+          0,
+          272,
+          273,
+          274,
+          266,
+          265,
+          270,
+          271,
+          270,
+          265,
+          266,
+          274,
+          273,
+          272
+        ],
+        [
+          291,
+          290,
+          281,
+          285,
+          284,
+          283,
+          286,
+          289,
+          286,
+          283,
+          284,
+          285,
+          281,
+          290
+        ],
+        [
+          582,
+          581,
+          580,
+          583,
+          853,
+          852,
+          862,
+          593,
+          862,
+          852,
+          853,
+          583,
+          580,
+          581
+        ],
+        [
+          873,
+          872,
+          870,
+          868,
+          869,
+          551,
+          550,
+          224,
+          550,
+          551,
+          869,
+          868,
+          870,
+          872
+        ]
+      ],
+      "max_route_spacing": 10.905266102926046,
+      "max_foundation_height": 3.115671485984464,
+      "lots": [
+        {
+          "role": "house06",
+          "footprint": [
+            709.7105340480805,
+            520.3359281539917,
+            718.9894659519196,
+            528.3640718460083
+          ],
+          "base": 66.38583666742915,
+          "relief": 2.6672080663098043,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            723.7438863277436,
+            62.385836667429146,
+            553.3915563583374,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            730.0428791046143,
+            518.5500745773315,
+            737.2571208953857,
+            528.7499254226684
+          ],
+          "base": 67.8079422701226,
+          "relief": 3.115671485984464,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            769.8634952545166,
+            63.809107421718664,
+            490.86270847320554,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            748.4056282043457,
+            500.2480464935303,
+            758.8943717956543,
+            507.7519535064697
+          ],
+          "base": 73.64686010993768,
+          "relief": 2.5964836000729434,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            721.4940322875976,
+            69.66100476898004,
+            451.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            768.3749996185303,
+            499.8131801605225,
+            779.6250003814697,
+            508.88681983947754
+          ],
+          "base": 74.85216058552882,
+          "relief": 3.0395329768196007,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            808.4617519378662,
+            70.85216058552882,
+            532.2725788116455,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            751.09639544487,
+            520.2623605728149,
+            757.60360455513,
+            527.037639427185
+          ],
+          "base": 68.44188815527833,
+          "relief": 2.1994196838646616,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            753.7872639656067,
+            64.87327271872438,
+            488.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            768.9330730438232,
+            519.7131772994995,
+            778.3669269561767,
+            528.2868227005005
+          ],
+          "base": 69.76706925517013,
+          "relief": 2.841801392819164,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            729.1285213470459,
+            65.76706925517013,
+            497.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            791.2500019073486,
+            499.37250919342046,
+            796.0499980926513,
+            509.3274908065796
+          ],
+          "base": 75.8825246647244,
+          "relief": 2.823326379676189,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            836.0612148284912,
+            71.8825246647244,
+            539.2011171340943,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            808.4127403259278,
+            499.93107414245605,
+            819.5872596740722,
+            507.3689258575439
+          ],
+          "base": 77.50054524399064,
+          "relief": 2.7031381833233894,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            862.6961288452148,
+            73.58837650276445,
+            456.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            948.6489992141724,
+            497.6589994430542,
+            958.6510007858276,
+            509.64100055694576
+          ],
+          "base": 26.52140889428119,
+          "relief": 1.3545849349306032,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            926.3763669967651,
+            22.53253827355365,
+            535.7484754562378,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            968.1447969436646,
+            497.94743690490725,
+            979.8552030563354,
+            510.05256309509275
+          ],
+          "base": 25.376823959350588,
+          "relief": 0.2100000000000044,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1008.2474527359009,
+            21.457912025451662,
+            540.7561702728271,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            949.7105340480805,
+            520.3359281539917,
+            958.9894659519196,
+            528.3640718460083
+          ],
+          "base": 27.286451714537257,
+          "relief": 2.11962775518667,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            944.9561136722565,
+            23.286451714537257,
+            495.3084436416626,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            970.0428791046143,
+            518.5500745773315,
+            977.2571208953857,
+            528.7499254226684
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            937.4365047454834,
+            21.377989110946654,
+            556.4372915267944,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1228.4056282043457,
+            500.2480464935303,
+            1238.8943717956545,
+            507.7519535064697
+          ],
+          "base": 27.074797618889342,
+          "relief": 1.1865561016569899,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1201.4940322875977,
+            23.0889422779317,
+            451.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1248.3749996185302,
+            499.8131801605225,
+            1259.6250003814698,
+            508.88681983947754
+          ],
+          "base": 25.86198998152274,
+          "relief": 1.1318793427366316,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1288.4617519378662,
+            21.86198998152274,
+            532.2725788116455,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1231.0963954448698,
+            520.2623605728149,
+            1237.60360455513,
+            527.037639427185
+          ],
+          "base": 27.903980667612977,
+          "relief": 1.0801408540492794,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1233.7872639656066,
+            24.335365231059022,
+            488.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1248.9330730438232,
+            519.7131772994995,
+            1258.366926956177,
+            528.2868227005005
+          ],
+          "base": 26.206273457939094,
+          "relief": 1.4396833850729074,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1209.128521347046,
+            22.206273457939094,
+            497.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1271.2500019073486,
+            499.37250919342046,
+            1276.0499980926515,
+            509.3274908065796
+          ],
+          "base": 27.373432871458068,
+          "relief": 1.4978846052721515,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1316.0612148284913,
+            23.373432871458068,
+            539.2011171340943,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1288.4127403259276,
+            499.93107414245605,
+            1299.5872596740724,
+            507.3689258575439
+          ],
+          "base": 29.430287135542134,
+          "relief": 1.8381110956868518,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1342.6961288452148,
+            25.518118394315938,
+            456.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1289.152128458023,
+            517.4062883377076,
+            1298.147871541977,
+            531.2937116622925
+          ],
+          "base": 27.69981145056261,
+          "relief": 2.2340630734197653,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1295.0688849925996,
+            24.488065234742297,
+            500.1874757766724,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1307.6589994430542,
+            498.64899921417236,
+            1319.641000556946,
+            508.6510007858276
+          ],
+          "base": 31.343840340624613,
+          "relief": 2.1454289530753208,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1345.7484754562379,
+            27.354969719897074,
+            530.9236330032348,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1310.3359281539915,
+            519.7105340480805,
+            1318.3640718460083,
+            528.9894659519196
+          ],
+          "base": 29.299237238016893,
+          "relief": 1.725045791205062,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1285.3084436416625,
+            25.299237238016893,
+            533.7438863277436,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1349.8980464935303,
+            498.7556282043457,
+            1357.40195350647,
+            509.2443717956543
+          ],
+          "base": 39.722261429548766,
+          "relief": 2.594154251932963,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1405.9236644744874,
+            35.736406088591124,
+            471.84403228759766,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1350.9623605728148,
+            520.39639544487,
+            1357.737639427185,
+            526.90360455513
+          ],
+          "base": 39.61744145794626,
+          "relief": 2.324201615713754,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1389.446661567688,
+            36.04882602139231,
+            523.0872639656067,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1369.3631772994995,
+            519.2830730438233,
+            1377.9368227005007,
+            528.7169269561767
+          ],
+          "base": 46.03437375006065,
+          "relief": 2.9231170606885613,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1399.7018846511842,
+            42.03437375006065,
+            479.4785213470459,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            750.612360572815,
+            480.39639544487,
+            757.387639427185,
+            486.90360455512996
+          ],
+          "base": 81.52912072789215,
+          "relief": 3.072405239313966,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            789.096661567688,
+            77.9605052913382,
+            483.08726396560667,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            789.3725091934205,
+            461.9500019073487,
+            799.3274908065796,
+            466.74999809265137
+          ],
+          "base": 88.58346812600071,
+          "relief": 2.4093230898705116,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            759.4988828659058,
+            84.58346812600071,
+            506.76121482849123,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            949.9859281539917,
+            479.7105340480805,
+            958.0140718460083,
+            488.98946595191956
+          ],
+          "base": 25.96527085667775,
+          "relief": 0.7984468973271639,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            983.0415563583374,
+            21.96527085667775,
+            474.9561136722565,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            969.2500745773316,
+            480.04287910461426,
+            979.4499254226685,
+            487.2571208953857
+          ],
+          "base": 25.59053907044701,
+          "relief": 0.4237151110964241,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            941.5627084732056,
+            21.59170422204308,
+            447.4365047454834,
+            1.0
+          ]
+        },
+        {
+          "role": "house08",
+          "footprint": [
+            1109.1056282043455,
+            460.2480464935303,
+            1119.5943717956543,
+            467.7519535064697
+          ],
+          "base": 27.070281926332047,
+          "relief": 1.4284032738950216,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1082.1940322875976,
+            23.084426585374406,
+            411.7263355255127,
+            1.0
+          ]
+        },
+        {
+          "role": "house09",
+          "footprint": [
+            1128.0249996185303,
+            459.8131801605225,
+            1139.27500038147,
+            468.88681983947754
+          ],
+          "base": 26.84491499061542,
+          "relief": 1.6715698687880227,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1168.1117519378663,
+            22.84491499061542,
+            492.27257881164553,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1110.74639544487,
+            480.26236057281494,
+            1117.25360455513,
+            487.037639427185
+          ],
+          "base": 25.376823959350585,
+          "relief": 0.2099999999999973,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1113.4372639656067,
+            21.80820852279663,
+            448.553338432312,
+            1.0
+          ]
+        },
+        {
+          "role": "house11",
+          "footprint": [
+            1129.633073043823,
+            479.71317729949953,
+            1139.0669269561768,
+            488.28682270050047
+          ],
+          "base": 25.4132650158534,
+          "relief": 0.24644105650281745,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1089.8285213470458,
+            21.4132650158534,
+            457.9481153488159,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1151.9500019073485,
+            459.37250919342046,
+            1156.7499980926514,
+            469.3274908065796
+          ],
+          "base": 26.543807855665186,
+          "relief": 1.3769838963145986,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1196.7612148284911,
+            22.543807855665186,
+            499.20111713409426,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1168.0627403259277,
+            459.93107414245605,
+            1179.2372596740724,
+            467.3689258575439
+          ],
+          "base": 27.156439738417607,
+          "relief": 1.6433478593516142,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1222.346128845215,
+            23.24427099719141,
+            416.223766708374,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1169.852128458023,
+            477.40628833770757,
+            1178.847871541977,
+            491.2937116622925
+          ],
+          "base": 26.81503317223032,
+          "relief": 1.254401601305883,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1175.7688849925994,
+            23.603286956410006,
+            460.1874757766724,
+            1.0
+          ]
+        },
+        {
+          "role": "house03",
+          "footprint": [
+            1309.3489992141722,
+            457.6589994430542,
+            1319.3510007858276,
+            469.64100055694576
+          ],
+          "base": 36.439202280030415,
+          "relief": 2.716614156904015,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1287.076366996765,
+            32.450331659302876,
+            495.74847545623777,
+            1.0
+          ]
+        },
+        {
+          "role": "house04",
+          "footprint": [
+            1327.7947969436646,
+            457.94743690490725,
+            1339.5052030563356,
+            470.05256309509275
+          ],
+          "base": 38.19070330067868,
+          "relief": 2.88585020031136,
+          "matrix": [
+            6.123233995736766e-17,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            6.123233995736766e-17,
+            0.0,
+            1367.897452735901,
+            34.27179136677975,
+            500.75617027282715,
+            1.0
+          ]
+        },
+        {
+          "role": "house06",
+          "footprint": [
+            1309.3605340480804,
+            480.33592815399174,
+            1318.6394659519196,
+            488.3640718460083
+          ],
+          "base": 33.18477562251768,
+          "relief": 1.9747233157111168,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1304.6061136722565,
+            29.184775622517677,
+            455.3084436416626,
+            1.0
+          ]
+        },
+        {
+          "role": "house07",
+          "footprint": [
+            1330.742879104614,
+            478.55007457733154,
+            1337.9571208953857,
+            488.7499254226684
+          ],
+          "base": 35.15379147652297,
+          "relief": 2.064055066772184,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1298.1365047454833,
+            31.154956628119038,
+            516.4372915267944,
+            1.0
+          ]
+        },
+        {
+          "role": "house10",
+          "footprint": [
+            1350.74639544487,
+            480.26236057281494,
+            1357.25360455513,
+            487.037639427185
+          ],
+          "base": 41.23881815876992,
+          "relief": 3.016895265312243,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1354.5627360343933,
+            37.67020272221596,
+            518.746661567688,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1391.9500019073485,
+            459.37250919342046,
+            1396.7499980926514,
+            469.3274908065796
+          ],
+          "base": 57.419023644946094,
+          "relief": 2.3031109108850103,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1351.9387851715087,
+            53.419023644946094,
+            429.4988828659058,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1149.0225091934203,
+            421.9500019073487,
+            1158.9774908065797,
+            426.74999809265137
+          ],
+          "base": 32.10800100916502,
+          "relief": 0.9475689539939616,
+          "matrix": [
+            -1.8369701987210297e-16,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            -1.8369701987210297e-16,
+            0.0,
+            1119.1488828659058,
+            28.108001009165022,
+            466.76121482849123,
+            1.0
+          ]
+        },
+        {
+          "role": "house13",
+          "footprint": [
+            1170.6310741424559,
+            418.06274032592773,
+            1178.068925857544,
+            429.2372596740722
+          ],
+          "base": 33.29584313001616,
+          "relief": 2.064438218290121,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1221.7762332916259,
+            29.383674388789963,
+            472.3461288452148,
+            1.0
+          ]
+        },
+        {
+          "role": "house22",
+          "footprint": [
+            1167.0562883377074,
+            439.8521284580231,
+            1180.9437116622926,
+            448.84787154197693
+          ],
+          "base": 30.1798879386042,
+          "relief": 1.9680405705102082,
+          "matrix": [
+            -1.0,
+            0.0,
+            -1.2246467991473532e-16,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.2246467991473532e-16,
+            0.0,
+            -1.0,
+            0.0,
+            1198.1625242233276,
+            26.968141722783887,
+            445.7688849925995,
+            1.0
+          ]
+        },
+        {
+          "role": "house12",
+          "footprint": [
+            1391.2500019073486,
+            379.37250919342046,
+            1396.0499980926515,
+            389.3274908065796
+          ],
+          "base": 62.835876367693515,
+          "relief": 2.80120906823673,
+          "matrix": [
+            1.0,
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1436.0612148284913,
+            58.835876367693515,
+            419.20111713409426,
+            1.0
+          ]
+        }
+      ],
+      "rejected": {
+        "foundation_relief": 68,
+        "lot_fit": 11,
+        "steep_or_missing_road": 95
+      },
+      "native_house_scale": 1.0,
+      "core_ptc_sha256": "32725bf228ae82613003c077cc59acf307bba1299682d04af8a3d8e9e3c9859f",
+      "fort_clearance_xz": 718.4671582392821
+    },
+    "PuertoRico": {
+      "terrain": 23,
+      "town": 2755,
+      "pruned_bsp_refs": 5560,
+      "blend_triangles": 1371,
+      "blend_bytes": 286554,
+      "terrain_source": "PuertoRico.gm",
+      "reflection_matches_primary": false
+    },
+    "PuertoRico_refl": {
+      "terrain": 23,
+      "town": 2755,
+      "pruned_bsp_refs": 5560,
+      "blend_triangles": 1371,
+      "blend_bytes": 286554,
+      "terrain_source": "PuertoRico.gm",
+      "reflection_matches_primary": true
+    }
+  },
+  "scale_inputs": "generation-20261016.json#raw_scale",
+  "prior_reflection_negative": {
+    "houses_with_reflection_ground_above_base_over2m": 54,
+    "worst_house_center_xz": [
+      1254.0,
+      504.35
+    ],
+    "house_base_y": 25.86198998152274,
+    "old_reflection_y": 66.0692587765066,
+    "source_reflection_sha256": "6c0dc284a2ebada7e25795a6d0c97033cd69cc97ccf8360b0533bbab56b31ad3"
+  }
+}

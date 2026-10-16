@@ -43,6 +43,16 @@ preparation tool, not a shipped runtime dependency. The startup-video preference
 still controls startup; story videos are no longer skipped by the historical
 Wine workaround.
 
+Puerto Rico's sea-town candidate uses
+`tools/prepare_puerto_rico_city.py` before ordinary content synchronization.
+`src/assets/islands/puerto-rico/{layout,manifest}.json` pin placement, stock
+inputs and14 exact outputs; generators remain source and GM/PTC outputs remain
+in the native cache. Delivery receipts adopt the two stock island predecessors
+and track new children/INI/PTC without replacing resource trees. The native
+SeaTown factory is required by `sea.c`; its inhabitants are transient and
+recreated on island load. The fort/locators/seabed are protected inputs.
+See `docs/puerto-rico-city.md` for candidate status and accepting replay.
+
 The installer also delivers the built `resource/shared/messages.h` to the installed app and development runtime in the same rollback transaction as the engine. The script VM reads this header during startup; updating the engine and PROGRAM alone can leave new command names undefined and abort before the menu. Header compilation checks must use the delivered app header, not the source checkout.
 
 `tools/delivery_state.py` owns delivery receipts, admission, atomic rollback and outer-bundle sealing. The installed receipt is `Contents/Resources/.delivery-state.json`; runtime staging records its own `.cache/runtime/.delivery-state.json`. Native staging, script delivery and fresh export record every managed file, including an unchanged file's first adoption. Later versions accept recorded predecessors automatically. The source manifests freeze admission for installations predating receipts; do not extend them per release. Prepared assets validate their manifests independently of destination admission. Missing or corrupt ownership evidence never authorizes an unknown edit. Receipt paths exclude SAVE, settings and logs.

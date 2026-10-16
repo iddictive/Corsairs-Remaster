@@ -73,6 +73,7 @@ void Sea_StormEscapeFrame()
 }
 
 object	Island, IslandReflModel, sLightModel, lighthouseLightModel;
+object SeaTownPopulation;
 object	Touch, AISea;
 object	SeaFader;
 object	Seafoam, BallSplash, SinkEffect, PeopleOnShip, Telescope, SeaOperator, Artifact;
@@ -124,8 +125,16 @@ void SeaTsunami_ClearPending()
     DeleteAttribute(&Sea, "Tsunami.PendingDirectionZ");
 }
 
+void Sea_ClearTownPopulation()
+{
+    if (!IsEntity(&SeaTownPopulation)) return;
+    SendMessage(&SeaTownPopulation, "l", 0);
+    DeleteClass(&SeaTownPopulation);
+}
+
 void DeleteSeaEnvironment()
 {
+    Sea_ClearTownPopulation();
     GreatRecipe_ClearVortex(true);
 	SeaPhonk_Reset(false);
 	SeaTsunami_ClearPending();
@@ -382,6 +391,7 @@ void Sea_LandLoad()
 	if (bSeaActive == false) return;
 	if (bCanEnterToLand == true)
 	{
+		Sea_ClearTownPopulation();
 		LayerFreeze(REALIZE, false);
 		LayerFreeze(EXECUTE, false);
 		Reload(arIslandReload, sIslandLocator, sIslandID);
@@ -1675,6 +1685,7 @@ float SetMaxSeaHeight(int islandIdx)
 // boal <--
 void Sea_LoadIsland(string sIslandID)
 {
+	Sea_ClearTownPopulation();
 	bIsFortAtIsland = false;
 	if (sIslandID == "") { return; }
 
@@ -1740,6 +1751,12 @@ void Sea_LoadIsland(string sIslandID)
 		// Islands[] is saved script state; the transient sea entity only binds it.
 		SendMessage(&Island, "lai", MSG_ISLAND_WORLD_STATE, &Islands[iIslandIndex], &IslandReflModel);
 		SetTexturePath(0, "");
+
+		if (sIslandID == "PuertoRico")
+		{
+			SeaTownPopulation.config = "RESOURCE\INI\sea_towns\puerto_rico.ini";
+			CreateEntity(&SeaTownPopulation, "SeaTown");
+		}
 
 		CreateCoastFoamEnvironment(sIslandID, SEA_EXECUTE, SEA_REALIZE);
 		//eddy. запишем в переменные координаты форта
