@@ -21,14 +21,15 @@
 // Construction, destruction
 // ============================================================================================
 
-PtcData::PtcData()
+PtcData::PtcData(bool reseed)
     : isSlide(false), slideDir(), isBearing(false), stepPos{}
 {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
     using std::chrono::system_clock;
 
-    srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
+    if (reseed)
+        srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
     data = nullptr;
     triangle = nullptr;
     numTriangles = 0;

@@ -37,7 +37,7 @@ class PtcData
     // Construction, destruction
     // --------------------------------------------------------------------------------------------
   public:
-    PtcData();
+    explicit PtcData(bool reseed = true);
     virtual ~PtcData();
 
     // load the patch

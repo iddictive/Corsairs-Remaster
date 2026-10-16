@@ -255,7 +255,7 @@ void SubmitAuthoredWindowMeshes(VDX9RENDER *rs, GEOS *geometry, const char *mode
 // Construction, destruction
 // ============================================================================================
 
-Location::Location()
+Location::Location(bool background) : ptc(!background)
 {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
@@ -269,7 +269,8 @@ Location::Location()
     sphereVertex = nullptr;
     sphereNumTrgs = 0;
     lastLoadStaticModel = -1;
-    srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() | 1);
+    if (!background)
+        srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() | 1);
     isPause = false;
     lights = nullptr;
     curMessage = 0;
@@ -279,7 +280,8 @@ Location::Location()
     enemyBarsCount = 0;
     bDrawBars = true;
     bSwimming = true;
-    bCausticEnable = false;
+    if (!background)
+        bCausticEnable = false;
 }
 
 Location::~Location()

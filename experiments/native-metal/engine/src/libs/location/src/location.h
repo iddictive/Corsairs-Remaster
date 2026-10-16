@@ -58,11 +58,12 @@ class Location : public Entity
     // Construction, destruction
     // --------------------------------------------------------------------------------------------
   public:
-    Location();
+    explicit Location(bool background = false);
     ~Location() override;
 
     // Initialization
     bool Init() override;
+    bool InitBackgroundContext();
     // Execution
     void Execute(uint32_t delta_time);
     void Realize(uint32_t delta_time);

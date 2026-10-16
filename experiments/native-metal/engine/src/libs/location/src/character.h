@@ -198,6 +198,7 @@ class Character : public Entity
 
     // Initialization
     bool Init() override;
+    void BindLocation(entid_t location);
     // Messages
     uint64_t ProcessMessage(MESSAGE &message) override;
     // Changing an attribute
