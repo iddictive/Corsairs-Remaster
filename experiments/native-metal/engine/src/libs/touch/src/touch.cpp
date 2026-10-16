@@ -289,11 +289,38 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
 
             if (wet && !exact)
             {
+                constexpr int depthSteps = 12;
                 // Refine the existing depth barrier; never push an already
                 // overlapping hull out by a fixed distance or rotate its pose.
                 float safe = 0.f, blocked = 1.f;
-                if (pIslandBase->CheckDepthCollision(ends[0], ends[0], fCollisionDepth, 0.f)) blocked = 0.f;
-                else for (int iteration = 0; iteration < 12; ++iteration)
+                if (pIslandBase->CheckDepthCollision(ends[0], ends[0], fCollisionDepth, 0.f))
+                {
+                    // A coarse-cell gradient can oppose the actual route to
+                    // deeper water. Admit only sampled monotone retreat from
+                    // an overlap, rejecting mesh hits on the sampled segments.
+                    float startDepth, endDepth;
+                    bool retreat = pIslandBase->GetCurrentImmersion() == 0.f &&
+                        pIslandBase->GetGroundDepth(ends[0].x, ends[0].z, ends[0].y, startDepth) &&
+                        std::isfinite(startDepth) &&
+                        pIslandBase->GetGroundDepth(ends[1].x, ends[1].z, ends[1].y, endDepth) &&
+                        std::isfinite(endDepth) && endDepth < startDepth;
+                    CVECTOR previous = ends[0];
+                    float previousDepth = retreat ? startDepth : 0.f;
+                    for (int step = 1; retreat && step <= depthSteps; ++step)
+                    {
+                        const auto next = pointAt(float(step) / float(depthSteps));
+                        float depth;
+                        const float crossing = pIslandBase->Trace(previous, next);
+                        retreat = std::isfinite(crossing) && crossing > 1.f &&
+                            pIslandBase->GetGroundDepth(next.x, next.z, next.y, depth) &&
+                            std::isfinite(depth) && depth <= previousDepth;
+                        if (retreat) previousDepth = depth;
+                        previous = next;
+                    }
+                    if (retreat) continue;
+                    blocked = 0.f;
+                }
+                else for (int iteration = 0; iteration < depthSteps; ++iteration)
                 {
                     const float middle = (safe + blocked) * .5f;
                     if (pIslandBase->CheckDepthCollision(ends[0], pointAt(middle), fCollisionDepth, 0.f))

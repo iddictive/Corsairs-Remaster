@@ -1924,6 +1924,93 @@ float SAIL::Pick(const CVECTOR &src, const CVECTOR &dst, entid_t excludeShip, en
     return nearest;
 }
 
+storm::ship::laser_cloth::Hit SAIL::TraceLaserCloth(const CVECTOR &src, const CVECTOR &dst, uint64_t excludeShip)
+{
+    storm::ship::laser_cloth::Hit nearest;
+    if (!bUse || worldMapVisualOnly) return nearest;
+    for (int i=0; i<groupQuantity; ++i) {
+        const auto &group = gdata[i];
+        if (group.bDeleted || !group.bYesShip || group.shipEI == excludeShip ||
+            !core.GetEntityPointer(group.shipEI)) continue;
+        if (!manual_aim::segmentBox(src, dst, group.boxCenter-group.boxSize, group.boxCenter+group.boxSize)) continue;
+        for (int j=0; j<group.sailQuantity; ++j) {
+            const auto *sail = slist[group.sailIdx[j]];
+            if (!sail) continue;
+            auto hit = sail->TraceLaserCloth(src, dst);
+            if (hit.incarnation && hit.fraction < nearest.fraction) {
+                hit.ship = uint64_t(group.shipEI);
+                nearest = std::move(hit);
+            }
+        }
+    }
+    return nearest;
+}
+
+SAILONE *SAIL::FindLaserCloth(const storm::ship::laser_cloth::Hit &hit) const
+{
+    if (!hit || !bUse || worldMapVisualOnly) return nullptr;
+    for (int i=0; i<groupQuantity; ++i) {
+        const auto &group = gdata[i];
+        if (group.bDeleted || !group.bYesShip || uint64_t(group.shipEI) != hit.ship) continue;
+        for (int j=0; j<group.sailQuantity; ++j) {
+            auto *sail = slist[group.sailIdx[j]];
+            if (sail && sail->laserIncarnation == hit.incarnation && !sail->bDeleted && !sail->bFreeSail &&
+                !sail->bRolling && sail->hostNode && sail->groupNum == hit.group &&
+                hit.node == sail->hostNode->GetName() && hit.cell < int(sail->GetMaxHoleCount())) return sail;
+        }
+    }
+    return nullptr;
+}
+
+bool SAIL::ApplyLaserCloth(const storm::ship::laser_cloth::Hit &input, float seconds, int32_t attacker)
+{
+    if (!std::isfinite(seconds) || seconds <= 0.f) return false;
+    const auto hit = input;
+    const entid_t sailEntity = GetId();
+    int character = -1, count = 0, maximum = 0;
+    uint32_t mask = 0;
+    float power = 0.f;
+    {
+        auto *sail = FindLaserCloth(hit);
+        auto *ship = dynamic_cast<VAI_OBJBASE *>(core.GetEntityPointer(entid_t(hit.ship)));
+        auto *attributes = ship ? ship->GetACharacter() : nullptr;
+        if (!sail || !attributes || sail->ss.hole[hit.cell] || gdata[sail->HostNum].speed_m <= 0.f) return false;
+        character = int(attributes->GetAttributeAsDword("index", -1));
+        maximum = int(sail->GetMaxHoleCount()); count = sail->ss.holeCount; mask = sail->GetHoleDword();
+        power = sail->maxSpeed / gdata[sail->HostNum].speed_m;
+    }
+    if (character < 0 || !std::isfinite(power) || power <= 0.f) return false;
+    // Only values cross the script callback. Reacquire the scene and incarnation afterwards.
+    auto *result = core.Event("DoLaserSailDamage", "llslllllff", attacker, character, hit.node.c_str(), hit.group,
+                              hit.cell, count, mask, maximum, power, seconds);
+    if (!result) return false;
+    const float encoded = result->GetFloat();
+    if (!std::isfinite(encoded) || encoded < 1.f || encoded > float(1u << maximum)) return false;
+    const uint32_t nextMask = uint32_t(encoded)-1u;
+    auto *current = dynamic_cast<SAIL *>(core.GetEntityPointer(sailEntity));
+    auto *sail = current ? current->FindLaserCloth(hit) : nullptr;
+    if (!sail) return false;
+    if (nextMask != sail->GetHoleDword()) {
+        sail->SetAllHole(nextMask);
+        sail->CalculateMirrorSailIndex();
+    }
+    return true;
+}
+
+namespace storm::ship::laser_cloth
+{
+Hit Trace(const CVECTOR &from, const CVECTOR &to, uint64_t excludeShip)
+{
+    auto *sail = dynamic_cast<SAIL_BASE *>(core.GetEntityPointer(core.GetEntityId("sail")));
+    return sail ? sail->TraceLaserCloth(from, to, excludeShip) : Hit{};
+}
+bool Apply(const Hit &hit, float seconds, int32_t attacker)
+{
+    auto *sail = dynamic_cast<SAIL_BASE *>(core.GetEntityPointer(core.GetEntityId("sail")));
+    return sail && sail->ApplyLaserCloth(hit, seconds, attacker);
+}
+}
+
 const char *SAIL::GetCollideMaterialName()
 {
     return "sail";

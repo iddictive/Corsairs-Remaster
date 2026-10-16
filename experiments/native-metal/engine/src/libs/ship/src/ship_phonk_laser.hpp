@@ -5,6 +5,7 @@
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_fragment_contact.hpp"
 #include "ship_debris_bridge.hpp"
+#include "ship_laser_cloth_bridge.hpp"
 #include "ship_laser_geometry.hpp"
 #include <array>
 #include <atomic>
@@ -67,6 +68,7 @@ struct LaserRay
     uint64_t target = 0;
     bool worldTarget = false;
     storm::ship::debris::Hit fragment;
+    storm::ship::laser_cloth::Hit cloth;
 };
 struct HullWork
 {

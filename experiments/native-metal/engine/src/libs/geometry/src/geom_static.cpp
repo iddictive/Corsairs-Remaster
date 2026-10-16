@@ -836,9 +836,9 @@ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_s
 bool GEOM::CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&plane,unsigned fragmentLimit,const storm_ship_hull::Vec3*supportAxis,storm_ship_laser::Input&input)
 {
     if(HasPendingHullRebuild())return false;
-    if(worldOwner||!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size()))return false;
-    if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>=storm_hull_damage::MaxFragmentBuffers)return false;
-    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min(fragmentLimit,unsigned(storm_hull_damage::MaxFragmentBuffers-active));next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.hasSupportAxis=supportAxis!=nullptr;if(supportAxis)next.supportAxis=*supportAxis;next.enclosedFragments=laserEnclosedFragments&&!supportAxis;input=std::move(next);return true;
+    if(worldOwner||!owner||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size()))return false;
+    if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>storm_hull_damage::MaxFragmentBuffers)return false;
+    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.hasSupportAxis=supportAxis!=nullptr;if(supportAxis)next.supportAxis=*supportAxis;next.enclosedFragments=laserEnclosedFragments&&!supportAxis;input=std::move(next);return true;
 }
 bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&projection,storm_ship_laser::Result&result)
 {

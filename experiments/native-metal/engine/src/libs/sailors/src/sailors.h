@@ -140,6 +140,7 @@ class ShipWalk
     unsigned hullRevision = 0;
     bool hullSupportInitialized = false;
     float casualtyVisualRemainder = 0.f; // Fractional visible bodies, never saved or applied to crew HP.
+    float casualtyVisualCooldown = 0.f; // Seconds between ordinary blast body groups.
 
     entid_t shipID;
     entid_t bloodID = invalid_entity; // Owned and erased by Sailors, never saved.

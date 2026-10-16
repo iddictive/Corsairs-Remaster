@@ -2,12 +2,13 @@
 
 ## Status
 
-The installed physics batch is identified by `runtime.md`; the player still
-reports sinking after a light coast touch. The source successor repairs duplicate
-grounding-damage timers and damage while native sea motion is frozen. It is not
-built, installed or gameplay-tested: the owner explicitly forbids installation
-for now and will test personally. This identifies real damage-path defects, not
-the proven cause of that particular sinking.
+The installed physics batch is identified by `runtime.md`; the player reports
+light-touch sinking and permanent shore sticking in ordinary mode. Source repairs
+cover duplicate/frozen grounding-damage timers, Phonk control eligibility and
+conservative depth-only egress. They are not built, installed or gameplay-tested:
+the owner forbids installation for now and will test personally. The specific
+ordinary screenshot's cause and HP-death versus sinking-pose distinction remain
+unresolved; these are source defects, not accepted gameplay recovery.
 
 ## Contract
 
@@ -48,6 +49,24 @@ refined on the rotating vertex arc rather than its endpoint chord. Four response
 iterations have a conservative stop for an unresolved remainder; there is no
 1024-step position/yaw separation loop and no legacy radial strength queue.
 
+Phonk previously suppressed ordinary sail input while grounding simultaneously
+disabled its own motor. Grounding now constrains proposed motion without removing
+Phonk thrust/yaw controls. The vertical water/flight adapter still rejects ground
+contact, preserving terrain support. GroundPenetration ignores removed keel
+points, using the same retained-material rule as LandSupport.
+
+Ordinary player AI speed/rotation/avoidance controllers are bypassed, and zero
+speed still admits yaw. SailDown reefs sails to zero; it never commands reverse.
+The contract above means physically separating movement must remain admissible,
+not that ordinary S supplies a new reverse engine. An irregular conservative
+depth raster can give an expanded central-difference normal opposed to actual
+retreat. For an initial wet depth-only overlap, TOUCH now admits strictly deeper
+endpoint travel only when12 native-arc samples have finite nonincreasing ground
+depth and every intervening sampled segment misses the exact mesh. Exact initial
+mesh hits, other hull points, rendered island immersion and the independent
+worsening-penetration guard retain their constraints. This is a bounded sampling
+correction; it does not prove continuous nonpenetration or this screenshot's cause.
+
 ## Grounding damage timer lifecycle
 
 Native `SHIP::CheckShip2Strand` emits every actual grounding state edge.
@@ -58,7 +77,8 @@ Exit stops the looping grounding sound directly; a rejected old callback is not
 responsible for cleanup. Repeated notification of the same state starts no chain.
 Menu, boarding, scene reload, absent sea and scaled pause suppress damage while
 the current chain remains scheduled for resume. Active damage, perks, the
-AlwaysSandbankManeuver exemption and Phonk's final contact budget stay unchanged.
+AlwaysSandbankManeuver exemption stay unchanged. Active-player Phonk protection
+now rejects hull damage and new cuts; its policy belongs to `sea-phonk.md`.
 
 The source counterexample is entry at0ms (callback due100ms), exit at50ms and
 re-entry at70ms (another callback due170ms). Previously both callbacks saw the
@@ -76,7 +96,7 @@ an old pending one-argument queue is not supported by this change.
 
 The remaining timer formula uses raw forward `Ship.Speed.z` at100–200ms intervals.
 It is not a measurement of dissipated contact work; fast tangential grounding
-can still produce large active damage outside the player's active-Phonk budget.
+can still produce large active damage outside the player's active-Phonk protection.
 The native finite-cut structural/flooding paths are separate death mechanisms.
 The current report does not distinguish HP death from a hull sinking pose, so
 the exact instant-sinking path remains unresolved.

@@ -83,12 +83,15 @@ bool BLAST::Init()
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(hullChipMode){
         if (!LoadHullChipAssets(gs, hullChipGeometry)) return false;
-        // The oldest cosmetic burst yields its eight slots to a fresh impact.
-        // Long-lived floating boards must not suppress every subsequent burst.
+        // Retire settled flotsam for a fresh impact, never pop airborne boards
+        // in and out as the remaining guns of the same salvo hit.
         if(!hullChipLease.acquire()){
-            while(!hullChipBursts.empty()){
-                const auto oldest=hullChipBursts.front();hullChipBursts.erase(hullChipBursts.begin());
-                auto*burst=static_cast<BLAST*>(core.GetEntityPointer(oldest));if(!burst)continue;
+            for(size_t n=0;n<hullChipBursts.size();){
+                const auto oldest=hullChipBursts[n];
+                auto*burst=static_cast<BLAST*>(core.GetEntityPointer(oldest));
+                if(!burst){hullChipBursts.erase(hullChipBursts.begin()+n);continue;}
+                if(!std::all_of(burst->Item.begin(),burst->Item.end(),[](const auto&item){return !item.chip.alive||item.chipFloatAge>=2.f;})){++n;continue;}
+                hullChipBursts.erase(hullChipBursts.begin()+n);
                 for(auto&item:burst->Item)item.chip.alive=false;
                 burst->hullChipLease.release();core.EraseEntity(oldest);break;
             }
@@ -96,7 +99,7 @@ bool BLAST::Init()
         }
         hullChipBursts.push_back(GetId());
         Item.resize(storm_ship_hull::ChipLease::particlesPerBurst);ItemsNum=uint32_t(Item.size());
-        for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n<2?0:n<6?1:2].get();item.bDouble=true;item.chip.alive=false;}
+        for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n%hullChipGeometry.size()].get();item.bDouble=true;item.chip.alive=false;}
         return true;
     }
 #endif
@@ -246,7 +249,18 @@ void BLAST::LaunchHullChips(MESSAGE&message)
 {
     storm_ship_hull::Vec3 position,normal;position.x=message.Float();position.y=message.Float();position.z=message.Float();normal.x=message.Float();normal.y=message.Float();normal.z=message.Float();float radius=message.Float();uint32_t seed=uint32_t(message.Long());if(!seed)seed=1;
     if(!storm_ship_hull::finite(position)||!storm_ship_hull::finite(normal)||storm_ship_hull::length(normal)<.9f||!std::isfinite(radius)||radius<storm_hull_damage::MinHitRadius||radius>storm_hull_damage::MaxHitRadius){core.EraseEntity(GetId());return;}
-    normal=storm_ship_hull::normalized(normal);for(auto&item:Item){item.chip=storm_ship_hull::launchChip(position,normal,seed,radius);item.chip.life=60.f;item.chipFloatAge=-1.f;item.chipScale=.12f+storm_ship_hull::randomUnit(seed)*std::min(.25f,radius);}
+    normal=storm_ship_hull::normalized(normal);
+    for(auto&item:Item){
+        item.chip=storm_ship_hull::launchChip(position,normal,seed,radius);
+        item.chip.life=20.f;item.chipFloatAge=-1.f;
+        GEOS::INFO info{};item.geo->GetInfo(info);
+        const float nativeLength=std::max({info.boxsize.x,info.boxsize.y,info.boxsize.z});
+        if(!std::isfinite(nativeLength)||nativeLength<.001f){item.chip.alive=false;continue;}
+        // Keep the authored broken-wood silhouette/material; normalize actual
+        // mesh length instead of shrinking all three models into tiny slivers.
+        const float length=.45f+storm_ship_hull::randomUnit(seed)*std::min(.45f,radius*.7f);
+        item.chipScale=length/nativeLength;
+    }
 }
 void BLAST::StepHullChips(uint32_t delta)
 {
@@ -267,7 +281,7 @@ void BLAST::StepHullChips(uint32_t delta)
             item.chipFloatAge+=floating;const float damping=std::exp(-1.2f*floating);
             chip.position=chip.position+chip.velocity*((1.f-damping)/1.2f);chip.velocity=chip.velocity*damping;
             chip.angles.y+=chip.spin.y*floating;chip.spin=chip.spin*std::exp(-.3f*floating);
-            const float sink=std::max(0.f,item.chipFloatAge-30.f)*.45f;
+            const float sink=std::max(0.f,item.chipFloatAge-8.f)*.6f;
             chip.position.y=chipSea->WaveXZ(chip.position.x,chip.position.z)+.04f-sink;
             if(sink>2.f||chip.age>=chip.life)chip.alive=false;
         }

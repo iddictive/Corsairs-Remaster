@@ -9,6 +9,8 @@
 #include "core.h"
 #include "math_inlines.h"
 #include "sail.h"
+#include <atomic>
+#include <cmath>
 
 extern int32_t g_iBallOwnerIdx;
 
@@ -18,6 +20,9 @@ extern int32_t g_iBallOwnerIdx;
 SAILONE::SAILONE()
     : rollType(0), m_vMastTrace{}, m_fMaxAngle(0), m_fMinAngle(0)
 {
+    // World-map snapshots can construct cloth off-thread; live list slots may be reused.
+    static std::atomic<uint64_t> nextIncarnation{0};
+    laserIncarnation = nextIncarnation.fetch_add(1, std::memory_order_relaxed)+1;
     RenderService = nullptr;
 
     WindUp = false;
@@ -1542,6 +1547,50 @@ void SAILONE::DoTRollSail(SAILVERTEX *pv)
 
     if (sailtrope.pnttie[2])
         *sailtrope.pPos[2] = ss.hardPoints[1];
+}
+
+storm::ship::laser_cloth::Hit SAILONE::TraceLaserCloth(const CVECTOR &src, const CVECTOR &dst) const
+{
+    storm::ship::laser_cloth::Hit hit;
+    if (bDeleted || bFreeSail || bRolling || !pMatWorld || !hostNode) return hit;
+    CVECTOR from, to;
+    pMatWorld->MulToInv(src, from);
+    pMatWorld->MulToInv(dst, to);
+    const CVECTOR direction = to - from;
+    const auto triangle = [&](int cell, const CVECTOR &a, const CVECTOR &b, const CVECTOR &c) {
+        if (ss.hole[cell]) return;
+        const CVECTOR e1 = b-a, e2 = c-a, p = direction ^ e2;
+        const float determinant = e1 | p;
+        if (!std::isfinite(determinant) || fabsf(determinant) < 1.e-8f) return;
+        const CVECTOR t = from-a, q = t ^ e1;
+        const float u = (t | p)/determinant, v = (direction | q)/determinant;
+        const float fraction = (e2 | q)/determinant;
+        if (!std::isfinite(fraction) || u < 0.f || v < 0.f || u+v > 1.f ||
+            fraction < 0.f || fraction > 1.f || fraction >= hit.fraction) return;
+        // Transform vertices, rather than the normal, to retain nonuniform host scale.
+        CVECTOR normal = ((*pMatWorld * b)-(*pMatWorld * a)) ^ ((*pMatWorld * c)-(*pMatWorld * a));
+        const float length = sqrtf(~normal);
+        if (!std::isfinite(length) || length <= 1.e-8f) return;
+        normal *= 1.f/length;
+        if ((normal | (dst-src)) > 0.f) normal = -normal;
+        hit.incarnation = laserIncarnation;
+        hit.node = hostNode->GetName(); hit.group = groupNum; hit.cell = cell;
+        hit.fraction = fraction; hit.point = src+(dst-src)*fraction; hit.normal = normal;
+    };
+    if (ss.eSailType == SAIL_TREANGLE) {
+        for (int i=0, x=0; x<4; ++x)
+            for (int y=0; y<=x; ++y, ++i) {
+                triangle(i, SailPnt[i], SailPnt[i+x+1], SailPnt[i+x+2]);
+                if (y>0) triangle(i, SailPnt[i], SailPnt[i-1], SailPnt[i+x+1]);
+            }
+    } else {
+        for (int x=0, i=0, cell=0; x<3; ++x, ++i)
+            for (int y=0; y<4; ++y, ++i, ++cell) {
+                triangle(cell, SailPnt[i], SailPnt[i+5], SailPnt[i+1]);
+                triangle(cell, SailPnt[i+1], SailPnt[i+5], SailPnt[i+6]);
+            }
+    }
+    return hit;
 }
 
 float SAILONE::Trace(const CVECTOR &src, const CVECTOR &dst, bool bCannonTrace)

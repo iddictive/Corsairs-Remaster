@@ -198,6 +198,7 @@ class SAILONE : public SAILONE_BASE
     void CalculateMirrorSailIndex() override;
     bool GetGrid(CVECTOR &pos, float perspect);
     float Trace(const CVECTOR &src, const CVECTOR &dst, bool bCannonTrace);
+    storm::ship::laser_cloth::Hit TraceLaserCloth(const CVECTOR &, const CVECTOR &) const;
     float SSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace);
     float TSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace);
     float CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst, bool bCannonTrace);
@@ -265,6 +266,7 @@ class SAILONE : public SAILONE_BASE
     float maxSpeed; // Maximum sail speed
     float curSpeed; // Current speed
     float clothDamage = 0.f; // transient continuous loss, saved .dmg remains authoritative
+    uint64_t laserIncarnation = 0;
     uint32_t cannonContactHoles = 0;
     bool cannonContactCallback = false;
 

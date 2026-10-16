@@ -25,6 +25,12 @@ bool SeaPhonk_IsActive()
     return true;
 }
 
+bool SeaPhonk_ProtectsShip(aref character)
+{
+    return SeaPhonk_IsActive() && CheckAttribute(character, "index") &&
+        sti(character.index) == GetMainCharacterIndex();
+}
+
 bool SeaPhonk_Music(string requested)
 {
     if (!SeaPhonk_IsActive())
@@ -101,8 +107,6 @@ void SeaPhonk_Frame()
     float seconds = fHighPrecisionDeltaTime;
     if (seconds <= 0.0) return;
     if (seconds > 0.25) seconds = 0.25;
-    if (CheckAttribute(&Sea, "Phonk.ContactQuiet"))
-        Sea.Phonk.ContactQuiet = stf(Sea.Phonk.ContactQuiet) + seconds;
     float hp = stf(pchar.Ship.HP);
     float maximum = GetCharacterShipHP(pchar);
     if (hp <= 0.0 || maximum <= 0.0) return;
@@ -113,31 +117,7 @@ void SeaPhonk_Frame()
 
 float SeaPhonk_CollisionDamage(ref character, float damage)
 {
-    if (!SeaPhonk_IsActive() || sti(character.index) != GetMainCharacterIndex()) return damage;
-    if (damage <= 0.0 || !CheckAttribute(character, "Ship.HP")) return 0.0;
-    float hp = stf(character.Ship.HP);
-    float maximum = GetCharacterShipHP(character);
-    if (hp <= 0.0 || maximum <= 0.0 || LAi_IsDead(character)) return 0.0;
-    // TOUCH can report one impact repeatedly, and grounding has its own timer.
-    // Share one final, post-perk damage budget until contact has gone quiet.
-    if (!CheckAttribute(&Sea, "Phonk.ContactQuiet") || stf(Sea.Phonk.ContactQuiet) >= 0.75)
-    {
-        float budget = maximum * 0.05;
-        if (budget > hp * 0.25) budget = hp * 0.25;
-        Sea.Phonk.ContactRemaining = budget;
-    }
-    Sea.Phonk.ContactQuiet = 0.0;
-    return SeaPhonk_ConsumeContactDamage(character, damage);
-}
-
-float SeaPhonk_ConsumeContactDamage(ref character, float damage)
-{
-    if (damage <= 0.0) return 0.0;
-    float hp = stf(character.Ship.HP);
-    if (damage > stf(Sea.Phonk.ContactRemaining)) damage = stf(Sea.Phonk.ContactRemaining);
-    // Other damage may have reduced hull since this episode began.
-    if (damage > hp * 0.25) damage = hp * 0.25;
-    Sea.Phonk.ContactRemaining = stf(Sea.Phonk.ContactRemaining) - damage;
+    if (SeaPhonk_ProtectsShip(character)) return 0.0;
     return damage;
 }
 
@@ -161,6 +141,8 @@ int SeaPhonk_HullCut()
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
     // Invalid, removed and already-dead ships settle a native reconciliation.
     if (owner < -1 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return 1;
+    // An existing fatal cut reconciles only after protection is disabled.
+    if (SeaPhonk_ProtectsShip(target)) return 0;
     if (fatal > 0)
     {
         int cause = KILL_BY_TOUCH;
@@ -189,18 +171,13 @@ void SeaPhonk_Flood()
     // handler survives mode exit; no new water enters during a paused frame.
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
     if (owner < -1 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    if (SeaPhonk_ProtectsShip(target)) return;
     float maximum = GetCharacterShipHP(target);
     if (maximum <= 0.0) return;
     fraction = Clampf(fraction);
     float damage = stf(target.Ship.HP) - maximum * (1.0 - fraction);
     float multiplier = Ship_HullDamageMultiplier(target, owner);
     if (fraction >= 1.0) damage = stf(target.Ship.HP) * 10.0 * multiplier;
-    // Ingress during contact belongs to the real impact's HP budget. It must
-    // not refresh contact: later flooding remains a separate, lethal hazard.
-    if (SeaPhonk_IsActive() && sti(target.index) == GetMainCharacterIndex() &&
-        CheckAttribute(&Sea, "Phonk.ContactQuiet") && CheckAttribute(&Sea, "Phonk.ContactRemaining") &&
-        stf(Sea.Phonk.ContactQuiet) < 0.75)
-        damage = SeaPhonk_ConsumeContactDamage(target, damage);
     // Combat perks cannot leave hull above the physical flooding ceiling.
     Ship_ApplyHullHitpoints(target, damage / multiplier, KILL_BY_BALL, owner);
 }

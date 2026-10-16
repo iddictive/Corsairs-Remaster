@@ -19,7 +19,7 @@ namespace
 {
 using namespace storm_ship_hull;
 using Mesh = storm_ship_laser::Mesh;
-constexpr size_t maxFragments = 96;
+constexpr size_t maxFragments = 32;
 constexpr size_t maxSourceTriangles = 8192;
 constexpr size_t maxPieceTriangles = 16384;
 
@@ -292,8 +292,19 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
     // cuts separate it once, retaining both complementary parts exactly once.
     if (laser || randomUnit(impl_->seed) < .2f)
     {
-        const float cutHeight = laser ? .48f : .82f;
-        auto body = split(source, {0, 1, 0}, bounds.lo.y + size.y * cutHeight);
+        Vec3 normal{0, 1, 0};
+        float distance = bounds.lo.y + size.y * .48f;
+        if (!laser)
+        {
+            const float anatomy = randomUnit(impl_->seed);
+            if (anatomy < .4f) distance = bounds.lo.y + size.y * .82f; // Head.
+            else if (anatomy < .8f)
+            {
+                normal = {1, 0, 0};
+                distance = bounds.lo.x + size.x * (randomUnit(impl_->seed) < .5f ? .14f : .86f); // Arm.
+            }
+        }
+        auto body = split(source, normal, distance);
         pieces.push_back(std::move(body.first));
         pieces.push_back(std::move(body.second));
     }
@@ -318,9 +329,10 @@ bool CrewGore::capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool
         const auto random = [&]() { return randomUnit(impl_->seed); };
         // The caller already supplies blast direction and upward lift. Retain
         // a fraction of it for body parts, with only local piece separation.
-        fragment.velocity = impulse * .25f + vector(radial) * (.25f + .75f * random());
-        fragment.spin = CVECTOR(random() - .5f, random() - .5f, random() - .5f) * 12.f;
-        fragment.life = 9.f + 4.f * random();
+        fragment.velocity = impulse * .45f + vector(radial) * (.15f + .35f * random());
+        const float spin = pieces.size() == 1 ? 2.4f : 4.f;
+        fragment.spin = CVECTOR(random() - .5f, random() - .5f, random() - .5f) * spin;
+        fragment.life = 6.f + 3.f * random();
         for (const auto &object : piece)
         {
             if (object.second.empty()) continue;

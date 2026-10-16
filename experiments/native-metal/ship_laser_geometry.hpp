@@ -631,12 +631,15 @@ inline bool beamSeversSupport(const Mesh&before,const Mesh&after,const std::vect
     }return false;
 }
 inline bool prepare(const Input&input,Projection&output){storm_geometry_work::checkpoint(true);
-    if(!input.surface||!input.fragmentLimit||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
+    if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
     auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;
     float removedInterior=0;for(const auto&o:cut.detached.interior)for(const auto&t:o.second)removedInterior+=storm_ship_hull::area(t);
     // A partial bore can remove inner timber before reaching the outer shell.
     // Publish that real material change without charging it as canonical damage.
     if((cut.detachedArea<=1.e-7f&&removedInterior<=1.e-7f)||cut.keptArea+cut.detachedArea<=1.e-7f){output=std::move(next);return true;}
+    // An exhausted output budget still permits untouched nodes in an atomic cut.
+    // Actual material removal requires a fragment slot and must remain unchanged.
+    if(!input.fragmentLimit)return false;
     std::vector<Surface>released;if(input.enclosedFragments&&!input.plane.beams.empty())released=detachEnclosed(*input.surface,cut.kept);
     auto groups=surfaceFragments(std::move(cut.detached),input.plane,input.fragmentLimit,input.wood);if(groups.size()+released.size()>input.fragmentLimit)return false;
     for(auto&piece:released){const auto mesh=canonicalMesh(piece);for(const auto&o:mesh)for(const auto&t:o.second)cut.detachedArea+=storm_ship_hull::area(t);groups.push_back(std::move(piece));}

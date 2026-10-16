@@ -1474,11 +1474,11 @@ void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, flo
     const auto visibleCrew = std::count_if(shipMan.begin(), shipMan.end(), [](const ShipMan &man) {
         return man.mode != MAN_JUMP && man.mode != MAN_SWIM && man.mode != MAN_OFF && !man.inWater;
     });
-    // Low-poly sailors represent the real crew, not one person each. Consume
-    // this hit's whole quota even when no body is near the actual impact.
-    const float quota = float(visibleCrew) * std::clamp(casualtyFraction, 0.f, 1.f) + casualtyVisualRemainder;
-    int deathsRemaining = int(quota);
-    casualtyVisualRemainder = quota - float(deathsRemaining);
+    // Low-poly sailors represent the real crew, not one person each. Preserve
+    // at most two unrepresented bodies when a hit misses the deck proxies;
+    // the next positive-loss deck hit can spend them without a delayed swarm.
+    casualtyVisualRemainder = std::min(2.f, float(visibleCrew) * std::clamp(casualtyFraction, 0.f, 1.f) + casualtyVisualRemainder);
+    int deathsRemaining = casualtyFraction > 0.f && casualtyVisualCooldown <= 0.f ? int(casualtyVisualRemainder) : 0;
     CVECTOR localHit;
     shipModel->mtx.MulToInv(v, localHit);
     ShipMan *wounded = nullptr;
@@ -1504,13 +1504,15 @@ void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, flo
         {
             KillMan(man, bodyImpulse, false, gore, renderer);
             --deathsRemaining;
+            casualtyVisualRemainder -= 1.f;
             deathEmitted = true;
         }
         else FleeImpact(man, localHit, 2.f + 2.f * (1.f - distance / radius));
     }
     // A fractional real casualty can bleed without deleting a whole deck
     // sailor. A represented death already emitted this hit's blood feedback.
-    if (!deathEmitted && wounded) BleedMan(*wounded, woundedImpulse);
+    if (deathEmitted) casualtyVisualCooldown = 1.5f;
+    else if (wounded) BleedMan(*wounded, woundedImpulse);
 }
 
 void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
@@ -1691,6 +1693,7 @@ void Sailors::Realize(uint32_t dltTime)
 
         walk->ReconcileHullSupport();
         walk->RespondToFire(dltTime);
+        walk->casualtyVisualCooldown = std::max(0.f, walk->casualtyVisualCooldown - float(dltTime) * .001f);
 
         auto *character = walk->ship ? walk->ship->GetACharacter() : nullptr;
         const bool preserveDetail = editorMode || !detailViewportValid || !character;

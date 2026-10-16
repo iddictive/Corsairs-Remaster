@@ -1,5 +1,6 @@
 #pragma once
 #include "cannon_trace.h"
+#include "ship_laser_cloth_bridge.hpp"
 
 class NODE;
 
@@ -18,6 +19,9 @@ class SAIL_BASE : public CANNON_TRACE_BASE
     // Trace function
     virtual entid_t GetShipID() = 0;
     virtual SAILONE_BASE *FindSailForCharacter(int chrIdx, const char *nodeName, int grNum) = 0;
+    virtual storm::ship::laser_cloth::Hit TraceLaserCloth(const CVECTOR &, const CVECTOR &, uint64_t)
+    { return {}; }
+    virtual bool ApplyLaserCloth(const storm::ship::laser_cloth::Hit &, float, int32_t) { return false; }
 };
 
 //==================================================

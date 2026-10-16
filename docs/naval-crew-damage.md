@@ -94,15 +94,19 @@ The October16 mod adds spatial reactions to the existing sea ammunition and
 successful native hull cuts. `AIShip.c::Ship_HullHitEvent` sends one visual
 impact after the normal damage calculation; `Sailors` owns temporary escape and
 death, and `crew_gore` snapshots the actual posed sailor mesh. Ordinary casualties
-usually retain one complete corpse, with one anatomical separation in20% of cases;
-laser casualties separate once into two complementary parts. Launch retains25%
+usually retain one complete corpse, with one anatomical separation in20% of cases
+(8% head,8% arm,4% waist); laser casualties separate once into two complementary
+parts. Launch retains45%
 of the caller impulse with no second upward kick. A native successful cut sends its local plane once, never on
 save restoration. Existing fire response, deck support and ammunition casualty
 calculations retain their owners. No new numeric crew loss or SAVE field.
 
 Ordinary hit presentation receives the actual float casualty fraction after
 defence, doctors and the crew floor. Visible deaths scale to the live low-poly
-crew, carrying only a transient fractional remainder; a tiny hit cannot kill all
+crew. At most two unspent visual deaths survive a hit that misses deck proxies,
+and at most two are spent per1.5 game-seconds per ship, only on a subsequent
+positive-loss nearby hit. The former code discarded the whole quota even when
+no sailor was close, suppressing later presentation. A tiny hit cannot kill all
 nearby visible sailors. Positive actual loss can emit blood once from the nearest
 affected retained-deck sailor even without a whole visual death. Represented deaths
 already emit their blood and do not receive a duplicate wound burst. Player
@@ -130,8 +134,10 @@ An extracted actual-method CPU replay passes deck impact, true3D below-hull and
 distant negatives, scaled laser planes, outward graph escape, disabled/fire route
 rejection and no teleport. These component checks do not accept visible gore.
 
-`CrewGore` caps the scene at96 fragments, retains its own texture references and
-expires pieces after9–13 seconds (water shortens that lifetime). Attached Blood
+`CrewGore` caps the scene at32 fragments, retains its own texture references and
+expires pieces after6–9 seconds (water shortens that lifetime). Whole-body spin
+is at most1.2rad/s per axis, separated pieces2rad/s; local separation is reduced.
+These source-only balance changes await the player's visual replay. Attached Blood
 uses at most128 stains/2048 triangles per ship; each lasts180 game-seconds with
 a25-second fade. It follows the live wreck until the receiver disappears.
 Ordinary cannon-hole rendering still has a legacy BSP/mesh mismatch; that
@@ -141,3 +147,14 @@ their current retained geometry to projection and trigger reprojection.
 Canonical combined delivery includes the crew source and successful-cut hook;
 accepting battle replay remains pending. The exact installed runtime verdict is
 owned by `runtime.md`. No game launch/control or player SAVE change occurs.
+
+Cosmetic wood chips reuse `particles/palka01/02/04` through `locator/src/blast.cpp`
+and `ship_hull_chips.hpp`. Their measured authored maximum extents are0.767,
+0.397 and1.356m; the former uniform scale made many pieces0.05–0.28m slivers.
+The source successor normalizes each existing mesh to0.45–0.9m, uses three boards
+per burst and18 in the scene, and limits spin to2rad/s per axis. A saturated pool
+drops a new burst rather than deleting flying boards; only flotsam settled for
+two seconds may yield its lease. Boards float eight seconds, then sink, with a
+20-second absolute lifetime. Real separated hull geometry retains its own owner
+and is not discarded by this cosmetic limit. Existing asset silhouettes/materials
+are reused; source inspection does not accept their visual quality or FPS.

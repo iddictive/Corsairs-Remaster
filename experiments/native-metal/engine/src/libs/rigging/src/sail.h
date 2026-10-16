@@ -120,6 +120,8 @@ class SAIL : public SAIL_BASE
 
     SAILONE_BASE *FindSailForCharacter(int chrIdx, const char *nodeName, int grNum) override;
     float Pick(const CVECTOR &src, const CVECTOR &dst, entid_t excludeShip, entid_t &hitShip) override;
+    storm::ship::laser_cloth::Hit TraceLaserCloth(const CVECTOR &, const CVECTOR &, uint64_t) override;
+    bool ApplyLaserCloth(const storm::ship::laser_cloth::Hit &, float, int32_t) override;
     uint32_t AttributeChanged(ATTRIBUTES *pAttr) override;
 
     void LostRender();
@@ -153,6 +155,7 @@ class SAIL : public SAIL_BASE
     SAILGROUP sg;
 
   private:
+    SAILONE *FindLaserCloth(const storm::ship::laser_cloth::Hit &) const;
     bool worldMapVisualOnly = false;
     SAILTIME tm;
     // list of all sails

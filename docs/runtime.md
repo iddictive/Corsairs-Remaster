@@ -1,8 +1,42 @@
 # Runtime state
 
-Last verified installed delivery: October16,19:01EDT, source `a5a0fae`, signed engine `affdd4dd1b3925d203610f71abdf03f9da759a3040361c081a35109462163533`. Canonical staging exits0;249 protected files are unchanged and239 managed receipt rows match. Combined cannon/laser replay now runs off main, cut workers share a5% allowance, and ordinary trace detail ownership/index guards are repaired. The previous d03e571 player stall/crash is retained below; actual laser holes and CPU/FPS acceptance of this successor remain unresolved. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,19:01EDT, source `a5a0fae`, signed engine `affdd4dd1b3925d203610f71abdf03f9da759a3040361c081a35109462163533`. Canonical staging exits0;249 protected files are unchanged and239 managed receipt rows match at delivery. Player replay now confirms persistent small laser holes/chips but rejects reliable major severance, ordinary shore recovery and visual debris balance; CPU/FPS acceptance remains unresolved. The source successor below is not built or installed, as instructed. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16 — partial holes confirmed; severance, shore and debris successor source-only
+
+The player's19:05/19:08 frames and narration confirm persistent small laser holes,
+some chips and small-ship HP loss. Large hulls still fail to shed a substantial
+bow/stern, some surfaces show little effect, sails transmit the beam, and strong
+rams can sink mostly intact victims. The ordinary-mode ship can stay pinned to
+the beach; the player then separately enables Phonk. A later report rejects both
+the swarm of ambiguous boards/body parts and the now-sparse crew reactions.
+Frames prove neither motion nor a measured FPS improvement. Exact originals and
+scenario limits are retained in
+[private replay evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-shore-ram-laser-1905/README.md).
+
+Source fixes remove the fictitious fragment reservation that left multi-node root
+hulls one output slot, add actual cloth-cell laser contact and saved sail damage,
+feed the existing fire heat owner, and charge successfully removed dry root wood
+to hull HP. Phonk now protects the player's hull/death/cuts/ingress, cancels old
+incoming work and preserves prior damage for mode exit. Its grounded horizontal
+controls remain enabled while terrain still owns vertical support. A narrowly
+certified depth-only overlap route can retreat despite an opposing approximate
+coast normal; exact mesh and worsening-depth constraints remain. Cosmetic boards
+and proportional crew bodies have smaller, slower, bounded populations.
+The topic owners are `sea-phonk.md`, `ship-shore-contact.md` and
+`naval-crew-damage.md`.
+
+Disposition: source-only candidate, inspected as source/diff. No tests/probes,
+compilation, staging, runtime copy or game control. Installed engine hash remains
+`affdd4dd...` on a fresh read; installation remains forbidden. Large-section
+severance and ordinary shore escape need the player's replay. Generic cross-node
+attachment ownership is absent; no whole-assembly acceptance is claimed. Direct
+free-air laser crew contact is not added by the cloth adapter. Instant ordinary
+light-touch sinking still lacks the HP-versus-pose clarification. Root owns the
+source integration; the player owns visual/FPS/gameplay acceptance after a future
+explicit delivery request. No push, ZIP or Drive update.
 
 ### October16 — light shore touch sinking reopened; source timer repair, installation forbidden
 

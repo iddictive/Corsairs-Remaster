@@ -1,5 +1,48 @@
 # Phonk Mode
 
+## Source successor: real separation and cloth contact
+
+The player's19:05/19:08 replay confirms persistent small laser holes and chips,
+including some small-ship damage, but rejects reliable large bow/stern separation.
+This supersedes the earlier report of no holes at all; CPU/FPS is still unmeasured.
+Source changes below are neither built nor installed, and the player owns replay.
+
+Large multi-node models previously reserved one fragment for every later node,
+leaving the root only one slot. A removed bore plus its newly disconnected bow
+needs at least two, so the final severing dose was rejected while earlier holes
+remained. Work now debits actual produced fragments, respecting the same aggregate
+request and eight-group per-GEOM limits. Untouched nodes accept an exhausted
+budget; material removal cannot. SAVE reconstruction uses that same allocation.
+Root connectivity already releases smaller sections of a newly split component;
+pre-existing disconnected authored islands remain independent. No generic
+cross-node attachment graph exists: node origins are transforms, not physical
+sockets. Complete multi-node assembly separation remains unaccepted.
+
+`ship_laser_cloth_bridge.hpp` connects the existing SAIL owner to the camera pick
+and authoritative muzzle ray. The nearest intact cell competes with wood,
+island and loose-fragment contacts; existing cloth holes transmit the beam.
+Sail incarnation/node/group/cell identity is revalidated across the script event.
+`ProcessLaserSailDamage` uses explicit delivered seconds and the shared persisted
+`hc/hd/mhc/sp/dmg` settlement, never cannon scratch state. At the current rate,
+0.2seconds opens one cell; excess dose cannot charge unrelated cells. Ordinary
+cannon tracing/damage is unchanged. Successful cloth contact and exposed wood
+feed the existing spatial fire heat/fuel/SAVE owner at2.0 and0.8heat per second,
+respectively. Successfully removed root wood now charges partial hull HP above
+water as well; mechanical impact HP remains single-owned by TOUCH/script.
+
+Active Phonk now protects only the main player's living ship: hull HP, direct
+ShipDead, new structural cuts and ingress are suppressed. Pending incoming cut
+work is cancelled before publication. Existing cuts/water are retained; their
+fatal reconciliation and flooding resume after mode exit, without time catch-up.
+Flood draft is suspended during protection. This changes the previous finite
+contact-damage policy; NPCs and mode-off damage retain their existing behavior.
+It does not resurrect a dead hull or imply universal avatar/crew immortality.
+
+The source-only shore motor and depth-overlap corrections belong to
+`ship-shore-contact.md`; cannon bodies and cosmetic chips belong to
+`naval-crew-damage.md`. Player frames and scenario limits are retained in
+[the private replay evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-shore-ram-laser-1905/README.md).
+
 ## Player stall, collision-detail crash and cut CPU allowance
 
 The d03e571 player sample binds1479/1518 main-thread stacks to SetHullCuts and
@@ -522,13 +565,9 @@ damped attitude response; airborne motion and water-entry compression keep their
 existing owners. Ordinary/NPC movement and the binary save layout remain.
 
 `PROGRAM/scripts/sea_phonk.c` owns2% maximum hull regeneration per game second
-and the post-perk contact-episode budget: at most5% maximum hull or25% entry
-hull, whichever is smaller, until0.75seconds without damaging contact. Pause,
-reload, death and mode disposal retain their existing guards. The three actual
-ship/island/grounding producers share the final budget in `sea_ai/AIShip.c`.
-This budget protects an intact ship from contact damage. Critical loss of hull
-support is fatal even for the player's Phonk ship; regeneration cannot keep a
-structurally broken half-hull sailing.
+and the main-player protection policy described above. Pause, reload, death and
+mode disposal retain their existing guards. The former5%/25% contact-episode
+budget and active-player structural death have been superseded in source.
 
 The existing mapped `Ship_Fire` input owns the Phonk laser; native camera fire
 does not spend cannon ammunition or alter its reload during the mode. The aimed
@@ -551,7 +590,7 @@ char bands and retained-mesh collision. It reuses the hull BVH; immutable bodies
 have child draw/release tokens and a compatible aggregate token. Shared limits
 allow32 cuts and up to eight groups per node/cut, hence256 body buffers per GEOM;
 previous debris cannot exhaust admission before all supported cuts. SHIP shares
-eight new groups across non-mast nodes, reserving one for each remaining node.
+at least eight new groups across eligible nodes, debiting actual outputs only.
 Fragments inherit point velocity, gravity, wave support and gradual waterlogging,
 collide through native MODEL::Clip, and retire only after full submergence.
 The existing globally bounded wooden-chip entity accompanies actual separation.
@@ -566,7 +605,8 @@ tokens are never drawn or released against replacement GEOM instances.
 
 Damage follows the actually removed geometry. Closed meshes use validated
 volume; the authored open Flyingdutchman mesh falls back to surface area, which
-must not be described as measured mass. Dry upper cuts cause no hull HP loss.
+must not be described as measured mass. Successful laser removal of root wood
+charges partial hull HP for dry and wet cuts; decorative child-only cuts do not.
 Small wet cuts feed progressive flooding. Retaining at most35% of the original
 root material measure, losing35% of the original waterplane, or35% of the draft
 at three of five original keel stations, marks critical
@@ -627,10 +667,9 @@ one game second without more work. A large dose cuts immediately; up to55% of
 the hull's support along the impact normal can separate, at the actual hit point.
 Catastrophic broadside work near midship cuts across the keel at the contact's
 longitudinal position, separating fore/aft pieces; end contacts retain local cuts.
-Phonk protects contact HP, not physical geometry. The separate contact-motion
-adapter and slow mass-dependent yielding policy belong to the collision solver.
-Active-player ingress during the real contact episode shares its final HP budget
-without extending that episode; later flooding remains an ordinary sinking hazard.
+Active-player Phonk protection now rejects new physical damage as well as HP loss;
+existing damage resumes after mode exit. The separate contact-motion adapter and
+slow mass-dependent yielding policy belong to the collision solver.
 Environmental contact uses the existing owner index-1, with the same ingress path.
 
 Source evidence:6000 baseline motion comparisons, held boost/release/brake/air

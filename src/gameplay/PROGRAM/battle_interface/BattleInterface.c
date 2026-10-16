@@ -141,6 +141,7 @@ void InitBattleInterface()
 	SetEventHandler("evntCheckEnableShip","procCheckEnableShip",0);
 	SetEventHandler("evntGetSRollSpeed","procGetSRollSpeed",0);
 	SetEventHandler("DoSailHole","ProcessSailDamage",0);
+	SetEventHandler("DoLaserSailDamage","ProcessLaserSailDamage",0);
 	SetEventHandler("evntBISelectShip","procBISelectShip",0);
 
 	procLoadIntoNew(); // Проинитим таблицу активных перков
@@ -356,6 +357,7 @@ void DeleteBattleInterface()
 	DelEventHandler("evntGetSRollSpeed","procGetSRollSpeed");
 	DelEventHandler("Control Activation","BI_ProcessControlPress");
 	DelEventHandler("DoSailHole","ProcessSailDamage");
+	DelEventHandler("DoLaserSailDamage","ProcessLaserSailDamage");
 	DelEventHandler("evntBISelectShip","procBISelectShip");
 
 	// был сброс времени, выше поднял
@@ -2034,6 +2036,64 @@ void SetParameterData()
 	LanguageCloseFile(idLngFile);
 }
 
+void BI_SettleSailDamage(ref chref, aref arSail, int holeCount, int holeData, int maxHoleCount, float sailPower, float sailDmg)
+{
+	arSail.hc = holeCount;
+	arSail.hd = holeData;
+	arSail.mhc = maxHoleCount;
+	arSail.sp = sailPower;
+	arSail.dmg = sailDmg;
+	chref.ship.SP = CalculateShipSP(chref);
+}
+
+ref ProcessLaserSailDamage()
+{
+	int attacker = GetEventData();
+	int chrIdx = GetEventData();
+	string nodeName = GetEventData();
+	int groupNum = GetEventData();
+	int cell = GetEventData();
+	int holeCount = GetEventData();
+	int holeData = GetEventData();
+	int maximum = GetEventData();
+	float power = GetEventData();
+	float seconds = GetEventData();
+	BI_g_fRetVal = 0.0;
+	if (chrIdx < 0 || chrIdx >= TOTAL_CHARACTERS || attacker < -1 || attacker >= TOTAL_CHARACTERS ||
+		maximum < 1 || maximum > 12 || cell < 0 || cell >= maximum || seconds <= 0.0 || power <= 0.0)
+		return &BI_g_fRetVal;
+	ref target = GetCharacter(chrIdx);
+	if (!bSeaActive || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0 ||
+		LAi_IsImmortal(target) || SeaPhonk_ProtectsShip(target)) return &BI_g_fRetVal;
+	string groupName = ""+groupNum;
+	aref arSail;
+	makearef(arSail,target.ship.sails.(nodeName).(groupName));
+	int bit = 1;
+	for (int i=0; i<cell; i++) bit = bit*2;
+	int shifted = makeint(holeData/bit);
+	if (shifted != makeint(shifted/2)*2) return &BI_g_fRetVal;
+	float maximumDamage = GetCharacterShipSP(target)*power;
+	if (maximumDamage <= 0.0) return &BI_g_fRetVal;
+	float damage = 0.0;
+	if (CheckAttribute(arSail,"dmg")) damage = stf(arSail.dmg);
+	float nextHoleDamage = GetNeedDmgFromHole(holeCount+1,maximumDamage,maximum);
+	// One contacted cell burns in 0.2 seconds; excess time cannot damage uncontacted cells.
+	float nextDamage = damage + maximumDamage/maximum*5.0*seconds;
+	if (nextDamage > nextHoleDamage) nextDamage = nextHoleDamage;
+	if (nextDamage < damage) nextDamage = damage;
+	if (nextDamage > maximumDamage) nextDamage = maximumDamage;
+	if (nextDamage <= damage && nextDamage < nextHoleDamage) return &BI_g_fRetVal;
+	if (nextDamage >= nextHoleDamage)
+	{
+		holeData = holeData + bit;
+		holeCount++;
+	}
+	BI_SettleSailDamage(target,arSail,holeCount,holeData,maximum,power,nextDamage);
+	// A positive encoded mask distinguishes accepted sub-hole heat from rejection.
+	BI_g_fRetVal = holeData+1;
+	return &BI_g_fRetVal;
+}
+
 ref ProcessSailDamage()
 {
 	// от кого удар
@@ -2106,13 +2166,7 @@ ref ProcessSailDamage()
 		Log_SetStringtoLog("MUST DIE!!! " + sailDmg);
 	}*/
 
-	arSail.hc = holeCount;
-	arSail.hd = holeData;
-	arSail.mhc = maxHoleCount;
-	arSail.sp = sailPower;
-	arSail.dmg = sailDmg;
-
-	chref.ship.SP = CalculateShipSP(chref);
+	BI_SettleSailDamage(chref,arSail,holeCount,holeData,maxHoleCount,sailPower,sailDmg);
 	BI_g_fRetVal = sailDmg;
 	return &BI_g_fRetVal;
 }

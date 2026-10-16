@@ -300,7 +300,9 @@ bool SHIP::PhonkActive()
 
 bool SHIP::PhonkMotionAllowed()
 {
-    if (!PhonkActive() || bSetFixed || bGroundMoveBlocked || bShip2Strand)
+    // Grounding constrains the proposed movement, not the controls needed to
+    // leave it. Sail controls stay mode-owned while Phonk is active.
+    if (!PhonkActive() || bSetFixed)
         return false;
     auto *character = GetACharacter();
     const auto *stopped = character->FindAClass(character, "Ship.Stopped");
@@ -879,7 +881,9 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision)
         if (bLandContact) State.vPos.y = ground;
     }
     State.vRotate.y -= eventYaw;
-    if (PhonkMotionAllowed() && pSea)
+    // The motor remains usable while grounded; terrain support still owns Y,
+    // and grounding must not restart the water/flight adapter.
+    if (PhonkMotionAllowed() && pSea && !bLandContact && !bGroundMoveBlocked && !bShip2Strand)
     {
         const auto waveAfter = pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
         float surface = State.vPos.y;
@@ -1004,7 +1008,7 @@ void SHIP::CalculateImmersion(float seconds)
     auto *pAShipImmersion = GetACharacter()->FindAClass(GetACharacter(), "Ship.Immersion");
     State.fShipImmersion = (pAShipImmersion) ? pAShipImmersion->GetAttributeAsFloat() : 0.0f;
     CVECTOR target(0.f);
-    if (std::isfinite(phonkLaser.flooded) && phonkLaser.flooded > 0.f &&
+    if (!PhonkActive() && std::isfinite(phonkLaser.flooded) && phonkLaser.flooded > 0.f &&
         phonkLaser.originalWaterplaneArea > .001f && phonkLaser.floodCapacity > 0.f)
     {
         // Added water displaces its volume through the original waterplane.
@@ -1050,6 +1054,7 @@ float SHIP::GroundPenetration(const SHIP_STATE &state)
     float penetration = 0.0f;
     for (int i = 0; i < MAX_KEEL_POINTS; ++i)
     {
+        if (!IsHullPositionRetained(vKeelContour[i])) continue;
         const CVECTOR point = pose * vKeelContour[i];
         float depth;
         if (pIsland->GetGroundDepth(point.x, point.z, point.y, depth))

@@ -2680,10 +2680,8 @@ void Ship_SailDamage()
 
 float Ship_ContactMaterialFraction(ref target, float hullBefore, float rawDamage, int owner)
 {
-	if (!SeaPhonk_IsActive() || sti(target.index) != GetMainCharacterIndex()) return 1.0;
-	float requestedDamage = rawDamage * Ship_HullDamageMultiplier(target, owner);
-	if (requestedDamage <= 0.0) return 0.0;
-	return Clampf((hullBefore - Ship_GetHP(target)) / requestedDamage);
+    if (SeaPhonk_ProtectsShip(target)) return 0.0;
+    return 1.0;
 }
 
 float Ship_Ship2IslandCollision()
@@ -2866,7 +2864,7 @@ float Ship_HullDamageMultiplier(ref rOurCharacter, int iKillerCharacterIndex)
 
 void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex, bool collision, bool structuralFailure)
 {
-	if (LAi_IsImmortal(rOurCharacter)) { return; }
+	if (LAi_IsImmortal(rOurCharacter) || SeaPhonk_ProtectsShip(rOurCharacter)) { return; }
 
 	float fCurHP;
 	//float fAccuracy = 0.0;
@@ -2937,11 +2935,11 @@ void Ship_AddCharacterExp(ref rCharacter, int iExpQuantity)
 
 void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterIndex)
 {
+    ref rDead, rKillerCharacter, rBaseShip, rKillerBaseShip, sld;
+    rDead = GetCharacter(iDeadCharacterIndex);
+    if (SeaPhonk_ProtectsShip(rDead)) return;
     if (GreatRecipe_ClaimDeath(iDeadCharacterIndex)) return;
 	if (WdmHarbourClaimLoss(iDeadCharacterIndex, "native")) return;
-	ref rDead, rKillerCharacter, rBaseShip, rKillerBaseShip, sld;
-
-	rDead = GetCharacter(iDeadCharacterIndex);
 	if (!CheckAttribute(rDead, "Ship.Type")) // fix
     {
         if (MOD_BETTATESTMODE == "On") Log_Info("Error: ShipDead Нет корабля у iDeadCharacterIndex = "+iDeadCharacterIndex);

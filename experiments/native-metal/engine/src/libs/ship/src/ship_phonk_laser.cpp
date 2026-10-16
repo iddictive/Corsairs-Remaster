@@ -357,6 +357,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
                             int32_t sourceOwner, ATTRIBUTES *attacker, bool payPartialDamage,
                             const CVECTOR &fragmentImpulse, float impactRadius)
 {
+    if (!restoring && PhonkActive()) return false;
     for (const auto &beam : plane.beams)
         if (!storm_hull_damage::validPhysicalBeamDimensions(beam.radius, beam.depth)) return false;
     if (restoring) return ApplyPhonkLaserCutNow(plane, true, sourceOwner, attacker, payPartialDamage);
@@ -448,8 +449,8 @@ bool SHIP::StartPhonkLaserWork() try
             CVECTOR local; node->glob_mtx.MulToInvNorm(model->mtx * (mast.vDst - mast.vSrc) - model->mtx.Pos(), local);
             axis = storm_ship_hull::normalized({local.x, local.y, local.z}); support = &axis; break;
         }
-        // Reserve one group for every other node. Worker distribution then
-        // consumes the remaining shared fragment budget in model order.
+        // Capture this geometry's remaining buffer allowance. The worker debits
+        // only actual outputs; untouched later nodes need no reserved fragment.
         if (!node->geo->CaptureLaserInput(uint64_t(blots_id), nodeCutField(model->mtx, node, plane), budget,
                                           support, target.input)) return false;
         work.targets.push_back(std::move(target));
@@ -458,14 +459,15 @@ bool SHIP::StartPhonkLaserWork() try
     auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget, allowance = storm_geometry_work::allowance()]() mutable {
         try {
             storm_geometry_work::Scope scope(allowance, cancel);
-            unsigned remaining = budget, nodes = unsigned(work.targets.size());
+            unsigned remaining = budget;
             for (auto &target : work.targets) {
                 if (cancel->load(std::memory_order_relaxed)) return std::move(work);
-                target.input.fragmentLimit = remaining - (nodes ? nodes - 1 : 0);
+                target.input.fragmentLimit = std::min(target.input.fragmentLimit, remaining);
                 if (!storm_ship_laser::prepare(target.input, target.projection)) return std::move(work);
                 if (target.node == 0 && !target.projection.result.changed && work.request.plane.beams.empty()) return std::move(work);
-                if (target.projection.result.changed) remaining -= unsigned(target.projection.result.fragments.size());
-                --nodes;
+                const auto produced = unsigned(target.projection.result.fragments.size());
+                if (produced > remaining) return std::move(work);
+                remaining -= produced;
             }
             work.valid = !cancel->load(std::memory_order_relaxed);
         } catch (const std::exception &) { work.valid = false; }
@@ -573,8 +575,7 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
     for (int n = 0; auto *node = model->GetNode(n); ++n)
         if (node->geo && (!IsAuthoredMastNode(node) || !plane.beams.empty())) ++pendingNodes;
     unsigned cutBudget = std::max(storm_hull_damage::MaxFragmentGroups, pendingNodes);
-    const auto fragmentBudget = [&]
-    { return restoring ? 1u : cutBudget - (pendingNodes ? pendingNodes - 1 : 0); };
+    const auto fragmentBudget = [&] { return cutBudget; };
     CMatrix modelWorld = model->mtx;
     if (prepared)
     {
@@ -678,7 +679,10 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
     {
         if (!result.fragment) return;
         if (restoring)
-        { node->geo->ReleaseLaserFragment(owner, result.fragment); return; }
+        {
+            cutBudget -= unsigned(result.fragments.size());
+            node->geo->ReleaseLaserFragment(owner, result.fragment); return;
+        }
         const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
         const CVECTOR shipVelocity = phonkDrift.initialized ?
             CVECTOR(KNOTS2METERS(phonkDrift.worldX), phonkFlight.velocity, KNOTS2METERS(phonkDrift.worldZ)) :
@@ -823,7 +827,7 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
             core.Send_Message(sailors, "laffffl", MSG_PEOPLES_ON_SHIP_HULLCUT,
                 GetACharacter(), plane.normal.x, plane.normal.y, plane.normal.z,
                 plane.beams.empty() ? plane.distance : float(phonkLaser.cuts.size() - 1), int32_t(plane.beams.empty() ? plane.charred : 2));
-        PublishHullCut(payPartialDamage && phonkLaser.wetCut ? removed : 0.f, plane.charred);
+        PublishHullCut(payPartialDamage ? removed : 0.f, plane.charred);
     }
     return true;
 #else
@@ -1440,6 +1444,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         }
     }
     if (!deltaTime) return;
+    if (PhonkActive() && (phonkLaserWork.active || !phonkLaserWork.requests.empty()))
+        CancelPhonkLaserWork();
     PollPhonkLaserWork(deltaTime);
     phonkLaser.time += deltaTime * .001;
     if (phonkLaser.structuralFailure && !phonkLaser.failureReported)
@@ -1474,8 +1480,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.sampleClock += seconds;
     for (auto &edge : phonkLaser.edges) edge.age += seconds;
     std::erase_if(phonkLaser.edges, [](const auto &edge) { return edge.age >= 5.f; });
-    phonkLaser.floodClock += seconds;
-    if (!isDead() && pSea && !phonkLaser.breaches.empty() && phonkLaser.floodClock >= .25f)
+    if (!PhonkActive()) phonkLaser.floodClock += seconds;
+    if (!PhonkActive() && !isDead() && pSea && !phonkLaser.breaches.empty() && phonkLaser.floodClock >= .25f)
     {
         const float elapsed = phonkLaser.floodClock;
         phonkLaser.floodClock = 0.f;
@@ -1543,6 +1549,10 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     if (!automatic)
         if (const auto piece = storm::ship::debris::Trace(camera, end); piece && piece.fraction < nearest)
         { nearest = piece.fraction; worldTarget = 0; }
+    if (!automatic)
+        if (const auto cloth = storm::ship::laser_cloth::Trace(camera, end, uint64_t(GetId()));
+            cloth && cloth.fraction < nearest)
+        { nearest = cloth.fraction; worldTarget = 0; }
     struct Receiver { SHIP *ship; storm_ship_hull::Bounds bounds; bool bounded; };
     std::vector<Receiver> receivers;
     for (const auto id : core.GetEntityIds("ship"))
@@ -1601,6 +1611,13 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             const float hit = ship->GetModel()->TraceLaserMaterial(muzzle, rayEnd);
             if (hit >= 0.f && hit < fraction)
             { fraction = hit; receiver = ship; worldReceiver = 0; ray.fragment = {}; }
+        }
+        const auto cloth = storm::ship::laser_cloth::Trace(muzzle, rayEnd, uint64_t(GetId()));
+        if (cloth && cloth.fraction < fraction)
+        {
+            auto *ship = dynamic_cast<SHIP *>(core.GetEntityPointer(cloth.ship));
+            if (ship && ship->bMounted && ship->GetModel())
+            { fraction = cloth.fraction; receiver = ship; worldReceiver = 0; ray.fragment = {}; ray.cloth = cloth; }
         }
         GetModel()->mtx.MulToInv(muzzle, ray.muzzle);
         ray.endpoint = muzzle + (rayEnd - muzzle) * fraction;
@@ -1670,6 +1687,25 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         return;
     }
     phonkLaser.fragment = {};
+    if (ray.cloth)
+    {
+        // Cloth owns its existing cell mask and saved sail damage. Never pass a
+        // sail contact into the wood cutter or spend it on a hidden hull.
+        commitBeam(true);
+        if (phonkLaser.contact != ray.target || phonkLaser.contactWorld) phonkLaser.burn = 0.f;
+        phonkLaser.contact = ray.target; phonkLaser.contactWorld = false;
+        phonkLaser.lastHit = ray.localHit;
+        if (phonkLaser.triggerAge * 16000.f < std::sqrt(~(ray.endpoint - phonkLaser.muzzle))) return;
+        const int32_t owner = int32_t(GetACharacter()->GetAttributeAsDword("index"));
+        if (storm::ship::laser_cloth::Apply(ray.cloth, sampleTime, owner))
+        {
+            phonkLaser.burn += sampleTime;
+            // Apply crosses the script boundary: reacquire the live receiver.
+            if (auto *ship = dynamic_cast<SHIP *>(core.GetEntityPointer(ray.target)); ship && ship->bMounted)
+                ship->IgniteShipFire(ray.endpoint, sampleTime * 2.f, owner, true);
+        }
+        return;
+    }
     if (!target && !worldTarget) { commitBeam(); phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
     CVECTOR hit = phonkLaser.endpoint;
     if (target) target->GetModel()->mtx.MulToInv(phonkLaser.endpoint, hit);
@@ -1687,6 +1723,13 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         commitBeam(true);
     if (doseBlocked && !phonkLaser.pendingBeam.empty()) return;
     if (phonkLaser.triggerAge * 16000.f < std::sqrt(~(phonkLaser.endpoint - phonkLaser.muzzle))) return;
+    if (target && !target->PhonkActive())
+    {
+        const auto *immortal = target->GetACharacter()->FindAClass(target->GetACharacter(), "chr_ai.immortal");
+        if (!immortal || !immortal->GetAttributeAsDword())
+            target->IgniteShipFire(phonkLaser.endpoint, sampleTime * .8f,
+                int32_t(GetACharacter()->GetAttributeAsDword("index")), false);
+    }
     const auto directionWorld = !(phonkLaser.endpoint - phonkLaser.muzzle);
     auto directionLocal = directionWorld;
     if (target) target->GetModel()->mtx.MulToInvNorm(directionWorld, directionLocal);
@@ -1898,7 +1941,7 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
 {
     // TOUCH owns collision work and HP damage. This hook owns only actual
     // material loss; the same retained geometry/contour/ingress serves both jobs.
-    if (!bMounted || !GetACharacter() || !GetModel() || !GetModel()->GetNode(0) || !GetModel()->GetNode(0)->geo ||
+    if (!bMounted || PhonkActive() || !GetACharacter() || !GetModel() || !GetModel()->GetNode(0) || !GetModel()->GetNode(0)->geo ||
         !finite(worldPoint) || !finite(outwardNormal) ||
         !std::isfinite(specificEnergy) || specificEnergy <= 0.f) return;
     auto *ship = GetACharacter() ? GetACharacter()->GetAttributeClass("Ship") : nullptr;
