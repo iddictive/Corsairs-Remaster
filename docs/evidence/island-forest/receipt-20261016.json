@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-16",
+  "state": "User accepted16..31m trees and settlement clearance from native source469b20; source hashes892d4c69/694c68f8 remain frozen. Acid-green ground appearance is the current separate visual complaint; no product ground-color change here. Root owns staging and real-game judgment.",
+  "host": {
+    "cpu": "Apple M3 Max",
+    "os": "macOS27.0.1",
+    "architecture": "arm64",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)"
+  },
+  "source_sha256": {
+    "island_forest.hpp": "6564087c188c999f9fd0d1a07e17610e733e3cf3a2730f6c06e95076994a5ee4",
+    "island_forest_bridge.hpp": "3aac5a60f94ad28de96a213075140f2c938a082299722476b9467872ca1b5a45",
+    "island_forest_shaders.hpp": "9cd190128f679e69dc81936e9d096006c9878c516318ee83b54fb85c90de633f",
+    "backend.mm": "fb377b08305fe898d10c41fd3906410350a07032832bef5995b4727acc740da8",
+    "engine/src/libs/location/src/grass.cpp": "030f82dc323c2ba474ba14c696562c129397f58b7dffb23c7861abbc6f7bbdf0",
+    "engine/src/libs/location/src/grass.h": "fecfdf4bf9b23d4e4e0aec44e98373dc0c5fd291ac393c67c5192499f8f47475",
+    "engine/src/libs/island/include/island_base.h": "9d7cc56aa9f319dfaff4e8653bded313ffd1e91184dde3e5b4ee070f9682ed78",
+    "engine/src/libs/island/src/island.h": "8923f149421a9cec371778a7d87448a7dd9c9421dce89789740ca5f118e721f3",
+    "engine/src/libs/island/src/island_world_cuts.cpp": "767ab5f904f0387eba17dff3a280529891bb1314819460ae510acc3fc1e5b21a",
+    "engine/src/libs/location/src/forest_vendor/proctree.cpp": "2e20ab0fef829845006758a5412794fd58022959cbcc8a772babde9ac7b4ee3f",
+    "engine/src/libs/location/src/forest_vendor/proctree.h": "16f7401922442d2a6333288a5f75cf31705c5cbbd4ba00758ba34a977853abde",
+    "island_geometry.py": "53fd0d126212493a2a7a4749400008efd9528155fac50fb66f0796815dfdabb5"
+  },
+  "asset_sha256": {
+    "RESOURCE/MODELS/Islands/Antigua/Antigua.gm": "1981f38a23ffac9ccb1af8fc6bf28236d670b463973172a3f949d9293f638ea4",
+    "RESOURCE/MODELS/Islands/PortoBello/PortoBello.gm": "a2663e014f95bc564592ea887700cd27237ede3be628611d6adf8129aaaeee1e",
+    "RESOURCE/TEXTURES/WoodBark1.tga.tx": "3e0c93aac5c9ee631d956a3b985c4374baa3fcf5ad945f4ecb9de09088c0994b",
+    "RESOURCE/TEXTURES/leafPalms.tga.tx": "e9063a60e46ba63bb3f5714883550d434e1550cd9493134e2b58249907d656f0"
+  },
+  "upstream": {
+    "url": "https://github.com/jarikomppa/proctree",
+    "commit": "45baecbf7fbff295942648a89f801c102799b848",
+    "local_files_unmodified": true
+  },
+  "measurement": {
+    "scope": "Placement::advance over original primary GM triangles only. Does not measure engine extraction, other receivers, renderer, GPU, frame FPS or installed game.",
+    "compile_flags": "/usr/bin/clang++ -std=c++20 -O2; no NDEBUG; native arm64",
+    "seed": 87423,
+    "work_per_step": 32768,
+    "determinism_comparison_work_per_step": 12817,
+    "cold_first_run_stdout": [
+      "Antigua.faces triangles=62428 roots=517 y=17.6155..219.996 summit=1010.25 steps=14 peak_ms=0.346791 total_ms=4.02996",
+      "PortoBello.faces triangles=104038 roots=5933 y=17.4776..706.646 summit=1442.02 steps=17 peak_ms=0.366459 total_ms=6.49167"
+    ],
+    "cold_first_run_source": "placement-20261016-before-authored-snapshot.hpp",
+    "cold_first_run_source_sha256": "92161799e197f4912e51d754c507abc7e0a7b10b0c62b94e613a855b559ef6c5",
+    "pre_change_rerun_log": "placement-20261016-before-authored-snapshot.txt",
+    "current_log": "placement-20261016-authored.txt",
+    "delta": "Root center changed from surfaceY-0.15 to exact surfaceY for support/cut queries; root counts and slope/elevation rules unchanged.",
+    "root_independent_oracle": "All517 Antigua and5933 PortoBello exact-surface roots pass independent top-down original-triangle intersection; zero water/roof/rock/steep hits. See retained oracle source/stdout."
+  },
+  "api_probe": {
+    "source": "authored-snapshot-20261016.cpp.txt",
+    "method_source": "island_world_cuts.cpp WorldAuthoredMatrix/GetWorldSurfaces verbatim, minimal fake entity registry for CPU-only execution",
+    "stdout": "PASS production-authored-transform methods: dipped primary/seabed independent, fort retained, reflection excluded, read-only snapshot and node-local composition"
+  },
+  "checks": {
+    "native_syntax": [
+      "grass.cpp pass",
+      "island_world_cuts.cpp pass",
+      "backend.mm pass",
+      "temporary render.cpp pass"
+    ],
+    "ordinary_grass": "existing vegetation_continuity_probe.py pass; islandForestConsumer location negative pass",
+    "offline_metal": "xcrun metal could not execute: missing Metal Toolchain; no install attempted"
+  },
+  "replay": [
+    "Run from repository root; create a task-owned mktemp directory and use it as <task-dir>. Generated faces/roots/native frames stay there.",
+    "PYTHONDONTWRITEBYTECODE=1 python3 docs/evidence/island-forest/extract-20261016.py experiments/native-metal/.cache/runtime/RESOURCE/MODELS/Islands <task-dir>",
+    "/usr/bin/clang++ -std=c++20 -O2 -Iexperiments/native-metal -x c++ docs/evidence/island-forest/measurement-20261016.cpp.txt experiments/native-metal/engine/src/libs/location/src/forest_vendor/proctree.cpp -o <task-dir>/placement",
+    "<task-dir>/placement <task-dir>/Antigua.faces <task-dir>/PortoBello.faces",
+    "For the preserved pre-change run, copy placement-20261016-before-authored-snapshot.hpp to <task-dir>/island_forest.hpp and prepend -I<task-dir> before -Iexperiments/native-metal. Same pinned vendor and bridge/geometry inputs are used.",
+    "Native standalone render source is render-20261016.cpp.txt; root owns compilation/link against the freshly built libstorm_metal.a, libcloud_noise_assets.a, SDL2 and Metal/MetalFX/Cocoa/QuartzCore. Arguments: <task-dir>/Antigua.faces <task-dir>/Antigua.faces.roots experiments/native-metal/.cache/runtime/RESOURCE/TEXTURES <task-dir>/native-antigua. Produces frames at wind times0/2/4.",
+    "PYTHONDONTWRITEBYTECODE=1 python3 docs/evidence/island-forest/top-surface-oracle-20261016.py.txt <task-dir>",
+    "Alternatively unpack native-inputs-20261016.tar.xz into a task-owned temporary directory; it contains the exact native render/CPU-oracle inputs."
+  ],
+  "retention": "This directory is immutable task evidence, not a permanent test target or CI harness. Temporary native run-render.sh belongs to root until native acceptance; source and required reproduction inputs are retained here. Raw logs normalize only their disposable directory prefix.",
+  "native_inputs": {
+    "path": "native-inputs-20261016.tar.xz",
+    "sha256": "ae42cd79a50ff26c269cf754c75f0a17e49928c1a9871bf4578c21e4a68695e6",
+    "bytes": 1883044,
+    "consumer": "render-20261016.cpp.txt, standalone native component render; not installed game assets",
+    "source_geometry": "Original GM triangle exports; extractor source and original asset hashes retained",
+    "files": {
+      "Antigua.faces": "655ee63fa14eedc1e4e4771ad59f6e9f52ce34ae36f797f36f6963ccd42325cb",
+      "Antigua.faces.roots": "4743542ad471bba50c5ad9b34aa45d224b193e9539ea7807be06d8329feab9db",
+      "PortoBello.faces": "7990f133b0bfba5c374389b1be6d120984964d3c1a3def157f925e7aee0e1994",
+      "PortoBello.faces.roots": "e93c38ac3991d857d478383abf824c97bcc546f22942679b64d73b4051bf2a55"
+    }
+  },
+  "evidence_sha256": {
+    "authored-snapshot-20261016.cpp.txt": "47a67bed13b621fbed15bf17bf4b715ed02e379f073a9d698ec877cc0bfdc24e",
+    "native-inputs-20261016.tar.xz": "ae42cd79a50ff26c269cf754c75f0a17e49928c1a9871bf4578c21e4a68695e6",
+    "top-surface-oracle-20261016.txt": "1783904be4e84b5508374184a6365ee7ac09fdea1b11417e1d2f02bbcf97a15e",
+    "extract-20261016.py": "0f417628d041c80ef2591c35e9d6bdcceb263d34bd1d375e999588eda9bf33f3",
+    "placement-20261016-before-authored-snapshot.txt": "5766201cc6476a646fd7b9f42481de5a36ace2738da1b4b4c3c67e1dd02c0100",
+    "placement-20261016-before-authored-snapshot.hpp": "92161799e197f4912e51d754c507abc7e0a7b10b0c62b94e613a855b559ef6c5",
+    "placement-20261016-authored.txt": "51e361c892fa6e88200a12d33fd5646efbcd565711bbffb8f5b81a3472c53387",
+    "render-20261016.cpp.txt": "3c90482ce722e4d1b40b5411cf5b5a793d8815bf3539c8b39923217a01df4789",
+    "measurement-20261016.cpp.txt": "41324377cb88636841efe10d0be4dceae9c2ee9182112c38c1a5e462af96898f",
+    "top-surface-oracle-20261016.py.txt": "1a031cda6eff818e4613c3bdce9491854c1f5d53135474e813c72e32e8524a75",
+    "measurement-20261016-settlement.cpp.txt": "b32b87743502e233e176a71d8e5650f9cef159f74b5262f367a92c4ccc9bbb12",
+    "measurement-20261016-scene.cpp.txt": "777126b3f9707cbffc214834ec7330ad99ebccbcd236f0347792c9a3a22f8789",
+    "native-inputs-20261016-calibrated-settlement.tar.xz": "8b846e94e181808591f3c33ed7dde054bcbfbef92fd7e7bb987db1c6aca5710c",
+    "extract-20261016-settlement.py": "9b57772117f6d5a07d16b0df1f97b285eeb6598f8035a47add612c30abe91884",
+    "settlement-oracle-20261016.py.txt": "cc4d9c0802afc3e59025f1e8dc40a55a8438210543c1464737d69d29798477f0",
+    "placement-20261016-rejected-houseplant.hpp": "6564087c188c999f9fd0d1a07e17610e733e3cf3a2730f6c06e95076994a5ee4",
+    "placement-20261016-scene-rejected.txt": "d86e9e36355789c433ab357742da614192e89f3e7d87d5848b185225ba08a512",
+    "placement-20261016-settlement-16384.txt": "65714cb8443822e802aca4b62186a984a9c3999d9a87ed2bc4df175608c359f8",
+    "placement-20261016-scene-16384.txt": "73a800e98fef26bce2d810680eb22b738f13ab58bdd57c047414b84ac1d905e4",
+    "grass-syntax-20261016-settlement.txt": "80d46fd661e76862d78ea71b0f9bd741c53b354bcf3a2658675be65b31f02359",
+    "placement-20261016-scene-32768.txt": "974c1d02c9a9a3efe5998cd029bdba40b9b43c745ef5fbeb1e689b19fc405389",
+    "placement-20261016-settlement-32768.txt": "c1d8e69a45e11088f21d1230f8483cb04c48c990d518786625570a602d391191",
+    "settlement-oracle-20261016.txt": "a7e5d2a8922dc329e2bb1e628928499a2d23d873006d0e00be6862f6e561cbcd",
+    "top-surface-oracle-20261016-settlement.txt": "a3719439c686de153be3f0e29b9dd5b2418d7a02b533e54309bcefb3b47d9f62",
+    "intake-20261016-settlement.txt": "5fee403b586b370c0d31365a72ed856e513cfbca2fd8e7d0d65bf87088882658",
+    "placement-20261016-rejected-sparse.hpp": "892d4c6995771f614362aa6baf459c652d6d41c1dbc04e2d977e99d78a4dcf10",
+    "native-20261016-rejected-sparse.png": "cdcd6facc0b11f7a1e759a708f6d02ec7358ec3cb75cdce03ae28eede479c460",
+    "canopy-mesh-20261016.cpp.txt": "c1aaa60858ea31da7c23745185ac055933dedbb2f79adc1b4c74fac5a7e11411"
+  },
+  "corrections": [
+    {
+      "date": "2026-10-16",
+      "trigger": "Native standalone Metal compiler rejected island_forest_vs parameter vertex: reserved MSL qualifier; program_source426 invalid vertex_id.",
+      "change": "Rename the vertex parameter and its mesh index reference to vertexIndex. Other vertex/fragment/kernel tokens in this shader are function qualifiers only.",
+      "prior_source_sha256": "9cd190128f679e69dc81936e9d096006c9878c516318ee83b54fb85c90de633f",
+      "corrected_source_sha256": "22d84e61828ad748cd8ca1bcef4be52784e53e70230164d3b165c9856160b328",
+      "failure_log": ".local-archives/metal-renderer-evidence/island-forest-20261016/native-render.log",
+      "failure_log_sha256": "99c06b4994fc83b74cd15460fafd21b632b486573ea1afee46d40c10eec3ffea",
+      "verification": "Source-only exact rename; no build/GPU/staging performed. Root owns runtime compiler replay."
+    },
+    {
+      "date": "2026-10-16",
+      "trigger": "Native image had isolated giant broad leaves; actual CORE Mount image planted forest through/among authored Antigua houses and streets.",
+      "previous_header_sha256": "6564087c188c999f9fd0d1a07e17610e733e3cf3a2730f6c06e95076994a5ee4",
+      "previous_header": "placement-20261016-rejected-houseplant.hpp",
+      "rejected_native_images": [
+        {
+          "path": ".local-archives/metal-renderer-evidence/island-forest-20261016/native-antigua-0.png",
+          "sha256": "07631325337770f66d2324307d4fe76a8081204ac9e3ba0d0d31262ebdde45cf",
+          "dimensions": [
+            960,
+            640
+          ]
+        },
+        {
+          "path": ".local-archives/metal-renderer-evidence/phonk-current-20261016/forest-outputs/Antigua-forest.png",
+          "sha256": "766f0e217b954d807c96354832e233816f2018af9ec15fb0f687a65a1eaec578",
+          "dimensions": [
+            1920,
+            1200
+          ]
+        }
+      ],
+      "source_sha256": {
+        "island_forest.hpp": "892d4c6995771f614362aa6baf459c652d6d41c1dbc04e2d977e99d78a4dcf10",
+        "engine/src/libs/location/src/grass.cpp": "694c68f8cd1a58fd69b78b1b6b854e42207915caf301d07ca3cf36d64a93e920"
+      },
+      "mesh_delta": "Height16..31m before existing elevation factor, near1128 branch+1152 leaf vertices (192 paired small-leaf cards around32 terminal anchors), far264+384 (64 cards around8 anchors); previous total2364/648, current2280/648. Shared GPU ABI, depth/shadow/wind,4096 visible/180k shadow limits unchanged. Native visual acceptance pending.",
+      "settlement_delta": "Material role town/fort/house/roof/wall/brick/road/street/paving marks authored triangles as settlement (suitability=-1); projected triangle interior/edges prohibit roots within64m. Existing raster work remains incremental. All VISIBLE geometry obstructs, only primary collision-enabled jungle grows. Authored frame/current visible transform and exact support root retained.",
+      "discovery": "Antigua5 and PortoBello9 primary objects all flags0xc1f (VISIBLE+COLLISION). Thus the observed city defect was point-only roof rejection, not omitted noncollidable town geometry. Actual town/fort textures BridgeTown_Sea2099/12545 triangles, fortstone1 16421, MargaritaFort3407. Intake raw/source retained.",
+      "measurement": {
+        "inputs": "Original primary GM only; no secondary fort receivers or GPU/frame FPS. Same exact geometry hashes; new face inputs only encode settlement role in existing suitability field. Stable seed87423 and fixture-path lowercase FNV identities2313956129/1278740843 retained separately.",
+        "work_per_step": 16384,
+        "determinism_comparison_work_per_step": 12817,
+        "performance": "Expanded settlement relations include3 projected edge distances;32768-run peak .395/.476ms stable seed and .663/.661ms fixture seed. New engine budget16384: .250/.233ms stable seed; .460/.316ms fixture seed. Single process timings under shared host load; not a hard wall-clock guarantee. Both work-budget raw runs retained.",
+        "counts": "Stable seed517->479 Antigua,5933->5877 PortoBello. Actual fixture path identities524->488,5874->5832. Exactly roots inside settlement clearance removed, retained XYZ unchanged.",
+        "negative": "Independent triangle distance/interior oracle: zero new roots within settlement+64m;36 forbidden prior Antigua fixture-identity rootXYZ retained raw. Independent top-surface oracle: zero water/roof/rock/gap/steep violations479/5877; ordinary location consumer negative and material negatives pass.",
+        "sources": [
+          "measurement-20261016-settlement.cpp.txt",
+          "measurement-20261016-scene.cpp.txt",
+          "extract-20261016-settlement.py",
+          "settlement-oracle-20261016.py.txt"
+        ],
+        "raw_logs": [
+          "intake-20261016-settlement.txt",
+          "placement-20261016-settlement-32768.txt",
+          "placement-20261016-settlement-16384.txt",
+          "placement-20261016-scene-32768.txt",
+          "placement-20261016-scene-16384.txt",
+          "placement-20261016-scene-rejected.txt",
+          "settlement-oracle-20261016.txt",
+          "top-surface-oracle-20261016-settlement.txt",
+          "grass-syntax-20261016-settlement.txt"
+        ]
+      },
+      "reproduction": [
+        "Unpack native-inputs-20261016-calibrated-settlement.tar.xz into <task-dir>/calibrated-settlement. Original pre-change native-inputs archive remains separate and unchanged.",
+        "/usr/bin/clang++ -std=c++20 -O2 -Iexperiments/native-metal -x c++ docs/evidence/island-forest/measurement-20261016-settlement.cpp.txt experiments/native-metal/engine/src/libs/location/src/forest_vendor/proctree.cpp -o <task-dir>/placement",
+        "<task-dir>/placement <task-dir>/calibrated-settlement/Antigua.faces <task-dir>/calibrated-settlement/PortoBello.faces",
+        "Compile measurement-20261016-scene.cpp.txt identically for fixture identities; use separate scene directory faces copied from calibrated faces. To reproduce rejected scene roots, prepend an include directory containing placement-20261016-rejected-houseplant.hpp renamed island_forest.hpp.",
+        "PYTHONDONTWRITEBYTECODE=1 python3 docs/evidence/island-forest/extract-20261016-settlement.py experiments/native-metal/.cache/runtime/RESOURCE/MODELS/Islands <task-dir>/calibrated-settlement",
+        "Run settlement-oracle-20261016.py.txt with the calibrated-settlement directory after unpacking the original archive into its parent and copying new faces to scene and previous-scene. Run original top-surface oracle with calibrated-settlement directory.",
+        "Native render invocation unchanged: freshly root-linked renderer <task-dir>/calibrated-settlement/Antigua.faces <task-dir>/calibrated-settlement/Antigua.faces.roots experiments/native-metal/.cache/runtime/RESOURCE/TEXTURES <new-output-prefix>. Existing render source retained; root owns native execution."
+      ],
+      "native_inputs": {
+        "path": "native-inputs-20261016-calibrated-settlement.tar.xz",
+        "sha256": "8b846e94e181808591f3c33ed7dde054bcbfbef92fd7e7bb987db1c6aca5710c",
+        "bytes": 2043948,
+        "files": {
+          "Antigua.faces": "1b98ba03eda18beb0beb7db68a8eaad727e39e3fc72d457fe154741d5c5f6340",
+          "Antigua.faces.roots": "830cba59de165b2c1157295ea6a6345c16583a0b8dadd9da9fc9c441c95253b1",
+          "PortoBello.faces": "43e09d48191d86ec47c44ea50eca1f0acc7f7ae4a0c46d03bab6681a7f3a517d",
+          "PortoBello.faces.roots": "e3bcf2f8ca944ae8b09074b88a501f45848af0a9a8dadd91dab8222f931d60c0",
+          "scene/Antigua.faces.roots": "8b547bbd587a88e9d3175cfb1c55fc5a2738a9e40792e140b42e3bcd61b9098a",
+          "scene/PortoBello.faces.roots": "b4a04a4fa60b00c43a28a55496fdf1191f4a6893cff63d3acbf077e70604c3b0",
+          "previous-scene/Antigua.faces.roots": "680e57cedd4e6241820fcad2ec12eb8035d8157f282aeba1b3f03958c98c4152",
+          "previous-scene/PortoBello.faces.roots": "d39742382e75422c2b9ec161383161f88d8ecc4e08f931e6645acf560fc9a548"
+        }
+      },
+      "checks": "Final grass.cpp -fsyntax-only exit0 using exact owning ninja compiler flags stripped -o/-MD/-MF/-MT/-MQ/-c/-v; raw warnings/log retained. Earlier syntax attempt retained dependency flags and rewrote grass.cpp.o.d only; no native object/build/GPU/app/index/staging by child. Diff whitespace check pass."
+    }
+  ],
+  "deferred_canopy_alternative": {
+    "disposition": "Stopped before any product edit when user accepted current morphology and clarified ground texture as complaint. No atlas, mesh, texture consumer, backend, shader or placement delta applied. No further canopy work requested.",
+    "finding": "Existing Tree.tga.tx512x512 contains two transparent branch sprays with about8..10 small leaf silhouettes each; considered as an alternative to leafPalms but not implemented or accepted. Current source remains the previously released mesh.",
+    "retained_already_created_evidence": [
+      "placement-20261016-rejected-sparse.hpp",
+      "native-20261016-rejected-sparse.png",
+      "canopy-mesh-20261016.cpp.txt"
+    ],
+    "annotation": "Filenames reflect the superseded morphology diagnosis, not the final user acceptance. Temporary decoded contact sheet and CPU mesh export remain under the root-owned temporary forest directory; no new native replay was run."
+  },
+  "root_delivery": {
+    "state": "latest16\u201331m tree form and settlement exclusion accepted by human; ground recoloring deferred to player review",
+    "canonical_stage_exit": 0,
+    "native_source_sha256": "469b2025045b0ac2036ca2132eda33687f434b37e2227c40f2a0fcce8c116dd0",
+    "unsigned_engine_sha256": "f0f1e56441c6b8c8fe8e1d8dbec2e75eaea3a71a02ce418c7542b53a3a90ae24",
+    "installed_engine_sha256": "5b57e16b57afb2d76dfc6e21f1601e5533212c1403ff8d66fa813a64ee92a97d",
+    "native_current_evidence": ".local-archives/metal-renderer-evidence/phonk-current-20261016/README.md",
+    "native_root_support_neighbor": "PASS",
+    "player_gameplay_lighting_and_fps": "unresolved; no agent game control",
+    "tree_atlas_change": "deferred per human steering; no product change",
+    "ground_texture": "unchanged"
+  }
+}

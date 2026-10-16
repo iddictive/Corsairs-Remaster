@@ -1,0 +1,45 @@
+"""Independent double-precision top-down triangle oracle over exported inputs."""
+from pathlib import Path
+import struct
+import math
+import sys
+root = Path(sys.argv[1])
+for name in ('Antigua', 'PortoBello'):
+    faces = list(struct.iter_unpack('<11f?3x', (root / (name + '.faces')).read_bytes()))
+    roots = list(struct.iter_unpack('<8f', (root / (name + '.faces.roots')).read_bytes()))
+    bins = {}
+    side = 256
+    for i, f in enumerate(faces):
+        points = [f[j:j+3] for j in (0, 3, 6)]
+        x0, x1 = math.floor(min(v[0] for v in points)/side), math.floor(max(v[0] for v in points)/side)
+        z0, z1 = math.floor(min(v[2] for v in points)/side), math.floor(max(v[2] for v in points)/side)
+        for z in range(z0, z1+1):
+            for x in range(x0, x1+1):
+                bins.setdefault((x, z), []).append(i)
+    errors = dict(water=0, roof_or_rock=0, root_gap=0, steep=0)
+    maximum_error = 0
+    for r in roots:
+        best, hit = -math.inf, None
+        for i in bins.get((math.floor(r[0]/side), math.floor(r[2]/side)), []):
+            f = faces[i]
+            a, b, c = f[:3], f[3:6], f[6:9]
+            den = (b[2]-c[2])*(a[0]-c[0])+(c[0]-b[0])*(a[2]-c[2])
+            if abs(den) < 1e-6:
+                continue
+            u = ((b[2]-c[2])*(r[0]-c[0])+(c[0]-b[0])*(r[2]-c[2]))/den
+            v = ((c[2]-a[2])*(r[0]-c[0])+(a[0]-c[0])*(r[2]-c[2]))/den
+            w = 1-u-v
+            if min(u, v, w) < -1e-5:
+                continue
+            y = u*a[1]+v*b[1]+w*c[1]
+            if y > best:
+                best, hit = y, f
+        gap = abs(best-r[1])
+        maximum_error = max(maximum_error, gap)
+        errors['water'] += best <= 0
+        errors['roof_or_rock'] += hit is None or hit[10] <= 0
+        errors['root_gap'] += gap > .01
+        errors['steep'] += hit is None or hit[9] <= .62
+    print(name, 'roots', len(roots), 'top-surface violations', errors, 'maximum surfaceY error', maximum_error)
+    if sum(errors.values()):
+        raise SystemExit(1)

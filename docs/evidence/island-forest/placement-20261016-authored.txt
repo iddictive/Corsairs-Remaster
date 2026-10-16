@@ -1,0 +1,6 @@
+mesh 0/0 branches=2124 leaves=240
+mesh 0/1 branches=552 leaves=96
+mesh 1/0 branches=2124 leaves=240
+mesh 1/1 branches=552 leaves=96
+<task-dir>/Antigua.faces triangles=62428 roots=517 y=17.7655..220.146 summit=1010.25 steps=14 peak_ms=0.351708 total_ms=4.28742
+<task-dir>/PortoBello.faces triangles=104038 roots=5933 y=17.6276..706.796 summit=1442.02 steps=17 peak_ms=0.343625 total_ms=6.44325

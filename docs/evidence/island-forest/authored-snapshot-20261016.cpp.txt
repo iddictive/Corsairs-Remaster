@@ -1,0 +1,31 @@
+#include "matrix.h"
+#include <map>
+#include <vector>
+#include <cassert>
+#include <cstdio>
+using entid_t=uint64_t;
+struct Entity{virtual ~Entity()=default;};struct MODEL:Entity{CMatrix mtx;};
+struct FakeCore{std::map<entid_t,Entity*> models;Entity*GetEntityPointer(entid_t id){return models[id];}}core;
+struct ISLAND_BASE{struct WorldSurface{entid_t model;CMatrix authored;};};
+struct ISLAND:ISLAND_BASE{entid_t model_id=1,seabed_id=2,worldReflection=4;CMatrix mIslandOld,mSeaBedOld;std::vector<entid_t>WorldModels()const{return {1,2,3,4};}CMatrix WorldAuthoredMatrix(entid_t)const;std::vector<WorldSurface>GetWorldSurfaces()const;};
+CMatrix ISLAND::WorldAuthoredMatrix(entid_t id) const
+{
+    if(id==model_id)return mIslandOld;
+    if(id==seabed_id)return mSeaBedOld;
+    auto*model=dynamic_cast<MODEL*>(core.GetEntityPointer(id));
+    return model ? model->mtx : CMatrix();
+}
+
+std::vector<ISLAND_BASE::WorldSurface> ISLAND::GetWorldSurfaces() const
+{
+    std::vector<WorldSurface> result;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    for(const auto id:WorldModels())if(id!=worldReflection)result.push_back({id,WorldAuthoredMatrix(id)});
+#else
+    if(model_id)result.push_back({model_id,WorldAuthoredMatrix(model_id)});
+#endif
+    return result;
+}
+
+
+int main(){ISLAND island;MODEL primary,seabed,fort,reflection;core.models={{1,&primary},{2,&seabed},{3,&fort},{4,&reflection}};island.mIslandOld.BuildPosition(120,20,-90);island.mSeaBedOld.BuildPosition(0,-4,0);primary.mtx.BuildPosition(120,-70,-90);seabed.mtx.BuildPosition(0,-94,0);fort.mtx.BuildPosition(3,5,7);auto before=primary.mtx;auto a=island.GetWorldSurfaces();assert(a.size()==3&&a[0].model==1&&a[1].model==2&&a[2].model==3);assert(a[0].authored.Pos().y==20&&a[1].authored.Pos().y==-4&&a[2].authored.Pos().y==5);assert(primary.mtx.Pos().y==before.Pos().y);primary.mtx.BuildPosition(120,-260,-90);auto b=island.GetWorldSurfaces();assert(b[0].authored.Pos().y==20&&b[1].authored.Pos().y==-4);CMatrix parent,child;parent.BuildPosition(2,3,4);child.BuildPosition(7,11,13);auto node=child*parent;node=node*a[0].authored;CVECTOR p(1.f,2.f,3.f),local;island.mIslandOld.MulToInv(node*p,local);assert(local.x==10&&local.y==16&&local.z==20);std::puts("PASS production-authored-transform methods: dipped primary/seabed independent, fort retained, reflection excluded, read-only snapshot and node-local composition");}

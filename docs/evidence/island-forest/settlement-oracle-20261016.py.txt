@@ -1,0 +1,45 @@
+"""One-off independent XZ settlement-footprint oracle, previous/new roots."""
+from pathlib import Path
+import math
+import struct
+import sys
+
+directory = Path(sys.argv[1])
+for name in ('Antigua', 'PortoBello'):
+    faces = [f for f in struct.iter_unpack('<11f?3x', (directory / (name + '.faces')).read_bytes()) if f[10] < 0]
+    bins = {}
+    for i, f in enumerate(faces):
+        for z in range(math.floor((min(f[2], f[5], f[8])-64)/128), math.floor((max(f[2], f[5], f[8])+64)/128)+1):
+            for x in range(math.floor((min(f[0], f[3], f[6])-64)/128), math.floor((max(f[0], f[3], f[6])+64)/128)+1):
+                bins.setdefault((x, z), []).append(i)
+
+    def blocked(root):
+        x, _, z = root[:3]
+        for i in bins.get((math.floor(x/128), math.floor(z/128)), []):
+            f = faces[i]
+            p = [(f[j], f[j+2]) for j in (0, 3, 6)]
+            crosses = [(b[0]-a[0])*(z-a[1])-(b[1]-a[1])*(x-a[0]) for a, b in zip(p, p[1:]+p[:1])]
+            if max(crosses) > 1e-8 and min(crosses) > -1e-8 or min(crosses) < -1e-8 and max(crosses) < 1e-8:
+                return True
+            for a, b in zip(p, p[1:]+p[:1]):
+                dx, dz = b[0]-a[0], b[1]-a[1]
+                length = dx*dx+dz*dz
+                t = max(0, min(1, ((x-a[0])*dx+(z-a[1])*dz)/length)) if length else 0
+                if (x-a[0]-t*dx)**2+(z-a[1]-t*dz)**2 <= 64**2:
+                    return True
+        return False
+
+    for current, previous in ((directory, directory.parent), (directory / 'scene', directory / 'previous-scene')):
+        before = list(struct.iter_unpack('<8f', (previous / (name + '.faces.roots')).read_bytes()))
+        after = list(struct.iter_unpack('<8f', (current / (name + '.faces.roots')).read_bytes()))
+        before_positions, after_positions = {r[:3] for r in before}, {r[:3] for r in after}
+        forbidden = [r for r in before if blocked(r)]
+        remaining = [r for r in after if blocked(r)]
+        assert not remaining
+        assert before_positions-after_positions == {r[:3] for r in forbidden}
+        assert after_positions <= before_positions
+        print(name, current.name, 'roots', len(before), '->', len(after), 'previous settlement roots', len(forbidden), 'current settlement roots', len(remaining), 'height range', (min(r[3] for r in after), max(r[3] for r in after)))
+        if name == 'Antigua' and current.name == 'scene':
+            print('Formerly planted Antigua native-fixture identity cells, authored XYZ:')
+            for r in forbidden:
+                print('%.6f %.6f %.6f' % r[:3])

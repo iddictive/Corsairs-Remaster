@@ -14,12 +14,15 @@
 #include "dx9render.h"
 #include "grs.h"
 #include "vma.hpp"
+#include <memory>
 
 #define MSG_GRASS_LOAD_DATA 40666
 #define MSG_GRASS_SET_TEXTURE 41666
 #define MSG_GRASS_SET_PARAM 42666
 
 class GEOS;
+class ISLAND_BASE;
+struct IslandForestState;
 
 class Character;
 
@@ -169,11 +172,12 @@ class Grass : public Entity
     // --------------------------------------------------------------------------------------------
   private:
     // Render block
-    void RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPlanes, int32_t mx, int32_t mz);
+    void RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPlanes, int32_t mx, int32_t mz,
+                     ISLAND_BASE *island);
     // Box visibility check
     bool VisibleTest(const PLANE *plane, int32_t numPlanes, const CVECTOR &min, const CVECTOR &max);
     // Render block
-    void RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha);
+    void RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha, ISLAND_BASE *island);
     // Draw the contents of the buffer
     void DrawBuffer();
     // Get the color
@@ -220,6 +224,7 @@ class Grass : public Entity
 
 #ifdef STORM_METAL_GRASS_BRIDGE
     std::vector<MetalInstance> metalInstances;
+    std::unique_ptr<IslandForestState> islandForest;
 #endif
     RenderQuality quality; // Rendering quality
 

@@ -1,0 +1,18 @@
+#include "island_forest.hpp"
+#include <fstream>
+#include <iostream>
+#include <chrono>
+#include <cassert>
+#include <cstring>
+using namespace storm_island_forest;
+int main(int argc,char**argv){
+ assert(!islandForestConsumer("resource/models/locations/Jungle/Jungle.grs","Grass/grass.tga"));assert(islandForestConsumer("resource/models/islands/Antigua/Antigua_jungles.grs","Grass/junglesprites.tga"));
+ for(const char *name:{"rockK2.tga","beach.tga","fortstone1.tga","MargaritaFort.TGA","BridgeTown_Sea.tga"})assert(groundSuitability(name)==0);
+ for(unsigned v=0;v<VariantCount;v++)for(unsigned l=0;l<LodCount;l++){auto m=makeMesh(v,l);assert(m.branches.size()&&m.leaves.size());for(const auto*part:{&m.branches,&m.leaves})for(const auto&vert:*part)for(float f:vert.position)assert(std::isfinite(f));std::cout<<"mesh "<<v<<'/'<<l<<" branches="<<m.branches.size()<<" leaves="<<m.leaves.size()<<'\n';}
+ for(int a=1;a<argc;a++){
+  Placement p,q;std::ifstream in(argv[a],std::ios::binary);assert(in);Triangle t;while(in.read((char*)&t,sizeof(t))){p.add(t);q.add(t);}std::cout<<argv[a]<<" triangles="<<p.triangleCount();p.seal(87423);q.seal(87423);unsigned steps=0;double peak=0;auto begin=std::chrono::steady_clock::now();
+  while(!p.ready()){auto b=std::chrono::steady_clock::now();p.advance(32768);peak=std::max(peak,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-b).count());assert(++steps<10000);}while(!q.ready())q.advance(12817);
+  assert(p.roots.size()==q.roots.size()&&p.roots.size()>0);assert(!std::memcmp(p.roots.data(),q.roots.data(),p.roots.size()*sizeof(Instance)));float lo=INFINITY,hi=-INFINITY;for(const auto&r:p.roots){lo=std::min(lo,r.root[1]);hi=std::max(hi,r.root[1]);assert(r.root[1]>0&&r.root[1]<p.terrainSummit()*.72f);}
+  std::cout<<" roots="<<p.roots.size()<<" y="<<lo<<".."<<hi<<" summit="<<p.terrainSummit()<<" steps="<<steps<<" peak_ms="<<peak<<" total_ms="<<std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count()<<'\n';std::ofstream out(std::string(argv[a])+".roots",std::ios::binary);out.write((char*)p.roots.data(),p.roots.size()*sizeof(Instance));
+ }
+}

@@ -2,6 +2,7 @@
 
 #include "cannon_trace.h"
 #include "ship_hull_damage_bridge.hpp"
+#include "matrix.h"
 #include <vector>
 
 struct FRECT;
@@ -9,6 +10,10 @@ struct FRECT;
 class ISLAND_BASE : public CANNON_TRACE_BASE
 {
   public:
+    struct WorldSurface { entid_t model; CMatrix authored; };
+    // Value snapshot of physical static receivers. Reflection-only geometry is
+    // excluded; visible island immersion never changes this authored frame.
+    virtual std::vector<WorldSurface> GetWorldSurfaces() const { return {}; }
     virtual entid_t GetModelEID() = 0;
 
     virtual bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth) = 0;

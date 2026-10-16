@@ -6,6 +6,25 @@
 #include <algorithm>
 #include <cmath>
 
+CMatrix ISLAND::WorldAuthoredMatrix(entid_t id) const
+{
+    if(id==model_id)return mIslandOld;
+    if(id==seabed_id)return mSeaBedOld;
+    auto*model=dynamic_cast<MODEL*>(core.GetEntityPointer(id));
+    return model ? model->mtx : CMatrix();
+}
+
+std::vector<ISLAND_BASE::WorldSurface> ISLAND::GetWorldSurfaces() const
+{
+    std::vector<WorldSurface> result;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    for(const auto id:WorldModels())if(id!=worldReflection)result.push_back({id,WorldAuthoredMatrix(id)});
+#else
+    if(model_id)result.push_back({model_id,WorldAuthoredMatrix(model_id)});
+#endif
+    return result;
+}
+
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 namespace
 {
@@ -141,8 +160,7 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
         anyDirty = true;
         const auto visible = model->mtx;
         // Records use the authored world, never the decorative distant-island dip.
-        if (id == model_id) model->mtx = mIslandOld;
-        if (id == seabed_id) model->mtx = mSeaBedOld;
+        model->mtx = WorldAuthoredMatrix(id);
         model->Update();
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
@@ -185,8 +203,7 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
         if (id == worldReflection) worldAccepted.clear();
         auto *model = static_cast<MODEL *>(core.GetEntityPointer(id));
         const auto visible = model->mtx;
-        if (id == model_id) model->mtx = mIslandOld;
-        if (id == seabed_id) model->mtx = mSeaBedOld;
+        model->mtx = WorldAuthoredMatrix(id);
         model->Update();
         bool valid = true;
         for (int n = 0; auto *node = model->GetNode(n); ++n)
@@ -262,7 +279,7 @@ bool ISLAND::StartWorldCutWork() try
         auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const auto key=WorldModelKey(id);std::vector<storm_world_cut::Cut>selected;
         for(unsigned field=0;field<records.size();++field){const auto&record=records[field];
             if(record.scope=="*"||record.scope==key||(record.scope=="terrain"&&key!="terrain")){selected.push_back(record.cut);selected.back().field=field;}}
-        const auto visible=model->mtx;if(id==model_id)model->mtx=mIslandOld;if(id==seabed_id)model->mtx=mSeaBedOld;model->Update();
+        const auto visible=model->mtx;model->mtx=WorldAuthoredMatrix(id);model->Update();
         RestoreWorldMatrix restore{model,visible};
         bool valid=true,first=true;
         for(int n=0;auto*node=model->GetNode(n);++n){if(!node->geo)continue;WorldWorkTarget target;
@@ -317,7 +334,7 @@ void ISLAND::PollWorldCutWork(uint32_t delta)
             size_t index=0;
             for(const auto id:WorldModels()){
                 auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const auto key=WorldModelKey(id);const auto visible=model->mtx;
-                RestoreWorldMatrix restore{model,visible};if(id==model_id)model->mtx=mIslandOld;if(id==seabed_id)model->mtx=mSeaBedOld;model->Update();bool first=true;
+                RestoreWorldMatrix restore{model,visible};model->mtx=WorldAuthoredMatrix(id);model->Update();bool first=true;
                 for(int n=0;auto*node=model->GetNode(n);++n){if(!node->geo)continue;
                     if(index>=work.targets.size()){identityValid=false;break;}const auto&target=work.targets[index++];
                     if(target.model!=id||target.node!=n||target.generation!=node->geo->GeometryGeneration()||target.key!=key||target.reflectionBoundary!=(id==worldReflection&&first)){identityValid=false;break;}first=false;
@@ -399,8 +416,7 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
         if (record.scope != "*" && record.scope != "terrain" && record.scope != key) continue;
         auto *model = static_cast<MODEL *>(core.GetEntityPointer(id));
         const auto visible = model->mtx;
-        if (id == model_id) model->mtx = mIslandOld;
-        if (id == seabed_id) model->mtx = mSeaBedOld;
+        model->mtx = WorldAuthoredMatrix(id);
         model->Update();
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
@@ -471,8 +487,7 @@ float ISLAND::TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &
         if (id == worldReflection) continue;
         auto *model = static_cast<MODEL *>(core.GetEntityPointer(id));
         const auto visible = model->mtx;
-        if (id == model_id) model->mtx = mIslandOld;
-        if (id == seabed_id) model->mtx = mSeaBedOld;
+        model->mtx = WorldAuthoredMatrix(id);
         model->Update();
         const auto hit = model->Trace(from, to);
         model->mtx = visible;
@@ -497,8 +512,7 @@ bool ISLAND::CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance
     auto *root = receiver ? receiver->GetNode(0) : nullptr;
     if (!root || !root->geo) return false;
     const auto visible = receiver->mtx;
-    if (model == model_id) receiver->mtx = mIslandOld;
-    if (model == seabed_id) receiver->mtx = mSeaBedOld;
+    receiver->mtx = WorldAuthoredMatrix(model);
     receiver->Update();
     GEOS::INFO info{}; root->geo->GetInfo(info);
     const auto center = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
@@ -530,6 +544,8 @@ bool ISLAND::BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner
 bool ISLAND::CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    for (const auto &sample : samples)
+        if (!storm_hull_damage::validPhysicalBeamDimensions(sample.radius, sample.depth)) return false;
     WorldCutRecord record; record.scope = WorldModelKey(model); record.owner = owner;
     record.cut.kind = storm_world_cut::Cut::Beam; record.cut.beams = samples;
     return CommitWorldCut(std::move(record));

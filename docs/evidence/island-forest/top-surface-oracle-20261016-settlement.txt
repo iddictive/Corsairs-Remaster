@@ -1,0 +1,2 @@
+Antigua roots 479 top-surface violations {'water': 0, 'roof_or_rock': 0, 'root_gap': 0, 'steep': 0} maximum surfaceY error 1.3857122581839576e-05
+PortoBello roots 5877 top-surface violations {'water': 0, 'roof_or_rock': 0, 'root_gap': 0, 'steep': 0} maximum surfaceY error 6.515744689750136e-05

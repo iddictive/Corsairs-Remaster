@@ -119,6 +119,7 @@ class ISLAND : public ISLAND_BASE
     CMatrix mIslandOld, mSeaBedOld;
     float fImmersionDepth, fImmersionDistance;
     float fCurrentImmersion;
+    CMatrix WorldAuthoredMatrix(entid_t model) const;
 
     void Blur8(uint8_t **pBuffer, uint32_t dwSize);
     bool SaveTga8(char *fname, uint8_t *pBuffer, uint32_t dwSizeX, uint32_t dwSizeY);
@@ -232,6 +233,7 @@ class ISLAND : public ISLAND_BASE
         return fCurrentImmersion;
     };
     float TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &model) override;
+    std::vector<WorldSurface> GetWorldSurfaces() const override;
     bool CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance, int32_t owner = -1) override;
     bool CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner = -1) override;
     bool BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner = -1) override;

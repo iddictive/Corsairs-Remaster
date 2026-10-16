@@ -1,0 +1,6 @@
+mesh 0/0 branches=1128 leaves=1152
+mesh 0/1 branches=264 leaves=384
+mesh 1/0 branches=1128 leaves=1152
+mesh 1/1 branches=264 leaves=384
+<task-dir>/calibrated-settlement/scene/Antigua.faces triangles=62428 identity=2313956129 roots=488 y=27.3757..212.216 summit=1010.25 steps=15 peak_ms=0.662542 total_ms=6.91362
+<task-dir>/calibrated-settlement/scene/PortoBello.faces triangles=104038 identity=1278740843 roots=5832 y=17.6276..676.632 summit=1442.02 steps=22 peak_ms=0.660792 total_ms=14.5405

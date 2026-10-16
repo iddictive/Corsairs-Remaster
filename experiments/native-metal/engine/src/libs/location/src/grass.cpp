@@ -14,6 +14,11 @@
 
 #include "character.h"
 #include "entity.h"
+#include "island_base.h"
+#ifdef STORM_METAL_GRASS_BRIDGE
+#include "model.h"
+#include "island_forest.hpp"
+#endif
 
 #ifdef STORM_METAL_GRASS_BRIDGE
 // `instances` and `shaderConstants` are borrowed only for this synchronous call;
@@ -41,6 +46,116 @@ extern "C" bool StormMetalDrawGrass(void *device, const void *instances, size_t 
 #define GRASS_MAX_POINTS 8192
 
 #define GRASS_DEFTEXTURE "Grass\\grass.tga"
+
+#ifdef STORM_METAL_GRASS_BRIDGE
+struct IslandForestState
+{
+    using Instance=storm_island_forest::Instance;
+    VDX9RENDER *renderer;
+    entid_t modelId=0;
+    storm_island_forest::Placement placement;
+    std::array<std::array<storm_island_forest::Mesh,storm_island_forest::LodCount>,storm_island_forest::VariantCount> meshes;
+    std::array<std::array<std::vector<Instance>,storm_island_forest::LodCount>,storm_island_forest::VariantCount> visible;
+    unsigned node=0,object=0,triangle=0,meshCursor=0;
+    std::vector<ISLAND_BASE::WorldSurface> surfaces;
+    CMatrix primaryAuthored;
+    unsigned surface=0;
+    uint32_t identity=2166136261u;
+    bool extracted=false;
+    float seconds=0;
+    int bark=-1,leaf=-1;
+    struct Visible { float distance; unsigned index; };
+    std::vector<Visible> candidates;
+    IslandForestState(VDX9RENDER *rs,const char *path):renderer(rs) {
+        for(const unsigned char *p=reinterpret_cast<const unsigned char*>(path);*p;++p){identity^=uint32_t(std::tolower(*p));identity*=16777619u;}
+    }
+    ~IslandForestState(){if(bark>=0)renderer->TextureRelease(bark);if(leaf>=0)renderer->TextureRelease(leaf);}
+    // Only value data is retained. Every native entity/node is resolved again
+    // on the consuming frame; no asynchronous model/renderer access exists.
+    void prepare() {
+        using namespace storm_island_forest;
+        unsigned budget=4096;
+        while(!extracted&&budget) {
+            if(surface>=surfaces.size()){extracted=true;placement.seal(identity);break;}
+            auto*receiver=dynamic_cast<MODEL*>(core.GetEntityPointer(surfaces[surface].model));
+            NODE *part=receiver ? receiver->GetNode(int(node)) : nullptr;
+            if(!part){++surface;node=object=triangle=0;continue;}
+            if(!part->geo){++node;object=triangle=0;continue;}
+            GEOS::INFO info{};part->geo->GetInfo(info);
+            if(object>=unsigned(info.nobjects)){++node;object=triangle=0;continue;}
+            GEOS::OBJECT ob{};part->geo->GetObj(int(object),ob);
+            if(!(ob.flags&GEOS::VISIBLE)||ob.ntriangles<=0){++object;triangle=0;continue;}
+            const unsigned format=renderer->GetVertexBufferFVF(ob.vertex_buff);
+            const unsigned uv=(format&storm_render::vertexFormat::texCountMask)>>storm_render::vertexFormat::texCountShift;
+            const unsigned stride=12u+((format&storm_render::vertexFormat::normal)?12u:0u)+((format&storm_render::vertexFormat::diffuse)?4u:0u)+((format&storm_render::vertexFormat::specular)?4u:0u)+uv*8u;
+            if((format&storm_render::vertexFormat::positionMask)!=storm_render::vertexFormat::xyz||!(format&storm_render::vertexFormat::normal)||uv>4){++object;triangle=0;continue;}
+            GEOS::MATERIAL material{};part->geo->GetMaterial(ob.material,material);std::string texture;
+            for(int i=0;i<info.ntextures;i++)if(part->geo->GetTexture(i)==material.texture[0]){texture=part->geo->GetTextureName(i);break;}
+            const bool primary=surfaces[surface].model==modelId;
+            const float suitability=settlementMaterial(texture)?-1.f:(primary&&(ob.flags&GEOS::COLLISION_ENABLE)?groundSuitability(texture):0.f);const bool terrain=primary&&terrainMaterial(texture);
+            CMatrix nodeAuthored=part->loc_mtx;
+            for(auto*parent=part->parent;parent;parent=parent->parent)nodeAuthored=nodeAuthored*parent->loc_mtx;
+            nodeAuthored=nodeAuthored*surfaces[surface].authored;
+            const int ib=part->geo->GetIndexBuffer();
+            auto*indices=static_cast<const uint16_t*>(renderer->LockIndexBuffer(ib));
+            auto*vertices=static_cast<const uint8_t*>(renderer->LockVertexBuffer(ob.vertex_buff));
+            if(!indices||!vertices){if(indices)renderer->UnLockIndexBuffer(ib);if(vertices)renderer->UnLockVertexBuffer(ob.vertex_buff);return;}
+            const size_t vertexBytes=size_t(renderer->GetVertexBufferSize(ob.vertex_buff));
+            const unsigned count=std::min(budget,unsigned(ob.ntriangles)-triangle);
+            for(unsigned n=0;n<count;n++){
+                Triangle face{};face.suitability=suitability;face.terrain=terrain;bool valid=true;float authoredY=0;
+                for(unsigned j=0;j<3;j++){
+                    const size_t index=size_t(indices[(size_t(ob.striangle)+triangle+n)*3+j])+ob.start_vertex;
+                    if(index*stride+24>vertexBytes){valid=false;break;}
+                    CVECTOR p,normal;std::memcpy(&p,vertices+index*stride,12);std::memcpy(&normal,vertices+index*stride+12,12);
+                    CVECTOR local,localNormal;primaryAuthored.MulToInv(nodeAuthored*p,local);
+                    primaryAuthored.MulToInvNorm(nodeAuthored*normal-nodeAuthored.Pos(),localNormal);
+                    face.p[j]={local.x,local.y,local.z};authoredY+=localNormal.y;
+                    valid&=std::isfinite(local.x)&&std::isfinite(local.y)&&std::isfinite(local.z);
+                }
+                if(valid){CVECTOR a(face.p[0][0],face.p[0][1],face.p[0][2]),b(face.p[1][0],face.p[1][1],face.p[1][2]),c(face.p[2][0],face.p[2][1],face.p[2][2]);const CVECTOR normal=(b-a)^(c-a);const float length=sqrtf(~normal);face.normalY=authoredY>0&&length>1.e-6f?fabsf(normal.y)/length:0.f;placement.add(face);}
+            }
+            renderer->UnLockVertexBuffer(ob.vertex_buff);renderer->UnLockIndexBuffer(ib);triangle+=count;budget-=count;
+            if(triangle>=unsigned(ob.ntriangles)){++object;triangle=0;}
+        }
+        if(extracted&&!placement.ready())placement.advance(16384);
+        // At most one small mesh variant is generated per frame.
+        if(meshCursor<VariantCount*LodCount){const unsigned v=meshCursor/LodCount,l=meshCursor%LodCount;meshes[v][l]=makeMesh(v,l);++meshCursor;}
+    }
+    void render(ISLAND_BASE &island,uint32_t delta,float windX,float windZ,float force) {
+        using namespace storm_island_forest;
+        const entid_t current=island.GetModelEID();if(!current)return;
+        auto*model=dynamic_cast<MODEL*>(core.GetEntityPointer(current));if(!model)return;
+        auto frameSurfaces=island.GetWorldSurfaces();
+        const auto primary=std::find_if(frameSurfaces.begin(),frameSurfaces.end(),[&](const auto&s){return s.model==current;});if(primary==frameSurfaces.end())return;
+        if(modelId&&modelId!=current){placement=Placement{};node=object=triangle=surface=0;surfaces.clear();extracted=false;}
+        if(surfaces.empty()){surfaces=frameSurfaces;primaryAuthored=primary->authored;}modelId=current;seconds+=float(delta)*.001f;
+        prepare();if(!placement.ready()||meshCursor<VariantCount*LodCount)return;
+        if(bark<0)bark=renderer->TextureCreate("WoodBark1.tga");if(leaf<0)leaf=renderer->TextureCreate("leafPalms.tga");if(bark<0||leaf<0)return;
+        CVECTOR camera,angles;float perspective;renderer->GetCamera(camera,angles,perspective);PLANE*planes=renderer->GetPlanes();
+        candidates.clear();
+        for(unsigned i=0;i<placement.roots.size();i++){
+            const auto&r=placement.roots[i];CVECTOR world=model->mtx*CVECTOR(r.root[0],r.root[1],r.root[2]);
+            const float dx=world.x-camera.x,dz=world.z-camera.z,distance=sqrtf(dx*dx+dz*dz);if(distance>VisibleRange+r.scale)continue;
+            bool visible=true;for(unsigned j=0;j<4;j++)if(world.x*planes[j].Nx+(world.y+r.scale*.5f)*planes[j].Ny+world.z*planes[j].Nz<planes[j].D-r.scale){visible=false;break;}
+            const CVECTOR support=primary->authored*CVECTOR(r.root[0],r.root[1],r.root[2]);
+            if(!visible||!island.IsWorldPositionRetained(current,support))continue;
+            candidates.push_back({distance,i});
+        }
+        auto nearer=[](const Visible&a,const Visible&b){return a.distance<b.distance||(a.distance==b.distance&&a.index<b.index);};
+        if(candidates.size()>MaximumVisible){std::nth_element(candidates.begin(),candidates.begin()+MaximumVisible,candidates.end(),nearer);candidates.resize(MaximumVisible);}
+        std::sort(candidates.begin(),candidates.end(),nearer);
+        for(auto&variant:visible)for(auto&group:variant)group.clear();
+        for(const auto&c:candidates){auto r=placement.roots[c.index];r.alpha=1.f-smooth(VisibleRange*.85f,VisibleRange,c.distance);const unsigned variant=hash(identity^c.index)%VariantCount,lod=c.distance<NearRange?0u:1u;visible[variant][lod].push_back(r);}
+        const float wind[]={windX,windZ,force};
+        for(unsigned v=0;v<VariantCount;v++)for(unsigned l=0;l<LodCount;l++){
+            const auto&instances=visible[v][l];if(instances.empty())continue;
+            renderer->TextureSet(0,bark);if(!StormMetalDrawIslandForest(renderer->GetNativeDevice(),meshes[v][l].branches.data(),meshes[v][l].branches.size(),instances.data(),instances.size(),model->mtx,seconds,wind))throw std::runtime_error("Metal island branch batch rejected");
+            renderer->TextureSet(0,leaf);if(!StormMetalDrawIslandForest(renderer->GetNativeDevice(),meshes[v][l].leaves.data(),meshes[v][l].leaves.size(),instances.data(),instances.size(),model->mtx,seconds,wind))throw std::runtime_error("Metal island leaf batch rejected");
+        }
+    }
+};
+#endif
 
 namespace
 {
@@ -209,6 +324,13 @@ bool Grass::Init()
 // Load data for grass from prepared file
 bool Grass::LoadData(const char *patchName)
 {
+#ifdef STORM_METAL_GRASS_BRIDGE
+    islandForest.reset();
+    if(storm_island_forest::islandForestConsumer(patchName,textureName)){
+        islandForest=std::make_unique<IslandForestState>(rs,patchName);
+        return true; // Island terrain now owns placement; .grs is only the consumer identity.
+    }
+#endif
     // Grass texture
     texture = rs->TextureCreate(textureName);
     // Delete old
@@ -437,6 +559,20 @@ void Grass::Realize(uint32_t delta_time)
     if (quality == rq_off)
         return;
 #endif
+
+#ifdef STORM_METAL_GRASS_BRIDGE
+    if(islandForest){
+        auto*island=dynamic_cast<ISLAND_BASE*>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
+        if(island){
+            uint32_t density;rs->GetRenderState(storm_render::RenderFogDensity,&density);
+            auto*attributes=core.Entity_GetAttributePointer(core.GetEntityId("ISLAND"));
+            if(attributes)rs->SetRenderState(storm_render::RenderFogDensity,F2DW(attributes->GetAttributeAsFloat("FogDensity",0.f)));
+            islandForest->render(*island,delta_time,winDir.x,winDir.z,winForce);
+            rs->SetRenderState(storm_render::RenderFogDensity,density);
+        }
+        return;
+    }
+#endif
     rs->SetTransform(storm_render::TransformWorld, CMatrix());
     // Remove textures
     rs->TextureSet(0, -1);
@@ -452,6 +588,7 @@ void Grass::Realize(uint32_t delta_time)
     uint32_t dwOldFogDensity;
     rs->GetRenderState(storm_render::RenderFogDensity, &dwOldFogDensity);
     entid_t eidIsland = core.GetEntityId("ISLAND");
+    auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(eidIsland));
     // Sea islands use the same authored .grs distribution as nearby shores.
     // The historical 1000-unit range hid it before an island filled the sea
     // view. Extend only the compact GPU-instanced sea consumer; locations keep
@@ -705,7 +842,7 @@ void Grass::Realize(uint32_t delta_time)
                 // Checking for the block
                 if (mm.num[0] != 0)
                 {
-                    RenderBlock(pos, plane, numPlanes, mx, mz);
+                    RenderBlock(pos, plane, numPlanes, mx, mz, island);
                 }
             }
         }
@@ -713,7 +850,7 @@ void Grass::Realize(uint32_t delta_time)
     {
         for (const auto& [mx, mz] : cachedMiniMap)
         {
-            RenderBlock(pos, plane, numPlanes, mx, mz);
+            RenderBlock(pos, plane, numPlanes, mx, mz, island);
         }
     }
 
@@ -772,7 +909,8 @@ void Grass::RestoreRender()
 }
 
 // Draw a block with coordinates on the minimap
-void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPlanes, int32_t mx, int32_t mz)
+void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPlanes, int32_t mx, int32_t mz,
+                        ISLAND_BASE *island)
 {
     // Draw a buffer if overflowed
     if (numPoints >= GRASS_MAX_POINTS - (GRASS_CNT_MIN + GRASS_CNT_DLT) * 3)
@@ -837,7 +975,7 @@ void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPl
         blockChrs.push_back(i);
     }
     // Render block
-    RenderBlock(mm, kLod, visibilityAlpha);
+    RenderBlock(mm, kLod, visibilityAlpha, island);
 }
 
 // Box visibility check
@@ -874,7 +1012,7 @@ inline bool Grass::VisibleTest(const PLANE *plane, int32_t numPlanes, const CVEC
 }
 
 // Draw block
-inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha)
+inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibilityAlpha, ISLAND_BASE *island)
 {
 #ifndef STORM_METAL_GRASS_BRIDGE
     // Protect from yourself
@@ -923,6 +1061,11 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibil
     float alpha;
     for (int32_t i = 0; i < num; i++)
     {
+        // The authored root shares the committed island cutter; canopy overlap
+        // alone must not remove a tree whose ground remains intact.
+        if (island && !island->IsWorldPositionRetained(island->GetModelEID(),
+            CVECTOR(b[i].x * m_fDataScale, b[i].y * m_fDataScale, b[i].z * m_fDataScale)))
+            continue;
         // Alpha
         if (i < lodNum)
         {

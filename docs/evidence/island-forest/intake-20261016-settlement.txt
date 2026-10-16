@@ -1,0 +1,4 @@
+Antigua original object flags {'0xc1f': 5}
+Antigua 62428 settlement triangles {'bridgetown_sea': 2099}
+PortoBello original object flags {'0xc1f': 9}
+PortoBello 104038 settlement triangles {'bridgetown_sea': 12545, 'fortstone1': 16421, 'margaritafort': 3407}

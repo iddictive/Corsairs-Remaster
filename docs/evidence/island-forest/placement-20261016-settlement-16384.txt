@@ -1,0 +1,6 @@
+mesh 0/0 branches=1128 leaves=1152
+mesh 0/1 branches=264 leaves=384
+mesh 1/0 branches=1128 leaves=1152
+mesh 1/1 branches=264 leaves=384
+<task-dir>/calibrated-settlement/Antigua.faces triangles=62428 roots=479 y=30.0256..220.146 summit=1010.25 steps=29 peak_ms=0.250375 total_ms=4.90267
+<task-dir>/calibrated-settlement/PortoBello.faces triangles=104038 roots=5877 y=17.6276..706.796 summit=1442.02 steps=43 peak_ms=0.23325 total_ms=11.0638
