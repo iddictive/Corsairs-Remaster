@@ -1,5 +1,6 @@
 #include "ship.h"
 #include "ship_laser_geometry.hpp"
+#include "phonk_targeting.hpp"
 #include "ship_hull_damage_bridge.hpp"
 #include "../../sea_ai/src/ai_helper.h"
 #include "../../sea_ai/src/ai_ship.h"
@@ -824,11 +825,12 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     view.Transposition();
     const auto camera = view.Pos(), direction = !view.Vz();
     if (!finite(camera) || !finite(direction)) return;
-    const auto end = camera + direction * 3500.f;
+    const bool automatic = outsideCamera();
+    const auto end = camera + direction * laserRange;
     float nearest = 1.f;
     SHIP *target = nullptr;
     entid_t worldTarget = 0;
-    if (pIsland) nearest = std::min(nearest, pIsland->TraceWorldWeapon(camera, end, worldTarget));
+    if (!automatic && pIsland) nearest = std::min(nearest, pIsland->TraceWorldWeapon(camera, end, worldTarget));
     struct Receiver { SHIP *ship; storm_ship_hull::Bounds bounds; bool bounded; };
     std::vector<Receiver> receivers;
     for (const auto id : core.GetEntityIds("ship"))
@@ -838,25 +840,23 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         Receiver receiver{ship, {}, false};
         receiver.bounded = completeModelBounds(ship->GetModel(), receiver.bounds);
         receivers.push_back(receiver);
+        if (automatic) continue;
         if (receiver.bounded && !storm_ship_hull::rayBounds(receiver.bounds,
             {camera.x, camera.y, camera.z}, {end.x, end.y, end.z})) continue;
         const float hit = ship->Trace(camera, end);
         if (hit >= 0.f && hit < nearest) { nearest = hit; target = ship; worldTarget = 0; }
     }
     phonkLaser.endpoint = camera + (end - camera) * nearest;
-    auto *ai = static_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
+    auto *ai = dynamic_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
     auto *cannons = ai ? ai->GetCannonController() : nullptr;
-    const auto muzzles = cannons ? cannons->GetLaserMuzzles(phonkLaser.endpoint) : std::vector<CVECTOR>{};
-    if (muzzles.empty())
-    { commitBeam(); phonkLaser.beamAge = 1.f; phonkLaser.contact = 0; phonkLaser.burn = 0.f; phonkLaser.rays.clear(); return; }
-    const CVECTOR picked = phonkLaser.endpoint;
-    phonkLaser.rays.clear();
-    phonkLaser.beamAge = 0.f;
-    target = nullptr;
-    worldTarget = 0;
-    // One intact cannon on the aimed bort emits the beam. Trace from that
-    // actual muzzle so nearby hulls and land also occlude the cutting ray.
+    // Selection and firing share this one exact muzzle/occlusion solution.
+    // Automatic fire must reach its hostile receiver; deck aim keeps the first
+    // real contact, including a deliberately selected fort or hull detail.
+    const auto traceLaser = [&](const CVECTOR &picked, LaserRay &ray, SHIP *&receiver, entid_t &worldReceiver)
     {
+        ray = LaserRay{};
+        const auto muzzles = cannons ? cannons->GetLaserMuzzles(picked) : std::vector<CVECTOR>{};
+        if (muzzles.empty()) return false;
         auto muzzle = muzzles[muzzles.size() / 2];
         // A lower gun deck may be under a crest. Prefer the nearest intact
         // exposed gun on this same bort; keep its real origin and occlusion.
@@ -870,10 +870,12 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
                     nearestGun = n;
             if (nearestGun < muzzles.size()) muzzle = muzzles[nearestGun];
         }
+        if (!finite(picked) || (~(picked - muzzle)) < .001f ||
+            (automatic && (~(picked - muzzle)) > laserRange * laserRange)) return false;
         const auto rayEnd = picked + !(picked - muzzle) * .5f;
         float fraction = 1.f;
-        SHIP *receiver = nullptr;
-        entid_t worldReceiver = 0;
+        receiver = nullptr;
+        worldReceiver = 0;
         if (pIsland) fraction = std::min(fraction, pIsland->TraceWorldWeapon(muzzle, rayEnd, worldReceiver));
         for (const auto &candidate : receivers)
         {
@@ -883,26 +885,47 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             const float hit = ship->Trace(muzzle, rayEnd);
             if (hit >= 0.f && hit < fraction) { fraction = hit; receiver = ship; worldReceiver = 0; }
         }
-        LaserRay ray;
         GetModel()->mtx.MulToInv(muzzle, ray.muzzle);
         ray.endpoint = muzzle + (rayEnd - muzzle) * fraction;
         if (receiver)
         {
             ray.target = uint64_t(receiver->GetId());
             receiver->GetModel()->mtx.MulToInv(ray.endpoint, ray.localHit);
-            target = receiver;
         }
         else if (worldReceiver)
         {
             ray.target = uint64_t(worldReceiver);
             ray.worldTarget = true;
             ray.localHit = ray.endpoint; // Static world records use authored world coordinates.
-            worldTarget = worldReceiver;
         }
-        phonkLaser.muzzle = muzzle;
-        phonkLaser.endpoint = ray.endpoint;
-        phonkLaser.rays.push_back(ray);
+        return true;
+    };
+    LaserRay ray;
+    target = nullptr;
+    worldTarget = 0;
+    bool aimed = false;
+    if (automatic)
+    {
+        for (const auto &candidate : hostileTargets(GetACharacter(), GetPos(), laserRange))
+        {
+            SHIP *receiver = nullptr;
+            entid_t worldReceiver = 0;
+            // Laser damage is a live ray, not a travelling projectile. Reacquire
+            // current geometry each sample; leading it would miss a moving hull.
+            if (!traceLaser(candidate.point, ray, receiver, worldReceiver)) continue;
+            if (candidate.ship ? (!receiver || receiver->GetId() != candidate.receiver) :
+                                 worldReceiver != candidate.receiver) continue;
+            target = receiver; worldTarget = worldReceiver; aimed = true; break;
+        }
     }
+    else aimed = traceLaser(phonkLaser.endpoint, ray, target, worldTarget);
+    phonkLaser.rays.clear();
+    if (!aimed)
+    { commitBeam(); phonkLaser.beamAge = 1.f; phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
+    phonkLaser.beamAge = 0.f;
+    phonkLaser.muzzle = GetModel()->mtx * ray.muzzle;
+    phonkLaser.endpoint = ray.endpoint;
+    phonkLaser.rays.push_back(ray);
     if (!target && !worldTarget) { commitBeam(); phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
     CVECTOR hit = phonkLaser.endpoint;
     if (target) target->GetModel()->mtx.MulToInv(phonkLaser.endpoint, hit);

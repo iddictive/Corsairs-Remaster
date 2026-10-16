@@ -28,14 +28,27 @@ Canonical build passes at native fingerprint
 `698b076b1de7ed54dca1f022b5c2cfd1ebc33280aacff97bf9f4238022149cbf`;
 unsigned built engine SHA-256 is
 `55127364d859e889838949760aec1cc9c8c8d2b992694338091df4181176bee5`.
-Both adapted native integration drivers compile/link against the current library closure;
-execution remains deferred while player PID25222 holds the installed engine.
-No game control or SAVE load occurs. Installation and accepting player action
-remain pending; the installed image is still dcca above.
+Both earlier native integration drivers compiled/linked against that historical
+library closure; they have not been executed. Player PID25222 has exited, without
+agent process control. The subsequent source batch is still under repair, so
+that earlier build no longer proves the current candidate. Installation and
+accepting player action remain pending; the installed image is still dcca above.
 The current native fixture source/compile closure is retained at the same evidence
 owner's `native/{world,ship}` directories. After player exit, rebuild those private
 drivers with their `build.py`, run world Antigua/Cumana and held-fire/ram ship
-cases, then consume this unchanged source through canonical `run.sh --stage-only`.
+cases, then consume the final frozen source through canonical `run.sh --stage-only`.
+
+The follow-up request adds automatic enemy targeting in third person, cut-time
+frame stability and real solid-ground/hollow-ship material geometry. Automatic
+laser/nuclear target acquisition is source-verified: canonical hostility,
+camera-independent range ordering, live laser muzzle occlusion, nuclear movement
+lead/arc/self-blast checks, preserved manual aiming and paused/exit-flight state.
+`phonk-auto-scene-20261016` retains source-body/syntax evidence and the unexecuted
+native adapter. World async preparation is a separate source candidate; repeated
+ship cuts currently fail the independent overlapping/ring material-boundary
+oracle and are not accepted. Native integration/build/staging must wait for that
+geometry prerequisite. Ground must remain solid material; ship interiors and
+gunports must remain genuine voids, without blanket filled cut disks.
 
 ### October16 — world destruction and old-control correction installed
 

@@ -17,6 +17,22 @@ that same unfiltered target and220m radius. Missiles travel on a bounded arc,
 hit the first intervening receiver and reload in4 game-seconds. Paused frames
 advance no launch, flight or damage; launched missiles continue after mode exit.
 
+Camera mode comes from the existing `Crosshair.OutsideCamera` owner. Outside
+camera fire uses one Phonk target collector: living hostile ships and active fort
+guns, ordered by distance without a camera cone. Existing relation/surrender
+policy and intact firing-bort muzzles remain authoritative. Laser fire accepts
+only an actual muzzle ray reaching that hostile receiver; intervening geometry
+cannot redirect an automatic shot into a friendly target. Deck/manual fire keeps
+the exact picked geometry, including deliberate local detail cuts.
+
+Automatic nuclear fire leads through `AIShip::GetPrediction`, checks its arc and
+rejects an impact inside the firing ship's predicted blast envelope. Preview
+selection refreshes at10Hz and is solved again at the trigger edge. Ordinary
+cannon inventory/reload and Phonk trigger/pause/exit-flight semantics stay intact.
+Source-body sanitizer and native syntax checks pass; actual moving ship/fort,
+camera-switch, obstruction and self-blast replay remain pending. Private evidence
+owner: `phonk-auto-scene-20261016`.
+
 `ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models.
 Legacy halfspaces, finite beam doses and deterministic26-plane crater volumes rebuild one retained mesh
 for drawing, tracing and clipping. Active PN terrain is the input when present;

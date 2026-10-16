@@ -28,8 +28,8 @@ struct NuclearBlast
 struct OrdnanceState
 {
     unsigned weapon = 6;
-    bool triggerHeld = false, targetValid = false;
-    float reload = 0.f;
+    bool triggerHeld = false, targetValid = false, targetOutside = false;
+    float reload = 0.f, targetClock = 0.f;
     CVECTOR target = CVECTOR(0.f);
     std::array<NuclearMissile, 4> missiles{};
     std::array<NuclearBlast, 4> blasts{};

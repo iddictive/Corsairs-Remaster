@@ -1,5 +1,6 @@
 #include "ship.h"
 #include "phonk_ordnance.hpp"
+#include "phonk_targeting.hpp"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <array>
 #include <limits>
@@ -20,7 +21,7 @@ bool activated(const char *control)
     return state.state == CST_ACTIVATED;
 }
 float firstSurface(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
-                   const CVECTOR &from, const CVECTOR &to)
+                   const CVECTOR &from, const CVECTOR &to, entid_t ignore = 0)
 {
     float contact = 2.f;
     if (island)
@@ -31,6 +32,7 @@ float firstSurface(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t
     }
     for (const auto id : ships)
     {
+        if (id == ignore) continue;
         auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         auto *model = ship ? ship->GetModel() : nullptr;
         if (!model) continue;
@@ -69,6 +71,79 @@ bool pickTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &
     }
     const CVECTOR distance(target.x - origin.x, 0.f, target.z - origin.z);
     return manual_aim::finite(target) && (~distance) <= nuclearRange * nuclearRange + 16.f;
+}
+NuclearMissile missileTo(const CVECTOR &launch, const CVECTOR &target, int32_t owner)
+{
+    const float distance = std::sqrt(~(target - launch));
+    return {launch, target, 0.f, std::max(1.2f, distance / 950.f),
+            std::clamp(distance * .16f, 65.f, 650.f), owner, true};
+}
+bool blastClearOfOwner(SHIP &owner, AIShip *ai, const CVECTOR &point, float seconds)
+{
+    auto *model = owner.GetModel();
+    auto *root = model ? model->GetNode(0) : nullptr;
+    if (!root || !root->geo || !manual_aim::finite(point)) return false;
+    GEOS::INFO info{}; root->geo->GetInfo(info);
+    auto center = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
+    if (ai)
+    {
+        CVECTOR predicted;
+        ai->GetPrediction(seconds, &predicted, nullptr);
+        center += predicted - ai->GetPos();
+    }
+    // Conservative hull sphere encloses the root box used by nuclear damage.
+    // Include the player's motion during flight instead of checking only now.
+    float radiusSquared = 0.f;
+    for (unsigned corner = 0; corner < 8; ++corner)
+    {
+        const auto offset = root->glob_mtx.Vx() * (info.boxsize.x * (corner & 1 ? .5f : -.5f)) +
+            root->glob_mtx.Vy() * (info.boxsize.y * (corner & 2 ? .5f : -.5f)) +
+            root->glob_mtx.Vz() * (info.boxsize.z * (corner & 4 ? .5f : -.5f));
+        radiusSquared = std::max(radiusSquared, ~offset);
+    }
+    const float clearance = nuclearRadius + std::sqrt(radiusSquared);
+    return manual_aim::finite(center) && (~(point - center)) > clearance * clearance;
+}
+bool clearTrajectory(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
+                     SHIP &owner, AIShip *ai, const NuclearMissile &missile, entid_t movingTarget = 0)
+{
+    if (!blastClearOfOwner(owner, ai, missile.target, missile.duration)) return false;
+    // Sample the same bounded arc as live flight. The selected moving ship is
+    // tested live during flight; its old pose cannot obstruct its led endpoint.
+    CVECTOR before = missile.launch;
+    constexpr unsigned steps = 48;
+    for (unsigned n = 1; n <= steps; ++n)
+    {
+        const float age = missile.duration * float(n) / float(steps);
+        const auto after = nuclearPosition(missile, age);
+        const float hit = firstSurface(sea, island, ships, before, after, movingTarget);
+        if (hit >= 0.f && hit <= 1.f)
+        {
+            const auto impact = before + (after - before) * hit;
+            return (~(impact - missile.target)) <= 4.f && blastClearOfOwner(owner, ai, impact, age);
+        }
+        before = after;
+    }
+    return true;
+}
+bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
+                     SHIP &owner, AIShip *ai, const CVECTOR &launch, CVECTOR &target)
+{
+    for (const auto &candidate : hostileTargets(owner.GetACharacter(), owner.GetPos(), nuclearRange))
+    {
+        auto missile = missileTo(launch, candidate.point, -1);
+        // Existing AI prediction owns ship speed/heading. Iterate because the
+        // led endpoint also changes missile flight time.
+        for (unsigned n = 0; n < 4 && candidate.ship; ++n)
+            missile = missileTo(launch, predictedTarget(candidate, missile.duration), -1);
+        const CVECTOR distance(missile.target.x - owner.GetPos().x, 0.f, missile.target.z - owner.GetPos().z);
+        if (!manual_aim::finite(missile.target) || (~distance) > nuclearRange * nuclearRange) continue;
+        if (!clearTrajectory(sea, island, ships, owner, ai, missile,
+                             candidate.ship ? candidate.receiver : 0)) continue;
+        target = missile.target;
+        return true;
+    }
+    return false;
 }
 }
 
@@ -132,6 +207,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     {
         state.triggerHeld = false;
         state.targetValid = false;
+        state.targetClock = 0.f;
         return;
     }
     EnsureCutFragments(); // Shared late scene owner also renders missiles and blasts.
@@ -140,7 +216,27 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     CMatrix view;
     pRS->GetTransform(storm_render::TransformView, view);
     view.Transposition();
-    state.targetValid = state.weapon == 7 && pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target);
+    const bool fire = held("Ship_Fire");
+    const bool automatic = outsideCamera();
+    auto *ai = dynamic_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
+    const CVECTOR launch = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f), 0.f);
+    state.targetClock += seconds;
+    if (state.weapon != 7) { state.targetValid = false; state.targetClock = .1f; }
+    else if (!automatic || state.targetClock >= .1f || automatic != state.targetOutside ||
+             (fire && !state.triggerHeld))
+    {
+        state.targetClock = 0.f;
+        state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target) :
+            pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target);
+        if (state.targetValid && !automatic)
+        {
+            const auto missile = missileTo(launch, state.target, -1);
+            state.targetValid = blastClearOfOwner(*this, ai, state.target, missile.duration);
+            if (state.targetValid && fire && !state.triggerHeld && state.reload <= 0.f)
+                state.targetValid = clearTrajectory(pSea, pIsland, receivers, *this, ai, missile);
+        }
+    }
+    state.targetOutside = automatic;
     attributes->SetAttributeUseDword("NuclearTargetValid", state.targetValid);
     if (state.targetValid)
     {
@@ -149,16 +245,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         attributes->SetAttributeUseFloat("NuclearTargetZ", state.target.z);
         attributes->SetAttributeUseFloat("NuclearRadius", nuclearRadius);
     }
-    const bool fire = held("Ship_Fire");
     if (state.weapon == 7 && fire && !state.triggerHeld && state.reload <= 0.f && state.targetValid)
         for (auto &missile : state.missiles)
         {
             if (missile.active) continue;
-            const CVECTOR launch = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f), 0.f);
-            const float distance = std::sqrt(~(state.target - launch));
-            missile = {launch, state.target, 0.f, std::max(1.2f, distance / 950.f),
-                       std::clamp(distance * .16f, 65.f, 650.f),
-                       int32_t(GetACharacter()->GetAttributeAsDword("index")), true};
+            missile = missileTo(launch, state.target, int32_t(GetACharacter()->GetAttributeAsDword("index")));
             state.reload = nuclearReload;
             break;
         }
