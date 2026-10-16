@@ -241,9 +241,6 @@ uint64_t Blood::ProcessMessage(MESSAGE &message)
         shipRevision = 0;
         shipStains.clear();
         break;
-    case MSG_BLOOD_SET_LOCATION:
-        locationReceiver = message.EntityID();
-        break;
     case MSG_BLOOD_SHIP_HIT:
     {
         CVECTOR source, direction;
@@ -421,8 +418,6 @@ bool Blood::AddClipPoligon(const CVECTOR *v, int32_t nv)
 
 void Blood::AddBlood(const CVECTOR &pos)
 {
-    auto *receiver = dynamic_cast<COLLISION_OBJECT *>(core.GetEntityPointer(locationReceiver));
-    if (locationReceiver && !receiver) return;
     nClipTQ = 0;
     normal = CVECTOR(0.f, 1.f, 0.f);
 
@@ -434,7 +429,7 @@ void Blood::AddBlood(const CVECTOR &pos)
     src.y += 1.f;
     auto dst = pos;
     dst.y -= 10.f;
-    auto fTrace = receiver ? receiver->Trace(src, dst) : pCol->Trace(entities, src, dst, nullptr, 0);
+    auto fTrace = pCol->Trace(entities, src, dst, nullptr, 0);
     if (fTrace <= 1.f)
         cpos.y = src.y + (dst.y - src.y) * fTrace;
 
@@ -454,7 +449,7 @@ void Blood::AddBlood(const CVECTOR &pos)
         src.y += 1.5f;
         dst = cpos;
         dst.y -= 10.f;
-        fTrace = receiver ? receiver->Trace(src, dst) : pCol->Trace(entities, src, dst, nullptr, 0);
+        fTrace = pCol->Trace(entities, src, dst, nullptr, 0);
         if (fTrace <= 1.f)
             cpos.y = src.y + (dst.y - src.y) * fTrace;
     }
@@ -487,9 +482,7 @@ void Blood::AddBlood(const CVECTOR &pos)
     p[5].D = -(cpos.x - BLOOD_RADIUS);
 
     // loop through the layer
-    if (receiver)
-        receiver->Clip(p, 6, cpos, BLOOD_RADIUS, AddClipPoligon);
-    else for (auto ent_id : entities)
+    for (auto ent_id : entities)
     {
         auto *m = static_cast<MODEL *>(core.GetEntityPointer(ent_id));
         if (!m)

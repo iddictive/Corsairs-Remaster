@@ -12,7 +12,6 @@
 
 #include "c_vector.h"
 #include "ptc.h"
-#include "matrix.h"
 
 #define PTCDATA_MAXSTEPS 32
 
@@ -43,8 +42,6 @@ class PtcData
 
     // load the patch
     bool Load(const char *path);
-    // Apply once, immediately after Load, before any character/query state.
-    void ApplyWorldPlacement(const CMatrix &placement);
     // Determine the current position
     int32_t FindNode(const CVECTOR &pos, float &y);
     // Moves "pos" to "to", returns a new node
@@ -81,9 +78,6 @@ class PtcData
     // Encapsulation
     // --------------------------------------------------------------------------------------------
   private:
-    CMatrix worldPlacement;
-    CVECTOR gridMin;
-    bool hasWorldPlacement = false;
     // Protection function
     void SFLB_PotectionLoad();
 

@@ -232,13 +232,12 @@ void Supervisor::Update(float dltTime)
         character[i].c->Update(dltTime);
 }
 
-void Supervisor::PreUpdate(float dltTime, bool dispatchScript) const
+void Supervisor::PreUpdate(float dltTime) const
 {
     // Resetting the state of the characters
     for (size_t i = 0; i < character.size(); i++)
         character[i].c->Reset();
-    if (dispatchScript)
-        core.Event("CharactersStateUpdate", "f", dltTime);
+    core.Event("CharactersStateUpdate", "f", dltTime);
 }
 
 void Supervisor::PostUpdate(float dltTime)
@@ -272,7 +271,7 @@ void Supervisor::PostUpdate(float dltTime)
             character[curUpdate].lastTime = time;
             if (core.GetEntityPointer(character[curUpdate].c->GetId()))
             {
-                character[curUpdate].c->ScriptEvent("CharacterUpdate", "if", character[curUpdate].c->GetId(), dlt);
+                core.Event("CharacterUpdate", "if", character[curUpdate].c->GetId(), dlt);
             }
             curUpdate++;
         }

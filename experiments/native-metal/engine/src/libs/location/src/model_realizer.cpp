@@ -50,7 +50,7 @@ void LocModelRealizer::Realize(uint32_t delta_time) const
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     if (dynamicLights && StormMetalLandLightingReady(rs->GetNativeDevice())) activeLights = dynamicLights;
 #endif
-    if (!bShow || !contextVisible)
+    if (!bShow)
         return;
     auto *pE = core.GetEntityPointer(eid_model);
     if (pE)

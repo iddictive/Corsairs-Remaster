@@ -1,5 +1,3 @@
-#include "sea_ai\PortArtillery.c"
-
 object	AIBalls;
 aref	Grapes, Knippels, Balls, Bombs;
 
@@ -21,7 +19,6 @@ void DeleteBallsEnvironment()
 	DelEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion");
 	DelEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady");
 	DelEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance");
-	DelEventHandler("Ball_PortCharacterHit", "Ball_PortCharacterHit");
 }
 
 void CreateBallsEnvironment()
@@ -78,7 +75,6 @@ void CreateBallsEnvironment()
 	SetEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion", 0);
 	SetEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady", 0);
 	SetEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance", 0);
-	SetEventHandler("Ball_PortCharacterHit", "Ball_PortCharacterHit", 0);
 }
 
 float Ball_AirburstPower(float distance)

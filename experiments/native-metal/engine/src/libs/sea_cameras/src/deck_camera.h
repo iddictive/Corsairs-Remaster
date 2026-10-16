@@ -5,7 +5,6 @@
 
 #include "common_camera.h"
 #include "deck_aim_zoom.h"
-#include "port_contact.h"
 #include <chrono>
 #include "dx9render.h"
 #include "model.h"
@@ -85,12 +84,6 @@ class DECK_CAMERA : public COMMON_CAMERA
     ~DECK_CAMERA() override;
 
     void SetCharacter(ATTRIBUTES *_pACharacter) override;
-
-    // Explicit transfer does not reset to a camera locator or alter binary SAVE.
-    bool QueryPortContact(const CVECTOR &approach, PortDeckContact &contact);
-    bool RefreshPortContact(PortDeckContact &contact);
-    bool ObservePortWalker(PortDeckContact &contact, float &worldYaw);
-    bool PlacePortContact(PortDeckContact &contact, float worldYaw);
 
     void SetDevice();
     bool Init() override;

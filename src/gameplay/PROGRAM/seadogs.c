@@ -662,14 +662,7 @@ void EngineLayersOffOn(bool on)
 	}
 	else 
 	{
-		if (Port_IsResident())
-		{
-			LayerFreeze(SEA_REALIZE,on);
-			LayerFreeze(SEA_EXECUTE,on);
-			LayerFreeze(REALIZE,on);
-			LayerFreeze(EXECUTE,on);
-		}
-		else if(bSeaActive && !bAbordageStarted)
+		if(bSeaActive && !bAbordageStarted)
 		{
 			LayerFreeze(SEA_REALIZE,on);
 			LayerFreeze(SEA_EXECUTE,on);
@@ -695,7 +688,6 @@ void OnSave()
 	{
 		if(IsEntity(&AISea) != 0)
 		{
-			Port_BeforeSave();
 			Sea_Save();
 			seadogs_saveFrom = "sea";
 		}
@@ -814,11 +806,7 @@ void OnLoad()
 	CustomMusicReset = true;
 	CustomMusicDelay = 0;
 	
-	if (Port_LoadSaved())
-	{
-		// Resident restoration owns naval load and subsequent hero/context bind.
-	}
-	else if(seadogs_saveFrom == "location")
+	if(seadogs_saveFrom == "location")
 	{
 		ref mainchar;
 		mainchar = GetMainCharacter();
@@ -873,7 +861,6 @@ void OnLoad()
 	}
 
 	actLoadFlag = 0;
-	Port_AfterLoad();
 	int custodyLocation = FindLoadedLocation();
 	if (custodyLocation >= 0) Custody_RehydrateJail(&Locations[custodyLocation]);
 	CrewDebt_Ensure();

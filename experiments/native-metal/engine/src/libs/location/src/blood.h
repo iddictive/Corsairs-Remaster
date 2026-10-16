@@ -96,7 +96,6 @@ class Blood : public Entity
 
     bool attachedToShip = false;
     entid_t shipReceiver = 0;
-    entid_t locationReceiver = 0;
     unsigned shipRevision = 0;
     std::vector<ShipStain> shipStains;
 

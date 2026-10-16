@@ -1087,8 +1087,6 @@ bool DoFunctionReloadToLocation(string idLocation, string idGroup, string idLoca
 //-------------------------------------------------------------------------------
 bool DoReloadCharacterToLocation(string idLocation, string idGroup, string idLocator)
 {
-	if (Port_IsLandHero() && Port_IsSupportedLocation(idLocation))
-		return Port_ChangeLandLocation(idLocation, idGroup, idLocator);
 	idxOldLocation = FindLoadedLocation();
 	if(idxOldLocation==-1)
 	{

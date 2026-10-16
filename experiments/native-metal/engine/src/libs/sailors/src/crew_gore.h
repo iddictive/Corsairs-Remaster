@@ -2,8 +2,6 @@
 
 #include "c_vector.h"
 #include <memory>
-#include <cstdint>
-#include <functional>
 
 class MODEL;
 class VDX9RENDER;
@@ -20,14 +18,9 @@ class CrewGore
     CrewGore &operator=(const CrewGore &) = delete;
 
     // impulse is world-space metres/second; false leaves the live man untouched.
-    bool capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool laser, uint64_t *token = nullptr);
-    bool hasCapture(uint64_t token) const;
-    void discardCapture(uint64_t token);
-    // Optional owning-surface sweep. The callback is not retained; consumers
-    // resolve their weak receiver identity on every call.
-    using GroundTrace = std::function<bool(const CVECTOR &, const CVECTOR &, CVECTOR &, CVECTOR &)>;
+    bool capture(MODEL &model, VDX9RENDER &renderer, CVECTOR impulse, bool laser);
     // dt is seconds. Call once per frame, including when draw is false.
-    void updateDraw(VDX9RENDER &renderer, SEA_BASE *sea, float dt, bool draw, const GroundTrace &ground = {});
+    void updateDraw(VDX9RENDER &renderer, SEA_BASE *sea, float dt, bool draw);
 
   private:
     struct Impl;

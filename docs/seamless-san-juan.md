@@ -1,9 +1,16 @@
-# Seamless San Juan port
+# Seamless San Juan port — frozen
 
-This topic owns the playable Puerto Rico port lifecycle. Geometry placement and
-protected fort assets remain owned by `puerto-rico-city.md`; live deck movement
-by `live-deck-walk.md`; HP, crime and naval damage keep their existing owners.
-The active implementation and ordered acceptance live in `../TASKS.md`.
+The user froze shore/rowboat travel on October16 after rejecting the installed
+scene. Full unfinished source, including the two optional-camera crash repairs,
+is preserved at Git ref `codex/frozen-shore-travel` (`6dc08e7`). Ordinary town
+transitions are restored; the earlier experimental sea-city geometry and
+decorative population remain. SAVE reference compatibility is retained separately.
+No further port implementation or journey QA is active.
+
+The sections below describe that frozen design, not the active runtime contract.
+Geometry placement and protected fort assets remain owned by
+`puerto-rico-city.md`; live deck movement by `live-deck-walk.md`; HP, crime and
+naval damage keep their existing owners. `../TASKS.md` owns the current handoff.
 
 ## Player contract
 

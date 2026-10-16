@@ -206,9 +206,7 @@ def build(stock: dict[str, bytes], spec: dict) -> dict:
         route_nodes.append(nodes)
     if not routes:
         raise ValueError("Native town has no valid pedestrian route")
-    tx, ty, tz = spec["translation"]
-    config = ["[placement]", f"x={tx}", f"y={ty}", f"z={tz}",
-              f"yaw={math.radians(spec['yaw_degrees'])}", "", "[town]", "patch=RESOURCE\\MODELS\\Islands\\PuertoRico\\sea_town.ptc", "actors=32",
+    config = ["[town]", "patch=RESOURCE\\MODELS\\Islands\\PuertoRico\\sea_town.ptc", "actors=32",
               f"routes={len(routes)}", "activation_distance=1800", "animation=man", "", "[models]",
               "model=citiz_6", "model=pirate_7"]
     for j, route in enumerate(routes):

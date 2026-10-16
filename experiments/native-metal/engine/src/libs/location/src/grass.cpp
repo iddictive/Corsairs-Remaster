@@ -720,16 +720,6 @@ void Grass::Realize(uint32_t delta_time)
     // recalculate the parameters of the angles
     for (int32_t i = 0; i < 16; i++)
     {
-        if (hasWorldPlacement)
-        {
-            const float angle = i * (2.0f * 3.141592653f / 16.0f);
-            const CVECTOR direction = worldPlacement * CVECTOR(sinf(angle), 0.0f, cosf(angle)) - worldPlacement.Pos();
-#ifdef _WIN32
-            aAngles[i].x = direction.x; aAngles[i].y = direction.z;
-#else
-            consts[i].x = direction.x; consts[i].y = direction.z;
-#endif
-        }
 #ifdef _WIN32 // Effects
         aAngles[i].z = fabsf(-aAngles[i].y * lDir.x + aAngles[i].x * lDir.z);
         if (aAngles[i].z < 0.0f)
@@ -808,10 +798,8 @@ void Grass::Realize(uint32_t delta_time)
 #endif
 
     // Camera position on the map
-    CVECTOR gridPos = pos;
-    if (hasWorldPlacement) worldPlacement.MulToInv(pos, gridPos);
-    int32_t camx = static_cast<int32_t>((gridPos.x / m_fDataScale - startX) / GRASS_BLK_DST);
-    int32_t camz = static_cast<int32_t>((gridPos.z / m_fDataScale - startZ) / GRASS_BLK_DST);
+    int32_t camx = static_cast<int32_t>((pos.x / m_fDataScale - startX) / GRASS_BLK_DST);
+    int32_t camz = static_cast<int32_t>((pos.z / m_fDataScale - startZ) / GRASS_BLK_DST);
     // The square that covers the area of view on the map
     const float blockWorldSize = GRASS_BLK_DST * m_fDataScale;
     const int32_t frameView = std::max(1, static_cast<int32_t>(std::ceil(m_fFrameVisibleDist / blockWorldSize)) + 1);
@@ -935,9 +923,7 @@ void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPl
     // Distance from the center of the cluster (box) to the camera in 2D
     const float cx = m_fDataScale * (startX + (mx + 0.5f) * GRASS_BLK_DST);
     const float cz = m_fDataScale * (startZ + (mz + 0.5f) * GRASS_BLK_DST);
-    CVECTOR center(cx, 0.0f, cz);
-    if (hasWorldPlacement) center = worldPlacement * center;
-    const float dist = (center.x - camPos.x) * (center.x - camPos.x) + (center.z - camPos.z) * (center.z - camPos.z);
+    const float dist = (cx - camPos.x) * (cx - camPos.x) + (cz - camPos.z) * (cz - camPos.z);
     const float linearDistance = sqrtf(dist);
     // Stable 1/4 block selection is the far-field density LOD. It references
     // only authored blocks and never invents vegetation outside the .grs map.
@@ -955,21 +941,6 @@ void Grass::RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPl
     max.x = cx + 0.5f * GRASS_BLK_DST * m_fDataScale + 2.0f * m_fMaxWidth;
     max.y = mm.maxHeight * m_fDataScale;
     max.z = cz + 0.5f * GRASS_BLK_DST * m_fDataScale + 2.0f * m_fMaxWidth;
-    if (hasWorldPlacement)
-    {
-        const CVECTOR localMin = min, localMax = max;
-        for (unsigned corner = 0; corner < 8; ++corner)
-        {
-            const CVECTOR world = worldPlacement * CVECTOR(corner & 1 ? localMax.x : localMin.x,
-                corner & 2 ? localMax.y : localMin.y, corner & 4 ? localMax.z : localMin.z);
-            if (corner == 0) min = max = world;
-            else
-            {
-                min.x = std::min(min.x, world.x); min.y = std::min(min.y, world.y); min.z = std::min(min.z, world.z);
-                max.x = std::max(max.x, world.x); max.y = std::max(max.y, world.y); max.z = std::max(max.z, world.z);
-            }
-        }
-    }
     if (!VisibleTest(plane, numPlanes, min, max))
         return;
     // Lod definition
@@ -1090,16 +1061,10 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibil
     float alpha;
     for (int32_t i = 0; i < num; i++)
     {
-        GRSMapElementEx placed = b[i];
-        if (hasWorldPlacement)
-        {
-            const CVECTOR world = worldPlacement * CVECTOR(placed.x * m_fDataScale, placed.y * m_fDataScale, placed.z * m_fDataScale);
-            placed.x = world.x / m_fDataScale; placed.y = world.y / m_fDataScale; placed.z = world.z / m_fDataScale;
-        }
         // The authored root shares the committed island cutter; canopy overlap
         // alone must not remove a tree whose ground remains intact.
         if (island && !island->IsWorldPositionRetained(island->GetModelEID(),
-            CVECTOR(placed.x * m_fDataScale, placed.y * m_fDataScale, placed.z * m_fDataScale)))
+            CVECTOR(b[i].x * m_fDataScale, b[i].y * m_fDataScale, b[i].z * m_fDataScale)))
             continue;
         // Alpha
         if (i < lodNum)
@@ -1112,14 +1077,14 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibil
         }
         alpha *= visibilityAlpha;
         // Swaying grass
-        float winx = sinf(placed.x * cosPh1 + placed.z * 0.06f + phase[0]);
-        float winz = cosf(placed.x * 0.11f + placed.z * sinPh2 + phase[0]);
+        float winx = sinf(b[i].x * cosPh1 + b[i].z * 0.06f + phase[0]);
+        float winz = cosf(b[i].x * 0.11f + b[i].z * sinPh2 + phase[0]);
         if (quality <= rq_middle)
         {
             // Position
-            const float x = placed.x;
-            const float y = placed.y;
-            const float z = placed.z;
+            const float x = b[i].x;
+            const float y = b[i].y;
+            const float z = b[i].z;
             // Wind waves
             const float dx = winDir.x * x * 0.5f + phase[3];
             const float dz = winDir.z * z * 0.5f + phase[4];
@@ -1137,11 +1102,10 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibil
             for (size_t chr = 0; chr < blockChrs.size(); chr++)
             {
                 CharacterPos &cp = characters[blockChrs[chr]];
-                const float scale = hasWorldPlacement ? m_fDataScale : 1.0f;
-                if (fabsf(cp.pos.y / scale - y) < 0.7f)
+                if (fabsf(cp.pos.y - y) < 0.7f)
                 {
-                    float pldx = ((x - cp.pos.x / scale) + (x - cp.lastPos.x / scale)) * 0.5f;
-                    float pldz = ((z - cp.pos.z / scale) + (z - cp.lastPos.z / scale)) * 0.5f;
+                    float pldx = ((x - cp.pos.x) + (x - cp.lastPos.x)) * 0.5f;
+                    float pldz = ((z - cp.pos.z) + (z - cp.lastPos.z)) * 0.5f;
                     float dst = pldx * pldx + pldz * pldz;
                     if (dst < 0.8f * 0.8f && dst > 0.0f)
                     {
@@ -1178,7 +1142,7 @@ inline void Grass::RenderBlock(GRSMiniMapElement &mme, float kLod, float visibil
             winz *= wAddX;
         }
         // Initial data
-        GRSMapElementEx &el = placed;
+        GRSMapElementEx &el = b[i];
 #ifndef STORM_METAL_GRASS_BRIDGE
         // Coordinates
         v[0].x = el.x;

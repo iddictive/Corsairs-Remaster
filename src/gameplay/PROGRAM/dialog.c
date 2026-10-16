@@ -46,18 +46,6 @@ bool DialogAmbush_CanAttack(ref target)
 	return DialogAmbush_BlockReason(target) == "";
 }
 
-string CharacterCombat_ProtectionReason(ref target)
-{
-	if(CheckAttribute(target, "DialogAmbushProtected")) return "protected";
-	//chr.quest - контейнер данных, который KVL вешает на каждого сгенерированного НПС (InitCharacter, LAi_CreateFantomCharacterEx), квестовым его считать нельзя
-	if(CheckAttribute(target, "isquest")) return "quest";
-	if(CheckAttribute(target, "chr_ai.hpchecker")) return "hpchecker";
-	if(LAi_IsImmortal(target)) return "immortal";
-	if(CheckAttribute(target, "DontClearDead") && FindFellowtravellers(pchar, target) == FELLOWTRAVEL_NO) return "dontcleardead";
-	if(DialogAmbush_GroupHasQuest(target)) return "groupquest";
-	return "";
-}
-
 string DialogAmbush_BlockReason(ref target)
 {
 	if(dialogSelf) return "self";
@@ -65,8 +53,13 @@ string DialogAmbush_BlockReason(ref target)
 	if(LAi_IsDead(target)) return "dead";
 	if(!CheckAttribute(target, "location")) return "nolocation";
 	if(target.location != pchar.location) return "otherlocation";
-	string protection = CharacterCombat_ProtectionReason(target);
-	if(protection != "") return protection;
+	if(CheckAttribute(target, "DialogAmbushProtected")) return "protected";
+	//chr.quest - контейнер данных, который KVL вешает на каждого сгенерированного НПС (InitCharacter, LAi_CreateFantomCharacterEx), квестовым его считать нельзя
+	if(CheckAttribute(target, "isquest")) return "quest";
+	if(CheckAttribute(target, "chr_ai.hpchecker")) return "hpchecker";
+	if(LAi_IsImmortal(target)) return "immortal";
+	if(CheckAttribute(target, "DontClearDead") && FindFellowtravellers(pchar, target) == FELLOWTRAVEL_NO) return "dontcleardead";
+	if(DialogAmbush_GroupHasQuest(target)) return "groupquest";
 	if(!LAi_LocationCanFight()) return "nofightlocation";
 	if(LAi_IsBoardingProcess()) return "boarding";
 	if(LAi_IsCapturedLocation) return "captured";

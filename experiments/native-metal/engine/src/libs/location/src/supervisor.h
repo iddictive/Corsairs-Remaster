@@ -57,7 +57,7 @@ class Supervisor
                                               bool isSort = false, bool lookCenter = false) const;
 
     void Update(float dltTime);
-    void PreUpdate(float dltTime, bool dispatchScript = true) const;
+    void PreUpdate(float dltTime) const;
     void PostUpdate(float dltTime);
 
     // Set loading positions

@@ -1,22 +1,6 @@
 
 void LoginCharactersInLocation(ref loc)
 {
-	if (Port_PreparingContext())
-	{
-		LocAi_Init(loc);
-		for (int residentIndex = 0; residentIndex < TOTAL_CHARACTERS; residentIndex++)
-		{
-			ref resident = &Characters[residentIndex];
-			if (!CheckAttribute(resident, "location") || resident.location != loc.id) continue;
-			if (LocResidentSkipsCharacter(resident)) continue;
-			if (IsEntity(resident)) continue;
-			DelBakSkillAttr(resident);
-			ClearCharacterExpRate(resident);
-			LoginCharacter(resident, loc.id);
-		}
-		LocAi_PostInit(loc);
-		return;
-	}
     // boal 01.02.2004 -->
 	SetTimeScale(1.0);
     TimeScaleCounter = 0;
@@ -53,21 +37,10 @@ void LoginCharactersInLocation(ref loc)
 	// boal dead can be searched 14.12.2003 <--
 }
 
-bool LocResidentSkipsCharacter(aref chr)
-{
-	if (!Port_PreparingContext()) return false;
-	if (sti(chr.index) == GetMainCharacterIndex()) return true;
-	if (IsOfficer(chr) || CheckAttribute(chr, "location.follower")) return true;
-	return false;
-}
-
 void LoginCharacter(aref chr, string locID)
 {
-	if (LocResidentSkipsCharacter(chr)) return;
-	if (Port_IsResident() && IsEntity(chr)) return;
 	if(LAi_CharacterLogin(chr, locID))
 	{
-		if (Port_IsResident()) DeleteAttribute(chr, "PortContext");
 		bool isNoCreated = true;
 		if(CreateCharacter(chr))
 		{

@@ -20,36 +20,12 @@
 #include "character.h"
 #include "grass.h"
 #include "lights.h"
-#include "model_realizer.h"
-#include "island_base.h"
 
 #include "c_vector4.h"
 #include "shared/messages.h"
-
-namespace
-{
-template<class Query>
-void QueryResidentSurfaces(ISLAND_BASE &island, Query query)
-{
-    for (const auto &surface : island.GetWorldSurfaces())
-    {
-        auto *receiver = static_cast<MODEL *>(core.GetEntityPointer(surface.model));
-        if (!receiver) continue;
-        struct RestoreMatrix
-        {
-            MODEL &receiver;
-            CMatrix visible;
-            ~RestoreMatrix() { receiver.mtx = visible; receiver.Update(); }
-        } restore{*receiver, receiver->mtx};
-        receiver->mtx = surface.authored;
-        receiver->Update();
-        query(*receiver);
-    }
-}
-}
-
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 #include <cstring>
+#include "model_realizer.h"
 extern "C" void StormMetalLandLocation(void*, bool);
 extern "C" void StormMetalLandInterior(void*, bool);
 extern "C" void StormMetalShadowLamp(void*, const storm_render::Light*);
@@ -74,7 +50,7 @@ public:
     uint64_t generation = 0;
     bool Init() override { return true; }
     void ProcessStage(Stage stage, uint32_t) override {
-        if (!renderer || !location || !location->IsContextVisible()) return;
+        if (!renderer || !location) return;
         void* device = renderer->GetNativeDevice();
         if (stage == Stage::execute) {
             StormMetalLandLocation(device, true);
@@ -175,10 +151,6 @@ bool Location::HasBakedStaticEnvironment()
         auto* entity = model[i];
         if (entity && entity->HasBakedBaseShadow()) return true;
     }
-    if (auto *island = ResidentIsland())
-        for (const auto &surface : island->GetWorldSurfaces())
-            if (auto *entity = static_cast<MODEL *>(core.GetEntityPointer(surface.model)); entity && entity->HasBakedBaseShadow())
-                return true;
     return false;
 }
 
@@ -197,13 +169,6 @@ void Location::RenderMetalShadowCasters(bool includeStatic)
         entity->ProcessStage(Stage::realize, 0);
         StormMetalEndLandModel(device, previous);
     }
-    if (includeStatic)
-        if (auto *island = ResidentIsland())
-            QueryResidentSurfaces(*island, [&](MODEL &receiver) {
-                const unsigned previous = StormMetalBeginLandModel(device, 1);
-                receiver.ProcessStage(Stage::realize, 0);
-                StormMetalEndLandModel(device, previous);
-            });
     // MODELR::Realize(0) uses the current animation pose; only Execute advances
     // animation, and zero delta does not advance its blend timer. Its frustum
     // comes from the light matrices, so off-camera characters remain casters.
@@ -290,174 +255,6 @@ void SubmitAuthoredWindowMeshes(VDX9RENDER *rs, GEOS *geometry, const char *mode
 // Construction, destruction
 // ============================================================================================
 
-namespace
-{
-entid_t activeLocationContext = {};
-uint64_t activeLocationGeneration = 0;
-bool explicitLocationContext = false;
-entid_t locationCharacterFrame = {};
-unsigned realLocationCount = 0;
-}
-
-// One reset/script boundary precedes every resident simulation. Resetting an
-// inactive supervisor after the global callback would erase its NPC block.
-class LocationCharacterFrame final : public Entity
-{
-public:
-    bool Init() override { core.AddToLayer(EXECUTE, GetId(), 9); return true; }
-    void ProcessStage(Stage stage, uint32_t delta) override
-    {
-        auto *active = Location::ActiveContext();
-        if (stage != Stage::execute || !active || active->IsPaused()) return;
-        const float dt = std::min(delta, uint32_t(500)) * .001f;
-        for (const auto id : core.GetEntityIds("location"))
-            if (auto *context = static_cast<Location *>(core.GetEntityPointer(id)); context && !context->IsPaused())
-                context->supervisor.PreUpdate(dt, false);
-        core.Event("CharactersStateUpdate", "f", dt);
-    }
-};
-CREATE_CLASS(LocationCharacterFrame)
-
-namespace
-{
-void EnsureLocationCharacterFrame()
-{
-    if (!core.GetEntityPointer(locationCharacterFrame))
-    {
-        locationCharacterFrame = core.CreateEntity("LocationCharacterFrame");
-        for (const auto id : core.GetEntityIds("location"))
-            if (auto *context = static_cast<Location *>(core.GetEntityPointer(id)))
-                for (const auto &entry : context->supervisor.character)
-                    entry.c->SetContextVisible(context->IsContextVisible());
-    }
-}
-}
-
-bool Location::UsesContextReceivers() const
-{
-    return ownsRealContext && core.GetEntityPointer(locationCharacterFrame) != nullptr;
-}
-
-Location *Location::ActiveContext()
-{
-    auto *context = static_cast<Location *>(core.GetEntityPointer(activeLocationContext));
-    if (context || explicitLocationContext)
-        return context;
-    return static_cast<Location *>(core.GetEntityPointer(core.GetEntityId("location")));
-}
-
-Location *Location::ResolveContext(const char *logicalId)
-{
-    if (logicalId && logicalId[0])
-        for (const auto id : core.GetEntityIds("location"))
-        {
-            auto *context = static_cast<Location *>(core.GetEntityPointer(id));
-            const char *name = context && context->AttributesPointer ? context->AttributesPointer->GetAttribute("id") : nullptr;
-            if (name && storm::iEquals(name, logicalId))
-                return context;
-        }
-    return ActiveContext();
-}
-
-uint64_t Location::ActiveContextGeneration()
-{
-    return activeLocationGeneration;
-}
-
-void Location::SetActiveContext(bool active)
-{
-    EnsureLocationCharacterFrame();
-    ++activeLocationGeneration;
-    explicitLocationContext = true;
-    if (active)
-        activeLocationContext = GetId();
-    else if (activeLocationContext == GetId())
-        activeLocationContext = {};
-}
-
-void Location::SetContextVisible(bool visible)
-{
-    contextVisible = visible;
-    for (int32_t i = 0; i < model.Models(); ++i)
-    {
-        if (auto *realizer = static_cast<LocModelRealizer *>(core.GetEntityPointer(model.RealizerID(i))))
-            realizer->SetContextVisible(visible);
-        if (i == patchJump) continue;
-        if (visible)
-        {
-            core.AddToLayer(SHADOW, model.ID(i), 10);
-            core.AddToLayer(SUN_TRACE, model.ID(i), 10);
-            core.AddToLayer(RAIN_DROPS, model.ID(i), 100);
-        }
-        else
-        {
-            core.RemoveFromLayer(SHADOW, model.ID(i));
-            core.RemoveFromLayer(SUN_TRACE, model.ID(i));
-            core.RemoveFromLayer(RAIN_DROPS, model.ID(i));
-        }
-    }
-    for (const auto &entry : supervisor.character)
-        entry.c->SetContextVisible(visible);
-    const auto layer = [&](entid_t id, int priority) {
-        if (visible) core.AddToLayer(REALIZE, id, priority);
-        else core.RemoveFromLayer(REALIZE, id);
-    };
-    layer(lightsid, -1000);
-    layer(loceffectsid, 1000000);
-    layer(grass, 1000);
-    layer(blood, 65540);
-}
-
-ISLAND_BASE *Location::ResidentIsland() const
-{
-    // The script marks only contexts whose physical environment remains owned
-    // by the current naval region. Interiors retain their own model geometry.
-    const char *resident = AttributesPointer ? AttributesPointer->GetAttribute("PortResident") : nullptr;
-    if (!resident || !resident[0]) return nullptr;
-    return dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("island")));
-}
-
-bool Location::VisibleTest(const CVECTOR &p1, const CVECTOR &p2)
-{
-    if (!ResidentIsland()) return model.VisibleTest(p1, p2);
-    return Trace(p1, p2) >= 1.0f;
-}
-
-float Location::Trace(const CVECTOR &src, const CVECTOR &dst)
-{
-    float nearest = model.Trace(src, dst);
-    auto *island = ResidentIsland();
-    hasResidentCollision = island != nullptr;
-    if (!island) return nearest;
-    hasResidentTriangle = model.GetCollideTriangle(residentTriangle);
-    QueryResidentSurfaces(*island, [&](MODEL &receiver) {
-        const float hit = receiver.Trace(src, dst);
-        if (std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f && hit < nearest)
-        {
-            nearest = hit;
-            hasResidentTriangle = receiver.GetCollideTriangle(residentTriangle);
-        }
-    });
-    return nearest;
-}
-
-bool Location::GetCollideTriangle(TRIANGLE &triangle)
-{
-    if (!hasResidentCollision) return model.GetCollideTriangle(triangle);
-    triangle = residentTriangle;
-    return hasResidentTriangle;
-}
-
-bool Location::Clip(const PLANE *planes, int32_t numPlanes, const CVECTOR &center, float radius, ADD_POLYGON_FUNC callback)
-{
-    bool clipped = model.Clip(planes, numPlanes, center, radius, callback);
-    if (auto *island = ResidentIsland())
-        QueryResidentSurfaces(*island, [&](MODEL &receiver) {
-            clipped = receiver.Clip(planes, numPlanes, center, radius, callback) || clipped;
-        });
-    return clipped;
-}
-
 Location::Location(bool background) : ptc(!background)
 {
     using std::chrono::duration_cast;
@@ -489,20 +286,9 @@ Location::Location(bool background) : ptc(!background)
 
 Location::~Location()
 {
-    if (activeLocationContext == GetId())
-    {
-        activeLocationContext = {};
-        ++activeLocationGeneration;
-    }
-    if (ownsRealContext && --realLocationCount == 0)
-    {
-        core.EraseEntity(locationCharacterFrame);
-        locationCharacterFrame = {};
-        explicitLocationContext = false;
-    }
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     core.EraseEntity(metalLandLighting);
-    if (metalLandLighting && rs && contextVisible) StormMetalLandLocation(rs->GetNativeDevice(), false);
+    if (metalLandLighting && rs) StormMetalLandLocation(rs->GetNativeDevice(), false);
 #endif
     if (!AttributesPointer)
         return;
@@ -528,13 +314,6 @@ Location::~Location()
 // Initialization
 bool Location::Init()
 {
-    ownsRealContext = true;
-    if (++realLocationCount > 1) EnsureLocationCharacterFrame();
-    if (!core.GetEntityPointer(activeLocationContext))
-    {
-        activeLocationContext = GetId();
-        ++activeLocationGeneration;
-    }
     // DX9 render
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
@@ -605,21 +384,13 @@ void Location::Execute(uint32_t delta_time)
     locationTimeUpdate += dltTime;
     if (locationTimeUpdate > 1.0f)
     {
-        if (ActiveContext() == this)
-            core.Event("LocationTimeUpdate", "f", locationTimeUpdate);
+        core.Event("LocationTimeUpdate", "f", locationTimeUpdate);
         locationTimeUpdate = 0.0f;
     }
 }
 
 void Location::Realize(uint32_t delta_time)
 {
-    // Debug simulation still advances a hidden prepared context; its rendering
-    // and global lighting publication remain separately disabled.
-    if (!contextVisible)
-    {
-        if (isDebugView) Update(delta_time);
-        return;
-    }
     const auto fDeltaTime = static_cast<float>(delta_time) * 0.001f;
 
     fCausticFrame += fDeltaTime * fCausticSpeed;
@@ -687,13 +458,9 @@ void Location::Update(uint32_t delta_time)
     // Model effects
     model.Update(dltTime);
     // Characters
-    auto *active = ActiveContext();
-    const bool frameOwned = core.GetEntityPointer(locationCharacterFrame) != nullptr;
-    const bool paused = isPause || (frameOwned && (!active || active->IsPaused()));
-    if (!paused)
+    if (!isPause)
     {
-        if (!frameOwned)
-            supervisor.PreUpdate(dltTime);
+        supervisor.PreUpdate(dltTime);
         for (; dltTime > maxDltTime; dltTime -= maxDltTime)
             supervisor.Update(maxDltTime);
         if (dltTime > 0.0f)
@@ -985,25 +752,11 @@ int32_t Location::LoadStaticModel(const char *modelName, const char *tech, int32
         model.DeleteModel(im);
         return -1;
     }
-    if (hasWorldPlacement)
-    {
-        mdl->mtx = mdl->mtx * worldPlacement;
-        mdl->Update();
-    }
-    placementLocked = true;
-    if (auto *realizer = static_cast<LocModelRealizer *>(core.GetEntityPointer(model.RealizerID(im))))
-        realizer->SetContextVisible(contextVisible);
     // Add the model to special layers
     core.AddToLayer(SHADOW, mdl->GetId(), 10);
     core.AddToLayer(SUN_TRACE, mdl->GetId(), 10);
     core.AddToLayer(BLOOD, mdl->GetId(), 100);
     core.AddToLayer(RAIN_DROPS, mdl->GetId(), 100);
-    if (!contextVisible)
-    {
-        core.RemoveFromLayer(SHADOW, mdl->GetId());
-        core.RemoveFromLayer(SUN_TRACE, mdl->GetId());
-        core.RemoveFromLayer(RAIN_DROPS, mdl->GetId());
-    }
     // Reading out all locators
     GEOS::INFO ginfo;
     GEOS::LABEL label;
@@ -1042,14 +795,11 @@ int32_t Location::LoadStaticModel(const char *modelName, const char *tech, int32
                     mtxx.SetIdentity();
                     break;
                 }
-            CMatrix placed = hasWorldPlacement ? mtxx * worldPlacement : mtxx;
-            locators[j]->AddLocator(placed, label.name);
+            locators[j]->AddLocator(mtxx, label.name);
         }
         else
         {
-            CMatrix placed = *((CMatrix *)label.m);
-            if (hasWorldPlacement) placed = placed * worldPlacement;
-            locators[j]->SetNewMatrix(locIndex, placed);
+            locators[j]->SetNewMatrix(locIndex, *((CMatrix *)label.m));
         }
     }
 
@@ -1075,11 +825,8 @@ bool Location::LoadCharacterPatch(const char *ptcName)
     strcat_s(path, ".ptc");
     // load the patch
     const auto result = ptc.Load(path);
-    if (result) placementLocked = true;
     if (!result)
         core.Trace("Can't loaded patch data file %s.ptc for npc.", ptcName);
-    if (result && hasWorldPlacement)
-        ptc.ApplyWorldPlacement(worldPlacement);
     return result;
 }
 
@@ -1091,12 +838,6 @@ bool Location::LoadJumpPatch(const char *modelName)
     if (!modelName || !modelName[0])
         return false;
     patchJump = model.CreateModel(modelName, "", 0, false, nullptr);
-    if (patchJump >= 0) placementLocked = true;
-    if (patchJump >= 0 && hasWorldPlacement)
-    {
-        model[patchJump]->mtx = model[patchJump]->mtx * worldPlacement;
-        model[patchJump]->Update();
-    }
     return patchJump >= 0;
 }
 
@@ -1118,12 +859,7 @@ bool Location::LoadGrass(const char *modelName, const char *texture)
     strcat_s(nm, ".grs");
     int32_t ll = strlen(nm);
     if (grs->LoadData(nm))
-    {
-        placementLocked = true;
-        if (hasWorldPlacement) grs->SetWorldPlacement(worldPlacement);
-        if (!contextVisible) core.RemoveFromLayer(REALIZE, grass);
         return true;
-    }
     core.Trace("Can't load grass data file: %s", nm);
     core.EraseEntity(grass);
     return false;
@@ -1131,34 +867,13 @@ bool Location::LoadGrass(const char *modelName, const char *texture)
 
 bool Location::MessageEx(const char *name, MESSAGE &message)
 {
-    if (storm::iEquals(name, "SetContextVisible"))
-    {
-        SetContextVisible(message.Long() != 0);
-        return true;
-    }
-    else if (storm::iEquals(name, "SetActiveContext"))
-    {
-        SetActiveContext(message.Long() != 0);
-        return true;
-    }
-    else if (storm::iEquals(name, "WorldPlacement"))
-    {
-        const float x = message.Float(), y = message.Float(), z = message.Float(), yaw = message.Float();
-        if (placementLocked || model.Models() || ptc.data || numLocators || !std::isfinite(x) || !std::isfinite(y) ||
-            !std::isfinite(z) || !std::isfinite(yaw))
-            return false;
-        worldPlacement.BuildRotateY(yaw);
-        worldPlacement.Pos() = CVECTOR(x, y, z);
-        hasWorldPlacement = x != 0.0f || y != 0.0f || z != 0.0f || yaw != 0.0f;
-        return true;
-    }
-    else if (storm::iEquals(name, "DelAllLights"))
+    if (storm::iEquals(name, "DelAllLights"))
     {
         lights->DelAllLights();
     }
     else if (storm::iEquals(name, "AddFlys"))
     {
-        const auto effects = loceffectsid;
+        const auto effects = core.GetEntityId("LocationEffects");
         const auto x = message.Float();
         const auto y = message.Float();
         const auto z = message.Float();
@@ -1167,7 +882,7 @@ bool Location::MessageEx(const char *name, MESSAGE &message)
     }
     else if (storm::iEquals(name, "DelFlys"))
     {
-        const auto effects = loceffectsid;
+        const auto effects = core.GetEntityId("LocationEffects");
         core.Send_Message(effects, "s", "DelFlys");
         return true;
     }
@@ -1226,8 +941,6 @@ bool Location::MessageEx(const char *name, MESSAGE &message)
             core.AddToLayer(EXECUTE, blood, 65540);
             core.AddToLayer(REALIZE, blood, 65540);
         }
-        if (UsesContextReceivers()) core.Send_Message(blood, "li", MSG_BLOOD_SET_LOCATION, GetId());
-        if (!contextVisible) core.RemoveFromLayer(REALIZE, blood);
         CVECTOR vPos;
         vPos.x = message.Float();
         vPos.y = message.Float();

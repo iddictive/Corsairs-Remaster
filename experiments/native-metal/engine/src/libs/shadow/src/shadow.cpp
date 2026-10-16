@@ -139,8 +139,6 @@ bool AddPoly(const CVECTOR *vr, int32_t nverts)
 //------------------------------------------------------------------------------------
 void Shadow::Realize(uint32_t Delta_Time)
 {
-    auto *receiver = dynamic_cast<COLLISION_OBJECT *>(core.GetEntityPointer(locationReceiver));
-    if (locationReceiver && !receiver) return;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     // Keep the legacy fallback unless the earlier complete land pass succeeded.
     if (StormMetalLandShadowResolved(rs->GetNativeDevice())) return;
@@ -205,7 +203,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     const auto its = core.GetEntityIds(SHADOW);
 
     CVECTOR hdest = headPos + !(headPos - light_pos) * 100.0f;
-    float ray = receiver ? receiver->Trace(headPos, hdest) : col->Trace(its, headPos, hdest, nullptr, 0);
+    float ray = col->Trace(its, headPos, hdest, nullptr, 0);
     CVECTOR cen;
     float radius;
     if (ray <= 1.0f)
@@ -240,7 +238,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     {
         CVECTOR ps = ObjPos;
         ps.y += gi.radius * 0.111f * static_cast<float>(it);
-        if ((receiver ? receiver->Trace(ps, lightPos) : col->Trace(its, ps, lightPos, nullptr, 0)) > 1.0f)
+        if (col->Trace(its, ps, lightPos, nullptr, 0) > 1.0f)
             minVal += 0.1f;
     }
 
@@ -361,8 +359,7 @@ void Shadow::Realize(uint32_t Delta_Time)
 
     tot_verts = 0;
     rs->VBLock(vbuff, 0, 0, (uint8_t **)&shadvert, storm_render::lock::discard | storm_render::lock::noSystemLock);
-    if (receiver) receiver->Clip(&planes[0], 5, cen, radius, AddPoly);
-    else col->Clip(its, &planes[0], 5, cen, radius, AddPoly, &entity, 1);
+    col->Clip(its, &planes[0], 5, cen, radius, AddPoly, &entity, 1);
 
     rs->VBUnlock(vbuff);
 
@@ -523,9 +520,6 @@ uint64_t Shadow::ProcessMessage(MESSAGE &message)
     {
     case 0:
         entity = message.EntityID();
-        break;
-    case MSG_SHADOW_SET_LOCATION:
-        locationReceiver = message.EntityID();
         break;
 
     case MSG_BLADE_ALPHA:

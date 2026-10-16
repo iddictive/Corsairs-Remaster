@@ -208,6 +208,7 @@ class CharactersGroups : public Entity
     std::vector<Group *> groups; // Groups
     int32_t numGroups;              // Number of groups
     int32_t maxGroups;              // Number of groups
+    Location *location;          // Current location
     int32_t curExecuteChr;          // The index of the currently executing character
     float waveTime;              // Time since last wave launch
 

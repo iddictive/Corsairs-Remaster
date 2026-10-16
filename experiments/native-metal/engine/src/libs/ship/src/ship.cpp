@@ -3062,25 +3062,6 @@ static float BallMastDistSq(const CVECTOR &p1, const CVECTOR &q1, const CVECTOR 
     return ~(c1 - c2);
 }
 
-bool SHIP::HasCannonContact(const CVECTOR &src, const CVECTOR &dst, float radius)
-{
-    if (!GetModel()) return false;
-    if (Trace(src, dst) <= 1.0f) return true;
-    CMatrix transform = *GetMatrix();
-    for (int32_t i = 0; i < iNumMasts; ++i)
-    {
-        auto &mast = pMasts[i];
-        if (mast.bBroken) continue;
-        if (mast.pNode->Trace(src, dst) <= 1.0f) return true;
-        if (radius <= 0.0f) continue;
-        const float hitRadius = radius + 0.35f;
-        const CVECTOR from = transform * mast.vSrc, to = transform * mast.vDst;
-        if (BallMastDistSq(src, src, from, to, nullptr) > hitRadius * hitRadius &&
-            BallMastDistSq(src, dst, from, to, nullptr) <= hitRadius * hitRadius) return true;
-    }
-    return false;
-}
-
 float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst)
 {
     MODEL *pModel = GetModel();

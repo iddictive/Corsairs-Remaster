@@ -215,7 +215,7 @@ inline Character *NPCharacter::GetAttackedCharacter() const
 {
     if (task.task != npct_fight)
         return nullptr;
-    return ResolveScriptTarget(task.target, GetId());
+    return static_cast<Character *>(core.GetEntityPointer(task.target));
 }
 
 // Check event

@@ -5,7 +5,6 @@
 #include "ship_base.h"
 #include "ship_airburst_hull_distance.hpp"
 #include "ship_debris_bridge.hpp"
-#include "port_artillery_bridge.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -36,69 +35,6 @@ CVECTOR BallWorldVelocity(const BALL_PARAMS &ball, float time, float timeRate)
     CVECTOR velocity(0.0f, projectedX * s + projectedY * c, projectedX * c - projectedY * s);
     RotateAroundY(velocity.x, velocity.z, ball.fDirX, ball.fDirZ);
     return velocity * timeRate;
-}
-
-struct PortSolidContact
-{
-    float fraction = 2.0f;
-    CANNON_TRACE_BASE *owner = nullptr;
-};
-
-PortSolidContact TracePortSolid(const CVECTOR &src, const CVECTOR &dst, int32_t shooter,
-                               CANNON_TRACE_BASE *island, CANNON_TRACE_BASE *sea)
-{
-    PortSolidContact best;
-    const auto consider = [&](CANNON_TRACE_BASE *owner)
-    {
-        if (!owner) return;
-        const float fraction = owner->Trace(src, dst);
-        if (fraction >= 0.0f && fraction < best.fraction) best = {fraction, owner};
-    };
-    // Read-only selection precedes every damage-producing Cannon_Trace.
-    consider(island);
-    consider(AIFort::pAIFort);
-    for (const auto id : core.GetEntityIds(SHIP_CANNON_TRACE))
-    {
-        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
-        if (ship && ship->GetModel() && ship->GetACharacter() &&
-            GetIndex(ship->GetACharacter()) != shooter) consider(ship);
-    }
-    consider(sea);
-    return best;
-}
-
-void DamagePortCharacters(const std::vector<storm::port::ArtilleryCharacter> &characters,
-                          int32_t direct, int32_t shooter, uint32_t goods, bool bomb,
-                          const CVECTOR &hit, const CVECTOR &impulse, const CVECTOR &outside,
-                          CANNON_TRACE_BASE *island, CANNON_TRACE_BASE *sea)
-{
-    constexpr float blastRadius = 5.0f;
-    for (const auto &character : characters)
-    {
-        float falloff = 1.0f;
-        if (character.index != direct)
-        {
-            if (!bomb) continue;
-            const float distance = std::sqrt(~(character.center - hit));
-            if (distance >= blastRadius) continue;
-            if (TracePortSolid(outside, character.center, -1, island, sea).fraction < 1.0f) continue;
-            if (storm::ship::debris::Trace(outside, character.center)) continue;
-            falloff = 1.0f - distance / blastRadius;
-            falloff *= falloff;
-        }
-        auto *result = core.Event("Ball_PortCharacterHit", "lllfffffff", character.index, shooter, goods,
-                                  hit.x, hit.y, hit.z, impulse.x, impulse.y, impulse.z, falloff);
-        int32_t admitted = 0;
-        if (result && result->Get(admitted) && admitted == 2)
-        {
-            // Presentation impulse uses a finite human mass; the event carries
-            // unmodified world momentum, and LAi remains the only HP owner.
-            CVECTOR velocity = impulse * (falloff / 75.0f);
-            const float speed = std::sqrt(~velocity);
-            if (speed > 30.0f) velocity *= 30.0f / speed;
-            storm::port::PresentArtilleryDeath(character.index, velocity);
-        }
-    }
 }
 
 // Identity rides the existing saved event string: the four native ball lanes and
@@ -786,93 +722,40 @@ void AIBalls::Execute(uint32_t Delta_Time)
             else if (storm::iEquals(pBallsType->sName, "Grapes"))
                 fRigRadius = 0.35f * pBall->fSizeMultiply;
 
-            const bool residentArtillery = !burst && !fragment && !heated && airburstGood < 0 &&
-                                           storm::port::ArtilleryResident();
-            const auto portCharacters = residentArtillery ? storm::port::ArtilleryCharacters()
-                : std::vector<storm::port::ArtilleryCharacter>{};
-            const auto portPerson = residentArtillery
-                ? storm::port::TraceArtilleryCharacter(vSrc, traceDst, portCharacters)
-                : storm::port::ArtilleryContact{};
-            const auto portSolid = residentArtillery
-                ? TracePortSolid(vSrc, traceDst, pBall->iBallOwner, pIsland, pSea) : PortSolidContact{};
-            const bool personFirst = portPerson.index >= 0 && portPerson.fraction < portSolid.fraction;
-            const float portFraction = personFirst ? portPerson.fraction : portSolid.fraction;
-            // A few ulps keep the chosen owner's endpoint in its own trace;
-            // unselected owners never receive a damage call.
-            const CVECTOR ordinaryDst = residentArtillery && portFraction <= 1.0f
-                ? vSrc + (traceDst - vSrc) * std::nextafter(portFraction, 1.0f) : traceDst;
-
             if (!burst && !fragment && pSail)
             {
                 pSail->SetCannonTraceRadius(fRigRadius);
-                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, ordinaryDst);
+                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
                 pSail->SetCannonTraceRadius(0.0f);
             }
 
-            if (residentArtillery)
+            auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
+            for (auto ent_id : entities)
             {
-                fRes = portFraction;
-                // Preserve penetrating mast contacts, admitted read-only and
-                // bounded before the nearest wall, hull, person or water.
-                for (const auto id : core.GetEntityIds(SHIP_CANNON_TRACE))
+                if (burst || fragment) break;
+                if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                 {
-                    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
-                    if (!ship || !ship->GetACharacter() || GetIndex(ship->GetACharacter()) == pBall->iBallOwner ||
-                        !ship->HasCannonContact(vSrc, ordinaryDst, fRigRadius)) continue;
-                    ship->SetCannonTraceRadius(fRigRadius);
-                    ship->Cannon_Trace(pBall->iBallOwner, vSrc, ordinaryDst);
-                    ship->SetCannonTraceRadius(0.0f);
-                }
-                if (!personFirst && portSolid.owner && fRes <= 1.0f &&
-                    (portSolid.owner == pIsland || portSolid.owner == pSea || portSolid.owner == AIFort::pAIFort))
-                {
-                    portSolid.owner->SetCannonTraceRadius(fRigRadius);
-                    portSolid.owner->Cannon_Trace(pBall->iBallOwner, vSrc, ordinaryDst);
-                    portSolid.owner->SetCannonTraceRadius(0.0f);
-                }
-                if (fRes <= 1.0f)
-                {
-                    const CVECTOR hit = vSrc + (traceDst - vSrc) * fRes;
-                    const float rate = fDeltaTimeMultiplier * pBall->fTimeSpeedMultiply;
-                    const float fraction = fRes * (debrisHit ? debrisHit.fraction : 1.0f);
-                    const float time = pBall->fTime - fDeltaTime * rate * (1.0f - fraction);
-                    const CVECTOR impulse = BallWorldVelocity(*pBall, time, rate) * CannonShotMass(pBall->dwCannonType);
-                    const CVECTOR outside = hit - !(vDst - vSrc) * 0.025f;
-                    DamagePortCharacters(portCharacters, personFirst ? portPerson.index : -1, pBall->iBallOwner,
-                                         pBallsType->dwGoodIndex, storm::iEquals(pBallsType->sName, "Bombs"),
-                                         hit, impulse, outside, pIsland, pSea);
+                    pShip->SetCannonTraceRadius(fRigRadius);
+                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                    pShip->SetCannonTraceRadius(0.0f);
+                    if (fRes <= 1.0f)
+                        break;
                 }
             }
-            else
+
+            // fort trace
+            if (!fragment && fRes > 1.0f && AIFort::pAIFort)
             {
-                auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
-                for (auto ent_id : entities)
-                {
-                    if (burst || fragment) break;
-                    if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
-                    {
-                        pShip->SetCannonTraceRadius(fRigRadius);
-                        fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
-                        pShip->SetCannonTraceRadius(0.0f);
-                        if (fRes <= 1.0f)
-                            break;
-                    }
-                }
-
-                // fort trace
-                if (!fragment && fRes > 1.0f && AIFort::pAIFort)
-                {
-                    fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
-                }
-
-                // island trace
-                if (!fragment && fRes > 1.0f && pIsland)
-                    fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
-
-                // sea trace
-                if (!fragment && fRes > 1.0f && pSea)
-                    fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
             }
+
+            // island trace
+            if (!fragment && fRes > 1.0f && pIsland)
+                fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+
+            // sea trace
+            if (!fragment && fRes > 1.0f && pSea)
+                fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
 
             if (debrisHit)
             {
@@ -885,13 +768,6 @@ void AIBalls::Execute(uint32_t Delta_Time)
                     storm::ship::debris::Impact(debrisHit, BallWorldVelocity(*pBall, hitTime, timeRate),
                                                CannonShotMass(pBall->dwCannonType), pBall->iBallOwner);
                     fRes = debrisHit.fraction;
-                    if (residentArtillery && storm::iEquals(pBallsType->sName, "Bombs"))
-                    {
-                        const CVECTOR hit = vSrc + (vDst - vSrc) * fRes;
-                        const CVECTOR impulse = BallWorldVelocity(*pBall, hitTime, timeRate) * CannonShotMass(pBall->dwCannonType);
-                        DamagePortCharacters(portCharacters, -1, pBall->iBallOwner, pBallsType->dwGoodIndex, true,
-                                             hit, impulse, hit - !(vDst - vSrc) * 0.025f, pIsland, pSea);
-                    }
                 }
             }
 

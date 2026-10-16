@@ -465,16 +465,14 @@ bool ModelArray::GetCollideTriangle(TRIANGLE &trg) const
     return isHavecTrg;
 }
 
-bool ModelArray::Clip(const PLANE *p, int32_t numPlanes, const CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num))
+void ModelArray::Clip(PLANE *p, int32_t numPlanes, CVECTOR &cnt, float rad, bool (*fnc)(const CVECTOR *vtx, int32_t num))
 {
-    bool clipped = false;
     for (int32_t i = 0; i < numModels; i++)
     {
         if (model[i].isVisible)
         {
             auto *mdl = static_cast<MODEL *>(core.GetEntityPointer(model[i].id));
-            clipped = mdl->Clip(p, numPlanes, cnt, rad, fnc) || clipped;
+            mdl->Clip(p, numPlanes, cnt, rad, fnc);
         }
     }
-    return clipped;
 }

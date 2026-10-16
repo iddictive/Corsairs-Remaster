@@ -394,14 +394,9 @@ void Crime_RecordDebtRepudiation(int severity)
 
 void CrimeLand_RememberTarget(ref target)
 {
-	CrimeLand_RememberTargetAtLocation(target, pchar.location);
-}
-
-void CrimeLand_RememberTargetAtLocation(ref target, string locationId)
-{
 	string targetKey = "t" + target.index;
 	pchar.Crime.Land.Targets.(targetKey).Index = target.index;
-	pchar.Crime.Land.Targets.(targetKey).Location = locationId;
+	pchar.Crime.Land.Targets.(targetKey).Location = pchar.location;
 }
 
 void CrimeLand_CloseTarget(int targetIndex)
@@ -412,11 +407,6 @@ void CrimeLand_CloseTarget(int targetIndex)
 
 void Crime_MarkPlayerIntent(ref target, string action)
 {
-	Crime_MarkPlayerIntentAtLocation(target, action, pchar.location);
-}
-
-void Crime_MarkPlayerIntentAtLocation(ref target, string action, string locationId)
-{
 	// Resolution belongs to the previous incident, not to this NPC forever.
 	DeleteAttribute(target, "Crime.ReportResolved");
 	target.Crime.PlayerIntent = action;
@@ -424,7 +414,7 @@ void Crime_MarkPlayerIntentAtLocation(ref target, string action, string location
 	target.CrimeIntent.Dialog.AttackerIndex = GetMainCharacterIndex();
 	target.CrimeIntent.Dialog.Action = action;
 	target.CrimeIntent.Dialog.Day = GetDataDay();
-	CrimeLand_RememberTargetAtLocation(target, locationId);
+	CrimeLand_RememberTarget(target);
 	WdmMilitaryParticipationHit(target, true);
 }
 
@@ -2727,7 +2717,7 @@ float Ship_Ship2IslandCollision()
 float Ship_GetAttackHP(int iCharacterIndex, float fDistance)
 {
 	float fAttackHP = 0.0;
-	if (bSeaActive || Port_IsResident())
+	if (bSeaActive)
 	{
 		SendMessage(&AISea, "lafe", AI_MESSAGE_SHIP_GET_ATTACK_HP, &Characters[iCharacterIndex], fDistance, &fAttackHP);
 	}
@@ -2948,9 +2938,7 @@ void Ship_AddCharacterExp(ref rCharacter, int iExpQuantity)
 void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterIndex)
 {
     if (GreatRecipe_ClaimDeath(iDeadCharacterIndex)) return;
-	// A resident fleet still has a real native sinking lifecycle. The ordinary
-	// off-scene harbour loss owner must not replace it while its entities live.
-	if (!Port_IsResident() && WdmHarbourClaimLoss(iDeadCharacterIndex, "native")) return;
+	if (WdmHarbourClaimLoss(iDeadCharacterIndex, "native")) return;
 	ref rDead, rKillerCharacter, rBaseShip, rKillerBaseShip, sld;
 
 	rDead = GetCharacter(iDeadCharacterIndex);
@@ -2960,8 +2948,6 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
         return;
     }
     bool bDeadCompanion = IsCompanion(rDead);
-	if (Port_IsResident() && CheckAttribute(rDead, "Ship.Sink")) return;
-	bool captainAway = iDeadCharacterIndex == nMainCharacterIndex && Port_HeroAwayFromShip();
 	rDead.Killer.Status = iKillStatus;
 	rDead.Killer.Index = iKillerCharacterIndex;
 	DeleteAttribute(rDead, "CrewDebtShipEscaped");
@@ -3044,7 +3030,7 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
 	rDead.Killer.Status = iKillStatus;
 	rDead.Killer.Index = iKillerCharacterIndex;
 		
-	if (!captainAway) LAi_SetCurHP(rDead, 0.0);
+	LAi_SetCurHP(rDead, 0.0);
 		
 	if (CheckAttribute(rDead, "curshipnum")) 
 	{
@@ -3166,12 +3152,6 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
 	
 	if (iDeadCharacterIndex == nMainCharacterIndex)
 	{ 
-		if (captainAway)
-		{
-			pchar.PortTravel.shipLost = 1;
-		}
-		else
-		{
 		SeaCameras_SetDieCamera();
 		FadeOutMusic(2);
 		//PlayStereoOGG("music_ship_dead");
@@ -3184,7 +3164,6 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
 		{
 			InterfaceStates.Buttons.Save.enable = false;
 			PostEvent(GAME_OVER_EVENT, 15000);
-		}
 		}
 	}
     // спасем офицеров boal 07/02/05
@@ -4324,8 +4303,6 @@ void Ship_UpdateParameters()
 	float	fSailState = GetEventData();
 	
 	bool	bDead = LAi_IsDead(rCharacter);
-	bool navalActive = bSeaActive || Port_IsResident();
-	if (Port_IsResident() && CheckAttribute(rCharacter, "Ship.HP") && stf(rCharacter.Ship.HP) <= 0.0) bDead = true;
 	//Log_Testinfo("Ship_UpdateParameters " + rCharacter.id);
 	
 	if(sti(rCharacter.ship.type) == SHIP_NOTUSED || bDead)   // super fix boal
@@ -4481,7 +4458,7 @@ void Ship_UpdateParameters()
 	{
 		fBaseShipHP = fCurHP;
 	}
-	if (navalActive && (fCurHP / fBaseShipHP < 0.09999))
+	if (bSeaActive && (fCurHP / fBaseShipHP < 0.09999))
 	{
         float fLightRepair = AIShip_isPerksUse(arTmpPerks.LightRepair, 1.0, 0.0);
         // это спец атрибут по убиванию этой функции
@@ -4532,7 +4509,7 @@ void Ship_UpdateParameters()
 		fStormProfessional = 0;
 	}
 	// boal fix defence ship in storm 11.05.05 <--
-	if (navalActive && !bAbordageStarted && IsEntity(&Sea))
+	if (bSeaActive && !bAbordageStarted && IsEntity(&Sea))
 	{
 		float fTsunamiImpact = 0.0;
 		float fTsunamiDamageFraction = 0.0;
@@ -4552,7 +4529,7 @@ void Ship_UpdateParameters()
 		if (LAi_IsDead(rCharacter)) return;
 	}
 	// do damage if storm or tornado
-	if (bStorm && navalActive && !bAbordageStarted && IsEntity(&Sea))
+	if (bStorm && bSeaActive && !bAbordageStarted && IsEntity(&Sea))
 	{
 		float fWindAttack = 1.0 - abs(fWindDotShip);
 		float fWaveAmplitude = 0.0;
@@ -4616,7 +4593,7 @@ void Ship_UpdateParameters()
 		arCharShip.Impulse.Rotate.y = fRotate;
 	}
 
-	if (bTornado && navalActive)
+	if (bTornado && bSeaActive)
 	{
 		float fTornadoDistance = GetDistance2D(stf(Tornado.x), stf(Tornado.z), stf(arCharShip.Pos.x), stf(arCharShip.Pos.z));
 		float fTornadoDamageMultiply = fStormProfessional * Bring2Range(1.0, 0.0, 0.0, 100.0, fTornadoDistance);

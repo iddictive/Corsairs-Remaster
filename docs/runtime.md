@@ -1,8 +1,86 @@
 # Runtime state
 
-Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d400cccbd2ef4170cd079de5309d5f01cf1` is installed in the supported app, carrying corrected combat/forest, the native San Juan core, neighboring-island transitions and the entity-cache repair. Canonical `run.sh --stage-only` exits0 at source commit `130a1bc`; its final transaction verifies the complete app signature with deep/strict checks. Native source fingerprint is `80ea207cf43a8ea99d8335cfd8c9c5fa45a1c004543785ae5cbdde59d2472767`, unsigned engine SHA-256 `6fda3db4a88f48b010cb19159ed4693ada74d6494fa7a7cb05a6b3e69ff542f7`. Cache and installed gameplay each report0 pending files; the complete installed script include chain compiles with0 errors using installed shared headers. All251 observed player SAVE/userdata/config files retain exact hashes. All14 city assets match the accepted native fixture; the fort, gun/shore locators and seabed remain byte-identical. No agent game launch/control or player SAVE load occurred. Player-scene gameplay, FPS, lighting and region-transition replay remain unresolved; earlier delivery identities below are historical.
+Last verified delivery: October16,20:02UTC, source `f885a3376b1d8fc61338912f4232a4ed7da4a5a8`, signed engine `c5f58cdab1345e32af02d405b4553731c2eacf715416a8946b22d059d0c3328a` in the supported app. The player rejected its seamless-port behavior. The later explicit instruction freezes shore/rowboat travel, restores ordinary town transitions, and keeps the earlier experimental sea city. The complete unfinished source is retained at `codex/frozen-shore-travel` (`6dc08e7`); rollback source is prepared but not yet built/staged. Source/reconstruction publication and the game ZIP wait for that rollback. No agent player-game launch/control or SAVE load occurred. `TASKS.md` owns the current handoff; earlier verdict entries below are historical.
 
 ## Current verdict
+
+### October16 — shore travel frozen; ordinary-transition rollback pending delivery
+
+The user superseded further port repair with an explicit freeze and rollback.
+`codex/frozen-shore-travel` preserves the entire unfinished feature and both small
+optional-camera message repairs. Active native/script travel, resident Location
+and port artillery changes return to `f8c45b2`. The earlier city geometry, fort,
+decorative population and unrelated laser/combat/forest/sailing work remain.
+The independent SAVE global-reference reader remains compatible with saves made
+after the added globals. Player SAVE/settings are not loaded or rewritten.
+
+One promoted gameplay source, `characters_login.c`, must stay registered and be
+restored to its reviewed original; merely removing its manifest entry would leave
+old installed port callbacks. Existing rowboat resource identities remain admitted
+for the already-delivered receipt, without running their generator or activating
+their native/scripts. This preserves the normal updater's known predecessor;
+unused generated files do not become live gameplay.
+
+All596 headers in the retained f885 baseline independently match that Git commit;
+all55 captured files match their recorded hashes. No current working CPP was
+archived with those libraries. No further port journey QA is active. The next
+required transition is a canonical rollback build/stage, followed by the already
+requested source/reconstruction and ZIP delivery; gameplay acceptance remains
+player-owned.
+
+### October16 — actual port failures reopen acceptance; publication held
+
+After playing c5f58cda, the user reports water through the town, transparent/dark
+characters and noisy foliage, unexpected swimming/teleport on interaction and
+interior entry, and a crash on port exit. The supplied screenshot/crash report
+reopen the port's acceptance; no single height or material cause is assumed.
+Port diagnosis/source repair was reopened, then superseded by the freeze above.
+The exact installed b06 ABI baseline is retained as49 libraries/596 headers and
+producer commands under `.local-archives/seamless-port/coherent-f885a33/`.
+
+The later delivery request authorizes publishing engine source and a complete
+reconstruction path to GitHub, allowing large required inputs on Google Drive,
+and a current game ZIP. Those publications now wait for the requested rollback;
+the source/dependency audit can proceed independently. Portfolio work has its
+separate owner, with its download link and Habr excluded. This does not resume
+unrelated gameplay checks or grant agent control of the player's game/SAVE.
+
+### October16 — current combined batch installed; execution paused
+
+The user explicitly stopped further QA and requested integration of the current
+batch. Canonical build/staging from `f885a33` installs the physical-timber laser
+repair `f8c45b2`, sea-only region transition/raised spyglass and midpoint aiming
+overlay, existing combat/forest work, and seamless-port source `a469606` together.
+The repeatable fixture-input capture owner is also committed. The installer
+applies33 gameplay/rowboat files and delivers matching shared headers and engine;
+all239 managed receipt entries match their actual installed bytes. All254
+observed player SAVE/userdata/configuration and bundled-default files remain
+byte-identical. The previous signed a3b088fb engine is retained under
+`experiments/native-metal/.cache/installed-engine-backup/` for recovery.
+
+Actual gameplay acceptance remains **UNRUN** for this combined installation:
+held laser and cannon→laser behavior, intermittent nuclear firing, scene/FPS
+behavior, sea-region/spyglass transitions, and the complete deck→boat→town→quest/
+trade/combat→same-ship/SAVE route. The final private fixture stopped after a
+missing include-directory compilation error; it linked no executable and ran
+zero native cases/GPU seconds. No retry followed the user stop. Earlier CPU and
+native component results remain their recorded evidence, not acceptance of this
+installed batch. Forest form remains the accepted sparse variant; ground-grass
+color changes were not resumed.
+
+All owned fixture workers are terminal; the root has no native goal. The related
+island automation and the older FPS goal are paused. Completed chat history is
+consolidated in the existing local `TASKS.md` handoff. The managed build-only
+checkout is archived through the native app; its49-library/591-header f8 closure,
+exact producer commands and unique inputs remain in the primary evidence owner,
+and its8214 portable inputs have the same manifest as the saved checkout. No
+push, new test campaign, player launch or automatic resume occurred.
+
+Exact final build/install/protected-state receipts and installer output are in
+`.local-archives/metal-renderer-evidence/phonk-current-20261016/pause-delivery-20261016/`.
+`DEVELOPMENT.md`, `dev-runtime.md` and `metal-portable-bundle.md` own rebuild,
+delivery and transfer entrypoints; gameplay work resumes only on a new explicit
+human request.
 
 ### October16 — seamless port source batch checkpoint; native journey pending
 

@@ -3,12 +3,6 @@
 //Update events
 //==========================================================================================
 
-bool LAi_GetScriptContextCaptured()
-{
-	string locationId = GetEventData();
-	return IsLocationCaptured(locationId);
-}
-
 void LAi_Character_FrameUpdate()
 {
 	float dltTime = GetEventData();
@@ -360,7 +354,7 @@ void LAi_Character_EndAction()
 void LAi_Character_Dead_Process(aref chr)
 {
 	bool siegeActor = WdmMilitaryLandActorDead(chr);
-	if (!Port_IsResident() || chr.location == pchar.location) DialogExit();
+	DialogExit();
 	LAi_CharacterLogoff(chr);
 	if(sti(chr.index) != nMainCharacterIndex)
 	{
@@ -379,21 +373,7 @@ void LAi_Character_Dead_Process(aref chr)
         // убираем совместителя в CharacterDeadProcess
         
 		//Реинкарнируем
-		if (!siegeActor)
-		{
-			// A retained town can take artillery hits while an interior is active.
-			// The stock respawn generator consumes loadedLocation, not chr.location.
-			int activeLocation = -1;
-			int deathLocation = -1;
-			if (Port_IsResident())
-			{
-				if (CheckAttribute(loadedLocation, "index")) activeLocation = sti(loadedLocation.index);
-				deathLocation = FindLocation(chr.location);
-				if (deathLocation >= 0 && IsEntity(&Locations[deathLocation])) makeref(loadedLocation, Locations[deathLocation]);
-			}
-			LAi_GenerateFantomFromMe(chr);
-			if (activeLocation >= 0) makeref(loadedLocation, Locations[activeLocation]);
-		}
+		if (!siegeActor) LAi_GenerateFantomFromMe(chr);
 		//Посмотрим группу
 		LAi_group_CheckGroupQuest(chr);
 	}

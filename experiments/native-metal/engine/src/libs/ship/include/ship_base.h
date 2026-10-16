@@ -59,13 +59,6 @@ class SHIP_BASE : public VAI_OBJBASE
 
     ~SHIP_BASE() override = default;
 
-    // Read-only admission for bounded naval traces. Mast contacts can be
-    // penetrating; a positive result does not itself stop a projectile.
-    virtual bool HasCannonContact(const CVECTOR &src, const CVECTOR &dst, float radius)
-    {
-        return Trace(src, dst) <= 1.0f;
-    }
-
     virtual ATTRIBUTES *GetAShip()
     {
         return pAShip;

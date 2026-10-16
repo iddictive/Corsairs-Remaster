@@ -1,18 +1,6 @@
 {
   "version": 2,
   "files": {
-    "PROGRAM/sea_ai/PortRegion.c": {
-      "encoding": "utf-8",
-      "legacy": []
-    },
-    "PROGRAM/sea_ai/PortSave.c": {
-      "encoding": "utf-8",
-      "legacy": []
-    },
-    "PROGRAM/sea_ai/PortArtillery.c": {
-      "encoding": "utf-8",
-      "legacy": []
-    },
     "PROGRAM/characters/characters_login.c": {
       "encoding": "utf-8",
       "legacy": [

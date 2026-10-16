@@ -226,28 +226,6 @@ int Reload(aref reload_group, string locator_name, string current_location)
 		}
 	}
 	
-	if (Port_IsResident() && Port_IsLandHero())
-	{
-		if (reload_island_index >= 0 && reload_locator_ref.go == "PuertoRico")
-		{
-			dialogDisable = false;
-			return Port_EnterBoat();
-		}
-		if (reload_location_index >= 0)
-		{
-			ref portDestination = &Locations[reload_location_index];
-			if (findsubstr(portDestination.id, "Common", 0) == 0)
-				portDestination.PortContext.region = "PuertoRico";
-			if (Port_IsSupportedLocation(portDestination.id))
-			{
-				dialogDisable = false;
-				if (CheckAttribute(reload_locator_ref, "disable") && sti(reload_locator_ref.disable)) return -1;
-				if (CheckAttribute(reload_locator_ref, "close_for_night") && sti(reload_locator_ref.close_for_night) && !IsDay()) return -1;
-				return Port_ReloadLandLocation(reload_location_index, reload_locator_ref);
-			}
-		}
-		Port_LeaveForOrdinaryLocation();
-	}
 	//Start fader
 	SetEventHandler("FaderEvent_StartFade", "ReloadStartFade", 0);
 	SetEventHandler("FaderEvent_EndFade", "ReloadEndFade", 0);
@@ -675,7 +653,6 @@ int ReloadToLocation(int location_index, aref reload_data)
 	//меняем радиусы детекторов энкаунтеров
 	Locations[location_index].locators_radius.encdetector = 8 + rand(10);
     // <-- eddy
-	if (PortAddressOnly) return 1;
 	return LoadLocation(&Locations[location_index]);
 }
 

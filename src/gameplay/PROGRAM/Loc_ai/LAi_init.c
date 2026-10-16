@@ -25,17 +25,9 @@ bool LAi_IsBoarding = false;
 //Инициализация интелекта
 void LocAi_Init(ref loc)
 {
-	// One registry spans the retained town and its prepared service interiors.
-	if (Port_IsResident() && LAi_IsInitedAI && IsEntity(&LAi_grp_relations))
-	{
-		LAi_IsCapturedLocation = IsLocationCaptured(loc.id);
-		LAi_IsBoarding = false;
-		return;
-	}
 	LAi_numloginedcharacters = 0;
 	if(LAi_group_Init() == false) Trace("Error: Characters group logic not inited!!!");
 	SetEventHandler("CharacterUpdate", "LAi_CharacterUpdate", 1);
-	SetEventHandler("Location_GetScriptContextCaptured", "LAi_GetScriptContextCaptured", 0);
 	SetEventHandler("CharactersStateUpdate", "LAi_Character_FrameUpdate", 1);
 	SetEventHandler("Location_CharacterEndTask", "LAi_CharacterEndTask", 0);
 	SetEventHandler("Location_CharacterTaskFailure", "LAi_CharacterTaskFailure", 0);
@@ -54,7 +46,7 @@ void LocAi_Init(ref loc)
 	SetEventHandler("Location_CharacterItemAction", "LAi_CharacterItemAction", 0);
 	LAi_IsInitedAI = true;
 	LAi_IsCapturedLocation = IsLocationCaptured(loc.id);
-	if(!actLoadFlag && !Port_IsResident())
+	if(!actLoadFlag)
 	{
 		//Очистим фантомных персонажей
 		for(int i = 0; i < MAX_CHARS_IN_LOC; i++)
@@ -76,7 +68,7 @@ void LocAi_Init(ref loc)
 	}
 	LAi_IsBoarding = isBoarding;
 	WdmMilitaryLandBeforeLoad(loc);
-	if(!isBoarding && !Port_PreparingContext())
+	if(!isBoarding)
 	{
 		int locIndex = 1;
 		if(LAi_restoreStates)
@@ -167,7 +159,6 @@ void LocAi_Release()
 	LAi_IsInitedAI = false;
 	LAi_numloginedcharacters = 0;
 	DelEventHandler("CharacterUpdate", "LAi_CharacterUpdate");
-	DelEventHandler("Location_GetScriptContextCaptured", "LAi_GetScriptContextCaptured");
 	DelEventHandler("CharactersStateUpdate", "LAi_Character_FrameUpdate");
 	DelEventHandler("Location_CharacterEndTask", "LAi_CharacterEndTask");
 	DelEventHandler("Location_CharacterTaskFailure", "LAi_CharacterTaskFailure");
@@ -201,24 +192,6 @@ void LocAi_Release()
 
 void LocAi_PostInit(ref loc)
 {
-	if (Port_IsResident())
-	{
-		if (!CheckAttribute(loc, "PortContext.population"))
-		{
-			if (!LAi_IsBoarding) LAi_CharacterPostLogin(loc);
-			loc.PortContext.population = true;
-		}
-		for (int residentSlot = 0; residentSlot < LAi_numloginedcharacters; residentSlot++)
-		{
-			int residentIndex = LAi_loginedcharacters[residentSlot];
-			if (residentIndex < 0) continue;
-			ref resident = &Characters[residentIndex];
-			if (resident.location != loc.id || CheckAttribute(resident, "PortContext.initialized")) continue;
-			LAi_PostLoginInit(resident);
-			resident.PortContext.initialized = true;
-		}
-		return;
-	}
 	if(!LAi_IsBoarding) LAi_CharacterPostLogin(loc);
 	for(int i = 0; i < LAi_numloginedcharacters; i++)
 	{

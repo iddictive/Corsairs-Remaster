@@ -23,24 +23,6 @@
 #define CGS_DEFMAXTIME 20.0f
 #define CGS_VIEWANGLE 100.0f
 
-namespace
-{
-std::vector<Character *> ResidentCharacters()
-{
-    std::vector<Character *> result;
-    for (const auto id : core.GetEntityIds("location"))
-        if (auto *context = static_cast<Location *>(core.GetEntityPointer(id)))
-            for (const auto &entry : context->supervisor.character)
-                result.push_back(entry.c);
-    return result;
-}
-
-bool SameContext(Character *a, Character *b)
-{
-    return a && b && a->GetLocation() && a->GetLocation() == b->GetLocation();
-}
-}
-
 // ============================================================================================
 // Construction, destruction
 // ============================================================================================
@@ -49,6 +31,7 @@ CharactersGroups::CharactersGroups()
 {
     numGroups = 0;
     maxGroups = 0;
+    location = nullptr;
     waveTime = 10.0f;
     curExecuteChr = -1;
 }
@@ -145,7 +128,9 @@ int32_t CharactersGroups::String::GetLen(const char *str)
 bool CharactersGroups::Init()
 {
     // Location Pointer
-    if (!Location::ActiveContext())
+    const auto loc = core.GetEntityId("location");
+    location = static_cast<Location *>(core.GetEntityPointer(loc));
+    if (!location)
         return false;
     RegistryGroup("");
     // core.LayerCreate("execute", true, false);
@@ -219,10 +204,9 @@ void CharactersGroups::Execute(uint32_t delta_time)
     waveTime += dltTime;
     if (curExecuteChr >= 0)
     {
-        const auto residents = ResidentCharacters();
-        if (curExecuteChr < residents.size())
+        if (curExecuteChr < location->supervisor.character.size())
         {
-            auto *const c = residents[curExecuteChr];
+            auto *const c = location->supervisor.character[curExecuteChr].c;
             CharacterVisibleCheck(c);
             curExecuteChr++;
         }
@@ -243,9 +227,6 @@ void CharactersGroups::Execute(uint32_t delta_time)
 void CharactersGroups::CharacterVisibleCheck(Character *chr)
 {
     if (!chr)
-        return;
-    auto *location = chr->GetLocation();
-    if (!location)
         return;
     // remove the fulfilled targets
     RemoveInvalidTargets(chr);
@@ -271,8 +252,6 @@ void CharactersGroups::CharacterVisibleCheck(Character *chr)
 // Check found characters for enemies
 void CharactersGroups::FindEnemyFromFindList(Character *chr, Group *grp, bool visCheck)
 {
-    auto *location = chr->GetLocation();
-    if (!location) return;
     std::vector<Character *> targets;
     // For all found characters
     for (size_t i = 0; i < fnd.size(); i++)
@@ -335,7 +314,7 @@ void CharactersGroups::FindEnemyFromFindList(Character *chr, Group *grp, bool vi
 // Add or update an enemy
 bool CharactersGroups::AddEnemyTarget(Character *chr, Character *enemy, float maxtime)
 {
-    if (!SameContext(chr, enemy))
+    if (!chr || !enemy)
         return false;
     // restore the alarm
     const auto isSelf = false;
@@ -375,8 +354,10 @@ bool CharactersGroups::AddEnemyTarget(Character *chr, Character *enemy, float ma
 void CharactersGroups::RemoveAllInvalidTargets()
 {
     // Update goal lists
-    for (auto *character : ResidentCharacters())
-        RemoveInvalidTargets(character);
+    for (size_t i = 0; i < location->supervisor.character.size(); i++)
+    {
+        RemoveInvalidTargets(location->supervisor.character[i].c);
+    }
 }
 
 // Remove inactive or invalid targets
@@ -395,8 +376,8 @@ bool CharactersGroups::RemoveInvalidTargets(Character *chr, Character *check)
     {
         auto isDelete = true;
         auto &trg = chr->grpTargets[i];
-        auto *c = Character::ResolveScriptTarget(trg.chr, chr->GetId());
-        if (SameContext(chr, c) && (trg.time < trg.timemax || trg.timemax < 0.0f))
+        auto *c = static_cast<Character *>(core.GetEntityPointer(trg.chr));
+        if (c && (trg.time < trg.timemax || trg.timemax < 0.0f))
         {
             if (!c->IsDead())
             {
@@ -556,10 +537,10 @@ bool CharactersGroups::MsgIsValidateTarget(MESSAGE &message)
 {
     const auto chr = message.EntityID();
     const auto trg = message.EntityID();
-    auto *c = Character::ResolveScriptTarget(chr);
+    auto *c = static_cast<Character *>(core.GetEntityPointer(chr));
     if (!c)
         return false;
-    auto *en = Character::ResolveScriptTarget(trg, chr);
+    auto *en = static_cast<Character *>(core.GetEntityPointer(trg));
     if (!en)
         return false;
     CVECTOR vP1, vP2;
@@ -574,11 +555,9 @@ bool CharactersGroups::MsgIsValidateTarget(MESSAGE &message)
 bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
 {
     const auto chr = message.EntityID();
-    auto *c = Character::ResolveScriptTarget(chr);
+    auto *c = static_cast<Character *>(core.GetEntityPointer(chr));
     if (!c)
         return false;
-    auto *location = c->GetLocation();
-    if (!location) return false;
     auto *vd = message.ScriptVariablePointer();
     if (!vd)
         return false;
@@ -597,8 +576,8 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
         for (int32_t i = 0; i < c->numTargets; i++)
         {
             // Character pointer
-            auto *nc = dynamic_cast<NPCharacter *>(Character::ResolveScriptTarget(c->grpTargets[i].chr, chr));
-            if (!SameContext(c, nc))
+            auto *nc = static_cast<NPCharacter *>(core.GetEntityPointer(c->grpTargets[i].chr));
+            if (!nc)
                 continue;
             if (!nc->IsSetBlade())
                 continue;
@@ -636,11 +615,11 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
         if (s < 0)
             s = 0;
     }
-    c = Character::ResolveScriptTarget(c->grpTargets[s].chr, chr);
+    c = static_cast<Character *>(core.GetEntityPointer(c->grpTargets[s].chr));
     // if(!c->IsSetBlade()) return false;
     // The remembered target can already be gone: the group stores the id, not the
     // character, so the lookup above can fail on a target that left the location.
-    if (!c || c->GetLocation() != location)
+    if (!c)
         return false;
     if (c->AttributesPointer)
     {
@@ -656,12 +635,8 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
 // Is this character an enemy
 bool CharactersGroups::MsgIsEnemy(MESSAGE &message)
 {
-    auto *chr = Character::ResolveScriptTarget(message.EntityID());
-    auto *enemy = Character::ResolveScriptTarget(message.EntityID(), chr ? chr->GetId() : entid_t{});
-    if (!SameContext(chr, enemy))
-        return false;
-    const auto g1 = GetCharacterGroup(chr);
-    const auto g2 = GetCharacterGroup(enemy);
+    const auto g1 = GetCharacterGroup(static_cast<Character *>(core.GetEntityPointer(message.EntityID())));
+    const auto g2 = GetCharacterGroup(static_cast<Character *>(core.GetEntityPointer(message.EntityID())));
     if (g1 < 0 || g2 < 0)
         return false;
     auto isSelf = false;
@@ -709,12 +684,11 @@ void CharactersGroups::MsgAddTarget(MESSAGE &message)
 {
     // get characters
     auto eid = message.EntityID();
-    auto *chr = Character::ResolveScriptTarget(eid);
+    auto *chr = static_cast<Character *>(core.GetEntityPointer(eid));
     eid = message.EntityID();
-    auto *enemy = Character::ResolveScriptTarget(eid, chr ? chr->GetId() : entid_t{});
-    if (!SameContext(chr, enemy))
+    auto *enemy = static_cast<Character *>(core.GetEntityPointer(eid));
+    if (!chr || !enemy)
         return;
-    auto *location = chr->GetLocation();
     // Checking for hostility
     const auto g1 = GetCharacterGroup(chr);
     const auto g2 = GetCharacterGroup(enemy);
@@ -751,7 +725,7 @@ void CharactersGroups::MsgAddTarget(MESSAGE &message)
 void CharactersGroups::MsgUpdChrTrg(MESSAGE &message)
 {
     const auto eid = message.EntityID();
-    auto *chr = Character::ResolveScriptTarget(eid);
+    auto *chr = static_cast<Character *>(core.GetEntityPointer(eid));
     if (chr)
         CharacterVisibleCheck(chr);
 }
@@ -960,7 +934,7 @@ bool CharactersGroups::MsgSetAlarmDown(MESSAGE &message)
 bool CharactersGroups::MoveCharacterToGroup(MESSAGE &message)
 {
     const auto eid = message.EntityID();
-    auto *chr = Character::ResolveScriptTarget(eid);
+    auto *chr = static_cast<Character *>(core.GetEntityPointer(eid));
     if (!chr)
         return false;
     // create a group
@@ -1207,8 +1181,10 @@ int32_t CharactersGroups::GetCharacterGroup(Character *c)
 void CharactersGroups::ClearAllTargets() const
 {
     // Update goal lists
-    for (auto *character : ResidentCharacters())
-        character->numTargets = 0;
+    for (size_t i = 0; i < location->supervisor.character.size(); i++)
+    {
+        location->supervisor.character[i].c->numTargets = 0;
+    }
 }
 
 // Save data to object
