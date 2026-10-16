@@ -25,6 +25,7 @@
 #include "wdm_ship.h"
 #include "world_map.h"
 #include "string_compare.hpp"
+#include "world_map_island_area.hpp"
 
 // ============================================================================================
 // Collision data
@@ -1378,38 +1379,8 @@ bool WdmIslands::FindNearPoint(const GEOS::VERTEX *vrt, int32_t numVrt)
 
 bool WdmIslands::IsShipInArea(int32_t islIndex, const CVECTOR &pos)
 {
-    static const float testRadius = 0.01f;
-    // No area, no intersection
-    if (!islands[islIndex].area)
-        return false;
-    // Checking the contact of the radii
-    const float dist2 = ~(pos - islands[islIndex].area->center);
-    const float rad = testRadius + islands[islIndex].area->radius;
-    if (dist2 > rad * rad)
-        return false;
-    // Vertical planes
-    GEOS::PLANE p[4];
-    p[0].nrm.x = 0.0f;
-    p[0].nrm.y = 0.0f;
-    p[0].nrm.z = 1.0f;
-    p[0].d = pos.z + testRadius;
-    p[1].nrm.x = 0.0f;
-    p[1].nrm.y = 0.0f;
-    p[1].nrm.z = -1.0f;
-    p[1].d = -(pos.z - testRadius);
-    p[2].nrm.x = 1.0f;
-    p[2].nrm.y = 0.0f;
-    p[2].nrm.z = 0.0f;
-    p[2].d = pos.x + testRadius;
-    p[3].nrm.x = -1.0f;
-    p[3].nrm.y = 0.0f;
-    p[3].nrm.z = 0.0f;
-    p[3].d = -(pos.x - testRadius);
-    GEOS::VERTEX vrt;
-    vrt.x = pos.x;
-    vrt.y = 0.0f;
-    vrt.z = pos.z;
-    return islands[islIndex].area->geo->Clip(p, 4, vrt, 1000.0f, nullptr);
+    return storm_map_resources::ContainsIslandArea(
+        islands[islIndex].area ? islands[islIndex].area->geo : nullptr, pos.x, pos.z);
 }
 
 WdmIslandWaves::WdmIslandWaves()

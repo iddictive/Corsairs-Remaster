@@ -1,4 +1,5 @@
 #include "world_map_resources.hpp"
+#include "world_map_island_area.hpp"
 
 #include "core.h"
 #include "dx9render.h"
@@ -87,6 +88,7 @@ class StaticAssets
                         !storm::iEquals(label.group_name, "islands")) continue;
                     const auto path = ResourceKey((std::string("islands\\") + label.name).c_str());
                     if (!islandNames.insert(path).second) continue;
+                    islandIds.emplace_back(label.name);
                     queue.push_back(path);
                     queue.push_back(path + "_area");
                     queue.push_back(path + "_palms");
@@ -110,10 +112,25 @@ class StaticAssets
 
     bool Ready() const { return prepared && nextModel == queue.size() && nextTexture == textures.size(); }
 
+    std::string IslandArea(float x, float z) const
+    {
+        if (!Ready()) return {};
+        // WarmNext preserves the base locator order, exactly as WdmIslands.
+        for (size_t i = 0; i + 1 < queue.size(); i += 4)
+        {
+            const auto model = models.find(queue[i]);
+            const auto area = models.find(queue[i + 1]);
+            if (model == models.end() || !model->second || area == models.end()) continue;
+            if (ContainsIslandArea(area->second.get(), x, z)) return islandIds[i / 4];
+        }
+        return {};
+    }
+
   private:
     VDX9RENDER *renderer;
     std::unordered_map<std::string, std::unique_ptr<GEOS>> models;
     std::vector<std::string> queue;
+    std::vector<std::string> islandIds;
     std::array<int32_t, SeaTextureCount> textures;
     size_t nextModel = 0, nextTexture = 0;
     bool prepared = false;
@@ -142,7 +159,7 @@ class WdmStaticResources final : public Entity
         return true;
     }
 
-    void ProcessStage(Stage stage, uint32_t) override
+    void ProcessStage(Stage stage, uint32_t delta) override
     {
         // Renderer reset owns and restores pooled texture/buffer handles.
         // Do not drop resources while a map still borrows them.
@@ -150,6 +167,16 @@ class WdmStaticResources final : public Entity
             !core.GetEntityId("SEA_CAMERAS")) return;
         if (!assets->Ready()) assets->WarmNext(geometry);
         else if (!visualReady) visualReady = storm_map_player::warmSeaVisual();
+        if (!assets->Ready()) return;
+        queryTime += delta;
+        if (queryTime < 1000) return;
+        queryTime = 0;
+        auto *position = core.Event("Sea_DirectSailPosition");
+        auto *state = position ? position->GetAClass() : nullptr;
+        auto *request = state ? state->GetAttributeClass("directSail") : nullptr;
+        if (!request || !request->GetAttributeAsDword("enabled")) return;
+        const auto island = assets->IslandArea(request->GetAttributeAsFloat("x"), request->GetAttributeAsFloat("z"));
+        if (!island.empty()) core.Event("Sea_DirectSailArea", "s", island.c_str());
     }
 
     std::shared_ptr<storm_map_resources::StaticAssets> assets;
@@ -157,6 +184,7 @@ class WdmStaticResources final : public Entity
   private:
     VGEOMETRY *geometry = nullptr;
     bool visualReady = false;
+    uint32_t queryTime = 0;
 };
 
 CREATE_CLASS(WdmStaticResources)

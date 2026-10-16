@@ -109,7 +109,7 @@ void WdmEndFade()
 	{
 		DelEventHandler("FaderEvent_EndFade", "WdmEndFade");
 		ReloadProgressStart();
-		SeaLogin(&wdmLoginToSea);
+		Sea_DirectSailLogin(&wdmLoginToSea);
 		ReloadProgressEnd();
 		if (bSkipSeaLogin)
 		{
@@ -126,7 +126,7 @@ void WdmEndFade()
 	DelEventHandler("FaderEvent_EndFade", "WdmEndFade");
 	//Switch to sea
 	ReloadProgressStart();	
-	SeaLogin(&wdmLoginToSea);
+	Sea_DirectSailLogin(&wdmLoginToSea);
 	LayerAddObject(SEA_REALIZE, &reload_fader, -1);
 	ReloadProgressEnd();
 }
@@ -166,13 +166,7 @@ void WdmPrepareMapForAbordage(aref arPos)
 		wdmLoginToSea.island = worldMap.island;
 		float ix = MakeFloat(worldMap.island.x);
 		float iz = MakeFloat(worldMap.island.z);
-		int scale = WDM_MAP_TO_SEA_SCALE;
-		if (worldMap.island == "Cuba1" || worldMap.island == "Cuba2" || worldMap.island == "Beliz" || worldMap.island == "SantaCatalina"
-			|| worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo"
-			|| worldMap.island == "Caracas" || worldMap.island == "Cumana")
-		{
-			scale = 25;
-		}
+		int scale = GetSeaToMapScale();
 		arPos.x = (psX - ix)*scale;
 		arPos.z = (psZ - iz)*scale;
 		arPos.y = worldMap.playerShipAY;
@@ -202,13 +196,7 @@ void WdmAddPlayerGroup()
 		wdmLoginToSea.island = worldMap.island;
 		float ix = MakeFloat(worldMap.island.x);
 		float iz = MakeFloat(worldMap.island.z);
-		int scale = WDM_MAP_TO_SEA_SCALE;
-		if (worldMap.island == "Cuba1" || worldMap.island == "Cuba2" || worldMap.island == "Beliz" || worldMap.island == "SantaCatalina"
-			|| worldMap.island == "PortoBello" || worldMap.island == "Cartahena" || worldMap.island == "Maracaibo" 
-			|| worldMap.island == "Caracas" || worldMap.island == "Cumana")
-		{
-			scale = 25;
-		}
+		int scale = GetSeaToMapScale();
 		wdmLoginToSea.playerGroup.x = (psX - ix)*scale;
 		wdmLoginToSea.playerGroup.z = (psZ - iz)*scale;
 		wdmLoginToSea.playerGroup.ay = worldMap.playerShipAY;
