@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import plistlib
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -78,7 +79,18 @@ def export(root, output):
     files['runtime-baseline/phonk-drive.mp3'] = music
     if any(p.is_symlink() for p in files.values()):
         raise RuntimeError('Linked build input; export refused')
-    hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in sorted(files.items())}
+    relocated = {}
+    for name, path in files.items():
+        if path.suffix == '.pc':
+            if path.parent.name != 'pkgconfig' or path.parent.parent.name not in ('lib', 'share'):
+                raise RuntimeError(f'Unsupported pkg-config layout: {name}')
+            # Use pkgconf's native pcfiledir variable, not the capturing Mac's prefix.
+            text, count = re.subn(r'(?m)^prefix=.*$', lambda _: 'prefix=${pcfiledir}/../..', path.read_text())
+            if count != 1:
+                raise RuntimeError(f'Expected one pkg-config prefix: {name}')
+            relocated[name] = text.encode()
+    hashes = {name: hashlib.sha256(relocated[name] if name in relocated else path.read_bytes()).hexdigest()
+              for name, path in sorted(files.items())}
     record = json.loads((root / 'manifest.json').read_text())
     record['sha256'] = hashes
     manifest = (json.dumps(record, indent=2) + '\n').encode()
@@ -86,7 +98,12 @@ def export(root, output):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open('xb') as stream, tarfile.open(fileobj=stream, mode='w:gz') as archive:
         for name, path in sorted(files.items()):
-            archive.add(path, arcname='inputs/' + name, recursive=False)
+            if name in relocated:
+                member = archive.gettarinfo(str(path), arcname='inputs/' + name)
+                member.size = len(relocated[name])
+                archive.addfile(member, io.BytesIO(relocated[name]))
+            else:
+                archive.add(path, arcname='inputs/' + name, recursive=False)
         member = tarfile.TarInfo('inputs/manifest.json')
         member.size = len(manifest)
         archive.addfile(member, io.BytesIO(manifest))

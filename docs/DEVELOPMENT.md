@@ -47,7 +47,8 @@ python3 tools/prepare_metal_inputs.py --export dist/Corsairs-Metal-build-inputs.
 ```
 
 Export refuses an occupied destination and excludes vendor Git administration
-metadata. It includes the captured build inputs,
+metadata. SDK pkg-config prefixes resolve relative to their copied metadata,
+so they do not retain the capturing Mac's path. It includes the captured build inputs,
 city/rowboat originals verified against their owning recipes, and the verified
 prepared movie cache and music. Restoration reuses that media for its matching
 source recipe; an older payload without prepared media still needs FFmpeg and
