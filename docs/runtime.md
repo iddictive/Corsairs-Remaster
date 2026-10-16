@@ -1,8 +1,100 @@
 # Runtime state
 
-Last verified delivery: October16. The finite-cut/async/auto-target batch is installed in signed engine `476a3e9db29e66c6a4f1fc9c2d9fcaf8d3cfbb68bbd59bede2e9ed2b8ce5afea`, from source `6e2cc7b`, including direct-source migration `04fe2a3`, renderer culling `e0148be`, targeting `6b27616` and coast/contact `a53fba6`. Canonical `run.sh --stage-only` exits0 and verifies the full app signature. Native source fingerprint is `6da577b9a26d9e5741638f2720fc63bcce4430bdd110221dac55f6b4414ce544`; unsigned built engine SHA-256 is `949e3549677fe9b0697addbba6a0663bdd01c23b971a311ceccf904d73563a65`. Gameplay parity reports0 pending files in both cache and installed app. The installer preserves the separate player SAVE/config owner; no game launch/control or player SAVE load occurred. Actual player-scene FPS, visual destruction, targeting, fracture/contact and coast acceptance remain unresolved. Earlier delivery identities and inventories below are historical.
+Last verified delivery: October16. Corrected combat and procedural forest are installed in signed engine `5b57e16b57afb2d76dfc6e21f1601e5533212c1403ff8d66fa813a64ee92a97d`. Canonical `run.sh --stage-only` exits0; full deep/strict app signature verification passes after signing completes. Native source fingerprint `469b2025045b0ac2036ca2132eda33687f434b37e2227c40f2a0fcce8c116dd0` matches integrated source `844b1f6`, including combat `50acad3` and dormant native town context `12027f7`. Unsigned engine SHA-256 is `f0f1e56441c6b8c8fe8e1d8dbec2e75eaea3a71a02ce418c7542b53a3a90ae24`. The installer began from working-tree HEAD `d508fdc`; the later focused source commits do not change the built bytes. Gameplay parity reports0 pending files in cache and installed app. All251 observed player SAVE/userdata/config files retain their exact hashes. No agent game launch/control or player SAVE load occurred. Player-scene FPS, lighting and weapon/collision replay remain unresolved; earlier delivery identities below are historical.
 
 ## Current verdict
+
+### October16 — corrected successor installed; player replay pending
+
+The player reports automatic laser aiming in first person, missed ship targets,
+no visible ship/ground bore, high-speed ram spinning intact ships, and trees
+remaining over removed ground. The later correction accepts separated island
+geometry and defers crumbling/edge smoothing: the world-support defect is trees,
+not a new falling-terrain requirement. First-person laser must remain manual;
+third-person automatic targeting is allowed but must reach real hull geometry.
+Nuclear automatic acquisition remains required. The subsequent forest request
+replaces island sprite placements with terrain-aware shader trees; ordinary
+location grass and sea fort/gun ownership remain separate.
+
+Source discovery confirms a camera-proxy ambiguity and an omitted vegetation
+consumer. The laser successor reads the active native camera and validates
+retained surface fallback picks through the actual muzzle trace. Its source-body
+sanitizer cases and native syntax pass. A coherent hidden native CORE scene now
+commits manual first-person fire with a stale outside-camera proxy and automatic
+third-person fire while the camera looks away; installed-player acceptance remains
+separate.
+Original island trees are separate Grass `.grs` instances with no cut-support
+query, rather than terrain GM geometry. A source correction filters roots through
+the committed world cutter; the procedural forest continuation preserves that
+support contract. Collision and secondary-fragment source work is frozen for
+shared integration; the integrator owns canonical build/stage/app delivery.
+
+Frozen `6e2cc7b` native CORE libraries were replayed in a hidden private fixture,
+with matching archived headers and isolated userdata. Manual Flyingdutchman fire
+commits two finite cuts and renders a small bore; a blanket async-queue failure
+is therefore disproven for this case. Actual Antigua blast and finite beam also
+publish, with a0.29996m bore and remote trace delta below1e-7. Fixture setup and
+the normal six-significant-digit attribute codec are accounted for separately;
+neither source checks nor these component scenes accept the player's rejected
+interaction. Evidence owner: `phonk-live-regression-20261016`.
+
+The native ram snapshot rejection is reproduced at a rotating node's local
+radius2.00000024 after an admitted physical2m input. Separating physical admission
+from local-coordinate validity repairs it: the same work1000 native hook now
+commits at frame113. Current manual/automatic fire commits at frames121/120.
+At960x600, frames100..180 have maximum CORE durations9.4005/9.15575/9.34792ms
+respectively; these are private component observations, not player FPS or a
+replay of the collision solver. Actual1920x1200 Antigua finite doses, prior-state
+restore, pending-dose ordering and stale-job cancellation also pass. Exact
+fixtures, library hashes and raw observations: `phonk-current-20261016`.
+
+Canonical native build succeeds for source fingerprint
+`63423341dd777e216116adbe1b8f0ff8349b22db1395f5baf89500068dd4c389`, unsigned engine
+`36bea3e3fc4861c1219f8036fa8c5bba650c24afe5927c0d2e2c2a2e6ac12b4f`.
+The first forest shader fails on the reserved MSL name `vertex`; renaming it
+passes runtime compilation. The standalone terrain fixture then exposes its own
+null-texture legacy draw; binding its terrain texture permits rendering. Actual
+sea `ISLAND::Mount` and the normal Grass message path also render the forest;
+the foreign land-world fixture cannot exercise it because it has no primary sea
+model identity. First native Mount fixture lacked the normal `LightingPath`
+attribute; adding it fixes that setup failure. No player data is involved.
+The resulting forest is rejected visually for giant sparse leaves and planting
+inside the authored village. Mesh scale/crowns and settlement exclusion remain
+with the same forest source owner. Retained first frames and failed inputs are
+kept alongside the corrected runs.
+
+The successor uses16–31m trees and authored settlement-triangle clearance.
+The real Antigua placement identity loses36 previously forbidden roots while
+other XYZ remain unchanged; independent settlement/surface oracles pass. Actual
+sea Mount/Grass renders the corrected city without forest inside its streets.
+An additional real cut removes support at a retained root while a distant root
+stays supported; the native frame completes. The player explicitly accepts the
+latest tree form and asks not to densify it further. The apparent acid-green
+ground is the original ground texture under the fixture's full-white ambient;
+no terrain recoloring or alternate canopy atlas is applied. Actual gameplay
+lighting remains for the player's review.
+
+Canonical calibrated build source fingerprint
+`469b2025045b0ac2036ca2132eda33687f434b37e2227c40f2a0fcce8c116dd0`, unsigned engine
+`f0f1e56441c6b8c8fe8e1d8dbec2e75eaea3a71a02ce418c7542b53a3a90ae24` passes.
+The added orphan-weapon native fixture first reports an empty seed and then a
+mutex error. Exact record layouts identify its wrong ABI: unlike the actual SHIP
+target, the benchmark driver omits `STORM_METAL_SHIP_FIRE`, shifting protected
+Phonk fields192bytes. Correct native target defines repair the fixture: an actual
+fragment is created at frame42. Its next immediate-delete assertion runs before
+the normal deferred erase fence. These failures do not establish a product
+kernel defect. The collision owner retains corrected orphan weapon acceptance
+and the bounded serial GPU continuation; no production threshold is changed.
+Dormant sea-town native context is compiled but its new city content/scripts
+are excluded from this batch.
+
+Disposition: corrected successor installed and signed; combat/forest native
+component checks pass. Actual player replay of first/third-person fire,
+collision, forest lighting and FPS remains unresolved. Secondary orphan-weapon
+component acceptance remains with its collision continuation. Installation
+receipt and preserved-state hashes live in `phonk-current-20261016`.
+
+## Earlier October16 verdicts (historical)
 
 ### October16 — current frozen batch installed
 
@@ -28,8 +120,6 @@ been run for this batch. Actual main-frame upload/retirement cost and cold conto
 capture remain unmeasured. Gradual sea-side worker prewarm is deferred; current
 immutable input prewarm occurs during Mount. Secondary fracture/weapon hits on
 detached tokens remain with the separate collision continuation.
-
-## Earlier October16 verdicts (historical)
 
 ### October16 — island spin and recoil source correction
 
