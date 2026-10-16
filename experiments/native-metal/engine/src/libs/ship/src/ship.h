@@ -209,12 +209,12 @@ class SHIP : public SHIP_BASE
     void DrawPhonkOrdnance();
     void ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t owner);
     bool EnsureCutFragments();
+    bool OrphanCutFragments();
     CVECTOR PhonkLaserEndpoint();
     void PublishPhonkLaserLight();
     void DrawPhonkLaserFragments();
     void DrawPhonkLaser();
     friend class SHIP_CUT_FRAGMENTS;
-    void AdvanceCutFragments();
     bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false,
                            int32_t owner = -1, ATTRIBUTES *attacker = nullptr, bool payPartialDamage = true,
                            const CVECTOR &fragmentImpulse = CVECTOR(0.f), float impactRadius = 0.f);

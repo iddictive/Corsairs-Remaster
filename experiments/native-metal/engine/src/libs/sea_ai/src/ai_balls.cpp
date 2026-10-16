@@ -4,12 +4,39 @@
 #include "shared/messages.h"
 #include "ship_base.h"
 #include "ship_airburst_hull_distance.hpp"
+#include "ship_debris_bridge.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <limits>
 
 namespace
 {
+float CannonShotMass(uint32_t cannonType)
+{
+    // The script event returns this same Cannon[type] object. Its caliber is
+    // shot pounds; Cannon.Weight is gun weight and BALL_TYPE.Weight is unset.
+    auto *cannons = static_cast<VDATA *>(core.GetScriptVariable("Cannon"));
+    if (!cannons || !cannons->IsArray() || cannonType >= cannons->GetElementsNum()) return 0.0f;
+    auto *cannon = cannons->GetAClass(cannonType);
+    const float pounds = cannon ? cannon->GetAttributeAsFloat("caliber") : 0.0f;
+    return std::isfinite(pounds) && pounds > 0.0f ? pounds * 0.45359237f : 0.0f;
+}
+
+CVECTOR BallWorldVelocity(const BALL_PARAMS &ball, float time, float timeRate)
+{
+    // Derivative of Execute's trajectory, in game seconds. Do not divide the
+    // swept chord by wall time: pause/time compression must not change energy.
+    const float x = ball.fSpeedV0 * ball.fCosAngle;
+    const float y = ball.fSpeedV0 * ball.fSinAngle - AIHelper::fGravity * time;
+    const float c = cosf(ball.fRawAng), s = sinf(ball.fRawAng);
+    const float projectedX = x * c + y * s;
+    const float projectedY = (-x * s + y * c) * ball.fHeightMultiply;
+    CVECTOR velocity(0.0f, projectedX * s + projectedY * c, projectedX * c - projectedY * s);
+    RotateAroundY(velocity.x, velocity.z, ball.fDirX, ball.fDirZ);
+    return velocity * timeRate;
+}
+
 // Identity rides the existing saved event string: the four native ball lanes and
 // BALL_PARAMS codec remain byte-for-byte compatible with previous sea saves.
 int AirburstGood(const BALL_PARAMS &ball)
@@ -639,6 +666,11 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
             const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst, fragments);
             if (burst) fRes = 0.0f;
+            // Bound every damage-producing ordinary trace before a detached
+            // piece. A hit on distant material must never reach its old hull.
+            const auto debrisHit = !burst && !fragment ? storm::ship::debris::Trace(vSrc, vDst)
+                                                       : storm::ship::debris::Hit{};
+            const CVECTOR traceDst = debrisHit ? vSrc + (vDst - vSrc) * debrisHit.fraction : vDst;
             if (fragment)
             {
                 // Trace-only solid contacts cannot duplicate hull/crew/fort damage.
@@ -693,7 +725,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             if (!burst && !fragment && pSail)
             {
                 pSail->SetCannonTraceRadius(fRigRadius);
-                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
                 pSail->SetCannonTraceRadius(0.0f);
             }
 
@@ -704,7 +736,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                 {
                     pShip->SetCannonTraceRadius(fRigRadius);
-                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
                     pShip->SetCannonTraceRadius(0.0f);
                     if (fRes <= 1.0f)
                         break;
@@ -714,16 +746,30 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // fort trace
             if (!fragment && fRes > 1.0f && AIFort::pAIFort)
             {
-                fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
             }
 
             // island trace
             if (!fragment && fRes > 1.0f && pIsland)
-                fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
 
             // sea trace
             if (!fragment && fRes > 1.0f && pSea)
-                fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+
+            if (debrisHit)
+            {
+                if (fRes <= 1.0f)
+                    fRes *= debrisHit.fraction; // back to the original segment's parameter
+                else
+                {
+                    const float timeRate = fDeltaTimeMultiplier * pBall->fTimeSpeedMultiply;
+                    const float hitTime = pBall->fTime - fDeltaTime * timeRate * (1.0f - debrisHit.fraction);
+                    storm::ship::debris::Impact(debrisHit, BallWorldVelocity(*pBall, hitTime, timeRate),
+                                               CannonShotMass(pBall->dwCannonType), pBall->iBallOwner);
+                    fRes = debrisHit.fraction;
+                }
+            }
 
             // delete ball
             if (fRes <= 1.0f)

@@ -17,13 +17,28 @@ that same unfiltered target and220m radius. Missiles travel on a bounded arc,
 hit the first intervening receiver and reload in4 game-seconds. Paused frames
 advance no launch, flight or damage; launched missiles continue after mode exit.
 
-Camera mode comes from the existing `Crosshair.OutsideCamera` owner. Outside
-camera fire uses one Phonk target collector: living hostile ships and active fort
-guns, ordered by distance without a camera cone. Existing relation/surrender
-policy and intact firing-bort muzzles remain authoritative. Laser fire accepts
-only an actual muzzle ray reaching that hostile receiver; intervening geometry
-cannot redirect an automatic shot into a friendly target. Deck/manual fire keeps
-the exact picked geometry, including deliberate local detail cuts.
+Laser camera mode follows the active native `COMMON_CAMERA`, not the derived
+`Crosshair.OutsideCamera` flag, which can also be true for a first-person telescope
+or restored camera-controller state. First-person laser fire keeps the exact
+crosshair pick, including local ship details and ground; third-person laser fire
+uses living hostile ships and active fort guns ordered by distance without a
+camera cone. Existing relation/surrender policy and intact firing-bort muzzles
+remain authoritative. Automatic laser fire requires a real muzzle ray reaching
+that receiver. If the bounding-box point misses, a fixed nearest set of actual
+retained root-hull triangle points supplies fallback picks; full occlusion and
+receiver checks still apply. Nuclear targeting retains its existing camera flag.
+
+Finite dose dimensions are admitted in physical metres by the shared
+`ship_hull_damage_bridge.hpp` helper, including SAVE decode. After conversion to
+a receiver's local coordinates the kernel requires finite positive dimensions;
+metre limits cannot be reapplied to scaled local values. Sample and geometry
+budgets remain unchanged. This distinction prevents a legal2m crush pocket from
+being rejected after a rotating yard produces a local radius of2.00000024.
+Frozen native baseline inputs, commands and raw observations are retained in
+[the private regression evidence](../.local-archives/metal-renderer-evidence/phonk-live-regression-20261016/README.md).
+Current coherent native CORE replay and its exact fixture inputs/library hashes
+are retained in
+[the successor evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/README.md).
 
 Automatic nuclear fire leads through `AIShip::GetPrediction`, checks its arc and
 rejects an impact inside the firing ship's predicted blast envelope. Preview

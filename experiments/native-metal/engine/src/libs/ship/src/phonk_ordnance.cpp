@@ -1,6 +1,7 @@
 #include "ship.h"
 #include "phonk_ordnance.hpp"
 #include "phonk_targeting.hpp"
+#include "ship_debris_bridge.hpp"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <array>
 #include <limits>
@@ -24,11 +25,12 @@ float firstSurface(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t
                    const CVECTOR &from, const CVECTOR &to, entid_t ignore = 0)
 {
     float contact = 2.f;
+    if (const auto debris = storm::ship::debris::Trace(from, to)) contact = debris.fraction;
     if (island)
     {
         entid_t receiver = 0;
         const float hit = island->TraceWorldWeapon(from, to, receiver);
-        if (hit >= 0.f && hit <= 1.f) contact = hit;
+        if (hit >= 0.f && hit <= 1.f) contact = std::min(contact, hit);
     }
     for (const auto id : ships)
     {

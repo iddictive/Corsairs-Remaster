@@ -4,6 +4,7 @@
 #include "matrix.h"
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_fragment_contact.hpp"
+#include "ship_debris_bridge.hpp"
 #include "ship_laser_geometry.hpp"
 #include <array>
 #include <atomic>
@@ -62,6 +63,7 @@ struct LaserRay
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f), localHit = CVECTOR(0.f);
     uint64_t target = 0;
     bool worldTarget = false;
+    storm::ship::debris::Hit fragment;
 };
 struct HullWork
 {
@@ -116,6 +118,7 @@ struct LaserState
     float burn = 0.f, triggerAge = 0.f, sampleClock = 0.f;
     uint64_t contact = 0;
     bool contactWorld = false;
+    storm::ship::debris::Hit fragment;
     CVECTOR firstHit = CVECTOR(0.f), lastHit = CVECTOR(0.f);
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f);
     std::vector<LaserRay> rays; // gun-local origins and each ray's own occlusion result

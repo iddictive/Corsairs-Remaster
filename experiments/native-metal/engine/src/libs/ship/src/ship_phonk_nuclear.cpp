@@ -1,4 +1,5 @@
 #include "ship.h"
+#include "ship_debris_bridge.hpp"
 #include "shared/messages.h"
 #include <algorithm>
 #include <cmath>
@@ -8,6 +9,7 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
     if (!std::isfinite(radius) || radius <= 0.f || !std::isfinite(center.x) ||
         !std::isfinite(center.y) || !std::isfinite(center.z)) return;
     if (pIsland) pIsland->BlastWorldWeapon(center, radius, owner);
+    storm::ship::debris::Blast(center, radius);
     auto *attacker = GetACharacter();
     const auto ships = core.GetEntityIds("ship");
     for (const auto id : ships)

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cmath>
 #include <array>
 #include <string>
 #include <vector>
@@ -21,6 +22,14 @@ struct BeamSample {
     float radius=.16f, depth=0.f;
 };
 inline constexpr unsigned MaxBeamSamples=16;
+// Admission limits are physical metres, before receiver-local conversion.
+// Geometry validates local positivity separately: a scaled node can require
+// local dimensions outside these physical input limits.
+inline constexpr float MinBeamRadius=.01f,MaxBeamRadius=2.f,MinBeamDepth=.001f,MaxBeamDepth=1000.f;
+inline bool validPhysicalBeamDimensions(float radius,float depth){
+    return std::isfinite(radius)&&radius>=MinBeamRadius&&radius<=MaxBeamRadius&&
+        std::isfinite(depth)&&depth>=MinBeamDepth&&depth<=MaxBeamDepth;
+}
 // Ship SAVE, island SAVE and the crew consumer share this exact sample schema.
 template<class Attributes> bool readBeamSamples(Attributes *entry,std::vector<BeamSample>&output) {
     const auto count=entry->GetAttributeAsDword("samples");if(count>MaxBeamSamples)return false;
@@ -30,7 +39,8 @@ template<class Attributes> bool readBeamSamples(Attributes *entry,std::vector<Be
         beam.start={sample->GetAttributeAsFloat("x"),sample->GetAttributeAsFloat("y"),sample->GetAttributeAsFloat("z")};
         beam.direction={sample->GetAttributeAsFloat("dx"),sample->GetAttributeAsFloat("dy"),sample->GetAttributeAsFloat("dz")};
         beam.tangent={sample->GetAttributeAsFloat("tx"),sample->GetAttributeAsFloat("ty"),sample->GetAttributeAsFloat("tz")};
-        beam.radius=sample->GetAttributeAsFloat("radius");beam.depth=sample->GetAttributeAsFloat("depth");samples.push_back(beam);}
+        beam.radius=sample->GetAttributeAsFloat("radius");beam.depth=sample->GetAttributeAsFloat("depth");
+        if(!validPhysicalBeamDimensions(beam.radius,beam.depth))return false;samples.push_back(beam);}
     output=std::move(samples);return true;
 }
 template<class Attributes> void writeBeamSamples(Attributes *entry,const std::vector<BeamSample>&samples) {

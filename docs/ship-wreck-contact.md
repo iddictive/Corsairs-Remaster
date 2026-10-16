@@ -2,6 +2,24 @@
 
 ## Status
 
+Player acceptance of the installed finite-cutter integration is reopened: intact
+rammed hulls rotate without visible fracture. A source-bound native CORE contrast
+separates admission from commit: a Flyingdutchman ram with work1000 reaches
+`StartPhonkLaserWork` but rejects its snapshot, while held manual laser on the
+same actual model commits two cuts. This rejects the hypothesis that the entire
+asynchronous cut owner is disabled. The high-speed contact probe also supplies
+work above the material threshold and adds yaw once; an arbitrary angular cap
+would hide the intact-hull symptom without repairing the failed cut. The
+native fixture identifies the rejection: a rotated node converts the admitted 2m
+radius to 2.00000024 local units, which incorrectly exceeds a physical-metre
+limit. Physical input/SAVE admission and local numerical validity now have
+separate owners, and SHIP producer/restore admission uses the shared physical
+limits before node conversion. The coherent native successor commits the same
+work1000 impact at frame113; manual and automatic laser cases also commit.
+Exact current-library inputs and raw frame/cut records are retained in
+`phonk-current-20261016`. This accepts the cut transaction component; the actual
+collision solver and player's visible battle remain separate replay criteria.
+
 The October16 collision successor is under integration. Ordinary admitted rams
 use finite, overlapping crush pockets in the existing retained-mesh cutter;
 large work increases local penetration instead of triggering a halfspace split.
@@ -45,8 +63,42 @@ has its own active owner; its final contact normal/work seam must be verified
 after integration. Saved finite hull cuts already notify `Sailors::OnHullCut`;
 the same volume drives gore and retained-support loss drops sailors through the
 existing jump/swim lifecycle. No second crew-casualty counter is introduced.
-Secondary fracture and weapon hits on detached fragment tokens remain an open
-capability pending the finite geometry kernel and fragment input/Trace owner.
+Secondary fracture now has generation/token-bound exact Trace, immutable physical
+boundaries and atomic GEOM replacement. Closed thin-timber overlapping recuts,
+failed-upload isolation, repeated recuts and sibling/parent exclusion pass the
+component probes. The scene owner retains orphan MODEL/material lifetime and
+queues cannon, contact and blast damage without replacing body vectors inside
+the solver. Detached laser selection, moving endpoints and finite damage are
+wired through the same token identity. Scaled-piece Trace/Beam/Crush and blast
+surface selection pass their preserved actual-method counterexamples; the blast
+field reaches material instead of the conservative bounding sphere. Canonical
+build and real scene acceptance remain pending; this is source integration
+evidence, not installed gameplay acceptance.
+
+Retained secondary-component reproductions live under
+`.local-archives/metal-renderer-evidence/ship-collision-20261016/`:
+`secondary-geometry/generate.py` exercises actual GEOM capture/replace and its
+`--baseline` mode replays the thin-timber counterexample;
+`secondary-projectiles/probe.py` and `kinematics.py` replay the cannon consumer;
+`secondary-scene/generate.py` extracts the scene methods against the native math
+types and CPU geometry kernel. Their adjacent generated inputs, raw logs,
+SHA-256 receipts and native compiler commands distinguish each frozen run from
+the changing checkout. Scaled-piece and blast first failures are retained in
+`secondary-scene/scale-blast-first-failure-*`. These are private component
+fixtures; `runtime.md` owns canonical build and actual player-scene verdicts.
+
+`secondary-scene/native-hook/prepare.py` extends the retained current-ABI CORE
+driver with an actual moved orphan token. Set `CODEX_SCRATCH_DIR` to a task-owned
+temporary directory and run `<impact|laser|blast> --run` serially. The fixture
+creates a real separating cut for setup, removes the original SHIP through its
+AI owner, checks continued motion and an outgoing-hit negative, then exercises
+the projectile/blast bridges or actual manual laser input. Original character
+HP/cuts, hull callbacks and intact emitter geometry must remain unchanged while
+the old material token retires asynchronously. Exact inputs, native library
+hashes, model geometry and outputs are retained under `native-hook/runs` and
+`native-hook/assets`. Native compiler syntax passes; execution remains pending
+the integration owner's serialized GPU slot. This does not exercise the full
+AIBalls ballistic callback chain or accept player gameplay.
 
 The ghost report also reproduces in the native geometry draw owner: missing
 empty overrides resurrect original visual objects after rough cuts, while the

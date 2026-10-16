@@ -22,7 +22,7 @@ inline constexpr size_t MaxCuts=64, MaxTriangles=1000000;
 using PlanarPoint=std::array<double,2>;
 using PlanarRing=std::vector<PlanarPoint>;
 using PlanarPolygon=std::vector<PlanarRing>;
-inline constexpr int64_t PlanarUnitsPerMeter=1000000;
+inline constexpr int64_t PlanarUnitsPerMeter=storm_ship_laser::PlanarUnitsPerMeter;
 // Private geometry adapter; Clipper types never enter the shared game API.
 bool unitePlanar(const std::vector<PlanarRing>&input,std::vector<PlanarPolygon>&output);
 bool differencePlanar(const std::vector<PlanarRing>&subject,const std::vector<PlanarRing>&clip,std::vector<PlanarPolygon>&output);

@@ -88,7 +88,7 @@ class GEOM : public GEOS
     double laserClosedVolume=0;
     bool laserPrepared=false,laserEnclosedFragments=true;
     std::vector<storm_ship_laser::Plane> laserPlanes;
-    struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;};
+    struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;storm_ship_laser::FragmentPiece physical;};
     struct LaserBatch {uint64_t id=0;std::vector<LaserFragment>fragments;};
     std::unique_ptr<storm_ship_laser::Projection>laserPending;
     std::map<int,std::vector<HullDraw>>laserPendingDraws;
@@ -174,6 +174,9 @@ class GEOM : public GEOS
     uint64_t GeometryGeneration() const override { return geometryGeneration; }
     uint64_t CollisionRevision() const override { return collisionRevision; }
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
+    bool TraceLaserFragment(uint64_t owner,uint64_t generation,uint64_t token,const storm_ship_hull::Vec3&start,const storm_ship_hull::Vec3&end,float&fraction,storm_ship_hull::Vec3&normal) const override;
+    bool CaptureFragmentInput(uint64_t owner,uint64_t generation,uint64_t token,const storm_ship_laser::Plane&,unsigned successorLimit,storm_ship_laser::FragmentInput&) const override;
+    bool ReplaceLaserFragment(uint64_t owner,storm_ship_laser::FragmentProjection&&,std::vector<storm_ship_laser::Fragment>&successors) override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;

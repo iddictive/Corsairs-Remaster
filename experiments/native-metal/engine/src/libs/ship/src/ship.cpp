@@ -102,7 +102,7 @@ void SHIP::InitSailState()
 SHIP::~SHIP()
 {
     CancelPhonkLaserWork();
-    core.EraseEntity(GetModelEID());
+    if (!OrphanCutFragments()) core.EraseEntity(GetModelEID());
     core.Send_Message(sail_id, "li", MSG_SAIL_DEL_GROUP, GetId());
     core.Send_Message(rope_id, "li", MSG_ROPE_DEL_GROUP, GetModelEID());
     core.Send_Message(flag_id, "li", MSG_FLAG_DEL_GROUP, GetModelEID());
