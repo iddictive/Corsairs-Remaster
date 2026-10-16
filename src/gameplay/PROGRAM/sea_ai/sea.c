@@ -1726,6 +1726,8 @@ void Sea_LoadIsland(string sIslandID)
 		bIslandLoaded = true;
 		SendMessage(&SeaLocatorShow, "a", &Islands[iIslandIndex]);
 		Fort_Login(iIslandIndex);	
+		// Islands[] is saved script state; the transient sea entity only binds it.
+		SendMessage(&Island, "lai", MSG_ISLAND_WORLD_STATE, &Islands[iIslandIndex], &IslandReflModel);
 		SetTexturePath(0, "");
 
 		CreateCoastFoamEnvironment(sIslandID, SEA_EXECUTE, SEA_REALIZE);
@@ -1766,6 +1768,7 @@ void Sea_CreateLighthouse(String _islandID)
 	if(CheckAttribute(&islandRef, "mayak"))
 	{
 		CreateEntity(&sLightModel, "MODELR");
+		sLightModel.PhonkWorldKey = "lighthouse";
 		
 		if(isDay())
 		{

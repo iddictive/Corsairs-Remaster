@@ -11,6 +11,7 @@ int iNumDamagedCannonsQuantity = 0;
 
 void DeleteFortEnvironment()
 {
+    DelEventHandler("SeaPhonk_FortGeometry", "SeaPhonk_FortGeometry");
     // fix boal -->
 	DelEventHandler(FORT_CANNON_DAMAGE, "Fort_CannonDamage");
 	DelEventHandler(FORT_CREATE, "Fort_CreateEvent");
@@ -28,11 +29,24 @@ void DeleteFortEnvironment()
 
 void CreateFortEnvironment()
 {
+    SetEventHandler("SeaPhonk_FortGeometry", "SeaPhonk_FortGeometry", 0);
 	iNumForts = 0;
 	for(int i = 0; i < MAX_FORTS; i++) { Forts[i].fortcmdridx = -1; }
 	SetEventHandler(FORT_CANNON_DAMAGE, "Fort_CannonDamage", 0);
 	SetEventHandler(FORT_CREATE, "Fort_CreateEvent", 0);
 	SetEventHandler(FORT_LOADDMGCANNON, "Fort_LoadDamagedCannon", 0);
+}
+
+void SeaPhonk_FortGeometry()
+{
+    aref fort = GetEventData();
+    int owner = GetEventData();
+    if (!CheckAttribute(fort, "Fort.Cannons.Quantity") || !CheckAttribute(fort, "Fort.Cannons.Destroyed")) return;
+    fort.Ship.HP = Fort_GetCannonsQuantity(fort) * 100;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !CheckAttribute(fort, "Fort.Mode")) return;
+    if (sti(fort.Fort.Mode) != FORT_NORMAL || !Fort_CanLandAssault(fort)) return;
+    ref attacker = GetCharacter(owner);
+    Fort_SetAbordageMode(attacker, fort);
 }
 
 int Fort_FindCharacter(string sLocationID, string sLocationGroup, string sLocationLocator)
@@ -81,6 +95,7 @@ void Fort_Login(int iIslandIndex)
 				continue;
 			}
 			CreateEntity(&Forts[iNumForts], "MODELR");
+			Forts[iNumForts].PhonkWorldKey = "fort_" + arLocator.name;
 			string sFortModel = rIsland.filespath.models + "\" + arLocator.fort.model;
 			
 			//SetTextureForShip(refBaseShip, rCharacter);

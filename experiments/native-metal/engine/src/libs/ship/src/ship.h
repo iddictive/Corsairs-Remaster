@@ -16,6 +16,7 @@
 #include "ship_msg.h"
 #include "ship_phonk.hpp"
 #include "ship_phonk_laser.hpp"
+#include "phonk_ordnance.hpp"
 #ifdef STORM_METAL_SHIP_FIRE
 #include "ship_fire_model.hpp"
 #include "ship_fire_bridge.hpp"
@@ -151,6 +152,7 @@ class SHIP : public SHIP_BASE
     storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity
     storm::ship::phonk::Flight phonkFlight; // crest launch/landing; no save layout fields
     storm::ship::phonk::LaserState phonkLaser;
+    storm::ship::phonk::OrdnanceState phonkOrdnance;
     float phonkSeconds = 0.f;
     SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
     unsigned emergenceSerial = 0; // rebound to the restored field, never serialized
@@ -201,6 +203,9 @@ class SHIP : public SHIP_BASE
     void PublishPhonkLights(uint32_t deltaTime);
     void DrawPhonkGlow(uint32_t deltaTime);
     void ExecutePhonkLaser(uint32_t deltaTime);
+    void ExecutePhonkOrdnance(uint32_t deltaTime);
+    void DrawPhonkOrdnance();
+    void ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t owner);
     bool EnsureCutFragments();
     CVECTOR PhonkLaserEndpoint();
     void PublishPhonkLaserLight();
@@ -209,7 +214,7 @@ class SHIP : public SHIP_BASE
     friend class SHIP_CUT_FRAGMENTS;
     void AdvanceCutFragments();
     bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false,
-                           int32_t owner = -1, ATTRIBUTES *attacker = nullptr);
+                           int32_t owner = -1, ATTRIBUTES *attacker = nullptr, bool payPartialDamage = true);
     bool IsAuthoredMastNode(const NODE *node) const;
     void DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane);
     void UpdateCutStructuralFailure();

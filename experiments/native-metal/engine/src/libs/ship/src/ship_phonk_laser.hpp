@@ -51,6 +51,7 @@ struct LaserRay
 {
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f), localHit = CVECTOR(0.f);
     uint64_t target = 0;
+    bool worldTarget = false;
 };
 struct HullWork
 {
@@ -64,6 +65,7 @@ struct LaserState
     float reload = 0.f, beamAge = 1.f;
     float burn = 0.f, triggerAge = 0.f, sampleClock = 0.f;
     uint64_t contact = 0;
+    bool contactWorld = false;
     CVECTOR firstHit = CVECTOR(0.f), lastHit = CVECTOR(0.f);
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f);
     std::vector<LaserRay> rays; // gun-local origins and each ray's own occlusion result

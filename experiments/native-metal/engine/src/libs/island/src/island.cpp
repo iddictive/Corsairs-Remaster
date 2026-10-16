@@ -45,6 +45,13 @@ ISLAND::~ISLAND()
 
 void ISLAND::Uninit()
 {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    worldCutState = nullptr;
+    worldReflection = 0;
+    worldCuts.clear();
+    worldBindings.clear();
+    worldCutsReady = false;
+#endif
     for (uint32_t i = 0; i < aSpheres.size(); i++)
         core.EraseEntity(aSpheres[i]);
     aSpheres.clear();
@@ -105,6 +112,9 @@ bool bView = false;
 
 void ISLAND::Realize(uint32_t Delta_Time)
 {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if (!worldCuts.empty()) worldCutsReady = BindWorldCuts(worldCuts, false);
+#endif
     uint32_t dwAmbient, dwAmbientOld;
 
     if (bForeignModels)
@@ -260,6 +270,14 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
     entid_t eID;
     switch (message.Long())
     {
+    case MSG_ISLAND_WORLD_STATE: {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        auto *state = message.AttributePointer();
+        const auto reflection = message.EntityID();
+        RestoreWorldCuts(state, reflection);
+#endif
+        break;
+    }
     case MSG_ISLAND_ADD_FORT:
         aForts.push_back(message.EntityID());
         break;
@@ -317,6 +335,8 @@ void ISLAND::AddLocationModel(entid_t eid, const std::string_view &pIDStr, const
 {
     Assert(!pDir.empty() && !pIDStr.empty());
     bForeignModels = true;
+    if (auto *model = core.GetEntityPointer(eid); model && model->AttributesPointer)
+        model->AttributesPointer->SetAttribute("PhonkWorldKey", pIDStr);
     cModelsDir = pDir;
     cModelsID = pIDStr;
     core.AddToLayer(ISLAND_TRACE, eid, 10);
@@ -393,8 +413,13 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
     CVECTOR surface(next.x, 0.0f, next.z);
     const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
     const float hit = Trace(surface, bottom);
-    if (!std::isfinite(hit) || hit < 0.0f || hit > 1.0f ||
-        !std::isfinite(minDepth) || -500.0f * hit >= minDepth)
+    const bool exact = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
+    bool certifiedEmpty = false;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    certifiedEmpty = WorldGroundChanged(next.x, next.z);
+#endif
+    if ((!exact && !certifiedEmpty) || !std::isfinite(minDepth) ||
+        (exact && -500.0f * hit >= minDepth))
         return true;
 
     // A deep endpoint must not erase a crossing of a thin wall during this step.
@@ -431,6 +456,10 @@ bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
         if (exactDepth >= keelY || !ActivateCamomileTrace(surface))
             depth = exactDepth;
     }
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    else if (WorldGroundChanged(x, z) && !ActivateCamomileTrace(surface))
+        depth = -500.f;
+#endif
     return true;
 }
 

@@ -419,6 +419,10 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     for(int o=0;o<rhead.nobjects;++o){const int m=object[o].material;if(m<0||m>=rhead.nmaterials||rmat[m].texture_type[0]!=RDF_TEXTURE_TYPE::TEXTURE_BASE)continue;
         const int texture=rmat[m].texture[0];if(texture<0||texture>=rhead.ntextures)continue;
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+        const std::string_view textureName=&globname[tname[texture]];
+        if(island_geometry::refinableTerrainTexture(textureName)||island_geometry::textureStem(textureName)=="beach")worldTerrainObjects.insert(o);
+#endif
         const float thickness=storm_ship_wood::thickness(fname?fname:"",&globname[tname[texture]]);if(thickness>0)laserWoodThickness.emplace(o,thickness);}
 #endif
     srv.free(rmat);
@@ -429,6 +433,7 @@ GEOM::~GEOM()
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     ReleaseHullDraws(hullDraws);
+    ReleaseHullDraws(worldDraws);
     ReleaseLaserFragments();
 #endif
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
@@ -509,6 +514,11 @@ void GEOM::Draw(const PLANE *pl, int32_t np, MATERIAL_FUNC mtf) const
         if (mtf != nullptr)
             mtf(material[object[o].material]);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        const auto worldDamaged=worldDraws.find(o);
+        if(worldDamaged!=worldDraws.end()){
+            for(const auto&draw:worldDamaged->second){srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);}
+            srv.SetIndexBuffer(idx_buff);continue;
+        }
         const auto damaged=hullDraws.find(o);
         if(damaged!=hullDraws.end()){
             for(const auto&draw:damaged->second){srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);}
@@ -556,6 +566,7 @@ bool GEOM::CaptureHullObject(int objectIndex)
 }
 bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts)
 {
+    if(worldOwner)return false;
     if(!owner||(hullOwner&&hullOwner!=owner)||cuts.size()>256)return false;
     const auto signature=storm_ship_hull::signature(cuts);if(owner==hullOwner&&signature==hullSignature)return true;
     if(laserOwner){if(laserOwner!=owner)return false;for(const auto&cut:cuts)if(!storm_ship_hull::valid(cut)||!CaptureHullObject(cut.object))return false;
@@ -630,13 +641,14 @@ bool GEOM::RebuildLaserSurface(bool upload)
 void GEOM::RebuildLaserCollision()
 {
     std::vector<storm_ship_hull::Bounds>boxes;laserCollisionTriangles.clear();laserRayCandidates.clear();
-    for(const auto&entry:laserSurface)for(size_t n=0;n<entry.second.size();++n){const auto&t=entry.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);laserCollisionTriangles.emplace_back(entry.first,uint32_t(n));}
+    const auto&surface=worldOwner?worldSurface:laserSurface;
+    for(const auto&entry:surface)for(size_t n=0;n<entry.second.size();++n){const auto&t=entry.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);laserCollisionTriangles.emplace_back(entry.first,uint32_t(n));}
     laserBroadphase.build(boxes);
     ++collisionRevision;
 }
 bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_ship_laser::Result&result,unsigned fragmentLimit)
 {
-    result={};if(!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
+    result={};if(worldOwner||!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
     // Capture/reconstruction is transactional; a rejected layout never hides the original.
     if(!laserOwner&&!laserPrepared&&!RebuildLaserSurface(false))return false;
     auto split=storm_ship_laser::splitSurface(laserVisualSurface,plane,laserWoodThickness);if(!split.complete)return false;const float total=split.keptArea+split.detachedArea;
@@ -686,12 +698,71 @@ void GEOM::ClearLaserCuts(uint64_t owner)
     if(!laserOwner||owner!=laserOwner)return;ReleaseLaserFragments();laserPlanes.clear();laserSurface.clear();laserVisualSurface={};laserOwner=0;laserPrepared=false;laserClosedVolume=0;laserCollisionTriangles.clear();laserRayCandidates.clear();laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
     ReleaseHullDraws(hullDraws);hullSignature=0;const auto inputs=hullCutInputs;SetHullCuts(owner,inputs);
 }
+
+bool GEOM::CaptureWorldSurface(bool terrainModel)
+{
+    if(worldPrepared)return terrainModel==worldTerrainModel;
+    storm_ship_laser::Mesh terrain,stone;
+    for(int o=0;o<rhead.nobjects;++o){const auto&ob=object[o];
+        if(!(ob.flags&(VISIBLE|COLLISION_ENABLE))||!ob.ntriangles)continue;
+        if(!CaptureHullObject(o))return false;
+        const auto&source=hullOriginals.at(o);auto&destination=(terrainModel&&worldTerrainObjects.count(o)?terrain:stone)[o];
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+        if(size_t(o)<islandDraws.size()&&!islandDraws[o].empty()){
+            for(const auto&draw:islandDraws[o]){
+                auto*v=static_cast<uint8_t*>(srv.LockVertexBuffer(draw.vb));if(!v)return false;
+                std::vector<uint8_t>vertices(v,v+size_t(draw.vertices)*draw.stride);srv.UnlockVertexBuffer(draw.vb);
+                auto*i=static_cast<uint16_t*>(srv.LockIndexBuffer(draw.ib));if(!i)return false;
+                std::vector<uint16_t>indices(i,i+size_t(draw.triangles)*3);srv.UnlockIndexBuffer(draw.ib);
+                for(size_t n=0;n<indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c){if(indices[n+c]>=draw.vertices)return false;triangle[c]=storm_ship_hull::decode(vertices.data()+size_t(indices[n+c])*draw.stride,draw.stride);}destination.push_back(triangle);}
+            }continue;
+        }
+#endif
+        for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);destination.push_back(triangle);}
+    }
+    if(storm_world_cut::triangleCount(terrain)+storm_world_cut::triangleCount(stone)>storm_world_cut::MaxTriangles)return false;
+    storm_ship_laser::Mesh original=std::move(terrain);storm_ship_laser::appendMesh(original,stone);
+    if(!storm_world_cut::finite(original))return false;
+    worldOriginal=std::move(original);worldPrepared=true;worldTerrainModel=terrainModel;return true;
+}
+bool GEOM::SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel)
+{
+    if(!owner||(worldOwner&&worldOwner!=owner)||laserOwner||hullOwner||cuts.size()>storm_world_cut::MaxCuts)return false;
+    for(const auto&cut:cuts)if(!storm_world_cut::valid(cut))return false;
+    if(cuts.empty()){ClearWorldCuts(owner);return true;}
+    const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
+    const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f,rhead.bbox_size.z*.5f+16};
+    storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};if(terrainModel)nodeBounds.lo.y-=10032.f;
+    if(!storm_world_cut::affects(nodeBounds,cuts)){ClearWorldCuts(owner);return true;}
+    if(worldOwner==owner&&worldTerrainModel==terrainModel&&cuts.size()==worldCuts.size()&&std::equal(cuts.begin(),cuts.end(),worldCuts.begin(),storm_world_cut::equal))return true;
+    if(!CaptureWorldSurface(terrainModel))return false;
+    storm_ship_laser::Mesh solid,untouched,retained;
+    if(!storm_world_cut::prepare(worldOriginal,terrainModel?worldTerrainObjects:std::set<int>{},cuts,solid,untouched))return false;
+    if(!storm_world_cut::triangleCount(solid)){ClearWorldCuts(owner);return true;}
+    if(!storm_world_cut::reconstruct(solid,cuts,retained))return false;
+    storm_ship_laser::appendMesh(retained,untouched);if(!storm_world_cut::finite(retained))return false;
+    // Prepare every CPU/GPU projection before replacing the previous accepted
+    // surface. Allocation/contour/budget failure preserves that entire state.
+    std::vector<storm_ship_hull::Bounds>boxes;std::vector<std::pair<int,uint32_t>>references;
+    boxes.reserve(storm_world_cut::triangleCount(retained));references.reserve(boxes.capacity());
+    for(const auto&o:retained)for(size_t n=0;n<o.second.size();++n){const auto&t=o.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);references.emplace_back(o.first,uint32_t(n));}
+    storm_ship_hull::Broadphase broadphase;broadphase.build(boxes);
+    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(retained,replacement))return false;
+    ReleaseHullDraws(worldDraws);worldDraws=std::move(replacement);worldSurface=std::move(retained);worldOwner=owner;worldCuts=cuts;
+    laserBroadphase=std::move(broadphase);laserCollisionTriangles=std::move(references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;return true;
+}
+void GEOM::ClearWorldCuts(uint64_t owner)
+{
+    if(!worldOwner||worldOwner!=owner)return;
+    ReleaseHullDraws(worldDraws);worldSurface.clear();worldCuts.clear();worldOwner=0;
+    laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserCollisionTriangles.clear();laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
+}
 #endif
 
 bool GEOM::GetCollisionDetails(TRACE_INFO &ti) const
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    if(laserOwner){if(laserTraceObject<0||laserTraceTriangle<0)return false;const auto&t=laserSurface.at(laserTraceObject)[laserTraceTriangle];ti.obj=laserTraceObject;ti.trg=laserTraceTriangle;ti.a=laserTraceA;ti.b=laserTraceB;
+    if(laserOwner||worldOwner){if(laserTraceObject<0||laserTraceTriangle<0)return false;const auto&surface=worldOwner?worldSurface:laserSurface;const auto&t=surface.at(laserTraceObject)[laserTraceTriangle];ti.obj=laserTraceObject;ti.trg=laserTraceTriangle;ti.a=laserTraceA;ti.b=laserTraceB;
         auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));ti.plane.nrm={normal.x,normal.y,normal.z};ti.plane.d=storm_ship_hull::dot(normal,t[0].position);for(unsigned n=0;n<3;++n)ti.vrt[n]={t[n].position.x,t[n].position.y,t[n].position.z};return true;}
 #endif
     if (!(rhead.flags & FLAGS_BSP_PRESENT) || traceid == -1)

@@ -24,6 +24,23 @@ static void PersistFortCannons(AIFort::AI_FORT &fort, bool restore)
 
 AIFort *AIFort::pAIFort = nullptr;
 
+void AIFort::ReconcileWorldCuts(ISLAND_BASE &island, int32_t owner)
+{
+    for (auto *fort : aForts)
+    {
+        bool changed = false;
+        for (uint32_t n = 0; n < fort->GetAllCannonsNum(); ++n)
+        {
+            auto *cannon = fort->GetCannon(n);
+            if (!cannon->isDamaged() && !island.IsWorldPositionRetained(fort->GetModelEID(), cannon->GetPos()))
+            { cannon->SetDamage(1.f); changed = true; }
+        }
+        if (!changed) continue;
+        PersistFortCannons(*fort, false);
+        core.Event("SeaPhonk_FortGeometry", "al", fort->GetACharacter(), owner);
+    }
+}
+
 AIFort::AIFort()
 {
     dtFiredTimer.Setup(FRAND(1.0f), 1.0f);

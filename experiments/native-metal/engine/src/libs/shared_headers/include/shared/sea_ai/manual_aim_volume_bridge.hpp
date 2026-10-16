@@ -79,7 +79,7 @@ extern "C" bool StormMetalDrawAimVolume(void *device,
     const storm::sea_ai::manual_aim::AimWaterContactVertex *waterVertices,std::uint32_t waterVertexCount,
     const storm::sea_ai::manual_aim::AimContactSection *contactSections,std::uint32_t contactSectionCount,
     const storm::sea_ai::manual_aim::AimContactTriangle *contactTriangles,std::uint32_t contactTriangleCount,
-    const float *axis,const float *lateral,const float *up,float readiness);
+    const float *axis,const float *lateral,const float *up,float readiness,bool smoothContact=true);
 extern "C" void StormMetalSetAimEnabled(void *device,bool enabled);
 extern "C" bool StormMetalBeginAimOwnShip(void *device);
 extern "C" void StormMetalEndAimOwnShip(void *device);

@@ -1,8 +1,37 @@
 # Runtime state
 
-Last verified delivery: October16. Zoom-aware ship auxiliary LOD and synchronous rope/sail endpoint invalidation are staged in signed engine `f931e4b5d0a338ab3e730a23d24733060a90382dbc0d31431df57cdd2a5c6c12`; the contact/string, night water and airborne shore corrections remain present. Prior `cdbe5bf8608ee2a8579f3c14a8799efb6987280024e65f8d74ba40a902ac09e8` is backed up. Canonical stage-only exits0 in149.811s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass/LOD replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Earlier reflection LOD measured6.8–12.1% uplift privately; the new auxiliary policy has no player FPS measurement. Ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October16. The numbered Phonk ordnance, world geometry cuts and crew visuals are installed in signed engine `eac7cb3f3128bb28547e512af2cceac32ae7533eb1a83b2b7996e9bcf970427e`; canonical stage-only exits0 in191.519s, all528 player files remain unchanged and the full app signature passes. Native source fingerprint is `de7fe245a192a20ff702afc756a6cd7251fd7e8bc7401f474dc23d1eb616d2e2`. The player reports6/7 do not switch away from laser and islands do not cut: gameplay acceptance is reopened, not passed by this delivery. Installed symbols and scripts contain the new implementations; no running game was present at the follow-up identity check. The HUD has no Phonk selection consumer, a confirmed omission; actual control/receiver failure remains under investigation. Prior `f931e4b5` LOD/rope, `cdbe5bf8` contact/string, night water and airborne shore corrections remain present. Original-scene LOD/FPS, recurring renderer corruption, fracture/contact, coast flight and saved-game action acceptance remain unresolved. No agent game launch/control or SAVE load occurred; the player prohibits those routes. Earlier inventories below are historical.
 
 ## Current verdict
+
+### October16 — world cuts, numbered ordnance and crew installed; player rejects switching
+
+Canonical `run.sh --stage-only` installs the signed engine and source fingerprint
+above. The frozen batch and deep/strict signature pass;528 freshly recorded
+player files retain their bytes, with0 added. Evidence belongs to private
+`20261016-030846-world-ordnance-crew-delivery`. Prior attempts stop before install:
+one native compile lacked an explicit message header; the next composed-script
+gate rejected two changed canonical inputs. The header and two verified normalized
+hashes are repaired, preserving composition transforms and strict admission.
+
+World geometry now shares retained draw/Trace/Clip mesh data for laser halfspaces
+and nuclear craters, using saved `Islands[].PhonkWorldCuts` records. Actual GM
+CPU sanitizer checks cover Antigua terrain/PN, Cumana fort, town open shells,
+overlapping cuts and rollback; untouched PN triangles remain byte-identical.
+They do not prove the integrated entity/save lifecycle. The actual production
+Metal nuclear helper compiles and draws1025 pixels in a private256-square frame;
+foreground depth occludes it exactly and early/late effects differ. Its initial
+reserved MSL parameter name is corrected before the successful final stage.
+
+Native6/7 actions,6000m target picking, parabolic missiles,4s reload,220m blast,
+shared draped receiver and crew source are included. The player subsequently
+reports no6/7 switch, continued laser fire and no island cut. The installed
+binary contains `ExecutePhonkOrdnance`, `ApplyPhonkNuclearImpact`, `CutWorldWeapon`
+and `RestoreWorldCuts`; installed control scripts contain both new names.
+BattleInterface has no Phonk weapon consumer, proving missing HUD integration,
+but isolated script registration checks do not disprove the reported control
+failure. Source/delivery pass; accepting action, world save/rebind and visible
+battle replay remain unresolved. No player process is stopped or controlled.
 
 ### October16 — deck crew gore and attached blood source candidate
 

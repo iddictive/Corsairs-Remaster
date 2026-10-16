@@ -128,6 +128,6 @@ Ordinary cannon-hole rendering still has a legacy BSP/mesh mismatch; that
 existing collision owner can admit blood over a cannon hole. Laser cuts expose
 their current retained geometry to projection and trigger reprojection.
 
-Canonical delivery and accepting battle replay remain pending; the installed
-runtime verdict is owned by `runtime.md`. The runtime integration chat owns the
-shared native build/stage. No game launch/control or player SAVE change occurs.
+Canonical combined delivery includes the crew source and successful-cut hook;
+accepting battle replay remains pending. The exact installed runtime verdict is
+owned by `runtime.md`. No game launch/control or player SAVE change occurs.

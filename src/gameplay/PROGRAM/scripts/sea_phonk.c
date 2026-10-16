@@ -1,6 +1,22 @@
 // Local-sea mode: one transient scene flag drives ship physics, lighting and music.
 string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
+void SeaPhonk_InitControls()
+{
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Laser"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Laser", CI_GetKeyCode("KEY_6"), 0, true);
+        MapControlToGroup("Phonk_Laser", "Sailing1Pers");
+        MapControlToGroup("Phonk_Laser", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Nuclear"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Nuclear", CI_GetKeyCode("KEY_7"), 0, true);
+        MapControlToGroup("Phonk_Nuclear", "Sailing1Pers");
+        MapControlToGroup("Phonk_Nuclear", "BattleInterfaceControls");
+    }
+}
+
 bool SeaPhonk_IsActive()
 {
     if (!bSeaActive || !IsEntity(&Sea) || IsEntity(&worldMap) || bAbordageStarted) return false;
@@ -62,7 +78,10 @@ bool SeaPhonk_Toggle()
         return true;
     }
     if (CheckAttribute(pchar, "Ship.HP") && stf(pchar.Ship.HP) <= 0.0) return false;
+    // Register on entry as well: controls restored from an older save lack 6/7.
+    SeaPhonk_InitControls();
     Sea.Phonk.Active = 1;
+    Sea.Phonk.Weapon = 6;
     Sea.Phonk.ReturnMusic = musicName;
     SetEventHandler("frame", "SeaPhonk_Frame", 0);
     SeaPhonk_Music(SEA_PHONK_TRACK);

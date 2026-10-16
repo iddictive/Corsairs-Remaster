@@ -1467,6 +1467,36 @@ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const 
 
 void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const CVECTOR &camera)
 {
+    auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+    if (GetAIShip()->isMainCharacter() && phonk && phonk->GetAttributeAsDword("Active") &&
+        phonk->GetAttributeAsDword("Weapon", 6) == 7)
+    {
+#ifdef STORM_METAL_AIM_VOLUME_BRIDGE
+        if (!phonk->GetAttributeAsDword("NuclearTargetValid")) return;
+        namespace gpu = storm::sea_ai::manual_aim;
+        const CVECTOR center(phonk->GetAttributeAsFloat("NuclearTargetX"),
+            phonk->GetAttributeAsFloat("NuclearTargetY"), phonk->GetAttributeAsFloat("NuclearTargetZ"));
+        const float radius = phonk->GetAttributeAsFloat("NuclearRadius");
+        if (!manual_aim::finite(center) || !std::isfinite(radius) || radius <= 0.f) return;
+        // The blast chart uses the same captured real water/geometry receivers
+        // as gun aim. Empty axial slabs suppress the ordinary ballistic air cue.
+        const float extent = radius * 1.25f, variance = radius * radius;
+        const std::array<gpu::AimVolumeSection, 2> sections{{
+            {{center.x, center.y-radius*4.f, center.z}, 0.f, 0, 0, extent, extent},
+            {{center.x, center.y+radius*4.f, center.z}, 1.f, 0, 0, extent, extent}}};
+        const std::array<gpu::AimVolumePlane, 4> planes{{{1,0,extent,extent}, {-1,0,extent,extent},
+            {0,1,extent,extent}, {0,-1,extent,extent}}};
+        const std::array<gpu::AimContactSection, 2> contact{{
+            {{center.x,center.y,center.z},0.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f}},
+            {{center.x,center.y,center.z},1.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f}}}};
+        const CVECTOR axis(0.f,1.f,0.f), lateral(1.f,0.f,0.f), up(0.f,0.f,1.f);
+        StormMetalDrawAimVolume(AIHelper::pRS->GetNativeDevice(), sections.data(),uint32_t(sections.size()),
+            planes.data(),uint32_t(planes.size()),nullptr,0,nullptr,0,contact.data(),uint32_t(contact.size()),
+            nullptr,0,&axis.x,&lateral.x,&up.x,1.f,false);
+#endif
+        return;
+    }
     MANUAL_AIM_SOLUTION solution;
     if(!BuildManualAimSolution(camera,direction,solution))return;
     AimWorld world(GetAIShip());

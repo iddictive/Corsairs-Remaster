@@ -63,7 +63,7 @@ inline Fragment fragmentProperties(const Mesh&mesh) {
 // Render-only thickness for explicitly classified structural wood. Canonical
 // cut/collision meshes never contain these faces, so reconstruction cannot grow
 // another inner shell on every saved cut. Open holds and ports stay open.
-inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses) {
+inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses,const std::map<PositionKey,float>*depthLimits=nullptr,const std::map<PositionKey,Vec3>*offsetNormals=nullptr) {
     Mesh result=mesh;
     using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;
     const auto key=positionKey;
@@ -74,8 +74,10 @@ inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses
     for(const auto&o:mesh){const auto selected=thicknesses.find(o.first);if(selected==thicknesses.end()||!std::isfinite(selected->second)||selected->second<=0)continue;
         for(const auto&t:o.second){const auto fallback=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));
             for(const auto&v:t){auto&offset=offsets[key(v.position)];offset.normal=offset.normal+(storm_ship_hull::length(v.normal)>1.e-6f?storm_ship_hull::normalized(v.normal):fallback);offset.thickness+=selected->second;++offset.count;}}}
-    const auto inward=[&](const Vertex&v){const auto&offset=offsets.at(key(v.position));const auto normal=storm_ship_hull::length(offset.normal)>1.e-6f?storm_ship_hull::normalized(offset.normal):storm_ship_hull::normalized(v.normal);
-        return v.position-normal*float(offset.thickness/offset.count);};
+    const auto inward=[&](const Vertex&v){const auto&offset=offsets.at(key(v.position));auto normal=storm_ship_hull::length(offset.normal)>1.e-6f?storm_ship_hull::normalized(offset.normal):storm_ship_hull::normalized(v.normal);
+        if(offsetNormals){const auto found=offsetNormals->find(key(v.position));if(found!=offsetNormals->end())normal=found->second;}
+        float depth=float(offset.thickness/offset.count);if(depthLimits){const auto limit=depthLimits->find(key(v.position));if(limit!=depthLimits->end())depth=std::min(depth,std::max(0.f,limit->second));}
+        return v.position-normal*depth;};
     struct Boundary{Vertex a,b;int object=0;unsigned count=0;};std::map<Edge,Boundary>edges;
     for(const auto&o:mesh){const auto selected=thicknesses.find(o.first);if(selected==thicknesses.end()||!std::isfinite(selected->second)||selected->second<=0)continue;
         auto&out=result[o.first];
@@ -85,7 +87,8 @@ inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses
                 auto a=key(t[c].position),b=key(t[(c+1)%3].position);if(a==b)continue;if(b<a)std::swap(a,b);auto&edge=edges[{a,b}];if(!edge.count){edge.a=t[c];edge.b=t[(c+1)%3];edge.object=o.first;
                     if(storm_ship_hull::length(edge.a.normal)<=1.e-6f)edge.a.normal=fallback;if(storm_ship_hull::length(edge.b.normal)<=1.e-6f)edge.b.normal=fallback;}++edge.count;}
             std::swap(inner[1],inner[2]);out.push_back(inner);}}
-        for(const auto&entry:edges){const auto&edge=entry.second;if(edge.count!=1)continue;auto&out=result[edge.object];const float thickness=thicknesses.at(edge.object);auto a=edge.a,b=edge.b,c=b,d=a;
+        for(const auto&entry:edges){const auto&edge=entry.second;if(edge.count!=1)continue;auto&out=result[edge.object];auto a=edge.a,b=edge.b,c=b,d=a;
+            const float thickness=depthLimits?(storm_ship_hull::length(inward(a)-a.position)+storm_ship_hull::length(inward(b)-b.position))*.5f:thicknesses.at(edge.object);
             c.position=inward(b);d.position=inward(a);
             const auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(d.position-a.position,c.position-a.position));
             a.normal=b.normal=c.normal=d.normal=normal;darken(a,.78f);darken(b,.78f);darken(c,.78f);darken(d,.78f);

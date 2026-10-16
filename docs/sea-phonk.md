@@ -1,5 +1,36 @@
 # Phonk Mode
 
+## Numbered ordnance and world geometry
+
+While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped
+`Phonk_Laser`/`Phonk_Nuclear` controls and publishes the selection in
+`Sea.Phonk.Weapon` (6/7). Script initialization and mode entry register these
+controls for the three sea groups. Entry defaults to6; laser charge remains
+the existing native owner. Nuclear targeting uses actual water, ship and world
+receiver traces within6000m of the firing ship, and the draped footprint uses
+that same unfiltered target and220m radius. Missiles travel on a bounded arc,
+hit the first intervening receiver and reload in4 game-seconds. Paused frames
+advance no launch, flight or damage; launched missiles continue after mode exit.
+
+`ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models.
+Halfspaces and deterministic26-plane crater volumes rebuild one retained mesh
+for drawing, tracing and clipping. Active PN terrain is the input when present;
+material/UV data and unaffected components remain intact. Open terrain receives
+a basement and skirts; affected open architecture receives a bounded inward
+shell. Validated finite cuts commit only after all receivers accept; rejection
+restores the prior projection. Counts and geometry budgets are bounded; a
+rejected cut must leave the previous solid intact. Fort cannon reconciliation
+uses the existing cannon damage and assault owners. Nuclear ship impacts reuse
+hull cuts, flooding and script-owned death/HP, avoiding a second partial-HP cost.
+
+Actual-asset CPU sanitizer probes cover terrain, fort, town, overlapping cuts,
+unchanged geometry and rollback. The actual Metal explosion helper passes
+shader/pipeline, visibility and foreground-depth checks. Canonical build/stage
+pass, but the player reports6/7 do not switch and islands remain uncut. The HUD
+has no weapon selection consumer yet. Integrated control, receiver binding,
+save/rebind, visible explosion and battle acceptance remain unresolved; the
+current delivery and investigation verdict belongs to `runtime.md`.
+
 ## October16 — airborne coast contact and beached support
 
 Airborne grounding previously replaced the ship's actual Y with wave height;
@@ -354,6 +385,15 @@ The lowest unsupported/intersected authored mast falls through `MastFall` even
 on restoration. Pending mounting precedes either Execute or Realize exactly
 once, and deleted mast references are cleared. Individual hull-root rope/shroud
 anchors also consume support, cached by revision and model/root generation.
+
+Rope storage destruction synchronously sends the existing model/rope-scoped
+`MSG_SAIL_ROPE_UNTIE` before freeing endpoint positions. SAIL records signed tie
+IDs and clears both endpoint signs plus matching rotating attachments; a retied
+corner, unrelated rope and another model with the same rope number survive.
+All individual/group/destructor removal paths share that owner. Actual core
+message dispatch and rigging methods pass ASan/UBSan across six lifecycle modes;
+private rope-sail-lifetime retains the prior endpoint write-after-free and fixed
+evidence. This does not establish the cause of the separate renderer-cache crash.
 
 Mechanical impacts reuse the same geometry, plane history, fragments, contact
 revision and flooding owner through `SHIP_BASE::ApplyHullImpact`. Their explicit

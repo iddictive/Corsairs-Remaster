@@ -15,6 +15,7 @@ class AIGroup;
 class AIFort : public VAI_OBJBASE
 {
   public:
+    void ReconcileWorldCuts(ISLAND_BASE &island, int32_t owner);
     class AI_FORT : public VAI_INNEROBJ
     {
       private:

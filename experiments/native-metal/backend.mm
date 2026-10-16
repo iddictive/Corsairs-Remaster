@@ -28,6 +28,7 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "cinematic_postfx.hpp"
 #include "volumetric_light_shafts.hpp"
 #include "aim_volume.hpp"
+#include "phonk_ordnance_render.hpp"
 #include "light_shaft_apertures.hpp"
 #include "dynamic_sky.hpp"
 #include "solar_shapes_msl.hpp"
@@ -323,6 +324,7 @@ struct Device : storm_render::Device {
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
  storm_metal::ShipFireRenderer shipFire;
+ storm_metal::PhonkNuclearRenderer phonkNuclear;
  storm_metal::ShipFireSurfaceScope shipFireSurface;
  id<MTLLibrary> shipFireMaterialLibrary=nil;bool shipFireMaterialFailed=false,shipFireMaterialDraw=false,shipFireSceneClosed=false;
  std::string materialShaderSource;
@@ -951,7 +953,7 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
      const storm::sea_ai::manual_aim::AimWaterContactVertex*waterVertices,uint32_t waterVertexCount,
      const storm::sea_ai::manual_aim::AimContactSection*contactSections,uint32_t contactSectionCount,
      const storm::sea_ai::manual_aim::AimContactTriangle*contactTriangles,uint32_t contactTriangleCount,
-     const float*axis,const float*lateral,const float*up,float readiness){
+     const float*axis,const float*lateral,const float*up,float readiness,bool smoothContact=true){
   if(!aimVolume.enabled())return false;
   // Only the live main perspective scene is supported. A missing safe volume
   // pass must never fall back to the old alpha-polygon corridor shell.
@@ -967,7 +969,7 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
   storm_metal::AimVolumeFrame frame;
   if(!aimVolume.buildFrame(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,waterVertices,waterVertexCount,contactSections,contactSectionCount,contactTriangles,contactTriangleCount,axis,lateral,up,readiness,landShadow.worldOrigin,
       simd_mul(projectionMatrix,viewMatrix),inverseViewForDraw(viewMatrix),
-      screenViewport(),frame))return false;
+      screenViewport(),frame,smoothContact))return false;
   frame.uniforms.surfaceStyle.x=storm_metal::aimSurfaceDaylight(dynamicSkyInput.hour);
   if((!frame.scissor.width||!frame.scissor.height)&&(!frame.contactScissor.width||!frame.contactScissor.height))return true;
   const auto sectionSlice=submissionBuffer(frame.sections.data(),frame.sections.size()*sizeof(frame.sections[0]));
@@ -1667,6 +1669,18 @@ extern "C" bool StormMetalDrawGrass(void*pointer,const void*instances,size_t cou
  memcpy(d->vertexConstants,constants,constantCount*sizeof(float));bool ok=d->drawGrass(static_cast<const BridgeGrass*>(instances),count);
  d->invalidatePreparedStages();d->rs[storm_render::RenderAlphaTest]=oldTest;d->rs[storm_render::RenderAlphaReference]=oldRef;d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;d->ts[0][storm_render::StageColorOp]=oldColorOp;d->ts[0][storm_render::StageColorArg1]=oldColorArg1;d->ts[0][storm_render::StageColorArg2]=oldColorArg2;d->ts[0][storm_render::StageAlphaOp]=oldAlphaOp;d->ts[0][storm_render::StageAlphaArg1]=oldAlphaArg1;d->ts[0][storm_render::StageAlphaArg2]=oldAlphaArg2;d->ts[1][storm_render::StageColorOp]=oldStage1ColorOp;d->ts[1][storm_render::StageAlphaOp]=oldStage1AlphaOp;return ok;
 }
+extern "C" void StormMetalDrawPhonkNuclearBlast(void*pointer,const float*center,float radius,float age){
+ if(!pointer||!center)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(d->target!=d->back||d->zbuffer!=d->depth||!d->depth||!d->sceneDepthReady||d->landShadow.prepass.inPass||
+    d->vp.MinZ!=0.f||d->vp.MaxZ!=1.f)return;
+ simd_float4x4 view,projection;std::memcpy(&view,&d->matrices[storm_render::TransformView],sizeof(view));
+ std::memcpy(&projection,&d->matrices[storm_render::TransformProjection],sizeof(projection));
+ if(std::abs(projection.columns[2].w)<1.e-6f||std::abs(projection.columns[3].w)>1.e-6f)return;
+ d->finish();if(!d->command)d->command=[d->queue commandBuffer];d->sceneAA().invalidate(true,false);
+ const auto viewport=d->rasterViewport(MTLViewport{double(d->vp.X),double(d->vp.Y),double(d->vp.Width),double(d->vp.Height),0,1});
+ if(d->phonkNuclear.encode(d->metal,d->command,d->sceneColor(),d->sceneDepth(),view,projection,d->landShadow.worldOrigin,
+     {float(viewport.originX),float(viewport.originY),float(viewport.width),float(viewport.height)},center,radius,age)&&d->profile.enabled){++d->profile.draws;d->profile.vertices+=3;}
+}
 extern "C" void StormMetalDrawParticleSprites(void*pointer,const BridgeSprite*sprites,size_t count,uint32_t plane,uint32_t blend){if(!pointer||(!sprites&&count)||plane>1||blend>1)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));uint32_t oldBlend=d->rs[storm_render::RenderBlend],oldSrc=d->rs[storm_render::RenderSourceBlend],oldDst=d->rs[storm_render::RenderDestinationBlend],oldCull=d->rs[storm_render::RenderCullMode],oldZWrite=d->rs[storm_render::RenderDepthWrite];d->rs[storm_render::RenderBlend]=true;d->rs[storm_render::RenderDepthWrite]=false;d->rs[storm_render::RenderSourceBlend]=blend?storm_render::BlendOne:storm_render::BlendSourceAlpha;d->rs[storm_render::RenderDestinationBlend]=storm_render::BlendInverseSourceAlpha;d->rs[storm_render::RenderCullMode]=storm_render::CullNone;d->drawBridge(sprites,count*sizeof(*sprites),count*6,@"bridge_sprite_vs",3+blend,plane);d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderDepthWrite]=oldZWrite;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;}
 extern "C" void StormMetalDrawAdvancedParticles(void*pointer,const BridgeAdvanced*particles,size_t count,uint32_t blend){if(!pointer||(!particles&&count)||blend>1)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));uint32_t oldBlend=d->rs[storm_render::RenderBlend],oldSrc=d->rs[storm_render::RenderSourceBlend],oldDst=d->rs[storm_render::RenderDestinationBlend],oldCull=d->rs[storm_render::RenderCullMode],oldZWrite=d->rs[storm_render::RenderDepthWrite];d->rs[storm_render::RenderBlend]=true;d->rs[storm_render::RenderDepthWrite]=false;d->rs[storm_render::RenderSourceBlend]=blend?storm_render::BlendOne:storm_render::BlendSourceAlpha;d->rs[storm_render::RenderDestinationBlend]=storm_render::BlendInverseSourceAlpha;d->rs[storm_render::RenderCullMode]=storm_render::CullNone;d->drawBridge(particles,count*sizeof(*particles),count*6,@"bridge_advanced_vs",5+blend,0,{0,0,0,0},MTLPrimitiveTypeTriangle,@"bridge_advanced_fs");d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderDepthWrite]=oldZWrite;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;}
 extern "C" bool StormMetalDrawCompactPrimitive(void*pointer,uint32_t primitiveType,uint32_t compactFVF,uint32_t primitiveCount,const void*vertices,uint32_t vertexStride){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->drawCompact(static_cast<storm_render::Primitive>(primitiveType),compactFVF,primitiveCount,vertices,vertexStride);}
@@ -1686,8 +1700,8 @@ extern "C" bool StormMetalDrawAimVolume(void*pointer,const storm::sea_ai::manual
     const storm::sea_ai::manual_aim::AimVolumeRelationVertex*relationVertices,uint32_t relationVertexCount,
     const storm::sea_ai::manual_aim::AimWaterContactVertex*waterVertices,uint32_t waterVertexCount,
     const storm::sea_ai::manual_aim::AimContactSection*contactSections,uint32_t contactSectionCount,
-    const storm::sea_ai::manual_aim::AimContactTriangle*contactTriangles,uint32_t contactTriangleCount,const float*axis,const float*lateral,const float*up,float readiness){
- return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->drawAimVolume(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,waterVertices,waterVertexCount,contactSections,contactSectionCount,contactTriangles,contactTriangleCount,axis,lateral,up,readiness);
+    const storm::sea_ai::manual_aim::AimContactTriangle*contactTriangles,uint32_t contactTriangleCount,const float*axis,const float*lateral,const float*up,float readiness,bool smoothContact){
+ return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->drawAimVolume(sections,sectionCount,planes,planeCount,relationVertices,relationVertexCount,waterVertices,waterVertexCount,contactSections,contactSectionCount,contactTriangles,contactTriangleCount,axis,lateral,up,readiness,smoothContact);
 }
 extern "C" bool StormMetalDrawGlyphInstances(void*pointer,const BridgeGlyph*glyphs,uint32_t count,float z,float rhw){return pointer&&(!count||glyphs)&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->drawBridge(glyphs,size_t(count)*sizeof(*glyphs),size_t(count)*6,@"bridge_glyph_vs",7,0,{z,rhw,0,0});}
 extern "C" unsigned StormMetalBeginWdmModel(void*pointer,unsigned role){if(!pointer||!storm::metal::world_map::validRole(role))return 0;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));unsigned previous=d->worldMapModelRole;d->worldMapModelRole=role;return previous;}

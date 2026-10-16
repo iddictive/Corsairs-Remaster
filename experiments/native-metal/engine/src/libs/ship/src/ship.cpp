@@ -1666,6 +1666,7 @@ void SHIP::Execute(uint32_t DeltaTime)
     SetMatrix(mRoot);
 
     auto matrix = UpdateModelMatrix();
+    ExecutePhonkOrdnance(DeltaTime);
     ExecutePhonkLaser(DeltaTime);
 
     // activate mast tracer
@@ -3338,6 +3339,7 @@ void SHIP::Load(CSaveLoad *pSL)
 {
     uint32_t i;
     phonkLaser = {};
+    phonkOrdnance = {};
     collisionStrength = {};
     collisionYaw = 0.f;
     tsunamiDrift.Reset();

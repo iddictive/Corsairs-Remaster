@@ -7,6 +7,9 @@
 #include "geometry.h"
 #include "model.h"
 #include "vma.hpp"
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+#include "world_cut_geometry.hpp"
+#endif
 
 class MapZipper
 {
@@ -59,6 +62,21 @@ class ISLAND : public ISLAND_BASE
     CVECTOR vBoxSize, vBoxCenter, vRealBoxSize;
     uint32_t iDMapSize, iDMapSizeShift;
     entid_t model_id{}, seabed_id{};
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; };
+    struct WorldCutBinding { entid_t model; uint64_t generation; size_t count; bool valid; };
+    ATTRIBUTES *worldCutState = nullptr; // saved Islands[] attributes outlive this sea entity
+    entid_t worldReflection = 0;
+    std::vector<WorldCutRecord> worldCuts;
+    std::vector<WorldCutBinding> worldBindings;
+    bool worldCutsReady = false;
+    std::vector<entid_t> WorldModels() const;
+    std::string WorldModelKey(entid_t model) const;
+    bool BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force);
+    bool CommitWorldCut(WorldCutRecord record);
+    void RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection);
+    bool WorldGroundChanged(float x, float z) const;
+#endif
 
     bool bFirstRealize;
     bool dynamicLightsOn; 		//dynamic lighting
@@ -191,4 +209,8 @@ class ISLAND : public ISLAND_BASE
     {
         return fCurrentImmersion;
     };
+    float TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &model) override;
+    bool CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance, int32_t owner = -1) override;
+    bool BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner = -1) override;
+    bool IsWorldPositionRetained(entid_t model, const CVECTOR &point) override;
 };

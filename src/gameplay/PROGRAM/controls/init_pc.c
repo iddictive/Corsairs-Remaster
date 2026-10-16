@@ -321,6 +321,7 @@
 	CI_CreateAndSetControls("Sailing3Pers","hk_charge5", CI_GetKeyCode("KEY_5"), 0, true );
 	MapControlToGroup("hk_charge5","Sailing1Pers");
 	MapControlToGroup("hk_charge5","BattleInterfaceControls");
+	SeaPhonk_InitControls();
 
 // Dialog =====================================================================
 	CI_CreateAndSetControls( "DialogControls", "DlgAction", CI_GetKeyCode("VK_SPACE"), 0, false );

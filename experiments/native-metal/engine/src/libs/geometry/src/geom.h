@@ -18,6 +18,7 @@ Import library class
 #include <atomic>
 #include "ship_hull_geometry.hpp"
 #include "ship_laser_geometry.hpp"
+#include "world_cut_geometry.hpp"
 #endif
 
 #define EPSILON 4e-7
@@ -97,6 +98,13 @@ class GEOM : public GEOS
     bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&);
     bool RebuildLaserSurface(bool upload=true);
     void RebuildLaserCollision();
+    storm_ship_laser::Mesh worldOriginal,worldSurface;
+    std::map<int,std::vector<HullDraw>>worldDraws;
+    std::set<int>worldTerrainObjects;
+    std::vector<storm_world_cut::Cut>worldCuts;
+    uint64_t worldOwner=0;
+    bool worldPrepared=false,worldTerrainModel=false;
+    bool CaptureWorldSurface(bool terrainModel);
 #endif
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
     struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
@@ -151,6 +159,9 @@ class GEOM : public GEOS
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
+    bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
+    bool HasWorldCuts() const override { return worldOwner!=0; }
+    void ClearWorldCuts(uint64_t owner) override;
 #endif
 
     virtual float Trace(VERTEX &src, VERTEX &dst);

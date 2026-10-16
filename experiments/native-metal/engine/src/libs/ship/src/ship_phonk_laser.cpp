@@ -4,6 +4,7 @@
 #include "../../sea_ai/src/ai_helper.h"
 #include "../../sea_ai/src/ai_ship.h"
 #include "shared/sea_ai/script_defines.h"
+#include "shared/messages.h"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <algorithm>
 #include <cmath>
@@ -49,7 +50,11 @@ class SHIP_CUT_FRAGMENTS final : public Entity
             if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
             {
                 if (stage == Stage::execute) ship->AdvanceCutFragments();
-                else if (std::find(visible.begin(), visible.end(), id) != visible.end()) ship->DrawPhonkLaser();
+                else if (std::find(visible.begin(), visible.end(), id) != visible.end())
+                {
+                    ship->DrawPhonkLaser();
+                    ship->DrawPhonkOrdnance();
+                }
             }
     }
 };
@@ -236,7 +241,7 @@ void SHIP::PublishHullCut(float removed, bool partial)
 }
 
 bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring,
-                            int32_t sourceOwner, ATTRIBUTES *attacker)
+                            int32_t sourceOwner, ATTRIBUTES *attacker, bool payPartialDamage)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     using namespace storm::ship::phonk;
@@ -431,7 +436,11 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
             if (relation != RELATION_UNKNOWN)
                 core.Event(SHIP_FIRE_ACTION, "aal", GetACharacter(), Helper.GetMainCharacter(GetACharacter()), relation);
         }
-        PublishHullCut(phonkLaser.wetCut ? removed : 0.f, plane.charred);
+        if (auto sailors = core.GetEntityId("sailors"))
+            core.Send_Message(sailors, "laffffl", MSG_PEOPLES_ON_SHIP_HULLCUT,
+                GetACharacter(), plane.normal.x, plane.normal.y, plane.normal.z,
+                plane.distance, int32_t(plane.charred));
+        PublishHullCut(payPartialDamage && phonkLaser.wetCut ? removed : 0.f, plane.charred);
     }
     return true;
 #else
@@ -696,7 +705,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     }
     CONTROL_STATE fire;
     core.Controls->GetControlState("Ship_Fire", fire);
-    const bool held = fire.state == CST_ACTIVE || fire.state == CST_ACTIVATED;
+    const bool held = phonkOrdnance.weapon == 6 &&
+        (fire.state == CST_ACTIVE || fire.state == CST_ACTIVATED);
     if (!held) phonkLaser.charge = std::min(1.f, phonkLaser.charge + seconds * .10f);
     else if (!phonkLaser.rays.empty())
         phonkLaser.charge = std::max(0.f, phonkLaser.charge - seconds * .16f);
@@ -721,8 +731,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     const auto end = camera + direction * 3500.f;
     float nearest = 1.f;
     SHIP *target = nullptr;
-    // Islands occlude picking; a ship behind solid land is not a laser target.
-    if (pIsland) nearest = std::min(nearest, pIsland->Trace(camera, end));
+    entid_t worldTarget = 0;
+    if (pIsland) nearest = std::min(nearest, pIsland->TraceWorldWeapon(camera, end, worldTarget));
     struct Receiver { SHIP *ship; storm_ship_hull::Bounds bounds; bool bounded; };
     std::vector<Receiver> receivers;
     for (const auto id : core.GetEntityIds("ship"))
@@ -735,7 +745,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         if (receiver.bounded && !storm_ship_hull::rayBounds(receiver.bounds,
             {camera.x, camera.y, camera.z}, {end.x, end.y, end.z})) continue;
         const float hit = ship->Trace(camera, end);
-        if (hit >= 0.f && hit < nearest) { nearest = hit; target = ship; }
+        if (hit >= 0.f && hit < nearest) { nearest = hit; target = ship; worldTarget = 0; }
     }
     phonkLaser.endpoint = camera + (end - camera) * nearest;
     auto *ai = static_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
@@ -747,6 +757,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.rays.clear();
     phonkLaser.beamAge = 0.f;
     target = nullptr;
+    worldTarget = 0;
     // One intact cannon on the aimed bort emits the beam. Trace from that
     // actual muzzle so nearby hulls and land also occlude the cutting ray.
     {
@@ -766,14 +777,15 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         const auto rayEnd = picked + !(picked - muzzle) * .5f;
         float fraction = 1.f;
         SHIP *receiver = nullptr;
-        if (pIsland) fraction = std::min(fraction, pIsland->Trace(muzzle, rayEnd));
+        entid_t worldReceiver = 0;
+        if (pIsland) fraction = std::min(fraction, pIsland->TraceWorldWeapon(muzzle, rayEnd, worldReceiver));
         for (const auto &candidate : receivers)
         {
             auto *ship = candidate.ship;
             if (candidate.bounded && !storm_ship_hull::rayBounds(candidate.bounds,
                 {muzzle.x, muzzle.y, muzzle.z}, {rayEnd.x, rayEnd.y, rayEnd.z})) continue;
             const float hit = ship->Trace(muzzle, rayEnd);
-            if (hit >= 0.f && hit < fraction) { fraction = hit; receiver = ship; }
+            if (hit >= 0.f && hit < fraction) { fraction = hit; receiver = ship; worldReceiver = 0; }
         }
         LaserRay ray;
         GetModel()->mtx.MulToInv(muzzle, ray.muzzle);
@@ -784,15 +796,26 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             receiver->GetModel()->mtx.MulToInv(ray.endpoint, ray.localHit);
             target = receiver;
         }
+        else if (worldReceiver)
+        {
+            ray.target = uint64_t(worldReceiver);
+            ray.worldTarget = true;
+            ray.localHit = ray.endpoint; // Static world records use authored world coordinates.
+            worldTarget = worldReceiver;
+        }
         phonkLaser.muzzle = muzzle;
         phonkLaser.endpoint = ray.endpoint;
         phonkLaser.rays.push_back(ray);
     }
-    if (!target) { phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
-    CVECTOR hit;
-    target->GetModel()->mtx.MulToInv(phonkLaser.endpoint, hit);
-    if (phonkLaser.contact != uint64_t(target->GetId()))
-    { phonkLaser.contact = uint64_t(target->GetId()); phonkLaser.firstHit = hit; phonkLaser.burn = 0.f; }
+    if (!target && !worldTarget) { phonkLaser.contact = 0; phonkLaser.burn = 0.f; return; }
+    CVECTOR hit = phonkLaser.endpoint;
+    if (target) target->GetModel()->mtx.MulToInv(phonkLaser.endpoint, hit);
+    const auto contact = worldTarget ? uint64_t(worldTarget) : uint64_t(target->GetId());
+    if (phonkLaser.contact != contact || phonkLaser.contactWorld != bool(worldTarget))
+    {
+        phonkLaser.contact = contact; phonkLaser.contactWorld = bool(worldTarget);
+        phonkLaser.firstHit = hit; phonkLaser.burn = 0.f;
+    }
     phonkLaser.lastHit = hit;
     if (phonkLaser.reload > 0.f) return;
     if (phonkLaser.triggerAge * 16000.f < std::sqrt(~(phonkLaser.endpoint - phonkLaser.muzzle))) return;
@@ -800,11 +823,19 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     if (phonkLaser.burn < laserBurnTime) return;
     const auto beamDirection = !(phonkLaser.endpoint - phonkLaser.muzzle);
     CVECTOR worldNormal(beamDirection.z, 0.f, -beamDirection.x);
-    const CVECTOR sweep = target->GetModel()->mtx * phonkLaser.lastHit -
-                          target->GetModel()->mtx * phonkLaser.firstHit;
+    const CVECTOR sweep = worldTarget ? phonkLaser.lastHit - phonkLaser.firstHit :
+        target->GetModel()->mtx * phonkLaser.lastHit - target->GetModel()->mtx * phonkLaser.firstHit;
     if ((~sweep) > .25f && (~(beamDirection ^ sweep)) > .04f) worldNormal = beamDirection ^ sweep;
     if ((~worldNormal) < 1.e-6f) return;
     worldNormal = !worldNormal;
+    if (worldTarget)
+    {
+        const auto point = (phonkLaser.firstHit + phonkLaser.lastHit) * .5f;
+        phonkLaser.burn = 0.f; phonkLaser.contact = 0; phonkLaser.reload = laserReload;
+        pIsland->CutWorldWeapon(worldTarget, worldNormal, worldNormal | point,
+            int32_t(GetACharacter()->GetAttributeAsDword("index")));
+        return;
+    }
     LaserPlane plane;
     CVECTOR point;
     auto *model = target->GetModel();
@@ -823,6 +854,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
 
 CVECTOR SHIP::PhonkLaserEndpoint()
 {
+    if (phonkLaser.contact && phonkLaser.contactWorld) return phonkLaser.lastHit;
     if (phonkLaser.contact)
         if (auto *target = static_cast<SHIP *>(core.GetEntityPointer(phonkLaser.contact)))
             if (target->GetModel()) return target->GetModel()->mtx * phonkLaser.lastHit;
@@ -926,7 +958,7 @@ void SHIP::DrawPhonkLaser()
             {
                 const auto source = GetModel()->mtx * beam.muzzle;
                 auto destination = beam.endpoint;
-                if (beam.target)
+                if (beam.target && !beam.worldTarget)
                     if (auto *receiver = static_cast<SHIP *>(core.GetEntityPointer(beam.target)))
                         if (receiver->GetModel()) destination = receiver->GetModel()->mtx * beam.localHit;
                 const auto axis = destination - source;

@@ -49,6 +49,8 @@
 #define MSG_ISLAND_SET_GEO 50101  // "lis", model_id,island name
 #define MSG_ISLAND_START 50102    // "lis", model_id,island name
 #define MSG_ISLAND_ADD_FORT 50103 // "li", model_id
+#define MSG_ISLAND_WORLD_STATE 50104 // "lai", persistent Islands[] attributes, reflection model
+#define MSG_FLAG_WORLD_SUPPORT 50105 // "li", island cut-state owner
 
 //============================================================================================
 // Sea Reflection Messages

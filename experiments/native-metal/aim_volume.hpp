@@ -496,7 +496,7 @@ class SoftAimVolume {
       const aim_volume::AimContactTriangle*contactTriangles,uint32_t contactTriangleCount,
       const float*axis,const float*lateral,const float*up,float readiness,
       simd_float3 worldOrigin,const simd_float4x4&viewProjection,
-      const simd_float4x4&inverseView,simd_float4 viewport,AimVolumeFrame&frame) {
+      const simd_float4x4&inverseView,simd_float4 viewport,AimVolumeFrame&frame,bool smoothContact=true) {
     using namespace aim_volume;
     if(!sections||!planes||!axis||!lateral||!up||count<2||count>maxVolumeSections||
        !planeCount||planeCount>maxVolumePlanes||!std::isfinite(readiness)||
@@ -581,7 +581,7 @@ class SoftAimVolume {
       const simd_float3 current={field.center[0],field.center[1],field.center[2]};
       const float station=simd_dot(current,normal);
       const float near=station+field.reserved[0],far=station+field.reserved[1];
-      if(simd_dot(ax,contactAxis_)>.98f)for(const auto&old:smoothedContact_)if(old.padding==field.padding){
+      if(smoothContact&&simd_dot(ax,contactAxis_)>.98f)for(const auto&old:smoothedContact_)if(old.padding==field.padding){
         const simd_float3 previous={old.center[0],old.center[1],old.center[2]};
         const float oldStation=simd_dot(previous,normal);
         const auto tangent=current-previous-normal*simd_dot(current-previous,normal);

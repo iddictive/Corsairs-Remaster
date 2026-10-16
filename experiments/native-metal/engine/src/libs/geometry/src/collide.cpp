@@ -20,9 +20,9 @@ SAVAGE GEOM::_stack[256];
 float GEOM::Trace(VERTEX &start, VERTEX &finish)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    if(laserOwner){laserTraceObject=laserTraceTriangle=-1;float nearest=2;
+    if(laserOwner||worldOwner){laserTraceObject=laserTraceTriangle=-1;float nearest=2;const auto&surface=worldOwner?worldSurface:laserSurface;
         laserBroadphase.queryRay({start.x,start.y,start.z},{finish.x,finish.y,finish.z},laserRayCandidates);
-        for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(laserSurface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
+        for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(surface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
             if(hit<nearest||(hit==nearest&&hit<=1&&reference<std::make_pair(laserTraceObject,uint32_t(laserTraceTriangle)))){nearest=hit;laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}return nearest;}
 #endif
     if (!(rhead.flags & FLAGS_BSP_PRESENT))
@@ -295,11 +295,11 @@ bool GEOM::Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, floa
 {
     storm_airburst_hull::TraceScope traceScope(traceid);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    if(laserOwner){if(nplanes<0||nplanes>64||!std::isfinite(radius)||radius<0)return false;
+    if(laserOwner||worldOwner){if(nplanes<0||nplanes>64||!std::isfinite(radius)||radius<0)return false;const auto&surface=worldOwner?worldSurface:laserSurface;
         const storm_ship_hull::Vec3 origin{center.x,center.y,center.z},extent{radius,radius,radius};
         laserBroadphase.queryBounds({origin-extent,origin+extent},laserRayCandidates);
         for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;
-            const auto&triangle=laserSurface.at(reference.first)[reference.second];storm_ship_hull::Bounds box{triangle[0].position,triangle[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{triangle[c].position,triangle[c].position});
+            const auto&triangle=surface.at(reference.first)[reference.second];storm_ship_hull::Bounds box{triangle[0].position,triangle[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{triangle[c].position,triangle[c].position});
                 const float x=std::clamp(center.x,box.lo.x,box.hi.x)-center.x,y=std::clamp(center.y,box.lo.y,box.hi.y)-center.y,z=std::clamp(center.z,box.lo.z,box.hi.z)-center.z;if(x*x+y*y+z*z>radius*radius)continue;
                 for(unsigned c=0;c<3;++c)poly[c]={triangle[c].position.x,triangle[c].position.y,triangle[c].position.z};int count=3;
                 for(int p=0;p<nplanes&&count;++p)count=ClipByPlane(planes[p],count);
