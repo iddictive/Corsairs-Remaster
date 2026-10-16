@@ -1,8 +1,34 @@
 # Runtime state
 
-Last verified delivery: October15. The frozen late-laser/hitch candidate, retaining the native MSAA4+FXAA and checkbox fixes, is installed with signed engine `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611`; prior `355673956fde09ef47b8fd380e21424ab6bccb1922b622dd43872120444747a9` is backed up. Hidden RAM/laser/water runs pass and beam visibility is accepted; severe action hitches and player acceptance remain open. Canonical stage-only exits0, and all526 freshly recorded protected player files retain hashes with0 added. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October15. Scene-owned chip assets and the two-format HUD overwrite repair are installed with signed engine `d876fa0184ee309c0d407ff3d9a363149f9925654a13f3e485f14aadfd496bde`; prior `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611` is backed up. Canonical stage-only exits0 in115.256s; all526 freshly recorded protected player files retain hashes with0 added. Actual HUD384, fleet136 and fresh normal RAM151/laser151 native runs exit0. First-action chip loading is reduced causally; remaining synchronous geometry work, player acceptance and sustained120FPS remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October15 — scene chip assets and HUD ABI repair staged
+
+The frozen three-source batch passes canonical `run.sh --stage-only` in115.256s
+and installs signed engine d876fa0184ee309c0d407ff3d9a363149f9925654a13f3e485f14aadfd496bde.
+All526 fresh player-state hashes remain unchanged, with0 added; the prior6a6be8eb
+engine is retained. Receipt and exact source map belong to
+20261015-210016-chip-assets-hud-abi-delivery. The normal current50-library
+HUD384/fleet136 runs exit0, retaining all152 sails and334 warmed animated draws,
+eight point cubes and native4xMSAA+FXAA. The complete HUD frame shows six intact
+stock icons/names/crew counts. The physics owner returns normal RAM151 and
+laser151 exit0 against the same50 libraries, with all151 state rows in each mode
+identical to the earlier normal baseline. RAM action45.499 to30.194ms and laser
+cut-frame CORE43.936 to34.066ms reduce the first-action hitch without removing
+the remaining synchronous split. Whole frames preserve the visible hull-stopping
+beam and retained/detached assemblies. This fixture directly calls impact and
+has no stock death handler; ordinary TOUCH, SAVE, death and sinking are unproven.
+No original app launch, player control or SAVE mutation occurs. sea-phonk.md owns
+the scene asset lifetime and causal first-action comparison. The independent
+span-cache corruption and120FPS remain unresolved.
+
+Ordered128/512-triangle shadow clusters and native sparse-ICB optimization are
+rejected after same-frame48-face depth parity and whole-frame GPU regression.
+The expanded render/compute observer has measured overhead and remains private.
+metal-sea-benchmark.md owns those results; none of these renderer candidates is
+included in the installed batch.
 
 ### October15 — late laser/hitch batch staged; beam accepted, hitch open
 
@@ -16,7 +42,7 @@ restored strict verification before the final successful stage. Its exit-15
 receipt is not an accepted delivery. The frozen batch keeps opaque fragments
 early and moves transparent laser FX after Sea; it also shares chip meshes and
 hashes closed-volume edges. sea-phonk.md owns its causal evidence and limits.
-The physics chat completes serialized native RAM401/laser401/water151 runs
+The earlier physics batch completes serialized native RAM401/laser401/water151 runs
 193610/193617/193622, all exit0 against50 canonical libraries and the frozen
 source map. Whole-frame observation accepts air/water beam visibility and hull
 occlusion; cut/charge/retained-geometry invariants remain. Severe hitch acceptance
@@ -44,9 +70,19 @@ unresolved; no shadow LOD or daytime lamp gate is installed.
 
 The separately frozen full-ASan395-TU native fleet exits0 for384 frames with
 no ASan report, using system allocation and actual engine instrumentation.
-It omits BattleInterface/HUD, so it does not cover the latest player's crash
-producer or accept the recurring span-cache corruption. Retained binary/dSYM,
-source manifest and run384 receipts belong to full-asan-native-fleet.
+Its follow-up `hud384` also exits0 for384 frames with the real stock
+BattleInterface icon/command/info initialization and six ship icons. This adds
+the previously missing HUD producer to that trajectory; it does not identify
+the recurring span-cache writer or accept player stability. The same retained
+binary/dSYM and source manifest bind both runs in full-asan-native-fleet.
+
+Independent native ABI evidence finds two `%ld,%ld` scans writing64-bit longs
+into32-bit Point coordinates in BattleShipSign. An actual-Point canary changes
+the following sentinel to zero before repair and preserves it with `%d,%d`.
+The two-format correction removes this proven overwrite; no causal link to the
+span-cache map corruption or FPS gain is claimed. The newly staged canonical
+engine passes actual HUD384 and full-fleet136 native runs; runtime source,
+50-library hashes and outputs belong to integrated-chip-hud-f2be757.
 
 ### October15 — thin-rope MSAA and Options label input delivered
 

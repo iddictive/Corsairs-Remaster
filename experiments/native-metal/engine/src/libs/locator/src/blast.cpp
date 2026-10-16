@@ -3,6 +3,43 @@
 #include "core.h"
 #include "shared/messages.h"
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+namespace
+{
+bool LoadHullChipAssets(VGEOMETRY *service, std::array<std::shared_ptr<GEOS>,3> &result)
+{
+    if (!service) return false;
+    static VGEOMETRY *assetService = nullptr;
+    static std::array<std::weak_ptr<GEOS>,3> assets;
+    if (assetService != service) { assets = {}; assetService = service; }
+    const char *names[] = {"particles\\palka01", "particles\\palka02", "particles\\palka04"};
+    std::array<std::shared_ptr<GEOS>,3> loaded;
+    for (unsigned n = 0; n < loaded.size(); ++n)
+    {
+        loaded[n] = assets[n].lock();
+        if (!loaded[n])
+        {
+            loaded[n].reset(service->CreateGeometry(names[n], nullptr, 0));
+            if (!loaded[n]) return false;
+            assets[n] = loaded[n];
+        }
+    }
+    result = std::move(loaded);
+    return true;
+}
+}
+
+// The scene holds these three meshes between bursts without consuming a burst
+// lease, creating particles or participating in any render/execute layer.
+class SHIP_HULL_CHIP_ASSETS final : public Entity
+{
+    std::array<std::shared_ptr<GEOS>,3> assets;
+  public:
+    bool Init() override
+    { return LoadHullChipAssets(static_cast<VGEOMETRY *>(core.GetService("geometry")), assets); }
+    void ProcessStage(Stage, uint32_t) override {}
+};
+CREATE_CLASS(SHIP_HULL_CHIP_ASSETS)
+
 class SHIP_HULL_CHIPS final:public BLAST {public:SHIP_HULL_CHIPS():BLAST(true){}};
 CREATE_CLASS(SHIP_HULL_CHIPS)
 #endif
@@ -42,17 +79,7 @@ bool BLAST::Init()
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(hullChipMode){
         if(!hullChipLease.acquire())return false;
-        // These immutable meshes already serve several particles in one burst.
-        // Share them across live bursts too; the last entity owns their release.
-        static VGEOMETRY *assetService=nullptr;
-        static std::array<std::weak_ptr<GEOS>,3> assets;
-        if(assetService!=gs){assets={};assetService=gs;}
-        const char *names[]={"particles\\palka01","particles\\palka02","particles\\palka04"};
-        for(unsigned n=0;n<hullChipGeometry.size();++n){
-            auto geometry=assets[n].lock();
-            if(!geometry){geometry.reset(gs->CreateGeometry(names[n],nullptr,0));if(!geometry)return false;assets[n]=geometry;}
-            hullChipGeometry[n]=std::move(geometry);
-        }
+        if (!LoadHullChipAssets(gs, hullChipGeometry)) return false;
         Item.resize(storm_ship_hull::ChipLease::particlesPerBurst);ItemsNum=uint32_t(Item.size());
         for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n<2?0:n<6?1:2].get();item.bDouble=true;item.chip.alive=false;}
         return true;

@@ -883,3 +883,44 @@ runs are `20261015-170122-fi-cost-*` and `20261015-172134-fi-multi-cost-*`.
 The pre-lighting canonical renderer archive and its two source owners are
 retained under frozen-87-renderer/manifest.json for coherent reconstruction;
 later canonical archive replacement is not the measured87 input generation.
+
+## October15 — shadow command candidates rejected
+
+Ordered static index ranges preserve original vertices, indices, materials,
+triangle order and whole-draw culling. At128 triangles per range, all48 actual
+material depth faces match the unsplit reference bit-for-bit in the same frame.
+Nevertheless, serial136-frame runs at2560x1655,4xMSAA+FXAA and no upscaling give
+whole-GPU medians18.716ms unsplit,26.805ms at128 and21.734ms at512. The128 case
+reduces rigid index references to26% of baseline in the captured CPU fit, but
+increases live commands and ICB storage. Fewer references do not prove cheaper
+execution. Reject both variants; no canonical renderer change is delivered.
+Private source, input identities, exact depth and timing receipts belong to
+`point-cluster-fit` under the renderer-evidence owner.
+
+The existing Apple ICB optimizer is also measured before attempting custom
+compaction. It optimizes each exact subsequently executed face range and resets
+the full completion-owned ICB before count-dependent boundaries can move.
+All48 same-frame actual depth faces again match. The same-binary Off/On/Off
+whole-GPU medians are19.995/21.787/20.341ms; optimization plus reset costs more
+than skipping sparse commands. Reject integration. An empty-command count alone
+does not justify a custom compactor. `sparse-shadow-whole-frame-fit` retains the
+source, binary, four terminal runs and213 bound inputs. Earlier source-only
+`sparse-shadow-command-fit` is superseded by this measured rejection.
+
+## October15 — compute stages and current CPU sample
+
+The existing stage observer now also uses the installed SDK's serial compute
+pass sample attachments. Whole-GPU Off/On/Off medians21.114/23.038/21.244ms expose
+about1.9ms observer overhead in this cohort; these absolute times are not a new
+renderer regression or accepted FPS result. Warm compute stage medians are
+cloud tile1.939ms, local-weather segments1.342ms, weather integration.968ms,
+AO.427ms and all point-ICB encoding.146ms. Atmosphere/solar/fog are each below
+.1ms. These stage intervals may overlap other GPU work and cannot be added to
+the render-stage totals as critical-path time.
+
+A separate1000-frame run disables the pass observer and samples the actual
+main-thread stack after warmup. Indexed draw preparation/submission and repeated
+reflection traversal remain substantial; no single sampled function establishes
+a2x saving. This is a representative native rendering workload, not a player
+scene or isolated-machine CPU ceiling. `gpu-all-pass-counters` retains the
+preflight, bracketed136-frame runs,1000-frame sample, binary and213 input hashes.

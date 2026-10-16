@@ -19,8 +19,14 @@ class SHIP_CUT_FRAGMENTS final : public Entity
 {
     layer_index_t executeLayer{}, realizeLayer{};
     bool attached = false;
+    entid_t chipAssets = 0;
   public:
-    bool Init() override { return true; }
+    bool Init() override
+    {
+        chipAssets = core.CreateEntity("ship_hull_chip_assets");
+        return true;
+    }
+    ~SHIP_CUT_FRAGMENTS() override { if (chipAssets) core.EraseEntity(chipAssets); }
     void Attach(layer_index_t nextExecute, layer_index_t nextRealize)
     {
         if (attached && executeLayer == nextExecute && realizeLayer == nextRealize) return;

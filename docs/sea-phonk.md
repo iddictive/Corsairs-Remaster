@@ -2,6 +2,31 @@
 
 ## Beam visibility and fracture hitch follow-up
 
+The scene helper now owns one unlayered `SHIP_HULL_CHIP_ASSETS` entity, keeping
+the existing three immutable chip models warm between bursts. One loader in
+`locator/blast.cpp` owns the service-bound weak cache; the helper and active
+bursts hold strong references. The anchor consumes zero burst leases, creates
+no particles and releases with the helper. Active bursts retain their meshes
+after anchor removal; the last owner releases them. Failed preload preserves
+the existing burst retry path. Ordinary BLAST ownership and the eight-burst cap
+remain unchanged.
+
+The causal same-binary RAM151 comparison warms only those three models, with
+geometry prewarm disabled: first-action time falls57.573 to28.795ms and all151
+state rows match. Startup asset loading costs16.105ms. Prewarming hull geometry
+separately removes its cold preparation but does not address this asset-load
+gap; eager fleet geometry preparation is not integrated. The exact loader,
+anchor and BLAST ownership bodies pass the reused ASan/UBSan oracle, including
+partial failure, service switch, eight bursts and final release. Native installed
+delivery is recorded separately in `runtime.md`. Fresh normal RAM151/laser151
+runs against all50 staged canonical libraries retain every151-row state value,
+including first cuts101/134 and retained supports17 to10/9. RAM action falls
+45.499 to30.194ms; laser cut-frame CORE falls43.936 to34.066ms. The normal Mount
+owns preload: there is no diagnostic warmup entity or geometry adapter. Whole
+frames retain the visible hull-stopping beam and fragment assemblies; battery
+drain/recharge remain. This is not120FPS or removal of the synchronous split,
+and does not accept ordinary TOUCH, prior SAVE, sinking or gameplay death.
+
 The invisible-over-water beam is a render-order defect. Actual native submission
 passes SetFVF, the PhonkLaser technique and the compact Metal draw, with valid
 diffuse vertices, depth testing and no depth writes. An exposed muzzle and an
