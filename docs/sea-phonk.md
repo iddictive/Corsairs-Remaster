@@ -1,5 +1,41 @@
 # Phonk Mode
 
+## Player stall, collision-detail crash and cut CPU allowance
+
+The d03e571 player sample binds1479/1518 main-thread stacks to SetHullCuts and
+1268 to RebuildLaserSurface after laser fire followed by a bomb salvo. Ordinary
+cannon changes replayed every retained laser plane synchronously. Reconstruction
+now uses immutable authored input and a combined desired cannon/laser snapshot
+off the frame thread. At most two active/retired rebuilds exist; cancellation
+never joins a running job on the frame or GEOM destruction path. Only a complete
+current-generation/revision result uploads and replaces render, material,
+canonical collision and support together. Replay does not append SAVE history,
+fragments, HP, flooding or crew events. Same failed input/revision is remembered;
+the prior geometry survives. Removed pending Blots bindings remain tracked until
+their clear applies; Draw also drives already-requested work after owner teardown.
+Renderer-reset payloads are frozen per node generation/history count, and live
+laser doses wait for reconstruction rather than being discarded or overwriting it.
+
+All live ship, fragment, world and combined-rebuild CPU jobs share
+`geometry_work_budget.hpp`: an aggregate allowance of5% of logical CPU capacity.
+Active worker wall time conservatively bounds CPU time; cooperative checkpoints
+repay the shared allowance through cancellable sleeps. The target is averaged,
+not an instantaneous OS hard cap: opaque Clipper/Earcut calls and allocation/copy
+operations can burst until the next checkpoint. Main-thread capture/upload is
+not throttled, and initial synchronous SAVE restore is outside the worker budget.
+Geometry quality and physical cutter dimensions are unchanged; less allowance
+means a later complete result. Actual CPU utilization and FPS are unmeasured.
+
+The same installed image later crashes in GetCollisionDetails+404 at a BSP byte
+read using an uninitialized trace index. Ordinary model tracing now preserves
+the exact winning descendant across sibling traversal, clears misses, initializes
+its collision node/index and validates detail indices. Material queries keep
+their separate detail state. Source repair does not prove why the player's laser
+produced no holes. Raw sample/crash and exact signed binary are retained in
+[the private player evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-sample-183658/README.md).
+The owner forbids agent gameplay tests and will replay personally; installed
+delivery and that unresolved outcome remain owned by `runtime.md`.
+
 ## Numbered ordnance and world geometry
 
 While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped

@@ -193,8 +193,14 @@ void Blots::SynchronizeHullState(bool applyGeometry)
     // Same signature returns without topology/upload work. Calling the GEOM
     // owner also covers lost/restored geometry with a reused allocation address.
     if(!applyGeometry)return;
-    if(hullGeometryDirty)for(auto it=hullBoundNodes.begin();it!=hullBoundNodes.end();){if(!hullBindings.count(*it)){auto*node=HullNode(*it);if(node&&node->geo)node->geo->ClearHullCuts(GetId());it=hullBoundNodes.erase(it);}else ++it;}bool success=true;
-    for(const auto&entry:hullBindings){auto*node=HullNode(entry.first);if(node&&node->geo){if(!node->geo->SetHullCuts(GetId(),entry.second)){core.Trace("Hull cut rejected for node '%s'",entry.first.c_str());success=false;}else if(std::find(hullBoundNodes.begin(),hullBoundNodes.end(),entry.first)==hullBoundNodes.end())hullBoundNodes.push_back(entry.first);}}
+    bool success=true;
+    if(hullGeometryDirty)for(auto it=hullBoundNodes.begin();it!=hullBoundNodes.end();){if(!hullBindings.count(*it)){auto*node=HullNode(*it);if(node&&node->geo&&!node->geo->SetHullCuts(GetId(),{})){success=false;++it;}else it=hullBoundNodes.erase(it);}else ++it;}
+    for(const auto&entry:hullBindings){auto*node=HullNode(entry.first);if(node&&node->geo){
+        const bool applied=node->geo->SetHullCuts(GetId(),entry.second);
+        const bool pending=node->geo->HasPendingHullRebuild();
+        if((applied||pending)&&std::find(hullBoundNodes.begin(),hullBoundNodes.end(),entry.first)==hullBoundNodes.end())hullBoundNodes.push_back(entry.first);
+        if(!applied){if(!pending)core.Trace("Hull cut rejected for node '%s'",entry.first.c_str());success=false;}
+    }}
     hullGeometryDirty=!success;
 }
 void Blots::AcceptedHullHit(MESSAGE&message)

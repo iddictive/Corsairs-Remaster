@@ -19,6 +19,7 @@ Import library class
 #include "ship_hull_geometry.hpp"
 #include "ship_laser_geometry.hpp"
 #include "world_cut_geometry.hpp"
+namespace storm_geom_hull { struct Job; }
 #endif
 
 #define EPSILON 4e-7
@@ -93,6 +94,17 @@ class GEOM : public GEOS
     double laserClosedVolume=0;
     bool laserPrepared=false,laserEnclosedFragments=true;
     std::vector<storm_ship_laser::Plane> laserPlanes;
+    std::shared_ptr<const storm_ship_laser::Mesh> hullDecodedSource;
+    std::shared_ptr<storm_geom_hull::Job> hullRebuildJob;
+    std::vector<storm_ship_hull::Impact> hullDesiredCuts;
+    std::vector<storm_ship_laser::Plane> hullDesiredPlanes;
+    uint64_t hullDesiredOwner=0,hullDesiredSignature=0,hullDesiredEpoch=0;
+    uint64_t hullRejectedEpoch=0,hullRejectedRevision=0;
+    bool hullDesiredValid=false;
+    bool CaptureHullRebuildSource();
+    bool RequestHullRebuild(uint64_t,const std::vector<storm_ship_hull::Impact>&,const std::vector<storm_ship_laser::Plane>&);
+    void PollHullRebuild();
+    void RetireHullRebuild();
     struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;storm_ship_laser::FragmentPiece physical;};
     struct LaserBatch {uint64_t id=0;std::vector<LaserFragment>fragments;};
     std::unique_ptr<storm_ship_laser::Projection>laserPending;
@@ -133,7 +145,7 @@ class GEOM : public GEOS
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     bool stormMetalBakedBaseShadow = false;
 #endif
-    int32_t traceid;
+    int32_t traceid = -1;
     DVECTOR src, dst;
     float TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails);
 
@@ -171,6 +183,8 @@ class GEOM : public GEOS
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
     void ClearHullCuts(uint64_t owner) override;
+    bool HasPendingHullRebuild() const override;
+    bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) override;
     bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_hull::Vec3 *supportAxis=nullptr) override;
     bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_hull::Vec3 *supportAxis,storm_ship_laser::Input&) override;
     bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&) override;

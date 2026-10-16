@@ -1,8 +1,31 @@
 # Runtime state
 
-Last verified installed delivery: October16,18:34EDT, combat batch `bf106f2` plus the explicit native-vector conversion integrated in this delivery checkpoint. Signed engine `1ce61b820ca779d808a25a90ffcbe443e85c2305c42a38db7dfa9be687af6454` is in the supported app. Canonical staging exits0; all249 currently protected files and239 managed receipt rows verify. No agent player launch or SAVE load occurred. Player acceptance of cutting, shore recovery, ram/gore and FPS remains pending; abrupt tiny-salvo sinking is not localized. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. The published ZIP/local Drive copy remains the prior23ac5eb batch; this installation creates no new archive or remote publication. `TASKS.md` owns the current handoff; earlier entries are historical.
+Last verified installed delivery: October16,18:34EDT, `d03e571`, signed engine `1ce61b820ca779d808a25a90ffcbe443e85c2305c42a38db7dfa9be687af6454`. The player's18:36:58 sample and18:40:30 crash reject laser/FPS acceptance for that exact image. A source successor moves combined cannon/laser replay off main, adds a shared5% worker CPU allowance and repairs collision-detail ownership/index guards; canonical delivery is pending. No agent player launch, SAVE load or gameplay test follows this report. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16 — actual player stall/crash localized; successor delivery pending
+
+The player reports no visible holes from laser fire, then a severe stall after
+one bomb salvo. Their ten-second sample binds1479/1518 main-thread stacks to
+SetHullCuts and1268 to RebuildLaserSurface, which synchronously replays laser
+history after changed cannon cuts. It does not measure FPS/GPU cost or establish
+laser admission/commit. Their subsequent crash in GetCollisionDetails+404 is a
+BSP triangle-byte read with uninitialized traceid; ordinary MODEL traversal also
+lost the exact winning leaf. Both diagnostics match installed UUID
+`D0079EAA-54AA-3C79-974C-A7D9DF28601F`. Exact raw reports and signed executable
+are retained in
+[player evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-sample-183658/README.md).
+
+The source successor queues immutable combined reconstruction, preserves prior
+geometry until publication, cancels without a frame-thread join, retains queued
+laser doses and freezes renderer-reset inputs. Live cut workers share an averaged
+5% logical-CPU allowance. Checkpoints do not interrupt opaque library calls and
+main capture/upload or initial SAVE restoration remain outside that allowance.
+Collision detail state now follows the winning ordinary trace, with initialized
+node/index and range checks. No agent gameplay tests/profiles are run as requested.
+Disposition: source repaired, canonical staging pending; actual laser holes,
+CPU utilization/FPS and the remaining combat/shore behavior await player replay.
 
 ### October16,18:34EDT — combat repair installed; player will test
 

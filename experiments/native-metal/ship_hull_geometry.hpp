@@ -1,4 +1,5 @@
 #pragma once
+#include "geometry_work_budget.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -70,6 +71,7 @@ inline void fan(const ScratchPolygon&p,std::vector<Triangle>&out){for(unsigned n
 inline bool mayIntersect(const Triangle&t,const Impact&i){Vec3 lo=t[0].position,hi=lo;for(unsigned n=1;n<3;n++){auto p=t[n].position;lo={std::min(lo.x,p.x),std::min(lo.y,p.y),std::min(lo.z,p.z)};hi={std::max(hi.x,p.x),std::max(hi.y,p.y),std::max(hi.z,p.z)};}
  Vec3 q={std::clamp(i.center.x,lo.x,hi.x),std::clamp(i.center.y,lo.y,hi.y),std::clamp(i.center.z,lo.z,hi.z)};auto d=q-i.center;float r=std::max(i.radiusU,i.radiusV)*1.08f;return dot(d,d)<=r*r+i.halfDepth*i.halfDepth;}
 inline Cut subtract(const Triangle&t,const Impact&i,const std::array<Plane,10>&planes){
+ storm_geometry_work::checkpoint();
  Cut result;if(!valid(i)||!mayIntersect(t,i)||dot(normalized(t[0].normal+t[1].normal+t[2].normal),i.normal)<.30f){result.surface.push_back(t);return result;}
  ScratchPolygon remaining,inside,outside;for(const auto&v:t)remaining.append(v);
  for(auto plane:planes){split(remaining,plane,inside,outside);remaining.assign(inside);if(remaining.count<3)break;}
@@ -92,6 +94,7 @@ inline Cut subtract(const Triangle&t,const Impact&i){return subtract(t,i,prism(i
 // Rim normals face into the aperture, so receiver-facing admission must use the
 // original hull triangle. Subtract only volume here; never create another bevel.
 inline std::vector<Triangle> clipRim(const Triangle&t,const Impact&i,const std::array<Plane,10>&field){
+ storm_geometry_work::checkpoint();
  if(!valid(i)||!mayIntersect(t,i))return {t};auto planes=field;for(auto&plane:planes)plane.distance-=2.e-5f;
  ScratchPolygon remaining,inside,outside;for(const auto&v:t)remaining.append(v);
  for(auto plane:planes){split(remaining,plane,inside,outside);remaining.assign(inside);if(remaining.count<3)return {t};}
@@ -112,10 +115,10 @@ inline bool rayBounds(Bounds box,Vec3 start,Vec3 end){float lo=0,hi=1;const floa
 class Broadphase {
  struct Node {Bounds bounds;uint32_t first=0,count=0,left=0,right=0;};
  std::vector<Bounds>bounds;std::vector<uint32_t>order;std::vector<Node>nodes;
- uint32_t buildNode(uint32_t first,uint32_t count){uint32_t index=uint32_t(nodes.size());nodes.emplace_back();Bounds box=bounds[order[first]];for(uint32_t n=1;n<count;n++)box=merge(box,bounds[order[first+n]]);nodes[index].bounds=box;
+ uint32_t buildNode(uint32_t first,uint32_t count){storm_geometry_work::checkpoint();uint32_t index=uint32_t(nodes.size());nodes.emplace_back();Bounds box=bounds[order[first]];for(uint32_t n=1;n<count;n++){storm_geometry_work::checkpoint();box=merge(box,bounds[order[first+n]]);}nodes[index].bounds=box;
   if(count<=16){nodes[index].first=first;nodes[index].count=count;return index;}
   auto extent=box.hi-box.lo;unsigned axis=extent.x>=extent.y&&extent.x>=extent.z?0:extent.y>=extent.z?1:2;auto center=[&](uint32_t n){auto b=bounds[n];return axis==0?b.lo.x+b.hi.x:axis==1?b.lo.y+b.hi.y:b.lo.z+b.hi.z;};
-  uint32_t half=count/2;std::nth_element(order.begin()+first,order.begin()+first+half,order.begin()+first+count,[&](uint32_t a,uint32_t b){return center(a)<center(b);});uint32_t left=buildNode(first,half),right=buildNode(first+half,count-half);nodes[index].left=left;nodes[index].right=right;return index;}
+  uint32_t half=count/2;std::nth_element(order.begin()+first,order.begin()+first+half,order.begin()+first+count,[&](uint32_t a,uint32_t b){storm_geometry_work::checkpoint();return center(a)<center(b);});uint32_t left=buildNode(first,half),right=buildNode(first+half,count-half);nodes[index].left=left;nodes[index].right=right;return index;}
  void visit(uint32_t index,Bounds box,std::vector<uint32_t>&out)const{const auto&node=nodes[index];if(!overlaps(node.bounds,box))return;if(node.count){for(uint32_t n=0;n<node.count;n++){auto triangle=order[node.first+n];if(overlaps(bounds[triangle],box))out.push_back(triangle);}return;}visit(node.left,box,out);visit(node.right,box,out);}
  void visitRay(uint32_t index,Vec3 start,Vec3 end,std::vector<uint32_t>&out)const{const auto&node=nodes[index];if(!rayBounds(node.bounds,start,end))return;if(node.count){for(uint32_t n=0;n<node.count;++n){auto triangle=order[node.first+n];if(rayBounds(bounds[triangle],start,end))out.push_back(triangle);}return;}visitRay(node.left,start,end,out);visitRay(node.right,start,end,out);}
  public:

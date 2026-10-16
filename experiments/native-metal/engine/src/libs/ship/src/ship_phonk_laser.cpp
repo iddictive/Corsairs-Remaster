@@ -1,5 +1,6 @@
 #include "ship.h"
 #include "ship_laser_geometry.hpp"
+#include "geometry_work_budget.hpp"
 #include "phonk_targeting.hpp"
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_debris_bridge.hpp"
@@ -146,6 +147,7 @@ void rememberBinding(LaserState &state, NODE *node, unsigned planes)
     auto entry = std::find_if(state.bindings.begin(), state.bindings.end(), [&](const auto &binding) { return binding.node == name; });
     if (entry == state.bindings.end()) { state.bindings.push_back({name}); entry = std::prev(state.bindings.end()); }
     entry->generation = node->geo->GeometryGeneration(); entry->planes = planes;
+    entry->restoreSnapshot.clear(); entry->restoreGeneration = 0; entry->restoreCount = 0;
 }
 bool completeModelBounds(MODEL *model, storm_ship_hull::Bounds &bounds)
 {
@@ -394,6 +396,17 @@ bool SHIP::StartPhonkLaserWork() try
     auto *model = GetModel();
     auto *root = model ? model->GetNode(0) : nullptr;
     if (!bMounted || !root || !root->geo) return false;
+    // Ordinary cannon damage and history restoration publish one combined
+    // surface. Keep the exact queued dose until that snapshot is available.
+    for (int n = 0; auto *node = model->GetNode(n); ++n)
+        if (node->geo)
+        {
+            if (node->geo->HasPendingHullRebuild()) return true;
+            if (!phonkLaser.cuts.empty() && std::none_of(phonkLaser.bindings.begin(), phonkLaser.bindings.end(), [&](const auto &binding)
+                { return binding.node == (node->GetName() ? node->GetName() : "") &&
+                         binding.generation == node->geo->GeometryGeneration() && binding.planes == phonkLaser.cuts.size(); }))
+                return true; // Failed restores also retain the queued dose.
+        }
     LaserCutWork work;
     work.epoch = phonkLaserWork.epoch; work.model = uint64_t(GetModelEID()); work.modelName = cShipIniName;
     work.request = phonkLaserWork.requests.front();
@@ -442,8 +455,9 @@ bool SHIP::StartPhonkLaserWork() try
         work.targets.push_back(std::move(target));
     }
     auto cancel = std::make_shared<std::atomic<bool>>(false);
-    auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget]() mutable {
+    auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget, allowance = storm_geometry_work::allowance()]() mutable {
         try {
+            storm_geometry_work::Scope scope(allowance, cancel);
             unsigned remaining = budget, nodes = unsigned(work.targets.size());
             for (auto &target : work.targets) {
                 if (cancel->load(std::memory_order_relaxed)) return std::move(work);
@@ -480,6 +494,9 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
         phonkLaserWork.cancel.reset();
         auto *model = GetModel();
         bool identity = bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName;
+        bool rebuilding = false;
+        if (identity) for (int n = 0; auto *node = model->GetNode(n); ++n)
+            rebuilding = rebuilding || (node->geo && node->geo->HasPendingHullRebuild());
         std::vector<GEOS *> geometries;
         if (work.epoch == phonkLaserWork.epoch && phonkLaserWork.active)
         {
@@ -503,7 +520,7 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                 if (!identity) break;
                 geometries.push_back(node->geo);
             }
-            bool valid = work.valid && identity && !work.targets.empty();
+            bool valid = work.valid && identity && !rebuilding && !work.targets.empty();
             bool changed = false;
             if (valid) for (size_t n = 0; n < geometries.size(); ++n)
             {
@@ -520,7 +537,7 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
             else
             {
                 for (auto *geometry : geometries) geometry->DiscardLaserProjection(uint64_t(blots_id));
-                if (!identity && bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName)
+                if ((!identity || rebuilding) && bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName)
                     phonkLaserWork.requests.push_front(std::move(*phonkLaserWork.active));
                 else returnImpact(phonkLaser, *phonkLaserWork.active);
             }
@@ -1093,9 +1110,9 @@ void SHIP_CUT_FRAGMENTS::PollDamage()
         try
         {
             active=request;
-            future=std::async(std::launch::async,[request=std::move(request),input=std::move(input)]()mutable{
+            future=std::async(std::launch::async,[request=std::move(request),input=std::move(input),allowance=storm_geometry_work::allowance()]()mutable{
                 Work work;work.request=std::move(request);
-                try{work.valid=storm_ship_laser::prepareFragment(input,work.projection);}catch(const std::exception &){}
+                try{storm_geometry_work::Scope scope(allowance);work.valid=storm_ship_laser::prepareFragment(input,work.projection);}catch(const std::exception &){}
                 return work;
             });
         }
@@ -1397,19 +1414,29 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         {
             if (!node->geo) continue;
             const std::string name = node->GetName() ? node->GetName() : "";
-            const auto binding = std::find_if(phonkLaser.bindings.begin(), phonkLaser.bindings.end(), [&](const auto &b)
-                { return b.node == name && b.generation == node->geo->GeometryGeneration() && b.planes == phonkLaser.cuts.size(); });
-            if (binding != phonkLaser.bindings.end()) continue;
-            unsigned completed = 0;
-            for (const auto &plane : phonkLaser.cuts)
+            auto binding = std::find_if(phonkLaser.bindings.begin(), phonkLaser.bindings.end(), [&](const auto &b)
+                { return b.node == name; });
+            if (binding == phonkLaser.bindings.end())
             {
-                if (IsAuthoredMastNode(node) && plane.beams.empty()) { ++completed; continue; }
-                storm_ship_laser::Result result;
-                if (!node->geo->CutByLaser(uint64_t(blots_id), nodeCutField(model->mtx, node, plane), result)) break;
-                if (result.fragment) node->geo->ReleaseLaserFragment(uint64_t(blots_id), result.fragment);
-                ++completed;
+                phonkLaser.bindings.push_back({name});
+                binding = std::prev(phonkLaser.bindings.end());
             }
-            rememberBinding(phonkLaser, node, completed);
+            const auto generation = node->geo->GeometryGeneration();
+            if (binding->generation == generation && binding->planes == phonkLaser.cuts.size()) continue;
+            // An animated yard must not replace its in-flight restore every
+            // frame with another pose. Freeze the request until its identity changes.
+            if (binding->restoreGeneration != generation || binding->restoreCount != phonkLaser.cuts.size())
+            {
+                binding->restoreGeneration = generation;
+                binding->restoreCount = unsigned(phonkLaser.cuts.size());
+                binding->restoreSnapshot.clear();
+                binding->restoreSnapshot.reserve(phonkLaser.cuts.size());
+                for (const auto &plane : phonkLaser.cuts)
+                    if (!IsAuthoredMastNode(node) || !plane.beams.empty())
+                        binding->restoreSnapshot.push_back(nodeCutField(model->mtx, node, plane));
+            }
+            if (node->geo->RestoreLaserCuts(uint64_t(blots_id), binding->restoreSnapshot))
+                rememberBinding(phonkLaser, node, unsigned(phonkLaser.cuts.size()));
         }
     }
     if (!deltaTime) return;

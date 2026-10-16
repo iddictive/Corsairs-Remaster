@@ -57,6 +57,9 @@ struct LaserBinding
     std::string node;
     uint64_t generation = 0;
     unsigned planes = 0;
+    uint64_t restoreGeneration = 0;
+    unsigned restoreCount = 0;
+    std::vector<storm_ship_laser::Plane> restoreSnapshot;
 };
 struct LaserRay
 {

@@ -135,6 +135,7 @@ float NODER::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
 
 float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
 {
+    if (!material) bestTraceNode = nullptr;
     if (isReleased)
         return 2.0f;
     // check for bounding spheres intersection
@@ -146,6 +147,7 @@ float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
         return 2.0f;
 
     auto best_dist = 2.0f;
+    NODE *winner = nullptr;
 
     if (flags & TRACE_ENABLE_TREE)
         for (int32_t n = 0; n < next.size(); n++)
@@ -156,7 +158,7 @@ float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
             if (d < best_dist)
             {
                 best_dist = d;
-                if (!material) bestTraceNode = next[n];
+                if (!material) winner = bestTraceNode;
             }
         }
 
@@ -170,9 +172,10 @@ float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
         if (ds < best_dist)
         {
             best_dist = ds;
-            if (!material) bestTraceNode = this;
+            if (!material) winner = this;
         }
     }
+    if (!material) bestTraceNode = winner;
     return best_dist;
 }
 

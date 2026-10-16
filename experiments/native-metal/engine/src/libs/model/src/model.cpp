@@ -652,6 +652,7 @@ extern NODE *bestTraceNode;
 //-------------------------------------------------------------------
 const char *MODELR::GetCollideMaterialName()
 {
+    if (!colideNode || !colideNode->geo) return "";
     GEOS::TRACE_INFO ti;
     if (colideNode->geo->GetCollisionDetails(ti) == false)
         return "";
@@ -665,6 +666,7 @@ const char *MODELR::GetCollideMaterialName()
 //-------------------------------------------------------------------
 bool MODELR::GetCollideTriangle(TRIANGLE &triangle)
 {
+    if (!colideNode || !colideNode->geo) return false;
     GEOS::TRACE_INFO ti;
     if (colideNode->geo->GetCollisionDetails(ti) == false)
         return false;
@@ -689,6 +691,7 @@ float MODELR::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
 
 float MODELR::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
 {
+    if (!material) colideNode = nullptr;
     // collision with skinned geometry
     if (ani)
     {
@@ -833,7 +836,7 @@ float MODELR::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
         return bd;
     }
     const float d = root->TraceQuery(src, dst, material);
-    if (!material) colideNode = bestTraceNode;
+    if (!material && d >= 0.f && d <= 1.f) colideNode = bestTraceNode;
     return d;
 }
 

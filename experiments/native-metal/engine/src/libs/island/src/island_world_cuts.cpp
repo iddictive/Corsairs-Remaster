@@ -1,4 +1,5 @@
 #include "island.h"
+#include "geometry_work_budget.hpp"
 #include "core.h"
 #include "shared/sea_ai/script_defines.h"
 #include "shared/messages.h"
@@ -295,8 +296,9 @@ bool ISLAND::StartWorldCutWork() try
     }
     auto cancel=std::make_shared<std::atomic<bool>>(false);
     try {
-        auto future=std::async(std::launch::async,[work=std::move(work),cancel]()mutable{
+        auto future=std::async(std::launch::async,[work=std::move(work),cancel,allowance=storm_geometry_work::allowance()]()mutable{
             try {
+                storm_geometry_work::Scope scope(allowance,cancel);
                 std::vector<storm_world_cut::CapTriangle>earlier;
                 for(auto&target:work.targets){if(cancel->load(std::memory_order_relaxed))return std::move(work);
                     if(target.reflectionBoundary)earlier.clear();

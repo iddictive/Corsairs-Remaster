@@ -108,7 +108,7 @@ class MODELR : public MODEL
 
     ANIBUFFER aniVerts[MODEL_ANI_MAXBUFFERS];
     void AniRender();
-    NODE *colideNode;
+    NODE *colideNode = nullptr;
     void FindPlanes(const CMatrix &view, const CMatrix &proj);
     storm_render::VertexBuffer *d3dDestVB;
 
