@@ -30,6 +30,18 @@ integer override (for example1 for the lowest concurrent build load). Invalid
 values fail before source preparation or configuration. This controls compilation,
 not the game's simulation or renderer; build success does not activate the app.
 
+Engine-linked fixture handoff uses `tools/capture_metal_build.py --repo <built-checkout>
+--output <new-evidence-directory> --max-bytes <admitted-copy-budget>`. It checks
+the canonical source/engine receipt and rejects inputs/artifacts modified after
+that completed build, then retains
+all static libraries, native headers (including `.rh` and third-party headers),
+build logs/cache and exact fixture-producer commands with hashes. The default
+producer is `sea-fleet-benchmark`; this captures its flags without building or
+running that target. The destination must be new; repeating a complete identical
+capture verifies and reuses it, while a mismatch preserves it and fails. Portable
+dependency contents remain in their manifest-bound input owner. This command
+does not stage the application or accept gameplay.
+
 `tools/metal_storage.py` owns producer storage policy. Ordinary builds retain the
 single `.cache/build` and run trace-budget maintenance before and after the build;
 successful engine installation retains one newest prior-engine hash backup.
