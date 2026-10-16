@@ -2,6 +2,30 @@
 
 ## Status
 
+### October15 — MSAA water-subpass depth mismatch
+
+The proportional MetalFX identity correction below remains present. The reopened
+ordinary-water failure reproduces only after the real Sea2 to Sea2_SunRoad
+sequence with inherited depth writes: AA4 gives zero contact pixels in Native
+and Performance, while AAOff retains230. The primary Sea2 draw captures1x
+identity/depth, but subsequent SunRoad/Foam passes reopened4xMSAA; its minimum
+depth resolve can differ from the captured centre sample on a wave slope.
+Strict receiver/current-depth equality then correctly rejects that stale tag.
+
+The preserving guard in backend `begin` keeps subsequent passes of an already
+captured water scope in that same1x depth domain. It retains exact depth equality,
+waves, alpha, the impact field and AA outside that scope. A private paired native
+backend comparison restores230 Native/240 Performance contact pixels with AA4;
+AAOff, no-Sun and non-depth-writing Sun controls retain their outputs. Own model,
+camera/viewport changes, foreground occluder and sky remain zero. All12 oracles
+pass with the identical frozen layered-point header in both backends. Retained
+source/input/run receipts belong to `aim-drape-water-coherent-depth` under private
+renderer evidence. Canonical delivery passes with signed enginec86eade9;
+`runtime.md` owns the receipt. The prepared real Sea::Realize projection replay
+remains pending: its preflight finds the original player running and stops before
+compile or GPU execution. The12-case component proof and delivery do not accept
+the player's ordinary cannon scene.
+
 ### October15 — sea drape lost after MetalFX scene completion
 
 The player reports missing draping on ordinary sea in the installed `4c14ef37`

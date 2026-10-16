@@ -924,3 +924,44 @@ reflection traversal remain substantial; no single sampled function establishes
 a2x saving. This is a representative native rendering workload, not a player
 scene or isolated-machine CPU ceiling. `gpu-all-pass-counters` retains the
 preflight, bracketed136-frame runs,1000-frame sample, binary and213 input hashes.
+
+## October15 — layered point-cube passes
+
+The preserving native alternative consolidates each cube's six render passes
+into one layered pass, retaining every original command/cull/material/pose and
+the original texture layout. The eight-lamp scene falls48 to8 render passes.
+Both private same-frame actual-material oracles compare all48 depth faces
+bit-for-bit. The actual production header additionally passes32 reused-slot,
+count/order/reset and seeded layer-clear cases against independent b942a25
+source:192 faces equal. That fixture's checker alpha proves structural coverage;
+the full-fleet oracle separately supplies actual-material evidence.
+
+At2560x1655, native4xMSAA+FXAA and no upscaling, serial384/128 Off/On/Off runs
+without GPU pass counters give whole-GPU medians20.804/17.806/20.461ms and mean
+completion cadences19.135/16.470/18.885ms. Every arm retains152 sails,334 animated
+draws, one sea/sky and eight complete cubes. Instrumented runs independently
+show point vertex/fragment stage sums3.557/2.448 to1.766/1.469ms; those overlapping
+stage sums are not additional whole-frame savings. The uninstrumented comparison
+removes the concern that fewer counter samples alone explain the improvement.
+
+Sources, retained generation1, production-compatible generation2, binary/input
+hashes,32-case canonical-header oracle and all run CSVs belong to private
+`point-layered-pass-fit`. Source integration is limited to the existing registry.
+Canonical staging and fresh integrated HUD/fleet384 Native/Performance runs pass;
+`runtime.md` owns their delivery receipt. The integrated runs retain minima152
+sails,334 animated draws, one sea/current sky and eight complete cubes. Their
+warm GPU median/p95 values are16.387/19.756ms Native and12.356/16.882ms Performance;
+these are acceptance observations, not another paired speedup measurement.
+Both use shadow tier1 (sun2048, points512); the current player record selects
+tier2 (sun4096, points512), so their absolute times do not predict that setting.
+Native warm RSS ends596.7MB, Performance1349.3MB; these short runs do not establish
+long-run allocation stability. Exact inputs, distributions and frames belong to
+`layered-installed-acceptance` under the same private renderer-evidence owner.
+The measured cadence is about61FPS in this cohort, not the requested120FPS.
+
+The proposed main/reflection ICB path with original PSOs is separately rejected
+as a broad implementation: retained1134 raw-lit draws require1047 consecutive
+executions, maximum run length2. All1043 inherited-state splits are texture slot0.
+Native ICB cannot remove those texture changes on the macOS15 contract; the
+earlier1100-to20 generic-material batches are a different, slower shader path.
+Persistent per-draw command reuse has no multi-frame identity/address evidence.

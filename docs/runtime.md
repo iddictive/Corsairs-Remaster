@@ -1,8 +1,40 @@
 # Runtime state
 
-Last verified delivery: October15. Scene-owned chip assets and the two-format HUD overwrite repair are installed with signed engine `d876fa0184ee309c0d407ff3d9a363149f9925654a13f3e485f14aadfd496bde`; prior `6a6be8eb9e3037c95e9b4f7c85613c8a6c95388155239bb3b860563d176c5611` is backed up. Canonical stage-only exits0 in115.256s; all526 freshly recorded protected player files retain hashes with0 added. Actual HUD384, fleet136 and fresh normal RAM151/laser151 native runs exit0. First-action chip loading is reduced causally; remaining synchronous geometry work, player acceptance and sustained120FPS remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 now enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time; it does not establish120FPS. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October15. Layered point-shadow passes and coherent water-subpass depth are installed with signed engine `c86eade9e4d63adc472148bf83fd5520ad279caba6f65fcd65ae25fc5a9a49bd`; prior `d876fa0184ee309c0d407ff3d9a363149f9925654a13f3e485f14aadfd496bde` is backed up. Canonical stage-only exits0 in109.464s; all527 freshly recorded protected player files retain hashes with0 added. Fresh actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record remains antialiasing1/MetalFX Performance3/VSync1, shadow tier2. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and ordinary-sea aim draping remain open; the new water guard has12-case component proof, not player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October15 — layered shadows and coherent water depth staged
+
+The frozen two-source batch passes canonical `run.sh --stage-only` in109.464s
+and installs signed enginec86eade9. All527 freshly hashed protected player files
+remain unchanged, with0 added; previousd876fa01 is retained. Exact source hashes,
+stage output and player inventories belong to
+20261015-222414-layered-shadows-water-depth-delivery. The unchanged six faces of
+each point cube share one layered pass, reducing48 passes to8. Independent actual
+material48-face and production-header192-face depth oracles are bit-identical;
+uninstrumented Off/On/Off whole-GPU medians20.804/17.806/20.461ms establish the
+preserving performance gain. metal-sea-benchmark.md owns the measurement limits.
+
+Fresh normal driverf75ebdd5 links all50 just-staged canonical libraries. Native
+and Performance384 runs exit0 with all150 bound inputs unchanged; every warmed
+frame retains152 sails,334 animated draws, one sea/current sky and eight cubes.
+The complete Native frame retains hulls, rigging, sails, water/reflections, sky
+and six stock HUD icons/names/counts. Existing horizon/reflection boundaries and
+daylight appearance remain separate unresolved visual issues. These runs use
+shadow tier1; the saved tier2 sun map is larger, while both point maps are512.
+
+The same batch keeps later captured-water passes in the primary1x depth domain,
+preventing AA4 SunRoad depth resolve from invalidating the aim receiver tag.
+All12 paired component cases pass; sea-aim-overlay.md owns the cause and proof.
+The additional real Sea::Realize replay aborts preflight before compile/GPU work
+because the original player is running (observed PID65269). No agent controls or
+stops it. The subsequent player crash at22:41:06 binds UUID
+4BB96145-F21D-3921-93FE-1A97F29D7807 to this installed batch: tree removal in
+IndexedSpanFrameCache::erase/evict, now reached from ROPE::Realize. The existing
+cache-corruption obligation remains open; this does not implicate the layered
+GPU change or prove the tree itself caused the earlier memory damage. Real
+cannon/player acceptance, long-run stability and120FPS remain open.
 
 ### October15 — scene chip assets and HUD ABI repair staged
 
