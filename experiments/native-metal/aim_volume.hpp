@@ -386,8 +386,8 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   bool coloredReceiver=receiverToken!=0u;
   float daylight=u.surfaceStyle.x;
   float waterStrength=actualWater?mix(.75f,1.f,daylight):1.f;
-  float fillAlpha=(actualWater?.30f:.08f)*coverage*readiness*waterStrength;
-  float lineAlpha=(actualWater?.78f:(coloredReceiver?.42f:.48f))*contour*readiness*waterStrength;
+  float fillAlpha=(actualWater?.19f:.08f)*coverage*readiness*waterStrength;
+  float lineAlpha=(actualWater?.63f:(coloredReceiver?.42f:.48f))*contour*readiness*waterStrength;
   uint rgb=identity.y;
   float3 tint=coloredReceiver?float3(float((rgb>>16)&255u),float((rgb>>8)&255u),float(rgb&255u))/255.f:
       float3(.85098f,.88627f,.89412f);

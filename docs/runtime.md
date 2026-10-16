@@ -14,6 +14,12 @@ Failed capture cancels before teardown. Manual map travel keeps its cinematic;
 the held image does not imply continuous sea simulation during loading. The
 spyglass shares the standing-height floor plus0.5m without moving third person.
 
+The additive aiming-overlay request selects the midpoint water fill/rim alpha
+.19/.63 between the earlier .08/.48 and stronger .30/.78 values. Existing
+night/day scaling, receiver colors, geometry and firing remain unchanged. The
+two-literal source comparison and calculations are retained in the same evidence
+owner's `aim-midpoint-results.json`; installed brightness remains unaccepted.
+
 Six canonical native syntax checks, complete projected PROGRAM compilation,
 actual-body script transition cases,54 CPU transition assertions and camera
 rebinding/eye-expression negatives pass. These do not prove native scene ordering

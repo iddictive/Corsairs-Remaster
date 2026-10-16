@@ -2,6 +2,15 @@
 
 ## Status
 
+### October16 — intermediate water brightness
+
+The player rejects the stronger water marks as too bright and requests a middle
+setting. Base water fill/rim alpha becomes .19/.63, the midpoint of the earlier
+.08/.48 and stronger .30/.78 pair. The existing .75 night → 1 day factor stays;
+full-night base values are .1425/.4725. Receiver colors, contour widths, depth
+rejection, solids, fog and firing are unchanged. These are source values;
+canonical delivery and the player's visual judgment remain separate acceptance.
+
 ### October16 — night water strength
 
 The player's22:45 water field is clean after the depth repair but too bright.
