@@ -159,21 +159,26 @@ def build(stock: dict[str, bytes], spec: dict) -> dict:
     ptc, nav_metrics, nav = _ptc(stock[PATCH], [], spec["translation"], spec["yaw_degrees"])
     routes = []
     indices, points, neighbors, table, line = nav
-    # Routes use only the original walkable port; no background neighborhoods.
+    # Use the native path table between dispersed endpoints. Dense, short
+    # waypoint loops made residents block one another in the compact core.
     core_count = nav_metrics["stock_triangles"]
     centers = [tuple(sum(points[v][k] for v in tri) / 3 for k in range(3)) for tri in indices[:core_count]]
-    for start in (0, core_count // 4, core_count // 2, 3 * core_count // 4):
-        path, seen = [start], {start}
-        for _ in range(7):
-            eligible = [nb for nb in neighbors[path[-1]] if 0 <= nb < core_count and nb not in seen
-                        and math.dist(centers[path[-1]], centers[nb]) < 18]
-            if not eligible:
-                break
-            path.append(eligible[0])
-            seen.add(eligible[0])
-        if len(path) > 1:
-            route = [centers[j] for j in path]
-            routes.append(route + route[-2:0:-1])
+    connected, pending = {0}, [0]
+    while pending:
+        for node in neighbors[pending.pop()]:
+            if 0 <= node < core_count and node not in connected:
+                connected.add(node)
+                pending.append(node)
+    seeds = [0]
+    for _ in range(31):
+        seeds.append(max(sorted(connected-set(seeds)),
+                         key=lambda node: min(math.dist(centers[node], centers[seed]) for seed in seeds)))
+    unused = set(seeds)
+    for start in seeds:
+        dest = max(sorted(unused-{start} or set(seeds)-{start}),
+                   key=lambda node: math.dist(centers[start], centers[node]))
+        unused.discard(dest)
+        routes.append([centers[start], centers[dest]])
 
     def find_node(point):
         x, y, z = point

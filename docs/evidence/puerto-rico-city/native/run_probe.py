@@ -16,7 +16,9 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tarfile
+import time
 
 SOURCE = Path(__file__).resolve().parent
 REPO = SOURCE.parents[3]
@@ -53,7 +55,7 @@ def player_idle() -> None:
         "player runtime present; leave it untouched and defer the private GPU probe"
 
 
-def overlay(stock: Path | None, generated: Path | None, destination: Path) -> None:
+def overlay(stock: Path | None, generated: Path | None, destination: Path, allowed: set[Path]) -> None:
     """Materialize only changed branches; never create a write-through file."""
     if generated is None or not generated.exists():
         assert stock and stock.exists()
@@ -65,10 +67,11 @@ def overlay(stock: Path | None, generated: Path | None, destination: Path) -> No
         return
     destination.mkdir()
     old = {p.name.casefold(): p for p in stock.iterdir()} if stock and stock.is_dir() else {}
-    new = {p.name.casefold(): p for p in generated.iterdir()}
+    new = {p.name.casefold(): p for p in generated.iterdir()
+           if p in allowed or any(p in value.parents for value in allowed)}
     for key in sorted(old.keys() | new.keys()):
         child = new.get(key) or old[key]
-        overlay(old.get(key), new.get(key), destination / child.name)
+        overlay(old.get(key), new.get(key), destination / child.name, allowed)
 
 
 def prepare(run: Path) -> None:
@@ -76,17 +79,22 @@ def prepare(run: Path) -> None:
     config = GENERATED / "INI/sea_towns/puerto_rico.ini"
     assert config.is_file(), f"generated SeaTown config pending: {config}"
     assert not run.exists(), f"preserve prior evidence; choose a new --name: {run}"
-    generated = {str(p.relative_to(GENERATED)): sha(p) for p in GENERATED.rglob("*") if p.is_file()}
+    sys.path.insert(0, str(REPO / "tools"))
+    from prepare_puerto_rico_city import prepared
+    from metal_graphics_settings import launch_environment
+    active = set(prepared().values())
+    generated = {str(p.relative_to(GENERATED)): sha(p) for p in active}
     assert generated and shutil.disk_usage(REPO).free > 1024**3, "one GiB private probe reserve unavailable"
     run.mkdir(parents=True)
     for name in ("fixture.c", "engine.ini", "probe.cpp"):
         shutil.copy2(SOURCE / name, run / name)
-    overlay(STOCK, GENERATED, run / "RESOURCE")
+    overlay(STOCK, GENERATED, run / "RESOURCE", active)
     state = {
         "consumer": "docs/puerto-rico-city.md",
         "source_sha256": source_identity(),
         "native_sha256": {p: sha(NATIVE / p) for p in INPUTS},
         "generated_sha256": generated,
+        "graphics_environment": launch_environment(NATIVE / ".cache/runtime", {}),
         "installed_stock": str(STOCK),
         "installed_engine_sha256": sha(STOCK.parents[1] / "MacOS/metal-engine"),
         "source_template": "phonk-world-async-20261016/build.py and probe.cpp",
@@ -112,10 +120,12 @@ def execute(command: list[str], run: Path, name: str, cwd: Path, *, gpu: bool = 
     save(run / (name + "-command.json"), command)
     with (run / (name + ".log")).open("w") as log:
         process = subprocess.Popen(command, cwd=cwd, stdout=log, stderr=subprocess.STDOUT)
+        deadline = time.monotonic() + 55 if gpu else None
         try:
             while process.poll() is None:
                 if gpu:
                     player_idle()
+                    assert time.monotonic() < deadline, "private GPU slot exceeded55 seconds"
                 try:
                     process.wait(timeout=0.5)
                 except subprocess.TimeoutExpired:
@@ -219,10 +229,11 @@ def main() -> None:
         assert args.closure, "build requires --closure from the integration owner"
         compile_probe(run, args.closure)
     else:
-        check_prepared(run)
+        state = check_prepared(run)
         linked = json.loads((run / "linked.json").read_text())
         assert sha(run / "native-probe") == linked["binary_sha256"], "private binary changed"
         player_idle()
+        os.environ.update(state["graphics_environment"])
         execute([str(run / "native-probe"), str(run)], run, "native-run", run, gpu=True)
 
 

@@ -24,9 +24,9 @@ through an explicitly separate background context; player SAVE/config stays out
 of scope. New native source requires the shared canonical build/stage batch.
 
 The finite CPU candidate contains the native waterfront core, its underwater
-child and four pedestrian routes on the original1165-triangle navigation patch.
+child and32 pedestrian routes on the original1165-triangle navigation patch.
 No background houses, streets or foundations are emitted. Its14 prepared
-resources total44,154,064 bytes. This is construction evidence;
+resources total44,154,647 bytes. This is construction evidence;
 native scene appearance and population behavior are still unaccepted.
 The city resources and activation script are not installed.
 
@@ -98,7 +98,7 @@ route topology, rejected approaches and reproduction commands are retained in
 [`evidence/puerto-rico-city/generation-receiver-20261016.json`](evidence/puerto-rico-city/generation-receiver-20261016.json).
 The subsequent name-interning revision is retained in
 [`generation-labels-20261016.json`](evidence/puerto-rico-city/generation-labels-20261016.json).
-The current core-only candidate, exact source/manifest identities and independent
+The first core-only candidate, exact source/manifest identities and independent
 terrain-area comparison are retained in
 [`generation-core-20261016.json`](evidence/puerto-rico-city/generation-core-20261016.json).
 The23 removed beach/jungle faces retain their full projected footprint after
@@ -109,6 +109,12 @@ The player suggested the dark gaps may be original waterways. The exact
 waterways and vertical placement; do not fill them or infer infinite depth
 from the diagnostic water. The labels-v3 fixture lacks game weather and used
 the original shader mode, so its black/blue ocean is not a player-runtime verdict.
+The current32-route candidate and exact manifest/source identities are retained in
+[`generation-dispersed-20261016.json`](evidence/puerto-rico-city/generation-dispersed-20261016.json).
+Four short core routes crowded the32 residents into a few points; only3 traveled
+more than1m in15 simulated seconds. Use the original native path table between
+dispersed endpoints in its connected1161-face component. With one route per
+resident all32 traveled8.29–26.55m, without adding geometry or changing native scale.
 The earlier67-house candidate and raw scale inputs remain in
 [`generation-20261016.json`](evidence/puerto-rico-city/generation-20261016.json);
 its stock-ground/independent-reflection placement is rejected.
@@ -152,13 +158,31 @@ ship-to-town NPC combat.
 
 ## Unresolved
 
-Candidate construction passes its exact geometry/navigation checks. Native
-rendered inspection, population lifecycle and installed delivery are pending.
+Candidate construction and private native geometry/navigation/movement checks
+pass. Native fixed-engine lifecycle and installed delivery are pending.
 The labels-v3 run resolved54 geometry nodes, preserved all4160 fort triangles,
 and passed first-generation movement, animation, zero-delta and land guards.
-Its reactivated population retirement assertion failed. A core entity-cache
-ordering defect is a source-backed hypothesis; the next diagnostic separates
-cached IDs from live records before any engine change.
+Its reactivated population retirement assertion failed. The later dispersed-v6
+diagnostic proves all actual character/context records retire, but four invalid
+IDs remain cached after same-millisecond recycled slots create an unsorted cache.
+The native scene and raw movement/lifecycle results are retained in
+[`native-core-20261016.json`](evidence/puerto-rico-city/native-core-20261016.json).
+Using the canonical graphics adapter's modern-water environment removes the
+diagnostic black ocean; the background neighborhoods are absent and the separate
+fort remains visible. This did not modify product water or seal original waterways.
+
+`EntityManager::InsertEntity` updates already-warm class caches through
+`EntityContainerCache::UpdateAdd`; lazy class enumeration rebuilds through ordered
+`Add`, while erasure uses `lower_bound`. Recycled slots within one millisecond
+invalidate the former append assumption. `UpdateAdd` now reuses existing `Add`
+inside its existing cached-hash guard. Uncached updates remain no-op; no identity,
+layout, deduplication or entity lifetime contract changes. The actual-source CPU
+probe reproduces the old defect, passes the repair, and covers distinct ticks,
+uncached updates and other-class isolation. Source/consumer/upstream evidence lives in
+[`entity-cache-repair-20261016.json`](evidence/puerto-rico-city/entity-cache-repair-20261016.json);
+the original counterexample remains in
+[`entity-cache-20261016.json`](evidence/puerto-rico-city/entity-cache-20261016.json).
+The repaired core still requires the canonical native build and lifecycle replay.
 The raw run and frame identities are retained in
 [`native-labels-v3-20261016.json`](evidence/puerto-rico-city/native-labels-v3-20261016.json).
 Player sea/landing/fort replay remains the final acceptance boundary.
