@@ -1,8 +1,41 @@
 # Runtime state
 
-Last verified delivery: October16. Night water strength and actual-height airborne shore contact/land support are staged in signed engine `d370a07da2131bf85f6d782713640ec0471c3c1ffff92b286f48162571344eee`; prior `4c69a6c30c86b7684db81918a9d43e54618cab6a87765ff844f86eaca9c9255d` is backed up. Canonical stage-only exits0 in113.378s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
+Last verified delivery: October16. Conservative contact broad phase and case-insensitive parameter comparisons are staged in signed engine `cdbe5bf8608ee2a8579f3c14a8799efb6987280024e65f8d74ba40a902ac09e8`; night water strength and airborne shore support remain present. Prior `d370a07da2131bf85f6d782713640ec0471c3c1ffff92b286f48162571344eee` is backed up. Canonical stage-only exits0 in184.572s; all528 freshly recorded player files retain hashes with0 added. Native/Performance water readbacks remove the one-ULP grid while retaining accepted brightness. Native star pixels preserve their footprint at1x/4x/16x. Player night/spyglass replay remains pending. Earlier actual HUD/fleet384 Native and Performance runs exit0. Identical-shadow layered passes improve the controlled cohort's GPU20.5–20.8 to17.8ms; this is not120FPS. Scene chip assets and the HUD ABI repair remain present. Remaining synchronous geometry work and player acceptance remain open. Installed menu bytes match canonical source after declared encoding conversion. Existing antialiasing flag64 enables MSAA4+FXAA; the saved record is antialiasing1/MetalFX Performance3/VSync1, shadow tier2, dynamic lighting0. Hidden native full-fleet and water/lighting/HUD fixtures pass; actual player click/reopen and moving-scene acceptance remain pending. No agent game launch occurred. MSAA improves native thin-rope coverage and costs GPU time. Whole-hull daylight brightness, the recurring indexed-span corruption, fracture/contact/beam acceptance and sustained120FPS remain open. Reflection LOD measured6.8–12.1% uplift privately; ordered batching and both measured VideoToolbox interpolation routes remain rejected. Actual main-thread CPU was about12.1ms amid measured background load, not an isolated-machine ceiling. Long wake and original-save cannon preview remain open; the water guard has12-case component proof plus Native/Performance composed Sea::Realize projection, without original-player firing acceptance. Other composed gameplay/renderer/weather changes remain present. The player prohibits CUA and game/test-copy launches; earlier inventories are historical.
 
 ## Current verdict
+
+### October16 — contact broad phase and string comparison CPU batch staged
+
+Canonical `run.sh --stage-only` exits0 in184.572s and installs signed engine
+cdbe5bf8608ee2a8579f3c14a8799efb6987280024e65f8d74ba40a902ac09e8.
+All528 freshly hashed player files retain their bytes, with0 added; full app
+signature and all three frozen source hashes pass. Prior d370a07d is retained.
+Exact log/inventory belong to20261016-004602-cpu-contact-strings-delivery.
+The canonical dependency build recompiles137 actions after the shared header
+change; no gameplay scheduling, AI frequency or rendering quality is reduced.
+
+Existing conservative swept-radius rejection now runs before pair preparation
+and final SAT in the frame solver. Its public Body validation/narrowphase stay
+unchanged.244 complete serialized output rows match the baseline bit-for-bit;
+this includes repeated rows and80 seeded six-body worlds. ASan/UBSan pass.
+Separated6/16/32-ship synthetic hulls prepareN times and perform zero SAT queries,
+versusN² preparations andN(N-1)/2 queries. Actual player FPS is not that fixture.
+
+The shared case-insensitive trait skips equal bytes and computes each differing
+byte's existing locale conversion once.65536 byte pairs and100000 seeded strings
+retain results;3.8M representative comparisons take32–103ms versus216–376ms,
+depending on case/mismatch. Private source/results belong tocontact-cpu-broadphase
+andstring-compare-cpu; metal-frame-pacing.md owns cost/claim limits.
+
+The player's new005417/PID45608 sample has UUID648AB217-EB6D-3977-88BB-4A3B74F20784,
+matching this installed image. It still fails their performance expectation.
+Main-thread samples: contact6/1355, case comparisons23/1355, attributes197/1355,
+AIShip104/1355, ProcessRealize1015/1355. Categories overlap and scenes are not a
+controlled before/after pair. Continuing CPU attribution targets parameter reads
+and native draw preparation; no sustained-FPS or original-scene acceptance is
+claimed. Recurring renderer-tree corruption remains open independently; a private
+rope deletion/live sail-wave check now reproduces a separate invalid endpoint
+write, whose production repair and original crash attribution are not accepted.
 
 ### October16 — night aim strength and airborne shore support staged
 

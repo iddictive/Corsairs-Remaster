@@ -183,6 +183,9 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
     double lo, hi;
     if ((fa.wreck && fb.wreck) || (a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
         !verticalInterval(fa, fb, elapsed, remaining, seconds, lo, hi)) return {};
+    if (!detail::sweptRadiusOverlap(b.sweep.start.position - a.sweep.start.position,
+            (b.sweep.end.position - b.sweep.start.position) - (a.sweep.end.position - a.sweep.start.position),
+            a.hull.radius, b.hull.radius)) return {};
     const double tol = tolerance(a, b);
     for (std::size_t iteration = 0; ; ++iteration)
     {
@@ -326,6 +329,8 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                 auto &a = proxies[i]; auto &b = proxies[j]; double lo, hi;
                 if (a.hull.points.empty() || b.hull.points.empty() || (bodies[i].wreck && bodies[j].wreck) ||
                     !frame_detail::verticalInterval(bodies[i], bodies[j], elapsed, 0, seconds, lo, hi)) continue;
+                if (!detail::sweptRadiusOverlap(b.pose.position - a.pose.position, {},
+                                                a.hull.radius, b.hull.radius)) continue;
                 const auto wa = detail::world(a.hull, a.pose), wb = detail::world(b.hull, b.pose);
                 const auto q = detail::query(wa, wb);
                 const double tol = frame_detail::tolerance(a, b);

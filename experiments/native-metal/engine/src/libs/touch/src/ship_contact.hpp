@@ -211,6 +211,14 @@ inline Vec2 pointVelocity(Vec2 linear, double angular, Vec2 lever)
 {
     return linear + Vec2{angular * lever.z, -angular * lever.x};
 }
+inline bool sweptRadiusOverlap(Vec2 relativeStart, Vec2 relativeTravel, double radiusA, double radiusB)
+{
+    const double travel2 = dot(relativeTravel, relativeTravel);
+    if (!finite(relativeStart) || !std::isfinite(travel2)) return false;
+    const double closestTime = travel2 > 0 ? std::clamp(-dot(relativeStart, relativeTravel) / travel2, 0.0, 1.0) : 0;
+    const double tolerance = 1e-7 * std::max(1.0, radiusA + radiusB);
+    return !(length(relativeStart + relativeTravel * closestTime) > radiusA + radiusB + tolerance);
+}
 } // namespace detail
 
 inline Contact collide(const Body &a, const Body &b)
@@ -219,11 +227,8 @@ inline Contact collide(const Body &a, const Body &b)
     if (ha.points.empty() || hb.points.empty()) return {};
     const Vec2 relativeStart = b.start.position - a.start.position;
     const Vec2 relativeTravel = (b.end.position - b.start.position) - (a.end.position - a.start.position);
-    const double travel2 = dot(relativeTravel, relativeTravel);
-    if (!detail::finite(relativeStart) || !std::isfinite(travel2)) return {};
-    const double closestTime = travel2 > 0 ? std::clamp(-dot(relativeStart, relativeTravel) / travel2, 0.0, 1.0) : 0;
+    if (!detail::sweptRadiusOverlap(relativeStart, relativeTravel, ha.radius, hb.radius)) return {};
     const double tolerance = 1e-7 * std::max(1.0, ha.radius + hb.radius);
-    if (length(relativeStart + relativeTravel * closestTime) > ha.radius + hb.radius + tolerance) return {};
     const double angularTravel = std::abs(detail::yawTravel(a)) * ha.radius + std::abs(detail::yawTravel(b)) * hb.radius;
     double time = 0;
     for (int iteration = 0; iteration <= detail::maxAdvances; ++iteration)

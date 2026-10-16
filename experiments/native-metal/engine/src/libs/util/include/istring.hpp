@@ -21,10 +21,12 @@ template <typename T> struct ichar_traits : public std::char_traits<T>
     {
         while (n-- != 0)
         {
-            if (std::toupper(*s1) < std::toupper(*s2))
-                return -1;
-            if (std::toupper(*s1) > std::toupper(*s2))
-                return 1;
+            if (*s1 != *s2)
+            {
+                const auto first = std::toupper(*s1), second = std::toupper(*s2);
+                if (first < second) return -1;
+                if (first > second) return 1;
+            }
             ++s1;
             ++s2;
         }
