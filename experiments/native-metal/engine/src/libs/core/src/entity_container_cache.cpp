@@ -16,8 +16,7 @@ void EntityContainerCache::UpdateAdd(hash_t hash, entid_t id)
     // check if exists
     if (auto entry = cache_.find(hash); entry != cache_.end())
     {
-        // high dword is a timestamp. therefore newly added ent_id should always be greater than existing values
-        entry->second.push_back(id);
+        Add(hash, id);
     }
 }
 

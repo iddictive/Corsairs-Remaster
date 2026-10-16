@@ -1,0 +1,84 @@
+{
+  "head": "08d60b67a67eab1da98ccb0890299fce528d9413",
+  "consumer": "docs/puerto-rico-city.md",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "source_sha256": {
+    "experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp": "abff07a6aae115e9560e14d85c94c87e514ae395e35c629c6e25249df40c4b62",
+    "docs/evidence/puerto-rico-city/entity-cache/probe.cpp": "3956c5dde62daa4f3f3d980da2f2b5d61c00f31a8613b8f5cc3bbb9624218477"
+  },
+  "baseline_head": "08d60b67a67eab1da98ccb0890299fce528d9413",
+  "baseline_cache_sha256": "32e64ab33795a778832e65867dda6b0b6bcc9eb6e3a012832541063fd98c0206",
+  "compile_commands": {
+    "fixed": [
+      "/usr/bin/c++",
+      "-Iexperiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include",
+      "-std=c++20",
+      "-include",
+      "memory",
+      "-Iexperiments/native-metal/engine/src/libs/core/src",
+      "-Iexperiments/native-metal/engine/src/libs/core/include",
+      "-Iexperiments/native-metal/engine/src/libs/diagnostics/include",
+      "-Iexperiments/native-metal/engine/src/libs/util/include",
+      "docs/evidence/puerto-rico-city/entity-cache/probe.cpp",
+      "experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp",
+      "-o",
+      ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair/fixed"
+    ],
+    "before": [
+      "/usr/bin/c++",
+      "-Iexperiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include",
+      "-std=c++20",
+      "-include",
+      "memory",
+      "-Iexperiments/native-metal/engine/src/libs/core/src",
+      "-Iexperiments/native-metal/engine/src/libs/core/include",
+      "-Iexperiments/native-metal/engine/src/libs/diagnostics/include",
+      "-Iexperiments/native-metal/engine/src/libs/util/include",
+      "docs/evidence/puerto-rico-city/entity-cache/probe.cpp",
+      ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair/entity_container_cache-before.cpp",
+      "-o",
+      ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair/before"
+    ]
+  },
+  "run_commands": {
+    "fixed": [
+      ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair/fixed"
+    ],
+    "before": [
+      ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair/before"
+    ]
+  },
+  "results": {
+    "fixed_compile": 0,
+    "fixed_run": 0,
+    "before_compile": 0,
+    "before_run": 3
+  },
+  "output": {
+    "fixed": "reactivated_warm count=2 sorted=1 ids=433791696906,433791696907,\nreactivated_fresh count=2 sorted=1 ids=433791696906,433791696907,\nretired_warm count=0 sorted=1 ids=\nretired_fresh count=0 sorted=1 ids=\ndistinct_tick_warm count=2 sorted=1 ids=433791696907,438086664202,\ndistinct_tick_retired count=0 sorted=1 ids=\nbug_reproduced=0 ordered_equivalence=PASS retirement_empty=PASS nearest_normal=PASS uncached_noop=PASS other_class=PASS\n",
+    "before": "reactivated_warm count=2 sorted=0 ids=433791696907,433791696906,\nreactivated_fresh count=2 sorted=1 ids=433791696906,433791696907,\nretired_warm count=2 sorted=0 ids=433791696907,433791696906,\nretired_fresh count=0 sorted=1 ids=\ndistinct_tick_warm count=2 sorted=1 ids=433791696907,438086664202,\ndistinct_tick_retired count=0 sorted=1 ids=\nbug_reproduced=1 ordered_equivalence=FAIL retirement_empty=FAIL nearest_normal=PASS uncached_noop=PASS other_class=PASS\n"
+  },
+  "diff": "diff --git a/experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp b/experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp\nindex 6d95b75..3bca144 100644\n--- a/experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp\n+++ b/experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp\n@@ -16,8 +16,7 @@ void EntityContainerCache::UpdateAdd(hash_t hash, entid_t id)\n     // check if exists\n     if (auto entry = cache_.find(hash); entry != cache_.end())\n     {\n-        // high dword is a timestamp. therefore newly added ent_id should always be greater than existing values\n-        entry->second.push_back(id);\n+        Add(hash, id);\n     }\n }\n \n",
+  "retained_output": ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache-repair",
+  "shared_build_changed": false,
+  "gpu_executed": false,
+  "upstream_check": {
+    "release": "https://github.com/storm-devs/storm-engine/releases",
+    "current_source": "https://raw.githubusercontent.com/storm-devs/storm-engine/develop/src/libs/core/src/entity_container_cache.cpp",
+    "current_source_result": "Same UpdateAdd append assumption remains; existing Add already supplies required ordered insertion",
+    "issues_query": "https://api.github.com/search/issues?q=repo%3Astorm-devs%2Fstorm-engine+is%3Aissue+entity+cache&per_page=30",
+    "issues_result": "0 matches",
+    "pulls_query": "https://api.github.com/search/issues?q=repo%3Astorm-devs%2Fstorm-engine+is%3Apr+entity+cache&per_page=30",
+    "pulls_result": "Only #490 Fix nullptr exception during Fader init; unrelated",
+    "decision": "Reuse the existing ordered Add locally; no applicable released fix or upstream backport found in bounded search"
+  },
+  "owner_consumers": {
+    "owner": "engine/src/libs/core/src/entity_container_cache.cpp",
+    "CreateEntity": "UpdateAdd after InsertEntity; UpdateErase on failed Init",
+    "EraseEntity": "UpdateErase before marking entity invalid",
+    "GetEntityIds(hash)": "Uncached rebuild uses Add; cached enumeration uses Get",
+    "preserved": "Uncached UpdateAdd/UpdateErase remain no-op; other classes unchanged; no dedup/API/layout/lifetime changes"
+  },
+  "baseline_probe_snapshot": "docs/evidence/puerto-rico-city/entity-cache/baseline/probe.cpp",
+  "baseline_receipt": "docs/evidence/puerto-rico-city/entity-cache-20261016.json"
+}

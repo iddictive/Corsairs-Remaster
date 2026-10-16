@@ -1,0 +1,53 @@
+{
+  "consumer": "docs/puerto-rico-city.md",
+  "purpose": "Distinguish actual EntityContainerCache stale IDs from SeaTown retirement failure without native gameplay or GPU",
+  "head": "08d60b67a67eab1da98ccb0890299fce528d9413",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "cwd": "repository root",
+  "compile_command": [
+    "/usr/bin/c++",
+    "-Iexperiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include",
+    "-std=c++20",
+    "-include",
+    "memory",
+    "-Iexperiments/native-metal/engine/src/libs/core/src",
+    "-Iexperiments/native-metal/engine/src/libs/core/include",
+    "-Iexperiments/native-metal/engine/src/libs/diagnostics/include",
+    "-Iexperiments/native-metal/engine/src/libs/util/include",
+    "docs/evidence/puerto-rico-city/entity-cache/probe.cpp",
+    "experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp",
+    "-o",
+    ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache/cache-probe"
+  ],
+  "run_command": [
+    ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache/cache-probe"
+  ],
+  "source_sha256": {
+    "docs/evidence/puerto-rico-city/entity-cache/probe.cpp": "59d7ecad97c4e0de4963fc2cd566f9bcb2e4645ceed656daf5dac2524302a68c",
+    "experiments/native-metal/engine/src/libs/core/src/entity_container_cache.cpp": "32e64ab33795a778832e65867dda6b0b6bcc9eb6e3a012832541063fd98c0206",
+    "experiments/native-metal/engine/src/libs/core/src/entity_container_cache.h": "2ade7d11030bb16b6a020012353ea785c2bcdba655a74d6845b18624c8a55f0b",
+    "experiments/native-metal/engine/src/libs/core/src/entity_manager.cpp": "57a9892f2ffd6d0406fa1c31c506ee33324adf0dc527c7bd07333be7cbf28fa0"
+  },
+  "compile_exit": 0,
+  "probe_exit": 0,
+  "raw_output": "reactivated_warm count=2 sorted=0 ids=433791696907,433791696906,\nreactivated_fresh count=2 sorted=1 ids=433791696906,433791696907,\nretired_warm count=2 sorted=0 ids=433791696907,433791696906,\nretired_fresh count=0 sorted=1 ids=\ndistinct_tick_warm count=2 sorted=1 ids=433791696907,438086664202,\ndistinct_tick_retired count=0 sorted=1 ids=\nbug_reproduced=1 nearest_normal=PASS\n",
+  "result": "Current actual cache source reproduces warm-vs-fresh divergence and stale IDs on equal-millisecond decreasing recycled slots; distinct-millisecond decreasing-slot case passes. Live SeaTown failure correlation still requires separate native fixture diagnostic.",
+  "existing_test_owner": {
+    "core_testsuite": "absent",
+    "core_test_target": "absent",
+    "searched_tests": "engine/src/libs/*/testsuite and worldmap/tests; no EntityContainerCache or EntityManager coverage",
+    "existing_convention": "engine/cmake/StormSetup.cmake creates <module>-test when a testsuite exists",
+    "new_permanent_test_targets": 0
+  },
+  "retention": {
+    "source": "docs/evidence/puerto-rico-city/entity-cache/probe.cpp",
+    "outputs": ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache",
+    "compile_log": ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/entity-cache/compile.log",
+    "production_changed": false,
+    "shared_build_changed": false,
+    "gpu_executed": false
+  },
+  "source_snapshots": {
+    "docs/evidence/puerto-rico-city/entity-cache/probe.cpp": "docs/evidence/puerto-rico-city/entity-cache/baseline/probe.cpp"
+  }
+}
