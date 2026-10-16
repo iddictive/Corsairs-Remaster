@@ -28,6 +28,12 @@ class AICannon
     bool bCanRecharge;
 
     float fMaxFireDistance;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    mutable entid_t supportParent = 0;
+    mutable uint64_t supportGeneration = 0;
+    mutable uint32_t supportRevision = uint32_t(-1);
+    mutable bool supportRetained = true;
+#endif
 
     void RealFire(); // immediatelly fire!
 
@@ -116,10 +122,7 @@ class AICannon
     {
         return (bReady2Fire & (!isDamaged()));
     } // CHECK-ME
-    bool isDamaged() const
-    {
-        return fDamaged >= 1.0f;
-    }
+    bool isDamaged() const;
 
     bool isDisabled() const
     {

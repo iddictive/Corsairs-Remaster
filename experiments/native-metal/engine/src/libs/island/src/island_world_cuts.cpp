@@ -9,6 +9,7 @@
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 namespace
 {
+struct RestoreWorldMatrix {MODEL*model;CMatrix matrix;~RestoreWorldMatrix(){model->mtx=matrix;model->Update();}};
 bool removed(const storm_world_cut::Cut &cut, const CVECTOR &point)
 {
     if (cut.kind == storm_world_cut::Cut::Beam)
@@ -28,6 +29,11 @@ bool removed(const storm_world_cut::Cut &cut, const CVECTOR &point)
         if (storm_ship_hull::dot(normal, delta) > cut.radius) return false;
     }
     return true;
+}
+void continueDose(storm_world_cut::Cut&cut,const storm_world_cut::Cut&pending)
+{
+    if(cut.kind!=storm_world_cut::Cut::Beam||pending.kind!=storm_world_cut::Cut::Beam)return;
+    storm_ship_laser::continueBeamDose(cut.beams,pending.beams);
 }
 bool nodeCut(const storm_world_cut::Cut &world, const CMatrix &matrix, storm_world_cut::Cut &local)
 {
@@ -224,13 +230,126 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
     return complete;
 }
 
+void ISLAND::CancelWorldCutWork()
+{
+    ++worldCutEpoch;
+    if(worldCutCancel)worldCutCancel->store(true,std::memory_order_relaxed);
+    worldCutQueue.clear();worldActiveCut.reset();worldActiveRequested.reset();
+    // A running std::async future must not be destroyed on the frame path.
+    // Its value-only job is retired by Poll, or joined by this entity's destructor.
+}
+
+void ISLAND::PrewarmWorldCuts()
+{
+    for(const auto id:WorldModels()){
+        auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const bool terrain=WorldModelKey(id)=="terrain";
+        for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo){storm_world_cut::Input input;
+            if(!node->geo->CaptureWorldInput(uint64_t(GetId()),{},terrain,input))
+                core.Trace("World cut immutable input unavailable for model %llu",uint64_t(id));}
+    }
+}
+
+bool ISLAND::StartWorldCutWork() try
+{
+    if(worldCutFuture.valid()||worldCutQueue.empty()||!worldCutState)return true;
+    auto record=worldCutQueue.front();
+    // Queue entries retain their exact delivered samples. Only predecessors
+    // actually committed since admission can advance the next same-contact dose;
+    // a rejected predecessor leaves no phantom depth for later valid shots.
+    for(size_t n=record.predecessorCount;n<worldCuts.size();++n)if(worldCuts[n].scope==record.scope)continueDose(record.cut,worldCuts[n].cut);
+    auto records=worldCuts;records.push_back(record);WorldWork work;work.epoch=worldCutEpoch;
+    for(const auto id:WorldModels()){
+        auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const auto key=WorldModelKey(id);std::vector<storm_world_cut::Cut>selected;
+        for(unsigned field=0;field<records.size();++field){const auto&record=records[field];
+            if(record.scope=="*"||record.scope==key||(record.scope=="terrain"&&key!="terrain")){selected.push_back(record.cut);selected.back().field=field;}}
+        const auto visible=model->mtx;if(id==model_id)model->mtx=mIslandOld;if(id==seabed_id)model->mtx=mSeaBedOld;model->Update();
+        RestoreWorldMatrix restore{model,visible};
+        bool valid=true,first=true;
+        for(int n=0;auto*node=model->GetNode(n);++n){if(!node->geo)continue;WorldWorkTarget target;
+            target.model=id;target.node=n;target.generation=node->geo->GeometryGeneration();target.reflectionBoundary=id==worldReflection&&first;target.key=key;first=false;
+            const auto vector=[](const CVECTOR&v){return storm_ship_hull::Vec3{v.x,v.y,v.z};};
+            target.matrix={vector(node->glob_mtx.Vx()),vector(node->glob_mtx.Vy()),vector(node->glob_mtx.Vz()),vector(node->glob_mtx.Pos())};
+            std::vector<storm_world_cut::Cut>local;for(const auto&cut:selected){storm_world_cut::Cut transformed;
+                if(!nodeCut(cut,node->glob_mtx,transformed)){valid=false;break;}local.push_back(std::move(transformed));}
+            if(!valid||!node->geo->CaptureWorldInput(uint64_t(GetId()),local,key=="terrain",target.input)){valid=false;break;}
+            work.targets.push_back(std::move(target));
+        }
+        if(!valid)return false;
+    }
+    auto cancel=std::make_shared<std::atomic<bool>>(false);
+    try {
+        auto future=std::async(std::launch::async,[work=std::move(work),cancel]()mutable{
+            try {
+                std::vector<storm_world_cut::CapTriangle>earlier;
+                for(auto&target:work.targets){if(cancel->load(std::memory_order_relaxed))return std::move(work);
+                    if(target.reflectionBoundary)earlier.clear();
+                    if(!storm_world_cut::prepare(target.input,target.projection))return std::move(work);
+                    const auto&x=target.matrix[0];const auto&y=target.matrix[1];const auto&z=target.matrix[2];const auto&position=target.matrix[3];
+                    const auto yz=storm_ship_hull::cross(y,z),zx=storm_ship_hull::cross(z,x),xy=storm_ship_hull::cross(x,y);const float determinant=storm_ship_hull::dot(x,yz);
+                    if(!std::isfinite(determinant)||std::abs(determinant)<=1.e-8f)return std::move(work);
+                    auto localEarlier=earlier;for(auto&t:localEarlier)for(auto&p:t.positions){const auto delta=storm_ship_hull::Vec3{p[0],p[1],p[2]}-position;
+                        p={storm_ship_hull::dot(delta,yz)/determinant,storm_ship_hull::dot(delta,zx)/determinant,storm_ship_hull::dot(delta,xy)/determinant};}
+                    std::vector<storm_world_cut::CapTriangle>accepted;
+                    if(!storm_world_cut::finishCoverage(target.projection,localEarlier,accepted))return std::move(work);
+                    for(auto&t:accepted)for(auto&p:t.positions){const auto world=x*p[0]+y*p[1]+z*p[2]+position;p={world.x,world.y,world.z};}
+                    earlier.insert(earlier.end(),accepted.begin(),accepted.end());
+                }
+                work.valid=!cancel->load(std::memory_order_relaxed);
+            }catch(const std::exception&){work.valid=false;}
+            return std::move(work);
+        });
+        worldCutFuture=std::move(future);worldCutCancel=std::move(cancel);worldActiveCut=std::move(record);worldActiveRequested=std::move(worldCutQueue.front());worldCutQueue.pop_front();return true;
+    }catch(const std::exception&){return false;}
+}
+catch(const std::exception&){return false;}
+
+void ISLAND::PollWorldCutWork(uint32_t delta)
+{
+    if(!delta)return;
+    if(worldCutFuture.valid()){
+        if(worldCutFuture.wait_for(std::chrono::seconds(0))!=std::future_status::ready)return;
+        WorldWork work;
+        try {work=worldCutFuture.get();}
+        catch(const std::exception&){worldActiveCut.reset();worldActiveRequested.reset();core.Trace("World cut worker result rejected; previous solid retained");}
+        worldCutCancel.reset();
+        if(work.epoch==worldCutEpoch&&worldActiveCut){
+            bool valid=work.valid,identityValid=true;std::vector<GEOS*>geometries;geometries.reserve(work.targets.size());
+            size_t index=0;
+            for(const auto id:WorldModels()){
+                auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const auto key=WorldModelKey(id);const auto visible=model->mtx;
+                RestoreWorldMatrix restore{model,visible};if(id==model_id)model->mtx=mIslandOld;if(id==seabed_id)model->mtx=mSeaBedOld;model->Update();bool first=true;
+                for(int n=0;auto*node=model->GetNode(n);++n){if(!node->geo)continue;
+                    if(index>=work.targets.size()){identityValid=false;break;}const auto&target=work.targets[index++];
+                    if(target.model!=id||target.node!=n||target.generation!=node->geo->GeometryGeneration()||target.key!=key||target.reflectionBoundary!=(id==worldReflection&&first)){identityValid=false;break;}first=false;
+                    const CVECTOR current[4]={node->glob_mtx.Vx(),node->glob_mtx.Vy(),node->glob_mtx.Vz(),node->glob_mtx.Pos()};
+                    for(unsigned axis=0;axis<4;++axis)identityValid=identityValid&&current[axis].x==target.matrix[axis].x&&current[axis].y==target.matrix[axis].y&&current[axis].z==target.matrix[axis].z;
+                    if(!identityValid)break;geometries.push_back(node->geo);
+                }
+                if(!identityValid)break;
+            }
+            identityValid=identityValid&&index==work.targets.size();valid=valid&&identityValid;
+            if(valid)for(size_t n=0;n<work.targets.size();++n)if(!geometries[n]->StageWorldProjection(uint64_t(GetId()),std::move(work.targets[n].projection))){valid=false;break;}
+            if(valid){for(auto*geometry:geometries)geometry->CommitWorldProjection(uint64_t(GetId()));
+                worldBindings.clear();for(const auto&target:work.targets)worldBindings.push_back({target.model,target.generation,target.input.cuts.size(),true});
+                auto record=std::move(*worldActiveCut);worldActiveCut.reset();worldActiveRequested.reset();PublishWorldCut(std::move(record));}
+            else {for(auto*geometry:geometries)geometry->DiscardWorldProjection(uint64_t(GetId()));
+                if(!identityValid){worldCutQueue.push_front(std::move(*worldActiveRequested));worldActiveCut.reset();worldActiveRequested.reset();}
+                else {worldActiveCut.reset();worldActiveRequested.reset();core.Trace("World cut preparation rejected; previous geometry, collision and SAVE retained");}}
+        }
+        else {worldActiveCut.reset();worldActiveRequested.reset();}
+    }
+    if(!StartWorldCutWork()){worldCutQueue.pop_front();core.Trace("World cut snapshot rejected; previous solid retained, next queued dose remains available");}
+}
+
 void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
 {
+    CancelWorldCutWork();
     if (!worldCuts.empty()) BindWorldCuts({}, true);
     worldCutState = state;
     worldReflection = reflection;
     worldCuts.clear(); worldBindings.clear();
     worldCutsReady = false;
+    PrewarmWorldCuts();
     auto *saved = state ? state->GetAttributeClass("PhonkWorldCuts") : nullptr;
     if (!saved) return; // Ordinary old saves retain their original geometry.
     const unsigned count = saved->GetAttributeAsDword("count");
@@ -266,9 +385,13 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
 bool ISLAND::CommitWorldCut(WorldCutRecord record)
 {
     if (!worldCutState || record.scope.empty() || !storm_world_cut::valid(record.cut) ||
-        worldCuts.size() >= storm_world_cut::MaxCuts) return false;
+        worldCuts.size()+worldCutQueue.size()+size_t(worldActiveCut.has_value()) >= storm_world_cut::MaxCuts) return false;
     for (const auto &previous : worldCuts)
-        if (previous.scope == record.scope && storm_world_cut::equal(previous.cut, record.cut)) return true;
+        if (previous.scope == record.scope)
+        {
+            if (record.cut.kind == storm_world_cut::Cut::Beam) continueDose(record.cut, previous.cut);
+            else if (storm_world_cut::equal(previous.cut, record.cut)) return true;
+        }
     bool affected = false;
     for (const auto id : WorldModels())
     {
@@ -294,13 +417,14 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
         model->mtx = visible; model->Update();
     }
     if (!affected) return true; // Water-only blasts consume no persistent land record.
-    auto candidate = worldCuts; candidate.push_back(record);
-    if (!BindWorldCuts(candidate, true))
-    {
-        worldCutsReady = BindWorldCuts(worldCuts, true);
-        if (!worldCutsReady) core.Trace("World cut rollback needs geometry rebind");
-        return false;
-    }
+    record.predecessorCount=worldCuts.size();
+    worldCutQueue.push_back(std::move(record));
+    if(!StartWorldCutWork()){worldCutQueue.pop_back();return false;}
+    return true;
+}
+
+void ISLAND::PublishWorldCut(WorldCutRecord record)
+{
     auto *saved = worldCutState->VerifyAttributeClass("PhonkWorldCuts");
     auto *entry = saved->VerifyAttributeClass("c" + std::to_string(worldCuts.size()));
     entry->SetAttributeUseDword("kind", record.cut.kind);
@@ -311,14 +435,13 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
     entry->SetAttributeUseFloat("x", record.cut.center.x); entry->SetAttributeUseFloat("y", record.cut.center.y);
     entry->SetAttributeUseFloat("z", record.cut.center.z); entry->SetAttributeUseFloat("radius", record.cut.radius);
     storm_hull_damage::writeBeamSamples(entry, record.cut.beams);
-    worldCuts = std::move(candidate);
+    worldCuts.push_back(std::move(record));
     worldCutsReady = true;
     saved->SetAttributeUseDword("version", 2);
     saved->SetAttributeUseDword("count", unsigned(worldCuts.size()));
-    if (AIFort::pAIFort) AIFort::pAIFort->ReconcileWorldCuts(*this, record.owner);
+    if (AIFort::pAIFort) AIFort::pAIFort->ReconcileWorldCuts(*this, worldCuts.back().owner);
     if (const auto flags = core.GetEntityId("flag"))
         core.Send_Message(flags, "li", MSG_FLAG_WORLD_SUPPORT, GetId());
-    return true;
 }
 
 bool ISLAND::WorldGroundChanged(float x, float z) const

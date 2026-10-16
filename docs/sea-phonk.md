@@ -46,7 +46,14 @@ solidification for the self-overlapping shores. Fully removed receivers retain
 an authoritative empty draw/collision owner. Validated finite cuts commit only
 after all receivers accept; rejection
 restores the prior projection. Counts and geometry budgets are bounded; a
-rejected cut must leave the previous solid intact. Fort cannon reconciliation
+rejected cut must leave the previous solid intact. Live world cuts now capture
+immutable authored geometry and prepare their retained mesh, scene cap coverage
+and collision BVH in one value-only worker. Ordered requests retain delivered
+doses; only successfully committed predecessors advance a repeated bore. The
+main thread validates every receiver's identity/transform, stages all GPU buffers
+and publishes geometry, collision and SAVE together. Paused frames cannot publish.
+Load/rebind cancels stale work and reconstructs the existing saved schema through
+the same pure geometry path. Fort cannon reconciliation
 uses the existing cannon damage and assault owners. Nuclear ship impacts reuse
 hull cuts, flooding and script-owned death/HP, avoiding a second partial-HP cost.
 The private geometry dependency is unmodified upstream Clipper2 at commit
@@ -103,7 +110,8 @@ Ship records without `kind` retain their original plane semantics. Finite record
 carry the shared sample codec; world state accepts version1 and upgrades to2 on
 the next committed cut. Ordered geometry reconstruction restores the apertures,
 collision and support state without additional save-owned flood fields. Ordinary
-ship ram/nuclear cuts remain planes; world nuclear craters retain their bounded
+ship rams use finite local crush pockets at every admitted energy; nuclear ship
+cuts retain their plane semantics. World nuclear craters retain their bounded
 volume. A finite bore preserves the coarse outer contact
 waterplane; exact retained triangles and the finite field own its cavity. New
 flood aperture comes only from removed authored skin: synthetic caps, deeper
@@ -112,6 +120,36 @@ openings never grow with seam age. Legacy separating-seam ingress is unchanged.
 Crew cut reactions use the same saved finite volume. A partial mast notch retains
 support; loss of an actual spanning section invokes the existing whole-mast
 `MastFall`, including its rigging ownership. Partial-stump simulation is not added.
+
+Repeated ship bores subtract the union of recorded cutters from immutable
+authored material; they do not repeatedly partition unaffected triangles.
+Wood uses the inner vertices of its classified physical shell, closed authored
+components retain their own solids and unclassified open sheets stay open.
+An enclosed disconnected piece leaves the retained hull as its own fragment;
+ordered SAVE reconstruction repeats that extraction. A hollow hold and gunport
+are not filled to create a cutting surface. Solid/hollow ring checks and actual
+Flyingdutchman shallow/progressive cuts pass CPU checks, but the complete ship
+transaction and accepting native scene remain pending. Its measured20–90ms CPU
+preparation reached100ms during integration and must run outside the interactive
+frame before delivery.
+
+Live ship cuts use immutable GEOM inputs and a value-only worker for the complete
+mesh, fragment properties and collision BVH. SHIP validates model/node identity,
+local transform and geometry revision before staging every node and committing
+the batch. World movement does not invalidate receiver-local work. Rejected work
+leaves prior geometry, collision and saved records intact; a valid later dose can
+still commit. Load/Mount cancel stale work, and pause cannot publish it.
+Mechanical work is reserved once and refunded only to the same unexpired contact
+on rejection; its impulse belongs only to the resulting newborn pieces. Existing
+nuclear HP admission remains once per blast.
+
+Support compares each locator's original authored-face witness with retained
+material after released chunks leave. Crew above a deck and locators inside a
+real hold do not fail a point-in-solid test. The same SHIP query drives crew,
+rigging and cannon availability; gun checks cache the geometry generation and
+cut revision. The transaction passes source-body queue/rollback checks; real
+Metal upload cost, ordinary saved-game reconstruction and player actions remain
+separate acceptance gates.
 
 CPU sanitizer evidence covers actual Antigua/Cumana/Flyingdutchman meshes,
 old-plus-finite cuts, support notches/severing, exact aperture unions, codec

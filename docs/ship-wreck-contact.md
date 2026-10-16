@@ -2,6 +2,52 @@
 
 ## Status
 
+The October16 collision successor is under integration. Ordinary admitted rams
+use finite, overlapping crush pockets in the existing retained-mesh cutter;
+large work increases local penetration instead of triggering a halfspace split.
+The actual retained
+skin is traced before choosing the cut origin. This represents recessed/broken
+planking, not elastic deformation of every board. The finite cutter preserves
+genuine interior voids; it must not fill a hollow hold to manufacture a dent.
+
+Contact damage height comes from the overlapping vertical bands at the selected
+impact time, including a sinking or descending hull; it is no longer model-local
+Y0. `SHIP_BASE::GetHullContactMass` owns bare hull plus published cargo load for
+TOUCH and detached-body reactions. `GetHullContactStrength` keeps one bow/stern/
+side reinforcement curve for HP admission and material thresholds. The
+zero-duration `ApplyHullContactMotion`
+branch applies only live velocity/yaw impulse after Execute, without predicting
+another step or moving the already presented pose. Ordinary positive-duration
+TOUCH integration is unchanged.
+
+Saved ingress adds draft by water volume / original waterplane area. The actual
+4Hz ingress/wave sampler publishes each breach's transient wet area; its centroid
+supplies bounded, damped pitch and heel toward the breached
+side. Dry cargo immersion remains its existing attribute; water volume remains
+`Ship.PhonkFlood`, so repeated frames and loading cannot add draft twice. Death
+captures the presented list through the existing pose owner. This is a bounded
+hydrostatic approximation, not compartment-by-compartment liquid simulation.
+
+Actual-method CPU sanitizer checks cover finite ordinary damage, remote and
+opposite-side preservation, high-energy local/repeated/rejected cuts, prior ingress,
+frame-rate/pause draft/list, live-to-dead list transfer and late ordinary/Phonk
+impulse without pose rewind. The saved volume remains authoritative; wet-area
+cache reconstruction takes the next ordinary ingress tick.
+The contact frame comparison preserves every motion/energy value from4832b2e
+while testing unequal/sinking/landing heights and airborne/separating negatives.
+Native compiler checks pass ship.cpp, ship_hull_contact.cpp and touch.cpp.
+These checks do not accept installed visual destruction or player-save replay.
+
+Shore impact HP and physical-material admission share
+`AIShip.c::Ship_ContactMaterialFraction`; the existing sandbank exemption returns
+zero, and Phonk returns its actual accepted HP fraction. Corrected shore motion
+has its own active owner; its final contact normal/work seam must be verified
+after integration. Saved finite hull cuts already notify `Sailors::OnHullCut`;
+the same volume drives gore and retained-support loss drops sailors through the
+existing jump/swim lifecycle. No second crew-casualty counter is introduced.
+Secondary fracture and weapon hits on detached fragment tokens remain an open
+capability pending the finite geometry kernel and fragment input/Trace owner.
+
 The ghost report also reproduces in the native geometry draw owner: missing
 empty overrides resurrect original visual objects after rough cuts, while the
 retained collision mesh correctly excludes them. The four-line source repair

@@ -89,7 +89,7 @@ class SHIP_BASE : public VAI_OBJBASE
     // XZ is model-local; lower/upper are the current world vertical band.
     // False means no exposed retained hull is available for ship contact.
     virtual bool GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, float &upper) { return false; }
-    // Ship-model-local support: all retained cut half-spaces must contain it.
+    // Ship-model-local attachment support from cut fields and retained authored material.
     virtual bool IsHullPositionRetained(const CVECTOR &localPosition) const { return true; }
     virtual void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                                  float specificEnergy, int32_t otherCharacterIndex) {}

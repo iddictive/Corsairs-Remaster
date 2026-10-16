@@ -5,6 +5,7 @@
 #include <set>
 #include <tuple>
 #include <string_view>
+#include <memory>
 
 // Static-world Boolean fields. Geometry owns reconstruction and rejection;
 // scene code owns world/local transforms and persistent ordered records.
@@ -259,7 +260,15 @@ inline bool crossSection(const Mesh&source,const Plane&plane,Mesh&cap) {
 }
 inline bool subtractSphereSurface(const Mesh&source,const Cut&cut,Mesh&out) {
     const auto planes=spherePlanes(cut);
+    storm_ship_hull::Bounds beamBounds{};
+    if(cut.kind==Cut::Beam){const auto&beam=cut.beams.front();const auto a=storm_ship_laser::beamStart(beam),z=a+storm_ship_laser::beamDirection(beam)*beam.depth;
+        const float r=beam.radius*(1.083f+.15625f);beamBounds={{std::min(a.x,z.x)-r,std::min(a.y,z.y)-r,std::min(a.z,z.z)-r},{std::max(a.x,z.x)+r,std::max(a.y,z.y)+r,std::max(a.z,z.z)+r}};}
     for(const auto&o:source){auto&destination=out[o.first];for(const auto&t:o.second){
+        // The octagon lies inside this circumradius. Reject remote triangles
+        // before evaluating its ten planes; copied triangles remain exact.
+        if(cut.kind==Cut::Beam){bool remote=false;for(unsigned axis=0;axis<3;++axis){const auto coord=[&](Vec3 p){return axis==0?p.x:axis==1?p.y:p.z;};
+            const float lo=coord(beamBounds.lo),hi=coord(beamBounds.hi);remote|=(coord(t[0].position)<lo&&coord(t[1].position)<lo&&coord(t[2].position)<lo)||(coord(t[0].position)>hi&&coord(t[1].position)>hi&&coord(t[2].position)>hi);}
+            if(remote){destination.push_back(t);continue;}}
         // Convex subtraction preserves untouched triangles byte-for-byte.
         bool far=false;for(const auto&p:planes){bool outside=true;for(const auto&v:t)outside&=storm_ship_hull::dot(p.normal,v.position)>p.distance;if(outside){far=true;break;}}
         if(far){destination.push_back(t);continue;}
@@ -310,6 +319,9 @@ inline bool prismSection(const WorldPrism&prism,const Plane&plane,const std::vec
     // A consistent three-tetrahedron subdivision also supports varying inward
     // depths without replacing a non-convex swept triangle by its convex hull.
     constexpr unsigned tetra[3][4]={{0,1,2,5},{0,1,4,5},{0,3,4,5}};
+    // Linear limits bound the whole swept prism, including all tetrahedra.
+    // A tiny bore must not allocate/clip every remote triangle in a fort.
+    for(const auto&limit:limits){bool outside=true;for(const auto&p:prism.vertices)outside&=double(limit.normal.x)*p.x+double(limit.normal.y)*p.y+double(limit.normal.z)*p.z>limit.distance;if(outside)return true;}
     const auto side=[&](Vec3 p){return double(plane.normal.x)*p.x+double(plane.normal.y)*p.y+double(plane.normal.z)*p.z-plane.distance;};
     for(const auto&indices:tetra){std::vector<Vertex>points;
         for(unsigned a=0;a<4;++a)for(unsigned b=a+1;b<4;++b){const auto x=prism.vertices[indices[a]],y=prism.vertices[indices[b]];const double dx=side(x),dy=side(y);
@@ -471,5 +483,38 @@ inline bool resolveCapCoverage(const std::vector<CapPatch>&patches,const std::ve
         storm_ship_laser::appendMesh(caps,retained);if(accepted.size()>MaxTriangles)return false;
     }
     if(!finite(caps))return false;capOutput=std::move(caps);acceptedOutput=std::move(accepted);return true;
+}
+// Immutable captured geometry is shared with CPU jobs. No engine entity,
+// renderer, attribute tree or live geometry pointer crosses this boundary.
+struct Input {
+    std::shared_ptr<const Mesh> original;
+    std::set<int> terrainObjects;
+    std::vector<Cut> cuts;
+    bool active=false;
+};
+struct Projection {
+    Mesh retained,outer,caps;
+    std::vector<CapPatch> rawCaps;
+    std::vector<Cut> cuts;
+    storm_ship_hull::Broadphase broadphase;
+    std::vector<std::pair<int,uint32_t>> references;
+    bool active=false;
+};
+inline bool prepare(const Input&input,Projection&out) {
+    Projection result;result.active=input.active;result.cuts=input.cuts;
+    if(result.active&&(!input.original||!reconstructWorld(*input.original,input.terrainObjects,input.cuts,
+        result.retained,&result.outer,&result.caps,&result.rawCaps)))return false;
+    out=std::move(result);return true;
+}
+inline bool finishCoverage(Projection&projection,const std::vector<CapTriangle>&earlier,std::vector<CapTriangle>&accepted) {
+    if(!projection.active){accepted.clear();return true;}
+    Mesh caps;if(!resolveCapCoverage(projection.rawCaps,earlier,caps,accepted))return false;
+    Mesh retained=projection.outer;storm_ship_laser::appendMesh(retained,caps);if(!finite(retained))return false;
+    std::vector<storm_ship_hull::Bounds>boxes;std::vector<std::pair<int,uint32_t>>references;
+    boxes.reserve(triangleCount(retained));references.reserve(boxes.capacity());
+    for(const auto&o:retained)for(size_t n=0;n<o.second.size();++n){const auto&t=o.second[n];auto box=storm_ship_hull::Bounds{t[0].position,t[0].position};
+        for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);references.emplace_back(o.first,uint32_t(n));}
+    storm_ship_hull::Broadphase broadphase;broadphase.build(boxes);
+    projection.retained=std::move(retained);projection.caps=std::move(caps);projection.broadphase=std::move(broadphase);projection.references=std::move(references);return true;
 }
 } // namespace storm_world_cut

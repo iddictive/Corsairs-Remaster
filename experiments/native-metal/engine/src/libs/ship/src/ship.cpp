@@ -101,6 +101,7 @@ void SHIP::InitSailState()
 
 SHIP::~SHIP()
 {
+    CancelPhonkLaserWork();
     core.EraseEntity(GetModelEID());
     core.Send_Message(sail_id, "li", MSG_SAIL_DEL_GROUP, GetId());
     core.Send_Message(rope_id, "li", MSG_ROPE_DEL_GROUP, GetModelEID());
@@ -944,11 +945,44 @@ float SHIP::GetBrakingDistance(float *pfTime)
 }
 
 // calculate ship immersion
-void SHIP::CalculateImmersion()
+void SHIP::CalculateImmersion(float seconds)
 {
     auto *pAShipImmersion = GetACharacter()->FindAClass(GetACharacter(), "Ship.Immersion");
     State.fShipImmersion = (pAShipImmersion) ? pAShipImmersion->GetAttributeAsFloat() : 0.0f;
-    // return State.fShipImmersion;
+    CVECTOR target(0.f);
+    if (std::isfinite(phonkLaser.flooded) && phonkLaser.flooded > 0.f &&
+        phonkLaser.originalWaterplaneArea > .001f && phonkLaser.floodCapacity > 0.f)
+    {
+        // Added water displaces its volume through the original waterplane.
+        // Recompute from the dry cargo draft; never accumulate draft per frame
+        // or add a second saved water-volume owner.
+        const float sink = std::min(phonkLaser.flooded, phonkLaser.floodCapacity) /
+                           phonkLaser.originalWaterplaneArea;
+        CVECTOR center(0.f);
+        float weight = 0.f;
+        for (const auto &breach : phonkLaser.breaches)
+        {
+            // Ingress already samples the transformed opening and actual
+            // waves at4Hz. Reuse its wet area, including added draft and heel.
+            const float opening = breach.wetArea;
+            if (opening <= 0.f) continue;
+            center += breach.point * opening;
+            weight += opening;
+        }
+        if (weight > .000001f)
+        {
+            center *= 1.f / weight;
+            const float halfWidth = std::max(1.f, State.vBoxSize.x * .5f);
+            const float halfLength = std::max(1.f, State.vBoxSize.z * .5f);
+            target.x = std::clamp(std::atan2(sink * center.z, halfLength * halfLength * .2f), -.16f, .16f);
+            target.z = std::clamp(-std::atan2(sink * center.x, halfWidth * halfWidth * .2f), -.28f, .28f);
+        }
+        State.fShipImmersion += sink;
+    }
+    // The original rocking/steering state stays authoritative. This slowly
+    // varying hydrostatic offset joins the presented pose once, like sea tilt.
+    const float blend = 1.f - std::exp(-2.f * std::max(0.f, seconds));
+    floodAngles += (target - floodAngles) * blend;
 }
 
 float SHIP::GroundPenetration(const SHIP_STATE &state)
@@ -1033,7 +1067,8 @@ void SHIP::SetDead()
     {
         if (phonkFlight.airborne && pSea)
             State.vPos.y = vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
-        const CVECTOR eventTilt(tsunamiMotion.pitch, 0.f, tsunamiMotion.roll);
+        const CVECTOR eventTilt(tsunamiMotion.pitch + floodAngles.x, 0.f,
+                                tsunamiMotion.roll + floodAngles.z);
         State.vAng = vAng - eventTilt;
 
         vOldAng = State.vAng;
@@ -1504,7 +1539,7 @@ void SHIP::Execute(uint32_t DeltaTime)
     }
 
     // if (DeltaTime==0) _asm int 3
-    CalculateImmersion(); //
+    CalculateImmersion(fDeltaTime);
 
     core.Send_Message(sail_id, "lipf", MSG_SAIL_GET_SPEED, GetId(), &Strength[STRENGTH_MAIN].vSpeed.z, fSailState);
     if (isDead())
@@ -1551,6 +1586,8 @@ void SHIP::Execute(uint32_t DeltaTime)
             vAng.x += whirlpoolMotion.pitch;
             vAng.z += whirlpoolMotion.roll;
         }
+        vAng.x += floodAngles.x;
+        vAng.z += floodAngles.z;
     }
 
     auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
@@ -2593,6 +2630,7 @@ void SHIP::LoadPositionFromAttributes()
 
 bool SHIP::Mount(ATTRIBUTES *_pAShip)
 {
+    CancelPhonkLaserWork();
     Assert(_pAShip);
     pAShip = _pAShip;
 
@@ -2839,6 +2877,14 @@ bool SHIP::Mount(ATTRIBUTES *_pAShip)
     bMounted = true;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     EnsureCutFragments();
+    // Capture immutable CPU input during loading, before a live cut needs it.
+    storm_ship_laser::Plane field; field.normal = {1.f, 0.f, 0.f};
+    if (auto *model = GetModel()) for (int n = 0; auto *node = model->GetNode(n); ++n)
+        if (node->geo) {
+            storm_ship_laser::Input input;
+            if (!node->geo->CaptureLaserInput(uint64_t(blots_id), field, 1, nullptr, input))
+                core.Trace("Ship cut immutable input unavailable for node %s", node->GetName() ? node->GetName() : "");
+        }
 #endif
     if (auto *entry = GetACharacter()->FindAClass(GetACharacter(), "Ship.SeaEmergence")) {
         if (entry->GetAttributeAsDword("Active", 0)) {
@@ -3338,6 +3384,7 @@ void SHIP::Save(CSaveLoad *pSL)
 void SHIP::Load(CSaveLoad *pSL)
 {
     uint32_t i;
+    CancelPhonkLaserWork();
     phonkLaser = {};
     phonkOrdnance = {};
     collisionStrength = {};

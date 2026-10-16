@@ -147,11 +147,13 @@ class SHIP : public SHIP_BASE
     float fWaterLine;
     bool bDead, bVisible;
     CVECTOR vDeadDir, vCurDeadDir;
+    CVECTOR floodAngles = CVECTOR(0.f); // derived from saved ingress; death captures the presented pose
     SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
     SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
     storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity
     storm::ship::phonk::Flight phonkFlight; // crest launch/landing; no save layout fields
     storm::ship::phonk::LaserState phonkLaser;
+    storm::ship::phonk::LaserCutQueue phonkLaserWork;
     storm::ship::phonk::OrdnanceState phonkOrdnance;
     float phonkSeconds = 0.f;
     SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
@@ -214,7 +216,14 @@ class SHIP : public SHIP_BASE
     friend class SHIP_CUT_FRAGMENTS;
     void AdvanceCutFragments();
     bool ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool restoring = false,
-                           int32_t owner = -1, ATTRIBUTES *attacker = nullptr, bool payPartialDamage = true);
+                           int32_t owner = -1, ATTRIBUTES *attacker = nullptr, bool payPartialDamage = true,
+                           const CVECTOR &fragmentImpulse = CVECTOR(0.f), float impactRadius = 0.f);
+    bool ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bool restoring,
+                              int32_t owner, ATTRIBUTES *attacker, bool payPartialDamage,
+                              storm::ship::phonk::LaserCutWork *prepared = nullptr);
+    bool StartPhonkLaserWork();
+    void PollPhonkLaserWork(uint32_t delta);
+    void CancelPhonkLaserWork();
     bool IsAuthoredMastNode(const NODE *node) const;
     void DetachUnsupportedCutMasts(const storm::ship::phonk::LaserPlane &plane);
     void UpdateCutStructuralFailure();
@@ -228,7 +237,7 @@ class SHIP : public SHIP_BASE
     void ApplySeaEmergence(float seconds);
     void PublishShipPose();
     BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool includePhonk = true);
-    void CalculateImmersion(); //
+    void CalculateImmersion(float seconds);
     void CheckShip2Strand(float fDeltaTime);
     void MastFall(mast_t *pM);
     void HullFall(hull_t *pM);

@@ -80,16 +80,22 @@ class GEOM : public GEOS
     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
     std::vector<storm_ship_hull::Impact> hullCutInputs;
     storm_ship_laser::Mesh laserSurface;
-    storm_ship_laser::Surface laserVisualSurface;
+    std::shared_ptr<const storm_ship_laser::Surface>laserVisualSurface;
     std::map<int,float>laserWoodThickness;
     storm_ship_hull::Broadphase laserBroadphase;
     std::vector<std::pair<int,uint32_t>>laserCollisionTriangles;
     std::vector<uint32_t>laserRayCandidates;
     double laserClosedVolume=0;
-    bool laserPrepared=false;
+    bool laserPrepared=false,laserEnclosedFragments=true;
     std::vector<storm_ship_laser::Plane> laserPlanes;
     struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;};
     struct LaserBatch {uint64_t id=0;std::vector<LaserFragment>fragments;};
+    std::unique_ptr<storm_ship_laser::Projection>laserPending;
+    std::map<int,std::vector<HullDraw>>laserPendingDraws;
+    LaserBatch laserPendingBatch;
+    uint64_t laserPendingOwner=0,laserPendingSerial=0;
+    storm_ship_laser::FaceIndex laserRetainedSupport;
+    std::vector<storm_ship_laser::FaceIndex>laserReleasedSupport;
     std::vector<LaserBatch>laserFragments;
     void ReleaseLaserFragments();
     uint64_t laserOwner=0,laserSerial=0;
@@ -98,7 +104,8 @@ class GEOM : public GEOS
     bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&);
     bool RebuildLaserSurface(bool upload=true);
     void RebuildLaserCollision();
-    storm_ship_laser::Mesh worldOriginal,worldSurface;
+    std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;
+    storm_ship_laser::Mesh worldSurface;
     storm_ship_laser::Mesh worldRawOuter;
     std::vector<storm_world_cut::CapPatch>worldRawCaps;
     std::map<int,std::vector<HullDraw>>worldDraws,worldCapDraws;
@@ -107,6 +114,9 @@ class GEOM : public GEOS
     uint64_t worldOwner=0;
     bool worldPrepared=false,worldTerrainModel=false;
     bool CaptureWorldSurface(bool terrainModel);
+    std::unique_ptr<storm_world_cut::Projection> worldPending;
+    std::map<int,std::vector<HullDraw>> worldPendingDraws,worldPendingCapDraws;
+    uint64_t worldPendingOwner=0;
 #endif
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
     struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
@@ -156,12 +166,21 @@ class GEOM : public GEOS
     bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
     void ClearHullCuts(uint64_t owner) override;
     bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_hull::Vec3 *supportAxis=nullptr) override;
+    bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_hull::Vec3 *supportAxis,storm_ship_laser::Input&) override;
+    bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&) override;
+    void CommitLaserProjection(uint64_t owner) override;
+    void DiscardLaserProjection(uint64_t owner) override;
+    bool IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&) const override;
     uint64_t GeometryGeneration() const override { return geometryGeneration; }
     uint64_t CollisionRevision() const override { return collisionRevision; }
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
+    bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input) override;
+    bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection) override;
+    void CommitWorldProjection(uint64_t owner) override;
+    void DiscardWorldProjection(uint64_t owner) override;
     bool ResolveWorldCapCoverage(uint64_t owner,const std::vector<storm_world_cut::CapTriangle>&localEarlier,std::vector<storm_world_cut::CapTriangle>&localAccepted) override;
     bool HasWorldCuts() const override { return worldOwner!=0; }
     void ClearWorldCuts(uint64_t owner) override;

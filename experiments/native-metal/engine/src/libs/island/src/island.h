@@ -9,6 +9,10 @@
 #include "vma.hpp"
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include "world_cut_geometry.hpp"
+#include <atomic>
+#include <deque>
+#include <future>
+#include <optional>
 #endif
 
 class MapZipper
@@ -63,13 +67,31 @@ class ISLAND : public ISLAND_BASE
     uint32_t iDMapSize, iDMapSizeShift;
     entid_t model_id{}, seabed_id{};
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; };
+    struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; size_t predecessorCount=0; };
     struct WorldCutBinding { entid_t model; uint64_t generation; size_t count; bool valid; };
     ATTRIBUTES *worldCutState = nullptr; // saved Islands[] attributes outlive this sea entity
     entid_t worldReflection = 0;
     std::vector<WorldCutRecord> worldCuts;
     std::vector<WorldCutBinding> worldBindings;
     bool worldCutsReady = false;
+    struct WorldWorkTarget {
+        entid_t model=0;int node=0;uint64_t generation=0;bool reflectionBoundary=false;std::string key;
+        std::array<storm_ship_hull::Vec3,4> matrix;
+        storm_world_cut::Input input;
+        storm_world_cut::Projection projection;
+    };
+    struct WorldWork {uint64_t epoch=0;bool valid=false;std::vector<WorldWorkTarget>targets;};
+    std::deque<WorldCutRecord> worldCutQueue;
+    std::optional<WorldCutRecord> worldActiveCut;
+    std::optional<WorldCutRecord> worldActiveRequested;
+    std::future<WorldWork> worldCutFuture;
+    std::shared_ptr<std::atomic<bool>> worldCutCancel;
+    uint64_t worldCutEpoch=0;
+    bool StartWorldCutWork();
+    void PollWorldCutWork(uint32_t delta);
+    void CancelWorldCutWork();
+    void PublishWorldCut(WorldCutRecord record);
+    void PrewarmWorldCuts();
     std::vector<entid_t> WorldModels() const;
     std::string WorldModelKey(entid_t model) const;
     bool BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force);

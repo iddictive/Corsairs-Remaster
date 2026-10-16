@@ -17,8 +17,8 @@ Import library main header
 #include "ship_hull_damage_bridge.hpp"
 #include "world_cut_coverage.hpp"
 namespace storm_ship_hull {struct Impact;struct Vec3;}
-namespace storm_ship_laser {struct Plane;struct Result;}
-namespace storm_world_cut {struct Cut;}
+namespace storm_ship_laser {struct Plane;struct Result;struct Input;struct Projection;}
+namespace storm_world_cut {struct Cut;struct Input;struct Projection;}
 #endif
 
 class GEOS
@@ -100,12 +100,21 @@ class GEOS
     virtual bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts)=0;
     virtual void ClearHullCuts(uint64_t owner)=0;
     virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_hull::Vec3 *supportAxis=nullptr)=0;
+    virtual bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_hull::Vec3 *supportAxis,storm_ship_laser::Input&)=0;
+    virtual bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&)=0;
+    virtual void CommitLaserProjection(uint64_t owner)=0;
+    virtual void DiscardLaserProjection(uint64_t owner)=0;
+    virtual bool IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&) const=0;
     virtual uint64_t GeometryGeneration() const { return 0; }
     virtual uint64_t CollisionRevision() const { return 0; }
     virtual bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const=0;
     virtual void ReleaseLaserFragment(uint64_t owner,uint64_t fragment)=0;
     virtual void ClearLaserCuts(uint64_t owner)=0;
     virtual bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false)=0;
+    virtual bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input)=0;
+    virtual bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection)=0;
+    virtual void CommitWorldProjection(uint64_t owner)=0;
+    virtual void DiscardWorldProjection(uint64_t owner)=0;
     virtual bool ResolveWorldCapCoverage(uint64_t owner,const std::vector<storm_world_cut::CapTriangle>&localEarlier,std::vector<storm_world_cut::CapTriangle>&localAccepted)=0;
     virtual bool HasWorldCuts() const { return false; }
     virtual void ClearWorldCuts(uint64_t owner)=0;

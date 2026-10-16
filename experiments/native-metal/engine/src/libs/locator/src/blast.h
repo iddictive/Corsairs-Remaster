@@ -11,6 +11,7 @@
 #include <memory>
 #include "ship_hull_chips.hpp"
 #include "ship_hull_damage_bridge.hpp"
+#include "sea_base.h"
 #endif
 
 using GEOPARTICLE = struct
@@ -26,6 +27,7 @@ using GEOPARTICLE = struct
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     storm_ship_hull::Chip chip;
     float chipScale=1;
+    float chipFloatAge=-1.f;
 #endif
 };
 
@@ -35,6 +37,9 @@ class BLAST : public Entity
     VGEOMETRY *gs;
     std::vector<GEOPARTICLE> Item;
     CANNON_TRACE_BASE *pSea;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    SEA_BASE *chipSea=nullptr;
+#endif
     entid_t sea_eid;
     float AngleDeviation;
     uint32_t ItemsNum;

@@ -4,8 +4,14 @@
 #include "matrix.h"
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_fragment_contact.hpp"
+#include "ship_laser_geometry.hpp"
 #include <array>
+#include <atomic>
 #include <cstdint>
+#include <deque>
+#include <future>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,6 +35,7 @@ struct LaserFragment
     std::array<CVECTOR, 14> support{};
     storm::ship::fragment_contact::Proxy contactShape;
     float radiusSquared = 1.f, age = 0.f, wetAge = 0.f;
+    float surfaceArea = 0.f, mass = 0.f, timber = 0.f;
     double time = 0.;
 };
 struct LaserEdge
@@ -42,6 +49,7 @@ struct LaserBreach
     float length = 0.f;
     float age = 0.f;
     float area = 0.f; // Finite removed skin; zero retains legacy separating-seam growth.
+    float wetArea = 0.f; // derived by the actual4Hz ingress/wave sampler; never saved
 };
 struct LaserBinding
 {
@@ -60,6 +68,46 @@ struct HullWork
     CVECTOR point = CVECTOR(0.f), normal = CVECTOR(0.f);
     float energy = 0.f, age = 2.f;
     int32_t other = -1;
+};
+struct LaserCutRequest
+{
+    LaserPlane plane;
+    int32_t owner = -1;
+    uint64_t attacker = 0;
+    bool payPartialDamage = true;
+    size_t predecessors = 0;
+    CVECTOR impulse = CVECTOR(0.f);
+    std::optional<HullWork> impact;
+    float impactRadius = 0.f;
+};
+struct LaserCutTarget
+{
+    int node = 0;
+    std::string name;
+    CMatrix local;
+    storm_ship_laser::Input input;
+    storm_ship_laser::Projection projection;
+    storm_ship_laser::Result result;
+};
+struct LaserCutWork
+{
+    uint64_t epoch = 0, model = 0;
+    std::string modelName;
+    LaserCutRequest request;
+    std::vector<LaserCutTarget> targets;
+    std::vector<CVECTOR> originalContour, contour, originalKeel;
+    float originalArea = 0.f;
+    bool valid = false;
+};
+// Load can reset LaserState while the value-only worker retires. Its future
+// stays here: destroying a running std::async future would join the frame.
+struct LaserCutQueue
+{
+    uint64_t epoch = 0;
+    std::deque<LaserCutRequest> requests;
+    std::optional<LaserCutRequest> active;
+    std::future<LaserCutWork> future;
+    std::shared_ptr<std::atomic<bool>> cancel;
 };
 struct LaserState
 {

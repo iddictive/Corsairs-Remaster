@@ -1,4 +1,5 @@
 #include "ai_cannon.h"
+#include "ship_base.h"
 #include "math_inlines.h"
 #include "shared/sea_ai/script_defines.h"
 
@@ -83,6 +84,27 @@ float AICannon::CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const 
 VAI_OBJBASE *AICannon::GetAIObjPointer() const
 {
     return static_cast<VAI_OBJBASE *>(core.GetEntityPointer(GetParentEID()));
+}
+
+bool AICannon::isDamaged() const
+{
+    if (fDamaged >= 1.f) return true;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    auto *ship = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(eidParent));
+    if (!ship || !ship->GetHullContourRevision()) return false;
+    auto *model = ship->GetModel();
+    auto *root = model ? model->GetNode(0) : nullptr;
+    const uint64_t generation = root && root->geo ? root->geo->GeometryGeneration() : 0;
+    const auto revision = ship->GetHullContourRevision();
+    if (supportParent != eidParent || supportGeneration != generation || supportRevision != revision)
+    {
+        supportRetained = ship->IsHullPositionRetained(vPos);
+        supportParent = eidParent; supportGeneration = generation; supportRevision = revision;
+    }
+    return !supportRetained;
+#else
+    return false;
+#endif
 }
 
 float AICannon::GetDirY() const
@@ -263,6 +285,9 @@ void AICannon::Init(AIAttributesHolder *_pAHolder, const entid_t eid, GEOS::LABE
 {
     pAHolder = _pAHolder;
     eidParent = eid;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    supportRevision = uint32_t(-1);
+#endif
 
     CMatrix m;
     memcpy(&m.m[0][0], &lbl.m[0][0], sizeof(m));
@@ -293,6 +318,9 @@ void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t
 {
     pAHolder = _pAHolder;
     eidParent = eid;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    supportRevision = uint32_t(-1);
+#endif
 
     vPos = pSL->LoadVector();
     vDir = pSL->LoadVector();

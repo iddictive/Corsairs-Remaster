@@ -5,6 +5,7 @@
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 namespace
 {
+std::vector<entid_t> hullChipBursts;
 bool LoadHullChipAssets(VGEOMETRY *service, std::array<std::shared_ptr<GEOS>,3> &result)
 {
     if (!service) return false;
@@ -63,6 +64,9 @@ BLAST::BLAST()
 
 BLAST::~BLAST()
 {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(hullChipMode)std::erase(hullChipBursts,GetId());
+#endif
     for (uint32_t i = 0; i < ItemsNum; i++)
         if (!Item[i].bDouble)
             delete Item[i].geo;
@@ -78,8 +82,19 @@ bool BLAST::Init()
         return false;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(hullChipMode){
-        if(!hullChipLease.acquire())return false;
         if (!LoadHullChipAssets(gs, hullChipGeometry)) return false;
+        // The oldest cosmetic burst yields its eight slots to a fresh impact.
+        // Long-lived floating boards must not suppress every subsequent burst.
+        if(!hullChipLease.acquire()){
+            while(!hullChipBursts.empty()){
+                const auto oldest=hullChipBursts.front();hullChipBursts.erase(hullChipBursts.begin());
+                auto*burst=static_cast<BLAST*>(core.GetEntityPointer(oldest));if(!burst)continue;
+                for(auto&item:burst->Item)item.chip.alive=false;
+                burst->hullChipLease.release();core.EraseEntity(oldest);break;
+            }
+            if(!hullChipLease.acquire())return false;
+        }
+        hullChipBursts.push_back(GetId());
         Item.resize(storm_ship_hull::ChipLease::particlesPerBurst);ItemsNum=uint32_t(Item.size());
         for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n<2?0:n<6?1:2].get();item.bDouble=true;item.chip.alive=false;}
         return true;
@@ -231,14 +246,32 @@ void BLAST::LaunchHullChips(MESSAGE&message)
 {
     storm_ship_hull::Vec3 position,normal;position.x=message.Float();position.y=message.Float();position.z=message.Float();normal.x=message.Float();normal.y=message.Float();normal.z=message.Float();float radius=message.Float();uint32_t seed=uint32_t(message.Long());if(!seed)seed=1;
     if(!storm_ship_hull::finite(position)||!storm_ship_hull::finite(normal)||storm_ship_hull::length(normal)<.9f||!std::isfinite(radius)||radius<storm_hull_damage::MinHitRadius||radius>storm_hull_damage::MaxHitRadius){core.EraseEntity(GetId());return;}
-    normal=storm_ship_hull::normalized(normal);for(auto&item:Item){item.chip=storm_ship_hull::launchChip(position,normal,seed,radius);item.chipScale=.12f+storm_ship_hull::randomUnit(seed)*std::min(.25f,radius);}
+    normal=storm_ship_hull::normalized(normal);for(auto&item:Item){item.chip=storm_ship_hull::launchChip(position,normal,seed,radius);item.chip.life=60.f;item.chipFloatAge=-1.f;item.chipScale=.12f+storm_ship_hull::randomUnit(seed)*std::min(.25f,radius);}
 }
 void BLAST::StepHullChips(uint32_t delta)
 {
     if(!delta||core.GetTimeScale()<=0)return;
-    if(!core.GetEntityPointer(sea_eid)){sea_eid=core.GetEntityId("sea");pSea=static_cast<CANNON_TRACE_BASE*>(core.GetEntityPointer(sea_eid));}
-    bool alive=false;for(auto&item:Item){auto before=item.chip.position;storm_ship_hull::step(item.chip,float(delta)*.001f);auto after=item.chip.position;
-        if(item.chip.alive&&pSea&&pSea->Cannon_Trace(-1,CVECTOR(before.x,before.y,before.z),CVECTOR(after.x,after.y,after.z))<=1.f)item.chip.alive=false;alive|=item.chip.alive;}
+    if(!core.GetEntityPointer(sea_eid)){sea_eid=core.GetEntityId("sea");pSea=static_cast<CANNON_TRACE_BASE*>(core.GetEntityPointer(sea_eid));chipSea=static_cast<SEA_BASE*>(core.GetEntityPointer(sea_eid));}
+    const float seconds=float(delta)*.001f;
+    bool alive=false;for(auto&item:Item){auto&chip=item.chip;if(!chip.alive)continue;float floating=seconds;
+        if(item.chipFloatAge<0.f){const auto before=chip.position;storm_ship_hull::step(chip,seconds);const auto after=chip.position;
+            float contact=2.f;if(chipSea){const float water=chipSea->WaveXZ(after.x,after.z);
+                if(before.y<=chipSea->WaveXZ(before.x,before.z))contact=0.f;
+                else if(after.y<=water)contact=pSea->Cannon_Trace(-1,CVECTOR(before.x,before.y,before.z),CVECTOR(after.x,after.y,after.z));}
+            if(contact<=1.f){chip.position=before+(after-before)*std::clamp(contact,0.f,1.f);item.chipFloatAge=0.f;chip.velocity=chip.velocity*.15f;chip.velocity.y=0.f;chip.spin=chip.spin*.12f;chip.angles.x=chip.angles.z=0.f;floating*=1.f-contact;}
+            else floating=0.f;
+        }else chip.age+=seconds;
+        if(item.chipFloatAge>=0.f&&chipSea){
+            // Reuse the native sink-flotsam convention: these palka meshes lie
+            // flat at zero pitch/roll, yaw freely, then sink below WaveXZ.
+            item.chipFloatAge+=floating;const float damping=std::exp(-1.2f*floating);
+            chip.position=chip.position+chip.velocity*((1.f-damping)/1.2f);chip.velocity=chip.velocity*damping;
+            chip.angles.y+=chip.spin.y*floating;chip.spin=chip.spin*std::exp(-.3f*floating);
+            const float sink=std::max(0.f,item.chipFloatAge-30.f)*.45f;
+            chip.position.y=chipSea->WaveXZ(chip.position.x,chip.position.z)+.04f-sink;
+            if(sink>2.f||chip.age>=chip.life)chip.alive=false;
+        }
+        alive|=chip.alive;}
     if(!alive)core.EraseEntity(GetId());
 }
 #endif

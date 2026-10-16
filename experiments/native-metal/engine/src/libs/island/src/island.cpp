@@ -46,6 +46,7 @@ ISLAND::~ISLAND()
 void ISLAND::Uninit()
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    CancelWorldCutWork();
     worldCutState = nullptr;
     worldReflection = 0;
     worldCuts.clear();
@@ -113,6 +114,7 @@ bool bView = false;
 void ISLAND::Realize(uint32_t Delta_Time)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    PollWorldCutWork(Delta_Time);
     if (!worldCuts.empty()) worldCutsReady = BindWorldCuts(worldCuts, false);
 #endif
     uint32_t dwAmbient, dwAmbientOld;
