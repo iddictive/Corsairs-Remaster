@@ -64,7 +64,7 @@ restores the prior projection. Counts and geometry budgets are bounded; a
 rejected cut must leave the previous solid intact. Live world cuts now capture
 immutable authored geometry and prepare their retained mesh, scene cap coverage
 and collision BVH in one value-only worker. Ordered requests retain delivered
-doses; only successfully committed predecessors advance a repeated bore. The
+doses; across requests only successfully committed predecessors advance a repeated bore. The
 main thread validates every receiver's identity/transform, stages all GPU buffers
 and publishes geometry, collision and SAVE together. Paused frames cannot publish.
 Load/rebind cancels stale work and reconstructs the existing saved schema through
@@ -120,6 +120,13 @@ ship. A0.20s batch retains the union of its samples; disjoint aim positions and
 receivers are not bridged by a chord or bounding box. Membership and body-envelope
 queries share the geometry field without per-query allocation. Existing32 ship
 and64 world record limits remain; each finite record holds at most16 samples.
+
+Repeated contact follows the center ray through the actual octagonal bore,
+including small aim/pose drift. It advances to the existing far cap only when
+the complete ray segment stays inside that bore; nearby independent strokes,
+side exits and reverse rays get no free depth. Earlier doses in one atomic batch
+are included before publication, and are rechained when a committed predecessor
+moves that batch. Radius and delivered material depth remain unchanged.
 
 Ship records without `kind` retain their original plane semantics. Finite records
 carry the shared sample codec; world state accepts version1 and upgrades to2 on

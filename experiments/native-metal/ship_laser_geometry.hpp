@@ -37,11 +37,6 @@ using BeamSample=storm_hull_damage::BeamSample;
 inline Vec3 beamStart(const BeamSample&b){return {b.start[0],b.start[1],b.start[2]};}
 inline Vec3 beamDirection(const BeamSample&b){return {b.direction[0],b.direction[1],b.direction[2]};}
 inline Vec3 beamTangent(const BeamSample&b){return b.tangent==std::array<float,3>{} ? storm_ship_hull::frame(beamDirection(b)).tangent : Vec3{b.tangent[0],b.tangent[1],b.tangent[2]};}
-inline void continueBeamDose(std::vector<BeamSample>&next,const std::vector<BeamSample>&committed){
-    for(auto&sample:next)for(const auto&prior:committed){const auto direction=beamDirection(sample),other=beamDirection(prior);if(storm_ship_hull::length(direction-other)>.0001f||std::abs(sample.radius-prior.radius)>.00001f||storm_ship_hull::length(beamTangent(sample)-beamTangent(prior))>.0001f)continue;
-        const auto start=beamStart(sample),old=beamStart(prior),delta=start-old;const float tolerance=std::max(.0001f,2*std::numeric_limits<float>::epsilon()*std::max({std::abs(start.x),std::abs(start.y),std::abs(start.z),1.f})),along=storm_ship_hull::dot(delta,other);
-        if(along < -tolerance||along>prior.depth+tolerance||storm_ship_hull::length(delta-other*along)>tolerance)continue;const auto end=old+other*prior.depth;if(storm_ship_hull::dot(end-start,direction)>tolerance)sample.start={end.x,end.y,end.z};}
-}
 inline bool valid(const BeamSample&b){return storm_ship_hull::finite(beamStart(b))&&storm_ship_hull::finite(beamDirection(b))&&
     std::abs(storm_ship_hull::length(beamDirection(b))-1.f)<.001f&&std::isfinite(b.radius)&&b.radius>0&&
     std::isfinite(b.depth)&&b.depth>0&&storm_ship_hull::finite(beamTangent(b))&&
@@ -57,6 +52,34 @@ inline std::array<storm_ship_hull::Plane,10> beamPlanes(const BeamSample&b){
     for(unsigned n=0;n<8;++n){const auto normal=basis.tangent*octagon[n][0]+basis.bitangent*octagon[n][1];
         result[n+2]={normal,storm_ship_hull::dot(normal,start)+b.radius};}
     return result;
+}
+// A queued trace can still hit a bore's old entrance. Replay its centre ray
+// through that actual empty prism, including small changes of aim/ship pose.
+// A neighboring stroke or a ray leaving through a side gets no free depth.
+inline void continueBeamDose(BeamSample&sample,const std::vector<BeamSample>&committed,size_t count=std::numeric_limits<size_t>::max()){
+    if(!valid(sample))return;
+    for(size_t i=0;i<std::min(count,committed.size());++i){const auto&prior=committed[i];
+        if(!valid(prior)||std::abs(sample.radius-prior.radius)>.00001f)continue;
+        const auto start=beamStart(sample),direction=beamDirection(sample),axis=beamDirection(prior),delta=start-beamStart(prior);
+        const float tolerance=std::max(.0001f,2*std::numeric_limits<float>::epsilon()*std::max({std::abs(start.x),std::abs(start.y),std::abs(start.z),1.f}));
+        const float along=storm_ship_hull::dot(delta,axis),forward=storm_ship_hull::dot(direction,axis);
+        if(along>prior.depth+tolerance||forward<=1.e-6f)continue;
+        const float travel=(prior.depth-along)/forward;
+        if(travel<=tolerance)continue;
+        const auto end=start+direction*travel;const auto planes=beamPlanes(prior);bool inside=true;
+        for(unsigned n=1;n<planes.size();++n)
+            if(storm_ship_hull::dot(planes[n].normal,start)>planes[n].distance+tolerance||
+               storm_ship_hull::dot(planes[n].normal,end)>planes[n].distance+tolerance){inside=false;break;}
+        if(inside)sample.start={end.x,end.y,end.z};
+    }
+}
+inline void continueBeamDose(std::vector<BeamSample>&next,const std::vector<BeamSample>&committed){
+    for(size_t n=0;n<next.size();++n){
+        continueBeamDose(next[n],committed);
+        // A predecessor may move the first sample past its siblings' stale
+        // starts. Rechain only earlier doses of this same atomic request.
+        continueBeamDose(next[n],next,n);
+    }
 }
 inline float beamDistance(const BeamSample&b,Vec3 point){float inside=std::numeric_limits<float>::infinity();
     for(const auto&p:beamPlanes(b))inside=std::min(inside,p.distance-storm_ship_hull::dot(p.normal,point));return inside;}

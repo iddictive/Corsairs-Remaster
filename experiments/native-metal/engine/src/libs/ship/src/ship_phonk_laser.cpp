@@ -1654,10 +1654,14 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     sample.depth = sampleTime * 4.f;
     if (!storm_ship_laser::valid(sample)) return;
     phonkLaser.pendingContact = contact; phonkLaser.pendingWorld = bool(worldTarget);
+    // Samples in this batch publish atomically. Do not spend the next dose
+    // re-cutting their old entrance while collision awaits that publication.
+    storm_ship_laser::continueBeamDose(sample, phonkLaser.pendingBeam);
     bool merged = false;
     for (auto &prior : phonkLaser.pendingBeam)
     {
-        const auto offset = storm_ship_laser::beamStart(sample) - storm_ship_laser::beamStart(prior);
+        const auto end = storm_ship_laser::beamStart(prior) + storm_ship_laser::beamDirection(prior) * prior.depth;
+        const auto offset = storm_ship_laser::beamStart(sample) - end;
         if (storm_ship_hull::length(offset) < .005f &&
             storm_ship_hull::dot(storm_ship_laser::beamDirection(prior), storm_ship_laser::beamDirection(sample)) > .99999f)
         { prior.depth += sample.depth; merged = true; break; }

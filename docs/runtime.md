@@ -4,6 +4,33 @@ Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d
 
 ## Current verdict
 
+### October16 — live laser depth acceptance reopened; drift repair candidate
+
+The player still sees hull sparks without deeper ship/rock damage while holding
+weapon6 and LMB. Read-only saved beam fields prove contact/admission/persistence,
+not the requested visible cut. A frozen native Galeon replay of20 existing
+samples has16 shallow bores and4 through-hits; complete frames show subtle whole
+ship damage and visible close holes. That manually admitted contrast does not
+accept live firing. Player SAVE was neither loaded nor modified.
+
+The exact saved Battleship pair has7.71669mm lateral drift inside a0.16m-radius
+bore. The previous continuation incorrectly gives0 instead of0.175121m free
+path. The successor follows the new center ray only through the existing finite
+octagonal prism and includes earlier samples of the same atomic pending batch;
+retargeting rechains its prefix after a committed predecessor moves. Radius,
+delivered depth and direction remain unchanged. Independent/reverse/side-exit,
+world-coordinate, atomic/idempotence and actual-source queue rollback negatives
+pass. Integration caught a stale header attestation: the retained unchanged
+oracle fails on bfde388c and passes on reconciled727e7008, with source identities
+verified before/after compilation and release. Exact evidence belongs to
+`phonk-current-20261016/player-drift-reopen/result.json` and `sea-phonk.md`.
+
+Disposition: reconciled source candidate; native held-fire and installed player
+ship/rock acceptance remain open. The direct-GM Battleship restore contrast and
+intermittent nuclear firing remain unproven separate diagnoses. Canonical
+build/staging will use a pinned build-only checkout while the seamless-city
+owner continues changing incompatible native/script inputs in the saved tree.
+
 ### October16 — sea-only region handoff and raised spyglass source candidate
 
 The player rejects the installed visible sea→global-map→sea trip and asks to
