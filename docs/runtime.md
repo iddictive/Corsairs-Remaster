@@ -4,6 +4,26 @@ Last verified installed delivery: October16,19:01EDT, source `a5a0fae`, signed e
 
 ## Current verdict
 
+### October16 — light shore touch sinking reopened; source timer repair, installation forbidden
+
+The owner reports sinking after one light coast touch, then explicitly says to
+install nothing for now. Existing source reveals duplicate grounding timer chains:
+exit/re-entry before the old100–200ms callback leaves multiple callbacks observing
+Strand=true, each rescheduling and charging HP. Native sea-layer freeze also did
+not prevent those global callbacks taxing stale speed. The source successor binds
+both producers and the callback to a per-character generation, rejects stale
+chains, stops the grounding sound at exit and skips HP while native motion is
+frozen. Actual active damage/perks/Phonk budget remain unchanged. Normal SAVE load
+clears the event queue, so no old one-argument pending callback requires migration.
+Live replacement of a running VM's old queue is not supported.
+
+Disposition: source-only repair; no build, staging, runtime copy, game control or
+gameplay test. Installed app remains the19:01EDT `a5a0fae` image below. The report
+does not yet distinguish HP death from physical descent; the specific immediate
+sinking, raw-forward-speed grounding damage and structural/ingress alternatives
+remain unresolved. Root owns continuation after the player's HP clarification;
+installation remains held until the owner changes that instruction.
+
 ### October16,19:01EDT — player stall/crash successor installed; manual replay pending
 
 The player reports no visible holes from laser fire, then a severe stall after

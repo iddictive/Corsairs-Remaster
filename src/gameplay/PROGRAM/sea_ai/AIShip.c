@@ -4143,23 +4143,24 @@ void Ship_CheckMainCharacter()
 void Ship_OnStrandNext()
 {
 	ref	rCharacter = GetCharacter(GetEventData());
+	int generation = GetEventData();
+	int currentGeneration = 0;
+	if (CheckAttribute(rCharacter, "Ship.Strand.Generation")) currentGeneration = sti(rCharacter.Ship.Strand.Generation);
+	if (generation != currentGeneration) return;
 	if (LAi_IsDead(rCharacter)) { return; }
 
 	bool bOnStrand = sti(rCharacter.Ship.Strand);
-	if (!bOnStrand) 
-	{ 
-		int iSoundID = sti(rCharacter.Ship.Strand.SndID);
-		if (iSoundID != 0) { StopSound(sti(rCharacter.Ship.Strand.SndID), 3000); }
-		rCharacter.Ship.Strand.SndID = SOUND_INVALID_ID;
-		return; 
-	}
-	if (!CheckAttribute(rCharacter, "AlwaysSandbankManeuver"))  //boal
+	if (!bOnStrand) return;
+	// Global timers keep running when native sea layers are frozen. Keep one
+	// chain alive for resume, but do not charge its stale speed in those states.
+	if (bSeaActive && IsEntity(&Sea) && !bSeaReloadStarted && !bAbordageStarted && !sti(InterfaceStates.Launched) &&
+		fHighPrecisionDeltaTime > 0.0 && !CheckAttribute(rCharacter, "AlwaysSandbankManeuver"))
 	{
 		float fCurrentSpeedZ = stf(rCharacter.Ship.Speed.z);
 		float fHP = 4.0 * fCurrentSpeedZ / 7.0;
 		Ship_ApplyCollisionHitpoints(rCharacter, fHP, KILL_BY_ISLAND, -1);
 	}
-	PostEvent(SHIP_TO_STRAND_NEXT, 100 + rand(100), "l", sti(rCharacter.index));
+	PostEvent(SHIP_TO_STRAND_NEXT, 100 + rand(100), "ll", sti(rCharacter.index), generation);
 }
 
 void Ship_OnStrand()
@@ -4168,8 +4169,13 @@ void Ship_OnStrand()
 	bool bNewStrand = GetEventData();
 	
 	bool bPrevStrand = sti(rCharacter.Ship.Strand);
+	if (bPrevStrand == bNewStrand) return;
 
 	rCharacter.Ship.Strand = bNewStrand;
+	int generation = 0;
+	if (CheckAttribute(rCharacter, "Ship.Strand.Generation")) generation = sti(rCharacter.Ship.Strand.Generation);
+	generation++;
+	rCharacter.Ship.Strand.Generation = generation;
 
 	float x = stf(rCharacter.Ship.Pos.x);
 	float y = stf(rCharacter.Ship.Pos.y);
@@ -4177,8 +4183,14 @@ void Ship_OnStrand()
 
 	if (bPrevStrand == 0 && bNewStrand == 1)
 	{
-		PostEvent(SHIP_TO_STRAND_NEXT, 100, "l", sti(rCharacter.index));
+		PostEvent(SHIP_TO_STRAND_NEXT, 100, "ll", sti(rCharacter.index), generation);
 		rCharacter.Ship.Strand.SndID = Play3DSoundComplex("ship_aground", x, y, z, true, false);
+	}
+	else
+	{
+		int iSoundID = sti(rCharacter.Ship.Strand.SndID);
+		if (iSoundID != 0) { StopSound(iSoundID, 3000); }
+		rCharacter.Ship.Strand.SndID = SOUND_INVALID_ID;
 	}
 }
 

@@ -2,9 +2,12 @@
 
 ## Status
 
-October16 source candidate. Source-bound CPU sanitizer checks and native compiler
-syntax pass; canonical build/staging and the installed player scene are unresolved.
-The installed engine remains the last verified image recorded in `runtime.md`.
+The installed physics batch is identified by `runtime.md`; the player still
+reports sinking after a light coast touch. The source successor repairs duplicate
+grounding-damage timers and damage while native sea motion is frozen. It is not
+built, installed or gameplay-tested: the owner explicitly forbids installation
+for now and will test personally. This identifies real damage-path defects, not
+the proven cause of that particular sinking.
 
 ## Contract
 
@@ -44,6 +47,39 @@ Simultaneous coplanar contour hits share their resultant point. Contact time is
 refined on the rotating vertex arc rather than its endpoint chord. Four response
 iterations have a conservative stop for an unresolved remainder; there is no
 1024-step position/yaw separation loop and no legacy radial strength queue.
+
+## Grounding damage timer lifecycle
+
+Native `SHIP::CheckShip2Strand` emits every actual grounding state edge.
+`AIShip.c::Ship_OnStrand` owns one per-character `Ship.Strand.Generation`:
+entry/exit advances it, both `SHIP_TO_STRAND_NEXT` producers carry it, and
+`Ship_OnStrandNext` rejects an obsolete generation before damage or rescheduling.
+Exit stops the looping grounding sound directly; a rejected old callback is not
+responsible for cleanup. Repeated notification of the same state starts no chain.
+Menu, boarding, scene reload, absent sea and scaled pause suppress damage while
+the current chain remains scheduled for resume. Active damage, perks, the
+AlwaysSandbankManeuver exemption and Phonk's final contact budget stay unchanged.
+
+The source counterexample is entry at0ms (callback due100ms), exit at50ms and
+re-entry at70ms (another callback due170ms). Previously both callbacks saw the
+current grounded flag and each recursively rescheduled; every quick re-entry
+could add another permanent damage chain. The generation check retires the old
+100ms callback, leaving only the new grounding episode. Different characters
+keep independent generations. This conclusion follows the actual producers and
+`COMPILER::AddPostEvent`, which appends without deduplication; no replay was run.
+
+Normal game loading clears posted events before loading VM state; compiler
+serialization does not save that queue. Old single-argument queued callbacks
+therefore do not survive normal activation. Missing saved generation attributes
+start from0 and need no migration. Replacing scripts inside a running VM with
+an old pending one-argument queue is not supported by this change.
+
+The remaining timer formula uses raw forward `Ship.Speed.z` at100–200ms intervals.
+It is not a measurement of dissipated contact work; fast tangential grounding
+can still produce large active damage outside the player's active-Phonk budget.
+The native finite-cut structural/flooding paths are separate death mechanisms.
+The current report does not distinguish HP death from a hull sinking pose, so
+the exact instant-sinking path remains unresolved.
 
 ## Evidence and rejected approaches
 
