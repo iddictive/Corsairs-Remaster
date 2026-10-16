@@ -79,6 +79,7 @@ int ShipFlagsQuantity = -1;
 
 void InitBattleInterface()
 {
+    SeaPhonk_InitControls();
     if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.hk_charge5"))
     {
         CI_CreateAndSetControls("Sailing3Pers", "hk_charge5", CI_GetKeyCode("KEY_5"), 0, true);
@@ -1409,6 +1410,25 @@ ref GetCurrentCharge()
 			BattleInterface.textinfo.Powder.text = XI_convertString("Powder") + ": " + sti(pchar.ship.cargo.goods.powder);
 		break;
 		// korsar328: <----
+		}
+	}
+
+	if (SeaPhonk_IsActive())
+	{
+		BattleInterface.textinfo.Powder.text = "";
+		if (CheckAttribute(&Sea, "Phonk.Weapon") && sti(Sea.Phonk.Weapon) == 7)
+		{
+			BI_intNRetValue[0] = -7;
+			BattleInterface.textinfo.Ammo.text = "7: Ядерная ракета";
+			if (CheckAttribute(&Sea, "Phonk.NuclearReload"))
+				BattleInterface.textinfo.Powder.text = "Перезарядка: " + FloatToString(stf(Sea.Phonk.NuclearReload), 1) + " с";
+		}
+		else
+		{
+			BI_intNRetValue[0] = -6;
+			BattleInterface.textinfo.Ammo.text = "6: Лазер";
+			if (CheckAttribute(&Sea, "Phonk.LaserCharge"))
+				BattleInterface.textinfo.Powder.text = "Заряд: " + makeint(stf(Sea.Phonk.LaserCharge) * 100.0 + 0.5) + "%";
 		}
 	}
 

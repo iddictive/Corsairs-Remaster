@@ -1440,6 +1440,10 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     pVD->Get(curWindPic, 2);
     pVD->Get(curPowder, 3);
     pVD->Get(isPowderRunOut, 4);
+    // Script uses the selected Phonk weapon as a negative icon sentinel. Its
+    // name and real charge/reload use the existing Ammo/Powder text rows.
+    const bool phonkWeapon = curCharge == -6 || curCharge == -7;
+    if (phonkWeapon) curPowder = -1;
     m_bPowderRunOut = isPowderRunOut;
     if (curCharge == m_curCharge && curSailState == m_curSailState && curWindPic == m_curWindPic &&
         curPowder == m_curPowder)
@@ -1448,20 +1452,20 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     m_curSailState = curSailState;
     m_curWindPic = curWindPic;
     m_curPowder = curPowder;
-    if (m_curCharge < 0)
+    if (m_curCharge < 0 && !phonkWeapon)
         m_curCharge = 0;
     if (m_curSailState < 0)
         m_curSailState = 0;
     if (m_curWindPic < 0)
         m_curWindPic = 0;
-    if (m_curPowder < 0)
+    if (m_curPowder < 0 && !phonkWeapon)
         m_curPowder = 0;
 
     auto *pV = static_cast<BI_ONETEXTURE_VERTEX *>(rs->LockVertexBuffer(m_idCurChargeVBuf));
     if (pV != nullptr)
     {
         FRECT texRect;
-        CalculateTextureRect(texRect, m_curCharge, m_ChargeGreed.x, m_ChargeGreed.y);
+        CalculateTextureRect(texRect, std::max(0, m_curCharge), m_ChargeGreed.x, m_ChargeGreed.y);
         pV[0].tu = texRect.left;
         pV[0].tv = texRect.top;
         pV[1].tu = texRect.left;
@@ -1491,7 +1495,7 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
         pV[11].tu = texRect.right;
         pV[11].tv = texRect.bottom;
 
-        CalculateTextureRect(texRect, m_curPowder, m_PowderGreed.x, m_PowderGreed.y);
+        CalculateTextureRect(texRect, std::max(0, m_curPowder), m_PowderGreed.x, m_PowderGreed.y);
         pV[12].tu = texRect.left;
         pV[12].tv = texRect.top;
         pV[13].tu = texRect.left;

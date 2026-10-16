@@ -4,6 +4,49 @@ Last verified delivery: October16. The numbered Phonk ordnance, world geometry c
 
 ## Current verdict
 
+### October16 — world destruction and old-control correction; delivery pending
+
+Actual CORE/MODELR/ISLAND reproduces the player's unchanged-island result:
+Antigua's seabed and fort reject a220m blast, rolling back every receiver.
+The world-only correction uses local triangle-column/prism sections and pinned
+Clipper2 winding normalization, preserving authored outer/PN surfaces. Both
+complete Antigua/Cumana native transactions now pass: the downward ray reaches
+y=-220, a previously hittable fort has an authoritative empty collision/draw
+owner, laser-after-blast commits, and clear/rebind plus invalid-input rollback
+pass. A first diagnostic bootstrap omitted Render; it is corrected privately.
+The fixture also now mirrors Mount's seabed unlink rather than double-mounting it.
+
+A full native readback exposes a separate cap material defect: tiled atlas UVs
+and full-white vertices make a pale grid. Separate cap-only base-texture batches
+now preserve source UV density/multiplier and leave outer materials untouched;
+component union/unchanged/rollback checks and canonical build pass. Final native
+frame/Trace acceptance and canonical stage are pending for this exact successor.
+
+The next complete frame still stripes where independently clean shore and seabed
+caps overlap. Actual Antigua geometry measures194446m² duplicate cap coverage;
+its crater floor is exactly coplanar in both receivers. Scene-level cap union
+now retains secondary-only coverage instead of hiding all seabed walls or adding
+depth bias. Reflection caps remain independent. Sixteen complete/PN roles and
+rotated/scaled coverage now pass ASan/UBSan. A legitimate122-micrometre strip
+exposes earcut's invalid diagonal; the pinned integer triangulator fallback uses
+its source-defined one-grid-unit boundary repair, with the original strict
+earcut oracle preserved. Canonical native build and both integrated CORE/Metal
+frames now pass: Antigua/Cumana forts disappear, crater walls retain base
+materials without duplicate bands, Trace reaches the220m floor, laser-after-
+blast and clear/rebind/invalid-input cases pass. Evidence is private
+`world-cut-integration/coverage-*`; source fingerprint is
+`40c418e19b744d0e704379c6008865a8ab89e039e443ccc32c46593a8cbe3807`.
+This is a hidden fixture with real engine services, not a player scene or SAVE
+replay. Canonical delivery of this exact batch is next.
+
+Old saved control maps have no6/7 actions. Actual VM/native controls retain user
+remaps through reconciliation after LoadGameOptions and battle-interface setup.
+The existing HUD now reads the selected weapon and native charge/reload; native
+negative sentinels suppress cannon/powder sprites only for6/7. Script positive/
+OFF/ordinary cases pass;126 native HUD rows retain ordinary output bit-for-bit.
+No app launch/control or player SAVE load occurs. The installed image remains
+the rejected eac7 batch until the next successful canonical stage.
+
 ### October16 — world cuts, numbered ordnance and crew installed; player rejects switching
 
 Canonical `run.sh --stage-only` installs the signed engine and source fingerprint

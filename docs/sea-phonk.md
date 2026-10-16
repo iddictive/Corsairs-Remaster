@@ -5,7 +5,12 @@
 While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped
 `Phonk_Laser`/`Phonk_Nuclear` controls and publishes the selection in
 `Sea.Phonk.Weapon` (6/7). Script initialization and mode entry register these
-controls for the three sea groups. Entry defaults to6; laser charge remains
+controls for the three sea groups. Ordinary load restores settings first, then
+reconciles these names; battle-interface initialization repeats the idempotent
+reconciliation, preserving user remaps. The existing Ammo/Powder rows show the
+selected6/7 weapon and native `LaserCharge`/`NuclearReload`; their -6/-7 icon
+sentinels suppress ordinary ammunition/powder sprites without changing ordinary
+negative-icon behavior, sail or wind icons. Entry defaults to6; laser charge remains
 the existing native owner. Nuclear targeting uses actual water, ship and world
 receiver traces within6000m of the firing ship, and the draped footprint uses
 that same unfiltered target and220m radius. Missiles travel on a bounded arc,
@@ -15,21 +20,58 @@ advance no launch, flight or damage; launched missiles continue after mode exit.
 `ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models.
 Halfspaces and deterministic26-plane crater volumes rebuild one retained mesh
 for drawing, tracing and clipping. Active PN terrain is the input when present;
-material/UV data and unaffected components remain intact. Open terrain receives
-a basement and skirts; affected open architecture receives a bounded inward
-shell. Validated finite cuts commit only after all receivers accept; rejection
+material/UV data and unaffected components remain intact. A world-only material
+classifier covers shipped ground families independently from PN subdivision
+admission. Terrain is a union of downward triangle columns; open architecture
+uses bounded inward prisms and closed components retain their authored volume.
+Local cutter-face sections are normalized by pinned Clipper2 2.0.1 and the
+existing triangulator; global projected basement contours are not a valid
+solidification for the self-overlapping shores. Fully removed receivers retain
+an authoritative empty draw/collision owner. Validated finite cuts commit only
+after all receivers accept; rejection
 restores the prior projection. Counts and geometry budgets are bounded; a
 rejected cut must leave the previous solid intact. Fort cannon reconciliation
 uses the existing cannon damage and assault owners. Nuclear ship impacts reuse
 hull cuts, flooding and script-owned death/HP, avoiding a second partial-HP cost.
+The private geometry dependency is unmodified upstream Clipper2 at commit
+`21ebba05db8894f0c7217ad35ea518080f324946`, licensed BSL-1.0; its engine/triangulator,
+transitive headers and license live under `geometry/third_party/clipper2`.
 
-Actual-asset CPU sanitizer probes cover terrain, fort, town, overlapping cuts,
-unchanged geometry and rollback. The actual Metal explosion helper passes
-shader/pipeline, visibility and foreground-depth checks. Canonical build/stage
-pass, but the player reports6/7 do not switch and islands remain uncut. The HUD
-has no weapon selection consumer yet. Integrated control, receiver binding,
-save/rebind, visible explosion and battle acceptance remain unresolved; the
-current delivery and investigation verdict belongs to `runtime.md`.
+New cavity faces have separate draw batches. Their material copies reuse base
+texture0, source-derived UV density and vertex multiplier; stage1 island masks
+never tile across a cavity wall. Outer surfaces keep their complete authored
+material and UV channels. Collision retains the exact union of outer/cap meshes;
+both uploads must succeed before either projection replaces the previous state.
+This fixes a native frame whose old `.12` UVs, tiled mask and full-white vertices
+produced a dense pale grid despite correct physical cutting.
+
+Cap coverage is also a scene responsibility: overlapping shore/seabed receivers
+must not draw the same cutter face twice. Immutable raw patches are keyed by
+persistent cut index and canonical face. ISLAND resolves their union in authored
+world coordinates, preferring shore then uncovered seabed/fort areas, only during
+cut/rebind. Reflection models have an independent coverage group because they
+render in a separate pass. Derived sphere axes preserve canonical face identity
+through rotated/uniformly scaled nodes; neither axes nor coverage add SAVE fields.
+Coverage replacement and collision rebuild must both succeed before commit.
+Difference polygons use the existing earcut path first. Its invalid skinny-strip
+diagonal on Antigua requires the pinned integer triangulator as a bounded
+fallback, with Delaunay flips disabled. Its boundary check honors the kernel's
+source-defined one-unit repair on the declared million-units-per-metre grid;
+ordinary cap validation stays exact. Area, holes and secondary-only coverage
+remain mandatory. Sixteen complete/PN roles and transformed coverage pass
+ASan/UBSan; the scene frame and installed delivery have separate acceptance.
+
+The first delivery is rejected by the player's6/7 and unchanged-island replay.
+Actual CORE/MODELR/ISLAND reproduction confirms Antigua's seabed and fort reject
+one220m blast and roll back the complete transaction. The original component
+tests missed whole-model/child-node topology and cannot accept that delivery.
+The corrected local-field path passes16 complete Antigua/Cumana role cases,
+including actual PN input, shell apertures, unchanged triangles and strict cap
+coverage/area checks under ASan/UBSan. Native VM verifies the new load/bootstrap
+and HUD against old/remapped controls and ordinary/OFF cases. The actual Metal
+explosion helper separately passes shader/pipeline and foreground-depth checks.
+Integrated correction delivery and accepting player replay remain governed by
+`runtime.md`; component success alone does not close those gates.
 
 ## October16 — airborne coast contact and beached support
 

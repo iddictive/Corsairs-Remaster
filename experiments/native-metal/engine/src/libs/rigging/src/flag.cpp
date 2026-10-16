@@ -5,6 +5,8 @@
 #include "math_inlines.h"
 #include "shared/sail_msg.h"
 #include "ship_base.h"
+#include "island_base.h"
+#include "shared/messages.h"
 #include "string_compare.hpp"
 #include "v_file_service.h"
 #include "weather_base.h"
@@ -294,6 +296,24 @@ uint64_t FLAG::ProcessMessage(MESSAGE &message)
     case MSG_FLAG_DEL_GROUP:
         GroupSTORM_DELETE(message.EntityID());
         break;
+
+    case MSG_FLAG_WORLD_SUPPORT: {
+        auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(message.EntityID()));
+        if (!island) break;
+        for (int n = 0; n < flagQuantity; ++n)
+        {
+            auto *flag = flist[n];
+            if (!flag || flag->bDeleted || !flag->pMatWorld || flag->HostGroup < 0 ||
+                flag->HostGroup >= groupQuantity || gdata[flag->HostGroup].isShip) continue;
+            if (!island->IsWorldPositionRetained(gdata[flag->HostGroup].model_id,
+                                               *flag->pMatWorld * flag->spos))
+            {
+                flag->bDeleted = true;
+                bYesDeleted = true;
+            }
+        }
+        break;
+    }
 
     case MSG_FLAG_TO_NEWHOST: // format "lili" (msg_code,oldmodel_id,groupNum,newmodel_id)
     {

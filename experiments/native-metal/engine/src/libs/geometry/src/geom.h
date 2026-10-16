@@ -99,7 +99,9 @@ class GEOM : public GEOS
     bool RebuildLaserSurface(bool upload=true);
     void RebuildLaserCollision();
     storm_ship_laser::Mesh worldOriginal,worldSurface;
-    std::map<int,std::vector<HullDraw>>worldDraws;
+    storm_ship_laser::Mesh worldRawOuter;
+    std::vector<storm_world_cut::CapPatch>worldRawCaps;
+    std::map<int,std::vector<HullDraw>>worldDraws,worldCapDraws;
     std::set<int>worldTerrainObjects;
     std::vector<storm_world_cut::Cut>worldCuts;
     uint64_t worldOwner=0;
@@ -160,6 +162,7 @@ class GEOM : public GEOS
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
+    bool ResolveWorldCapCoverage(uint64_t owner,const std::vector<storm_world_cut::CapTriangle>&localEarlier,std::vector<storm_world_cut::CapTriangle>&localAccepted) override;
     bool HasWorldCuts() const override { return worldOwner!=0; }
     void ClearWorldCuts(uint64_t owner) override;
 #endif

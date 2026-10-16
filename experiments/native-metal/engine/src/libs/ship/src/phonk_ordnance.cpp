@@ -163,6 +163,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             break;
         }
     state.triggerHeld = fire;
+    attributes->SetAttributeUseFloat("NuclearReload", state.reload);
 }
 
 void SHIP::DrawPhonkOrdnance()

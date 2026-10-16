@@ -850,6 +850,7 @@ void OnLoad()
 	ReloadProgressUpdate();
 	
 	LoadGameOptions();
+	SeaPhonk_InitControls();
 
 	ReloadProgressEnd();
 

@@ -15,6 +15,7 @@ Import library main header
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include <vector>
 #include "ship_hull_damage_bridge.hpp"
+#include "world_cut_coverage.hpp"
 namespace storm_ship_hull {struct Impact;}
 namespace storm_ship_laser {struct Plane;struct Result;}
 namespace storm_world_cut {struct Cut;}
@@ -105,6 +106,7 @@ class GEOS
     virtual void ReleaseLaserFragment(uint64_t owner,uint64_t fragment)=0;
     virtual void ClearLaserCuts(uint64_t owner)=0;
     virtual bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false)=0;
+    virtual bool ResolveWorldCapCoverage(uint64_t owner,const std::vector<storm_world_cut::CapTriangle>&localEarlier,std::vector<storm_world_cut::CapTriangle>&localAccepted)=0;
     virtual bool HasWorldCuts() const { return false; }
     virtual void ClearWorldCuts(uint64_t owner)=0;
 #endif

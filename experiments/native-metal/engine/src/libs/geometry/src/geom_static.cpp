@@ -421,7 +421,7 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
         const int texture=rmat[m].texture[0];if(texture<0||texture>=rhead.ntextures)continue;
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
         const std::string_view textureName=&globname[tname[texture]];
-        if(island_geometry::refinableTerrainTexture(textureName)||island_geometry::textureStem(textureName)=="beach")worldTerrainObjects.insert(o);
+        if(storm_world_cut::terrainTextureStem(island_geometry::textureStem(textureName)))worldTerrainObjects.insert(o);
 #endif
         const float thickness=storm_ship_wood::thickness(fname?fname:"",&globname[tname[texture]]);if(thickness>0)laserWoodThickness.emplace(o,thickness);}
 #endif
@@ -434,6 +434,7 @@ GEOM::~GEOM()
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     ReleaseHullDraws(hullDraws);
     ReleaseHullDraws(worldDraws);
+    ReleaseHullDraws(worldCapDraws);
     ReleaseLaserFragments();
 #endif
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
@@ -517,6 +518,11 @@ void GEOM::Draw(const PLANE *pl, int32_t np, MATERIAL_FUNC mtf) const
         const auto worldDamaged=worldDraws.find(o);
         if(worldDamaged!=worldDraws.end()){
             for(const auto&draw:worldDamaged->second){srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);}
+            const auto caps=worldCapDraws.find(o);if(caps!=worldCapDraws.end()){
+                auto capMaterial=material[object[o].material];capMaterial.texture_type[1]=TEXTURE_NONE;capMaterial.texture[1]=-1;
+                srv.SetMaterial(capMaterial);if(mtf!=nullptr)mtf(capMaterial);
+                for(const auto&draw:caps->second){srv.SetIndexBuffer(draw.ib);srv.SetVertexBuffer(draw.stride,draw.vb);srv.DrawIndexedPrimitive(0,draw.vertices,draw.stride,0,draw.triangles);}
+            }
             srv.SetIndexBuffer(idx_buff);continue;
         }
         const auto damaged=hullDraws.find(o);
@@ -734,27 +740,44 @@ bool GEOM::SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&c
     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f,rhead.bbox_size.z*.5f+16};
     storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};if(terrainModel)nodeBounds.lo.y-=10032.f;
     if(!storm_world_cut::affects(nodeBounds,cuts)){ClearWorldCuts(owner);return true;}
-    if(worldOwner==owner&&worldTerrainModel==terrainModel&&cuts.size()==worldCuts.size()&&std::equal(cuts.begin(),cuts.end(),worldCuts.begin(),storm_world_cut::equal))return true;
+    if(worldOwner==owner&&worldTerrainModel==terrainModel&&cuts.size()==worldCuts.size()&&std::equal(cuts.begin(),cuts.end(),worldCuts.begin(),[](const auto&a,const auto&b){return a.field==b.field&&storm_world_cut::equal(a,b);}))return true;
     if(!CaptureWorldSurface(terrainModel))return false;
-    storm_ship_laser::Mesh solid,untouched,retained;
-    if(!storm_world_cut::prepare(worldOriginal,terrainModel?worldTerrainObjects:std::set<int>{},cuts,solid,untouched))return false;
-    if(!storm_world_cut::triangleCount(solid)){ClearWorldCuts(owner);return true;}
-    if(!storm_world_cut::reconstruct(solid,cuts,retained))return false;
-    storm_ship_laser::appendMesh(retained,untouched);if(!storm_world_cut::finite(retained))return false;
+    storm_ship_laser::Mesh retained,outer,caps;std::vector<storm_world_cut::CapPatch>patches;
+    if(!storm_world_cut::reconstructWorld(worldOriginal,terrainModel?worldTerrainObjects:std::set<int>{},cuts,retained,&outer,&caps,&patches))return false;
     // Prepare every CPU/GPU projection before replacing the previous accepted
     // surface. Allocation/contour/budget failure preserves that entire state.
     std::vector<storm_ship_hull::Bounds>boxes;std::vector<std::pair<int,uint32_t>>references;
     boxes.reserve(storm_world_cut::triangleCount(retained));references.reserve(boxes.capacity());
     for(const auto&o:retained)for(size_t n=0;n<o.second.size();++n){const auto&t=o.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);references.emplace_back(o.first,uint32_t(n));}
     storm_ship_hull::Broadphase broadphase;broadphase.build(boxes);
-    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(retained,replacement))return false;
-    ReleaseHullDraws(worldDraws);worldDraws=std::move(replacement);worldSurface=std::move(retained);worldOwner=owner;worldCuts=cuts;
+    std::map<int,std::vector<HullDraw>>replacement,capReplacement;if(!UploadLaserMesh(outer,replacement))return false;
+    if(!UploadLaserMesh(caps,capReplacement)){ReleaseHullDraws(replacement);return false;}
+    ReleaseHullDraws(worldDraws);ReleaseHullDraws(worldCapDraws);worldDraws=std::move(replacement);worldCapDraws=std::move(capReplacement);worldSurface=std::move(retained);worldOwner=owner;worldCuts=cuts;
+    worldRawOuter=std::move(outer);worldRawCaps=std::move(patches);
     laserBroadphase=std::move(broadphase);laserCollisionTriangles=std::move(references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;return true;
+}
+bool GEOM::ResolveWorldCapCoverage(uint64_t owner,const std::vector<storm_world_cut::CapTriangle>&localEarlier,std::vector<storm_world_cut::CapTriangle>&localAccepted)
+{
+    if(!worldOwner){localAccepted.clear();return true;}
+    if(worldOwner!=owner)return false;
+    if(worldRawCaps.empty()){localAccepted.clear();return true;}
+    storm_ship_laser::Mesh caps;std::vector<storm_world_cut::CapTriangle>accepted;
+    if(!storm_world_cut::resolveCapCoverage(worldRawCaps,localEarlier,caps,accepted))return false;
+    auto retained=worldRawOuter;storm_ship_laser::appendMesh(retained,caps);if(!storm_world_cut::finite(retained))return false;
+    std::vector<storm_ship_hull::Bounds>boxes;std::vector<std::pair<int,uint32_t>>references;
+    boxes.reserve(storm_world_cut::triangleCount(retained));references.reserve(boxes.capacity());
+    for(const auto&o:retained)for(size_t n=0;n<o.second.size();++n){const auto&t=o.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);references.emplace_back(o.first,uint32_t(n));}
+    storm_ship_hull::Broadphase broadphase;broadphase.build(boxes);std::map<int,std::vector<HullDraw>>replacement;
+    if(!UploadLaserMesh(caps,replacement))return false;
+    ReleaseHullDraws(worldCapDraws);worldCapDraws=std::move(replacement);worldSurface=std::move(retained);
+    laserBroadphase=std::move(broadphase);laserCollisionTriangles=std::move(references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
+    localAccepted=std::move(accepted);return true;
 }
 void GEOM::ClearWorldCuts(uint64_t owner)
 {
     if(!worldOwner||worldOwner!=owner)return;
-    ReleaseHullDraws(worldDraws);worldSurface.clear();worldCuts.clear();worldOwner=0;
+    ReleaseHullDraws(worldDraws);ReleaseHullDraws(worldCapDraws);worldSurface.clear();worldCuts.clear();worldOwner=0;
+    worldRawOuter.clear();worldRawCaps.clear();
     laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserCollisionTriangles.clear();laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
 }
 #endif

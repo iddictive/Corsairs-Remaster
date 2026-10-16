@@ -47,7 +47,14 @@ bool nodeCut(const storm_world_cut::Cut &world, const CMatrix &matrix, storm_wor
         const CVECTOR delta = CVECTOR(world.center.x, world.center.y, world.center.z) - matrix.Pos();
         local.center = {(delta | matrix.Vx()) / scale2, (delta | matrix.Vy()) / scale2,
                         (delta | matrix.Vz()) / scale2};
-        local.radius = world.radius / std::sqrt(scale2);
+        const float scale = std::sqrt(scale2);
+        local.radius = world.radius / scale;
+        for (unsigned n = 0; n < local.axes.size(); ++n)
+        {
+            const CVECTOR axis(world.axes[n].x, world.axes[n].y, world.axes[n].z);
+            local.axes[n] = {(axis | matrix.Vx()) / scale, (axis | matrix.Vy()) / scale,
+                             (axis | matrix.Vz()) / scale};
+        }
     }
     return storm_world_cut::valid(local);
 }
@@ -61,9 +68,11 @@ std::vector<entid_t> ISLAND::WorldModels() const
         if (id && dynamic_cast<MODEL *>(core.GetEntityPointer(id)) &&
             std::find(result.begin(), result.end(), id) == result.end()) result.push_back(id);
     };
-    for (const auto id : core.GetEntityIds(ISLAND_TRACE)) add(id);
-    for (const auto id : aForts) add(id);
-    add(model_id); add(seabed_id); add(worldReflection);
+    // One visible cap owner: authored shore first, then uncovered seabed/forts.
+    add(model_id); add(seabed_id);
+    for (const auto id : core.GetEntityIds(ISLAND_TRACE)) if (id != worldReflection) add(id);
+    for (const auto id : aForts) if (id != worldReflection) add(id);
+    add(worldReflection);
     return result;
 }
 
@@ -79,14 +88,22 @@ std::string ISLAND::WorldModelKey(entid_t id) const
 bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force)
 {
     bool complete = true;
-    for (const auto id : WorldModels())
+    bool anyDirty = force;
+    const auto models = WorldModels();
+    for (const auto id : models)
     {
         auto *model = static_cast<MODEL *>(core.GetEntityPointer(id));
         const auto key = WorldModelKey(id);
         std::vector<storm_world_cut::Cut> selected;
-        for (const auto &record : records)
+        for (unsigned field = 0; field < records.size(); ++field)
+        {
+            const auto &record = records[field];
             if (record.scope == "*" || record.scope == key || (record.scope == "terrain" && key != "terrain"))
+            {
                 selected.push_back(record.cut);
+                selected.back().field = field;
+            }
+        }
         bool dirty = force;
         bool previouslyValid = true;
         for (int n = 0; auto *node = model->GetNode(n); ++n)
@@ -98,6 +115,7 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
             else previouslyValid = previouslyValid && found->valid;
         }
         if (!dirty) { complete = complete && previouslyValid; continue; }
+        anyDirty = true;
         const auto visible = model->mtx;
         // Records use the authored world, never the decorative distant-island dip.
         if (id == model_id) model->mtx = mIslandOld;
@@ -132,6 +150,59 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
         }
         model->mtx = visible;
         model->Update();
+    }
+    if (!complete || !anyDirty || records.empty()) return complete;
+
+    // Different GM receivers can reconstruct the same cutter face. Resolve the
+    // scene union only after a mutation/rebind, never during ordinary frames.
+    std::vector<storm_world_cut::CapTriangle> worldAccepted;
+    for (const auto id : models)
+    {
+        // Reflection geometry renders in its own pass and needs its own caps.
+        if (id == worldReflection) worldAccepted.clear();
+        auto *model = static_cast<MODEL *>(core.GetEntityPointer(id));
+        const auto visible = model->mtx;
+        if (id == model_id) model->mtx = mIslandOld;
+        if (id == seabed_id) model->mtx = mSeaBedOld;
+        model->Update();
+        bool valid = true;
+        for (int n = 0; auto *node = model->GetNode(n); ++n)
+        {
+            if (!node->geo) continue;
+            auto &matrix = node->glob_mtx;
+            const auto &x = matrix.Vx(); const auto &y = matrix.Vy(); const auto &z = matrix.Vz();
+            const CVECTOR yz(y.y * z.z - y.z * z.y, y.z * z.x - y.x * z.z, y.x * z.y - y.y * z.x);
+            const CVECTOR zx(z.y * x.z - z.z * x.y, z.z * x.x - z.x * x.z, z.x * x.y - z.y * x.x);
+            const CVECTOR xy(x.y * y.z - x.z * y.y, x.z * y.x - x.x * y.z, x.x * y.y - x.y * y.x);
+            const float determinant = x | yz;
+            valid = std::isfinite(determinant) && std::abs(determinant) > 1.e-8f;
+            auto localEarlier = worldAccepted;
+            if (valid) for (auto &triangle : localEarlier) for (auto &position : triangle.positions)
+            {
+                const CVECTOR delta = CVECTOR(position[0], position[1], position[2]) - matrix.Pos();
+                position = {(delta | yz) / determinant, (delta | zx) / determinant, (delta | xy) / determinant};
+            }
+            std::vector<storm_world_cut::CapTriangle> localAccepted;
+            if (valid) valid = node->geo->ResolveWorldCapCoverage(uint64_t(GetId()), localEarlier, localAccepted);
+            if (!valid)
+            {
+                const auto generation = node->geo->GeometryGeneration();
+                for (auto &binding : worldBindings)
+                    if (binding.model == id && binding.generation == generation) binding.valid = false;
+                core.Trace("World cap coverage rejected for model %llu node %s; restoring prior solid",
+                    uint64_t(id), node->GetName() ? node->GetName() : "");
+                break;
+            }
+            for (auto &triangle : localAccepted) for (auto &position : triangle.positions)
+            {
+                const CVECTOR world = matrix * CVECTOR(position[0], position[1], position[2]);
+                position = {world.x, world.y, world.z};
+            }
+            worldAccepted.insert(worldAccepted.end(), localAccepted.begin(), localAccepted.end());
+        }
+        model->mtx = visible;
+        model->Update();
+        if (!valid) return false;
     }
     return complete;
 }
