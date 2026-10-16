@@ -1889,13 +1889,14 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         float(GetHullContactStrength(point.z, plane.normal.z) / 75.0);
     auto *root = GetModel()->GetNode(0);
     GEOS::INFO info{}; root->geo->GetInfo(info);
+    const CVECTOR center(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
     const CVECTOR up = !(CVECTOR(0.f, 1.f, 0.f) - plane.normal * plane.normal.y);
     const CVECTOR along = !(up ^ plane.normal);
     float normalLow = std::numeric_limits<float>::infinity(), normalHigh = -normalLow;
     float verticalLow = normalLow, verticalHigh = normalHigh;
     for (unsigned corner = 0; corner < 8; ++corner)
     {
-        const auto p = root->loc_mtx * (info.boxcenter + CVECTOR(
+        const auto p = root->loc_mtx * (center + CVECTOR(
             (corner & 1 ? .5f : -.5f) * info.boxsize.x,
             (corner & 2 ? .5f : -.5f) * info.boxsize.y,
             (corner & 4 ? .5f : -.5f) * info.boxsize.z));

@@ -105,8 +105,8 @@ defence, doctors and the crew floor. Visible deaths scale to the live low-poly
 crew, carrying only a transient fractional remainder; a tiny hit cannot kill all
 nearby visible sailors. Positive actual loss can emit blood once from the nearest
 affected retained-deck sailor even without a whole visual death. Represented deaths
-already emit their blood and do not receive a duplicate wound burst. This latest
-source candidate has no tests, build or player replay by the owner's instruction.
+already emit their blood and do not receive a duplicate wound burst. Player
+appearance remains unverified; `runtime.md` records native delivery.
 
 The explicit follow-up adds abundant blood spray and blood coating the struck
 ship. Reuse `location/src/blood`'s real mesh projection and `blood.tga` in an

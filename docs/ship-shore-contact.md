@@ -34,7 +34,8 @@ does not prove nonpenetration.
   Supported land constrains Y without zeroing speed/yaw or returning before
   controls. The existing worsening-penetration rejection blocks inward travel;
   support is resampled at the accepted endpoint so reverse/turn-away can release
-  a partly grounded hull. This source successor is unbuilt and player-unverified.
+  a partly grounded hull. Player acceptance remains separate from installed
+  delivery in `runtime.md`.
 - `AIShip.c`'s shore collision event: HP/perks and accepted material fraction.
   Only inward point speed supplies `.5 * speed²` to the existing protected local
   fracture seam; tangential speed does not manufacture ram work.

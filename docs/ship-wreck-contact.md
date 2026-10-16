@@ -2,13 +2,14 @@
 
 ## Status
 
-The latest source-only successor removes the12%-of-depth ceiling on ram material
+The latest combat successor removes the12%-of-depth ceiling on ram material
 loss. Sufficient admitted work sweeps a finite vertical crush corridor through
 the hull; ordinary impacts retain local pockets and topology owns detachment.
 Wrecks now retain contact velocity/yaw in existing saved native state and coast
 with passive drag, rejecting worsening terrain penetration. Death anchors follow
 that motion without changing sinking. Old saved dormant wreck velocities become
-physical drift. No tests, compilation, staging or player replay accept this delta.
+physical drift. Native delivery belongs to `runtime.md`; player replay has not
+accepted this delta.
 
 Player acceptance of the installed finite-cutter integration is reopened: intact
 rammed hulls rotate without visible fracture. A source-bound native CORE contrast

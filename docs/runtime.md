@@ -1,8 +1,31 @@
 # Runtime state
 
-Last verified installed delivery: October16,20:33UTC, source `23ac5eba107a3f5476f188d3e96c0a5b7dba7801`, signed engine `147e4d1f2302e249440e5c00a969132566912eb6748c1f6ef89072f66eabbf81` in the supported app. Canonical rollback staging exits0, restores ordinary town transitions and retains the earlier sea city. All254 protected files and239 managed receipt rows verify; no agent player launch or SAVE load occurred. Shore/rowboat travel is frozen at `codex/frozen-shore-travel` (`6dc08e7`). The player's subsequent current-engine replay rejects shore recovery and laser targeting/cutting/performance; the controlled component holes do not accept that gameplay. GitHub hosts engine/gameplay source and complete rebuild inputs; normal restore/upgrade and the full public ZIP producer pass. The verified10873247949-byte ZIP awaits replacement of the existing Drive download through a large-file route. `TASKS.md` owns the current handoff; earlier entries are historical.
+Last verified installed delivery: October16,18:34EDT, combat batch `bf106f2` plus the explicit native-vector conversion integrated in this delivery checkpoint. Signed engine `1ce61b820ca779d808a25a90ffcbe443e85c2305c42a38db7dfa9be687af6454` is in the supported app. Canonical staging exits0; all249 currently protected files and239 managed receipt rows verify. No agent player launch or SAVE load occurred. Player acceptance of cutting, shore recovery, ram/gore and FPS remains pending; abrupt tiny-salvo sinking is not localized. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. The published ZIP/local Drive copy remains the prior23ac5eb batch; this installation creates no new archive or remote publication. `TASKS.md` owns the current handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16,18:34EDT — combat repair installed; player will test
+
+The owner explicitly requested installation after stopping source work. Canonical
+`experiments/native-metal/run.sh --stage-only` exits0 and delivers the native
+combat changes together with `PROGRAM/sea_ai/AIShip.c`. The first build found
+`GEOS::INFO::boxcenter` is a `VERTEX`, not a `CVECTOR`; an explicit conversion
+repairs ram-bound projection without changing its behavior. The retry compiles,
+stages, signs and verifies the installed app. No extra gameplay tests, game launch
+or player SAVE load occur; mandatory build/staging guards run in the normal path.
+
+Native input fingerprint:
+`3c9feddfc00f1581f394407c3706d6b045ad9c0645c7105a5ed93b4d82f96d8d`.
+Unsigned engine:
+`50c1780f901de3ce2c3d9e78c63c0edd1d7e14550b6ec2d779fc26f3b9292bb9`.
+Signed installed engine:
+`1ce61b820ca779d808a25a90ffcbe443e85c2305c42a38db7dfa9be687af6454`.
+All249 baseline SAVE/userdata/configuration files retain their hashes and all239
+installed receipt rows match. Game process count is0 at handoff. First failure,
+successful stage output and preservation/result receipts remain under
+`.local-archives/installed-delivery/bf106f2-20261016/`.
+Disposition: installed; gameplay appearance, physics and FPS await the owner's
+manual replay. Tiny-salvo sudden sinking remains unresolved.
 
 ### October16 — source-only combat repair; tests explicitly declined
 
