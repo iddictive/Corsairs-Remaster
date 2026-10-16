@@ -26,8 +26,8 @@ of scope. New native source requires the shared canonical build/stage batch.
 The finite CPU candidate contains the native waterfront core, its underwater
 child and32 pedestrian routes on the original1165-triangle navigation patch.
 No background houses, streets or foundations are emitted. Its14 prepared
-resources total44,154,647 bytes. This is construction evidence;
-native scene appearance and population behavior are still unaccepted.
+resources total44,154,647 bytes. Private native appearance and population
+checks pass; installed activation and player replay remain pending.
 The city resources and activation script are not installed.
 
 Reuse Storm's existing `geometry` labels and MODEL child transforms. Retain the
@@ -158,8 +158,8 @@ ship-to-town NPC combat.
 
 ## Unresolved
 
-Candidate construction and private native geometry/navigation/movement checks
-pass. Native fixed-engine lifecycle and installed delivery are pending.
+Candidate construction and private native geometry/navigation/movement/lifecycle
+checks pass. Installed delivery and player replay remain pending.
 The labels-v3 run resolved54 geometry nodes, preserved all4160 fort triangles,
 and passed first-generation movement, animation, zero-delta and land guards.
 Its reactivated population retirement assertion failed. The later dispersed-v6
@@ -182,7 +182,19 @@ uncached updates and other-class isolation. Source/consumer/upstream evidence li
 [`entity-cache-repair-20261016.json`](evidence/puerto-rico-city/entity-cache-repair-20261016.json);
 the original counterexample remains in
 [`entity-cache-20261016.json`](evidence/puerto-rico-city/entity-cache-20261016.json).
-The repaired core still requires the canonical native build and lifecycle replay.
+The repaired core passed the canonical coherent build at source fingerprint
+`80ea207cf43a8ea99d8335cfd8c9c5fa45a1c004543785ae5cbdde59d2472767`.
+The identical full fixture and32-route dataset linked against its retained
+`coherent-80ea20` archives exits0: all32 residents walk, zero-delta is stable,
+the real land guard retires/reclaims models, sea reactivation works, final
+retirement leaves zero cached/active characters and no context, and a retired
+town cannot reactivate. Old-engine sorted0/cached4 becomes sorted1/cached0;
+the actual live character/context records were absent in both runs.
+The three new native frames preserve the city/fort/coast and exclude the
+rejected neighborhoods. Full raw before/after closure identities and results:
+[`native-postfix-20261016.json`](evidence/puerto-rico-city/native-postfix-20261016.json).
+This accepts the private native component/visual candidate. It does not claim
+installed activation or the player's landing/fort interaction.
 The raw run and frame identities are retained in
 [`native-labels-v3-20261016.json`](evidence/puerto-rico-city/native-labels-v3-20261016.json).
 Player sea/landing/fort replay remains the final acceptance boundary.

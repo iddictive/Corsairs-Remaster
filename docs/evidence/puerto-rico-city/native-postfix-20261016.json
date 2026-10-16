@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-16",
+  "consumer": "docs/puerto-rico-city.md",
+  "verdict": "accepted private native component/visual candidate; installed player replay still unresolved",
+  "exit": 0,
+  "retained_run": ".local-archives/metal-renderer-evidence/puerto-rico-city-20261016/postfix-v7",
+  "native_log": "[2026-10-16 13:05:39.776] [info] Initializing native Metal renderer\n[StormMetal] land-shadow-opt-20260918: two-cascade sampling; quality=1 sun=2048 point=512\n[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M3 Max; backbuffer 1280x800; SDL drawable 1280x800; samples 1\n[StormMetal] water mode: modern Metal\n[2026-10-16 13:05:40.434] [info] WARN: STSS: dup restore param type <alphaop[0]> in <RESOURCE/techniques/animation.fx> file, technique <animation>\n[2026-10-16 13:05:40.436] [info] Techniques: 15 shaders compiled.\n[2026-10-16 13:05:40.436] [info] Techniques: 215 techniques compiled.\n[2026-10-16 13:05:40.436] [info] Techniques: compiled by 306591 ticks.\nnative_island_nodes=7\nnative_fort_triangles=4160\n[2026-10-16 13:05:41.658] [info] Native audio: miniaudio initialized\n[2026-10-16 13:05:41.663] [info] Native audio: loaded 395 aliases\n[StormMetal] GPU ambient occlusion active before HUD; ambient cap 0.138\n[StormMetal] GPU scene color/depth snapshot 1280x800 before water\n[StormMetal] shadow frame: lamps=0 complete=0 failed=0 applied=0 casterDraws=0 (location=0 scene=0) casterVertices=0 indoor=0\nretire_rc=1 town_valid=1 cached=0 active_first=0 context=0 sorted_before=1\npopulation=32 moving_over_1m=32 skinned_draws=15360 zero_delta=PASS land_guard=PASS retirement=PASS hidden=1 player_acceptance=0\n[2026-10-16 13:05:44.865] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2549] (VertexBuffers[id].buff->Release())\n[2026-10-16 13:05:44.865] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2559] (IndexBuffers[id].buff->Release())\n[2026-10-16 13:05:44.866] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1973] (Textures[texid].d3dtex->Release())\n[2026-10-16 13:05:44.866] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1973] (Textures[texid].d3dtex->Release())\n[2026-10-16 13:05:44.896] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseDevice:879] (renderDevice->Release())\n",
+  "movement_csv": "entity,x0,y0,z0,x1,y1,z1,displacement_m,action\n5020726871063527431,1103.25,3.99214,617.452,1101.65,3.99809,630.477,13.1227,walk\n5020727760121757707,1113.22,1.96054,670.802,1099.97,2.00332,651.408,23.4898,walk\n5020727803071430670,1054.85,4.00058,637.769,1073.74,4.00093,623.185,23.8651,walk\n5020727803071430673,1149.3,5.00774,633.664,1127.44,5.00774,627.977,22.5953,walk\n5020727803071430676,1142.65,4.00059,598.431,1119.54,4.00058,611.228,26.4191,walk\n5020727803071430679,1075.39,5.18404,594.703,1098.13,5.19364,603.606,24.4228,walk\n5020727807366397978,1087.55,1.69204,650.084,1099.24,3.26438,637.161,17.4964,walk\n5020727807366397981,1106.16,7.99404,586.042,1101.07,5.19814,607.882,22.5989,walk\n5020727807366397984,1119.3,5.00835,640.421,1103.39,3.26781,633.519,17.4322,walk\n5020727807366397987,1076.83,7.01458,622.829,1092.02,4.00058,615.786,17.0158,walk\n5020727811661365286,1139.69,3.34541,655.063,1129.89,5.00774,640.01,18.041,walk\n5020727811661365289,1124.81,4.00059,611.916,1104.88,4.27185,622.834,22.7246,stairs down\n5020727811661365292,1061.03,3.99965,612.262,1081.98,4.00022,614.553,21.0814,walk\n5020727811661365295,1094.57,5.18404,599.839,1102.79,3.98367,622.672,24.3006,walk\n5020727811661365298,1100.88,3.26713,634.428,1103.47,4.68931,613.259,21.3748,stairs up\n5020727815956332597,1145.09,4.02445,616.936,1125.69,5.00774,627.379,22.0508,walk\n5020727815956332600,1102.56,2.00387,656.15,1102.06,3.30092,632.805,23.387,walk\n5020727820251299899,1072.58,4.00405,641.714,1095.44,3.26133,644.056,22.9933,walk\n5020727820251299902,1120.98,5.18404,595.2,1101.6,5.1996,609.191,23.9007,walk\n5020727820251299905,1127.52,5.01035,627.453,1109.23,3.26493,632.806,19.1398,walk\n5020727820251299908,1099.4,2.00931,670.945,1098.58,3.273,647.141,23.8515,walk\n5020727820251299911,1133.85,5.02051,641.727,1115.2,3.43115,634.327,20.1291,stairs down\n5020727824546267210,1090.04,4.00058,614.64,1100.2,3.26411,635.45,23.1724,walk\n5020727824546267213,1091.43,7.99953,587.075,1101.07,5.19495,604.808,20.3766,walk\n5020727828841234512,1107.04,5.18404,598.776,1104.36,3.98153,621.448,22.8617,walk\n5020727828841234515,1115.16,3.2546,654.34,1099.98,3.26456,636.436,23.475,walk\n5020727828841234518,1074.95,4.00059,611.978,1100.28,3.99574,618.842,26.2463,walk\n5020727833136201817,1086.3,1.65804,662.375,1100.25,2.79039,650.1,18.6171,stairs up\n5020727833136201820,1106.79,3.26565,645.451,1105.14,3.26623,635.989,9.60421,walk\n5020727833136201823,1113.91,4.00058,616.472,1100.36,3.86994,631.966,20.5825,stairs down\n5020727837431169122,1054.23,4.00058,626.51,1071.46,4.00099,628.385,17.3394,walk\n5020727837431169125,1095.75,3.99949,625.543,1102.78,3.26786,633.177,10.4026,idle_4\n",
+  "movement": {
+    "population": 32,
+    "moving_over_1m": 32,
+    "min": 9.60421,
+    "max": 26.4191
+  },
+  "prepared": {
+    "consumer": "docs/puerto-rico-city.md",
+    "source_sha256": {
+      "docs/evidence/puerto-rico-city/native/run_probe.py": "5ac0721c206a3b5a7d11e80ed4e4d76c9e0fc5807a1bc94dc257d69554a95cb6",
+      "docs/evidence/puerto-rico-city/native/probe.cpp": "5d5978e449e37aa8f4dff89800091b5652033cb6e8551150411d7cd4864e3398",
+      "docs/evidence/puerto-rico-city/native/fixture.c": "7417559cd54805531bac64374a96fb4bb25aa6ef1064b151810f6377fe3793c3",
+      "docs/evidence/puerto-rico-city/native/engine.ini": "d093570a43ded9d64368706ef4adda9507e9c0c26afb9cb436c98ce6bcd5d84a"
+    },
+    "native_sha256": {
+      "engine/src/libs/location/src/sea_town.cpp": "7b5790ea27889f7151f0a7d6b6868574ec38a521e31f18aef76ebd6370d0d599",
+      "engine/src/libs/location/src/location.h": "6de2d993e409773af6a325dfabe8944a5d9ab5d392ab557c6636f033aefede5e",
+      "engine/src/libs/location/src/location.cpp": "bfb421acd5936cf13c5ec90767fac53b307aa90f536b0dde17c3897de14c5235",
+      "engine/src/libs/location/src/character.h": "659e0837b48a54f1cad9eff7a34a4219613b33115d8ee0fc409c3df73884647d",
+      "engine/src/libs/location/include/ptc_data.h": "5e9476425962ffc9105f8dc3c158fe78c4269b0bf90b2224ac270dae02464ba0",
+      "engine/src/libs/location/src/ptc_data.cpp": "7ba9b3e315901b70246ce59112ae9dff61750f78324ac4b413a7e6a2b787fbb8"
+    },
+    "generated_sha256": {
+      "MODELS/Islands/PuertoRico/PuertoRico_refl_citysigns.gm": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+      "MODELS/Islands/PuertoRico/PuertoRico.gm": "415978433a33384159e384c457f002dc128669ffef4c39f20e210360b96704a9",
+      "MODELS/Islands/PuertoRico/PuertoRico_refl_citybed.gm": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+      "MODELS/Islands/PuertoRico/PuertoRico_citysigns.gm": "dd840e5dbd31c1f347684ab572297e151135d1f26391aa4fb0e585a5280726f3",
+      "MODELS/Islands/PuertoRico/PuertoRico_refl_cityblend.gm": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+      "INI/sea_towns/puerto_rico.ini": "eea3c4cdbb9fa59f4de36c4ea2c0315d634b11779f7107ade274a22bd46ebc8b",
+      "MODELS/Islands/PuertoRico/PuertoRico_citybed.gm": "29c908a036ed3c6fae53a6d9856cef132edbe0c52681ff9ffce9754bef666a8d",
+      "MODELS/Islands/PuertoRico/PuertoRico_city.gm": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+      "MODELS/Islands/PuertoRico/PuertoRico_cityblend.gm": "4ef7c32b41f93844f6e8e559d0ab787ee7d85f487c5994d55b25d3fcb643776a",
+      "MODELS/Islands/PuertoRico/PuertoRico_refl_citymarket.gm": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890",
+      "MODELS/Islands/PuertoRico/PuertoRico_refl_city.gm": "960d3afb2fa2deae35bf07f536c3e84cb57b9fdb5f22376f09ece250509ba266",
+      "MODELS/Islands/PuertoRico/PuertoRico_refl.gm": "70119987a36f9f449dc7ca59d4a9de9fe36bcbe96a3e835d7ea2b13556d36d1e",
+      "MODELS/Islands/PuertoRico/sea_town.ptc": "ef3b2cd887941f90183aabb319d4049c5b8ed2b5d890e5dc5612cb3e5e8bfc18",
+      "MODELS/Islands/PuertoRico/PuertoRico_citymarket.gm": "f03e03c1a03519aed2a7ce43d21fb5b703f3ad02ff3ce2359f79d9508f673890"
+    },
+    "graphics_environment": {
+      "STORM_METAL_DYNAMIC_LIGHTING": "1",
+      "STORM_METAL_MODERN_WATER": "1",
+      "STORM_METAL_MODERN_LIGHTING": "1",
+      "STORM_METAL_CINEMATIC": "1",
+      "STORM_METAL_LIGHT_SHAFTS": "1",
+      "STORM_METAL_DYNAMIC_SKY": "1",
+      "STORM_METAL_ANTIALIASING": "0",
+      "STORM_METAL_SHADOW_QUALITY": "1",
+      "STORM_METAL_UPSCALING": "0"
+    },
+    "installed_stock": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/RESOURCE",
+    "installed_engine_sha256": "5b57e16b57afb2d76dfc6e21f1601e5533212c1403ff8d66fa813a64ee92a97d",
+    "source_template": "phonk-world-async-20261016/build.py and probe.cpp",
+    "player_control": false,
+    "player_save": false,
+    "acceptance": "private native component evidence; installed player acceptance unresolved"
+  },
+  "linked": {
+    "libraries_sha256": {
+      "libcloud_noise_assets.a": "2b4e4fd97eebf882d57924d64e07ad2b3e5d9ed7315e3a248ecbc35da5d2d064",
+      "libstorm_metal.a": "9bfc0aec5e33f264330b34a69179365cf3b5062c0ff88ed07ce37ef5da3b5da9",
+      "lib/libsea_foam.a": "fac40542611b11c0870261f2c84970a358f73fcf61b23069f4b54c7178cce9b8",
+      "lib/libparticles.a": "cdaf7ae5814186532acca3a25f5c4e2c4aa01330d9339bbdbcf8f97ce9d3f973",
+      "lib/libsea_cameras.a": "8cfb3ed0b28b6707b2f7ea99dd894585b9b513b57b20f6c9e3e86cd6be115ccf",
+      "lib/librigging.a": "d940a33e5bb3c5ee4b8749bf3f85f3551956443e71d1f6effd3d1acf2724db17",
+      "lib/libtouch.a": "f26b2d24073c603e7216d5d6f6a316043efe5a0629143bdb95150fe3ba0e3646",
+      "lib/libblot.a": "536592ab0c33de67cc0cbd940c719ebc0f2dc9e9757a98909ff69fe47f74354a",
+      "lib/libmast.a": "da4f437eb97f7e6ba8c898f8c025689516e73e1d80f8e9caf90ec4a7862ea8d4",
+      "lib/libwindow.a": "906816de507b5164d1412f868eab12350a0ce02980e08d7a3753133ef902e064",
+      "lib/libsea_ai.a": "fc818213a8a182548ce12069dfd065888a93016dc9715c31066d0f3002ef57f1",
+      "lib/libisland.a": "9fd11e51b8b9c2f6cf7115bee8311631809ebdf33a3d553213a37be4f80a961e",
+      "lib/libdiagnostics.a": "07c099e144dc2f3e40b5d5bf1bd68fd994f4e489aa2cb634fc70e15370abf3a5",
+      "lib/libsink_effect.a": "c7555fd75786c55758320b5d63008959ab263077ee3c3c93361e94568c3198bb",
+      "lib/liblighter.a": "ccd49a6508dfe3e044a6aff6d0778d826d5481c921f9c91eea38f7c3315b089f",
+      "lib/libsailors.a": "ca1279794232e2b4f759d248c27947e83787e3b4e0567b8ff4c48acab8197415",
+      "lib/libinput.a": "26c935cc4727c76897d5d26342666ce79c23545596072bc327f657f030dd8896",
+      "lib/libdialog.a": "d9e0ba9bf086a01b617f32ed85b4deace92a619c46edfa25eeb8c5d248dd2ccd",
+      "lib/libgeometry.a": "d021f3ecd673a64da6bc2be483a8e50ba8e671d591395615496d65997bc49219",
+      "lib/libball_splash.a": "4f9d16c969b2a8b4a3829335688bbc1bc7dd127c8b5c6707f63c86c1977d6aa3",
+      "lib/libsound.a": "97b7e06ed83b112963ed9a36926d69ddb49a603d67e8d409ea588747ff4b24e1",
+      "lib/libsound_service.a": "ffa92d1bf2743d4ddbcdeb7bf962268c1232b9677c2c8f8303dbee7295790f66",
+      "lib/libship.a": "a62c38e7805b97f32d194db04ea10b88abf5c9b2efdf36949e6ff963b55d3e33",
+      "lib/libanimals.a": "c0c86f684d88213c794b0a2d42704b15eb3a6a48127041359491f344b16951cd",
+      "lib/liblocation.a": "f169534f6bc96630fa73d5e6580a256a6d9c4eaef78feaae3b476c2c998d3d40",
+      "lib/libwater_rings.a": "fca61307decb1747c8c1cdb1bce4f9abec96d552b0587f9de8489722fdf4afe3",
+      "lib/libcore.a": "6ac118788d50a77b96b0e1922a3d5a9cb4f09d37a0f1c2cdf6332758fac47db0",
+      "lib/libsea_creatures.a": "27fab4092cfdbe92e113b52148276e01e7946acb3edbad30a2d1339e268ae774",
+      "lib/libbattle_interface.a": "f03a64b5b391f743bf283e518d7951c61d838025f3094aba044e9bf0f2feedc3",
+      "lib/libweather.a": "39bffe8ad1813552085f9cc1d4353562e09ae2b1f0f99c4b8c67ff0089c49d84",
+      "lib/libsea_operator.a": "4a6fba6c5a9b3ab906cde431586659d26af8353fa8621f8e90ce786d45a9ca90",
+      "lib/libsteam_api.a": "61ddc4c51fb3519326dad75b4dc9a653dcd1421cea74577d0219c052f89c431d",
+      "lib/libsentry.a": "427c13f4d72fa73f577f1c6fe9fb9beeca1edf97cbe28b8e9ada46dd9d48c6cc",
+      "lib/libworldmap.a": "d6daaeea4a792ea46f886a50b6fb3caa348152682f7e4a91f5bc0c43da9e8b56",
+      "lib/libcollide.a": "63eddfa3f3ec4ae748ef6b77cc60aa73ee676cc6e147ff607e8f3559a45772bd",
+      "lib/libsea.a": "7e39be82a60e507f8a085f2bda18ab7fb8a7291a8b565a7310e3c2f90833c052",
+      "lib/libtornado.a": "ce1c285d0f758d85379d0d086adf3f4ca3fcccf9418e109fdd7e1d149b084abc",
+      "lib/libmimalloc.a": "604f44ae34a00f56e1e90b05071c5f1a4ce93de7be0c4f382a532b732a04a54f",
+      "lib/libscript_library.a": "37fcbf2bfb73ad309b457964430ba53a36798cc1328498e768b18c335683700c",
+      "lib/libshadow.a": "5ecc9fe0ce3957f20c78b2ecdf2750d94996854432922010fb0c3cec38e733bf",
+      "lib/liblocator.a": "a80f23330e557a2386081d1895a1e9b725974fc9a71e7b4b38dde8615d0056e1",
+      "lib/libteleport.a": "a887bdac7da0cc8971511d257fdfa859d564ba55232591c3ed43bad7aa24643c",
+      "lib/libutil.a": "7f97b7d8f7c402b4cd4bc5e7fec2ccb318f9ca20ae249656ce1d40388b4a8e41",
+      "lib/libxinterface.a": "dd36b4ae7902c7fee66e3bb60f72ad0281565929b9e8505fea07a1b969f290d2",
+      "lib/libblade.a": "3eae996fde3cc883c34211614165a6bcaf341b115eaa8364a239daec83a9f59c",
+      "lib/libpcs_controls.a": "a0732afa1b5cde42c734cf6dc284b50c133f1eb4751483400a9a12390fe33574",
+      "lib/libmodel.a": "43f7f400a29008389aa373ba009e6d38c447bbb231cb6f14d289b89fb1777fcd",
+      "lib/libanimation.a": "ea9901deea67af529b978ce89aee292b3f1c5f1cd1537afbbb2fae81e55c563b",
+      "lib/librenderer.a": "0d937e88f37d08c4d629dba86a63385f893dd1296ae29600b8f2550d48c6c5cb"
+    },
+    "retained_libraries": ".local-archives/metal-renderer-evidence/phonk-current-20261016/coherent-80ea20/libraries",
+    "binary_sha256": "aefc02dbc1a9855b844f563ea00f6eeb6f5bc0c5df52900f73c4c1828d3f4698"
+  },
+  "native_command": [
+    "$REPO/.local-archives/metal-renderer-evidence/puerto-rico-city-20261016/postfix-v7/native-probe",
+    "$REPO/.local-archives/metal-renderer-evidence/puerto-rico-city-20261016/postfix-v7"
+  ],
+  "build_closure": ".local-archives/metal-renderer-evidence/phonk-current-20261016/coherent-80ea20",
+  "build_closure_manifest_sha256": "84dd68dff4b9e69441c8fc68b8d7462b390384c05acfdcc81d3f8cfa70fce28b",
+  "source_fingerprint": "80ea207cf43a8ea99d8335cfd8c9c5fa45a1c004543785ae5cbdde59d2472767",
+  "unsigned_engine_sha256": "6fda3db4a88f48b010cb19159ed4693ada74d6494fa7a7cb05a6b3e69ff542f7",
+  "core_cache_sha256": "abff07a6aae115e9560e14d85c94c87e514ae395e35c629c6e25249df40c4b62",
+  "frames": {
+    "city-fort.ppm": {
+      "sha256": "51b6d8139ab5c89d375a8cce8c01e6d9bee452cd497ac82cbb644eddf2266989",
+      "bytes": 3072016
+    },
+    "overview.ppm": {
+      "sha256": "7f2eb8260bb836986791aebbe016422d58bf69757895466b96a35929eb73cce4",
+      "bytes": 3072016
+    },
+    "waterfront.ppm": {
+      "sha256": "572752b7b9015f8251cb8f8f3f02090cf08b3358037bafe90a3dddb51c91e3f5",
+      "bytes": 3072016
+    }
+  },
+  "comparison": "Same full fixture source/current32-route dataset and modern graphics adapter as failed old-engine dispersed-v6. No assertion, route, native population ABI or asset change between v6/v7; link closure changed to canonical repaired80ea20. v6 cached4 invalid IDs/sorted0 becomes v7 cached0/sorted1; actual characters/context absent in both.",
+  "visual_observation": "All three complete frames inspected before target judgment. Core/piers remain visible with native32 pedestrians; background neighborhood geometry absent; ocean displays blue water; no exposed large island hole observed; separate fort visible. Narrow dark original model boundaries/waterways remain unfilled. This is isolated native scene evidence, not player sea/landing/fort interaction.",
+  "app_changed": false,
+  "player_save_changed": false,
+  "gpu_released": true,
+  "next_owner": "canonical native Metal integrator stages this frozen candidate; player replay remains separate"
+}
