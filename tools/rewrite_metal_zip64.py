@@ -66,7 +66,8 @@ def rewrite(source, destination, inventory, source_root):
             if parts and parts[-1].startswith('._'):
                 parts = (*parts[:-1], parts[-1][2:])
         target = root.joinpath(*parts)
-        if not target.resolve(strict=True).is_relative_to(root):
+        # Finder may update or remove directory state while the payload is frozen.
+        if target.name != '.DS_Store' and not target.resolve(strict=True).is_relative_to(root):
             raise ValueError(f'Archive path escapes frozen payload: {pathname!r}')
         return target, metadata
 
@@ -100,6 +101,10 @@ def rewrite(source, destination, inventory, source_root):
                         raise ValueError('Archive member has no UTF-8 pathname')
                     pathname = raw_name.decode('utf-8')
                     disk, metadata = disk_path(pathname)
+                    if disk.name == '.DS_Store':
+                        while check(read_data(r, buf, len(buf)), r, f'Skip {pathname}'):
+                            pass
+                        continue
                     is_link = False
                     if not metadata:
                         disk_stat = disk.lstat()

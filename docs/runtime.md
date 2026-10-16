@@ -4,6 +4,18 @@ Last verified delivery: October16,20:33UTC, source `23ac5eba107a3f5476f188d3e96c
 
 ## Current verdict
 
+### October16 — release metadata race isolated
+
+The full ZIP64 retry parses95463 members and extracts natively, but verification
+rejects a changed root `.DS_Store`. Finder recreates that file during scratch
+removal as well; ENOTEMPTY masks the original extracted-byte assertion. The raw
+archive, inventory and full traceback remain in the reconstruction evidence owner.
+ZIP rewriting now excludes Finder directory state and its AppleDouble record.
+Owned cleanup admits only a single late `.DS_Store`; an unknown new file still
+fails and remains intact. The small native roundtrip retains file bytes, modes,
+symlinks and xattrs, and both cleanup cases pass. Full corrected release replay
+is pending; no engine/gameplay or installed-app bytes changed.
+
 ### October16 — bounded laser replay and reconstruction closure
 
 The single production-ABI held-input replay completes401 frames, exit0 in5.49s.

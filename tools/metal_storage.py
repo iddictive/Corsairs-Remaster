@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+import errno
 import fcntl
 import json
 import os
@@ -100,7 +101,18 @@ def _remove_owned(path, identity):
     except FileNotFoundError:
         return
     if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as error:
+            # Finder can recreate this file between rmtree's scan and final rmdir.
+            if error.errno != errno.ENOTEMPTY or _identity(path) != identity:
+                raise
+            remaining = list(path.iterdir())
+            if (len(remaining) != 1 or remaining[0].name != '.DS_Store'
+                    or remaining[0].is_symlink() or not remaining[0].is_file()):
+                raise
+            remaining[0].unlink()
+            path.rmdir()
     else:
         path.unlink()
 

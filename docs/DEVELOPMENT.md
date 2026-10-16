@@ -136,9 +136,11 @@ This producer exports directly into temporary packaging
 storage, preserves native ZIP64 metadata, verifies native extraction, signatures
 and relocated staging with an isolated profile, then retains only the ZIP and
 compact receipt. Payload/extracted apps and intermediate archives are removed on
-success, ordinary failure and SIGTERM. A full export/extraction replay of this
-new orchestration remains pending; syntax and the shared cleanup lifecycle have
-been checked. The installed player app remains the only supported game instance.
+success, ordinary failure and SIGTERM. ZIP rewriting excludes volatile Finder
+`.DS_Store` files and their AppleDouble records. Cleanup permits one late Finder
+file in its own root; any other newly created file remains an error. The focused
+native metadata/cleanup probe passes; the full release replay is pending.
+The installed player app remains the only supported game instance.
 
 ## Verification and troubleshooting
 
