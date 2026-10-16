@@ -80,6 +80,11 @@ class GEOM : public GEOS
     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
     std::vector<storm_ship_hull::Impact> hullCutInputs;
     storm_ship_laser::Mesh laserSurface;
+    storm_ship_laser::Mesh laserMaterialSurface;
+    storm_ship_laser::FaceIndex laserMaterialCollision;
+    std::vector<uint32_t> laserMaterialCandidates;
+    void SetLaserMaterial(storm_ship_laser::Mesh &&, storm_ship_laser::FaceIndex &&, std::vector<uint32_t> &&);
+    void ClearLaserMaterial();
     std::shared_ptr<const storm_ship_laser::Surface>laserVisualSurface;
     std::map<int,float>laserWoodThickness;
     storm_ship_hull::Broadphase laserBroadphase;
@@ -102,7 +107,7 @@ class GEOM : public GEOS
     int laserTraceObject=-1,laserTraceTriangle=-1;
     float laserTraceA=0,laserTraceB=0;
     bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&);
-    bool RebuildLaserSurface(bool upload=true);
+    bool RebuildLaserSurface(bool upload=true,storm_ship_laser::Mesh *preparedSource=nullptr);
     void RebuildLaserCollision();
     std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;
     storm_ship_laser::Mesh worldSurface;
@@ -130,6 +135,7 @@ class GEOM : public GEOS
 #endif
     int32_t traceid;
     DVECTOR src, dst;
+    float TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails);
 
   public:
     GEOM(const char *fname, const char *lightname, GEOM_SERVICE &srv, int32_t flags);
@@ -190,6 +196,7 @@ class GEOM : public GEOS
 #endif
 
     virtual float Trace(VERTEX &src, VERTEX &dst);
+    float TraceLaserMaterial(VERTEX &src, VERTEX &dst) override;
     virtual bool Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, float radius, ADD_POLYGON_FUNC addpoly);
     virtual bool GetCollisionDetails(TRACE_INFO &ti) const;
 

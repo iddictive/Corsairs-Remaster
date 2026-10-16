@@ -286,6 +286,8 @@ class GEOS
 
     // Trace a ray in local coord-system
     virtual float Trace(VERTEX &src, VERTEX &dst) = 0;
+    // Physical timber entry for the laser; leaves ordinary collision details intact.
+    virtual float TraceLaserMaterial(VERTEX &src, VERTEX &dst) = 0;
 
     // clip in local coord-system
     using ADD_POLYGON_FUNC = bool (*)(const VERTEX *v, int32_t nv);

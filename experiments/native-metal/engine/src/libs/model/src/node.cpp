@@ -125,6 +125,16 @@ float NODER::Update(CMatrix &mtx, CVECTOR &cnt)
 //----------------------------------------------------------
 float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
 {
+    return TraceQuery(src, dst, false);
+}
+
+float NODER::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
+{
+    return TraceQuery(src, dst, true);
+}
+
+float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
+{
     if (isReleased)
         return 2.0f;
     // check for bounding spheres intersection
@@ -142,11 +152,11 @@ float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
         {
             if (next[n] == nullptr)
                 continue;
-            const auto d = static_cast<NODER *>(next[n])->Trace(src, dst);
+            const auto d = static_cast<NODER *>(next[n])->TraceQuery(src, dst, material);
             if (d < best_dist)
             {
                 best_dist = d;
-                bestTraceNode = next[n];
+                if (!material) bestTraceNode = next[n];
             }
         }
 
@@ -155,11 +165,12 @@ float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
         CVECTOR _src, _dst;
         glob_mtx.MulToInv(src, _src);
         glob_mtx.MulToInv(dst, _dst);
-        const auto ds = geo->Trace((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst);
+        const auto ds = material ? geo->TraceLaserMaterial((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst)
+                                 : geo->Trace((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst);
         if (ds < best_dist)
         {
             best_dist = ds;
-            bestTraceNode = this;
+            if (!material) bestTraceNode = this;
         }
     }
     return best_dist;

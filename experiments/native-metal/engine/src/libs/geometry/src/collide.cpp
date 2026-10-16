@@ -19,16 +19,42 @@ SAVAGE GEOM::_stack[256];
 
 float GEOM::Trace(VERTEX &start, VERTEX &finish)
 {
+    return TraceQuery(start, finish, true);
+}
+
+float GEOM::TraceLaserMaterial(VERTEX &start, VERTEX &finish)
+{
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    if(laserOwner||worldOwner){laserTraceObject=laserTraceTriangle=-1;float nearest=2;const auto&surface=worldOwner?worldSurface:laserSurface;
+    if (laserPrepared && !worldOwner)
+    {
+        laserMaterialCollision.broadphase.queryRay({start.x,start.y,start.z}, {finish.x,finish.y,finish.z}, laserMaterialCandidates);
+        float nearest = 2.f;
+        for (const auto candidate : laserMaterialCandidates)
+        {
+            const auto reference = laserMaterialCollision.references[candidate];
+            if (!(object[reference.first].flags & COLLISION_ENABLE)) continue;
+            float a = 0, b = 0;
+            nearest = std::min(nearest, storm_ship_laser::trace(laserMaterialSurface.at(reference.first)[reference.second],
+                {start.x,start.y,start.z}, {finish.x,finish.y,finish.z}, a, b));
+        }
+        return nearest;
+    }
+#endif
+    return TraceQuery(start, finish, false);
+}
+
+float GEOM::TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails)
+{
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(laserOwner||worldOwner){if(publishDetails)laserTraceObject=laserTraceTriangle=-1;float nearest=2;std::pair<int,uint32_t>best{-1,std::numeric_limits<uint32_t>::max()};const auto&surface=worldOwner?worldSurface:laserSurface;
         laserBroadphase.queryRay({start.x,start.y,start.z},{finish.x,finish.y,finish.z},laserRayCandidates);
         for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(surface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
-            if(hit<nearest||(hit==nearest&&hit<=1&&reference<std::make_pair(laserTraceObject,uint32_t(laserTraceTriangle)))){nearest=hit;laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}return nearest;}
+            if(hit<nearest||(hit==nearest&&hit<=1&&reference<best)){nearest=hit;best=reference;if(publishDetails){laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}}return nearest;}
 #endif
     if (!(rhead.flags & FLAGS_BSP_PRESENT))
         return 2.0f;
-    src = DVECTOR(start.x, start.y, start.z);
-    dst = DVECTOR(finish.x, finish.y, finish.z);
+    const DVECTOR src(start.x, start.y, start.z), dst(finish.x, finish.y, finish.z);
+    if (publishDetails) { this->src = src; this->dst = dst; }
 
     double diss, dise, ssrc, sdst, dist;
     DVECTOR dirvec, tp, V, AV;
@@ -156,16 +182,16 @@ rec_return:;
         {
             if (U < 0.0f && U > det && V < 0.0f && U + V > det)
             {
-                res_dist = static_cast<float>(dist);
-                traceid = face;
-                return res_dist;
+                const auto result = static_cast<float>(dist);
+                if (publishDetails) { res_dist = result; traceid = face; }
+                return result;
             }
         }
         else if (U >= 0.0f && U <= det && V >= 0.0f && U + V <= det)
         {
-            res_dist = static_cast<float>(dist);
-            traceid = face;
-            return res_dist;
+            const auto result = static_cast<float>(dist);
+            if (publishDetails) { res_dist = result; traceid = face; }
+            return result;
         }
 
         if (--t > 0)
@@ -181,7 +207,7 @@ rec_return:;
     rec_avoid:;
         if (stack < _stack)
         {
-            traceid = -1;
+            if (publishDetails) traceid = -1;
             return 2.0f;
         }
 

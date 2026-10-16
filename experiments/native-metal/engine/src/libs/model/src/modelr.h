@@ -19,6 +19,7 @@ class NODER : public NODE
     std::string sys_TexPath;
     std::string sys_lmPath;
     bool isReleased;
+    float TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material);
 
     bool UsesLightPath(std::string_view lightPath) const;
     void StoreLightPath(std::string_view lightPath);
@@ -49,6 +50,7 @@ class NODER : public NODE
     ~NODER() override;
     void Draw();
     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
+    float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;
     NODER *GetNode(int32_t n);
     NODER *FindNode(const char *cNodeName);
     float Update(CMatrix &mtx, CVECTOR &cnt);
@@ -147,6 +149,8 @@ class MODELR : public MODEL
     Animation *GetAnimation() override;
 
     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
+    float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;
+    float TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material);
     const char *GetCollideMaterialName() override;
     bool GetCollideTriangle(TRIANGLE &triangle) override;
     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,

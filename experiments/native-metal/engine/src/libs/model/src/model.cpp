@@ -679,6 +679,16 @@ CVECTOR cold[1024 * 1024];
 
 float MODELR::Trace(const CVECTOR &src, const CVECTOR &dst)
 {
+    return TraceQuery(src, dst, false);
+}
+
+float MODELR::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
+{
+    return TraceQuery(src, dst, true);
+}
+
+float MODELR::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
+{
     // collision with skinned geometry
     if (ani)
     {
@@ -822,8 +832,8 @@ float MODELR::Trace(const CVECTOR &src, const CVECTOR &dst)
 
         return bd;
     }
-    float d = root->Trace(src, dst);
-    colideNode = bestTraceNode;
+    const float d = root->TraceQuery(src, dst, material);
+    if (!material) colideNode = bestTraceNode;
     return d;
 }
 

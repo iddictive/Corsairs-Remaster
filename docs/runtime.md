@@ -4,6 +4,83 @@ Last verified delivery: October16. Signed engine `a3b088fb4cdef622da52fab3a5295d
 
 ## Current verdict
 
+### October16 — frozen successor built; world held-fire passes, ship still open
+
+Source `cf75576` is built in a managed build-only checkout, isolating the city's
+continuing native/script changes. The canonical456-action build exits0 at
+fingerprint `8d1d2707b95d81f201d6bf19a237c5da0681430ed2583b414675c4969f8e3c33`,
+unsigned engine `a4af4d21a422961f21e3891189f3cd7b69245036bbefb9243e5c8c60cd94b3c8`.
+All49 archives, matching native headers, exact Ninja producer commands and
+unchanged third-party header addenda are retained in `integrated-sea-laser`.
+The complete935-file installed/projected PROGRAM snapshots have identical599
+global variable ordinals/names/types/counts and synthetic reference roots. The
+new-global SAVE-reader defect found by the port owner does not apply to this
+function/local-only script delta.
+
+Actual generated-state native held fire on Antigua commits18 times and deepens
+the same physical ray from0.800079 to7.20008m; the view ray reaches9.2829m and a
+nearby untouched face changes by at most2.62e-5m. The first rock attempt was
+beyond the3500m beam range and remains retained as an invalid setup. Galeon held
+fire cuts its near skin, but the frozen initial view ray still stops at the far
+hull; this measurement is not the acquisition-time moving camera/muzzle ray.
+The original fixed-ray failure is not replaced with visible water or cut counts.
+Water inside a hole is not evidence that its opposite wall was cut.
+
+The source-bound diagnostic keeps the same ship action and changes only private
+worker/Poll logging. Its first invocation accidentally selected baseline mode
+and no fire; the corrected explicit laser invocation captures14 real works and
+196 target preparations/stages, all successful with matching identities. Nine
+discards have no geometry change; the first exact payload lies in empty hold
+space. CPU preparation independently reproduces that unchanged result, while
+the retained accepted control changes geometry. Fragment-budget and identity
+rejection hypotheses are therefore falsified for this case. Current committed
+GEOM collision is atomically refreshed; no stale-BSP cause is established.
+
+The exact captured rev1 ray exposes a separate material-boundary defect:
+canonical collision first meets the outer far skin at7.6938648m, while retained
+inner timber begins at7.4763031m. The actual authored wood object enables
+collision; caps and finite walls provide no nearer hit. Canonical collision
+omits this0.2175617m backing. A derived comparison preserves the captured
+surface, direction, radius, tangent and0.64m dose: starting at canonical outer
+skin leaves the inner backing and a front cap; starting at physical inner
+timber clears both material and canonical centre rays through the plank. The
+original captured input remains byte-identical. This proves the plug mechanism,
+not final held-fire or player acceptance. An opt-in laser material trace is in
+source implementation; ordinary collision and structural metrics remain their
+existing contracts. Short interior-only doses also require real material
+publication without charging synthetic canonical HP/area. Exact source, inputs,
+commands and outputs are retained in `held-fire-diagnostic/trace-input` and
+`held-fire-diagnostic/derived-cpu`; no speculative budget or aim repair follows.
+
+The corrective source now routes both laser rays through a dedicated retained
+material query, preserving ordinary collision/details and structural formulas.
+Its worker/loading projection owns the physical index and reserved ray scratch;
+commit moves them atomically. Ordinary cannon-hole updates reuse clipped CPU
+triangles, and restoring hull cuts refreshes this material projection. Five
+native translation units and the focused source review pass. Two0.064m doses
+advance material by0.0639999/0.0640011m; empty air remains unchanged. The second
+dose removes real existing finite-wall area and follows the unchanged damage
+formula; the earlier strict zero-damage oracle was rejected and retained. An
+actual-GM cannon-hole primitive query advances1.00000191 to9.27596569m, preserves
+its neighbor within2.24e-7m and restores to the original hit. These are CPU/source
+checks, not native frame/FPS acceptance. All57 classified stock roots have zero
+validated closed volume; the retained synthetic closed-timber limitation does
+not exercise a current stock consumer. The11-path frozen patch and full check
+inputs/results belong to `held-fire-diagnostic/implementation/receipt.json`.
+The corrective coherent build and actual held-fire replay remain pending.
+
+A second unexplained working-only header reversion to bfde388c is retained. The
+committed and isolated native header remain727e7008. Restoring only that owned
+committed prefix in the saved checkout passes the unchanged dose/atomic-prefix
+oracle with before/after source identities equal. The writer remains unproven;
+no hook or configuration change is claimed.
+
+Disposition: world held-fire component passes; ship held-view penetration and
+actual player acceptance remain open. Canonical staging is held, installed
+a3b088fb remains unchanged, and no player app control or SAVE load occurred.
+Exact attempts, source recovery and build evidence are retained under
+`.local-archives/metal-renderer-evidence/phonk-current-20261016/integrated-sea-laser/`.
+
 ### October16 — live laser depth acceptance reopened; drift repair candidate
 
 The player still sees hull sparks without deeper ship/rock damage while holding

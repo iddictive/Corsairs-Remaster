@@ -557,8 +557,10 @@ void GEOM::ClearHullCuts(uint64_t owner)
 {
     if(owner!=hullOwner)return;
     if(laserOwner){if(hullCutInputs.empty())return;auto previous=std::move(hullCutInputs);hullCutInputs.clear();if(!RebuildLaserSurface()){hullCutInputs=std::move(previous);return;}hullSignature=storm_ship_hull::signature(hullCutInputs);return;}
-    if(!hullDraws.empty()||!hullCutInputs.empty())++collisionRevision;
-    ReleaseHullDraws(hullDraws);hullCutInputs.clear();hullOwner=hullSignature=0;laserPrepared=false;laserSurface.clear();laserVisualSurface={};laserClosedVolume=0;
+    const bool changed=!hullDraws.empty()||!hullCutInputs.empty();
+    if(laserPrepared&&!hullCutInputs.empty()){auto previous=std::move(hullCutInputs);hullCutInputs.clear();if(!RebuildLaserSurface(false)){hullCutInputs=std::move(previous);return;}}
+    if(changed)++collisionRevision;
+    ReleaseHullDraws(hullDraws);hullCutInputs.clear();hullOwner=hullSignature=0;
 }
 bool GEOM::CaptureHullObject(int objectIndex)
 {
@@ -582,8 +584,14 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
     if(cuts.empty()){ClearHullCuts(owner);return true;}
     std::map<int,std::vector<storm_ship_hull::Impact>>groups;
     for(const auto&cut:cuts){if(!storm_ship_hull::valid(cut)||!CaptureHullObject(cut.object))return false;groups[cut.object].push_back(cut);}
+    // Mount has already captured ship originals. Reuse the clipped triangles
+    // below for material tracing instead of clipping the whole ship twice.
+    const bool prepareMaterial=laserPrepared;storm_ship_laser::Mesh materialSource;
+    if(prepareMaterial)for(int o=0;o<rhead.nobjects;++o)if(!groups.count(o)){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=materialSource[o];triangles.reserve(source.indices.size()/3);
+        for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);triangles.push_back(triangle);}}
     std::map<int,std::vector<HullDraw>>replacement;
     for(const auto&group:groups){const auto&source=hullOriginals.at(group.first);
+        auto*materialTriangles=prepareMaterial?&materialSource[group.first]:nullptr;
         struct PreparedCut {storm_ship_hull::Impact impact;std::array<storm_ship_hull::Plane,10>planes;};std::vector<PreparedCut>prepared;prepared.reserve(group.second.size());
         std::vector<std::vector<const PreparedCut*>>localCuts(source.indices.size()/3);std::vector<uint32_t>candidates;
         for(const auto&cut:group.second){prepared.push_back({cut,storm_ship_hull::prism(cut)});source.broadphase.query(cut,candidates,.055f);for(auto triangle:candidates)localCuts[triangle].push_back(&prepared.back());}
@@ -594,8 +602,10 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
             if(!v||!i){if(v)srv.UnlockVertexBuffer(draw.vb);if(i)srv.UnlockIndexBuffer(draw.ib);srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);return false;}
             std::memcpy(v,vertices.data(),vertices.size());std::memcpy(i,indices.data(),indices.size()*2);srv.UnlockVertexBuffer(draw.vb);srv.UnlockIndexBuffer(draw.ib);replacement[group.first].push_back(draw);vertices.clear();indices.clear();weld.clear();std::fill(originalLookup.begin(),originalLookup.end(),-1);return true;};
         const auto appendOriginal=[&](size_t triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
+            if(materialTriangles){storm_ship_hull::Triangle face;for(unsigned c=0;c<3;++c)face[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[triangle*3+c])*source.stride,source.stride);materialTriangles->push_back(face);}
             for(unsigned corner=0;corner<3;corner++){auto original=source.indices[triangle*3+corner];auto&mapped=originalLookup[original];if(mapped<0){mapped=int32_t(vertices.size()/source.stride);auto*start=source.vertices.data()+size_t(original)*source.stride;vertices.insert(vertices.end(),start,start+source.stride);}indices.push_back(uint16_t(mapped));}};
         const auto append=[&](const storm_ship_hull::Triangle&triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
+            if(materialTriangles)materialTriangles->push_back(triangle);
             for(const auto&vertex:triangle){std::string bytes(size_t(source.stride),'\0');storm_ship_hull::encode(vertex,reinterpret_cast<uint8_t*>(bytes.data()),source.stride);auto found=weld.find(bytes);uint16_t index;
                 if(found==weld.end()){index=uint16_t(vertices.size()/source.stride);vertices.insert(vertices.end(),bytes.begin(),bytes.end());weld.emplace(std::move(bytes),index);}else index=found->second;indices.push_back(index);}};
         for(size_t triangle=0;triangle<localCuts.size();triangle++){if(localCuts[triangle].empty()){appendOriginal(triangle);if(failed)break;continue;}storm_ship_hull::Triangle original;for(unsigned corner=0;corner<3;corner++)original[corner]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[triangle*3+corner])*source.stride,source.stride);
@@ -612,8 +622,9 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
     }
     // Only geometry instances own these buffers. File names are never cache keys.
     // Existing resource identities/revisions invalidate ordinary and shadow draws.
+    if(prepareMaterial){auto previous=std::move(hullCutInputs);hullCutInputs=cuts;if(!RebuildLaserSurface(false,&materialSource)){hullCutInputs=std::move(previous);ReleaseHullDraws(replacement);return false;}}
     ++collisionRevision;
-    ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);hullCutInputs=cuts;hullOwner=owner;hullSignature=signature;laserPrepared=false;laserSurface.clear();laserVisualSurface={};laserClosedVolume=0;return true;
+    ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);hullCutInputs=cuts;hullOwner=owner;hullSignature=signature;return true;
 }
 
 bool GEOM::UploadLaserMesh(const storm_ship_laser::Mesh&mesh,std::map<int,std::vector<HullDraw>>&draws)
@@ -628,10 +639,11 @@ bool GEOM::UploadLaserMesh(const storm_ship_laser::Mesh&mesh,std::map<int,std::v
         }
     }return true;}catch(...){if(lockedVertex>=0)srv.UnlockVertexBuffer(lockedVertex);if(lockedIndex>=0)srv.UnlockIndexBuffer(lockedIndex);ReleaseHullDraws(draws);return false;}
 }
-bool GEOM::RebuildLaserSurface(bool upload)
+bool GEOM::RebuildLaserSurface(bool upload,storm_ship_laser::Mesh *preparedSource)
 {
     storm_ship_laser::Mesh mesh;
-    for(int o=0;o<rhead.nobjects;++o){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=mesh[o];
+    if(preparedSource)mesh=std::move(*preparedSource);
+    else for(int o=0;o<rhead.nobjects;++o){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=mesh[o];
         for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);
             struct Rim {storm_ship_hull::Triangle triangle;const storm_ship_hull::Impact*owner;};std::vector<storm_ship_hull::Triangle>pieces{triangle};std::vector<Rim>rims;
             for(const auto&impact:hullCutInputs)if(impact.object==o){std::vector<storm_ship_hull::Triangle>next;for(const auto&piece:pieces){auto cut=storm_ship_hull::subtract(piece,impact);next.insert(next.end(),cut.surface.begin(),cut.surface.end());for(const auto&rim:cut.rim)rims.push_back({rim,&impact});}pieces=std::move(next);}
@@ -642,11 +654,22 @@ bool GEOM::RebuildLaserSurface(bool upload)
     mesh=storm_ship_laser::canonicalMesh(*visual);double closedVolume=storm_ship_laser::closedVolume(mesh);storm_ship_laser::Projection rebuilt;
     for(const auto&plane:laserPlanes){storm_ship_laser::Input input;input.surface=visual;input.wood=laserWoodThickness;input.plane=plane;input.fragmentLimit=storm_hull_damage::MaxFragmentGroups;input.enclosedFragments=laserEnclosedFragments;input.closedVolume=closedVolume;
         if(!storm_ship_laser::prepare(input,rebuilt))return false;if(!rebuilt.result.changed)continue;visual=std::move(rebuilt.kept);mesh=std::move(rebuilt.canonical);closedVolume=rebuilt.keptVolume;}
-    if(!upload){laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;return true;}
-    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(storm_ship_laser::renderMesh(*visual),replacement))return false;
+    auto material=storm_ship_laser::renderMesh(*visual);auto materialCollision=storm_ship_laser::indexFaces(material);std::vector<uint32_t>materialCandidates;materialCandidates.reserve(materialCollision.references.size());
+    if(!upload){SetLaserMaterial(std::move(material),std::move(materialCollision),std::move(materialCandidates));laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;return true;}
+    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(material,replacement))return false;
+    SetLaserMaterial(std::move(material),std::move(materialCollision),std::move(materialCandidates));
     ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;
     if(!laserVisualSurface->released.empty()){laserRetainedSupport=storm_ship_laser::indexFaces(laserVisualSurface->outer);laserReleasedSupport.clear();for(const auto&piece:laserVisualSurface->released)laserReleasedSupport.push_back(storm_ship_laser::indexFaces(*piece));}else{laserRetainedSupport={};laserReleasedSupport.clear();}
     RebuildLaserCollision();laserTraceObject=laserTraceTriangle=-1;return true;
+}
+void GEOM::SetLaserMaterial(storm_ship_laser::Mesh &&surface, storm_ship_laser::FaceIndex &&collision, std::vector<uint32_t> &&candidates)
+{
+    // Publication only moves prepared values; ray scratch is retained between queries.
+    laserMaterialSurface=std::move(surface);laserMaterialCollision=std::move(collision);laserMaterialCandidates=std::move(candidates);
+}
+void GEOM::ClearLaserMaterial()
+{
+    laserMaterialSurface.clear();laserMaterialCollision={};laserMaterialCandidates=std::vector<uint32_t>{};
 }
 void GEOM::RebuildLaserCollision()
 {
@@ -681,6 +704,7 @@ bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&pro
 void GEOM::CommitLaserProjection(uint64_t owner)
 {
     if(!laserPending||owner!=laserPendingOwner)return;if(laserPending->revision!=collisionRevision||laserPending->generation!=geometryGeneration){DiscardLaserProjection(owner);return;}if(!laserPending->result.changed){DiscardLaserProjection(owner);return;}
+    SetLaserMaterial(std::move(laserPending->render),std::move(laserPending->materialCollision),std::move(laserPending->materialCandidates));
     auto projection=std::move(laserPending);ReleaseHullDraws(hullDraws);hullDraws=std::move(laserPendingDraws);laserSurface=std::move(projection->canonical);laserVisualSurface=std::move(projection->kept);laserClosedVolume=projection->keptVolume;laserEnclosedFragments=projection->enclosedFragments;laserPlanes.push_back(std::move(projection->plane));laserOwner=hullOwner=owner;
     laserBroadphase=std::move(projection->collision.broadphase);laserCollisionTriangles=std::move(projection->collision.references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;laserRetainedSupport=std::move(projection->retainedSupport);laserReleasedSupport=std::move(projection->releasedSupport);laserSerial=laserPendingSerial;laserFragments.push_back(std::move(laserPendingBatch));laserPendingOwner=laserPendingSerial=0;++collisionRevision;
 }
@@ -746,8 +770,8 @@ void GEOM::ReleaseLaserFragments()
 }
 void GEOM::ClearLaserCuts(uint64_t owner)
 {
-    if(!laserOwner||owner!=laserOwner)return;ReleaseLaserFragments();laserPlanes.clear();laserSurface.clear();laserVisualSurface={};laserOwner=0;laserPrepared=false;laserEnclosedFragments=true;laserClosedVolume=0;laserRetainedSupport={};laserReleasedSupport.clear();laserCollisionTriangles.clear();laserRayCandidates.clear();laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
-    ReleaseHullDraws(hullDraws);hullSignature=0;const auto inputs=hullCutInputs;SetHullCuts(owner,inputs);
+    if(!laserOwner||owner!=laserOwner)return;ReleaseLaserFragments();laserPlanes.clear();laserSurface.clear();laserVisualSurface={};ClearLaserMaterial();laserOwner=0;laserPrepared=false;laserEnclosedFragments=true;laserClosedVolume=0;laserRetainedSupport={};laserReleasedSupport.clear();laserCollisionTriangles.clear();laserRayCandidates.clear();laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
+    ReleaseHullDraws(hullDraws);hullSignature=0;const auto inputs=hullCutInputs;SetHullCuts(owner,inputs);if(!laserPrepared)RebuildLaserSurface(false);
 }
 
 bool GEOM::CaptureWorldSurface(bool terrainModel)

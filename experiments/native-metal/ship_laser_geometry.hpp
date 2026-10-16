@@ -133,9 +133,9 @@ inline Fragment fragmentProperties(const Mesh&mesh) {
             first=false;}}
     result.surfaceArea=float(area);result.centroid=area>1.e-12?Vec3{float(x/area),float(y/area),float(z/area)}:(result.bounds.lo+result.bounds.hi)*.5f;return result;
 }
-// Render-only thickness for explicitly classified structural wood. Canonical
-// cut/collision meshes never contain these faces, so reconstruction cannot grow
-// another inner shell on every saved cut. Open holds and ports stay open.
+// Thickness for explicitly classified structural wood. Ordinary canonical
+// collision and structural accounting keep the authored shell; laser material
+// queries include its inner skin. Reconstruction must not grow another shell.
 inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses,const std::map<PositionKey,float>*depthLimits=nullptr,const std::map<PositionKey,Vec3>*offsetNormals=nullptr) {
     Mesh result=mesh;
     using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;
@@ -382,7 +382,7 @@ struct MaterialPrism {std::array<Vec3,6>vertices;int object=0;};
 bool timberSectionCaps(const std::vector<MaterialPrism>&,const std::vector<Plane>&,const storm_ship_hull::Plane&,const std::vector<storm_ship_hull::Plane>&,Vec3,bool,Mesh&,Mesh&);
 struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const SurfaceBase>original;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;};
 struct Input {std::shared_ptr<const Surface>surface;std::map<int,float>wood;Plane plane;unsigned fragmentLimit=0;Vec3 supportAxis{};bool hasSupportAxis=false,enclosedFragments=true;double closedVolume=0;uint64_t generation=0,revision=0;};
-struct Projection {std::shared_ptr<const Surface>kept;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,retainedSupport;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0;bool enclosedFragments=true;};
+struct Projection {std::shared_ptr<const Surface>kept;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0;bool enclosedFragments=true;};
 struct FragmentInput {Input input;uint64_t owner=0,generation=0,token=0;unsigned successorLimit=0;};
 struct FragmentPiece {Fragment properties;std::shared_ptr<const Surface>surface;FaceIndex collision;};
 struct FragmentProjection {uint64_t owner=0,generation=0,token=0;bool changed=false;std::vector<FragmentPiece>successors;};
@@ -632,7 +632,11 @@ inline bool beamSeversSupport(const Mesh&before,const Mesh&after,const std::vect
 }
 inline bool prepare(const Input&input,Projection&output){
     if(!input.surface||!input.fragmentLimit||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
-    auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;if(cut.detachedArea<=1.e-7f||cut.keptArea+cut.detachedArea<=1.e-7f){output=std::move(next);return true;}
+    auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;
+    float removedInterior=0;for(const auto&o:cut.detached.interior)for(const auto&t:o.second)removedInterior+=storm_ship_hull::area(t);
+    // A partial bore can remove inner timber before reaching the outer shell.
+    // Publish that real material change without charging it as canonical damage.
+    if((cut.detachedArea<=1.e-7f&&removedInterior<=1.e-7f)||cut.keptArea+cut.detachedArea<=1.e-7f){output=std::move(next);return true;}
     std::vector<Surface>released;if(input.enclosedFragments&&!input.plane.beams.empty())released=detachEnclosed(*input.surface,cut.kept);
     auto groups=surfaceFragments(std::move(cut.detached),input.plane,input.fragmentLimit,input.wood);if(groups.size()+released.size()>input.fragmentLimit)return false;
     for(auto&piece:released){const auto mesh=canonicalMesh(piece);for(const auto&o:mesh)for(const auto&t:o.second)cut.detachedArea+=storm_ship_hull::area(t);groups.push_back(std::move(piece));}
@@ -643,7 +647,7 @@ inline bool prepare(const Input&input,Projection&output){
     next.result.fragments.reserve(groups.size());next.fragmentRender.reserve(groups.size());size_t groupIndex=0;for(const auto&piece:groups){auto canonical=canonicalMesh(piece);if(input.closedVolume>1.e-6&&(cut.detachedVolumes.empty()||groupIndex>0)){const double volume=closedCutVolume(canonical);if(volume<=0)return false;detachedVolume+=volume;}++groupIndex;
         next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));if(!input.plane.beams.empty())for(const auto&o:piece.outer)for(const auto&t:o.second)next.result.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}
     if(input.closedVolume>1.e-6){next.keptVolume=closedCutVolume(next.canonical);if((keptArea>1.e-7f&&next.keptVolume<=0)||std::abs(input.closedVolume-next.keptVolume-detachedVolume)>std::max(.001,input.closedVolume*1.e-5))return false;next.result.volumeBased=true;next.result.removedFraction=float(std::clamp(detachedVolume/input.closedVolume,0.,1.));}
-    next.collision=indexFaces(next.canonical);if(!cut.kept.released.empty()){next.retainedSupport=indexFaces(cut.kept.outer);for(const auto&piece:cut.kept.released)next.releasedSupport.push_back(indexFaces(*piece));}next.kept=std::make_shared<const Surface>(std::move(cut.kept));output=std::move(next);return true;
+    next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());if(!cut.kept.released.empty()){next.retainedSupport=indexFaces(cut.kept.outer);for(const auto&piece:cut.kept.released)next.releasedSupport.push_back(indexFaces(*piece));}next.kept=std::make_shared<const Surface>(std::move(cut.kept));output=std::move(next);return true;
 }
 
 // A born fragment owns exactly the uploaded boundary, including inner timber

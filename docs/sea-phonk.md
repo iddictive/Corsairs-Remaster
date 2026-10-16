@@ -147,6 +147,21 @@ Repeated ship bores subtract the union of recorded cutters from immutable
 authored material; they do not repeatedly partition unaffected triangles.
 Wood uses the inner vertices of its classified physical shell, closed authored
 components retain their own solids and unclassified open sheets stay open.
+Laser camera and muzzle rays use the opt-in `TraceLaserMaterial` hierarchy query:
+its retained outer/inner timber and finite-wall index is prepared with the mesh
+and ray scratch, then published atomically. Ordinary cannon topology updates
+reuse their clipped CPU triangles to refresh this projection; unchanged cut
+signatures do no topology work. Ordinary `Trace`, `Clip`, hit details and canonical
+structural accounting keep their existing surfaces. Inner timber removal still
+publishes real geometry without adding interior area to canonical damage;
+later finite-wall removal follows the existing canonical formula. Flooding
+apertures still come only from removed authored outer faces.
+The installed stock inventory covers all57 classified root GMs; each has zero
+validated canonical closed volume. The profile owner excludes mast, yard and
+shatter files. A synthetic closed solid with an added inner shell still rejects
+an interior-only dose; this extension remains unsupported and closed-volume
+conservation guards stay intact. The exact inventory, commands and source are in
+the private [material-query receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/integrated-sea-laser/held-fire-diagnostic/implementation/receipt.json).
 An enclosed disconnected piece leaves the retained hull as its own fragment;
 ordered SAVE reconstruction repeats that extraction. A hollow hold and gunport
 are not filled to create a cutting surface. Solid/hollow ring checks and actual

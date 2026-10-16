@@ -1514,7 +1514,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
         if (automatic) continue;
         if (receiver.bounded && !storm_ship_hull::rayBounds(receiver.bounds,
             {camera.x, camera.y, camera.z}, {end.x, end.y, end.z})) continue;
-        const float hit = ship->Trace(camera, end);
+        const float hit = ship->GetModel()->TraceLaserMaterial(camera, end);
         if (hit >= 0.f && hit < nearest) { nearest = hit; target = ship; worldTarget = 0; }
     }
     phonkLaser.endpoint = camera + (end - camera) * nearest;
@@ -1557,7 +1557,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             auto *ship = candidate.ship;
             if (candidate.bounded && !storm_ship_hull::rayBounds(candidate.bounds,
                 {muzzle.x, muzzle.y, muzzle.z}, {rayEnd.x, rayEnd.y, rayEnd.z})) continue;
-            const float hit = ship->Trace(muzzle, rayEnd);
+            const float hit = ship->GetModel()->TraceLaserMaterial(muzzle, rayEnd);
             if (hit >= 0.f && hit < fraction)
             { fraction = hit; receiver = ship; worldReceiver = 0; ray.fragment = {}; }
         }

@@ -51,6 +51,7 @@ class NODE
                       const CMatrix &globm, NODER *par, const char *lmPath) = 0;
 
     virtual float Trace(const CVECTOR &src, const CVECTOR &dst) = 0;
+    virtual float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) = 0;
 
     virtual void SubstituteGeometry(const std::string& new_model) = 0;
 };
@@ -105,6 +106,7 @@ class MODEL : public COLLISION_OBJECT
     virtual Animation *GetAnimation() = 0;
 
     float Trace(const CVECTOR &src, const CVECTOR &dst) override = 0;
+    virtual float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) = 0;
     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,
               ADD_POLYGON_FUNC addpoly) override = 0;
 
