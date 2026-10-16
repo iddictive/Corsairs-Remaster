@@ -245,7 +245,7 @@ bool Port_EnterBoat()
             pchar.PortTravel.z = z + dz * 2.2 / length;
             pchar.PortTravel.yaw = ay;
         }
-        if (!SendMessage(&PortBoat, "li", 1, 0)) return false;
+        if (!SendMessage(&PortBoat, "l", 1)) return false;
         LocSuspendResident(loadedLocation);
         if (!Port_BindShip()) { SendMessage(&PortBoat, "l", 3); return false; }
     }
@@ -268,7 +268,7 @@ void Port_TryLeaveBoat()
     // Native admission independently validates range, relative speed and solids.
     if (stf(pchar.Ship.HP) > 0.0 && SendMessage(&PortBoat, "li", 2, &SeaDeckCamera)) return;
     if (!Port_SelectPier(stf(pchar.PortTravel.x), stf(pchar.PortTravel.z))) return;
-    SendMessage(&PortBoat, "li", 2, 0);
+    SendMessage(&PortBoat, "l", 2);
 }
 
 void Port_CompleteHandoff()
@@ -386,7 +386,7 @@ bool Port_RestoreAfterSea()
         {
             if (CheckAttribute(pchar, "PortTravel.transferDeck") && sti(pchar.PortTravel.transferDeck))
                 result = SendMessage(&PortBoat, "li", 5, &SeaDeckCamera);
-            else result = SendMessage(&PortBoat, "li", 5, 0);
+            else result = SendMessage(&PortBoat, "l", 5);
         }
         if (result)
         {
@@ -408,7 +408,7 @@ bool Port_RestoreAfterSea()
         {
             if (CheckAttribute(pchar, "PortTravel.handoffDeck") && sti(pchar.PortTravel.handoffDeck))
                 SendMessage(&PortBoat, "li", 5, &SeaDeckCamera);
-            else SendMessage(&PortBoat, "li", 5, 0);
+            else SendMessage(&PortBoat, "l", 5);
         }
     }
     if (!result)

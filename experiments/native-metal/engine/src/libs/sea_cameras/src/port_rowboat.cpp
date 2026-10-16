@@ -705,8 +705,8 @@ uint64_t PORT_ROWBOAT::ProcessMessage(MESSAGE &message)
         auto *character = message.AttributePointer();
         return ConfigureFrom(character, message.AttributePointer());
     }
-    case Begin: return StartTransfer(message.EntityID(), true);
-    case RequestTransfer: return StartTransfer(message.EntityID(), false);
+    case Begin: return StartTransfer(message.ParamValid() ? message.EntityID() : invalid_entity, true);
+    case RequestTransfer: return StartTransfer(message.ParamValid() ? message.EntityID() : invalid_entity, false);
     case Cancel:
         if (state == Entering || state == Leaving || state == Blocked)
         { returning = true; if (state == Blocked) state = interrupted; Publish(); return 1; }
@@ -715,7 +715,7 @@ uint64_t PORT_ROWBOAT::ProcessMessage(MESSAGE &message)
         if (state != Handoff) return 0;
         ReleaseModels(false); Publish(); return 1;
     case Restore: {
-        const auto camera = message.EntityID();
+        const auto camera = message.ParamValid() ? message.EntityID() : invalid_entity;
         if (!travel || state != Inactive) return 0;
         const auto rawState = travel->GetAttributeAsDword("state");
         const auto savedState = rawState == Blocked ? travel->GetAttributeAsDword("interrupted") : rawState;
