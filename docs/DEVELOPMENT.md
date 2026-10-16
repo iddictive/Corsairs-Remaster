@@ -7,16 +7,16 @@ definition and upstream GPLv3 license. The initial import preserves947 source,
 technique and CMake inputs byte-for-byte from verified batch `69f1dd4`; three
 patch backup files were excluded. `build.sh` compiles the tracked sources
 directly. It never extracts `engine.tar`, applies patches or rewrites sources.
-Old `.patch` files and `.cache/storm` are historical evidence. `run.sh` owns
-staging and launch. `backend.mm` and adjacent Metal headers own rendering.
-`src/gameplay` owns registered complete scripts and interface definitions;
-`tools/gameplay_sources.py` projects them to runtime files.
-`tools/sync_metal_gameplay.py` delivers these and remaining domain generators;
+The former patch stack remains in Git history; `.cache/storm` is historical
+evidence. `run.sh` owns staging and launch. `backend.mm` and adjacent Metal
+headers own rendering. `src/gameplay` owns every managed complete script and
+interface definition; `tools/gameplay_sources.py` projects them to runtime files.
+`tools/sync_metal_gameplay.py` delivers these files and prepared assets directly;
 `metal_graphics_settings.py` owns settings and the launch environment.
 
 Captured `experiments/native-metal/inputs` own dependency headers, baseline
-scripts and toolchain. Existing payloads remain compatible; their historical
-engine archive/baseline build files are unused. Keep inputs and generated
+game data and toolchain. Existing payloads remain compatible; their historical
+engine archive, patch originals and baseline build files are unused. Keep inputs and generated
 `.cache` out of Git. `tools/metal_engine_source.py` owns compiler readiness from
 the real engine/renderer input fingerprint and built/staged binary hashes.
 An edit after a build invalidates readiness; a build never rolls it back.
@@ -45,7 +45,7 @@ Wine workaround.
 
 The installer also delivers the built `resource/shared/messages.h` to the installed app and development runtime in the same rollback transaction as the engine. The script VM reads this header during startup; updating the engine and PROGRAM alone can leave new command names undefined and abort before the menu. Header compilation checks must use the delivered app header, not the source checkout.
 
-`tools/delivery_state.py` owns delivery receipts, admission, atomic rollback and outer-bundle sealing. The installed receipt is `Contents/Resources/.delivery-state.json`; runtime staging records its own `.cache/runtime/.delivery-state.json`. Native staging, script delivery and fresh export record every managed file, including an unchanged file's first adoption. Later versions accept recorded predecessors automatically. `tools/gameplay/delivery-bootstrap.json` and the source manifests freeze admission for installations predating receipts; do not extend them per release. Domain generators still validate their inputs, anchors and reviewed outputs independently of destination admission. Missing or corrupt ownership evidence never authorizes an unknown edit. Receipt paths exclude SAVE, settings, logs and assets.
+`tools/delivery_state.py` owns delivery receipts, admission, atomic rollback and outer-bundle sealing. The installed receipt is `Contents/Resources/.delivery-state.json`; runtime staging records its own `.cache/runtime/.delivery-state.json`. Native staging, script delivery and fresh export record every managed file, including an unchanged file's first adoption. Later versions accept recorded predecessors automatically. The source manifests freeze admission for installations predating receipts; do not extend them per release. Prepared assets validate their manifests independently of destination admission. Missing or corrupt ownership evidence never authorizes an unknown edit. Receipt paths exclude SAVE, settings and logs.
 
 The dev helper uses the same transaction and player lock. It records pushed edits as development-owned until reverted or incorporated into canonical content, so normal staging refuses to overwrite them and a noop preserves their owner. Unchanged delivery skips runtime/app writes and outer-bundle signing. A bundle move or checkout-cache cleanup preserves the installed receipt; a fresh exported app carries the validated staging content and source identities into its receipt after nested code is signed and before the outer seal.
 
@@ -53,7 +53,7 @@ For settings UI work only, `experiments/native-metal/run.sh --settings-hmr` watc
 
 Use `python3 tools/sync_metal_gameplay.py apply` for a reviewed script-only delivery. Staging receipts prove build and delivery, not interactive gameplay. Replay the changed action on a suitable save and check the nearest unaffected action before calling a feature accepted.
 
-Edit registered files directly in `src/gameplay`; they are UTF-8 source files with LF endings. The manifest declares each file's runtime encoding: scripts currently use UTF-8 and the trade-journal INI uses CP1251. Script/header/INI projection restores CRLF. To deliver one independent file without running unrelated legacy composers:
+Edit registered files directly in `src/gameplay`. New text sources use UTF-8 with LF endings; existing unchanged sources retain their bytes. The manifest declares each file's runtime encoding, including CP1251 resources. Script/header/INI projection restores CRLF. To deliver one independent file:
 
 ```sh
 python3 tools/sync_metal_gameplay.py apply --path PROGRAM/weather/Init/Evening.c
@@ -61,9 +61,17 @@ python3 tools/sync_metal_gameplay.py apply --path PROGRAM/weather/Init/Evening.c
 
 The manifest registers paths and frozen pre-receipt bootstrap hashes. Do not add a hash for each new source revision: the delivered predecessor is recorded automatically. A new registered file uses an empty bootstrap list; an existing unrecorded destination with different bytes needs explicit provenance before its first delivery. Missing recorded files and unknown edits reject. Content-addressed backups preserve replaced bytes. Full staging consumes the same sources, and export rejects an unstaged source before copying the app.
 
-The hero dialogue has two existing product variants, declared in `src/gameplay/variants.json`: standard and boarding-loot controls. Their complete source files live in `src/gameplay/variants/mainhero`; military callbacks compose on those sources once. Initial adoption identifies the existing variant from frozen reviewed bytes, then the receipt retains its relative source identity. Edit the selected source and use ordinary full script delivery; later edits and fresh exports need no added historical hashes. A delivery does not switch variants. These composed variant sources are outside the single-file `--path` and dev `promote` contracts.
+The hero dialogue has two existing product variants, declared in `src/gameplay/variants.json`: standard and boarding-loot controls. Their complete source files, including military callbacks, live in `src/gameplay/variants/mainhero`. Initial adoption matches the current source or frozen reviewed predecessors, then the receipt retains its relative source identity. Edit the selected source and use ordinary full script delivery; later edits and fresh exports need no added historical hashes. A delivery does not switch variants. Variant sources remain outside the single-file `--path` and dev `promote` contracts.
 
-`gameplay/` remains a disposable installed-content workspace. After a snapshotted dev edit, `python3 tools/dev_runtime.py promote PROGRAM/weather/Init/Evening.c` moves a registered file's edit into its canonical source, stages cache and installed bytes, and reconciles the dev snapshot in one rollback transaction. It refuses a changed canonical predecessor or unknown installed bytes. Commit the resulting source diff normally. Files still owned by legacy composers must be migrated with their owner before promotion; the helper does not create a second source of truth for them.
+`gameplay/` remains a disposable installed-content workspace. After a snapshotted dev edit, `python3 tools/dev_runtime.py promote PROGRAM/weather/Init/Evening.c` moves a registered file's edit into its canonical source, stages cache and installed bytes, and reconciles the dev snapshot in one rollback transaction. It refuses a changed canonical predecessor or unknown installed bytes. Commit the resulting source diff normally. Unregistered base content remains outside promotion.
+
+Normal build, staging and launch never rewrite script source or apply text patches.
+Town backdrop definitions are complete files under `src/gameplay/PROGRAM/locations/init`.
+`layout-assets.json` binds physical fort/land locators used by the authored scripts.
+The only generated text is the in-game changelog: `changelog_content.py` projects
+`docs/changelog-ru.md` above `src/gameplay/changelog-original.txt`. Model, texture,
+audio and movie preparation retain their existing asset manifests. Historical
+Windows/native-storm patch tools are outside the supported Metal source workflow.
 
 ## Package an app
 

@@ -225,6 +225,7 @@ void wdmCreateWorldMap()
 	Whr_BindMapWeather();
     wdmPreparePlayerShipVisual();
 	if (cinematic) SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
+    GreatRecipe_MapSeed();
 	CreateEntity(&worldMap,"worldmap");
 	if (cinematic) return;
 	wdmFinishWorldMap(false);

@@ -37,6 +37,9 @@
 #include "interface\interface.c"
 #include "fleet_cmds.c"
 #include "interactive.c"
+#include "scripts\great_recipe.c"
+#include "scripts\great_recipe_alliance.c"
+#include "scripts\great_recipe_shore.c"
 
 extern void InitBaseCannons();
 extern void InitCharacters();
@@ -730,6 +733,7 @@ int actLoadFlag = 0;
 
 void OnLoad()
 {
+    GreatRecipe_PreLoadActors();
     if (LoadSegment("store\\initGoods.c"))
     {
         Airburst_InitGoods();
@@ -859,6 +863,7 @@ void OnLoad()
 	int custodyLocation = FindLoadedLocation();
 	if (custodyLocation >= 0) Custody_RehydrateJail(&Locations[custodyLocation]);
 	CrewDebt_Ensure();
+    GreatRecipe_OnLoad();
 	////
 	ProcessVersionCheck();
 	
@@ -1675,6 +1680,7 @@ void GameOverMainMenu()
 
 void GameOverE()
 {
+    if (GreatRecipe_ClaimDeath(nMainCharacterIndex)) return;
 	// вылетам у форта НЕТ -->
     if (bSeaActive && !bAbordageStarted)
     {
@@ -1688,6 +1694,7 @@ void GameOverE()
 
 void GameOver(string sName)
 {
+    if (sName != "MainMenu" && GreatRecipe_ClaimDeath(nMainCharacterIndex)) return;
 	ref mc;
 	int nSelect;
 	string sFileName;

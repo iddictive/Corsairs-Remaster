@@ -821,6 +821,12 @@ void TransactionOK()
 	int nTradeQuantity, moneyback;
 	confirmChangeQTY_EDIT();
 	nTradeQuantity = sti(GameInterface.qty_edit.str);
+    if (BuyOrSell == -1)
+    {
+        nTradeQuantity = GreatRecipe_StoreSaleLimit(refStore, iCurGoodsIdx, nTradeQuantity);
+        GameInterface.qty_edit.str = nTradeQuantity;
+        iStoreQty = GetStoreGoodsQuantity(refStore, iCurGoodsIdx);
+    }
 	if (BuyOrSell == 0)
 	{
 	    EndTooltip();
@@ -926,6 +932,8 @@ void ChangeQTY_EDIT()
 		        GameInterface.qty_edit.str = makeint(iWeight / fWeight * iUnits ); // округдение
 		    }
 		    // проверка на колво доступное <--
+            GameInterface.qty_edit.str = GreatRecipe_StoreSaleLimit(refStore, iCurGoodsIdx, sti(GameInterface.qty_edit.str));
+            iWeight = GetGoodWeightByType(iCurGoodsIdx, sti(GameInterface.qty_edit.str));
 		    SetFormatedText("QTY_Result", XI_ConvertString("SELL") + NewStr() + "Золото " + makeint(iStorePrice*stf(GameInterface.qty_edit.str) / iUnits + 0.5) + ", вес " + iWeight + " ц");
 		}
 		else

@@ -12,6 +12,7 @@ void Store_InitAirburst(ref pStore)
     if (quantity > 120) quantity = 120;
     pStore.Goods.Airburst.TradeType = Store_AirburstTradeType(pStore);
     pStore.Goods.Airburst.NotUsed = false;
+    if (pStore.Colony == "Pirates" && !GreatRecipe_Unlocked()) quantity = 0;
     pStore.Goods.Airburst.Quantity = quantity;
     pStore.Goods.Airburst.Norm = quantity;
     pStore.Goods.Airburst.RndPriceModify = 0.075;
@@ -24,6 +25,7 @@ void Store_EnsureAirburst(ref pStore)
     if (CheckAttribute(pStore, "Goods.Airburst"))
     {
         pStore.Goods.Airburst.TradeType = Store_AirburstTradeType(pStore);
+        if (pStore.Colony == "Pirates" && sti(pStore.Goods.Airburst.Quantity) > 200) pStore.Goods.Airburst.Quantity = 200;
         return;
     }
     if (!CheckAttribute(pStore, "Colony") || pStore.Colony == "none" || pStore.Colony == "") return;
@@ -33,7 +35,7 @@ void Store_EnsureAirburst(ref pStore)
 int Store_AirburstTradeType(ref pStore)
 {
     // Pirates is the canonical Bermuda colony, not every pirate settlement.
-    if (CheckAttribute(pStore, "Colony") && pStore.Colony == "Pirates") return TRADE_TYPE_AMMUNITION;
+    if (CheckAttribute(pStore, "Colony") && pStore.Colony == "Pirates" && GreatRecipe_Unlocked()) return TRADE_TYPE_AMMUNITION;
     return TRADE_TYPE_CONTRABAND;
 }
 
@@ -284,6 +286,7 @@ void UpdateStore(ref pStore, int recoveryOffset)
 	Store_EnsureAirburst(pStore);
 	int recoveryColony = WdmRecoveryStoreColony(pStore);
 	if (!WdmRecoveryAdmitDay(recoveryColony, recoveryOffset)) return;
+    GreatRecipe_StoreDaily(pStore, recoveryOffset);
 	aref gref, curref;
 	makearef(gref, pStore.Goods);
 	int delta, oldQty;
@@ -293,6 +296,7 @@ void UpdateStore(ref pStore, int recoveryOffset)
 	for(int i=0; i<GOODS_QUANTITY; i++)
 	{
 		tmpstr = Goods[i].name;
+        if (i == GOOD_AIRBURST && pStore.Colony == "Pirates") continue;
 		if (!CheckAttribute(gref,tmpstr) ) continue;		
 		makearef(curref, gref.(tmpstr));
         // пересмотр системы 24.01.08. Новая - "круги на воде"

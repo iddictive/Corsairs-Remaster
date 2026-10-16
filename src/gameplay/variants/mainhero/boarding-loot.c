@@ -8,6 +8,7 @@ void ProcessDialogEvent()
 	makeref(NPChar,CharacterRef);
 	makearef(Link, Dialog.Links);
 	makearef(NextDiag, NPChar.Dialog);
+	if (WdmHarbourChoiceDialog(NPChar, Link, Dialog.CurrentNode)) return;
 
     ref chr, rShip;
     float  fTemp;

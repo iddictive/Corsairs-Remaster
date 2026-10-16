@@ -99,7 +99,7 @@ installed parity. Its compiler-ready flag checks the engine revision, not script
 compilation; startup compatibility requires the complete installed `seadogs.c`
 include chain rather than selected function fixtures.
 
-Authored map patrol/sinking and quiet-client native patches participate in the
+Authored map patrol/sinking and quiet-client native sources participate in the
 same compiler receipt. Their changed hashes keep content apply unready until
 the canonical engine build/stage consumes them; script compilation alone does
 not provide the new native attribute bridge. Ordinary installed startup defaults

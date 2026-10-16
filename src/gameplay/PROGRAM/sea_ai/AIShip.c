@@ -1232,6 +1232,7 @@ void Ship_SetTaskAbordage(int iTaskPriority, int iCharacterIndex, int iCharacter
 void Ship_SetTaskBrander(int iTaskPriority, int iCharacterIndex, int iCharacterIndexBranderTo)
 {
 	ref rCharacter = GetCharacter(iCharacterIndex);
+    if (GreatRecipe_IsBeard(rCharacter)) return;
 	rCharacter.SeaAI.Task = AITASK_BRANDER;
 	rCharacter.SeaAI.Task.Target = iCharacterIndexBranderTo;
 	SendMessage(&AISea, "lllaa", AI_MESSAGE_SHIP_SET_TASK, AITASK_BRANDER, iTaskPriority, &Characters[iCharacterIndex], &Characters[iCharacterIndexBranderTo]);
@@ -1646,6 +1647,7 @@ void Ship_ChangeChargeEvent() // нигде не используется???
 
 void Ship_ChangeCharge(ref rCharacter, int iNewChargeType)
 {
+    if (CheckAttribute(rCharacter, "Ship.GreatRecipeAirburstOnly")) iNewChargeType = GOOD_AIRBURST;
 	SendMessage(&AISea, "la", AI_MESSAGE_CANNON_RELOAD, rCharacter); // must be first line in this function
 	DeleteAttribute(rCharacter, "Tmp.CompanionChargeReload");
 
@@ -1862,6 +1864,7 @@ void Ship_CheckSituation()
 		Ship_SetSailState(sti(rCharacter.index), 1.0);
 	}
 	
+	if (CheckAttribute(rCharacter, "Ship.GreatRecipeAirburstOnly")) rCharacter.ShipCannonChargeType = GOOD_AIRBURST;
 	bool bIsCompanion = IsCompanion(rCharacter);
 	int iNewBallType = sti(rCharacter.Ship.Cannons.Charge.Type);
 	int iShipCannonsNum = GetCannonsNum(rCharacter);
@@ -2902,6 +2905,7 @@ void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStat
 	{
 		fCurHP = 0.0;
 		if (WdmHarbourAshore() && IsCompanion(rOurCharacter)) rOurCharacter.Ship.HP = 0.0;
+		if (GreatRecipe_ClaimHullDefeat(rOurCharacter)) return;
 		ShipDead(sti(rOurCharacter.index), iKillStatus, iKillerCharacterIndex);
 		if (sti(rOurCharacter.Ship.Type) == SHIP_NOTUSED) return;
 	}
@@ -2930,6 +2934,7 @@ void Ship_AddCharacterExp(ref rCharacter, int iExpQuantity)
 
 void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterIndex)
 {
+    if (GreatRecipe_ClaimDeath(iDeadCharacterIndex)) return;
 	if (WdmHarbourClaimLoss(iDeadCharacterIndex, "native")) return;
 	ref rDead, rKillerCharacter, rBaseShip, rKillerBaseShip, sld;
 
@@ -3187,6 +3192,8 @@ void ShipDead(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInde
 // boal -->
 void ShipTaken(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterIndex)
 {
+    GreatRecipe_ClaimBoarding(iDeadCharacterIndex);
+    if (iDeadCharacterIndex == nMainCharacterIndex && GreatRecipe_Phase() == "capturing") return;
 	ref rDead, rKillerCharacter, rMainCharacter, rBaseShip, rKillerBaseShip;
 
 	rDead = GetCharacter(iDeadCharacterIndex);
@@ -3198,7 +3205,7 @@ void ShipTaken(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInd
 	bool bCompanion = false;
 	bool bDeadCompanion = IsCompanion(rDead);
 
-    LAi_SetCurHP(rDead, 0.0); // умер
+    if (!GreatRecipe_AllianceKeepCaptain(rDead)) LAi_SetCurHP(rDead, 0.0); // умер
 	rDead.Killer.Status = iKillStatus;
 	rDead.Killer.Index = iKillerCharacterIndex;
     if (iKillerCharacterIndex != -1 && !bDeadCompanion)
@@ -3241,6 +3248,8 @@ void ShipTaken(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterInd
 // захваченный корабль, отпущен
 void ShipTakenFree(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacterIndex)
 {
+    GreatRecipe_AllianceReleaseCaptain(GetCharacter(iDeadCharacterIndex));
+    GreatRecipe_ClaimBoarding(iDeadCharacterIndex);
 	ref rDead, rKillerCharacter, rMainCharacter, rBaseShip, rKillerBaseShip;
 
 	rDead = GetCharacter(iDeadCharacterIndex);
@@ -3249,7 +3258,7 @@ void ShipTakenFree(int iDeadCharacterIndex, int iKillStatus, int iKillerCharacte
 	rBaseShip = GetRealShip(sti(rDead.Ship.Type));
 	rMainCharacter = GetMainCharacter();
 
-    LAi_SetCurHP(rDead, 0.0); // умер
+    if (!GreatRecipe_AllianceKeepCaptain(rDead)) LAi_SetCurHP(rDead, 0.0); // умер
 	rDead.Killer.Status = iKillStatus;
 	rDead.Killer.Index = iKillerCharacterIndex;
     if (iKillerCharacterIndex != -1)
@@ -5208,6 +5217,8 @@ void EmptyFantom_DropGoodsToSea(ref rChar, int iFantomType)
 	float fTime;
 	string sGood, sModel;
 	int iQty;
+	if (iFantomType == ENCOUNTER_TYPE_BARREL && CheckAttribute(rChar, "GreatRecipeBarrel"))
+    { GreatRecipe_SpawnBarrel(rChar, true); iFantomType = -1; }
 	if(iFantomType == ENCOUNTER_TYPE_BARREL)
 	{	
 		int irand = drand(100);

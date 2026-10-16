@@ -37,7 +37,6 @@ if ps -axo comm= | rg '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/nu
     exit 1
 fi
 if [[ "$mode" == --launch-installed ]]; then
-    python3 "$root/background_alpha.py" apply "$runtime/PROGRAM/locations/init"
     launch_installed
 fi
 if [[ -f "$inputs/manifest.json" && ! -d "$runtime/RESOURCE/techniques" ]]; then
@@ -87,7 +86,6 @@ changes[state.receipt] = state.change()
 transact(changes)
 print("Engine techniques: reviewed runtime revisions staged")
 TECHNIQUE_STAGE
-python3 "$root/background_alpha.py" apply "$runtime/PROGRAM/locations/init"
 python3 "$root/materials/stage.py" "$runtime" "$root/.cache/material-originals" "${STORM_METAL_MATERIALS:-0}"
 python3 "$root/materials/rockk2-candidates/stage.py" "$runtime" "${STORM_METAL_ROCKK2:-1}"
 for name in engine.ini options project.df; do

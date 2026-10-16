@@ -317,6 +317,7 @@ bool WdmAddEncountersData()
 		//Получим информацию о данном энкоунтере
 		if(wdmSetCurrentShipData(i))
 		{
+			if (GreatRecipe_MapImportBlocked(worldMap.encounter.id)) continue;
 			bool includeEncounter = WdmEncounterInSeaRange(mpsX, mpsZ);
 			if (!includeEncounter) includeEncounter = WdmTrafficBattleInSeaRange(i, numEncounters, mpsX, mpsZ);
 			int pairedEncounter = MakeInt(worldMap.encounter.attack);

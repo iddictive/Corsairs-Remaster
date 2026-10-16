@@ -107,7 +107,14 @@ def variant_source(name: str, current: bytes, state: DeliveryState, declarations
     identity = state.files.get(name, {}).get("source")
     if identity is None:
         hashes = {digest(current), digest(runtime_bytes(name, source_bytes(name, current, row["encoding"]), row["encoding"]))}
-        matches = [source for source, legacy in row["sources"].items() if hashes.intersection(legacy)]
+        matches = []
+        for source, legacy in row["sources"].items():
+            path = safe_path(ROOT, Path(source))
+            data = path.read_bytes()
+            inputs[path] = (data, data)
+            current_source = runtime_bytes(name, data, row["encoding"])
+            if hashes.intersection((*legacy, digest(current_source))):
+                matches.append(source)
         if len(matches) != 1:
             raise RuntimeError(f"Unrecognized gameplay variant: {name}; no files changed")
         identity = matches[0]
@@ -138,3 +145,27 @@ def prepare_delivery(resources: Path, source_set, state: DeliveryState | None = 
         changes[path] = (before, incoming)
     changes[state.receipt] = state.change()
     return changes
+
+
+def verify_layout_assets(resources: Path, inputs=None):
+    """Bind authored gameplay coordinates to the physical locator assets."""
+    manifest = safe_path(ROOT, Path("layout-assets.json"))
+    raw = manifest.read_bytes()
+    record = json.loads(raw)
+    if (not isinstance(record, dict) or set(record) != {"version", "files"}
+            or record["version"] != 1 or not isinstance(record["files"], dict)):
+        raise RuntimeError("Invalid gameplay layout asset manifest")
+    if inputs is not None:
+        inputs[manifest] = (raw, raw)
+    for name, expected in record["files"].items():
+        relative = Path(name)
+        if (relative.parts[:2] != ("RESOURCE", "MODELS") or relative.suffix != ".gm"
+                or not isinstance(expected, str) or len(expected) != 64
+                or any(char not in "0123456789abcdef" for char in expected)):
+            raise RuntimeError(f"Invalid gameplay layout asset: {name}")
+        path = safe_path(resources, relative)
+        data = path.read_bytes()
+        if digest(data) != expected:
+            raise RuntimeError(f"Unrecognized physical gameplay layout: {name}")
+        if inputs is not None:
+            inputs[path] = (data, data)

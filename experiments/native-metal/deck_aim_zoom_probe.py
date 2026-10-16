@@ -2,13 +2,13 @@
 """Portable zoom/input regression checks against the tracked engine.
 
 python3 deck_aim_zoom_probe.py --engine-source engine \
-    --gameplay-source inputs/gameplay
+    --gameplay-source ../../src/gameplay
 No native renderer or gameplay execution is claimed by this probe.
 """
 import argparse
 import os
 from pathlib import Path
-import runpy
+import re
 import subprocess
 import tempfile
 
@@ -24,6 +24,19 @@ def function(source, name, prefix='void DECK_CAMERA::'):
         level += (source[end] == '{') - (source[end] == '}')
         end += 1
     return source[start:end]
+
+
+def verify_gameplay_bindings(gameplay_source):
+    binding = 'CI_CreateAndSetControls("Sailing1Pers","DeckAimZoom",CI_GetKeyCode("VK_RBUTTON"),0,false);'
+    for relative in ('PROGRAM/controls/init_pc.c', 'PROGRAM/controls/controls.c'):
+        source = (gameplay_source / relative).read_text()
+        compact = re.sub(r'\s+', '', source)
+        assert compact.count(binding) == 1, f'{relative}: fixed zoom binding missing or duplicated'
+        if relative.endswith('/controls.c'):
+            restore = compact.index('CI_CreateAndSetControls(grName,ctrlName,keyCode,state,true);')
+            fixed = compact.index(binding)
+            activate = compact.index('RunControlsContainers();', restore)
+            assert restore < fixed < activate, 'fixed zoom binding must override saved mappings before activation'
 
 
 def main():
@@ -128,26 +141,10 @@ int main() {
                                 '-o', str(folder / 'projection')], check=True)
         subprocess.run([str(folder / 'projection')], check=True)
     if args.gameplay_source:
-        controls = runpy.run_path(str(ROOT.parents[1] / 'tools/metal_deck_controls.py'))
-        for spec in controls['FILES']:
-            source = (args.gameplay_source / spec.relative_path).read_bytes()
-            canonical = controls['strip'](spec.relative_path, source)
-            previous = controls['_transform'](canonical, spec)
-            output = controls['prepare'](spec.relative_path, source)
-            assert controls['prepare'](spec.relative_path, previous) == output
-            assert controls['prepare'](spec.relative_path, output) == output
-            assert controls['strip'](spec.relative_path, output) == canonical
-            assert controls['strip'](spec.relative_path, previous) == canonical
-            assert output.count(controls['ZOOM_BINDING'].encode()) == 1
-            try:
-                controls['prepare'](spec.relative_path, canonical + b'// unknown revision')
-            except RuntimeError:
-                pass
-            else:
-                raise AssertionError('unknown script revision was accepted')
-        print('Exact-hash control migration, idempotence and unknown-revision rejection passed')
+        verify_gameplay_bindings(args.gameplay_source)
+        print('Direct startup/restored fixed zoom bindings passed')
     else:
-        print('Script migration not run: pass --gameplay-source with reviewed gameplay inputs')
+        print('Script bindings not checked: pass --gameplay-source src/gameplay')
 
 
 if __name__ == '__main__':

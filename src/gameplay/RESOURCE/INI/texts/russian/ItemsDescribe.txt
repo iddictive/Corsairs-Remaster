@@ -1053,6 +1053,25 @@ itmdescr_WeddingRing
 Это красивое обручальное кольцо принадлежит милой девушке из #sCity#.
 }
 
+itmname_GreatRecipeRedPearl {Красная жемчужина Бороды}
+itmdescr_GreatRecipeRedPearl {Тяжёлая кроваво-красная жемчужина из капитанского сундука. Лаки Росин узнает клеймо и поможет наладить изготовление шрапнельных бомб на Бермудах.}
+
+itmname_GreatRecipeOil {Масло для блока}
+itmdescr_GreatRecipeOil {Бутылка масла для заклинившего блока грота-шкота. Одного масла мало: нужен новый нагель.}
+itmname_GreatRecipePin {Дубовый нагель}
+itmdescr_GreatRecipePin {Крепкий дубовый нагель взамен разбитой оси блока. Перед установкой смазать маслом.}
+itmname_GreatRecipeLinen {Чистое полотно}
+itmdescr_GreatRecipeLinen {Чистое полотно для перевязки раны Диего.}
+itmname_GreatRecipeWater {Кипячёная вода}
+itmdescr_GreatRecipeWater {Кипячёная остывшая вода для промывания раны Диего.}
+itmname_GreatRecipeFuse {Сухой красный фитиль}
+itmdescr_GreatRecipeFuse {Сухой фитиль с красной нитью для заряда с замедленным разрывом. Сверить его с капитанской накладной.}
+
+itmname_GreatRecipeCacheKey {Ключ от тайника}
+itmdescr_GreatRecipeCacheKey {Ржавый ключ из ящика у восточных скал. Открывает проход к тайнику старой команды Бороды.}
+itmname_GreatRecipeCacheLedger {Судовая книга старой команды}
+itmdescr_GreatRecipeCacheLedger {Промасленная книга с невыплаченными долями и подписью Ратли под последней выдачей пороха. Борода приказал принести её в каюту.}
+
 itmname_jewelry11	{Большая жемчужина}
 itmdescr_jewelry11
 {

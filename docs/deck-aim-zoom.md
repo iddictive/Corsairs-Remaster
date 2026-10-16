@@ -40,25 +40,31 @@ limited to the active deck camera and its last effective renderer FOV.
 
 ## Source and checks
 
-`experiments/native-metal/deck-aim-zoom.patch` follows `deck-eye-height.patch` in
-the ordered source stack. `tools/metal_deck_controls.py` installs the fixed,
-group-locked DeckAimZoom binding on fresh profiles and restored profiles. Its
-exact-hash migration accepts both the previous reviewed layer and this one;
-unknown script revisions still fail closed.
+The tracked `engine/src/libs/sea_cameras/src` files own the zoom state machine.
+`src/gameplay/PROGRAM/controls/init_pc.c` and `controls.c` own the fixed,
+group-locked DeckAimZoom binding on fresh and restored profiles. Ordinary
+source delivery preserves unknown runtime edits through its receipt.
 
-After applying the canonical source stack:
+Run the portable source probe:
 
 ```sh
 python3 experiments/native-metal/deck_aim_zoom_probe.py \
-  --engine-source experiments/native-metal/.cache/storm \
-  --gameplay-source experiments/native-metal/inputs/gameplay
+  --engine-source experiments/native-metal/engine \
+  --gameplay-source src/gameplay
 ```
 
-The portable probe covers click/hold timing, interruptions, frame independence,
+The portable probe checks click/hold timing, interruptions, frame independence,
 invalid/hitch deltas, bounds, camera projection ownership, both FOV policies,
-non-default multipliers, near/far round-trips and exact-hash script migration.
-It executes the actual patched renderer projection functions against a matrix
+non-default multipliers, near/far round-trips and fresh/restored fixed bindings.
+It executes the actual renderer projection functions against a matrix
 stub, not a native Metal device.
+
+Current check status: zoom timing and camera lifecycle pass. The projection
+fixture still models the old renderer facade and fails to compile against the
+tracked `storm_render`/`renderDevice` methods; native renderer maintenance owns
+that fixture update. The direct startup/restored binding check passes separately,
+including rejection when saved mappings override the fixed binding. The complete
+portable command remains unresolved until the fixture is updated.
 
 Native macOS acceptance still requires a replay: short clicks, a half-held zoom,
 a full zoom and outward hold, aim exit/reentry, Ctrl spyglass, menu/pause, focus

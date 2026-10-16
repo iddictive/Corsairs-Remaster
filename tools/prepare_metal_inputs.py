@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import plistlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -28,7 +29,8 @@ def verify(root):
     if record['engine_revision'] != REVISION:
         raise RuntimeError('Unreviewed engine revision')
     active = {name: expected for name, expected in record['sha256'].items()
-              if name != 'engine.tar' and not name.startswith('baseline/')}
+              if name != 'engine.tar'
+              and not name.startswith(('baseline/', 'gameplay-originals/', 'journal-baseline/'))}
     for name, expected in active.items():
         path = root / name
         if not path.resolve().is_relative_to(root.resolve()):
@@ -50,13 +52,15 @@ def main():
         return
     if target.exists():
         raise RuntimeError(f'Incomplete inputs retained for inspection: {target}')
-    # Resolve originals before writing; some currently live in the Windows archive.
-    import patch_gameplay_suite as suite
-    state = suite.classify(suite.NATIVE_ROOT)[0]
-    if state not in {'patched', 'upgrade'}:
-        raise RuntimeError('Gameplay baseline is not reviewed')
-    originals = suite._read_originals(suite.NATIVE_ROOT, state)
-    baseline = suite.NATIVE_ROOT
+    # Capture immutable game data from the supported app; code is Git-owned.
+    app = Path('/Applications/Corsairs Iddictive Remaster.app')
+    identity = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+    if identity.get('CFBundleIdentifier') != 'us.iddictive.corsairs':
+        raise RuntimeError('Expected the standalone Iddictive Corsairs app')
+    baseline = app / 'Contents/Resources'
+    for relative in ('PROGRAM', 'RESOURCE/INI', 'engine.ini', 'options', 'project.df'):
+        if not (baseline / relative).exists():
+            raise RuntimeError(f'Missing installed game input: {relative}')
     target.mkdir()
     native = PROJECT / 'experiments/native-storm/.cache'
     for relative in ('sse2neon.h', 'stb_image.h',
@@ -91,11 +95,6 @@ def main():
         copy(args.conan_data / relative, target / 'conan' / relative)
     for relative in ('PROGRAM', 'RESOURCE/INI', 'engine.ini', 'options', 'project.df'):
         copy(baseline / relative, target / 'gameplay' / relative)
-    copy(baseline.parent / 'journal-baseline', target / 'journal-baseline')
-    for relative, data in originals.items():
-        path = target / 'gameplay-originals' / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
     record = {'format': 1, 'engine_revision': REVISION, 'sha256': {}}
     for path in sorted(target.rglob('*')):
         if path.is_file():

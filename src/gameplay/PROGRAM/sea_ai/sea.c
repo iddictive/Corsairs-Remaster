@@ -126,6 +126,7 @@ void SeaTsunami_ClearPending()
 
 void DeleteSeaEnvironment()
 {
+    GreatRecipe_ClearVortex(true);
 	SeaPhonk_Reset(false);
 	SeaTsunami_ClearPending();
 	WdmMilitaryParleyClear();
@@ -216,6 +217,7 @@ void DeleteSeaEnvironment()
 
 	//
 		Encounter_DeleteDeadQuestMapEncounters();
+    GreatRecipe_AfterSceneUnload();
 
 }
 
@@ -340,7 +342,8 @@ string Sea_FindNearColony()
 }
 // boal <--
 void Sea_LandLoad()
-{	
+{
+    if (GreatRecipe_Locked()) return;	
 	pchar.shipx = pchar.ship.pos.x;
 	pchar.shipz = pchar.ship.pos.z;
 	ClearAllLogStrings();
@@ -461,6 +464,7 @@ void Sea_MapLoadXZ_AY(float x, float z, float ay)
 
 void Sea_MapLoad()
 {
+    if (GreatRecipe_Locked()) return;
 	if (!bSeaActive || bSeaReloadStarted || IsEntity(&SeaMapTransition)) return;
 	// boal 201004 проверка на перегруз и мин команду -->
 	ref  rPlayer = GetMainCharacter();
@@ -714,6 +718,9 @@ void SeaLogin(ref Login)
 		}
 
 	// Quest check
+    GreatRecipe_PrepareSea(Login);
+    if (CheckAttribute(Login, "GreatRecipeOpenSea") && sti(Login.GreatRecipeOpenSea))
+    { sIslandID = ""; pchar.location = ""; DeleteAttribute(Login, "GreatRecipeOpenSea"); }
 	Event(EVENT_SEA_LOGIN, "");
 	if (bSkipSeaLogin) return;
 
@@ -890,6 +897,7 @@ void SeaLogin(ref Login)
 
 		rRawGroup = GetAttributeN(arEncounters, i);
 		rEncounter = GetMapEncounterRef(sti(rRawGroup.type));
+        if (CheckAttribute(rEncounter, "CharacterID") && (GreatRecipe_Phase() == "whirlpool" || GreatRecipe_Phase() == "assault") && rEncounter.CharacterID == "GreatRecipeDreamBeard") continue;
 		if (WdmFleetSeaTagged(rEncounter) && !WdmFleetSeaAdmit(rEncounter, &Login)) continue;
 		
 		if (!CheckAttribute(rEncounter, "RealEncounterType")) // boal проверка на лажу
@@ -1048,6 +1056,7 @@ void SeaLogin(ref Login)
 			rFantom.Nation = PIRATE;			
 			rFantom.EncType  = "pirate";
             rFantom.RealEncounterType = iEncounterType;//boal
+            if (CheckAttribute(rEncounter, "GreatRecipeBarrel")) rFantom.GreatRecipeBarrel = true;
 			rFantom.reputation = 5 + rand(84);
 			rFantom.EncGroupName = sGName;
 			rFantom.MainCaptanId = Characters[iFantomIndex].id;
@@ -1293,6 +1302,7 @@ void SeaLogin(ref Login)
 				int iCharacterIndex = Group_GetCharacterIndexR(rGroup, qq); qq++;
 				if (iCharacterIndex < 0) { break; }
 				SetCharacterRelationBoth(iCharacterIndex, nMainCharacterIndex, iRelation);
+                GreatRecipe_AllianceRegisterPair(iCharacterIndex, iRelation);
 			}
 		}	
 		
@@ -1519,6 +1529,7 @@ void Sea_FirstInit()
 	SeaPhonk_Reset(false);
 	trace("Sea_FirstInit");
 	bSeaLoaded = true;
+    GreatRecipe_SeaReady();
     if (CheckAttribute(&Sea, "Tsunami.PendingSeverity"))
     {
         float severity = stf(Sea.Tsunami.PendingSeverity);
