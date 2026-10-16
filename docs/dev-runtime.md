@@ -35,9 +35,12 @@ Engine-linked fixture handoff uses `tools/capture_metal_build.py --repo <built-c
 the canonical source/engine receipt and rejects inputs/artifacts modified after
 that completed build, then retains
 all static libraries, native headers (including `.rh` and third-party headers),
-build logs/cache and exact fixture-producer commands with hashes. The default
-producer is `sea-fleet-benchmark`; this captures its flags without building or
-running that target. The destination must be new; repeating a complete identical
+build logs/cache and exact fixture-producer commands with hashes. It also retains
+`compile-commands.json` from Ninja's `compdb-targets`: bind a fixture that reads a
+native class to that class owner's production translation unit. A linked
+benchmark's flags may omit library-private definitions that change class layout.
+The default producer is `sea-fleet-benchmark`; capture builds or runs no target.
+The destination must be new; repeating a complete identical
 capture verifies and reuses it, while a mismatch preserves it and fails. Portable
 dependency contents remain in their manifest-bound input owner. This command
 does not stage the application or accept gameplay.

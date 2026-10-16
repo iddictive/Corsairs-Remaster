@@ -1,0 +1,10 @@
+Корсары — Iddictive Remaster
+Экспериментальная сборка для Apple Silicon и macOS 15 или новее.
+
+1. Распакуйте архив.
+2. Перенесите Corsairs Iddictive Remaster.app в папку Applications.
+3. Откройте приложение.
+
+Сохранения и настройки хранятся отдельно от приложения:
+~/Library/Application Support/Iddictive Corsairs
+Замена приложения сохраняет этот профиль.

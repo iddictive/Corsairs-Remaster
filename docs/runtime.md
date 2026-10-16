@@ -1,10 +1,46 @@
 # Runtime state
 
-Last verified delivery: October16,20:02UTC, source `f885a3376b1d8fc61338912f4232a4ed7da4a5a8`, signed engine `c5f58cdab1345e32af02d405b4553731c2eacf715416a8946b22d059d0c3328a` in the supported app. The player rejected its seamless-port behavior. The later explicit instruction freezes shore/rowboat travel, restores ordinary town transitions, and keeps the earlier experimental sea city. The complete unfinished source is retained at `codex/frozen-shore-travel` (`6dc08e7`); rollback source is prepared but not yet built/staged. Source/reconstruction publication and the game ZIP wait for that rollback. No agent player-game launch/control or SAVE load occurred. `TASKS.md` owns the current handoff; earlier verdict entries below are historical.
+Last verified delivery: October16,20:33UTC, source `23ac5eba107a3f5476f188d3e96c0a5b7dba7801`, signed engine `147e4d1f2302e249440e5c00a969132566912eb6748c1f6ef89072f66eabbf81` in the supported app. Canonical rollback staging exits0, restores ordinary town-transition source and retains the earlier sea city. All254 protected files and239 managed receipt rows verify; no agent player launch or SAVE load occurred. Shore/rowboat travel is frozen at `codex/frozen-shore-travel` (`6dc08e7`). A production-ABI private laser replay now produces real visible hull apertures, but the reported actual-player input failure remains unreproduced. Reconstruction inputs and normal restore/upgrade checks pass; canonical ZIP packaging and authorized GitHub source/input publication are in progress. The complete app stays on Drive. `TASKS.md` owns the current handoff; earlier entries are historical.
 
 ## Current verdict
 
-### October16 — shore travel frozen; ordinary-transition rollback pending delivery
+### October16 — bounded laser replay and reconstruction closure
+
+The single production-ABI held-input replay completes401 frames, exit0 in5.49s.
+Its actual emitted-contact line loses the near hull, then becomes clear through
+the40.5m control segment; the8.276m next-hit advance crosses empty hold and is
+not burned-material depth. The0.6m neighboring solid changes by at most1.146µm;
+miss/release intervals have no contact, pending work or new cuts. Whole/close
+renderer frames show two small sea-through apertures below the gun line; they
+are clear close up and tiny in the distant view. Foreground crew occlude part
+of the target in the after-aim frame. This accepts the controlled ship-hole
+component, not the user's unreproduced input/state or broader terrain/FPS modes.
+No canonical gameplay fix is invented from this result.
+
+Two earlier invalid fixture runs are retained separately: a frame0 diagnostic
+null read, then a missing library-private `STORM_METAL_SHIP_FIRE` definition.
+The canonical build capture now retains Ninja's production compilation database.
+Independent compiler dumps match production/fixture `SHIP` layout exactly
+(10864B, `phonkLaser` offset8856) before the accepting run. Raw contacts, material
+snapshots, commands, hashes, invalid attempts and PNGs are retained under
+`.local-archives/metal-renderer-evidence/phonk-current-20261016/integrated-sea-laser/player-rejection-23ac5eb/`.
+All private processes are terminal, scratch is removed and app/config remain
+unchanged; player SAVE was not used.
+
+`prepare_metal_inputs.py --export` retains complete build inputs and verified
+movies/music, including the11 city/rowboat originals missed by the first global
+manifest. Copied inert vendor Git pointers are excluded; their original bytes
+remain preserved privately. Normal restore from the actual app into a fresh
+source copy with spaces succeeds. All236 copied PROGRAM/RESOURCE receipt rows
+verify; app-only launcher/executable rows are excluded. Development SAVE is
+empty,15 prepared movies need no FFmpeg and music needs no network. A first
+source upgrade commits through the canonical transaction; unknown edits and a
+missing city original reject. Exact procedure, source snapshots, raw outputs
+and invalid diagnostic attempts are retained in
+`.local-archives/reconstruction-20261016/`. No clean C++ rebuild, new GPU sweep or
+installed-player replay is claimed by these restoration checks.
+
+### October16 — shore travel frozen; ordinary-transition rollback installed
 
 The user superseded further port repair with an explicit freeze and rollback.
 `codex/frozen-shore-travel` preserves the entire unfinished feature and both small
@@ -21,12 +57,26 @@ for the already-delivered receipt, without running their generator or activating
 their native/scripts. This preserves the normal updater's known predecessor;
 unused generated files do not become live gameplay.
 
+Canonical `run.sh --stage-only` installs rollback `23ac5eb` with deep/strict
+signature verification. Native source fingerprint is
+`e9020972445099cce4b0a41bd734bd1d3a666f5a8d42086527424845afeb274e`;
+unsigned engine is `60afa3ec0c6e24c67a43e8aa10597dffd113e4503aab031d4c121c8a7fe4cf5f`.
+The16 pending script/city-INI files are delivered. Refreshed preservation hashes
+confirm all254 protected SAVE/userdata/configuration files unchanged and all239
+installed receipt entries match. Latest actual player SAVE predates the first
+port installation, so no speculative port-coordinate migration is added.
+Exact before/result receipts and build logs are retained in
+`.local-archives/seamless-port/frozen-shore-rollback-20261016/`.
+
 All596 headers in the retained f885 baseline independently match that Git commit;
 all55 captured files match their recorded hashes. No current working CPP was
-archived with those libraries. No further port journey QA is active. The next
-required transition is a canonical rollback build/stage, followed by the already
-requested source/reconstruction and ZIP delivery; gameplay acceptance remains
-player-owned.
+archived with those libraries. No further port journey QA is active. Ordinary
+town-transition player replay remains unrun. The new laser rejection authorizes
+a bounded replay of the complete input/contact/material/render path; its prior
+f8 native replay never linked because the fixture lacked a camera include path.
+That missing accepting replay is unresolved, not evidence of a new kernel cause.
+Requested source/reconstruction and ZIP delivery remains active after the laser
+disposition; no unrelated QA or player-game control is resumed.
 
 ### October16 — actual port failures reopen acceptance; publication held
 

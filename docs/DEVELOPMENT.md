@@ -21,6 +21,41 @@ engine archive, patch originals and baseline build files are unused. Keep inputs
 the real engine/renderer input fingerprint and built/staged binary hashes.
 An edit after a build invalidates readiness; a build never rolls it back.
 
+## Rebuild on another Mac
+
+Use the Git source, matching complete build-input archive and the standalone
+game app. The app supplies the full game resources; player SAVE/settings remain
+in their separate profile. Install the app in `/Applications`, extract the input
+archive into `experiments/native-metal` so that it contains `inputs/`, then run:
+
+```sh
+python3 tools/prepare_metal_inputs.py --check
+experiments/native-metal/run.sh --stage-only
+```
+
+With no development runtime, the normal launcher calls
+`tools/restore_metal_runtime.py`. It restores reviewed material originals and
+retains validated PROGRAM/RESOURCE delivery receipts, excluding app-only launcher
+files and the executable, so
+the first source upgrade can admit the installed predecessor. It creates empty
+development SAVE and never imports the played profile.
+
+To retain the current complete inputs before moving machines:
+
+```sh
+python3 tools/prepare_metal_inputs.py --export dist/Corsairs-Metal-build-inputs.tar.gz
+```
+
+Export refuses an occupied destination and excludes vendor Git administration
+metadata. It includes the captured build inputs,
+city/rowboat originals verified against their owning recipes, and the verified
+prepared movie cache and music. Restoration reuses that media for its matching
+source recipe; an older payload without prepared media still needs FFmpeg and
+the pinned music download. The receiving build requires Apple Silicon/macOS15+,
+full selected Xcode/Metal SDK and Python3.10+; CMake/Ninja/SDL are in the inputs.
+The game app itself stays on the established Drive download; source and required
+build inputs have their separate GitHub owners.
+
 ## Edit and stage
 
 Close the game before staging. Edit tracked engine files directly; do not
@@ -94,8 +129,9 @@ codesign --verify --deep --strict "dist/Corsairs Iddictive Remaster.app"
 The exporter includes runtime dependencies and game assets, uses the native launcher and signs the complete bundle. It excludes saves, userdata, logs and repository source. Player state remains external to the replaceable app. Test the archive after native extraction into a different path; inspect library closure and strict signatures before distributing it.
 
 For a distributable ZIP, use `tools/package_metal_release.py` with `--output`
-pointing to a new ZIP in `dist` and `--installation-text` pointing to the reviewed
-player instructions. This producer exports directly into temporary packaging
+pointing to a new ZIP in `dist`. Player instructions come from
+`docs/install-ru.txt`; `--installation-text` can select a reviewed alternative.
+This producer exports directly into temporary packaging
 storage, preserves native ZIP64 metadata, verifies native extraction, signatures
 and relocated staging with an isolated profile, then retains only the ZIP and
 compact receipt. Payload/extracted apps and intermediate archives are removed on

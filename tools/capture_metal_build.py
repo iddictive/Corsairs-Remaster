@@ -30,6 +30,12 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
     ninja = next(line.split("=", 1)[1] for line in cache.read_text().splitlines()
                  if line.startswith("CMAKE_MAKE_PROGRAM:FILEPATH="))
     commands = subprocess.check_output([ninja, "-C", str(build), "-t", "commands", target], text=True)
+    # Link-target flags are not an ABI contract for classes from its libraries.
+    # Retain Ninja's actual per-translation-unit definitions and include paths.
+    compilation = subprocess.check_output(
+        [ninja, "-C", str(build), "-t", "compdb-targets", target], text=True)
+    if not isinstance(json.loads(compilation), list):
+        raise RuntimeError("Ninja did not return a compilation database")
     headers = {p for p in identity.source_files()
                if p.suffix.lower() in {".h", ".hpp", ".rh", ".inl", ".inc", ".ipp", ".tcc"}}
     # Vendor headers are actual compiler inputs, including earcut and Clipper.
@@ -61,11 +67,15 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
     manifest_path = output / "manifest.json"
     if manifest_path.is_file():
         previous = json.loads(manifest_path.read_text())
+        if "compile-commands.json" not in previous["retained"]:
+            raise RuntimeError("Existing capture lacks production compiler flags; choose a new output")
         if (previous["build_receipt"] != receipt or previous["header_sources"] != header_hashes
                 or previous["vendor_sources"] != vendor_hashes):
             raise RuntimeError("Existing capture belongs to different native inputs; choose a new output")
         if previous["retained"]["producer-commands.txt"]["sha256"] != hashlib.sha256(commands.encode()).hexdigest():
             raise RuntimeError("Fixture producer commands changed; choose a new output")
+        if previous["retained"]["compile-commands.json"]["sha256"] != hashlib.sha256(compilation.encode()).hexdigest():
+            raise RuntimeError("Production compiler flags changed; choose a new output")
         for name, record in previous["retained"].items():
             if identity.digest(output / name) != record["sha256"]:
                 raise RuntimeError(f"Existing capture changed: {name}")
@@ -77,7 +87,7 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
         raise RuntimeError("Capture output already exists without a complete manifest; preserve it and choose a new output")
     estimate = (sum(p.stat().st_size for p in sources.values())
                 + 2 * sum(p.stat().st_size for p in headers)
-                + len(headers) * 2048 + len(commands.encode()) + 1024 ** 2)
+                + len(headers) * 2048 + len(commands.encode()) + len(compilation.encode()) + 1024 ** 2)
     if max_bytes <= 0 or estimate > max_bytes:
         raise RuntimeError(f"Capture requires at most {estimate} bytes; admitted bound is {max_bytes}")
     ensure_space(estimate, output)
@@ -100,7 +110,8 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
             if hashlib.sha256(packed.extractfile(member).read()).hexdigest() != header_hashes[member.name]:
                 raise RuntimeError(f"Header changed while archiving: {member.name}")
     (output / "producer-commands.txt").write_text(commands)
-    for path in [archive, output / "producer-commands.txt"]:
+    (output / "compile-commands.json").write_text(compilation)
+    for path in [archive, output / "producer-commands.txt", output / "compile-commands.json"]:
         retained[path.name] = {"sha256": identity.digest(path), "bytes": path.stat().st_size}
     if identity.fingerprint() != receipt["source_sha256"]:
         raise RuntimeError("Native sources changed during capture; incomplete output is preserved")

@@ -103,8 +103,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True,
                         help="New public .zip inside repository dist")
     parser.add_argument("--changelog", type=Path, default=ROOT / "docs/changelog-ru.md")
-    parser.add_argument("--installation-text", type=Path, required=True,
-                        help="Reviewed player installation text to freeze in the payload")
+    parser.add_argument("--installation-text", type=Path, default=ROOT / "docs/install-ru.txt",
+                        help="Player installation text (default: docs/install-ru.txt)")
     args = parser.parse_args()
     try:
         package(args.output, args.changelog, args.installation_text)

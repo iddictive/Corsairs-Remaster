@@ -2,11 +2,15 @@
 """Capture build dependencies and reviewed gameplay inputs; engine source lives in Git."""
 import argparse
 import hashlib
+import io
 import json
 import plistlib
 from pathlib import Path
 import shutil
 import subprocess
+import tarfile
+
+from metal_storage import ensure_space
 
 PROJECT = Path(__file__).resolve().parents[1]
 METAL = PROJECT / 'experiments/native-metal'
@@ -18,7 +22,7 @@ def copy(source, target):
         raise RuntimeError(f'Missing input: {source}')
     if source.is_dir():
         shutil.copytree(source, target, symlinks=False,
-                        ignore=shutil.ignore_patterns('__pycache__', '.DS_Store', '*.pyc'))
+                        ignore=shutil.ignore_patterns('.git', '__pycache__', '.DS_Store', '*.pyc'))
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
@@ -31,6 +35,18 @@ def verify(root):
     active = {name: expected for name, expected in record['sha256'].items()
               if name != 'engine.tar'
               and not name.startswith(('baseline/', 'gameplay-originals/', 'journal-baseline/'))}
+    # These originals were captured after the first global payload. Their owning
+    # recipes remain authoritative; an old manifest must not hide missing inputs.
+    city = json.loads((PROJECT / 'src/assets/islands/puerto-rico/layout.json').read_text())
+    active.update({'native/puerto-rico-city-originals/' + name: sha
+                   for name, sha in city['inputs'].items()})
+    boat = json.loads((PROJECT / 'src/assets/port-rowboat/manifest.json').read_text())
+    active.update({Path(row['path']).relative_to('experiments/native-metal/inputs').as_posix(): row['sha256']
+                   for row in boat['inputs'].values()})
+    for name in ('material-originals', 'gameplay-baseline',
+                 'portobello-ground-original.gm', 'portobello-town-original.gm'):
+        if not (root / 'runtime-baseline' / name).exists():
+            raise RuntimeError(f'Missing reviewed runtime baseline: {name}')
     for name, expected in active.items():
         path = root / name
         if not path.resolve().is_relative_to(root.resolve()):
@@ -40,13 +56,59 @@ def verify(root):
     print(f'Verified {len(active)} portable dependency/content inputs')
 
 
+def export(root, output):
+    """Retain the complete payload and already verified media for another Mac."""
+    verify(root)
+    output = output.resolve()
+    if not output.is_relative_to((PROJECT / 'dist').resolve()) or not output.name.endswith('.tar.gz'):
+        raise RuntimeError('Build inputs export must be a new .tar.gz inside dist')
+    if output.exists():
+        raise RuntimeError('Build inputs export already exists; refusing overwrite')
+    files = {p.relative_to(root).as_posix(): p for p in root.rglob('*')
+             if p.is_file() and p != root / 'manifest.json' and p.name != '.DS_Store'
+             and not {'.git', '__pycache__'}.intersection(p.parts) and p.suffix != '.pyc'}
+    from prepare_native_movies import prepared, CACHE
+    movies = prepared()
+    files.update({'runtime-baseline/native-movies/' + name: path for name, path in movies.items()})
+    files['runtime-baseline/native-movies/manifest.json'] = CACHE / 'native-movies/manifest.json'
+    music = PROJECT / 'src/assets/audio/phonk-drive.mp3'
+    spec = json.loads((music.parent / 'manifest.json').read_text())['files']['RESOURCE/Sounds/MUSIC/phonk-drive.mp3']
+    if not music.is_file() or hashlib.sha256(music.read_bytes()).hexdigest() != spec['sha256']:
+        raise RuntimeError('Verified source music is required for build inputs export')
+    files['runtime-baseline/phonk-drive.mp3'] = music
+    if any(p.is_symlink() for p in files.values()):
+        raise RuntimeError('Linked build input; export refused')
+    hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in sorted(files.items())}
+    record = json.loads((root / 'manifest.json').read_text())
+    record['sha256'] = hashes
+    manifest = (json.dumps(record, indent=2) + '\n').encode()
+    ensure_space(sum(p.stat().st_size for p in files.values()) + len(manifest) + 1024 ** 2, output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open('xb') as stream, tarfile.open(fileobj=stream, mode='w:gz') as archive:
+        for name, path in sorted(files.items()):
+            archive.add(path, arcname='inputs/' + name, recursive=False)
+        member = tarfile.TarInfo('inputs/manifest.json')
+        member.size = len(manifest)
+        archive.addfile(member, io.BytesIO(manifest))
+    with tarfile.open(output) as archive:
+        for member in archive.getmembers():
+            expected = hashlib.sha256(manifest).hexdigest() if member.name == 'inputs/manifest.json' else hashes[member.name.removeprefix('inputs/')]
+            if hashlib.sha256(archive.extractfile(member).read()).hexdigest() != expected:
+                raise RuntimeError('Build inputs changed during export; incomplete archive retained')
+    print(f'Exported {len(files)} verified build/media inputs: {output}')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--conan-data', type=Path, default=Path.home() /
                         'Library/Application Support/CorsairsBuild/conan-home/.conan/data')
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--export', type=Path, help='New complete rebuild-input .tar.gz inside dist')
     args = parser.parse_args()
     target = METAL / 'inputs'
+    if args.export:
+        export(target, args.export)
+        return
     if args.check or (target / 'manifest.json').is_file():
         verify(target)
         return
