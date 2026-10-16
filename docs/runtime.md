@@ -1,20 +1,39 @@
 # Runtime state
 
-Last verified delivery: October16,20:33UTC, source `23ac5eba107a3f5476f188d3e96c0a5b7dba7801`, signed engine `147e4d1f2302e249440e5c00a969132566912eb6748c1f6ef89072f66eabbf81` in the supported app. Canonical rollback staging exits0, restores ordinary town-transition source and retains the earlier sea city. All254 protected files and239 managed receipt rows verify; no agent player launch or SAVE load occurred. Shore/rowboat travel is frozen at `codex/frozen-shore-travel` (`6dc08e7`). A production-ABI private laser replay now produces real visible hull apertures, but the reported actual-player input failure remains unreproduced. Reconstruction inputs and normal restore/upgrade checks pass; canonical ZIP packaging and authorized GitHub source/input publication are in progress. The complete app stays on Drive. `TASKS.md` owns the current handoff; earlier entries are historical.
+Last verified installed delivery: October16,20:33UTC, source `23ac5eba107a3f5476f188d3e96c0a5b7dba7801`, signed engine `147e4d1f2302e249440e5c00a969132566912eb6748c1f6ef89072f66eabbf81` in the supported app. Canonical rollback staging exits0, restores ordinary town transitions and retains the earlier sea city. All254 protected files and239 managed receipt rows verify; no agent player launch or SAVE load occurred. Shore/rowboat travel is frozen at `codex/frozen-shore-travel` (`6dc08e7`). The player's subsequent current-engine replay rejects shore recovery and laser targeting/cutting/performance; the controlled component holes do not accept that gameplay. GitHub hosts engine/gameplay source and complete rebuild inputs; normal restore/upgrade and the full public ZIP producer pass. The verified10873247949-byte ZIP awaits replacement of the existing Drive download through a large-file route. `TASKS.md` owns the current handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16 — player rejects shore recovery and live laser behavior
+
+The player reports hulls sticking to the coast, a laser that locks to an intangible
+ship center during intended manual aim, slight bow cutting but no visible stern
+or broadside cuts on some models, and sparks/beam without visible ship/ground
+removal. Cutting reportedly falls to about10FPS. Excessive crew scatter and
+abrupt sinking after a salvo or while lasering are also reported; their causes
+remain unresolved. The live installed binary still matches the verified147e4d1f
+image. Source/log inspection is read-only while the player continues shooting
+and reloading; no agent game control, native build or delivery follows this report.
+The controlled production-ABI aperture fixture does not close these cases.
 
 ### October16 — release metadata race isolated
 
 The full ZIP64 retry parses95463 members and extracts natively, but verification
-rejects a changed root `.DS_Store`. Finder recreates that file during scratch
+rejects a changed root `.DS_Store`. That file reappears during scratch
 removal as well; ENOTEMPTY masks the original extracted-byte assertion. The raw
 archive, inventory and full traceback remain in the reconstruction evidence owner.
 ZIP rewriting now excludes Finder directory state and its AppleDouble record.
 Owned cleanup admits only a single late `.DS_Store`; an unknown new file still
 fails and remains intact. The small native roundtrip retains file bytes, modes,
-symlinks and xattrs, and both cleanup cases pass. Full corrected release replay
-is pending; no engine/gameplay or installed-app bytes changed.
+symlinks and xattrs, and both cleanup cases pass. The corrected canonical producer
+then exits0:95461 members,44780 files,1990 directories,8 symlinks and46778 xattrs
+pass; deep/strict signatures and isolated relocated `--stage-only` pass, and
+scratch cleanup succeeds. Retained public ZIP:
+`dist/releases/23ac5eb-final/Corsairs-Iddictive-Remaster-macOS.zip`,10873247949 bytes,
+SHA-256 `149fd245cf4316f9f4e6aaa7964c11dcde55a394c6ca3ff1e09c5a1a5e918267`,
+MD5 `ba0ce162e91a588afc5ec666dbcab95f`. No engine/gameplay or installed-app bytes
+changed. Drive publication remains with the existing delivery owner; its512MiB
+connector limit requires the separately owned large-file route.
 
 ### October16 — bounded laser replay and reconstruction closure
 

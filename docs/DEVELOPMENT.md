@@ -139,7 +139,9 @@ compact receipt. Payload/extracted apps and intermediate archives are removed on
 success, ordinary failure and SIGTERM. ZIP rewriting excludes volatile Finder
 `.DS_Store` files and their AppleDouble records. Cleanup permits one late Finder
 file in its own root; any other newly created file remains an error. The focused
-native metadata/cleanup probe passes; the full release replay is pending.
+native metadata/cleanup probe and full frozen23ac release replay pass: native
+extraction, complete payload comparison, strict signatures and isolated relocated
+staging. This does not accept the player's gameplay reports.
 The installed player app remains the only supported game instance.
 
 ## Verification and troubleshooting
