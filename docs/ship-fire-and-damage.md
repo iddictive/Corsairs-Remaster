@@ -23,7 +23,7 @@ Damage remains visible after extinguishing and survives saving/loading.
 
 ## Owners and integration
 
-- `ship-fire.patch` and `ship_fire_model.hpp` own native local fire state,
+- Tracked `engine/src/libs/ship/src/ship.cpp` and `ship_fire_model.hpp` own native local fire state,
   fixed-step updates, old-save admission and ship draw submission.
 - `PROGRAM/sea_ai/AIShip.c` owns real hull/crew/sail loss and ordinary bomb
   balance. It replaces the independent legacy fire-damage timer.
@@ -46,6 +46,24 @@ Damage remains visible after extinguishing and survives saving/loading.
 - One integrating task owns shared Git, ordered patches, CMake, builds, GPU
   submissions, staging and installed-app replay. Source lanes are released
   before that shared transaction; subsequent revisions require coordination.
+
+### Repeated retained-support queries after the21:50 player profile
+
+The source successor caches only hull membership in `SHIP::ShipFirePoints`.
+The key includes geometry pointer/generation/collision revision, owner, root-local
+matrix and each source's coordinates; load/mount clears the cache. Main,
+reflection, surface and volume submissions reuse that answer until the actual
+geometry changes. Subcritical material-health revisions do not invalidate it.
+Legacy unimported cut filtering remains direct. Current pose/wave submersion,
+source count, raster resolution and continuous visual time remain live/unchanged.
+
+The supplied sample binds PID47873 to installeda9c423de, UUID42C03E02, and exposes
+repeated `IsHullPositionRetained`/support queries below ShipFirePoints alongside
+substantial main-thread SEA EnvMap rendering. It does not measure a post-fix FPS
+gain or attribute all rendering cost to support queries. Exact profile/binary
+binding is retained in the [player evidence receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-laser-2150/receipt.json).
+Canonical delivery succeeds22:13EDT in installeddecf7a02; real-battle performance
+remains unresolved.
 
 ## Mechanism and balance
 

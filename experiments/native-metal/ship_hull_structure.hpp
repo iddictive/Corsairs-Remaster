@@ -27,6 +27,9 @@ struct Bond {
 struct MaterialTetra {std::array<Vec3,4>points{};float sign=1,thickness=0;int object=0;};
 struct ContactMaterial {
     std::vector<MaterialTetra>tetrahedra;storm_ship_hull::Broadphase index;
+    std::vector<uint32_t>sourceIDs;
+    std::shared_ptr<const ContactMaterial>base;
+    std::map<uint32_t,std::shared_ptr<const ContactMaterial>>changed;
 };
 struct Layout {
     Bounds bounds{};std::array<uint32_t,3>divisions{1,1,1};Vec3 step{};
@@ -42,6 +45,9 @@ struct State {
     // Derived geometry cache: seed/load and actual fracture rebuild this once;
     // ordinary health-only marks share its immutable finite-contact BVH.
     std::shared_ptr<const ContactMaterial>contact;
+    // Derived physical capacity, rebuilt from saved material by seed. Unlike
+    // health these values do not contain latent mechanical weakening.
+    std::vector<float>physicalCellHealth,physicalBondHealth;
 };
 struct DamageResult {
     State state;std::vector<uint32_t>brokenCells,brokenBonds,releasedCells,retainedCells;
@@ -102,12 +108,17 @@ template<class Mesh>void addSolid(ContactMaterial&material,const Mesh&solid,cons
     // separate doses and a short ray can meet only the real inner timber.
     for(const auto&o:solid){const auto found=wood.find(o.first);if(found==wood.end()||found->second<=0)continue;for(const auto&t:o.second){storm_geometry_work::checkpoint();const double volume=double(storm_ship_hull::dot(t[0].position-origin,storm_ship_hull::cross(t[1].position-origin,t[2].position-origin)))/6.;if(std::abs(volume)<=1.e-12)continue;material.tetrahedra.push_back({{origin,t[0].position,t[1].position,t[2].position},volume<0?-1.f:1.f,found->second,o.first});}}
 }
+inline void indexMaterial(ContactMaterial&material){std::vector<Bounds>boxes;boxes.reserve(material.tetrahedra.size());for(const auto&t:material.tetrahedra)boxes.push_back(tetraBounds(t));material.index.build(boxes);}
+template<class Mesh>void addSource(ContactMaterial&material,uint32_t id,const Mesh&solid,const std::map<int,float>&wood){const size_t start=material.tetrahedra.size();addSolid(material,solid,wood);material.sourceIDs.insert(material.sourceIDs.end(),material.tetrahedra.size()-start,id);}
 template<class Surface>std::shared_ptr<const ContactMaterial>contactMaterial(const Surface&surface,const std::map<int,float>&wood){
     auto material=std::make_shared<ContactMaterial>();
-    if(surface.cells){for(uint32_t id=0;id<surface.cells->source->solids.size();++id){const auto changed=surface.cells->changed.find(id);const auto&mesh=changed==surface.cells->changed.end()?*surface.cells->source->solids[id]:*changed->second;addSolid(*material,mesh,wood);}}
+    if(surface.cells){for(uint32_t id=0;id<surface.cells->source->solids.size();++id){const auto changed=surface.cells->changed.find(id);const auto&mesh=changed==surface.cells->changed.end()?*surface.cells->source->solids[id]:*changed->second;addSource(*material,id,mesh,wood);}}
     else if(surface.material){for(const auto&solid:*surface.material)addSolid(*material,solid,wood);}
     else if(surface.timber){for(const auto&prism:*surface.timber){if(!wood.count(prism.object))continue;std::map<int,std::vector<Triangle>>solid;const auto center=(prism.vertices[0]+prism.vertices[1]+prism.vertices[2]+prism.vertices[3]+prism.vertices[4]+prism.vertices[5])*(1.f/6.f);constexpr unsigned faces[8][3]={{0,1,2},{3,5,4},{0,3,4},{0,4,1},{1,4,5},{1,5,2},{2,5,0},{0,5,3}};for(const auto&f:faces){Triangle t;for(unsigned n=0;n<3;++n)t[n].position=prism.vertices[f[n]];if(storm_ship_hull::dot(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position),center-t[0].position)>0)std::swap(t[1],t[2]);solid[prism.object].push_back(t);}addSolid(*material,solid,wood);}}
-    std::vector<Bounds>boxes;boxes.reserve(material->tetrahedra.size());for(const auto&t:material->tetrahedra)boxes.push_back(tetraBounds(t));material->index.build(boxes);return material;
+    indexMaterial(*material);return material;
+}
+inline std::vector<std::pair<const ContactMaterial*,uint32_t>>queryMaterial(const ContactMaterial&material,Bounds box){
+    std::vector<std::pair<const ContactMaterial*,uint32_t>>result;std::vector<uint32_t>ids,overrides;const auto&base=material.base?*material.base:material;base.index.queryBounds(box,ids);for(uint32_t id:ids){const uint32_t source=id<base.sourceIDs.size()?base.sourceIDs[id]:NoCell;if(material.changed.count(source)){overrides.push_back(source);continue;}result.emplace_back(&base,id);}std::sort(overrides.begin(),overrides.end());overrides.erase(std::unique(overrides.begin(),overrides.end()),overrides.end());for(uint32_t source:overrides){const auto&local=material.changed.at(source);local->index.queryBounds(box,ids);for(uint32_t id:ids)result.emplace_back(local.get(),id);}return result;
 }
 inline Measure measure(const Layout&l,const ContactMaterial&material){
     const size_t count=l.gridToCell.size();Measure result;result.area.resize(count);result.volume.resize(count);result.weighted.resize(count);
@@ -129,8 +140,8 @@ inline std::vector<storm_ship_hull::Plane>beamPlanes(const BeamSample&b){
 struct Contact {uint32_t cell=0;double volume=0;float travel=0;};
 inline std::vector<Contact>contacts(const Layout&l,const ContactMaterial&material,const BeamSample&b){
     std::map<uint32_t,Contact>byCell;const auto planes=beamPlanes(b);const Vec3 start{b.start[0],b.start[1],b.start[2]},direction{b.direction[0],b.direction[1],b.direction[2]};
-    const auto tangent=b.tangent==std::array<float,3>{}?storm_ship_hull::frame(direction).tangent:Vec3{b.tangent[0],b.tangent[1],b.tangent[2]},bitangent=storm_ship_hull::cross(direction,tangent);Bounds box{start,start};float radius=b.radius*1.082393f;for(float depth:{-(b.backDepth<0?b.radius*.15625f:b.backDepth),b.depth})for(unsigned n=0;n<(b.crossSection.empty()?8u:unsigned(b.crossSection.size()));++n){const float angle=.3926990816987241f+float(n)*.7853981633974483f;const auto xy=b.crossSection.empty()?std::array<float,2>{radius*std::cos(angle),radius*std::sin(angle)}:b.crossSection[n];const auto point=start+direction*depth+tangent*xy[0]+bitangent*xy[1];box=storm_ship_hull::merge(box,{point,point});}std::vector<uint32_t>candidates;material.index.queryBounds(box,candidates);
-    for(uint32_t candidate:candidates){const auto&t=material.tetrahedra[candidate];storm_geometry_work::checkpoint();auto overlap=tetraPoly(t);for(const auto&p:planes){overlap=clipPoly(overlap,p);if(overlap.empty())break;}if(overlap.empty())continue;Bounds overlapBounds{overlap[0][0],overlap[0][0]};for(const auto&face:overlap)for(auto p:face)overlapBounds=storm_ship_hull::merge(overlapBounds,{p,p});std::vector<uint32_t>cells;queryCells(l,overlapBounds,cells);
+    const auto tangent=b.tangent==std::array<float,3>{}?storm_ship_hull::frame(direction).tangent:Vec3{b.tangent[0],b.tangent[1],b.tangent[2]},bitangent=storm_ship_hull::cross(direction,tangent);Bounds box{start,start};float radius=b.radius*1.082393f;for(float depth:{-(b.backDepth<0?b.radius*.15625f:b.backDepth),b.depth})for(unsigned n=0;n<(b.crossSection.empty()?8u:unsigned(b.crossSection.size()));++n){const float angle=.3926990816987241f+float(n)*.7853981633974483f;const auto xy=b.crossSection.empty()?std::array<float,2>{radius*std::cos(angle),radius*std::sin(angle)}:b.crossSection[n];const auto point=start+direction*depth+tangent*xy[0]+bitangent*xy[1];box=storm_ship_hull::merge(box,{point,point});}
+    for(const auto&candidate:queryMaterial(material,box)){const auto&t=candidate.first->tetrahedra[candidate.second];storm_geometry_work::checkpoint();auto overlap=tetraPoly(t);for(const auto&p:planes){overlap=clipPoly(overlap,p);if(overlap.empty())break;}if(overlap.empty())continue;Bounds overlapBounds{overlap[0][0],overlap[0][0]};for(const auto&face:overlap)for(auto p:face)overlapBounds=storm_ship_hull::merge(overlapBounds,{p,p});std::vector<uint32_t>cells;queryCells(l,overlapBounds,cells);
         for(uint32_t cell:cells){const auto local=clipBox(overlap,l.cells[cell].bounds);const double volume=polyVolume(local)*t.sign;if(std::abs(volume)<=1.e-12)continue;float travel=std::numeric_limits<float>::infinity();for(const auto&face:local)for(auto p:face)travel=std::min(travel,storm_ship_hull::dot(p-start,direction));auto [it,inserted]=byCell.emplace(cell,Contact{cell,0,travel});it->second.volume+=volume;it->second.travel=std::min(it->second.travel,travel);}}
     std::vector<Contact>result;for(const auto&entry:byCell)if(entry.second.volume>1.e-10)result.push_back(entry.second);std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.travel==b.travel?a.cell<b.cell:a.travel<b.travel;});return result;
 }
@@ -161,7 +172,7 @@ template<class Surface> std::shared_ptr<const Layout>build(const Surface&surface
     std::vector<uint8_t>visited(layout->cells.size());uint32_t owner=0;for(uint32_t start=0;start<layout->cells.size();++start){if(visited[start])continue;std::vector<uint32_t>group{start};visited[start]=1;for(size_t n=0;n<group.size();++n){auto&cell=layout->cells[group[n]];cell.owner=owner;for(uint32_t edge:cell.bonds){const auto&bond=layout->bonds[edge];const uint32_t next=bond.a==group[n]?bond.b:bond.a;if(!visited[next]){visited[next]=1;group.push_back(next);}}}++owner;}
     uint64_t hash=1469598103934665603ull;const auto add=[&](uint64_t value){for(unsigned n=0;n<8;++n){hash^=uint8_t(value>>(8*n));hash*=1099511628211ull;}};for(unsigned a=0;a<3;++a){add(layout->divisions[a]);add(uint64_t(int64_t(std::llround(coordinate(layout->bounds.lo,a)*10000.))));add(uint64_t(int64_t(std::llround(coordinate(layout->bounds.hi,a)*10000.))));}for(const auto&cell:layout->cells){add(uint64_t(std::llround(cell.volume*1.e8)));add(uint64_t(std::llround(cell.area*1.e8)));}for(const auto&bond:layout->bonds){add(bond.a);add(bond.b);add(uint64_t(std::llround(bond.section*1.e8)));}layout->fingerprint=hash;return layout;
 }
-inline State intact(std::shared_ptr<const Layout>layout){State result;result.layout=std::move(layout);if(result.layout){result.cellHealth.assign(result.layout->cells.size(),1);result.bondHealth.assign(result.layout->bonds.size(),1);result.alive.assign(result.layout->cells.size(),1);result.contact=result.layout->contact;}return result;}
+inline State intact(std::shared_ptr<const Layout>layout){State result;result.layout=std::move(layout);if(result.layout){result.cellHealth.assign(result.layout->cells.size(),1);result.bondHealth.assign(result.layout->bonds.size(),1);result.alive.assign(result.layout->cells.size(),1);result.contact=result.layout->contact;result.physicalCellHealth=result.cellHealth;result.physicalBondHealth=result.bondHealth;}return result;}
 template<class Surface>void refreshContacts(State&state,const Surface&current,const std::map<int,float>&wood){
     if(!state.layout)return;state.contact=detail::contactMaterial(current,wood);
 }
@@ -171,16 +182,38 @@ template<class Surface> State seed(std::shared_ptr<const Layout>layout,const Sur
     // A previously cut seam cannot recover strength merely because both coarse
     // zones still contain plenty of untouched planking.
     std::map<std::pair<uint32_t,uint32_t>,double>sections;for(const auto&entry:measured.sections){const int32_t a=l.gridToCell[entry.first.first],b=l.gridToCell[entry.first.second];if(a>=0&&b>=0)sections[{uint32_t(a),uint32_t(b)}]+=std::min(entry.second.low,entry.second.high);}
-    for(size_t n=0;n<l.bonds.size();++n){const auto&b=l.bonds[n];state.bondHealth[n]=float(std::clamp(sections[{b.a,b.b}]/b.section,0.,1.));if(!state.alive[b.a]||!state.alive[b.b])state.bondHealth[n]=0;}return state;
+    for(size_t n=0;n<l.bonds.size();++n){const auto&b=l.bonds[n];state.bondHealth[n]=float(std::clamp(sections[{b.a,b.b}]/b.section,0.,1.));if(!state.alive[b.a]||!state.alive[b.b])state.bondHealth[n]=0;}state.physicalCellHealth=state.cellHealth;state.physicalBondHealth=state.bondHealth;return state;
 }
 inline bool validState(const State&state){return detail::validState(state);}
 template<class Surface>State repair(const State&before,const Surface&oldMaterial,const Surface&newMaterial,const std::map<int,float>&wood,double remainingHealthQuotaArea){
-    if(!validState(before))return before;const auto previous=seed(before.layout,oldMaterial,wood),physical=seed(before.layout,newMaterial,wood);State after=before;after.contact=physical.contact;const auto&l=*before.layout;std::vector<float>restored(l.cells.size());
+    if(!validState(before))return before;const auto previous=seed(before.layout,oldMaterial,wood),physical=seed(before.layout,newMaterial,wood);State after=before;after.contact=physical.contact;after.physicalCellHealth=physical.physicalCellHealth;after.physicalBondHealth=physical.physicalBondHealth;const auto&l=*before.layout;std::vector<float>restored(l.cells.size());
     for(size_t n=0;n<l.cells.size();++n){const float added=std::max(0.f,physical.cellHealth[n]-previous.cellHealth[n]);if(added>0){const float old=before.alive[n]?before.cellHealth[n]:0.f;after.cellHealth[n]=std::min(physical.cellHealth[n],old+added);after.alive[n]=after.cellHealth[n]>1.e-6f;restored[n]=std::max(0.f,after.cellHealth[n]-old);}}
     // Actual material restoration already paid for its added outer area. Only
     // the caller's unused quota may restore latent damage in existing timber.
     double quota=std::max(0.,remainingHealthQuotaArea);for(size_t n=0;n<l.cells.size()&&quota>0;++n){if(!after.alive[n]||l.cells[n].area<=0)continue;const float gain=float(std::min(double(std::max(0.f,physical.cellHealth[n]-after.cellHealth[n])),quota/l.cells[n].area));after.cellHealth[n]+=gain;restored[n]+=gain;quota-=gain*l.cells[n].area;}
     for(size_t n=0;n<l.bonds.size();++n){const auto&bond=l.bonds[n];if(!after.alive[bond.a]||!after.alive[bond.b])continue;const float geometric=std::max(0.f,physical.bondHealth[n]-previous.bondHealth[n]),support=std::max(restored[bond.a],restored[bond.b]);if(geometric>0||support>0)after.bondHealth[n]=std::min(physical.bondHealth[n],before.bondHealth[n]+std::max(geometric,support));}return after;
+}
+// Actual thermal ablation has already spent the weapon's work and changed the
+// material. Reconcile just its sparse capacity delta; it must not issue another
+// whole-zone subtraction or spend the same finite volume as hidden HP damage.
+template<class Surface>DamageResult reconcile(const State&before,const Surface&oldMaterial,const Surface&newMaterial,const std::map<int,float>&wood,const std::vector<uint32_t>*changedIDs=nullptr){
+    DamageResult result;result.state=before;if(!validState(before)||!oldMaterial.cells||!newMaterial.cells||oldMaterial.cells->source!=newMaterial.cells->source)return result;
+    std::vector<uint32_t>ids;if(changedIDs)ids=*changedIDs;else{for(const auto&entry:oldMaterial.cells->changed)ids.push_back(entry.first);for(const auto&entry:newMaterial.cells->changed)ids.push_back(entry.first);}std::sort(ids.begin(),ids.end());ids.erase(std::unique(ids.begin(),ids.end()),ids.end());
+    const auto&source=*oldMaterial.cells->source;ContactMaterial oldLocal,newLocal;std::map<uint32_t,std::shared_ptr<const ContactMaterial>>overrides;
+    for(uint32_t id:ids){storm_geometry_work::checkpoint();if(id>=source.solids.size())continue;const auto oldChanged=oldMaterial.cells->changed.find(id),newChanged=newMaterial.cells->changed.find(id);const auto&oldSolid=oldChanged==oldMaterial.cells->changed.end()?source.solids[id]:oldChanged->second;const auto&newSolid=newChanged==newMaterial.cells->changed.end()?source.solids[id]:newChanged->second;if(oldSolid==newSolid)continue;detail::addSource(oldLocal,id,*oldSolid,wood);detail::addSource(newLocal,id,*newSolid,wood);auto local=std::make_shared<ContactMaterial>();detail::addSource(*local,id,*newSolid,wood);detail::indexMaterial(*local);overrides[id]=std::move(local);}
+    if(overrides.empty())return result;auto&s=result.state;const auto&l=*s.layout;const auto oldMeasure=detail::measure(l,oldLocal),newMeasure=detail::measure(l,newLocal);
+    // These arrays are derived from physical material on load, not saved state.
+    // Older in-memory callers pay a single initialization; ordinary marks only
+    // measure changed authored source solids and visit the small coarse graph.
+    if(s.physicalCellHealth.size()!=l.cells.size()||s.physicalBondHealth.size()!=l.bonds.size()){const auto physical=seed(before.layout,oldMaterial,wood);s.physicalCellHealth=physical.physicalCellHealth;s.physicalBondHealth=physical.physicalBondHealth;}
+    for(uint32_t grid=0;grid<l.gridToCell.size();++grid){const int32_t index=l.gridToCell[grid];if(index<0)continue;const uint32_t id=uint32_t(index);const double loss=std::max(0.,oldMeasure.volume[grid]-newMeasure.volume[grid]);if(loss<=std::max(1.e-10,double(l.cells[id].volume)*1.e-6))continue;const float fraction=float(loss/l.cells[id].volume);s.physicalCellHealth[id]=std::max(0.f,s.physicalCellHealth[id]-fraction);s.cellHealth[id]=std::max(0.f,s.cellHealth[id]-fraction);if(s.physicalCellHealth[id]<=1.e-6f){s.physicalCellHealth[id]=0;s.cellHealth[id]=0;s.alive[id]=0;}if(s.cellHealth[id]<=1.e-6f){s.cellHealth[id]=0;for(uint32_t edge:l.cells[id].bonds)if(s.bondHealth[edge]>0){s.bondHealth[edge]=0;result.brokenBonds.push_back(edge);}}}
+    std::map<std::pair<uint32_t,uint32_t>,double>lostSections;
+    for(const auto&entry:oldMeasure.sections){const auto current=newMeasure.sections.find(entry.first);const detail::Section empty;const auto&section=current==newMeasure.sections.end()?empty:current->second;const double loss=std::max({0.,entry.second.low-section.low,entry.second.high-section.high});const int32_t a=l.gridToCell[entry.first.first],b=l.gridToCell[entry.first.second];if(a>=0&&b>=0&&loss>0)lostSections[{uint32_t(a),uint32_t(b)}]+=loss;}
+    for(uint32_t edge=0;edge<l.bonds.size();++edge){const auto&bond=l.bonds[edge];const auto lost=lostSections.find({bond.a,bond.b});if(lost==lostSections.end()||lost->second<=std::max(1.e-10,double(bond.section)*1.e-6))continue;const float fraction=float(lost->second/bond.section);s.physicalBondHealth[edge]=std::max(0.f,s.physicalBondHealth[edge]-fraction);const float old=s.bondHealth[edge];s.bondHealth[edge]=std::max(0.f,old-fraction);if(s.bondHealth[edge]<=1.e-6f){s.bondHealth[edge]=0;if(old>0)result.brokenBonds.push_back(edge);}}
+    // A removal remains inside its authored source bounds, so the immutable
+    // base BVH also indexes sparse replacement cells. No whole-hull rebuild.
+    auto contact=before.contact?before.contact:l.contact;if(contact){const auto&base=contact->base?*contact->base:*contact;if(base.sourceIDs.size()!=base.tetrahedra.size())contact=detail::contactMaterial(oldMaterial,wood);auto next=std::make_shared<ContactMaterial>();next->base=contact->base?contact->base:contact;next->changed=contact->changed;for(auto&entry:overrides)next->changed[entry.first]=std::move(entry.second);s.contact=std::move(next);}else s.contact=detail::contactMaterial(newMaterial,wood);
+    result.changed=true;detail::overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());detail::islands(result);return result;
 }
 namespace detail {
 template<class Plane> DamageResult damagePatches(const State&before,const Plane&plane,double wholeArea=0){

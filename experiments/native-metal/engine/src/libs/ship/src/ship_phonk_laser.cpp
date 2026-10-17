@@ -2241,20 +2241,12 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
     work.energy = std::min(1.e6f, work.energy + specificEnergy);
     if (work.energy < threshold) return;
     const float energy = work.energy;
-    const float depth = support * std::clamp((std::sqrt(energy) - std::sqrt(threshold)) * .0125f,
-                                            .005f, 1.05f);
-    // Trace the retained skin before choosing a finite crush volume. Convex
-    // contact can lie in an old cavity; cut the material the ram actually meets.
-    const CVECTOR worldNormal = !outwardNormal;
-    const CVECTOR rayStart = worldPoint + worldNormal * (support + .5f);
-    const CVECTOR rayEnd = worldPoint - worldNormal * (support + .5f);
-    CVECTOR a, b;
-    root->glob_mtx.MulToInv(rayStart, a);
-    root->glob_mtx.MulToInv(rayEnd, b);
-    GEOS::VERTEX from{a.x, a.y, a.z}, to{b.x, b.y, b.z};
-    const float hit = root->geo->TraceLaserMaterial(from, to);
-    if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) return;
-    GetModel()->mtx.MulToInv(rayStart + (rayEnd - rayStart) * hit, point);
+    // A finite ram patch can meet planking above/below an open gunport while
+    // its centre ray crosses only air. That ray must not veto the entire impact.
+    // Query the real timber throughout the bounded patch; the material kernel
+    // spends only the accepted dissipated work, in travel order, not in air.
+    const float depth = support + .025f;
+    point += plane.normal * (normalHigh - (plane.normal | point));
     plane.distance = (plane.normal | point) - depth;
     plane.grain = !(up * .82f + !(up ^ plane.normal) * .58f);
     const float timberSpan = std::max(.5f, std::min(info.boxsize.x, info.boxsize.y));

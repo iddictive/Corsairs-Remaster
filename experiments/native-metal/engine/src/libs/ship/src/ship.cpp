@@ -1582,6 +1582,7 @@ void WriteShipFireCell(ATTRIBUTES *a,const storm_ship_fire::Cell &c,std::size_t 
 void SHIP::InitializeShipFire()
 {
     shipFire={};fireSails.clear();fireHulls.clear();fireNextHullKey=0;
+    fireSupport={};
     fireStepClock=fireCheckpointClock=0.f;firePendingHull=firePendingCrew=0.f;
     fireVisualSeconds=fireClothClock=0.f;fireRunning=false;fireStateDirty=false;firePendingOwner=-1;
     auto *model=GetModel();auto *character=GetACharacter();
@@ -1895,9 +1896,43 @@ std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints(bool hullSurface) cons
 {
     const float seed=float(uniIDX)*.71f;
     auto *model=GetModel();
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    auto *root=model?model->GetNode(0):nullptr;
+    auto *geometry=root?root->geo:nullptr;
+    // Retained support is ship-local and changes only with the published mesh,
+    // not thermal steps, waves, camera views or subcritical material health.
+    // Legacy cut-plane filtering remains live until its material is imported.
+    const bool cacheSupport=geometry&&(phonkLaser.materialReady||phonkLaser.cuts.empty());
+    if (cacheSupport) {
+        const auto generation=geometry->GeometryGeneration(),revision=geometry->CollisionRevision();
+        if (fireSupport.geometry!=geometry || fireSupport.generation!=generation ||
+            fireSupport.revision!=revision || fireSupport.owner!=uint64_t(blots_id) ||
+            !std::equal(fireSupport.local.matrix,fireSupport.local.matrix+16,root->loc_mtx.matrix)) {
+            fireSupport.geometry=geometry;fireSupport.generation=generation;
+            fireSupport.revision=revision;fireSupport.owner=uint64_t(blots_id);
+            fireSupport.local=root->loc_mtx;fireSupport.cells.clear();
+        }
+        fireSupport.cells.resize(shipFire.count);
+    }
+#endif
     const auto accept=[&](const storm_ship_fire::Cell &cell) {
         const CVECTOR local(cell.x,cell.y,cell.z);
-        if (!cell.cloth && !IsHullPositionRetained(local)) return false;
+        if (!cell.cloth) {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+            if (cacheSupport) {
+                auto &support=fireSupport.cells[std::size_t(&cell-shipFire.cells.data())];
+                if (!support.valid || support.position.x!=cell.x || support.position.y!=cell.y || support.position.z!=cell.z) {
+                    // root global = root local * model pose: cancel the pose
+                    // before querying instead of retaining its roundoff/staleness.
+                    CVECTOR point;root->loc_mtx.MulToInv(local,point);
+                    support.retained=geometry->IsLaserSupportRetained(uint64_t(blots_id),{point.x,point.y,point.z});
+                    support.position=local;support.valid=true;
+                }
+                if (!support.retained) return false;
+            } else
+#endif
+            if (!IsHullPositionRetained(local)) return false;
+        }
         // Receiver heat/char survive immersion; flame/smoke/embers require an
         // exposed source on the current presented ship pose and wave surface.
         if (hullSurface || !pSea) return true;

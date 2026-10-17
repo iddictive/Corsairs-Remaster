@@ -1,8 +1,49 @@
 # Runtime state
 
-Last verified installed delivery: October16,21:40EDT, structural graph/contact successor, signed engine `a9c423defa0f4222c83776e70c44d7fc5f8f1d820101063e7b3b123b1a3cd5ff`. Canonical staging exits0;522 current protected files are unchanged and239 managed receipt rows match at delivery. Gameplay/FPS remains unaccepted; the player's21:03 replay rejects the preceding20:52 image. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,22:13EDT, local-ablation/contact/cache successor, signed engine `decf7a02cdb916e7af1b16839417c02cf22ac422fb0198a8dfd352fba4b49e1a`. Canonical staging exits0;522 protected files are unchanged and239 managed receipt rows match at delivery. The player's21:50 replay rejects the precedinga9c423de engine's laser/ram geometry and fire FPS. The corrected engine's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16,21:50 player replay — graph baseline rejected; immediate material correction
+
+The player again observes no visible laser hole/cut, no ram microhole at500kn
+in Phonk, and severe fire FPS loss. Sample PID47873, launched21:46:20EDT,
+matches installeda9c423de/UUID42C03E02. Exact profile, signed binary and binding
+remain in [the player receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-laser-2150/receipt.json).
+The1394 main-thread samples include substantial SEA EnvMap rendering and repeated
+SHIP fire retained-support queries. Active material-worker stacks are sparse;
+sample counts are neither measured CPU percentages nor post-fix performance.
+
+Source discovery finds three separate geometry vetoes: thermal work only reduced
+large coarse-cell health until failure, the ram's one centre material ray could
+discard a valid finite contact patch, and closed filled-envelope validation could
+reject a through-hole opening into a hollow hold. The correction immediately
+subtracts thermal material locally, reconciles lost graph capacity once, detects
+new actual intra-cell splits, uses the ram's full finite patch, and leaves wood
+closure to real MaterialCells. TOUCH impulse/energy equations and pressure-damage
+removal remain unchanged. Local ablation uploads only changed authored objects;
+Boolean work is local, but worker mesh copies/index builds remain real costs.
+
+CHM3 distinguishes new physical thermal tails from old CHM2 health-only history;
+old SAVE import reconciles prior disconnection once without historical effects.
+Fire caches retained hull membership across render passes, invalidating it on
+actual geometry/local-source changes; wave exposure and visual time remain live.
+The aggregate5% geometry-worker allowance is retained. Topic owners are
+`naval-ammunition-and-damage.md` and `ship-fire-and-damage.md`.
+
+Disposition: compiled and installed22:13EDT through canonical
+`experiments/native-metal/run.sh --stage-only`, exit0, after the player closes
+PID47873. Native input fingerprint is
+`ba3ff6a9f5a6a17562f119cdff4dc0c24bbba381dd45c1b5274d645587947152`;
+unsigned engine `f7d38236610c6d8262169d076006f1d84b064893d9d355dfcccef673002a3354`,
+signed engine `decf7a02cdb916e7af1b16839417c02cf22ac422fb0198a8dfd352fba4b49e1a`,
+UUID `71AC6C6A-9913-3558-AFEE-2B52740C36B0`. All522 current protected player files
+are unchanged and all239 managed receipt rows match. Previousa9c423de is retained
+by the installer. Raw build/stage output and result remain in
+[the delivery receipt](../.local-archives/installed-delivery/local-ablation-20261016/result.json).
+No agent gameplay tests/probes, SAVE load, launch or game control occur; real
+holes/separation, restored SAVE behavior and sustained FPS remain for player replay.
+No push, ZIP or Drive update.
 
 ### October16 — structural graph successor after the21:03 player rejection
 

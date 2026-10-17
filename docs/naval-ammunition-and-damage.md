@@ -4,7 +4,9 @@
 
 The common hull-material baseline was installed on October16,20:52EDT;
 the player's later replay rejects reliable laser/ram separation. The graph-based
-successor below is installed on October16,21:40EDT; player acceptance is pending.
+successor installed on October16,21:40EDT is also rejected by the21:50 player
+replay. The local-ablation/contact successor below is installed on October16,
+22:13EDT; real gameplay acceptance remains with the player.
 `runtime.md` owns delivery and replay evidence.
 The ammunition baseline below was
 documented on October6. It captures the naval combat ammunition
@@ -14,10 +16,11 @@ damage reduction math, and technical integration specifications for custom shot 
 ## Common hull-material implementation contract
 
 October16 successor in source: the player's repeated failure to obtain a real
-laser/ram separation reopens this implementation. The installed20:52 batch is
-the rejected baseline, not acceptance of the successor. The minimum successor
-uses a coarse graph of actual timber sections and shared load paths as strength
-authority. Local weapon work is spent in travel order; surviving connections
+laser/ram separation reopens this implementation. The installed21:40 batch is
+the rejected baseline. A finite thermal dose removes actual local timber
+immediately; a coarse graph of actual timber sections and shared load paths
+decides structural strength and additional separation. Local mechanical work is
+spent in travel order; surviving connections
 carry the remaining section load and can overload. Geometry realizes failed
 cells/bonds and graph islands, including a remaining thin visual strip; exact
 mesh connectivity no longer decides whether that strip supports the whole hull.
@@ -32,8 +35,9 @@ GM meshes, collision bodies, worker allowance and SAVE transport; adapt that
 bounded graph mechanism in the existing material owner rather than add a second
 physics/authoring stack. The structural approximation is game-specific, not a
 calibrated timber stress simulation. Health-only updates must not copy/rebuild
-the whole boundary or upload GPU buffers. Geometry runs on actual fracture;
-state persists in the same versioned checkpoint/bounded tail and follows existing
+the whole boundary or upload GPU buffers. Thermal ablation and actual fracture
+change geometry; a thermal notch must not wait for a whole coarse cell to fail.
+State persists in the same versioned checkpoint/bounded tail and follows existing
 repair, reset, encounter and map consumers. Sustained pressure receives
 no invented damage work: TOUCH retains only actual dissipated closing energy.
 Compile-only evidence and the remaining player replay must stay distinct. This
@@ -59,7 +63,7 @@ These mechanisms do not satisfy the requested continuing destruction contract.
 
 The shared owner is GEOM's retained material, published by SHIP's existing
 atomic value-job queue. The successor reuses material-role meshes, broadphase,
-finite material clipping at fracture, fragment physics and the aggregate5%
+finite local material clipping, fragment physics and the aggregate5%
 geometry-worker allowance. Its checkpoint preserves outer skin, canonical caps,
 timber interior and finite walls separately, including object IDs, UVs, normals
 and colours. A rebased clipping boundary must not replace the immutable authored
@@ -73,9 +77,12 @@ do not change. A complete checkpoint is authoritative. Older `Ship.Blots` and
 `Ship.PhonkLaserCuts` reconstruct once through their established order, without
 HP, crew, chips or historical fragment replay. Renderer reset restores current
 material, and stale/cancelled/malformed projections retain the last valid state.
-The CHM2 node payload adds graph health/alive values bound to a deterministic
-authored-layout fingerprint. CHM1/P tails retain their old exact semantics and
-are imported once before graph seeding. Health-only publication has its own
+The CHM3 node payload preserves graph health/alive values bound to a deterministic
+authored-layout fingerprint and distinguishes physical thermal tails from the
+old CHM2 health-only tails. CHM1/P tails retain their old exact semantics. Old
+formats import/fold once, reconciling already disconnected sections without
+replaying historical fragments or converting latent damage into new holes.
+Health-only publication has its own
 material revision, so it cannot invalidate collision/convex-contour caches.
 Only bounded pending work and current retained geometry remain live; an ever
 growing operation log must not be required to continue damaging a ship.
@@ -95,8 +102,19 @@ section determine capacity; empty holds are not structural cells. A four-pass
 reserve check uses20% of intact incident capacity as the section's declared game
 load, scaled by remaining material. This is an explicit5x design reserve, not a
 gravity or calibrated stress solver. Direct laser depth retains its existing
-delivered-time input. Subcritical hits change strength and existing heat/fire;
-visible geometry changes at cell/section failure, with coarse fracture edges.
+delivered-time input and subtracts a finite local volume from current timber.
+The graph reconciles actual lost volume and connection section once; it does
+not spend that dose again as hidden damage. A local closed-material connectivity
+comparison detects separation within one coarse cell; only a new split invokes
+whole-section ancestry/ownership reconciliation. Mechanical subcritical hits can
+still change strength without fracture; failed cells produce coarse fracture edges.
+
+The outer envelope of a hollow hull is allowed to open into its hold. Its filled
+closed volume is not the timber's volume, and cannot veto an actual breach.
+Closed MaterialCells own real wood; the generic solid/fragment cutter retains
+its separate closure/conservation checks. A ram uses its finite projected contact
+patch, not a single centre ray which can pass through an open gunport and discard
+the entire impact. TOUCH's impulse and dissipated specific work are unchanged.
 
 The shared kernel/checkpoint, GEOM/SHIP publication, legacy Blots import and
 immediate crew-field consumption have one native owner. Finite ablation/crush
@@ -107,7 +125,7 @@ Existing
 shore, fire-anchor and fragment-query source fixes remain in the same successor.
 The player owns gameplay testing. The integration owner may compile the engine
 to catch C++ integration errors; compilation does not accept gameplay or FPS.
-Canonical delivery uses `run.sh --stage-only` and succeeds for this successor.
+Canonical delivery uses `run.sh --stage-only`; this source is installed22:13EDT.
 Game control and gameplay probes remain declined.
 Source review must distinguish local
 notches from complete cuts, preserve old damage across another weapon/reset,
@@ -119,13 +137,18 @@ not an attachment socket and cannot justify deleting neighboring assemblies.
 Performance is a core acceptance criterion. Merely moving an ever growing
 whole-hull reconstruction behind a worker does not close it. The shared material
 implementation retains stable authored cell IDs/bounds, sparse current overrides
-and a bounded32-record tail before folding checkpoints. Ordinary damage shares
-the immutable geometry/contact BVH and copies only bounded graph state; finite
-contact work queries nearby material. Workers pack checkpoints; frame publication
+and a bounded32-record tail before folding checkpoints. Health-only damage shares
+the immutable geometry/contact BVH and copies only bounded graph state. Thermal
+Boolean work visits nearby faces/cells and contact-capacity reconciliation visits
+only changed authored source solids, with sparse BVH replacements. Whole role
+copies, role-BVH builds and collision/render flattening still occur in the worker.
+Workers pack checkpoints; frame publication
 reuses unchanged packed bases and writes a bounded tail. A fold still serializes
 the changed node's full current boundary, including untouched authored faces,
 alongside sparse changed cell solids. Actual fracture still traverses the node's
 role meshes and rebuilds its material/contact/collision indices and GPU upload.
+Ordinary local thermal publication uploads only changed authored objects; an
+empty replacement suppresses that object's original draw instead of regrowing it.
 These operations have a real cost; sustained cutting/FPS
 and memory remain unmeasured until player replay. This is not fully sparse mesh
 persistence or an accepted frame-time result.

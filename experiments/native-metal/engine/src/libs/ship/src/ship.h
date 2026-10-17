@@ -122,6 +122,14 @@ class SHIP : public SHIP_BASE
     float fireVisualSeconds=0.f;
     int32_t firePendingOwner=-1;
     CVECTOR fireWind=0.f;
+    struct FireSupportCache {
+        struct Cell {CVECTOR position=0.f;bool valid=false,retained=true;};
+        GEOS *geometry=nullptr;
+        uint64_t generation=0,revision=0,owner=0;
+        CMatrix local;
+        std::vector<Cell> cells;
+    };
+    mutable FireSupportCache fireSupport;
     void InitializeShipFire();
     void SaveShipFire();
     std::size_t AddFireHull(float x,float y,float z,float radius);
