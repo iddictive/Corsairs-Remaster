@@ -1,5 +1,37 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## October16,23:13 successor under player review
+
+The player confirms mast release and visible scars in the22:50 image, while
+section detachment, powerful-ram fragmentation and sustained FPS remain rejected.
+The testing laser no longer drains its6.25s charge. Sampling retains admitted
+elapsed time, subdivides consecutive muzzle/aim poses into bounded contact
+quanta with fresh occlusion traces, and backpressures instead of dropping
+accepted time. Compatible thermal samples share a value job without widening
+their physical fields. Thin remnants retain actual material capacity and graph
+connectivity; proximity alone does not delete wood between holes.
+
+An operation that exceeds the available body allowance no longer rejects every
+otherwise valid body. Newly emitted groups transfer actual geometry; the
+remainder stays present in hull/collision with failed strength and is released
+by bounded ownership-only jobs as capacity becomes available. Those jobs add
+no second weapon energy, HP debit, crew hit or cosmetic burst. CHM3 derives
+deferred ownership from retained failed material without a new SAVE schema.
+Preparation/publication failures retain their exact accepted request and a
+revision/capacity fence, report node/phase, and retry after relevant change;
+they do not spin each frame or silently discard thermal/ram work. Legacy
+bootstrap preserves material cells/structure across separation.
+
+The23:16/23:19 profiles bind installed UUID0710C216. Dominant reflection calls
+come from `worldDraws`/`worldCapDraws`; installed draw offsets show repeated
+first/second UV copies. Identity triangle indices exclude those meshes from
+the expanded-vertex cache. The direct compact GPU path now decodes all four
+ordinary2D UV sets, preserving their authored mappings; lit/generated-coordinate
+exclusions remain. Exact samples, screenshot and signed executable are retained
+in the [profile receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-aa-deck-laser-2319/evidence.json).
+This identifies removed redundant work, not measured post-fix FPS or accepted
+separation. The aggregate cooperative geometry-worker allowance remains10%.
+
 ## Status
 
 The common hull-material baseline was installed on October16,20:52EDT;

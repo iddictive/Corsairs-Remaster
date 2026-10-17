@@ -257,53 +257,65 @@ inline bool fractureCells(Surface&surface,const std::vector<BeamSample>&fields,c
             Mesh retained;if(!clipCell(solid,planes,retained))return false;next->changed[id]=std::make_shared<const Mesh>(std::move(retained));}}
     surface.cells=std::move(next);return true;
 }
+inline bool releaseSections(const Surface&before,Surface&current,unsigned allowance,std::vector<Surface>&pieces,bool&deferred){
+    const auto cells=current.cells;const auto structure=current.structure;const size_t old=current.released.size();auto separated=detachEnclosed(before,current);current.cells=cells;current.structure=structure;
+    if(current.released.size()!=old+separated.size())return false;const size_t take=std::min(size_t(allowance),separated.size());deferred=take<separated.size();
+    // Unemitted islands stay real visible/colliding hull material. The next
+    // release-only transaction can recover their exact authored ownership.
+    for(size_t n=take;n<separated.size();++n)for(unsigned role=0;role<4;++role)appendMesh(surfaceRole(current,role),surfaceRole(separated[n],role));
+    current.released.resize(old+take);separated.resize(take);pieces=std::move(separated);
+    std::vector<std::shared_ptr<const Mesh>>masks(current.released.begin()+old,current.released.end());return trimReleasedCells(current,masks);
+}
 inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     const auto structure=input.structure?input.structure:input.surface?input.surface->structure:nullptr;
+    if(input.releaseOnly&&(!structure||!structure->layout||structure->layout->cells.empty()||input.wood.empty())){Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=input.plane;next.kept=input.surface;output=std::move(next);return true;}
     // Resolved CHM1 tails are exact historical operations. A non-structural
     // receiver and legacy plane retain that same established geometry path.
-    if(resolved||input.plane.beams.empty()||input.wood.empty()||!structure||!structure->layout||structure->layout->cells.empty())return prepareExact(input,output,resolved);
+    if(!input.releaseOnly&&(resolved||input.plane.beams.empty()||input.wood.empty()||!structure||!structure->layout||structure->layout->cells.empty()))return prepareExact(input,output,resolved);
     if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;next.kept=input.surface;next.structure=structure;
-    if(!input.physicalContact){output=std::move(next);return true;}
+    next.hasDeferredSections=input.hasDeferredSections||structure_geometry::hasDeferred(*structure);
+    if(!input.physicalContact&&!input.releaseOnly){output=std::move(next);return true;}
+    if(input.releaseOnly&&(!next.hasDeferredSections||!input.fragmentLimit)){output=std::move(next);return true;}
     const bool thermal=input.plane.charred&&std::all_of(input.plane.beams.begin(),input.plane.beams.end(),[](const auto&beam){return beam.specificWork==0&&beam.contactStrength==0&&beam.crossSection.empty();});
     storm_ship_structure::DamageResult damage;structure_geometry::Realization geometry;bool fractured=false;
-    if(thermal){ablation::LocalResult local;
-        if(!ablation::cut(input,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
-        if(!local.changed){output=std::move(next);return true;}
-        bool split=false;if(!ablation::newlySplit(input,local.kept,split))return false;std::vector<Surface>localPieces;
-        if(split){const auto cells=local.kept.cells;localPieces=detachEnclosed(*input.surface,local.kept);local.kept.cells=cells;local.kept.structure=structure;
-            if(localPieces.size()>input.fragmentLimit)return false;
-            std::vector<std::shared_ptr<const Mesh>>released;for(const auto&piece:local.kept.released)if(std::find(input.surface->released.begin(),input.surface->released.end(),piece)==input.surface->released.end())released.push_back(piece);
-            if(!trimReleasedCells(local.kept,released))return false;
+    if(thermal||input.releaseOnly){ablation::LocalResult local;
+        if(input.releaseOnly)local.kept=*input.surface;
+        else if(!ablation::cut(input,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
+        bool split=input.releaseOnly;if(local.changed&&!split&&!ablation::newlySplit(input,local.kept,split))return false;std::vector<Surface>localPieces;bool localDeferred=false;
+        if(split){const auto authored=input.releaseOnly&&input.surface->supportOriginal?timberSurface(input.surface->supportOriginal->outer,input.wood):Surface{};
+            if(!releaseSections(input.releaseOnly?authored:*input.surface,local.kept,input.fragmentLimit,localPieces,localDeferred))return false;
             // Exact local islands can occupy only part of a coarse cell. The
             // graph must reconcile their actual lost source material too.
             local.changedIDs.clear();for(const auto&entry:local.kept.cells->changed){const auto old=input.surface->cells->changed.find(entry.first);if(old==input.surface->cells->changed.end()||old->second!=entry.second)local.changedIDs.push_back(entry.first);}
-            for(const auto&piece:localPieces){local.removedArea+=area(canonicalMesh(piece));for(const auto&o:piece.outer)for(const auto&t:o.second)local.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}}
+            for(const auto&piece:localPieces){local.changed=true;local.removedArea+=area(canonicalMesh(piece));for(const auto&o:piece.outer)for(const auto&t:o.second)local.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}}
         // Physical removal pays the lost capacity exactly once. It does not
         // also spend the same thermal volume as a latent graph work impulse.
-        damage=storm_ship_structure::reconcile(*structure,*input.surface,local.kept,input.wood,&local.changedIDs);
+        if(local.changed)damage=storm_ship_structure::reconcile(*structure,*input.surface,local.kept,input.wood,&local.changedIDs);else damage.state=*structure;
+        structure_geometry::includeDeferred(damage);
         auto actual=std::make_shared<Surface>(std::move(local.kept));Input separated=input;separated.surface=actual;separated.fragmentLimit-=unsigned(localPieces.size());
         if(!structure_geometry::realize(separated,damage,geometry))return false;const bool graphFracture=geometry.changed;fractured=graphFracture||!localPieces.empty();
         if(!graphFracture)geometry.kept=std::move(*actual);
         geometry.pieces.insert(geometry.pieces.end(),std::make_move_iterator(localPieces.begin()),std::make_move_iterator(localPieces.end()));
-        geometry.changed=true;geometry.removedArea+=local.removedArea;
+        geometry.changed=graphFracture||local.changed;geometry.deferred|=localDeferred;geometry.removedArea+=local.removedArea;
         geometry.openings.insert(geometry.openings.end(),std::make_move_iterator(local.openings.begin()),std::make_move_iterator(local.openings.end()));
         geometry.seam.insert(geometry.seam.end(),std::make_move_iterator(local.seam.begin()),std::make_move_iterator(local.seam.end()));
         if(!fractured)next.changedObjects=std::move(local.changedObjects);
     }else{
         damage=storm_ship_structure::damage(*structure,input.plane,*input.surface,input.wood,input.structuralArea);
-        if(!damage.changed){output=std::move(next);return true;}
+        structure_geometry::includeDeferred(damage);
+        if(!damage.changed&&damage.brokenCells.empty()&&damage.releasedCells.empty()){output=std::move(next);return true;}
         if(!structure_geometry::realize(input,damage,geometry))return false;fractured=geometry.changed;
     }
-    next.result.stateChanged=true;
+    next.result.stateChanged=damage.changed;next.hasDeferredSections=geometry.deferred||(!input.releaseOnly&&input.hasDeferredSections);
     if(!geometry.changed){next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));
-        if(input.materialTailCount>=31)next.materialPayload=encode(*input.surface,input.fingerprint,next.structure);
+        if(input.materialTailCount>=31||(next.hasDeferredSections&&damage.changed))next.materialPayload=encode(*input.surface,input.fingerprint,next.structure);
         output=std::move(next);return true;}
     // Failed mechanical regions and disconnected sections transfer to bodies.
     // Both cease belonging to the hull's actual finite material-cell cache.
-    for(auto id:damage.releasedCells)geometry.removedCells.push_back(structure_geometry::cellField(damage.state.layout->cells.at(id).bounds));
     if(!geometry.removedCells.empty()&&!fractureCells(geometry.kept,geometry.removedCells,input.wood))return false;
     if(!tagOpenings(geometry.kept,input.wood,geometry.openings))return false;
-    if(fractured)storm_ship_structure::refreshContacts(damage.state,geometry.kept,input.wood);
+    if(fractured){auto physical=storm_ship_structure::seed(damage.state.layout,geometry.kept,input.wood);damage.state.contact=std::move(physical.contact);damage.state.physicalCellHealth=std::move(physical.physicalCellHealth);damage.state.physicalBondHealth=std::move(physical.physicalBondHealth);}
+    next.hasDeferredSections|=structure_geometry::hasDeferred(damage.state);
     next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));geometry.kept.structure=next.structure;
     if(fractured||input.materialTailCount>=31){geometry.kept=rebase(std::move(geometry.kept));next.materialPayload=encode(geometry.kept,input.fingerprint,next.structure);}
     next.canonical=canonicalMesh(geometry.kept);next.render=renderMesh(geometry.kept);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.seam=std::move(geometry.seam);next.result.openings=std::move(geometry.openings);

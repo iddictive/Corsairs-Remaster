@@ -1,8 +1,56 @@
 # Runtime state
 
-Last verified installed delivery: October16,22:50EDT,10% allowance/separation/mast successor, signed engine `b0f1ac51c1c4275b608b1ea2ac2d4e68ab5f4e9f208dc0b5610cd11c2d17f0d7`. Canonical staging exits0;524 protected files are unchanged and239 managed receipt rows match at delivery. The precedingdecf7a02 image has partial player-confirmed damage but rejected separation/masts and the22:23 stack-guard crash. This successor's real gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October17,00:01EDT, continuous-cut/retained-world/AA/HUD successor, signed engine `ef3f73d3dc36debcc401443049485ec630cb10c2b7bd2b3fdad3bfde63598496`. Canonical staging exits0;523 current protected files are unchanged and239 managed receipt rows match. The precedingb0f1ac51 image has player-confirmed scars/falling masts but rejected section separation, terrain drilling, coast recovery and FPS. This successor's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16,23:13 player follow-up — visible scars/masts confirmed; sections, coast and FPS reopened
+
+The player confirms visible laser scars and falling masts in22:50/b0f1ac51,
+but cannot detach hull sections or splinter a ship with a high-speed manowar.
+Rock contact still sticks, the protagonist is blocked on deck, AA selection is
+missing and some silhouettes have pale fringes. Fire appearance is positive;
+its cost, weak reported damage and poor suppression remain unresolved. The
+player additionally requests unlimited testing-laser charge, actual laser/nuke
+HUD icons and an Esc toggle for Phonk music. No gameplay tests are authorized.
+
+The two supplied profiles bind PID44412/UUID0710C216, launched23:12:22EDT.
+Main1322/1325 samples include580/783 in EnvMap_Render; footprint8.0/10.1GiB
+does not identify an allocation owner. Installed disassembly binds the hottest
+GEOM calls to damaged world/cap draws and first/second UV copies in CPU vertex
+expansion. Exact samples, screenshot and matching engine are retained in
+[the profile receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-aa-deck-laser-2319/evidence.json).
+
+The source batch retains exact finite laser samples/time, removes charge drain,
+realizes body-limited sections incrementally instead of cancelling all outputs,
+and preserves failed requests behind revision/capacity fences. Navigation-only
+`path` retains authored BSP ownership. Coast overlap recovers actual wall normals
+before raster/support fallback. World cuts retain volumetric state instead of
+a lifetime64-operation replay. Rendering admits ordinary four-UV compact streams,
+fuses fire surface evaluation and avoids zero contributions. Options exposes
+four AA modes and corrects AO silhouette derivatives; outline removal remains
+unproven. Generated HUD icons and the Phonk-only music toggle are integrated in
+canonical sources. Owning topics retain exact contracts and limitations.
+
+Three compiler attempts stop before app installation: a mixed `auto` declaration
+in the world checkpoint reader and an undeclared CVECTOR reference in the new
+GEOS API, and a const CMatrix vector multiplication selecting the matrix overload.
+They are corrected locally. Source review also removes eager preparation of
+unaffected stone and per-grass MODEL updates before delivery. Failure logs remain with
+[the delivery batch](../.local-archives/installed-delivery/continuous-cuts-hud-20261016/).
+Disposition: canonical `experiments/native-metal/run.sh --stage-only` succeeds
+on October17,00:01EDT, exit0. Native inputs are
+`b9979be492ded509597666a77cca69a2efabc0221458ad2ba775ee93dcb8f360`;
+unsigned engine `6118276116f595d588730e806f1d6040ec82edd5e19aa97fde725db34554227e`,
+signed installed engine `ef3f73d3dc36debcc401443049485ec630cb10c2b7bd2b3fdad3bfde63598496`,
+UUID `E755379B-2DB1-3983-9335-624C486B5F08`. All523 protected player files retain
+their hashes and all239 managed rows match. The graphics adapter is byte-equal
+to canonical source; the precedingb0f1ac51 engine is retained by the installer.
+Exact build/stage logs and state comparison are in
+[the result receipt](../.local-archives/installed-delivery/continuous-cuts-hud-20261016/result.json).
+No player replay, game launch, SAVE load, gameplay control, push, ZIP or Drive
+update occurs. Actual sections, first terrain hole, coast/deck recovery, halo
+removal, dense-fire FPS and battle balance remain for player acceptance.
 
 ### October16,22:23 player crash — damage partially confirmed; separation and masts reopened
 

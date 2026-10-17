@@ -102,7 +102,7 @@ class GEOM : public GEOS
     uint64_t hullDesiredOwner=0,hullDesiredSignature=0,hullDesiredEpoch=0;
     uint64_t hullRejectedEpoch=0,hullRejectedRevision=0;
     bool hullDesiredValid=false;
-    bool hullDesiredMaterial=false,hullMaterialReady=false;
+    bool hullDesiredMaterial=false,hullMaterialReady=false,hullDeferredSections=false;
     bool hullDesiredMaterialReset=false;
     double hullDesiredRepairPercent=0.,hullMaterialStructuralArea=0.;
     uint64_t hullMaterialFingerprint=0,hullMaterialRestoreVersion=0,hullDesiredMaterialVersion=0;
@@ -135,6 +135,7 @@ class GEOM : public GEOS
     bool RebuildLaserSurface(bool upload=true,storm_ship_laser::Mesh *preparedSource=nullptr);
     void RebuildLaserCollision();
     std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;
+    std::shared_ptr<const storm_world_cut::Material> worldMaterial;
     storm_ship_laser::Mesh worldSurface;
     storm_ship_laser::Mesh worldRawOuter;
     std::vector<storm_world_cut::CapPatch>worldRawCaps;
@@ -210,6 +211,8 @@ class GEOM : public GEOS
     bool HullMaterialBounds(storm_ship_laser::Bounds&out) const override { if(laserMaterialCollision.references.empty())return false;out=laserMaterialCollision.bounds;return true; }
     const std::string& HullMaterialPayload() const override { return hullMaterialPayload; }
     bool HullMaterialReady() const override { return hullMaterialReady; }
+    bool HasDeferredHullSections() const override { return hullMaterialReady&&hullDeferredSections; }
+    unsigned HullFragmentAllowance() const override { size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();return active<storm_hull_damage::MaxFragmentBuffers?unsigned(storm_hull_damage::MaxFragmentBuffers-active):0; }
     uint64_t HullMaterialRevision() const override { return hullMaterialReady?hullMaterialStateRevision:collisionRevision; }
     bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_laser::SupportSpan *support=nullptr) override;
     bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_laser::SupportSpan *support,storm_ship_laser::Input&) override;
@@ -227,6 +230,7 @@ class GEOM : public GEOS
     void ClearLaserCuts(uint64_t owner) override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
     bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input) override;
+    bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const override;
     bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection) override;
     void CommitWorldProjection(uint64_t owner) override;
     void DiscardWorldProjection(uint64_t owner) override;

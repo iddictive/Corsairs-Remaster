@@ -67,33 +67,37 @@ class ISLAND : public ISLAND_BASE
     uint32_t iDMapSize, iDMapSizeShift;
     entid_t model_id{}, seabed_id{};
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; size_t predecessorCount=0; };
-    struct WorldCutBinding { entid_t model; uint64_t generation; size_t count; bool valid; };
+    struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; uint64_t predecessorCount=0,serial=0,rejectedRevision=0,rejectedTopology=0; bool rejected=false; };
+    struct WorldCutBinding { entid_t model; uint64_t generation; size_t count; bool valid; int node=-1; std::array<storm_ship_hull::Vec3,4> matrix{}; };
     ATTRIBUTES *worldCutState = nullptr; // saved Islands[] attributes outlive this sea entity
     entid_t worldReflection = 0;
     std::vector<WorldCutRecord> worldCuts;
     std::vector<WorldCutBinding> worldBindings;
     bool worldCutsReady = false;
     struct WorldWorkTarget {
-        entid_t model=0;int node=0;uint64_t generation=0;bool reflectionBoundary=false;std::string key;
+        entid_t model=0;int node=0;uint64_t generation=0;bool reflectionBoundary=false;std::string key,name,checkpoint;
         std::array<storm_ship_hull::Vec3,4> matrix;
         storm_world_cut::Input input;
         storm_world_cut::Projection projection;
     };
-    struct WorldWork {uint64_t epoch=0;bool valid=false;std::vector<WorldWorkTarget>targets;};
+    struct WorldWork {uint64_t epoch=0;bool valid=false;std::string failure;std::vector<WorldWorkTarget>targets;};
     std::deque<WorldCutRecord> worldCutQueue;
     std::optional<WorldCutRecord> worldActiveCut;
     std::optional<WorldCutRecord> worldActiveRequested;
     std::future<WorldWork> worldCutFuture;
     std::shared_ptr<std::atomic<bool>> worldCutCancel;
     uint64_t worldCutEpoch=0;
+    uint64_t worldCutRevision=0;
     bool StartWorldCutWork();
     void PollWorldCutWork(uint32_t delta);
     void CancelWorldCutWork();
-    void PublishWorldCut(WorldCutRecord record);
+    void PublishWorldCut(WorldCutRecord record,const WorldWork&work);
     void PrewarmWorldCuts();
     std::vector<entid_t> WorldModels() const;
     std::string WorldModelKey(entid_t model) const;
+    std::string WorldNodeKey(entid_t model,int node) const;
+    uint64_t WorldCutTopology() const;
+    void ParkWorldCutFront(const char*reason);
     bool BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force);
     bool CommitWorldCut(WorldCutRecord record);
     void RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection);

@@ -77,13 +77,15 @@
     "PROGRAM/interface/game_menu.c": {
       "encoding": "utf-8",
       "legacy": [
-        "15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0"
+        "15cd14f118117e6e87c549fcb82f2e7e2d3e488a5734c2e56bbaa08a5cf9f7b0",
+        "9a6a320c6f8f14acf6797f0721fc54bff91583e4bdf0b891be1d5dec92b869b8"
       ]
     },
     "RESOURCE/INI/interfaces/game_menu.ini": {
       "encoding": "utf-8",
       "legacy": [
-        "d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e"
+        "d94c091745586bb06515ae41e9ba77c8136fb2893938faacf6967c08e724a16e",
+        "e06ffb2bdca8c95cb8a1f2f0315780fdf00e548fbcdd1bc18a8cd0f79feeec2e"
       ]
     },
     "RESOURCE/INI/interfaces/debuger.ini": {
@@ -506,7 +508,9 @@
     },
     "PROGRAM/scripts/sea_phonk.c": {
       "encoding": "utf-8",
-      "legacy": []
+      "legacy": [
+        "36e51afde29f2bf556c3225b4f6320245de63dccc0aa79f3bdc7d46e8e868aa8"
+      ]
     },
     "PROGRAM/characters/GeneratorUtilite.c": {
       "encoding": "utf-8",

@@ -418,7 +418,6 @@ void procCheckBoxChange()
 	if( sNodName == "METAL_CINEMATIC_CHECKBOX" ) InterfaceStates.MetalCinematic = bBtnState;
 	if( sNodName == "METAL_LIGHT_SHAFTS_CHECKBOX" ) InterfaceStates.MetalLightShafts = bBtnState;
 	if( sNodName == "METAL_DYNAMIC_SKY_CHECKBOX" ) InterfaceStates.MetalDynamicSky = bBtnState;
-	if( sNodName == "METAL_ANTIALIASING_CHECKBOX" ) InterfaceStates.MetalAntialiasing = bBtnState;
 	if( sNodName == "METAL_VSYNC_CHECKBOX" ) InterfaceStates.MetalVSync = bBtnState;
 	if( sNodName == "METAL_FULLSCREEN_CHECKBOX" ) {
 		InterfaceStates.MetalFullScreen = bBtnState;
@@ -811,7 +810,7 @@ void InitSettingsRows()
 	SetSettingsRow(8, "");
 	SetSettingsRow(9, "METAL_RESOLUTION_PICKER");
 	SetSettingsRow(10, "METAL_VSYNC_CHECKBOX");
-	SetSettingsRow(11, "METAL_ANTIALIASING_CHECKBOX");
+	SetSettingsRow(11, "METAL_ANTIALIASING_PICKER");
 	SetSettingsRow(12, "METAL_UPSCALING_PICKER");
 	SetSettingsRow(13, "METAL_DYNAMIC_LIGHTING_CHECKBOX");
 	SetSettingsRow(14, "METAL_SHADOW_QUALITY_PICKER");
@@ -969,6 +968,15 @@ string MetalGraphicsUpscalingLabel()
 	return XI_ConvertString("MetalFX Off");
 }
 
+string MetalGraphicsAntialiasingLabel()
+{
+	int mode = sti(InterfaceStates.MetalAntialiasingMode);
+	if(mode==1) return "FXAA";
+	if(mode==2) return "MSAA 4x";
+	if(mode==3) return "MSAA 4x + FXAA";
+	return XI_ConvertString("MetalFX Off");
+}
+
 void SetMetalGraphicsCheckbox(string sNode, int enabled)
 {
 	SendMessage(&GameInterface,"lslll",MSG_INTERFACE_MSG_TO_NODE,sNode,2,1,enabled);
@@ -979,7 +987,6 @@ void GetMetalGraphicsData()
 	RefreshMetalDesktopSize();
 	SetMetalGraphicsCheckbox("METAL_FULLSCREEN_CHECKBOX",sti(InterfaceStates.MetalFullScreen));
 	SetMetalGraphicsCheckbox("METAL_VSYNC_CHECKBOX",sti(InterfaceStates.MetalVSync));
-	SetMetalGraphicsCheckbox("METAL_ANTIALIASING_CHECKBOX",sti(InterfaceStates.MetalAntialiasing));
 	SetMetalGraphicsCheckbox("METAL_DYNAMIC_LIGHTING_CHECKBOX",sti(InterfaceStates.MetalDynamicLighting));
 	SetMetalGraphicsCheckbox("METAL_MODERN_LIGHTING_CHECKBOX",sti(InterfaceStates.MetalModernLighting));
 	SetMetalGraphicsCheckbox("METAL_LIGHT_SHAFTS_CHECKBOX",sti(InterfaceStates.MetalLightShafts));
@@ -997,9 +1004,14 @@ void GetMetalGraphicsData()
 	GameInterface.METAL_UPSCALING_PICKER.tr1.td1.str = XI_ConvertString("MetalFX");
 	GameInterface.METAL_UPSCALING_PICKER.tr1.td2.str = "<  " + MetalGraphicsUpscalingLabel() + "  >";
 	GameInterface.METAL_UPSCALING_PICKER.tr1.td2.align = "center";
+	GameInterface.METAL_ANTIALIASING_PICKER.select = 1;
+	GameInterface.METAL_ANTIALIASING_PICKER.tr1.td1.str = XI_ConvertString("Metal Antialiasing");
+	GameInterface.METAL_ANTIALIASING_PICKER.tr1.td2.str = "<  " + MetalGraphicsAntialiasingLabel() + "  >";
+	GameInterface.METAL_ANTIALIASING_PICKER.tr1.td2.align = "center";
 	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_RESOLUTION_PICKER",0);
 	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_SHADOW_QUALITY_PICKER",0);
 	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_UPSCALING_PICKER",0);
+	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"METAL_ANTIALIASING_PICKER",0);
 }
 
 void ChangeMetalGraphicsPicker(string sNode, int direction)
@@ -1024,6 +1036,12 @@ void ChangeMetalGraphicsPicker(string sNode, int direction)
 		if(mode > 3) mode = 0;
 		InterfaceStates.MetalUpscaling = mode;
 	}
+	if(sNode == "METAL_ANTIALIASING_PICKER") {
+		int antialiasingMode = sti(InterfaceStates.MetalAntialiasingMode) + direction;
+		if(antialiasingMode < 0) antialiasingMode = 3;
+		if(antialiasingMode > 3) antialiasingMode = 0;
+		InterfaceStates.MetalAntialiasingMode = antialiasingMode;
+	}
 	GetMetalGraphicsData();
 }
 
@@ -1031,7 +1049,7 @@ void ProcessMetalGraphicsCommand()
 {
 	string sCommand = GetEventData();
 	string sNode = GetEventData();
-	if(sNode != "METAL_RESOLUTION_PICKER" && sNode != "METAL_SHADOW_QUALITY_PICKER" && sNode != "METAL_UPSCALING_PICKER") return;
+	if(sNode != "METAL_RESOLUTION_PICKER" && sNode != "METAL_SHADOW_QUALITY_PICKER" && sNode != "METAL_UPSCALING_PICKER" && sNode != "METAL_ANTIALIASING_PICKER") return;
 	if(sCommand=="leftstep" || sCommand=="speedleft") ChangeMetalGraphicsPicker(sNode,-1);
 	if(sCommand=="rightstep" || sCommand=="speedright") ChangeMetalGraphicsPicker(sNode,1);
 }
@@ -1041,14 +1059,14 @@ void ClickMetalGraphicsRow()
 	string sNode = GetEventData();
 	int nRow = GetEventData();
 	int nColumn = GetEventData();
-	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER" || sNode == "METAL_ANTIALIASING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 void ActivateMetalGraphicsRow()
 {
 	string sNode = GetEventData();
 	int nRow = GetEventData();
-	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
+	if(sNode == "METAL_RESOLUTION_PICKER" || sNode == "METAL_SHADOW_QUALITY_PICKER" || sNode == "METAL_UPSCALING_PICKER" || sNode == "METAL_ANTIALIASING_PICKER") ChangeMetalGraphicsPicker(sNode,1);
 }
 
 int MetalGraphicsFlags()
@@ -1060,8 +1078,9 @@ int MetalGraphicsFlags()
 	if(sti(InterfaceStates.MetalCinematic)) flagsMask = flagsMask + 8;
 	if(sti(InterfaceStates.MetalLightShafts)) flagsMask = flagsMask + 16;
 	if(sti(InterfaceStates.MetalDynamicSky)) flagsMask = flagsMask + 32;
-	if(sti(InterfaceStates.MetalAntialiasing)) flagsMask = flagsMask + 64;
+	if(sti(InterfaceStates.MetalAntialiasingMode)) flagsMask = flagsMask + 64;
 	flagsMask = flagsMask + sti(InterfaceStates.MetalUpscaling) * 128;
+	flagsMask = flagsMask + sti(InterfaceStates.MetalAntialiasingMode) * 512;
 	return flagsMask;
 }
 
@@ -1069,7 +1088,8 @@ bool PrepareMetalGraphicsOptions()
 {
 	int resolution = sti(InterfaceStates.MetalResolution);
 	string upscaling = InterfaceStates.MetalUpscaling;
-	if(resolution < 0 || resolution > 5 || (upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3")) {
+	string antialiasing = InterfaceStates.MetalAntialiasingMode;
+	if(resolution < 0 || resolution > 5 || (upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3") || (antialiasing != "0" && antialiasing != "1" && antialiasing != "2" && antialiasing != "3")) {
 		SetFormatedText("METAL_GRAPHICS_ERROR", XI_ConvertString("Metal Graphics Apply Error"));
 		return false;
 	}

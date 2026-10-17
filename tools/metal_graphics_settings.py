@@ -66,6 +66,7 @@ ENV_KEYS = {
 INTEGER_ENV_KEYS = {
     "shadow_quality": "STORM_METAL_SHADOW_QUALITY",
     "upscaling": "STORM_METAL_UPSCALING",
+    "antialiasing_mode": "STORM_METAL_AA_MODE",
 }
 
 SHADOW_QUALITY_MIN = 0
@@ -182,6 +183,14 @@ def graphics_values(runtime: Path) -> dict[str, int | bool]:
     if "upscaling" in values and values["upscaling"] not in {"0", "1", "2", "3"}:
         raise ValueError("upscaling: expected a mode from 0 to 3")
     result["upscaling"] = integer_value(values, "upscaling", UPSCALING_MIN, UPSCALING_MAX)
+    # Old On selected MSAA4 + FXAA. A read must retain those bytes and behavior.
+    if "antialiasing_mode" in values:
+        if values["antialiasing_mode"] not in {"0", "1", "2", "3"}:
+            raise ValueError("antialiasing_mode: expected a mode from 0 to 3")
+        result["antialiasing_mode"] = int(values["antialiasing_mode"])
+    else:
+        result["antialiasing_mode"] = 3 if result["antialiasing"] else 0
+    result["antialiasing"] = result["antialiasing_mode"] != 0
     result["full_screen"] = bool_value(values, "full_screen")
     result["vsync"] = (
         bool_value(values, "vsync") if "vsync" in values
@@ -335,6 +344,9 @@ def initialize_record(runtime: Path) -> None:
 def launch_environment(runtime: Path, inherited: dict[str, str]) -> dict[str, str]:
     result = dict(inherited)
     values = graphics_values(runtime)
+    if "STORM_METAL_ANTIALIASING" in inherited and "STORM_METAL_AA_MODE" not in inherited:
+        # Preserve the established diagnostic override ahead of the saved mode.
+        result["STORM_METAL_AA_MODE"] = "3" if inherited["STORM_METAL_ANTIALIASING"] == "1" else "0"
     for key, env_name in ENV_KEYS.items():
         # An explicit diagnostic override still wins; ordinary launches use UI.
         result.setdefault(env_name, str(int(values[key])))

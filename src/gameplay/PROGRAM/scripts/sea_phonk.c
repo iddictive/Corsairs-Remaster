@@ -31,6 +31,11 @@ bool SeaPhonk_ProtectsShip(aref character)
         sti(character.index) == GetMainCharacterIndex();
 }
 
+bool SeaPhonk_IsMusicMuted()
+{
+    return CheckAttribute(pchar, "PhonkMusicMuted") && sti(pchar.PhonkMusicMuted) != 0;
+}
+
 bool SeaPhonk_Music(string requested)
 {
     if (!SeaPhonk_IsActive())
@@ -39,6 +44,7 @@ bool SeaPhonk_Music(string requested)
         if (musicName == SEA_PHONK_TRACK) SeaPhonk_Reset(false);
         return false;
     }
+    if (SeaPhonk_IsMusicMuted()) return false;
     if (requested != SEA_PHONK_TRACK && requested != "") Sea.Phonk.ReturnMusic = requested;
     if (musicName == SEA_PHONK_TRACK && musicID >= 0 &&
         SendMessage(Sound, "ll", MSG_SOUND_IS_PLAYING, musicID)) return true;
@@ -54,25 +60,48 @@ bool SeaPhonk_Music(string requested)
     return true;
 }
 
+bool SeaPhonk_StopMusic(int fade)
+{
+    if (musicName != SEA_PHONK_TRACK) return false;
+    if (musicID >= 0) StopSound(musicID, fade);
+    musicID = -1;
+    musicName = "";
+    return true;
+}
+
+void SeaPhonk_ResumeOrdinaryMusic(string previous)
+{
+    if (!bSeaActive || !IsEntity(&Sea)) return;
+    if (previous == "" || previous == SEA_PHONK_TRACK)
+    {
+        previous = "music_sea_day";
+        if (Whr_IsNight()) previous = "music_sea_night";
+    }
+    SetMusic(previous);
+}
+
 void SeaPhonk_Reset(bool restoreMusic)
 {
     string previous = "";
     if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
     DeleteAttribute(&Sea, "Phonk");
     DelEventHandler("frame", "SeaPhonk_Frame");
-    if (musicName != SEA_PHONK_TRACK) return;
-    StopSound(musicID, 200);
-    musicID = -1;
-    musicName = "";
-    if (restoreMusic && bSeaActive && IsEntity(&Sea))
+    if (!SeaPhonk_StopMusic(200)) return;
+    if (restoreMusic) SeaPhonk_ResumeOrdinaryMusic(previous);
+}
+
+void SeaPhonk_ToggleMusic()
+{
+    // Character attributes survive sea teardown and use the existing SAVE codec.
+    pchar.PhonkMusicMuted = !SeaPhonk_IsMusicMuted();
+    if (!SeaPhonk_IsActive()) return;
+    if (SeaPhonk_IsMusicMuted())
     {
-        if (previous == "" || previous == SEA_PHONK_TRACK)
-        {
-            previous = "music_sea_day";
-            if (Whr_IsNight()) previous = "music_sea_night";
-        }
-        SetMusic(previous);
+        string previous = "";
+        if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
+        if (SeaPhonk_StopMusic(0)) SeaPhonk_ResumeOrdinaryMusic(previous);
     }
+    else SeaPhonk_Music(musicName);
 }
 
 bool SeaPhonk_Toggle()

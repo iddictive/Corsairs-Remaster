@@ -2,7 +2,19 @@
 
 ## Status
 
-The October16,21:40EDT graph/contact successor is installed; `runtime.md` owns its
+The October16,23:13 player report again rejects recovery at rock walls. The
+source successor recovers a real nearby exit face for an initially embedded
+keel using the existing camomile winding criterion and traced MODEL triangle
+normals. TOUCH uses it before raster-gradient fallback; SHIP uses it before a
+horizontal support face can discard all XZ/yaw motion. The query is shared in
+`touch/src/ship_shore_contact.hpp`, bounded to eight rays and local to one
+constraint call. Rays discover faces; they never become radial normals.
+Slope support retains its actual contact point. Existing velocity/current/torque
+projection and arc/nonpenetration certification remain. Unknown geometry still
+fails conservatively; source correction does not prove universal recovery or the
+reported scene. No gameplay test or control is performed.
+
+The preceding October16,21:40EDT graph/contact successor was installed; `runtime.md` owns its
 delivery receipt. It retains common support from the20:52 predecessor.
 Ordinary/NPC recovery under sail, gravity/friction on a slope and ordinary tsunami
 beaching remain unaccepted in gameplay. No game launch or gameplay tests occur.

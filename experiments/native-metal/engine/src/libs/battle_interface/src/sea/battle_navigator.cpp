@@ -154,12 +154,13 @@ void BATTLE_NAVIGATOR::Draw() const
                  "%.1f", m_fShipSpeed);
 
     // show current charge
-    if (m_curCharge >= 0)
+    const bool phonkWeapon = m_curCharge == -6 || m_curCharge == -7;
+    if (m_curCharge >= 0 || phonkWeapon)
     {
         rs->TextureSet(0, m_idChargeTexture);
         rs->SetRenderState(storm_render::RenderTextureFactor, (BIUtils::g_dwBlinkColor << 24L) | 0xFFFFFF);
         rs->DrawPrimitive(storm_render::PrimitiveTriangleStrip, m_idCurChargeVBuf, sizeof(BI_ONETEXTURE_VERTEX), 0, 2,
-                          m_bNotEnoughBallFlag ? "battle_texure_blend_tf" : "battle_rectangle");
+                          m_bNotEnoughBallFlag && !phonkWeapon ? "battle_texure_blend_tf" : "battle_rectangle");
     }
     if (m_idPowderTexture >= 0 && m_curPowder >= 0)
     {
@@ -1440,8 +1441,8 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     pVD->Get(curWindPic, 2);
     pVD->Get(curPowder, 3);
     pVD->Get(isPowderRunOut, 4);
-    // Script uses the selected Phonk weapon as a negative icon sentinel. Its
-    // name and real charge/reload use the existing Ammo/Powder text rows.
+    // Negative Phonk sentinels retain their separate charge/reload text and
+    // powder suppression; only the current-charge sprite maps to atlas art.
     const bool phonkWeapon = curCharge == -6 || curCharge == -7;
     if (phonkWeapon) curPowder = -1;
     m_bPowderRunOut = isPowderRunOut;
@@ -1465,7 +1466,8 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     if (pV != nullptr)
     {
         FRECT texRect;
-        CalculateTextureRect(texRect, std::max(0, m_curCharge), m_ChargeGreed.x, m_ChargeGreed.y);
+        const int32_t chargePicture = m_curCharge == -6 ? 41 : m_curCharge == -7 ? 42 : std::max(0, m_curCharge);
+        CalculateTextureRect(texRect, chargePicture, m_ChargeGreed.x, m_ChargeGreed.y);
         pV[0].tu = texRect.left;
         pV[0].tv = texRect.top;
         pV[1].tu = texRect.left;

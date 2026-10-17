@@ -17,6 +17,7 @@ Import library main header
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_laser_geometry.hpp"
 #include "world_cut_coverage.hpp"
+struct CVECTOR;
 namespace storm_ship_hull {struct Impact;struct Vec3;}
 namespace storm_ship_laser {struct Plane;struct Result;struct Input;struct Projection;struct Fragment;struct FragmentInput;struct FragmentProjection;struct SupportSpan;}
 namespace storm_world_cut {struct Cut;struct Input;struct Projection;}
@@ -118,6 +119,8 @@ class GEOS
     virtual bool HullMaterialBounds(storm_ship_laser::Bounds&) const { return false; }
     virtual const std::string& HullMaterialPayload() const { static const std::string empty;return empty; }
     virtual bool HullMaterialReady() const { return false; }
+    virtual bool HasDeferredHullSections() const { return false; }
+    virtual unsigned HullFragmentAllowance() const { return 0; }
     virtual uint64_t HullMaterialRevision() const { return CollisionRevision(); }
     virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_laser::SupportSpan *support=nullptr)=0;
     virtual bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_laser::SupportSpan *support,storm_ship_laser::Input&)=0;
@@ -135,6 +138,7 @@ class GEOS
     virtual void ClearLaserCuts(uint64_t owner)=0;
     virtual bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false)=0;
     virtual bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input)=0;
+    virtual bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const=0;
     virtual bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection)=0;
     virtual void CommitWorldProjection(uint64_t owner)=0;
     virtual void DiscardWorldProjection(uint64_t owner)=0;

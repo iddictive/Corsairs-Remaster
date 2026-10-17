@@ -58,7 +58,7 @@ struct Input
 };
 struct Output
 {
-    bool valid=false;
+    bool valid=false,deferred=false;
     std::shared_ptr<const storm_ship_laser::Surface> visual;
     storm_ship_laser::Mesh canonical,render;
     storm_ship_laser::FaceIndex collision,materialCollision,retainedSupport;
@@ -150,7 +150,9 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             // Once per old checkpoint/import, reconcile sections that were
             // already physically separate inside a coarse cell. No historical
             // debris, damage or crew events are replayed during SAVE restore.
-            if(!detachEnclosed(authored,current).empty()){
+            const auto retainedCells=current.cells;const auto retainedStructure=current.structure;
+            const auto oldPieces=detachEnclosed(authored,current);current.cells=retainedCells;current.structure=retainedStructure;
+            if(!oldPieces.empty()){
                 if(!storm::ship::material::trimReleasedCells(current))return {};
                 if(structure){auto retained=storm_ship_structure::seed(structure->layout,current,input.wood);
                     for(size_t n=0;n<retained.cellHealth.size();++n){retained.cellHealth[n]=std::min(retained.cellHealth[n],structure->cellHealth[n]);retained.alive[n]&=structure->alive[n];}
@@ -170,6 +172,8 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             current.structure=std::make_shared<const storm_ship_structure::State>(storm_ship_structure::repair(*structure,before,current,input.wood,std::max(0.,quota-repaired.restoredArea)));
             current=storm::ship::material::rebase(std::move(current));
         }
+        result.deferred=storm::ship::material::structure_geometry::hasDeferred(*current.structure);
+        if(current.cells&&!current.cells->changed.empty()){auto preview=current;if(!detachEnclosed(authored,preview).empty())result.deferred=true;}
         for(const auto*role:{&current.outer,&current.canonicalCaps,&current.interior,&current.finiteWalls})for(const auto&o:*role)if(o.first<0||size_t(o.first)>=input.objectMaterials.size())return {};
         result.payload=localTail&&!input.reset&&!input.repairPercent?input.payload:storm::ship::material::encode(current,result.fingerprint);
         if(localTail&&!input.reset&&!input.repairPercent)result.tail=input.tail;result.tail.reserve(32);
@@ -788,7 +792,7 @@ void GEOM::PollHullRebuild()
             laserBroadphase=std::move(result.collision.broadphase);laserCollisionTriangles=std::move(result.collision.references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;traceid=-1;
             laserRetainedSupport=std::move(result.retainedSupport);laserReleasedSupport=std::move(result.releasedSupport);laserSupportCandidates=std::move(result.supportCandidates);laserSupportNearby=std::move(result.supportNearby);
             hullCutInputs=std::move(hullDesiredCuts);laserPlanes=std::move(hullDesiredPlanes);hullSignature=hullDesiredSignature;laserOwner=laserPlanes.empty()?0:input.owner;hullOwner=(!hullCutInputs.empty()||laserOwner)?input.owner:0;
-            if(input.material){hullMaterialReady=true;++hullMaterialStateRevision;hullMaterialFingerprint=result.fingerprint;hullMaterialStructuralArea=result.structuralArea;hullAuthoredCells=std::move(result.cells);hullAuthoredSupport=std::move(result.support);hullStructureState=laserVisualSurface->structure;hullMaterialPayload=std::move(result.payload);hullMaterialTail=std::move(result.tail);hullMaterialOpenings=std::move(result.openings);hullMaterialRestoreVersion=hullDesiredMaterialVersion;laserPlanes.clear();hullCutInputs.clear();laserOwner=hullOwner=input.owner;}
+            if(input.material){hullMaterialReady=true;hullDeferredSections=result.deferred;++hullMaterialStateRevision;hullMaterialFingerprint=result.fingerprint;hullMaterialStructuralArea=result.structuralArea;hullAuthoredCells=std::move(result.cells);hullAuthoredSupport=std::move(result.support);hullStructureState=laserVisualSurface->structure;hullMaterialPayload=std::move(result.payload);hullMaterialTail=std::move(result.tail);hullMaterialOpenings=std::move(result.openings);hullMaterialRestoreVersion=hullDesiredMaterialVersion;laserPlanes.clear();hullCutInputs.clear();laserOwner=hullOwner=input.owner;}
             hullDesiredValid=false;++collisionRevision;return;
         }
     }
@@ -970,7 +974,7 @@ bool GEOM::CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&plane,
     if(worldOwner||!owner||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||(!hullMaterialReady&&!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size())))return false;
     if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>storm_hull_damage::MaxFragmentBuffers)return false;
     bool physicalContact=plane.beams.empty();if(!physicalContact)for(const auto&beam:plane.beams){laserMaterialCollision.broadphase.queryBounds(storm_ship_laser::beamBounds(beam),laserMaterialCandidates);if(!laserMaterialCandidates.empty()){physicalContact=true;break;}}
-    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;input=std::move(next);return true;
+    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasDeferredSections=hullDeferredSections;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;input=std::move(next);return true;
 }
 bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&projection,storm_ship_laser::Result&result)
 {
@@ -987,6 +991,7 @@ bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&pro
 void GEOM::CommitLaserProjection(uint64_t owner)
 {
     if(!laserPending||owner!=laserPendingOwner)return;if(laserPending->revision!=collisionRevision||laserPending->generation!=geometryGeneration||laserPending->materialRevision!=HullMaterialRevision()){DiscardLaserProjection(owner);return;}
+    if(hullMaterialReady)hullDeferredSections=laserPending->hasDeferredSections;
     if(!laserPending->result.changed){
         if(laserPending->result.stateChanged){
             // Subcritical damage changes only bounded graph values. Keep all
@@ -1119,9 +1124,14 @@ bool GEOM::CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::C
     const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f,rhead.bbox_size.z*.5f+16};
     storm_ship_hull::Bounds bounds{center-extent,center+extent};if(terrainModel)bounds.lo.y-=10032.f;
-    storm_world_cut::Input result;result.original=worldOriginal;result.cuts=cuts;
+    storm_world_cut::Input result;result.original=worldOriginal;result.material=worldMaterial;
+    for(const auto&cut:cuts)if(storm_world_cut::affects(bounds,{cut}))result.cuts.push_back(cut);
     if(terrainModel)result.terrainObjects=worldTerrainObjects;
-    result.active=!cuts.empty()&&storm_world_cut::affects(bounds,cuts);input=std::move(result);return true;
+    result.active=bool(worldMaterial)||!result.cuts.empty();input=std::move(result);return true;
+}
+bool GEOM::IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const
+{
+    return worldOwner!=owner||!worldMaterial||storm_world_cut::positionRetained(*worldMaterial,{point.x,point.y,point.z});
 }
 bool GEOM::StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection)
 {
@@ -1147,6 +1157,7 @@ void GEOM::CommitWorldProjection(uint64_t owner)
     auto&projection=*worldPending;
     ReleaseHullDraws(worldDraws);ReleaseHullDraws(worldCapDraws);worldDraws=std::move(worldPendingDraws);worldCapDraws=std::move(worldPendingCapDraws);
     worldSurface=std::move(projection.retained);worldRawOuter=std::move(projection.outer);worldRawCaps=std::move(projection.rawCaps);worldCuts=std::move(projection.cuts);worldOwner=owner;
+    worldMaterial=std::move(projection.material);
     laserBroadphase=std::move(projection.broadphase);laserCollisionTriangles=std::move(projection.references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
     worldPending.reset();worldPendingOwner=0;
 }
@@ -1186,7 +1197,7 @@ void GEOM::ClearWorldCuts(uint64_t owner)
 {
     if(!worldOwner||worldOwner!=owner)return;
     ReleaseHullDraws(worldDraws);ReleaseHullDraws(worldCapDraws);worldSurface.clear();worldCuts.clear();worldOwner=0;
-    worldRawOuter.clear();worldRawCaps.clear();
+    worldRawOuter.clear();worldRawCaps.clear();worldMaterial.reset();
     laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserCollisionTriangles.clear();laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
 }
 #endif

@@ -12,8 +12,10 @@ void InitInterface_gm(string iniName)
 	SetNodeUsing("MB_TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
 	SetNodeUsing("MB_TSUNAMI_RING", !bAbordageStarted && IsEntity(&worldMap));
 	SetNodeUsing("MB_PHONK", !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap));
+	SetNodeUsing("MB_PHONK_MUSIC", !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap));
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Phonk Mode");
 	if (SeaPhonk_IsActive()) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Выключить фонк");
+	PhonkMusicButtonText();
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами");
 	if (IsEntity(&worldMap)) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами: дуга");
 	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_RING",0,"#Цунами: кольцо");
@@ -138,6 +140,13 @@ void IProcessFrame()
 {
 }
 
+void PhonkMusicButtonText()
+{
+	string label = "#Выключить фонк-музыку";
+	if (SeaPhonk_IsMusicMuted()) label = "#Включить фонк-музыку";
+	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK_MUSIC",0,label);
+}
+
 void ProcessCancelExit()
 {
 	if(CheckAttribute(&InterfaceStates,"Buttons.Resume.enable") && sti(InterfaceStates.Buttons.Resume.enable) == true)
@@ -183,6 +192,13 @@ void ProcessCommandExecute()
 
 	switch(nodName)
 	{
+		case "MB_PHONK_MUSIC":
+			if (comName == "click" || comName == "activate")
+			{
+				SeaPhonk_ToggleMusic();
+				PhonkMusicButtonText();
+			}
+		break;
 		case "MB_PHONK":
 			if (comName == "click" || comName == "activate")
 			{

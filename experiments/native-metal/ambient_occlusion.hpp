@@ -42,12 +42,17 @@ float3 aoNormal(depth2d<float, access::read> depth, uint2 q, constant AOU& u) {
     uint2 r = min(q + uint2(1, 0), hi);
     uint2 t = uint2(q.x, q.y > 0 ? q.y - 1 : q.y);
     uint2 b = min(q + uint2(0, 1), hi);
-    float3 px = aoPosition((float2(r) + .5f) / u.fullSize, depth.read(r), u)
-              - aoPosition((float2(l) + .5f) / u.fullSize, depth.read(l), u);
-    float3 py = aoPosition((float2(b) + .5f) / u.fullSize, depth.read(b), u)
-              - aoPosition((float2(t) + .5f) / u.fullSize, depth.read(t), u);
-    float3 n = normalize(cross(px, py));
     float3 p = aoPosition((float2(q) + .5f) / u.fullSize, depth.read(q), u);
+    float3 pl = aoPosition((float2(l) + .5f) / u.fullSize, depth.read(l), u);
+    float3 pr = aoPosition((float2(r) + .5f) / u.fullSize, depth.read(r), u);
+    float3 pt = aoPosition((float2(t) + .5f) / u.fullSize, depth.read(t), u);
+    float3 pb = aoPosition((float2(b) + .5f) / u.fullSize, depth.read(b), u);
+    // A central difference across a silhouette invents a normal between the
+    // foreground and background. Use the nearer depth neighbour on each axis.
+    float3 px = r.x != q.x && (l.x == q.x || abs(pr.z-p.z) < abs(p.z-pl.z)) ? pr-p : p-pl;
+    float3 py = b.y != q.y && (t.y == q.y || abs(pb.z-p.z) < abs(p.z-pt.z)) ? pb-p : p-pt;
+    float3 product = cross(px, py);
+    float3 n = dot(product, product) > 1.e-12f ? normalize(product) : normalize(-p);
     return dot(n, -p) < 0.0f ? -n : n;
 }
 

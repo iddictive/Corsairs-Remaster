@@ -7,44 +7,52 @@ inline constexpr const char* shipFireCommonMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct ShipFirePoint {packed_float3 position;float radius,intensity,charred,heat,seed;};
+// Surface point.seed carries CPU-prepared light flutter; volume burn.w keeps
+// the original variation seed used by flame, smoke and ember noise.
 struct ShipFireSurface {float4x4 fromModel,inverseWorld;uint4 counts;ShipFirePoint points[48];};
 float shipFireHash(float3 p){p=fract(p*.1031f);p+=dot(p,p.yzx+33.33f);return fract((p.x+p.y)*p.z);}
 float shipFireNoise(float3 p){float3 a=floor(p),f=fract(p);f=f*f*(3.f-2.f*f);
  return mix(mix(mix(shipFireHash(a),shipFireHash(a+float3(1,0,0)),f.x),mix(shipFireHash(a+float3(0,1,0)),shipFireHash(a+float3(1,1,0)),f.x),f.y),mix(mix(shipFireHash(a+float3(0,0,1)),shipFireHash(a+float3(1,0,1)),f.x),mix(shipFireHash(a+float3(0,1,1)),shipFireHash(a+float3(1,1,1)),f.x),f.y),f.z);
 }
 float shipFireTurbulence(float3 p){return shipFireNoise(p)*.57f+shipFireNoise(p*2.03f+17.1f)*.29f+shipFireNoise(p*4.11f+8.7f)*.14f;}
-// x: char, y: fresh scorch rim, z: local fire irradiance, w: ember cracks.
-float4 shipFireSurfaceAt(float3 local,constant ShipFireSurface&s){
- if(!s.counts.x)return 0;
- float3 p=(s.fromModel*float4(local,1)).xyz;float4 result=0;
- float grain=shipFireNoise(p*3.7f),edge=shipFireNoise(p*.82f);
+// Surface x: char, y: scorch rim, z: local fire irradiance, w: ember cracks.
+struct ShipFireEvaluation {float4 surface;float3 irradiance;};
+ShipFireEvaluation shipFireEvaluate(float3 local,float3 worldNormal,constant ShipFireSurface&s){
+ if(!s.counts.x)return {float4(0),float3(0)};
+ float3 p=(s.fromModel*float4(local,1)).xyz;
+ // Keep derivatives outside the per-point divergent support branches.
+ float3 normal=length(worldNormal)>.01f?normalize((s.inverseWorld*float4(worldNormal,0)).xyz):normalize(cross(dfdx(p),dfdy(p)));
+ float energy=0;float4 result=0;
+ float grain=0,edge=0;bool grainReady=false,edgeReady=false;
  for(uint i=0;i<min(s.counts.x,48u);i++){
   ShipFirePoint f=s.points[i];float radius=max(f.radius,.1f);float3 q=(p-float3(f.position))/radius;
-  float distance=length(q);if(distance>2.6f)continue;
-  float footprint=1.f-smoothstep(.30f+edge*.24f,1.35f+edge*.31f,distance);
-  float charred=saturate(f.charred)*footprint;
-  result.x=max(result.x,charred);result.y=max(result.y,saturate(f.charred)*smoothstep(.7f,1.2f,distance)*footprint);
-  result.z+=f.intensity*(1.f-smoothstep(.1f,2.6f,distance))*.20f;
-  float cracks=smoothstep(.88f,.96f,grain)*charred*f.heat*(1.f-smoothstep(.5f,1.2f,distance));
-  result.w=max(result.w,cracks);
- }
- result.z=min(result.z,.65f);return result;
-}
-float3 shipFireIrradiance(float3 local,float3 worldNormal,constant ShipFireSurface&s){
- if(!s.counts.x)return 0;
- float3 p=(s.fromModel*float4(local,1)).xyz;
- float3 normal=length(worldNormal)>.01f?normalize((s.inverseWorld*float4(worldNormal,0)).xyz):normalize(cross(dfdx(p),dfdy(p)));
- float seconds=as_type<float>(s.counts.z);float energy=0;
- for(uint i=0;i<min(s.counts.x,48u);i++){
-  ShipFirePoint f=s.points[i];if(f.intensity<=.001f)continue;float radius=max(f.radius,.1f);
+  float surfaceDistance=length(q);
+  if(surfaceDistance<=2.6f){
+   result.z+=f.intensity*(1.f-smoothstep(.1f,2.6f,surfaceDistance))*.20f;
+   // Edge lies in [0,1], so the char support ends by 1.35+.31 radii.
+   // Virgin wood and pixels outside that support need neither noise field.
+   if(f.charred>0.f&&surfaceDistance<1.67f){
+    if(!edgeReady){edge=shipFireNoise(p*.82f);edgeReady=true;}
+    float footprint=1.f-smoothstep(.30f+edge*.24f,1.35f+edge*.31f,surfaceDistance);
+    float charred=saturate(f.charred)*footprint;
+    result.x=max(result.x,charred);result.y=max(result.y,saturate(f.charred)*smoothstep(.7f,1.2f,surfaceDistance)*footprint);
+    if(charred>0.f&&f.heat>0.f&&surfaceDistance<1.2f){
+     if(!grainReady){grain=shipFireNoise(p*3.7f);grainReady=true;}
+     float cracks=smoothstep(.88f,.96f,grain)*charred*f.heat*(1.f-smoothstep(.5f,1.2f,surfaceDistance));
+     result.w=max(result.w,cracks);
+    }
+   }
+  }
+  if(f.intensity<=.001f)continue;
   float3 delta=float3(f.position)+float3(0,radius*1.3f,0)-p;float distanceSquared=dot(delta,delta),range=radius*11.f;
   if(distanceSquared>=range*range)continue;
   float distance=sqrt(distanceSquared),cosine=dot(normal,delta/max(distance,.001f));cosine=s.counts.y?abs(cosine):max(cosine,0.f);
   float attenuation=1.f/(1.f+distanceSquared/(radius*radius*9.f));
-  float flutter=.86f+.10f*sin(seconds*7.3f+f.seed)+.04f*sin(seconds*15.1f-f.seed*.37f);
+  float flutter=f.seed;
   energy+=f.intensity*attenuation*(cosine*.86f+.14f)*flutter*(1.f-smoothstep(range*.75f,range,distance));
  }
- return float3(1.7f,.72f,.19f)*min(energy,2.2f);
+ result.z=min(result.z,.65f);
+ return {result,float3(1.7f,.72f,.19f)*min(energy,2.2f)};
 }
 )MSL";
 inline constexpr const char* shipFireVolumeMSL=R"MSL(

@@ -187,7 +187,7 @@ class SHIP : public SHIP_BASE
     {
         bool valid = false, wet = false;
         float height = 0.f, draft = .05f;
-        CVECTOR normal = CVECTOR(0.f);
+        CVECTOR normal = CVECTOR(0.f), point = CVECTOR(0.f);
     };
     struct GroundMotion
     {

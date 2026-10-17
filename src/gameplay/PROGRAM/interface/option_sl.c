@@ -49,6 +49,8 @@ bool SaveMetalGraphicsOptions()
 {
 	string upscaling = InterfaceStates.MetalUpscaling;
 	if(upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3") return false;
+	string antialiasing = InterfaceStates.MetalAntialiasingMode;
+	if(antialiasing != "0" && antialiasing != "1" && antialiasing != "2" && antialiasing != "3") return false;
 	object gopt;
 	PrepareDefaultMetalGraphics(&gopt);
 	GetMetalGraphicsOptions(&gopt);
@@ -64,7 +66,8 @@ void GetMetalGraphicsOptions(ref optref)
 	optref.cinematic = InterfaceStates.MetalCinematic;
 	optref.light_shafts = InterfaceStates.MetalLightShafts;
 	optref.dynamic_sky = InterfaceStates.MetalDynamicSky;
-	optref.antialiasing = InterfaceStates.MetalAntialiasing;
+	optref.antialiasing_mode = InterfaceStates.MetalAntialiasingMode;
+	optref.antialiasing = sti(InterfaceStates.MetalAntialiasingMode) != 0;
 	optref.upscaling = InterfaceStates.MetalUpscaling;
 	optref.vsync = InterfaceStates.MetalVSync;
 	optref.full_screen = InterfaceStates.MetalFullScreen;
@@ -79,6 +82,13 @@ void SetMetalGraphicsOptions(ref optref)
 {
 	string upscaling = optref.upscaling;
 	if(upscaling != "0" && upscaling != "1" && upscaling != "2" && upscaling != "3") return;
+	int antialiasingMode = 0;
+	if(sti(optref.antialiasing)) antialiasingMode = 3;
+	if(CheckAttribute(optref,"antialiasing_mode")) {
+		string antialiasing = optref.antialiasing_mode;
+		if(antialiasing != "0" && antialiasing != "1" && antialiasing != "2" && antialiasing != "3") return;
+		antialiasingMode = sti(antialiasing);
+	}
 	InterfaceStates.MetalUpscaling = sti(upscaling);
 	InterfaceStates.MetalDynamicLighting = sti(optref.dynamic_lighting);
 	InterfaceStates.MetalShadowQuality = sti(optref.shadow_quality);
@@ -88,7 +98,7 @@ void SetMetalGraphicsOptions(ref optref)
 	InterfaceStates.MetalCinematic = sti(optref.cinematic);
 	InterfaceStates.MetalLightShafts = sti(optref.light_shafts);
 	InterfaceStates.MetalDynamicSky = sti(optref.dynamic_sky);
-	InterfaceStates.MetalAntialiasing = sti(optref.antialiasing);
+	InterfaceStates.MetalAntialiasingMode = antialiasingMode;
 	InterfaceStates.MetalVSync = sti(optref.vsync);
 	InterfaceStates.MetalFullScreen = sti(optref.full_screen);
 	InterfaceStates.MetalResolution = sti(optref.resolution);

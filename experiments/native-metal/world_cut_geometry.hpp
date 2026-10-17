@@ -2,6 +2,7 @@
 #include "geometry_work_budget.hpp"
 #include "ship_laser_geometry.hpp"
 #include "ship_airburst_hull_distance.hpp"
+#include "ship_hull_material.hpp"
 #include "world_cut_coverage.hpp"
 #include <set>
 #include <tuple>
@@ -19,7 +20,9 @@ using storm_ship_laser::PositionKey;
 using storm_ship_laser::PositionEdge;
 using storm_ship_laser::Segment;
 using Plane = storm_ship_hull::Plane;
-inline constexpr size_t MaxCuts=64, MaxTriangles=1000000;
+// MaxCuts bounds one legacy restore / admitted operation, not an island's life.
+inline constexpr size_t MaxCuts=64, MaxPendingCuts=8, MaxTriangles=1000000;
+inline constexpr size_t MaxCheckpointBytes=128*1024*1024;
 using PlanarPoint=std::array<double,2>;
 using PlanarRing=std::vector<PlanarPoint>;
 using PlanarPolygon=std::vector<PlanarRing>;
@@ -496,27 +499,247 @@ inline bool resolveCapCoverage(const std::vector<CapPatch>&patches,const std::ve
     }
     if(!finite(caps))return false;capOutput=std::move(caps);acceptedOutput=std::move(accepted);return true;
 }
+// Immutable world cells use the existing finite-solid Boolean and SAVE codec.
+// Only touched cells materialize a mesh; terrain columns keep six vertices.
+struct Cell {
+    WorldPrism prism{};Triangle appearance{};
+    std::shared_ptr<const Mesh> closed;
+};
+struct Source {
+    Mesh outer;
+    std::vector<Cell> cells;
+    std::vector<storm_ship_hull::Bounds> boxes;
+    storm_ship_hull::Broadphase index;
+    std::map<int,CapAppearance> appearances;
+    uint64_t fingerprint=0;
+};
+struct RegionSource {
+    std::vector<Cell> cells;
+    std::vector<storm_ship_hull::Bounds> boxes;
+    storm_ship_hull::Broadphase index;
+    Mesh shell;
+};
+struct Region {
+    std::shared_ptr<const RegionSource> source;
+    std::map<uint32_t,std::shared_ptr<const Mesh>> changed;
+};
+struct Material {
+    std::shared_ptr<const Source> source;
+    std::map<uint32_t,std::shared_ptr<const Region>> changed;
+    Mesh outer;
+    std::vector<CapPatch> caps;
+};
+inline Mesh cellMesh(const Cell&cell) {
+    if(cell.closed)return *cell.closed;
+    Mesh result;const auto&prism=cell.prism;
+    const Vec3 center=(prism.vertices[0]+prism.vertices[1]+prism.vertices[2]+prism.vertices[3]+prism.vertices[4]+prism.vertices[5])*(1.f/6.f);
+    constexpr unsigned faces[8][3]={{0,1,2},{3,5,4},{0,3,4},{0,4,1},{1,4,5},{1,5,2},{2,5,0},{0,5,3}};
+    for(const auto&face:faces){Triangle t;for(unsigned n=0;n<3;++n){t[n]=cell.appearance[face[n]%3];t[n].position=prism.vertices[face[n]];}
+        if(storm_ship_hull::dot(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position),center-t[0].position)>0)std::swap(t[1],t[2]);
+        surfaceNormal(t);if(storm_ship_hull::area(t)>1.e-10f)result[prism.object].push_back(t);}
+    return result;
+}
+inline Cell prismCell(const Triangle&t,const std::array<Vec3,3>&inner,int object) {
+    Cell cell;cell.prism.object=object;cell.appearance=t;
+    std::array<unsigned,3>order{0,1,2};std::sort(order.begin(),order.end(),[&](unsigned a,unsigned b){return storm_ship_laser::positionKey(t[a].position)<storm_ship_laser::positionKey(t[b].position);});
+    for(unsigned n=0;n<3;++n){cell.prism.vertices[n]=t[order[n]].position;cell.prism.vertices[n+3]=inner[order[n]];}return cell;
+}
+inline storm_ship_hull::Bounds cellBounds(const Cell&cell) {
+    if(cell.closed)return storm_ship_laser::bounds(*cell.closed);
+    auto box=storm_ship_hull::Bounds{cell.prism.vertices[0],cell.prism.vertices[0]};
+    for(const auto&p:cell.prism.vertices)box=storm_ship_hull::merge(box,{p,p});return box;
+}
+// A descriptor is only classified/solidified after a cutter reaches it. Remote
+// open or nonmanifold architecture cannot reject a terrain cut or gain shells.
+inline std::shared_ptr<const RegionSource> activate(const Cell&cell) {
+    auto region=std::make_shared<RegionSource>();
+    if(!cell.closed)region->cells.push_back(cell);
+    else {const auto&component=*cell.closed;std::vector<Segment>boundary;if(!boundaries(component,boundary))return {};
+        if(boundary.empty())region->cells.push_back(cell);
+        else {std::map<PositionKey,Vec3>normals;const auto depths=stoneClearance(component,1,normals);if(depths.empty())return {};
+            std::map<int,float>thickness;for(const auto&o:component)thickness[o.first]=1;
+            region->shell=storm_ship_laser::shellForRender(component,thickness,&depths,&normals);if(!finite(region->shell))return {};
+            for(const auto&o:component)for(const auto&t:o.second){storm_geometry_work::checkpoint();std::array<Vec3,3>inner;
+                for(unsigned n=0;n<3;++n){const auto key=storm_ship_laser::positionKey(t[n].position);inner[n]=t[n].position-normals.at(key)*depths.at(key);}region->cells.push_back(prismCell(t,inner,o.first));}}}
+    for(const auto&part:region->cells)region->boxes.push_back(cellBounds(part));region->index.build(region->boxes);return region;
+}
+inline void activateOuter(Material&state,const Cell&descriptor,const RegionSource&region) {
+    if(region.shell.empty())return;
+    using Key=std::array<std::array<uint32_t,15>,3>;
+    for(const auto&o:*descriptor.closed){std::set<Key>authored;
+        for(const auto&t:o.second)authored.insert({storm::ship::material::vertexWords(t[0]),storm::ship::material::vertexWords(t[1]),storm::ship::material::vertexWords(t[2])});
+        auto&triangles=state.outer[o.first];triangles.erase(std::remove_if(triangles.begin(),triangles.end(),[&](const Triangle&t){storm_geometry_work::checkpoint();
+            return authored.count({storm::ship::material::vertexWords(t[0]),storm::ship::material::vertexWords(t[1]),storm::ship::material::vertexWords(t[2])})!=0;}),triangles.end());}
+    storm_ship_laser::appendMesh(state.outer,region.shell);
+}
+inline std::shared_ptr<const Source> materialSource(const Mesh&original,const std::set<int>&terrain) {
+    if(!finite(original))return {};auto source=std::make_shared<Source>();source->outer=original;Mesh stone;
+    source->fingerprint=storm::ship::material::fingerprint(original,{});
+    for(int object:terrain)source->fingerprint=storm::ship::material::hashBytes(&object,sizeof(object),source->fingerprint);
+    const float floor=storm_ship_laser::bounds(original).lo.y-10032.f;
+    const auto add=[&](Cell cell,storm_ship_hull::Bounds box){source->cells.push_back(std::move(cell));source->boxes.push_back(box);};
+    for(const auto&o:original){storm_geometry_work::checkpoint();source->appearances.emplace(o.first,capAppearance(o.second));
+        if(!terrain.count(o.first)){stone[o.first]=o.second;continue;}
+        for(const auto&t:o.second){storm_geometry_work::checkpoint();std::array<Vec3,3>inner;for(unsigned n=0;n<3;++n){inner[n]=t[n].position;inner[n].y=floor;}
+            auto cell=prismCell(t,inner,o.first);const auto box=cellBounds(cell);add(std::move(cell),box);}}
+    for(const auto&component:components(stone)){storm_geometry_work::checkpoint();Cell cell;cell.closed=std::make_shared<const Mesh>(component);
+        auto box=storm_ship_laser::bounds(component);box.lo=box.lo-Vec3{1,1,1};box.hi=box.hi+Vec3{1,1,1};add(std::move(cell),box);}
+    if(source->cells.size()>MaxTriangles)return {};
+    source->index.build(source->boxes);return source;
+}
+inline void affectedCells(const std::vector<storm_ship_hull::Bounds>&boxes,const storm_ship_hull::Broadphase&index,const Cut&cut,std::vector<uint32_t>&ids) {
+    if(cut.kind==Cut::Beam)index.queryBounds(storm_ship_laser::beamBounds(cut.beams.front()),ids);
+    else if(cut.kind==Cut::Sphere){const Vec3 r{cut.radius*1.733f,cut.radius*1.733f,cut.radius*1.733f};index.queryBounds({cut.center-r,cut.center+r},ids);}
+    else for(uint32_t n=0;n<boxes.size();++n)if(affects(boxes[n],{cut}))ids.push_back(n);
+}
+inline bool updateMaterial(Material&state,const std::vector<Cut>&cuts,const char**failure=nullptr) {
+    for(const auto&record:cuts){std::vector<Cut>parts;
+        if(record.kind==Cut::Beam)for(size_t n=0;n<record.beams.size();++n){auto part=record;part.beams={record.beams[n]};part.faceOffset=uint32_t(n)*10;parts.push_back(std::move(part));}
+        else parts.push_back(record);
+        for(const auto&cut:parts){storm_geometry_work::checkpoint(true);std::vector<uint32_t>ids;
+            // Fixed authored BVH: a cut only visits intersecting material cells.
+            affectedCells(state.source->boxes,state.source->index,cut,ids);
+            const auto planes=cut.kind==Cut::Halfspace?std::vector<Plane>{{cut.normal*-1.f,-cut.distance}}:spherePlanes(cut);
+            std::vector<std::vector<PlanarRing>>sections(planes.size());std::vector<int>objects(planes.size(),0);
+            for(auto id:ids){storm_geometry_work::checkpoint();const auto found=state.changed.find(id);Region region;
+                if(found!=state.changed.end())region=*found->second;
+                else {if(failure)*failure="touched architecture solidification";region.source=activate(state.source->cells[id]);if(!region.source)return false;activateOuter(state,state.source->cells[id],*region.source);}
+                std::vector<uint32_t>parts;affectedCells(region.source->boxes,region.source->index,cut,parts);
+                for(auto part:parts){const auto previous=region.changed.find(part);Mesh solid=previous==region.changed.end()?cellMesh(region.source->cells[part]):*previous->second;
+                if(solid.empty())continue;
+                for(size_t side=0;side<planes.size();++side){std::vector<Plane>limits;if(cut.kind!=Cut::Halfspace)for(size_t p=0;p<planes.size();++p)if(p!=side)limits.push_back(planes[p]);
+                    // Cell boundaries can be internal to the world union. Do
+                    // not discard a section merely because it meets that face.
+                    if(failure)*failure="retained cell cross-section";Mesh inside;if(!crossSection(solid,planes[side],inside))return false;
+                    for(const auto&limit:limits){Mesh clipped;if(!retainHalfspaceSurface(inside,limit,clipped))return false;inside=std::move(clipped);}
+                    const auto basis=storm_ship_hull::frame(planes[side].normal);const auto origin=planes[side].normal*planes[side].distance;
+                    for(const auto&o:inside)for(const auto&t:o.second){PlanarRing ring;for(const auto&v:t){const auto p=v.position-origin;ring.push_back({storm_ship_hull::dot(p,basis.tangent),storm_ship_hull::dot(p,basis.bitangent)});}
+                        double area=0;for(unsigned n=0;n<3;++n)area+=ring[n][0]*ring[(n+1)%3][1]-ring[(n+1)%3][0]*ring[n][1];if(area<0)std::reverse(ring.begin(),ring.end());sections[side].push_back(std::move(ring));objects[side]=o.first;}}
+                if(failure)*failure="retained cell subtraction";Mesh kept;if(!storm::ship::material::clipCell(solid,planes,kept)||!finite(kept))return false;
+                region.changed[part]=std::make_shared<const Mesh>(std::move(kept));}
+                state.changed[id]=std::make_shared<const Region>(std::move(region));}
+            if(failure)*failure="visible outer subtraction";Mesh outer;if(!applySurfaceCuts(std::move(state.outer),{cut},1,outer))return false;state.outer=std::move(outer);
+            for(auto&patch:state.caps){Mesh retained;const Plane boundary=patch.reverse?Plane{patch.plane.normal*-1.f,-patch.plane.distance}:patch.plane;
+                // Put the existing cap first so coincident empty bores retain
+                // their current wall instead of erasing it and regenerating it.
+                Cut prior;prior.kind=Cut::Halfspace;prior.normal=boundary.normal;prior.distance=boundary.distance;
+                if(failure)*failure="existing cavity wall subtraction";if(!applySurfaceCuts(std::move(patch.surface),{prior,cut},0,retained,&boundary))return false;patch.surface=std::move(retained);}
+            state.caps.erase(std::remove_if(state.caps.begin(),state.caps.end(),[](const CapPatch&p){return !triangleCount(p.surface);}),state.caps.end());
+            for(size_t side=0;side<planes.size();++side){if(sections[side].empty())continue;CapPatch patch;patch.field=cut.field;patch.face=cut.faceOffset+uint32_t(side);
+                patch.plane=planes[side];patch.origin=patch.plane.normal*patch.plane.distance;patch.object=objects[side];patch.reverse=true;patch.appearance=state.source->appearances.at(patch.object);
+                std::vector<PlanarRing>existing;const auto basis=storm_ship_hull::frame(patch.plane.normal);
+                const auto mask=[&](const Mesh&mesh){for(const auto&o:mesh)for(const auto&t:o.second){storm_geometry_work::checkpoint();
+                    const auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));
+                    if(storm_ship_hull::dot(normal,patch.plane.normal)>-.999f)continue;bool coplanar=true;PlanarRing ring;
+                    for(const auto&v:t){const auto p=v.position-patch.origin;coplanar&=std::abs(double(patch.plane.normal.x)*p.x+double(patch.plane.normal.y)*p.y+double(patch.plane.normal.z)*p.z)<=std::max(.0001,4.*std::numeric_limits<float>::epsilon()*std::max({std::abs(double(v.position.x)),std::abs(double(v.position.y)),std::abs(double(v.position.z)),1.}));
+                        ring.push_back({storm_ship_hull::dot(p,basis.tangent),storm_ship_hull::dot(p,basis.bitangent)});}if(!coplanar)continue;
+                    double area=0;for(unsigned n=0;n<3;++n)area+=ring[n][0]*ring[(n+1)%3][1]-ring[(n+1)%3][0]*ring[n][1];if(area<0)std::reverse(ring.begin(),ring.end());existing.push_back(std::move(ring));}};
+                mask(state.outer);for(const auto&old:state.caps)mask(old.surface);
+                if(failure)*failure="new cavity wall union/triangulation";std::vector<PlanarPolygon>polygons;if(!differencePlanar(sections[side],existing,polygons)||!triangulatePlanar(polygons,patch.plane,patch.object,patch.origin,patch.surface,patch.appearance,true))return false;
+                for(auto&o:patch.surface)for(auto&t:o.second){std::swap(t[1],t[2]);for(auto&v:t)v.normal=patch.plane.normal*-1.f;}state.caps.push_back(std::move(patch));}
+            size_t total=triangleCount(state.outer);for(const auto&patch:state.caps)total+=triangleCount(patch.surface);
+            for(const auto&region:state.changed)for(const auto&cell:region.second->changed)total+=triangleCount(*cell.second);
+            if(failure)*failure="retained geometry budget";if(total>MaxTriangles||state.caps.size()>MaxTriangles)return false;
+        }}return true;
+}
+inline std::string encodeMaterial(const Material&state) {
+    using storm::ship::material::Writer;Writer writer;writer.word(0x32574d43);writer.wide(state.source->fingerprint);writer.mesh(state.outer);
+    writer.word(uint32_t(state.caps.size()));
+    const auto scalar=[&](float value){uint32_t word;std::memcpy(&word,&value,4);writer.word(word);};
+    for(const auto&patch:state.caps){writer.word(patch.field);writer.word(patch.face);writer.word(uint32_t(patch.object));
+        for(float value:{patch.plane.normal.x,patch.plane.normal.y,patch.plane.normal.z,patch.plane.distance})scalar(value);writer.mesh(patch.surface);
+        if(writer.bytes.size()>MaxCheckpointBytes/2)return {};}
+    writer.word(uint32_t(state.changed.size()));for(const auto&region:state.changed){writer.word(region.first);writer.word(uint32_t(region.second->changed.size()));
+        for(const auto&cell:region.second->changed){writer.word(cell.first);writer.mesh(*cell.second);if(writer.bytes.size()>MaxCheckpointBytes/2)return {};}}
+    writer.wide(storm::ship::material::hashBytes(writer.bytes.data(),writer.bytes.size()));
+    if(writer.bytes.size()>MaxCheckpointBytes/2)return {};constexpr char digits[]="0123456789abcdef";std::string result(writer.bytes.size()*2,'0');
+    for(size_t n=0;n<writer.bytes.size();++n){storm_geometry_work::checkpoint();result[n*2]=digits[writer.bytes[n]>>4];result[n*2+1]=digits[writer.bytes[n]&15];}return result;
+}
+inline bool decodeMaterial(const std::string&payload,std::shared_ptr<const Source>source,Material&out) {
+    if(payload.size()<40||payload.size()%2||payload.size()>MaxCheckpointBytes)return false;storm::ship::material::Reader reader;reader.bytes.reserve(payload.size()/2);
+    const auto digit=[](char c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;};
+    for(size_t n=0;n<payload.size();n+=2){storm_geometry_work::checkpoint();const auto a=digit(payload[n]),b=digit(payload[n+1]);if(a<0||b<0)return false;reader.bytes.push_back(uint8_t(a*16+b));}
+    if(reader.word()!=0x32574d43||reader.wide()!=source->fingerprint)return false;Material next;next.source=std::move(source);
+    if(!reader.mesh(next.outer)||!finite(next.outer)||next.outer.size()!=next.source->outer.size())return false;
+    for(const auto&o:next.outer)if(!next.source->outer.count(o.first))return false;
+    const auto scalar=[&](){const auto word=reader.word();float value;std::memcpy(&value,&word,4);return value;};
+    const auto count=reader.word();if(count>MaxTriangles||uint64_t(count)*32>reader.bytes.size()-reader.at)return false;size_t total=triangleCount(next.outer);
+    for(uint32_t n=0;n<count;++n){CapPatch patch;patch.field=reader.word();patch.face=reader.word();patch.object=int32_t(reader.word());
+        patch.plane.normal={scalar(),scalar(),scalar()};patch.plane.distance=scalar();Cut plane;plane.normal=patch.plane.normal;plane.distance=patch.plane.distance;
+        if(!valid(plane)||!next.source->appearances.count(patch.object)||!reader.mesh(patch.surface)||!finite(patch.surface))return false;
+        patch.origin=patch.plane.normal*patch.plane.distance;patch.reverse=true;patch.appearance=next.source->appearances.at(patch.object);total+=triangleCount(patch.surface);next.caps.push_back(std::move(patch));}
+    const auto changed=reader.word();if(changed>next.source->cells.size())return false;
+    for(uint32_t n=0;n<changed;++n){const auto id=reader.word();if(id>=next.source->cells.size()||next.changed.count(id))return false;
+        Region region;region.source=activate(next.source->cells[id]);if(!region.source)return false;const auto count=reader.word();if(count>region.source->cells.size())return false;
+        for(uint32_t p=0;p<count;++p){const auto part=reader.word();Mesh mesh;if(part>=region.source->cells.size()||region.changed.count(part)||!reader.mesh(mesh)||!finite(mesh))return false;
+            total+=triangleCount(mesh);region.changed[part]=std::make_shared<const Mesh>(std::move(mesh));}
+        next.changed[id]=std::make_shared<const Region>(std::move(region));}
+    const auto end=reader.at;const auto checksum=reader.wide();if(total>MaxTriangles||!reader.valid||reader.at!=reader.bytes.size()||checksum!=storm::ship::material::hashBytes(reader.bytes.data(),end))return false;
+    out=std::move(next);return true;
+}
+inline bool contains(const Mesh&mesh,Vec3 point) {
+    double angle=0;for(const auto&o:mesh)for(const auto&t:o.second){if(storm_ship_laser::pointOnFace(point,t))return true;
+        const auto a=t[0].position-point,b=t[1].position-point,c=t[2].position-point;
+        const double x=storm_ship_hull::length(a),y=storm_ship_hull::length(b),z=storm_ship_hull::length(c);
+        angle+=2*std::atan2(double(storm_ship_hull::dot(a,storm_ship_hull::cross(b,c))),x*y*z+storm_ship_hull::dot(a,b)*z+storm_ship_hull::dot(b,c)*x+storm_ship_hull::dot(c,a)*y);}
+    return std::abs(angle)>6.283185307179586;
+}
+inline bool containsCell(const Cell&cell,Vec3 point) {
+    if(cell.closed)return contains(*cell.closed,point);
+    // The same three tetrahedra as prismSection; no temporary mesh is built on
+    // the grass/fort support-query path, including before a cell is cut.
+    constexpr unsigned tetra[3][4]={{0,1,2,5},{0,1,4,5},{0,3,4,5}};
+    for(const auto&indices:tetra){const auto&p=cell.prism.vertices;const auto a=p[indices[0]],b=p[indices[1]],c=p[indices[2]],d=p[indices[3]];
+        if(std::abs(storm_ship_hull::dot(b-a,storm_ship_hull::cross(c-a,d-a)))<1.e-12f)continue;
+        bool inside=true;
+        for(unsigned side=0;side<4;++side){const auto x=p[indices[(side+1)%4]],y=p[indices[(side+2)%4]],z=p[indices[(side+3)%4]];
+            const auto normal=storm_ship_hull::cross(y-x,z-x);const double reference=storm_ship_hull::dot(normal,p[indices[side]]-x),distance=storm_ship_hull::dot(normal,point-x);
+            const double tolerance=1.e-5*storm_ship_hull::length(normal);inside&=reference>=0?distance>=-tolerance:distance<=tolerance;}
+        if(inside)return true;}
+    return false;
+}
+inline bool positionRetained(const Material&state,Vec3 point) {
+    std::vector<uint32_t>ids;const Vec3 epsilon{.0001f,.0001f,.0001f};state.source->index.queryBounds({point-epsilon,point+epsilon},ids);
+    bool removed=false;for(auto id:ids){const auto found=state.changed.find(id);if(found==state.changed.end())continue;
+        const auto&region=*found->second;std::vector<uint32_t>parts;region.source->index.queryBounds({point-epsilon,point+epsilon},parts);
+        for(auto part:parts){if(!containsCell(region.source->cells[part],point))continue;const auto cell=region.changed.find(part);
+            if(cell==region.changed.end()||contains(*cell->second,point))return true;removed=true;}}
+    // Overlapping untouched columns may still own this point.
+    if(removed)for(auto id:ids)if(!state.changed.count(id)&&containsCell(state.source->cells[id],point))return true;
+    return !removed;
+}
 // Immutable captured geometry is shared with CPU jobs. No engine entity,
 // renderer, attribute tree or live geometry pointer crosses this boundary.
 struct Input {
     std::shared_ptr<const Mesh> original;
     std::set<int> terrainObjects;
     std::vector<Cut> cuts;
+    std::shared_ptr<const Material> material;
+    std::string checkpoint;
     bool active=false;
 };
 struct Projection {
     Mesh retained,outer,caps;
     std::vector<CapPatch> rawCaps;
     std::vector<Cut> cuts;
+    std::shared_ptr<const Material> material;
+    std::string checkpoint;
     storm_ship_hull::Broadphase broadphase;
     std::vector<std::pair<int,uint32_t>> references;
     bool active=false;
 };
-inline bool prepare(const Input&input,Projection&out) {
+inline bool prepare(const Input&input,Projection&out,const char**failure=nullptr) {
     Projection result;result.active=input.active;result.cuts=input.cuts;
-    if(result.active&&(!input.original||!reconstructWorld(*input.original,input.terrainObjects,input.cuts,
-        result.retained,&result.outer,&result.caps,&result.rawCaps)))return false;
-    out=std::move(result);return true;
+    if(failure)*failure="invalid finite cutter";
+    if(input.cuts.size()>MaxCuts)return false;for(const auto&cut:input.cuts)if(!valid(cut))return false;
+    if(result.active){if(failure)*failure="missing authored geometry";if(!input.original)return false;Material state;
+        if(input.material)state=*input.material;
+        else {if(failure)*failure="authored source capture";state.source=materialSource(*input.original,input.terrainObjects);if(!state.source)return false;state.outer=state.source->outer;}
+        if(failure)*failure="saved material checkpoint";if(!input.checkpoint.empty()&&!decodeMaterial(input.checkpoint,state.source,state))return false;
+        if(!updateMaterial(state,input.cuts,failure))return false;
+        if(failure)*failure="material checkpoint size/encoding";result.outer=state.outer;result.rawCaps=state.caps;result.checkpoint=encodeMaterial(state);if(result.checkpoint.empty())return false;
+        result.material=std::make_shared<const Material>(std::move(state));}
+    out=std::move(result);if(failure)*failure=nullptr;return true;
 }
 inline bool finishCoverage(Projection&projection,const std::vector<CapTriangle>&earlier,std::vector<CapTriangle>&accepted) {
     if(!projection.active){accepted.clear();return true;}

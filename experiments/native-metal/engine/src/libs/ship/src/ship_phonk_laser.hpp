@@ -101,6 +101,8 @@ struct LaserCutRequest
     std::optional<HullWork> impact;
     float impactRadius = 0.f;
     double queuedAt=0.;
+    bool releaseOnly=false;
+    uint64_t rejectedFence=0;
 };
 struct LaserCutTarget
 {
@@ -122,6 +124,8 @@ struct LaserCutWork
     std::vector<CVECTOR> originalContour, contour, originalKeel;
     float originalArea = 0.f;
     bool valid = false;
+    int failedNode=-1;
+    std::string failure;
 };
 // Load can reset LaserState while the value-only worker retires. Its future
 // stays here: destroying a running std::async future would join the frame.
@@ -132,6 +136,14 @@ struct LaserCutQueue
     std::optional<LaserCutRequest> active;
     std::future<LaserCutWork> future;
     std::shared_ptr<std::atomic<bool>> cancel;
+};
+struct LaserStroke
+{
+    uint64_t target=0;
+    bool world=false;
+    CVECTOR from=CVECTOR(0.f),to=CVECTOR(0.f),muzzleFrom=CVECTOR(0.f),muzzleTo=CVECTOR(0.f);
+    float seconds=0.f;
+    uint32_t steps=1,next=0;
 };
 struct LaserState
 {
@@ -147,6 +159,8 @@ struct LaserState
     std::vector<storm_hull_damage::BeamSample> pendingBeam;
     uint64_t pendingContact = 0;
     bool pendingWorld = false;
+    std::optional<LaserStroke> stroke; // One admitted interval; transient, never SAVE history.
+    std::optional<LaserCutRequest> deferredRelease;
     float charge = 1.f;
     std::vector<LaserPlane> cuts;
     bool materialReady=false;

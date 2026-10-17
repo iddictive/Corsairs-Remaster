@@ -7,6 +7,22 @@ damage are integrated. The current installed engine and delivery verdict are
 owned by `runtime.md`; earlier component evidence below is historical, not a
 second installed-state inventory. Existing models and their assets are unchanged.
 
+The October16,23:16/23:19 player samples reopen fleet performance. Their dominant
+CPU owner is damaged-world geometry conversion in sea reflections, not a proven
+fire-only cost; exact inputs and engine are retained in the
+[profile receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-aa-deck-laser-2319/evidence.json).
+The fire source successor removes mathematically zero warm/virgin surface
+submissions while preserving residual volume smoke. Fragment shading combines
+the two48-point scorch/light loops into one, shares the position transform and
+computes noise only inside its nonzero support. Light flutter is prepared once
+per uploaded source instead of evaluating two sine functions per source per
+fragment; original volume seeds and the upload ABI remain intact. CPU/GPU sine
+rounding can differ, so bitwise equality is not claimed. Appearance formulas, volume
+integration, damage and suppression rates stay unchanged. Weak damage and poor
+suppression in the reported scene remain unresolved; ordinary x8 timing cannot
+be blamed on the fire1s cap because the native100ms limit yields at most0.8s.
+No post-fix FPS or visual-equivalence result is claimed without player replay.
+
 The player's night-fire screenshot reopens visual acceptance for enlarged black
 spots around rigging. The reduced-depth coordinate and bilateral reconstruction
 repair below passes the actual Metal component scene and is installed in the

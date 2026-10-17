@@ -96,6 +96,26 @@ delivery and that unresolved outcome remain owned by `runtime.md`.
 
 ## Numbered ordnance and world geometry
 
+The October16 successor replaces the lifetime64 world-cut veto and full original
+history replay with current retained volumetric material. Terrain uses lazy
+solid prisms; stone reuses existing finite-solid Boolean ownership. A fixed
+authored BVH selects affected cells, and current outer/cap geometry advances
+incrementally. The pending queue stays bounded at8; only64 recent dose records
+remain, while a bounded128MiB two-slot checkpoint owns persistent geometry.
+Legacy world SAVE1/2 restores before new work; SAVE3 stores retained checkpoints.
+Fort, flag, grass and ground-support queries consume the same retained state.
+First-source solidification and current-mesh encoding/upload remain real costs;
+neither this source change nor the queue bound proves player-visible drilling
+or an FPS gain.
+
+Untouched open stone components keep their authored render surface; only BVH-hit
+regions activate volumetric shells. Binding/publication caches authored node
+matrices for support queries, avoiding full MODEL updates for every blade/root.
+Accepted failed fields stay in the existing queue behind revision/topology
+fences; unchanged failures do not replay or flood the log. Phase-specific
+rejections distinguish the first-hole pipeline. These fixes close identified
+source regressions, not proof of the player's previously absent terrain hole.
+
 While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped
 `Phonk_Laser`/`Phonk_Nuclear` controls and publishes the selection in
 `Sea.Phonk.Weapon` (6/7). Script initialization and mode entry register these
@@ -103,9 +123,11 @@ controls for the three sea groups. Ordinary load restores settings first, then
 reconciles these names; battle-interface initialization repeats the idempotent
 reconciliation, preserving user remaps. The existing Ammo/Powder rows show the
 selected6/7 weapon and native `LaserCharge`/`NuclearReload`; their -6/-7 icon
-sentinels suppress ordinary ammunition/powder sprites without changing ordinary
-negative-icon behavior, sail or wind icons. Entry defaults to6; laser charge remains
-the existing native owner. Nuclear targeting uses actual water, ship and world
+sentinels select laser/nuclear cells41/42 in `LIST_ICON2` while suppressing powder;
+ordinary negative icons, sails and wind retain their behavior. The generated
+RGBA source `src/assets/ui/phonk-weapons.png` and prepared atlas are hash-bound
+by the UI manifest. Entry defaults to6; active testing laser charge remains full
+and no longer ends the stroke after6.25s. Nuclear targeting uses actual water, ship and world
 receiver traces within6000m of the firing ship, and the draped footprint uses
 that same unfiltered target and220m radius. Missiles travel on a bounded arc,
 hit the first intervening receiver and reload in4 game-seconds. Paused frames
@@ -900,6 +922,14 @@ pinned native source. The local change reuses its hull geometry, contact queue
 and damping instead of replacing the collision solver.
 
 ## Music input
+
+The Esc menu adds an adjacent Phonk-music toggle. `pchar.PhonkMusicMuted`
+uses normal character-attribute SAVE persistence, defaults to music enabled and
+survives sea teardown. Muting stops only the owned Phonk voice immediately and
+returns to the remembered ordinary track; the central music router prevents
+Phonk restart while muted. Unmuting resumes that same owner. Effects, ordinary
+music and Phonk gameplay powers remain active. The menu and scene transitions
+still require the player's replay after delivery.
 
 The player selected any popular phonk song. This implementation uses
 [RAIZHELL — Faster](https://ncs.io/Faster), an official

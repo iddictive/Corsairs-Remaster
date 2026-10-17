@@ -33,13 +33,14 @@ vertex DemoMeshO demo_mesh_vs(uint id [[vertex_id]],const device DemoVertex*vert
 }
 fragment float4 demo_mesh_fs(DemoMeshO o [[stage_in]],constant DemoCamera&c [[buffer(1)]],constant ShipFireSurface&surface [[buffer(2)]],constant uint&cloth [[buffer(3)]],texture2d<float>tex [[texture(0)]],sampler repeatSampler [[sampler(0)]]){
  float4 albedo=tex.sample(repeatSampler,o.uv);if(albedo.a<.18f)discard_fragment();
- float4 burn=shipFireSurfaceAt(o.local,surface);albedo.rgb=shipFireMaterialAlbedo(albedo.rgb,burn,o.local);
+ ShipFireEvaluation fire=shipFireEvaluate(o.local,normalize(o.normal),surface);
+ float4 burn=fire.surface;albedo.rgb=shipFireMaterialAlbedo(albedo.rgb,burn,o.local);
  float3 normal=normalize(o.normal),sun=normalize(c.sun.xyz);float lit=max(dot(normal,sun),0.f);if(cloth)lit=abs(dot(normal,sun))*.70f+.12f;
  float sky=.5f+.5f*normal.y;float3 illumination=float3(.22f,.26f,.29f)+float3(.55f,.48f,.36f)*lit+float3(.05f,.07f,.09f)*sky;
  float3 eye=normalize(c.eye.xyz-o.local),halfway=normalize(eye+sun);
  float spec=pow(max(dot(normal,halfway),0.f),28.f)*.10f*(1.f-burn.x*.97f)*(cloth?0.f:1.f);
  float3 color=albedo.rgb*illumination*(1.f-burn.x*.25f)+float3(spec);
- color+=shipFireIrradiance(o.local,normal,surface)*albedo.rgb*(1.f-burn.x*.25f)+float3(2.2f,.55f,.03f)*burn.w;
+ color+=fire.irradiance*albedo.rgb*(1.f-burn.x*.25f)+float3(2.2f,.55f,.03f)*burn.w;
  return float4(color,1);
 }
 struct SceneO {float4 p [[position]];};
@@ -160,11 +161,11 @@ int main(int argc,const char**argv){@autoreleasepool{try{
  auto depthDescriptor=[MTLDepthStencilDescriptor new];depthDescriptor.depthCompareFunction=MTLCompareFunctionLessEqual;depthDescriptor.depthWriteEnabled=YES;auto depthState=[device newDepthStencilStateWithDescriptor:depthDescriptor];
  storm_metal::ShipFireRenderer fire;FrameArena arena;const float wind[]={3.4f,0,1.1f};std::vector<double>gpuMilliseconds;double peakRequested=0,peakAdmitted=0;
  for(unsigned frame=0;frame<frameCount;frame++){@autoreleasepool{
- seconds=startSeconds+float(frame)*step;camera.time.x=seconds;updatePoints(seconds);surface={};scope.begin(reinterpret_cast<const float*>(&root),points.data(),uint32_t(points.size()));scope.fill(surface,root);
+ seconds=startSeconds+float(frame)*step;camera.time.x=seconds;updatePoints(seconds);surface={};scope.begin(reinterpret_cast<const float*>(&root),points.data(),uint32_t(points.size()));scope.fill(surface,root,seconds);
  auto command=[queue commandBuffer];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=color;pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.colorAttachments[0].clearColor=MTLClearColorMake(.1,.15,.2,1);pass.depthAttachment.texture=depth;pass.depthAttachment.loadAction=MTLLoadActionClear;pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=1;
  auto encoder=[command renderCommandEncoderWithDescriptor:pass];[encoder setViewport:MTLViewport{0,0,width,height,0,1}];[encoder setCullMode:MTLCullModeNone];[encoder setDepthStencilState:depthState];[encoder setRenderPipelineState:scenePipeline];[encoder setFragmentBytes:&camera length:sizeof(camera) atIndex:1];[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
  [encoder setRenderPipelineState:meshPipeline];[encoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];[encoder setVertexBytes:&camera length:sizeof(camera) atIndex:1];[encoder setFragmentBytes:&surface length:sizeof(surface) atIndex:2];[encoder setFragmentSamplerState:sampler atIndex:0];
- for(const auto&draw:draws){uint32_t cloth=draw.cloth;surface.counts.y=cloth;uint32_t secondsBits=0;std::memcpy(&secondsBits,&seconds,sizeof(seconds));surface.counts.z=secondsBits;[encoder setFragmentBytes:&surface length:sizeof(surface) atIndex:2];[encoder setFragmentBytes:&cloth length:sizeof(cloth) atIndex:3];[encoder setFragmentTexture:draw.texture atIndex:0];[encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:draw.count indexType:MTLIndexTypeUInt32 indexBuffer:indexBuffer indexBufferOffset:size_t(draw.first)*4];}[encoder endEncoding];
+ for(const auto&draw:draws){uint32_t cloth=draw.cloth;surface.counts.y=cloth;[encoder setFragmentBytes:&surface length:sizeof(surface) atIndex:2];[encoder setFragmentBytes:&cloth length:sizeof(cloth) atIndex:3];[encoder setFragmentTexture:draw.texture atIndex:0];[encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:draw.count indexType:MTLIndexTypeUInt32 indexBuffer:indexBuffer indexBufferOffset:size_t(draw.first)*4];}[encoder endEncoding];
  if(!fire.append(reinterpret_cast<const float*>(&root),points.data(),uint32_t(points.size()),wind,seconds,{0,0,0},view,projection,{0,0,width,height},{.4f,.47f,.5f,1},{0,0,0,0},.72f)||!fire.encode(device,command,color,depth,arena))throw std::runtime_error("Production fire renderer rejected demo frame");
  [command commit];[command waitUntilCompleted];if(command.error)throw std::runtime_error(command.error.localizedDescription.UTF8String);
  NSString*frameOutput=argc==8?[output stringByAppendingPathComponent:[NSString stringWithFormat:@"frame-%04u.png",frame]]:output;savePNG(color,frameOutput);

@@ -30,17 +30,20 @@
       "preparation": "LANCZOS-resize two-state source to128x64; round RGBA channels to4bits and insert into unused cells72/73 at512,256 and576,256. Preserve original header and every byte outside those cells."
     },
     "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx": {
-      "source": "airburst-command-states.png",
-      "source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
+      "source": "phonk-weapons.png",
+      "source_sha256": "c939b513e7847afbbee1ceb51ecf39b0a2d3a3c27a4748ab2c1f6417d6798453",
       "prepared": "airburst-navigator.tga.tx",
-      "sha256": "898e5d1a3c998a7fc81b654315be6e7701ca402a9193fcc4f90db325f046fe19",
+      "sha256": "01d50d1865acf49a5a1e81b5ec19717ab8c2101331263c7a47c63789acba8d9c",
       "original_sha256": "666327045db97ab49fc56daab0d788895a8ea8c7e1e4b4fb6c00a0949854b1bf",
       "dimensions": [512, 512],
       "source_dimensions": [1774, 887],
       "format": "A4R4G4B4",
-      "consumer": "GetCurrentCharge GOOD_AIRBURST: navigator cell40, 64px source displayed at48px near the compass",
-      "generation": "reuse built-in imagegen command art; original navigator atlas retained",
-      "preparation": "Copy prepared normal command cell72 byte-for-byte into unused navigator cell40 at0,320. Preserve original header and every byte outside the64px cell."
+      "consumer": "BATTLE_NAVIGATOR::UpdateCurrentCharge: airburst cell40, Phonk laser -6 maps to41, nuclear rocket -7 maps to42; 64px cells displayed at48px near the compass",
+      "generation": "built-in imagegen; two normal-state weapon tiles referenced to existing Corsairs command and navigator atlases",
+      "prompt": "Two equal square normal-state Corsairs HUD tiles in a2:1 sheet: dark iron and antique-brass laser emitter firing one red beam up-right; dark iron nuclear rocket with yellow radiation panel and small orange exhaust up-right. Preserve subdued raised antique-brass rounded frames, recessed dark brown backing, warm upper-left lighting, compact realistic painted silhouettes and transparent outer corners. No lettering, numbers or extra ornaments.",
+      "airburst_source": "airburst-command-states.png",
+      "airburst_source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
+      "preparation": "Retain the existing airburst-navigator atlas including airburst cell40. LANCZOS-resize the1774x887 generated sheet to128x64; split into two64px tiles; round each RGBA channel to4bits via min(15,(v+8)//17); encode A4R4G4B4 and insert only into previously transparent-white cells41/42 at64,320 and128,320. Preserve original header and every byte outside those cells."
     },
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx": {
       "source": "mast-repair.png",

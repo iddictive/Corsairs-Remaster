@@ -1,5 +1,6 @@
 #include "touch.h"
 #include "ship_contact_frame.hpp"
+#include "ship_shore_contact.hpp"
 
 #include "core.h"
 #include "collide.h"
@@ -407,6 +408,7 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
             // GetCollideTriangle belongs to the actual traced model, not ISLAND's stub.
             float time = pIslandBase->Trace(ends[0], ends[1]);
             CVECTOR normal(0.f);
+            bool initialDepthOverlap = false;
             const bool exact = std::isfinite(time) && time >= 0.f && time <= 1.f;
             if (exact)
             {
@@ -428,6 +430,7 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
                 float safe = 0.f, blocked = 1.f;
                 if (pIslandBase->CheckDepthCollision(ends[0], ends[0], fCollisionDepth, 0.f))
                 {
+                    initialDepthOverlap = true;
                     // A coarse-cell gradient can oppose the actual route to
                     // deeper water. Admit only sampled monotone retreat from
                     // an overlap, rejecting mesh hits on the sampled segments.
@@ -464,6 +467,12 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
             }
             CVECTOR hit = pointAt(time);
             normal.y = 0.f;
+            if (~normal < .000001f && initialDepthOverlap)
+            {
+                auto *collision = static_cast<COLLIDE *>(core.GetService("coll"));
+                storm::ship::shore::embeddedNormal(pIslandBase, collision, ends[0],
+                    std::max(2.f, ship->pShip->GetBoxsize().z), normal);
+            }
             if (~normal < .000001f && wet)
             {
                 // The depth field supplies the coast normal when a shallow

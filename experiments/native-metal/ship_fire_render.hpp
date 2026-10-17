@@ -18,6 +18,8 @@ struct ShipFireSurfaceUniform {
     simd_float4x4 fromModel{};
     simd_float4x4 inverseWorld{};
     simd_uint4 counts{};
+    // Surface-only upload reuses seed for prepared light flutter. Scope and
+    // volume records retain their original variation seed and 32-byte ABI.
     StormMetalShipFirePoint points[shipFirePointLimit]{};
 };
 static_assert(sizeof(ShipFireSurfaceUniform)==1680);
@@ -42,9 +44,14 @@ struct ShipFireSurfaceScope {
         inverseWorld=simd_inverse(matrix);
         for(uint32_t i=0;i<size;i++)if(validPoint(source[i])&&(source[i].charred>0.f||source[i].intensity>0.f||source[i].heat>0.f))points[count++]=normalized(source[i]);
     }
-    void fill(ShipFireSurfaceUniform&uniform,const simd_float4x4&model)const{
+    void fill(ShipFireSurfaceUniform&uniform,const simd_float4x4&model,float seconds)const{
         if(!count)return;uniform.fromModel=simd_mul(inverseWorld,model);uniform.inverseWorld=inverseWorld;uniform.counts.x=count;
         std::copy_n(points.begin(),count,uniform.points);
+        for(uint32_t i=0;i<count;i++){
+            const float seed=points[i].seed;
+            uniform.points[i].seed=points[i].intensity>.001f?
+                .86f+.10f*std::sin(seconds*7.3f+seed)+.04f*std::sin(seconds*15.1f-seed*.37f):0.f;
+        }
     }
 };
 struct ShipFireVolume {

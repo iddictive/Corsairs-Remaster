@@ -38,7 +38,11 @@ inline std::vector<StormMetalShipFirePoint> hullSurfacePoints(const Model& model
     // warm light in the remaining slots, with its char confined to its sail.
     for (std::size_t i=0;i<model.count;++i) {
         const auto& c=model.cells[i];
-        if (!c.available || c.cloth || (c.heat<=.01f && c.charred<=.001f) || !accept(c)) continue;
+        if (!c.available || c.cloth || (c.heat<=.01f && c.charred<=.001f)) continue;
+        // Warm virgin wood contributes neither scorch nor fire light. Its
+        // residual smoke belongs to volumePoints, not a scoped hull material.
+        if (c.intensity()==0.f && c.charred==0.f) continue;
+        if (!accept(c)) continue;
         if (points.empty()) points.reserve(MaxPoints);
         if (points.size()<MaxPoints) points.push_back(renderPoint(c,i,seed));
     }

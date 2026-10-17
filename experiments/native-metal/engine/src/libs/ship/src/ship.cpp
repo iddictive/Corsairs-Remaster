@@ -5,6 +5,7 @@
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_auxiliary_detail.h"
 #include "../../touch/src/ship_contact.hpp"
+#include "../../touch/src/ship_shore_contact.hpp"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
 
 #include <chrono>
@@ -1252,6 +1253,7 @@ SHIP::GroundSupport SHIP::SampleGroundSupport(const SHIP_STATE &state, float flo
         {
             result.height = support;
             result.normal = normal;
+            result.point = CVECTOR(point.x, terrain, point.z);
             result.valid = true;
         }
     }
@@ -1392,10 +1394,59 @@ void SHIP::ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight,
         if (support.valid && support.height > floatingHeight && support.height >= low && support.height <= high)
             pose.vPos.y = support.height;
     };
+    std::vector<Contact> embeddedContacts;
+    bool embeddedQueried = false;
     for (int iteration = 0; iteration < 4; ++iteration)
     {
-        const auto contact = sweep(candidate);
-        if (!contact.hit && fits(candidate)) break;
+        auto contact = sweep(candidate);
+        if (!contact.hit)
+        {
+            if (fits(candidate)) break;
+            // A vertical wall's top/support face has no usable XZ normal.
+            // A keel already inside it also has no new crossing. Recover the
+            // nearest actual exit face and remove only inward point motion.
+            if (!embeddedQueried)
+            {
+                CMatrix initial(before.vAng.x, before.vAng.y, before.vAng.z,
+                    before.vPos.x + fXOffset, before.vPos.y - before.fShipImmersion - SP.fWaterLine,
+                    before.vPos.z + fZOffset);
+                for (const auto &keel : vKeelContour)
+                {
+                    if (!IsHullPositionRetained(keel)) continue;
+                    const auto point = initial * keel;
+                    CVECTOR normal;
+                    if (storm::ship::shore::embeddedNormal(pIsland, pCollide, point,
+                            std::max(2.f, State.vBoxSize.z), normal))
+                        embeddedContacts.push_back({true, 0., {point.x, point.z}, {normal.x, normal.z}});
+                }
+                embeddedQueried = true;
+            }
+            double closing = 0.;
+            for (const auto &embedded : embeddedContacts)
+            {
+                const auto arm = embedded.point - body.start.position;
+                const double inward = dot(velocity.linear, embedded.normal) -
+                    cross(arm, embedded.normal) * velocity.angular;
+                if (inward > closing)
+                {
+                    contact = embedded;
+                    closing = inward;
+                }
+            }
+            // An embedded keel can stay below the same surface throughout the
+            // step: its horizontal ray has no crossing to report. Use the
+            // actual support triangle before falling back to an all-axis stop.
+            // Its inward XZ normal preserves tangent translation and the yaw
+            // admitted at this particular keel point, including initial overlap.
+            if (!contact.hit)
+            {
+                const auto support = SampleGroundSupport(candidate, floatingHeight);
+                const CVECTOR normal(-support.normal.x, 0.f, -support.normal.z);
+                if (support.valid && std::max(0.f, support.height - candidate.vPos.y) > solid + .0001f &&
+                    ~normal > .000001f)
+                    contact = {true, 1., {support.point.x, support.point.z}, {normal.x, normal.z}};
+            }
+        }
         body.end = {{candidate.vPos.x + fXOffset, candidate.vPos.z + fZOffset}, candidate.vAng.y};
         const auto constraint = constrainNormal(body, contact, velocity);
         if (!constraint.active) break;

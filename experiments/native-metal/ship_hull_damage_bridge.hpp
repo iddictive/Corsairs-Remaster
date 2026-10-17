@@ -58,13 +58,13 @@ template<class Planes> bool canAppendCut(const Planes&planes,std::size_t samples
 // Admission limits are physical metres, before receiver-local conversion.
 // Geometry validates local positivity separately: a scaled node can require
 // local dimensions outside these physical input limits.
-inline constexpr float MinBeamRadius=.01f,MaxBeamRadius=2.f,MinBeamDepth=.001f,MaxBeamDepth=1000.f;
+inline constexpr float MinBeamRadius=.01f,MaxBeamRadius=2.f,MinBeamDepth=0.f,MaxBeamDepth=1000.f;
 inline bool validPhysicalBeamDimensions(float radius,float depth){
     return std::isfinite(radius)&&radius>=MinBeamRadius&&radius<=MaxBeamRadius&&
-        std::isfinite(depth)&&depth>=MinBeamDepth&&depth<=MaxBeamDepth;
+        std::isfinite(depth)&&depth>MinBeamDepth&&depth<=MaxBeamDepth;
 }
 inline bool validPhysicalBeam(const BeamSample&beam){
-    if(!validCrossSection(beam)||!std::isfinite(beam.depth)||beam.depth<MinBeamDepth||beam.depth>MaxBeamDepth||!std::isfinite(beam.radius)||beam.radius<MinBeamRadius)return false;
+    if(!validCrossSection(beam)||!std::isfinite(beam.depth)||beam.depth<=MinBeamDepth||beam.depth>MaxBeamDepth||!std::isfinite(beam.radius)||beam.radius<MinBeamRadius)return false;
     if(beam.crossSection.empty())return beam.radius<=MaxBeamRadius;
     // Explicit mechanical contact patches carry their actual root-hull extent;
     // the laser octagon's radius is not their physical footprint authority.

@@ -1,5 +1,6 @@
 #include "s_device.h"
 #include "sea_map_transition.hpp"
+#include "antialiasing.hpp"
 #include "metal_renderer_consumers.h"
 #ifdef STORM_METAL_ROCKK2
 extern "C" void storm_metal_label_texture(storm_render::BaseTexture *, const char *);
@@ -2781,7 +2782,7 @@ void DX9RENDER::RecompileEffects()
 int32_t DX9RENDER::ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality, int32_t fullscreen,
                                       int32_t renderWidth, int32_t renderHeight, int32_t requestedDesktopMode)
 {
-    constexpr uint32_t knownFlags = (1u << 9u) - 1u;
+    constexpr uint32_t knownFlags = storm_metal::knownGraphicsFlags;
     std::fprintf(stderr, "[StormMetal graphics] apply request flags=%u quality=%u fullscreen=%d size=%dx%d desktop=%d\n",
                  flagsMask, shadowQuality, fullscreen, renderWidth, renderHeight, requestedDesktopMode);
     if ((flagsMask & ~knownFlags) != 0 || shadowQuality > 2 || (fullscreen != 0 && fullscreen != 1) ||
