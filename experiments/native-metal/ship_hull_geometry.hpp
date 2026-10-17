@@ -113,14 +113,21 @@ inline bool rayBounds(Bounds box,Vec3 start,Vec3 end){float lo=0,hi=1;const floa
 // Immutable render-triangle broadphase, separate from the authored collision BSP.
 // Built once per instance/object; a hit visits only local receiver candidates.
 class Broadphase {
- struct Node {Bounds bounds;uint32_t first=0,count=0,left=0,right=0;};
+ struct Node {Bounds bounds;uint32_t first=0,count=0,left=0,right=0,minimum=UINT32_MAX;};
  std::vector<Bounds>bounds;std::vector<uint32_t>order;std::vector<Node>nodes;
- uint32_t buildNode(uint32_t first,uint32_t count){storm_geometry_work::checkpoint();uint32_t index=uint32_t(nodes.size());nodes.emplace_back();Bounds box=bounds[order[first]];for(uint32_t n=1;n<count;n++){storm_geometry_work::checkpoint();box=merge(box,bounds[order[first+n]]);}nodes[index].bounds=box;
+ uint32_t buildNode(uint32_t first,uint32_t count){storm_geometry_work::checkpoint();uint32_t index=uint32_t(nodes.size());nodes.emplace_back();Bounds box=bounds[order[first]];uint32_t minimum=order[first];for(uint32_t n=1;n<count;n++){storm_geometry_work::checkpoint();box=merge(box,bounds[order[first+n]]);minimum=std::min(minimum,order[first+n]);}nodes[index].bounds=box;nodes[index].minimum=minimum;
   if(count<=16){nodes[index].first=first;nodes[index].count=count;return index;}
   auto extent=box.hi-box.lo;unsigned axis=extent.x>=extent.y&&extent.x>=extent.z?0:extent.y>=extent.z?1:2;auto center=[&](uint32_t n){auto b=bounds[n];return axis==0?b.lo.x+b.hi.x:axis==1?b.lo.y+b.hi.y:b.lo.z+b.hi.z;};
   uint32_t half=count/2;std::nth_element(order.begin()+first,order.begin()+first+half,order.begin()+first+count,[&](uint32_t a,uint32_t b){storm_geometry_work::checkpoint();return center(a)<center(b);});uint32_t left=buildNode(first,half),right=buildNode(first+half,count-half);nodes[index].left=left;nodes[index].right=right;return index;}
  void visit(uint32_t index,Bounds box,std::vector<uint32_t>&out)const{const auto&node=nodes[index];if(!overlaps(node.bounds,box))return;if(node.count){for(uint32_t n=0;n<node.count;n++){auto triangle=order[node.first+n];if(overlaps(bounds[triangle],box))out.push_back(triangle);}return;}visit(node.left,box,out);visit(node.right,box,out);}
  void visitRay(uint32_t index,Vec3 start,Vec3 end,std::vector<uint32_t>&out)const{const auto&node=nodes[index];if(!rayBounds(node.bounds,start,end))return;if(node.count){for(uint32_t n=0;n<node.count;++n){auto triangle=order[node.first+n];if(rayBounds(bounds[triangle],start,end))out.push_back(triangle);}return;}visitRay(node.left,start,end,out);visitRay(node.right,start,end,out);}
+ template<class Lower,class Accept,class Visitor>void visitNearest(uint32_t index,double entry,Lower&lower,Accept&accept,Visitor&visitor)const{
+  const auto&node=nodes[index];if(!accept(entry,node.minimum))return;
+  if(node.count){for(uint32_t n=0;n<node.count;++n){const auto candidate=order[node.first+n];const double at=lower(bounds[candidate]);if(accept(at,candidate))visitor(candidate);}return;}
+  uint32_t first=node.left,second=node.right;double a=lower(nodes[first].bounds),b=lower(nodes[second].bounds);
+  if(b<a||(b==a&&nodes[second].minimum<nodes[first].minimum)){std::swap(first,second);std::swap(a,b);}
+  visitNearest(first,a,lower,accept,visitor);visitNearest(second,b,lower,accept,visitor);
+ }
  public:
  void build(const std::vector<Bounds>&boxes){bounds=boxes;order.clear();nodes.clear();order.reserve(bounds.size());for(uint32_t n=0;n<bounds.size();++n)order.push_back(n);nodes.reserve(bounds.size()*2);if(!bounds.empty())buildNode(0,uint32_t(bounds.size()));}
  void build(const std::vector<uint8_t>&vertices,unsigned stride,const std::vector<uint16_t>&indices){bounds.clear();order.clear();nodes.clear();bounds.reserve(indices.size()/3);order.reserve(indices.size()/3);
@@ -128,6 +135,12 @@ class Broadphase {
  void query(const Impact&i,std::vector<uint32_t>&out,float supportPadding=0)const{out.clear();if(nodes.empty()||!valid(i))return;auto f=frame(i.normal);Vec3 e{std::abs(f.tangent.x)*i.radiusU*1.08f+std::abs(f.bitangent.x)*i.radiusV*1.08f+std::abs(i.normal.x)*i.halfDepth,std::abs(f.tangent.y)*i.radiusU*1.08f+std::abs(f.bitangent.y)*i.radiusV*1.08f+std::abs(i.normal.y)*i.halfDepth,std::abs(f.tangent.z)*i.radiusU*1.08f+std::abs(f.bitangent.z)*i.radiusV*1.08f+std::abs(i.normal.z)*i.halfDepth};float padding=2.e-5f+std::max(0.f,supportPadding);e=e+Vec3{padding,padding,padding};visit(0,{i.center-e,i.center+e},out);}
  void queryRay(Vec3 start,Vec3 end,std::vector<uint32_t>&out)const{out.clear();if(!nodes.empty()&&finite(start)&&finite(end))visitRay(0,start,end,out);}
  void queryBounds(Bounds box,std::vector<uint32_t>&out)const{out.clear();if(!nodes.empty()&&finite(box.lo)&&finite(box.hi)&&box.lo.x<=box.hi.x&&box.lo.y<=box.hi.y&&box.lo.z<=box.hi.z)visit(0,box,out);}
+ // The caller supplies a conservative lower event time and a live incumbent
+ // predicate. No candidate collection/sort: the second branch sees the first
+ // branch's updated best, including deterministic source-order tie pruning.
+ template<class Lower,class Accept,class Visitor>void queryNearest(Lower&&lower,Accept&&accept,Visitor&&visitor)const{
+  if(!nodes.empty())visitNearest(0,lower(nodes[0].bounds),lower,accept,visitor);
+ }
 };
 inline uint64_t signature(const std::vector<Impact>&cuts){uint64_t h=1469598103934665603ull;auto add=[&](const void*p,size_t size){auto*b=static_cast<const uint8_t*>(p);for(size_t n=0;n<size;n++){h^=b[n];h*=1099511628211ull;}};
  for(const auto&i:cuts){add(&i.center,12);add(&i.normal,12);add(&i.radiusU,4);add(&i.radiusV,4);add(&i.halfDepth,4);add(&i.seed,4);add(&i.object,4);}return h;}

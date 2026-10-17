@@ -1,8 +1,41 @@
 # Runtime state
 
-Last verified installed delivery: October17,02:27EDT, local-material/contact successor, signed engine `150c6e9d41cce5481d7989da29adb58faa24c45d629fdccc899f7565b2ff8fa2`. Canonical staging exits0;523 protected files are unchanged and239 managed receipt rows match. The preceding9af99327 image is rejected by the player's01:09–01:18 reports. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October17,02:51EDT, fragment-BVH successor, signed engine `a0d08d4fe23db0212aa75a5ce69f474fc7c4c69b61f97ea3c6b7c643dd4262aa`. Canonical staging exits0;523 protected files are unchanged and239 managed receipt rows match. The preceding150c6e9d image has player-profiled main-thread fragment collision overload. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October17,02:36 — player profile reopens fragment collision FPS; disk sound unresolved
+
+The player reports a physical-sounding squeak while the game is open and
+supplies PID79300's02:36:38 profile. Its UUID binds installed150c6e9d/13d3eec.
+Of1395 main-thread samples,1293 are in `SHIP_CUT_FRAGMENTS::ProcessStage`;
+1011 reach the triangle CCD sweep site and157 its candidate sort site. The
+10.5GiB footprint is a memory observation, not an allocation-owner proof.
+[Exact sample and matching signed engine](../.local-archives/metal-renderer-evidence/phonk-current-20261017/player-fragment-0236/evidence.json)
+are preserved. The correction uses existing receiver BVH near-first traversal,
+conservative SAT interval bounds and a live best contact. It removes complete
+candidate list construction/sorting; exact CCD rejects candidates proved later
+than the incumbent. Source-ID/float-time ties retain their old witness rule.
+Bodies, simulated time, collision response and lifetime remain unchanged. The
+[contact owner](ship-wreck-contact.md#october17-fragment-contact-cpu-regression)
+retains the source proof and remaining costs.
+
+PID79300 was no longer present before installation; no agent stopped it.
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 after the change.
+Installed UUID is `DA1F217A-6ABB-359C-ACD7-4EBE267725E0`, native input
+`f6bb52598698fbe16820ab081257e65fe12e61fa2f4793c3cc2bb59dd1dbf6ae`.
+The [delivery receipt](../.local-archives/installed-delivery/fragment-bvh-20261017/result.json)
+binds source/compiler/installed identities, unchanged523 player files and239
+matching managed rows. Compilation/delivery accepted; post-change FPS, exact
+collision behavior and memory use remain unresolved without player replay.
+
+An earlier6.010s read-only `proc_pid_rusage` interval measured game reads at
+0.198MiB/s and writes rounded to0.000MiB/s; system swap-outs stayed29991902
+while swap-ins rose52 pages. The game's footprint then was7.8GiB. This shows
+no write storm during that interval, and does not establish SSD health, wear
+or the source of the sound. [Raw OS counters and reproduction](../.local-archives/metal-renderer-evidence/phonk-current-20261017/disk-io-0235/evidence.json)
+remain separate from gameplay acceptance. No game actions, launch or process
+control were performed; the player supplied the CPU sample.
 
 ### October17,02:27 — local material and contact handoff installed; player replay pending
 

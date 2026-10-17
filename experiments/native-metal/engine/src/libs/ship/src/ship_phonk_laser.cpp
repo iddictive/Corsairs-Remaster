@@ -30,7 +30,6 @@ struct FragmentContactMesh
     using Triangle = std::array<storm_ship_hull::Vec3, 3>;
     std::vector<Triangle> triangles;
     storm_ship_hull::Broadphase index;
-    std::vector<uint32_t> candidates;
     storm_ship_hull::Bounds coverage{};
     bool ready = false;
 };
@@ -334,18 +333,23 @@ void fragmentContact(FragmentContactMesh &mesh, MODEL &model, storm_ship_hull::B
             boxes.push_back(bounds);
         }
         mesh.index.build(boxes);
-        mesh.candidates.reserve(mesh.triangles.size());
         mesh.ready = true;
     }
-    mesh.index.queryBounds(box,mesh.candidates);
-    // Keep the original callback order for equal-time contacts.
-    std::sort(mesh.candidates.begin(),mesh.candidates.end());
-    for (const auto candidate : mesh.candidates) {
+    const storm::ship::fragment_contact::SweepBounds lower(query.shape,query.translation,query.padding,box);
+    uint32_t source=UINT32_MAX;
+    const auto admissible=[&](double entry,uint32_t minimum){
+        if(!std::isfinite(entry)||entry>double(std::nextafter(query.hit.fraction,std::numeric_limits<float>::infinity())))return false;
+        // sweep publishes float TOIs. Keep rounded equal-time lower source IDs,
+        // including t=0; later nodes cannot replace an earlier source witness.
+        const float earliest=float(entry);
+        return earliest<query.hit.fraction||(query.hit.hit&&earliest==query.hit.fraction&&minimum<source);
+    };
+    mesh.index.queryNearest(lower,admissible,[&](uint32_t candidate){
         const auto hit = storm::ship::fragment_contact::sweep(query.shape,query.translation,mesh.triangles[candidate],
-                                                            query.padding,query.angular,query.center);
-        if (hit.hit && hit.fraction < query.hit.fraction) query.hit = hit;
-        if (query.hit.hit && query.hit.fraction <= 0.f) break;
-    }
+                                                            query.padding,query.angular,query.center,query.hit.fraction);
+        if(hit.hit&&(hit.fraction<query.hit.fraction||
+            (query.hit.hit&&hit.fraction==query.hit.fraction&&candidate<source))){query.hit=hit;source=candidate;}
+    });
 }
 }
 

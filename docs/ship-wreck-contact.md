@@ -1,5 +1,42 @@
 # Ship collision and contact with sinking ships
 
+## October17 fragment contact CPU regression
+
+The player's `game-20261017-023638-79300.sample.txt` reopens FPS acceptance
+for installed13d3eec, signed150c6e9d, UUID0C2E0B13. Of1395 main-thread
+samples,1293 reach `SHIP_CUT_FRAGMENTS::ProcessStage`;1011 are attributed
+to the `AdvanceCutFragments+15752` triangle-CCD call and157 to its candidate
+sorting call at+15652. These are sampled stack counts, not measured frame times.
+The retained raw profile and installed identity belong to the runtime evidence
+owner; this section records the source consequence.
+
+`fragmentContact` previously collected every triangle in the complete swept
+query AABB, sorted all candidate IDs, then ran exact convex/triangle SAT until
+the first zero-time hit. Every body/receiver/substep/event repeated that list
+and sort. The source correction traverses the existing immutable receiver BVH
+near-first instead. A query caches body projection intervals/speeds on its actual
+face-normal SAT axes once; each node supplies a conservative lower event time.
+The live best hit prunes later nodes/triangles before exact CCD. Node minimum
+source IDs preserve the original lowest-source witness at equal float TOIs,
+including t=0. The exact SAT query can also stop when an axis already proves
+its hit later than the incumbent; accepted normals and witness calculations
+retain their existing owner.
+
+This removes the full per-query candidate append/storage/sort and exact SAT
+work for candidates proved unable to replace the best hit. It adds small BVH
+interval checks; it does not establish the resulting FPS. Receiver Clip capture
+and cache expansion remain unchanged, as do body admission, elapsed-time
+substeps, event iterations, buoyancy, collision response and lifetime.
+
+The source falsifier is an earlier accepted triangle, or a lower source ID at
+the same float TOI, becoming unreachable. Bounds use a necessary subset of the
+same padded SAT axes: a node AABB contains each enclosed triangle projection,
+so its entry cannot exceed that triangle's exact entry. Tie pruning retains
+the smaller source ID; exact CCD's incumbent bound admits one float ULP for
+rounding. The nearest unchanged negatives remain t=0 departing/tangent seams
+and an empty swept receiver query. No gameplay tests, probes or live replay
+were run for this correction; the running player process remains untouched.
+
 ## October17 contact-phase physical snapshot
 
 This contact contract separates canonical source/build/install from player

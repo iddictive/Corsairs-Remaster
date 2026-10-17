@@ -221,6 +221,47 @@ inline storm_ship_hull::Bounds bounds(const Proxy &body, Vec3 travel={}, float p
     const Vec3 margin{padding,padding,padding}; result.lo=result.lo-margin;result.hi=result.hi+margin;return result;
 }
 
+// Reuse a necessary subset of sweep's exact SAT axes. Projecting a BVH box
+// contains every triangle projection in that box, so this can only admit an
+// earlier interval. Arbitrary world axes would change padded SAT admission.
+struct SweepBounds
+{
+    struct Axis {Vec3 normal;double low{},high{},speed{};};
+    std::array<Axis,28> axes{};
+    unsigned count{};
+    float padding{};
+    storm_ship_hull::Bounds coverage{};
+    bool valid{};
+    SweepBounds(const Proxy&body,Vec3 travel,float margin,storm_ship_hull::Bounds box)
+        :padding(margin),coverage(box),valid(body.valid()&&finite(travel)&&std::isfinite(margin)&&margin>=0)
+    {
+        if(!valid)return;
+        for(unsigned n=0;n<body.faceCount;++n){
+            const float magnitude=length(body.faceNormals[n]);if(magnitude<1.e-7f)continue;
+            Axis axis;axis.normal=body.faceNormals[n]*(1.f/magnitude);
+            axis.low=axis.high=detail::projection(body.vertices[0],axis.normal);
+            for(unsigned v=1;v<body.count;++v){const double p=detail::projection(body.vertices[v],axis.normal);axis.low=std::min(axis.low,p);axis.high=std::max(axis.high,p);}
+            axis.speed=detail::projection(travel,axis.normal);axes[count++]=axis;
+        }
+    }
+    double operator()(storm_ship_hull::Bounds box)const
+    {
+        constexpr double absent=std::numeric_limits<double>::infinity();
+        if(!valid||!storm_ship_hull::overlaps(box,coverage))return absent;
+        double enter=0,exit=1;
+        for(unsigned n=0;n<count;++n){const auto&a=axes[n];const auto normal=a.normal;
+            const Vec3 lo{normal.x>=0?box.lo.x:box.hi.x,normal.y>=0?box.lo.y:box.hi.y,normal.z>=0?box.lo.z:box.hi.z};
+            const Vec3 hi{normal.x>=0?box.hi.x:box.lo.x,normal.y>=0?box.hi.y:box.lo.y,normal.z>=0?box.hi.z:box.lo.z};
+            const double low=detail::projection(lo,normal),high=detail::projection(hi,normal);
+            if(std::abs(a.speed)<1.e-12){if(a.low-padding>high+1.e-6||a.high+padding<low-1.e-6)return absent;continue;}
+            double first=(low-a.high-padding)/a.speed,last=(high-a.low+padding)/a.speed;
+            if(first>last)std::swap(first,last);enter=std::max(enter,first);exit=std::min(exit,last);
+            if(enter>exit+1.e-7||exit<0||enter>1)return absent;
+        }
+        return enter;
+    }
+};
+
 // Continuous timber-likeness, rather than interpreting open meshes as volume.
 // Thin, small separated boards keep wood buoyancy; large hollow assemblies
 // retain trapped air briefly and then flood. Neither is a measured density.
@@ -384,11 +425,12 @@ template<class Transform> inline Proxy transformed(const Proxy &local, Transform
 }
 
 inline Hit sweep(const Proxy &body, Vec3 translation, const std::array<Vec3, 3> &triangle, float padding = 0.f,
-                 Vec3 angularDisplacement = {}, Vec3 rotationCenter = {})
+                 Vec3 angularDisplacement = {}, Vec3 rotationCenter = {},float maximumFraction=1.f)
 {
     Hit result;
     if (!body.valid() || !finite(translation) || !finite(angularDisplacement) || !finite(rotationCenter) ||
-        !std::isfinite(padding) || padding < 0.f) return result;
+        !std::isfinite(padding) || padding < 0.f||!std::isfinite(maximumFraction)||maximumFraction<0.f) return result;
+    const double upper=std::min(1.,double(std::nextafter(maximumFraction,std::numeric_limits<float>::infinity())));
     for (auto v : triangle) if (!finite(v)) return result;
     const std::array<Vec3, 3> edges{{triangle[1]-triangle[0], triangle[2]-triangle[1], triangle[0]-triangle[2]}};
     const auto triangleNormal = cross(edges[0], edges[1]);
@@ -416,7 +458,7 @@ inline Hit sweep(const Proxy &body, Vec3 translation, const std::array<Vec3, 3> 
         if (first > last) std::swap(first, last);
         if (first > enter) { enter = first; enterNormal = outward; }
         exit = std::min(exit, last);
-        return enter <= exit+1.e-7 && exit >= 0 && enter <= 1;
+        return enter <= exit+1.e-7 && exit >= 0 && enter <= upper;
     };
     if (!axis(triangleNormal)) return result;
     for (unsigned n = 0; n < body.faceCount; ++n) if (!axis(body.faceNormals[n])) return result;
