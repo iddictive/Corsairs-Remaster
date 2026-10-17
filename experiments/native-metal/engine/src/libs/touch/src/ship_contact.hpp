@@ -1,4 +1,6 @@
 #pragma once
+#ifndef STORM_SHIP_CONTACT_HPP
+#define STORM_SHIP_CONTACT_HPP
 
 #include <algorithm>
 #include <array>
@@ -52,6 +54,9 @@ struct Response
     double deltaWA{}, deltaWB{}; // Storm yaw radians/second
     double normalClosing{}, energyLost{}, effectiveMass{};
     double energyLostA{}, energyLostB{}, specificEnergyA{}, specificEnergyB{};
+    // Kinetic loss for a fraction s of this same equal/opposite impulse:
+    // s * workLinear - .5 * s*s * workQuadratic.
+    double workLinear{}, workQuadratic{};
 };
 
 inline constexpr double restitution = 0.08;
@@ -366,10 +371,34 @@ inline Response resolve(const Body &a, const Body &b, const Contact &contact, do
     out.energyLostA = std::max(0.0, loss) * complianceA / (complianceA + complianceB);
     out.energyLostB = std::max(0.0, loss) * complianceB / (complianceA + complianceB);
     out.energyLost = out.energyLostA + out.energyLostB;
+    out.workLinear = jn * closing + jt * tangentSpeed;
+    out.workQuadratic = kn * jn * jn + 2 * knt * jn * jt + kt * jt * jt;
     out.specificEnergyA = out.energyLostA / a.mass; out.specificEnergyB = fixedB ? 0 : out.energyLostB / b.mass;
     if (!detail::finite(out.deltaVA) || !detail::finite(out.deltaVB) || !std::isfinite(out.deltaWA) ||
         !std::isfinite(out.deltaWB) || !std::isfinite(out.energyLost) || !std::isfinite(out.specificEnergyA) ||
         !std::isfinite(out.specificEnergyB)) return {};
     return out;
 }
+
+// A successful physical fracture spends finite work instead of first stopping
+// both complete hulls. Scaling the SAME impulse preserves linear/angular
+// momentum; its smaller quadratic root cannot add kinetic energy.
+inline Response limitWork(Response out, double work)
+{
+    if (!std::isfinite(work) || work < 0 || !(out.energyLost > 0) || work >= out.energyLost) return out;
+    const double a = out.workLinear, b = out.workQuadratic;
+    if (!(a > 0) || !(b >= 0) || !std::isfinite(a) || !std::isfinite(b)) return out;
+    const double discriminant = std::max(0.0, a * a - 2 * b * work);
+    const double denominator = a + std::sqrt(discriminant);
+    const double scale = denominator > 0 ? std::clamp(2 * work / denominator, 0.0, 1.0) : 0;
+    const double shareA = out.energyLostA / out.energyLost, shareB = out.energyLostB / out.energyLost;
+    out.deltaVA = out.deltaVA * scale; out.deltaVB = out.deltaVB * scale;
+    out.deltaWA *= scale; out.deltaWB *= scale;
+    out.energyLostA = work * shareA; out.energyLostB = work * shareB;
+    out.specificEnergyA *= work / out.energyLost; out.specificEnergyB *= work / out.energyLost;
+    out.energyLost = work;
+    out.workLinear *= scale; out.workQuadratic *= scale * scale;
+    return out;
+}
 } // namespace storm::ship::contact
+#endif // STORM_SHIP_CONTACT_HPP

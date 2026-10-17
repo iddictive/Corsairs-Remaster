@@ -657,6 +657,7 @@ void TOUCH::ResolveShips()
     if (!(seconds > 0)) return;
     std::vector<FrameBody> bodies;
     std::vector<int> indices;
+    std::vector<HULL_CONTACT_MATERIAL> materials;
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
@@ -685,21 +686,110 @@ void TOUCH::ResolveShips()
         frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
         frame.wreck = entry->pShip->isDead();
+        HULL_CONTACT_MATERIAL material;
+        if (entry->pShip->GetHullContactMaterial(material))
+            frame.material = material.prepared;
+        frame.materialY = entry->TP[0].vPos.y - frame.yStart;
         bodies.push_back(std::move(frame));
         indices.push_back(i);
+        materials.push_back(std::move(material));
     }
     if (bodies.size() < 2) return;
-    const auto result = integrateFrame(bodies, seconds);
     const auto currentShip = [&](size_t n)
     {
         return static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[indices[n]]->eID));
     };
+    const auto fracture = [&](const FractureEvent &event)
+    {
+        FractureCommit committed;
+        std::vector<std::pair<size_t,std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>>>transferred;
+        const auto attempt = [&](size_t own, size_t other, Pose pose, Vec2 outward,
+                                  double available, bool sideA)
+        {
+            auto *ship = currentShip(own); auto *opponent = currentShip(other);
+            if (!ship || !opponent || !bodies[own].material || !materials[own].prepared) return;
+            const double mass = bodies[own].body.mass;
+            constexpr double elasticEnergy = .25;
+            const double specific = std::max(0.0, available / mass - elasticEnergy);
+            if (!(specific > 0)) return;
+            const auto localPoint = detail::rotate(event.contact.point - pose.position, -pose.yaw);
+            const auto localNormal = detail::rotate(outward, -pose.yaw);
+            const Vec2 along{outward.z, -outward.x};
+            double loAlong = -INFINITY, hiAlong = INFINITY;
+            for (const auto side : {event.a, event.b})
+            {
+                const Pose at = side == event.a ? event.poseA : event.poseB;
+                double lo = INFINITY, hi = -INFINITY;
+                for (const auto p : bodies[side].body.hull)
+                {
+                    const double t = dot(detail::rotate(p, at.yaw) + at.position - event.contact.point, along);
+                    lo = std::min(lo, t); hi = std::max(hi, t);
+                }
+                loAlong = std::max(loAlong, lo); hiAlong = std::min(hiAlong, hi);
+            }
+            double loY = -INFINITY, hiY = INFINITY;
+            for (const auto side : {event.a, event.b})
+            {
+                const auto &b = bodies[side];
+                const double center = b.yStart + (b.yEnd - b.yStart) * (event.elapsed / seconds);
+                loY = std::max(loY, center - b.height * .5 - event.height);
+                hiY = std::min(hiY, center + b.height * .5 - event.height);
+            }
+            if (!(hiAlong - loAlong > .001) || !(hiY - loY > .001)) return;
+            double normalLow = INFINITY, normalHigh = -INFINITY;
+            for (const auto p : bodies[own].body.hull)
+            { const double d = dot(p, localNormal); normalLow = std::min(normalLow, d); normalHigh = std::max(normalHigh, d); }
+            HULL_CONTACT_BREAK request;
+            const auto *entry = pShips[indices[own]];
+            const double originY = entry->TP[0].vPos.y +
+                (entry->TP[1].vPos.y - entry->TP[0].vPos.y) * (event.elapsed / seconds);
+            request.point = CVECTOR(float(localPoint.x), float(event.height - originY), float(localPoint.z));
+            request.normal = CVECTOR(float(localNormal.x), 0.f, float(localNormal.z));
+            request.crossSection = {{{float(loY), float(loAlong)}}, {{float(hiY), float(loAlong)}},
+                                    {{float(hiY), float(hiAlong)}}, {{float(loY), float(hiAlong)}}};
+            request.depth = float(normalHigh - normalLow + .05);
+            request.specificWork = specific;
+            request.otherCharacterIndex = GetIndex(opponent->GetACharacter());
+            request.expectedRevision = materials[own].revision;
+            request.eventWorldPosition = CVECTOR(float(pose.position.x), float(originY), float(pose.position.z));
+            request.eventWorldYaw = float(pose.yaw);
+            const auto velocity=sideA?event.velocityA:event.velocityB;
+            request.eventWorldVelocity=CVECTOR(float(velocity.x),
+                float((entry->TP[1].vPos.y-entry->TP[0].vPos.y)/seconds),float(velocity.z));
+            request.eventYawVelocity=float(sideA?event.angularA:event.angularB);
+            HULL_CONTACT_BREAK_RESULT result;
+            if (!ship->CommitHullContactBreak(request, result)) return;
+            const auto projected = result.material.prepared;
+            if (!projected || !std::isfinite(result.spentSpecificWork) || result.spentSpecificWork < 0 ||
+                result.spentSpecificWork > specific) return;
+            materials[own] = result.material;
+            bodies[own].material = projected;
+            bodies[own].body.mass=result.retainedMass;
+            transferred.push_back({own,result.physicalDelta});
+            committed.complete = true;
+            if (sideA)
+            { committed.workA = result.spentSpecificWork * mass; committed.replaceA = true; committed.materialA = projected;committed.massA=result.retainedMass; }
+            else
+            { committed.workB = result.spentSpecificWork * mass; committed.replaceB = true; committed.materialB = projected;committed.massB=result.retainedMass; }
+        };
+        attempt(event.a, event.b, event.poseA, event.contact.normal, event.proposed.energyLostA, true);
+        attempt(event.b, event.a, event.poseB, -event.contact.normal, event.proposed.energyLostB, false);
+        committed.applyTransferredImpulse=[transferred=std::move(transferred),&currentShip,a=event.a](const Response&r){
+            for(const auto&entry:transferred)if(auto*ship=currentShip(entry.first)){
+                const auto dv=entry.first==a?r.deltaVA:r.deltaVB;
+                const double dw=entry.first==a?r.deltaWA:r.deltaWB;
+                ship->ApplyHullContactBodyImpulse(entry.second,CVECTOR(float(dv.x),0.f,float(dv.z)),float(dw));
+            }
+        };
+        return committed;
+    };
+    const auto result = integrateFrame(bodies, seconds, {}, fracture);
     // Publish material loss at the actual local contact, using the currently
     // presented model transform. A fast TOI may be far from that old transform.
     for (const auto &impact : result.impacts)
     {
         const auto publish = [&](size_t own, size_t other, Vec2 localPoint, Vec2 localNormal,
-                                  double specificEnergy)
+                                  double specificEnergy, double physicalPaidSpecific)
         {
             auto *ship = currentShip(own);
             auto *opponent = currentShip(other);
@@ -741,6 +831,9 @@ void TOUCH::ResolveShips()
                     }
                 }
             }
+            // The contact-step snapshot already owns this paid fracture work.
+            // Only uncommitted residual work may enter asynchronous damage.
+            materialWork = std::max(0.0, materialWork - physicalPaidSpecific);
             ship = currentShip(own);
             if (!ship || !(materialWork > 0)) return;
             const auto matrix = ship->GetMatrix();
@@ -752,8 +845,8 @@ void TOUCH::ResolveShips()
                                       float(materialWork), owner);
             }
         };
-        publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA);
-        publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB);
+        publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA, impact.physicalPaidSpecificA);
+        publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB, impact.physicalPaidSpecificB);
     }
     for (size_t n = 0; n < result.motions.size(); ++n)
     {

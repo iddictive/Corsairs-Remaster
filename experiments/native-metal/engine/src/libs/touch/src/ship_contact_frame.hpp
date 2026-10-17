@@ -1,6 +1,10 @@
 #pragma once
 
-#include "ship_contact.hpp"
+#include "ship_contact_material.hpp"
+#include <functional>
+#include <memory>
+#include <set>
+#include <tuple>
 
 namespace storm::ship::contact
 {
@@ -11,6 +15,10 @@ struct FrameBody
     Body body;
     bool wreck{};
     double yStart{}, yEnd{}, height{}; // centre and full height; <=0 disables the band
+    // Complete published physical snapshot, including an authoritative empty
+    // set. Missing/unprepared snapshots keep the conservative hull envelope.
+    std::shared_ptr<const MaterialSnapshot> material;
+    double materialY{}; // model origin relative to the vertical-band centre
 };
 struct Motion
 {
@@ -27,13 +35,37 @@ struct Impact
     double height{}; // centre of the overlapping vertical bands at this impact
     double normalClosing{}, normalImpulse{}; // accumulated compressive impulse, mass * m/s
     double energyLostA{}, energyLostB{}, specificEnergyA{}, specificEnergyB{};
+    double physicalPaidSpecificA{}, physicalPaidSpecificB{};
 };
 struct FrameLimits
 {
     // Callers may lower these for admission/probes. Absolute caps below keep
     // an accidental oversized budget from turning a frame into an unbounded job.
     std::size_t maxEvents{256}, maxPairAdvances{64}, positionIterations{32};
+    std::size_t materialCandidates{4096}, fracturePasses{3};
 };
+struct FractureEvent
+{
+    std::size_t a{}, b{};
+    Pose poseA{}, poseB{};
+    Contact contact{};
+    double height{}, elapsed{}, remaining{};
+    Response proposed{};
+    Vec2 velocityA{},velocityB{};
+    double angularA{},angularB{};
+};
+struct FractureCommit
+{
+    // This is an already committed CPU physical edit, never queued work. Its
+    // exact work cannot exceed proposed loss; rendering may follow later.
+    bool complete{};
+    double workA{}, workB{};
+    bool replaceA{}, replaceB{};
+    std::shared_ptr<const MaterialSnapshot> materialA, materialB;
+    double massA{-1},massB{-1};
+    std::function<void(const Response&)> applyTransferredImpulse;
+};
+using FractureCallback = std::function<FractureCommit(const FractureEvent &)>;
 struct FrameResult
 {
     std::vector<Motion> motions;
@@ -51,6 +83,7 @@ struct Proxy
     Vec2 velocity{}, initialVelocity{};
     double angular{}, initialAngular{};
     bool touched{}, blocked{};
+    std::shared_ptr<const MaterialSnapshot> material;
 };
 inline double tolerance(const Proxy &a, const Proxy &b)
 {
@@ -178,11 +211,12 @@ struct Event
     Contact contact{};
     Response response{};
 };
-inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, const Proxy &b,
+inline Event nextConvexPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, const Proxy &b,
                       double elapsed, double remaining, double seconds, const FrameLimits &limits)
 {
     double lo, hi;
     if ((fa.wreck && fb.wreck) || (a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
+        !(a.sweep.mass>0)||!(b.sweep.mass>0)||
         !verticalInterval(fa, fb, elapsed, remaining, seconds, lo, hi)) return {};
     if (!detail::sweptRadiusOverlap(b.sweep.start.position - a.sweep.start.position,
             (b.sweep.end.position - b.sweep.start.position) - (a.sweep.end.position - a.sweep.start.position),
@@ -219,6 +253,128 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
         lo = at + release / remaining;
     }
 }
+inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, const Proxy &b,
+                      double elapsed, double remaining, double seconds, const FrameLimits &limits)
+{
+    const auto envelope = [&] { return nextConvexPair(fa, fb, a, b, elapsed, remaining, seconds, limits); };
+    double verticalLo, verticalHi;
+    if ((fa.wreck && fb.wreck) || (a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
+        !(a.sweep.mass>0)||!(b.sweep.mass>0)||
+        !verticalInterval(fa, fb, elapsed, remaining, seconds, verticalLo, verticalHi) ||
+        !detail::sweptRadiusOverlap(b.sweep.start.position - a.sweep.start.position,
+            (b.sweep.end.position - b.sweep.start.position) - (a.sweep.end.position - a.sweep.start.position),
+            a.hull.radius, b.hull.radius)) return {};
+    if (!a.material && !b.material) return envelope();
+    const auto *rootA = a.material ? &materialRoot(*a.material) : nullptr;
+    const auto *rootB = b.material ? &materialRoot(*b.material) : nullptr;
+    if ((rootA && rootA->pieces.empty()) || (rootB && rootB->pieces.empty())) return {};
+    if ((rootA && rootA->index.empty()) || (rootB && rootB->index.empty())) return envelope();
+    constexpr auto leaf = std::numeric_limits<std::size_t>::max();
+    const auto node = [&](const Proxy &p, const FrameBody &f, std::size_t index)
+    {
+        if (p.material) return materialRoot(*p.material).index[index];
+        MaterialNode result; result.piece = 0;
+        result.bounds = {INFINITY, -INFINITY, INFINITY, -INFINITY, -.5 * f.height, .5 * f.height, p.hull.radius};
+        for (auto point : p.hull.points)
+        {
+            result.bounds.loX = std::min(result.bounds.loX, point.x); result.bounds.hiX = std::max(result.bounds.hiX, point.x);
+            result.bounds.loZ = std::min(result.bounds.loZ, point.z); result.bounds.hiZ = std::max(result.bounds.hiZ, point.z);
+        }
+        return result;
+    };
+    const auto swept = [&](const MaterialBounds &local, const Proxy &p, const FrameBody &f)
+    {
+        MaterialBounds result{INFINITY, -INFINITY, INFINITY, -INFINITY, INFINITY, -INFINITY, local.radius};
+        for (const auto pose : {p.sweep.start, p.sweep.end})
+            for (const double x : {local.loX, local.hiX}) for (const double z : {local.loZ, local.hiZ})
+            {
+                const auto v = detail::rotate({x, z}, pose.yaw) + pose.position;
+                result.loX = std::min(result.loX, v.x); result.hiX = std::max(result.hiX, v.x);
+                result.loZ = std::min(result.loZ, v.z); result.hiZ = std::max(result.hiZ, v.z);
+            }
+        const double arc = local.radius * std::abs(detail::yawTravel(p.sweep));
+        result.loX -= arc; result.hiX += arc; result.loZ -= arc; result.hiZ += arc;
+        const double modelY = p.material ? f.materialY : 0;
+        for (double at : {elapsed, elapsed + remaining})
+        {
+            const double center = f.yStart + (f.yEnd - f.yStart) * (at / seconds) + modelY;
+            result.lowerY = std::min(result.lowerY, center + local.lowerY);
+            result.upperY = std::max(result.upperY, center + local.upperY);
+        }
+        return result;
+    };
+    Event first; std::size_t visited = 0, leafPairs = 0;
+    const auto part = [](const Proxy &p, const detail::Hull &h)
+    {
+        Proxy q; q.sweep = p.sweep; q.sweep.hull = h.points; q.hull = h;
+        q.pose = p.pose; q.velocity = p.velocity; q.angular = p.angular; q.blocked = p.blocked;
+        return q;
+    };
+    std::vector<std::pair<std::size_t, std::size_t>> pending{{0, 0}};
+    std::set<std::tuple<bool, std::size_t, bool, std::size_t>> replacedPairs;
+    while (!pending.empty())
+    {
+        if (++visited > limits.materialCandidates * 8) return envelope();
+        const auto pair = pending.back(); pending.pop_back();
+        const auto ca = node(a, fa, pair.first), cb = node(b, fb, pair.second);
+        if ((a.material && !materialSupportRetained(*a.material, ca.supportCell)) ||
+            (b.material && !materialSupportRetained(*b.material, cb.supportCell))) continue;
+        const auto wa = swept(ca.bounds, a, fa), wb = swept(cb.bounds, b, fb);
+        if (wa.hiX < wb.loX || wb.hiX < wa.loX || wa.hiZ < wb.loZ || wb.hiZ < wa.loZ ||
+            wa.upperY < wb.lowerY || wb.upperY < wa.lowerY) continue;
+        if (ca.piece == leaf || cb.piece == leaf)
+        {
+            const double extentA = wa.hiX - wa.loX + wa.hiZ - wa.loZ + wa.upperY - wa.lowerY;
+            const double extentB = wb.hiX - wb.loX + wb.hiZ - wb.loZ + wb.upperY - wb.lowerY;
+            if (ca.piece == leaf && (cb.piece != leaf || extentA >= extentB))
+            { pending.push_back({ca.left, pair.second}); pending.push_back({ca.right, pair.second}); }
+            else
+            { pending.push_back({pair.first, cb.left}); pending.push_back({pair.first, cb.right}); }
+            continue;
+        }
+        const MaterialPiece *originalA = rootA ? &rootA->pieces[ca.piece] : nullptr;
+        const MaterialPiece *originalB = rootB ? &rootB->pieces[cb.piece] : nullptr;
+        const auto *replacementA = originalA ? materialReplacement(*a.material, originalA->source) : nullptr;
+        const auto *replacementB = originalB ? materialReplacement(*b.material, originalB->source) : nullptr;
+        if ((replacementA && replacementA->empty()) || (replacementB && replacementB->empty())) continue;
+        if (replacementA || replacementB)
+        {
+            const auto key = std::make_tuple(bool(replacementA), replacementA ? std::size_t(originalA->source) : ca.piece,
+                                             bool(replacementB), replacementB ? std::size_t(originalB->source) : cb.piece);
+            if (!replacedPairs.insert(key).second) continue;
+        }
+        const auto countA = replacementA ? replacementA->size() : 1, countB = replacementB ? replacementB->size() : 1;
+        for (std::size_t ia = 0; ia < countA; ++ia) for (std::size_t ib = 0; ib < countB; ++ib)
+        {
+            const auto *pieceA = replacementA ? &(*replacementA)[ia] : originalA;
+            const auto *pieceB = replacementB ? &(*replacementB)[ib] : originalB;
+            if ((pieceA && !materialSupportRetained(*a.material, pieceA->supportCell)) ||
+                (pieceB && !materialSupportRetained(*b.material, pieceB->supportCell))) continue;
+            if (++leafPairs > limits.materialCandidates) return envelope();
+            const double lowerA = pieceA ? pieceA->lowerY : ca.bounds.lowerY;
+            const double upperA = pieceA ? pieceA->upperY : ca.bounds.upperY;
+            const double lowerB = pieceB ? pieceB->lowerY : cb.bounds.lowerY;
+            const double upperB = pieceB ? pieceB->upperY : cb.bounds.upperY;
+            FrameBody pa, pb;
+            pa.wreck = fa.wreck; pb.wreck = fb.wreck;
+            const double offsetA = a.material ? fa.materialY : 0, offsetB = b.material ? fb.materialY : 0;
+            pa.yStart = fa.yStart + offsetA + .5 * (lowerA + upperA); pa.yEnd = fa.yEnd + offsetA + .5 * (lowerA + upperA);
+            pb.yStart = fb.yStart + offsetB + .5 * (lowerB + upperB); pb.yEnd = fb.yEnd + offsetB + .5 * (lowerB + upperB);
+            pa.height = upperA - lowerA; pb.height = upperB - lowerB;
+            const auto &ha = pieceA ? pieceA->hull : a.hull;
+            const auto &hb = pieceB ? pieceB->hull : b.hull;
+            auto candidate = nextConvexPair(pa, pb, part(a, ha), part(b, hb), elapsed, remaining, seconds, limits);
+            if (candidate.hit && (!first.hit || candidate.time < first.time)) first = candidate;
+        }
+    }
+    if (first.hit)
+    {
+        // Contact pieces locate the witness; the complete body's existing
+        // inertia and mass still own the resulting impulse and torque.
+        first.response = resolve(a.sweep, b.sweep, first.contact, remaining > 0 ? remaining : 1.0);
+    }
+    return first;
+}
 inline void project(Proxy &a, Proxy &b, const Contact &c, double extra)
 {
     const double scale = std::max(a.sweep.mass, b.sweep.mass);
@@ -231,7 +387,7 @@ inline void project(Proxy &a, Proxy &b, const Contact &c, double extra)
 } // namespace frame_detail
 
 inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double seconds,
-                                  FrameLimits limits = {})
+                                  FrameLimits limits = {}, const FractureCallback &fracture = {})
 {
     FrameResult out;
     out.motions.resize(bodies.size());
@@ -240,12 +396,15 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
     limits.maxEvents = std::min<std::size_t>(limits.maxEvents, 4096);
     limits.maxPairAdvances = std::min<std::size_t>(limits.maxPairAdvances, 256);
     limits.positionIterations = std::min<std::size_t>(limits.positionIterations, 128);
+    limits.materialCandidates = std::min<std::size_t>(limits.materialCandidates, 16384);
+    limits.fracturePasses = std::min<std::size_t>(limits.fracturePasses, 3);
     std::vector<frame_detail::Proxy> proxies;
     proxies.reserve(bodies.size());
     for (const auto &b : bodies)
     {
         frame_detail::Proxy p;
         p.sweep = b.body; p.pose = b.body.start; p.hull = detail::prepare(b.body);
+        p.material = b.material;
         if (!p.hull.points.empty())
         {
             p.velocity = p.initialVelocity = (b.body.end.position - b.body.start.position) / seconds;
@@ -255,6 +414,7 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         proxies.push_back(std::move(p));
     }
     std::vector<double> greatestWork;
+    std::vector<std::size_t> fracturePasses(bodies.size() * bodies.size());
     double elapsed = 0, remaining = seconds;
     std::size_t events = 0;
     while (remaining > 0)
@@ -284,7 +444,39 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         }
         ++events;
         auto &a = proxies[event.a]; auto &b = proxies[event.b];
-        const auto &r = event.response;
+        auto r = event.response;
+        const double massBeforeA=a.sweep.mass,massBeforeB=b.sweep.mass;
+        double massAfterA=-1,massAfterB=-1;
+        std::function<void(const Response&)> applyTransferredImpulse;
+        double paidA = 0, paidB = 0;
+        const auto &bodyA = bodies[event.a], &bodyB = bodies[event.b];
+        const double ya = bodyA.yStart + (bodyA.yEnd - bodyA.yStart) * (elapsed / seconds);
+        const double yb = bodyB.yStart + (bodyB.yEnd - bodyB.yStart) * (elapsed / seconds);
+        const double height = (std::max(ya - bodyA.height * .5, yb - bodyB.height * .5) +
+                               std::min(ya + bodyA.height * .5, yb + bodyB.height * .5)) * .5;
+        auto &passes = fracturePasses[event.a * bodies.size() + event.b];
+        if (fracture && r.energyLost > 0 && passes < limits.fracturePasses)
+        {
+            ++passes;
+            const auto commit = fracture({event.a, event.b, a.pose, b.pose, event.contact,
+                                           height, elapsed, remaining, r,a.velocity,b.velocity,a.angular,b.angular});
+            if (commit.complete && std::isfinite(commit.workA) && std::isfinite(commit.workB) &&
+                commit.workA >= 0 && commit.workB >= 0 &&
+                commit.workA + commit.workB <= r.energyLost && (commit.replaceA || commit.replaceB) &&
+                (!commit.replaceA || commit.materialA) && (!commit.replaceB || commit.materialB))
+            {
+                if (commit.replaceA) a.material = commit.materialA;
+                if (commit.replaceB) b.material = commit.materialB;
+                paidA = commit.workA; paidB = commit.workB;
+                massAfterA=commit.massA;massAfterB=commit.massB;applyTransferredImpulse=commit.applyTransferredImpulse;
+                r = limitWork(r, paidA + paidB);
+                r.energyLostA = paidA; r.energyLostB = paidB;
+                r.specificEnergyA = paidA / a.sweep.mass; r.specificEnergyB = paidB / b.sweep.mass;
+                // The old witness no longer owns penetration correction. Its
+                // replacement pieces are queried again at this same TOI.
+                event.contact.penetration = 0;
+            }
+        }
         if (r.normalClosing > 0)
         {
             a.velocity += r.deltaVA; b.velocity += r.deltaVB;
@@ -307,19 +499,22 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                     impact.localPointB = detail::rotate(impact.point - b.pose.position, -b.pose.yaw);
                     impact.localNormalA = detail::rotate(impact.normal, -a.pose.yaw);
                     impact.localNormalB = detail::rotate(-impact.normal, -b.pose.yaw);
-                    const auto &bodyA = bodies[event.a], &bodyB = bodies[event.b];
-                    const double ya = bodyA.yStart + (bodyA.yEnd - bodyA.yStart) * (elapsed / seconds);
-                    const double yb = bodyB.yStart + (bodyB.yEnd - bodyB.yStart) * (elapsed / seconds);
-                    impact.height = (std::max(ya - bodyA.height * .5, yb - bodyB.height * .5) +
-                                     std::min(ya + bodyA.height * .5, yb + bodyB.height * .5)) * .5;
+                    impact.height = height;
                 }
                 impact.normalClosing = std::max(impact.normalClosing, r.normalClosing);
                 impact.normalImpulse += std::max(0.0, -dot(r.deltaVA, event.contact.normal) * a.sweep.mass);
                 impact.energyLostA += r.energyLostA; impact.energyLostB += r.energyLostB;
-                impact.specificEnergyA = impact.energyLostA / a.sweep.mass;
-                impact.specificEnergyB = impact.energyLostB / b.sweep.mass;
+                impact.physicalPaidSpecificA += paidA/massBeforeA; impact.physicalPaidSpecificB += paidB/massBeforeB;
+                impact.specificEnergyA += r.specificEnergyA;
+                impact.specificEnergyB += r.specificEnergyB;
             }
         }
+        if(applyTransferredImpulse)applyTransferredImpulse(r);
+        const auto refreshMass=[](frame_detail::Proxy&p,double mass){
+            if(mass<0||!std::isfinite(mass))return;
+            p.hull.inertia*=mass/p.sweep.mass;p.sweep.mass=mass;
+        };
+        refreshMass(a,massAfterA);refreshMass(b,massAfterB);
         if (event.contact.penetration > frame_detail::tolerance(a, b))
             frame_detail::project(a, b, event.contact, frame_detail::tolerance(a, b) * 4);
     }
@@ -337,10 +532,10 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                     !frame_detail::verticalInterval(bodies[i], bodies[j], elapsed, 0, seconds, lo, hi)) continue;
                 if (!detail::sweptRadiusOverlap(b.pose.position - a.pose.position, {},
                                                 a.hull.radius, b.hull.radius)) continue;
-                const auto wa = detail::world(a.hull, a.pose), wb = detail::world(b.hull, b.pose);
-                const auto q = detail::query(wa, wb);
+                frame_detail::predict(a, 0); frame_detail::predict(b, 0);
+                const auto q = frame_detail::nextPair(bodies[i], bodies[j], a, b, seconds, 0, seconds, limits).contact;
                 const double tol = frame_detail::tolerance(a, b);
-                if (!(q.separation < -tol)) continue;
+                if (!q.hit || !(q.separation < -tol)) continue;
                 overlap = true;
                 if (pass < limits.positionIterations)
                     frame_detail::project(a, b, {true, 0, {}, q.normal, -q.separation, false, q.separation}, tol * 4);

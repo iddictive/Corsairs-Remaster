@@ -1,6 +1,7 @@
 #include "ship.h"
 #include "ship_laser_geometry.hpp"
 #include "ship_hull_material.hpp"
+#include "ship_hull_contact_geometry.hpp"
 #include "geometry_work_budget.hpp"
 #include "phonk_targeting.hpp"
 #include "ship_hull_damage_bridge.hpp"
@@ -162,6 +163,12 @@ GEOS *fragmentGeometry(MODEL *model, const std::string &name)
 {
     auto *node = model ? (name.empty() ? model->GetNode(0) : model->FindNode(name.c_str())) : nullptr;
     return isPhysicalHullNode(node)?node->geo:nullptr;
+}
+bool traceFragmentMaterial(GEOS&geometry,const LaserFragment&piece,uint64_t owner,
+                           storm_ship_hull::Vec3 from,storm_ship_hull::Vec3 to,float&fraction,storm_ship_hull::Vec3&normal)
+{
+    if(piece.physical)return storm::ship::material::convex::traceBody(*piece.physical,from,to,fraction,normal);
+    return geometry.TraceLaserFragment(owner,piece.generation,piece.token,from,to,fraction,normal);
 }
 void rememberBinding(LaserState &state, NODE *node, unsigned planes)
 {
@@ -461,6 +468,7 @@ bool SHIP::EnsureHullMaterial()
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     using namespace storm::ship::material;
     auto*model=GetModel();auto*character=GetACharacter();if(!model||!character)return false;
+    ConfigureHullContactFrame(model->GetNode(0));
     if(phonkLaser.materialReady&&phonkLaser.materialRevision&&!character->FindAClass(character,"Ship.HullMaterial")&&!phonkLaser.materialResetPending){
         CancelPhonkLaserWork();phonkLaser.materialSavePending=false;phonkLaser.materialResetPending=true;phonkLaser.materialPendingRevision=phonkLaser.materialRevision+1;}
     if(phonkLaser.materialSavePending){SaveHullMaterial();if(phonkLaser.materialSavePending)return false;}
@@ -635,13 +643,40 @@ bool SHIP::StartPhonkLaserWork() try
         if(!clipped.loops.empty())for(const auto&point:clipped.loops.front())work.contour.emplace_back(point.x,point.y,point.z);}
     if (work.contour.size() < 3) work.contour.clear();
     unsigned nodes = 0;
+    std::vector<NODE*> affected, supportReceivers;
     for (int n = 0; auto *node = model->GetNode(n); ++n)
-        if (isPhysicalHullNode(node) && (!IsAuthoredMastNode(node) || !plane.beams.empty())) ++nodes;
+        if (isPhysicalHullNode(node) && (!IsAuthoredMastNode(node) || !plane.beams.empty())) {
+            ++nodes;
+            bool intersects=plane.beams.empty()||work.request.releaseOnly;
+            if(!intersects){
+                GEOS::INFO info{};node->geo->GetInfo(info);
+                storm_ship_laser::Bounds box;bool first=true;
+                for(unsigned corner=0;corner<8;++corner){
+                    CVECTOR point(info.boxcenter.x+((corner&1)?1.f:-1.f)*info.boxsize.x*.5f,
+                        info.boxcenter.y+((corner&2)?1.f:-1.f)*info.boxsize.y*.5f,
+                        info.boxcenter.z+((corner&4)?1.f:-1.f)*info.boxsize.z*.5f),local;
+                    model->mtx.MulToInv(node->glob_mtx*point,local);
+                    const storm_ship_laser::Vec3 p{local.x,local.y,local.z};
+                    if(first){box={p,p};first=false;}else {
+                        box.lo={std::min(box.lo.x,p.x),std::min(box.lo.y,p.y),std::min(box.lo.z,p.z)};
+                        box.hi={std::max(box.hi.x,p.x),std::max(box.hi.y,p.y),std::max(box.hi.z,p.z)};
+                    }
+                }
+                for(const auto&beam:plane.beams)if(storm_ship_hull::overlaps(box,storm_ship_laser::beamBounds(beam))){intersects=true;break;}
+            }
+            if(intersects)affected.push_back(node);
+        }
+    work.physicalNodes=nodes;
+    for(auto*node:affected)if(IsAuthoredMastNode(node))for(auto*ancestor=node->parent;ancestor;ancestor=ancestor->parent)
+        if(isPhysicalHullNode(ancestor)&&std::find(affected.begin(),affected.end(),ancestor)==affected.end()&&std::find(supportReceivers.begin(),supportReceivers.end(),ancestor)==supportReceivers.end())supportReceivers.push_back(ancestor);
     const unsigned budget = std::max(storm_hull_damage::MaxFragmentGroups, nodes);
     for (int n = 0; auto *node = model->GetNode(n); ++n)
     {
         if (!isPhysicalHullNode(node) || (IsAuthoredMastNode(node) && plane.beams.empty())) continue;
+        const bool supportOnly=std::find(affected.begin(),affected.end(),node)==affected.end();
+        if(supportOnly&&std::find(supportReceivers.begin(),supportReceivers.end(),node)==supportReceivers.end())continue;
         LaserCutTarget target; target.node = n; target.name = node->GetName() ? node->GetName() : ""; target.local = node->loc_mtx;
+        target.supportOnly=supportOnly;
         storm_ship_laser::SupportSpan span; const storm_ship_laser::SupportSpan *support = nullptr;
         if (!plane.beams.empty()) for (const auto &mast : pMasts) if (!mast.bBroken && mast.pNode == node)
         {
@@ -688,9 +723,11 @@ bool SHIP::StartPhonkLaserWork() try
             unsigned remaining = budget;
             for (auto &target : work.targets) {
                 if (cancel->load(std::memory_order_relaxed)) return std::move(work);
+                if(target.supportOnly)continue;
                 work.failedNode=target.node;work.failure="prepare";
                 target.input.fragmentLimit = std::min(target.input.fragmentLimit, remaining);
                 if (!(target.input.fingerprint?storm::ship::material::prepare(target.input,target.projection):storm_ship_laser::prepare(target.input, target.projection))) return std::move(work);
+                if(target.node==0&&target.input.fingerprint)storm::ship::material::prepareContactProjection(target.input,target.projection,target.input.contactTransform);
                 if (target.node == 0 && !target.projection.result.changed && work.request.plane.beams.empty() && !work.request.releaseOnly) return std::move(work);
                 const auto produced = unsigned(target.projection.result.fragments.size());
                 if (produced > remaining){work.failure="fragment-budget";return std::move(work);}
@@ -735,10 +772,94 @@ bool SHIP::StartPhonkLaserWork() try
 }
 catch (const std::exception &) { return false; }
 
+bool SHIP::PrepareHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta,
+                                  const CMatrix&nodeToModel,const CMatrix&eventWorld,const CVECTOR&eventVelocity,
+                                  float eventYawVelocity,double preEditMassKg,double beforeRetainedVolume) try
+{
+    using namespace storm::ship::phonk;
+    if(!delta||phonkLaser.contactTransfer||delta->released.size()>storm_hull_damage::MaxFragmentGroups)return false;
+    auto*model=GetModel();auto*root=model?model->GetNode(0):nullptr;
+    if(!root||!root->geo)return false;
+    if(!delta->released.empty()&&(!EnsureCutFragments()||!(preEditMassKg>0.)||!(beforeRetainedVolume>0.)||!std::isfinite(preEditMassKg)||!std::isfinite(beforeRetainedVolume)))return false;
+    std::vector<LaserFragment> prepared;prepared.reserve(delta->released.size());
+    double releasedMass=0.;
+    for(size_t index=0;index<delta->released.size();++index){
+        const auto&body=delta->released[index];
+        if(!(body.volume>0.)||!std::isfinite(body.volume)||!std::isfinite(body.surfaceArea))return false;
+        LaserFragment piece;piece.node=root->GetName()?root->GetName():"";
+        piece.token=phonkLaser.contactToken+index;piece.generation=root->geo->GeometryGeneration();
+        piece.world=eventWorld*nodeToModel;piece.time=phonkLaser.time;
+        piece.center=CVECTOR(body.centroid.x,body.centroid.y,body.centroid.z);
+        piece.contactOrigin=eventWorld.Pos();
+        piece.velocity=eventVelocity+(CVECTOR(0.f,eventYawVelocity,0.f)^(piece.world*piece.center-piece.contactOrigin));
+        piece.spin=CVECTOR(0.f,eventYawVelocity,0.f);piece.surfaceArea=float(body.surfaceArea);
+        const float scale=fragmentScale(piece.world);
+        if(!(scale>0.f))return false;
+        piece.mass=float(preEditMassKg*body.volume/beforeRetainedVolume);
+        if(!(piece.mass>0.f)||!std::isfinite(piece.mass))return false;
+        releasedMass+=piece.mass;if(releasedMass>preEditMassKg*(1.+1.e-6))return false;
+        const CVECTOR lo(body.bounds.lo.x,body.bounds.lo.y,body.bounds.lo.z),hi(body.bounds.hi.x,body.bounds.hi.y,body.bounds.hi.z),center=(lo+hi)*.5f;
+        std::array<storm_ship_hull::Vec3,14>support;
+        for(unsigned corner=0;corner<8;++corner)piece.support[corner]=CVECTOR((corner&1)?hi.x:lo.x,(corner&2)?hi.y:lo.y,(corner&4)?hi.z:lo.z);
+        piece.support[8]=CVECTOR(lo.x,center.y,center.z);piece.support[9]=CVECTOR(hi.x,center.y,center.z);
+        piece.support[10]=CVECTOR(center.x,lo.y,center.z);piece.support[11]=CVECTOR(center.x,hi.y,center.z);
+        piece.support[12]=CVECTOR(center.x,center.y,lo.z);piece.support[13]=CVECTOR(center.x,center.y,hi.z);
+        piece.radiusSquared=.25f;
+        for(unsigned n=0;n<support.size();++n){const auto&p=piece.support[n];support[n]={p.x,p.y,p.z};piece.radiusSquared=std::max(piece.radiusSquared,~(p-piece.center));}
+        piece.contactShape=storm::ship::fragment_contact::makeProxy(support);
+        if(!piece.contactShape.valid())return false;
+        piece.timber=storm::ship::fragment_contact::timberBuoyancy({hi.x-lo.x,hi.y-lo.y,hi.z-lo.z});
+        piece.physical=std::shared_ptr<const storm::ship::material::convex::Body>(delta,&body);
+        piece.transfer=delta;piece.transferIndex=index;prepared.push_back(std::move(piece));
+    }
+    phonkLaser.fragments.reserve(phonkLaser.fragments.size()+prepared.size());
+    phonkLaser.contactBodies=std::move(prepared);phonkLaser.contactTransfer=delta;
+    return true;
+}
+catch(const std::exception&){return false;}
+
+void SHIP::CommitHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta) noexcept
+{
+    if(phonkLaser.contactTransfer!=delta)return;
+    for(auto&piece:phonkLaser.contactBodies)phonkLaser.fragments.push_back(std::move(piece));
+    phonkLaser.contactToken+=phonkLaser.contactBodies.size();
+    phonkLaser.contactBodies.clear();phonkLaser.contactTransfer.reset();
+}
+
+void SHIP::DiscardHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta) noexcept
+{
+    if(phonkLaser.contactTransfer!=delta)return;
+    phonkLaser.contactBodies.clear();phonkLaser.contactTransfer.reset();
+}
+
+void SHIP::ApplyHullContactBodyImpulse(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta,
+                                     const CVECTOR&velocity,float yaw)
+{
+    for(auto&piece:phonkLaser.fragments)if(piece.transfer==delta){
+        piece.velocity+=velocity+(CVECTOR(0.f,yaw,0.f)^(piece.world*piece.center-piece.contactOrigin));
+        piece.spin.y+=yaw;
+    }
+}
+
 void SHIP::PollPhonkLaserWork(uint32_t delta)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if (!delta) return;
+    if(auto*model=GetModel())for(int n=0;auto*node=model->GetNode(n);++n)if(isPhysicalHullNode(node)){
+        std::shared_ptr<const storm::ship::material::convex::PhysicalDelta> transfer;
+        storm_ship_laser::Result result;
+        if(!node->geo->TakeHullContactResult(transfer,result))continue;
+        for(size_t index=0;index<result.fragments.size();++index){
+            const auto found=std::find_if(phonkLaser.fragments.begin(),phonkLaser.fragments.end(),[&](const auto&piece){return piece.transfer==transfer&&piece.transferIndex==index;});
+            if(found==phonkLaser.fragments.end()){node->geo->ReleaseLaserFragment(uint64_t(blots_id),result.fragments[index].fragment);continue;}
+            const auto&body=result.fragments[index];
+            found->token=body.fragment;found->generation=node->geo->GeometryGeneration();found->surfaceArea=body.surfaceArea;
+            found->contactShape=storm::ship::fragment_contact::makeProxy(body.support);
+            for(unsigned p=0;p<found->support.size();++p)found->support[p]=CVECTOR(body.support[p].x,body.support[p].y,body.support[p].z);
+            found->physical.reset();found->transfer.reset();
+        }
+        phonkLaser.materialSavePending=true;
+    }
     if(auto*model=GetModel();model&&phonkLaser.materialReady){bool pending=false,available=false;for(int n=0;auto*node=model->GetNode(n);++n)if(isPhysicalHullNode(node)&&node->geo->HasDeferredHullSections()){pending=true;available|=node->geo->HullFragmentAllowance()>0;}
         if(!pending)phonkLaser.deferredRelease.reset();
         else{if(!phonkLaser.deferredRelease){storm::ship::phonk::LaserCutRequest request;request.plane.normal=CVECTOR(0.f,1.f,0.f);request.owner=phonkLaser.floodOwner;request.releaseOnly=true;request.payPartialDamage=false;phonkLaser.deferredRelease=std::move(request);}
@@ -765,7 +886,7 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
             size_t count = 0;
             if (identity) for (int n = 0; auto *node = model->GetNode(n); ++n)
                 if (isPhysicalHullNode(node) && (!IsAuthoredMastNode(node) || !work.request.plane.beams.empty())) ++count;
-            identity = identity && count == work.targets.size();
+            identity = identity && count == work.physicalNodes;
             for (const auto &target : work.targets)
             {
                 auto *node = identity ? model->GetNode(target.node) : nullptr;
@@ -790,16 +911,17 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                 if (!identity) break;
                 geometries.push_back(node->geo);
             }
-            bool valid = work.valid && identity && !rebuilding && !work.targets.empty();
+            bool valid = work.valid && identity && !rebuilding;
             bool changed = false;
             if (valid) for (size_t n = 0; n < geometries.size(); ++n)
             {
+                if(work.targets[n].supportOnly)continue;
                 if (!geometries[n]->StageLaserProjection(uint64_t(blots_id), std::move(work.targets[n].projection), work.targets[n].result)) { valid = false;work.failedNode=work.targets[n].node;work.failure="stage-publication";break; }
                 changed = changed || work.targets[n].result.changed || work.targets[n].result.stateChanged || work.targets[n].result.supportSevered;
             }
             if (valid)
             {
-                for (auto *geometry : geometries) geometry->CommitLaserProjection(uint64_t(blots_id));
+                for (size_t n=0;n<geometries.size();++n)if(!work.targets[n].supportOnly)geometries[n]->CommitLaserProjection(uint64_t(blots_id));
                 for(auto &target:work.targets)if(target.input.hasSupport){
                     auto binding=std::find_if(phonkLaser.bindings.begin(),phonkLaser.bindings.end(),[&](const auto &entry){return entry.node==target.name;});
                     if(binding==phonkLaser.bindings.end()){phonkLaser.bindings.push_back({target.name});binding=std::prev(phonkLaser.bindings.end());}
@@ -1130,6 +1252,12 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
             core.Send_Message(sailors, "laffffl", MSG_PEOPLES_ON_SHIP_HULLCUT,
                 GetACharacter(), plane.normal.x, plane.normal.y, plane.normal.z,
                 plane.beams.empty() ? plane.distance : float(phonkLaser.cuts.size() - 1), int32_t(plane.beams.empty() ? plane.charred : phonkLaser.materialReady?3:2));
+        if(plane.charred&&!plane.beams.empty()){
+            const auto deepest=std::max_element(plane.beams.begin(),plane.beams.end(),[](const auto&a,const auto&b){return a.depth<b.depth;});
+            float depth=0.f;for(const auto&beam:plane.beams)depth+=beam.depth;
+            const auto&start=deepest->start;
+            IgniteShipFire(modelWorld*CVECTOR(start[0],start[1],start[2]),std::min(1.f,depth*.2f),sourceOwner,false);
+        }
         PublishHullCut(payPartialDamage ? removed : 0.f, plane.charred);
     }
     return true;
@@ -1194,7 +1322,7 @@ SHIP_CUT_FRAGMENTS::Hit SHIP_CUT_FRAGMENTS::Trace(const CVECTOR &from, const CVE
             { lo.v[n] = std::min(lo.v[n], p.v[n]); hi.v[n] = std::max(hi.v[n], p.v[n]); }
             if (!storm_ship_hull::rayBounds({{lo.x,lo.y,lo.z},{hi.x,hi.y,hi.z}}, {a.x,a.y,a.z}, {b.x,b.y,b.z})) continue;
             float fraction = 2.f; storm_ship_hull::Vec3 normal;
-            if (!geometry->TraceLaserFragment(group.owner, piece.generation, piece.token,
+            if (!traceFragmentMaterial(*geometry,piece,group.owner,
                 {a.x,a.y,a.z}, {b.x,b.y,b.z}, fraction, normal) || fraction >= nearest.fraction) continue;
             nearest = {uint64_t(group.model), group.owner, piece.token, piece.generation, piece.node, fraction,
                 a + (b-a)*fraction, CVECTOR(normal.x,normal.y,normal.z)};
@@ -1205,7 +1333,8 @@ SHIP_CUT_FRAGMENTS::Hit SHIP_CUT_FRAGMENTS::Trace(const CVECTOR &from, const CVE
 
 bool SHIP_CUT_FRAGMENTS::Queue(const Hit &hit, const storm_ship_laser::Plane &plane)
 {
-    if (!Find(hit) || plane.beams.empty() || !storm_ship_laser::valid(plane)) return false;
+    const auto*piece=Find(hit);
+    if (!piece || piece->physical || plane.beams.empty() || !storm_ship_laser::valid(plane)) return false;
     for (auto &request : requests)
         if (request.hit.model == hit.model && request.hit.owner == hit.owner && request.hit.token == hit.token &&
             request.hit.generation == hit.generation && request.hit.node == hit.node && request.plane.charred == plane.charred)
@@ -1471,7 +1600,7 @@ void SHIP_CUT_FRAGMENTS::Blast(const CVECTOR &center,float radius)
         for(const auto &point:piece.support)reach=std::max(reach,std::sqrt(~(point-piece.center))+.01f);
         const auto from=piece.center-axis*reach,to=piece.center+axis*reach;
         float fraction=2.f;storm_ship_hull::Vec3 normal;
-        if(!geometry->TraceLaserFragment(group.owner,piece.generation,piece.token,
+        if(!traceFragmentMaterial(*geometry,piece,group.owner,
             {from.x,from.y,from.z},{to.x,to.y,to.z},fraction,normal))continue;
         Hit hit{uint64_t(group.model),group.owner,piece.token,piece.generation,piece.node,fraction,
             from+(to-from)*fraction,CVECTOR(normal.x,normal.y,normal.z)};
@@ -1785,25 +1914,36 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     if (phonkLaser.structuralFailure && !phonkLaser.failureReported)
         PublishHullCut(0.f, false);
     const float seconds = deltaTime * .001f;
-    const auto commitBeam = [&](bool releaseRejected = false) {
-        if (phonkLaser.pendingBeam.empty()) return true;
+    const auto submitDose = [&](uint64_t contact,bool world,const auto &beams) {
         const int32_t owner = int32_t(GetACharacter()->GetAttributeAsDword("index"));
-        bool admitted = false;
-        if (phonkLaser.pendingWorld)
-        { if (pIsland) admitted = pIsland->CutWorldBeam(phonkLaser.pendingContact, phonkLaser.pendingBeam, owner); }
-        else if (auto *receiver = dynamic_cast<SHIP *>(core.GetEntityPointer(phonkLaser.pendingContact)); receiver && receiver->bMounted)
+        if(world)return !pIsland||pIsland->CutWorldBeam(contact,beams,owner);
+        if (auto *receiver = dynamic_cast<SHIP *>(core.GetEntityPointer(contact)); receiver && receiver->bMounted)
         {
-            LaserPlane field; field.beams = phonkLaser.pendingBeam;
+            LaserPlane field; field.beams = beams;
             const auto &direction = field.beams.front().direction;
             field.normal = CVECTOR(direction[0], direction[1], direction[2]);
             // A permanently full receiver must not retain this shooter's dose
             // forever and disable every later target. Temporary queue/fragment
             // pressure still retains the pending dose for its original owner.
             if (!receiver->phonkLaser.materialReady&&!storm_hull_damage::canAppendCut(receiver->phonkLaser.cuts, field.beams.size()))
-            { phonkLaser.pendingBeam.clear(); phonkLaser.burn = 0.f; return true; }
-            admitted = receiver->ApplyPhonkLaserCut(field, false, owner, GetACharacter());
+                return true;
+            return receiver->ApplyPhonkLaserCut(field, false, owner, GetACharacter());
         }
-        else { phonkLaser.pendingBeam.clear(); phonkLaser.burn = 0.f; return true; } // receiver unloaded
+        return true; // The exact receiver was unloaded; never apply it elsewhere.
+    };
+    // Retained doses belong to their receiver, not to the visible aim. A full
+    // ship queue must not pin a later shot at another ship or at the ground.
+    for(size_t n=phonkLaser.pendingDoses.size();n;--n){
+        auto dose=std::move(phonkLaser.pendingDoses.front());phonkLaser.pendingDoses.pop_front();
+        if(!submitDose(dose.target,dose.world,dose.beams))phonkLaser.pendingDoses.push_back(std::move(dose));
+    }
+    const auto commitBeam = [&](bool releaseRejected = false) {
+        if (phonkLaser.pendingBeam.empty()) return true;
+        bool admitted=submitDose(phonkLaser.pendingContact,phonkLaser.pendingWorld,phonkLaser.pendingBeam);
+        if(!admitted&&!releaseRejected&&phonkLaser.pendingDoses.size()<storm_hull_damage::MaxSplitPlanes){
+            phonkLaser.pendingDoses.push_back({phonkLaser.pendingContact,phonkLaser.pendingWorld,std::move(phonkLaser.pendingBeam)});
+            admitted=true;
+        }
         if (admitted || releaseRejected) { phonkLaser.pendingBeam.clear(); phonkLaser.burn = 0.f; }
         return admitted || releaseRejected;
     };
@@ -1866,9 +2006,8 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     }
     if (!phonkLaser.rays.empty()) phonkLaser.beamAge = 0.f;
     phonkLaser.triggerAge += seconds;
-    if (!phonkLaser.stroke&&phonkLaser.sampleClock < laserSampleTime) return;
-    const float sampleTime = phonkLaser.stroke?0.f:std::min(phonkLaser.sampleClock,storm_hull_damage::MaxBeamDepth/4.f);
-    if(!phonkLaser.stroke)phonkLaser.sampleClock -= sampleTime;
+    const float sampleTime = phonkLaser.stroke||phonkLaser.sampleClock<laserSampleTime?0.f:
+        std::min(phonkLaser.sampleClock,storm_hull_damage::MaxBeamDepth/4.f);
     const std::optional<LaserRay> previousRay=phonkLaser.rays.empty()?std::nullopt:std::optional<LaserRay>(phonkLaser.rays.front());
     CMatrix view;
     pRS->GetTransform(storm_render::TransformView, view);
@@ -1995,7 +2134,6 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
                 storm_hull_damage::BeamSample sample;sample.start={physical.localHit.x,physical.localHit.y,physical.localHit.z};sample.direction={directionLocal.x,directionLocal.y,directionLocal.z};const auto tangent=storm_ship_laser::beamTangent(sample);sample.tangent={tangent.x,tangent.y,tangent.z};sample.depth=delivered*4.f;
                 if(storm_ship_laser::valid(sample)){
                     phonkLaser.pendingContact=hitTarget;phonkLaser.pendingWorld=bool(hitWorld);storm_ship_laser::continueBeamDose(sample,phonkLaser.pendingBeam);phonkLaser.pendingBeam.push_back(std::move(sample));phonkLaser.burn+=delivered;
-                    if(hitShip){const auto*immortal=hitShip->GetACharacter()->FindAClass(hitShip->GetACharacter(),"chr_ai.immortal");if(!immortal||!immortal->GetAttributeAsDword())hitShip->IgniteShipFire(physical.endpoint,delivered*.8f,owner,false);}
                 }
             }
             if(epoch!=phonkLaserWork.epoch||!phonkLaser.stroke||phonkLaser.stroke->target!=stroke.target||phonkLaser.stroke->next!=stroke.next)return false;
@@ -2043,7 +2181,15 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.muzzle = GetModel()->mtx * ray.muzzle;
     phonkLaser.endpoint = ray.endpoint;
     phonkLaser.rays.push_back(ray);
+    const bool changedContact=phonkLaser.contact!=ray.target||phonkLaser.contactWorld!=ray.worldTarget;
+    phonkLaser.fragment=ray.fragment;
+    phonkLaser.contact=ray.fragment?0:ray.target;
+    phonkLaser.contactWorld=ray.worldTarget;
+    phonkLaser.lastHit=ray.localHit;
+    if(changedContact)phonkLaser.firstHit=ray.localHit;
     if(phonkLaser.stroke){drainStroke();return;}
+    if(!(sampleTime>0.f))return;
+    phonkLaser.sampleClock-=sampleTime;
     if (ray.fragment)
     {
         const auto before = phonkLaser.fragment;
@@ -2374,3 +2520,5 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
     if (!ApplyPhonkLaserCut(plane, false, otherCharacterIndex, nullptr, false, impulse, radius)) return;
     work.energy = 0.f;
 }
+
+#include "ship_contact_material_impl.hpp"

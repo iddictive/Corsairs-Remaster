@@ -21,6 +21,8 @@ struct CVECTOR;
 namespace storm_ship_hull {struct Impact;struct Vec3;}
 namespace storm_ship_laser {struct Plane;struct Result;struct Input;struct Projection;struct Fragment;struct FragmentInput;struct FragmentProjection;struct SupportSpan;}
 namespace storm_world_cut {struct Cut;struct Input;struct Projection;}
+namespace storm::ship::contact {struct MaterialSnapshot;}
+namespace storm::ship::material::convex {struct ContactSnapshot;struct ContactEdit;struct PhysicalDelta;}
 #endif
 
 class GEOS
@@ -109,6 +111,15 @@ class GEOS
     // Poll/queue one combined cannon+laser reconstruction; true only when applied.
     virtual bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) { return planes.empty(); }
     virtual bool PrepareHullMaterial(uint64_t) { return false; }
+    virtual bool SetHullContactTransform(uint64_t,const std::array<double,12>&) { return false; }
+    virtual bool GetHullContactSnapshot(uint64_t,storm::ship::material::convex::ContactSnapshot&,
+        std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) const { return false; }
+    virtual bool PrepareHullContactEdit(uint64_t,const storm_ship_laser::Plane&,uint64_t,
+        storm::ship::material::convex::ContactEdit&,std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) const { return false; }
+    virtual bool CommitHullContactEdit(uint64_t,const storm::ship::material::convex::ContactEdit&,
+        const std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) { return false; }
+    virtual bool TakeHullContactResult(std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,
+        storm_ship_laser::Result&) { return false; }
     virtual bool RestoreHullMaterial(uint64_t,uint64_t,const std::string&) { return false; }
     virtual bool RestoreHullMaterial(uint64_t owner,uint64_t revision,const std::string&payload,const std::vector<storm_ship_laser::Plane>&tail) { return tail.empty()&&RestoreHullMaterial(owner,revision,payload); }
     virtual const std::vector<storm_ship_laser::Plane>& HullMaterialTail() const { static const std::vector<storm_ship_laser::Plane>empty;return empty; }
@@ -139,7 +150,7 @@ class GEOS
     virtual void ReleaseLaserFragment(uint64_t owner,uint64_t fragment)=0;
     virtual void ClearLaserCuts(uint64_t owner)=0;
     virtual bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false)=0;
-    virtual bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input)=0;
+    virtual bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged=false)=0;
     virtual bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const=0;
     virtual bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection)=0;
     virtual void CommitWorldProjection(uint64_t owner)=0;

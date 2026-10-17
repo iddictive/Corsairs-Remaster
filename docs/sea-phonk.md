@@ -104,7 +104,7 @@ incrementally. The pending queue stays bounded at8; only64 recent dose records
 remain, while a bounded128MiB two-slot checkpoint owns persistent geometry.
 Legacy world SAVE1/2 restores before new work; SAVE3 stores retained checkpoints.
 Fort, flag, grass and ground-support queries consume the same retained state.
-First-source solidification and current-mesh encoding/upload remain real costs;
+First-source capture and the changed receiver's current-mesh encoding/upload remain real costs;
 neither this source change nor the queue bound proves player-visible drilling
 or an FPS gain.
 
@@ -115,6 +115,31 @@ Accepted failed fields stay in the existing queue behind revision/topology
 fences; unchanged failures do not replay or flood the log. Phase-specific
 rejections distinguish the first-hole pipeline. These fixes close identified
 source regressions, not proof of the player's previously absent terrain hole.
+
+The October17 player replay still rejects terrain excavation. The source route
+previously transformed a terrain dose for every scene node before filtering its
+bounds, so an unrelated nonuniform architectural node could veto a valid ground
+hit. It also triangulated a full10,032m column section before clipping that
+section to the finite bore, then rescanned the whole outer GM for every sample
+and cutter face. The correction checks authored world bounds before local-field
+conversion. Unchanged receivers reuse their published checkpoint and accepted
+cap coverage; the complete identity/save manifest remains authoritative, while
+only affected receivers prepare and upload geometry.
+
+Terrain's first section now uses `prismSection` with all finite cutter limits
+before planar union. Already-cut cells use the shared finite-limits-first
+`solidSectionCaps` kernel. Internal cell faces stay eligible; the current visible
+outer/cavity masks remove genuinely existing coplanar walls. A cached outer BVH
+selects source faces, their clipped descendants stay beneath those same bounds
+through one admitted batch, and assembly/indexing happens after the batch.
+Only intersecting cavity patches are clipped or considered as masks. CMW2 and
+legacy SAVE imports retain their wire contracts; the indexes and bounds are
+derived. This adapts the existing convex local-carving owner described in
+[Cracking destruction](https://blog.voxagon.se/2014/05/13/cracking-destruction.html),
+without replacing volumetric land with a hollow shell. Source checks and the
+canonical build cannot accept this change: a player must observe progressive
+ground removal at the actual contact, matching collision and preserved adjacent
+terrain after save/reload.
 
 While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped
 `Phonk_Laser`/`Phonk_Nuclear` controls and publishes the selection in
@@ -239,8 +264,9 @@ predecessor's ship history has
 512 cost units: a finite record costs its actual sample count, and a legacy plane
 costs16. Thus legacy splits remain capped at32 while single-sample doses can use
 up to512 ordered records. Each record still holds at most16 samples; the separate
-pending-job limit remains32 and active fragment buffers remain256. World history
-keeps its64-record limit. More small ship operations can increase cumulative
+pending-job limit remains32 and active fragment buffers remain256. That predecessor
+also capped world history at64; the current retained world owner is described
+above. More small ship operations can increase cumulative
 preparation/replay cost; this change is not a measured FPS improvement.
 
 Completed worker snapshots validate unchanged node identity/generation/revision,

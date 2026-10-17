@@ -325,6 +325,13 @@ class SHIP : public SHIP_BASE
     BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) override;
     unsigned GetHullContourRevision() const override { return phonkLaser.contourRevision; }
     bool GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, float &upper) override;
+    bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&) const override;
+    bool CommitHullContactBreak(const HULL_CONTACT_BREAK&,HULL_CONTACT_BREAK_RESULT&) override;
+    void ConfigureHullContactFrame(NODE*);
+    bool PrepareHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,const CMatrix&,const CMatrix&,const CVECTOR&,float,double,double);
+    void CommitHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&) noexcept;
+    void DiscardHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&) noexcept;
+    void ApplyHullContactBodyImpulse(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,const CVECTOR&,float) override;
     bool IsHullPositionRetained(const CVECTOR &localPosition) const override;
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;

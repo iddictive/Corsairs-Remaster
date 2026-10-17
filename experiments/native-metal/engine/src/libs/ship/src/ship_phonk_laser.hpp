@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+namespace storm::ship::material::convex { struct Body; struct PhysicalDelta; }
+
 namespace storm::ship::phonk
 {
 struct LaserPlane
@@ -41,6 +43,10 @@ struct LaserFragment
     float radiusSquared = 1.f, age = 0.f, wetAge = 0.f;
     float surfaceArea = 0.f, mass = 0.f, timber = 0.f;
     double time = 0.;
+    std::shared_ptr<const storm::ship::material::convex::Body> physical;
+    std::shared_ptr<const storm::ship::material::convex::PhysicalDelta> transfer;
+    size_t transferIndex=0;
+    CVECTOR contactOrigin=CVECTOR(0.f);
 };
 struct LaserEdge
 {
@@ -114,6 +120,7 @@ struct LaserCutTarget
     storm_ship_laser::Result result;
     std::vector<LaserMastContact> mastContacts;
     bool mastSupportReceiver = false;
+    bool supportOnly = false;
 };
 struct LaserCutWork
 {
@@ -123,6 +130,7 @@ struct LaserCutWork
     std::vector<LaserCutTarget> targets;
     std::vector<CVECTOR> originalContour, contour, originalKeel;
     float originalArea = 0.f;
+    unsigned physicalNodes = 0;
     bool valid = false;
     int failedNode=-1;
     std::string failure;
@@ -145,8 +153,17 @@ struct LaserStroke
     float seconds=0.f;
     uint32_t steps=1,next=0;
 };
+struct LaserDose
+{
+    uint64_t target=0;
+    bool world=false;
+    std::vector<storm_hull_damage::BeamSample> beams;
+};
 struct LaserState
 {
+    std::vector<LaserFragment> contactBodies;
+    std::shared_ptr<const storm::ship::material::convex::PhysicalDelta> contactTransfer;
+    uint64_t contactToken=uint64_t(1)<<63;
     double time = 0.; // native Execute clock; transient, never saved
     float reload = 0.f, beamAge = 1.f;
     float burn = 0.f, triggerAge = 0.f, sampleClock = 0.f;
@@ -159,6 +176,7 @@ struct LaserState
     std::vector<storm_hull_damage::BeamSample> pendingBeam;
     uint64_t pendingContact = 0;
     bool pendingWorld = false;
+    std::deque<LaserDose> pendingDoses;
     std::optional<LaserStroke> stroke; // One admitted interval; transient, never SAVE history.
     std::optional<LaserCutRequest> deferredRelease;
     float charge = 1.f;

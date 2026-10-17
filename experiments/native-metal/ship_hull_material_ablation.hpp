@@ -1,6 +1,7 @@
 #pragma once
 #include "ship_laser_geometry.hpp"
 #include "ship_hull_structure.hpp"
+#include "ship_hull_convex_material.hpp"
 
 // Thermal removal and structural failure have different thresholds. This
 // subtracts only the finite delivered fields from current material; graph
@@ -29,11 +30,13 @@ inline Vec3 fieldOrigin(const BeamSample&beam){return beamStart(beam);}
 inline Vec3 fieldOrigin(const ConvexField&field){return field.origin;}
 inline bool fieldCharred(const BeamSample&){return true;}
 inline bool fieldCharred(const ConvexField&field){return field.charred;}
-// The BVH is rebuilt once per batch/role, not once per halfspace. Only queried
-// triangles enter the planar Boolean; untouched triangles are linear copies.
+inline const FaceIndex*cachedRoleIndex(const Surface&surface,unsigned role){if(!surface.roleIndex)return nullptr;const auto&identity=surface.roleIndex->identity[role];const auto&mesh=surfaceRole(surface,role);if(identity.size()!=mesh.size())return nullptr;size_t n=0;for(const auto&o:mesh){const auto&key=identity[n++];if(std::get<0>(key)!=o.first||std::get<1>(key)!=o.second.data()||std::get<2>(key)!=o.second.size())return nullptr;}return &surface.roleIndex->index[role];}
+inline void prepareRoleIndices(Surface&surface){auto result=std::make_shared<SurfaceRoleIndex>();for(unsigned role=0;role<4;++role){const auto&mesh=surfaceRole(surface,role);result->index[role]=indexFaces(mesh);for(const auto&o:mesh)result->identity[role].emplace_back(o.first,o.second.data(),o.second.size());}surface.roleIndex=std::move(result);}
+// Cached role BVHs select the only polygons entering the local halfspace work.
+// Imported uncached surfaces build an index once in their preparation worker.
 template<class Field>inline bool cutRole(const Mesh&source,const std::vector<Field>&beams,const std::map<int,float>&wood,
-                    unsigned role,Mesh&kept,LocalResult&result){
-    const auto index=indexFaces(source);std::map<int,std::map<uint32_t,std::vector<unsigned>>>candidates;std::vector<uint32_t>nearby;
+                    unsigned role,Mesh&kept,LocalResult&result,const FaceIndex*prepared=nullptr){
+    FaceIndex local;if(!prepared)local=indexFaces(source);const auto&index=prepared?*prepared:local;std::map<int,std::map<uint32_t,std::vector<unsigned>>>candidates;std::vector<uint32_t>nearby;
     for(unsigned n=0;n<beams.size();++n){index.broadphase.queryBounds(fieldBounds(beams[n]),nearby);for(auto id:nearby){const auto ref=index.references[id];if(wood.count(ref.first))candidates[ref.first][ref.second].push_back(n);}}
     kept=source;
     for(const auto&object:candidates){auto&destination=kept[object.first];destination.clear();const auto&triangles=source.at(object.first);
@@ -78,7 +81,17 @@ inline bool newlySplit(const Input&input,const Surface&after,bool&split){
 template<class Field,class ClipCell>inline bool cutFields(const Input&input,const std::vector<Field>&fields,LocalResult&output,ClipCell clipCell){
     if(!input.surface||!input.surface->cells||fields.empty())return false;
     LocalResult next;next.kept=*input.surface;
-    for(unsigned role=0;role<4;++role)if(!cutRole(surfaceRole(*input.surface,role),fields,input.wood,role,surfaceRole(next.kept,role),next))return false;
+    for(unsigned role=0;role<4;++role)if(!cutRole(surfaceRole(*input.surface,role),fields,input.wood,role,surfaceRole(next.kept,role),next,cachedRoleIndex(*input.surface,role)))return false;
+    if(!input.surface->cells->source->prisms.empty()){
+        std::vector<convex::Cut>cuts;for(const auto&field:fields){const auto planes=fieldPlanes(field);cuts.push_back({std::vector<storm_ship_hull::Plane>(planes.begin(),planes.end()),fieldBounds(field),fieldOrigin(field),fieldCharred(field)});}
+        auto edited=convex::edit(input.surface->cells,cuts);
+        if(edited.complete){if(edited.changed.empty()){LocalResult unchanged;unchanged.kept=*input.surface;output=std::move(unchanged);return true;}if(!edited.changed.empty()){next.changed=true;for(auto id:edited.changed)if(id<edited.cells->source->prisms.size())next.changedObjects.insert(edited.cells->source->prisms[id].object);appendMesh(next.kept.finiteWalls,edited.caps);next.kept.cells=std::move(edited.cells);next.changedIDs=std::move(edited.changed);next.kept.cutters.clear();next.kept.legacy.clear();next.kept.checkpointed=true;
+                const auto outerIndex=indexFaces(input.surface->outer);std::vector<uint32_t>ids;for(const auto&field:fields){Mesh localOuter;outerIndex.broadphase.queryBounds(fieldBounds(field),ids);for(auto id:ids){const auto ref=outerIndex.references[id];if(input.wood.count(ref.first))localOuter[ref.first].push_back(input.surface->outer.at(ref.first)[ref.second]);}const auto planes=fieldPlanes(field);for(size_t side=0;side<planes.size();++side)for(auto edge:planeSeam(localOuter,planes[side]))if(clipSeam(edge,planes,side))next.seam.push_back(std::move(edge));}}
+            output=std::move(next);return true;}
+        // Imported boundaries whose one-cell decomposition exceeded its finite
+        // worker budget keep their exact existing closed-cell compatibility
+        // path. They never become pristine convex wood or a fake open corridor.
+    }
     auto cells=std::make_shared<MaterialCells>(*input.surface->cells);std::set<uint32_t>changed;Mesh walls;
     const auto outerIndex=indexFaces(input.surface->outer);std::vector<uint32_t>ids,outerIDs;
     for(const auto&beam:fields){storm_geometry_work::checkpoint(true);const auto planes=fieldPlanes(beam);const auto box=fieldBounds(beam);

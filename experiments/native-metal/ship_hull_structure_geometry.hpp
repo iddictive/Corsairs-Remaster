@@ -1,6 +1,7 @@
 #pragma once
 #include "ship_laser_geometry.hpp"
 #include "ship_hull_structure.hpp"
+#include "ship_hull_convex_material.hpp"
 #include <tuple>
 
 // A graph fracture changes ownership of actual retained boundary patches. The
@@ -45,6 +46,15 @@ inline bool contactPoint(const Triangle&a,const Triangle&b,Vec3&point){
     return false;
 }
 using FaceKey=std::tuple<unsigned,int,size_t>;
+// Actual convex material connectivity owns arbitrary within-cell separation.
+// The coarse strength lattice remains a damage model, not a topology oracle.
+inline bool releaseConnected(Surface&current,unsigned allowance,const std::map<int,float>&wood,std::vector<Surface>&pieces,bool&deferred,bool&handled){
+    handled=false;if(!current.cells)return true;auto ready=convex::ready(current.cells);if(!ready)return true;handled=true;current.cells=ready;auto groups=convex::detached(*ready->convex);const size_t count=std::min(size_t(allowance),groups.size());deferred=count<groups.size();if(!count)return true;groups.resize(count);
+    std::vector<convex::Body>bodies;for(const auto&group:groups){convex::Body body;for(auto key:group.pieces){body.sources.push_back(key.cell);body.pieces.push_back(ready->convex->cells[key.cell]->pieces->at(key.piece));}bodies.push_back(std::move(body));}
+    convex::Budget budget;auto kept=convex::take(ready,groups,budget);if(!kept)return false;std::vector<Surface>split;if(!convex::partitionSurface(current,*kept,bodies,wood,split))return false;
+    for(unsigned role=0;role<4;++role)surfaceRole(current,role)=std::move(surfaceRole(split[0],role));current.cells=std::move(kept);
+    for(size_t n=1;n<split.size();++n){current.released.push_back(std::make_shared<const Mesh>(renderMesh(split[n])));pieces.push_back(std::move(split[n]));}return true;
+}
 // Same-GEOM decorations follow only a real surviving contact with classified
 // timber. No origin/nearest-node attachment is inferred for separate children.
 inline bool decorationOwners(const Input&input,const storm_ship_structure::Layout&layout,const std::vector<uint32_t>&owner,

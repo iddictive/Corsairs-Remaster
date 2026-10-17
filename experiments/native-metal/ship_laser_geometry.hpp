@@ -10,8 +10,11 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <tuple>
 
 namespace storm_ship_structure { struct State; }
+namespace storm::ship::material::convex {struct State;struct Source;struct ContactSnapshot;struct ContactEdit;struct PhysicalDelta;}
+namespace storm::ship::contact {struct MaterialSnapshot;}
 
 // A deterministic, node-local half-space split of the actual static GM mesh.
 // Vertex interpolation/layout remain owned by ship_hull_geometry.hpp.
@@ -390,15 +393,16 @@ inline Split split(const Mesh&mesh,const Plane&p,const std::map<int,float>*wood=
 struct FaceIndex {storm_ship_hull::Broadphase broadphase;std::vector<std::pair<int,uint32_t>>references;Bounds bounds{};};
 inline FaceIndex indexFaces(const Mesh&mesh){FaceIndex result;std::vector<Bounds>boxes;for(const auto&o:mesh)for(size_t n=0;n<o.second.size();++n){storm_geometry_work::checkpoint();const auto&t=o.second[n];Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);result.references.emplace_back(o.first,uint32_t(n));}result.bounds=bounds(mesh);result.broadphase.build(boxes);return result;}
 struct SurfaceBase {Mesh outer,canonicalCaps,interior,finiteWalls;FaceIndex index;};
+struct SurfaceRoleIndex {std::array<FaceIndex,4>index;std::array<std::vector<std::tuple<int,const Triangle*,size_t>>,4>identity;};
 struct MaterialPrism {std::array<Vec3,6>vertices;int object=0;};
-struct MaterialCellSource {std::vector<std::shared_ptr<const Mesh>>solids;std::vector<Bounds>bounds;storm_ship_hull::Broadphase index;};
-struct MaterialCells {std::shared_ptr<const MaterialCellSource>source;std::map<uint32_t,std::shared_ptr<const Mesh>>changed;};
+struct MaterialCellSource {std::vector<std::shared_ptr<const Mesh>>solids;std::vector<Bounds>bounds;storm_ship_hull::Broadphase index;std::vector<MaterialPrism>prisms;};
+struct MaterialCells {std::shared_ptr<const MaterialCellSource>source;std::map<uint32_t,std::shared_ptr<const Mesh>>changed;std::shared_ptr<const storm::ship::material::convex::State>convex;};
 inline const Mesh& materialCell(const MaterialCells&cells,uint32_t id){const auto found=cells.changed.find(id);return found==cells.changed.end()?*cells.source->solids.at(id):*found->second;}
 bool timberSectionCaps(const std::vector<MaterialPrism>&,const std::vector<Plane>&,const storm_ship_hull::Plane&,const std::vector<storm_ship_hull::Plane>&,Vec3,bool,Mesh&,Mesh&);
-struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const MaterialCells>cells;std::shared_ptr<const SurfaceBase>original,supportOriginal;std::shared_ptr<const storm_ship_structure::State>structure;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;bool checkpointed=false;};
+struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const MaterialCells>cells;std::shared_ptr<const SurfaceRoleIndex>roleIndex;std::shared_ptr<const SurfaceBase>original,supportOriginal;std::shared_ptr<const storm_ship_structure::State>structure;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;bool checkpointed=false;};
 struct SupportSpan {Vec3 base{},tip{};};
-struct Input {std::shared_ptr<const Surface>surface;std::shared_ptr<const storm_ship_structure::State>structure;std::map<int,float>wood;Plane plane;unsigned fragmentLimit=0,materialTailCount=0;SupportSpan support{};bool hasSupport=false,enclosedFragments=true,structuralFragmentsOnly=false,physicalContact=true,releaseOnly=false,hasDeferredSections=false,realizeMechanicalCrush=false;double closedVolume=0,structuralArea=0;uint64_t generation=0,revision=0,materialRevision=0,fingerprint=0;};
-struct Projection {std::shared_ptr<const Surface>kept;std::shared_ptr<const storm_ship_structure::State>structure;Mesh canonical,render;std::set<int>changedObjects;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0,materialRevision=0;bool enclosedFragments=true,hasDeferredSections=false;std::string materialPayload;};
+struct Input {std::shared_ptr<const Surface>surface;std::shared_ptr<const storm_ship_structure::State>structure;std::map<int,float>wood;Plane plane;std::array<double,12>contactTransform{1,0,0,0,1,0,0,0,1,0,0,0};unsigned fragmentLimit=0,materialTailCount=0;SupportSpan support{};bool hasSupport=false,enclosedFragments=true,structuralFragmentsOnly=false,physicalContact=true,releaseOnly=false,hasDeferredSections=false,realizeMechanicalCrush=false;double closedVolume=0,structuralArea=0;uint64_t generation=0,revision=0,materialRevision=0,fingerprint=0;};
+struct Projection {std::shared_ptr<const Surface>kept;std::shared_ptr<const storm_ship_structure::State>structure;std::shared_ptr<const storm::ship::contact::MaterialSnapshot>contactPrepared;std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>contactDelta;Mesh canonical,render;std::set<int>changedObjects;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0,materialRevision=0;bool enclosedFragments=true,hasDeferredSections=false;std::string materialPayload;};
 struct FragmentInput {Input input;uint64_t owner=0,generation=0,token=0;unsigned successorLimit=0;};
 struct FragmentPiece {Fragment properties;std::shared_ptr<const Surface>surface;FaceIndex collision;};
 struct FragmentProjection {uint64_t owner=0,generation=0,token=0;bool changed=false;std::vector<FragmentPiece>successors;};
@@ -476,11 +480,17 @@ template<class Planes> inline bool subtractVolume(const Mesh&mesh,const Planes&f
         // A coincident wall whose wood lies outside this cutter remains a
         // boundary. An identical empty bore must not erase its old walls.
         if(beyond||(coplanar&&storm_ship_hull::dot(normal,face.normal)<-.999f)){far=true;break;}}if(far){outside[o.first].push_back(t);continue;}
-        std::vector<Vertex>remaining(t.begin(),t.end()),a,b;for(const auto&face:faces){linearSplit(remaining,face,a,b);remaining.swap(a);if(remaining.size()<3)break;}std::vector<Triangle>removed;storm_ship_hull::fan(remaining,removed);if(removed.empty()){outside[o.first].push_back(t);continue;}
-        if(!subtractFace(t,remaining,outside[o.first]))return false;if(affected)affected->insert(o.first);auto&in=inside[o.first];in.insert(in.end(),removed.begin(),removed.end());}}
+        std::vector<Vertex>remaining(t.begin(),t.end()),a,b;std::vector<Triangle>retained;
+        // A triangle and every intermediate halfspace intersection are convex.
+        // Emit each rejected slice while walking the cutter planes: these
+        // slices have disjoint interiors and exactly cover the difference.
+        // No general planar polygon Boolean is needed for this operation.
+        for(const auto&face:faces){linearSplit(remaining,face,a,b);storm_ship_hull::fan(b,retained);remaining.swap(a);if(remaining.size()<3)break;}
+        std::vector<Triangle>removed;storm_ship_hull::fan(remaining,removed);if(removed.empty()){outside[o.first].push_back(t);continue;}
+        auto&out=outside[o.first];out.insert(out.end(),retained.begin(),retained.end());if(affected)affected->insert(o.first);auto&in=inside[o.first];in.insert(in.end(),removed.begin(),removed.end());}}
     return true;
 }
-inline bool solidSectionCaps(const Mesh&solid,const storm_ship_hull::Plane&plane,const std::vector<storm_ship_hull::Plane>&limits,Vec3 origin,bool charred,Mesh&inside,Mesh&outside){
+inline bool solidSectionCaps(const Mesh&solid,const storm_ship_hull::Plane&plane,const std::vector<storm_ship_hull::Plane>&limits,Vec3 origin,bool charred,Mesh&inside,Mesh&outside,bool preserveCellBoundary=false){
     const auto box=bounds(solid);origin=(box.lo+box.hi)*.5f;
     origin=origin+plane.normal*(plane.distance-storm_ship_hull::dot(plane.normal,origin));
     const auto basis=storm_ship_hull::frame(plane.normal);std::vector<FaceRing>sections;
@@ -497,7 +507,7 @@ inline bool solidSectionCaps(const Mesh&solid,const storm_ship_hull::Plane&plane
     // A section touching an existing boundary is not a newly exposed wall.
     // That face already went through subtractVolume; a second cap would make
     // duplicate/opposing skins when a later beam shares the first beam's side.
-    if(!coplanar.empty()){std::vector<FacePolygon>trimmed;for(const auto&polygon:polygons){storm_geometry_work::checkpoint();auto clips=coplanar;clips.insert(clips.end(),polygon.begin()+1,polygon.end());
+    if(!preserveCellBoundary&&!coplanar.empty()){std::vector<FacePolygon>trimmed;for(const auto&polygon:polygons){storm_geometry_work::checkpoint();auto clips=coplanar;clips.insert(clips.end(),polygon.begin()+1,polygon.end());
         for(auto&ring:clips){double area=0;for(size_t n=0;n<ring.size();++n)area+=ring[n][0]*ring[(n+1)%ring.size()][1]-ring[(n+1)%ring.size()][0]*ring[n][1];if(area<0)std::reverse(ring.begin(),ring.end());}
         std::vector<FacePolygon>part;if(!differenceFaces(polygon.front(),clips,part))return false;trimmed.insert(trimmed.end(),std::make_move_iterator(part.begin()),std::make_move_iterator(part.end()));}polygons=std::move(trimmed);}
     for(const auto&polygon:polygons){storm_geometry_work::checkpoint();std::vector<Vertex>vertices;for(const auto&ring:polygon)for(const auto&p:ring){Vertex v;v.position={float(origin.x+p[0]*basis.tangent.x+p[1]*basis.bitangent.x),float(origin.y+p[0]*basis.tangent.y+p[1]*basis.bitangent.y),float(origin.z+p[0]*basis.tangent.z+p[1]*basis.bitangent.z)};v.normal=plane.normal;v.color=charred?0xff645140u:solid.begin()->second.front()[0].color;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=float(p[0])*.12f;v.uv[uv*2+1]=float(p[1])*.12f;}vertices.push_back(v);}

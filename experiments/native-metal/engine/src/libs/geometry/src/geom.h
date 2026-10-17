@@ -113,6 +113,18 @@ class GEOM : public GEOS
     std::shared_ptr<const storm_ship_laser::SurfaceBase>hullAuthoredSupport;
     std::shared_ptr<const storm_ship_structure::State>hullStructureState;
     uint64_t hullMaterialStateRevision=0;
+    std::array<double,12>hullContactTransform{1,0,0,0,1,0,0,0,1,0,0,0};
+    bool hullContactTransformSet=false,hullContactPublishing=false,hullContactRenderFailed=false;
+    uint64_t hullContactFailureCollision=0;
+    unsigned hullContactFailureAllowance=0;
+    std::shared_ptr<const storm::ship::material::convex::ContactSnapshot>hullContactState;
+    std::shared_ptr<const storm::ship::contact::MaterialSnapshot>hullContactPrepared;
+    std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>hullContactPending,hullContactCompleted;
+    storm_ship_laser::Result hullContactResult;
+    mutable TRACE_INFO hullContactTrace{};
+    mutable bool hullContactTraceValid=false;
+    float TraceHullContact(VERTEX&,VERTEX&,bool);
+    bool ClipHullContact(const PLANE*,int32_t,const VERTEX&,float,ADD_POLYGON_FUNC);
     bool CaptureHullRebuildSource();
     bool RequestHullRebuild(uint64_t,const std::vector<storm_ship_hull::Impact>&,const std::vector<storm_ship_laser::Plane>&);
     void RetireHullRebuild();
@@ -135,6 +147,8 @@ class GEOM : public GEOS
     void RebuildLaserCollision();
     std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;
     std::shared_ptr<const storm_world_cut::Material> worldMaterial;
+    std::shared_ptr<const std::string> worldCheckpoint;
+    std::shared_ptr<const std::vector<storm_world_cut::CapTriangle>> worldCoverage;
     storm_ship_laser::Mesh worldSurface;
     storm_ship_laser::Mesh worldRawOuter;
     std::vector<storm_world_cut::CapPatch>worldRawCaps;
@@ -145,6 +159,8 @@ class GEOM : public GEOS
     bool worldPrepared=false,worldTerrainModel=false;
     bool CaptureWorldSurface(bool terrainModel);
     std::unique_ptr<storm_world_cut::Projection> worldPending;
+    std::shared_ptr<const std::string> worldPendingCheckpoint;
+    std::shared_ptr<const std::vector<storm_world_cut::CapTriangle>> worldPendingCoverage;
     std::map<int,std::vector<HullDraw>> worldPendingDraws,worldPendingCapDraws;
     uint64_t worldPendingOwner=0;
 #endif
@@ -200,6 +216,15 @@ class GEOM : public GEOS
     void PollHullRebuild() override;
     bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) override;
     bool PrepareHullMaterial(uint64_t owner) override;
+    bool SetHullContactTransform(uint64_t,const std::array<double,12>&) override;
+    bool GetHullContactSnapshot(uint64_t,storm::ship::material::convex::ContactSnapshot&,
+        std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) const override;
+    bool PrepareHullContactEdit(uint64_t,const storm_ship_laser::Plane&,uint64_t,
+        storm::ship::material::convex::ContactEdit&,std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) const override;
+    bool CommitHullContactEdit(uint64_t,const storm::ship::material::convex::ContactEdit&,
+        const std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&) override;
+    bool TakeHullContactResult(std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,
+        storm_ship_laser::Result&) override;
     bool RestoreHullMaterial(uint64_t owner,uint64_t version,const std::string&payload) override;
     bool RestoreHullMaterial(uint64_t owner,uint64_t version,const std::string&payload,const std::vector<storm_ship_laser::Plane>&tail) override;
     const std::vector<storm_ship_laser::Plane>& HullMaterialTail() const override { return hullMaterialTail; }
@@ -229,7 +254,7 @@ class GEOM : public GEOS
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
-    bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input) override;
+    bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged=false) override;
     bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const override;
     bool StageWorldProjection(uint64_t owner,storm_world_cut::Projection&&projection) override;
     void CommitWorldProjection(uint64_t owner) override;

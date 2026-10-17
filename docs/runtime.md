@@ -1,8 +1,45 @@
 # Runtime state
 
-Last verified installed delivery: October17,01:07EDT, paid-local-crush/map-warm successor, signed engine `9af99327f0689e874a83abc0e1a610c840b2466d7fb6ec26b859dfb7a17acbd9`. Canonical staging exits0;523 current protected files are unchanged and239 managed receipt rows match. The precedingef3f73d3 image has player-confirmed ram fractures but rejected intermediate damage and sustained sea FPS. This successor's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October17,02:27EDT, local-material/contact successor, signed engine `150c6e9d41cce5481d7989da29adb58faa24c45d629fdccc899f7565b2ff8fa2`. Canonical staging exits0;523 protected files are unchanged and239 managed receipt rows match. The preceding9af99327 image is rejected by the player's01:09–01:18 reports. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October17,02:27 — local material and contact handoff installed; player replay pending
+
+The player rejects the01:07 image: the star sticks to an old hit, cuts arrive
+late without usable section detachment, land never opens, fire weakly damages
+the hull and resists suppression, and some impacts freeze. Source review binds
+separate failures: queued work owns visual aim; local operations capture an
+entire assembly; coarse ownership cannot express an island inside one cell;
+and rigid contact spends its impulse before delayed fracture can change it.
+
+The successor retains actual positive convex material and fine connectivity,
+with immutable worker caches and finite local halfspace carving. Strong rams
+transfer cached support ownership before detailed role/render projection;
+native CPU fragment owners precede removal from retained contact. Current event
+pose/twist, retained volume mass and a common capped impulse cross that handoff.
+Pending rays, support and Clip consume current physical material. The existing
+yaw/proxy approximation remains; this is not a continuum simulation.
+Visual aim is independent of retained doses, ground rejects unrelated receivers
+before transforms/capture and uses finite local prism sections, and fire couples
+finite fuel consumption to hull loss with finite crew suppression. See the
+[naval owner](naval-ammunition-and-damage.md#october17-local-destruction-revision),
+[contact owner](ship-wreck-contact.md#october17-contact-phase-physical-snapshot),
+[ground owner](sea-phonk.md) and [fire owner](ship-fire-and-damage.md).
+
+Two compiler attempts stop before installation on namespace lookup ambiguity
+(`overlaps`, then `Plane`); the owning headers are corrected. Canonical
+`experiments/native-metal/run.sh --stage-only` then exits0. Installed UUID is
+`0C2E0B13-DCA3-3AE9-B824-BEBCDC0503F6`, native input fingerprint
+`caac61e232ed70473cde788df19f45365c1717512680c716885b98d398667745`.
+The [delivery receipt](../.local-archives/installed-delivery/local-material-contact-20261017/result.json)
+retains every build attempt, unsigned/signed identities and unchanged523 player
+files; all239 managed rows match. Compilation/delivery accepted; arbitrary
+section release, broad partially intersected ram fallback, first ground hole,
+fire balance, sustained FPS and SAVE replay remain unresolved for the player.
+The cooperative geometry-worker allowance remains10%; synchronous contact is
+bounded by explicit candidate/graph/body budgets, not that worker allowance.
+No gameplay tests, probes or player-process control were performed.
 
 ### October17,00:48 player follow-up — some ram fractures confirmed; persistent sea FPS rejected
 

@@ -103,7 +103,7 @@ inline std::shared_ptr<const SurfaceBase> supportSource(const Mesh&authored){
 inline std::shared_ptr<const MaterialCellSource> cellSource(const Surface&authored,const std::map<int,float>&wood){
     auto result=std::make_shared<MaterialCellSource>();
     const repair_detail::AuthoredLookup lookup(authored);
-    if(authored.timber)for(const auto&prism:*authored.timber){storm_geometry_work::checkpoint();Mesh solid;const auto found=lookup.source.find(repair_detail::sourceKey(prism));if(found==lookup.source.end())throw std::runtime_error("missing authored timber cell");const Triangle*appearance=found->second;
+    if(authored.timber)for(const auto&prism:*authored.timber){storm_geometry_work::checkpoint();result->prisms.push_back(prism);Mesh solid;const auto found=lookup.source.find(repair_detail::sourceKey(prism));if(found==lookup.source.end())throw std::runtime_error("missing authored timber cell");const Triangle*appearance=found->second;
         const Vec3 center=(prism.vertices[0]+prism.vertices[1]+prism.vertices[2]+prism.vertices[3]+prism.vertices[4]+prism.vertices[5])*(1.f/6.f);
         constexpr unsigned faces[8][3]={{0,1,2},{3,5,4},{0,3,4},{0,4,1},{1,4,5},{1,5,2},{2,5,0},{0,5,3}};
         for(const auto&f:faces){Triangle t;for(unsigned n=0;n<3;++n){t[n]=(*appearance)[f[n]%3];t[n].position=prism.vertices[f[n]];}auto normal=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));
@@ -264,8 +264,12 @@ inline bool fractureCells(Surface&surface,const std::vector<BeamSample>&fields,c
             Mesh retained;if(!clipCell(solid,planes,retained))return false;next->changed[id]=std::make_shared<const Mesh>(std::move(retained));}}
     surface.cells=std::move(next);return true;
 }
-inline bool releaseSections(const Surface&before,Surface&current,unsigned allowance,std::vector<Surface>&pieces,bool&deferred){
-    const auto cells=current.cells;const auto structure=current.structure;const size_t old=current.released.size();auto separated=detachEnclosed(before,current);current.cells=cells;current.structure=structure;
+inline bool preparePhysicalCache(Surface&surface){auto cells=convex::ready(surface.cells,surface.structure?surface.structure->layout:nullptr);if(!cells)return false;surface.cells=std::move(cells);ablation::prepareRoleIndices(surface);return true;}
+inline bool releaseSections(const Surface*before,Surface&current,unsigned allowance,const std::map<int,float>&wood,std::vector<Surface>&pieces,bool&deferred){
+    bool handled=false;if(!structure_geometry::releaseConnected(current,allowance,wood,pieces,deferred,handled))return false;if(handled)return true;
+    const auto cells=current.cells;const auto structure=current.structure;const size_t old=current.released.size();
+    const auto authored=!before&&current.supportOriginal?timberSurface(current.supportOriginal->outer,wood):Surface{};
+    auto separated=detachEnclosed(before?*before:authored,current);current.cells=cells;current.structure=structure;
     if(current.released.size()!=old+separated.size())return false;const size_t take=std::min(size_t(allowance),separated.size());deferred=take<separated.size();
     // Unemitted islands stay real visible/colliding hull material. The next
     // release-only transaction can recover their exact authored ownership.
@@ -280,7 +284,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     // receiver and legacy plane retain that same established geometry path.
     if(!input.releaseOnly&&(resolved||input.plane.beams.empty()||input.wood.empty()||!structure||!structure->layout||structure->layout->cells.empty()))return prepareExact(input,output,resolved);
     if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;next.kept=input.surface;next.structure=structure;
-    next.hasDeferredSections=input.hasDeferredSections||structure_geometry::hasDeferred(*structure);
+    next.hasDeferredSections=input.hasDeferredSections||structure_geometry::hasDeferred(*structure)||(input.surface->cells&&convex::compatible(*input.surface->cells)&&convex::hasDetached(*input.surface->cells->convex));
     if(!input.physicalContact&&!input.releaseOnly){output=std::move(next);return true;}
     if(input.releaseOnly&&(!next.hasDeferredSections||!input.fragmentLimit)){output=std::move(next);return true;}
     const bool thermal=input.plane.charred&&std::all_of(input.plane.beams.begin(),input.plane.beams.end(),[](const auto&beam){return beam.specificWork==0&&beam.contactStrength==0&&beam.crossSection.empty();});
@@ -288,9 +292,9 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     if(thermal||input.releaseOnly){ablation::LocalResult local;
         if(input.releaseOnly)local.kept=*input.surface;
         else if(!ablation::cut(input,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
-        bool split=input.releaseOnly;if(local.changed&&!split&&!ablation::newlySplit(input,local.kept,split))return false;std::vector<Surface>localPieces;bool localDeferred=false;
-        if(split){const auto authored=input.releaseOnly&&input.surface->supportOriginal?timberSurface(input.surface->supportOriginal->outer,input.wood):Surface{};
-            if(!releaseSections(input.releaseOnly?authored:*input.surface,local.kept,input.fragmentLimit,localPieces,localDeferred))return false;
+        bool split=input.releaseOnly;if(local.changed&&!split){if(local.kept.cells&&convex::compatible(*local.kept.cells))split=convex::hasDetached(*local.kept.cells->convex);else if(!ablation::newlySplit(input,local.kept,split))return false;}std::vector<Surface>localPieces;bool localDeferred=false;
+        if(split){
+            if(!releaseSections(input.releaseOnly?nullptr:input.surface.get(),local.kept,input.fragmentLimit,input.wood,localPieces,localDeferred))return false;
             // Exact local islands can occupy only part of a coarse cell. The
             // graph must reconcile their actual lost source material too.
             local.changedIDs.clear();for(const auto&entry:local.kept.cells->changed){const auto old=input.surface->cells->changed.find(entry.first);if(old==input.surface->cells->changed.end()||old->second!=entry.second)local.changedIDs.push_back(entry.first);}
@@ -312,8 +316,8 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
         Input physicalInput=input;ablation::LocalResult local;std::vector<Surface>localPieces;bool localDeferred=false;
         if(input.realizeMechanicalCrush){const auto fields=ablation::crushFields(input,damage);
             if(!fields.empty()&&!ablation::cutFields(input,fields,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
-            if(local.changed){bool split=false;if(!ablation::newlySplit(input,local.kept,split))return false;
-                if(split){if(!releaseSections(*input.surface,local.kept,input.fragmentLimit,localPieces,localDeferred))return false;
+            if(local.changed){bool split=false;if(local.kept.cells&&convex::compatible(*local.kept.cells))split=convex::hasDetached(*local.kept.cells->convex);else if(!ablation::newlySplit(input,local.kept,split))return false;
+                if(split){if(!releaseSections(input.surface.get(),local.kept,input.fragmentLimit,input.wood,localPieces,localDeferred))return false;
                     local.changedIDs.clear();for(const auto&entry:local.kept.cells->changed){const auto old=input.surface->cells->changed.find(entry.first);if(old==input.surface->cells->changed.end()||old->second!=entry.second)local.changedIDs.push_back(entry.first);}
                     for(const auto&piece:localPieces){local.removedArea+=area(canonicalMesh(piece));for(const auto&o:piece.outer)for(const auto&t:o.second)local.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}}
                 // Work already reduced graph health. Refresh actual remaining
@@ -357,5 +361,96 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());next.retainedSupport=indexFaces(geometry.kept.outer);
     if(geometry.kept.supportOriginal)next.supportCandidates.reserve(geometry.kept.supportOriginal->index.references.size());next.supportNearby.reserve(next.retainedSupport.references.size());for(const auto&piece:geometry.kept.released)next.releasedSupport.push_back(indexFaces(*piece));
     next.kept=std::make_shared<const Surface>(std::move(geometry.kept));output=std::move(next);return true;
+}
+namespace convex {
+// A broad, strong contact can transfer already partitioned support volumes
+// without clipping thousands of authored triangles on the contact thread.
+inline ContactEdit containedContactEdit(const ContactSnapshot&snapshot,const Plane&field,double wholeArea,const ContactLimits&limits){
+    ContactEdit result;result.next=snapshot;const auto&cache=*snapshot.cells->convex;const auto&layout=*snapshot.strength->layout;
+    if(cache.source->layout!=snapshot.strength->layout||cache.supportMeasures.size()!=layout.cells.size()||layout.cells.size()>limits.graphVisits)return result;
+    std::vector<std::vector<storm_ship_structure::detail::Contact>>contacts(field.beams.size());std::vector<uint32_t>ids;
+    for(size_t n=0;n<field.beams.size();++n){const auto&beam=field.beams[n];if(beam.specificWork<=0||beam.contactStrength<=0)return result;const auto planes=beamPlanes(beam);storm_ship_structure::queryCells(layout,beamBounds(beam),ids);
+        for(auto id:ids){if(snapshot.retainedSupports&&!snapshot.retainedSupports->at(id))continue;const auto&measure=cache.supportMeasures[id];if(measure.volume<=1.e-12)continue;const auto box=layout.cells[id].bounds;bool contained=true;for(const auto&plane:planes){const Vec3 extreme{plane.normal.x>0?box.hi.x:box.lo.x,plane.normal.y>0?box.hi.y:box.lo.y,plane.normal.z>0?box.hi.z:box.lo.z};if(storm_ship_hull::dot(plane.normal,extreme)>plane.distance+1.e-6f){contained=false;break;}}if(!contained)continue;
+            const Vec3 start{beam.start[0],beam.start[1],beam.start[2]},direction{beam.direction[0],beam.direction[1],beam.direction[2]};const Vec3 front{direction.x>0?box.lo.x:box.hi.x,direction.y>0?box.lo.y:box.hi.y,direction.z>0?box.lo.z:box.hi.z};contacts[n].push_back({id,measure.volume,storm_ship_hull::dot(front-start,direction)});}
+        std::sort(contacts[n].begin(),contacts[n].end(),[](const auto&a,const auto&b){return a.travel==b.travel?a.cell<b.cell:a.travel<b.travel;});}
+    auto damage=storm_ship_structure::detail::damagePatches(*snapshot.strength,field,wholeArea,true,&contacts);structure_geometry::includeDeferred(damage);
+    std::set<uint32_t>failed(damage.brokenCells.begin(),damage.brokenCells.end()),released(damage.releasedCells.begin(),damage.releasedCells.end());
+    if(failed.empty()&&released.empty())return result;
+    // Partial paid crush still requires the narrow exact cutter. This route
+    // only transfers complete finite physical regions, never rounds a wound up.
+    for(const auto&crush:damage.crushed)if(!failed.count(crush.cell)&&!released.count(crush.cell))return result;
+    auto mask=snapshot.retainedSupports?std::make_shared<std::vector<uint8_t>>(*snapshot.retainedSupports):std::make_shared<std::vector<uint8_t>>(layout.cells.size(),1);
+    auto delta=std::make_shared<PhysicalDelta>();delta->before=snapshot;delta->field=field;std::set<uint32_t>assigned;
+    const auto append=[&](const std::vector<uint32_t>&supports){Body body;body.reference=snapshot.cells->convex;for(auto id:supports)if(id<mask->size()&&mask->at(id)&&assigned.insert(id).second){body.supports.push_back(id);mask->at(id)=0;const auto&sources=cache.source->supportSources[id];body.sources.insert(body.sources.end(),sources.begin(),sources.end());}if(body.supports.empty())return;std::sort(body.supports.begin(),body.supports.end());std::sort(body.sources.begin(),body.sources.end());body.sources.erase(std::unique(body.sources.begin(),body.sources.end()),body.sources.end());measureBody(body);if(body.volume>1.e-12)delta->released.push_back(std::move(body));};
+    for(const auto&component:damage.components){std::vector<uint32_t>owned;for(auto id:component)if(released.count(id))owned.push_back(id);append(owned);}
+    std::set<uint32_t>visited;for(auto first:failed){if(!visited.insert(first).second)continue;std::vector<uint32_t>group{first};for(size_t at=0;at<group.size();++at){const auto id=group[at];for(auto edge:layout.cells[id].bonds){const auto&bond=layout.bonds[edge];const auto other=bond.a==id?bond.b:bond.a;if(failed.count(other)&&edge<damage.state.physicalBondHealth.size()&&damage.state.physicalBondHealth[edge]>1.e-6f&&visited.insert(other).second)group.push_back(other);}}append(group);}
+    if(delta->released.empty()||delta->released.size()>limits.bodyGroups)return result;
+    for(const auto&body:delta->released)delta->changedCells.insert(delta->changedCells.end(),body.sources.begin(),body.sources.end());std::sort(delta->changedCells.begin(),delta->changedCells.end());delta->changedCells.erase(std::unique(delta->changedCells.begin(),delta->changedCells.end()),delta->changedCells.end());
+    delta->after={snapshot.cells,std::make_shared<const storm_ship_structure::State>(std::move(damage.state)),snapshot.revision+1,mask};result.complete=true;result.next=delta->after;result.changedCells=delta->changedCells;result.detached=delta->released;result.spentWork=damage.spentWork;result.remainingWork=damage.remainingWork;result.physicalDelta=std::move(delta);return result;
+}
+inline ContactEdit tryContactEdit(const ContactSnapshot&snapshot,const Plane&field,const std::map<int,float>&wood,double wholeArea,const ContactLimits&limits){
+    ContactEdit result;result.next=snapshot;if(!snapshot.cells||!compatible(*snapshot.cells)||!snapshot.strength||!snapshot.strength->layout||!valid(field)||field.beams.empty()||snapshot.revision==UINT64_MAX)return result;
+    const auto&layout=*snapshot.strength->layout;if(snapshot.retainedSupports&&snapshot.retainedSupports->size()!=layout.cells.size())return result;
+    auto broad=containedContactEdit(snapshot,field,wholeArea,limits);if(broad.complete)return broad;
+    // A pending ownership mask cannot be fed into the unmasked narrow cache.
+    // Its worker publication must finish first; no old wood is resurrected.
+    if(snapshot.retainedSupports)return result;
+    if(layout.cells.size()>limits.graphVisits)return result;
+    size_t candidates=0,pieces=0,tetrahedra=0;std::vector<uint32_t>ids;const auto material=snapshot.strength->contact?snapshot.strength->contact:layout.contact;if(!material)return result;
+    for(const auto&beam:field.beams){const auto box=beamBounds(beam);snapshot.cells->source->index.queryBounds(box,ids);candidates+=ids.size();if(candidates>limits.candidateCells)return result;
+        for(auto id:ids)if(const auto&cell=snapshot.cells->convex->cells[id];cell&&cell->pieces){pieces+=cell->pieces->size();if(pieces>limits.convexPieces)return result;}
+        tetrahedra+=storm_ship_structure::detail::queryMaterial(*material,box).size();if(tetrahedra>limits.tetrahedra)return result;}
+    auto delta=std::make_shared<PhysicalDelta>();delta->before=snapshot;delta->field=field;auto cells=snapshot.cells;auto strength=snapshot.strength;
+    auto damage=storm_ship_structure::damage(*strength,field,wholeArea,false);const double spentWork=damage.spentWork,remainingWork=damage.remainingWork;bool strengthChanged=damage.changed;
+    Input input;input.plane=field;input.structure=strength;input.structuralArea=wholeArea;const auto crushed=ablation::crushFields(input,damage);std::vector<Cut>crushCuts;for(const auto&cut:crushed)crushCuts.push_back({cut.planes,cut.bounds,cut.origin,false});
+    if(!crushCuts.empty()){auto editResult=edit(cells,crushCuts,limits,false);if(!editResult.complete)return result;if(!editResult.changed.empty()){
+            Surface before,after;before.cells=cells;after.cells=editResult.cells;auto physical=storm_ship_structure::reconcile(damage.state,before,after,wood,&editResult.changed,true);damage.state=std::move(physical.state);damage.changed|=physical.changed;strengthChanged|=physical.changed;damage.brokenBonds.insert(damage.brokenBonds.end(),physical.brokenBonds.begin(),physical.brokenBonds.end());
+            cells=editResult.cells;delta->caps=std::move(editResult.caps);delta->changedCells=std::move(editResult.changed);delta->ablation=std::move(crushCuts);}}
+    storm_ship_structure::finalizeDamage(damage);
+    // Resolve at most the declared finite number of physical ownership passes.
+    // Exhaustion leaves the entire caller snapshot unchanged, never an empty
+    // corridor whose body/geometry publication did not complete.
+    for(size_t pass=0;pass<std::min(size_t(3),limits.passes);++pass){
+        structure_geometry::includeDeferred(damage);std::map<uint32_t,size_t>owner;std::vector<Body>bodies;
+        std::set<uint32_t>released(damage.releasedCells.begin(),damage.releasedCells.end());
+        for(const auto&component:damage.components){bool transfer=false;for(auto id:component)transfer|=released.count(id)!=0;if(!transfer)continue;const auto group=bodies.size();bodies.emplace_back();for(auto id:component)if(released.count(id))owner[id]=group;}
+        std::set<uint32_t>failed(damage.brokenCells.begin(),damage.brokenCells.end()),visited;
+        for(auto first:failed){if(!visited.insert(first).second)continue;const auto group=bodies.size();bodies.emplace_back();std::vector<uint32_t>queue{first};for(size_t at=0;at<queue.size();++at){const auto id=queue[at];owner[id]=group;for(auto edge:layout.cells[id].bonds){const auto&bond=layout.bonds[edge];const auto other=bond.a==id?bond.b:bond.a;if(failed.count(other)&&damage.state.physicalBondHealth[edge]>1.e-6f&&visited.insert(other).second)queue.push_back(other);}}}
+        if(delta->released.size()+bodies.size()>limits.bodyGroups)return result;
+        std::vector<Cut>cuts;std::vector<size_t>cutOwner;for(const auto&entry:owner){const auto beam=structure_geometry::cellField(layout.cells[entry.first].bounds);const auto halfspaces=beamPlanes(beam);cuts.push_back({std::vector<Halfspace>(halfspaces.begin(),halfspaces.end()),beamBounds(beam),beamStart(beam),false});cutOwner.push_back(entry.second);}
+        Budget budget(limits);
+        for(size_t n=0;n<cuts.size();++n){cells->source->index.queryBounds(cuts[n].bounds,ids);if(!budget.take(budget.left.candidateCells,ids.size()))return result;for(auto id:ids){const auto&cell=cells->convex->cells[id];if(!cell||!cell->pieces)continue;if(!budget.take(budget.left.convexPieces,cell->pieces->size()))return result;for(const auto&piece:*cell->pieces){if(!overlapBounds(piece.bounds,cuts[n].bounds))continue;Piece inside=piece;for(auto&f:inside.faces)f.fresh=false;for(const auto&p:cuts[n].planes){Piece next;if(!clip(inside,p,next,budget))return result;inside=std::move(next);if(inside.volume<=1.e-12)break;}if(inside.volume>1.e-12){bodies[cutOwner[n]].sources.push_back(id);bodies[cutOwner[n]].pieces.push_back(std::move(inside));}}}}
+        if(!cuts.empty()){auto edited=edit(cells,cuts,limits,false);if(!edited.complete)return result;for(const auto&cut:cuts){Mesh outside,inside;if(!subtractVolume(delta->caps,cut.planes,outside,inside))return result;delta->caps=std::move(outside);}appendMesh(delta->caps,edited.caps);
+            Surface before,after;before.cells=cells;after.cells=edited.cells;auto physical=storm_ship_structure::reconcile(damage.state,before,after,wood,&edited.changed,true);damage.state=std::move(physical.state);cells=edited.cells;delta->changedCells.insert(delta->changedCells.end(),edited.changed.begin(),edited.changed.end());}
+        for(auto&body:bodies)if(!body.pieces.empty()){measureBody(body);delta->released.push_back(std::move(body));}
+        const auto actual=detached(*cells->convex);if(delta->released.size()+actual.size()>limits.bodyGroups)return result;
+        if(!actual.empty()){for(const auto&group:actual){Body body;for(auto key:group.pieces){body.sources.push_back(key.cell);auto piece=cells->convex->cells[key.cell]->pieces->at(key.piece);for(auto&face:piece.faces)face.fresh=false;body.pieces.push_back(std::move(piece));}measureBody(body);delta->released.push_back(std::move(body));}std::vector<uint32_t>changed;auto kept=take(cells,actual,budget,&changed);if(!kept)return result;Surface before,after;before.cells=cells;after.cells=kept;auto physical=storm_ship_structure::reconcile(damage.state,before,after,wood,&changed,true);damage.state=std::move(physical.state);cells=std::move(kept);delta->changedCells.insert(delta->changedCells.end(),changed.begin(),changed.end());}
+        // Existing failed state is now physically absent. Recompute only the
+        // new overload/islands induced by the actual remaining section.
+        storm_ship_structure::DamageResult next;next.state=damage.state;next.changed=damage.changed;storm_ship_structure::finalizeDamage(next);structure_geometry::includeDeferred(next);
+        if(next.brokenCells.empty()&&next.releasedCells.empty()){strength=std::make_shared<const storm_ship_structure::State>(std::move(next.state));break;}damage=std::move(next);if(pass+1>=std::min(size_t(3),limits.passes))return result;
+    }
+    if(!limits.passes)return result;if(!strengthChanged&&delta->changedCells.empty()&&delta->released.empty()){result.complete=true;return result;}delta->after={cells,strength,snapshot.revision+1};std::sort(delta->changedCells.begin(),delta->changedCells.end());delta->changedCells.erase(std::unique(delta->changedCells.begin(),delta->changedCells.end()),delta->changedCells.end());
+    result.next=delta->after;result.changedCells=delta->changedCells;result.detached=delta->released;result.spentWork=spentWork;result.remainingWork=remainingWork;result.physicalDelta=std::move(delta);result.complete=true;return result;
+}
+inline bool projectContactDelta(const Input&input,const PhysicalDelta&delta,Projection&output){
+    if(!input.surface||input.surface->cells!=delta.before.cells||!delta.after.cells||!compatible(*delta.after.cells)||!delta.after.strength)return false;
+    Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=delta.field;next.enclosedFragments=input.enclosedFragments;next.structure=delta.after.strength;next.kept=input.surface;next.result.stateChanged=true;
+    if(delta.changedCells.empty()&&delta.released.empty()){next.materialPayload=encode(*input.surface,input.fingerprint,next.structure);output=std::move(next);return true;}
+    Mesh ownershipCaps;auto afterCells=materialize(delta.after,ownershipCaps);if(!afterCells)return false;std::vector<Body>bodies;for(const auto&body:delta.released)bodies.push_back(expandBody(body));
+    Surface retained=*input.surface;ablation::LocalResult removed;std::vector<ablation::ConvexField>fields;for(const auto&cut:delta.ablation)fields.push_back({cut.planes,cut.bounds,cut.origin,cut.charred});
+    if(!fields.empty())for(unsigned role=0;role<4;++role)if(!ablation::cutRole(surfaceRole(*input.surface,role),fields,input.wood,role,surfaceRole(retained,role),removed))return false;
+    appendMesh(retained.finiteWalls,delta.caps);std::vector<Surface>groups;
+    if(!bodies.empty()){if(!partitionSurface(retained,*afterCells,bodies,input.wood,groups))return false;for(unsigned role=0;role<4;++role)surfaceRole(retained,role)=std::move(surfaceRole(groups[0],role));
+        appendMesh(retained.finiteWalls,ownershipCaps);
+        for(size_t n=0;n<bodies.size();++n){const auto&body=bodies[n];auto&piece=groups[n+1];const auto bodyIndex=pieceIndex(body.pieces);for(size_t p=0;p<body.pieces.size();++p)for(const auto&face:body.pieces[p].faces)if(face.fresh)for(const auto&polygon:externalFace(body.pieces,p,face,&bodyIndex))storm_ship_hull::fan(polygon,piece.finiteWalls[face.object]);
+            const auto canonical=canonicalMesh(piece);removed.removedArea+=area(canonical);for(const auto&o:piece.outer)for(const auto&t:o.second)removed.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});
+            next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));retained.released.push_back(std::make_shared<const Mesh>(renderMesh(piece)));}}
+    else{next.changedObjects=removed.changedObjects;for(auto id:delta.changedCells)if(id<delta.after.cells->source->prisms.size())next.changedObjects.insert(delta.after.cells->source->prisms[id].object);}
+    retained.cells=std::move(afterCells);if(delta.after.retainedSupports){auto measured=storm_ship_structure::seed(next.structure->layout,retained,input.wood);auto paid=std::make_shared<storm_ship_structure::State>(*next.structure);paid->contact=std::move(measured.contact);paid->physicalCellHealth=std::move(measured.physicalCellHealth);paid->physicalBondHealth=std::move(measured.physicalBondHealth);for(size_t n=0;n<paid->cellHealth.size();++n)paid->cellHealth[n]=std::min(paid->cellHealth[n],paid->physicalCellHealth[n]);for(size_t n=0;n<paid->bondHealth.size();++n)paid->bondHealth[n]=std::min(paid->bondHealth[n],paid->physicalBondHealth[n]);next.structure=std::move(paid);}retained.structure=next.structure;if(!tagOpenings(retained,input.wood,removed.openings))return false;retained=rebase(std::move(retained));
+    next.canonical=canonicalMesh(retained);next.render=renderMesh(retained);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.openings=std::move(removed.openings);const double kept=area(next.canonical);next.result.removedFraction=float(std::clamp(removed.removedArea/std::max(1.e-7,kept+removed.removedArea),0.,1.));
+    if(input.hasSupport)next.result.supportSevered=beamSeversSupport(*input.surface,retained,input.support);next.hasDeferredSections=hasDetached(*retained.cells->convex)||structure_geometry::hasDeferred(*next.structure);next.materialPayload=encode(retained,input.fingerprint,next.structure);
+    next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());next.retainedSupport=indexFaces(retained.outer);if(retained.supportOriginal)next.supportCandidates.reserve(retained.supportOriginal->index.references.size());next.supportNearby.reserve(next.retainedSupport.references.size());for(const auto&piece:retained.released)next.releasedSupport.push_back(indexFaces(*piece));next.kept=std::make_shared<const Surface>(std::move(retained));output=std::move(next);return true;
+}
 }
 }

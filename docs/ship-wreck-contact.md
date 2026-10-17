@@ -1,5 +1,71 @@
 # Ship collision and contact with sinking ships
 
+## October17 contact-phase physical snapshot
+
+This contact contract separates canonical source/build/install from player
+acceptance; `runtime.md` owns the current delivery. The previous solver spent the full
+rigid-body impulse before queuing material work, so later fracture could not
+preserve momentum during that impact. A scalar damage multiplier cannot repair
+that order or the convex envelope spanning a real opening.
+
+`SHIP_BASE::GetHullContactMaterial` supplies a complete immutable set of actual
+convex timber pieces. The geometry worker prepares its planar projection and XYZ
+BVH once with `ship_contact_material.hpp`, preserving each piece's model-local
+vertical interval. TOUCH consumes that shared immutable index without converting
+or truncating the vessel's full representation. Missing caches retain the old
+solid envelope; a complete empty snapshot
+means no retained physical material. The envelope still owns mass, inertia and
+cheap swept rejection. Piece pairs own contact admission, including vertical
+overlap; projecting overhead/deck timber into one hull footprint must not close
+an opening below it. Queries bound overlapping leaf pairs and internal visits;
+candidate exhaustion conservatively returns to the envelope.
+Contact edits share that baseline index and replace only changed original
+material-source groups. Old source bounds remain conservative because these
+edits only subtract material. Duplicate source-pair queries are suppressed;
+eight pending overlays require a worker rebase before another physical commit.
+Repair/restore that expands material rebuilds its baseline in the worker.
+
+Before applying an impact, the frame calls `CommitHullContactBreak` at that
+event's local pose with the finite overlapping contact footprint and available
+specific work. Only a successful atomic CPU physical commit with a valid updated
+snapshot can limit the impulse. For a fraction `s` of the same equal/opposite
+impulse, lost kinetic energy is `s*A - .5*s*s*B`; the smaller nonnegative root
+matches actual spent fracture work without adding energy or changing momentum.
+The modified pair is queried again at the same contact time, with at most three
+fracture attempts per pair/frame. Missing caches, stale revisions and exhausted
+edit budgets retain conservative rigid contact. Detailed role meshes/GPU work
+remain with the existing cooperative worker.
+
+Frame impact rows retain already-paid physical work separately. Script HP and
+attribution publish once per pair/body; asynchronous `ApplyHullImpact` receives
+only unpaid residual work. Phonk immunity stays with the ship admission owner.
+The geometry bridge must convert graph-volume work back to specific contact
+work before TOUCH multiplies it by the body's canonical mass. Detached material
+must retain a physical collision owner through its fragment handoff; removing
+it from the root snapshot before such ownership exists does not prove pushing
+through broken structure. The SHIP bridge reserves native CPU fragment owners
+at the contact event's world pose before committing the new retained snapshot,
+then publishes the reserved owners without allocating. GPU fragment handles
+bind to those same bodies by exact physical delta and component index later.
+Player-visible high-speed breakage remains a separate acceptance requirement.
+The canonical contact mass scales authored hull plus cargo by cached retained
+positive volume / authored positive volume, reconstructed from material on load.
+Transferred bodies divide the pre-edit contact mass by their actual volume
+shares; they inherit the current event twist and its capped impulse. The frame
+updates the retained root's mass and existing envelope inertia before solving
+another contact. This preserves the existing yaw/shape approximation rather
+than introducing another mass counter or SAVE field.
+
+GEOM admits one physical delta until its paid role projection finishes in the
+existing hull worker and cooperative10% allowance. Physical rays and attachment
+support use the new positive pieces/ownership mask while old role meshes await
+publication. The worker projects the exact delta without replaying damage;
+publication retains its already-advanced physical revision. Pending work blocks
+stale visual snapshots and premature material SAVE serialization. A failure
+retains that delta, logs its generation/collision/material/allowance fence once,
+and retries when collision revision or fragment allowance changes. It does not
+retry unchanged rejected work every frame.
+
 ## Status
 
 The latest combat successor removes the12%-of-depth ceiling on ram material

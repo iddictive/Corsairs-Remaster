@@ -25,6 +25,7 @@ float GEOM::Trace(VERTEX &start, VERTEX &finish)
 float GEOM::TraceLaserMaterial(VERTEX &start, VERTEX &finish)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(hullContactPending&&hullContactState)return TraceHullContact(start,finish,false);
     if (laserPrepared && !worldOwner)
     {
         laserMaterialCollision.broadphase.queryRay({start.x,start.y,start.z}, {finish.x,finish.y,finish.z}, laserMaterialCandidates);
@@ -46,6 +47,7 @@ float GEOM::TraceLaserMaterial(VERTEX &start, VERTEX &finish)
 float GEOM::TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(hullContactPending&&hullContactState)return TraceHullContact(start,finish,publishDetails);
     if(laserOwner||worldOwner){if(publishDetails)laserTraceObject=laserTraceTriangle=-1;float nearest=2;std::pair<int,uint32_t>best{-1,std::numeric_limits<uint32_t>::max()};const auto&surface=worldOwner?worldSurface:laserSurface;
         laserBroadphase.queryRay({start.x,start.y,start.z},{finish.x,finish.y,finish.z},laserRayCandidates);
         for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(surface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
@@ -321,6 +323,7 @@ bool GEOM::Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, floa
 {
     storm_airburst_hull::TraceScope traceScope(traceid);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(hullContactPending&&hullContactState)return ClipHullContact(planes,nplanes,center,radius,addpoly);
     if(laserOwner||worldOwner){if(nplanes<0||nplanes>64||!std::isfinite(radius)||radius<0)return false;const auto&surface=worldOwner?worldSurface:laserSurface;
         const storm_ship_hull::Vec3 origin{center.x,center.y,center.z},extent{radius,radius,radius};
         laserBroadphase.queryBounds({origin-extent,origin+extent},laserRayCandidates);

@@ -1825,11 +1825,17 @@ void SHIP::IgniteShipFire(const CVECTOR &world, float energy, int32_t owner, boo
     CVECTOR p;GetMatrix()->MulToInv(world,p);
     auto i=shipFire.nearest(p.x,p.y,p.z,cloth);
     if (!cloth && fireHulls.size()<fireHullCapacity) {
-        float distance=1e9f;
-        if (i<shipFire.count) {
-            const auto &c=shipFire.cells[i];distance=std::sqrt((p.x-c.x)*(p.x-c.x)+(p.y-c.y)*(p.y-c.y)+(p.z-c.z)*(p.z-c.z));
+        constexpr float radius=2.2f;
+        bool uncovered=true;
+        for (const auto &link:fireHulls) {
+            const auto &c=shipFire.cells[link.cell];if (!c.available) continue;
+            const float dx=p.x-c.x,dy=p.y-c.y,dz=p.z-c.z;
+            const float separation=c.radius+radius;
+            if (dx*dx+dy*dy+dz*dz<=separation*separation) { uncovered=false;break; }
         }
-        if (distance>2.f) i=AddFireHull(p.x,p.y,p.z,2.2f);
+        // Jitter within an occupied fire footprint cannot mint overlapping
+        // fresh wood after its original fuel has already burned away.
+        if (uncovered) i=AddFireHull(p.x,p.y,p.z,radius);
     }
     shipFire.ignite(i,energy,owner);fireStateDirty=true;SaveShipFire();
 }

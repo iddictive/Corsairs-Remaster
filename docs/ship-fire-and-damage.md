@@ -7,6 +7,66 @@ damage are integrated. The current installed engine and delivery verdict are
 owned by `runtime.md`; earlier component evidence below is historical, not a
 second installed-state inventory. Existing models and their assets are unchanged.
 
+### October17 finite-fuel damage and recoverable suppression candidate
+
+The01:09/01:11/01:18 player replay rejects weak observed hull loss and fires
+which staffed ships cannot suppress. Source analysis proves a suppression
+imbalance: at full coverage the old `1/(1+6*coverage)` factor limits even
+maximum-quality normal cooling to `.075*1.25/7 = .013393` heat/s per assigned site,
+before the finite crew budget divides it again. Maximum dry combustion is
+`.028+.018 = .046` heat/s and neighbour transfer adds at most `.08`. Even
+maximum-quality priority cooling `.033482` cannot overcome that `.126` input
+after the maximum-heat ambient loss `.0125`. This proves the adverse rate
+relationship; it does not establish the exact fuel, staffing or geometry in the
+player's scene. A large cloth fire also need not imply equal wood exposure.
+
+The source candidate keeps the existing model, previous-state transport,
+rain/wind, fixed step, burning-before-warm allocation and saved fields. It
+removes the duplicate coverage penalty and uses one finite party budget:
+
+- `quality = clamp(crewRatio,0,1.25) * (.45+.55*morale) * (.55+.45*repair)`;
+  morale and repair remain clamped to0–1.
+- Per-site cooling is `.16 * quality` heat/s, multiplied by2.5 at priority.
+  Party equivalents are `max(crewCount,0)/30`, with no free party at zero crew.
+  Total cooling cannot exceed per-site cooling times party equivalents.
+- A fully staffed, normal-morale ship with Repair.5 has quality.775 and an
+  assigned site's cooling.124, or.31 at priority. At maximum heat and dry wind,
+  an assigned normal party therefore cools by at least.0105 heat/s even under
+  the capped neighbour input. With500 crew and32 demanding sites, finite
+  sharing gives.06458 normal/.16146 priority cooling per site: normal crews
+  can be overwhelmed while priority has a recovery margin. Fewer crew reduce
+  both staffing quality and available parties. Duty retains its20%/48% caps
+  and the existing cannon-staffing trade.
+
+Hull loss now debits actual consumed wood fuel once:
+`hullFraction = sum(radius² * burnedWoodFuel) / sum(availableWoodRadius²)`.
+Fresh wood retains its `.0013` fuel/intensity-second coefficient; developed
+heat blends it continuously to `1/120` between heat.80 and1.25. Cloth retains
+`.0032` and its existing sail-hole/SP adapter. With a fixed available wood set,
+integrated native hull loss cannot exceed the remaining area-weighted wood
+fuel; reheating exhausted wood cannot restart a separate hull DOT. Script
+base-HP conversion, defences, immunity, death and casualty ownership remain
+unchanged. New dynamic hull fire cells cannot overlap an existing available
+wood footprint: centre separation must exceed the sum of their radii. Existing
+saved/authored cells are preserved, and repeated local hits never refill fuel.
+
+At sustained heat1.25, no cooling and initial fuel1, the continuous rate equation
+is `fuel(t) = (1-t/240)²` until exhaustion. It predicts43.75% of that wood
+share consumed after60game seconds; one of24 equal wood areas therefore costs
+1.823% of base hull HP before script defences. These are analytic calibration
+figures, not a fixed-step measurement or observed battle balance. The.16 party
+rate,30 crew per equivalent and120 intensity-second developed-wood coefficient
+are chosen gameplay calibration, not historical headcounts or measured physics.
+Earlier quantitative model receipts below describe their original revisions
+and do not accept these changed rates.
+
+This candidate has source review only; no new test, probe or game control is
+authorized. Combined canonical build/stage and installation remain pending
+integration.
+Player acceptance remains an isolated healthy-crew ignition, neglected/spreading
+wood with meaningful progressive damage, priority/rain recovery, repeated
+same-site heating, restored SAVE/cloth lifecycle and the unchanged nearby action.
+
 The October16,23:16/23:19 player samples reopen fleet performance. Their dominant
 CPU owner is damaged-world geometry conversion in sea reflections, not a proven
 fire-only cost; exact inputs and engine are retained in the
@@ -17,8 +77,9 @@ the two48-point scorch/light loops into one, shares the position transform and
 computes noise only inside its nonzero support. Light flutter is prepared once
 per uploaded source instead of evaluating two sine functions per source per
 fragment; original volume seeds and the upload ABI remain intact. CPU/GPU sine
-rounding can differ, so bitwise equality is not claimed. Appearance formulas, volume
-integration, damage and suppression rates stay unchanged. Weak damage and poor
+rounding can differ, so bitwise equality is not claimed. That renderer revision
+leaves appearance formulas, volume integration, damage and suppression rates
+unchanged. Weak damage and poor
 suppression in the reported scene remain unresolved; ordinary x8 timing cannot
 be blamed on the fire1s cap because the native100ms limit yields at most0.8s.
 No post-fix FPS or visual-equivalence result is claimed without player replay.

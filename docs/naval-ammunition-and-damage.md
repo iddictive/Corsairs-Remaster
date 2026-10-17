@@ -1,5 +1,71 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## October17 local destruction revision
+
+The player rejects59a56f1 in the01:09/01:11/01:18 replay: the contact star
+sticks, cuts arrive late without useful section release, terrain never opens,
+fire causes little observed hull damage and resists suppression, and some
+impacts stall the game. The requested outcome is continuous real local material
+removal with connected-section release and bounded frame work. Source/build
+evidence must not be represented as an accepted player replay.
+
+Adopt the existing material cells and support graph, adapting the local convex
+carving/connectivity mechanism described by
+[Smash Hit's developer](https://blog.voxagon.se/2014/05/13/cracking-destruction.html)
+and the [Blast support model](https://docs.omniverse.nvidia.com/kit/docs/blast-sdk/latest/docs/api/introduction.html).
+Prefractured-only Chaos/Blast cannot provide arbitrary laser cuts; replacing the
+entire asset/render pipeline with Teardown-style voxels would expand this fix
+into an engine conversion. Preserve authored hollow hulls and volumetric land.
+
+Order: establish current hit independently of retained destructive work; admit
+local material edits against actual receiver geometry; realize connected pieces
+and synchronize collision/contact response; then build/stage the combined batch.
+Fire simulation/suppression and ground's local receiver path are independent
+source lanes. Root owns shared APIs, ship producer, Git/build/app delivery;
+material, ground, fire and contact lanes return source-only deltas.
+
+Acceptance requires the current beam/star to follow every camera pose even under
+queue pressure, progressive real wounds and eventual section separation, ground
+excavation at the actual hit, recoverable finite fires, and impacts that spend
+work on fracture while retaining motion. Unchanged material, sails, ordinary
+weapons, saved damage, map transfers and player files remain valid. Existing
+cooperative10% worker allowance stays; avoid whole-assembly work for an unrelated
+local receiver and avoid main-thread joins. Invalid requests must retain an
+explicit recovery owner without freezing new aim or every later request.
+No gameplay tests, probes, agent launch or player-process control are authorized;
+the canonical build/stage and source review precede player-owned acceptance.
+
+The producer now traces the current aim before draining retained work. A bounded
+round-robin dose queue keeps a busy receiver from owning later targets. Finite
+beam bounds select affected authored nodes before material capture; unchanged
+mast ancestors are captured only as support receivers and never projected as
+damaged nodes. Ordinary hull fire ignition follows committed material removal,
+instead of each speculative laser sample.
+
+Same-step released material is reserved as native fragment bodies before the
+physical hull snapshot changes. These bodies borrow immutable positive convex
+parts, retain event pose and point velocity, and enter the existing fleet
+fragment gravity/buoyancy/contact solver immediately. The paid worker projection
+binds its ordered GPU handles to those existing bodies, without respawning them
+or debiting HP again. Pending fragments use exact borrowed-volume ray queries;
+one pending physical projection per receiver bounds the handoff lifecycle.
+
+Read-only asset cardinality explains why the previous synchronous limits could
+fall back before a broad ram changed anything. Run the existing
+`experiments/native-metal/island_geometry.py:load_static_gm(Path)` reader against
+installed `RESOURCE/MODELS/Ships/{Manowar1,LineShip1}/{name}.gm`; sum draw
+`triangle_count` for the exact case-folded wood texture basenames admitted by
+`ship_wood_surface_profiles.hpp`. Manowar1 (`victory2.tga`, `deck.tga`) has6234
+wood triangles; LineShip1 (`linehullag.tga`, `linedeckag.tga`) has11404. The
+existing three-tetrahedron prism representation would start at18702/34212
+tetrahedra before live geometry rejection. These are source cardinalities,
+not measured live cache or frame costs. Input SHA256 is
+`7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d`
+for Manowar1 and
+`5c24c956d098f4053231b34ae880ac59ead1edd7e2d7d27066e2b2922d33cacc`
+for LineShip1. The new broad-contact path transfers prepartitioned support
+ownership instead of raising the per-frame plank/tetrahedron scan limit.
+
 ## October16,23:13 successor under player review
 
 The player confirms mast release and visible scars in the22:50 image, while

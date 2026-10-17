@@ -47,6 +47,17 @@ bool nodePoint(const std::array<storm_ship_hull::Vec3,4>&matrix,const CVECTOR&po
     const float determinant=storm_ship_hull::dot(x,yz);if(!std::isfinite(determinant)||std::abs(determinant)<1.e-8f)return false;
     const auto delta=storm_ship_hull::Vec3{point.x,point.y,point.z}-matrix[3];local={storm_ship_hull::dot(delta,yz)/determinant,storm_ship_hull::dot(delta,zx)/determinant,storm_ship_hull::dot(delta,xy)/determinant};return true;
 }
+bool affectsNode(const storm_world_cut::Cut&cut,GEOS&geometry,CMatrix matrix,bool terrain)
+{
+    GEOS::INFO info{};geometry.GetInfo(info);const CVECTOR center(info.boxcenter.x,info.boxcenter.y,info.boxcenter.z);
+    const CVECTOR extent(info.boxsize.x*.5f+16.f,info.boxsize.y*.5f+1.f,info.boxsize.z*.5f+16.f);
+    storm_ship_hull::Bounds bounds{};bool first=true;
+    for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
+        const auto point=matrix*CVECTOR(center.x+x*extent.x,center.y+y*extent.y-(terrain&&y<0?10032.f:0.f),center.z+z*extent.z);
+        const storm_ship_hull::Vec3 p{point.x,point.y,point.z};if(!storm_ship_hull::finite(p))return true;
+        bounds=first?storm_ship_hull::Bounds{p,p}:storm_ship_hull::merge(bounds,{p,p});first=false;}
+    return storm_world_cut::affects(bounds,{cut});
+}
 bool nodeCut(const storm_world_cut::Cut &world, const CMatrix &matrix, storm_world_cut::Cut &local)
 {
     local = world;
@@ -161,7 +172,7 @@ bool ISLAND::BindWorldCuts(const std::vector<WorldCutRecord> &records, bool forc
             for(int n=0;auto*node=model->GetNode(n);++n){if(!node->geo)continue;storm_world_cut::Input input;uint64_t revision=0;std::string payload;
                 if(!storm::ship::material::readNode(checkpoint,"world",unsigned(n),WorldNodeKey(id,n),revision,payload)||revision!=worldCutRevision||
                     !node->geo->CaptureWorldInput(uint64_t(GetId()),{},WorldModelKey(id)=="terrain",input))return false;
-                input.material.reset();input.cuts.clear();input.active=payload!="P";if(input.active)input.checkpoint=std::move(payload);
+                input.material.reset();input.cuts.clear();input.unchanged=false;input.active=payload!="P";if(input.active)input.checkpoint=std::move(payload);
                 Pending target{node->geo,{}, {id,node->geo->GeometryGeneration(),size_t(worldCutRevision),true,n,nodeMatrix(node->glob_mtx)}};
                 if(!storm_world_cut::prepare(input,target.projection))return false;
                 auto localEarlier=earlier;auto matrix=node->glob_mtx;const auto&x=matrix.Vx();const auto&y=matrix.Vy();const auto&z=matrix.Vz();
@@ -340,8 +351,12 @@ bool ISLAND::StartWorldCutWork() try
             target.model=id;target.node=n;target.generation=node->geo->GeometryGeneration();target.reflectionBoundary=id==worldReflection&&first;target.key=key;target.name=WorldNodeKey(id,n);first=false;
             target.matrix=nodeMatrix(node->glob_mtx);
             std::vector<storm_world_cut::Cut>local;for(const auto&cut:selected){storm_world_cut::Cut transformed;
+                // A remote receiver, including a nonuniform architectural node,
+                // must not veto or rebake a local ground hit before its bounds
+                // have even been checked in the authored world frame.
+                if(!affectsNode(cut,*node->geo,node->glob_mtx,key=="terrain"))continue;
                 if(!nodeCut(cut,node->glob_mtx,transformed)){valid=false;break;}local.push_back(std::move(transformed));}
-            if(!valid||!node->geo->CaptureWorldInput(uint64_t(GetId()),local,key=="terrain",target.input)){valid=false;break;}
+            if(!valid||!node->geo->CaptureWorldInput(uint64_t(GetId()),local,key=="terrain",target.input,true)){valid=false;break;}
             work.targets.push_back(std::move(target));
         }
         if(!valid)return false;
@@ -356,7 +371,7 @@ bool ISLAND::StartWorldCutWork() try
                 for(auto&target:work.targets){if(cancel->load(std::memory_order_relaxed))return std::move(work);
                     if(target.reflectionBoundary)earlier.clear();
                     const char*failure=nullptr;if(!storm_world_cut::prepare(target.input,target.projection,&failure)){work.failure=target.name+": "+(failure?failure:"world material");return std::move(work);}
-                    target.checkpoint=target.projection.active?std::move(target.projection.checkpoint):"P";
+                    target.checkpoint=target.projection.active?target.projection.checkpoint:"P";
                     checkpointBytes+=target.checkpoint.size();if(checkpointBytes>storm_world_cut::MaxCheckpointBytes){work.failure="scene checkpoint size budget";return std::move(work);}
                     const auto&x=target.matrix[0];const auto&y=target.matrix[1];const auto&z=target.matrix[2];const auto&position=target.matrix[3];
                     const auto yz=storm_ship_hull::cross(y,z),zx=storm_ship_hull::cross(z,x),xy=storm_ship_hull::cross(x,y);const float determinant=storm_ship_hull::dot(x,yz);
@@ -486,14 +501,7 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
             if (!node->geo) continue;
-            storm_world_cut::Cut local;
-            if (!nodeCut(record.cut, node->glob_mtx, local)) continue;
-            GEOS::INFO info{}; node->geo->GetInfo(info);
-            const storm_ship_hull::Vec3 center{info.boxcenter.x, info.boxcenter.y, info.boxcenter.z};
-            const storm_ship_hull::Vec3 extent{info.boxsize.x * .5f + 16.f, info.boxsize.y * .5f, info.boxsize.z * .5f + 16.f};
-            storm_ship_hull::Bounds bounds{center - extent, center + extent};
-            if (key == "terrain") bounds.lo.y -= 10032.f;
-            affected = affected || storm_world_cut::affects(bounds, {local});
+            affected = affected || affectsNode(record.cut,*node->geo,node->glob_mtx,key=="terrain");
         }
         model->mtx = visible; model->Update();
     }

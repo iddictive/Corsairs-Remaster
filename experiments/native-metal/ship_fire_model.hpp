@@ -93,27 +93,22 @@ public:
         dt = std::min(dt, StepSeconds); seconds += dt;
         std::fill(flame.begin(),flame.end(),0.f);
         std::fill(incoming.begin(),incoming.end(),0.f);
-        float woodArea = 0.f, woodExposure = 0.f, developedWoodExposure = 0.f, allArea = 0.f, demand = 0.f;
+        float woodArea = 0.f, woodExposure = 0.f;
         for (std::size_t i = 0; i < count; ++i) {
             const auto &c = cells[i];
             if (!c.available) continue;
             flame[i] = c.intensity();
             const float area = c.radius*c.radius;
-            allArea += area; demand += area*flame[i];
             if (!c.cloth) {
                 woodArea += area; woodExposure += area*flame[i];
-                // Fresh ignition retains its recovery window. Developed heat
-                // burns structure faster, weighted by the affected wood area.
-                developedWoodExposure += area*flame[i]*unit((c.heat-.80f)/.45f);
             }
             if (flame[i] > out.intensity) { out.intensity = flame[i]; out.owner = c.owner; }
             out.heat = std::max(out.heat, c.heat);
             if (flame[i] > .025f) ++out.active;
         }
-        const float coverage = allArea > 0.f ? demand/allArea : 0.f;
         const float crew = std::clamp(ctx.crewRatio, 0.f, 1.25f);
         const float quality = crew*(.45f+.55f*unit(ctx.morale))*(.55f+.45f*unit(ctx.repair));
-        const float work = quality*(ctx.priority ? 2.5f : 1.f)/(1.f+coverage*6.f);
+        const float work = quality*(ctx.priority ? 2.5f : 1.f);
         const float wind = unit(std::sqrt(ctx.windX*ctx.windX+ctx.windZ*ctx.windZ)/16.f);
         const float rain = unit(ctx.rain);
         // A single previous-state pass makes spread independent of cell order.
@@ -135,10 +130,13 @@ public:
                 if (transfer > .002f && b.heat < .32f) cells[j].owner = a.owner;
             }
         }
-        const float perSiteCooling = ctx.dead ? 0.f : .075f*work;
-        constexpr float CrewPerSuppressionSite = 150.f;
+        // Site cooling must beat its bounded .126/s dry heat input when a
+        // healthy party is fully assigned. Simultaneous fires divide the
+        // finite party budget below; coverage must not penalize it again.
+        const float perSiteCooling = ctx.dead ? 0.f : .16f*work;
+        constexpr float CrewPerSuppressionSite = 30.f;
         const float crewCount = std::isfinite(ctx.crewCount) ? std::max(0.f,ctx.crewCount) : 0.f;
-        const float slots = crewCount > 0.f ? 1.f+crewCount/CrewPerSuppressionSite : 0.f;
+        const float slots = crewCount/CrewPerSuppressionSite;
         const float crewBudget = perSiteCooling*slots;
         struct CoolingDemand { float ambientRain, heating, crew; };
         const auto coolingDemand = [&](std::size_t i) {
@@ -163,25 +161,32 @@ public:
         const float usedBudget = burningUsed+warmWanted*warmShare;
         out.duty = ctx.dead || out.active == 0 || crewBudget <= 0.f ? 0.f :
             (ctx.priority ? .48f : .20f)*unit(usedBudget/crewBudget);
+        float burnedWood = 0.f;
         for (std::size_t i = 0; i < count; ++i) {
             auto &c = cells[i];
             if (!c.available) { c.heat = 0.f; continue; }
-            // Cloth burns faster, but rain reaches it and repair crews cool it.
+            // Rain reaches cloth; finite repair parties cool both materials.
             const auto demand = coolingDemand(i);
             const float crewCooling = demand.crew*(flame[i] > .025f ? burningShare : warmShare);
             const float cooling = demand.ambientRain+crewCooling;
             c.heat = std::clamp(c.heat + dt*(demand.heating-cooling), 0.f, 1.25f);
-            const float burned = std::min(c.fuel, dt*flame[i]*(c.cloth ? .0032f : .0013f));
+            // Developed wood spends its finite material capacity faster;
+            // fresh ignition retains the original low burn rate/recovery window.
+            const float developed = unit((c.heat-.80f)/.45f);
+            const float woodRate = .0013f+(1.f/120.f-.0013f)*developed;
+            const float burned = std::min(c.fuel, dt*flame[i]*(c.cloth ? .0032f : woodRate));
             c.fuel -= burned; c.charred = unit(c.charred+burned*3.3f);
             if (c.cloth) c.burned += burned;
+            else burnedWood += c.radius*c.radius*burned;
             if (c.fuel <= .005f) c.heat = std::max(0.f,c.heat-dt*.10f);
         }
         if (!ctx.dead && woodArea > 0.f) {
             // Crew are partitioned across deck areas; flames cannot each charge
             // the entire crew. Existing script defences and the crew floor apply.
             const float exposure = woodExposure/woodArea;
-            out.hullFraction = dt*(.00065f*exposure+.00006f*out.intensity);
-            out.hullFraction += dt*.0030f*developedWoodExposure/woodArea;
+            // Consumed wood and hull loss are one debit. Reheating exhausted
+            // cells cannot restart an independent or unlimited hull DOT.
+            out.hullFraction = burnedWood/woodArea;
             out.crewFraction = dt*.0010f*exposure*(1.f+out.duty);
         }
         return out;
