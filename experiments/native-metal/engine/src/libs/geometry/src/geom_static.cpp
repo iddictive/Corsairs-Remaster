@@ -738,10 +738,10 @@ void GEOM::ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws)
 bool GEOM::CaptureHullRebuildSource()
 {
     if(hullDecodedSource)return true;
-    storm_ship_laser::Mesh decoded;
+    storm_ship_laser::Mesh decoded;double authoredArea=0.;
     for(int o=0;o<rhead.nobjects;++o){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=decoded[o];triangles.reserve(source.indices.size()/3);
-        for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);triangles.push_back(triangle);}}
-    hullDecodedSource=std::make_shared<const storm_ship_laser::Mesh>(std::move(decoded));return true;
+        for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);authoredArea+=storm_ship_hull::area(triangle);triangles.push_back(triangle);}}
+    hullDecodedSource=std::make_shared<const storm_ship_laser::Mesh>(std::move(decoded));hullAuthoredSurfaceArea=authoredArea;return true;
 }
 void GEOM::RetireHullRebuild()
 {

@@ -74,7 +74,8 @@ Renderer-reset payloads are frozen per node generation/history count, and live
 laser doses wait for reconstruction rather than being discarded or overwriting it.
 
 All live ship, fragment, world and combined-rebuild CPU jobs share
-`geometry_work_budget.hpp`: an aggregate allowance of5% of logical CPU capacity.
+`geometry_work_budget.hpp`: an aggregate allowance of10% of logical CPU capacity,
+raised from5% at the player's explicit request after the22:23 replay.
 Active worker wall time conservatively bounds CPU time; cooperative checkpoints
 repay the shared allowance through cancellable sleeps. The target is averaged,
 not an instantaneous OS hard cap: opaque Clipper/Earcut calls and allocation/copy

@@ -95,6 +95,7 @@ class GEOM : public GEOS
     bool laserPrepared=false,laserEnclosedFragments=true;
     std::vector<storm_ship_laser::Plane> laserPlanes;
     std::shared_ptr<const storm_ship_laser::Mesh> hullDecodedSource;
+    double hullAuthoredSurfaceArea=0.; // Lifetime matches hullDecodedSource / geometryGeneration.
     std::shared_ptr<storm_geom_hull::Job> hullRebuildJob;
     std::vector<storm_ship_hull::Impact> hullDesiredCuts;
     std::vector<storm_ship_laser::Plane> hullDesiredPlanes;
@@ -205,6 +206,7 @@ class GEOM : public GEOS
     bool ResetHullMaterial(uint64_t owner,uint64_t version) override;
     bool RepairHullMaterial(uint64_t owner,uint64_t version,double percent) override;
     double HullMaterialStructuralArea() const override { return hullMaterialStructuralArea; }
+    double AuthoredSurfaceArea() const override { return hullAuthoredSurfaceArea; }
     bool HullMaterialBounds(storm_ship_laser::Bounds&out) const override { if(laserMaterialCollision.references.empty())return false;out=laserMaterialCollision.bounds;return true; }
     const std::string& HullMaterialPayload() const override { return hullMaterialPayload; }
     bool HullMaterialReady() const override { return hullMaterialReady; }

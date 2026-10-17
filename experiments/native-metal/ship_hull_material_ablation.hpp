@@ -39,27 +39,29 @@ inline bool clipSeam(Segment&edge,const BeamPlanes&planes,size_t skip){
         if(a>0&&b>0)return false;if((a>0)!=(b>0)){const auto point=storm_ship_hull::interpolate(edge.a,edge.b,a/(a-b));if(a>0)edge.a=point;else edge.b=point;}}
     return !near(edge.a.position,edge.b.position);
 }
-// Closed source cells supply the local split oracle. Clipping an open render
-// shell alone would confuse separate outer/inner sheets with real separation.
-inline bool localMaterial(const Surface&surface,const std::map<int,float>&wood,Bounds box,Surface&local){
-    if(!surface.cells)return false;std::vector<uint32_t>ids;surface.cells->source->index.queryBounds(box,ids);
-    std::array<storm_ship_hull::Plane,6>planes;for(unsigned axis=0;axis<3;++axis){planes[axis*2]={storm_ship_structure::axisVector(axis),storm_ship_structure::coordinate(box.hi,axis)};planes[axis*2+1]={storm_ship_structure::axisVector(axis,-1),-storm_ship_structure::coordinate(box.lo,axis)};}
-    for(auto id:ids){storm_geometry_work::checkpoint();const auto&solid=materialCell(*surface.cells,id);if(solid.empty()||!wood.count(solid.begin()->first))continue;Mesh outside,inside;
-        if(!subtractVolume(solid,planes,outside,inside))return false;
-        for(size_t n=0;n<planes.size();++n){std::vector<storm_ship_hull::Plane>limits;for(size_t p=0;p<planes.size();++p)if(p!=n)limits.push_back(planes[p]);Mesh cap,unused;
-            if(!solidSectionCaps(solid,planes[n],limits,{},false,cap,unused))return false;appendMesh(inside,cap);}
-        appendMesh(local.outer,inside);}
-    return true;
+// Use the real closed source-cell boundaries, not an artificially box-clipped
+// copy. Connectivity needs no partition caps or planar Boolean at all.
+inline bool localMaterial(const Surface&surface,const std::map<int,float>&wood,const std::set<uint32_t>&ids,Surface&local){
+    if(!surface.cells)return false;for(auto id:ids){storm_geometry_work::checkpoint();const auto&solid=materialCell(*surface.cells,id);if(!solid.empty()&&wood.count(solid.begin()->first))appendMesh(local.outer,solid);}return true;
+}
+inline bool newComponent(const Surface&before,const Surface&after){
+    auto original=materialTopology(before),current=materialTopology(after);std::map<size_t,std::set<size_t>>parents;std::map<size_t,size_t>representatives;
+    for(const auto&entry:current.vertices){const auto old=original.vertices.find(entry.first);if(old!=original.vertices.end())parents[current.root(entry.second)].insert(original.root(old->second));}
+    for(size_t n=0;n<current.faces.size();++n)representatives.try_emplace(current.root(n),n);
+    for(const auto&entry:representatives)if(parents[entry.first].empty()){const auto&ref=current.faces[entry.second];const auto&t=surfaceRole(after,ref.role).at(ref.object)[ref.triangle];const auto point=(t[0].position+t[1].position+t[2].position)*(1.f/3.f);
+        for(size_t n=0;n<original.faces.size();++n){storm_geometry_work::checkpoint();const auto&old=original.faces[n];if(old.object==ref.object&&pointOnFace(point,surfaceRole(before,old.role).at(old.object)[old.triangle]))parents[entry.first].insert(original.root(n));}}
+    std::map<size_t,size_t>owners;for(const auto&entry:parents)for(auto parent:entry.second){const auto inserted=owners.emplace(parent,entry.first);if(!inserted.second&&inserted.first->second!=entry.first)return true;}
+    // A batch can enclose a piece entirely with new faces. Its lack of an old
+    // boundary witness must not suppress the authoritative whole-hull check.
+    std::set<size_t>oldComponents;for(size_t n=0;n<original.faces.size();++n)oldComponents.insert(original.root(n));return representatives.size()>oldComponents.size();
 }
 inline bool newlySplit(const Input&input,const Surface&after,bool&split){
     split=false;const auto state=input.structure?input.structure:input.surface->structure;if(!state||!state->layout)return false;
     std::vector<uint32_t>ids;std::set<uint32_t>cells;for(const auto&beam:input.plane.beams){storm_ship_structure::queryCells(*state->layout,beamBounds(beam),ids);cells.insert(ids.begin(),ids.end());}
-    for(auto id:cells){Surface beforeLocal,afterLocal;const auto box=state->layout->cells[id].bounds;
-        if(!localMaterial(*input.surface,input.wood,box,beforeLocal)||!localMaterial(after,input.wood,box,afterLocal))return false;
-        // Reuse the canonical ancestry rule: every prior independent assembly
-        // keeps its own largest survivor, even when another one vanishes.
-        if(!detachEnclosed(beforeLocal,afterLocal).empty()){split=true;break;}}
-    return true;
+    if(!input.surface->cells||!after.cells||input.surface->cells->source!=after.cells->source)return false;
+    std::set<uint32_t>sources;for(auto id:cells){input.surface->cells->source->index.queryBounds(state->layout->cells[id].bounds,ids);sources.insert(ids.begin(),ids.end());}
+    Surface beforeLocal,afterLocal;if(!localMaterial(*input.surface,input.wood,sources,beforeLocal)||!localMaterial(after,input.wood,sources,afterLocal))return false;
+    split=newComponent(beforeLocal,afterLocal);return true;
 }
 template<class ClipCell>inline bool cut(const Input&input,LocalResult&output,ClipCell clipCell){
     if(!input.surface||!input.surface->cells||!valid(input.plane)||input.plane.beams.empty())return false;

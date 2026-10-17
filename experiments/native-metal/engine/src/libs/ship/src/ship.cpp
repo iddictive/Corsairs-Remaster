@@ -1946,6 +1946,9 @@ std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints(bool hullSurface) cons
 
 void SHIP::Execute(uint32_t DeltaTime)
 {
+    const bool mastContactContinues=mastContactModel&&mastContactModel==GetModelEID();
+    mastContactModel = bMounted && GetModel() ? GetModelEID() : 0;
+    if(mastContactModel)mastContactPrevious=GetModel()->mtx;
     auto *pAPerks = GetACharacter()->FindAClass(GetACharacter(), "TmpPerks");
 
     auto *pARocking = GetAShip()->GetAttributeClass("Rocking");
@@ -2194,6 +2197,7 @@ void SHIP::Execute(uint32_t DeltaTime)
     SetMatrix(mRoot);
 
     auto matrix = UpdateModelMatrix();
+    if(!mastContactContinues)mastContactPrevious=matrix; // Mount/load/teleport is not a swept ram.
     ExecutePhonkOrdnance(DeltaTime);
     ExecutePhonkLaser(DeltaTime);
 
@@ -2205,28 +2209,13 @@ void SHIP::Execute(uint32_t DeltaTime)
             {
                 CVECTOR v1, v2;
                 VDATA *pV;
-                auto fShipRes = 2.0f, fIslRes = 2.0f;
+                auto fIslRes = 2.0f;
 
                 auto *pM = &pMasts[i];
                 v1 = matrix * pM->vSrc;
                 v2 = matrix * pM->vDst;
 
-                auto id = GetId();
-                fShipRes = pCollide->Trace(core.GetEntityIds(MAST_SHIP_TRACE), v1, v2, &id, 1);
-                if (fShipRes <= 1.0f)
-                {
-                    auto *pACollideCharacter = GetACharacter();
-                    auto *pShip = static_cast<SHIP *>(core.GetEntityPointer(pCollide->GetObjectID()));
-                    if (pShip)
-                        pACollideCharacter = pShip->GetACharacter();
-                    pV = core.Event(SHIP_MAST_DAMAGE, "llffffaa", SHIP_MAST_TOUCH_SHIP, pM->iMastNum, v1.x, v1.y, v1.z,
-                                    pM->fDamage, GetACharacter(), pACollideCharacter);
-                    if (pV != nullptr) {
-                        pM->fDamage = Clamp(pV->GetFloat());
-                    }
-                }
-
-                id = GetModelEID();
+                auto id = GetModelEID();
                 fIslRes = pCollide->Trace(core.GetEntityIds(MAST_ISLAND_TRACE), v1, v2, &id, 1);
                 if (fIslRes <= 1.0f)
                 {
@@ -2378,6 +2367,43 @@ void SHIP::HullFall(hull_t *pM)
         Assert(pAHulls);
         pAHulls->SetAttributeUseFloat(str, 1.0f);
         pM->bBroken = true;
+    }
+}
+
+bool SHIP::GetMastContactFrame(SHIP_MAST_CONTACT_FRAME &frame)
+{
+    auto *model=bMounted?GetModel():nullptr;
+    auto *root=model?model->GetNode(0):nullptr;
+    if(!model||!root||!root->geo||mastContactModel!=GetModelEID())return false;
+    frame={};frame.ship=GetId();frame.model=GetModelEID();frame.previous=mastContactPrevious;frame.current=model->mtx;frame.mass=GetHullContactMass();
+    const double whole=root->geo->HullMaterialStructuralArea();
+    for(const auto &mast:pMasts)if(!mast.bBroken&&mast.pNode&&mast.pNode->geo){
+        const auto *geometry=mast.pNode->geo;const double area=geometry->AuthoredSurfaceArea();
+        if(!(whole>0.)||!(area>0.))continue;
+        // Native pMasts owns mast identity. Root-only wood profiles do not
+        // classify these GM assemblies; use their actual cached authored area
+        // in the same whole-hull area domain, without inventing shell timber.
+        SHIP_MAST_CONTACT entry;entry.number=mast.iMastNum;entry.base=mast.vSrc;entry.tip=mast.vDst;
+        entry.geometry=geometry;entry.generation=geometry->GeometryGeneration();entry.revision=geometry->CollisionRevision();
+        entry.strength=75.*area*double(~mast.pNode->glob_mtx.Vx())/(whole*double(~root->glob_mtx.Vx()));
+        if(std::isfinite(entry.strength)&&entry.strength>0.)frame.masts.push_back(entry);
+    }
+    return frame.mass>0.&&std::isfinite(frame.mass);
+}
+
+void SHIP::ApplyMastContact(const SHIP_MAST_CONTACT_FRAME &frame,const SHIP_MAST_CONTACT &witness,
+                            entid_t other,const CVECTOR &point,double specificWork)
+{
+    if(!bMounted||PhonkActive()||frame.model!=GetModelEID()||!(specificWork>0.)||!std::isfinite(specificWork))return;
+    auto *opponent=dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(other));
+    if(!opponent||!opponent->GetACharacter())return;
+    for(auto &mast:pMasts)if(!mast.bBroken&&mast.iMastNum==witness.number&&mast.pNode&&mast.pNode->geo==witness.geometry){
+        if(mast.pNode->geo->GeometryGeneration()!=witness.generation||mast.pNode->geo->CollisionRevision()!=witness.revision)return;
+        const float increment=float(std::min(1.,specificWork/witness.strength));
+        auto *accepted=core.Event(SHIP_MAST_DAMAGE,"llffffaaf",SHIP_MAST_TOUCH_SHIP,mast.iMastNum,
+            point.x,point.y,point.z,mast.fDamage,GetACharacter(),opponent->GetACharacter(),increment);
+        if(accepted){const float damage=accepted->GetFloat();if(std::isfinite(damage))mast.fDamage=Clamp(damage);}
+        MastFall(&mast);return;
     }
 }
 
@@ -3121,6 +3147,7 @@ void SHIP::LoadPositionFromAttributes()
 
 bool SHIP::Mount(ATTRIBUTES *_pAShip)
 {
+    mastContactModel = 0;
     CancelPhonkLaserWork();
     Assert(_pAShip);
     pAShip = _pAShip;
@@ -3801,6 +3828,7 @@ CVECTOR SHIP::GetPos() const
 
 void SHIP::SetPos(const CVECTOR &vNewPos)
 {
+    mastContactModel = 0;
     State.vPos = vNewPos;
     if (pSea)
         State.vPos.y = pSea->WaveXZ(State.vPos.x, State.vPos.z);
@@ -3939,6 +3967,7 @@ void SHIP::Save(CSaveLoad *pSL)
 
 void SHIP::Load(CSaveLoad *pSL)
 {
+    mastContactModel = 0;
     uint32_t i;
     CancelPhonkLaserWork();
     phonkLaser = {};

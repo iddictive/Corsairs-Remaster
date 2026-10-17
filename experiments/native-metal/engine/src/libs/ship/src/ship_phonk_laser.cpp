@@ -649,6 +649,28 @@ bool SHIP::StartPhonkLaserWork() try
         target.input.structuralArea=root->geo->HullMaterialStructuralArea()*rootScale/std::max(1.e-12,nodeScale);
         work.targets.push_back(std::move(target));
     }
+    // Only authored ancestors can carry this mast. Capture values here; joint
+    // intersection and retained-material work stay inside the existing worker.
+    for(auto &target:work.targets)if(target.input.hasSupport){
+        auto *node=model->GetNode(target.node);
+        CMatrix relative=node->loc_mtx;
+        for(auto *ancestor=node->parent;ancestor;ancestor=ancestor->parent){
+            auto receiver=std::find_if(work.targets.begin(),work.targets.end(),[&](const auto &entry){return model->GetNode(entry.node)==ancestor;});
+            const CMatrix captured=relative;
+            relative=CMatrix(relative,ancestor->loc_mtx);
+            if(receiver==work.targets.end())continue;
+            LaserMastContact joint;joint.receiver=receiver->node;joint.receiverGeneration=receiver->input.generation;joint.mastGeneration=target.input.generation;
+            const CVECTOR values[]={captured.Pos(),captured.Vx(),captured.Vy(),captured.Vz()};
+            for(unsigned n=0;n<4;++n)joint.transform[n]={values[n].x,values[n].y,values[n].z};
+            const auto binding=std::find_if(phonkLaser.bindings.begin(),phonkLaser.bindings.end(),[&](const auto &entry){return entry.node==target.name;});
+            if(binding!=phonkLaser.bindings.end())for(const auto &cached:binding->mastContacts){
+                bool same=cached.receiver==joint.receiver&&cached.receiverGeneration==joint.receiverGeneration&&cached.mastGeneration==joint.mastGeneration;
+                for(unsigned n=0;n<4;++n)same=same&&cached.transform[n].x==joint.transform[n].x&&cached.transform[n].y==joint.transform[n].y&&cached.transform[n].z==joint.transform[n].z;
+                if(same){joint.contact=cached.contact;break;}
+            }
+            target.mastContacts.push_back(std::move(joint));receiver->mastSupportReceiver=true;
+        }
+    }
     auto cancel = std::make_shared<std::atomic<bool>>(false);
     auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget, allowance = storm_geometry_work::allowance()]() mutable {
         try {
@@ -662,6 +684,32 @@ bool SHIP::StartPhonkLaserWork() try
                 const auto produced = unsigned(target.projection.result.fragments.size());
                 if (produced > remaining) return std::move(work);
                 remaining -= produced;
+            }
+            using namespace storm::ship::mast_support;
+            std::map<int,std::unique_ptr<Index<storm_ship_laser::SurfaceBase>>>authoredIndices;
+            std::map<int,std::unique_ptr<Index<storm_ship_laser::Surface>>>retainedIndices;
+            for(auto &target:work.targets)if(target.input.hasSupport){
+                bool known=false,supported=false;
+                const auto mast=target.input.surface->supportOriginal?target.input.surface->supportOriginal:target.input.surface->original;
+                if(!mast)continue;
+                for(auto &joint:target.mastContacts){
+                    auto receiver=std::find_if(work.targets.begin(),work.targets.end(),[&](const auto &entry){return entry.node==joint.receiver;});
+                    if(receiver==work.targets.end())continue;
+                    const auto hull=receiver->input.surface->supportOriginal?receiver->input.surface->supportOriginal:receiver->input.surface->original;
+                    if(!hull)continue;
+                    if(!joint.contact||joint.contact->hull!=hull||joint.contact->mast!=mast){
+                        auto &index=authoredIndices[joint.receiver];if(!index)index=std::make_unique<Index<storm_ship_laser::SurfaceBase>>(*hull);
+                        joint.contact=capture(hull,mast,*index,receiver->input.wood,receiver->input.hasSupport,[&](storm_ship_laser::Vec3 p){return joint.transform[0]+joint.transform[1]*p.x+joint.transform[2]*p.y+joint.transform[3]*p.z;});
+                    }
+                    if(joint.contact->regions.empty())continue;
+                    known=true;
+                    // A health-only projection has the identical material. It
+                    // cannot remove any of the previously valid finite joints.
+                    const auto &after=receiver->projection.kept?*receiver->projection.kept:*receiver->input.surface;
+                    auto &index=retainedIndices[joint.receiver];if(!index)index=std::make_unique<Index<storm_ship_laser::Surface>>(after);
+                    if(!lost(*joint.contact,*index)){supported=true;break;}
+                }
+                if(known&&!supported)target.projection.result.supportSevered=true;
             }
             work.valid = !cancel->load(std::memory_order_relaxed);
         } catch (const std::exception &) { work.valid = false; }
@@ -707,11 +755,19 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                     node->geo->GeometryGeneration() == target.input.generation && node->geo->CollisionRevision() == target.input.revision && node->geo->HullMaterialRevision() == target.input.materialRevision;
                 // A turning yard outside this cut cannot invalidate the hull's
                 // prepared material. Changed nodes still require their captured pose.
-                if (identity && (target.projection.result.changed || target.projection.result.stateChanged || target.projection.result.supportSevered)) for (unsigned axis = 0; axis < 4; ++axis)
+                if (identity && (target.mastSupportReceiver || target.input.hasSupport || target.projection.result.changed || target.projection.result.stateChanged || target.projection.result.supportSevered)) for (unsigned axis = 0; axis < 4; ++axis)
                 {
                     const CVECTOR a[] = {node->loc_mtx.Vx(), node->loc_mtx.Vy(), node->loc_mtx.Vz(), node->loc_mtx.Pos()};
                     const CVECTOR b[] = {target.local.Vx(), target.local.Vy(), target.local.Vz(), target.local.Pos()};
                     identity = identity && a[axis].x == b[axis].x && a[axis].y == b[axis].y && a[axis].z == b[axis].z;
+                }
+                if (!identity) break;
+                for(const auto &joint:target.mastContacts){
+                    CMatrix relative=node->loc_mtx;auto *ancestor=node->parent;
+                    for(;ancestor&&ancestor!=model->GetNode(joint.receiver);ancestor=ancestor->parent)relative=CMatrix(relative,ancestor->loc_mtx);
+                    identity=identity&&ancestor;
+                    const CVECTOR values[]={relative.Pos(),relative.Vx(),relative.Vy(),relative.Vz()};
+                    for(unsigned n=0;n<4;++n)identity=identity&&values[n].x==joint.transform[n].x&&values[n].y==joint.transform[n].y&&values[n].z==joint.transform[n].z;
                 }
                 if (!identity) break;
                 geometries.push_back(node->geo);
@@ -726,6 +782,11 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
             if (valid && changed)
             {
                 for (auto *geometry : geometries) geometry->CommitLaserProjection(uint64_t(blots_id));
+                for(auto &target:work.targets)if(target.input.hasSupport){
+                    auto binding=std::find_if(phonkLaser.bindings.begin(),phonkLaser.bindings.end(),[&](const auto &entry){return entry.node==target.name;});
+                    if(binding==phonkLaser.bindings.end()){phonkLaser.bindings.push_back({target.name});binding=std::prev(phonkLaser.bindings.end());}
+                    binding->mastContacts=std::move(target.mastContacts);
+                }
                 auto *attackerShip = dynamic_cast<SHIP *>(core.GetEntityPointer(work.request.attacker));
                 ApplyPhonkLaserCutNow(work.request.plane, false, work.request.owner,
                     attackerShip ? attackerShip->GetACharacter() : nullptr, work.request.payPartialDamage, &work);

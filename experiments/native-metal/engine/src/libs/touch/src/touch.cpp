@@ -3,6 +3,11 @@
 
 #include "core.h"
 #include "collide.h"
+#include "model.h"
+#include "ship_mast_support.hpp"
+#include <limits>
+#include <set>
+#include <tuple>
 
 #include "character.h"
 #include "entity.h"
@@ -11,6 +16,127 @@
 #include "shared/sea_ai/script_defines.h"
 
 CREATE_CLASS(TOUCH)
+
+namespace {
+using MastVec=storm_ship_laser::Vec3;
+using MastTriangle=storm_ship_laser::Triangle;
+MastVec mastVector(const CVECTOR &v){return {v.x,v.y,v.z};}
+CVECTOR mastVector(MastVec v){return CVECTOR(v.x,v.y,v.z);}
+struct MastSweep {
+    std::array<MastVec,4> quad;
+    const SHIP_MAST_CONTACT_FRAME *receiver=nullptr;
+    double seconds=0.,closing=0.;
+    MastVec point{};
+    float time=1.f;
+    bool contact=false,previousOverlap=false;
+};
+// The contact witness must keep clipped polygon edges. MODEL's bounded Clip
+// already rejects far receiver hierarchies before enumerating any triangles.
+thread_local MastSweep *activeMastSweep=nullptr;
+bool mastAxisHit(MastVec a,MastVec b,const MastTriangle &triangle,MastVec &point) {
+    using namespace storm_ship_hull;
+    const auto raw=cross(triangle[1].position-triangle[0].position,triangle[2].position-triangle[0].position);
+    if(length(raw)<1.e-12f)return false;const auto normal=normalized(raw);
+    const float first=dot(a-triangle[0].position,normal),last=dot(b-triangle[0].position,normal);
+    if(std::abs(first-last)>1.e-12f){
+        const float time=first/(first-last);if(time<0.f||time>1.f)return false;
+        point=a+(b-a)*time;return storm_ship_laser::pointOnFace(point,triangle);
+    }
+    if(std::abs(first)>storm::ship::mast_support::tolerance||!storm::ship::mast_support::segmentSupported(a,b,triangle))return false;
+    point=storm_ship_laser::closestFacePoint((a+b)*.5f,triangle);return true;
+}
+bool mastSweepPolygon(const CVECTOR *vertices,int32_t count) {
+    using namespace storm_ship_hull;
+    auto &query=*activeMastSweep;
+    CMatrix receiverCurrent=query.receiver->current; // Native vector math has non-const member APIs.
+    for(int32_t n=1;n+1<count;++n){
+        MastTriangle receiver{};const CVECTOR world[]={vertices[0],vertices[n],vertices[n+1]};
+        for(unsigned c=0;c<3;++c){CVECTOR local;receiverCurrent.MulToInv(world[c],local);receiver[c].position=mastVector(local);}
+        const auto raw=cross(receiver[1].position-receiver[0].position,receiver[2].position-receiver[0].position);
+        if(length(raw)<1.e-12f)continue;const auto normal=normalized(raw);
+        MastVec oldPoint;query.previousOverlap|=mastAxisHit(query.quad[0],query.quad[1],receiver,oldPoint);
+        for(unsigned half=0;half<2;++half){
+            const unsigned corners[2][3]={{0,1,2},{0,2,3}};MastTriangle swept{};
+            for(unsigned c=0;c<3;++c)swept[c].position=query.quad[corners[half][c]];
+            auto contacts=storm::ship::mast_support::intersection(swept,receiver);
+            const auto u=swept[1].position-swept[0].position,v=swept[2].position-swept[0].position;
+            const double uu=dot(u,u),uv=dot(u,v),vv=dot(v,v),denominator=uu*vv-uv*uv;
+            // Pure axial travel has a degenerate ruled surface. Its swept set
+            // is exactly the longest collinear axis interval, not sampled rays.
+            if(denominator<=1.e-16&&half==0){
+                unsigned first=0,last=1;float distance=0;
+                for(unsigned a=0;a<4;++a)for(unsigned b=a+1;b<4;++b){const float d=length(query.quad[b]-query.quad[a]);if(d>distance){distance=d;first=a;last=b;}}
+                MastVec point;if(mastAxisHit(query.quad[first],query.quad[last],receiver,point))contacts.push_back(point);
+            }
+            for(auto point:contacts){
+                float time=1.f;
+                if(denominator>1.e-16){const auto delta=point-swept[0].position;const double du=dot(delta,u),dv=dot(delta,v);
+                    const double b=(du*vv-dv*uv)/denominator,c=(dv*uu-du*uv)/denominator;time=float(half?b+c:c);}
+                time=std::clamp(time,0.f,1.f);
+                const auto base=query.quad[0]+(query.quad[3]-query.quad[0])*time,tip=query.quad[1]+(query.quad[2]-query.quad[1])*time;
+                const auto axis=tip-base;const float size=dot(axis,axis);if(size<=1.e-12f)continue;
+                const float along=std::clamp(dot(point-base,axis)/size,0.f,1.f);
+                const auto travel=(query.quad[3]-query.quad[0])*(1.f-along)+(query.quad[2]-query.quad[1])*along;
+                const double closing=std::max(0.,-double(dot(travel,normal))/query.seconds);
+                query.contact=true;
+                if(closing>query.closing){query.closing=closing;query.point=point;query.time=time;}
+            }
+        }
+    }
+    return true;
+}
+}
+
+// TOUCH still owns the early hull impulse solver. Its child sees all final
+// ship poses and publishes only after every actual-geometry query completes.
+class TOUCH_MASTS final:public Entity {
+    using Key=std::tuple<uint64_t,uint64_t,int32_t,uint64_t,uint64_t,uint64_t>;
+    std::set<Key> contacts;
+  public:
+    bool Init() override{return true;}
+    void ProcessStage(Stage stage,uint32_t delta) override {
+        if(stage!=Stage::execute||!delta)return;
+        std::vector<SHIP_MAST_CONTACT_FRAME>frames;
+        for(const auto id:core.GetEntityIds("ship"))if(auto *ship=dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(id))){
+            SHIP_MAST_CONTACT_FRAME frame;if(ship->GetMastContactFrame(frame))frames.push_back(std::move(frame));
+        }
+        struct Impact{size_t own,other,mast;CVECTOR point;double work;};
+        std::vector<Impact> impacts;std::set<Key>next;
+        const double seconds=double(delta)*.001;
+        for(size_t own=0;own<frames.size();++own)for(size_t other=0;other<frames.size();++other){
+            if(own==other)continue;const auto &a=frames[own],&b=frames[other];
+            auto *model=dynamic_cast<MODEL *>(core.GetEntityPointer(b.model));if(!model)continue;
+            CMatrix ownPrevious=a.previous,ownCurrent=a.current,receiverPrevious=b.previous,receiverCurrent=b.current;
+            for(size_t index=0;index<a.masts.size();++index){const auto &mast=a.masts[index];
+                MastSweep query;query.receiver=&b;query.seconds=seconds;
+                const CVECTOR endpoints[]={ownPrevious*mast.base,ownPrevious*mast.tip,ownCurrent*mast.tip,ownCurrent*mast.base};
+                for(unsigned c=0;c<4;++c){CVECTOR local;(c<2?receiverPrevious:receiverCurrent).MulToInv(endpoints[c],local);query.quad[c]=mastVector(local);}
+                // Linear within-frame relative-axis motion. The native Clip
+                // hierarchy/BVH selects only triangles in this finite patch.
+                CVECTOR lo=receiverCurrent*mastVector(query.quad[0]),hi=lo;
+                for(unsigned c=1;c<4;++c){const auto p=receiverCurrent*mastVector(query.quad[c]);for(unsigned axis=0;axis<3;++axis){lo.v[axis]=std::min(lo.v[axis],p.v[axis]);hi.v[axis]=std::max(hi.v[axis],p.v[axis]);}}
+                const float epsilon=storm::ship::mast_support::tolerance;lo-=CVECTOR(epsilon);hi+=CVECTOR(epsilon);
+                const PLANE planes[6]={{1,0,0,hi.x},{-1,0,0,-lo.x},{0,1,0,hi.y},{0,-1,0,-lo.y},{0,0,1,hi.z},{0,0,-1,-lo.z}};
+                const auto center=(lo+hi)*.5f;
+                auto *previous=activeMastSweep;activeMastSweep=&query;
+                model->Clip(planes,6,center,std::sqrt(~(hi-center)),mastSweepPolygon);activeMastSweep=previous;
+                if(!query.contact)continue;
+                const Key key{uint64_t(a.ship),uint64_t(a.model),mast.number,uint64_t(b.ship),uint64_t(b.model),mast.generation};next.insert(key);
+                if(query.previousOverlap||contacts.count(key)||!(query.closing>0.))continue;
+                const double share=b.mass/(a.mass+b.mass);
+                const double work=.5*query.closing*query.closing*share*share*(1.-storm::ship::contact::restitution*storm::ship::contact::restitution);
+                const CVECTOR first=receiverPrevious*mastVector(query.point),last=receiverCurrent*mastVector(query.point);
+                impacts.push_back({own,other,index,first+(last-first)*query.time,work});
+            }
+        }
+        contacts=std::move(next);
+        for(const auto &impact:impacts){const auto &frame=frames[impact.own];
+            if(auto *ship=dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(frame.ship)))
+                ship->ApplyMastContact(frame,frame.masts[impact.mast],frames[impact.other].ship,impact.point,impact.work);
+        }
+    }
+};
+CREATE_CLASS(TOUCH_MASTS)
 
 void TOUCH::SetDevices()
 {
@@ -37,6 +163,7 @@ TOUCH::TOUCH()
 
 TOUCH::~TOUCH()
 {
+    if(mastContacts)core.EraseEntity(mastContacts);
     for (int32_t i = 0; i < iNumShips; i++)
         STORM_DELETE(pShips[i]);
 }
@@ -98,6 +225,12 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
             pShips[i]->pShip->BuildContour(&pShips[i]->vCoastContour[0], pShips[i]->iNumCoastContour, 1.0f);
             pShips[i]->contourRevision = pShips[i]->pShip->GetHullContourRevision();
         }
+    }
+
+    if(!mastContacts)for(i=0;i<iNumShips;++i)if(pShips[i]->pShip){
+        mastContacts=core.CreateEntity("TOUCH_MASTS");
+        if(mastContacts)core.AddToLayer(pShips[i]->pShip->GetMastContactLayer(),mastContacts,std::numeric_limits<priority_t>::max());
+        break;
     }
 
     iDeltaTime = dwCoreDeltaTime;

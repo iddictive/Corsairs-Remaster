@@ -113,6 +113,8 @@ class GEOS
     virtual bool ResetHullMaterial(uint64_t,uint64_t) { return false; }
     virtual bool RepairHullMaterial(uint64_t,uint64_t,double) { return false; }
     virtual double HullMaterialStructuralArea() const { return 0.; }
+    // Actual immutable GM surface area; independent of hull timber admission.
+    virtual double AuthoredSurfaceArea() const { return 0.; }
     virtual bool HullMaterialBounds(storm_ship_laser::Bounds&) const { return false; }
     virtual const std::string& HullMaterialPayload() const { static const std::string empty;return empty; }
     virtual bool HullMaterialReady() const { return false; }

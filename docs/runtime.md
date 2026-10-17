@@ -1,8 +1,61 @@
 # Runtime state
 
-Last verified installed delivery: October16,22:13EDT, local-ablation/contact/cache successor, signed engine `decf7a02cdb916e7af1b16839417c02cf22ac422fb0198a8dfd352fba4b49e1a`. Canonical staging exits0;522 protected files are unchanged and239 managed receipt rows match at delivery. The player's21:50 replay rejects the precedinga9c423de engine's laser/ram geometry and fire FPS. The corrected engine's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,22:50EDT,10% allowance/separation/mast successor, signed engine `b0f1ac51c1c4275b608b1ea2ac2d4e68ab5f4e9f208dc0b5610cd11c2d17f0d7`. Canonical staging exits0;524 protected files are unchanged and239 managed receipt rows match at delivery. The precedingdecf7a02 image has partial player-confirmed damage but rejected separation/masts and the22:23 stack-guard crash. This successor's real gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16,22:23 player crash — damage partially confirmed; separation and masts reopened
+
+The player confirms some delayed laser damage, but cannot detach a section.
+A ram removes half the hull without a corresponding visible body; standing
+masts on a sinking wreck resist direct ramming. The owner authorizes raising
+the aggregate geometry-worker allowance from5% to10% and requests less work,
+not only less throttling.
+
+Crash PID4789, launched22:19:58, matches installeddecf7a02/UUID71AC6C6A. The
+worker faults in a stack guard after4731 `CheckSplitOwner` recursions through
+`solidSectionCaps` → `ablation::localMaterial` → `newlySplit`. Exact report and
+matching signed binary remain in [the crash receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-cut-crash-2223/receipt.json).
+
+Source correction removes artificial box-intersection caps from the local split
+oracle and marks empty Clipper split records before recursion. Failed mechanical
+graph cells become real bounded connected-region bodies rather than silently
+deleted wood. The old-tip-gone mast support case follows actual surviving
+authored material. Cross-node finite mast contacts are evaluated in the existing
+worker and published through native MastFall with revision/hierarchy fences.
+
+Direct mast collision is a separate proven gap: native ship tracing samples at
+0.5s and script damage adds fixed0.2 without closing work. TOUCH executes before
+SHIP; its owned late coordinator now captures all mounted fleet poses, queries
+finite relative swept axes against real retained receivers, then publishes
+work-scaled native mast events. Wrecks do not need an exposed hull contour.
+Persistent overlap cannot repeat damage. Capacity uses native authored mast area
+cached in the existing GEOM decode, because the root-only timber profiles exclude
+all masts. Island/ball events, Phonk/immortality and SAVE remain separately owned.
+Contracts and current upstream Clipper review are in
+`naval-ammunition-and-damage.md`.
+
+The first compiler attempt stops before installation on local const CMatrix
+integration errors in TOUCH; those are corrected without changing the global
+matrix API. Source review also catches the unavailable mast timber-area cache
+and replaces it with actual authored area before delivery. Failed compiler output
+is retained with the delivery receipt. Corrected canonical staging succeeds.
+
+Disposition: compiled and installed22:50EDT through canonical
+`experiments/native-metal/run.sh --stage-only`, exit0. Native fingerprint is
+`abd2d0a6f559b7d5445d207c35c3c4d303b548be0588154b85aca85e7e2fb433`;
+unsigned engine `6f6322c5659a69387472ebc9c837aa084fd34e124fbf6004123c040680a53bc9`,
+signed app engine `b0f1ac51c1c4275b608b1ea2ac2d4e68ab5f4e9f208dc0b5610cd11c2d17f0d7`,
+UUID `0710C216-99E7-32B7-AFC0-CDEA0615F3DE`. AIShip's paired callback is delivered;
+all524 current protected player files retain their hashes, and all239 managed
+receipt rows match. The precedingdecf7a02 engine is retained by the installer.
+Build/stage/failure logs and exact result remain in
+[the delivery receipt](../.local-archives/installed-delivery/mast-separation-20261016/result.json).
+No agent tests, probes, game launch, SAVE load or game control. Player replay must distinguish
+actual separated bodies from missing mesh, direct mast contact from foot loss,
+and reduced computation from the allowance increase; no FPS gain is claimed.
+Linear within-frame mast motion and unclassified laser mast thickness remain
+explicit limits of this successor. No push, ZIP or Drive update.
 
 ### October16,21:50 player replay — graph baseline rejected; immediate material correction
 

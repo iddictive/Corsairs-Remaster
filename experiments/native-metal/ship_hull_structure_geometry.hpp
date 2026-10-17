@@ -73,7 +73,16 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
     for(const auto&component:damage.components){bool detached=false;for(auto id:component){if(id>=owner.size())return false;detached|=released[id]!=0;}if(!detached)continue;
         if(groups.size()-1>=input.fragmentLimit)return false;const auto destination=uint32_t(groups.size());groups.emplace_back();for(auto id:component){if(!released[id])return false;owner[id]=destination;}}
     for(auto id:damage.releasedCells)if(owner[id]==0)return false;
-    Realization next;for(auto id:damage.brokenCells){if(id>=owner.size())return false;owner[id]=Removed;auto beam=cellField(layout.cells[id].bounds);if(!valid(beam))return false;next.removedCells.push_back(std::move(beam));}
+    // Failed mechanical supports still contain real wood. Transfer each
+    // connected failed region to a body; only explicit thermal ablation may
+    // remove material without retaining its boundary as a physical piece.
+    std::vector<uint8_t>failed(owner.size()),visited(owner.size());for(auto id:damage.brokenCells){if(id>=owner.size()||owner[id]!=0)return false;failed[id]=1;}
+    Realization next;
+    for(auto start:damage.brokenCells){if(visited[start])continue;if(groups.size()-1>=input.fragmentLimit)return false;const auto destination=uint32_t(groups.size());groups.emplace_back();std::vector<uint32_t>region{start};visited[start]=1;
+        for(size_t n=0;n<region.size();++n){storm_geometry_work::checkpoint();const auto id=region[n];owner[id]=destination;auto beam=cellField(layout.cells[id].bounds);if(!valid(beam))return false;next.removedCells.push_back(std::move(beam));
+            for(auto edge:layout.cells[id].bonds){const auto&bond=layout.bonds[edge];const auto other=bond.a==id?bond.b:bond.a;
+                const bool materialContact=damage.state.physicalBondHealth.size()!=layout.bonds.size()||damage.state.physicalBondHealth[edge]>1.e-6f;
+                if(materialContact&&failed[other]&&!visited[other]){visited[other]=1;region.push_back(other);}}}}
     const auto outerIndex=indexFaces(input.surface->outer);
     std::map<FaceKey,uint32_t>decoration;if(!decorationOwners(input,layout,owner,outerIndex,decoration,groups))return false;
     std::vector<uint32_t>candidates;const Vec3 margin{.000002f,.000002f,.000002f};
@@ -101,7 +110,8 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
             if(inside&&!near(edge.a.position,edge.b.position))next.seam.push_back(edge);}
     }
     next.kept=*input.surface;next.kept.outer=std::move(groups[0].outer);next.kept.canonicalCaps=std::move(groups[0].canonicalCaps);next.kept.interior=std::move(groups[0].interior);next.kept.finiteWalls=std::move(groups[0].finiteWalls);
-    for(size_t n=1;n<groups.size();++n){const auto physical=renderMesh(groups[n]);if(physical.empty())continue;next.kept.released.push_back(std::make_shared<const Mesh>(physical));next.pieces.push_back(std::move(groups[n]));}
+    for(size_t n=1;n<groups.size();++n){const auto physical=renderMesh(groups[n]);bool material=false;for(const auto&o:physical)for(const auto&t:o.second)material|=storm_ship_hull::area(t)>1.e-10f;if(!material)return false;
+        next.kept.released.push_back(std::make_shared<const Mesh>(physical));next.pieces.push_back(std::move(groups[n]));}
     next.changed=true;output=std::move(next);return true;
 }
 }

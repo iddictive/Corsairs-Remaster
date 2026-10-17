@@ -298,7 +298,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     if(!geometry.changed){next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));
         if(input.materialTailCount>=31)next.materialPayload=encode(*input.surface,input.fingerprint,next.structure);
         output=std::move(next);return true;}
-    // Failed nodes ablate; newly disconnected components become real bodies.
+    // Failed mechanical regions and disconnected sections transfer to bodies.
     // Both cease belonging to the hull's actual finite material-cell cache.
     for(auto id:damage.releasedCells)geometry.removedCells.push_back(structure_geometry::cellField(damage.state.layout->cells.at(id).bounds));
     if(!geometry.removedCells.empty()&&!fractureCells(geometry.kept,geometry.removedCells,input.wood))return false;

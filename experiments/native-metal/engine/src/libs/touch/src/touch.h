@@ -46,6 +46,7 @@ class TOUCH : public Entity
 
     TOUCH_SHIP *pShips[256];
     int32_t iNumShips;
+    entid_t mastContacts = 0; // Owned late-frame mast coordinator.
 
     BOOL BuildContour(int32_t ship_idx);
 

@@ -221,6 +221,8 @@ class SHIP : public SHIP_BASE
     CVECTOR contactLower = CVECTOR(0.f), contactUpper = CVECTOR(0.f);
 
     DTimer dtMastTrace, dtUpdateParameters;
+    CMatrix mastContactPrevious;
+    entid_t mastContactModel = 0;
 
     // executed functions
     CVECTOR ShipRocking(float fDeltaTime, float *surfaceHeight = nullptr, CVECTOR *surfaceAngle = nullptr);
@@ -303,6 +305,10 @@ class SHIP : public SHIP_BASE
     void InitSailState();
 
   public:
+    layer_index_t GetMastContactLayer() const override { return ExecuteLayer; }
+    bool GetMastContactFrame(SHIP_MAST_CONTACT_FRAME &frame) override;
+    void ApplyMastContact(const SHIP_MAST_CONTACT_FRAME &frame,const SHIP_MAST_CONTACT &mast,
+                          entid_t other,const CVECTOR &point,double specificWork) override;
 #ifdef STORM_METAL_SHIP_FIRE
     const storm_ship_fire::Model *GetCrewFireModel() const override { return &shipFire; }
 #endif

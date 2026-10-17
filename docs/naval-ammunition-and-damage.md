@@ -6,7 +6,10 @@ The common hull-material baseline was installed on October16,20:52EDT;
 the player's later replay rejects reliable laser/ram separation. The graph-based
 successor installed on October16,21:40EDT is also rejected by the21:50 player
 replay. The local-ablation/contact successor below is installed on October16,
-22:13EDT; real gameplay acceptance remains with the player.
+22:13EDT. The next player replay confirms some delayed damage, but rejects
+section detachment, disappearing ram material and mast separation; it also
+supplies the22:23 crash below. The correction is installed22:50EDT; actual
+separation, direct mast contact and FPS remain for player replay.
 `runtime.md` owns delivery and replay evidence.
 The ammunition baseline below was
 documented on October6. It captures the naval combat ammunition
@@ -16,8 +19,8 @@ damage reduction math, and technical integration specifications for custom shot 
 ## Common hull-material implementation contract
 
 October16 successor in source: the player's repeated failure to obtain a real
-laser/ram separation reopens this implementation. The installed21:40 batch is
-the rejected baseline. A finite thermal dose removes actual local timber
+laser/ram separation reopens this implementation. The installed22:13 batch
+is a partially working, crash-rejected baseline. A finite thermal dose removes actual local timber
 immediately; a coarse graph of actual timber sections and shared load paths
 decides structural strength and additional separation. Local mechanical work is
 spent in travel order; surviving connections
@@ -63,7 +66,7 @@ These mechanisms do not satisfy the requested continuing destruction contract.
 
 The shared owner is GEOM's retained material, published by SHIP's existing
 atomic value-job queue. The successor reuses material-role meshes, broadphase,
-finite local material clipping, fragment physics and the aggregate5%
+finite local material clipping, fragment physics and the aggregate10%
 geometry-worker allowance. Its checkpoint preserves outer skin, canonical caps,
 timber interior and finite walls separately, including object IDs, UVs, normals
 and colours. A rebased clipping boundary must not replace the immutable authored
@@ -106,8 +109,13 @@ delivered-time input and subtracts a finite local volume from current timber.
 The graph reconciles actual lost volume and connection section once; it does
 not spend that dose again as hidden damage. A local closed-material connectivity
 comparison detects separation within one coarse cell; only a new split invokes
-whole-section ancestry/ownership reconciliation. Mechanical subcritical hits can
-still change strength without fracture; failed cells produce coarse fracture edges.
+whole-section ancestry/ownership reconciliation. The local oracle reads one
+shared neighborhood of actual closed source cells before/after; it does not
+construct artificial six-plane box intersections/caps for every grid cell.
+Mechanical subcritical hits can still change strength without fracture. Failed
+mechanical cells transfer real boundary roles into bounded connected-region
+bodies, using surviving physical contact between cells, rather than deleting
+their wood. Failed support and physical vaporization are different operations.
 
 The outer envelope of a hollow hull is allowed to open into its hold. Its filled
 closed volume is not the timber's volume, and cannot veto an actual breach.
@@ -125,7 +133,7 @@ Existing
 shore, fire-anchor and fragment-query source fixes remain in the same successor.
 The player owns gameplay testing. The integration owner may compile the engine
 to catch C++ integration errors; compilation does not accept gameplay or FPS.
-Canonical delivery uses `run.sh --stage-only`; this source is installed22:13EDT.
+Canonical delivery uses `run.sh --stage-only`; this correction is installed22:50EDT.
 Game control and gameplay probes remain declined.
 Source review must distinguish local
 notches from complete cuts, preserve old damage across another weapon/reset,
@@ -161,10 +169,81 @@ copies checkpoint/repair/legacy/flood state, while map visuals use the same
 versioned node decoder as SHIP. The ordinary attribute SAVE codec is unchanged.
 Partial material addition and checkpoint folding are implemented in the installed batch;
 compilation and source review cannot establish SAVE/repair gameplay acceptance.
-Mast support uses the authored bottom-contact vertex set and base-to-tip path.
-Removing the complete old tip witness together with the base while a middle
-segment survives remains a detection limitation; generic cross-node attachments
-also remain outside the supported model data.
+Mast self-support uses the authored bottom-contact vertex set and base-to-tip
+path. When the old tip is gone, the check follows the highest actual surviving
+material with the same authored ancestry; removing the foot can still release
+that survivor. Cross-node mast-foot support is a separate worker contract below.
+
+### Mast support across authored nodes
+
+`ship_mast_support.hpp` owns finite triangle-contact regions between an authored
+mast and its authored ancestors, including a supporting parent mast. Bounds only
+select candidate triangles; transform origins, a single nearest point and bbox
+overlap do not establish support. Any surviving finite part preserves the mast;
+complete loss of all known contacts publishes existing `supportSevered` and uses
+native `MastFall`. Missing authored contact is unresolved and preserves geometry.
+
+The existing per-cut value worker derives the regions and checks current retained
+receivers. `LaserBinding` keeps a transient cache keyed by both immutable authored
+sources, geometry generations and composed local relative transforms. Publication
+fences every participating generation/collision/material revision and hierarchy
+transform. Load/repair/reset reuse the existing binding lifecycle; SAVE has no new
+layout. Native `pMasts` authorizes the mast's authored outer boundary and parent
+mast receivers. A hull receiver still needs admitted timber. Root-only
+`ship_wood_surface_profiles.hpp` deliberately excludes mast/yard/shatter files;
+an empty mast wood map must not disable native mast support or collision.
+No per-frame whole-hull attachment traversal is introduced.
+
+### Direct ship-to-mast contact
+
+The early TOUCH hull solver remains unchanged. Its owned late `TOUCH_MASTS`
+coordinator captures all mounted ship frames after movement, including wrecks
+whose hull no longer intersects the waterline. It queries every finite swept
+native mast axis against current receiver geometry through MODEL::Clip's normal
+sphere/hierarchy/geometry broadphase, then publishes all events after queries.
+Previous/current receiver-local endpoints define two swept triangles; axial
+degeneracy uses the actual collinear interval. This is linear within-frame
+relative motion, not an exact curved rotational sweep or a flexing mast solver.
+
+The old ship-contact0.5s snapshot consumer is removed; island tracing retains its
+cadence and ball damage is unchanged. Closing work is
+`0.5 * normalSpeed^2 * (otherMass / totalMass)^2 * (1 - restitution^2)` in the
+existing specific-work domain. Capacity is the declared game scale75 times
+actual authored mast surface area / admitted hull timber area, with node-scale
+area conversion. GEOM caches authored area during its existing source decode;
+no per-frame triangle measurement or guessed bbox capacity is added. Pending
+bootstrap has no invented capacity and becomes eligible when that owner is ready.
+
+The native `SHIP_MAST_TOUCH_SHIP` event appends a bounded damage increment
+(`llffffaaf`); AIShip consumes it instead of fixed0.2. Strong work can sever one
+mast immediately. Contact-entry state and old-axis overlap suppress repeated
+damage while resting against it; mount/load/teleport seeds continuity without
+swept damage. Native generation/revision, Phonk and script immortality guards
+remain. This paired engine/script contract requires canonical joint delivery.
+The live contact pass is outside the10% background geometry-worker allowance;
+fleet pair/candidate costs and real mast/FPS behavior remain player-unverified.
+This collision correction does not invent laser shell thickness for unclassified
+mast/yard material.
+
+### Clipper stack-guard crash in the local split oracle
+
+The22:23 report binds installeddecf7a02/UUID71AC6C6A. Its worker stack repeats
+`ClipperBase::CheckSplitOwner`4731 times through `localMaterial`/`newlySplit`.
+Raw report and matching signed engine are retained in
+[the crash receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-cut-crash-2223/receipt.json).
+Removing artificial local partition caps avoids that unnecessary caller.
+
+The vendored Clipper2 version is2.0.1. Its existing fixes for
+[#987](https://github.com/AngusJohnson/Clipper2/issues/987) and
+[#1029](https://github.com/AngusJohnson/Clipper2/issues/1029) do not guard the
+empty-split recursion before `GetRealOutRec`. The current upstream function
+still has this branch; [open issue1084](https://github.com/AngusJohnson/Clipper2/issues/1084)
+describes the same stack-overflow family. The later
+[FixSelfIntersects change](https://github.com/AngusJohnson/Clipper2/commit/4da1564fb1ae69ad14b334a677c0e34a88aa8e7a)
+changes another operation, not this traversal guard. The bounded local correction
+marks empty split records with the existing per-target visit tag before descent,
+as the live-record branch already does. Polygon ownership/triangulation and
+generic solid geometry are preserved; no library-wide replacement is introduced.
 
 ## Contract
 

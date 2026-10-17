@@ -51,6 +51,22 @@ struct SHIP_WATER_IMPACT
 
 enum class HullProjectileProfile { RoundShot, Bomb, Knippel, Grape, Airburst };
 
+struct SHIP_MAST_CONTACT
+{
+    int32_t number = 0;
+    CVECTOR base = CVECTOR(0.f), tip = CVECTOR(0.f);
+    const void *geometry = nullptr;
+    uint64_t generation = 0, revision = 0;
+    double strength = 0.;
+};
+struct SHIP_MAST_CONTACT_FRAME
+{
+    entid_t ship = 0, model = 0;
+    CMatrix previous, current;
+    double mass = 0.;
+    std::vector<SHIP_MAST_CONTACT> masts;
+};
+
 class SHIP_BASE : public VAI_OBJBASE
 {
   protected:
@@ -143,6 +159,10 @@ class SHIP_BASE : public VAI_OBJBASE
     // Main-camera legibility for render-only crew, reflections and casters.
     // Other ship implementations retain their existing detail by default.
     virtual bool IsAuxiliaryDetailVisible() { return true; }
+    virtual layer_index_t GetMastContactLayer() const { return 0; }
+    virtual bool GetMastContactFrame(SHIP_MAST_CONTACT_FRAME &frame) { return false; }
+    virtual void ApplyMastContact(const SHIP_MAST_CONTACT_FRAME &frame,const SHIP_MAST_CONTACT &mast,
+                                  entid_t other,const CVECTOR &point,double specificWork) {}
     // Read-only live thermal state; only SHIP advances or persists it.
     virtual const storm_ship_fire::Model *GetCrewFireModel() const { return nullptr; }
 };

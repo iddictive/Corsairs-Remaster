@@ -7,6 +7,7 @@
 #include "ship_debris_bridge.hpp"
 #include "ship_laser_cloth_bridge.hpp"
 #include "ship_laser_geometry.hpp"
+#include "ship_mast_support.hpp"
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -55,6 +56,13 @@ struct LaserBreach
     float wetArea = 0.f; // derived by the actual4Hz ingress/wave sampler; never saved
     uint64_t source=UINT64_MAX;
 };
+struct LaserMastContact
+{
+    int receiver = 0;
+    uint64_t receiverGeneration = 0, mastGeneration = 0;
+    std::array<storm_ship_laser::Vec3,4> transform{}; // receiver-local origin and axes
+    std::shared_ptr<const storm::ship::mast_support::Contact> contact;
+};
 struct LaserBinding
 {
     std::string node;
@@ -66,6 +74,7 @@ struct LaserBinding
     uint64_t materialGeneration=0,materialRevision=0,savedGeometry=0,savedCollision=0;
     std::string materialRestorePayload;
     std::vector<storm_ship_laser::Plane>materialRestoreTail;
+    std::vector<LaserMastContact> mastContacts;
 };
 struct LaserRay
 {
@@ -101,6 +110,8 @@ struct LaserCutTarget
     storm_ship_laser::Input input;
     storm_ship_laser::Projection projection;
     storm_ship_laser::Result result;
+    std::vector<LaserMastContact> mastContacts;
+    bool mastSupportReceiver = false;
 };
 struct LaserCutWork
 {

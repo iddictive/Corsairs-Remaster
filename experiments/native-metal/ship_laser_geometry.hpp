@@ -702,8 +702,18 @@ template<class Boundary> inline bool supportDisconnected(const Boundary&authored
         for(const auto&v:original.face(n))if(storm_ship_hull::dot(v.position-span.base,axis)<=bottom.at(component)+.00015f)base.push_back({v.position,ref.object,component});}
     const auto roots=[&](const std::vector<Witness>&witnesses,size_t component){std::set<size_t>result;std::vector<uint32_t>nearby;const Vec3 margin{.0002f,.0002f,.0002f};
         for(const auto&w:witnesses)if(w.component==component){current.index.queryBounds({w.point-margin,w.point+margin},nearby);for(auto n:nearby){const auto&ref=current.topology.faces[n];if(ref.role==0&&ref.object==w.object&&pointOnFace(w.point,current.face(n)))result.insert(current.topology.root(n));}}return result;};
-    for(size_t component:support){const auto low=roots(base,component),high=roots(tip,component);
-        // Erasing a tip witness alone does not prove that the standing pole fell.
+    for(size_t component:support){const auto low=roots(base,component);auto high=roots(tip,component);
+        if(high.empty()){
+            // The old tip may already be gone. Follow the highest surviving
+            // authored pole material, rather than declaring it unbreakable.
+            float highest=-INFINITY;std::vector<uint32_t>nearby;const Vec3 margin{.0002f,.0002f,.0002f};
+            for(size_t n=0;n<current.topology.faces.size();++n){storm_geometry_work::checkpoint();const auto&ref=current.topology.faces[n];if(ref.role)continue;const auto&t=current.face(n);const auto point=(t[0].position+t[1].position+t[2].position)*(1.f/3.f);
+                original.index.queryBounds({point-margin,point+margin},nearby);bool belongs=false;
+                for(auto id:nearby){const auto&source=original.topology.faces[id];if(source.role==0&&source.object==ref.object&&original.topology.root(id)==component&&pointOnFace(point,original.face(id))){belongs=true;break;}}
+                if(!belongs)continue;float height=-INFINITY;for(const auto&v:t)height=std::max(height,storm_ship_hull::dot(v.position-span.base,axis));
+                if(height>highest+.00015f){highest=height;high.clear();}if(height>=highest-.00015f)high.insert(current.topology.root(n));}
+        }
+        // No upper pole remains, or a surviving real path still reaches it.
         if(high.empty())return false;for(auto root:low)if(high.count(root))return false;}
     return true;
 }

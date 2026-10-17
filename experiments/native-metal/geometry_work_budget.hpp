@@ -11,7 +11,7 @@
 
 namespace storm_geometry_work {
 using Clock = std::chrono::steady_clock;
-inline constexpr double CpuFraction = .05;
+inline constexpr double CpuFraction = .10;
 inline constexpr double QuantumSeconds = .001;
 
 // All cut workers share one allowance. Active wall time is a conservative

@@ -1139,9 +1139,9 @@ float Ship_MastDamage()
 			fDamage = fDamage + 0.25;
 		break;
 		case SHIP_MAST_TOUCH_SHIP:
-			//aref rCollideCharacter = GetEventData();
-
-			fDamage = fDamage + 0.2;
+			aref rCollideCharacter = GetEventData();
+			float fContactDamage = GetEventData();
+			fDamage = fDamage + Clampf(fContactDamage);
 		break;
 		case SHIP_MAST_TOUCH_BALL:
 			int	iBallType = sti(AIBalls.CurrentBallType);   //спорно, тк это не ядра, того кто стрелял, а скорее ядра ГГ
