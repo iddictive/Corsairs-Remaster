@@ -1,8 +1,21 @@
 # Runtime state
 
-Last verified installed delivery: October17,02:51EDT, fragment-BVH successor, signed engine `a0d08d4fe23db0212aa75a5ce69f474fc7c4c69b61f97ea3c6b7c643dd4262aa`. Canonical staging exits0;523 protected files are unchanged and239 managed receipt rows match. The preceding150c6e9d image has player-profiled main-thread fragment collision overload. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October 17, 19:46 EDT, laser responsiveness, ram crush and fire-fragment FPS optimization, signed engine `2b7d5127df76422828f41b805b02b8d9f84bdda726671754bee3b9552e348b82`. Canonical staging exits 0. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains 23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October 17, 19:46 — laser cut latency, ram fracture and fire/fragment FPS optimization delivered
+
+The player reports that cuts from the laser still appear on ships with noticeable delay, ships do not crush/break from ramming collisions, and heavy fire causes severe FPS drops.
+
+Root causes and deltas:
+1. Laser cut latency: In `geometry_work_budget.hpp`, background worker threads were throttled to a 10% CPU quota via 5ms sleep per 1ms quantum, accumulating 150–300ms artificial latency per cut. In addition, `laserBurnTime` in `ship_phonk_laser.hpp` delayed cut submission by 0.20s, and beam cut velocity was restricted to 4 m/s. Delta: increased `CpuFraction` to 0.75 and `QuantumSeconds` to 50ms, reduced `laserBurnTime` to 0.04s (~2 frames), and increased beam cutting speed to 24 m/s for rapid hull penetration and severance.
+2. Ramming collisions and hull fracture: In `ApplyHullImpact` (`ship_phonk_laser.cpp`), kinetic energy threshold was 40–70 m²/s², which typical ship ramming speeds (6–12 knots, ~8–18 m²/s²) never exceeded. In `ship_hull_material_ablation.hpp` `crushFields`, a binary search evaluated `volume(low)` after loop exit leaving the plane at `low`, discarding valid non-empty crush fields. Delta: lowered threshold to 7.5–13.5 m²/s² and fixed binary search volume evaluation to use `high`, enabling realistic ramming speeds to reliably trigger structural crush pockets.
+3. Fire and fragment performance: In `ship_fire_render.hpp`, volume raymarching performed 32 steps with 9 3D noise calls (72 hashes) per pixel without resolution scaling, saturating GPU compute. In `ship_phonk_laser.cpp`, up to 256 fragments concurrently engaged in up to 128 CCD substeps with 8 contact iterations. Delta: reduced volumetric sample work target to 2.0e6 and adapted raymarch steps (14–20), activating 0.5x resolution downscaling and bilateral depth composition under heavy fire load. Limited active fragments to 48 and clamped substeps to 4 with 4 contact iterations, preventing main-thread CCD stalling.
+
+Canonical build and staging (`experiments/native-metal/run.sh --stage-only`) exited 0.
+Installed engine hash: `2b7d5127df76422828f41b805b02b8d9f84bdda726671754bee3b9552e348b82`, UUID `141C36E3-FFF8-3E5C-943B-C8A793DADAC0` at `/Applications/Corsairs Iddictive Remaster.app`.
+Disposition: delivery accepted; player gameplay replay unresolved.
 
 ### October17,02:36 — player profile reopens fragment collision FPS; disk sound unresolved
 

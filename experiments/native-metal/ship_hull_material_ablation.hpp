@@ -134,7 +134,7 @@ inline std::vector<ConvexField>crushFields(const Input&input,const storm_ship_st
         const double full=volume(beam.depth);if(full<=1.e-12)continue;
         if(full>crush.volume){float low=-(beam.backDepth<0?beam.radius*.15625f:beam.backDepth),high=beam.depth;
             for(unsigned n=0;n<16;++n){const float mid=(low+high)*.5f;if(volume(mid)<=crush.volume)low=mid;else high=mid;}
-            if(volume(low)<=1.e-12)continue;
+            if(volume(high)<=1.e-12)continue;
         }
         fields.push_back(std::move(field));
     }return fields;

@@ -68,10 +68,10 @@ struct ShipFireVisualBudget {
     // Keep useful integration samples and reduce backing pixels across the
     // entire fleet. Cutting complex volumes to eight samples caused stipple.
     // requested/admittedWork remain estimates, never scene FPS evidence.
-    static constexpr double targetSampleWork=8.0e6;
+    static constexpr double targetSampleWork=2.0e6;
     double requestedWork=0,admittedWork=0;
     float renderScale=1.f;
-    static float sourceSamples(float){return 32.f;}
+    static float sourceSamples(float footprint){return std::clamp(footprint * .06f + 14.f, 14.f, 20.f);}
     void apply(std::vector<ShipFireVolume>&volumes,simd_float4 viewport){
         auto area=[&](const ShipFireVolume&v){return double(v.clipRect.z-v.clipRect.x)*double(v.clipRect.w-v.clipRect.y)*double(viewport.z)*double(viewport.w)*.25;};
         requestedWork=0;for(const auto&v:volumes)requestedWork+=area(v)*v.lod.x;
@@ -79,7 +79,7 @@ struct ShipFireVisualBudget {
         // Spend the existing budget continuously: power-of-two drops threw
         // away up to three quarters of it and enlarged the fire into blocks.
         if(requestedWork>targetSampleWork)
-            renderScale=float(std::clamp(std::sqrt(targetSampleWork/requestedWork),.125,1.0));
+            renderScale=float(std::clamp(std::sqrt(targetSampleWork/requestedWork),.25,1.0));
         admittedWork=requestedWork*renderScale*renderScale;
     }
 };

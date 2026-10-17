@@ -1433,13 +1433,13 @@ void SHIP_CUT_FRAGMENTS::LimitBodies()
         core.EraseEntity(orphan.model);return true;
     });
     auto groups=Groups();size_t count=0;for(const auto &group:groups)count+=group.pieces->size();
-    if(count<=256)return;
+    if(count<=48)return;
     struct Candidate {float age;Hit hit;};
     std::vector<Candidate> oldest;oldest.reserve(count);
     for(const auto &group:groups)for(const auto &piece:*group.pieces)
         oldest.push_back({piece.age,{uint64_t(group.model),group.owner,piece.token,piece.generation,piece.node}});
     std::stable_sort(oldest.begin(),oldest.end(),[](const auto&a,const auto&b){return a.age>b.age;});
-    oldest.resize(count-256);
+    oldest.resize(count-48);
     const auto key=[](const Hit &hit){return std::tie(hit.model,hit.owner,hit.node,hit.token);};
     std::sort(oldest.begin(),oldest.end(),[&](const auto&a,const auto&b){return key(a.hit)<key(b.hit);});
     for(const auto &group:groups)std::erase_if(*group.pieces,[&](auto &piece){
@@ -1723,9 +1723,8 @@ void SHIP_CUT_FRAGMENTS::AdvanceCutFragments()
     struct Contact {size_t a=0,b=SIZE_MAX,receiver=SIZE_MAX;float fraction=1.f;CVECTOR normal=CVECTOR(0.f),point=CVECTOR(0.f),velocity=CVECTOR(0.f);};
     for(size_t interval=1;interval<boundaries.size();++interval){
         const float duration=boundaries[interval]-boundaries[interval-1];
-        // Consume the full interval, with20ms steps only up to2.56s.
-        // A larger hitch is bounded to128 coarser steps, not a20ms guarantee.
-        const unsigned steps=unsigned(std::clamp(std::ceil(duration/.02f),1.f,128.f));const float dt=duration/steps;
+        // Consume the interval with at most 4 bounded steps to prevent main-thread hitches.
+        const unsigned steps=unsigned(std::clamp(std::ceil(duration/.02f),1.f,4.f));const float dt=duration/steps;
         active.clear();for(size_t n=0;n<bodies.size();++n)if(bodies[n].start<=boundaries[interval-1])active.push_back(n);
         for(unsigned step=0;step<steps;++step){
             for(auto n:active){auto&piece=*bodies[n].piece;const auto center=piece.world*piece.center;float low=center.y,high=center.y;
@@ -1744,7 +1743,7 @@ void SHIP_CUT_FRAGMENTS::AdvanceCutFragments()
             // Bounded continuous event solve. The final search freezes only
             // bodies with an unresolved contact; free bodies consume all time.
             // No admitted body is advanced through a contact on budget expiry.
-            for(unsigned iteration=0;iteration<=8&&remaining>1.e-7f;++iteration){
+            for(unsigned iteration=0;iteration<=4&&remaining>1.e-7f;++iteration){
                 Contact nearest;std::fill(blocked.begin(),blocked.end(),false);
                 for(auto n:active){auto&piece=*bodies[n].piece;
                     shapes[n]=fc::transformed(piece.contactShape,[&](storm_ship_hull::Vec3 p){return vector(piece.world*native(p));});
@@ -2131,11 +2130,11 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             if((special||(hitTarget&&(phonkLaser.pendingContact!=hitTarget||phonkLaser.pendingWorld!=bool(hitWorld))))&&!commitBeam())return false;
             if(!special&&hitTarget&&phonkLaser.pendingBeam.size()>=storm_hull_damage::MaxBeamSamples&&!commitBeam())return false;
             const int32_t owner=int32_t(GetACharacter()->GetAttributeAsDword("index"));
-            if(traced&&physical.fragment){auto*pieces=static_cast<SHIP_CUT_FRAGMENTS*>(core.GetEntityPointer(core.GetEntityId("ship_cut_fragments")));if(pieces)pieces->Beam(physical.fragment,!(physical.endpoint-muzzle),delivered*4.f);}
+            if(traced&&physical.fragment){auto*pieces=static_cast<SHIP_CUT_FRAGMENTS*>(core.GetEntityPointer(core.GetEntityId("ship_cut_fragments")));if(pieces)pieces->Beam(physical.fragment,!(physical.endpoint-muzzle),delivered*24.f);}
             else if(traced&&physical.cloth){if(storm::ship::laser_cloth::Apply(physical.cloth,delivered,owner))if(auto*ship=dynamic_cast<SHIP*>(core.GetEntityPointer(physical.target));ship&&ship->bMounted)ship->IgniteShipFire(physical.endpoint,delivered*2.f,owner,true);}
             else if(traced&&hitTarget&&(!hitShip||!hitShip->PhonkActive())){
                 const auto directionWorld=!(physical.endpoint-muzzle);auto directionLocal=directionWorld;if(hitShip)hitShip->GetModel()->mtx.MulToInvNorm(directionWorld,directionLocal);directionLocal=!directionLocal;
-                storm_hull_damage::BeamSample sample;sample.start={physical.localHit.x,physical.localHit.y,physical.localHit.z};sample.direction={directionLocal.x,directionLocal.y,directionLocal.z};const auto tangent=storm_ship_laser::beamTangent(sample);sample.tangent={tangent.x,tangent.y,tangent.z};sample.depth=delivered*4.f;
+                storm_hull_damage::BeamSample sample;sample.start={physical.localHit.x,physical.localHit.y,physical.localHit.z};sample.direction={directionLocal.x,directionLocal.y,directionLocal.z};const auto tangent=storm_ship_laser::beamTangent(sample);sample.tangent={tangent.x,tangent.y,tangent.z};sample.depth=delivered*24.f;
                 if(storm_ship_laser::valid(sample)){
                     phonkLaser.pendingContact=hitTarget;phonkLaser.pendingWorld=bool(hitWorld);storm_ship_laser::continueBeamDose(sample,phonkLaser.pendingBeam);phonkLaser.pendingBeam.push_back(std::move(sample));phonkLaser.burn+=delivered;
                 }
@@ -2205,7 +2204,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             before.node != ray.fragment.node) phonkLaser.burn = 0.f;
         if (phonkLaser.triggerAge * 16000.f < std::sqrt(~(phonkLaser.endpoint - phonkLaser.muzzle))) return;
         auto *pieces = static_cast<SHIP_CUT_FRAGMENTS *>(core.GetEntityPointer(core.GetEntityId("ship_cut_fragments")));
-        if (pieces && pieces->Beam(ray.fragment, !(ray.endpoint - phonkLaser.muzzle), sampleTime * 4.f))
+        if (pieces && pieces->Beam(ray.fragment, !(ray.endpoint - phonkLaser.muzzle), sampleTime * 24.f))
             phonkLaser.burn += sampleTime;
         return;
     }
@@ -2446,7 +2445,7 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
     GetModel()->mtx.MulToInvNorm(outwardNormal, plane.normal);
     if ((~plane.normal) < .5f) return;
     plane.normal = !plane.normal;
-    const float threshold = (4.f + 36.f * integrity) *
+    const float threshold = (1.5f + 6.0f * integrity) *
         float(GetHullContactStrength(point.z, plane.normal.z) / 75.0);
     auto *root = GetModel()->GetNode(0);
     GEOS::INFO info{}; root->geo->GetInfo(info);

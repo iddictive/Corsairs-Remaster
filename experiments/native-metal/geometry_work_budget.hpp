@@ -11,8 +11,8 @@
 
 namespace storm_geometry_work {
 using Clock = std::chrono::steady_clock;
-inline constexpr double CpuFraction = .10;
-inline constexpr double QuantumSeconds = .001;
+inline constexpr double CpuFraction = .75;
+inline constexpr double QuantumSeconds = .050;
 
 // All cut workers share one allowance. Active wall time is a conservative
 // upper bound on a single worker's CPU time, including allocator contention;
@@ -20,7 +20,7 @@ inline constexpr double QuantumSeconds = .001;
 struct Allowance {
     std::mutex mutex;
     Clock::time_point refreshed = Clock::now();
-    double tokens = 0.;
+    double tokens = QuantumSeconds;
     const double rate = CpuFraction * std::max(1u, std::thread::hardware_concurrency());
 
     double charge(double seconds) {
