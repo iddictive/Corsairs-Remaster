@@ -123,7 +123,15 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             if(input.payload==storm::ship::material::pristinePayload(result.fingerprint))current=storm::ship::material::rebase(timberSurface(*input.authored,input.wood));
             else if(!storm::ship::material::decode(input.payload,result.fingerprint,support,result.cells,current,input.wood))return {};
         }else if(input.snapshot)current=storm::ship::material::rebase(*input.snapshot);
-        else return {};
+        else if(input.cuts.empty()&&input.planes.empty())current=storm::ship::material::rebase(authored);
+        else {
+            // Import a legacy boundary under the existing worker allowance.
+            // A cold restore must not build that boundary on the frame thread.
+            Input legacy;legacy.authored=input.authored;legacy.cuts=input.cuts;legacy.planes=input.planes;
+            legacy.wood=input.wood;legacy.enclosed=input.enclosed;
+            auto imported=prepare(legacy,cancel);if(!imported.valid)return {};
+            current=storm::ship::material::rebase(*imported.visual);
+        }
         if(!current.cells){auto cells=std::make_shared<MaterialCells>();cells->source=result.cells;current.cells=std::move(cells);
             if(!input.reset&&input.payload.empty()){
                 // Import old cannon/laser holes once, off the frame thread.
@@ -821,7 +829,6 @@ try {
     if(hullMaterialReady&&(payload.empty()||hullMaterialRestoreVersion==version))return true;
     if(hullMaterialReady&&version<hullMaterialRestoreVersion)return false;
     if(hullDesiredValid){if(!hullDesiredMaterial)return false;if(hullDesiredMaterialVersion==version)return false;}
-    if(!laserPrepared&&!RebuildLaserSurface(false))return false;
     RetireHullRebuild();hullDesiredMaterial=true;hullDesiredMaterialReset=false;hullDesiredRepairPercent=0.;hullDesiredMaterialVersion=version;hullDesiredMaterialPayload=payload;hullDesiredMaterialTail=tail;
     hullDesiredOwner=owner;hullDesiredCuts=hullCutInputs;hullDesiredPlanes=laserPlanes;hullDesiredSignature=hullSignature;hullDesiredValid=true;++hullDesiredEpoch;
     PollHullRebuild();return !hullDesiredValid&&hullMaterialReady;
@@ -974,7 +981,7 @@ bool GEOM::CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&plane,
     if(worldOwner||!owner||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||(!hullMaterialReady&&!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size())))return false;
     if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>storm_hull_damage::MaxFragmentBuffers)return false;
     bool physicalContact=plane.beams.empty();if(!physicalContact)for(const auto&beam:plane.beams){laserMaterialCollision.broadphase.queryBounds(storm_ship_laser::beamBounds(beam),laserMaterialCandidates);if(!laserMaterialCandidates.empty()){physicalContact=true;break;}}
-    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasDeferredSections=hullDeferredSections;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;input=std::move(next);return true;
+    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasDeferredSections=hullDeferredSections;next.realizeMechanicalCrush=true;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;input=std::move(next);return true;
 }
 bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&projection,storm_ship_laser::Result&result)
 {

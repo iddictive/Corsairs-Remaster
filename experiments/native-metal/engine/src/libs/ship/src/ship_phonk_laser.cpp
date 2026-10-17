@@ -4,7 +4,6 @@
 #include "geometry_work_budget.hpp"
 #include "phonk_targeting.hpp"
 #include "ship_hull_damage_bridge.hpp"
-#include "string_compare.hpp"
 #include "ship_debris_bridge.hpp"
 #include "../../sea_ai/src/ai_helper.h"
 #include "../../sea_ai/src/ai_ship.h"
@@ -156,7 +155,7 @@ float fragmentScale(const CMatrix &world)
         std::abs((~world.Vz()) - squared) > .001f * squared) return 0.f;
     return std::sqrt(squared);
 }
-bool isPhysicalHullNode(NODE*node){return node&&node->geo&&(!node->GetName()||!storm::iEquals(node->GetName(),"path"));}
+bool isPhysicalHullNode(NODE*node){return storm::ship::material::isPhysicalNode(node);}
 uint64_t hullWorkFence(MODEL*model){uint64_t hash=1469598103934665603ull;if(model)for(int n=0;auto*node=model->GetNode(n);++n)if(isPhysicalHullNode(node)){
     const uint64_t values[]={uint64_t(n),node->geo->GeometryGeneration(),node->geo->CollisionRevision(),node->geo->HullMaterialRevision(),node->geo->HullFragmentAllowance()};hash=storm::ship::material::hashBytes(values,sizeof(values),hash);}return hash?hash:1;}
 GEOS *fragmentGeometry(MODEL *model, const std::string &name)

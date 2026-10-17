@@ -104,6 +104,8 @@ class GEOS
     // A retryable retained rebuild blocks new cut snapshots/publication. Failed
     // inputs stay rejected until their desired state or geometry revision changes.
     virtual bool HasPendingHullRebuild() const { return false; }
+    // Retained offscreen models must service admitted work without a draw.
+    virtual void PollHullRebuild() {}
     // Poll/queue one combined cannon+laser reconstruction; true only when applied.
     virtual bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) { return planes.empty(); }
     virtual bool PrepareHullMaterial(uint64_t) { return false; }

@@ -151,14 +151,25 @@ inline bool restoreHullCuts(MODEL *model, ATTRIBUTES *character, entid_t owner, 
     if(auto *state=character->FindAClass(character,"Ship.HullMaterial")) {
         uint64_t revision=0;
         if(!storm::ship::material::stateHeader(state,modelName,revision)) return false;
-        for(int i=0;auto *node=model->GetNode(i);++i) {
-            if(!visible(node)||!node->geo) continue;
-            const std::string name=node->GetName()?node->GetName():"";
+        struct RestoreNode
+        {
+            GEOS *geometry;
             std::string payload;
             std::vector<storm_ship_laser::Plane> tail;
-            if(!storm::ship::material::readNode(state,modelName,unsigned(i),name,revision,payload,&tail)) return false;
-            if(!node->geo->RestoreHullMaterial(owner,revision,payload,tail)&&!node->geo->HasPendingHullRebuild()) return false;
+        };
+        std::vector<RestoreNode> restores;
+        for(int i=0;auto *node=model->GetNode(i);++i) {
+            if(!visible(node)||!storm::ship::material::isPhysicalNode(node)) continue;
+            const std::string name=node->GetName()?node->GetName():"";
+            RestoreNode restore{node->geo};
+            if(!storm::ship::material::readNode(state,modelName,unsigned(i),name,revision,restore.payload,&restore.tail)) return false;
+            restores.push_back(std::move(restore));
         }
+        // Reject an incomplete checkpoint before any earlier node starts work
+        // that a later missing record would immediately tear down.
+        for(auto &restore:restores)
+            if(!restore.geometry->RestoreHullMaterial(owner,revision,restore.payload,restore.tail)&&
+                !restore.geometry->HasPendingHullRebuild()) return false;
         // The existing GEOM draw owner polls admitted value jobs. Keep this
         // visual alive while they finish instead of recreating it every frame.
         return true;
@@ -178,7 +189,8 @@ inline bool restoreHullCuts(MODEL *model, ATTRIBUTES *character, entid_t owner, 
     for (const auto &group : groups)
     {
         auto *node = group.first.empty() ? model->GetNode(0) : model->FindNode(group.first.c_str());
-        if (visible(node) && node->geo && !node->geo->SetHullCuts(owner, group.second)) return false;
+        if (visible(node) && node->geo && !node->geo->SetHullCuts(owner, group.second) &&
+            !node->geo->HasPendingHullRebuild()) return false;
     }
 #endif
     return true;
@@ -244,6 +256,18 @@ class ShipVisual
         if (!(scale > 0.f)) return false;
         sails = std::move(currentSails);
         return true;
+    }
+
+    void pollHullRebuild()
+    {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        auto *owned = model();
+        if (!owned) return;
+        // The sea warm copy is not drawn. Service only already-admitted work
+        // so completed futures release the shared geometry-worker slots.
+        for (int i = 0; auto *node = owned->GetNode(i); ++i)
+            if (node->geo && node->geo->HasPendingHullRebuild()) node->geo->PollHullRebuild();
+#endif
     }
 
     void draw(VDX9RENDER *renderer, const CMatrix &mapMatrix) const

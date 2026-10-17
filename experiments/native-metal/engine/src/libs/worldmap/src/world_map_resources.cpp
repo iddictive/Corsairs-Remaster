@@ -166,7 +166,11 @@ class WdmStaticResources final : public Entity
         if (stage != Stage::execute || wdmObjects || SeaMapTransition::Active() ||
             !core.GetEntityId("SEA_CAMERAS")) return;
         if (!assets->Ready()) assets->WarmNext(geometry);
-        else if (!visualReady) visualReady = storm_map_player::warmSeaVisual();
+        else
+        {
+            if (!visualReady) visualReady = storm_map_player::warmSeaVisual();
+            storm_map_player::pollSeaVisual();
+        }
         if (!assets->Ready()) return;
         queryTime += delta;
         if (queryTime < 1000) return;

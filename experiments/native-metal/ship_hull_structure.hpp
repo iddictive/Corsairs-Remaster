@@ -50,7 +50,9 @@ struct State {
     std::vector<float>physicalCellHealth,physicalBondHealth;
 };
 struct DamageResult {
+    struct Crush {uint32_t beam=0,cell=0;double volume=0;};
     State state;std::vector<uint32_t>brokenCells,brokenBonds,releasedCells,retainedCells;
+    std::vector<Crush>crushed;
     // Components after failure, before non-owner islands are released; the
     // Largest child PER authored owner is retained; use releasedCells rather
     // than assuming there was only one connected assembly before the strike.
@@ -196,7 +198,9 @@ template<class Surface>State repair(const State&before,const Surface&oldMaterial
 // Actual thermal ablation has already spent the weapon's work and changed the
 // material. Reconcile just its sparse capacity delta; it must not issue another
 // whole-zone subtraction or spend the same finite volume as hidden HP damage.
-template<class Surface>DamageResult reconcile(const State&before,const Surface&oldMaterial,const Surface&newMaterial,const std::map<int,float>&wood,const std::vector<uint32_t>*changedIDs=nullptr){
+// alreadyPaid refreshes physical sections and caps paid health instead of
+// debiting it; its caller finalizes overload/islands once after this refresh.
+template<class Surface>DamageResult reconcile(const State&before,const Surface&oldMaterial,const Surface&newMaterial,const std::map<int,float>&wood,const std::vector<uint32_t>*changedIDs=nullptr,bool alreadyPaid=false){
     DamageResult result;result.state=before;if(!validState(before)||!oldMaterial.cells||!newMaterial.cells||oldMaterial.cells->source!=newMaterial.cells->source)return result;
     std::vector<uint32_t>ids;if(changedIDs)ids=*changedIDs;else{for(const auto&entry:oldMaterial.cells->changed)ids.push_back(entry.first);for(const auto&entry:newMaterial.cells->changed)ids.push_back(entry.first);}std::sort(ids.begin(),ids.end());ids.erase(std::unique(ids.begin(),ids.end()),ids.end());
     const auto&source=*oldMaterial.cells->source;ContactMaterial oldLocal,newLocal;std::map<uint32_t,std::shared_ptr<const ContactMaterial>>overrides;
@@ -206,19 +210,19 @@ template<class Surface>DamageResult reconcile(const State&before,const Surface&o
     // Older in-memory callers pay a single initialization; ordinary marks only
     // measure changed authored source solids and visit the small coarse graph.
     if(s.physicalCellHealth.size()!=l.cells.size()||s.physicalBondHealth.size()!=l.bonds.size()){const auto physical=seed(before.layout,oldMaterial,wood);s.physicalCellHealth=physical.physicalCellHealth;s.physicalBondHealth=physical.physicalBondHealth;}
-    for(uint32_t grid=0;grid<l.gridToCell.size();++grid){const int32_t index=l.gridToCell[grid];if(index<0)continue;const uint32_t id=uint32_t(index);const double loss=std::max(0.,oldMeasure.volume[grid]-newMeasure.volume[grid]);if(loss<=std::max(1.e-10,double(l.cells[id].volume)*1.e-6))continue;const float fraction=float(loss/l.cells[id].volume);s.physicalCellHealth[id]=std::max(0.f,s.physicalCellHealth[id]-fraction);s.cellHealth[id]=std::max(0.f,s.cellHealth[id]-fraction);if(s.physicalCellHealth[id]<=1.e-6f){s.physicalCellHealth[id]=0;s.cellHealth[id]=0;s.alive[id]=0;}if(s.cellHealth[id]<=1.e-6f){s.cellHealth[id]=0;for(uint32_t edge:l.cells[id].bonds)if(s.bondHealth[edge]>0){s.bondHealth[edge]=0;result.brokenBonds.push_back(edge);}}}
+    for(uint32_t grid=0;grid<l.gridToCell.size();++grid){const int32_t index=l.gridToCell[grid];if(index<0)continue;const uint32_t id=uint32_t(index);const double loss=std::max(0.,oldMeasure.volume[grid]-newMeasure.volume[grid]);if(loss<=std::max(1.e-10,double(l.cells[id].volume)*1.e-6))continue;const float fraction=float(loss/l.cells[id].volume);s.physicalCellHealth[id]=std::max(0.f,s.physicalCellHealth[id]-fraction);s.cellHealth[id]=alreadyPaid?std::min(s.cellHealth[id],s.physicalCellHealth[id]):std::max(0.f,s.cellHealth[id]-fraction);if(s.physicalCellHealth[id]<=1.e-6f){s.physicalCellHealth[id]=0;s.cellHealth[id]=0;s.alive[id]=0;}if(s.cellHealth[id]<=1.e-6f){s.cellHealth[id]=0;for(uint32_t edge:l.cells[id].bonds)if(s.bondHealth[edge]>0){s.bondHealth[edge]=0;result.brokenBonds.push_back(edge);}}}
     std::map<std::pair<uint32_t,uint32_t>,double>lostSections;
     for(const auto&entry:oldMeasure.sections){const auto current=newMeasure.sections.find(entry.first);const detail::Section empty;const auto&section=current==newMeasure.sections.end()?empty:current->second;const double loss=std::max({0.,entry.second.low-section.low,entry.second.high-section.high});const int32_t a=l.gridToCell[entry.first.first],b=l.gridToCell[entry.first.second];if(a>=0&&b>=0&&loss>0)lostSections[{uint32_t(a),uint32_t(b)}]+=loss;}
-    for(uint32_t edge=0;edge<l.bonds.size();++edge){const auto&bond=l.bonds[edge];const auto lost=lostSections.find({bond.a,bond.b});if(lost==lostSections.end()||lost->second<=std::max(1.e-10,double(bond.section)*1.e-6))continue;const float fraction=float(lost->second/bond.section);s.physicalBondHealth[edge]=std::max(0.f,s.physicalBondHealth[edge]-fraction);const float old=s.bondHealth[edge];s.bondHealth[edge]=std::max(0.f,old-fraction);if(s.bondHealth[edge]<=1.e-6f){s.bondHealth[edge]=0;if(old>0)result.brokenBonds.push_back(edge);}}
+    for(uint32_t edge=0;edge<l.bonds.size();++edge){const auto&bond=l.bonds[edge];const auto lost=lostSections.find({bond.a,bond.b});if(lost==lostSections.end()||lost->second<=std::max(1.e-10,double(bond.section)*1.e-6))continue;const float fraction=float(lost->second/bond.section);s.physicalBondHealth[edge]=std::max(0.f,s.physicalBondHealth[edge]-fraction);const float old=s.bondHealth[edge];s.bondHealth[edge]=alreadyPaid?std::min(old,s.physicalBondHealth[edge]):std::max(0.f,old-fraction);if(s.bondHealth[edge]<=1.e-6f){s.bondHealth[edge]=0;if(old>0)result.brokenBonds.push_back(edge);}}
     // A removal remains inside its authored source bounds, so the immutable
     // base BVH also indexes sparse replacement cells. No whole-hull rebuild.
     auto contact=before.contact?before.contact:l.contact;if(contact){const auto&base=contact->base?*contact->base:*contact;if(base.sourceIDs.size()!=base.tetrahedra.size())contact=detail::contactMaterial(oldMaterial,wood);auto next=std::make_shared<ContactMaterial>();next->base=contact->base?contact->base:contact;next->changed=contact->changed;for(auto&entry:overrides)next->changed[entry.first]=std::move(entry.second);s.contact=std::move(next);}else s.contact=detail::contactMaterial(newMaterial,wood);
-    result.changed=true;detail::overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());detail::islands(result);return result;
+    result.changed=true;if(!alreadyPaid){detail::overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());detail::islands(result);}return result;
 }
 namespace detail {
-template<class Plane> DamageResult damagePatches(const State&before,const Plane&plane,double wholeArea=0){
+template<class Plane> DamageResult damagePatches(const State&before,const Plane&plane,double wholeArea=0,bool finalize=true){
     DamageResult result;result.state=before;if(!detail::validState(before)||plane.beams.empty())return result;auto&s=result.state;const auto&l=*s.layout;const auto contactMaterial=s.contact?s.contact:l.contact;if(!contactMaterial)return result;
-    for(const auto&beam:plane.beams){storm_geometry_work::checkpoint();if(!storm_hull_damage::validCrossSection(beam)||beam.depth<=0||beam.radius<=0)continue;const bool mechanical=beam.contactStrength>0||beam.specificWork>0;if(mechanical&&beam.specificWork<=0)continue;double remaining=mechanical?double(beam.specificWork)/beam.contactStrength*(wholeArea>0?wholeArea:l.area)*l.volume/std::max(1.e-12,l.area):beamVolume(beam);if(!std::isfinite(remaining)||remaining<=0)continue;const double initial=remaining;
+    for(uint32_t beamIndex=0;beamIndex<plane.beams.size();++beamIndex){const auto&beam=plane.beams[beamIndex];storm_geometry_work::checkpoint();if(!storm_hull_damage::validCrossSection(beam)||beam.depth<=0||beam.radius<=0)continue;const bool mechanical=beam.contactStrength>0||beam.specificWork>0;if(mechanical&&beam.specificWork<=0)continue;double remaining=mechanical?double(beam.specificWork)/beam.contactStrength*(wholeArea>0?wholeArea:l.area)*l.volume/std::max(1.e-12,l.area):beamVolume(beam);if(!std::isfinite(remaining)||remaining<=0)continue;const double initial=remaining;
         for(const auto&contact:contacts(l,*contactMaterial,beam)){const uint32_t id=contact.cell;if(!s.alive[id]||s.cellHealth[id]<=0)continue;const double capacity=double(l.cells[id].volume)*s.cellHealth[id];std::vector<uint32_t>rails;double railCapacity=0;for(uint32_t edge:l.cells[id].bonds){const auto&b=l.bonds[edge];const uint32_t neighbor=b.a==id?b.b:b.a;if(s.bondHealth[edge]>0&&s.alive[neighbor]){rails.push_back(edge);railCapacity+=b.capacity*s.bondHealth[edge];}}const double local=mechanical?capacity+railCapacity:std::min(capacity,contact.volume);const double dose=std::min(remaining,local);if(dose<=1.e-12)continue;remaining-=dose;
             // Spend this work once: local crushing/ablation and the load carried
             // by existing rails share one budget. Fewer surviving rails receive
@@ -226,15 +230,20 @@ template<class Plane> DamageResult damagePatches(const State&before,const Plane&
             const double nodeWork=std::min(capacity,rails.empty()?dose:dose*.65),structural=dose-nodeWork;const float old=s.cellHealth[id];s.cellHealth[id]=float(std::max(0.,double(old)-nodeWork/l.cells[id].volume));if(s.cellHealth[id]!=old)result.changed=true;
             double load=structural;for(unsigned pass=0;pass<4&&load>1.e-12&&!rails.empty();++pass){double stiffness=0;for(uint32_t edge:rails)stiffness+=l.bonds[edge].section; if(stiffness<=1.e-12)break;double unspent=0;std::vector<uint32_t>survivors;for(uint32_t edge:rails){const double capacity=l.bonds[edge].capacity*s.bondHealth[edge],share=load*l.bonds[edge].section/stiffness,taken=std::min(share,capacity);const float oldBond=s.bondHealth[edge];s.bondHealth[edge]=float(std::max(0.,double(oldBond)-taken/l.bonds[edge].capacity));if(s.bondHealth[edge]!=oldBond)result.changed=true;if(s.bondHealth[edge]<=1.e-6f){s.bondHealth[edge]=0;result.brokenBonds.push_back(edge);}else survivors.push_back(edge);unspent+=share-taken;}load=unspent;rails.swap(survivors);}
             const double crush=std::min(load,double(l.cells[id].volume)*s.cellHealth[id]);if(crush>0){s.cellHealth[id]=float(std::max(0.,double(s.cellHealth[id])-crush/l.cells[id].volume));load-=crush;result.changed=true;}remaining+=load;
+            // Physical crushing spends only this already-paid local node work.
+            // Surplus work weakens structure; it cannot ablate wood outside
+            // the actual finite contacted material.
+            if(mechanical&&nodeWork+crush>1.e-12)result.crushed.push_back({beamIndex,id,std::min(contact.volume,nodeWork+crush)});
             if(s.cellHealth[id]<=1.e-6f){s.cellHealth[id]=0;s.alive[id]=0;result.brokenCells.push_back(id);for(uint32_t edge:l.cells[id].bonds)if(s.bondHealth[edge]>0){s.bondHealth[edge]=0;result.brokenBonds.push_back(edge);}}
             if(remaining<=1.e-12)break;
         }result.spentWork+=initial-remaining;result.remainingWork+=remaining;
     }
-    if(result.changed)overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());if(result.changed)islands(result);return result;
+    if(finalize){if(result.changed)overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());if(result.changed)islands(result);}return result;
 }
 }
-template<class Plane> DamageResult damage(const State&state,const Plane&plane,double wholeArea=0){return detail::damagePatches(state,plane,wholeArea);}
+inline void finalizeDamage(DamageResult&result){if(result.changed)detail::overload(result);std::sort(result.brokenBonds.begin(),result.brokenBonds.end());result.brokenBonds.erase(std::unique(result.brokenBonds.begin(),result.brokenBonds.end()),result.brokenBonds.end());if(result.changed)detail::islands(result);}
+template<class Plane> DamageResult damage(const State&state,const Plane&plane,double wholeArea=0,bool finalize=true){return detail::damagePatches(state,plane,wholeArea,finalize);}
 // Compatibility call for the material owner: the geometry cache is refreshed
 // at its writer, never rebuilt for every read of an unchanged surface.
-template<class Plane,class Surface> DamageResult damage(const State&state,const Plane&plane,const Surface&,const std::map<int,float>&,double wholeArea=0){return damage(state,plane,wholeArea);}
+template<class Plane,class Surface> DamageResult damage(const State&state,const Plane&plane,const Surface&,const std::map<int,float>&,double wholeArea=0,bool finalize=true){return damage(state,plane,wholeArea,finalize);}
 }

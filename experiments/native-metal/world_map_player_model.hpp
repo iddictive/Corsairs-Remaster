@@ -23,6 +23,7 @@ bool seaVisualBounds(CVECTOR &size, CVECTOR &center);
 float miniatureScale(const CVECTOR &size);
 bool prepareSeaVisual(const char *modelName);
 bool warmSeaVisual();
+void pollSeaVisual();
 void discardSeaVisual();
 inline bool bounds(CVECTOR &size, CVECTOR &center)
 {

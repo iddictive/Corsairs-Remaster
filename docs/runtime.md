@@ -1,8 +1,38 @@
 # Runtime state
 
-Last verified installed delivery: October17,00:01EDT, continuous-cut/retained-world/AA/HUD successor, signed engine `ef3f73d3dc36debcc401443049485ec630cb10c2b7bd2b3fdad3bfde63598496`. Canonical staging exits0;523 current protected files are unchanged and239 managed receipt rows match. The precedingb0f1ac51 image has player-confirmed scars/falling masts but rejected section separation, terrain drilling, coast recovery and FPS. This successor's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October17,01:07EDT, paid-local-crush/map-warm successor, signed engine `9af99327f0689e874a83abc0e1a610c840b2466d7fb6ec26b859dfb7a17acbd9`. Canonical staging exits0;523 current protected files are unchanged and239 managed receipt rows match. The precedingef3f73d3 image has player-confirmed ram fractures but rejected intermediate damage and sustained sea FPS. This successor's gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October17,00:48 player follow-up — some ram fractures confirmed; persistent sea FPS rejected
+
+The player confirms that some impacts split ships in the00:01 installed image,
+but sees no intermediate damage and reports low FPS persisting after sea reload.
+The supplied PID56702 profile binds that image's UUID `E755379B`;1157 of1426
+main-thread samples are map-ship preparation,533 inside synchronous initial
+boundary construction. [Exact profile and signed engine](../.local-archives/metal-renderer-evidence/phonk-current-20261017/player-ram-map-warm-0048/evidence.json)
+are retained. This identifies a repeated restoration owner, not measured
+post-fix FPS. Source review also finds mechanical graph health has no local
+geometry cue until cell failure; an adequately strong impact may legitimately
+fracture immediately. The correction keeps that behavior and realizes paid
+local crushing without inventing energy or adding a fracture timer.
+
+Map restoration now uses the same physical-node domain as checkpoint writing,
+validates records before submitting work, and parks unchanged failed warmups.
+Cold boundary construction runs in the existing worker; retained offscreen
+miniatures service admitted jobs without rebuilding or decoding attributes each
+frame. Build/install and gameplay acceptance remain separate; no gameplay
+tests or player-process control are authorized.
+
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 after this batch.
+Installed UUID is `A88421D9-7E6C-3B1B-B391-774F80365A62`, native input fingerprint
+`5afb3443985ab233defb390197eb71ced3e097aecf0d50bbba14247282466fc7`.
+The [delivery receipt](../.local-archives/installed-delivery/ram-crush-map-warm-20261017/result.json)
+binds unsigned/signed engines, build/stage log and unchanged523 player files;
+all239 managed entries match. Disposition: compilation/delivery accepted,
+progressive ram geometry, high-speed fragmentation and post-reload FPS
+unresolved pending player replay. [The naval owner](naval-ammunition-and-damage.md#ram-work-and-progressive-mechanical-damage)
+retains the source-bound500kn calculation and finite-contact work limitation.
 
 ### October16,23:13 player follow-up — visible scars/masts confirmed; sections, coast and FPS reopened
 

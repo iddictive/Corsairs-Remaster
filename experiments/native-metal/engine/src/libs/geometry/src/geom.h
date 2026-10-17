@@ -115,7 +115,6 @@ class GEOM : public GEOS
     uint64_t hullMaterialStateRevision=0;
     bool CaptureHullRebuildSource();
     bool RequestHullRebuild(uint64_t,const std::vector<storm_ship_hull::Impact>&,const std::vector<storm_ship_laser::Plane>&);
-    void PollHullRebuild();
     void RetireHullRebuild();
     struct LaserFragment {uint64_t id=0;std::map<int,std::vector<HullDraw>>draws;storm_ship_laser::FragmentPiece physical;};
     struct LaserBatch {uint64_t id=0;std::vector<LaserFragment>fragments;};
@@ -198,6 +197,7 @@ class GEOM : public GEOS
     bool SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>&cuts) override;
     void ClearHullCuts(uint64_t owner) override;
     bool HasPendingHullRebuild() const override;
+    void PollHullRebuild() override;
     bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) override;
     bool PrepareHullMaterial(uint64_t owner) override;
     bool RestoreHullMaterial(uint64_t owner,uint64_t version,const std::string&payload) override;

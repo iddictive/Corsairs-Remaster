@@ -17,24 +17,36 @@ struct LocalResult {
     bool changed=false;
 };
 inline double measured(const Mesh&mesh){double result=0;for(const auto&o:mesh)for(const auto&t:o.second){storm_geometry_work::checkpoint();result+=storm_ship_hull::area(t);}return result;}
+struct ConvexField {
+    std::vector<storm_ship_hull::Plane>planes;
+    Bounds bounds{};Vec3 origin{};bool charred=false;
+};
+inline auto fieldPlanes(const BeamSample&beam){return beamPlanes(beam);}
+inline const auto&fieldPlanes(const ConvexField&field){return field.planes;}
+inline Bounds fieldBounds(const BeamSample&beam){return beamBounds(beam);}
+inline Bounds fieldBounds(const ConvexField&field){return field.bounds;}
+inline Vec3 fieldOrigin(const BeamSample&beam){return beamStart(beam);}
+inline Vec3 fieldOrigin(const ConvexField&field){return field.origin;}
+inline bool fieldCharred(const BeamSample&){return true;}
+inline bool fieldCharred(const ConvexField&field){return field.charred;}
 // The BVH is rebuilt once per batch/role, not once per halfspace. Only queried
 // triangles enter the planar Boolean; untouched triangles are linear copies.
-inline bool cutRole(const Mesh&source,const std::vector<BeamSample>&beams,const std::map<int,float>&wood,
+template<class Field>inline bool cutRole(const Mesh&source,const std::vector<Field>&beams,const std::map<int,float>&wood,
                     unsigned role,Mesh&kept,LocalResult&result){
     const auto index=indexFaces(source);std::map<int,std::map<uint32_t,std::vector<unsigned>>>candidates;std::vector<uint32_t>nearby;
-    for(unsigned n=0;n<beams.size();++n){index.broadphase.queryBounds(beamBounds(beams[n]),nearby);for(auto id:nearby){const auto ref=index.references[id];if(wood.count(ref.first))candidates[ref.first][ref.second].push_back(n);}}
+    for(unsigned n=0;n<beams.size();++n){index.broadphase.queryBounds(fieldBounds(beams[n]),nearby);for(auto id:nearby){const auto ref=index.references[id];if(wood.count(ref.first))candidates[ref.first][ref.second].push_back(n);}}
     kept=source;
     for(const auto&object:candidates){auto&destination=kept[object.first];destination.clear();const auto&triangles=source.at(object.first);
         for(uint32_t n=0;n<triangles.size();++n){storm_geometry_work::checkpoint();const auto found=object.second.find(n);if(found==object.second.end()){destination.push_back(triangles[n]);continue;}
             Mesh current{{object.first,{triangles[n]}}};
-            for(auto field:found->second){Mesh outside,removed;if(!subtractVolume(current,beamPlanes(beams[field]),outside,removed))return false;
+            for(auto field:found->second){Mesh outside,removed;if(!subtractVolume(current,fieldPlanes(beams[field]),outside,removed))return false;
                 const double amount=measured(removed);if(amount>1.e-10){result.changed=true;result.changedObjects.insert(object.first);if(role!=2)result.removedArea+=amount;
                     if(role==0)for(const auto&o:removed)for(const auto&t:o.second)result.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}
                 current=std::move(outside);}
             const auto foundKept=current.find(object.first);if(foundKept!=current.end())destination.insert(destination.end(),foundKept->second.begin(),foundKept->second.end());}}
     return true;
 }
-inline bool clipSeam(Segment&edge,const BeamPlanes&planes,size_t skip){
+template<class Planes>inline bool clipSeam(Segment&edge,const Planes&planes,size_t skip){
     for(size_t n=0;n<planes.size();++n){if(n==skip)continue;const auto&p=planes[n];const float a=storm_ship_hull::dot(p.normal,edge.a.position)-p.distance,b=storm_ship_hull::dot(p.normal,edge.b.position)-p.distance;
         if(a>0&&b>0)return false;if((a>0)!=(b>0)){const auto point=storm_ship_hull::interpolate(edge.a,edge.b,a/(a-b));if(a>0)edge.a=point;else edge.b=point;}}
     return !near(edge.a.position,edge.b.position);
@@ -63,21 +75,21 @@ inline bool newlySplit(const Input&input,const Surface&after,bool&split){
     Surface beforeLocal,afterLocal;if(!localMaterial(*input.surface,input.wood,sources,beforeLocal)||!localMaterial(after,input.wood,sources,afterLocal))return false;
     split=newComponent(beforeLocal,afterLocal);return true;
 }
-template<class ClipCell>inline bool cut(const Input&input,LocalResult&output,ClipCell clipCell){
-    if(!input.surface||!input.surface->cells||!valid(input.plane)||input.plane.beams.empty())return false;
+template<class Field,class ClipCell>inline bool cutFields(const Input&input,const std::vector<Field>&fields,LocalResult&output,ClipCell clipCell){
+    if(!input.surface||!input.surface->cells||fields.empty())return false;
     LocalResult next;next.kept=*input.surface;
-    for(unsigned role=0;role<4;++role)if(!cutRole(surfaceRole(*input.surface,role),input.plane.beams,input.wood,role,surfaceRole(next.kept,role),next))return false;
+    for(unsigned role=0;role<4;++role)if(!cutRole(surfaceRole(*input.surface,role),fields,input.wood,role,surfaceRole(next.kept,role),next))return false;
     auto cells=std::make_shared<MaterialCells>(*input.surface->cells);std::set<uint32_t>changed;Mesh walls;
     const auto outerIndex=indexFaces(input.surface->outer);std::vector<uint32_t>ids,outerIDs;
-    for(const auto&beam:input.plane.beams){storm_geometry_work::checkpoint(true);const auto planes=beamPlanes(beam);const auto box=beamBounds(beam);
+    for(const auto&beam:fields){storm_geometry_work::checkpoint(true);const auto planes=fieldPlanes(beam);const auto box=fieldBounds(beam);
         // A subsequent sample removes the preceding sample's local new wall,
         // exactly as it removes an old wall. No historical cutter is replayed.
-        if(!walls.empty()){LocalResult discarded;Mesh outside;if(!cutRole(walls,{beam},input.wood,3,outside,discarded))return false;next.removedArea+=discarded.removedArea;walls=std::move(outside);}
+        if(!walls.empty()){LocalResult discarded;Mesh outside;if(!cutRole(walls,std::vector<Field>{beam},input.wood,3,outside,discarded))return false;next.removedArea+=discarded.removedArea;walls=std::move(outside);}
         cells->source->index.queryBounds(box,ids);Mesh localOuter;outerIndex.broadphase.queryBounds(box,outerIDs);
         for(auto id:outerIDs){const auto ref=outerIndex.references[id];if(input.wood.count(ref.first))localOuter[ref.first].push_back(input.surface->outer.at(ref.first)[ref.second]);}
         for(size_t side=0;side<planes.size();++side){std::vector<storm_ship_hull::Plane>limits;for(size_t n=0;n<planes.size();++n)if(n!=side)limits.push_back(planes[n]);
             for(auto id:ids){const auto&solid=materialCell(*cells,id);if(solid.empty()||!input.wood.count(solid.begin()->first))continue;Mesh inside,outside;
-                if(!solidSectionCaps(solid,planes[side],limits,beamStart(beam),true,inside,outside))return false;
+                if(!solidSectionCaps(solid,planes[side],limits,fieldOrigin(beam),fieldCharred(beam),inside,outside))return false;
                 if(measured(outside)>1.e-10){next.changed=true;for(const auto&o:outside)if(!o.second.empty())next.changedObjects.insert(o.first);appendMesh(walls,outside);}}
             for(auto edge:planeSeam(localOuter,planes[side]))if(clipSeam(edge,planes,side))next.seam.push_back(std::move(edge));}
         for(auto id:ids){storm_geometry_work::checkpoint();const auto&solid=materialCell(*cells,id);if(solid.empty()||!input.wood.count(solid.begin()->first))continue;Mesh retained;
@@ -86,5 +98,32 @@ template<class ClipCell>inline bool cut(const Input&input,LocalResult&output,Cli
     if(!next.changed){output=std::move(next);return true;}
     appendMesh(next.kept.finiteWalls,walls);next.kept.cells=std::move(cells);next.kept.cutters.clear();next.kept.legacy.clear();next.kept.checkpointed=true;
     next.changedIDs.assign(changed.begin(),changed.end());output=std::move(next);return true;
+}
+template<class ClipCell>inline bool cut(const Input&input,LocalResult&output,ClipCell clipCell){
+    if(!valid(input.plane))return false;return cutFields(input,input.plane.beams,output,clipCell);
+}
+// Fit the finite contact's already-paid crushing volume. Signed tetrahedra are
+// queried once per touched graph cell; depth fitting uses convex arithmetic,
+// never authored-mesh scans or planar Boolean reconstruction.
+inline std::vector<ConvexField>crushFields(const Input&input,const storm_ship_structure::DamageResult&damage){
+    const auto&state=damage.state;std::vector<ConvexField>fields;if(!state.layout)return fields;
+    const auto&layout=*state.layout;const auto contact=state.contact?state.contact:layout.contact;if(!contact)return fields;
+    for(const auto&crush:damage.crushed){storm_geometry_work::checkpoint();if(crush.beam>=input.plane.beams.size()||crush.cell>=state.alive.size()||!state.alive[crush.cell]||state.cellHealth[crush.cell]<=0||crush.volume<=1.e-12)continue;
+        const auto&beam=input.plane.beams[crush.beam];const auto prism=beamPlanes(beam);ConvexField field;field.planes.assign(prism.begin(),prism.end());field.origin=beamStart(beam);
+        field.bounds=beamBounds(beam);const auto cell=layout.cells[crush.cell].bounds;
+        field.bounds.lo={std::max(field.bounds.lo.x,cell.lo.x),std::max(field.bounds.lo.y,cell.lo.y),std::max(field.bounds.lo.z,cell.lo.z)};
+        field.bounds.hi={std::min(field.bounds.hi.x,cell.hi.x),std::min(field.bounds.hi.y,cell.hi.y),std::min(field.bounds.hi.z,cell.hi.z)};
+        if(field.bounds.hi.x<=field.bounds.lo.x||field.bounds.hi.y<=field.bounds.lo.y||field.bounds.hi.z<=field.bounds.lo.z)continue;
+        for(unsigned axis=0;axis<3;++axis)for(float sign:{-1.f,1.f})field.planes.push_back({storm_ship_structure::axisVector(axis,sign),sign*storm_ship_structure::coordinate(sign<0?cell.lo:cell.hi,axis)});
+        const auto candidates=storm_ship_structure::detail::queryMaterial(*contact,field.bounds);
+        const auto volume=[&](float depth){field.planes[0].distance=storm_ship_hull::dot(beamDirection(beam),field.origin)+depth;double result=0;
+            for(const auto&candidate:candidates){storm_geometry_work::checkpoint();const auto&t=candidate.first->tetrahedra[candidate.second];auto poly=storm_ship_structure::detail::tetraPoly(t);for(const auto&plane:field.planes){poly=storm_ship_structure::detail::clipPoly(poly,plane);if(poly.empty())break;}result+=storm_ship_structure::detail::polyVolume(poly)*t.sign;}return std::max(0.,result);};
+        const double full=volume(beam.depth);if(full<=1.e-12)continue;
+        if(full>crush.volume){float low=-(beam.backDepth<0?beam.radius*.15625f:beam.backDepth),high=beam.depth;
+            for(unsigned n=0;n<16;++n){const float mid=(low+high)*.5f;if(volume(mid)<=crush.volume)low=mid;else high=mid;}
+            if(volume(low)<=1.e-12)continue;
+        }
+        fields.push_back(std::move(field));
+    }return fields;
 }
 }

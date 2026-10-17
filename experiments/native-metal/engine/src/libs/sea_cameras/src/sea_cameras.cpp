@@ -23,6 +23,19 @@ bool storm_map_player::seaBounds(CVECTOR &size, float &yaw, CVECTOR &position)
 }
 
 // Reuse the native main-ship owner; copied visuals outlive sea teardown.
+namespace
+{
+struct WarmVisualFailure
+{
+    entid_t source = 0;
+    int characterIndex = -1;
+    uint64_t signature = 0;
+    std::string model;
+};
+WarmVisualFailure warmVisualFailure;
+entid_t warmedVisualSource = 0;
+}
+
 static VAI_OBJBASE *mainVisualShip()
 {
     for (auto id : core.GetEntityIds("ship"))
@@ -42,9 +55,15 @@ bool storm_map_player::prepareSeaVisual(const char *modelName)
     auto *ship = mainVisualShip();
     return ship && preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), modelName);
 }
+void storm_map_player::pollSeaVisual()
+{
+    if (pendingPlayerVisual) pendingPlayerVisual->pollHullRebuild();
+}
 void storm_map_player::discardSeaVisual()
 {
     discardPlayerVisual();
+    warmVisualFailure = {};
+    warmedVisualSource = 0;
     storm_map_resources::RearmPlayerVisual();
 }
 
@@ -59,9 +78,24 @@ bool storm_map_player::warmSeaVisual()
     auto *descriptor = attributes ? attributes->GetAttributeClass("playerShipVisual") : nullptr;
     const char *name = descriptor ? descriptor->GetAttribute("model") : nullptr;
     if (!name) return false;
-    if (pendingPlayerVisual && pendingPlayerVisual->alive() && pendingPlayerVisual->modelName == name &&
-        pendingPlayerVisual->characterIndex == int(descriptor->GetAttributeAsDword("characterIndex", -1))) return true;
-    return preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), name);
+    const auto source = ship->GetModel()->GetId();
+    const int characterIndex = int(descriptor->GetAttributeAsDword("characterIndex", -1));
+    if (warmedVisualSource == source && pendingPlayerVisual && pendingPlayerVisual->alive() && pendingPlayerVisual->modelName == name &&
+        pendingPlayerVisual->characterIndex == characterIndex) return true;
+    if (warmedVisualSource != source) discardPlayerVisual();
+    // A failed checkpoint/model is not new work on the next Execute. Retry
+    // only for changed visual state, a new sea model, or explicit disposal.
+    const auto signature = visualSignature(ship->GetACharacter());
+    if (warmVisualFailure.source == source && warmVisualFailure.characterIndex == characterIndex &&
+        warmVisualFailure.model == name && warmVisualFailure.signature == signature) return false;
+    if (preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), name))
+    {
+        warmVisualFailure = {};
+        warmedVisualSource = source;
+        return true;
+    }
+    warmVisualFailure = {source, characterIndex, signature, name};
+    return false;
 }
 
 CREATE_CLASS(SeaMapTransition)

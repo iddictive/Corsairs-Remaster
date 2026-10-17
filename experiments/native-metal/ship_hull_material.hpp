@@ -4,6 +4,7 @@
 #include "ship_hull_structure.hpp"
 #include "ship_hull_structure_geometry.hpp"
 #include "ship_hull_material_ablation.hpp"
+#include <cctype>
 #include <cstring>
 #include <cstdlib>
 
@@ -15,6 +16,12 @@ namespace storm::ship::material
 using namespace storm_ship_laser;
 using storm_ship_laser::Plane;
 inline constexpr size_t ChunkSize=32768;
+// Persistence and every visual projection share the same authored node domain.
+template<class Node> inline bool isPhysicalNode(Node*node){
+    if(!node||!node->geo)return false;const char*name=node->GetName();if(!name)return true;
+    constexpr char excluded[]="path";
+    for(unsigned n=0;;++n){if(std::tolower(static_cast<unsigned char>(name[n]))!=excluded[n])return true;if(!excluded[n])return false;}
+}
 inline uint64_t revision(const char*value){if(!value||!*value)return 0;uint64_t result=0;for(const char*p=value;*p;++p){if(*p<'0'||*p>'9'||result>(UINT64_MAX-unsigned(*p-'0'))/10)return 0;result=result*10+unsigned(*p-'0');}return result;}
 template<class Attr> inline bool readTail(Attr*slot,std::vector<Plane>&tail){
     const auto count=slot->GetAttributeAsDword("tail");if(count>32)return false;std::vector<Plane>next;
@@ -277,7 +284,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     if(!input.physicalContact&&!input.releaseOnly){output=std::move(next);return true;}
     if(input.releaseOnly&&(!next.hasDeferredSections||!input.fragmentLimit)){output=std::move(next);return true;}
     const bool thermal=input.plane.charred&&std::all_of(input.plane.beams.begin(),input.plane.beams.end(),[](const auto&beam){return beam.specificWork==0&&beam.contactStrength==0&&beam.crossSection.empty();});
-    storm_ship_structure::DamageResult damage;structure_geometry::Realization geometry;bool fractured=false;
+    storm_ship_structure::DamageResult damage;structure_geometry::Realization geometry;bool fractured=false,mechanicalGeometry=false;
     if(thermal||input.releaseOnly){ablation::LocalResult local;
         if(input.releaseOnly)local.kept=*input.surface;
         else if(!ablation::cut(input,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
@@ -301,10 +308,32 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
         geometry.seam.insert(geometry.seam.end(),std::make_move_iterator(local.seam.begin()),std::make_move_iterator(local.seam.end()));
         if(!fractured)next.changedObjects=std::move(local.changedObjects);
     }else{
-        damage=storm_ship_structure::damage(*structure,input.plane,*input.surface,input.wood,input.structuralArea);
+        damage=storm_ship_structure::damage(*structure,input.plane,*input.surface,input.wood,input.structuralArea,!input.realizeMechanicalCrush);
+        Input physicalInput=input;ablation::LocalResult local;std::vector<Surface>localPieces;bool localDeferred=false;
+        if(input.realizeMechanicalCrush){const auto fields=ablation::crushFields(input,damage);
+            if(!fields.empty()&&!ablation::cutFields(input,fields,local,[](const auto&solid,const auto&planes,auto&kept){return clipCell(solid,planes,kept);}))return false;
+            if(local.changed){bool split=false;if(!ablation::newlySplit(input,local.kept,split))return false;
+                if(split){if(!releaseSections(*input.surface,local.kept,input.fragmentLimit,localPieces,localDeferred))return false;
+                    local.changedIDs.clear();for(const auto&entry:local.kept.cells->changed){const auto old=input.surface->cells->changed.find(entry.first);if(old==input.surface->cells->changed.end()||old->second!=entry.second)local.changedIDs.push_back(entry.first);}
+                    for(const auto&piece:localPieces){local.removedArea+=area(canonicalMesh(piece));for(const auto&o:piece.outer)for(const auto&t:o.second)local.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}}
+                // Work already reduced graph health. Refresh actual remaining
+                // sections by min(capacity, paid health), never subtract again.
+                auto refreshed=storm_ship_structure::reconcile(damage.state,*input.surface,local.kept,input.wood,&local.changedIDs,true);
+                damage.state=std::move(refreshed.state);damage.brokenBonds.insert(damage.brokenBonds.end(),refreshed.brokenBonds.begin(),refreshed.brokenBonds.end());
+                physicalInput.surface=std::make_shared<const Surface>(std::move(local.kept));physicalInput.fragmentLimit-=unsigned(localPieces.size());mechanicalGeometry=true;
+            }
+            storm_ship_structure::finalizeDamage(damage);
+        }
         structure_geometry::includeDeferred(damage);
         if(!damage.changed&&damage.brokenCells.empty()&&damage.releasedCells.empty()){output=std::move(next);return true;}
-        if(!structure_geometry::realize(input,damage,geometry))return false;fractured=geometry.changed;
+        if(!structure_geometry::realize(physicalInput,damage,geometry))return false;fractured=geometry.changed||!localPieces.empty();
+        if(mechanicalGeometry){if(!geometry.changed)geometry.kept=*physicalInput.surface;
+            geometry.changed=true;geometry.deferred|=localDeferred;geometry.removedArea+=local.removedArea;
+            geometry.pieces.insert(geometry.pieces.end(),std::make_move_iterator(localPieces.begin()),std::make_move_iterator(localPieces.end()));
+            geometry.openings.insert(geometry.openings.end(),std::make_move_iterator(local.openings.begin()),std::make_move_iterator(local.openings.end()));
+            geometry.seam.insert(geometry.seam.end(),std::make_move_iterator(local.seam.begin()),std::make_move_iterator(local.seam.end()));
+            if(!fractured)next.changedObjects=std::move(local.changedObjects);
+        }
     }
     next.result.stateChanged=damage.changed;next.hasDeferredSections=geometry.deferred||(!input.releaseOnly&&input.hasDeferredSections);
     if(!geometry.changed){next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));
@@ -317,7 +346,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     if(fractured){auto physical=storm_ship_structure::seed(damage.state.layout,geometry.kept,input.wood);damage.state.contact=std::move(physical.contact);damage.state.physicalCellHealth=std::move(physical.physicalCellHealth);damage.state.physicalBondHealth=std::move(physical.physicalBondHealth);}
     next.hasDeferredSections|=structure_geometry::hasDeferred(damage.state);
     next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));geometry.kept.structure=next.structure;
-    if(fractured||input.materialTailCount>=31){geometry.kept=rebase(std::move(geometry.kept));next.materialPayload=encode(geometry.kept,input.fingerprint,next.structure);}
+    if(fractured||mechanicalGeometry||input.materialTailCount>=31){geometry.kept=rebase(std::move(geometry.kept));next.materialPayload=encode(geometry.kept,input.fingerprint,next.structure);}
     next.canonical=canonicalMesh(geometry.kept);next.render=renderMesh(geometry.kept);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.seam=std::move(geometry.seam);next.result.openings=std::move(geometry.openings);
     const double keptArea=area(next.canonical),total=keptArea+geometry.removedArea;next.result.removedFraction=float(std::clamp(geometry.removedArea/std::max(total,1.e-7),0.,1.));
     if(input.hasSupport)next.result.supportSevered=beamSeversSupport(*input.surface,geometry.kept,input.support);

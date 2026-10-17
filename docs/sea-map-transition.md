@@ -76,6 +76,23 @@ their own renderer references and share the exact original34-texture sequence.
 After static preparation, that entity warms the owning player model. At the apex
 it refreshes live nodes and cloth without rereading its GM; unchanged hull-cut
 signatures retain prepared geometry. Repair/removal invalidates cut state.
+The warm copy is bound to its source sea-model entity. A failed reconstruction
+is parked for that source, model/character identity and existing visual signature;
+changed attributes, a recreated sea model or explicit disposal permit retry.
+An unchanged failure must not reload/rebuild the miniature on every Execute.
+Ordinary sea Execute continues polling already-admitted miniature material jobs
+after warmup succeeds; it does not decode attributes or refresh/reconstruct the
+visual. This releases completed worker slots even though the sea never draws
+that independent model. Map realization takes over polling after ownership transfer.
+Material reconstruction shares SHIP's physical-node domain (excluding `path`)
+and validates all required checkpoint records before admitting any node work.
+The October17,00:48 player profile binds installed UUID `E755379B`:1157 of1426
+main-thread samples are in map-ship preparation, including533 in synchronous
+`RebuildLaserSurface`. The [sample and matching signed executable](../.local-archives/metal-renderer-evidence/phonk-current-20261017/player-ram-map-warm-0048/evidence.json)
+retain the exact evidence. Cold material restore now constructs its initial
+boundary inside the existing cooperative worker, including legacy-cut import.
+These source guards remove the unbounded retry path; sustained FPS and damaged
+sea/map/save-load parity remain for player replay.
 Core reset disposes pending visual references before renderer destruction. Normal
 application exit separately calls the same `discardSeaVisual` owner after
 `ExitApplication` and before `CoreImpl::CleanUp` releases renderer services.

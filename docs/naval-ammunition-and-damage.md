@@ -32,6 +32,74 @@ in the [profile receipt](../.local-archives/metal-renderer-evidence/phonk-curren
 This identifies removed redundant work, not measured post-fix FPS or accepted
 separation. The aggregate cooperative geometry-worker allowance remains10%.
 
+## Ram work and progressive mechanical damage
+
+The October17 source calculation uses shipped `PROGRAM/ships/ships_init.c`
+entries `SHIP_MANOWAR` and `SHIP_LINESHIP`, not an observed player's SAVE.
+Their default Weight values are `Tonnes2CWT(4000)` and `Tonnes2CWT(2500)`;
+Capacity is6600 and4850, respectively, and Lineship HP is6100.
+`PROGRAM/utils.c::Tonnes2CWT` computes integer `tonnes*10000/508`, then
+rounds upward to100CWT. `SHIP_BASE::GetHullContactMass` adds published
+`Ship.Cargo.Load` to `State.fWeight`; `RecalculateCargoLoad` includes guns,
+crew and goods. Setting Load equal to Capacity gives85400 and54150CWT.
+These are game mass proxies: Weight already describes the authored ship's
+displacement convention, and adding Load is the current contact rule, not a
+claim that the resulting tonnage is a calibrated real vessel displacement.
+
+For a central normal impact on a stationary, fully loaded Lineship, with no
+initial yaw or tangential velocity, the exact source formulas give:
+
+- `KNOTS2METERS(500)=500*1853/3600=257.361111m/s`.
+- `mu=mA*mB/(mA+mB)`, restitution `e=.08`, normal impulse
+  `J=(1+e)*mu*v`, dissipated work `D=.5*mu*v*v*(1-e*e)`.
+- The target receives `D*mA/(mA+mB)` of dissipated work, then specific
+  work `E=D*mA/(mA+mB)/mB-.25=12322.949879m²/s²`.
+  Target impulse velocity is170.096238m/s, about330.4622kn.
+- Using50.8kg per conventional CWT only to express those game units in SI,
+  incident kinetic energy is143.673752GJ and dissipated work55.393351GJ.
+  This conversion does not calibrate timber fracture or the game's mass proxy.
+- Side-contact strength75 gives `f=E/(E+75)=.9939506`, or6063.098738 of
+  6100 base HP before script immunity/admission. Native `hp*.1` and the
+  collision handler's `fPower*10` cancel; they are not a tenfold energy loss.
+  Bow strength can reach131.25; the same case gives6035.714457 HP.
+
+The formula owners are `touch/src/ship_contact.hpp::solve`,
+`touch/src/ship_contact_frame.hpp::integrateFrame`,
+`touch/src/touch.cpp::ResolveShips`, `ship/include/ship_base.h`, and
+`PROGRAM/sea_ai/AIShip.c::Ship_Ship2ShipCollision`.
+Off-centre lever arms, actual normal closing speed, yaw, cargo, generated ship
+stats and script admission change this representative case. A speed control
+reading alone does not prove that closing speed reached the solver.
+
+`SHIP::ApplyHullImpact` accumulates contact work for at most the live contact
+episode, admits it above an HP-dependent4..40 strength-scaled threshold, and
+caps its accumulator at1e6. Neither bound suppresses the central500kn case.
+Its finite footprint uses overlapping root-hull contact bands and full root
+support depth; empty space still consumes no graph capacity. Successful queue
+admission clears the episode accumulator. Rejected preparation/publication
+retains the exact request; deferred bodies retain real hull geometry and failed
+strength. The graph budget is
+`E/strength * (wholeStructuralArea/layout.area) * layout.volume`; when the two
+area domains match, the side-hit example supplies164.305998 whole timber
+volumes of capacity work. Damage is still confined to actual contacts inside
+the finite footprint. `DamageResult.remainingWork` is currently not returned
+to a later contact or enlarged footprint after successful publication. It is
+unused local work, not evidence that the solver delivered it elsewhere.
+
+Previously a subcritical mechanical hit updated graph health only: no skin
+change occurred before a cell/link failure. Live mechanical preparation now
+realizes only its already-paid crushing work, capped by actual contacted timber
+volume, using a finite beam/cell intersection and a conservative16-step
+signed-volume depth fit. Fully failed/released cells remain real fragment
+material rather than ablation. Sparse physical capacity refresh caps paid
+health by remaining section without charging the work again; overload and
+island release remain graph-owned. Strong hits may still split instantly.
+Actual mechanical geometry folds the existing CHM3 checkpoint; historical
+health-only tails retain their old semantics through a transient live-capture
+flag. Canonical compilation/staging passed on October17; the installed identity
+and exact delivery receipt belong to `runtime.md`. Actual progressive damage,
+high-speed fragmentation and FPS remain for player replay.
+
 ## Status
 
 The common hull-material baseline was installed on October16,20:52EDT;
