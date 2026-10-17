@@ -193,6 +193,9 @@ void Blots::SynchronizeHullState(bool applyGeometry)
     // Same signature returns without topology/upload work. Calling the GEOM
     // owner also covers lost/restored geometry with a reused allocation address.
     if(!applyGeometry)return;
+    // Legacy marks remain visible/importable, but a committed retained-material
+    // owner is the only physical writer. Blot eviction must not regrow timber.
+    if(auto*state=pCharAttributeRoot->FindAClass(pCharAttributeRoot,"Ship.HullMaterial");state&&state->GetAttributeAsDword("version")==1&&state->GetAttribute("revision"))return;
     bool success=true;
     if(hullGeometryDirty)for(auto it=hullBoundNodes.begin();it!=hullBoundNodes.end();){if(!hullBindings.count(*it)){auto*node=HullNode(*it);if(node&&node->geo&&!node->geo->SetHullCuts(GetId(),{})){success=false;++it;}else it=hullBoundNodes.erase(it);}else ++it;}
     for(const auto&entry:hullBindings){auto*node=HullNode(entry.first);if(node&&node->geo){

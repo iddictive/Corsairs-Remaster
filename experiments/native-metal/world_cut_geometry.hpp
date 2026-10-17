@@ -59,7 +59,8 @@ inline bool valid(const Cut&c) {
 inline bool equal(const Cut&a,const Cut&b) {
     if(a.kind!=b.kind)return false;
     if(a.kind==Cut::Beam){if(a.beams.size()!=b.beams.size())return false;for(size_t n=0;n<a.beams.size();++n){const auto&x=a.beams[n];const auto&y=b.beams[n];
-        if(x.start!=y.start||x.direction!=y.direction||x.tangent!=y.tangent||x.radius!=y.radius||x.depth!=y.depth)return false;}return true;}
+        if(x.start!=y.start||x.direction!=y.direction||x.tangent!=y.tangent||x.radius!=y.radius||x.depth!=y.depth||
+           x.crossSection!=y.crossSection||x.backDepth!=y.backDepth||x.specificWork!=y.specificWork||x.contactStrength!=y.contactStrength)return false;}return true;}
     if(a.kind==Cut::Halfspace)return a.normal.x==b.normal.x&&a.normal.y==b.normal.y&&a.normal.z==b.normal.z&&a.distance==b.distance;
     if(a.center.x!=b.center.x||a.center.y!=b.center.y||a.center.z!=b.center.z||a.radius!=b.radius)return false;
     for(unsigned n=0;n<3;++n)if(a.axes[n].x!=b.axes[n].x||a.axes[n].y!=b.axes[n].y||a.axes[n].z!=b.axes[n].z)return false;return true;

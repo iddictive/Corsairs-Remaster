@@ -49,6 +49,8 @@ struct SHIP_WATER_IMPACT
     CVECTOR position = CVECTOR(0.f);
 };
 
+enum class HullProjectileProfile { RoundShot, Bomb, Knippel, Grape, Airburst };
+
 class SHIP_BASE : public VAI_OBJBASE
 {
   protected:
@@ -93,6 +95,10 @@ class SHIP_BASE : public VAI_OBJBASE
     virtual bool IsHullPositionRetained(const CVECTOR &localPosition) const { return true; }
     virtual void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                                  float specificEnergy, int32_t otherCharacterIndex) {}
+    virtual bool ApplyHullProjectileImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
+                                          const CVECTOR &worldDirection, float admittedHP,
+                                          int32_t sourceOwner, HullProjectileProfile profile,
+                                          float kineticEnergy) { return false; }
     virtual void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
                                         const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds) {}
 

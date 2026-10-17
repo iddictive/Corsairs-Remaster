@@ -13,6 +13,7 @@
 #include <deque>
 #include <future>
 #include <memory>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -52,6 +53,7 @@ struct LaserBreach
     float age = 0.f;
     float area = 0.f; // Finite removed skin; zero retains legacy separating-seam growth.
     float wetArea = 0.f; // derived by the actual4Hz ingress/wave sampler; never saved
+    uint64_t source=UINT64_MAX;
 };
 struct LaserBinding
 {
@@ -61,6 +63,9 @@ struct LaserBinding
     uint64_t restoreGeneration = 0;
     unsigned restoreCount = 0;
     std::vector<storm_ship_laser::Plane> restoreSnapshot;
+    uint64_t materialGeneration=0,materialRevision=0,savedGeometry=0,savedCollision=0;
+    std::string materialRestorePayload;
+    std::vector<storm_ship_laser::Plane>materialRestoreTail;
 };
 struct LaserRay
 {
@@ -86,6 +91,7 @@ struct LaserCutRequest
     CVECTOR impulse = CVECTOR(0.f);
     std::optional<HullWork> impact;
     float impactRadius = 0.f;
+    double queuedAt=0.;
 };
 struct LaserCutTarget
 {
@@ -132,9 +138,16 @@ struct LaserState
     bool pendingWorld = false;
     float charge = 1.f;
     std::vector<LaserPlane> cuts;
+    bool materialReady=false;
+    uint64_t materialRevision=0;
+    uint64_t cutSequence=0,cutHistoryBase=0,materialPendingRevision=0;
+    double materialRepairPercent=0.,materialRepairTarget=0.;
+    bool materialResetPending=false,materialRepairPending=false;
+    bool materialSavePending=false;
     std::vector<LaserFragment> fragments;
     std::vector<LaserEdge> edges;
     std::vector<LaserBreach> breaches;
+    std::map<uint64_t,size_t> breachIndex;
     std::vector<LaserBinding> bindings;
     HullWork impact;
     std::vector<CVECTOR> contour;

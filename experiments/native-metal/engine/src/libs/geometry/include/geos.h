@@ -15,9 +15,10 @@ Import library main header
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include <vector>
 #include "ship_hull_damage_bridge.hpp"
+#include "ship_laser_geometry.hpp"
 #include "world_cut_coverage.hpp"
 namespace storm_ship_hull {struct Impact;struct Vec3;}
-namespace storm_ship_laser {struct Plane;struct Result;struct Input;struct Projection;struct Fragment;struct FragmentInput;struct FragmentProjection;}
+namespace storm_ship_laser {struct Plane;struct Result;struct Input;struct Projection;struct Fragment;struct FragmentInput;struct FragmentProjection;struct SupportSpan;}
 namespace storm_world_cut {struct Cut;struct Input;struct Projection;}
 #endif
 
@@ -104,8 +105,19 @@ class GEOS
     virtual bool HasPendingHullRebuild() const { return false; }
     // Poll/queue one combined cannon+laser reconstruction; true only when applied.
     virtual bool RestoreLaserCuts(uint64_t owner,const std::vector<storm_ship_laser::Plane>&planes) { return planes.empty(); }
-    virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_hull::Vec3 *supportAxis=nullptr)=0;
-    virtual bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_hull::Vec3 *supportAxis,storm_ship_laser::Input&)=0;
+    virtual bool PrepareHullMaterial(uint64_t) { return false; }
+    virtual bool RestoreHullMaterial(uint64_t,uint64_t,const std::string&) { return false; }
+    virtual bool RestoreHullMaterial(uint64_t owner,uint64_t revision,const std::string&payload,const std::vector<storm_ship_laser::Plane>&tail) { return tail.empty()&&RestoreHullMaterial(owner,revision,payload); }
+    virtual const std::vector<storm_ship_laser::Plane>& HullMaterialTail() const { static const std::vector<storm_ship_laser::Plane>empty;return empty; }
+    virtual const std::vector<storm_ship_laser::Opening>& HullMaterialOpenings() const { static const std::vector<storm_ship_laser::Opening>empty;return empty; }
+    virtual bool ResetHullMaterial(uint64_t,uint64_t) { return false; }
+    virtual bool RepairHullMaterial(uint64_t,uint64_t,double) { return false; }
+    virtual double HullMaterialStructuralArea() const { return 0.; }
+    virtual bool HullMaterialBounds(storm_ship_laser::Bounds&) const { return false; }
+    virtual const std::string& HullMaterialPayload() const { static const std::string empty;return empty; }
+    virtual bool HullMaterialReady() const { return false; }
+    virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_laser::SupportSpan *support=nullptr)=0;
+    virtual bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_laser::SupportSpan *support,storm_ship_laser::Input&)=0;
     virtual bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&)=0;
     virtual void CommitLaserProjection(uint64_t owner)=0;
     virtual void DiscardLaserProjection(uint64_t owner)=0;

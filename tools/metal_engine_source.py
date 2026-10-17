@@ -19,7 +19,8 @@ def digest(path: Path) -> str:
 def source_files():
     if not (ENGINE / "src/apps/engine/src/main.cpp").is_file():
         raise RuntimeError("Tracked Metal engine sources are missing")
-    paths = {p for p in ENGINE.rglob("*") if p.is_file()}
+    # Finder metadata is neither a compiler input nor an authored resource.
+    paths = {p for p in ENGINE.rglob("*") if p.is_file() and p.name != ".DS_Store"}
     for p in METAL.iterdir():
         if p.is_file() and (p.name in {"CMakeLists.txt", "build.sh", "script_vm_probe.cmake"}
                             or p.suffix in {".h", ".hpp", ".cpp", ".mm"}

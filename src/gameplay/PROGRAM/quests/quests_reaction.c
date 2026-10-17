@@ -7407,7 +7407,7 @@ void QuestComplete(string sQuestName, string qname)
 						sld = &characters[iTemp];
 						SetCrewQuantityFull(sld);
 						DeleteAttribute(sld, "ship.sails");// убрать дыры на парусах
-						DeleteAttribute(sld, "ship.blots");
+						Ship_ResetHullDamage(sld);
 						DeleteAttribute(sld, "ship.masts");// вернуть сбитые мачты
 						SetBaseShipData(sld);
 					}

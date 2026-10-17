@@ -137,7 +137,7 @@ rejection and no teleport. These component checks do not accept visible gore.
 `CrewGore` caps the scene at32 fragments, retains its own texture references and
 expires pieces after6–9 seconds (water shortens that lifetime). Whole-body spin
 is at most1.2rad/s per axis, separated pieces2rad/s; local separation is reduced.
-These source-only balance changes await the player's visual replay. Attached Blood
+These balance changes are installed from `11fa90d` and await player replay. Attached Blood
 uses at most128 stains/2048 triangles per ship; each lasts180 game-seconds with
 a25-second fade. It follows the live wreck until the receiver disappears.
 Ordinary cannon-hole rendering still has a legacy BSP/mesh mismatch; that
@@ -151,7 +151,7 @@ owned by `runtime.md`. No game launch/control or player SAVE change occurs.
 Cosmetic wood chips reuse `particles/palka01/02/04` through `locator/src/blast.cpp`
 and `ship_hull_chips.hpp`. Their measured authored maximum extents are0.767,
 0.397 and1.356m; the former uniform scale made many pieces0.05–0.28m slivers.
-The source successor normalizes each existing mesh to0.45–0.9m, uses three boards
+The `11fa90d` successor normalizes each existing mesh to0.45–0.9m, uses three boards
 per burst and18 in the scene, and limits spin to2rad/s per axis. A saturated pool
 drops a new burst rather than deleting flying boards; only flotsam settled for
 two seconds may yield its lease. Boards float eight seconds, then sink, with a

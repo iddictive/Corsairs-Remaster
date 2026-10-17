@@ -5,6 +5,7 @@
 #include "ship_base.h"
 #include "ship_airburst_hull_distance.hpp"
 #include "ship_debris_bridge.hpp"
+#include "ship_hull_hit_admission.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -392,9 +393,10 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
                 std::abs(hit.x),std::abs(hit.y),std::abs(hit.z)});
         const float hullDistance=distance<=proximityLimit ?
             AirburstHullDistance(ship->GetModel(),burst,hullHit) : -1.0f;
-        if (hullDistance>=0.0f &&
+        const bool hullContact=hullDistance>=0.0f &&
             (!pIsland || pIsland->Trace(burst,hullHit)>=1.0f) &&
-            (!AIFort::pAIFort || AIFort::pAIFort->Trace(burst,hullHit)>=1.0f))
+            (!AIFort::pAIFort || AIFort::pAIFort->Trace(burst,hullHit)>=1.0f);
+        if (hullContact)
         {
             // Preserve the existing damage distance and event signature. Fire
             // policy consumes this separate real-hull witness synchronously.
@@ -406,8 +408,26 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
         }
         AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", distance);
         AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 1);
+        auto *character=ship->GetACharacter();
+        auto *before=character->GetAttributeClass("Ship");
+        const bool beforePresent=before&&before->GetAttribute("HP");
+        const float beforeHP=beforePresent?before->GetAttributeAsFloat("HP"):0.f;
         core.Event(SHIP_HULL_HIT, "illffflf", id, ball.iBallOwner, target,
                    hit.x, hit.y, hit.z, -1, 1e8f);
+        ship=static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if(hullContact&&ship&&ship->GetACharacter()==character) {
+            auto *after=character->GetAttributeClass("Ship");
+            const bool afterPresent=after&&after->GetAttribute("HP");
+            const float admitted=storm_hull_damage::admittedDamage(beforePresent,beforeHP,afterPresent,
+                afterPresent?after->GetAttributeAsFloat("HP"):0.f);
+            auto direction=hullHit-burst;
+            if((~direction)<1.e-8f) direction=dst-src;
+            if(admitted>0.f&&(~direction)>1.e-8f) {
+                direction=!direction;
+                ship->ApplyHullProjectileImpact(hullHit,-direction,direction,admitted,ball.iBallOwner,
+                                               HullProjectileProfile::Airburst,0.f);
+            }
+        }
         ResetAirburstHull(AttributesPointer);
     }
     if (AIFort::pAIFort)
@@ -623,6 +643,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
             AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
             AttributesPointer->SetAttributeUseDword("CurrentBallHeated", heated ? 1 : 0);
+            AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",0.f);
 
             AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
             AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
@@ -729,6 +750,14 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 pSail->SetCannonTraceRadius(0.0f);
             }
 
+            // Same trajectory derivative and shot mass as detached-body
+            // impulses. An already dead hull has no script HP debit to invert.
+            if(!burst&&!fragment) {
+                const auto velocity=BallWorldVelocity(*pBall,pBall->fTime,fDeltaTimeMultiplier*pBall->fTimeSpeedMultiply);
+                const float energy=.5f*CannonShotMass(pBall->dwCannonType)*(~velocity);
+                AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",
+                    std::isfinite(energy)&&energy>0.f?energy:0.f);
+            }
             auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
             for (auto ent_id : entities)
             {

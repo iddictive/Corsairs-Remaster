@@ -86,7 +86,6 @@ void DeleteShipEnvironment()
 	DelEventHandler("Ship_FireStep", "Ship_FireStep");
 	DelEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood");
 	DelEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut");
-	DelEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext");
 	DelEventHandler(SHIP_BORT_RELOADED, "Ship_OnBortReloaded");
 	DelEventHandler(SHIP_ACTIVATE_FIRE_PLACE, "Ship_ActivateFirePlace");
 	DelEventHandler(SHIP_UPDATE_PARAMETERS, "Ship_UpdateParameters");
@@ -188,7 +187,6 @@ void CreateShipEnvironment()
 	SetEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut", 0);
 	SetEventHandler(SHIP_CHECK_SITUATION, "Ship_CheckSituation", 0);
 	SetEventHandler(SHIP_TO_STRAND, "Ship_OnStrand", 0);
-	SetEventHandler(SHIP_TO_STRAND_NEXT, "Ship_OnStrandNext", 0);
 	SetEventHandler(SHIP_DEAD, "Ship_OnDead", 0);
 	SetEventHandler(SHIP_UPDATE_PARAMETERS, "Ship_UpdateParameters", 0);
 	SetEventHandler(SHIP_DROP_GOOD, "DropGoodsToSea", 0);
@@ -3653,7 +3651,7 @@ void Ship_SetFantomData(ref rFantom)
 		rFantom.Ship.HP = iBaseHP - rand(makeint(iBaseHP / 8));
 	}
 	if (CheckAttribute(rFantom, "Ship.Masts")) { DeleteAttribute(rFantom, "Ship.Masts"); }
-	if (CheckAttribute(rFantom, "Ship.Blots")) { DeleteAttribute(rFantom, "Ship.Blots"); }
+	Ship_ResetHullDamage(rFantom);
 	if (CheckAttribute(rFantom, "Ship.Sails")) { DeleteAttribute(rFantom, "Ship.Sails"); }
 
 }
@@ -4138,29 +4136,6 @@ void Ship_CheckMainCharacter()
 	}
 }
 
-void Ship_OnStrandNext()
-{
-	ref	rCharacter = GetCharacter(GetEventData());
-	int generation = GetEventData();
-	int currentGeneration = 0;
-	if (CheckAttribute(rCharacter, "Ship.Strand.Generation")) currentGeneration = sti(rCharacter.Ship.Strand.Generation);
-	if (generation != currentGeneration) return;
-	if (LAi_IsDead(rCharacter)) { return; }
-
-	bool bOnStrand = sti(rCharacter.Ship.Strand);
-	if (!bOnStrand) return;
-	// Global timers keep running when native sea layers are frozen. Keep one
-	// chain alive for resume, but do not charge its stale speed in those states.
-	if (bSeaActive && IsEntity(&Sea) && !bSeaReloadStarted && !bAbordageStarted && !sti(InterfaceStates.Launched) &&
-		fHighPrecisionDeltaTime > 0.0 && !CheckAttribute(rCharacter, "AlwaysSandbankManeuver"))
-	{
-		float fCurrentSpeedZ = stf(rCharacter.Ship.Speed.z);
-		float fHP = 4.0 * fCurrentSpeedZ / 7.0;
-		Ship_ApplyCollisionHitpoints(rCharacter, fHP, KILL_BY_ISLAND, -1);
-	}
-	PostEvent(SHIP_TO_STRAND_NEXT, 100 + rand(100), "ll", sti(rCharacter.index), generation);
-}
-
 void Ship_OnStrand()
 {
 	ref rCharacter = GetCharacter(GetEventData());
@@ -4170,10 +4145,6 @@ void Ship_OnStrand()
 	if (bPrevStrand == bNewStrand) return;
 
 	rCharacter.Ship.Strand = bNewStrand;
-	int generation = 0;
-	if (CheckAttribute(rCharacter, "Ship.Strand.Generation")) generation = sti(rCharacter.Ship.Strand.Generation);
-	generation++;
-	rCharacter.Ship.Strand.Generation = generation;
 
 	float x = stf(rCharacter.Ship.Pos.x);
 	float y = stf(rCharacter.Ship.Pos.y);
@@ -4181,7 +4152,8 @@ void Ship_OnStrand()
 
 	if (bPrevStrand == 0 && bNewStrand == 1)
 	{
-		PostEvent(SHIP_TO_STRAND_NEXT, 100, "ll", sti(rCharacter.index), generation);
+		// Grounding is support, not repeated impact work. TOUCH owns real
+		// inward-contact damage; sail or downhill escape must not spend HP.
 		rCharacter.Ship.Strand.SndID = Play3DSoundComplex("ship_aground", x, y, z, true, false);
 	}
 	else

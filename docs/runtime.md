@@ -1,8 +1,97 @@
 # Runtime state
 
-Last verified installed delivery: October16,19:01EDT, source `a5a0fae`, signed engine `affdd4dd1b3925d203610f71abdf03f9da759a3040361c081a35109462163533`. Canonical staging exits0;249 protected files are unchanged and239 managed receipt rows match at delivery. Player replay now confirms persistent small laser holes/chips but rejects reliable major severance, ordinary shore recovery and visual debris balance; CPU/FPS acceptance remains unresolved. The source successor below is not built or installed, as instructed. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,20:52EDT, common hull-material batch, signed engine `944b257218da48c162bc23a30a55ea31e50c9c54c013590f6eea3e79c7cf83b1`. Canonical staging exits0;507 current protected files are unchanged and239 managed receipt rows match at delivery. This image includes the common material, all-ship support, fragment-query reuse and fire-raster/receiver corrections. Gameplay/FPS remains unaccepted; the player's19:44 frame/profile describes the preceding11fa90d image. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16,20:52EDT — common material, ground support and frame-cost successor installed
+
+The owner explicitly requests installation of the current frozen batch.
+`experiments/native-metal/run.sh --stage-only` exits0, delivers the new native
+engine and ten gameplay sources, and seals the installed app. Native input
+fingerprint is `08aca4ba6d15fbd38e0ff71e4f1c92ddba00eb1cda9e2133f1eb4f90f2b72b10`;
+unsigned engine is `471c10b68d69144cdb7a5d30d5af4965051ae03cc69e26a7e970eb3822a4f9ab`.
+Installed signed engine is `944b257218da48c162bc23a30a55ea31e50c9c54c013590f6eea3e79c7cf83b1`,
+UUID `394EDCDC-A829-3359-A0D0-EF8E34459315`. All507 current protected profile/config
+files retain their hashes; all239 managed receipt rows match. Game process count
+is0; no agent game launch, SAVE load or gameplay test occurs.
+
+The source unifies artillery/laser/ram material, bounded-tail checkpoint and
+repair/map consumers; it also includes the existing common-shore, fire and
+fragment-contact candidates. Contracts and residual costs belong to
+`naval-ammunition-and-damage.md`, `ship-shore-contact.md` and `sea-phonk.md`.
+Large-section separation, mast edge cases, sustained FPS/memory and repaired
+SAVE behavior remain for player replay, not accepted from compilation.
+
+Compiler integration corrected incomplete GEOS types, an ambiguous repair
+overload, legacy Plane/proxy lookup and const matrix overload selection. The
+completed build then exposed ignored Finder metadata in native input hashing;
+the canonical fingerprint now excludes `.DS_Store` and canonical staging succeeds.
+Exact failures, final build/stage output, protected baseline and installed result
+remain in [the delivery receipt](../.local-archives/installed-delivery/common-material-20261016/result.json).
+The previous engine is retained by the installer's normal backup owner. No
+push, ZIP or Drive update.
+
+### October16 — common hull-material successor authorized; source implementation
+
+The owner clarifies that the laser is the first consumer of a common destruction
+system: round shot, bombs, knippels and rams must damage the same retained
+structure, and concentrated local damage must permit a real section to part.
+The source contract and ownership live in
+`naval-ammunition-and-damage.md`, "Common hull-material implementation contract".
+The implementation replaces lifetime operation replay with a content-bound,
+role-preserving material checkpoint and one publication owner. Existing shore,
+fire and fragment-query candidates remain part of this successor. Source is
+uninstalled and gameplay acceptance is unresolved. Engine compilation is a
+source-integration check only; no gameplay tests/probes, SAVE load or game control
+are performed. Installed delivery remains11fa90d.
+
+### October16,19:44EDT — large hole/cloth confirmed; fire, severance and frame cost rejected
+
+Player PID29401 launches the installed11fa90d at19:41:49 and supplies a new frame
+and ten-second CPU sample. A large real hull opening and burned sails are now
+reported, but ship/mast severance still fails; fire appears underwater/outside the
+hull and jumps with camera input, while FPS progressively falls. Whole-frame
+appearance does not establish the detached fire's receiver. The sample has
+1204/1371 main-thread entries in SHIP_CUT_FRAGMENTS::ProcessStage,1107 in
+AdvanceCutFragments and932 in NODER::Clip. Repeated exact convex/triangle CCD
+inside body/receiver/substep/event loops is the source hot path; the5% worker
+allowance does not govern that frame solver. Reported7.5G footprint is not an
+allocation attribution. Exact raw frame/report/signed binary are retained in
+[player evidence](../.local-archives/metal-renderer-evidence/phonk-current-20261016/player-fire-debris-1944/README.md).
+
+The source successor addresses repeated receiver clipping through per-frame
+triangle/BVH reuse with containment/recapture, and fire raster/retained-wood/
+submersion ownership. These are separate from the all-ship grounding source
+already in progress. Root remains the integration owner; laser/fire children
+own disjoint functions/files. Tests, probes and game control remain declined.
+Actual source performance/rendered acceptance and finite-beam major severance
+stay unresolved; the earlier fragment-slot repair cannot close this replay.
+
+### October16,19:41EDT — laser/shore/debris batch installed; common ground dynamics reopened
+
+The owner explicitly resumes installation. Canonical
+`experiments/native-metal/run.sh --stage-only` builds and stages frozen source
+`11fa90d1362301e2e5ba4dcc03fc4ce6e5164bb5`, exits0 and delivers its three changed
+gameplay sources and native engine. Input fingerprint is
+`644ac96685ad2407d6c3ab46d3bac03f6043866692da7e358122ed96ec9fb27f`, unsigned engine
+`cc08cf8b34faf1eac0d5ff4525c5b884242635d0a06722508039b7fef3f9818b`, signed installed
+engine `857df8330fe241a043ac2609010df55d93fd104fc44728fa18b97f29dd9848e3`, UUID
+`38790165-2F44-3FAD-AFE3-70D2D99E8179`. All248 current SAVE/userdata/configuration
+files retain their hashes; all239 managed receipt rows match. Two old Sentry
+session/lock paths had already expired before this baseline; they are not counted
+as stage changes. Process count is0. No agent launch, SAVE load or gameplay tests.
+Exact baseline, build/stage output and result remain in
+`.local-archives/installed-delivery/11fa90d-20261016/`.
+
+During that frozen delivery, the owner clarifies recovery must cover every ship,
+including sails pulling a partly grounded hull free and gravity after tsunami
+beaching. Source confirms LandSupport only pins dry Y, no intact-ship downhill
+force exists, ordinary rocking lacks a crossed-support handoff, and the separate
+Strand timer taxes raw forward speed even during egress. These form the next
+source scope in `ship-shore-contact.md`; they are not silently added to the
+already-built image. Root owns integration, the shore child owns common SHIP
+support, and the player owns eventual physics/visual/FPS replay. No push/ZIP.
 
 ### October16 — partial holes confirmed; severance, shore and debris successor source-only
 

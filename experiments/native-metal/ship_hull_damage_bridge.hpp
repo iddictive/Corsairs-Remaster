@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cmath>
 #include <array>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -21,7 +22,24 @@ inline constexpr unsigned MaxFragmentBuffers=MaxSplitPlanes*MaxFragmentGroups;
 struct BeamSample {
     std::array<float,3> start{}, direction{}, tangent{};
     float radius=.16f, depth=0.f;
+    // Empty preserves the laser's regular octagon. Mechanical fields carry
+    // their real convex contact patch in tangent/bitangent metres.
+    std::vector<std::array<float,2>> crossSection;
+    float backDepth=-1.f; // negative keeps the historical laser entry overlap
+    float specificWork=0.f,contactStrength=0.f; // existing TOUCH whole-hull work domain
 };
+inline bool validCrossSection(const BeamSample&b){
+    if(!std::isfinite(b.backDepth)||b.backDepth< -1.f||!std::isfinite(b.specificWork)||b.specificWork<0||
+       !std::isfinite(b.contactStrength)||b.contactStrength<0||(b.specificWork>0&&b.contactStrength<=0))return false;
+    if(b.crossSection.empty())return true;
+    if(b.crossSection.size()<3||b.crossSection.size()>8)return false;
+    double area=0;
+    for(size_t n=0;n<b.crossSection.size();++n){const auto&a=b.crossSection[n],&c=b.crossSection[(n+1)%b.crossSection.size()],&d=b.crossSection[(n+2)%b.crossSection.size()];
+        if(!std::isfinite(a[0])||!std::isfinite(a[1]))return false;
+        area+=double(a[0])*c[1]-double(a[1])*c[0];
+        if((double(c[0])-a[0])*(d[1]-c[1])-(double(c[1])-a[1])*(d[0]-c[0])< -1.e-9)return false;}
+    return area>1.e-8;
+}
 inline constexpr unsigned MaxBeamSamples=16;
 // Keep the former 32x16 finite-sample ceiling, without charging a one-sample
 // dose as a whole sixteen-sample record. Legacy split planes keep their32 cap.
@@ -45,8 +63,16 @@ inline bool validPhysicalBeamDimensions(float radius,float depth){
     return std::isfinite(radius)&&radius>=MinBeamRadius&&radius<=MaxBeamRadius&&
         std::isfinite(depth)&&depth>=MinBeamDepth&&depth<=MaxBeamDepth;
 }
+inline bool validPhysicalBeam(const BeamSample&beam){
+    if(!validCrossSection(beam)||!std::isfinite(beam.depth)||beam.depth<MinBeamDepth||beam.depth>MaxBeamDepth||!std::isfinite(beam.radius)||beam.radius<MinBeamRadius)return false;
+    if(beam.crossSection.empty())return beam.radius<=MaxBeamRadius;
+    // Explicit mechanical contact patches carry their actual root-hull extent;
+    // the laser octagon's radius is not their physical footprint authority.
+    for(const auto&p:beam.crossSection)if(std::abs(p[0])>MaxBeamDepth||std::abs(p[1])>MaxBeamDepth)return false;return true;
+}
 // Ship SAVE, island SAVE and the crew consumer share this exact sample schema.
-template<class Attributes> bool readBeamSamples(Attributes *entry,std::vector<BeamSample>&output) {
+enum class BeamCoordinates { Physical,NodeLocal };
+template<class Attributes> bool readBeamSamples(Attributes *entry,std::vector<BeamSample>&output,BeamCoordinates coordinates=BeamCoordinates::Physical) {
     const auto count=entry->GetAttributeAsDword("samples");if(count>MaxBeamSamples)return false;
     std::vector<BeamSample> samples;
     for(unsigned n=0;n<count;++n){auto *sample=entry->GetAttributeClass("b"+std::to_string(n));if(!sample)return false;
@@ -55,15 +81,22 @@ template<class Attributes> bool readBeamSamples(Attributes *entry,std::vector<Be
         beam.direction={sample->GetAttributeAsFloat("dx"),sample->GetAttributeAsFloat("dy"),sample->GetAttributeAsFloat("dz")};
         beam.tangent={sample->GetAttributeAsFloat("tx"),sample->GetAttributeAsFloat("ty"),sample->GetAttributeAsFloat("tz")};
         beam.radius=sample->GetAttributeAsFloat("radius");beam.depth=sample->GetAttributeAsFloat("depth");
-        if(!validPhysicalBeamDimensions(beam.radius,beam.depth))return false;samples.push_back(beam);}
+        beam.backDepth=sample->GetAttributeAsFloat("back",-1.f);const auto corners=sample->GetAttributeAsDword("corners");if(corners>8)return false;
+        beam.specificWork=sample->GetAttributeAsFloat("work");beam.contactStrength=sample->GetAttributeAsFloat("strength");
+        for(unsigned c=0;c<corners;++c){auto*p=sample->GetAttributeClass("p"+std::to_string(c));if(!p)return false;beam.crossSection.push_back({p->GetAttributeAsFloat("x"),p->GetAttributeAsFloat("y")});}
+        if(coordinates==BeamCoordinates::Physical?!validPhysicalBeam(beam):!std::isfinite(beam.radius)||beam.radius<=0||!std::isfinite(beam.depth)||beam.depth<=0||!validCrossSection(beam))return false;samples.push_back(beam);}
     output=std::move(samples);return true;
 }
+template<class Attributes> void writeFloat(Attributes*entry,const char*name,float value){char text[32];std::snprintf(text,sizeof(text),"%.9g",double(value));entry->SetAttribute(name,text);}
 template<class Attributes> void writeBeamSamples(Attributes *entry,const std::vector<BeamSample>&samples) {
     entry->SetAttributeUseDword("samples",unsigned(samples.size()));
     for(unsigned n=0;n<samples.size();++n){const auto&b=samples[n];auto *sample=entry->VerifyAttributeClass("b"+std::to_string(n));
-        sample->SetAttributeUseFloat("x",b.start[0]);sample->SetAttributeUseFloat("y",b.start[1]);sample->SetAttributeUseFloat("z",b.start[2]);
-        sample->SetAttributeUseFloat("dx",b.direction[0]);sample->SetAttributeUseFloat("dy",b.direction[1]);sample->SetAttributeUseFloat("dz",b.direction[2]);
-        sample->SetAttributeUseFloat("tx",b.tangent[0]);sample->SetAttributeUseFloat("ty",b.tangent[1]);sample->SetAttributeUseFloat("tz",b.tangent[2]);
-        sample->SetAttributeUseFloat("radius",b.radius);sample->SetAttributeUseFloat("depth",b.depth);}
+        writeFloat(sample,"x",b.start[0]);writeFloat(sample,"y",b.start[1]);writeFloat(sample,"z",b.start[2]);
+        writeFloat(sample,"dx",b.direction[0]);writeFloat(sample,"dy",b.direction[1]);writeFloat(sample,"dz",b.direction[2]);
+        writeFloat(sample,"tx",b.tangent[0]);writeFloat(sample,"ty",b.tangent[1]);writeFloat(sample,"tz",b.tangent[2]);
+        writeFloat(sample,"radius",b.radius);writeFloat(sample,"depth",b.depth);
+        writeFloat(sample,"back",b.backDepth);sample->SetAttributeUseDword("corners",unsigned(b.crossSection.size()));
+        writeFloat(sample,"work",b.specificWork);writeFloat(sample,"strength",b.contactStrength);
+        for(unsigned c=0;c<b.crossSection.size();++c){auto*p=sample->VerifyAttributeClass("p"+std::to_string(c));writeFloat(p,"x",b.crossSection[c][0]);writeFloat(p,"y",b.crossSection[c][1]);}}
 }
 }

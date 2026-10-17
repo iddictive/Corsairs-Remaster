@@ -2539,11 +2539,15 @@ void WdmFleetSeaRestoreShip(ref captain)
 	else if (CheckAttribute(captain, "Ship.Name") && captain.Ship.Name != "" && captain.Ship.Name != "error")
 		shipName = captain.Ship.Name;
 	// Replace physical damage only. Reload state belongs to the new sea entity.
-	string damageBranches[3];
+	string damageBranches[7];
 	damageBranches[0] = "Ship.Masts";
 	damageBranches[1] = "Ship.Sails";
 	damageBranches[2] = "Ship.Blots";
-	for (int branch = 0; branch < 3; branch++)
+	damageBranches[3] = "Ship.HullMaterial";
+	damageBranches[4] = "Ship.HullMaterialRepair";
+	damageBranches[5] = "Ship.PhonkLaserCuts";
+	damageBranches[6] = "Ship.PhonkFlood";
+	for (int branch = 0; branch < 7; branch++)
 	{
 		string damagePath = damageBranches[branch];
 		DeleteAttribute(captain, damagePath);

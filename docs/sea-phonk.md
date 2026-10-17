@@ -1,11 +1,25 @@
 # Phonk Mode
 
-## Source successor: real separation and cloth contact
+## Common material successor
+
+The October16,20:52EDT installed successor routes laser, artillery and ram fields into
+one current-material owner. Its checkpoint, stable local cells, bounded tail,
+repair and SAVE/map consumers belong to
+`naval-ammunition-and-damage.md`, "Common hull-material implementation contract".
+The lifetime512-unit history below describes the11fa90d predecessor and old
+SAVE import, not the ready common-material path. Gameplay/FPS acceptance remains
+with the player; source architecture and compilation do not prove it.
+
+## Real separation and cloth contact
 
 The player's19:05/19:08 replay confirms persistent small laser holes and chips,
 including some small-ship damage, but rejects reliable large bow/stern separation.
-This supersedes the earlier report of no holes at all; CPU/FPS is still unmeasured.
-Source changes below are neither built nor installed, and the player owns replay.
+This supersedes the earlier report of no holes at all. The later19:44 profile
+identifies fragment contact solving as the dominant main-thread cost; the new
+source successor's CPU/FPS remains unmeasured.
+These changes first shipped in `11fa90d`; the player owns gameplay replay.
+The later all-ship grounding-force successor belongs to `ship-shore-contact.md`
+and is included in the20:52EDT installed batch.
 
 Large multi-node models previously reserved one fragment for every later node,
 leaving the root only one slot. A removed bore plus its newly disconnected bow
@@ -197,7 +211,8 @@ oriented cut plane. Each sample subtracts an octagonal bore0.32m across flats;
 depth is4m per delivered second. Receiver-local coordinates follow a moving
 ship. A0.20s batch retains the union of its samples; disjoint aim positions and
 receivers are not bridged by a chord or bounding box. Membership and body-envelope
-queries share the geometry field without per-query allocation. Ship history has
+queries share the geometry field without per-query allocation. The installed
+predecessor's ship history has
 512 cost units: a finite record costs its actual sample count, and a legacy plane
 costs16. Thus legacy splits remain capped at32 while single-sample doses can use
 up to512 ordered records. Each record still holds at most16 samples; the separate
@@ -639,8 +654,10 @@ Phonk and combat multipliers. Restored critical cuts request fatal-only
 reconciliation on usable frames until acknowledged; pause/reload cannot lose
 the request, and partial HP damage is not replayed.
 
-`SHIP_BASE::IsHullPositionRetained` owns model-local support as the intersection
-of the saved cut half-spaces, defaulting to true for intact/legacy ships.
+`SHIP_BASE::IsHullPositionRetained` owns model-local support. The common-material
+successor queries current geometry against the immutable authored support
+domain; the installed predecessor uses saved cut half-spaces. Intact ships keep
+their existing support.
 Sailor graph points, routes, work targets and offsets consume it; removed support
 enters the existing fall/swim lifecycle. Mast/yard subtrees stay intact under
 their native attachment owner rather than being cut beneath unchanged cloth.
@@ -658,21 +675,20 @@ message dispatch and rigging methods pass ASan/UBSan across six lifecycle modes;
 private rope-sail-lifetime retains the prior endpoint write-after-free and fixed
 evidence. This does not establish the cause of the separate renderer-cache crash.
 
-Mechanical impacts reuse the same geometry, plane history, fragments, contact
-revision and flooding owner through `SHIP_BASE::ApplyHullImpact`. Their explicit
-non-charred plane style emits no beam, glow or burn. TOUCH owns collision work
-and ordinary HP damage; that hook never charges HP a second time. Small material
-work doses accumulate at the same local contact/normal/other ship, expiring after
-one game second without more work. A large dose cuts immediately; up to55% of
-the hull's support along the impact normal can separate, at the actual hit point.
-Catastrophic broadside work near midship cuts across the keel at the contact's
-longitudinal position, separating fore/aft pieces; end contacts retain local cuts.
+Mechanical impacts enter `SHIP_BASE::ApplyHullImpact`. TOUCH owns collision work
+and ordinary HP damage; the material hook never charges HP a second time. Small
+work doses retain their existing local-contact accumulation and expiry. The
+common-material successor replaces the old artificial whole-hull split plane
+with a finite crush field bounded by the participating root hulls' actual
+overlap. Work limits removable material inside that contact; it cannot invent a
+cut across remote wood. Exact shape/work/publication ownership belongs to
+`naval-ammunition-and-damage.md`.
 Active-player Phonk protection now rejects new physical damage as well as HP loss;
 existing damage resumes after mode exit. The separate contact-motion adapter and
 slow mass-dependent yielding policy belong to the collision solver.
 Environmental contact uses the existing owner index-1, with the same ingress path.
 
-Source evidence:6000 baseline motion comparisons, held boost/release/brake/air
+Historical predecessor source evidence:6000 baseline motion comparisons, held boost/release/brake/air
 and complete launch/landing checks; native VM contact/regen/laser/flood/OFF/pause
 and saved-attribute reload cases; actual Flyingdutchman cut geometry with512
 BVH-vs-linear ray comparisons (max51 candidate triangles, mean6.88). These

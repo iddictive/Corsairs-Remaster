@@ -1714,7 +1714,7 @@ extern "C" void StormMetalDrawShipFire(void*pointer,const float*world,const Stor
  auto rf=[&](int state){float value;std::memcpy(&value,&d->rs[state],sizeof(value));return value;};
  const simd_float4 fogParams={rf(storm_render::RenderFogStart),rf(storm_render::RenderFogEnd),rf(storm_render::RenderFogDensity),float(d->rs[storm_render::RenderFog]?(d->rs[storm_render::RenderFogTableMode]?d->rs[storm_render::RenderFogTableMode]:d->rs[storm_render::RenderFogVertexMode]):0)};
  d->shipFire.append(world,points,count,wind,seconds,d->landShadow.worldOrigin,view,projection,
-    {float(d->vp.X),float(d->vp.Y),float(d->vp.Width),float(d->vp.Height)},color(d->rs[storm_render::RenderFogColor]),fogParams,storm_metal::aimSurfaceDaylight(d->dynamicSkyInput.hour));
+    d->screenViewport(),color(d->rs[storm_render::RenderFogColor]),fogParams,storm_metal::aimSurfaceDaylight(d->dynamicSkyInput.hour));
 }
 extern "C" bool StormMetalDrawIslandForest(void*pointer,const storm_island_forest::Vertex*vertices,size_t vertexCount,const storm_island_forest::Instance*instances,size_t instanceCount,const float*world,float seconds,const float*wind){
  if(!pointer||!world||!wind||!std::isfinite(seconds))return false;for(unsigned i=0;i<16;i++)if(!std::isfinite(world[i]))return false;for(unsigned i=0;i<3;i++)if(!std::isfinite(wind[i]))return false;

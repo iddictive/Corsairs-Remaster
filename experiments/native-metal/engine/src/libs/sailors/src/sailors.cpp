@@ -1523,12 +1523,12 @@ void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
     const CVECTOR n = normal * (1.f / length);
     const CVECTOR worldNormal = shipModel->mtx * n - shipModel->mtx.Pos();
     std::vector<storm_hull_damage::BeamSample> samples;
-    if (cutMode == 2)
+    if (cutMode == 2 || cutMode == 3)
     {
         // Mode 2's distance slot identifies the just-committed finite record;
         // modes 0/1 retain the original message arity and plane semantics.
-        auto *saved = ship->GetACharacter()->FindAClass(ship->GetACharacter(), "Ship.PhonkLaserCuts");
-        auto *entry = saved && distance >= 0.f && distance < storm_hull_damage::MaxCutRecords ?
+        auto *saved = ship->GetACharacter()->FindAClass(ship->GetACharacter(),cutMode==3?"Ship.HullMaterial":"Ship.PhonkLaserCuts");
+        auto *entry = cutMode==3?(saved?saved->GetAttributeClass("event"):nullptr):saved && distance >= 0.f && distance < storm_hull_damage::MaxCutRecords ?
             saved->GetAttributeClass("c" + std::to_string(unsigned(distance))) : nullptr;
         if (!entry) return;
         if (!storm_hull_damage::readBeamSamples(entry, samples) || samples.empty()) return;
@@ -1538,7 +1538,7 @@ void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
     {
         if (man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF || man.inWater) continue;
         const CVECTOR body = man.pos + man.spos + CVECTOR(0.f, .9f, 0.f);
-        if (cutMode == 2)
+        if (cutMode == 2 || cutMode == 3)
         {
             bool hit = false, nearby = false;
             for (const auto &beam : samples)

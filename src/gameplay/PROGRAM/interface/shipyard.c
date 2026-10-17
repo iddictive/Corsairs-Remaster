@@ -1130,7 +1130,7 @@ void DoSellShip(bool _refresh)
         Statistic_AddValue(pchar, "SellShip", 1);
 
     	DeleteAttribute(chref,"ship.sails");
-    	DeleteAttribute(chref,"ship.blots");
+    	Ship_ResetHullDamage(chref);
         DeleteAttribute(chref,"ship.masts");
 
         // в списке на покупку. -->
@@ -1421,7 +1421,7 @@ void RepairOk()
 	if ((hp + RepairHull) >= 100)
 	{
         xi_refCharacter.ship.hp = GetCharacterShipHP(xi_refCharacter);
-		DeleteAttribute(xi_refCharacter, "ship.blots");
+		Ship_ResetHullDamage(xi_refCharacter);
 	}
 	if ((sp+RepairSail) >= 100)
 	{

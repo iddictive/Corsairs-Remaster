@@ -7,6 +7,29 @@ object	RealShips[REAL_SHIPS_QUANTITY];
 #define SAIL_COST_PERCENT 10
 #define HULL_COST_PERCENT 20
 
+// Full repair/new hull: one reset owner for material and its former projections.
+void Ship_ResetHullDamage(aref character)
+{
+    DeleteAttribute(character, "Ship.Blots");
+    DeleteAttribute(character, "Ship.HullMaterial");
+    DeleteAttribute(character, "Ship.HullMaterialRepair");
+    DeleteAttribute(character, "Ship.PhonkLaserCuts");
+    DeleteAttribute(character, "Ship.PhonkFlood");
+}
+
+// Native material repair consumes only this cumulative, actually paid HP quota.
+// The checkpoint owns its acknowledged value; repeated loads cannot pay twice.
+void Ship_QueueHullMaterialRepair(aref character, float percent)
+{
+    if (percent <= 0.0) return;
+    if (!CheckAttribute(character, "Ship.HullMaterial") &&
+        !CheckAttribute(character, "Ship.PhonkLaserCuts")) return;
+    float total = 0.0;
+    if (CheckAttribute(character, "Ship.HullMaterialRepair.percent"))
+        total = stf(character.Ship.HullMaterialRepair.percent);
+    character.Ship.HullMaterialRepair.percent = total + percent;
+}
+
 ref GetRealShip(int iType) 
 { 
 	if(iType >= REAL_SHIPS_QUANTITY)

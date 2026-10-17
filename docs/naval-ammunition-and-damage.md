@@ -2,9 +2,103 @@
 
 ## Status
 
-Documented architecture, October 6. Captures the complete naval combat ammunition
+The common hull-material successor is installed on October16,20:52EDT;
+it is not accepted in gameplay. `runtime.md` owns the delivery receipt.
+The ammunition baseline below was
+documented on October6. It captures the naval combat ammunition
 pipeline across Storm 2.8 and Native Metal, cargo vs character inventory boundaries,
 damage reduction math, and technical integration specifications for custom shot types.
+
+## Common hull-material implementation contract
+
+The player uses the laser to expose defects in the destruction system, not as
+an isolated weapon feature. A continuous finite laser stroke, concentrated
+round-shot/bomb/knippel impacts and a physical ram must remove material from the
+same hull and weaken the same connections. A completed cut through a load path
+must release its real section; unrelated damage elsewhere must not fabricate a
+whole cut plane. Weapon-specific footprints and heat remain distinct. Script HP,
+crew casualties, immunity, quests and TOUCH collision work retain their current
+owners; publishing a mechanical hole cannot debit the same HP twice.
+
+Source discovery found two independently maintained material projections:
+accepted artillery hits enter `Blots::AcceptedHullHit`/`GEOM::SetHullCuts`, while
+laser/ram fields enter `SHIP::ApplyPhonkLaserCut`. GEOM currently combines them
+by replaying authored geometry, every cannon mark and every laser operation.
+The finite ship history also stops after512 sample-cost units; increasing that
+limit increases replay cost, and deleting old operations would restore wood.
+These mechanisms do not satisfy the requested continuing destruction contract.
+
+The shared owner is GEOM's retained material, published by SHIP's existing
+atomic value-job queue. The implementation reuses the current exact finite
+subtraction, material-role meshes, broadphase, fragment physics and aggregate5%
+geometry-worker allowance. Its checkpoint preserves outer skin, canonical caps,
+timber interior and finite walls separately, including object IDs, UVs, normals
+and colours. A rebased clipping boundary must not replace the immutable authored
+support domain or grow timber again. Current-material queries, visible/collision
+geometry, support loss, ingress and the saved checkpoint publish together.
+
+`Ship.HullMaterial` is an additive versioned attribute checkpoint, bound to the
+model's authored content and a monotonic material revision. Ordinary attribute
+SAVE serialization remains the only persistence transport; binary SAVE layouts
+do not change. A complete checkpoint is authoritative. Older `Ship.Blots` and
+`Ship.PhonkLaserCuts` reconstruct once through their established order, without
+HP, crew, chips or historical fragment replay. Renderer reset restores current
+material, and stale/cancelled/malformed projections retain the last valid state.
+Only bounded pending work and current retained geometry remain live; an ever
+growing operation log must not be required to continue damaging a ship.
+
+`SHIP::ApplyHullProjectileImpact` owns the common artillery producer, including
+the near-hull radial-burst caller in AIBalls. Its native profile identifies live
+goods through the projectile registry, not copied goods IDs. Accepted script HP
+loss is inverted through TOUCH's existing work curve E/(E+strength); strength
+remains `SHIP_BASE::GetHullContactStrength`. Wrecks use the existing shot mass
+and trajectory derivative without another HP event. This is a whole-hull
+specific-work domain and an area-density material approximation, not calibrated
+timber engineering data. The finite local contact footprint bounds where work
+can remove material. Direct laser depth retains its existing delivered-time rule.
+
+The shared kernel/checkpoint, GEOM/SHIP publication, legacy Blots import and
+immediate crew-field consumption have one native owner. Finite ablation/crush
+plugs produce bounded cosmetic chips; real bodies come from retained sections
+that actually lose support. Already detached bodies retain their contact and
+lifetimes. Legacy separating planes retain their detached section semantics.
+Existing
+shore, fire-anchor and fragment-query source fixes remain in the same successor.
+The player owns gameplay testing. The integration owner may compile the engine
+to catch C++ integration errors; compilation does not accept gameplay or FPS.
+The owner subsequently requests installation of this frozen batch; root uses
+`run.sh --stage-only`. Game control and gameplay probes remain declined.
+Source review must distinguish local
+notches from complete cuts, preserve old damage across another weapon/reset,
+reject stale publication, and preserve undamaged/free-water behavior. Gameplay
+acceptance remains open until the player observes these outcomes. Generic
+cross-node attachments require real model support data; a transform origin is
+not an attachment socket and cannot justify deleting neighboring assemblies.
+
+Performance is a core acceptance criterion. Merely moving an ever growing
+whole-hull reconstruction behind a worker does not close it. The shared material
+implementation retains stable authored cell IDs/bounds, sparse current overrides
+and a bounded exact tail before folding checkpoints. Untouched material is shared;
+membership queries do not allocate. Workers pack checkpoints; frame publication
+reuses unchanged packed bases and writes a bounded tail. A fold still serializes
+the changed node's full current boundary, including untouched authored faces,
+alongside sparse changed cell solids. Complete component connectivity, collision
+rebuild and changed-node GPU upload still have a real cost; sustained cutting/FPS
+and memory remain unmeasured until player replay. This is not fully sparse mesh
+persistence or an accepted frame-time result.
+
+Full repair, ship replacement and quest/traffic restoration share
+`ShipsUtilites.c::Ship_ResetHullDamage`. Partial paid repair writes cumulative
+`Ship.HullMaterialRepair.percent`; native material acknowledges only committed
+work and restores actual authored material under area quota. Encounter handoff
+copies checkpoint/repair/legacy/flood state, while map visuals use the same
+versioned node decoder as SHIP. The ordinary attribute SAVE codec is unchanged.
+Partial material addition and checkpoint folding are implemented in the installed batch;
+compilation and source review cannot establish SAVE/repair gameplay acceptance.
+Mast support uses the authored bottom-contact vertex set and base-to-tip path.
+Removing the complete old tip witness together with the base while a middle
+segment survives remains a detection limitation; generic cross-node attachments
+also remain outside the supported model data.
 
 ## Contract
 

@@ -19,6 +19,8 @@ game data and toolchain. Existing payloads remain compatible; their historical
 engine archive, patch originals and baseline build files are unused. Keep inputs and generated
 `.cache` out of Git. `tools/metal_engine_source.py` owns compiler readiness from
 the real engine/renderer input fingerprint and built/staged binary hashes.
+Finder `.DS_Store` metadata is excluded: browsing the source tree must not
+invalidate an otherwise unchanged compilation or interrupt installation.
 An edit after a build invalidates readiness; a build never rolls it back.
 
 ## Rebuild on another Mac

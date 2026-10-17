@@ -8,6 +8,7 @@
 
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include "ship_hull_state.hpp"
+#include "ship_hull_material.hpp"
 #endif
 
 #include <algorithm>
@@ -113,7 +114,8 @@ inline uint64_t visualSignature(ATTRIBUTES *character)
 {
     uint64_t hash = 1469598103934665603ull;
     if (!character) return hash;
-    for (const char *path : {"Ship.Type", "Ship.Masts", "Ship.Sails", "Ship.Blots", "Features.GeraldSails"})
+    for (const char *path : {"Ship.Type", "Ship.Masts", "Ship.Sails", "Ship.Blots", "Features.GeraldSails",
+                             "Ship.HullMaterial.version", "Ship.HullMaterial.model", "Ship.HullMaterial.revision"})
         hashVisualAttributes(hash, character->FindAClass(character, path));
     auto *type = character->FindAClass(character, "Ship.Type");
     const int index = type ? int(type->GetAttributeAsDword(nullptr, -1)) : -1;
@@ -143,9 +145,27 @@ inline void restoreNodes(NODE *node, MODEL *live, ATTRIBUTES *masts, bool root =
     for (auto *child : node->next) restoreNodes(child, live, masts, false);
 }
 
-inline bool restoreHullCuts(MODEL *model, ATTRIBUTES *character, entid_t owner)
+inline bool restoreHullCuts(MODEL *model, ATTRIBUTES *character, entid_t owner, const std::string &modelName)
 {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if(auto *state=character->FindAClass(character,"Ship.HullMaterial")) {
+        uint64_t revision=0;
+        if(!storm::ship::material::stateHeader(state,modelName,revision)) return false;
+        for(int i=0;auto *node=model->GetNode(i);++i) {
+            if(!visible(node)||!node->geo) continue;
+            const std::string name=node->GetName()?node->GetName():"";
+            std::string payload;
+            std::vector<storm_ship_laser::Plane> tail;
+            if(!storm::ship::material::readNode(state,modelName,unsigned(i),name,revision,payload,&tail)) return false;
+            if(!node->geo->RestoreHullMaterial(owner,revision,payload,tail)&&!node->geo->HasPendingHullRebuild()) return false;
+        }
+        // The existing GEOM draw owner polls admitted value jobs. Keep this
+        // visual alive while they finish instead of recreating it every frame.
+        return true;
+    }
+    for(int i=0;auto *node=model->GetNode(i);++i)
+        if(node->geo&&node->geo->HullMaterialReady())
+            if(!node->geo->ResetHullMaterial(owner,0)&&!node->geo->HasPendingHullRebuild()) return false;
     auto *blots = character->FindAClass(character, "Ship.Blots");
     std::map<std::string, std::vector<storm_ship_hull::Impact>> groups;
     if (blots) for (unsigned i = 0; i < storm_hull_damage::SavedMarkLimit; ++i)
@@ -201,13 +221,15 @@ class ShipVisual
         uint64_t signature = 1469598103934665603ull;
         hashVisualAttributes(signature, character->FindAClass(character, "Ship.Blots"));
         hashVisualAttributes(signature, character->FindAClass(character, "Ship.Masts"));
+        for(const char *path:{"Ship.HullMaterial.version","Ship.HullMaterial.model","Ship.HullMaterial.revision"})
+            hashVisualAttributes(signature,character->FindAClass(character,path));
         if (!hullReady || signature != hullSignature)
         {
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
             for (int i = 0; auto *node = owned->GetNode(i); ++i)
                 if (node->geo) node->geo->ClearHullCuts(modelId);
 #endif
-            if (!restoreHullCuts(owned, character, modelId)) return false;
+            if (!restoreHullCuts(owned, character, modelId, modelName)) return false;
             hullSignature = signature;
             hullReady = true;
         }

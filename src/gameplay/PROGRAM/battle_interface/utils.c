@@ -209,6 +209,8 @@ float ProcessHullRepair(ref chref,float repPercent)
 	{
 		chref.ship.HP = baseHP;
 	}
+	if (repPercent >= dmg) Ship_ResetHullDamage(chref);
+	else Ship_QueueHullMaterialRepair(chref, repPercent);
 	return repPercent;
 }
 

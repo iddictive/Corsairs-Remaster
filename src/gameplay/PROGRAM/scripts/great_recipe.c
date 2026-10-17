@@ -385,7 +385,7 @@ void GreatRecipe_RewardRepair()
     pchar.Ship.SP = GetCharacterShipSP(pchar);
     DeleteAttribute(pchar, "Ship.Masts");
     DeleteAttribute(pchar, "Ship.Sails");
-    DeleteAttribute(pchar, "Ship.Blots");
+    Ship_ResetHullDamage(pchar);
     DeleteAttribute(pchar, "Ship.Cannons.Borts");
     DeleteAttribute(pchar, "GreatRecipe.Rewards.RepairPending");
     pchar.GreatRecipe.Rewards.RepairPaid = true;

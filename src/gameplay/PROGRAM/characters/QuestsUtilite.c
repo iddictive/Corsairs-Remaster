@@ -746,7 +746,7 @@ void FantomMakeCoolSailor(ref _Character, int _ShipType, string _ShipName, int _
 	SetCharacterPerk(_Character, "ShipTurnRateUp");
 
     DeleteAttribute(_Character, "ship.sails");// убрать дыры на парусах
-    DeleteAttribute(_Character, "ship.blots");
+    Ship_ResetHullDamage(_Character);
     DeleteAttribute(_Character, "ship.masts");// вернуть сбытые мачты
     DeleteAttribute(_Character, "Killer.status"); // снять аттрибут 'был захвачен на абордаж'
     _Character.questTemp.abordage = 0; //снять аттрибут отказа повторного захвата

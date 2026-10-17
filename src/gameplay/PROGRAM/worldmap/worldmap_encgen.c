@@ -2494,7 +2494,8 @@ bool WdmTrafficFinishService(aref ship)
 	if (WdmTrafficPhysicalLoad(ship) > WdmTrafficCargoCapacity(ship)) return false;
 	int recruits = sti(plan.crew) - sti(plan.startCrew);
 	if (recruits < 0) recruits = 0;
-	ship.hp = WdmTrafficFraction(stf(ship.hp) + stf(plan.hp) - stf(plan.startHp));
+	float previousHull = stf(ship.hp);
+	ship.hp = WdmTrafficFraction(previousHull + stf(plan.hp) - stf(plan.startHp));
 	ship.sp = WdmTrafficFraction(stf(ship.sp) + stf(plan.sp) - stf(plan.startSp));
 	ship.trafficCrewQuantity = WdmTrafficCrewQuantity(ship) + recruits;
 	ship.crew = WdmTrafficCrewReadiness(stf(ship.trafficCrewQuantity), stf(hull.MinCrew), stf(hull.MaxCrew));
@@ -2509,7 +2510,8 @@ bool WdmTrafficFinishService(aref ship)
 		ship.Ship.HP = stf(hull.HP) * stf(ship.hp);
 		ship.Ship.SP = 100.0 * stf(ship.sp);
 		ship.Ship.Crew.Quantity = ship.trafficCrewQuantity;
-		if (stf(ship.hp) >= 1.0) DeleteAttribute(ship, "Ship.blots");
+		if (stf(ship.hp) >= 1.0) Ship_ResetHullDamage(ship);
+		else Ship_QueueHullMaterialRepair(ship, 100.0 * (stf(ship.hp) - previousHull));
 		if (stf(ship.sp) >= 1.0)
 		{
 			DeleteAttribute(ship, "Ship.sails");

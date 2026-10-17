@@ -31,18 +31,19 @@ inline std::array<std::size_t,MaxPoints> rankedPoints(const Model& model,Accept 
     return indices;
 }
 
-inline std::vector<StormMetalShipFirePoint> hullSurfacePoints(const Model& model,float seed) {
+template<class Accept>
+inline std::vector<StormMetalShipFirePoint> hullSurfacePoints(const Model& model,float seed,Accept accept) {
     std::vector<StormMetalShipFirePoint> points;
     // Every occupied hull char field is authoritative. Cloth can contribute
     // warm light in the remaining slots, with its char confined to its sail.
     for (std::size_t i=0;i<model.count;++i) {
         const auto& c=model.cells[i];
-        if (!c.available || c.cloth || (c.heat<=.01f && c.charred<=.001f)) continue;
+        if (!c.available || c.cloth || (c.heat<=.01f && c.charred<=.001f) || !accept(c)) continue;
         if (points.empty()) points.reserve(MaxPoints);
         if (points.size()<MaxPoints) points.push_back(renderPoint(c,i,seed));
     }
     std::size_t count;
-    const auto cloth=rankedPoints(model,[](const Cell& c){return c.available&&c.cloth&&c.intensity()>.001f;},count);
+    const auto cloth=rankedPoints(model,[&](const Cell& c){return c.available&&c.cloth&&c.intensity()>.001f&&accept(c);},count);
     for (std::size_t rank=0;rank<count && points.size()<MaxPoints;++rank) {
         if (points.empty()) points.reserve(MaxPoints);
         auto p=renderPoint(model.cells[cloth[rank]],cloth[rank],seed);p.charred=0.f;points.push_back(p);
@@ -50,9 +51,10 @@ inline std::vector<StormMetalShipFirePoint> hullSurfacePoints(const Model& model
     return points;
 }
 
-inline std::vector<StormMetalShipFirePoint> volumePoints(const Model& model,float seed) {
+template<class Accept>
+inline std::vector<StormMetalShipFirePoint> volumePoints(const Model& model,float seed,Accept accept) {
     std::size_t count;
-    const auto indices=rankedPoints(model,[](const Cell& c){return c.available&&(c.heat>.01f||c.intensity()>.001f);},count);
+    const auto indices=rankedPoints(model,[&](const Cell& c){return c.available&&(c.heat>.01f||c.intensity()>.001f)&&accept(c);},count);
     std::vector<StormMetalShipFirePoint> points;points.reserve(count);
     for (std::size_t rank=0;rank<count;++rank) points.push_back(renderPoint(model.cells[indices[rank]],indices[rank],seed));
     return points;

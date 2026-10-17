@@ -168,11 +168,28 @@ class SHIP : public SHIP_BASE
     bool bShip2Strand;
     bool bGroundMoveBlocked = false; // transient; not part of the save layout
     bool bLandContact = false; // terrain support; reconstructed from the saved pose
+    bool bGroundSupported = false, bGroundFalling = false; // reconstructed; velocity stays in State
+    bool bGroundRestorePending = false;
+    float groundWaterVelocityY = 0.f; // transient companion of phonkDrift.waterX/Z, m/s
     // Volumetric cannon-ball radius (meters) for mast-pole capsule tests.
     // transient; not part of the save layout
     float fCannonTraceRadius = 0.0f;
     float GroundPenetration(const SHIP_STATE &state);
-    bool LandSupport(const SHIP_STATE &state, float &height);
+    struct GroundSupport
+    {
+        bool valid = false, wet = false;
+        float height = 0.f, draft = .05f;
+        CVECTOR normal = CVECTOR(0.f);
+    };
+    struct GroundMotion
+    {
+        bool resolved = false;
+        CVECTOR worldVelocity = CVECTOR(0.f); // m/s, including constrained current
+    };
+    bool GroundHullWet(const SHIP_STATE &state);
+    GroundSupport SampleGroundSupport(const SHIP_STATE &state, float floatingHeight);
+    void ApplyGroundSupport(const GroundSupport &support, float floatingHeight, float seconds,
+                            CVECTOR &eventSpeed, CVECTOR &waterSpeed);
     bool bMounted;
     bool bKeelContour;
     CVECTOR vOldAng, vOldPos;
@@ -222,6 +239,8 @@ class SHIP : public SHIP_BASE
                               int32_t owner, ATTRIBUTES *attacker, bool payPartialDamage,
                               storm::ship::phonk::LaserCutWork *prepared = nullptr);
     bool StartPhonkLaserWork();
+    bool EnsureHullMaterial();
+    void SaveHullMaterial();
     void PollPhonkLaserWork(uint32_t delta);
     void CancelPhonkLaserWork();
     bool IsAuthoredMastNode(const NODE *node) const;
@@ -293,11 +312,15 @@ class SHIP : public SHIP_BASE
     bool IsHullPositionRetained(const CVECTOR &localPosition) const override;
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;
+    bool ApplyHullProjectileImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
+                                  const CVECTOR &worldDirection, float admittedHP,
+                                  int32_t sourceOwner, HullProjectileProfile profile,
+                                  float kineticEnergy) override;
     void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
                                 const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds) override;
     bool BuildMasts();
     bool BuildHulls();
-    BOOL Move(uint32_t DeltaTime, BOOL bCollision);
+    BOOL Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion = nullptr);
     BOOL TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTPNew) override;
 
     void LoadServices();

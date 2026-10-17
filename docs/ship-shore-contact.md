@@ -2,13 +2,67 @@
 
 ## Status
 
-The installed physics batch is identified by `runtime.md`; the player reports
-light-touch sinking and permanent shore sticking in ordinary mode. Source repairs
-cover duplicate/frozen grounding-damage timers, Phonk control eligibility and
-conservative depth-only egress. They are not built, installed or gameplay-tested:
-the owner forbids installation for now and will test personally. The specific
-ordinary screenshot's cause and HP-death versus sinking-pose distinction remain
-unresolved; these are source defects, not accepted gameplay recovery.
+The October16,20:52EDT batch is installed; `runtime.md` owns its delivery receipt.
+It adds common support to the earlier11fa90d Phonk flag/depth-egress corrections.
+Ordinary/NPC recovery under sail, gravity/friction on a slope and ordinary tsunami
+beaching remain unaccepted in gameplay. No game launch or gameplay tests occur.
+
+## Active common-support contract
+
+Predecessor11fa90d baseline: LandSupport pins dry Y only; no intact-ship downhill gravity exists.
+Worsening depth rejects both horizontal axes, and ordinary wave rocking can lower
+a tsunami-beached hull through support. The independent Strand timer charges raw
+forward speed every100–200ms even while a hull is leaving tangentially.
+
+Requested outcome: every living ordinary/NPC/Phonk hull can use admissible sail or
+motor thrust to slide free; a sufficiently steep loaded support produces downhill
+motion under gravity/friction. Receding water hands a tsunami-beached hull to
+terrain support, then back to buoyancy when it slides clear. A flat beach or a
+slope held by real static friction need not generate motion without enough force.
+
+The shared SHIP owner reuses retained keel samples, actual island triangles,
+existing propulsion/inertia, collision mass and persisted State velocity. For
+support elevation H, floating origin Yfloat and draft D, the declared prism
+approximation is load fraction clamp((H-Yfloat)/D,0,1). This is not an exact
+displaced-volume calculation. The upward support normal owns tangent gravity and
+load-bounded Coulomb friction, reusing the existing shore coefficient. Dry
+bLandContact must remain distinct from partially afloat seabed support.
+
+The ordinary temporary current ledger and Phonk world velocity must retain the
+same solved motion without double application or a reversed residual. Prediction
+restores every changed derived field; pause adds no impulse. Deep free water
+retains its old arithmetic and avoids new terrain queries. Fixed/dead motion,
+retained-geometry ownership and direct inward-impact damage retain their owners.
+The redundant raw-speed Strand damage timer is removed; grounding state/sound
+remain. No radial ejection, forced yaw, new reverse engine, automatic save repair
+or initial-overlap upward teleport is admitted.
+
+Primary accepting scenario is an ordinary partly grounded hull under diagonal
+sail thrust, plus a tsunami carried onto sloped ground and left as water recedes.
+Reject reversed current, idle level-ground energy, fixed/dead changes, tunnelling,
+double prediction impulses and water motion changes. Source/diff inspection is
+the permitted current evidence; numerical/gameplay tests are explicitly declined.
+The player owns eventual replay. Root owns script damage, docs, Git and delivery;
+the completed shore source is integrated by root. A full rigid-body engine is unnecessary for
+this declared approximation; horizontal projection alone omits gravity, load and
+vertical handoff and cannot meet the requested outcome.
+
+The candidate retains five keel samples and uses the winning actual terrain
+triangle's upward normal. `State.vSpeed` owns velocity; its X/Z remain knots and
+Y remains m/s, without a SAVE-layout addition. Support/falling/water-ledger flags
+are transient and prediction restores them. The same tangent/friction transform
+applies to temporary currents before their exact subtraction. Ordinary descending
+wave/air motion crosses into support at H; dry support can fall back to buoyancy
+without a second Phonk-only velocity owner. A worsening-ground check includes
+actual dry terrain height and full yaw/position, beyond the wet depth raster.
+
+Limits remain explicit: an initially embedded saved pose keeps its Y and permits
+tangent thrust, but receives no new load/gravity energy until valid support is
+reached. A save on the very first frame leaving a flat edge with exactly zero
+vertical velocity can be indistinguishable from ordinary buoyancy; a later
+negative vertical velocity restores falling. These states are not repaired by
+teleporting the hull or adding a hidden half-step. Five keel points and prism
+buoyancy remain an approximation, not a full6DOF displaced-volume solver.
 
 ## Contract
 
@@ -67,39 +121,30 @@ mesh hits, other hull points, rendered island immersion and the independent
 worsening-penetration guard retain their constraints. This is a bounded sampling
 correction; it does not prove continuous nonpenetration or this screenshot's cause.
 
-## Grounding damage timer lifecycle
+## Grounding state and damage ownership
 
-Native `SHIP::CheckShip2Strand` emits every actual grounding state edge.
-`AIShip.c::Ship_OnStrand` owns one per-character `Ship.Strand.Generation`:
-entry/exit advances it, both `SHIP_TO_STRAND_NEXT` producers carry it, and
-`Ship_OnStrandNext` rejects an obsolete generation before damage or rescheduling.
-Exit stops the looping grounding sound directly; a rejected old callback is not
-responsible for cleanup. Repeated notification of the same state starts no chain.
-Menu, boarding, scene reload, absent sea and scaled pause suppress damage while
-the current chain remains scheduled for resume. Active damage, perks, the
-AlwaysSandbankManeuver exemption stay unchanged. Active-player Phonk protection
-now rejects hull damage and new cuts; its policy belongs to `sea-phonk.md`.
+Native `SHIP::CheckShip2Strand` emits actual grounding edges. In the new source
+successor `AIShip.c::Ship_OnStrand` owns only the grounded attribute and looping
+sound, stopping it directly on exit. The two `SHIP_TO_STRAND_NEXT` producers,
+their registrations and `Ship_OnStrandNext` are removed. There is no recurring
+HP charge for static support, sail egress or downhill travel. Genuine inward
+coast impacts still reach `Ship_Ship2IslandCollision` and its existing HP/perk/
+accepted-material path. Native structural/flooding hazards remain independent.
+Active-player Phonk protection belongs to `sea-phonk.md`.
 
-The source counterexample is entry at0ms (callback due100ms), exit at50ms and
-re-entry at70ms (another callback due170ms). Previously both callbacks saw the
-current grounded flag and each recursively rescheduled; every quick re-entry
-could add another permanent damage chain. The generation check retires the old
-100ms callback, leaving only the new grounding episode. Different characters
-keep independent generations. This conclusion follows the actual producers and
-`COMPILER::AddPostEvent`, which appends without deduplication; no replay was run.
+The rejected timer taxed `4*Ship.Speed.z/7` every100–200ms, not dissipated contact
+work. It could kill a normally escaping hull. Its older duplicate-chain defect
+had already been repaired in installed11fa90d by per-character generations:
+entry0ms, exit50ms, re-entry70ms previously left both100/170ms callbacks charging
+the current grounding episode indefinitely. Removing the unsupported periodic
+damage makes that repaired scheduler unnecessary rather than moving its formula
+to another consumer.
 
-Normal game loading clears posted events before loading VM state; compiler
-serialization does not save that queue. Old single-argument queued callbacks
-therefore do not survive normal activation. Missing saved generation attributes
-start from0 and need no migration. Replacing scripts inside a running VM with
-an old pending one-argument queue is not supported by this change.
-
-The remaining timer formula uses raw forward `Ship.Speed.z` at100–200ms intervals.
-It is not a measurement of dissipated contact work; fast tangential grounding
-can still produce large active damage outside the player's active-Phonk protection.
-The native finite-cut structural/flooding paths are separate death mechanisms.
-The current report does not distinguish HP death from a hull sinking pose, so
-the exact instant-sinking path remains unresolved.
+Normal loading clears posted events, and compiler serialization does not save
+that queue. Old saved generation attributes may remain unused; no SAVE migration
+or live-VM replacement path is introduced. The exact reported instant ordinary
+sinking still lacks HP-versus-pose replay evidence; source timer removal must not
+be presented as proof of that one scene's cause.
 
 ## Evidence and rejected approaches
 

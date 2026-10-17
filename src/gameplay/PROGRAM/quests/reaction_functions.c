@@ -527,7 +527,7 @@ void Sharp_loginNearIsland(string qName)
 		sld.nation = pchar.nation; //нация Шарпа всегда как у ГГ
 		SetCrewQuantityFull(sld);
 		DeleteAttribute(sld, "ship.sails");// убрать дыры на парусах
-		DeleteAttribute(sld, "ship.blots");
+		Ship_ResetHullDamage(sld);
 		DeleteAttribute(sld, "ship.masts");// вернуть сбитые мачты
 		SetBaseShipData(sld);
 		LAi_group_MoveCharacter(sld, LAI_GROUP_PLAYER_OWN);
@@ -7502,7 +7502,7 @@ void SpaCrewAtack()
 		
         DeleteAttribute(chref,"ship.sails");
         DeleteAttribute(chref,"ship.masts");
-        DeleteAttribute(chref,"ship.blots");
+        Ship_ResetHullDamage(chref);
 
         Fantom_SetCannons(chref, "war");
         Fantom_SetBalls(chref, "war");
