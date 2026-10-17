@@ -190,6 +190,8 @@ class SHIP : public SHIP_BASE
     GroundSupport SampleGroundSupport(const SHIP_STATE &state, float floatingHeight);
     void ApplyGroundSupport(const GroundSupport &support, float floatingHeight, float seconds,
                             CVECTOR &eventSpeed, CVECTOR &waterSpeed);
+    void ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight, float seconds,
+                               CVECTOR &eventSpeed, float &eventYaw, CVECTOR &waterSpeed);
     bool bMounted;
     bool bKeelContour;
     CVECTOR vOldAng, vOldPos;

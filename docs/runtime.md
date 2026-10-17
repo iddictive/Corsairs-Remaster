@@ -1,8 +1,44 @@
 # Runtime state
 
-Last verified installed delivery: October16,20:52EDT, common hull-material batch, signed engine `944b257218da48c162bc23a30a55ea31e50c9c54c013590f6eea3e79c7cf83b1`. Canonical staging exits0;507 current protected files are unchanged and239 managed receipt rows match at delivery. This image includes the common material, all-ship support, fragment-query reuse and fire-raster/receiver corrections. Gameplay/FPS remains unaccepted; the player's19:44 frame/profile describes the preceding11fa90d image. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October16,21:40EDT, structural graph/contact successor, signed engine `a9c423defa0f4222c83776e70c44d7fc5f8f1d820101063e7b3b123b1a3cd5ff`. Canonical staging exits0;522 current protected files are unchanged and239 managed receipt rows match at delivery. Gameplay/FPS remains unaccepted; the player's21:03 replay rejects the preceding20:52 image. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
 
 ## Current verdict
+
+### October16 — structural graph successor after the21:03 player rejection
+
+The player reports no reliable laser/500kn ram separation and continued sticking
+at rock walls in the20:52 image; fire appearance is positive, but pixelation and
+cadence remain reported issues. The supplied still does not establish temporal
+cadence. The existing frame/installed binding is retained in
+`.local-archives/metal-renderer-evidence/phonk-current-20261016/player-material-shore-2103/`.
+
+The source successor makes a coarse actual-timber support graph authoritative:
+finite work, local strength, bounded reserve overload and newly separated islands.
+Subcritical damage changes graph state and its own material revision, preserving
+mesh/collision/convex-contour caches. Actual fracture partitions retained role
+meshes, exposes finite timber sections and publishes real detached bodies.
+CHM2 stores current health beside the existing material checkpoint; old CHM1/P
+damage imports once, and paid repair restores only its actual material/health
+quota. The geometry bootstrap now polls hidden nodes and unchanged legacy cannon
+inputs no longer cancel that bootstrap. TOUCH removes invented continuous
+pressure/crushWork damage while retaining actual dissipated closing energy.
+The ground successor preserves tangent/separating motion instead of cancelling
+all XZ/yaw before and after the contact solver. Topic contracts and approximations
+belong to `naval-ammunition-and-damage.md` and `ship-shore-contact.md`.
+
+Disposition: compiled and installed through canonical `run.sh --stage-only`,
+exit0 at21:40EDT. Native input fingerprint is
+`7004ede6ddd3db8e1d862e50de2490f52da3b77d4f99557bbf2d28a26e02a4ac`;
+unsigned engine `fd10b38a0444fed8aa71103300cbe00e59e042aedbf428fdd433b8a37ef1a450`,
+signed app engine `a9c423defa0f4222c83776e70c44d7fc5f8f1d820101063e7b3b123b1a3cd5ff`,
+UUID `42C03E02-6D33-34B7-9A7A-8B06E5CE5EE5`. All522 current protected files retain
+their hashes and all239 managed receipt rows match. The prior944b2572 engine is
+retained by the installer. Raw build/stage output and exact result are retained
+in [the delivery receipt](../.local-archives/installed-delivery/structure-20261016/result.json).
+No player launch, SAVE load, gameplay probes, push, ZIP or Drive update. Real separation,
+damage balance, shore recovery and FPS remain for player replay. The graph is a
+coarse section-capacity model, not a calibrated timber stress/6DOF solver; actual
+fracture still has mesh/index/upload/checkpoint cost under the worker allowance.
 
 ### October16,20:52EDT — common material, ground support and frame-cost successor installed
 

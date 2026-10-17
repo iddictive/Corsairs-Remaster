@@ -11,6 +11,8 @@
 #include <set>
 #include <utility>
 
+namespace storm_ship_structure { struct State; }
+
 // A deterministic, node-local half-space split of the actual static GM mesh.
 // Vertex interpolation/layout remain owned by ship_hull_geometry.hpp.
 namespace storm_ship_laser {
@@ -126,7 +128,7 @@ struct Segment { Vertex a,b; int object=0; };
 // properties (a uniform surface-density proxy), never a claim of solid wood mass.
 struct Fragment { uint64_t fragment=0; Bounds bounds{}; Vec3 centroid{}; float surfaceArea=0; std::array<Vec3,14>support{}; };
 struct Opening { Vec3 point; float area=0; uint64_t source=UINT64_MAX; };
-struct Result { bool changed=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; std::vector<Fragment>fragments; bool supportSevered=false; std::vector<Opening>openings; };
+struct Result { bool changed=false,stateChanged=false; uint64_t fragment=0; float removedFraction=0; Bounds keptBounds{}; bool volumeBased=false; std::vector<Segment>seam; std::vector<Fragment>fragments; bool supportSevered=false; std::vector<Opening>openings; };
 struct Split { Mesh kept,detached; float keptArea=0,detachedArea=0; std::vector<Segment>seam; bool complete=true; };
 inline bool near(Vec3 a,Vec3 b) { auto d=a-b;return storm_ship_hull::dot(d,d)<1.e-8f; }
 inline Bounds bounds(const Mesh&m) { Bounds b{};bool first=true;for(const auto&o:m)for(const auto&t:o.second)for(const auto&v:t){storm_geometry_work::checkpoint();if(first){b={v.position,v.position};first=false;}else b=storm_ship_hull::merge(b,{v.position,v.position});}return b; }
@@ -393,10 +395,10 @@ struct MaterialCellSource {std::vector<std::shared_ptr<const Mesh>>solids;std::v
 struct MaterialCells {std::shared_ptr<const MaterialCellSource>source;std::map<uint32_t,std::shared_ptr<const Mesh>>changed;};
 inline const Mesh& materialCell(const MaterialCells&cells,uint32_t id){const auto found=cells.changed.find(id);return found==cells.changed.end()?*cells.source->solids.at(id):*found->second;}
 bool timberSectionCaps(const std::vector<MaterialPrism>&,const std::vector<Plane>&,const storm_ship_hull::Plane&,const std::vector<storm_ship_hull::Plane>&,Vec3,bool,Mesh&,Mesh&);
-struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const MaterialCells>cells;std::shared_ptr<const SurfaceBase>original,supportOriginal;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;bool checkpointed=false;};
+struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const MaterialCells>cells;std::shared_ptr<const SurfaceBase>original,supportOriginal;std::shared_ptr<const storm_ship_structure::State>structure;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;bool checkpointed=false;};
 struct SupportSpan {Vec3 base{},tip{};};
-struct Input {std::shared_ptr<const Surface>surface;std::map<int,float>wood;Plane plane;unsigned fragmentLimit=0,materialTailCount=0;SupportSpan support{};bool hasSupport=false,enclosedFragments=true,structuralFragmentsOnly=false,physicalContact=true;double closedVolume=0,structuralArea=0;uint64_t generation=0,revision=0,fingerprint=0;};
-struct Projection {std::shared_ptr<const Surface>kept;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0;bool enclosedFragments=true;std::string materialPayload;};
+struct Input {std::shared_ptr<const Surface>surface;std::shared_ptr<const storm_ship_structure::State>structure;std::map<int,float>wood;Plane plane;unsigned fragmentLimit=0,materialTailCount=0;SupportSpan support{};bool hasSupport=false,enclosedFragments=true,structuralFragmentsOnly=false,physicalContact=true;double closedVolume=0,structuralArea=0;uint64_t generation=0,revision=0,materialRevision=0,fingerprint=0;};
+struct Projection {std::shared_ptr<const Surface>kept;std::shared_ptr<const storm_ship_structure::State>structure;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0,materialRevision=0;bool enclosedFragments=true;std::string materialPayload;};
 struct FragmentInput {Input input;uint64_t owner=0,generation=0,token=0;unsigned successorLimit=0;};
 struct FragmentPiece {Fragment properties;std::shared_ptr<const Surface>surface;FaceIndex collision;};
 struct FragmentProjection {uint64_t owner=0,generation=0,token=0;bool changed=false;std::vector<FragmentPiece>successors;};
@@ -708,7 +710,7 @@ inline bool beamSeversSupport(const Surface&before,const Surface&after,const Sup
     return authored?supportDisconnected(*authored,after,span):supportDisconnected(before,after,span);
 }
 inline bool prepare(const Input&input,Projection&output){storm_geometry_work::checkpoint(true);
-    if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
+    if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
     auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;
     float removedInterior=0;for(const auto&o:cut.detached.interior)for(const auto&t:o.second)removedInterior+=storm_ship_hull::area(t);
     if(input.hasSupport&&!input.plane.beams.empty()&&(cut.detachedArea>1.e-7f||removedInterior>1.e-7f||!input.surface->cutters.empty()||input.surface->checkpointed))

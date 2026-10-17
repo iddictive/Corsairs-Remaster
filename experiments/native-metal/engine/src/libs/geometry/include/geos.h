@@ -116,6 +116,7 @@ class GEOS
     virtual bool HullMaterialBounds(storm_ship_laser::Bounds&) const { return false; }
     virtual const std::string& HullMaterialPayload() const { static const std::string empty;return empty; }
     virtual bool HullMaterialReady() const { return false; }
+    virtual uint64_t HullMaterialRevision() const { return CollisionRevision(); }
     virtual bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_laser::SupportSpan *support=nullptr)=0;
     virtual bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_laser::SupportSpan *support,storm_ship_laser::Input&)=0;
     virtual bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&)=0;

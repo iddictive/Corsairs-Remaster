@@ -431,12 +431,12 @@ void SHIP::SaveHullMaterial() try
     for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo){
         const std::string name=node->GetName()?node->GetName():"";auto binding=std::find_if(phonkLaser.bindings.begin(),phonkLaser.bindings.end(),[&](const auto&b){return b.node==name;});
         if(binding==phonkLaser.bindings.end()){phonkLaser.bindings.push_back({name});binding=std::prev(phonkLaser.bindings.end());}
-        if(binding->savedGeometry!=node->geo->GeometryGeneration()||binding->savedCollision!=node->geo->CollisionRevision()||binding->materialRestorePayload.empty()){
+        if(binding->savedGeometry!=node->geo->GeometryGeneration()||binding->savedCollision!=node->geo->HullMaterialRevision()||binding->materialRestorePayload.empty()){
             const auto&payload=node->geo->HullMaterialPayload();if(payload.empty())return;
             writeNode(state,unsigned(n),name,next,payload,node->geo->HullMaterialTail());
             if(binding->materialRestorePayload.size()!=payload.size()||binding->materialRestorePayload.compare(payload.size()>16?payload.size()-16:0,16,payload,payload.size()>16?payload.size()-16:0,16)!=0)binding->materialRestorePayload=payload;
             binding->materialRestoreTail=node->geo->HullMaterialTail();
-            binding->savedGeometry=node->geo->GeometryGeneration();binding->savedCollision=node->geo->CollisionRevision();
+            binding->savedGeometry=node->geo->GeometryGeneration();binding->savedCollision=node->geo->HullMaterialRevision();
         }
         binding->materialGeneration=node->geo->GeometryGeneration();
     }
@@ -497,8 +497,9 @@ bool SHIP::EnsureHullMaterial()
                 else binding->materialGeneration=node->geo->GeometryGeneration();
             }
         }else{
-            if(node->geo->HasPendingHullRebuild())return false;
-            if(!phonkLaser.cuts.empty()&&(binding->generation!=node->geo->GeometryGeneration()||binding->planes!=phonkLaser.cuts.size()))return false;
+            if(!phonkLaser.cuts.empty()&&(binding->generation!=node->geo->GeometryGeneration()||binding->planes!=phonkLaser.cuts.size())){ready=false;continue;}
+            // Prepare also polls an existing request. Every node must advance
+            // in Execute even when its rendering is hidden or frustum-culled.
             if(!node->geo->PrepareHullMaterial(uint64_t(blots_id)))ready=false;
         }
     }
@@ -703,10 +704,10 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
             {
                 auto *node = identity ? model->GetNode(target.node) : nullptr;
                 identity = identity && node && node->geo && target.name == (node->GetName() ? node->GetName() : "") &&
-                    node->geo->GeometryGeneration() == target.input.generation && node->geo->CollisionRevision() == target.input.revision;
+                    node->geo->GeometryGeneration() == target.input.generation && node->geo->CollisionRevision() == target.input.revision && node->geo->HullMaterialRevision() == target.input.materialRevision;
                 // A turning yard outside this cut cannot invalidate the hull's
                 // prepared material. Changed nodes still require their captured pose.
-                if (identity && (target.projection.result.changed || target.projection.result.supportSevered)) for (unsigned axis = 0; axis < 4; ++axis)
+                if (identity && (target.projection.result.changed || target.projection.result.stateChanged || target.projection.result.supportSevered)) for (unsigned axis = 0; axis < 4; ++axis)
                 {
                     const CVECTOR a[] = {node->loc_mtx.Vx(), node->loc_mtx.Vy(), node->loc_mtx.Vz(), node->loc_mtx.Pos()};
                     const CVECTOR b[] = {target.local.Vx(), target.local.Vy(), target.local.Vz(), target.local.Pos()};
@@ -720,7 +721,7 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
             if (valid) for (size_t n = 0; n < geometries.size(); ++n)
             {
                 if (!geometries[n]->StageLaserProjection(uint64_t(blots_id), std::move(work.targets[n].projection), work.targets[n].result)) { valid = false; break; }
-                changed = changed || work.targets[n].result.changed || work.targets[n].result.supportSevered;
+                changed = changed || work.targets[n].result.changed || work.targets[n].result.stateChanged || work.targets[n].result.supportSevered;
             }
             if (valid && changed)
             {
@@ -810,6 +811,13 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
     if (!cut(0, root, hull) ||
         (!hull.changed && plane.beams.empty())) return false;
     bool changed = hull.changed;
+    if(prepared){
+        bool geometryChanged=false,stateChanged=false;
+        for(const auto&target:prepared->targets){geometryChanged|=target.result.changed||target.result.supportSevered;stateChanged|=target.result.stateChanged;}
+        // A dose below fracture changes strength, not the skin, contour, HP or
+        // debris. Do not deep-copy meshes or pretend that wood was removed.
+        if(!geometryChanged){if(stateChanged&&!restoring&&phonkLaser.materialReady)SaveHullMaterial();return stateChanged;}
+    }
     --pendingNodes;
     if (phonkLaser.floodCapacity <= 0.f)
     {
@@ -2265,8 +2273,11 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         sample.crossSection={{{-.72f*radius,-.42f*radius}},{{-.18f*radius,-radius}},{{.62f*radius,-.7f*radius}},{{1.55f*radius,-.12f*radius}},{{.9f*radius,.5f*radius}},{{.18f*radius,radius}},{{-.62f*radius,.7f*radius}},{{-1.1f*radius,.12f*radius}}};
         sample.radius=1.56f*radius;sample.depth=.025f+depth;sample.backDepth=.025f;
         sample.specificWork=energy;sample.contactStrength=float(GetHullContactStrength(point.z,plane.normal.z));
-        if(contactBand){const float fraction=std::clamp((energy-threshold)/(energy+sample.contactStrength),0.f,1.f);
-            const float u0=(upLow-(up|point))*fraction,u1=(upHigh-(up|point))*fraction,v0=(alongLow-(along|point))*fraction,v1=(alongHigh-(along|point))*fraction;
+        if(contactBand){
+            // The material kernel spends work inside the actual contact patch.
+            // Shrinking it again by an asymptotic HP fraction leaves uncut
+            // deck/keel strips even when the ram has enough work to pass through.
+            const float u0=upLow-(up|point),u1=upHigh-(up|point),v0=alongLow-(along|point),v1=alongHigh-(along|point);
             if(u1-u0>.001f&&v1-v0>.001f){const float du=(u1-u0)*.12f,dv=(v1-v0)*.12f;
                 sample.crossSection={{{u0+du,v0}},{{u1-du,v0}},{{u1,v0+dv}},{{u1,v1-dv}},{{u1-du,v1}},{{u0+du,v1}},{{u0,v1-dv}},{{u0,v0+dv}}};
                 sample.radius=storm_hull_damage::MinBeamRadius;for(const auto&p:sample.crossSection)sample.radius=std::max(sample.radius,std::hypot(p[0],p[1]));}}

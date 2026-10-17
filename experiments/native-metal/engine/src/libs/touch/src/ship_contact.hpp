@@ -254,6 +254,52 @@ inline Contact collide(const Body &a, const Body &b)
     return {};
 }
 
+struct Twist
+{
+    Vec2 linear{};
+    double angular{};
+};
+
+// A selected, inelastic unilateral constraint. Select it from the complete
+// motion once, then apply the SAME linear map to its temporary contributions.
+// Re-selecting from a current alone would give it a different active constraint.
+struct NormalConstraint
+{
+    Vec2 normal{};
+    double lever{}, inverseMass{}, inverseInertia{}, inverseEffectiveMass{};
+    bool active{};
+    Twist apply(Twist velocity) const
+    {
+        if (!active) return velocity;
+        const double impulse = (dot(velocity.linear, normal) - lever * velocity.angular) *
+            inverseEffectiveMass;
+        return {velocity.linear - normal * (impulse * inverseMass),
+                velocity.angular + lever * impulse * inverseInertia};
+    }
+};
+
+inline NormalConstraint constrainNormal(const Body &body, const Contact &contact, Twist velocity)
+{
+    NormalConstraint result;
+    const auto hull = detail::prepare(body);
+    const double normalLength = length(contact.normal);
+    if (!contact.hit || hull.points.empty() || !(normalLength > 0) ||
+        !detail::finite(contact.point) || !std::isfinite(contact.time) ||
+        contact.time < 0 || contact.time > 1) return result;
+    result.normal = contact.normal / normalLength;
+    const auto arm = contact.point - detail::poseAt(body, contact.time).position;
+    result.lever = cross(arm, result.normal);
+    result.inverseMass = 1 / body.mass;
+    result.inverseInertia = 1 / hull.inertia;
+    const double effective = result.inverseMass + result.lever * result.lever * result.inverseInertia;
+    const double closing = dot(velocity.linear, result.normal) - result.lever * velocity.angular;
+    if (!(effective > 0) || !std::isfinite(effective) || !std::isfinite(closing) || closing <= 0)
+        return {};
+    result.inverseEffectiveMass = 1 / effective;
+    result.active = true;
+    return result;
+}
+
 inline Response resolve(const Body &a, const Body &b, const Contact &contact, double seconds, bool fixedB = false)
 {
     Response out;

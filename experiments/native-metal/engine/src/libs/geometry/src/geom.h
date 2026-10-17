@@ -110,6 +110,8 @@ class GEOM : public GEOS
     std::vector<storm_ship_laser::Opening>hullMaterialOpenings;
     std::shared_ptr<const storm_ship_laser::MaterialCellSource>hullAuthoredCells;
     std::shared_ptr<const storm_ship_laser::SurfaceBase>hullAuthoredSupport;
+    std::shared_ptr<const storm_ship_structure::State>hullStructureState;
+    uint64_t hullMaterialStateRevision=0;
     bool CaptureHullRebuildSource();
     bool RequestHullRebuild(uint64_t,const std::vector<storm_ship_hull::Impact>&,const std::vector<storm_ship_laser::Plane>&);
     void PollHullRebuild();
@@ -206,6 +208,7 @@ class GEOM : public GEOS
     bool HullMaterialBounds(storm_ship_laser::Bounds&out) const override { if(laserMaterialCollision.references.empty())return false;out=laserMaterialCollision.bounds;return true; }
     const std::string& HullMaterialPayload() const override { return hullMaterialPayload; }
     bool HullMaterialReady() const override { return hullMaterialReady; }
+    uint64_t HullMaterialRevision() const override { return hullMaterialReady?hullMaterialStateRevision:collisionRevision; }
     bool CutByLaser(uint64_t owner,const storm_ship_laser::Plane&,storm_ship_laser::Result&,unsigned fragmentLimit=storm_hull_damage::MaxFragmentGroups,const storm_ship_laser::SupportSpan *support=nullptr) override;
     bool CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&,unsigned fragmentLimit,const storm_ship_laser::SupportSpan *support,storm_ship_laser::Input&) override;
     bool StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&,storm_ship_laser::Result&) override;

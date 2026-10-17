@@ -2,10 +2,23 @@
 
 ## Status
 
-The October16,20:52EDT batch is installed; `runtime.md` owns its delivery receipt.
-It adds common support to the earlier11fa90d Phonk flag/depth-egress corrections.
+The October16,21:40EDT graph/contact successor is installed; `runtime.md` owns its
+delivery receipt. It retains common support from the20:52 predecessor.
 Ordinary/NPC recovery under sail, gravity/friction on a slope and ordinary tsunami
 beaching remain unaccepted in gameplay. No game launch or gameplay tests occur.
+
+The later21:03 player replay rejects vertical-rock recovery in that installed
+batch. Source discovery finds a second veto in SHIP::Move that restores the
+entire XZ/yaw step and zeros velocity before TOUCH can resolve the wall; the
+exhausted TOUCH loop also resets the complete pose. The source successor exposes
+the desired prediction sweep and constrains inward point velocity against actual
+wall triangles while retaining tangent/separating motion. Temporary current and
+event ledgers receive the same linear constraint before their normal removal.
+The final fallback retains a certified arc prefix and separately certifies yaw,
+rather than cancelling every motion axis. This candidate is installed but
+unaccepted in gameplay. It is query-free in ordinary deep water; an already
+failed ground step still uses bounded sampled keel arcs and support-prefix
+queries, whose worst-case cost is not established as an FPS improvement.
 
 ## Active common-support contract
 

@@ -455,12 +455,41 @@ void TOUCH::TouchIsland(int32_t idx)
         if (!IsIntersectIsland(idx, contact)) break;
         if (iteration == 3)
         {
+            // Impact restitution/friction has spent its budget. Constrain only
+            // the remaining inward point velocity; do not erase the tangent or
+            // separating rotation with a start-pose stop.
             const auto &start = pShips[idx]->TP[0];
             const auto &end = pShips[idx]->TP[1];
-            CVECTOR stop = (start.vPos - end.vPos) / seconds;
-            stop.y = 0.f;
-            ship->ApplyHullContactMotion(stop, (start.vAng.y - end.vAng.y) / seconds,
-                                        start.vPos, start.vAng.y, uint32_t(iDeltaTime));
+            body.start = {{start.vPos.x, start.vPos.z}, start.vAng.y};
+            body.end = {{end.vPos.x, end.vPos.z}, end.vAng.y};
+            const storm::ship::contact::Twist desired{
+                {(end.vPos.x - start.vPos.x) / seconds, (end.vPos.z - start.vPos.z) / seconds},
+                (end.vAng.y - start.vAng.y) / seconds};
+            const storm::ship::contact::Contact remaining{true, contact.time,
+                {contact.point.x, contact.point.z}, {contact.normal.x, contact.normal.z}};
+            const auto constraint = storm::ship::contact::constrainNormal(body, remaining, desired);
+            const auto constrained = constraint.apply(desired);
+            const CVECTOR delta(float(constrained.linear.x - desired.linear.x), 0.f,
+                                float(constrained.linear.z - desired.linear.z));
+            const CVECTOR endpoint(start.vPos.x + float(constrained.linear.x * seconds), start.vPos.y,
+                                   start.vPos.z + float(constrained.linear.z * seconds));
+            const float yaw = start.vAng.y + float(constrained.angular * seconds);
+            ship->ApplyHullContactMotion(delta, float(constrained.angular - desired.angular),
+                                        endpoint, yaw, uint32_t(iDeltaTime));
+            if (IsIntersectIsland(idx, contact))
+            {
+                // Re-query all contour points after projection: another face
+                // may still block a corner. Retain its certified native-arc
+                // prefix rather than unconditionally returning to the start.
+                const auto before = pShips[idx]->TP[0], after = pShips[idx]->TP[1];
+                const float prefix = std::max(0.f, contact.time - .00001f);
+                const CVECTOR travel = after.vPos - before.vPos;
+                const float turn = after.vAng.y - before.vAng.y;
+                const CVECTOR velocity(travel.x / seconds, 0.f, travel.z / seconds);
+                ship->ApplyHullContactMotion(velocity * (prefix - 1.f),
+                    turn / seconds * (prefix - 1.f), before.vPos + travel * prefix,
+                    before.vAng.y + turn * prefix, uint32_t(iDeltaTime));
+            }
         }
     }
     // The existing shore event still owns HP/perks. Only admitted inward work
@@ -486,11 +515,6 @@ void TOUCH::ResolveShips()
     if (!(seconds > 0)) return;
     std::vector<FrameBody> bodies;
     std::vector<int> indices;
-    std::vector<Vec2> driveAccelerations;
-    const auto worldVelocity = [](const TOUCH_PARAMS &pose)
-    {
-        return detail::rotate({KNOTS2METERS(pose.vSpeed.x), KNOTS2METERS(pose.vSpeed.z)}, pose.vAng.y);
-    };
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
@@ -519,11 +543,6 @@ void TOUCH::ResolveShips()
         frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
         frame.wreck = entry->pShip->isDead();
-        const auto before = worldVelocity(entry->TP[0]), after = worldVelocity(entry->TP[1]);
-        // Passive drag can resist a small pusher, but it supplies no crushing
-        // drive. Admit only native steps that add translational kinetic energy.
-        driveAccelerations.push_back(!frame.wreck && dot(after, after) > dot(before, before) ?
-                                     (after - before) / seconds : Vec2{});
         bodies.push_back(std::move(frame));
         indices.push_back(i);
     }
@@ -537,36 +556,21 @@ void TOUCH::ResolveShips()
     // presented model transform. A fast TOI may be far from that old transform.
     for (const auto &impact : result.impacts)
     {
-        const double lightMass = std::min(bodies[impact.a].body.mass, bodies[impact.b].body.mass);
-        const double heavyMass = std::max(bodies[impact.a].body.mass, bodies[impact.b].body.mass);
-        // A continuing drive supplies contact force even after closing speed
-        // has become tiny. Comparable hulls push elastically; a large mass
-        // mismatch can overload the lighter hull. These are game material
-        // limits, not extra impulses or a class-specific movement exception.
-        const double contrast = std::max(0.0, 1.0 - 2.0 * lightMass / heavyMass);
-        const bool heavyA = bodies[impact.a].body.mass >= bodies[impact.b].body.mass;
-        const double inwardDrive = heavyA ? dot(driveAccelerations[impact.a], impact.normal) :
-                                           dot(driveAccelerations[impact.b], -impact.normal);
-        const double load = std::min(impact.normalImpulse / (seconds * lightMass),
-                                     std::max(0.0, inwardDrive) * heavyMass / lightMass);
-        const double crushRate = std::min(8.0, contrast * std::max(0.0, load / .015 - 1.0));
         const auto publish = [&](size_t own, size_t other, Vec2 localPoint, Vec2 localNormal,
                                   double specificEnergy)
         {
             auto *ship = currentShip(own);
             auto *opponent = currentShip(other);
             // Do not repeatedly charge elastic low-speed contacts as rams.
-            // Actual overload is integrated separately, in proportion to time
-            // and each hull's compliance, so the heavy hull pays much less.
+            // Only closing energy dissipated by the solver can damage material;
+            // continuing propulsion supplies no separate pressure-damage rate.
             constexpr double elasticEnergy = .25; // J per unit mass, m²/s²
             specificEnergy = std::max(0.0, specificEnergy - elasticEnergy);
-            const double compliance = lightMass / bodies[own].body.mass;
-            const double crushWork = 1.5 * crushRate * seconds * compliance * compliance;
-            if (!ship || !opponent || !(specificEnergy + crushWork > 0)) return;
+            if (!ship || !opponent || !(specificEnergy > 0)) return;
             const CVECTOR point(float(localPoint.x), 0.f, float(localPoint.z));
             const CVECTOR normal(float(localNormal.x), 0.f, float(localNormal.z));
             const int owner = GetIndex(opponent->GetACharacter());
-            double materialWork = specificEnergy + crushWork;
+            double materialWork = specificEnergy;
             if (!ship->isDead())
             {
                 const auto attributes = ship->GetAShip();
@@ -575,8 +579,7 @@ void TOUCH::ResolveShips()
                 // Specific crush energy grows with closing speed squared; the bow's
                 // axial structure resists more than planking hit across the grain.
                 const double strength = ship->GetHullContactStrength(localPoint.z, localNormal.z);
-                const double damageFraction = std::min(1.0,
-                    specificEnergy / (specificEnergy + strength) + crushWork / strength);
+                const double damageFraction = specificEnergy / (specificEnergy + strength);
                 const float hp = float(maximum * damageFraction);
                 const auto accepted = core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
                            owner, hp * .1f, 0.f, 1,

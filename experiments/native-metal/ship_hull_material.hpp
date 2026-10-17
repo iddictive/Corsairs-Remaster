@@ -1,6 +1,8 @@
 #pragma once
 #include "ship_laser_geometry.hpp"
 #include "ship_hull_material_repair.hpp"
+#include "ship_hull_structure.hpp"
+#include "ship_hull_structure_geometry.hpp"
 #include <cstring>
 #include <cstdlib>
 
@@ -152,11 +154,18 @@ struct Writer {
         for(const auto&t:o.second)for(const auto&v:t){storm_geometry_work::checkpoint();const auto words=vertexWords(v);auto found=map.emplace(words,uint32_t(vertices.size()));if(found.second)vertices.push_back(words);indices.push_back(found.first->second);}
         word(uint32_t(vertices.size()));word(uint32_t(o.second.size()));for(const auto&v:vertices)for(auto n:v)word(n);for(auto n:indices)word(n);}}
 };
-inline std::string encode(const Surface&surface,uint64_t content){
-    Writer writer;writer.word(0x314d4843);writer.wide(content);
+inline std::string encode(const Surface&surface,uint64_t content,std::shared_ptr<const storm_ship_structure::State> structure={}){
+    if(!structure)structure=surface.structure;
+    Writer writer;writer.word(structure?0x324d4843:0x314d4843);writer.wide(content);
     for(const auto*mesh:{&surface.outer,&surface.canonicalCaps,&surface.interior,&surface.finiteWalls})writer.mesh(*mesh);
     Mesh released;for(const auto&piece:surface.released)appendMesh(released,*piece);writer.mesh(released);
     writer.word(surface.cells?uint32_t(surface.cells->changed.size()):0);if(surface.cells)for(const auto&entry:surface.cells->changed){writer.word(entry.first);writer.mesh(*entry.second);}
+    if(structure){
+        if(!storm_ship_structure::detail::validState(*structure))throw std::runtime_error("invalid hull structure checkpoint");
+        writer.wide(structure->layout->fingerprint);writer.word(uint32_t(structure->cellHealth.size()));
+        for(size_t n=0;n<structure->cellHealth.size();++n){uint32_t health;std::memcpy(&health,&structure->cellHealth[n],4);writer.word(health);writer.word(structure->alive[n]);}
+        writer.word(uint32_t(structure->bondHealth.size()));for(float value:structure->bondHealth){uint32_t health;std::memcpy(&health,&value,4);writer.word(health);}
+    }
     writer.wide(hashBytes(writer.bytes.data(),writer.bytes.size()));
     constexpr char digits[]="0123456789abcdef";std::string encoded;encoded.resize(writer.bytes.size()*2);
     for(size_t n=0;n<writer.bytes.size();++n){storm_geometry_work::checkpoint();encoded[n*2]=digits[writer.bytes[n]>>4];encoded[n*2+1]=digits[writer.bytes[n]&15];}return encoded;
@@ -175,16 +184,30 @@ struct Reader {
         return valid;
     }
 };
-inline bool decode(const std::string&encoded,uint64_t content,std::shared_ptr<const SurfaceBase>support,std::shared_ptr<const MaterialCellSource>source,Surface&output){
+inline bool decode(const std::string&encoded,uint64_t content,std::shared_ptr<const SurfaceBase>support,std::shared_ptr<const MaterialCellSource>source,Surface&output,const std::map<int,float>&wood={}){
     if(encoded.size()%2||encoded.size()<40)return false;Reader reader;reader.bytes.reserve(encoded.size()/2);
     const auto digit=[](char c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;};
     for(size_t n=0;n<encoded.size();n+=2){storm_geometry_work::checkpoint();const int a=digit(encoded[n]),b=digit(encoded[n+1]);if(a<0||b<0)return false;reader.bytes.push_back(uint8_t(a*16+b));}
-    if(reader.word()!=0x314d4843||reader.wide()!=content)return false;Surface next;Mesh released;
+    const auto format=reader.word();if((format!=0x314d4843&&format!=0x324d4843)||reader.wide()!=content)return false;Surface next;Mesh released;
     for(auto*mesh:{&next.outer,&next.canonicalCaps,&next.interior,&next.finiteWalls,&released})if(!reader.mesh(*mesh))return false;
     auto cells=std::make_shared<MaterialCells>();cells->source=std::move(source);const auto changed=reader.word();if(changed>cells->source->solids.size())return false;
     for(uint32_t n=0;n<changed;++n){const auto id=reader.word();Mesh solid;if(id>=cells->source->solids.size()||cells->changed.count(id)||!reader.mesh(solid))return false;cells->changed[id]=std::make_shared<const Mesh>(std::move(solid));}next.cells=std::move(cells);
+    next.supportOriginal=std::move(support);
+    if(format==0x324d4843){
+        if(!next.supportOriginal)return false;
+        const auto reference=timberSurface(next.supportOriginal->outer,wood);
+        const auto layout=storm_ship_structure::build(reference,wood);
+        if(!layout||reader.wide()!=layout->fingerprint)return false;
+        const auto count=reader.word();if(count!=layout->cells.size()||uint64_t(count)*8>reader.bytes.size()-reader.at)return false;
+        auto structure=std::make_shared<storm_ship_structure::State>(storm_ship_structure::seed(layout,next,wood));
+        for(size_t n=0;n<count;++n){const uint32_t value=reader.word(),alive=reader.word();if(alive>1)return false;std::memcpy(&structure->cellHealth[n],&value,4);structure->alive[n]=uint8_t(alive);}
+        const auto bonds=reader.word();if(bonds!=layout->bonds.size()||uint64_t(bonds)*4>reader.bytes.size()-reader.at)return false;
+        for(size_t n=0;n<bonds;++n){const uint32_t value=reader.word();std::memcpy(&structure->bondHealth[n],&value,4);}
+        if(!storm_ship_structure::detail::validState(*structure))return false;
+        next.structure=std::move(structure);
+    }
     const auto end=reader.at;const auto checksum=reader.wide();if(!reader.valid||reader.at!=reader.bytes.size()||checksum!=hashBytes(reader.bytes.data(),end))return false;
-    next.supportOriginal=std::move(support);if(!released.empty())next.released.push_back(std::make_shared<const Mesh>(std::move(released)));
+    if(!released.empty())next.released.push_back(std::make_shared<const Mesh>(std::move(released)));
     output=rebase(std::move(next));return true;
 }
 // The whole-hull specific work domain uses an area-density proxy, as detached
@@ -203,19 +226,64 @@ inline Plane workField(const Input&input){Plane field=input.plane;double whole=i
         if(capacity>0&&beam.specificWork<capacity)beam.depth*=float(beam.specificWork/(beam.specificWork+capacity));
     }return field;
 }
-inline bool prepare(const Input&input,Projection&output,bool resolved=false){
-    if(!input.physicalContact){Projection unchanged;unchanged.generation=input.generation;unchanged.revision=input.revision;unchanged.plane=input.plane;output=std::move(unchanged);return true;}
+inline bool prepareExact(const Input&input,Projection&output,bool resolved=false){
+    if(!input.physicalContact){Projection unchanged;unchanged.generation=input.generation;unchanged.revision=input.revision;unchanged.materialRevision=input.materialRevision;unchanged.plane=input.plane;output=std::move(unchanged);return true;}
     if(!input.surface)return false;Input adjusted=input;if(!resolved)adjusted.plane=workField(input);adjusted.structuralFragmentsOnly=true;Projection next;
     if(!storm_ship_laser::prepare(adjusted,next))return false;
+    next.materialRevision=input.materialRevision;
     next.plane.releaseEnclosed=input.enclosedFragments;
     if(next.result.changed){auto retained=*next.kept;retained.cells=input.surface->cells;if(!clipCells(retained,adjusted.plane))return false;
         std::vector<std::shared_ptr<const Mesh>>released;for(const auto&piece:retained.released)if(std::find(input.surface->released.begin(),input.surface->released.end(),piece)==input.surface->released.end())released.push_back(piece);
         if(!trimReleasedCells(retained,released))return false;
         if(!tagOpenings(retained,input.wood,next.result.openings))return false;
-        if(input.materialTailCount>=31){retained=rebase(std::move(retained));next.materialPayload=encode(retained,input.fingerprint);}
+        const auto previous=input.structure?input.structure:input.surface->structure;
+        if(previous&&!resolved){auto state=storm_ship_structure::seed(previous->layout,retained,input.wood);
+            for(size_t n=0;n<state.cellHealth.size();++n){state.cellHealth[n]=std::min(state.cellHealth[n],previous->cellHealth[n]);state.alive[n]&=previous->alive[n];}
+            for(size_t n=0;n<state.bondHealth.size();++n)state.bondHealth[n]=std::min(state.bondHealth[n],previous->bondHealth[n]);
+            next.structure=std::make_shared<const storm_ship_structure::State>(std::move(state));retained.structure=next.structure;next.result.stateChanged=true;}
+        if(input.materialTailCount>=31||next.structure){retained=rebase(std::move(retained));next.materialPayload=encode(retained,input.fingerprint,next.structure);}
         if(next.retainedSupport.references.empty())next.retainedSupport=indexFaces(retained.outer);
         if(retained.supportOriginal)next.supportCandidates.reserve(retained.supportOriginal->index.references.size());next.supportNearby.reserve(next.retainedSupport.references.size());
         next.kept=std::make_shared<const Surface>(std::move(retained));}
     output=std::move(next);return true;
+}
+// A graph failure owns a finite region of real timber. Update its sparse
+// closed-cell cache once, independently of decorative/render shell closure.
+inline bool fractureCells(Surface&surface,const std::vector<BeamSample>&fields,const std::map<int,float>&wood){
+    if(!surface.cells)return false;auto next=std::make_shared<MaterialCells>(*surface.cells);std::vector<uint32_t>ids;
+    for(const auto&field:fields){next->source->index.queryBounds(beamBounds(field),ids);const auto planes=beamPlanes(field);
+        for(auto id:ids){storm_geometry_work::checkpoint();const auto&solid=materialCell(*next,id);if(solid.empty()||!wood.count(solid.begin()->first))continue;
+            Mesh retained;if(!clipCell(solid,planes,retained))return false;next->changed[id]=std::make_shared<const Mesh>(std::move(retained));}}
+    surface.cells=std::move(next);return true;
+}
+inline bool prepare(const Input&input,Projection&output,bool resolved=false){
+    const auto structure=input.structure?input.structure:input.surface?input.surface->structure:nullptr;
+    // Resolved CHM1 tails are exact historical operations. A non-structural
+    // receiver and legacy plane retain that same established geometry path.
+    if(resolved||input.plane.beams.empty()||input.wood.empty()||!structure||!structure->layout||structure->layout->cells.empty())return prepareExact(input,output,resolved);
+    if(!input.surface||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;next.kept=input.surface;next.structure=structure;
+    if(!input.physicalContact){output=std::move(next);return true;}
+    auto damage=storm_ship_structure::damage(*structure,input.plane,*input.surface,input.wood,input.structuralArea);
+    if(!damage.changed){output=std::move(next);return true;}
+    next.result.stateChanged=true;structure_geometry::Realization geometry;
+    if(!structure_geometry::realize(input,damage,geometry))return false;
+    if(!geometry.changed){next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));
+        if(input.materialTailCount>=31)next.materialPayload=encode(*input.surface,input.fingerprint,next.structure);
+        output=std::move(next);return true;}
+    // Failed nodes ablate; newly disconnected components become real bodies.
+    // Both cease belonging to the hull's actual finite material-cell cache.
+    for(auto id:damage.releasedCells)geometry.removedCells.push_back(structure_geometry::cellField(damage.state.layout->cells.at(id).bounds));
+    if(!fractureCells(geometry.kept,geometry.removedCells,input.wood)||!tagOpenings(geometry.kept,input.wood,geometry.openings))return false;
+    storm_ship_structure::refreshContacts(damage.state,geometry.kept,input.wood);
+    next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));geometry.kept.structure=next.structure;
+    geometry.kept=rebase(std::move(geometry.kept));next.materialPayload=encode(geometry.kept,input.fingerprint,next.structure);
+    next.canonical=canonicalMesh(geometry.kept);next.render=renderMesh(geometry.kept);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.seam=std::move(geometry.seam);next.result.openings=std::move(geometry.openings);
+    const double keptArea=area(next.canonical),total=keptArea+geometry.removedArea;next.result.removedFraction=float(std::clamp(geometry.removedArea/std::max(total,1.e-7),0.,1.));
+    if(input.hasSupport)next.result.supportSevered=beamSeversSupport(*input.surface,geometry.kept,input.support);
+    for(const auto&piece:geometry.pieces){next.result.fragments.push_back(fragmentProperties(canonicalMesh(piece)));next.fragmentRender.push_back(renderMesh(piece));}
+    if(input.closedVolume>1.e-6){next.keptVolume=closedCutVolume(next.canonical);if(keptArea>1.e-7&&next.keptVolume<=0)return false;next.result.volumeBased=true;next.result.removedFraction=float(std::clamp((input.closedVolume-next.keptVolume)/input.closedVolume,0.,1.));}
+    next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());next.retainedSupport=indexFaces(geometry.kept.outer);
+    if(geometry.kept.supportOriginal)next.supportCandidates.reserve(geometry.kept.supportOriginal->index.references.size());next.supportNearby.reserve(next.retainedSupport.references.size());for(const auto&piece:geometry.kept.released)next.releasedSupport.push_back(indexFaces(*piece));
+    next.kept=std::make_shared<const Surface>(std::move(geometry.kept));output=std::move(next);return true;
 }
 }

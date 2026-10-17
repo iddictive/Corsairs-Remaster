@@ -2,14 +2,43 @@
 
 ## Status
 
-The common hull-material successor is installed on October16,20:52EDT;
-it is not accepted in gameplay. `runtime.md` owns the delivery receipt.
+The common hull-material baseline was installed on October16,20:52EDT;
+the player's later replay rejects reliable laser/ram separation. The graph-based
+successor below is installed on October16,21:40EDT; player acceptance is pending.
+`runtime.md` owns delivery and replay evidence.
 The ammunition baseline below was
 documented on October6. It captures the naval combat ammunition
 pipeline across Storm 2.8 and Native Metal, cargo vs character inventory boundaries,
 damage reduction math, and technical integration specifications for custom shot types.
 
 ## Common hull-material implementation contract
+
+October16 successor in source: the player's repeated failure to obtain a real
+laser/ram separation reopens this implementation. The installed20:52 batch is
+the rejected baseline, not acceptance of the successor. The minimum successor
+uses a coarse graph of actual timber sections and shared load paths as strength
+authority. Local weapon work is spent in travel order; surviving connections
+carry the remaining section load and can overload. Geometry realizes failed
+cells/bonds and graph islands, including a remaining thin visual strip; exact
+mesh connectivity no longer decides whether that strip supports the whole hull.
+Empty hull space is never filled with a bounding-box solid. Bow/deck/keel strength
+comes from present material and connection area, not a separate HP multiplier.
+
+Ready-solution comparison: NVIDIA Blast's
+[support/bond model](https://docs.omniverse.nvidia.com/kit/docs/blast-sdk/latest/docs/api/introduction.html)
+and [stress solver](https://docs.omniverse.nvidia.com/kit/docs/blast-sdk/latest/docs/api/extensions/ext_stress.html)
+provide the relevant graph/health/island mechanism. This runtime already owns its
+GM meshes, collision bodies, worker allowance and SAVE transport; adapt that
+bounded graph mechanism in the existing material owner rather than add a second
+physics/authoring stack. The structural approximation is game-specific, not a
+calibrated timber stress simulation. Health-only updates must not copy/rebuild
+the whole boundary or upload GPU buffers. Geometry runs on actual fracture;
+state persists in the same versioned checkpoint/bounded tail and follows existing
+repair, reset, encounter and map consumers. Sustained pressure receives
+no invented damage work: TOUCH retains only actual dissipated closing energy.
+Compile-only evidence and the remaining player replay must stay distinct. This
+corrected successor is delivered through the same previously requested app
+installation; no agent gameplay replay is performed.
 
 The player uses the laser to expose defects in the destruction system, not as
 an isolated weapon feature. A continuous finite laser stroke, concentrated
@@ -21,16 +50,16 @@ crew casualties, immunity, quests and TOUCH collision work retain their current
 owners; publishing a mechanical hole cannot debit the same HP twice.
 
 Source discovery found two independently maintained material projections:
-accepted artillery hits enter `Blots::AcceptedHullHit`/`GEOM::SetHullCuts`, while
-laser/ram fields enter `SHIP::ApplyPhonkLaserCut`. GEOM currently combines them
+accepted artillery hits entered `Blots::AcceptedHullHit`/`GEOM::SetHullCuts`, while
+laser/ram fields entered `SHIP::ApplyPhonkLaserCut`. The rejected predecessor combined them
 by replaying authored geometry, every cannon mark and every laser operation.
 The finite ship history also stops after512 sample-cost units; increasing that
 limit increases replay cost, and deleting old operations would restore wood.
 These mechanisms do not satisfy the requested continuing destruction contract.
 
 The shared owner is GEOM's retained material, published by SHIP's existing
-atomic value-job queue. The implementation reuses the current exact finite
-subtraction, material-role meshes, broadphase, fragment physics and aggregate5%
+atomic value-job queue. The successor reuses material-role meshes, broadphase,
+finite material clipping at fracture, fragment physics and the aggregate5%
 geometry-worker allowance. Its checkpoint preserves outer skin, canonical caps,
 timber interior and finite walls separately, including object IDs, UVs, normals
 and colours. A rebased clipping boundary must not replace the immutable authored
@@ -44,6 +73,10 @@ do not change. A complete checkpoint is authoritative. Older `Ship.Blots` and
 `Ship.PhonkLaserCuts` reconstruct once through their established order, without
 HP, crew, chips or historical fragment replay. Renderer reset restores current
 material, and stale/cancelled/malformed projections retain the last valid state.
+The CHM2 node payload adds graph health/alive values bound to a deterministic
+authored-layout fingerprint. CHM1/P tails retain their old exact semantics and
+are imported once before graph seeding. Health-only publication has its own
+material revision, so it cannot invalidate collision/convex-contour caches.
 Only bounded pending work and current retained geometry remain live; an ever
 growing operation log must not be required to continue damaging a ship.
 
@@ -54,8 +87,16 @@ loss is inverted through TOUCH's existing work curve E/(E+strength); strength
 remains `SHIP_BASE::GetHullContactStrength`. Wrecks use the existing shot mass
 and trajectory derivative without another HP event. This is a whole-hull
 specific-work domain and an area-density material approximation, not calibrated
-timber engineering data. The finite local contact footprint bounds where work
-can remove material. Direct laser depth retains its existing delivered-time rule.
+timber engineering data. The finite local contact footprint admits weapon work;
+failed cells and overloaded connections determine the resulting fracture. The
+coarse lattice uses about five cells on its shortest material axis, aspect-aware
+longer axes, and a bounded sparse occupancy. Actual timber volume and shared
+section determine capacity; empty holds are not structural cells. A four-pass
+reserve check uses20% of intact incident capacity as the section's declared game
+load, scaled by remaining material. This is an explicit5x design reserve, not a
+gravity or calibrated stress solver. Direct laser depth retains its existing
+delivered-time input. Subcritical hits change strength and existing heat/fire;
+visible geometry changes at cell/section failure, with coarse fracture edges.
 
 The shared kernel/checkpoint, GEOM/SHIP publication, legacy Blots import and
 immediate crew-field consumption have one native owner. Finite ablation/crush
@@ -66,8 +107,8 @@ Existing
 shore, fire-anchor and fragment-query source fixes remain in the same successor.
 The player owns gameplay testing. The integration owner may compile the engine
 to catch C++ integration errors; compilation does not accept gameplay or FPS.
-The owner subsequently requests installation of this frozen batch; root uses
-`run.sh --stage-only`. Game control and gameplay probes remain declined.
+Canonical delivery uses `run.sh --stage-only` and succeeds for this successor.
+Game control and gameplay probes remain declined.
 Source review must distinguish local
 notches from complete cuts, preserve old damage across another weapon/reset,
 reject stale publication, and preserve undamaged/free-water behavior. Gameplay
@@ -78,12 +119,14 @@ not an attachment socket and cannot justify deleting neighboring assemblies.
 Performance is a core acceptance criterion. Merely moving an ever growing
 whole-hull reconstruction behind a worker does not close it. The shared material
 implementation retains stable authored cell IDs/bounds, sparse current overrides
-and a bounded exact tail before folding checkpoints. Untouched material is shared;
-membership queries do not allocate. Workers pack checkpoints; frame publication
+and a bounded32-record tail before folding checkpoints. Ordinary damage shares
+the immutable geometry/contact BVH and copies only bounded graph state; finite
+contact work queries nearby material. Workers pack checkpoints; frame publication
 reuses unchanged packed bases and writes a bounded tail. A fold still serializes
 the changed node's full current boundary, including untouched authored faces,
-alongside sparse changed cell solids. Complete component connectivity, collision
-rebuild and changed-node GPU upload still have a real cost; sustained cutting/FPS
+alongside sparse changed cell solids. Actual fracture still traverses the node's
+role meshes and rebuilds its material/contact/collision indices and GPU upload.
+These operations have a real cost; sustained cutting/FPS
 and memory remain unmeasured until player replay. This is not fully sparse mesh
 persistence or an accepted frame-time result.
 
