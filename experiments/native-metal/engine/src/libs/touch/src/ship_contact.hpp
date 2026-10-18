@@ -86,14 +86,23 @@ struct Hull
     std::vector<Vec2> points;
     double radius{}, inertia{};
 };
+inline double extentRadius(const std::vector<Vec2> &points)
+{
+    if (points.empty()) return 0;
+    Vec2 lo = points.front(), hi = lo;
+    for (auto p : points)
+    {
+        if (!finite(p)) return std::numeric_limits<double>::infinity();
+        lo.x = std::min(lo.x, p.x); lo.z = std::min(lo.z, p.z);
+        hi.x = std::max(hi.x, p.x); hi.z = std::max(hi.z, p.z);
+    }
+    return std::hypot((hi.x - lo.x) * .5, (hi.z - lo.z) * .5);
+}
 inline std::vector<Vec2> convexHull(std::vector<Vec2> p)
 {
-    double radius = 0;
-    for (auto v : p)
-    {
-        if (!finite(v)) return {};
-        radius = std::max(radius, length(v));
-    }
+    // Orientation precision belongs to the material's extent, not its
+    // distance from the declared ship/body origin.
+    const double radius = extentRadius(p);
     if (!std::isfinite(radius) || radius <= 0) return {};
     std::sort(p.begin(), p.end(), [](Vec2 a, Vec2 c) { return a.x < c.x || (a.x == c.x && a.z < c.z); });
     p.erase(std::unique(p.begin(), p.end(), [](Vec2 a, Vec2 c) { return a.x == c.x && a.z == c.z; }), p.end());
@@ -129,19 +138,24 @@ inline Hull prepare(const Body &b)
     auto chain = convexHull(b.hull);
     if (chain.empty()) return {};
     for (auto v : b.hull) h.radius = std::max(h.radius, length(v));
-    const double areaEpsilon = 1e-14 * h.radius * h.radius;
+    const double extent = extentRadius(chain);
+    const double areaEpsilon = 1e-14 * extent * extent;
+    const auto origin = chain.front();
     double area2 = 0, moment12 = 0;
+    Vec2 centroid{};
     for (std::size_t i = 0; i < chain.size(); ++i)
     {
-        const auto a = chain[i], c = chain[(i + 1) % chain.size()];
+        const auto a = chain[i] - origin, c = chain[(i + 1) % chain.size()] - origin;
         const double w = cross(a, c);
         area2 += w;
         moment12 += w * (dot(a, a) + dot(a, c) + dot(c, c));
+        centroid += (a + c) * w;
     }
     // Uniform lamina moment about the declared body origin, not its centroid:
     // the engine's position/motion owner is that origin.
     if (!(area2 > areaEpsilon) || !std::isfinite(moment12)) return {};
-    h.inertia = b.mass * moment12 / (6 * area2);
+    centroid = centroid / (3 * area2);
+    h.inertia = b.mass * (moment12 / (6 * area2) + 2 * dot(origin, centroid) + dot(origin, origin));
     if (!(h.inertia > 0) || !std::isfinite(h.inertia)) return {};
     h.points = std::move(chain);
     return h;

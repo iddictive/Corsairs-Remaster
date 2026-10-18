@@ -1,5 +1,52 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## Material worker work admission and authored connectivity
+
+The22:15 player profiles reopen laser latency and sustained contact FPS.
+One worker reaches `fractureCells → clipCell → solidSectionCaps`; another
+spends396/599 samples preparing convex physical contact, including171 in
+`buildSource`. These are worker-stack counts, not request latency or frame time.
+
+A CPU adapter using the installed Flyingdutchman GM and current GEOM bootstrap
+exposes5379 material cells/486 graph cells. A radius.16/depth.84 beam takes
+13.666s in material preparation. Even a zero-weapon release-only job emits8
+groups:26 pristine connected components were collapsed into8 coarse source-prism
+owners, so18 pre-existing islands were mistaken for newly severed material.
+The expensive boundary partition/release work dominates the actual local cut.
+
+`ship_hull_convex_material.hpp` now derives immutable ownership from its existing
+positive-piece connectivity traversal on pristine material. Clipping propagates
+that identity; merges require the same owner. Fresh-source reconstruction uses
+the same graph, including after CHM3 decode/rebase, without a new SAVE field.
+The old per-prism union is removed. A real new split still releases material;
+zero body allowance retains it until capacity becomes available.
+`clipCell` also admits strict whole-cell containment as empty and a separating
+plane as unchanged before invoking closed-boundary Booleans. Touching/partial
+cuts retain the established path.
+
+On the same stock model and beam, material preparation becomes116.125ms plus
+41.180ms contact projection; fragments8→0 and canonical faces105522→40562.
+The center ray changes from a hit at.25 to a miss, with.017832112226m³ positive
+timber removed and.169768m² opening area. Pristine release-only becomes a.029ms
+no-op with identical positive volume. Cold bootstrap still takes4.626s; total
+CPU worker time is4.783s and observed peak287MB versus about1.94GB baseline.
+This is component evidence, not player request latency or game FPS.
+
+Volume conservation uses positive convex pieces, not `closedCutVolume` on
+assembled cell boundaries. A same-measure baseline/current comparison gives
+581.236161864486m³ and identical37133-piece geometry digest; the boundary-only
+diagnostic gives548.115378467255 in both versions because some assembled cell
+boundaries fail its manifold check. The ownership repair changes no pristine
+wood geometry. Actual CHM3 save/reconstruction retains a deferred split, then
+releases it once capacity returns (positive-volume error4.62e−10).
+
+The stock adapter also exposed a valid≈2.3e−6m³ piece rejected by planar contact
+preparation; the [contact owner](ship-wreck-contact.md#positive-material-projection)
+records its numerical correction. [Final commands, frozen inputs and results](../.local-archives/metal-renderer-evidence/contact-followup-20261017/laser/final_receipt.json)
+and the [volume comparison](../.local-archives/metal-renderer-evidence/contact-followup-20261017/laser/volume_receipt.json)
+retain the evidence. The adapter does not recreate player saved damage,
+child-node poses, request queues, GPU publication or measured game FPS.
+
 ## October17 cleanup of deferred material ownership
 
 `ship_hull_material.hpp::releaseSections` must return every separated section

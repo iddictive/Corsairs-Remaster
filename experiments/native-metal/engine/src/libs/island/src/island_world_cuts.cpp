@@ -47,13 +47,13 @@ bool nodePoint(const std::array<storm_ship_hull::Vec3,4>&matrix,const CVECTOR&po
     const float determinant=storm_ship_hull::dot(x,yz);if(!std::isfinite(determinant)||std::abs(determinant)<1.e-8f)return false;
     const auto delta=storm_ship_hull::Vec3{point.x,point.y,point.z}-matrix[3];local={storm_ship_hull::dot(delta,yz)/determinant,storm_ship_hull::dot(delta,zx)/determinant,storm_ship_hull::dot(delta,xy)/determinant};return true;
 }
-bool affectsNode(const storm_world_cut::Cut&cut,GEOS&geometry,CMatrix matrix,bool terrain)
+bool affectsNode(const storm_world_cut::Cut&cut,GEOS&geometry,CMatrix matrix)
 {
     GEOS::INFO info{};geometry.GetInfo(info);const CVECTOR center(info.boxcenter.x,info.boxcenter.y,info.boxcenter.z);
     const CVECTOR extent(info.boxsize.x*.5f+16.f,info.boxsize.y*.5f+1.f,info.boxsize.z*.5f+16.f);
     storm_ship_hull::Bounds bounds{};bool first=true;
     for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
-        const auto point=matrix*CVECTOR(center.x+x*extent.x,center.y+y*extent.y-(terrain&&y<0?10032.f:0.f),center.z+z*extent.z);
+        const auto point=matrix*CVECTOR(center.x+x*extent.x,center.y+y*extent.y,center.z+z*extent.z);
         const storm_ship_hull::Vec3 p{point.x,point.y,point.z};if(!storm_ship_hull::finite(p))return true;
         bounds=first?storm_ship_hull::Bounds{p,p}:storm_ship_hull::merge(bounds,{p,p});first=false;}
     return storm_world_cut::affects(bounds,{cut});
@@ -312,16 +312,6 @@ void ISLAND::CancelWorldCutWork()
     // Its value-only job is retired by Poll, or joined by this entity's destructor.
 }
 
-void ISLAND::PrewarmWorldCuts()
-{
-    for(const auto id:WorldModels()){
-        auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const bool terrain=WorldModelKey(id)=="terrain";
-        for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo){storm_world_cut::Input input;
-            if(!node->geo->CaptureWorldInput(uint64_t(GetId()),{},terrain,input))
-                core.Trace("World cut immutable input unavailable for model %llu",uint64_t(id));}
-    }
-}
-
 bool ISLAND::StartWorldCutWork() try
 {
     if(worldCutFuture.valid()||worldCutQueue.empty()||!worldCutState)return true;
@@ -352,9 +342,9 @@ bool ISLAND::StartWorldCutWork() try
             target.matrix=nodeMatrix(node->glob_mtx);
             std::vector<storm_world_cut::Cut>local;for(const auto&cut:selected){storm_world_cut::Cut transformed;
                 // A remote receiver, including a nonuniform architectural node,
-                // must not veto or rebake a local ground hit before its bounds
+                // must not veto or rebake a local stone hit before its bounds
                 // have even been checked in the authored world frame.
-                if(!affectsNode(cut,*node->geo,node->glob_mtx,key=="terrain"))continue;
+                if(!affectsNode(cut,*node->geo,node->glob_mtx))continue;
                 if(!nodeCut(cut,node->glob_mtx,transformed)){valid=false;break;}local.push_back(std::move(transformed));}
             if(!valid||!node->geo->CaptureWorldInput(uint64_t(GetId()),local,key=="terrain",target.input,true)){valid=false;break;}
             work.targets.push_back(std::move(target));
@@ -440,7 +430,6 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
     worldReflection = reflection;
     worldCuts.clear(); worldBindings.clear();worldCutRevision=0;
     worldCutsReady = false;
-    PrewarmWorldCuts();
     auto *saved = state ? state->GetAttributeClass("PhonkWorldCuts") : nullptr;
     if (!saved) return; // Ordinary old saves retain their original geometry.
     const unsigned count = saved->GetAttributeAsDword("count");
@@ -501,7 +490,9 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
         for (int n = 0; auto *node = model->GetNode(n); ++n)
         {
             if (!node->geo) continue;
-            affected = affected || affectsNode(record.cut,*node->geo,node->glob_mtx,key=="terrain");
+            if(!affectsNode(record.cut,*node->geo,node->glob_mtx))continue;
+            storm_world_cut::Cut local;
+            if(nodeCut(record.cut,node->glob_mtx,local))affected=affected||node->geo->WorldCutAffects(local,key=="terrain");
         }
         model->mtx = visible; model->Update();
     }
@@ -540,16 +531,6 @@ void ISLAND::PublishWorldCut(WorldCutRecord record,const WorldWork&work)
         core.Send_Message(flags, "li", MSG_FLAG_WORLD_SUPPORT, GetId());
 }
 
-bool ISLAND::WorldGroundChanged(float x, float z) const
-{
-    if (!worldCutsReady) return false;
-    const auto point = CVECTOR(x, 0.f, z);
-    for(const auto id:{model_id,seabed_id})if(auto*model=static_cast<MODEL*>(core.GetEntityPointer(id))){
-        for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo&&node->geo->HasWorldCuts()){
-            const auto binding=std::find_if(worldBindings.begin(),worldBindings.end(),[&](const auto&b){return b.model==id&&b.node==n&&b.generation==node->geo->GeometryGeneration()&&b.valid;});
-            CVECTOR local;if(binding!=worldBindings.end()&&nodePoint(binding->matrix,point,local)&&!node->geo->IsWorldPositionRetained(uint64_t(GetId()),local))return true;}}
-    return false;
-}
 #endif
 
 float ISLAND::TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &receiver)

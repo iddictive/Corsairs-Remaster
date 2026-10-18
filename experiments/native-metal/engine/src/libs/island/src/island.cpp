@@ -416,11 +416,7 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
     const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
     const float hit = Trace(surface, bottom);
     const bool exact = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
-    bool certifiedEmpty = false;
-#ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    certifiedEmpty = WorldGroundChanged(next.x, next.z);
-#endif
-    if ((!exact && !certifiedEmpty) || !std::isfinite(minDepth) ||
+    if (!exact || !std::isfinite(minDepth) ||
         (exact && -500.0f * hit >= minDepth))
         return true;
 
@@ -458,10 +454,6 @@ bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
         if (exactDepth >= keelY || !ActivateCamomileTrace(surface))
             depth = exactDepth;
     }
-#ifdef STORM_METAL_SHIP_HULL_DAMAGE
-    else if (WorldGroundChanged(x, z) && !ActivateCamomileTrace(surface))
-        depth = -500.f;
-#endif
     return true;
 }
 

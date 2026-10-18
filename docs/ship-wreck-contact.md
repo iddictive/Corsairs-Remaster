@@ -1,5 +1,41 @@
 # Ship collision and contact with sinking ships
 
+## Persistent material contact: earliest-witness work
+
+The22:15 player samples match installed UUIDF186273F/ca918d9. They reopen
+contact FPS acceptance: `TOUCH::Execute` has69/1237 and114/1317 main-thread
+samples, while render realization has881/1237 and745/1317. Inclusive stacks
+overlap; neither these averages nor fragment samples establish the worst stall.
+
+`nextPair` used exact convex CCD for every overlapping material pair after
+already finding a witness at `t=0`. No later nonnegative time can beat that
+witness under its strict-earliest tie rule. It now resolves and returns that
+contact immediately. Physical material, impulses, event limits and remaining
+body admission retain their owners. A dense32×32 CPU input changes1024→1 exact
+checks per query (100 queries62,884→135µs); contact/energy/motion outputs remain
+identical across ordinary, positive-time, removed-material and capped cases.
+[Frozen source, commands and sanitizer evidence](../.local-archives/metal-renderer-evidence/contact-followup-20261017/contact/receipt.json)
+prove this component property, not player-scene FPS or mast correctness.
+
+## Positive material projection
+
+The real-stock Flyingdutchman adapter exposes a positive-volume≈2.3e−6m³
+tetrahedron whose tiny XZ footprint is far from the declared body origin.
+`ship_contact.hpp` used that origin distance for orientation/area tolerance,
+erasing the valid footprint and rejecting the complete contact material cache.
+Tolerance now scales with local point extent. Area and moments are accumulated
+about a local vertex, then inertia is translated back to the declared body
+origin by the parallel-axis identity; contact radius retains that original
+origin. No positive wood is skipped and no global epsilon is relaxed.
+
+The offending piece, translations100/200 and scales1e−6/1e6 pass; a truly
+collinear footprint still rejects. Analytical rectangle inertia is
+278.66666666666669. Replaying the frozen ordinary/capped/zero-time contact cases
+against the final canonical header preserves witness, time, energy and motion
+apart from one4.44e−16 velocity rounding difference.
+[Final evidence](../.local-archives/metal-renderer-evidence/contact-followup-20261017/laser/final_receipt.json)
+binds this correction and the material ownership change to the same source batch.
+
 ## October17 finite frame-contact cap
 
 The event cap in `ship_contact_frame.hpp::integrateFrame` must continue querying

@@ -114,6 +114,19 @@ inline std::shared_ptr<const MaterialCellSource> cellSource(const Surface&author
     result->index.build(result->bounds);return result;
 }
 template<class Planes> inline bool clipCell(const Mesh&solid,const Planes&planes,Mesh&kept){
+    // Coarse failed-cell fields often contain a complete timber source, or
+    // only overlap its broadphase box. Neither case needs section Booleans.
+    // Use the exact splitter's side rule; touching/partial solids still take
+    // the established closed-boundary path below.
+    bool contained=true,any=false;
+    for(const auto&plane:planes){bool separated=true;
+        for(const auto&o:solid)for(const auto&t:o.second)for(const auto&v:t){
+            const auto side=planarSide(plane,v.position);any=true;
+            separated&=side>0;contained&=side<0;
+        }
+        if(any&&separated){kept=solid;return true;}
+    }
+    if(any&&contained){kept.clear();return true;}
     Mesh removed;if(!subtractVolume(solid,planes,kept,removed))return false;if(removed.empty())return true;
     for(size_t n=0;n<planes.size();++n){std::vector<storm_ship_hull::Plane>limits;for(size_t p=0;p<planes.size();++p)if(p!=n)limits.push_back(planes[p]);Mesh inside,outside;
         if(!solidSectionCaps(solid,planes[n],limits,{},false,inside,outside))return false;appendMesh(kept,outside);}

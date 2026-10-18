@@ -96,8 +96,31 @@ delivery and that unresolved outcome remain owned by `runtime.md`.
 
 ## Numbered ordnance and world geometry
 
+### Current terrain policy: excavation disabled
+
+The October17 player request disables terrain excavation. `GEOM::WorldCutAffects`
+uses the existing texture-object classifier before admission: pure terrain hits
+finish without queued geometry work or new SAVE records. World/weapon tracing,
+authored shore collision, ship/mast cuts and stone/fort cuts remain. Mixed island
+models retain their stone objects; excluding a complete `terrain` model would
+silently remove that independent consumer. World-cut prewarm and the excavated-
+ground depth bypass are removed.
+
+`world_cut_geometry.hpp` preserves terrain outer faces and omits terrain prism/
+Boolean work. Inert source identity slots preserve prior checkpoint cell IDs
+and fingerprints. Legacy cutters replay against stone; v3 checkpoints parse and
+discard terrain deltas, restore authored terrain and clip historical cap unions
+to original stone sections. A cap's material tag alone is insufficient: an old
+stone-tagged wall in the CPU fixture spans y−10034..3 with area80260; migration
+retains only its stone wall at y1..3, area4. New stone-only checkpoints avoid
+that migration. Existing cancellation/generation owners retire stale load work.
+[Prior-state, beam/crater, collision-ray, admission and rollback evidence](../.local-archives/metal-renderer-evidence/contact-followup-20261017/ground/)
+is component evidence; normal installed-save replay remains player-owned.
+
+### Historical terrain excavation implementation
+
 The October16 successor replaces the lifetime64 world-cut veto and full original
-history replay with current retained volumetric material. Terrain uses lazy
+history replay with retained volumetric material. Terrain used lazy
 solid prisms; stone reuses existing finite-solid Boolean ownership. A fixed
 authored BVH selects affected cells, and current outer/cap geometry advances
 incrementally. The pending queue stays bounded at8; only64 recent dose records
@@ -189,12 +212,13 @@ Source-body sanitizer and native syntax checks pass; actual moving ship/fort,
 camera-switch, obstruction and self-blast replay remain pending. Private evidence
 owner: `phonk-auto-scene-20261016`.
 
-`ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models.
+`ISLAND` binds persistent `Islands[].PhonkWorldCuts` to transient static models;
+the current terrain exclusion above governs both new and restored records.
 Legacy halfspaces, finite beam doses and deterministic26-plane crater volumes rebuild one retained mesh
 for drawing, tracing and clipping. Active PN terrain is the input when present;
 material/UV data and unaffected components remain intact. A world-only material
 classifier covers shipped ground families independently from PN subdivision
-admission. Terrain is a union of downward triangle columns; open architecture
+admission. The historical terrain branch used downward triangle columns; open architecture
 uses bounded inward prisms and closed components retain their authored volume.
 Local cutter-face sections are normalized by pinned Clipper2 2.0.1 and the
 existing triangulator; global projected basement contours are not a valid

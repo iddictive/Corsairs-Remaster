@@ -1300,15 +1300,23 @@ bool GEOM::CaptureWorldSurface(bool terrainModel)
     if(!storm_world_cut::finite(original))return false;
     worldOriginal=std::make_shared<const storm_ship_laser::Mesh>(std::move(original));worldPrepared=true;worldTerrainModel=terrainModel;return true;
 }
+bool GEOM::WorldCutAffects(const storm_world_cut::Cut&cut,bool terrainModel) const
+{
+    for(int o=0;o<rhead.nobjects;++o){const auto&ob=object[o];
+        if(!(ob.flags&(VISIBLE|COLLISION_ENABLE))||!ob.ntriangles||(terrainModel&&worldTerrainObjects.count(o)))continue;
+        const storm_ship_hull::Vec3 center{ob.center.x,ob.center.y,ob.center.z},extent{ob.radius+1.f,ob.radius+1.f,ob.radius+1.f};
+        if(storm_world_cut::affects({center-extent,center+extent},{cut}))return true;}
+    return false;
+}
 bool GEOM::CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged)
 {
     if(!owner||(worldOwner&&worldOwner!=owner)||laserOwner||hullOwner||cuts.size()>storm_world_cut::MaxCuts)return false;
     for(const auto&cut:cuts)if(!storm_world_cut::valid(cut))return false;
     const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f+1.f,rhead.bbox_size.z*.5f+16};
-    storm_ship_hull::Bounds bounds{center-extent,center+extent};if(terrainModel)bounds.lo.y-=10032.f;
+    storm_ship_hull::Bounds bounds{center-extent,center+extent};
     storm_world_cut::Input result;result.original=worldOriginal;result.material=worldMaterial;
-    for(const auto&cut:cuts)if(storm_world_cut::affects(bounds,{cut}))result.cuts.push_back(cut);
+    for(const auto&cut:cuts)if(storm_world_cut::affects(bounds,{cut})&&WorldCutAffects(cut,terrainModel))result.cuts.push_back(cut);
     result.currentCheckpoint=worldCheckpoint;result.currentCoverage=worldCoverage;
     if(retainUnchanged&&result.cuts.empty()){
         result.active=bool(worldMaterial);result.unchanged=true;input=std::move(result);return true;
@@ -1366,7 +1374,7 @@ bool GEOM::SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&c
     if(cuts.empty()){ClearWorldCuts(owner);return true;}
     const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f+1.f,rhead.bbox_size.z*.5f+16};
-    storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};if(terrainModel)nodeBounds.lo.y-=10032.f;
+    storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};
     if(!storm_world_cut::affects(nodeBounds,cuts)){ClearWorldCuts(owner);return true;}
     if(worldOwner==owner&&worldTerrainModel==terrainModel&&cuts.size()==worldCuts.size()&&std::equal(cuts.begin(),cuts.end(),worldCuts.begin(),[](const auto&a,const auto&b){return a.field==b.field&&storm_world_cut::equal(a,b);}))return true;
     // SAVE restoration and live jobs use the same material/collision projection.

@@ -10,11 +10,11 @@ using namespace storm_ship_laser;
 using storm_ship_laser::Plane;
 using Halfspace=storm_ship_hull::Plane;
 struct Face {std::vector<Vertex>vertices;Halfspace plane{};int object=0;bool fresh=false,partition=false;};
-struct Piece {std::vector<Face>faces;Bounds bounds{};double volume=0;uint32_t supportCell=storm_ship_structure::NoCell;};
+struct Piece {std::vector<Face>faces;Bounds bounds{};double volume=0;uint32_t supportCell=storm_ship_structure::NoCell,authoredOwner=UINT32_MAX;};
 struct Key {uint32_t cell=0,piece=0;bool operator<(const Key&o)const{return std::tie(cell,piece)<std::tie(o.cell,o.piece);}bool operator==(const Key&o)const{return cell==o.cell&&piece==o.piece;}};
 struct Component {uint32_t authoredOwner=0;std::vector<Key>pieces;double volume=0;};
 struct Cell {std::shared_ptr<const Mesh>boundary;std::shared_ptr<const std::vector<Piece>>pieces;std::vector<std::vector<Key>>edges;};
-struct Source {std::shared_ptr<const MaterialCellSource>material;std::shared_ptr<const storm_ship_structure::Layout>layout;std::vector<std::shared_ptr<const std::vector<Piece>>>pieces;std::vector<uint32_t>owner;std::vector<std::vector<uint32_t>>supportSources;};
+struct Source {std::shared_ptr<const MaterialCellSource>material;std::shared_ptr<const storm_ship_structure::Layout>layout;std::vector<std::shared_ptr<const std::vector<Piece>>>pieces;std::vector<std::vector<uint32_t>>supportSources;};
 struct Measure {Bounds bounds{};Vec3 moment{};double volume=0,area=0;};
 struct State {std::shared_ptr<const Source>source;std::vector<std::shared_ptr<const Cell>>cells;std::vector<Component>components;std::vector<Measure>supportMeasures;const MaterialCells*owner=nullptr;};
 struct Limits {size_t candidateCells=SIZE_MAX,convexPieces=SIZE_MAX,planeSplits=SIZE_MAX,contactPairs=SIZE_MAX,graphVisits=SIZE_MAX;};
@@ -33,7 +33,7 @@ inline std::vector<Halfspace>planes(const Piece&p){std::vector<Halfspace>out;for
 inline bool clip(const Piece&source,Halfspace plane,Piece&out,Budget&budget,bool charred=false){
     if(!budget.take(budget.left.planeSplits))return false;bool low=false,high=false;for(const auto&f:source.faces)for(const auto&v:f.vertices){const auto side=planarSide(plane,v.position);low|=side<0;high|=side>0;}
     if(!high){out=source;return true;}if(!low){out={};return true;}
-    Piece next;next.supportCell=source.supportCell;std::vector<Vertex>ring;
+    Piece next;next.supportCell=source.supportCell;next.authoredOwner=source.authoredOwner;std::vector<Vertex>ring;
     for(const auto&face:source.faces){std::vector<Vertex>inside,outside;linearSplit(face.vertices,plane,inside,outside);if(inside.size()<3||polygonArea(inside)<=1.e-12f)continue;
         for(const auto&v:inside)if(planarSide(plane,v.position)==0){bool found=false;for(const auto&p:ring){const auto d=v.position-p.position;if(storm_ship_hull::dot(d,d)<1.e-12f){found=true;break;}}if(!found)ring.push_back(v);}
         next.faces.push_back({std::move(inside),face.plane,face.object,face.fresh,face.partition});}
@@ -73,8 +73,8 @@ inline bool touching(const Piece&a,const Piece&b,Budget&budget){if(!overlapBound
     Piece overlap=a;for(const auto&f:b.faces){Piece next;if(!clip(overlap,f.plane,next,budget))return false;overlap=std::move(next);if(overlap.volume<=1.e-12)break;}if(overlap.volume>1.e-12)return true;
     for(const auto&fa:a.faces)for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}return false;
 }
-inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCell!=b.supportCell||!overlapBounds(a.bounds,b.bounds))return false;bool shared=false;for(const auto&fa:a.faces)for(const auto&fb:b.faces)shared|=storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<1.e-6f;if(!shared)return false;
-    const std::vector<Piece>pair{a,b};Piece next;next.supportCell=a.supportCell;for(size_t n=0;n<2;++n)for(const auto&face:pair[n].faces)for(auto polygon:externalFace(pair,n,face)){Face outside=face;outside.vertices=std::move(polygon);next.faces.push_back(std::move(outside));}
+inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCell!=b.supportCell||a.authoredOwner!=b.authoredOwner||!overlapBounds(a.bounds,b.bounds))return false;bool shared=false;for(const auto&fa:a.faces)for(const auto&fb:b.faces)shared|=storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<1.e-6f;if(!shared)return false;
+    const std::vector<Piece>pair{a,b};Piece next;next.supportCell=a.supportCell;next.authoredOwner=a.authoredOwner;for(size_t n=0;n<2;++n)for(const auto&face:pair[n].faces)for(auto polygon:externalFace(pair,n,face)){Face outside=face;outside.vertices=std::move(polygon);next.faces.push_back(std::move(outside));}
     if(next.faces.empty())return false;for(const auto&face:next.faces)for(const auto&other:next.faces)for(const auto&v:other.vertices)if(planarSide(face.plane,v.position)>0)return false;measure(next);
     if(std::abs(next.volume-a.volume-b.volume)>std::max(1.e-10,(a.volume+b.volume)*1.e-5))return false;merged=std::move(next);return true;
 }
@@ -82,14 +82,12 @@ inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCe
 // internal partitions whenever their exact union is convex; never bridge wood.
 inline bool coalesce(std::vector<Piece>&pieces,Budget&budget){bool changed=true;while(changed){changed=false;const auto index=pieceIndex(pieces);std::vector<uint32_t>nearby;for(uint32_t a=0;a<pieces.size()&&!changed;++a){index.queryBounds(pieces[a].bounds,nearby);for(auto b:nearby)if(b>a&&pieces[a].supportCell==pieces[b].supportCell){if(!budget.take(budget.left.contactPairs))return false;Piece merged;if(!mergeConvex(pieces[a],pieces[b],merged))continue;pieces[a]=std::move(merged);pieces.erase(pieces.begin()+b);changed=true;break;}}}return true;}
 inline std::shared_ptr<const Mesh>boundary(const MaterialCells&cells,uint32_t id){const auto found=cells.changed.find(id);return found==cells.changed.end()?cells.source->solids.at(id):found->second;}
-inline std::shared_ptr<Source>buildSource(std::shared_ptr<const MaterialCellSource>material,std::shared_ptr<const storm_ship_structure::Layout>layout={}){auto source=std::make_shared<Source>();source->material=std::move(material);source->layout=std::move(layout);if(source->layout)source->supportSources.resize(source->layout->cells.size());source->pieces.resize(source->material->solids.size());source->owner.resize(source->pieces.size());std::iota(source->owner.begin(),source->owner.end(),0);
+inline std::shared_ptr<Source>buildSource(std::shared_ptr<const MaterialCellSource>material,std::shared_ptr<const storm_ship_structure::Layout>layout={}){auto source=std::make_shared<Source>();source->material=std::move(material);source->layout=std::move(layout);if(source->layout)source->supportSources.resize(source->layout->cells.size());source->pieces.resize(source->material->solids.size());
     for(uint32_t id=0;id<source->material->prisms.size();++id){storm_geometry_work::checkpoint();auto parts=prismPieces(source->material->prisms[id],*source->material->solids[id]);if(source->layout){std::vector<Piece>partition;std::vector<uint32_t>ids;Budget budget;for(const auto&part:parts){storm_ship_structure::queryCells(*source->layout,part.bounds,ids);for(auto cell:ids){Piece inside=part;const auto box=source->layout->cells[cell].bounds;for(unsigned axis=0;axis<3;++axis)for(float sign:{-1.f,1.f}){Piece next;if(!clip(inside,{storm_ship_structure::axisVector(axis,sign),sign*storm_ship_structure::coordinate(sign<0?box.lo:box.hi,axis)},next,budget))return {};inside=std::move(next);}if(inside.volume>1.e-12){inside.supportCell=cell;for(auto&f:inside.faces){f.partition=f.fresh;f.fresh=false;}partition.push_back(std::move(inside));source->supportSources[cell].push_back(id);}}}parts=std::move(partition);}source->pieces[id]=std::make_shared<const std::vector<Piece>>(std::move(parts));}
     for(auto&ids:source->supportSources){std::sort(ids.begin(),ids.end());ids.erase(std::unique(ids.begin(),ids.end()),ids.end());}
-    const auto root=[&](uint32_t n){while(source->owner[n]!=n){source->owner[n]=source->owner[source->owner[n]];n=source->owner[n];}return n;};std::vector<uint32_t>nearby;Budget budget;
-    for(uint32_t id=0;id<source->pieces.size();++id)if(source->pieces[id]){auto box=source->material->bounds[id];const Vec3 pad{.000002f,.000002f,.000002f};box.lo=box.lo-pad;box.hi=box.hi+pad;source->material->index.queryBounds(box,nearby);for(auto other:nearby)if(other>id&&source->pieces[other]&&root(id)!=root(other)){bool contact=false;for(const auto&a:*source->pieces[id])for(const auto&b:*source->pieces[other]){storm_geometry_work::checkpoint();if(touching(a,b,budget)){contact=true;break;}}if(contact)source->owner[root(other)]=root(id);}}
-    for(uint32_t id=0;id<source->owner.size();++id)source->owner[id]=root(id);return source;
+    return source;
 }
-inline bool components(State&state,Budget&budget){state.components.clear();std::set<Key>seen;for(uint32_t id=0;id<state.cells.size();++id){const auto&cell=state.cells[id];if(!cell||!cell->pieces)continue;for(uint32_t n=0;n<cell->pieces->size();++n){Key start{id,n};if(!seen.insert(start).second)continue;Component group;group.authoredOwner=state.source->owner[id];group.pieces.push_back(start);
+inline bool components(State&state,Budget&budget){state.components.clear();std::set<Key>seen;for(uint32_t id=0;id<state.cells.size();++id){const auto&cell=state.cells[id];if(!cell||!cell->pieces)continue;for(uint32_t n=0;n<cell->pieces->size();++n){Key start{id,n};if(!seen.insert(start).second)continue;Component group;group.authoredOwner=cell->pieces->at(n).authoredOwner;group.pieces.push_back(start);
             for(size_t at=0;at<group.pieces.size();++at){if(!budget.take(budget.left.graphVisits))return false;const auto key=group.pieces[at];const auto&entry=*state.cells[key.cell];group.volume+=entry.pieces->at(key.piece).volume;for(auto other:entry.edges[key.piece])if(seen.insert(other).second)group.pieces.push_back(other);}state.components.push_back(std::move(group));}}
     std::stable_sort(state.components.begin(),state.components.end(),[](const auto&a,const auto&b){return a.volume>b.volume;});return true;
 }
@@ -97,12 +95,24 @@ inline bool reconnect(State&state,const std::set<uint32_t>&changed,Budget&budget
     for(auto id:changed){auto box=state.source->material->bounds.at(id);box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);affected.insert(ids.begin(),ids.end());}
     for(auto id:affected){if(!state.cells[id])continue;auto copy=std::make_shared<Cell>(*state.cells[id]);copy->edges.assign(copy->pieces?copy->pieces->size():0,{});state.cells[id]=std::move(copy);}
     for(auto id:affected){auto entry=std::const_pointer_cast<Cell>(state.cells[id]);if(!entry||!entry->pieces)continue;auto box=state.source->material->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);
-        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);for(auto other:ids){const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;if(touching(a,neighbor->pieces->at(n),budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
+        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);for(auto other:ids){const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;const auto&b=neighbor->pieces->at(n);if(a.authoredOwner!=b.authoredOwner)continue;if(touching(a,b,budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
     if(state.source->layout){state.supportMeasures.assign(state.source->layout->cells.size(),{});for(const auto&cell:state.cells)if(cell&&cell->pieces)for(const auto&piece:*cell->pieces)if(piece.supportCell<state.supportMeasures.size()){auto&value=state.supportMeasures[piece.supportCell];value.bounds=value.volume?storm_ship_hull::merge(value.bounds,piece.bounds):piece.bounds;value.volume+=piece.volume;value.moment=value.moment+center(piece)*float(piece.volume);}for(size_t n=0;n<state.supportMeasures.size();++n){const auto&authored=state.source->layout->cells[n];auto&value=state.supportMeasures[n];value.area=authored.volume>0?authored.area*value.volume/authored.volume:0;}}
     return components(state,budget);
 }
 inline std::shared_ptr<const State>prepare(const MaterialCells&cells,std::shared_ptr<const storm_ship_structure::Layout>layout={}){
-    if(!layout&&cells.convex)layout=cells.convex->source->layout;auto next=std::make_shared<State>();if(cells.convex&&cells.convex->source->material==cells.source&&cells.convex->source->layout==layout)*next=*cells.convex;else{next->source=buildSource(cells.source,std::move(layout));if(!next->source)return {};next->cells.resize(cells.source->solids.size());}
+    if(!layout&&cells.convex)layout=cells.convex->source->layout;auto next=std::make_shared<State>();if(cells.convex&&cells.convex->source->material==cells.source&&cells.convex->source->layout==layout)*next=*cells.convex;else{
+        auto source=buildSource(cells.source,std::move(layout));if(!source)return {};next->source=source;next->cells.resize(cells.source->solids.size());
+        // Establish immutable authorship with the same positive-piece graph
+        // used after cuts. One source prism can cross disconnected authored
+        // support regions; a per-prism union falsely releases those on first hit.
+        std::set<uint32_t>authored;
+        for(uint32_t id=0;id<source->pieces.size();++id)if(source->pieces[id]){auto cell=std::make_shared<Cell>();cell->boundary=cells.source->solids[id];cell->pieces=source->pieces[id];next->cells[id]=std::move(cell);authored.insert(id);}
+        Budget budget;if(!reconnect(*next,authored,budget))return {};
+        std::vector<std::vector<uint32_t>>owners(source->pieces.size());
+        for(uint32_t id:authored)owners[id].resize(source->pieces[id]->size());
+        for(uint32_t owner=0;owner<next->components.size();++owner){auto&component=next->components[owner];component.authoredOwner=owner;for(auto key:component.pieces)owners[key.cell][key.piece]=owner;}
+        for(uint32_t id:authored){auto parts=std::make_shared<std::vector<Piece>>(*source->pieces[id]);for(size_t n=0;n<parts->size();++n)parts->at(n).authoredOwner=owners[id][n];source->pieces[id]=parts;auto cell=std::make_shared<Cell>(*next->cells[id]);cell->pieces=std::move(parts);next->cells[id]=std::move(cell);}
+    }
     std::set<uint32_t>changed;for(uint32_t id=0;id<next->cells.size();++id){if(!next->source->pieces[id])continue;const auto current=boundary(cells,id);if(next->cells[id]&&next->cells[id]->boundary==current)continue;auto cell=std::make_shared<Cell>();cell->boundary=current;
         if(current==cells.source->solids[id])cell->pieces=next->source->pieces[id];else{std::vector<Piece>pieces;if(!decompose(*next->source->pieces[id],*current,pieces))return {};cell->pieces=std::make_shared<const std::vector<Piece>>(std::move(pieces));}next->cells[id]=std::move(cell);changed.insert(id);}
     Budget budget;if(!changed.empty()&&!reconnect(*next,changed,budget))return {};next->owner=&cells;return next;

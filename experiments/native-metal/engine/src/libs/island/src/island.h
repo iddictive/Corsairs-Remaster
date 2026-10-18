@@ -92,7 +92,6 @@ class ISLAND : public ISLAND_BASE
     void PollWorldCutWork(uint32_t delta);
     void CancelWorldCutWork();
     void PublishWorldCut(WorldCutRecord record,const WorldWork&work);
-    void PrewarmWorldCuts();
     std::vector<entid_t> WorldModels() const;
     std::string WorldModelKey(entid_t model) const;
     std::string WorldNodeKey(entid_t model,int node) const;
@@ -101,7 +100,6 @@ class ISLAND : public ISLAND_BASE
     bool BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force);
     bool CommitWorldCut(WorldCutRecord record);
     void RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection);
-    bool WorldGroundChanged(float x, float z) const;
 #endif
 
     bool bFirstRealize;

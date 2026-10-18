@@ -253,6 +253,7 @@ class GEOM : public GEOS
     bool ReplaceLaserFragment(uint64_t owner,storm_ship_laser::FragmentProjection&&,std::vector<storm_ship_laser::Fragment>&successors) override;
     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
     void ClearLaserCuts(uint64_t owner) override;
+    bool WorldCutAffects(const storm_world_cut::Cut&cut,bool terrainModel) const override;
     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
     bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged=false) override;
     bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const override;

@@ -365,6 +365,14 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
             const auto &hb = pieceB ? pieceB->hull : b.hull;
             auto candidate = nextConvexPair(pa, pb, part(a, ha), part(b, hb), elapsed, remaining, seconds, limits);
             if (candidate.hit && (!first.hit || candidate.time < first.time)) first = candidate;
+            // A persistent contact has already supplied the earliest possible
+            // witness. Later leaves cannot beat t=0 (ties keep this first leaf),
+            // so do not repeat exact CCD for the rest of the overlapping timber.
+            if (first.hit && first.time == 0)
+            {
+                first.response = resolve(a.sweep, b.sweep, first.contact, remaining > 0 ? remaining : 1.0);
+                return first;
+            }
         }
     }
     if (first.hit)

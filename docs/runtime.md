@@ -1,8 +1,68 @@
 # Runtime state
 
-Last verified installed delivery: October17,22:11EDT, bounded cleanup of the four commits after18ef666 and restoration of scalar distance haze. Signed engine `54172b7b3330ba14710c91e5bd807efb93a92762e947027b239ad2a76c5e09d0`; canonical staging exits0, signature and installed gameplay parity pass. Current scene appearance, battle behaviour and FPS remain unaccepted. No agent player launch or SAVE load occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
+Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. Battle behaviour, current-save replay and FPS remain unaccepted. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. No agent player launch or SAVE load occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
 
 ## Current verdict
+
+### October17,22:43 — contact/material repair and terrain exclusion installed
+
+The22:15 player follow-up rejects ca918d9's collision FPS and laser latency, reports severe
+stalls during continued contact or section/mast release, and explicitly disables
+terrain excavation. Both supplied PID97749 profiles bind the installed
+F186273F UUID. Main-thread realization accounts for881/1237 and745/1317 samples;
+TOUCH accounts for69/1237 and114/1317. These sampled averages do not establish
+the worst stall, nor do they prove that fragment simulation owns it. Exact raw
+profiles and the matching signed executable are retained in the
+[player receipt](../.local-archives/metal-renderer-evidence/contact-followup-20261017/player/receipt.json).
+
+Source/CPU reproduction identifies two avoidable workloads. Persistent material
+contact continued exact CCD across every leaf after finding its earliest
+possible t=0 witness; early return changes1024→1 exact checks in a dense32×32
+fixture. The stock Flyingdutchman material path mislabeled18 pre-existing
+disconnected islands as newly severed material, so even a release-only job
+generated fragments. Immutable authored connectivity now belongs to each
+positive piece and survives clipping and CHM3 reconstruction. The same real
+beam changes material preparation13.666s→116.125ms, with41.180ms subsequent
+contact projection, a ray-confirmed opening and no false fragments. Cold
+bootstrap remains4.626s. Origin-dependent contact tolerance also rejected a
+tiny valid stock piece; extent-scaled precision and local moment accumulation
+restore its contact projection without removing wood. These measurements do
+not establish player-visible queue latency, GPU publication or FPS.
+
+Terrain objects now remain authored. Admission rejects pure terrain doses before
+queue/SAVE growth, and excavation prewarm/underground prisms/depth bypass are
+removed. Mixed shore models retain stone/fort cuts; legacy checkpoints restore
+terrain while preserving stone damage. A prior-state cap-union fixture verifies
+that terrain walls cannot survive under a stone material tag. Ordinary world
+traces and authored shore collision retain their owners.
+
+The [material owner](naval-ammunition-and-damage.md#material-worker-work-admission-and-authored-connectivity),
+[contact owner](ship-wreck-contact.md#persistent-material-contact-earliest-witness-work)
+and [world owner](sea-phonk.md#current-terrain-policy-excavation-disabled) retain
+the mechanisms and reproducible evidence. CPU/sanitizer checks cover actual
+openings, real and deferred section release, positive-volume conservation,
+CHM3 fresh-source reconstruction, old world checkpoints, terrain/stone collision
+rays, ordinary contact and finite three-body limits.
+
+After the player closes PID97749, canonical
+`experiments/native-metal/run.sh --stage-only` exits0 in280.103s against the
+[frozen11-source batch](../.local-archives/metal-renderer-evidence/contact-followup-20261017/stage-inputs.json).
+The [stage result](../.local-archives/metal-renderer-evidence/contact-followup-20261017/stage-result.json)
+and [installed checks](../.local-archives/metal-renderer-evidence/contact-followup-20261017/installed-checks.json)
+bind native fingerprint `9c40aa14efbe746c39f6d382f4bec635f81688217265610367394d688ca23457`
+to signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`,
+UUID `8AD0E549-3675-31D0-932E-2D0F27050AFD` (arm64). All source hashes remain
+unchanged after staging. Strict signature verification and cache/installed
+gameplay parity pass with0 pending files. The installer backs up prior54172b7b;
+the matching full signed engine is also retained with the player profiles.
+PROGRAM/RESOURCE and player-state owners remain as in the22:11 inventory,
+and canonical player guards pass. The excluded local documentation index is
+[backed up with this evidence](../.local-archives/metal-renderer-evidence/contact-followup-20261017/documentation/README.md).
+
+Disposition: component checks, compilation and installed delivery accepted.
+No game launch, SAVE load or gameplay input occurs. Sustained contact FPS,
+falling mast/fragment behavior, ordinary weapons and current-save replay remain
+unresolved for the player; no game-frame improvement is inferred from CPU probes.
 
 ### October17,22:11 — distance haze and bounded post-optimization repair installed
 
