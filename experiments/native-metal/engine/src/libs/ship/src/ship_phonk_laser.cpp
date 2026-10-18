@@ -1045,12 +1045,14 @@ bool SHIP::ApplyPhonkLaserCutNow(const storm::ship::phonk::LaserPlane &plane, bo
         if(!geometryChanged){if(stateChanged&&!restoring&&phonkLaser.materialReady)SaveHullMaterial();return stateChanged;}
     }
     --pendingNodes;
-    if (phonkLaser.floodCapacity <= 0.f)
-    {
-        GEOS::INFO info{}; root->geo->GetInfo(info);
-        const float draft = std::max(.5f, State.fShipImmersion + SP.fWaterLine - info.boxcenter.y + info.boxsize.y * .5f);
-        phonkLaser.floodCapacity = std::max(1.f, phonkLaser.originalWaterplaneArea * draft * .35f);
-    }
+    GEOS::INFO info{}; if (root && root->geo) root->geo->GetInfo(info);
+    const float approxWaterplane = (info.boxsize.x > 0.f && info.boxsize.z > 0.f) ?
+        (info.boxsize.x * info.boxsize.z * 0.55f) : 100.f;
+    const float waterplane = phonkLaser.originalWaterplaneArea > 1.f ?
+        phonkLaser.originalWaterplaneArea : approxWaterplane;
+    const float draft = std::max(1.5f, State.fShipImmersion + SP.fWaterLine - info.boxcenter.y + info.boxsize.y * .5f);
+    const float realCapacity = std::max(100.f, waterplane * draft * .35f);
+    if (phonkLaser.floodCapacity < realCapacity) phonkLaser.floodCapacity = realCapacity;
     phonkLaser.wetCut = false;
     // Keep actual opening points in sixteen height bands. Averaging upper and
     // lower seams can put every sample above water while the keel is open.
@@ -1996,9 +1998,9 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             phonkLaser.flooded = std::min(phonkLaser.floodCapacity, phonkLaser.flooded +
                 .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed);
         }
-        const float pumpRate = phonkLaser.floodCapacity * 0.012f;
+        const float pumpRate = std::max(2.0f, phonkLaser.floodCapacity * 0.015f);
         phonkLaser.flooded = std::max(0.f, phonkLaser.flooded - pumpRate * elapsed);
-        const float fraction = std::clamp(phonkLaser.flooded / std::max(1.f, phonkLaser.floodCapacity), 0.f, 1.f);
+        const float fraction = std::clamp(phonkLaser.flooded / std::max(50.f, phonkLaser.floodCapacity), 0.f, 1.f);
         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
         flood->SetAttributeUseFloat("volume", phonkLaser.flooded);
         flood->SetAttributeUseDword("owner", uint32_t(phonkLaser.floodOwner));
@@ -2269,6 +2271,14 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     // its finite contacts at spatial beam-radius and existing time resolution;
     // do not connect hits by a cutter through an untraced chord or empty hold.
     stroke.steps=uint32_t(std::max(1.,std::ceil(double(std::max(std::sqrt(~(to-from))/radius,sampleTime/laserSampleTime)))));
+    if (target && target->bMounted && target->phonkLaser.edges.size() < 512)
+    {
+        const float segLenSq = ~(stroke.to - stroke.from);
+        if (segLenSq > 1.e-6f)
+            target->phonkLaser.edges.push_back({stroke.from, stroke.to, 0.f});
+        else
+            target->phonkLaser.edges.push_back({stroke.from - CVECTOR(0.08f, 0, 0), stroke.from + CVECTOR(0.08f, 0, 0), 0.f});
+    }
     phonkLaser.stroke=std::move(stroke);drainStroke();
 }
 

@@ -417,7 +417,9 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
     std::vector<std::size_t> fracturePasses(bodies.size() * bodies.size());
     double elapsed = 0, remaining = seconds;
     std::size_t events = 0;
-    while (remaining > 0)
+    std::size_t subStepIterations = 0;
+    const std::size_t maxSubStepIterations = limits.maxEvents * 2 + 16;
+    while (remaining > 0 && subStepIterations++ < maxSubStepIterations)
     {
         for (auto &p : proxies) frame_detail::predict(p, remaining);
         frame_detail::Event event;
@@ -440,6 +442,24 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         {
             out.exhausted = true;
             proxies[event.a].blocked = proxies[event.b].blocked = true;
+            if (events >= limits.maxEvents)
+            {
+                frame_detail::advance(proxies, remaining);
+                elapsed = seconds;
+                remaining = 0;
+                break;
+            }
+            bool allBlocked = true;
+            for (const auto &p : proxies)
+            {
+                if (!p.hull.points.empty() && !p.blocked) { allBlocked = false; break; }
+            }
+            if (allBlocked)
+            {
+                remaining = 0;
+                elapsed = seconds;
+                break;
+            }
             continue;
         }
         ++events;
@@ -517,6 +537,13 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         refreshMass(a,massAfterA);refreshMass(b,massAfterB);
         if (event.contact.penetration > frame_detail::tolerance(a, b))
             frame_detail::project(a, b, event.contact, frame_detail::tolerance(a, b) * 4);
+    }
+    if (remaining > 0)
+    {
+        out.exhausted = true;
+        frame_detail::advance(proxies, remaining);
+        elapsed = seconds;
+        remaining = 0;
     }
     // Projection changes positions only. It cannot produce impact work. The
     // extra margin stops initial/crowded overlaps from consuming endless TOIs.

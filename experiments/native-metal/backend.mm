@@ -143,7 +143,7 @@ float4 shadeFixedFunction(O v,constant U& u,array<texture2d<float>,8> t,array<sa
 #ifdef STORM_METAL_SHIP_FIRE_SURFACE
  current.rgb+=fireLighting*fireAlbedo*(1.f-burn.x*.25f)+float3(2.2f,.55f,.03f)*burn.w;
 #endif
- float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=v.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}current.rgb=mix(fogColor,current.rgb,z_fog);return current;}
+ float z_fog=1.0f;if(u.fogParams.w>0){float z=v.fog;if(u.fogParams.w==1){z_fog=exp(-u.fogParams.z*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(u.fogParams.z*z,2.0f));}else{z_fog=clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f);}}current.rgb=mix(fogColor,current.rgb,z_fog);return current;}
 fragment float4 fs(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]]) {return shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);}
 fragment float4 fs_solar(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant float4& directionBlend [[buffer(8)]],texture2d<float> cloudFrom [[texture(16)]],texture2d<float> cloudTo [[texture(17)]]) {
     float4 value=shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);
