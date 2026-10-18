@@ -1,5 +1,18 @@
 # Ship collision and contact with sinking ships
 
+## October17 finite frame-contact cap
+
+The event cap in `ship_contact_frame.hpp::integrateFrame` must continue querying
+unblocked bodies against stopped receivers. The Gemini early exit instead
+advanced every remaining body through unchecked time: a third ship could pass
+through the blocked pair. Each exhausted/unresolvable event now blocks at least
+one new body; `maxEvents + bodyCount + 1` bounds the loop. Defensive bound
+expiry retains safe poses instead of advancing unqueried sweeps.
+[Three-body CPU evidence](../.local-archives/metal-renderer-evidence/gemini-cleanup-20261017/ship/)
+reproduces and repairs tunnelling at zero event allowance, with resolved impact,
+disjoint motion and zero-time negatives. Real battle behaviour remains a
+player replay; finite termination alone does not establish collision fidelity.
+
 ## October17 fragment contact CPU regression
 
 The player's `game-20261017-023638-79300.sample.txt` reopens FPS acceptance

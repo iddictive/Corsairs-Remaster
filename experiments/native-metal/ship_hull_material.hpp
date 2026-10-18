@@ -271,6 +271,9 @@ inline bool releaseSections(const Surface*before,Surface&current,unsigned allowa
     const auto authored=!before&&current.supportOriginal?timberSurface(current.supportOriginal->outer,wood):Surface{};
     auto separated=detachEnclosed(before?*before:authored,current);current.cells=cells;current.structure=structure;
     if(current.released.size()!=old+separated.size())return false;const size_t take=std::min(size_t(allowance),separated.size());deferred=take<separated.size();
+    // Pieces beyond the body allowance remain retained material until a
+    // release-only transaction can transfer their physical ownership.
+    for(size_t n=take;n<separated.size();++n)for(unsigned role=0;role<4;++role)appendMesh(surfaceRole(current,role),surfaceRole(separated[n],role));
     current.released.resize(old+take);separated.resize(take);pieces=std::move(separated);
     std::vector<std::shared_ptr<const Mesh>>masks(current.released.begin()+old,current.released.end());return trimReleasedCells(current,masks);
 }
@@ -344,7 +347,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     // Both cease belonging to the hull's actual finite material-cell cache.
     if(!geometry.removedCells.empty()&&!fractureCells(geometry.kept,geometry.removedCells,input.wood))return false;
     if(!tagOpenings(geometry.kept,input.wood,geometry.openings))return false;
-    if(fractured){storm_ship_structure::refreshContacts(damage.state,geometry.kept,input.wood);}
+    if(fractured){auto physical=storm_ship_structure::seed(damage.state.layout,geometry.kept,input.wood);damage.state.contact=std::move(physical.contact);damage.state.physicalCellHealth=std::move(physical.physicalCellHealth);damage.state.physicalBondHealth=std::move(physical.physicalBondHealth);}
     next.hasDeferredSections|=structure_geometry::hasDeferred(damage.state);
     next.structure=std::make_shared<const storm_ship_structure::State>(std::move(damage.state));geometry.kept.structure=next.structure;
     if(fractured||mechanicalGeometry||input.materialTailCount>=31){geometry.kept=rebase(std::move(geometry.kept));next.materialPayload=encode(geometry.kept,input.fingerprint,next.structure);}

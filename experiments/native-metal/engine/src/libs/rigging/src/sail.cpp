@@ -637,7 +637,7 @@ void SAIL::Execute(uint32_t Delta_Time)
         if (pv)
         {
             MetalCpuParallelFor(static_cast<std::size_t>(sailQuantity), [&](std::size_t n) noexcept {
-                if (!gdata[slist[n]->HostNum].bDeleted)
+                if (!gdata[slist[n]->HostNum].bDeleted && !slist[n]->bFreeSail)
                     slist[n]->goWave(&pv[slist[n]->ss.sVert], Delta_Time);
             });
 
@@ -645,6 +645,10 @@ void SAIL::Execute(uint32_t Delta_Time)
             {
                 if (gdata[slist[i]->HostNum].bDeleted)
                     continue;
+
+                // Falling cloth uses the shared rand() sequence; retain its serial order.
+                if (slist[i]->bFreeSail)
+                    slist[i]->goWave(&pv[slist[i]->ss.sVert], Delta_Time);
 
                 // sail bounding box calculation
                 CVECTOR vtmp = slist[i]->ss.boundSphere.rc - slist[i]->ss.boundSphere.r;

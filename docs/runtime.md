@@ -1,8 +1,48 @@
 # Runtime state
 
-Last verified installed delivery: October 17, 19:46 EDT, laser responsiveness, ram crush and fire-fragment FPS optimization, signed engine `2b7d5127df76422828f41b805b02b8d9f84bdda726671754bee3b9552e348b82`. Canonical staging exits 0. Current gameplay/FPS remains unaccepted. No agent player launch, SAVE load or gameplay test occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains 23ac5eb. `TASKS.md` owns the handoff; earlier entries are historical.
+Last verified installed delivery: October17,22:11EDT, bounded cleanup of the four commits after18ef666 and restoration of scalar distance haze. Signed engine `54172b7b3330ba14710c91e5bd807efb93a92762e947027b239ad2a76c5e09d0`; canonical staging exits0, signature and installed gameplay parity pass. Current scene appearance, battle behaviour and FPS remain unaccepted. No agent player launch or SAVE load occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
 
 ## Current verdict
+
+### October17,22:11 — distance haze and bounded post-optimization repair installed
+
+The player requests cleanup of the latest changes, reporting lost distant-island
+haze and degraded/disappearing clouds. Source comparison proves the cloud shader
+already matches18ef666 byte for byte. The scalar fog restoration removed the
+previous per-channel extinction but exposed a clear-weather density of.000005,
+transmitting97.04% at6km. The common WEATHER target is now.00007, transmitting
+65.70%; its directional horizon colour, cloud samples and sky scattering remain.
+
+Source review and CPU/sanitizer falsifiers identify missing overflow hull sections, stale physical
+capacity after fracture, dropped exact cut requests, a third ship passing through
+a pair stopped by the event cap, long-key attribute buffer overflow and shared
+RNG races in free-sail wave work. Repairs preserve material ownership, revision-
+fenced retries and safe capped poses, restore non-mutating attribute lookup, and
+serialize only free cloth. Ordinary cloth/rope parallelism, worker polling,
+immediate cut feedback and fire tuning remain. Their whole-game costs and
+perceptual effects have not been measured here.
+
+Before/after CPU/sanitizer controls and actual32px Metal near/far/rain transport
+pass. [Retained inputs and canonical stage command](../.local-archives/metal-renderer-evidence/gemini-cleanup-20261017/stage-inputs.json)
+link the7 native source paths to the [successful156.97s stage](../.local-archives/metal-renderer-evidence/gemini-cleanup-20261017/stage-result.json).
+Native fingerprint is `10db1febd6dbaf60e30d46b622fbdc92a66a1a8894a2b052d1f5be2c841840cb`;
+installed UUID is `F186273F-7AA9-33DB-99AA-4FFB86D95EC8`. Strict signature
+verification and both gameplay parity checks pass with0 pending files. The
+stage replaced the actually observed prior engine `d5622526`/98313f9, preserving
+its canonical backup. No launcher/configuration/PROGRAM/RESOURCE owner changed:
+the supported app owns bundled PROGRAM/RESOURCE; Application Support/Iddictive
+Corsairs owns player SAVE/config/userdata. Canonical player guards passed.
+
+The [sky owner](metal-dynamic-sky.md#distance-haze-after-the-october17-cleanup),
+[attribute owner](attribute-class-lifetime.md#contract),
+[sail scheduling owner](metal-sea-benchmark.md#ownership-and-isolation),
+[material owner](naval-ammunition-and-damage.md#october17-cleanup-of-deferred-material-ownership)
+and [contact owner](ship-wreck-contact.md#october17-finite-frame-contact-cap)
+retain the mechanisms and scoped evidence. Excluded local sky/attribute topic
+files are also backed up under this evidence owner. Disposition: component,
+compilation and installation accepted; real island/cloud scene, continuous cuts,
+high-speed multi-ship impacts, falling cloth and sustained fire FPS unresolved
+pending player replay. No whole-game acceptance is inferred from these probes.
 
 ### October 17, 19:46 — laser cut latency, ram fracture and fire/fragment FPS optimization delivered
 
@@ -5382,7 +5422,7 @@ actual weather-preset transition and an interactive land scene are not replayed.
 No FPS improvement is claimed; the separate live sea performance finding below
 remains unresolved. Player SAVE/configuration were preserved.
 
-Current installed inventory: canonical `experiments/native-metal/run.sh --stage-only`
+Historical installed inventory (October9; superseded by the current verdict): canonical `experiments/native-metal/run.sh --stage-only`
 returned0 after the final native source change. All8252 portable inputs and the
 ordered patch stack passed; the signed candidate already matched the played app,
 so the final transaction skipped replacement. Installed arm64 engine SHA-256:

@@ -946,13 +946,8 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                 else if(identity&&!rebuilding){
                     auto rejected=std::move(*phonkLaserWork.active);
                     rejected.rejectedFence=hullWorkFence(model);
-                    if(++rejected.retries<=3){
-                        phonkLaserWork.requests.push_back(std::move(rejected));
-                        core.Trace("Ship cut rejected at node %d, phase %s; exact work retained for changed revision (retry %u)",work.failedNode,work.failure.empty()?"unchanged-snapshot":work.failure.c_str(),rejected.retries);
-                    }else{
-                        core.Trace("Ship cut dropped after %u retries at node %d, phase %s",rejected.retries,work.failedNode,work.failure.c_str());
-                        returnImpact(phonkLaser,rejected);
-                    }
+                    phonkLaserWork.requests.push_back(std::move(rejected));
+                    core.Trace("Ship cut rejected at node %d, phase %s; exact work retained for changed revision",work.failedNode,work.failure.empty()?"unchanged-snapshot":work.failure.c_str());
                 }
                 else returnImpact(phonkLaser, *phonkLaserWork.active);
             }
@@ -964,13 +959,8 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
         auto rejected=std::move(phonkLaserWork.requests.front());
         phonkLaserWork.requests.pop_front();
         rejected.rejectedFence=hullWorkFence(GetModel());
-        if(++rejected.retries<=3){
-            phonkLaserWork.requests.push_back(std::move(rejected));
-            core.Trace("Ship cut capture rejected; exact request and previous geometry retained (retry %u)",rejected.retries);
-        }else{
-            core.Trace("Ship cut capture dropped after %u retries",rejected.retries);
-            returnImpact(phonkLaser,rejected);
-        }
+        phonkLaserWork.requests.push_back(std::move(rejected));
+        core.Trace("Ship cut capture rejected; exact request and previous geometry retained until geometry/capacity changes");
     }
 #endif
 }

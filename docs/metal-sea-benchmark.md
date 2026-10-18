@@ -9,6 +9,16 @@ game: encounter AI, player input, quests and battle effects are not exercised.
 
 ## Ownership and isolation
 
+`SAIL::Execute` may dispatch ordinary disjoint cloth work through
+`MetalCpuParallelFor`; free/falling cloth must retain ascending serial execution.
+Its `goWave` callees consume the process-wide native `rand()` state. October17's
+unconditional parallel dispatch lost RNG progression on the installed libc;
+the repaired dispatch keeps free cloth in the original serial bounds loop.
+Rope's disjoint numeric dispatch remains parallel. [Native RNG and extracted
+scheduling evidence](../.local-archives/metal-renderer-evidence/gemini-cleanup-20261017/rigging/NOTES.txt)
+includes before/after sanitizer runs and ordinary/free/deleted/empty cases;
+the scheduling stand-in does not verify actual cloth appearance or game FPS.
+
 `tools/run_sea_benchmark.py` owns input extraction, launch admission, run manifests
 and distributions. It reads the supported app's PROGRAM catalogue/day/light
 definitions and RESOURCE assets, generates an isolated fixture and uses a hidden

@@ -1,5 +1,21 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## October17 cleanup of deferred material ownership
+
+`ship_hull_material.hpp::releaseSections` must return every separated section
+beyond the fragment allowance to retained material; truncating its output alone
+deletes wood without any physical owner. After fracture, the existing `seed`
+rebuilds contact and physical cell/bond capacities from the actual kept surface,
+while paid graph damage remains in the existing state. Replacing this with
+`refreshContacts` left released cells alive in the deferred-capacity projection.
+The producer also retains rejected exact requests behind its existing
+revision/capacity fence; a fixed retry count must not discard paid work.
+[Focused CPU evidence](../.local-archives/metal-renderer-evidence/gemini-cleanup-20261017/ship/)
+covers zero allowance/material conservation, fracture and a subsequent
+release-only no-op. Immediate aim/cut feedback and worker polling are preserved.
+The inherited75% cooperative worker allowance and50ms quantum remain tuning
+choices without a new whole-game latency/FPS measurement.
+
 ## October17 local destruction revision
 
 The player rejects59a56f1 in the01:09/01:11/01:18 replay: the contact star
@@ -29,7 +45,8 @@ queue pressure, progressive real wounds and eventual section separation, ground
 excavation at the actual hit, recoverable finite fires, and impacts that spend
 work on fracture while retaining motion. Unchanged material, sails, ordinary
 weapons, saved damage, map transfers and player files remain valid. Existing
-cooperative10% worker allowance stays; avoid whole-assembly work for an unrelated
+cooperative10% worker allowance was retained in this original batch; later
+tuning is described above. Avoid whole-assembly work for an unrelated
 local receiver and avoid main-thread joins. Invalid requests must retain an
 explicit recovery owner without freezing new aim or every later request.
 No gameplay tests, probes, agent launch or player-process control are authorized;

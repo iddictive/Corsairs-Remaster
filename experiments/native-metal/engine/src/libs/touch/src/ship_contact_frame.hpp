@@ -418,7 +418,9 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
     double elapsed = 0, remaining = seconds;
     std::size_t events = 0;
     std::size_t subStepIterations = 0;
-    const std::size_t maxSubStepIterations = limits.maxEvents * 2 + 16;
+    // A resolved event spends one event slot. Each barrier blocks at least
+    // one new body; blocked pairs are excluded by nextPair.
+    const std::size_t maxSubStepIterations = limits.maxEvents + proxies.size() + 1;
     while (remaining > 0 && subStepIterations++ < maxSubStepIterations)
     {
         for (auto &p : proxies) frame_detail::predict(p, remaining);
@@ -442,13 +444,6 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         {
             out.exhausted = true;
             proxies[event.a].blocked = proxies[event.b].blocked = true;
-            if (events >= limits.maxEvents)
-            {
-                frame_detail::advance(proxies, remaining);
-                elapsed = seconds;
-                remaining = 0;
-                break;
-            }
             bool allBlocked = true;
             for (const auto &p : proxies)
             {
@@ -541,7 +536,9 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
     if (remaining > 0)
     {
         out.exhausted = true;
-        frame_detail::advance(proxies, remaining);
+        // A defensive iteration stop has not queried the remaining sweep.
+        // Keep its last safe poses rather than tunnel through later contacts.
+        for (auto &p : proxies) p.blocked = true;
         elapsed = seconds;
         remaining = 0;
     }
