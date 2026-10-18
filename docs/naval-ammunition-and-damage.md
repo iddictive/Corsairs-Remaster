@@ -1,5 +1,50 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## Integrated producer, contact publication and support repair
+
+The user supersedes the audit-only handoff with a root-owned implementation.
+`LaserState::sampledRay` now survives visual-only frames; the destructive cursor
+spans consecutive admitted samples and resets across target/cloth/fragment/miss
+boundaries. Held time accrues under backpressure, the first hit has no fixed
+sample warm-up, and a completed stroke flushes without the extra burn timer.
+The existing bounded thermal queue still owns dose merging and material work.
+
+Finite material owns actual holes and disconnected sections. A conservative
+waterplane no longer rejects a valid multi-loop material cut. Publication fences
+keep model/generation/material identity, while subsequent node animation cannot
+erase the captured hit. Unhit dependent masts join the same support transaction;
+support-only results reach the existing mast release consumer.
+
+Synchronous contact changes now retain publication metadata and feed
+`ApplyPhonkLaserCutNow` once the render result arrives. This publishes openings,
+remaining material, structural failure, flood capacity/owner and SAVE metadata.
+Already transferred physical bodies are bound to their original transfer-step
+identities; they are removed from the consequence result to prevent duplication.
+TOUCH remains the impact HP owner (`payPartialDamage=false`). A release-only
+follow-up checks dependent joints without applying a second weapon dose.
+
+The stock Flyingdutchman replay uses40,445 faces,20 objects,5379 material cells
+and486 structural cells. Narrow strong contacts previously failed admission;
+local positive-cell edits plus paid coarse-support ownership now complete in
+.825/1.360ms at half-widths.16/1m. Two successive contact deltas combine two real
+bodies and two fields without double transfer. Deferred fine connectivity,
+immutable decoration components and sparse material replacements avoid repeated
+whole-hull work. Render preparation drops from571–612ms to112–159ms; contact
+projection drops from39–41ms to.214–.356ms. A full-seed capacity oracle differs
+by at most4.71e-6. Cold material bootstrap still costs about4s.
+
+The actual.035s thermal beam still removes.017832112226m³ of positive timber,
+opens.169768079184m² and changes a center ray from a hit to a miss. Its geometry
+digest remains16259268190190756983; pristine release-only produces no false
+fragments. Preparation/projection take74.753/6.934ms. These are CPU component
+measurements, **not** capture-to-pixel latency or game FPS. Multi-node support,
+flooding, repair/SAVE and sustained fire still require the rejected player scene
+to be replayed; source repair and staging cannot accept that scene.
+
+[Frozen sources, commands and raw results](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/receipt.json)
+own reproduction. [Runtime](runtime.md#current-verdict) owns installed delivery.
+The following audit describes the pre-repair counterexamples.
+
 ## Reopened player destruction: producer and publication audit
 
 The22:47 player report rejects the405d6ec installed candidate: sweeping the laser

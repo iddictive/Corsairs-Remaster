@@ -52,7 +52,7 @@ inline bool releaseConnected(Surface&current,unsigned allowance,const std::map<i
     handled=false;if(!current.cells)return true;auto ready=convex::ready(current.cells);if(!ready)return true;handled=true;current.cells=ready;auto groups=convex::detached(*ready->convex);const size_t count=std::min(size_t(allowance),groups.size());deferred=count<groups.size();if(!count)return true;groups.resize(count);
     std::vector<convex::Body>bodies;for(const auto&group:groups){convex::Body body;for(auto key:group.pieces){body.sources.push_back(key.cell);body.pieces.push_back(ready->convex->cells[key.cell]->pieces->at(key.piece));}bodies.push_back(std::move(body));}
     convex::Budget budget;auto kept=convex::take(ready,groups,budget);if(!kept)return false;std::vector<Surface>split;if(!convex::partitionSurface(current,*kept,bodies,wood,split))return false;
-    for(unsigned role=0;role<4;++role)surfaceRole(current,role)=std::move(surfaceRole(split[0],role));current.cells=std::move(kept);
+    for(unsigned role=0;role<4;++role)surfaceRole(current,role)=std::move(surfaceRole(split[0],role));current.decorations=std::move(split[0].decorations);current.cells=std::move(kept);
     for(size_t n=1;n<split.size();++n){current.released.push_back(std::make_shared<const Mesh>(renderMesh(split[n])));pieces.push_back(std::move(split[n]));}return true;
 }
 // Same-GEOM decorations follow only a real surviving contact with classified
@@ -126,7 +126,7 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
         for(auto edge:planeSeam(localOuter,plane)){bool inside=true;for(const auto&limit:limits){const float da=storm_ship_hull::dot(limit.normal,edge.a.position)-limit.distance,db=storm_ship_hull::dot(limit.normal,edge.b.position)-limit.distance;if(da>0&&db>0){inside=false;break;}if((da>0)!=(db>0)){const auto point=storm_ship_hull::interpolate(edge.a,edge.b,da/(da-db));if(da>0)edge.a=point;else edge.b=point;}}
             if(inside&&!near(edge.a.position,edge.b.position))next.seam.push_back(edge);}
     }
-    next.kept=*input.surface;next.kept.outer=std::move(groups[0].outer);next.kept.canonicalCaps=std::move(groups[0].canonicalCaps);next.kept.interior=std::move(groups[0].interior);next.kept.finiteWalls=std::move(groups[0].finiteWalls);
+    next.kept=*input.surface;next.kept.decorations.reset();next.kept.outer=std::move(groups[0].outer);next.kept.canonicalCaps=std::move(groups[0].canonicalCaps);next.kept.interior=std::move(groups[0].interior);next.kept.finiteWalls=std::move(groups[0].finiteWalls);
     for(size_t n=1;n<groups.size();++n){const auto physical=renderMesh(groups[n]);bool material=false;for(const auto&o:physical)for(const auto&t:o.second)material|=storm_ship_hull::area(t)>1.e-10f;if(!material)return false;
         next.kept.released.push_back(std::make_shared<const Mesh>(physical));next.pieces.push_back(std::move(groups[n]));}
     next.changed=true;output=std::move(next);return true;

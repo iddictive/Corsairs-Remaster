@@ -134,13 +134,18 @@ inline void buildMaterialIndex(MaterialSnapshot &snapshot, void (*checkpoint)() 
     build(build, 0, ids.size());
 }
 // A contact edit only removes material. Its old source bounds stay conservative,
-// so bounded changed-source overlays share the complete worker-built BVH. Eight
-// pending edits require a worker rebase before another physical commit.
+// so bounded changed-source overlays share the complete worker-built BVH.
+// Compact replacement maps at the chain bound; geometry and its index remain
+// shared, rather than pausing a valid hit for a whole-model reconstruction.
 inline std::shared_ptr<const MaterialSnapshot> applyMaterialReplacements(
     const std::shared_ptr<const MaterialSnapshot> &base, std::map<uint32_t, std::vector<MaterialPiece>> replacements,
-    std::shared_ptr<const std::vector<uint8_t>> retainedSupports = {}, double retainedVolume = -1)
+    std::shared_ptr<const std::vector<uint8_t>> retainedSupports = {}, double retainedVolume = -1,
+    std::shared_ptr<const std::vector<double>> supportVolumes = {})
 {
-    if (!base || base->overlayDepth >= 8 || (replacements.empty() && !retainedSupports)) return {};
+    if (!base || (replacements.empty() && !retainedSupports)) return {};
+    // Ownership-only contacts replace the latest mask; they do not need a
+    // new chain level or a renderer round trip before the next physical hit.
+    auto parent=replacements.empty()&&base->base&&base->replaced.empty()?base->base:base;
     const auto &root = materialRoot(*base);
     for (const auto &entry : replacements)
     {
@@ -158,11 +163,20 @@ inline std::shared_ptr<const MaterialSnapshot> applyMaterialReplacements(
                     p.z < b.loZ - tolerance || p.z > b.hiZ + tolerance) return {};
         }
     }
+    if(parent->overlayDepth>=8){
+        std::vector<const MaterialSnapshot*>chain;
+        for(auto node=parent;node->base;node=node->base){chain.push_back(node.get());parent=node->base;}
+        std::map<uint32_t,std::vector<MaterialPiece>>compacted;
+        for(auto it=chain.rbegin();it!=chain.rend();++it)
+            for(const auto&entry:(*it)->replaced)compacted[entry.first]=entry.second;
+        for(auto&entry:replacements)compacted[entry.first]=std::move(entry.second);
+        replacements=std::move(compacted);
+    }
     auto next = std::make_shared<MaterialSnapshot>();
-    next->base = base; next->overlayDepth = base->overlayDepth + 1; next->replaced = std::move(replacements);
+    next->base = parent; next->overlayDepth = parent->overlayDepth + 1; next->replaced = std::move(replacements);
     next->retainedSupports = std::move(retainedSupports);
     next->authoredVolume=base->authoredVolume;next->retainedVolume=retainedVolume>=0?retainedVolume:base->retainedVolume;
-    next->supportVolumes=base->supportVolumes;
+    next->supportVolumes=supportVolumes?std::move(supportVolumes):base->supportVolumes;
     return next;
 }
 inline double retainedMassFraction(const MaterialSnapshot &snapshot)

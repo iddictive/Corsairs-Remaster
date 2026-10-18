@@ -82,6 +82,18 @@ void UpdateSky()
 	if(isEntity(&Weather))
 	{
 		windSpeed = Whr_GetWindSpeed();
+		// Texture time and tint must advance together, including midnight.
+		// Reuse the original hourly colors and the existing color blend.
+		int nextWeather = FindBlendWeather(iCurWeatherNum);
+		aref currentWeather = GetCurrentWeather();
+		int skyColor = Whr_GetColor(currentWeather, "Sky.Color");
+		if (nextWeather >= 0)
+		{
+			float skyTime = GetTime();
+			skyColor = Whr_BlendColor(skyTime - MakeInt(skyTime), skyColor,
+				Whr_GetColor(&Weathers[nextWeather], "Sky.Color"));
+		}
+		Sky.Color = skyColor;
 	}
 	
 	// Sky.RotateSpeed == 0.05 - это уже много
@@ -90,17 +102,15 @@ void UpdateSky()
 
 void FillSkyDir(aref aSky)
 {
-	int i, nStart, nDur;
+	int i;
 	string satr;
 	aref aCurWeather = GetCurrentWeather();
 	string sDir;
 
 	DeleteAttribute(aSky,"Dir");
-	if( iBlendWeatherNum < 0 )
+	// Native WEATHER still owns time. Authored panoramas must retain the
+	// original full-day blend even when no script weather blend is active.
 	{
-		aSky.Dir.d1 = aCurWeather.Sky.Dir;
-		aSky.Dir = GetHour();
-	} else {
 		for (i=0;i<MAX_WEATHERS;i++)
 		{
 			if (!CheckAttribute(&Weathers[i], "Hour")) {continue;}
@@ -110,18 +120,9 @@ void FillSkyDir(aref aSky)
 			satr = "d" + sti(Weathers[i].Hour.Min);
 			if( satr=="d24" ) {continue;}
 			
-//navy -->
 			sDir = Weathers[i].Sky.Dir;
-			if (CheckAttribute(&WeatherParams, "Rain.ThisDay") && sti(WeatherParams.Rain.ThisDay)) 
-			{
-				nStart = sti(WeatherParams.Rain.StartTime);
-				nDur = MakeInt(sti(WeatherParams.Rain.Duration)/60 + 0.5);
-				if (sti(Weathers[i].Hour.Min) >= nStart  && sti(Weathers[i].Hour.Max) <= (nStart + nDur))
-				{
-					sDir = "weather\skies\Storm01\";
-				}
-			}
-//navy <--
+			// Rain.ThisDay belongs to the retired script forecast. Replacing
+			// night slots with its single daytime storm image breaks the clock.
 			aSky.Dir.(satr) = sDir;
 		}
 		aSky.Dir = GetTime();

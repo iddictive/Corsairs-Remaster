@@ -89,6 +89,7 @@ inline bool boundary(const Mesh&cell,const std::vector<Halfspace>&planes,const A
 }
 inline bool unionCell(Surface&current,const Surface&addition,const Mesh&cell,const std::vector<Halfspace>&planes,const std::set<int>&objects,const std::vector<Mesh>&volumes,Mesh*addedOuter=nullptr){
     Surface next=current;
+    next.decorations.reset();
     for(unsigned role=0;role<4;++role)if(!trim(surfaceRole(current,role),planes,objects,surfaceRole(next,role),true))return false;
     Mesh retained;for(const auto&o:renderMesh(current))if(objects.count(o.first))retained.emplace(o.first,o.second);const MeshLookup retainedIndex(retained);
     for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(addition,role))for(const auto&t:o.second){storm_geometry_work::checkpoint();const auto n=normal(t);const Halfspace p{n,storm_ship_hull::dot(n,t[0].position)};std::vector<Triangle>mask;

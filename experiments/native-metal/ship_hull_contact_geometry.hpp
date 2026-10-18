@@ -56,27 +56,31 @@ inline std::shared_ptr<const contact::MaterialSnapshot> patchContactMaterial(
     const bool ownershipOnly = edit.next.cells == edit.physicalDelta->before.cells;
     double retainedVolume=before->retainedVolume;
     const auto retained=[](const auto&mask,uint32_t support){return !mask||support==storm_ship_structure::NoCell||(support<mask->size()&&mask->at(support));};
-    if(ownershipOnly&&edit.next.retainedSupports&&before->supportVolumes){
-        for(uint32_t id=0;id<before->supportVolumes->size();++id){
-            const bool was=retained(edit.physicalDelta->before.retainedSupports,id),now=retained(edit.next.retainedSupports,id);
-            if(was!=now)retainedVolume+=(now?1.:-1.)*before->supportVolumes->at(id);
-        }
-    }
+    auto volumes=before->supportVolumes?std::make_shared<std::vector<double>>(*before->supportVolumes):nullptr;
+    std::vector<double>changedBefore(volumes?volumes->size():0,0.);
     if (!ownershipOnly) for (uint32_t id : edit.changedCells)
     {
         if (id >= edit.next.cells->convex->cells.size()) return {};
-        contact::MaterialSnapshot source;
         const auto &cell = edit.next.cells->convex->cells[id];
         const auto&old=edit.physicalDelta->before.cells->convex->cells[id];
-        if(old&&old->pieces)for(const auto&piece:*old->pieces)if(retained(edit.physicalDelta->before.retainedSupports,piece.supportCell))retainedVolume-=piece.volume;
+        if(cell==old)continue; // Ownership masks already cover unchanged source pieces.
+        contact::MaterialSnapshot source;
+        if(old&&old->pieces)for(const auto&piece:*old->pieces){
+            if(retained(edit.physicalDelta->before.retainedSupports,piece.supportCell))retainedVolume-=piece.volume;
+            if(volumes&&piece.supportCell<volumes->size()){volumes->at(piece.supportCell)-=piece.volume;changedBefore[piece.supportCell]+=piece.volume;}}
         if (cell && cell->pieces) for (const auto &piece : *cell->pieces)
             {if (!appendContactPiece(source, piece, id, transform)) return {};
-             if(retained(edit.next.retainedSupports,piece.supportCell))retainedVolume+=piece.volume;}
+             if(retained(edit.next.retainedSupports,piece.supportCell))retainedVolume+=piece.volume;
+             if(volumes&&piece.supportCell<volumes->size())volumes->at(piece.supportCell)+=piece.volume;}
         replacements.emplace(id, std::move(source.pieces));
+    }
+    if(before->supportVolumes)for(uint32_t id=0;id<before->supportVolumes->size();++id){
+        const bool was=retained(edit.physicalDelta->before.retainedSupports,id),now=retained(edit.next.retainedSupports,id);
+        if(was!=now)retainedVolume+=(now?1.:-1.)*(before->supportVolumes->at(id)-changedBefore[id]);
     }
     if (replacements.empty() && edit.next.retainedSupports == edit.physicalDelta->before.retainedSupports)
         return before;
-    return contact::applyMaterialReplacements(before, std::move(replacements), edit.next.retainedSupports,std::max(0.,retainedVolume));
+    return contact::applyMaterialReplacements(before, std::move(replacements), edit.next.retainedSupports,std::max(0.,retainedVolume),std::move(volumes));
 }
 inline void prepareContactProjection(const storm_ship_laser::Input &input, storm_ship_laser::Projection &projection,
                                      const ContactTransform &transform)
@@ -87,7 +91,21 @@ inline void prepareContactProjection(const storm_ship_laser::Input &input, storm
     if (!preparePhysicalCache(retained)) return;
     const auto strength = projection.structure ? projection.structure : retained.structure;
     convex::ContactSnapshot snapshot{retained.cells, strength, input.materialRevision};
-    projection.contactPrepared = prepareContactMaterial(snapshot, transform);
+    // The worker already knows exactly which positive cells changed. Reuse
+    // the immutable full-model BVH rather than projecting every timber piece
+    // after each narrow laser sample. Rebase at the existing overlay bound.
+    if(input.contactPrepared&&input.surface->cells&&
+       convex::compatible(*input.surface->cells)&&
+       input.surface->cells->convex->source==retained.cells->convex->source){
+        convex::ContactEdit edit;edit.complete=true;edit.next=snapshot;
+        auto delta=std::make_shared<convex::PhysicalDelta>();
+        delta->before={input.surface->cells,input.structure,input.materialRevision};
+        edit.physicalDelta=std::move(delta);
+        for(uint32_t id=0;id<retained.cells->convex->cells.size();++id)
+            if(retained.cells->convex->cells[id]!=input.surface->cells->convex->cells[id])edit.changedCells.push_back(id);
+        projection.contactPrepared=patchContactMaterial(input.contactPrepared,edit,transform);
+    }
+    if(!projection.contactPrepared)projection.contactPrepared = prepareContactMaterial(snapshot, transform);
     projection.kept = std::make_shared<const storm_ship_laser::Surface>(std::move(retained));
 }
 }

@@ -163,6 +163,7 @@ struct LaserState
 {
     std::vector<LaserFragment> contactBodies;
     std::shared_ptr<const storm::ship::material::convex::PhysicalDelta> contactTransfer;
+    std::optional<LaserCutWork> contactPublication;
     uint64_t contactToken=uint64_t(1)<<63;
     double time = 0.; // native Execute clock; transient, never saved
     float reload = 0.f, beamAge = 1.f;
@@ -173,6 +174,7 @@ struct LaserState
     CVECTOR firstHit = CVECTOR(0.f), lastHit = CVECTOR(0.f);
     CVECTOR muzzle = CVECTOR(0.f), endpoint = CVECTOR(0.f);
     std::vector<LaserRay> rays; // gun-local origins and each ray's own occlusion result
+    std::optional<LaserRay> sampledRay; // Last admitted destructive pose, independent of visual frames.
     std::vector<storm_hull_damage::BeamSample> pendingBeam;
     uint64_t pendingContact = 0;
     bool pendingWorld = false;

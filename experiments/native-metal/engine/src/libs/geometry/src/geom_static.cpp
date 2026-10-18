@@ -63,6 +63,7 @@ struct Input
     uint64_t contactFingerprint=0;
     double contactStructuralArea=0.;
     std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>contactDelta;
+    std::shared_ptr<const storm::ship::contact::MaterialSnapshot>contactPrepared;
 };
 struct Output
 {
@@ -129,7 +130,15 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
         physical.fragmentLimit=storm_hull_damage::MaxFragmentGroups;physical.enclosedFragments=input.enclosed;
         auto projection=std::make_shared<storm_ship_laser::Projection>();
         if(!storm::ship::material::convex::projectContactDelta(physical,*input.contactDelta,*projection))return {};
-        storm::ship::material::prepareContactProjection(physical,*projection,input.contactTransform);
+        if(input.contactPrepared){
+            storm::ship::material::convex::ContactEdit edit;edit.complete=true;
+            edit.next={projection->kept->cells,projection->structure,input.materialRevision};
+            edit.changedCells=input.contactDelta->changedCells;
+            auto publication=std::make_shared<storm::ship::material::convex::PhysicalDelta>();
+            publication->before=input.contactDelta->after;edit.physicalDelta=std::move(publication);
+            projection->contactPrepared=storm::ship::material::patchContactMaterial(input.contactPrepared,edit,input.contactTransform);
+        }
+        if(!projection->contactPrepared)storm::ship::material::prepareContactProjection(physical,*projection,input.contactTransform);
         projection->contactDelta=input.contactDelta;result.contactProjection=std::move(projection);
         result.valid=!cancel.load(std::memory_order_relaxed);return result;
     }
@@ -192,6 +201,7 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
         }
         if(!structure){const auto layout=storm_ship_structure::build(authored,input.wood);structure=std::make_shared<const storm_ship_structure::State>(storm_ship_structure::seed(layout,current,input.wood));}
         current.structure=structure;
+        storm::ship::material::convex::prepareDecorations(current,input.wood);
         if(input.repairPercent>0.){
             const double quota=result.structuralArea*input.repairPercent*.01;
             const Surface before=std::move(current);
@@ -858,7 +868,7 @@ void GEOM::PollHullRebuild()
         try{
             auto input=std::make_shared<storm_geom_hull::Input>();input->owner=hullOwner;input->generation=geometryGeneration;
             input->revision=collisionRevision;input->materialRevision=hullMaterialStateRevision;input->snapshot=laserVisualSurface;
-            input->contactDelta=hullContactPending;input->contactTransform=hullContactTransform;input->wood=laserWoodThickness;
+            input->contactDelta=hullContactPending;input->contactPrepared=hullContactPrepared;input->contactTransform=hullContactTransform;input->wood=laserWoodThickness;
             input->contactFingerprint=hullMaterialFingerprint;input->contactStructuralArea=hullMaterialStructuralArea;input->enclosed=laserEnclosedFragments;
             auto job=std::make_shared<storm_geom_hull::Job>();job->input=input;auto cancel=job->cancel;
             job->future=std::async(std::launch::async,[input=std::move(input),cancel,allowance=storm_geometry_work::allowance()]{try{storm_geometry_work::Scope budget(allowance,cancel);return storm_geom_hull::prepare(*input,*cancel);}catch(...){return storm_geom_hull::Output{};}});
@@ -907,23 +917,29 @@ bool GEOM::PrepareHullContactEdit(uint64_t owner,const storm_ship_laser::Plane&f
     storm::ship::material::convex::ContactEdit&edit,std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&prepared) const
 try{
     using namespace storm::ship::material;
-    if(owner!=hullOwner||!hullContactState||!hullContactPrepared||hullContactPending||hullContactCompleted||
-       HasPendingHullRebuild()||hullRebuildJob||laserPending||revision!=hullMaterialStateRevision)return false;
+    if(owner!=hullOwner||!hullContactState||!hullContactPrepared||hullContactCompleted||
+       hullDesiredValid||laserPending||revision!=hullMaterialStateRevision)return false;
     auto candidate=convex::tryContactEdit(*hullContactState,field,laserWoodThickness,hullMaterialStructuralArea,convex::ContactLimits{});
-    if(!candidate.complete||!candidate.physicalDelta)return false;
+    if(!candidate.complete||!candidate.physicalDelta||
+       (hullContactPending&&(hullContactPending->released.size()+candidate.physicalDelta->released.size()>storm_hull_damage::MaxFragmentGroups||
+        hullContactPending->field.beams.size()+candidate.physicalDelta->field.beams.size()>storm_hull_damage::MaxBeamSamples)))return false;
     auto next=patchContactMaterial(hullContactPrepared,candidate,hullContactTransform);if(!next)return false;
     edit=std::move(candidate);prepared=std::move(next);return true;
 }catch(...){return false;}
 bool GEOM::CommitHullContactEdit(uint64_t owner,const storm::ship::material::convex::ContactEdit&edit,
     const std::shared_ptr<const storm::ship::contact::MaterialSnapshot>&prepared)
 try{
-    if(owner!=hullOwner||!edit.complete||!edit.physicalDelta||!prepared||!hullContactState||hullContactPending||
-       hullContactCompleted||HasPendingHullRebuild()||laserPending||edit.physicalDelta->before.revision!=hullMaterialStateRevision||
+    if(owner!=hullOwner||!edit.complete||!edit.physicalDelta||!prepared||!hullContactState||
+       hullContactCompleted||hullDesiredValid||laserPending||edit.physicalDelta->before.revision!=hullMaterialStateRevision||
        edit.physicalDelta->before.cells!=hullContactState->cells||edit.next.revision!=hullMaterialStateRevision+1)return false;
     auto state=std::make_shared<const storm::ship::material::convex::ContactSnapshot>(edit.next);
+    auto pending=storm::ship::material::convex::combineContactDeltas(hullContactPending,edit.physicalDelta);
+    if(!pending)return false;
+    RetireHullRebuild();
     hullContactState=std::move(state);hullContactPrepared=prepared;hullStructureState=edit.next.strength;
-    hullMaterialStateRevision=edit.next.revision;hullContactPending=edit.physicalDelta;hullContactRenderFailed=false;
-    PollHullRebuild();
+    hullMaterialStateRevision=edit.next.revision;hullContactPending=std::move(pending);hullContactRenderFailed=false;
+    // Draw/Execute submits once after the simulation phase, rather than
+    // launching and cancelling a renderer worker for every contact pass.
     return true;
 }catch(...){return false;}
 bool GEOM::TakeHullContactResult(std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta,
@@ -1094,7 +1110,7 @@ bool GEOM::CaptureLaserInput(uint64_t owner,const storm_ship_laser::Plane&plane,
     if(worldOwner||!owner||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||(!hullMaterialReady&&!storm_hull_damage::canAppendCut(laserPlanes,plane.beams.size())))return false;
     if(!laserPrepared&&!RebuildLaserSurface(false))return false;size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>storm_hull_damage::MaxFragmentBuffers)return false;
     bool physicalContact=plane.beams.empty();if(!physicalContact)for(const auto&beam:plane.beams){laserMaterialCollision.broadphase.queryBounds(storm_ship_laser::beamBounds(beam),laserMaterialCandidates);if(!laserMaterialCandidates.empty()){physicalContact=true;break;}}
-    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasDeferredSections=hullDeferredSections;next.realizeMechanicalCrush=true;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;next.contactTransform=hullContactTransform;input=std::move(next);return true;
+    storm_ship_laser::Input next;next.surface=laserVisualSurface;next.structure=hullStructureState;next.wood=laserWoodThickness;next.plane=plane;next.fragmentLimit=std::min({fragmentLimit,storm_hull_damage::MaxFragmentGroups,unsigned(storm_hull_damage::MaxFragmentBuffers-active)});next.closedVolume=laserClosedVolume;next.generation=geometryGeneration;next.revision=collisionRevision;next.materialRevision=HullMaterialRevision();next.fingerprint=hullMaterialFingerprint;next.materialTailCount=unsigned(hullMaterialTail.size());next.structuralArea=hullMaterialStructuralArea;next.physicalContact=physicalContact;next.hasDeferredSections=hullDeferredSections;next.realizeMechanicalCrush=true;next.hasSupport=support!=nullptr;if(support)next.support=*support;next.enclosedFragments=laserEnclosedFragments&&!support;next.contactTransform=hullContactTransform;next.contactPrepared=hullContactPrepared;input=std::move(next);return true;
 }
 bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&projection,storm_ship_laser::Result&result)
 {

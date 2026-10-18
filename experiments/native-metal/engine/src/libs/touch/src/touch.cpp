@@ -783,7 +783,12 @@ void TOUCH::ResolveShips()
         };
         return committed;
     };
-    const auto result = integrateFrame(bodies, seconds, {}, fracture);
+    FrameLimits limits;
+    // One strong ram can cross several real timber sections. The material
+    // transaction already bounds its admitted fields; three unrelated passes
+    // must not turn the rest of that same impact back into an intact wall.
+    limits.fracturePasses=storm_hull_damage::MaxBeamSamples;
+    const auto result = integrateFrame(bodies, seconds, limits, fracture);
     // Publish material loss at the actual local contact, using the currently
     // presented model transform. A fast TOI may be far from that old transform.
     for (const auto &impact : result.impacts)

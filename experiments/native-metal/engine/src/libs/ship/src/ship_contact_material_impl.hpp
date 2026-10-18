@@ -29,7 +29,7 @@ try{
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     using namespace storm::ship::material;
     auto *model=bMounted?GetModel():nullptr;auto *root=model?model->GetNode(0):nullptr;
-    if(!root||!root->geo||PhonkActive()||!GetACharacter()||phonkLaserWork.active||
+    if(!root||!root->geo||PhonkActive()||!GetACharacter()||
        !std::isfinite(request.specificWork)||request.specificWork<=0||
        !finite(request.point)||!finite(request.normal)||request.crossSection.size()<3)return false;
     convex::ContactSnapshot before;std::shared_ptr<const storm::ship::contact::MaterialSnapshot>oldPrepared;
@@ -54,12 +54,36 @@ try{
     if(!(domain>0)||!std::isfinite(domain)||!edit.physicalDelta)return false;
     const double spent=edit.spentWork*strength/domain;
     if(!std::isfinite(spent)||spent<0||spent>request.specificWork)return false;
+    const bool continuing=phonkLaser.contactPublication&&phonkLaser.contactPublication->model==uint64_t(GetModelEID())&&
+        phonkLaser.contactPublication->modelName==cShipIniName;
+    storm::ship::phonk::LaserCutWork publication=continuing?*phonkLaser.contactPublication:storm::ship::phonk::LaserCutWork{};
+    publication.model=uint64_t(GetModelEID());publication.modelName=cShipIniName;
+    if(continuing)publication.request.plane.beams.insert(publication.request.plane.beams.end(),plane.beams.begin(),plane.beams.end());
+    else publication.request.plane=plane;
+    publication.request.owner=request.otherCharacterIndex;
+    publication.request.payPartialDamage=false; // TOUCH owns the impact HP debit.
+    if(!continuing){publication.originalContour=phonkLaser.contour;
+        publication.originalKeel=phonkLaser.originalKeel;
+        publication.originalArea=phonkLaser.originalWaterplaneArea;}
+    if(publication.originalContour.empty()){
+        CVECTOR contour[128];int32_t count=0;const auto visible=model->mtx;
+        BuildContour(contour,count,1.f);model->mtx=visible;model->Update();
+        if(count<3||count>128)return false;
+        publication.originalContour.assign(contour,contour+count);
+        publication.originalArea=contourArea(publication.originalContour);
+        if(bKeelContour)publication.originalKeel.assign(std::begin(vKeelContour),std::end(vKeelContour));
+    }
+    publication.contour=publication.originalContour;
     const CMatrix eventWorld(CVECTOR(0.f,request.eventWorldYaw,0.f),request.eventWorldPosition);
     if(!PrepareHullContactBodies(edit.physicalDelta,root->loc_mtx,eventWorld,request.eventWorldVelocity,
         request.eventYawVelocity,preEditMass*50.,oldPrepared->retainedVolume))return false;
     if(!root->geo->CommitHullContactEdit(uint64_t(blots_id),edit,prepared)){
         DiscardHullContactBodies(edit.physicalDelta);return false;}
     CommitHullContactBodies(edit.physicalDelta);
+    phonkLaser.contactPublication=std::move(publication);
+    // Its accepted dose stays queued, but an obsolete value worker must not
+    // compete with publication of this already committed physical revision.
+    if(phonkLaserWork.cancel)phonkLaserWork.cancel->store(true,std::memory_order_relaxed);
     out.material.prepared=std::move(prepared);out.material.revision=edit.next.revision;out.spentSpecificWork=spent;
     out.material.retainedMassFraction=storm::ship::contact::retainedMassFraction(*out.material.prepared);
     out.physicalDelta=edit.physicalDelta;out.retainedMass=GetHullContactMass();

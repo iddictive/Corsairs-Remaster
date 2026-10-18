@@ -1,5 +1,33 @@
 # Ship collision and contact with sinking ships
 
+## Local contact admission and same-impact fracture continuation
+
+Contact admission no longer waits for an unrelated laser value worker or a
+pending render projection. The physical material revision commits in the
+simulation phase; sequential deltas share one pending projection, bounded by
+the existing16-field/32-body transaction limits. Superseded workers retire with
+cancellation; their accepted weapon requests remain queued. Drawing submits one
+projection after the simulation phase instead of starting/cancelling one per
+contact pass. A completed unconsumed result and an actual reconstruction still
+fence conflicting changes.
+
+Narrow edits rebuild only touched positive cells and update their physical
+snapshot before the solver chooses its response. Fine connectivity finishes in
+the value worker; actual paid structural support ownership determines released
+pieces. Sparse projection overlays compact at depth8 rather than refuse another
+valid edit. Retained mass/support volumes include both local removal and changed
+ownership. No geometry is invented to fill a hole.
+
+The native solver also used a hard three-fracture limit for one impact. An
+eight-column material falsifier left five solid columns and applied a rigid
+response after the third cut. Native TOUCH now requests the same16 passes as
+the admitted field budget; the generic default remains3 and the frame event cap
+still bounds it. The replay reaches all8 columns; the ordinary nonfracturing
+case still transfers impulse. Stock narrow contact and combined-delta results
+are in the [shared material evidence](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/receipt.json).
+Neither fixture measures the player's worst frame, GPU publication or collision
+fidelity at the reported HUD speeds. The real-scene verdict remains in runtime.md.
+
 ## Persistent material contact: earliest-witness work
 
 The22:15 player samples match installed UUIDF186273F/ca918d9. They reopen

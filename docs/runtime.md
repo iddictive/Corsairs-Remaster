@@ -1,8 +1,71 @@
 # Runtime state
 
-Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. The22:47 player replay rejects laser/ram destruction and contact-frame performance; the22:55 capture also rejects night-sky consistency. Subsequent source audits leave integrated repairs pending. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
+Last verified engine delivery: October18, original-sky and destruction repair batch, signed engine `d9195bc3795f3bdaec7bed6690693da6985b57526850c77e1ccbedd97ed7e6a5`, UUID `B6563F18-23BD-3994-92E6-9FA28BAC6C0B`. Canonical staging and installed gameplay parity pass; the final hourly-tint script delivery is recorded below. The saved procedural-sky flag is0. Source/CPU checks repair the audited laser/contact/publication/support defects; player-scene delay, FPS, sinking and visuals remain unresolved under the no-launch/Computer Use boundary. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
 
 ## Current verdict
+
+### October18 — original sky and integrated destruction repair
+
+The player supersedes the notes-only handoff: root personally implements the
+audit findings, selects original sky and removes avoidable laser/ram waits.
+No new subagents or Computer Use are used. Explicit human-approved coordination
+adds the separately authorized `sea.cpp` interior-water scope to the same frozen
+build; one integrator owns Git/index/build/stage.
+
+The [material owner](naval-ammunition-and-damage.md#integrated-producer-contact-publication-and-support-repair)
+records persistent destructive sampling, first-dose/flush admission, material
+identity fences, dependent-mast selection and common ingress/structural/SAVE
+publication. The [contact owner](ship-wreck-contact.md#local-contact-admission-and-same-impact-fracture-continuation)
+records local physical edits, combined transfer identity, sparse projection and
+native16-pass fracture continuation. Already paid impact HP and physical bodies
+are not duplicated. Ordinary contact, stock geometry/rays, pristine no-release,
+combined physical deltas and a full-seed capacity oracle pass bounded CPU checks.
+Stock narrow physical contact takes.825–1.360ms; render preparation112–159ms and
+contact projection.214–.356ms. The thermal cut remains geometrically identical
+and prepares/projects in74.753/6.934ms. Cold material preparation still takes
+about4s. These are component times, not complete game frames or zero latency.
+
+Original hourly panoramas replace procedural sky by the existing flag. Backend,
+new UI and adapter defaults are off; the actual player `metal_graphics` record
+changes only `dynamic_sky=1→0`, with before/after bytes retained. `FillSkyDir`
+always supplies24 original hourly directories; the stale single-entry route and
+retired daytime storm substitution are removed. A final source check also finds
+that original night tint is RGB64 versus day255: `UpdateSky` now uses the existing
+current/next color blend with WEATHER-owned time. The real script compiler
+accepts the complete current WhrSky; its24-slot output and exact tint block pass
+six supplied times including midnight. No renderer entity or game is launched.
+
+The sea scope removes316 triangles in a same-executable8-ship comparison and
+shows no measured CPU/GPU regression. Both arms lack complete shadow cubes and
+use intact ships; mesh-edge quality and water through a real breach remain open.
+The [sea owner](sea-reflections.md#ship-interior-water-exclusion) retains these
+limitations. Existing shader bridge/astronomy and source projection checks pass.
+`metal_graphics_live_probe.py` fails its legacy LostRender binding-order contract
+in HEAD-identical, untouched `s_device.cpp`; this pre-existing broader failure is
+not hidden by the targeted passes and is outside this batch's renderer changes.
+
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 for the
+[frozen18-source batch](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/stage-inputs.json).
+The first [installed identity](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/stage-result.json)
+binds native fingerprint `a5f63c13d163bdbd7672be1bd11c4bab7939248ce42db29cf0c116462a2534cc`
+to the signed engine above. The hourly-tint script is a content-only follow-up
+through the same canonical staging command, reusing that engine;
+[final inputs](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/stage-inputs-final.json)
+and [final result](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/stage-final-result.json)
+are the current delivery owner. Source/CPU commands, frozen snapshots, raw output
+and original preset inputs live in the [repair receipt](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/receipt.json).
+They do not replace player acceptance of the rejected scene.
+
+Current consuming inventory: `/Applications/Corsairs Iddictive Remaster.app`,
+`Contents/MacOS/metal-engine`, real `Contents/Resources/PROGRAM` and `RESOURCE`
+directories, installed public launcher/graphics adapter. SAVE, profile/options,
+userdata and global graphics record remain owned by
+`~/Library/Application Support/Iddictive Corsairs`; only the named sky option
+changes. The prior signed3ef2bd85 engine remains in the canonical install backup.
+No game launch, process termination, push or public ZIP/Drive update occurs.
+Disposition: source/component repairs and installed delivery; actual continuous
+laser, strong ram, worst contact frame, support release, flooding/SAVE/repair and
+night/weather/haze scene acceptance remain **unresolved**, owned by player replay.
 
 ### October17,22:55 player rejection — night sky and repair handoff
 

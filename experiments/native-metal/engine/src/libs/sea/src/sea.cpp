@@ -1,11 +1,14 @@
 #include "sea.h"
 #include "weather_base.h"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+#include "ship_base.h"
 #include "sea_geomorph.h"
 #include "vai_objbase.h"
 
 #include "metal_cpu_parallel.h"
 #include <algorithm>
+#include <cstdlib>
+#include <limits>
 #include <thread>
 
 #include "core.h"
@@ -29,7 +32,27 @@ CREATE_CLASS(SEA)
 
 #define MIPSLVLS 4
 
-namespace { constexpr uint32_t kReflectionSize = 256; }
+namespace {
+constexpr uint32_t kReflectionSize = 256;
+
+struct HullWaterCutout {
+    std::vector<CVECTOR> polygon;
+    float minX, minZ, maxX, maxZ;
+
+    bool contains(float x, float z) const {
+        if (x < minX || x > maxX || z < minZ || z > maxZ) return false;
+        bool positive = false, negative = false;
+        for (size_t i = 0; i < polygon.size(); ++i) {
+            const auto &a = polygon[i], &b = polygon[(i + 1) % polygon.size()];
+            const float cross = (b.x - a.x) * (z - a.z) - (b.z - a.z) * (x - a.x);
+            positive |= cross > 1.e-5f;
+            negative |= cross < -1.e-5f;
+            if (positive && negative) return false;
+        }
+        return true;
+    }
+};
+}
 
 #define GC_CONSTANT 0 // Global constants = {0.0, 1.0, 0.5, 0.0000152590218967 = (0.5 / 32767.5)}
 #define GC_CONSTANT2 1 // Global constants 2 = {2.0, -1.0, 0.00036621652552071 = (12 / 32767.5), fog}
@@ -1540,6 +1563,33 @@ void SEA::Realize(uint32_t dwDeltaTime)
         }
     }
 
+    // Source the exclusion from retained hull geometry, including current cuts.
+    // A submerged/detached hull no longer masks water. A diagnostic off switch
+    // lets the fleet workload compare identical executable and scene inputs.
+    std::vector<HullWaterCutout> waterCutouts;
+    const char *cutoutMode = std::getenv("STORM_METAL_SEA_HULL_CUTOUT");
+    if (!cutoutMode || cutoutMode[0] != '0' || cutoutMode[1] != '\0')
+        for (const auto shipId : core.GetEntityIds("ship")) {
+            auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(shipId));
+            if (!ship) continue;
+            std::vector<CVECTOR> contour;
+            float lower = 0.f, upper = 0.f;
+            if (!ship->GetHullContactContour(contour, lower, upper) || contour.size() < 3) continue;
+            auto *world = ship->GetMatrix();
+            if (!world) continue;
+            HullWaterCutout cutout{std::move(contour),
+                std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(),
+                -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()};
+            for (auto &point : cutout.polygon) {
+                point = *world * point;
+                cutout.minX = std::min(cutout.minX, point.x);
+                cutout.minZ = std::min(cutout.minZ, point.z);
+                cutout.maxX = std::max(cutout.maxX, point.x);
+                cutout.maxZ = std::max(cutout.maxZ, point.z);
+            }
+            waterCutouts.push_back(std::move(cutout));
+        }
+
     auto pVSea2 = static_cast<SeaVertex *>(rs->LockVertexBuffer(iVSeaBuffer, storm_render::lock::discard | storm_render::lock::noSystemLock));
     pTriangles = static_cast<uint16_t *>(rs->LockIndexBuffer(iISeaBuffer, storm_render::lock::discard | storm_render::lock::noSystemLock));
 
@@ -1552,6 +1602,46 @@ void SEA::Realize(uint32_t dwDeltaTime)
     MetalCpuParallelFor(aBlocks.size(), [this](size_t index) noexcept {
         SSE_WaveXZBlock(aBlocks[index]);
     });
+
+    // Cull only triangles in blocks touched by a hull. This removes water
+    // fragments rather than adding per-pixel ship loops to the sea shader.
+    if (!waterCutouts.empty() && iTStart) {
+        auto *indices = pTriangles - iTStart * 3;
+        uint32_t read = 0, write = 0;
+        for (const auto &block : aBlocks) {
+            const uint32_t triangleCount = uint32_t(block.iSize0) * uint32_t(block.iSize0) * 2;
+            std::vector<const HullWaterCutout *> nearby;
+            const float originX = vSeaCenterPos.x + float(block.iTX * block.iSize) * fGridStep;
+            const float originZ = vSeaCenterPos.z + float(block.iTY * block.iSize) * fGridStep;
+            const float side = float(block.iSize) * fGridStep;
+            const float margin = fGridStep * float(1u << std::min(block.iLOD + 2, 16)) + std::abs(fPosShift) * 3.f;
+            for (const auto &cutout : waterCutouts)
+                if (cutout.maxX >= originX - margin && cutout.minX <= originX + side + margin &&
+                    cutout.maxZ >= originZ - margin && cutout.minZ <= originZ + side + margin)
+                    nearby.push_back(&cutout);
+            if (nearby.empty()) {
+                if (write != read) std::memmove(indices + write * 3, indices + read * 3, triangleCount * 3 * sizeof(uint16_t));
+                write += triangleCount;
+            } else {
+                for (uint32_t n = 0; n < triangleCount; ++n) {
+                    const auto *triangle = indices + (read + n) * 3;
+                    const auto &a = pVSea[triangle[0]].vPos;
+                    const auto &b = pVSea[triangle[1]].vPos;
+                    const auto &c = pVSea[triangle[2]].vPos;
+                    const float x = (a.x + b.x + c.x) / 3.f + vWorldOffset.x;
+                    const float z = (a.z + b.z + c.z) / 3.f + vWorldOffset.z;
+                    bool covered = false;
+                    for (const auto *cutout : nearby) if (cutout->contains(x, z)) { covered = true; break; }
+                    if (!covered) {
+                        std::memmove(indices + write * 3, triangle, 3 * sizeof(uint16_t));
+                        ++write;
+                    }
+                }
+            }
+            read += triangleCount;
+        }
+        iTStart = write;
+    }
 
     if (iVStart && iTStart)
         memcpy(pVSea2, pVSea, iVStart * sizeof(SeaVertex));

@@ -405,7 +405,7 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
     limits.maxPairAdvances = std::min<std::size_t>(limits.maxPairAdvances, 256);
     limits.positionIterations = std::min<std::size_t>(limits.positionIterations, 128);
     limits.materialCandidates = std::min<std::size_t>(limits.materialCandidates, 16384);
-    limits.fracturePasses = std::min<std::size_t>(limits.fracturePasses, 3);
+    limits.fracturePasses = std::min(limits.fracturePasses, limits.maxEvents);
     std::vector<frame_detail::Proxy> proxies;
     proxies.reserve(bodies.size());
     for (const auto &b : bodies)

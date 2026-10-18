@@ -1,5 +1,24 @@
 # Sea reflection motion
 
+## Ship interior water exclusion
+
+The separately authorized ship-interior-water scope contributes one frozen
+`sea.cpp` change to the shared installed batch. SEA obtains each retained hull
+XZ contour through the existing SHIP collision owner, selects nearby sea blocks
+and culls triangles whose centroid lies inside it after wave generation. Dead
+fully submerged hulls stop supplying that contour. The original fragment shader
+has no additional ship loop; `STORM_METAL_SEA_HULL_CUTOUT=0` is a diagnostic off
+switch. This is mesh-resolution exclusion, not exact clipping at every hull edge.
+
+A serial same-executable8-ship1920×1080 comparison (256 frames,96 warmup) gives
+off/on CPU preparation medians10.189/10.035ms, completion cadence10.304/10.095ms
+and GPU medians8.213/7.840ms;316 sea triangles are removed. No regression is
+measured in this fixture. Both arms report zero complete shadow cubes and use
+intact ships, so this cannot accept full-scene FPS or water through a real breach.
+[Inputs, raw traces and summaries](../.local-archives/metal-renderer-evidence/interactive-repair-20261017/sea/receipt.json)
+retain the comparison. Root owns the integrated build/stage; player breach replay
+and hull-edge appearance remain unresolved in runtime.md.
+
 The player reports ship/shore reflections changing rapidly with a stationary
 camera. Native `fTmp` advances one 64-slice normal-volume cycle per second;
 authored physical wave phases advance 1–8 slices per second. The two rates are
