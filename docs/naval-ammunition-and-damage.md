@@ -2,6 +2,19 @@
 
 ## Native capture-to-publication latency
 
+October18 player loading regression: the unconditional readiness loop in
+`SHIP::Mount` held the main thread while adding a ship to an already live sea.
+The player's 02:17:27 sample contains 189/1324 main-thread samples inside
+`Mount`/`sleep_for`; workers were building the physical graph. The two other
+ten-second samples show ordinary sea rendering, so they do not measure a full
+loading interval or establish its reported 30-second duration. `Mount` now
+starts material preparation once without waiting. The existing `Execute` path
+polls readiness, and contact/weapon publication still requires prepared
+material. This removes that main-thread wait while keeping worker priority,
+shared pristine layouts and bounded geometry work. The first hit during an
+unfinished cold rebuild may again wait for material; compare both loading and
+first-hit latency in the player scene before calling either accepted.
+
 The October18 follow-up reopens the preceding component-only result. The actual
 eight-Manowar CORE/SHIP/GEOM driver measures6.594s cold damage,1.400s hot damage
 and19.737s contact publication before the repair. Timing separates an18.371s
@@ -9,8 +22,8 @@ contact queue wait from166ms of actual projection: both GEOM slots were occupied
 by other ships' cold material preparation. The two-slot owner now prioritizes
 committed contact and cooperatively retires one unpublished background rebuild.
 
-Required material readiness finishes during `SHIP::Mount`, using the existing
-bounded workers. Identical pristine hulls share immutable surfaces/cells/layout
+The earlier candidate required material readiness before `SHIP::Mount` returned,
+using the existing bounded workers. Identical pristine hulls share immutable surfaces/cells/layout
 under the existing authored fingerprint; weak entries expire with live surfaces.
 Damage, repair, foreign state and nonempty checkpoint tails retain their own
 preparation. Reusing the surface while substituting a new layout was rejected:

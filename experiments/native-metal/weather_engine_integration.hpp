@@ -117,9 +117,7 @@ void WEATHER::ApplyWeatherConditions()
     if (!weatherState) return;
     const auto c=weatherEngine.local();
     fFloats[whf_wind_angle]=c.angle; fFloats[whf_wind_speed]=c.speed;
-    // Keep distant terrain in the shared horizon air after removing the
-    // renderer's per-channel extinction, which tinted silhouettes blue.
-    fFloats[whf_fog_density]=.00007f+c.rain*.00004f;
+    fFloats[whf_fog_density]=.000005f+c.rain*.00004f;
     visualRainTarget=WeatherRainIntensity(c.rain)*5000.f;
     const float hour=storm_weather_visual::wrapDayHour(fFloats[whf_time_counter]);
     const int first=static_cast<int>(hour), next=(first+1)%24;

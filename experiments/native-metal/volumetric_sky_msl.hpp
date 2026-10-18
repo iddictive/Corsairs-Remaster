@@ -634,12 +634,9 @@ SkyAirField skyAirField(float3 direction,constant SkyWeather&weather,texture2d<f
     color=mix(color,physical,twilight*.72f);
     return {d,sun,color,solarElevation,daylight,glow};
 }
-float4 skyRadianceBase(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance,float3 authoredBase,bool hasAuthoredBase) {
+float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
     SkyAirField air=skyAirField(direction,weather,atmosphere);
     float3 d=air.direction,sun=air.sun,color=air.color;
-    // Keep the original hourly panorama above the horizon. The shared air
-    // field meets sea/terrain fog at grazing angles; clouds stay volumetric.
-    if(hasAuthoredBase) color=mix(color,authoredBase,smoothstep(0.f,.06f,d.y));
     float solarElevation=air.solarElevation,daylight=air.daylight;
     float3 upper=float3(.48f,.62f,.82f);upper=mix(upper,float3(length(upper)),.5f);
     float3 lower=float3(.28f,.32f,.36f);lower=mix(lower,float3(.4f,.55f,.65f)*length(lower),.5f);
@@ -671,19 +668,8 @@ float4 skyRadianceBase(float3 direction,constant SkyWeather&weather,texture2d<fl
     color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
     return float4(max(color,0.f),air.glow);
 }
-float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>cloudFrom,texture2d<float>cloudTo,texture2d<float>atmosphere,texture2d<float>transmittance) {
-    return skyRadianceBase(direction,weather,cloudFrom,cloudTo,atmosphere,transmittance,float3(0.f),false);
-}
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
-    float3 authored=float3(0.f);
-    if(draw.hasCurrentTexture) authored=current.sample(skySampler,in.uv).rgb;
-    if(draw.hasNextTexture) {
-        float3 nextColor=next.sample(skySampler,in.uv).rgb;
-        authored=draw.hasCurrentTexture?mix(authored,nextColor,clamp(draw.textureBlend,0.f,1.f)):nextColor;
-    }
-    authored*=in.tint.rgb;
-    float4 rad=skyRadianceBase(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance,
-                               authored,draw.hasCurrentTexture||draw.hasNextTexture);
+    float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
     return skyLocalComposite(float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f),float3(in.position.xy,1.f),fogDraw,localVolume);
 }
 kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {

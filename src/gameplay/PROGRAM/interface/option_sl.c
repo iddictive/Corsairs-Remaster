@@ -25,7 +25,7 @@ void PrepareDefaultMetalGraphics(ref optref)
 	optref.modern_lighting = true;
 	optref.cinematic = true;
 	optref.light_shafts = true;
-	optref.dynamic_sky = true;
+	optref.dynamic_sky = false;
 	optref.antialiasing = false;
 	optref.upscaling = 0;
 	optref.vsync = false;

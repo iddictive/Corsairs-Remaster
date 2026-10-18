@@ -10,7 +10,6 @@
 
 #include <chrono>
 #include <cmath>
-#include <thread>
 
 #include "ai_flow_graph.h"
 #include "sailing_floor.h"
@@ -3461,17 +3460,9 @@ bool SHIP::Mount(ATTRIBUTES *_pAShip)
             if (!node->geo->CaptureLaserInput(uint64_t(blots_id), field, 1, nullptr, input))
                 core.Trace("Ship cut immutable input unavailable for node %s", node->GetName() ? node->GetName() : "");
         }
-    // Material/collision readiness is a loading prerequisite. Deferring it to
-    // Execute made the first live hit wait behind seconds of cold graph work.
-    // Poll the existing bounded value workers; rejected/foreign SAVE must not
-    // turn loading into an infinite retry or silently reset its material.
-    while (!EnsureHullMaterial()) {
-        bool pending = false;
-        if (auto *model = GetModel()) for (int n = 0; auto *node = model->GetNode(n); ++n)
-            if (node->geo && node->geo->HasPendingHullRebuild()) pending = true;
-        if (!pending) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    // Start the existing value worker without holding the scene-loading thread.
+    // Execute polls readiness before material-dependent damage is published.
+    EnsureHullMaterial();
 #endif
     if (auto *entry = GetACharacter()->FindAClass(GetACharacter(), "Ship.SeaEmergence")) {
         if (entry->GetAttributeAsDword("Active", 0)) {

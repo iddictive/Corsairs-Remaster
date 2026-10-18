@@ -1,10 +1,45 @@
 # Runtime state
 
-Last verified engine delivery: October18 hybrid correction, signed engine `b2e69dc433b29654463dc0d7e5d92f96c61f054f09a763b0409b6521d96ce41d`. Canonical staging, deep-strict app signature and interactive sea-scene startup pass. The player graphics record selects hybrid sky (`dynamic_sky=1`); structural contact fracture is off by default. Prior damage-latency source optimizations remain. Matched scene visual/FPS and ram replay are unresolved. Ship-interior sea exclusion remains disabled. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
+Last verified engine delivery: October18 visual rollback and nonblocking ship Mount, signed engine `6146d2e10dff253a23b5664c5c9f1b4beb20869e3c5bc7b648b8a0589493b956`. Canonical `run.sh --stage-only` exited0; the installed player record selects authored sky (`dynamic_sky=0`), and structural contact fracture remains off by default. Prior renderer/FPS source optimizations remain; the Mount readiness wait was removed because it blocked live ship additions. Same-scene graphics, complete loading duration, FPS and first-hit latency are unresolved. Ship-interior sea exclusion and terrain excavation remain disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
 
 ## Current verdict
 
-### October18 hybrid atmosphere and structural-contact off
+### October18 player rejection — restore earlier shaders, sky off, loading wait removed
+
+The player's 02:16 sea frame rejects the hybrid: the horizon has a hard seam,
+the island and water are very dark under a brighter sky, and distance fog is
+not apparent. This is a scene-level observation, not proof of one shader's
+cause. The requested visual target is the earlier authored appearance with
+hybrid sky off and native performance work retained.
+
+The hybrid panorama/volume mixing in `volumetric_sky_msl.hpp` was removed;
+`dynamic_sky` defaults to0 in native settings, gameplay defaults and backend.
+The installed player's record changed only `dynamic_sky=1→0`; its prior bytes
+are backed up in AppSupport `.graphics-config-backups/20261018-sky-rollback`.
+October17 scalar FFP/land fog and its paired raised WEATHER density reverted to
+the pre-evening spectral shader/density pair. October18 outdoor illumination
+work that computed volume-sky light while sky drawing was off also reverted.
+The October18 authored hourly texture/time/tint repair remains, as do unrelated
+renderer performance changes and the opt-in structural-contact gate.
+
+The 02:17:27 user sample puts 189/1324 main-thread samples in
+`SHIP::Mount`/`sleep_for` while adding a ship to a running sea. Workers were
+preparing the physical hull; the 02:16 and 02:18 samples are ordinary rendering.
+The unconditional `Mount` polling loop introduced in `00f3c40` is removed;
+Mount starts the work once and the existing Execute path polls it. These three
+samples do not establish the reported 30-second total. The prior latency fixture
+showed that fully waiting during Mount reduced first-hit latency; removing the
+load wait can expose a cold first-hit delay. That tradeoff requires player replay.
+
+`experiments/native-metal/run.sh --stage-only` exited0 after all seven source
+changes, installing signed engine
+`6146d2e10dff253a23b5664c5c9f1b4beb20869e3c5bc7b648b8a0589493b956`.
+The app reached its main menu during a launch before the player's explicit
+instruction to leave the game alone; no further game interaction was made.
+Neither the pictured sea scene nor a timed load was replayed after the rollback.
+Disposition: **installed; visual, loading and first-hit acceptance unresolved**.
+
+### October18 hybrid atmosphere and structural-contact off — rejected visual candidate
 
 The player reports that graphics degraded over the October17–18 changes and
 requires a hybrid sky/fog with the prior visual character and retained FPS work.

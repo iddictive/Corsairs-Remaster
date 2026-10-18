@@ -38,7 +38,7 @@ DEFAULTS = {
     "modern_lighting": True,
     "cinematic": True,
     "light_shafts": True,
-    "dynamic_sky": True,
+    "dynamic_sky": False,
     "antialiasing": False,
     "upscaling": 0,
     "vsync": False,
