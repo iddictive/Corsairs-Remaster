@@ -1,8 +1,28 @@
 # Runtime state
 
-Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. The22:47 player replay rejects laser/ram destruction and contact-frame performance; the subsequent source audit below leaves repairs pending. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
+Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. The22:47 player replay rejects laser/ram destruction and contact-frame performance; the22:55 capture also rejects night-sky consistency. Subsequent source audits leave integrated repairs pending. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
 
 ## Current verdict
+
+### October17,22:55 player rejection — night sky and repair handoff
+
+The supplied frame shows HUD20:56, bright cloudy sky, dark sea/hull and a sharp
+horizon. The root personally audits WEATHER/SKY/Metal and records a conditional
+stale authored-sky defect in the [atmosphere owner](metal-dynamic-sky.md#night-sky-mismatch-owner-audit).
+The specific runtime route behind this frame remains unknown: the saved option
+is enabled, but preparation failures can select fallback; the available launch
+log is old. The source-bound, rebuilt existing `dynamic_sky-probe` passes its
+component day/night/weather/Metal checks. This does not accept the rejected scene
+or establish that the sky in the capture is authored rather than procedural.
+
+The player asks for notes for agents they will assign later and prefers the
+captured sky's appearance to the procedural result. The
+[Russian repair handoff](destruction-atmosphere-handoff.md) binds the existing
+destruction findings, contact-performance gap and atmosphere audit to three
+future work packages and one integration owner. No agents are dispatched, no
+computer/game control occurs, and no production code, installed engine or player
+state changes. Source audit/notes complete; gameplay and atmosphere repairs and
+real-scene acceptance remain pending. The22:43 installed inventory is unchanged.
 
 ### October17,22:47 player rejection — destruction ownership audit
 
