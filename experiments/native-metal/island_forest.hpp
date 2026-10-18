@@ -35,7 +35,7 @@ struct Cell { float y=-INFINITY, normalY=0, suitability=0; bool settlement=false
 // Bounded, resumable top-surface raster. The same jittered point is tested
 // against every triangle, so an opaque roof above soil rejects that root.
 class Placement {
-    static constexpr unsigned MaximumCells=262144, MaximumRoots=32768;
+    static constexpr unsigned MaximumCells=524288, MaximumRoots=32768;
     // Covers the crown and the open ground/streets between authored houses.
     static constexpr float SettlementClearance=64.f;
     std::vector<Triangle> faces;

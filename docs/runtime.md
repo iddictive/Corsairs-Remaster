@@ -4,6 +4,26 @@ Last verified engine delivery: October18 visual rollback and nonblocking ship Mo
 
 ## Current verdict
 
+### October18 forest-density source candidate — player runtime untouched
+
+The player now asks to increase tree density after the shader forest conversion.
+`island_forest.hpp` raises the placement raster cap262144→524288 while leaving
+the meshes, species, masks,4096 visible-instance limit and180000 shadow-vertex
+limit unchanged. Archived Antigua/Porto Bello inputs produce488→1099 and
+5832→12354 roots. At each original midpoint-root camera focus,1100m candidates
+grow176→361 and180→382;6000m candidates488→1099 and1445→3016, below the
+visible cap. `docs/evidence/island-forest/native-inputs-20261016-calibrated-settlement.tar.xz`
+and `measurement-20261016-scene.cpp.txt` reproduce baseline `e0c6cd4`
+against this source with `clang++ -std=c++20 -O2` and `advance(16384)`.
+Placement totals4.81→7.29ms and10.53→16.89ms over29→50 and43→72 bounded
+frames; candidate peak steps were.245/.325ms. Independent top-surface and64m
+settlement-clearance checks have zero violations. `docs/metal-lighting-parity.md`
+owns the placement contract and fuller method; these timings exclude renderer,
+GPU and complete game frames.
+No engine build, staging, game launch or player-frame FPS comparison was made
+for this candidate: the player's instruction is to leave the game alone.
+Disposition: **source candidate; visual density and FPS acceptance unresolved**.
+
 ### October18 player rejection — restore earlier shaders, sky off, loading wait removed
 
 The player's 02:16 sea frame rejects the hybrid: the horizon has a hard seam,
