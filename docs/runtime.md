@@ -6,9 +6,24 @@ recorded below; unresolved player replays are historical, not active tasks. No
 further build, staging, installation or game interaction is planned without a
 new request.
 
-Last verified engine delivery: October18 visual rollback and nonblocking ship Mount, signed engine `6146d2e10dff253a23b5664c5c9f1b4beb20869e3c5bc7b648b8a0589493b956`. Canonical `run.sh --stage-only` exited0; the installed player record selects authored sky (`dynamic_sky=0`), and structural contact fracture remains off by default. Prior renderer/FPS source optimizations remain; the Mount readiness wait was removed because it blocked live ship additions. Same-scene graphics, complete loading duration, FPS and first-hit latency are unresolved. Ship-interior sea exclusion and terrain excavation remain disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
+Last verified engine delivery: October18 forest density and public release staging, signed engine `2251944e5c0455659b415dcbbd151e271289ea5f379cf10c47211b2fd5eea479`. Canonical `run.sh --stage-only` exited0; the installed player record selects authored sky (`dynamic_sky=0`), and structural contact fracture remains off by default. Prior renderer/FPS source optimizations remain; the Mount readiness wait was removed because it blocked live ship additions. Same-scene graphics, complete loading duration, FPS and first-hit latency are unresolved. Ship-interior sea exclusion and terrain excavation remain disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive updated to October 18 standalone release (10,873,785,991 bytes, SHA-256 `f137e8d219b921c875f6bb1246d2de483492796638e90b7095e52a5409cf956d`). Earlier installed inventories are historical.
 
 ## Current verdict
+
+### October18 — public standalone ZIP exported to Google Drive
+
+At the user's explicit request, the standalone player bundle was packaged into a
+ZIP64 distribution archive and placed in the user's Google Drive export folder
+(`Google Drive/My Drive/Export/Corsairs/Corsairs-Iddictive-Remaster-macOS.zip`).
+The archive contains `Corsairs Iddictive Remaster.app`, `Что изменилось.md`
+and `Установка.txt`. The packaged app contains the current staged Metal engine
+(`2251944e5c0455659b415dcbbd151e271289ea5f379cf10c47211b2fd5eea479`), bundled
+Python 3.14 framework, SDL2, clean baseline configuration, and zero player saves
+or userdata. Codesign deep/strict verification and Mach-O dependency verification
+(79 binaries, macOS 15.0 floor) pass.
+Archive metrics: 95,461 members, 10,873,785,991 bytes,
+SHA-256 `f137e8d219b921c875f6bb1246d2de483492796638e90b7095e52a5409cf956d`.
+Disposition: **accepted public archive delivered to local Google Drive**.
 
 ### October18 forest-density source candidate — player runtime untouched
 
