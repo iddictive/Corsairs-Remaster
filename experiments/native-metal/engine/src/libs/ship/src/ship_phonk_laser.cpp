@@ -1846,7 +1846,7 @@ void SHIP_CUT_FRAGMENTS::AdvanceCutFragments()
         if(!geometry||geometry->GeometryGeneration()!=piece.generation)return true;
         bool submerged=piece.age>.5f;for(const auto&sample:piece.support){const auto point=piece.world*sample;
             const float water=pSea?pSea->WaveXZ(point.x,point.z):-200.f;if(point.y>=water-2.f){submerged=false;break;}}
-        if(!submerged&&piece.age<180.f)return false; // finite stranded-wreck lifetime
+        if(!submerged&&piece.age<12.f)return false; // finite stranded-wreck lifetime
         geometry->ReleaseLaserFragment(group.owner,piece.token);return true;
     });
     std::erase_if(orphans,[&](auto &orphan){if(!orphan.pieces.empty()&&core.GetEntityPointer(orphan.model))return false;
@@ -1990,11 +1990,14 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             const float depth = pSea->WaveXZ(point.x, point.z) - point.y;
             sample.wetArea = 0.f;
             if (depth <= 0.f) continue;
-            const float opening = sample.area > 0.f ? sample.area : sample.length * std::min(2.5f, .18f + sample.age * 2.f);
+            const float slitWidth = std::min(0.08f, 0.02f + sample.age * 0.02f);
+            const float opening = sample.area > 0.f ? sample.area : sample.length * slitWidth;
             sample.wetArea = opening;
             phonkLaser.flooded = std::min(phonkLaser.floodCapacity, phonkLaser.flooded +
                 .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed);
         }
+        const float pumpRate = phonkLaser.floodCapacity * 0.012f;
+        phonkLaser.flooded = std::max(0.f, phonkLaser.flooded - pumpRate * elapsed);
         const float fraction = std::clamp(phonkLaser.flooded / std::max(1.f, phonkLaser.floodCapacity), 0.f, 1.f);
         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
         flood->SetAttributeUseFloat("volume", phonkLaser.flooded);

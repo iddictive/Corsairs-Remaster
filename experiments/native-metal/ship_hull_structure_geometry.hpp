@@ -69,7 +69,7 @@ inline bool decorationOwners(const Input&input,const storm_ship_structure::Layou
                 if(next==0){retained=true;break;}if(next==Removed)removed=true;else support=std::min(support,next);
             }if(retained)break;}
         if(retained||(support==Removed&&!removed))support=0;
-        else if(support==Removed){if(groups.size()-1>=input.fragmentLimit)return false;support=uint32_t(groups.size());groups.emplace_back();}
+        else if(support==Removed){if(groups.size()-1<input.fragmentLimit){support=uint32_t(groups.size());groups.emplace_back();}else support=Removed;}
         for(auto face:component.second){const auto&ref=topology.faces[face];assigned[{ref.role,ref.object,ref.triangle}]=support;}
     }return true;
 }
@@ -104,7 +104,7 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
     std::map<FaceKey,uint32_t>decoration;if(!decorationOwners(input,layout,owner,outerIndex,decoration,groups))return false;
     std::vector<uint32_t>candidates;const Vec3 margin{.000002f,.000002f,.000002f};
     for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(*input.surface,role))for(size_t n=0;n<o.second.size();++n){storm_geometry_work::checkpoint();const auto&t=o.second[n];
-        if(!input.wood.count(o.first)){const auto found=decoration.find({role,o.first,n});const auto target=found==decoration.end()?0:found->second;surfaceRole(groups[target],role)[o.first].push_back(t);continue;}
+        if(!input.wood.count(o.first)){const auto found=decoration.find({role,o.first,n});const auto target=found==decoration.end()?0:found->second;if(target!=Removed)surfaceRole(groups[target],role)[o.first].push_back(t);continue;}
         auto box=triangleBounds(t);box.lo=box.lo-margin;box.hi=box.hi+margin;storm_ship_structure::queryCells(layout,box,candidates);std::vector<std::vector<Vertex>>masks;
         for(auto id:candidates){if(owner[id]==0||!ownsCoplanarFace(layout,id,t))continue;auto polygon=storm_ship_structure::clipCell({t.begin(),t.end()},layout,id);if(storm_ship_structure::polygonArea(polygon)<=1.e-10f)continue;
             std::vector<Triangle>patch;storm_ship_hull::fan(polygon,patch);masks.push_back(std::move(polygon));

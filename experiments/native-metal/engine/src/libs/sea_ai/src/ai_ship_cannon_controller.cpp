@@ -1469,9 +1469,12 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
 {
     auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
     auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
-    if (GetAIShip()->isMainCharacter() && phonk && phonk->GetAttributeAsDword("Active") &&
-        phonk->GetAttributeAsDword("Weapon", 6) == 7)
+    if (GetAIShip()->isMainCharacter() && phonk && phonk->GetAttributeAsDword("Active"))
     {
+        const uint32_t weapon = phonk->GetAttributeAsDword("Weapon", 6);
+        if (weapon == 6) return;
+        if (weapon == 7)
+        {
 #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
         if (!phonk->GetAttributeAsDword("NuclearTargetValid")) return;
         namespace gpu = storm::sea_ai::manual_aim;
@@ -1496,6 +1499,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             nullptr,0,&axis.x,&lateral.x,&up.x,1.f,false);
 #endif
         return;
+        }
     }
     MANUAL_AIM_SOLUTION solution;
     if(!BuildManualAimSolution(camera,direction,solution))return;

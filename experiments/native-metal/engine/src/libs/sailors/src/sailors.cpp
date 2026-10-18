@@ -712,8 +712,8 @@ void ShipMan::SetAnimation(uint32_t dltTime, ShipState &shipState)
             model->GetAnimation()->Player(0).Play();
             break;
         case MAN_FIRE_WORK:
-            model->GetAnimation()->Player(0).SetAction(fireWorkRise ? "stand_up" : "sit_down");
-            model->GetAnimation()->Player(0).SetSpeed(1.f);
+            model->GetAnimation()->Player(0).SetAction("action1");
+            model->GetAnimation()->Player(0).SetSpeed(1.2f);
             model->GetAnimation()->Player(0).SetPosition(0);
             model->GetAnimation()->Player(0).Play();
             break;
