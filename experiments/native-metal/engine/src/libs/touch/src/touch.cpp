@@ -6,6 +6,7 @@
 #include "collide.h"
 #include "model.h"
 #include "ship_mast_support.hpp"
+#include <cstdlib>
 #include <limits>
 #include <set>
 #include <tuple>
@@ -19,6 +20,15 @@
 CREATE_CLASS(TOUCH)
 
 namespace {
+// Keep ordinary contact motion and HP while the structural ram format is off.
+bool structuralContactEnabled()
+{
+    static const bool enabled = [] {
+        const char *value = std::getenv("STORM_METAL_STRUCTURAL_CONTACT");
+        return value && value[0] == '1' && value[1] == '\0';
+    }();
+    return enabled;
+}
 using MastVec=storm_ship_laser::Vec3;
 using MastTriangle=storm_ship_laser::Triangle;
 MastVec mastVector(const CVECTOR &v){return {v.x,v.y,v.z};}
@@ -637,7 +647,7 @@ void TOUCH::TouchIsland(int32_t idx)
     // The existing shore event still owns HP/perks. Only admitted inward work
     // reaches the same finite material-fracture owner as ship/ship impacts.
     ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[idx]->eID));
-    if (ship && fraction > 0.f && impact.closing > 0.f)
+    if (structuralContactEnabled() && ship && fraction > 0.f && impact.closing > 0.f)
     {
         double work = .5 * double(impact.closing) * impact.closing;
         if (fraction < 1.f)
@@ -653,6 +663,7 @@ void TOUCH::TouchIsland(int32_t idx)
 void TOUCH::ResolveShips()
 {
     using namespace storm::ship::contact;
+    const bool structuralContact = structuralContactEnabled();
     const double seconds = double(iDeltaTime) * .001;
     if (!(seconds > 0)) return;
     std::vector<FrameBody> bodies;
@@ -687,7 +698,7 @@ void TOUCH::ResolveShips()
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
         frame.wreck = entry->pShip->isDead();
         HULL_CONTACT_MATERIAL material;
-        if (entry->pShip->GetHullContactMaterial(material))
+        if (structuralContact && entry->pShip->GetHullContactMaterial(material))
             frame.material = material.prepared;
         frame.materialY = entry->TP[0].vPos.y - frame.yStart;
         bodies.push_back(std::move(frame));
@@ -787,8 +798,9 @@ void TOUCH::ResolveShips()
     // One strong ram can cross several real timber sections. The material
     // transaction already bounds its admitted fields; three unrelated passes
     // must not turn the rest of that same impact back into an intact wall.
-    limits.fracturePasses=storm_hull_damage::MaxBeamSamples;
-    const auto result = integrateFrame(bodies, seconds, limits, fracture);
+    limits.fracturePasses=structuralContact ? storm_hull_damage::MaxBeamSamples : 0;
+    const auto result = integrateFrame(bodies, seconds, limits,
+        structuralContact ? FractureCallback(fracture) : FractureCallback{});
     // Publish material loss at the actual local contact, using the currently
     // presented model transform. A fast TOI may be far from that old transform.
     for (const auto &impact : result.impacts)
@@ -842,7 +854,7 @@ void TOUCH::ResolveShips()
             ship = currentShip(own);
             if (!ship || !(materialWork > 0)) return;
             const auto matrix = ship->GetMatrix();
-            if (matrix)
+            if (structuralContact && matrix)
             {
                 auto worldPoint = *matrix * point;
                 worldPoint.y = float(impact.height);

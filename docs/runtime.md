@@ -1,8 +1,36 @@
 # Runtime state
 
-Last verified engine delivery: October18 follow-up, signed engine `9d791ed5eb8769272014b72e21b4d551be539de598b40a3fc98c0367e9db7ef3`, UUID `5E4E6B6A-833E-3F11-B44C-A4B6CDB0E469`. Canonical staging and installed gameplay parity pass. Authored sky stays selected; outdoor surface lighting is independent of that draw flag. Ship-interior sea exclusion is disabled by default at the player's instruction. Full native thermal/contact/publication and saved-material probes pass with the limits below; actual player-scene FPS, sinking, atmosphere and literal zero latency remain unresolved without replay. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
+Last verified engine delivery: October18 hybrid correction, signed engine `b2e69dc433b29654463dc0d7e5d92f96c61f054f09a763b0409b6521d96ce41d`. Canonical staging, deep-strict app signature and interactive sea-scene startup pass. The player graphics record selects hybrid sky (`dynamic_sky=1`); structural contact fracture is off by default. Prior damage-latency source optimizations remain. Matched scene visual/FPS and ram replay are unresolved. Ship-interior sea exclusion remains disabled. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
 
 ## Current verdict
+
+### October18 hybrid atmosphere and structural-contact off
+
+The player reports that graphics degraded over the October17–18 changes and
+requires a hybrid sky/fog with the prior visual character and retained FPS work.
+The authored-only default is rejected; the previous choice did fix hourly
+fallback timing but removed the procedural clouds from ordinary launches.
+Current `dynamic_sky=1` draws the hourly authored panorama as the sky base with
+the existing volumetric clouds, and blends to the shared air/fog field at the
+horizon. The October17 distance-haze repair, October18 independent outdoor
+lighting and hourly fallback timing remain. No cloud sample count, cadence or
+damage-latency algorithm was changed in this correction.
+
+`STORM_METAL_STRUCTURAL_CONTACT` defaults off and requires exact `1` to enable
+the new material-fracture contact path. TOUCH retains ordinary ship/ship and
+shore motion and HP events; with the flag off it skips material snapshots,
+fracture passes and contact-driven material cuts. Projectile/laser material
+paths remain. The native engine compiled and `run.sh --stage-only` succeeded
+after the last source change, installing the signed engine above. The player
+`metal_graphics` record changed only `dynamic_sky=0→1`; its prior bytes are in
+the AppSupport `.graphics-config-backups/20261018-hybrid-sky/metal_graphics`.
+The rebuilt `dynamic_sky-probe` passes Metal shader compilation, time, weather,
+fog and astronomy checks. A native UI launch reached the main menu and an
+interactive sea/deck save; an 08:15 frame visibly shows the clouded sky,
+distant island and water/ship scene. Its displayed 78 FPS is one frame and has
+no matched pre-change baseline. Full atmosphere comparison, sustained FPS and
+ram/shore behavior remain unresolved. Disposition: **installed; startup and
+shader compile verified, player visual/performance/contact acceptance open**.
 
 ### October18 follow-up — native latency, authored-sky light and sea exclusion off
 

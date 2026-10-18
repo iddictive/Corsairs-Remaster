@@ -1,5 +1,13 @@
 # Ship collision and contact with sinking ships
 
+October 18 player correction: structural contact fracture is off by default
+through `STORM_METAL_STRUCTURAL_CONTACT`; only exact `1` opts in. TOUCH keeps
+ordinary ship/ship and shore motion plus existing HP events, but does not fetch
+material snapshots, run fracture passes or publish contact-driven material
+cuts while off. Laser and projectile material paths remain available. This is
+a reversible runtime gate on the new contact format, not acceptance of its
+visual or physical behavior; player ram/shore replay remains open.
+
 ## Committed contact publication priority
 
 The two-slot GEOM registry prioritizes committed `PhysicalDelta` tickets over
