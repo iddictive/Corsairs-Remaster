@@ -1,10 +1,70 @@
 # Runtime state
 
-Last verified engine delivery: October18, original-sky and destruction repair batch, signed engine `d9195bc3795f3bdaec7bed6690693da6985b57526850c77e1ccbedd97ed7e6a5`, UUID `B6563F18-23BD-3994-92E6-9FA28BAC6C0B`. Canonical staging and installed gameplay parity pass; the final hourly-tint script delivery is recorded below. The saved procedural-sky flag is0. Source/CPU checks repair the audited laser/contact/publication/support defects; player-scene delay, FPS, sinking and visuals remain unresolved under the no-launch/Computer Use boundary. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
+Last verified engine delivery: October18 follow-up, signed engine `9d791ed5eb8769272014b72e21b4d551be539de598b40a3fc98c0367e9db7ef3`, UUID `5E4E6B6A-833E-3F11-B44C-A4B6CDB0E469`. Canonical staging and installed gameplay parity pass. Authored sky stays selected; outdoor surface lighting is independent of that draw flag. Ship-interior sea exclusion is disabled by default at the player's instruction. Full native thermal/contact/publication and saved-material probes pass with the limits below; actual player-scene FPS, sinking, atmosphere and literal zero latency remain unresolved without replay. Terrain excavation stays disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
 
 ## Current verdict
 
-### October18 — original sky and integrated destruction repair
+### October18 follow-up — native latency, authored-sky light and sea exclusion off
+
+**Large-ram latency remains unresolved:** actual `TOUCH::Execute/ResolveShips`
+300-knot broadside first removes15.1% of target mass in the simulation phase.
+Exact graph filtering, reuse of prepared CCD hulls and bounded parallel mesh
+projection reduce first visual publication from2.434s to1.075–1.218s in two runs. The worst
+main frame is194–209ms versus268ms before; publication still has a heavy main
+frame. This is
+an improvement, not instantaneous cutting or smooth worst-case contact. The
+narrow direct API timings below do not accept this case. Further work belongs
+to the exact surface partition/render publication owners, not damage constants
+or another admission delay. Native oracle/output and failed shortcut evidence
+remain in the receipt; no player-scene acceptance is inferred.
+
+The00:16 player frame rejects the preceding delivery: delayed laser/fractures,
+degraded light and exposed sea-cutout facets. A complete hidden native fleet
+driver reproduces6.594s cold damage and19.737s contact publication, despite the
+previous component checks. Trace separates18.371s of queue waiting from166ms
+of contact projection. The two-slot GEOM owner now prioritizes committed contact;
+Mount completes required material preparation and identical pristine hulls reuse
+immutable cells/layout. Independent native preparation/code paths are recorded
+in [material latency](naval-ammunition-and-damage.md#native-capture-to-publication-latency).
+
+Two complete thermal runs publish first hits in167–290ms, hot hits153–163ms and
+direct contact168–245ms. A30-attempt moving stroke admits29 samples, publishes
+four successive revisions and drains353–404ms after input ends. Six thermal tail
+records and four native ray results survive ordinary damaged-state Mount;
+foreign state remains unchanged without hanging. A queued material worker also
+survives entity/core teardown cleanly. This is native endpoint/worker/publication
+evidence, not player input, worst battle FPS or literally instantaneous cutting.
+First eight-pristine-ship loading costs8.3–9.2s; damaged restore costs9.3–9.9s.
+Uncached dynamic ship creation also pays Mount preparation; cold startup is not
+claimed faster. Material preparation itself still has real cost.
+
+The authored-sky option had also disabled outdoor SH/solar/water illumination.
+The existing packet is now prepared with modern lighting/water regardless of the
+sky draw flag; procedural drawing/fog/astronomy remain opt-in. GPU material output
+with authored sky matches its procedural lighting control exactly; interior and
+all-legacy negatives retain their output. Full weather/night/haze appearance is
+still a player replay gate. [Lighting contract](metal-lighting-parity.md#contract)
+owns this separation.
+
+The player cancels further water-cutout repair and explicitly asks to disable it.
+The candidate clipping API/buffers/helpers are removed; only exact diagnostic
+`STORM_METAL_SEA_HULL_CUTOUT=1` enables the old exclusion. Ordinary app launch
+does not supply that opt-in. [Sea owner](sea-reflections.md#ship-interior-water-exclusion)
+records the disposition; no new cutout is shipped.
+
+Canonical `experiments/native-metal/run.sh --stage-only` exits0 after the final
+native contact/geometry and worker-lifecycle changes. The [installed receipt](../.local-archives/metal-renderer-evidence/destruction-player-followup-20261018/stage-result.json)
+binds the engine above to native fingerprint
+`0713ddcdc86b36b5a346d7d2e98963b41cbf8ba51128cb665ac0b2c7182cb294`.
+The supported app remains the sole player target; PROGRAM/RESOURCE are real app
+directories, player SAVE/options/userdata remain in their existing AppSupport
+owner, sky option remains0 and gameplay parity reports0pending. Installer sealing
+and deep-strict signature verification pass. No game launch, Computer Use,
+subagents, push or ZIP/Drive update occurs. [Inputs, frozen binaries and raw results](../.local-archives/metal-renderer-evidence/destruction-player-followup-20261018/receipt.json)
+retain both failures and accepted component/native properties.
+Disposition: **installed; player-scene acceptance unresolved**.
+
+### October18 initial delivery — historical original-sky/destruction batch
 
 The player supersedes the notes-only handoff: root personally implements the
 audit findings, selects original sky and removes avoidable laser/ram waits.

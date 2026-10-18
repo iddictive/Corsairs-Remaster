@@ -22,6 +22,7 @@ Import library main file
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <fmt/format.h>
 #include <vector>
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
@@ -30,6 +31,7 @@ Import library main file
 #include <chrono>
 #include "ship_wood_surface_profiles.hpp"
 #include "geometry_work_budget.hpp"
+#include "ship_damage_trace.hpp"
 #include "ship_hull_material.hpp"
 #include "ship_hull_material_repair.hpp"
 #include "ship_hull_contact_geometry.hpp"
@@ -96,7 +98,12 @@ struct Job
 // ready jobs are destroyed during play; process teardown may join the last two.
 struct Retirement
 {
+    // Declared before jobs: futures join before cache/mutex destruction.
+    std::mutex pristineMutex;
+    std::map<uint64_t,std::weak_ptr<const storm_ship_laser::Surface>> pristineCache;
     std::vector<std::shared_ptr<Job>> jobs;
+    using ContactDelta=storm::ship::material::convex::PhysicalDelta;
+    std::vector<std::weak_ptr<const ContactDelta>> contacts;
     Retirement() { jobs.reserve(2); }
     void collect()
     {
@@ -104,7 +111,27 @@ struct Retirement
             return !job->future.valid() || (job->retired &&
                 job->future.wait_for(std::chrono::seconds(0))==std::future_status::ready);
         });
+        std::erase_if(contacts,[](const auto&contact){return contact.expired();});
     }
+    void forget(const std::shared_ptr<const ContactDelta>&contact){
+        std::erase_if(contacts,[&](const auto&entry){const auto value=entry.lock();return !value||value==contact;});
+    }
+    void prioritize(const std::shared_ptr<const ContactDelta>&contact){
+        if(contact&&std::none_of(contacts.begin(),contacts.end(),[&](const auto&entry){return entry.lock()==contact;}))contacts.push_back(contact);
+    }
+    bool contactSlot(){
+        collect();if(jobs.size()<2)return true;
+        // An already committed break must not sit behind another vessel's
+        // cold cache. Retire one pure value rebuild; its desired state remains
+        // with that GEOM and resumes after the pending contact publications.
+        if(std::any_of(jobs.begin(),jobs.end(),[](const auto&job){return job->retired;}))return false;
+        for(auto it=jobs.rbegin();it!=jobs.rend();++it)if((*it)->input->material&&!(*it)->input->contactDelta){
+            (*it)->cancel->store(true,std::memory_order_relaxed);(*it)->retired=true;
+            storm_ship_damage_trace::event("yield-background",(*it)->input->owner);break;
+        }
+        return false;
+    }
+    bool backgroundSlot(){collect();return jobs.size()<2&&contacts.empty();}
 };
 static Retirement& retirement() { static Retirement owner;return owner; }
 static bool samePlanes(const std::vector<storm_ship_laser::Plane>&a,const std::vector<storm_ship_laser::Plane>&b)
@@ -118,8 +145,20 @@ static bool samePlanes(const std::vector<storm_ship_laser::Plane>&a,const std::v
             if(p.start!=q.start||p.direction!=q.direction||p.tangent!=q.tangent||p.radius!=q.radius||p.depth!=q.depth||p.crossSection!=q.crossSection||p.backDepth!=q.backDepth||p.specificWork!=q.specificWork||p.contactStrength!=q.contactStrength)return false;}}
     return true;
 }
+// Identical authored hulls share immutable physical preparation. Entries own
+// no ship state and expire with the last live surface; damaged SAVE is excluded.
+static std::shared_ptr<const storm_ship_laser::Surface> pristineSurface(uint64_t fingerprint,
+    std::shared_ptr<const storm_ship_laser::Surface> publish={})
+{
+    auto&owner=retirement();auto&cache=owner.pristineCache;
+    std::lock_guard lock(owner.pristineMutex);
+    std::erase_if(cache,[](const auto&entry){return entry.second.expired();});
+    if(publish){cache[fingerprint]=publish;return publish;}
+    const auto found=cache.find(fingerprint);return found==cache.end()?nullptr:found->second.lock();
+}
 static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
 {
+    storm_ship_damage_trace::Phase timing(input.contactDelta?"contact-render":input.material?"material-restore":"legacy-rebuild",input.owner);
     using namespace storm_ship_laser;
     Output result;Mesh mesh;
     if(input.contactDelta){
@@ -145,11 +184,16 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
     if(input.material){
         result.fingerprint=storm::ship::material::fingerprint(*input.authored,input.wood);
         result.fingerprint=storm::ship::material::hashBytes(input.objectMaterials.data(),input.objectMaterials.size()*sizeof(uint32_t),result.fingerprint);
+        const bool pristine=input.contactEnabled&&!input.reset&&!input.repairPercent&&input.tail.empty()&&input.cuts.empty()&&input.planes.empty()&&
+            (input.pristine||input.payload==storm::ship::material::pristinePayload(result.fingerprint));
+        const auto cached=pristine?pristineSurface(result.fingerprint):nullptr;
+        storm_ship_damage_trace::event(pristine?(cached?"pristine-hit":"pristine-miss"):"pristine-ineligible",result.fingerprint,input.contactEnabled?int(input.pristine):-1);
         const auto authored=timberSurface(*input.authored,input.wood);
-        result.support=input.support?input.support:storm::ship::material::supportSource(*input.authored);
-        result.cells=input.cells?input.cells:storm::ship::material::cellSource(authored,input.wood);const auto support=result.support;Surface current;
+        result.support=cached?cached->supportOriginal:input.support?input.support:storm::ship::material::supportSource(*input.authored);
+        result.cells=cached?cached->cells->source:input.cells?input.cells:storm::ship::material::cellSource(authored,input.wood);const auto support=result.support;Surface current;
         for(const auto&w:input.wood){const auto o=input.authored->find(w.first);if(o!=input.authored->end())for(const auto&t:o->second)result.structuralArea+=storm_ship_hull::area(t);}
-        if(input.reset)current=storm::ship::material::rebase(timberSurface(*input.authored,input.wood));
+        if(cached)current=*cached;
+        else if(input.reset)current=storm::ship::material::rebase(timberSurface(*input.authored,input.wood));
         else if(!input.payload.empty()){
             if(input.payload==storm::ship::material::pristinePayload(result.fingerprint))current=storm::ship::material::rebase(timberSurface(*input.authored,input.wood));
             else if(!storm::ship::material::decode(input.payload,result.fingerprint,support,result.cells,current,input.wood))return {};
@@ -176,7 +220,7 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
         // Old checkpoint tails retain their original meaning: CHM1/P exact
         // cuts, CHM2 graph-health-only. Only CHM3 records physical thermal doses;
         // loading an old SAVE must not turn latent health into retroactive holes.
-        auto structure=!input.reset&&input.snapshot&&input.payload.empty()?input.structure:current.structure;
+        auto structure=cached?cached->structure:!input.reset&&input.snapshot&&input.payload.empty()?input.structure:current.structure;
         const bool graphTail=bool(structure);
         const bool localTail=graphTail&&input.payload.starts_with("43484d33");
         const bool oldGraphTail=graphTail&&!input.payload.empty()&&!localTail;
@@ -212,9 +256,10 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             current.structure=std::make_shared<const storm_ship_structure::State>(storm_ship_structure::repair(*structure,before,current,input.wood,std::max(0.,quota-repaired.restoredArea)));
             current=storm::ship::material::rebase(std::move(current));
         }
+        {storm_ship_damage_trace::Phase cacheTiming("physical-cache",input.owner);
         if(input.contactEnabled&&storm::ship::material::preparePhysicalCache(current)){
             storm::ship::material::convex::ContactSnapshot physical{current.cells,current.structure,0};
-            result.contactPrepared=storm::ship::material::prepareContactMaterial(physical,input.contactTransform);}
+            result.contactPrepared=storm::ship::material::prepareContactMaterial(physical,input.contactTransform);}}
         result.deferred=storm::ship::material::structure_geometry::hasDeferred(*current.structure);
         if(current.cells&&!current.cells->changed.empty()){auto preview=current;if(!detachEnclosed(authored,preview).empty())result.deferred=true;}
         for(const auto*role:{&current.outer,&current.canonicalCaps,&current.interior,&current.finiteWalls})for(const auto&o:*role)if(o.first<0||size_t(o.first)>=input.objectMaterials.size())return {};
@@ -225,7 +270,9 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
         result.retainedSupport=indexFaces(current.outer);for(const auto&piece:current.released)result.releasedSupport.push_back(indexFaces(*piece));
         result.supportCandidates.reserve(support->index.references.size());result.supportNearby.reserve(result.retainedSupport.references.size());
         if(!storm::ship::material::currentOpenings(current,input.wood,result.openings))return {};
-        result.visual=std::make_shared<const Surface>(std::move(current));result.valid=!cancel.load(std::memory_order_relaxed);return result;
+        result.visual=std::make_shared<const Surface>(std::move(current));result.valid=!cancel.load(std::memory_order_relaxed);
+        if(pristine&&result.valid&&result.visual->cells&&storm::ship::material::convex::compatible(*result.visual->cells))pristineSurface(result.fingerprint,result.visual);
+        return result;
     }
     if(input.alreadyClipped)mesh=*input.authored;
     else for(const auto&o:*input.authored){auto&triangles=mesh[o.first];
@@ -792,6 +839,7 @@ bool GEOM::CaptureHullRebuildSource()
 }
 void GEOM::RetireHullRebuild()
 {
+    storm_geom_hull::retirement().forget(hullContactPending);
     if(!hullRebuildJob)return;
     hullRebuildJob->cancel->store(true,std::memory_order_relaxed);hullRebuildJob->retired=true;hullRebuildJob.reset();
     storm_geom_hull::retirement().collect();
@@ -823,6 +871,7 @@ void GEOM::PollHullRebuild()
     auto&retirement=storm_geom_hull::retirement();retirement.collect();
     if(!hullDesiredValid&&!hullContactPending)return;
     const auto rejectContact=[&](const char*phase){
+        retirement.forget(hullContactPending);
         hullContactRenderFailed=true;hullContactFailureCollision=collisionRevision;
         hullContactFailureAllowance=HullFragmentAllowance();
         fmt::print(stderr,"Hull contact {} failed: generation={} collision={} material={} allowance={}; physical delta retained, retry waits for collision/allowance change.\n",
@@ -859,12 +908,13 @@ void GEOM::PollHullRebuild()
             hullDesiredValid=false;++collisionRevision;return;
         }
     }
-    if(retirement.jobs.size()>=2)return;
     if(hullContactPending){
         if(hullContactRenderFailed){
             if(hullContactFailureCollision==collisionRevision&&hullContactFailureAllowance==HullFragmentAllowance())return;
             hullContactRenderFailed=false;
         }
+        retirement.prioritize(hullContactPending);
+        if(!retirement.contactSlot())return;
         try{
             auto input=std::make_shared<storm_geom_hull::Input>();input->owner=hullOwner;input->generation=geometryGeneration;
             input->revision=collisionRevision;input->materialRevision=hullMaterialStateRevision;input->snapshot=laserVisualSurface;
@@ -873,9 +923,11 @@ void GEOM::PollHullRebuild()
             auto job=std::make_shared<storm_geom_hull::Job>();job->input=input;auto cancel=job->cancel;
             job->future=std::async(std::launch::async,[input=std::move(input),cancel,allowance=storm_geometry_work::allowance()]{try{storm_geometry_work::Scope budget(allowance,cancel);return storm_geom_hull::prepare(*input,*cancel);}catch(...){return storm_geom_hull::Output{};}});
             retirement.jobs.push_back(job);hullRebuildJob=std::move(job);
+            retirement.forget(hullContactPending);
         }catch(...){rejectContact("worker admission");}
         return;
     }
+    if(!retirement.backgroundSlot())return;
     if(!HasPendingHullRebuild())return;
     try{
         if(!CaptureHullRebuildSource()){hullRejectedEpoch=hullDesiredEpoch;hullRejectedRevision=collisionRevision;return;}
@@ -938,6 +990,8 @@ try{
     RetireHullRebuild();
     hullContactState=std::move(state);hullContactPrepared=prepared;hullStructureState=edit.next.strength;
     hullMaterialStateRevision=edit.next.revision;hullContactPending=std::move(pending);hullContactRenderFailed=false;
+    storm_geom_hull::retirement().prioritize(hullContactPending);
+    storm_ship_damage_trace::event("contact-commit",owner);
     // Draw/Execute submits once after the simulation phase, rather than
     // launching and cancelling a renderer worker for every contact pass.
     return true;

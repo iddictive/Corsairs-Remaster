@@ -75,6 +75,8 @@ public:
     }
     Scope(const Scope &) = delete;
     Scope &operator=(const Scope &) = delete;
+    std::shared_ptr<Allowance> sharedAllowance() const { return shared_; }
+    std::shared_ptr<std::atomic<bool>> cancellation() const { return cancel_; }
     void checkpoint(bool force) {
         if (!force && (++ticks_ & 63u)) return;
         if (cancelled()) throw Cancelled{};

@@ -1,5 +1,58 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## Native capture-to-publication latency
+
+The October18 follow-up reopens the preceding component-only result. The actual
+eight-Manowar CORE/SHIP/GEOM driver measures6.594s cold damage,1.400s hot damage
+and19.737s contact publication before the repair. Timing separates an18.371s
+contact queue wait from166ms of actual projection: both GEOM slots were occupied
+by other ships' cold material preparation. The two-slot owner now prioritizes
+committed contact and cooperatively retires one unpublished background rebuild.
+
+Required material readiness finishes during `SHIP::Mount`, using the existing
+bounded workers. Identical pristine hulls share immutable surfaces/cells/layout
+under the existing authored fingerprint; weak entries expire with live surfaces.
+Damage, repair, foreign state and nonempty checkpoint tails retain their own
+preparation. Reusing the surface while substituting a new layout was rejected:
+it rebuilt the entire physical graph despite a cache hit. The accepted candidate
+retains both owners together. Eight pristine ships take about9s of scene loading;
+this moves cold work out of live hits, rather than making that work free.
+
+The complete native thermal driver publishes the first hit in290ms, a hot hit
+in163ms and contact in245ms. Thirty moving attempts admit29 samples and publish
+four successive geometry revisions; the stroke drains404ms after its last input.
+Ordinary Mount restores its six saved thermal tail records and four native ray
+results unchanged; a foreign model record stays intact without a loading loop.
+This verifies engine publication, not player aiming, worst battle FPS, flooding
+or literal zero latency. The player scene remains unresolved. Optional
+`STORM_METAL_DAMAGE_TRACE=1` records queue/work phases; ordinary play does no IO.
+[Frozen binaries, source, commands and raw native results](../.local-archives/metal-renderer-evidence/destruction-player-followup-20261018/receipt.json)
+own reproduction. The prior measurements below are component evidence.
+
+The actual300-knot `TOUCH::Execute/ResolveShips` broadside case is larger than
+that direct contact probe: first visual publication initially takes2.434s.
+Whole-piece deletion now filters/remaps the existing exact connectivity graph;
+only real pending shape edits reconnect. Authored-owner publication removes
+cross-owner backward arcs using the same fence as ordinary reconnect. Five
+stock-model removal cases, including a prior shape edit, match the full Boolean
+reconnect reference in edges, component membership/volume and support measures.
+
+Cap sources and512-triangle chunks retain the old clipping arithmetic and output
+order. They use the existing synchronous four-chunk OS dispatch; contact and
+weapon callers share two fork-group slots, with busy callers staying serial in
+their existing worker. Child scopes inherit cancellation and the same CPU
+allowance. Three large ownership masks produce identical cap and per-role/object
+surface fingerprints, changed-object sets, area/moments/UV. Cancellation and
+exceptions join before unpublished scratch expires. Whole-support boxes and
+separating-plane shortcuts are rejected because their output differs; do not
+reintroduce them as a speed fix without resolving that geometric discrepancy.
+Current actual TOUCH publication is1.075–1.218s in two runs, with194–209ms worst
+main frames versus2.434s/268ms before. Large
+breakup latency therefore remains open despite the faster narrow laser/contact
+path. Surface partition can amplify the stock source into over1.6million faces
+in the half-hull oracle; replacing that algorithm needs an independent material
+coverage/attribute oracle, not a relaxed old-output expectation.
+
 ## Integrated producer, contact publication and support repair
 
 The user supersedes the audit-only handoff with a root-owned implementation.

@@ -2,6 +2,13 @@
 
 ## Ship interior water exclusion
 
+**Disabled by the player's explicit October18 instruction.** Only exact
+`STORM_METAL_SEA_HULL_CUTOUT=1` enables the old diagnostic exclusion; absence,
+zero and malformed values leave the full sea intact. No replacement cutout or
+new water API is shipped. The rejected exact-clipping candidate and raw fleet
+comparison remain in the [follow-up evidence](../.local-archives/metal-renderer-evidence/destruction-player-followup-20261018/receipt.json).
+The prior implementation and comparison below are historical, not the default.
+
 The separately authorized ship-interior-water scope contributes one frozen
 `sea.cpp` change to the shared installed batch. SEA obtains each retained hull
 XZ contour through the existing SHIP collision owner, selects nearby sea blocks

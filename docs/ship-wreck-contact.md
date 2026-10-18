@@ -1,5 +1,26 @@
 # Ship collision and contact with sinking ships
 
+## Committed contact publication priority
+
+The two-slot GEOM registry prioritizes committed `PhysicalDelta` tickets over
+background material restores. Under pressure it cancels one pure unpublished
+background value job, retains that geometry's desired state and resumes it after
+contacts are admitted. Admission, failed publication, replacement and GEOM
+destruction remove their weak tickets. Existing cancellation checkpoints retain
+bounded concurrency. Native evidence isolates18.371s of waiting before166ms of
+projection; the final full-path contact completes in245ms. This does not measure
+the player's worst collision frame. [Material/latency ownership and evidence](naval-ammunition-and-damage.md#native-capture-to-publication-latency)
+include loading, cache lifecycle and persisted-state negatives.
+
+The native narrow-phase reuses each proxy's prepared convex hull while slicing
+motion; it no longer copies/sorts hull vectors at every CCD advance. Response
+uses the same prepared inertia, scaling unit-mass material leaves by body mass;
+the complete body still owns the final impulse. A frozen-reference oracle
+matches2000 contact queries and16000 response combinations, including stationary
+motion, invalid inputs, full turns, fixed targets and unit-mass leaf conversion.
+This removes redundant work without lowering candidate/advance limits. The
+actual large-ram limitation is recorded in the shared material owner above.
+
 ## Local contact admission and same-impact fracture continuation
 
 Contact admission no longer waits for an unrelated laser value worker or a

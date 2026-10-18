@@ -3,6 +3,7 @@
 #include "ship_hull_material.hpp"
 #include "ship_hull_contact_geometry.hpp"
 #include "geometry_work_budget.hpp"
+#include "ship_damage_trace.hpp"
 #include "phonk_targeting.hpp"
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_debris_bridge.hpp"
@@ -733,13 +734,15 @@ bool SHIP::StartPhonkLaserWork() try
         }
     }
     auto cancel = std::make_shared<std::atomic<bool>>(false);
-    auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget, allowance = storm_geometry_work::allowance()]() mutable {
+    auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget, traceOwner=uint64_t(blots_id), allowance = storm_geometry_work::allowance()]() mutable {
         try {
+            storm_ship_damage_trace::Phase timing("laser-work",traceOwner);
             storm_geometry_work::Scope scope(allowance, cancel);
             unsigned remaining = budget;
             for (auto &target : work.targets) {
                 if (cancel->load(std::memory_order_relaxed)) return std::move(work);
                 if(target.supportOnly)continue;
+                storm_ship_damage_trace::Phase targetTiming("laser-target",traceOwner,target.node);
                 work.failedNode=target.node;work.failure="prepare";
                 target.input.fragmentLimit = std::min(target.input.fragmentLimit, remaining);
                 if (!(target.input.fingerprint?storm::ship::material::prepare(target.input,target.projection):storm_ship_laser::prepare(target.input, target.projection))) return std::move(work);
@@ -750,6 +753,7 @@ bool SHIP::StartPhonkLaserWork() try
                 remaining -= produced;
             }
             using namespace storm::ship::mast_support;
+            storm_ship_damage_trace::Phase supportTiming("mast-joints",traceOwner);
             work.failedNode=-1;work.failure="support-validation";
             std::map<int,std::unique_ptr<Index<storm_ship_laser::SurfaceBase>>>authoredIndices;
             std::map<int,std::unique_ptr<Index<storm_ship_laser::Surface>>>retainedIndices;

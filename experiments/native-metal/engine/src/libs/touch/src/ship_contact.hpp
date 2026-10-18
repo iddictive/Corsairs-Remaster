@@ -240,9 +240,8 @@ inline bool sweptRadiusOverlap(Vec2 relativeStart, Vec2 relativeTravel, double r
 }
 } // namespace detail
 
-inline Contact collide(const Body &a, const Body &b)
+inline Contact collidePrepared(const Body &a, const Body &b, const detail::Hull &ha, const detail::Hull &hb)
 {
-    const auto ha = detail::prepare(a), hb = detail::prepare(b);
     if (ha.points.empty() || hb.points.empty()) return {};
     const Vec2 relativeStart = b.start.position - a.start.position;
     const Vec2 relativeTravel = (b.end.position - b.start.position) - (a.end.position - a.start.position);
@@ -271,6 +270,12 @@ inline Contact collide(const Body &a, const Body &b)
         time = std::min(1.0, time + step);
     }
     return {};
+}
+
+inline Contact collide(const Body &a, const Body &b)
+{
+    const auto ha = detail::prepare(a), hb = detail::prepare(b);
+    return collidePrepared(a, b, ha, hb);
 }
 
 struct Twist
@@ -319,13 +324,13 @@ inline NormalConstraint constrainNormal(const Body &body, const Contact &contact
     return result;
 }
 
-inline Response resolve(const Body &a, const Body &b, const Contact &contact, double seconds, bool fixedB = false)
+inline Response resolvePrepared(const Body &a, const Body &b, const detail::Hull &ha,
+                                const detail::Hull &hb, const Contact &contact, double seconds, bool fixedB = false)
 {
     Response out;
     if (!contact.hit || !std::isfinite(seconds) || seconds <= 0 ||
         !std::isfinite(contact.time) || contact.time < 0 || contact.time > 1 ||
         !detail::finite(contact.point) || !detail::finite(contact.normal)) return out;
-    const auto ha = detail::prepare(a), hb = fixedB ? detail::Hull{} : detail::prepare(b);
     const double normalLength = length(contact.normal);
     if (ha.points.empty() || (!fixedB && hb.points.empty()) || !(normalLength > 0)) return out;
     const Vec2 n = contact.normal / normalLength, t{-n.z, n.x};
@@ -392,6 +397,12 @@ inline Response resolve(const Body &a, const Body &b, const Contact &contact, do
         !std::isfinite(out.deltaWB) || !std::isfinite(out.energyLost) || !std::isfinite(out.specificEnergyA) ||
         !std::isfinite(out.specificEnergyB)) return {};
     return out;
+}
+
+inline Response resolve(const Body &a, const Body &b, const Contact &contact, double seconds, bool fixedB = false)
+{
+    const auto ha = detail::prepare(a), hb = fixedB ? detail::Hull{} : detail::prepare(b);
+    return resolvePrepared(a, b, ha, hb, contact, seconds, fixedB);
 }
 
 // A successful physical fracture spends finite work instead of first stopping

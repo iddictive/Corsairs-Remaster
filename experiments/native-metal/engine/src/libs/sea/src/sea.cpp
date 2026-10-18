@@ -1563,12 +1563,11 @@ void SEA::Realize(uint32_t dwDeltaTime)
         }
     }
 
-    // Source the exclusion from retained hull geometry, including current cuts.
-    // A submerged/detached hull no longer masks water. A diagnostic off switch
-    // lets the fleet workload compare identical executable and scene inputs.
+    // Disabled for ordinary play: the coarse exclusion exposes polygon facets.
+    // Retain the old path only behind an explicit diagnostic opt-in.
     std::vector<HullWaterCutout> waterCutouts;
     const char *cutoutMode = std::getenv("STORM_METAL_SEA_HULL_CUTOUT");
-    if (!cutoutMode || cutoutMode[0] != '0' || cutoutMode[1] != '\0')
+    if (cutoutMode && cutoutMode[0] == '1' && cutoutMode[1] == '\0')
         for (const auto shipId : core.GetEntityIds("ship")) {
             auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(shipId));
             if (!ship) continue;

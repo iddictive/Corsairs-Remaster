@@ -224,8 +224,11 @@ inline Event nextConvexPair(const FrameBody &fa, const FrameBody &fb, const Prox
     const double tol = tolerance(a, b);
     for (std::size_t iteration = 0; ; ++iteration)
     {
-        Body sa = slice(a.sweep, lo, hi), sb = slice(b.sweep, lo, hi);
-        auto c = collide(sa, sb);
+        Body sa{{},a.sweep.mass,detail::poseAt(a.sweep,lo),detail::poseAt(a.sweep,hi)};
+        Body sb{{},b.sweep.mass,detail::poseAt(b.sweep,lo),detail::poseAt(b.sweep,hi)};
+        // Slicing changes poses, never the hull. Proxy already owns the exact
+        // prepared convex hull; do not sort/allocate it at every CCD advance.
+        auto c = collidePrepared(sa, sb, a.hull, b.hull);
         if (!c.hit) return {};
         const double at = lo + (hi - lo) * c.time;
         const Pose pa = detail::poseAt(sa, c.time), pb = detail::poseAt(sb, c.time);
@@ -240,7 +243,7 @@ inline Event nextConvexPair(const FrameBody &fa, const FrameBody &fb, const Prox
             rb.start = pb; rb.end = b.blocked ? pb : Pose{pb.position + b.velocity, pb.yaw + b.angular};
             duration = 1; c.time = 0;
         }
-        const auto response = c.separation <= tol ? resolve(ra, rb, c, duration) : Response{};
+        const auto response = c.separation <= tol ? resolvePrepared(ra, rb, a.hull, b.hull, c, duration) : Response{};
         c.time = at;
         if (c.separation <= tol && (c.penetration > tol || response.normalClosing > 0))
             return {true, a.blocked || b.blocked, at, 0, 0, c, response};
@@ -306,7 +309,9 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
     Event first; std::size_t visited = 0, leafPairs = 0;
     const auto part = [](const Proxy &p, const detail::Hull &h)
     {
-        Proxy q; q.sweep = p.sweep; q.sweep.hull = h.points; q.hull = h;
+        Proxy q; q.sweep = {{},p.sweep.mass,p.sweep.start,p.sweep.end}; q.hull = h;
+        // Material leaves cache unit-mass inertia; envelopes cache body mass.
+        if(p.material)q.hull.inertia*=p.sweep.mass;
         q.pose = p.pose; q.velocity = p.velocity; q.angular = p.angular; q.blocked = p.blocked;
         return q;
     };

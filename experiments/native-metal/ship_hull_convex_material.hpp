@@ -1,6 +1,7 @@
 #pragma once
 #include "ship_laser_geometry.hpp"
 #include "ship_hull_structure.hpp"
+#include "geometry_work_parallel.hpp"
 #include <tuple>
 
 // Derived physical cells. SAVE continues to own the exact current boundaries;
@@ -70,8 +71,10 @@ inline bool decompose(const std::vector<Piece>&authored,const Mesh&current,std::
 inline bool touching(const Piece&a,const Piece&b,Budget&budget){if(!overlapBounds(a.bounds,b.bounds,.000002f))return false;if(!budget.take(budget.left.contactPairs))return false;
     // Positive material overlap, or a finite shared face. Merely sharing an
     // expanded bbox/nearby origin never establishes a structural connection.
-    Piece overlap=a;for(const auto&f:b.faces){Piece next;if(!clip(overlap,f.plane,next,budget))return false;overlap=std::move(next);if(overlap.volume<=1.e-12)break;}if(overlap.volume>1.e-12)return true;
-    for(const auto&fa:a.faces)for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}return false;
+    // Authored partitions usually share a face. Prove that cheap alternative
+    // before constructing a complete solid Boolean merely to find zero volume.
+    for(const auto&fa:a.faces)for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}
+    Piece overlap=a;for(const auto&f:b.faces){Piece next;if(!clip(overlap,f.plane,next,budget))return false;overlap=std::move(next);if(overlap.volume<=1.e-12)break;}return overlap.volume>1.e-12;
 }
 inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCell!=b.supportCell||a.authoredOwner!=b.authoredOwner||!overlapBounds(a.bounds,b.bounds))return false;bool shared=false;for(const auto&fa:a.faces)for(const auto&fb:b.faces)shared|=storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<1.e-6f;if(!shared)return false;
     const std::vector<Piece>pair{a,b};Piece next;next.supportCell=a.supportCell;next.authoredOwner=a.authoredOwner;for(size_t n=0;n<2;++n)for(const auto&face:pair[n].faces)for(auto polygon:externalFace(pair,n,face)){Face outside=face;outside.vertices=std::move(polygon);next.faces.push_back(std::move(outside));}
@@ -133,7 +136,12 @@ inline std::shared_ptr<const State>prepare(const MaterialCells&cells,std::shared
         std::vector<std::vector<uint32_t>>owners(source->pieces.size());
         for(uint32_t id:authored)owners[id].resize(source->pieces[id]->size());
         for(uint32_t owner=0;owner<next->components.size();++owner){auto&component=next->components[owner];component.authoredOwner=owner;for(auto key:component.pieces)owners[key.cell][key.piece]=owner;}
-        for(uint32_t id:authored){auto parts=std::make_shared<std::vector<Piece>>(*source->pieces[id]);for(size_t n=0;n<parts->size();++n)parts->at(n).authoredOwner=owners[id][n];source->pieces[id]=parts;auto cell=std::make_shared<Cell>(*next->cells[id]);cell->pieces=std::move(parts);next->cells[id]=std::move(cell);}
+        for(uint32_t id:authored){auto parts=std::make_shared<std::vector<Piece>>(*source->pieces[id]);for(size_t n=0;n<parts->size();++n)parts->at(n).authoredOwner=owners[id][n];source->pieces[id]=parts;auto cell=std::make_shared<Cell>(*next->cells[id]);cell->pieces=std::move(parts);
+            // Numerical directed contacts may point back to an already visited
+            // authored component. Apply the same owner fence as reconnect now,
+            // so the immutable graph remains valid when pieces are removed.
+            for(size_t n=0;n<cell->edges.size();++n)std::erase_if(cell->edges[n],[&](Key key){return owners[id][n]!=owners[key.cell][key.piece];});
+            next->cells[id]=std::move(cell);}
     }
     std::set<uint32_t>changed;for(uint32_t id=0;id<next->cells.size();++id){if(!next->source->pieces[id])continue;const auto current=boundary(cells,id);if(next->cells[id]&&next->cells[id]->boundary==current)continue;auto cell=std::make_shared<Cell>();cell->boundary=current;
         if(current==cells.source->solids[id])cell->pieces=next->source->pieces[id];else{std::vector<Piece>pieces;if(!decompose(*next->source->pieces[id],*current,pieces))return {};cell->pieces=std::make_shared<const std::vector<Piece>>(std::move(pieces));}next->cells[id]=std::move(cell);changed.insert(id);}
@@ -206,9 +214,40 @@ inline Edit edit(std::shared_ptr<const MaterialCells>original,const std::vector<
 inline std::vector<Component>detached(const State&state){std::set<uint32_t>retained;std::vector<Component>out;for(const auto&component:state.components){if(retained.insert(component.authoredOwner).second)continue;out.push_back(component);}return out;}
 inline bool hasDetached(const State&state){std::set<uint32_t>retained;for(const auto&component:state.components)if(!retained.insert(component.authoredOwner).second)return true;return false;}
 inline std::shared_ptr<const MaterialCells>ready(std::shared_ptr<const MaterialCells>cells,std::shared_ptr<const storm_ship_structure::Layout>layout={}){if(!cells||(compatible(*cells)&&cells->convex->pendingConnectivity.empty()&&(!layout||cells->convex->source->layout==layout)))return cells;auto next=std::make_shared<MaterialCells>(*cells);next->convex=prepare(*next,std::move(layout));return next->convex?next:nullptr;}
-inline std::shared_ptr<const MaterialCells>take(std::shared_ptr<const MaterialCells>original,const std::vector<Component>&groups,Budget&budget,std::vector<uint32_t>*changedOutput=nullptr){if(!original||!compatible(*original))return {};std::map<uint32_t,std::set<uint32_t>>removed;for(const auto&group:groups)for(auto key:group.pieces)removed[key.cell].insert(key.piece);auto cells=std::make_shared<MaterialCells>(*original);auto state=std::make_shared<State>(*original->convex);std::set<uint32_t>changed;
-    for(const auto&entry:removed){if(entry.first>=state->cells.size()||!state->cells[entry.first])return {};auto cell=std::make_shared<Cell>(*state->cells[entry.first]);std::vector<Piece>pieces;for(uint32_t n=0;n<cell->pieces->size();++n)if(!entry.second.count(n))pieces.push_back(cell->pieces->at(n));cell->pieces=std::make_shared<const std::vector<Piece>>(std::move(pieces));cell->boundary=std::make_shared<const Mesh>(mesh(*cell->pieces));cells->changed[entry.first]=cell->boundary;state->cells[entry.first]=std::move(cell);changed.insert(entry.first);}
-    if(!reconnect(*state,changed,budget))return {};state->owner=cells.get();cells->convex=std::move(state);if(changedOutput)changedOutput->assign(changed.begin(),changed.end());return cells;
+inline std::shared_ptr<const MaterialCells>take(std::shared_ptr<const MaterialCells>original,const std::vector<Component>&groups,Budget&budget,std::vector<uint32_t>*changedOutput=nullptr){
+    if(!original||!compatible(*original))return {};
+    auto cells=std::make_shared<MaterialCells>(*original);auto state=std::make_shared<State>(*original->convex);
+    // Finish only actual shape edits. Removing whole positive pieces cannot
+    // create a new edge: filter/remap the existing exact graph instead of
+    // repeating solid Booleans for every neighbor of a large released section.
+    if(!state->pendingConnectivity.empty()&&!reconnect(*state,{},budget))return {};
+    std::map<uint32_t,std::set<uint32_t>>removed;for(const auto&group:groups)for(auto key:group.pieces)removed[key.cell].insert(key.piece);
+    std::map<uint32_t,std::vector<uint32_t>>mapping;std::set<uint32_t>changed;
+    for(const auto&entry:removed){
+        if(entry.first>=state->cells.size()||!state->cells[entry.first]||!state->cells[entry.first]->pieces)return {};
+        auto&indices=mapping[entry.first];indices.resize(state->cells[entry.first]->pieces->size(),UINT32_MAX);uint32_t next=0;
+        for(uint32_t n=0;n<indices.size();++n)if(!entry.second.count(n))indices[n]=next++;
+        changed.insert(entry.first);
+    }
+    for(uint32_t id=0;id<state->cells.size();++id){const auto&old=state->cells[id];if(!old||!old->pieces)continue;
+        const auto own=mapping.find(id);bool affected=own!=mapping.end();
+        if(!affected)for(const auto&edges:old->edges)for(auto key:edges)if(mapping.count(key.cell)){affected=true;break;}
+        if(!affected)continue;
+        auto cell=std::make_shared<Cell>(*old);
+        if(own!=mapping.end()){
+            std::vector<Piece>pieces;for(uint32_t n=0;n<old->pieces->size();++n)if(own->second[n]!=UINT32_MAX)pieces.push_back(old->pieces->at(n));
+            cell->pieces=std::make_shared<const std::vector<Piece>>(std::move(pieces));
+            cell->boundary=std::make_shared<const Mesh>(mesh(*cell->pieces));cells->changed[id]=cell->boundary;
+        }
+        cell->edges.assign(cell->pieces->size(),{});
+        for(uint32_t n=0;n<old->pieces->size();++n){const auto to=own==mapping.end()?n:own->second[n];if(to==UINT32_MAX)continue;
+            for(auto key:old->edges[n]){if(const auto found=mapping.find(key.cell);found!=mapping.end()){
+                    if(key.piece>=found->second.size())return {};key.piece=found->second[key.piece];if(key.piece==UINT32_MAX)continue;}
+                cell->edges[to].push_back(key);}}
+        state->cells[id]=std::move(cell);
+    }
+    refreshSupportMeasures(*state,changed);if(!components(*state,budget))return {};
+    state->owner=cells.get();cells->convex=std::move(state);if(changedOutput)changedOutput->assign(changed.begin(),changed.end());return cells;
 }
 // Worker-only realization of an already committed support ownership mask.
 // The old positive pieces remain shared by CPU bodies until this projection.
@@ -217,11 +256,18 @@ inline std::shared_ptr<const MaterialCells>materialize(const ContactSnapshot&sna
     for(uint32_t id=0;id<before.cells.size();++id){const auto&cell=before.cells[id];if(!cell||!cell->pieces)continue;for(uint32_t p=0;p<cell->pieces->size();++p){const auto support=cell->pieces->at(p).supportCell;if(support<snapshot.retainedSupports->size()&&!snapshot.retainedSupports->at(support))removed.pieces.push_back({id,p});}}
     if(removed.pieces.empty())return ready(snapshot.cells);Budget budget;std::vector<uint32_t>changed;auto cells=take(snapshot.cells,{removed},budget,&changed);if(!cells)return {};
     std::set<uint32_t>affected(changed.begin(),changed.end());std::vector<uint32_t>nearby;const Vec3 pad{.000002f,.000002f,.000002f};for(auto id:changed){auto box=cells->source->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;cells->source->index.queryBounds(box,nearby);affected.insert(nearby.begin(),nearby.end());}
-    for(auto id:affected){const auto&cell=cells->convex->cells[id];if(!cell||!cell->pieces)continue;for(uint32_t p=0;p<cell->pieces->size();++p)for(const auto&face:cell->pieces->at(p).faces)if(face.partition){storm_geometry_work::checkpoint();const auto visible=visibleFace(*cells->convex,{id,p},face);if(visible.empty())continue;
+    const std::vector<uint32_t>sources(affected.begin(),affected.end());std::vector<Mesh>sourceCaps(sources.size());
+    if(!storm_geometry_work::parallelFor(sources.size(),[&](size_t n){
+        storm_geometry_work::checkpoint(true);const auto id=sources[n];const auto&cell=cells->convex->cells[id];if(!cell||!cell->pieces)return true;
+        for(uint32_t p=0;p<cell->pieces->size();++p)for(const auto&face:cell->pieces->at(p).faces)if(face.partition){storm_geometry_work::checkpoint();const auto visible=visibleFace(*cells->convex,{id,p},face);if(visible.empty())continue;
             // Keys of untouched sources remain stable. In a changed source,
             // locate the same retained positive piece by support and vertices.
             const auto&old=*before.cells[id]->pieces;uint32_t prior=UINT32_MAX,surviving=0;for(uint32_t n=0;n<old.size();++n){const auto support=old[n].supportCell;if(support<snapshot.retainedSupports->size()&&!snapshot.retainedSupports->at(support))continue;if(surviving++==p){prior=n;break;}}
-            if(prior==UINT32_MAX)return {};const auto previous=visibleFace(before,{id,prior},face);for(const auto&polygon:visible){std::vector<Triangle>triangles;storm_ship_hull::fan(polygon,triangles);for(const auto&t:triangles){std::vector<Triangle>fresh;if(previous.empty())fresh.push_back(t);else if(!subtractFaces(t,previous,fresh))return {};auto&out=caps[face.object];out.insert(out.end(),fresh.begin(),fresh.end());}}}}
+            if(prior==UINT32_MAX)return false;const auto previous=visibleFace(before,{id,prior},face);for(const auto&polygon:visible){std::vector<Triangle>triangles;storm_ship_hull::fan(polygon,triangles);for(const auto&t:triangles){std::vector<Triangle>fresh;if(previous.empty())fresh.push_back(t);else if(!subtractFaces(t,previous,fresh))return false;auto&out=sourceCaps[n][face.object];out.insert(out.end(),fresh.begin(),fresh.end());}}}
+        return true;
+    }))return {};
+    // Keep authored source/face order independent of dispatch completion order.
+    for(auto&source:sourceCaps)for(auto&object:source){auto&out=caps[object.first];out.insert(out.end(),std::make_move_iterator(object.second.begin()),std::make_move_iterator(object.second.end()));}
     return cells;
 }
 // One role projection for worker edits and already-paid contact deltas. Only
@@ -247,9 +293,22 @@ inline bool partitionSurface(const Surface&source,const MaterialCells&retained,c
     if(!compatible(retained))return false;std::vector<Surface>groups(bodies.size()+1);struct Ref{uint32_t body,piece;};std::vector<Ref>refs;std::vector<Bounds>boxes;
     for(uint32_t n=0;n<bodies.size();++n)for(uint32_t p=0;p<bodies[n].pieces.size();++p){refs.push_back({n,p});boxes.push_back(bodies[n].pieces[p].bounds);}storm_ship_hull::Broadphase index;index.build(boxes);std::vector<uint32_t>nearby;Surface decoration;
     const auto touchingTriangle=[&](const Triangle&t,const Piece&piece){for(const auto&face:piece.faces){std::vector<Triangle>triangles;storm_ship_hull::fan(face.vertices,triangles);for(const auto&other:triangles)if(supportTrianglesTouch(t,other))return true;}return false;};
-    for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role)){surfaceRole(groups[0],role).try_emplace(o.first);if(!wood.count(o.first))continue;for(const auto&t:o.second){storm_geometry_work::checkpoint();std::vector<std::vector<Vertex>>remaining{{t.begin(),t.end()}};index.queryBounds(storm_ship_structure::detail::triangleBounds(t),nearby);if(changedObjects&&!nearby.empty())changedObjects->insert(o.first);
-            for(auto id:nearby){const auto ref=refs[id];const auto&piece=bodies[ref.body].pieces[ref.piece];std::vector<std::vector<Vertex>>outside;for(auto polygon:remaining){for(const auto&face:piece.faces){std::vector<Vertex>in,rejected;linearSplit(polygon,face.plane,in,rejected);if(rejected.size()>=3&&polygonArea(rejected)>1.e-12f)outside.push_back(std::move(rejected));polygon=std::move(in);if(polygon.size()<3)break;}if(polygon.size()>=3)storm_ship_hull::fan(polygon,surfaceRole(groups[ref.body+1],role)[o.first]);}remaining=std::move(outside);if(remaining.empty())break;}
-            for(const auto&polygon:remaining)storm_ship_hull::fan(polygon,surfaceRole(groups[0],role)[o.first]);}}
+    struct Chunk{unsigned role;int object;const std::vector<Triangle>*triangles;size_t first,last;std::map<unsigned,std::vector<Triangle>>groups;bool changed=false;};
+    std::vector<Chunk>chunks;
+    for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role)){
+        surfaceRole(groups[0],role).try_emplace(o.first);if(!wood.count(o.first))continue;
+        for(size_t first=0;first<o.second.size();first+=512)chunks.push_back({role,o.first,&o.second,first,std::min(first+512,o.second.size()),{},false});
+    }
+    if(!storm_geometry_work::parallelFor(chunks.size(),[&](size_t n){
+        storm_geometry_work::checkpoint(true);auto&chunk=chunks[n];std::vector<uint32_t>candidates;
+        for(size_t i=chunk.first;i<chunk.last;++i){const auto&t=chunk.triangles->at(i);storm_geometry_work::checkpoint();std::vector<std::vector<Vertex>>remaining{{t.begin(),t.end()}};index.queryBounds(storm_ship_structure::detail::triangleBounds(t),candidates);chunk.changed|=!candidates.empty();
+            for(auto id:candidates){const auto ref=refs[id];const auto&piece=bodies[ref.body].pieces[ref.piece];std::vector<std::vector<Vertex>>outside;for(auto polygon:remaining){for(const auto&face:piece.faces){std::vector<Vertex>in,rejected;linearSplit(polygon,face.plane,in,rejected);if(rejected.size()>=3&&polygonArea(rejected)>1.e-12f)outside.push_back(std::move(rejected));polygon=std::move(in);if(polygon.size()<3)break;}if(polygon.size()>=3)storm_ship_hull::fan(polygon,chunk.groups[ref.body+1]);}remaining=std::move(outside);if(remaining.empty())break;}
+            for(const auto&polygon:remaining)storm_ship_hull::fan(polygon,chunk.groups[0]);
+        }return true;
+    }))return false;
+    for(auto&chunk:chunks){if(chunk.changed&&changedObjects)changedObjects->insert(chunk.object);
+        for(auto&part:chunk.groups){auto&triangles=surfaceRole(groups[part.first],chunk.role)[chunk.object];triangles.insert(triangles.end(),std::make_move_iterator(part.second.begin()),std::make_move_iterator(part.second.end()));}
+    }
     auto decorations=source.decorations;
     if(!decorations){for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role))if(!wood.count(o.first))surfaceRole(decoration,role).emplace(o.first,o.second);prepareDecorations(decoration,wood);decorations=decoration.decorations;}
     std::vector<DecorationList>members(groups.size());

@@ -341,7 +341,7 @@ struct Device : storm_render::Device {
  storm_metal::FXAAPass fxaaPass;bool fxaaEnabled=storm_metal::antialiasingUsesFXAA(antialiasingMode);uint64_t fxaaFrames=0;
  storm_metal::MetalFXScene metalFX;unsigned upscalingMode=[](){const char*v=std::getenv("STORM_METAL_UPSCALING");return v&&v[0]>='0'&&v[0]<='3'&&!v[1]?unsigned(v[0]-'0'):0u;}();
  bool sceneFramePrepared=false,sceneScaled=false,metalFXSceneClosed=false;size_t sceneScaleSlot=0;
- bool dynamicSkyEnabled=true,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;uint32_t solarShape=0;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
+ bool dynamicSkyEnabled=true,dynamicSkyActive=false,skyPreparationFailed=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;uint32_t solarShape=0;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
  storm_metal::VolumetricSky volumetricSky;storm_metal::LocalWeatherVolume localWeather;uint64_t dynamicSkyFrame=0,dynamicSkyWeatherFrame=~uint64_t(0);bool dynamicSkyWeatherSeeded=false;
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
@@ -603,14 +603,17 @@ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRef
  void prepareFrameSlot(){++dynamicSkyFrame;++seaReflectionFrame;retireCompletedFlights();const size_t slot=flightRing.current;if(flightRing.mustWaitBeforeReuse())retireFlight(slot,true);frameArena.select(slot);}
  bool beginDynamicSky(float hour,float deltaSeconds,float coverage,float density,float windAngle,float windSpeed,float legacyBlend,float sunX,float sunY,float sunZ,uint32_t fogColor){
   dynamicSkyInput.hour=hour; // Weather remains the aim daylight owner with authored sky too.
-  dynamicSkyActive=false;if(!dynamicSkyEnabled||!metal)return false;
-  if(!dynamicSkyLibrary){NSError*error=nil;dynamicSkyLibrary=[metal newLibraryWithSource:[NSString stringWithUTF8String:(std::string(storm_metal::dynamicSkyShaderSource)+storm_metal::localWeatherMSL).c_str()] options:nil error:&error];if(!dynamicSkyLibrary){fprintf(stderr,"[StormMetal] dynamic sky compile: %s; retaining authored sky\n",error.localizedDescription.UTF8String);dynamicSkyEnabled=false;return false;}}
+  dynamicSkyActive=false;if((!dynamicSkyEnabled&&!modernLighting&&!modernWater)||skyPreparationFailed||!metal)return false;
+  if(!dynamicSkyLibrary){NSError*error=nil;dynamicSkyLibrary=[metal newLibraryWithSource:[NSString stringWithUTF8String:(std::string(storm_metal::dynamicSkyShaderSource)+storm_metal::localWeatherMSL).c_str()] options:nil error:&error];if(!dynamicSkyLibrary){fprintf(stderr,"[StormMetal] dynamic sky compile: %s; retaining authored sky\n",error.localizedDescription.UTF8String);skyPreparationFailed=true;return false;}}
   if(!dynamicSkyWeatherSeeded){dynamicSkyTemporal.coverage=storm_metal::finiteSkyClamp(coverage,.38f,0.f,1.f);dynamicSkyTemporal.density=storm_metal::finiteSkyClamp(density,.55f,0.f,1.f);dynamicSkyWeatherSeeded=true;}
   const float visualDelta=storm_metal::finiteSkyClamp(deltaSeconds,0.f,0.f,.1f);
   if(visualDelta>0.f&&dynamicSkyWeatherFrame!=dynamicSkyFrame){dynamicSkyWeatherFrame=dynamicSkyFrame;dynamicSkyElapsed=std::min(1'000'000.f,dynamicSkyElapsed+visualDelta);dynamicSkyPhase=storm_metal::advanceDynamicSkyPhase(dynamicSkyPhase,windAngle,windSpeed,visualDelta);dynamicSkyTemporal.update(coverage,density,visualDelta);}
   dynamicSkyInput={hour,dynamicSkyElapsed,dynamicSkyTemporal.coverage,dynamicSkyTemporal.density,windAngle,windSpeed,legacyBlend,dynamicSkyPhase.x,dynamicSkyPhase.y,{sunX,sunY,sunZ}};dynamicSkyFog=color(fogColor).xyz;
   finish();if(!command)command=[queue commandBuffer];auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);
-  if(!volumetricSky.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather)){fprintf(stderr,"[StormMetal] volume sky allocation/input failure; retaining authored sky\n");dynamicSkyEnabled=false;return false;}
+  if(!volumetricSky.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather)){fprintf(stderr,"[StormMetal] volume sky allocation/input failure; retaining authored sky\n");skyPreparationFailed=true;return false;}
+  // The appearance switch owns the sky draw, fog and astronomy replacement.
+  // Surface irradiance has independent consumers with authored panoramas too.
+  if(!dynamicSkyEnabled)return false;
   simd_float4x4 view,projection;memcpy(&view,&matrices[storm_render::TransformView],64);memcpy(&projection,&matrices[storm_render::TransformProjection],64);
   if(!localWeather.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather,view,projection,landShadow.worldOrigin,volumetricSky.shape,volumetricSky.detail,volumetricSky.weatherNoise,volumetricSky.atmosphere,volumetricSky.solarSamples[dynamicSkyFrame%3],!(landShadow.locationActive&&landShadow.indoor)))return false;
   dynamicSkyActive=true;return true;
@@ -629,7 +632,7 @@ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRef
   const auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);
   return localWeather.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather,view,projection,landShadow.worldOrigin,volumetricSky.shape,volumetricSky.detail,volumetricSky.weatherNoise,volumetricSky.atmosphere,volumetricSky.solarSamples[dynamicSkyFrame%3],outdoor);
  }
- bool outdoorSkyLightingReady()const{return cloudFieldCurrent()&&volumetricSky.surfaceLightingReady&&!interfaceBackSceneActive&&!(landShadow.locationActive&&landShadow.indoor);}
+ bool outdoorSkyLightingReady()const{return !skyPreparationFailed&&volumetricSky.primed&&volumetricSky.lastFrame==dynamicSkyFrame&&volumetricSky.surfaceLightingReady&&!interfaceBackSceneActive&&!(landShadow.locationActive&&landShadow.indoor);}
  simd_float4 outdoorSolarGain()const{return outdoorSkyLightingReady()?simd_make_float4(volumetricSky.surfaceSpectrum*volumetricSky.surfaceTransmission,1.f):simd_make_float4(1.f,1.f,1.f,1.f);}
  simd_float3 outdoorSkyIrradiance(simd_float3 normal)const{return storm_metal::skyIrradiance(normal,volumetricSky.surfaceIrradiance.data());}
  simd_float3 outdoorWaterIllumination()const{
@@ -776,7 +779,8 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   const bool shadowChanged=landShadow.enabled!=nextDynamicLighting||landShadow.quality.tier!=nextQuality.tier;
   if(!shadowChanged&&modernWater==nextModernWater&&modernLighting==nextModernLighting&&cinematic==nextCinematic&&lightShaftsEnabled==nextShafts&&dynamicSkyEnabled==nextDynamicSky&&antialiasingMode==nextAntialiasing&&upscalingMode==nextUpscaling)return true;
   synchronize();
-  if(dynamicSkyEnabled!=nextDynamicSky){volumetricSky.reset();dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);}
+  if((dynamicSkyEnabled||modernLighting||modernWater)!=(nextDynamicSky||nextModernLighting||nextModernWater)){volumetricSky.reset();dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);}
+  skyPreparationFailed=false;
   upscalingMode=nextUpscaling;modernWater=nextModernWater;modernLighting=nextModernLighting;cinematic=nextCinematic;lightShaftsEnabled=nextShafts;dynamicSkyEnabled=nextDynamicSky;antialiasingMode=nextAntialiasing;fxaaEnabled=nextFxaa;dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;
   ++seaReflectionFrame;
   sceneColorSnapshot=nil;sceneDepthSnapshot=nil;hudSceneSnapshot=nil;sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=hudSceneSnapshotReady=false;fxaaPass={};sceneMSAA={};ambientOcclusion={};ambientOcclusionLogged=false;lightShafts.reset();cinematicBloomA=nil;cinematicBloomB=nil;for(auto&texture:cinematicLuminance)texture=nil;cinematicLuminancePending=false;
