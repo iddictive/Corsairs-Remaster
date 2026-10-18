@@ -1,8 +1,30 @@
 # Runtime state
 
-Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. Battle behaviour, current-save replay and FPS remain unaccepted. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. No agent player launch or SAVE load occurs. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
+Last verified installed delivery: October17,22:43EDT, persistent-contact work reduction, authored material connectivity/precision repair and terrain excavation disabled. Signed engine `3ef2bd857662a7f07bda56759a8f54fc90d6be1d17b7eb2e4483ac72a1dbf212`; canonical staging exits0, strict signature and installed gameplay parity pass. The22:47 player replay rejects laser/ram destruction and contact-frame performance; the subsequent source audit below leaves repairs pending. The22:11 distance-haze repair remains in this batch; its real-scene appearance is unresolved. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions and the earlier sea city remain. Published ZIP/local Drive remains23ac5eb. `TASKS.md` owns the wider handoff; earlier installed inventories are historical.
 
 ## Current verdict
+
+### October17,22:47 player rejection — destruction ownership audit
+
+The player reports ineffective laser sweeps, abrupt contact stalls and mostly
+rigid ship deflection at200–400knots. Some material appears only after about10s;
+the supplied frame shows a missing forward hull region and apparently unsupported
+forward structure. The player reports no sinking. These are player observations,
+not a new measured frame-time capture or a known SAVE reproduction.
+
+The root audit personally inspects the405d6ec SHIP/GEOM/TOUCH/script owners and
+records four defects in the [material topic](naval-ammunition-and-damage.md#reopened-player-destruction-producer-and-publication-audit):
+lost laser sampling intervals, rigid response before deferred material work,
+missing contact-to-ingress/structural publication, and incomplete dependent mast
+selection. A deterministic sampling counterexample and real stock-material
+contact calls establish their bounded properties; the latter also proves wide
+strong contacts can release bodies, so blanket damage increases are unsupported.
+The exact current laser failure and worst contact-frame stall remain unresolved.
+No production gameplay source, installed executable or player state changes in
+this audit. Terrain excavation remains disabled; distance fog remains visually
+unresolved. Disposition: installed gameplay rejected; code audit complete,
+integrated repair and player acceptance pending. This supersedes the previous
+pending gameplay verdict without revoking its compilation/staging evidence.
 
 ### October17,22:43 — contact/material repair and terrain exclusion installed
 

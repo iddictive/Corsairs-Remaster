@@ -1,5 +1,72 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+## Reopened player destruction: producer and publication audit
+
+The22:47 player report rejects the405d6ec installed candidate: sweeping the laser
+does not visibly cut reliably;200–400-knot rams mainly throw/spin ships; a delayed
+bow hole can retain unsupported forward structure and no observed sinking.
+This audit inspects the actual SHIP/GEOM/TOUCH/script chain at405d6ec. No gameplay
+repair or installed acceptance is implied by the following source findings.
+
+1. **Continuous laser motion loses intermediate aim positions.**
+   `ship_phonk_laser.cpp::UpdatePhonkLaser` accumulates `sampleClock` until.035s,
+   but refreshes `rays` before the `sampleTime == 0` return. The next stroke starts
+   at the preceding *frame*, not the preceding destructive sample. In a constant
+   20m/s,100FPS arithmetic replay,25 strokes cover only5m of a20m centerline;
+   intervening centerline gaps reach.6m against a.32m beam diameter.60/120/240FPS
+   also skip intervals. This isolates producer coverage, not tracing, visible
+   pixels, material execution or game FPS. A stationary aim has no spatial gap.
+   The destructive sampling cursor must survive visual-only aim updates and
+   preserve target/muzzle discontinuities rather than bridge another receiver.
+2. **Contact failure immediately chooses the complete rigid response.**
+   `ship_contact_material_impl.hpp::CommitHullContactBreak` refuses work while
+   `phonkLaserWork.active`; GEOM also refuses pending physical/render work.
+   `ship_hull_material.hpp::tryContactEdit` can return incomplete at its finite
+   candidate/piece/tetrahedron budgets. In `ship_contact_frame.hpp::integrateFrame`,
+   only an accepted fracture replaces the old material and limits the impulse.
+   Otherwise the original rigid impulse is applied; `touch.cpp` queues remaining
+   `ApplyHullImpact` afterward. A later hole therefore cannot undo that earlier
+   bounce. Increasing damage constants does not repair this ordering contract.
+   A current-source stock Flyingdutchman check with valid horizontal contact,
+   specificWork5000, half-height4m and half-widths.16/1/4/12m returns incomplete
+   for the first two and one released body for each wider patch. The calls take
+   .004–.044ms: this check proves selective admission, not the reported stall.
+3. **The synchronous contact publication bypasses ship consequences.**
+   `PollPhonkLaserWork` consumes `TakeHullContactResult` by binding fragment render
+   tokens and setting `materialSavePending`. It discards that result's openings
+   and never reconciles remaining hull, structural failure, flood capacity/owner
+   or mast support through `ApplyPhonkLaserCutNow`. `SaveHullMaterial` serializes
+   the existing metadata and advances both saved/binding revisions, so ordinary
+   `EnsureHullMaterial` does not subsequently rebuild ingress. `SeaPhonk_Flood`
+   runs only from known native breaches; `SeaPhonk_HullCut` requires publication.
+   Thus newly removed contact material can have no corresponding water ingress
+   or structural-failure event. An above-water hole alone is not proof a ship
+   must sink; the missing contact-to-consumer transition is the proven defect.
+4. **Removing a support does not necessarily schedule its attached mast.**
+   `StartPhonkLaserWork` selects beam-intersecting nodes and then adds ancestors
+   only for selected mast nodes. It does not include a mast merely because its
+   supporting hull node is being removed. The worker checks joints only for
+   captured `hasSupport` targets, while `DetachUnsupportedCutMasts` explicitly
+   skips every finite beam. A hull-only removal can therefore leave a mast whose
+   known contacts vanished. The separate contact path above runs no such joint
+   reconciliation at all. The screenshot cannot identify the exact forward
+   node; do not claim its particular attachment was reproduced by this audit.
+
+The retained [contact source, commands and raw output](../.local-archives/metal-renderer-evidence/destruction-owner-audit-20261017/contact-receipt.json)
+and [sampling conditions/results](../.local-archives/metal-renderer-evidence/destruction-owner-audit-20261017/sweep-receipt.json)
+are counterexamples and diagnosis evidence, not acceptance tests. The initial
+contact input used a nonhorizontal normal with a vertical tangent and is excluded;
+the corrected run asserts field validity. Broad contacts succeeding also reject
+the claim that all mechanical cuts are disabled.
+
+The correction boundary is one accepted material transition feeding collision,
+geometry, physical bodies, dependent supports, ingress, structural state and SAVE;
+the beam producer additionally needs its own persistent sampling cursor. Existing
+failure fences can retain requests until another revision/capacity change; the
+current player's exact laser rejection or GPU/main-thread stall remains unbound
+without a current execution trace. The older PID97749 profiles belong to the
+preceding engine. Do not label the complete FPS cause proven by these probes.
+
 ## Material worker work admission and authored connectivity
 
 The22:15 player profiles reopen laser latency and sustained contact FPS.
