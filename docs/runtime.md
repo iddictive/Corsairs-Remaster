@@ -1,5 +1,11 @@
 # Runtime state
 
+Project work ended at the player's request on October18. The installed visual
+rollback and the source-only forest-density candidate keep the evidence limits
+recorded below; unresolved player replays are historical, not active tasks. No
+further build, staging, installation or game interaction is planned without a
+new request.
+
 Last verified engine delivery: October18 visual rollback and nonblocking ship Mount, signed engine `6146d2e10dff253a23b5664c5c9f1b4beb20869e3c5bc7b648b8a0589493b956`. Canonical `run.sh --stage-only` exited0; the installed player record selects authored sky (`dynamic_sky=0`), and structural contact fracture remains off by default. Prior renderer/FPS source optimizations remain; the Mount readiness wait was removed because it blocked live ship additions. Same-scene graphics, complete loading duration, FPS and first-hit latency are unresolved. Ship-interior sea exclusion and terrain excavation remain disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive remains23ac5eb. Earlier installed inventories are historical.
 
 ## Current verdict
