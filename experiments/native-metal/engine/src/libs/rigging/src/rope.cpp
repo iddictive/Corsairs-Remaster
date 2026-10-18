@@ -10,6 +10,7 @@
 #include "ship_base.h"
 #include "rigging_lighting.hpp"
 #include "hull_support.h"
+#include "metal_cpu_parallel.h"
 
 extern void sailPrint(VDX9RENDER *rs, const CVECTOR &pos3D, float rad, int32_t line, const char *format, ...);
 
@@ -121,18 +122,16 @@ void ROPE::Execute(uint32_t Delta_Time)
         if (vertBuf)
         {
             const auto dtime = static_cast<float>(Delta_Time) * .02f;
-            for (auto i = 0; i < ropeQuantity; i++)
-            {
+            MetalCpuParallelFor(static_cast<std::size_t>(ropeQuantity), [&](std::size_t i) noexcept {
                 if (rlist[i]->bUse && !gdata[rlist[i]->HostGroup].bDeleted)
                     SetVertexes(rlist[i], dtime);
-                // DoMove(rlist[i]);
-                else if (rlist[i]->len != 0.f) // set all vertex to point(0,0,0)
+                else if (rlist[i]->len != 0.f)
                 {
                     const auto nulVect = CVECTOR(0.f, 0.f, 0.f);
                     for (auto idx = rlist[i]->sv; idx < rlist[i]->sv + rlist[i]->nv; idx++)
                         vertBuf[idx].pos = nulVect;
                 }
-            }
+            });
 
             RenderService->UnLockVertexBuffer(vBuf);
         }

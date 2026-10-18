@@ -93,17 +93,6 @@ void FLAG::Execute(uint32_t Delta_Time)
         DoSTORM_DELETE();
     if (bUse)
     {
-        // ====================================================
-        // If the ini-file has been changed, read the info from it
-        if (fio->_FileOrDirectoryExists(RIGGING_INI_FILE))
-        {
-            auto ft_new = fio->_GetLastWriteTime(RIGGING_INI_FILE);
-            if (ft_old != ft_new)
-            {
-                LoadIni();
-            }
-        }
-
         // get the wind value
         if (const auto ei = core.GetEntityId("weather"))
         {

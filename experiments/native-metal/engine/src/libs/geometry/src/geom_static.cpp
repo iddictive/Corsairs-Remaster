@@ -687,7 +687,7 @@ void GEOM::Draw(const PLANE *pl, int32_t np, MATERIAL_FUNC mtf) const
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     // A queued clear can outlive its Blots binding. Drive only already-requested
     // work here, before any draw state is bound; never create a new desired state.
-    if(hullDesiredValid)const_cast<GEOM*>(this)->PollHullRebuild();
+    if(hullDesiredValid||hullContactPending||hullRebuildJob)const_cast<GEOM*>(this)->PollHullRebuild();
     // A cut exposes the inside of the opposite, potentially uncut material.
     // Scope the complete node without duplicating any geometry or closing holes.
     struct HullSurfaceScope {
@@ -922,7 +922,9 @@ try{
        edit.physicalDelta->before.cells!=hullContactState->cells||edit.next.revision!=hullMaterialStateRevision+1)return false;
     auto state=std::make_shared<const storm::ship::material::convex::ContactSnapshot>(edit.next);
     hullContactState=std::move(state);hullContactPrepared=prepared;hullStructureState=edit.next.strength;
-    hullMaterialStateRevision=edit.next.revision;hullContactPending=edit.physicalDelta;hullContactRenderFailed=false;return true;
+    hullMaterialStateRevision=edit.next.revision;hullContactPending=edit.physicalDelta;hullContactRenderFailed=false;
+    PollHullRebuild();
+    return true;
 }catch(...){return false;}
 bool GEOM::TakeHullContactResult(std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&delta,
     storm_ship_laser::Result&result)

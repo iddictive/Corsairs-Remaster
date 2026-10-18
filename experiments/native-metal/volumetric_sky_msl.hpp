@@ -518,13 +518,14 @@ float4 march(float3 pos, float3 end, float3 dir, int depth, texture3d<float> lar
 
 		if (t > 0.0) { //calculate lighting, but only when we are in the cloud
 			float lheight_fraction = 0.0;
-			for (int j = 0; j < 6; j++) {
+			for (int j = 0; j < 4; j++) {
 				lp +=  (ldir + RANDOM_VECTORS[j] * float(j)) * lss;
 				lheight_fraction = GetHeightFractionForPoint(length(lp),layer);
 				float3 lweather = weather_noise.sample(ns, lp.xz * weather_scale + .5f + weather_pos).xyz;
 				lt = density(lp, lweather, float(j), large_scale_noise, small_scale_noise, weather_noise, w,layer);
 				cd += lt;
 			}
+			cd *= 1.5f;
 
 			// Take a single distant sample
 			lp = p + ldir * 18.0 * lss;
@@ -565,7 +566,7 @@ float4 cloudSky(float3 dir, texture3d<float> large_scale_noise, texture3d<float>
             float3 start=camPos+dir*intersectSphere(camPos,dir,g_radius+layer.base);
             float3 end=camPos+dir*intersectSphere(camPos,dir,g_radius+layer.top);
             float grazing=1.f-smoothstep(.03f,.30f,dir.y);
-            int steps=deck==2?48:96+int(192.f*grazing);
+            int steps=deck==2?32:(48+int(64.f*grazing));
             float3 raystep=dir*length(end-start)/float(steps);
             // Moments are premultiplied optical weights: nearer layers
             // extinguish distant layers, including their direct illumination.

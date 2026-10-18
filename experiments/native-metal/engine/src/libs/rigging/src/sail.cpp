@@ -23,6 +23,7 @@
 #include "ship_base.h"
 #include "string_compare.hpp"
 #include "v_file_service.h"
+#include "metal_cpu_parallel.h"
 
 #define WIND_SPEED_MAX 12.f
 
@@ -566,40 +567,6 @@ void SAIL::Execute(uint32_t Delta_Time)
     if (bUse)
     {
         int i;
-        // ====================================================
-        // If the ini-file has been changed, read the info from it
-        if (fio->_FileOrDirectoryExists(RIGGING_INI_FILE))
-        {
-            auto ft_new = fio->_GetLastWriteTime(RIGGING_INI_FILE);
-            if (ft_old != ft_new)
-            {
-                int oldWindQnt = WINDVECTOR_QUANTITY;
-                LoadSailIni();
-                if (oldWindQnt != WINDVECTOR_QUANTITY) // if changed the size of the wind table
-                {
-                    STORM_DELETE(WindVect);
-                    WindVect = new float[WINDVECTOR_QUANTITY];
-                    if (WindVect) // wind vector table calculation
-                        for (i = 0; i < WINDVECTOR_QUANTITY; i++)
-                            WindVect[i] =
-                                sinf(static_cast<float>(i) / static_cast<float>(WINDVECTOR_QUANTITY) * 2.f * PI);
-                    else
-                    {
-                        throw std::runtime_error("No memory allocation: WindVect");
-                    }
-                }
-                for (i = 0; i < sailQuantity; i++)
-                {
-                    slist[i]->MaxSumWind = slist[i]->sailHeight * MAXSUMWIND;
-                    // correct the current indices for the new size of the vector table
-                    while (slist[i]->VertIdx >= WINDVECTOR_QUANTITY)
-                        slist[i]->VertIdx -= WINDVECTOR_QUANTITY;
-                    while (slist[i]->HorzIdx >= WINDVECTOR_QUANTITY)
-                        slist[i]->HorzIdx -= WINDVECTOR_QUANTITY;
-                }
-            }
-        }
-
         // get the wind value
         if (const auto ei = core.GetEntityId("weather"))
         {
@@ -669,16 +636,16 @@ void SAIL::Execute(uint32_t Delta_Time)
         auto *pv = static_cast<SAILVERTEX *>(RenderService->LockVertexBuffer(sg.vertBuf));
         if (pv)
         {
+            MetalCpuParallelFor(static_cast<std::size_t>(sailQuantity), [&](std::size_t n) noexcept {
+                if (!gdata[slist[n]->HostNum].bDeleted)
+                    slist[n]->goWave(&pv[slist[n]->ss.sVert], Delta_Time);
+            });
+
             for (i = 0; i < sailQuantity; i++)
             {
                 if (gdata[slist[i]->HostNum].bDeleted)
                     continue;
-                // make sails sway
-                slist[i]->goWave(&pv[slist[i]->ss.sVert], Delta_Time);
-                // set rolling / unrolling of sails
-                //                if( gdata[slist[i]->HostNum].bFinalSailDo )
-                //                    if(!slist[i]->ss.rollingSail)
-                //                        slist[i]->SetRolling(gdata[slist[i]->HostNum].bFinalSailUp);
+
                 // sail bounding box calculation
                 CVECTOR vtmp = slist[i]->ss.boundSphere.rc - slist[i]->ss.boundSphere.r;
                 int itmp = slist[i]->HostNum;

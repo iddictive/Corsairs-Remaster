@@ -590,6 +590,7 @@ bool SHIP::ApplyPhonkLaserCut(const storm::ship::phonk::LaserPlane &plane, bool 
     }
     if(phonkLaserWork.requests.size()+bool(phonkLaserWork.active)>=storm_hull_damage::MaxSplitPlanes)return false;
     phonkLaserWork.requests.push_back(std::move(request));
+    if(!phonkLaserWork.future.valid())StartPhonkLaserWork();
     return true;
 #else
     return false;
@@ -850,6 +851,7 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if (!delta) return;
     if(auto*model=GetModel())for(int n=0;auto*node=model->GetNode(n);++n)if(isPhysicalHullNode(node)){
+        node->geo->PollHullRebuild();
         std::shared_ptr<const storm::ship::material::convex::PhysicalDelta> transfer;
         storm_ship_laser::Result result;
         if(!node->geo->TakeHullContactResult(transfer,result))continue;
@@ -941,7 +943,17 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                 for (auto *geometry : geometries) geometry->DiscardLaserProjection(uint64_t(blots_id));
                 if ((!identity || rebuilding) && bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName)
                     phonkLaserWork.requests.push_front(std::move(*phonkLaserWork.active));
-                else if(identity&&!rebuilding){auto rejected=std::move(*phonkLaserWork.active);rejected.rejectedFence=hullWorkFence(model);phonkLaserWork.requests.push_back(std::move(rejected));core.Trace("Ship cut rejected at node %d, phase %s; exact work retained for changed revision",work.failedNode,work.failure.empty()?"unchanged-snapshot":work.failure.c_str());}
+                else if(identity&&!rebuilding){
+                    auto rejected=std::move(*phonkLaserWork.active);
+                    rejected.rejectedFence=hullWorkFence(model);
+                    if(++rejected.retries<=3){
+                        phonkLaserWork.requests.push_back(std::move(rejected));
+                        core.Trace("Ship cut rejected at node %d, phase %s; exact work retained for changed revision (retry %u)",work.failedNode,work.failure.empty()?"unchanged-snapshot":work.failure.c_str(),rejected.retries);
+                    }else{
+                        core.Trace("Ship cut dropped after %u retries at node %d, phase %s",rejected.retries,work.failedNode,work.failure.c_str());
+                        returnImpact(phonkLaser,rejected);
+                    }
+                }
                 else returnImpact(phonkLaser, *phonkLaserWork.active);
             }
         }
@@ -949,9 +961,16 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
     }
     if (!StartPhonkLaserWork()&&!phonkLaserWork.requests.empty())
     {
-        auto rejected=std::move(phonkLaserWork.requests.front());rejected.rejectedFence=hullWorkFence(GetModel());
+        auto rejected=std::move(phonkLaserWork.requests.front());
         phonkLaserWork.requests.pop_front();
-        phonkLaserWork.requests.push_back(std::move(rejected));core.Trace("Ship cut capture rejected; exact request and previous geometry retained");
+        rejected.rejectedFence=hullWorkFence(GetModel());
+        if(++rejected.retries<=3){
+            phonkLaserWork.requests.push_back(std::move(rejected));
+            core.Trace("Ship cut capture rejected; exact request and previous geometry retained (retry %u)",rejected.retries);
+        }else{
+            core.Trace("Ship cut capture dropped after %u retries",rejected.retries);
+            returnImpact(phonkLaser,rejected);
+        }
     }
 #endif
 }

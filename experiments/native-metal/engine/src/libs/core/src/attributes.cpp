@@ -144,10 +144,10 @@ size_t ATTRIBUTES::GetAttributesNum() const
 
 ATTRIBUTES * ATTRIBUTES::GetAttributeClass(const std::string_view &name) const
 {
-    for (const auto &attribute : attributes_)
-        if (storm::iEquals(name, attribute->GetThisName()))
-            return attribute.get();
-    return nullptr;
+    if (name.empty())
+        return nullptr;
+    const uint32_t code = stringCodec_.Convert(name.data(), static_cast<int32_t>(name.size()));
+    return GetAttributeClassByCode(code);
 }
 
 ATTRIBUTES * ATTRIBUTES::GetAttributeClass(uint32_t n) const
@@ -186,8 +186,11 @@ ATTRIBUTES::LegacyProxy ATTRIBUTES::GetAttribute(size_t n) const
 
 ATTRIBUTES::LegacyProxy ATTRIBUTES::GetAttribute(const std::string_view &name) const
 {
+    if (name.empty())
+        return {};
+    const uint32_t code = stringCodec_.Convert(name.data(), static_cast<int32_t>(name.size()));
     for (const auto &attribute : attributes_)
-        if (storm::iEquals(name, attribute->GetThisName())) {
+        if (code == attribute->nameCode_) {
             return attribute->value_;
         }
     return {};

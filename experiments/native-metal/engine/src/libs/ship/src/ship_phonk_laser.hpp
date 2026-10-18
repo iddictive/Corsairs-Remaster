@@ -109,6 +109,7 @@ struct LaserCutRequest
     double queuedAt=0.;
     bool releaseOnly=false;
     uint64_t rejectedFence=0;
+    uint32_t retries=0;
 };
 struct LaserCutTarget
 {
