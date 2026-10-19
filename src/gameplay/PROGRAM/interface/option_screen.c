@@ -1292,6 +1292,54 @@ void ShowInfo()
 
 	switch (sNode)
 	{
+		case "METAL_FULLSCREEN_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Fullscreen");
+			sText1 = XI_ConvertString("Metal Fullscreen Help");
+		break;
+		case "METAL_RESOLUTION_PICKER":
+			sHeader = XI_ConvertString("Resolution");
+			sText1 = XI_ConvertString("Metal Resolution Help");
+		break;
+		case "METAL_VSYNC_CHECKBOX":
+			sHeader = XI_ConvertString("Metal VSync");
+			sText1 = XI_ConvertString("Metal VSync Help");
+		break;
+		case "METAL_ANTIALIASING_PICKER":
+			sHeader = XI_ConvertString("Metal Antialiasing");
+			sText1 = XI_ConvertString("Metal Antialiasing Help");
+		break;
+		case "METAL_UPSCALING_PICKER":
+			sHeader = XI_ConvertString("MetalFX");
+			sText1 = XI_ConvertString("MetalFX Help");
+		break;
+		case "METAL_DYNAMIC_LIGHTING_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Dynamic Shadows");
+			sText1 = XI_ConvertString("Metal Dynamic Shadows Help");
+		break;
+		case "METAL_SHADOW_QUALITY_PICKER":
+			sHeader = XI_ConvertString("Metal Shadow Quality");
+			sText1 = XI_ConvertString("Metal Shadow Quality Help");
+		break;
+		case "METAL_MODERN_LIGHTING_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Modern Lighting");
+			sText1 = XI_ConvertString("Metal Modern Lighting Help");
+		break;
+		case "METAL_LIGHT_SHAFTS_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Light Shafts");
+			sText1 = XI_ConvertString("Metal Light Shafts Help");
+		break;
+		case "METAL_DYNAMIC_SKY_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Dynamic Sky");
+			sText1 = XI_ConvertString("Metal Dynamic Sky Help");
+		break;
+		case "METAL_CINEMATIC_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Cinematic Interior");
+			sText1 = XI_ConvertString("Metal Cinematic Interior Help");
+		break;
+		case "METAL_MODERN_WATER_CHECKBOX":
+			sHeader = XI_ConvertString("Metal Modern Water");
+			sText1 = XI_ConvertString("Metal Modern Water Help");
+		break;
 		case "GAMMA_SLIDE":
 			sHeader = XI_ConvertString("gamma");
 			sText1 = XI_ConvertString("gamma_descr");

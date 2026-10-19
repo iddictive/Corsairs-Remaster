@@ -498,6 +498,95 @@ material revision, so it cannot invalidate collision/convex-contour caches.
 Only bounded pending work and current retained geometry remain live; an ever
 growing operation log must not be required to continue damaging a ship.
 
+### Native SAVE material transport and oversized-save recovery
+
+`engine/src/libs/core/src/material_save.hpp` owns the on-disk material transport;
+`COMPILER::SaveAttributesData` and `ReadAttributesData` integrate it. It leaves
+the live attribute tree and CHM geometry codec unchanged. In memory, two slots
+still protect publication. A SAVE needs only the newest committed node slot and
+its referenced blob, and the newest committed metadata slot. Older slots/blobs
+are unreachable from the saved root revision and are omitted on disk. Invalid
+or uncommitted slot selection is preserved for the existing material validator.
+
+Selected material values of 1024 bytes through 1 MiB use zlib level 1 only when
+the result is smaller. The ASCII wire envelope is `!CMZ2:`, eight lowercase hex
+digits of original byte length, `:`, then canonical padded RFC4648 base64 of the
+zlib stream. The reader also supports the `!CMZ1:` hex envelope already produced
+by the first recovery candidate.
+The reader expands it only inside `HullMaterial`/`PhonkWorldMaterial`; legacy
+plain values remain valid. It checks the bound, exact expanded length, complete
+stream consumption, and absence of embedded NUL. The existing 128 MiB SAVE
+compressed/raw bounds are retained. Geometry, cell health, thermal tails,
+openings, repair quota, and authored fingerprints retain their exact bytes.
+This uses the existing core zlib dependency and its documented
+[`compressBound`, `compress2`, `uncompress2` contract](https://zlib.net/manual.html#Utility).
+No base64 implementation exists in the engine dependencies, so the bounded
+transport helper implements [RFC4648 section4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4),
+with Python's standard `base64` as an independent compatibility oracle. It rejects
+nonalphabet data, misplaced padding and nonzero unused pad bits.
+
+`MaxStateSize`/`validStateSize` is shared by the native writer and reader.
+`SaveData` stops at the bound, and `SaveState` rejects an empty/oversized state,
+compression failure or an oversized packed stream before its first write.
+`CoreImpl::SaveState` creates an exclusive sibling temporary file, checks write,
+flush and close, and atomically replaces the destination only after success.
+An exception/failure removes only that temporary and retains the prior SAVE.
+This adapts the existing `XINTERFACE::SaveOptionsFile` replacement mechanism;
+the macOS creation/replacement contract is [`mkstemp`](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/mkstemp.3.html)
+and [`rename`](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/rename.2.html).
+The native `SaveEngineState` call returns integer success; `seadogs.c` appends
+screenshot/description data only after success. `interface.c` no longer deletes
+the previous rotating quicksave before attempting its replacement. The active
+`interface/save_load.c` manual-save route likewise opens its name dialog without
+deleting the selected old save; Cancel and failed writes preserve that file.
+Its adopted installed predecessor is 37335 bytes/SHA-256
+`fe7d33f3281945f3d54139fff51dd6c4041e3838a6930cdecf726adbae152e2c`;
+CP1251 projection preserves every byte except that pre-delete block.
+
+`python3 tools/compact_native_save.py INPUT --output NEW_FILE` recovers an old
+oversized native SAVE without editing its source. Its output requires the CMZ2
+reader. It reparses the complete variable table, compares SHA-256 of the complete
+state after selecting authoritative slots and unwrapping transport envelopes,
+and preserves appended save metadata/screenshot bytes exactly. It refuses an
+existing output path, malformed/truncated data, or a result above the engine
+limit. Make a durable backup outside Git and close the player before replacing
+a live SAVE; installation and real-game load remain the delivery owner's work.
+
+The October 19 exact failing AutoSave 5 input had SHA-256
+`adc71c01ffa438f82a2dccb4e3a5005f25bfa56de86bbd10edfbe460a82c60c7`,
+434665521 raw bytes and 68969082 file bytes. Chunk compression alone projected
+171225509 raw bytes and was rejected. Committed-slot selection plus compression
+produced 106271074 raw bytes and 54966580 file bytes in 7.03 seconds, peak RSS
+1.74 GB, output SHA-256
+`642dd27f565ba32537392aa414f668f62a099b8e45723d7bbdeb183df1a3d8c8`.
+That CMZ1 candidate was superseded by CMZ2: 73527268 raw bytes, 50070138 file
+bytes, 6.006 seconds and peak RSS 1.688 GB, SHA-256
+`2216bba38e943972945a4d8e99bb26dfd5a9e808bcc9b8b2b7ce8e765a602c99`.
+The raw-state headroom is 60690460 bytes; further growth beyond the supported
+limit fails without replacing the last valid SAVE instead of writing a file
+the loader rejects. This does not impose a gameplay/material deletion policy.
+All 600 variables and seven material roots retained the authoritative-state hash
+`9cc4d8a281f0d6ac1422902d2db93f23b3e36c6e7faefc166940bd9b65441ff2`.
+For the same input, Python zlib 1.2.12 read/inflate plus `zlib.compress(raw, 9)`
+took 18.158 seconds (0.361 inflate, 17.796 deflate), producing exactly the original
+68928799 packed bytes. Reproduce that byte-pipeline baseline with:
+
+```bash
+python3 - INPUT <<'PY'
+from pathlib import Path
+import struct, sys, time, zlib
+t = time.monotonic(); b = Path(sys.argv[1]).read_bytes()
+n = struct.unpack_from('<I', b, 44)[0]
+p = zlib.compress(zlib.decompress(b[48:48+n]), 9)
+print(len(p), time.monotonic() - t, zlib.ZLIB_RUNTIME_VERSION)
+PY
+```
+
+These are offline recovery measurements; they do not measure native save latency
+or accept installed-app loading. Removing complete hull/world material state
+was rejected because live weapon/restoration consumers remain; disabled
+structural contact or terrain excavation does not prove all material inactive.
+
 `SHIP::ApplyHullProjectileImpact` owns the common artillery producer, including
 the near-hull radial-burst caller in AIBalls. Its native profile identifies live
 goods through the projectile registry, not copied goods IDs. Accepted script HP

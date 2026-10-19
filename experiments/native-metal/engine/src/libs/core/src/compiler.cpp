@@ -1,4 +1,5 @@
 #include "compiler.h"
+#include "material_save.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -6068,6 +6069,12 @@ void COMPILER::SaveData(const void *data_PTR, uint32_t data_size)
     if (data_PTR == nullptr)
         return;
 
+    if (dwCurPointer > storm::material_save::MaxStateSize || data_size > storm::material_save::MaxStateSize - dwCurPointer)
+    {
+        dwCurPointer = storm::material_save::MaxStateSize + 1;
+        return; // Overflow marker: SaveState rejects without writing a file.
+    }
+
     if (dwCurPointer + data_size > dwMaxSize)
     {
         const uint32_t dwNewAllocate = (1 + (dwCurPointer + data_size) / (1024 * 1024)) * (1024 * 1024);
@@ -6447,13 +6454,14 @@ bool COMPILER::ReadVariable(char *name, std::vector<SavedReference> &references,
 
             if (pV->AttributesClass == nullptr)
                 pV->AttributesClass = new ATTRIBUTES(&SCodec);
-            ReadAttributesData(pV->AttributesClass, nullptr);
+            if (!ReadAttributesData(pV->AttributesClass, nullptr)) return false;
         }
         else
         {
             ATTRIBUTES *pTA = new ATTRIBUTES(&SCodec);
-            ReadAttributesData(pTA, nullptr);
+            const bool loaded = ReadAttributesData(pTA, nullptr);
             delete pTA;
+            if (!loaded) return false;
         }
         break;
     case VAR_REFERENCE:
@@ -6639,8 +6647,6 @@ bool COMPILER::SaveState(std::fstream &fileS)
     edh.dwExtDataOffset = 0;
     edh.dwExtDataSize = 0;
 
-    fio->_WriteFile(fileS, &edh, sizeof(edh));
-
     // 1. Program Directory
     SaveString(ProgramDirectory);
 
@@ -6688,27 +6694,28 @@ bool COMPILER::SaveState(std::fstream &fileS)
         SaveVariable(real_var->value.get());
     }
 
-    uint64_t dw2;
-    if (dwCurPointer)
+    if (!storm::material_save::validStateSize(dwCurPointer))
     {
-        char *pDst = new char[dwCurPointer * 2];
-        uLongf ulPackLen = dwCurPointer * 2;
-        RDTSC_B(dw2);
-        compress2((Bytef *)pDst, &ulPackLen, (Bytef *)pBuffer, dwCurPointer, Z_BEST_COMPRESSION);
-        RDTSC_E(dw2);
-        uint32_t uiPackLen = ulPackLen;
-
-        fio->_WriteFile(fileS, &dwCurPointer, sizeof(dwCurPointer));
-        fio->_WriteFile(fileS, &uiPackLen, sizeof(uiPackLen));
-        fio->_WriteFile(fileS, pDst, uiPackLen);
-
-        delete[] pDst;
+        delete[] pBuffer;
+        pBuffer = nullptr;
+        SetError("State save error - state exceeds supported size");
+        return false;
     }
-
+    uLongf packedSize = compressBound(dwCurPointer);
+    std::vector<Bytef> packed(packedSize);
+    const int compressed = compress2(packed.data(), &packedSize, reinterpret_cast<const Bytef *>(pBuffer), dwCurPointer, Z_BEST_COMPRESSION);
     delete[] pBuffer;
     pBuffer = nullptr;
-
-    return true;
+    if (compressed != Z_OK || !storm::material_save::validStateSize(packedSize))
+    {
+        SetError("State save error - compression failed or exceeds supported size");
+        return false;
+    }
+    const uint32_t size = uint32_t(packedSize);
+    return fio->_WriteFile(fileS, &edh, sizeof(edh)) &&
+        fio->_WriteFile(fileS, &dwCurPointer, sizeof(dwCurPointer)) &&
+        fio->_WriteFile(fileS, &size, sizeof(size)) &&
+        fio->_WriteFile(fileS, packed.data(), size);
 }
 
 bool COMPILER::LoadState(std::fstream &fileS)
@@ -6720,20 +6727,33 @@ bool COMPILER::LoadState(std::fstream &fileS)
     pBuffer = nullptr;
 
     EXTDATA_HEADER exdh;
-    fio->_ReadFile(fileS, &exdh, sizeof(exdh));
+    if (!fio->_ReadFile(fileS, &exdh, sizeof(exdh))) return false;
 
     uint32_t dwPackLen;
-    fio->_ReadFile(fileS, &dwMaxSize, sizeof(dwMaxSize));
-    fio->_ReadFile(fileS, &dwPackLen, sizeof(dwPackLen));
-    if (dwPackLen == 0 || dwPackLen > 0x8000000 || dwMaxSize == 0 || dwMaxSize > 0x8000000)
+    if (!fio->_ReadFile(fileS, &dwMaxSize, sizeof(dwMaxSize)) ||
+        !fio->_ReadFile(fileS, &dwPackLen, sizeof(dwPackLen))) return false;
+    if (!storm::material_save::validStateSize(dwPackLen) || !storm::material_save::validStateSize(dwMaxSize))
     {
         return false;
     }
     char *pCBuffer = new char[dwPackLen];
     pBuffer = new char[dwMaxSize];
-    fio->_ReadFile(fileS, pCBuffer, dwPackLen);
+    if (!fio->_ReadFile(fileS, pCBuffer, dwPackLen))
+    {
+        delete[] pCBuffer;
+        delete[] pBuffer;
+        pBuffer = nullptr;
+        return false;
+    }
     uLongf ulMaxSize = dwMaxSize;
-    uncompress((Bytef *)pBuffer, &ulMaxSize, (Bytef *)pCBuffer, dwPackLen);
+    const int unpackResult = uncompress((Bytef *)pBuffer, &ulMaxSize, (Bytef *)pCBuffer, dwPackLen);
+    if (unpackResult != Z_OK || ulMaxSize != dwMaxSize)
+    {
+        delete[] pCBuffer;
+        delete[] pBuffer;
+        pBuffer = nullptr;
+        return false;
+    }
     dwMaxSize = ulMaxSize;
     delete[] pCBuffer;
     dwCurPointer = 0;
@@ -6851,51 +6871,31 @@ bool COMPILER::LoadState(std::fstream &fileS)
     return true;
 }
 
-void COMPILER::ReadAttributesData(ATTRIBUTES *pRoot, ATTRIBUTES *pParent)
+bool COMPILER::ReadAttributesData(ATTRIBUTES *pRoot, ATTRIBUTES *pParent, bool material)
 {
-    uint32_t nSubClassesNum;
-    uint32_t n;
-    uint32_t nNameCode;
-    // char * pName;
-    char *pValue;
-
-    if (pRoot == nullptr)
+    const uint32_t count = ReadVDword(), code = ReadVDword();
+    char *value = ReadString();
+    const bool child = !pRoot;
+    if (!pRoot) pRoot = pParent->VerifyAttributeClassByCode(code);
+    else pRoot->SetNameCode(code);
+    material = material || storm::material_save::rootName(pRoot->GetThisName());
+    std::string decoded;
+    const bool packed = material && storm::material_save::isPacked(value);
+    if (packed && !storm::material_save::unpack(value, decoded))
     {
-        nSubClassesNum = ReadVDword();
-        nNameCode = ReadVDword();
-
-        // DTrace(SCodec.Convert(nNameCode));
-        pValue = ReadString();
-        pParent->SetAttribute(nNameCode, pValue);
-        pRoot = pParent->GetAttributeClassByCode(nNameCode);
-        delete[] pValue;
-        for (n = 0; n < nSubClassesNum; n++)
-        {
-            ReadAttributesData(nullptr, pRoot);
-        }
-
-        return;
+        delete[] value;
+        SetError("State read error - invalid compressed material attribute");
+        return false;
     }
-
-    nSubClassesNum = ReadVDword();
-    nNameCode = ReadVDword();
-    pValue = ReadString();
-    // pRoot->SetAttribute(nNameCode,pValue);
-
-    pRoot->SetNameCode(nNameCode);
-    pRoot->SetValue(pValue);
-
-    for (n = 0; n < nSubClassesNum; n++)
-    {
-        // ReadAttributesData(pRoot->GetAttributeClass(n));
-        ReadAttributesData(nullptr, pRoot);
-    }
-
-    // if(pName) delete pName;
-    delete[] pValue;
+    if (child) pParent->SetAttribute(code, packed ? decoded.c_str() : value);
+    else pRoot->SetValue(packed ? decoded.c_str() : value);
+    delete[] value;
+    for (uint32_t n = 0; n < count; ++n)
+        if (!ReadAttributesData(nullptr, pRoot, material)) return false;
+    return true;
 }
 
-void COMPILER::SaveAttributesData(ATTRIBUTES *pRoot)
+void COMPILER::SaveAttributesData(ATTRIBUTES *pRoot, bool material)
 {
     if (pRoot == nullptr)
     {
@@ -6904,17 +6904,22 @@ void COMPILER::SaveAttributesData(ATTRIBUTES *pRoot)
         SaveString(nullptr); // attribute value
         return;
     }
-    WriteVDword(pRoot->GetAttributesNum()); // number of subclasses
+    material = material || storm::material_save::rootName(pRoot->GetThisName());
+    const auto children = material ? storm::material_save::children(pRoot) : std::vector<ATTRIBUTES *>();
+    const uint32_t count = material ? uint32_t(children.size()) : pRoot->GetAttributesNum();
+    WriteVDword(count); // number of subclasses
 
     // save attribute name
     // SaveString(pRoot->GetThisName());
     WriteVDword(pRoot->GetThisNameCode());
 
     // save attribute value
-    SaveString(pRoot->GetThisAttr());
-    for (uint32_t n = 0; n < pRoot->GetAttributesNum(); n++)
+    const char *value = pRoot->GetThisAttr();
+    const auto packed = material && value ? storm::material_save::pack(value) : std::string();
+    SaveString(material && value ? packed.c_str() : value);
+    for (uint32_t n = 0; n < count; ++n)
     {
-        SaveAttributesData(pRoot->GetAttributeClass(n));
+        SaveAttributesData(material ? children[n] : pRoot->GetAttributeClass(n), material);
     }
 }
 

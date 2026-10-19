@@ -1,6 +1,12 @@
 {
   "version": 2,
   "files": {
+    "PROGRAM/interface/save_load.c": {
+      "encoding": "cp1251",
+      "legacy": [
+        "fe7d33f3281945f3d54139fff51dd6c4041e3838a6930cdecf726adbae152e2c"
+      ]
+    },
     "PROGRAM/characters/characters_login.c": {
       "encoding": "utf-8",
       "legacy": [

@@ -230,8 +230,8 @@ class COMPILER : public VIRTUAL_COMPILER
     bool FindReferencedVariable(DATA *pRef, uint32_t &var_index, uint32_t &array_index);
     bool FindReferencedVariableByRootA(ATTRIBUTES *pA, uint32_t &var_index, uint32_t &array_index);
     ATTRIBUTES *TraceARoot(ATTRIBUTES *pA, const char *&pAccess);
-    void SaveAttributesData(ATTRIBUTES *pRoot);
-    void ReadAttributesData(ATTRIBUTES *pRoot, ATTRIBUTES *pParent);
+    void SaveAttributesData(ATTRIBUTES *pRoot, bool material = false);
+    bool ReadAttributesData(ATTRIBUTES *pRoot, ATTRIBUTES *pParent, bool material = false);
     void WriteVDword(uint32_t v);
     uint32_t ReadVDword();
 

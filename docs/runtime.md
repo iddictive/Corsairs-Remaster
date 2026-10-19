@@ -1,14 +1,84 @@
 # Runtime state
 
-Project work ended at the player's request on October18. The installed visual
-rollback and the source-only forest-density candidate keep the evidence limits
-recorded below; unresolved player replays are historical, not active tasks. No
-further build, staging, installation or game interaction is planned without a
-new request.
+October19: the player reopened SAVE recovery and graphics-setting repair before
+removing the local checkout. The active target remains the installed app. Root
+owns build, staging, player-state backup, integration and delivery; the earlier
+renderer/gameplay backlog is not reopened by this bounded repair.
 
-Last verified engine delivery: October18 forest density and public release staging, signed engine `2251944e5c0455659b415dcbbd151e271289ea5f379cf10c47211b2fd5eea479`. Canonical `run.sh --stage-only` exited0; the installed player record selects authored sky (`dynamic_sky=0`), and structural contact fracture remains off by default. Prior renderer/FPS source optimizations remain; the Mount readiness wait was removed because it blocked live ship additions. Same-scene graphics, complete loading duration, FPS and first-hit latency are unresolved. Ship-interior sea exclusion and terrain excavation remain disabled. Shore/rowboat travel stays frozen at `codex/frozen-shore-travel` (`6dc08e7`); ordinary town transitions remain. Published ZIP/local Drive updated to October 18 standalone release (10,873,785,991 bytes, SHA-256 `f137e8d219b921c875f6bb1246d2de483492796638e90b7095e52a5409cf956d`). Earlier installed inventories are historical.
+Last verified engine delivery: October19 SAVE/graphics repair, signed engine
+`351ee56817a8a240283ca7744f2796b7f640b2e9bc21b176137f4ff434d45008`.
+Canonical `run.sh --stage-only` exited0 after all source changes. Player settings
+remain player-owned; the October18 authored-sky snapshot below is historical.
+The user owns replay and has rejected the first October19 lighting batch.
+Structural contact fracture, ship-interior sea exclusion and terrain excavation
+remain disabled. The October18 public standalone ZIP is unchanged by this local
+repair; its release record and SHA below remain historical distribution evidence.
 
 ## Current verdict
+
+### October19 — SAVE recovery and graphics-setting repair in progress
+
+The player's `Кампот AutoSave 5` has an intact zlib stream but434,665,521 raw
+bytes, exceeding the native loader's128MiB ceiling. Authoritative hull and world
+material snapshots dominate it; their two publication slots and hexadecimal
+geometry account for the growth. Structural-contact fracture and terrain
+excavation being disabled do not disable every material producer. Removing all
+these branches would discard live hull/world state. The candidate preserves
+committed geometry, strips unreachable predecessor slots only on disk, and uses
+bounded CMZ2 transport compression. The old SAVE remains backed up outside the
+checkout under the player's AppSupport `Archived/before-save-lighting-repair-20261019`.
+The new native writer shares the reader limit and atomically preserves the old
+file on failure; managed quick/manual saves no longer pre-delete that file.
+
+Two renderer defects are reproduced independently: the compact-unlit path drew
+the authored sky even inside the procedural SKY scope, and Modern Lighting Off
+still shaped raw geometry while expanded geometry reverted. Existing GPU probes
+now pass the corrected sky scope and raw/expanded Off/On parity. These component
+results do not accept the player's black evening characters, absent boat lamp,
+shadow/fog transitions, or sustained scene FPS. New Game also shows a dark3D
+preview: its source loads the real Estate location at20:00, not an isolated
+interface model. Right-click help for the12 Metal graphics controls reuses the
+existing tooltip owner. The first batch installed successfully, but the player's SanJuan07:36/19:40
+frames rejected its lighting. This reopened the original visual acceptance.
+
+The second batch separates location illumination/catalogue publication from
+shadow-map production. Authored prelit outdoor base colour is retained; source
+occlusion modulates the removed/total-light ratio instead of relighting that
+base. The realizer no longer forces these models into lit mode merely because
+shadows exist. Completed sky retains WEATHER bounce for COLOR1 outdoor actors
+at night, fading through the existing sunrise/sunset band; daytime, sea, static
+base, sky and interior owners retain their paths. Raw36 fallback now uses the
+same authored-character ambient contract as CPU/native44. Ship flare physical
+lamps reconcile live Modern Lighting changes without changing IDs, flicker,
+activation or ordinary/reflection corona state.
+
+Disposable GPU fixtures reproduce the old map-off admission failure and prelit
+base recolouring. The corrected clear-map/Off frames match; existing sun/lamp,
+raw/expanded and native skin checks pass. The night fixture initially used
+nonmatching geometry for the native lamp case; it was corrected before accepting
+path parity. Matched expanded/raw36/native44 night energies are all12288, above
+the WEATHER-reference10240. Earlier11264/9728 measurements used the distinct
+native lamp fixture and are not cross-path evidence. These bounded readbacks
+are not full-scene FPS or player appearance acceptance.
+
+Canonical staging of this exact second batch passed. The compacted AutoSave5
+was atomically applied only after the user exited; its original mtime and backup
+were retained, all other saves unchanged. Raw state434665521→73527268 bytes,
+file68969082→50070138 bytes, authoritative hash unchanged. Native script roundtrip
+and failed-overwrite preservation pass; a direct whole-save compiler fixture
+emits the same unbound-reference error on recovered5 and untouched4, so it cannot
+claim clean player loading. Installed load/save/reload and the player's new light
+comparison remain **unresolved**.
+
+Acceptance: the latest save must load and save/reload through the installed app
+without losing progress or committed damage; the ordinary prior save must remain
+usable. Graphics Save/Cancel/restart and sea/land/night/preview transitions must
+retain coherent sky, fog, lamps and character light. Only after installed replay,
+source commit/push and nonrepository backup verification can this task recommend
+checkout removal. Original player frames, baseline failures, corrected GPU logs
+and native SAVE checks are retained at
+`.local-archives/metal-renderer-evidence/settings-save-repair-20261019/` until the
+removal backup receives them; they are not public release content.
 
 ### October18 — public standalone ZIP exported to Google Drive
 

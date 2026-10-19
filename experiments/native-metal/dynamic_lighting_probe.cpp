@@ -26,6 +26,7 @@ extern "C" bool StormMetalBeginOffscreenPointCaster(void*,const float*,float);
 extern "C" void StormMetalEndOffscreenPointCaster(void*);
 extern "C" bool StormMetalRenderPointShadowCube(void*,uint64_t,const float*,float);
 extern "C" uint64_t StormMetalPointShadowGpuCullDispatches(void*);
+extern "C" bool StormMetalApplyGraphicsSettings(void*,uint32_t,uint32_t);
 int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODERN_LIGHTING","1",1);SDL_Init(SDL_INIT_VIDEO);auto*w=SDL_CreateWindow("Weapon FFP contract",0,0,64,64,SDL_WINDOW_METAL|SDL_WINDOW_HIDDEN);need(w,"window");storm_render::Presentation p{};p.width=p.height=64;p.colorFormat=storm_render::AssetFormat::A8R8G8B8;storm_render::Device*d=nullptr;need(storm_render::succeeded(storm_render::createMetalDevice(w, &p, &d)),"device");
  storm_render::Texture*t=nullptr;d->CreateTexture(2, 2, 1, 0, storm_render::AssetFormat::A8R8G8B8, &t);storm_render::LockedRect l{};t->LockRect(0,&l,nullptr,0);for(int y=0;y<2;y++)for(int x=0;x<2;x++)((uint32_t*)((char*)l.pBits+y*l.Pitch))[x]=0xff204060;t->UnlockRect(0);
 
@@ -88,7 +89,7 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
  // The next frames use source replay, not the screen-visible receiver packets.
  // The directional caster lies outside the main camera's X and near planes.
  uint64_t generation=0;
- auto prepassFrame=[&](bool requestPointPass,bool caster,float casterX,bool matchingId,unsigned receiverRole=1,bool faded=false,bool indoor=false,float lampX=0,float sunEnergy=.7f,int catalog=0,float focusX=0,float contactGap=0,bool shadowSecond=false,bool canonicalAlpha=false,bool boundSkinned=false,bool boundStatic=false,float staticMaterial=.8f,bool staticColorSource=true,uint32_t weatherAmbient=0x181818){
+ auto prepassFrame=[&](bool requestPointPass,bool caster,float casterX,bool matchingId,unsigned receiverRole=1,bool faded=false,bool indoor=false,float lampX=0,float sunEnergy=.7f,int catalog=0,float focusX=0,float contactGap=0,bool shadowSecond=false,bool canonicalAlpha=false,bool boundSkinned=false,bool boundStatic=false,float staticMaterial=.8f,bool staticColorSource=true,uint32_t weatherAmbient=0x181818,bool expandedStatic=false){
   d->Present();StormMetalLandLocation(d,true);StormMetalLandInterior(d,indoor);
   d->Clear(storm_render::clear::color|storm_render::clear::depth, 0xff000000, 1);d->BeginScene();d->SetFVF(storm_render::vertexFormat::xyz|storm_render::vertexFormat::normal|storm_render::vertexFormat::diffuse|storm_render::vertexFormat::tex1);d->SetTexture(0,t);d->SetTexture(1,nullptr);d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpModulate2X);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(0,storm_render::StageColorArg2,storm_render::textureArg::texture);d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::texture);d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
   d->SetRenderState(storm_render::RenderAmbient,weatherAmbient);d->SetRenderState(storm_render::RenderLighting,false);
@@ -140,7 +141,8 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
    d->SetRenderState(storm_render::RenderLighting,true);d->SetRenderState(storm_render::RenderVertexColor,true);
    d->SetRenderState(storm_render::RenderDiffuseMaterialSource,staticColorSource?storm_render::MaterialSourceDiffuseColor:storm_render::MaterialSourceMaterial);
    d->SetRenderState(storm_render::RenderAmbientMaterialSource,staticColorSource?storm_render::MaterialSourceDiffuseColor:storm_render::MaterialSourceMaterial);
-   boundStaticQuad(0,14,8,0xff7f7f7f,receiverRole);
+   if(expandedStatic)quad(0,14,8,0xff7f7f7f,receiverRole);
+   else boundStaticQuad(0,14,8,0xff7f7f7f,receiverRole);
   }else quad(0,14,8,0xff202020,receiverRole); // no caster submitted to the visible color pass
   d->SetRenderState(storm_render::RenderLighting,false);d->SetRenderState(storm_render::RenderAlphaTest,false);d->SetRenderState(storm_render::RenderDepthWrite,true);d->SetRenderState(storm_render::RenderBlend,false);d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::texture);
   quad(11,1,2,0xff808080,0);d->LightEnable(2,false);d->EndScene();return pixels();
@@ -193,6 +195,16 @@ int main(){setenv("STORM_METAL_DYNAMIC_LIGHTING","1",1);setenv("STORM_METAL_MODE
  need(StormMetalRawLocationDraws(d)>=rawLocationBefore+3,"static town fixtures used the raw Metal location path");
  need(zeroMaterialLocation==ordinaryMaterialLocation,"town COLOR1 lighting is independent of zero or ordinary material diffuse");
  need(energy(zeroMaterialLocation)>energy(explicitZeroMaterial)*2,"explicit material source remains dark while town COLOR1 stays visible");
+ // The setting controls the response, independent of resident/raw versus
+ // expanded FFP submission. Keep both setting states in this existing oracle.
+ for(bool modern:{false,true}){
+  need(StormMetalApplyGraphicsSettings(d,1u|(modern?4u:0u),1),"apply modern lighting setting");
+  auto raw=prepassFrame(false,false,0,true,1,false,false,0,.7f,0,0,0,false,false,false,true,.8f,true,0x696969,false);
+  auto expanded=prepassFrame(false,false,0,true,1,false,false,0,.7f,0,0,0,false,false,false,true,.8f,true,0x696969,true);
+  unsigned changed=0;for(size_t i=0;i<raw.size();++i)changed+=raw[i]!=expanded[i];
+  std::printf("Modern lighting parity modern=%d changed=%u\n",modern,changed);
+  need(raw==expanded,"modern lighting option preserves raw/expanded FFP parity");
+ }
  // An occluder outside the colour pass must still be registered without
  // painting over the visible receiver. A camera turn alone keeps the cube.
  storm_render::Light source{};source.Type=storm_render::LightKind::Point;source.Position={0,0,0};source.Diffuse={.8f,.8f,.8f,1};source.Range=24;source.Attenuation0=1;

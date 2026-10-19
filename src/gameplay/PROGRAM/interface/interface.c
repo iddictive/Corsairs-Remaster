@@ -1808,7 +1808,6 @@ void QuickSaveContinue()
 	
 	string curSave = PlayerProfile.name + " QuickSave " + QuickSaveIndex;
 	// <-- ugeen 2017
-	SendMessage(&GameInterface,"ls",MSG_INTERFACE_DELETE_SAVE_FILE,curSave);
 	string sSaveDescriber = GetSaveDataString(GetCurLocationName());
 
 	SetEventHandler("evntSave","SaveGame",1);

@@ -6,9 +6,13 @@
 #include "steam_api.hpp"
 #ifdef _WIN32
 #include "s_debug.h"
+#else
+#include <unistd.h>
 #endif
 
 #include <fstream>
+#include <cstdio>
+#include <cstdlib>
 
 #include "string_compare.hpp"
 #include <SDL2/SDL.h>
@@ -638,17 +642,56 @@ bool CoreImpl::SaveState(const char *file_name)
         throw std::logic_error("Bad file name of save");
     }
 
-    auto fileS = fio->_CreateFile(file_name, std::ios::binary | std::ios::out);
-
-    if (!fileS.is_open())
-    {
+    std::filesystem::path target;
+    std::filesystem::path temporary;
+    std::string nativeTemporary;
+    bool nativeCreated = false;
+    struct Cleanup {
+        std::filesystem::path &path;
+        std::string &nativePath;
+        bool &nativeCreated;
+        ~Cleanup() {
+            if (nativeCreated) std::remove(nativePath.c_str());
+            else if (!path.empty()) { std::error_code ignored; std::filesystem::remove(path, ignored); }
+        }
+    } cleanup{temporary, nativeTemporary, nativeCreated};
+    try {
+        target = std::filesystem::u8path(fio->ConvertPathResource(file_name));
+#ifdef _WIN32
+        // The supported player is macOS. Keep the archived Windows source
+        // buildable with its platform's exclusive temporary-file primitive.
+        wchar_t generated[MAX_PATH];
+        if (!GetTempFileNameW(target.parent_path().c_str(), L"sav", 0, generated)) return false;
+        temporary = generated;
+#else
+        nativeTemporary = target.string() + ".saving-XXXXXX";
+        const int fd = mkstemp(nativeTemporary.data());
+        if (fd < 0) return false;
+        nativeCreated = true;
+        close(fd);
+        temporary = nativeTemporary;
+#endif
+        std::fstream output(temporary, std::ios::binary | std::ios::out | std::ios::trunc);
+        if (!output || !Compiler->SaveState(output)) return false;
+        output.flush();
+        if (!output) return false;
+        output.close();
+        if (output.fail()) return false;
+#ifdef _WIN32
+        if (!MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) return false;
+#else
+        std::filesystem::rename(temporary, target);
+#endif
+        temporary.clear();
+        nativeCreated = false;
+        return true;
+    } catch (const std::exception &error) {
+        Trace("State save failed; previous SAVE retained: %s", error.what());
+        return false;
+    } catch (...) {
+        Trace("State save failed; previous SAVE retained");
         return false;
     }
-
-    Compiler->SaveState(fileS);
-    fio->_CloseFile(fileS);
-
-    return true;
 }
 
 // force core to load state file at the start of next game loop, return false if no state file

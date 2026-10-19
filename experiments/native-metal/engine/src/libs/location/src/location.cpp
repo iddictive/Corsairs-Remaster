@@ -164,7 +164,6 @@ void Location::RenderMetalShadowCasters(bool includeStatic)
         // camera frustum. IsVisible() is camera-owned and made shadows pop
         // when the player rotated without moving.
         if (!realizer || !entity) continue;
-        realizer->SetDynamicLights(lights);
         const unsigned previous = StormMetalBeginLandModel(device, 1);
         entity->ProcessStage(Stage::realize, 0);
         StormMetalEndLandModel(device, previous);

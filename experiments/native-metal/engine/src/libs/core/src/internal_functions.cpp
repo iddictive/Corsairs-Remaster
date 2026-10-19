@@ -132,7 +132,7 @@ INTFUNCDESC IntFuncTable[] = {
     "SegmentIsLoaded", VAR_INTEGER, 1, "GetAttributesNum", VAR_INTEGER, 2, "GetAttributeN", VAR_AREFERENCE, 1,
     "GetAttributeName", VAR_STRING, 2, "DelEventHandler", TVOID, 1, "EntityUpdate", TVOID, 1, "IsEntity", VAR_INTEGER,
     1, "DumpAttributes", TVOID, 1, "sti", VAR_INTEGER, 1, "stf", VAR_FLOAT, 2, "CheckAttribute", VAR_INTEGER, 4, "argb",
-    VAR_INTEGER, 0, "DeleteEntities", TVOID, 0, "ClearEvents", TVOID, 1, "SaveEngineState", TVOID, 1, "LoadEngineState",
+    VAR_INTEGER, 0, "DeleteEntities", TVOID, 0, "ClearEvents", TVOID, 1, "SaveEngineState", VAR_INTEGER, 1, "LoadEngineState",
     TVOID, 0, "Event", TVOID, 0, "PostEvent", TVOID, 2, "fts", VAR_STRING, 0, "ClearPostEvents", TVOID, 2,
     "SetArraySize", TVOID, 1, "GetAttributeValue", VAR_STRING, 1, "Vartype", VAR_STRING, 0, "Breakpoint", TVOID, 2,
     "Pow", VAR_FLOAT, 2, "CopyAttributes", TVOID,
@@ -2544,8 +2544,11 @@ DATA *COMPILER::BC_CallIntFunction(uint32_t func_code, DATA *&pVResult, uint32_t
         }
         pV->Convert(VAR_STRING);
         pV->Get(pChar);
-        core_internal.SaveState(pChar);
-        break;
+        TempLong1 = core_internal.SaveState(pChar) ? 1 : 0;
+        pV = SStack.Push();
+        pV->Set(TempLong1);
+        pVResult = pV;
+        return pV;
     case FUNC_LOADENGINESTATE:
         pV = SStack.Pop();
         if (!pV)

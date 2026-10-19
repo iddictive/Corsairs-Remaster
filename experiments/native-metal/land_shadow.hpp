@@ -95,8 +95,8 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
  }
  // A completed dusk/night prepass can have no shadow maps. Illumination still
  // consumes the current ambient and lights; map validity controls occlusion only.
- bool locationLightingReady()const{return enabled&&locationActive&&prepass.finished&&!prepass.failed;}
- bool collecting()const{if(!enabled||!scope)return false;if(!locationActive)return !prepass.frame&&!resolved;return prepass.frame?locationLightingReady():!resolved;}
+ bool locationLightingReady()const{return locationActive&&prepass.finished&&!prepass.failed;}
+ bool collecting()const{if(!scope)return false;if(!locationActive)return enabled&&!prepass.frame&&!resolved;return prepass.frame?locationLightingReady():!resolved;}
  // Ship lights are scoped to the ship model and disabled before late deck actors.
  // Once an earlier receiver recorded an actual point lamp this frame, retain only
  // that immutable snapshot as admission for subsequent scene-model casters.
@@ -149,10 +149,10 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
  void resetFrame(){shipAuxiliaryDetail=true;fogEnvironment=nil;registryDraws[0]=registryDraws[1]=registryDraws[2]=0;registryVertices[0]=registryVertices[1]=registryVertices[2]=0;selectedLampValid=false;pendingPoint={};traversalFrameSun={};bakedStaticEnvironment=false;scope=0;resolved=applied=overBudget=false;convertedVertices=0;packets.clear();prepass.frame=prepass.finished=prepass.inPass=prepass.failed=prepass.sunValid=prepass.pointValid=false;prepass.pointFaces=0;prepass.pointCount=0;prepass.pointSlot=0;for(auto& point:prepass.points){point.lightId=0;point.weight=1;point.faces=0;}}
  static simd_float4x4 lookAt(simd_float3 eye,simd_float3 forward,simd_float3 up){auto z=simd_normalize(forward);auto x=simd_normalize(simd_cross(up,z));auto y=simd_cross(z,x);simd_float4x4 m;m.columns[0]={x.x,y.x,z.x,0};m.columns[1]={x.y,y.y,z.y,0};m.columns[2]={x.z,y.z,z.z,0};m.columns[3]={-simd_dot(x,eye),-simd_dot(y,eye),-simd_dot(z,eye),1};return m;}
  bool beginFrame(uint64_t scene,uint64_t generation,const float*focus){
-  if(!enabled||!locationActive||!focus)return false;resetFrame();pointRegistry.beginScene(scene,generation);prepass.casterDraws=prepass.casterVertices=prepass.locationCasterDraws=prepass.sceneCasterDraws=0;prepass.frame=true;prepass.scene=scene;prepass.generation=generation;prepass.focus=simd_make_float3(focus[0],focus[1],focus[2]);prepass.sunId=prepass.pointId=0;prepass.pointRange=0;std::memset(prepass.lightIds,0,sizeof(prepass.lightIds));return true;
+  if(!locationActive||!focus)return false;resetFrame();pointRegistry.beginScene(scene,generation);prepass.casterDraws=prepass.casterVertices=prepass.locationCasterDraws=prepass.sceneCasterDraws=0;prepass.frame=true;prepass.scene=scene;prepass.generation=generation;prepass.focus=simd_make_float3(focus[0],focus[1],focus[2]);prepass.sunId=prepass.pointId=0;prepass.pointRange=0;std::memset(prepass.lightIds,0,sizeof(prepass.lightIds));return true;
  }
  bool beginPass(id<MTLDevice>device,unsigned kind,unsigned face,uint64_t lightId,const float*positionOrRay,float range,float*outView,float*outProjection){
-  if(!prepass.frame||prepass.finished||prepass.inPass||!positionOrRay||!outView||!outProjection||kind>1||(kind==0&&face>1)||(kind==1&&face>5)||range<=.1f)return false;
+  if(!enabled||!prepass.frame||prepass.finished||prepass.inPass||!positionOrRay||!outView||!outProjection||kind>1||(kind==0&&face>1)||(kind==1&&face>5)||range<=.1f)return false;
   // The location owner selects one lamp. Outdoor night scenes need the same
   // occlusion contract as interiors; the GPU registry keeps the cube bounded.
   // DX9RENDER::SetTransform(VIEW) accepts absolute-world views and rebases
@@ -203,7 +203,7 @@ struct Sampling {simd_float4x4 sunWorld[2],world;simd_float4 point,sunFocusSplit
  void endTraversalPointFrame(){if(prepass.frame){prepass.finished=true;prepass.pointValid=prepass.pointCount&&prepass.points[0].faces==63;}}
  void finishRegistry(){pointRegistry.finishScene();}
  bool encodePointCube(id<MTLDevice>device,id<MTLCommandBuffer>command,uint64_t lightId,const float*position,float range){
-  if(!prepass.frame||!lightId||!position||range<=.1f)return false;const simd_float3 source={position[0],position[1],position[2]};if(!pointRegistry.prepare(device))return false;if(pointRegistry.empty()){pendingPoint={lightId,source,range,true};return false;}pendingPoint={};unsigned slot=0;while(slot<prepass.pointCount&&prepass.points[slot].lightId!=lightId)++slot;if(slot==prepass.pointCount){if(slot>=8)return false;++prepass.pointCount;prepass.points[slot].lightId=lightId;}auto&point=prepass.points[slot];if(!point.map){auto desc=[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:MTLPixelFormatDepth32Float size:pointShadowResolution mipmapped:NO];desc.storageMode=MTLStorageModePrivate;desc.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;point.map=[device newTextureWithDescriptor:desc];if(!point.map)return false;}
+  if(!enabled||!prepass.frame||!lightId||!position||range<=.1f)return false;const simd_float3 source={position[0],position[1],position[2]};if(!pointRegistry.prepare(device))return false;if(pointRegistry.empty()){pendingPoint={lightId,source,range,true};return false;}pendingPoint={};unsigned slot=0;while(slot<prepass.pointCount&&prepass.points[slot].lightId!=lightId)++slot;if(slot==prepass.pointCount){if(slot>=8)return false;++prepass.pointCount;prepass.points[slot].lightId=lightId;}auto&point=prepass.points[slot];if(!point.map){auto desc=[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:MTLPixelFormatDepth32Float size:pointShadowResolution mipmapped:NO];desc.storageMode=MTLStorageModePrivate;desc.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;point.map=[device newTextureWithDescriptor:desc];if(!point.map)return false;}
   const auto signature=pointRegistry.cubeSignature(source,range);
   const bool reuse=point.cachedLightId==lightId&&point.cachedSignature==signature&&point.cachedRange==range&&simd_all(point.cachedPosition==source);
   if(!reuse){
@@ -309,7 +309,7 @@ vertex O vs_landlit(uint i [[vertex_id]],const device V*v [[buffer(0)]],constant
  // from their corners makes a lamp become a clipped rectangular highlight.
  // Carry the invariant material inputs; fs_landlit evaluates the authored
  // polynomial attenuation at each shaded surface point.
- O o=fixedVertex(i,v,u);o.directSun=l[i].sun.xyz;o.directPoint=0;o.localPosition=v[i].p.xyz;o.landNormal=l[i].normal.xyz;o.landDiffuse=l[i].diffuse.xyz;return o;
+ O o=fixedVertex(i,v,u);o.directSun=l[i].sun.xyz;o.directPoint=l[i].point.xyz;o.localPosition=v[i].p.xyz;o.landNormal=l[i].normal.xyz;o.landDiffuse=l[i].diffuse.xyz;return o;
 }
 float sampleSun(depth2d<float> map,float4x4 matrix,float3 localPosition,float texel,float minimumRadius) {
  float4 q=matrix*float4(localPosition,1);float3 p=q.xyz/q.w;float2 uv=float2(p.x*.5+.5,.5-p.y*.5);
@@ -352,7 +352,7 @@ float4 shadeLand(O v,constant U&u,constant LandSampling&s,array<texture2d<float>
    if(hasFar)sun=mix(sun,1.,smoothstep(216.,264.,focusDistance));
   }
  }
- float3 catalogLighting=0;
+ float3 catalogLighting=0,catalogReference=0,catalogRemoved=0;
  if(s.flags.w && any(v.landDiffuse!=float3(0))) {
   // Every shadowed lamp owns its own cube and its own occluded fraction.
   // One cube sampled for every lamp lit a whole interior from the first
@@ -377,9 +377,17 @@ float4 shadeLand(O v,constant U&u,constant LandSampling&s,array<texture2d<float>
     lampVisibility=(major>.1&&distance<range)?mix(1.,samplePoint(pointMaps[slot-1u],-delta,major,range,.75f),weight):1.;
    }
    catalogLighting+=contribution*lampVisibility;
+   if(s.flags.z&2u){catalogReference+=contribution;catalogRemoved+=contribution*(1-lampVisibility);}
   }
  }
- v.c.rgb=max(float3(0),v.c.rgb-v.directSun*(1-sun)+catalogLighting);
+ if(s.flags.z&2u) {
+  // Authored prelit RGB already contains the base and its lamp colouring.
+  // Reuse the deferred receiver's removed/total light ratio: a clear map is
+  // exactly neutral, and a blocker removes only its own source contribution.
+  float3 reference=max(v.directPoint+catalogReference,float3(.00001));
+  float3 removed=v.directSun*(1-sun)+catalogRemoved;
+  v.c.rgb*=1-clamp(removed/reference,0.,1.);
+ } else v.c.rgb=max(float3(0),v.c.rgb-v.directSun*(1-sun)+catalogLighting);
  return shadeFixedFunction(v,u,t,sam,cubes,fogColor);
 }
 fragment float4 fs_landlit(O v [[stage_in]],constant U&u [[buffer(1)]],constant LandSampling&s [[buffer(2)]],array<texture2d<float>,8>t [[texture(0)]],array<sampler,8>sam [[sampler(0)]],array<texturecube<float>,8>cubes [[texture(8)]],depth2d<float>sunNear [[texture(16)]],depth2d<float>sunFar [[texture(17)]],array<depthcube<float>,8>pointMaps [[texture(18)]]){return shadeLand(v,u,s,t,sam,cubes,sunNear,sunFar,pointMaps,u.fogColor.rgb);}

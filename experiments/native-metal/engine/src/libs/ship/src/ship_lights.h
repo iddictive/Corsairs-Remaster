@@ -109,6 +109,7 @@ class ShipLights : public IShipLights
     uint32_t dwMaxD3DLights;
     bool bLoadLights;
     bool bReflection;
+    bool modernLightingMode = false;
     uint64_t nextMetalLightId;
     float fSunRoadFlareSize;
 
@@ -120,6 +121,8 @@ class ShipLights : public IShipLights
 
     bool LoadLights();
     LightType *FindLightType(std::string sLightType);
+    void ConfigureIllumination(ShipLight &light, const LightType &type, bool physical);
+    void ReconcileLightingMode();
     float GetAttributeAsFloat(ATTRIBUTES *pA, const char *pName, float fDefault);
     void AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, const GEOS::LABEL &label);
     uint64_t AllocateMetalLightId();

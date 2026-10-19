@@ -5,7 +5,6 @@
 #include "lights.h"
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
-extern "C" bool StormMetalLandLightingReady(void*);
 extern "C" void StormMetalEndLandModel(void*, unsigned);
 extern "C" bool StormMetalSetGeometryEmitter(void*, bool);
 #endif
@@ -47,9 +46,8 @@ void LocModelRealizer::Execute(uint32_t delta_time)
 void LocModelRealizer::Realize(uint32_t delta_time) const
 {
     Lights* activeLights = lights;
-#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (dynamicLights && StormMetalLandLightingReady(rs->GetNativeDevice())) activeLights = dynamicLights;
-#endif
+    // The scene catalog supplies dynamic lamps. A shadow pass must not turn an
+    // authored prelit model into a fixed-function lit model.
     if (!bShow)
         return;
     auto *pE = core.GetEntityPointer(eid_model);

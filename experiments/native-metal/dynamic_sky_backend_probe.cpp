@@ -2,6 +2,7 @@
 #include "render_device_api.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" bool StormMetalBeginDynamicSky(void *, float, float, float, float, float, float, float, float, float, float, uint32_t);
 extern "C" bool StormMetalPrepareDynamicSky(void *, float, float, float, float, float, float, float, float, float, float, uint32_t);
@@ -92,6 +93,60 @@ int main()
          "fog frame clear");
     need(!StormMetalSolarVisualActive(device), "frame cleanup clears an abandoned solar scope");
     need(!StormMetalSkyFogActive(device), "frame boundary rejects a leaked fog scope");
+
+    // Exercise the actual SKY stream, rather than accepting an active scope
+    // while an earlier generic unlit path still draws the authored panorama.
+    storm_render::Surface *target = nullptr, *readback = nullptr;
+    need(storm_render::succeeded(device->GetRenderTarget(&target)), "sky target");
+    need(storm_render::succeeded(device->CreateOffscreenPlainSurface(
+             32, 32, storm_render::AssetFormat::A8R8G8B8, &readback)), "sky readback surface");
+    storm_render::Matrix identity{};
+    identity._11 = identity._22 = identity._33 = identity._44 = 1.f;
+    device->SetTransform(storm_render::TransformWorld, &identity);
+    device->SetTransform(storm_render::TransformView, &identity);
+    device->SetTransform(storm_render::TransformProjection, &identity);
+    device->SetFVF(storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse |
+                   storm_render::vertexFormat::tex2 | storm_render::vertexFormat::texCoord2);
+    device->SetRenderState(storm_render::RenderLighting, false);
+    device->SetRenderState(storm_render::RenderDepthTest, false);
+    device->SetRenderState(storm_render::RenderCullMode, storm_render::CullNone);
+    device->SetTextureStageState(0, storm_render::StageColorOp, storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0, storm_render::StageColorArg1, storm_render::textureArg::diffuse);
+    device->SetTextureStageState(0, storm_render::StageAlphaOp, storm_render::TextureOpSelectArg1);
+    device->SetTextureStageState(0, storm_render::StageAlphaArg1, storm_render::textureArg::diffuse);
+    device->SetTextureStageState(1, storm_render::StageColorOp, storm_render::TextureOpDisable);
+    const SkyVertex triangle[] = {
+        {{-1.f, -1.f, .5f}, 0xffff00ff, {}, {}},
+        {{ 3.f, -1.f, .5f}, 0xffff00ff, {}, {}},
+        {{-1.f,  3.f, .5f}, 0xffff00ff, {}, {}},
+    };
+    const auto skyPixel = [&](bool dynamic, float hour) {
+        device->Present();
+        device->Clear(storm_render::clear::color | storm_render::clear::depth, 0, 1.f);
+        device->BeginScene();
+        if (dynamic)
+            need(StormMetalBeginDynamicSky(device, hour, 0.f, .7f, .8f, .4f, 9.f, .16f,
+                                          0.f, 1.f, 0.f, 0xff315273u), "draw-time sky scope");
+        need(storm_render::succeeded(device->DrawPrimitiveUP(
+                 storm_render::PrimitiveTriangleList, 1, triangle, sizeof(SkyVertex))), "SKY-format draw");
+        if (dynamic) StormMetalEndDynamicSky(device);
+        device->EndScene();
+        need(storm_render::succeeded(device->GetRenderTargetData(target, readback)), "sky pixel readback");
+        storm_render::LockedRect lock{};
+        need(storm_render::succeeded(readback->LockRect(&lock, nullptr, storm_render::lock::readOnly)), "sky read lock");
+        uint32_t pixel = 0;
+        std::memcpy(&pixel, static_cast<const char *>(lock.pBits) + 16 * lock.Pitch + 16 * 4, 4);
+        readback->UnlockRect();
+        return pixel & 0x00ffffffu;
+    };
+    const auto authored = skyPixel(false, 12.f), day = skyPixel(true, 12.f), night = skyPixel(true, 23.f);
+    std::printf("SKY pixels authored=%06x day=%06x night=%06x\n", authored, day, night);
+    need(authored == 0x00ff00ffu, "authored SKY control retains vertex colour");
+    need(day != authored && night != authored, "dynamic SKY scope replaces authored pixels");
+    need(day != night, "dynamic SKY pixels follow WEATHER hour");
+    need(skyPixel(false, 23.f) == authored, "ending SKY scope preserves ordinary unlit draws");
+    readback->Release();
+    target->Release();
 
     device->Release();
 

@@ -415,8 +415,14 @@ void SaveGameToFile(string saveName, string saveData)
 		//LaunchQuickSaveMenu();
 		pchar.version_number = 104;
 		if (isEntity(&Weather)) SendMessage(&Weather,"l",1464336389);
-		SaveEngineState(saveName);
-		ISetSaveData(saveName,saveData);
+		if (SaveEngineState(saveName))
+		{
+			ISetSaveData(saveName,saveData);
+		}
+		else
+		{
+			Log_Info("Не удалось сохранить игру. Прежние сохранения не изменены.");
+		}
 	}
 
 	//hide interface

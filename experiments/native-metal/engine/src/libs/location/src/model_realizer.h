@@ -21,10 +21,8 @@ class LocModelRealizer : public Entity
     LocModelRealizer();
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     bool IsVisible() const { return bShow; }
-    void SetDynamicLights(Lights* value) { dynamicLights = value; }
     void SetGeometryEmitter(bool value) { geometryEmitter = value; }
   private:
-    Lights* dynamicLights = nullptr;
     bool geometryEmitter = false;
   public:
 #endif

@@ -208,12 +208,48 @@ bool ShipLights::SetLabel(ShipLight *pL, MODEL *pModel, const char *pStr)
     return true;
 }
 
+void ShipLights::ConfigureIllumination(ShipLight &light, const LightType &type, bool physical)
+{
+    light.baseLightColor = type.cLightColor;
+    light.bCoronaOnly = !physical;
+    light.Light = {};
+    if (!physical)
+        return;
+    light.Light.Type = storm_render::LightKind::Point;
+    light.Light.Diffuse = {type.cLightColor.r, type.cLightColor.g, type.cLightColor.b, 1.0f};
+    light.Light.Range = type.fRange;
+    light.Light.Attenuation0 = type.fAttenuation0;
+    light.Light.Attenuation1 = type.fAttenuation1;
+    light.Light.Attenuation2 = type.fAttenuation2;
+}
+
+void ShipLights::ReconcileLightingMode()
+{
+#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+    const bool modern = StormMetalModernLighting(pRS->GetNativeDevice());
+    if (modern == modernLightingMode)
+        return;
+    modernLightingMode = modern;
+    const auto *ordinary = modern ? FindLightType("default") : nullptr;
+    for (auto &light : aLights)
+    {
+        if (!light.bFlareSource)
+            continue;
+        const auto *type = modern ? ordinary : light.pLT;
+        if (type)
+            ConfigureIllumination(light, *type, modern);
+    }
+#endif
+}
+
 void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, const GEOS::LABEL &label)
 {
     CMatrix m;
     char str[256]{}, str2[256];
     if (!label.name)
         return;
+    // Reconcile older models before this creation observes the current mode.
+    ReconcileLightingMode();
     strcpy_s(str, label.name);
     std::ranges::for_each(str, [](char &c) { c = std::tolower(c); });
 
@@ -281,18 +317,15 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
     pL->bFlareSource = !bLight;
     LightType *illumination = pLT;
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
-    if (!bLight && StormMetalModernLighting(pRS->GetNativeDevice()))
+    if (!bLight && modernLightingMode)
     {
         illumination = FindLightType("default");
         if (!illumination) return;
         bLight = true;
     }
 #endif
-    pL->baseLightColor = illumination->cLightColor;
-
     pL->bDynamicLight = false;
     pL->pObject = pObject;
-    pL->bCoronaOnly = true;
     pL->fFlareAlpha = 0.0f;
     pL->fFlareAlphaMax = 1.0f;
     pL->bVisible = true;
@@ -303,20 +336,7 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
     pL->bBrokenTimeOff = false;
     pL->bDead = false;
 
-    if (bLight)
-    {
-        pL->Light = {};
-        pL->bCoronaOnly = false;
-        pL->Light.Type = storm_render::LightKind::Point;
-        pL->Light.Diffuse.r = illumination->cLightColor.r;
-        pL->Light.Diffuse.g = illumination->cLightColor.g;
-        pL->Light.Diffuse.b = illumination->cLightColor.b;
-        pL->Light.Diffuse.a = 1.0f;
-        pL->Light.Range = illumination->fRange;
-        pL->Light.Attenuation0 = illumination->fAttenuation0;
-        pL->Light.Attenuation1 = illumination->fAttenuation1;
-        pL->Light.Attenuation2 = illumination->fAttenuation2;
-    }
+    ConfigureIllumination(*pL, *illumination, bLight);
 
     pL->Osc[0].fStep = pLT->fFreq;
     pL->Osc[0].fAmp = pLT->fFlicker;
@@ -511,6 +531,9 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
 // update lights/flares parameters
 void ShipLights::Execute(uint32_t dwDeltaTime)
 {
+    // One mode read per frame; the lamp traversal is added only on transitions.
+    // Existing updates below retain the current flicker and broken-light gain.
+    ReconcileLightingMode();
     const float fDeltaTime = static_cast<float>(dwDeltaTime) * 0.001f;
 
     float fFov;
