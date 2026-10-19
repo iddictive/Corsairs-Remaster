@@ -96,7 +96,26 @@ delivery and that unresolved outcome remain owned by `runtime.md`.
 
 ## Numbered ordnance and world geometry
 
-### Current terrain policy: excavation disabled
+### Current world policy: geometric island destruction disabled
+
+The October19 player request disables all island/rock/building mesh cuts, not
+only ground excavation. `experiments/native-metal/world_damage_policy.hpp`
+owns the switch and the two reserved SAVE attribute names. `RestoreWorldCuts`
+cancels/clears transient work and removes those classes from the current island
+before any checkpoint decode. `CommitWorldCut` returns handled before geometry
+traversal or queueing. Authored shore/stone weapon trace, ordinary impacts,
+ship holes and script-owned fort HP retain their consumers. The SAVE writer and
+offline recovery tool use that same policy globally, including unvisited islands;
+see the native SAVE section in `naval-ammunition-and-damage.md`.
+
+The player's182427 PID43807 sample on installed351ee568 attributes913/1479
+main-thread samples to `ISLAND::BindWorldCuts`, including676 in material prepare,
+344 in source/fingerprint work and213 in broadphase build. This is the observed
+CPU cost being removed, not a measured FPS gain. Preserved source-prefix/weapon
+trace probes confirm the disabled policy skips work while ordinary nearest
+shore/stone hit selection remains. Player scene timing remains unresolved.
+
+### Historical October17 terrain-only policy
 
 The October17 player request disables terrain excavation. `GEOM::WorldCutAffects`
 uses the existing texture-object classifier before admission: pure terrain hits
@@ -708,6 +727,22 @@ simplified head/area flow; capacity derives from the original waterline contour
 and draft. Flooding continues with Phonk OFF and restores after load. A separate
 global sea event applies its progressive HP ceiling, with ordinary immortality
 and quest guards. This is a simplified ingress model, not a fluid simulation.
+
+October19 crew dewatering uses the existing repair owner:
+`battle_interface/utils.c::Ship_DewaterRate` returns the slow-repair percentage
+per second multiplied by clamped crew/optimal crew and effective `TmpSkill.Repair`.
+No crew means no pumping. At full staffing and Repair1 the rate is0.5% of flood
+capacity per game second; quarter staffing and Repair0.1 give0.0125%.
+Native ingress and pumping are combined before one capacity clamp, so a large
+hole can still reach full flooding with a working crew. Existing original
+waterplane/draft capacity means the same opening fills a larger ship more slowly.
+Only damaged or still-wet live ships accumulate the4Hz flood clock; intact
+sailing cannot become first-hole catch-up, and repaired holes do not prevent
+remaining water draining. Phonk/dead/no-sea states reset that transient clock.
+Disposable expression/state checks cover crew0/poor/full, small-held versus
+large-overwhelming leaks, inverse ship-size scaling, repaired drainage and
+full saturation. This rate is a stock-repair-derived balance candidate; actual
+naval combat and save/reload remain player acceptance.
 
 `Ship.PhonkLaserCuts` stores model-bound local planes; `Ship.PhonkFlood` stores
 ingress and attribution. Normal startup/load reconstructs cuts, chars, breach

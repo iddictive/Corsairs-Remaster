@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Lossless native SAVE material transport recovery. Never edits the input.
+"""Native SAVE recovery under the canonical world-damage policy. Never edits input.
 
 Requires the engine's CMZ2 material SAVE reader. Ordinary script state is copied
-verbatim; only unreachable material publication slots are omitted. The output is
-reparsed and compared with the input's selected authoritative state before write.
+verbatim; unreachable material publication slots and policy-disabled world damage
+are omitted. The output is reparsed and compared with the declared retained state.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 import hashlib
 import json
 from pathlib import Path
+import re
 import struct
 import time
 import zlib
@@ -22,6 +23,28 @@ HEX_PREFIX = b"!CMZ1:"
 LIMIT = 0x8000000
 MAX_VALUE = 1024 * 1024
 MATERIAL = {b"hullmaterial", b"phonkworldmaterial"}
+WORLD_POLICY_PATH = Path(__file__).resolve().parents[1] / "experiments/native-metal/world_damage_policy.hpp"
+
+
+def read_world_policy(path=WORLD_POLICY_PATH):
+    """Consume the native owner's declarations; no separately editable policy."""
+    raw = path.read_bytes()
+    source = raw.decode("utf-8")
+    enabled = re.findall(r"inline\s+constexpr\s+bool\s+Enabled\s*=\s*(true|false)\s*;", source)
+    names = re.findall(r"inline\s+constexpr\s+std::array<std::string_view,\s*(\d+)>\s+SavedStateAttributes\s*\{([^}]+)\}\s*;", source)
+    if len(enabled) != 1 or len(names) != 1:
+        raise ValueError("unsupported canonical world-damage policy declarations")
+    count, body = names[0]
+    attributes = json.loads("[" + body + "]")
+    if len(attributes) != int(count) or any(not isinstance(name, str) or not name or not name.isascii() for name in attributes):
+        raise ValueError("invalid canonical world-damage attribute names")
+    attributes = frozenset(name.encode("ascii").lower() for name in attributes)
+    if len(attributes) != int(count):
+        raise ValueError("duplicate canonical world-damage attribute names")
+    return {"enabled": enabled[0] == "true", "attributes": attributes, "sha256": hashlib.sha256(raw).hexdigest()}
+
+
+WORLD_POLICY = read_world_policy()
 
 
 def vd(value):
@@ -138,6 +161,8 @@ class Save:
         self.packed_size = packed_size
         self.at = 0
         self.roots = []
+        self.world_attributes = []
+        self.world_count_patches = []
         self.codec = {}
         self.string()  # program
         buckets = {}
@@ -216,36 +241,58 @@ class Save:
         value = self.string()
         root = not capture and name in MATERIAL
         capture = capture or root
-        node = Node(start, code_start, string_start, value, name) if capture else None
+        node = Node(start, code_start, string_start, value if capture else None, name)
+        omitted_children = 0
         for _ in range(count):
             child = self.attr(capture)
             if capture:
                 node.children.append(child)
-        if node:
-            node.end = self.at
+            if child.name in WORLD_POLICY["attributes"]:
+                omitted_children += 1
+        node.end = self.at
+        if name in WORLD_POLICY["attributes"]:
+            self.world_attributes.append(node)
+        if omitted_children and not capture:
+            self.world_count_patches.append((start, code_start, vd(count - omitted_children)))
         if root:
             self.roots.append(node)
         return node
 
-    def node_parts(self, node, state, packed):
+    def node_parts(self, node, state, packed, omit_world):
         children = retained(node, state)
+        if omit_world:
+            children = [child for child in children if child.name not in WORLD_POLICY["attributes"]]
         yield vd(len(children))
         yield self.raw[node.code_start:node.string_start]
         yield wire_string(pack(node.value) if packed else unpack(node.value))
         for child in children:
-            yield from self.node_parts(child, state if node is state else None, packed)
+            yield from self.node_parts(child, state if node is state else None, packed, omit_world)
 
-    def parts(self, packed):
+    def parts(self, packed, omit_world=None):
+        if omit_world is None:
+            omit_world = not WORLD_POLICY["enabled"]
+        operations = [(root.start, root.end, root) for root in self.roots
+                      if not (omit_world and root.name in WORLD_POLICY["attributes"])]
+        if omit_world:
+            operations += [(node.start, node.end, b"") for node in self.world_attributes]
+            operations += self.world_count_patches
         at = 0
-        for root in self.roots:
-            yield memoryview(self.raw)[at:root.start]
-            yield from self.node_parts(root, root, packed)
-            at = root.end
+        for start, end, replacement in sorted(operations, key=lambda op: (op[0], -op[1])):
+            if start < at:
+                if end > at:
+                    raise ValueError("overlapping SAVE transformations")
+                continue  # Already transformed by its containing subtree.
+            yield memoryview(self.raw)[at:start]
+            if isinstance(replacement, Node):
+                yield from self.node_parts(replacement, replacement, packed, omit_world)
+            else:
+                yield replacement
+            at = end
         yield memoryview(self.raw)[at:]
 
-    def digest(self):
+    def digest(self, omit_world=None):
         digest = hashlib.sha256()
-        for part in self.parts(False):
+        for part in self.parts(False, omit_world):
             digest.update(part)
         return digest.hexdigest()
 
@@ -279,8 +326,10 @@ def main():
     baseline = original.digest()
     output = original.compact()
     candidate = Save(output)
-    if candidate.digest() != baseline:
+    if candidate.digest(omit_world=False) != baseline:
         raise ValueError("authoritative script/material state differs after recovery")
+    if not WORLD_POLICY["enabled"] and candidate.world_attributes:
+        raise ValueError("disabled world-damage attributes remain after recovery")
     # Preserve metadata/screenshot bytes exactly, including any offset gap.
     if output[48 + candidate.packed_size:] != original.file[48 + original.packed_size:]:
         raise ValueError("extended SAVE data changed")
@@ -292,6 +341,9 @@ def main():
         "input_raw_bytes": len(original.raw), "output_raw_bytes": len(candidate.raw),
         "input_file_bytes": len(original.file), "output_file_bytes": len(output),
         "material_states": len(original.roots), "variables": original.variable_count,
+        "world_damage_policy": {"path": str(WORLD_POLICY_PATH), "sha256": WORLD_POLICY["sha256"], "enabled": WORLD_POLICY["enabled"], "attributes": sorted(name.decode("ascii") for name in WORLD_POLICY["attributes"])},
+        "omitted_world_attributes": len(original.world_attributes) if not WORLD_POLICY["enabled"] else 0,
+        "remaining_world_attributes": len(candidate.world_attributes),
         "authoritative_state_sha256": baseline, "seconds": time.monotonic() - started}, indent=2))
 
 

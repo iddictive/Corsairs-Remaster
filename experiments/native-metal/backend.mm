@@ -879,6 +879,45 @@ storm_render::Result Present()override {resolveTraversalShadow();flushShipFire()
 	  if(ib&&!ib->bytes.empty()){auto span=locateSourceSpan(bytes,length,ib->bytes.data(),ib->bytes.size(),ib->cacheIdentity,ib->cacheRevision,(ib->usage&storm_render::usage::dynamic)!=0,ib->locked);if(span.resident()){auto buffer=residentBuffer(ib->bytes,ib->cacheIdentity,ib->cacheRevision);return {buffer,span.offset,length};}}
 	  const uint64_t before=frameArena.allocations;auto slice=frameArena.allocate(metal,length);if(!slice.buffer)return {};memcpy(slice.data,bytes,length);if(profile.enabled){profile.buffers+=frameArena.allocations-before;profile.bytes+=length;}return {slice.buffer,slice.offset,length};
 	 }
+ // Every FFP receiver consumes the same bounded source catalog, including
+ // rigid MODELRs inside locations that use the raw fallback submission.
+ void populateReceiverLamps(LandShadow::Sampling& sampling,const simd_float4x4& worldMatrix,
+                            simd_float3 localMin,simd_float3 localMax,
+                            const simd_float4* lightDiffuse,bool selectedFallback=false)const{
+  unsigned count=0;
+  if(lightingScene.authoredCatalog()){
+   sampling.flags.z|=1u;
+   storm_metal::Bounds3 receiver{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};
+   for(unsigned corner=0;corner<8;corner++){
+    simd_float3 p={corner&1?localMax.x:localMin.x,corner&2?localMax.y:localMin.y,corner&4?localMax.z:localMin.z};
+    const auto world=simd_mul(worldMatrix,simd_make_float4(p,1)).xyz;
+    for(unsigned axis=0;axis<3;axis++){
+     receiver.min[axis]=std::min(receiver.min[axis],world[axis]);
+     receiver.max[axis]=std::max(receiver.max[axis],world[axis]);
+    }
+   }
+   for(unsigned i=0;i<lightingScene.authoredCount()&&count<64;i++){
+    const auto& source=lightingScene.authoredLight(i);
+    LandShadow::PointLight lamp{source.positionRange,source.diffuse,source.attenuation};
+    const float position[]={lamp.positionRange.x,lamp.positionRange.y,lamp.positionRange.z};
+    if(!storm_metal::sphereIntersectsBounds(position,lamp.positionRange.w,receiver))continue;
+    sampling.lamps[count]=lamp;
+    sampling.lamps[count++].attenuation.w=float(landShadow.shadowSlot(lightingScene.authoredId(i)));
+   }
+   for(unsigned li=1;li<8&&count<64;li++){
+    const auto& source=lights[li];
+    if(!enabled[li]||source.Type!=storm_render::LightKind::Point||landShadow.prepass.lightIds[li])continue;
+    const float position[]={source.Position.x,source.Position.y,source.Position.z};
+    if(!storm_metal::sphereIntersectsBounds(position,source.Range,receiver))continue;
+    sampling.lamps[count++]={{source.Position.x,source.Position.y,source.Position.z,source.Range},lightDiffuse[li],{source.Attenuation0,source.Attenuation1,source.Attenuation2,0}};
+   }
+  }else if(selectedFallback&&landShadow.selectedLampValid){
+   sampling.lamps[count]=landShadow.selectedLamp;
+   sampling.lamps[count++].attenuation.w=landShadow.prepass.pointValid?1.f:0.f;
+  }
+  sampling.flags.w=count;
+ }
+
  // One immutable per-draw copy is shared by the vertex and fragment stages.
  // Skinned draws use slot 6 because slots 4 and 5 own the bone palette and SkinU.
  void bindLandSampling(const LandShadow::Sampling& lighting,int vertexIndex){
@@ -1527,7 +1566,8 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
  auto rawIndices=transientIndices?sailIndexUpload.slice.buffer:residentBuffer(ib->bytes,ib->cacheIdentity,ib->cacheRevision);if(!rawVertices||!rawIndices)return storm_render::result::outOfMemory;
  if(rawVisible){auto stateResult=applyState((rawSkinned?0x1900ull:0x1800ull)|(unlitRawModel?1ull:0ull),library,rawSkinned?@"vs_skinned":@"vs_landraw",unlitRawModel?@"fs":@"fs_landlit");if(storm_render::failed(stateResult))return stateResult;++telemetryReceiverDraws;}
  u=prepareFixedFunction(rawVisible);
- auto lighting=landShadow.sampling(worldMatrix);lighting.flags.z=preserveAuthoredStatic?2u:0u;if(!offscreenPointCasterDepth&&lightingScene.authoredCatalog()){lighting.flags.z|=1u;storm_metal::Bounds3 receiver{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};for(unsigned corner=0;corner<8;corner++){simd_float3 p={corner&1?rawMax.x:rawMin.x,corner&2?rawMax.y:rawMin.y,corner&4?rawMax.z:rawMin.z};auto world=simd_mul(worldMatrix,simd_make_float4(p,1)).xyz;for(unsigned axis=0;axis<3;axis++){receiver.min[axis]=std::min(receiver.min[axis],world[axis]);receiver.max[axis]=std::max(receiver.max[axis],world[axis]);}}unsigned count=0;for(unsigned i=0;i<lightingScene.authoredCount()&&count<64;i++){const auto&source=lightingScene.authoredLight(i);LandShadow::PointLight lamp{source.positionRange,source.diffuse,source.attenuation};const float position[]={lamp.positionRange.x,lamp.positionRange.y,lamp.positionRange.z};if(!storm_metal::sphereIntersectsBounds(position,lamp.positionRange.w,receiver))continue;lighting.lamps[count]=lamp;lighting.lamps[count++].attenuation.w=float(landShadow.shadowSlot(lightingScene.authoredId(i)));}for(unsigned li=1;li<8&&count<64;li++){const auto&source=lights[li];if(!enabled[li]||source.Type!=storm_render::LightKind::Point||landShadow.prepass.lightIds[li])continue;const float position[]={source.Position.x,source.Position.y,source.Position.z};if(!storm_metal::sphereIntersectsBounds(position,source.Range,receiver))continue;lighting.lamps[count++]={{source.Position.x,source.Position.y,source.Position.z,source.Range},lightDiffuse[li],{source.Attenuation0,source.Attenuation1,source.Attenuation2,0}};}lighting.flags.w=count;}
+ auto lighting=landShadow.sampling(worldMatrix);lighting.flags.z=preserveAuthoredStatic?2u:0u;
+ if(!offscreenPointCasterDepth)populateReceiverLamps(lighting,worldMatrix,rawMin,rawMax,lightDiffuse);
  NSUInteger rawVertexOffset=offset,rawIndexOffset=NSUInteger(static_cast<const uint8_t*>(indices)-ib->bytes.data());int32_t rawBaseVertex=base;
  if(rawDynamicSail){storm::metal::sail::IndexedBinding binding{};if(!storm::metal::sail::indexedBinding(offset,st,base,rawIndexed->first,rawIndexed->vertices(),vb->bytes.size(),rawIndexOffset/rawIndexWidth,rawIndexWidth,drawCount,ib->bytes.size(),binding))return storm_render::result::invalidCall;rawVertexOffset=NSUInteger(binding.vertexBufferOffset);rawIndexOffset=NSUInteger(binding.indexBufferOffset);rawBaseVertex=binding.metalBaseVertex;raw.normalOffset=storm::metal::sail::kNormalOffset;raw.uvOffset=storm::metal::sail::kUv0Offset;}
  const NSUInteger logicalRawVertexOffset=rawVertexOffset;
@@ -1584,6 +1624,29 @@ if(legacy3D){
    }
    for(unsigned li=0;li<8;li++)if(enabled[li]){auto&lght=lights[li];if(prepassLit&&li>0&&lght.Type!=storm_render::LightKind::Directional&&lightingScene.authoredCatalog())continue;if(prepassLit&&li==0&&lght.Type==storm_render::LightKind::Directional&&(landShadow.indoor||!landShadow.locationActive)&&!landShadow.prepass.sunValid)continue;rawfb.lightMask|=1u<<li;rawfb.lightDiffuse[li]=lightDiffuse[li];rawfb.lightAmbient[li]=lightAmbient[li];rawfb.lightSpecular[li]=lightSpecular[li];if(lght.Type==storm_render::LightKind::Directional){rawfb.directionalMask|=1u<<li;rawfb.lightDirection[li]={lght.Direction.x,lght.Direction.y,lght.Direction.z,0};}else{rawfb.lightPositionRange[li]={lght.Position.x,lght.Position.y,lght.Position.z,lght.Range};rawfb.lightAttenuation[li]={lght.Attenuation0,lght.Attenuation1,lght.Attenuation2,0};if(lght.Type==storm_render::LightKind::Spot){rawfb.spotMask|=1u<<li;rawfb.lightDirection[li]={lght.Direction.x,lght.Direction.y,lght.Direction.z,0};rawfb.lightSpot[li]={lght.Theta,lght.Phi,lght.Falloff,0};}}}
    auto lightingFb=landShadow.sampling(worldMatrix);
+   if(prepassLit&&lightingScene.authoredCatalog()){
+    // Local bounds are immutable across WORLD/camera changes. Reuse the same
+    // source-revision cache as the resident raw path rather than rescanning
+    // the harbor boat's indexed geometry every frame.
+    const bool cacheBounds=backendOptimizationEnabled&&!dynamicSource&&vb->cacheIdentity&&
+     (!rawFbIndexed||ib->cacheIdentity);
+    const storm_metal::backend_optimization::BoundsKey boundsKey={
+     vb->cacheIdentity,vb->cacheRevision,rawFbIndexed?ib->cacheIdentity:0,rawFbIndexed?ib->cacheRevision:0,
+     rawFbVertexOffset,rawFbIndexed?uint64_t(static_cast<const uint8_t*>(indices)-ib->bytes.data()):0,
+     inputCount,st,rawFbIndexed?uint64_t(int64_t(base)):0,rawFbIndexed?rawIndexWidth:0,fvf};
+    RawDrawBounds bounds{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};
+    if(const auto* cachedBounds=cacheBounds?rawBoundsCache.find(boundsKey):nullptr)bounds=*cachedBounds;
+    else{
+     for(uint32_t i=0;i<inputCount;i++){
+      const int64_t vertex=rawFbIndexed?int64_t(readIndex(indices,fmt==storm_render::IndexFormat::UInt32,i))+base:i;
+      simd_float3 position;std::memcpy(&position,data+size_t(vertex)*st,12);
+      bounds.minimum=simd_min(bounds.minimum,position);bounds.maximum=simd_max(bounds.maximum,position);
+      bounds.finite&=std::isfinite(position.x)&&std::isfinite(position.y)&&std::isfinite(position.z);
+     }
+     if(cacheBounds)rawBoundsCache.insert(boundsKey,bounds);
+    }
+    populateReceiverLamps(lightingFb,worldMatrix,bounds.minimum,bounds.maximum,lightDiffuse);
+   }
    [encoder setVertexBuffer:rawFbVertices.buffer offset:rawFbVertices.offset atIndex:0];
    bindFixedFunction(ufb);
    [encoder setVertexBytes:&rawfb length:sizeof(rawfb) atIndex:3];
@@ -1654,16 +1717,8 @@ if(fan)t=storm_render::PrimitiveTriangleList;
  }
  const bool solar=solarVisualActive&&cloudFieldCurrent()&&!prepassLit&&special==ProgramKind::None;
  auto stateResult=applyState(uint64_t(special)|(prepassLit?0x800ull:0)|(solar?0x20000ull:0)|(uint64_t(solar?solarShape:0)<<24),library,prepassLit?@"vs_landlit":@"vs",prepassLit?@"fs_landlit":special==ProgramKind::Postprocess?@"postprocess_fs":solar?(solarShape?@"fs_solar_shape":@"fs_solar"):@"fs");if(storm_render::failed(stateResult)){if(prepassLit)++telemetryReceiverRejects;return stateResult;}if(prepassLit)++telemetryReceiverDraws;Uniform u=prepareFixedFunction();if(solar)bindSolarVisual();
- if(prepassLit){auto lighting=landShadow.sampling(worldMatrix);lighting.flags.z=preserveAuthoredStatic?2u:0u;unsigned count=0;
- if(lightingScene.authoredCatalog()){lighting.flags.z|=1u;
- storm_metal::Bounds3 receiver{{INFINITY,INFINITY,INFINITY},{-INFINITY,-INFINITY,-INFINITY}};
- for(unsigned corner=0;corner<8;corner++){simd_float3 p={corner&1?localMax.x:localMin.x,corner&2?localMax.y:localMin.y,corner&4?localMax.z:localMin.z};auto world=simd_mul(worldMatrix,simd_make_float4(p,1)).xyz;for(unsigned axis=0;axis<3;axis++){receiver.min[axis]=std::min(receiver.min[axis],world[axis]);receiver.max[axis]=std::max(receiver.max[axis],world[axis]);}}
- for(unsigned i=0;i<lightingScene.authoredCount()&&count<64;i++){const auto&source=lightingScene.authoredLight(i);LandShadow::PointLight lamp{{source.positionRange.x,source.positionRange.y,source.positionRange.z,source.positionRange.w},source.diffuse,source.attenuation};const float position[]={lamp.positionRange.x,lamp.positionRange.y,lamp.positionRange.z};if(!storm_metal::sphereIntersectsBounds(position,lamp.positionRange.w,receiver))continue;lighting.lamps[count]=lamp;lighting.lamps[count++].attenuation.w=float(landShadow.shadowSlot(lightingScene.authoredId(i)));}for(unsigned li=1;li<8&&count<64;li++){const auto&source=lights[li];if(!enabled[li]||source.Type!=storm_render::LightKind::Point||landShadow.prepass.lightIds[li])continue;const float position[]={source.Position.x,source.Position.y,source.Position.z};if(!storm_metal::sphereIntersectsBounds(position,source.Range,receiver))continue;lighting.lamps[count++]={{source.Position.x,source.Position.y,source.Position.z,source.Range},lightDiffuse[li],{source.Attenuation0,source.Attenuation1,source.Attenuation2,0}};}
- }
-  else if(landShadow.selectedLampValid){lighting.lamps[count]=landShadow.selectedLamp;lighting.lamps[count++].attenuation.w=landShadow.prepass.pointValid?1.f:0.f;}
-  // Legacy per-draw slots are camera-selected. They are not the source of
-  // indoor illumination: changing a view cannot switch lamps on a fixed wall.
- lighting.flags.w=count;
+ if(prepassLit){auto lighting=landShadow.sampling(worldMatrix);lighting.flags.z=preserveAuthoredStatic?2u:0u;
+ populateReceiverLamps(lighting,worldMatrix,localMin,localMax,lightDiffuse,true);
 [encoder setVertexBuffer:directSlice.buffer offset:directSlice.offset atIndex:2];bindLandSampling(lighting,4);bindShadowTexture(landShadow.map,16);bindShadowTexture(landShadow.farMap,17);for(unsigned slot=0;slot<8;slot++)bindShadowTexture(landShadow.prepass.points[slot].map,18+slot);}
 [encoder setVertexBuffer:vertexSlice.buffer offset:vertexSlice.offset atIndex:0];bindFixedFunction(u);MTLPrimitiveType type=t==storm_render::PrimitiveTriangleStrip?MTLPrimitiveTypeTriangleStrip:t==storm_render::PrimitiveLineStrip?MTLPrimitiveTypeLineStrip:t==storm_render::PrimitiveLineList?MTLPrimitiveTypeLine:t==storm_render::PrimitivePointList?MTLPrimitiveTypePoint:MTLPrimitiveTypeTriangle;if(indexed)[encoder drawIndexedPrimitives:type indexCount:drawCount indexType:MTLIndexTypeUInt32 indexBuffer:indexSlice.buffer indexBufferOffset:indexSlice.offset];else [encoder drawPrimitives:type vertexStart:0 vertexCount:num];if(dynamicDraw&&!prepassLit){++seaConvertedPackets;landShadow.append({vertexSlice.buffer,indexSlice.buffer,directSlice.buffer,vertexSlice.offset,indexSlice.offset,directSlice.offset,indexed?drawCount:num,type,rs[storm_render::RenderCullMode]==storm_render::CullNone?MTLCullModeNone:rs[storm_render::RenderCullMode]==storm_render::CullClockwise?MTLCullModeFront:MTLCullModeBack,worldMatrix,u.m,rasterViewport(MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),vp.MinZ,vp.MaxZ}),landTexture->gpu(),samplerFor(0),effectiveAlphaRef/255.f,effectiveAlphaTest,effectiveAlphaFunc,ts[0][storm_render::StageColorOp]==storm_render::TextureOpModulate2X?2.f:1.f,u.fogColor,u.fogParams},num);}return storm_render::result::ok;}
  storm_render::Result DrawPrimitive(storm_render::Primitive t,uint32_t start,uint32_t n)override{if(n)captureAimModelBeforeDraw();traceBackdropAlpha();traceAlphaSignature();if(profile.enabled){++profile.draws;profile.vertices+=count(t,n);}if(declaration&&t==storm_render::PrimitivePointList)return drawDeclaredPoints(start,n);return vb?draw(t,n,vb->bytes.data()+offset+start*stride,stride,nullptr,storm_render::IndexFormat::UInt16):storm_render::result::invalidCall;}
@@ -1941,6 +1996,10 @@ extern "C" bool StormMetalSceneLight(void*pointer,uint64_t id,const storm_render
  if(light->Type!=storm_render::LightKind::Point||light->Range<=.1f)return false;
  if(!d->lightingScene.authoredCatalog()) d->lightingScene.beginAuthoredLights();
  auto p=sm::relativeLightPosition({light->Position.x,light->Position.y,light->Position.z},l.worldOrigin);storm_metal::SceneLight source{};source.type=uint32_t(storm_render::LightKind::Point);source.positionRange={p.x,p.y,p.z,light->Range};source.diffuse={light->Diffuse.r,light->Diffuse.g,light->Diffuse.b,1};source.ambient={light->Ambient.r,light->Ambient.g,light->Ambient.b,1};source.attenuation={light->Attenuation0,light->Attenuation1,light->Attenuation2,0};source.enabled=true;return d->lightingScene.appendAuthoredLight(id,source);
+}
+extern "C" bool StormMetalShadowPassMatrices(void*pointer,float*outView,float*outProjection){
+ if(!pointer||!outView||!outProjection)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));if(!d->landShadow.prepass.inPass)return false;
+ std::memcpy(outView,&d->matrices.at(storm_render::TransformView),64);std::memcpy(outProjection,&d->matrices.at(storm_render::TransformProjection),64);return true;
 }
 extern "C" bool StormMetalBeginShadowPass(void*pointer,unsigned kind,unsigned face,uint64_t lightId,const float*positionOrRay,float range,float*outView,float*outProjection){
  if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));float stableRay[3];if(kind==0&&positionOrRay){const auto ray=stableSunDirection(simd_make_float3(positionOrRay[0],positionOrRay[1],positionOrRay[2]));stableRay[0]=ray.x;stableRay[1]=ray.y;stableRay[2]=ray.z;positionOrRay=stableRay;}if(!d->landShadow.beginPass(d->metal,kind,face,lightId,positionOrRay,range,outView,outProjection))return false;d->finish();if(!d->command)d->command=[d->queue commandBuffer];d->encoder=d->landShadow.beginDepthEncoder(d->command);return d->encoder!=nil;

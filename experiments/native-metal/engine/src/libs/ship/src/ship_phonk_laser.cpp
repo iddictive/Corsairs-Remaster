@@ -1994,11 +1994,16 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.sampleClock += seconds;
     for (auto &edge : phonkLaser.edges) edge.age += seconds;
     std::erase_if(phonkLaser.edges, [](const auto &edge) { return edge.age >= 5.f; });
-    if (!PhonkActive()) phonkLaser.floodClock += seconds;
-    if (!PhonkActive() && !isDead() && pSea && !phonkLaser.breaches.empty() && phonkLaser.floodClock >= .25f)
+    const bool canFlood = !PhonkActive() && !isDead() && pSea &&
+        (!phonkLaser.breaches.empty() || phonkLaser.flooded > 0.f);
+    // A new breach starts now; intact sailing must never become ingress time.
+    if (canFlood) phonkLaser.floodClock += seconds;
+    else phonkLaser.floodClock = 0.f;
+    if (canFlood && phonkLaser.floodClock >= .25f)
     {
         const float elapsed = phonkLaser.floodClock;
         phonkLaser.floodClock = 0.f;
+        float ingressRate = 0.f;
         for (auto &sample : phonkLaser.breaches)
         {
             sample.age += elapsed;
@@ -2009,11 +2014,17 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             const float slitWidth = std::min(0.08f, 0.02f + sample.age * 0.02f);
             const float opening = sample.area > 0.f ? sample.area : sample.length * slitWidth;
             sample.wetArea = opening;
-            phonkLaser.flooded = std::min(phonkLaser.floodCapacity, phonkLaser.flooded +
-                .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed);
+            ingressRate += .62f * opening * std::sqrt(2.f * 9.81f * depth);
         }
-        const float pumpRate = std::max(2.0f, phonkLaser.floodCapacity * 0.015f);
-        phonkLaser.flooded = std::max(0.f, phonkLaser.flooded - pumpRate * elapsed);
+        float pumpRate = 0.f;
+        if (auto *rate = core.Event("Ship_DewaterRate", "a", GetACharacter()))
+        {
+            const float fractionPerSecond = rate->GetFloat();
+            if (std::isfinite(fractionPerSecond) && fractionPerSecond >= 0.f)
+                pumpRate = phonkLaser.floodCapacity * fractionPerSecond;
+        }
+        phonkLaser.flooded = std::clamp(phonkLaser.flooded + elapsed * (ingressRate - pumpRate),
+                                      0.f, phonkLaser.floodCapacity);
         const float fraction = std::clamp(phonkLaser.flooded / std::max(50.f, phonkLaser.floodCapacity), 0.f, 1.f);
         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
         flood->SetAttributeUseFloat("volume", phonkLaser.flooded);

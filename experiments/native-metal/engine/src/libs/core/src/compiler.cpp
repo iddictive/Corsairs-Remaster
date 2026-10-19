@@ -1,5 +1,6 @@
 #include "compiler.h"
 #include "material_save.hpp"
+#include "world_damage_policy.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -6906,7 +6907,12 @@ void COMPILER::SaveAttributesData(ATTRIBUTES *pRoot, bool material)
     }
     material = material || storm::material_save::rootName(pRoot->GetThisName());
     const auto children = material ? storm::material_save::children(pRoot) : std::vector<ATTRIBUTES *>();
-    const uint32_t count = material ? uint32_t(children.size()) : pRoot->GetAttributesNum();
+    const uint32_t available = material ? uint32_t(children.size()) : pRoot->GetAttributesNum();
+    const auto childAt = [&](uint32_t n) { return material ? children[n] : pRoot->GetAttributeClass(n); };
+    uint32_t count = available;
+    if constexpr (!storm::world_damage::Enabled)
+        for (uint32_t n = 0; n < available; ++n)
+            if (storm::world_damage::isSavedStateAttribute(childAt(n)->GetThisName())) --count;
     WriteVDword(count); // number of subclasses
 
     // save attribute name
@@ -6917,9 +6923,11 @@ void COMPILER::SaveAttributesData(ATTRIBUTES *pRoot, bool material)
     const char *value = pRoot->GetThisAttr();
     const auto packed = material && value ? storm::material_save::pack(value) : std::string();
     SaveString(material && value ? packed.c_str() : value);
-    for (uint32_t n = 0; n < count; ++n)
+    for (uint32_t n = 0; n < available; ++n)
     {
-        SaveAttributesData(material ? children[n] : pRoot->GetAttributeClass(n), material);
+        auto *child = childAt(n);
+        if (!storm::world_damage::Enabled && storm::world_damage::isSavedStateAttribute(child->GetThisName())) continue;
+        SaveAttributesData(child, material);
     }
 }
 

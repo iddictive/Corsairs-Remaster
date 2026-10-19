@@ -16,6 +16,19 @@ native int ShipSailState(int chrIdx);
 #define BI_FAST_REPAIR_PERIOD	1000
 
 #event_handler("evntActionRepair","procActionRepair");
+#event_handler("Ship_DewaterRate","Ship_DewaterRate");
+
+float Ship_DewaterRate()
+{
+	aref chref = GetEventData();
+	if (!bSeaActive || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return 0.0;
+	if (!SeaPhonk_LiveShip(chref) || !CheckAttribute(chref, "TmpSkill.Repair")) return 0.0;
+	float optimal = GetOptCrewQuantity(chref);
+	if (optimal <= 0.0) return 0.0;
+	float readiness = Clampf(GetCrewQuantity(chref) / optimal) * Clampf(stf(chref.TmpSkill.Repair));
+	// Use the existing slow-repair pace; staffing and Repair share the work.
+	return (BI_SLOW_REPAIR_PERCENT / 100.0) * (1000.0 / BI_SLOW_REPAIR_PERIOD) * readiness;
+}
 
 float BI_SlowRepairLimit(ref chref)
 {

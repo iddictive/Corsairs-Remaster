@@ -9,6 +9,7 @@
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" unsigned StormMetalBeginSceneModel(void*);
 extern "C" void StormMetalEndLandModel(void*, unsigned);
+extern "C" bool StormMetalShadowPassMatrices(void*, float*, float*);
 #endif
 
 #include "shared/messages.h"
@@ -317,8 +318,15 @@ void MODELR::Realize(uint32_t Delta_Time)
     }
 
     CMatrix view, proj;
-    rs->GetTransform(storm_render::TransformView, view);
-    rs->GetTransform(storm_render::TransformProjection, proj);
+#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+    // Shadow depth consumes absolute light matrices. The normal renderer
+    // getter would subtract the still-active main-camera relation a second time.
+    if (!StormMetalShadowPassMatrices(rs->GetNativeDevice(), &view.m[0][0], &proj.m[0][0]))
+#endif
+    {
+        rs->GetTransform(storm_render::TransformView, view);
+        rs->GetTransform(storm_render::TransformProjection, proj);
+    }
     FindPlanes(view, proj);
 
     CVECTOR tmp;
@@ -848,6 +856,28 @@ NODE *MODELR::GetCollideNode()
 
 void MODELR::FindPlanes(const CMatrix &view, const CMatrix &proj)
 {
+    if (proj.m[2][3] == 0.f && proj.m[3][3] != 0.f)
+    {
+        // Orthographic side planes are parallel, not a cone through the eye.
+        // Row-vector clip bounds are -w<=x,y<=w; keep unit plane normals for
+        // NODER's world-space bounding-sphere radius.
+        const CMatrix clip = view * proj;
+        const float signs[] = {-1.f, 1.f, 1.f, -1.f};
+        for (int plane = 0; plane < 4; ++plane)
+        {
+            const int column = plane < 2 ? 0 : 1;
+            auto &p = ViewPlane[plane];
+            p.nrm.x = signs[plane] * clip.m[0][column] - clip.m[0][3];
+            p.nrm.y = signs[plane] * clip.m[1][column] - clip.m[1][3];
+            p.nrm.z = signs[plane] * clip.m[2][column] - clip.m[2][3];
+            const float inverseLength = 1.f / std::sqrt(p.nrm.x*p.nrm.x + p.nrm.y*p.nrm.y + p.nrm.z*p.nrm.z);
+            p.nrm.x *= inverseLength;
+            p.nrm.y *= inverseLength;
+            p.nrm.z *= inverseLength;
+            p.d = (clip.m[3][3] - signs[plane] * clip.m[3][column]) * inverseLength;
+        }
+        return;
+    }
     CVECTOR v[4];
     // left
     v[0].x = proj.m[0][0];

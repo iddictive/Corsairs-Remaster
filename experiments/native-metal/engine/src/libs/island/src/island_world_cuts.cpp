@@ -1,5 +1,6 @@
 #include "island.h"
 #include "geometry_work_budget.hpp"
+#include "world_damage_policy.hpp"
 #include "core.h"
 #include "shared/sea_ai/script_defines.h"
 #include "shared/messages.h"
@@ -430,6 +431,12 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
     worldReflection = reflection;
     worldCuts.clear(); worldBindings.clear();worldCutRevision=0;
     worldCutsReady = false;
+    if (!storm::world_damage::Enabled)
+    {
+        if (state) for (const auto name : storm::world_damage::SavedStateAttributes)
+            if (auto *saved = state->GetAttributeClass(name)) state->DeleteAttributeClassX(saved);
+        return;
+    }
     auto *saved = state ? state->GetAttributeClass("PhonkWorldCuts") : nullptr;
     if (!saved) return; // Ordinary old saves retain their original geometry.
     const unsigned count = saved->GetAttributeAsDword("count");
@@ -469,6 +476,7 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
 
 bool ISLAND::CommitWorldCut(WorldCutRecord record)
 {
+    if (!storm::world_damage::Enabled) return true;
     if (!worldCutState || record.scope.empty() || !storm_world_cut::valid(record.cut) ||
         worldCutQueue.size()+size_t(worldActiveCut.has_value()) >= storm_world_cut::MaxPendingCuts) return false;
     if(!worldCutsReady&&worldCutState->GetAttributeClass("PhonkWorldCuts"))return false;

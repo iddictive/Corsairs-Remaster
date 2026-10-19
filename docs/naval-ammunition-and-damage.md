@@ -508,6 +508,13 @@ its referenced blob, and the newest committed metadata slot. Older slots/blobs
 are unreachable from the saved root revision and are omitted on disk. Invalid
 or uncommitted slot selection is preserved for the existing material validator.
 
+World-cut persistence follows `experiments/native-metal/world_damage_policy.hpp`.
+With `Enabled=false`, SAVE omits only the exact `PhonkWorldCuts` and
+`PhonkWorldMaterial` classes globally, across stored islands and attribute
+parents. Matching is ASCII case-insensitive; similar names and string values
+survive. Ordinary attributes retain two count/serialization passes without a
+new child vector. Legacy reads, hull holes/material and progression remain.
+
 Selected material values of 1024 bytes through 1 MiB use zlib level 1 only when
 the result is smaller. The ASCII wire envelope is `!CMZ2:`, eight lowercase hex
 digits of original byte length, `:`, then canonical padded RFC4648 base64 of the
@@ -516,7 +523,7 @@ by the first recovery candidate.
 The reader expands it only inside `HullMaterial`/`PhonkWorldMaterial`; legacy
 plain values remain valid. It checks the bound, exact expanded length, complete
 stream consumption, and absence of embedded NUL. The existing 128 MiB SAVE
-compressed/raw bounds are retained. Geometry, cell health, thermal tails,
+compressed/raw bounds are retained. Retained hull geometry, cell health, thermal tails,
 openings, repair quota, and authored fingerprints retain their exact bytes.
 This uses the existing core zlib dependency and its documented
 [`compressBound`, `compress2`, `uncompress2` contract](https://zlib.net/manual.html#Utility).
@@ -545,9 +552,12 @@ CP1251 projection preserves every byte except that pre-delete block.
 
 `python3 tools/compact_native_save.py INPUT --output NEW_FILE` recovers an old
 oversized native SAVE without editing its source. Its output requires the CMZ2
-reader. It reparses the complete variable table, compares SHA-256 of the complete
-state after selecting authoritative slots and unwrapping transport envelopes,
-and preserves appended save metadata/screenshot bytes exactly. It refuses an
+reader. It reparses the complete variable table and consumes the same world
+policy header. It hashes the original retained-state projection after selecting
+authoritative slots and unwrapping transport envelopes. Candidate comparison
+disables omission and independently requires zero reserved world classes, so a
+missed subtree cannot be hidden by the verifier. Appended save metadata and
+screenshot bytes remain exact. It refuses an
 existing output path, malformed/truncated data, or a result above the engine
 limit. Make a durable backup outside Git and close the player before replacing
 a live SAVE; installation and real-game load remain the delivery owner's work.
@@ -583,9 +593,16 @@ PY
 ```
 
 These are offline recovery measurements; they do not measure native save latency
-or accept installed-app loading. Removing complete hull/world material state
-was rejected because live weapon/restoration consumers remain; disabled
-structural contact or terrain excavation does not prove all material inactive.
+or accept installed-app loading. The initial repair retained world state while
+the disabled-destruction premise was unproven. The later explicit world-cut
+policy permits omission of its two reserved classes; active hull damage remains
+retained. On the preserved CMZ2 snapshot, world omission reduces raw state
+73527268→65039632 bytes and file50070138→43674291 bytes in6.09s: two reserved
+classes removed, zero remain, all600 variables retain projected hash
+`f2ffef324d21c31a0677d8274c4510a05072eb93b0200eb74fa9fad7a1c9f00a`.
+The independent tree oracle, native fixture inputs and historical snapshot
+results live under the existing settings-save-repair evidence owner as
+`save-world-*`. This historical candidate must not overwrite newer player progress.
 
 `SHIP::ApplyHullProjectileImpact` owns the common artillery producer, including
 the near-hull radial-burst caller in AIBalls. Its native profile identifies live
