@@ -9,7 +9,11 @@ Last verified engine delivery: October19 SAVE/graphics repair, signed engine
 `351ee56817a8a240283ca7744f2796b7f640b2e9bc21b176137f4ff434d45008`.
 Canonical `run.sh --stage-only` exited0 after all source changes. Player settings
 remain player-owned; the October18 authored-sky snapshot below is historical.
-The user owns replay and has rejected the first October19 lighting batch.
+The user owns replay and has rejected both installed October19 lighting batches.
+Source74e983a is built and component-checked, awaiting player exit and canonical
+staging; it is not the installed engine. It restores the rigid boat lamp
+catalogue, corrects absolute/orthographic caster culling, disables all island
+geometric cuts and adds crew/Repair-dependent dewatering.
 Structural contact fracture, ship-interior sea exclusion and terrain excavation
 remain disabled. The October18 public standalone ZIP is unchanged by this local
 repair; its release record and SHA below remain historical distribution evidence.
@@ -23,7 +27,7 @@ bytes, exceeding the native loader's128MiB ceiling. Authoritative hull and world
 material snapshots dominate it; their two publication slots and hexadecimal
 geometry account for the growth. Structural-contact fracture and terrain
 excavation being disabled do not disable every material producer. Removing all
-these branches would discard live hull/world state. The candidate preserves
+these branches would discard live hull state. The initial candidate preserves
 committed geometry, strips unreachable predecessor slots only on disk, and uses
 bounded CMZ2 transport compression. The old SAVE remains backed up outside the
 checkout under the player's AppSupport `Archived/before-save-lighting-repair-20261019`.
@@ -69,6 +73,33 @@ and failed-overwrite preservation pass; a direct whole-save compiler fixture
 emits the same unbound-reference error on recovered5 and untouched4, so it cannot
 claim clean player loading. Installed load/save/reload and the player's new light
 comparison remain **unresolved**.
+
+The player's later replay rejected this second installed batch too: sunlight
+character shadows vanished with dynamic shadows, the harbor boat lamp lost its
+pool, and night/evening scene balance remains disputed. Source74e983a repairs
+two independently reproduced consumers: absolute shadow VIEW was rebased twice
+before CPU caster culling, and the rigid location-model fallback suppressed D3D
+lamps without binding the authored catalogue. CPU clip mismatches2→0 over10
+controls; rigid role2 GPU lamp parity3120→0 differing pixels, with lamp-free and
+role1 controls unchanged. The existing full dynamic-lighting GPU fixture passes.
+
+User profile182427 PID43807 locates913/1479 main-thread samples in island
+`BindWorldCuts`. The user explicitly disabled all rock/building/island geometry
+cuts while retaining cannon hull holes and fort gameplay damage. One canonical
+world policy now blocks restoration/queueing and omits its two reserved SAVE
+classes globally. Native writer save/load/save fixture passes with zero script
+errors; offline retained-state comparison preserves hull and progress. The
+preserved snapshot falls73527268→65039632 raw bytes; this is not a mutation of
+the player's newer running-game save.
+
+Crew-dependent pumping replaces the unconditional minimum pump. Its rate reuses
+stock slow-repair constants, effective Repair and crew/optimal crew; ingress and
+outflow combine before one capacity clamp. Intact sailing no longer accumulates
+flood time. Native script-event fixture and extracted formula/state matrix pass;
+ship-size scaling is retained. Source build and agent_context checks pass.
+Player owns the pending exit, normal load/save/reload, sea combat balance and
+day/night shadow/lamp/FPS replay. No game input or live-save replacement was
+performed during this follow-up.
 
 Acceptance: the latest save must load and save/reload through the installed app
 without losing progress or committed damage; the ordinary prior save must remain
