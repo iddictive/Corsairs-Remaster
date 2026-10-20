@@ -60,7 +60,7 @@ using namespace metal;
 // frame upload cache instead of decoding raw D3D9 memory a second time.
 struct SkyVertex { packed_float4 p; packed_float4 tint; packed_float4 uv01; packed_float4 uv23;
                    packed_float4 specular; packed_float4 cameraNormal; packed_float4 cameraPosition; };
-struct SkyDraw { float4x4 mvp; uint hasCurrentTexture; uint hasNextTexture; float textureBlend; uint padding; float4x4 rayFromLocal; };
+struct SkyDraw { float4x4 mvp; uint hasCurrentTexture; uint hasNextTexture; float textureBlend; uint padding; float4x4 rayFromLocal; float4 authored; };
 struct SkyWeather { float4 sunDirection_hour; float4 moonDirection_time; float4 wind_coverage_density; float4 options; float4 horizonFog; };
 struct SkyOut { float4 position [[position]]; float3 direction; float2 uv; float4 tint; };
 
@@ -668,12 +668,27 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
     return float4(max(color,0.f),air.glow);
 }
+fragment float4 authored_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>stormCurrent [[texture(2)]],texture2d<float>stormNext [[texture(3)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
+    float4 rgba=draw.hasCurrentTexture?current.sample(skySampler,in.uv):float4(1);
+    if(draw.hasNextTexture)rgba=mix(rgba,next.sample(skySampler,in.uv),draw.textureBlend);
+    if(draw.authored.y>.5f){
+        float4 storm=mix(stormCurrent.sample(skySampler,in.uv),stormNext.sample(skySampler,in.uv),draw.authored.x);
+        rgba=mix(rgba,storm,draw.authored.z);
+    }
+    // Preserve texture alpha: inverse-alpha redraw masks stars and the disc.
+    rgba.rgb*=in.tint.rgb;
+    // Original panorama owns the sky all the way to its horizon. The terrain
+    // medium is sampled by finite-depth scene receivers, never as a sky veil.
+    return rgba;
+}
+// Retained procedural baseline for the existing optical regression fixture.
 fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>cloudFrom [[texture(2)]],texture2d<float>cloudTo [[texture(3)]],texture2d<float>atmosphere [[texture(4)]],texture2d<float>transmittance [[texture(5)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
     float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
     return skyLocalComposite(float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f),float3(in.position.xy,1.f),fogDraw,localVolume);
 }
 kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {
     if(any(pixel>=uint2(output.get_width(),output.get_height())))return;
+    if(weather.options.x<0.f){output.write(float4(weather.horizonFog.rgb,0),pixel);return;}
     float2 uv=(float2(pixel)+.5f)/float2(output.get_width(),output.get_height());
     float azimuth=6.28318530718f*(uv.x-.5f),l=uv.y*2.f-1.f;
     float elevation=l*l*sign(l)*1.57079632679f;

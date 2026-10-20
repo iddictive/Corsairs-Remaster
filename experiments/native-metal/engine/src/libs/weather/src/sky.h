@@ -65,7 +65,14 @@ class SKY : public Entity
     VDX9RENDER *pRS;
     int32_t TexturesID[SKY_NUM_TEXTURES];
     int32_t TexturesNextID[SKY_NUM_TEXTURES];
-    float fTimeFactor;
+    float fTimeFactor = 0.f;
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    int32_t StormTexturesID[SKY_NUM_TEXTURES];
+    int32_t StormTexturesNextID[SKY_NUM_TEXTURES];
+    int32_t stormCurrent = -1, stormNext = -1;
+    float stormTextureBlend = 0.f;
+    bool stormTexturesReady = false;
+#endif
 
     int32_t iSkyVertsID = -1;
     int32_t iSkyIndexID = -1;
@@ -77,8 +84,13 @@ class SKY : public Entity
 
     // sky section
     void GenerateSky(bool initialize);
+    void LoadTextureSet(int32_t (&textures)[SKY_NUM_TEXTURES], const std::string &directory);
     void LoadTextures();
     void Release();
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    void UpdateStormTextures(float hour);
+    void BindStormTextures(int32_t face);
+#endif
 
     // fog section
     void UpdateFogSphere(bool initialize);

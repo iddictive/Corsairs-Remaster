@@ -28,10 +28,12 @@ struct VolumetricSky {
     uint64_t lastFrame=std::numeric_limits<uint64_t>::max();
     DynamicSkyUniform snapshot{},lastVisual{};
     bool primed=false;
+    bool airPrimed=false;
+    uint64_t airFrame=std::numeric_limits<uint64_t>::max();
     float blend=0;
     void reset(){*this={};}
-    bool prepare(id<MTLDevice> device,id<MTLLibrary> library) {
-        if(cloudKernel)return true;
+    bool prepare(id<MTLDevice> device,id<MTLLibrary> library,bool upperClouds=true) {
+        if(cloudKernel&&(upperClouds?clouds[0]!=nil:shape!=nil))return true;
         auto pipeline=[&](NSString*name){NSError*e=nil;return [device newComputePipelineStateWithFunction:[library newFunctionWithName:name] error:&e];};
         transmitKernel=pipeline(@"sky_transmittance");atmosKernel=pipeline(@"sky_atmosphere");cloudKernel=pipeline(@"sky_clouds");
         fogKernel=pipeline(@"sky_fog_environment");solarKernel=pipeline(@"sky_surface_solar");
@@ -41,14 +43,30 @@ struct VolumetricSky {
         shape=volume(128);detail=volume(32);weatherNoise=texture(512,512,MTLPixelFormatRGBA8Unorm);
         transmittance=texture(256,64,MTLPixelFormatRGBA16Float);atmosphere=texture(256,128,MTLPixelFormatRGBA16Float);
         fogEnvironment=texture(256,128,MTLPixelFormatRGBA16Float);
-        for(auto&t:clouds){auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:side height:side mipmapped:NO];d.storageMode=MTLStorageModePrivate;d.usage=MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;t=[device newTextureWithDescriptor:d];}
-        if(!transmitKernel||!atmosKernel||!cloudKernel||!fogKernel||!solarKernel||!solarSamples[0]||!solarSamples[1]||!solarSamples[2]||!shape||!detail||!weatherNoise||!transmittance||!atmosphere||!fogEnvironment||!clouds[0]||!clouds[1]||!clouds[2]){reset();return false;}
+        if(upperClouds)for(auto&t:clouds){auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:side height:side mipmapped:NO];d.storageMode=MTLStorageModePrivate;d.usage=MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;t=[device newTextureWithDescriptor:d];}
+        if(!transmitKernel||!atmosKernel||!cloudKernel||!fogKernel||!solarKernel||!solarSamples[0]||!solarSamples[1]||!solarSamples[2]||!shape||!detail||!weatherNoise||!transmittance||!atmosphere||!fogEnvironment||(upperClouds&&(!clouds[0]||!clouds[1]||!clouds[2]))){reset();return false;}
         std::vector<uint8_t>shapeBytes,detailBytes,weatherBytes;
         if(!loadCloudNoise(shapeBytes,detailBytes,weatherBytes)){reset();return false;}
         [shape replaceRegion:MTLRegionMake3D(0,0,0,128,128,128) mipmapLevel:0 slice:0 withBytes:shapeBytes.data() bytesPerRow:128*4 bytesPerImage:128*128*4];
         [detail replaceRegion:MTLRegionMake3D(0,0,0,32,32,32) mipmapLevel:0 slice:0 withBytes:detailBytes.data() bytesPerRow:32*4 bytesPerImage:32*32*4];
         [weatherNoise replaceRegion:MTLRegionMake2D(0,0,512,512) mipmapLevel:0 withBytes:weatherBytes.data() bytesPerRow:512*4];
         return true;
+    }
+    // Authored panoramas own upper clouds. Keep the existing terrain medium,
+    // without marching an invisible second sky or deriving a second sun/SH.
+    bool encodeAir(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&live) {
+        if(airFrame==frame)return true;
+        if(!prepare(device,library,false))return false;
+        auto dispatch=[&](id<MTLComputePipelineState>pipeline,id<MTLTexture>output,unsigned w,unsigned h){
+            auto e=[command computeCommandEncoder];[e setComputePipelineState:pipeline];[e setTexture:output atIndex:0];
+            [e setTexture:transmittance atIndex:1];[e setBytes:&live length:sizeof(live) atIndex:0];
+            [e dispatchThreads:MTLSizeMake(w,h,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        };
+        if(!airPrimed){auto e=[command blitCommandEncoder];[e generateMipmapsForTexture:shape];[e generateMipmapsForTexture:detail];[e endEncoding];dispatch(transmitKernel,transmittance,256,64);}
+        dispatch(atmosKernel,atmosphere,256,128);
+        // This field is the WEATHER fog colour, not the procedural sky colour.
+        auto e=[command computeCommandEncoder];[e setComputePipelineState:fogKernel];[e setTexture:fogEnvironment atIndex:0];[e setTexture:atmosphere atIndex:3];[e setTexture:transmittance atIndex:4];auto fog=live;fog.options.x=-1.f;[e setBytes:&fog length:sizeof(fog) atIndex:0];[e dispatchThreads:MTLSizeMake(256,128,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        airPrimed=true;airFrame=frame;return true;
     }
     bool encode(id<MTLDevice> device,id<MTLLibrary> library,id<MTLCommandBuffer> command,uint64_t frame,const DynamicSkyUniform&live) {
         if(lastFrame==frame)return true;

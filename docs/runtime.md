@@ -5,20 +5,57 @@ removing the local checkout. The active target remains the installed app. Root
 owns build, staging, player-state backup, integration and delivery; the earlier
 renderer/gameplay backlog is not reopened by this bounded repair.
 
-Last verified engine delivery: October19 SAVE/graphics repair, signed engine
-`351ee56817a8a240283ca7744f2796b7f640b2e9bc21b176137f4ff434d45008`.
-Canonical `run.sh --stage-only` exited0 after all source changes. Player settings
-remain player-owned; the October18 authored-sky snapshot below is historical.
-The user owns replay and has rejected both installed October19 lighting batches.
-Source74e983a is built and component-checked, awaiting player exit and canonical
-staging; it is not the installed engine. It restores the rigid boat lamp
-catalogue, corrects absolute/orthographic caster culling, disables all island
-geometric cuts and adds crew/Repair-dependent dewatering.
-Structural contact fracture, ship-interior sea exclusion and terrain excavation
-remain disabled. The October18 public standalone ZIP is unchanged by this local
-repair; its release record and SHA below remain historical distribution evidence.
+Last verified engine delivery: October19 authored-sky/weather candidate, signed
+engine `fd416f00c704291201c73f9c1a089383f645564556c050ff0a286feb2f523453`.
+Canonical staging succeeded. The subsequent no-sky-veil correction and readiness
+telemetry are source/native-diagnostic verified, awaiting final canonical stage.
+The player owns launch, graphics settings and full-scene replay.
+
+The earlier86ef4a2c batch was installed before this candidate: rigid boat lamps,
+absolute/orthographic caster culling, all island cuts disabled, crew/Repair-based
+dewatering. Current AutoSave5 had its obsolete island state removed atomically:
+50,070,138→43,674,291 bytes; retained raw state65,039,632 bytes. All other234 saves
+are byte-identical. The exact pre-change file remains in AppSupport Archived.
+The independent source capsule preserves history through1480647; it will be
+refreshed after the current checkpoint. Repository removal is not accepted while
+player scene/SAVE acceptance remains open. Public standalone ZIPs are historical.
 
 ## Current verdict
+
+### October19 — original panoramas, shared storm weather and finite-depth fog
+
+Disposition: native/component verified; final no-veil stage and player replay
+pending. Source owners and asset inventory are in `metal-dynamic-sky.md`.
+The player rejected the procedural sky, hidden cloud lighting and a sky fog veil.
+All140 original faces were reviewed; four original storm sets were previously
+excluded. The candidate keeps original hourly/storm RGBA, including astronomy
+alpha, while the existing local medium applies only to finite-depth receivers.
+Original DayStorm source colors and sky mix share one native weather phase and
+amount; geometric shadows/lamp catalogs retain their independent owners.
+
+Native RGBA readbacks cover clear/next/storm blending and inverse-alpha astronomy;
+existing lighting/caster and local-medium controls pass. The real script VM runs
+the ordinary palette binder on a seeded old palette, preserving unrelated state
+with zero script errors. Its additional bare-VM save/reload diagnostic produced
+an unresolved callback error despite matching state checks; this is not accepted
+as normal game upgrade evidence. Normal player save/load remains the gate.
+
+The hidden native eight-Manowar workload was compared at2560×1655,160frames,
+64warm-up, same settings with atmosphere explicitly enabled. The frozen variant
+uses backend1480647 against the same current entity libraries and inputs; only
+that backend changes in this comparison. Median GPU execution20.861→11.945ms,
+p95 27.408→13.747ms; core wall12.076→11.819ms. All152sail,334animated,1sea and8
+completed point-shadow minima remain. GPU allocation peak1,868,070,912→1,729,789,952
+bytes. This establishes bounded workload improvement, not player town FPS or
+night/storm appearance. A sky-only crop matches original-sky Off pixels exactly.
+
+Both user city samples were from the earlier engine; the first, shadow-On sample
+also spends239/1114 main-thread samples saving/compressing an autosave. These two
+CPU samples do not isolate shadow GPU cost. New raw traces, inputs, variants,
+frames and result summaries are retained under the topic's existing evidence
+owner. Completed current-task runs were moved out of the bounded diagnostic cache
+without following RESOURCE symlinks; pre-existing traces were preserved.
+
 
 ### October19 — SAVE recovery and graphics-setting repair in progress
 

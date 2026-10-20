@@ -41,6 +41,7 @@ struct alignas(16) DynamicSkyDrawUniform {
     float textureBlend = 0.f;
     uint32_t padding = 0;
     simd_float4x4 rayFromLocal = matrix_identity_float4x4;
+    simd_float4 authored{}; // storm pair blend, pair present; original RGBA owns astronomy.
 };
 
 struct alignas(16) DynamicStarDrawUniform {

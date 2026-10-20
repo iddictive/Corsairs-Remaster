@@ -685,7 +685,7 @@ void Whr_UpdateWeatherPosition()
 
 void Whr_BindSolarPalette()
 {
-    // Authored clear-sky colors are inputs; native WEATHER interpolates them continuously.
+    // Native WEATHER blends the shipped hourly and storm colors with one parcel.
     for (int hour=0;hour<24;hour++) {
         int index=FindWeatherByHour(hour);
         if (index<0) index=0;
@@ -693,5 +693,16 @@ void Whr_BindSolarPalette()
         WeatherParams.NativeState.palette.(key).fog=Whr_GetColor(&Weathers[index],"Fog.Color");
         WeatherParams.NativeState.palette.(key).ambient=Whr_GetColor(&Weathers[index],"Sun.Ambient");
         WeatherParams.NativeState.palette.(key).sun=Whr_GetColor(&Weathers[index],"Sun.Color");
+    }
+    for (int stormIndex=0;stormIndex<4;stormIndex++) {
+        int stormPreset=FindWeather("Storm0"+(stormIndex+1));
+        string stormKey="storm"+stormIndex;
+        if (stormPreset<0) {
+            DeleteAttribute(&WeatherParams,"NativeState.palette."+stormKey);
+            continue;
+        }
+        WeatherParams.NativeState.palette.(stormKey).fog=Whr_GetColor(&Weathers[stormPreset],"Fog.Color");
+        WeatherParams.NativeState.palette.(stormKey).ambient=Whr_GetColor(&Weathers[stormPreset],"Sun.Ambient");
+        WeatherParams.NativeState.palette.(stormKey).sun=Whr_GetColor(&Weathers[stormPreset],"Sun.Color");
     }
 }

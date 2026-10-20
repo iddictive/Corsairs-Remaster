@@ -37,6 +37,7 @@ static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count,
 extern "C" bool StormMetalBeginSolarVisual(void *device);
 extern "C" void StormMetalEndSolarVisual(void *device);
 extern "C" bool StormMetalCloudFieldCurrent(void *device);
+extern "C" bool StormMetalAuthoredSkyCurrent(void *device);
 extern "C" bool StormMetalBeginSolarShape(void *device, uint32_t shape, float halfSize, float distance);
 extern "C" void StormMetalEndSolarShape(void *device);
 bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime, bool skyDraw);
@@ -921,9 +922,10 @@ void SUNGLOW::DrawRect(uint32_t dwColor, const CVECTOR &pos, float fSize, float 
 float SUNGLOW::GetSunFadeoutFactor(const CVECTOR &vSunPos, float fSunSize)
 {
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
-    // Procedural cloud opacity is applied by the native consumers. Sampling
-    // unrelated legacy sky alpha here would attenuate a second cloud field.
-    if (StormMetalCloudFieldCurrent(pRS->GetNativeDevice()))
+    // The final original/storm RGBA redraw owns disc occlusion. A CPU sample
+    // of only the clear panorama would apply a different cloud mask twice.
+    if (StormMetalAuthoredSkyCurrent(pRS->GetNativeDevice()) ||
+        StormMetalCloudFieldCurrent(pRS->GetNativeDevice()))
         return 1.0f;
 #endif
     // get a pointer to the sky

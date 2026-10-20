@@ -60,11 +60,11 @@ int main()
     need(StormMetalPrepareDynamicSky(device, 18.f, 1.f / 60.f, .7f, .8f, .4f, 9.f, .16f, 0.f, 1.f, 0.f, 0xff315273u),
          "early SUNGLOW owner prepares the field before SKY realizes");
     need(!StormMetalDynamicSkyActive(device), "preparing astronomy must not activate the sky draw scope");
-    need(StormMetalCloudFieldCurrent(device), "early astronomy sees the prepared cloud field");
+    need(!StormMetalCloudFieldCurrent(device), "authored atmosphere does not expose invisible upper clouds");
     need(StormMetalBeginDynamicSky(device, 18.f, 1.f / 60.f, .7f, .8f, .4f, 9.f, .16f, 0.f, 1.f, 0.f, 0xff315273u),
          "explicit SKY owner enables dynamic pipeline");
     need(StormMetalDynamicSkyActive(device), "scope is visible only after explicit begin");
-    need(StormMetalCloudFieldCurrent(device), "astronomy and water can consume the sky's completed snapshot");
+    need(!StormMetalCloudFieldCurrent(device), "astronomy and water retain original panorama ownership");
     need(StormMetalPrepareDynamicSky(device, 18.f, 0.f, .7f, .8f, .4f, 9.f, .16f, 0.f, 1.f, 0.f, 0xff315273u),
          "nested astronomy can reuse the current sky snapshot");
     need(StormMetalDynamicSkyActive(device), "nested astronomy preparation must retain the enclosing sky draw scope");
@@ -142,8 +142,8 @@ int main()
     const auto authored = skyPixel(false, 12.f), day = skyPixel(true, 12.f), night = skyPixel(true, 23.f);
     std::printf("SKY pixels authored=%06x day=%06x night=%06x\n", authored, day, night);
     need(authored == 0x00ff00ffu, "authored SKY control retains vertex colour");
-    need(day != authored && night != authored, "dynamic SKY scope replaces authored pixels");
-    need(day != night, "dynamic SKY pixels follow WEATHER hour");
+    need(day == authored && night == authored, "atmosphere scope preserves authored pixels without a visible medium");
+    need(day == night, "hour changes cannot replace original texture pixels with analytic sky colour");
     need(skyPixel(false, 23.f) == authored, "ending SKY scope preserves ordinary unlit draws");
     readback->Release();
     target->Release();

@@ -105,6 +105,7 @@ struct LocalWeatherVolume {
     simd_float4x4 clipFromWorld=matrix_identity_float4x4;
     simd_float4 cameraRange{};
     id<MTLCommandBuffer> computeCommand=nil;
+    NSUInteger computeLightingOffset=0;
     std::array<id,12> computeResources{};
     LocalWeatherUniform computeUniform{};
     bool matches(uint64_t frame,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin)const{
@@ -150,7 +151,7 @@ struct LocalWeatherVolume {
         if(!segmentKernel||!integrateKernel||!segments||!transport||!terrain){*this={};return false;}
         return true;
     }
-    bool encode(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&weather,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin,id<MTLTexture>shape,id<MTLTexture>detail,id<MTLTexture>regional,id<MTLTexture>atmosphere,id<MTLBuffer>lighting,bool outdoor){
+    bool encode(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&weather,simd_float4x4 view,simd_float4x4 projection,simd_float3 origin,id<MTLTexture>shape,id<MTLTexture>detail,id<MTLTexture>regional,id<MTLTexture>atmosphere,id<MTLBuffer>lighting,bool outdoor,NSUInteger lightingOffset=0){
         auto vp=simd_mul(projection,view);
         const bool reusable=current&&viewFrame==frame&&terrainRevision==weatherTerrain.revision&&command&&computeCommand==command;
         current=false;if(!outdoor)return true;
@@ -181,12 +182,12 @@ struct LocalWeatherVolume {
         const std::array<id,12> resources{device,library,segmentKernel,integrateKernel,terrain,segments,transport,shape,detail,regional,atmosphere,lighting};
         bool known=true;for(id resource:resources)known&=resource!=nil;
         for(auto value:{u.cameraRange,u.terrainBounds,u.angles,u.weather.sunDirection_hour,u.weather.moonDirection_time,u.weather.wind_coverage_density,u.weather.options,u.weather.horizonFog})for(unsigned axis=0;axis<4;++axis)known&=std::isfinite(value[axis]);
-        if(!reusable||!known||resources!=computeResources||std::memcmp(&computeInput,&computeUniform,sizeof(computeInput))!=0){
+        if(!reusable||!known||resources!=computeResources||lightingOffset!=computeLightingOffset||std::memcmp(&computeInput,&computeUniform,sizeof(computeInput))!=0){
             auto e=[command computeCommandEncoder];if(!e)return false;e.label=@"Local weather segments";[e setComputePipelineState:segmentKernel];[e setBytes:&u length:sizeof(u) atIndex:0];
-            [e setTexture:segments atIndex:0];[e setTexture:terrain atIndex:1];[e setTexture:shape atIndex:2];[e setTexture:detail atIndex:3];[e setTexture:regional atIndex:4];[e setTexture:atmosphere atIndex:5];[e setBuffer:lighting offset:0 atIndex:1];
+            [e setTexture:segments atIndex:0];[e setTexture:terrain atIndex:1];[e setTexture:shape atIndex:2];[e setTexture:detail atIndex:3];[e setTexture:regional atIndex:4];[e setTexture:atmosphere atIndex:5];[e setBuffer:lighting offset:lightingOffset atIndex:1];
             [e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,128) threadsPerThreadgroup:MTLSizeMake(4,4,4)];[e endEncoding];
             e=[command computeCommandEncoder];if(!e)return false;e.label=@"Local weather integration";[e setComputePipelineState:integrateKernel];[e setTexture:segments atIndex:0];[e setTexture:transport atIndex:1];[e dispatchThreads:MTLSizeMake(unsigned(angles.z),height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
-            computeCommand=command;computeResources=resources;computeUniform=computeInput;
+            computeCommand=command;computeResources=resources;computeUniform=computeInput;computeLightingOffset=lightingOffset;
         }
         viewFrame=frame;viewProjection=vp;viewOrigin=origin;current=true;return true;
     }

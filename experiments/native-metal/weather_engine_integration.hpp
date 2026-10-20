@@ -1,4 +1,5 @@
 #pragma once
+#include "authored_weather.hpp"
 #include <chrono>
 
 namespace {
@@ -7,6 +8,16 @@ float WeatherRainIntensity(float rain)
     // The native wet/dry admission also owns emission; sub-threshold front tails
     // must not keep visible drops alive after the condition has become dry.
     return std::clamp((rain-.03f)/.97f,0.f,1.f);
+}
+
+uint32_t WeatherBlendColor(uint32_t start, uint32_t end, float fraction)
+{
+    uint32_t out=0;
+    for (unsigned shift=0;shift<24;shift+=8) {
+        const float low=float((start>>shift)&255u), high=float((end>>shift)&255u);
+        out|=uint32_t(low+(high-low)*fraction)<<shift;
+    }
+    return out;
 }
 }
 
@@ -39,6 +50,16 @@ uint64_t WEATHER::ProcessMessage(MESSAGE &message)
             weatherPalette[hour]={entry?entry->GetAttributeAsDword("fog"):0u,
                                   entry?entry->GetAttributeAsDword("ambient"):0u,
                                   entry?entry->GetAttributeAsDword("sun"):0u};
+        }
+        weatherStormPaletteValid=palette!=nullptr;
+        for (unsigned index=0;index<4;++index) {
+            char key[8]; snprintf(key,sizeof(key),"storm%u",index);
+            auto *entry=palette?palette->GetAttributeClass(key):nullptr;
+            weatherStormPaletteValid &= entry && entry->GetAttribute("fog") &&
+                entry->GetAttribute("ambient") && entry->GetAttribute("sun");
+            weatherStormPalette[index]={entry?entry->GetAttributeAsDword("fog"):0u,
+                                       entry?entry->GetAttributeAsDword("ambient"):0u,
+                                       entry?entry->GetAttributeAsDword("sun"):0u};
         }
         weatherEngine.month=season; weatherRainStatus=weatherStormStatus=-1;
         weatherRealClock=-1.0;
@@ -122,29 +143,34 @@ void WEATHER::ApplyWeatherConditions()
     const float hour=storm_weather_visual::wrapDayHour(fFloats[whf_time_counter]);
     const int first=static_cast<int>(hour), next=(first+1)%24;
     const float fraction=hour-first;
-    const auto color=[this,fraction,first,next](unsigned channel,uint32_t fallback) {
+    const auto stormPhase=storm_weather::authored::phase(hour);
+    const bool authoredStorm=weatherOutside&&weatherStormPaletteValid;
+    const float stormAmount=authoredStorm?storm_weather::authored::amount(c.coverage,storm_weather::authored::density(c.coverage)):0.f;
+    const auto color=[this,fraction,first,next,stormPhase,stormAmount,authoredStorm](unsigned channel,uint32_t fallback) {
         const uint32_t start=weatherPaletteValid?weatherPalette[first][channel]:fallback;
         const uint32_t end=weatherPaletteValid?weatherPalette[next][channel]:start;
-        uint32_t out=0;
-        for(unsigned shift=0;shift<24;shift+=8) {
-            float low=float((start>>shift)&255u), high=float((end>>shift)&255u);
-            out|=uint32_t(low+(high-low)*fraction)<<shift;
-        } return out;
+        const uint32_t clear=WeatherBlendColor(start,end,fraction);
+        if (!authoredStorm) return clear;
+        const uint32_t storm=WeatherBlendColor(weatherStormPalette[stormPhase.current][channel],
+                                             weatherStormPalette[stormPhase.next][channel],stormPhase.blend);
+        return WeatherBlendColor(clear,storm,stormAmount);
     };
     dwColors[whc_fog_color]=color(0,dwColors[whc_fog_color]);
-    // Palette is solar time, not a second clear-weather owner. Overcast air
-    // loses its blue tint and dims with the same parcel driving the sky/rain.
-    const float cloudiness=std::clamp((c.coverage-.4f)/.55f,0.f,1.f);
-    const float overcast=weatherPaletteValid?cloudiness*cloudiness*(3.f-2.f*cloudiness):0.f;
-    const uint32_t fog=dwColors[whc_fog_color];
-    const float red=float((fog>>16)&255u), green=float((fog>>8)&255u), blue=float(fog&255u);
-    const float grey=(.2126f*red+.7152f*green+.0722f*blue)*(1.f-.22f*c.rain-.10f*c.storm);
-    uint32_t weatherFog=fog&0xff000000u;
-    for (unsigned shift=0;shift<24;shift+=8) {
-        const float channel=float((fog>>shift)&255u);
-        weatherFog|=uint32_t(channel+(grey-channel)*overcast)<<shift;
+    // Older states without the optional authored storm colors retain their
+    // existing fog response. Current binds use shipped DayStorm RGB above.
+    if (!authoredStorm) {
+        const float cloudiness=std::clamp((c.coverage-.4f)/.55f,0.f,1.f);
+        const float overcast=weatherPaletteValid?cloudiness*cloudiness*(3.f-2.f*cloudiness):0.f;
+        const uint32_t fog=dwColors[whc_fog_color];
+        const float red=float((fog>>16)&255u), green=float((fog>>8)&255u), blue=float(fog&255u);
+        const float grey=(.2126f*red+.7152f*green+.0722f*blue)*(1.f-.22f*c.rain-.10f*c.storm);
+        uint32_t weatherFog=fog&0xff000000u;
+        for (unsigned shift=0;shift<24;shift+=8) {
+            const float channel=float((fog>>shift)&255u);
+            weatherFog|=uint32_t(channel+(grey-channel)*overcast)<<shift;
+        }
+        dwColors[whc_fog_color]=weatherFog;
     }
-    dwColors[whc_fog_color]=weatherFog;
     dwColors[whc_sun_ambient]=color(1,dwColors[whc_sun_ambient]);
     dwColors[whc_sun_color]=color(2,dwColors[whc_sun_color]);
 }

@@ -6,6 +6,7 @@
 #include "typedef.h"
 #include <stdio.h>
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
+#include "authored_weather.hpp"
 #include "weather_visual_temporal.hpp"
 #include "weather_engine.hpp"
 #endif
@@ -46,6 +47,8 @@ class WEATHER : public WEATHER_BASE
     ATTRIBUTES *weatherState = nullptr;
     std::array<std::array<uint32_t,3>,24> weatherPalette{};
     bool weatherPaletteValid = false;
+    std::array<std::array<uint32_t,3>,4> weatherStormPalette{};
+    bool weatherStormPaletteValid = false;
     bool weatherOutside = true;
     float weatherCheckpoint = 0.f;
     double weatherRealClock = -1.0;
@@ -77,7 +80,7 @@ class WEATHER : public WEATHER_BASE
     float GetVisualRainDrops() override { return weatherOutside ? visualState.rainIntensity : 0.f; }
     void SetVisualRainDrops(float) override {} // Rain is a consumer.
     float GetCloudCoverage() override { return weatherEngine.local().coverage; }
-    float GetCloudDensity() override { return .35f + weatherEngine.local().coverage * .55f; }
+    float GetCloudDensity() override { return storm_weather::authored::density(weatherEngine.local().coverage); }
     void AdvanceWeatherHours(float hours) override;
     void SetWeatherLocation(float x,float z) override { weatherEngine.mapX=x; weatherEngine.mapZ=z; }
     void GetWeatherAt(float x,float z,float &rain,float &storm,float &coverage) override { const auto c=weatherEngine.sample(x,z); rain=c.rain; storm=c.storm; coverage=c.coverage; }

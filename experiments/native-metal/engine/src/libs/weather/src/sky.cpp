@@ -7,6 +7,7 @@
 #include <cmath>
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+#include "authored_weather.hpp"
 extern "C" bool StormMetalBeginDynamicSky(void *device, float hour, float deltaSeconds, float cloudCoverage,
                                             float cloudDensity, float windAngle, float windSpeed,
                                             float legacyTextureBlend, float sunX, float sunY, float sunZ,
@@ -18,6 +19,7 @@ extern "C" bool StormMetalPrepareDynamicSky(void *device, float hour, float delt
 extern "C" void StormMetalEndDynamicSky(void *device);
 extern "C" bool StormMetalBeginSkyFog(void *device, uint32_t fogColor);
 extern "C" void StormMetalEndSkyFog(void *device);
+extern "C" void StormMetalSetAuthoredSky(void *device, float stormBlend, bool hasStorm, float amount);
 
 bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime, bool skyDraw)
 {
@@ -71,6 +73,25 @@ class MetalSkyFogScope
     void *device = nullptr;
     bool active = false;
 };
+
+class MetalAuthoredSkyScope
+{
+  public:
+    MetalAuthoredSkyScope(VDX9RENDER *renderer, float stormBlend, bool hasStorm, float amount)
+        : renderer(renderer)
+    {
+        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), stormBlend, hasStorm, amount);
+    }
+    ~MetalAuthoredSkyScope()
+    {
+        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), 0.f, false, 0.f);
+        renderer->TextureSet(2, -1);
+        renderer->TextureSet(3, -1);
+    }
+
+  private:
+    VDX9RENDER *renderer;
+};
 #endif
 
 namespace
@@ -112,6 +133,10 @@ SKY::SKY()
     pRS = nullptr;
     memset(TexturesID, -1, sizeof(TexturesID));
     memset(TexturesNextID, -1, sizeof(TexturesNextID));
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    memset(StormTexturesID, -1, sizeof(StormTexturesID));
+    memset(StormTexturesNextID, -1, sizeof(StormTexturesNextID));
+#endif
     pAstronomy = nullptr;
     pSunGlow = nullptr;
 }
@@ -135,7 +160,20 @@ void SKY::Release()
             pRS->TextureRelease(TexturesNextID[i]);
             TexturesNextID[i] = -1;
         }
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+        for (auto *textures : {StormTexturesID, StormTexturesNextID})
+            if (textures[i] >= 0)
+            {
+                pRS->TextureRelease(textures[i]);
+                textures[i] = -1;
+            }
+#endif
     }
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    stormCurrent = stormNext = -1;
+    stormTextureBlend = 0.f;
+    stormTexturesReady = false;
+#endif
 
     if (iSkyVertsID >= 0)
         pRS->ReleaseVertexBuffer(iSkyVertsID);
@@ -364,28 +402,60 @@ void SKY::GenerateSky(const bool initialize)
     UpdateFogSphere(true);
 }
 
-void SKY::LoadTextures()
+void SKY::LoadTextureSet(int32_t (&textures)[SKY_NUM_TEXTURES], const std::string &directory)
 {
     char str[256];
     const char *names[SKY_NUM_TEXTURES] = {"sky_fr.tga", "sky_lf.tga", "sky_bk.tga", "sky_rt.tga", "sky_up.tga"};
-
-    std::string sSkyDir, sSkyDirNext;
-    GetSkyDirStrings(sSkyDir, sSkyDirNext);
-
     for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
     {
-        sprintf_s(str, "%s%s", static_cast<const char *>(sSkyDir.c_str()), names[i]);
-        TexturesID[i] = pRS->TextureCreate(str);
-
-        if (aSkyDirArray.size() > 1)
-        {
-            sprintf_s(str, "%s%s", static_cast<const char *>(sSkyDirNext.c_str()), names[i]);
-            TexturesNextID[i] = pRS->TextureCreate(str);
-        }
+        if (textures[i] >= 0)
+            pRS->TextureRelease(textures[i]);
+        sprintf_s(str, "%s%s", directory.c_str(), names[i]);
+        textures[i] = pRS->TextureCreate(str);
     }
+}
+
+void SKY::LoadTextures()
+{
+    std::string sSkyDir, sSkyDirNext;
+    GetSkyDirStrings(sSkyDir, sSkyDirNext);
+    LoadTextureSet(TexturesID, sSkyDir);
+    if (aSkyDirArray.size() > 1)
+        LoadTextureSet(TexturesNextID, sSkyDirNext);
 
     fAngleY = 0.0f;
 }
+
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+void SKY::UpdateStormTextures(float hour)
+{
+    if (!std::isfinite(hour))
+        return;
+    const auto phase = storm_weather::authored::phase(hour);
+    const int32_t current = phase.current, next = phase.next;
+    stormTextureBlend = phase.blend;
+    if (stormCurrent == current && stormNext == next)
+        return;
+
+    if (current == stormNext)
+        for (int32_t face = 0; face < SKY_NUM_TEXTURES; ++face)
+            std::swap(StormTexturesID[face], StormTexturesNextID[face]);
+    else if (current != stormCurrent)
+        LoadTextureSet(StormTexturesID, "weather\\skies\\Storm0" + std::to_string(current + 1) + "\\");
+    LoadTextureSet(StormTexturesNextID, "weather\\skies\\Storm0" + std::to_string(next + 1) + "\\");
+    stormCurrent = current;
+    stormNext = next;
+    stormTexturesReady = true;
+    for (int32_t face = 0; face < SKY_NUM_TEXTURES; ++face)
+        stormTexturesReady &= StormTexturesID[face] >= 0 && StormTexturesNextID[face] >= 0;
+}
+
+void SKY::BindStormTextures(int32_t face)
+{
+    pRS->TextureSet(2, stormTexturesReady ? StormTexturesID[face] : -1);
+    pRS->TextureSet(3, stormTexturesReady ? StormTexturesNextID[face] : -1);
+}
+#endif
 
 bool SKY::CreateState(ENTITY_STATE_GEN *state_gen)
 {
@@ -418,6 +488,11 @@ void SKY::Realize(uint32_t Delta_Time)
     WEATHER_BASE *metalWeather = nullptr;
     if (const auto weatherId = core.GetEntityId("weather"))
         metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
+    if (metalWeather)
+        UpdateStormTextures(metalWeather->GetVisualFloat(whf_time_counter));
+    const float stormAmount = metalWeather ? storm_weather::authored::amount(
+        metalWeather->GetCloudCoverage(), metalWeather->GetCloudDensity()) : 0.f;
+    MetalAuthoredSkyScope authoredSkyScope(pRS, stormTextureBlend, stormTexturesReady && metalWeather, stormAmount);
     const bool drawLowerSky = true;
 #else
     const bool drawLowerSky = Delta_Time == 0;
@@ -459,6 +534,9 @@ void SKY::Realize(uint32_t Delta_Time)
                 {
                     pRS->TextureSet(0, TexturesID[i]);
                     pRS->TextureSet(1, TexturesNextID[i]);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+                    BindStormTextures(i);
+#endif
                     pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
                     if (drawLowerSky)
                         pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
@@ -477,6 +555,9 @@ void SKY::Realize(uint32_t Delta_Time)
                         {
                             pRS->TextureSet(0, TexturesID[i]);
                             pRS->TextureSet(1, TexturesNextID[i]);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+                            BindStormTextures(i);
+#endif
                             pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
                             if (Delta_Time == 0) //~!~
                                 pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
@@ -503,6 +584,10 @@ void SKY::Realize(uint32_t Delta_Time)
                 for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
                 {
                     pRS->TextureSet(0, TexturesID[i]);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+                    pRS->TextureSet(1, -1);
+                    BindStormTextures(i);
+#endif
                     pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 20, i * 6, 2);
                     if (drawLowerSky)
                         pRS->DrawBuffer(iSkyVertsID, sizeof(SKYVERTEX), iSkyIndexID, 0, 40, 30 + i * 6, 2);
@@ -664,7 +749,17 @@ void SKY::UpdateTimeFactor()
     entid_t eid;
     if (!(eid = core.GetEntityId("weather")))
         return;
-    fTimeFactor = static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid))->GetFloat(whf_time_counter);
+    auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid));
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    const float hour = weather->GetVisualFloat(whf_time_counter);
+#else
+    const float hour = weather->GetFloat(whf_time_counter);
+#endif
+    if (!std::isfinite(hour))
+        return;
+    fTimeFactor = std::fmod(hour, 24.f);
+    if (fTimeFactor < 0.f)
+        fTimeFactor += 24.f;
     fTimeFactor *= (1.f / 24.f) * aSkyDirArray.size();
 
     if (static_cast<int32_t>(fTimeFactor) >= static_cast<int32_t>(aSkyDirArray.size()))
@@ -674,21 +769,14 @@ void SKY::UpdateTimeFactor()
     {
         // re-read textures
 
-        char str[256];
-        const char *names[SKY_NUM_TEXTURES] = {"sky_fr.tga", "sky_lf.tga", "sky_bk.tga", "sky_rt.tga", "sky_up.tga"};
-
         std::string sSkyDir, sSkyDirNext;
         GetSkyDirStrings(sSkyDir, sSkyDirNext);
-
-        for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
-        {
-            if (TexturesID[i] >= 0)
-                pRS->TextureRelease(TexturesID[i]);
-            TexturesID[i] = TexturesNextID[i];
-
-            sprintf_s(str, "%s%s", static_cast<const char *>(sSkyDirNext.c_str()), names[i]);
-            TexturesNextID[i] = pRS->TextureCreate(str);
-        }
+        if (nNext == (nPrev + 1) % static_cast<int32_t>(aSkyDirArray.size()))
+            for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
+                std::swap(TexturesID[i], TexturesNextID[i]);
+        else
+            LoadTextureSet(TexturesID, sSkyDir);
+        LoadTextureSet(TexturesNextID, sSkyDirNext);
     }
 }
 
