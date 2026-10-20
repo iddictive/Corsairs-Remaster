@@ -133,6 +133,53 @@ arbitrary floor destruction; global land fauna creation is skipped during hidden
 preparation. Full travel geometry, rowing contacts, lighting, original dialogue/
 trade/quests and real naval retaliation still require the integrated native run.
 
+## Historical message and old-save regressions
+
+The October 16, 2026 component investigations found two independent failures.
+Their repaired source is retained in
+[`6dc08e7723be41e50b1e01419e50df49b5a84b63`](https://github.com/iddictive/Corsairs-Remaster/tree/6dc08e7723be41e50b1e01419e50df49b5a84b63).
+These findings explain the frozen candidate; they do not reactivate port travel.
+
+### An absent camera is not an integer entity argument
+
+The former shore call used `SendMessage(&PortBoat, "li", command, 0)`.
+For the `i` slot, `COMPILER::CreateMessage` requires `VAR_OBJECT` or
+`VAR_AREFERENCE`; a literal integer rejects before `SetEntity`.
+`FUNC_SEND_MESSAGE` ignored that failure and dispatched the partially populated
+message. `MESSAGE::EntityID` then threw `std::bad_variant_access` when reading
+the absent entity.
+
+The bounded repair uses `"l", command` for shore/no camera and
+`"li", command, &SeaDeckCamera` for deck travel. Native Begin, RequestTransfer
+and Restore read the optional entity only when `ParamValid()` succeeds,
+otherwise using `invalid_entity`. The component probe compiled the real
+`message.cpp` and reproduced the partial-message failure for commands 1, 2 and 5.
+For each command, the absent-camera case then remained invalid and a real
+64-bit camera ID survived unchanged: nine recorded observations. This was a
+MESSAGE contract probe, not a complete VM or game replay.
+
+### Restore missing control groups without replacing saved bindings
+
+Old saved control registries lacked `PortRowboat`. Switching from
+`Sailing1Pers` locked movement, but the missing target group could not unlock
+its four controls. Calling the old registrar unconditionally repaired the group
+while introducing another defect: it replaced custom Q (81) with default E (69).
+
+The repaired `Port_RegisterControls` creates the action only when its saved
+binding is absent, then maps the existing action and movement controls into the
+boat group. `RestoreKeysFromOptions` rebuilds the required group after restoring
+saved options. The script-VM checks exercised those actual bodies and group
+switching with modeled native registry/map/lock adapters. They checked all four
+movement unlocks, preserved W/S/A/D and nearby custom bindings, rejected stale
+saved forward ID 501, and preserved Q through repeated restoration/registration
+without growing the registry or changing the new forward ID.
+
+These checks seeded valid port residency and prove script state routing only.
+Physical key locks, camera/hero handoff and the continuous installed-game journey
+remain separate acceptance boundaries. Exact historical probe inputs and raw
+logs remain in the local archive; the source and failure contracts above do not
+depend on that archive being present.
+
 The retained private accepting case is
 `.local-archives/seamless-port/fullscene-20261016/README.md`: one real PROGRAM,
 generated city/rowing inputs, independent userdata and four continued journey

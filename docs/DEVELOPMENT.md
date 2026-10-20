@@ -153,6 +153,30 @@ the verified ZIP with exclusive output ownership and removes a failed partial
 copy. The installed player app remains the only supported game instance. See
 `dev-runtime.md` for source, cache and retained-evidence storage roles.
 
+### Why the ZIP producer keeps a frozen payload
+
+The historical packaging investigation verified this route with macOS system
+libarchive 3.7.4. Native `ditto` supplies AppleDouble metadata; the rewriter
+preserves those members and recovers POSIX modes and symlink identity from the
+unchanged signed payload. The streaming reader alone cannot recover the native
+central directory's symlink modes.
+
+Three simpler routes failed: publishing the intermediate `ditto` ZIP left
+ZIP32 end records wrapping above 4 GiB or 65,535 members; bare libarchive ZIP
+creation omitted required AppleDouble metadata; forcing local ZIP64 headers
+broke native `ditto` extraction of small members. Let libarchive select ZIP64
+automatically, and keep the payload unchanged until extraction, metadata/link
+comparison and strict signature verification finish. A changed producer or
+library needs a bounded native metadata/link check before a full release.
+
+## Technical investigations
+
+Archived findings with continuing maintenance value are retained in
+[renderer lifetime and material-cut investigations](metal-renderer-investigations.md) and the frozen
+[San Juan port investigation](seamless-san-juan.md#historical-message-and-old-save-regressions).
+The [attribute-tree lifetime and lookup contract](attribute-class-lifetime.md)
+records the independent parent-chain and non-mutating lookup failures.
+
 ## Verification and troubleshooting
 
 Normal staging builds only the engine. Diagnostic executables remain available as explicit targets; for example, `cmake --build experiments/native-metal/.cache/build --target gpu-skinning-parity-probe` followed by `experiments/native-metal/.cache/build/bin/gpu-skinning-parity-probe`. Run only the diagnostics relevant to the change.
