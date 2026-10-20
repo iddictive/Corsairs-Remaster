@@ -132,10 +132,13 @@ codesign --verify --deep --strict "dist/Corsairs Iddictive Remaster.app"
 The exporter includes runtime dependencies and game assets, uses the native launcher and signs the complete bundle. It excludes saves, userdata, logs and repository source. Player state remains external to the replaceable app. Test the archive after native extraction into a different path; inspect library closure and strict signatures before distributing it.
 
 For a distributable ZIP, use `tools/package_metal_release.py` with `--output`
-pointing to a new ZIP in `dist`. Player instructions come from
+pointing directly to its explicit handoff destination. A local handoff may use
+only `dist/Corsairs-Iddictive-Remaster-macOS.zip`; versioned release trees are
+rejected. Remove the local ZIP after its handoff is complete, retaining the compact
+receipt. Player instructions come from
 `docs/install-ru.txt`; `--installation-text` can select a reviewed alternative.
 This producer exports directly into temporary packaging
-storage, preserves native ZIP64 metadata, verifies native extraction, signatures
+storage under `dist`, preserves native ZIP64 metadata, verifies native extraction, signatures
 and relocated staging with an isolated profile, then retains only the ZIP and
 compact receipt. Payload/extracted apps and intermediate archives are removed on
 success, ordinary failure and SIGTERM. ZIP rewriting excludes volatile Finder
@@ -144,7 +147,11 @@ file in its own root; any other newly created file remains an error. The focused
 native metadata/cleanup probe and full frozen23ac release replay pass: native
 extraction, complete payload comparison, strict signatures and isolated relocated
 staging. This does not accept the player's gameplay reports.
-The installed player app remains the only supported game instance.
+Only the verified final ZIP is written to an external destination; packaging
+payloads never enter a cloud-synced export directory. Cross-volume delivery copies
+the verified ZIP with exclusive output ownership and removes a failed partial
+copy. The installed player app remains the only supported game instance. See
+`dev-runtime.md` for source, cache and retained-evidence storage roles.
 
 ## Verification and troubleshooting
 

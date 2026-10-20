@@ -41,7 +41,11 @@ native class to that class owner's production translation unit. A linked
 benchmark's flags may omit library-private definitions that change class layout.
 The default producer is `sea-fleet-benchmark`; capture builds or runs no target.
 The destination must be new; repeating a complete identical
-capture verifies and reuses it, while a mismatch preserves it and fails. Portable
+capture verifies and reuses it, while a mismatch preserves it and fails. Captured
+native artifacts use lossless filesystem compression at creation; hashes and
+normal file reads are unchanged. Archive admission shares the storage owner's
+8GiB allocated-byte budget instead of permitting an unlimited sequence of builds.
+Portable
 dependency contents remain in their manifest-bound input owner. This command
 does not stage the application or accept gameplay.
 
@@ -53,7 +57,7 @@ build consumer without age expiry; exceeding it fails for review without purge o
 automatic rebuild.
 Only regular `metal-engine.<64 lowercase hex>` backup files are eligible;
 unknown directories and resource/source backups remain untouched. Diagnostics
-have an8GiB aggregate budget: maintenance removes only oldest generated `.trace`
+have an8GiB allocated-byte aggregate budget: maintenance removes only oldest generated `.trace`
 and `.gputrace` bundles, preserving scripts, logs, receipts, raw geometry,
 lifetime-locked runs, the newest trace, exact still-live producer PID identities and cache-relative paths listed in the ignored
 `.cache/storage-pins.json` (`{"pins":["diagnostics/..."]}`). If protected evidence
@@ -71,6 +75,73 @@ from later trace pruning until it exits.
 Exporter output and packaging scratch share the same nested SIGTERM cleanup
 scope. Diagnostic session leaders remain unreaped until their groups stop, which
 preserves group identity after leader exit and prevents signaling a reused group.
+
+### Storage convention
+
+These are different owners, not three release installations:
+
+| Path | Retained purpose |
+| --- | --- |
+| `/Applications/Corsairs Iddictive Remaster.app` | Sole player engine and complete game resources |
+| `experiments/native-metal/engine`, adjacent renderer files and `inputs/` | Editable source and manifest-bound rebuild dependencies |
+| `experiments/native-metal/.cache/` | One reusable build; disposable staging resources are restored as APFS clones only when needed |
+| `.local-archives/` | Unique recovery source/history and exact experiment evidence, never another release catalogue |
+| `dist/` | Disposable packaging work; a ZIP exists only for an explicit handoff |
+
+Do not move source or unique evidence into a new folder to disguise disk usage.
+Use the common owner to inspect storage or losslessly compact cold evidence:
+
+```sh
+python3 tools/metal_storage.py --report
+python3 tools/metal_storage.py --compact-evidence --exclude <active-evidence-directory>
+```
+
+After the final staging/export/probe consumer finishes, reclaim the complete
+staging copy through the same owner:
+
+```sh
+python3 tools/metal_storage.py --reclaim-runtime \
+  --state-output .local-archives/<current-evidence>/runtime-state
+```
+
+It rejects active build/stage/export or open-file consumers, nonempty development
+SAVE and missing rebuild inputs. Before removal it checks every PROGRAM/RESOURCE
+file against the app. Differences and cache-only files are preserved and hashed
+in the new state directory with staging config, receipts and logs; the app is
+never overwritten with them. Source, build, inputs,
+installed app and the played profile stay in place. The next ordinary
+`run.sh --stage-only` calls `restore_metal_runtime.py` through its existing
+missing-runtime path. It reconstructs the app's canonical content; retained cache
+differences remain recovery evidence and are never adopted silently.
+Content-only tools and exporters need that staging workspace
+restored before use. Prior-state reclaim/restore, divergent-file preservation
+and nonempty-SAVE refusal pass in disposable fixtures. No live player launch is needed for cache
+cleanup, and cache reclamation does not accept gameplay.
+
+Compaction uses the installed `/usr/bin/ditto --noclone --hfsCompression` and
+checks unchanged SHA-256, mode, timestamp and source identity before replacement.
+Default APFS cloning alone preserves uncompressed extents, so the codec requires
+`--noclone`. The local native probe checks both compressible and incompressible
+content. Cold files must be at least256KiB and unchanged for24hours; linked files,
+Git administration, dirty archived worktrees, explicit exclusions, open files
+and lifetime-locked runs are preserved. Paths and readable content remain intact;
+there is no archive extraction prerequisite. This applies only to retained
+evidence, never installed game resources, editable source, SAVE or active builds.
+
+Allocated-byte totals conservatively count shared APFS extents more than once;
+they are not an exclusive-usage measurement. `volume_free_bytes` records actual
+volume free space. Packaging rules and the single local ZIP slot belong to
+`metal-remaster-delivery.md`; a completed distribution does not justify keeping
+dated local copies of its ZIP or extracted app.
+
+October19 cleanup evidence is retained under
+`.local-archives/storage-maintenance-20261019`: before/after inventories,
+per-file compaction hashes, the removed ZIP's receipt and retained runtime state.
+The first completed reclamation verified44,118 assets, preserved the two distinct
+MainHero dialogue candidates and removed22,541,904,306 logical staging bytes.
+Across2,834 cold files, filesystem compression removed6,212,820,992 conservatively
+counted allocated bytes. The obsolete ZIP was10,873,247,949 bytes. These are
+storage results; installed-game behavior is unchanged by this cleanup lane.
 
 Engine changes are ordinary edits in `experiments/native-metal/engine`; Metal
 changes remain in adjacent renderer files. The normal build no longer rewrites

@@ -7,11 +7,10 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import tarfile
 
-from metal_storage import ensure_space
+from metal_storage import compress_copy, ensure_evidence_space
 
 
 def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
@@ -90,13 +89,13 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
                 + len(headers) * 2048 + len(commands.encode()) + len(compilation.encode()) + 1024 ** 2)
     if max_bytes <= 0 or estimate > max_bytes:
         raise RuntimeError(f"Capture requires at most {estimate} bytes; admitted bound is {max_bytes}")
-    ensure_space(estimate, output)
+    ensure_evidence_space(estimate, output)
     output.mkdir(parents=True)
     retained = {}
     for name, path in sources.items():
         destination = output / name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, destination)
+        compress_copy(path, destination)
         copied = identity.digest(destination)
         if copied != source_hashes[name]:
             raise RuntimeError(f"Build artifact changed while copying: {path}")

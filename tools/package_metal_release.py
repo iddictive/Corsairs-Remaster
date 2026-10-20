@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ from export_metal_app import (
     DEFAULT_APP_NAME, check_active_game, estimate_app_bytes, export_bundle,
     validate_inputs,
 )
-from metal_storage import ensure_space, scratch_output
+from metal_storage import ensure_space, file_digest, owned_output, scratch_output
 from rewrite_metal_zip64 import rewrite
 from verify_metal_archive import verify
 
@@ -21,12 +22,31 @@ from verify_metal_archive import verify
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def publish_archive(archive: Path, output: Path, expected_sha256: str) -> None:
+    # Only the verified final ZIP reaches the handoff destination.
+    # Keep payload/extraction scratch local, outside cloud sync.
+    try:
+        os.link(archive, output)
+    except OSError as error:
+        if error.errno != errno.EXDEV:
+            raise
+        with owned_output(output, "file"):
+            shutil.copyfile(archive, output)
+            if file_digest(output).hex() != expected_sha256:
+                raise RuntimeError("Cross-volume archive copy failed SHA-256 verification")
+
+
 def package(output: Path, changelog: Path, installation_text: Path) -> None:
     output = output.absolute()
     dist = ROOT / "dist"
     receipt = output.with_suffix(".receipt.json")
-    if not output.resolve().is_relative_to(dist.resolve()) or output.suffix != ".zip":
-        raise ValueError("Release output must be a new .zip inside repository dist")
+    if output.suffix != ".zip":
+        raise ValueError("Release output must be a new .zip")
+    resolved = output.resolve()
+    if (resolved.is_relative_to(ROOT.resolve())
+            and resolved != dist.resolve() / "Corsairs-Iddictive-Remaster-macOS.zip"):
+        raise ValueError("Local release output is dist/Corsairs-Iddictive-Remaster-macOS.zip; "
+                         "use the handoff destination for distribution, not versioned local copies")
     if output.exists() or output.is_symlink() or receipt.exists() or receipt.is_symlink():
         raise FileExistsError("Archive or receipt already exists; choose a new output")
     for source in (changelog, installation_text):
@@ -40,6 +60,7 @@ def package(output: Path, changelog: Path, installation_text: Path) -> None:
     # Never budget APFS clone savings; 1 GiB covers ZIP metadata/staging slack.
     reserve = 4 * payload_bound + 1024 ** 3
     ensure_space(reserve, path=dist)
+    ensure_space(payload_bound, path=output.parent)
     output.parent.mkdir(parents=True, exist_ok=True)
     state = {"status": "failed", "archive": output.name,
              "required_workspace_bytes": reserve, "phase": "export"}
@@ -85,9 +106,7 @@ def package(output: Path, changelog: Path, installation_text: Path) -> None:
                 inventory_data = json.loads(inventory.read_text(encoding="utf-8"))
                 state["libarchive"] = inventory_data["libarchive"]
                 state["phase"] = "publish-local"
-                # Hard linking is exclusive and does not create another ZIP copy.
-                # Both paths are on dist's filesystem; an existing output is safe.
-                os.link(archive, output)
+                publish_archive(archive, output, state["sha256"])
                 state.update(status="complete", phase="complete")
         except BaseException as error:
             state["error_type"] = type(error).__name__
@@ -101,7 +120,7 @@ def package(output: Path, changelog: Path, installation_text: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True,
-                        help="New public .zip inside repository dist")
+                        help="New public .zip at its handoff destination, or directly in dist")
     parser.add_argument("--changelog", type=Path, default=ROOT / "docs/changelog-ru.md")
     parser.add_argument("--installation-text", type=Path, default=ROOT / "docs/install-ru.txt",
                         help="Player installation text (default: docs/install-ru.txt)")

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Bounded storage and process ownership for Metal build/export diagnostics."""
+"""Storage ownership for Metal builds, staging, retained evidence and diagnostics."""
 from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
 import errno
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
 import shutil
 import signal
@@ -19,12 +21,245 @@ import tempfile
 import threading
 import time
 
-CACHE = Path(__file__).resolve().parents[1] / "experiments/native-metal/.cache"
+PROJECT = Path(__file__).resolve().parents[1]
+CACHE = PROJECT / "experiments/native-metal/.cache"
 GIB = 1024 ** 3
 RESERVE = 8 * GIB
 DIAGNOSTICS_LIMIT = 8 * GIB
 PROFILE_LIMIT = 3 * GIB
 BUILD_LIMIT = 8 * GIB
+ARCHIVES_LIMIT = 8 * GIB
+
+
+def file_digest(path: Path) -> bytes:
+    value = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 ** 2), b""):
+            value.update(block)
+    return value.digest()
+
+
+def allocated_bytes(path: Path) -> int:
+    """Conservative physical budget; never follow links into another owner."""
+    total = 0
+    for directory, _, names in os.walk(path, followlinks=False):
+        for name in names:
+            info = (Path(directory) / name).lstat()
+            if stat.S_ISREG(info.st_mode):
+                total += info.st_blocks * 512
+    return total
+
+
+def ensure_evidence_space(required_bytes: int, path: Path) -> None:
+    archives = PROJECT / ".local-archives"
+    if path.resolve().is_relative_to(archives.resolve()):
+        if allocated_bytes(archives) + required_bytes > ARCHIVES_LIMIT:
+            raise RuntimeError(f"Retained evidence exceeds the {ARCHIVES_LIMIT // GIB}GiB archive budget; "
+                               "compact cold evidence before capturing another build")
+    ensure_space(required_bytes, path)
+
+
+def storage_report() -> dict:
+    """Allocated bytes include shared APFS extents; they are not exclusive usage."""
+    result = {}
+    for name in ("dist", ".local-archives", "experiments/native-metal/.cache",
+                 "experiments/native-metal/inputs"):
+        root = PROJECT / name
+        logical = allocated = files = 0
+        for directory, _, names in os.walk(root, followlinks=False):
+            for name in names:
+                info = (Path(directory) / name).lstat()
+                if stat.S_ISREG(info.st_mode):
+                    logical += info.st_size
+                    allocated += info.st_blocks * 512
+                    files += 1
+        result[str(root.relative_to(PROJECT))] = {
+            "files": files, "logical_bytes": logical, "allocated_bytes": allocated}
+    result["volume_free_bytes"] = shutil.disk_usage(PROJECT).free
+    return result
+
+
+def compress_copy(source: Path, target: Path) -> None:
+    """Keep paths, metadata and readable bytes; use the native cold-file codec.
+
+    ditto's default APFS clone retains the source's uncompressed extents, even
+    with --hfsCompression. --noclone is necessary to actually encode the copy.
+    """
+    subprocess.run(["/usr/bin/ditto", "--noclone", "--hfsCompression",
+                    str(source), str(target)], check=True, timeout=120)
+
+
+def compact_evidence(excludes: list[Path]) -> dict:
+    """Losslessly compact cold evidence, never prune it or touch working trees."""
+    roots = (PROJECT / ".local-archives", CACHE / "diagnostics")
+    excluded = [path.absolute() for path in excludes]
+    # A complete open-file snapshot avoids rewriting currently consumed files.
+    opened = subprocess.run(["/usr/sbin/lsof", "-Fn"], capture_output=True,
+                            text=True, timeout=30)
+    if opened.returncode not in (0, 1):
+        raise RuntimeError("Cannot establish open-file consumers; evidence preserved")
+    active = {line[1:] for line in opened.stdout.splitlines() if line.startswith("n/")}
+    cutoff = time.time() - 24 * 60 * 60
+    result = {"compacted_files": 0, "allocated_bytes_removed": 0, "files": []}
+
+    def fingerprint(info):
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns,
+                info.st_ctime_ns, info.st_mode, info.st_nlink)
+
+    for root in roots:
+        if root.is_symlink():
+            raise RuntimeError(f"Linked evidence root preserved: {root}")
+        for directory, names, files in os.walk(root, followlinks=False):
+            parent = Path(directory)
+            # A .git file also identifies an archived dirty linked worktree.
+            if ((parent / ".git").exists() or parent.name.endswith(".git")
+                    or any(parent == path or parent.is_relative_to(path) for path in excluded)
+                    or _active(parent, root)):
+                names[:] = []
+                continue
+            names[:] = [name for name in names if not (parent / name).is_symlink()]
+            for name in files:
+                source = parent / name
+                before = source.lstat()
+                if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                        or before.st_size < 256 * 1024
+                        or max(before.st_mtime, before.st_ctime) > cutoff
+                        or before.st_flags & stat.UF_COMPRESSED or str(source) in active
+                        or any(source == path for path in excluded)):
+                    continue
+                ensure_space(before.st_size, source.parent)
+                descriptor, temporary = tempfile.mkstemp(prefix=".storage-compress-", dir=parent)
+                os.close(descriptor)
+                target = Path(temporary)
+                try:
+                    original_hash = file_digest(source)
+                    compress_copy(source, target)
+                    after = target.stat()
+                    saved = (before.st_blocks - after.st_blocks) * 512
+                    if saved < 65536 or not after.st_flags & stat.UF_COMPRESSED:
+                        continue
+                    if (file_digest(target) != original_hash or file_digest(source) != original_hash
+                            or fingerprint(source.lstat()) != fingerprint(before)
+                            or after.st_mode != before.st_mode
+                            or after.st_mtime_ns != before.st_mtime_ns):
+                        raise RuntimeError(f"Evidence changed during compression: {source}")
+                    os.replace(target, source)
+                    result["compacted_files"] += 1
+                    result["allocated_bytes_removed"] += saved
+                    result["files"].append({"path": source.relative_to(PROJECT).as_posix(),
+                                            "sha256": original_hash.hex(),
+                                            "allocated_bytes_removed": saved})
+                finally:
+                    target.unlink(missing_ok=True)
+    return result
+
+
+def reclaim_runtime(state_output: Path, *, app: Path = Path(
+        "/Applications/Corsairs Iddictive Remaster.app")) -> dict:
+    """Drop a reproduced staging copy only after proving its installed source."""
+    from export_metal_app import check_active_game
+    from prepare_metal_inputs import verify
+    from restore_metal_runtime import BASELINES, INPUTS
+
+    runtime = CACHE / "runtime"
+    bundle = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    if bundle.get("CFBundleIdentifier") != "us.iddictive.corsairs":
+        raise RuntimeError("Expected the standalone Iddictive Corsairs app")
+    resources = app / "Contents/Resources"
+    if runtime.is_symlink() or not runtime.is_dir():
+        raise RuntimeError("Expected the ordinary local staging runtime")
+    output = state_output.absolute()
+    if output.is_relative_to(runtime) or output == runtime:
+        raise ValueError("Retained state must be outside the reclaimed runtime")
+    if output.exists() or output.is_symlink():
+        raise FileExistsError("Retained-state output already exists; refusing overwrite")
+    check_active_game(PROJECT)
+    processes = subprocess.check_output(["ps", "-axo", "args="], text=True)
+    commands = ("experiments/native-metal/run.sh", "experiments/native-metal/build.sh",
+                "experiments/native-metal/install-engine.sh", "tools/package_metal_release.py",
+                "tools/export_metal_app.py", "tools/sync_metal_gameplay.py")
+    if any(command in line for line in processes.splitlines() for command in commands):
+        raise RuntimeError("Build/staging/export consumer is active; runtime preserved")
+    opened = subprocess.run(["/usr/sbin/lsof", "-nP", "+D", str(runtime)],
+                            capture_output=True, text=True, timeout=30)
+    if opened.returncode != 1 or opened.stdout.strip():
+        raise RuntimeError("Staging runtime has an open consumer; preserved")
+    # This is the normal restoration preflight, not an assumed rebuild recipe.
+    verify(INPUTS)
+    for name in BASELINES:
+        if not (INPUTS / "runtime-baseline" / name).exists():
+            raise RuntimeError(f"Missing reconstruction input: {name}")
+    if any(path.is_file() or path.is_symlink() for path in (runtime / "SAVE").rglob("*")):
+        raise RuntimeError("Development SAVE is nonempty; runtime preserved")
+    snapshots = {}
+    retained_assets = []
+    content = hashlib.sha256()
+    count = logical = 0
+
+    def identity(path):
+        info = path.lstat()
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+    for directory, names, files in os.walk(runtime, followlinks=False):
+        parent = Path(directory)
+        for path in [parent, *(parent / name for name in names + files)]:
+            snapshots[path] = identity(path)
+        for name in files + [name for name in names if (parent / name).is_symlink()]:
+            source = parent / name
+            relative = source.relative_to(runtime)
+            if relative.parts[0] not in ("PROGRAM", "RESOURCE") or name == ".DS_Store":
+                continue
+            installed = resources / relative
+            if source.is_symlink():
+                if not installed.is_symlink() or os.readlink(source) != os.readlink(installed):
+                    retained_assets.append(relative)
+                value = os.readlink(source).encode()
+            else:
+                value = file_digest(source)
+                if (not installed.is_file() or installed.is_symlink()
+                        or installed.stat().st_size != source.stat().st_size
+                        or value != file_digest(installed)):
+                    retained_assets.append(relative)
+                logical += source.stat().st_size
+            content.update(relative.as_posix().encode() + b"\0" + value)
+            count += 1
+    if not count:
+        raise RuntimeError("No staging assets verified; runtime preserved")
+    state_size = sum(tree_bytes(path) for path in runtime.iterdir()
+                     if path.name not in ("PROGRAM", "RESOURCE"))
+    state_size += sum(tree_bytes(runtime / path) for path in retained_assets)
+    ensure_evidence_space(state_size, output)
+    result = {"verified_files": count, "logical_bytes_reclaimed": logical,
+              "assets_sha256": content.hexdigest(), "reclaimed": False,
+              "retained_asset_paths": [path.as_posix() for path in retained_assets],
+              "restore_command": "python3 tools/restore_metal_runtime.py"}
+    with owned_output(output, "directory"):
+        retained = [source for source in runtime.iterdir()
+                    if source.name not in ("PROGRAM", "RESOURCE")]
+        retained.extend(runtime / path for path in retained_assets)
+        for source in retained:
+            target = output / source.relative_to(runtime)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if source.is_symlink():
+                target.symlink_to(os.readlink(source))
+            elif source.is_dir():
+                shutil.copytree(source, target, symlinks=True)
+            else:
+                shutil.copy2(source, target)
+            for path in ([source] if not source.is_dir() else source.rglob("*")):
+                backed_up = output / path.relative_to(runtime)
+                if path.is_symlink():
+                    if not backed_up.is_symlink() or os.readlink(path) != os.readlink(backed_up):
+                        raise RuntimeError("Retained staging link failed verification")
+                elif path.is_file() and file_digest(path) != file_digest(backed_up):
+                    raise RuntimeError("Retained staging state failed verification")
+        if any(identity(path) != previous for path, previous in snapshots.items()):
+            raise RuntimeError("Staging runtime changed during verification; preserved")
+        (output / "reclaim.json").write_text(json.dumps(result, indent=2) + "\n")
+    _remove_owned(runtime, _identity(runtime))
+    result["reclaimed"] = True
+    (output / "reclaim.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
 
 
 def tree_bytes(path: Path, *, follow_symlinks: bool = False) -> int:
@@ -217,7 +452,7 @@ def _maintain(cache, diagnostics_limit):
     if not diagnostics.exists():
         return
     pins = _pins(cache)
-    total = tree_bytes(diagnostics)
+    total = allocated_bytes(diagnostics)
     if total <= diagnostics_limit:
         return
     candidates = []
@@ -242,7 +477,7 @@ def _maintain(cache, diagnostics_limit):
             break
         if path == newest[1] or _active(path, diagnostics):
             continue
-        size = tree_bytes(path)
+        size = allocated_bytes(path)
         _remove_owned(path, identity)
         total -= size
         print(f"storage: removed generated trace {path}", flush=True)
@@ -436,8 +671,25 @@ def _diagnostic_run(path: Path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installed-hash")
+    parser.add_argument("--report", action="store_true", help="Read-only storage inventory")
+    parser.add_argument("--compact-evidence", action="store_true",
+                        help="Losslessly compress cold archives and diagnostics in place")
+    parser.add_argument("--exclude", type=Path, action="append", default=[],
+                        help="Preserve an active evidence path during compaction")
+    parser.add_argument("--reclaim-runtime", action="store_true",
+                        help="Verify and reclaim the disposable installed-resource copy")
+    parser.add_argument("--state-output", type=Path,
+                        help="New retained directory for staging config/receipts/logs")
     args = parser.parse_args()
-    if args.installed_hash:
+    if args.report:
+        print(json.dumps(storage_report(), indent=2))
+    elif args.compact_evidence:
+        print(json.dumps(compact_evidence(args.exclude), indent=2))
+    elif args.reclaim_runtime:
+        if args.state_output is None:
+            parser.error("--reclaim-runtime requires --state-output")
+        print(json.dumps(reclaim_runtime(args.state_output), indent=2))
+    elif args.installed_hash:
         prune_engine_backups(args.installed_hash)
     else:
         ensure_build_size()
