@@ -6,9 +6,10 @@ owns build, staging, player-state backup, integration and delivery; the earlier
 renderer/gameplay backlog is not reopened by this bounded repair.
 
 Last verified engine delivery: October19 authored-sky/weather candidate, signed
-engine `fd416f00c704291201c73f9c1a089383f645564556c050ff0a286feb2f523453`.
-Canonical staging succeeded. The subsequent no-sky-veil correction and readiness
-telemetry are source/native-diagnostic verified, awaiting final canonical stage.
+engine `4e88384f36579e37d2a42ffa72f1a34586f6d15cced8a03bb4f5f03ad278b32a`.
+Canonical `run.sh --stage-only` exited0 after source22fcfc0, including the final
+no-sky-veil correction. The installed engine hash matches; strict bundle signature
+verification passes. This proves delivery, not player scene acceptance.
 The player owns launch, graphics settings and full-scene replay.
 
 The earlier86ef4a2c batch was installed before this candidate: rigid boat lamps,
@@ -16,16 +17,15 @@ absolute/orthographic caster culling, all island cuts disabled, crew/Repair-base
 dewatering. Current AutoSave5 had its obsolete island state removed atomically:
 50,070,138→43,674,291 bytes; retained raw state65,039,632 bytes. All other234 saves
 are byte-identical. The exact pre-change file remains in AppSupport Archived.
-The independent source capsule preserves history through1480647; it will be
-refreshed after the current checkpoint. Repository removal is not accepted while
+The independent source capsule is refreshed with the current source checkpoint
+and retained evidence before handoff. Repository removal is not accepted while
 player scene/SAVE acceptance remains open. Public standalone ZIPs are historical.
 
 ## Current verdict
 
 ### October19 — original panoramas, shared storm weather and finite-depth fog
 
-Disposition: native/component verified; final no-veil stage and player replay
-pending. Source owners and asset inventory are in `metal-dynamic-sky.md`.
+Disposition: installed and native/component verified; player replay pending. Source owners and asset inventory are in `metal-dynamic-sky.md`.
 The player rejected the procedural sky, hidden cloud lighting and a sky fog veil.
 All140 original faces were reviewed; four original storm sets were previously
 excluded. The candidate keeps original hourly/storm RGBA, including astronomy
