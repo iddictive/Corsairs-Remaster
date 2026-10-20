@@ -31,7 +31,13 @@ values fail before source preparation or configuration. This controls compilatio
 not the game's simulation or renderer; build success does not activate the app.
 
 Engine-linked fixture handoff uses `tools/capture_metal_build.py --repo <built-checkout>
---output <new-evidence-directory> --max-bytes <admitted-copy-budget>`. It checks
+--output <new-evidence-directory> --max-bytes <admitted-copy-budget>
+--retain-for <specific-consumer-property> --release-after <observable-condition>
+--expires <YYYY-MM-DD>`.
+Ordinary checks reuse `.cache/build`; committed source/docs are referenced by
+Git revision/path, not copied into dated archives. Use a frozen capture only
+when that consumer needs exact binary/ABI state across a later cache rebuild.
+It checks
 the canonical source/engine receipt and rejects inputs/artifacts modified after
 that completed build, then retains
 all static libraries, native headers (including `.rh` and third-party headers),
@@ -41,7 +47,15 @@ native class to that class owner's production translation unit. A linked
 benchmark's flags may omit library-private definitions that change class layout.
 The default producer is `sea-fleet-benchmark`; capture builds or runs no target.
 The destination must be new; repeating a complete identical
-capture verifies and reuses it, while a mismatch preserves it and fails. Captured
+capture verifies and reuses it, while a mismatch preserves it and fails.
+Before copying to a new name, it checks capture manifests under `.local-archives`,
+cache diagnostics and the destination parent. Matching native binary/library,
+header and vendor hashes reject the duplicate even for a different target:
+reuse those artifacts and retain only distinct command metadata. Existing
+captures are preserved; nothing is pruned automatically. New manifests record
+the consumer, finite review date and release condition; an already-past date
+rejects admission. Expiry requires owner review, never automatic deletion of
+unresolved evidence. Captured
 native artifacts use lossless filesystem compression at creation; hashes and
 normal file reads are unchanged. Archive admission shares the storage owner's
 8GiB allocated-byte budget instead of permitting an unlimited sequence of builds.

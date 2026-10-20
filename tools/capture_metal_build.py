@@ -3,17 +3,61 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tarfile
 
-from metal_storage import compress_copy, ensure_evidence_space
+from metal_storage import compress_copy, ensure_evidence_space, file_digest
 
 
-def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
+def reject_duplicate(repo: Path, output: Path, native_hashes: dict,
+                     header_hashes: dict, vendor_hashes: dict) -> None:
+    """One frozen native payload can serve multiple named fixture consumers."""
+    roots = {repo / ".local-archives", repo / "experiments/native-metal/.cache/diagnostics",
+             output.parent}
+    seen = set()
+    for root in sorted(roots):
+        for directory, children, names in os.walk(root, followlinks=False):
+            folder = Path(directory)
+            children[:] = [name for name in children if name != ".git"]
+            if (folder / ".git").exists():
+                children[:] = []
+                continue
+            manifest = folder / "manifest.json"
+            if "manifest.json" not in names or manifest in seen or folder == output:
+                continue
+            seen.add(manifest)
+            try:
+                previous = json.loads(manifest.read_text())
+                if (previous.get("header_sources") != header_hashes
+                        or previous.get("vendor_sources") != vendor_hashes):
+                    continue
+                retained = previous["retained"]
+                payload = {name: record["sha256"] for name, record in retained.items()
+                           if name == "engine-unsigned" or name.startswith("libraries/")}
+                if payload != native_hashes:
+                    continue
+                if any(not (folder / name).is_file() or (folder / name).is_symlink()
+                       or file_digest(folder / name).hex() != digest
+                       for name, digest in native_hashes.items()):
+                    continue
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                continue  # Foreign or incomplete evidence is never overwritten.
+            raise RuntimeError(f"Native build already captured at {folder}; reuse its artifacts "
+                               "and retain only distinct target metadata, not another payload")
+
+
+def capture(repo: Path, output: Path, target: str, max_bytes: int,
+            retain_for: str, release_after: str, expires: str) -> dict:
+    if not retain_for.strip() or not release_after.strip():
+        raise RuntimeError("A retained capture needs a concrete consumer and release condition")
+    if date.fromisoformat(expires) < date.today():
+        raise RuntimeError("Capture retention expiry is already past")
     repo, output = repo.resolve(), output.resolve()
     metal = repo / "experiments/native-metal"
     build = metal / ".cache/build"
@@ -84,6 +128,10 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
         return {"capture": str(output), "reused": True, "build_receipt": receipt}
     if output.exists():
         raise RuntimeError("Capture output already exists without a complete manifest; preserve it and choose a new output")
+    reject_duplicate(repo, output,
+                     {name: digest for name, digest in source_hashes.items()
+                      if name == "engine-unsigned" or name.startswith("libraries/")},
+                     header_hashes, vendor_hashes)
     estimate = (sum(p.stat().st_size for p in sources.values())
                 + 2 * sum(p.stat().st_size for p in headers)
                 + len(headers) * 2048 + len(commands.encode()) + len(compilation.encode()) + 1024 ** 2)
@@ -125,6 +173,8 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int) -> dict:
             raise RuntimeError(f"Vendor input changed during capture: {name}")
     manifest = {"source_commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
                 "build_receipt": receipt, "producer_target": target,
+                "retention": {"consumer": retain_for, "release_after": release_after,
+                              "expires": expires},
                 "header_sources": header_hashes, "vendor_sources": vendor_hashes, "retained": retained,
                 "portable_inputs_manifest_sha256": (identity.digest(metal / "inputs/manifest.json")
                                                      if (metal / "inputs/manifest.json").is_file() else None),
@@ -140,8 +190,14 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--target", default="sea-fleet-benchmark")
     parser.add_argument("--max-bytes", type=int, required=True)
+    parser.add_argument("--retain-for", required=True,
+                        help="Specific consumer property requiring frozen binaries instead of Git/rebuild")
+    parser.add_argument("--release-after", required=True,
+                        help="Observable condition ending this capture's retention")
+    parser.add_argument("--expires", required=True, help="Finite retention review date, YYYY-MM-DD")
     args = parser.parse_args()
     try:
-        print(json.dumps(capture(args.repo, args.output, args.target, args.max_bytes), indent=2))
+        print(json.dumps(capture(args.repo, args.output, args.target, args.max_bytes,
+                                 args.retain_for, args.release_after, args.expires), indent=2))
     except (OSError, RuntimeError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Build capture failed: {error}\n")
