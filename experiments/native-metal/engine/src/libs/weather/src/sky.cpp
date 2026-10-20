@@ -172,6 +172,7 @@ void SKY::Release()
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     stormCurrent = stormNext = -1;
     stormTextureBlend = 0.f;
+    stormAmount = 0.f;
     stormTexturesReady = false;
 #endif
 
@@ -490,7 +491,7 @@ void SKY::Realize(uint32_t Delta_Time)
         metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
     if (metalWeather)
         UpdateStormTextures(metalWeather->GetVisualFloat(whf_time_counter));
-    const float stormAmount = metalWeather ? storm_weather::authored::amount(
+    stormAmount = metalWeather ? storm_weather::authored::amount(
         metalWeather->GetCloudCoverage(), metalWeather->GetCloudDensity()) : 0.f;
     MetalAuthoredSkyScope authoredSkyScope(pRS, stormTextureBlend, stormTexturesReady && metalWeather, stormAmount);
     const bool drawLowerSky = true;
@@ -899,7 +900,23 @@ float SKY::CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize)
                 GetPixelColor(static_cast<storm_render::Texture *>(pRS->GetTextureFromID(TexturesNextID[nTexNum])), fu, fv);
 
             const auto fK = fTimeFactor - static_cast<int32_t>(fTimeFactor);
-            const auto fAlpha = (1.f - fK) * (dwCol1 >> 24) / 255.f + fK * (dwCol2 >> 24) / 255.f;
+            auto fAlpha = (1.f - fK) * (dwCol1 >> 24) / 255.f + fK * (dwCol2 >> 24) / 255.f;
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+            // Flares are drawn after the panorama's astronomy mask. Sample the
+            // same original RGBA pair here, including its current storm mix.
+            // Static sky textures retain CPU bytes; these locks do not download
+            // a rendered GPU texture or introduce a second cloud march.
+            if (stormTexturesReady && stormAmount > 0.f)
+            {
+                const auto first = GetPixelColor(static_cast<storm_render::Texture *>(
+                    pRS->GetTextureFromID(StormTexturesID[nTexNum])), fu, fv);
+                const auto next = GetPixelColor(static_cast<storm_render::Texture *>(
+                    pRS->GetTextureFromID(StormTexturesNextID[nTexNum])), fu, fv);
+                const float alpha = ((1.f - stormTextureBlend) * (first >> 24) +
+                                     stormTextureBlend * (next >> 24)) / 255.f;
+                fAlpha += (alpha - fAlpha) * stormAmount;
+            }
+#endif
             return fAlpha;
         }
     }

@@ -11,6 +11,10 @@ Canonical `run.sh --stage-only` exited0 after source22fcfc0, including the final
 no-sky-veil correction. The installed engine hash matches; strict bundle signature
 verification passes. This proves delivery, not player scene acceptance.
 The player owns launch, graphics settings and full-scene replay.
+A subsequent source review restores late solar flare/overflow occlusion from the
+same original/storm alpha mix; CPU-resident static texture bytes are reused.
+That bounded follow-up compiles but is not installed: the player has launched4e
+and owns exit before its GPU replay/final stage. No game process was stopped.
 
 The earlier86ef4a2c batch was installed before this candidate: rigid boat lamps,
 absolute/orthographic caster culling, all island cuts disabled, crew/Repair-based

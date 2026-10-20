@@ -1928,7 +1928,6 @@ extern "C" bool StormMetalPrepareDynamicSky(void*pointer,float hour,float deltaS
 extern "C" void StormMetalEndDynamicSky(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endDynamicSky();}
 extern "C" bool StormMetalDynamicSkyActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->dynamicSkyActive;}
 extern "C" void StormMetalSetAuthoredSky(void*pointer,float blend,bool present,float amount){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->authoredSky={std::clamp(blend,0.f,1.f),float(present),std::clamp(amount,0.f,1.f),0};}
-extern "C" bool StormMetalAuthoredSkyCurrent(void*pointer){if(!pointer)return false;const auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));return d->dynamicSkyLibrary&&d->authoredSkyFrame==d->dynamicSkyFrame;}
 extern "C" bool StormMetalBeginSkyFog(void*pointer,uint32_t fogColor){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->beginSkyFog(fogColor);}
 extern "C" void StormMetalEndSkyFog(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endSkyFog();}
 extern "C" bool StormMetalSkyFogActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->skyFogActive;}

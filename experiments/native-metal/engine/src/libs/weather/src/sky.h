@@ -71,6 +71,7 @@ class SKY : public Entity
     int32_t StormTexturesNextID[SKY_NUM_TEXTURES];
     int32_t stormCurrent = -1, stormNext = -1;
     float stormTextureBlend = 0.f;
+    float stormAmount = 0.f;
     bool stormTexturesReady = false;
 #endif
 
