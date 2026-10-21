@@ -1,0 +1,29 @@
+*** Begin Patch
+*** Update File: /REQUIRED_EXTERNAL_INPUT/Corsairs/.local-archives/metal-renderer-evidence/ship-local-cache-fit/probe.mm
+@@
+ #include <cmath>
++#include <cstdlib>
+@@
+     NSDictionary* addresses;
++    struct BufferRange { NSString* identifier; uint64_t base; NSUInteger bytes; };
++    std::vector<BufferRange> bufferRanges;
+@@
+-        addresses=json(child(path,@"address-map.json"))[@"addresses"];
++        NSDictionary* map=json(child(path,@"address-map.json"));addresses=map[@"addresses"];
++        // Exact-pointer entries may cover only an earlier queried subset.
++        // Resolve interiors using captured allocation bases and actual payload lengths.
++        NSDictionary* infos=map[@"buffers"];
++        for(NSString* bid in infos){NSDictionary* info=infos[bid];NSString* gpu=info[@"gpuAddress"];need(gpu!=nil,"buffer metadata missing GPU base");
++            NSString* filename=child(path,[NSString stringWithFormat:@"buf%@.bin",bid]);NSDictionary* attrs=[[NSFileManager defaultManager] attributesOfItemAtPath:filename error:nullptr];
++            if(attrs)bufferRanges.push_back({bid,std::strtoull(gpu.UTF8String,nullptr,0),[attrs[NSFileSize] unsignedIntegerValue]});
++        }
+@@
+-        NSString* key=[NSString stringWithFormat:@"0x%llx",(unsigned long long)address];NSDictionary* record=addresses[key];need(record!=nil,"unresolved captured GPU address");
++        NSString* key=[NSString stringWithFormat:@"0x%llx",(unsigned long long)address];NSDictionary* record=addresses[key];
++        if(!record){
++            const BufferRange* match=nullptr;
++            for(const auto& candidate:bufferRanges)if(address>=candidate.base&&address-candidate.base<candidate.bytes){need(match==nullptr,"ambiguous captured GPU address range "+std::string(key.UTF8String));match=&candidate;}
++            need(match!=nullptr,"unresolved captured GPU address "+std::string(key.UTF8String)+"; no base+payload range in address-map buffers");
++            record=@{@"buffer":match->identifier,@"offset":@(address-match->base)};
++        }
+*** End Patch

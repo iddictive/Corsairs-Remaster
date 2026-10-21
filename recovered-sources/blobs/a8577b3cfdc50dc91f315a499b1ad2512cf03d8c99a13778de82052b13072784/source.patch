@@ -1,0 +1,478 @@
+diff --git a/docs/sea-phonk.md b/docs/sea-phonk.md
+index 82e4a07..284a90a 100644
+--- a/docs/sea-phonk.md
++++ b/docs/sea-phonk.md
+@@ -147,6 +147,21 @@ Repeated ship bores subtract the union of recorded cutters from immutable
+ authored material; they do not repeatedly partition unaffected triangles.
+ Wood uses the inner vertices of its classified physical shell, closed authored
+ components retain their own solids and unclassified open sheets stay open.
++Laser camera and muzzle rays use the opt-in `TraceLaserMaterial` hierarchy query:
++its retained outer/inner timber and finite-wall index is prepared with the mesh
++and ray scratch, then published atomically. Ordinary cannon topology updates
++reuse their clipped CPU triangles to refresh this projection; unchanged cut
++signatures do no topology work. Ordinary `Trace`, `Clip`, hit details and canonical
++structural accounting keep their existing surfaces. Inner timber removal still
++publishes real geometry without adding interior area to canonical damage;
++later finite-wall removal follows the existing canonical formula. Flooding
++apertures still come only from removed authored outer faces.
++The installed stock inventory covers all57 classified root GMs; each has zero
++validated canonical closed volume. The profile owner excludes mast, yard and
++shatter files. A synthetic closed solid with an added inner shell still rejects
++an interior-only dose; this extension remains unsupported and closed-volume
++conservation guards stay intact. The exact inventory, commands and source are in
++the private [material-query receipt](../.local-archives/metal-renderer-evidence/phonk-current-20261016/integrated-sea-laser/held-fire-diagnostic/implementation/receipt.json).
+ An enclosed disconnected piece leaves the retained hull as its own fragment;
+ ordered SAVE reconstruction repeats that extraction. A hollow hold and gunport
+ are not filled to create a cutting surface. Solid/hollow ring checks and actual
+diff --git a/experiments/native-metal/engine/src/libs/geometry/include/geos.h b/experiments/native-metal/engine/src/libs/geometry/include/geos.h
+index 7e78827..480a861 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/include/geos.h
++++ b/experiments/native-metal/engine/src/libs/geometry/include/geos.h
+@@ -286,6 +286,8 @@ class GEOS
+ 
+     // Trace a ray in local coord-system
+     virtual float Trace(VERTEX &src, VERTEX &dst) = 0;
++    // Physical timber entry for the laser; leaves ordinary collision details intact.
++    virtual float TraceLaserMaterial(VERTEX &src, VERTEX &dst) = 0;
+ 
+     // clip in local coord-system
+     using ADD_POLYGON_FUNC = bool (*)(const VERTEX *v, int32_t nv);
+diff --git a/experiments/native-metal/engine/src/libs/geometry/src/collide.cpp b/experiments/native-metal/engine/src/libs/geometry/src/collide.cpp
+index c59415b..1a15129 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/src/collide.cpp
++++ b/experiments/native-metal/engine/src/libs/geometry/src/collide.cpp
+@@ -18,17 +18,43 @@ trace and clip functions
+ SAVAGE GEOM::_stack[256];
+ 
+ float GEOM::Trace(VERTEX &start, VERTEX &finish)
++{
++    return TraceQuery(start, finish, true);
++}
++
++float GEOM::TraceLaserMaterial(VERTEX &start, VERTEX &finish)
++{
++#ifdef STORM_METAL_SHIP_HULL_DAMAGE
++    if (laserPrepared && !worldOwner)
++    {
++        laserMaterialCollision.broadphase.queryRay({start.x,start.y,start.z}, {finish.x,finish.y,finish.z}, laserMaterialCandidates);
++        float nearest = 2.f;
++        for (const auto candidate : laserMaterialCandidates)
++        {
++            const auto reference = laserMaterialCollision.references[candidate];
++            if (!(object[reference.first].flags & COLLISION_ENABLE)) continue;
++            float a = 0, b = 0;
++            nearest = std::min(nearest, storm_ship_laser::trace(laserMaterialSurface.at(reference.first)[reference.second],
++                {start.x,start.y,start.z}, {finish.x,finish.y,finish.z}, a, b));
++        }
++        return nearest;
++    }
++#endif
++    return TraceQuery(start, finish, false);
++}
++
++float GEOM::TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails)
+ {
+ #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+-    if(laserOwner||worldOwner){laserTraceObject=laserTraceTriangle=-1;float nearest=2;const auto&surface=worldOwner?worldSurface:laserSurface;
++    if(laserOwner||worldOwner){if(publishDetails)laserTraceObject=laserTraceTriangle=-1;float nearest=2;std::pair<int,uint32_t>best{-1,std::numeric_limits<uint32_t>::max()};const auto&surface=worldOwner?worldSurface:laserSurface;
+         laserBroadphase.queryRay({start.x,start.y,start.z},{finish.x,finish.y,finish.z},laserRayCandidates);
+         for(auto candidate:laserRayCandidates){const auto reference=laserCollisionTriangles[candidate];if(!(object[reference.first].flags&COLLISION_ENABLE))continue;float a=0,b=0;float hit=storm_ship_laser::trace(surface.at(reference.first)[reference.second],{start.x,start.y,start.z},{finish.x,finish.y,finish.z},a,b);
+-            if(hit<nearest||(hit==nearest&&hit<=1&&reference<std::make_pair(laserTraceObject,uint32_t(laserTraceTriangle)))){nearest=hit;laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}return nearest;}
++            if(hit<nearest||(hit==nearest&&hit<=1&&reference<best)){nearest=hit;best=reference;if(publishDetails){laserTraceObject=reference.first;laserTraceTriangle=int(reference.second);laserTraceA=a;laserTraceB=b;}}}return nearest;}
+ #endif
+     if (!(rhead.flags & FLAGS_BSP_PRESENT))
+         return 2.0f;
+-    src = DVECTOR(start.x, start.y, start.z);
+-    dst = DVECTOR(finish.x, finish.y, finish.z);
++    const DVECTOR src(start.x, start.y, start.z), dst(finish.x, finish.y, finish.z);
++    if (publishDetails) { this->src = src; this->dst = dst; }
+ 
+     double diss, dise, ssrc, sdst, dist;
+     DVECTOR dirvec, tp, V, AV;
+@@ -156,16 +182,16 @@ rec_return:;
+         {
+             if (U < 0.0f && U > det && V < 0.0f && U + V > det)
+             {
+-                res_dist = static_cast<float>(dist);
+-                traceid = face;
+-                return res_dist;
++                const auto result = static_cast<float>(dist);
++                if (publishDetails) { res_dist = result; traceid = face; }
++                return result;
+             }
+         }
+         else if (U >= 0.0f && U <= det && V >= 0.0f && U + V <= det)
+         {
+-            res_dist = static_cast<float>(dist);
+-            traceid = face;
+-            return res_dist;
++            const auto result = static_cast<float>(dist);
++            if (publishDetails) { res_dist = result; traceid = face; }
++            return result;
+         }
+ 
+         if (--t > 0)
+@@ -181,7 +207,7 @@ rec_return:;
+     rec_avoid:;
+         if (stack < _stack)
+         {
+-            traceid = -1;
++            if (publishDetails) traceid = -1;
+             return 2.0f;
+         }
+ 
+diff --git a/experiments/native-metal/engine/src/libs/geometry/src/geom.h b/experiments/native-metal/engine/src/libs/geometry/src/geom.h
+index 7dc5d08..51b5c52 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/src/geom.h
++++ b/experiments/native-metal/engine/src/libs/geometry/src/geom.h
+@@ -80,6 +80,11 @@ class GEOM : public GEOS
+     void ReleaseHullDraws(std::map<int,std::vector<HullDraw>>&draws);
+     std::vector<storm_ship_hull::Impact> hullCutInputs;
+     storm_ship_laser::Mesh laserSurface;
++    storm_ship_laser::Mesh laserMaterialSurface;
++    storm_ship_laser::FaceIndex laserMaterialCollision;
++    std::vector<uint32_t> laserMaterialCandidates;
++    void SetLaserMaterial(storm_ship_laser::Mesh &&, storm_ship_laser::FaceIndex &&, std::vector<uint32_t> &&);
++    void ClearLaserMaterial();
+     std::shared_ptr<const storm_ship_laser::Surface>laserVisualSurface;
+     std::map<int,float>laserWoodThickness;
+     storm_ship_hull::Broadphase laserBroadphase;
+@@ -102,7 +107,7 @@ class GEOM : public GEOS
+     int laserTraceObject=-1,laserTraceTriangle=-1;
+     float laserTraceA=0,laserTraceB=0;
+     bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&);
+-    bool RebuildLaserSurface(bool upload=true);
++    bool RebuildLaserSurface(bool upload=true,storm_ship_laser::Mesh *preparedSource=nullptr);
+     void RebuildLaserCollision();
+     std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;
+     storm_ship_laser::Mesh worldSurface;
+@@ -130,6 +135,7 @@ class GEOM : public GEOS
+ #endif
+     int32_t traceid;
+     DVECTOR src, dst;
++    float TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails);
+ 
+   public:
+     GEOM(const char *fname, const char *lightname, GEOM_SERVICE &srv, int32_t flags);
+@@ -190,6 +196,7 @@ class GEOM : public GEOS
+ #endif
+ 
+     virtual float Trace(VERTEX &src, VERTEX &dst);
++    float TraceLaserMaterial(VERTEX &src, VERTEX &dst) override;
+     virtual bool Clip(const PLANE *planes, int32_t nplanes, const VERTEX &center, float radius, ADD_POLYGON_FUNC addpoly);
+     virtual bool GetCollisionDetails(TRACE_INFO &ti) const;
+ 
+diff --git a/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp b/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
+index a5ff616..67c03c9 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
++++ b/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
+@@ -557,8 +557,10 @@ void GEOM::ClearHullCuts(uint64_t owner)
+ {
+     if(owner!=hullOwner)return;
+     if(laserOwner){if(hullCutInputs.empty())return;auto previous=std::move(hullCutInputs);hullCutInputs.clear();if(!RebuildLaserSurface()){hullCutInputs=std::move(previous);return;}hullSignature=storm_ship_hull::signature(hullCutInputs);return;}
+-    if(!hullDraws.empty()||!hullCutInputs.empty())++collisionRevision;
+-    ReleaseHullDraws(hullDraws);hullCutInputs.clear();hullOwner=hullSignature=0;laserPrepared=false;laserSurface.clear();laserVisualSurface={};laserClosedVolume=0;
++    const bool changed=!hullDraws.empty()||!hullCutInputs.empty();
++    if(laserPrepared&&!hullCutInputs.empty()){auto previous=std::move(hullCutInputs);hullCutInputs.clear();if(!RebuildLaserSurface(false)){hullCutInputs=std::move(previous);return;}}
++    if(changed)++collisionRevision;
++    ReleaseHullDraws(hullDraws);hullCutInputs.clear();hullOwner=hullSignature=0;
+ }
+ bool GEOM::CaptureHullObject(int objectIndex)
+ {
+@@ -582,8 +584,14 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
+     if(cuts.empty()){ClearHullCuts(owner);return true;}
+     std::map<int,std::vector<storm_ship_hull::Impact>>groups;
+     for(const auto&cut:cuts){if(!storm_ship_hull::valid(cut)||!CaptureHullObject(cut.object))return false;groups[cut.object].push_back(cut);}
++    // Mount has already captured ship originals. Reuse the clipped triangles
++    // below for material tracing instead of clipping the whole ship twice.
++    const bool prepareMaterial=laserPrepared;storm_ship_laser::Mesh materialSource;
++    if(prepareMaterial)for(int o=0;o<rhead.nobjects;++o)if(!groups.count(o)){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=materialSource[o];triangles.reserve(source.indices.size()/3);
++        for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);triangles.push_back(triangle);}}
+     std::map<int,std::vector<HullDraw>>replacement;
+     for(const auto&group:groups){const auto&source=hullOriginals.at(group.first);
++        auto*materialTriangles=prepareMaterial?&materialSource[group.first]:nullptr;
+         struct PreparedCut {storm_ship_hull::Impact impact;std::array<storm_ship_hull::Plane,10>planes;};std::vector<PreparedCut>prepared;prepared.reserve(group.second.size());
+         std::vector<std::vector<const PreparedCut*>>localCuts(source.indices.size()/3);std::vector<uint32_t>candidates;
+         for(const auto&cut:group.second){prepared.push_back({cut,storm_ship_hull::prism(cut)});source.broadphase.query(cut,candidates,.055f);for(auto triangle:candidates)localCuts[triangle].push_back(&prepared.back());}
+@@ -594,8 +602,10 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
+             if(!v||!i){if(v)srv.UnlockVertexBuffer(draw.vb);if(i)srv.UnlockIndexBuffer(draw.ib);srv.ReleaseVertexBuffer(draw.vb);srv.ReleaseIndexBuffer(draw.ib);return false;}
+             std::memcpy(v,vertices.data(),vertices.size());std::memcpy(i,indices.data(),indices.size()*2);srv.UnlockVertexBuffer(draw.vb);srv.UnlockIndexBuffer(draw.ib);replacement[group.first].push_back(draw);vertices.clear();indices.clear();weld.clear();std::fill(originalLookup.begin(),originalLookup.end(),-1);return true;};
+         const auto appendOriginal=[&](size_t triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
++            if(materialTriangles){storm_ship_hull::Triangle face;for(unsigned c=0;c<3;++c)face[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[triangle*3+c])*source.stride,source.stride);materialTriangles->push_back(face);}
+             for(unsigned corner=0;corner<3;corner++){auto original=source.indices[triangle*3+corner];auto&mapped=originalLookup[original];if(mapped<0){mapped=int32_t(vertices.size()/source.stride);auto*start=source.vertices.data()+size_t(original)*source.stride;vertices.insert(vertices.end(),start,start+source.stride);}indices.push_back(uint16_t(mapped));}};
+         const auto append=[&](const storm_ship_hull::Triangle&triangle){if(vertices.size()/source.stride+3>=65535&&!upload()){failed=true;return;}
++            if(materialTriangles)materialTriangles->push_back(triangle);
+             for(const auto&vertex:triangle){std::string bytes(size_t(source.stride),'\0');storm_ship_hull::encode(vertex,reinterpret_cast<uint8_t*>(bytes.data()),source.stride);auto found=weld.find(bytes);uint16_t index;
+                 if(found==weld.end()){index=uint16_t(vertices.size()/source.stride);vertices.insert(vertices.end(),bytes.begin(),bytes.end());weld.emplace(std::move(bytes),index);}else index=found->second;indices.push_back(index);}};
+         for(size_t triangle=0;triangle<localCuts.size();triangle++){if(localCuts[triangle].empty()){appendOriginal(triangle);if(failed)break;continue;}storm_ship_hull::Triangle original;for(unsigned corner=0;corner<3;corner++)original[corner]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[triangle*3+corner])*source.stride,source.stride);
+@@ -612,8 +622,9 @@ bool GEOM::SetHullCuts(uint64_t owner,const std::vector<storm_ship_hull::Impact>
+     }
+     // Only geometry instances own these buffers. File names are never cache keys.
+     // Existing resource identities/revisions invalidate ordinary and shadow draws.
++    if(prepareMaterial){auto previous=std::move(hullCutInputs);hullCutInputs=cuts;if(!RebuildLaserSurface(false,&materialSource)){hullCutInputs=std::move(previous);ReleaseHullDraws(replacement);return false;}}
+     ++collisionRevision;
+-    ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);hullCutInputs=cuts;hullOwner=owner;hullSignature=signature;laserPrepared=false;laserSurface.clear();laserVisualSurface={};laserClosedVolume=0;return true;
++    ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);hullCutInputs=cuts;hullOwner=owner;hullSignature=signature;return true;
+ }
+ 
+ bool GEOM::UploadLaserMesh(const storm_ship_laser::Mesh&mesh,std::map<int,std::vector<HullDraw>>&draws)
+@@ -628,10 +639,11 @@ bool GEOM::UploadLaserMesh(const storm_ship_laser::Mesh&mesh,std::map<int,std::v
+         }
+     }return true;}catch(...){if(lockedVertex>=0)srv.UnlockVertexBuffer(lockedVertex);if(lockedIndex>=0)srv.UnlockIndexBuffer(lockedIndex);ReleaseHullDraws(draws);return false;}
+ }
+-bool GEOM::RebuildLaserSurface(bool upload)
++bool GEOM::RebuildLaserSurface(bool upload,storm_ship_laser::Mesh *preparedSource)
+ {
+     storm_ship_laser::Mesh mesh;
+-    for(int o=0;o<rhead.nobjects;++o){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=mesh[o];
++    if(preparedSource)mesh=std::move(*preparedSource);
++    else for(int o=0;o<rhead.nobjects;++o){if(!CaptureHullObject(o))return false;const auto&source=hullOriginals.at(o);auto&triangles=mesh[o];
+         for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);
+             struct Rim {storm_ship_hull::Triangle triangle;const storm_ship_hull::Impact*owner;};std::vector<storm_ship_hull::Triangle>pieces{triangle};std::vector<Rim>rims;
+             for(const auto&impact:hullCutInputs)if(impact.object==o){std::vector<storm_ship_hull::Triangle>next;for(const auto&piece:pieces){auto cut=storm_ship_hull::subtract(piece,impact);next.insert(next.end(),cut.surface.begin(),cut.surface.end());for(const auto&rim:cut.rim)rims.push_back({rim,&impact});}pieces=std::move(next);}
+@@ -642,12 +654,23 @@ bool GEOM::RebuildLaserSurface(bool upload)
+     mesh=storm_ship_laser::canonicalMesh(*visual);double closedVolume=storm_ship_laser::closedVolume(mesh);storm_ship_laser::Projection rebuilt;
+     for(const auto&plane:laserPlanes){storm_ship_laser::Input input;input.surface=visual;input.wood=laserWoodThickness;input.plane=plane;input.fragmentLimit=storm_hull_damage::MaxFragmentGroups;input.enclosedFragments=laserEnclosedFragments;input.closedVolume=closedVolume;
+         if(!storm_ship_laser::prepare(input,rebuilt))return false;if(!rebuilt.result.changed)continue;visual=std::move(rebuilt.kept);mesh=std::move(rebuilt.canonical);closedVolume=rebuilt.keptVolume;}
+-    if(!upload){laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;return true;}
+-    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(storm_ship_laser::renderMesh(*visual),replacement))return false;
++    auto material=storm_ship_laser::renderMesh(*visual);auto materialCollision=storm_ship_laser::indexFaces(material);std::vector<uint32_t>materialCandidates;materialCandidates.reserve(materialCollision.references.size());
++    if(!upload){SetLaserMaterial(std::move(material),std::move(materialCollision),std::move(materialCandidates));laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;return true;}
++    std::map<int,std::vector<HullDraw>>replacement;if(!UploadLaserMesh(material,replacement))return false;
++    SetLaserMaterial(std::move(material),std::move(materialCollision),std::move(materialCandidates));
+     ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);laserSurface=std::move(mesh);laserVisualSurface=std::move(visual);laserClosedVolume=closedVolume;laserPrepared=true;
+     if(!laserVisualSurface->released.empty()){laserRetainedSupport=storm_ship_laser::indexFaces(laserVisualSurface->outer);laserReleasedSupport.clear();for(const auto&piece:laserVisualSurface->released)laserReleasedSupport.push_back(storm_ship_laser::indexFaces(*piece));}else{laserRetainedSupport={};laserReleasedSupport.clear();}
+     RebuildLaserCollision();laserTraceObject=laserTraceTriangle=-1;return true;
+ }
++void GEOM::SetLaserMaterial(storm_ship_laser::Mesh &&surface, storm_ship_laser::FaceIndex &&collision, std::vector<uint32_t> &&candidates)
++{
++    // Publication only moves prepared values; ray scratch is retained between queries.
++    laserMaterialSurface=std::move(surface);laserMaterialCollision=std::move(collision);laserMaterialCandidates=std::move(candidates);
++}
++void GEOM::ClearLaserMaterial()
++{
++    laserMaterialSurface.clear();laserMaterialCollision={};laserMaterialCandidates=std::vector<uint32_t>{};
++}
+ void GEOM::RebuildLaserCollision()
+ {
+     std::vector<storm_ship_hull::Bounds>boxes;laserCollisionTriangles.clear();laserRayCandidates.clear();
+@@ -681,6 +704,7 @@ bool GEOM::StageLaserProjection(uint64_t owner,storm_ship_laser::Projection&&pro
+ void GEOM::CommitLaserProjection(uint64_t owner)
+ {
+     if(!laserPending||owner!=laserPendingOwner)return;if(laserPending->revision!=collisionRevision||laserPending->generation!=geometryGeneration){DiscardLaserProjection(owner);return;}if(!laserPending->result.changed){DiscardLaserProjection(owner);return;}
++    SetLaserMaterial(std::move(laserPending->render),std::move(laserPending->materialCollision),std::move(laserPending->materialCandidates));
+     auto projection=std::move(laserPending);ReleaseHullDraws(hullDraws);hullDraws=std::move(laserPendingDraws);laserSurface=std::move(projection->canonical);laserVisualSurface=std::move(projection->kept);laserClosedVolume=projection->keptVolume;laserEnclosedFragments=projection->enclosedFragments;laserPlanes.push_back(std::move(projection->plane));laserOwner=hullOwner=owner;
+     laserBroadphase=std::move(projection->collision.broadphase);laserCollisionTriangles=std::move(projection->collision.references);laserRayCandidates.clear();laserTraceObject=laserTraceTriangle=-1;laserRetainedSupport=std::move(projection->retainedSupport);laserReleasedSupport=std::move(projection->releasedSupport);laserSerial=laserPendingSerial;laserFragments.push_back(std::move(laserPendingBatch));laserPendingOwner=laserPendingSerial=0;++collisionRevision;
+ }
+@@ -746,8 +770,8 @@ void GEOM::ReleaseLaserFragments()
+ }
+ void GEOM::ClearLaserCuts(uint64_t owner)
+ {
+-    if(!laserOwner||owner!=laserOwner)return;ReleaseLaserFragments();laserPlanes.clear();laserSurface.clear();laserVisualSurface={};laserOwner=0;laserPrepared=false;laserEnclosedFragments=true;laserClosedVolume=0;laserRetainedSupport={};laserReleasedSupport.clear();laserCollisionTriangles.clear();laserRayCandidates.clear();laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
+-    ReleaseHullDraws(hullDraws);hullSignature=0;const auto inputs=hullCutInputs;SetHullCuts(owner,inputs);
++    if(!laserOwner||owner!=laserOwner)return;ReleaseLaserFragments();laserPlanes.clear();laserSurface.clear();laserVisualSurface={};ClearLaserMaterial();laserOwner=0;laserPrepared=false;laserEnclosedFragments=true;laserClosedVolume=0;laserRetainedSupport={};laserReleasedSupport.clear();laserCollisionTriangles.clear();laserRayCandidates.clear();laserBroadphase.build(std::vector<storm_ship_hull::Bounds>{});laserTraceObject=laserTraceTriangle=-1;++collisionRevision;
++    ReleaseHullDraws(hullDraws);hullSignature=0;const auto inputs=hullCutInputs;SetHullCuts(owner,inputs);if(!laserPrepared)RebuildLaserSurface(false);
+ }
+ 
+ bool GEOM::CaptureWorldSurface(bool terrainModel)
+diff --git a/experiments/native-metal/engine/src/libs/model/include/model.h b/experiments/native-metal/engine/src/libs/model/include/model.h
+index 78d676c..eeb56f6 100644
+--- a/experiments/native-metal/engine/src/libs/model/include/model.h
++++ b/experiments/native-metal/engine/src/libs/model/include/model.h
+@@ -51,6 +51,7 @@ class NODE
+                       const CMatrix &globm, NODER *par, const char *lmPath) = 0;
+ 
+     virtual float Trace(const CVECTOR &src, const CVECTOR &dst) = 0;
++    virtual float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) = 0;
+ 
+     virtual void SubstituteGeometry(const std::string& new_model) = 0;
+ };
+@@ -105,6 +106,7 @@ class MODEL : public COLLISION_OBJECT
+     virtual Animation *GetAnimation() = 0;
+ 
+     float Trace(const CVECTOR &src, const CVECTOR &dst) override = 0;
++    virtual float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) = 0;
+     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,
+               ADD_POLYGON_FUNC addpoly) override = 0;
+ 
+diff --git a/experiments/native-metal/engine/src/libs/model/src/model.cpp b/experiments/native-metal/engine/src/libs/model/src/model.cpp
+index 9dca08e..7f20515 100644
+--- a/experiments/native-metal/engine/src/libs/model/src/model.cpp
++++ b/experiments/native-metal/engine/src/libs/model/src/model.cpp
+@@ -678,6 +678,16 @@ bool MODELR::GetCollideTriangle(TRIANGLE &triangle)
+ CVECTOR cold[1024 * 1024];
+ 
+ float MODELR::Trace(const CVECTOR &src, const CVECTOR &dst)
++{
++    return TraceQuery(src, dst, false);
++}
++
++float MODELR::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
++{
++    return TraceQuery(src, dst, true);
++}
++
++float MODELR::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
+ {
+     // collision with skinned geometry
+     if (ani)
+@@ -822,8 +832,8 @@ float MODELR::Trace(const CVECTOR &src, const CVECTOR &dst)
+ 
+         return bd;
+     }
+-    float d = root->Trace(src, dst);
+-    colideNode = bestTraceNode;
++    const float d = root->TraceQuery(src, dst, material);
++    if (!material) colideNode = bestTraceNode;
+     return d;
+ }
+ 
+diff --git a/experiments/native-metal/engine/src/libs/model/src/modelr.h b/experiments/native-metal/engine/src/libs/model/src/modelr.h
+index 0379442..e57b25a 100644
+--- a/experiments/native-metal/engine/src/libs/model/src/modelr.h
++++ b/experiments/native-metal/engine/src/libs/model/src/modelr.h
+@@ -19,6 +19,7 @@ class NODER : public NODE
+     std::string sys_TexPath;
+     std::string sys_lmPath;
+     bool isReleased;
++    float TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material);
+ 
+     bool UsesLightPath(std::string_view lightPath) const;
+     void StoreLightPath(std::string_view lightPath);
+@@ -49,6 +50,7 @@ class NODER : public NODE
+     ~NODER() override;
+     void Draw();
+     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
++    float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;
+     NODER *GetNode(int32_t n);
+     NODER *FindNode(const char *cNodeName);
+     float Update(CMatrix &mtx, CVECTOR &cnt);
+@@ -147,6 +149,8 @@ class MODELR : public MODEL
+     Animation *GetAnimation() override;
+ 
+     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
++    float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;
++    float TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material);
+     const char *GetCollideMaterialName() override;
+     bool GetCollideTriangle(TRIANGLE &triangle) override;
+     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,
+diff --git a/experiments/native-metal/engine/src/libs/model/src/node.cpp b/experiments/native-metal/engine/src/libs/model/src/node.cpp
+index 9e33e7b..2230496 100644
+--- a/experiments/native-metal/engine/src/libs/model/src/node.cpp
++++ b/experiments/native-metal/engine/src/libs/model/src/node.cpp
+@@ -124,6 +124,16 @@ float NODER::Update(CMatrix &mtx, CVECTOR &cnt)
+ // NODE trace
+ //----------------------------------------------------------
+ float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
++{
++    return TraceQuery(src, dst, false);
++}
++
++float NODER::TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst)
++{
++    return TraceQuery(src, dst, true);
++}
++
++float NODER::TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material)
+ {
+     if (isReleased)
+         return 2.0f;
+@@ -142,11 +152,11 @@ float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
+         {
+             if (next[n] == nullptr)
+                 continue;
+-            const auto d = static_cast<NODER *>(next[n])->Trace(src, dst);
++            const auto d = static_cast<NODER *>(next[n])->TraceQuery(src, dst, material);
+             if (d < best_dist)
+             {
+                 best_dist = d;
+-                bestTraceNode = next[n];
++                if (!material) bestTraceNode = next[n];
+             }
+         }
+ 
+@@ -155,11 +165,12 @@ float NODER::Trace(const CVECTOR &src, const CVECTOR &dst)
+         CVECTOR _src, _dst;
+         glob_mtx.MulToInv(src, _src);
+         glob_mtx.MulToInv(dst, _dst);
+-        const auto ds = geo->Trace((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst);
++        const auto ds = material ? geo->TraceLaserMaterial((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst)
++                                 : geo->Trace((GEOS::VERTEX &)_src, (GEOS::VERTEX &)_dst);
+         if (ds < best_dist)
+         {
+             best_dist = ds;
+-            bestTraceNode = this;
++            if (!material) bestTraceNode = this;
+         }
+     }
+     return best_dist;
+diff --git a/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp b/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp
+index bc256db..0631c7f 100644
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp
+@@ -1514,7 +1514,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
+         if (automatic) continue;
+         if (receiver.bounded && !storm_ship_hull::rayBounds(receiver.bounds,
+             {camera.x, camera.y, camera.z}, {end.x, end.y, end.z})) continue;
+-        const float hit = ship->Trace(camera, end);
++        const float hit = ship->GetModel()->TraceLaserMaterial(camera, end);
+         if (hit >= 0.f && hit < nearest) { nearest = hit; target = ship; worldTarget = 0; }
+     }
+     phonkLaser.endpoint = camera + (end - camera) * nearest;
+@@ -1557,7 +1557,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
+             auto *ship = candidate.ship;
+             if (candidate.bounded && !storm_ship_hull::rayBounds(candidate.bounds,
+                 {muzzle.x, muzzle.y, muzzle.z}, {rayEnd.x, rayEnd.y, rayEnd.z})) continue;
+-            const float hit = ship->Trace(muzzle, rayEnd);
++            const float hit = ship->GetModel()->TraceLaserMaterial(muzzle, rayEnd);
+             if (hit >= 0.f && hit < fraction)
+             { fraction = hit; receiver = ship; worldReceiver = 0; ray.fragment = {}; }
+         }
+diff --git a/experiments/native-metal/ship_laser_geometry.hpp b/experiments/native-metal/ship_laser_geometry.hpp
+index 45fac79..41e57ad 100644
+--- a/experiments/native-metal/ship_laser_geometry.hpp
++++ b/experiments/native-metal/ship_laser_geometry.hpp
+@@ -133,9 +133,9 @@ inline Fragment fragmentProperties(const Mesh&mesh) {
+             first=false;}}
+     result.surfaceArea=float(area);result.centroid=area>1.e-12?Vec3{float(x/area),float(y/area),float(z/area)}:(result.bounds.lo+result.bounds.hi)*.5f;return result;
+ }
+-// Render-only thickness for explicitly classified structural wood. Canonical
+-// cut/collision meshes never contain these faces, so reconstruction cannot grow
+-// another inner shell on every saved cut. Open holds and ports stay open.
++// Thickness for explicitly classified structural wood. Ordinary canonical
++// collision and structural accounting keep the authored shell; laser material
++// queries include its inner skin. Reconstruction must not grow another shell.
+ inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses,const std::map<PositionKey,float>*depthLimits=nullptr,const std::map<PositionKey,Vec3>*offsetNormals=nullptr) {
+     Mesh result=mesh;
+     using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;
+@@ -382,7 +382,7 @@ struct MaterialPrism {std::array<Vec3,6>vertices;int object=0;};
+ bool timberSectionCaps(const std::vector<MaterialPrism>&,const std::vector<Plane>&,const storm_ship_hull::Plane&,const std::vector<storm_ship_hull::Plane>&,Vec3,bool,Mesh&,Mesh&);
+ struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const SurfaceBase>original;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;};
+ struct Input {std::shared_ptr<const Surface>surface;std::map<int,float>wood;Plane plane;unsigned fragmentLimit=0;Vec3 supportAxis{};bool hasSupportAxis=false,enclosedFragments=true;double closedVolume=0;uint64_t generation=0,revision=0;};
+-struct Projection {std::shared_ptr<const Surface>kept;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,retainedSupport;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0;bool enclosedFragments=true;};
++struct Projection {std::shared_ptr<const Surface>kept;Mesh canonical,render;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0;bool enclosedFragments=true;};
+ struct FragmentInput {Input input;uint64_t owner=0,generation=0,token=0;unsigned successorLimit=0;};
+ struct FragmentPiece {Fragment properties;std::shared_ptr<const Surface>surface;FaceIndex collision;};
+ struct FragmentProjection {uint64_t owner=0,generation=0,token=0;bool changed=false;std::vector<FragmentPiece>successors;};
+@@ -632,7 +632,11 @@ inline bool beamSeversSupport(const Mesh&before,const Mesh&after,const std::vect
+ }
+ inline bool prepare(const Input&input,Projection&output){
+     if(!input.surface||!input.fragmentLimit||!valid(input.plane))return false;Projection next;next.generation=input.generation;next.revision=input.revision;next.plane=input.plane;next.enclosedFragments=input.enclosedFragments;
+-    auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;if(cut.detachedArea<=1.e-7f||cut.keptArea+cut.detachedArea<=1.e-7f){output=std::move(next);return true;}
++    auto cut=splitSurface(*input.surface,input.plane,input.wood);if(!cut.complete)return false;
++    float removedInterior=0;for(const auto&o:cut.detached.interior)for(const auto&t:o.second)removedInterior+=storm_ship_hull::area(t);
++    // A partial bore can remove inner timber before reaching the outer shell.
++    // Publish that real material change without charging it as canonical damage.
++    if((cut.detachedArea<=1.e-7f&&removedInterior<=1.e-7f)||cut.keptArea+cut.detachedArea<=1.e-7f){output=std::move(next);return true;}
+     std::vector<Surface>released;if(input.enclosedFragments&&!input.plane.beams.empty())released=detachEnclosed(*input.surface,cut.kept);
+     auto groups=surfaceFragments(std::move(cut.detached),input.plane,input.fragmentLimit,input.wood);if(groups.size()+released.size()>input.fragmentLimit)return false;
+     for(auto&piece:released){const auto mesh=canonicalMesh(piece);for(const auto&o:mesh)for(const auto&t:o.second)cut.detachedArea+=storm_ship_hull::area(t);groups.push_back(std::move(piece));}
+@@ -643,7 +647,7 @@ inline bool prepare(const Input&input,Projection&output){
+     next.result.fragments.reserve(groups.size());next.fragmentRender.reserve(groups.size());size_t groupIndex=0;for(const auto&piece:groups){auto canonical=canonicalMesh(piece);if(input.closedVolume>1.e-6&&(cut.detachedVolumes.empty()||groupIndex>0)){const double volume=closedCutVolume(canonical);if(volume<=0)return false;detachedVolume+=volume;}++groupIndex;
+         next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));if(!input.plane.beams.empty())for(const auto&o:piece.outer)for(const auto&t:o.second)next.result.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}
+     if(input.closedVolume>1.e-6){next.keptVolume=closedCutVolume(next.canonical);if((keptArea>1.e-7f&&next.keptVolume<=0)||std::abs(input.closedVolume-next.keptVolume-detachedVolume)>std::max(.001,input.closedVolume*1.e-5))return false;next.result.volumeBased=true;next.result.removedFraction=float(std::clamp(detachedVolume/input.closedVolume,0.,1.));}
+-    next.collision=indexFaces(next.canonical);if(!cut.kept.released.empty()){next.retainedSupport=indexFaces(cut.kept.outer);for(const auto&piece:cut.kept.released)next.releasedSupport.push_back(indexFaces(*piece));}next.kept=std::make_shared<const Surface>(std::move(cut.kept));output=std::move(next);return true;
++    next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());if(!cut.kept.released.empty()){next.retainedSupport=indexFaces(cut.kept.outer);for(const auto&piece:cut.kept.released)next.releasedSupport.push_back(indexFaces(*piece));}next.kept=std::make_shared<const Surface>(std::move(cut.kept));output=std::move(next);return true;
+ }
+ 
+ // A born fragment owns exactly the uploaded boundary, including inner timber

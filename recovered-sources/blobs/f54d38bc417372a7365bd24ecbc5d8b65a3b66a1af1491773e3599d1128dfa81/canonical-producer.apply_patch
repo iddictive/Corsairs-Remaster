@@ -1,0 +1,162 @@
+*** Begin Patch
+*** Add File: /REQUIRED_EXTERNAL_INPUT/Corsairs/tools/rewrite_metal_zip64.py
++#!/usr/bin/env python3
++"""Rewrite native ditto ZIP records with automatic ZIP64 and explicit AppleDouble."""
++
++import argparse
++import ctypes as C
++import json
++import os
++from pathlib import Path, PurePosixPath
++import stat
++import sys
++import unicodedata
++import zlib
++
++
++def rewrite(source, destination, inventory, source_root):
++    root = Path(source_root).resolve(strict=True)
++    if not root.is_dir():
++        raise ValueError(f'Frozen payload root is not a directory: {root}')
++    lib = C.CDLL('/usr/lib/libarchive.2.dylib')
++    P, I, S, Z = C.c_void_p, C.c_int, C.c_char_p, C.c_size_t
++
++    def bind(name, result, *args):
++        fn = getattr(lib, name)
++        fn.restype, fn.argtypes = result, args
++        return fn
++
++    new_r = bind('archive_read_new', P)
++    new_w = bind('archive_write_new', P)
++    error = bind('archive_error_string', S, P)
++    version = bind('archive_version_string', S)
++    support = bind('archive_read_support_format_zip_streamable', I, P)
++    option_r = bind('archive_read_set_format_option', I, P, S, S, S)
++    open_r = bind('archive_read_open_fd', I, P, I, Z)
++    next_header = bind('archive_read_next_header', I, P, C.POINTER(P))
++    read_data = bind('archive_read_data', C.c_ssize_t, P, P, Z)
++    name = bind('archive_entry_pathname_utf8', S, P)
++    mode = bind('archive_entry_mode', C.c_uint, P)
++    symlink = bind('archive_entry_symlink_utf8', S, P)
++    set_mode = bind('archive_entry_set_mode', None, P, C.c_uint)
++    set_symlink = bind('archive_entry_set_symlink_utf8', None, P, S)
++    format_w = bind('archive_write_set_format_zip', I, P)
++    option_w = bind('archive_write_set_format_option', I, P, S, S, S)
++    open_w = bind('archive_write_open_fd', I, P, I)
++    header_w = bind('archive_write_header', I, P, P)
++    data_w = bind('archive_write_data', C.c_ssize_t, P, P, Z)
++    finish_w = bind('archive_write_finish_entry', I, P)
++    close_w = bind('archive_write_close', I, P)
++    fail_w = bind('archive_write_fail', I, P)
++    free_w = bind('archive_write_free', I, P)
++    free_r = bind('archive_read_free', I, P)
++
++    def check(result, archive, operation):
++        if result < 0:
++            detail = (error(archive) or b'unknown').decode('utf-8', errors='replace')
++            raise RuntimeError(f'{operation}: {detail} ({result})')
++        return result
++
++    def disk_path(pathname):
++        path = PurePosixPath(pathname)
++        if not path.parts or path.is_absolute() or '..' in path.parts:
++            raise ValueError(f'Unsafe archive path: {pathname!r}')
++        parts = path.parts
++        metadata = parts[0] == '__MACOSX'
++        if metadata:
++            parts = parts[1:]
++            if parts and parts[-1].startswith('._'):
++                parts = (*parts[:-1], parts[-1][2:])
++        target = root.joinpath(*parts)
++        if not target.resolve(strict=True).is_relative_to(root):
++            raise ValueError(f'Archive path escapes frozen payload: {pathname!r}')
++        return target, metadata
++
++    created = []
++    r = w = None
++    complete = False
++    try:
++        # Exclusive creation protects existing archives, inventories and symlinks.
++        with Path(source).open('rb') as src, Path(destination).open('xb') as dst:
++            created.append(Path(destination))
++            with Path(inventory).open('x', encoding='utf-8') as manifest:
++                created.append(Path(inventory))
++                r, w = new_r(), new_w()
++                if not r or not w:
++                    raise RuntimeError('Cannot allocate libarchive reader/writer')
++                check(support(r), r, 'ZIP streaming reader')
++                check(option_r(r, b'zip', b'mac-ext', None), r, 'Retain AppleDouble')
++                check(open_r(r, src.fileno(), 1024 * 1024), r, 'Open source')
++                check(format_w(w), w, 'ZIP writer')
++                check(option_w(w, b'zip', b'compression-level', b'6'), w, 'Deflate level')
++                # Automatic ZIP64: forced local ZIP64 breaks native ditto for small entries.
++                check(open_w(w, dst.fileno()), w, 'Open destination')
++                buf, entry, entries = C.create_string_buffer(1024 * 1024), P(), []
++                while True:
++                    status = next_header(r, C.byref(entry))
++                    if status == 1:
++                        break
++                    check(status, r, 'Read header')
++                    raw_name = name(entry)
++                    if raw_name is None:
++                        raise ValueError('Archive member has no UTF-8 pathname')
++                    pathname = raw_name.decode('utf-8')
++                    disk, metadata = disk_path(pathname)
++                    is_link = False
++                    if not metadata:
++                        disk_stat = disk.lstat()
++                        set_mode(entry, disk_stat.st_mode)
++                        is_link = stat.S_ISLNK(disk_stat.st_mode)
++                        if is_link:
++                            set_symlink(entry, os.fsencode(os.readlink(disk)))
++                    check(header_w(w, entry), w, f'Write {pathname}')
++                    crc, byte_count = 0, 0
++                    while True:
++                        n = check(read_data(r, buf, len(buf)), r, f'Read {pathname}')
++                        if not n:
++                            break
++                        crc = zlib.crc32(C.string_at(buf, n), crc)
++                        byte_count += n
++                        if not is_link:
++                            written = check(data_w(w, buf, n), w, f'Write data {pathname}')
++                            if written != n:
++                                raise RuntimeError(f'Short write: {pathname}')
++                    check(finish_w(w), w, f'Finish {pathname}')
++                    entries.append({'name': unicodedata.normalize('NFC', pathname),
++                                    'size': byte_count, 'crc': crc, 'mode': mode(entry),
++                                    'symlink': (symlink(entry) or b'').decode('utf-8')})
++                    if len(entries) % 5000 == 0:
++                        print(f'{len(entries)} entries rewritten', flush=True)
++                check(close_w(w), w, 'Close archive')
++                json.dump({'libarchive': version().decode(), 'entries': entries},
++                          manifest, ensure_ascii=False)
++        complete = True
++        print(f'Complete: {len(entries)} entries; {Path(destination).stat().st_size} bytes')
++    finally:
++        if w:
++            if not complete:
++                fail_w(w)
++            free_w(w)
++        if r:
++            free_r(r)
++        if not complete:
++            for path in created:
++                path.unlink(missing_ok=True)
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('source', type=Path, help='Native ditto ZIP input; local records may exceed ZIP32')
++    parser.add_argument('destination', type=Path, help='New public ZIP path; must not exist')
++    parser.add_argument('inventory', type=Path, help='New JSON inventory path; must not exist')
++    parser.add_argument('source_root', type=Path, help='Frozen payload directory used by ditto')
++    args = parser.parse_args()
++    try:
++        rewrite(args.source, args.destination, args.inventory, args.source_root)
++    except (OSError, RuntimeError, ValueError) as exc:
++        parser.exit(1, f'Error: {exc}\n')
++
++
++if __name__ == '__main__':
++    main()
+*** End Patch

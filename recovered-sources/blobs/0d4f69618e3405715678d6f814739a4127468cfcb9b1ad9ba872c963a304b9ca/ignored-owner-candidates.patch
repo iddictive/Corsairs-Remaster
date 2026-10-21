@@ -1,0 +1,131 @@
+--- a/tools/export_metal_bundle.py
++++ b/tools/export_metal_bundle.py
+@@ -23,6 +23,7 @@
+ import sys
+ from pathlib import Path
+ 
++from metal_storage import ensure_space, owned_output, tree_bytes
+ 
+ BUILD_COMMAND = """#!/bin/bash
+ set -euo pipefail
+@@ -302,7 +303,7 @@
+             else:
+                 sys.exit(
+                     f"Error: Clone failed for {src} -> {dst} leaving partial target. "
+-                    "Preserving partial destination per cleanup policy."
++                    "Export will remove its owned partial destination."
+                 )
+     else:
+         res = subprocess.run(
+@@ -316,7 +317,7 @@
+             else:
+                 sys.exit(
+                     f"Error: Clone failed for {src} -> {dst} leaving partial target. "
+-                    "Preserving partial destination per cleanup policy."
++                    "Export will remove its owned partial destination."
+                 )
+ 
+ 
+@@ -433,18 +434,30 @@
+     validate_destination(dest_bundle, repo_root)
+     validate_inputs(repo_root)
+ 
++    # Conservative copy bound: repository objects/source, offline inputs and all
++    # minimal-cache candidates. APFS clones may save space but are not required.
++    tracked = subprocess.check_output(
++        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
++        cwd=repo_root,
++    ).decode("utf-8").split("\0")
++    roots = [repo_root / name for name in tracked if name and (repo_root / name).is_file()]
++    roots.extend((repo_root / ".git", repo_root / "experiments/native-metal/inputs"))
++    cache = repo_root / "experiments/native-metal/.cache"
++    roots.extend(cache / name for name in (
++        "runtime", "userdata", "material-originals", "gameplay-baseline",
++        "portobello-ground-original.gm", "portobello-town-original.gm",
++    ) if (cache / name).exists())
++    ensure_space(sum(tree_bytes(path) for path in roots) + 64 * 1024 * 1024,
++                 path=dest_bundle)
++
+     print(f"Exporting Metal bundle to: {dest_bundle}")
+-    dest_bundle.mkdir(parents=True, exist_ok=False)
+-
+-    try:
++    with owned_output(dest_bundle, "directory"):
+         dest_source = dest_bundle / "source"
+         export_source(repo_root, dest_source)
+         export_inputs(repo_root, dest_source)
+         export_minimal_cache(repo_root, dest_source)
+         write_root_artifacts(dest_bundle)
+         print("Metal bundle export completed successfully.")
+-    except Exception as e:
+-        sys.exit(f"Export failed: {e}. Preserving partial destination for inspection.")
+ 
+ 
+ if __name__ == "__main__":
+--- a/docs/metal-remaster-delivery.md
++++ b/docs/metal-remaster-delivery.md
+@@ -245,34 +245,44 @@
+ 
+ ## Public ZIP producer
+ 
+-`tools/rewrite_metal_zip64.py` is the canonical local producer for the public ZIP.
+-It consumes native ditto local records and their **unchanged frozen payload**,
++`tools/package_metal_release.py` owns the public release lifecycle. It exports
++the app directly into one scratch payload, creates the native metadata ZIP,
++uses `tools/rewrite_metal_zip64.py`, then performs native extraction and the
++existing full inventory/CRC/mode/link/xattr check in `tools/verify_metal_archive.py`,
++followed by deep/strict signing verification and isolated relocated `--stage-only`. Only after these
++checks does it publish the final archive. Its scratch directory under `dist`
++is removed on success, failure and interruption; the compact `.receipt.json`
++beside the requested archive retains the phase, result and successful digests.
++Existing archives and receipts are never overwritten. Public app and private
++development-bundle exports likewise remove only their own failed partial output.
++
++The rewriter consumes native ditto local records and their **unchanged frozen payload**,
+ retains explicit AppleDouble members, restores POSIX modes and symlink identity
+ from that payload, and lets system libarchive select ZIP64 automatically.
+ Use new output and inventory paths; the tool refuses existing files and removes
+ only its newly created partial outputs if conversion fails.
+ 
+-Freeze the signed public app, player changelog and installation text together in
+-an ignored release directory's `archive-work/payload`. Do not put SAVE, userdata,
+-logs or private profiles in that payload. In this example, `release_dir` must
+-name a new batch directory; do not rerun it over an existing release.
++Freeze the signed public app, player changelog and reviewed installation text
++together through the producer as `Что изменилось.md` and `Установка.txt`.
++The changelog defaults to `docs/changelog-ru.md`;
++installation text remains an explicit input because there is no maintained
++standalone installation-text source. Do not put SAVE, userdata, logs or private
++profiles in the payload. In this example, choose a new archive path and provide
++the reviewed player installation text:
+ 
+ ```bash
+-release_dir=dist/releases/2026-10-11
+-/usr/bin/ditto -c -k --sequesterRsrc --zlibCompressionLevel 0 \
+-  "$release_dir/archive-work/payload" "$release_dir/archive-work/native-metadata.zip"
+-python3 tools/rewrite_metal_zip64.py \
+-  "$release_dir/archive-work/native-metadata.zip" \
+-  "$release_dir/Corsairs-Iddictive-Remaster-macOS.zip" \
+-  "$release_dir/archive-work/zip-inventory.json" \
+-  "$release_dir/archive-work/payload"
+-/usr/bin/ditto -x -k "$release_dir/Corsairs-Iddictive-Remaster-macOS.zip" \
+-  "$release_dir/archive-work/extracted"
+-/usr/bin/codesign --verify --deep --strict \
+-  "$release_dir/archive-work/extracted/Corsairs Iddictive Remaster.app"
+-"$release_dir/archive-work/extracted/Corsairs Iddictive Remaster.app/Contents/MacOS/launch" \
+-  --stage-only --user-dir "$release_dir/archive-work/isolated-profile"
++python3 tools/package_metal_release.py \
++  --output dist/releases/new-batch/Corsairs-Iddictive-Remaster-macOS.zip \
++  --installation-text path/to/reviewed-installation.txt
+ ```
++
++Preflight reserves `4 × payload bound + 1 GiB`, in addition to the storage
++owner's minimum free-space floor. The payload bound counts logical source bytes
++plus per-entry slack and the whole Python framework (including excluded modules),
++with 64 MiB for generated app content. The four simultaneous copies are the
++app payload, native metadata ZIP, public ZIP and native extraction. Isolated
++staging links the large resource trees. APFS clone savings are never required.
++App and private-bundle exporters reserve their own conservative copy bound.
+ 
+ The native metadata ZIP is an intermediate, never the public download: ditto's
+ ZIP32 end records wrap above 4 GiB or 65,535 members. Bare libarchive ZIP does

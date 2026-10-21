@@ -1,0 +1,154 @@
+--- a/src/libs/location/src/model_realizer.cpp
++++ b/src/libs/location/src/model_realizer.cpp
+@@ -3,6 +3,11 @@
+ #include "core.h"
+ #include "c_vector4.h"
+ #include "lights.h"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
++extern "C" void StormMetalEndLandModel(void*, unsigned);
++#endif
++
+ 
+ // ============================================================================================
+ // Construction, destruction
+@@ -61,7 +66,13 @@
+             rs->LightEnable(0, TRUE);
+         }
+ 
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        const unsigned previousLandScope = StormMetalBeginLandModel(rs->GetD3DDevice(), 1);
++#endif
+         pE->ProcessStage(Stage::realize, delta_time);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++        StormMetalEndLandModel(rs->GetD3DDevice(), previousLandScope);
++#endif
+         if (lights)
+         {
+             lights->UnsetLights();
+--- a/src/libs/model/src/model.cpp
++++ b/src/libs/model/src/model.cpp
+@@ -1,6 +1,11 @@
+ #include "core.h"
+ #include "entity.h"
+ #include "modelr.h"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" unsigned StormMetalBeginLandModel(void*, unsigned);
++extern "C" void StormMetalEndLandModel(void*, unsigned);
++#endif
++
+ #include "shared/messages.h"
+ 
+ #ifdef _WIN32 // FIX_LINUX DirectXMath
+@@ -169,6 +174,14 @@
+ 
+ void MODELR::Realize(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    // RAII also restores a surrounding static-location scope on early returns.
++    struct LandScope {
++        void* device; unsigned previous; bool active;
++        ~LandScope() { if (active) StormMetalEndLandModel(device, previous); }
++    } landScope{rs->GetD3DDevice(), 0, ani != nullptr};
++    if (landScope.active) landScope.previous = StormMetalBeginLandModel(landScope.device, 2);
++#endif
+     // GUARD(MODELR::Realize)
+     if (!root)
+         return;
+--- a/src/libs/shadow/src/shadow.cpp
++++ b/src/libs/shadow/src/shadow.cpp
+@@ -8,6 +8,9 @@
+ dynamic shadow cpp file
+ ******************************************************************************/
+ #include "shadow.h"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++extern "C" bool StormMetalLandShadowResolved(void*);
++#endif
+ 
+ #include "core.h"
+ #include "shared/messages.h"
+@@ -136,6 +139,10 @@
+ //------------------------------------------------------------------------------------
+ void Shadow::Realize(uint32_t Delta_Time)
+ {
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    // Keep the legacy fallback unless the earlier complete land pass succeeded.
++    if (StormMetalLandShadowResolved(rs->GetD3DDevice())) return;
++#endif
+     auto *obj = static_cast<MODEL *>(core.GetEntityPointer(entity));
+     if (!obj)
+         return;
+--- a/src/libs/location/src/location.h
++++ b/src/libs/location/src/location.h
+@@ -167,6 +167,9 @@
+     bool isDebugView;
+ 
+     VDX9RENDER *rs;
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    entid_t metalLandLighting = {};
++#endif
+ 
+     // All models
+     ModelArray model;
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -19,6 +19,32 @@
+ 
+ #include "c_vector4.h"
+ #include "shared/messages.h"
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++#include <cstring>
++extern "C" void StormMetalLandLocation(void*, bool);
++extern "C" bool StormMetalResolveLandLighting(void*);
++// Resolve after outdoor geometry (default/9) and characters (20), before
++// legacy character shadows (900) and blended overlays. Interior model priorities
++// differ (65538 etc.), so those keep their original lighting and shadow pipeline.
++class MetalLandLighting : public Entity {
++public:
++    ATTRIBUTES* locationAttributes = nullptr;
++    VDX9RENDER* renderer = nullptr;
++    bool Init() override { return true; }
++    void ProcessStage(Stage stage, uint32_t) override {
++        if (!renderer) return;
++        if (stage == Stage::execute) {
++            const char* type = locationAttributes ? locationAttributes->GetAttribute("type") : nullptr;
++            const bool outdoor = type && (!std::strcmp(type,"town") || !std::strcmp(type,"jungle") || !std::strcmp(type,"shore"));
++            StormMetalLandLocation(renderer->GetD3DDevice(), outdoor);
++        } else if (stage == Stage::realize) {
++            StormMetalResolveLandLighting(renderer->GetD3DDevice());
++        }
++    }
++};
++CREATE_CLASS(MetalLandLighting)
++#endif
++
+ 
+ float fCausticScale, fCausticDelta, fFogDensity, fCausticDistance;
+ CVECTOR4 v4CausticColor;
+@@ -60,6 +86,10 @@
+ 
+ Location::~Location()
+ {
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    core.EraseEntity(metalLandLighting);
++    if (metalLandLighting && rs) StormMetalLandLocation(rs->GetD3DDevice(), false);
++#endif
+     if (!AttributesPointer)
+         return;
+     auto *const atr = AttributesPointer->FindAClass(AttributesPointer, "locators");
+@@ -89,6 +119,15 @@
+     if (!rs)
+         throw std::runtime_error("No service: dx9render");
+     rs->SetRenderState(D3DRS_LIGHTING, FALSE);
++#ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
++    metalLandLighting = core.CreateEntity("MetalLandLighting");
++    if (auto* pass = static_cast<MetalLandLighting*>(core.GetEntityPointer(metalLandLighting))) {
++        pass->renderer = rs;
++        pass->locationAttributes = AttributesPointer;
++        core.AddToLayer(EXECUTE, metalLandLighting, 11);
++        core.AddToLayer(REALIZE, metalLandLighting, 25);
++    }
++#endif
+ 
+     // core.LayerCreate("execute", true, false);
+     core.SetLayerType(EXECUTE, layer_type_t::execute);

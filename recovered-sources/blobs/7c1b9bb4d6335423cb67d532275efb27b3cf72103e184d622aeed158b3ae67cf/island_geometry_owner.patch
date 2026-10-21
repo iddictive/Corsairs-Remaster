@@ -1,0 +1,30 @@
+Canonical render-owner patch plan (source-only; apply to the Storm snapshot, not
+to native-metal/backend.mm)
+
+Owner: .cache/storm/src/libs/geometry/src/geom_static.cpp, GEOM::GEOM()
+after each RDF vertex buffer is read at the existing block around lines 221-241.
+The GEOM constructor owns GPU render vertex buffers and separately loads BSP
+collision data into `vrt`/`btrg`; GEOM::GetCollisionDetails() reads only the BSP
+arrays. The model layer calls GEOM::Draw(), which binds `vbuff` and `idx_buff`.
+
+Required patch contract:
+
+1. Gate by the island model path (`.../RESOURCE/MODELS/Islands/...`) and an
+   opt-in setting, preserving the default byte-for-byte path.
+2. Build an adjacency map from the already-loaded render index buffer and the
+   object/material ranges. For each triangle, refuse the transform when any
+   vertex is at/below the model sea datum or the three material IDs differ.
+3. Derive the sea datum from the island's beach strip (Antigua rounds the beach
+   minimum -0.0412 to 0.0); do not use camera height or island bounding-box
+   fractions. Lock exact boundary edges from the index adjacency.
+4. Apply the sidecar's one-pass slope transform to render positions and, if a
+   tessellation path is added, allocate a new render-only index/vertex packet.
+   Keep `vrt`/`btrg` and all collision calls unchanged.
+5. Preserve each render vertex's UV and material range. Any subdivision must
+   interpolate UVs within a single source triangle and duplicate vertices across
+   material/UV seams.
+
+The Python helper in island_geometry.py emits the exact before/after render
+packet and is the fixture oracle. The current repository snapshot has no small
+model-upload adapter above GEOM::Draw(); therefore this file is a source-owner
+integration contract, not a claim that a sidecar alone changes the game.

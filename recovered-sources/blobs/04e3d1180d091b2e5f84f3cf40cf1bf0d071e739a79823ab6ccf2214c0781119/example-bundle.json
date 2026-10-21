@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "source": "real-game-replay",
+  "synthetic": false,
+  "build": {
+    "executable_sha256": "replace-with-sha256",
+    "engine_revision": "replace-with-revision",
+    "patch_set_sha256": "replace-with-sha256",
+    "resource_manifest_sha256": "replace-with-sha256",
+    "backbuffer": "2056x1329",
+    "device": "Apple M3 Max"
+  },
+  "artifact_sha256": {},
+  "scenes": []
+}

@@ -1,0 +1,77 @@
+diff --git a/src/libs/weather/src/sky.cpp b/src/libs/weather/src/sky.cpp
+--- a/src/libs/weather/src/sky.cpp
++++ b/src/libs/weather/src/sky.cpp
+@@ -4,6 +4,40 @@
+ #include "attributes.h"
+ #include "math_inlines.h"
++#include <algorithm>
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++extern "C" bool StormMetalBeginDynamicSky(void *device, float hour, float deltaSeconds, float cloudCoverage,
++                                            float cloudDensity, float windAngle, float windSpeed,
++                                            float legacyTextureBlend);
++extern "C" void StormMetalEndDynamicSky(void *device);
++
++class MetalDynamicSkyScope
++{
++  public:
++    MetalDynamicSkyScope(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime)
++        : device(renderer->GetD3DDevice())
++    {
++        if (!weather)
++            return;
++        const auto rain = weather->GetVisualRainIntensity();
++        active = StormMetalBeginDynamicSky(device, weather->GetFloat(whf_time_counter),
++                                           static_cast<float>(deltaTime) * 0.001f, 0.32f + rain * 0.58f,
++                                           0.48f + rain * 0.45f,
++                                           weather->GetVisualFloat(whf_wind_angle),
++                                           weather->GetVisualFloat(whf_wind_speed), 0.16f);
++    }
++    ~MetalDynamicSkyScope()
++    {
++        if (active)
++            StormMetalEndDynamicSky(device);
++    }
++
++  private:
++    void *device = nullptr;
++    bool active = false;
++};
++#endif
++
+ namespace
+ {
+ 
+@@ -337,6 +371,12 @@ void SKY::Realize(uint32_t Delta_Time)
+     pMatWorld = pMatRotate * pMatWorld;
+     pRS->SetTransform(D3DTS_WORLD, pMatWorld);
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++    WEATHER_BASE *metalWeather = nullptr;
++    if (const auto weatherId = core.GetEntityId("weather"))
++        metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
++#endif
++
+     if (aSkyDirArray.size() > 1)
+     {
+         UpdateTimeFactor();
+@@ -347,6 +387,9 @@ void SKY::Realize(uint32_t Delta_Time)
+         uint32_t dwColor = (dwSkyColor & 0x00FFFFFF) | (static_cast<int32_t>(0xFF000000 * fBlendFactor) & 0xFF000000);
+         pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
++#endif
+         if (pRS->TechniqueExecuteStart(sTechSkyBlend.c_str()))
+             do
+             {
+@@ -405,6 +448,9 @@ void SKY::Realize(uint32_t Delta_Time)
+     {
+         pRS->SetRenderState(D3DRS_TEXTUREFACTOR, dwSkyColor);
+ 
++#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
++        MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
++#endif
+         if (pRS->TechniqueExecuteStart(sTechSky.c_str()))
+             do
+             {

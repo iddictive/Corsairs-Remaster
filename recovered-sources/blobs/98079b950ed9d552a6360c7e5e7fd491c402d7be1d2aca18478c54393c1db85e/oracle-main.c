@@ -1,0 +1,25 @@
+
+ InterfaceStates.Launched=false;makeref(pchar,Characters[0]);nMainCharacterIndex=0;pchar.id="ControlOracleHero";pchar.index=0;
+ aref saved;
+ ControlProbe_SeedOld(false);
+ makearef(saved,controlProbeOptions.controls);
+ RestoreKeysFromOptions(saved);
+ bool oldHasBoat=CheckAttribute(&objControlsState,"keygroups.PortRowboat");
+ if(ControlProbe_MappedKey("ChrForward")!=87 || ControlProbe_MappedKey("ChrBackward")!=83 || ControlProbe_MappedKey("ChrStrafeLeft")!=65 || ControlProbe_MappedKey("ChrStrafeRight")!=68 || ControlProbe_MappedKey("ChrRun")!=82 || ControlProbe_MappedKey("Ship_TurnLeft1")!=85)Trace("PROBE_FAILED old saved binding changed");
+ if(sti(objControlsState.map.controls.ChrForward)==501)Trace("PROBE_FAILED stale saved native ID trusted");
+ pchar.PortTravel.mode="boat";procUpdateControlKeyGroup();
+ FreezeGroupControls("PortRowboat",false);
+ Trace("FACT old_has_boat="+oldHasBoat+" group="+curKeyGroupName+" movement_locked="+ControlProbe_AllMovementLocked()+" movement_unlocked="+ControlProbe_AllMovementUnlocked());
+ if(!oldHasBoat && ControlProbe_AllMovementLocked())Trace("EXPECTED_FAIL oldSAVE has no PortRowboat and WASD controls stay locked");
+ int count=controlProbeNextId;int forward=ControlNameToCode("ChrForward");
+ RestoreKeysFromOptions(saved);
+ Trace("FACT repeated_restore_registry_stable="+(controlProbeNextId==count)+" forward_id_stable="+(ControlNameToCode("ChrForward")==forward));
+ ControlProbe_SeedOld(true);makearef(saved,controlProbeOptions.controls);RestoreKeysFromOptions(saved);
+ bool restoredQ=ControlProbe_MappedKey("PortTravelAction")==81;
+ Trace("FACT custom_restore_keeps_Q="+restoredQ+" mapped="+ControlProbe_MappedKey("PortTravelAction"));
+ if(!restoredQ)Trace("PROBE_FAILED restore alone reset custom Q");
+ Port_RegisterControls();
+ bool registeredQ=ControlProbe_MappedKey("PortTravelAction")==81;
+ Trace("FACT explicit_register_keeps_Q="+registeredQ+" mapped="+ControlProbe_MappedKey("PortTravelAction"));
+ if(!registeredQ && ControlProbe_MappedKey("PortTravelAction")==69)Trace("EXPECTED_FAIL naive late Port_RegisterControls overwrites saved Q with E");
+ Trace("CONTROL_OLD_SAVE_ORACLE_FINISHED");ExitProgram();

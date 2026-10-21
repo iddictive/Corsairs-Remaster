@@ -1,0 +1,38 @@
+*** Begin Patch
+*** Update File: experiments/native-metal/ship_hull_convex_material.hpp
+@@
+ inline bool traceBody(const Body&body,Vec3 start,Vec3 end,float&fraction,Vec3&normal){bool hit=false;const auto direction=end-start;const auto box=storm_ship_hull::merge(Bounds{start,start},{end,end});forEachBodyPiece(body,box,[&](const Piece&piece){float low=0,high=std::min(1.f,fraction);Vec3 entry=storm_ship_hull::normalized(direction)*-1.f;for(const auto&face:piece.faces){const float distance=face.plane.distance-storm_ship_hull::dot(face.plane.normal,start),slope=storm_ship_hull::dot(face.plane.normal,direction);if(std::abs(slope)<1.e-12f){if(distance<0)return;continue;}const float t=distance/slope;if(slope<0){if(t>low){low=t;entry=face.plane.normal;}}else high=std::min(high,t);if(low>high)return;}if(low<=high&&low<=fraction){fraction=low;normal=entry;hit=true;}});return hit;}
+ inline void measureBody(Body&body){bool first=true;double total=0;Vec3 moment{};body.surfaceArea=0;const auto add=[&](const Piece&piece){body.bounds=first?piece.bounds:storm_ship_hull::merge(body.bounds,piece.bounds);first=false;total+=piece.volume;moment=moment+center(piece)*float(piece.volume);for(const auto&face:piece.faces)body.surfaceArea+=polygonArea(face.vertices);};
+     if(body.reference){for(auto id:body.supports){const auto&value=body.reference->supportMeasures.at(id);if(value.volume<=0)continue;body.bounds=first?value.bounds:storm_ship_hull::merge(body.bounds,value.bounds);first=false;total+=value.volume;moment=moment+value.moment;body.surfaceArea+=value.area;}}else for(const auto&piece:body.pieces)add(piece);body.volume=total;body.centroid=total>0?moment*float(1./total):Vec3{};}
+-inline Body expandBody(const Body&body){if(!body.reference||!body.pieces.empty())return body;Body result=body;for(auto id:body.sources){const auto&cell=body.reference->cells[id];if(cell&&cell->pieces)for(auto piece:*cell->pieces)if(std::binary_search(body.supports.begin(),body.supports.end(),piece.supportCell)){for(auto&face:piece.faces)face.fresh=face.partition;result.pieces.push_back(std::move(piece));}}return result;}
++inline Body expandBody(const Body&body){if(!body.reference)return body;Body result=body;result.reference.reset();for(auto id:body.sources){const auto&cell=body.reference->cells[id];if(cell&&cell->pieces)for(auto piece:*cell->pieces)if(std::binary_search(body.supports.begin(),body.supports.end(),piece.supportCell)){for(auto&face:piece.faces)face.fresh=face.partition;result.pieces.push_back(std::move(piece));}}return result;}
+ // Defined by the material executor, after its paid-crush and role helpers.
+ inline ContactEdit tryContactEdit(const ContactSnapshot&,const Plane&,const std::map<int,float>&,double,const ContactLimits&);
+ inline bool projectContactDelta(const Input&,const PhysicalDelta&,Projection&);
+@@
+ inline bool partitionSurface(const Surface&source,const MaterialCells&retained,const std::vector<Body>&bodies,const std::map<int,float>&wood,std::vector<Surface>&out,std::set<int>*changedObjects=nullptr){
+     if(!compatible(retained))return false;std::vector<Surface>groups(bodies.size()+1);struct Ref{uint32_t body,piece;};std::vector<Ref>refs;std::vector<Bounds>boxes;
+     for(uint32_t n=0;n<bodies.size();++n)for(uint32_t p=0;p<bodies[n].pieces.size();++p){refs.push_back({n,p});boxes.push_back(bodies[n].pieces[p].bounds);}storm_ship_hull::Broadphase index;index.build(boxes);std::vector<uint32_t>nearby;Surface decoration;
+-    struct Region{uint32_t body;const Piece*piece;Bounds bounds;};std::vector<Region>regions;std::vector<Bounds>regionBounds;
+-    for(uint32_t n=0;n<bodies.size();++n){const auto&body=bodies[n];
+-        // Whole-support ownership is a spatial partition of the already cut
+-        // timber surface. Split it once per owned grid box, not once per
+-        // overlapping tetrahedron. Decoration still uses exact positive faces.
+-        if(body.reference&&body.reference->source->layout&&!body.supports.empty()){
+-            for(auto support:body.supports){const auto box=body.reference->source->layout->cells.at(support).bounds;regions.push_back({n,nullptr,box});regionBounds.push_back(box);}
+-        }else for(const auto&piece:body.pieces){regions.push_back({n,&piece,piece.bounds});regionBounds.push_back(piece.bounds);}
+-    }
+-    storm_ship_hull::Broadphase regionIndex;regionIndex.build(regionBounds);
+     const auto touchingTriangle=[&](const Triangle&t,const Piece&piece){for(const auto&face:piece.faces){std::vector<Triangle>triangles;storm_ship_hull::fan(face.vertices,triangles);for(const auto&other:triangles)if(supportTrianglesTouch(t,other))return true;}return false;};
+-    for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role)){surfaceRole(groups[0],role).try_emplace(o.first);if(!wood.count(o.first))continue;for(const auto&t:o.second){storm_geometry_work::checkpoint();std::vector<std::vector<Vertex>>remaining{{t.begin(),t.end()}};regionIndex.queryBounds(storm_ship_structure::detail::triangleBounds(t),nearby);if(changedObjects&&!nearby.empty())changedObjects->insert(o.first);
+-            for(auto id:nearby){const auto&region=regions[id];std::vector<std::vector<Vertex>>outside;for(auto polygon:remaining){
+-                    const auto split=[&](Halfspace plane){std::vector<Vertex>in,rejected;linearSplit(polygon,plane,in,rejected);if(rejected.size()>=3&&polygonArea(rejected)>1.e-12f)outside.push_back(std::move(rejected));polygon=std::move(in);};
+-                    if(region.piece){for(const auto&face:region.piece->faces){split(face.plane);if(polygon.size()<3)break;}}
+-                    else for(unsigned axis=0;axis<3&&polygon.size()>=3;++axis)for(float sign:{-1.f,1.f}){split({storm_ship_structure::axisVector(axis,sign),sign*storm_ship_structure::coordinate(sign<0?region.bounds.lo:region.bounds.hi,axis)});if(polygon.size()<3)break;}
+-                    if(polygon.size()>=3)storm_ship_hull::fan(polygon,surfaceRole(groups[region.body+1],role)[o.first]);}remaining=std::move(outside);if(remaining.empty())break;}
++    for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role)){surfaceRole(groups[0],role).try_emplace(o.first);if(!wood.count(o.first))continue;for(const auto&t:o.second){storm_geometry_work::checkpoint();std::vector<std::vector<Vertex>>remaining{{t.begin(),t.end()}};index.queryBounds(storm_ship_structure::detail::triangleBounds(t),nearby);if(changedObjects&&!nearby.empty())changedObjects->insert(o.first);
++            for(auto id:nearby){const auto ref=refs[id];const auto&piece=bodies[ref.body].pieces[ref.piece];std::vector<std::vector<Vertex>>outside;for(auto polygon:remaining){for(const auto&face:piece.faces){std::vector<Vertex>in,rejected;linearSplit(polygon,face.plane,in,rejected);if(rejected.size()>=3&&polygonArea(rejected)>1.e-12f)outside.push_back(std::move(rejected));polygon=std::move(in);if(polygon.size()<3)break;}if(polygon.size()>=3)storm_ship_hull::fan(polygon,surfaceRole(groups[ref.body+1],role)[o.first]);}remaining=std::move(outside);if(remaining.empty())break;}
+             for(const auto&polygon:remaining)storm_ship_hull::fan(polygon,surfaceRole(groups[0],role)[o.first]);}}
+     auto decorations=source.decorations;
+     if(!decorations){for(unsigned role=0;role<4;++role)for(const auto&o:surfaceRole(source,role))if(!wood.count(o.first))surfaceRole(decoration,role).emplace(o.first,o.second);prepareDecorations(decoration,wood);decorations=decoration.decorations;}
+*** End Patch

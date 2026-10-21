@@ -1,0 +1,235 @@
+diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning.cpp
+index 0c79c41..3fc89ee 100644
+--- a/src/libs/weather/src/lightning.cpp
++++ b/src/libs/weather/src/lightning.cpp
+@@ -4,6 +4,8 @@
+ 
+ LIGHTNING::LIGHTNING()
+ {
++    pRS = nullptr;
++    pCollide = nullptr;
+     iLightningTexture = -1;
+     iFlashTexture = -1;
+ }
+@@ -13,8 +15,11 @@ LIGHTNING::~LIGHTNING()
+     Release();
+ }
+ 
+-void LIGHTNING::Release() const
++void LIGHTNING::Release()
+ {
++    if (!pRS)
++        return;
++    spriteBuffer.Release(*pRS);
+     pRS->TextureRelease(iLightningTexture);
+     pRS->TextureRelease(iFlashTexture);
+ }
+@@ -93,7 +98,8 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->fSize;
+             pR->fAngle = 0.0f;
+-            pRS->DrawRects(pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX, pL->fScaleY);
++            spriteBuffer.Draw(*pRS, pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX,
++                              pL->fScaleY);
+         }
+     }
+ 
+@@ -110,7 +116,7 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->Flash.fSize;
+             pR->fAngle = 0.0f;
+-            pRS->DrawRects(pR, 1, pL->Flash.sTechnique.c_str());
++            spriteBuffer.Draw(*pRS, pR, 1, pL->Flash.sTechnique.c_str());
+         }
+     }
+ }
+diff --git a/src/libs/weather/src/lightning.h b/src/libs/weather/src/lightning.h
+index cc560f4..4bbd188 100644
+--- a/src/libs/weather/src/lightning.h
++++ b/src/libs/weather/src/lightning.h
+@@ -2,6 +2,7 @@
+ 
+ #include "weather_base.h"
+ #include "typedef.h"
++#include "weather_sprite_buffer.h"
+ #include <vector>
+ 
+ #define MAX_LIGHTNING_TEXTURES 2
+@@ -44,8 +45,9 @@ class LIGHTNING : public Entity
+     WEATHER_BASE *pWeather;
+     VDX9RENDER *pRS;
+     COLLIDE *pCollide;
++    WeatherSpriteBuffer spriteBuffer;
+ 
+-    void Release() const;
++    void Release();
+     void CalcFlashPower(lightning_t *pL) const;
+ 
+   public:
+diff --git a/src/libs/weather/src/rain.cpp b/src/libs/weather/src/rain.cpp
+index 8549bd0..f6bd7ae 100644
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -6,6 +6,8 @@
+ 
+ RAIN::RAIN()
+ {
++    rs = nullptr;
++    cs = nullptr;
+     aRects.reserve(512);
+     aDrops.reserve(512);
+     aSeaDrops.reserve(512);
+@@ -47,6 +49,8 @@ RAIN::~RAIN()
+ 
+ void RAIN::Release()
+ {
++    if (rs)
++        spriteBuffer.Release(*rs);
+     STORM_DELETE(pRainBlocks);
+     if (iVertexBuffer >= 0)
+         rs->ReleaseVertexBuffer(iVertexBuffer);
+@@ -396,7 +400,7 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
+ 
+     rs->TextureSet(0, iRainDropsTexture);
+     // rs->SetTexture(0, null);
+-    rs->DrawRects(aRects.data(), aRects.size(), "rain_drops", 8, 1);
++    spriteBuffer.Draw(*rs, aRects.data(), aRects.size(), "rain_drops", 8, 1);
+ 
+     // draw circles on the water
+     CMatrix IMatrix;
+@@ -557,7 +561,7 @@ void RAIN::Realize(uint32_t Delta_Time)
+         rs_rect.fAngle = 0.0f;
+ 
+         rs->TextureSet(0, iRainbowTex);
+-        rs->DrawRects(&rs_rect, 1, "rainbow");
++        spriteBuffer.Draw(*rs, &rs_rect, 1, "rainbow");
+     }
+ }
+ 
+diff --git a/src/libs/weather/src/rain.h b/src/libs/weather/src/rain.h
+index 9e47c99..0ec330f 100644
+--- a/src/libs/weather/src/rain.h
++++ b/src/libs/weather/src/rain.h
+@@ -4,6 +4,7 @@
+ #include "sea_base.h"
+ #include "ship_base.h"
+ #include "typedef.h"
++#include "weather_sprite_buffer.h"
+ #include <string>
+ #include <vector>
+ 
+@@ -95,6 +96,7 @@ class RAIN : public Entity
+     int32_t iSeaDropTex;
+     int32_t iIBSeaDrops;
+     int32_t iVBSeaDrops;
++    WeatherSpriteBuffer spriteBuffer;
+ 
+     VDX9RENDER *rs;
+     COLLIDE *cs;
+diff --git a/src/libs/weather/src/weather_sprite_buffer.h b/src/libs/weather/src/weather_sprite_buffer.h
+new file mode 100644
+index 0000000..9b0bbd2
+--- /dev/null
++++ b/src/libs/weather/src/weather_sprite_buffer.h
+@@ -0,0 +1,101 @@
++#pragma once
++
++#include "dx9render.h"
++
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++
++// Weather-owned replacement for DX9RENDER::DrawRects.  The weather consumers
++// submit an explicit dynamic vertex buffer, so the renderer backend never has
++// to expand RS_RECT immediate geometry or route it through Draw*UP.
++class WeatherSpriteBuffer
++{
++    struct Vertex
++    {
++        CVECTOR pos;
++        uint32_t color;
++        float u, v;
++    };
++
++    static constexpr uint32_t kCapacity = 512;
++    static constexpr uint32_t kFvf = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
++    int32_t vertexBuffer_ = -1;
++
++  public:
++    bool Ensure(VDX9RENDER &renderer)
++    {
++        if (vertexBuffer_ >= 0)
++            return true;
++        vertexBuffer_ = renderer.CreateVertexBuffer(kFvf, kCapacity * 6 * sizeof(Vertex),
++                                                     D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
++        return vertexBuffer_ >= 0;
++    }
++
++    void Release(VDX9RENDER &renderer)
++    {
++        if (vertexBuffer_ >= 0)
++            renderer.ReleaseVertexBuffer(vertexBuffer_);
++        vertexBuffer_ = -1;
++    }
++
++    void Draw(VDX9RENDER &renderer, const RS_RECT *rects, uint32_t count, const char *technique,
++              uint32_t subTexturesX = 1, uint32_t subTexturesY = 1, float scaleX = 1.f, float scaleY = 1.f)
++    {
++        if (!rects || count == 0 || !Ensure(renderer))
++            return;
++
++        CMatrix view, oldWorld, identity;
++        renderer.GetTransform(D3DTS_VIEW, view);
++        renderer.GetTransform(D3DTS_WORLD, oldWorld);
++        identity.SetIdentity();
++        scaleY *= renderer.GetHeightDeformator();
++        renderer.SetTransform(D3DTS_VIEW, identity);
++        renderer.SetTransform(D3DTS_WORLD, identity);
++
++        const uint32_t sx = std::max(1u, subTexturesX);
++        const uint32_t sy = std::max(1u, subTexturesY);
++        const float du = 1.f / static_cast<float>(sx);
++        const float dv = 1.f / static_cast<float>(sy);
++        for (uint32_t base = 0; base < count; base += kCapacity)
++        {
++            const uint32_t batch = std::min(kCapacity, count - base);
++            auto *vertices = static_cast<Vertex *>(renderer.LockVertexBuffer(vertexBuffer_, D3DLOCK_DISCARD));
++            if (!vertices)
++                break;
++            for (uint32_t i = 0; i < batch; ++i)
++            {
++                const RS_RECT &rect = rects[base + i];
++                Vertex *out = vertices + i * 6;
++                const CVECTOR pos = view * rect.vPos;
++                const float sizeX = rect.fSize * scaleX;
++                const float sizeY = rect.fSize * scaleY;
++                const float sn = sinf(rect.fAngle);
++                const float cs = cosf(rect.fAngle);
++                const float u1 = static_cast<float>(rect.dwSubTexture % sx) * du;
++                const float v1 = static_cast<float>((rect.dwSubTexture / sx) % sy) * dv;
++                const float u2 = u1 + du;
++                const float v2 = v1 + dv;
++                const CVECTOR p0 = pos + CVECTOR(sizeX * (-cs - sn), sizeY * (sn - cs), 0.f);
++                const CVECTOR p1 = pos + CVECTOR(sizeX * (-cs + sn), sizeY * (sn + cs), 0.f);
++                const CVECTOR p2 = pos + CVECTOR(sizeX * (cs + sn), sizeY * (-sn + cs), 0.f);
++                const CVECTOR p3 = pos + CVECTOR(sizeX * (cs - sn), sizeY * (-sn - cs), 0.f);
++                out[0] = {p0, rect.dwColor, u1, v2};
++                out[1] = {p1, rect.dwColor, u1, v1};
++                out[2] = {p2, rect.dwColor, u2, v1};
++                out[3] = out[0];
++                out[4] = out[2];
++                out[5] = {p3, rect.dwColor, u2, v2};
++            }
++            renderer.UnLockVertexBuffer(vertexBuffer_);
++            if (renderer.TechniqueExecuteStart(technique))
++            {
++                do
++                    renderer.DrawPrimitive(D3DPT_TRIANGLELIST, vertexBuffer_, sizeof(Vertex), 0, batch * 2);
++                while (renderer.TechniqueExecuteNext());
++            }
++        }
++        renderer.SetTransform(D3DTS_VIEW, view);
++        renderer.SetTransform(D3DTS_WORLD, oldWorld);
++    }
++};

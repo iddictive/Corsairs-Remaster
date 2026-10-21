@@ -1,0 +1,624 @@
+diff --git a/docs/deck-aim-zoom.md b/docs/deck-aim-zoom.md
+index 41dd06a..4de784f 100644
+--- a/docs/deck-aim-zoom.md
++++ b/docs/deck-aim-zoom.md
+@@ -21,9 +21,15 @@ control locking, focus loss and pause. A pause revision lets the camera detect
+ an interruption even if both sea callbacks were frozen. Resuming with the button
+ held requires release before another zoom action. Transient zoom is not saved;
+ the existing binary save layout and script base perspective are unchanged.
++An automatic neighboring-island handoff retains the same deck camera and held
++zoom; rebinding its replacement ship does not count as a camera reselection.
+ 
+ The equipment-dependent spyglass limit is intentionally separate work. The
+ existing Ctrl spyglass controls and non-aiming right-button actions are preserved.
++The spyglass now shares the raised aiming eye: at least the default standing
++height plus 0.5 m above the deck path. This clears low eye locators and rails;
++saved eye height, spyglass magnification and the third-person orbit are unchanged.
++The height correction is a source candidate until staged and replayed on a ship.
+ 
+ ## Projection and ownership
+ 
+diff --git a/docs/direct-sailing.md b/docs/direct-sailing.md
+index 0cf8e10..567ac43 100644
+--- a/docs/direct-sailing.md
++++ b/docs/direct-sailing.md
+@@ -2,14 +2,31 @@
+ 
+ ## Status
+ 
+-Source candidate, October16. Installed activation and player replay are pending.
++October16 correction in progress: the installed automatic sea→map→sea camera
++trip was rejected. Its normal survivor/admission chain remains useful, but the
++player must stay in the sea view throughout the region handoff.
+ 
+ ## Contract
+ 
+ Ordinary local sailing into another visible island's map region automatically
+-loads that sea scene and resumes sailing, without requiring a manual map visit.
+-A brief existing camera/loading transition is allowed; simultaneous island
+-streaming and a large engine rewrite are outside this change.
++loads that sea scene and resumes sailing in the same camera mode, orbit and zoom.
++Automatic travel must show no global map, camera ascent/descent, map interface,
++map audio or loading artwork. A brief load must retain the outgoing sea image
++until the first complete destination sea frame. Manual map travel keeps its
++existing animation. This reuses the normal scene rebuild; it does not claim
++continuous simulation or simultaneous island streaming during that rebuild.
++
++The correction reuses one existing GPU frame/camera transition owner in a
++sea-only mode, and retains/rebinds the existing sea cameras. The map remains an
++invisible descriptor/admission adapter: its Execute prepares the region, while
++its Realize, UI, music and calendar never run. Readiness starts the ordinary
++return without a second transition. A failed frame capture must cancel before
++teardown; a quest redirect must release retained cameras and transient locks.
++
++The decisive checks are no map draw/camera/UI side effects between the two sea
++frames, preserved camera state across the new native ship identity, and the
++existing formation/motion/survivor cases. Installed Barbados→Antigua and a
++scale25↔50 route must still establish the appearance and duration of the load.
+ 
+ ## Owners
+ 
+@@ -19,11 +36,15 @@ streaming and a large engine rewrite are outside this change.
+   asset pool once per second after prewarm, in base-locator order. It creates
+   no second map or weather owner.
+ - `PROGRAM/sea_ai/direct_sailing.c`: admission, transient handoff, fleet formation,
+-  motion/sail and Phonk restoration, and automatic return from the map.
++  motion/sail and Phonk restoration, and hidden descriptor handback.
+ - `PROGRAM/sea_ai/sea.c` and `PROGRAM/worldmap/worldmap_reload.c`: the ordinary
+   survivor/descriptors, loading, quest admission and scene construction chain.
+-- Native `worldmap/src/world_map.cpp`: publishes the destination region before
+-  the first map frame and holds input/calendar/encounters stationary until return.
++- Native `worldmap/src/world_map.cpp`: publishes the destination region from
++  Execute; direct travel never renders or moves the map camera.
++- `sea_map_transition.hpp`: one GPU sea-frame hold, capture failure cancellation,
++  translated view and reveal after the new sea has rendered.
++- `PROGRAM/sea_ai/AICameras.c` and native `sea_cameras/src`: retain camera
++  entities, rebind their old scene caches, and preserve orbit/deck/aim state.
+ 
+ Native module paths are relative to `experiments/native-metal/engine/src/libs`;
+ PROGRAM paths belong to `src/gameplay`. Its manifest delivers the new script.
+@@ -50,13 +71,16 @@ streaming rewrite excluded here.
+ 
+ ## State and acceptance
+ 
+-The normal sea→map→sea chain remains the scene transition. Map-entry locks,
++The normal survivor/admission and SeaLogin chain remains the scene owner; its
++map adapter is invisible and does not invoke map UI/audio/init/date events.
++Map-entry locks,
+ boarding, tsunami/tornado, player death and open interfaces defer automatic
+ travel; it never removes an active battle to force a region change. It retries
+ silently when ordinary admission becomes possible. Empty ocean, the same region
+ and hidden islands do not trigger a reload.
+ 
+-Transient `worldMap.directSail` owns one outgoing transition and one return.
++Transient `worldMap.directSail` owns one retained sea view and one descriptor
++return. Readiness is consumed once; it never starts a reverse map transition.
+ The ordinary survivor handback preserves traffic damage/crew/cargo; player and
+ companion persistent Ship attributes retain their owner. Capture immediately
+ before teardown retains fleet separation, headings, speed, sail state and active
+@@ -76,7 +100,7 @@ or duration of the camera/loading transition.
+ 
+ ## Verification
+ 
+-The three changed native translation units pass the current canonical compiler
++The original three native translation units pass the current canonical compiler
+ flags with `-fsyntax-only`. The isolated actual script VM compiles the complete
+ projected source chain with zero script errors. A disposable actual-body fixture
+ passes coordinate-scale, same/hidden-region, battle/quest/boarding/tsunami/UI,
+@@ -86,10 +110,13 @@ matches its predecessor over468999 samples on31 installed `_area.gm` meshes;
+ the Barbados→Antigua and null/nonfinite cases pass. Its Clip fixture is CPU
+ triangle clipping, not a game render or asset-loader replay.
+ 
+-Review found and repaired the failed-native-transition fallback: its ordinary
+-fader has no native Done event, so readiness explicitly releases its reload lock.
+-The VM fixture proves lock retention while a native transition exists, lock
+-release for the ready fader fallback, and exactly one return afterward.
++The corrected automatic path requires a captured sea frame. Failed entity
++creation or capture cancels before teardown; it does not fall back to map/loading
++art. The ordinary manual-map fader and cinematic remain separate unchanged paths.
++Quest redirects restore the formation callback and delete retained cameras;
++their destination still owns controls/HUD. Pending quest encounter materialization
++in the hidden map adapter remains an inherited acceptance limit: unlike normal
++map simulation, it does not drain the map's delayed encounter queue.
+ 
+ Retained compact inputs, source/binary/asset hashes and results belong to
+ `.local-archives/direct-sailing-20261016`. The component fixture runs through
+@@ -98,3 +125,10 @@ Its optional save-codec run is not accepted: the probe reports `Invalid function
+ even on an unrelated three-line saved-object fixture. Current player SAVE loading,
+ automatic camera roundtrip, native impulses and sea-scene continuity remain
+ installed-runtime acceptance gaps.
++
++Sea-only correction evidence belongs to
++`.local-archives/direct-sailing-sea-only-20261016`: canonical native syntax,
++full projected script compilation and actual-body VM cases (native calls stubbed).
++The installed sea-only view, load duration, held deck aim, first-frame alignment
++and ordinary manual map journey remain pending until this source batch is staged
++and replayed. A retained framebuffer is not proof of a continuously running sea.
+diff --git a/experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp b/experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp
+index f6c3525..d448729 100644
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp
+@@ -569,14 +569,12 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+ 
+     // calculate camera position
+     CVECTOR s_pos;
+-    // Only the first-person firing view clears rails by half a meter.
+-    // Do not lift the third-person orbit or telescope; h_eye stays saved.
+-    const float firingEyeLift = walkMode && !telescope &&
+-                                AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0 ? 0.5f : 0.f;
+-    // Firing eye never drops below the design height: a low ship locator or a
+-    // saved crouch must not bury the manual-aim view under the rails.
+-    const float firingEye = firingEyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + firingEyeLift : h_eye;
+-    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, firingEye, 0.f));
++    // First-person aim and the spyglass share the raised view over the rails.
++    // Keep the saved eye height and the third-person orbit unchanged.
++    const float eyeLift = walkMode && (telescope ||
++                          AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0) ? 0.5f : 0.f;
++    const float eyeHeight = eyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + eyeLift : h_eye;
++    s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, eyeHeight, 0.f));
+ 
+     if (walkMode)
+     {
+@@ -610,14 +608,25 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
+ 
+ void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+ {
+-    // Also called when reselecting this camera for the same character.
+-    aimZoom.reset();
+-    if (pACharacter != _pACharacter)
++    const bool sameCharacter = pACharacter == _pACharacter;
++    const bool hadPath = pathNode != nullptr;
++    const auto previousModel = GetEID();
++    pACharacter = _pACharacter;
++    const bool replacedModel = _pACharacter && FindShip() && previousModel != GetEID();
++    const bool retainedView = sameCharacter && hadPath && replacedModel;
++    // Ordinary reselection resets aim. A retained view crosses the scene's
++    // layer-freeze revision without turning a held aim into a fresh press.
++    if (retainedView) zoomPauseRevision = core.GetScenePauseRevision();
++    else aimZoom.reset();
++    if (!sameCharacter || replacedModel)
+     {
+         ReleaseWalker();
+         walkerLoadFailed = false;
++        pathNode = nullptr;
++        pModel = nullptr;
++        bLoad = retainedView;
++        zoomLastUpdate = {};
+     }
+-    pACharacter = _pACharacter;
+ }
+ 
+ bool DECK_CAMERA::FindPath()
+diff --git a/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.cpp b/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.cpp
+index 6b1e61f..804b4d6 100644
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.cpp
+@@ -66,6 +66,14 @@ bool FREE_CAMERA::LoadState(ENTITY_STATE *state)
+     return true;
+ }
+ 
++void FREE_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
++{
++    const auto previousModel = GetEID();
++    pACharacter = _pACharacter;
++    if (_pACharacter && FindShip() && previousModel != GetEID())
++        pIslandBase = nullptr;
++}
++
+ void FREE_CAMERA::Execute(uint32_t Delta_Time)
+ {
+     if (!isOn())
+diff --git a/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.h b/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.h
+index aedad8d..f80c6db 100644
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.h
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.h
+@@ -24,6 +24,7 @@ class FREE_CAMERA : public COMMON_CAMERA
+     bool Init() override;
+     void Move(uint32_t DeltaTime);
+     void Execute(uint32_t Delta_Time);
++    void SetCharacter(ATTRIBUTES *_pACharacter) override;
+     bool CreateState(ENTITY_STATE_GEN *state_gen) const;
+     bool LoadState(ENTITY_STATE *state);
+ 
+diff --git a/experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.cpp b/experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.cpp
+index cb4dba7..0b1763b 100644
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.cpp
+@@ -184,7 +184,15 @@ void SHIP_CAMERA::Move(float fDeltaTime)
+ 
+ void SHIP_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
+ {
++    const auto previousModel = GetEID();
+     pACharacter = _pACharacter;
++    auto *const currentSea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
++    if ((_pACharacter && FindShip() && previousModel != GetEID()) || pSea != currentSea)
++    {
++        pIsland = nullptr;
++        lIlsInitCnt = 0;
++    }
++    pSea = currentSea;
+ }
+ 
+ uint32_t SHIP_CAMERA::AttributeChanged(ATTRIBUTES *pAttr)
+diff --git a/experiments/native-metal/engine/src/libs/worldmap/src/world_map.cpp b/experiments/native-metal/engine/src/libs/worldmap/src/world_map.cpp
+index 7002dcd..2353130 100644
+--- a/experiments/native-metal/engine/src/libs/worldmap/src/world_map.cpp
++++ b/experiments/native-metal/engine/src/libs/worldmap/src/world_map.cpp
+@@ -118,7 +118,8 @@ bool WorldMap::Init()
+     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+     if (!rs)
+         throw std::runtime_error("No service: dx9render");
+-    rs->SetPerspective(storm_map_player::perspective);
++    if (!AttributesPointer || !AttributesPointer->GetAttributeAsDword("directSail"))
++        rs->SetPerspective(storm_map_player::perspective);
+     wdmObjects->rs = rs;
+     // GS
+     wdmObjects->gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
+@@ -444,16 +445,25 @@ void WorldMap::Execute(uint32_t delta_time)
+         const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(6);
+         do { LoadNext(); } while (!loadComplete && std::chrono::steady_clock::now() < until);
+     }
++    if (loadComplete && !transitionPresented && AttributesPointer->GetAttributeAsDword("directSail"))
++    {
++        // Direct sailing borrows descriptor/admission projection only. It
++        // never needs a rendered map frame or a map-camera movement.
++        wdmObjects->islands->Update(0.f);
++        transitionPresented = true;
++        AttributesPointer->SetAttributeUseDword("transitionReady", 1);
++        core.PostEvent("WorldMap_TransitionReady", 0, nullptr);
++    }
+ }
+ 
+ void WorldMap::Realize(uint32_t delta_time)
+ {
++    if (AttributesPointer->GetAttributeAsDword("directSail")) return;
+     if (!loadComplete) return;
+     if (transitionLoad && !transitionPresented)
+     {
+         // Prepare the complete first image without consuming input, advancing
+         // the calendar or dispatching encounters while the overlay is visible.
+-        if (AttributesPointer->GetAttributeAsDword("directSail")) wdmObjects->islands->Update(0.f);
+         camera->Move(0.0f, rs);
+         RenderObjects();
+         transitionPresented = true;
+diff --git a/experiments/native-metal/sea_map_transition.hpp b/experiments/native-metal/sea_map_transition.hpp
+index 3c9f6d2..191fafa 100644
+--- a/experiments/native-metal/sea_map_transition.hpp
++++ b/experiments/native-metal/sea_map_transition.hpp
+@@ -25,7 +25,7 @@ class SeaMapTransition final : public Entity
+     CVECTOR miniatureSize{}, miniatureCenter{}, visualSize{}, visualCenter{};
+     bool mapLocked = false;
+     bool captured = false, committed = false, ready = false;
+-    bool reverse = false;
++    bool reverse = false, seaOnly = false;
+     inline static SeaMapTransition *active = nullptr;
+ 
+     static float ease(float t)
+@@ -114,6 +114,38 @@ class SeaMapTransition final : public Entity
+     }
+     void realize()
+     {
++        if (seaOnly)
++        {
++            if (!captured)
++            {
++                // Retain the ordinary sea view before any scene teardown.
++                rs->GetCamera(origin, angles, perspective);
++                CVECTOR size;
++                float yaw;
++                storm_map_player::seaBounds(size, yaw, focus);
++                if (!capture())
++                {
++                    core.Trace("SeaMapTransition: sea frame unavailable; region handoff cancelled");
++                    core.PostEvent("Sea_DirectSailAbort", 0, nullptr);
++                    core.EraseEntity(GetId());
++                    return;
++                }
++                captured = true;
++            }
++            if (committed && !ready && AttributesPointer->GetAttributeAsDword("scenePrepared"))
++            {
++                // The same physical view follows the ship into the new local
++                // origin. Retained orbit/deck cameras own subsequent motion.
++                const CVECTOR destination(AttributesPointer->GetAttributeAsFloat("x"),
++                                          AttributesPointer->GetAttributeAsFloat("y"),
++                                          AttributesPointer->GetAttributeAsFloat("z"));
++                rs->SetCamera(origin + destination - focus, angles, perspective);
++                ready = true;
++                landingTime = 0;
++            }
++            drawOverlay();
++            return;
++        }
+         const float time = flightTime;
+         if (!captured && time >= (reverse ? tiltDuration : flightDuration))
+         {
+@@ -154,7 +186,7 @@ class SeaMapTransition final : public Entity
+             quad((static_cast<uint32_t>((1 - reveal) * 255) << 24) | 0x00ffffff,
+                  0, 0, 1, 1);
+         }
+-        if (ready && (reverse ? landing >= flightDuration : reveal >= 1))
++        if (ready && (seaOnly ? reveal >= 1 : reverse ? landing >= flightDuration : reveal >= 1))
+         {
+             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
+             core.EraseEntity(GetId());
+@@ -193,9 +225,23 @@ public:
+     {
+         rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+         if (!rs || !AttributesPointer || active) return false;
++        seaOnly = AttributesPointer->GetAttributeAsDword("seaOnly") != 0;
+         reverse = AttributesPointer->GetAttributeAsDword("reverse") != 0;
+         mapPitch = storm_map_player::overheadPitch;
+         rs->GetCamera(origin, angles, perspective);
++        focus = CVECTOR(AttributesPointer->GetAttributeAsFloat("x"),
++                        AttributesPointer->GetAttributeAsFloat("y"),
++                        AttributesPointer->GetAttributeAsFloat("z"));
++        pauseRevision = core.GetScenePauseRevision();
++        if (seaOnly)
++        {
++            active = this;
++            core.SetLayerType(FADER_EXECUTE, layer_type_t::execute);
++            core.SetLayerType(FADER_REALIZE, layer_type_t::realize);
++            core.AddToLayer(FADER_EXECUTE, GetId(), 65535);
++            core.AddToLayer(FADER_REALIZE, GetId(), 65535);
++            return true;
++        }
+         mapYaw = AttributesPointer->GetAttributeAsFloat("mapYaw");
+         if (!storm_map_player::bounds(miniatureSize, miniatureCenter)) return false;
+         const float mapHeight = std::clamp(AttributesPointer->GetAttributeAsFloat("mapHeight", storm_map_player::minHeight),
+@@ -240,7 +286,7 @@ public:
+                 if (ready) landingTime += delta;
+             }
+             pauseRevision = revision;
+-            if (!committed && !reverse) camera(flightTime);
++            if (!seaOnly && !committed && !reverse) camera(flightTime);
+             else if (reverse && ready)
+                 camera(std::max(0.0f, flightDuration - landingTime));
+             if (captured && !committed)
+@@ -248,7 +294,7 @@ public:
+                 committed = true;
+                 core.PostEvent(reverse ? "Wdm_SeaTransitionCommit" : "Sea_MapTransitionCommit", 0, nullptr);
+             }
+-            if (committed && !ready && AttributesPointer->GetAttributeAsDword("mapReady"))
++            if (!seaOnly && committed && !ready && AttributesPointer->GetAttributeAsDword("mapReady"))
+             {
+                 ready = true;
+                 landingTime = 0;
+diff --git a/src/gameplay/PROGRAM/sea_ai/AICameras.c b/src/gameplay/PROGRAM/sea_ai/AICameras.c
+index 98b1294..ec87415 100644
+--- a/src/gameplay/PROGRAM/sea_ai/AICameras.c
++++ b/src/gameplay/PROGRAM/sea_ai/AICameras.c
+@@ -11,6 +11,10 @@ bool	bCanSwitchCameras = true;
+ 
+ void DeleteSeaCamerasEnvironment()
+ {
++	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
++		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
++		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera)) return;
++
+ 	DeleteClass(&SeaCameras);
+ 	DeleteClass(&SeaFreeCamera);
+ 	DeleteClass(&SeaShipCamera);
+@@ -43,6 +47,14 @@ float CalcSeaPerspective()
+ 
+ void CreateSeaCamerasEnvironment()
+ {
++	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
++		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
++		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera))
++	{
++		SendMessage(&AISea, "la", AI_MESSAGE_SET_CAMERAS_ATTRIBUTE, &SeaCameras);
++		return;
++	}
++
+ 	bCanSwitchCameras = true;
+ 
+ 	CreateEntity(&SeaCameras, "SEA_CAMERAS");
+diff --git a/src/gameplay/PROGRAM/sea_ai/direct_sailing.c b/src/gameplay/PROGRAM/sea_ai/direct_sailing.c
+index 4819392..d5d6174 100644
+--- a/src/gameplay/PROGRAM/sea_ai/direct_sailing.c
++++ b/src/gameplay/PROGRAM/sea_ai/direct_sailing.c
+@@ -3,7 +3,7 @@
+ #event_handler("Sea_DirectSailPosition", "Sea_DirectSailPosition");
+ #event_handler("Sea_DirectSailArea", "Sea_DirectSailArea");
+ #event_handler("WorldMap_TransitionReady", "Sea_DirectSailMapReady");
+-#event_handler("Sea_DirectSailReturn", "Sea_DirectSailReturn");
++#event_handler("Sea_DirectSailAbort", "Sea_DirectSailAbort");
+ #event_handler("Sea_DirectSailShipPosition", "Sea_DirectSailShipPosition");
+ 
+ float SeaDirectSailShipPosition[3];
+@@ -68,9 +68,14 @@ void Sea_DirectSailBind()
+ 
+ void Sea_DirectSailLogin(ref login)
+ {
++    bool retainedCameras = CheckAttribute(&worldMap, "directSail.retainCameras");
+     Sea_DirectSailBind();
+     SeaLogin(login);
+-    if (bSkipSeaLogin) Sea_DirectSailCancel();
++    if (bSkipSeaLogin)
++    {
++        Sea_DirectSailCancel();
++        if (retainedCameras) DeleteSeaCamerasEnvironment();
++    }
+ }
+ 
+ ref Sea_DirectSailShipPosition()
+@@ -137,16 +142,25 @@ void Sea_DirectSailRestore()
+ 
+ void Sea_DirectSailMapReady()
+ {
+-    if (CheckAttribute(&worldMap, "directSail") && !IsEntity(&SeaMapTransition))
+-    {
+-        // The fader fallback has no native Done event to release this lock.
+-        Sea_MapTransitionDone();
+-    }
++    if (!CheckAttribute(&worldMap, "directSail") || !IsEntity(&worldMap) ||
++        !IsEntity(&SeaMapTransition) || !CheckAttribute(&SeaMapTransition, "seaOnly")) return;
++    if (CheckAttribute(&worldMap, "directSail.returning")) return;
++    worldMap.directSail.returning = 1;
++    // Populate ordinary descriptors without starting the map interface,
++    // audio, calendar or its delayed EventWorldMapInit quest event.
++    worldMap.isLoaded = "true";
++    worldMap.update = "";
++    worldMap.addQuestEncounters = "updateQuest";
++    wdmSetNationFlag(sti(pchar.nation));
++    wdmLockReload = false;
++    wdmReloadToSea();
+ }
+ 
+-void Sea_DirectSailReturn()
++void Sea_DirectSailAbort()
+ {
+-    if (!CheckAttribute(&worldMap, "directSail") || !IsEntity(&worldMap) ||
+-        IsEntity(&SeaMapTransition) || wdmLockReload) return;
+-    wdmReloadToSea();
++    // Native capture failed before teardown. Keep the original sea and audio.
++    if (!CheckAttribute(&worldMap, "directSail") || !bSeaActive) return;
++    DelEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit");
++    Sea_DirectSailCancel();
++    Sea_MapTransitionDone();
+ }
+diff --git a/src/gameplay/PROGRAM/sea_ai/sea.c b/src/gameplay/PROGRAM/sea_ai/sea.c
+index 72d8a17..a75eb1c 100644
+--- a/src/gameplay/PROGRAM/sea_ai/sea.c
++++ b/src/gameplay/PROGRAM/sea_ai/sea.c
+@@ -443,6 +443,12 @@ void Sea_MapEndFade()
+ void Sea_MapTransitionCommit()
+ {
+ 	DelEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit");
++	if (CheckAttribute(&SeaMapTransition, "seaOnly"))
++	{
++		PauseAllSounds();
++		ResetSound();
++		bSkipSeaLogin = true;
++	}
+ 	if (!CheckAttribute(&SeaMapTransition, "fixedDestination"))
+ 	{
+ 		SeaMapLoadX = stf(pchar.Ship.Pos.x);
+@@ -463,8 +469,6 @@ void Sea_MapTransitionDone()
+ 	if (bSeaActive) BI_ShowInterface(true);
+ 	DeleteAttribute(&worldMap, "seaTransition");
+ 	DeleteAttribute(&worldMap, "transitionReady");
+-	if (IsEntity(&worldMap) && CheckAttribute(&worldMap, "directSail"))
+-		PostEvent("Sea_DirectSailReturn", 100);
+ }
+ 
+ void Sea_MapLoadXZ_AY(float x, float z, float ay)
+@@ -554,17 +558,21 @@ bool Sea_TryMapLoad(bool automatic)
+ 	LAi_SetAlcoholNormal(pchar);
+     
+ 	bSeaReloadStarted = true;
+-	PauseAllSounds();
++	if (!automatic)
++	{
++		PauseAllSounds();
+ 
+  	//ResetSoundScheme();
+ 	ResetSound(); // new
+ 		
+ 	bSkipSeaLogin = true;
++	}
+ 
+ 	SeaMapLoadX = stf(pchar.Ship.Pos.x);
+ 	SeaMapLoadZ = stf(pchar.Ship.Pos.z);
+ 	SeaMapLoadAY = stf(pchar.Ship.Ang.y);
+ 	DeleteAttribute(&SeaMapTransition, "");
++	if (automatic) SeaMapTransition.seaOnly = 1;
+ 	SeaMapTransition.x = SeaMapLoadX;
+ 	SeaMapTransition.y = stf(pchar.Ship.Pos.y);
+ 	SeaMapTransition.z = SeaMapLoadZ;
+@@ -580,13 +588,20 @@ bool Sea_TryMapLoad(bool automatic)
+ 	CreateEntity(&SeaMapTransition, "SeaMapTransition");
+ 	if (IsEntity(&SeaMapTransition))
+ 	{
+-		BI_ShowInterface(false);
++		if (automatic) worldMap.directSail.retainCameras = 1;
++		else BI_ShowInterface(false);
+ 		bCanSwitchCameras = false;
+ 		SetEventHandler("Sea_MapTransitionCommit", "Sea_MapTransitionCommit", 0);
+ 		SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
+ 	}
+ 	else
+ 	{
++		if (automatic)
++		{
++			bSeaReloadStarted = false;
++			Sea_DirectSailCancel();
++			return false;
++		}
+ 		// Keep the established recovery path if the native transition is absent.
+ 		SetEventHandler("FaderEvent_StartFade", "Sea_MapStartFade", 0);
+ 		SetEventHandler("FaderEvent_EndFade", "Sea_MapEndFade", 0);
+@@ -1581,7 +1596,8 @@ void Sea_FirstInit()
+ 	InitBattleInterface();
+ 	StartBattleInterface();
+ 	RefreshBattleInterface();
+-	if (IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "reverse"))
++	if (IsEntity(&SeaMapTransition) && (CheckAttribute(&SeaMapTransition, "reverse") ||
++		CheckAttribute(&SeaMapTransition, "seaOnly")))
+ 	{
+ 		SeaMapTransition.x = stf(pchar.Ship.Pos.x);
+ 		SeaMapTransition.y = stf(pchar.Ship.Pos.y);
+@@ -1589,7 +1605,7 @@ void Sea_FirstInit()
+ 		SeaMapTransition.scenePrepared = 1;
+ 		bSeaReloadStarted = true;
+ 		bCanSwitchCameras = false;
+-		BI_ShowInterface(false);
++		if (!CheckAttribute(&SeaMapTransition, "seaOnly")) BI_ShowInterface(false);
+ 	}
+ 	Sea_DirectSailRestore();
+ }
+diff --git a/src/gameplay/PROGRAM/worldmap/worldmap.c b/src/gameplay/PROGRAM/worldmap/worldmap.c
+index 413d439..857c0b7 100644
+--- a/src/gameplay/PROGRAM/worldmap/worldmap.c
++++ b/src/gameplay/PROGRAM/worldmap/worldmap.c
+@@ -209,7 +209,7 @@ void wdmCreateWorldMap()
+ 	bool cinematic = CheckAttribute(&worldMap, "seaTransition");
+ 	if (cinematic) wdmLockReload = true;
+ 	if (!cinematic) ReloadProgressStart();
+-	wdmCreateWindInterface();
++	if (!CheckAttribute(&worldMap, "directSail")) wdmCreateWindInterface();
+ 	//Удалим все устаревшие энкаунтеры
+ 	wdmRemoveOldEncounters();
+ //	Trace("Save check ---------------================--------------")
+@@ -221,7 +221,8 @@ void wdmCreateWorldMap()
+ 	//Создаём карту
+ 	Whr_BindMapWeather();
+     wdmPreparePlayerShipVisual();
+-	if (cinematic) SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
++	if (cinematic && !CheckAttribute(&worldMap, "directSail"))
++		SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
+     GreatRecipe_MapSeed();
+ 	CreateEntity(&worldMap,"worldmap");
+ 	if (cinematic) return;
+diff --git a/src/gameplay/PROGRAM/worldmap/worldmap_reload.c b/src/gameplay/PROGRAM/worldmap/worldmap_reload.c
+index 0baa88d..63807d2 100644
+--- a/src/gameplay/PROGRAM/worldmap/worldmap_reload.c
++++ b/src/gameplay/PROGRAM/worldmap/worldmap_reload.c
+@@ -39,6 +39,26 @@ void wdmReloadToSea()
+ 	WdmStormEncounter();
+ 	//Удаляем атрибуты выделенных энкоунтеров
+ 	worldMap.deleteUpdate = "";
++	if (CheckAttribute(&worldMap, "directSail") && IsEntity(&SeaMapTransition) &&
++		CheckAttribute(&SeaMapTransition, "seaOnly"))
++	{
++		// One retained sea frame owns both legs. The map is only the existing
++		// descriptor/admission adapter; never start its reverse camera trip.
++		WdmStartFade();
++		ReloadProgressStart();
++		Sea_DirectSailLogin(&wdmLoginToSea);
++		ReloadProgressEnd();
++		if (bSkipSeaLogin)
++		{
++			DeleteClass(&SeaMapTransition);
++			DelEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone");
++			DeleteAttribute(&worldMap, "seaTransition");
++			DeleteAttribute(&worldMap, "transitionReady");
++			wdmLockReload = false;
++			// The redirect owns its destination, controls and HUD.
++		}
++		return;
++	}
+ 	// The same native handoff owns both directions. Keep encounter admission
+ 	// above this point, before the map is released.
+ 	DeleteAttribute(&SeaMapTransition, "");

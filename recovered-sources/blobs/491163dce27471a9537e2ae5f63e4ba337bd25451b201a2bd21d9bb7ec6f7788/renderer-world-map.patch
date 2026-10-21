@@ -1,0 +1,119 @@
+--- a/src/libs/worldmap/src/wdm_cloud.cpp
++++ b/src/libs/worldmap/src/wdm_cloud.cpp
+@@ -299,2 +299,2 @@
+-                rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, lght,
+-                                    sizeof(Vertex), "WdmLightning");
++                wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                                                 2, lght, sizeof(Vertex), "WdmLightning");
+--- a/src/libs/worldmap/src/wdm_interface_object.cpp
++++ b/src/libs/worldmap/src/wdm_interface_object.cpp
+@@ -210,5 +210,5 @@
+ void WdmInterfaceObject::DrawRects(Vertex *vrt, int32_t numRects, const char *techName)
+ {
+-    wdmObjects->rs->DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2, numRects * 2, vrt,
+-                                    sizeof(Vertex), techName);
++    wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2,
++                                     numRects * 2, vrt, sizeof(Vertex), techName);
+ }
+--- a/src/libs/worldmap/src/wdm_islands.cpp
++++ b/src/libs/worldmap/src/wdm_islands.cpp
+@@ -933,2 +933,2 @@
+-        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2, 2, drawbuf,
+-                            sizeof(drawbuf[0]), "WdmDrawLabelIcon");
++        wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2,
++                                         2, drawbuf, sizeof(drawbuf[0]), "WdmDrawLabelIcon");
+@@ -970,2 +970,2 @@
+-        rs->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, D3DFVF_XYZ | D3DFVF_DIFFUSE, segments, vertices,
+-                            sizeof(vertices[0]), "WdmPortDangerZone");
++        wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLEFAN, D3DFVF_XYZ | D3DFVF_DIFFUSE,
++                                         segments, vertices, sizeof(vertices[0]), "WdmPortDangerZone");
+--- a/src/libs/worldmap/src/wdm_objects.cpp
++++ b/src/libs/worldmap/src/wdm_objects.cpp
+@@ -10,6 +10,8 @@
+ #include "wdm_objects.h"
+ 
++#include <algorithm>
+ #include <chrono>
++#include <cstring>
+ 
+ #include "geometry.h"
+ #include "string_compare.hpp"
+@@ -57,3 +59,7 @@
+ WdmObjects::~WdmObjects()
+ {
++    if (rs)
++        for (const auto &buffer : dynamicVertexBuffers)
++            if (buffer.id >= 0)
++                rs->ReleaseVertexBuffer(buffer.id);
+     wdmObjects = nullptr;
+@@ -65,1 +71,33 @@
+ }
++
++void WdmObjects::DrawDynamicPrimitive(D3DPRIMITIVETYPE primitiveType, uint32_t fvf, uint32_t primitiveCount,
++                                      const void *vertices, uint32_t stride, const char *technique)
++{
++    const uint32_t vertexCount = primitiveType == D3DPT_TRIANGLELIST ? primitiveCount * 3 :
++                                 primitiveType == D3DPT_LINELIST ? primitiveCount * 2 : primitiveCount + 2;
++    const size_t bytes = size_t(vertexCount) * stride;
++    auto buffer = std::find_if(dynamicVertexBuffers.begin(), dynamicVertexBuffers.end(),
++                               [fvf, stride](const DynamicVertexBuffer &item) {
++                                   return item.fvf == fvf && item.stride == stride;
++                               });
++    if (buffer == dynamicVertexBuffers.end())
++    {
++        dynamicVertexBuffers.push_back({fvf, stride, 0, -1});
++        buffer = dynamicVertexBuffers.end() - 1;
++    }
++    if (buffer->capacity < bytes)
++    {
++        if (buffer->id >= 0)
++            rs->ReleaseVertexBuffer(buffer->id);
++        buffer->id = rs->CreateVertexBuffer(fvf, bytes, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC);
++        buffer->capacity = buffer->id >= 0 ? bytes : 0;
++    }
++    if (buffer->id < 0)
++        return;
++    auto *destination = rs->LockVertexBuffer(buffer->id, D3DLOCK_DISCARD);
++    if (!destination)
++        return;
++    std::memcpy(destination, vertices, bytes);
++    rs->UnLockVertexBuffer(buffer->id);
++    rs->DrawPrimitive(primitiveType, buffer->id, stride, 0, primitiveCount, technique);
++}
+--- a/src/libs/worldmap/src/wdm_objects.h
++++ b/src/libs/worldmap/src/wdm_objects.h
+@@ -106,6 +106,8 @@
+     void DrawVector(const CVECTOR &start, const CVECTOR &end, uint32_t color) const;
+     void DrawLine(const CVECTOR &start, const CVECTOR &end, uint32_t color) const;
+     void DrawBox2D(CMatrix &mtx, float l, float w, uint32_t color) const;
+     void GetVPSize(float &w, float &h) const;
++    void DrawDynamicPrimitive(D3DPRIMITIVETYPE primitiveType, uint32_t fvf, uint32_t primitiveCount,
++                              const void *vertices, uint32_t stride, const char *technique);
+ 
+     float shipSpeedOppositeWind; // Relative speed of the ship against the wind
+@@ -164,2 +166,11 @@
+   private:
++    struct DynamicVertexBuffer
++    {
++        uint32_t fvf = 0;
++        uint32_t stride = 0;
++        size_t capacity = 0;
++        int32_t id = -1;
++    };
++    std::vector<DynamicVertexBuffer> dynamicVertexBuffers;
++
+     struct Vertex
+--- a/src/libs/worldmap/src/wdm_ship.cpp
++++ b/src/libs/worldmap/src/wdm_ship.cpp
+@@ -303,2 +303,2 @@
+-        rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, WDM_SHIP_WMSZ * 2 - 1, vrt,
+-                            sizeof(Vertex), "WdmShipWaterTrack");
++        wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                                         WDM_SHIP_WMSZ * 2 - 1, vrt, sizeof(Vertex), "WdmShipWaterTrack");
+--- a/src/libs/worldmap/src/wdm_wind_rose.cpp
++++ b/src/libs/worldmap/src/wdm_wind_rose.cpp
+@@ -78,2 +78,2 @@
+-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 2, v, sizeof(Vertex),
+-                        "WdmCompasShadow");
++    wdmObjects->DrawDynamicPrimitive(D3DPT_TRIANGLESTRIP, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1,
++                                     2, v, sizeof(Vertex), "WdmCompasShadow");

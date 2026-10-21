@@ -1,0 +1,23 @@
+diff --git a/src/libs/location/src/location_camera.cpp b/src/libs/location/src/location_camera.cpp
+--- a/src/libs/location/src/location_camera.cpp
++++ b/src/libs/location/src/location_camera.cpp
+@@ -362,16 +362,19 @@
+         chr = message.EntityID();
+         if (core.GetEntityPointer(chr) == nullptr)
+         {
+             core.Trace("LocationCamera -> MSG_CAMERA_SETTARGET -> invalidate character id");
+             return 0;
+         }
+         return 1;
+     case MSG_CAMERA_FOLLOW:
++        cf.isBrn = true;
++        isTeleport = true;
++        isViewExecute = false;
+         forcedPos = false;
+         if (wmode != cwm_follow)
+         {
+             oldPos = camPos;
+             oldLookTo = lookTo;
+             kMorph = 0.0f;
+         }
+         wmode = cwm_follow;

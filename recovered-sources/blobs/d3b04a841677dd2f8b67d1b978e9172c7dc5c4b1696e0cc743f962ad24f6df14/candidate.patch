@@ -1,0 +1,79 @@
+diff --git a/experiments/native-metal/engine/src/libs/locator/src/blast.cpp b/experiments/native-metal/engine/src/libs/locator/src/blast.cpp
+index 10c818d..4f85859 100644
+--- a/experiments/native-metal/engine/src/libs/locator/src/blast.cpp
++++ b/experiments/native-metal/engine/src/libs/locator/src/blast.cpp
+@@ -42,8 +42,19 @@ bool BLAST::Init()
+ #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+     if(hullChipMode){
+         if(!hullChipLease.acquire())return false;
+-        char one[]="particles\\palka01",two[]="particles\\palka02",four[]="particles\\palka04";AddGeometry(one,2);AddGeometry(two,4);AddGeometry(four,2);
+-        for(auto&item:Item){item.chip.alive=false;if(!item.geo)return false;}
++        // These immutable meshes already serve several particles in one burst.
++        // Share them across live bursts too; the last entity owns their release.
++        static VGEOMETRY *assetService=nullptr;
++        static std::array<std::weak_ptr<GEOS>,3> assets;
++        if(assetService!=gs){assets={};assetService=gs;}
++        const char *names[]={"particles\\palka01","particles\\palka02","particles\\palka04"};
++        for(unsigned n=0;n<hullChipGeometry.size();++n){
++            auto geometry=assets[n].lock();
++            if(!geometry){geometry.reset(gs->CreateGeometry(names[n],nullptr,0));if(!geometry)return false;assets[n]=geometry;}
++            hullChipGeometry[n]=std::move(geometry);
++        }
++        Item.resize(storm_ship_hull::ChipLease::particlesPerBurst);ItemsNum=uint32_t(Item.size());
++        for(unsigned n=0;n<ItemsNum;++n){auto&item=Item[n];item.geo=hullChipGeometry[n<2?0:n<6?1:2].get();item.bDouble=true;item.chip.alive=false;}
+         return true;
+     }
+ #endif
+diff --git a/experiments/native-metal/engine/src/libs/locator/src/blast.h b/experiments/native-metal/engine/src/libs/locator/src/blast.h
+index 5a471aa..1f2ad06 100644
+--- a/experiments/native-metal/engine/src/libs/locator/src/blast.h
++++ b/experiments/native-metal/engine/src/libs/locator/src/blast.h
+@@ -7,6 +7,8 @@
+ #include "geometry.h"
+ #include "vma.hpp"
+ #ifdef STORM_METAL_SHIP_HULL_DAMAGE
++#include <array>
++#include <memory>
+ #include "ship_hull_chips.hpp"
+ #include "ship_hull_damage_bridge.hpp"
+ #endif
+@@ -41,6 +43,7 @@ class BLAST : public Entity
+ #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+     bool hullChipMode=false;
+     storm_ship_hull::ChipLease hullChipLease;
++    std::array<std::shared_ptr<GEOS>,3> hullChipGeometry;
+     void LaunchHullChips(MESSAGE&message);
+     void StepHullChips(uint32_t delta);
+ #endif
+diff --git a/experiments/native-metal/ship_laser_geometry.hpp b/experiments/native-metal/ship_laser_geometry.hpp
+index e6efa28..a4a6741 100644
+--- a/experiments/native-metal/ship_laser_geometry.hpp
++++ b/experiments/native-metal/ship_laser_geometry.hpp
+@@ -18,6 +18,8 @@ using storm_ship_hull::Triangle;
+ using storm_ship_hull::Bounds;
+ using Mesh = std::map<int,std::vector<Triangle>>;
+ using PositionKey=std::array<int64_t,3>;
++using PositionEdge=std::pair<PositionKey,PositionKey>;
++struct PositionEdgeHash {size_t operator()(const PositionEdge&e)const {size_t h=0;for(const auto&point:{e.first,e.second})for(auto q:point)h^=std::hash<int64_t>{}(q)+0x9e3779b9u+(h<<6)+(h>>2);return h;}};
+ inline PositionKey positionKey(Vec3 p) {return {int64_t(std::llround(double(p.x)*10000)),int64_t(std::llround(double(p.y)*10000)),int64_t(std::llround(double(p.z)*10000))};}
+ struct Plane { Vec3 normal; float distance=0; bool charred=true; Vec3 grain{0,1,0}; float roughness=0,spacing=1,phase=0; };
+ inline bool valid(const Plane&p) {
+@@ -94,7 +96,8 @@ inline Mesh shellForRender(const Mesh&mesh,const std::map<int,float>&thicknesses
+ }
+ inline float cross2(Vec3 a,Vec3 b,Vec3 c,Vec3 normal) { return storm_ship_hull::dot(storm_ship_hull::cross(b-a,c-a),normal); }
+ inline double closedVolume(const Mesh&mesh) {
+-    using Point=std::array<int64_t,3>;using Edge=std::pair<Point,Point>;std::map<Edge,std::pair<unsigned,int>>edges;double volume=0;
++    using Point=PositionKey;std::unordered_map<PositionEdge,std::pair<unsigned,int>,PositionEdgeHash>edges;double volume=0;
++    size_t triangles=0;for(const auto&o:mesh)triangles+=o.second.size();edges.reserve(triangles*3);
+     const auto key=positionKey;
+     for(const auto&o:mesh)for(const auto&t:o.second){const Point points[3]={key(t[0].position),key(t[1].position),key(t[2].position)};if(points[0]==points[1]||points[0]==points[2]||points[1]==points[2])continue;
+         volume+=double(storm_ship_hull::dot(t[0].position,storm_ship_hull::cross(t[1].position,t[2].position)))/6.;
+@@ -230,7 +233,7 @@ inline bool refine(const Triangle&t,const Plane&p,std::vector<Triangle>&out,size
+ // refining every cannon, rope and distant hull triangle on every ram.
+ inline bool refineNearCut(const Mesh&mesh,const Plane&p,Mesh&out,size_t&count) {
+     for(const auto&o:mesh)out.try_emplace(o.first);
+-    using Edge=std::pair<PositionKey,PositionKey>;struct Hash {size_t operator()(const Edge&e)const {size_t h=0;for(auto point:{e.first,e.second})for(auto q:point)h^=std::hash<int64_t>{}(q)+0x9e3779b9u+(h<<6)+(h>>2);return h;}};std::unordered_map<Edge,std::vector<float>,Hash>edgeKnots;
++    std::unordered_map<PositionEdge,std::vector<float>,PositionEdgeHash>edgeKnots;
+     std::vector<bool>active;size_t face=0;
+     const auto grain=[&](Vec3 v){return double(p.grain.x)*v.x+double(p.grain.y)*v.y+double(p.grain.z)*v.z;};
+     for(const auto&o:mesh)for(const auto&t:o.second){float lo=std::numeric_limits<float>::infinity(),hi=-lo;for(const auto&v:t){const float d=storm_ship_hull::dot(p.normal,v.position)-p.distance;lo=std::min(lo,d);hi=std::max(hi,d);}const bool local=lo<=p.roughness&&hi>=-p.roughness;active.push_back(local);if(!local)continue;

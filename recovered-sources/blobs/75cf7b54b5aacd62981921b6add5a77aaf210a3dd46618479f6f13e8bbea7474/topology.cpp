@@ -1,0 +1,19 @@
+#include "/REQUIRED_EXTERNAL_INPUT/Corsairs/experiments/native-metal/ship_laser_geometry.hpp"
+#include <cassert>
+#include <chrono>
+#include <iostream>
+using namespace storm_ship_laser;
+Vertex v(Vec3 p){Vertex x;x.position=p;x.color=0xffffffff;return x;}
+Mesh box(float radius=1,bool reverse=false){Mesh m;Vec3 p[8]={{-radius,-radius,-radius},{radius,-radius,-radius},{radius,radius,-radius},{-radius,radius,-radius},{-radius,-radius,radius},{radius,-radius,radius},{radius,radius,radius},{-radius,radius,radius}};int f[6][4]={{0,3,2,1},{4,5,6,7},{0,4,7,3},{1,2,6,5},{0,1,5,4},{3,7,6,2}};for(auto&q:f)for(auto indices:{std::array<int,3>{q[0],q[1],q[2]},std::array<int,3>{q[0],q[2],q[3]}}){Triangle t={v(p[indices[0]]),v(p[indices[1]]),v(p[indices[2]])};if(reverse)std::swap(t[1],t[2]);auto n=storm_ship_hull::normalized(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position));for(auto&x:t)x.normal=n;m[0].push_back(t);}return m;}
+Plane ring(){Plane p{{0,0,-1},0};for(unsigned side=0;side<4;++side)for(unsigned n=0;n<6;++n){float x=-.5f+n*.2f,y=-.5f;if(side==1){y=x;x=.5f;}if(side==2){y=.5f;}if(side==3){y=x;x=-.5f;}BeamSample b;b.start={x,y,1.01f};b.direction={0,0,-1};b.radius=.13f;b.depth=2.02f;p.beams.push_back(b);}return p;}
+void inspect(const Mesh&m){std::map<PositionEdge,int>e;for(auto&o:m)for(auto&t:o.second)for(int n=0;n<3;++n){auto a=positionKey(t[n].position),b=positionKey(t[(n+1)%3].position);auto pair=std::minmax(a,b);e[{pair.first,pair.second}]++;}int bad=0;for(auto&v:e)if(v.second!=2){if(bad++<12)std::cout<<"edge "<<v.second<<" "<<v.first.first[0]<<","<<v.first.first[1]<<","<<v.first.first[2]<<" -> "<<v.first.second[0]<<","<<v.first.second[1]<<","<<v.first.second[2]<<std::endl;}std::cout<<"bad="<<bad<<std::endl;}
+double signedVolume(const Mesh&m){double volume=0;for(auto&o:m)for(auto&t:o.second)volume+=double(storm_ship_hull::dot(t[0].position,storm_ship_hull::cross(t[1].position,t[2].position)))/6;return volume;}
+int main(){auto m=box();auto field=ring();field.beams.resize(16); // Per-record sample bound; four progressive batches below.
+Surface s{m,{},{}};auto all=ring();for(unsigned batch=0;batch<3;++batch){Plane p{{0,0,-1},0};for(unsigned n=batch*8;n<(batch+1)*8;++n)p.beams.push_back(all.beams[n]);auto c=splitSurface(s,p,{});assert(c.complete);s=std::move(c.kept);}auto mesh=canonicalMesh(s);std::cout<<"solid groups="<<components(mesh).size()<<" volume="<<closedVolume(mesh)<<" triangles="<<mesh[0].size()<<std::endl;
+Surface diagnostic{m,{},{}};for(unsigned n=0;n<24;++n){Plane p{{0,0,-1},0};p.beams={all.beams[n]};auto q=splitSurface(diagnostic,p,{});assert(q.complete);diagnostic=std::move(q.kept);std::cout<<"step="<<n<<" volume="<<closedCutVolume(canonicalMesh(diagnostic))<<" signed="<<signedVolume(canonicalMesh(diagnostic))<<" caps="<<diagnostic.canonicalCaps[0].size()<<std::endl;if(n==1)inspect(canonicalMesh(diagnostic));}
+auto hollow=box();appendMesh(hollow,box(.8f,true));Surface h{hollow,{},{}};BeamSample b;b.start={0,0,1.01f};b.direction={0,0,-1};b.radius=.13f;b.depth=.4f;Plane p{{0,0,-1},0};p.beams={b};auto c=splitSurface(h,p,{});assert(c.complete);std::cout<<"hollow original="<<closedVolume(hollow)<<" kept="<<closedVolume(canonicalMesh(c.kept))<<" bore="<<closedVolume(canonicalMesh(c.detached))<<std::endl;
+std::cout<<"hollow conforming volumes="<<closedCutVolume(canonicalMesh(c.kept))<<" + "<<closedCutVolume(canonicalMesh(c.detached))<<std::endl;
+auto solid=splitSurface({m,{},{}},p,{});std::cout<<"single solid conforming volume="<<closedCutVolume(canonicalMesh(solid.kept))<<" + "<<closedCutVolume(canonicalMesh(solid.detached))<<std::endl;
+inspect(canonicalMesh(solid.kept));std::cout<<"solid caps="<<solid.kept.canonicalCaps[0].size()<<std::endl;
+auto detached=detachEnclosed({m,{},{}},s);std::cout<<"ring detached="<<detached.size()<<" kept="<<closedCutVolume(canonicalMesh(s))<<std::endl;
+}

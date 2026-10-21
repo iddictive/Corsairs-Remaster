@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""Own the fist-strike sound and animation behind the dialogue ambush.
+
+Usage: patch_ambush_punch.py [check|apply]
+
+The ambush strike is a punch, so it cannot use a blade-animation sound event.
+Three idempotent content edits are staged into both gameplay trees:
+
+  experiments/native-storm/.cache/runtime   delivery source for the Metal sync
+  experiments/native-metal/.cache/runtime   active candidate
+
+  RESOURCE/Sounds/People Fight/Punch_0N.wav   fist impact samples (pinned inputs)
+  RESOURCE/INI/aliases/sound_alias.ini        [ambush_punch] alias
+  RESOURCE/animation/*.ani                    [ambush_punch] action cloned from
+                                              [attack_force_3] with its blade
+                                              sound event retargeted onto the
+                                              block's own "Attack" frame
+
+The animation action is cloned into every .ani that already declares
+[attack_force_3], because that is the action the live dialogue ambush already
+plays, so the main character's own animation set is covered without guessing
+which set it uses.
+
+One asset is live: `Punch_01.wav`, converted from the sample the player chose; its
+provenance is recorded in `docs/audio-and-particles.md`. The alias lists only the
+samples actually present next to this script, so removing an asset removes its
+alias entry.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+from runtime_script_patch import atomic_write
+
+PROJECT = Path(__file__).resolve().parents[1]
+ASSETS = Path(__file__).resolve().parent / "assets/ambush-punch"
+ROOTS = (
+    PROJECT / "experiments/native-storm/.cache/runtime",
+    PROJECT / "experiments/native-metal/.cache/runtime",
+)
+
+SOUND_SUBDIR = "RESOURCE/Sounds/People Fight"
+ALIAS_RELATIVE = "RESOURCE/INI/aliases/sound_alias.ini"
+ANIMATION_SUBDIR = "RESOURCE/animation"
+
+ACTION = "ambush_punch"
+SOURCE_ACTION = "attack_force_3"
+SOUND_EVENT = "SndAlliace_"
+ATTACK_EVENT = 'event = "Attack"'
+ACTION_NOTE = "; ambush punch: fist strike, clone of attack_force_3 without the blade sound"
+ALIAS_NOTE = "; ambush punch: fist strike impact (see docs/audio-and-particles.md)"
+NOTE_PREFIX = "; ambush punch:"
+MANAGED_SOUNDS = ("Punch_01.wav", "Punch_02.wav", "Punch_03.wav")
+MANAGED_SHA256 = {
+    # Pinned inputs: the staged runtime copy must be exactly this sample.
+    "Punch_01.wav": "b65797089ea7b88cb40fcfaa09f42a99e9c21ec5bc4ab17c06aa369b4ce31bee",
+}
+
+
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def newline_of(data: bytes) -> str:
+    return "\r\n" if b"\r\n" in data else "\n"
+
+
+def read_text(path: Path) -> str:
+    """Byte-preserving read: animation and alias files carry CP1251 comments."""
+    return path.read_bytes().decode("latin-1")
+
+
+def write_text(path: Path, text: str) -> None:
+    atomic_write(path, text.encode("latin-1"))
+
+
+def sound_assets() -> list[tuple[str, bytes]]:
+    files = sorted(ASSETS.glob("Punch_*.wav"))
+    if not files:
+        raise RuntimeError(f"no punch samples in {ASSETS}")
+    for path in files:
+        if path.name not in MANAGED_SOUNDS:
+            raise RuntimeError(f"unmanaged punch sample name: {path.name}")
+        if MANAGED_SHA256.get(path.name) != digest(path.read_bytes()):
+            raise RuntimeError(f"punch sample does not match its pinned digest: {path}")
+    return [(path.name, path.read_bytes()) for path in files]
+
+
+def alias_block() -> str:
+    """Return the reviewed alias block, note line included."""
+    lines = [
+        ALIAS_NOTE,
+        f"[{ACTION}]",
+        "minDistance = 4.0",
+        "maxDistance = 37.0",
+        "volume = 0.99",
+    ]
+    lines += [f"name = PEOPLE FIGHT\\{name}" for name, _ in sound_assets()]
+    return "\n".join(lines) + "\n"
+
+
+def alias_section() -> str:
+    """Return the block without its note line, the way a section span sees it."""
+    return alias_block().split("\n", 1)[1]
+
+
+def drop_note(head: str) -> str:
+    """Remove a trailing note line so a rewrite cannot stack two of them."""
+    if not head.endswith("\n"):
+        return head
+    cut = head.rfind("\n", 0, len(head) - 1) + 1
+    if head[cut:].strip().startswith(NOTE_PREFIX):
+        return head[:cut]
+    return head
+
+
+def section_span(text: str, name: str) -> tuple[int, int] | None:
+    header = re.compile(r"^[ \t]*\[" + re.escape(name) + r"\][ \t]*\r?\n", re.M)
+    match = header.search(text)
+    if not match:
+        return None
+    following = re.compile(r"^[ \t]*\[", re.M).search(text, match.end())
+    return match.start(), following.start() if following else len(text)
+
+
+def build_action(text: str) -> str:
+    """Clone the [attack_force_3] section under the ambush name.
+
+    The clone keeps the source motion and retargets the sound event twice: to
+    the fist-impact alias and to the block's own `Attack` frame, which is the
+    frame the source clip treats as the moment the strike lands. The shipped
+    blade sound fires eight frames early on purpose (a swing whoosh before the
+    hit); a fist impact has to land with the hit instead.
+    """
+    span = section_span(text, SOURCE_ACTION)
+    if span is None:
+        raise RuntimeError(f"animation file has no [{SOURCE_ACTION}] block")
+    block = text[span[0] : span[1]]
+    lines = block.splitlines(keepends=True)
+    # A previously inserted clone sits between this block and the next section
+    # header, so this patch's own note line is not part of the reviewed block.
+    # Sibling comments such as ";SLASH" belong to the source and are kept.
+    while lines and lines[-1].strip() == ACTION_NOTE:
+        lines.pop()
+    header = next(
+        (i for i, line in enumerate(lines) if line.lstrip().startswith("[")), None
+    )
+    event = next((i for i, line in enumerate(lines) if SOUND_EVENT in line), None)
+    attack = next((i for i, line in enumerate(lines) if ATTACK_EVENT in line), None)
+    if header is None or event is None:
+        raise RuntimeError(f"[{SOURCE_ACTION}] block has no header or sound event")
+    if attack is None:
+        raise RuntimeError(f"[{SOURCE_ACTION}] block has no Attack event to align to")
+    frame = re.search(r'"Attack"\s*,\s*(\d+)', lines[attack])
+    if frame is None:
+        raise RuntimeError(f"[{SOURCE_ACTION}] Attack event has no frame number")
+    lines[header] = re.sub(
+        r"\[" + re.escape(SOURCE_ACTION) + r"\]", f"[{ACTION}]", lines[header], count=1
+    )
+    lines[event] = re.sub(
+        SOUND_EVENT + r"[A-Za-z0-9_]+", SOUND_EVENT + ACTION, lines[event], count=1
+    )
+    lines[event] = re.sub(
+        r'("' + re.escape(SOUND_EVENT + ACTION) + r'"\s*,\s*)\d+',
+        lambda match: match.group(1) + frame.group(1),
+        lines[event],
+        count=1,
+    )
+    newline = newline_of(text.encode("latin-1"))
+    if not lines[-1].endswith(("\n", "\r")):
+        lines[-1] += newline
+    return "".join(lines)
+
+
+def add_action(text: str) -> tuple[str, bool]:
+    span = section_span(text, SOURCE_ACTION)
+    if span is None:
+        return text, False
+    expected = build_action(text)
+    newline = newline_of(text.encode("latin-1"))
+    note = ACTION_NOTE + newline
+    current = section_span(text, ACTION)
+    if current is None:
+        return text[: span[1]] + note + expected + text[span[1] :], True
+    if text[current[0] : current[1]] == expected:
+        return text, False
+    # The clone is this patch's own block, so converge it instead of guessing
+    # whether a hand edit was meant to survive. Absorb the note line when the
+    # block still carries one, so the rewritten pair stays a single unit.
+    head = drop_note(text[: current[0]])
+    return head + note + expected + text[current[1] :], True
+
+
+def add_alias(data: bytes) -> tuple[bytes, bool]:
+    """Keep the [ambush_punch] section equal to the reviewed sample list.
+
+    The section is owned by this patch, so it is compared and rewritten as a
+    whole section. A substring test is not enough: a stale alias that still
+    names a removed sample still contains the reviewed block as a prefix.
+    """
+    newline = newline_of(data)
+    block = alias_block().replace("\n", newline)
+    section = alias_section().replace("\n", newline)
+    text = data.decode("latin-1")
+    span = section_span(text, ACTION)
+    if span is None:
+        if not text.endswith(newline):
+            text += newline
+        return (text + newline + block).encode("latin-1"), True
+    if text[span[0] : span[1]] == section:
+        return data, False
+    head = drop_note(text[: span[0]])
+    return (head + block + text[span[1] :]).encode("latin-1"), True
+
+
+def plan_root(root: Path) -> list[tuple[str, str]]:
+    if not (root / "PROGRAM").is_dir():
+        raise RuntimeError(f"gameplay tree is missing: {root}")
+    assets = sound_assets()
+    pending: list[tuple[str, str]] = []
+    for name, data in assets:
+        target = root / SOUND_SUBDIR / name
+        if not target.is_file() or target.read_bytes() != data:
+            pending.append((f"{SOUND_SUBDIR}/{name}", "write"))
+    current = {name for name, _ in assets}
+    for name in MANAGED_SOUNDS:
+        if name in current:
+            continue
+        if (root / SOUND_SUBDIR / name).is_file():
+            pending.append((f"{SOUND_SUBDIR}/{name}", "remove"))
+    alias = root / ALIAS_RELATIVE
+    if not alias.is_file():
+        raise RuntimeError(f"sound alias file is missing: {alias}")
+    try:
+        _, changed = add_alias(alias.read_bytes())
+    except RuntimeError as error:
+        raise RuntimeError(f"{alias}: {error}") from error
+    if changed:
+        pending.append((ALIAS_RELATIVE, "write"))
+    for path in sorted((root / ANIMATION_SUBDIR).glob("*.ani")):
+        text = read_text(path)
+        try:
+            _, changed = add_action(text)
+        except RuntimeError as error:
+            raise RuntimeError(f"{path}: {error}") from error
+        if changed:
+            pending.append((f"{ANIMATION_SUBDIR}/{path.name}", "write"))
+    return pending
+
+
+def apply_root(root: Path) -> list[tuple[str, str]]:
+    changed = plan_root(root)
+    if not changed:
+        return []
+    for name, data in sound_assets():
+        target = root / SOUND_SUBDIR / name
+        if not target.is_file() or target.read_bytes() != data:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            atomic_write(target, data)
+    for relative, action in changed:
+        if action == "remove":
+            (root / relative).unlink()
+    alias = root / ALIAS_RELATIVE
+    text, changed_alias = add_alias(alias.read_bytes())
+    if changed_alias:
+        atomic_write(alias, text)
+    for path in sorted((root / ANIMATION_SUBDIR).glob("*.ani")):
+        text, changed_action = add_action(read_text(path))
+        if changed_action:
+            write_text(path, text)
+    return changed
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("check", "apply"), nargs="?", default="check")
+    args = parser.parse_args()
+    try:
+        pending = {root: plan_root(root) for root in ROOTS}
+        total = sum(len(entries) for entries in pending.values())
+        if args.action == "apply" and total:
+            for root in ROOTS:
+                for relative in apply_root(root):
+                    print(f"staged      {relative}  ->  {root}")
+            pending = {root: plan_root(root) for root in ROOTS}
+            total = sum(len(entries) for entries in pending.values())
+        print(f"ambush punch: {total} file(s) pending")
+        for root, entries in pending.items():
+            for relative in entries:
+                print(f"  pending   {relative}  ({root})")
+        for name, data in sound_assets():
+            print(f"  asset     {digest(data)}  {name}")
+        return 2 if total else 0
+    except (RuntimeError, OSError, ValueError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

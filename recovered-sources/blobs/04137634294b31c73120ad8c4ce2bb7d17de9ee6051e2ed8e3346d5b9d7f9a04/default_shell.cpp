@@ -1,0 +1,5 @@
+#include "ship_laser_geometry_baseline.hpp"
+#include <fstream>
+using namespace storm_ship_laser;
+Vertex v(Vec3 p){Vertex r;r.position=p;r.normal=storm_ship_hull::normalized(p);r.color=0xffabcdef;r.uv={1,2,3,4,5,6,7,8};return r;}
+int main(int argc,char**argv){Mesh m;Vec3 p[8]={{-1,-1,-1},{1,-1,-1},{1,1,-1},{-1,1,-1},{-1,-1,1},{1,-1,1},{1,1,1},{-1,1,1}};int f[6][4]={{0,3,2,1},{4,5,6,7},{0,4,7,3},{1,2,6,5},{0,1,5,4},{3,7,6,2}};for(int k=0;k<6;++k){m[k%2].push_back({v(p[f[k][0]]),v(p[f[k][1]]),v(p[f[k][2]])});m[k%2].push_back({v(p[f[k][0]]),v(p[f[k][2]]),v(p[f[k][3]])});}std::ofstream out(argv[1],std::ios::binary);for(auto depths:{std::map<int,float>{{0,.1f},{1,.2f}},std::map<int,float>{{0,.6f}},std::map<int,float>{}}){auto mesh=shellForRender(m,depths);for(auto&o:mesh){out.write((char*)&o.first,sizeof(o.first));for(auto&t:o.second)out.write((char*)t.data(),sizeof(t));}}m[1].pop_back();auto mesh=shellForRender(m,{{0,.12f},{1,.32f}});for(auto&o:mesh)for(auto&t:o.second)out.write((char*)t.data(),sizeof(t));}

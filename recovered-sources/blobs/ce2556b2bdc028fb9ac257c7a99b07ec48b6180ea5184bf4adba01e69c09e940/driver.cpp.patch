@@ -1,0 +1,36 @@
+--- driver.cpp-predecessor
++++ driver.cpp-profile
+@@ -76,7 +76,10 @@
+     for (int frame = 0; frame < frames; ++frame) {
+         SDL_PumpEvents();
+         const auto begin = std::chrono::steady_clock::now();
+-        destruction_scene::beforeFrame(frame);
++        if (frame == 101) {
++            corsairs_fracture_diag::Action action("ram", destruction_scene::target);
++            destruction_scene::beforeFrame(frame);
++        } else destruction_scene::beforeFrame(frame);
+         const auto afterAction = std::chrono::steady_clock::now();
+         if (!core_internal.Run()) return 67;
+         const auto afterCore = std::chrono::steady_clock::now();
+@@ -112,7 +115,8 @@
+             mi_process_info(&a,&b,&c,&rssBefore,&peak,&commit,&peakCommit,&faults);
+             const auto prepareBegin = std::chrono::steady_clock::now();
+             size_t payload[6]{};
+-            destruction_scene::require(geo->DiagnosticPrepareLaser(payload), "prewarm failed");
++            if (std::getenv("DESTRUCTION_PREWARM"))
++                destruction_scene::require(geo->DiagnosticPrepareLaser(payload), "prewarm failed");
+             const auto prepareEnd = std::chrono::steady_clock::now();
+             size_t rssAfter=0;
+             mi_process_info(&a,&b,&c,&rssAfter,&peak,&commit,&peakCommit,&faults);
+@@ -128,6 +132,11 @@
+                 std::chrono::duration<double,std::milli>(prepareEnd-prepareBegin).count(), rssBefore, rssAfter,
+                 payload[0], payload[1], payload[5], static_cast<unsigned long long>(generation),
+                 static_cast<unsigned long long>(revision));
++        }
++        if (frame == 100) {
++            auto *geo = dynamic_cast<GEOM *>(destruction_scene::target->GetModel()->GetNode(0)->geo);
++            std::printf("PREHIT_ROOT pointer=%p generation=%llu revision=%llu\n", (void *)geo,
++                (unsigned long long)geo->GeometryGeneration(), (unsigned long long)geo->CollisionRevision());
+         }
+         destruction_scene::afterFrame(frame);
+         destruction_scene::capture(frame,width,height);

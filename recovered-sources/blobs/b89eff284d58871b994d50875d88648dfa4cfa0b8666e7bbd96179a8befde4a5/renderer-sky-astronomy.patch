@@ -1,0 +1,113 @@
+diff --git a/src/libs/weather/src/stars.cpp b/src/libs/weather/src/stars.cpp
+--- a/src/libs/weather/src/stars.cpp
++++ b/src/libs/weather/src/stars.cpp
+@@ -6,5 +6,11 @@
+ #include "weather_base.h"
+ #include "v_file_service.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawStarSprites(void *device, void *positions, uint32_t positionStride,
++                                            void *colors, uint32_t colorStride, uint32_t count,
++                                            float pointSize, int32_t texture, const char *technique);
++#endif
++
+ Astronomy::STARS::STARS()
+ {
+@@ -308,5 +314,16 @@ void Astronomy::STARS::Realize(double dDeltaTime, double dHour)
+         pRS->UnLockVertexBuffer(iVertexBufferColors);
+     }
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    // The Metal renderer consumes the two existing GPU streams directly and
++    // expands each point to a camera-facing quad in its vertex shader.  The
++    // legacy path remains the non-Metal compatibility owner.
++    pRS->TextureSet(0, iTexture);
++    StormMetalDrawStarSprites(pRS->GetD3DDevice(), pRS->GetVertexBuffer(iVertexBuffer), sizeof(CVECTOR),
++                               pRS->GetVertexBuffer(iVertexBufferColors), sizeof(uint32_t), aStars.size(), fSize,
++                               iTexture, "stars");
++    return;
++#endif
++
+     pRS->SetRenderState(D3DRS_POINTSPRITEENABLE, true);
+     pRS->SetRenderState(D3DRS_POINTSCALEENABLE, true);
+diff --git a/src/libs/weather/src/planets.cpp b/src/libs/weather/src/planets.cpp
+--- a/src/libs/weather/src/planets.cpp
++++ b/src/libs/weather/src/planets.cpp
+@@ -4,5 +4,11 @@
+ #include "math_inlines.h"
+ #include "weather_base.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t subTexturesX,
++                                           uint32_t subTexturesY, float scaleX, float scaleY);
++#endif
++
+ Astronomy::PLANETS::PLANETS()
+ {
+@@ -147,6 +153,11 @@ void Astronomy::PLANETS::Realize(double dDeltaTime, double dHour)
+         p.fAngle = 0.0f;
+         p.fSize = aPlanets[i].fScale * fPlanetScale * aPlanets[i].fFakeScale * 10.0f;
+         pRS->TextureSet(0, aPlanets[i].iTexture);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        StormMetalDrawBillboards(pRS->GetD3DDevice(), &p, 1, "planet", 1, 1, 1.0f,
++                                 pRS->GetHeightDeformator());
++#else
+         pRS->DrawRects(&p, 1, "planet");
++#endif
+ 
+         /*if (aPlanets[i].pGeo)
+diff --git a/src/libs/weather/src/sun_glow.cpp b/src/libs/weather/src/sun_glow.cpp
+--- a/src/libs/weather/src/sun_glow.cpp
++++ b/src/libs/weather/src/sun_glow.cpp
+@@ -4,5 +4,26 @@
+ #include "math_inlines.h"
+ #include "sky.h"
+ 
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++extern "C" void StormMetalDrawBillboards(void *device, const RS_RECT *rects, uint32_t count,
++                                           const char *technique, uint32_t subTexturesX,
++                                           uint32_t subTexturesY, float scaleX, float scaleY);
++
++static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count, const char *technique,
++                           uint32_t subTexturesX = 1, uint32_t subTexturesY = 1,
++                           float scaleX = 1.0f, float scaleY = 1.0f)
++{
++    StormMetalDrawBillboards(renderer->GetD3DDevice(), rects, count, technique, subTexturesX,
++                             subTexturesY, scaleX, scaleY * renderer->GetHeightDeformator());
++}
++#else
++static void DrawBillboards(VDX9RENDER *renderer, RS_RECT *rects, uint32_t count, const char *technique,
++                           uint32_t subTexturesX = 1, uint32_t subTexturesY = 1,
++                           float scaleX = 1.0f, float scaleY = 1.0f)
++{
++    renderer->DrawRects(rects, count, technique, subTexturesX, subTexturesY, scaleX, scaleY);
++}
++#endif
++
+ SUNGLOW::SUNGLOW()
+ {
+@@ -281,5 +302,5 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+         rs_rect.fSize = Overflow.fSize;
+         rs_rect.fAngle = 0.0f;
+ 
+-        pRS->DrawRects(&rs_rect, 1, Overflow.sTechnique.c_str());
++        DrawBillboards(pRS, &rs_rect, 1, Overflow.sTechnique.c_str());
+     }
+@@ -314,5 +335,6 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
+         }
+ 
+         pRS->TextureSet(0, iFlareTex);
+-        pRS->DrawRects(&aRSR[0], aRSR.size(), Flares.sTechnique.c_str(), Flares.dwTexSizeX, Flares.dwTexSizeY);
++        DrawBillboards(pRS, &aRSR[0], aRSR.size(), Flares.sTechnique.c_str(), Flares.dwTexSizeX,
++                       Flares.dwTexSizeY);
+     }
+@@ -574,6 +596,6 @@ void SUNGLOW::DrawReflection()
+     const auto fCoeffY = Bring2Range(2.0f, 1.0f, 0.0f, 1.0f, fSunHeightAngle);
+ 
+     pRS->TextureSet(0, iReflTexture);
+-    pRS->DrawRects(&r_spr, 1, Reflection.sTechnique.c_str(), 0, 0, (bSimpleSea) ? fCoeffX : 1.0f,
+-                   (bSimpleSea) ? fCoeffY : 1.0f);
++    DrawBillboards(pRS, &r_spr, 1, Reflection.sTechnique.c_str(), 0, 0, (bSimpleSea) ? fCoeffX : 1.0f,
++                   (bSimpleSea) ? fCoeffY : 1.0f);
+ }

@@ -1,0 +1,325 @@
+--- a/src/libs/core/src/compiler.cpp
++++ b/src/libs/core/src/compiler.cpp
+@@ -6622,7 +6622,11 @@
+         break;
+     case VAR_AREFERENCE:
+         pString = nullptr;
++#ifdef _WIN32
+         __try
++#else
++        try
++#endif
+         {
+             pA = TraceARoot(pV->AttributesClass, pString);
+         }
+--- a/src/libs/core/include/message.h
++++ b/src/libs/core/include/message.h
+@@ -12,7 +12,11 @@
+ namespace storm
+ {
+ using MessageParam = std::variant<uint8_t, uint16_t, uint32_t, int32_t, float, double, ATTRIBUTES *, entid_t, VDATA *,
+-                                  CVECTOR, std::string>;
++                                  CVECTOR, std::string
++#ifdef __APPLE__
++                                  , uintptr_t
++#endif
++                                  >;
+ 
+ namespace detail {
+ 
+--- a/src/libs/core/src/internal_functions.cpp
++++ b/src/libs/core/src/internal_functions.cpp
+@@ -2564,7 +2564,7 @@
+         }
+         pA = pV->GetAClass();
+ 
+-        std::sort(std::execution::seq, std::begin(pA->attributes_), std::end(pA->attributes_),
++        std::sort(std::begin(pA->attributes_), std::end(pA->attributes_),
+                   [](const std::unique_ptr<ATTRIBUTES> &lhs, const std::unique_ptr<ATTRIBUTES> &rhs) {
+                       return strcmp(lhs->GetThisName(), rhs->GetThisName()) < 0;
+                   });
+--- a/src/libs/math/include/math_inlines.h
++++ b/src/libs/math/include/math_inlines.h
+@@ -3,7 +3,11 @@
+ #include <cstdint>
+ #include <cmath>
+ 
++#if defined(__aarch64__)
++#include <sse2neon.h>
++#else
+ #include <xmmintrin.h>
++#endif
+ 
+ #include "c_vector.h"
+ 
+@@ -137,4 +141,4 @@
+ inline int ftoi(float f)
+ {
+     return _mm_cvt_ss2si(_mm_load_ss(&f));
+-}
+\ No newline at end of file
++}
+--- a/src/libs/math/include/math3d.h
++++ b/src/libs/math/include/math3d.h
+@@ -8,7 +8,11 @@
+ 
+ #include <cstdint>
+ 
++#if defined(__aarch64__)
++#include <sse2neon.h>
++#else
+ #include <xmmintrin.h> // espkk # remove inline asm # 30/Dec/2017
++#endif
+ 
+ //#define inline __forceinline
+ 
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1,4 +1,7 @@
+ #include "s_device.h"
++#ifndef _WIN32
++#include "raw_texture.hpp"
++#endif
+ 
+ #include "core.h"
+ 
+@@ -233,7 +236,7 @@
+     return true;
+ }
+ 
+-uint64_t _rdtsc;
++uint64_t renderTimestamp;
+ uint32_t dwTotalSize = 0;
+ uint32_t dwSplashTime = 0;
+ bool bSplash = false;
+@@ -1463,6 +1466,7 @@
+         // try to load without '.tx' (e.g. raw Targa)
+         std::filesystem::path path_to_tex{fn};
+         path_to_tex.replace_extension();
++        path_to_tex = fio->ConvertPathResource(path_to_tex.string().c_str());
+         if (exists(path_to_tex))
+         {
+             return TextureLoadUsingD3DX(path_to_tex.string().c_str(), t);
+@@ -1774,10 +1778,13 @@
+ 
+ bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
+ {
+-#ifdef _WIN32 // TextureLoadUsingD3DX - used only for loading raw Targa
+     // TODO: reimplement the whole thing in a tidy way
+     IDirect3DTexture9 *pTex;
++#ifdef _WIN32
+     if(CHECKD3DERR(D3DXCreateTextureFromFileA(d3d9, path, &pTex)))
++#else
++    if(CHECKD3DERR(LoadNativeRawTexture(d3d9, path, &pTex)))
++#endif
+     {
+         delete Textures[t].name;
+         Textures[t].name = nullptr;
+@@ -1795,9 +1802,6 @@
+     Textures[t].loaded = true;
+ 
+     return true;
+-#else
+-    return false;
+-#endif
+ }
+ 
+ IDirect3DBaseTexture9 *DX9RENDER::GetBaseTexture(int32_t iTexture)
+@@ -2387,11 +2391,11 @@
+         }
+         // Copy verteces
+         uint8_t *ptr;
+-        RDTSC_B(_rdtsc);
++        RDTSC_B(renderTimestamp);
+         if (CHECKD3DERR(aniVBuffer->Lock(0, size, (void **)&ptr, 0)) == true)
+             return;
+         dwNumLV++;
+-        RDTSC_E(_rdtsc);
++        RDTSC_E(renderTimestamp);
+         memcpy(ptr, src, size);
+         CHECKD3DERR(aniVBuffer->Unlock());
+     }
+@@ -4612,4 +4616,3 @@
+ 
+     return success;
+ }
+-
+--- a/src/libs/sea_ai/src/ai_ship.h
++++ b/src/libs/sea_ai/src/ai_ship.h
+@@ -168,7 +168,7 @@
+         AICannon *pFortCannon;
+         float fDistance;
+ 
+-        bool operator<(can_fire_t &other) const
++        bool operator<(const can_fire_t &other) const
+         {
+             return fDistance < other.fDistance;
+         };
+--- a/src/libs/location/src/character.cpp
++++ b/src/libs/location/src/character.cpp
+@@ -5226,7 +5226,7 @@
+         num->Set(0);
+         return;
+     }
+-    num->Set(n);
++    num->Set(static_cast<int32_t>(n));
+     if (!n)
+         return;
+     if (n > static_cast<int32_t>(array->GetElementsNum()))
+--- a/src/libs/diagnostics/src/spdlog_sinks/file_helper.cpp
++++ b/src/libs/diagnostics/src/spdlog_sinks/file_helper.cpp
+@@ -15,12 +15,12 @@
+ using namespace spdlog;
+ using namespace spdlog::details;
+ 
+-SPDLOG_INLINE file_helper::~file_helper()
++file_helper::~file_helper()
+ {
+     close();
+ }
+ 
+-SPDLOG_INLINE void file_helper::open(const filename_t &fname, bool truncate)
++void file_helper::open(const filename_t &fname, bool truncate)
+ {
+     close();
+     filename_ = fname;
+@@ -56,7 +56,7 @@
+     throw_spdlog_ex("Failed opening file " + os::filename_to_str(filename_) + " for writing", errno);
+ }
+ 
+-SPDLOG_INLINE void file_helper::reopen(bool truncate)
++void file_helper::reopen(bool truncate)
+ {
+     if (filename_.empty())
+     {
+@@ -65,12 +65,12 @@
+     this->open(filename_, truncate);
+ }
+ 
+-SPDLOG_INLINE void file_helper::flush()
++void file_helper::flush()
+ {
+     std::fflush(fd_);
+ }
+ 
+-SPDLOG_INLINE void file_helper::close()
++void file_helper::close()
+ {
+     if (fd_ != nullptr)
+     {
+@@ -79,7 +79,7 @@
+     }
+ }
+ 
+-SPDLOG_INLINE void file_helper::write(const memory_buf_t &buf)
++void file_helper::write(const memory_buf_t &buf)
+ {
+     size_t msg_size = buf.size();
+     auto data = buf.data();
+@@ -89,7 +89,7 @@
+     }
+ }
+ 
+-SPDLOG_INLINE size_t file_helper::size() const
++size_t file_helper::size() const
+ {
+     if (fd_ == nullptr)
+     {
+@@ -98,7 +98,7 @@
+     return os::filesize(fd_);
+ }
+ 
+-SPDLOG_INLINE const filename_t &file_helper::filename() const
++const filename_t &file_helper::filename() const
+ {
+     return filename_;
+ }
+@@ -121,7 +121,7 @@
+ // ".mylog" => (".mylog". "")
+ // "my_folder/.mylog" => ("my_folder/.mylog", "")
+ // "my_folder/.mylog.txt" => ("my_folder/.mylog", ".txt")
+-SPDLOG_INLINE std::tuple<filename_t, filename_t> file_helper::split_by_extension(const filename_t &fname)
++std::tuple<filename_t, filename_t> file_helper::split_by_extension(const filename_t &fname)
+ {
+     auto ext_index = fname.rfind('.');
+ 
+--- a/src/libs/util/include/fs.h
++++ b/src/libs/util/include/fs.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <filesystem>
++#include <cstdlib>
+ 
+ #ifdef _WIN32 // SHGetKnownFolderPath
+ #include <ShlObj.h>
+@@ -18,6 +19,11 @@
+     static path path;
+     if (path.empty())
+     {
++        if (const char *overridePath = std::getenv("STORM_USERDATA"); overridePath && *overridePath)
++        {
++            path = overridePath;
++            return path;
++        }
+ #ifdef _WIN32 // SHGetKnownFolderPath
+         wchar_t *str = nullptr;
+         SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_SIMPLE_IDLIST, nullptr, &str);
+--- a/src/libs/sound_service/CMakeLists.txt
++++ b/src/libs/sound_service/CMakeLists.txt
+@@ -1,5 +1,23 @@
++if(DEFINED STORM_ENABLE_AUDIO AND NOT STORM_ENABLE_AUDIO)
++    add_library(sound_service INTERFACE)
++    target_include_directories(sound_service INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
++    return()
++endif()
++
++if(DEFINED STORM_NATIVE_AUDIO_SOURCE)
++    add_library(sound_service STATIC
++        "${STORM_NATIVE_AUDIO_SOURCE}/sound_service.cpp"
++        "${STORM_NATIVE_AUDIO_SOURCE}/miniaudio_impl.cpp")
++    target_include_directories(sound_service PUBLIC
++        "${STORM_NATIVE_AUDIO_SOURCE}" "${CMAKE_CURRENT_SOURCE_DIR}/include")
++    target_link_libraries(sound_service PUBLIC core renderer
++        "-framework AudioToolbox" "-framework CoreAudio" "-framework CoreFoundation")
++    set(global_modules_list "${global_modules_list};sound_service" CACHE INTERNAL "global_modules_list")
++    return()
++endif()
++
+ STORM_SETUP(
+     TARGET_NAME sound_service
+     TYPE storm_module
+     DEPENDENCIES core fmod renderer
+-)
+\ No newline at end of file
++)
+--- a/src/apps/engine/src/main.cpp
++++ b/src/apps/engine/src/main.cpp
+@@ -168,6 +168,9 @@
+     spdlog::set_default_logger(storm::logging::getOrCreateLogger(defaultLoggerName));
+     spdlog::info("Logging system initialized. Running on {}", STORM_BUILD_WATERMARK_STRING);
+     spdlog::info("mimalloc-redirect status: {}", mi_is_redirected());
++#ifdef STORM_AUDIO_DISABLED
++    spdlog::warn("Audio disabled: STORM_ENABLE_AUDIO=OFF");
++#endif
+ 
+     // Init core
+     core_private = static_cast<CorePrivate *>(&core);
+--- a/src/libs/renderer/src/technique.cpp
++++ b/src/libs/renderer/src/technique.cpp
+@@ -494,6 +494,7 @@
+                              {"add", D3DTOP_ADD},
+                              {"addsigned", D3DTOP_ADDSIGNED},
+                              {"addsigned2x", D3DTOP_ADDSIGNED2X},
++                             {"subtract", D3DTOP_SUBTRACT},
+                              {"substract", D3DTOP_SUBTRACT},
+                              {"addsmooth", D3DTOP_ADDSMOOTH},
+                              {"blenddiffusealpha", D3DTOP_BLENDDIFFUSEALPHA},
+@@ -521,6 +522,7 @@
+                            {"tfactor", D3DTA_TFACTOR},
+                            {"alphareplicate", D3DTA_ALPHAREPLICATE},
+                            {"complement", D3DTA_COMPLEMENT},
++                           {"texture | complement", D3DTA_TEXTURE | D3DTA_COMPLEMENT},
+                            {"current_alphareplicate", D3DTA_CURRENT | D3DTA_ALPHAREPLICATE},
+                            {"diffuse_alphareplicate", D3DTA_DIFFUSE | D3DTA_ALPHAREPLICATE},
+                            {"specular_alphareplicate", D3DTA_SPECULAR | D3DTA_ALPHAREPLICATE},

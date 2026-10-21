@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Static island GM inspection and reversible render-normal candidate.
+
+This is deliberately source-only.  It reads a shipped static GM, keeps every
+position, index and UV unchanged, and can emit a sidecar normal stream for a
+renderer experiment.  It never writes a game asset or collision/runtime file.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import struct
+from collections import defaultdict
+from pathlib import Path
+
+
+def _reader(data: bytes):
+    offset = 0
+
+    def read(fmt: str):
+        nonlocal offset
+        size = struct.calcsize("<" + fmt)
+        if offset + size > len(data):
+            raise ValueError("truncated GM")
+        value = struct.unpack_from("<" + fmt, data, offset)
+        offset += size
+        return value
+
+    def skip(size: int):
+        nonlocal offset
+        if size < 0 or offset + size > len(data):
+            raise ValueError("invalid GM range")
+        offset += size
+
+    def position():
+        return offset
+
+    return read, skip, position
+
+
+def load_static_gm(path: Path):
+    data = path.read_bytes()
+    read, skip, position = _reader(data)
+    header = read("11i7f")
+    if any(n < 0 or n > len(data) for n in header[2:11]):
+        raise ValueError("invalid GM counts")
+    strings = data[struct.calcsize("<11i7f") :]
+    # Re-run offset based parsing while retaining the exact string table.
+    offset = position()
+    strings = data[offset : offset + header[2]]
+    skip(header[2]); skip(header[3] * 4)
+
+    def name(index: int) -> str:
+        if not 0 <= index < len(strings):
+            raise ValueError("invalid string offset")
+        return strings[index:].split(b"\0", 1)[0].decode("cp1251", "replace")
+
+    textures = [name(read("i")[0]) for _ in range(header[4])]
+    materials = [read("2i4f8i") for _ in range(header[5])]
+    skip(header[6] * 80)
+    labels = [read("3i16f4i4f") for _ in range(header[7])]
+    objects = [read("3i4f6i8i4ii") for _ in range(header[8])]
+    triangles = [read("3H") for _ in range(header[9])]
+    buffers = []
+    for typ, size in [read("2i") for _ in range(header[10])]:
+        if typ >> 2:
+            raise ValueError("animated GM is outside this static probe")
+        stride = 36 + (typ & 3) * 8
+        if size % stride:
+            raise ValueError("invalid vertex stride")
+        offset = position()
+        raw = data[offset : offset + size]
+        skip(size)
+        buffers.append((raw, stride))
+
+    vertices = []
+    indices = []
+    draw_ranges = []
+    for obj_index, obj in enumerate(objects):
+        vb, triangle_count, start, vertex_count, vertex_start, material_index = obj[7:13]
+        if not (0 <= vb < len(buffers) and 0 <= material_index < len(materials)):
+            raise ValueError("invalid object reference")
+        if not (0 <= start <= start + triangle_count <= len(triangles)):
+            raise ValueError("invalid triangle range")
+        raw, stride = buffers[vb]
+        base = len(vertices)
+        material = materials[material_index]
+        texture_index = material[10]
+        texture = textures[texture_index] if 0 <= texture_index < len(textures) else "<invalid>"
+        for tri in triangles[start : start + triangle_count]:
+            local = []
+            for source_index in tri:
+                index = source_index + vertex_start
+                if index < 0 or index * stride + 36 > len(raw):
+                    raise ValueError("invalid vertex index")
+                x, y, z, nx, ny, nz, _color, u, v = struct.unpack_from("<6fI2f", raw, index * stride)
+                local.append(len(vertices))
+                vertices.append({"p": [x, y, z], "n": [nx, ny, nz], "uv": [u, v], "object": obj_index, "texture": texture})
+            indices.append(local)
+        draw_ranges.append({"object": obj_index, "triangles": triangle_count, "texture": texture, "first": base})
+    return {"path": str(path), "vertices": vertices, "indices": indices, "draws": draw_ranges}
+
+
+def _key(p):
+    # GM coordinates are authored as floats; exact duplicate positions are the
+    # safe boundary for render-only normal repair and avoid touching topology.
+    return tuple(struct.pack("<f", x) for x in p)
+
+
+def metrics(scene):
+    vertices = scene["vertices"]
+    groups = defaultdict(list)
+    for i, vertex in enumerate(vertices):
+        groups[_key(vertex["p"])].append(i)
+    shared = sum(len(v) - 1 for v in groups.values() if len(v) > 1)
+    uv_seams = sum(1 for v in groups.values() if len({tuple(vertices[i]["uv"]) for i in v}) > 1)
+    low = [min(v["p"][axis] for v in vertices) for axis in range(3)]
+    high = [max(v["p"][axis] for v in vertices) for axis in range(3)]
+    lengths = []
+    for tri in scene["indices"]:
+        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+            pa, pb = vertices[a]["p"], vertices[b]["p"]
+            lengths.append(math.sqrt(sum((pa[j] - pb[j]) ** 2 for j in range(3))))
+    return {
+        "vertex_count": len(vertices),
+        "triangle_count": len(scene["indices"]),
+        "draw_count": len(scene["draws"]),
+        "bounds": [low, high],
+        "extent": [high[i] - low[i] for i in range(3)],
+        "exact_position_groups": len(groups),
+        "shared_position_vertices": shared,
+        "uv_seam_groups": uv_seams,
+        "edge_length": {"min": min(lengths), "median": sorted(lengths)[len(lengths) // 2], "max": max(lengths)},
+        "textures": sorted({d["texture"] for d in scene["draws"]}),
+    }
+
+
+def smooth_render_normals(scene, max_angle_degrees: float = 35.0):
+    """Return sidecar normals only; positions, indices and UVs remain untouched."""
+    vertices = scene["vertices"]
+    groups = defaultdict(list)
+    for i, vertex in enumerate(vertices):
+        groups[_key(vertex["p"])].append(i)
+    cosine = math.cos(math.radians(max_angle_degrees))
+    result = [list(vertex["n"]) for vertex in vertices]
+    changed = 0
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        for i in members:
+            nx, ny, nz = vertices[i]["n"]
+            accum = [nx, ny, nz]
+            for j in members:
+                if i == j:
+                    continue
+                jx, jy, jz = vertices[j]["n"]
+                dot = nx * jx + ny * jy + nz * jz
+                if dot >= cosine:
+                    accum[0] += jx; accum[1] += jy; accum[2] += jz
+            length = math.sqrt(sum(v * v for v in accum))
+            if length > 1e-8:
+                candidate = [v / length for v in accum]
+                if max(abs(candidate[k] - result[i][k]) for k in range(3)) > 1e-6:
+                    changed += 1
+                    result[i] = candidate
+    return result, changed
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("model", type=Path)
+    parser.add_argument("--metrics", type=Path)
+    parser.add_argument("--render-normal-sidecar", type=Path)
+    parser.add_argument("--angle", type=float, default=35.0)
+    args = parser.parse_args()
+    scene = load_static_gm(args.model)
+    report = metrics(scene)
+    if args.render_normal_sidecar:
+        normals, changed = smooth_render_normals(scene, args.angle)
+        args.render_normal_sidecar.write_text(json.dumps({"model": str(args.model), "angle_degrees": args.angle, "changed_normals": changed, "normals": normals}, separators=(",", ":")))
+        report["candidate"] = {"angle_degrees": args.angle, "changed_normals": changed, "sidecar": str(args.render_normal_sidecar)}
+    if args.metrics:
+        args.metrics.write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    main()

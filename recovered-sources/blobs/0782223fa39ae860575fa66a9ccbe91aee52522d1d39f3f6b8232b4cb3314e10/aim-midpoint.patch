@@ -1,0 +1,35 @@
+diff --git a/docs/sea-aim-overlay.md b/docs/sea-aim-overlay.md
+index bc59f74..9e415cf 100644
+--- a/docs/sea-aim-overlay.md
++++ b/docs/sea-aim-overlay.md
+@@ -2,6 +2,15 @@
+ 
+ ## Status
+ 
++### October16 — intermediate water brightness
++
++The player rejects the stronger water marks as too bright and requests a middle
++setting. Base water fill/rim alpha becomes .19/.63, the midpoint of the earlier
++.08/.48 and stronger .30/.78 pair. The existing .75 night → 1 day factor stays;
++full-night base values are .1425/.4725. Receiver colors, contour widths, depth
++rejection, solids, fog and firing are unchanged. These are source values;
++canonical delivery and the player's visual judgment remain separate acceptance.
++
+ ### October16 — night water strength
+ 
+ The player's22:45 water field is clean after the depth repair but too bright.
+diff --git a/experiments/native-metal/aim_volume.hpp b/experiments/native-metal/aim_volume.hpp
+index eeaf5a7..b9c124f 100644
+--- a/experiments/native-metal/aim_volume.hpp
++++ b/experiments/native-metal/aim_volume.hpp
+@@ -386,8 +386,8 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
+   bool coloredReceiver=receiverToken!=0u;
+   float daylight=u.surfaceStyle.x;
+   float waterStrength=actualWater?mix(.75f,1.f,daylight):1.f;
+-  float fillAlpha=(actualWater?.30f:.08f)*coverage*readiness*waterStrength;
+-  float lineAlpha=(actualWater?.78f:(coloredReceiver?.42f:.48f))*contour*readiness*waterStrength;
++  float fillAlpha=(actualWater?.19f:.08f)*coverage*readiness*waterStrength;
++  float lineAlpha=(actualWater?.63f:(coloredReceiver?.42f:.48f))*contour*readiness*waterStrength;
+   uint rgb=identity.y;
+   float3 tint=coloredReceiver?float3(float((rgb>>16)&255u),float((rgb>>8)&255u),float(rgb&255u))/255.f:
+       float3(.85098f,.88627f,.89412f);

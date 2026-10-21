@@ -1,0 +1,244 @@
+// One domain case over the existing hidden real-engine city CORE facility.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "controls.h"
+#include "ship_base.h"
+#include "character.h"
+#include "location.h"
+#include <SDL2/SDL.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <spdlog/spdlog.h>
+
+static void require(bool ok, const std::string &why) { if (!ok) throw std::runtime_error(why); }
+static ATTRIBUTES *attributes(const char *name)
+{
+    auto *data = static_cast<VDATA *>(core.GetScriptVariable(name));
+    require(data && data->GetAClass(), std::string("script object missing: ") + name);
+    return data->GetAClass();
+}
+static ATTRIBUTES *field(ATTRIBUTES *root, const std::string &path)
+{
+    auto *value = root->FindAClass(root, path.c_str());
+    require(value, "observed field absent: " + path);
+    return value;
+}
+static std::string value(const std::string &path)
+{
+    auto *data = field(attributes("FullScene"), path);
+    const char *text = data->GetThisAttr();
+    return text ? text : "";
+}
+static void action(const std::string &name, const std::string &target = "", const std::string &argument = "")
+{
+    auto *state = attributes("FullScene");
+    state->SetAttribute("action", name.c_str());
+    state->SetAttribute("target", target.c_str());
+    state->SetAttribute("argument", argument.c_str());
+    core.Event("FullSceneAction");
+}
+static void frame()
+{
+    SDL_PumpEvents();
+    require(core_internal.Run(), "CORE frame failed");
+}
+static void dump(std::ostream &out, ATTRIBUTES *data, const std::string &prefix, unsigned depth = 0)
+{
+    require(depth < 24, "unexpected attribute depth");
+    if (const char *text = data->GetThisAttr()) out << std::quoted(prefix) << '=' << std::quoted(text) << '\n';
+    for (uint32_t i = 0; i < data->GetAttributesNum(); ++i)
+    {
+        auto *child = data->GetAttributeClass(i);
+        dump(out, child, prefix + '.' + child->GetThisName(), depth + 1);
+    }
+}
+static void observe(std::ostream &out, const std::string &label)
+{
+    core.Event("FullSceneObserve");
+    out << "BEGIN " << std::quoted(label) << '\n';
+    dump(out, attributes("FullScene"), "FullScene");
+    for (const auto id : core.GetEntityIds("ship"))
+    {
+        auto *ship = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        require(ship, "ship class does not resolve SHIP_BASE");
+        const auto &s = ship->State;
+        out << "ship eid=" << id << " xyz=" << s.vPos.x << ',' << s.vPos.y << ',' << s.vPos.z
+            << " speed=" << s.vSpeed.x << ',' << s.vSpeed.y << ',' << s.vSpeed.z;
+        if (auto *character = ship->GetACharacter())
+        {
+            out << " index=" << character->GetAttributeAsDword("index");
+            if (auto *hull = character->FindAClass(character, "Ship")) out << " hp=" << hull->GetAttributeAsFloat("HP");
+        }
+        out << '\n';
+    }
+    out << "entities hero_player=" << core.GetEntityIds("player").size()
+        << " rowboat=" << core.GetEntityIds("PORT_ROWBOAT").size()
+        << " locations=" << core.GetEntityIds("location").size()
+        << " fader=" << core.GetEntityIds("fader").size() << '\n';
+    out << "END\n";
+    out.flush();
+}
+static void snapshot(const std::filesystem::path &path)
+{
+    auto *renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+    require(renderer, "renderer absent");
+    // Preserve the real active gameplay camera and all scene/material state.
+    auto *device = static_cast<storm_render::Device *>(renderer->GetNativeDevice());
+    storm_render::Surface *surface = nullptr, *readback = nullptr;
+    require(!storm_render::failed(device->GetRenderTarget(&surface)), "render target");
+    storm_render::SurfaceDesc desc{};
+    surface->GetDesc(&desc);
+    require(!storm_render::failed(device->CreateOffscreenPlainSurface(desc.Width, desc.Height,
+        storm_render::AssetFormat::A8R8G8B8, &readback)), "readback surface");
+    require(!storm_render::failed(device->GetRenderTargetData(surface, readback)), "readback");
+    storm_render::LockedRect pixels{};
+    require(!storm_render::failed(readback->LockRect(&pixels, nullptr, storm_render::lock::readOnly)), "pixels");
+    std::ofstream out(path, std::ios::binary);
+    out << "P6\n" << desc.Width << ' ' << desc.Height << "\n255\n";
+    for (unsigned y = 0; y < desc.Height; ++y) for (unsigned x = 0; x < desc.Width; ++x)
+    {
+        const auto *p = static_cast<const unsigned char *>(pixels.pBits) + y * pixels.Pitch + x * 4;
+        const char rgb[] = {char(p[2]), char(p[1]), char(p[0])};
+        out.write(rgb, 3);
+    }
+    require(bool(out), "snapshot write");
+    readback->UnlockRect(); readback->Release(); surface->Release();
+}
+
+// Only this hidden fixture's mappings are changed. Real PCS_CONTROLS still
+// owns control resolution, locks and consumers. No replacement input backend.
+class HeldControls
+{
+    struct Saved { int32_t code; uint32_t flags, system; };
+    std::vector<Saved> saved;
+  public:
+    explicit HeldControls(const std::vector<std::string> &held)
+    {
+        if (held.empty()) return;
+        require(core.Controls, "controls absent");
+        for (const auto &name : held)
+        {
+            bool found = false;
+            for (int32_t code = 0; code < core.Controls->GetControlsNum(); ++code)
+            {
+                USER_CONTROL old{};
+                if (!core.Controls->GetControlDesc(code, old) || name != old.name) continue;
+                require(!core.Controls->IsControlLocked(name.c_str()), "control legitimately locked: " + name);
+                require(old.control_type == UCT_Standart, "control tree requires its actual input path: " + name);
+                saved.push_back({code, old.flags, old.system_code});
+                core.Controls->MapControl(code, 0x87); // Windows virtual F24, unused/inactive in fixture.
+                require(core.Controls->SetControlFlags(code, INVERSE_CONTROL), "map control flags");
+                found = true;
+                break;
+            }
+            require(found, "unknown gameplay control: " + name);
+        }
+    }
+    ~HeldControls()
+    {
+        for (const auto &old : saved)
+        { core.Controls->MapControl(old.code, old.system); core.Controls->SetControlFlags(old.code, old.flags); }
+    }
+};
+static void frames(int count, const std::vector<std::string> &controls = {})
+{
+    require(count >= 0 && count <= 6000, "invalid bounded frame count");
+    HeldControls held(controls);
+    for (int i = 0; i < count; ++i) frame();
+}
+
+int main(int argc, char **argv)
+{
+    std::shared_ptr<storm::OSWindow> window;
+    try
+    {
+        require(argc == 3, "usage: native-probe RUN STEPS");
+        const auto cwd = std::filesystem::canonical(argv[1]);
+        std::filesystem::current_path(cwd);
+        setenv("STORM_USERDATA", (cwd / "userdata").c_str(), 1);
+        setenv("STORM_QUIET_CLIENT", "1", 1);
+        spdlog::set_level(spdlog::level::info);
+        require(SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO) == 0, "SDL");
+        steamapi::SteamApi::getInstance(true);
+        window = storm::OSWindow::Create(1280, 800, 0, false, false);
+        require(window && !(SDL_GetWindowFlags(static_cast<SDL_Window *>(window->OSHandle())) & SDL_WINDOW_SHOWN), "window must stay hidden");
+        core_internal.Init(); core_internal.SetWindow(window); core_internal.InitBase();
+        core_internal.SetDeltaTime(50);
+        std::srand(54128);
+        frame();
+        std::ofstream journal(cwd / "observations.txt");
+        observe(journal, "bootstrap");
+        std::ifstream steps(argv[2]);
+        require(bool(steps), "steps input absent");
+        std::string line;
+        unsigned number = 0;
+        while (std::getline(steps, line))
+        {
+            ++number;
+            if (line.empty() || line[0] == '#') continue;
+            std::istringstream input(line);
+            std::string operation; input >> operation;
+            journal << "COMMAND " << number << ' ' << line << '\n'; journal.flush();
+            if (operation == "action")
+            {
+                std::string name, target, argument;
+                input >> std::quoted(name) >> std::quoted(target) >> std::quoted(argument);
+                action(name, target, argument);
+            }
+            else if (operation == "frames")
+            {
+                int count; input >> count;
+                std::string control; std::vector<std::string> controls;
+                while (input >> std::quoted(control)) controls.push_back(control);
+                frames(count, controls);
+            }
+            else if (operation == "wait")
+            {
+                std::string path, expected; int count;
+                input >> std::quoted(path) >> std::quoted(expected) >> count;
+                bool reached = false;
+                for (int i = 0; i <= count; ++i)
+                {
+                    core.Event("FullSceneObserve");
+                    if (value(path) == expected) { reached = true; break; }
+                    if (i < count) frame();
+                }
+                observe(journal, "wait " + path);
+                require(reached, "scenario timeout at " + path + "=" + value(path) + " expected " + expected);
+            }
+            else if (operation == "assert")
+            {
+                std::string path, expected; input >> std::quoted(path) >> std::quoted(expected);
+                core.Event("FullSceneObserve");
+                require(value(path) == expected, "assertion " + path + " expected " + expected + " observed " + value(path));
+            }
+            else if (operation == "snapshot")
+            {
+                std::string name; input >> std::quoted(name);
+                require(name.find('/') == std::string::npos && name.find("..") == std::string::npos, "invalid snapshot name");
+                snapshot(cwd / "frames" / (name + ".ppm"));
+            }
+            else if (operation == "state")
+            { std::string label; input >> std::quoted(label); observe(journal, label); }
+            else throw std::runtime_error("unsupported domain step: " + operation);
+        }
+        observe(journal, "end-of-steps");
+        std::puts("fullscene_steps_finished=1 installed_player_acceptance=0");
+        core_internal.EraseEntities(); core_internal.CleanUp(); window.reset(); SDL_Quit();
+        return 0;
+    }
+    catch (const std::exception &error)
+    { std::fprintf(stderr, "fullscene_failed=%s\n", error.what()); return 70; }
+}

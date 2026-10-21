@@ -1,0 +1,14 @@
+--- a/src/libs/location/src/character.cpp
++++ b/src/libs/location/src/character.cpp
+@@ -2908,9 +2908,11 @@
+                         }
+                         else if (storm::iEquals(eventName, CHARACTER_FIGHT_GUNFIRE))
+                         {
++                            if (isFired)
++                                return;
+                             isFireState = false;
+                             core.Send_Message(blade, "l", MSG_BLADE_GUNFIRE);
+                             // PlaySound("pistol_shot");
+                             isFired = true;
+                             float kDist;
+                             Character *chr = FindGunTarget(kDist, CheckShotOnlyEnemyTest());

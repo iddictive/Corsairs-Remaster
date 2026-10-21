@@ -1,0 +1,321 @@
+diff --git a/experiments/native-metal/engine/src/libs/geometry/include/geos.h b/experiments/native-metal/engine/src/libs/geometry/include/geos.h
+index 8fe7240..3e0be0a 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/include/geos.h
++++ b/experiments/native-metal/engine/src/libs/geometry/include/geos.h
+@@ -149,6 +149,7 @@ class GEOS
+     virtual bool ReplaceLaserFragment(uint64_t owner,storm_ship_laser::FragmentProjection&&,std::vector<storm_ship_laser::Fragment>&successors)=0;
+     virtual void ReleaseLaserFragment(uint64_t owner,uint64_t fragment)=0;
+     virtual void ClearLaserCuts(uint64_t owner)=0;
++    virtual bool WorldCutAffects(const storm_world_cut::Cut&cut,bool terrainModel) const=0;
+     virtual bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false)=0;
+     virtual bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged=false)=0;
+     virtual bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const=0;
+diff --git a/experiments/native-metal/engine/src/libs/geometry/src/geom.h b/experiments/native-metal/engine/src/libs/geometry/src/geom.h
+index 2b54b7b..995db2f 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/src/geom.h
++++ b/experiments/native-metal/engine/src/libs/geometry/src/geom.h
+@@ -253,6 +253,7 @@ class GEOM : public GEOS
+     bool ReplaceLaserFragment(uint64_t owner,storm_ship_laser::FragmentProjection&&,std::vector<storm_ship_laser::Fragment>&successors) override;
+     void ReleaseLaserFragment(uint64_t owner,uint64_t fragment) override;
+     void ClearLaserCuts(uint64_t owner) override;
++    bool WorldCutAffects(const storm_world_cut::Cut&cut,bool terrainModel) const override;
+     bool SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel=false) override;
+     bool CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged=false) override;
+     bool IsWorldPositionRetained(uint64_t owner,const CVECTOR&point) const override;
+diff --git a/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp b/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
+index 06ab706..90fc752 100644
+--- a/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
++++ b/experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp
+@@ -1300,15 +1300,23 @@ bool GEOM::CaptureWorldSurface(bool terrainModel)
+     if(!storm_world_cut::finite(original))return false;
+     worldOriginal=std::make_shared<const storm_ship_laser::Mesh>(std::move(original));worldPrepared=true;worldTerrainModel=terrainModel;return true;
+ }
++bool GEOM::WorldCutAffects(const storm_world_cut::Cut&cut,bool terrainModel) const
++{
++    for(int o=0;o<rhead.nobjects;++o){const auto&ob=object[o];
++        if(!(ob.flags&(VISIBLE|COLLISION_ENABLE))||!ob.ntriangles||(terrainModel&&worldTerrainObjects.count(o)))continue;
++        const storm_ship_hull::Vec3 center{ob.center.x,ob.center.y,ob.center.z},extent{ob.radius+1.f,ob.radius+1.f,ob.radius+1.f};
++        if(storm_world_cut::affects({center-extent,center+extent},{cut}))return true;}
++    return false;
++}
+ bool GEOM::CaptureWorldInput(uint64_t owner,const std::vector<storm_world_cut::Cut>&cuts,bool terrainModel,storm_world_cut::Input&input,bool retainUnchanged)
+ {
+     if(!owner||(worldOwner&&worldOwner!=owner)||laserOwner||hullOwner||cuts.size()>storm_world_cut::MaxCuts)return false;
+     for(const auto&cut:cuts)if(!storm_world_cut::valid(cut))return false;
+     const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
+     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f+1.f,rhead.bbox_size.z*.5f+16};
+-    storm_ship_hull::Bounds bounds{center-extent,center+extent};if(terrainModel)bounds.lo.y-=10032.f;
++    storm_ship_hull::Bounds bounds{center-extent,center+extent};
+     storm_world_cut::Input result;result.original=worldOriginal;result.material=worldMaterial;
+-    for(const auto&cut:cuts)if(storm_world_cut::affects(bounds,{cut}))result.cuts.push_back(cut);
++    for(const auto&cut:cuts)if(storm_world_cut::affects(bounds,{cut})&&WorldCutAffects(cut,terrainModel))result.cuts.push_back(cut);
+     result.currentCheckpoint=worldCheckpoint;result.currentCoverage=worldCoverage;
+     if(retainUnchanged&&result.cuts.empty()){
+         result.active=bool(worldMaterial);result.unchanged=true;input=std::move(result);return true;
+@@ -1366,7 +1374,7 @@ bool GEOM::SetWorldCuts(uint64_t owner,const std::vector<storm_world_cut::Cut>&c
+     if(cuts.empty()){ClearWorldCuts(owner);return true;}
+     const storm_ship_hull::Vec3 center{rhead.bbox_center.x,rhead.bbox_center.y,rhead.bbox_center.z};
+     const storm_ship_hull::Vec3 extent{rhead.bbox_size.x*.5f+16,rhead.bbox_size.y*.5f+1.f,rhead.bbox_size.z*.5f+16};
+-    storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};if(terrainModel)nodeBounds.lo.y-=10032.f;
++    storm_ship_hull::Bounds nodeBounds{center-extent,center+extent};
+     if(!storm_world_cut::affects(nodeBounds,cuts)){ClearWorldCuts(owner);return true;}
+     if(worldOwner==owner&&worldTerrainModel==terrainModel&&cuts.size()==worldCuts.size()&&std::equal(cuts.begin(),cuts.end(),worldCuts.begin(),[](const auto&a,const auto&b){return a.field==b.field&&storm_world_cut::equal(a,b);}))return true;
+     // SAVE restoration and live jobs use the same material/collision projection.
+diff --git a/experiments/native-metal/engine/src/libs/island/src/island.cpp b/experiments/native-metal/engine/src/libs/island/src/island.cpp
+index fca15d5..63f5c37 100644
+--- a/experiments/native-metal/engine/src/libs/island/src/island.cpp
++++ b/experiments/native-metal/engine/src/libs/island/src/island.cpp
+@@ -416,11 +416,7 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
+     const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
+     const float hit = Trace(surface, bottom);
+     const bool exact = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
+-    bool certifiedEmpty = false;
+-#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+-    certifiedEmpty = WorldGroundChanged(next.x, next.z);
+-#endif
+-    if ((!exact && !certifiedEmpty) || !std::isfinite(minDepth) ||
++    if (!exact || !std::isfinite(minDepth) ||
+         (exact && -500.0f * hit >= minDepth))
+         return true;
+ 
+@@ -458,10 +454,6 @@ bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
+         if (exactDepth >= keelY || !ActivateCamomileTrace(surface))
+             depth = exactDepth;
+     }
+-#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+-    else if (WorldGroundChanged(x, z) && !ActivateCamomileTrace(surface))
+-        depth = -500.f;
+-#endif
+     return true;
+ }
+ 
+diff --git a/experiments/native-metal/engine/src/libs/island/src/island.h b/experiments/native-metal/engine/src/libs/island/src/island.h
+index e031566..5fa3539 100644
+--- a/experiments/native-metal/engine/src/libs/island/src/island.h
++++ b/experiments/native-metal/engine/src/libs/island/src/island.h
+@@ -92,7 +92,6 @@ class ISLAND : public ISLAND_BASE
+     void PollWorldCutWork(uint32_t delta);
+     void CancelWorldCutWork();
+     void PublishWorldCut(WorldCutRecord record,const WorldWork&work);
+-    void PrewarmWorldCuts();
+     std::vector<entid_t> WorldModels() const;
+     std::string WorldModelKey(entid_t model) const;
+     std::string WorldNodeKey(entid_t model,int node) const;
+@@ -101,7 +100,6 @@ class ISLAND : public ISLAND_BASE
+     bool BindWorldCuts(const std::vector<WorldCutRecord> &records, bool force);
+     bool CommitWorldCut(WorldCutRecord record);
+     void RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection);
+-    bool WorldGroundChanged(float x, float z) const;
+ #endif
+ 
+     bool bFirstRealize;
+diff --git a/experiments/native-metal/engine/src/libs/island/src/island_world_cuts.cpp b/experiments/native-metal/engine/src/libs/island/src/island_world_cuts.cpp
+index 7755ad5..896f008 100644
+--- a/experiments/native-metal/engine/src/libs/island/src/island_world_cuts.cpp
++++ b/experiments/native-metal/engine/src/libs/island/src/island_world_cuts.cpp
+@@ -47,13 +47,13 @@ bool nodePoint(const std::array<storm_ship_hull::Vec3,4>&matrix,const CVECTOR&po
+     const float determinant=storm_ship_hull::dot(x,yz);if(!std::isfinite(determinant)||std::abs(determinant)<1.e-8f)return false;
+     const auto delta=storm_ship_hull::Vec3{point.x,point.y,point.z}-matrix[3];local={storm_ship_hull::dot(delta,yz)/determinant,storm_ship_hull::dot(delta,zx)/determinant,storm_ship_hull::dot(delta,xy)/determinant};return true;
+ }
+-bool affectsNode(const storm_world_cut::Cut&cut,GEOS&geometry,CMatrix matrix,bool terrain)
++bool affectsNode(const storm_world_cut::Cut&cut,GEOS&geometry,CMatrix matrix)
+ {
+     GEOS::INFO info{};geometry.GetInfo(info);const CVECTOR center(info.boxcenter.x,info.boxcenter.y,info.boxcenter.z);
+     const CVECTOR extent(info.boxsize.x*.5f+16.f,info.boxsize.y*.5f+1.f,info.boxsize.z*.5f+16.f);
+     storm_ship_hull::Bounds bounds{};bool first=true;
+     for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
+-        const auto point=matrix*CVECTOR(center.x+x*extent.x,center.y+y*extent.y-(terrain&&y<0?10032.f:0.f),center.z+z*extent.z);
++        const auto point=matrix*CVECTOR(center.x+x*extent.x,center.y+y*extent.y,center.z+z*extent.z);
+         const storm_ship_hull::Vec3 p{point.x,point.y,point.z};if(!storm_ship_hull::finite(p))return true;
+         bounds=first?storm_ship_hull::Bounds{p,p}:storm_ship_hull::merge(bounds,{p,p});first=false;}
+     return storm_world_cut::affects(bounds,{cut});
+@@ -312,16 +312,6 @@ void ISLAND::CancelWorldCutWork()
+     // Its value-only job is retired by Poll, or joined by this entity's destructor.
+ }
+ 
+-void ISLAND::PrewarmWorldCuts()
+-{
+-    for(const auto id:WorldModels()){
+-        auto*model=static_cast<MODEL*>(core.GetEntityPointer(id));const bool terrain=WorldModelKey(id)=="terrain";
+-        for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo){storm_world_cut::Input input;
+-            if(!node->geo->CaptureWorldInput(uint64_t(GetId()),{},terrain,input))
+-                core.Trace("World cut immutable input unavailable for model %llu",uint64_t(id));}
+-    }
+-}
+-
+ bool ISLAND::StartWorldCutWork() try
+ {
+     if(worldCutFuture.valid()||worldCutQueue.empty()||!worldCutState)return true;
+@@ -352,9 +342,9 @@ bool ISLAND::StartWorldCutWork() try
+             target.matrix=nodeMatrix(node->glob_mtx);
+             std::vector<storm_world_cut::Cut>local;for(const auto&cut:selected){storm_world_cut::Cut transformed;
+                 // A remote receiver, including a nonuniform architectural node,
+-                // must not veto or rebake a local ground hit before its bounds
++                // must not veto or rebake a local stone hit before its bounds
+                 // have even been checked in the authored world frame.
+-                if(!affectsNode(cut,*node->geo,node->glob_mtx,key=="terrain"))continue;
++                if(!affectsNode(cut,*node->geo,node->glob_mtx))continue;
+                 if(!nodeCut(cut,node->glob_mtx,transformed)){valid=false;break;}local.push_back(std::move(transformed));}
+             if(!valid||!node->geo->CaptureWorldInput(uint64_t(GetId()),local,key=="terrain",target.input,true)){valid=false;break;}
+             work.targets.push_back(std::move(target));
+@@ -440,7 +430,6 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
+     worldReflection = reflection;
+     worldCuts.clear(); worldBindings.clear();worldCutRevision=0;
+     worldCutsReady = false;
+-    PrewarmWorldCuts();
+     auto *saved = state ? state->GetAttributeClass("PhonkWorldCuts") : nullptr;
+     if (!saved) return; // Ordinary old saves retain their original geometry.
+     const unsigned count = saved->GetAttributeAsDword("count");
+@@ -501,7 +490,9 @@ bool ISLAND::CommitWorldCut(WorldCutRecord record)
+         for (int n = 0; auto *node = model->GetNode(n); ++n)
+         {
+             if (!node->geo) continue;
+-            affected = affected || affectsNode(record.cut,*node->geo,node->glob_mtx,key=="terrain");
++            if(!affectsNode(record.cut,*node->geo,node->glob_mtx))continue;
++            storm_world_cut::Cut local;
++            if(nodeCut(record.cut,node->glob_mtx,local))affected=affected||node->geo->WorldCutAffects(local,key=="terrain");
+         }
+         model->mtx = visible; model->Update();
+     }
+@@ -540,16 +531,6 @@ void ISLAND::PublishWorldCut(WorldCutRecord record,const WorldWork&work)
+         core.Send_Message(flags, "li", MSG_FLAG_WORLD_SUPPORT, GetId());
+ }
+ 
+-bool ISLAND::WorldGroundChanged(float x, float z) const
+-{
+-    if (!worldCutsReady) return false;
+-    const auto point = CVECTOR(x, 0.f, z);
+-    for(const auto id:{model_id,seabed_id})if(auto*model=static_cast<MODEL*>(core.GetEntityPointer(id))){
+-        for(int n=0;auto*node=model->GetNode(n);++n)if(node->geo&&node->geo->HasWorldCuts()){
+-            const auto binding=std::find_if(worldBindings.begin(),worldBindings.end(),[&](const auto&b){return b.model==id&&b.node==n&&b.generation==node->geo->GeometryGeneration()&&b.valid;});
+-            CVECTOR local;if(binding!=worldBindings.end()&&nodePoint(binding->matrix,point,local)&&!node->geo->IsWorldPositionRetained(uint64_t(GetId()),local))return true;}}
+-    return false;
+-}
+ #endif
+ 
+ float ISLAND::TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &receiver)
+diff --git a/experiments/native-metal/world_cut_geometry.hpp b/experiments/native-metal/world_cut_geometry.hpp
+index 616fb51..10c7256 100644
+--- a/experiments/native-metal/world_cut_geometry.hpp
++++ b/experiments/native-metal/world_cut_geometry.hpp
+@@ -500,14 +500,16 @@ inline bool resolveCapCoverage(const std::vector<CapPatch>&patches,const std::ve
+     }
+     if(!finite(caps))return false;capOutput=std::move(caps);acceptedOutput=std::move(accepted);return true;
+ }
+-// Immutable world cells use the existing finite-solid Boolean and SAVE codec.
+-// Only touched cells materialize a mesh; terrain columns keep six vertices.
++// Stone cells use the existing finite-solid Boolean and SAVE codec. Terrain
++// stays authored; its old region slots exist only for checkpoint compatibility.
+ struct Cell {
+     WorldPrism prism{};Triangle appearance{};
+     std::shared_ptr<const Mesh> closed;
++    bool immutable=false;
+ };
+ struct Source {
+     Mesh outer;
++    std::set<int> terrainObjects;
+     std::vector<Cell> cells;
+     std::vector<storm_ship_hull::Bounds> boxes;
+     storm_ship_hull::Broadphase index;
+@@ -576,15 +578,15 @@ inline void activateOuter(Material&state,const Cell&descriptor,const RegionSourc
+     state.outerIndex.reset();
+ }
+ inline std::shared_ptr<const Source> materialSource(const Mesh&original,const std::set<int>&terrain) {
+-    if(!finite(original))return {};auto source=std::make_shared<Source>();source->outer=original;Mesh stone;
++    if(!finite(original))return {};auto source=std::make_shared<Source>();source->outer=original;source->terrainObjects=terrain;Mesh stone;
+     source->fingerprint=storm::ship::material::fingerprint(original,{});
+     for(int object:terrain)source->fingerprint=storm::ship::material::hashBytes(&object,sizeof(object),source->fingerprint);
+-    const float floor=storm_ship_laser::bounds(original).lo.y-10032.f;
+     const auto add=[&](Cell cell,storm_ship_hull::Bounds box){source->cells.push_back(std::move(cell));source->boxes.push_back(box);};
+     for(const auto&o:original){storm_geometry_work::checkpoint();source->appearances.emplace(o.first,capAppearance(o.second));
+         if(!terrain.count(o.first)){stone[o.first]=o.second;continue;}
+-        for(const auto&t:o.second){storm_geometry_work::checkpoint();std::array<Vec3,3>inner;for(unsigned n=0;n<3;++n){inner[n]=t[n].position;inner[n].y=floor;}
+-            auto cell=prismCell(t,inner,o.first);const auto box=cellBounds(cell);add(std::move(cell),box);}}
++        // Preserve old checkpoint region IDs without building excavation solids.
++        for(const auto&t:o.second){storm_geometry_work::checkpoint();Cell cell;cell.immutable=true;cell.prism.object=o.first;
++            auto box=storm_ship_hull::Bounds{t[0].position,t[0].position};for(unsigned n=1;n<3;++n)box=storm_ship_hull::merge(box,{t[n].position,t[n].position});add(std::move(cell),box);}}
+     for(const auto&component:components(stone)){storm_geometry_work::checkpoint();Cell cell;cell.closed=std::make_shared<const Mesh>(component);
+         auto box=storm_ship_laser::bounds(component);box.lo=box.lo-Vec3{1,1,1};box.hi=box.hi+Vec3{1,1,1};add(std::move(cell),box);}
+     if(source->cells.size()>MaxTriangles)return {};
+@@ -600,6 +602,7 @@ inline void affectedCells(const std::vector<storm_ship_hull::Bounds>&boxes,const
+ // and index the current outer once, instead of scanning the GM for every dose.
+ class LocalOuter {
+     const Mesh*base=nullptr;
++    const std::set<int>*immutable=nullptr;
+     std::shared_ptr<const storm_ship_laser::FaceIndex>index;
+     std::map<uint32_t,std::vector<Triangle>>changed;
+     size_t count=0;
+@@ -607,6 +610,7 @@ class LocalOuter {
+         if(cut.kind==Cut::Beam)index->broadphase.queryBounds(storm_ship_laser::beamBounds(cut.beams.front()),ids);
+         else if(cut.kind==Cut::Sphere){const Vec3 r{cut.radius*1.733f,cut.radius*1.733f,cut.radius*1.733f};index->broadphase.queryBounds({cut.center-r,cut.center+r},ids);}
+         else if(affects(index->bounds,{cut})){ids.reserve(index->references.size());for(uint32_t n=0;n<index->references.size();++n)ids.push_back(n);}
++        ids.erase(std::remove_if(ids.begin(),ids.end(),[&](uint32_t id){return immutable->count(index->references[id].first)!=0;}),ids.end());
+     }
+     std::vector<Triangle> pieces(uint32_t id) const {
+         const auto found=changed.find(id);if(found!=changed.end())return found->second;
+@@ -615,7 +619,7 @@ class LocalOuter {
+   public:
+     explicit LocalOuter(Material&state){reset(state);}
+     void reset(Material&state) {
+-        base=&state.outer;if(!state.outerIndex)state.outerIndex=std::make_shared<const storm_ship_laser::FaceIndex>(storm_ship_laser::indexFaces(state.outer));
++        base=&state.outer;immutable=&state.source->terrainObjects;if(!state.outerIndex)state.outerIndex=std::make_shared<const storm_ship_laser::FaceIndex>(storm_ship_laser::indexFaces(state.outer));
+         index=state.outerIndex;changed.clear();count=triangleCount(state.outer);
+     }
+     bool subtract(const Cut&cut) {
+@@ -650,7 +654,7 @@ inline bool updateMaterial(Material&state,const std::vector<Cut>&cuts,const char
+             affectedCells(state.source->boxes,state.source->index,cut,ids);
+             const auto planes=cut.kind==Cut::Halfspace?std::vector<Plane>{{cut.normal*-1.f,-cut.distance}}:spherePlanes(cut);
+             std::vector<std::vector<PlanarRing>>sections(planes.size());std::vector<int>objects(planes.size(),0);
+-            for(auto id:ids){storm_geometry_work::checkpoint();const auto found=state.changed.find(id);Region region;
++            for(auto id:ids){storm_geometry_work::checkpoint();if(state.source->cells[id].immutable)continue;const auto found=state.changed.find(id);Region region;
+                 if(found!=state.changed.end())region=*found->second;
+                 else {if(failure)*failure="touched architecture solidification";region.source=activate(state.source->cells[id]);if(!region.source)return false;
+                     if(!region.source->shell.empty()){outer.flush(state,false);activateOuter(state,state.source->cells[id],*region.source);outer.reset(state);}}
+@@ -710,6 +714,28 @@ inline std::string encodeMaterial(const Material&state) {
+     if(writer.bytes.size()>MaxCheckpointBytes/2)return {};constexpr char digits[]="0123456789abcdef";std::string result(writer.bytes.size()*2,'0');
+     for(size_t n=0;n<writer.bytes.size();++n){storm_geometry_work::checkpoint();result[n*2]=digits[writer.bytes[n]>>4];result[n*2+1]=digits[writer.bytes[n]&15];}return result;
+ }
++inline bool restoreStoneCaps(Material&state) {
++    // Old scene unions can label a terrain wall with a stone material (or the
++    // reverse). Keep only their intersection with authored stone volumes.
++    std::vector<CapPatch>caps;
++    for(const auto&patch:state.caps){storm_geometry_work::checkpoint();const auto basis=storm_ship_hull::frame(patch.plane.normal);
++        std::vector<PlanarRing>subject,stone;int object=state.source->terrainObjects.count(patch.object)?-1:patch.object;
++        const auto rings=[&](const Mesh&mesh,std::vector<PlanarRing>&out){for(const auto&o:mesh)for(const auto&t:o.second){
++            PlanarRing ring;for(const auto&v:t){const auto p=v.position-patch.origin;ring.push_back({storm_ship_hull::dot(p,basis.tangent),storm_ship_hull::dot(p,basis.bitangent)});}
++            double area=0;for(unsigned n=0;n<3;++n)area+=ring[n][0]*ring[(n+1)%3][1]-ring[(n+1)%3][0]*ring[n][1];if(area<0)std::reverse(ring.begin(),ring.end());out.push_back(std::move(ring));if(object<0)object=o.first;}};
++        for(const auto&region:state.changed)for(const auto&cell:region.second->source->cells){
++            if(cell.closed){Mesh section,unused;if(!storm_ship_laser::solidSectionCaps(*cell.closed,patch.plane,{},patch.origin,false,section,unused,true))return false;rings(section,stone);}
++            else {const auto before=stone.size();if(!prismSection(cell.prism,patch.plane,{},stone,basis,patch.origin))return false;if(object<0&&stone.size()!=before)object=cell.prism.object;}}
++        if(stone.empty())continue;rings(patch.surface,subject);
++        std::vector<PlanarPolygon>outside,intersection;if(!differencePlanar(subject,stone,outside))return false;
++        std::vector<PlanarRing>subtract;for(auto&polygon:outside)for(auto&ring:polygon)subtract.push_back(std::move(ring));
++        if(!differencePlanar(subject,subtract,intersection))return false;
++        auto retained=patch;retained.object=object;retained.appearance=state.source->appearances.at(object);retained.surface.clear();retained.indexed=false;
++        if(!triangulatePlanar(intersection,retained.plane,object,retained.origin,retained.surface,retained.appearance,true))return false;
++        if(retained.reverse)for(auto&o:retained.surface)for(auto&t:o.second){std::swap(t[1],t[2]);for(auto&v:t)v.normal=retained.plane.normal*-1.f;}
++        if(triangleCount(retained.surface))caps.push_back(std::move(retained));}
++    state.caps=std::move(caps);return true;
++}
+ inline bool decodeMaterial(const std::string&payload,std::shared_ptr<const Source>source,Material&out) {
+     if(payload.size()<40||payload.size()%2||payload.size()>MaxCheckpointBytes)return false;storm::ship::material::Reader reader;reader.bytes.reserve(payload.size()/2);
+     const auto digit=[](char c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;};
+@@ -724,12 +750,17 @@ inline bool decodeMaterial(const std::string&payload,std::shared_ptr<const Sourc
+         if(!valid(plane)||!next.source->appearances.count(patch.object)||!reader.mesh(patch.surface)||!finite(patch.surface))return false;
+         patch.origin=patch.plane.normal*patch.plane.distance;patch.reverse=true;patch.appearance=next.source->appearances.at(patch.object);total+=triangleCount(patch.surface);next.caps.push_back(std::move(patch));}
+     const auto changed=reader.word();if(changed>next.source->cells.size())return false;
+-    for(uint32_t n=0;n<changed;++n){const auto id=reader.word();if(id>=next.source->cells.size()||next.changed.count(id))return false;
++    bool restoredTerrain=false;std::set<uint32_t>seen;
++    for(uint32_t n=0;n<changed;++n){const auto id=reader.word();if(id>=next.source->cells.size()||!seen.insert(id).second)return false;
++        if(next.source->cells[id].immutable){restoredTerrain=true;const auto count=reader.word();if(count>1)return false;
++            for(uint32_t p=0;p<count;++p){if(reader.word()!=0)return false;Mesh discarded;if(!reader.mesh(discarded)||!finite(discarded))return false;total+=triangleCount(discarded);}continue;}
+         Region region;region.source=activate(next.source->cells[id]);if(!region.source)return false;const auto count=reader.word();if(count>region.source->cells.size())return false;
+         for(uint32_t p=0;p<count;++p){const auto part=reader.word();Mesh mesh;if(part>=region.source->cells.size()||region.changed.count(part)||!reader.mesh(mesh)||!finite(mesh))return false;
+             total+=triangleCount(mesh);region.changed[part]=std::make_shared<const Mesh>(std::move(mesh));}
+         next.changed[id]=std::make_shared<const Region>(std::move(region));}
+     const auto end=reader.at;const auto checksum=reader.wide();if(total>MaxTriangles||!reader.valid||reader.at!=reader.bytes.size()||checksum!=storm::ship::material::hashBytes(reader.bytes.data(),end))return false;
++    for(int object:next.source->terrainObjects){const auto original=next.source->outer.find(object);if(original!=next.source->outer.end())next.outer[object]=original->second;}
++    if(restoredTerrain&&!restoreStoneCaps(next))return false;
+     out=std::move(next);return true;
+ }
+ inline bool contains(const Mesh&mesh,Vec3 point) {

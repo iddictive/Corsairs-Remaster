@@ -1,0 +1,185 @@
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -1469,6 +1469,46 @@ bool DX9RENDER::TextureIncReference(int32_t texid)
+     return true;
+ }
+ 
++namespace
++{
++uint32_t TextureMipSize(D3DFORMAT format, uint32_t width, uint32_t height)
++{
++    if (width == 0 || height == 0)
++    {
++        return 0;
++    }
++
++    uint64_t bytes = 0;
++    switch (format)
++    {
++    case D3DFMT_DXT1:
++        bytes = uint64_t((width + 3) / 4) * ((height + 3) / 4) * 8;
++        break;
++    case D3DFMT_DXT3:
++    case D3DFMT_DXT5:
++        bytes = uint64_t((width + 3) / 4) * ((height + 3) / 4) * 16;
++        break;
++    case D3DFMT_A8R8G8B8:
++    case D3DFMT_X8R8G8B8:
++        bytes = uint64_t(width) * height * 4;
++        break;
++    case D3DFMT_R5G6B5:
++    case D3DFMT_A4R4G4B4:
++    case D3DFMT_A1R5G5B5:
++        bytes = uint64_t(width) * height * 2;
++        break;
++    default:
++        return 0;
++    }
++
++    return bytes <= std::numeric_limits<uint32_t>::max() ? static_cast<uint32_t>(bytes) : 0;
++}
++
++uint32_t TextureMipCount(uint32_t width, uint32_t height)
++{
++    uint32_t count = 1;
++    for (uint32_t dimension = std::max(width, height); dimension > 1; dimension /= 2)
++    {
++        ++count;
++    }
++    return count;
++}
++} // namespace
++
+ bool DX9RENDER::TextureLoad(int32_t t)
+ {
+     using namespace std::literals;
+@@ -1555,19 +1595,51 @@ bool DX9RENDER::TextureLoad(int32_t t)
+     bool isSwizzled = textureFormats[textureFI].isSwizzled;
+     const char *formatTxt = textureFormats[textureFI].format;
++    if (head.width <= 0 || head.height <= 0 || head.nmips <= 0 || head.mip_size <= 0 ||
++        static_cast<uint32_t>(head.nmips) > TextureMipCount(static_cast<uint32_t>(head.width),
++                                                             static_cast<uint32_t>(head.height)) ||
++        static_cast<uint32_t>(head.mip_size) !=
++            TextureMipSize(d3dFormat, static_cast<uint32_t>(head.width), static_cast<uint32_t>(head.height)))
++    {
++        if (bTrace)
++        {
++            core.Trace("Invalid texture header %s, not loading it.", fn);
++        }
++        delete Textures[t].name;
++        Textures[t].name = nullptr;
++        fio->_CloseFile(fileS);
++        return false;
++    }
++
+     // Skipping mips
+     uint32_t seekposition = 0;
+     for (int32_t nTD = nTextureDegradation; nTD > 0; nTD--)
+     {
+         if (head.nmips <= 1 || head.width <= 32 || head.height <= 32)
+         {
+             break; // degradation limit
+         }
+-        seekposition += head.mip_size;
++        const auto mipSize = TextureMipSize(d3dFormat, static_cast<uint32_t>(head.width),
++                                            static_cast<uint32_t>(head.height));
++        if (mipSize == 0 || seekposition > std::numeric_limits<uint32_t>::max() - mipSize)
++        {
++            if (bTrace)
++            {
++                core.Trace("Invalid texture mip chain %s, not loading it.", fn);
++            }
++            delete Textures[t].name;
++            Textures[t].name = nullptr;
++            fio->_CloseFile(fileS);
++            return false;
++        }
++        seekposition += mipSize;
+         head.nmips--;
+         head.width /= 2;
+         head.height /= 2;
+-        head.mip_size /= 4;
+     }
+     // Loading the texture
+     if (!(head.flags & TX_FLAGS_CUBEMAP))
+@@ -1594,7 +1666,13 @@ bool DX9RENDER::TextureLoad(int32_t t)
+         // Filling the levels
+         for (int32_t m = 0; m < head.nmips; m++)
+         {
++            const auto mipSize = TextureMipSize(d3dFormat, static_cast<uint32_t>(head.width),
++                                                static_cast<uint32_t>(head.height));
+             // take into account the size of the mip
+-            Textures[t].dwSize += head.mip_size;
++            Textures[t].dwSize += mipSize;
+             // Getting the mip surface
+             bool isError = false;
+             IDirect3DSurface9 *surface = nullptr;
+@@ -1609,7 +1687,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
+             else
+             {
+                 // read the mip
+-                isError = !LoadTextureSurface(fileS, surface, head.mip_size, head.width, head.height, isSwizzled);
++                isError = mipSize == 0 || !LoadTextureSurface(fileS, surface, mipSize, head.width, head.height, isSwizzled);
+             }
+             // Freeing the surface
+             if (surface)
+@@ -1634,7 +1712,6 @@ bool DX9RENDER::TextureLoad(int32_t t)
+             // recalculate the dimensions for the next mip
+             head.width /= 2;
+             head.height /= 2;
+-            head.mip_size /= 4;
+         }
+         Textures[t].d3dtex = tex;
+         Textures[t].isCubeMap = false;
+@@ -1853,7 +1930,6 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+     // Filling the levels
+     for (uint32_t m = 0; m < numMips; m++)
+     {
+-        // take into account the size of the mip
+-        texsize += mipSize;
+         // Getting the mip surface
+         bool isError = false;
+         IDirect3DSurface9 *surface = nullptr;
+@@ -1864,12 +1940,15 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+         }
+         else
+         {
++            D3DSURFACE_DESC desc{};
++            const auto mipBytes = CHECKD3DERR(surface->GetDesc(&desc)) ? 0 :
++                TextureMipSize(desc.Format, desc.Width, desc.Height);
+             // read the mip
+-            isError = !LoadTextureSurface(fileS, surface, mipSize, size, size, isSwizzled);
++            isError = mipBytes == 0 || !LoadTextureSurface(fileS, surface, mipBytes, size, size, isSwizzled);
++            if (!isError)
++            {
++                texsize += mipBytes;
++            }
+         }
+         // Freeing the surface
+         if (surface)
+@@ -1888,7 +1967,6 @@ uint32_t DX9RENDER::LoadCubmapSide(std::fstream &fileS, IDirect3DCubeTexture9 *
+         // recalculate the dimensions for the next mip
+         size /= 2;
+-        mipSize /= 4;
+     }
+     return texsize;
+ }
+@@ -1900,6 +1978,17 @@ bool DX9RENDER::LoadTextureSurface(std::fstream &fileS, IDirect3DSurface9 *sufac
+     // ------------------------------------------------------------------------------------------
+     // Surface pointer
+     D3DLOCKED_RECT lock;
++    D3DSURFACE_DESC desc{};
++    if (CHECKD3DERR(suface->GetDesc(&desc)) == true)
++    {
++        return false;
++    }
++    const auto surfaceBytes = TextureMipSize(desc.Format, desc.Width, desc.Height);
++    if (surfaceBytes == 0 || mipSize != surfaceBytes)
++    {
++        return false;
++    }
++
+     if (CHECKD3DERR(suface->LockRect(&lock, NULL, 0L)) == true)
+     {
+         return false;

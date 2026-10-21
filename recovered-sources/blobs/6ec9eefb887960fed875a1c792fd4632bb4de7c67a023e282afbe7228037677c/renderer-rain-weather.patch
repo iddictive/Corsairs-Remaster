@@ -1,0 +1,58 @@
+diff --git a/src/libs/renderer/include/dx9render.h b/src/libs/renderer/include/dx9render.h
+--- a/src/libs/renderer/include/dx9render.h
++++ b/src/libs/renderer/include/dx9render.h
+@@ -253,4 +253,9 @@ class VDX9RENDER : public SERVICE
+     virtual void DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlockName = nullptr,
+                            uint32_t dwSubTexturesX = 1, uint32_t dwSubTexturesY = 1, float fScaleX = 1.0f,
+                            float fScaleY = 1.0f) = 0;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    // Compact semantic records; Metal expands the six billboard vertices in its vertex shader.
++    virtual void DrawWeatherSprites(const RS_RECT *rects, uint32_t count, const char *technique,
++                                    uint32_t atlasX, uint32_t atlasY, float scaleX, float scaleY) = 0;
++#endif
+     virtual void DrawSprites(RS_SPRITE *pRSS, uint32_t dwSpritesNum, const char *cBlockName = nullptr) = 0;
+diff --git a/src/libs/weather/src/lightning.cpp b/src/libs/weather/src/lightning.cpp
+--- a/src/libs/weather/src/lightning.cpp
++++ b/src/libs/weather/src/lightning.cpp
+@@ -93,5 +93,10 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->fSize;
+             pR->fAngle = 0.0f;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            pRS->DrawWeatherSprites(pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX,
++                                    pL->fScaleY);
++#else
+             pRS->DrawRects(pR, 1, pL->sTechnique.c_str(), dwSubTexX, dwSubTexY, pL->fScaleX, pL->fScaleY);
++#endif
+         }
+@@ -110,5 +115,9 @@ void LIGHTNING::Realize(uint32_t Delta_Time)
+             pR->vPos = pL->vPos;
+             pR->fSize = pL->Flash.fSize;
+             pR->fAngle = 0.0f;
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++            pRS->DrawWeatherSprites(pR, 1, pL->Flash.sTechnique.c_str(), 1, 1, 1.0f, 1.0f);
++#else
+             pRS->DrawRects(pR, 1, pL->Flash.sTechnique.c_str());
++#endif
+         }
+diff --git a/src/libs/weather/src/rain.cpp b/src/libs/weather/src/rain.cpp
+--- a/src/libs/weather/src/rain.cpp
++++ b/src/libs/weather/src/rain.cpp
+@@ -396,4 +396,8 @@ void RAIN::RealizeDrops(uint32_t Delta_Time)
+     rs->TextureSet(0, iRainDropsTexture);
+     // rs->SetTexture(0, null);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++    rs->DrawWeatherSprites(aRects.data(), aRects.size(), "rain_drops", 8, 1, 1.0f, 1.0f);
++#else
+     rs->DrawRects(aRects.data(), aRects.size(), "rain_drops", 8, 1);
++#endif
+ 
+@@ -557,4 +561,8 @@ void RAIN::Realize(uint32_t Delta_Time)
+ 
+         rs->TextureSet(0, iRainbowTex);
++#ifdef STORM_METAL_RENDERER_CONSUMERS
++        rs->DrawWeatherSprites(&rs_rect, 1, "rainbow", 1, 1, 1.0f, 1.0f);
++#else
+         rs->DrawRects(&rs_rect, 1, "rainbow");
++#endif
+     }

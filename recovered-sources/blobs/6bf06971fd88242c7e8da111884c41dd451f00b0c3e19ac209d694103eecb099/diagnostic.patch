@@ -1,0 +1,114 @@
+--- cf75576/ship_phonk_laser.cpp
++++ diagnostic/ship_phonk_laser.cpp
+@@ -11,6 +11,7 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <limits>
++#include "laser_diag.hpp"
+ 
+ #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
+ extern "C" bool StormMetalSceneLight(void *, uint64_t, const storm_render::Light *);
+@@ -438,17 +439,21 @@
+     auto cancel = std::make_shared<std::atomic<bool>>(false);
+     auto future = std::async(std::launch::async, [work = std::move(work), cancel, budget]() mutable {
+         try {
++            laser_diag::log("WORK_BEGIN\t%llu\t%llu\t%llu\t%u\t%zu\t%zu",(unsigned long long)laser_diag::stamp(work),(unsigned long long)work.model,(unsigned long long)work.epoch,budget,work.targets.size(),work.request.plane.beams.size());
+             unsigned remaining = budget, nodes = unsigned(work.targets.size());
+             for (auto &target : work.targets) {
+-                if (cancel->load(std::memory_order_relaxed)) return std::move(work);
++                if (cancel->load(std::memory_order_relaxed)) { laser_diag::log("WORK_CANCEL\t%llu\t%d",(unsigned long long)laser_diag::stamp(work),target.node);laser_diag::capture(work,false,"worker-cancel");return std::move(work); }
+                 target.input.fragmentLimit = remaining - (nodes ? nodes - 1 : 0);
+-                if (!storm_ship_laser::prepare(target.input, target.projection)) return std::move(work);
+-                if (target.node == 0 && !target.projection.result.changed && work.request.plane.beams.empty()) return std::move(work);
++                const bool diagnosticPrepared=storm_ship_laser::prepare(target.input, target.projection);
++                laser_diag::log("PREPARE\t%llu\t%d\t%s\t%llu\t%llu\t%u\t%u\t%u\t%d\t%d\t%zu",(unsigned long long)laser_diag::stamp(work),target.node,target.name.c_str(),(unsigned long long)target.input.generation,(unsigned long long)target.input.revision,target.input.fragmentLimit,remaining,nodes,diagnosticPrepared,target.projection.result.changed,target.projection.result.fragments.size());
++                if (!diagnosticPrepared) {laser_diag::capture(work,false,"prepare-false");return std::move(work);}
++                if (target.node == 0 && !target.projection.result.changed && work.request.plane.beams.empty()) {laser_diag::capture(work,false,"unchanged-root-nonbeam");return std::move(work);}
+                 if (target.projection.result.changed) remaining -= unsigned(target.projection.result.fragments.size());
+                 --nodes;
+             }
+             work.valid = !cancel->load(std::memory_order_relaxed);
+-        } catch (const std::exception &) { work.valid = false; }
++            laser_diag::log("WORK_DONE\t%llu\t%d\t%u",(unsigned long long)laser_diag::stamp(work),work.valid,remaining);
++        } catch (const std::exception &error) { work.valid = false;laser_diag::log("WORK_EXCEPTION\t%llu\t%s",(unsigned long long)laser_diag::stamp(work),error.what());laser_diag::capture(work,false,"worker-exception"); }
+         return std::move(work);
+     });
+     phonkLaserWork.future = std::move(future); phonkLaserWork.cancel = std::move(cancel);
+@@ -464,16 +469,19 @@
+     if (!delta) return;
+     if (phonkLaserWork.future.valid())
+     {
+-        if (phonkLaserWork.future.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
++        const auto diagnosticStatus=phonkLaserWork.future.wait_for(std::chrono::seconds(0));
++        if (diagnosticStatus != std::future_status::ready) {laser_diag::log("POLL_PENDING\t%llu\t%llu\t%d",(unsigned long long)GetModelEID(),(unsigned long long)phonkLaserWork.epoch,int(diagnosticStatus));return;}
+         storm::ship::phonk::LaserCutWork work;
+         try { work = phonkLaserWork.future.get(); }
+-        catch (const std::exception &) {
++        catch (const std::exception &error) {
++            laser_diag::log("POLL_EXCEPTION\t%llu\t%s",(unsigned long long)GetModelEID(),error.what());
+             if (phonkLaserWork.active) returnImpact(phonkLaser, *phonkLaserWork.active);
+             phonkLaserWork.active.reset();
+         }
+         phonkLaserWork.cancel.reset();
+         auto *model = GetModel();
+         bool identity = bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName;
++        laser_diag::log("POLL_WORK\t%llu\t%d\t%d\t%llu\t%llu\t%d\t%zu\t%llu\t%llu",(unsigned long long)laser_diag::stamp(work),work.valid,identity,(unsigned long long)work.epoch,(unsigned long long)phonkLaserWork.epoch,bool(phonkLaserWork.active),work.targets.size(),(unsigned long long)work.model,(unsigned long long)GetModelEID());
+         std::vector<GEOS *> geometries;
+         if (work.epoch == phonkLaserWork.epoch && phonkLaserWork.active)
+         {
+@@ -481,9 +489,11 @@
+             if (identity) for (int n = 0; auto *node = model->GetNode(n); ++n)
+                 if (node->geo && (!IsAuthoredMastNode(node) || !work.request.plane.beams.empty())) ++count;
+             identity = identity && count == work.targets.size();
++            laser_diag::log("POLL_COUNT\t%llu\t%zu\t%zu\t%d",(unsigned long long)laser_diag::stamp(work),count,work.targets.size(),identity);
+             for (const auto &target : work.targets)
+             {
+                 auto *node = identity ? model->GetNode(target.node) : nullptr;
++                laser_diag::log("POLL_NODE\t%llu\t%d\t%d\t%s\t%s\t%llu\t%llu\t%llu\t%llu",(unsigned long long)laser_diag::stamp(work),target.node,bool(node&&node->geo),target.name.c_str(),node&&node->GetName()?node->GetName():"",(unsigned long long)target.input.generation,(unsigned long long)(node&&node->geo?node->geo->GeometryGeneration():0),(unsigned long long)target.input.revision,(unsigned long long)(node&&node->geo?node->geo->CollisionRevision():0));
+                 identity = identity && node && node->geo && target.name == (node->GetName() ? node->GetName() : "") &&
+                     node->geo->GeometryGeneration() == target.input.generation && node->geo->CollisionRevision() == target.input.revision;
+                 if (identity) for (unsigned axis = 0; axis < 4; ++axis)
+@@ -491,6 +501,7 @@
+                     const CVECTOR a[] = {node->loc_mtx.Vx(), node->loc_mtx.Vy(), node->loc_mtx.Vz(), node->loc_mtx.Pos()};
+                     const CVECTOR b[] = {target.local.Vx(), target.local.Vy(), target.local.Vz(), target.local.Pos()};
+                     identity = identity && a[axis].x == b[axis].x && a[axis].y == b[axis].y && a[axis].z == b[axis].z;
++                    if(!identity)laser_diag::log("POLL_LOCAL_MATRIX\t%llu\t%d\t%u\t%a\t%a\t%a\t%a\t%a\t%a",(unsigned long long)laser_diag::stamp(work),target.node,axis,a[axis].x,a[axis].y,a[axis].z,b[axis].x,b[axis].y,b[axis].z);
+                 }
+                 if (!identity) break;
+                 geometries.push_back(node->geo);
+@@ -499,11 +510,14 @@
+             bool changed = false;
+             if (valid) for (size_t n = 0; n < geometries.size(); ++n)
+             {
+-                if (!geometries[n]->StageLaserProjection(uint64_t(blots_id), std::move(work.targets[n].projection), work.targets[n].result)) { valid = false; break; }
++                const bool diagnosticStaged=geometries[n]->StageLaserProjection(uint64_t(blots_id), std::move(work.targets[n].projection), work.targets[n].result);
++                laser_diag::log("POLL_STAGE\t%llu\t%d\t%d\t%d\t%zu",(unsigned long long)laser_diag::stamp(work),work.targets[n].node,diagnosticStaged,work.targets[n].result.changed,work.targets[n].result.fragments.size());
++                if (!diagnosticStaged) { valid = false; break; }
+                 changed = changed || work.targets[n].result.changed;
+             }
+             if (valid && changed)
+             {
++                laser_diag::capture(work,true,"main-commit");laser_diag::log("POLL_COMMIT\t%llu\t%zu",(unsigned long long)laser_diag::stamp(work),geometries.size());
+                 for (auto *geometry : geometries) geometry->CommitLaserProjection(uint64_t(blots_id));
+                 auto *attackerShip = dynamic_cast<SHIP *>(core.GetEntityPointer(work.request.attacker));
+                 ApplyPhonkLaserCutNow(work.request.plane, false, work.request.owner,
+@@ -511,16 +525,19 @@
+             }
+             else
+             {
++                laser_diag::log("POLL_DISCARD\t%llu\t%d\t%d\t%d\t%d\t%zu",(unsigned long long)laser_diag::stamp(work),work.valid,identity,valid,changed,geometries.size());laser_diag::capture(work,false,"main-discard");
+                 for (auto *geometry : geometries) geometry->DiscardLaserProjection(uint64_t(blots_id));
+                 if (!identity && bMounted && model && work.model == uint64_t(GetModelEID()) && work.modelName == cShipIniName)
+                     phonkLaserWork.requests.push_front(std::move(*phonkLaserWork.active));
+                 else returnImpact(phonkLaser, *phonkLaserWork.active);
+             }
+         }
++        else {laser_diag::log("POLL_EPOCH_SKIP\t%llu",(unsigned long long)laser_diag::stamp(work));laser_diag::capture(work,false,"epoch-or-active");}
+         phonkLaserWork.active.reset();
+     }
+     if (!StartPhonkLaserWork())
+     {
++        laser_diag::log("POLL_SNAPSHOT_FALSE\t%llu\t%zu",(unsigned long long)GetModelEID(),phonkLaserWork.requests.size());
+         returnImpact(phonkLaser, phonkLaserWork.requests.front());
+         phonkLaserWork.requests.pop_front();
+         core.Trace("Ship cut snapshot rejected; previous geometry, collision and SAVE retained");

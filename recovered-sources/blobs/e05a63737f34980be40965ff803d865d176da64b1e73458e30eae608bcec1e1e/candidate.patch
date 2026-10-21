@@ -1,0 +1,25 @@
+--- a/experiments/native-metal/point_shadow_registry.hpp
++++ b/experiments/native-metal/point_shadow_registry.hpp
+@@ -278,7 +278,8 @@
+         std::vector<id<MTLResource>> residency{frame->icb,tables.drawBuffer,tables.boundsBuffer,frame->faceBuffer,frame->resourceTable,tables.materialTable};
+         residency.insert(residency.end(),tables.geometryResources.begin(),tables.geometryResources.end());
+         auto blit=[command blitCommandEncoder];
+-        [blit resetCommandsInBuffer:frame->icb withRange:NSMakeRange(0,draws.size()*6)];[blit endEncoding];
++        // Reset all previous optimized ranges before caster-count-dependent face boundaries move.
++        [blit resetCommandsInBuffer:frame->icb withRange:NSMakeRange(0,MaxCasters*6)];[blit endEncoding];
+         auto c=[command computeCommandEncoder];[c setComputePipelineState:compute];
+         [c setBuffer:tables.drawBuffer offset:0 atIndex:0];[c setBuffer:tables.boundsBuffer offset:0 atIndex:1];
+         [c setBuffer:frame->faceBuffer offset:0 atIndex:2];[c setBuffer:frame->resourceTable offset:0 atIndex:3];uint32_t casterCount=uint32_t(draws.size());[c setBytes:&casterCount length:sizeof(casterCount) atIndex:4];
+@@ -288,6 +289,12 @@
+         [c useResources:residency.data()+6 count:residency.size()-6 usage:MTLResourceUsageRead];
+         [c dispatchThreads:MTLSizeMake(draws.size(),6,1) threadsPerThreadgroup:MTLSizeMake(std::min<size_t>(32,draws.size()),1,1)];[c endEncoding];
+         ++stats.gpuCullDispatches;stats.candidateCommands=uint32_t(draws.size()*6);
++        // Metal requires execution to match an entire optimized range. Each
++        // face is executed separately, so optimize those same disjoint ranges.
++        auto optimize=[command blitCommandEncoder];
++        for(unsigned face=0;face<6;++face)
++            [optimize optimizeIndirectCommandBuffer:frame->icb withRange:NSMakeRange(face*draws.size(),draws.size())];
++        [optimize endEncoding];
+         for(unsigned face=0;face<6;++face){auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.depthAttachment.texture=cube;pass.depthAttachment.slice=face;pass.depthAttachment.loadAction=MTLLoadActionClear;pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=1;auto e=[command renderCommandEncoderWithDescriptor:pass];[e setViewport:MTLViewport{0,0,double(cube.width),double(cube.height),0,1}];[e setFrontFacingWinding:MTLWindingClockwise];[e setDepthStencilState:depthState];[e setDepthBias:0 slopeScale:1 clamp:0];[e useResources:residency.data() count:residency.size() usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];[e executeCommandsInBuffer:frame->icb withRange:NSMakeRange(face*draws.size(),draws.size())];[e endEncoding];++stats.indirectFaceSubmissions;}
+         [command addCompletedHandler:^(id<MTLCommandBuffer> completed){(void)completed;frame->geometryResources.clear();frame->tableSource.reset();frame->inFlight.store(false,std::memory_order_release);}];
+         return true;

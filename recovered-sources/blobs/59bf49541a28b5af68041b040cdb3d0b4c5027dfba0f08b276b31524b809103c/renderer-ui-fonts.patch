@@ -1,0 +1,175 @@
+diff --git a/src/libs/renderer/src/font.cpp b/src/libs/renderer/src/font.cpp
+--- a/src/libs/renderer/src/font.cpp
++++ b/src/libs/renderer/src/font.cpp
+@@ -155,5 +155,5 @@ bool FONT::Init(const char *font_name, const char *iniName)
+ 
+     FONT_CHAR_VERTEX *pVertex;
+     device_.CreateVertexBuffer(sizeof(FONT_CHAR_VERTEX) * MAX_SYMBOLS * SYM_VERTEXS,
+-                               D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, FONT_CHAR_FVF, D3DPOOL_SYSTEMMEM, &vertexBuffer_,
++                               D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, FONT_CHAR_FVF, D3DPOOL_DEFAULT, &vertexBuffer_,
+                                nullptr);
+@@ -226,3 +226,4 @@ int32_t FONT::UpdateVertexBuffer(int32_t x, int32_t y, char *data_PTR, int utf8l
+ 
+-    vertexBuffer_->Lock(0, sizeof(FONT_CHAR_VERTEX) * utf8length * SYM_VERTEXS, (void **)&pVertex, 0);
++    vertexBuffer_->Lock(0, sizeof(FONT_CHAR_VERTEX) * utf8length * SYM_VERTEXS, (void **)&pVertex,
++                        D3DLOCK_DISCARD);
+ 
+diff --git a/src/libs/renderer/src/s_device.h b/src/libs/renderer/src/s_device.h
+--- a/src/libs/renderer/src/s_device.h
++++ b/src/libs/renderer/src/s_device.h
+@@ -355,3 +355,6 @@ class DX9RENDER : public VDX9RENDER
+     static const uint32_t rectsVBuffer_SizeInRects;
+     IDirect3DVertexBuffer9 *rectsVBuffer;
++    int32_t spritesVBuffer = -1;
++    int32_t spritesIBuffer = -1;
++    uint32_t spritesBufferCapacity = 0;
+ 
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -682,3 +682,7 @@ DX9RENDER::~DX9RENDER()
+ 
+     S_RELEASE(rectsVBuffer, 8);
++    if (spritesVBuffer >= 0)
++        ReleaseVertexBuffer(spritesVBuffer);
++    if (spritesIBuffer >= 0)
++        ReleaseIndexBuffer(spritesIBuffer);
+ 
+@@ -3544,28 +3548,51 @@ void DX9RENDER::DrawSprites(RS_SPRITE *pRSS, uint32_t dwSpritesNum, const char *c
+     if (dwSpritesNum == 0)
+         return;
+ 
+-    auto *pIndices = new uint16_t[dwSpritesNum * 6];
++    // Four vertices per sprite keep the caller-authored XYZRHW, diffuse alpha,
++    // and UV contract. Persistent D3D buffers let the Metal device consume the
++    // batch through its native buffer-backed draw path instead of UP expansion.
++    if (dwSpritesNum > 16383)
++    {
++        core.Trace("DrawSprites batch exceeds 16-bit index capacity: %u", dwSpritesNum);
++        return;
++    }
++    if (dwSpritesNum > spritesBufferCapacity)
++    {
++        if (spritesVBuffer >= 0)
++            ReleaseVertexBuffer(spritesVBuffer);
++        if (spritesIBuffer >= 0)
++            ReleaseIndexBuffer(spritesIBuffer);
++        spritesBufferCapacity = 1;
++        while (spritesBufferCapacity < dwSpritesNum)
++            spritesBufferCapacity *= 2;
++        spritesVBuffer = CreateVertexBuffer(RS_SPRITE_VERTEX_FORMAT,
++                                            spritesBufferCapacity * 4 * sizeof(RS_SPRITE),
++                                            D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
++        spritesIBuffer = CreateIndexBuffer(spritesBufferCapacity * 6 * sizeof(uint16_t),
++                                           D3DUSAGE_WRITEONLY);
++        if (spritesVBuffer < 0 || spritesIBuffer < 0)
++        {
++            core.Trace("DrawSprites could not allocate native buffers");
++            return;
++        }
++        auto *indices = static_cast<uint16_t *>(LockIndexBuffer(spritesIBuffer));
++        for (i = 0; i < spritesBufferCapacity; i++)
++        {
++            indices[i * 6 + 0] = static_cast<uint16_t>(i * 4 + 0);
++            indices[i * 6 + 1] = static_cast<uint16_t>(i * 4 + 3);
++            indices[i * 6 + 2] = static_cast<uint16_t>(i * 4 + 2);
++            indices[i * 6 + 3] = static_cast<uint16_t>(i * 4 + 0);
++            indices[i * 6 + 4] = static_cast<uint16_t>(i * 4 + 2);
++            indices[i * 6 + 5] = static_cast<uint16_t>(i * 4 + 1);
++        }
++        UnLockIndexBuffer(spritesIBuffer);
++    }
+ 
+-    for (i = 0; i < dwSpritesNum; i++)
+-    {
+-        pIndices[i * 6 + 0] = static_cast<uint16_t>(i * 4 + 0);
+-        pIndices[i * 6 + 1] = static_cast<uint16_t>(i * 4 + 3);
+-        pIndices[i * 6 + 2] = static_cast<uint16_t>(i * 4 + 2);
+-        pIndices[i * 6 + 3] = static_cast<uint16_t>(i * 4 + 0);
+-        pIndices[i * 6 + 4] = static_cast<uint16_t>(i * 4 + 2);
+-        pIndices[i * 6 + 5] = static_cast<uint16_t>(i * 4 + 1);
+-    }
+-
+-    SetFVF(RS_SPRITE_VERTEX_FORMAT);
+-
+-    bool bDraw = true;
+-    if (cBlockName && cBlockName[0])
+-        bDraw = TechniqueExecuteStart(cBlockName);
+-    if (bDraw)
+-        do
+-        {
+-            DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, dwSpritesNum * 4, dwSpritesNum * 2, pIndices, D3DFMT_INDEX16,
+-                                   pRSS, sizeof(RS_SPRITE));
+-        } while (cBlockName && TechniqueExecuteNext());
+-    delete[] pIndices;
++    auto *vertices = static_cast<RS_SPRITE *>(LockVertexBuffer(spritesVBuffer, D3DLOCK_DISCARD));
++    if (!vertices)
++        return;
++    memcpy(vertices, pRSS, dwSpritesNum * 4 * sizeof(RS_SPRITE));
++    UnLockVertexBuffer(spritesVBuffer);
++    DrawBuffer(spritesVBuffer, sizeof(RS_SPRITE), spritesIBuffer, 0, dwSpritesNum * 4, 0,
++               dwSpritesNum * 2, cBlockName);
+ }
+
+diff --git a/src/libs/battle_interface/src/land/i_boarding_status.h b/src/libs/battle_interface/src/land/i_boarding_status.h
+--- a/src/libs/battle_interface/src/land/i_boarding_status.h
++++ b/src/libs/battle_interface/src/land/i_boarding_status.h
+@@ -23,4 +23,5 @@ class IBoardingStatus : public Entity
+   protected:
+     void Create();
+     void SetCharactersHP(float myHP, float enemyHP);
++    void UploadVertices();
+ 
+@@ -41,3 +42,4 @@ class IBoardingStatus : public Entity
+     BI_COLORONLY_VERTEX m_MyChar[4];
+     BI_COLORONLY_VERTEX m_EnemyChar[4];
++    int32_t m_vBuffer = -1;
+ };
+diff --git a/src/libs/battle_interface/src/land/i_boarding_status.cpp b/src/libs/battle_interface/src/land/i_boarding_status.cpp
+--- a/src/libs/battle_interface/src/land/i_boarding_status.cpp
++++ b/src/libs/battle_interface/src/land/i_boarding_status.cpp
+@@ -15,3 +15,5 @@ IBoardingStatus::IBoardingStatus()
+ IBoardingStatus::~IBoardingStatus()
+ {
++    if (rs && m_vBuffer >= 0)
++        rs->ReleaseVertexBuffer(m_vBuffer);
+ }
+@@ -46,8 +48,8 @@ void IBoardingStatus::Realize(uint32_t delta_time)
+     if (rs == nullptr)
+         return;
+ 
+-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_COLORONLY_VERTEX_FORMAT, 2, m_MyChar, sizeof(BI_COLORONLY_VERTEX),
+-                        "battle_only_color");
+-    rs->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, BI_COLORONLY_VERTEX_FORMAT, 2, m_EnemyChar, sizeof(BI_COLORONLY_VERTEX),
+-                        "battle_only_color");
++    if (m_vBuffer < 0)
++        return;
++    rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_vBuffer, sizeof(BI_COLORONLY_VERTEX), 0, 2, "battle_only_color");
++    rs->DrawPrimitive(D3DPT_TRIANGLESTRIP, m_vBuffer, sizeof(BI_COLORONLY_VERTEX), 4, 2, "battle_only_color");
+ }
+@@ -91,3 +93,8 @@ void IBoardingStatus::Create()
+     m_EnemyChar[1].pos.y = m_EnemyChar[3].pos.y =
+         m_Height + (m_EnemyChar[0].pos.y = m_EnemyChar[2].pos.y = m_enemyPos.y);
++    if (m_vBuffer < 0)
++        m_vBuffer = rs->CreateVertexBuffer(BI_COLORONLY_VERTEX_FORMAT,
++                                           8 * sizeof(BI_COLORONLY_VERTEX),
++                                           D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY);
++    UploadVertices();
+ }
+@@ -101,3 +108,16 @@ void IBoardingStatus::SetCharactersHP(float myHP, float enemyHP)
+     m_MyChar[2].pos.x = m_MyChar[3].pos.x = m_myPos.x + myHP * m_Width;
+     m_EnemyChar[2].pos.x = m_EnemyChar[3].pos.x = m_enemyPos.x + enemyHP * m_Width;
++    UploadVertices();
++}
++
++void IBoardingStatus::UploadVertices()
++{
++    if (!rs || m_vBuffer < 0)
++        return;
++    auto *vertices = static_cast<BI_COLORONLY_VERTEX *>(rs->LockVertexBuffer(m_vBuffer, D3DLOCK_DISCARD));
++    if (!vertices)
++        return;
++    memcpy(vertices, m_MyChar, sizeof(m_MyChar));
++    memcpy(vertices + 4, m_EnemyChar, sizeof(m_EnemyChar));
++    rs->UnLockVertexBuffer(m_vBuffer);
+ }

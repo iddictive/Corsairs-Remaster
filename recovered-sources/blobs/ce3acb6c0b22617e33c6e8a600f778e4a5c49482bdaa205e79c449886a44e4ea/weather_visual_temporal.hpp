@@ -1,0 +1,76 @@
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+namespace storm_weather_visual {
+
+inline float boundedDelta(float seconds) {
+    return std::clamp(std::isfinite(seconds) ? seconds : 0.f, 0.f, .1f);
+}
+
+inline float approach(float current, float target, float seconds,
+                      float riseSeconds, float fallSeconds) {
+    if (!std::isfinite(target)) return current;
+    const float tau = target > current ? riseSeconds : fallSeconds;
+    return current + (target - current) * (1.f - std::exp(-boundedDelta(seconds) / tau));
+}
+
+inline float approachAngle(float current, float target, float seconds, float responseSeconds = .75f) {
+    constexpr float tau = 6.2831853071795864769f;
+    if (!std::isfinite(target)) return current;
+    const float delta = std::remainder(target - current, tau);
+    return current + delta * (1.f - std::exp(-boundedDelta(seconds) / responseSeconds));
+}
+
+inline void seedColor(float (&channels)[4], uint32_t color) {
+    for (unsigned index = 0; index != 4; ++index)
+        channels[index] = float((color >> (index * 8u)) & 255u);
+}
+
+inline uint32_t approachColor(float (&channels)[4], uint32_t target, float seconds, float responseSeconds = .9f) {
+    const float alpha = 1.f - std::exp(-boundedDelta(seconds) / responseSeconds);
+    uint32_t result = 0;
+    for (unsigned index = 0; index != 4; ++index) {
+        const unsigned shift = index * 8u;
+        const float to = float((target >> shift) & 255u);
+        channels[index] += (to - channels[index]) * alpha;
+        result |= uint32_t(std::clamp(std::lround(channels[index]), 0l, 255l)) << shift;
+    }
+    return result;
+}
+
+struct State {
+    bool initialized = false;
+    float fogDensity = 0.f;
+    float windAngle = 0.f;
+    float windSpeed = 0.f;
+    float rainIntensity = 0.f;
+    uint32_t fogColor = 0;
+    uint32_t ambientColor = 0;
+    uint32_t sunColor = 0;
+    float fogChannels[4] = {};
+    float ambientChannels[4] = {};
+    float sunChannels[4] = {};
+
+    void seed(float fog, uint32_t fogRgb, uint32_t ambient, uint32_t sun,
+              float angle, float speed, float rain) {
+        fogDensity=fog;fogColor=fogRgb;ambientColor=ambient;sunColor=sun;
+        seedColor(fogChannels,fogRgb);seedColor(ambientChannels,ambient);seedColor(sunChannels,sun);
+        windAngle=angle;windSpeed=speed;rainIntensity=rain;initialized=true;
+    }
+    void update(float fog, uint32_t fogRgb, uint32_t ambient, uint32_t sun,
+                float angle, float speed, float rain, float seconds) {
+        if (!initialized) { seed(fog,fogRgb,ambient,sun,angle,speed,rain);return; }
+        fogDensity=approach(fogDensity,fog,seconds,.55f,1.4f);
+        fogColor=approachColor(fogChannels,fogRgb,seconds);
+        ambientColor=approachColor(ambientChannels,ambient,seconds);
+        sunColor=approachColor(sunChannels,sun,seconds);
+        windAngle=approachAngle(windAngle,angle,seconds);
+        windSpeed=approach(windSpeed,speed,seconds,.65f,1.6f);
+        rainIntensity=approach(rainIntensity,rain,seconds,.45f,1.8f);
+    }
+};
+
+} // namespace storm_weather_visual

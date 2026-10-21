@@ -1,0 +1,95 @@
+diff --git a/src/libs/sea/src/sea.h b/src/libs/sea/src/sea.h
+--- a/src/libs/sea/src/sea.h
++++ b/src/libs/sea/src/sea.h
+@@ -95,6 +95,11 @@ class SEA : public SEA_BASE
+ 
+     bool bSimpleSea;
+ 
++    // Cube targets persist across frames. Prime every authored face once, then
++    // amortize reflection work without changing face contents or layer membership.
++    uint32_t envMapFace = 0, sunRoadFace = 0;
++    bool envMapPrimed = false, sunRoadPrimed = false, reflectionUnderSea = false;
++
+     SeaVertex *pVSea;
+     uint16_t *pTriangles;
+     uint32_t *pIndices;
+diff --git a/src/libs/sea/src/sea.cpp b/src/libs/sea/src/sea.cpp
+--- a/src/libs/sea/src/sea.cpp
++++ b/src/libs/sea/src/sea.cpp
+@@ -1364,6 +1364,13 @@ void SEA::Realize(uint32_t dwDeltaTime)
+     if (!bUnderSea)
+         bUnderSeaStarted = false;
+ 
++    // The negative-Y face is intentionally omitted above water. A waterline
++    // transition changes that face set, so reprime both persistent cube maps.
++    if (reflectionUnderSea != bUnderSea)
++    {
++        reflectionUnderSea = bUnderSea;
++        envMapPrimed = sunRoadPrimed = false;
++    }
++
+     if (bSimpleSea)
+     {
+         EnvMap_Render2();
+@@ -2012,5 +2019,6 @@ void SEA::LostRender()
+ void SEA::LostRender()
+ {
++    envMapPrimed = sunRoadPrimed = false;
+     rs->Release(pReflection);
+     rs->Release(pReflectionSunroad);
+     rs->Release(pEnvMap);
+diff --git a/src/libs/sea/src/env_map.cpp b/src/libs/sea/src/env_map.cpp
+--- a/src/libs/sea/src/env_map.cpp
++++ b/src/libs/sea/src/env_map.cpp
+@@ -216,7 +216,9 @@ bool SEA::SunRoad_Render()
+     rs->SetProjection(CMatrix().BuildProjectionMatrix(PI / 2.0f, 256.0f, 256.0f, 1.0f, 4000.0f));
+ 
+     uint32_t Colors[6] = {0xd934c8, 0x2FFF1F, 0x0000FF, 0xFF00, 0xb28e11, 0x0};
+-    for (uint32_t i = 0; i < 6; i++)
++    const uint32_t firstFace = sunRoadPrimed ? sunRoadFace : 0;
++    const uint32_t endFace = sunRoadPrimed ? sunRoadFace + 1 : 6;
++    for (uint32_t i = firstFace; i < endFace; i++)
+     {
+         if (!bUnderSea && i == D3DCUBEMAP_FACE_NEGATIVE_Y)
+             continue;
+@@ -260,6 +262,14 @@ bool SEA::SunRoad_Render()
+         rs->EndScene();
+     }
+ 
++    if (!sunRoadPrimed)
++        sunRoadPrimed = true;
++    do
++    {
++        sunRoadFace = (sunRoadFace + 1) % 6;
++    }
++    while (!bUnderSea && sunRoadFace == D3DCUBEMAP_FACE_NEGATIVE_Y);
++
+     rs->PopRenderTarget();
+     rs->SetView(mOldView);
+     rs->SetProjection(mOldProjection);
+@@ -278,7 +288,9 @@ bool SEA::EnvMap_Render()
+     rs->SetProjection(CMatrix().BuildProjectionMatrix(PI / 2.0f, 256.0f, 256.0f, 1.0f, 4000.0f));
+ 
+     uint32_t Colors[6] = {0xd934c8, 0x2FFF1F, 0x0000FF, 0xFF00, 0xb28e11, 0x0};
+-    for (uint32_t i = 0; i < 6; i++)
++    const uint32_t firstFace = envMapPrimed ? envMapFace : 0;
++    const uint32_t endFace = envMapPrimed ? envMapFace + 1 : 6;
++    for (uint32_t i = firstFace; i < endFace; i++)
+     {
+         if (!bUnderSea && i == D3DCUBEMAP_FACE_NEGATIVE_Y)
+             continue;
+@@ -319,6 +331,14 @@ bool SEA::EnvMap_Render()
+         rs->EndScene();
+     }
+ 
++    if (!envMapPrimed)
++        envMapPrimed = true;
++    do
++    {
++        envMapFace = (envMapFace + 1) % 6;
++    }
++    while (!bUnderSea && envMapFace == D3DCUBEMAP_FACE_NEGATIVE_Y);
++
+     rs->PopRenderTarget();
+     rs->SetView(mOldView);
+     rs->SetProjection(mOldProjection);

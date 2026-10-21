@@ -1,0 +1,44 @@
+action "load" "" ""
+frames 5
+wait "resident" "1" 300
+assert "location" "SanJuan_store"
+assert "quest.generate_trade_quest_progress" "begin"
+action "walk" "reload" "reload1"
+frames 200
+action "player" "" ""
+action "reload" "reload1" ""
+assert "result" "1"
+frames 5
+assert "location" "SanJuan_town"
+action "select-guard" "" ""
+assert "result" "1"
+action "follow-npc" "$guardId" ""
+frames 300
+action "player" "" ""
+action "dialogue" "$guardId" ""
+assert "result" "1"
+frames 6
+state "actual-guard-original-dialogue"
+action "link-go" "DialogAmbush_Attack" ""
+assert "result" "1"
+frames 10
+frames 1 "ChrFire"
+frames 30
+snapshot "10-actual-guard-combat"
+state "actual-land-combat-hp-and-crime"
+action "walk" "reload" "reload1_back"
+frames 500
+action "player" "" ""
+action "embark" "" ""
+assert "result" "1"
+wait "travel.state" "2" 1000
+snapshot "11-leave-pier"
+state "same-fleet-before-return-row"
+row-to "ship" 2500
+action "disembark" "" ""
+wait "travel.mode" "deck" 1000
+snapshot "12-actual-moving-ship-ladder-return"
+state "returned-to-same-live-ship"
+action "save" "" ""
+assert "result" "1"
+frames 1

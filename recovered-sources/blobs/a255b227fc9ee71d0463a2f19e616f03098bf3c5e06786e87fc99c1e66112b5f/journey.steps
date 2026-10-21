@@ -1,0 +1,35 @@
+# First executable checkpoint: actual initialized PROGRAM, two actual ships,
+# resident native town, actual deck -> ladder -> rowboat, and real stroke motion.
+# Continuing phases require the observed pier/deck positions from this first run.
+# This file deliberately cannot emit full-journey acceptance on an incomplete run.
+assert "phase" "initialized"
+action "sea" "" ""
+wait "seaLoaded" "1" 300
+wait "resident" "1" 300
+action "sails" "0.05" ""
+state "sea-with-resident-original-town"
+frames 3
+action "deck" "" ""
+frames 3
+snapshot "01-deck"
+state "deck-before-embark"
+# Real collision-constrained deck walker moves to the starboard edge.
+frames 120 "ChrStrafeRight"
+snapshot "01b-deck-edge"
+action "embark" "" ""
+assert "result" "1"
+wait "travel.state" "2" 1000
+snapshot "02-rowboat"
+state "rowboat-before-stroke"
+frames 80 "ChrForward"
+snapshot "03-physical-stroke"
+state "rowboat-after-stroke"
+frames 50
+action "pause" "" ""
+frames 10
+state "paused"
+action "resume" "" ""
+frames 10
+state "resumed"
+action "save" "" ""
+frames 1

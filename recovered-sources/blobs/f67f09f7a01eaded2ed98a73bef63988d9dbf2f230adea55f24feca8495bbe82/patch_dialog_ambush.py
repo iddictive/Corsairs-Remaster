@@ -1,0 +1,487 @@
+#!/usr/bin/env python3
+"""Install guarded ambient-NPC attack actions in the mutable KVL runtime."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from runtime_script_patch import (
+    FilePatch,
+    PatchSet,
+    TARGET_ROOT,
+    classify,
+    sha256,
+    transform,
+)
+
+
+PATCH = PatchSet(
+    TARGET_ROOT / ".codex-dialog-ambush" / "20260913-v1",
+    (
+        FilePatch(
+            "PROGRAM/dialog.c",
+            "08e671cceb9adfb9090dbfb08edee7733eed9d689b94c12f15a4d2b357058a9e",
+            "1f0f4f918f1f35134478e1ba2c98c607492f045242e8e6c30cccdfb95a6b57ce",
+            (
+                (
+                    '''void  ProcessCommonDialog(ref NPChar, aref Link, aref NextDiag)
+{
+    ProcessCommonDialogEvent(NPChar, Link, NextDiag);
+}
+//Инициализация
+''',
+                    '''void  ProcessCommonDialog(ref NPChar, aref Link, aref NextDiag)
+{
+    ProcessCommonDialogEvent(NPChar, Link, NextDiag);
+}
+
+bool DialogAmbush_GroupHasQuest(ref target)
+{
+\tif(!CheckAttribute(target, "chr_ai.group")) return true;
+\tif(!CheckAttribute(&LAi_grp_relations, "quests")) return false;
+\taref quests;
+\tmakearef(quests, LAi_grp_relations.quests);
+\tint num = GetAttributesNum(quests);
+\tfor(int i = 0; i < num; i++)
+\t{
+\t\taref quest = GetAttributeN(quests, i);
+\t\tif(CheckAttribute(quest, "group") && quest.group == target.chr_ai.group) return true;
+\t}
+\treturn false;
+}
+
+bool DialogAmbush_CanAttack(ref target)
+{
+\tif(dialogSelf) return false;
+\tif(!CheckAttribute(target, "DialogAmbushAllowed")) return false;
+\tif(sti(target.DialogAmbushAllowed) == 0) return false;
+\tif(!IsEntity(target) || LAi_IsDead(target)) return false;
+\tif(!CheckAttribute(target, "location") || target.location != pchar.location) return false;
+\tif(!CheckAttribute(target, "CityType") || target.CityType != "citizen") return false;
+\tif(CheckAttribute(target, "DialogAmbushProtected")) return false;
+\tif(CheckAttribute(target, "isquest") || CheckAttribute(target, "quest")) return false;
+\tif(CheckAttribute(target, "Merchant") || CheckAttribute(target, "Payment")) return false;
+\tif(CheckAttribute(target, "DontClearDead") || CheckAttribute(target, "chr_ai.hpchecker")) return false;
+\tif(CheckAttribute(target, "DialogAmbush.TempGroup")) return false;
+\tif(LAi_IsImmortal(target)) return false;
+\tif(FindFellowtravellers(pchar, target) != FELLOWTRAVEL_NO) return false;
+\tif(CheckAttribute(target, "chr_ai.group") && target.chr_ai.group == LAI_GROUP_PLAYER_OWN) return false;
+\tif(DialogAmbush_GroupHasQuest(target)) return false;
+\tif(!LAi_LocationCanFight()) return false;
+\tif(LAi_IsBoardingProcess() || LAi_IsCapturedLocation) return false;
+\tif(chrDisableReloadToLocation || bDisableFastReload || bDisableCharacterMenu) return false;
+\tif(LAi_group_IsActivePlayerAlarm() || LAi_CheckFightMode(pchar)) return false;
+\treturn true;
+}
+
+bool DialogAmbush_IsOneOnOne(ref target)
+{
+\tint num = FindNearCharacters(target, 15.0, -1.0, -1.0, 0.01, true, true);
+\tfor(int i = 0; i < num; i++)
+\t{
+\t\tint idx = sti(chrFindNearCharacters[i].index);
+\t\tif(idx < 0 || idx == sti(pchar.index) || idx == sti(target.index)) continue;
+\t\tref witness = &Characters[idx];
+\t\tif(IsEntity(witness) && !LAi_IsDead(witness)) return false;
+\t}
+\treturn true;
+}
+
+bool DialogAmbush_AddLink(aref Link, string text, string node)
+{
+\tfor(int i = 1; i <= 99; i++)
+\t{
+\t\tstring attr = "l" + i;
+\t\tif(CheckAttribute(Link, attr)) continue;
+\t\tLink.(attr) = text;
+\t\tLink.(attr).go = node;
+\t\treturn true;
+\t}
+\treturn false;
+}
+
+void DialogAmbush_AppendLinks()
+{
+\tif(!DialogAmbush_CanAttack(CharacterRef)) return;
+\taref Link;
+\tmakearef(Link, Dialog.Links);
+\tif(!DialogAmbush_AddLink(Link, "Напасть", "DialogAmbush_Attack")) return;
+\tif(DialogAmbush_IsOneOnOne(CharacterRef))
+\t{
+\t\tDialogAmbush_AddLink(Link, "Ударить исподтишка", "DialogAmbush_Sneak");
+\t}
+}
+
+void DialogAmbush_ClearTemporaryGroup(aref target, bool restoreGroup)
+{
+\tif(!CheckAttribute(target, "DialogAmbush.TempGroup")) return;
+\tstring tempGroup = target.DialogAmbush.TempGroup;
+\tstring originalGroup = LAI_DEFAULT_GROUP;
+\tif(CheckAttribute(target, "DialogAmbush.OriginalGroup"))
+\t{
+\t\toriginalGroup = target.DialogAmbush.OriginalGroup;
+\t}
+\tif(restoreGroup)
+\t{
+\t\tif(IsEntity(target)) LAi_group_MoveCharacter(target, originalGroup);
+\t\telse target.chr_ai.group = originalGroup;
+\t}
+\tDeleteAttribute(target, "DialogAmbush");
+\tLAi_group_Delete(tempGroup);
+\tif(CheckAttribute(pchar, "DialogAmbush.ActiveTargetIndex") && sti(pchar.DialogAmbush.ActiveTargetIndex) == sti(target.index))
+\t{
+\t\tDeleteAttribute(pchar, "DialogAmbush");
+\t}
+}
+
+void DialogAmbush_CharacterDead()
+{
+\taref dead = GetEventData();
+\tDialogAmbush_ClearTemporaryGroup(dead, false);
+}
+
+void DialogAmbush_LocationUnload()
+{
+\tif(!CheckAttribute(pchar, "DialogAmbush.ActiveTargetIndex")) return;
+\tint idx = sti(pchar.DialogAmbush.ActiveTargetIndex);
+\tif(idx >= 0)
+\t{
+\t\tref target = &Characters[idx];
+\t\tDialogAmbush_ClearTemporaryGroup(target, !LAi_IsDead(target));
+\t}
+\telse DeleteAttribute(pchar, "DialogAmbush");
+}
+
+void DialogAmbush_Start(bool trySneak)
+{
+\tref target = CharacterRef;
+\tif(!DialogAmbush_CanAttack(target))
+\t{
+\t\tDialogExit();
+\t\treturn;
+\t}
+
+\tbool sneakSuccess = false;
+\tif(trySneak && DialogAmbush_IsOneOnOne(target))
+\t{
+\t\tsneakSuccess = GetSummonSkillFromName(pchar, SKILL_SNEAK) > rand(150);
+\t}
+
+\tif(trySneak) Crime_MarkPlayerIntent(target, "ambush");
+\telse Crime_MarkPlayerIntent(target, "attack");
+
+\tstring tempGroup = "DialogAmbush_" + target.index;
+\tstring originalGroup = LAI_DEFAULT_GROUP;
+\tif(CheckAttribute(target, "chr_ai.group")) originalGroup = target.chr_ai.group;
+\ttarget.DialogAmbush.OriginalGroup = originalGroup;
+\ttarget.DialogAmbush.TempGroup = tempGroup;
+\tpchar.DialogAmbush.ActiveTargetIndex = target.index;
+
+\tDialogExit();
+\tLAi_LockFightMode(pchar, false);
+\tif(sneakSuccess)
+\t{
+\t\tLai_CharacterChangeEnergy(target, -0.5 * LAi_GetCharacterMaxEnergy(target));
+\t}
+\tLAi_group_Register(tempGroup);
+\tLAi_group_MoveCharacter(target, tempGroup);
+\tLAi_group_Attack(target, pchar);
+\tAddDialogExitQuest("MainHeroFightModeOn");
+}
+
+void ProcessDialogEventWithAmbush()
+{
+\tif(Dialog.CurrentNode == "DialogAmbush_Attack")
+\t{
+\t\tDialogAmbush_Start(false);
+\t\treturn;
+\t}
+\tif(Dialog.CurrentNode == "DialogAmbush_Sneak")
+\t{
+\t\tDialogAmbush_Start(true);
+\t\treturn;
+\t}
+\tProcessDialogEvent();
+\tDialogAmbush_AppendLinks();
+}
+
+//Инициализация
+''',
+                ),
+                (
+                    '''void DialogsInit()
+{
+\t//Quest_Init();\t\t\t\t//Инициализация начального состояния слухов и информации об NPC ------- Ренат
+\tSet_inDialog_Attributes(); // boal
+}
+''',
+                    '''void DialogsInit()
+{
+\t//Quest_Init();\t\t\t\t//Инициализация начального состояния слухов и информации об NPC ------- Ренат
+\tSet_inDialog_Attributes(); // boal
+\tSetEventHandler(EVENT_CHARACTER_DEAD, "DialogAmbush_CharacterDead", 0);
+\tSetEventHandler(EVENT_LOCATION_UNLOAD, "DialogAmbush_LocationUnload", 0);
+}
+''',
+                ),
+                (
+                    '''\tSet_inDialog_Attributes();
+\tProcessDialogEvent();
+
+\tSetEventHandler("DialogEvent","ProcessDialogEvent",0);
+\t//SetEventHandler("DialogCancel","DialogExit",0);
+''',
+                    '''\tSet_inDialog_Attributes();
+\tProcessDialogEventWithAmbush();
+
+\tSetEventHandler("DialogEvent","ProcessDialogEventWithAmbush",0);
+\t//SetEventHandler("DialogCancel","DialogExit",0);
+''',
+                ),
+                (
+                    '''\tLayerSetRealize(REALIZE);
+\tLayerAddObject(REALIZE,Dialog,-256);
+\tSet_inDialog_Attributes();
+\tProcessDialogEvent();
+
+\tSetEventHandler("DialogEvent","ProcessDialogEvent",0);
+\t//SetEventHandler("DialogCancel","DialogExit",0);\t
+''',
+                    '''\tLayerSetRealize(REALIZE);
+\tLayerAddObject(REALIZE,Dialog,-256);
+\tSet_inDialog_Attributes();
+\tProcessDialogEventWithAmbush();
+
+\tSetEventHandler("DialogEvent","ProcessDialogEventWithAmbush",0);
+\t//SetEventHandler("DialogCancel","DialogExit",0);\t
+''',
+                ),
+            ),
+        ),
+        FilePatch(
+            "PROGRAM/Loc_ai/LAi_utilites.c",
+            "8eaeaceda1d61eb723bea5f034ae6516054c141f38d700f3e3fc0560a41e9260",
+            "bb22b5e565ac449dedef14c608b0cbd6ffd5014c0f0cb81f9ce11a05321add98",
+            (
+                (
+                    '''\t\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t\tchr.dialog.filename    = "Population\\Marginal.c";
+''',
+                    '''\t\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\t\tif (sti(Colonies[iColony].HeroOwn) != true) chr.DialogAmbushAllowed = true;
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t\tchr.dialog.filename    = "Population\\Marginal.c";
+''',
+                ),
+                (
+                    '''\t\t\t\t\tLAi_SetCitizenType(chr);
+\t\t\t\t\tif(loc.id == "Villemstad_town" && Whr_IsDay() == 0) TEV.place_check = "Villemstad";
+\t\t\t\t\tchr.dialog.filename = "Common_citizen.c";
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t}
+\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\tchr.dialog.currentnode = "first time";
+\t\t\t\tif(chr.sex == "man") chr.greeting = "townman";
+''',
+                    '''\t\t\t\t\tLAi_SetCitizenType(chr);
+\t\t\t\t\tif(loc.id == "Villemstad_town" && Whr_IsDay() == 0) TEV.place_check = "Villemstad";
+\t\t\t\t\tchr.dialog.filename = "Common_citizen.c";
+\t\t\t\t\tif (sti(Colonies[iColony].HeroOwn) != true) chr.DialogAmbushAllowed = true;
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t}
+\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\tchr.dialog.currentnode = "first time";
+\t\t\t\tif(chr.sex == "man") chr.greeting = "townman";
+''',
+                ),
+                (
+                    '''\t\t\t\t\tLAi_SetCitizenType(chr);
+\t\t\t\t\tif(loc.id == "Villemstad_town" && Whr_IsDay() == 0) TEV.place_check = "Villemstad";
+\t\t\t\t\tchr.dialog.filename = "Common_citizen.c";
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t}
+\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\tchr.dialog.currentnode = "first time";
+\t\t\t\tchr.greeting = "cit_common";
+''',
+                    '''\t\t\t\t\tLAi_SetCitizenType(chr);
+\t\t\t\t\tif(loc.id == "Villemstad_town" && Whr_IsDay() == 0) TEV.place_check = "Villemstad";
+\t\t\t\t\tchr.dialog.filename = "Common_citizen.c";
+\t\t\t\t\tif (sti(Colonies[iColony].HeroOwn) != true) chr.DialogAmbushAllowed = true;
+\t\t\t\t\tPlaceCharacter(chr, "goto", "random_free");
+\t\t\t\t}
+\t\t\t\tif (sti(Colonies[iColony].HeroOwn) == true) LAi_group_MoveCharacter(chr, LAI_GROUP_PLAYER_OWN);
+\t\t\t\telse LAi_group_MoveCharacter(chr, slai_group);
+\t\t\t\tchr.dialog.currentnode = "first time";
+\t\t\t\tchr.greeting = "cit_common";
+''',
+                ),
+            ),
+        ),
+    ),
+)
+
+
+def _require_count(source: str, token: str, expected: int) -> None:
+    actual = source.count(token)
+    if actual != expected:
+        raise RuntimeError(f"expected {expected} occurrence(s) of {token!r}, got {actual}")
+
+
+def _verify_dialog(source: str) -> None:
+    _require_count(source, "void ProcessDialogEventWithAmbush()", 1)
+    _require_count(source, "\tProcessDialogEvent();", 1)
+    _require_count(
+        source,
+        'SetEventHandler("DialogEvent","ProcessDialogEventWithAmbush",0);',
+        2,
+    )
+    _require_count(source, "\tProcessDialogEventWithAmbush();", 2)
+    _require_count(source, 'Link.(attr).go = node;', 1)
+
+    required = (
+        'CheckAttribute(target, "DialogAmbushAllowed")',
+        'CheckAttribute(target, "DialogAmbushProtected")',
+        'CheckAttribute(target, "isquest")',
+        'CheckAttribute(target, "quest")',
+        'CheckAttribute(target, "Merchant")',
+        'CheckAttribute(target, "Payment")',
+        'CheckAttribute(target, "DontClearDead")',
+        'CheckAttribute(target, "chr_ai.hpchecker")',
+        "LAi_IsImmortal(target)",
+        "FindFellowtravellers(pchar, target) != FELLOWTRAVEL_NO",
+        "target.chr_ai.group == LAI_GROUP_PLAYER_OWN",
+        "DialogAmbush_GroupHasQuest(target)",
+        "LAi_LocationCanFight()",
+        "LAi_IsBoardingProcess()",
+        "LAi_IsCapturedLocation",
+        "chrDisableReloadToLocation",
+        "bDisableFastReload",
+        "bDisableCharacterMenu",
+        "LAi_group_IsActivePlayerAlarm()",
+        "LAi_CheckFightMode(pchar)",
+        "FindNearCharacters(target, 15.0",
+        "for(int i = 1; i <= 99; i++)",
+        'Crime_MarkPlayerIntent(target, "attack");',
+        'Crime_MarkPlayerIntent(target, "ambush");',
+        "Lai_CharacterChangeEnergy(target, -0.5 * LAi_GetCharacterMaxEnergy(target));",
+        'string tempGroup = "DialogAmbush_" + target.index;',
+        "target.DialogAmbush.OriginalGroup = originalGroup;",
+        "LAi_group_Register(tempGroup);",
+        "LAi_group_MoveCharacter(target, tempGroup);",
+        "LAi_group_Attack(target, pchar);",
+        'AddDialogExitQuest("MainHeroFightModeOn");',
+        'SetEventHandler(EVENT_CHARACTER_DEAD, "DialogAmbush_CharacterDead", 0);',
+        'SetEventHandler(EVENT_LOCATION_UNLOAD, "DialogAmbush_LocationUnload", 0);',
+        "LAi_group_Delete(tempGroup);",
+    )
+    for token in required:
+        if token not in source:
+            raise RuntimeError(f"dialog contract token is missing: {token}")
+
+    forbidden = ("LAi_KillCharacter", "LAi_ApplyCharacterDamage")
+    for token in forbidden:
+        if token in source:
+            raise RuntimeError(f"direct-kill path is forbidden: {token}")
+    move = source.index("LAi_group_MoveCharacter(target, tempGroup);")
+    attack = source.index("LAi_group_Attack(target, pchar);")
+    if move >= attack:
+        raise RuntimeError("target must enter its unique group before combat starts")
+    if "pchar.CrimeIntent.Dialog" in source or "target.CrimeIntent.Dialog" in source:
+        raise RuntimeError("dialog patch must use the shared crime intent owner")
+
+
+def _verify_utilities(source: str) -> None:
+    _require_count(source, "chr.DialogAmbushAllowed = true;", 3)
+    _require_count(
+        source,
+        "if (sti(Colonies[iColony].HeroOwn) != true) chr.DialogAmbushAllowed = true;",
+        3,
+    )
+    marginal = source.find(r'chr.dialog.filename    = "Population\Marginal.c";')
+    citizen = source.find('if(chr.sex == "man") chr.greeting = "townman";')
+    commoner = source.find('chr.greeting = "cit_common";')
+    if min(marginal, citizen, commoner) < 0:
+        raise RuntimeError("audited generator boundary is missing")
+    positions = []
+    start = 0
+    marker = "chr.DialogAmbushAllowed = true;"
+    while True:
+        found = source.find(marker, start)
+        if found < 0:
+            break
+        positions.append(found)
+        start = found + len(marker)
+    if not (positions[0] < marginal < positions[1] < citizen < positions[2] < commoner):
+        raise RuntimeError("ambient opt-ins escaped the audited generator blocks")
+
+
+def _require_crime_owner(root: Path) -> None:
+    path = root / "PROGRAM/sea_ai/AIShip.c"
+    if not path.is_file():
+        raise RuntimeError(f"crime owner is missing: {path}")
+    source = path.read_text(encoding="utf-8")
+    if "void Crime_MarkPlayerIntent(ref target, string action)" not in source:
+        raise RuntimeError("apply crime-reputation patch before dialog ambush")
+
+
+def verify(root: Path) -> int:
+    artifacts: dict[str, bytes] = {}
+    for spec in PATCH.files:
+        path = root / spec.relative_path
+        state = classify(path, spec)
+        if state == "original":
+            original = path.read_bytes()
+            patched = transform(original, spec)
+            if transform(original, spec) != patched:
+                raise RuntimeError(f"non-deterministic transform: {spec.relative_path}")
+        elif state == "patched":
+            patched = path.read_bytes()
+        else:
+            raise RuntimeError(f"cannot verify {spec.relative_path}: state is {state}")
+        if b"\r\n" in patched and patched.replace(b"\r\n", b"").find(b"\n") >= 0:
+            raise RuntimeError(f"mixed line endings: {spec.relative_path}")
+        artifacts[spec.relative_path] = patched
+
+    dialog = artifacts["PROGRAM/dialog.c"].decode("utf-8")
+    utilities = artifacts["PROGRAM/Loc_ai/LAi_utilites.c"].decode("utf-8")
+    _verify_dialog(dialog)
+    _verify_utilities(utilities)
+    for relative_path, data in artifacts.items():
+        print(f"verified    {sha256(data)}  {relative_path}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("status", "verify", "apply", "revert"))
+    parser.add_argument("--target", type=Path, default=TARGET_ROOT)
+    args = parser.parse_args()
+    root = args.target.resolve()
+    try:
+        if args.action == "status":
+            return PATCH.print_status(root)
+        if args.action == "verify":
+            return verify(root)
+        if args.action == "apply":
+            _require_crime_owner(root)
+            result = PATCH.apply(root)
+        else:
+            result = PATCH.revert(root)
+        print(result)
+        return 0
+    except RuntimeError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,65 @@
+# Private continuation of journey.steps using the ordinary generated SAVE.
+# Source-ready phase input; never counted as executed evidence before GPU replay.
+action "load" "" ""
+frames 4
+wait "seaLoaded" "1" 300
+wait "resident" "1" 300
+assert "travel.mode" "boat"
+state "restored-exact-prior-boat-phase"
+row-to "pier" 2500
+snapshot "04-pier-approach"
+action "disembark" "" ""
+wait "landHero" "1" 1000
+snapshot "05-pier-takeover"
+state "real-hero-original-town"
+action "walk" "reload" "reload6_back"
+frames 500
+action "player" "" ""
+state "walked-to-original-store-door"
+action "reload" "reload6_back" ""
+assert "result" "1"
+frames 5
+assert "location" "SanJuan_store"
+snapshot "06-original-store"
+callback-witness
+action "follow-npc" "SanJuan_trader" ""
+frames 200
+action "player" "" ""
+action "dialogue" "SanJuan_trader" ""
+assert "result" "1"
+frames 6
+snapshot "07-original-trader-dialogue"
+state "original-offered-links"
+action "link-go" "node_1" ""
+assert "result" "1"
+action "link-go" "market" ""
+assert "result" "1"
+action "link-go" "trade_1" ""
+assert "result" "1"
+frames 4
+wait "interface" "1" 30
+snapshot "08-original-store-interface"
+action "buy-food" "" ""
+assert "result" "1"
+state "actual-stock-capacity-money-transaction"
+action "interface-exit" "" ""
+frames 4
+action "dialogue" "SanJuan_trader" ""
+assert "result" "1"
+frames 6
+action "link-go" "node_1" ""
+assert "result" "1"
+action "link-go" "quests" ""
+assert "result" "1"
+action "link-go" "generate_quest" ""
+assert "result" "1"
+state "original-merchant-quest-offer"
+action "link-go" "exit_trade" ""
+assert "result" "1"
+frames 6
+state "real-dialogue-exit-trade-quest-callback"
+assert "quest.generate_trade_quest_progress" "begin"
+snapshot "09-quest-accepted"
+action "save" "" ""
+assert "result" "1"
+frames 1

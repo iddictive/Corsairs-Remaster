@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Source contract companion for the behavioral Metal registry probe."""
+from pathlib import Path
+root=Path(__file__).resolve().parent
+b=(root/'backend.mm').read_text(); h=(root/'land_shadow.hpp').read_text(); p=(root/'world_shadow_registry_probe.cpp').read_text()
+checks={
+ 'shared receiver':'const bool receiverEligible=worldDraw&&landShadow.prepass.finished',
+ 'semantic depth coverage':'const bool shadowDepthCoverage=rs[D3DRS_ZWRITEENABLE]',
+ 'sea registry':'const bool traversalCapture=worldDraw&&!landShadow.locationActive',
+ 'unconditional present resolve':'Present(const RECT*,const RECT*,HWND,const RGNDATA*)override {resolveTraversalShadow();',
+ 'material-independent overlay':'texture color cancels from direct/total',
+}
+for name,token in checks.items():
+ text=h if name=='material-independent overlay' else b
+ if token not in text: raise SystemExit(f'FAIL {name}')
+for token in ('blended Z-writing MODELR caster','multistage/lightmapped MODELR caster','unconditional scene-boundary registry resolve'):
+ if token not in p: raise SystemExit(f'FAIL behavioral case {token}')
+print('world shadow owner source contract: PASS')

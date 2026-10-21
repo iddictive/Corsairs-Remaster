@@ -1,0 +1,5 @@
+{
+  "pierWood1.tga.tx": "UV atlas; existing registered generated edit already has a full mip chain",
+  "woodPlanksU2.tga.tx": "multi-region UV atlas; no deterministic detail model is available",
+  "estateFloorU1.tga.tx": "decorative UV atlas; no deterministic detail model is available"
+}

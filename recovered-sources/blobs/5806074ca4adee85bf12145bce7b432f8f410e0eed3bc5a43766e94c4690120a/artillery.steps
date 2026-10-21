@@ -1,0 +1,32 @@
+# Each phase uses the ship and guard already present in the private checkpoint.
+# This submits real cannon actions and records results; observed contact, wall
+# occlusion, crime and fort fire still require parent acceptance of the journal.
+action "load" "" ""
+frames 5
+wait "seaLoaded" "1" 300
+assert "travel.mode" "deck"
+action "select-guard" "" ""
+assert "result" "1"
+state "before-real-artillery"
+action "charge" "balls" ""
+frames 1200
+fire-at-guard
+frames 120
+snapshot "13-round-shot-town"
+state "after-real-round-shot"
+action "select-guard" "" ""
+assert "result" "1"
+action "charge" "grapes" ""
+frames 1200
+fire-at-guard
+frames 120
+snapshot "14-grapes-town"
+state "after-real-grapes"
+action "select-guard" "" ""
+assert "result" "1"
+action "charge" "bombs" ""
+frames 1200
+fire-at-guard
+frames 160
+snapshot "15-bomb-and-fort-response"
+state "after-real-bomb-and-fort-response"

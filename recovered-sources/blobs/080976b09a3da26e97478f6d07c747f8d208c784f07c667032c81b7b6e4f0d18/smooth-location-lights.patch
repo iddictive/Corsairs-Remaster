@@ -1,0 +1,76 @@
+--- a/src/libs/location/src/lights.h
++++ b/src/libs/location/src/lights.h
+@@ -42,6 +42,8 @@
+         float time;          // Time since last change of flickering intensity
+         float timeSlow;      // Time since the last change in the interpolated intensity
+         float itens;         // Shimmering intensity
++        float itensTarget;   // Fast-flicker interpolation target
++        float itensDltFast;  // Fast-flicker target delta
+         float itensSlow;     // Necessary interpolated intensity
+         float itensDlt;      // Interpolated intensity difference
+         float i;             // Resulting intensity
+--- a/src/libs/location/src/lights.cpp
++++ b/src/libs/location/src/lights.cpp
+@@ -170,26 +170,37 @@
+         // Updating the state
+         auto &ls = lights[i];
+-        // Frequent flickering
+-        ls.time += delta_time * 0.001f;
+-        if (ls.time > l.p)
++        const float elapsed = delta_time * 0.001f;
++        // Keep the authored fast frequency and amplitude, but interpolate
++        // between random targets so light and shadow intensity cannot jump.
++        if (l.freq > 0.0f)
+         {
+-            ls.time -= l.p;
+-            ls.itens = (1.0f - rand() * 2.0f / RAND_MAX) * l.flicker;
++            ls.time += elapsed;
++            while (ls.time >= l.p)
++            {
++                ls.time -= l.p;
++                const float previous = ls.itensTarget;
++                ls.itensTarget = (1.0f - rand() * 2.0f / RAND_MAX) * l.flicker;
++                ls.itensDltFast = ls.itensTarget - previous;
++            }
++            const float kFast = ls.time * l.freq;
++            ls.itens = ls.itensTarget - ls.itensDltFast + kFast * ls.itensDltFast;
+         }
+         // Smooth flickering
+-        ls.timeSlow += delta_time * 0.001f;
+-        auto k = ls.timeSlow * l.freqSlow;
+-        if (k < 0.0f)
+-            k = 0.0f;
+-        if (k >= 1.0f)
++        if (l.freqSlow > 0.0f)
+         {
+-            k = 0.0f;
+-            ls.timeSlow -= l.pSlow;
+-            ls.itensDlt = ls.itensSlow;
+-            ls.itensSlow = (1.0f - rand() * 2.0f / RAND_MAX) * l.flickerSlow;
+-            ls.itensDlt = ls.itensSlow - ls.itensDlt;
++            ls.timeSlow += elapsed;
++            while (ls.timeSlow >= l.pSlow)
++            {
++                ls.timeSlow -= l.pSlow;
++                const float previous = ls.itensSlow;
++                ls.itensSlow = (1.0f - rand() * 2.0f / RAND_MAX) * l.flickerSlow;
++                ls.itensDlt = ls.itensSlow - previous;
++            }
++            const float kSlow = ls.timeSlow * l.freqSlow;
++            ls.i = ls.itensSlow - ls.itensDlt + kSlow * ls.itensDlt + ls.itens;
+         }
+-        ls.i = ls.itensSlow - ls.itensDlt + k * ls.itensDlt + ls.itens;
++        else
++            ls.i = ls.itens;
+-        k = 1.0f + ls.i;
++        auto k = 1.0f + ls.i;
+         if (k < 0.0f)
+             k = 0.0f;
+@@ -403,5 +414,7 @@
+     lights[numLights].time = 0.0f;
+     lights[numLights].itens = 0.0f;
++    lights[numLights].itensTarget = 0.0f;
++    lights[numLights].itensDltFast = 0.0f;
+     lights[numLights].itensSlow = 0.0f;
+     lights[numLights].itensDlt = 0.0f;
+     lights[numLights].timeSlow = 0.0f;

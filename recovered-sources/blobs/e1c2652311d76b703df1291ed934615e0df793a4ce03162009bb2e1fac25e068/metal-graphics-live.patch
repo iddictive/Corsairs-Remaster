@@ -1,0 +1,388 @@
+diff --git a/src/libs/shared_headers/include/shared/interface/messages.h b/src/libs/shared_headers/include/shared/interface/messages.h
+--- a/src/libs/shared_headers/include/shared/interface/messages.h
++++ b/src/libs/shared_headers/include/shared/interface/messages.h
+@@ -49,6 +49,10 @@
+ #define MSG_INTERFACE_LOADPICTUREFROMSAVE 45059
+ #define MSG_INTERFACE_GETPICTUREFROMPICTURE 45060
+ #define MSG_INTERFACE_SET_TOOLTIP 45061
++// lllllll: id, flagsMask, shadowQuality, fullscreen, renderWidth, renderHeight, desktopMode
++#define MSG_INTERFACE_APPLY_METAL_GRAPHICS 45062
++// la: id, output attributes with the active display desktop extent
++#define MSG_INTERFACE_GET_DESKTOP_SIZE 45063
+ 
+ #define MSG_STRSERVICE_OPEN_FILE 45100
+ #define MSG_STRSERVICE_CLOSE_FILE 45101
+diff --git a/src/libs/xinterface/src/xinterface.cpp b/src/libs/xinterface/src/xinterface.cpp
+--- a/src/libs/xinterface/src/xinterface.cpp
++++ b/src/libs/xinterface/src/xinterface.cpp
+@@ -11,6 +11,7 @@
+ #include "string_service/obj_str_service.h"
+ #include "string_service/str_service.h"
+ #include "xservice.h"
++#include "dx9render.h"
+ #include <cstdio>
+ #include <filesystem>
+ #include <fstream>
+@@ -962,6 +963,34 @@
+         int32_t retVal = 0;
+     }
+     break;
++
++    case MSG_INTERFACE_APPLY_METAL_GRAPHICS: {
++        const auto flagsMask = static_cast<uint32_t>(message.Long());
++        const auto shadowQuality = static_cast<uint32_t>(message.Long());
++        const auto fullscreen = message.Long();
++        const auto renderWidth = message.Long();
++        const auto renderHeight = message.Long();
++        const auto desktopMode = message.Long();
++        if (auto *renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render")))
++            return renderer->ApplyMetalGraphics(flagsMask, shadowQuality, fullscreen, renderWidth, renderHeight,
++                                                desktopMode)
++                       ? 1
++                       : 0;
++        return 0;
++    }
++
++    case MSG_INTERFACE_GET_DESKTOP_SIZE: {
++        ATTRIBUTES *output = message.AttributePointer();
++        auto *window = core.GetWindow();
++        if (!output || !window)
++            return 0;
++        const auto desktop = window->GetDesktopSize();
++        if (desktop.width < 320 || desktop.height < 200 || desktop.width > 16384 || desktop.height > 16384)
++            return 0;
++        output->SetAttributeUseDword("width", static_cast<uint32_t>(desktop.width));
++        output->SetAttributeUseDword("height", static_cast<uint32_t>(desktop.height));
++        return 1;
++    }
+ 
+     case MSG_INTERFACE_SAVEOPTIONS: {
+         const std::string &param = message.String();
+diff --git a/src/libs/renderer/include/dx9render.h b/src/libs/renderer/include/dx9render.h
+--- a/src/libs/renderer/include/dx9render.h
++++ b/src/libs/renderer/include/dx9render.h
+@@ -178,6 +178,9 @@
+     // DX9Render: Init/Release
+     virtual bool InitDevice(bool windowed, HWND hwnd, int32_t width, int32_t height) = 0;
+     virtual bool ReleaseDevice() = 0;
++    // UI graphics transaction: flags bits 0..6 and one validated display snapshot.
++    virtual bool ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality, int32_t fullscreen,
++                                    int32_t renderWidth, int32_t renderHeight, int32_t desktopMode) = 0;
+ 
+     // DX9Render: Animation
+     virtual void RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t minv, int32_t numv, int32_t startidx, int32_t numtrg,
+diff --git a/src/libs/renderer/src/s_device.h b/src/libs/renderer/src/s_device.h
+--- a/src/libs/renderer/src/s_device.h
++++ b/src/libs/renderer/src/s_device.h
+@@ -107,6 +107,8 @@
+     // DX9Render: Init/Release
+     bool InitDevice(bool windowed, HWND hwnd, int32_t width, int32_t height) override;
+     bool ReleaseDevice() override;
++    bool ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality, int32_t fullscreen,
++                            int32_t renderWidth, int32_t renderHeight, int32_t desktopMode) override;
+ 
+     // DX9Render: Animation
+     void RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t minv, int32_t numv, int32_t startidx, int32_t numtrg,
+@@ -395,6 +397,7 @@
+ 	bool bNewFovCalculation;	// evganat - выбор формулы vfov
+ 
+     bool resourcesReleased = false;
++    bool desktopMode = false;
+ 
+     bool IsInsideScene() override
+     {
+diff --git a/src/libs/renderer/src/s_device.cpp b/src/libs/renderer/src/s_device.cpp
+--- a/src/libs/renderer/src/s_device.cpp
++++ b/src/libs/renderer/src/s_device.cpp
+@@ -12,6 +12,11 @@
+ #endif
+ 
+ #include "core.h"
++
++#ifdef __APPLE__
++extern "C" bool StormMetalCanApplyGraphicsSettings(void *, uint32_t, uint32_t);
++extern "C" bool StormMetalApplyGraphicsSettings(void *, uint32_t, uint32_t);
++#endif
+ 
+ #include "entity.h"
+ #include "math_inlines.h"
+@@ -544,7 +549,8 @@
+         // Keep the saved dimensions as a deterministic fallback when the
+         // display query is unavailable or returns an invalid size.
+-        if (!bWindow && displayMode == 1)
++        desktopMode = !bWindow && displayMode == 1;
++        if (desktopMode)
+         {
+             const auto desktop = core.GetWindow()->GetDesktopSize();
+             if (desktop.width > 0 && desktop.height > 0)
++                screen_size = {desktop.width, desktop.height};
+@@ -2759,3 +2765,9 @@ void DX9RENDER::LostRender()
+-    InvokeEntitiesLostRender();
+-
++    // Metal keeps references to bound geometry. Drop them before the legacy
++    // table releases its own references, or the refcount assertion will trap.
++    d3d9->SetIndices(nullptr);
++    for (uint32_t stream = 0; stream < 16; ++stream)
++        d3d9->SetStreamSource(stream, nullptr, 0, 0);
++
++    InvokeEntitiesLostRender();
++
+     Release(pOriginalScreenSurface);
+@@ -2884,6 +2896,197 @@
+             effects_.compile(s.c_str());
+         }
+     std::filesystem::current_path(cur_path);
++#endif
++}
++
++bool DX9RENDER::ApplyMetalGraphics(uint32_t flagsMask, uint32_t shadowQuality, int32_t fullscreen,
++                                        int32_t renderWidth, int32_t renderHeight, int32_t requestedDesktopMode)
++{
++    constexpr uint32_t knownFlags = (1u << 7u) - 1u;
++    std::fprintf(stderr, "[StormMetal graphics] apply request flags=%u quality=%u fullscreen=%d size=%dx%d desktop=%d\n",
++                 flagsMask, shadowQuality, fullscreen, renderWidth, renderHeight, requestedDesktopMode);
++    if ((flagsMask & ~knownFlags) != 0 || shadowQuality > 2 || (fullscreen != 0 && fullscreen != 1) ||
++        (requestedDesktopMode != 0 && requestedDesktopMode != 1) || renderWidth < 320 || renderHeight < 200 ||
++        (requestedDesktopMode != 0 && fullscreen == 0) || renderWidth > 16384 || renderHeight > 16384 || !d3d9)
++    {
++        std::fprintf(stderr, "[StormMetal graphics] reject=invalid-payload\n");
++        return false;
++    }
++
++#ifndef __APPLE__
++    return false;
++#else
++    auto *window = core.GetWindow();
++    if (!window || !StormMetalCanApplyGraphicsSettings(d3d9, flagsMask, shadowQuality))
++    {
++        std::fprintf(stderr, "[StormMetal graphics] reject=unsafe-phase window=%d\n", window ? 1 : 0);
++        return false;
++    }
++
++    const bool nextWindowed = fullscreen == 0;
++    const bool nextDesktopMode = requestedDesktopMode != 0;
++    auto requestedSize = storm::WindowSize{renderWidth, renderHeight};
++    if (nextDesktopMode && !nextWindowed)
++    {
++        const auto desktop = window->GetDesktopSize();
++        if (desktop.width > 0 && desktop.height > 0)
++            requestedSize = desktop;
++    }
++    if (requestedSize.width < 320 || requestedSize.height < 200)
++    {
++        std::fprintf(stderr, "[StormMetal graphics] reject=invalid-desktop size=%dx%d\n", requestedSize.width,
++                     requestedSize.height);
++        return false;
++    }
++    if (bWindow == nextWindowed && desktopMode == nextDesktopMode && screen_size.x == requestedSize.width &&
++        screen_size.y == requestedSize.height)
++    {
++        const bool applied = StormMetalApplyGraphicsSettings(d3d9, flagsMask, shadowQuality);
++        std::fprintf(stderr, "[StormMetal graphics] apply %s size=%dx%d desktop=%d\n",
++                     applied ? "success" : "reject=backend-apply", screen_size.x, screen_size.y,
++                     desktopMode ? 1 : 0);
++        return applied;
++    }
++
++    const auto oldWindowed = bWindow;
++    const auto oldDesktopMode = desktopMode;
++    const auto oldWindowSize = window->GetWindowSize();
++    const auto oldScreenSize = screen_size;
++    const auto oldPresent = d3dpp;
++    const bool windowModeChanged = bWindow != nextWindowed;
++    const auto restoreWindow = [&]() {
++        if (!windowModeChanged)
++            return true;
++        const bool oldFullscreen = !oldWindowed;
++        if (!window->SetFullscreen(oldFullscreen))
++            return false;
++        return oldFullscreen || window->Resize(oldWindowSize.width, oldWindowSize.height);
++    };
++
++    if (windowModeChanged && !window->SetFullscreen(!nextWindowed))
++    {
++        std::fprintf(stderr, "[StormMetal graphics] reject=set-fullscreen\n");
++        return false;
++    }
++    if (nextWindowed && !window->Resize(renderWidth, renderHeight))
++    {
++        if (!restoreWindow())
++            core.stopFrameProcessing();
++        return false;
++    }
++
++    auto nextSize = storm::WindowSize{renderWidth, renderHeight};
++    if (nextDesktopMode)
++    {
++        const auto desktop = window->GetDesktopSize();
++        if (desktop.width > 0 && desktop.height > 0)
++            nextSize = desktop;
++    }
++    if (nextSize.width < 320 || nextSize.height < 200)
++    {
++        if (!restoreWindow())
++            core.stopFrameProcessing();
++        return false;
++    }
++
++    // Metal child resources survive Reset. Only the swap-chain surfaces and
++    // size-dependent postprocess targets belong to this live transaction.
++    // The legacy LostRender path destroys model/UI buffers while this screen
++    // is still active, so it must not own a settings apply.
++    const auto releasePresentation = [&]() {
++        const auto releaseOwned = [](auto *&resource) {
++            if (!resource)
++                return;
++            resource->Release();
++            resource = nullptr;
++        };
++        releaseOwned(pPostProcessSurface);
++        releaseOwned(pSmallPostProcessSurface);
++        releaseOwned(pSmallPostProcessSurface2);
++        releaseOwned(pPostProcessTexture);
++        releaseOwned(pSmallPostProcessTexture);
++        releaseOwned(pSmallPostProcessTexture2);
++        releaseOwned(pOriginalScreenSurface);
++        releaseOwned(pOriginalDepthSurface);
++    };
++    const auto restorePresentation = [&]() {
++        bPostProcessError = false;
++        d3d9->GetRenderTarget(0, &pOriginalScreenSurface);
++        d3d9->GetDepthStencilSurface(&pOriginalDepthSurface);
++        fSmallWidth = 128;
++        fSmallHeight = 128;
++        if (bPostProcessEnabled)
++        {
++            d3d9->CreateTexture(screen_size.x, screen_size.y, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
++                                D3DPOOL_DEFAULT, &pPostProcessTexture, nullptr);
++            d3d9->CreateTexture(static_cast<int>(fSmallWidth), static_cast<int>(fSmallHeight), 1,
++                                D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
++                                &pSmallPostProcessTexture, nullptr);
++            d3d9->CreateTexture(static_cast<int>(fSmallWidth * 2.0f), static_cast<int>(fSmallHeight * 2.0f), 1,
++                                D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
++                                &pSmallPostProcessTexture2, nullptr);
++            if (pPostProcessTexture && pSmallPostProcessTexture && pSmallPostProcessTexture2)
++            {
++                pPostProcessTexture->GetSurfaceLevel(0, &pPostProcessSurface);
++                pSmallPostProcessTexture->GetSurfaceLevel(0, &pSmallPostProcessSurface);
++                pSmallPostProcessTexture2->GetSurfaceLevel(0, &pSmallPostProcessSurface2);
++            }
++            if (!pPostProcessSurface || !pSmallPostProcessSurface || !pSmallPostProcessSurface2)
++            {
++                bPostProcessEnabled = false;
++                bPostProcessError = true;
++            }
++        }
++        ClearPostProcessSurface(pOriginalScreenSurface);
++        if (!bPostProcessError)
++        {
++            ClearPostProcessSurface(pPostProcessSurface);
++            ClearPostProcessSurface(pSmallPostProcessSurface);
++            ClearPostProcessSurface(pSmallPostProcessSurface2);
++        }
++        SetCommonStates();
++    };
++
++    releasePresentation();
++    d3dpp.BackBufferWidth = nextSize.width;
++    d3dpp.BackBufferHeight = nextSize.height;
++    screen_size = {nextSize.width, nextSize.height};
++    if (FAILED(d3d9->Reset(&d3dpp)))
++    {
++        d3dpp = oldPresent;
++        screen_size = oldScreenSize;
++        if (SUCCEEDED(d3d9->Reset(&d3dpp)))
++            restorePresentation();
++        else
++            core.stopFrameProcessing();
++        if (!restoreWindow())
++            core.stopFrameProcessing();
++        return false;
++    }
++    restorePresentation();
++    bWindow = nextWindowed;
++    desktopMode = nextDesktopMode;
++
++    if (StormMetalApplyGraphicsSettings(d3d9, flagsMask, shadowQuality))
++    {
++        std::fprintf(stderr, "[StormMetal graphics] apply success size=%dx%d desktop=%d\n", screen_size.x,
++                     screen_size.y, desktopMode ? 1 : 0);
++        return true;
++    }
++    std::fprintf(stderr, "[StormMetal graphics] reject=backend-apply\n");
++
++    releasePresentation();
++    d3dpp = oldPresent;
++    screen_size = oldScreenSize;
++    bWindow = oldWindowed;
++    desktopMode = oldDesktopMode;
++    if (SUCCEEDED(d3d9->Reset(&d3dpp)))
++        restorePresentation();
++    else
++        core.stopFrameProcessing();
++    if (!restoreWindow())
++        core.stopFrameProcessing();
++    return false;
+ #endif
+ }
+ 
+diff --git a/src/libs/window/include/os_window.hpp b/src/libs/window/include/os_window.hpp
+--- a/src/libs/window/include/os_window.hpp
++++ b/src/libs/window/include/os_window.hpp
+@@ -54,9 +54,9 @@
+     virtual std::string Title() const = 0;
+ 
+     //! Toggle fullscreen
+-    virtual void SetFullscreen(bool fullscreen) = 0;
++    virtual bool SetFullscreen(bool fullscreen) = 0;
+     //! Resize window
+-    virtual void Resize(int width, int height) = 0;
++    virtual bool Resize(int width, int height) = 0;
+     //! Warp mouse
+     virtual void WarpMouseInWindow(int x, int y) = 0;
+     //! Set window title
+diff --git a/src/libs/window/src/sdl_window.hpp b/src/libs/window/src/sdl_window.hpp
+--- a/src/libs/window/src/sdl_window.hpp
++++ b/src/libs/window/src/sdl_window.hpp
+@@ -23,8 +23,8 @@
+     bool Fullscreen() const override;
+     std::string Title() const override;
+ 
+-    void SetFullscreen(bool fullscreen) override;
+-    void Resize(int width, int height) override;
++    bool SetFullscreen(bool fullscreen) override;
++    bool Resize(int width, int height) override;
+     void WarpMouseInWindow(int x, int y) override;
+     void SetTitle(const std::string &title) override;
+     void SetGamma(const uint16_t (&red)[256], const uint16_t (&green)[256], const uint16_t (&blue)[256]) override;
+diff --git a/src/libs/window/src/sdl_window.cpp b/src/libs/window/src/sdl_window.cpp
+--- a/src/libs/window/src/sdl_window.cpp
++++ b/src/libs/window/src/sdl_window.cpp
+@@ -98,15 +98,24 @@
+     return std::string(SDL_GetWindowTitle(window_.get()));
+ }
+ 
+-void SDLWindow::SetFullscreen(bool fullscreen)
++bool SDLWindow::SetFullscreen(bool fullscreen)
+ {
++    if (SDL_SetWindowFullscreen(window_.get(), fullscreen ? fullscreenFlags : 0) != 0)
++    {
++        std::fprintf(stderr, "[StormMetal graphics] SDL_SetWindowFullscreen failed: %s flags=0x%x\n",
++                     SDL_GetError(), SDL_GetWindowFlags(window_.get()));
++        return false;
++    }
+     fullscreen_ = fullscreen;
+-    SDL_SetWindowFullscreen(window_.get(), fullscreen_ ? fullscreenFlags : 0);
++    return true;
+ }
+ 
+-void SDLWindow::Resize(int width, int height)
++bool SDLWindow::Resize(int width, int height)
+ {
++    if (width <= 0 || height <= 0)
++        return false;
+     SDL_SetWindowSize(window_.get(), width, height);
++    return GetWindowSize().width == width && GetWindowSize().height == height;
+ }
+ 
+ void SDLWindow::WarpMouseInWindow(int x, int y)

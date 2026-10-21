@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "minimum_profile_windows": 5,
+  "minimum_profile_frames": 600,
+  "default_limits": {
+    "legacy3DDraws": 0,
+    "legacyShadowDraws": 0,
+    "uploadMB": 8.0,
+    "readbacks": 0,
+    "syncs": 0,
+    "postfxPasses": 0,
+    "wall": 8.333,
+    "gpu": 8.333
+  },
+  "scenes": [
+    {"id":"main-menu","label":"Main menu","class":"menu","resources":["ui","alpha-blend"],"checks":["ui_complete","alpha_blend_correct","no_opaque_backdrops"]},
+    {"id":"town-day","label":"Heavy town, day","class":"town","resources":["characters","alpha-test","alpha-blend","dynamic-shadows","baked-shadows"],"checks":["foliage_cutouts","no_opaque_backdrops","dynamic_shadow_single","baked_shadow_single","character_shadow_contact"]},
+    {"id":"town-night","label":"Heavy town, night","class":"town","resources":["characters","particles","alpha-test","alpha-blend","dynamic-shadows","baked-shadows"],"checks":["foliage_cutouts","no_opaque_backdrops","lamp_blend_correct","dynamic_shadow_single","baked_shadow_single","character_shadow_contact"]},
+    {"id":"interior-lamps","label":"Heavy interior with lamps","class":"interior","resources":["characters","particles","alpha-blend","dynamic-shadows","baked-shadows"],"checks":["lamp_blend_correct","lamp_response_stable","character_shadow_contact","no_shadow_blocks"]},
+    {"id":"cabin-night","label":"Ship cabin, night","class":"interior","resources":["characters","ships","alpha-blend","dynamic-shadows","baked-shadows"],"checks":["lamp_blend_correct","lamp_response_stable","ship_materials_complete","character_shadow_contact"]},
+    {"id":"sea-day","label":"Sea and deck, day","class":"sea","resources":["sea","deck","ships","sails","ropes","characters","particles","alpha-test","alpha-blend","dynamic-shadows"],"checks":["water_complete","sail_cutouts","rope_lighting","character_shadow_contact","particles_blend_correct"]},
+    {"id":"sea-night","label":"Sea and deck, night","class":"sea","resources":["sea","deck","ships","sails","ropes","characters","particles","alpha-test","alpha-blend","dynamic-shadows"],"checks":["water_complete","sail_cutouts","rope_lighting","ship_lamp_response","character_shadow_contact","particles_blend_correct"]},
+    {"id":"storm-rain","label":"Sea storm and rain","class":"weather","resources":["sea","ships","sails","ropes","characters","particles","alpha-test","alpha-blend","dynamic-shadows"],"checks":["rain_blend_correct","foam_blend_correct","sail_cutouts","rope_lighting","stable_weather_lighting"]},
+    {"id":"particles-action","label":"Cannon, smoke and fire action","class":"particles","resources":["characters","particles","alpha-blend"],"checks":["smoke_blend_correct","fire_blend_correct","particle_lifetime_correct","no_sprite_rectangles"]},
+    {"id":"world-map","label":"World map","class":"world-map","resources":["world-map","ui","particles","alpha-test","alpha-blend"],"checks":["map_complete","ui_complete","markers_blend_correct","no_opaque_backdrops"]}
+  ]
+}

@@ -1,0 +1,33 @@
+--- a/src/libs/location/src/location.cpp
++++ b/src/libs/location/src/location.cpp
+@@ -12,0 +13 @@
++#include <algorithm>
+@@ -13,0 +15 @@
++#include <cmath>
+@@ -33,0 +36,2 @@
++extern "C" void StormMetalBeginLightShaftOpenings(void*);
++extern "C" bool StormMetalLightShaftOpening(void*, uint64_t, const float*, const float*, const float*, float, float);
+@@ -56,0 +61,22 @@
++            StormMetalBeginLightShaftOpenings(device);
++            // `lightshafts` is an authored geometry contract: each locator's
++            // center/orientation and scaled X/Y axes describe one opening.
++            // This deliberately does not infer windows from a location name.
++            if (!outdoor) if (auto* apertures = location->FindLocatorsGroup("lightshafts")) {
++                for (int32_t i = 0; i < apertures->Num(); ++i) {
++                    CMatrix m; if (!apertures->GetLocatorPos(i, m)) continue;
++                    const CVECTOR x=m.Vx(), y=m.Vy(), p=m.Pos();
++                    const float xLength=std::sqrt(x.x*x.x+x.y*x.y+x.z*x.z);
++                    const float yLength=std::sqrt(y.x*y.x+y.y*y.y+y.z*y.z);
++                    if (xLength<=.001f || yLength<=.001f) continue;
++                    const float center3[]={p.x,p.y,p.z};
++                    const float right3[]={x.x/xLength,x.y/xLength,x.z/xLength};
++                    const float up3[]={y.x/yLength,y.y/yLength,y.z/yLength};
++                    const float radius=std::max(.05f,apertures->GetLocatorRadius(i));
++                    uint64_t id=1469598103934665603ull;
++                    if (const char* name=apertures->LocatorName(i))
++                        for (const unsigned char* c=reinterpret_cast<const unsigned char*>(name);*c;++c) id=(id^*c)*1099511628211ull;
++                    id=(id^uint64_t(i+1))*1099511628211ull;
++                    StormMetalLightShaftOpening(device,id,center3,right3,up3,radius*xLength,radius*yLength);
++                }
++            }
+

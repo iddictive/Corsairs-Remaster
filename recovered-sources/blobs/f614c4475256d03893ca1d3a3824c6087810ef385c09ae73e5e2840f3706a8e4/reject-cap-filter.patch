@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: experiments/native-metal/ship_hull_convex_material.hpp
+@@
+     if(!snapshot.cells||!compatible(*snapshot.cells))return {};if(!snapshot.retainedSupports)return ready(snapshot.cells);const auto&before=*snapshot.cells->convex;Component removed;
+     for(uint32_t id=0;id<before.cells.size();++id){const auto&cell=before.cells[id];if(!cell||!cell->pieces)continue;for(uint32_t p=0;p<cell->pieces->size();++p){const auto support=cell->pieces->at(p).supportCell;if(support<snapshot.retainedSupports->size()&&!snapshot.retainedSupports->at(support))removed.pieces.push_back({id,p});}}
+     if(removed.pieces.empty())return ready(snapshot.cells);Budget budget;std::vector<uint32_t>changed;auto cells=take(snapshot.cells,{removed},budget,&changed);if(!cells)return {};
+-    std::map<uint32_t,Bounds>removedSourceBounds;
+-    for(auto key:removed.pieces){const auto box=before.cells[key.cell]->pieces->at(key.piece).bounds;auto [it,inserted]=removedSourceBounds.emplace(key.cell,box);if(!inserted)it->second=storm_ship_hull::merge(it->second,box);}
+-    std::vector<Bounds>removedBounds;for(const auto&entry:removedSourceBounds)removedBounds.push_back(entry.second);
+-    storm_ship_hull::Broadphase removedIndex;removedIndex.build(removedBounds);
+     std::set<uint32_t>affected(changed.begin(),changed.end());std::vector<uint32_t>nearby;const Vec3 pad{.000002f,.000002f,.000002f};for(auto id:changed){auto box=cells->source->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;cells->source->index.queryBounds(box,nearby);affected.insert(nearby.begin(),nearby.end());}
+-    for(auto id:affected){const auto&cell=cells->convex->cells[id];if(!cell||!cell->pieces)continue;for(uint32_t p=0;p<cell->pieces->size();++p)for(const auto&face:cell->pieces->at(p).faces)if(face.partition){storm_geometry_work::checkpoint();
+-            Bounds box{face.vertices.front().position,face.vertices.front().position};for(const auto&v:face.vertices)box=storm_ship_hull::merge(box,{v.position,v.position});
+-            const float epsilon=.000002f+4*std::numeric_limits<float>::epsilon()*std::max({1.f,std::abs(box.lo.x),std::abs(box.lo.y),std::abs(box.lo.z),std::abs(box.hi.x),std::abs(box.hi.y),std::abs(box.hi.z)});
+-            const Vec3 margin{epsilon,epsilon,epsilon};box.lo=box.lo-margin;box.hi=box.hi+margin;removedIndex.queryBounds(box,nearby);
+-            // Only a removed neighboring support can expose a new cap here.
+-            if(nearby.empty())continue;
+-            const auto visible=visibleFace(*cells->convex,{id,p},face);if(visible.empty())continue;
++    for(auto id:affected){const auto&cell=cells->convex->cells[id];if(!cell||!cell->pieces)continue;for(uint32_t p=0;p<cell->pieces->size();++p)for(const auto&face:cell->pieces->at(p).faces)if(face.partition){storm_geometry_work::checkpoint();const auto visible=visibleFace(*cells->convex,{id,p},face);if(visible.empty())continue;
+             // Keys of untouched sources remain stable. In a changed source,
+             // locate the same retained positive piece by support and vertices.
+             const auto&old=*before.cells[id]->pieces;uint32_t prior=UINT32_MAX,surviving=0;for(uint32_t n=0;n<old.size();++n){const auto support=old[n].supportCell;if(support<snapshot.retainedSupports->size()&&!snapshot.retainedSupports->at(support))continue;if(surviving++==p){prior=n;break;}}
+*** End Patch

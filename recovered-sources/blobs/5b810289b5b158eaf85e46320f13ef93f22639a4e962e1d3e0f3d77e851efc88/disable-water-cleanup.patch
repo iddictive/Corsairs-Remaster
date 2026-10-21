@@ -1,0 +1,332 @@
+*** Begin Patch
+*** Update File: experiments/native-metal/engine/src/libs/sea/src/sea.cpp
+@@
+ #include "vai_objbase.h"
+ 
+ #include "metal_cpu_parallel.h"
+-#include "sea_hull_cutout.hpp"
+ #include <algorithm>
+ #include <cstdlib>
+ #include <limits>
+@@
+ constexpr uint32_t kReflectionSize = 256;
+ 
+ struct HullWaterCutout {
+-    storm_world_cut::PlanarRing polygon;
++    std::vector<CVECTOR> polygon;
+     float minX, minZ, maxX, maxZ;
++
++    bool contains(float x, float z) const {
++        if (x < minX || x > maxX || z < minZ || z > maxZ) return false;
++        bool positive = false, negative = false;
++        for (size_t i = 0; i < polygon.size(); ++i) {
++            const auto &a = polygon[i], &b = polygon[(i + 1) % polygon.size()];
++            const float cross = (b.x - a.x) * (z - a.z) - (b.z - a.z) * (x - a.x);
++            positive |= cross > 1.e-5f;
++            negative |= cross < -1.e-5f;
++            if (positive && negative) return false;
++        }
++        return true;
++    }
+ };
+ }
+ 
+@@
+     if (iISeaBuffer >= 0)
+         rs->ReleaseIndexBuffer(iISeaBuffer);
+     iISeaBuffer = -1;
+-    if (hullCutVertexBuffer >= 0) rs->ReleaseVertexBuffer(hullCutVertexBuffer);
+-    if (hullCutIndexBuffer >= 0) rs->ReleaseIndexBuffer(hullCutIndexBuffer);
+ 
+     if (iFoamTexture >= 0)
+         rs->TextureRelease(iFoamTexture);
+@@
+     // lets the fleet workload compare identical executable and scene inputs.
+     std::vector<HullWaterCutout> waterCutouts;
+     const char *cutoutMode = std::getenv("STORM_METAL_SEA_HULL_CUTOUT");
+-    if (!cutoutMode || cutoutMode[0] != '0' || cutoutMode[1] != '\0')
++    if (cutoutMode && cutoutMode[0] == '1' && cutoutMode[1] == '\0')
+         for (const auto shipId : core.GetEntityIds("ship")) {
+             auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(shipId));
+             if (!ship) continue;
+             std::vector<CVECTOR> contour;
+-            if (!ship->GetHullWaterContour(contour) || contour.size() < 3) continue;
++            float lower = 0.f, upper = 0.f;
++            if (!ship->GetHullContactContour(contour, lower, upper) || contour.size() < 3) continue;
+             auto *world = ship->GetMatrix();
+             if (!world) continue;
+-            HullWaterCutout cutout{{},
++            HullWaterCutout cutout{std::move(contour),
+                 std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(),
+                 -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()};
+-            for (auto point : contour) {
++            for (auto &point : cutout.polygon) {
+                 point = *world * point;
+-                cutout.polygon.push_back({point.x, point.z});
+                 cutout.minX = std::min(cutout.minX, point.x);
+                 cutout.minZ = std::min(cutout.minZ, point.z);
+                 cutout.maxX = std::max(cutout.maxX, point.x);
+                 cutout.maxZ = std::max(cutout.maxZ, point.z);
+             }
+-            storm_sea_cutout::positive(cutout.polygon);
+             waterCutouts.push_back(std::move(cutout));
+         }
+ 
+@@
+         SSE_WaveXZBlock(aBlocks[index]);
+     });
+ 
+-    // Subtract the actual waterplane, preserving each exterior triangle piece.
+-    // Boundary vertices have a separate stream: the sea's 16-bit grid is full.
+-    hullCutVertices.clear();
++    // Cull only triangles in blocks touched by a hull. This removes water
++    // fragments rather than adding per-pixel ship loops to the sea shader.
+     if (!waterCutouts.empty() && iTStart) {
+         auto *indices = pTriangles - iTStart * 3;
+-        const uint32_t originalCount = iTStart;
+-        const std::vector<uint16_t> original(indices, indices + iTStart * 3);
+         uint32_t read = 0, write = 0;
+         for (const auto &block : aBlocks) {
+             const uint32_t triangleCount = uint32_t(block.iSize0) * uint32_t(block.iSize0) * 2;
+@@
+             } else {
+                 for (uint32_t n = 0; n < triangleCount; ++n) {
+                     const auto *triangle = indices + (read + n) * 3;
+-                    const std::array<SeaVertex, 3> source{pVSea[triangle[0]], pVSea[triangle[1]], pVSea[triangle[2]]};
+-                    const auto &a = source[0].vPos, &b = source[1].vPos, &c = source[2].vPos;
+-                    const float minX = std::min({a.x, b.x, c.x}) + vWorldOffset.x;
+-                    const float maxX = std::max({a.x, b.x, c.x}) + vWorldOffset.x;
+-                    const float minZ = std::min({a.z, b.z, c.z}) + vWorldOffset.z;
+-                    const float maxZ = std::max({a.z, b.z, c.z}) + vWorldOffset.z;
+-                    std::vector<storm_world_cut::PlanarRing> clips;
+-                    for (const auto *cutout : nearby)
+-                        if (cutout->maxX >= minX && cutout->minX <= maxX && cutout->maxZ >= minZ && cutout->minZ <= maxZ)
+-                            clips.push_back(cutout->polygon);
+-                    bool changed = false;
+-                    if (!clips.empty()) storm_sea_cutout::subtract(source, vWorldOffset.x, vWorldOffset.z, clips, hullCutVertices, changed);
+-                    if (!changed) {
++                    const auto &a = pVSea[triangle[0]].vPos;
++                    const auto &b = pVSea[triangle[1]].vPos;
++                    const auto &c = pVSea[triangle[2]].vPos;
++                    const float x = (a.x + b.x + c.x) / 3.f + vWorldOffset.x;
++                    const float z = (a.z + b.z + c.z) / 3.f + vWorldOffset.z;
++                    bool covered = false;
++                    for (const auto *cutout : nearby) if (cutout->contains(x, z)) { covered = true; break; }
++                    if (!covered) {
+                         std::memmove(indices + write * 3, triangle, 3 * sizeof(uint16_t));
+                         ++write;
+                     }
+@@
+             read += triangleCount;
+         }
+         iTStart = write;
+-        if (size_t(iVStart) + hullCutVertices.size() <= NUM_VERTEXS &&
+-            size_t(iTStart) * 3 + hullCutVertices.size() <= size_t(NUM_INDICES) * 3) {
+-            // Usually the boundary fits in the unused part of the existing
+-            // grid stream: keep one water draw/upload in that common case.
+-            size_t next = size_t(iTStart) * 3;
+-            for (const auto &vertex : hullCutVertices) {
+-                indices[next++] = uint16_t(iVStart);
+-                pVSea[iVStart++] = vertex;
+-            }
+-            iTStart = uint32_t(next / 3);
+-            hullCutVertices.clear();
+-        }
+-        bool uploaded = true;
+-        if (!hullCutVertices.empty()) {
+-            if (hullCutIndexBuffer < 0) {
+-                hullCutIndexBuffer = rs->CreateIndexBuffer(65535 * sizeof(uint16_t), storm_render::usage::writeOnly);
+-                auto *data = hullCutIndexBuffer >= 0 ? static_cast<uint16_t *>(rs->LockIndexBuffer(hullCutIndexBuffer)) : nullptr;
+-                if (data) {
+-                    for (unsigned n = 0; n < 65535; ++n) data[n] = uint16_t(n);
+-                    rs->UnLockIndexBuffer(hullCutIndexBuffer);
+-                } else {
+-                    if (hullCutIndexBuffer >= 0) rs->ReleaseIndexBuffer(hullCutIndexBuffer);
+-                    hullCutIndexBuffer = -1; uploaded = false;
+-                }
+-            }
+-            if (uploaded && hullCutVertexCapacity < hullCutVertices.size()) {
+-                if (hullCutVertexBuffer >= 0) rs->ReleaseVertexBuffer(hullCutVertexBuffer);
+-                hullCutVertexCapacity = (hullCutVertices.size() + 4095) / 4096 * 4096;
+-                hullCutVertexBuffer = rs->CreateVertexBuffer(0, hullCutVertexCapacity * sizeof(SeaVertex), storm_render::usage::writeOnly | storm_render::usage::dynamic);
+-            }
+-            auto *data = uploaded && hullCutVertexBuffer >= 0 ? rs->LockVertexBuffer(hullCutVertexBuffer, storm_render::lock::discard | storm_render::lock::noSystemLock) : nullptr;
+-            if (data) {
+-                std::memcpy(data, hullCutVertices.data(), hullCutVertices.size() * sizeof(SeaVertex));
+-                rs->UnLockVertexBuffer(hullCutVertexBuffer);
+-            } else uploaded = false;
+-        }
+-        if (!uploaded) {
+-            // Allocation failure restores the complete original sea, not holes.
+-            std::memcpy(indices, original.data(), original.size() * sizeof(uint16_t));
+-            iTStart = originalCount; hullCutVertices.clear(); hullCutVertexCapacity = 0;
+-        }
+     }
+ 
+     if (iVStart && iTStart)
+@@
+     rs->UnLockVertexBuffer(iVSeaBuffer);
+     rs->UnLockIndexBuffer(iISeaBuffer);
+ 
+-    if (iVStart && (iTStart || !hullCutVertices.empty()))
++    if (iVStart && iTStart)
+     {
+ #ifdef STORM_METAL_AIM_VOLUME_BRIDGE
+         //After reflection/bump-map work, before only the live water geometry.
+@@
+         rs->SetVertexShaderConstantF(246, (const float *)&vortexTime, 1);
+         PublishWeatherWaveLattices();
+         const bool tsunamiFoam = (event.active && event.envelope > 0.f) || vortexOrigin.w > 0.f;
+-        const auto drawWater = [&](const char *technique) {
+-            if (iTStart) rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
+-                                                          iVStart, 0, iTStart, technique);
+-            for (size_t first = 0; first < hullCutVertices.size(); first += 65535) {
+-                const auto count = std::min<size_t>(65535, hullCutVertices.size() - first);
+-                rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, hullCutVertexBuffer, sizeof(SeaVertex), hullCutIndexBuffer,
+-                                                  int32_t(first), int32_t(count), 0, int32_t(count / 3), technique);
+-            }
+-        };
+         const auto drawSeaFoam = [&] {
+             const auto vec = CVECTOR4(fFoamTextureDisturb, 0.0f, 0.0f, 0.0f);
+             rs->SetPixelShaderConstantF(0, (const float *)&vec, 1);
+             rs->TextureSet(0, iFoamTexture);
+             rs->SetTexture(4, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
+-            drawWater("Sea2_Foam");
++            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
++                                              iVStart, 0, iTStart, "Sea2_Foam");
+         };
+ 
+         if (bSimpleSea)
+@@
+             rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix01, F2DW(0.0f));
+             rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix11, F2DW(0.05f));
+ 
+-            drawWater("Sea3");
++            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
++                                              iVStart, 0, iTStart, "Sea3");
+             if (tsunamiFoam) drawSeaFoam();
+         }
+         else
+@@
+             rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
+             rs->SetTexture(3, pEnvMap);
+-            drawWater("Sea2");
++            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
++                                              iVStart, 0, iTStart, "Sea2");
+ 
+             if (tsunamiFoam || (fFoamK > 0.0f && bFoamEnable && bIniFoamEnable)) drawSeaFoam();
+ 
+             rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
+                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
+             rs->SetTexture(3, pSunRoadMap);
+-            drawWater("Sea2_SunRoad");
++            rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
++                                              iVStart, 0, iTStart, "Sea2_SunRoad");
+         }
+     }
+ 
+*** Update File: experiments/native-metal/engine/src/libs/sea/src/sea.h
+@@
+     float bUnderSeaStarted;
+ 
+     int32_t iVSeaBuffer, iISeaBuffer;
+-    int32_t hullCutVertexBuffer = -1, hullCutIndexBuffer = -1;
+-    size_t hullCutVertexCapacity = 0;
+-    std::vector<SeaVertex> hullCutVertices;
+ 
+     storm_render::VolumeTexture *pVolumeTexture;
+     storm_render::CubeTexture *pEnvMap, *pSunRoadMap;
+*** Update File: experiments/native-metal/engine/src/libs/ship/include/ship_base.h
+@@
+     // XZ is model-local; lower/upper are the current world vertical band.
+     // False means no exposed retained hull is available for ship contact.
+     virtual bool GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, float &upper) { return false; }
+-    // Native waterplane, without the collision projection's upper overhangs.
+-    virtual bool GetHullWaterContour(std::vector<CVECTOR> &contour) { return false; }
+     virtual bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&) const { return false; }
+     virtual bool CommitHullContactBreak(const HULL_CONTACT_BREAK&,HULL_CONTACT_BREAK_RESULT&) { return false; }
+     virtual void ApplyHullContactBodyImpulse(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,
+*** Update File: experiments/native-metal/engine/src/libs/ship/src/ship_hull_contact.cpp
+@@
+     return true;
+ }
+ 
+-bool SHIP::GetHullWaterContour(std::vector<CVECTOR> &contour)
+-{
+-    std::vector<CVECTOR> exposed;
+-    float lower = 0.f, upper = 0.f;
+-    if (!GetHullContactContour(exposed, lower, upper)) return false;
+-    auto *model = GetModel();
+-    auto *geometry = model->GetNode(0)->geo;
+-    if (waterContourGeometry != geometry || waterContourGeneration != contactGeneration ||
+-        waterContourCollision != contactCollisionRevision)
+-    {
+-        // Reuse the native traced waterplane at unit width, never the convex
+-        // projection of every deck/overhang used by physical contact.
+-        std::vector<CVECTOR> points(std::max<size_t>(256, size_t(std::ceil(State.vBoxSize.z)) * 2 + 32));
+-        const auto transform = model->mtx;
+-        const auto keel = std::to_array(vKeelContour);
+-        const auto keelReady = bKeelContour;
+-        int32_t count = 0;
+-        const bool valid = BuildTracedWaterContour(points.data(), count, 1.f);
+-        model->mtx = transform;
+-        model->Update();
+-        std::copy(keel.begin(), keel.end(), vKeelContour);
+-        bKeelContour = keelReady;
+-        waterContour.clear();
+-        if (valid && count >= 3 && size_t(count) <= points.size())
+-            waterContour.assign(points.begin(), points.begin() + count);
+-        waterContourGeometry = geometry;
+-        waterContourGeneration = contactGeneration;
+-        waterContourCollision = contactCollisionRevision;
+-    }
+-    contour = waterContour;
+-    return contour.size() >= 3;
+-}
+-
+ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
+                                   const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds)
+ {
+*** Update File: experiments/native-metal/engine/src/libs/ship/src/ship_utils.cpp
+@@
+             vContour[iNumVContour++] = CVECTOR(point.x * widthScale, 0.f, point.z);
+         return iNumVContour >= 3;
+     }
+-
+-    return BuildTracedWaterContour(vContour, iNumVContour, widthScale);
+-}
+-
+-BOOL SHIP::BuildTracedWaterContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale)
+-{
+-    iNumVContour = 0;
+ 
+     auto *pEnt = GetModel();
+     Assert(pEnt);
+*** Update File: experiments/native-metal/world_cut_geometry.hpp
+@@
+ #pragma once
+ #include "geometry_work_budget.hpp"
+-#include "planar_geometry.hpp"
+ #include "ship_laser_geometry.hpp"
+ #include "ship_airburst_hull_distance.hpp"
+ #include "ship_hull_material.hpp"
+@@
+ // MaxCuts bounds one legacy restore / admitted operation, not an island's life.
+ inline constexpr size_t MaxCuts=64, MaxPendingCuts=8, MaxTriangles=1000000;
+ inline constexpr size_t MaxCheckpointBytes=128*1024*1024;
++using PlanarPoint=std::array<double,2>;
++using PlanarRing=std::vector<PlanarPoint>;
++using PlanarPolygon=std::vector<PlanarRing>;
+ inline constexpr int64_t PlanarUnitsPerMeter=storm_ship_laser::PlanarUnitsPerMeter;
++// Private geometry adapter; Clipper types never enter the shared game API.
++bool unitePlanar(const std::vector<PlanarRing>&input,std::vector<PlanarPolygon>&output);
++bool differencePlanar(const std::vector<PlanarRing>&subject,const std::vector<PlanarRing>&clip,std::vector<PlanarPolygon>&output);
++bool integerTriangulation(const PlanarPolygon&polygon,std::vector<uint32_t>&indices);
+ // World solids cover every shipped ground/shore material family. The PN
+ // renderer's smaller refinement allowlist is a separate visual policy.
+ inline bool terrainTextureStem(std::string_view stem) {
+*** Delete File: experiments/native-metal/sea_hull_cutout.hpp
+*** Delete File: experiments/native-metal/planar_geometry.hpp
+*** End Patch

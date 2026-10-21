@@ -1,0 +1,10 @@
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.hpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.hpp
+@@ -42,6 +42,7 @@
+     float length = 0.f;
+     float age = 0.f;
+     float area = 0.f; // Finite removed skin; zero retains legacy separating-seam growth.
++    float wetArea = 0.f; // derived by the actual4Hz ingress/wave sampler; never saved
+ };
+ struct LaserBinding
+ {

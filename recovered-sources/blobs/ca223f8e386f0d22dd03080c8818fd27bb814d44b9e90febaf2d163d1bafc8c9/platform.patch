@@ -1,0 +1,18 @@
+diff --git a/src/apps/engine/src/main.cpp b/src/apps/engine/src/main.cpp
+--- a/src/apps/engine/src/main.cpp
++++ b/src/apps/engine/src/main.cpp
+@@ -238,6 +238,14 @@
+     while (isRunning)
+     {
+         SDL_PumpEvents();
++        // Cocoa's Quit menu and Command-Q post SDL_QUIT, not a window close.
++        // Consume it before the legacy queue flush and use normal cleanup below.
++        SDL_Event quitEvent;
++        if (SDL_PeepEvents(&quitEvent, 1, SDL_GETEVENT, SDL_QUIT, SDL_QUIT) > 0)
++        {
++            isRunning = false;
++            break;
++        }
+         SDL_FlushEvents(0, SDL_LASTEVENT);
+ 
+         if (bActive || run_in_background)

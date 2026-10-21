@@ -1,0 +1,30 @@
+diff --git a/experiments/native-metal/ship_laser_geometry.hpp b/experiments/native-metal/ship_laser_geometry.hpp
+index 45fac79..f5133a2 100644
+--- a/experiments/native-metal/ship_laser_geometry.hpp
++++ b/experiments/native-metal/ship_laser_geometry.hpp
+@@ -56,9 +56,9 @@ inline std::array<storm_ship_hull::Plane,10> beamPlanes(const BeamSample&b){
+ // A queued trace can still hit a bore's old entrance. Replay its centre ray
+ // through that actual empty prism, including small changes of aim/ship pose.
+ // A neighboring stroke or a ray leaving through a side gets no free depth.
+-inline void continueBeamDose(BeamSample&sample,const std::vector<BeamSample>&committed,size_t count=std::numeric_limits<size_t>::max()){
++inline void continueBeamDose(BeamSample&sample,const std::vector<BeamSample>&committed){
+     if(!valid(sample))return;
+-    for(size_t i=0;i<std::min(count,committed.size());++i){const auto&prior=committed[i];
++    for(const auto&prior:committed){
+         if(!valid(prior)||std::abs(sample.radius-prior.radius)>.00001f)continue;
+         const auto start=beamStart(sample),direction=beamDirection(sample),axis=beamDirection(prior),delta=start-beamStart(prior);
+         const float tolerance=std::max(.0001f,2*std::numeric_limits<float>::epsilon()*std::max({std::abs(start.x),std::abs(start.y),std::abs(start.z),1.f}));
+@@ -74,12 +74,7 @@ inline void continueBeamDose(BeamSample&sample,const std::vector<BeamSample>&com
+     }
+ }
+ inline void continueBeamDose(std::vector<BeamSample>&next,const std::vector<BeamSample>&committed){
+-    for(size_t n=0;n<next.size();++n){
+-        continueBeamDose(next[n],committed);
+-        // A predecessor may move the first sample past its siblings' stale
+-        // starts. Rechain only earlier doses of this same atomic request.
+-        continueBeamDose(next[n],next,n);
+-    }
++    for(auto&sample:next)continueBeamDose(sample,committed);
+ }
+ inline float beamDistance(const BeamSample&b,Vec3 point){float inside=std::numeric_limits<float>::infinity();
+     for(const auto&p:beamPlanes(b))inside=std::min(inside,p.distance-storm_ship_hull::dot(p.normal,point));return inside;}

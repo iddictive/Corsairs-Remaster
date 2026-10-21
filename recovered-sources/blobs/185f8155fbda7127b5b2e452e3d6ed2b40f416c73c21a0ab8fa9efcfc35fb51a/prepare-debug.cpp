@@ -1,0 +1,5 @@
+#include <fstream>
+#include <iomanip>
+#define KERNEL_HELPERS_ONLY
+#include "kernel.cpp"
+int main(){Surface s{box(),{},{}};auto f=ring();Plane batch{{0,0,-1},0};batch.beams.assign(f.beams.begin(),f.beams.begin()+8);auto all=splitSurface(s,batch,{});std::cout<<"batch complete="<<all.complete<<" kept="<<closedCutVolume(canonicalMesh(all.kept))<<" physical:";for(double v:all.detachedVolumes)std::cout<<" "<<v;std::cout<<std::endl;for(unsigned n=0;n<8;++n){Plane p{{0,0,-1},0};p.beams={f.beams[n]};auto c=splitSurface(s,p,{});std::cout<<"dose "<<n<<" complete "<<c.complete<<" kept "<<closedCutVolume(canonicalMesh(c.kept))<<" detached "<<closedCutVolume(canonicalMesh(c.detached))<<" raw "<<closedVolume(canonicalMesh(c.detached))<<" tris "<<count(canonicalMesh(c.detached))<<std::endl;if(n==4){std::ofstream out(".local-archives/metal-renderer-evidence/ship-cut-topology-20261016/ring-dose4-kept.txt");for(auto&o:canonicalMesh(c.kept))for(auto&t:o.second){out<<o.first;for(auto&v:t)out<<" "<<std::setprecision(10)<<v.position.x<<" "<<v.position.y<<" "<<v.position.z;out<<"\n";}}s=std::move(c.kept);}}

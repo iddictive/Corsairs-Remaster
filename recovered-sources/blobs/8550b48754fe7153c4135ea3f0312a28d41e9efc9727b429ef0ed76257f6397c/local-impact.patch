@@ -1,0 +1,112 @@
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp
+@@ -394,6 +394,7 @@
+             piece.spin = angular + ((offset ^ worldNormal) * (plane.charred ? .04f : .12f));
+             const float rate = std::sqrt(~piece.spin);
+             if (rate > .6f) piece.spin *= .6f / rate;
++            piece.surfaceArea = body.surfaceArea;
+             piece.radiusSquared = .25f;
+             piece.contactShape = storm::ship::fragment_contact::makeProxy(body.support);
+             for (unsigned n = 0; n < piece.support.size(); ++n)
+@@ -774,16 +775,19 @@
+     phonkLaser.floodClock += seconds;
+     if (!isDead() && pSea && !phonkLaser.breaches.empty() && phonkLaser.floodClock >= .25f)
+     {
+-        const float elapsed = std::min(phonkLaser.floodClock, .5f);
++        const float elapsed = phonkLaser.floodClock;
+         phonkLaser.floodClock = 0.f;
+         for (auto &sample : phonkLaser.breaches)
+         {
+             sample.age += elapsed;
+             const auto point = GetModel()->mtx * sample.point;
+             const float depth = pSea->WaveXZ(point.x, point.z) - point.y;
++            sample.wetArea = 0.f;
+             if (depth <= 0.f) continue;
+             const float opening = sample.area > 0.f ? sample.area : sample.length * std::min(2.5f, .18f + sample.age * 2.f);
+-            phonkLaser.flooded += .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed;
++            sample.wetArea = opening;
++            phonkLaser.flooded = std::min(phonkLaser.floodCapacity, phonkLaser.flooded +
++                .62f * opening * std::sqrt(2.f * 9.81f * depth) * elapsed);
+         }
+         const float fraction = std::clamp(phonkLaser.flooded / std::max(1.f, phonkLaser.floodCapacity), 0.f, 1.f);
+         auto *flood = GetACharacter()->VerifyAttributeClass("Ship")->VerifyAttributeClass("PhonkFlood");
+@@ -1145,7 +1149,6 @@
+     const float hp = ship ? ship->GetAttributeAsFloat("HP", 1.f) : 1.f;
+     const float maximum = GetAShip() ? GetAShip()->GetAttributeAsFloat("HP", hp) : hp;
+     const float integrity = isDead() ? 0.f : std::clamp(hp / std::max(1.f, maximum), 0.f, 1.f);
+-    const float threshold = 4.f + 36.f * integrity;
+     storm::ship::phonk::LaserPlane plane;
+     plane.charred = false;
+     CVECTOR point;
+@@ -1153,6 +1156,8 @@
+     GetModel()->mtx.MulToInvNorm(outwardNormal, plane.normal);
+     if ((~plane.normal) < .5f) return;
+     plane.normal = !plane.normal;
++    const float threshold = (4.f + 36.f * integrity) *
++        float(GetHullContactStrength(point.z, plane.normal.z) / 75.0);
+     GEOS::INFO info{}; GetModel()->GetNode(0)->geo->GetInfo(info);
+     const float support = std::abs(plane.normal.x) * info.boxsize.x +
+                           std::abs(plane.normal.y) * info.boxsize.y + std::abs(plane.normal.z) * info.boxsize.z;
+@@ -1166,23 +1171,52 @@
+     work.energy = std::min(1.e6f, work.energy + specificEnergy);
+     if (work.energy < threshold) return;
+     const float energy = work.energy;
+-    const float depth = support * std::clamp((std::sqrt(energy) - std::sqrt(threshold)) * .025f,
+-                                            .015f, .55f);
++    const float depth = support * std::clamp((std::sqrt(energy) - std::sqrt(threshold)) * .0125f,
++                                            .005f, .12f);
++    // Trace the retained skin before choosing a finite crush volume. Convex
++    // contact can lie in an old cavity; cut the material the ram actually meets.
++    auto *root = GetModel()->GetNode(0);
++    const CVECTOR worldNormal = !outwardNormal;
++    const CVECTOR rayStart = worldPoint + worldNormal * (support + .5f);
++    const CVECTOR rayEnd = worldPoint - worldNormal * (support + .5f);
++    CVECTOR a, b;
++    root->glob_mtx.MulToInv(rayStart, a);
++    root->glob_mtx.MulToInv(rayEnd, b);
++    GEOS::VERTEX from{a.x, a.y, a.z}, to{b.x, b.y, b.z};
++    const float hit = root->geo->Trace(from, to);
++    if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) return;
++    GetModel()->mtx.MulToInv(rayStart + (rayEnd - rayStart) * hit, point);
+     plane.distance = (plane.normal | point) - depth;
+-    // A catastrophic broadside load near midship breaks across the keel.
+-    // Scrapes and end contacts keep the local chip/bow cut above.
+-    if (energy >= threshold * 16.f && std::abs(plane.normal.x) > std::abs(plane.normal.z) &&
+-        std::abs(plane.normal.y) < .5f && std::abs(point.z - info.boxcenter.z) < info.boxsize.z * .25f)
+-    {
+-        plane.normal = CVECTOR(0.f, 0.f, point.z >= info.boxcenter.z ? 1.f : -1.f);
+-        plane.distance = plane.normal.z * point.z;
+-    }
+     const CVECTOR up = !(CVECTOR(0.f, 1.f, 0.f) - plane.normal * plane.normal.y);
+     plane.grain = !(up * .82f + !(up ^ plane.normal) * .58f);
+     const float timberSpan = std::max(.5f, std::min(info.boxsize.x, info.boxsize.y));
+     plane.roughness = std::min(depth * .65f, std::clamp(timberSpan * .11f, .25f, 1.2f));
+     plane.spacing = std::clamp(timberSpan * .17f, .55f, 1.6f);
+     plane.phase = point.x * .31f + point.y * .17f + point.z * .13f + float(phonkLaser.cuts.size()) * .47f;
++    {
++        // Impacts crush a bounded pocket of boards, not a complete
++        // half-hull. Unequal overlapping lobes give the edge broken planking;
++        // shallow pockets retain a recessed cap, deep ones open real ingress.
++        // Reuse the saved finite cutter used by collision/support/crew/rebind.
++        const CVECTOR inward = -plane.normal;
++        const CVECTOR along = !(up ^ plane.normal);
++        const float radius = std::clamp(.3f + .22f * std::sqrt(std::max(0.f, energy - threshold)),
++                                        .3f, std::min(2.f, std::max(.3f, timberSpan * .2f)));
++        for (unsigned n = 0; n < 3; ++n)
++        {
++            const float shift = n == 0 ? -.55f : n == 1 ? 0.f : .6f;
++            const float scale = n == 0 ? .72f : n == 1 ? 1.f : .8f;
++            const auto start = point + plane.normal * .025f + along * (radius * shift);
++            storm_hull_damage::BeamSample sample;
++            sample.start = {start.x, start.y, start.z};
++            sample.direction = {inward.x, inward.y, inward.z};
++            sample.tangent = {up.x, up.y, up.z};
++            sample.radius = radius * scale;
++            sample.depth = .025f + depth * scale;
++            plane.beams.push_back(sample);
++        }
++        plane.roughness = 0.f;
++    }
+     const size_t firstPiece = phonkLaser.fragments.size();
+     if (!ApplyPhonkLaserCut(plane, false, otherCharacterIndex)) return;
+     work.energy = 0.f;

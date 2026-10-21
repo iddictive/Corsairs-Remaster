@@ -1,0 +1,55 @@
+--- geom_static.cpp-predecessor
++++ geom_static.cpp-profile
+@@ -1,3 +1,5 @@
++#include "diag_timing.hpp"
++namespace fracture_trace = corsairs_fracture_diag;
+ /******************************************************************************
+ File:  geom_static.cpp
+ 
+@@ -629,6 +631,7 @@
+ }
+ void GEOM::RebuildLaserCollision()
+ {
++    fracture_trace::Scope bvh("geom.collision_bvh",this);
+     std::vector<storm_ship_hull::Bounds>boxes;laserCollisionTriangles.clear();laserRayCandidates.clear();
+     for(const auto&entry:laserSurface)for(size_t n=0;n<entry.second.size();++n){const auto&t=entry.second[n];storm_ship_hull::Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});boxes.push_back(box);laserCollisionTriangles.emplace_back(entry.first,uint32_t(n));}
+     laserBroadphase.build(boxes);
+@@ -636,25 +639,37 @@
+ }
+ bool GEOM::CutByLaser(uint64_t owner,const storm_ship_laser::Plane&plane,storm_ship_laser::Result&result,unsigned fragmentLimit)
+ {
++    fracture_trace::Scope traceTotal("geom.cut.total",this);
++    { fracture_trace::Scope prepared("geom.cut.entry_prepared",this); prepared.add(laserPrepared,geometryGeneration); }
+     result={};if(!owner||!fragmentLimit||!storm_ship_laser::valid(plane)||(hullOwner&&owner!=hullOwner)||(laserOwner&&owner!=laserOwner)||laserPlanes.size()>=storm_hull_damage::MaxSplitPlanes)return false;
+     // Capture/reconstruction is transactional; a rejected layout never hides the original.
+-    if(!laserOwner&&!laserPrepared&&!RebuildLaserSurface(false))return false;
++    if(!laserOwner&&!laserPrepared){fracture_trace::Scope cold("geom.cut.cold",this);if(!RebuildLaserSurface(false))return false;}
++    fracture_trace::Scope splitStage("geom.cut.split",this);
+     auto split=storm_ship_laser::splitSurface(laserVisualSurface,plane,laserWoodThickness);if(!split.complete)return false;const float total=split.keptArea+split.detachedArea;
++    splitStage.stop();
+     if(split.detachedArea<=1.e-7f||total<=1.e-7f)return true;
+     size_t active=0;for(const auto&batch:laserFragments)active+=batch.fragments.size();if(active>=storm_hull_damage::MaxFragmentBuffers)return false;
++    fracture_trace::Scope canonical("geom.cut.canonical",this);
+     auto kept=storm_ship_laser::canonicalMesh(split.kept);auto detached=storm_ship_laser::canonicalMesh(split.detached);
++    canonical.stop();fracture_trace::Scope volume("geom.cut.volume",this);
+     const double originalVolume=laserClosedVolume;double keptVolume=0,detachedVolume=0;
+     if(originalVolume>1.e-6){keptVolume=storm_ship_laser::closedVolume(kept);detachedVolume=storm_ship_laser::closedVolume(detached);
+         if((split.keptArea>1.e-7f&&keptVolume<=0)||(split.detachedArea>1.e-7f&&detachedVolume<=0)||std::abs(originalVolume-keptVolume-detachedVolume)>std::max(.001,originalVolume*1.e-5))return false;}
++    volume.stop();fracture_trace::Scope grouping("geom.cut.groups",this);
+     auto groups=storm_ship_laser::surfaceFragments(std::move(split.detached),plane,std::min(fragmentLimit,unsigned(storm_hull_damage::MaxFragmentBuffers-active)),laserWoodThickness);if(groups.empty())return false;
++    grouping.stop();fracture_trace::Scope retainedUpload("geom.cut.upload_retained",this);
+     std::map<int,std::vector<HullDraw>>replacement;LaserBatch batch;batch.fragments.resize(groups.size());result.fragments.reserve(groups.size());
+     if(!UploadLaserMesh(storm_ship_laser::renderMesh(split.kept),replacement))return false;
++    retainedUpload.stop();fracture_trace::Scope fragmentUpload("geom.cut.upload_fragments",this);
+     for(size_t n=0;n<groups.size();++n)if(!UploadLaserMesh(storm_ship_laser::renderMesh(groups[n]),batch.fragments[n].draws)){
+         for(auto&fragment:batch.fragments)ReleaseHullDraws(fragment.draws);ReleaseHullDraws(replacement);return false;}
++    fragmentUpload.stop();
+     result.removedFraction=std::clamp(split.detachedArea/total,0.f,1.f);
+     if(originalVolume>1.e-6&&detachedVolume>0&&std::abs(originalVolume-keptVolume-detachedVolume)<=std::max(1.e-5,originalVolume*.005)){result.volumeBased=true;result.removedFraction=float(std::clamp(detachedVolume/originalVolume,0.,1.));}
+     uint64_t serial=laserSerial;batch.id=++serial;
++    fracture_trace::Scope properties("geom.cut.properties",this);
+     for(size_t n=0;n<groups.size();++n){auto properties=storm_ship_laser::fragmentProperties(storm_ship_laser::canonicalMesh(groups[n]));properties.fragment=batch.fragments[n].id=++serial;result.fragments.push_back(properties);}
++    properties.stop();fracture_trace::Scope commit("geom.cut.commit",this);
+     result.changed=true;result.fragment=batch.id;result.keptBounds=storm_ship_laser::bounds(kept);result.seam=std::move(split.seam);
+     ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);laserSurface=std::move(kept);laserVisualSurface=std::move(split.kept);laserClosedVolume=result.volumeBased?keptVolume:0;laserPlanes.push_back(plane);laserOwner=hullOwner=owner;RebuildLaserCollision();laserTraceObject=laserTraceTriangle=-1;
+     laserSerial=serial;laserFragments.push_back(std::move(batch));return true;
