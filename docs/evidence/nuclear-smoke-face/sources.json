@@ -1,0 +1,15 @@
+{
+  "native_resolution": [
+    1280,
+    800
+  ],
+  "model_url": "https://app.threedee.design/community/generations/free-3d-bust-of-putin",
+  "model_sha256": "e9f96665fdf59fd35c542ad7fc0f076749b7519aeae7c4dba6d055935a61e787",
+  "native_sources": {
+    "experiments/native-metal/phonk_ordnance_shaders.hpp": "6786906c260a462dd2074af58fe6d7be1fd64b223b2694b2e307c598b646d5bc",
+    "experiments/native-metal/phonk_ordnance_render.hpp": "b7f08737430591c3e2f1f43e608834ba720b679da4452538660bf58e8f565f54",
+    "experiments/native-metal/phonk_nuclear_head_data.hpp": "4e289e7a59dea2ab28e4d3bf407e2bae01f6a05f4a78fd52b5ba4219e0284321"
+  },
+  "baseline_commit": "999c349bc9a2c5d48b8939aee43adb800679c21a",
+  "evidence_scope": "Standalone Metal volume fixture; no terrain, rigging, player input or continuous motion acceptance."
+}

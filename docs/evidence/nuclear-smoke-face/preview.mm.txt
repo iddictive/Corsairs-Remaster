@@ -1,0 +1,83 @@
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#import <AppKit/AppKit.h>
+#include <simd/simd.h>
+#include <algorithm>
+#include <vector>
+#include <cstdio>
+#include <cmath>
+#include <string>
+#include "phonk_ordnance_render.hpp"
+
+static simd_float4x4 viewMatrix() {
+    const char* distance=getenv("NUCLEAR_PREVIEW_DISTANCE");
+    simd_float3 eye={0,1.4f,distance?strtof(distance,nullptr):5.5f}, target={0,1.4f,0}, up={0,1,0};
+    auto z=simd_normalize(eye-target), x=simd_normalize(simd_cross(up,z)), y=simd_cross(z,x);
+    simd_float4x4 result;
+    result.columns[0]={x.x,y.x,z.x,0};result.columns[1]={x.y,y.y,z.y,0};result.columns[2]={x.z,y.z,z.z,0};
+    result.columns[3]={-simd_dot(x,eye),-simd_dot(y,eye),-simd_dot(z,eye),1};return result;
+}
+static simd_float4x4 projectionMatrix() {
+    const float ys=1.f/tanf(52.f*float(M_PI)/360.f), xs=ys/(1280.f/800.f), n=.1f,f=100.f;
+    simd_float4x4 result;
+    result.columns[0]={xs,0,0,0};result.columns[1]={0,ys,0,0};
+    result.columns[2]={0,0,f/(n-f),-1};result.columns[3]={0,0,n*f/(n-f),0};return result;
+}
+static bool writePng(const std::vector<uint8_t>& pixels,NSString* path) {
+    NSBitmapImageRep* bitmap=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:nullptr pixelsWide:1280 pixelsHigh:800
+        bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSCalibratedRGBColorSpace bytesPerRow:1280*4 bitsPerPixel:32];
+    memcpy(bitmap.bitmapData,pixels.data(),pixels.size());
+    return [[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
+}
+int main(int argc,char** argv) { @autoreleasepool {
+    if(argc!=2){fprintf(stderr,"usage: preview OUTPUT_DIR\n");return 2;}
+    NSString* out=[NSString stringWithUTF8String:argv[1]];
+    if(![[NSFileManager defaultManager] createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:nil])return 2;
+    auto device=MTLCreateSystemDefaultDevice();if(!device)return 3;
+    auto queue=[device newCommandQueue];
+    auto td=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:1280 height:800 mipmapped:NO];
+    td.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;td.storageMode=MTLStorageModeShared;
+    auto target=[device newTextureWithDescriptor:td];
+    td.pixelFormat=MTLPixelFormatDepth32Float;td.storageMode=MTLStorageModePrivate;
+    auto depth=[device newTextureWithDescriptor:td];
+    storm_metal::PhonkNuclearRenderer renderer;
+    const auto view=viewMatrix(),projection=projectionMatrix();
+    float center[3]={0,0,0};simd_float4 viewport={0,0,1280,800};simd_float3 origin={0,0,0};
+    std::vector<uint8_t> background(1280*800*4),pixels(background.size());
+    auto read=[&](std::vector<uint8_t>& p){[target getBytes:p.data() bytesPerRow:1280*4 fromRegion:MTLRegionMake2D(0,0,1280,800) mipmapLevel:0];};
+    auto clear=[&](double depthClear) {
+        auto command=[queue commandBuffer];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
+        pass.colorAttachments[0].texture=target;pass.colorAttachments[0].loadAction=MTLLoadActionClear;
+        pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.colorAttachments[0].clearColor=MTLClearColorMake(.34,.40,.47,1);
+        pass.depthAttachment.texture=depth;pass.depthAttachment.loadAction=MTLLoadActionClear;
+        pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=depthClear;
+        auto encoder=[command renderCommandEncoderWithDescriptor:pass];[encoder endEncoding];[command commit];[command waitUntilCompleted];
+        return command.status==MTLCommandBufferStatusCompleted;
+    };
+    auto render=[&](float age,bool& accepted) {
+        auto command=[queue commandBuffer];accepted=renderer.encode(device,command,target,depth,view,projection,origin,viewport,center,1,age);
+        [command commit];[command waitUntilCompleted];
+        if(command.status!=MTLCommandBufferStatusCompleted){fprintf(stderr,"GPU error: %s\n",command.error.localizedDescription.UTF8String);return -1.;}
+        return (command.GPUEndTime-command.GPUStartTime)*1000.;
+    };
+    clear(1);read(background);writePng(background,[out stringByAppendingPathComponent:@"background.png"]);
+    bool accepted=false;
+    for(float age:{.2f,1.f,2.5f,4.f,6.f,8.5f}) {
+        if(!clear(1))return 4;double ms=render(age,accepted);if(ms<0||!accepted)return 5;
+        read(pixels);size_t changed=0;for(size_t p=0;p<pixels.size();p+=4)if(memcmp(&pixels[p],&background[p],4))++changed;
+        NSString* name=[NSString stringWithFormat:@"age-%04.1f.png",age];if(!writePng(pixels,[out stringByAppendingPathComponent:name]))return 6;
+        printf("age=%.1f accepted=%d changed_pixels=%zu gpu_ms=%.6f\n",age,accepted,changed,ms);
+    }
+    for(int n=0;n<5;n++){clear(1);if(render(2.5,accepted)<0||!accepted)return 5;}
+    std::vector<double> gpu;
+    for(int n=0;n<30;n++){clear(1);double ms=render(2.5,accepted);if(ms<0||!accepted)return 5;gpu.push_back(ms);}
+    std::sort(gpu.begin(),gpu.end());
+    printf("device=%s width=1280 height=800 samples=30 gpu_median_ms=%.6f gpu_min_ms=%.6f gpu_max_ms=%.6f\n",device.name.UTF8String,(gpu[14]+gpu[15])*.5,gpu.front(),gpu.back());
+    clear(1);render(9,accepted);read(pixels);bool expiry=pixels==background;
+    printf("expiry_age=9 accepted=%d exact_background=%d\n",accepted,expiry);
+    if(!writePng(pixels,[out stringByAppendingPathComponent:@"expiry-age-9.png"]))return 6;
+    clear(0);render(2.5,accepted);read(pixels);bool occlusion=pixels==background;
+    printf("occlusion_depth=0 accepted=%d exact_background=%d\n",accepted,occlusion);
+    if(!writePng(pixels,[out stringByAppendingPathComponent:@"occlusion-depth-0.png"]))return 6;
+    return expiry&&occlusion?0:7;
+} }
