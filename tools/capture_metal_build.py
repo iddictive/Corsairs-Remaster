@@ -52,6 +52,19 @@ def reject_duplicate(repo: Path, output: Path, native_hashes: dict,
                                "and retain only distinct target metadata, not another payload")
 
 
+def capture_destination(repo: Path, output: Path) -> Path:
+    """One retained build slot; extra captures live only in bounded scratch."""
+    canonical = repo / "experiments/native-metal/.cache/diagnostics/retained-native-build"
+    if output == canonical:
+        return output
+    scratch = os.environ.get("CODEX_SCRATCH_DIR")
+    if (scratch and not Path(scratch).resolve().is_relative_to(repo)
+            and output != Path(scratch).resolve() and output.is_relative_to(Path(scratch).resolve())):
+        return output
+    raise RuntimeError(f"Persistent capture has one slot: {canonical}; "
+                       "reuse it or use CODEX_SCRATCH_DIR from the bounded scratch producer")
+
+
 def capture(repo: Path, output: Path, target: str, max_bytes: int,
             retain_for: str, release_after: str, expires: str) -> dict:
     if not retain_for.strip() or not release_after.strip():
@@ -59,6 +72,7 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int,
     if date.fromisoformat(expires) < date.today():
         raise RuntimeError("Capture retention expiry is already past")
     repo, output = repo.resolve(), output.resolve()
+    capture_destination(repo, output)
     metal = repo / "experiments/native-metal"
     build = metal / ".cache/build"
     spec = importlib.util.spec_from_file_location("native_build_identity", repo / "tools/metal_engine_source.py")
@@ -111,14 +125,14 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int,
     if manifest_path.is_file():
         previous = json.loads(manifest_path.read_text())
         if "compile-commands.json" not in previous["retained"]:
-            raise RuntimeError("Existing capture lacks production compiler flags; choose a new output")
+            raise RuntimeError("Existing capture lacks production compiler flags; preserve it for owner review")
         if (previous["build_receipt"] != receipt or previous["header_sources"] != header_hashes
                 or previous["vendor_sources"] != vendor_hashes):
-            raise RuntimeError("Existing capture belongs to different native inputs; choose a new output")
+            raise RuntimeError("Existing capture belongs to different native inputs; resolve its consumer/release condition first")
         if previous["retained"]["producer-commands.txt"]["sha256"] != hashlib.sha256(commands.encode()).hexdigest():
-            raise RuntimeError("Fixture producer commands changed; choose a new output")
+            raise RuntimeError("Fixture producer commands changed; resolve the retained capture's consumer first")
         if previous["retained"]["compile-commands.json"]["sha256"] != hashlib.sha256(compilation.encode()).hexdigest():
-            raise RuntimeError("Production compiler flags changed; choose a new output")
+            raise RuntimeError("Production compiler flags changed; resolve the retained capture's consumer first")
         for name, record in previous["retained"].items():
             if identity.digest(output / name) != record["sha256"]:
                 raise RuntimeError(f"Existing capture changed: {name}")
@@ -127,7 +141,7 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int,
                 raise RuntimeError(f"Current build artifact differs from capture: {name}")
         return {"capture": str(output), "reused": True, "build_receipt": receipt}
     if output.exists():
-        raise RuntimeError("Capture output already exists without a complete manifest; preserve it and choose a new output")
+        raise RuntimeError("Capture output already exists without a complete manifest; preserve it for owner review")
     reject_duplicate(repo, output,
                      {name: digest for name, digest in source_hashes.items()
                       if name == "engine-unsigned" or name.startswith("libraries/")},
@@ -187,7 +201,8 @@ def capture(repo: Path, output: Path, target: str, max_bytes: int,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path,
+                        help="Defaults to the sole retained-build slot; alternative must be inside CODEX_SCRATCH_DIR")
     parser.add_argument("--target", default="sea-fleet-benchmark")
     parser.add_argument("--max-bytes", type=int, required=True)
     parser.add_argument("--retain-for", required=True,
@@ -196,8 +211,9 @@ if __name__ == "__main__":
                         help="Observable condition ending this capture's retention")
     parser.add_argument("--expires", required=True, help="Finite retention review date, YYYY-MM-DD")
     args = parser.parse_args()
+    output = args.output or args.repo / "experiments/native-metal/.cache/diagnostics/retained-native-build"
     try:
-        print(json.dumps(capture(args.repo, args.output, args.target, args.max_bytes,
+        print(json.dumps(capture(args.repo, output, args.target, args.max_bytes,
                                  args.retain_for, args.release_after, args.expires), indent=2))
     except (OSError, RuntimeError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Build capture failed: {error}\n")

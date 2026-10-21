@@ -31,12 +31,18 @@ values fail before source preparation or configuration. This controls compilatio
 not the game's simulation or renderer; build success does not activate the app.
 
 Engine-linked fixture handoff uses `tools/capture_metal_build.py --repo <built-checkout>
---output <new-evidence-directory> --max-bytes <admitted-copy-budget>
+--max-bytes <admitted-copy-budget>
 --retain-for <specific-consumer-property> --release-after <observable-condition>
 --expires <YYYY-MM-DD>`.
 Ordinary checks reuse `.cache/build`; committed source/docs are referenced by
 Git revision/path, not copied into dated archives. Use a frozen capture only
 when that consumer needs exact binary/ABI state across a later cache rebuild.
+There is one persistent slot:
+`experiments/native-metal/.cache/diagnostics/retained-native-build`.
+An explicit `--output` may select only that slot or a child of the bounded
+producer's `CODEX_SCRATCH_DIR` outside the checkout; dated archive/output aliases
+are rejected before capture. Resolve the slot's recorded consumer/release condition before replacing
+a different build. Temporary comparisons use the existing bounded scratch runner.
 It checks
 the canonical source/engine receipt and rejects inputs/artifacts modified after
 that completed build, then retains
@@ -99,10 +105,20 @@ These are different owners, not three release installations:
 | `/Applications/Corsairs Iddictive Remaster.app` | Sole player engine and complete game resources |
 | `experiments/native-metal/engine`, adjacent renderer files and `inputs/` | Editable source and manifest-bound rebuild dependencies |
 | `experiments/native-metal/.cache/` | One reusable build; disposable staging resources are restored as APFS clones only when needed |
-| `.local-archives/` | Unique recovery source/history and exact experiment evidence, never another release catalogue |
+| `.local-archives/` | Remaining unique player state, original captures and irreproducible inputs; source/history lives in Git, with no new build or source-copy catalogue |
 | `dist/` | Disposable packaging work; a ZIP exists only for an explicit handoff |
 
 Do not move source or unique evidence into a new folder to disguise disk usage.
+Recovered archive sources and their path indexes are retained in the local Git
+branch `codex/recovered-archive-sources-20261020`; inspect them with
+`git show codex/recovered-archive-sources-20261020:recovery-index.json`.
+`orphan-source-index.json`, `recovery-symlinks.json`,
+`container-reconstruction.json` and `remaining-aliases.json` on that branch
+resolve older inputs, links, containers and deduplicated evidence paths.
+Imported history is anchored under `refs/recovery/private-history/*` and
+`refs/recovery/storm-engine/*`. These recovery refs are local and include private
+historical context; they are not part of the public remote delivery.
+
 Use the common owner to inspect storage or losslessly compact cold evidence:
 
 ```sh
