@@ -1,0 +1,38 @@
+{
+  "native_resolution": [
+    1280,
+    800
+  ],
+  "source_dimensions": [
+    512,
+    512
+  ],
+  "source_format": "RGBA8 PNG, one smoke sprite",
+  "delivery": "PNG embedded in generated C++ header; once-decoded premultiplied RGBA8 Metal texture",
+  "baseline_commit": "5bc53877f21653263b72517ba55a1469990eccf5",
+  "sources": {
+    "experiments/native-metal/phonk_ordnance_render.hpp": "830f779e5030e99fb6af315aa8dcee6faef5d82a8939faa81b6216d7c580b9b8",
+    "experiments/native-metal/phonk_ordnance_shaders.hpp": "fc7ba24d62cfc4e0ef65247d6523ddba9961efcc7841a7b6280a8e6af1d9b47e",
+    "experiments/native-metal/phonk_nuclear_smoke_data.hpp": "927ea498e74799bd0befb7a642feaac276a47181cd6cfc5b048b3a0c067c8995",
+    "experiments/native-metal/assets/nuclear-smoke.png": "f410295c065d573a538028d179b30ef65501f3db450d964d72dd30f73e251b9c",
+    "tools/prepare_nuclear_smoke.py": "03b5bc935f29dbe6abd567ad87272db31eb1a613377e5e39a89881da8a8a421b"
+  },
+  "evidence_scope": "Standalone Metal fixture; material and likeness accepted at native scale. Not battle, continuous-motion or player acceptance.",
+  "alpha": {
+    "zero_pixels": 118208,
+    "partial_pixels": 143063,
+    "opaque_pixels": 873,
+    "corner_values": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "useful_bounds_at_alpha_above_0_03": [
+      15,
+      8,
+      501,
+      502
+    ]
+  }
+}

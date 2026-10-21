@@ -1,0 +1,9 @@
+age=0.2 accepted=1 changed_pixels=27462 gpu_ms=2.536500
+age=1.0 accepted=1 changed_pixels=92843 gpu_ms=3.072125
+age=2.5 accepted=1 changed_pixels=177499 gpu_ms=2.737833
+age=4.0 accepted=1 changed_pixels=180081 gpu_ms=2.914125
+age=6.0 accepted=1 changed_pixels=170543 gpu_ms=3.714875
+age=8.5 accepted=1 changed_pixels=104814 gpu_ms=2.839500
+device=Apple M3 Max width=1280 height=800 samples=30 gpu_median_ms=2.404271 gpu_min_ms=2.152750 gpu_max_ms=3.158500
+expiry_age=9 accepted=0 exact_background=1
+occlusion_depth=0 accepted=1 exact_background=1

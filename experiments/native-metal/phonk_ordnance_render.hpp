@@ -1,5 +1,6 @@
 #pragma once
 #import <Metal/Metal.h>
+#import <AppKit/AppKit.h>
 #include <simd/simd.h>
 #include <algorithm>
 #include <cmath>
@@ -8,7 +9,7 @@
 #include <vector>
 #include "ship_fire_shaders.hpp"
 #include "phonk_ordnance_shaders.hpp"
-#include "phonk_nuclear_head_data.hpp"
+#include "phonk_nuclear_smoke_data.hpp"
 
 namespace storm_metal
 {
@@ -23,40 +24,35 @@ class PhonkNuclearRenderer
     id<MTLLibrary> library = nil;
     id<MTLRenderPipelineState> pipeline = nil;
     id<MTLTexture> noise = nil;
-    id<MTLTexture> headShape = nil;
+    id<MTLTexture> smokeSprite = nil;
     MTLPixelFormat format = MTLPixelFormatInvalid;
     bool prepare(id<MTLDevice> device, MTLPixelFormat requested)
     {
         if (pipeline && requested == format) return true;
         NSError *error = nil;
-        if (!headShape) {
-            // The imported front/back geometry encloses a real head volume.
-            // Only signed distance is uploaded; no model material is rendered.
-            constexpr unsigned side=64;
-            std::vector<uint8_t> values(side*side*side);
-            for(unsigned z=0;z<side;++z) for(unsigned y=0;y<side;++y) for(unsigned x=0;x<side;++x) {
-                const float px=(float(x)+.5f)/side*2.2f-1.1f;
-                const float py=(float(y)+.5f)/side*2.2f-1.1f;
-                const float pz=(float(z)+.5f)/side*2.2f-1.1f;
-                const float tx=std::clamp((px*.5f+.5f)*float(nuclearHeadWidth-1),0.f,float(nuclearHeadWidth-1));
-                const float ty=std::clamp((.5f-py*.5f)*float(nuclearHeadHeight-1),0.f,float(nuclearHeadHeight-1));
-                const auto ix=unsigned(tx),iy=unsigned(ty),jx=std::min(ix+1,nuclearHeadWidth-1),jy=std::min(iy+1,nuclearHeadHeight-1);
-                const auto sample=[&](const uint8_t *data) {
-                    const auto row=[&](unsigned r) { return data[r*nuclearHeadWidth+ix]*(1.f-(tx-ix))
-                        +data[r*nuclearHeadWidth+jx]*(tx-ix); };
-                    return (row(iy)*(1.f-(ty-iy))+row(jy)*(ty-iy))/255.f*2.f-1.f;
-                };
-                const float front=sample(nuclearHeadFront),back=sample(nuclearHeadBack);
-                const float distance=std::max({pz-front,back-pz,std::abs(px)-1.f,
-                    std::abs(py)-1.f});
-                values[(z*side+y)*side+x]=uint8_t(std::clamp(distance*2.f+.5f,0.f,1.f)*255.f);
-            }
-            auto descriptor=[MTLTextureDescriptor new];descriptor.textureType=MTLTextureType3D;
-            descriptor.pixelFormat=MTLPixelFormatR8Unorm;descriptor.width=descriptor.height=descriptor.depth=side;
+        if (!smokeSprite) {
+            // Embed the authored smoke so installed/offline builds use the
+            // exact same asset, without a working-directory resource path.
+            NSData *data=[[NSData alloc] initWithBase64EncodedString:
+                [NSString stringWithUTF8String:nuclearSmokePNG] options:0];
+            NSBitmapImageRep *bitmap=[NSBitmapImageRep imageRepWithData:data];
+            CGImageRef image=bitmap.CGImage;
+            if(!image)return false;
+            const auto width=CGImageGetWidth(image),height=CGImageGetHeight(image);
+            std::vector<uint8_t> values(width*height*4);
+            CGColorSpaceRef colorSpace=CGColorSpaceCreateDeviceRGB();
+            CGContextRef context=CGBitmapContextCreate(values.data(),width,height,8,width*4,
+                colorSpace,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);
+            CGColorSpaceRelease(colorSpace);
+            if(!context)return false;
+            CGContextDrawImage(context,CGRectMake(0,0,width,height),image);
+            CGContextRelease(context);
+            auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:
+                MTLPixelFormatRGBA8Unorm width:width height:height mipmapped:NO];
             descriptor.storageMode=MTLStorageModeShared;descriptor.usage=MTLTextureUsageShaderRead;
-            headShape=[device newTextureWithDescriptor:descriptor];if(!headShape)return false;
-            [headShape replaceRegion:MTLRegionMake3D(0,0,0,side,side,side) mipmapLevel:0 slice:0
-                withBytes:values.data() bytesPerRow:side bytesPerImage:side*side];
+            smokeSprite=[device newTextureWithDescriptor:descriptor];if(!smokeSprite)return false;
+            [smokeSprite replaceRegion:MTLRegionMake2D(0,0,width,height) mipmapLevel:0
+                withBytes:values.data() bytesPerRow:width*4];
         }
         if (!noise) {
             // One immutable 64^3 scalar lattice replaces repeated ALU hashes
@@ -142,7 +138,7 @@ class PhonkNuclearRenderer
         [encoder setFragmentBytes:&uniform length:sizeof(uniform) atIndex:0];
         [encoder setFragmentTexture:depth atIndex:0];
         [encoder setFragmentTexture:noise atIndex:1];
-        [encoder setFragmentTexture:headShape atIndex:2];
+        [encoder setFragmentTexture:smokeSprite atIndex:2];
         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
         [encoder endEncoding];
         return true;
