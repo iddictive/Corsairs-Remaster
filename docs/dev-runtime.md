@@ -118,6 +118,10 @@ resolve older inputs, links, containers and deduplicated evidence paths.
 Imported history is anchored under `refs/recovery/private-history/*` and
 `refs/recovery/storm-engine/*`. These recovery refs are local and include private
 historical context; they are not part of the public remote delivery.
+Public source recovery uses branch `codex/recovered-sources` and its
+`recovered-sources/index.json`: unique historical code and build inputs, with
+machine-specific paths normalized. Its ancestry contains only the public
+mainline, never the private recovery history or agent notes.
 
 Use the common owner to inspect storage or losslessly compact cold evidence:
 
