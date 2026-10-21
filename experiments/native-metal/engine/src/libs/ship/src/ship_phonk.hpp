@@ -65,7 +65,9 @@ struct Drift
             // A brake acts on the current vector, not the hull's forward axis.
             if (!brake)
             {
-                const float traction = driving ? .6f - .42f * std::clamp(std::abs(turn), 0.f, 1.f) : .12f;
+                // Keep powered lateral inertia; coasting helm supplies only
+                // enough alignment to follow the turn without going stern-first.
+                const float traction = driving ? .6f : .12f + .42f * std::clamp(std::abs(turn), 0.f, 1.f);
                 bearing += std::remainder(yaw - bearing, 6.28318530718f) * -std::expm1(-traction * dt);
             }
         }

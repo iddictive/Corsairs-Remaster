@@ -20,6 +20,8 @@ extern "C" void StormMetalEndDynamicSky(void *device);
 extern "C" bool StormMetalBeginSkyFog(void *device, uint32_t fogColor);
 extern "C" void StormMetalEndSkyFog(void *device);
 extern "C" void StormMetalSetAuthoredSky(void *device, float stormBlend, bool hasStorm, float amount);
+extern "C" void StormMetalSetAuthoredSkyFog(void *device, void *const *textures,
+                                           float blend, float stormBlend, float amount, float rotation, float cameraHeight);
 
 bool PrepareMetalAtmosphere(VDX9RENDER *renderer, WEATHER_BASE *weather, uint32_t deltaTime, bool skyDraw)
 {
@@ -148,6 +150,9 @@ SKY::~SKY()
 
 void SKY::Release()
 {
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    if(pRS)StormMetalSetAuthoredSkyFog(pRS->GetNativeDevice(),nullptr,0.f,0.f,0.f,0.f,0.f);
+#endif
     for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
     {
         if (TexturesID[i] >= 0)
@@ -174,6 +179,8 @@ void SKY::Release()
     stormTextureBlend = 0.f;
     stormAmount = 0.f;
     stormTexturesReady = false;
+    solarSources = {};
+    authoredSunGain = 0.f;
 #endif
 
     if (iSkyVertsID >= 0)
@@ -414,6 +421,9 @@ void SKY::LoadTextureSet(int32_t (&textures)[SKY_NUM_TEXTURES], const std::strin
         sprintf_s(str, "%s%s", directory.c_str(), names[i]);
         textures[i] = pRS->TextureCreate(str);
     }
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    CacheSolarSource(textures);
+#endif
 }
 
 void SKY::LoadTextures()
@@ -428,6 +438,73 @@ void SKY::LoadTextures()
 }
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+void SKY::CacheSolarSource(int32_t (&textures)[SKY_NUM_TEXTURES])
+{
+    const unsigned slot=&textures==&TexturesID?0:&textures==&TexturesNextID?1:&textures==&StormTexturesID?2:3;
+    auto &source=solarSources[slot];
+    source={};
+    storm_render::Texture *faces[SKY_NUM_TEXTURES]{};
+    storm_render::SurfaceDesc desc[SKY_NUM_TEXTURES]{};
+    storm_render::LockedRect locks[SKY_NUM_TEXTURES]{};
+    bool ready=true;
+    for(unsigned face=0;face<SKY_NUM_TEXTURES;++face) {
+        auto *texture=textures[face]>=0?static_cast<storm_render::Texture *>(pRS->GetTextureFromID(textures[face])):nullptr;
+        if(!texture) {ready=false;continue;}
+        pRS->GetLevelDesc(texture,0,&desc[face]);
+        // All shipped sky faces retain ARGB32 CPU bytes. Unsupported or
+        // missing data is a source rejection, never a relative-brightness sun.
+        if(desc[face].Format!=storm_render::AssetFormat::A8R8G8B8 || !desc[face].Width || !desc[face].Height ||
+           pRS->LockRect(texture,0,&locks[face],nullptr,storm_render::lock::readOnly)!=storm_render::result::ok) {
+            ready=false;continue;
+        }
+        faces[face]=texture;
+    }
+    if(ready)source=storm_metal::findAuthoredSolarSource([&](storm_metal::AuthoredSkyCoordinate coordinate) {
+        const auto &d=desc[coordinate.face];
+        const unsigned x=std::min(unsigned(std::clamp(coordinate.u,0.f,1.f)*d.Width),d.Width-1);
+        const unsigned y=std::min(unsigned(std::clamp(coordinate.v,0.f,1.f)*d.Height),d.Height-1);
+        return reinterpret_cast<const uint32_t *>(static_cast<const uint8_t *>(locks[coordinate.face].pBits)+
+                                                y*locks[coordinate.face].Pitch)[x];
+    });
+    for(unsigned face=0;face<SKY_NUM_TEXTURES;++face)
+        if(faces[face])pRS->UnlockRect(faces[face],0);
+}
+
+void SKY::PrepareVisualSun(uint32_t deltaTime)
+{
+    if(!pRS) {authoredSunGain=0.f;return;}
+    // One main-camera snapshot before WEATHER binds directional lighting.
+    // Reflection SKY draws consume it and must not advance rotation again.
+    fAngleY+=float(deltaTime)*.001f*fSkySpeedRotate;
+    if(aSkyDirArray.size()>1)UpdateTimeFactor();
+    WEATHER_BASE *weather=nullptr;
+    if(const auto id=core.GetEntityId("weather"))weather=static_cast<WEATHER_BASE *>(core.GetEntityPointer(id));
+    if(weather)UpdateStormTextures(weather->GetVisualFloat(whf_time_counter));
+    stormAmount=weather?storm_weather::authored::amount(weather->GetCloudCoverage(),weather->GetCloudDensity()):0.f;
+    const float blend=aSkyDirArray.size()>1?std::clamp(fTimeFactor-std::floor(fTimeFactor),0.f,1.f):0.f;
+    const float storm=stormTexturesReady?stormAmount:0.f;
+    const float weights[]={(1.f-storm)*(1.f-blend),(1.f-storm)*blend,
+                           storm*(1.f-stormTextureBlend),storm*stormTextureBlend};
+    CVECTOR direction(0.f,0.f,0.f);
+    authoredSunGain=0.f;
+    for(unsigned i=0;i<4;++i) {
+        const auto &s=solarSources[(i==1 && aSkyDirArray.size()<2)?0:i];
+        const float gain=s.gain*weights[i];
+        direction+=CVECTOR(s.x,s.y,s.z)*gain;
+        authoredSunGain+=gain;
+    }
+    if(authoredSunGain<=0.f || ~direction<1.e-8f || fSkySize<=0.f) {
+        authoredSunGain=0.f;authoredSunDirection=CVECTOR(0.f,-5000.f,0.f);return;
+    }
+    // Match the finite authored cube, whose center follows cameraY/6.
+    direction=direction*(fSkySize/std::max({std::abs(direction.x),std::abs(direction.y),std::abs(direction.z)}));
+    float fov;CVECTOR camera,angles;
+    pRS->GetCamera(camera,angles,fov);
+    direction.y-=camera.y*(5.f/6.f);
+    CMatrix rotation;rotation.BuildRotateY(fAngleY+fSkyAngle);
+    authoredSunDirection=!(rotation*direction)*5000.f;
+}
+
 void SKY::UpdateStormTextures(float hour)
 {
     if (!std::isfinite(hour))
@@ -438,9 +515,11 @@ void SKY::UpdateStormTextures(float hour)
     if (stormCurrent == current && stormNext == next)
         return;
 
-    if (current == stormNext)
+    if (current == stormNext) {
         for (int32_t face = 0; face < SKY_NUM_TEXTURES; ++face)
             std::swap(StormTexturesID[face], StormTexturesNextID[face]);
+        std::swap(solarSources[2],solarSources[3]);
+    }
     else if (current != stormCurrent)
         LoadTextureSet(StormTexturesID, "weather\\skies\\Storm0" + std::to_string(current + 1) + "\\");
     LoadTextureSet(StormTexturesNextID, "weather\\skies\\Storm0" + std::to_string(next + 1) + "\\");
@@ -455,6 +534,20 @@ void SKY::BindStormTextures(int32_t face)
 {
     pRS->TextureSet(2, stormTexturesReady ? StormTexturesID[face] : -1);
     pRS->TextureSet(3, stormTexturesReady ? StormTexturesNextID[face] : -1);
+}
+
+void SKY::PublishFogEnvironment(float cameraY)
+{
+    void*textures[20]{};
+    const int32_t*sets[]={TexturesID,aSkyDirArray.size()>1?TexturesNextID:TexturesID,
+                         stormTexturesReady?StormTexturesID:TexturesID,
+                         stormTexturesReady?StormTexturesNextID:TexturesID};
+    for(unsigned set=0;set<4;++set)for(unsigned face=0;face<SKY_NUM_TEXTURES;++face)
+        textures[set*SKY_NUM_TEXTURES+face]=pRS->GetTextureFromID(sets[set][face]);
+    const float blend=aSkyDirArray.size()>1?std::clamp(fTimeFactor-std::floor(fTimeFactor),0.f,1.f):0.f;
+    StormMetalSetAuthoredSkyFog(pRS->GetNativeDevice(),textures,blend,stormTextureBlend,
+                              stormTexturesReady?stormAmount:0.f,fAngleY+fSkyAngle,
+                              fSkySize>0.f?cameraY*(5.f/6.f)/fSkySize:0.f);
 }
 #endif
 
@@ -471,7 +564,9 @@ bool SKY::LoadState(ENTITY_STATE *state)
 
 void SKY::Realize(uint32_t Delta_Time)
 {
+#ifndef STORM_METAL_DYNAMIC_SKY_BRIDGE
     fAngleY += static_cast<float>(Delta_Time) * 0.001f * fSkySpeedRotate;
+#endif
 
     float fFov;
     CVECTOR vPos, vAng;
@@ -489,10 +584,6 @@ void SKY::Realize(uint32_t Delta_Time)
     WEATHER_BASE *metalWeather = nullptr;
     if (const auto weatherId = core.GetEntityId("weather"))
         metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
-    if (metalWeather)
-        UpdateStormTextures(metalWeather->GetVisualFloat(whf_time_counter));
-    stormAmount = metalWeather ? storm_weather::authored::amount(
-        metalWeather->GetCloudCoverage(), metalWeather->GetCloudDensity()) : 0.f;
     MetalAuthoredSkyScope authoredSkyScope(pRS, stormTextureBlend, stormTexturesReady && metalWeather, stormAmount);
     const bool drawLowerSky = true;
 #else
@@ -516,7 +607,9 @@ void SKY::Realize(uint32_t Delta_Time)
 
     if (aSkyDirArray.size() > 1)
     {
+#ifndef STORM_METAL_DYNAMIC_SKY_BRIDGE
         UpdateTimeFactor();
+#endif
         auto fBlendFactor = fTimeFactor - static_cast<int32_t>(fTimeFactor);
         if (fBlendFactor < 0.f)
             fBlendFactor = 0.f;
@@ -526,6 +619,7 @@ void SKY::Realize(uint32_t Delta_Time)
         pRS->SetRenderState(storm_render::RenderTextureFactor, dwColor);
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+        PublishFogEnvironment(vPos.y);
         MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
 #endif
         if (pRS->TechniqueExecuteStart(sTechSkyBlend.c_str()))
@@ -577,6 +671,7 @@ void SKY::Realize(uint32_t Delta_Time)
         pRS->SetRenderState(storm_render::RenderTextureFactor, dwSkyColor);
 
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+        PublishFogEnvironment(vPos.y);
         MetalDynamicSkyScope metalSkyScope(pRS, metalWeather, Delta_Time);
 #endif
         if (pRS->TechniqueExecuteStart(sTechSky.c_str()))
@@ -772,9 +867,13 @@ void SKY::UpdateTimeFactor()
 
         std::string sSkyDir, sSkyDirNext;
         GetSkyDirStrings(sSkyDir, sSkyDirNext);
-        if (nNext == (nPrev + 1) % static_cast<int32_t>(aSkyDirArray.size()))
+        if (nNext == (nPrev + 1) % static_cast<int32_t>(aSkyDirArray.size())) {
             for (int32_t i = 0; i < SKY_NUM_TEXTURES; i++)
                 std::swap(TexturesID[i], TexturesNextID[i]);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+            std::swap(solarSources[0],solarSources[1]);
+#endif
+        }
         else
             LoadTextureSet(TexturesID, sSkyDir);
         LoadTextureSet(TexturesNextID, sSkyDirNext);
@@ -801,95 +900,9 @@ float SKY::CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize)
     // calculate where we end up
     if (fSkySize > 0.f)
     {
-        int32_t nTexNum = -1;
-        float fu, fv, fk;
-
-        // check the hit to the top side
-        if (vLocalSunPos.y > 0.f)
-        {
-            fk = fSkySize / vLocalSunPos.y;
-            fu = -vLocalSunPos.x * fk;
-            fv = vLocalSunPos.z * fk;
-
-            if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= -fSkySize)
-            {
-                nTexNum = 4;
-                fu = (fu + fSkySize) * 0.5f / fSkySize;
-                fv = (fv + fSkySize) * 0.5f / fSkySize;
-            }
-        }
-
-        // check for hitting the front side
-        if (nTexNum == -1)
-        {
-            if (vLocalSunPos.z < 0.f)
-            {
-                fk = -fSkySize / vLocalSunPos.z;
-                fu = vLocalSunPos.x * fk;
-                fv = vLocalSunPos.y * fk;
-
-                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
-                {
-                    nTexNum = 0;
-                    fu = (fu + fSkySize) * 0.5f / fSkySize;
-                    fv = (fSkySize - fv) / fSkySize;
-                }
-            }
-        }
-
-        // check the hit to the back side
-        if (nTexNum == -1)
-        {
-            if (vLocalSunPos.z > 0.f)
-            {
-                fk = fSkySize / vLocalSunPos.z;
-                fu = -vLocalSunPos.x * fk;
-                fv = vLocalSunPos.y * fk;
-
-                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
-                {
-                    nTexNum = 2;
-                    fu = (fu + fSkySize) * 0.5f / fSkySize;
-                    fv = (fSkySize - fv) / fSkySize;
-                }
-            }
-        }
-
-        // check the hit to the left side
-        if (nTexNum == -1)
-        {
-            if (vLocalSunPos.x > 0.f)
-            {
-                fk = fSkySize / vLocalSunPos.x;
-                fu = vLocalSunPos.z * fk;
-                fv = vLocalSunPos.y * fk;
-
-                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
-                {
-                    nTexNum = 1;
-                    fu = (fSkySize + fu) * 0.5f / fSkySize;
-                    fv = (fSkySize - fv) / fSkySize;
-                }
-            }
-        }
-
-        // check the hit to the right side
-        if (nTexNum == -1)
-        {
-            if (vLocalSunPos.x < 0.f)
-            {
-                fk = -fSkySize / vLocalSunPos.x;
-                fu = -vLocalSunPos.z * fk;
-                fv = vLocalSunPos.y * fk;
-
-                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
-                {
-                    nTexNum = 3;
-                    fu = (fSkySize + fu) * 0.5f / fSkySize;
-                    fv = (fSkySize - fv) / fSkySize;
-                }
-            }
-        }
+        const auto coordinate=storm_metal::authoredSkyCoordinate(vLocalSunPos.x,vLocalSunPos.y,vLocalSunPos.z);
+        const int32_t nTexNum=coordinate.face;
+        const float fu=coordinate.u,fv=coordinate.v;
 
         // looking for alpha in texture
         if (nTexNum != -1)

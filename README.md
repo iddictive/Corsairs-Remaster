@@ -81,7 +81,7 @@ experiments/native-metal/run.sh --launch-installed
 Engine sources are directly editable under `experiments/native-metal/engine`;
 ordinary builds compile them without unpacking an archive or applying patches.
 The input archive supplies dependency headers, tools and reviewed originals.
-Its SHA-256 is `2e7f68269941db86aef14a4130a91054c59ac473b34119333df30f4efbd877a8`.
+Its SHA-256 is `da54154935a894e84ca3a9d95248a2586605c5f417ec5965a1b3490cb5439a89`.
 Its historical engine archive is unused. FFmpeg with H.264/AAC support is needed
 once to prepare the original WMV cutscenes; verified prepared movies are reused.
 

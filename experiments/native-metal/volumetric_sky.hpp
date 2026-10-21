@@ -30,6 +30,11 @@ struct VolumetricSky {
     bool primed=false;
     bool airPrimed=false;
     uint64_t airFrame=std::numeric_limits<uint64_t>::max();
+    uint64_t fogFrame=std::numeric_limits<uint64_t>::max();
+    using AuthoredTextures=std::array<id<MTLTexture>,20>;
+    AuthoredTextures fogSources{};
+    simd_float4 fogSourceBlend{};
+    float fogSourceHeight=0.f;
     float blend=0;
     void reset(){*this={};}
     bool prepare(id<MTLDevice> device,id<MTLLibrary> library,bool upperClouds=true) {
@@ -54,8 +59,22 @@ struct VolumetricSky {
     }
     // Authored panoramas own upper clouds. Keep the existing terrain medium,
     // without marching an invisible second sky or deriving a second sun/SH.
-    bool encodeAir(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&live) {
-        if(airFrame==frame)return true;
+    bool encodeFog(id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&live,
+                   const AuthoredTextures&sources={},simd_float4 sourceBlend={},float sourceHeight=0.f) {
+        if(fogFrame==frame&&fogSources==sources&&simd_all(fogSourceBlend==sourceBlend)&&fogSourceHeight==sourceHeight)return true;
+        auto e=[command computeCommandEncoder];if(!e)return false;
+        [e setComputePipelineState:fogKernel];[e setTexture:fogEnvironment atIndex:0];
+        [e setTexture:atmosphere atIndex:3];[e setTexture:transmittance atIndex:4];
+        for(unsigned i=0;i<sources.size();++i)[e setTexture:sources[i] atIndex:5+i];
+        auto fog=live;fog.options.x=sources[0]?-2.f:-1.f;
+        [e setBytes:&fog length:sizeof(fog) atIndex:0];[e setBytes:&sourceBlend length:sizeof(sourceBlend) atIndex:1];
+        [e setBytes:&sourceHeight length:sizeof(sourceHeight) atIndex:2];
+        [e dispatchThreads:MTLSizeMake(256,128,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        fogFrame=frame;fogSources=sources;fogSourceBlend=sourceBlend;fogSourceHeight=sourceHeight;return true;
+    }
+    bool encodeAir(id<MTLDevice>device,id<MTLLibrary>library,id<MTLCommandBuffer>command,uint64_t frame,const DynamicSkyUniform&live,
+                   const AuthoredTextures&sources={},simd_float4 sourceBlend={},float sourceHeight=0.f) {
+        if(airFrame==frame)return encodeFog(command,frame,live,sources,sourceBlend,sourceHeight);
         if(!prepare(device,library,false))return false;
         auto dispatch=[&](id<MTLComputePipelineState>pipeline,id<MTLTexture>output,unsigned w,unsigned h){
             auto e=[command computeCommandEncoder];[e setComputePipelineState:pipeline];[e setTexture:output atIndex:0];
@@ -64,8 +83,7 @@ struct VolumetricSky {
         };
         if(!airPrimed){auto e=[command blitCommandEncoder];[e generateMipmapsForTexture:shape];[e generateMipmapsForTexture:detail];[e endEncoding];dispatch(transmitKernel,transmittance,256,64);}
         dispatch(atmosKernel,atmosphere,256,128);
-        // This field is the WEATHER fog colour, not the procedural sky colour.
-        auto e=[command computeCommandEncoder];[e setComputePipelineState:fogKernel];[e setTexture:fogEnvironment atIndex:0];[e setTexture:atmosphere atIndex:3];[e setTexture:transmittance atIndex:4];auto fog=live;fog.options.x=-1.f;[e setBytes:&fog length:sizeof(fog) atIndex:0];[e dispatchThreads:MTLSizeMake(256,128,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[e endEncoding];
+        if(!encodeFog(command,frame,live,sources,sourceBlend,sourceHeight))return false;
         airPrimed=true;airFrame=frame;return true;
     }
     bool encode(id<MTLDevice> device,id<MTLLibrary> library,id<MTLCommandBuffer> command,uint64_t frame,const DynamicSkyUniform&live) {
@@ -106,7 +124,8 @@ struct VolumetricSky {
             [s setBytes:&visible length:sizeof(visible) atIndex:0];[s setBuffer:solarSamples[solarSlot] offset:0 atIndex:1];
             dispatch(s,1,1);solarFrames[solarSlot]=frame;solarCommands[solarSlot]=command;
         }
-        auto f=compute(fogKernel,fogEnvironment,@"Sky fog environment");[f setTexture:clouds[from] atIndex:1];[f setTexture:clouds[to] atIndex:2];[f setTexture:atmosphere atIndex:3];[f setTexture:transmittance atIndex:4];[f setBytes:&visible length:sizeof(visible) atIndex:0];dispatch(f,256,128);
+        const simd_float4 noPanorama{};const float noHeight=0.f;
+        auto f=compute(fogKernel,fogEnvironment,@"Sky fog environment");[f setTexture:clouds[from] atIndex:1];[f setTexture:clouds[to] atIndex:2];[f setTexture:atmosphere atIndex:3];[f setTexture:transmittance atIndex:4];[f setBytes:&visible length:sizeof(visible) atIndex:0];[f setBytes:&noPanorama length:sizeof(noPanorama) atIndex:1];[f setBytes:&noHeight length:sizeof(noHeight) atIndex:2];dispatch(f,256,128);
         lastFrame=frame;lastVisual=live;return true;
     }
     void bind(id<MTLRenderCommandEncoder> encoder,unsigned first=2) const {

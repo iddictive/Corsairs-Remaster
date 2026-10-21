@@ -114,5 +114,6 @@ class WEATHER_BASE : public Entity
     virtual void GetVector(uint32_t, CVECTOR *) = 0;
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
     virtual void GetVisualVector(uint32_t code, CVECTOR *out) { GetVector(code, out); }
+    virtual float GetVisualSunVisibility() { return 1.f; }
 #endif
 };

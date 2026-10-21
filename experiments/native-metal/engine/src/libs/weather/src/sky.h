@@ -3,6 +3,10 @@
 #include "typedef.h"
 #include <string>
 #include <vector>
+#include "authored_sky.hpp"
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+#include "authored_solar.hpp"
+#endif
 
 class SKY : public Entity
 {
@@ -34,6 +38,10 @@ class SKY : public Entity
     }
 
     float CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    void PrepareVisualSun(uint32_t deltaTime);
+    float GetAuthoredSun(CVECTOR &direction) const { direction=authoredSunDirection; return authoredSunGain; }
+#endif
 
   private:
     enum
@@ -73,6 +81,10 @@ class SKY : public Entity
     float stormTextureBlend = 0.f;
     float stormAmount = 0.f;
     bool stormTexturesReady = false;
+    std::array<storm_metal::AuthoredSolarSource,4> solarSources{};
+    CVECTOR authoredSunDirection{0.f, -5000.f, 0.f};
+    float authoredSunGain=0.f;
+    void CacheSolarSource(int32_t (&textures)[SKY_NUM_TEXTURES]);
 #endif
 
     int32_t iSkyVertsID = -1;
@@ -91,6 +103,7 @@ class SKY : public Entity
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     void UpdateStormTextures(float hour);
     void BindStormTextures(int32_t face);
+    void PublishFogEnvironment(float cameraY);
 #endif
 
     // fog section

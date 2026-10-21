@@ -671,6 +671,17 @@ excess speed continuously. Supported thrust raises the bow through the existing
 damped attitude response; airborne motion and water-entry compression keep their
 existing owners. Ordinary/NPC movement and the binary save layout remain.
 
+Powered water alignment stays at0.6/s; coasting uses0.12/s plus0.42 times
+the clamped absolute helm input. This retains lateral inertia while held helm
+can tighten the arc without the original sustained stern-first travel. A compiled
+production-header replay at500 knots,120 steps/second for20 seconds measures
+67.02 degrees full-helm slip under power and74.44 while coasting at maximum yaw.
+Countersteering reverses the course after1.375 seconds, versus0.658 with the
+player-rejected higher grip. Both helm signs, quarter/half/full input and release
+are covered by the [frozen motion replay](evidence/sea-dawn-contact-20261021/drift/run-probe.py.txt).
+Straight-line impulse, boost, brake and airborne sequences remain bit-identical;
+these are motion-model checks, with player-scene acceptance still open.
+
 `PROGRAM/scripts/sea_phonk.c` owns2% maximum hull regeneration per game second
 and the main-player protection policy described above. Pause, reload, death and
 mode disposal retain their existing guards. The former5%/25% contact-episode

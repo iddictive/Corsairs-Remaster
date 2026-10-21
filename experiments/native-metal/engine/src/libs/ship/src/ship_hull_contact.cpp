@@ -1,8 +1,11 @@
 #include "ship.h"
 #include "math_inlines.h"
 #include "../../touch/src/ship_contact.hpp"
+#include "ship_damage_trace.hpp"
 
+#include <bit>
 #include <cmath>
+#include <unordered_set>
 
 namespace
 {
@@ -10,6 +13,7 @@ struct HullContactProjection
 {
     CMatrix local;
     std::vector<storm::ship::contact::Vec2> points;
+    std::unordered_set<uint64_t> projectedVertices;
     CVECTOR lower = CVECTOR(0.f), upper = CVECTOR(0.f);
     bool any = false;
 };
@@ -28,7 +32,12 @@ bool collectHullContact(const GEOS::VERTEX *vertices, int32_t count)
         }
         projection.any = true;
         const auto local = projection.local * vertex;
-        projection.points.push_back({local.x, local.z});
+        // Clip repeats each shared vertex for its incident triangles. Keep
+        // exact projected positions once before the unchanged convex-hull sort.
+        const auto x = std::bit_cast<uint32_t>(local.x == 0.f ? 0.f : local.x);
+        const auto z = std::bit_cast<uint32_t>(local.z == 0.f ? 0.f : local.z);
+        if (projection.projectedVertices.insert((uint64_t(x) << 32) | z).second)
+            projection.points.push_back({local.x, local.z});
     }
     return true;
 }
@@ -48,12 +57,14 @@ bool SHIP::GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, fl
     if (contactGeometry != root->geo || contactGeneration != generation ||
         contactCollisionRevision != collisionRevision || contactRevision != phonkLaser.contourRevision)
     {
+        storm_ship_damage_trace::Phase timing("contact-contour-build", uint64_t(GetId()));
         // Native Clip enumerates the current collision surface after cuts;
         // original GM bounds only enclose that query, never become its shape.
         GEOS::INFO info{};
         root->geo->GetInfo(info);
         HullContactProjection projection;
         projection.local = root->loc_mtx;
+        projection.projectedVertices.reserve(std::max(0, info.ntriangles));
         auto *previous = activeHullContactProjection;
         activeHullContactProjection = &projection;
         root->geo->Clip(nullptr, 0, info.boxcenter, info.radius + .01f, collectHullContact);

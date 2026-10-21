@@ -1,5 +1,21 @@
 # Ship collision and contact with sinking ships
 
+## First wreck contour preparation
+
+The first contour cache miss now removes exact duplicate XZ vertices before the
+existing convex-hull sort. Bounds, transformed geometry, contour revisions and
+cache invalidation retain their owners. Signed zero shares a deduplication key;
+nonfinite input keeps the existing rejection behavior.
+
+A paired two-ship native TOUCH diagnostic records the first frame after native
+death: contour preparation falls from17.468 to10.712ms in ordinary mode and
+17.373 to10.057ms in Phonk. All192 recorded physics/event/death rows match in
+each pair. The Phonk candidate additionally waits6.803ms for a drawable, so its
+full frame is21.193ms, not14ms. The script collision handler is a labelled proxy;
+the player's reported first nonlethal collision hitch remains unaccepted.
+[Raw measurements, frozen probes and input identities](evidence/sea-dawn-contact-20261021/manifest.json)
+retain the comparison without player saves.
+
 October 18 player correction: structural contact fracture is off by default
 through `STORM_METAL_STRUCTURAL_CONTACT`; only exact `1` opts in. TOUCH keeps
 ordinary ship/ship and shore motion plus existing HP events, but does not fetch

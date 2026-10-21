@@ -1,5 +1,43 @@
 # Sea reflection motion
 
+## Authored sky and distant haze
+
+The shared directional fog field samples the actual current/next and storm sky
+textures, including their rotation, elevation, mirrored lower sky and camera
+offset. Distant islands therefore approach the panorama behind them rather than
+one uniform weather color. The visible sky and this field share one coordinate
+mapping in `authored_sky.hpp`; local-volume extinction and field resolution keep
+their existing owners.
+
+An actual Metal component replay accepts direction, elevation, rotation, both
+blends, absent-source fallback and mirrored-camera cases.200,027 coordinate
+comparisons with the previous sky mapping have maximum UV error5.96e-08.
+Warmed32-dispatch batches measure0.012285→0.041363ms median per field dispatch;
+this is not a complete scene timing. [Retained measurements and probe sources](evidence/sea-dawn-contact-20261021/manifest.json)
+do not close the reported foreground horizon cut or the duplicated solar source.
+
+## Authored solar direction and late glare
+
+Native visual sunlight uses one coherent daylight source cached from the loaded
+panorama; current/next/storm blends and rotation drive the disc, lighting and
+road together. Existing day eligibility and physical elevation/radiance gates
+remain. Dark or invalid sources suppress a replacement sun, while the moon
+retains its previous visual vector.
+
+The late halo uses existing depth testing at far viewport depth, preserving
+foreground rigging and distant opaque geometry while retaining clear-sky glare.
+[Source, native negatives and paired full-consumer measurements](evidence/sea-dawn-contact-20261021/solar/README.md)
+retain timing tails and limits; installed player-scene acceptance remains separate.
+
+## Sun-road occlusion
+
+`SUNGLOW::DrawReflection` samples the authored sky's solar transmission for its
+current reflection camera. It retains its own geometry trace and solar-elevation
+fade, independently of the main camera's `fFadeout`: a near ship hiding the
+visible sun must not extinguish the entire reflection. Cloud transmission,
+moon gain and sun-road cube cadence retain their existing owners. An installed
+scene replay is still required to accept the visible reflection and horizon.
+
 ## Ship interior water exclusion
 
 **Disabled by the player's explicit October18 instruction.** Only exact

@@ -1,9 +1,10 @@
 #pragma once
 #include "cloud_visibility_msl.hpp"
 #include "sky_fog.hpp"
+#include "authored_sky.hpp"
 #include <string>
 namespace storm_metal {
-inline const std::string volumetricSkyShaderStorage=std::string(cloudVisibilityMSL)+skyFogMSL+R"MSL(
+inline const std::string volumetricSkyShaderStorage=std::string(cloudVisibilityMSL)+skyFogMSL+authoredSkyCoordinatesMSL+R"MSL(
 /*
 // Cloud shader and Godot code
 
@@ -686,8 +687,27 @@ fragment float4 dynamic_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[bu
     float4 rad=skyRadiance(normalize(in.direction),weather,cloudFrom,cloudTo,atmosphere,transmittance);
     return skyLocalComposite(float4(rad.rgb+float3(1.f,.25f,.055f)*rad.a,1.f),float3(in.position.xy,1.f),fogDraw,localVolume);
 }
-kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],constant SkyWeather&weather [[buffer(0)]],uint2 pixel [[thread_position_in_grid]]) {
+kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(0)]],texture2d<float>cloudFrom [[texture(1)]],texture2d<float>cloudTo [[texture(2)]],texture2d<float>atmosphere [[texture(3)]],texture2d<float>transmittance [[texture(4)]],array<texture2d<float>,20>authored [[texture(5)]],constant SkyWeather&weather [[buffer(0)]],constant float4&panorama [[buffer(1)]],constant float&cameraHeight [[buffer(2)]],uint2 pixel [[thread_position_in_grid]]) {
     if(any(pixel>=uint2(output.get_width(),output.get_height())))return;
+    if(weather.options.x<-1.5f){
+        constexpr sampler s(coord::normalized,address::clamp_to_edge,filter::linear);
+        float2 uv=(float2(pixel)+.5f)/float2(output.get_width(),output.get_height());
+        float phi=6.28318530718f*(uv.x-.5f)+panorama.w,l=uv.y*2.f-1.f;
+        float theta=l*l*sign(l)*1.57079632679f;
+        float3 ray=float3(cos(theta)*cos(phi),sin(theta),cos(theta)*sin(phi));
+        float side=1.f/max(max(abs(ray.x),abs(ray.z)),1.e-6f);
+        float top=ray.y>1.e-6f?(1.f-cameraHeight)/ray.y:1.e10f;
+        float3 point=float3(0,cameraHeight,0)+ray*min(side,top);
+        auto coordinate=authoredSkyCoordinate(point.x,abs(point.y),point.z);
+        uint face=uint(coordinate.face);float2 skyUV=float2(coordinate.u,coordinate.v);
+        // Match GenerateSky's existing texture-edge inset, including its side
+        // faces' full lower V endpoint and the top face's symmetric border.
+        skyUV.x=mix(1.f/1024.f,1.f-1.f/1024.f,skyUV.x);
+        skyUV.y=mix(1.f/1024.f,face==4?1.f-1.f/1024.f:1.f,skyUV.y);
+        float3 original=mix(authored[face].sample(s,skyUV).rgb,authored[5+face].sample(s,skyUV).rgb,panorama.x);
+        float3 storm=mix(authored[10+face].sample(s,skyUV).rgb,authored[15+face].sample(s,skyUV).rgb,panorama.y);
+        output.write(float4(mix(original,storm,panorama.z),0),pixel);return;
+    }
     if(weather.options.x<0.f){output.write(float4(weather.horizonFog.rgb,0),pixel);return;}
     float2 uv=(float2(pixel)+.5f)/float2(output.get_width(),output.get_height());
     float azimuth=6.28318530718f*(uv.x-.5f),l=uv.y*2.f-1.f;

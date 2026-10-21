@@ -344,6 +344,7 @@ struct Device : storm_render::Device {
  bool dynamicSkyEnabled=false,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;uint32_t solarShape=0;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
  storm_metal::VolumetricSky volumetricSky;storm_metal::LocalWeatherVolume localWeather;uint64_t dynamicSkyFrame=0,dynamicSkyWeatherFrame=~uint64_t(0);bool dynamicSkyWeatherSeeded=false;
  simd_float4 authoredSky{};FrameArena::Slice weatherLight;uint64_t authoredSkyFrame=~uint64_t(0);
+ storm_metal::VolumetricSky::AuthoredTextures authoredFogTextures{};simd_float4 authoredFogBlend{};float authoredFogHeight=0.f;
  id<MTLLibrary> cinematicPostFXLibrary;id<MTLRenderPipelineState> cinematicBrightPipeline,cinematicBlurPipeline,cinematicCompositePipeline,cinematicLuminancePipeline;id<MTLTexture> cinematicBloomA,cinematicBloomB;std::array<id<MTLTexture>,FrameFlightRing::count> cinematicLuminance{};id<MTLSamplerState> cinematicSampler;CinematicExposure cinematicExposure;std::chrono::steady_clock::time_point cinematicLastFrame{};bool cinematicLuminancePending=false,cinematicPostFXLogged=false;uint64_t cinematicPostFXFrames=0;
  storm_metal::SoftAimVolume aimVolume;
  storm_metal::ShipFireRenderer shipFire;
@@ -615,13 +616,23 @@ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRef
   authoredSkyFrame=dynamicSkyFrame;
   if(!dynamicSkyEnabled){dynamicSkyActive=true;return true;}
   finish();if(!command)command=[queue commandBuffer];auto weather=storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog);
-  if(!volumetricSky.encodeAir(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather)){fprintf(stderr,"[StormMetal] atmosphere allocation/input failure; retaining authored sky\n");dynamicSkyEnabled=false;return false;}
+  if(!volumetricSky.encodeAir(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather,authoredFogTextures,authoredFogBlend,authoredFogHeight)){fprintf(stderr,"[StormMetal] atmosphere allocation/input failure; retaining authored sky\n");dynamicSkyEnabled=false;return false;}
   std::array<simd_float4,5> incident{};incident[0].x=1.f;incident[1]=color(rs[storm_render::RenderAmbient]);
   for(unsigned i=0;i<8;++i)if(enabled[i]&&lights[i].Type==storm_render::LightKind::Directional){incident[0].yzw+=simd_make_float3(lights[i].Diffuse.r,lights[i].Diffuse.g,lights[i].Diffuse.b);}
   weatherLight=frameArena.allocate(metal,sizeof(incident));if(!weatherLight.buffer)return false;std::memcpy(weatherLight.data,incident.data(),sizeof(incident));
   simd_float4x4 view,projection;memcpy(&view,&matrices[storm_render::TransformView],64);memcpy(&projection,&matrices[storm_render::TransformProjection],64);
   if(!localWeather.encode(metal,dynamicSkyLibrary,command,dynamicSkyFrame,weather,view,projection,landShadow.worldOrigin,volumetricSky.shape,volumetricSky.detail,volumetricSky.weatherNoise,volumetricSky.atmosphere,weatherLight.buffer,!(landShadow.locationActive&&landShadow.indoor),weatherLight.offset))return false;
   dynamicSkyActive=true;return true;
+ }
+ void setAuthoredSkyFog(void*const*sources,float blend,float stormBlend,float amount,float rotation,float cameraHeight){
+  storm_metal::VolumetricSky::AuthoredTextures textures{};
+  if(sources){bool valid=true;for(unsigned i=0;i<textures.size();++i){auto*texture=dynamic_cast<Texture*>(static_cast<storm_render::BaseTexture*>(sources[i]));textures[i]=texture?texture->gpu():nil;valid&=textures[i]!=nil;}if(!valid)textures={};}
+  const simd_float4 params={std::clamp(blend,0.f,1.f),std::clamp(stormBlend,0.f,1.f),std::clamp(amount,0.f,1.f),rotation};
+  if(textures==authoredFogTextures&&simd_all(params==authoredFogBlend)&&cameraHeight==authoredFogHeight)return;
+  authoredFogTextures=textures;authoredFogBlend=params;authoredFogHeight=cameraHeight;
+  // SUNGLOW can prepare air before SKY publishes this frame's panorama. Refresh
+  // that projection once; ordinary scene and reflection draws reuse it.
+  if(atmosphereCurrent()){finish();if(!command)command=[queue commandBuffer];volumetricSky.encodeFog(command,dynamicSkyFrame,storm_metal::makeDynamicSkyUniform(dynamicSkyInput,dynamicSkyFog),authoredFogTextures,authoredFogBlend,authoredFogHeight);}
  }
  void endDynamicSky(){dynamicSkyActive=false;}
  bool cloudFieldCurrent()const{return dynamicSkyEnabled&&volumetricSky.primed&&volumetricSky.lastFrame==dynamicSkyFrame;}
@@ -805,7 +816,7 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   if(!nextBack->gpu||(nextDepth&&!nextDepth->gpu)){nextBack->Release();if(nextDepth)nextDepth->Release();return storm_render::result::outOfMemory;}
   const bool previousLandLocation=landShadow.locationActive,previousLandIndoor=landShadow.indoor;const auto previousLandOrigin=landShadow.worldOrigin;
   dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;++seaReflectionFrame;synchronize();gpuCapture.stop("device reset during capture");gpuCapture.seaDrawn=false;clearBindings();drained=false;
-  localWeather={};weatherLight={};authoredSky={};volumetricSky.reset();sceneMSAA={};dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);
+  localWeather={};weatherLight={};authoredSky={};authoredFogTextures={};authoredFogBlend={};authoredFogHeight=0.f;volumetricSky.reset();sceneMSAA={};dynamicSkyWeatherSeeded=false;dynamicSkyWeatherFrame=~uint64_t(0);
   back=nextBack;depth=nextDepth;back->bindOwner(this);if(depth)depth->bindOwner(this);target=back;zbuffer=depth;
   initializeStates();landShadow.locationActive=previousLandLocation;landShadow.indoor=previousLandIndoor;landShadow.worldOrigin=previousLandOrigin;fvf=storm_render::vertexFormat::xyz;stride=offset=0;vp={0,0,pp->width,pp->height,0,1};layer.displaySyncEnabled=pp->vSync;layer.drawableSize=CGSizeMake(pp->width,pp->height);
   fprintf(stderr,"[StormMetal] Reset backbuffer %ux%u\n",pp->width,pp->height);return storm_render::result::ok;
@@ -1928,6 +1939,7 @@ extern "C" bool StormMetalPrepareDynamicSky(void*pointer,float hour,float deltaS
 extern "C" void StormMetalEndDynamicSky(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endDynamicSky();}
 extern "C" bool StormMetalDynamicSkyActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->dynamicSkyActive;}
 extern "C" void StormMetalSetAuthoredSky(void*pointer,float blend,bool present,float amount){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->authoredSky={std::clamp(blend,0.f,1.f),float(present),std::clamp(amount,0.f,1.f),0};}
+extern "C" void StormMetalSetAuthoredSkyFog(void*pointer,void*const*sources,float blend,float stormBlend,float amount,float rotation,float cameraHeight){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->setAuthoredSkyFog(sources,blend,stormBlend,amount,rotation,cameraHeight);}
 extern "C" bool StormMetalBeginSkyFog(void*pointer,uint32_t fogColor){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->beginSkyFog(fogColor);}
 extern "C" void StormMetalEndSkyFog(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endSkyFog();}
 extern "C" bool StormMetalSkyFogActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->skyFogActive;}

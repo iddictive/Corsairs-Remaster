@@ -75,6 +75,7 @@ class WEATHER : public WEATHER_BASE
     uint32_t GetVisualColor(uint32_t) override;
     float GetVisualFloat(uint32_t) override;
     void GetVisualVector(uint32_t, CVECTOR *) override;
+    float GetVisualSunVisibility() override;
     float GetVisualRainIntensity() override { return visualState.rainIntensity / 5000.f; }
     float GetStormStrength() override { return weatherEngine.local().storm; }
     float GetVisualRainDrops() override { return weatherOutside ? visualState.rainIntensity : 0.f; }

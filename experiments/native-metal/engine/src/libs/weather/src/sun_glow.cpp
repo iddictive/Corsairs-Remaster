@@ -329,7 +329,9 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
     pRS->GetCamera(vCamPos, vCamAng, fFov);
     vSunDir = !vSunPos;
     vSun = vCamPos + (vSunDir * Glow.fDist);
-    const auto fElevFade = SunElevationFade(vSunPos,
+    CVECTOR physicalSource=vSunPos;
+    if(!bMoon)pWeather->GetVector(whv_sun_pos,&physicalSource);
+    const auto fElevFade = SunElevationFade(physicalSource,
         SolarSourceSize(pRS, bMoon, bMoon ? Glow.fMoonSize : Glow.fSunSize, Glow.fDist), Glow.fDist);
 
     auto bTempVisibleFlare = true;
@@ -388,14 +390,15 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
     fBottomClip = fSeaHeight;
 
     // float fGlowSize = bMoon ? Glow.fMoonSize : Glow.fSunSize;
-    fFadeout = 1.f;
+    const float sourceVisibility=bMoon?1.f:pWeather->GetVisualSunVisibility();
+    fFadeout = sourceVisibility;
 
     // if (bHaveGlow && vSun.y > fBottomClip-fGlowSize)
     if (bHaveGlow && vSun.y > fBottomClip - Glow.fGlowSize)
     {
         // Geometry blocks direct glare immediately; the legacy alpha decay
         // must not keep a halo shining through an island after the trace hits.
-        fFadeout = (fSunTrace > 1.f ? 1.f : 0.f) * GetSunFadeoutFactor(vSun, Glow.fGlowSize);
+        fFadeout = sourceVisibility * (fSunTrace > 1.f ? 1.f : 0.f) * GetSunFadeoutFactor(vSun, Glow.fGlowSize);
 
         // CVECTOR vSunColor = ((bMoon) ? fFadeout : (1.0f - fAlpha) * 0.5f*fFadeout) * COLOR2VECTOR(Glow.dwColor);
         // CVECTOR vSunColor = fFadeout * COLOR2VECTOR(Glow.dwColor);
@@ -417,8 +420,18 @@ void SUNGLOW::Realize(uint32_t Delta_Time)
                                    static_cast<uint32_t>(vGlowColor.z));
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
             MetalSolarShapeScope solarShape(pRS, 2, Glow.fGlowSize, Glow.fDist);
-#endif
+            // The late additive halo belongs behind every scene receiver.
+            // Its finite billboard distance must not put it ahead of islands.
+            storm_render::Viewport viewport;
+            pRS->GetViewport(&viewport);
+            auto skyViewport=viewport;
+            skyViewport.MinZ=skyViewport.MaxZ=1.f;
+            pRS->SetViewport(&skyViewport);
+            DrawRect(rgb, vSun, Glow.fGlowSize, fAngle * 1.f, Glow.sTechniqueZ.c_str(), fSeaHeight);
+            pRS->SetViewport(&viewport);
+#else
             DrawRect(rgb, vSun, Glow.fGlowSize, fAngle * 1.f, Glow.sTechniqueNoZ.c_str(), fSeaHeight);
+#endif
         }
     }
 
@@ -495,7 +508,10 @@ void SUNGLOW::DrawSunMoon()
 
     if (bHaveGlow && vSun.y > vCamPos.y - fGlowSize)
     {
-        const CVECTOR vGlowColor = COLOR2VECTOR(Glow.dwColor);
+        CVECTOR physicalSource=vSunPos;
+        if(!bMoon)pWeather->GetVector(whv_sun_pos,&physicalSource);
+        const float sourceVisibility=bMoon?1.f:pWeather->GetVisualSunVisibility()*SunElevationFade(physicalSource,fGlowSize,Glow.fDist);
+        const CVECTOR vGlowColor = sourceVisibility * COLOR2VECTOR(Glow.dwColor);
 
         if (bMoon)
             pRS->TextureSet(0, iMoonTex);
@@ -713,7 +729,7 @@ uint32_t SUNGLOW::AttributeChanged(ATTRIBUTES *pAttribute)
     return 0;
 }
 
-void SUNGLOW::DrawReflection() const
+void SUNGLOW::DrawReflection()
 {
     if (!bHaveReflection)
         return;
@@ -726,15 +742,20 @@ void SUNGLOW::DrawReflection() const
     pRS->GetCamera(vCamPos, vCamAng, fFov);
     vSunDir = !vSunPos;
     vSun = vCamPos + (vSunDir * Reflection.fDist);
-    const auto fElevFade = SunElevationFade(vSunPos,
+    CVECTOR physicalSource=vSunPos;
+    if(!bMoon)pWeather->GetVector(whv_sun_pos,&physicalSource);
+    const auto fElevFade = SunElevationFade(physicalSource,
         SolarSourceSize(pRS, bMoon, bMoon ? Glow.fMoonSize : Glow.fSunSize, Glow.fDist), Glow.fDist);
     // The SunRoad target contains no islands. Reuse their collision layer
     // from this reflection camera, including sources outside the main view.
     const auto fGeometryFade = LayerTrace(vCamPos, core.GetEntityIds(SUN_TRACE)) > 1.f ? 1.f : 0.f;
+    // Direct glare visibility belongs to the main camera. The reflection's
+    // source retains its own panorama opacity and geometry trace.
+    const auto fSourceFade = (bMoon?1.f:pWeather->GetVisualSunVisibility()) * GetSunFadeoutFactor(vSun, Glow.fGlowSize);
 
     RS_RECT r_spr;
     r_spr.dwColor = (0xFFFFFF & Reflection.dwColor) |
-                    (static_cast<int32_t>(fFadeout * fElevFade * fGeometryFade * 255.f) << 24);
+                    (static_cast<int32_t>(fSourceFade * fElevFade * fGeometryFade * 255.f) << 24);
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
     if (bMoon)
         r_spr.dwColor = (r_spr.dwColor & 0xFF000000) |

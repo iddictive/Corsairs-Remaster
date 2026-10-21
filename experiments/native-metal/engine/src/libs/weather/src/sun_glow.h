@@ -131,7 +131,7 @@ class SUNGLOW : public Entity
 
     float LayerTrace(CVECTOR &vSrc, entity_container_cref its) const;
     void GenerateSunGlow();
-    void DrawReflection() const;
+    void DrawReflection();
     void Release();
 
     void DrawRect(uint32_t dwColor, const CVECTOR &pos, float fSize, float fAngle, const char *pcTechnique,

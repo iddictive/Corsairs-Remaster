@@ -6,6 +6,7 @@
 #include "collide.h"
 #include "model.h"
 #include "ship_mast_support.hpp"
+#include "ship_damage_trace.hpp"
 #include <cstdlib>
 #include <limits>
 #include <set>
@@ -565,9 +566,12 @@ void TOUCH::TouchIsland(int32_t idx)
     const float yaw = -pShips[idx]->TP[0].vAng.y;
     RotateAroundY(localPoint.x, localPoint.z, cosf(yaw), sinf(yaw));
     RotateAroundY(localNormal.x, localNormal.z, cosf(yaw), sinf(yaw));
-    const auto accepted = core.Event(SHIP_SHIP2ISLAND_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()), -1,
-        METERS2KNOTS(impact.closing), 0.f, GetTouchPoint(idx, localPoint),
-        impact.point.x, impact.point.y, impact.point.z);
+    const auto accepted = [&] {
+        storm_ship_damage_trace::Phase timing("contact-island-event", uint64_t(ship->GetId()));
+        return core.Event(SHIP_SHIP2ISLAND_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()), -1,
+            METERS2KNOTS(impact.closing), 0.f, GetTouchPoint(idx, localPoint),
+            impact.point.x, impact.point.y, impact.point.z);
+    }();
     const float fraction = accepted && std::isfinite(accepted->GetFloat()) ?
         std::clamp(accepted->GetFloat(), 0.f, 1.f) : 0.f;
     ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[idx]->eID));
@@ -830,10 +834,13 @@ void TOUCH::ResolveShips()
                 const double strength = ship->GetHullContactStrength(localPoint.z, localNormal.z);
                 const double damageFraction = specificEnergy / (specificEnergy + strength);
                 const float hp = float(maximum * damageFraction);
-                const auto accepted = core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
-                           owner, hp * .1f, 0.f, 1,
-                           float(impact.point.x), float(impact.height),
-                           float(impact.point.z));
+                const auto accepted = [&] {
+                    storm_ship_damage_trace::Phase timing("contact-ship-event", uint64_t(ship->GetId()));
+                    return core.Event(SHIP_SHIP2SHIP_COLLISION, "llfflfff", GetIndex(ship->GetACharacter()),
+                               owner, hp * .1f, 0.f, 1,
+                               float(impact.point.x), float(impact.height),
+                               float(impact.point.z));
+                }();
                 if (accepted)
                 {
                     const float value = accepted->GetFloat();

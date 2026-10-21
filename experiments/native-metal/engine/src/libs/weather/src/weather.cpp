@@ -304,11 +304,7 @@ void WEATHER::SetCommonStates()
     storm_render::Light sun;
 
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
-    vSun.x = 5000.0f;
-    vSun.y = 0.0f;
-    RotateAroundY(vSun.x, vSun.y, cosf(-fSunHeightAngle), sinf(-fSunHeightAngle));
-    vSun.z = 0.0f;
-    RotateAroundY(vSun.x, vSun.z, cosf(fSunAzimuthAngle), sinf(fSunAzimuthAngle));
+    GetVisualVector(whv_sun_pos,&vSun);
 #else
     if (fFloats[whf_time_speed] == 0.f)
     {
@@ -335,6 +331,9 @@ void WEATHER::SetCommonStates()
     // color across civil twilight. Moonlight is preserved by construction:
     // while the moon is up whf_sun_height_angle carries its height.
     vSunColor = vSunColor * CLAMP((fSunHeightAngle + 0.12f) / 0.14f);
+#ifdef STORM_METAL_WEATHER_VISUAL_STATE
+    vSunColor = vSunColor * GetVisualSunVisibility();
+#endif
 
     sun.Type = storm_render::LightKind::Directional;
     sun.Diffuse.r = vSunColor.x;
@@ -418,6 +417,10 @@ void WEATHER::UpdateVisualState(uint32_t deltaTime, bool completeSceneBind)
                        dwColors[whc_sun_color], fFloats[whf_wind_angle], fFloats[whf_wind_speed],
                        visualRainTarget, fFloats[whf_time_counter], fFloats[whf_sun_height_angle],
                        fFloats[whf_sun_azimuth_angle], static_cast<float>(deltaTime) * .001f);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    if(const auto id=core.GetEntityId("sky"))
+        static_cast<SKY *>(core.GetEntityPointer(id))->PrepareVisualSun(deltaTime);
+#endif
 }
 
 float WEATHER::GetVisualFloat(uint32_t code)
@@ -428,8 +431,10 @@ float WEATHER::GetVisualFloat(uint32_t code)
     if (code == whf_wind_angle) return visualState.windAngle;
     if (code == whf_wind_speed) return visualState.windSpeed;
     if (code == whf_time_counter) return visualState.timeOfDay;
-    if (code == whf_sun_height_angle) return visualState.sunHeight;
-    if (code == whf_sun_azimuth_angle) return visualState.sunAzimuth;
+    if (code == whf_sun_height_angle || code == whf_sun_azimuth_angle) {
+        CVECTOR sun;GetVisualVector(whv_sun_pos,&sun);
+        return code==whf_sun_height_angle?std::asin(std::clamp(sun.y/5000.f,-1.f,1.f)):std::atan2(-sun.z,sun.x);
+    }
     return GetFloat(code);
 }
 
@@ -448,11 +453,36 @@ void WEATHER::GetVisualVector(uint32_t code, CVECTOR *vOut)
     if (code != whv_sun_pos) { GetVector(code, vOut); return; }
     if (!visualState.initialized)
         UpdateVisualState(0);
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    if(!bMoonPresent) {
+        *vOut=CVECTOR(0.f,-5000.f,0.f);
+        if(GetVisualSunVisibility()>0.f)
+            if(const auto id=core.GetEntityId("sky"))
+                static_cast<SKY *>(core.GetEntityPointer(id))->GetAuthoredSun(*vOut);
+        return;
+    }
+#endif
     vOut->x = 5000.0f;
     vOut->y = 0.0f;
     RotateAroundY(vOut->x, vOut->y, cosf(-visualState.sunHeight), sinf(-visualState.sunHeight));
     vOut->z = 0.0f;
     RotateAroundY(vOut->x, vOut->z, cosf(visualState.sunAzimuth), sinf(visualState.sunAzimuth));
+}
+
+float WEATHER::GetVisualSunVisibility()
+{
+    if(!visualState.initialized)UpdateVisualState(0);
+    if(bMoonPresent)return 1.f;
+#ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
+    if(!bSunPresent)return 0.f;
+    if(const auto id=core.GetEntityId("sky")) {
+        CVECTOR direction;
+        return static_cast<SKY *>(core.GetEntityPointer(id))->GetAuthoredSun(direction);
+    }
+    return 0.f;
+#else
+    return 1.f;
+#endif
 }
 #endif
 
