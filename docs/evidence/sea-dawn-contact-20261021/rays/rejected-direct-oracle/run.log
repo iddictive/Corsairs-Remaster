@@ -1,0 +1,8 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 128x128; SDL drawable 128x128; samples 1
+[StormMetal] water mode: modern Metal
+[StormMetal alpha] role=0 fvf=00000002 test=0 ref=0 func=0 blend=1 src=2 dst=5 zwrite=1 s0=2/0/1 fmt=21 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal] GPU scene color/depth snapshot 128x128 before water
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=0 func=0 blend=1 src=2 dst=5 zwrite=1 s0=2/0/1 fmt=21 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+FAIL lower signed hemisphere matches finite mirrored SKY
+RGB RMSE actualSea2 vs independent finite mirroredcube: upper=6.076287 down=0.281036 positive=13.348610 negative=0.250155 mapreturn=byte-exact

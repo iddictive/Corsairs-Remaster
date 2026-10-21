@@ -696,8 +696,9 @@ kernel void sky_fog_environment(texture2d<float,access::write> output [[texture(
         float theta=l*l*sign(l)*1.57079632679f;
         float3 ray=float3(cos(theta)*cos(phi),sin(theta),cos(theta)*sin(phi));
         float side=1.f/max(max(abs(ray.x),abs(ray.z)),1.e-6f);
-        float top=ray.y>1.e-6f?(1.f-cameraHeight)/ray.y:1.e10f;
-        float3 point=float3(0,cameraHeight,0)+ray*min(side,top);
+        // SKY mirrors its cube below the camera; intersect that lower cap too.
+        float cap=abs(ray.y)>1.e-6f?((ray.y>0.f?1.f:-1.f)-cameraHeight)/ray.y:1.e10f;
+        float3 point=float3(0,cameraHeight,0)+ray*min(side,cap);
         auto coordinate=authoredSkyCoordinate(point.x,abs(point.y),point.z);
         uint face=uint(coordinate.face);float2 skyUV=float2(coordinate.u,coordinate.v);
         // Match GenerateSky's existing texture-edge inset, including its side
