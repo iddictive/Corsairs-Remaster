@@ -1,0 +1,79 @@
+{
+  "player_microfreeze_acceptance": false,
+  "impacts": [
+    {
+      "frame": "21",
+      "phase": "1",
+      "touch_ms": "0.386167",
+      "event_count": "2",
+      "event_ms": "0.258667",
+      "audio_ms": "0.244667",
+      "kills": "0",
+      "driver_x": "-34.6207",
+      "driver_z": "170",
+      "target_x": "0.383655",
+      "target_z": "170",
+      "driver_knots": "137.417",
+      "target_knots": "0.0106412",
+      "target_dead": "0",
+      "cpu_wall_ms": 12.7838,
+      "new_events": 2
+    },
+    {
+      "frame": "85",
+      "phase": "2",
+      "touch_ms": "0.156375",
+      "event_count": "4",
+      "event_ms": "0.29575",
+      "audio_ms": "0.267708",
+      "kills": "0",
+      "driver_x": "-34.6207",
+      "driver_z": "170",
+      "target_x": "0.383655",
+      "target_z": "170",
+      "driver_knots": "137.417",
+      "target_knots": "0.0106412",
+      "target_dead": "0",
+      "cpu_wall_ms": 8.20642,
+      "new_events": 2
+    },
+    {
+      "frame": "149",
+      "phase": "3",
+      "touch_ms": "0.162958",
+      "event_count": "6",
+      "event_ms": "0.33825",
+      "audio_ms": "0.291042",
+      "kills": "1",
+      "driver_x": "-34.6207",
+      "driver_z": "170",
+      "target_x": "0.383655",
+      "target_z": "170",
+      "driver_knots": "137.417",
+      "target_knots": "-0.006744",
+      "target_dead": "1",
+      "cpu_wall_ms": 8.5015,
+      "new_events": 2
+    }
+  ],
+  "phase_maxima": {
+    "0": {
+      "core_wall_ms_max": 43.6091,
+      "touch_ms_max": 0.0417917
+    },
+    "1": {
+      "core_wall_ms_max": 13.8739,
+      "touch_ms_max": 0.386167
+    },
+    "2": {
+      "core_wall_ms_max": 10.1363,
+      "touch_ms_max": 0.156375
+    },
+    "3": {
+      "core_wall_ms_max": 30.7353,
+      "touch_ms_max": 10.1559
+    }
+  },
+  "final_events": 6,
+  "final_kills": 1
+}

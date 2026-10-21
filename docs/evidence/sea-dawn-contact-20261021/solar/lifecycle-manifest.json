@@ -1,0 +1,56 @@
+{
+  "pilot": true,
+  "performance_acceptance": false,
+  "binary_sha256": "b49c4577d9400cb79a15ba0c14c2dbab81380da1355ec2da62dcd2dc72042d6f",
+  "native_source_sha256": "70f85159082c19e3c2b0723bf875ea5d592479656d44f5876134133f2195d864",
+  "inputs": {
+    "ship-catalog": "82dc783d804692b19067d2655e43b54b578381a8c8c273852b365905e6495cbd",
+    "ship-lights": "74c4723efb08a4c032ead9a5a9910f23dd2e493fdfbd0395ab922a4506a41554",
+    "day": "4dd4a88adb31c2e73acd8735774316bb55b91a6fb3825b9accbd470a27cf119e",
+    "units": "c9b7b9e439b82e64d0cff057b2a6f33ac7ff9e9e6d214f62b0b724462688e09b",
+    "native-declarations": "cb0f323eb3c97b9be513a5c5d4a761e29bc021506a8619c3ba0e6968b307e079",
+    "cannon-declarations": "28fc2dfa86bfb663c8b935a30b4e76ec7b6c92938ff86160fcf7819e0423b7d0",
+    "fixture": "2eea6cd256668963278d5f765921ca8e65dc10cf8a8221376844cdd99d49dbc4"
+  },
+  "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+  "settings": {
+    "STORM_METAL_DYNAMIC_LIGHTING": "1",
+    "STORM_METAL_MODERN_WATER": "1",
+    "STORM_METAL_MODERN_LIGHTING": "1",
+    "STORM_METAL_CINEMATIC": "1",
+    "STORM_METAL_LIGHT_SHAFTS": "1",
+    "STORM_METAL_DYNAMIC_SKY": "1",
+    "STORM_METAL_ANTIALIASING": "0",
+    "STORM_METAL_SHADOW_QUALITY": "2",
+    "STORM_METAL_UPSCALING": "0",
+    "STORM_METAL_AA_MODE": "0",
+    "STORM_METAL_MODERN_EFFECTS": "1",
+    "STORM_METAL_PROFILE": "1"
+  },
+  "backend_environment": {
+    "STORM_METAL_AA_MODE": "0",
+    "STORM_METAL_ANTIALIASING": "0",
+    "STORM_METAL_CINEMATIC": "1",
+    "STORM_METAL_DYNAMIC_LIGHTING": "1",
+    "STORM_METAL_DYNAMIC_SKY": "1",
+    "STORM_METAL_FRAME_TRACE": "<REPO>/experiments/native-metal/.cache/diagnostics/sea-fleet-benchmark/20261021-172249/renderer-frames.csv",
+    "STORM_METAL_LIGHT_SHAFTS": "1",
+    "STORM_METAL_MODERN_EFFECTS": "1",
+    "STORM_METAL_MODERN_LIGHTING": "1",
+    "STORM_METAL_MODERN_WATER": "1",
+    "STORM_METAL_PROFILE": "1",
+    "STORM_METAL_SHADOW_QUALITY": "2",
+    "STORM_METAL_UPSCALING": "0"
+  },
+  "resolution": [
+    1920,
+    1080
+  ],
+  "frames": 2,
+  "ships": 8,
+  "instrumented": false,
+  "fixture_sha256": "97db083ae6bbe07126863104df8b9bc1329fc72d677b6cdbc0030a7c015def8d",
+  "condition": "existing eight-ship/noon fixture plus real SunGlow glow+road, no flares/overflow, 160frames/128warmup",
+  "driver_sha256": "e028682b90e0eba5846524526cb00030985730311ace9e3b8015617d84aab3c4",
+  "oracle": "exact GetVisualVector body from999c349 on sameinitialized visualState"
+}

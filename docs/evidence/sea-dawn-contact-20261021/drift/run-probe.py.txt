@@ -1,0 +1,58 @@
+"""Frozen reconstruction recipe, not a maintained test.
+
+From repository root, run with producer-owned temporary storage:
+  python3 -c "exec(open('docs/evidence/sea-dawn-contact-20261021/drift/run-probe.py.txt').read())"
+Requires CODEX_SCRATCH_DIR supplied by the bounded scratch runner. Output is
+written to this evidence directory as results.txt; binaries stay in scratch.
+The original formula is from baseline commit 999c349bc9a2c5d48b8939aee43adb800679c21a.
+The +1 variant was installed and rejected by the player for excessive grip.
+The recalibrated variant is a source/component candidate; player acceptance is open.
+"""
+import hashlib
+import os
+from pathlib import Path
+import re
+import subprocess
+
+ROOT = Path.cwd()
+EVIDENCE = ROOT / 'docs/evidence/sea-dawn-contact-20261021/drift'
+SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
+HEADER = ROOT / 'experiments/native-metal/engine/src/libs/ship/src/ship_phonk.hpp'
+SOURCE = EVIDENCE / 'motion-probe.cpp.txt'
+INCLUDE = ROOT / 'experiments/native-metal/engine/src/libs/shared_headers/include'
+FORMULAS = {
+    'original': 'driving ? .6f - .42f * std::clamp(std::abs(turn), 0.f, 1.f) : .12f',
+    'installed_plus1': '(driving ? .6f : .12f) + std::clamp(std::abs(turn), 0.f, 1.f)',
+    'recalibrated': 'driving ? .6f : .12f + .42f * std::clamp(std::abs(turn), 0.f, 1.f)',
+}
+text = HEADER.read_text()
+pattern = r'const float traction = ([^;]+);'
+matches = re.findall(pattern, text)
+assert len(matches) == 1 and matches[0] in FORMULAS.values()
+lines = [
+    'Component replay: production Drift::advance, yawSpeed and ApplyStrength yaw smoothing.',
+    '120Hz; 20s arcs; 500kt initial; no contacts/currents; both yaw caps and helm signs.',
+    'Radius uses course change and mean speed over final 239 frames.',
+    'Countersteer seeds each variant with its own 20s full-helm state.',
+    'Negative hashes cover every velocity sample, including lateral impulses at frames137/201.',
+    'One-call benchmark is not full-game FPS or player-scene acceptance.',
+    'Production header before recipe SHA256=' + hashlib.sha256(HEADER.read_bytes()).hexdigest(),
+    'Compiler=' + subprocess.check_output(['clang++', '--version'], text=True).splitlines()[0],
+]
+negative = []
+for name, formula in FORMULAS.items():
+    generated = re.sub(pattern, 'const float traction = ' + formula + ';', text)
+    frozen = SCRATCH / (name + '.hpp')
+    frozen.write_text(generated)
+    binary = SCRATCH / name
+    command = ['clang++', '-std=c++17', '-O2', '-I' + str(INCLUDE),
+               '-DPHONK_HEADER="' + str(frozen) + '"', '-x', 'c++', str(SOURCE), '-o', str(binary)]
+    subprocess.run(command, check=True)
+    output = subprocess.check_output([str(binary)], text=True)
+    lines += ['VARIANT=' + name, 'TRACTION=' + formula, output.rstrip()]
+    negative.append([line for line in output.splitlines() if line.startswith('NEG ')])
+assert negative[0] == negative[1] == negative[2], 'negative sequences changed'
+lines.append('PASS all negative sequences match bit-for-bit across all three formulas.')
+result = '\n'.join(lines) + '\n'
+(EVIDENCE / 'results.txt').write_text(result)
+print(result, end='')

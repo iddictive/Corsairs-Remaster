@@ -1,0 +1,20 @@
+[
+  {
+    "input": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/RESOURCE/MODELS/Ships/Manowar1/Manowar1.gm",
+    "sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+    "vertices": 60083,
+    "triangles": 82759
+  },
+  {
+    "input": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/RESOURCE/MODELS/Ships/Santisima1/Santisima1.gm",
+    "sha256": "502f6df288654df44859388a1e2c9886b1994ea44e9e1628f3d3806dbc479893",
+    "vertices": 64382,
+    "triangles": 109855
+  },
+  {
+    "input": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/RESOURCE/MODELS/Ships/SoleyRu1/SoleyRu1.gm",
+    "sha256": "db3f157c146a9408dc197bd64e01ab7655550d9213ffc446a9d7d956f7424d32",
+    "vertices": 59852,
+    "triangles": 103658
+  }
+]

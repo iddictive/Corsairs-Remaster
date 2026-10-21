@@ -1,0 +1,54 @@
+{
+  "kind": "native-contact-proxy",
+  "player_microfreeze_acceptance": false,
+  "mode": "phonk",
+  "frames": 192,
+  "viewport": [
+    1280,
+    800
+  ],
+  "binary_sha256": "2a1ebea255d34e461b51e12067a96de96a224803b80da6bf631529f914aa09bc",
+  "sources": {
+    "fixture": {
+      "path": "$REPO/experiments/native-metal/sea_fleet_fixture.c",
+      "sha256": "2eea6cd256668963278d5f765921ca8e65dc10cf8a8221376844cdd99d49dbc4"
+    },
+    "ship-catalog": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/ships/ships_init.c",
+      "sha256": "82dc783d804692b19067d2655e43b54b578381a8c8c273852b365905e6495cbd"
+    },
+    "ship-lights": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/SEA_AI/ShipLights.c",
+      "sha256": "74c4723efb08a4c032ead9a5a9910f23dd2e493fdfbd0395ab922a4506a41554"
+    },
+    "day": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/Weather/Init/Day.c",
+      "sha256": "4dd4a88adb31c2e73acd8735774316bb55b91a6fb3825b9accbd470a27cf119e"
+    },
+    "units": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/utils.c",
+      "sha256": "c9b7b9e439b82e64d0cff057b2a6f33ac7ff9e9e6d214f62b0b724462688e09b"
+    },
+    "native-declarations": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/seadogs.c",
+      "sha256": "cb0f323eb3c97b9be513a5c5d4a761e29bc021506a8619c3ba0e6968b307e079"
+    },
+    "cannon-declarations": {
+      "path": "$REPO/experiments/native-metal/.cache/runtime/PROGRAM/cannons/cannons.h",
+      "sha256": "28fc2dfa86bfb663c8b935a30b4e76ec7b6c92938ff86160fcf7819e0423b7d0"
+    },
+    "driver": {
+      "path": "$REPO/experiments/native-metal/sea_fleet_benchmark.cpp",
+      "sha256": "c9cd03286b36de62edac4e5d56afa29269ca5ad3bc64b006138be128fdd190d1"
+    },
+    "touch": {
+      "path": "$REPO/experiments/native-metal/engine/src/libs/touch/src/touch.cpp",
+      "sha256": "961d6a71b3142b988fe53c1a3fc2fa92bc5540d1bf6518e78de06641878a0e75"
+    }
+  },
+  "limits": {
+    "seconds": 60,
+    "ships": 2
+  },
+  "scope": "Actual TOUCH/native ship/mast/audio/render path. Script HP consumer is a labelled proxy, excluding perks/crime/naval/full ShipDead script."
+}

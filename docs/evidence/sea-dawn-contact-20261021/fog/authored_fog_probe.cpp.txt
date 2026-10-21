@@ -1,0 +1,94 @@
+#include <SDL.h>
+#include "render_device_api.hpp"
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+extern "C" bool StormMetalBeginDynamicSky(void*,float,float,float,float,float,float,float,float,float,float,uint32_t);
+extern "C" void StormMetalEndDynamicSky(void*);
+#ifdef STORM_FOG_BASELINE
+extern "C" void StormMetalSetAuthoredSkyFog(void*,void*const*,float,float,float,float,float) {}
+#else
+extern "C" void StormMetalSetAuthoredSkyFog(void*,void*const*,float,float,float,float,float);
+#endif
+
+static void need(bool ok,const char*message){if(!ok){std::fprintf(stderr,"FAIL: %s\n",message);std::exit(1);}}
+static uint32_t bits(float value){uint32_t result;std::memcpy(&result,&value,4);return result;}
+static bool close(uint32_t actual,uint32_t expected){for(int shift:{0,8,16})if(std::abs(int(actual>>shift&255)-int(expected>>shift&255))>5)return false;return true;}
+
+int main(int argc,char**argv){
+    const bool baseline=argc==2&&std::strcmp(argv[1],"--baseline")==0;
+    setenv("STORM_METAL_DYNAMIC_SKY","1",1);
+    need(SDL_Init(SDL_INIT_VIDEO)==0,SDL_GetError());
+    auto*window=SDL_CreateWindow("Authored directional fog",0,0,32,32,SDL_WINDOW_METAL|SDL_WINDOW_HIDDEN);
+    need(window!=nullptr,SDL_GetError());
+    storm_render::Presentation presentation{};presentation.width=presentation.height=32;
+    presentation.colorFormat=storm_render::AssetFormat::A8R8G8B8;
+    presentation.depthEnabled=true;presentation.depthFormat=storm_render::AssetFormat::D32;
+    storm_render::Device*device=nullptr;need(storm_render::succeeded(storm_render::createMetalDevice(window,&presentation,&device)),"device");
+    storm_render::Surface*target=nullptr,*read=nullptr;device->GetRenderTarget(&target);
+    device->CreateOffscreenPlainSurface(32,32,storm_render::AssetFormat::A8R8G8B8,&read);
+    std::array<storm_render::Texture*,20> textures{};std::array<void*,20> source{};
+    auto paint=[&](unsigned index,uint32_t top,uint32_t bottom){storm_render::LockedRect lock{};textures[index]->LockRect(0,&lock,nullptr,0);for(int y=0;y<2;++y)for(int x=0;x<2;++x)static_cast<uint32_t*>(static_cast<void*>(static_cast<char*>(lock.pBits)+y*lock.Pitch))[x]=y?bottom:top;textures[index]->UnlockRect(0);};
+    for(unsigned i=0;i<20;++i){need(storm_render::succeeded(device->CreateTexture(2,2,1,0,storm_render::AssetFormat::A8R8G8B8,&textures[i])),"panorama source texture");source[i]=static_cast<storm_render::BaseTexture*>(textures[i]);const uint32_t color=i<5?(i==0?0xff0000ffu:0xffff0000u):i<10?0xff00ff00u:i<15?0xffffff00u:0xff00ffffu;paint(i,color,color);}
+    storm_render::Matrix identity{};identity._11=identity._22=identity._33=identity._44=1;
+    storm_render::Matrix projection{};projection._11=projection._22=1;projection._33=100.f/99.f;projection._34=1;projection._43=-100.f/99.f;
+    struct Vertex{float x,y,z;uint32_t color;};
+    const Vertex triangle[]={{-8,-8,4,0xff00ff00},{24,-8,4,0xff00ff00},{-8,24,4,0xff00ff00}};
+    auto sample=[&](float cameraYaw,float skyYaw,float blend,float stormBlend,float stormAmount,bool fog=true,bool present=true,float pitch=0.f,float height=0.f){
+        device->Present();device->Clear(storm_render::clear::color|storm_render::clear::depth,0,1.f);
+        auto view=identity;view._11=view._33=std::cos(cameraYaw);view._13=-std::sin(cameraYaw);view._31=std::sin(cameraYaw);
+        if(pitch!=0.f){view=identity;view._22=view._33=std::cos(pitch);view._23=std::sin(pitch);view._32=-std::sin(pitch);}
+        auto world=view;world._13=-view._13;world._31=-view._31;world._23=-view._23;world._32=-view._32;
+        device->SetTransform(storm_render::TransformWorld,&world);device->SetTransform(storm_render::TransformView,&view);device->SetTransform(storm_render::TransformProjection,&projection);
+        StormMetalSetAuthoredSkyFog(device,present?source.data():nullptr,blend,stormBlend,stormAmount,skyYaw,height);
+        need(StormMetalBeginDynamicSky(device,3.5667f,0,.2f,.2f,0,0,.16f,0,1,0,0xff315273),"prepare active authored atmosphere");
+        StormMetalEndDynamicSky(device);
+        device->BeginScene();device->SetFVF(storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse);
+        device->SetRenderState(storm_render::RenderLighting,false);device->SetRenderState(storm_render::RenderDepthTest,true);
+        device->SetRenderState(storm_render::RenderDepthWrite,true);device->SetRenderState(storm_render::RenderCullMode,storm_render::CullNone);
+        device->SetRenderState(storm_render::RenderBlend,false);device->SetRenderState(storm_render::RenderFog,fog);
+        device->SetRenderState(storm_render::RenderFogTableMode,3);device->SetRenderState(storm_render::RenderFogColor,0xff315273);
+        device->SetRenderState(storm_render::RenderFogStart,bits(1.f));device->SetRenderState(storm_render::RenderFogEnd,bits(2.f));
+        device->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);
+        device->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);
+        device->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);
+        device->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);
+        device->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
+        need(storm_render::succeeded(device->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,1,triangle,sizeof(Vertex))),"fogged native geometry");device->EndScene();
+        need(storm_render::succeeded(device->GetRenderTargetData(target,read)),"readback");
+        storm_render::LockedRect lock{};read->LockRect(&lock,nullptr,storm_render::lock::readOnly);uint32_t pixel;
+        std::memcpy(&pixel,static_cast<const char*>(lock.pBits)+16*lock.Pitch+16*4,4);read->UnlockRect();return pixel&0xffffffu;
+    };
+    constexpr float pi=3.14159265358979323846f;
+    const auto forward=sample(0,0,0,0,0),backward=sample(pi,0,0,0,0);
+    std::printf("bridge=%d forward=%06x backward=%06x\n",StormMetalSetAuthoredSkyFog!=nullptr,forward,backward);
+    if(baseline){need(forward==backward,"baseline exposes flat fog independent of panorama azimuth");}
+    else{
+        need(StormMetalSetAuthoredSkyFog!=nullptr,"authored panorama fog bridge");
+        need(close(forward,0xff0000)&&close(backward,0x0000ff),"far receivers converge to their actual horizon direction");
+        const auto rotated=sample(0,pi,0,0,0),next=sample(0,0,1,0,0),mixed=sample(0,0,.5f,0,0);
+        const auto stormFrom=sample(0,0,0,0,1),stormTo=sample(0,0,0,1,1),stormHalf=sample(0,0,0,.5f,1);
+        const auto ordinary=sample(0,0,0,0,0,false),fallback=sample(0,0,0,0,0,true,false);
+        std::printf("rotated=%06x next=%06x mixed=%06x storm=%06x/%06x/%06x ordinary=%06x fallback=%06x\n",rotated,next,mixed,stormFrom,stormTo,stormHalf,ordinary,fallback);
+        need(close(rotated,0x0000ff),"panorama rotation moves the matching fog hue");
+        need(close(next,0x00ff00)&&close(mixed,0x808000),"current and next panorama blend continuously");
+        need(close(stormFrom,0xffff00)&&close(stormTo,0x00ffff)&&close(stormHalf,0x80ff80),"storm pair and amount match the panorama blend");
+        need(close(ordinary,0x00ff00),"unfogged near geometry keeps authored material");
+        need(close(fallback,0x315273),"missing panorama retains WEATHER fog fallback");
+        paint(2,0xff00ff00,0xffff0000);
+        const auto low=sample(0,0,0,0,0),high=sample(0,0,0,0,0,true,true,.55f);
+        std::printf("elevation low=%06x high=%06x\n",low,high);
+        need(int(high>>8&255)>int(low>>8&255)+80,"upper island fog retains the actual elevated sky color behind it");
+        const auto below=sample(0,0,0,0,0,true,true,-.55f);
+        const auto aboveOrigin=sample(0,0,0,0,0,true,true,0.f,.6f),belowOrigin=sample(0,0,0,0,0,true,true,0.f,-.6f);
+        std::printf("lower-hemisphere below-ray=%06x capture-origin=%06x/%06x\n",below,aboveOrigin,belowOrigin);
+        need(close(below,low),"below-water fog keeps horizon radiance instead of projecting upper clouds");
+        need(close(aboveOrigin,belowOrigin)&&int(aboveOrigin>>8&255)>int(low>>8&255)+80,"reflected camera samples the same mirrored lower SKY geometry");
+    }
+    for(auto*texture:textures)texture->Release();
+    read->Release();target->Release();device->Release();SDL_DestroyWindow(window);SDL_Quit();
+    std::puts(baseline?"BASELINE flat authored fog observed":"PASS authored directional fog integration");
+}

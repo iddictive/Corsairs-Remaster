@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-21",
+  "canonical_stage": "experiments/native-metal/run.sh --stage-only",
+  "stage_exit": 0,
+  "input_files_verified": 8243,
+  "native_consumer_classes_verified": 9,
+  "pending_gameplay_files": 0,
+  "installed_engine_sha256": "68097e00652068407e5b26f78ef007433b6600cb6d9272d4398639804a17ce02",
+  "previous_installed_engine_sha256": "47058008c0473a03f29fb45198178b517e2adb701b5fe3e14524132857bad18d",
+  "delivery_scope": "Integrated source batch includes separately owned nuclear smoke VFX. Its visual acceptance belongs to the separate VFX task.",
+  "player_replay": "Not accepted: native CUA ScreenCaptureKit error -3811 prevented capture and control of final copied-save replay. No gameplay input was sent in that attempt.",
+  "first_nonlethal_collision": "Unreproduced in initial native fixture; final production replay pending. Added exact opt-in contact-ship-event/contact-island-event timing to distinguish synchronous script cost.",
+  "save_guard": {
+    "files": 237,
+    "sha256": "0971019a5b6c9fc5ba9154ae91aa037f5a9073c78a65868edc809d14ed31aba8",
+    "scope": "Original player SAVE tree unchanged after both isolated replay cleanups."
+  },
+  "source_sha256": "7665fbee20a1a981a6ecaf3f945e29f3ad15514a0100b5056eadfcdbeacf33f0",
+  "built_engine_sha256": "b4286a0adaab087ae4b3507e82b6cd751d335294fe12ff8279faaa3faa01f373"
+}

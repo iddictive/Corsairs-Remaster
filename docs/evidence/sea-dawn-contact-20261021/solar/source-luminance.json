@@ -1,0 +1,381 @@
+{
+  "method": "64x64 stratified pixel centres per actual A8R8G8B8 face; linear RGB=pow(channel/255,2.2), Y=.2126R+.7152G+.0722B",
+  "rows": [
+    {
+      "hour": "03",
+      "samples": 20480,
+      "p50": 0.0003965407345349365,
+      "p95": 0.0009274940974918664,
+      "max": 0.003018279637538015,
+      "above": {
+        "0.4": 0,
+        "0.6": 0,
+        "0.7": 0,
+        "0.8": 0,
+        "0.9": 0,
+        "0.95": 0
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.0013698894056906941
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.0014561121382790343
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.003018279637538015
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.001604157219662004
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.002136250528362816
+        }
+      ]
+    },
+    {
+      "hour": "05",
+      "samples": 20480,
+      "p50": 0.00437445888925456,
+      "p95": 0.07919083550536911,
+      "max": 0.19521489287632543,
+      "above": {
+        "0.4": 0,
+        "0.6": 0,
+        "0.7": 0,
+        "0.8": 0,
+        "0.9": 0,
+        "0.95": 0
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.08250609310295465
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.19521489287632543
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.06003848067525761
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.00941984934381285
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.06641179754483556
+        }
+      ]
+    },
+    {
+      "hour": "06",
+      "samples": 20480,
+      "p50": 0.05230597584784398,
+      "p95": 0.36022194639579974,
+      "max": 1.0,
+      "above": {
+        "0.4": 806,
+        "0.6": 340,
+        "0.7": 277,
+        "0.8": 230,
+        "0.9": 196,
+        "0.95": 138
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.6059988860365024
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 1.0
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.21374571529427727
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.20847371437407547
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.4032656085451439
+        }
+      ]
+    },
+    {
+      "hour": "07",
+      "samples": 20480,
+      "p50": 0.13561785408052676,
+      "p95": 0.6832740717570921,
+      "max": 1.0,
+      "above": {
+        "0.4": 3043,
+        "0.6": 1538,
+        "0.7": 929,
+        "0.8": 530,
+        "0.9": 297,
+        "0.95": 227
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.8696084633915948
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 1.0
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.4879831098342868
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.4737753874372835
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.725761372676023
+        }
+      ]
+    },
+    {
+      "hour": "12",
+      "samples": 20480,
+      "p50": 0.31647028643387926,
+      "p95": 0.6698202779324562,
+      "max": 0.9919886363501464,
+      "above": {
+        "0.4": 7504,
+        "0.6": 1837,
+        "0.7": 811,
+        "0.8": 304,
+        "0.9": 69,
+        "0.95": 17
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.9538045146153085
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.9574679670881462
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.9919886363501464
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.8950904805844188
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.8533653705171594
+        }
+      ]
+    },
+    {
+      "hour": "18",
+      "samples": 20480,
+      "p50": 0.3608631187556858,
+      "p95": 0.621857580457772,
+      "max": 0.98478093363769,
+      "above": {
+        "0.4": 7133,
+        "0.6": 1264,
+        "0.7": 398,
+        "0.8": 62,
+        "0.9": 14,
+        "0.95": 5
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.7293921683288327
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.8217390517599489
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.98478093363769
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.6675150088140333
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.6982783063807294
+        }
+      ]
+    },
+    {
+      "hour": "19",
+      "samples": 20480,
+      "p50": 0.18675707562043886,
+      "p95": 0.6430899093828468,
+      "max": 1.0,
+      "above": {
+        "0.4": 3334,
+        "0.6": 1264,
+        "0.7": 467,
+        "0.8": 180,
+        "0.9": 62,
+        "0.95": 33
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.7239159002848886
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.34923329272895925
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.3307439962301614
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 1.0
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.7828574964579422
+        }
+      ]
+    },
+    {
+      "hour": "23",
+      "samples": 20480,
+      "p50": 0.028277801925206368,
+      "p95": 0.09251323980004209,
+      "max": 0.19572870430351216,
+      "above": {
+        "0.4": 0,
+        "0.6": 0,
+        "0.7": 0,
+        "0.8": 0,
+        "0.9": 0,
+        "0.95": 0
+      },
+      "faces": [
+        {
+          "face": "FR",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.1685517865244223
+        },
+        {
+          "face": "LF",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.04655417558901069
+        },
+        {
+          "face": "BK",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.1147869723161001
+        },
+        {
+          "face": "RT",
+          "width": 2048,
+          "height": 1024,
+          "max_linear_luminance": 0.19572870430351216
+        },
+        {
+          "face": "UP",
+          "width": 2048,
+          "height": 2048,
+          "max_linear_luminance": 0.06758777240905094
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+[StormMetal] land-shadow-opt-20260918: two-cascade sampling; quality=2 sun=4096 point=512
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 1280x800; SDL drawable 1280x800; samples 1
+[StormMetal] water mode: modern Metal
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[HullTiming] time_ms=1378133058.788 phase=legacy-rebuild state=begin id=1 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.357 phase=legacy-rebuild state=end id=1 owner=0 node=-1 duration_ms=45.569
+[HullTiming] time_ms=1378133104.477 phase=legacy-rebuild state=begin id=2 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.589 phase=legacy-rebuild state=end id=2 owner=0 node=-1 duration_ms=0.111
+[HullTiming] time_ms=1378133104.619 phase=legacy-rebuild state=begin id=3 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.706 phase=legacy-rebuild state=end id=3 owner=0 node=-1 duration_ms=0.086
+[HullTiming] time_ms=1378133104.733 phase=legacy-rebuild state=begin id=4 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.783 phase=legacy-rebuild state=end id=4 owner=0 node=-1 duration_ms=0.050
+[HullTiming] time_ms=1378133104.795 phase=legacy-rebuild state=begin id=5 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.819 phase=legacy-rebuild state=end id=5 owner=0 node=-1 duration_ms=0.024
+[HullTiming] time_ms=1378133104.831 phase=legacy-rebuild state=begin id=6 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133104.851 phase=legacy-rebuild state=end id=6 owner=0 node=-1 duration_ms=0.020
+[HullTiming] time_ms=1378133105.849 phase=legacy-rebuild state=begin id=7 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133108.187 phase=legacy-rebuild state=end id=7 owner=0 node=-1 duration_ms=2.338
+[HullTiming] time_ms=1378133108.250 phase=legacy-rebuild state=begin id=8 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133108.413 phase=legacy-rebuild state=end id=8 owner=0 node=-1 duration_ms=0.163
+[HullTiming] time_ms=1378133108.482 phase=legacy-rebuild state=begin id=9 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133108.648 phase=legacy-rebuild state=end id=9 owner=0 node=-1 duration_ms=0.166
+[HullTiming] time_ms=1378133108.713 phase=legacy-rebuild state=begin id=10 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133108.874 phase=legacy-rebuild state=end id=10 owner=0 node=-1 duration_ms=0.161
+[HullTiming] time_ms=1378133109.837 phase=legacy-rebuild state=begin id=11 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133112.415 phase=legacy-rebuild state=end id=11 owner=0 node=-1 duration_ms=2.578
+[HullTiming] time_ms=1378133112.484 phase=legacy-rebuild state=begin id=12 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133112.661 phase=legacy-rebuild state=end id=12 owner=0 node=-1 duration_ms=0.177
+[HullTiming] time_ms=1378133112.719 phase=legacy-rebuild state=begin id=13 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133112.873 phase=legacy-rebuild state=end id=13 owner=0 node=-1 duration_ms=0.154
+[HullTiming] time_ms=1378133112.960 phase=legacy-rebuild state=begin id=14 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133113.111 phase=legacy-rebuild state=end id=14 owner=0 node=-1 duration_ms=0.151
+[HullTiming] time_ms=1378133113.758 phase=legacy-rebuild state=begin id=15 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133115.369 phase=legacy-rebuild state=end id=15 owner=0 node=-1 duration_ms=1.611
+[HullTiming] time_ms=1378133115.417 phase=legacy-rebuild state=begin id=16 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133115.444 phase=legacy-rebuild state=end id=16 owner=0 node=-1 duration_ms=0.027
+[HullTiming] time_ms=1378133115.453 phase=legacy-rebuild state=begin id=17 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133115.470 phase=legacy-rebuild state=end id=17 owner=0 node=-1 duration_ms=0.017
+[HullTiming] time_ms=1378133115.599 phase=legacy-rebuild state=begin id=18 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133115.969 phase=legacy-rebuild state=end id=18 owner=0 node=-1 duration_ms=0.370
+[HullTiming] time_ms=1378133116.022 phase=legacy-rebuild state=begin id=19 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133116.191 phase=legacy-rebuild state=end id=19 owner=0 node=-1 duration_ms=0.169
+[HullTiming] time_ms=1378133116.239 phase=legacy-rebuild state=begin id=20 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133116.341 phase=legacy-rebuild state=end id=20 owner=0 node=-1 duration_ms=0.101
+[HullTiming] time_ms=1378133116.354 phase=legacy-rebuild state=begin id=21 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133116.379 phase=legacy-rebuild state=end id=21 owner=0 node=-1 duration_ms=0.025
+[HullTiming] time_ms=1378133116.472 phase=material-restore state=begin id=22 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133116.474 phase=material-restore state=begin id=23 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133116.596 phase=pristine-ineligible state=event id=0 owner=3605590324155369722 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133117.775 phase=physical-cache state=begin id=24 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133117.798 phase=physical-cache state=end id=24 owner=6938507971492053007 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1378133118.237 phase=material-restore state=end id=23 owner=6938507971492053007 node=-1 duration_ms=1.762
+[HullTiming] time_ms=1378133134.583 phase=pristine-miss state=event id=0 owner=8998192053144848158 node=1 duration_ms=0.000
+[HullTiming] time_ms=1378133182.879 phase=legacy-rebuild state=begin id=25 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133234.770 phase=legacy-rebuild state=end id=25 owner=0 node=-1 duration_ms=51.891
+[HullTiming] time_ms=1378133234.997 phase=legacy-rebuild state=begin id=26 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133235.103 phase=legacy-rebuild state=end id=26 owner=0 node=-1 duration_ms=0.106
+[HullTiming] time_ms=1378133235.133 phase=legacy-rebuild state=begin id=27 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133235.218 phase=legacy-rebuild state=end id=27 owner=0 node=-1 duration_ms=0.085
+[HullTiming] time_ms=1378133235.242 phase=legacy-rebuild state=begin id=28 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133235.302 phase=legacy-rebuild state=end id=28 owner=0 node=-1 duration_ms=0.060
+[HullTiming] time_ms=1378133235.313 phase=legacy-rebuild state=begin id=29 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133235.334 phase=legacy-rebuild state=end id=29 owner=0 node=-1 duration_ms=0.020
+[HullTiming] time_ms=1378133235.342 phase=legacy-rebuild state=begin id=30 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133235.360 phase=legacy-rebuild state=end id=30 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1378133236.425 phase=legacy-rebuild state=begin id=31 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133238.938 phase=legacy-rebuild state=end id=31 owner=0 node=-1 duration_ms=2.514
+[HullTiming] time_ms=1378133239.040 phase=legacy-rebuild state=begin id=32 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133239.287 phase=legacy-rebuild state=end id=32 owner=0 node=-1 duration_ms=0.247
+[HullTiming] time_ms=1378133239.366 phase=legacy-rebuild state=begin id=33 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133239.629 phase=legacy-rebuild state=end id=33 owner=0 node=-1 duration_ms=0.263
+[HullTiming] time_ms=1378133239.709 phase=legacy-rebuild state=begin id=34 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133239.885 phase=legacy-rebuild state=end id=34 owner=0 node=-1 duration_ms=0.176
+[HullTiming] time_ms=1378133240.888 phase=legacy-rebuild state=begin id=35 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133243.363 phase=legacy-rebuild state=end id=35 owner=0 node=-1 duration_ms=2.475
+[HullTiming] time_ms=1378133243.436 phase=legacy-rebuild state=begin id=36 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133243.625 phase=legacy-rebuild state=end id=36 owner=0 node=-1 duration_ms=0.189
+[HullTiming] time_ms=1378133243.677 phase=legacy-rebuild state=begin id=37 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133243.831 phase=legacy-rebuild state=end id=37 owner=0 node=-1 duration_ms=0.154
+[HullTiming] time_ms=1378133243.887 phase=legacy-rebuild state=begin id=38 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133244.042 phase=legacy-rebuild state=end id=38 owner=0 node=-1 duration_ms=0.155
+[HullTiming] time_ms=1378133244.657 phase=legacy-rebuild state=begin id=39 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133246.228 phase=legacy-rebuild state=end id=39 owner=0 node=-1 duration_ms=1.571
+[HullTiming] time_ms=1378133246.242 phase=legacy-rebuild state=begin id=40 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133246.260 phase=legacy-rebuild state=end id=40 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1378133246.269 phase=legacy-rebuild state=begin id=41 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133246.286 phase=legacy-rebuild state=end id=41 owner=0 node=-1 duration_ms=0.017
+[HullTiming] time_ms=1378133246.416 phase=legacy-rebuild state=begin id=42 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133246.788 phase=legacy-rebuild state=end id=42 owner=0 node=-1 duration_ms=0.371
+[HullTiming] time_ms=1378133246.852 phase=legacy-rebuild state=begin id=43 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133247.027 phase=legacy-rebuild state=end id=43 owner=0 node=-1 duration_ms=0.174
+[HullTiming] time_ms=1378133247.067 phase=legacy-rebuild state=begin id=44 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133247.176 phase=legacy-rebuild state=end id=44 owner=0 node=-1 duration_ms=0.108
+[HullTiming] time_ms=1378133247.188 phase=legacy-rebuild state=begin id=45 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133247.219 phase=legacy-rebuild state=end id=45 owner=0 node=-1 duration_ms=0.031
+[HullTiming] time_ms=1378133263.387 phase=material-restore state=begin id=46 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133263.489 phase=pristine-ineligible state=event id=0 owner=3605590324155369722 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133264.563 phase=physical-cache state=begin id=47 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133264.572 phase=physical-cache state=end id=47 owner=6938507971492053007 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1378133264.989 phase=material-restore state=end id=46 owner=6938507971492053007 node=-1 duration_ms=1.602
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\\MANOWAR1\\HULL1\\DES2.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=FONAR.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\\MANOWAR1\\HULL1\\SHIELD.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\\MANOWAR1\\HULL1\\METALU5.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\\MANOWAR1\\HULL1\\INZANEGUN1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=SHIPS\\MANOWAR1\\HULL1\\VICTORY_HECK.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[HullTiming] time_ms=1378133297.819 phase=material-restore state=begin id=48 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133297.897 phase=pristine-ineligible state=event id=0 owner=11071952311190568760 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133298.369 phase=physical-cache state=begin id=49 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133298.385 phase=physical-cache state=end id=49 owner=6938507971492053007 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1378133298.553 phase=material-restore state=end id=48 owner=6938507971492053007 node=-1 duration_ms=0.734
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\\PARUS_COMMON.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[HullTiming] time_ms=1378133303.723 phase=material-restore state=begin id=50 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133303.768 phase=pristine-ineligible state=event id=0 owner=10447205151125777137 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133304.001 phase=physical-cache state=begin id=51 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133304.011 phase=physical-cache state=end id=51 owner=6938507971492053007 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1378133304.065 phase=material-restore state=end id=50 owner=6938507971492053007 node=-1 duration_ms=0.343
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=22 tex=SHIPSFLARES\FLARESUNROAD.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal] GPU scene color/depth snapshot 1280x800 before water
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=23 tex=SHIPSFLARES\CORONA.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/0 fmt=21 tex=WATER1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/1 fmt=21 tex=SEAFOAM_2.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal] GPU ambient occlusion active before HUD; ambient cap 0.226
+[HullTiming] time_ms=1378133366.526 phase=material-restore state=begin id=52 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133366.580 phase=pristine-ineligible state=event id=0 owner=4756645824837390990 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133366.934 phase=physical-cache state=begin id=53 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133366.950 phase=physical-cache state=end id=53 owner=6938507971492053007 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1378133367.012 phase=material-restore state=end id=52 owner=6938507971492053007 node=-1 duration_ms=0.485
+[HullTiming] time_ms=1378133367.338 phase=material-restore state=begin id=54 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133368.910 phase=pristine-ineligible state=event id=0 owner=2978330860673791613 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133399.205 phase=physical-cache state=begin id=55 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133399.238 phase=physical-cache state=end id=55 owner=6938507971492053007 node=-1 duration_ms=0.034
+[HullTiming] time_ms=1378133410.873 phase=material-restore state=end id=54 owner=6938507971492053007 node=-1 duration_ms=43.535
+[HullTiming] time_ms=1378133437.065 phase=material-restore state=begin id=56 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133437.336 phase=pristine-ineligible state=event id=0 owner=1778402108283767053 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133439.695 phase=physical-cache state=begin id=57 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133439.875 phase=physical-cache state=end id=57 owner=6938507971492053007 node=-1 duration_ms=0.180
+[HullTiming] time_ms=1378133440.761 phase=material-restore state=end id=56 owner=6938507971492053007 node=-1 duration_ms=3.697
+[HullTiming] time_ms=1378133544.875 phase=material-restore state=begin id=58 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133545.056 phase=pristine-ineligible state=event id=0 owner=7254571263335950624 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133558.167 phase=physical-cache state=begin id=59 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133558.295 phase=physical-cache state=end id=59 owner=6938507971492053007 node=-1 duration_ms=0.128
+[HullTiming] time_ms=1378133565.725 phase=material-restore state=end id=58 owner=6938507971492053007 node=-1 duration_ms=20.850
+[HullTiming] time_ms=1378133606.125 phase=material-restore state=begin id=60 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133606.323 phase=pristine-ineligible state=event id=0 owner=5710872780208553311 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133607.599 phase=physical-cache state=begin id=61 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133607.612 phase=physical-cache state=end id=61 owner=6938507971492053007 node=-1 duration_ms=0.013
+[HullTiming] time_ms=1378133608.272 phase=material-restore state=end id=60 owner=6938507971492053007 node=-1 duration_ms=2.148
+[HullTiming] time_ms=1378133626.960 phase=material-restore state=begin id=62 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133628.679 phase=pristine-ineligible state=event id=0 owner=8573634926809262553 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133654.963 phase=physical-cache state=begin id=63 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133655.230 phase=physical-cache state=end id=63 owner=6938507971492053007 node=-1 duration_ms=0.267
+[HullTiming] time_ms=1378133663.068 phase=material-restore state=end id=62 owner=6938507971492053007 node=-1 duration_ms=36.108
+[HullTiming] time_ms=1378133669.955 phase=material-restore state=begin id=64 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133670.152 phase=pristine-ineligible state=event id=0 owner=5417361506164889092 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133671.494 phase=physical-cache state=begin id=65 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133671.508 phase=physical-cache state=end id=65 owner=6938507971492053007 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1378133672.209 phase=material-restore state=end id=64 owner=6938507971492053007 node=-1 duration_ms=2.254
+[HullTiming] time_ms=1378133690.947 phase=material-restore state=begin id=66 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133691.157 phase=pristine-ineligible state=event id=0 owner=7033014871645150869 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133692.672 phase=physical-cache state=begin id=67 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133692.695 phase=physical-cache state=end id=67 owner=6938507971492053007 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1378133693.345 phase=material-restore state=end id=66 owner=6938507971492053007 node=-1 duration_ms=2.398
+[HullTiming] time_ms=1378133710.928 phase=material-restore state=begin id=68 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133711.228 phase=pristine-ineligible state=event id=0 owner=7877415709342470221 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133712.662 phase=physical-cache state=begin id=69 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133712.698 phase=physical-cache state=end id=69 owner=6938507971492053007 node=-1 duration_ms=0.036
+[HullTiming] time_ms=1378133713.419 phase=material-restore state=end id=68 owner=6938507971492053007 node=-1 duration_ms=2.491
+[HullTiming] time_ms=1378133730.092 phase=material-restore state=begin id=70 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133731.153 phase=pristine-ineligible state=event id=0 owner=10916454307808742666 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133747.388 phase=physical-cache state=begin id=71 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133747.450 phase=physical-cache state=end id=71 owner=6938507971492053007 node=-1 duration_ms=0.062
+[HullTiming] time_ms=1378133752.580 phase=material-restore state=end id=70 owner=6938507971492053007 node=-1 duration_ms=22.488
+[HullTiming] time_ms=1378133765.415 phase=material-restore state=begin id=72 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133765.479 phase=pristine-ineligible state=event id=0 owner=11545460940761232992 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133765.633 phase=physical-cache state=begin id=73 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133765.652 phase=physical-cache state=end id=73 owner=6938507971492053007 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1378133765.792 phase=material-restore state=end id=72 owner=6938507971492053007 node=-1 duration_ms=0.377
+[HullTiming] time_ms=1378133767.098 phase=material-restore state=begin id=74 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133767.154 phase=pristine-ineligible state=event id=0 owner=14787205321912713313 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133771.253 phase=physical-cache state=begin id=75 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133771.282 phase=physical-cache state=end id=75 owner=6938507971492053007 node=-1 duration_ms=0.029
+[HullTiming] time_ms=1378133773.749 phase=material-restore state=end id=74 owner=6938507971492053007 node=-1 duration_ms=6.651
+[HullTiming] time_ms=1378133787.650 phase=material-restore state=begin id=76 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133787.997 phase=pristine-ineligible state=event id=0 owner=14309130440167124133 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133813.550 phase=physical-cache state=begin id=77 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133813.638 phase=physical-cache state=end id=77 owner=6938507971492053007 node=-1 duration_ms=0.087
+[HullTiming] time_ms=1378133815.320 phase=material-restore state=end id=76 owner=6938507971492053007 node=-1 duration_ms=27.670
+[HullTiming] time_ms=1378133817.630 phase=physical-cache state=begin id=78 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133822.692 phase=material-restore state=begin id=79 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133822.899 phase=pristine-ineligible state=event id=0 owner=5662665131091855141 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133824.507 phase=physical-cache state=begin id=80 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133824.547 phase=physical-cache state=end id=80 owner=6938507971492053007 node=-1 duration_ms=0.040
+[ContactPhase] frame=16 phase=1 phonk=0 speed_knots=300
+[HullTiming] time_ms=1378133826.627 phase=material-restore state=end id=79 owner=6938507971492053007 node=-1 duration_ms=3.935
+[HullTiming] time_ms=1378133828.388 phase=material-restore state=begin id=81 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133828.507 phase=pristine-ineligible state=event id=0 owner=11276464968993053534 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133831.927 phase=physical-cache state=begin id=82 owner=6938507971492053007 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133831.943 phase=physical-cache state=end id=82 owner=6938507971492053007 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1378133832.407 phase=material-restore state=end id=81 owner=6938507971492053007 node=-1 duration_ms=4.020
+[HullTiming] time_ms=1378133842.645 phase=material-restore state=begin id=83 owner=6938508516952899639 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378133860.863 phase=pristine-miss state=event id=0 owner=8998192053144848158 node=1 duration_ms=0.000
+[ContactPhase] frame=80 phase=2 phonk=0 speed_knots=300
+[HullTiming] time_ms=1378134600.538 phase=physical-cache state=begin id=84 owner=6938508516952899639 node=-1 duration_ms=0.000
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=37274 bounds_miss=16474 bounds_bypass=4560 bounds_skip=0 indices_scanned=13344021 indices_avoided=199897635 bounds_cpu_ms=54.339 view_hit=73677 view_miss=1088 sampling_shared=58302 sampling_fallback=0 sampling_bytes_saved=203357376
+[StormMetal] submission-cache enabled=1 raster_skipped=463379 shadow_textures_skipped=579420 sampler_reused=582885
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55615 fallback=65 ready=10 variants=10
+[StormMetal] sea shadow resolve: packets=287 scopes=(0,0,287) rawReceivers=287 directionalReceivers=287 skinned=131 sun=1 points=8 applied=1 candidates=325 candidateScopes=(38,0,287) raw=0 shadow=0 packets=(raw:287,converted:0) fastReturn=0 rejects=(collect:38,depth:0,alpha:0,index:0,dynamic:38,generated:0,special:0,uv:0)
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=1 sun=0 lamps=8 complete=8 caster=0 openings=0 shaftFrames=0 tier=3 aimY=-0.14 pitch=-8.0 draws=72385 verts=288844308 uploadMB=1000.4 legacy3D=0 legacyShadow=0
+[ContactPhase] frame=144 phase=3 phonk=0 speed_knots=300
+[HullTiming] time_ms=1378135135.076 phase=contact-contour-build state=begin id=85 owner=6938508495478063157 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1378135152.544 phase=contact-contour-build state=end id=85 owner=6938508495478063157 node=-1 duration_ms=17.468
+[HullTiming] time_ms=1378135536.288 phase=physical-cache state=end id=78 owner=6938507971492053007 node=-1 duration_ms=1718.658
+[HullTiming] time_ms=1378135536.858 phase=material-restore state=end id=22 owner=6938507971492053007 node=-1 duration_ms=2420.386
+[HullTiming] time_ms=1378135539.798 phase=physical-cache state=end id=84 owner=6938508516952899639 node=-1 duration_ms=939.260
+[HullTiming] time_ms=1378135540.188 phase=material-restore state=end id=83 owner=6938508516952899639 node=-1 duration_ms=1697.542
+scene_backbuffer=1280x800 ships=2 hidden=1
+animated_draws=25152
+pilot_complete=1 performance_acceptance=0

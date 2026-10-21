@@ -1,0 +1,59 @@
+#include <SDL.h>
+#include "render_device_api.hpp"
+#include <vector>
+#include <fstream>
+#include <string>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+static void require(bool b,const char*s){if(!b){fprintf(stderr,"FAIL %s\n",s);exit(1);}}
+static std::vector<uint32_t> load(const std::string&p){std::ifstream f(p,std::ios::binary|std::ios::ate);require(bool(f),p.c_str());size_t n=f.tellg();std::vector<uint32_t>v(n/4);f.seekg(0);f.read((char*)v.data(),n);return v;}
+int main(int argc,char**argv){
+ require(argc==2,"depth-water-probe techniques");setenv("STORM_METAL_MODERN_WATER","1",1);SDL_Init(SDL_INIT_VIDEO);auto*w=SDL_CreateWindow("Depth water GPU fixture",0,0,128,128,SDL_WINDOW_METAL|SDL_WINDOW_HIDDEN);require(w,"window");storm_render::Presentation p{};p.width=p.height=128;p.colorFormat=storm_render::AssetFormat::A8R8G8B8;storm_render::Device*d=nullptr;require(storm_render::succeeded(storm_render::createMetalDevice(w, &p, &d)),"device");
+ storm_render::Matrix identity{};identity._11=identity._22=identity._33=identity._44=1;storm_render::Matrix projection{};projection._11=projection._22=1;projection._33=100.f/99.f;projection._34=1;projection._43=-100.f/99.f;d->SetTransform(storm_render::TransformWorld,&identity);d->SetTransform(storm_render::TransformView,&identity);d->SetTransform(storm_render::TransformProjection,&projection);
+ storm_render::Texture*bump=nullptr;d->CreateTexture(4, 4, 1, 0, storm_render::AssetFormat::A8R8G8B8, &bump);auto paintBump=[&](uint32_t value){storm_render::LockedRect l{};bump->LockRect(0,&l,nullptr,0);for(int y=0;y<4;y++)for(int x=0;x<4;x++)((uint32_t*)((char*)l.pBits+y*l.Pitch))[x]=value;bump->UnlockRect(0);};paintBump(0xff80ff80);
+ storm_render::CubeTexture*cube=nullptr;d->CreateCubeTexture(4, 1, 0, storm_render::AssetFormat::A8R8G8B8, &cube);auto paintCube=[&](uint32_t value){for(int f=0;f<6;f++){storm_render::LockedRect l{};cube->LockRect(storm_render::CubeFace(f),0,&l,nullptr,0);for(int y=0;y<4;y++)for(int x=0;x<4;x++)((uint32_t*)((char*)l.pBits+y*l.Pitch))[x]=value;cube->UnlockRect(storm_render::CubeFace(f),0);}};paintCube(0xff000000);
+ auto vc=load(std::string(argv[1])+"/weather/sea_sea2_vertex_shader.vso"),pc=load(std::string(argv[1])+"/weather/sea_sea2_pixel_shader.pso");storm_render::Program*vs=nullptr;storm_render::Program*ps=nullptr;d->ImportVertexProgram(vc.data(),&vs);d->ImportFragmentProgram(pc.data(),&ps);
+ float c[256][4]{};auto set=[&](int i,float x,float y,float z,float w){c[i][0]=x;c[i][1]=y;c[i][2]=z;c[i][3]=w;};set(0,0,1,.5,-.04);set(1,2,-1,0,0);set(23,0,0,0,1);set(24,1,0,0,0);set(25,0,1,0,0);set(26,0,0,projection._33,projection._43);set(27,0,0,1,0);set(28,1,1,1,0);set(29,0,0,0,1);set(30,0,0,0,1);set(33,1,0,0,1);set(34,.75,1,.5,1);set(36,1,0,0,0);set(37,0,1,0,0);set(38,0,0,1,0);set(58,0,1,0,1);d->SetVertexShaderConstantF(0,&c[0][0],256);
+ storm_render::Surface*target=nullptr,*read=nullptr,*originalDepth=nullptr;d->GetRenderTarget(&target);d->GetDepthStencilSurface(&originalDepth);d->CreateOffscreenPlainSurface(128, 128, storm_render::AssetFormat::A8R8G8B8, &read);
+ auto pixel=[&](int x=64,int y=64){require(storm_render::succeeded(d->GetRenderTargetData(target,read)),"readback");storm_render::LockedRect l{};read->LockRect(&l,nullptr,storm_render::lock::readOnly);uint32_t v;memcpy(&v,(char*)l.pBits+y*l.Pitch+x*4,4);read->UnlockRect();return v;};
+ struct V{float x,y,z;uint32_t color;};struct S{float x,y,z,nx,ny,nz,u,v;};S sea[]={{-8,-8,4,0,0,-1,0,0},{8,-8,4,0,0,-1,1,0},{0,8,4,0,0,-1,.5,1}};
+ auto geometry=[&](float depth,uint32_t color,float left=-2,float right=2){V v[]={{left*depth,-2*depth,depth,color},{right*depth,-2*depth,depth,color},{right*depth,2*depth,depth,color},{left*depth,-2*depth,depth,color},{right*depth,2*depth,depth,color},{left*depth,2*depth,depth,color}};d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);d->SetVertexDeclaration(nullptr);d->SetFVF(storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse);d->SetTexture(0,nullptr);d->SetRenderState(storm_render::RenderBlend,false);d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);require(storm_render::succeeded(d->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,2,v,sizeof(V))),"background geometry");};
+ auto water=[&](){d->BindVertexProgram(vs);d->BindFragmentProgram(ps);d->SetTexture(0,bump);d->SetTexture(3,cube);d->SetRenderState(storm_render::RenderBlend,true);d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendOne);d->SetRenderState(storm_render::RenderDestinationBlend,storm_render::BlendSourceAlpha);require(storm_render::succeeded(d->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,1,sea,sizeof(S))),"water draw");};
+ auto start=[&](){require(storm_render::succeeded(d->Present()),"frame boundary");d->SetRenderState(storm_render::RenderDepthTest,true);d->SetRenderState(storm_render::RenderDepthWrite,true);d->SetRenderState(storm_render::RenderDepthCompare,storm_render::CompareLessEqual);d->SetRenderState(storm_render::RenderCullMode,storm_render::CullNone);d->SetRenderState(storm_render::RenderLighting,false);d->SetRenderState(storm_render::RenderFog,false);require(storm_render::succeeded(d->Clear(storm_render::clear::color|storm_render::clear::depth, 0xff000000, 1)),"fresh color+depth");d->BeginScene();};
+ auto finish=[&](){d->EndScene();return pixel();};
+
+ storm_render::Texture*rope=nullptr;auto actual=load("<APP_RESOURCES>/RESOURCE/Textures/sail_rope.tga.tx");require(actual[1]==64&&actual[2]==256&&actual[4]==uint32_t(storm_render::AssetFormat::DXT1),"actual rope header");require(storm_render::succeeded(d->CreateTexture(64,256,1,0,storm_render::AssetFormat::DXT1,&rope)),"actual rope GPU texture");
+ storm_render::LockedRect rl{};rope->LockRect(0,&rl,nullptr,0);for(int y=0;y<64;y++)memcpy((char*)rl.pBits+y*rl.Pitch,(char*)actual.data()+24+y*128,128);rope->UnlockRect(0);
+ struct R{float x,y,z,nx,ny,nz,u,v;};R r[]={{-.4f,-4,2,0,1,0,0,0},{.4f,-4,2,0,1,0,1,0},{.4f,4,2,0,1,0,1,1},{-.4f,4,2,0,1,0,0,1}};
+ uint16_t ix[]={0,1,2,0,2,3};storm_render::VertexBuffer*vb=nullptr;storm_render::IndexBuffer*ib=nullptr;void*bytes=nullptr;
+ auto fvf=storm_render::vertexFormat::xyz|storm_render::vertexFormat::normal|storm_render::vertexFormat::tex1;
+ d->CreateVertexBuffer(sizeof(r),storm_render::usage::writeOnly,fvf,&vb);vb->Lock(0,0,&bytes,0);memcpy(bytes,r,sizeof(r));vb->Unlock();
+ d->CreateIndexBuffer(sizeof(ix),storm_render::usage::writeOnly,storm_render::IndexFormat::UInt16,&ib);ib->Lock(0,0,&bytes,0);memcpy(bytes,ix,sizeof(ix));ib->Unlock();
+ auto rig=[&](bool write){d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);d->SetFVF(fvf);d->SetStreamSource(0,vb,0,sizeof(R));d->SetIndices(ib);d->SetTexture(0,rope);d->SetRenderState(storm_render::RenderDepthWrite,write);d->SetRenderState(storm_render::RenderAlphaTest,true);d->SetRenderState(storm_render::RenderAlphaCompare,storm_render::CompareGreater);d->SetRenderState(storm_render::RenderAlphaReference,128);d->SetRenderState(storm_render::RenderBlend,true);d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendSourceAlpha);d->SetRenderState(storm_render::RenderDestinationBlend,storm_render::BlendInverseSourceAlpha);d->SetRenderState(storm_render::RenderLighting,true);d->SetRenderState(storm_render::RenderAmbient,0xffffffff);storm_render::Material mat{};mat.Diffuse=mat.Ambient={1,1,1,1};d->SetMaterial(&mat);d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpModulate);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::texture);d->SetTextureStageState(0,storm_render::StageColorArg2,storm_render::textureArg::current);d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::texture);d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpModulate);d->SetTextureStageState(1,storm_render::StageColorArg1,storm_render::textureArg::current);d->SetTextureStageState(1,storm_render::StageColorArg2,storm_render::textureArg::factor);d->SetRenderState(storm_render::RenderTextureFactor,0xffffffff);d->SetTextureStageState(1,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(1,storm_render::StageAlphaArg1,storm_render::textureArg::current);d->SetTextureStageState(2,storm_render::StageColorOp,storm_render::TextureOpDisable);require(storm_render::succeeded(d->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList,0,0,4,0,2)),"rigging buffered draw");};
+
+ auto halo=[&](int mode){
+  d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);d->SetFVF(storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse);
+  d->SetTexture(0,nullptr);d->SetRenderState(storm_render::RenderLighting,false);d->SetRenderState(storm_render::RenderAlphaTest,false);
+  d->SetRenderState(storm_render::RenderDepthTest,mode!=0);d->SetRenderState(storm_render::RenderDepthWrite,false);
+  d->SetRenderState(storm_render::RenderBlend,true);d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendOne);d->SetRenderState(storm_render::RenderDestinationBlend,storm_render::BlendOne);
+  d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
+  storm_render::Viewport saved{},far{};d->GetViewport(&saved);far=saved;far.MinZ=far.MaxZ=1.f;if(mode==2)d->SetViewport(&far);
+  V h[]={{-40,0,20,0xff808020},{40,0,20,0xff808020},{40,40,20,0xff808020},{-40,40,20,0xff808020}};
+  require(storm_render::succeeded(d->DrawPrimitiveUP(storm_render::PrimitiveTriangleFan,2,h,sizeof(V))),"late horizon-clipped additive halo");
+  if(mode==2)d->SetViewport(&saved);
+ };
+ for(int mode=0;mode<3;++mode){
+  start();geometry(40,0xff204060,.5f,1.5f);rig(true);finish();
+  const auto ropeAbove=pixel(64,32),ropeBelow=pixel(64,96),island=pixel(112,32),sky=pixel(20,32);
+  halo(mode);finish();
+  const auto aboveAfter=pixel(64,32),belowAfter=pixel(64,96),islandAfter=pixel(112,32),skyAfter=pixel(20,32);
+  printf("halo mode=%d ropeAbove=%08x->%08x ropeBelow=%08x->%08x farOpaque=%08x->%08x clearSky=%08x->%08x\n",mode,ropeAbove,aboveAfter,ropeBelow,belowAfter,island,islandAfter,sky,skyAfter);
+  require(ropeBelow==belowAfter,"below-horizon foreground unchanged");require(skyAfter!=sky,"unblocked sky halo retained");
+  if(mode==0)require(ropeAbove!=aboveAfter&&island!=islandAfter,"old halo reproduces foreground cutoff");
+  if(mode==1)require(ropeAbove==aboveAfter&&island!=islandAfter,"finite depth fixes near rope but fails farther opaque");
+  if(mode==2)require(ropeAbove==aboveAfter&&island==islandAfter,"far viewport fixes both foreground receivers");
+ }
+ puts("PASS late halo old/finite/far depth and clear-sky negative");
+ d->Release();SDL_DestroyWindow(w);SDL_Quit();return 0;}

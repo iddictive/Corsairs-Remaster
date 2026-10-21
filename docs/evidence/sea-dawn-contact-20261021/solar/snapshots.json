@@ -1,0 +1,147 @@
+{
+  "source_base": "999c349bc9a2c5d48b8939aee43adb800679c21a",
+  "platform": "AppleM3Max,arm64,macOS27.0.1; Appleclang21.0.0; C++20 Release O3; deployment15.0",
+  "normalization": "Only repository, installed-resource, Xcode-developer and system-temp prefixes replaced by explicit tokens; numeric CSV values unchanged. No proprietary textures/models, player logs/save, binary or generated dependency bodies copied into Git.",
+  "source_inputs": {
+    "experiments/native-metal/authored_solar.hpp": "2c32cf01b74f6168beb527b050db6b07c3f4cd6ec6f77c72960eb92d8d0b591e",
+    "experiments/native-metal/authored_sky.hpp": "d6fac2c70d79203d3444259508ce986782470093cd670e8e7379cd09ff2b9eab",
+    "experiments/native-metal/engine/src/libs/weather/include/weather_base.h": "71ff337b840614cb50c5d85e5bbc186610d672674f34d29ffc78bddd7706f82d",
+    "experiments/native-metal/engine/src/libs/weather/src/sky.h": "84bb93eba46193c5014022c48a867afbad277ddcb883155598610cd5f2d197ed",
+    "experiments/native-metal/engine/src/libs/weather/src/sky.cpp": "083f1065ce7d010c0b5ad2641569fff1928a1a9467d44d0c72582e699b5183ed",
+    "experiments/native-metal/engine/src/libs/weather/src/weather.h": "58e00ad8f940faad9a234b9b86e7f264144ab9d0402f10830b7ca67b312c6a99",
+    "experiments/native-metal/engine/src/libs/weather/src/weather.cpp": "b6adb9fc3bcb0f7432ec80b6ddbe0c6b8baaef37ac69ce170d49bade70a884f0",
+    "experiments/native-metal/engine/src/libs/weather/src/sun_glow.cpp": "1aa57a1a224a912424663a9f23d1e6bb07d5f81d2587d3c88eaa552a149b41fb"
+  },
+  "files": {
+    "source-luminance.json": {
+      "source_sha256": "0ec691378cb2b092a6b213e4255815a688e26503b1358cbe24d14bca930928c5",
+      "retained_sha256": "0ec691378cb2b092a6b213e4255815a688e26503b1358cbe24d14bca930928c5",
+      "bytes": 8625
+    },
+    "source-selection-probe.cpp.txt": {
+      "source_sha256": "b56c3576de9d2aaec723b542b835700034d6318ae512ce87b559509839fce6b9",
+      "retained_sha256": "b56c3576de9d2aaec723b542b835700034d6318ae512ce87b559509839fce6b9",
+      "bytes": 2202
+    },
+    "source-selection.log": {
+      "source_sha256": "530b1d5593414f1340131104895a943744fa5b77277e0fc1e2df067ab74592c7",
+      "retained_sha256": "530b1d5593414f1340131104895a943744fa5b77277e0fc1e2df067ab74592c7",
+      "bytes": 1494
+    },
+    "lifecycle-driver.cpp.txt": {
+      "source_sha256": "e028682b90e0eba5846524526cb00030985730311ace9e3b8015617d84aab3c4",
+      "retained_sha256": "e028682b90e0eba5846524526cb00030985730311ace9e3b8015617d84aab3c4",
+      "bytes": 17006
+    },
+    "frozen-base-GetVisualVector.cpp.txt": {
+      "source_sha256": "83eeddf56bc46b40bdaa9ca7faf0757e75d0252337034c4b8781962fb14dabe1",
+      "retained_sha256": "83eeddf56bc46b40bdaa9ca7faf0757e75d0252337034c4b8781962fb14dabe1",
+      "bytes": 449
+    },
+    "lifecycle.log": {
+      "source_sha256": "6a55c70b5c7ddb4f3f5b8ad99fde1b254fa4317315a953649844164871b61485",
+      "retained_sha256": "6a55c70b5c7ddb4f3f5b8ad99fde1b254fa4317315a953649844164871b61485",
+      "bytes": 6121
+    },
+    "lifecycle-rejected-moon-oracle.log": {
+      "source_sha256": "c0bc00b421c24bc5cab0992d4c6c5a7f3da9db490eee76098a38b7e4e925b3f7",
+      "retained_sha256": "c0bc00b421c24bc5cab0992d4c6c5a7f3da9db490eee76098a38b7e4e925b3f7",
+      "bytes": 5869
+    },
+    "lifecycle-compile-command.json": {
+      "source_sha256": "d010014cbfe90df80fd033024ef1ee07c3f2a22ee2847990ad9c51671575a6b4",
+      "retained_sha256": "5736e232ca8e4a0d3700781679ac04f647c492760a6f63fca49b765210b2b72d",
+      "bytes": 5936
+    },
+    "lifecycle-link-command.json": {
+      "source_sha256": "4055e36576fb9dee3020db0e83ce912240eddf4fcc89153dda2d56398a9cfc4e",
+      "retained_sha256": "6642212b300d2bb67fa029c35d4963de9df0b1bf7fc16723499c399bed659c10",
+      "bytes": 7430
+    },
+    "lifecycle-manifest.json": {
+      "source_sha256": "3be32e19d57e3400ce58a9e378bf42ba4be285f2c987c9d89d1b6557e221af04",
+      "retained_sha256": "ccb5057760083debcd66903ce61acd15f40c4456d316963a9eaa5cdc397d96f9",
+      "bytes": 2492
+    },
+    "halo-depth-probe.cpp.txt": {
+      "source_sha256": "62f5bd6192b7d411442bdc758251e6728809e59a0bcaacdac93e8aaa474e9086",
+      "retained_sha256": "113153f7404cc2f74ca1b47ada972496d141792eccc97bd87f66e1bd7ea4acd3",
+      "bytes": 11358
+    },
+    "halo-depth.log": {
+      "source_sha256": "cf48055bb2e24e5a2ff6db6367bf5cb0bf224beacc143448ec17cfa2cdfabe6d",
+      "retained_sha256": "cf48055bb2e24e5a2ff6db6367bf5cb0bf224beacc143448ec17cfa2cdfabe6d",
+      "bytes": 615
+    },
+    "halo-depth-command.txt": {
+      "source_sha256": "a866db25c515f87b3a38ec8018615e4392d342d2a3377062d4315acb10c33e09",
+      "retained_sha256": "8b9dd9fa26f5babed938943d47dd6c9edca3581fafadd8b6ca909df9b80b3a14",
+      "bytes": 712
+    },
+    "solar-fleet-fixture.c.txt": {
+      "source_sha256": "97db083ae6bbe07126863104df8b9bc1329fc72d677b6cdbc0030a7c015def8d",
+      "retained_sha256": "97db083ae6bbe07126863104df8b9bc1329fc72d677b6cdbc0030a7c015def8d",
+      "bytes": 7756
+    },
+    "baseline-manifest.json": {
+      "source_sha256": "2288dd2831dae370bd8834834f568f6cd5b74969be14894bf024bcacc04895cf",
+      "retained_sha256": "3470771c6833d1d9e5cbdd7e0742cd0589e0640312c8c83093ec773f034d4b73",
+      "bytes": 2322
+    },
+    "baseline-summary.json": {
+      "source_sha256": "8d8d8a17d95080e0e21fd55c3e534889e689fdc655f69476adf4eea0fdc51ba7",
+      "retained_sha256": "8d8d8a17d95080e0e21fd55c3e534889e689fdc655f69476adf4eea0fdc51ba7",
+      "bytes": 1237
+    },
+    "baseline-wall.json": {
+      "source_sha256": "62657a54b10e92bb78922f61869878e5c705716eb8b57e2ea74de594df82a9d2",
+      "retained_sha256": "62657a54b10e92bb78922f61869878e5c705716eb8b57e2ea74de594df82a9d2",
+      "bytes": 47
+    },
+    "baseline-cpu-frames.csv": {
+      "source_sha256": "f98406b119d84d2a0f6aed364623916ca0e9f30b9e3dc18a38b43f886c194b0c",
+      "retained_sha256": "f98406b119d84d2a0f6aed364623916ca0e9f30b9e3dc18a38b43f886c194b0c",
+      "bytes": 7125
+    },
+    "baseline-renderer-frames.csv": {
+      "source_sha256": "08531ddba3fbfbc724d1813aab9c6c6f82752adbce0a3a3b61deb81bfb210e71",
+      "retained_sha256": "08531ddba3fbfbc724d1813aab9c6c6f82752adbce0a3a3b61deb81bfb210e71",
+      "bytes": 23807
+    },
+    "baseline-run.log": {
+      "source_sha256": "f3255dc5b7396ae25c2d89ff447b1b5a7fe6db97b78b83d9d9bd927b7036e63e",
+      "retained_sha256": "f3255dc5b7396ae25c2d89ff447b1b5a7fe6db97b78b83d9d9bd927b7036e63e",
+      "bytes": 6561
+    },
+    "candidate-manifest.json": {
+      "source_sha256": "b03ea074f3b492da9a1fb5f984095603dc6c9efe110a5488a14a85a5dc92c5d2",
+      "retained_sha256": "8f0089934dae82774bf65b1bb801bfe8b5cf5f4c50480f480b18cbba1653147f",
+      "bytes": 2425
+    },
+    "candidate-summary.json": {
+      "source_sha256": "77fea6fb16bfd7a7b7de162b555fad9e629a981dfd3f22dbae33f66d420d0330",
+      "retained_sha256": "77fea6fb16bfd7a7b7de162b555fad9e629a981dfd3f22dbae33f66d420d0330",
+      "bytes": 1222
+    },
+    "candidate-wall.json": {
+      "source_sha256": "a8e3490a91c61f2ea44e91c70968058ac22d8a8ac5157db59e9ea6154cb3235f",
+      "retained_sha256": "a8e3490a91c61f2ea44e91c70968058ac22d8a8ac5157db59e9ea6154cb3235f",
+      "bytes": 47
+    },
+    "candidate-cpu-frames.csv": {
+      "source_sha256": "6a655f88faa1ef1c82998c42027798e80d934bcfc5647428568fce0e74952ec7",
+      "retained_sha256": "6a655f88faa1ef1c82998c42027798e80d934bcfc5647428568fce0e74952ec7",
+      "bytes": 7125
+    },
+    "candidate-renderer-frames.csv": {
+      "source_sha256": "e11185e9c1a393a7be4d716e4a7b441f8f79157c8de8f384aabe7830d32e6912",
+      "retained_sha256": "e11185e9c1a393a7be4d716e4a7b441f8f79157c8de8f384aabe7830d32e6912",
+      "bytes": 23802
+    },
+    "candidate-run.log": {
+      "source_sha256": "ebef259795ad08e90ae41ba487c8ba0c0482660ecced628d30d377007cdfe256",
+      "retained_sha256": "ebef259795ad08e90ae41ba487c8ba0c0482660ecced628d30d377007cdfe256",
+      "bytes": 6759
+    }
+  }
+}

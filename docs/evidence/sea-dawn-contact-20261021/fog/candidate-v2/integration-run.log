@@ -1,0 +1,26 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 32x32; SDL drawable 32x32; samples 1
+[StormMetal] water mode: original shader fidelity
+bridge=1 forward=ff0000 backward=0000ff
+rotated=0000ff next=00ff00 mixed=808000 storm=ffff00/00ffff/80ff80 ordinary=00ff00 fallback=315273
+elevation low=ff0000 high=5ca300
+lower-hemisphere below-ray=ff0000 capture-origin=4db200/4db200
+PASS authored directional fog integration
+        1.68 real         0.07 user         0.07 sys
+           122847232  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                8127  page reclaims
+                 109  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 233  voluntary context switches
+                1051  involuntary context switches
+           951262513  instructions retired
+           516998139  cycles elapsed
+           639534016  peak memory footprint

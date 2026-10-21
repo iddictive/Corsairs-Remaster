@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Task-owned native TOUCH observation; no SAVE, focus, input or game acceptance."""
+from pathlib import Path
+import os, sys, json, hashlib, re, time, csv
+
+ROOT = Path('$REPO')
+sys.path.insert(0, str(ROOT / 'tools'))
+from metal_storage import diagnostic_run
+from run_sea_benchmark import read, function
+import metal_graphics_settings as settings
+
+mode = sys.argv[1] if len(sys.argv) > 1 else 'ordinary'
+assert mode in ('ordinary', 'phonk')
+NATIVE = ROOT / 'experiments/native-metal'
+resources = NATIVE / '.cache/runtime'
+assert (resources / 'RESOURCE').is_dir()
+binary = NATIVE / '.cache/build/bin/sea-fleet-benchmark'
+assert binary.is_file()
+owner = Path(__file__).resolve().parent
+run = owner / (mode + '-' + time.strftime('%H%M%S'))
+sources = {
+    'fixture': NATIVE / 'sea_fleet_fixture.c',
+    'ship-catalog': resources / 'PROGRAM/ships/ships_init.c',
+    'ship-lights': resources / 'PROGRAM/SEA_AI/ShipLights.c',
+    'day': resources / 'PROGRAM/Weather/Init/Day.c',
+    'units': resources / 'PROGRAM/utils.c',
+    'native-declarations': resources / 'PROGRAM/seadogs.c',
+    'cannon-declarations': resources / 'PROGRAM/cannons/cannons.h',
+    'driver': NATIVE / 'sea_fleet_benchmark.cpp',
+    'touch': NATIVE / 'engine/src/libs/touch/src/touch.cpp',
+}
+texts = {name: read(path) for name, path in sources.items()}
+marker = 'makeref(refShip,ShipsTypes[SHIP_MANOWAR]);'
+catalog = texts['ship-catalog']
+assert catalog.count(marker) == 1
+start = catalog.index(marker) + len(marker)
+end = catalog.index('makeref(refShip,ShipsTypes[', start)
+ship = re.sub(r'\brefship\b', 'ShipType', catalog[start:end], flags=re.I)
+cannon = re.findall(r'^#define CANNON_TYPE_CANNON_LBS42\s+[0-9]+', texts['cannon-declarations'], re.M)
+assert len(cannon) == 1
+ship = cannon[0] + '\n' + function(texts['units'], 'int Tonnes2CWT(int iTonnes)') + 'void InitShipType(){\n' + ship + '\nShipType.Name="Manowar1";\n}\n'
+declarations = re.findall(r'^native [^\n]+;', texts['native-declarations'], re.M)
+assert len(declarations) == 11
+fixture = texts['fixture']
+
+
+def replace(old, new):
+    global fixture
+    assert fixture.count(old) == 1, (old, fixture.count(old))
+    fixture = fixture.replace(old, new)
+
+
+replace('int FleetCount = 8;', 'int FleetCount = 2;')
+replace('#include "native-declarations.c"', '\n'.join(declarations) + '\nnative void BenchmarkContactKill(int index);')
+replace('object Render, Sea, Weather, Sky, ShipLights;', 'object Render, Sea, Weather, Sky, ShipLights, Touch, Sound;')
+replace('int BenchmarkReady = 0;', 'int BenchmarkReady = 0;\nint ContactPhase=0, ContactPhonk=' + ('1' if mode == 'phonk' else '0') + ', ContactEvents=0, ContactEventTicks=0, ContactAudioTicks=0, ContactKills=0;')
+replace('    CreateEntity(&ShipLights, "ShipLights");', '    CreateEntity(&Touch, "touch");\n    LayerAddObject(2, &Touch, 1);\n    Touch.CollisionDepth = -10.0;\n    CreateEntity(&Sound, "Sound");\n    SetEventHandler("Shp_Ship2ShipColl", "ContactCollision", 0);\n    CreateEntity(&ShipLights, "ShipLights");')
+fixture += '''
+// Proxy consumer: real event arguments/HP power/alias, excluding full game perks,
+// crime, naval contribution and ShipDead script. Native SetDead is real.
+float ContactCollision()
+{
+    int started=RDTSC_B();
+    int own=GetEventData();
+    int other=GetEventData();
+    float power=abs(GetEventData());
+    float slide=abs(GetEventData());
+    int point=GetEventData();
+    float x=GetEventData();
+    float y=GetEventData();
+    float z=GetEventData();
+    ContactEvents=ContactEvents+1;
+    float damage=(1.0-slide)*power*10.0;
+    if (ContactPhonk && own==0) damage=0.0;
+    float hp=stf(Fleet[own].ship.HP)-damage;
+    if (hp<=0.0)
+    {
+        if (ContactPhase==3 && own==1)
+        {
+            hp=0.0;
+            Fleet[own].ship.sink.speed.y=0.25;
+            Fleet[own].ship.sink.speed.x=0.021;
+            Fleet[own].ship.sink.speed.z=0.04;
+            BenchmarkContactKill(own);
+            ContactKills=ContactKills+1;
+        }
+        else hp=1.0;
+    }
+    Fleet[own].ship.HP=hp;
+    if (power>1.0)
+    {
+        int audioStarted=RDTSC_B();
+        SendMessage(&Sound,"lsllllllfff",77003,"coll_ship2ship",1,1,false,false,false,0,x,y,z);
+        ContactAudioTicks=ContactAudioTicks+RDTSC_E(audioStarted);
+    }
+    ContactEventTicks=ContactEventTicks+RDTSC_E(started);
+    if (ContactPhonk && own==0) return 0.0;
+    return 1.0;
+}
+'''
+
+with diagnostic_run(run) as (tooltemp, budget):
+    (run / 'RESOURCE').symlink_to(resources / 'RESOURCE', target_is_directory=True)
+    (run / 'fixture.c').write_text(fixture)
+    (run / 'ship-type.c').write_text(ship)
+    (run / 'ship-lights.c').write_text(function(texts['ship-lights'], 'void InitShipLights()'))
+    (run / 'day.c').write_text(texts['day'])
+    (run / 'native-declarations.c').write_text('\n'.join(declarations) + '\n')
+    (run / 'engine.ini').write_text('full_screen=0\nscreen_x=1280\nscreen_y=800\nprogram_directory=.\nrun=fixture.c\nmax_fps=0\nvsync=0\ntexture_degradation=0\nUseLargeBackBuffer=1\nNearClipPlane=0.115\nFarClipPlane=32000\nstartFontIniFile=resource\\ini\\fonts.ini\nfont=interface_normal\nlogs=1\n[compatibility]\ntarget_version=teho\n[sea]\nfoamenable=1\n[script]\ndebuginfo=1\ncodefiles=0\nruntimelog=0\ntracefiles=0\n')
+    env = settings.launch_environment(Path.home() / 'Library/Application Support/Iddictive Corsairs', dict(os.environ))
+    env['TMPDIR'] = str(tooltemp) + os.sep
+    env.update(STORM_METAL_CONTACT_DIAGNOSTIC='1', STORM_METAL_DAMAGE_TRACE='1', STORM_METAL_STRUCTURAL_CONTACT='0', STORM_METAL_PROFILE='1', STORM_QUIET_CLIENT='1', STORM_METAL_FRAME_TRACE=str(run / 'renderer-frames.csv'))
+    env.pop('STORM_METAL_GPU_CAPTURE', None)
+    manifest = {'kind': 'native-contact-proxy', 'player_microfreeze_acceptance': False, 'mode': mode, 'frames': 192, 'viewport': [1280, 800], 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(), 'sources': {name: {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()} for name, path in sources.items()}, 'limits': {'seconds': 60, 'ships': 2}, 'scope': 'Actual TOUCH/native ship/mast/audio/render path. Script HP consumer is a labelled proxy, excluding perks/crime/naval/full ShipDead script.'}
+    (run / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    print('contact_output=' + str(run), flush=True)
+    with (run / 'run.log').open('w') as log:
+        process = budget.start([str(binary), str(run), '192', '1280', '800'], env=env, stdout=log, stderr=log)
+        code = budget.wait(process, 60)
+    print('contact_exit=' + str(code), flush=True)
+    if code:
+        print('\n'.join((run / 'run.log').read_text().splitlines()[-35:]))
+        raise SystemExit(code)
+    rows = list(csv.DictReader((run / 'contact-frames.csv').open()))
+    cpu = {int(r['frame']): float(r['cpu_wall_ms']) for r in csv.DictReader((run / 'cpu-frames.csv').open())}
+    previous = 0
+    impacts = []
+    for row in rows:
+        count = int(row['event_count'])
+        if count > previous:
+            impacts.append(dict(row, cpu_wall_ms=cpu[int(row['frame'])], new_events=count - previous))
+        previous = count
+    summary = {'player_microfreeze_acceptance': False, 'impacts': impacts, 'phase_maxima': {}, 'final_events': previous, 'final_kills': int(rows[-1]['kills'])}
+    for phase in ('0', '1', '2', '3'):
+        population = [r for r in rows if r['phase'] == phase and int(r['frame']) > 0]
+        summary['phase_maxima'][phase] = {'core_wall_ms_max': max(cpu[int(r['frame'])] for r in population), 'touch_ms_max': max(float(r['touch_ms']) for r in population)}
+    (run / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    print(json.dumps(summary, indent=2))

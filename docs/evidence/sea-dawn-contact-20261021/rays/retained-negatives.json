@@ -1,0 +1,18 @@
+{
+  "upper-water/complete": {
+    "different_bytes": 0,
+    "max_channel_delta": 0
+  },
+  "horizon-water/complete": {
+    "different_bytes": 21846,
+    "max_channel_delta": 190
+  },
+  "horizon-water/positive_ray_upper_half": {
+    "different_bytes": 0,
+    "max_channel_delta": 0
+  },
+  "no-fog-water/complete": {
+    "different_bytes": 0,
+    "max_channel_delta": 0
+  }
+}

@@ -1,0 +1,100 @@
+#include "authored_sky.hpp"
+#include <random>
+#include <cmath>
+#include <cstdio>
+using storm_metal::AuthoredSkyCoordinate;
+struct Vector {float x,y,z;};
+AuthoredSkyCoordinate original(Vector vLocalSunPos){if(vLocalSunPos.y<0)vLocalSunPos.y=0;const float fSkySize=2048.f;
+        int32_t nTexNum = -1;
+        float fu, fv, fk;
+
+        // check the hit to the top side
+        if (vLocalSunPos.y > 0.f)
+        {
+            fk = fSkySize / vLocalSunPos.y;
+            fu = -vLocalSunPos.x * fk;
+            fv = vLocalSunPos.z * fk;
+
+            if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= -fSkySize)
+            {
+                nTexNum = 4;
+                fu = (fu + fSkySize) * 0.5f / fSkySize;
+                fv = (fv + fSkySize) * 0.5f / fSkySize;
+            }
+        }
+
+        // check for hitting the front side
+        if (nTexNum == -1)
+        {
+            if (vLocalSunPos.z < 0.f)
+            {
+                fk = -fSkySize / vLocalSunPos.z;
+                fu = vLocalSunPos.x * fk;
+                fv = vLocalSunPos.y * fk;
+
+                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
+                {
+                    nTexNum = 0;
+                    fu = (fu + fSkySize) * 0.5f / fSkySize;
+                    fv = (fSkySize - fv) / fSkySize;
+                }
+            }
+        }
+
+        // check the hit to the back side
+        if (nTexNum == -1)
+        {
+            if (vLocalSunPos.z > 0.f)
+            {
+                fk = fSkySize / vLocalSunPos.z;
+                fu = -vLocalSunPos.x * fk;
+                fv = vLocalSunPos.y * fk;
+
+                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
+                {
+                    nTexNum = 2;
+                    fu = (fu + fSkySize) * 0.5f / fSkySize;
+                    fv = (fSkySize - fv) / fSkySize;
+                }
+            }
+        }
+
+        // check the hit to the left side
+        if (nTexNum == -1)
+        {
+            if (vLocalSunPos.x > 0.f)
+            {
+                fk = fSkySize / vLocalSunPos.x;
+                fu = vLocalSunPos.z * fk;
+                fv = vLocalSunPos.y * fk;
+
+                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
+                {
+                    nTexNum = 1;
+                    fu = (fSkySize + fu) * 0.5f / fSkySize;
+                    fv = (fSkySize - fv) / fSkySize;
+                }
+            }
+        }
+
+        // check the hit to the right side
+        if (nTexNum == -1)
+        {
+            if (vLocalSunPos.x < 0.f)
+            {
+                fk = -fSkySize / vLocalSunPos.x;
+                fu = -vLocalSunPos.z * fk;
+                fv = vLocalSunPos.y * fk;
+
+                if (fu <= fSkySize && fu >= -fSkySize && fv <= fSkySize && fv >= 0.f)
+                {
+                    nTexNum = 3;
+                    fu = (fSkySize + fu) * 0.5f / fSkySize;
+                    fv = (fSkySize - fv) / fSkySize;
+                }
+            }
+        }
+
+
+return nTexNum<0?AuthoredSkyCoordinate{-1,0,0}:AuthoredSkyCoordinate{nTexNum,fu,fv};}
+int main(){std::mt19937 generator(20261021);std::uniform_real_distribution<float> sample(-5000.f,5000.f);float error=0;unsigned cases=0;auto check=[&](Vector v){auto expected=original(v),actual=storm_metal::authoredSkyCoordinate(v.x,v.y,v.z);if(expected.face!=actual.face||(expected.face>=0&&(std::abs(expected.u-actual.u)>2.e-6f||std::abs(expected.v-actual.v)>2.e-6f))){std::printf("FAIL xyz=%g,%g,%g face=%d/%d uv=%g,%g/%g,%g\n",v.x,v.y,v.z,expected.face,actual.face,expected.u,expected.v,actual.u,actual.v);return false;}error=std::fmax(error,std::fmax(std::abs(expected.u-actual.u),std::abs(expected.v-actual.v)));++cases;return true;};for(unsigned i=0;i<200000;++i)if(!check({sample(generator),sample(generator),sample(generator)}))return 1;for(float x:{-1.f,0.f,1.f})for(float y:{-1.f,0.f,1.f})for(float z:{-1.f,0.f,1.f})if(!check({x,y,z}))return 1;std::printf("PASS original SKY coordinate parity cases=%u max_uv_error=%g\n",cases,error);}

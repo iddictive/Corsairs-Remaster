@@ -1,0 +1,9 @@
+[
+  "/usr/bin/c++",
+  "-std=c++20",
+  "-O2",
+  "-I$REPO/experiments/native-metal",
+  "$REPO/experiments/native-metal/.cache/diagnostics/dawn-20261021-fog/coordinate-parity/coordinate_parity.cpp",
+  "-o",
+  "$REPO/experiments/native-metal/.cache/diagnostics/dawn-20261021-fog/coordinate-parity/coordinate-parity"
+]

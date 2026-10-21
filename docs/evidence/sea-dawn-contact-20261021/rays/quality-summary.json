@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "upper_direct_rmse": 6.076287,
+    "down_direct_rmse": 106.397644,
+    "positive_height_direct_rmse": 71.170067,
+    "negative_height_direct_rmse": 59.023105,
+    "positive_height_finite_field_rmse": 70.250838
+  },
+  "candidate": {
+    "upper_direct_rmse": 6.076287,
+    "down_direct_rmse": 0.281036,
+    "positive_height_direct_rmse": 13.34861,
+    "negative_height_direct_rmse": 0.250155,
+    "positive_height_finite_field_rmse": 0.251567
+  },
+  "positive_height_oracle_resolution_difference": 13.349527,
+  "map_return_vs_direct_topdown": "byte-exact on both",
+  "retained_negatives": "retained-negatives.json",
+  "note": "Rejected direct positive-height <8 threshold is preserved; exact retained256x128 filtering accounts for mismatch at deliberately discontinuous synthetic face joins."
+}

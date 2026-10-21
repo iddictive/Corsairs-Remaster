@@ -1,0 +1,22 @@
+#include "engine/src/libs/touch/src/ship_contact.hpp"
+#include <bit>
+#include <chrono>
+#include <cstdio>
+#include <fstream>
+#include <unordered_set>
+using storm::ship::contact::Vec2;
+struct Point {float x,y,z;};
+struct Triangle {unsigned char index[3][3];unsigned at(int n)const{return index[n][0]|index[n][1]<<8|index[n][2]<<16;}};
+uint64_t key(float x,float z){return uint64_t(std::bit_cast<uint32_t>(x==0?0.f:x))<<32|std::bit_cast<uint32_t>(z==0?0.f:z);}
+Point transform(Point p,int mode){switch(mode){case 1:return {p.x*1.7f+p.y*.13f+1234.f,p.y*.9f,p.z*.3f-p.y*.1f-450.f};case 2:return {p.x*.73f+p.z*.31f,p.y,p.z*.73f-p.x*.31f};case 3:return {p.x,p.y,0.f};case 4:return {0.f,p.y,0.f};default:return p;}}
+std::vector<Vec2> contour(const std::vector<Point>&v,const std::vector<Triangle>&triangles,int mode,int method,bool cut){
+ std::vector<Vec2>points;std::unordered_set<uint64_t>seen;std::vector<uint64_t>keys;
+ if(method==1)seen.reserve(v.size());if(method==2)keys.reserve(triangles.size()*3);
+ for(size_t n=0;n<triangles.size();++n){if(cut&&n%3==0)continue;for(int corner=0;corner<3;++corner){auto p=transform(v[triangles[n].at(corner)],mode);if(method==2)keys.push_back(key(p.x,p.z));else if(method==0||seen.insert(key(p.x,p.z)).second)points.push_back({p.x,p.z});}}
+ if(method==2){std::sort(keys.begin(),keys.end());keys.erase(std::unique(keys.begin(),keys.end()),keys.end());for(auto k:keys)points.push_back({std::bit_cast<float>(uint32_t(k>>32)),std::bit_cast<float>(uint32_t(k))});}
+ return storm::ship::contact::detail::convexHull(std::move(points));
+}
+bool same(const std::vector<Vec2>&a,const std::vector<Vec2>&b){if(a.size()!=b.size())return false;for(size_t n=0;n<a.size();++n)if(a[n].x!=b[n].x||a[n].z!=b[n].z)return false;return true;}
+int main(int argc,char**argv){for(int file=1;file<argc;++file){std::ifstream in(argv[file],std::ios::binary);uint32_t counts[2];in.read((char*)counts,8);std::vector<Point>v(counts[0]);std::vector<Triangle>t(counts[1]);in.read((char*)v.data(),v.size()*12);in.read((char*)t.data(),t.size()*9);for(int mode=0;mode<5;++mode)for(bool cut:{false,true}){auto expected=contour(v,t,mode,0,cut);for(int method=0;method<3;++method){std::vector<double>times;for(int run=0;run<5;++run){auto begin=std::chrono::steady_clock::now();auto actual=contour(v,t,mode,method,cut);auto end=std::chrono::steady_clock::now();if(!same(expected,actual)){printf("FAIL file=%s mode=%d cut=%d method=%d\n",argv[file],mode,cut,method);return 1;}times.push_back(std::chrono::duration<double,std::milli>(end-begin).count());}std::sort(times.begin(),times.end());printf("file=%s transform=%d retained_subset=%d method=%d hull=%zu median_ms=%.6f max_ms=%.6f equal=1\n",argv[file],mode,cut,method,expected.size(),times[2],times.back());}}
+ for(int method=0;method<3;++method){auto invalid=v;invalid[t[0].at(0)].x=INFINITY;if(!contour(invalid,t,0,method,false).empty())return 2;invalid[t[0].at(0)].x=NAN;if(!contour(invalid,t,0,method,false).empty())return 3;}}
+ puts("PASS: identical complete hulls across transforms, retained subsets, collinear/point degenerates and nonfinite rejection");}

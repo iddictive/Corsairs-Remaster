@@ -1,0 +1,171 @@
+{
+  "scope": "one paired native hidden eight-ship noon fleet with real SUNGLOW, 1920x1080,160frames/128warmup; no flare or overflow; no player FPS acceptance",
+  "bounds": "observed same workload:1744draws/20buffers/16981000medianupload; CPUpreparationp95<=15.37ms,GPUunionp95<=15.61ms; corewallp95<=17.87ms with drawable-wait tails retained; not a population-wide ceiling",
+  "summary": {
+    "baseline": {
+      "warmup_frames": 128,
+      "measured_frames": 32,
+      "percentiles": "nearest rank; median uses middle pair",
+      "cpu_core_wall_ms": {
+        "median": 14.188649999999999,
+        "p95": 15.2664,
+        "p99": 15.4184,
+        "max": 15.4184
+      },
+      "cpu_core_wall_mean_ms": 14.23559375,
+      "cpu_preparation_estimate_ms": {
+        "median": 14.163420546000001,
+        "p95": 15.240190884,
+        "p99": 15.391149949,
+        "max": 15.391149949
+      },
+      "main_completion_cadence_mean_ms": 14.35286425534756,
+      "gpu_execution_union_ms": {
+        "median": 13.37285409681499,
+        "p95": 15.604125102981925,
+        "p99": 16.528500011190772,
+        "max": 16.528500011190772
+      },
+      "required_pass_minima": {
+        "sails": 152,
+        "animated": 334,
+        "sea_draws": 1,
+        "sky_current": 1,
+        "shadow_cubes_complete": 8
+      },
+      "buffer_allocations": {
+        "median": 20.0,
+        "p95": 20.0,
+        "p99": 20.0,
+        "max": 20.0
+      },
+      "upload_bytes": {
+        "median": 16981000.0,
+        "p95": 16990632.0,
+        "p99": 16990632.0,
+        "max": 16990632.0
+      },
+      "draws": {
+        "median": 1744.0,
+        "p95": 1744.0,
+        "p99": 1744.0,
+        "max": 1744.0
+      },
+      "max_gpu_resource_bytes": 1241956352,
+      "max_rss_bytes": 1709457408,
+      "workload_coverage_pass": true,
+      "performance_acceptance": false
+    },
+    "candidate": {
+      "warmup_frames": 128,
+      "measured_frames": 32,
+      "percentiles": "nearest rank; median uses middle pair",
+      "cpu_core_wall_ms": {
+        "median": 13.96385,
+        "p95": 17.8689,
+        "p99": 25.485,
+        "max": 25.485
+      },
+      "cpu_core_wall_mean_ms": 14.5303,
+      "cpu_preparation_estimate_ms": {
+        "median": 13.747061961,
+        "p95": 15.369700101000001,
+        "p99": 16.248132954,
+        "max": 16.248132954
+      },
+      "main_completion_cadence_mean_ms": 14.712689512018715,
+      "gpu_execution_union_ms": {
+        "median": 9.912812616676092,
+        "p95": 14.200542122125626,
+        "p99": 14.319750014692545,
+        "max": 14.319750014692545
+      },
+      "required_pass_minima": {
+        "sails": 152,
+        "animated": 334,
+        "sea_draws": 1,
+        "sky_current": 1,
+        "shadow_cubes_complete": 8
+      },
+      "buffer_allocations": {
+        "median": 20.0,
+        "p95": 20.0,
+        "p99": 20.0,
+        "max": 20.0
+      },
+      "upload_bytes": {
+        "median": 16981000.0,
+        "p95": 16990632.0,
+        "p99": 16990632.0,
+        "max": 16990632.0
+      },
+      "draws": {
+        "median": 1744.0,
+        "p95": 1744.0,
+        "p99": 1744.0,
+        "max": 1744.0
+      },
+      "max_gpu_resource_bytes": 1233649664,
+      "max_rss_bytes": 1630322688,
+      "workload_coverage_pass": true,
+      "performance_acceptance": false
+    }
+  },
+  "setup": {
+    "baseline": {
+      "frame0_cpu_ms": 2123.8,
+      "total_wall_seconds": 6.375262249959633,
+      "limitation": "cold asset/pipeline/cache and process setup are not isolated load-stage scan costs"
+    },
+    "candidate": {
+      "frame0_cpu_ms": 1867.97,
+      "total_wall_seconds": 6.782368957996368,
+      "limitation": "cold asset/pipeline/cache and process setup are not isolated load-stage scan costs"
+    }
+  },
+  "tail_frames": {
+    "baseline": [
+      {
+        "frame": 141,
+        "cpu_wall_ms": 15.4184,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 0.027250051
+      },
+      {
+        "frame": 152,
+        "cpu_wall_ms": 15.2664,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 0.026209116
+      },
+      {
+        "frame": 143,
+        "cpu_wall_ms": 15.2052,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 0.027542114
+      }
+    ],
+    "candidate": [
+      {
+        "frame": 146,
+        "cpu_wall_ms": 25.485,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 12.666917086
+      },
+      {
+        "frame": 141,
+        "cpu_wall_ms": 17.8689,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 4.332458019
+      },
+      {
+        "frame": 142,
+        "cpu_wall_ms": 16.2758,
+        "gpu_wait_ms": 0.0,
+        "drawable_wait_ms": 0.027667046
+      }
+    ]
+  },
+  "cache_binary_sha256": "dff693ba50f1a515da39e8ef5630e13b89ad1bd168100bb67702207e3bc31e54",
+  "baseline_cache_owner": "experiments/native-metal/.cache/diagnostics/dawn-20261021-solar-runtime/baseline-executable/sea-fleet-benchmark",
+  "conditions_changed": "solar/halo owners; shared batch also includes drift/contact and inactive Phonk VFX changes. Same fixture, assets,settings,resolution,commandcounts. No claim of isolated whole-game speedup."
+}

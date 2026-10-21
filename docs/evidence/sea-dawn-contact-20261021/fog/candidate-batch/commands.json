@@ -1,0 +1,22 @@
+{
+  "compile": [
+    "/usr/bin/c++",
+    "-O3",
+    "-std=c++20",
+    "-fobjc-arc",
+    "-mmacosx-version-min=15.0",
+    "-I$REPO/experiments/native-metal",
+    "$REPO/experiments/native-metal/.cache/diagnostics/dawn-20261021-fog/fog_gpu_budget.mm",
+    "$REPO/experiments/native-metal/.cache/build/libcloud_noise_assets.a",
+    "-framework",
+    "Metal",
+    "-framework",
+    "Foundation",
+    "-o",
+    "$REPO/experiments/native-metal/.cache/diagnostics/dawn-20261021-fog/candidate-batch/fog-gpu-budget"
+  ],
+  "run": [
+    "$REPO/experiments/native-metal/.cache/diagnostics/dawn-20261021-fog/candidate-batch/fog-gpu-budget",
+    "--batch32"
+  ]
+}

@@ -1,0 +1,51 @@
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#include "volumetric_sky.hpp"
+#include "local_weather.hpp"
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+
+static void need(bool ok,const char*message){if(!ok){std::fprintf(stderr,"FAIL %s\n",message);std::exit(1);}}
+int main(int argc,char**argv){@autoreleasepool{
+    const unsigned batch=argc>1?32u:1u;
+    using namespace storm_metal;
+    auto device=MTLCreateSystemDefaultDevice();auto queue=[device newCommandQueue];
+    NSError*error=nil;const auto source=std::string(dynamicSkyShaderSource)+localWeatherMSL;
+    auto library=[device newLibraryWithSource:[NSString stringWithUTF8String:source.c_str()] options:nil error:&error];
+    need(library!=nil,error?error.localizedDescription.UTF8String:"library");
+    VolumetricSky sky;need(sky.prepare(device,library,false),"existing air resources");
+    const auto weather=makeDynamicSkyUniform({.hour=3.5667f},simd_make_float3(49.f/255.f,82.f/255.f,115.f/255.f));
+    auto init=[queue commandBuffer];need(sky.encodeAir(device,library,init,0,weather),"initial atmospheric dispatch");[init commit];[init waitUntilCompleted];
+    VolumetricSky::AuthoredTextures textures{},none{};
+    constexpr unsigned side=512;
+    auto descriptor=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:side height:side mipmapped:NO];
+    descriptor.storageMode=MTLStorageModeShared;descriptor.usage=MTLTextureUsageShaderRead;
+    for(unsigned i=0;i<textures.size();++i){
+        textures[i]=[device newTextureWithDescriptor:descriptor];need(textures[i]!=nil,"decoded panorama texture");
+        std::vector<uint32_t>pixels(side*side,i%5==0?0xffff0000u:0xff0000ffu);
+        [textures[i] replaceRegion:MTLRegionMake2D(0,0,side,side) mipmapLevel:0 withBytes:pixels.data() bytesPerRow:side*4];
+    }
+    std::vector<double>constant,directional;uint64_t frame=1;
+    auto dispatch=[&](bool authored){
+        auto command=[queue commandBuffer];
+        for(unsigned i=0;i<batch;++i)need(sky.encodeFog(command,frame++,weather,authored?textures:none,{.35f,.45f,.6f,.4f},.01f),"one fog dispatch");
+        [command commit];[command waitUntilCompleted];need(command.status==MTLCommandBufferStatusCompleted,"GPU command");
+        need(command.GPUEndTime>=command.GPUStartTime&&command.GPUStartTime>0,"native GPU timestamps");
+        return(command.GPUEndTime-command.GPUStartTime)*1000./batch;
+    };
+    for(unsigned i=0;i<10;++i){dispatch(false);dispatch(true);}
+    const unsigned count=batch==1?40u:12u;
+    for(unsigned i=0;i<count;++i){constant.push_back(dispatch(false));directional.push_back(dispatch(true));}
+    std::printf("matched branch workload dispatches_per_command=%u warm_commands_per_branch=10\n",batch);
+    auto report=[](const char*name,std::vector<double>samples){std::sort(samples.begin(),samples.end());std::printf("%s commands=%zu dispatch=256x128 median_ms=%.6f p95_ms=%.6f min_ms=%.6f max_ms=%.6f\n",name,samples.size(),samples[samples.size()/2],samples[samples.size()*95/100],samples.front(),samples.back());};
+    report("constant",constant);report("authored20x512",directional);
+    __fp16 left[4]{},right[4]{};
+    [sky.fogEnvironment getBytes:left bytesPerRow:sizeof(left) fromRegion:MTLRegionMake2D(64,64,1,1) mipmapLevel:0];
+    [sky.fogEnvironment getBytes:right bytesPerRow:sizeof(right) fromRegion:MTLRegionMake2D(192,64,1,1) mipmapLevel:0];
+    std::printf("output opposite_rgb=(%.5f,%.5f,%.5f)/(%.5f,%.5f,%.5f) allocated_bytes=%llu\n",float(left[0]),float(left[1]),float(left[2]),float(right[0]),float(right[1]),float(right[2]),static_cast<unsigned long long>(device.currentAllocatedSize));
+    need(float(left[2])>.95f&&float(right[0])>.95f,"retained directional colors after matched warm dispatches");
+    std::puts("PASS warm fog branch proxy; excludes scene, panorama load, local volume and presentation");
+}}

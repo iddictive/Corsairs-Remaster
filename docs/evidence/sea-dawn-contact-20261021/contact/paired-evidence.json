@@ -1,0 +1,133 @@
+{
+  "scope": "First native wreck contour cache miss, not full game first nonlethal handler acceptance",
+  "baseline_commit": "999c349bc9a2c5d48b8939aee43adb800679c21a",
+  "baseline_instrumented_hull_source_sha256": "b0c45b805c90356cf7dc14f4be19b72e1e6d4073e5acf27422ea6f2f09bcdd3f",
+  "candidate_hull_source_sha256": "fa82bd441a19388a32d899f71f6ca56fcc2df1e82ad1539f6b80aed93e7e2f1e",
+  "clock": "TOUCH dwRdtsc and script RDTSC_B/E are SDL_GetPerformanceCounter ticks; converted using SDL_GetPerformanceFrequency. HullTiming Phase uses steady_clock milliseconds. Event/audio CSV values are cumulative.",
+  "pairs": {
+    "ordinary": {
+      "before": {
+        "run": "ordinary-170737",
+        "binary_sha256": "2a1ebea255d34e461b51e12067a96de96a224803b80da6bf631529f914aa09bc",
+        "contour_ms": 17.468,
+        "touch_ms": 17.5592,
+        "core_wall_ms": 21.6182,
+        "drawable_wait_ms": 0.020582914,
+        "gpu_wait_ms": 0.0,
+        "draws": 487,
+        "buffers": 8,
+        "upload_bytes": 7684608,
+        "raw_sha256": {
+          "manifest.json": "3340382680ee10d18c1c4a2f9107a586e362f79c5ec1bc334d4c5594450cd630",
+          "cpu-frames.csv": "12850eb9fc1a35860bdbcf34d4e10d73426a57d2321b75c0ce3485b547ce9d59",
+          "contact-frames.csv": "f0b85e059374376bacb91af4b507098f9009ce454665d1989ac065dfab2760a0",
+          "renderer-frames.csv": "b8c9ea7dbad010f4c080a18fcde2dfa245df9b5a778390f091478171a18d54ee",
+          "run.log": "c446a2f91afeb63228e0870c7e2c5e23300536a520a819844b7091d357e97d5f"
+        }
+      },
+      "after": {
+        "run": "ordinary-171057",
+        "binary_sha256": "dff693ba50f1a515da39e8ef5630e13b89ad1bd168100bb67702207e3bc31e54",
+        "contour_ms": 10.712,
+        "touch_ms": 10.7994,
+        "core_wall_ms": 14.9475,
+        "drawable_wait_ms": 0.021625042,
+        "gpu_wait_ms": 0.0,
+        "draws": 487,
+        "buffers": 8,
+        "upload_bytes": 7684608,
+        "raw_sha256": {
+          "manifest.json": "25bb5eaa221e2752d28b2fecb651a021479ddc7b717afd948ee7cab6dadaba4d",
+          "cpu-frames.csv": "1ba62e810374ca8e76e04d990061b8d128d4035c568dbeff2a28f53454e06020",
+          "contact-frames.csv": "f247a2cde15ee649b0145a9a4c1eed5d0b40ffd0bafdde3edda4a0b0d68ddd82",
+          "renderer-frames.csv": "9498f4f3b4183d0836f4e084f8fca091930d35f73fc7b34d469fdcbffde51b15",
+          "run.log": "d85e985da2059a18f8c29f7f895d26801a6568ab087feb7c9a8b311fb30a7ec8"
+        }
+      },
+      "recorded_physics_equal_rows": 192,
+      "equality_fields": [
+        "phase",
+        "event_count",
+        "kills",
+        "driver_x",
+        "driver_z",
+        "target_x",
+        "target_z",
+        "driver_knots",
+        "target_knots",
+        "target_dead"
+      ]
+    },
+    "phonk": {
+      "before": {
+        "run": "phonk-170745",
+        "binary_sha256": "2a1ebea255d34e461b51e12067a96de96a224803b80da6bf631529f914aa09bc",
+        "contour_ms": 17.373,
+        "touch_ms": 17.504,
+        "core_wall_ms": 22.0697,
+        "drawable_wait_ms": 0.023041964,
+        "gpu_wait_ms": 0.0,
+        "draws": 493,
+        "buffers": 8,
+        "upload_bytes": 7830816,
+        "raw_sha256": {
+          "manifest.json": "c0037ad7c56c69d1c30bc8ffa1aa89e3937769a3715cbeae376ae65738ed78d2",
+          "cpu-frames.csv": "402abb9e46fb396b895c66b906bc0f18868d56df9849386e6e09e3f7493d20c9",
+          "contact-frames.csv": "3ef5be67a9388babad4e48977e1100107bfa6fc5ede272b1d9a506e04c5329a4",
+          "renderer-frames.csv": "0d04cfdd4de3e8cd30230365e9a32ec3976ec2ee63075e7e34bac1b4c9e0f916",
+          "run.log": "b764f09138d82f36f41b9b16ceb79fddfabe1fd0eb4028de67e754f56b3cd6de"
+        }
+      },
+      "after": {
+        "run": "phonk-171105",
+        "binary_sha256": "dff693ba50f1a515da39e8ef5630e13b89ad1bd168100bb67702207e3bc31e54",
+        "contour_ms": 10.057,
+        "touch_ms": 10.1559,
+        "core_wall_ms": 21.1933,
+        "drawable_wait_ms": 6.802832842,
+        "gpu_wait_ms": 0.0,
+        "draws": 493,
+        "buffers": 8,
+        "upload_bytes": 7830816,
+        "raw_sha256": {
+          "manifest.json": "beaeea2da1058b442690a5702163f157043a2745335015c361d73460ae378f29",
+          "cpu-frames.csv": "d573cc742d288eb3820820800691a3d451e46f3b169ac5b034801bac550c6864",
+          "contact-frames.csv": "cce0dbb36fcc210764de3adec36c0a098f89fa50dd57e32d5ad0c6f7467c2137",
+          "renderer-frames.csv": "60674151d9c947148c0a5c9a4e9d4312063e2e0a7ccfd1c1b14105f3c6664618",
+          "run.log": "65c0338acdab7d2dc309aa873330e5300547a634aa5662234ebff91bf1b3d184"
+        }
+      },
+      "recorded_physics_equal_rows": 192,
+      "equality_fields": [
+        "phase",
+        "event_count",
+        "kills",
+        "driver_x",
+        "driver_z",
+        "target_x",
+        "target_z",
+        "driver_knots",
+        "target_knots",
+        "target_dead"
+      ]
+    }
+  },
+  "disposable_equivalence": {
+    "real_BSP_models": 3,
+    "full_hull_coordinate_comparisons": 90,
+    "transforms": [
+      "identity",
+      "nonuniform affine with height contribution",
+      "rotation",
+      "collinear",
+      "point"
+    ],
+    "retained_subsets": "every third triangle omitted, equivalence probe only",
+    "nonfinite_rejection": [
+      "Inf",
+      "NaN"
+    ],
+    "cache_lifecycle": "actual old/new method bodies with mock geometry; seed/hit, collision revision, generation, contour revision, cut/restore, transformed node; nine calls, seven Clip rebuilds each",
+    "limitations": "coordinate equality does not claim signed-zero or NaN bit equality; no actual save/cut gameplay replay"
+  }
+}

@@ -1,0 +1,69 @@
+#include <SDL.h>
+#include "render_device_api.hpp"
+#include "authored_sky.hpp"
+#include "c_vector.h"
+#include "world_map_player_model.hpp"
+#include <simd/simd.h>
+#include <array>
+#include <vector>
+#include <fstream>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+extern "C" bool StormMetalBeginDynamicSky(void*,float,float,float,float,float,float,float,float,float,float,uint32_t);
+extern "C" void StormMetalEndDynamicSky(void*);
+extern "C" bool StormMetalFlushFrameTrace(void*);
+extern "C" void StormMetalSetAuthoredSkyFog(void*,void*const*,float,float,float,float,float);
+extern "C" unsigned StormMetalBeginWdmModel(void*,unsigned);
+extern "C" void StormMetalEndWdmModel(void*,unsigned);
+static void need(bool x,const char*m){if(!x){fprintf(stderr,"FAIL %s\n",m);std::exit(1);}}
+static uint32_t bits(float f){uint32_t v;memcpy(&v,&f,4);return v;}
+static std::vector<uint32_t> file(const std::string&p){std::ifstream f(p,std::ios::binary|std::ios::ate);need(bool(f),p.c_str());auto n=f.tellg();std::vector<uint32_t>v(size_t(n)/4);f.seekg(0);f.read((char*)v.data(),n);return v;}
+int main(int argc,char**argv){
+ need(argc==4,"techniques output baseline|candidate");const bool candidate=std::strcmp(argv[3],"candidate")==0;
+ constexpr unsigned W=128,H=128,N=128;setenv("STORM_METAL_DYNAMIC_SKY","1",1);setenv("STORM_METAL_MODERN_WATER","1",1);
+ need(SDL_Init(SDL_INIT_VIDEO)==0,SDL_GetError());auto*w=SDL_CreateWindow("Directional fog transition",0,0,W,H,SDL_WINDOW_METAL|SDL_WINDOW_HIDDEN);need(w,"window");
+ storm_render::Presentation pp{};pp.width=W;pp.height=H;pp.colorFormat=storm_render::AssetFormat::A8R8G8B8;pp.depthEnabled=true;pp.depthFormat=storm_render::AssetFormat::D32;
+ storm_render::Device*d=nullptr;need(storm_render::succeeded(storm_render::createMetalDevice(w,&pp,&d)),"device");
+ std::array<storm_render::Texture*,20>tex{};std::array<void*,20>source{};std::array<std::vector<uint32_t>,5>pixels;
+ for(unsigned f=0;f<5;++f){pixels[f].resize(N*N);for(unsigned y=0;y<N;++y)for(unsigned x=0;x<N;++x){unsigned r=30,g=80,b=180;if(f==4){r=20+200*x/(N-1);g=20+200*y/(N-1);b=200;}else if(y>N*9/10){r=g=b=((x/8+f)%2)?220:20;}pixels[f][y*N+x]=0xff000000|(r<<16)|(g<<8)|b;}}
+ for(unsigned i=0;i<20;++i){need(storm_render::succeeded(d->CreateTexture(N,N,1,0,storm_render::AssetFormat::A8R8G8B8,&tex[i])),"source");source[i]=static_cast<storm_render::BaseTexture*>(tex[i]);storm_render::LockedRect l{};tex[i]->LockRect(0,&l,nullptr,0);for(unsigned y=0;y<N;++y)memcpy((char*)l.pBits+y*l.Pitch,pixels[i%5].data()+y*N,N*4);tex[i]->UnlockRect(0);}
+ storm_render::Texture*bump=nullptr;d->CreateTexture(4,4,1,0,storm_render::AssetFormat::A8R8G8B8,&bump);storm_render::LockedRect bl{};bump->LockRect(0,&bl,nullptr,0);for(unsigned y=0;y<4;++y)for(unsigned x=0;x<4;++x)((uint32_t*)((char*)bl.pBits+y*bl.Pitch))[x]=0xff80ff80;bump->UnlockRect(0);
+ storm_render::CubeTexture*cube=nullptr;d->CreateCubeTexture(4,1,0,storm_render::AssetFormat::A8R8G8B8,&cube);for(int f=0;f<6;++f){storm_render::LockedRect l{};cube->LockRect(storm_render::CubeFace(f),0,&l,nullptr,0);for(unsigned y=0;y<4;++y)for(unsigned x=0;x<4;++x)((uint32_t*)((char*)l.pBits+y*l.Pitch))[x]=0xff000000;cube->UnlockRect(storm_render::CubeFace(f),0);}
+ auto vc=file(std::string(argv[1])+"/weather/sea_sea2_vertex_shader.vso"),pc=file(std::string(argv[1])+"/weather/sea_sea2_pixel_shader.pso");storm_render::Program*vs=nullptr,*ps=nullptr;d->ImportVertexProgram(vc.data(),&vs);d->ImportFragmentProgram(pc.data(),&ps);
+ storm_render::Surface*target=nullptr,*read=nullptr;d->GetRenderTarget(&target);d->CreateOffscreenPlainSurface(W,H,storm_render::AssetFormat::A8R8G8B8,&read);
+ storm_render::Matrix identity{};identity._11=identity._22=identity._33=identity._44=1;
+ auto projection=identity;const float lens=std::tan(storm_map_player::perspective*.5f);projection._11=projection._22=1/lens;projection._33=100.f/99.f;projection._34=1;projection._43=-100.f/99.f;projection._44=0;
+ struct V{float x,y,z;uint32_t color;};V triangle[]={{-8,-8,4,0xff00ff00},{24,-8,4,0xff00ff00},{-8,24,4,0xff00ff00}};
+ struct S{float x,y,z,nx,ny,nz,u,v;};S sea[]={{-8,-8,4,0,0,-1,0,0},{24,-8,4,0,0,-1,1,0},{-8,24,4,0,0,-1,0,1}};
+ auto render=[&](float pitch,float height,bool water,bool fog,bool map=false){
+  d->Present();d->Clear(storm_render::clear::color|storm_render::clear::depth,0xff000000,1);
+  auto view=identity;view._22=view._33=std::cos(pitch);view._23=std::sin(pitch);view._32=-std::sin(pitch);auto world=view;world._23=-view._23;world._32=-view._32;
+  d->SetTransform(storm_render::TransformWorld,&world);d->SetTransform(storm_render::TransformView,&view);d->SetTransform(storm_render::TransformProjection,&projection);
+  if(!map){StormMetalSetAuthoredSkyFog(d,source.data(),0,0,0,0,height);need(StormMetalBeginDynamicSky(d,12,0,.2,.2,0,0,.16,0,1,0,0xff315273),"atmosphere");StormMetalEndDynamicSky(d);}
+  d->BeginScene();d->SetRenderState(storm_render::RenderLighting,false);d->SetRenderState(storm_render::RenderDepthTest,true);d->SetRenderState(storm_render::RenderDepthWrite,true);d->SetRenderState(storm_render::RenderCullMode,storm_render::CullNone);d->SetRenderState(storm_render::RenderAlphaTest,false);d->SetRenderState(storm_render::RenderFog,fog);d->SetRenderState(storm_render::RenderFogTableMode,3);d->SetRenderState(storm_render::RenderFogColor,0xff315273);d->SetRenderState(storm_render::RenderFogStart,bits(1));d->SetRenderState(storm_render::RenderFogEnd,bits(2));d->SetRenderState(storm_render::RenderBlend,false);
+  d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
+  unsigned previous=map?StormMetalBeginWdmModel(d,1):0;
+  if(water){float c[256][4]{};auto set=[&](int i,float a,float b,float c0,float e){c[i][0]=a;c[i][1]=b;c[i][2]=c0;c[i][3]=e;};set(0,0,1,.5,-.04);set(1,2,-1,0,6);set(23,0,0,0,1);set(24,projection._11,0,0,0);set(25,0,projection._22,0,0);set(26,0,0,projection._33,projection._43);set(27,0,0,1,0);set(28,1,1,1,0);set(29,0,0,0,1);set(30,0,0,0,1);set(33,1,0,0,1);set(34,.75,1,.5,1);set(36,1,0,0,0);set(37,0,1,0,0);set(38,0,0,1,0);set(58,0,1,0,1);d->SetVertexShaderConstantF(0,&c[0][0],256);d->BindVertexProgram(vs);d->BindFragmentProgram(ps);d->SetTexture(0,bump);d->SetTexture(3,cube);d->SetRenderState(storm_render::RenderBlend,true);d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendOne);d->SetRenderState(storm_render::RenderDestinationBlend,storm_render::BlendSourceAlpha);need(storm_render::succeeded(d->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,1,sea,sizeof(S))),"actual Sea2 water draw");}
+  else {d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);d->SetFVF(storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse);d->SetTexture(0,nullptr);need(storm_render::succeeded(d->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,1,triangle,sizeof(V))),"fog geometry");}
+  if(map)StormMetalEndWdmModel(d,previous);d->EndScene();
+ };
+ auto capture=[&](const char*name){need(storm_render::succeeded(d->GetRenderTargetData(target,read)),"readback");storm_render::LockedRect l{};read->LockRect(&l,nullptr,storm_render::lock::readOnly);std::vector<uint32_t> out(W*H);for(unsigned y=0;y<H;++y)memcpy(out.data()+y*W,(char*)l.pBits+y*l.Pitch,W*4);read->UnlockRect();std::ofstream raw(std::string(argv[2])+"/"+name+".rgba",std::ios::binary);raw.write((char*)out.data(),out.size()*4);std::ofstream ppm(std::string(argv[2])+"/"+name+".ppm",std::ios::binary);ppm<<"P6\n"<<W<<" "<<H<<"\n255\n";for(auto color:out){char rgb[]={char(color>>16),char(color>>8),char(color)};ppm.write(rgb,3);}return out;};
+ auto expected=[&](unsigned x,unsigned y,float pitch,float height){
+  simd_float4x4 pv{},vv{};memcpy(&pv,&projection,64);auto view=identity;view._22=view._33=std::cos(pitch);view._23=std::sin(pitch);view._32=-std::sin(pitch);memcpy(&vv,&view,64);const auto inv=simd_inverse(simd_mul(pv,vv));float nx=(x+.5f)/W*2-1,ny=1-(y+.5f)/H*2;auto a=simd_mul(inv,simd_make_float4(nx,ny,0,1)),b=simd_mul(inv,simd_make_float4(nx,ny,1,1));auto ray=simd_normalize(b.xyz/b.w-a.xyz/a.w);simd_float3 origin={0,height,0};float distance=1.e10f;for(int axis=0;axis<3;++axis)if(std::abs(ray[axis])>1.e-7f){float bound=ray[axis]>0?1.f:-1.f;float t=(bound-origin[axis])/ray[axis];if(t>0)distance=std::min(distance,t);}auto point=origin+ray*distance;auto coordinate=storm_metal::authoredSkyCoordinate(point.x,std::abs(point.y),point.z);float u=(1.f/1024.f)+(1-2.f/1024.f)*coordinate.u,v=(1.f/1024.f)+((coordinate.face==4?1.f-1.f/1024.f:1.f)-1.f/1024.f)*coordinate.v;float fx=std::clamp(u*N-.5f,0.f,float(N-1)),fy=std::clamp(v*N-.5f,0.f,float(N-1));unsigned ix=unsigned(fx),iy=unsigned(fy);simd_float3 color{};for(int dy=0;dy<2;++dy)for(int dx=0;dx<2;++dx){auto packed=pixels[coordinate.face][std::min(iy+dy,N-1)*N+std::min(ix+dx,N-1)];float weight=(dx?fx-ix:1-(fx-ix))*(dy?fy-iy:1-(fy-iy));color+=simd_make_float3((packed>>16)&255,(packed>>8)&255,packed&255)*weight;}return color;
+ };
+ auto error=[&](const std::vector<uint32_t>&image,float pitch,float height){double squared=0;unsigned count=0;for(unsigned y=8;y<H-8;++y)for(unsigned x=8;x<W-8;++x){auto ref=expected(x,y,pitch,height);auto p=image[y*W+x];for(int channel=0;channel<3;++channel){float value=float((p>>(16-channel*8))&255)-ref[channel];squared+=value*value;++count;}}return std::sqrt(squared/count);};
+ const float top=-storm_map_player::overheadPitch;
+ render(.8f,0,true,true);auto upper=capture("upper-water");render(0,0,true,true);auto horizon=capture("horizon-water");
+ render(top,0,true,true);auto direct=capture("direct-topdown-water");
+ render(.8f,0,true,true);capture("valid-seed-water");render(-storm_map_player::mapViewPitch,0,false,false,true);capture("map-model-projection");
+ render(top,0,true,true);auto returned=capture("return-topdown-water");need(direct==returned,"same topdown state before/after map model projection");
+ render(top,.6f,true,true);auto positive=capture("topdown-height-positive");render(top,-.6f,true,true);auto negative=capture("topdown-height-negative");
+ render(top,0,true,false);auto nofog=capture("no-fog-water");
+ double up=error(upper,.8f,0),down=error(direct,top,0),pos=error(positive,top,.6f),neg=error(negative,top,-.6f);printf("RGB RMSE actualSea2 vs independent finite mirroredcube: upper=%.6f down=%.6f positive=%.6f negative=%.6f mapreturn=byte-exact\n",up,down,pos,neg);
+ need(up<8,"upper authored sky contract");if(candidate){need(down<8&&pos<8&&neg<8,"lower signed hemisphere matches finite mirrored SKY");}else need(down>35&&pos>35&&neg>35,"baseline reproduces wrong radial horizon projection");
+ for(int frame=0;frame<48;++frame)render(top,0,true,true);capture("timing-final-water");
+ d->Present();need(StormMetalFlushFrameTrace(d),"flush GPU frame trace");d->Release();SDL_DestroyWindow(w);SDL_Quit();puts("PASS actual Sea2 transition-camera component");
+}

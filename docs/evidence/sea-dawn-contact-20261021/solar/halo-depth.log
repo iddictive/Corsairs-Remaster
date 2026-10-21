@@ -1,0 +1,7 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 128x128; SDL drawable 128x128; samples 1
+[StormMetal] water mode: modern Metal
+halo mode=0 ropeAbove=ff483b21->ffc8bb41 ropeBelow=ff543a1e->ff543a1e farOpaque=ff204060->ffa0c080 clearSky=ff000000->ff808020
+halo mode=1 ropeAbove=ff483b21->ff483b21 ropeBelow=ff543a1e->ff543a1e farOpaque=ff204060->ffa0c080 clearSky=ff000000->ff808020
+halo mode=2 ropeAbove=ff483b21->ff483b21 ropeBelow=ff543a1e->ff543a1e farOpaque=ff204060->ff204060 clearSky=ff000000->ff808020
+PASS late halo old/finite/far depth and clear-sky negative

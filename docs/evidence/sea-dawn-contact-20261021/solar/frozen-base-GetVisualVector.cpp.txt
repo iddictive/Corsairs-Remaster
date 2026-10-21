@@ -1,0 +1,11 @@
+void WEATHER::GetVisualVector(uint32_t code, CVECTOR *vOut)
+{
+    if (code != whv_sun_pos) { GetVector(code, vOut); return; }
+    if (!visualState.initialized)
+        UpdateVisualState(0);
+    vOut->x = 5000.0f;
+    vOut->y = 0.0f;
+    RotateAroundY(vOut->x, vOut->y, cosf(-visualState.sunHeight), sinf(-visualState.sunHeight));
+    vOut->z = 0.0f;
+    RotateAroundY(vOut->x, vOut->z, cosf(visualState.sunAzimuth), sinf(visualState.sunAzimuth));
+}

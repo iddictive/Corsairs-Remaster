@@ -1,0 +1,267 @@
+// Diagnostic scene driver. It never runs seadogs.c, loads SAVE, shows or focuses
+// a window. The isolated fixture owns scene setup; CORE owns the real frame.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "weather_engine.hpp"
+#include "script_libriary.h"
+#include "s_import_func.h"
+#include "v_s_stack.h"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <spdlog/spdlog.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+
+#include "typedef.h"
+#include "math_inlines.h"
+#include "authored_solar.hpp"
+#include "weather_visual_temporal.hpp"
+#include "authored_weather.hpp"
+#define private public
+#include "weather.h"
+#undef private
+#include "weather_base.h"
+static void solarCheck(bool ok,const char*message){if(!ok){std::fprintf(stderr,"FAIL solar %s\n",message);std::exit(79);}}
+struct FrozenVisualVectorOracle {
+ storm_weather_visual::State visualState;
+ void GetVector(uint32_t,CVECTOR*){std::abort();}
+ void UpdateVisualState(uint32_t){std::abort();}
+ void GetVisualVector(uint32_t code,CVECTOR *vOut){
+    if (code != whv_sun_pos) { GetVector(code, vOut); return; }
+    if (!visualState.initialized)
+        UpdateVisualState(0);
+    vOut->x = 5000.0f;
+    vOut->y = 0.0f;
+    RotateAroundY(vOut->x, vOut->y, cosf(-visualState.sunHeight), sinf(-visualState.sunHeight));
+    vOut->z = 0.0f;
+    RotateAroundY(vOut->x, vOut->z, cosf(visualState.sunAzimuth), sinf(visualState.sunAzimuth));
+}
+};
+static void solarLifecycle(){
+ SKY notInitialized;notInitialized.PrepareVisualSun(16);CVECTOR uninitialized;solarCheck(notInitialized.GetAuthoredSun(uninitialized)==0,"SKY before SetDevice");
+ const auto sid=core.GetEntityId("sky"),wid=core.GetEntityId("weather");
+ auto*sky=static_cast<SKY*>(core.GetEntityPointer(sid));auto*weather=static_cast<WEATHER_BASE*>(core.GetEntityPointer(wid));
+ auto*attrs=weather->AttributesPointer;auto*time=attrs->GetAttributeClass("Time");auto*done=attrs->GetAttributeClass("isDone");
+ auto setHour=[&](float hour){time->SetAttributeUseFloat("time",hour);weather->AttributeChanged(time->GetAttributeClass("time"));weather->AttributeChanged(done);};
+ sky->aSkyDirArray.clear();for(int h=0;h<24;++h){char path[64];std::snprintf(path,sizeof(path),"weather\\skies\\%02d\\",h);sky->aSkyDirArray.emplace_back(path);}
+ sky->fSkySpeedRotate=.1f;sky->fSkyAngle=0.f;
+ setHour(6.1666667f);CVECTOR visual;weather->GetVisualVector(whv_sun_pos,&visual);
+ solarCheck(weather->GetVisualSunVisibility()>0.f&&visual.y>0.f,"06:10 authored daylight accepted");
+ const auto a=sky->solarSources[0],b=sky->solarSources[1];
+ const float k=sky->fTimeFactor-std::floor(sky->fTimeFactor),storm=sky->stormAmount;
+ const auto c=sky->solarSources[2],d=sky->solarSources[3];
+ CVECTOR expected=CVECTOR(a.x,a.y,a.z)*(a.gain*(1.f-storm)*(1.f-k))+CVECTOR(b.x,b.y,b.z)*(b.gain*(1.f-storm)*k)+CVECTOR(c.x,c.y,c.z)*(c.gain*storm*(1.f-sky->stormTextureBlend))+CVECTOR(d.x,d.y,d.z)*(d.gain*storm*sky->stormTextureBlend);
+ expected=expected*(sky->fSkySize/std::max({std::abs(expected.x),std::abs(expected.y),std::abs(expected.z)}));float fov;CVECTOR camera,angles;sky->pRS->GetCamera(camera,angles,fov);expected.y-=camera.y*(5.f/6.f);CMatrix rotation;rotation.BuildRotateY(sky->fAngleY+sky->fSkyAngle);expected=!(rotation*expected);
+ solarCheck((!visual|expected)>.999999f,"source blend and finite cube projection");
+ storm_render::Light light{};sky->pRS->GetLight(0,&light);CVECTOR lit(-light.Direction.x,-light.Direction.y,-light.Direction.z);solarCheck((!lit|!visual)>.999999f,"native lighting same visual direction");
+ solarCheck(std::abs(weather->GetVisualFloat(whf_sun_height_angle)-std::asin(visual.y/5000.f))<1.e-5f,"visual angle same direction");
+ CVECTOR reconstructed(5000.f,0.f,0.f);const float height=weather->GetVisualFloat(whf_sun_height_angle),azimuth=weather->GetVisualFloat(whf_sun_azimuth_angle);RotateAroundY(reconstructed.x,reconstructed.y,std::cos(-height),std::sin(-height));RotateAroundY(reconstructed.x,reconstructed.z,std::cos(azimuth),std::sin(azimuth));solarCheck((!reconstructed|!visual)>.999999f,"visual azimuth retains RotateAroundY convention");
+ const CVECTOR beforeRotation=!visual;sky->fSkyAngle+=1.57079632679f;sky->PrepareVisualSun(0);weather->GetVisualVector(whv_sun_pos,&visual);CMatrix quarter;quarter.BuildRotateY(1.57079632679f);solarCheck((!visual|quarter*beforeRotation)>.999999f,"panorama rotation parity");sky->fSkyAngle=0.f;
+ const auto angle=sky->fAngleY;sky->Realize(0);sky->Realize(0);solarCheck(sky->fAngleY==angle,"reflection draws do not advance rotation");
+ const int32_t original=sky->TexturesID[0];const auto valid=sky->solarSources[0];sky->TexturesID[0]=-1;sky->CacheSolarSource(sky->TexturesID);solarCheck(sky->solarSources[0].gain==0,"missing face rejection");
+ const int32_t unsupported=sky->pRS->TextureCreate(4,4,1,0,storm_render::AssetFormat::X8R8G8B8,storm_render::MemoryClass::Managed);sky->TexturesID[0]=unsupported;sky->CacheSolarSource(sky->TexturesID);solarCheck(sky->solarSources[0].gain==0,"nonARGB face rejection");sky->pRS->TextureRelease(unsupported);sky->TexturesID[0]=original;sky->CacheSolarSource(sky->TexturesID);solarCheck(sky->solarSources[0].gain==valid.gain,"cache recovers after rejection");
+ setHour(23.9999f);std::array<int32_t,5> next{};std::copy(std::begin(sky->TexturesNextID),std::end(sky->TexturesNextID),next.begin());auto nextSource=sky->solarSources[1];setHour(.0001f);solarCheck(std::equal(next.begin(),next.end(),std::begin(sky->TexturesID)),"24h current IDs become prior next IDs");solarCheck(sky->solarSources[0].gain==nextSource.gain&&sky->solarSources[0].x==nextSource.x,"24h source cache follows texture swap");
+ setHour(10.f);std::copy(std::begin(sky->StormTexturesNextID),std::end(sky->StormTexturesNextID),next.begin());nextSource=sky->solarSources[3];setHour(10.501f);solarCheck(std::equal(next.begin(),next.end(),std::begin(sky->StormTexturesID)),"storm current IDs become prior next IDs");solarCheck(sky->solarSources[2].gain==nextSource.gain&&sky->solarSources[2].x==nextSource.x,"storm cache follows texture swap");
+ setHour(23.f);solarCheck(weather->GetVisualSunVisibility()==0.f,"23h no eligible sun");setHour(5.f);solarCheck(weather->GetVisualSunVisibility()==0.f,"05h no eligible sun");setHour(3.f);solarCheck(sky->solarSources[0].gain==0.f,"03h panorama cannot invent sun");FrozenVisualVectorOracle frozen;frozen.visualState=static_cast<WEATHER*>(weather)->visualState;CVECTOR previousMoon;frozen.GetVisualVector(whv_sun_pos,&previousMoon);weather->GetVisualVector(whv_sun_pos,&visual);std::fprintf(stderr,"moon frozen=(%.9g,%.9g,%.9g) candidate=(%.9g,%.9g,%.9g)\n",previousMoon.x,previousMoon.y,previousMoon.z,visual.x,visual.y,visual.z);solarCheck(previousMoon.x==visual.x&&previousMoon.y==visual.y&&previousMoon.z==visual.z,"moon visual vector equals frozen base formula exactly");
+ std::fprintf(stderr,"PASS solar lifecycle: dawn/light/angles/rotation/reflection/missing/format/24h/storm/night/moon\n");
+}
+
+extern "C" uint64_t StormMetalRawSkinnedDraws(void *);
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc; // Existing TOUCH::Execute timer, in SDL performance ticks.
+
+namespace {
+bool contactDiagnostic()
+{
+    const char *value = std::getenv("STORM_METAL_CONTACT_DIAGNOSTIC");
+    return value && std::strcmp(value, "1") == 0;
+}
+SHIP_BASE *contactShip(int index)
+{
+    for (const auto id : core.GetEntityIds("Ship"))
+        if (auto *ship = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(id)))
+            if (ship->GetACharacter() && ship->GetACharacter()->GetAttributeAsDword("index") == unsigned(index))
+                return ship;
+    return nullptr;
+}
+int contactCounter(const char *name)
+{
+    auto *value = static_cast<VDATA *>(core.GetScriptVariable(name));
+    return value ? value->GetInt() : 0;
+}
+void contactPhonk(int enabled)
+{
+    if (auto *sea = core.Entity_GetAttributePointer(core.GetEntityId("sea")))
+        sea->CreateSubAClass(sea, "Phonk")->SetAttributeUseDword("Active", enabled);
+}
+}
+
+class SeaBenchmarkLibrary : public SCRIPT_LIBRIARY {
+public:
+    bool Init() override {
+        IFUNCINFO function;
+        function.nArguments=1;
+        function.pFuncName="BenchmarkSeed";
+        function.pFuncAddress=[](VS_STACK *stack)->uint32_t {
+            auto *seed=static_cast<VDATA *>(stack->Pop());
+            if (!seed) return IFUNCRESULT_FAILED;
+            std::srand(static_cast<unsigned>(seed->GetInt()));
+            return IFUNCRESULT_OK;
+        };
+        if (core.SetScriptFunction(&function) == INVALID_FUNCHANDLE) return false;
+        if (!contactDiagnostic()) return true;
+        function.pFuncName="BenchmarkContactKill";
+        function.pFuncAddress=[](VS_STACK *stack)->uint32_t {
+            auto *index=static_cast<VDATA *>(stack->Pop());
+            auto *ship=index ? contactShip(index->GetInt()) : nullptr;
+            if (!ship) return IFUNCRESULT_FAILED;
+            ship->SetDead();
+            return IFUNCRESULT_OK;
+        };
+        return core.SetScriptFunction(&function) != INVALID_FUNCHANDLE;
+    }
+};
+CREATE_SCRIPTLIBRIARY(SeaBenchmarkLibrary)
+
+int main(int argc, char **argv)
+{
+    if (argc != 5) return 64;
+    const auto cwd = std::filesystem::canonical(argv[1]);
+    const int frames = std::stoi(argv[2]), width = std::stoi(argv[3]), height = std::stoi(argv[4]);
+    if (frames < 1 || frames > 10000 || width < 320 || height < 240) return 64;
+    const bool contacts = contactDiagnostic();
+    if (contacts && frames < 160) return 64;
+    if (!std::filesystem::is_regular_file(cwd / "fixture.c") ||
+        !std::filesystem::is_symlink(cwd / "RESOURCE")) return 64;
+    std::filesystem::current_path(cwd);
+    std::filesystem::create_directories(cwd / "userdata/Logs");
+    setenv("STORM_USERDATA", (cwd / "userdata").c_str(), 1);
+    setenv("STORM_QUIET_CLIENT", "1", 1);
+    spdlog::set_level(spdlog::level::off);
+    mi_option_set(mi_option_show_errors, 1);
+    mi_option_set(mi_option_show_stats, 0);
+    mi_option_set(mi_option_eager_commit, 1);
+    mi_option_set(mi_option_eager_region_commit, 1);
+    mi_option_set(mi_option_large_os_pages, 1);
+    mi_option_set(mi_option_reserve_huge_os_pages, 1);
+    if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO) != 0) return 65;
+    steamapi::SteamApi::getInstance(true);
+    auto window = storm::OSWindow::Create(width, height, 0, false, false);
+    if (!window || !window->OSHandle() || (SDL_GetWindowFlags(
+            static_cast<SDL_Window *>(window->OSHandle())) & SDL_WINDOW_SHOWN)) return 66;
+    core_internal.Init();
+    core_internal.SetWindow(window);
+    core_internal.InitBase();
+    core_internal.SetDeltaTime(16);
+    std::ofstream times(cwd / "cpu-frames.csv");
+    times << "frame,cpu_wall_ms,rss_bytes,peak_rss_bytes,commit_bytes\n";
+    std::ofstream contactTimes;
+    if (contacts) {
+        contactTimes.open(cwd / "contact-frames.csv");
+        contactTimes << "frame,phase,touch_ms,event_count,event_ms,audio_ms,kills,driver_x,driver_z,target_x,target_z,driver_knots,target_knots,target_dead\n";
+    }
+    for (int frame = 0; frame < frames; ++frame) {
+        SDL_PumpEvents();
+        if (contacts && (frame == 14 || frame == 78 || frame == 142))
+            contactPhonk(0);
+        if (contacts && (frame == 16 || frame == 80 || frame == 144)) {
+            auto *driver=contactShip(0), *target=contactShip(1);
+            auto *phase=static_cast<VDATA *>(core.GetScriptVariable("ContactPhase"));
+            if (!driver || !target || !phase || target->isDead()) return 77;
+            phase->Set(frame == 16 ? 1 : frame == 80 ? 2 : 3);
+            for (auto *ship : {driver, target}) {
+                ship->State.vAng=CVECTOR(0.f);
+                ship->State.vRotate=CVECTOR(0.f);
+                ship->State.vSpeed=CVECTOR(0.f);
+                ship->GetACharacter()->FindAClass(ship->GetACharacter(), "ship")->SetAttributeUseFloat("HP", 10000.f);
+            }
+            driver->State.vAng.y=1.57079632679f;
+            driver->SetPos(CVECTOR(-.5f*(driver->GetBoxsize().z+target->GetBoxsize().x)-6.f,0.f,170.f));
+            target->SetPos(CVECTOR(0.f,0.f,170.f));
+            driver->State.vSpeed.z=300.f;
+            if (frame == 144)
+                target->GetACharacter()->FindAClass(target->GetACharacter(), "ship")->SetAttributeUseFloat("HP", 1.f);
+            contactPhonk(contactCounter("ContactPhonk"));
+            std::fprintf(stderr,"[ContactPhase] frame=%d phase=%d phonk=%d speed_knots=300\n",
+                         frame,contactCounter("ContactPhase"),contactCounter("ContactPhonk"));
+        }
+        if (frame) {
+            auto *renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+            renderer->SetCamera(CVECTOR(0.f, 40.f, -80.f), CVECTOR(0.f, 5.f, 170.f), CVECTOR(0.f, 1.f, 0.f));
+            renderer->SetPerspective(1.05f);
+        }
+        const auto begin = std::chrono::steady_clock::now();
+        if (!core_internal.Run()) return 67;
+        if (!frame) {
+            auto *state = static_cast<VDATA *>(core.GetScriptVariable("WeatherState"));
+            if (!state || !state->GetAClass()) return 73;
+            storm_weather::Engine weather;
+            weather.initialize(1337, 12);
+            weather.save(state->GetAClass());
+            core.Send_Message(core.GetEntityId("Weather"), "lalllfff", 1464336385,
+                              state->GetAClass(), 12, 1668, 28, 12.f, 0.f, 0.f);
+            core.Send_Message(core.GetEntityId("Weather"), "ll", 1464336388, 1);
+            std::srand(1337);
+        }
+        if(frame==1)solarLifecycle();
+        const auto end = std::chrono::steady_clock::now();
+        if (contacts) {
+            auto *driver=contactShip(0), *target=contactShip(1);
+            if (!driver || !target) return 77;
+            const double tickMs=1000.0/double(SDL_GetPerformanceFrequency());
+            contactTimes << frame << ',' << contactCounter("ContactPhase") << ',' << dwRdtsc*tickMs
+                << ',' << contactCounter("ContactEvents") << ',' << contactCounter("ContactEventTicks")*tickMs
+                << ',' << contactCounter("ContactAudioTicks")*tickMs << ',' << contactCounter("ContactKills")
+                << ',' << driver->GetPos().x << ',' << driver->GetPos().z
+                << ',' << target->GetPos().x << ',' << target->GetPos().z
+                << ',' << driver->State.vSpeed.z << ',' << target->State.vSpeed.z << ',' << target->isDead() << '\n';
+        }
+        size_t elapsed=0,user=0,system=0,rss=0,peak=0,commit=0,peakCommit=0,faults=0;
+        mi_process_info(&elapsed,&user,&system,&rss,&peak,&commit,&peakCommit,&faults);
+        times << frame << ',' << std::chrono::duration<double, std::milli>(end - begin).count()
+              << ',' << rss << ',' << peak << ',' << commit << '\n';
+    }
+    auto *renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+    if (!renderer || core.GetEntityIds("Ship").empty() || !core.GetEntityId("sea")) return 68;
+    auto *device = static_cast<storm_render::Device *>(renderer->GetNativeDevice());
+    storm_render::Surface *target = nullptr, *readback = nullptr;
+    if (storm_render::failed(device->GetRenderTarget(&target))) return 69;
+    storm_render::SurfaceDesc desc{};
+    target->GetDesc(&desc);
+    std::printf("scene_backbuffer=%ux%u ships=%zu hidden=1\n", desc.Width, desc.Height,
+                core.GetEntityIds("Ship").size());
+    std::printf("animated_draws=%llu\n", static_cast<unsigned long long>(StormMetalRawSkinnedDraws(device)));
+    if (frames > 1 && !StormMetalRawSkinnedDraws(device)) return 74;
+    if (desc.Width != unsigned(width) || desc.Height != unsigned(height)) return 70;
+    if (storm_render::failed(device->CreateOffscreenPlainSurface(width, height, storm_render::AssetFormat::A8R8G8B8, &readback)) ||
+        storm_render::failed(device->GetRenderTargetData(target, readback))) return 71;
+    storm_render::LockedRect pixels{};
+    if (storm_render::failed(readback->LockRect(&pixels, nullptr, storm_render::lock::readOnly))) return 72;
+    std::ofstream image(cwd / "scene.ppm", std::ios::binary);
+    image << "P6\n" << width << ' ' << height << "\n255\n";
+    for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
+        const auto *p = static_cast<const unsigned char *>(pixels.pBits) + y * pixels.Pitch + x * 4;
+        const char rgb[] = {char(p[2]), char(p[1]), char(p[0])};
+        image.write(rgb, 3);
+    }
+    readback->UnlockRect();
+    readback->Release(); target->Release();
+    if (!StormMetalFlushFrameTrace(device)) return 75;
+    // The game exit script tears down entities before services. This fixture
+    // has no game script, so use the same core teardown owner explicitly.
+    core_internal.EraseEntities();
+    core_internal.CleanUp();
+    window.reset();
+    SDL_Quit();
+    std::puts("pilot_complete=1 performance_acceptance=0");
+    return 0;
+}

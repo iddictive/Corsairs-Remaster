@@ -1,0 +1,10 @@
+step=0 clips=1 hull=4 lower=-1 upper=1 equal=1
+step=1 clips=1 hull=4 lower=-1 upper=1 equal=1
+step=2 clips=2 hull=4 lower=-1 upper=1 equal=1
+step=3 clips=3 hull=4 lower=-1 upper=1 equal=1
+step=4 clips=4 hull=4 lower=-1 upper=1 equal=1
+step=5 clips=5 hull=3 lower=-1 upper=1 equal=1
+step=6 clips=6 hull=4 lower=-1 upper=1 equal=1
+step=7 clips=7 hull=4 lower=-1 upper=1 equal=1
+step=8 clips=7 hull=4 lower=-1 upper=1 equal=1
+PASS: actual before/after method bodies preserve seed/hit, collision revision, geometry generation, ship contour revision, cut/restore and transformed-node cache lifecycle

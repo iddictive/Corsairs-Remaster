@@ -1,0 +1,271 @@
+{
+  "source_base_commit": "2f8fc4a",
+  "path_tokens": {
+    "<REPO>": "canonical Corsairs checkout"
+  },
+  "snapshots": [
+    {
+      "path": "projection-finite-field.cpp.txt",
+      "source_sha256": "9bcc637aac91771e6bf82216f3824faf8cfbbc6ea0a8e8097e0cb12619881fbe",
+      "retained_sha256": "9bcc637aac91771e6bf82216f3824faf8cfbbc6ea0a8e8097e0cb12619881fbe"
+    },
+    {
+      "path": "projection-direct-oracle.cpp.txt",
+      "source_sha256": "a177ace3ddbc777aa36bed9eefa4fb05e9043800d607b41ab92cbf763936f226",
+      "retained_sha256": "a177ace3ddbc777aa36bed9eefa4fb05e9043800d607b41ab92cbf763936f226"
+    },
+    {
+      "path": "retained-negatives.json",
+      "source_sha256": "8789bb7c878641d1cf7cf548d02774dbc15f6f239e66ee2c7cd8887925b00571",
+      "retained_sha256": "8789bb7c878641d1cf7cf548d02774dbc15f6f239e66ee2c7cd8887925b00571"
+    },
+    {
+      "path": "schedule-summary.json",
+      "source_sha256": "e71ebcb2f055c9fdc1a2dc3cfb57a52726149284b9d4f1f57cc6205b019cdc58",
+      "retained_sha256": "e71ebcb2f055c9fdc1a2dc3cfb57a52726149284b9d4f1f57cc6205b019cdc58"
+    },
+    {
+      "path": "baseline/compile-command.json",
+      "source_sha256": "61d02f54a4639bd8a11b8a895ff04a28fd833b225f919f4d88bdbfbc482ea220",
+      "retained_sha256": "0884e68e0d0d9cd54679eae0e5eb144f48589a60c20572007ccc1e39a3064421"
+    },
+    {
+      "path": "baseline/run-command.json",
+      "source_sha256": "2f04274a048a118877a8c624d279a0c9db4451ebadff826aef6b64ef6b450b65",
+      "retained_sha256": "b83d0c3fc80aa246764cdba4e301b6d3cc48054a46bf74cf225e9902216c37cd"
+    },
+    {
+      "path": "baseline/wall.json",
+      "source_sha256": "69ea551801fee1ee55e820596782be583144c2e4743cee35da3e87af3fc46c3d",
+      "retained_sha256": "69ea551801fee1ee55e820596782be583144c2e4743cee35da3e87af3fc46c3d"
+    },
+    {
+      "path": "baseline/timing-summary.json",
+      "source_sha256": "acd8f283e6422c69cda6a772b9b7a63fa00b076afdd69af66ecb06f1ed9a9180",
+      "retained_sha256": "acd8f283e6422c69cda6a772b9b7a63fa00b076afdd69af66ecb06f1ed9a9180"
+    },
+    {
+      "path": "baseline/frames.csv",
+      "source_sha256": "dbbe17b7779ef6e3e651e3116c3d23d87951c57efd0d13f69ec4dd56d743a07d",
+      "retained_sha256": "dbbe17b7779ef6e3e651e3116c3d23d87951c57efd0d13f69ec4dd56d743a07d"
+    },
+    {
+      "path": "baseline/run.log",
+      "source_sha256": "97b85a8c576f19c2f8c2224baedcf3c9dcdecfca86951dc73731a2b7a8a68a97",
+      "retained_sha256": "97b85a8c576f19c2f8c2224baedcf3c9dcdecfca86951dc73731a2b7a8a68a97"
+    },
+    {
+      "path": "baseline/direct-topdown-water.rgba",
+      "source_sha256": "ef756bab02dbd43fc9fd98da0fe1eec2a5606102c638628faa9ff1c1a72348c9",
+      "retained_sha256": "ef756bab02dbd43fc9fd98da0fe1eec2a5606102c638628faa9ff1c1a72348c9"
+    },
+    {
+      "path": "baseline/topdown-height-positive.rgba",
+      "source_sha256": "a35a302a5ac72c172ed96fe3228b28f471578112f068217b3af1bb248c78fff0",
+      "retained_sha256": "a35a302a5ac72c172ed96fe3228b28f471578112f068217b3af1bb248c78fff0"
+    },
+    {
+      "path": "baseline/topdown-height-negative.rgba",
+      "source_sha256": "a35a302a5ac72c172ed96fe3228b28f471578112f068217b3af1bb248c78fff0",
+      "retained_sha256": "a35a302a5ac72c172ed96fe3228b28f471578112f068217b3af1bb248c78fff0"
+    },
+    {
+      "path": "rejected-direct-oracle/compile-command.json",
+      "source_sha256": "0489fd8d4800ce5643f7877b334f46bbf815c886e4c74d145d4a333b797981ae",
+      "retained_sha256": "ad7f6e2616387d46b8118a067379c6c536d06cfb820a23a09a568e124e20a661"
+    },
+    {
+      "path": "rejected-direct-oracle/run-command.json",
+      "source_sha256": "08744e764fc0a03f47df5531d6e93ab73e37c064a7a90d0e9bfbe9ccf51d252e",
+      "retained_sha256": "a49efa1ed5b2224f5f0557f93a035b4ef9663dcf1b533ddd4c605d5a91cc4514"
+    },
+    {
+      "path": "rejected-direct-oracle/wall.json",
+      "source_sha256": "b3c23be7d1e929b8ae20e25345d4bd76698f281fea597a1e6b47b91cd3b3cd77",
+      "retained_sha256": "b3c23be7d1e929b8ae20e25345d4bd76698f281fea597a1e6b47b91cd3b3cd77"
+    },
+    {
+      "path": "rejected-direct-oracle/frames.csv",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rejected-direct-oracle/run.log",
+      "source_sha256": "f2569c7b29c3b7166e66ef70b8c4af7c1bc261d6913e379f7e65a3d6d89cf300",
+      "retained_sha256": "f2569c7b29c3b7166e66ef70b8c4af7c1bc261d6913e379f7e65a3d6d89cf300"
+    },
+    {
+      "path": "rejected-direct-oracle/direct-topdown-water.rgba",
+      "source_sha256": "c4697dd2ebdc93b53d4ca34aa4b8fcdb16b9b58fe4e5fa846e217d53429a0231",
+      "retained_sha256": "c4697dd2ebdc93b53d4ca34aa4b8fcdb16b9b58fe4e5fa846e217d53429a0231"
+    },
+    {
+      "path": "rejected-direct-oracle/topdown-height-positive.rgba",
+      "source_sha256": "95ffd9c089164bfafa27cbd46417827ccc5f32ef4784dfa6728c794276161714",
+      "retained_sha256": "95ffd9c089164bfafa27cbd46417827ccc5f32ef4784dfa6728c794276161714"
+    },
+    {
+      "path": "rejected-direct-oracle/topdown-height-negative.rgba",
+      "source_sha256": "b8cd7d4eb0516cd96ae081437a346fdd428d960536407595ab6013233cddad9e",
+      "retained_sha256": "b8cd7d4eb0516cd96ae081437a346fdd428d960536407595ab6013233cddad9e"
+    },
+    {
+      "path": "candidate/compile-command.json",
+      "source_sha256": "e6cce134d559f9016d0934e5dcc4f4592b202aca44814650a8698157a0386520",
+      "retained_sha256": "0c304173198e3a1086fdf7b42c48e06884442c971f1d0e0c819cb97dbfc39c04"
+    },
+    {
+      "path": "candidate/run-command.json",
+      "source_sha256": "0fdd381352c29e777a6b439cb552495ba4d68fdf8d99fc9f59f719cf609859f0",
+      "retained_sha256": "63ea413f6895de14a02d7cd5bcad839fbfd0ae3cfbe5dfc4e78dda9f3dead1ce"
+    },
+    {
+      "path": "candidate/wall.json",
+      "source_sha256": "ab0fe9ebe78d188ad4a185060e282dfb9a7d87ebb00b777cef909d2087557d81",
+      "retained_sha256": "ab0fe9ebe78d188ad4a185060e282dfb9a7d87ebb00b777cef909d2087557d81"
+    },
+    {
+      "path": "candidate/timing-summary.json",
+      "source_sha256": "1f5809306cef2c636dfa75ea23c9a67a74cc400724b2adeb1b86c4501c9bcd0d",
+      "retained_sha256": "1f5809306cef2c636dfa75ea23c9a67a74cc400724b2adeb1b86c4501c9bcd0d"
+    },
+    {
+      "path": "candidate/frames.csv",
+      "source_sha256": "b46d23aba1cbb716c3009096665d93b47c38e9daed552d04bdf6d6b886ccea00",
+      "retained_sha256": "b46d23aba1cbb716c3009096665d93b47c38e9daed552d04bdf6d6b886ccea00"
+    },
+    {
+      "path": "candidate/run.log",
+      "source_sha256": "3c5c2e54c1a25b501d22ea7fc8fc8b354fa4443dc5542dc9561d0ec5cf4d2968",
+      "retained_sha256": "3c5c2e54c1a25b501d22ea7fc8fc8b354fa4443dc5542dc9561d0ec5cf4d2968"
+    },
+    {
+      "path": "candidate/direct-topdown-water.rgba",
+      "source_sha256": "c4697dd2ebdc93b53d4ca34aa4b8fcdb16b9b58fe4e5fa846e217d53429a0231",
+      "retained_sha256": "c4697dd2ebdc93b53d4ca34aa4b8fcdb16b9b58fe4e5fa846e217d53429a0231"
+    },
+    {
+      "path": "candidate/topdown-height-positive.rgba",
+      "source_sha256": "95ffd9c089164bfafa27cbd46417827ccc5f32ef4784dfa6728c794276161714",
+      "retained_sha256": "95ffd9c089164bfafa27cbd46417827ccc5f32ef4784dfa6728c794276161714"
+    },
+    {
+      "path": "candidate/topdown-height-negative.rgba",
+      "source_sha256": "b8cd7d4eb0516cd96ae081437a346fdd428d960536407595ab6013233cddad9e",
+      "retained_sha256": "b8cd7d4eb0516cd96ae081437a346fdd428d960536407595ab6013233cddad9e"
+    },
+    {
+      "path": "oracle-filter.cpp.txt",
+      "source_sha256": "24afe1d253582099e76d5d169ba408aa3cd71fbcad4eefadc9fdac50055d752e",
+      "retained_sha256": "24afe1d253582099e76d5d169ba408aa3cd71fbcad4eefadc9fdac50055d752e"
+    },
+    {
+      "path": "oracle-filter-compile.json",
+      "source_sha256": "61bedf2cac05a3699cc48a4d9639b1447486fad028da72b8b69170e218c9cdfd",
+      "retained_sha256": "b8fa6ab16824068d64bf42518dc5c302f763fc92720f1b9aaefff45cca4e5988"
+    },
+    {
+      "path": "oracle-filter-candidate.log",
+      "source_sha256": "7c5e456729228c86c1e4e98ce60234e26521a5cd7da2b8f534be51d565c7b879",
+      "retained_sha256": "7c5e456729228c86c1e4e98ce60234e26521a5cd7da2b8f534be51d565c7b879"
+    },
+    {
+      "path": "direct-oracle-seam-errors.log",
+      "source_sha256": "ab39676df8b89ab9b1df5af21e64b5a77ce5483def3008b299f005b706a85717",
+      "retained_sha256": "ab39676df8b89ab9b1df5af21e64b5a77ce5483def3008b299f005b706a85717"
+    },
+    {
+      "path": "paired/old/frames.csv",
+      "source_sha256": "034f749253ac7d430336f2f516aac937e7d31f00d2c5218dbecdd9b4d48761a9",
+      "retained_sha256": "034f749253ac7d430336f2f516aac937e7d31f00d2c5218dbecdd9b4d48761a9"
+    },
+    {
+      "path": "paired/old/run.log",
+      "source_sha256": "97b85a8c576f19c2f8c2224baedcf3c9dcdecfca86951dc73731a2b7a8a68a97",
+      "retained_sha256": "97b85a8c576f19c2f8c2224baedcf3c9dcdecfca86951dc73731a2b7a8a68a97"
+    },
+    {
+      "path": "paired/old/wall.json",
+      "source_sha256": "481e361172cbcc39563dd305663bfcfe57ea278626fc56ee4575d66830a9453e",
+      "retained_sha256": "481e361172cbcc39563dd305663bfcfe57ea278626fc56ee4575d66830a9453e"
+    },
+    {
+      "path": "paired/old/run-command.json",
+      "source_sha256": "e11ea53d640d9d1327e47c5a4b8f91b7f57fe43ee22cf44bdd755f73f6875fea",
+      "retained_sha256": "6847573f9d2ddcde5bcd60c63eb75c85585c4bf6d78f3fccf51b551d82e1cf0d"
+    },
+    {
+      "path": "paired/old/timing-summary.json",
+      "source_sha256": "507458eeb0414f9e6427a67d37780edb96b07c5b4203148b602bd6888109df3a",
+      "retained_sha256": "507458eeb0414f9e6427a67d37780edb96b07c5b4203148b602bd6888109df3a"
+    },
+    {
+      "path": "paired/new/frames.csv",
+      "source_sha256": "c03bb5b426bb208808c8666ef54e138aadff5da9fbb0acb5aae0f04aeabad6d4",
+      "retained_sha256": "c03bb5b426bb208808c8666ef54e138aadff5da9fbb0acb5aae0f04aeabad6d4"
+    },
+    {
+      "path": "paired/new/run.log",
+      "source_sha256": "3c5c2e54c1a25b501d22ea7fc8fc8b354fa4443dc5542dc9561d0ec5cf4d2968",
+      "retained_sha256": "3c5c2e54c1a25b501d22ea7fc8fc8b354fa4443dc5542dc9561d0ec5cf4d2968"
+    },
+    {
+      "path": "paired/new/wall.json",
+      "source_sha256": "de9f1e1d66d1baa5d6d61c42f64697cfe1cf2271b0c9b1100a37e8c1989db1fc",
+      "retained_sha256": "de9f1e1d66d1baa5d6d61c42f64697cfe1cf2271b0c9b1100a37e8c1989db1fc"
+    },
+    {
+      "path": "paired/new/run-command.json",
+      "source_sha256": "d522901a9e367335df7879dc6ed1c493c520c229e2fabc1e7d39530aa406a504",
+      "retained_sha256": "a2b74063f64cf322674dff6483df8f2e8e7cab5281f31d9a41f74fc24de0a1c4"
+    },
+    {
+      "path": "paired/new/timing-summary.json",
+      "source_sha256": "bff6c9e3ec168537d20cf2804c8ae6efc570f6d84159d0185baf9e064bd6a0b9",
+      "retained_sha256": "bff6c9e3ec168537d20cf2804c8ae6efc570f6d84159d0185baf9e064bd6a0b9"
+    },
+    {
+      "path": "paired/comparison.json",
+      "source_sha256": "f4536c4f0f416414b1781bbc8b517e0414417f56645fe08fcaffbf043ed68633",
+      "retained_sha256": "f4536c4f0f416414b1781bbc8b517e0414417f56645fe08fcaffbf043ed68633"
+    }
+  ],
+  "executables": {
+    "baseline-v2": {
+      "path": "experiments/native-metal/.cache/diagnostics/dawn-20261021-rays/baseline-v2/projection",
+      "sha256": "beb8454e1dd6ce8adcde9d7f3f09609ede6bf99e1a10a01bc664d486f7248570"
+    },
+    "candidate": {
+      "path": "experiments/native-metal/.cache/diagnostics/dawn-20261021-rays/candidate/projection",
+      "sha256": "90c68f38d38832bdf318d696eb6addf0b2fab628cced8bacfa034d925bdfaa2b"
+    },
+    "candidate-v2": {
+      "path": "experiments/native-metal/.cache/diagnostics/dawn-20261021-rays/candidate-v2/projection",
+      "sha256": "ea0e2a413dd08670a4026fb75b02fca3ba47b6a16982da5d163f348393072b09"
+    }
+  },
+  "inputs": {
+    "experiments/native-metal/authored_sky.hpp": "d6fac2c70d79203d3444259508ce986782470093cd670e8e7379cd09ff2b9eab",
+    "experiments/native-metal/world_map_player_model.hpp": "4ca293de11d6775baa6456bb6cbbda823622660dd5371387d6a3617e849cc77b",
+    "experiments/native-metal/engine/src/techniques/weather/sea_sea2_vertex_shader.vso": "e5c0da9a95802b7d17a0f8b59ba5cc76cf8d71c6910e5916e93e3c9a218d9059",
+    "experiments/native-metal/engine/src/techniques/weather/sea_sea2_pixel_shader.pso": "33e7ef9124eb11a625b4c6cad20c0368808b738ce9754e0d1bd25869565e1b78"
+  },
+  "settings": {
+    "resolution": [
+      128,
+      128
+    ],
+    "dynamic_sky": 1,
+    "modern_water": 1,
+    "cinematic": 0,
+    "modern_lighting": 0,
+    "profile": 1,
+    "hidden_window": true,
+    "trace": "STORM_METAL_FRAME_TRACE=<RUN>/frames.csv"
+  },
+  "scope": "Actual native Sea2 draw with existing map camera constants and WDM model role; component projection replay only. No actual WorldMap entity, installed player scene, UI or unchanged-FPS acceptance.",
+  "production_files": {
+    "experiments/native-metal/sky_fog.hpp": "4a8105b4c2627864bf2a981141b33c8152146739078f96f0bee8d0c307c79a8a",
+    "experiments/native-metal/volumetric_sky_msl.hpp": "c60c67df4fcd2c92901c7fb454d64c0d7e980562f68c57b3a0e2e7188ef35224"
+  }
+}

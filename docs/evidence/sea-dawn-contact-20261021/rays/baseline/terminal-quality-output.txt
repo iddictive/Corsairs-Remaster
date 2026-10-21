@@ -1,0 +1,3 @@
+Retained from terminal stdout of the baseline-v2 invocation (that invocation did not redirect stdout to a file):
+RGB RMSE actualSea2 vs independent finite mirroredcube: upper=6.076287 down=106.397644 positive=71.170067 negative=59.023105 mapreturn=byte-exact
+PASS actual Sea2 transition-camera component

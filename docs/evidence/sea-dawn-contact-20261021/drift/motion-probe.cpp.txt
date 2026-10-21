@@ -1,0 +1,71 @@
+// Frozen diagnostic input; not a maintained test or a game scene.
+#include PHONK_HEADER
+#include <chrono>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+using namespace storm::ship::phonk;
+constexpr float pi=3.14159265358979323846f, dt=1.f/120.f;
+struct Replay {
+    Drift drift;
+    float yaw=0, rate=0, course=0, previous=0, cap=.7f;
+    void step(float turn,bool gas=true,bool brake=false,bool air=false,bool boost=false,float kick=0) {
+        drift.advance(motorAcceleration,turn,yaw,dt,kick,drift.initialized?drift.lastForward:500.f,gas,brake,air,boost);
+        const float next=std::atan2(drift.worldX,drift.worldZ);
+        course+=std::remainder(next-previous,2*pi); previous=next;
+        rate+=(yawSpeed(cap/yawBoost,turn)-rate)*-std::expm1(-5.f*dt);
+        yaw+=rate*dt;
+    }
+    float slip() const {return std::remainder(yaw-previous,2*pi)*180/pi;}
+};
+void arc(bool gas,float turn,float cap) {
+    Replay r; r.cap=cap; float start=0,startSpeed=0,maxSlip=0,backwards=0;
+    for(int n=0;n<2400;++n) {
+        r.step(turn,gas);
+        maxSlip=std::max(maxSlip,std::abs(r.slip()));
+        if(std::abs(r.slip())>90)backwards+=dt;
+        if(n==2160){start=r.course;startSpeed=r.drift.magnitude();}
+    }
+    const float pathRate=(r.course-start)/(239.f/120.f);
+    const float radius=.514444f*(r.drift.magnitude()+startSpeed)*.5f/std::abs(pathRate);
+    std::printf("ARC cap=%.2f gas=%d turn=%+.2f max_slip_deg=%.3f end_slip_deg=%+.3f course_rad_s=%+.6f radius_m=%.3f backwards_s=%.3f speed_kt=%.3f\n",cap,gas,turn,maxSlip,r.slip(),pathRate,radius,backwards,r.drift.magnitude());
+}
+uint64_t mix(uint64_t h,float v) {uint32_t bits;std::memcpy(&bits,&v,4);return (h^bits)*1099511628211ull;}
+void negative(const char* name,bool gas,bool brake,bool air,bool boost,float turn) {
+    Drift d;float yaw=.8f;uint64_t h=1469598103934665603ull;
+    for(int n=0;n<2400;++n) {
+        const float kick=(n==137||n==201)?13.f:0.f;
+        d.advance(motorAcceleration,turn,yaw,dt,kick,d.initialized?d.lastForward:200.f,gas,brake,air,boost);
+        yaw+=.004f;h=mix(mix(mix(h,d.worldX),d.worldZ),d.lastForward);
+    }
+    std::printf("NEG %s hash=%016llx speed_kt=%.6f\n",name,(unsigned long long)h,d.magnitude());
+}
+void lifecycle() {
+    Replay r;for(int n=0;n<2400;++n)r.step(1);
+    std::printf("LIFE countersteer_start slip_deg=%+.3f speed_kt=%.3f\n",r.slip(),r.drift.magnitude());
+    float reversal=-1,previousCourse=r.course,previousRate=.7f;
+    for(int n=0;n<480;++n) {
+        r.step(-1);const float courseRate=(r.course-previousCourse)/dt;
+        if(reversal<0&&courseRate<0&&previousRate>=0)reversal=(n+1)*dt;
+        previousRate=courseRate;previousCourse=r.course;
+        if((n+1)%120==0)std::printf("LIFE countersteer_s=%.0f slip_deg=%+.3f course_rad_s=%+.6f speed_kt=%.3f\n",(n+1)*dt,r.slip(),courseRate,r.drift.magnitude());
+    }
+    std::printf("LIFE countersteer_course_reversal_s=%.3f\n",reversal);
+    for(int n=0;n<480;++n){r.step(0);if((n+1)%120==0)std::printf("LIFE release_gas_s=%.0f slip_deg=%+.3f speed_kt=%.3f\n",(n+1)*dt,r.slip(),r.drift.magnitude());}
+    for(int n=0;n<480;++n){r.step(0,false);if((n+1)%120==0)std::printf("LIFE release_coast_s=%.0f slip_deg=%+.3f speed_kt=%.3f\n",(n+1)*dt,r.slip(),r.drift.magnitude());}
+    for(int n=0;n<360;++n)r.step(1,true,true);
+    std::printf("LIFE brake_3s slip_deg=%+.3f speed_kt=%.3f\n",r.slip(),r.drift.magnitude());
+}
+int main() {
+    for(float cap:{.42f,.7f})for(bool gas:{true,false})for(float turn:{.25f,-.25f,.5f,-.5f,1.f,-1.f})arc(gas,turn,cap);
+    lifecycle();
+    negative("straight_gas_impulse",true,false,false,false,0);
+    negative("straight_coast_impulse",false,false,false,false,0);
+    negative("brake_turn_impulse",true,true,false,true,1);
+    negative("air_turn_impulse",true,false,true,true,1);
+    negative("straight_boost_impulse",true,false,false,true,0);
+    Drift d;float yaw=0;volatile float sink=0;const auto before=std::chrono::steady_clock::now();
+    for(int n=0;n<1000000;++n){d.advance(motorAcceleration,1,yaw,dt,0,d.initialized?d.lastForward:500,true,false,false);yaw+=.7f*dt;sink=d.worldX;}
+    const double ns=std::chrono::duration<double,std::nano>(std::chrono::steady_clock::now()-before).count()/1000000;
+    std::printf("BENCH exact_Drift_advance_1m_calls ns_per_call=%.3f sink=%.3f\n",ns,float(sink));
+}

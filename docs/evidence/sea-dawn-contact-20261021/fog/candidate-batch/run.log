@@ -1,0 +1,23 @@
+matched branch workload dispatches_per_command=32 warm_commands_per_branch=10
+constant commands=12 dispatch=256x128 median_ms=0.012285 p95_ms=0.028973 min_ms=0.008659 max_ms=0.028973
+authored20x512 commands=12 dispatch=256x128 median_ms=0.041363 p95_ms=0.080595 min_ms=0.028611 max_ms=0.080595
+output opposite_rgb=(0.00000,0.00000,1.00000)/(1.00000,0.00000,0.00000) allocated_bytes=36257792
+PASS warm fog branch proxy; excludes scene, panorama load, local volume and presentation
+        0.82 real         0.01 user         0.03 sys
+            67518464  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                4403  page reclaims
+                  22  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  50  voluntary context switches
+                 437  involuntary context switches
+           369909957  instructions retired
+           179598571  cycles elapsed
+           256688800  peak memory footprint

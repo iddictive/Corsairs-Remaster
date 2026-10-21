@@ -1,0 +1,150 @@
+Component replay: production Drift::advance, yawSpeed and ApplyStrength yaw smoothing.
+120Hz; 20s arcs; 500kt initial; no contacts/currents; both yaw caps and helm signs.
+Radius uses course change and mean speed over final 239 frames.
+Countersteer seeds each variant with its own 20s full-helm state.
+Negative hashes cover every velocity sample, including lateral impulses at frames137/201.
+One-call benchmark is not full-game FPS or player-scene acceptance.
+Production header before recipe SHA256=45828e06491d82328da3d9abb11f280fe9d27531f09e604a7ac26c24d3feaf04
+Compiler=Apple clang version 21.0.0 (clang-2100.3.34.2)
+VARIANT=original
+TRACTION=driving ? .6f - .42f * std::clamp(std::abs(turn), 0.f, 1.f) : .12f
+ARC cap=0.42 gas=1 turn=+0.25 max_slip_deg=12.178 end_slip_deg=+12.178 course_rad_s=+0.104990 radius_m=2449.969 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.25 max_slip_deg=12.178 end_slip_deg=-12.178 course_rad_s=-0.104990 radius_m=2449.969 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+0.50 max_slip_deg=30.888 end_slip_deg=+30.888 course_rad_s=+0.209858 radius_m=1225.695 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.50 max_slip_deg=30.888 end_slip_deg=-30.888 course_rad_s=-0.209858 radius_m=1225.695 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+1.00 max_slip_deg=130.001 end_slip_deg=+130.001 course_rad_s=+0.405680 radius_m=634.052 backwards_s=13.600 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-1.00 max_slip_deg=130.001 end_slip_deg=-130.001 course_rad_s=-0.405680 radius_m=634.052 backwards_s=13.600 speed_kt=500.000
+ARC cap=0.42 gas=0 turn=+0.25 max_slip_deg=45.499 end_slip_deg=+45.499 course_rad_s=+0.093975 radius_m=963.826 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.25 max_slip_deg=45.499 end_slip_deg=-45.499 course_rad_s=-0.093975 radius_m=963.826 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+0.50 max_slip_deg=90.998 end_slip_deg=+90.998 course_rad_s=+0.187950 radius_m=481.912 backwards_s=0.850 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.50 max_slip_deg=90.998 end_slip_deg=-90.998 course_rad_s=-0.187950 radius_m=481.912 backwards_s=0.850 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+1.00 max_slip_deg=179.994 end_slip_deg=-143.421 course_rad_s=+0.072834 radius_m=1243.593 backwards_s=14.842 speed_kt=166.430
+ARC cap=0.42 gas=0 turn=-1.00 max_slip_deg=179.994 end_slip_deg=+143.421 course_rad_s=-0.072834 radius_m=1243.593 backwards_s=14.842 speed_kt=166.430
+ARC cap=0.70 gas=1 turn=+0.25 max_slip_deg=20.297 end_slip_deg=+20.297 course_rad_s=+0.174994 radius_m=1469.890 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.25 max_slip_deg=20.297 end_slip_deg=-20.297 course_rad_s=-0.174994 radius_m=1469.890 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+0.50 max_slip_deg=51.482 end_slip_deg=+51.482 course_rad_s=+0.349781 radius_m=735.380 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.50 max_slip_deg=51.482 end_slip_deg=-51.482 course_rad_s=-0.349781 radius_m=735.380 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+1.00 max_slip_deg=179.968 end_slip_deg=+163.739 course_rad_s=+0.476137 radius_m=540.227 backwards_s=12.175 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-1.00 max_slip_deg=179.968 end_slip_deg=-163.739 course_rad_s=-0.476137 radius_m=540.227 backwards_s=12.175 speed_kt=500.000
+ARC cap=0.70 gas=0 turn=+0.25 max_slip_deg=75.834 end_slip_deg=+75.834 course_rad_s=+0.156630 radius_m=578.278 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.25 max_slip_deg=75.834 end_slip_deg=-75.834 course_rad_s=-0.156630 radius_m=578.278 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+0.50 max_slip_deg=151.668 end_slip_deg=+151.668 course_rad_s=+0.313255 radius_m=289.143 backwards_s=13.367 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.50 max_slip_deg=151.668 end_slip_deg=-151.668 course_rad_s=-0.313255 radius_m=289.143 backwards_s=13.367 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+1.00 max_slip_deg=179.947 end_slip_deg=-10.686 course_rad_s=-0.116414 radius_m=778.043 backwards_s=10.867 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-1.00 max_slip_deg=179.947 end_slip_deg=+10.686 course_rad_s=+0.116414 radius_m=778.043 backwards_s=10.867 speed_kt=166.431
+LIFE countersteer_start slip_deg=+163.739 speed_kt=500.000
+LIFE countersteer_s=1 slip_deg=+113.548 course_rad_s=+0.358028 speed_kt=500.000
+LIFE countersteer_s=2 slip_deg=+58.202 course_rad_s=+0.184021 speed_kt=500.000
+LIFE countersteer_s=3 slip_deg=+11.881 course_rad_s=+0.038395 speed_kt=500.000
+LIFE countersteer_s=4 slip_deg=-26.810 course_rad_s=-0.083256 speed_kt=500.000
+LIFE countersteer_course_reversal_s=3.300
+LIFE release_gas_s=1 slip_deg=-19.565 speed_kt=500.000
+LIFE release_gas_s=2 slip_deg=-10.770 speed_kt=500.000
+LIFE release_gas_s=3 slip_deg=-5.911 speed_kt=500.000
+LIFE release_gas_s=4 slip_deg=-3.244 speed_kt=500.000
+LIFE release_coast_s=1 slip_deg=-2.877 speed_kt=473.242
+LIFE release_coast_s=2 slip_deg=-2.552 speed_kt=447.916
+LIFE release_coast_s=3 slip_deg=-2.263 speed_kt=423.946
+LIFE release_coast_s=4 slip_deg=-2.007 speed_kt=401.258
+LIFE brake_3s slip_deg=+34.188 speed_kt=0.000
+NEG straight_gas_impulse hash=1c9ee5dc41eb2521 speed_kt=500.000031
+NEG straight_coast_impulse hash=22227baa9f4b081a speed_kt=61.603752
+NEG brake_turn_impulse hash=6038f5efc442e333 speed_kt=0.000000
+NEG air_turn_impulse hash=d915341ad213a780 speed_kt=184.962738
+NEG straight_boost_impulse hash=2ce1778f72aba5f2 speed_kt=1000.000061
+BENCH exact_Drift_advance_1m_calls ns_per_call=55.571 sink=-486.874
+VARIANT=installed_plus1
+TRACTION=(driving ? .6f : .12f) + std::clamp(std::abs(turn), 0.f, 1.f)
+ARC cap=0.42 gas=1 turn=+0.25 max_slip_deg=7.102 end_slip_deg=+7.102 course_rad_s=+0.105000 radius_m=2449.744 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.25 max_slip_deg=7.102 end_slip_deg=-7.102 course_rad_s=-0.105000 radius_m=2449.744 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+0.50 max_slip_deg=10.988 end_slip_deg=+10.988 course_rad_s=+0.209999 radius_m=1224.872 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.50 max_slip_deg=10.988 end_slip_deg=-10.988 course_rad_s=-0.209999 radius_m=1224.872 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+1.00 max_slip_deg=15.141 end_slip_deg=+15.141 course_rad_s=+0.419998 radius_m=612.436 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-1.00 max_slip_deg=15.141 end_slip_deg=-15.141 course_rad_s=-0.419998 radius_m=612.436 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=0 turn=+0.25 max_slip_deg=16.274 end_slip_deg=+16.274 course_rad_s=+0.104897 radius_m=863.470 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.25 max_slip_deg=16.274 end_slip_deg=-16.274 course_rad_s=-0.104897 radius_m=863.470 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+0.50 max_slip_deg=19.455 end_slip_deg=+19.455 course_rad_s=+0.209999 radius_m=431.313 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.50 max_slip_deg=19.455 end_slip_deg=-19.455 course_rad_s=-0.209999 radius_m=431.313 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+1.00 max_slip_deg=21.586 end_slip_deg=+21.586 course_rad_s=+0.419998 radius_m=215.657 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-1.00 max_slip_deg=21.586 end_slip_deg=-21.586 course_rad_s=-0.419998 radius_m=215.657 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=1 turn=+0.25 max_slip_deg=11.838 end_slip_deg=+11.838 course_rad_s=+0.175009 radius_m=1469.765 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.25 max_slip_deg=11.838 end_slip_deg=-11.838 course_rad_s=-0.175009 radius_m=1469.765 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+0.50 max_slip_deg=18.315 end_slip_deg=+18.315 course_rad_s=+0.350018 radius_m=734.883 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.50 max_slip_deg=18.315 end_slip_deg=-18.315 course_rad_s=-0.350018 radius_m=734.883 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+1.00 max_slip_deg=25.236 end_slip_deg=+25.236 course_rad_s=+0.700035 radius_m=367.442 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-1.00 max_slip_deg=25.236 end_slip_deg=-25.236 course_rad_s=-0.700035 radius_m=367.442 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=0 turn=+0.25 max_slip_deg=27.124 end_slip_deg=+27.124 course_rad_s=+0.174838 radius_m=518.053 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.25 max_slip_deg=27.124 end_slip_deg=-27.124 course_rad_s=-0.174838 radius_m=518.053 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+0.50 max_slip_deg=32.429 end_slip_deg=+32.429 course_rad_s=+0.350018 radius_m=258.774 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.50 max_slip_deg=32.429 end_slip_deg=-32.429 course_rad_s=-0.350018 radius_m=258.774 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+1.00 max_slip_deg=35.979 end_slip_deg=+35.979 course_rad_s=+0.700035 radius_m=129.387 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-1.00 max_slip_deg=35.979 end_slip_deg=-35.979 course_rad_s=-0.700035 radius_m=129.387 backwards_s=0.000 speed_kt=166.431
+LIFE countersteer_start slip_deg=+25.236 speed_kt=500.000
+LIFE countersteer_s=1 slip_deg=-10.505 course_rad_s=-0.286102 speed_kt=500.000
+LIFE countersteer_s=2 slip_deg=-22.230 course_rad_s=-0.615578 speed_kt=500.000
+LIFE countersteer_s=3 slip_deg=-24.629 course_rad_s=-0.682983 speed_kt=500.000
+LIFE countersteer_s=4 slip_deg=-25.113 course_rad_s=-0.696602 speed_kt=500.000
+LIFE countersteer_course_reversal_s=0.658
+LIFE release_gas_s=1 slip_deg=-18.633 speed_kt=500.000
+LIFE release_gas_s=2 slip_deg=-10.259 speed_kt=500.000
+LIFE release_gas_s=3 slip_deg=-5.630 speed_kt=500.000
+LIFE release_gas_s=4 slip_deg=-3.090 speed_kt=500.000
+LIFE release_coast_s=1 slip_deg=-2.740 speed_kt=473.242
+LIFE release_coast_s=2 slip_deg=-2.431 speed_kt=447.916
+LIFE release_coast_s=3 slip_deg=-2.156 speed_kt=423.945
+LIFE release_coast_s=4 slip_deg=-1.912 speed_kt=401.257
+LIFE brake_3s slip_deg=+34.188 speed_kt=0.000
+NEG straight_gas_impulse hash=1c9ee5dc41eb2521 speed_kt=500.000031
+NEG straight_coast_impulse hash=22227baa9f4b081a speed_kt=61.603752
+NEG brake_turn_impulse hash=6038f5efc442e333 speed_kt=0.000000
+NEG air_turn_impulse hash=d915341ad213a780 speed_kt=184.962738
+NEG straight_boost_impulse hash=2ce1778f72aba5f2 speed_kt=1000.000061
+BENCH exact_Drift_advance_1m_calls ns_per_call=51.212 sink=217.900
+VARIANT=recalibrated
+TRACTION=driving ? .6f : .12f + .42f * std::clamp(std::abs(turn), 0.f, 1.f)
+ARC cap=0.42 gas=1 turn=+0.25 max_slip_deg=10.051 end_slip_deg=+10.051 course_rad_s=+0.105000 radius_m=2449.744 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.25 max_slip_deg=10.051 end_slip_deg=-10.051 course_rad_s=-0.105000 radius_m=2449.744 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+0.50 max_slip_deg=20.102 end_slip_deg=+20.102 course_rad_s=+0.209999 radius_m=1224.872 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-0.50 max_slip_deg=20.102 end_slip_deg=-20.102 course_rad_s=-0.209999 radius_m=1224.872 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=+1.00 max_slip_deg=40.207 end_slip_deg=+40.207 course_rad_s=+0.419998 radius_m=612.436 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=1 turn=-1.00 max_slip_deg=40.207 end_slip_deg=-40.207 course_rad_s=-0.419998 radius_m=612.436 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.42 gas=0 turn=+0.25 max_slip_deg=26.452 end_slip_deg=+26.452 course_rad_s=+0.103459 radius_m=875.473 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.25 max_slip_deg=26.452 end_slip_deg=-26.452 course_rad_s=-0.103459 radius_m=875.473 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+0.50 max_slip_deg=36.458 end_slip_deg=+36.458 course_rad_s=+0.209567 radius_m=432.204 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-0.50 max_slip_deg=36.458 end_slip_deg=-36.458 course_rad_s=-0.209567 radius_m=432.204 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=+1.00 max_slip_deg=44.663 end_slip_deg=+44.663 course_rad_s=+0.419998 radius_m=215.657 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.42 gas=0 turn=-1.00 max_slip_deg=44.663 end_slip_deg=-44.663 course_rad_s=-0.419998 radius_m=215.657 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=1 turn=+0.25 max_slip_deg=16.753 end_slip_deg=+16.753 course_rad_s=+0.175009 radius_m=1469.766 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.25 max_slip_deg=16.753 end_slip_deg=-16.753 course_rad_s=-0.175009 radius_m=1469.766 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+0.50 max_slip_deg=33.508 end_slip_deg=+33.508 course_rad_s=+0.350018 radius_m=734.883 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-0.50 max_slip_deg=33.508 end_slip_deg=-33.508 course_rad_s=-0.350018 radius_m=734.883 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=+1.00 max_slip_deg=67.015 end_slip_deg=+67.015 course_rad_s=+0.700035 radius_m=367.442 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=1 turn=-1.00 max_slip_deg=67.015 end_slip_deg=-67.015 course_rad_s=-0.700035 radius_m=367.442 backwards_s=0.000 speed_kt=500.000
+ARC cap=0.70 gas=0 turn=+0.25 max_slip_deg=44.089 end_slip_deg=+44.089 course_rad_s=+0.172438 radius_m=525.264 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.25 max_slip_deg=44.089 end_slip_deg=-44.089 course_rad_s=-0.172438 radius_m=525.264 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+0.50 max_slip_deg=60.766 end_slip_deg=+60.766 course_rad_s=+0.349293 radius_m=259.311 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-0.50 max_slip_deg=60.766 end_slip_deg=-60.766 course_rad_s=-0.349293 radius_m=259.311 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=+1.00 max_slip_deg=74.442 end_slip_deg=+74.442 course_rad_s=+0.700035 radius_m=129.387 backwards_s=0.000 speed_kt=166.431
+ARC cap=0.70 gas=0 turn=-1.00 max_slip_deg=74.442 end_slip_deg=-74.442 course_rad_s=-0.700035 radius_m=129.387 backwards_s=0.000 speed_kt=166.431
+LIFE countersteer_start slip_deg=+67.015 speed_kt=500.000
+LIFE countersteer_s=1 slip_deg=+16.246 course_rad_s=+0.173950 speed_kt=500.000
+LIFE countersteer_s=2 slip_deg=-21.254 course_rad_s=-0.219612 speed_kt=500.000
+LIFE countersteer_s=3 slip_deg=-41.900 course_rad_s=-0.436363 speed_kt=500.000
+LIFE countersteer_s=4 slip_deg=-53.232 course_rad_s=-0.555382 speed_kt=500.000
+LIFE countersteer_course_reversal_s=1.375
+LIFE release_gas_s=1 slip_deg=-34.066 speed_kt=500.000
+LIFE release_gas_s=2 slip_deg=-18.728 speed_kt=500.000
+LIFE release_gas_s=3 slip_deg=-10.278 speed_kt=500.000
+LIFE release_gas_s=4 slip_deg=-5.641 speed_kt=500.000
+LIFE release_coast_s=1 slip_deg=-5.003 speed_kt=473.242
+LIFE release_coast_s=2 slip_deg=-4.437 speed_kt=447.916
+LIFE release_coast_s=3 slip_deg=-3.935 speed_kt=423.945
+LIFE release_coast_s=4 slip_deg=-3.490 speed_kt=401.257
+LIFE brake_3s slip_deg=+34.188 speed_kt=0.000
+NEG straight_gas_impulse hash=1c9ee5dc41eb2521 speed_kt=500.000031
+NEG straight_coast_impulse hash=22227baa9f4b081a speed_kt=61.603752
+NEG brake_turn_impulse hash=6038f5efc442e333 speed_kt=0.000000
+NEG air_turn_impulse hash=d915341ad213a780 speed_kt=184.962738
+NEG straight_boost_impulse hash=2ce1778f72aba5f2 speed_kt=1000.000061
+BENCH exact_Drift_advance_1m_calls ns_per_call=55.063 sink=-138.896
+PASS all negative sequences match bit-for-bit across all three formulas.

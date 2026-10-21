@@ -1,0 +1,25 @@
+#include "authored_solar.hpp"
+#include <fstream>
+#include <vector>
+#include <string>
+#include <cstdio>
+#include <chrono>
+#include <cstdlib>
+using namespace storm_metal;
+static void check(bool x,const char*m){if(!x){std::fprintf(stderr,"FAIL %s\n",m);std::exit(1);}}
+int main(int argc,char**argv){
+ check(argc==2,"resource path");
+ auto dark=findAuthoredSolarSource([](auto){return 0xff777777u;});check(dark.gain==0,"absolute dark rejection");
+ int index=0;auto noise=findAuthoredSolarSource([&](auto){return index++==100?0xffffffffu:0xff000000u;});check(noise.gain==0,"isolated bright cell rejection");
+ auto white=findAuthoredSolarSource([](auto){return 0xffffffffu;});check(white.gain==1&&white.y>.999,"coherent bright hemisphere");
+ const char*names[]={"sky_fr.tga.tx","sky_lf.tga.tx","sky_bk.tga.tx","sky_rt.tga.tx","sky_up.tga.tx"};
+ for(auto hour:{"03","05","06","07","12","19","23","Storm01","Storm02","Storm03","Storm04"}){
+  std::vector<unsigned>faces[5];for(int i=0;i<5;++i){std::string path=std::string(argv[1])+"/"+hour+"/"+names[i];std::ifstream f(path,std::ios::binary|std::ios::ate);check(bool(f),path.c_str());auto n=f.tellg();faces[i].resize(size_t(n)/4);f.seekg(0);f.read((char*)faces[i].data(),n);check(faces[i][4]==21,"actual ARGB32");}
+  const auto sample=[&](auto c){const auto&v=faces[c.face];unsigned x=std::min(unsigned(std::clamp(c.u,0.f,1.f)*v[1]),v[1]-1),y=std::min(unsigned(std::clamp(c.v,0.f,1.f)*v[2]),v[2]-1);return v[6+y*v[1]+x];};
+  auto begin=std::chrono::steady_clock::now();AuthoredSolarSource s;for(int i=0;i<10;++i)s=findAuthoredSolarSource(sample);auto end=std::chrono::steady_clock::now();
+  auto c=authoredSkyCoordinate(s.x,s.y,s.z);printf("source=%s gain=%.8f direction=(%.8f,%.8f,%.8f) face=%d uv=(%.8f,%.8f) cached_scan_ms=%.6f\n",hour,s.gain,s.x,s.y,s.z,c.face,c.u,c.v,std::chrono::duration<double,std::milli>(end-begin).count()/10);
+  if(std::string(hour)=="03"||std::string(hour)=="05"||std::string(hour)=="23")check(s.gain==0,"actual dark hour rejected");
+  if(std::string(hour)=="06"||std::string(hour)=="07"||std::string(hour)=="12")check(s.gain>0&&s.y>0,"actual coherent daylight accepted");
+ }
+ puts("PASS absolute/coherence/actual-source cases");
+}
