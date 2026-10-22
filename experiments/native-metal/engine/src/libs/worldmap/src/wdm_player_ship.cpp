@@ -109,8 +109,8 @@ bool WdmPlayerShip::Load(const char *modelName)
     auto *attributes = wdmObjects->wm ? wdmObjects->wm->AttributesPointer : nullptr;
     playerVisual = storm_map_player::consumePlayerVisual(attributes ? attributes->GetAttributeClass("playerShipVisual") : nullptr);
     if (playerVisual) playerVisualSignature = storm_map_player::visualSignature(storm_map_player::currentCharacter(playerVisual->characterIndex));
-    if (!playerVisual) core.Trace("World map: current player hull/cloth visual could not be reconstructed");
-    return bool(playerVisual);
+    if (!playerVisual) core.Trace("World map: current player hull/cloth visual could not be reconstructed; falling back to base geometry");
+    return true;
 }
 
 void WdmPlayerShip::RefreshPlayerVisual()
@@ -131,7 +131,11 @@ void WdmPlayerShip::RefreshPlayerVisual()
 
 void WdmPlayerShip::MRender(VDX9RENDER *rs)
 {
-    if (!playerVisual) return;
+    if (!playerVisual)
+    {
+        WdmShip::MRender(rs);
+        return;
+    }
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     const WdmMetalModelScope mapRole(rs);
 #endif
@@ -311,8 +315,9 @@ void WdmPlayerShip::Update(float dltTime)
 void WdmPlayerShip::LRender(VDX9RENDER *rs)
 {
     // Preserve the existing model/wake render order. The generic geometry
-    // remains the collision footprint, never the visible player miniature.
-    if (wmtexture >= 0 && isWMRender) WdmShip::LRender(rs);
+    // remains the collision footprint and the fallback for unavailable visuals.
+    if (!playerVisual) WdmShip::LRender(rs);
+    else if (wmtexture >= 0 && isWMRender) WdmShip::LRender(rs);
     else
     {
         isWMRender = true;

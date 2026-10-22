@@ -284,6 +284,7 @@ float Cannon_GetFireHeight()
 float Cannon_GetRechargeTime()
 {
 	aref	aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return 1.5;
 
 	float	fCannonSkill = 1.0 - stf(aCharacter.TmpSkill.Cannons) / 3.0;
 

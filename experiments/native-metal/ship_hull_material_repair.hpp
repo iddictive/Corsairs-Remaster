@@ -88,6 +88,8 @@ inline bool boundary(const Mesh&cell,const std::vector<Halfspace>&planes,const A
     for(const auto&o:cell)for(const auto&t:o.second){storm_geometry_work::checkpoint();if(!difference(t,authoredFaces,out.finiteWalls[o.first]))return false;}return true;
 }
 inline bool unionCell(Surface&current,const Surface&addition,const Mesh&cell,const std::vector<Halfspace>&planes,const std::set<int>&objects,const std::vector<Mesh>&volumes,Mesh*addedOuter=nullptr){
+    const auto cellMaterial=std::find_if(cell.begin(),cell.end(),[](const auto&entry){return !entry.second.empty();});
+    if(cellMaterial==cell.end())return true;
     Surface next=current;
     next.decorations.reset();
     for(unsigned role=0;role<4;++role)if(!trim(surfaceRole(current,role),planes,objects,surfaceRole(next,role),true))return false;
@@ -101,15 +103,19 @@ inline bool unionCell(Surface&current,const Surface&addition,const Mesh&cell,con
     for(const auto&released:current.released){if(!released)return false;Mesh remaining;if(!trim(*released,planes,objects,remaining,false))return false;
         // Released masks are closed ownership volumes, not only outer decals.
         // Their new boundary faces point into the region returned to the hull.
-        for(const auto&p:planes){Mesh unused,cap;if(!solidSectionCaps(*released,p,planes,cell.begin()->second.front()[0].position,false,unused,cap))return false;
+        for(const auto&p:planes){Mesh unused,cap;if(!solidSectionCaps(*released,p,planes,cellMaterial->second.front()[0].position,false,unused,cap))return false;
             // The new mask interface belongs to this exact authored cell;
             // never inherit the unrelated first object in a mixed release.
-            for(const auto&o:cap)remaining[cell.begin()->first].insert(remaining[cell.begin()->first].end(),o.second.begin(),o.second.end());}
+            for(const auto&o:cap)remaining[cellMaterial->first].insert(remaining[cellMaterial->first].end(),o.second.begin(),o.second.end());}
         if(measure(remaining)>1.e-9)next.released.push_back(std::make_shared<const Mesh>(std::move(remaining)));}
     current=std::move(next);return true;
 }
 inline bool subtractOwnership(const Mesh&solid,const Mesh&released,Mesh&out){
-    if(solid.empty()||released.empty()){out=solid;return true;}const MeshLookup solidIndex(solid),releasedIndex(released);Mesh next;
+    const auto solidMaterial=std::find_if(solid.begin(),solid.end(),[](const auto&entry){return !entry.second.empty();});
+    const auto releasedMaterial=std::find_if(released.begin(),released.end(),[](const auto&entry){return !entry.second.empty();});
+    if(solidMaterial==solid.end()){out.clear();return true;}
+    if(releasedMaterial==released.end()){out=solid;return true;}
+    const MeshLookup solidIndex(solid),releasedIndex(released);Mesh next;
     const auto section=[](const Mesh&volume,const Triangle&t,std::vector<Triangle>&mask){const auto n=normal(t);Mesh cap,unused;
         if(!solidSectionCaps(volume,{n,storm_ship_hull::dot(n,t[0].position)},{},t[0].position,false,cap,unused))return false;
         for(const auto&o:cap)mask.insert(mask.end(),o.second.begin(),o.second.end());return true;};
@@ -122,7 +128,7 @@ inline bool subtractOwnership(const Mesh&solid,const Mesh&released,Mesh&out){
         std::vector<Triangle>mask;if(!section(solid,t,mask))return false;
         std::vector<Triangle>outside,inside;if(!difference(t,mask,outside)||!difference(t,outside,inside))return false;
         const auto coincident=solidIndex.candidates(faceBounds(t));for(const auto&face:inside){std::vector<Triangle>clipped;if(!difference(face,coincident,clipped))return false;
-            for(auto piece:clipped){std::swap(piece[1],piece[2]);for(auto&v:piece)v.normal=v.normal*-1.f;next[solid.begin()->first].push_back(piece);}}}
+            for(auto piece:clipped){std::swap(piece[1],piece[2]);for(auto&v:piece)v.normal=v.normal*-1.f;next[solidMaterial->first].push_back(piece);}}}
     for(auto it=next.begin();it!=next.end();)if(it->second.empty())it=next.erase(it);else ++it;
     if(measure(next)>1.e-9&&closedCutVolume(next)<=0)return false;out=std::move(next);return true;
 }

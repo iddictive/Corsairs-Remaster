@@ -40,7 +40,7 @@ void CreateBallsEnvironment()
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
 	AIBalls.Texture = "AllBalls.tga";
 	AIBalls.DartTexture = "BALLS\\dart.tga";
-	AIBalls.DartSize = 0.8;
+	AIBalls.DartSize = 0.4;
 	AIBalls.SubTexX = 2;
 	AIBalls.SubTexY = 2;
 
@@ -248,6 +248,12 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	Play3DSound(rCannon.Sound, fX, fY, fZ);
 }
 
+void Ball_BombImpactFx(float x, float y, float z)
+{
+	if (sti(AIBalls.CurrentBallType) != GOOD_BOMBS || sti(AIBalls.CurrentAirburstFragment)) return;
+	CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
+}
+
 void Ball_WaterHitEvent()
 {
 	int		iCharacterIndex;
@@ -274,6 +280,10 @@ void Ball_WaterHitEvent()
 		CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5);
 	}
 
+	if (sti(AIBalls.CurrentBallType) == GOOD_BOMBS && !sti(AIBalls.CurrentAirburstFragment))
+	{
+		if (rand(4) == 1) Ball_BombImpactFx(x, y, z);
+	}
 	Play3DSound("ball_splash", x, y, z);
 }
 
@@ -288,7 +298,11 @@ void Ball_FortHit()
 	y = GetEventData();
 	z = GetEventData();
 
-	if (rand(4) == 1) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0); // boal fix
+	if (rand(4) == 1)
+	{
+		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		Ball_BombImpactFx(x, y, z);
+	}
 	SendMessage(&AIFort, "llfff", AI_MESSAGE_FORT_HIT, iCharacterIndex, x, y, z);
 }
 
@@ -303,7 +317,11 @@ void Ball_IslandHit()
 	y = GetEventData();
 	z = GetEventData();
 
-	if (rand(2) == 1) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0); // boal fix
+	if (rand(2) == 1)
+	{
+		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		Ball_BombImpactFx(x, y, z);
+	}
 
 	//Ship_SetLightsOff(&Characters[1], 15.0, true, true, false);
 }

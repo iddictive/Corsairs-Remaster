@@ -1118,6 +1118,7 @@ void ProcessControls()
 	if (ControlName == "WhrPrevWeather")	{ Whr_LoadNextWeather(-1); }
 	if (ControlName == "WhrNextWeather")	{ Whr_LoadNextWeather(1); }
 	if (ControlName == "WhrUpdateWeather")	{ Whr_UpdateWeather(); }
+	if (ControlName == "BOAL_Control")	{ LaunchDebuderMenu(); return; }
 
 	if(bSeaActive && !bAbordageStarted)
 	{
@@ -1126,7 +1127,6 @@ void ProcessControls()
 			case "MainMenu": ProcessMainMenuKey();	break;
 			case "MainMenuDouble": ProcessMainMenuKey(); break;
 			case "Interface": ProcessInterfaceKey(); break;
-			case "BOAL_Control": LaunchDebuderMenu(); break;
 
 			case "Sea_CameraSwitch": SeaCameras_Switch(); break;
 			case "Ship_Fire": Ship_DoFire(); break;
@@ -1439,10 +1439,6 @@ void ProcessControls()
 		    }
 		break;
 
-        case "BOAL_Control":
-		    // по F11 вызывает окно отладчика
-		    LaunchDebuderMenu();
-		break;
 		
 	case "Say": // KEY_Y
 		// Интерфейс автозакупки товаров

@@ -70,7 +70,7 @@ class GEOM : public GEOS
     VERTEX_BUFFER *vbuff = nullptr;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     struct HullOriginal {int type=0,stride=0;std::vector<uint8_t>vertices;std::vector<uint16_t>indices;storm_ship_hull::Broadphase broadphase;};
-    struct HullDraw {int vb=-1,ib=-1,vertices=0,triangles=0,stride=0;};
+    struct HullDraw {int vb=-1,ib=-1,vertices=0,triangles=0,stride=0;bool cutWall=false;};
     std::map<int,HullOriginal> hullOriginals;
     std::map<int,std::vector<HullDraw>> hullDraws;
     uint64_t hullOwner=0,hullSignature=0;
@@ -142,7 +142,9 @@ class GEOM : public GEOS
     uint64_t laserOwner=0,laserSerial=0;
     int laserTraceObject=-1,laserTraceTriangle=-1;
     float laserTraceA=0,laserTraceB=0;
-    bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr);
+    bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr,bool cutWall=false);
+    bool UploadLaserSurface(const storm_ship_laser::Surface&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr);
+    void SetHullDrawMaterial(int objectIndex,bool cutWall,MATERIAL_FUNC callback=nullptr) const;
     bool RebuildLaserSurface(bool upload=true,storm_ship_laser::Mesh *preparedSource=nullptr);
     void RebuildLaserCollision();
     std::shared_ptr<const storm_ship_laser::Mesh> worldOriginal;

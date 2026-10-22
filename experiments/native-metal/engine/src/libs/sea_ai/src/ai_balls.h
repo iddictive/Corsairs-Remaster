@@ -74,7 +74,8 @@ class AIBalls : public Entity
     std::vector<CVECTOR> dartDirections;
     std::vector<RS_LINE> dartTrace;
     int32_t dartTexture = -1;
-    float dartSize = .8f;
+    static constexpr float DefaultDartSize = .4f;
+    float dartSize = DefaultDartSize;
     uint32_t dartSequence = 0, dartHits = 0;
     bool hadPlayerDarts = false;
 

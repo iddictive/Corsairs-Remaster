@@ -21,10 +21,11 @@ from prepare_port_rowboat import paths as rowboat_paths
 
 RECEIPT = ".delivery-state.json"
 ENGINE = "@engine"
-TECHNIQUES = ("ship/Rope.fx", "ship/Vant.fx", "ship/Flag.fx", "_dev/ship.fx", "weather/SunGlow.fx", "worldmap/worldmap.fx", "butterfly.fx", "sink.fx", "effects/maineffects.fx", "splash.fx")
+TECHNIQUES = ("ship/Rope.fx", "ship/Vant.fx", "ship/Flag.fx", "_dev/ship.fx", "weather/SunGlow.fx", "worldmap/worldmap.fx", "butterfly.fx", "sink.fx", "effects/maineffects.fx", "splash.fx", "ai/balls.fx")
 # Frozen admission for installations created before receipts. New deliveries
 # record their predecessor automatically; do not extend these lists per release.
 LEGACY_TECHNIQUES = {
+    "ai/balls.fx": {"c2d1f0174e8182712d00f87715030d33cb7e5b59cc97811237cb350fa7f38adb"},
     "splash.fx": {"6e82008a5b9c069c06e10f9e0bf20479bb449d0329d8b2f57270e3557bdd4224"},
     "butterfly.fx": {"7eb02244a628723bf9382a9fe90cf3cd692619ff101d55b465aad49e1f4802db"},
     "sink.fx": {"1e8573e87f7e0f9819bc2774cf44e58ed7ee80640810a46aa356a8740a230ae6"},

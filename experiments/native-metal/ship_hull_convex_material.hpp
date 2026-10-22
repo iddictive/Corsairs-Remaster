@@ -41,7 +41,7 @@ inline bool clip(const Piece&source,Halfspace plane,Piece&out,Budget&budget,bool
     if(ring.size()>=3){Vec3 midpoint{};for(const auto&v:ring)midpoint=midpoint+v.position*(1.f/ring.size());const auto basis=storm_ship_hull::frame(plane.normal);
         std::sort(ring.begin(),ring.end(),[&](const auto&a,const auto&b){const auto x=a.position-midpoint,y=b.position-midpoint;return std::atan2(storm_ship_hull::dot(x,basis.bitangent),storm_ship_hull::dot(x,basis.tangent))<std::atan2(storm_ship_hull::dot(y,basis.bitangent),storm_ship_hull::dot(y,basis.tangent));});
         if(storm_ship_hull::dot(storm_ship_hull::cross(ring[1].position-ring[0].position,ring[2].position-ring[0].position),plane.normal)<0)std::reverse(ring.begin(),ring.end());
-        for(auto&v:ring){v.normal=plane.normal;if(charred)v.color=(v.color&0xff000000u)|0x00645140u;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=storm_ship_hull::dot(v.position-midpoint,basis.tangent)*.12f;v.uv[uv*2+1]=storm_ship_hull::dot(v.position-midpoint,basis.bitangent)*.12f;}}
+        for(auto&v:ring){v.normal=plane.normal;if(charred)v.color=(v.color&0xff000000u)|0x00645140u;capUV(v,plane.normal);}
         next.faces.push_back({std::move(ring),plane,source.faces.front().object,true});}
     measure(next);if(next.volume<=1.e-12)next={};out=std::move(next);return true;
 }

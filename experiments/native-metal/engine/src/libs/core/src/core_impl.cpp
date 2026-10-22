@@ -205,7 +205,19 @@ bool CoreImpl::Run()
         Initialize(); // initialization at start or after reset
     }
     if (!bEngineIniProcessed)
-        ProcessEngineIniFile();
+    {
+        try
+        {
+            ProcessEngineIniFile();
+        }
+        catch (const std::exception &e)
+        {
+            spdlog::critical("ProcessEngineIniFile failed: {}", e.what());
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Engine Initialization Error", e.what(), nullptr);
+            Exit();
+            return false;
+        }
+    }
 
 #ifdef _WIN32
     const bool debugWindowKeyPressed = Controls && Controls->GetAsyncKeyState(VK_F5) < 0;
