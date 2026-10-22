@@ -53,12 +53,13 @@ void Darts_InitGoods()
     Goods[GOOD_DARTS].NpcSupplyPerClass = 20;
     Goods[GOOD_DARTS].HeightMultiply = 0.5773502692;
     Goods[GOOD_DARTS].TimeSpeedMultiply = 2.0;
-    Goods[GOOD_DARTS].DispersionMultiply = 0.30;
-    Goods[GOOD_DARTS].AccuracyReferenceRange = 2116.0;
-    Goods[GOOD_DARTS].DamageHull = 2.5;
+    DeleteAttribute(&Goods[GOOD_DARTS], "DispersionMultiply");
+    DeleteAttribute(&Goods[GOOD_DARTS], "AccuracyReferenceRange");
+    Goods[GOOD_DARTS].DamageHull = 6.0;
+    Goods[GOOD_DARTS].DamageDistanceMin = 0.65;
     Goods[GOOD_DARTS].DamageRig = 0.25;
     Goods[GOOD_DARTS].DamageCrew = 0.025;
-    Goods[GOOD_DARTS].Accuracy = 100.0;
+    Goods[GOOD_DARTS].Accuracy = 350.0;
     Goods[GOOD_DARTS].ReloadSpeed = 0.8;
     Goods[GOOD_DARTS].AfraidWater = 0;
     Goods[GOOD_DARTS].type = TRADE_TYPE_AMMUNITION;

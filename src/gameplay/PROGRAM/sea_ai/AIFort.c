@@ -20,6 +20,8 @@ void DeleteFortEnvironment()
 	if (isEntity(&AIFort)) { DeleteClass(&AIFort); }
 	for (int i=0; i<iNumForts; i++)
 	{
+		if (CheckAttribute(&Forts[i], "fortcmdridx") && sti(Forts[i].fortcmdridx) >= 0)
+			Fort_ReleaseCannonAmmo(GetCharacter(sti(Forts[i].fortcmdridx)));
 		DeleteClass(&Forts[i]);
 		DeleteClass(&FortsBlots[i]);
 	}
@@ -47,6 +49,100 @@ void SeaPhonk_FortGeometry()
     if (sti(fort.Fort.Mode) != FORT_NORMAL || !Fort_CanLandAssault(fort)) return;
     ref attacker = GetCharacter(owner);
     Fort_SetAbordageMode(attacker, fort);
+}
+
+void Fort_AddAmmoProfile(ref character, int good)
+{
+	string name = Goods[good].name;
+	character.Fort.Cannons.AmmoTypes.(name) = good;
+	character.Fort.Cannons.AmmoTypes.(name).Name = name;
+	character.Fort.Cannons.AmmoTypes.(name).Default = good == GOOD_BOMBS;
+	character.Fort.Cannons.AmmoTypes.(name).Baseline = good == GOOD_BALLS;
+	character.Fort.Cannons.AmmoTypes.(name).LongRange = good == GOOD_DARTS;
+	character.Fort.Cannons.AmmoTypes.(name).Rare = good == GOOD_AIRBURST;
+}
+
+void Fort_ConfigureAmmo(ref character)
+{
+	DeleteAttribute(character, "Fort.Cannons.AmmoTypes");
+	Fort_AddAmmoProfile(character, GOOD_BALLS);
+	Fort_AddAmmoProfile(character, GOOD_GRAPES);
+	Fort_AddAmmoProfile(character, GOOD_KNIPPELS);
+	Fort_AddAmmoProfile(character, GOOD_BOMBS);
+	Fort_AddAmmoProfile(character, GOOD_AIRBURST);
+	Fort_AddAmmoProfile(character, GOOD_DARTS);
+	character.Fort.Cannons.Restoring = bSeaLoad;
+}
+
+void Fort_EnsureAmmoSupply(ref character)
+{
+	aref profiles; makearef(profiles, character.Fort.Cannons.AmmoTypes);
+	for (int i = 0; i < GetAttributesNum(profiles); i++)
+	{
+		aref profile = GetAttributeN(profiles, i);
+		if (!CheckAttribute(character, "Ship.Cargo.Goods." + profile.Name))
+			SetCharacterGoods(character, sti(GetAttributeValue(profile)), GetCargoGoods(character, GOOD_BALLS));
+	}
+}
+
+void Fort_SetCannonCharge(aref character, int good)
+{
+	ref ammo = GetGoodByType(good);
+	character.Ship.Cannons.Charge = ammo.name;
+	character.Ship.Cannons.Charge.Type = good;
+}
+
+bool Fort_LoadCannon(aref character)
+{
+	string key = character.Fort.Cannons.ActiveGun;
+	aref gun; makearef(gun, character.Fort.Cannons.Ammo.(key));
+	// A queued shot has now been emitted; only its subsequent native Load may
+	// adopt the next draw. The current charge owns its entire delayed lifetime.
+	gun.Reserved = false;
+	if (CheckAttribute(gun, "NextEmpty") && sti(gun.NextEmpty))
+	{
+		DeleteAttribute(gun, "NextEmpty");
+		return false;
+	}
+	if (CheckAttribute(gun, "NextCharge"))
+	{
+		gun.Charge = gun.NextCharge;
+		DeleteAttribute(gun, "NextCharge");
+	}
+	int good = sti(gun.Charge);
+	Fort_SetCannonCharge(character, good);
+	if (GetCargoGoods(character, good) <= 0 || GetCargoGoods(character, GOOD_POWDER) <= 0) return false;
+	AddCharacterGoodsCannon(character, good, -1);
+	AddCharacterGoodsCannon(character, GOOD_POWDER, -1);
+	gun.Reserved = true;
+	return true;
+}
+
+void Fort_UnloadCannon(aref character)
+{
+	string key = character.Fort.Cannons.ActiveGun;
+	aref gun; makearef(gun, character.Fort.Cannons.Ammo.(key));
+	if (!CheckAttribute(gun, "Reserved") || !sti(gun.Reserved)) return;
+	AddCharacterGoodsCannon(character, sti(gun.Charge), 1);
+	AddCharacterGoodsCannon(character, GOOD_POWDER, 1);
+	gun.Reserved = false;
+}
+
+void Fort_ReleaseCannonAmmo(ref character)
+{
+	if (!CheckAttribute(character, "Fort.Cannons.Ammo")) return;
+	aref guns; makearef(guns, character.Fort.Cannons.Ammo);
+	for (int i = 0; i < GetAttributesNum(guns); i++)
+	{
+		aref gun = GetAttributeN(guns, i);
+		string key = GetAttributeName(gun);
+		if (!CheckAttribute(gun, "Reserved") || !sti(gun.Reserved)) continue;
+		if (CheckAttribute(character, "Fort.Cannons.Damage." + key) && stf(character.Fort.Cannons.Damage.(key)) >= 1.0) continue;
+		AddCharacterGoodsCannon(character, sti(gun.Charge), 1);
+		AddCharacterGoodsCannon(character, GOOD_POWDER, 1);
+	}
+	DeleteAttribute(character, "Fort.Cannons.Ammo");
+	DeleteAttribute(character, "Fort.Cannons.ActiveGun");
 }
 
 int Fort_FindCharacter(string sLocationID, string sLocationGroup, string sLocationLocator)
@@ -138,6 +234,7 @@ void Fort_Login(int iIslandIndex)
 			}
 			// Add fort to AIFort
 			ref rCharacter = GetCharacter(iFortCharacter);
+			if (!bSeaLoad) Fort_ReleaseCannonAmmo(rCharacter);
 			int iNation = sti(rCharacter.nation);
 			/*int iRelation = GetNationRelation2MainCharacter(iNation);
 			SetCharacterRelationBoth(nMainCharacterIndex, iFortCharacter, iRelation); */
@@ -221,15 +318,15 @@ void Fort_Login(int iIslandIndex)
 			rCharacter.Ship.Crew.Morale = 70;
 	        if (iFortMode == FORT_NORMAL)
 			{
-			    SetCharacterGoods(rCharacter, GOOD_BOMBS,  300000 + rand(200));
-			    SetCharacterGoods(rCharacter, GOOD_POWDER, 300000 + rand(200));
+			    if (!bSeaLoad) SetCharacterGoods(rCharacter, GOOD_BOMBS, 300000 + rand(200));
+			    if (!bSeaLoad) SetCharacterGoods(rCharacter, GOOD_POWDER, 300000 + rand(200));
 			}
 			else
 			{
-			    SetCharacterGoods(rCharacter, GOOD_BOMBS,  100 + rand(200));
-			    SetCharacterGoods(rCharacter, GOOD_POWDER, 100 + rand(200));
+			    if (!bSeaLoad) SetCharacterGoods(rCharacter, GOOD_BOMBS, 100 + rand(200));
+			    if (!bSeaLoad) SetCharacterGoods(rCharacter, GOOD_POWDER, 100 + rand(200));
 			}
-			SetCharacterGoods(rCharacter, GOOD_BALLS,  2000  + rand(200));// boal fix не токо бомбы!
+			if (!bSeaLoad) SetCharacterGoods(rCharacter, GOOD_BALLS, 2000 + rand(200)); // boal fix не токо бомбы!
 
 			SetCharacterGoods(rCharacter, GOOD_FOOD,   200 + rand(550));
 			SetCharacterGoods(rCharacter, GOOD_WEAPON, 100 + rand(500));
@@ -282,6 +379,7 @@ void Fort_Login(int iIslandIndex)
 				CopyAttributes(restoredCargo, &managedCargo);
 				SetCrewQuantity(rCharacter, managedCrew);
 			}
+			Fort_EnsureAmmoSupply(rCharacter);
 			// create fort blot
 			CreateEntity(&FortsBlots[iNumForts - 1], "blots");
 			SendMessage(&FortsBlots[iNumForts - 1], "lia", MSG_BLOTS_SETMODEL, &Forts[iNumForts - 1], rCharacter);
@@ -604,7 +702,11 @@ void Fort_CheckAttributes(ref rCharacter)
 	/*rCharacter.Fort.Cannons.Type.1 = -1;
 	rCharacter.Fort.Cannons.Type.2 = -1;
 	rCharacter.Fort.Cannons.Type.3 = CANNON_TYPE_MORTAR; */
-	rCharacter.Ship.Cannons.Charge.Type = GOOD_BOMBS;  // всегда бомбы   boal
+	Fort_ConfigureAmmo(rCharacter);
+	// Per-gun state owns mixed and queued ammunition; this is only the idle
+	// character context and the interpretation of legacy native save vectors.
+	rCharacter.Ship.Cannons.Charge.Type = GOOD_BOMBS;
+	rCharacter.Ship.Cannons.Charge = Goods[GOOD_BOMBS].name;
 }
 
 void Fort_LoadDamagedCannon()

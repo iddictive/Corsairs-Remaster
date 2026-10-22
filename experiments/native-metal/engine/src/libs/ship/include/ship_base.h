@@ -71,6 +71,13 @@ struct SHIP_MAST_CONTACT_FRAME
     std::vector<SHIP_MAST_CONTACT> masts;
 };
 
+struct HULL_CONTACT_HANDLING
+{
+    double cruiseSpeed = 0.; // ordinary authored metres/second
+    double turnLimit = 0.; // native contact radians/second
+    bool arcade = false;
+};
+
 struct HULL_CONTACT_MATERIAL
 {
     std::shared_ptr<const storm::ship::contact::MaterialSnapshot> prepared;
@@ -136,6 +143,7 @@ class SHIP_BASE : public VAI_OBJBASE
         return 75.0 * (1.0 + .75 * normalZ * normalZ * (.5 + .5 * bow));
     }
 
+    virtual HULL_CONTACT_HANDLING GetHullContactHandling() { return {}; }
     virtual BOOL BuildContour(CVECTOR *vContour, int32_t &iNumVContour, float widthScale = 1.1f) = 0;
     virtual unsigned GetHullContourRevision() const { return 0; }
     // Retained physical hull, independent of the waterplane used for support.

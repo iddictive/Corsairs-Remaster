@@ -339,6 +339,7 @@ class SHIP : public SHIP_BASE
                                   const CVECTOR &worldDirection, float admittedHP,
                                   int32_t sourceOwner, HullProjectileProfile profile,
                                   float kineticEnergy) override;
+    HULL_CONTACT_HANDLING GetHullContactHandling() override;
     void ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
                                 const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds) override;
     bool BuildMasts();

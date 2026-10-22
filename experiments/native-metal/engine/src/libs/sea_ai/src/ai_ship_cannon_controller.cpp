@@ -1053,10 +1053,8 @@ AimSpread AimLiveSpread(ATTRIBUTES *character)
         if(accuracy>0.f)
         {
             const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
-            auto *cannons=character->FindAClass(character,"Ship.Cannons");
-            const float spread=cannons?cannons->GetAttributeAsFloat("DispersionMultiply",1.f):1.f;
-            return {.5f*spread*k*12.f*kAimPi/180.f,.5f*spread*accuracy*15.f*kAimPi/180.f,
-                    .5f*spread*accuracy*10.f*12.f*kAimPi/180.f};
+            return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
+                    .5f*accuracy*10.f*12.f*kAimPi/180.f};
         }
     }
     static bool logged=false;
@@ -1171,36 +1169,38 @@ bool AimCollectRangePolygon(const CVECTOR *v,int32_t count)
     if(candidates.size()>32)candidates.pop_back();
     return true;
 }
-// Fit an approximate impact-plane density. The renderer marginalizes its normal
-// direction instead of slicing a flight-time ellipsoid with receiver polygons.
-std::vector<storm::sea_ai::manual_aim::AimContactSection> AimContactRegion(
-    const std::vector<CVECTOR> &points,const std::vector<double>&weights)
+// Relative double moments retain the same quadrature covariance without a
+// second traversal or per-station point/weight buffers.
+struct AimContactMoments
 {
     using Section=storm::sea_ai::manual_aim::AimContactSection;
-    if(points.empty()||weights.size()!=points.size())return {};
-    const CVECTOR reference=points.front();
-    double sum=0.,mean[3]={};
-    for(size_t i=0;i<points.size();++i)
+    CVECTOR reference{0.f};
+    double sum=0.,mean[3]={},second[6]={};
+    bool valid=true;
+    void add(const CVECTOR &point,double weight)
     {
-        const CVECTOR p=points[i]-reference;const double w=weights[i];
-        if(!std::isfinite(p.x)||!std::isfinite(p.y)||!std::isfinite(p.z)||!std::isfinite(w)||w<=0.)return {};
-        sum+=w;mean[0]+=w*p.x;mean[1]+=w*p.y;mean[2]+=w*p.z;
+        if(!manual_aim::finite(point)||!std::isfinite(weight)||weight<=0.){valid=false;return;}
+        if(sum==0.)reference=point;
+        const CVECTOR p=point-reference;const double x=p.x,y=p.y,z=p.z,w=weight;
+        sum+=w;mean[0]+=w*x;mean[1]+=w*y;mean[2]+=w*z;
+        second[0]+=w*x*x;second[1]+=w*x*y;second[2]+=w*x*z;
+        second[3]+=w*y*y;second[4]+=w*y*z;second[5]+=w*z*z;
     }
-    if(!(sum>0.))return {};
-    for(auto&m:mean)m/=sum;
-    double covariance[6]={.0025,0.,0.,.0025,0.,.0025};
-    for(size_t i=0;i<points.size();++i)
+    bool finish(Section &section) const
     {
-        const CVECTOR p=points[i]-reference;
-        const double x=p.x-mean[0],y=p.y-mean[1],z=p.z-mean[2],w=weights[i]/sum;
-        covariance[0]+=w*x*x;covariance[1]+=w*x*y;covariance[2]+=w*x*z;
-        covariance[3]+=w*y*y;covariance[4]+=w*y*z;covariance[5]+=w*z*z;
+        if(!valid||!(sum>0.))return false;
+        const double x=mean[0]/sum,y=mean[1]/sum,z=mean[2]/sum;
+        const double products[6]={x*x,x*y,x*z,y*y,y*z,z*z};
+        section={};section.center[0]=reference.x+float(x);section.center[1]=reference.y+float(y);section.center[2]=reference.z+float(z);
+        for(unsigned i=0;i<6;++i)
+        {
+            const double regularization=(i==0||i==3||i==5)?.0025:0.;
+            section.covariance[i]=float(3.*(second[i]/sum-products[i]+regularization));
+            if(!std::isfinite(section.covariance[i]))return false;
+        }
+        return true;
     }
-    Section section{};
-    section.center[0]=reference.x+float(mean[0]);section.center[1]=reference.y+float(mean[1]);section.center[2]=reference.z+float(mean[2]);
-    for(unsigned i=0;i<6;++i){section.covariance[i]=float(3.*covariance[i]);if(!std::isfinite(section.covariance[i]))return {};}
-    return {section};
-}
+};
 } // namespace
 
 void AIShipCannonController::RegisterManualAimReceivers()
@@ -1545,8 +1545,8 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
         const std::array<gpu::AimVolumePlane, 4> planes{{{1,0,extent,extent}, {-1,0,extent,extent},
             {0,1,extent,extent}, {0,-1,extent,extent}}};
         const std::array<gpu::AimContactSection, 2> contact{{
-            {{center.x,center.y,center.z},0.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f}},
-            {{center.x,center.y,center.z},1.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f}}}};
+            {{center.x,center.y,center.z},0.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f},{0,1,0},0},
+            {{center.x,center.y,center.z},1.f,{variance,0,0,0,0,variance},{-radius*4.f,radius*4.f},{0,1,0},0}}};
         const CVECTOR axis(0.f,1.f,0.f), lateral(1.f,0.f,0.f), up(0.f,0.f,1.f);
         StormMetalDrawAimVolume(AIHelper::pRS->GetNativeDevice(), sections.data(),uint32_t(sections.size()),
             planes.data(),uint32_t(planes.size()),nullptr,0,nullptr,0,contact.data(),uint32_t(contact.size()),
@@ -1622,17 +1622,32 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     if(solution.guns.size()>storm::sea_ai::manual_aim::maxContactFields)return;
     std::vector<storm::sea_ai::manual_aim::AimContactSection> contactSections;
     namespace gpu=storm::sea_ai::manual_aim;
-    std::vector<CVECTOR> waterPoints,solidPoints;
-    std::vector<double> waterWeights,solidWeights;
+    constexpr size_t contactGroups=gpu::maxContactSections/2;
+    std::array<AimContactMoments,contactGroups> waterMoments,solidMoments;
+    std::array<CVECTOR,contactGroups> solidDirections;
+    for(auto &direction:solidDirections)direction=CVECTOR(0.f);
+    AimContactMoments allWater;
     struct DensitySample {Trajectory curve;double weight;float end;manual_aim::PlaneQuery query;};
     std::vector<DensitySample> densitySamples;
     densitySamples.reserve(27*solution.guns.size());
-    waterPoints.reserve(27*solution.guns.size());solidPoints.reserve(27*solution.guns.size());
-    waterWeights.reserve(27*solution.guns.size());solidWeights.reserve(27*solution.guns.size());
+    // Partition the actual shot targets along the selected hull, never locator
+    // order. At zero rake equal targets fall back to physical muzzle order.
+    CVECTOR targetAxis=lateral;
+    if(auto *target=AimShipForCharacter(solution.previewCharacter,GetAIShip()))
+        if(const auto *matrix=target->GetMatrix())targetAxis=!CVECTOR(matrix->Vz().x,0.f,matrix->Vz().z);
+    std::vector<size_t> targetOrder(solution.guns.size());
+    for(size_t i=0;i<targetOrder.size();++i)targetOrder[i]=i;
+    std::stable_sort(targetOrder.begin(),targetOrder.end(),[&](size_t a,size_t b)
+    {
+        const float da=solution.gunTargets[a]|targetAxis,db=solution.gunTargets[b]|targetAxis;
+        return da!=db?da<db:(solution.guns[a]->GetPos()|targetAxis)<(solution.guns[b]->GetPos()|targetAxis);
+    });
     const float nodes[]={-.7745966692f,0.f,.7745966692f};
     const double weights[]={5./18.,4./9.,5./18.};
-    for(const auto *gun:solution.guns)
+    for(size_t rank=0;rank<targetOrder.size();++rank)
     {
+        const auto *gun=solution.guns[targetOrder[rank]];
+        const size_t group=rank*contactGroups/targetOrder.size();
         const CVECTOR muzzle=gun->GetPos(),aim=aimFor(gun);
         const float angle=angleFor(gun,muzzle,aim);
         for(unsigned yaw=0;yaw<3;++yaw)for(unsigned v=0;v<3;++v)for(unsigned elevation=0;elevation<3;++elevation)
@@ -1644,32 +1659,37 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             densitySamples.push_back({curve,weight,limit,{curve,axis,limit}});
             const float waterTime=curve.timeToHeight(0.f);
             if(std::isfinite(waterTime)&&waterTime>0.f)
-            {waterPoints.push_back(curve.at(waterTime));waterWeights.push_back(weight);}
+            {const auto point=curve.at(waterTime);waterMoments[group].add(point,weight);allWater.add(point,weight);}
             float contactTime=std::numeric_limits<float>::infinity();
             manual_aim::forEachPlaneTime(curve,axis,aim|axis,
                 limit,
                 [&](float t){if(t>1e-5f)contactTime=std::min(contactTime,t);});
             if(std::isfinite(contactTime))
-            {solidPoints.push_back(curve.at(contactTime));solidWeights.push_back(weight);}
+            {
+                solidMoments[group].add(curve.at(contactTime),weight);
+                solidDirections[group]+=(curve.velocity+curve.acceleration*contactTime)*float(weight);
+            }
         }
     }
-    auto waterField=AimContactRegion(waterPoints,waterWeights);
-    if(!waterField.empty())
+    gpu::AimContactSection waterExtent{};
+    const bool hasWater=allWater.finish(waterExtent);
+    for(const auto &moments:waterMoments)
     {
-        auto &field=waterField.front();field.padding=0.f;
+        gpu::AimContactSection field{};if(!moments.finish(field))continue;
+        field.padding=0.f;field.normal[1]=1.f;
         field.reserved[0]=-world.waveBound-1.f-field.center[1];field.reserved[1]=world.waveBound+1.f-field.center[1];
         contactSections.push_back(field);
     }
     // Registered ships/forts have an actual bounded receiver extent. Terrain
     // uses only the existing same-first-receiver witnesses, not the island's
     // enormous whole-model box. No additional contact marches are introduced.
-    float nearDepth=1e20f,farDepth=-1e20f;
+    std::vector<CVECTOR> contactBounds;
     for(const auto &model:world.models)
         if(solution.previewCharacter&&model.character==solution.previewCharacter)
             for(int corner=0;corner<8;++corner)
             {
                 const CVECTOR p((corner&1)?model.hi.x:model.lo.x,(corner&2)?model.hi.y:model.lo.y,(corner&4)?model.hi.z:model.lo.z);
-                const float depth=p|axis;nearDepth=std::min(nearDepth,depth);farDepth=std::max(farDepth,depth);
+                contactBounds.push_back(p);
             }
     if(!solution.previewCharacter)
     {
@@ -1678,21 +1698,28 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             if(path.hit.surface>0)
             {const float d=std::fabs((path.hit.point-solution.target)|axis);if(d<nearest){nearest=d;surface=path.hit.surface;}}
         if(surface)for(const auto &path:paths)if(path.hit.surface==surface)
-        {const float depth=path.hit.point|axis;nearDepth=std::min(nearDepth,depth);farDepth=std::max(farDepth,depth);}
+        {contactBounds.push_back(path.hit.point);}
     }
-    auto solidField=AimContactRegion(solidPoints,solidWeights);
-    if(!solidField.empty()&&farDepth>=nearDepth&&std::isfinite(nearDepth)&&std::isfinite(farDepth))
+    for(size_t group=0;!contactBounds.empty()&&group<contactGroups;++group)
     {
-        auto &field=solidField.front();field.padding=1.f;
-        // Plane impacts have zero normal variance by construction. The finite
-        // projector uses the same fore/aft impact span as the water dispersion,
-        // allowing local relief while excluding scenery beyond that span.
-        // This is projection support, not measured terrain or hit probability.
-        const auto &cov=waterField.empty()?field.covariance:waterField.front().covariance;
-        const float normalVariance=axis.x*axis.x*cov[0]+2.f*axis.x*axis.z*cov[2]+axis.z*axis.z*cov[5];
+        gpu::AimContactSection field{};if(!solidMoments[group].finish(field)||~solidDirections[group]<1e-8f)continue;
+        // Drape along this group's actual flight direction. A hull-axis chart
+        // collapses into a depth slice for an end-on, zero-rake volley; a
+        // firing-horizontal chart loses the descent over receiver relief.
+        const CVECTOR contactNormal=!solidDirections[group];
+        float nearDepth=1e20f,farDepth=-1e20f;
+        for(const auto &p:contactBounds){const float d=p|contactNormal;nearDepth=std::min(nearDepth,d);farDepth=std::max(farDepth,d);}
+        if(!std::isfinite(nearDepth)||!std::isfinite(farDepth))continue;
+        field.padding=1.f;field.normal[0]=contactNormal.x;field.normal[1]=contactNormal.y;field.normal[2]=contactNormal.z;
+        // Finite projection support belongs to real receiver bounds and the
+        // water impact span, independently of the density's chart variance.
+        const auto &cov=hasWater?waterExtent.covariance:field.covariance;
+        const float normalVariance=contactNormal.x*contactNormal.x*cov[0]+2.f*contactNormal.x*contactNormal.y*cov[1]+
+            2.f*contactNormal.x*contactNormal.z*cov[2]+contactNormal.y*contactNormal.y*cov[3]+
+            2.f*contactNormal.y*contactNormal.z*cov[4]+contactNormal.z*contactNormal.z*cov[5];
         const float margin=std::max(.02f,std::sqrt(std::max(0.f,normalVariance)));
         const CVECTOR center(field.center[0],field.center[1],field.center[2]);
-        field.reserved[0]=nearDepth-margin-(center|axis);field.reserved[1]=farDepth+margin-(center|axis);
+        field.reserved[0]=nearDepth-margin-(center|contactNormal);field.reserved[1]=farDepth+margin-(center|contactNormal);
         contactSections.push_back(field);
     }
     if(contactSections.empty())return;
@@ -1738,9 +1765,6 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     MetalCpuParallelFor(chunks,[&](size_t chunk) noexcept
     {
         // Each joined chunk owns its reusable current-call workspace.
-        std::vector<CVECTOR> densityPoints;
-        std::vector<double> probabilities;
-        densityPoints.reserve(densitySamples.size());probabilities.reserve(densitySamples.size());
         std::vector<manual_aim::Point> clipped;
 
         for(size_t stationIndex=chunk;stationIndex<stations.size();stationIndex+=chunks)
@@ -1790,18 +1814,17 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             // Air and solid drape describe the same launch law at this downrange
             // plane. Extrema still stop the corridor, but no longer define its
             // visual density: a rare corner must not fill a tall opaque column.
-            densityPoints.clear();probabilities.clear();
+            AimContactMoments density;
             for(const auto &sample:densitySamples)
             {
                 float time=std::numeric_limits<float>::infinity();
                 sample.query.forEach(station,
                     [&](float t){time=std::min(time,t);});
                 if(std::isfinite(time))
-                {densityPoints.push_back(sample.curve.at(time));probabilities.push_back(sample.weight);}
+                {density.add(sample.curve.at(time),sample.weight);}
             }
-            const auto density=AimContactRegion(densityPoints,probabilities);
-            if(density.empty()){slots[stationIndex]={station,center,{}};populated[stationIndex]=1;continue;}
-            const auto &field=density.front();
+            gpu::AimContactSection field{};
+            if(!density.finish(field)){slots[stationIndex]={station,center,{}};populated[stationIndex]=1;continue;}
             const CVECTOR mean(field.center[0],field.center[1],field.center[2]);
             auto cov=[&](const CVECTOR &a,const CVECTOR &b)
             {

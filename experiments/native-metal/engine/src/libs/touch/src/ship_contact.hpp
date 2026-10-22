@@ -62,6 +62,21 @@ struct Response
 inline constexpr double restitution = 0.08;
 inline constexpr double friction = 0.30;
 
+// Positive components approach the other vessel along a contact normal.
+// A boosted source contributes its authored ordinary-speed envelope; genuine
+// opposing ordinary motion still contributes its actual approach.
+inline double admittedClosingSpeed(double approachA, double approachB,
+                                   double limitA = 0, double limitB = 0)
+{
+    const double closing = std::max(0.0, approachA + approachB);
+    const bool arcadeA = std::isfinite(limitA) && limitA > 0;
+    const bool arcadeB = std::isfinite(limitB) && limitB > 0;
+    if (!arcadeA && !arcadeB) return closing;
+    const double allowed = (arcadeA ? limitA : std::max(0.0, approachA)) +
+                           (arcadeB ? limitB : std::max(0.0, approachB));
+    return std::min(closing, allowed);
+}
+
 namespace detail
 {
 inline constexpr std::size_t maxHullPoints = 128;

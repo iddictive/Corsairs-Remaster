@@ -695,10 +695,10 @@ void SEA::AddBlock(int32_t iTX, int32_t iTY, int32_t iSize, int32_t iLOD)
     aBlocks.emplace_back(SeaBlock{0, 0, 0, 0, iSize >> iLOD, iTX, iTY, iSize, iLOD, 0, 0, 0, false, false});
 }
 
-void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev)
+void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimension)
 {
     int32_t iMaxLOD, iMinLOD;
-    const int32_t iSize = static_cast<int32_t>(dwMaxDim >> iLev);
+    const int32_t iSize = static_cast<int32_t>(viewDimension >> iLev);
     const float fGSize = fGridStep * iSize;
 
     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
@@ -731,10 +731,10 @@ void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev)
     iTY *= 2;
     iLev++;
 
-    BuildTree(iTX, iTY, iLev);
-    BuildTree(iTX + 1, iTY, iLev);
-    BuildTree(iTX, iTY + 1, iLev);
-    BuildTree(iTX + 1, iTY + 1, iLev);
+    BuildTree(iTX, iTY, iLev, viewDimension);
+    BuildTree(iTX + 1, iTY, iLev, viewDimension);
+    BuildTree(iTX, iTY + 1, iLev, viewDimension);
+    BuildTree(iTX + 1, iTY + 1, iLev, viewDimension);
 }
 
 void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *eventMaterial)
@@ -1477,9 +1477,21 @@ void SEA::Realize(uint32_t dwDeltaTime)
 
     pFrustumPlanes = rs->GetPlanes();
 
+    // A recentered patch reaches at least one quarter of its span in every
+    // direction. Keep that coarse reach beyond the actual view far plane;
+    // otherwise distant islands are drawn over exposed sky below their shore.
+    // Only add outer quadtree levels: wave spacing and near LOD stay unchanged.
+    float nearClip, farClip;
+    rs->GetNearFarPlane(nearClip, farClip);
+    uint32_t viewDimension = dwMaxDim;
+    if (std::isfinite(farClip) && farClip > 0.f && std::isfinite(fGridStep) && fGridStep > 0.f)
+        while (viewDimension && viewDimension <= uint32_t(std::numeric_limits<int32_t>::max() / 2) &&
+               double(viewDimension) * fGridStep < double(farClip) * 4.0)
+            viewDimension *= 2;
+
     // Keep the quadtree origin aligned to every visible LOD lattice. The
     // previous 256-cell recenter shifted coarse grids by fractional cells.
-    const float fBlockSize = static_cast<float>(dwMaxDim / 4) * fGridStep;
+    const float fBlockSize = static_cast<float>(viewDimension / 4) * fGridStep;
     const int32_t iNumBlocks = 2;
     vSeaCenterPos = CVECTOR(fBlockSize * (static_cast<int32_t>(floorf(vCamPos.x / fBlockSize)) - iNumBlocks), fMaxSeaHeight * 0.5f,
                             fBlockSize * (static_cast<int32_t>(floorf(vCamPos.z / fBlockSize)) - iNumBlocks));
@@ -1547,7 +1559,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
     // core.Trace("dwX = %d", dwX);
 
     aBlocks.clear();
-    BuildTree(0, 0, 0);
+    BuildTree(0, 0, 0, viewDimension);
     // aBlocks.QSort(SeaBlock::QSort);
     std::sort(aBlocks.begin(), aBlocks.end(), SeaBlock::QSort);
 

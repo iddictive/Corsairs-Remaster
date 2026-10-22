@@ -2528,8 +2528,9 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         normalHigh = std::max(normalHigh, plane.normal | p);
         upLow=std::min(upLow,up|p);upHigh=std::max(upHigh,up|p);alongLow=std::min(alongLow,along|p);alongHigh=std::max(alongHigh,along|p);
     }
-    bool contactBand=false;
+    bool contactBand=false, arcadeContact=false;
     if(otherCharacterIndex>=0)for(const auto id:core.GetEntityIds("ship"))if(auto*other=dynamic_cast<SHIP*>(core.GetEntityPointer(id));other&&other!=this&&other->bMounted&&other->GetACharacter()&&int32_t(other->GetACharacter()->GetAttributeAsDword("index",uint32_t(-1)))==otherCharacterIndex){
+        arcadeContact=other->GetHullContactHandling().arcade;
         auto*otherModel=other->GetModel();auto*otherRoot=otherModel?otherModel->GetNode(0):nullptr;if(!otherRoot||!otherRoot->geo)break;GEOS::INFO otherInfo{};otherRoot->geo->GetInfo(otherInfo);
         storm_ship_laser::Bounds otherBounds{{otherInfo.boxcenter.x-otherInfo.boxsize.x*.5f,otherInfo.boxcenter.y-otherInfo.boxsize.y*.5f,otherInfo.boxcenter.z-otherInfo.boxsize.z*.5f},{otherInfo.boxcenter.x+otherInfo.boxsize.x*.5f,otherInfo.boxcenter.y+otherInfo.boxsize.y*.5f,otherInfo.boxcenter.z+otherInfo.boxsize.z*.5f}};
         otherRoot->geo->HullMaterialBounds(otherBounds);float loUp=INFINITY,hiUp=-INFINITY,loAlong=INFINITY,hiAlong=-INFINITY;
@@ -2552,7 +2553,9 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
     // its centre ray crosses only air. That ray must not veto the entire impact.
     // Query the real timber throughout the bounded patch; the material kernel
     // spends only the accepted dissipated work, in travel order, not in air.
-    const float depth = support + .025f;
+    // The boosted mode pays for a shallow local dent. Ordinary rams retain
+    // their existing through-hull work and contact-band fracture footprint.
+    const float depth = arcadeContact ? std::min(support, radius) : support + .025f;
     point += plane.normal * (normalHigh - (plane.normal | point));
     plane.distance = (plane.normal | point) - depth;
     plane.grain = !(up * .82f + !(up ^ plane.normal) * .58f);
@@ -2572,7 +2575,7 @@ void SHIP::ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNorm
         sample.crossSection={{{-.72f*radius,-.42f*radius}},{{-.18f*radius,-radius}},{{.62f*radius,-.7f*radius}},{{1.55f*radius,-.12f*radius}},{{.9f*radius,.5f*radius}},{{.18f*radius,radius}},{{-.62f*radius,.7f*radius}},{{-1.1f*radius,.12f*radius}}};
         sample.radius=1.56f*radius;sample.depth=.025f+depth;sample.backDepth=.025f;
         sample.specificWork=energy;sample.contactStrength=float(GetHullContactStrength(point.z,plane.normal.z));
-        if(contactBand){
+        if(contactBand && !arcadeContact){
             // The material kernel spends work inside the actual contact patch.
             // Shrinking it again by an asymptotic HP fraction leaves uncut
             // deck/keel strips even when the ram has enough work to pass through.

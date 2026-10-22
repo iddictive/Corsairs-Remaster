@@ -487,9 +487,7 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
         // linear-kick budget. Steering/perks and linear recoil stay native.
         const float radius = std::sqrt(std::max(1.f,
             (State.vBoxSize.x * State.vBoxSize.x + State.vBoxSize.z * State.vBoxSize.z) / 12.f));
-        const float turnCapacity = PhonkMotionAllowed() ?
-            std::abs(storm::ship::phonk::yawSpeed(GetMaxSpeedY(), 1.f)) :
-            2.f * std::max(std::abs(GetMaxSpeedY()), std::abs(State.fShipSpeedY));
+        const float turnCapacity = float(GetHullContactHandling().turnLimit);
         const float impulseLimit = 2.f * KNOTS2METERS(linearImpulse) / radius;
         const float admitted = std::clamp(angularImpulse, -impulseLimit, impulseLimit);
         collisionYaw = std::clamp(previousCollisionYaw + admitted, -turnCapacity, turnCapacity);
@@ -2456,7 +2454,9 @@ void SHIP::ApplyMastContact(const SHIP_MAST_CONTACT_FRAME &frame,const SHIP_MAST
     if(!opponent||!opponent->GetACharacter())return;
     for(auto &mast:pMasts)if(!mast.bBroken&&mast.iMastNum==witness.number&&mast.pNode&&mast.pNode->geo==witness.geometry){
         if(mast.pNode->geo->GeometryGeneration()!=witness.generation||mast.pNode->geo->CollisionRevision()!=witness.revision)return;
-        const float increment=float(std::min(1.,specificWork/witness.strength));
+        // One coalesced collision retains the legacy .2 maximum mast dose.
+        // Real section/support loss still detaches through its geometry owner.
+        const float increment=float(std::min(.2,specificWork/witness.strength));
         auto *accepted=core.Event(SHIP_MAST_DAMAGE,"llffffaaf",SHIP_MAST_TOUCH_SHIP,mast.iMastNum,
             point.x,point.y,point.z,mast.fDamage,GetACharacter(),opponent->GetACharacter(),increment);
         if(accepted){const float damage=accepted->GetFloat();if(std::isfinite(damage))mast.fDamage=Clamp(damage);}
@@ -3649,6 +3649,35 @@ float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR 
     if (iBallOwner == iOurIndex)
         return 2.0f;
 
+    // The first solid receiver stops this projectile. A fast shot's remaining
+    // frame segment must not damage masts behind that receiver.
+    float fRes = pModel->Trace(vSrc, vDst);
+    const float firstContact = std::min(1.f, fRes);
+    const CVECTOR riggingDst = vSrc + (vDst - vSrc) * firstContact;
+    CVECTOR vDir = !(vDst - vSrc);
+    CVECTOR vTemp = vSrc + fRes * (vDst - vSrc);
+    // Snapshot before any mast/hull callback can replace collision details.
+    NODE *hitNode = fRes <= 1.f ? pModel->GetCollideNode() : nullptr;
+    GEOS::TRACE_INFO hitInfo{};
+    TRIANGLE hitTriangle{};
+    std::string hitName;
+    CVECTOR hitNormal(0.f);
+    bool structural = hitNode && hitNode->geo &&
+        hitNode->geo->GetCollisionDetails(hitInfo) && hitInfo.obj >= 0 &&
+        pModel->GetCollideTriangle(hitTriangle);
+    if (structural) {
+        hitName = hitNode->GetName() ? hitNode->GetName() : "";
+        if (hitName.empty() && hitNode != pModel->GetNode(0)) structural = false;
+        hitNormal = (hitTriangle.vrt[1] - hitTriangle.vrt[0]) ^
+                    (hitTriangle.vrt[2] - hitTriangle.vrt[0]);
+        const float length2 = ~hitNormal;
+        structural = structural && std::isfinite(length2) && length2 > 1e-8f;
+        if (structural) {
+            hitNormal *= 1.f / std::sqrt(length2);
+            if ((hitNormal | vDir) > 0.f) hitNormal *= -1.f;
+        }
+    }
+
     // Mast poles are thin: the exact mesh ray below misses near passes. The
     // capsule test keeps every previous ray hit (ray hits skip the capsule,
     // so no double damage) and only adds honest near-misses.
@@ -3659,7 +3688,7 @@ float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR 
             mast_t *pM = &pMasts[i];
             const float fRes = pM->pNode->Trace(vSrc, vDst);
 
-            if (fRes <= 1.0f)
+            if (fRes <= firstContact)
             {
                 const CVECTOR v1 = vSrc + fRes * (vDst - vSrc);
                 VDATA *pV = core.Event(SHIP_MAST_DAMAGE, "llffffal", SHIP_MAST_TOUCH_BALL, pM->iMastNum, v1.x, v1.y,
@@ -3677,9 +3706,9 @@ float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR 
                 const CVECTOR vMastA = mastMtx * pM->vSrc;
                 const CVECTOR vMastB = mastMtx * pM->vDst;
                 if (BallMastDistSq(vSrc, vSrc, vMastA, vMastB, nullptr) > fHitR * fHitR &&
-                    BallMastDistSq(vSrc, vDst, vMastA, vMastB, &fBallT) <= fHitR * fHitR)
+                    BallMastDistSq(vSrc, riggingDst, vMastA, vMastB, &fBallT) <= fHitR * fHitR)
                 {
-                    const CVECTOR v1 = vSrc + (vDst - vSrc) * fBallT;
+                    const CVECTOR v1 = vSrc + (riggingDst - vSrc) * fBallT;
                     VDATA *pV = core.Event(SHIP_MAST_DAMAGE, "llffffal", SHIP_MAST_TOUCH_BALL, pM->iMastNum,
                                            v1.x, v1.y, v1.z, pM->fDamage, GetACharacter(), iBallOwner);
                     pM->fDamage = Clamp(pV->GetFloat());
@@ -3715,33 +3744,8 @@ float SHIP::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR 
             }
     }
 
-    float fRes = pModel->Trace(vSrc, vDst);
     if (fRes <= 1.0f)
     {
-        CVECTOR vDir = !(vDst - vSrc);
-        CVECTOR vTemp = vSrc + fRes * (vDst - vSrc);
-        // Snapshot the actual traced receiver before the script can trace,
-        // detach a mast or otherwise overwrite geometry collision details.
-        NODE *hitNode=pModel->GetCollideNode();
-        GEOS::TRACE_INFO hitInfo{};
-        TRIANGLE hitTriangle{};
-        std::string hitName;
-        CVECTOR hitNormal(0.f);
-        bool structural=hitNode && hitNode->geo &&
-            hitNode->geo->GetCollisionDetails(hitInfo) && hitInfo.obj>=0 &&
-            pModel->GetCollideTriangle(hitTriangle);
-        if (structural) {
-            hitName=hitNode->GetName() ? hitNode->GetName() : "";
-            if (hitName.empty() && hitNode!=pModel->GetNode(0)) structural=false;
-            hitNormal=(hitTriangle.vrt[1]-hitTriangle.vrt[0]) ^
-                      (hitTriangle.vrt[2]-hitTriangle.vrt[0]);
-            const float length2=~hitNormal;
-            structural=structural && std::isfinite(length2) && length2>1e-8f;
-            if (structural) {
-                hitNormal*=1.f/std::sqrt(length2);
-                if ((hitNormal|vDir)>0.f) hitNormal*=-1.f;
-            }
-        }
         ATTRIBUTES *shipBefore=GetACharacter()->GetAttributeClass("Ship");
         const bool hpBeforePresent=shipBefore && shipBefore->GetAttribute("HP") && !isDead();
         const float hpBefore=hpBeforePresent ? shipBefore->GetAttributeAsFloat("HP") : 0.f;

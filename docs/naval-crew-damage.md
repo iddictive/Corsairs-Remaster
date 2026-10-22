@@ -37,7 +37,8 @@ and normal old-save load, alongside the crew coefficients.
 
 `AIBalls.c::Ball_GetAccuracy` multiplies the existing gunner precision, including
 perks, by `(ammoAccuracy / 100)` before converting it to the existing random
-scatter factor. Catalogue accuracy is clamped to0–100. Round shot100% preserves
+scatter factor. Negative catalogue accuracy clamps to0; values above100% are
+valid precision boosts, including darts350%. Round shot100% preserves
 the crew's ordinary precision; knippels35% remove65% of it. Skilled gunners still
 scatter knippels widely, and poor gunners retain still wider scatter. This is
 a precision multiplier, not a hit probability. Deliberate rake, target choice,

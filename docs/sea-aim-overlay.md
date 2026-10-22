@@ -2,6 +2,28 @@
 
 ## Status
 
+### October22 — spatial contact density
+
+Ordinary volleys retain four spatial launch groups per water/solid chart instead
+of collapsing the battery into one ellipse. Groups follow actual per-gun shot
+targets along the selected hull; equal targets use physical muzzle order. Each
+group keeps the existing 27-point weighted launch sampling. Water uses its own
+impact times; solid density projects along the group's local flight direction
+through the real receiver's finite bounds. Actual depth/receiver identity still
+owns admission. Airborne geometry, firing, rake, colors and zoom styling remain.
+
+The bridge packet is now 64 bytes with an explicit unit projection normal; its
+C++ and Metal consumers change together. Covariance uses relative double moments
+without per-station sample buffers or a second pass. A hull-axis projector was
+rejected because an end-on zero-rake volley collapsed into a depth slice.
+
+Retained source, frozen original/adapted-reference/candidate executables, native
+full-scene captures, raw timings and replay commands are in
+`.local-archives/cannon-drape-20261022/README.md`. The synthetic real-controller
+scene covers 51 firing guns, water and the actual ship model. Measured full-frame
+CPU improvement is small; GPU differences are near run variation. This evidence
+does not establish the player's installed-save acceptance.
+
 ### October16 — intermediate water brightness
 
 The player rejects the stronger water marks as too bright and requests a middle

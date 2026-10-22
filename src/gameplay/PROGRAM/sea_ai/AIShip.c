@@ -1120,6 +1120,26 @@ void Ship_FireAction()
 	Group_SetTaskAttack(PLAYER_GROUP, sGroupID);
 }
 
+float Ship_ProjectileCannonDamageMultiply()
+{
+	// Native flight/save state owns the launched gun, even after a gun swap.
+	int cannonType = sti(AIBalls.CurrentBallCannonType);
+	if (cannonType < 0 || cannonType >= CANNON_TYPES_QUANTITY) return 0.0;
+	ref cannon = GetCannonByType(cannonType);
+	if (!CheckAttribute(cannon, "DamageMultiply")) return 0.0;
+	return stf(cannon.DamageMultiply);
+}
+
+float Ship_MastProjectileDamageScale(ref character)
+{
+	// Existing authored max HP owns ship robustness; current hull damage does
+	// not weaken an intact mast or change the units of saved normalized damage.
+	float maximum = GetCharacterShipHP(character);
+	ref starter = GetShipByType(SHIP_LUGGER);
+	if (maximum <= 0.0) return 0.0;
+	return Ship_ProjectileCannonDamageMultiply() * stf(starter.HP) / maximum;
+}
+
 float Ship_MastDamage()
 {
 	int iDamageType = GetEventData();
@@ -1144,25 +1164,27 @@ float Ship_MastDamage()
 			fDamage = fDamage + Clampf(fContactDamage);
 		break;
 		case SHIP_MAST_TOUCH_BALL:
-			int	iBallType = sti(AIBalls.CurrentBallType);   //спорно, тк это не ядра, того кто стрелял, а скорее ядра ГГ
+			int iBallType = sti(AIBalls.CurrentBallType);
+			float mastDose = 0.0;
 			switch (iBallType)
 			{
 				case GOOD_BALLS:
-					fDamage = fDamage + 0.1;
+					mastDose = 0.1;
 				break;
 				case GOOD_GRAPES:
-					fDamage = fDamage + 0.05;
+					mastDose = 0.05;
 				break;
 				case GOOD_KNIPPELS:
-					fDamage = fDamage + 0.25;
+					mastDose = 0.25;
 				break;
 				case GOOD_BOMBS:
-					fDamage = fDamage + 0.15;
+					mastDose = 0.15;
 				break;
 				case GOOD_DARTS:
-					fDamage = fDamage + 0.025;
+					mastDose = 0.025;
 				break;
 			}
+			fDamage = fDamage + mastDose * Ship_MastProjectileDamageScale(rCharacter);
 		break;
 	}
 
@@ -3382,18 +3404,19 @@ void Ship_HullHitEvent()
     
     if (bDead) return; // фикс, не нужно обсчитывать труп
 	// Cannon damage multiply
-	ref rCannon = GetCannonByType(sti(rBallCharacter.Ship.Cannons.Type));
-	float fCannonDamageMultiply = stf(rCannon.DamageMultiply);
+	float fCannonDamageMultiply = Ship_ProjectileCannonDamageMultiply();
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
 	if (airburst) fCannonDamageMultiply *= Ball_AirburstPower(stf(AIBalls.CurrentAirburstDistance));
 
-	float fDistanceDamageMultiply = Bring2Range(1.2, 0.25, 0.0, stf(AIBalls.CurrentMaxBallDistance), stf(AIBalls.CurrentBallDistance));
+	ref rBall = GetGoodByType(iBallType);
+	float distanceDamageMin = 0.25;
+	if (CheckAttribute(rBall, "DamageDistanceMin")) distanceDamageMin = stf(rBall.DamageDistanceMin);
+	float fDistanceDamageMultiply = Bring2Range(1.2, distanceDamageMin, 0.0, stf(AIBalls.CurrentMaxBallDistance), stf(AIBalls.CurrentBallDistance));
 	if (airburst) fDistanceDamageMultiply = 1.0;
 
     if (sti(rBallCharacter.TmpPerks.CriticalShoot) && rand(19)==10) { bSeriousBoom = true; }		// +5%
 	if (sti(rBallCharacter.TmpPerks.CannonProfessional) && rand(9)==4) { bSeriousBoom = true; }		// +10%
 	
-	ref rBall = GetGoodByType(iBallType);
 	// An unarmed or low direct hit has ordinary-bomb damage, not blast damage.
 	if (iBallType == GOOD_AIRBURST && !airburst) rBall = GetGoodByType(GOOD_BOMBS);
 	switch (iBallType)

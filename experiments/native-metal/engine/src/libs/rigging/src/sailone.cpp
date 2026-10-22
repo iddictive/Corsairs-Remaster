@@ -97,7 +97,7 @@ void SAILONE::goWave(SAILVERTEX *pv, uint32_t Delta_Time)
             DoTRollSail(pv);
         // free-hanging sails
         else if (bFreeSail)
-            DoTFreeSail(pv);
+            DoTFreeSail(pv, Delta_Time);
         else
             GoTWave(pv);
     }
@@ -116,7 +116,7 @@ void SAILONE::goWave(SAILVERTEX *pv, uint32_t Delta_Time)
 
         // free-hanging sails
         else if (bFreeSail)
-            DoSFreeSail(pv);
+            DoSFreeSail(pv, Delta_Time);
 
         // fluttering rectangular sails
         else
@@ -2060,10 +2060,20 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
     return acceptHit(retVal);
 }
 
-void SAILONE::DoSFreeSail(SAILVERTEX *pv)
+static float FreeSailRelaxation(const CVECTOR &delta, float minimum, float random, uint32_t Delta_Time)
+{
+    // Rope, flag and normal sail wind use the same authored 50 ms rig step.
+    // Bound the step at its target: settled cloth must not overshoot or divide by zero.
+    const float step = (minimum + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * random) *
+                       (static_cast<float>(Delta_Time) * .02f);
+    return std::min(1.f, step / std::max(sqrtf(~delta), 1.e-6f));
+}
+
+void SAILONE::DoSFreeSail(SAILVERTEX *pv, uint32_t Delta_Time)
 {
     CVECTOR dirV;
-    pMatWorld->MulToInvNorm(!(CVECTOR(0.f, -1.f, 0.f) + sailWind * pp->globalWind.base), dirV);
+    const CVECTOR worldWind(pp->globalWind.ang.x, pp->globalWind.ang.y, pp->globalWind.ang.z);
+    pMatWorld->MulToInvNorm(!(CVECTOR(0.f, -1.f, 0.f) + worldWind * pp->globalWind.base), dirV);
     const CVECTOR dv = dirV * (sailHeight * .25f);
     int gidx = 0;
 
@@ -2077,9 +2087,7 @@ void SAILONE::DoSFreeSail(SAILVERTEX *pv)
 
             float mul;
             if (iy)
-                mul = (pp->FALL_SSAIL_ADD_MIN +
-                       static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * pp->FALL_SSAIL_ADD_RAND) /
-                      sqrtf(~dvec);
+                mul = FreeSailRelaxation(dvec, pp->FALL_SSAIL_ADD_MIN, pp->FALL_SSAIL_ADD_RAND, Delta_Time);
             else
                 mul = 1.f;
             SailPnt[gidx] += dvec * mul;
@@ -2090,10 +2098,11 @@ void SAILONE::DoSFreeSail(SAILVERTEX *pv)
     }
 }
 
-void SAILONE::DoTFreeSail(SAILVERTEX *pv)
+void SAILONE::DoTFreeSail(SAILVERTEX *pv, uint32_t Delta_Time)
 {
     CVECTOR dirV;
-    pMatWorld->MulToInvNorm(!(CVECTOR(0.f, -1.f, 0.f) + sailWind * pp->globalWind.base), dirV);
+    const CVECTOR worldWind(pp->globalWind.ang.x, pp->globalWind.ang.y, pp->globalWind.ang.z);
+    pMatWorld->MulToInvNorm(!(CVECTOR(0.f, -1.f, 0.f) + worldWind * pp->globalWind.base), dirV);
     const CVECTOR dv = dirV * (sailHeight * .25f);
     int gidx = 0;
 
@@ -2107,9 +2116,7 @@ void SAILONE::DoTFreeSail(SAILVERTEX *pv)
 
             float mul;
             if (iy)
-                mul = (pp->FALL_TSAIL_ADD_MIN +
-                       static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * pp->FALL_TSAIL_ADD_RAND) /
-                      sqrtf(~dvec);
+                mul = FreeSailRelaxation(dvec, pp->FALL_TSAIL_ADD_MIN, pp->FALL_TSAIL_ADD_RAND, Delta_Time);
             else
                 mul = 1.f;
             SailPnt[gidx] += dvec * mul;

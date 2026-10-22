@@ -104,6 +104,21 @@ bool SHIP::GetHullContactContour(std::vector<CVECTOR> &contour, float &lower, fl
     return true;
 }
 
+HULL_CONTACT_HANDLING SHIP::GetHullContactHandling()
+{
+    // Mount captures the authored ordinary sailing speed in knots. The mode's
+    // 500/1000-knot motor and script arcade multiplier do not own contact work.
+    HULL_CONTACT_HANDLING result;
+    result.arcade = PhonkMotionAllowed();
+    result.cruiseSpeed = std::isfinite(State.fShipSpeedZ) && State.fShipSpeedZ > 0.f ?
+        KNOTS2METERS(State.fShipSpeedZ) : 0.;
+    const double limit = result.arcade ?
+        std::abs(storm::ship::phonk::yawSpeed(GetMaxSpeedY(), 1.f)) :
+        2.f * std::max(std::abs(GetMaxSpeedY()), std::abs(State.fShipSpeedY));
+    result.turnLimit = std::isfinite(limit) && limit > 0 ? limit : 0.;
+    return result;
+}
+
 void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float deltaYawVelocity,
                                   const CVECTOR &endWorldPosition, float endYaw, uint32_t milliseconds)
 {

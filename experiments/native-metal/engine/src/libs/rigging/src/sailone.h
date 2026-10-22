@@ -214,8 +214,8 @@ class SAILONE : public SAILONE_BASE
     void GoTWave(SAILVERTEX *pv);
     void DoSRollSail(SAILVERTEX *pv);
     void DoTRollSail(SAILVERTEX *pv);
-    void DoSFreeSail(SAILVERTEX *pv);
-    void DoTFreeSail(SAILVERTEX *pv);
+    void DoSFreeSail(SAILVERTEX *pv, uint32_t Delta_Time);
+    void DoTFreeSail(SAILVERTEX *pv, uint32_t Delta_Time);
 
     void SetTurnLimits();
 

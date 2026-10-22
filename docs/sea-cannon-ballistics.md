@@ -16,17 +16,21 @@ Its maximum horizontal range is twice round shot at a physical30-degree launch;
 higher manual angles through80degrees remain available and reduce range.
 The allowed elevation is separate from the maximum-range optimum; a queued
 dart keeps its captured launch direction through the existing save vector.
-Range-normalized dispersion retains the long-range accuracy target. Rendering uses the
+Catalogue accuracy350% scales ordinary gunner precision; separate dispersion
+and reference-range multipliers are removed from firing and its preview. Rendering uses the
 same camera-facing sprites as existing ammunition, with its own texture rotated
 along projected travel and a short warm tracer. No new saved projectile
 lane or binary field is allowed: identity uses the existing saved event string
 inside the round-shot lane, including tracer restoration after load.
 
-Starting catalogue balance: hull damage balls11.5, knippels5.75, darts2.5,
+Starting catalogue balance: hull damage balls11.5, knippels5.75, darts6,
 grapes1; darts crew0.025% and rigging0.25. Darts cost twice ordinary bombs before
 the existing price modifiers, reload25% slower than balls and spawn400–600 units
 per fresh shop stock. Pirate-colony policy owns purchase and contraband classification;
 existing disabled/depleted stores and prior cargo quantities survive upgrade.
+Darts use a hull-damage distance coefficient from1.2 nearby to0.65 at maximum
+range; ordinary ammunition retains its0.25 minimum. Normal catalogue load
+reconciliation removes saved custom scatter fields without touching cargo.
 All airburst catalogue, fuze, blast, availability and quest behavior is retained.
 
 Slots are1–4 ordinary ammunition,5darts,6airburst,7laser,8nuclear;
@@ -35,11 +39,12 @@ Slots are1–4 ordinary ammunition,5darts,6airburst,7laser,8nuclear;
 The impact camera borrows the existing render view near the accepted target,
 returns after impact/miss, and yields to pause, death and scene/camera changes.
 
-The target remains about70% of a fully skilled Manowar broadside against another
-broadside at maximum dart range: about2.1km for42lb and4.2km for quest48lb guns.
+Maximum dart range remains about2.1km for42lb and4.2km for quest48lb guns
+with the range perk. The earlier70% hit-rate target used the removed custom
+scatter and does not accept the current350% gunner-precision profile.
 [Earlier calibration](evidence/cannon-darts-20261021/calibration.md) retains the
 superseded low-angle experiment; its exact hit counts do not accept the new
-30-degree law. Native precision and moving combat remain separate gates.
+30-degree law or the current accuracy profile. Native precision and moving combat remain separate gates.
 [Native workload](evidence/cannon-darts-20261021/native-baseline-status.md)
 retains the ordinary-ammunition performance baseline and its exact inputs.
 
@@ -50,6 +55,17 @@ canonical staging are supporting evidence; player combat and visual replay remai
 separate acceptance. Root owns integration/build/staging; catalogue and authored
 atlas work use disjoint source owners. Existing stock ballistics are reused rather
 than introducing an independent solver, renderer or ammunition inventory.
+
+Every fort draws ammunition independently for each gun: round shot, grapes,
+knippels, bombs, airburst and darts. Darts become more likely with distance;
+ordinary guns outside their own reach wait or reload, without inheriting dart
+range or turning the entire battery into darts. Each gun retains its current
+charge throughout a delayed shot, then adopts its next draw during ordinary
+reload. Existing character attributes save charge/reservation state alongside
+the unchanged native cannon stream. Reload/teardown refunds reserved rounds and
+powder once; restoring a saved battle does not refill stocks or reserve twice.
+Missing ammunition stocks migrate from the existing round-shot reserve, while
+explicit saved zeros stay depleted. Other ammunition balance is unchanged.
 
 ## Status
 

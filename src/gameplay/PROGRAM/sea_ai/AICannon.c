@@ -37,6 +37,7 @@ void CreateCannonsEnvironment()
 bool Cannon_LoadBall()
 {
 	aref	aCharacter = GetEventData();
+	if (CheckAttribute(aCharacter, "Fort.Cannons.ActiveGun")) return Fort_LoadCannon(aCharacter);
 	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return true;
 
 	int iBallType = sti(aCharacter.Ship.Cannons.Charge.Type);
@@ -56,6 +57,11 @@ bool Cannon_LoadBall()
 void Cannon_UnloadBall()
 {
 	aref aCharacter = GetEventData();
+	if (CheckAttribute(aCharacter, "Fort.Cannons.ActiveGun"))
+	{
+		Fort_UnloadCannon(aCharacter);
+		return;
+	}
 	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return;
 	if(CheckAttribute(aCharacter, "Ship.Cannons"))
 	{
@@ -97,7 +103,7 @@ void Cannon_RecalculateParameters(int iCharacterIndex)
 	rCharacter.Ship.Cannons.FireAngMax = rCannon.FireAngMax;
 	rCharacter.Ship.Cannons.FireAngMin = rCannon.FireAngMin;
 	// One ammo-owned launch law feeds actual fire and the native aim preview.
-	rCharacter.Ship.Cannons.DispersionMultiply = Ball_GetDispersionMultiply(rCharacter);
+	DeleteAttribute(rCharacter, "Ship.Cannons.DispersionMultiply");
 	rCharacter.Ship.Cannons.FixedBallisticFrame = 0;
 	rCharacter.Ship.Cannons.BallHeightMultiply = Ball_GetHeightMultiply(rCharacter);
 	rCharacter.Ship.Cannons.BallTimeSpeedMultiply = rCannon.TimeSpeedMultiply;
