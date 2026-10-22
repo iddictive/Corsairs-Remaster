@@ -196,6 +196,10 @@ void DECK_CAMERA::Execute(uint32_t Delta_Time)
     }
 
     SetPerspective(AttributesPointer->GetAttributeAsFloat("Perspective"));
+    // TmpPerks already includes the assigned cannoneer's effective ship perks.
+    auto *perks = pACharacter->FindAClass(pACharacter, "TmpPerks");
+    aimZoom.setMaximum(perks && perks->GetAttributeAsDword("LongRangeShoot", 0) != 0 ?
+                       10.f : deck_aim::Zoom::maximum);
     UpdateAimZoom();
 
     Move(Delta_Time);

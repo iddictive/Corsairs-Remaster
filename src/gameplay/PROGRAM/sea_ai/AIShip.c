@@ -1159,6 +1159,9 @@ float Ship_MastDamage()
 				case GOOD_BOMBS:
 					fDamage = fDamage + 0.15;
 				break;
+				case GOOD_DARTS:
+					fDamage = fDamage + 0.025;
+				break;
 			}
 		break;
 	}
@@ -1645,8 +1648,10 @@ void Ship_ChangeChargeEvent() // нигде не используется???
 
 void Ship_ChangeCharge(ref rCharacter, int iNewChargeType)
 {
-    if (CheckAttribute(rCharacter, "Ship.GreatRecipeAirburstOnly")) iNewChargeType = GOOD_AIRBURST;
+	bool phonkAmmo = SeaPhonk_HasUnlimitedAmmo(rCharacter);
+    if (!phonkAmmo && CheckAttribute(rCharacter, "Ship.GreatRecipeAirburstOnly")) iNewChargeType = GOOD_AIRBURST;
 	SendMessage(&AISea, "la", AI_MESSAGE_CANNON_RELOAD, rCharacter); // must be first line in this function
+	if (phonkAmmo) Sea.Phonk.Weapon = 0;
 	DeleteAttribute(rCharacter, "Tmp.CompanionChargeReload");
 
 	ref rGood = GetGoodByType(iNewChargeType);
@@ -1794,6 +1799,7 @@ int Ship_SelectCompanionCharge(ref rCharacter, float distance)
 			float range = 550.0;
 			if (CheckAttribute(cannon, "FireRange")) range = stf(cannon.FireRange);
 			if (distance > range * 0.9 && balls) selected = GOOD_BALLS;
+			if (distance > range && GetCargoGoods(rCharacter, GOOD_DARTS) >= minimum) selected = GOOD_DARTS;
 		}
 	}
 	if (selected >= 0)
@@ -1910,14 +1916,22 @@ void Ship_CheckSituation()
 		        ref rCannon = GetCannonByType(sti(rCharacter.Ship.Cannons.Type));
 			    float range = 550.0;
 			    if(CheckAttribute(rCannon, "FireRange")) range = stf(rCannon.FireRange);
-			    if ((fMinEnemyDistance > (range*0.9)) && bBalls) // из зоны ушли
+			    if ((fMinEnemyDistance > (range*0.9)) &&
+                    (bBalls || GetCargoGoods(rCharacter, GOOD_DARTS) >= iShipCannonsNum)) // из зоны ушли
 		        {
-		           iNewBallType = GOOD_BALLS;
+		           if (bBalls) iNewBallType = GOOD_BALLS;
+		           if (fMinEnemyDistance > range && GetCargoGoods(rCharacter, GOOD_DARTS) >= iShipCannonsNum)
+		               iNewBallType = GOOD_DARTS;
 		           if (iNewBallType != iCurrentBallType)
 		           {
 		               Ship_ChangeCharge(rCharacter, iNewBallType);
 		           }
 		        }
+                else if (iCurrentBallType == GOOD_DARTS && fMinEnemyDistance <= range*0.9)
+                {
+                    iNewBallType = Ship_FindOtherBallType(rCharacter, fMinEnemyDistance, bBalls, bBombs, bGrapes, bKnippels);
+                    if (iNewBallType >= 0 && iNewBallType != iCurrentBallType) Ship_ChangeCharge(rCharacter, iNewBallType);
+                }
 		    }
 	    }
 	}
@@ -2555,6 +2569,10 @@ int Ship_FindOtherBallType(ref rCharacter, float fMinEnemyDistance, bool bBalls,
 	ref	rCannon = GetCannonByType(iCannonType);
 	float range = 550.0;
 	if(CheckAttribute(rCannon, "FireRange")) range = stf(rCannon.FireRange);
+	int dartMinimum = Ship_GetCompanionAmmoMinimum(rCharacter);
+	if (dartMinimum < 1) dartMinimum = 1;
+	bool darts = GetCargoGoods(rCharacter, GOOD_DARTS) >= dartMinimum;
+	if (darts && fMinEnemyDistance > range) return GOOD_DARTS;
 	if (checkAttribute(rCharacter, "SeaAI.task.target") && rCharacter.SeaAI.task.target != "") //fix
 	{
 		int enemy = sti(rCharacter.SeaAI.task.target);
@@ -2601,6 +2619,7 @@ int Ship_FindOtherBallType(ref rCharacter, float fMinEnemyDistance, bool bBalls,
 	if (bBombs) return GOOD_BOMBS;
 	if (bKnippels) return GOOD_KNIPPELS;
 	if (bGrapes) return GOOD_GRAPES;
+	if (darts) return GOOD_DARTS;
 	
 	return -1;
 }
@@ -2609,6 +2628,11 @@ int Ship_FindOtherBallType(ref rCharacter, float fMinEnemyDistance, bool bBalls,
 void Ship_NotEnoughBalls()
 {
 	bNotEnoughBalls = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(pchar))
+	{
+		bNotEnoughBalls = false;
+		return;
+	}
 	// boal -->
 	if (!bNotEnoughBalls)
 	{
@@ -2624,6 +2648,7 @@ void Ship_NotEnoughBalls()
 int Ship_GetCurrentBallsNum()
 {
 	aref aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return GetCannonsNum(aCharacter);
 	return GetCargoGoods(aCharacter,sti(aCharacter.Ship.Cannons.Charge.Type));
 }
 
@@ -3383,6 +3408,10 @@ void Ship_HullHitEvent()
             if (rand(100) < 30) {Play3DSound("episode_boom", x, y, z);}
 		break;
 		case GOOD_KNIPPELS:
+			bSeriousBoom = false;
+			Play3DSound("ball2bort", x, y, z);
+		break;
+		case GOOD_DARTS:
 			bSeriousBoom = false;
 			Play3DSound("ball2bort", x, y, z);
 		break;

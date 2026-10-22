@@ -367,6 +367,10 @@ void Fantom_SetBalls(ref rFantom, string sFantomType)
 	Fantom_SetCharacterGoods(rFantom, GOOD_BOMBS,    MakeInt(180 * fKBalls + rand(MakeInt(20 * fKBalls))), 0);
 	Fantom_SetCharacterGoods(rFantom, GOOD_KNIPPELS, MakeInt(90 * fKBalls + rand(MakeInt(10 * fKBalls))), 0);
 	Fantom_SetCharacterGoods(rFantom, GOOD_GRAPES,   MakeInt(70 * fKBalls + rand(MakeInt(10 * fKBalls))), 0);
+	int dartChance = sti(Goods[GOOD_DARTS].NpcOtherChance);
+	if (sFantomType == "pirate") dartChance = sti(Goods[GOOD_DARTS].NpcPirateChance);
+	if (rand(dartChance - 1) == 0)
+		Fantom_SetCharacterGoods(rFantom, GOOD_DARTS, MakeInt(stf(Goods[GOOD_DARTS].NpcSupplyPerClass) * fKBalls), 0);
 	Fantom_SetCharacterGoods(rFantom, GOOD_POWDER,   MakeInt(350 * fKBalls + rand(MakeInt(30 * fKBalls))), 0);
 
 	Fantom_SetCharacterGoods(rFantom, GOOD_SAILCLOTH, 	MakeInt(4 * fKBalls + rand(MakeInt(10 * fKBalls))), 0);

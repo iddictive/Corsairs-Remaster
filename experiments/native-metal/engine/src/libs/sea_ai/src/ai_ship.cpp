@@ -344,6 +344,14 @@ bool AIShip::Fire(bool bCameraOutside)
 
     if (isDead())
         return false;
+    // Both deck aim and outside-camera fire share the selected Phonk weapon.
+    auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+    if (isMainCharacter() && phonk && phonk->GetAttributeAsDword("Active"))
+    {
+        const auto weapon = phonk->GetAttributeAsDword("Weapon", 6);
+        if (weapon == 6 || weapon == 7) return false;
+    }
     if (isMainCharacter() && !bCameraOutside)
     {
         return GetCameraController()->Fire();

@@ -11,6 +11,7 @@ bool	bCanSwitchCameras = true;
 
 void DeleteSeaCamerasEnvironment()
 {
+	SeaCameras_CancelDartView();
 	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
 		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
 		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera)) return;
@@ -21,6 +22,7 @@ void DeleteSeaCamerasEnvironment()
 	DeleteClass(&SeaDeckCamera);
 	DelEventHandler("SeaCameras_Switch", "SeaCameras_Switch");
 	DelEventHandler(TELESCOPE_ACTIVE, "SeaCameras_TelescopeActive");
+	DelEventHandler("Control Activation", "SeaCameras_DartViewControl");
 }
 
 //Hokkins: перспектива на море -->
@@ -47,6 +49,7 @@ float CalcSeaPerspective()
 
 void CreateSeaCamerasEnvironment()
 {
+	DartView_InitControls();
 	if (CheckAttribute(&worldMap, "directSail.retainCameras") && sti(worldMap.directSail.retainCameras) != 0 &&
 		IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "seaOnly") && sti(SeaMapTransition.seaOnly) != 0 &&
 		IsEntity(&SeaCameras) && IsEntity(&SeaFreeCamera) && IsEntity(&SeaShipCamera) && IsEntity(&SeaDeckCamera))
@@ -58,6 +61,8 @@ void CreateSeaCamerasEnvironment()
 	bCanSwitchCameras = true;
 
 	CreateEntity(&SeaCameras, "SEA_CAMERAS");
+	SeaCameras.DartViewEnabled = 0;
+	SeaCameras.DartViewCancel = 0;
 	CreateEntity(&SeaFreeCamera, "FREE_CAMERA");
 	CreateEntity(&SeaShipCamera, "SHIP_CAMERA");
 	CreateEntity(&SeaDeckCamera, "DECK_CAMERA");
@@ -128,11 +133,31 @@ void CreateSeaCamerasEnvironment()
 
 	SetEventHandler("SeaCameras_Switch", "SeaCameras_Switch", 1);
 	SetEventHandler(TELESCOPE_ACTIVE, "SeaCameras_TelescopeActive", 0);
+	SetEventHandler("Control Activation", "SeaCameras_DartViewControl", 0);
 
 	// add cameras to list
 	SendMessage(&SeaCameras, "li", AI_CAMERAS_ADD_CAMERA, &SeaShipCamera);
 	SendMessage(&SeaCameras, "li", AI_CAMERAS_ADD_CAMERA, &SeaFreeCamera);
 	SendMessage(&SeaCameras, "li", AI_CAMERAS_ADD_CAMERA, &SeaDeckCamera);
+}
+
+void SeaCameras_CancelDartView()
+{
+	if (!IsEntity(&SeaCameras)) return;
+	if (!CheckAttribute(&SeaCameras, "DartViewCancel")) SeaCameras.DartViewCancel = 0;
+	SeaCameras.DartViewCancel = sti(SeaCameras.DartViewCancel) + 1;
+}
+
+void SeaCameras_DartViewControl()
+{
+	string controlName = GetEventData();
+	if (controlName != "DartImpactCamera" || !IsEntity(&SeaCameras)) return;
+	if (sti(InterfaceStates.Launched) != 0) return;
+	SeaCameras_CancelDartView();
+	if (!CheckAttribute(&SeaCameras, "DartViewEnabled")) SeaCameras.DartViewEnabled = 0;
+	SeaCameras.DartViewEnabled = !sti(SeaCameras.DartViewEnabled);
+	if (sti(SeaCameras.DartViewEnabled) != 0) Log_Info(XI_ConvertString("DartViewOn"));
+	else Log_Info(XI_ConvertString("DartViewOff"));
 }
 
 void SeaCameras_TelescopeActive()
@@ -141,6 +166,7 @@ void SeaCameras_TelescopeActive()
 	SeaDeckCamera.TelescopeActive = iTelescopeActive;
 	if (iTelescopeActive)
 	{
+		SeaCameras_CancelDartView();
 		bCanSwitchCameras = false;
 		Crosshair.OutsideCamera = true;
 	}
@@ -153,6 +179,7 @@ void SeaCameras_TelescopeActive()
 
 void SeaCameras_Switch()
 {
+	SeaCameras_CancelDartView();
 	if (!bCanSwitchCameras) return;
 
 	int bSwitch = false;
@@ -219,6 +246,7 @@ void SeaCameras_UpdateCamera()
 
 void SeaCameras_SetDieCamera()
 {
+	SeaCameras_CancelDartView();
 	bool bOldCanSwitchCameras;
 	if (SeaCameras.Camera == "SeaDeckCamera")
 	{

@@ -128,6 +128,7 @@ void FillStoreGoods(ref pRef)
 		pRef.Goods.(goodName).NormPriceModify = pRef.Goods.(goodName).RndPriceModify; // начальная цена - тоже limit стремлений
 	}
     Store_InitAirburst(pRef);
+    Store_InitDarts(pRef);
 }
 
 void StoreVoidFill(ref pRef)

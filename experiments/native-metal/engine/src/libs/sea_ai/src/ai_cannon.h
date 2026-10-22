@@ -2,6 +2,7 @@
 
 #include "ai_helper.h"
 #include "vai_objbase.h"
+#include <limits>
 
 // ============================================================================
 // Master class AICannon
@@ -18,6 +19,9 @@ class AICannon
 
     float fSpeedV0; // saved current ball speed
     CVECTOR vEnemyPos;
+    int32_t targetCharacter = -1; // transient camera receiver; save layout stays unchanged
+    CVECTOR dartCameraTarget{0.f};
+    bool dartCameraTargetValid = false;
 
     bool bEmpty;      // is empty cannon(no balls available)
     float fDamaged;   // is cannon damaged(if fDamaged >= 100.0f)
@@ -58,6 +62,8 @@ class AICannon
     void Execute(float fDeltaTime);
 
     static float CalcMaxFireDistance(float fFireHeight, float fSpeedV0, float fAngle);
+    static bool UsesFixedBallisticFrame(ATTRIBUTES *character);
+    static float GetBallisticHeightScale(ATTRIBUTES *character);
 
     entid_t GetParentEID() const
     {
@@ -67,7 +73,8 @@ class AICannon
 
     float CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const CVECTOR &vEnemy) const;
     bool CanFireTo(const CVECTOR &vFirePos) const;
-    bool Fire(float fSpeedV0, const CVECTOR &vFirePos, float fireDelay = -1.f);
+    bool Fire(float fSpeedV0, const CVECTOR &vFirePos, float fireDelay = -1.f, int32_t targetIndex = -1,
+              float rawFireAngle = std::numeric_limits<float>::quiet_NaN());
     void Load();
     void Unload();
     void Recharge();

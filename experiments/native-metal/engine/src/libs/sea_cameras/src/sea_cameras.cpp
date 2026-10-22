@@ -116,13 +116,168 @@ SEA_CAMERAS::SEA_CAMERAS()
 
 SEA_CAMERAS::~SEA_CAMERAS()
 {
+    RestoreDartView();
     //    ShowCursor(true);
 }
 
 bool SEA_CAMERAS::Init()
 {
     storm_map_resources::Ensure();
+    render = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
+    // Restore before gameplay/cameras execute; cut once before any sea drawing.
+    // Normal camera mode, input, walking and aim-zoom state keep their owners.
+    core.AddToLayer(SEA_EXECUTE, GetId(), 0);
+    core.AddToLayer(SEA_REALIZE, GetId(), 0);
+    dartPauseRevision = core.GetScenePauseRevision();
     return true;
+}
+
+void SEA_CAMERAS::RestoreDartView()
+{
+    if (dartViewApplied && render)
+    {
+        CVECTOR position, angles;
+        float perspective;
+        render->GetCamera(position, angles, perspective);
+        // A menu/scene may have taken the renderer since our last sea frame.
+        if (~(position - dartPosition) < .0001f && std::abs(perspective - dartPerspective) < .00001f)
+            render->SetCamera(returnPosition, returnAngles, returnPerspective, returnMagnification);
+    }
+    dartViewApplied = false;
+}
+
+void SEA_CAMERAS::CancelDartView()
+{
+    RestoreDartView();
+    dartViewPending = dartViewActive = false;
+    dartStarted = dartLastHit = {};
+}
+
+void SEA_CAMERAS::ProcessStage(Stage stage, uint32_t)
+{
+    if (stage == Stage::execute) RestoreDartView();
+    if (stage == Stage::realize) RealizeDartView();
+}
+
+void SEA_CAMERAS::RealizeDartView()
+{
+    RestoreDartView();
+    if (!render || !AttributesPointer) return;
+    const auto pauseRevision = core.GetScenePauseRevision();
+    const auto cancel = AttributesPointer->GetAttributeAsDword("DartViewCancel", 0);
+    const auto source = core.GetEntityId("AIBalls");
+    auto *balls = core.GetEntityPointer(source);
+    auto *view = balls && balls->AttributesPointer ? balls->AttributesPointer->GetAttributeClass("DartView") : nullptr;
+    auto *player = mainVisualShip();
+    const auto playerId = player ? player->GetId() : 0;
+    const bool interrupted = pauseRevision != dartPauseRevision || cancel != dartCancel ||
+                             source != dartSource || playerId != dartPlayer;
+    dartPauseRevision = pauseRevision;
+    dartCancel = cancel;
+    dartSource = source;
+    dartPlayer = playerId;
+    const auto sequence = view ? view->GetAttributeAsDword("sequence", 0) : 0;
+    const bool enabled = AttributesPointer->GetAttributeAsDword("DartViewEnabled", 0) != 0;
+    COMMON_CAMERA *current = nullptr;
+    for (auto *camera : CamerasArray) if (camera->isOn()) current = camera;
+    const bool telescope = current && current->AttributesPointer &&
+                           current->AttributesPointer->GetAttributeAsDword("TelescopeActive", 0) != 0;
+    if (interrupted || !enabled || !view || !player ||
+        !current || !current->isActive() || telescope ||
+        core.GetTimeScale() <= 0.f || core.IsLayerFrozen(SEA_EXECUTE) ||
+        !core.Controls || core.Controls->IsControlLocked("DartImpactCamera"))
+    {
+        CancelDartView();
+        dartSequence = sequence;
+        return;
+    }
+    auto *hp = player->GetACharacter()->FindAClass(player->GetACharacter(), "Ship.HP");
+    if (!hp || hp->GetAttributeAsFloat() <= 0.f)
+    {
+        CancelDartView();
+        dartSequence = sequence;
+        return;
+    }
+    const auto inFlight = view->GetAttributeAsDword("inFlight", 0);
+    const auto hits = view->GetAttributeAsDword("hits", 0);
+    if (sequence != dartSequence)
+    {
+        CancelDartView();
+        dartSequence = sequence;
+        dartHits = hits;
+        dartViewPending = inFlight > 0;
+        dartStarted = std::chrono::steady_clock::now();
+    }
+    if (!dartViewPending && !dartViewActive) return;
+
+    CVECTOR target(view->GetAttributeAsFloat("targetX"), view->GetAttributeAsFloat("targetY"),
+                   view->GetAttributeAsFloat("targetZ"));
+    float distance = 80.f, height = 14.f;
+    const int targetIndex = int(view->GetAttributeAsDword("target", uint32_t(-1)));
+    if (targetIndex >= 0)
+    {
+        VAI_OBJBASE *targetShip = nullptr;
+        for (auto id : core.GetEntityIds("ship"))
+        {
+            auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(id));
+            if (ship && ship->GetACharacter() &&
+                int(ship->GetACharacter()->GetAttributeAsDword("index", uint32_t(-1))) == targetIndex)
+            {
+                targetShip = ship;
+                break;
+            }
+        }
+        auto *targetHP = targetShip ? targetShip->GetACharacter()->FindAClass(targetShip->GetACharacter(), "Ship.HP") : nullptr;
+        if (!targetShip || targetShip == player || !targetHP || targetHP->GetAttributeAsFloat() <= 0.f)
+        {
+            CancelDartView();
+            return;
+        }
+        const auto box = targetShip->GetRealBoxsize();
+        target = targetShip->GetPos();
+        target.y += std::min(12.f, box.y * .2f);
+        distance = std::max(65.f, std::max(box.x, box.z) * 1.25f);
+        height = std::max(14.f, box.y * .45f);
+    }
+    const CVECTOR projectile(view->GetAttributeAsFloat("x"), view->GetAttributeAsFloat("y"), view->GetAttributeAsFloat("z"));
+    CVECTOR incoming(view->GetAttributeAsFloat("dx"), 0.f, view->GetAttributeAsFloat("dz"));
+    if (!std::isfinite(~target) || !std::isfinite(~projectile) || !std::isfinite(~incoming) || ~incoming < .001f)
+    {
+        CancelDartView();
+        return;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    const auto seconds = [now](auto time) { return std::chrono::duration<float>(now - time).count(); };
+    if (seconds(dartStarted) >= 10.f) { CancelDartView(); return; }
+    if (dartViewPending)
+    {
+        if (!inFlight) { CancelDartView(); return; }
+        // Observe a real approaching projectile; never predict or replay a hit.
+        if (~(target - projectile) > 300.f * 300.f) return;
+        dartDirection = !incoming;
+        dartViewActive = true;
+        dartViewPending = false;
+    }
+    if (hits != dartHits)
+    {
+        dartHits = hits;
+        dartLastHit = now;
+    }
+    if (!inFlight && (dartLastHit == std::chrono::steady_clock::time_point{} || seconds(dartLastHit) >= .9f))
+    {
+        CancelDartView();
+        return;
+    }
+    float renderedPerspective;
+    render->GetCamera(returnPosition, returnAngles, renderedPerspective);
+    returnPerspective = current->GetPerspective();
+    returnMagnification = render->GetCameraMagnification();
+    const CVECTOR position = target - dartDirection * distance + CVECTOR(0.f, height, 0.f);
+    render->SetCamera(position, target, CVECTOR(0.f, 1.f, 0.f));
+    render->SetPerspective(.9f);
+    CVECTOR renderedAngles;
+    render->GetCamera(dartPosition, renderedAngles, dartPerspective);
+    dartViewApplied = true;
 }
 
 void SEA_CAMERAS::ProcessMessage(uint32_t iMsg, uint32_t wParam, uint32_t lParam)
@@ -158,6 +313,7 @@ uint64_t SEA_CAMERAS::ProcessMessage(MESSAGE &message)
     }
     break;
     case AI_CAMERAS_SET_CAMERA: {
+        CancelDartView();
         const auto eidCamera = message.EntityID();
         auto *const pACharacter = message.AttributePointer();
         auto *pCamera = static_cast<COMMON_CAMERA *>(core.GetEntityPointer(eidCamera));
@@ -173,12 +329,15 @@ uint64_t SEA_CAMERAS::ProcessMessage(MESSAGE &message)
     }
     break;
     case AI_MESSAGE_SEASAVE: {
+        CancelDartView();
         auto *pSL = (CSaveLoad *)message.Pointer();
         for (i = 0; i < CamerasArray.size(); i++)
             CamerasArray[i]->Save(pSL);
     }
     break;
     case AI_MESSAGE_SEALOAD: {
+        CancelDartView();
+        dartSequence = 0;
         auto *pSL = (CSaveLoad *)message.Pointer();
         for (i = 0; i < CamerasArray.size(); i++)
             CamerasArray[i]->Load(pSL);

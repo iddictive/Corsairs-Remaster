@@ -1,5 +1,56 @@
 # Sea cannon ballistics and volumetric projectiles
 
+## Cannon darts and ordinary ammunition balance
+
+The new cargo type `Darts` appends goods ID52 without renumbering saved cargo.
+It is a gun-fired, finned dart inspired by period gun arrows; its unusually
+long, accurate flight is a game convention, not a historical performance claim.
+The player buys it in pirate settlements, loads it through the ordinary charge
+selector and powder rules, and sees its own icon, projectile and short tracer.
+Every captain may use it; rare NPC supplies favour pirates, without a use gate.
+
+The existing analytical trajectory, swept collisions, firing solution and aim
+preview remain the owners. The dart profile uses muzzle-speed scale1.3653124814,
+vertical scale1/sqrt(3), fixed world ballistic frame and an additional2x time rate.
+Its maximum horizontal range is twice round shot at a physical30-degree launch;
+higher manual angles through80degrees remain available and reduce range.
+The allowed elevation is separate from the maximum-range optimum; a queued
+dart keeps its captured launch direction through the existing save vector.
+Range-normalized dispersion retains the long-range accuracy target. Rendering uses the
+same camera-facing sprites as existing ammunition, with its own texture rotated
+along projected travel and a short warm tracer. No new saved projectile
+lane or binary field is allowed: identity uses the existing saved event string
+inside the round-shot lane, including tracer restoration after load.
+
+Starting catalogue balance: hull damage balls11.5, knippels5.75, darts2.5,
+grapes1; darts crew0.025% and rigging0.25. Darts cost twice ordinary bombs before
+the existing price modifiers, reload25% slower than balls and spawn400–600 units
+per fresh shop stock. Pirate-colony policy owns purchase and contraband classification;
+existing disabled/depleted stores and prior cargo quantities survive upgrade.
+All airburst catalogue, fuze, blast, availability and quest behavior is retained.
+
+Slots are1–4 ordinary ammunition,5darts,6airburst,7laser,8nuclear;
+9toggles the optional dart impact camera, initially off. LongRangeShoot
+(«Увеличенное расстояние выстрела») raises manual-aim zoom from5x to10x.
+The impact camera borrows the existing render view near the accepted target,
+returns after impact/miss, and yields to pause, death and scene/camera changes.
+
+The target remains about70% of a fully skilled Manowar broadside against another
+broadside at maximum dart range: about2.1km for42lb and4.2km for quest48lb guns.
+[Earlier calibration](evidence/cannon-darts-20261021/calibration.md) retains the
+superseded low-angle experiment; its exact hit counts do not accept the new
+30-degree law. Native precision and moving combat remain separate gates.
+[Native workload](evidence/cannon-darts-20261021/native-baseline-status.md)
+retains the ordinary-ammunition performance baseline and its exact inputs.
+
+Acceptance requires old-save upgrade, legal pirate purchase/non-pirate rejection,
+charge selection, real dart flight/hit/save-load identity, matching aim preview,
+and unchanged ordinary/airburst neighbors. Native script/component probes and
+canonical staging are supporting evidence; player combat and visual replay remain
+separate acceptance. Root owns integration/build/staging; catalogue and authored
+atlas work use disjoint source owners. Existing stock ballistics are reused rather
+than introducing an independent solver, renderer or ammunition inventory.
+
 ## Status
 
 The October 7 installed batch extends the volume path with bounded sail-hole

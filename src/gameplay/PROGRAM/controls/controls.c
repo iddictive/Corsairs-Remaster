@@ -72,6 +72,22 @@ void ControlsInit(string sPlatformName,bool bFirst)
 	}
 }
 
+void Darts_InitControls()
+{
+    if (CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.hk_charge6")) return;
+    CI_CreateAndSetControls("Sailing3Pers", "hk_charge6", CI_GetKeyCode("KEY_6"), 0, true);
+    MapControlToGroup("hk_charge6", "Sailing1Pers");
+    MapControlToGroup("hk_charge6", "BattleInterfaceControls");
+}
+
+void DartView_InitControls()
+{
+    if (CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.DartImpactCamera")) return;
+    CI_CreateAndSetControls("Sailing3Pers", "DartImpactCamera", CI_GetKeyCode("KEY_9"), 0, true);
+    MapControlToGroup("DartImpactCamera", "Sailing1Pers");
+    MapControlToGroup("DartImpactCamera", "BattleInterfaceControls");
+}
+
 void DeckWalk_DefaultShipKeys()
 {
     CI_CreateAndSetControls("Sailing1Pers", "Ship_TurnLeft1", CI_GetKeyCode("VK_LEFT"), 0, true);

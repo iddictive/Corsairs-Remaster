@@ -40,12 +40,12 @@ CVECTOR BallWorldVelocity(const BALL_PARAMS &ball, float time, float timeRate)
 
 // Identity rides the existing saved event string: the four native ball lanes and
 // BALL_PARAMS codec remain byte-for-byte compatible with previous sea saves.
-int AirburstGood(const BALL_PARAMS &ball)
+int TaggedGood(const BALL_PARAMS &ball, const char *prefix)
 {
-    constexpr char prefix[] = "@airburst:";
-    if (ball.sBallEvent.compare(0, sizeof(prefix) - 1, prefix) != 0)
+    const size_t length = std::strlen(prefix);
+    if (ball.sBallEvent.compare(0, length, prefix) != 0)
         return -1;
-    const auto number = ball.sBallEvent.substr(sizeof(prefix) - 1);
+    const auto number = ball.sBallEvent.substr(length);
     if (number.empty() || number.size() > 3)
         return -1;
     int good = 0;
@@ -55,6 +55,21 @@ int AirburstGood(const BALL_PARAMS &ball)
         good = good * 10 + digit - '0';
     }
     return good;
+}
+
+int AirburstGood(const BALL_PARAMS &ball)
+{
+    return TaggedGood(ball, "@airburst:");
+}
+
+float BallShotMass(const BALL_PARAMS &ball)
+{
+    float mass = CannonShotMass(ball.dwCannonType);
+    if (ball.dartGood < 0) return mass;
+    auto *goods = static_cast<VDATA *>(core.GetScriptVariable("Goods"));
+    auto *good = goods && goods->IsArray() && unsigned(ball.dartGood) < goods->GetElementsNum()
+        ? goods->GetAClass(ball.dartGood) : nullptr;
+    return mass * (good ? good->GetAttributeAsFloat("MassMultiply", 1.f) : 1.f);
 }
 
 bool AirburstFragment(const BALL_PARAMS &ball)
@@ -455,6 +470,7 @@ AIBalls::~AIBalls()
     pAIBalls = nullptr;
 
     AIHelper::pRS->TextureRelease(dwTextureIndex);
+    if (dartTexture >= 0) AIHelper::pRS->TextureRelease(dartTexture);
 
     for (i = 0; i < aBallTypes.size(); i++)
     {
@@ -582,8 +598,16 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
     pBall->pParticle = nullptr;
 
     pBall->sBallEvent = to_string(pABall->GetAttribute("Event"));
+    pBall->dartGood = TaggedGood(*pBall, "@dart:");
+    if (pBall->dartGood >= 0)
+    {
+        pBall->dartTarget = CVECTOR(pABall->GetAttributeAsFloat("TargetX"),
+            pABall->GetAttributeAsFloat("TargetY"), pABall->GetAttributeAsFloat("TargetZ"));
+        pBall->dartTargetIndex = pABall->GetAttributeAsDword("TargetIndex", uint32_t(-1));
+        pBall->dartViewLaunch = pABall->GetAttributeAsDword("TargetValid") != 0;
+    }
 
-    if (aBallTypes[i].sParticleName.size())
+    if (pBall->dartGood < 0 && aBallTypes[i].sParticleName.size())
     {
         entid_t eidParticle;
         if (eidParticle = core.GetEntityId("particles"))
@@ -612,6 +636,14 @@ void AIBalls::Execute(uint32_t Delta_Time)
         pSea = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
 
     aBallRects.clear();
+    dartRects.clear();
+    dartDirections.clear();
+    dartTrace.clear();
+    uint32_t playerDarts = 0;
+    BALL_PARAMS *viewBall = nullptr;
+    auto *mainCharacter = static_cast<VDATA *>(core.GetScriptVariable("nMainCharacterIndex"));
+    const int playerIndex = mainCharacter ? mainCharacter->GetInt() : -1;
+    auto *dartView = AttributesPointer->CreateSubAClass(AttributesPointer, "DartView");
 
     // if (!pVWForts) pVWForts = (VIDWALKER*)core.LayerGetWalker("fort_cannon_trace");
 
@@ -635,9 +667,10 @@ void AIBalls::Execute(uint32_t Delta_Time)
             const bool fragment = AirburstFragment(*pBall);
             // The saved event string carries shot identity without changing the binary codec.
             const bool heated = pBall->sBallEvent == "@heated-shot";
+            const bool dart = pBall->dartGood >= 0;
             // An unarmed/direct shell uses the ordinary native Bombs contract,
             // including forts and rigging. Only the radial burst changes goods.
-            AttributesPointer->SetAttributeUseDword("CurrentBallType", pBallsType->dwGoodIndex);
+            AttributesPointer->SetAttributeUseDword("CurrentBallType", dart ? pBall->dartGood : pBallsType->dwGoodIndex);
             AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
             ResetAirburstHull(AttributesPointer);
             AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
@@ -672,7 +705,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
             vDst = pBall->vPos;
 
-            if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated)
+            if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated && !dart)
                 core.Event(pBall->sBallEvent.c_str(), "lllffffffs", pBall->iBallOwner, static_cast<uint32_t>(1),
                            pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
                            vSrc.z);
@@ -754,7 +787,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // impulses. An already dead hull has no script HP debit to invert.
             if(!burst&&!fragment) {
                 const auto velocity=BallWorldVelocity(*pBall,pBall->fTime,fDeltaTimeMultiplier*pBall->fTimeSpeedMultiply);
-                const float energy=.5f*CannonShotMass(pBall->dwCannonType)*(~velocity);
+                const float energy=.5f*BallShotMass(*pBall)*(~velocity);
                 AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",
                     std::isfinite(energy)&&energy>0.f?energy:0.f);
             }
@@ -768,7 +801,10 @@ void AIBalls::Execute(uint32_t Delta_Time)
                     fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
                     pShip->SetCannonTraceRadius(0.0f);
                     if (fRes <= 1.0f)
+                    {
+                        if (dart && pBall->iBallOwner == playerIndex && pBall->dartViewLaunch) ++dartHits;
                         break;
+                    }
                 }
             }
 
@@ -795,7 +831,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
                     const float timeRate = fDeltaTimeMultiplier * pBall->fTimeSpeedMultiply;
                     const float hitTime = pBall->fTime - fDeltaTime * timeRate * (1.0f - debrisHit.fraction);
                     storm::ship::debris::Impact(debrisHit, BallWorldVelocity(*pBall, hitTime, timeRate),
-                                               CannonShotMass(pBall->dwCannonType), pBall->iBallOwner);
+                                               BallShotMass(*pBall), pBall->iBallOwner);
                     fRes = debrisHit.fraction;
                 }
             }
@@ -803,7 +839,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // delete ball
             if (fRes <= 1.0f)
             {
-                if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated)
+                if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated && !dart)
                 {
                     core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
                                pBallsType->dwGoodIndex, pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, vSrc.x, vSrc.y,
@@ -824,7 +860,32 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 continue;
             }
 
-            if (pBall->sBallEvent.empty() || airburstGood >= 0 || fragment || heated)
+            if (dart)
+            {
+                if (pBall->iBallOwner == playerIndex && pBall->dartViewLaunch)
+                {
+                    ++playerDarts;
+                    if (!viewBall || pBall->fTime > viewBall->fTime) viewBall = pBall;
+                }
+                if (dartTexture >= 0)
+                {
+                    RS_RECT sprite{};
+                    sprite.vPos = pBall->vPos;
+                    sprite.dwColor = 0xFFFFFF;
+                    sprite.fSize = dartSize * pBall->fSizeMultiply;
+                    dartRects.push_back(sprite);
+                    dartDirections.push_back(vDst-vSrc);
+                }
+                const CVECTOR direction = !(vDst-vSrc);
+                const float length = std::min(7.f, (pBall->vPos-pBall->vFirstPos).GetLength());
+                for (int segment=0; segment<3; ++segment)
+                {
+                    const uint32_t colors[] = {0xE8FFE2AAu,0x9ACA9A5Cu,0x4A806D50u,0x00806D50u};
+                    dartTrace.push_back({vDst-direction*(length*float(segment)/3.f),colors[segment]});
+                    dartTrace.push_back({vDst-direction*(length*float(segment+1)/3.f),colors[segment+1]});
+                }
+            }
+            else if (pBall->sBallEvent.empty() || airburstGood >= 0 || fragment || heated)
             {
                 aBallRects.push_back(RS_RECT{});
                 // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
@@ -836,6 +897,29 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 pRSR->fSize = fragment ? 0.30f : pBallsType->fSize * pBall->fSizeMultiply;
             }
         }
+    }
+    if (playerDarts && !hadPlayerDarts)
+    {
+        ++dartSequence;
+        dartHits = 0;
+    }
+    hadPlayerDarts = playerDarts != 0;
+    dartView->SetAttributeUseDword("sequence", dartSequence);
+    dartView->SetAttributeUseDword("inFlight", playerDarts);
+    dartView->SetAttributeUseDword("hits", dartHits);
+    if (viewBall)
+    {
+        const auto velocity = BallWorldVelocity(*viewBall, viewBall->fTime, fDeltaTimeMultiplier*viewBall->fTimeSpeedMultiply);
+        dartView->SetAttributeUseDword("target", viewBall->dartTargetIndex);
+        dartView->SetAttributeUseFloat("targetX", viewBall->dartTarget.x);
+        dartView->SetAttributeUseFloat("targetY", viewBall->dartTarget.y);
+        dartView->SetAttributeUseFloat("targetZ", viewBall->dartTarget.z);
+        dartView->SetAttributeUseFloat("x", viewBall->vPos.x);
+        dartView->SetAttributeUseFloat("y", viewBall->vPos.y);
+        dartView->SetAttributeUseFloat("z", viewBall->vPos.z);
+        dartView->SetAttributeUseFloat("dx", velocity.x);
+        dartView->SetAttributeUseFloat("dy", velocity.y);
+        dartView->SetAttributeUseFloat("dz", velocity.z);
     }
     if (!fragments.empty())
     {
@@ -858,6 +942,27 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
 void AIBalls::Realize(uint32_t Delta_Time)
 {
+    if (!dartTrace.empty()) AIHelper::pRS->DrawLines(dartTrace.data(), dartTrace.size()/2, "DartTracer");
+    if (!dartRects.empty() && dartTexture >= 0)
+    {
+        // The optional impact view is applied after Execute. Align the sprite
+        // in the camera that actually draws it, including perspective motion.
+        auto view = AIHelper::pRS->GetView();
+        CMatrix rotation;
+        view.Get3X3(rotation);
+        for (size_t i=0; i<dartRects.size(); ++i)
+        {
+            const CVECTOR position = view * dartRects[i].vPos;
+            const CVECTOR direction = rotation * dartDirections[i];
+            const float x = position.z*direction.x-position.x*direction.z;
+            const float y = position.z*direction.y-position.y*direction.z;
+            dartRects[i].fAngle = x*x+y*y > .000001f ?
+                std::atan2(-y,x)-std::atan2(-.64f,.77f) : 0.f;
+        }
+        AIHelper::pRS->TextureSet(0, dartTexture);
+        AIHelper::pRS->DrawRects(dartRects.data(), dartRects.size(), "Cannonballs", 1, 1);
+        dartRects.clear();
+    }
     if (aBallRects.size())
     {
         AIHelper::pRS->TextureSet(0, dwTextureIndex);
@@ -932,6 +1037,11 @@ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
         dwSubTexY = AttributesPointer->GetAttributeAsDword("SubTexY");
 
         dwTextureIndex = AIHelper::pRS->TextureCreate(sTextureName.c_str());
+        if (dartTexture >= 0) AIHelper::pRS->TextureRelease(dartTexture);
+        dartTexture = -1;
+        if (const char *name = AttributesPointer->GetAttribute("DartTexture"))
+            dartTexture = AIHelper::pRS->TextureCreate(name);
+        dartSize = AttributesPointer->GetAttributeAsFloat("DartSize", .8f);
 
         // install balls
         ATTRIBUTES *pAPBalls = AttributesPointer->GetAttributeClass("Balls");
@@ -1025,6 +1135,8 @@ void BALL_PARAMS::Load(CSaveLoad *pSL)
     // pParticle = reinterpret_cast<VPARTICLE_SYSTEM *>(pSL->LoadDword());
     pParticle = reinterpret_cast<VPARTICLE_SYSTEM *>(pSL->LoadQword());
     sBallEvent = pSL->LoadString();
+    dartGood = TaggedGood(*this, "@dart:");
+    dartViewLaunch = false;
     iBallOwner = pSL->LoadLong();
     fTime = pSL->LoadFloat();
     fSpeedV0 = pSL->LoadFloat();
@@ -1053,7 +1165,7 @@ void AIBalls::Load(CSaveLoad *pSL)
             // BALL_PARAMS * pB = &aBallTypes[i].Balls[aBallTypes[i].Balls.Add()];
             BALL_PARAMS &pB = aBallType.Balls[balls_size + j];
             pB.Load(pSL);
-            if (pB.pParticle)
+            if (pB.pParticle && pB.dartGood < 0)
             {
                 pB.pParticle = nullptr;
                 if (auto eidParticle = core.GetEntityId("particles"))
@@ -1064,6 +1176,7 @@ void AIBalls::Load(CSaveLoad *pSL)
                         pB.vPos.y, pB.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
                 }
             }
+            else if (pB.dartGood >= 0) pB.pParticle = nullptr;
         }
     }
 }

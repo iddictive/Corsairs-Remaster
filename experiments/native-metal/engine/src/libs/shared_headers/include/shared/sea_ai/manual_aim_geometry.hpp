@@ -81,10 +81,10 @@ struct Trajectory
     }
 };
 inline Trajectory trajectory(const CVECTOR &muzzle, const CVECTOR &target, float speed, float angle,
-                             float azimuthDelta, float heightScale, float gravity)
+                             float azimuthDelta, float heightScale, float gravity, bool fixedFrame = false)
 {
     const CVECTOR d = target-muzzle;
-    const float raw = std::atan2(d.y, std::sqrt(d.x*d.x+d.z*d.z));
+    const float raw = fixedFrame ? 0.f : std::atan2(d.y, std::sqrt(d.x*d.x+d.z*d.z));
     const float s = std::sin(raw), c = std::cos(raw);
     const float A = c*c+heightScale*s*s, B = (1.f-heightScale)*s*c, C = s*s+heightScale*c*c;
     const float yaw = std::atan2(d.x,d.z)+azimuthDelta;

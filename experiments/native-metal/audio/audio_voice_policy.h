@@ -18,6 +18,21 @@ constexpr unsigned long long kChargeReplacementFadeMs = 90;
 constexpr unsigned long long kImpactClusterIntervalMs = 40;
 constexpr float kImpactClusterRadiusSquared = 20.0f * 20.0f;
 
+struct SpatialVoicePolicy
+{
+    bool linearFalloff;
+    float rolloff;
+    float volumeGain;
+};
+
+constexpr SpatialVoicePolicy SpatialPolicyForAlias(std::string_view lowerAlias)
+{
+    // Each burning fireplace owns a loop; keep their sum quiet and local.
+    if (lowerAlias == "ship_onfire")
+        return {true, 1.0f, 0.5f};
+    return {false, 0.45f, 1.0f};
+}
+
 constexpr bool IsClusteredImpactAlias(std::string_view lowerAlias)
 {
     return lowerAlias == "ball_splash" || lowerAlias == "fly_ball" || lowerAlias == "fly_ball_misc" ||

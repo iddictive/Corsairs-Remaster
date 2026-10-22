@@ -161,7 +161,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         // an off/on toggle entirely inside paused menus, with no Execute between.
         const auto *mode = pSea->AttributesPointer->GetAttributeClass("Phonk");
         state.weapon = mode ? mode->GetAttributeAsDword("Weapon", 6) : 6;
-        if (state.weapon != 6 && state.weapon != 7) state.weapon = 6;
+        if (state.weapon != 0 && state.weapon != 6 && state.weapon != 7) state.weapon = 6;
     }
     // Delta0 is a paused frame: neither a launch nor flight/damage may advance.
     if (!deltaTime) return;

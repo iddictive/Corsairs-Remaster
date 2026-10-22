@@ -79,6 +79,7 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
     MANUAL_AIM_SOLUTION firing;
     firing.bort = &bort;
     firing.target = vTempFirePos;
+    if (solution) firing.rawFireAngle = solution->rawFireAngle;
     for (auto &cannon : bort.aCannons)
     {
         CVECTOR gunTarget = vTempFirePos;
@@ -88,7 +89,7 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
                 if (solution->guns[i] == &cannon)
                 { gunTarget = solution->gunTargets[i]; included = true; break; }
         if (!included || !cannon.CanFireTo(gunTarget) ||
-            (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget)))
+            (!bApplyBortDelta && !ManualGunCanReach(cannon, bort, gunTarget, firing.rawFireAngle)))
             continue;
         firing.guns.push_back(&cannon);
         firing.gunTargets.push_back(gunTarget);
@@ -164,12 +165,14 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
         if (firing.guns.empty()) return false;
     }
     bool fired = false;
+    auto *receiver = manual ? manual->previewCharacter : (targetShip ? targetShip->GetACharacter() : nullptr);
+    const int32_t targetIndex = receiver ? GetIndex(receiver) : -1;
     for (size_t i = 0; i < firing.guns.size(); ++i)
     {
         auto &cannon = *firing.guns[i];
         const CVECTOR &gunTarget = targets[i];
         cannon.SetRechargeEnable(bEnoughBalls);
-        if (!cannon.Fire(bort.fSpeedV0, gunTarget, delays[i])) continue;
+        if (!cannon.Fire(bort.fSpeedV0, gunTarget, delays[i], targetIndex, firing.rawFireAngle)) continue;
         fired = true;
         if (debugDrawToggle)
             debugFirePositions.emplace_back(gunTarget, ARGB(0xFF, 0xFF, 0xFF, 0x00), float{});
@@ -220,7 +223,10 @@ bool AIShipCannonController::Fire(AIShip *pEnemy)
 
     const float fDistance = GetAIShip()->GetDistance(*pEnemy);
     const float fSpeedV0 = GetSpeedV0();
-    const float fRealSpeedV0 = fSpeedV0 * AIBalls::pAIBalls->GetMultiplier();
+    auto *cannonsAttributes = GetAIShip()->GetACharacter()->FindAClass(GetAIShip()->GetACharacter(), "Ship.Cannons");
+    const float ballTime = AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter()) && cannonsAttributes
+        ? cannonsAttributes->GetAttributeAsFloat("BallTimeSpeedMultiply", 1.f) : 1.f;
+    const float fRealSpeedV0 = fSpeedV0 * AIBalls::pAIBalls->GetMultiplier() * ballTime;
     const float fSpeedZ = pEnemy->GetShipBasePointer()->GetCurrentSpeed();
     const float fAng = pEnemy->GetShipBasePointer()->GetAng().y;
 
@@ -310,7 +316,7 @@ void AIShipCannonController::Execute(float fDeltaTime)
         {
             // set maximum MaxFireDistance for all cannons
             const float fMaxBortFireDistance =
-                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, GetSpeedV0(), bort.fFireAngMax);
+                CalcBortFireDistance(bort, bort.fOurBortFireHeight + fOurHeight, false);
             for (auto &aCannon : bort.aCannons)
             {
                 aCannon.SetMaxFireDistance(fMaxBortFireDistance);
@@ -382,6 +388,30 @@ void AIShipCannonController::Execute(float fDeltaTime)
     }
 }
 
+float AIShipCannonController::GetBortMaxFireAngle(const AISHIP_BORT &bort) const
+{
+    auto *character = GetAIShip()->GetACharacter();
+    auto *cannons = character->FindAClass(character, "Ship.Cannons");
+    if (AICannon::UsesFixedBallisticFrame(character))
+        return cannons->GetAttributeAsFloat("FireAngMax", bort.fFireAngMax);
+    const float scale = cannons ? cannons->GetAttributeAsFloat("FireAngleSineMultiply", 1.f) : 1.f;
+    if (!(scale > 0.f && scale < 1.f)) return bort.fFireAngMax;
+    return .5f * std::asin(std::clamp(std::sin(2.f * bort.fFireAngMax) * scale, -1.f, 1.f));
+}
+
+float AIShipCannonController::CalcBortFireDistance(const AISHIP_BORT &bort, float height, bool includeRoll) const
+{
+    const float speed = GetSpeedV0();
+    const float roll = includeRoll ? GetBortHeightAngle(bort) : 0.f;
+    float angle = roll + GetBortMaxFireAngle(bort);
+    if (AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter()))
+    {
+        height /= AICannon::GetBallisticHeightScale(GetAIShip()->GetACharacter());
+        angle = manual_aim::maximumRangeElevation(height, speed, roll + bort.fFireAngMin, angle, AIHelper::fGravity);
+    }
+    return AICannon::CalcMaxFireDistance(height, speed, angle);
+}
+
 // return (fire distance) angle
 float AIShipCannonController::GetBortHeightAngle(const AISHIP_BORT &bort) const
 {
@@ -399,7 +429,6 @@ float AIShipCannonController::GetBortHeightAngle(const AISHIP_BORT &bort) const
 float AIShipCannonController::GetFireDistance(bool bMaxFireDistance) const
 {
     float fDistance = (bMaxFireDistance) ? 0.0f : 1e10f;
-    const float fSpeedV0 = GetSpeedV0();
 
     const CVECTOR vOurPos = GetAIShip()->GetPos();
     const float fOurHeight = CannonHeightAboveWater(vOurPos);
@@ -409,8 +438,7 @@ float AIShipCannonController::GetFireDistance(bool bMaxFireDistance) const
         if (!bort.aCannons.empty())
         {
             const float fMaxFireDistance =
-                AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, fSpeedV0,
-                                              GetBortHeightAngle(bort) + bort.fFireAngMax);
+                CalcBortFireDistance(bort, bort.fOurBortFireHeight + fOurHeight);
             if (bMaxFireDistance && fDistance < fMaxFireDistance)
                 fDistance = fMaxFireDistance;
             if (!bMaxFireDistance && fDistance > fMaxFireDistance)
@@ -433,8 +461,7 @@ bool AIShipCannonController::UpdateParameters()
         if (!bort.aCannons.empty())
         {
             bort.fSpeedV0 = fSpeedV0;
-            bort.fMaxFireDistance = AICannon::CalcMaxFireDistance(bort.fOurBortFireHeight + fOurHeight, fSpeedV0, GetBortHeightAngle(
-                                                                           bort) + bort.fFireAngMax);
+            bort.fMaxFireDistance = CalcBortFireDistance(bort, bort.fOurBortFireHeight + fOurHeight);
             const float fDir = bort.fFireDir;
             float fZone = bort.fFireZone;
 
@@ -506,10 +533,12 @@ CVECTOR AIShipCannonController::GetFirePos(const CVECTOR &vFireDir, float fDista
     // Preserve that contract rather than ignoring fDistance as v4 did.
     const auto *gun=solution.guns.front();
     const CVECTOR muzzle=gun->GetPos(), flat=!(CVECTOR(solution.target.x-muzzle.x,0.f,solution.target.z-muzzle.z));
-    const float speed=GetSpeedV0(),angle=gun->CalcHeightFireAngle(speed,muzzle,solution.target);
+    const float speed=GetSpeedV0(),angle=std::isfinite(solution.rawFireAngle) ? solution.rawFireAngle
+        : gun->CalcHeightFireAngle(speed,muzzle,solution.target);
     const float height=AimHeightScale(GetAIShip()->GetACharacter());
     if(height<=0.f)return {1e5f,0.f,1e5f};
-    const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity);
+    const auto curve=manual_aim::trajectory(muzzle,solution.target,speed,angle,0.f,height,AIHelper::fGravity,
+        AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter()));
     float lo=0.f,hi=curve.timeToHeight(-20.f);
     for(int i=0;i<24;++i){const float mid=(lo+hi)*.5f;if(((curve.at(mid)-muzzle)|flat)<fDistance)lo=mid;else hi=mid;}
     return curve.at((lo+hi)*.5f);
@@ -549,7 +578,7 @@ bool AIShipCannonController::isCanFire(const CVECTOR &vCamDir) const
             const float fAng = acosf(Clamp(v1 | v2));
             if (fSub > 0.0f && fAng > fabsf(bort.fFireAngMin))
                 continue;
-            if (fSub < 0.0f && fAng > fabsf(bort.fFireAngMax))
+            if (fSub < 0.0f && fAng > fabsf(GetBortMaxFireAngle(bort)))
                 continue;
 
             return true;
@@ -570,9 +599,7 @@ bool AIShipCannonController::isCanFireBort(const AISHIP_BORT &bort, const CVECTO
     CVECTOR vFireDir = vFirePos - vOurPos;
     const float fFireDist = std::hypot(vFireDir.x, vFireDir.z);
     // Reach is horizontal travel to the target's height, including depressed water.
-    const float fMaxFireDistance = AICannon::CalcMaxFireDistance(
-        bort.fOurBortFireHeight + vOurPos.y - vFirePos.y, GetSpeedV0(),
-        GetBortHeightAngle(bort) + bort.fFireAngMax);
+    const float fMaxFireDistance = CalcBortFireDistance(bort, bort.fOurBortFireHeight + vOurPos.y - vFirePos.y);
     vFireDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
 
     // check distance limit
@@ -612,10 +639,7 @@ auto AIShipCannonController::GetBestFireBortOnlyDistance(CVECTOR vFirePos, float
             if (!bort->isCharged() || bort->isBortDamaged())
                 continue;
 
-            const float fSpeedV0 = GetSpeedV0();
-            const float fMaxFireDistance = AICannon::CalcMaxFireDistance(
-                bort->fOurBortFireHeight + vOurPos.y - vFirePos.y, fSpeedV0,
-                GetBortHeightAngle(*bort) + bort->fFireAngMax);
+            const float fMaxFireDistance = CalcBortFireDistance(*bort, bort->fOurBortFireHeight + vOurPos.y - vFirePos.y);
             if (!std::isfinite(fMaxFireDistance) || fFireDist > fMaxFireDistance)
                 continue;
             if (fMaxFireDistance - fFireDist < fZapasDistance)
@@ -783,7 +807,7 @@ void AIShipCannonController::Realize(float fDeltaTime)
         {
             // calc fire range
             float fDist = SQR(GetSpeedV0()) / AIHelper::fGravity;
-            fDist *= sinf(2.0f * (GetBortHeightAngle(bort) + aShipBorts[0].fFireAngMax));
+            fDist *= sinf(2.0f * (GetBortHeightAngle(bort) + GetBortMaxFireAngle(aShipBorts[0])));
             // draw baba
             const float fDir = bort.fFireDir;
             const float fRastr = bort.fFireZone;
@@ -1029,8 +1053,10 @@ AimSpread AimLiveSpread(ATTRIBUTES *character)
         if(accuracy>0.f)
         {
             const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
-            return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
-                    .5f*accuracy*10.f*12.f*kAimPi/180.f};
+            auto *cannons=character->FindAClass(character,"Ship.Cannons");
+            const float spread=cannons?cannons->GetAttributeAsFloat("DispersionMultiply",1.f):1.f;
+            return {.5f*spread*k*12.f*kAimPi/180.f,.5f*spread*accuracy*15.f*kAimPi/180.f,
+                    .5f*spread*accuracy*10.f*12.f*kAimPi/180.f};
         }
     }
     static bool logged=false;
@@ -1230,17 +1256,22 @@ void AIShipCannonController::SelectSingleGun(MANUAL_AIM_SOLUTION &solution) cons
 }
 
 bool AIShipCannonController::ManualGunCanReach(const AICannon &gun,const AISHIP_BORT &bort,
-                                              const CVECTOR &target) const
+                                              const CVECTOR &target, float rawFireAngle) const
 {
     if(gun.isDamaged())return false;
     const CVECTOR muzzle=gun.GetPos();
     const float speed=GetSpeedV0();
-    if(!manual_aim::reachable(muzzle,target,speed,AIHelper::fGravity))return false;
-    const CVECTOR direction=!(target-muzzle);
-    if((direction|gun.GetDir())<.3f)return false; // identical traverse guard to AICannon::Fire
-    const float elevation=gun.CalcHeightFireAngle(speed,muzzle,target);
+    const bool fixedFrame=AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter());
+    CVECTOR solverTarget=target;
+    if(fixedFrame)solverTarget.y=muzzle.y+(target.y-muzzle.y)/AICannon::GetBallisticHeightScale(GetAIShip()->GetACharacter());
+    if(!std::isfinite(rawFireAngle)&&!manual_aim::reachable(muzzle,solverTarget,speed,AIHelper::fGravity))return false;
+    CVECTOR direction=target-muzzle,gunDirection=gun.GetDir();
+    if(fixedFrame){direction.y=gunDirection.y=0.f;if(~direction<1e-8f||~gunDirection<1e-8f)return false;gunDirection=!gunDirection;}
+    direction=!direction;
+    if((direction|gunDirection)<.3f)return false; // identical traverse guard to AICannon::Fire
+    const float elevation=std::isfinite(rawFireAngle)?rawFireAngle:gun.CalcHeightFireAngle(speed,muzzle,target);
     const float relative=elevation-GetBortHeightAngle(bort);
-    return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=bort.fFireAngMax+1e-4f;
+    return std::isfinite(elevation) && relative>=bort.fFireAngMin-1e-4f && relative<=GetBortMaxFireAngle(bort)+1e-4f;
 }
 
 void AIShipCannonController::DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution,AIShip *targetShip,
@@ -1313,6 +1344,8 @@ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const 
     if(!IsValid(bort))return false;
     solution.bort=&*bort;
     const float speed=GetSpeedV0();
+    const bool fixedFrame=AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter());
+    const float ballisticHeight=fixedFrame ? AICannon::GetBallisticHeightScale(GetAIShip()->GetACharacter()) : 1.f;
     // Pick real geometry independently of camera pitch. Empty/far space is
     // explicit far intent, never a short horizontal-muzzle-angle shot.
     float range=0.f,commonFar=1e20f;int compatible=0;
@@ -1322,9 +1355,9 @@ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const 
     {
         if(gun.isDamaged() || (flat|gun.GetDir())<.3f)continue;
         const CVECTOR muzzle=gun.GetPos();
-        const float angle=manual_aim::maximumRangeElevation(muzzle.y,speed,
-            roll+bort->fFireAngMin,roll+bort->fFireAngMax,AIHelper::fGravity);
-        const float reach=AICannon::CalcMaxFireDistance(std::max(.01f,muzzle.y),speed,angle);
+        const float angle=manual_aim::maximumRangeElevation(muzzle.y/ballisticHeight,speed,
+            roll+bort->fFireAngMin,roll+GetBortMaxFireAngle(*bort),AIHelper::fGravity);
+        const float reach=AICannon::CalcMaxFireDistance(std::max(.01f,muzzle.y)/ballisticHeight,speed,angle);
         range=std::max(range,reach);
         legalRangeDisks.push_back({muzzle,reach});
         if(!manual_aim::farRayLimit(camera,muzzle,flat,reach,commonFar))return false;
@@ -1421,6 +1454,27 @@ bool AIShipCannonController::BuildManualAimSolution(const CVECTOR &camera,const 
     }
     if(rangePicked)solution.target=manual_aim::centerRangeTarget(camera,forward,targetDepth);
     else solution.target=CVECTOR(camera.x,0.f,camera.z)+flat*commonFar;
+    if(fixedFrame&&!rangePicked)
+    {
+        // Empty sky is a chosen launch pitch for darts. Preserve that high
+        // branch through the firing delay instead of solving its low root.
+        const float visiblePitch=atan2f(forward.y,std::hypot(forward.x,forward.z));
+        solution.rawFireAngle=atan2f(sinf(visiblePitch)/ballisticHeight,cosf(visiblePitch));
+        for(auto &gun:bort->aCannons)
+        {
+            if(gun.isDamaged())continue;
+            const CVECTOR muzzle=gun.GetPos();
+            const auto curve=manual_aim::trajectory(muzzle,muzzle+flat,speed,solution.rawFireAngle,0.f,
+                ballisticHeight,AIHelper::fGravity,true);
+            const CVECTOR landing=curve.at(curve.timeToHeight(0.f));
+            if(!manual_aim::finite(landing)||!ManualGunCanReach(gun,*bort,landing,solution.rawFireAngle))continue;
+            solution.guns.push_back(&gun);solution.gunTargets.push_back(landing);
+        }
+        if(solution.guns.empty())return false;
+        solution.target=solution.gunTargets.front();
+        if(IsSingleFireMode())SelectSingleGun(solution);
+        return !solution.guns.empty();
+    }
     // A farther original center receiver must not inherit aggression when a
     // nearer aperture surface supplied a different range.
     solution.character=hit.valid&&((hit.point-camera)|forward)<=selectedDepth+.05f?hit.character:nullptr;
@@ -1505,6 +1559,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     if(!BuildManualAimSolution(camera,direction,solution))return;
     AimWorld world(GetAIShip());
     const float speed=GetSpeedV0(),height=AimHeightScale(GetAIShip()->GetACharacter());
+    const bool fixedFrame=AICannon::UsesFixedBallisticFrame(GetAIShip()->GetACharacter());
     if(height<=0.f)return;
     const auto spread=AimLiveSpread(GetAIShip()->GetACharacter());
     if(spread.azimuth<=0.f||spread.elevation<=0.f||spread.speed<=0.f)return;
@@ -1517,13 +1572,15 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             if(solution.guns[i]==gun)return solution.gunTargets[i];
         return solution.target;
     };
+    auto angleFor=[&](const AICannon *gun,const CVECTOR &muzzle,const CVECTOR &aim)
+    {return std::isfinite(solution.rawFireAngle)?solution.rawFireAngle:gun->CalcHeightFireAngle(speed,muzzle,aim);};
     // Every valid gun participates. Locator order is irrelevant.
     for(const auto *gun:solution.guns)
     {
         const CVECTOR muzzle=gun->GetPos();
         const CVECTOR aim=aimFor(gun);
-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
-        const auto path=AimMarch(manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity),world);
+        const float angle=angleFor(gun,muzzle,aim);
+        const auto path=AimMarch(manual_aim::trajectory(muzzle,aim,speed,angle,0.f,height,AIHelper::fGravity,fixedFrame),world);
         paths.push_back(path);nominalPaths.push_back({gun,path});
     }
     // Dispersion samples use the battery's spatial support guns, not first/last
@@ -1545,7 +1602,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     {
         const CVECTOR muzzle=gun->GetPos();
         const CVECTOR aim=aimFor(gun);
-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
+        const float angle=angleFor(gun,muzzle,aim);
         for(int n=0;n<8;++n)
         {
             // Live jitter uses three independent random draws, not a correlated
@@ -1553,7 +1610,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             const float elevation=spread.elevation*((n&1)?1.f:-1.f);
             const float yaw=spread.azimuth*((n&2)?1.f:-1.f);
             const float v=speed+spread.speed*((n&4)?1.f:-1.f);
-            paths.push_back(AimMarch(manual_aim::trajectory(muzzle,aim,v,angle+elevation,yaw,height,AIHelper::fGravity),world));
+            paths.push_back(AimMarch(manual_aim::trajectory(muzzle,aim,v,angle+elevation,yaw,height,AIHelper::fGravity,fixedFrame),world));
         }
     }
     paths.erase(std::remove_if(paths.begin(),paths.end(),[](const AimPath &p){return !p.hit.valid||p.end<=0.f;}),paths.end());
@@ -1577,11 +1634,11 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
     for(const auto *gun:solution.guns)
     {
         const CVECTOR muzzle=gun->GetPos(),aim=aimFor(gun);
-        const float angle=gun->CalcHeightFireAngle(speed,muzzle,aim);
+        const float angle=angleFor(gun,muzzle,aim);
         for(unsigned yaw=0;yaw<3;++yaw)for(unsigned v=0;v<3;++v)for(unsigned elevation=0;elevation<3;++elevation)
         {
             const auto curve=manual_aim::trajectory(muzzle,aim,speed+spread.speed*nodes[v],
-                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity);
+                angle+spread.elevation*nodes[elevation],spread.azimuth*nodes[yaw],height,AIHelper::fGravity,fixedFrame);
             const double weight=weights[yaw]*weights[v]*weights[elevation];
             const float limit=curve.timeToHeight(-world.waveBound-1.f);
             densitySamples.push_back({curve,weight,limit,{curve,axis,limit}});

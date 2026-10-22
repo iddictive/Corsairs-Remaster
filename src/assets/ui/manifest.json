@@ -5,7 +5,7 @@
       "source": "airburst-bomb.png",
       "source_sha256": "7cca81562245e8dd6b095a3f1097cc4cc234ce7a79259a06e1557f7b9b98fcb1",
       "prepared": "airburst-goods.tga.tx",
-      "sha256": "530de1b0ec22aa5d79f19393fba7c7cffe5eaf3d538a7ad5000cbe528ec2581e",
+      "sha256": "c4dec00acb53ae0e7c8ab941d4708103ad900a94a9a871779d2186c449fe8444",
       "original_sha256": "46bb923ea99335ac03fad0a8999c2400142b92c39406b6ec20d183d354c3a81d",
       "dimensions": [1024, 1024],
       "source_dimensions": [1254, 1254],
@@ -13,27 +13,39 @@
       "consumer": "GOODS.Airburst: 128px inventory, shop, cargo and trade icons",
       "generation": "built-in imagegen; original game atlas retained",
       "prompt": "Corsairs ammunition sprite: worn spherical cast-iron bomb with lit curved fuse, opening on the right and escaping grape-shot balls; muted natural upper-left light, compact object silhouette and transparent background.",
-      "preparation": "LANCZOS-resize source to112px inside transparent128px cell; insert at384,512 in goods atlas. Update only that cell through its1px mip; preserve every outside byte and original smaller atlas mips."
+      "preparation": "LANCZOS-resize source to112px inside transparent128px cell; insert at384,512 in goods atlas. Update only that cell through its1px mip; preserve every outside byte and original smaller atlas mips.",
+      "darts_source": "darts.png",
+      "darts_source_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "darts_consumer": "Goods.Darts cell36 at512,512;128px inventory/store/cargo",
+      "darts_preparation": "python3 src/assets/ui/prepare_darts.py; crop alpha>8 bounds; LANCZOS contain; patch only Darts cells through their1px mips, preserve all outside bytes and smaller shared mips. Stock brass frame from darts-frame.png; navy selected inset; exactly identical foreground placement.",
+      "darts_frame_source": "darts-frame.png",
+      "darts_frame_source_sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7"
     },
     "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx": {
       "source": "airburst-command-states.png",
       "source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
       "prepared": "airburst-commands.tga.tx",
-      "sha256": "85870f5271c26486cf6cd5f2c20c7639306c31a8e9e9b0f6a006215f16a37614",
+      "sha256": "1e882736a6fff27cab18a4acb0168fbbad7ca105d5d4549fc727e133d30847b5",
       "original_sha256": "4248cc5253d60dc2b0c02f976325e6597623383d2a50c4816e51a97c877ba31c",
       "dimensions": [1024, 512],
       "source_dimensions": [1774, 887],
       "format": "A4R4G4B4",
-      "consumer": "BattleInterface.charge.charge5: normal cell72, selected cell73, each64px",
+      "consumer": "BattleInterface.charge.charge6: normal cell72, selected cell73, each64px",
       "generation": "built-in imagegen edit of airburst-bomb.png; original game atlas retained",
       "prompt": "Preserve the same bursting bomb; two64px command states with Corsairs antique-brass rounded frames, dark brown normal and muted navy selected interiors, transparent outer corners.",
-      "preparation": "LANCZOS-resize two-state source to128x64; round RGBA channels to4bits and insert into unused cells72/73 at512,256 and576,256. Preserve original header and every byte outside those cells."
+      "preparation": "LANCZOS-resize two-state source to128x64; round RGBA channels to4bits and insert into unused cells72/73 at512,256 and576,256. Preserve original header and every byte outside those cells.",
+      "darts_source": "darts.png",
+      "darts_source_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "darts_consumer": "charge5 normal74/selected75;64px tiles, identical registered dart foreground",
+      "darts_preparation": "python3 src/assets/ui/prepare_darts.py; crop alpha>8 bounds; LANCZOS contain; patch only Darts cells through their1px mips, preserve all outside bytes and smaller shared mips. Stock brass frame from darts-frame.png; navy selected inset; exactly identical foreground placement.",
+      "darts_frame_source": "darts-frame.png",
+      "darts_frame_source_sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7"
     },
     "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx": {
       "source": "phonk-weapons.png",
       "source_sha256": "c939b513e7847afbbee1ceb51ecf39b0a2d3a3c27a4748ab2c1f6417d6798453",
       "prepared": "airburst-navigator.tga.tx",
-      "sha256": "01d50d1865acf49a5a1e81b5ec19717ab8c2101331263c7a47c63789acba8d9c",
+      "sha256": "46e38f8626f2e51ea629761ecb4691ae2b14320c10993b0ab4f9528811de23a1",
       "original_sha256": "666327045db97ab49fc56daab0d788895a8ea8c7e1e4b4fb6c00a0949854b1bf",
       "dimensions": [512, 512],
       "source_dimensions": [1774, 887],
@@ -43,7 +55,13 @@
       "prompt": "Two equal square normal-state Corsairs HUD tiles in a2:1 sheet: dark iron and antique-brass laser emitter firing one red beam up-right; dark iron nuclear rocket with yellow radiation panel and small orange exhaust up-right. Preserve subdued raised antique-brass rounded frames, recessed dark brown backing, warm upper-left lighting, compact realistic painted silhouettes and transparent outer corners. No lettering, numbers or extra ornaments.",
       "airburst_source": "airburst-command-states.png",
       "airburst_source_sha256": "c4c9903d4a257bb2a83576144ba2e4d1376a23e2bb5ae6064961fa0243c358bb",
-      "preparation": "Retain the existing airburst-navigator atlas including airburst cell40. LANCZOS-resize the1774x887 generated sheet to128x64; split into two64px tiles; round each RGBA channel to4bits via min(15,(v+8)//17); encode A4R4G4B4 and insert only into previously transparent-white cells41/42 at64,320 and128,320. Preserve original header and every byte outside those cells."
+      "preparation": "Retain the existing airburst-navigator atlas including airburst cell40. LANCZOS-resize the1774x887 generated sheet to128x64; split into two64px tiles; round each RGBA channel to4bits via min(15,(v+8)//17); encode A4R4G4B4 and insert only into previously transparent-white cells41/42 at64,320 and128,320. Preserve original header and every byte outside those cells.",
+      "darts_source": "darts.png",
+      "darts_source_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "darts_consumer": "Darts navigator cell43 at192,320;64px source displayed48px",
+      "darts_preparation": "python3 src/assets/ui/prepare_darts.py; crop alpha>8 bounds; LANCZOS contain; patch only Darts cells through their1px mips, preserve all outside bytes and smaller shared mips. Stock brass frame from darts-frame.png; navy selected inset; exactly identical foreground placement.",
+      "darts_frame_source": "darts-frame.png",
+      "darts_frame_source_sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7"
     },
     "RESOURCE/Textures/battle_interface/mast_repair.tga.tx": {
       "source": "mast-repair.png",
@@ -120,6 +138,19 @@
       "preparation": "Keep enabled 128px tile byte-identical; LANCZOS-resize disabled output to128px; pack two tiles and encode one A8R8G8B8 BGRA mip.",
       "enabled_source": "docs/images/raking-fire-capstone-128.png",
       "enabled_source_sha256": "b18971df64bbdabba33c26686f63b65c8d7273e347291b1f0ddabcb6f794dfb9"
+    },
+    "RESOURCE/Textures/BALLS/dart.tga.tx": {
+      "source": "darts.png",
+      "source_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "prepared": "darts-projectile.tga.tx",
+      "sha256": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731",
+      "dimensions": [256, 256],
+      "source_dimensions": [1254, 1254],
+      "format": "A8R8G8B8",
+      "consumer": "Native cannon dart projectile sprite; isolated diagonal lower-left tail to upper-right point",
+      "generation": "built-in imagegen; native goods/command atlases used only as style references",
+      "prompt": "Single pirate-era cannon dart: heavy dark forged faceted iron bodkin head, compact honey-brown wooden shaft, three restrained wooden tail fins with iron fittings; diagonal up-right; subdued Corsairs painted inventory language, upper-left light, actual transparent background. No modern missile/cartridge/explosion, text, frame or atmospheric effects.",
+      "preparation": "python3 src/assets/ui/prepare_darts.py; crop alpha>8 useful bounds, contain within240x240 centered on256px RGBA; BGRA A8R8G8B8 with9 LANCZOS mips."
     }
   }
 }

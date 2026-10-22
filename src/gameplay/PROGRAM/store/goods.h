@@ -1,4 +1,4 @@
-#define GOODS_QUANTITY  52
+#define GOODS_QUANTITY  53
 
 #define GOOD_BALLS	    	0
 #define GOOD_GRAPES	    	1
@@ -59,14 +59,16 @@
 #define GOOD_CANNON_48   	50	//нет в продаже
 
 #define GOOD_AIRBURST     51
+#define GOOD_DARTS        52
 
 object  Goods[GOODS_QUANTITY];
 
 // Catalogue display order only; saved cargo IDs and transaction indices stay fixed.
 int Goods_GetDisplayIndex(int displayIndex)
 {
-    if (displayIndex == GOOD_BOMBS + 1) return GOOD_AIRBURST;
-    if (displayIndex > GOOD_BOMBS && displayIndex <= GOOD_AIRBURST) return displayIndex - 1;
+    if (displayIndex == GOOD_BOMBS + 1) return GOOD_DARTS;
+    if (displayIndex == GOOD_BOMBS + 2) return GOOD_AIRBURST;
+    if (displayIndex > GOOD_BOMBS + 2 && displayIndex <= GOOD_DARTS) return displayIndex - 2;
     return displayIndex;
 }
 

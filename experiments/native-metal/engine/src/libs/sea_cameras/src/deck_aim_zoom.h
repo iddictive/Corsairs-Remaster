@@ -17,7 +17,16 @@ class Zoom
 
     void reset()
     {
+        const float retainedMaximum = maxMagnification;
         *this = Zoom{};
+        maxMagnification = retainedMaximum;
+    }
+
+    void setMaximum(float value)
+    {
+        if (value == maxMagnification) return;
+        reset();
+        maxMagnification = value;
     }
 
     float magnification() const { return std::exp(logZoom); }
@@ -95,7 +104,7 @@ class Zoom
     }
 
   private:
-    static float maxLog() { return std::log(maximum); }
+    float maxLog() const { return std::log(maxMagnification); }
     void begin(float target, float fullDuration)
     {
         startLog = logZoom;
@@ -116,6 +125,7 @@ class Zoom
             travelTime = 0.f;
         }
     }
+    float maxMagnification = maximum;
     float logZoom = 0.f, startLog = 0.f, targetLog = 0.f;
     float tapTarget = 0.f, holdTarget = 0.f;
     float pressTime = 0.f, elapsed = 0.f, travelTime = 0.f;

@@ -3,15 +3,17 @@ string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
 void SeaPhonk_InitControls()
 {
-    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Laser"))
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Laser") ||
+        objControlsState.keygroups.Sailing3Pers.Phonk_Laser == "KEY_6")
     {
-        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Laser", CI_GetKeyCode("KEY_6"), 0, true);
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Laser", CI_GetKeyCode("KEY_7"), 0, true);
         MapControlToGroup("Phonk_Laser", "Sailing1Pers");
         MapControlToGroup("Phonk_Laser", "BattleInterfaceControls");
     }
-    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Nuclear"))
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Nuclear") ||
+        objControlsState.keygroups.Sailing3Pers.Phonk_Nuclear == "KEY_7")
     {
-        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Nuclear", CI_GetKeyCode("KEY_7"), 0, true);
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Nuclear", CI_GetKeyCode("KEY_8"), 0, true);
         MapControlToGroup("Phonk_Nuclear", "Sailing1Pers");
         MapControlToGroup("Phonk_Nuclear", "BattleInterfaceControls");
     }
@@ -29,6 +31,23 @@ bool SeaPhonk_ProtectsShip(aref character)
 {
     return SeaPhonk_IsActive() && CheckAttribute(character, "index") &&
         sti(character.index) == GetMainCharacterIndex();
+}
+
+bool SeaPhonk_HasUnlimitedAmmo(aref character)
+{
+    // Keep virtual rounds virtual during death/sea teardown until Reset unloads.
+    return CheckAttribute(&Sea, "Phonk.Active") && sti(Sea.Phonk.Active) != 0 &&
+        CheckAttribute(character, "index") && sti(character.index) == GetMainCharacterIndex();
+}
+
+void SeaPhonk_SetActive(bool active)
+{
+    // Reload unloads synchronously, then loads on the next native Execute.
+    // Return physical rounds before entry; discard virtual rounds before exit.
+    if (bSeaLoaded && IsEntity(&AISea) && IsEntity(pchar) &&
+        CheckAttribute(pchar, "Ship.Cannons.Charge.Type"))
+        SendMessage(&AISea, "la", AI_MESSAGE_CANNON_RELOAD, pchar);
+    Sea.Phonk.Active = active;
 }
 
 bool SeaPhonk_IsMusicMuted()
@@ -84,6 +103,7 @@ void SeaPhonk_Reset(bool restoreMusic)
 {
     string previous = "";
     if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
+    if (SeaPhonk_HasUnlimitedAmmo(pchar)) SeaPhonk_SetActive(false);
     DeleteAttribute(&Sea, "Phonk");
     DelEventHandler("frame", "SeaPhonk_Frame");
     if (!SeaPhonk_StopMusic(200)) return;
@@ -115,7 +135,7 @@ bool SeaPhonk_Toggle()
     if (CheckAttribute(pchar, "Ship.HP") && stf(pchar.Ship.HP) <= 0.0) return false;
     // Register on entry as well: controls restored from an older save lack 6/7.
     SeaPhonk_InitControls();
-    Sea.Phonk.Active = 1;
+    SeaPhonk_SetActive(true);
     Sea.Phonk.Weapon = 6;
     Sea.Phonk.ReturnMusic = musicName;
     SetEventHandler("frame", "SeaPhonk_Frame", 0);

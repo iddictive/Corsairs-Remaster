@@ -39,6 +39,8 @@ void CreateBallsEnvironment()
 
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
 	AIBalls.Texture = "AllBalls.tga";
+	AIBalls.DartTexture = "BALLS\\dart.tga";
+	AIBalls.DartSize = 0.8;
 	AIBalls.SubTexX = 2;
 	AIBalls.SubTexY = 2;
 
@@ -135,6 +137,8 @@ float Ball_GetHeightMultiply(aref aCharacter)
 	float fCannonHeightMultiply = stf(rCannon.HeightMultiply);
 
 	int iChargeType = sti(aCharacter.Ship.Cannons.Charge.Type);
+	if (CheckAttribute(&Goods[iChargeType], "HeightMultiply"))
+		return fCannonHeightMultiply * stf(Goods[iChargeType].HeightMultiply);
 	if (iChargeType != GOOD_KNIPPELS)
 	{
 		fCannonHeightMultiply *= 0.70; // Красивая навесная дуга вместо плоского луча
@@ -164,6 +168,22 @@ float Ball_GetAccuracy(aref aCharacter)
 	return fAccuracy;
 }
 
+float Ball_GetDispersionMultiply(aref aCharacter)
+{
+	ref ammo = GetGoodByType(sti(aCharacter.Ship.Cannons.Charge.Type));
+	float spread = 1.0;
+	if (CheckAttribute(ammo, "DispersionMultiply")) spread = stf(ammo.DispersionMultiply);
+	if (CheckAttribute(ammo, "AccuracyReferenceRange"))
+	{
+		ref cannon = GetCannonByType(sti(aCharacter.Ship.Cannons.Type));
+		float range = stf(cannon.FireRange) * stf(ammo.RangeMultiply);
+		if (CheckAttribute(aCharacter, "TmpPerks.LongRangeShoot") && sti(aCharacter.TmpPerks.LongRangeShoot))
+			range *= 1.15 * 1.15;
+		if (range > 0.0) spread *= stf(ammo.AccuracyReferenceRange) / range;
+	}
+	return spread;
+}
+
 void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0, float fDirAng, float fHeightAng, float fCannonDirAng, float fMaxFireDistance, float fAngle)
 {
 	int iCannonType = sti(aCharacter.Ship.Cannons.Type);
@@ -181,8 +201,12 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	AIBalls.HeightMultiply    = fCannonHeightMultiply;
 	AIBalls.SizeMultiply      = rCannon.SizeMultiply;
 	AIBalls.TimeSpeedMultiply = rCannon.TimeSpeedMultiply;
+	ref shotAmmo = GetGoodByType(sti(aCharacter.Ship.Cannons.Charge.Type));
+	if (CheckAttribute(shotAmmo, "TimeSpeedMultiply"))
+		AIBalls.TimeSpeedMultiply = stf(rCannon.TimeSpeedMultiply) * stf(shotAmmo.TimeSpeedMultiply);
 	AIBalls.MaxFireDistance   = fMaxFireDistance;
 	AIBalls.RawAng = fAngle;
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_DARTS) AIBalls.RawAng = 0.0;
 	
 	float fTempDispersionY = Degree2Radian(12.0);
 	float fTempDispersionX = Degree2Radian(15.0);
@@ -205,12 +229,18 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	}
 
 	float fK = Bring2Range(0.5, 1.2, 0.2, 1.2, fAccuracy);
+	float dispersion = Ball_GetDispersionMultiply(aCharacter);
 	
-	AIBalls.Dir = fDirAng + fK * fTempDispersionY * (frnd() - 0.5);
-	AIBalls.SpdV0 = fSpeedV0 + fAccuracy * (10.0 * fTempDispersionY) * (frnd() - 0.5);
-	AIBalls.Ang = fHeightAng + fAccuracy * (fTempDispersionX) * (frnd() - 0.5);
+	AIBalls.Dir = fDirAng + dispersion * fK * fTempDispersionY * (frnd() - 0.5);
+	AIBalls.SpdV0 = fSpeedV0 + dispersion * fAccuracy * (10.0 * fTempDispersionY) * (frnd() - 0.5);
+	AIBalls.Ang = fHeightAng + dispersion * fAccuracy * (fTempDispersionX) * (frnd() - 0.5);
 
 	AIBalls.Event = "";
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_DARTS)
+	{
+		AIBalls.Type = "Balls";
+		AIBalls.Event = "@dart:" + GOOD_DARTS;
+	}
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_BALLS && CheckAttribute(aCharacter, "TmpPerks.HeatedShot") && sti(aCharacter.TmpPerks.HeatedShot) && rand(4) == 0)
 		AIBalls.Event = "@heated-shot";
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_AIRBURST)

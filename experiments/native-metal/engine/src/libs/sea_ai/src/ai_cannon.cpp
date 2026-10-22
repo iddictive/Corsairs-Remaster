@@ -1,4 +1,5 @@
 #include "ai_cannon.h"
+#include "ai_balls.h"
 #include "ship_base.h"
 #include "math_inlines.h"
 #include "shared/sea_ai/script_defines.h"
@@ -51,13 +52,27 @@ void AICannon::Execute(float fDeltaTime)
     }
 }
 
+bool AICannon::UsesFixedBallisticFrame(ATTRIBUTES *character)
+{
+    auto *cannons = character ? character->FindAClass(character, "Ship.Cannons") : nullptr;
+    return cannons && cannons->GetAttributeAsDword("FixedBallisticFrame", 0) != 0;
+}
+
+float AICannon::GetBallisticHeightScale(ATTRIBUTES *character)
+{
+    auto *cannons = character ? character->FindAClass(character, "Ship.Cannons") : nullptr;
+    const float height = cannons ? cannons->GetAttributeAsFloat("BallHeightMultiply", 1.f) : 1.f;
+    return std::isfinite(height) && height > 0.f ? height : 1.f;
+}
+
 float AICannon::CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const CVECTOR &vEnemy) const
 {
     auto vTemp = vOur - vEnemy;
     vTemp.y = 0.0f;
     const double fDistance = sqrtf(~vTemp);
     const auto g = static_cast<double>(AIHelper::fGravity);
-    const double fHeight = (vEnemy.y - vOur.y);
+    const double fHeight = (vEnemy.y - vOur.y) /
+        (UsesFixedBallisticFrame(pAHolder->GetACharacter()) ? GetBallisticHeightScale(pAHolder->GetACharacter()) : 1.f);
     const double a = SQR(g) / 4.0f;
     const double b = (fHeight * g - SQR(_fSpeedV0));
     const double c = SQR(fHeight) + SQR(fDistance);
@@ -140,34 +155,38 @@ void AICannon::RealFire()
     const auto vPosTemp = *pAIObj->GetMatrix() * vPos;
     (*pAIObj->GetMatrix()).Get3X3(mRot);
 
-    const auto vEnemyDir = !(vEnemyPos - vPosTemp);
+    const bool fixedFrame = UsesFixedBallisticFrame(pAHolder->GetACharacter());
+    // New fixed-frame ammo saves its queued world launch direction in the
+    // existing vector. Ordinary ammunition keeps its world target semantics.
+    const auto vEnemyDir = fixedFrame ? vEnemyPos : !(vEnemyPos - vPosTemp);
     const auto fFireDirection = NormalizeAngle(atan2f(vEnemyDir.x, vEnemyDir.z));
-    const auto fFireHeightAngle = CalcHeightFireAngle(fSpeedV0, vPosTemp, vEnemyPos);
+    const auto fFireHeightAngle = fixedFrame ? atan2f(vEnemyDir.y, std::hypot(vEnemyDir.x, vEnemyDir.z))
+                                           : CalcHeightFireAngle(fSpeedV0, vPosTemp, vEnemyPos);
 
     const auto vDirTemp = mRot * vDir;
     const auto fDirY = NormalizeAngle(atan2f(vDirTemp.x, vDirTemp.z));
 
-    // raw angle
-    const CVECTOR vFlatEnemyDir = !(CVECTOR(vEnemyPos.x, vPosTemp.y, vEnemyPos.z) - vPosTemp);
-    float fAngle;
-    const float dp = vFlatEnemyDir | vEnemyDir;
-    if (dp >= 1.0f)
+    float fAngle = 0.f;
+    if (!fixedFrame)
     {
-        fAngle = 0.0f;
-    }
-    else if (dp <= -1.0f)
-    {
-        fAngle = PI;
-    }
-    else
-    {
-        fAngle = acosf(dp);
-    }
-    if (vEnemyPos.y < vPosTemp.y)
-    {
-        fAngle = -fAngle;
+        const CVECTOR vFlatEnemyDir = !(CVECTOR(vEnemyPos.x, vPosTemp.y, vEnemyPos.z) - vPosTemp);
+        const float dp = vFlatEnemyDir | vEnemyDir;
+        if (dp >= 1.0f) fAngle = 0.0f;
+        else if (dp <= -1.0f) fAngle = PI;
+        else fAngle = acosf(dp);
+        if (vEnemyPos.y < vPosTemp.y) fAngle = -fAngle;
     }
 
+    if (AIBalls::pAIBalls && AIBalls::pAIBalls->AttributesPointer)
+    {
+        auto *shot = AIBalls::pAIBalls->AttributesPointer;
+        const CVECTOR cameraTarget = fixedFrame ? dartCameraTarget : vEnemyPos;
+        shot->SetAttributeUseFloat("TargetX", cameraTarget.x);
+        shot->SetAttributeUseFloat("TargetY", cameraTarget.y);
+        shot->SetAttributeUseFloat("TargetZ", cameraTarget.z);
+        shot->SetAttributeUseDword("TargetIndex", targetCharacter);
+        shot->SetAttributeUseDword("TargetValid", !fixedFrame || dartCameraTargetValid);
+    }
     core.Event(CANNON_FIRE, "afffffffff", pAHolder->GetACharacter(), vPosTemp.x, vPosTemp.y, vPosTemp.z, fSpeedV0,
                fFireDirection, fFireHeightAngle, fDirY, fMaxFireDistance, fAngle);
 
@@ -189,13 +208,21 @@ bool AICannon::CanFireTo(const CVECTOR &_vFirePos) const
     CMatrix mRot;
     (*pAIObj->GetMatrix()).Get3X3(mRot);
 
-    const auto vFireDir = !(_vFirePos - vPosTemp);
-    const auto vDirTemp = mRot * vDir;
+    auto vFireDir = _vFirePos - vPosTemp;
+    auto vDirTemp = mRot * vDir;
+    if (UsesFixedBallisticFrame(pAHolder->GetACharacter()))
+    {
+        vFireDir.y = vDirTemp.y = 0.f;
+        if (~vFireDir < 1e-8f || ~vDirTemp < 1e-8f) return false;
+        vDirTemp = !vDirTemp;
+    }
+    vFireDir = !vFireDir;
     const auto fDot = (vFireDir | vDirTemp);
     return std::isfinite(fDot) && fDot >= 0.3f;
 }
 
-bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay)
+bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay, int32_t targetIndex,
+                    float rawFireAngle)
 {
     if (!CanFireTo(_vFirePos))
         return false;
@@ -204,6 +231,17 @@ bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay)
     bReady2Fire = false;
 
     vEnemyPos = _vFirePos;
+    if (UsesFixedBallisticFrame(pAHolder->GetACharacter()))
+    {
+        const CVECTOR muzzle = GetPos();
+        const float angle = std::isfinite(rawFireAngle) ? rawFireAngle
+            : CalcHeightFireAngle(_fSpeedV0, muzzle, _vFirePos);
+        const float yaw = atan2f(_vFirePos.x - muzzle.x, _vFirePos.z - muzzle.z);
+        vEnemyPos = CVECTOR(cosf(angle) * sinf(yaw), sinf(angle), cosf(angle) * cosf(yaw));
+        dartCameraTarget = _vFirePos;
+        dartCameraTargetValid = targetIndex >= 0;
+    }
+    targetCharacter = targetIndex;
     fSpeedV0 = _fSpeedV0;
 
     // Ship batteries provide an ordered delay; direct and fort calls retain
@@ -328,6 +366,8 @@ void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t
     fTotalTime2Action = pSL->LoadFloat();
     fSpeedV0 = pSL->LoadFloat();
     vEnemyPos = pSL->LoadVector();
+    targetCharacter = -1;
+    dartCameraTargetValid = false;
     bEmpty = pSL->LoadDword() != 0;
     fDamaged = pSL->LoadFloat();
     bFired = pSL->LoadDword() != 0;

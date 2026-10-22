@@ -26,6 +26,11 @@ struct BALL_PARAMS
     float fMaxFireDistance;
     float fRawAng;
     uint32_t dwCannonType; // Additional parameter
+    // Transient caches; Save/Load retain the existing four-lane binary layout.
+    int32_t dartGood = -1;
+    CVECTOR dartTarget{};
+    int32_t dartTargetIndex = -1;
+    bool dartViewLaunch = false;
 };
 
 // ============================================================================
@@ -65,6 +70,13 @@ class AIBalls : public Entity
 
     std::vector<BALL_TYPE> aBallTypes; // Balls types container
     std::vector<RS_RECT> aBallRects;   // Balls container for render
+    std::vector<RS_RECT> dartRects;
+    std::vector<CVECTOR> dartDirections;
+    std::vector<RS_LINE> dartTrace;
+    int32_t dartTexture = -1;
+    float dartSize = .8f;
+    uint32_t dartSequence = 0, dartHits = 0;
+    bool hadPlayerDarts = false;
 
     VDX9RENDER *rs{};
 

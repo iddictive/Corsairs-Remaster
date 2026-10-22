@@ -132,6 +132,7 @@ void Sea_DirectSailRestore()
         aref source, destination;
         makearef(source, worldMap.directSail.phonk);
         makearef(destination, Sea.Phonk);
+        SeaPhonk_SetActive(true);
         CopyAttributes(destination, source);
         SeaPhonk_InitControls();
         SetEventHandler("frame", "SeaPhonk_Frame", 0);

@@ -57,6 +57,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/Textures/INTERFACES/goods.tga.tx",
     "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx",
     "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx",
+    "RESOURCE/Textures/BALLS/dart.tga.tx",
     "RESOURCE/MODELS/Characters/RedBeard.gm",
     "RESOURCE/Textures/Characters/RedBeard.tga.tx",
     "RESOURCE/Textures/INTERFACES/PORTRAITS/64/face_2006.tga.tx",

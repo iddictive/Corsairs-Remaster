@@ -48,6 +48,7 @@ extern void InitBaseInterfaces();
 extern void wdmInitWorldMap();
 extern void InitGoods();
 extern void Airburst_InitGoods();
+extern void Darts_InitGoods();
 extern void InitStores();
 extern int InitItems();
 extern void InitCharactersTables();
@@ -743,11 +744,13 @@ void OnLoad()
     if (LoadSegment("store\\initGoods.c"))
     {
         Airburst_InitGoods();
+        Darts_InitGoods();
         UnloadSegment("store\\initGoods.c");
     }
     for (int ammoStore = 0; ammoStore < STORE_QUANTITY; ammoStore++)
     {
         Store_EnsureAirburst(&Stores[ammoStore]);
+        Store_EnsureDarts(&Stores[ammoStore]);
     }
 	if (!LoadSegment("scripts\shop_rotation.c"))
 	{
@@ -1438,10 +1441,7 @@ void ProcessControls()
 
         case "BOAL_Control":
 		    // по F11 вызывает окно отладчика
-		    if (MOD_BETTATESTMODE == "On" || MOD_BETTATESTMODE == "Test")
-		    {
-		       LaunchDebuderMenu();
-		    }
+		    LaunchDebuderMenu();
 		break;
 		
 	case "Say": // KEY_Y

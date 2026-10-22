@@ -4,6 +4,7 @@ void NavalAmmo_InitDamage()
     Goods[GOOD_BALLS].DamageCrew = 0.05;
     Goods[GOOD_GRAPES].DamageCrew = 0.6;
     Goods[GOOD_KNIPPELS].DamageCrew = 0.075;
+    Goods[GOOD_KNIPPELS].DamageHull = 5.75;
     Goods[GOOD_BOMBS].DamageCrew = 0.125;
     Goods[GOOD_AIRBURST].DamageCrew = 1.2;
     Goods[GOOD_BALLS].Accuracy = 100.0;
@@ -37,10 +38,39 @@ void Airburst_InitGoods()
     Goods[GOOD_AIRBURST].Norm = 240;
 }
 
+void Darts_InitGoods()
+{
+    if (GetArraySize(&Goods) < GOODS_QUANTITY) SetArraySize(&Goods, GOODS_QUANTITY);
+    Goods[GOOD_DARTS].Name = "Darts";
+    Goods[GOOD_DARTS].Cost = 120;
+    Goods[GOOD_DARTS].Weight = 1;
+    Goods[GOOD_DARTS].Units = 20;
+    Goods[GOOD_DARTS].SpeedV0 = 1.3653124814;
+    Goods[GOOD_DARTS].RangeMultiply = 2.0;
+    Goods[GOOD_DARTS].MassMultiply = 0.1;
+    Goods[GOOD_DARTS].NpcPirateChance = 6;
+    Goods[GOOD_DARTS].NpcOtherChance = 20;
+    Goods[GOOD_DARTS].NpcSupplyPerClass = 20;
+    Goods[GOOD_DARTS].HeightMultiply = 0.5773502692;
+    Goods[GOOD_DARTS].TimeSpeedMultiply = 2.0;
+    Goods[GOOD_DARTS].DispersionMultiply = 0.30;
+    Goods[GOOD_DARTS].AccuracyReferenceRange = 2116.0;
+    Goods[GOOD_DARTS].DamageHull = 2.5;
+    Goods[GOOD_DARTS].DamageRig = 0.25;
+    Goods[GOOD_DARTS].DamageCrew = 0.025;
+    Goods[GOOD_DARTS].Accuracy = 100.0;
+    Goods[GOOD_DARTS].ReloadSpeed = 0.8;
+    Goods[GOOD_DARTS].AfraidWater = 0;
+    Goods[GOOD_DARTS].type = TRADE_TYPE_AMMUNITION;
+    Goods[GOOD_DARTS].canbecontraband = 1;
+    Goods[GOOD_DARTS].Norm = 500;
+}
+
 void InitGoods()
 {
 	int i;
 	Airburst_InitGoods();
+	Darts_InitGoods();
 	
 	Goods[GOOD_BALLS].Name			= "Balls";
 	Goods[GOOD_BALLS].Cost			= 4;
@@ -70,7 +100,6 @@ void InitGoods()
 	Goods[GOOD_KNIPPELS].Weight		= 2;
 	Goods[GOOD_KNIPPELS].Units		= 20;
 	Goods[GOOD_KNIPPELS].SpeedV0	= 0.9;
-	Goods[GOOD_KNIPPELS].DamageHull = 1.5;
 	Goods[GOOD_KNIPPELS].DamageRig	= 12.6;
 	Goods[GOOD_KNIPPELS].AfraidWater = 0;
 	Goods[GOOD_KNIPPELS].type				= TRADE_TYPE_AMMUNITION;

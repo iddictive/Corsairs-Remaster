@@ -39,9 +39,48 @@ int Store_AirburstTradeType(ref pStore)
     return TRADE_TYPE_CONTRABAND;
 }
 
+int Store_DartsTradeType(ref pStore)
+{
+    if (!CheckAttribute(pStore, "Colony")) return TRADE_TYPE_CONTRABAND;
+    if (FindColony(pStore.Colony) < 0) return TRADE_TYPE_CONTRABAND;
+    if (GetCityNation(pStore.Colony) == PIRATE) return TRADE_TYPE_AMMUNITION;
+    return TRADE_TYPE_CONTRABAND;
+}
+
+void Store_InitDarts(ref pStore)
+{
+    int quantity = 400 + rand(200);
+    pStore.Goods.Darts.TradeType = Store_DartsTradeType(pStore);
+    pStore.Goods.Darts.NotUsed = false;
+    pStore.Goods.Darts.Quantity = quantity;
+    pStore.Goods.Darts.Norm = quantity;
+    pStore.Goods.Darts.RndPriceModify = frnd() * 0.15;
+    pStore.Goods.Darts.NormPriceModify = pStore.Goods.Darts.RndPriceModify;
+}
+
+void Store_EnsureDarts(ref pStore)
+{
+    // Policy follows current ownership; migration never refills or enables saved stock.
+    if (CheckAttribute(pStore, "Goods.Darts"))
+    {
+        pStore.Goods.Darts.TradeType = Store_DartsTradeType(pStore);
+        return;
+    }
+    if (!CheckAttribute(pStore, "Colony")) return;
+    if (FindColony(pStore.Colony) < 0) return;
+    Store_InitDarts(pStore);
+}
+
 bool Store_CanBuyGoods(ref pStore, int good)
 {
     if (good == GOOD_AIRBURST) return Store_AirburstTradeType(pStore) == TRADE_TYPE_AMMUNITION;
+    if (good == GOOD_DARTS)
+    {
+        Store_EnsureDarts(pStore);
+        if (Store_DartsTradeType(pStore) != TRADE_TYPE_AMMUNITION) return false;
+        if (CheckAttribute(pStore, "Goods.Darts.NotUsed") && sti(pStore.Goods.Darts.NotUsed)) return false;
+        return true;
+    }
     string name = Goods[good].Name;
     if (!CheckAttribute(pStore, "Goods." + name)) return false;
     if (CheckAttribute(pStore, "Colony") && pStore.Colony == "none" &&
@@ -79,6 +118,7 @@ void RemoveStoreGoods(ref _refStore,int _Goods,int _Quantity)
 int GetStoreGoodsQuantity(ref _refStore,int _Goods)
 {
 	if (_Goods == GOOD_AIRBURST) Store_EnsureAirburst(_refStore);
+	if (_Goods == GOOD_DARTS) Store_EnsureDarts(_refStore);
 	string tmpstr = Goods[_Goods].name;
 	int q = 0;
 	if( CheckAttribute(_refStore,"Goods."+tmpstr) )
@@ -284,6 +324,7 @@ void StoreDayUpdate()
 void UpdateStore(ref pStore, int recoveryOffset)
 {
 	Store_EnsureAirburst(pStore);
+	Store_EnsureDarts(pStore);
 	int recoveryColony = WdmRecoveryStoreColony(pStore);
 	if (!WdmRecoveryAdmitDay(recoveryColony, recoveryOffset)) return;
     GreatRecipe_StoreDaily(pStore, recoveryOffset);

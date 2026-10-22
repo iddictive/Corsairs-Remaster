@@ -3,11 +3,27 @@
 #include "common_camera.h"
 
 #include <vector>
+#include <chrono>
+
+class VDX9RENDER;
 
 class SEA_CAMERAS : public Entity
 {
     std::vector<COMMON_CAMERA *> CamerasArray;
     bool bActive;
+    VDX9RENDER *render = nullptr;
+    bool dartViewPending = false, dartViewActive = false, dartViewApplied = false;
+    uint32_t dartSequence = 0, dartHits = 0, dartCancel = 0;
+    uint64_t dartPauseRevision = 0;
+    entid_t dartSource = 0, dartPlayer = 0;
+    CVECTOR returnPosition, returnAngles, dartDirection, dartPosition;
+    float returnPerspective = 1.f, returnMagnification = 1.f;
+    float dartPerspective = 1.f;
+    std::chrono::steady_clock::time_point dartStarted{}, dartLastHit{};
+
+    void RestoreDartView();
+    void CancelDartView();
+    void RealizeDartView();
 
   public:
     SEA_CAMERAS();
@@ -18,7 +34,5 @@ class SEA_CAMERAS : public Entity
 
     bool Init() override;
 
-    void ProcessStage(Stage, uint32_t) override
-    {
-    }
+    void ProcessStage(Stage stage, uint32_t delta) override;
 };

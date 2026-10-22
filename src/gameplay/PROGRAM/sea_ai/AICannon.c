@@ -37,6 +37,7 @@ void CreateCannonsEnvironment()
 bool Cannon_LoadBall()
 {
 	aref	aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return true;
 
 	int iBallType = sti(aCharacter.Ship.Cannons.Charge.Type);
 	int iNumBalls = GetCargoGoods(aCharacter, iBallType);
@@ -55,6 +56,7 @@ bool Cannon_LoadBall()
 void Cannon_UnloadBall()
 {
 	aref aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return;
 	if(CheckAttribute(aCharacter, "Ship.Cannons"))
 	{
 		AddCharacterGoodsCannon(aCharacter, sti(aCharacter.Ship.Cannons.Charge.Type), 1);
@@ -94,6 +96,26 @@ void Cannon_RecalculateParameters(int iCharacterIndex)
 	}
 	rCharacter.Ship.Cannons.FireAngMax = rCannon.FireAngMax;
 	rCharacter.Ship.Cannons.FireAngMin = rCannon.FireAngMin;
+	// One ammo-owned launch law feeds actual fire and the native aim preview.
+	rCharacter.Ship.Cannons.DispersionMultiply = Ball_GetDispersionMultiply(rCharacter);
+	rCharacter.Ship.Cannons.FixedBallisticFrame = 0;
+	rCharacter.Ship.Cannons.BallHeightMultiply = Ball_GetHeightMultiply(rCharacter);
+	rCharacter.Ship.Cannons.BallTimeSpeedMultiply = rCannon.TimeSpeedMultiply;
+	if (CheckAttribute(rBall, "TimeSpeedMultiply"))
+		rCharacter.Ship.Cannons.BallTimeSpeedMultiply = stf(rCannon.TimeSpeedMultiply) * stf(rBall.TimeSpeedMultiply);
+	rCharacter.Ship.Cannons.FireAngleSineMultiply = 1.0;
+	if (sti(rCharacter.Ship.Cannons.Charge.Type) == GOOD_DARTS)
+	{
+		rCharacter.Ship.Cannons.FixedBallisticFrame = 1;
+		// A visible launch pitch of 80 degrees is legal; range peaks at 30.
+		rCharacter.Ship.Cannons.FireAngMax = atan(tan(Degree2Radian(80.0)) / stf(rCharacter.Ship.Cannons.BallHeightMultiply));
+	}
+	else if (CheckAttribute(rBall, "RangeMultiply"))
+	{
+		float angleScale = stf(rBall.RangeMultiply) / (stf(rBall.SpeedV0) * stf(rBall.SpeedV0));
+		rCharacter.Ship.Cannons.FireAngleSineMultiply = angleScale;
+		rCharacter.Ship.Cannons.FireAngMax = asin(sin(2.0 * stf(rCannon.FireAngMax)) * angleScale) * 0.5;
+	}
 }
 
 
@@ -164,6 +186,7 @@ float Cannon_GetFireHeight()
 
 	string sBallName = rBallType.Name;
 	if (sBallName == "Airburst") sBallName = "Bombs";
+	if (sBallName == "Darts") sBallName = "Balls";
 
 	float Y, DY;
 	Y = stf(rEnemyShip.Height.(sBallName).Y);

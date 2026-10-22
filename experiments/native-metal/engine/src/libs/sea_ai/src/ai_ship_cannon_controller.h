@@ -2,6 +2,7 @@
 
 #define INVALID_BORT_INDEX 0xFFFFFFFF
 #include "string_compare.hpp"
+#include <limits>
 
 class AIShip;
 class VAI_INNEROBJ;
@@ -84,9 +85,11 @@ class AIShipCannonController
         ATTRIBUTES *previewCharacter = nullptr;
         std::vector<AICannon *> guns;
         std::vector<CVECTOR> gunTargets; // parallel to guns; rake spread, else target
+        float rawFireAngle = std::numeric_limits<float>::quiet_NaN(); // explicit free-sky launch, else target solve
     };
     bool BuildManualAimSolution(const CVECTOR &camera, const CVECTOR &direction, MANUAL_AIM_SOLUTION &solution);
-    bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target) const;
+    bool ManualGunCanReach(const AICannon &gun, const AISHIP_BORT &bort, const CVECTOR &target,
+                           float rawFireAngle = std::numeric_limits<float>::quiet_NaN()) const;
     void SelectSingleGun(MANUAL_AIM_SOLUTION &solution) const;
     void DistributeRakeTargets(MANUAL_AIM_SOLUTION &solution, AIShip *targetShip,
                                const CVECTOR &targetOffset = CVECTOR(0.f));
@@ -120,6 +123,8 @@ class AIShipCannonController
     [[nodiscard]] bool IsValid(decltype(aShipBorts)::const_iterator bortIt) const;
 
     [[nodiscard]] float GetBortHeightAngle(const AISHIP_BORT &bort) const;
+    [[nodiscard]] float GetBortMaxFireAngle(const AISHIP_BORT &bort) const;
+    [[nodiscard]] float CalcBortFireDistance(const AISHIP_BORT &bort, float height, bool includeRoll = true) const;
     [[nodiscard]] bool isCanFireBort(const AISHIP_BORT &bort, const CVECTOR &vFirePos,
                                      float *pfZapasDistance = nullptr) const;
     [[nodiscard]] bool isHaveEnoughBallsForBort(const AISHIP_BORT &bort) const;

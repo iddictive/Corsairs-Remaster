@@ -198,6 +198,8 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     }
     const std::string path = ResolvePath(selected.c_str());
     if (path.empty()) return SOUND_INVALID_ID;
+    const auto spatialPolicy = storm::metal::audio::SpatialPolicyForAlias(aliasKey);
+    if (spatial) volume *= spatialPolicy.volumeGain;
     auto it = std::find_if(slots_.begin(), slots_.end(), [](const Slot &slot) { return !slot.initialized; });
     if (it == slots_.end()) return SOUND_INVALID_ID;
 
@@ -232,8 +234,9 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     ma_sound_set_volume(&it->sound, EffectiveVolume(*it));
     if (spatial)
     {
-        ma_sound_set_attenuation_model(&it->sound, ma_attenuation_model_exponential);
-        ma_sound_set_rolloff(&it->sound, 0.45f);
+        ma_sound_set_attenuation_model(&it->sound, spatialPolicy.linearFalloff ?
+            ma_attenuation_model_linear : ma_attenuation_model_exponential);
+        ma_sound_set_rolloff(&it->sound, spatialPolicy.rolloff);
     }
     if (spatial && position) ma_sound_set_position(&it->sound, position->x, position->y, position->z);
     if (spatial && minDistance >= 0) ma_sound_set_min_distance(&it->sound, minDistance);

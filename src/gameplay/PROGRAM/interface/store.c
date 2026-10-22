@@ -258,6 +258,7 @@ void CalculateInfoData()
 
 void AddToTable(int _mode)
 {
+	Store_EnsureDarts(refStore);
 	int n, i, displayIndex;
 	string row, sShipGroup;
 	ref rShip;
