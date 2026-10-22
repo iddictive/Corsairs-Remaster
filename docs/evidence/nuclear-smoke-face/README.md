@@ -1,6 +1,10 @@
 # Nuclear smoke face
 
-The nuclear mushroom uses an authored all-smoke sprite during its readable
+The facial variant is disabled in the current shader. These retained sources
+and frames document the earlier variant; the live source uses the ordinary
+procedural mushroom.
+
+The recorded nuclear mushroom uses an authored all-smoke sprite during its readable
 middle interval, with the existing procedural ignition, plume, ground ring and
 nine-second expiry. The frontal face shares the cap's billowing smoke material.
 It is a vertical world-space card facing the viewer horizontally, with animated

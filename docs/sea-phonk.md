@@ -404,13 +404,10 @@ fixture footprint. The fixture backdrop proves neither terrain/rigging integrati
 nor continuously viewed motion. Private evidence owners are `bounded-laser-20261016`
 and `laser-locality-nuclear-detail-20261016`; delivery remains separate.
 
-The readable middle interval now uses an authored all-smoke facial sprite,
-embedded in the engine and projected in world space with scene-depth occlusion.
-Its cap, stem and face share one smoke material; the procedural ignition, ring,
-late plume and9s expiry remain. Native-scale material/likeness frames and exact
-source inputs are retained in
-[`evidence/nuclear-smoke-face`](evidence/nuclear-smoke-face/README.md). Those
-fixtures do not claim a played battle or continuous-motion acceptance.
+The authored facial sprite is disabled; the nuclear blast retains its ordinary
+procedural mushroom, ignition, ring and nine-second expiry. Historical source inputs and
+native-scale frames of the facial variant are retained in
+[`evidence/nuclear-smoke-face`](evidence/nuclear-smoke-face/README.md).
 
 ## October16 — airborne coast contact and beached support
 
