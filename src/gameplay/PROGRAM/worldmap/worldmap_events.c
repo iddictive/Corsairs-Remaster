@@ -9,19 +9,89 @@ void wdmEvent_EncounterCreate()
 	float playerShipX = GetEventData();
 	float playerShipZ = GetEventData();
 	float playerShipAY = GetEventData();
-	//Skip encounters
-	if(CheckAttribute(worldMap, "noenc") != 0)
-	{
-		if(worldMap.noenc == "true") return;
-	}
 	//Save player ship position
 	worldMap.playerShipX = playerShipX;
 	worldMap.playerShipZ = playerShipZ;
 	worldMap.playerShipAY = playerShipAY;
+	if (wdmCheckHostileFortApproach()) return;
+	// Fort approach is physical admission, independent of random encounters.
+	if(CheckAttribute(worldMap, "noenc") != 0)
+	{
+		if(worldMap.noenc == "true") return;
+	}
 	//DeleteAttribute(pchar, "SkipEshipIndex");// boal
 	//Generate encounters
-	wdmStormGen(dltTime, playerShipX, playerShipZ, playerShipAY);
+	if (IsEntity(&worldMap)) wdmStormGen(dltTime, playerShipX, playerShipZ, playerShipAY);
 	wdmShipEncounter(dltTime, playerShipX, playerShipZ, playerShipAY);
+}
+
+void wdmBuildFortApproaches()
+{
+	DeleteAttribute(&worldMap, "fortApproaches");
+	aref resources;
+	if (!GetEntity(&resources, "WdmStaticResources")) return;
+	object atlas;
+	if (!SendMessage(resources, "sa", "SeaAtlas", &atlas)) return;
+	if (!CheckAttribute(&atlas, "regions.count") || !CheckAttribute(&atlas, "metres_per_map_unit")) return;
+	float scale = stf(atlas.metres_per_map_unit);
+	if (scale <= 0.0) return;
+	worldMap.fortApproaches.count = 0;
+	worldMap.fortApproaches.scale = scale;
+	for (int region = 0; region < sti(atlas.regions.count); region++)
+	{
+		string regionKey = "r" + region;
+		string islandID = atlas.regions.(regionKey).id;
+		int islandIndex = FindIsland(islandID);
+		if (islandIndex < 0 || !CheckAttribute(&Islands[islandIndex], "reload")) continue;
+		aref reloads, frame;
+		makearef(reloads, Islands[islandIndex].reload);
+		makearef(frame, atlas.regions.(regionKey).local_to_atlas);
+		for (int locator = 0; locator < GetAttributesNum(reloads); locator++)
+		{
+			aref entrance = GetAttributeN(reloads, locator);
+			if (!CheckAttribute(entrance, "fort") || !CheckAttribute(entrance, "name") ||
+				!CheckAttribute(entrance, "x") || !CheckAttribute(entrance, "z")) continue;
+			int commander = Fort_FindCharacter(islandID, "reload", entrance.name);
+			if (commander < 0 || commander >= TOTAL_CHARACTERS) continue;
+			int next = sti(worldMap.fortApproaches.count);
+			string key = "f" + next;
+			worldMap.fortApproaches.(key).commander = commander;
+			worldMap.fortApproaches.(key).island = islandID;
+			worldMap.fortApproaches.(key).originX = atlas.regions.(regionKey).mapX;
+			worldMap.fortApproaches.(key).originZ = atlas.regions.(regionKey).mapZ;
+			float x = stf(entrance.x); float z = stf(entrance.z);
+			worldMap.fortApproaches.(key).x = (stf(frame.a)*x + stf(frame.b)*z + stf(frame.tx)) / scale;
+			worldMap.fortApproaches.(key).z = (stf(frame.c)*x + stf(frame.d)*z + stf(frame.tz)) / scale;
+			worldMap.fortApproaches.count = next + 1;
+		}
+	}
+}
+
+bool wdmCheckHostileFortApproach()
+{
+	if (wdmLockReload || !IsEntity(&worldMap) || !CheckAttribute(&worldMap, "isLoaded") ||
+		worldMap.isLoaded != "true" || CheckAttribute(&worldMap, "directSail") ||
+		!CheckAttribute(&worldMap, "fortApproaches.count")) return false;
+	float scale = stf(worldMap.fortApproaches.scale);
+	if (scale <= 0.0) return false;
+	float radius = MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER_FORT / scale;
+	for (int slot = 0; slot < sti(worldMap.fortApproaches.count); slot++)
+	{
+		string key = "f" + slot;
+		aref approach; makearef(approach, worldMap.fortApproaches.(key));
+		ref fort = &Characters[sti(approach.commander)];
+		if (LAi_IsDead(fort) || (CheckAttribute(fort, "Fort.Mode") && sti(fort.Fort.Mode) != FORT_NORMAL)) continue;
+		if (CheckAttribute(fort, "Fort.Cannons.Quantity") && Fort_GetCannonsQuantity(fort) <= 0) continue;
+		if (GetRelation(sti(fort.index), GetMainCharacterIndex()) != RELATION_ENEMY &&
+			GetNationRelation(sti(pchar.nation), sti(fort.nation)) != RELATION_ENEMY) continue;
+		if (GetDistance2D(stf(worldMap.playerShipX), stf(worldMap.playerShipZ), stf(approach.x), stf(approach.z)) >= radius) continue;
+		worldMap.island = approach.island;
+		worldMap.island.x = approach.originX;
+		worldMap.island.z = approach.originZ;
+		wdmReloadToSea();
+		return true;
+	}
+	return false;
 }
 
 

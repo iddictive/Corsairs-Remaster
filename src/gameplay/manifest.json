@@ -1193,6 +1193,12 @@
         "f54c99b9b2584007930cfb6616bd9d1b0f3045d908d3fde2eb723362a0b37a57"
       ]
     },
+    "PROGRAM/scripts/companions.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "0d815d620e0e8e6a8471218555d6fccbddcfc06a0491e394c7bacbb90b1cceb4"
+      ]
+    },
     "PROGRAM/locations/init/Trinidad.c": {
       "encoding": "utf-8",
       "legacy": [

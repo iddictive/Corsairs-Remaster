@@ -19,6 +19,7 @@ bool	bUpdatePosMode = false;
 int		iVicSoundTime = 0;
 string	sSeaStartMusicName;
 bool	isEnemyAround = false;
+bool bSeaTravelSuperiority = false;
 
 int		iNumShips = 0;
 int		Ships[MAX_SHIPS_ON_SEA];
@@ -156,6 +157,7 @@ void Sea_ClearCheckFlag()
 
 void CreateShipEnvironment()
 {
+	bSeaTravelSuperiority = false;
 	isEnemyAround = false;
 	bUpdatePosMode = false;
 	iVicSoundTime = 0;
@@ -3777,6 +3779,108 @@ void Ship_CheckEnemiesAroundMainCharacter()
 {
 }
 
+float Ship_TravelAmmoDamage(ref captain)
+{
+	int guns = GetCannonsNum(captain);
+	int cannonType = GetCaracterShipCannonsType(captain);
+	if (guns <= 0 || cannonType < 0 || cannonType >= CANNON_TYPES_QUANTITY) return 0.0;
+	ref cannon = GetCannonByType(cannonType);
+	if (!CheckAttribute(cannon, "DamageMultiply")) return 0.0;
+	int ammunition[6];
+	ammunition[0] = GOOD_BALLS; ammunition[1] = GOOD_BOMBS;
+	ammunition[2] = GOOD_KNIPPELS; ammunition[3] = GOOD_GRAPES;
+	ammunition[4] = GOOD_AIRBURST; ammunition[5] = GOOD_DARTS;
+	float damage = 0.0;
+	int rounds = 0;
+	for (int kind = 0; kind < 6; kind++)
+	{
+		int quantity = GetCargoGoods(captain, ammunition[kind]);
+		if (quantity <= 0) continue;
+		ref shot = GetGoodByType(ammunition[kind]);
+		// An airburst need not detonate; its ordinary direct-hit damage is reliable.
+		if (ammunition[kind] == GOOD_AIRBURST) shot = GetGoodByType(GOOD_BOMBS);
+		if (!CheckAttribute(shot, "DamageHull")) continue;
+		rounds = rounds + quantity;
+		damage = damage + quantity * stf(shot.DamageHull);
+	}
+	int powder = GetCargoGoods(captain, GOOD_POWDER);
+	if (rounds > 0) damage = damage * WdmTrafficFraction(makefloat(powder) / rounds);
+	if (CheckAttribute(captain, "Ship.Cannons.Charge.Type"))
+	{
+		int loadedType = sti(captain.Ship.Cannons.Charge.Type);
+		for (int loadedKind = 0; loadedKind < 6; loadedKind++)
+		{
+			if (loadedType != ammunition[loadedKind]) continue;
+			if (loadedType == GOOD_AIRBURST) loadedType = GOOD_BOMBS;
+			ref loadedShot = GetGoodByType(loadedType);
+			if (CheckAttribute(loadedShot, "DamageHull"))
+				damage = damage + WdmTrafficLoadedCannons(captain) * stf(loadedShot.DamageHull);
+			break;
+		}
+	}
+	// Half the nominal hull damage budgets misses/range; no critical hits or perks.
+	return 0.5 * damage * stf(cannon.DamageMultiply);
+}
+
+bool Ship_TravelThreatBlocks()
+{
+	bSeaTravelSuperiority = false;
+	int party[COMPANION_MAX];
+	int members = 0;
+	float ourPower = 0.0;
+	float ammunitionDamage = 0.0;
+	for (int slot = 0; slot < COMPANION_MAX; slot++)
+	{
+		int index = GetCompanionIndex(pchar, slot);
+		if (index < 0 || index >= TOTAL_CHARACTERS) continue;
+		ref captain = &Characters[index];
+		if (!IsEntity(captain) || !WdmFleetSeaAlive(captain) ||
+			!CheckAttribute(captain, "Ship.Pos.x") || !CheckAttribute(captain, "Ship.Pos.z")) continue;
+		party[members] = index;
+		members++;
+		ourPower = ourPower + WdmTrafficCharacterPower(captain);
+		ammunitionDamage = ammunitionDamage + Ship_TravelAmmoDamage(captain);
+	}
+	float enemyPower = 0.0;
+	float enemyHP = 0.0;
+	float weakestHP = 1000000000.0;
+	bool threatened = false;
+	bool disabledMember = false;
+	for (int ship = 0; ship < iNumShips; ship++)
+	{
+		int enemyIndex = Ships[ship];
+		if (enemyIndex < 0 || enemyIndex >= TOTAL_CHARACTERS) continue;
+		ref enemy = &Characters[enemyIndex];
+		if (!IsEntity(enemy) || !WdmFleetSeaAlive(enemy) || CheckAttribute(enemy, "SeaSurrender") ||
+			!CheckAttribute(enemy, "Ship.Pos.x") || !CheckAttribute(enemy, "Ship.Pos.z")) continue;
+		bool nearby = false;
+		for (int member = 0; member < members; member++)
+		{
+			ref friendly = &Characters[party[member]];
+			if (GetRelation(party[member], enemyIndex) != RELATION_ENEMY ||
+				Ship_GetDistance2D(friendly, enemy) >= MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER) continue;
+			nearby = true;
+			float hp = Ship_GetHP(friendly);
+			if (hp < weakestHP) weakestHP = hp;
+			if (!CheckAttribute(friendly, "Ship.Crew.Quantity") ||
+				stf(friendly.Ship.Crew.Quantity) < GetMinCrewQuantity(friendly) ||
+				!CheckAttribute(friendly, "Ship.SP") || stf(friendly.Ship.SP) <= 0.0) disabledMember = true;
+		}
+		if (!nearby) continue;
+		threatened = true;
+		enemyPower = enemyPower + WdmTrafficCharacterPower(enemy);
+		enemyHP = enemyHP + Ship_GetHP(enemy);
+	}
+	if (!threatened) return false;
+	if (disabledMember || ourPower <= 0.0 || ourPower < 2.0 * enemyPower ||
+		ammunitionDamage < 1.5 * enemyHP) return true;
+	// Concentrated return fire must leave even the weakest threatened hull a reserve.
+	float expectedLoss = enemyHP * enemyPower / ourPower;
+	if (expectedLoss > 0.5 * weakestHP) return true;
+	bSeaTravelSuperiority = true;
+	return false;
+}
+
 void Ship_CheckMainCharacter()
 {
 	aref	arUpdate;
@@ -3889,7 +3993,7 @@ void Ship_CheckMainCharacter()
 			case FORT_NORMAL:
 				if (iRelation == RELATION_ENEMY)
 				{
-					if (fMinEnemyDistance > fDistance) { fortDistance = fDistance; }
+					if (fortDistance > fDistance) { fortDistance = fDistance; }
 				}
 				else
 				{
@@ -4087,7 +4191,7 @@ void Ship_CheckMainCharacter()
 	rCharacter.Ship.POS.Mode = SHIP_SAIL;
 
 	bDisableMapEnter = false;
-	if (fMinEnemyDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER)
+	if (Ship_TravelThreatBlocks())
 	{
 		bCanEnterToLand = false;
 		bDisableMapEnter = true;

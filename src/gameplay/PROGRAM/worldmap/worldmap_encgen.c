@@ -473,6 +473,10 @@ float WdmTrafficAmmoReadiness(ref captain, int intact)
 	if (available > shot) shot = available;
 	available = GetCargoGoods(captain, GOOD_GRAPES);
 	if (available > shot) shot = available;
+	available = GetCargoGoods(captain, GOOD_AIRBURST);
+	if (available > shot) shot = available;
+	available = GetCargoGoods(captain, GOOD_DARTS);
+	if (available > shot) shot = available;
 	int powder = GetCargoGoods(captain, GOOD_POWDER);
 	if (powder < shot) shot = powder;
 	if (shot < 0) shot = 0;

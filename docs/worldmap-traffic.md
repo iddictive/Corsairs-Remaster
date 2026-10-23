@@ -1,5 +1,29 @@
 # World-map traffic
 
+## Fleet travel and hostile fort approaches
+
+`Ship_TravelThreatBlocks` owns the ship-proximity policy for map exit and
+companion travel. Within the existing 1000 m contact range, departure is allowed
+when the live squadron has at least twice the nearby enemies' combat power,
+powder-backed hull damage capacity of at least 1.5 times their remaining HP,
+and estimated return damage at most half the weakest threatened friendly hull's
+remaining HP. Combat power reuses the traffic readiness calculation for hull,
+working guns, ammunition, crew and sails. Missing sailing crew or completely
+destroyed sails on a threatened companion keeps the lock. The ammunition budget
+discounts nominal direct-hit damage by half; these are conservative gameplay
+thresholds, not a simulated battle result. Storm, quest and fort restrictions
+retain their existing owners.
+
+`wdmBuildFortApproaches` projects authored fort locators through the native
+`SeaAtlas` publication once per map entry. The encounter tick forces the normal
+sea admission inside the existing 1400 m hostile-fort range, selecting that
+fort's logical island and preserving the player's map position. Destroyed,
+disarmed and nonhostile forts do not force entry; a friendly undiscovered flag
+retains the normal recognition rules. The atlas supplies the metre scale and
+region transforms; port-label positions and decorative danger circles are not
+used as collision geometry. The hidden direct-sailing descriptor adapter is
+excluded because its resident sea scene already owns fort contact.
+
 ## Authored actors and finite map sinking — October14
 
 `worldmap-authored-actors.patch` owns the native live descriptor bridge.

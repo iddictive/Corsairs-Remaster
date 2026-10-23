@@ -261,6 +261,7 @@ void wdmFinishWorldMap(bool cinematic)
 	worldMap.addQuestEncounters = "updateQuest";
 	wdmSetNationFlag(sti(pchar.nation));
 	InitWmInterface();
+	wdmBuildFortApproaches();
 }
 
 // Hokkins: инициализируем все текстурки и тексты на глобалке в зависимости от скейлинга -->

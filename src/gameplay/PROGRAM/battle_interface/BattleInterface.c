@@ -1492,6 +1492,8 @@ void BI_SetSeaState()
 	bDefend = GetEventData();
 	bReloadCanBe = GetEventData();
 	bi_nReloadTarget = GetEventData();
+	// Native bMap only checks hostile proximity; the fleet policy may clear it.
+	if (bSeaTravelSuperiority && !bDisableMapEnter) bMapEnter = true;
 	bEnableIslandSailTo = bMapEnter;
 	if(bDisableMapEnter)	bMapEnter = false;
 
