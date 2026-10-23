@@ -185,6 +185,8 @@ The [F2 section dispatch evidence](evidence/menu-sections-20261023/README.md)
 records the stale deferred-target reproduction and bounded CPU method check.
 The [spatial audio range evidence](evidence/spatial-audio-20261023/README.md)
 records the distant-collision mixer reproduction and finite-range repair.
+The [world-map mooring evidence](evidence/port-mooring-20261023/README.md)
+records local/world reload coordinates and the retained admission guards.
 
 ## Verification and troubleshooting
 

@@ -1,0 +1,34 @@
+{
+  "baseline": {
+    "Run": {
+      "seconds": 0.0411333329975605,
+      "exit": 1,
+      "stdout": "Run=2\nscript_errors=0\n",
+      "stderr": "",
+      "script_errors": ""
+    },
+    "Bench": {
+      "seconds": 0.04635045793838799,
+      "exit": 0,
+      "stdout": "Bench=0\nscript_errors=0\n",
+      "stderr": "",
+      "script_errors": ""
+    }
+  },
+  "current": {
+    "Run": {
+      "seconds": 0.011452917009592056,
+      "exit": 1,
+      "stdout": "Run=2\nscript_errors=0\n",
+      "stderr": "",
+      "script_errors": ""
+    },
+    "Bench": {
+      "seconds": 0.050150749972090125,
+      "exit": 0,
+      "stdout": "Bench=0\nscript_errors=0\n",
+      "stderr": "",
+      "script_errors": ""
+    }
+  }
+}

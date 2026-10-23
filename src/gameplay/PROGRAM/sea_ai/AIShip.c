@@ -4278,6 +4278,8 @@ void Ship_CheckMainCharacter()
 		{
 			aref arReload;
 			makearef(arReload, rIsland.Reload);
+			object reloadFrame;
+			Sea_RegionFrame(rIsland.id, &reloadFrame);
 
 			int iNumLocators = GetAttributesNum(arReload);
 			for (int j=0; j<iNumLocators; j++)
@@ -4292,8 +4294,10 @@ void Ship_CheckMainCharacter()
 					continue;
 				}
 
-				float x1 = stf(rIsland.reload.(sLocatorName).x);
-				float z1 = stf(rIsland.reload.(sLocatorName).z);
+				float localX = stf(rIsland.reload.(sLocatorName).x);
+				float localZ = stf(rIsland.reload.(sLocatorName).z);
+				float x1 = Sea_FramePointX(&reloadFrame, localX, localZ);
+				float z1 = Sea_FramePointZ(&reloadFrame, localX, localZ);
 				/*if (checkAttribute(rIsland, "reload."+sLocatorName+".wdmisland"))
 				{
 					wdmCurrentIsland = rIsland.reload.(sLocatorName).wdmisland;
