@@ -1787,6 +1787,8 @@ void Sea_CreateRegionGrass(int index, ref targetIsland, float dx, float dz)
     float scale = 10.0;
     if (CheckAttribute(&Islands[index], "jungle.scale")) scale = stf(Islands[index].jungle.scale);
     CreateEntity(grass, "Grass");
+    LayerDelObject(EXECUTE, grass);
+    LayerDelObject(REALIZE, grass);
     LayerAddObject(SEA_EXECUTE, grass, 1000);
     LayerAddObject(SEA_REALIZE, grass, 1000);
     SendMessage(grass, "ls", 41666, "Grass\" + Islands[index].jungle.texture + ".tga");

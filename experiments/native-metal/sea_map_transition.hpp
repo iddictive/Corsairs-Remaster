@@ -7,7 +7,9 @@
 #include "world_map_player_model.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 
 // One owner for the outgoing camera and GPU-only handoff. The map loader owns
 // readiness; elapsed time never exposes an incomplete destination.
@@ -27,6 +29,19 @@ class SeaMapTransition final : public Entity
     bool captured = false, committed = false, ready = false;
     bool reverse = false, seaOnly = false;
     inline static SeaMapTransition *active = nullptr;
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point started = Clock::now(), previousExecute = started;
+    const char *phase = "flight";
+    double largestGapMs = 0;
+
+    void tracePhase(const char *next)
+    {
+        if (seaOnly) return;
+        phase = next;
+        const double elapsed = std::chrono::duration<double, std::milli>(Clock::now() - started).count();
+        std::fprintf(stderr, "[SeaMapTransition] %s phase=%s elapsed_ms=%.3f max_frame_gap_ms=%.3f\n",
+                     reverse ? "map-to-sea" : "sea-to-map", phase, elapsed, largestGapMs);
+    }
 
     static float ease(float t)
     {
@@ -153,6 +168,7 @@ class SeaMapTransition final : public Entity
             // No readback, synchronization or screenshot.
             if (!capture()) core.Trace("SeaMapTransition: GPU frame capture failed");
             captured = true;
+            tracePhase("captured");
             if (!reverse && !storm_map_player::prepareSeaVisual(AttributesPointer->GetAttribute("shipModel")))
                 core.Trace("SeaMapTransition: live player miniature unavailable");
         }
@@ -172,6 +188,7 @@ class SeaMapTransition final : public Entity
                                     std::cos(angles.y) * std::cos(angles.x)) * distance;
             ready = true;
             landingTime = 0;
+            tracePhase("scene-ready");
         }
         drawOverlay();
     }
@@ -188,6 +205,7 @@ class SeaMapTransition final : public Entity
         }
         if (ready && (seaOnly ? reveal >= 1 : reverse ? landing >= flightDuration : reveal >= 1))
         {
+            tracePhase("done");
             core.PostEvent("Sea_MapTransitionDone", 0, nullptr);
             core.EraseEntity(GetId());
         }
@@ -268,6 +286,7 @@ public:
                                 std::cos(angles.y) * std::cos(angles.x)) * distance;
         pauseRevision = core.GetScenePauseRevision();
         active = this;
+        tracePhase("flight");
         core.SetLayerType(FADER_EXECUTE, layer_type_t::execute);
         core.SetLayerType(FADER_REALIZE, layer_type_t::realize);
         core.AddToLayer(FADER_EXECUTE, GetId(), 65535);
@@ -279,6 +298,17 @@ public:
         if (stage == Stage::execute)
         {
             const auto revision = core.GetScenePauseRevision();
+            if (!seaOnly)
+            {
+                const auto now = Clock::now();
+                const double gap = std::chrono::duration<double, std::milli>(now - previousExecute).count();
+                previousExecute = now;
+                if (revision == pauseRevision && core.GetTimeScale() > 0 && gap >= 50 && gap > largestGapMs)
+                {
+                    largestGapMs = gap;
+                    tracePhase(phase);
+                }
+            }
             if (revision == pauseRevision && core.GetTimeScale() > 0)
             {
                 const float delta = core.GetRDeltaTime() * .001f;
@@ -292,12 +322,14 @@ public:
             if (captured && !committed)
             {
                 committed = true;
+                tracePhase("commit");
                 core.PostEvent(reverse ? "Wdm_SeaTransitionCommit" : "Sea_MapTransitionCommit", 0, nullptr);
             }
             if (!seaOnly && committed && !ready && AttributesPointer->GetAttributeAsDword("mapReady"))
             {
                 ready = true;
                 landingTime = 0;
+                tracePhase("map-ready");
             }
         }
         else if (stage == Stage::realize) realize();

@@ -142,6 +142,12 @@ saved-map initialization keeps it. Native land collision still protects the hull
 
 ## Unresolved acceptance
 
+The player clarified on October23 that camera motion must remain, with no loading
+pause or frozen frame at the sea/map seam. Removing the flight animation does
+not meet that request. The [resident camera replay](evidence/sea-map-transition-20261023/README.md)
+isolates stale map pose and a one-frame yaw discontinuity; correcting those
+does not establish that preparation or first-render stalls are absent.
+
 Installed sea → map → sea replay must prove ship-size/anchor continuity,
 day/night visibility, absence of visible loading stalls, retained encounter
 and fleet semantics, normal controls after reveal and no stranded transition.

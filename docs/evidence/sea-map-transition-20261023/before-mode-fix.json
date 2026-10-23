@@ -1,0 +1,78 @@
+{
+  "baseline": [
+    {
+      "prior_free": 0,
+      "yaw_error": -1.99999988,
+      "anchor_error": 0
+    },
+    {
+      "released_free": 0,
+      "yaw_error": -1.99999988
+    },
+    {
+      "free_to_follow": 0,
+      "yaw_error": -1.75007832
+    },
+    {
+      "prior_free": 1,
+      "yaw_error": -1.99999988,
+      "anchor_error": 1144.77075
+    },
+    {
+      "released_free": 1,
+      "yaw_error": -1.99999988
+    },
+    {
+      "free_to_follow": 1,
+      "yaw_error": -1.75007832
+    },
+    {
+      "ordinary_yaw_error": 0
+    },
+    {
+      "locked_yaw_error": 0
+    },
+    {
+      "million_move_seconds": 0.027865,
+      "retained_yaw": 2.5999999
+    }
+  ],
+  "current": [
+    {
+      "prior_free": 0,
+      "yaw_error": 0,
+      "anchor_error": 0
+    },
+    {
+      "released_free": 0,
+      "yaw_error": -1.99999988
+    },
+    {
+      "free_to_follow": 0,
+      "yaw_error": 2
+    },
+    {
+      "prior_free": 1,
+      "yaw_error": 0,
+      "anchor_error": 0
+    },
+    {
+      "released_free": 1,
+      "yaw_error": -1.99999988
+    },
+    {
+      "free_to_follow": 1,
+      "yaw_error": 2
+    },
+    {
+      "ordinary_yaw_error": 0
+    },
+    {
+      "locked_yaw_error": 0
+    },
+    {
+      "million_move_seconds": 0.020920834,
+      "retained_yaw": 2.5999999
+    }
+  ]
+}

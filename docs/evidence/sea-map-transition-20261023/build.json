@@ -1,0 +1,25 @@
+{
+  "native_build": {
+    "version": 2,
+    "source_sha256": "497eed200c9c1e8686c5b0165996348e5982afd74be24176808b4282e2f18e49",
+    "engine_sha256": "b390f1c6178de00450a9ee1811d54232997e2fef866b6313d96687447adabe1f"
+  },
+  "source_files": {
+    "experiments/native-metal/engine/src/libs/worldmap/src/wdm_camera.cpp": "2b79a7e8e82927766fb2ccb48ab7a8a541d45bbbb85b0c1d07d1089dedff53ba",
+    "experiments/native-metal/engine/src/libs/worldmap/src/world_map.cpp": "3c4628ab1409c61bd65e5b82492ad981b47f1596c3139c71fd75265a8eb176d3",
+    "experiments/native-metal/sea_map_transition.hpp": "3ad964bf2cc6339819f76e02c22b71fb31ab2a9f5c8289451faa84c931dfd0cc",
+    "src/gameplay/PROGRAM/sea_ai/sea.c": "27434b18cee620f5fa6ffbdbeb1a9455628ab56e14861366054881edfc88ceff"
+  },
+  "installed": {
+    "engine_sha256": "23fc682a041628bd5a730788c484afb51b829c2816bc3da78f90094084cbfa6d",
+    "sea_script_sha256": "d418dbcc2c27c22f1394e97694f8ee761d6201517e02c44558a098cc7e4b98dc"
+  },
+  "verification": {
+    "native_build": "passed",
+    "installed_delivery": "passed transactional signatures and byte comparison",
+    "camera_component": "results.json",
+    "forest_source_contract": "../worldmap-forest-leak-20261023/README.md",
+    "installed_gameplay": "pending player",
+    "freeze_absence": "not established"
+  }
+}

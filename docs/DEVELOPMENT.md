@@ -187,6 +187,8 @@ The [spatial audio range evidence](evidence/spatial-audio-20261023/README.md)
 records the distant-collision mixer reproduction and finite-range repair.
 The [world-map mooring evidence](evidence/port-mooring-20261023/README.md)
 records local/world reload coordinates and the retained admission guards.
+The [resident camera continuity evidence](evidence/sea-map-transition-20261023/README.md)
+records stale camera state and the first-frame yaw discontinuity at mode changes.
 
 ## Verification and troubleshooting
 

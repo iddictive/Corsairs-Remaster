@@ -1,0 +1,22 @@
+{
+  "artifact": {
+    "image": "user-report.png",
+    "sha256": "6852b43a3479c60b8ec8f2386ef24095828cf3628d76af148fdf2e2ecc8651bb",
+    "observed_symptom": "Global chart view shows floating black unlit tree silhouette in ocean east of Puerto Rico/Fajardo and partial silhouette southwest, consistent with leaked physical forest entity rendered under global map camera."
+  },
+  "proven_causal_chain": {
+    "creation_defaults": "Grass::Init (grass.cpp:244-247) unconditionally registers in EXECUTE (0) and REALIZE (1). Land location (Location::LoadGrass, location.cpp:845-865) relies on these and erases on location unload.",
+    "sea_creation_leak": "Sea_CreateRegionGrass (sea.c:1789-1791) added SEA_EXECUTE (2) and SEA_REALIZE (3) without LayerDelObject(EXECUTE/REALIZE, grass), leaving duplicate layer membership.",
+    "worldmap_leak": "Sea_ResidentSuspend (sea.c:474-479) freezes sea layers and unfreezes EXECUTE/REALIZE for worldmap. Grass::Realize dispatched on every worldmap frame, rendering physical island forest with map camera."
+  },
+  "fix": {
+    "file": "src/gameplay/PROGRAM/sea_ai/sea.c",
+    "function": "Sea_CreateRegionGrass",
+    "delta": "LayerDelObject(EXECUTE, grass); LayerDelObject(REALIZE, grass); immediately after CreateEntity",
+    "pattern_parity": "Matches existing layer transfer pattern used by WhrSky, WhrRain, WhrLightning, WhrSun, AISea"
+  },
+  "acceptance": {
+    "source_contract": "Accepted by direct source contract",
+    "manual_visual_acceptance": "Pending player replay on global chart"
+  }
+}

@@ -54,6 +54,12 @@ void WdmCamera::Init(float defAy, float defHeight)
         defHeight = WDM_CAMERA_HEIGHT_MAX;
     pos.y = defHeight;
     realHeight = pos.y;
+    // A resident map reuses this camera after the ship moved at sea. Re-arm
+    // the same first-pose path used by a newly constructed map camera.
+    isInit = false;
+    isFreeMode = false;
+    lastAng = ang.y;
+    kBlendPos = 1.0f;
 }
 
 void WdmCamera::Move(float dltTime, VDX9RENDER *rs)
@@ -95,6 +101,7 @@ void WdmCamera::Move(float dltTime, VDX9RENDER *rs)
             bndPos = pos;
         }
         isFreeMode = freeMode;
+        ang.y = this->ang.y;
     }
     if (!freeMode)
         ang.y += elasticAy;
