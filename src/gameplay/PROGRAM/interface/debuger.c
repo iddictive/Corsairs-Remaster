@@ -88,23 +88,39 @@ void DebugMenu_Refresh()
 	for (i = slot; i < 12; i++) SetNodeUsing("ACTION" + i,false);
 }
 
+string DebugMenu_GroupName(int group)
+{
+	switch (group)
+	{
+		case 0: return "Эффекты"; break;
+		case 1: return "Персонаж"; break;
+		case 2: return "Готовые наборы"; break;
+		case 3: return "Корабль и команда"; break;
+		case 4: return "Мир и перемещение"; break;
+		case 5: return "Квесты"; break;
+		case 6: return "Камера"; break;
+		case 7: return "Диагностика"; break;
+	}
+	return "";
+}
+
 void DebugMenu_SelectGroup(int group)
 {
 	DebugMenuGroup = group;
 	for (int i = 0; i < 8; i++) SetNodeUsing("SELECTED" + i,i == group);
 	DebugMenu_Refresh();
-	string title;
+	string title = DebugMenu_GroupName(group);
 	string hint;
 	switch (group)
 	{
-		case 0: title = "Эффекты"; hint = "Цунами работает в море и на карте. Кольцо — только на карте, водоворот и фонк — в море. Запуск эффекта возвращает в игру."; break;
-		case 1: title = "Персонаж"; hint = "Деньги, навыки, репутация и режим бессмертия."; break;
-		case 2: title = "Готовые наборы"; hint = "Каждый набор заменяет корабль, навыки, снаряжение и запасы героя."; break;
-		case 3: title = "Корабль и команда"; hint = "Кнопки классов заменяют текущий корабль следующим кораблём выбранного класса, с экипажем и грузом."; break;
-		case 4: title = "Мир и перемещение"; hint = "Погода, время, встречи и отношения наций. Для точного перехода введите: локация, группа, локатор."; break;
-		case 5: title = "Квесты"; hint = "Состояние квестов и тестовый переход в истории проклятого идола."; break;
-		case 6: title = "Камера"; hint = "Камера, локаторы и интерфейс. Свободная камера требует включённых debug-клавиш в engine.ini."; break;
-		case 7: title = "Диагностика"; hint = "Логи, атрибуты, статистика читов и обновление данных."; break;
+		case 0: hint = "Цунами работает в море и на карте. Кольцо — только на карте, водоворот и фонк — в море. Запуск эффекта возвращает в игру."; break;
+		case 1: hint = "Деньги, навыки, репутация и режим бессмертия."; break;
+		case 2: hint = "Каждый набор заменяет корабль, навыки, снаряжение и запасы героя."; break;
+		case 3: hint = "Кнопки классов заменяют текущий корабль следующим кораблём выбранного класса, с экипажем и грузом."; break;
+		case 4: hint = "Погода, время, встречи и отношения наций. Для точного перехода введите: локация, группа, локатор."; break;
+		case 5: hint = "Состояние квестов и тестовый переход в истории проклятого идола."; break;
+		case 6: hint = "Камера, локаторы и интерфейс. Свободная камера требует включённых debug-клавиш в engine.ini."; break;
+		case 7: hint = "Логи, атрибуты, статистика читов и обновление данных."; break;
 	}
 	SetFormatedText("SECTION_TITLE",title);
 	SetNodeUsing("DEBUGER_INFO",true);
@@ -185,6 +201,13 @@ void InitInterface(string iniName)
 	
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
 	SetFormatedText("TITLE","Дебаг-меню");
+	// TEXTBUTTON's INI string is a localization key; #literal is supported by message 0.
+	for (int category = 0; category < 8; category++)
+	{
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"CATEGORY" + category,0,"#" + DebugMenu_GroupName(category));
+	}
+	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"CLOSE",0,"#Вернуться в игру");
+	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TELEPORT_BTN",0,"#Телепорт");
 
 	CalculateInfoData();
 
