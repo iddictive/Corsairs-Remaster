@@ -5,11 +5,12 @@
 #include "entity.h"
 #include "shared/layers.h"
 #include "world_map_player_model.hpp"
+#include "logging.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
+#include <cstring>
 
 // One owner for the outgoing camera and GPU-only handoff. The map loader owns
 // readiness; elapsed time never exposes an incomplete destination.
@@ -34,13 +35,26 @@ class SeaMapTransition final : public Entity
     const char *phase = "flight";
     double largestGapMs = 0;
 
+    static storm::logging::logger_ptr log()
+    {
+        static const auto logger = [] {
+            try { return storm::logging::getOrCreateLogger("sea-map-transition"); }
+            catch (...) { return storm::logging::logger_ptr{}; }
+        }();
+        return logger;
+    }
+
     void tracePhase(const char *next)
     {
         if (seaOnly) return;
         phase = next;
         const double elapsed = std::chrono::duration<double, std::milli>(Clock::now() - started).count();
-        std::fprintf(stderr, "[SeaMapTransition] %s phase=%s elapsed_ms=%.3f max_frame_gap_ms=%.3f\n",
-                     reverse ? "map-to-sea" : "sea-to-map", phase, elapsed, largestGapMs);
+        if (const auto logger = log())
+        {
+            logger->info("{} phase={} elapsed_ms={:.3f} max_frame_gap_ms={:.3f}",
+                         reverse ? "map-to-sea" : "sea-to-map", phase, elapsed, largestGapMs);
+            if (std::strcmp(next, "done") == 0) logger->flush();
+        }
     }
 
     static float ease(float t)
@@ -211,6 +225,11 @@ class SeaMapTransition final : public Entity
         }
     }
 public:
+    static void TraceDuration(const char *phase, double milliseconds)
+    {
+        if (Active())
+            if (const auto logger = log()) logger->info("{} cpu_ms={:.3f}", phase, milliseconds);
+    }
     static float MapViewPitch(float destination)
     {
         if (!active || active->reverse) return destination;

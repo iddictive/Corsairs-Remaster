@@ -1,0 +1,19 @@
+{
+  "native_build": {
+    "version": 2,
+    "source_sha256": "765bd0a420d464da61c494b6f0142d4f2df0222fa61dd3b8991e44a2cf43995d",
+    "engine_sha256": "5e8a092656b5336e9fed07d24a6d279ccdc8e8c97403d0938db29874f3a304c2"
+  },
+  "installed": {
+    "engine_sha256": "540000f178dc790b73a05c337e6e11da18aa270f46ddd9336d81f1a5f72b5f53"
+  },
+  "delivery_command": "bash experiments/native-metal/install-engine.sh --seamless",
+  "verification": {
+    "native_build": "passed",
+    "installed_delivery": "passed transactional signatures and byte comparison",
+    "quiet_logger": "logging-results.json",
+    "previous_player_replay": "return froze; outbound motion was not fully smooth",
+    "installed_gameplay": "pending player",
+    "freeze_absence": "not established"
+  }
+}

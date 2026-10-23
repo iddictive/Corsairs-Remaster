@@ -13,7 +13,6 @@
 #include "world_map_resources.hpp"
 
 #include <chrono>
-#include <cstdio>
 
 #include "shared/messages.h"
 #include "weather_base.h"
@@ -281,9 +280,8 @@ bool WorldMap::EnterResidentMap()
     if (saveData)
         for (uint32_t i = 0; i < saveData->GetAttributesNum(); ++i)
             RestoreEncounter(saveData->GetAttributeClass(i));
-    if (SeaMapTransition::Active())
-        std::fprintf(stderr, "[SeaMapTransition] resident-entry cpu_ms=%.3f\n",
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - entered).count());
+    SeaMapTransition::TraceDuration("resident-entry",
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - entered).count());
     return true;
 }
 
@@ -684,9 +682,8 @@ void WorldMap::Realize(uint32_t delta_time)
         const auto started = std::chrono::steady_clock::now();
         camera->Move(0.0f, rs);
         RenderObjects();
-        if (SeaMapTransition::Active())
-            std::fprintf(stderr, "[SeaMapTransition] first-map-render cpu_ms=%.3f\n",
-                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
+        SeaMapTransition::TraceDuration("first-map-render",
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
         transitionPresented = true;
         AttributesPointer->SetAttributeUseDword("transitionReady", 1);
         core.PostEvent("WorldMap_TransitionReady", 0, nullptr);

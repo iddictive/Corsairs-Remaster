@@ -1,0 +1,10 @@
+{
+  "quiet": {
+    "exit": 0,
+    "canary_written": true
+  },
+  "blocked": {
+    "exit": 7,
+    "canary_written": false
+  }
+}

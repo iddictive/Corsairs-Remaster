@@ -37,7 +37,8 @@ acceptance; an offline camera replay cannot establish those properties.
 
 The camera correction adds no per-frame work. Separate, transition-only timing
 records phase timestamps and the largest new frame gap of at least50ms to the
-ordinary launcher stderr log. Pause/revision changes and a zero time scale are
+existing native logger's `Logs/sea-map-transition.log` in the configured userdata
+directory. Pause/revision changes and a zero time scale are
 excluded. `resident-entry cpu_ms` measures the retained-host activation;
 `first-map-render cpu_ms` measures its initial draw submissions. `map-ready`
 follows the script's interface/fort setup; `scene-ready` follows the first sea
@@ -49,8 +50,25 @@ inactive until the handoff. Initial map drawing can create uncached Metal pipeli
 states synchronously; script fleet snapshots, encounter restoration and interface
 creation also remain on the commit/readiness path. No current player trace
 distinguishes those candidates. The ordinary launcher disables the existing broad
-profiler, so the new bounded records use stderr directly without altering player
-settings or showing diagnostics in the game UI.
+profiler. The first installed timing attempt used stderr, but the player's
+ordinary app process had both streams connected to `/dev/null`; that attempt
+captured no transition data. The corrected route uses the existing native
+`getOrCreateLogger`/`fs::GetLogsPath` owner, flushes on transition completion and
+does not alter player settings or show diagnostics in the game UI. Unavailable
+storage disables this optional logger instead of failing scene entry.
+
+The player replayed installed engine `23fc682a041628bd5a730788c484afb51b829c2816bc3da78f90094084cbfa6d`
+and reported a return-to-sea freeze and imperfect outbound motion. This reopens
+runtime acceptance despite the successful camera component checks. No timing
+cause can be inferred from that failed stderr recording.
+
+`logging_replay.py` links the actual existing native diagnostics library and
+extracts the current logger factory. With the default logger disabled,
+`STORM_QUIET_CLIENT=1` and stdout/stderr both discarded, its canary is written
+and flushed. The blocked-directory negative returns the handled failure signal
+without aborting. [Raw outcomes](logging-results.json) and the [quiet canary](logging-quiet.txt)
+retain that distinction. The [corrected native delivery](logging-build.json) is
+installed; another player transition is required to locate the actual stall.
 
 The compatible platform alternative is [asynchronous Metal pipeline creation](https://developer.apple.com/documentation/metal/mtldevice/1433365-newrenderpipelinestatewithdescri?language=objc).
 The renderer already caches pipeline states. Defer an asynchronous/cache redesign
