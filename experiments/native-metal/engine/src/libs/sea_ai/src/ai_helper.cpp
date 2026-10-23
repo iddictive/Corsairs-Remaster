@@ -97,14 +97,33 @@ void AIHelper::CalculateRelations()
     STORM_DELETE(pRelations);
     dwRelationSize = aCharacters.size();
     pRelations = new uint32_t[SQR(dwRelationSize)];
+    // A convoy shares commanders. Query each directed commander pair once in
+    // this snapshot, retaining immediate refresh on the next calculation.
+    std::vector<ATTRIBUTES *> commanders;
+    std::vector<size_t> commanderOf;
+    for (auto *commander : aMainCharacters)
+    {
+        auto it = std::find(commanders.begin(), commanders.end(), commander);
+        commanderOf.push_back(it - commanders.begin());
+        if (it == commanders.end()) commanders.push_back(commander);
+    }
+    const size_t count = commanders.size();
+    std::vector<uint32_t> relations(count * count);
+    std::vector<unsigned char> ready(count * count, 0);
     for (y = 0; y < dwRelationSize; y++)
         for (x = 0; x < dwRelationSize; x++)
             if (x != y)
             {
-                auto *pData =
-                    core.Event(GET_RELATION_EVENT, "ll", GetIndex(aMainCharacters[y]), GetIndex(aMainCharacters[x]));
-                Assert(pData);
-                *GetRelation(y, x) = static_cast<uint32_t>(pData->GetInt());
+                const size_t pair = commanderOf[y] * count + commanderOf[x];
+                if (!ready[pair])
+                {
+                    auto *pData = core.Event(GET_RELATION_EVENT, "ll",
+                        GetIndex(aMainCharacters[y]), GetIndex(aMainCharacters[x]));
+                    Assert(pData);
+                    relations[pair] = static_cast<uint32_t>(pData->GetInt());
+                    ready[pair] = 1;
+                }
+                *GetRelation(y, x) = relations[pair];
             }
             else
             {

@@ -196,10 +196,16 @@ void wdmPreparePlayerShipVisual()
 
 void wdmCreateWorldMap()
 {
-	SeaTraffic_Stop();
-	DeleteAttribute(&AISea, "worldFrame");
+    bool retainedSea = Sea_ResidentSuspended();
+    if (!retainedSea)
+    {
+        // Saved maps and non-atlas entries have no live resident scene.
+        bSeaResidentSuspended = false;
+	    SeaTraffic_Stop();
+	    DeleteAttribute(&AISea, "worldFrame");
+    }
 	WdmMilitaryParticipationWorldMap();
-	WdmFleetSeaReconcileWorldMap();
+	if (!retainedSea) WdmFleetSeaReconcileWorldMap();
 	WdmTrafficApplyVisibility();
 	WdmTrafficRefresh();
 	wdmLockReload = false;
@@ -226,7 +232,8 @@ void wdmCreateWorldMap()
 	if (cinematic && !CheckAttribute(&worldMap, "directSail"))
 		SetEventHandler("WorldMap_TransitionReady", "wdmTransitionReady", 0);
     GreatRecipe_MapSeed();
-	CreateEntity(&worldMap,"worldmap");
+    if (retainedSea) CreateEntity(&worldMap,"WorldMapResident");
+    else CreateEntity(&worldMap,"worldmap");
 	if (cinematic) return;
 	wdmFinishWorldMap(false);
 }
@@ -371,7 +378,8 @@ void wdmRemoveOldEncounters()
 	for(int i = 0; i < num; i++)
 	{
 		aref enc = GetAttributeN(encs, i);
-		if(CheckAttribute(enc, "needDelete") != 0)
+		if(CheckAttribute(enc, "needDelete") != 0 &&
+            !(Sea_ResidentSuspended() && CheckAttribute(enc, "trafficInSea") && sti(enc.trafficInSea)))
 		{
 			attr = "del" + count;
 			forDelete.(attr) = GetAttributeName(enc);

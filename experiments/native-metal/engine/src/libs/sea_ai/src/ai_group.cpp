@@ -377,6 +377,45 @@ void AIGroup::SetXYZ_AY(const char *pGroupName, CVECTOR vPos, float _fAY)
     pAIGroup->vInitGroupPos.z = vPos.z;
 }
 
+bool AIGroup::Relocate(const char *groupName, float x, float z, float heading)
+{
+    auto *group = FindGroup(groupName);
+    if (!group || group->aGroupShips.empty() || !std::isfinite(x) || !std::isfinite(z) ||
+        !std::isfinite(heading)) return false;
+    auto *leader = group->GetMainShip();
+    if (!leader) return false;
+    const auto origin = leader->GetPos();
+    const double turn = std::remainder(double(heading) - leader->GetAng().y, double(PIm2));
+    const double c = std::cos(turn), s = std::sin(turn);
+    const storm_sea_atlas::Frame pose{{{c, s, -s, c,
+        x - c * origin.x - s * origin.z, z + s * origin.x - c * origin.z}}};
+    if (!pose.Rigid()) return false;
+    for (auto *ship : group->aGroupShips)
+    {
+        const auto position = pose.Point(ship->GetPos());
+        if (!std::isfinite(position.x) || !std::isfinite(position.z)) return false;
+    }
+    group->vMovePoint = pose.Point(group->vMovePoint);
+    group->vInitGroupPos = CVECTOR(x, heading, z);
+    for (auto *ship : group->aGroupShips)
+    {
+        ship->SetPos(pose.Point(ship->GetPos()));
+        ship->SetAngleY(pose.Heading(ship->GetAng().y));
+        ship->GetMoveController()->Relocate(pose);
+        ship->GetTaskController()->Relocate(pose);
+        ship->GetTouchController()->ResetAfterRelocate();
+        core.Send_Message(ship->GetShipEID(), "l", MSG_SHIP_RESET_TRACK);
+        auto *character = ship->GetACharacter();
+        auto *position = character->CreateSubAClass(character, "Ship.Pos");
+        const auto point = ship->GetPos();
+        position->SetAttributeUseFloat("x", point.x);
+        position->SetAttributeUseFloat("y", point.y);
+        position->SetAttributeUseFloat("z", point.z);
+        character->CreateSubAClass(character, "Ship.Ang")->SetAttributeUseFloat("y", ship->GetAng().y);
+    }
+    return true;
+}
+
 AIShip *AIGroup::ExtractShip(ATTRIBUTES *pACharacter)
 {
     for (uint32_t i = 0; i < aGroupShips.size(); i++)

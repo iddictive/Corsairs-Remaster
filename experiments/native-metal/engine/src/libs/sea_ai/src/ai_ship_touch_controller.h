@@ -27,6 +27,7 @@ class AIShipTouchController
 
     // init/execute/realize section
     virtual bool Init();
+    void ResetAfterRelocate();
     virtual void Execute(float);
     virtual void Realize(float);
 

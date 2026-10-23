@@ -48,6 +48,43 @@ class WorldMapSeaTraffic final : public WorldMap
 };
 CREATE_CLASS(WorldMapSeaTraffic)
 
+// The script's worldMap entity is a mode handle. Navigation, encounters and
+// resources remain owned by the existing sea host; no second WdmObjects exists.
+class WorldMapResident final : public Entity
+{
+    entid_t hostId{};
+    WorldMap *Host() const
+    {
+        return core.IsEntityValid(hostId) ? static_cast<WorldMap *>(core.GetEntityPointer(hostId)) : nullptr;
+    }
+public:
+    bool Init() override
+    {
+        hostId = core.GetEntityId("WorldMapSeaTraffic");
+        auto *host = Host();
+        if (!host || !host->EnterResidentMap()) return false;
+        core.AddToLayer(EXECUTE, GetId(), 10000);
+        core.AddToLayer(REALIZE, GetId(), 10000);
+        return true;
+    }
+    ~WorldMapResident() override { if (auto *host = Host()) host->LeaveResidentMap(); }
+    void ProcessStage(Stage stage, uint32_t delta) override
+    {
+        if (auto *host = Host()) host->ProcessStage(stage, delta);
+    }
+    uint64_t ProcessMessage(MESSAGE &message) override
+    {
+        auto *host = Host();
+        return host ? host->ProcessMessage(message) : 0;
+    }
+    uint32_t AttributeChanged(ATTRIBUTES *attribute) override
+    {
+        auto *host = Host();
+        return host ? host->AttributeChanged(attribute) : 0;
+    }
+};
+CREATE_CLASS(WorldMapResident)
+
 //============================================================================================
 
 //#define EVENTS_OFF
@@ -170,6 +207,99 @@ bool WorldMap::Init()
     return true;
 }
 
+void WorldMap::InitMapCamera()
+{
+    if (!camera) camera = new WdmCameraStdCtrl();
+    const float yaw = AttributesPointer->GetAttributeAsFloat("wdmCameraAY");
+    const float height = AttributesPointer->GetAttributeAsFloat("wdmCameraY", -1.f);
+    camera->Init(yaw, height);
+    camera->ang.x = storm_map_player::savedMapPitch(
+        AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x));
+    camera->lock = AttributesPointer->GetAttributeAsDword("wdmCameraRotLock") != 0;
+    wdmObjects->SetWindSaveString(AttributesPointer->GetAttribute("WindData"));
+    wdmObjects->shipSpeedOppositeWind = AttributesPointer->GetAttributeAsFloat(
+        "shipSpeedOppositeWind", wdmObjects->shipSpeedOppositeWind);
+    wdmObjects->shipSpeedOverWind = AttributesPointer->GetAttributeAsFloat(
+        "shipSpeedOverWind", wdmObjects->shipSpeedOverWind);
+}
+
+// Complete the missing view on the same resource owner, one existing loader
+// step per sea frame. It stays resident after the map handle is destroyed.
+bool WorldMap::PrepareMapView()
+{
+    switch (mapViewPhase)
+    {
+    case 0:
+        AddObject(new WdmSea(true));
+        ++mapViewPhase;
+        return false;
+    case 1:
+        if (!wdmObjects->sea->LoadNext()) return false;
+        AddPObject(wdmObjects->sea, 10);
+        AddLObject(wdmObjects->sea, wdm::render_levels::Sea);
+        AddLObject(AddObject(new WdmWeatherRegions()), wdm::render_levels::Ship + 1);
+        ++mapViewPhase;
+        return false;
+    case 2:
+    {
+        InitMapCamera();
+        auto *windUI = new WdmWindUI();
+        windUI->SetAttributes(AttributesPointer);
+        AddLObject(AddObject(windUI, 1001), 10100);
+        AddLObject(AddObject(new WdmIcon(), 1000), 10099);
+        ++mapViewPhase;
+        return true;
+    }
+    default:
+        return true;
+    }
+}
+
+bool WorldMap::EnterResidentMap()
+{
+    if (worldReleased || !seaTraffic || !loadComplete) return false;
+    residentMap = true;
+    seaTraffic = false;
+    rs->SetPerspective(storm_map_player::perspective);
+    transitionLoad = true;
+    transitionPresented = false;
+    AttributesPointer->SetAttributeUseDword("transitionReady", 0);
+    wdmObjects->isPause = false;
+    wdmObjects->playerShip->Teleport(AttributesPointer->GetAttributeAsFloat("playerShipX"),
+        AttributesPointer->GetAttributeAsFloat("playerShipZ"), AttributesPointer->GetAttributeAsFloat("playerShipAY"));
+    if (camera) InitMapCamera();
+    hour = aDate->GetAttributeAsDword("hour") + aDate->GetAttributeAsDword("min") / 60.f +
+           aDate->GetAttributeAsDword("sec") / 3600.f;
+    day = aDate->GetAttributeAsDword("day", day);
+    mon = aDate->GetAttributeAsDword("month", mon);
+    year = aDate->GetAttributeAsDword("year", year);
+    timeScale = aDate->GetAttributeAsFloat("hourPerSec", timeScale);
+    // Mounted physical fleets stay frozen and exclusively sea-owned. The map
+    // advances only their strategic poses; roster attrition remains sea-owned.
+    if (saveData)
+        for (uint32_t i = 0; i < saveData->GetAttributesNum(); ++i)
+            RestoreEncounter(saveData->GetAttributeClass(i));
+    return true;
+}
+
+void WorldMap::LeaveResidentMap()
+{
+    if (worldReleased || !residentMap) return;
+    for (auto *ship : wdmObjects->ships)
+    {
+        if (ship == wdmObjects->playerShip || ship->killMe) continue;
+        auto *enemy = static_cast<WdmEnemyShip *>(ship);
+        const auto *data = saveData ? saveData->GetAttributeClass(enemy->GetAttributeName()) : nullptr;
+        if (data && data->GetAttributeAsDword("trafficInSea")) enemy->RetireEncounter();
+        ship->isSelect = false;
+    }
+    seaTraffic = true;
+    residentMap = false;
+    seaTime = -1.f;
+    seaResidencyMs = 0;
+    seaIsland.clear();
+}
+
 // One preparation step per ordinary engine frame. Default loads drain the same
 // steps synchronously, preserving their resource and descriptor order.
 bool WorldMap::LoadNext()
@@ -207,15 +337,10 @@ bool WorldMap::LoadNext()
     case 4:
     {
     // Create a camera
-    if (!seaTraffic) camera = new WdmCameraStdCtrl();
-    auto camAy = 0.0f;
-    auto camH = -1.0f;
-    auto camLock = false;
+    if (!seaTraffic) InitMapCamera();
+    else {
     if (AttributesPointer)
     {
-        camAy = AttributesPointer->GetAttributeAsFloat("wdmCameraAY", camAy);
-        camH = AttributesPointer->GetAttributeAsFloat("wdmCameraY", camH);
-        camLock = AttributesPointer->GetAttributeAsDword("wdmCameraRotLock", false) != 0;
         wdmObjects->SetWindSaveString(AttributesPointer->GetAttribute("WindData"));
         wdmObjects->shipSpeedOppositeWind =
             AttributesPointer->GetAttributeAsFloat("shipSpeedOppositeWind", wdmObjects->shipSpeedOppositeWind);
@@ -226,12 +351,6 @@ bool WorldMap::LoadNext()
     {
         wdmObjects->SetWindSaveString(nullptr);
     }
-    if (camera) {
-    camera->Init(camAy, camH);
-    camera->ang.x = storm_map_player::savedMapPitch(AttributesPointer ?
-        AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x) : camera->ang.x);
-    if (AttributesPointer) AttributesPointer->SetAttributeUseFloat("wdmCameraAX", camera->ang.x);
-    camera->lock = camLock;
     }
     // create the player's ship
     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
@@ -401,7 +520,7 @@ void WorldMap::RestoreEncounter(ATTRIBUTES *a)
             storm::iEquals(static_cast<WdmEnemyShip *>(ship)->GetAttributeName(), a->GetThisName()))
             return;
     // A tagged fleet is owned by the sea scene until its survivor handback.
-    if (a->GetAttributeAsDword("trafficInSea")) return;
+    if (a->GetAttributeAsDword("trafficInSea") && !residentMap) return;
     const char *type = a->GetAttribute("type");
     const char *modelName = a->GetAttribute("modelName");
     if (!type || !type[0])
@@ -481,6 +600,7 @@ void WorldMap::Execute(uint32_t delta_time)
     if (worldReleased) return;
     if (seaTraffic)
     {
+        PrepareMapView();
         auto *result = core.Event("SeaTraffic_SceneState");
         auto *scene = result ? result->GetAClass() : nullptr;
         if (!scene || !loadComplete) return;
@@ -526,6 +646,7 @@ void WorldMap::Execute(uint32_t delta_time)
         }
         return;
     }
+    if (residentMap && !PrepareMapView()) return;
     if (transitionLoad && !loadComplete)
     {
         // Consume cheap phases together; one slow indivisible resource is the
@@ -546,7 +667,9 @@ void WorldMap::Execute(uint32_t delta_time)
 
 void WorldMap::Realize(uint32_t delta_time)
 {
+    if (worldReleased) return;
     if (seaTraffic) return;
+    if (residentMap && mapViewPhase < 3) return;
     if (AttributesPointer->GetAttributeAsDword("directSail")) return;
     if (!loadComplete) return;
     if (transitionLoad && !transitionPresented)
@@ -749,7 +872,7 @@ void WorldMap::UpdateTraffic(float dltTime)
         if (saveData)
             for (uint32_t i = 0; i < saveData->GetAttributesNum(); ++i) {
                 auto *data = saveData->GetAttributeClass(i);
-                if (!data || !data->GetAttributeAsDword("trafficInSea") || data->GetAttribute("needDelete") ||
+                if (residentMap || !data || !data->GetAttributeAsDword("trafficInSea") || data->GetAttribute("needDelete") ||
                     data->GetAttribute("quest")) continue;
                 const auto role = data->GetAttributeAsDword("trafficRole");
                 if (role >= 1 && role <= 3) { ++population[role]; ++ordinary; }
@@ -796,6 +919,7 @@ void WorldMap::RenderObjects()
 // Messages
 uint64_t WorldMap::ProcessMessage(MESSAGE &message)
 {
+    if (worldReleased) return 0;
     // A sea host borrows canonical worldMap attributes without making that
     // script object an entity (its existence remains the map-mode contract).
     const auto code = message.Long();
@@ -804,7 +928,7 @@ uint64_t WorldMap::ProcessMessage(MESSAGE &message)
     {
     case MSG_WORLDMAP_NOTIFY: {
         const auto &path = message.String();
-        if (seaTraffic && path == "$shutdown") { ReleaseWorld(); return true; }
+        if (path == "$shutdown") { ReleaseWorld(); return true; }
         auto *attribute = AttributesPointer->FindAClass(AttributesPointer, path.c_str());
         if (attribute) AttributeChanged(attribute);
         return attribute != nullptr;
@@ -896,7 +1020,7 @@ uint64_t WorldMap::ProcessMessage(MESSAGE &message)
 uint32_t WorldMap::AttributeChanged(ATTRIBUTES *apnt)
 {
     float x, z, ay;
-    if (!apnt || !AttributesPointer || !loadComplete)
+    if (worldReleased || !apnt || !AttributesPointer || !loadComplete)
         return 0;
     if (apnt->GetParent() == AttributesPointer && storm::iEquals(apnt->GetThisName(), "restoreEncounter"))
     {

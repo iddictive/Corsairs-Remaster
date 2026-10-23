@@ -149,6 +149,9 @@ float4 shadeFixedFunction(O v,constant U& u,array<texture2d<float>,8> t,array<sa
 #endif
  float3 z_fog=float3(1.0);if(u.fogParams.w>0){float z=v.fog;float stormIntensity=smoothstep(0.0001f,0.02f,u.fogParams.z);float mieMultiplier=mix(0.1f,1.0f,stormIntensity);float mie=u.fogParams.z*mieMultiplier;float3 extinction=float3(5.8e-6f,13.5e-6f,33.1e-6f)*5.0f+float3(mie);if(u.fogParams.w==1){z_fog=exp(-extinction*z);}else if(u.fogParams.w==2){z_fog=exp(-pow(extinction*z,2.0f));}else{z_fog=float3(clamp((u.fogParams.y-z)/max(.0001f,u.fogParams.y-u.fogParams.x),0.f,1.f));}}current.rgb=mix(fogColor,current.rgb,z_fog);return current;}
 fragment float4 fs(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]]) {return shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);}
+// Physical atlas trees also contain underwater skirts/seabed. The ordinary
+// chart sea does not depth-occlude those surfaces; clip at its actual waterline.
+fragment float4 fs_chart(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]]) {if(v.localPosition.y<0.f)discard_fragment();return shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);}
 fragment float4 fs_solar(O v [[stage_in]],constant U& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> sam [[sampler(0)]],array<texturecube<float>,8> cubes [[texture(8)]],constant float4& directionBlend [[buffer(8)]],texture2d<float> cloudFrom [[texture(16)]],texture2d<float> cloudTo [[texture(17)]]) {
     float4 value=shadeFixedFunction(v,u,t,sam,cubes,u.fogColor.rgb);
     value.rgb*=pow(skySolarTransmission(directionBlend,cloudFrom,cloudTo),1.f/2.2f);
@@ -976,7 +979,7 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
   if(fireReceiver&&prepareShipFireMaterial()){shaderLibrary=shipFireMaterialLibrary;shaderKey|=0x80000ull;shipFireMaterialDraw=true;}
   const bool materialLibrary=shaderLibrary==library||shaderLibrary==shipFireMaterialLibrary;
   const bool fixedFunctionMaterial=materialLibrary&&
-      ([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]);
+      ([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"fs_solar"]||[pixelName isEqualToString:@"fs_chart"]);
   const bool specialize=ffpSpecialization.active()&&fixedFunctionMaterial;
   const auto stamp=aimReceiverStamp();
   const bool direct=aimModelScope.captured&&aimReceiverTarget()&&std::memcmp(&stamp,&aimModelScope.stamp,sizeof(stamp))==0&&rs[storm_render::RenderDepthTest]&&rs[storm_render::RenderDepthWrite]&&
@@ -1589,7 +1592,7 @@ if(priorSeaSun&&!(raw.lightMask&1u)){const auto sun=landShadow.traversalSunSnaps
  const auto sailIndexUpload=transientIndices?dynamicBuffer(ib):DynamicRawBuffer{};
  auto rawVertices=rawSkinned?vb->gpuSkinningBuffer:(transientSail?sailUpload.slice.buffer:residentBuffer(vb->bytes,vb->cacheIdentity,vb->cacheRevision));
  auto rawIndices=transientIndices?sailIndexUpload.slice.buffer:residentBuffer(ib->bytes,ib->cacheIdentity,ib->cacheRevision);if(!rawVertices||!rawIndices)return storm_render::result::outOfMemory;
- if(rawVisible){auto stateResult=applyState((rawSkinned?0x1900ull:0x1800ull)|(unlitRawModel?1ull:0ull),library,rawSkinned?@"vs_skinned":@"vs_landraw",unlitRawModel?@"fs":@"fs_landlit");if(storm_render::failed(stateResult))return stateResult;++telemetryReceiverDraws;}
+ if(rawVisible){const bool chartLand=rawWdmModel&&worldMapModelRole==2u;auto stateResult=applyState((rawSkinned?0x1900ull:0x1800ull)|(unlitRawModel?1ull:0ull)|(chartLand?2ull:0ull),library,rawSkinned?@"vs_skinned":@"vs_landraw",chartLand?@"fs_chart":unlitRawModel?@"fs":@"fs_landlit");if(storm_render::failed(stateResult))return stateResult;++telemetryReceiverDraws;}
  u=prepareFixedFunction(rawVisible);
  auto lighting=landShadow.sampling(worldMatrix);lighting.flags.z=preserveAuthoredStatic?2u:0u;
  if(!offscreenPointCasterDepth)populateReceiverLamps(lighting,worldMatrix,rawMin,rawMax,lightDiffuse);

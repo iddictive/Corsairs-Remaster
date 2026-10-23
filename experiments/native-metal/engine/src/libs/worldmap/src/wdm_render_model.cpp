@@ -90,8 +90,12 @@ bool WdmRenderModel::LoadChart(const char *visualRoot, const char *collisionRoot
     };
     std::vector<std::string> seen;
     if (!LoadParts(visualRoot, stem(visualRoot), visualParts, seen)) return false;
-    seen.clear();
-    if (!LoadParts(collisionRoot, stem(collisionRoot), collisionParts, seen)) return false;
+    if (storm::iEquals(visualRoot, collisionRoot)) collisionParts = visualParts;
+    else
+    {
+        seen.clear();
+        if (!LoadParts(collisionRoot, stem(collisionRoot), collisionParts, seen)) return false;
+    }
     geo = collisionParts.front();
     CVECTOR low, high;
     bool first = true;

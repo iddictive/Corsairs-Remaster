@@ -12,6 +12,12 @@ AIShipTaskController::~AIShipTaskController()
 {
 }
 
+void AIShipTaskController::Relocate(const storm_sea_atlas::Frame &pose)
+{
+    Primary.vTaskPnt = pose.Point(Primary.vTaskPnt);
+    Secondary.vTaskPnt = pose.Point(Secondary.vTaskPnt);
+}
+
 bool AIShipTaskController::CheckCurrentTaskComplete()
 {
     // if we are dead, task is ended

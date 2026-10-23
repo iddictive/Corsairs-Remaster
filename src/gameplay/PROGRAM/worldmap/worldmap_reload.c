@@ -11,6 +11,9 @@ void wdmReloadToSea()
 	{
 		return;
 	}
+    // Preserve live NPC slots and ownership before the cold path empties them.
+    if (WdmTryResidentSea()) return;
+    if (Sea_ResidentSuspended()) Sea_ResidentDiscard();
 	// расчёты ВМЛ -->
 	EmptyAllFantomCharacter();
 	PGG_DailyUpdate();
@@ -114,6 +117,7 @@ void WdmStartFade()
 	DeleteClass(&worldMap);
 	worldMap.isLoaded = "false";
 	DeleteWmInterface();
+    if (!Sea_ResidentSuspended()) SeaTraffic_Stop();
 }
 
 void WdmSeaTransitionCommit()
@@ -128,10 +132,16 @@ void WdmEndFade()
 	if (IsEntity(&SeaMapTransition) && CheckAttribute(&SeaMapTransition, "reverse"))
 	{
 		DelEventHandler("FaderEvent_EndFade", "WdmEndFade");
-		ReloadProgressStart();
-		Sea_DirectSailLogin(&wdmLoginToSea);
-		ReloadProgressEnd();
-		if (bSkipSeaLogin)
+        bool resumed = false;
+        if (CheckAttribute(&wdmLoginToSea, "residentResume")) resumed = Sea_ResidentResume(&wdmLoginToSea);
+        if (!resumed)
+        {
+            if (Sea_ResidentSuspended()) DeleteSeaEnvironment();
+		    ReloadProgressStart();
+		    Sea_DirectSailLogin(&wdmLoginToSea);
+		    ReloadProgressEnd();
+        }
+		if (bSkipSeaLogin || !bSeaActive)
 		{
 			DeleteClass(&SeaMapTransition);
 			DelEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone");
@@ -149,6 +159,46 @@ void WdmEndFade()
 	Sea_DirectSailLogin(&wdmLoginToSea);
 	LayerAddObject(SEA_REALIZE, &reload_fader, -1);
 	ReloadProgressEnd();
+}
+
+bool WdmTryResidentSea()
+{
+    if (!Sea_ResidentSuspended() || !IsEntity(&worldMap)) return false;
+    worldMap.playerShipUpdate = "";
+    // Explicit authored encounters and scripted offshore scenes use their
+    // existing cold admission; no NPC slot may be cleared before this decision.
+    if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack") ||
+        (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "")) return false;
+    int count = wdmGetNumberShipEncounters();
+    for (int i = 0; i < count; i++)
+    {
+        if (!wdmSetCurrentShipData(i)) continue;
+        if (sti(worldMap.encounter.select) && WdmEncounterUsesAuthoredAdmission()) return false;
+    }
+    DeleteAttribute(&wdmLoginToSea, "");
+    WdmAddPlayerGroup();
+    wdmLoginToSea.residentResume = 1;
+    PGG_DailyUpdate();
+    Siege_DailyUpdate();
+    SaveCurrentQuestDateParam("WordMapEncounters_DailyUpdate");
+    wdmLockReload = true;
+    DeleteAttribute(&SeaMapTransition, "");
+    SeaMapTransition.reverse = 1;
+    SeaMapTransition.x = stf(worldMap.playerShipX);
+    SeaMapTransition.y = 0.0;
+    SeaMapTransition.z = stf(worldMap.playerShipZ);
+    SeaMapTransition.shipHeading = stf(worldMap.playerShipAY);
+    if (CheckAttribute(&worldMap, "wdmCameraAY")) SeaMapTransition.mapYaw = stf(worldMap.wdmCameraAY);
+    CreateEntity(&SeaMapTransition, "SeaMapTransition");
+    if (!IsEntity(&SeaMapTransition))
+    {
+        wdmLockReload = false;
+        DeleteAttribute(&wdmLoginToSea, "residentResume");
+        return false;
+    }
+    SetEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit", 0);
+    SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
+    return true;
 }
 
 void QuitFromWorldMap()

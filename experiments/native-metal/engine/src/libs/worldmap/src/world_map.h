@@ -42,6 +42,8 @@ class WorldMap : public Entity
     ~WorldMap() override;
     float TrafficHours(float seconds) const { return seconds * timeScale; }
     bool IsSeaTraffic() const { return seaTraffic; }
+    bool EnterResidentMap();
+    void LeaveResidentMap();
 
     //--------------------------------------------------------------------------------------------
     // Entity
@@ -133,6 +135,8 @@ class WorldMap : public Entity
 
     void ResetScriptInterfaces() const;
     bool LoadNext();
+    bool PrepareMapView();
+    void InitMapCamera();
     void RestoreEncounter(ATTRIBUTES *a);
     void RenderObjects();
     uint32_t loadPhase = 0;
@@ -141,6 +145,8 @@ class WorldMap : public Entity
     bool transitionLoad = false;
     bool loadComplete = false;
     bool transitionPresented = false;
+    uint32_t mapViewPhase = 0;
+    bool residentMap = false;
 
   private:
     // Render service

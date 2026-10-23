@@ -44,6 +44,9 @@ bool    bSeaTsunamiEncounter = false;
 bool 	bSkipSeaLogin = false;
 bool	bIslandLoaded = false;
 bool	bSeaReloadStarted = false;
+bool bSeaResidentSuspended = false;
+bool bSeaRetainingForMap = false;
+bool bSeaPreserveMapHost = false;
 object SeaMapTransition;
 bool	bNotEnoughBalls;
 bool	bStorm, bTornado;
@@ -146,6 +149,8 @@ void Sea_ClearTownPopulation()
 
 void DeleteSeaEnvironment()
 {
+    bSeaResidentSuspended = false;
+    bSeaRetainingForMap = false;
     Sea_ClearTownPopulation();
     GreatRecipe_ClearVortex(true);
 	SeaPhonk_Reset(false);
@@ -434,15 +439,126 @@ void Sea_MapStartFade()
 {
 	DelEventHandler("FaderEvent_StartFade", "Sea_MapStartFade");
 	Sea_DirectSailCapture();
-	DeleteSeaEnvironment();
-	EmptyAllFantomCharacter(); // трем НПС
-	EmptyAllFantomShips();    // трем корабли
+    if (!Sea_ResidentSuspend())
+    {
+	    DeleteSeaEnvironment();
+	    EmptyAllFantomCharacter(); // трем НПС
+	    EmptyAllFantomShips();    // трем корабли
+    }
 	wdmEmptyAllDeadQuestEncounter(); // трем случайки
 	pchar.location = "";
 	PGG_DailyUpdate();
 	Siege_DailyUpdate();//homo осады 05/11/06
 	wdmUpdateAllEncounterLivetime(); // homo карта 25/03/07
 	Flag_Rerise(); // переподнять флаг при выходе на карту, прменить отношения нации в столбец ГГ
+}
+
+bool Sea_ResidentSuspended()
+{
+    return bSeaResidentSuspended && IsEntity(&Sea) && IsEntity(&AISea) && IsEntity(&SeaTraffic) && Sea_HasAtlasFrame();
+}
+
+bool Sea_ResidentSuspend()
+{
+    if (!Sea_HasAtlasFrame() || !IsEntity(&SeaTraffic) || CheckAttribute(&worldMap, "directSail")) return false;
+    // Snapshot the live roster for SAVE without handing physical ownership to
+    // a second simulation. Cannon refunds belong only to the copied SAVE roster.
+    bSeaRetainingForMap = true;
+    WdmFleetSeaSave();
+    bSeaRetainingForMap = false;
+    bSeaResidentSuspended = true;
+    bSeaActive = false;
+    bSeaLoaded = false;
+    DeleteBattleInterface();
+    PauseParticles(true);
+    LayerFreeze(SEA_EXECUTE, true);
+    LayerFreeze(SEA_REALIZE, true);
+    LayerFreeze(EXECUTE, false);
+    LayerFreeze(REALIZE, false);
+    LayerSetExecute(EXECUTE);
+    LayerSetRealize(REALIZE);
+    return true;
+}
+
+void Sea_ResidentDiscard()
+{
+    if (!Sea_ResidentSuspended()) return;
+    SeaTraffic_ResumePoses();
+    // The map still needs its current encounter selection for cold admission.
+    // Its facade keeps the single graph alive while only the sea is unloaded.
+    bSeaPreserveMapHost = true;
+    DeleteSeaEnvironment();
+    bSeaPreserveMapHost = false;
+}
+
+// The resident atlas already contains every physical island. Only the live
+// player group changes pose; NPC hulls, local damage, projectiles and tasks keep
+// their identities. New ordinary fleets use the existing residency admission.
+bool Sea_ResidentResume(ref login)
+{
+    if (!Sea_ResidentSuspended()) return false;
+    SeaTraffic_ResumePoses();
+    float x = Sea_LocalX(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
+    float z = Sea_LocalZ(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
+    float ay = Sea_LocalHeading(stf(worldMap.playerShipAY));
+    if (!SendMessage(&AISea, "lsfff", AI_MESSAGE_RELOCATE_GROUP, PLAYER_GROUP, x, z, ay)) return false;
+    bSkipSeaLogin = false;
+    bSeaActive = true;
+    bSeaLoaded = true;
+    bSeaResidentSuspended = false;
+    bSeaReloadStarted = true;
+    sCurrentSeaExecute = SEA_EXECUTE;
+    sCurrentSeaRealize = SEA_REALIZE;
+    pchar.location = login.Island;
+    AISea.Island = login.Island;
+    sIslandID = login.Island;
+    bCanEnterToLand = false;
+    sIslandLocator = "";
+    bIsFortAtIsland = false;
+    QuestsCheck();
+    if (!bSeaActive || !IsEntity(&AISea))
+    {
+        bSkipSeaLogin = true;
+        return true;
+    }
+    Sea_SelectResidentIsland(login.Island);
+    // The native weather/calendar continues on the map. Move its retained
+    // entities back exactly once rather than recreate assets or double tick it.
+    MoveWeatherToLayers(SEA_EXECUTE, SEA_REALIZE);
+    Weather.Time.time = GetTime();
+    Weather.Time.speed = 350.0;
+    if (iArcadeSails == 1) Weather.Time.speed = 250.0;
+    bStorm = Whr_IsStorm();
+    WeatherParams.Storm = bStorm;
+    bTornado = false;
+    WeatherParams.Tornado = false;
+    Seafoam.storm = bStorm;
+    iStormLockSeconds = 0;
+    if (bStorm) iStormLockSeconds = 60;
+    fSeaStormRealSeconds = 0.0;
+    SetSchemeForSea();
+    PauseParticles(false);
+    LayerFreeze(EXECUTE, true);
+    LayerFreeze(REALIZE, true);
+    LayerFreeze(SEA_EXECUTE, false);
+    LayerFreeze(SEA_REALIZE, false);
+    LayerSetExecute(SEA_EXECUTE);
+    LayerSetRealize(SEA_REALIZE);
+    InitBattleInterface();
+    StartBattleInterface();
+    RefreshBattleInterface();
+    if (IsEntity(&SeaMapTransition))
+    {
+        BI_ShowInterface(false);
+        SeaMapTransition.x = stf(pchar.Ship.Pos.x);
+        SeaMapTransition.y = stf(pchar.Ship.Pos.y);
+        SeaMapTransition.z = stf(pchar.Ship.Pos.z);
+        SeaMapTransition.scenePrepared = 1;
+    }
+    else bSeaReloadStarted = false;
+    if (!bSeaActive || bSeaResidentSuspended) return true;
+    SeaTraffic_LoginRegionGroups(login.Island);
+    return true;
 }
 
 void Land_MapStartFade()
@@ -3083,7 +3199,7 @@ void WdmFleetSeaSaveFleet(string identity)
 			// Do not resurrect a captured ship even if its former captain stays alive.
 			if (CheckAttribute(captain, "trafficTaken") || (CheckAttribute(entry, "dead") && sti(entry.dead))) continue;
 			observed.(slot) = 1;
-			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
+			if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			entry.dead = 0;
 			SeaTraffic_SaveMotion(captain, descriptor, entry);
 			int realIndex = GetCharacterShipType(captain);
@@ -3156,7 +3272,7 @@ void WdmFleetSeaSaveFleet(string identity)
 			string survivorKey = "ship" + n;
 			makearef(entry, roster.(survivorKey));
 			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded) && !CheckAttribute(&observed, survivorKey)) entry.dead = 1;
-			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
+			if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			if (!CheckAttribute(entry, "dead") || !sti(entry.dead)) survivors++;
 			else WdmTrafficLoseCargo(entry);
 		}
@@ -3171,7 +3287,7 @@ void WdmFleetSeaSaveFleet(string identity)
 		makearef(clock, descriptor.trafficSupplyClock);
 		WdmTrafficStamp(clock);
 		DeleteAttribute(clock, "remainder");
-		if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
+		if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
 		if (CheckAttribute(descriptor, "trafficMission"))
 		{
 			int colony = FindColony(descriptor.trafficMission);

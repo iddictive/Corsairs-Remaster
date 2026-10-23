@@ -219,7 +219,7 @@ bool WdmIslands::LoadNext()
             }
             const auto &body = chart->Bodies()[loadBody++];
             auto *model = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
-                new WdmChartModel(body.chartReflection), body.chartTerrain.c_str(),
+                new WdmChartModel(body.chartTerrain), body.chartTerrain.c_str(),
                 false, false, true, 2, wdm::render_levels::Island));
             if (!model) throw std::runtime_error("SEA_ATLAS_CHART: missing physical body " + body.id);
             islands.push_back(Islands{});
@@ -361,7 +361,7 @@ bool WdmIslands::CollisionTest(CMatrix &objMtx, float length, float width, bool 
         if (dist2 >= maxDist * maxDist)
             continue;
         // test triangles
-        GEOS::PLANE p[5];
+        GEOS::PLANE p[6];
         // Direction vector
         p[0].nrm.x = locMtx.Vz().x;
         p[0].nrm.y = 0.0f;
@@ -397,6 +397,13 @@ bool WdmIslands::CollisionTest(CMatrix &objMtx, float length, float width, bool 
         p[3].d =
             (p[3].nrm.x * width + locMtx.Pos().x) * p[3].nrm.x + (p[3].nrm.z * width + locMtx.Pos().z) * p[3].nrm.z;
         p[4].d = maxHeightInTest;
+        // Native terrain includes submerged seabed skirts. Only emerged land
+        // can stop a chart ship, including the height-independent spawn check.
+        p[5].nrm.x = 0.0f;
+        p[5].nrm.y = -1.0f;
+        p[5].nrm.z = 0.0f;
+        p[5].d = 0.0f;
+        if (chart && !heighTest) p[4] = p[5];
         // Sphere position
         GEOS::VERTEX v;
         v.x = locMtx.Pos().x;
@@ -407,7 +414,7 @@ bool WdmIslands::CollisionTest(CMatrix &objMtx, float length, float width, bool 
         curMatrix = island.model->mtx;
         // looking for hitting polygons
         for (auto *part : island.model->CollisionParts())
-            part->Clip(p, heighTest ? 5 : 4, v, checkRadius, AddEdges);
+            part->Clip(p, chart ? (heighTest ? 6 : 5) : (heighTest ? 5 : 4), v, checkRadius, AddEdges);
     }
     if (numEdges)
     {

@@ -99,6 +99,11 @@ uint64_t SEA_AI::ProcessMessage(MESSAGE &message)
     auto iCode = message.Long();
     switch (iCode)
     {
+    case AI_MESSAGE_RELOCATE_GROUP: {
+        const auto &name = message.String();
+        const float x = message.Float(), z = message.Float(), heading = message.Float();
+        return AIGroup::Relocate(name.c_str(), x, z, heading);
+    }
     case AI_MESSAGE_RELEASE_GROUP: {
         const auto &name = message.String();
         if (std::find(releaseRequests.begin(), releaseRequests.end(), name) == releaseRequests.end())

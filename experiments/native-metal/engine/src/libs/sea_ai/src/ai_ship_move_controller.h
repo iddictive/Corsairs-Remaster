@@ -9,6 +9,7 @@
 // Contain base virtual functions
 // ============================================================================
 class AIShip;
+namespace storm_sea_atlas { struct Frame; }
 
 class AIShipMoveController
 {
@@ -66,4 +67,5 @@ class AIShipMoveController
 
     void Save(CSaveLoad *pSL) const;
     void Load(CSaveLoad *pSL);
+    void Relocate(const storm_sea_atlas::Frame &pose);
 };

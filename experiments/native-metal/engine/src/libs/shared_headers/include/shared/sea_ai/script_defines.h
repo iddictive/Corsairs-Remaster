@@ -180,6 +180,7 @@
 // the method of recounting the guns on the ship SendMessage(&AISea, "la", AI_MESSAGE_RESEARCH_CANNONS, aCharacter)
 #define AI_MESSAGE_RESEARCH_CANNONS 51050
 #define AI_MESSAGE_RELEASE_GROUP 51051 // "ls", queue ordinary group removal at Execute boundary
+#define AI_MESSAGE_RELOCATE_GROUP 51052 // "lsfff", rigidly move live group to x, z, heading without remounting
 
 // cameras
 #define AI_CAMERAS_ADD_CAMERA 55000

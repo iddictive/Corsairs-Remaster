@@ -362,7 +362,8 @@ bool SHIP::IsHullPositionRetained(const CVECTOR &localPosition) const
     auto *model = GetModel();
     auto *root = model ? model->GetNode(0) : nullptr;
     if (!root || !root->geo) return true;
-    CVECTOR local; root->glob_mtx.MulToInv(model->mtx * localPosition, local);
+    // Root-local support is independent of the ship's changing world pose.
+    CVECTOR local; root->loc_mtx.MulToInv(localPosition, local);
     return root->geo->IsLaserSupportRetained(uint64_t(blots_id), {local.x, local.y, local.z});
 #else
     return true;
@@ -381,7 +382,7 @@ void SHIP::QueryHullSupport(const CVECTOR *positions,unsigned char *retained,siz
         std::vector<storm_ship_hull::Vec3> local(count);
         for(size_t i=0;i<count;++i)
         {
-            CVECTOR point;root->glob_mtx.MulToInv(model->mtx*positions[i],point);
+            CVECTOR point;root->loc_mtx.MulToInv(positions[i],point);
             local[i]={point.x,point.y,point.z};
         }
         root->geo->QueryLaserSupport(uint64_t(blots_id),local.data(),retained,count);

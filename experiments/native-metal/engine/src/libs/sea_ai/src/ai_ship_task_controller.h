@@ -8,6 +8,7 @@
 
 class AIShip;
 class VAI_INNEROBJ;
+namespace storm_sea_atlas { struct Frame; }
 
 class AITask
 {
@@ -128,4 +129,5 @@ class AIShipTaskController
 
     void Save(CSaveLoad *pSL);
     void Load(CSaveLoad *pSL);
+    void Relocate(const storm_sea_atlas::Frame &pose);
 };

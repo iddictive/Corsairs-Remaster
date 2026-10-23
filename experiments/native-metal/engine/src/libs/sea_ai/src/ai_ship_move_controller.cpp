@@ -19,6 +19,15 @@ AIShipMoveController::~AIShipMoveController()
 {
 }
 
+void AIShipMoveController::Relocate(const storm_sea_atlas::Frame &pose)
+{
+    vDestPoint = pose.Point(vDestPoint);
+    vRetardForce = pose.Vector(vRetardForce);
+    vDeflectForce = pose.Vector(vDeflectForce);
+    fMoveTime = 0.f;
+    dwCurPnt = 0;
+}
+
 bool AIShipMoveController::Init()
 {
     return true;

@@ -43,6 +43,7 @@ class AIGroup
     static bool ReleaseResidents(const std::vector<std::string> &names);
     static float GetAttackHP(const char *pGroupName, float fDistance);
     static void SetXYZ_AY(const char *pGroupName, CVECTOR vPos, float _fAY);
+    static bool Relocate(const char *groupName, float x, float z, float heading);
     static void GroupSetMove(const char *pGroupName, CVECTOR &vMovePoint);
     static void GroupSetAttack(const char *cGroupName, const char *cGroupAttackingName);
     static void GroupSetAttack(AIShip *pS1, AIShip *pS2);

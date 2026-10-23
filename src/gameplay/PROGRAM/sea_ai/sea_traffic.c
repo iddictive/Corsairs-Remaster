@@ -46,6 +46,7 @@ void SeaTraffic_Start()
         }
     }
     SeaTraffic.execute = sCurrentSeaExecute;
+    wdmCreateWindInterface();
     CreateEntity(&SeaTraffic, "WorldMapSeaTraffic");
     if (IsEntity(&SeaTraffic)) WdmTrafficRefresh();
     for (int s = 0; s < iNumShips; s++)
@@ -60,12 +61,29 @@ void SeaTraffic_Start()
 
 void SeaTraffic_Stop()
 {
+    if (bSeaPreserveMapHost) return;
     if (IsEntity(&SeaTraffic))
     {
         SendMessage(&SeaTraffic, "ls", MSG_WORLDMAP_NOTIFY, "$shutdown");
         DeleteClass(&SeaTraffic);
     }
     DeleteAttribute(&SeaTrafficFreeSlots, "");
+}
+
+void SeaTraffic_ResumePoses()
+{
+    if (!CheckAttribute(&worldMap, "encounters")) return;
+    aref descriptors; makearef(descriptors, worldMap.encounters);
+    for (int d = 0; d < GetAttributesNum(descriptors); d++)
+    {
+        aref descriptor = GetAttributeN(descriptors, d);
+        if (!CheckAttribute(descriptor, "trafficInSea") || !sti(descriptor.trafficInSea)) continue;
+        string groupID = "egroup__wdm_" + GetAttributeName(descriptor);
+        if (CheckAttribute(descriptor, "trafficActorGroup")) groupID = descriptor.trafficActorGroup;
+        SendMessage(&AISea, "lsfff", AI_MESSAGE_RELOCATE_GROUP, groupID,
+            Sea_LocalX(stf(descriptor.x), stf(descriptor.z)),
+            Sea_LocalZ(stf(descriptor.x), stf(descriptor.z)), Sea_LocalHeading(stf(descriptor.ay)));
+    }
 }
 
 ref SeaTraffic_SceneState()

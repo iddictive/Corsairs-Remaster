@@ -22,6 +22,15 @@ bool AIShipTouchController::Init()
     return true;
 }
 
+void AIShipTouchController::ResetAfterRelocate()
+{
+    dtTouchTime.Setup(0.0f, 1.0f, 1.2f);
+    for (auto &ray : aTouchRays) ray = ray_t{0.0f, 1.0f, 0.0f};
+    fLeftRaysFree = fRightRaysFree = 0.f;
+    fSpeedFactor = fRotateFactor = 1.f;
+    GetPentagonBox();
+}
+
 bool AIShipTouchController::isCollision2D(const CVECTOR &vSrc, const CVECTOR &vDst)
 {
     CVECTOR vRes;

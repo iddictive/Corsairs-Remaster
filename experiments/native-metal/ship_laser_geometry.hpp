@@ -309,10 +309,11 @@ inline double planarSide(const storm_ship_hull::Plane&p,Vec3 v){
 }
 inline void linearSplit(const std::vector<Vertex>&polygon,const storm_ship_hull::Plane&p,std::vector<Vertex>&inside,std::vector<Vertex>&outside) {storm_geometry_work::checkpoint();
     inside.clear();outside.clear();
-    const auto side=[&](Vec3 v){return planarSide(p,v);};
+    if(polygon.empty())return;
     const auto before=[](Vec3 a,Vec3 b){return a.x<b.x||(a.x==b.x&&(a.y<b.y||(a.y==b.y&&a.z<b.z)));};
-    for(size_t n=0;n<polygon.size();++n){storm_geometry_work::checkpoint();const auto&a=polygon[n];const auto&b=polygon[(n+1)%polygon.size()];const double da=side(a.position),db=side(b.position);const bool ai=da<=0,bi=db<=0;(ai?inside:outside).push_back(a);
-        if(ai!=bi){const auto&first=before(a.position,b.position)?a:b;const auto&last=before(a.position,b.position)?b:a;const double d=side(first.position);auto vertex=storm_ship_hull::interpolate(first,last,float(std::clamp(d/(d-side(last.position)),0.,1.)));inside.push_back(vertex);outside.push_back(vertex);}}
+    const double start=planarSide(p,polygon.front().position);double da=start;
+    for(size_t n=0;n<polygon.size();++n){storm_geometry_work::checkpoint();const auto&a=polygon[n];const auto&b=polygon[(n+1)%polygon.size()];const double db=n+1==polygon.size()?start:planarSide(p,b.position);const bool ai=da<=0,bi=db<=0;(ai?inside:outside).push_back(a);
+        if(ai!=bi){const bool ordered=before(a.position,b.position);const auto&first=ordered?a:b;const auto&last=ordered?b:a;const double d=ordered?da:db,e=ordered?db:da;auto vertex=storm_ship_hull::interpolate(first,last,float(std::clamp(d/(d-e),0.,1.)));inside.push_back(vertex);outside.push_back(vertex);}da=db;}
 }
 inline Split planarSplit(const Mesh&mesh,const Plane&p,bool capped=true,bool stable=false,const std::map<int,float>*wood=nullptr) {
     Split result;std::vector<Segment>segments;
