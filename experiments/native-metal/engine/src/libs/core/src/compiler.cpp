@@ -425,8 +425,19 @@ void COMPILER::SetError(const char *data_PTR, ...)
     }
     va_end(args);
 
+    if (CompilerStage == CS_COMPILATION && firstCompileError_.empty())
+        firstCompileError_ = ErrorBuffer;
     if (spdlog::get_level() == spdlog::level::off)
+    {
         fprintf(stderr, "%s\n", ErrorBuffer);
+        // Quiet play suppresses tracing, not actionable startup failures.
+        if (CompilerStage == CS_COMPILATION)
+        {
+            auto errors = storm::logging::getOrCreateLogger("error", spdlog::level::err);
+            errors->error("{}", ErrorBuffer);
+            errors->flush();
+        }
+    }
     else
         logError_->error(ErrorBuffer);
 
@@ -514,6 +525,7 @@ void COMPILER::LoadPreprocess()
 
 bool COMPILER::CreateProgram(const char *file_name)
 {
+    firstCompileError_.clear();
     /*    INIFILE * engine_ini;
 
     engine_ini = fio->OpenIniFile(core_internal.EngineIniFileName());

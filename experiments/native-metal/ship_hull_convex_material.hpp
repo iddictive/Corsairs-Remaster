@@ -74,6 +74,11 @@ inline bool touching(const Piece&a,const Piece&b,Budget&budget){if(!overlapBound
     // Authored partitions usually share a face. Prove that cheap alternative
     // before constructing a complete solid Boolean merely to find zero volume.
     for(const auto&fa:a.faces)for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}
+    // A separating face excludes positive overlap without allocating clipped
+    // solids. Keep the finite shared-face acceptance above, including its
+    // authored partition tolerance.
+    const auto outside=[](const Piece&solid,const Piece&planes){for(const auto&f:planes.faces){bool separated=true;for(const auto&face:solid.faces){for(const auto&v:face.vertices)if(planarSide(f.plane,v.position)<=0){separated=false;break;}if(!separated)break;}if(separated)return true;}return false;};
+    if(outside(a,b)||outside(b,a))return false;
     Piece overlap=a;for(const auto&f:b.faces){Piece next;if(!clip(overlap,f.plane,next,budget))return false;overlap=std::move(next);if(overlap.volume<=1.e-12)break;}return overlap.volume>1.e-12;
 }
 inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCell!=b.supportCell||a.authoredOwner!=b.authoredOwner||!overlapBounds(a.bounds,b.bounds))return false;bool shared=false;for(const auto&fa:a.faces)for(const auto&fb:b.faces)shared|=storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<1.e-6f;if(!shared)return false;
@@ -211,8 +216,14 @@ inline Edit edit(std::shared_ptr<const MaterialCells>original,const std::vector<
     for(auto id:changed){const auto&entry=*state->cells[id];for(uint32_t n=0;n<entry.pieces->size();++n)for(const auto&face:entry.pieces->at(n).faces)if(face.fresh)for(const auto&polygon:visibleFace(*state,{id,n},face))storm_ship_hull::fan(polygon,result.caps[face.object]);}
     state->owner=cells.get();cells->convex=std::move(state);result.cells=std::move(cells);result.changed.assign(changed.begin(),changed.end());result.complete=true;return result;
 }
-inline std::vector<Component>detached(const State&state){std::set<uint32_t>retained;std::vector<Component>out;for(const auto&component:state.components){if(retained.insert(component.authoredOwner).second)continue;out.push_back(component);}return out;}
-inline bool hasDetached(const State&state){std::set<uint32_t>retained;for(const auto&component:state.components)if(!retained.insert(component.authoredOwner).second)return true;return false;}
+inline std::vector<Component>detached(const State&state){
+    if(!storm_hull_damage::EnableHullSectionRelease)return {};
+    std::set<uint32_t>retained;std::vector<Component>out;for(const auto&component:state.components){if(retained.insert(component.authoredOwner).second)continue;out.push_back(component);}return out;
+}
+inline bool hasDetached(const State&state){
+    if(!storm_hull_damage::EnableHullSectionRelease)return false;
+    std::set<uint32_t>retained;for(const auto&component:state.components)if(!retained.insert(component.authoredOwner).second)return true;return false;
+}
 inline std::shared_ptr<const MaterialCells>ready(std::shared_ptr<const MaterialCells>cells,std::shared_ptr<const storm_ship_structure::Layout>layout={}){if(!cells||(compatible(*cells)&&cells->convex->pendingConnectivity.empty()&&(!layout||cells->convex->source->layout==layout)))return cells;auto next=std::make_shared<MaterialCells>(*cells);next->convex=prepare(*next,std::move(layout));return next->convex?next:nullptr;}
 inline std::shared_ptr<const MaterialCells>take(std::shared_ptr<const MaterialCells>original,const std::vector<Component>&groups,Budget&budget,std::vector<uint32_t>*changedOutput=nullptr){
     if(!original||!compatible(*original))return {};

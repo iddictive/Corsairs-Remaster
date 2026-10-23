@@ -1,4 +1,5 @@
 #include "ship.h"
+#include "sea_atlas.hpp"
 #include "ship_sail_damage.hpp"
 #include "ship_fire_projection.hpp"
 #include "ship_hull_hit_admission.hpp"
@@ -17,6 +18,7 @@
 #include "math_inlines.h"
 #include "shared/mast_msg.h"
 #include "shared/messages.h"
+#include "shared/battle_interface/msg_control.h"
 #include "shared/sail_msg.h"
 #include "shared/sea_ai/script_defines.h"
 #include "shared/sound.h"
@@ -104,6 +106,17 @@ void SHIP::InitSailState()
 SHIP::~SHIP()
 {
     CancelPhonkLaserWork();
+    // These scene consumers borrow physical ship/model pointers. Retire their
+    // entries before destroying this model, without emitting a ship death.
+    for (const char *consumer : {"Seafoam", "Sailors", "Touch", "ShipPointer"})
+        if (const auto entity = core.GetEntityId(consumer))
+            core.Send_Message(entity, "li", MSG_SHIP_RELEASE, GetId());
+    if (const auto character = GetACharacter())
+        if (const auto battle = core.GetEntityId("BATTLE_INTERFACE"))
+            core.Send_Message(battle, "ll", BI_IN_DELETE_SHIP,
+                static_cast<int32_t>(character->GetAttributeAsDword("index", uint32_t(-1))));
+    if (const auto lights = static_cast<IShipLights *>(core.GetEntityPointer(shipLights)))
+        lights->Release(this);
     if (!OrphanCutFragments()) core.EraseEntity(GetModelEID());
     core.Send_Message(sail_id, "li", MSG_SAIL_DEL_GROUP, GetId());
     core.Send_Message(rope_id, "li", MSG_ROPE_DEL_GROUP, GetModelEID());
@@ -3585,6 +3598,8 @@ bool SHIP::Mount(ATTRIBUTES *_pAShip)
     pABox->SetAttributeUseFloat("z", State.vRealBoxSize.z);
 
     bMounted = true;
+    if (const auto foam = core.GetEntityId("Seafoam"))
+        core.Send_Message(foam, "li", MSG_SHIP_CREATE, GetId());
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     EnsureCutFragments();
     // Capture immutable CPU input during loading, before a live cut needs it.
@@ -4242,6 +4257,15 @@ void SHIP::Load(CSaveLoad *pSL)
     dwSaveFogColor = pSL->LoadDword();
     pSL->Load2Buffer(&saveLight);
     pSL->Load2Buffer(&State);
+
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetACharacter()))
+    {
+        vPos = pose->Point(vPos);
+        vAng.y = pose->Heading(vAng.y);
+        State.vPos = pose->Point(State.vPos);
+        State.vAng.y = pose->Heading(State.vAng.y);
+        fResultPerkAngle = pose->Heading(fResultPerkAngle);
+    }
 
     iNumMasts = pSL->LoadLong();
     // pMasts = new mast_t[iNumMasts];

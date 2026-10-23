@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <stdexcept>
 
 #include "core.h"
 #include "math_inlines.h"
@@ -26,6 +27,8 @@
 #include "world_map.h"
 #include "string_compare.hpp"
 #include "world_map_island_area.hpp"
+#include "world_map_resources.hpp"
+#include "sea_atlas.hpp"
 
 // ============================================================================================
 // Collision data
@@ -39,6 +42,16 @@ CMatrix WdmIslands::curMatrix;
 
 namespace
 {
+
+class WdmChartModel : public WdmRenderModel
+{
+  public:
+    explicit WdmChartModel(std::string collision) : collision(std::move(collision))
+    { SetTech("WdmChartDrawStd", "WdmChartDrawStdA"); }
+    bool Load(const char *visual) override { return LoadChart(visual, collision.c_str()); }
+  private:
+    std::string collision;
+};
 
 enum class OptionalPositionState
 {
@@ -107,9 +120,15 @@ bool WdmIslands::LoadNext()
     switch (loadPhase)
     {
     case 0:
+        chart = storm_map_resources::ActiveAtlas();
         baseModel = static_cast<WdmRenderModel *>(
-            wdmObjects->wm->CreateModel(new WdmRenderModel(), "islands\\islands", false, false, false, 1));
-        if (!baseModel || !baseModel->geo) { loadPhase = 7; return true; }
+            wdmObjects->wm->CreateModel(new WdmRenderModel(), chart ? chart->ChartBase().c_str() : "islands\\islands",
+                                       false, false, false, 1));
+        if (!baseModel || !baseModel->geo)
+        {
+            if (chart) throw std::runtime_error("SEA_ATLAS_CHART: missing locator base; reinstall matching chart assets");
+            loadPhase = 7; return true;
+        }
         ++loadPhase;
         return false;
     case 1:
@@ -159,7 +178,8 @@ bool WdmIslands::LoadNext()
         vmax.x = std::max(vmn.x, vmx.x);
         vmax.y = 0.0f;
         vmax.z = std::max(vmn.z, vmx.z);
-        loadCenter = (vmin + vmax) * -0.5f;
+        // The active atlas owns an absolute frame shared with ordinary sea.
+        loadCenter = chart ? CVECTOR(0.f) : (vmin + vmax) * -0.5f;
         vmin += loadCenter;
         vmax += loadCenter;
         wdmObjects->SetWorldSize(vmax.x * 2.0f, vmax.z * 2.0f);
@@ -169,6 +189,50 @@ bool WdmIslands::LoadNext()
     }
     case 2:
     {
+        if (chart)
+        {
+            if (loadBody >= chart->Bodies().size())
+            {
+                // The sea atlas replaces playable regional models, not the
+                // authored chart's continental backdrop and independent sites.
+                GEOS::INFO info{};
+                baseModel->geo->GetInfo(info);
+                while (loadLabel < info.nlabels)
+                {
+                    GEOS::LABEL label{};
+                    baseModel->geo->GetLabel(loadLabel++, label);
+                    if (!label.group_name || !label.name || !*label.name ||
+                        !storm::iEquals(label.group_name, "islands")) continue;
+                    const bool projected = std::any_of(chart->Regions().begin(), chart->Regions().end(),
+                        [&](const auto &region) { return storm::iEquals(region.id, label.name); });
+                    if (projected) continue;
+                    const std::string name = std::string("islands\\") + label.name;
+                    auto *background = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
+                        new WdmRenderModel(), name.c_str(), false, false, true, 2, wdm::render_levels::Island));
+                    if (background) background->mtx = *reinterpret_cast<const CMatrix *>(label.m);
+                    // Visual-only stock context must not add obsolete coast
+                    // collisions over the atlas's physical regional bodies.
+                    return false;
+                }
+                loadPhase = 6;
+                return false;
+            }
+            const auto &body = chart->Bodies()[loadBody++];
+            auto *model = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
+                new WdmChartModel(body.chartTerrain), body.chartReflection.c_str(),
+                false, false, true, 2, wdm::render_levels::Island));
+            if (!model) throw std::runtime_error("SEA_ATLAS_CHART: missing physical body " + body.id);
+            islands.push_back(Islands{});
+            auto &island = islands.back();
+            island.model = model;
+            model->mtx = body.toAtlas.Matrix();
+            model->mtx.Pos() *= static_cast<float>(1./chart->MapMetres());
+            island.toLocal = model->mtx;
+            island.toLocal.Transposition();
+            island.modelName = body.id;
+            island.worldPosition = model->mtx.Pos();
+            return false;
+        }
         GEOS::INFO ginfo;
         baseModel->geo->GetInfo(ginfo);
         GEOS::LABEL label;
@@ -235,10 +299,11 @@ bool WdmIslands::LoadNext()
     }
     case 6:
         patch = new PtcData();
-        if (!patch->Load("RESOURCE\\MODELS\\WorldMap\\islands\\islands_patch.ptc"))
+        if (!patch->Load(chart ? chart->ChartPatch().c_str() : "RESOURCE\\MODELS\\WorldMap\\islands\\islands_patch.ptc"))
         {
             delete patch;
             patch = nullptr;
+            if (chart) throw std::runtime_error("SEA_ATLAS_CHART: missing navigation patch; reinstall matching chart assets");
         }
         ++loadPhase;
         return true;
@@ -341,7 +406,8 @@ bool WdmIslands::CollisionTest(CMatrix &objMtx, float length, float width, bool 
         // Conversion matrix to world coordinates
         curMatrix = island.model->mtx;
         // looking for hitting polygons
-        island.model->geo->Clip(p, heighTest ? 5 : 4, v, checkRadius, AddEdges);
+        for (auto *part : island.model->CollisionParts())
+            part->Clip(p, heighTest ? 5 : 4, v, checkRadius, AddEdges);
     }
     if (numEdges)
     {
@@ -413,8 +479,8 @@ bool WdmIslands::ObstacleTest(float x, float z, float radius)
         vrt.x = pos.x;
         vrt.y = 0.0f;
         vrt.z = pos.z;
-        if (island.model->geo->Clip(p, 4, vrt, 50.0f, nullptr))
-            return true;
+        for (auto *part : island.model->CollisionParts())
+            if (part->Clip(p, 4, vrt, 50.0f, nullptr)) return true;
     }
     return false;
 }
@@ -429,7 +495,8 @@ void WdmIslands::BuildTsunamiLand()
     for (const auto &island : islands)
     {
         if (!island.model || !island.model->geo) continue;
-        auto *geo = island.model->geo;
+        for (auto *geo : island.model->CollisionParts())
+        {
         GEOS::INFO info{};
         geo->GetInfo(info);
         const auto *indices = static_cast<const uint16_t *>(
@@ -501,6 +568,7 @@ void WdmIslands::BuildTsunamiLand()
             }
         }
         wdmObjects->rs->UnLockIndexBuffer(geo->GetIndexBuffer());
+        }
     }
     if (!tsunamiLand.empty()) BuildLandNode(0, uint32_t(tsunamiLand.size()));
     tsunamiLandBuilt = true;
@@ -911,6 +979,20 @@ void WdmIslands::Update(float dltTime)
         CVECTOR pos;
         wdmObjects->playerShip->GetPosition(pos.x, pos.z, pos.y);
         pos.y = 0.0f;
+        if (chart)
+        {
+            const auto *region = storm_map_resources::IslandArea(pos.x, pos.z);
+            auto *attributes = wdmObjects->wm->AttributesPointer;
+            attributes->SetAttribute("island", region ? region->id.c_str() : "");
+            auto *origin = attributes->FindAClass(attributes, "island");
+            if (origin)
+            {
+                origin->SetAttributeUseFloat("x", region ? static_cast<float>(region->mapOrigin[0]) : 0.f);
+                origin->SetAttributeUseFloat("z", region ? static_cast<float>(region->mapOrigin[1]) : 0.f);
+            }
+            wdmObjects->curIsland = region ? const_cast<char *>(region->id.c_str()) : nullptr;
+            return;
+        }
         for (int32_t i = 0; i < islands.size(); i++)
         {
             if (IsShipInArea(i, pos))
@@ -1193,6 +1275,13 @@ void WdmPortDangerZones::LRender(VDX9RENDER *rs)
 // Find the direction to arrive at a given destination from the current
 void WdmIslands::FindDirection(const CVECTOR &position, const CVECTOR &destination, CVECTOR &direction) const
 {
+    if (chart)
+    {
+        CVECTOR point;
+        direction = FindRoutePoint(position, destination, point) ?
+            Norm2D(point-position) : Norm2D(destination-position);
+        return;
+    }
     // If there is no patch, then go in a straight line
     if (!patch)
     {
@@ -1239,6 +1328,47 @@ void WdmIslands::FindDirection(const CVECTOR &position, const CVECTOR &destinati
         return;
     }
     direction = Norm2D(direction - position);
+}
+
+bool WdmIslands::FindRoutePoint(const CVECTOR &position, const CVECTOR &destination, CVECTOR &point) const
+{
+    if (!chart || !patch) return false;
+    float y = 0.f;
+    int32_t from = patch->FindNode(position, y);
+    if (from < 0)
+    {
+        const auto bearing = Norm2D(destination-position);
+        for (float radius = 4.f; radius <= 36.f; radius += 4.f)
+        {
+            y = 0.f;
+            from = patch->FindNode(position+bearing*radius, y);
+            if (from >= 0) break;
+            y = 0.f;
+            from = patch->FindNode(position-bearing*radius, y);
+            if (from >= 0) break;
+        }
+    }
+    if (from < 0) return false;
+    const auto reachable = [&](const CVECTOR &candidate) {
+        float height = 0.f;
+        const auto to = patch->FindNode(candidate, height);
+        int32_t next = -1;
+        return to >= 0 && patch->FindPathDir(from, position, to, candidate, next, point);
+    };
+    if (reachable(destination)) return true;
+    // An enclosed water pocket can be the first geometrically found node.
+    // Keep the native authored goal and search radii, but require a real route
+    // from this vessel before choosing its port approach.
+    const auto back = Norm2D(position-destination);
+    for (float radius = 4.f; radius <= 48.f; radius += 4.f)
+        if (reachable(destination+back*radius)) return true;
+    // Retain the exact authored destination. Its offline ocean approach also
+    // works when this bearing first crosses an enclosed water component.
+    for (const auto &goal : chart->RouteGoals())
+        if (std::abs(destination.x-goal.destination[0]) <= .001 &&
+            std::abs(destination.z-goal.destination[1]) <= .001 &&
+            reachable(CVECTOR(static_cast<float>(goal.approach[0]), 0.f, static_cast<float>(goal.approach[1])))) return true;
+    return false;
 }
 
 // Find the repulsive force
@@ -1308,6 +1438,8 @@ bool WdmIslands::GetQuestLocator(const char *locName, CVECTOR &p)
 // Check if the ship is in the island zone
 bool WdmIslands::CheckIslandArea(const char *islandName, float x, float z)
 {
+    if (chart)
+        return storm_map_resources::ContainsIslandArea(storm_map_resources::IslandAreaGeometry(islandName), x, z);
     for (int32_t i = 0; i < islands.size(); i++)
     {
         if (!islands[i].area)
@@ -1323,18 +1455,21 @@ bool WdmIslands::CheckIslandArea(const char *islandName, float x, float z)
 // Get the closest point to the island zone
 void WdmIslands::GetNearPointToArea(const char *islandName, float &x, float &z)
 {
+    GEOS *area = nullptr;
+    if (chart) area = storm_map_resources::IslandAreaGeometry(islandName);
     // Looking for an area
     int32_t i;
-    for (i = 0; i < islands.size(); i++)
+    for (i = 0; !chart && i < islands.size(); i++)
     {
         if (!islands[i].area)
             continue;
         if (islands[i].modelName == islandName)
         {
+            area = islands[i].area->geo;
             break;
         }
     }
-    if (i >= islands.size())
+    if (!area)
     {
         return;
     }
@@ -1347,7 +1482,7 @@ void WdmIslands::GetNearPointToArea(const char *islandName, float &x, float &z)
     v.x = 0.0f;
     v.y = 0.0f;
     v.z = 0.0f;
-    islands[i].area->geo->Clip(nullptr, 0, v,
+    area->Clip(nullptr, 0, v,
                                wdmObjects->worldSizeX * wdmObjects->worldSizeX +
                                    wdmObjects->worldSizeZ * wdmObjects->worldSizeZ,
                                FindNearPoint);

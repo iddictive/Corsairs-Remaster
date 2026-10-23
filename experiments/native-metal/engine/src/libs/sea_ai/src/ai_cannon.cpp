@@ -1,4 +1,5 @@
 #include "ai_cannon.h"
+#include "sea_atlas.hpp"
 #include "ai_balls.h"
 #include "ship_base.h"
 #include "math_inlines.h"
@@ -352,7 +353,8 @@ void AICannon::Save(CSaveLoad *pSL) const
     pSL->SaveDword(bCanRecharge);
 }
 
-void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t eid)
+void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t eid,
+                    const storm_sea_atlas::Frame *worldFrame)
 {
     pAHolder = _pAHolder;
     eidParent = eid;
@@ -366,6 +368,14 @@ void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t
     fTotalTime2Action = pSL->LoadFloat();
     fSpeedV0 = pSL->LoadFloat();
     vEnemyPos = pSL->LoadVector();
+    if (worldFrame)
+    {
+        vPos = worldFrame->Point(vPos);
+        vDir = worldFrame->Point(vDir)-worldFrame->Point(CVECTOR(0.f));
+        vEnemyPos = worldFrame->Point(vEnemyPos);
+    }
+    else if (const auto pose = storm_sea_atlas::Frame::LegacyPose(pAHolder->GetACharacter()))
+        vEnemyPos = pose->Point(vEnemyPos); // ship muzzle position/direction stay parent-local
     targetCharacter = -1;
     dartCameraTargetValid = false;
     bEmpty = pSL->LoadDword() != 0;

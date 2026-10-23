@@ -1,4 +1,5 @@
 #include "ai_ship.h"
+#include "sea_atlas.hpp"
 #include "sea_base.h"
 
 AIShipMoveController::AIShipMoveController(AIShip *pShip)
@@ -232,4 +233,10 @@ void AIShipMoveController::Load(CSaveLoad *pSL)
     vDeflectForce = pSL->LoadVector();
     fMoveTime = pSL->LoadFloat();
     dwCurPnt = pSL->LoadDword();
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetAIShip()->GetACharacter()))
+    {
+        vDestPoint = pose->Point(vDestPoint);
+        vRetardForce = pose->Vector(vRetardForce);
+        vDeflectForce = pose->Vector(vDeflectForce);
+    }
 }

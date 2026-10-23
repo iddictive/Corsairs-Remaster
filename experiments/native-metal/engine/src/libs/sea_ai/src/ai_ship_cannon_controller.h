@@ -110,6 +110,7 @@ class AIShipCannonController
 
   public:
     bool IsSingleFireMode() const;
+    [[nodiscard]] bool HasPendingFire() const;
     [[nodiscard]] uint32_t GetCannonsNum() const;
 
     [[nodiscard]] float GetFireDistance(bool bMaxFireDistance) const;

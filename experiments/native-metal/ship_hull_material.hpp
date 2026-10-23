@@ -279,13 +279,12 @@ inline bool fractureCells(Surface&surface,const std::vector<BeamSample>&fields,c
 }
 inline bool preparePhysicalCache(Surface&surface){auto cells=convex::ready(surface.cells,surface.structure?surface.structure->layout:nullptr);if(!cells)return false;surface.cells=std::move(cells);ablation::prepareRoleIndices(surface);return true;}
 inline bool releaseSections(const Surface*before,Surface&current,unsigned allowance,const std::map<int,float>&wood,std::vector<Surface>&pieces,bool&deferred){
+    if(!storm_hull_damage::EnableHullSectionRelease){(void)before;(void)current;(void)allowance;(void)wood;pieces.clear();deferred=false;return true;}
     bool handled=false;if(!structure_geometry::releaseConnected(current,allowance,wood,pieces,deferred,handled))return false;if(handled)return true;
     const auto cells=current.cells;const auto structure=current.structure;const size_t old=current.released.size();
     const auto authored=!before&&current.supportOriginal?timberSurface(current.supportOriginal->outer,wood):Surface{};
     auto separated=detachEnclosed(before?*before:authored,current);current.cells=cells;current.structure=structure;
     if(current.released.size()!=old+separated.size())return false;const size_t take=std::min(size_t(allowance),separated.size());deferred=take<separated.size();
-    // Pieces beyond the body allowance remain retained material until a
-    // release-only transaction can transfer their physical ownership.
     for(size_t n=take;n<separated.size();++n)for(unsigned role=0;role<4;++role)appendMesh(surfaceRole(current,role),surfaceRole(separated[n],role));
     current.released.resize(old+take);separated.resize(take);pieces=std::move(separated);
     std::vector<std::shared_ptr<const Mesh>>masks(current.released.begin()+old,current.released.end());return trimReleasedCells(current,masks);
@@ -389,6 +388,7 @@ inline ContactEdit finishContactEdit(const ContactSnapshot&snapshot,
         std::make_shared<std::vector<uint8_t>>(layout.cells.size(),1);
     std::set<uint32_t>assigned;
     const auto append=[&](const std::vector<uint32_t>&supports){
+        if(!storm_hull_damage::EnableHullSectionRelease)return;
         Body body;body.reference=cells->convex;
         for(auto id:supports)if(id<mask->size()&&mask->at(id)&&assigned.insert(id).second){
             body.supports.push_back(id);mask->at(id)=0;
@@ -412,8 +412,6 @@ inline ContactEdit finishContactEdit(const ContactSnapshot&snapshot,
     for(const auto&body:delta->released)delta->changedCells.insert(delta->changedCells.end(),body.sources.begin(),body.sources.end());
     std::sort(delta->changedCells.begin(),delta->changedCells.end());
     delta->changedCells.erase(std::unique(delta->changedCells.begin(),delta->changedCells.end()),delta->changedCells.end());
-    // Failed coarse supports transfer ownership of their existing positive
-    // pieces. They need no second exact clipping/global graph pass in TOUCH.
     delta->after={cells,std::make_shared<const storm_ship_structure::State>(std::move(damage.state)),snapshot.revision+1,
         delta->released.empty()?snapshot.retainedSupports:mask};
     result.complete=true;result.next=delta->after;result.changedCells=delta->changedCells;
@@ -423,6 +421,7 @@ inline ContactEdit finishContactEdit(const ContactSnapshot&snapshot,
 // A broad, strong contact can transfer already partitioned support volumes
 // without clipping thousands of authored triangles on the contact thread.
 inline ContactEdit containedContactEdit(const ContactSnapshot&snapshot,const Plane&field,double wholeArea,const ContactLimits&limits){
+    if(!storm_hull_damage::EnableHullSectionRelease){ContactEdit result;result.next=snapshot;return result;}
     ContactEdit result;result.next=snapshot;const auto&cache=*snapshot.cells->convex;const auto&layout=*snapshot.strength->layout;
     if(cache.source->layout!=snapshot.strength->layout||cache.supportMeasures.size()!=layout.cells.size()||layout.cells.size()>limits.graphVisits)return result;
     std::vector<std::vector<storm_ship_structure::detail::Contact>>contacts(field.beams.size());std::vector<uint32_t>ids;
@@ -433,8 +432,6 @@ inline ContactEdit containedContactEdit(const ContactSnapshot&snapshot,const Pla
     auto damage=storm_ship_structure::detail::damagePatches(*snapshot.strength,field,wholeArea,true,&contacts);structure_geometry::includeDeferred(damage);
     std::set<uint32_t>failed(damage.brokenCells.begin(),damage.brokenCells.end()),released(damage.releasedCells.begin(),damage.releasedCells.end());
     if(failed.empty()&&released.empty())return result;
-    // Partial paid crush still requires the narrow exact cutter. This route
-    // only transfers complete finite physical regions, never rounds a wound up.
     for(const auto&crush:damage.crushed)if(!failed.count(crush.cell)&&!released.count(crush.cell))return result;
     auto delta=std::make_shared<PhysicalDelta>();delta->before=snapshot;delta->field=field;
     return finishContactEdit(snapshot,snapshot.cells,std::move(damage),delta,limits);

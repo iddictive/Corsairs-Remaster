@@ -15,6 +15,11 @@ class ISLAND_BASE : public CANNON_TRACE_BASE
     // excluded; visible island immersion never changes this authored frame.
     virtual std::vector<WorldSurface> GetWorldSurfaces() const { return {}; }
     virtual entid_t GetModelEID() = 0;
+    virtual std::vector<entid_t> GetIslandModels() { return {GetModelEID()}; }
+    virtual std::vector<entid_t> GetSeabedModels() { return {GetSeabedEID()}; }
+    virtual bool IsWithinRange(const CVECTOR &, float) const { return true; }
+    virtual CMatrix GetSelectedRegionMatrix() const { return CMatrix(); }
+    virtual float GetIslandViewDistance(entid_t) const { return 0.f; }
 
     virtual bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth) = 0;
     virtual bool GetDepth(float x, float z, float *fRes = nullptr) = 0;

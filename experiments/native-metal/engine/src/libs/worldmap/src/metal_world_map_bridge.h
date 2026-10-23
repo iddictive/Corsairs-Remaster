@@ -15,7 +15,7 @@ extern "C" void StormMetalEndWdmModel(void*, unsigned);
 #ifdef STORM_METAL_RENDERER_CONSUMERS
 class WdmMetalModelScope {
 public:
-    explicit WdmMetalModelScope(VDX9RENDER *rs): device(rs ? rs->GetNativeDevice() : nullptr), previous(device ? StormMetalBeginWdmModel(device, 1) : 0) {}
+    explicit WdmMetalModelScope(VDX9RENDER *rs, unsigned role = 1): device(rs ? rs->GetNativeDevice() : nullptr), previous(device ? StormMetalBeginWdmModel(device, role) : 0) {}
     ~WdmMetalModelScope(){if(device)StormMetalEndWdmModel(device,previous);}
 private:void *device;unsigned previous;
 };

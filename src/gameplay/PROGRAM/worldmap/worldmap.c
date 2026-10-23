@@ -99,11 +99,11 @@ void wdmCreateMap(float x, float z, float ay)
 	float ShipX, ShipZ;
 	//Находим новыве координаты на карте
 	int scale = wdmMapToSeaScale();
-	shipX = (x/scale) + zeroX;
-	shipZ = (z/scale) + zeroZ;
-	worldMap.playerShipX = (x/scale) + zeroX;
-	worldMap.playerShipZ = (z/scale) + zeroZ;
-	worldMap.playerShipAY = ay;
+	shipX = Sea_MapX(x, z);
+	shipZ = Sea_MapZ(x, z);
+	worldMap.playerShipX = shipX;
+	worldMap.playerShipZ = shipZ;
+	worldMap.playerShipAY = Sea_MapHeading(ay);
 //	trace(" X :" + x + " Z :" + z + " scale :" + scale + " ZeroX :" + zeroX + " ZeroZ:" + zeroZ + " WDMShipX:"+worldMap.playerShipX + " WDMShipZ:" + worldMap.playerShipZ + " ShipX:" + ShipX + " ShipZ:" + ShipZ);
 	//Загружаем карту
 	wdmCreateWorldMap();
@@ -196,6 +196,8 @@ void wdmPreparePlayerShipVisual()
 
 void wdmCreateWorldMap()
 {
+	SeaTraffic_Stop();
+	DeleteAttribute(&AISea, "worldFrame");
 	WdmMilitaryParticipationWorldMap();
 	WdmFleetSeaReconcileWorldMap();
 	WdmTrafficApplyVisibility();

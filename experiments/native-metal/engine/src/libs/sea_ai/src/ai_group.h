@@ -40,6 +40,7 @@ class AIGroup
     static AIGroup *FindOrCreateGroup(const char *pGroupName);
     static AIGroup *CreateNewGroup(const char *pGroupName);
     static AIGroup *FindMainGroup();
+    static bool ReleaseResidents(const std::vector<std::string> &names);
     static float GetAttackHP(const char *pGroupName, float fDistance);
     static void SetXYZ_AY(const char *pGroupName, CVECTOR vPos, float _fAY);
     static void GroupSetMove(const char *pGroupName, CVECTOR &vMovePoint);

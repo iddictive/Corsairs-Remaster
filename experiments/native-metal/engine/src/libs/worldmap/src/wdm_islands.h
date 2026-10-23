@@ -14,6 +14,8 @@
 #include "wdm_render_model.h"
 #include "geometry.h"
 
+namespace storm_sea_atlas { class Layout; }
+
 class WdmIslandWaves : public WdmRenderModel
 {
   public:
@@ -115,6 +117,7 @@ class WdmIslands : public WdmRenderObject
 
     // Find the direction to arrive at a given destination from the current
     void FindDirection(const CVECTOR &position, const CVECTOR &destination, CVECTOR &direction) const;
+    bool FindRoutePoint(const CVECTOR &position, const CVECTOR &destination, CVECTOR &point) const;
     // Find the repulsive force
     void FindReaction(const CVECTOR &position, CVECTOR &reaction) const;
     // Find a random point for a merchant
@@ -164,6 +167,8 @@ class WdmIslands : public WdmRenderObject
     WdmRenderModel *baseModel;
     uint32_t loadPhase = 0;
     int32_t loadLabel = 0;
+    const storm_sea_atlas::Layout *chart = nullptr;
+    size_t loadBody = 0;
     CVECTOR loadCenter;
     // Pathfinder patch
     PtcData *patch;

@@ -280,7 +280,7 @@ ref wdmEncounterDelete()
 	enc.needDelete = "wdmEncounterDelete";
 	//Удаляем квестовую пометку
 	DeleteAttribute(&enc, "quest");
-	if (!IsEntity(worldMap))
+	if (!SeaTraffic_IsActive())
 	{
 	   //Трем сам энкаутер сразу homo 10/04/07
         DeleteAttribute(&worldMap, encPath);

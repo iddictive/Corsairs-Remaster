@@ -267,6 +267,8 @@ void AIShip::CreateShip(entid_t _eidShip, ATTRIBUTES *_pACharacter, ATTRIBUTES *
     GetRotateController()->Init();
     pSpeedController = new AIShipSpeedController(this);
     GetSpeedController()->Init();
+    // Script registration observes the completed placement before the first Execute.
+    pShip->PublishShipPose();
 }
 
 bool AIShip::isCanPlace(CVECTOR vNewPos) const

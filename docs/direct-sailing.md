@@ -1,5 +1,47 @@
 # Direct sailing between island regions
 
+## Resident atlas — October 22
+
+The current candidate keeps 19 physical sea bodies and their 27 logical regions
+in one sea scene. Prepared native geometry, depth, near-route tables and the
+ocean navigation patch share one frozen atlas. Crossing a logical region updates
+the region context without rebuilding the sea. Distant ordinary fleets retain
+their map descriptors; physical sea groups enter within 7000 metres and leave
+beyond 9000 metres, subject to battle, ownership and release admission.
+
+`sea_atlas.hpp`, native `world_map_atlas.cpp` and `worldmap_coords.c` own the
+coordinate contract. Legacy saves choose their scene frame once; actor/task/
+projectile poses and the undelimited saved fort roster retain explicit migration
+owners. `sea_traffic.c` owns physical/far fleet handback. This replaces the
+automatic scene-rebuild path below while the atlas is active.
+
+`bash experiments/native-metal/install-engine.sh --seamless` joins the completed
+native engine with the prepared resources and selected canonical scripts in one
+guarded delivery transaction. Prepared assets remain inactive; only the delivered
+INI activates the atlas. `tools/seamless_sea_delivery.py` owns this closure.
+
+Installed-byte/signature evidence is separate from player acceptance. The player
+reported a startup failure after installation; the native error path now retains
+and displays the first script compilation error, including file and line, even
+with quiet play enabled. After the loop-brace repair, the player's October 23
+profile confirms active sea execution. Saved-game migration, continuous sailing
+and frame pacing remain unaccepted.
+
+The chart retains original non-atlas locator models, including the `mein.gm`
+continental backdrop, in their authored coordinates. Physical atlas bodies use
+`WdmChartDrawStd` to shade their terrain normals; original miniature models keep
+their baked appearance. Background models do not add obsolete coast collision
+over the physical bodies. Coast overlap and the final miniature appearance still
+need player review.
+
+Large hull-section release is temporarily disabled through
+`storm_hull_damage::EnableHullSectionRelease`. Local holes, hull health and
+flooding remain active; existing material already missing from a SAVE is not
+restored. Joined immutable crew-support queries reuse the existing nearest-face
+BVH. These source changes do not establish a frame-rate or impact-latency claim.
+
+## Previous scene-rebuild implementation
+
 ## Status
 
 October16 correction in progress: the installed automatic sea→map→sea camera

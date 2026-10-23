@@ -319,10 +319,14 @@ void WdmEnemyShip::Move(float dltTime)
     // Calculating the turn response
     // Where to sail
     FindMoveForce();
-    // Repulsion the islands
-    FindIslandForce();
-    // Repulsion from ships
-    FindShipsForce();
+    // The hidden ordinary fleet only integrates on accepted calendar pulses.
+    // Keep route/lifecycle updates on zero-time frames without recomputing
+    // transient avoidance forces that the next positive step replaces.
+    if (dltTime != 0.f || !wdmObjects->wm->IsSeaTraffic() || !GetTrafficData())
+    {
+        FindIslandForce();
+        FindShipsForce();
+    }
     // The resulting
     dx = 1.0f * mx + 2.0f * ix + 1.2f * sx;
     dz = 1.0f * mz + 2.0f * iz + 1.2f * sz;

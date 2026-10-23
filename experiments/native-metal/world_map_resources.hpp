@@ -3,9 +3,12 @@
 #include <memory>
 #include <cstdio>
 #include <string>
+#include "c_vector.h"
 
 class GEOS;
 class VGEOMETRY;
+class ATTRIBUTES;
+namespace storm_sea_atlas { class Layout; struct Region; }
 
 namespace storm_map_resources
 {
@@ -28,6 +31,11 @@ void Ensure();
 // Rearm an existing owner after a cancelled handoff; never create during reset.
 void RearmPlayerVisual();
 bool IsStaticGeometry(const char *path);
+bool IslandOrigin(const char *id, CVECTOR &position);
+const storm_sea_atlas::Layout *ActiveAtlas();
+void UpgradeChart(ATTRIBUTES &world);
+const storm_sea_atlas::Region *IslandArea(float x, float z);
+GEOS *IslandAreaGeometry(const char *id);
 // Map consumers keep a lease; core reset may destroy the resource entity first.
 GEOS *BorrowGeometry(std::shared_ptr<StaticAssets> &lease, VGEOMETRY *geometry, const char *path);
 }

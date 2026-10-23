@@ -1,4 +1,5 @@
 #include "ai_fort.h"
+#include "sea_atlas.hpp"
 #include "shared/messages.h"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <optional>
@@ -22,9 +23,10 @@ static AIShip *FindFortTarget(AIFort::AI_FORT &fort, AICannon &cannon, float spe
     float nearest = 1e10f;
     for (auto *ship : AIShip::AIShips)
     {
-        if (ship->isDead() || !Helper.isEnemy(character, ship->GetACharacter())) continue;
+        if (ship->isDead()) continue;
         const float distance = ship->GetDistance(muzzle);
         if (distance > range || !(distance < nearest)) continue;
+        if (!Helper.isEnemy(character, ship->GetACharacter())) continue;
         if (fixedFrame)
         {
             CVECTOR destination = ship->GetPos();
@@ -231,7 +233,6 @@ class FortCannonContext
         return true;
     }
 };
-
 
 // Character attributes outlive a sea scene. Keep each physical cannon's
 // damage here as well as in the existing native sea-save stream.
@@ -639,6 +640,10 @@ bool AIFort::ScanFortForCannons(AI_FORT *pFort, const char *pModelsDir, const ch
 
             if (pCannon)
             {
+                // The shared AIFort parent is identity-transformed; cannon
+                // position and direction both follow the logical scene pose.
+                auto &locator = *reinterpret_cast<CMatrix *>(label.m);
+                locator = CMatrix(locator, pFort->GetModel()->mtx);
                 pCannon->Init(pFort, GetId(), label);
             }
         }
@@ -797,12 +802,17 @@ void AIFort::AI_FORT::Save(CSaveLoad *pSL)
 
 void AIFort::AI_FORT::Load(CSaveLoad *pSL, entid_t eid)
 {
+    std::optional<storm_sea_atlas::Frame> relocation;
+    const auto *model = GetModel();
+    if (const auto *pose = model && model->AttributesPointer ? model->AttributesPointer->GetAttributeClass("SeaAtlasLegacyPose") : nullptr)
+        relocation = storm_sea_atlas::Frame::FromAttributes(*pose);
     vPos = pSL->LoadVector();
+    if (relocation) vPos = relocation->Point(vPos);
 
     uint32_t i;
     for (i = 0; i < aCannons.size(); i++)
     {
-        aCannons[i].Load(pSL, this, eid);
+        aCannons[i].Load(pSL, this, eid, relocation ? &*relocation : nullptr);
         if (aCannons[i].isDamaged())
         {
             const CVECTOR vPos = aCannons[i].GetPos();
@@ -812,7 +822,7 @@ void AIFort::AI_FORT::Load(CSaveLoad *pSL, entid_t eid)
 
     for (i = 0; i < aCulverins.size(); i++)
     {
-        aCulverins[i].Load(pSL, this, eid);
+        aCulverins[i].Load(pSL, this, eid, relocation ? &*relocation : nullptr);
         if (aCulverins[i].isDamaged())
         {
             const CVECTOR vPos = aCulverins[i].GetPos();
@@ -822,7 +832,7 @@ void AIFort::AI_FORT::Load(CSaveLoad *pSL, entid_t eid)
 
     for (i = 0; i < aMortars.size(); i++)
     {
-        aMortars[i].Load(pSL, this, eid);
+        aMortars[i].Load(pSL, this, eid, relocation ? &*relocation : nullptr);
         if (aMortars[i].isDamaged())
         {
             const CVECTOR vPos = aMortars[i].GetPos();

@@ -51,6 +51,11 @@
 #define MSG_ISLAND_ADD_FORT 50103 // "li", model_id
 #define MSG_ISLAND_WORLD_STATE 50104 // "lai", persistent Islands[] attributes, reflection model
 #define MSG_FLAG_WORLD_SUPPORT 50105 // "li", island cut-state owner
+#define MSG_ISLAND_ATTACH_REGION 50106 // "li", resident IslandRegion entity
+#define MSG_ISLAND_TRANSLATE_REGION 50107 // "lff", fixed scene-frame x/z offset
+#define MSG_ISLAND_SELECT_REGION 50108 // "li", logical active IslandRegion entity
+#define MSG_WORLDMAP_NOTIFY 50109 // "ls", canonical worldMap attribute path
+#define MSG_ISLAND_POSE_REGION 50110 // "lffffff", absolute rigid body-to-sea a,b,c,d,tx,tz; before world-state restore
 
 //============================================================================================
 // Sea Reflection Messages
@@ -74,6 +79,7 @@
 #define MSG_SHIP_FLAG_REFRESH 50312 // boal 20.08.06
 #define MSG_SHIP_SET_CUSTOM_FLAG 50313 // "li", flag entity - Specify a custom flag entity to use for this ship
 #define MSG_SHIP_SAFE_DELETE 50315
+#define MSG_SHIP_RELEASE 50316 // "li", ship entity - Detach physical consumers without death effects
 #define MSG_SHIP_GET_SAIL_STATE 50325
 #define MSG_SHIP_REPAIR_MASTS 50326 // "l", returns restored main-mast count
 #define MSG_SHIP_CURVES 50400

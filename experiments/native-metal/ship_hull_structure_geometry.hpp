@@ -20,10 +20,16 @@ struct Realization {
     bool changed=false;
     bool deferred=false;
 };
-inline bool hasDeferred(const storm_ship_structure::State&state){if(!state.layout||state.physicalCellHealth.size()!=state.cellHealth.size())return false;for(size_t n=0;n<state.cellHealth.size();++n)if((!state.alive[n]||state.cellHealth[n]<=0)&&state.physicalCellHealth[n]>1.e-6f)return true;return false;}
-inline void includeDeferred(storm_ship_structure::DamageResult&damage){auto&state=damage.state;if(!state.layout||state.physicalCellHealth.size()!=state.cellHealth.size())return;
+inline bool hasDeferred(const storm_ship_structure::State&state){
+    if(!storm_hull_damage::EnableHullSectionRelease)return false;
+    if(!state.layout||state.physicalCellHealth.size()!=state.cellHealth.size())return false;for(size_t n=0;n<state.cellHealth.size();++n)if((!state.alive[n]||state.cellHealth[n]<=0)&&state.physicalCellHealth[n]>1.e-6f)return true;return false;
+}
+inline void includeDeferred(storm_ship_structure::DamageResult&damage){
+    if(!storm_hull_damage::EnableHullSectionRelease)return;
+    auto&state=damage.state;if(!state.layout||state.physicalCellHealth.size()!=state.cellHealth.size())return;
     std::set<uint32_t>known(damage.brokenCells.begin(),damage.brokenCells.end());known.insert(damage.releasedCells.begin(),damage.releasedCells.end());
-    for(uint32_t n=0;n<state.cellHealth.size();++n)if((!state.alive[n]||state.cellHealth[n]<=0)&&state.physicalCellHealth[n]>1.e-6f&&!known.count(n))damage.brokenCells.push_back(n);}
+    for(uint32_t n=0;n<state.cellHealth.size();++n)if((!state.alive[n]||state.cellHealth[n]<=0)&&state.physicalCellHealth[n]>1.e-6f&&!known.count(n))damage.brokenCells.push_back(n);
+}
 inline Bounds triangleBounds(const Triangle&t){Bounds box{t[0].position,t[0].position};for(unsigned n=1;n<3;++n)box=storm_ship_hull::merge(box,{t[n].position,t[n].position});return box;}
 inline BeamSample cellField(Bounds box){
     BeamSample beam;beam.start={box.lo.x,(box.lo.y+box.hi.y)*.5f,(box.lo.z+box.hi.z)*.5f};beam.direction={1,0,0};beam.tangent={0,1,0};beam.depth=box.hi.x-box.lo.x;beam.backDepth=0;
@@ -49,6 +55,7 @@ using FaceKey=std::tuple<unsigned,int,size_t>;
 // Actual convex material connectivity owns arbitrary within-cell separation.
 // The coarse strength lattice remains a damage model, not a topology oracle.
 inline bool releaseConnected(Surface&current,unsigned allowance,const std::map<int,float>&wood,std::vector<Surface>&pieces,bool&deferred,bool&handled){
+    if(!storm_hull_damage::EnableHullSectionRelease){(void)current;(void)allowance;(void)wood;handled=true;pieces.clear();deferred=false;return true;}
     handled=false;if(!current.cells)return true;auto ready=convex::ready(current.cells);if(!ready)return true;handled=true;current.cells=ready;auto groups=convex::detached(*ready->convex);const size_t count=std::min(size_t(allowance),groups.size());deferred=count<groups.size();if(!count)return true;groups.resize(count);
     std::vector<convex::Body>bodies;for(const auto&group:groups){convex::Body body;for(auto key:group.pieces){body.sources.push_back(key.cell);body.pieces.push_back(ready->convex->cells[key.cell]->pieces->at(key.piece));}bodies.push_back(std::move(body));}
     convex::Budget budget;auto kept=convex::take(ready,groups,budget);if(!kept)return false;std::vector<Surface>split;if(!convex::partitionSurface(current,*kept,bodies,wood,split))return false;
@@ -81,6 +88,7 @@ inline bool ownsCoplanarFace(const storm_ship_structure::Layout&layout,uint32_t 
     return true;
 }
 inline bool realize(const Input&input,const storm_ship_structure::DamageResult&damage,Realization&output){
+    if(!storm_hull_damage::EnableHullSectionRelease){(void)input;(void)damage;output=Realization{};return true;}
     if(!input.surface||!damage.state.layout)return false;const auto&layout=*damage.state.layout;
     if(damage.brokenCells.empty()&&damage.releasedCells.empty())return true;
     std::vector<uint32_t>owner(layout.cells.size());std::vector<uint8_t>released(layout.cells.size());for(auto id:damage.releasedCells){if(id>=owner.size())return false;released[id]=1;}
@@ -88,9 +96,6 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
     for(const auto&component:damage.components){bool detached=false;for(auto id:component){if(id>=owner.size())return false;detached|=released[id]!=0;}if(!detached)continue;
         if(groups.size()-1>=input.fragmentLimit){next.deferred=true;continue;}const auto destination=uint32_t(groups.size());groups.emplace_back();for(auto id:component){if(!released[id])return false;owner[id]=destination;}}
     for(auto id:damage.releasedCells)if(owner[id]==0)next.deferred=true;
-    // Failed mechanical supports still contain real wood. Transfer each
-    // connected failed region to a body; only explicit thermal ablation may
-    // remove material without retaining its boundary as a physical piece.
     std::vector<uint8_t>failed(owner.size()),visited(owner.size());for(auto id:damage.brokenCells){if(id>=owner.size()||owner[id]!=0)return false;failed[id]=1;}
     for(auto start:damage.brokenCells){if(visited[start])continue;std::vector<uint32_t>region{start};visited[start]=1;
         for(size_t n=0;n<region.size();++n){storm_geometry_work::checkpoint();const auto id=region[n];
@@ -112,8 +117,6 @@ inline bool realize(const Input&input,const storm_ship_structure::DamageResult&d
             if(owner[id]!=Removed){auto&destination=surfaceRole(groups[owner[id]],role)[o.first];destination.insert(destination.end(),patch.begin(),patch.end());}}
         if(masks.empty())surfaceRole(groups[0],role)[o.first].push_back(t);else if(!subtractFaces(t,masks,surfaceRole(groups[0],role)[o.first],true))return false;
     }
-    // Only actual material crossing a newly separated shared face creates a
-    // fracture cap. Closed timber cells keep the ship's cavity hollow.
     if(!input.surface->cells)return false;
     std::vector<uint32_t>material;
     for(const auto&bond:layout.bonds){if(bond.a>=owner.size()||bond.b>=owner.size())return false;const auto a=owner[bond.a],b=owner[bond.b];if(a==b)continue;

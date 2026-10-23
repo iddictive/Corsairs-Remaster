@@ -112,6 +112,15 @@ void AIHelper::CalculateRelations()
             }
 }
 
+void AIHelper::RemoveCharacter(ATTRIBUTES *character)
+{
+    for (size_t i = aCharacters.size(); i-- > 0;)
+        if (aCharacters[i] == character) {
+            aCharacters.erase(aCharacters.begin() + i);
+            aMainCharacters.erase(aMainCharacters.begin() + i);
+        }
+}
+
 uint32_t AIHelper::FindIndex(ATTRIBUTES *pACharacter) const
 {
     const auto it = std::find(aCharacters.begin(), aCharacters.end(), pACharacter);

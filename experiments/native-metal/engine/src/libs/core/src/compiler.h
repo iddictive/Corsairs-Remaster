@@ -365,6 +365,7 @@ private:
     // loggers
     storm::logging::logger_ptr logTrace_;
     storm::logging::logger_ptr logError_;
+    std::string firstCompileError_;
     storm::logging::logger_ptr logStack_;
 
     // backtrace stack

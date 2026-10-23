@@ -20,6 +20,11 @@ class COMMON_CAMERA : public Entity
     ATTRIBUTES *pACharacter;
 
   public:
+    bool ReferencesCharacter(int index) const
+    {
+        return pACharacter && static_cast<int32_t>(pACharacter->GetAttributeAsDword("index", uint32_t(-1))) == index;
+    }
+
     bool FindShip()
     {
         Assert(pACharacter);

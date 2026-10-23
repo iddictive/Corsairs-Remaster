@@ -547,7 +547,7 @@ void MAST::doMove(uint32_t DeltaTime)
                 entid_t findEI = core.GetEntityId("ISLAND");
                 if (findEI && core.GetEntityPointer(findEI) != nullptr)
                 {
-                    auto modEI = static_cast<ISLAND_BASE *>(core.GetEntityPointer(findEI))->GetModelEID();
+                    auto modEI = findEI;
 
                     CVECTOR dp;
                     int tmp;
@@ -630,6 +630,12 @@ void MAST::doMove(uint32_t DeltaTime)
 
 int MAST::GetSlide(entid_t mod, CVECTOR &pbeg, CVECTOR &pend, CVECTOR &dp, CVECTOR &lrey, CVECTOR &rrey, float &angl)
 {
+    if (auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(mod)))
+    {
+        for (const auto model : island->GetIslandModels())
+            if (model) if (const int result = GetSlide(model, pbeg, pend, dp, lrey, rrey, angl)) return result;
+        return 0;
+    }
     int retVal = 0;
 
     // rhea collision

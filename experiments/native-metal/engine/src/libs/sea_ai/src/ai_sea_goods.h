@@ -38,6 +38,8 @@ class AISeaGoods : public Entity
     float fDistanceMultiply;
 
   public:
+    bool BorrowsCharacter(int32_t index) const;
+    void ForgetShip(SHIP_BASE *ship);
     AISeaGoods();
     ~AISeaGoods() override;
 

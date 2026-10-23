@@ -1,4 +1,5 @@
 #include "spyglass.h"
+#include "spyglass_borrower.h"
 #include "bi_utils.h"
 #include "../image/image.h"
 #include "../image/img_render.h"
@@ -11,6 +12,12 @@
 #include "shared/battle_interface/msg_control.h"
 #include "shared/events.h"
 #include "shared/messages.h"
+
+bool storm_spyglass_view::ReferencesCharacter(int index)
+{
+    const auto *spyglass = static_cast<ISPYGLASS *>(core.GetEntityPointer(core.GetEntityId("ISPYGLASS")));
+    return spyglass && spyglass->ReferencesCharacter(index);
+}
 
 void ISPYGLASS::ImageParam::Release()
 {

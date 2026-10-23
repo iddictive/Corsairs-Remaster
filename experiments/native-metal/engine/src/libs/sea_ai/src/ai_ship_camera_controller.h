@@ -24,6 +24,7 @@ class AIShipCameraController
     };
 
   public:
+    bool References(ATTRIBUTES *character) const { return pTargetAPointer == character; }
     void Realize(float fDeltaTime);
     void Execute(float fDeltaTime);
 

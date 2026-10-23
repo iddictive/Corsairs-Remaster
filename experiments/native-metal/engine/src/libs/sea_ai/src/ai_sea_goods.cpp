@@ -1,6 +1,19 @@
 #include "ai_sea_goods.h"
 #include "shared/sea_ai/script_defines.h"
+#include <algorithm>
 
+bool AISeaGoods::BorrowsCharacter(int32_t index) const
+{
+    for (const auto *goods : aGoods)
+        for (const auto &item : goods->aItems)
+            if (item.iCharIndex == index) return true;
+    return false;
+}
+
+void AISeaGoods::ForgetShip(SHIP_BASE *ship)
+{
+    std::erase(aShips, ship);
+}
 CREATE_CLASS(AISeaGoods)
 
 AISeaGoods::AISeaGoods()

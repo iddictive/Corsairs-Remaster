@@ -369,6 +369,30 @@ bool SHIP::IsHullPositionRetained(const CVECTOR &localPosition) const
 #endif
 }
 
+void SHIP::QueryHullSupport(const CVECTOR *positions,unsigned char *retained,size_t count) const
+{
+    std::fill_n(retained,count,1);
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    // Resolve entity/model state and coordinate transforms on the owning thread.
+    auto *model=GetModel();
+    auto *root=model?model->GetNode(0):nullptr;
+    if(root && root->geo)
+    {
+        std::vector<storm_ship_hull::Vec3> local(count);
+        for(size_t i=0;i<count;++i)
+        {
+            CVECTOR point;root->glob_mtx.MulToInv(model->mtx*positions[i],point);
+            local[i]={point.x,point.y,point.z};
+        }
+        root->geo->QueryLaserSupport(uint64_t(blots_id),local.data(),retained,count);
+    }
+#endif
+    if(!phonkLaser.materialReady)
+        for(size_t i=0;i<count;++i)
+            for(const auto &plane:phonkLaser.cuts)
+                if(cutDistance(plane,positions[i])>(plane.beams.empty()?.05f:0.f)) { retained[i]=0;break; }
+}
+
 bool SHIP::IsAuthoredMastNode(const NODE *node) const
 {
     for (auto *ancestor = node; ancestor; ancestor = ancestor->parent)

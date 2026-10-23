@@ -230,6 +230,11 @@ class AIFlowGraph
     VectorPath *GetVectorPath(size_t dwP1, size_t dwP2);
     Path *GetPath(size_t dwP1, size_t dwP2);
     float GetPathDistance(size_t dwP1, size_t dwP2);
+    bool HasPath(size_t from, size_t to) const
+    {
+        Assert(from < aPoints.size() && to < aPoints.size());
+        return from == to || (pTable && pTable[to + from*aPoints.size()].p != INVALID_ARRAY_INDEX);
+    }
     float GetDistance(size_t dwP1, size_t dwP2);
     size_t GetOtherEdgePoint(size_t dwEdgeIdx, size_t dwPnt);
     std::vector<npoint_t> *GetNearestPoints(CVECTOR &vP);

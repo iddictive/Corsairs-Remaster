@@ -165,32 +165,21 @@ void SHIP_DESCRIBE_LIST::Release(int32_t charIdx)
 {
     if (charIdx == -1L)
         return;
-    if (root == nullptr)
-        return;
-
-    auto *sd = root;
-    if (root->characterIndex == charIdx)
+    for (auto **link = &root; *link; link = &(*link)->next)
     {
-        root = root->next;
-        delete sd;
-        return;
-    }
-
-    auto *pr = root->next;
-    while (pr != nullptr)
-    {
-        if (pr->characterIndex == charIdx)
+        auto *removed = *link;
+        if (removed->characterIndex == charIdx)
         {
-            sd->next = pr->next;
-            delete pr;
+            *link = removed->next;
+            if (removed == mainCharacter)
+            {
+                mainCharacter = nullptr;
+                pMainShipAttr = nullptr;
+            }
+            delete removed;
             return;
         }
-        sd = pr;
-        pr = pr->next;
     }
-
-    mainCharacter = nullptr;
-    pMainShipAttr = nullptr;
 }
 
 void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pChAttr, ATTRIBUTES *pShipAttr, bool bMyShip,

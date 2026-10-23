@@ -43,6 +43,7 @@ class AIHelper
     bool Init() const;
     bool Uninit();
     void AddCharacter(ATTRIBUTES *pACharacter, ATTRIBUTES *pAMainCharacter);
+    void RemoveCharacter(ATTRIBUTES *character);
     void CalculateRelations();
 
     bool isFriend(ATTRIBUTES *pA1, ATTRIBUTES *pA2) const;

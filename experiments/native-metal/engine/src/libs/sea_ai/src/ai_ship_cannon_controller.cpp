@@ -3,6 +3,7 @@
 
 #include "ai_balls.h"
 #include "ai_ship.h"
+#include "sea_atlas.hpp"
 #include "ai_fort.h"
 #include "ship_surrender.h"
 #include "cannon_trace.h"
@@ -386,6 +387,14 @@ void AIShipCannonController::Execute(float fDeltaTime)
             }
         }
     }
+}
+
+bool AIShipCannonController::HasPendingFire() const
+{
+    for (const auto &bort : aShipBorts)
+        for (const auto &cannon : bort.aCannons)
+            if (cannon.isFired()) return true;
+    return false;
 }
 
 float AIShipCannonController::GetBortMaxFireAngle(const AISHIP_BORT &bort) const
@@ -2250,6 +2259,8 @@ void AIShipCannonController::Load(CSaveLoad *pSL)
         B.fSpeedV0 = pSL->LoadFloat();
         B.fMaxFireDistance = pSL->LoadFloat();
         B.vDirection = pSL->LoadVector();
+        if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetAIShip()->GetACharacter()))
+            B.vDirection = pose->Vector(B.vDirection);
 
         const uint32_t dwNumCannons = pSL->LoadDword();
         for (uint32_t j = 0; j < dwNumCannons; j++)

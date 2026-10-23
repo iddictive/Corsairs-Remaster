@@ -5,6 +5,7 @@
 #include "math_inlines.h"
 #include "message.h"
 #include "shared/battle_interface/msg_control.h"
+#include "shared/messages.h"
 #include "ship_base.h"
 
 // define the vertices
@@ -19,6 +20,7 @@ struct SPV_VERTEX
 SHIPPOINTER::SHIPPOINTER()
 {
     m_bVisible = false;
+    m_pShip = nullptr;
     m_idFriendTex = -1;
     m_idEnemyTex = -1;
     m_idVBuf = -1;
@@ -105,6 +107,15 @@ uint64_t SHIPPOINTER::ProcessMessage(MESSAGE &message)
 {
     switch (message.Long())
     {
+    case MSG_SHIP_RELEASE: {
+        const auto ship = message.EntityID();
+        if (m_pShip && m_pShip->GetId() == ship)
+        {
+            m_pShip = nullptr;
+            m_bVisible = false;
+        }
+        break;
+    }
     case MSG_SP_CHANGESHIP: {
         const auto chrIdx = message.Long();
         m_pShip = FindShipByChrIndex(chrIdx);

@@ -139,6 +139,8 @@ class ShipWalk
     float fireModelSeconds = -1.f;
     unsigned hullRevision = 0;
     bool hullSupportInitialized = false;
+    std::vector<CVECTOR> hullSupportQueries;
+    std::vector<unsigned char> hullSupportResults;
     float casualtyVisualRemainder = 0.f; // Fractional visible bodies, never saved or applied to crew HP.
     float casualtyVisualCooldown = 0.f; // Seconds between ordinary blast body groups.
 

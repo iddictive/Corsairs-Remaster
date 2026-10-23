@@ -80,7 +80,9 @@ void SeaAI_SailToEndFade()
 	{
 		case SAIL_TO_LOCATOR:
 			aref rIslLoc = FindIslandReloadLocator(pchar.Location, sSailToString);
-			SendMessage(&AISea,"lffff", AI_MESSAGE_SAIL_2_LOCATOR, stf(rIslLoc.x), stf(rIslLoc.y), stf(rIslLoc.z), stf(rIslLoc.ay));
+			SendMessage(&AISea,"lffff", AI_MESSAGE_SAIL_2_LOCATOR,
+				Sea_RegionX(pchar.location, stf(rIslLoc.x), stf(rIslLoc.z)), stf(rIslLoc.y),
+				Sea_RegionZ(pchar.location, stf(rIslLoc.x), stf(rIslLoc.z)), Sea_RegionHeading(pchar.location, stf(rIslLoc.ay)));
 		break;
 		case SAIL_TO_CHARACTER:
 			SendMessage(&AISea, "laff", AI_MESSAGE_SAIL_2_CHARACTER, &Characters[sti(sSailToString)], 40.0 + frnd() * 60.0, frnd() * PIm2);

@@ -17,6 +17,9 @@ inline constexpr int32_t HullHitMessage=0x53484431;
 inline constexpr int32_t ChipBurstMessage=0x53484331;
 inline constexpr float MinHitRadius=.08f,MaxHitRadius=.36f,MaxMergedRadius=.36f;
 inline constexpr unsigned MaxSplitPlanes=32,MaxFragmentGroups=32;
+// Human steering: temporarily suspend enormous hull section detachment while
+// retaining finite local punctures, impact craters, flooding and structural HP.
+inline constexpr bool EnableHullSectionRelease = false;
 inline constexpr unsigned MaxFragmentBuffers=MaxSplitPlanes*MaxFragmentGroups;
 // A finite dose delivered by the muzzle ray. Coordinates belong to the receiver.
 struct BeamSample {

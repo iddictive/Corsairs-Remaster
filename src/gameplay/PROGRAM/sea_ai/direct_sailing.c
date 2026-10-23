@@ -16,8 +16,8 @@ ref Sea_DirectSailPosition()
     if (IsEntity(&worldMap) || IsEntity(&SeaMapTransition) ||
         CheckAttribute(&worldMap, "directSail") || sti(InterfaceStates.Launched) || LAi_IsDead(pchar)) return &AISea;
     if (!CheckAttribute(pchar, "Ship.Pos.x") || !CheckAttribute(pchar, "Ship.Pos.z")) return &AISea;
-    AISea.directSail.x = GetSeaShipX(stf(pchar.Ship.Pos.x));
-    AISea.directSail.z = GetSeaShipZ(stf(pchar.Ship.Pos.z));
+    AISea.directSail.x = Sea_MapX(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z));
+    AISea.directSail.z = Sea_MapZ(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z));
     AISea.directSail.enabled = 1;
     return &AISea;
 }
@@ -25,6 +25,15 @@ ref Sea_DirectSailPosition()
 void Sea_DirectSailArea()
 {
     string island = GetEventData();
+    if (IsEntity(&SeaTraffic))
+    {
+        if (bSeaActive && bSeaLoaded && !bSeaReloadStarted && !bAbordageStarted &&
+            island != "" && Sea_IsResidentIslandReady(island))
+        {
+            SeaTraffic_PublishRegion(island);
+        }
+        return;
+    }
     ref position = Sea_DirectSailPosition();
     if (!sti(position.directSail.enabled) || island == "" || island == pchar.location) return;
     int index = FindIsland(island);

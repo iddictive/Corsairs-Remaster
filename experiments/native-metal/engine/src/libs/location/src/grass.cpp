@@ -562,10 +562,12 @@ void Grass::Realize(uint32_t delta_time)
 
 #ifdef STORM_METAL_GRASS_BRIDGE
     if(islandForest){
-        auto*island=dynamic_cast<ISLAND_BASE*>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
+        auto*island=dynamic_cast<ISLAND_BASE*>(core.GetEntityPointer(regionIsland ? regionIsland : core.GetEntityId("ISLAND")));
         if(island){
+            CVECTOR camera, angles; float perspective;rs->GetCamera(camera,angles,perspective);
+            if (!island->IsWithinRange(camera, storm_island_forest::VisibleRange)) return;
             uint32_t density;rs->GetRenderState(storm_render::RenderFogDensity,&density);
-            auto*attributes=core.Entity_GetAttributePointer(core.GetEntityId("ISLAND"));
+            auto*attributes=island->AttributesPointer;
             if(attributes)rs->SetRenderState(storm_render::RenderFogDensity,F2DW(attributes->GetAttributeAsFloat("FogDensity",0.f)));
             islandForest->render(*island,delta_time,winDir.x,winDir.z,winForce);
             rs->SetRenderState(storm_render::RenderFogDensity,density);
@@ -587,7 +589,7 @@ void Grass::Realize(uint32_t delta_time)
     // Fog
     uint32_t dwOldFogDensity;
     rs->GetRenderState(storm_render::RenderFogDensity, &dwOldFogDensity);
-    entid_t eidIsland = core.GetEntityId("ISLAND");
+    entid_t eidIsland = regionIsland ? regionIsland : core.GetEntityId("ISLAND");
     auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(eidIsland));
     // Sea islands use the same authored .grs distribution as nearby shores.
     // The historical 1000-unit range hid it before an island filled the sea
@@ -872,6 +874,18 @@ uint64_t Grass::ProcessMessage(MESSAGE &message)
 {
     switch (message.Long())
     {
+    case MSG_GRASS_SET_REGION: {
+        regionIsland = message.EntityID();
+        const float x = message.Float(), z = message.Float();
+        const CVECTOR offset(x, 0.f, z), delta = offset - regionOffset;
+        if (block && m_fDataScale != 0.f)
+        {
+            startX += delta.x / m_fDataScale; startZ += delta.z / m_fDataScale;
+            for (int32_t i = 0; i < numElements; ++i) { block[i].x += delta.x / m_fDataScale; block[i].z += delta.z / m_fDataScale; }
+        }
+        regionOffset = offset;
+        return 1;
+    }
     case MSG_GRASS_LOAD_DATA: {
         const std::string &ctmp = message.String();
         return LoadData(ctmp.c_str());

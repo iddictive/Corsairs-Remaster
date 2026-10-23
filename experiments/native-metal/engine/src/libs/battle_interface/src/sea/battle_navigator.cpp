@@ -8,6 +8,7 @@
 #include "island_base.h"
 #include "math_inlines.h"
 #include "shared/battle_interface/msg_control.h"
+#include "shared/messages.h"
 #include "ship_base.h"
 #include "ships_list.h"
 
@@ -1092,11 +1093,7 @@ void BATTLE_NAVIGATOR::ReleaseAll()
     TEXTURE_RELEASE(rs, m_idWindTexture);
     TEXTURE_RELEASE(rs, m_idSailTexture);
 
-    if (m_pIslandTexture != nullptr)
-    {
-        rs->Release(m_pIslandTexture);
-        m_pIslandTexture = nullptr;
-    }
+    ClearIslandMaps();
 
     VERTEX_BUFFER_RELEASE(rs, m_idEmptyVBuf);
     VERTEX_BUFFER_RELEASE(rs, m_idCourseVBuf);
@@ -1311,15 +1308,36 @@ int32_t BATTLE_NAVIGATOR::SetRectangleSegVertexTex(BI_ONETEXTURE_VERTEX *v, floa
 
 void BATTLE_NAVIGATOR::SetIsland()
 {
+    auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
+    if (!islandMapsPrepared)
+    {
+        // The complete resident roster exists before the first sea UI frame.
+        // Capture once; subsequent region changes only borrow a cached view.
+        islandMapsPrepared = true;
+        if (island) for (const auto model : island->GetIslandModels()) if (model) PrepareIslandMap(model);
+    }
+    m_pIslandTexture = nullptr;
+    m_bYesIsland = false;
+    if (!island) return;
+    const auto selected = island->GetModelEID();
+    for (const auto &map : islandMaps) if (map.model == selected)
+    {
+        m_pIslandTexture = map.texture;
+        m_fXIsland = map.x; m_fYIsland = map.z;
+        m_fIslandWidth = map.width; m_fIslandHeight = map.height; m_fIslandRadius = map.radius;
+        m_bYesIsland = m_pIslandTexture != nullptr;
+        return;
+    }
+}
+
+void BATTLE_NAVIGATOR::PrepareIslandMap(entid_t model)
+{
+    m_pIslandTexture = nullptr;
     CVECTOR posCenter{};
     float islSize = 0;
+    bool captured = false;
 
-    MODEL *pM = nullptr;
-    auto *pIsl = static_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
-    if (pIsl != nullptr)
-    {
-        pM = static_cast<MODEL *>(core.GetEntityPointer(pIsl->GetModelEID()));
-    }
+    auto *pM = dynamic_cast<MODEL *>(core.GetEntityPointer(model));
     if (pM != nullptr)
     {
         pM->Update();
@@ -1384,9 +1402,20 @@ void BATTLE_NAVIGATOR::SetIsland()
                         // show island
                         if (rs->TechniqueExecuteStart("battle_island_gettexture"))
                         {
+                            auto *provider = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
+                            const float distance = provider ? provider->GetIslandViewDistance(model) : 0.f;
+                            struct RestoreDistance
+                            {
+                                entid_t model; float distance;
+                                ~RestoreDistance() { core.Send_Message(model, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, distance); }
+                            } restoreDistance{model, distance};
+                            // The geographic snapshot uses its own overhead view.
+                            // Runtime distance fading reads the sea camera instead.
+                            core.Send_Message(model, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, 0.f);
                             pM->ProcessStage(Entity::Stage::realize, 1);
                             while (rs->TechniqueExecuteNext())
                                 ;
+                            captured = true;
                         }
                         rs->SetRenderTarget(pOldRenderTarg, pStencil);
                         rs->SetTransform(storm_render::TransformView, oldmatv);
@@ -1400,6 +1429,11 @@ void BATTLE_NAVIGATOR::SetIsland()
         }
     }
 
+    if (!captured && m_pIslandTexture)
+    {
+        rs->Release(m_pIslandTexture);
+        m_pIslandTexture = nullptr;
+    }
     if (m_pIslandTexture != nullptr)
         m_bYesIsland = true;
     else
@@ -1408,6 +1442,17 @@ void BATTLE_NAVIGATOR::SetIsland()
     m_fYIsland = posCenter.z;
     m_fIslandWidth = m_fIslandHeight = islSize;
     m_fIslandRadius = sqrtf(SQR(m_fIslandWidth) + SQR(m_fIslandHeight));
+    if (m_pIslandTexture) islandMaps.push_back({model, m_pIslandTexture, m_fXIsland, m_fYIsland,
+        m_fIslandWidth, m_fIslandHeight, m_fIslandRadius});
+}
+
+void BATTLE_NAVIGATOR::ClearIslandMaps()
+{
+    for (const auto &map : islandMaps) if (map.texture) rs->Release(map.texture);
+    islandMaps.clear();
+    m_pIslandTexture = nullptr;
+    m_bYesIsland = false;
+    islandMapsPrepared = false;
 }
 
 void BATTLE_NAVIGATOR::UpdateMiniMap()
@@ -1536,12 +1581,12 @@ void BATTLE_NAVIGATOR::UpdateWindParam()
 
 void BATTLE_NAVIGATOR::LostRender()
 {
-    rs->Release(m_pIslandTexture);
-    m_pIslandTexture = nullptr;
+    ClearIslandMaps();
 }
 
 void BATTLE_NAVIGATOR::RestoreRender()
 {
+    if (rs) SetIsland();
     //~!~
     // rs->CreateTexture(MAP_TEXTURE_WIDTH, MAP_TEXTURE_HEIGHT, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5,
     // D3DPOOL_DEFAULT, &m_pIslandTexture);

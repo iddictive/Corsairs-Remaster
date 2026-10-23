@@ -27,6 +27,7 @@
 
 #include "battle_interface\BattleInterface.c"
 #include "sea_ai\direct_sailing.c"
+#include "sea_ai\sea_traffic.c"
 
 #event_handler("Sea_FirstInit", "Sea_FirstInit");
 #event_handler("SeaLoad_GetPointer", "SeaLoad_GetPointer");
@@ -74,6 +75,16 @@ void Sea_StormEscapeFrame()
 }
 
 object	Island, IslandReflModel, sLightModel, lighthouseLightModel;
+object SeaIslandRegions[MAX_ISLANDS], SeaIslandReflections[MAX_ISLANDS];
+object SeaIslandGrass[MAX_ISLANDS], SeaIslandFoam[MAX_ISLANDS];
+object SeaIslandLights[MAX_ISLANDS], SeaIslandBeams[MAX_ISLANDS];
+object SeaIslandResources;
+bool SeaRegionLoaded[MAX_ISLANDS];
+bool SeaBodyLoaded[MAX_ISLANDS];
+bool SeaFortRegionLoaded[MAX_ISLANDS];
+int SeaRegionBodySource[MAX_ISLANDS];
+bool bSeaLegacyRegionRestore = false;
+int SeaResidentPrimaryIndex = -1;
 object SeaTownPopulation;
 object	Touch, AISea;
 object	SeaFader;
@@ -161,12 +172,14 @@ void DeleteSeaEnvironment()
 	DelEventHandler(BALL_FLY_UPDATE, "Ball_OnFlyUpdate");
 
 	WdmFleetSeaSave();
+	SeaTraffic_Stop();
 	SendMessage(&AISea, "l", AI_MESSAGE_UNLOAD);
 
 	DeleteSea();
 
 	DeleteClass(&ShipTracks);
 
+	Sea_ClearResidentIslands();
 	DeleteClass(&Island);
 	DeleteGrass(); // трава на остров
 	DeleteClass(&IslandReflModel);
@@ -198,7 +211,20 @@ void DeleteSeaEnvironment()
 
 	DeleteCoastFoamEnvironment();
 
+	// Player export happens after teardown. Retain the frozen coordinate frame
+	// until wdmCreateWorldMap consumes it; scene resources have already retired.
+	object retainedFrame;
+	if (CheckAttribute(&AISea, "worldFrame"))
+	{
+		aref savedFrame; makearef(savedFrame, AISea.worldFrame);
+		CopyAttributes(&retainedFrame, savedFrame);
+	}
 	DeleteAttribute(&AISea,"");
+	if (CheckAttribute(&retainedFrame, "version"))
+	{
+		aref frame; makearef(frame, AISea.worldFrame);
+		CopyAttributes(frame, &retainedFrame);
+	}
 
 	LayerFreeze(SEA_EXECUTE, true);
 	LayerFreeze(SEA_REALIZE, true);
@@ -806,6 +832,9 @@ void SeaLogin(ref Login)
 	ReloadProgressUpdate();
 
 	// login island if exist
+	// Fresh map/land admission uses that entry's authored coordinate frame.
+	// Sea_Load restores a saved frame through its separate native save path.
+	DeleteAttribute(&AISea, "worldFrame");
 	Sea_LoadIsland(sIslandID);
 	
 	AISea.Island = sIslandID;
@@ -1185,110 +1214,7 @@ void SeaLogin(ref Login)
 			for (j=0; j<iNumFantomShips; j++)
 			{
 				iFantomIndex = FANTOM_CHARACTERS + iNumFantoms - iNumFantomShips + j;
-				rFantom = &Characters[iFantomIndex];
-                DeleteAttribute(rFantom, "items"); // boal 28.07.04 фикс кучи сабель, когда идет в плен
-				rFantom.id = "fenc_" + iFantomIndex;
-                // boal 26.02.2004 -->
-				rFantom.location = sIslandID;
-				// boal 26.02.2004 <--
-				// set commander to group
-				if (j==0) { Group_SetGroupCommander(sGName, Characters[iFantomIndex].id); }
-				
-				// set random character and ship names, face id
-				rFantom.sex = "man";
-				rFantom.model.animation = "man";
-				rFantom.Nation = rEncounter.Nation; 
-				// boal разговор в море -->
-                rFantom.reputation = 5+rand(84);
-                rFantom.EncType      = rEncounter.Type; // тип  war, trade pirate
-                rFantom.RealEncounterType = iEncounterType;//boal
-                rFantom.EncGroupName = sGName;
-                rFantom.MainCaptanId = Characters[iFantomIndex - j].id;
-				rFantom.WatchFort = true; //следить за фортом
-				rFantom.AnalizeShips = true; //анализить враждебные корабли сразу же с загрузки и далее
-				if(rand(10) == 1) rFantom.DontRansackCaptain = true;
-
-				if (CheckAttribute(rFantom, "Ship.Mode"))
-                {
-                	SetCaptanModelByEncType(rFantom, rFantom.Ship.Mode);
-                }
-                else
-                {
-                    SetCaptanModelByEncType(rFantom, rEncounter.Type);
-                }
-                // boal разговор в море <--
-				
-				SetRandomNameToCharacter(rFantom);
-				SetRandomNameToShip(rFantom);
-				
-				SetSeaFantomParam(rFantom, rEncounter.Type); // все там
-				
-				if(j == 0 && rFantom.EncType == "pirate")
-				{
-					rFantom.Flags.Pirate = rand(2);
-				}
-				
-//				trace("rFantom.id = " + rFantom.id + " Ship.pos.x = " + rFantom.Ship.pos.x + " Ship.pos.z = " + rFantom.Ship.pos.z);
-//				trace("pchar.Ship.pos.x = " + pchar.Ship.pos.x + " pchar.Ship.pos.z = " + pchar.Ship.pos.z);
-				
-				trace("bSeaCanGenerateShipSituation = " + bSeaCanGenerateShipSituation);
-				
-				//ugeen --> установка возможных ситуаций в каюте кэпа при абордаже - взрыв или эпидемия
-				if(j != 0 && bSeaCanGenerateShipSituation && iEncounterType != ENCOUNTER_TYPE_ALONE && pchar.CanGenerateShipSituation)  // флагманы и одиночки исключаем
-				{
-					if (CheckAttribute(rFantom, "hunter")) // ОЗГ или ДУ
-					{
-						if(rFantom.hunter == "hunter") Fantom_SetQuestSitiation(rFantom, "hunter");
-						else Fantom_SetQuestSitiation(rFantom, "pirate");	
-					}
-					else
-					{	
-						if(sti(rFantom.Nation) == PIRATE) Fantom_SetQuestSitiation(rFantom, "pirate");	
-						else
-						{
-							if(rFantom.EncType == "trade") // военники в составе торговых караванов
-							{
-								if (CheckAttribute(rFantom, "Ship.Mode") && rFantom.Ship.Mode != "trade")
-								{
-									Fantom_SetQuestSitiation(rFantom, rFantom.Ship.Mode); // торгаши отдельно
-								}	
-							}
-							else Fantom_SetQuestSitiation(rFantom, rFantom.EncType); // военные корабли - патрули и пр.
-						}
-					}
-				}				
-				if(bSeaCanGenerateShipSituation && pchar.CanGenerateShipSituation)
-				{
-					if (iEncounterType == ENCOUNTER_TYPE_MERCHANT_SMALL || iEncounterType == ENCOUNTER_TYPE_MERCHANT_MEDIUM) // а вот тут торгаши - устанавливаем для флотилии из одного-двух кораблей
-					{
-						Fantom_SetQuestSitiation(rFantom, rFantom.EncType);
-					}				
-				}	
-				// <-- ugeen
-				Fantom_SetCannons(rFantom, rEncounter.Type);
-				Fantom_SetSails(rFantom, rEncounter.Type);
-				if (!WdmFleetSeaTagged(rEncounter)) WdmTrafficApplySeaWear(rFantom, rEncounter);
-                // boal <--
-				rFantom.SeaAI.Group.Name = sGName;
-				rFantom.Experience = 0;
-				rFantom.Skill.FreeSkill = 0;
-
-				//rFantom.Features.GeraldSails = false;  // код от к3, весьмя страннй, тк при выгрузке в Ship_Add2Sea всем тупо пробивается труе :)
-				//if (CheckAttribute(rEncounter, "GeraldSails")) { rFantom.Features.GeraldSails = sti(rEncounter.GeraldSails); }
-
-				// boal герб на флагман -->
-				DeleteAttribute(rFantom, "ShipSails.gerald_name");   // мог быть с того раза
-				if (j == 0 || GetCharacterShipClass(rFantom) == 1)
-				{
-					SetRandGeraldSail(rFantom, sti(rFantom.Nation));
-				}
-                // boal герб на флагман <--
-                
-				// add fantom
-				Group_AddCharacter(sGName, rFantom.id);
-				
-				// add to sea
-				Ship_Add2Sea(iFantomIndex, 0, rEncounter.Type, true);
+				Sea_MountEncounterCharacter(rEncounter, iFantomIndex, j, iFantomIndex - j, sGName, sIslandID, true);
 			}
 		}
 	}
@@ -1299,52 +1225,7 @@ void SeaLogin(ref Login)
 	// set tasks 2 all groups
 	for (i=0; i<GetArraySize(&sTaskList)-2; i++)
 	{
-		string sGroupID = sTaskList[i];
-
-		rGroup = Group_GetGroupByID(sGroupID);
-		
-		// set task 
-		switch (sti(rGroup.Task))
-		{
-			case AITASK_DRIFT:
-				WdmFleetSeaSetDrift(sGroupID);
-			break;
-			case AITASK_RUNAWAY:
-				Group_SetTaskRunAway(sGroupID, rGroup.Task.Target);
-			break;
-			case AITASK_ATTACK:
-				Group_SetTaskAttack(sGroupID, rGroup.Task.Target);
-			break;
-			case AITASK_MOVE:
-				if (CheckAttribute(rGroup, "Task.Target.Pos"))
-				{
-					Group_SetTaskMove(sGroupID, stf(rGroup.Task.Target.Pos.x), stf(rGroup.Task.Target.Pos.z));
-				}
-				else
-				{
-					x = 10000.0 * sin(stf(rGroup.Pos.ay));
-					z = 10000.0 * cos(stf(rGroup.Pos.ay));
-					Group_SetTaskMove(sGName, x, z);
-				}
-			break;
-		}
-		
-		if(!CheckAttribute(rGroup,"EmptyFantom"))
-		{
-			rCharacter = Group_GetGroupCommanderR(rGroup);
-			int iRelation = GetRelation(nMainCharacterIndex, sti(rCharacter.index));
-
-			// set relations to all characters in this group
-			int qq = 0;
-			while (true)
-			{
-				int iCharacterIndex = Group_GetCharacterIndexR(rGroup, qq); qq++;
-				if (iCharacterIndex < 0) { break; }
-				SetCharacterRelationBoth(iCharacterIndex, nMainCharacterIndex, iRelation);
-                GreatRecipe_AllianceRegisterPair(iCharacterIndex, iRelation);
-			}
-		}	
-		
+		WdmFleetSeaApplyTask(sTaskList[i]);
 	}	
 
 	// update AISea 
@@ -1416,8 +1297,20 @@ void Sea_LoginGroup(string sGroupID)
 
 	float x, z, ay; x = 0.0; z = 0.0; ay = 0.0;
 
-	// find group position
-	if (CheckAttribute(rGroup, "location") && CheckAttribute(rGroup, "location.group") && rGroup.location != "none")
+	// A persistent generated guard keeps its observed world position across map
+	// visits; the authored berth is used only on its first normal creation.
+	string fleetPath = "";
+	if (CheckAttribute(rGroup, "trafficFleetID")) fleetPath = "encounters." + rGroup.trafficFleetID;
+	if (fleetPath != "" && CheckAttribute(&worldMap, fleetPath + ".trafficHarbour"))
+	{
+		x = Sea_LocalX(stf(worldMap.(fleetPath).x), stf(worldMap.(fleetPath).z));
+		z = Sea_LocalZ(stf(worldMap.(fleetPath).x), stf(worldMap.(fleetPath).z));
+		ay = Sea_LocalHeading(stf(worldMap.(fleetPath).ay));
+		worldMap.(fleetPath).trafficInSea = 1;
+		worldMap.retireEncounter = rGroup.trafficFleetID;
+		SeaTraffic_Notify("retireEncounter");
+	}
+	else if (CheckAttribute(rGroup, "location") && CheckAttribute(rGroup, "location.group") && rGroup.location != "none")
 	{
 		string sLocationGroup = rGroup.location.group;
 		string sLocationLocator = rGroup.location.locator;
@@ -1427,9 +1320,9 @@ void Sea_LoginGroup(string sGroupID)
 		string sTst = sLocationGroup + "." + sLocationLocator + ".x";
 		if (CheckAttribute(rIsland, sTst))
 		{
-			x = stf(rIsland.(sLocationGroup).(sLocationLocator).x);
-			z = stf(rIsland.(sLocationGroup).(sLocationLocator).z);
-			ay = stf(rIsland.(sLocationGroup).(sLocationLocator).ay);
+            x = Sea_RegionX(rGroup.location, stf(rIsland.(sLocationGroup).(sLocationLocator).x), stf(rIsland.(sLocationGroup).(sLocationLocator).z));
+            z = Sea_RegionZ(rGroup.location, stf(rIsland.(sLocationGroup).(sLocationLocator).x), stf(rIsland.(sLocationGroup).(sLocationLocator).z));
+            ay = Sea_RegionHeading(rGroup.location, stf(rIsland.(sLocationGroup).(sLocationLocator).ay));
 		}
 		else
 		{
@@ -1520,6 +1413,11 @@ void Sea_LoginGroup(string sGroupID)
             	rCharacter.location = rGroup.location;  // установка НПС лацации
             }
     		Ship_Add2Sea(sti(rCharacter.index), bFromCoast, "", true);
+			if (WdmFleetSeaActorOwned(rCharacter, false))
+			{
+				string receipt = "encounters." + rCharacter.trafficFleetID + ".encdata.trafficRoster.ship" + rCharacter.trafficRosterSlot;
+				if (IsEntity(rCharacter)) worldMap.(receipt).seaLoaded = 1;
+			}
 
     		ReloadProgressUpdate();
 
@@ -1608,6 +1506,7 @@ void Sea_FirstInit()
 		if (!CheckAttribute(&SeaMapTransition, "seaOnly")) BI_ShowInterface(false);
 	}
 	Sea_DirectSailRestore();
+	SeaTraffic_Start();
 }
 
 void Sea_Reload()
@@ -1675,7 +1574,7 @@ float SetMaxSeaHeight(int islandIdx)
 		{
 			if (CheckAttribute(pchar, "Ship.Pos.x") && CheckAttribute(arLocator, "x"))  // fix кривых локаторов у острова, правка должна быть в модели to_do
 			{
-				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), stf(arLocator.x), stf(arLocator.z)) < 1500)
+				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), Sea_RegionX(sIslandID, stf(arLocator.x), stf(arLocator.z)), Sea_RegionZ(sIslandID, stf(arLocator.x), stf(arLocator.z))) < 1500)
 					return 6.0;
 			}
 			else
@@ -1688,7 +1587,7 @@ float SetMaxSeaHeight(int islandIdx)
 		{
 			if (CheckAttribute(pchar, "Ship.Pos.x") && CheckAttribute(arLocator, "x"))  // fix кривых локаторов у острова, правка должна быть в модели to_do
 			{
-				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), stf(arLocator.x), stf(arLocator.z)) < 1700)
+				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), Sea_RegionX(sIslandID, stf(arLocator.x), stf(arLocator.z)), Sea_RegionZ(sIslandID, stf(arLocator.x), stf(arLocator.z))) < 1700)
 					return 6.0;
 			}
 			else
@@ -1701,7 +1600,7 @@ float SetMaxSeaHeight(int islandIdx)
 		{
 			if (CheckAttribute(pchar, "Ship.Pos.x") && CheckAttribute(arLocator, "x"))  // fix кривых локаторов у острова, правка должна быть в модели to_do
 			{
-				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), stf(arLocator.x), stf(arLocator.z)) < 2000)
+				if (GetDistance2D(stf(pchar.Ship.Pos.x), stf(pchar.Ship.Pos.z), Sea_RegionX(sIslandID, stf(arLocator.x), stf(arLocator.z)), Sea_RegionZ(sIslandID, stf(arLocator.x), stf(arLocator.z))) < 2000)
 					return 6.0;
 			}
 			else
@@ -1714,39 +1613,386 @@ float SetMaxSeaHeight(int islandIdx)
 	return 200.0;
 }
 // boal <--
-void Sea_LoadIsland(string sIslandID)
+ref Sea_GetRegionIsland(int index)
 {
-	Sea_ClearTownPopulation();
-	bIsFortAtIsland = false;
-	if (sIslandID == "") { return; }
+    if (index >= 0 && SeaRegionBodySource[index] >= 0) index = SeaRegionBodySource[index];
+    if (index == SeaResidentPrimaryIndex) return &Island;
+    return &SeaIslandRegions[index];
+}
 
-	int iIslandIndex = FindIsland(sIslandID);
+bool Sea_IsResidentIslandReady(string islandID)
+{
+    int index = FindIsland(islandID);
+    return index >= 0 && SeaRegionLoaded[index];
+}
+
+void Sea_LoadRegionOrigins()
+{
+    aref resources;
+    if (!GetEntity(&resources, "WdmStaticResources"))
+    {
+        CreateEntity(&SeaIslandResources, "WdmStaticResources");
+        GetEntity(&resources, "WdmStaticResources");
+    }
+    aref frame; makearef(frame, AISea.worldFrame);
+    string anchor = "";
+    if (SeaResidentPrimaryIndex >= 0) anchor = Islands[SeaResidentPrimaryIndex].id;
+    if (bSeaLoad) anchor = AISea.Island;
+    if (SendMessage(resources, "sas", "SeaAtlasFrame", frame, anchor)) return;
+    if (bSeaLegacyRegionRestore || CheckAttribute(&AISea, "worldFrame.regions.count")) return;
+    object origins;
+    if (!SendMessage(resources, "sa", "IslandOrigins", &origins)) return;
+    AISea.worldFrame.regions.count = 0;
+    for (int pass = 0; pass < 2; pass++)
+    {
+        for (int i = 0; i < sti(origins.count); i++)
+        {
+            string sourceKey = "r" + i;
+            string id = origins.(sourceKey).id;
+            int index = FindIsland(id);
+            if (index < 0 || !sti(Islands[index].visible)) continue;
+            if (pass == 0 && index != SeaResidentPrimaryIndex) continue;
+            if (pass == 1 && index == SeaResidentPrimaryIndex) continue;
+            int next = sti(AISea.worldFrame.regions.count);
+            string key = "r" + next;
+            AISea.worldFrame.regions.(key).id = Islands[index].id;
+            AISea.worldFrame.regions.(key).mapX = origins.(sourceKey).mapX;
+            AISea.worldFrame.regions.(key).mapZ = origins.(sourceKey).mapZ;
+            AISea.worldFrame.regions.count = next + 1;
+        }
+    }
+}
+
+void Sea_CreateRegionGrass(int index, ref targetIsland, float dx, float dz)
+{
+    if (!CheckAttribute(&Islands[index], "jungle")) return;
+    ref grass = &SeaIslandGrass[index];
+    if (index == SeaResidentPrimaryIndex) grass = &objGrass;
+    float scale = 10.0;
+    if (CheckAttribute(&Islands[index], "jungle.scale")) scale = stf(Islands[index].jungle.scale);
+    CreateEntity(grass, "Grass");
+    LayerAddObject(SEA_EXECUTE, grass, 1000);
+    LayerAddObject(SEA_REALIZE, grass, 1000);
+    SendMessage(grass, "ls", 41666, "Grass\" + Islands[index].jungle.texture + ".tga");
+    SendMessage(grass, "lffffff", 42666, scale, 20.0, 200.0, 100.0, 1000.0, 0.6);
+    SendMessage(grass, "ls", 40666, "resource\models\islands\" + Islands[index].id + "\" + Islands[index].jungle.patch + ".grs");
+    SendMessage(grass, "liff", 43666, targetIsland, dx, dz);
+}
+
+void Sea_CreateRegionFoam(int index, float dx, float dz)
+{
+    ref foam = &SeaIslandFoam[index];
+    if (index == SeaResidentPrimaryIndex) foam = &CoastFoam;
+    foam.id = Islands[index].id;
+    foam.Edit = false;
+    foam.WorldOffsetX = dx;
+    foam.WorldOffsetZ = dz;
+    if (Sea_HasAtlasFrame())
+    {
+        object pose; Sea_RegionFrame(Islands[index].id, &pose);
+        aref destination; makearef(destination, foam.WorldPose);
+        CopyAttributes(destination, &pose);
+    }
+    else DeleteAttribute(foam, "WorldPose");
+    CreateEntity(foam, "CoastFoam");
+    LayerAddObject(SEA_EXECUTE, foam, 65530);
+    LayerAddObject(SEA_REALIZE, foam, 65531);
+}
+
+void Sea_ClearResidentIslands()
+{
+    for (int i = 0; i < MAX_ISLANDS; i++)
+    {
+        DeleteClass(&SeaIslandRegions[i]);
+        DeleteClass(&SeaIslandReflections[i]);
+        DeleteClass(&SeaIslandGrass[i]);
+        DeleteClass(&SeaIslandFoam[i]);
+        DeleteClass(&SeaIslandLights[i]);
+        DeleteClass(&SeaIslandBeams[i]);
+        SeaRegionLoaded[i] = false;
+        SeaBodyLoaded[i] = false;
+        SeaFortRegionLoaded[i] = false;
+        SeaRegionBodySource[i] = -1;
+    }
+    SeaResidentPrimaryIndex = -1;
+}
+
+void Sea_SelectResidentIsland(string islandID)
+{
+    int index = FindIsland(islandID);
+    if (index < 0 || !SeaRegionLoaded[index]) return;
+    ref targetIsland = Sea_GetRegionIsland(index);
+    if (Sea_HasAtlasFrame())
+    {
+        object selectedPose; Sea_RegionFrame(islandID, &selectedPose);
+        aref destination; makearef(destination, Island.SeaAtlasSelectedPose);
+        CopyAttributes(destination, &selectedPose);
+    }
+    else DeleteAttribute(&Island, "SeaAtlasSelectedPose");
+    SendMessage(&Island, "li", MSG_ISLAND_SELECT_REGION, targetIsland);
+    SendMessage(&SeaLocatorShow, "a", &Islands[index]);
+    Sea.MaxSeaHeight = SetMaxSeaHeight(index);
+    bIsFortAtIsland = false;
+    aref regionFortReload; makearef(regionFortReload, Islands[index].reload.l2);
+    if (!CheckAttribute(regionFortReload, "colonyname") || !CheckAttribute(regionFortReload, "x") || !CheckAttribute(regionFortReload, "z")) return;
+    int colony = FindColony(regionFortReload.colonyname);
+    if (colony < 0) return;
+    iFortNation = sti(colonies[colony].nation);
+    iFortCommander = sti(colonies[colony].commanderIdx);
+    bool registered = false;
+    for (int slot = 0; slot < iNumForts; slot++)
+    {
+        if (sti(Forts[slot].fortcmdridx) == iFortCommander && CheckAttribute(&Forts[slot], "position.x"))
+        {
+            fFort_x = stf(Forts[slot].position.x);
+            fFort_z = stf(Forts[slot].position.z);
+            registered = true;
+            break;
+        }
+    }
+    if (!registered) return;
+    if (!CheckAttribute(&characters[iFortCommander], "Fort.Mode") || sti(characters[iFortCommander].Fort.Mode) != FORT_DEAD)
+        bIsFortAtIsland = true;
+}
+
+void Sea_LoadRemainingResidentIslands()
+{
+    bSeaLegacyRegionRestore = false;
+    Sea_LoadRegionOrigins();
+    if (Sea_HasAtlasFrame())
+    {
+        // The root Mount clears attached regions. Mount its physical body
+        // first, then attach every other body exactly once.
+        for (int pass = 0; pass < 2; pass++)
+        {
+            for (int b = 0; b < sti(AISea.worldFrame.bodies.count); b++)
+            {
+                string bodyKey = "b" + b;
+                int source = FindIsland(AISea.worldFrame.bodies.(bodyKey).source_region);
+                if (source < 0) continue;
+                if (pass == 0 && source != SeaResidentPrimaryIndex) continue;
+                if (pass == 1 && source == SeaResidentPrimaryIndex) continue;
+                bool visible = false;
+                for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)
+                {
+                    string regionKey = "r" + r;
+                    int index = FindIsland(AISea.worldFrame.regions.(regionKey).id);
+                    if (index >= 0 && SeaRegionBodySource[index] == source && sti(Islands[index].visible)) visible = true;
+                }
+                if (visible) Sea_LoadAtlasBody(b, source);
+            }
+        }
+        return;
+    }
+    int count = sti(AISea.worldFrame.regions.count);
+    for (int i = 0; i < count; i++)
+    {
+        string key = "r" + i;
+        int legacyIndex = FindIsland(AISea.worldFrame.regions.(key).id);
+        if (legacyIndex >= 0) Sea_LoadIslandRegion(legacyIndex);
+    }
+}
+
+void Sea_LoadIsland(string islandID)
+{
+    Sea_ClearTownPopulation();
+    SeaResidentPrimaryIndex = FindIsland(islandID);
+    if (Sea_HasAtlasFrame() && CheckAttribute(&AISea, "worldFrame.root_source_region"))
+        SeaResidentPrimaryIndex = FindIsland(AISea.worldFrame.root_source_region);
+    else if (CheckAttribute(&AISea, "worldFrame.regions.count") && sti(AISea.worldFrame.regions.count) > 0)
+        SeaResidentPrimaryIndex = FindIsland(AISea.worldFrame.regions.r0.id);
+    for (int i = 0; i < MAX_ISLANDS; i++)
+    {
+        SeaRegionLoaded[i] = false;
+        SeaBodyLoaded[i] = false;
+        SeaFortRegionLoaded[i] = false;
+        SeaRegionBodySource[i] = -1;
+    }
+    Sea_InitWorldFrame();
+    Sea_LoadRegionOrigins();
+    if (Sea_HasAtlasFrame())
+    {
+        for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)
+        {
+            string regionKey = "r" + r;
+            string bodyKey = "b" + AISea.worldFrame.regions.(regionKey).body;
+            int index = FindIsland(AISea.worldFrame.regions.(regionKey).id);
+            if (index >= 0) SeaRegionBodySource[index] = FindIsland(AISea.worldFrame.bodies.(bodyKey).source_region);
+        }
+        if (SeaResidentPrimaryIndex >= 0) SeaResidentPrimaryIndex = SeaRegionBodySource[SeaResidentPrimaryIndex];
+        if (SeaResidentPrimaryIndex < 0)
+        {
+            for (i = 0; i < MAX_ISLANDS; i++)
+            {
+                if (SeaRegionBodySource[i] >= 0 && sti(Islands[i].visible))
+                {
+                    SeaResidentPrimaryIndex = SeaRegionBodySource[i];
+                    break;
+                }
+            }
+        }
+        if (SeaResidentPrimaryIndex >= 0) AISea.worldFrame.root_source_region = Islands[SeaResidentPrimaryIndex].id;
+        bSeaLegacyRegionRestore = false;
+    }
+    CreateEntity(&Island, "Island");
+    LayerAddObject(SEA_REALIZE, &Island, 4);
+    LayerAddObject(MAST_ISLAND_TRACE, &Island, 1);
+    LayerAddObject(SUN_TRACE, &Island, 1);
+    if (bSeaLegacyRegionRestore)
+    {
+        if (SeaResidentPrimaryIndex >= 0) Sea_LoadIslandRegion(SeaResidentPrimaryIndex);
+    }
+    else Sea_LoadRemainingResidentIslands();
+    if (Sea_HasAtlasFrame()) Sea_LoadAtlasForts(bSeaLoad);
+    if (!bSeaLoad) DeleteAttribute(&AISea, "worldFrame.upgrade_pending");
+    Sea_SelectResidentIsland(islandID);
+}
+
+void Sea_LoadAtlasFortRegion(int index)
+{
+    if (index < 0 || !SeaRegionLoaded[index] || SeaFortRegionLoaded[index]) return;
+    ref targetIsland = Sea_GetRegionIsland(index);
+    SetTexturePath(0, "islands\" + Islands[index].TexturePath + "\");
+    Fort_LoginRegion(index, targetIsland, Sea_RegionOffsetX(Islands[index].id), Sea_RegionOffsetZ(Islands[index].id));
+    SeaFortRegionLoaded[index] = true;
+    int next = sti(AISea.worldFrame.fort_regions.count);
+    string key = "r" + next;
+    AISea.worldFrame.fort_regions.(key).id = Islands[index].id;
+    AISea.worldFrame.fort_regions.count = next + 1;
+    SetTexturePath(0, "");
+}
+
+void Sea_LoadAtlasForts(bool savedOnly)
+{
+    // The binary sea codec has no fort count/IDs. Reconstruct exactly the
+    // saved logical order before reading it, then append newly resident forts.
+    if (savedOnly)
+    {
+        object saved;
+        aref source;
+        if (CheckAttribute(&AISea, "worldFrame.fort_regions.count"))
+        {
+            makearef(source, AISea.worldFrame.fort_regions);
+            CopyAttributes(&saved, source);
+        }
+        else if (CheckAttribute(&AISea, "worldFrame.legacy_resident_frame.regions.count"))
+        {
+            makearef(source, AISea.worldFrame.legacy_resident_frame.regions);
+            CopyAttributes(&saved, source);
+        }
+        else
+        {
+            saved.count = 1;
+            saved.r0.id = AISea.Island;
+        }
+        DeleteAttribute(&AISea, "worldFrame.fort_regions");
+        AISea.worldFrame.fort_regions.count = 0;
+        for (int s = 0; s < sti(saved.count); s++)
+        {
+            string savedKey = "r" + s;
+            Sea_LoadAtlasFortRegion(FindIsland(saved.(savedKey).id));
+        }
+        return;
+    }
+    if (!CheckAttribute(&AISea, "worldFrame.fort_regions.count")) AISea.worldFrame.fort_regions.count = 0;
+    for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)
+    {
+        string regionKey = "r" + r;
+        Sea_LoadAtlasFortRegion(FindIsland(AISea.worldFrame.regions.(regionKey).id));
+    }
+}
+
+void Sea_LoadAtlasBody(int bodyIndex, int source)
+{
+    if (SeaBodyLoaded[source]) return;
+    string bodyKey = "b" + bodyIndex;
+    aref body; makearef(body, AISea.worldFrame.bodies.(bodyKey));
+    ref targetIsland = Sea_GetRegionIsland(source);
+    ref reflection = &SeaIslandReflections[source];
+    if (source == SeaResidentPrimaryIndex) reflection = &IslandReflModel;
+    if (!IsEntity(targetIsland)) CreateEntity(targetIsland, "IslandRegion");
+    targetIsland.LightingPath = GetLightingPath();
+    targetIsland.dynamicLightsOn = 1;
+    targetIsland.ImmersionDistance = Islands[source].ImmersionDistance;
+    targetIsland.ImmersionDepth = Islands[source].ImmersionDepth;
+    targetIsland.FogDensity = Weather.Fog.IslandDensity;
+    targetIsland.SeaAtlas.id = body.id;
+    targetIsland.SeaAtlas.depth_directory = body.depth_directory;
+    targetIsland.SeaAtlas.depth_name = body.depth_name;
+    object pose;
+    aref outer, inner;
+    makearef(outer, AISea.worldFrame.atlas_to_sea);
+    makearef(inner, body.body_to_atlas);
+    Sea_ComposeFrame(&pose, outer, inner);
+    SetTexturePath(0, "");
+    SendMessage(targetIsland, "lsss", MSG_ISLAND_LOAD_GEO, "", "", body.terrain);
+    SendMessage(targetIsland, "lffffff", MSG_ISLAND_POSE_REGION,
+        stf(pose.a), stf(pose.b), stf(pose.c), stf(pose.d), stf(pose.tx), stf(pose.tz));
+    float viewDistance = 6000.0;
+    for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)
+    {
+        string regionKey = "r" + r;
+        int index = FindIsland(AISea.worldFrame.regions.(regionKey).id);
+        if (index < 0 || SeaRegionBodySource[index] != source || !sti(Islands[index].visible)) continue;
+        if (CheckAttribute(&Islands[index], "maxviewdist") && stf(Islands[index].maxviewdist) > viewDistance)
+            viewDistance = stf(Islands[index].maxviewdist);
+    }
+    SendMessage(targetIsland, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, viewDistance);
+    CreateEntity(reflection, "MODELR");
+    SendMessage(reflection, "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
+    SendMessage(reflection, "ls", MSG_MODEL_LOAD_GEO, body.reflection);
+    SendMessage(reflection, "lffffffffffff", MSG_MODEL_SET_POSITION, stf(pose.tx), 0.0, stf(pose.tz),
+        stf(pose.a), 0.0, stf(pose.c), 0.0, 1.0, 0.0, stf(pose.b), 0.0, stf(pose.d));
+    SendMessage(reflection, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, viewDistance);
+    SendMessage(reflection, "lllf", MSG_MODEL_SET_FOG, 1, 1, stf(Weather.Fog.IslandDensity));
+    LayerAddObject(SEA_REFLECTION2, reflection, -1);
+    Sea_CreateRegionGrass(source, targetIsland, stf(pose.tx), stf(pose.tz));
+    for (r = 0; r < sti(AISea.worldFrame.regions.count); r++)
+    {
+        regionKey = "r" + r;
+        index = FindIsland(AISea.worldFrame.regions.(regionKey).id);
+        if (index < 0 || SeaRegionBodySource[index] != source || !sti(Islands[index].visible)) continue;
+        SetTexturePath(0, "islands\" + Islands[index].TexturePath + "\");
+        Sea_CreateLighthouse(Islands[index].id);
+        Sea_CreateRegionFoam(index, Sea_RegionOffsetX(Islands[index].id), Sea_RegionOffsetZ(Islands[index].id));
+        SeaRegionLoaded[index] = true;
+    }
+    SendMessage(targetIsland, "lai", MSG_ISLAND_WORLD_STATE, &Islands[source], reflection);
+    SeaBodyLoaded[source] = true;
+    bIslandLoaded = true;
+    if (Islands[source].id == "PuertoRico" && !IsEntity(&SeaTownPopulation))
+    {
+        SeaTownPopulation.config = "RESOURCE\INI\sea_towns\puerto_rico.ini";
+        aref townPose; makearef(townPose, SeaTownPopulation.WorldPose);
+        CopyAttributes(townPose, &pose);
+        CreateEntity(&SeaTownPopulation, "SeaTown");
+    }
+    if (source != SeaResidentPrimaryIndex) SendMessage(&Island, "li", MSG_ISLAND_ATTACH_REGION, targetIsland);
+    SetTexturePath(0, "");
+}
+
+void Sea_LoadIslandRegion(int iIslandIndex)
+{
+	if (SeaRegionLoaded[iIslandIndex]) return;
+	string sIslandID = Islands[iIslandIndex].id;
+	ref targetIsland = Sea_GetRegionIsland(iIslandIndex);
+	ref regionRefl = &SeaIslandReflections[iIslandIndex];
+	if (iIslandIndex == SeaResidentPrimaryIndex) regionRefl = &IslandReflModel;
+	float dx = Sea_RegionOffsetX(sIslandID);
+	float dz = Sea_RegionOffsetZ(sIslandID);
 	if (iIslandIndex != -1 && Islands[iIslandIndex].visible == true)
 	{
-		// boal -->
 		float  fMaxViewDist;
-        Sea.MaxSeaHeight = SetMaxSeaHeight(iIslandIndex); // тут нужно для загрузки игры из сайва, для нормального перехода не работает, тк ГГ ещё не в море, нет коорд
-        Log_TestInfo("Sea_LoadIsland Sea.MaxSeaHeight " + Sea.MaxSeaHeight);
-		// boal <--
-		CreateEntity(&Island, "Island");
-		Island.LightingPath = GetLightingPath();
-		Island.dynamicLightsOn = DYNAMIC_LIGHTS;
-		Island.dynamicLightsOn = 1 // sti(InterfaceStates.DYNAMICLIGHTS); //  belamour динамический свет
-		Island.ImmersionDistance = Islands[iIslandIndex].ImmersionDistance;			// distance = fRadius * ImmersionDistance, from island begin immersion
-		Island.ImmersionDepth = Islands[iIslandIndex].ImmersionDepth;			// immersion depth = (Distance2Camera / (fRadius * ImmersionDistance) - 1.0) * ImmersionDepth
+		if (!IsEntity(targetIsland)) CreateEntity(targetIsland, "IslandRegion");
+		targetIsland.LightingPath = GetLightingPath();
+		targetIsland.dynamicLightsOn = DYNAMIC_LIGHTS;
+		targetIsland.dynamicLightsOn = 1 // sti(InterfaceStates.DYNAMICLIGHTS); //  belamour динамический свет
+		targetIsland.ImmersionDistance = Islands[iIslandIndex].ImmersionDistance;			// distance = fRadius * ImmersionDistance, from island begin immersion
+		targetIsland.ImmersionDepth = Islands[iIslandIndex].ImmersionDepth;			// immersion depth = (Distance2Camera / (fRadius * ImmersionDistance) - 1.0) * ImmersionDepth
 		string sTexturePath = "islands\" + Islands[iIslandIndex].TexturePath + "\";
 		SetTexturePath(0, sTexturePath);
-		Island.FogDensity = Weather.Fog.IslandDensity;
-		// трава на остров
-		if( CheckAttribute(&Islands[iIslandIndex],"jungle") )
-		{
-			float fJungleScale = 10.0;
-			if( CheckAttribute(&Islands[iIslandIndex],"jungle.scale") )
-			{
-				fJungleScale = stf(Islands[iIslandIndex].jungle.scale);
-			}
-			CreateGrass("resource\models\islands\"+ Islands[iIslandIndex].id +"\"+ Islands[iIslandIndex].jungle.patch + ".grs", "Grass\"+Islands[iIslandIndex].jungle.texture+".tga", fJungleScale, 20.0, 200.0, 100.0, 1000.0, 0.6);
-		}
+		targetIsland.FogDensity = Weather.Fog.IslandDensity;
+		Sea_CreateRegionGrass(iIslandIndex, targetIsland, dx, dz);
 		/*if (MOD_BETTATESTMODE == "On")
 		{
 			CreateEntity(&SeaLighter, "lighter");  //eddy. не надо это пока коментить, это и есть Lighter. ошибку даёт, если в локлайтере лоадинг == 0, т.к. в этом случае тулза не инитится в движке.
@@ -1754,60 +2000,50 @@ void Sea_LoadIsland(string sIslandID)
 		SendMessage(&SeaLighter, "ss", "ModelsPath", Islands[iIslandIndex].filespath.models);
 		SendMessage(&SeaLighter, "ss", "LightPath", GetLightingPath());
 
-		SendMessage(&Island, "lsss", MSG_ISLAND_LOAD_GEO, "islands", Islands[iIslandIndex].filespath.models, Islands[iIslandIndex].model);
-		LayerAddObject(SEA_REALIZE, &Island, 4);
-		LayerAddObject(MAST_ISLAND_TRACE, &Island, 1);
-		LayerAddObject(SUN_TRACE, &Island, 1);
+		SendMessage(targetIsland, "lsss", MSG_ISLAND_LOAD_GEO, "islands", Islands[iIslandIndex].filespath.models, Islands[iIslandIndex].model);
+		SendMessage(targetIsland, "lff", MSG_ISLAND_TRANSLATE_REGION, dx, dz);
+		if (iIslandIndex == SeaResidentPrimaryIndex)
+		{
+			LayerAddObject(SEA_REALIZE, &Island, 4);
+			LayerAddObject(MAST_ISLAND_TRACE, &Island, 1);
+			LayerAddObject(SUN_TRACE, &Island, 1);
+		}
 		fMaxViewDist = 6000.0;
 		if(CheckAttribute(&Islands[iIslandIndex], "maxviewdist"))
 		{
 			fMaxViewDist = stf(Islands[iIslandIndex].maxviewdist);
 		}
-		SendMessage(&Island, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, fMaxViewDist);
+		SendMessage(targetIsland, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, fMaxViewDist);
 
-		CreateEntity(&IslandReflModel, "MODELR");
+		CreateEntity(regionRefl, "MODELR");
 		string sReflModel = Islands[iIslandIndex].filespath.models + "\" + Islands[iIslandIndex].refl_model;
-		SendMessage(&IslandReflModel, "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
-		SendMessage(&IslandReflModel, "ls", MSG_MODEL_LOAD_GEO, sReflModel);
-		SendMessage(&IslandReflModel, "lllf", MSG_MODEL_SET_FOG, 1, 1, stf(Weather.Fog.IslandDensity));
-		LayerAddObject(SEA_REFLECTION2, &IslandReflModel, -1);
-		SendMessage(&SeaLighter, "ssi", "AddModel", Islands[iIslandIndex].refl_model, &IslandReflModel);
+		SendMessage(regionRefl, "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
+		SendMessage(regionRefl, "ls", MSG_MODEL_LOAD_GEO, sReflModel);
+		SendMessage(regionRefl, "lffffffffffff", MSG_MODEL_SET_POSITION, dx, 0.0, dz, 1,0,0, 0,1,0, 0,0,1);
+		SendMessage(regionRefl, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, fMaxViewDist);
+		SendMessage(regionRefl, "lllf", MSG_MODEL_SET_FOG, 1, 1, stf(Weather.Fog.IslandDensity));
+		LayerAddObject(SEA_REFLECTION2, regionRefl, -1);
+		SendMessage(&SeaLighter, "ssi", "AddModel", Islands[iIslandIndex].refl_model, regionRefl);
 		
 		// Warship Вынес в метод - создание освещения маяка
 		Sea_CreateLighthouse(sIslandID);
 		
 		bIslandLoaded = true;
-		SendMessage(&SeaLocatorShow, "a", &Islands[iIslandIndex]);
-		Fort_Login(iIslandIndex);	
+		Fort_LoginRegion(iIslandIndex, targetIsland, dx, dz);
 		// Islands[] is saved script state; the transient sea entity only binds it.
-		SendMessage(&Island, "lai", MSG_ISLAND_WORLD_STATE, &Islands[iIslandIndex], &IslandReflModel);
+		SendMessage(targetIsland, "lai", MSG_ISLAND_WORLD_STATE, &Islands[iIslandIndex], regionRefl);
 		SetTexturePath(0, "");
 
-		if (sIslandID == "PuertoRico")
+		if (sIslandID == "PuertoRico" && iIslandIndex == SeaResidentPrimaryIndex)
 		{
 			SeaTownPopulation.config = "RESOURCE\INI\sea_towns\puerto_rico.ini";
+			DeleteAttribute(&SeaTownPopulation, "WorldPose");
 			CreateEntity(&SeaTownPopulation, "SeaTown");
 		}
 
-		CreateCoastFoamEnvironment(sIslandID, SEA_EXECUTE, SEA_REALIZE);
-		//eddy. запишем в переменные координаты форта
-		aref arReloadFort;	
-		makearef(arReloadFort, Islands[iIslandIndex].reload.l2);
-		if (!CheckAttribute(arReloadFort, "colonyname")) return;
-		string sTest = arReloadFort.colonyname + " Fort";
-		if (arReloadFort.label == sTest && CheckAttribute(arReloadFort, "x") && CheckAttribute(arReloadFort, "z"))
-		{
-			fFort_x = stf(arReloadFort.x);
-			fFort_z = stf(arReloadFort.z);
-			int iColony = FindColony(arReloadFort.colonyname);
-			iFortNation = sti(colonies[iColony].nation);
-			iFortCommander = sti(colonies[iColony].commanderIdx);
-			//следить за фортом только, если он жив
-			if (!CheckAttribute(&characters[iFortCommander], "Fort.Mode") || sti(characters[iFortCommander].Fort.Mode) != FORT_DEAD)
-			{
-				bIsFortAtIsland = true; 
-			}
-		}
+		Sea_CreateRegionFoam(iIslandIndex, dx, dz);
+		SeaRegionLoaded[iIslandIndex] = true;
+		if (iIslandIndex != SeaResidentPrimaryIndex) SendMessage(&Island, "li", MSG_ISLAND_ATTACH_REGION, targetIsland);
 	}
 }
 
@@ -1820,14 +2056,25 @@ void Sea_CreateLighthouse(String _islandID)
 	String lighthouseLightModelName;
 	
 	if(islandIndex == -1) return;
+    ref targetIsland = Sea_GetRegionIsland(islandIndex);
+    ref regionLight = &SeaIslandLights[islandIndex];
+    ref regionBeam = &SeaIslandBeams[islandIndex];
+    if (islandIndex == SeaResidentPrimaryIndex)
+    {
+        regionLight = &sLightModel;
+        regionBeam = &lighthouseLightModel;
+    }
+    float dx = Sea_RegionOffsetX(_islandID);
+    float dz = Sea_RegionOffsetZ(_islandID);
 	
 	islandRef = &Islands[islandIndex];
 
 	//--> eddy. да будет свет на маяке
 	if(CheckAttribute(&islandRef, "mayak"))
 	{
-		CreateEntity(&sLightModel, "MODELR");
-		sLightModel.PhonkWorldKey = "lighthouse";
+		CreateEntity(regionLight, "MODELR");
+		regionLight.PhonkWorldKey = "lighthouse";
+		if (Sea_HasAtlasFrame()) regionLight.PhonkWorldKey = _islandID + "_lighthouse";
 		
 		if(isDay())
 		{
@@ -1838,10 +2085,11 @@ void Sea_CreateLighthouse(String _islandID)
 			lighthouseLightModelName = islandRef.filespath.models + "\" + islandRef.mayak.model_night;
 		}
 		
-		//SendMessage(&sLightModel, "ls", MSG_MODEL_SET_TECHNIQUE, "LocVisRays");
-		SendMessage(&sLightModel, "ls", MSG_MODEL_LOAD_GEO, lighthouseLightModelName);
-		SendMessage(&island, "li", MSG_ISLAND_ADD_FORT,  &sLightModel); // &island - обьект-остров (сущность), а не элемент массива Islands[]
-		SendMessage(SeaLighter, "ssi", "AddModel", islandRef.mayak.model_night, &sLightModel);
+		//SendMessage(regionLight, "ls", MSG_MODEL_SET_TECHNIQUE, "LocVisRays");
+		SendMessage(regionLight, "ls", MSG_MODEL_LOAD_GEO, lighthouseLightModelName);
+        Sea_PoseRegionModel(regionLight, _islandID, 0.0, 0.0, 0.0);
+		SendMessage(targetIsland, "li", MSG_ISLAND_ADD_FORT,  regionLight); // &island - обьект-остров (сущность), а не элемент массива Islands[]
+		SendMessage(SeaLighter, "ssi", "AddModel", islandRef.mayak.model_night, regionLight);
 	}
 	//<-- eddy. да будет свет на маяке
 	
@@ -1849,36 +2097,36 @@ void Sea_CreateLighthouse(String _islandID)
 	// Атрибут маяка у острова тут не проверяется - он есть только у маяка Ямайки
 	if(_islandID == "Jamaica" || _islandID == "Cuba1" || _islandID == "Cuba2")
 	{
-		if(IsEntity(lighthouseLightModel))
+		if(IsEntity(regionBeam))
 		{
-			DeleteClass(&lighthouseLightModel);
+			DeleteClass(regionBeam);
 		}
 		
 		if(!IsDay())
 		{
-			CreateEntity(&lighthouseLightModel, "MODELR");
+			CreateEntity(regionBeam, "MODELR");
 			// Коммент - текстура для модельки будет браться из "RESOURCE\TEXTURES\" + DIRPATH и никак это не исправить :(
 			// В общем, текстура должна лежать в той же папке, что и модель, только в каталоге "TEXTURES"
-			//SendMessage(&lighthouseLightModel, "ls", MSG_MODEL_SET_DIRPATH, "");
-			SendMessage(&lighthouseLightModel, "ls", MSG_MODEL_LOAD_GEO, "lighthouse_volumeLight");
-			SendMessage(&lighthouseLightModel, "ls", MSG_MODEL_SET_TECHNIQUE, "LighthouseLight");
-			LayerAddObject(SEA_EXECUTE, &lighthouseLightModel, ITEMS_LAYER);
-			LayerAddObject(SEA_REALIZE, &lighthouseLightModel, ITEMS_LAYER);
+			//SendMessage(regionBeam, "ls", MSG_MODEL_SET_DIRPATH, "");
+			SendMessage(regionBeam, "ls", MSG_MODEL_LOAD_GEO, "lighthouse_volumeLight");
+			SendMessage(regionBeam, "ls", MSG_MODEL_SET_TECHNIQUE, "LighthouseLight");
+			LayerAddObject(SEA_EXECUTE, regionBeam, ITEMS_LAYER);
+			LayerAddObject(SEA_REALIZE, regionBeam, ITEMS_LAYER);
 			
 			if(_islandID == "Jamaica")
 			{
-				SendMessage(&lighthouseLightModel, "lffffffffffff", MSG_MODEL_SET_POSITION, 3000.0, 24.5, -1679.1, 1, 0, 0, 0, 1, 0, 0, 0, 1);
+				Sea_PoseRegionModel(regionBeam, _islandID, 3000.0, 24.5, -1679.1);
 			}
 			
 			if(_islandID == "Cuba1")
 			{
 				// TO_DO Крутануть его - криво сейчас
-				SendMessage(&lighthouseLightModel, "lffffffffffff", MSG_MODEL_SET_POSITION, 627.0, 24.0, -2170.5, 1, 0, 0, 0, 1, 0, 0, 0, 1);
+				Sea_PoseRegionModel(regionBeam, _islandID, 627.0, 24.0, -2170.5);
 			}
 			
 			if(_islandID == "Cuba2")
 			{
-				SendMessage(&lighthouseLightModel, "lffffffffffff", MSG_MODEL_SET_POSITION, -413.0, 65.5, 815.1, 1, 0, 0, 0, 1, 0, 0, 0, 1);
+				Sea_PoseRegionModel(regionBeam, _islandID, -413.0, 65.5, 815.1);
 			}
 		}
 	}
@@ -1887,6 +2135,28 @@ void Sea_CreateLighthouse(String _islandID)
 
 bool bSeaLoad = false;
 
+void Sea_PrepareLegacyActorPoses(bool prepare)
+{
+    for (int i = 0; i < GetArraySize(&Characters); i++)
+    {
+        ref captain = &Characters[i];
+        DeleteAttribute(captain, "SeaAtlasLegacyPose");
+        if (!prepare || !CheckAttribute(&AISea, "worldFrame.upgrade_pending")) continue;
+        string region = AISea.Island;
+        if (CheckAttribute(captain, "location") && FindIsland(captain.location) >= 0) region = captain.location;
+        object pose; Sea_LegacyRegionFrame(region, &pose);
+        aref destination; makearef(destination, captain.SeaAtlasLegacyPose);
+        CopyAttributes(destination, &pose);
+        if (CheckAttribute(captain, "Ship.Pos.x") && CheckAttribute(captain, "Ship.Pos.z"))
+        {
+            float x = stf(captain.Ship.Pos.x); float z = stf(captain.Ship.Pos.z);
+            captain.Ship.Pos.x = Sea_FramePointX(&pose, x, z);
+            captain.Ship.Pos.z = Sea_FramePointZ(&pose, x, z);
+        }
+        if (CheckAttribute(captain, "Ship.Ang.y")) captain.Ship.Ang.y = stf(captain.Ship.Ang.y)+atan2(stf(pose.b), stf(pose.d));
+    }
+}
+
 void Sea_Load()
 {
 	Sea_DirectSailCancel();
@@ -1894,12 +2164,19 @@ void Sea_Load()
 	bSeaTsunamiEncounter = false;
 	WdmMilitaryParleyClear();
 	bSeaLoad = true;
+	bSeaLegacyRegionRestore = !CheckAttribute(&AISea, "worldFrame.regions.count");
 	
 	CreateSeaEnvironment();	
 	// login island if exist
 	Sea_LoadIsland(AISea.Island);	
 	
+	Sea_PrepareLegacyActorPoses(true);
 	SendMessage(&AISea, "l", AI_MESSAGE_SEALOAD);		
+	Sea_PrepareLegacyActorPoses(false);
+	if (Sea_HasAtlasFrame()) Sea_LoadAtlasForts(false);
+	DeleteAttribute(&AISea, "worldFrame.upgrade_pending");
+	if (bSeaLegacyRegionRestore) Sea_LoadRemainingResidentIslands();
+	Sea_SelectResidentIsland(AISea.Island);
 	SendMessage(&Telescope, "leee", MSG_TELESCOPE_INIT_ARRAYS, &Nations, &RealShips, &Goods);	
 		
 	PostEvent(SHIP_CHECK_RELOAD_ENABLE, 1);	
@@ -2029,6 +2306,136 @@ void WdmTrafficApplySeaWear(ref captain, aref encounter)
 // worldmap-traffic.c owns selection/readiness; this file owns only the sea bridge.
 // Roster ordinals never compact. Ship/RealShip snapshots contain values, not handles.
 
+void Sea_MountEncounterCharacter(ref rEncounter, int iFantomIndex, int slot, int commanderIndex, string sGName, string sIslandID, bool offline)
+{
+	ref rFantom;
+	int iEncounterType = sti(rEncounter.RealEncounterType);
+	rFantom = &Characters[iFantomIndex];
+                DeleteAttribute(rFantom, "items"); // boal 28.07.04 фикс кучи сабель, когда идет в плен
+	rFantom.id = "fenc_" + iFantomIndex;
+                // boal 26.02.2004 -->
+	rFantom.location = sIslandID;
+	// boal 26.02.2004 <--
+	// set commander to group
+	if (slot==0) { Group_SetGroupCommander(sGName, Characters[iFantomIndex].id); }
+
+	// set random character and ship names, face id
+	rFantom.sex = "man";
+	rFantom.model.animation = "man";
+	rFantom.Nation = rEncounter.Nation;
+	// boal разговор в море -->
+                rFantom.reputation = 5+rand(84);
+                rFantom.EncType      = rEncounter.Type; // тип  war, trade pirate
+                rFantom.RealEncounterType = iEncounterType;//boal
+                rFantom.EncGroupName = sGName;
+	rFantom.MainCaptanId = Characters[commanderIndex].id;
+	rFantom.WatchFort = true; //следить за фортом
+	rFantom.AnalizeShips = true; //анализить враждебные корабли сразу же с загрузки и далее
+	if(rand(10) == 1) rFantom.DontRansackCaptain = true;
+
+	if (CheckAttribute(rFantom, "Ship.Mode"))
+                {
+	SetCaptanModelByEncType(rFantom, rFantom.Ship.Mode);
+                }
+                else
+                {
+                    SetCaptanModelByEncType(rFantom, rEncounter.Type);
+                }
+                // boal разговор в море <--
+
+	SetRandomNameToCharacter(rFantom);
+	SetRandomNameToShip(rFantom);
+
+	SetSeaFantomParam(rFantom, rEncounter.Type); // все там
+
+	if(slot == 0 && rFantom.EncType == "pirate")
+	{
+		rFantom.Flags.Pirate = rand(2);
+	}
+
+//				trace("rFantom.id = " + rFantom.id + " Ship.pos.x = " + rFantom.Ship.pos.x + " Ship.pos.z = " + rFantom.Ship.pos.z);
+//				trace("pchar.Ship.pos.x = " + pchar.Ship.pos.x + " pchar.Ship.pos.z = " + pchar.Ship.pos.z);
+
+	trace("bSeaCanGenerateShipSituation = " + bSeaCanGenerateShipSituation);
+
+	//ugeen --> установка возможных ситуаций в каюте кэпа при абордаже - взрыв или эпидемия
+	if(slot != 0 && bSeaCanGenerateShipSituation && iEncounterType != ENCOUNTER_TYPE_ALONE && pchar.CanGenerateShipSituation)  // флагманы и одиночки исключаем
+	{
+		if (CheckAttribute(rFantom, "hunter")) // ОЗГ или ДУ
+		{
+			if(rFantom.hunter == "hunter") Fantom_SetQuestSitiation(rFantom, "hunter");
+			else Fantom_SetQuestSitiation(rFantom, "pirate");
+		}
+		else
+		{
+			if(sti(rFantom.Nation) == PIRATE) Fantom_SetQuestSitiation(rFantom, "pirate");
+			else
+			{
+				if(rFantom.EncType == "trade") // военники в составе торговых караванов
+				{
+					if (CheckAttribute(rFantom, "Ship.Mode") && rFantom.Ship.Mode != "trade")
+					{
+						Fantom_SetQuestSitiation(rFantom, rFantom.Ship.Mode); // торгаши отдельно
+					}
+				}
+				else Fantom_SetQuestSitiation(rFantom, rFantom.EncType); // военные корабли - патрули и пр.
+			}
+		}
+	}
+	if(bSeaCanGenerateShipSituation && pchar.CanGenerateShipSituation)
+	{
+		if (iEncounterType == ENCOUNTER_TYPE_MERCHANT_SMALL || iEncounterType == ENCOUNTER_TYPE_MERCHANT_MEDIUM) // а вот тут торгаши - устанавливаем для флотилии из одного-двух кораблей
+		{
+			Fantom_SetQuestSitiation(rFantom, rFantom.EncType);
+		}
+	}
+	// <-- ugeen
+	Fantom_SetCannons(rFantom, rEncounter.Type);
+	Fantom_SetSails(rFantom, rEncounter.Type);
+	if (!WdmFleetSeaTagged(rEncounter)) WdmTrafficApplySeaWear(rFantom, rEncounter);
+                // boal <--
+	rFantom.SeaAI.Group.Name = sGName;
+	rFantom.Experience = 0;
+	rFantom.Skill.FreeSkill = 0;
+
+	//rFantom.Features.GeraldSails = false;  // код от к3, весьмя страннй, тк при выгрузке в Ship_Add2Sea всем тупо пробивается труе :)
+	//if (CheckAttribute(rEncounter, "GeraldSails")) { rFantom.Features.GeraldSails = sti(rEncounter.GeraldSails); }
+
+	// boal герб на флагман -->
+	DeleteAttribute(rFantom, "ShipSails.gerald_name");   // мог быть с того раза
+	if (slot == 0 || GetCharacterShipClass(rFantom) == 1)
+	{
+		SetRandGeraldSail(rFantom, sti(rFantom.Nation));
+	}
+                // boal герб на флагман <--
+
+	// add fantom
+	Group_AddCharacter(sGName, rFantom.id);
+
+	// add to sea
+	if (CheckAttribute(rFantom, "trafficHarbour"))
+	{
+		rFantom.IslandShips = rFantom.trafficHarbour;
+		rFantom.AlwaysSandbankManeuver = true;
+		rFantom.AnalizeShips = true;
+		if (sti(rFantom.nation) == PIRATE && GetNationRelation2Character(PIRATE, nMainCharacterIndex) == RELATION_FRIEND)
+		{
+			rFantom.AlwaysFriend = true;
+			SetCharacterRelationBoth(iFantomIndex, nMainCharacterIndex, RELATION_FRIEND);
+		}
+	}
+	Ship_Add2Sea(iFantomIndex, 0, rEncounter.Type, offline);
+	if (WdmFleetSeaTagged(rEncounter) && IsEntity(rFantom))
+	{
+		string loaded = "encounters." + rEncounter.trafficFleetID + ".encdata.trafficRoster.ship" + rFantom.trafficRosterSlot;
+		if (CheckAttribute(&worldMap, loaded))
+		{
+			worldMap.(loaded).seaLoaded = 1;
+			SeaTraffic_RestoreMotion(rFantom);
+		}
+	}
+}
+
 bool WdmFleetSeaTagged(aref fleet)
 {
 	if (!CheckAttribute(fleet, "trafficFleetID") || CheckAttribute(fleet, "qID") || CheckAttribute(fleet, "quest")) return false;
@@ -2038,7 +2445,7 @@ bool WdmFleetSeaTagged(aref fleet)
 
 void WdmFleetSeaCopyIdentity(aref destination, aref source)
 {
-	string fields[14];
+	string fields[16];
 	fields[0] = "trafficFleetID";
 	fields[1] = "trafficRole";
 	fields[2] = "trafficNation";
@@ -2053,7 +2460,9 @@ void WdmFleetSeaCopyIdentity(aref destination, aref source)
 	fields[11] = "trafficObservedTargetPower";
 	fields[12] = "trafficMission";
 	fields[13] = "trafficCurrentPort";
-	for (int i = 0; i < 14; i++)
+	fields[14] = "trafficHarbour";
+	fields[15] = "trafficBattleRoot";
+	for (int i = 0; i < 16; i++)
 	{
 		string key = fields[i];
 		DeleteAttribute(destination, key);
@@ -2257,46 +2666,8 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	DeleteAttribute(group, "trafficBerthBase");
 	string path = "encounters." + fleet.trafficFleetID;
 	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
-	// Military placements retain their real fort/landing coordinates.
-	if (CheckAttribute(fleet, "trafficMission")) return;
-	group.trafficEntry.spacing = 260.0 + frnd() * 80.0;
-	group.trafficEntry.width = 0.65 + frnd() * 0.35;
-	group.trafficEntry.stagger = frnd() * 0.25;
-	// A service fleet is already at its harbour; only moving encounters need
-	// room to approach instead of materialising beside the player's hull.
-	if (fleet.trafficIntent == "service")
-	{
-		if (CheckAttribute(group, "trafficCurrentPort"))
-		{
-			string portID = group.trafficCurrentPort;
-			if (!CheckAttribute(&AISea, "trafficHarbourBerths." + portID)) AISea.trafficHarbourBerths.(portID) = 0;
-			group.trafficBerthBase = AISea.trafficHarbourBerths.(portID);
-			if (WdmFleetSeaServicePosition(group, 0))
-			{
-				Group_SetXZ_AY(group.id, WdmFleetSeaShipPositionResult[0], WdmFleetSeaShipPositionResult[2], WdmFleetSeaShipPositionResult[1]);
-				AISea.trafficHarbourBerths.(portID) = sti(group.trafficBerthBase) + WdmFleetSeaHullCount(fleet);
-			}
-			else DeleteAttribute(group, "trafficBerthBase");
-		}
-		return;
-	}
-	float x = stf(group.Pos.x);
-	float z = stf(group.Pos.z);
-	float dx = x - stf(pchar.Ship.Pos.x);
-	float dz = z - stf(pchar.Ship.Pos.z);
-	float distance = sqrt(dx * dx + dz * dz);
-	float extent = stf(group.trafficEntry.spacing) * (1 + makeint(WdmFleetSeaHullCount(fleet) / 2));
-	float minimum = 1200.0 + extent;
-	if (distance >= minimum) return;
-	if (distance < 0.01)
-	{
-		dx = sin(stf(group.Pos.ay));
-		dz = cos(stf(group.Pos.ay));
-		distance = 1.0;
-	}
-	x = stf(pchar.Ship.Pos.x) + dx * minimum / distance;
-	z = stf(pchar.Ship.Pos.z) + dz * minimum / distance;
-	Group_SetXZ_AY(group.id, x, z, stf(group.Pos.ay));
+	// The world descriptor owns position. Never push a nearby fleet away from
+	// the player or replace its saved position with an unrelated harbour berth.
 }
 
 #event_handler("WdmFleetSeaShipPosition", "WdmFleetSeaShipPosition");
@@ -2312,6 +2683,7 @@ ref WdmFleetSeaShipPosition()
 	if (CheckAttribute(captain, "SeaAI.Group.Name") && Group_FindGroup(captain.SeaAI.Group.Name) >= 0)
 	{
 		ref group = Group_GetGroupByID(captain.SeaAI.Group.Name);
+		if (SeaTraffic_RestorePosition(captain, x, z, ay)) return &WdmFleetSeaShipPositionResult;
 		if (WdmFleetSeaServicePosition(group, slot)) return &WdmFleetSeaShipPositionResult;
 		if (CheckAttribute(group, "trafficEntry.spacing") && slot > 0)
 		{
@@ -2499,7 +2871,7 @@ bool WdmFleetSeaActorOwned(ref captain, bool admitted)
 	string entry = path + ".encdata.trafficRoster.ship" + ordinal;
 	if (!CheckAttribute(&worldMap, entry + ".baseType")) return false;
 	if (admitted && (!CheckAttribute(&worldMap, entry + ".seaLoaded") || !sti(worldMap.(entry).seaLoaded))) return false;
-	string groupID = "egroup__wdm_" + captain.trafficFleetID;
+	string groupID = Ship_GetGroupID(captain);
 	if (!CheckAttribute(captain, "SeaAI.Group.Name") || captain.SeaAI.Group.Name != groupID) return false;
 	int groupIndex = Group_FindGroup(groupID);
 	if (groupIndex < 0 || !CheckAttribute(&AIGroups[groupIndex], "trafficFleetID") ||
@@ -2636,7 +3008,6 @@ void WdmFleetSeaRestoreShip(ref captain)
 	captain.Ship.HP = stf(captain.Ship.HP) * condition;
 	captain.Ship.SP = stf(captain.Ship.SP) * condition;
 	if (condition < 0.95) captain.Ship.Crew.Quantity = makeint(stf(captain.Ship.Crew.Quantity) * (0.5 + 0.5 * condition));
-	entry.seaLoaded = 1;
 	RecalculateCargoLoad(captain);
 }
 
@@ -2663,12 +3034,19 @@ void WdmFleetSeaMarkGone(ref captain)
 
 void WdmFleetSeaSave()
 {
+	SeaTraffic_ReportPositions();
+	WdmFleetSeaSaveFleet("");
+}
+
+void WdmFleetSeaSaveFleet(string identity)
+{
 	if (!CheckAttribute(&worldMap, "encounters")) return;
 	aref descriptors, descriptor, roster, entry, source, destination;
 	makearef(descriptors, worldMap.encounters);
 	for (int d = 0; d < GetAttributesNum(descriptors); d++)
 	{
 		descriptor = GetAttributeN(descriptors, d);
+		if (identity != "" && (!CheckAttribute(descriptor, "trafficFleetID") || descriptor.trafficFleetID != identity)) continue;
 		if (!CheckAttribute(descriptor, "trafficInSea") || !sti(descriptor.trafficInSea)) continue;
 		if (CheckAttribute(descriptor, "quest") || CheckAttribute(descriptor, "encdata.qID")) continue;
 		if (!CheckAttribute(descriptor, "encdata.trafficRoster.count"))
@@ -2677,6 +3055,8 @@ void WdmFleetSeaSave()
 			continue;
 		}
 		makearef(roster, descriptor.encdata.trafficRoster);
+		object observed;
+		DeleteAttribute(&observed, "");
 		bool admitted = false;
 		// Only entries actually admitted to this scene can become missing/dead.
 		for (int ordinal = 0; ordinal < sti(roster.count); ordinal++)
@@ -2685,7 +3065,11 @@ void WdmFleetSeaSave()
 			makearef(entry, roster.(key));
 			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) admitted = true;
 		}
-		if (!admitted) { DeleteAttribute(descriptor, "trafficInSea"); continue; }
+		if (!admitted)
+		{
+			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
+			continue;
+		}
 		for (int i = 0; i < iNumShips; i++)
 		{
 			int index = Ships[i];
@@ -2698,8 +3082,10 @@ void WdmFleetSeaSave()
 			makearef(entry, roster.(slot));
 			// Do not resurrect a captured ship even if its former captain stays alive.
 			if (CheckAttribute(captain, "trafficTaken") || (CheckAttribute(entry, "dead") && sti(entry.dead))) continue;
-			DeleteAttribute(entry, "seaLoaded");
+			observed.(slot) = 1;
+			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			entry.dead = 0;
+			SeaTraffic_SaveMotion(captain, descriptor, entry);
 			int realIndex = GetCharacterShipType(captain);
 			ref realShip = &RealShips[realIndex];
 			entry.baseType = realShip.BaseType;
@@ -2769,8 +3155,8 @@ void WdmFleetSeaSave()
 		{
 			string survivorKey = "ship" + n;
 			makearef(entry, roster.(survivorKey));
-			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded)) entry.dead = 1;
-			DeleteAttribute(entry, "seaLoaded");
+			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded) && !CheckAttribute(&observed, survivorKey)) entry.dead = 1;
+			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			if (!CheckAttribute(entry, "dead") || !sti(entry.dead)) survivors++;
 			else WdmTrafficLoseCargo(entry);
 		}
@@ -2785,7 +3171,7 @@ void WdmFleetSeaSave()
 		makearef(clock, descriptor.trafficSupplyClock);
 		WdmTrafficStamp(clock);
 		DeleteAttribute(clock, "remainder");
-		DeleteAttribute(descriptor, "trafficInSea");
+		if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
 		if (CheckAttribute(descriptor, "trafficMission"))
 		{
 			int colony = FindColony(descriptor.trafficMission);
@@ -3012,8 +3398,8 @@ bool WdmFleetSeaAttachOperationFleet(ref login, aref descriptor)
 		aref raw = GetAttributeN(groups, i);
 		ref member = GetMapEncounterRef(sti(raw.type));
 		if (!WdmFleetSeaTagged(member) || member.trafficFleetID != identity) continue;
-		raw.x = (stf(descriptor.x) - stf(worldMap.zeroX)) * GetSeaToMapScale();
-		raw.z = (stf(descriptor.z) - stf(worldMap.zeroZ)) * GetSeaToMapScale();
+		raw.x = Sea_LocalX(stf(descriptor.x), stf(descriptor.z));
+		raw.z = Sea_LocalZ(stf(descriptor.x), stf(descriptor.z));
 		member.trafficRouteX = raw.x; member.trafficRouteZ = raw.z;
 		member.Task = AITASK_MOVE; DeleteAttribute(member, "Task.Target");
 		member.Task.Pos.x = raw.x; member.Task.Pos.z = raw.z;
@@ -3102,8 +3488,8 @@ bool WdmFleetSeaMilitaryTask(ref captain)
 			CheckAttribute(&worldMap, "zeroX") && CheckAttribute(&worldMap, "zeroZ"))
 		{
 			aref descriptor; makearef(descriptor, worldMap.(path));
-			float x = (stf(descriptor.x) - stf(worldMap.zeroX)) * GetSeaToMapScale();
-			float z = (stf(descriptor.z) - stf(worldMap.zeroZ)) * GetSeaToMapScale();
+			float x = Sea_LocalX(stf(descriptor.x), stf(descriptor.z));
+			float z = Sea_LocalZ(stf(descriptor.x), stf(descriptor.z));
 			Ship_SetTaskMove(SECONDARY_TASK, sti(captain.index), x, z);
 		}
 		return true;

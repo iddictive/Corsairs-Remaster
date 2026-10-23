@@ -1,6 +1,8 @@
 #pragma once
 
 #include "common_camera.h"
+#include "dart_view_borrower.h"
+#include "camera_borrower.h"
 
 #include <vector>
 #include <chrono>
@@ -9,6 +11,8 @@ class VDX9RENDER;
 
 class SEA_CAMERAS : public Entity
 {
+    friend bool storm_dart_view::ReferencesCharacter(int index);
+    friend bool storm_sea_cameras::ReferencesCharacter(int index);
     std::vector<COMMON_CAMERA *> CamerasArray;
     bool bActive;
     VDX9RENDER *render = nullptr;

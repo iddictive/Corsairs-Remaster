@@ -5,6 +5,7 @@
 #include "dx9render.h"
 #include "math3d.h"
 #include "shared/sea_ai/script_defines.h"
+#include "sea_atlas.hpp"
 
 CoastFoam::CoastFoam()
 {
@@ -936,6 +937,10 @@ void CoastFoam::Load()
     clear();
     const auto iNumFoams = pI->GetInt(nullptr, "NumFoams", 0);
     fMaxFoamDistance = pI->GetFloat(nullptr, "MaxFoamDistance", 1000.0f);
+    const float offsetX = AttributesPointer->GetAttributeAsFloat("WorldOffsetX", 0.f);
+    const float offsetZ = AttributesPointer->GetAttributeAsFloat("WorldOffsetZ", 0.f);
+    const auto *atlasPose = AttributesPointer->GetAttributeClass("WorldPose");
+    const auto pose = atlasPose ? storm_sea_atlas::Frame::FromAttributes(*atlasPose) : storm_sea_atlas::Frame{};
     fFoamDeltaY = pI->GetFloat(nullptr, "FoamDeltaY", 0.2f);
     iFoamDivides = pI->GetInt(nullptr, "FoamDivides", 4);
     for (int32_t i = 0; i < iNumFoams; i++)
@@ -979,6 +984,16 @@ void CoastFoam::Load()
             if (!cTemp[0])
                 break;
             sscanf(cTemp, "%f, %f, %f, %f", &v1.x, &v1.z, &v2.x, &v2.z);
+            if (atlasPose)
+            {
+                v1 = pose.Point(v1);
+                v2 = pose.Point(v2);
+            }
+            else
+            {
+                v1.x += offsetX; v2.x += offsetX;
+                v1.z += offsetZ; v2.z += offsetZ;
+            }
 
             FoamPart foam;
             foam.v[0] = v1;

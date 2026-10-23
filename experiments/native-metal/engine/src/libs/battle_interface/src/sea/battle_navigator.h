@@ -2,6 +2,7 @@
 
 #include "bi_defines.h"
 #include "weather_base.h"
+#include <vector>
 
 #define RADIAL_QUANTITY 36
 #define BI_DEFAULT_COLOR 0xFF0010C0
@@ -163,6 +164,16 @@ class BATTLE_NAVIGATOR
     int32_t m_idWindTexture{-1};   // wind speed
     int32_t m_idSailTexture{-1};   // sail position / ship speed
     storm_render::Texture *m_pIslandTexture{};
+    struct IslandMap
+    {
+        entid_t model;
+        storm_render::Texture *texture;
+        float x, z, width, height, radius;
+    };
+    std::vector<IslandMap> islandMaps;
+    bool islandMapsPrepared = false;
+    void PrepareIslandMap(entid_t model);
+    void ClearIslandMaps();
 
     uint32_t m_dwSeaColor{};                 // color of the sea on the minimap
     uint32_t m_dwFireZoneColor = 0x20FF0050; // color of the fire zone on the minimap

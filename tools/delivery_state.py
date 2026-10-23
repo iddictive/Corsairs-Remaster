@@ -123,7 +123,14 @@ class DeliveryState:
             len(parts) > 2 and parts[:2] == ("RESOURCE", "techniques")
             and relative.suffix.lower() == ".fx") or (
             len(parts) == 3 and parts[:2] == ("RESOURCE", "Particles")
-            and relative.suffix.lower() == ".xps")
+            and relative.suffix.lower() == ".xps") or (
+            len(parts) == 4 and parts[:3] in (
+                ("RESOURCE", "MODELS", "SeamlessSea"),
+                ("RESOURCE", "MODELS", "SeamlessSeaChart"))
+            and relative.suffix.lower() == ".gm") or (
+            len(parts) == 4 and parts[:3] == ("RESOURCE", "foam", "SeamlessSea")
+            and relative.suffix.lower() in (".ini", ".tga", ".zap", ".aifg")) or (
+            name == "RESOURCE/MODELS/WorldMap/islands/islands_patch.ptc")
         if relative.as_posix() != name or (name not in NATIVE_RESOURCES and not content):
             raise RuntimeError(f"Outside managed delivery scope: {name}")
         return safe_path(self.resources, relative)

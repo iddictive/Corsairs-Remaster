@@ -79,12 +79,19 @@ void SEAFOAM::InitializeShipFoam()
 
 void SEAFOAM::AddShip(entid_t pShipEID)
 {
+    for (int ship = 0; ship < shipsCount; ++ship)
+        if (shipFoamInfo[ship].shipID == pShipEID) return;
     if (shipsCount >= MAX_SHIPS)
+        return;
+
+    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShipEID));
+    if (!ship || !ship->GetModel() || !ship->GetModel()->GetNode(0) || !ship->GetModel()->GetNode(0)->geo)
         return;
 
     auto *foamInfo = &shipFoamInfo[shipsCount++];
 
-    foamInfo->ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShipEID));
+    foamInfo->shipID = pShipEID;
+    foamInfo->ship = ship;
     foamInfo->shipModel = foamInfo->ship->GetModel();
     foamInfo->shipModel->GetNode(0)->geo->GetInfo(foamInfo->hullInfo);
     foamInfo->enabled = true;
@@ -121,22 +128,31 @@ void SEAFOAM::AddShip(entid_t pShipEID)
 //--------------------------------------------------------------------
 void SEAFOAM::ReleaseShipFoam()
 {
-    tShipFoamInfo *foamInfo = nullptr;
-
-    for (auto ship = 0; ship < shipsCount; ship++)
-    {
-        foamInfo = &shipFoamInfo[ship];
-
-        foamInfo->carcass[0]->Uninitialize();
-        delete foamInfo->carcass[0];
-        foamInfo->carcass[1]->Uninitialize();
-        delete foamInfo->carcass[1];
-
-        delete foamInfo->frontEmitter[0];
-        delete foamInfo->frontEmitter[1];
-        delete foamInfo->frontEmitter[2];
-    }
+    for (auto ship = 0; ship < shipsCount; ship++) ReleaseShipFoam(shipFoamInfo[ship]);
     shipsCount = 0;
+}
+
+void SEAFOAM::ReleaseShipFoam(tShipFoamInfo &foam)
+{
+    foam.carcass[0]->Uninitialize();
+    delete foam.carcass[0];
+    foam.carcass[1]->Uninitialize();
+    delete foam.carcass[1];
+    for (auto *emitter : foam.frontEmitter) delete emitter;
+    foam = {};
+}
+
+void SEAFOAM::RemoveShip(entid_t shipID)
+{
+    for (int ship = 0; ship < shipsCount; ++ship)
+        if (shipFoamInfo[ship].shipID == shipID)
+        {
+            ReleaseShipFoam(shipFoamInfo[ship]);
+            --shipsCount;
+            if (ship != shipsCount) shipFoamInfo[ship] = shipFoamInfo[shipsCount];
+            shipFoamInfo[shipsCount] = {};
+            return;
+        }
 }
 
 //--------------------------------------------------------------------
@@ -586,6 +602,12 @@ uint64_t SEAFOAM::ProcessMessage(MESSAGE &message)
             }
         return 0;
     }
+    case MSG_SHIP_CREATE:
+        AddShip(message.EntityID());
+        return outValue;
+    case MSG_SHIP_RELEASE:
+        RemoveShip(message.EntityID());
+        return outValue;
     case MSG_SHIP_DELETE: {
         auto *const attrs = message.AttributePointer();
         tShipFoamInfo *foamInfo = nullptr;

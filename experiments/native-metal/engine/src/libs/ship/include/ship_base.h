@@ -115,6 +115,8 @@ class SHIP_BASE : public VAI_OBJBASE
 
     ~SHIP_BASE() override = default;
 
+    virtual void PublishShipPose() = 0;
+
     virtual ATTRIBUTES *GetAShip()
     {
         return pAShip;
@@ -156,6 +158,10 @@ class SHIP_BASE : public VAI_OBJBASE
         const CVECTOR&,float) {}
     // Ship-model-local attachment support from cut fields and retained authored material.
     virtual bool IsHullPositionRetained(const CVECTOR &localPosition) const { return true; }
+    virtual void QueryHullSupport(const CVECTOR *positions, unsigned char *retained, size_t count) const
+    {
+        for (size_t i = 0; i < count; ++i) retained[i] = IsHullPositionRetained(positions[i]);
+    }
     virtual void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                                  float specificEnergy, int32_t otherCharacterIndex) {}
     virtual bool ApplyHullProjectileImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,

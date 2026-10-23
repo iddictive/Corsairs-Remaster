@@ -342,7 +342,7 @@ void CoreImpl::ProcessEngineIniFile()
     if (res)
     {
         if (!Compiler->CreateProgram(String))
-            throw std::runtime_error("fail to create program");
+            throw std::runtime_error(Compiler->firstCompileError_.empty() ? "fail to create program" : Compiler->firstCompileError_);
         if (!Compiler->Run())
             throw std::runtime_error("fail to run program");
 

@@ -343,6 +343,10 @@
       "encoding": "utf-8",
       "legacy": []
     },
+    "PROGRAM/sea_ai/sea_traffic.c": {
+      "encoding": "utf-8",
+      "legacy": []
+    },
     "PROGRAM/sea_ai/sea.c": {
       "encoding": "utf-8",
       "legacy": [
@@ -443,6 +447,19 @@
       "encoding": "utf-8",
       "legacy": [
         "97e41648234f2a3bc78dd9454025bdcd9e15e4625471315fe30b32fc7b765ff5"
+      ]
+    },
+    "PROGRAM/worldmap/worldmap_coords.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "1ebd413554c4324e8e14a521d01c66fa22cbaabd8b347ebf921d0e98a567d443"
+      ]
+    },
+    "PROGRAM/scripts/islandships.c": {
+      "encoding": "utf-8",
+      "legacy": [
+        "bc03feaf048837187e22bad6fc7671b860de0fe565cd7dace027b76bc96cca20",
+        "354c0f43c5ba374d9fadad0e121f83dea3239cfa91f317fdc30ce5f9baa9d9fe"
       ]
     },
     "PROGRAM/interface/ship.c": {

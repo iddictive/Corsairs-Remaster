@@ -3,6 +3,8 @@
 #include "core.h"
 #include "dx9render.h"
 #include "shared/messages.h"
+#include "sea_atlas.hpp"
+#include "model.h"
 
 #include <algorithm>
 #include <cmath>
@@ -57,9 +59,8 @@ public:
         if (!core.Send_Message(GetId(), "lss", MSG_CHARACTER_SETMODEL, model.c_str(), animation.c_str()))
             return false;
         // SeaLogin freezes ordinary land layers; the native model loader uses
-        // those by default, so move only these owned models into the sea layer.
+        // those by default. The owning town renders these models in sea.
         core.RemoveFromLayer(REALIZE, mdl);
-        core.AddToLayer(SEA_REALIZE, mdl, 20);
         core.EraseEntity(shadow);
         shadow = {};
         const auto &p = routePoints[nextPoint];
@@ -106,6 +107,19 @@ public:
         waterrings = {};
     }
 
+    void RenderAt(const CMatrix &pose, uint32_t delta)
+    {
+        auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(mdl));
+        if (!model) return;
+        // Land navigation stays in its authored local frame. Only this owned
+        // background render is projected into sea, then fully restored.
+        struct Restore { MODEL *model; CMatrix local; ~Restore() { model->mtx = local; model->Update(); } } restore{model, model->mtx};
+        CMatrix world;
+        world.EqMultiply(model->mtx, pose);
+        model->mtx = world;
+        model->ProcessStage(Stage::realize, delta);
+    }
+
 private:
     std::unique_ptr<ATTRIBUTES> attributes;
     std::vector<CVECTOR> routePoints;
@@ -125,7 +139,11 @@ public:
         renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
         const char *config = AttributesPointer->GetAttribute("config");
         if (!renderer || !config || !ReadConfig(config)) return false;
+        if (const auto *pose = AttributesPointer->GetAttributeClass("WorldPose"))
+            worldPose = storm_sea_atlas::Frame::FromAttributes(*pose);
+        localPose = worldPose.Inverse();
         core.AddToLayer(SEA_EXECUTE, GetId(), 11);
+        core.AddToLayer(SEA_REALIZE, GetId(), 20);
         return true;
     }
 
@@ -141,6 +159,13 @@ public:
 
     void ProcessStage(Stage stage, uint32_t delta) override
     {
+        if (stage == Stage::realize)
+        {
+            const auto pose = worldPose.Matrix();
+            for (const auto id : citizens)
+                if (auto *citizen = static_cast<SeaTownCitizen *>(core.GetEntityPointer(id))) citizen->RenderAt(pose, delta);
+            return;
+        }
         if (stage != Stage::execute) return;
         if (retired || core.GetEntityId("location") || core.GetEntityId("CharactersGroups") ||
             !core.GetEntityId("sea") || !core.GetEntityId("island"))
@@ -152,6 +177,7 @@ public:
         CVECTOR camera, angles;
         float perspective;
         renderer->GetCamera(camera, angles, perspective);
+        camera = localPose.Point(camera);
         float distance2 = INFINITY;
         for (const auto &route : routes)
             for (const auto &p : route)
@@ -258,6 +284,7 @@ private:
     }
 
     VDX9RENDER *renderer = nullptr;
+    storm_sea_atlas::Frame worldPose, localPose;
     entid_t context = {};
     std::vector<entid_t> citizens;
     std::vector<std::vector<CVECTOR>> routes;

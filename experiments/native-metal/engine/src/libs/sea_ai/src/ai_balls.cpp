@@ -1,4 +1,5 @@
 #include "ai_balls.h"
+#include "sea_atlas.hpp"
 #include "ai_fort.h"
 #include "math_inlines.h"
 #include "shared/messages.h"
@@ -1150,6 +1151,16 @@ void BALL_PARAMS::Load(CSaveLoad *pSL)
     fMaxFireDistance = pSL->LoadFloat();
     fRawAng = pSL->LoadFloat();
     dwCannonType = pSL->LoadDword();
+    auto *characters = static_cast<VDATA *>(core.GetScriptVariable("Characters"));
+    auto *owner = characters && characters->IsArray() && iBallOwner >= 0 &&
+        static_cast<uint32_t>(iBallOwner) < characters->GetElementsNum() ? characters->GetAClass(iBallOwner) : nullptr;
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(owner))
+    {
+        vFirstPos = pose->Point(vFirstPos);
+        vPos = pose->Point(vPos);
+        const auto direction = pose->Vector(CVECTOR(fDirX, 0.f, fDirZ));
+        fDirX = direction.x; fDirZ = direction.z;
+    }
 }
 
 void AIBalls::Load(CSaveLoad *pSL)

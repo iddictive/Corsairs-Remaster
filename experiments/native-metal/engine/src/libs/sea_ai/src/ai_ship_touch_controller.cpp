@@ -1,4 +1,5 @@
 #include "ai_ship.h"
+#include "sea_atlas.hpp"
 #include "math_inlines.h"
 
 AIShipTouchController::AIShipTouchController(AIShip *_pAIShip)
@@ -272,4 +273,6 @@ void AIShipTouchController::Load(CSaveLoad *pSL)
     fRotateFactor = pSL->LoadFloat();
     for (auto &i : vBox)
         i = pSL->LoadVector();
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetAIShip()->GetACharacter()))
+        for (auto &point : vBox) point = pose->Point(point);
 }

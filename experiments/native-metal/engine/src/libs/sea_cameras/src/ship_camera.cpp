@@ -288,9 +288,15 @@ bool SHIP_CAMERA::IslandCollision(CVECTOR &pos)
             return false;
     }
     // Model
-    auto *mdl = static_cast<MODEL *>(core.GetEntityPointer(pIsland->GetModelEID()));
-    if (mdl == nullptr)
+    const auto islandModels = pIsland->GetIslandModels();
+    if (islandModels.empty())
         return false;
+    const auto traceIsland = [&](const CVECTOR &from, const CVECTOR &to) {
+        float nearest = 2.f;
+        for (const auto id : islandModels) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+            nearest = std::min(nearest, model->Trace(from, to));
+        return nearest;
+    };
     // Find direction, distance
     auto dir = pos - vCenter;
     auto dist = ~dir;
@@ -301,7 +307,7 @@ bool SHIP_CAMERA::IslandCollision(CVECTOR &pos)
     const auto dr = dir * (dist + camRadius);
     // First check
     float kArr[5];
-    kArr[0] = mdl->Trace(vCenter, vCenter + dr);
+    kArr[0] = traceIsland(vCenter, vCenter + dr);
     // Basis
     auto left = dir ^ CVECTOR(0.0f, 1.0f, 0.0f);
     const auto l = ~left;
@@ -314,13 +320,13 @@ bool SHIP_CAMERA::IslandCollision(CVECTOR &pos)
     left *= 1.0f / sqrtf(l);
     const auto up = dir ^ left;
     CVECTOR src = vCenter + left * camRadius;
-    kArr[1] = mdl->Trace(src, src + dr);
+    kArr[1] = traceIsland(src, src + dr);
     src = vCenter - left * camRadius;
-    kArr[2] = mdl->Trace(src, src + dr);
+    kArr[2] = traceIsland(src, src + dr);
     src = vCenter + up * camRadius;
-    kArr[3] = mdl->Trace(src, src + dr);
+    kArr[3] = traceIsland(src, src + dr);
     src = vCenter - up * camRadius;
-    kArr[4] = mdl->Trace(src, src + dr);
+    kArr[4] = traceIsland(src, src + dr);
     auto kRes = 2.0f;
     for (const float k : kArr)
     {

@@ -793,7 +793,7 @@ void WdmTrafficBeginRefresh()
 #event_handler("WorldMap_TrafficFrame", "WdmTrafficRefreshFrame");
 void WdmTrafficRefreshFrame()
 {
-	if (!IsEntity(&worldMap)) { WdmTrafficCancelRefresh(); return; }
+	if (!SeaTraffic_IsActive()) { WdmTrafficCancelRefresh(); return; }
 	if (!wdmTrafficRefreshPending) return;
 	float phase = GetEventData();
 	if (phase < 0.0) return;
@@ -911,7 +911,7 @@ int WdmTrafficHomeWeight(int home, int role)
 
 bool WdmTrafficCreate(int role)
 {
-	if (role < 1 || role > 3 || !IsEntity(worldMap)) return false;
+	if (role < 1 || role > 3 || !SeaTraffic_IsActive()) return false;
 	// Select globally from live colonies. Do not use the player's island or position.
 	int homes[MAX_COLONIES];
 	int homeCount = 0;
@@ -2655,6 +2655,8 @@ int WdmTrafficNextPort(aref encounter, int origin, int nation, int role)
 void WdmTrafficVoyageUpdate(aref encounter)
 {
 	if (!WdmTrafficIsOrdinary(encounter)) return;
+	// Generated harbour guards keep their existing local defence assignment.
+	if (CheckAttribute(encounter, "trafficHarbour")) return;
 	WdmTrafficMigrateVoyage(encounter);
 	if (CheckAttribute(encounter, "trafficMission")) return;
 	if (!CheckAttribute(encounter, "trafficVersion") || CheckAttribute(encounter, "trafficBattle") ||
@@ -9058,6 +9060,7 @@ void WdmMilitaryFleetForces(aref encounter, ref forces)
 
 bool WdmMilitaryFleetReady(aref encounter, int nation)
 {
+	if (CheckAttribute(encounter, "trafficHarbour")) return false;
 	if (!WdmTrafficIsOrdinary(encounter) || sti(encounter.trafficRole) != 2 || sti(encounter.trafficNation) != nation ||
 		!CheckAttribute(encounter, "trafficVersion") || CheckAttribute(encounter, "trafficMission") || CheckAttribute(encounter, "trafficBattle") ||
 		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea)) || WdmTrafficNeedsService(encounter)) return false;
@@ -10112,10 +10115,10 @@ string WdmMilitaryParleyRefusal(int index, int activeBalls)
 		{
 			aref entrance = FindIslandReloadLocator(fort.location, fort.location.locator);
 			if (!CheckAttribute(entrance, "name") || entrance.name != fort.location.locator ||
-				!CheckAttribute(entrance, "x") || !CheckAttribute(entrance, "z"))
+				!CheckAttribute(&Forts[fortSlot], "position.x") || !CheckAttribute(&Forts[fortSlot], "position.z"))
 				return "Положение вражеского форта не позволяет безопасно принять посетителей.";
-			float heroDistance = sqrt(sqr(stf(entrance.x) - stf(pchar.Ship.Pos.x)) + sqr(stf(entrance.z) - stf(pchar.Ship.Pos.z)));
-			float captainDistance = sqrt(sqr(stf(entrance.x) - stf(captain.Ship.Pos.x)) + sqr(stf(entrance.z) - stf(captain.Ship.Pos.z)));
+			float heroDistance = sqrt(sqr(stf(Forts[fortSlot].position.x) - stf(pchar.Ship.Pos.x)) + sqr(stf(Forts[fortSlot].position.z) - stf(pchar.Ship.Pos.z)));
+			float captainDistance = sqrt(sqr(stf(Forts[fortSlot].position.x) - stf(captain.Ship.Pos.x)) + sqr(stf(Forts[fortSlot].position.z) - stf(captain.Ship.Pos.z)));
 			if (heroDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER_FORT || captainDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER_FORT)
 				return "Рядом вражеский форт: командующий отказал в перемирии.";
 		}

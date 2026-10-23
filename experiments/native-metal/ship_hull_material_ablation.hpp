@@ -71,7 +71,9 @@ inline bool newComponent(const Surface&before,const Surface&after){
     std::set<size_t>oldComponents;for(size_t n=0;n<original.faces.size();++n)oldComponents.insert(original.root(n));return representatives.size()>oldComponents.size();
 }
 inline bool newlySplit(const Input&input,const Surface&after,bool&split){
-    split=false;const auto state=input.structure?input.structure:input.surface->structure;if(!state||!state->layout)return false;
+    split=false;
+    if(!storm_hull_damage::EnableHullSectionRelease)return true;
+    const auto state=input.structure?input.structure:input.surface->structure;if(!state||!state->layout)return false;
     std::vector<uint32_t>ids;std::set<uint32_t>cells;for(const auto&beam:input.plane.beams){storm_ship_structure::queryCells(*state->layout,beamBounds(beam),ids);cells.insert(ids.begin(),ids.end());}
     if(!input.surface->cells||!after.cells||input.surface->cells->source!=after.cells->source)return false;
     std::set<uint32_t>sources;for(auto id:cells){input.surface->cells->source->index.queryBounds(state->layout->cells[id].bounds,ids);sources.insert(ids.begin(),ids.end());}

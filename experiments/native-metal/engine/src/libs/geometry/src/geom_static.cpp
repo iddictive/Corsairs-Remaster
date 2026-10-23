@@ -8,6 +8,8 @@ Comments:
 Import library main file
 ******************************************************************************/
 #include "geom.h"
+#include "geometry_work_parallel.hpp"
+#include <exception>
 #ifdef STORM_METAL_ROCKK2
 #include "rockk2_stochastic.hpp"
 #endif
@@ -229,7 +231,7 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             storm_ship_laser::Input step;step.surface=std::make_shared<const Surface>(std::move(current));step.structure=structure;step.plane=field;step.wood=input.wood;step.fingerprint=result.fingerprint;step.fragmentLimit=storm_hull_damage::MaxFragmentGroups;step.enclosedFragments=field.releaseEnclosed;step.structuralArea=result.structuralArea;
             Projection projected;if(!storm::ship::material::prepare(step,projected,!graphTail))return {};current=projected.result.changed?*projected.kept:*step.surface;if(projected.structure)structure=std::move(projected.structure);}
         const bool legacyOwnership=!input.reset&&!localTail&&(oldGraphTail||(!structure&&(!input.payload.empty()||!input.cuts.empty()||!input.planes.empty()||!input.tail.empty())));
-        if(legacyOwnership&&current.cells&&!current.cells->changed.empty()){
+        if(storm_hull_damage::EnableHullSectionRelease&&legacyOwnership&&current.cells&&!current.cells->changed.empty()){
             // Once per old checkpoint/import, reconcile sections that were
             // already physically separate inside a coarse cell. No historical
             // debris, damage or crew events are replayed during SAVE restore.
@@ -261,7 +263,7 @@ static Output prepare(const Input&input,const std::atomic<bool>&cancel) try
             storm::ship::material::convex::ContactSnapshot physical{current.cells,current.structure,0};
             result.contactPrepared=storm::ship::material::prepareContactMaterial(physical,input.contactTransform);}}
         result.deferred=storm::ship::material::structure_geometry::hasDeferred(*current.structure);
-        if(current.cells&&!current.cells->changed.empty()){auto preview=current;if(!detachEnclosed(authored,preview).empty())result.deferred=true;}
+        if(storm_hull_damage::EnableHullSectionRelease&&current.cells&&!current.cells->changed.empty()){auto preview=current;if(!detachEnclosed(authored,preview).empty())result.deferred=true;}
         for(const auto*role:{&current.outer,&current.canonicalCaps,&current.interior,&current.finiteWalls})for(const auto&o:*role)if(o.first<0||size_t(o.first)>=input.objectMaterials.size())return {};
         result.payload=localTail&&!input.reset&&!input.repairPercent?input.payload:storm::ship::material::encode(current,result.fingerprint);
         if(localTail&&!input.reset&&!input.repairPercent)result.tail=input.tail;result.tail.reserve(32);
@@ -1242,6 +1244,41 @@ bool GEOM::IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&poi
             bool inside=true;for(const auto&face:piece.faces)inside&=storm_ship_hull::dot(face.plane.normal,point)<=face.plane.distance+.025f;
             retained|=inside;});return retained;}
     return owner!=laserOwner||!laserVisualSurface||storm_ship_laser::supportRetained(*laserVisualSurface,laserRetainedSupport,laserReleasedSupport,point,&laserSupportCandidates,&laserSupportNearby);
+}
+void GEOM::QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*points,unsigned char*retained,size_t count) const
+{
+    // Pending physical edits retain their existing scalar predicate. Only the
+    // committed immutable surface is shared with joined numeric workers.
+    if (count < 16 || (owner==hullOwner && hullContactPending && hullContactState))
+    {
+        for (size_t i=0;i<count;++i) retained[i]=IsLaserSupportRetained(owner,points[i]);
+        return;
+    }
+    const auto surface=laserVisualSurface;
+    if (owner!=laserOwner || !surface || (!surface->checkpointed && surface->released.empty()))
+    {
+        std::fill_n(retained,count,1);
+        return;
+    }
+    storm_geometry_work::ParallelGroup group;
+    if(!group.acquired)
+    {
+        for(size_t i=0;i<count;++i) retained[i]=IsLaserSupportRetained(owner,points[i]);
+        return;
+    }
+    struct Scratch { std::vector<uint32_t> candidates,nearby;std::exception_ptr error; };
+    std::array<Scratch,4> scratch;
+    MetalCpuParallelFor(scratch.size(),[&](size_t chunk) noexcept {
+        auto &local=scratch[chunk];
+        try
+        {
+            for(size_t i=chunk;i<count;i+=scratch.size())
+                retained[i]=storm_ship_laser::supportRetained(*surface,laserRetainedSupport,laserReleasedSupport,
+                    points[i],&local.candidates,&local.nearby);
+        }
+        catch(...) { local.error=std::current_exception(); }
+    });
+    for(const auto &local:scratch) if(local.error) std::rethrow_exception(local.error);
 }
 float GEOM::TraceHullContact(VERTEX&start,VERTEX&finish,bool publish)
 {

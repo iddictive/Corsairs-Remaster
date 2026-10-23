@@ -7,6 +7,7 @@
 #include "geometry.h"
 #include "model.h"
 #include "vma.hpp"
+#include "sea_atlas.hpp"
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include "world_cut_geometry.hpp"
 #include <atomic>
@@ -59,6 +60,8 @@ class ISLAND : public ISLAND_BASE
     entid_t AIFortEID{};
 
     FRECT rIsland;
+    FRECT fortTraceBounds{};
+    bool haveFortTraceBounds = false;
     bool bForeignModels;
     bool bDrawReflections;
     float fStepDX, fStepDZ, fStep1divDX, fStep1divDZ;
@@ -66,6 +69,25 @@ class ISLAND : public ISLAND_BASE
     CVECTOR vBoxSize, vBoxCenter, vRealBoxSize;
     uint32_t iDMapSize, iDMapSizeShift;
     entid_t model_id{}, seabed_id{};
+    std::vector<entid_t> traceModels, residentRegions, aggregateTraceModels;
+    entid_t selectedRegion = 0;
+    CVECTOR regionOffset = CVECTOR(0.f);
+    storm_sea_atlas::Frame regionPose, regionInverse;
+    bool regionRotated = false;
+    CVECTOR regionLocalCenter = CVECTOR(0.f), regionLocalExtent = CVECTOR(0.f);
+    float maxViewDistance = 6000.f;
+    ISLAND *Region(entid_t id) const;
+    bool OwnsModel(entid_t id) const;
+    void TranslateRegion(float x, float z);
+    bool PoseRegion(const storm_sea_atlas::Frame &pose);
+    float LocalTrace(const CVECTOR &src, const CVECTOR &dst);
+    bool LocalDepth(float x, float z, float *depth);
+    bool LocalMovePoint(CVECTOR &src, CVECTOR &dst, CVECTOR &result);
+    bool LocalDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth);
+    bool LocalGroundDepth(float x, float z, float keelY, float &depth);
+    bool RegionVisible() const;
+    bool RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin = 50.f) const;
+    void IncludeFortTraceBounds(entid_t fort);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     struct WorldCutRecord { storm_world_cut::Cut cut; std::string scope; int32_t owner = -1; uint64_t predecessorCount=0,serial=0,rejectedRevision=0,rejectedTopology=0; bool rejected=false; };
     struct WorldCutBinding { entid_t model; uint64_t generation; size_t count; bool valid; int node=-1; std::array<storm_ship_hull::Vec3,4> matrix{}; };
@@ -131,7 +153,7 @@ class ISLAND : public ISLAND_BASE
     float GetShadowTemp(int32_t iX, int32_t iZ);
 
     // depth map section
-    bool CreateHeightMap(const std::string_view &pDir, const std::string_view &pName);
+    bool CreateHeightMap(const std::string_view &pDir, const std::string_view &pName, bool preparedAtlas = false);
     bool ActivateCamomileTrace(CVECTOR &vSrc);
     inline float GetDepthCheck(uint32_t iX, uint32_t iZ);
     inline float GetDepthNoCheck(uint32_t iX, uint32_t iZ);
@@ -212,13 +234,32 @@ class ISLAND : public ISLAND_BASE
 
     entid_t GetModelEID()
     {
+        if (auto *region = Region(selectedRegion)) return region->GetModelEID();
         return model_id;
     };
 
     entid_t GetSeabedEID()
     {
+        if (auto *region = Region(selectedRegion)) return region->GetSeabedEID();
         return seabed_id;
     };
+    std::vector<entid_t> GetIslandModels() override;
+    std::vector<entid_t> GetSeabedModels() override;
+    bool IsWithinRange(const CVECTOR &point, float range) const override;
+    CMatrix GetSelectedRegionMatrix() const override
+    {
+        if (auto *pose = AttributesPointer ? AttributesPointer->GetAttributeClass("SeaAtlasSelectedPose") : nullptr)
+            return storm_sea_atlas::Frame::FromAttributes(*pose).Matrix();
+        if (auto *region = Region(selectedRegion)) return region->regionPose.Matrix();
+        return regionPose.Matrix();
+    }
+    float GetIslandViewDistance(entid_t model) const override
+    {
+        if (model == model_id) return maxViewDistance;
+        for (const auto id : residentRegions) if (auto *region = Region(id))
+            if (model == region->model_id) return region->maxViewDistance;
+        return 0.f;
+    }
 
     bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth);
     bool GetDepth(float x, float z, float *fRes = nullptr);
@@ -232,6 +273,7 @@ class ISLAND : public ISLAND_BASE
 
     float GetCurrentImmersion()
     {
+        if (auto *region = Region(selectedRegion)) return region->GetCurrentImmersion();
         return fCurrentImmersion;
     };
     float TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &model) override;

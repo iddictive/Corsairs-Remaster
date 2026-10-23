@@ -424,44 +424,11 @@ inline Response arcadeResponse(const FrameBody &fa, const FrameBody &fb,
         Contact at = contact; at.time = 0;
         response = resolvePrepared(sa, sb, a.hull, b.hull, at, 1.0);
     }
-    // Repeated powered pressure cannot wind a receiver beyond the same native
-    // turn envelope used by legacy contact admission. Scale one impulse, so
-    // torque, shove and the paid work still describe the same contact.
-    double scale = 1;
-    const auto admitTurn = [&](double angular, double delta, double limit) {
-        if (!(limit > 0) || !std::isfinite(limit) || delta == 0) return;
-        const double bound = delta > 0 ? std::max(angular, limit) : std::min(angular, -limit);
-        scale = std::min(scale, std::clamp((bound - angular) / delta, 0.0, 1.0));
-    };
-    admitTurn(a.angular, response.deltaWA, fa.contactTurnLimit);
-    admitTurn(b.angular, response.deltaWB, fb.contactTurnLimit);
-    const auto admitPush = [&](Vec2 velocity, Vec2 delta, double limit) {
-        if (!(limit > 0) || !std::isfinite(limit)) return;
-        const double square = dot(delta, delta);
-        if (!(square > 0)) return;
-        const double current = dot(velocity, velocity);
-        const double room = std::max(0.0, limit * limit - current);
-        const double along = dot(velocity, delta);
-        const double root = std::sqrt(along * along + square * room);
-        const double accepted = along >= 0 ?
-            (root + along > 0 ? room / (root + along) : 0) : (root - along) / square;
-        scale = std::min(scale, std::clamp(accepted, 0.0, 1.0));
-    };
-    if (!arcadeA) admitPush(a.velocity, response.deltaVA, fa.contactCruiseSpeed);
-    if (!arcadeB) admitPush(b.velocity, response.deltaVB, fb.contactCruiseSpeed);
-    if (!(excess > 0) && scale == 1) return ordinary;
-    if (scale < 1)
-    {
-        const double loss = std::max(0.0, scale * response.workLinear -
-                                               .5 * scale * scale * response.workQuadratic);
-        const double ratio = response.energyLost > 0 ? loss / response.energyLost : 0;
-        response.deltaVA = response.deltaVA * scale; response.deltaVB = response.deltaVB * scale;
-        response.deltaWA *= scale; response.deltaWB *= scale;
-        response.energyLostA *= ratio; response.energyLostB *= ratio;
-        response.specificEnergyA *= ratio; response.specificEnergyB *= ratio;
-        response.energyLost = loss;
-        response.workLinear *= scale; response.workQuadratic *= scale * scale;
-    }
+    // Cruise speed and powered rudder speed are not collision limits. A ship
+    // already sailing or turning at either limit must still receive the mass-
+    // weighted contact impulse. The virtual approach above excludes the boost
+    // from both this shove and the damage work; the brake below absorbs it.
+    if (!(excess > 0)) return ordinary;
     const auto changeA = detail::pointVelocity(response.deltaVA, response.deltaWA, contact.point-a.pose.position);
     const auto changeB = detail::pointVelocity(response.deltaVB, response.deltaWB, contact.point-b.pose.position);
     const double residual = std::max(0.0, dot(va-vb+changeA-changeB-brakeA-brakeB, n));

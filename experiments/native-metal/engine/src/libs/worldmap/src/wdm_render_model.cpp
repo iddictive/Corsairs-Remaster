@@ -12,6 +12,10 @@
 #include "metal_world_map_bridge.h"
 
 #include "wdm_render_model.h"
+#include "string_compare.hpp"
+
+#include <algorithm>
+#include <stdexcept>
 
 #define WDM_MODEL_TECH "WdmModelDrawStd"
 #define WDM_MODEL_TECHA "WdmModelDrawStdA"
@@ -41,6 +45,7 @@ bool WdmRenderModel::Load(const char *modelName)
     geo = wdmObjects->CreateGeometry(modelName);
     if (geo)
     {
+        collisionParts = {geo};
         GEOS::INFO ginfo;
         geo->GetInfo(ginfo);
         center = CVECTOR(ginfo.boxcenter.x, ginfo.boxcenter.y, ginfo.boxcenter.z);
@@ -48,6 +53,66 @@ bool WdmRenderModel::Load(const char *modelName)
         return true;
     }
     return false;
+}
+
+bool WdmRenderModel::LoadParts(const std::string &path, const std::string &stem,
+                               std::vector<GEOS *> &parts, std::vector<std::string> &seen)
+{
+    if (std::find(seen.begin(), seen.end(), path) != seen.end())
+        throw std::runtime_error("SEA_ATLAS_CHART: repeated geometry child " + path);
+    seen.push_back(path);
+    auto *part = wdmObjects->CreateGeometry(path.c_str());
+    if (!part) return false;
+    parts.push_back(part);
+    GEOS::INFO info{};
+    part->GetInfo(info);
+    for (int32_t i = 0; i < info.nlabels; ++i)
+    {
+        GEOS::LABEL label{};
+        part->GetLabel(i, label);
+        if (label.group_name && storm::iEquals(label.group_name, "geometry") && label.name && *label.name)
+        {
+            // Offline chart copies bake every full child transform into their
+            // buffers/BSP; only the existing native child naming contract remains.
+            if (!LoadParts(stem + "_" + label.name, stem, parts, seen)) return false;
+        }
+    }
+    return true;
+}
+
+bool WdmRenderModel::LoadChart(const char *visualRoot, const char *collisionRoot)
+{
+    const auto stem = [](const char *path) {
+        std::string result(path);
+        if (result.size() >= 3 && storm::iEquals(result.c_str()+result.size()-3, ".gm"))
+            result.resize(result.size()-3);
+        return result;
+    };
+    std::vector<std::string> seen;
+    if (!LoadParts(visualRoot, stem(visualRoot), visualParts, seen)) return false;
+    seen.clear();
+    if (!LoadParts(collisionRoot, stem(collisionRoot), collisionParts, seen)) return false;
+    geo = collisionParts.front();
+    CVECTOR low, high;
+    bool first = true;
+    for (const auto &parts : {&visualParts, &collisionParts})
+        for (auto *part : *parts)
+        {
+            GEOS::INFO info{};
+            part->GetInfo(info);
+            const CVECTOR c(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
+            const CVECTOR half(info.boxsize.x*.5f, info.boxsize.y*.5f, info.boxsize.z*.5f);
+            const auto a = c-half, b = c+half;
+            if (first) { low = a; high = b; first = false; }
+            else
+            {
+                low.x = std::min(low.x, a.x); low.y = std::min(low.y, a.y); low.z = std::min(low.z, a.z);
+                high.x = std::max(high.x, b.x); high.y = std::max(high.y, b.y); high.z = std::max(high.z, b.z);
+            }
+        }
+    center = (low+high)*.5f;
+    radius = sqrtf(~(high-low))*.51f;
+    return true;
 }
 
 void WdmRenderModel::PRender(VDX9RENDER *rs)
@@ -145,8 +210,9 @@ void WdmRenderModel::Render(VDX9RENDER *rs) const
             return;
     }
 #ifdef STORM_METAL_RENDERER_CONSUMERS
-    const WdmMetalModelScope metalModelScope(rs);
+    const WdmMetalModelScope metalModelScope(rs, visualParts.empty() ? 1 : 2);
 #endif
-    geo->Draw(nullptr, 0, nullptr);
+    if (visualParts.empty()) geo->Draw(nullptr, 0, nullptr);
+    else for (auto *part : visualParts) part->Draw(nullptr, 0, nullptr);
     wdmObjects->gs->SetTechnique("");
 }

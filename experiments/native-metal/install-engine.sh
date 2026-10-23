@@ -7,6 +7,13 @@
 # Also syncs the reviewed public launcher and graphics adapter so their
 # staged changes reach the played app even when the engine is unchanged.
 set -euo pipefail
+seamless=0
+if [[ "${1:-}" == "--seamless" && "$#" == 1 ]]; then
+    seamless=1
+elif [[ "$#" != 0 ]]; then
+    echo 'Usage: install-engine.sh [--seamless]' >&2
+    exit 2
+fi
 root=$(cd "$(dirname "$0")" && pwd)
 staged="$root/.cache/build/bin/engine-1"
 dest_app="/Applications/Corsairs Iddictive Remaster.app"
@@ -50,12 +57,12 @@ if [[ ! -f "$backup_dir/metal-engine.$installed_hash" ]]; then
 fi
 # Validate every resource before touching the installed app. Unknown local edits
 # must be reviewed, even when the development runtime has accepted its own copy.
-python3 - "$root" "$dest_app" "$tmp" "$dest" <<'INSTALL'
+python3 - "$root" "$dest_app" "$tmp" "$dest" "$seamless" <<'INSTALL'
 from pathlib import Path
 import subprocess
 import sys
 
-root, app, candidate, engine = map(Path, sys.argv[1:])
+root, app, candidate, engine = map(Path, sys.argv[1:5])
 sys.path.insert(0, str(root.parents[1] / "tools"))
 from delivery_state import DeliveryState, ENGINE, LEGACY_SHARED_HEADERS, LEGACY_TECHNIQUES, digest, player_guard, transact
 
@@ -80,13 +87,11 @@ for name, known in LEGACY_SHARED_HEADERS.items():
         if before != header_after:
             changes[target] = (before, header_after)
 for name, known in LEGACY_TECHNIQUES.items():
-    source = root / ".cache/runtime/RESOURCE/techniques" / name
+    source = root / "engine/src/techniques" / name
     target = app / "Contents/Resources/RESOURCE/techniques" / name
     if source.is_symlink() or target.is_symlink() or not source.is_file() or not target.is_file():
         raise RuntimeError(f"Missing or linked technique: {name}")
     before, after = target.read_bytes(), source.read_bytes()
-    if after != (root / "engine/src/techniques" / name).read_bytes():
-        raise RuntimeError(f"Technique does not match the built source: {name}")
     relative = "RESOURCE/techniques/" + name
     state.admit(relative, before, after, known)
     state.track(relative, after)
@@ -125,6 +130,9 @@ state.admit(ENGINE, before, after, {digest(before)})
 state.track(ENGINE, after)
 if before != after:
     changes[engine] = (before, after)
+if sys.argv[5] == "1":
+    from seamless_sea_delivery import prepare
+    changes.update(prepare(state, root / ".cache/build/bin/engine-1"))
 changes[state.receipt] = state.change()
 changes[runtime_state.receipt] = runtime_state.change()
 with player_guard(app):

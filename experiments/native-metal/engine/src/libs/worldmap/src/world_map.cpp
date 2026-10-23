@@ -10,6 +10,7 @@
 
 #include "world_map.h"
 #include "sea_map_transition.hpp"
+#include "world_map_resources.hpp"
 
 #include <chrono>
 
@@ -40,6 +41,13 @@
 
 CREATE_CLASS(WorldMap)
 
+class WorldMapSeaTraffic final : public WorldMap
+{
+  public:
+    WorldMapSeaTraffic() : WorldMap(true) {}
+};
+CREATE_CLASS(WorldMapSeaTraffic)
+
 //============================================================================================
 
 //#define EVENTS_OFF
@@ -53,7 +61,7 @@ int32_t WorldMap::month[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 // Construction, destruction
 // ============================================================================================
 
-WorldMap::WorldMap() : rs{}, aDate{}
+WorldMap::WorldMap(bool background) : rs{}, aDate{}, seaTraffic(background)
 {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
@@ -87,6 +95,13 @@ WorldMap::WorldMap() : rs{}, aDate{}
 
 WorldMap::~WorldMap()
 {
+    ReleaseWorld();
+}
+
+void WorldMap::ReleaseWorld()
+{
+    if (worldReleased) return;
+    worldReleased = true;
     /*for(; firstObject >= 0; firstObject = object[firstObject].next)
     {
       delete object[firstObject].ro;
@@ -96,6 +111,7 @@ WorldMap::~WorldMap()
     wdmObjects->Clear();
 
     delete wdmObjects;
+    wdmObjects = nullptr;
 }
 
 //============================================================================================
@@ -105,25 +121,45 @@ WorldMap::~WorldMap()
 // Initialization
 bool WorldMap::Init()
 {
+    if (seaTraffic)
+    {
+        const auto layer = AttributesPointer ? AttributesPointer->GetAttributeAsDword("execute") : 0;
+        auto *world = core.Event("SeaTraffic_WorldState");
+        AttributesPointer = world ? world->GetAClass() : nullptr;
+        if (!AttributesPointer) return false;
+        core.SetLayerType(layer, layer_type_t::execute);
+        core.AddToLayer(layer, GetId(), 10000);
+    }
     // GUARD(LocationCamera::Init())
     // Layers
     // core.LayerCreate("execute", true, false);
     core.SetLayerType(EXECUTE, layer_type_t::execute);
     // core.LayerCreate("realize", true, false);
     core.SetLayerType(REALIZE, layer_type_t::realize);
-    core.AddToLayer(EXECUTE, GetId(), 10000);
-    core.AddToLayer(REALIZE, GetId(), 10000);
+    if (!seaTraffic)
+    {
+        core.AddToLayer(EXECUTE, GetId(), 10000);
+        core.AddToLayer(REALIZE, GetId(), 10000);
+    }
 
     // DX9 render
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
         throw std::runtime_error("No service: dx9render");
-    if (!AttributesPointer || !AttributesPointer->GetAttributeAsDword("directSail"))
+    if (!seaTraffic && (!AttributesPointer || !AttributesPointer->GetAttributeAsDword("directSail")))
         rs->SetPerspective(storm_map_player::perspective);
     wdmObjects->rs = rs;
     // GS
     wdmObjects->gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
-    transitionLoad = AttributesPointer && AttributesPointer->GetAttributeAsDword("seaTransition", 0);
+    transitionLoad = seaTraffic || (AttributesPointer && AttributesPointer->GetAttributeAsDword("seaTransition", 0));
+    if (AttributesPointer) storm_map_resources::UpgradeChart(*AttributesPointer);
+    if (seaTraffic)
+    {
+        // Entry preparation borrows the existing navigation and descriptor factories.
+        // No camera, map controls, weather or map calendar is activated.
+        while (!LoadNext()) {}
+        return true;
+    }
     if (transitionLoad)
     {
         // This is transient readiness, never a saved gameplay state.
@@ -151,7 +187,7 @@ bool WorldMap::LoadNext()
         AddLObject(wdmObjects->islands, wdm::render_levels::Label);
         AddLObject(AddObject(new WdmPortDangerZones(wdmObjects->islands)), wdm::render_levels::PortDanger);
         if (!transitionLoad) rs->ProgressView();
-        ++loadPhase;
+        loadPhase = seaTraffic ? 4 : 2;
         return false;
     case 2:
         AddObject(new WdmSea(transitionLoad));
@@ -171,7 +207,7 @@ bool WorldMap::LoadNext()
     case 4:
     {
     // Create a camera
-    camera = new WdmCameraStdCtrl();
+    if (!seaTraffic) camera = new WdmCameraStdCtrl();
     auto camAy = 0.0f;
     auto camH = -1.0f;
     auto camLock = false;
@@ -190,11 +226,13 @@ bool WorldMap::LoadNext()
     {
         wdmObjects->SetWindSaveString(nullptr);
     }
+    if (camera) {
     camera->Init(camAy, camH);
     camera->ang.x = storm_map_player::savedMapPitch(AttributesPointer ?
         AttributesPointer->GetAttributeAsFloat("wdmCameraAX", camera->ang.x) : camera->ang.x);
     if (AttributesPointer) AttributesPointer->SetAttributeUseFloat("wdmCameraAX", camera->ang.x);
     camera->lock = camLock;
+    }
     // create the player's ship
     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
     Assert(ro);
@@ -300,6 +338,7 @@ bool WorldMap::LoadNext()
     // Creating interface elements
 
     // Date
+    if (!seaTraffic) {
     auto *windUI = new WdmWindUI();
     windUI->SetAttributes(AttributesPointer);
     AddLObject(AddObject(windUI, 1001), 10100);
@@ -314,6 +353,7 @@ bool WorldMap::LoadNext()
     // AddLObject(cnt, 10099);
     // Icon
     AddLObject(AddObject(new WdmIcon(), 1000), 10099);
+    }
 
         loadEncounterCount = saveData ? saveData->GetAttributesNum() : 0;
         ++loadPhase;
@@ -332,7 +372,7 @@ bool WorldMap::LoadNext()
     {
     // Adjusting the player's ship
     auto *playerShip = static_cast<WdmPlayerShip *>(wdmObjects->playerShip);
-    playerShip->PushOutFromIsland();
+    if (!seaTraffic) playerShip->PushOutFromIsland();
     auto *const atrData = AttributesPointer->FindAClass(AttributesPointer, "island");
     if (atrData && !transitionLoad)
     {
@@ -438,6 +478,54 @@ void WorldMap::RestoreEncounter(ATTRIBUTES *a)
 // Execution
 void WorldMap::Execute(uint32_t delta_time)
 {
+    if (worldReleased) return;
+    if (seaTraffic)
+    {
+        auto *result = core.Event("SeaTraffic_SceneState");
+        auto *scene = result ? result->GetAClass() : nullptr;
+        if (!scene || !loadComplete) return;
+        auto *state = scene->FindAClass(scene, "traffic");
+        if (!state || !state->GetAttributeAsDword("enabled")) return;
+        wdmObjects->playerShip->Teleport(state->GetAttributeAsFloat("x"), state->GetAttributeAsFloat("z"),
+                                        state->GetAttributeAsFloat("ay"));
+        wdmObjects->isPause = delta_time == 0;
+        const float current = state->GetAttributeAsFloat("time");
+        float hours = seaTime < 0.f ? 0.f : current - seaTime;
+        seaTime = current;
+        if (hours < -12.f) hours += 24.f;
+        // A restored/jumped clock is rebased, never replayed as a burst of work.
+        if (hours < 0.f || hours > 1.f || wdmObjects->isPause) hours = 0.f;
+        if (aDate)
+        {
+            for (const char *key : {"sec", "min", "hour", "day", "month", "year"})
+                if (const char *value = state->GetAttribute(key)) aDate->SetAttribute(key, value);
+        }
+        if (aDate) {
+            strcpy_s(wdmObjects->attrSec, aDate->GetAttribute("sec"));
+            strcpy_s(wdmObjects->attrMin, aDate->GetAttribute("min"));
+            strcpy_s(wdmObjects->attrHour, aDate->GetAttribute("hour"));
+            strcpy_s(wdmObjects->attrDay, aDate->GetAttribute("day"));
+            strcpy_s(wdmObjects->attrMonth, aDate->GetAttribute("month"));
+            strcpy_s(wdmObjects->attrYear, aDate->GetAttribute("year"));
+        }
+        const float elapsed = timeScale > 0.f ? hours / timeScale : 0.f;
+        UpdateTraffic(elapsed);
+        wdmObjects->UpdateWind(elapsed);
+        wdmObjects->isNextDayUpdate = false;
+        wdmObjects->forceUpdate = false;
+        wdmObjects->islands->Update(0.f);
+        const char *region = AttributesPointer->GetAttribute("island");
+        if (region && seaIsland != region) {
+            seaIsland = region;
+            if (!seaIsland.empty()) core.PostEvent("Sea_DirectSailArea", 0, "s", seaIsland.c_str());
+        }
+        seaResidencyMs += delta_time;
+        if (seaResidencyMs >= 1000) {
+            seaResidencyMs = 0;
+            core.Event("SeaTraffic_Residency");
+        }
+        return;
+    }
     if (transitionLoad && !loadComplete)
     {
         // Consume cheap phases together; one slow indivisible resource is the
@@ -458,6 +546,7 @@ void WorldMap::Execute(uint32_t delta_time)
 
 void WorldMap::Realize(uint32_t delta_time)
 {
+    if (seaTraffic) return;
     if (AttributesPointer->GetAttributeAsDword("directSail")) return;
     if (!loadComplete) return;
     if (transitionLoad && !transitionPresented)
@@ -579,16 +668,37 @@ void WorldMap::Realize(uint32_t delta_time)
     if (tmp)
         strcpy_s(wdmObjects->attrYear, tmp);
     //---------------------------------------------------------
+    UpdateTraffic(dltTime);
+    RenderObjects();
+    // renew the wind
+    wdmObjects->UpdateWind(dltTime);
+    wdmObjects->isNextDayUpdate = false;
+    wdmObjects->forceUpdate = false;
+    auto wind_dir = CVECTOR();
+    auto x = 0.0f, z = 0.0f, ay = 0.0f;
+    wdmObjects->playerShip->GetPosition(x, z, ay);
+    const auto wind_force = wdmObjects->GetWind(x, z, wind_dir);
+    const auto ang = atan2(wind_dir.x, wind_dir.z);
+    core.Event("WorldMap_GetWindParameters", "ff", wind_force, ang);
+    if (AttributesPointer) {
+        const char *upd = AttributesPointer->GetAttribute("addQuestEncounters");
+        if (upd && upd[0] != 0) core.Event("WorldMap_AddQuestEncounters");
+    }
+}
+
+void WorldMap::UpdateTraffic(float dltTime)
+{
     auto isKill = false;
     // execute all objects
     for (auto i = firstObject; i >= 0; i = object[i].next)
     {
+        if (seaTraffic && !dynamic_cast<WdmEnemyShip *>(object[i].ro)) continue;
         if (!object[i].ro->killMe)
             object[i].ro->Update(object[i].ro->isEnablePause && wdmObjects->isPause ? 0.0f : dltTime);
         isKill |= object[i].ro->killMe;
     }
     // Follow the position rendered this frame, not the previous frame.
-    if (camera && !wdmObjects->isPause)
+    if (!seaTraffic && camera && !wdmObjects->isPause)
     {
         camera->Move(dltTime, rs);
         AttributesPointer->SetAttributeUseFloat("wdmCameraY", camera->pos.y);
@@ -635,6 +745,15 @@ void WorldMap::Realize(uint32_t delta_time)
             auto *data = enemy->GetTrafficData();
             if (data) { ++population[data->GetAttributeAsDword("trafficRole")]; ++ordinary; }
         }
+        // Mounted fleets still occupy their strategic population slot.
+        if (saveData)
+            for (uint32_t i = 0; i < saveData->GetAttributesNum(); ++i) {
+                auto *data = saveData->GetAttributeClass(i);
+                if (!data || !data->GetAttributeAsDword("trafficInSea") || data->GetAttribute("needDelete") ||
+                    data->GetAttribute("quest")) continue;
+                const auto role = data->GetAttributeAsDword("trafficRole");
+                if (role >= 1 && role <= 3) { ++population[role]; ++ordinary; }
+            }
         const int quotas[4] = {0, 32, 16, 12};
         int request = 0;
         float deficit = 0.0f;
@@ -650,29 +769,6 @@ void WorldMap::Realize(uint32_t delta_time)
         AttributesPointer->SetAttributeUseDword("trafficRequestRole", 0);
 #endif
         encTime = 0.0f;
-    }
-    RenderObjects();
-    // renew the wind
-    wdmObjects->UpdateWind(dltTime);
-    wdmObjects->isNextDayUpdate = false;
-    wdmObjects->forceUpdate = false;
-    // Notify scripts about wind change
-    auto wind_dir = CVECTOR();
-    auto x = 0.0f;
-    auto z = 0.0f;
-    auto ay = 0.0f;
-    wdmObjects->playerShip->GetPosition(x, z, ay);
-    const auto wind_force = wdmObjects->GetWind(x, z, wind_dir);
-    const auto ang = atan2(wind_dir.x, wind_dir.z);
-    core.Event("WorldMap_GetWindParameters", "ff", wind_force, ang);
-    // Checking the update attribute of the encounter
-    if (AttributesPointer)
-    {
-        const char *upd = AttributesPointer->GetAttribute("addQuestEncounters");
-        if (upd && upd[0] != 0)
-        {
-            core.Event("WorldMap_AddQuestEncounters");
-        }
     }
 }
 
@@ -700,10 +796,19 @@ void WorldMap::RenderObjects()
 // Messages
 uint64_t WorldMap::ProcessMessage(MESSAGE &message)
 {
+    // A sea host borrows canonical worldMap attributes without making that
+    // script object an entity (its existence remains the map-mode contract).
     const auto code = message.Long();
     if (!loadComplete) return 0;
     switch (code)
     {
+    case MSG_WORLDMAP_NOTIFY: {
+        const auto &path = message.String();
+        if (seaTraffic && path == "$shutdown") { ReleaseWorld(); return true; }
+        auto *attribute = AttributesPointer->FindAClass(AttributesPointer, path.c_str());
+        if (attribute) AttributeChanged(attribute);
+        return attribute != nullptr;
+    }
     case MSG_WORLDMAP_CREATESTORM: {
         const auto isTornado = message.Long() != 0;
         CreateStorm(isTornado);

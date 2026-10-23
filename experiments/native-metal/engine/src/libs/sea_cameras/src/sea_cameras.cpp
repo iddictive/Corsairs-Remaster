@@ -280,6 +280,40 @@ void SEA_CAMERAS::RealizeDartView()
     dartViewApplied = true;
 }
 
+bool storm_sea_cameras::ReferencesCharacter(int index)
+{
+    const auto *owner = static_cast<SEA_CAMERAS *>(core.GetEntityPointer(core.GetEntityId("SEA_CAMERAS")));
+    if (index < 0 || !owner) return false;
+    for (const auto *camera : owner->CamerasArray)
+        if (camera && camera->ReferencesCharacter(index)) return true;
+    return false;
+}
+
+bool storm_dart_view::ReferencesCharacter(int index)
+{
+    auto *camera = static_cast<SEA_CAMERAS *>(core.GetEntityPointer(core.GetEntityId("SEA_CAMERAS")));
+    if (index < 0 || !camera || !camera->AttributesPointer ||
+        camera->AttributesPointer->GetAttributeAsDword("DartViewEnabled", 0) == 0 ||
+        camera->AttributesPointer->GetAttributeAsDword("DartViewCancel", 0) != camera->dartCancel ||
+        core.GetScenePauseRevision() != camera->dartPauseRevision || core.IsLayerFrozen(SEA_EXECUTE)) return false;
+    const auto source = core.GetEntityId("AIBalls");
+    auto *balls = core.GetEntityPointer(source);
+    auto *view = balls && balls->AttributesPointer ? balls->AttributesPointer->GetAttributeClass("DartView") : nullptr;
+    if (source != camera->dartSource || !view || int(view->GetAttributeAsDword("target", uint32_t(-1))) != index) return false;
+    const auto sequence = view->GetAttributeAsDword("sequence", 0);
+    const auto inFlight = view->GetAttributeAsDword("inFlight", 0);
+    // A launch can precede the first Realize in this frame. It already borrows
+    // its accepted target; a cancelled/expired sequence must never reacquire it.
+    if (sequence != camera->dartSequence) return inFlight > 0;
+    const auto now = std::chrono::steady_clock::now();
+    if (std::chrono::duration<float>(now - camera->dartStarted).count() >= 10.f) return false;
+    if (camera->dartViewPending) return inFlight > 0;
+    if (!camera->dartViewActive) return false;
+    return inFlight > 0 || view->GetAttributeAsDword("hits", 0) != camera->dartHits ||
+           (camera->dartLastHit != std::chrono::steady_clock::time_point{} &&
+            std::chrono::duration<float>(now - camera->dartLastHit).count() < .9f);
+}
+
 void SEA_CAMERAS::ProcessMessage(uint32_t iMsg, uint32_t wParam, uint32_t lParam)
 {
     /*    //GUARD(SEA_CAMERAS::ProcessMessage(uint32_t,uint32_t,uint32_t))

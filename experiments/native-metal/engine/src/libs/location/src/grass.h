@@ -19,6 +19,7 @@
 #define MSG_GRASS_LOAD_DATA 40666
 #define MSG_GRASS_SET_TEXTURE 41666
 #define MSG_GRASS_SET_PARAM 42666
+#define MSG_GRASS_SET_REGION 43666
 
 class GEOS;
 class ISLAND_BASE;
@@ -171,6 +172,8 @@ class Grass : public Entity
     // Encapsulation
     // --------------------------------------------------------------------------------------------
   private:
+    entid_t regionIsland = 0;
+    CVECTOR regionOffset = CVECTOR(0.f);
     // Render block
     void RenderBlock(const CVECTOR &camPos, const PLANE *plane, int32_t numPlanes, int32_t mx, int32_t mz,
                      ISLAND_BASE *island);

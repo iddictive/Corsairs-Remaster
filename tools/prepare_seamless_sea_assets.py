@@ -1015,6 +1015,93 @@ def refresh_frames():
     return record
 
 
+def runtime_layout():
+    """Join frozen geometry/chart/depth/routes into one inactive native input.
+
+    No geometry is regenerated and no runtime or SAVE is touched. The INI is
+    consumable only after the separate native integration/install milestone.
+    """
+    record = json.loads((OUTPUT/"manifest.json").read_bytes())
+    chart = json.loads((OUTPUT/"chart/manifest.json").read_bytes())
+    graphs = json.loads((OUTPUT/"flow-graphs.json").read_bytes())
+    recipe_bytes, inventory_bytes = (OWNER/"recipe.json").read_bytes(), (OWNER/"manifest.json").read_bytes()
+    recipe, inventory = json.loads(recipe_bytes), json.loads(inventory_bytes)
+    if (record["recipe_sha256"] != sha(recipe_bytes) or record["inventory_sha256"] != sha(inventory_bytes) or
+            record["atlas_frames"] != atlas_layout(recipe, inventory)):
+        raise ValueError("Prepared body placement changed; prepare the geometry/chart/navigation first")
+    navigation = record["navigation"]
+    for consumer in (chart, graphs, navigation):
+        for key in ("recipe_sha256", "atlas_frames_sha256"):
+            if consumer[key] != record[key]:
+                raise ValueError(f"Prepared consumer frame identity differs: {key}")
+    if chart["inventory_sha256"] != record["inventory_sha256"]:
+        raise ValueError("Prepared chart inventory differs")
+
+    def frozen(entry):
+        path = OUTPUT/entry["path"]
+        if (not path.resolve().is_relative_to(OUTPUT.resolve()) or path.is_symlink() or
+                not path.is_file() or sha(path.read_bytes()) != entry["sha256"]):
+            raise ValueError(f"Prepared runtime input missing or changed: {entry['path']}")
+
+    for path, entry in record["files"].items():
+        if path.casefold().endswith(".gm"):
+            frozen({"path": path, **entry})
+    for path, entry in chart["assets"].items():
+        frozen({"path": path, **entry})
+    frozen(navigation["global"]["patch"])
+    chart_data = chart["chart"]
+    if chart_data["patch"] != navigation["global"]["patch"]["path"]:
+        raise ValueError("Chart and ocean route patch differ")
+    body_ids = set(record["atlas_frames"]["bodies"])
+    if any(set(rows) != body_ids for rows in (chart_data["bodies"], navigation["bodies"], graphs["bodies"])):
+        raise ValueError("Prepared physical-body consumers differ")
+    fields = {"Atlas": {"chart_base": chart_data["base"], "chart_patch": chart_data["patch"]}}
+    for index, (body, _) in enumerate(record["atlas_frames"]["bodies"].items()):
+        nav = navigation["bodies"][body]
+        for entry in nav["outputs"]:
+            frozen(entry)
+        graph = graphs["bodies"][body]
+        if graph["input"] != {"ini": nav["ini"], "sha256": next(e["sha256"] for e in nav["outputs"] if e["path"] == nav["ini"])}:
+            raise ValueError(f"Prepared route table belongs to another depth/graph input: {body}")
+        frozen(graph["output"])
+        if graph["output"]["path"] != str(Path(nav["ini"]).with_suffix(".aifg")):
+            raise ValueError(f"Native depth/route file stems differ: {body}")
+        fields[f"Body{index}"] = {"chart_terrain": chart_data["bodies"][body]["terrain"],
+            "chart_reflection": chart_data["bodies"][body]["reflection"],
+            "depth_directory": "SeamlessSea", "depth_name": Path(nav["ini"]).stem}
+    for index, region in enumerate(record["atlas_frames"]["regions"]):
+        source = chart_data["regions"][region]
+        fields[f"Region{index}"] = {"chart_area": source["area"], "approaches": str(len(source["approaches"])),
+            "legacy_metres_per_map_unit": str(source["historical_metres_per_map_unit"])}
+        fields[f"Region{index}"].update({f"approach{i}": ",".join(format(v, ".17g") for v in p)
+                                        for i, p in enumerate(source["approaches"])})
+    goals = navigation["global"]["port_targets"]
+    if not goals or any(not goal["supported_ocean"] for goal in goals):
+        raise ValueError("An authored merchant destination has no ocean approach")
+    fields["Atlas"]["route_goals"] = str(len(goals))
+    rows, section = [], None
+    base = atlas_ini(record["atlas_frames"], record["recipe_sha256"], record["inventory_sha256"], record["model_trees"])
+    for line in base.decode("ascii").splitlines():
+        rows.append(line)
+        if line.startswith("["):
+            section = line[1:-1]
+            rows.extend(f"{key}={value}" for key, value in fields.get(section, {}).items())
+    for index, goal in enumerate(goals):
+        approach = goal.get("native_back_search_witness", {}).get("approach_position_map_xz", goal["native_float_map_xz"])
+        rows += ["", f"[Route{index}]", "destination="+",".join(format(v, ".17g") for v in goal["native_float_map_xz"]),
+                 "approach="+",".join(format(v, ".17g") for v in approach)]
+    content = ("\n".join(rows)+"\n").encode("ascii")
+    destination = "RESOURCE/INI/seamless_sea.ini"
+    write_asset(OUTPUT/destination, content)
+    record["files"][destination] = {"sha256": sha(content), "bytes": len(content), "role": "inactive complete native atlas input"}
+    record["runtime_layout"] = {"generator_sha256": sha(Path(__file__).read_bytes()), "runtime_activation": False,
+        "chart_manifest_sha256": sha((OUTPUT/"chart/manifest.json").read_bytes()),
+        "flow_graph_manifest_sha256": sha((OUTPUT/"flow-graphs.json").read_bytes()),
+        "input": destination, "source": "frozen prepared bodies, chart, depth, native near tables and ocean approaches"}
+    write_asset(OUTPUT/"manifest.json", (json.dumps(record, indent=2)+"\n").encode())
+    return record
+
+
 def refresh_trees(root):
     """Reuse accepted pruned terrain; rebuild only the native model-tree phase."""
     manifest_bytes = (OWNER/"manifest.json").read_bytes()
@@ -1199,9 +1286,13 @@ def main():
     parser.add_argument("--ownership", action="store_true", help="bind explicit native land/seabed component recipes")
     parser.add_argument("--frames", action="store_true", help="refresh inactive frame/INI metadata from the verified prepared GM tree closure")
     parser.add_argument("--trees", action="store_true", help="prepare native model trees from verified unchanged pruned terrain/variant assets")
+    parser.add_argument("--runtime-layout", action="store_true", help="join frozen native consumer inputs; keep runtime activation off")
     args = parser.parse_args()
     root = args.source_root.resolve()
-    if args.trees:
+    if args.runtime_layout:
+        record = runtime_layout()
+        print(f"Sea atlas: joined {len(record['model_trees'])} prepared physical bodies and native navigation; activation remains off")
+    elif args.trees:
         record = refresh_trees(root)
         print(f"Sea atlas: prepared {len(record['model_trees'])} native body trees; pruned terrain reused; runtime untouched")
     elif args.frames:

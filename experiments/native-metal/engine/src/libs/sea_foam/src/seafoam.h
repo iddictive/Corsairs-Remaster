@@ -27,6 +27,7 @@ struct tShipFoamInfo
     tFoamEmitter hull[2][TRACE_STEPS_Z];
     CVECTOR levelStarts[2][TRACE_STEPS_Z];
     GEOS::INFO hullInfo;
+    entid_t shipID = invalid_entity;
     SHIP_BASE *ship;
     TCarcass *carcass[2];
     SEAFOAM_PS *frontEmitter[3];
@@ -77,6 +78,8 @@ class SEAFOAM : public Entity
   private:
     void InitializeShipFoam();
     void ReleaseShipFoam();
+    void ReleaseShipFoam(tShipFoamInfo &foam);
+    void RemoveShip(entid_t shipID);
     void RealizeShipFoam_Particles(tShipFoamInfo &_shipFoamInfo, uint32_t dTime);
     void RealizeShipFoam_Mesh(tShipFoamInfo &_shipFoamInfo, uint32_t dTime);
     void CreateTracePoints(tShipFoamInfo *_shipFoamInfo);

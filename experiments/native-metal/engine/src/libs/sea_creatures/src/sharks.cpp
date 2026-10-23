@@ -370,8 +370,8 @@ inline void Sharks::Shark::IslandCollision(ISLAND_BASE *ib, int32_t numPnt, floa
     const auto step = 2.0f * SHARK_PI / numPnt;
     auto vx = 0.0f;
     auto vz = 0.0f;
-    auto *mdl = static_cast<MODEL *>(core.GetEntityPointer(ib->GetSeabedEID()));
-    if (!mdl)
+    const auto seabeds = ib->GetSeabedModels();
+    if (seabeds.empty())
         return;
     for (int32_t i = 0; i < numPnt; i++)
     {
@@ -379,7 +379,9 @@ inline void Sharks::Shark::IslandCollision(ISLAND_BASE *ib, int32_t numPnt, floa
         const auto z = cosf(i * step);
         const auto xp = spos.x + rad * x;
         const auto zp = spos.z + rad * z;
-        auto h = mdl->Trace(CVECTOR(xp, 100.0f, zp), CVECTOR(xp, -50.0f, zp));
+        float h = 2.f;
+        for (const auto id : seabeds) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+            h = std::min(h, model->Trace(CVECTOR(xp, 100.0f, zp), CVECTOR(xp, -50.0f, zp)));
         if (h < 1.0f)
         {
             h -= 100.0f / 150.0f;

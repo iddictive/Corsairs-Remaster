@@ -198,6 +198,19 @@ uint64_t TOUCH::ProcessMessage(MESSAGE &message)
 {
     switch (message.Long())
     {
+    case MSG_SHIP_RELEASE: {
+        const auto shipID = message.EntityID();
+        for (int32_t i = 0; i < iNumShips; ++i)
+            if (pShips[i]->eID == shipID)
+            {
+                delete pShips[i];
+                --iNumShips;
+                pShips[i] = pShips[iNumShips];
+                pShips[iNumShips] = nullptr;
+                break;
+            }
+        break;
+    }
     case MSG_SHIP_CREATE:
         pShips[iNumShips] = new TOUCH_SHIP{};
         pShips[iNumShips]->eID = message.EntityID();

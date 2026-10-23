@@ -1,6 +1,7 @@
 #include "sea_ai.h"
 #include "ai_group.h"
 #include "shared/messages.h"
+#include <algorithm>
 
 CREATE_CLASS(SEA_AI)
 
@@ -36,6 +37,16 @@ uint64_t dwRDTSC;
 
 void SEA_AI::Execute(uint32_t Delta_Time)
 {
+    // Previous-frame entity retirement completes before script slots are reused.
+    auto acknowledged = std::move(releaseAcknowledgements);
+    releaseAcknowledgements.clear();
+    for (const auto &name : acknowledged) core.Event("SeaTraffic_Released", "s", name.c_str());
+    auto requested = std::move(releaseRequests);
+    releaseRequests.clear();
+    if (!requested.empty()) {
+        if (AIGroup::ReleaseResidents(requested)) releaseAcknowledgements = std::move(requested);
+        else for (const auto &name : requested) core.Event("SeaTraffic_ReleaseRejected", "s", name.c_str());
+    }
     RDTSC_B(dwRDTSC);
     const auto fDeltaTime = 0.001f * static_cast<float>(Delta_Time);
 
@@ -88,6 +99,12 @@ uint64_t SEA_AI::ProcessMessage(MESSAGE &message)
     auto iCode = message.Long();
     switch (iCode)
     {
+    case AI_MESSAGE_RELEASE_GROUP: {
+        const auto &name = message.String();
+        if (std::find(releaseRequests.begin(), releaseRequests.end(), name) == releaseRequests.end())
+            releaseRequests.push_back(name);
+        return true;
+    }
     case AI_MESSAGE_UNLOAD: {
         uint32_t i;
         for (i = 0; i < AIGroup::AIGroups.size(); i++)
@@ -435,6 +452,8 @@ void SEA_AI::AddShip(entid_t eidShip, ATTRIBUTES *pCharacter, ATTRIBUTES *pAShip
     Assert(pGName);
 
     AIGroup::FindOrCreateGroup(pGName)->AddShip(eidShip, pCharacter, pAShip);
+    if (!bFirstInit)
+        if (auto *ship = AIShip::FindShip(pCharacter)) ship->CheckStartPosition();
 }
 
 void SEA_AI::SetCompanionEnemy(ATTRIBUTES *pACharacter)

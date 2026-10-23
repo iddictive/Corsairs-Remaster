@@ -4,6 +4,8 @@
 #include "vai_objbase.h"
 #include <limits>
 
+namespace storm_sea_atlas { struct Frame; }
+
 // ============================================================================
 // Master class AICannon
 // Contain functions and parameters for cannon
@@ -153,7 +155,8 @@ class AICannon
     }
 
     void Save(CSaveLoad *pSL) const;
-    void Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, entid_t eid);
+    void Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, entid_t eid,
+              const storm_sea_atlas::Frame *worldFrame = nullptr);
 
   private:
     CANNONTYPE CannonType;

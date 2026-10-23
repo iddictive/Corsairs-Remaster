@@ -17,6 +17,44 @@ technique WdmModelDrawStd
     }
 }
 
+// Physical atlas models have sea albedo rather than baked miniature lighting.
+// The native chart role supplies relief shading; stock models retain their pass.
+technique WdmChartDrawStd
+{
+    pass p0
+    {
+        Lighting = false;
+        FogEnable = false;
+        ColorArg1[0] = texture;
+        ColorArg2[0] = diffuse;
+        ColorOp[0] = Modulate;
+        ColorOp[1] = disable;
+        AlphaOp[0] = disable;
+        AlphaTestEnable = false;
+        AlphaBlendEnable = false;
+    }
+}
+
+technique WdmChartDrawStdA
+{
+    pass p0
+    {
+        Lighting = false;
+        FogEnable = false;
+        ColorArg1[0] = texture;
+        ColorArg2[0] = diffuse;
+        ColorOp[0] = Modulate;
+        ColorOp[1] = disable;
+        AlphaArg1[0] = tfactor;
+        AlphaOp[0] = SelectArg1;
+        AlphaOp[1] = disable;
+        AlphaTestEnable = false;
+        AlphaBlendEnable = true;
+        SrcBlend = srcalpha;
+        DestBlend = invsrcalpha;
+    }
+}
+
 technique WdmModelDrawStdAlphaTest
 {
     pass p0

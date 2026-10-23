@@ -1,5 +1,11 @@
 #include "ai_group.h"
+#include "sea_atlas.hpp"
+#include "ai_sea_goods.h"
+#include "../../sea_cameras/src/dart_view_borrower.h"
+#include "../../sea_cameras/src/camera_borrower.h"
+#include "../../battle_interface/src/spyglass/spyglass_borrower.h"
 #include "shared/messages.h"
+#include <algorithm>
 
 std::vector<AIGroup *> AIGroup::AIGroups;
 float AIGroup::fDistanceBetweenGroupShips = 250.0f;
@@ -22,6 +28,59 @@ AIGroup::~AIGroup()
     for (i = 0; i < aGroupShips.size(); i++)
         STORM_DELETE(aGroupShips[i]);
     aGroupShips.clear();
+}
+
+bool AIGroup::ReleaseResidents(const std::vector<std::string> &names)
+{
+    std::vector<AIGroup *> groups;
+    std::vector<AIShip *> ships;
+    auto *goods = static_cast<AISeaGoods *>(core.GetEntityPointer(core.GetEntityId("AISeaGoods")));
+    for (const auto &name : names) {
+        auto *group = FindGroup(name.c_str());
+        if (!group || group->isMainGroup()) return false;
+        groups.push_back(group);
+        ships.insert(ships.end(), group->aGroupShips.begin(), group->aGroupShips.end());
+    }
+    for (auto *ship : ships) {
+        auto *character = ship->GetACharacter();
+        if (!character || !character->GetAttribute("trafficFleetID") ||
+            character->GetAttribute("qID") || character->GetAttributeAsDword("isquest")) return false;
+        if (goods && goods->BorrowsCharacter(static_cast<int32_t>(character->GetAttributeAsDword("index")))) return false;
+        if (storm_dart_view::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+        if (storm_sea_cameras::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+        if (ship->GetCannonController()->HasPendingFire()) return false;
+        if (storm_spyglass_view::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+        // A target in either task slot is still a borrower even when hidden
+        // by a secondary task. Script admission additionally holds battle bundles.
+        for (auto *other : AIShip::AIShips) {
+            if (std::find(ships.begin(), ships.end(), other) != ships.end()) continue;
+            if (other->GetTaskController()->References(character) ||
+                (other->GetCameraController() && other->GetCameraController()->References(character))) return false;
+        }
+    }
+    for (const auto &name : names) {
+        auto *allowed = core.Event("SeaTraffic_CanRelease", "s", name.c_str());
+        if (!allowed || !allowed->GetInt()) return false;
+    }
+    // No script callbacks occur between the last borrower check and snapshots.
+    for (const auto &name : names) {
+        auto *snapshot = core.Event("SeaTraffic_ReleaseSnapshot", "s", name.c_str());
+        if (!snapshot || !snapshot->GetInt()) return false;
+    }
+    for (auto *ship : ships) {
+        if (goods) goods->ForgetShip(static_cast<SHIP_BASE *>(core.GetEntityPointer(ship->GetShipEID())));
+        ship->Unload();
+        core.Send_Message(ship->GetShipEID(), "l", MSG_SHIP_SAFE_DELETE);
+        for (auto *other : AIShip::AIShips) if (other != ship) other->ReleasePoint(ship);
+        Helper.RemoveCharacter(ship->GetACharacter());
+        std::erase(AIShip::AIShips, ship);
+    }
+    for (auto *group : groups) {
+        std::erase(AIGroups, group);
+        delete group;
+    }
+    Helper.CalculateRelations();
+    return true;
 }
 
 void AIGroup::AddShip(entid_t eidShip, ATTRIBUTES *pACharacter, ATTRIBUTES *pAShip)
@@ -448,6 +507,13 @@ void AIGroup::Load(CSaveLoad *pSL)
     sGroupType = pSL->LoadString();
     vInitGroupPos = pSL->LoadVector();
     vMovePoint = pSL->LoadVector();
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(pACommander))
+    {
+        const float heading = pose->Heading(vInitGroupPos.y);
+        vInitGroupPos = pose->Point(vInitGroupPos);
+        vInitGroupPos.y = heading;
+        vMovePoint = pose->Point(vMovePoint);
+    }
     bFirstExecute = pSL->LoadDword() != 0;
     const uint32_t dwNum = pSL->LoadDword();
     for (uint32_t i = 0; i < dwNum; i++)

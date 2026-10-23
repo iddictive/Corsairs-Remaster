@@ -322,6 +322,8 @@ def project(source_root):
                 if location.casefold() in destinations:
                     raise ValueError(f"Ambiguous authored chart label: {location}")
                 destinations[location.casefold()] = target
+                if name_key(location) not in destinations:
+                    destinations[name_key(location)] = target
 
     base = inventory["map_geometry"]
     path = base["path"]
@@ -342,6 +344,12 @@ def project(source_root):
             target = aliases.get(name_key(name))
         elif group == "labels":
             target = destinations.get(name.casefold())
+            if target is None:
+                target = destinations.get(name_key(name))
+            if target is None:
+                target = aliases.get(name_key(name))
+            if target is None and name_key(name) == "puertoprincipetown":
+                target = destinations.get("puertoprincipe_port")
         if target is None and group in ("islands", "labels") and name in atlas["regions"]:
             target = {"region": name, "map_xz": atlas["regions"][name]["map_origin"],
                       "coordinate_owner": "authored logical scene origin"}

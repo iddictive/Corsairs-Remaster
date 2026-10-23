@@ -671,9 +671,24 @@ inline bool supportRetained(const Surface&surface,const FaceIndex&retained,const
     const auto authored=surface.supportOriginal?surface.supportOriginal:surface.original;
     if((!surface.checkpointed&&surface.released.empty())||!authored||!storm_ship_hull::finite(point))return true;const auto&source=*authored;const auto&index=source.index;if(index.references.empty())return true;
     std::vector<uint32_t>localCandidates,localNearby;auto&candidates=candidateScratch?*candidateScratch:localCandidates;auto&nearby=nearbyScratch?*nearbyScratch:localNearby;
-    float radius=.25f,best=INFINITY;const float maximum=storm_ship_hull::length(index.bounds.hi-index.bounds.lo)+storm_ship_hull::length(point-(index.bounds.lo+index.bounds.hi)*.5f)+1.f;
-    for(unsigned pass=0;pass<32;++pass){const Vec3 extent{radius,radius,radius};index.broadphase.queryBounds({point-extent,point+extent},candidates);for(uint32_t candidate:candidates){const auto ref=index.references[candidate];const auto delta=closestFacePoint(point,source.outer.at(ref.first)[ref.second])-point;best=std::min(best,storm_ship_hull::dot(delta,delta));}if(std::isfinite(best)&&radius>=std::sqrt(best)+.0002f)break;if(radius>=maximum)break;radius=std::min(maximum,std::isfinite(best)?std::max(radius*2,std::sqrt(best)+.0002f):radius*2);}
+    candidates.clear();
+    float best=INFINITY;
+    const auto lower=[&](storm_ship_hull::Bounds box){
+        const float dx=std::max(0.f,std::max(box.lo.x-point.x,point.x-box.hi.x));
+        const float dy=std::max(0.f,std::max(box.lo.y-point.y,point.y-box.hi.y));
+        const float dz=std::max(0.f,std::max(box.lo.z-point.z,point.z-box.hi.z));
+        return double(dx*dx+dy*dy+dz*dz);
+    };
+    const auto accept=[&](double entry,uint32_t){
+        return entry<=double(best);
+    };
+    index.broadphase.queryNearest(lower,accept,[&](uint32_t candidate){
+        const auto ref=index.references[candidate];
+        const auto delta=closestFacePoint(point,source.outer.at(ref.first)[ref.second])-point;
+        best=std::min(best,storm_ship_hull::dot(delta,delta));
+    });
     if(!std::isfinite(best))return true;bool lost=false;const float nearest=std::sqrt(best)+.0002f;const Vec3 extent{.0002f,.0002f,.0002f};
+    index.broadphase.queryBounds({point-Vec3{nearest,nearest,nearest},point+Vec3{nearest,nearest,nearest}},candidates);
     for(uint32_t candidate:candidates){const auto original=index.references[candidate];const auto witness=closestFacePoint(point,source.outer.at(original.first)[original.second]),delta=witness-point;if(storm_ship_hull::dot(delta,delta)>nearest*nearest)continue;
         retained.broadphase.queryBounds({witness-extent,witness+extent},nearby);for(uint32_t face:nearby){const auto ref=retained.references[face];if(ref.first==original.first&&pointOnFace(witness,surface.outer.at(ref.first)[ref.second]))return true;}
         if(surface.checkpointed){lost=true;continue;}

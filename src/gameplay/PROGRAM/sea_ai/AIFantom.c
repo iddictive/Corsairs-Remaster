@@ -64,9 +64,18 @@ int Fantom_GetShipTypeExt(int iClassMin, int iClassMax, string sShipType, string
 
 int Fantom_CreateShipFromBase(int iBaseShipType, string sGroupName, string sFantomType, int iEncounterType, int iNation)
 {
+	int result = Fantom_CreateShipFromBaseAtIndex(iBaseShipType, sGroupName, sFantomType, iEncounterType, iNation, FANTOM_CHARACTERS + iNumFantoms);
+	if (result != INVALID_SHIP_TYPE) iNumFantoms++;
+	return result;
+}
+
+// The ordinary append allocator and continuous traffic share initialization.
+// Only the residency owner may supply an exclusively retired phantom slot.
+int Fantom_CreateShipFromBaseAtIndex(int iBaseShipType, string sGroupName, string sFantomType, int iEncounterType, int iNation, int characterIndex)
+{
 	if (iBaseShipType < SHIP_BILANCETTA || iBaseShipType > SHIP_MANOWAR) return INVALID_SHIP_TYPE;
-	if (FANTOM_CHARACTERS + iNumFantoms >= TOTAL_CHARACTERS) return INVALID_SHIP_TYPE;
-	ref rFantom = GetFantomCharacter(iNumFantoms);
+	if (characterIndex < FANTOM_CHARACTERS || characterIndex >= TOTAL_CHARACTERS) return INVALID_SHIP_TYPE;
+	ref rFantom = &Characters[characterIndex];
 
 	DeleteAttribute(rFantom, "relation");
 	DeleteAttribute(rFantom, "abordage_twice");
@@ -81,7 +90,6 @@ int Fantom_CreateShipFromBase(int iBaseShipType, string sGroupName, string sFant
 	rFantom.nation = iNation;
 	int iRealShipType = GenerateShipExt(iBaseShipType, 0, rFantom);
 	if (iRealShipType < 0 || iRealShipType >= REAL_SHIPS_QUANTITY) return INVALID_SHIP_TYPE;
-	iNumFantoms++;
 	
 	rFantom.Ship.Type = iRealShipType;
 			

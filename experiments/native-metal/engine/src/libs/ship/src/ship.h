@@ -270,7 +270,6 @@ class SHIP : public SHIP_BASE
     float WhirlpoolYawSpeed();
     SeaShipEmergenceSample SeaEmergencePose(float seconds);
     void ApplySeaEmergence(float seconds);
-    void PublishShipPose();
     BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool includePhonk = true);
     void CalculateImmersion(float seconds);
     void CheckShip2Strand(float fDeltaTime);
@@ -319,6 +318,8 @@ class SHIP : public SHIP_BASE
     ~SHIP() override;
     SHIP();
 
+    void PublishShipPose() override;
+
     float GetMaxSpeedZ() override;
     float GetMaxSpeedY() override;
     float GetWindAgainst() override;
@@ -337,6 +338,7 @@ class SHIP : public SHIP_BASE
     void DiscardHullContactBodies(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&) noexcept;
     void ApplyHullContactBodyImpulse(const std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>&,const CVECTOR&,float) override;
     bool IsHullPositionRetained(const CVECTOR &localPosition) const override;
+    void QueryHullSupport(const CVECTOR *, unsigned char *, size_t) const override;
     void ApplyHullImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,
                          float specificEnergy, int32_t otherCharacterIndex) override;
     bool ApplyHullProjectileImpact(const CVECTOR &worldPoint, const CVECTOR &outwardNormal,

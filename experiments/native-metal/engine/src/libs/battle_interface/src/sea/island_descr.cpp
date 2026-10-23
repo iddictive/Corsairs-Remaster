@@ -3,6 +3,7 @@
 #include "core.h"
 
 #include "model.h"
+#include "island_base.h"
 #include "string_compare.hpp"
 #include "shared/battle_interface/msg_control.h"
 
@@ -29,8 +30,12 @@ void ISLAND_DESCRIBER::ReleaseAll()
 
 void ISLAND_DESCRIBER::SetIsland(ATTRIBUTES *pAIsland)
 {
+    ReleaseAll();
     if (pAIsland == nullptr)
         return;
+    CMatrix pose;
+    if (auto *island = dynamic_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("ISLAND"))))
+        pose = island->GetSelectedRegionMatrix();
     m_bYesIsland = true;
     m_pIslandAttributes = pAIsland;
     // create a list of locators
@@ -51,8 +56,10 @@ void ISLAND_DESCRIBER::SetIsland(ATTRIBUTES *pAIsland)
         if ((pATmp = m_pLocators[i].pA = pA->GetAttributeClass(i)) == nullptr)
             continue;
         m_pLocators[i].pchr_note = pATmp->GetAttribute("labelLoc");
-        m_pLocators[i].x = pATmp->GetAttributeAsFloat("x", 0.f);
-        m_pLocators[i].z = pATmp->GetAttributeAsFloat("z", 0.f);
+        const auto position = pose * CVECTOR(pATmp->GetAttributeAsFloat("x", 0.f), 0.f,
+                                             pATmp->GetAttributeAsFloat("z", 0.f));
+        m_pLocators[i].x = position.x;
+        m_pLocators[i].z = position.z;
         m_pLocators[i].r = pATmp->GetAttributeAsFloat("radius", 0.f);
         m_pLocators[i].locatorType = ISLAND_LOCATOR_LAND;
         m_pLocators[i].relation = BI_RELATION_NEUTRAL;

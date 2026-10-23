@@ -306,7 +306,12 @@ void Crime_ApplyPatentConsequence(int victimNation)
 
 void Crime_ApplyPublicConsequences(int nation, int severity, bool identityKnown)
 {
-	if (!identityKnown) return;
+	Crime_ApplyPublicConsequencesDelta(nation, severity, identityKnown, 0);
+}
+
+void Crime_ApplyPublicConsequencesDelta(int nation, int severity, bool identityKnown, int reportedSeverity)
+{
+	if (!identityKnown || severity <= reportedSeverity) return;
 	int repLoss = 1;
 	int hunter = 3;
 	if (severity == 2)
@@ -319,10 +324,15 @@ void Crime_ApplyPublicConsequences(int nation, int severity, bool identityKnown)
 		repLoss = 5;
 		hunter = 10;
 	}
-	ChangeCharacterReputation(pchar, -repLoss);
+	int priorRepLoss = 0;
+	int priorHunter = 0;
+	if (reportedSeverity == 1) { priorRepLoss = 1; priorHunter = 3; }
+	if (reportedSeverity == 2) { priorRepLoss = 3; priorHunter = 6; }
+	if (reportedSeverity >= 3) { priorRepLoss = 5; priorHunter = 10; }
+	ChangeCharacterReputation(pchar, -(repLoss - priorRepLoss));
 
 	if (nation < 0 || nation >= MAX_NATIONS || nation == PIRATE) return;
-	int newHunter = ChangeCharacterHunterScore(pchar, NationShortName(nation) + "hunter", hunter);
+	int newHunter = ChangeCharacterHunterScore(pchar, NationShortName(nation) + "hunter", hunter - priorHunter);
 	Crime_ApplyPatentConsequence(nation);
 	int journalHunter = ChangeCharacterHunterScore(pchar, NationShortName(nation) + "hunter", 0);
 	string crimeBody = "Власти державы " + XI_ConvertString(GetNationNameByType(nation)) + " установили личность капитана. Репутация снижена на " + repLoss + ". Текущий розыск: " + journalHunter + ".";
@@ -538,6 +548,56 @@ bool CrimeSea_IsNearAuthority()
 	return false;
 }
 
+bool CrimeSea_ObserveFort(ref victim)
+{
+	if (!CheckAttribute(victim, "Ship.Pos.x") || !CheckAttribute(victim, "Ship.Pos.z")) return false;
+	int nation = sti(victim.nation);
+	string nationKey = NationShortName(nation);
+	bool witnessed = false;
+	bool relationsChanged = false;
+	for (int slot = 0; slot < iNumForts; slot++)
+	{
+		int fortIndex = sti(Forts[slot].fortcmdridx);
+		if (fortIndex < 0 || fortIndex >= TOTAL_CHARACTERS) continue;
+		ref fort = GetCharacter(fortIndex);
+		if (LAi_IsDead(fort) || !CheckAttribute(fort, "Fort.Mode") || sti(fort.Fort.Mode) != FORT_NORMAL) continue;
+		int fortNation = sti(fort.nation);
+		if (fortNation < 0 || fortNation >= MAX_NATIONS || fortNation == PIRATE) continue;
+		if (fortNation != nation && GetNationRelation(fortNation, nation) != RELATION_FRIEND) continue;
+		if (!CheckAttribute(&Forts[slot], "position.x") || !CheckAttribute(&Forts[slot], "position.z")) continue;
+		// Use the fort's existing recognition zone, centered on the crime.
+		if (GetDistance2D(stf(victim.Ship.Pos.x), stf(victim.Ship.Pos.z), stf(Forts[slot].position.x), stf(Forts[slot].position.z)) >=
+			MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER_FORT * 1.5) continue;
+		aref reporter;
+		makearef(reporter, pchar.Crime.Sea.(nationKey).Authority.Reporter);
+		bool identityKnown = CrimeSea_ReporterKnowsHero(fort);
+		if (CheckAttribute(reporter, "IdentityKnown") && sti(reporter.IdentityKnown) != 0) identityKnown = true;
+		CrimeSea_SetReporter(reporter, 1, identityKnown, sti(pchar.Crime.Sea.(nationKey).AttackFlagNation));
+		witnessed = true;
+		if (GetRelation(fortIndex, GetMainCharacterIndex()) != RELATION_ENEMY)
+		{
+			SetCharacterRelationBoth(fortIndex, GetMainCharacterIndex(), RELATION_ENEMY);
+			relationsChanged = true;
+		}
+	}
+	if (relationsChanged) UpdateRelations();
+	return witnessed;
+}
+
+void CrimeSea_ReportAuthority(int nation)
+{
+	string nationKey = NationShortName(nation);
+	if (!CheckAttribute(pchar, "Crime.Sea." + nationKey + ".Authority.Reporter.IdentityKnown") ||
+		sti(pchar.Crime.Sea.(nationKey).Authority.Reporter.IdentityKnown) == 0) return;
+	int reportedSeverity = 0;
+	if (CheckAttribute(pchar, "Crime.Sea." + nationKey + ".ReportedSeverity"))
+		reportedSeverity = sti(pchar.Crime.Sea.(nationKey).ReportedSeverity);
+	int severity = sti(pchar.Crime.Sea.(nationKey).Severity);
+	if (severity <= reportedSeverity) return;
+	Crime_ApplyPublicConsequencesDelta(nation, severity, true, reportedSeverity);
+	pchar.Crime.Sea.(nationKey).ReportedSeverity = severity;
+}
+
 void CrimeSea_ScheduleResolution()
 {
 	if (CheckAttribute(pchar, "quest.CrimeSeaResolve")) return;
@@ -599,7 +659,9 @@ void CrimeSea_Begin(ref victim, ref groupCommander)
 	{
 		aref authorityReporter;
 		makearef(authorityReporter, pchar.Crime.Sea.(nationKey).Authority.Reporter);
-		CrimeSea_SetReporter(authorityReporter, 1, sti(pchar.nation) == GetBaseHeroNation(), sti(pchar.Crime.Sea.(nationKey).AttackFlagNation));
+		bool identityKnown = sti(pchar.nation) == GetBaseHeroNation();
+		if (CheckAttribute(authorityReporter, "IdentityKnown") && sti(authorityReporter.IdentityKnown) != 0) identityKnown = true;
+		CrimeSea_SetReporter(authorityReporter, 1, identityKnown, sti(pchar.Crime.Sea.(nationKey).AttackFlagNation));
 	}
 
 	for (int i = 0; i < iNumShips; i++)
@@ -617,6 +679,7 @@ void CrimeSea_Begin(ref victim, ref groupCommander)
 		makearef(witnessReporter, pchar.Crime.Sea.(nationKey).Witnesses.(witnessKey));
 		CrimeSea_SetReporter(witnessReporter, 1, CrimeSea_ReporterKnowsHero(witness), sti(pchar.Crime.Sea.(nationKey).AttackFlagNation));
 	}
+	if (CrimeSea_ObserveFort(victim)) CrimeSea_ReportAuthority(nation);
 	CrimeSea_ScheduleResolution();
 }
 
@@ -720,6 +783,72 @@ bool CrimeSea_IsTrackedAmbient(ref groupCommander, ref ship)
 	return false;
 }
 
+bool CrimeSea_CanReleaseActor(ref actor)
+{
+	if (!CheckAttribute(actor, "index") || !CheckAttribute(actor, "id")) return false;
+	int index = sti(actor.index);
+	if (index < 0 || index >= TOTAL_CHARACTERS) return false;
+	// These callbacks/passenger owners still address the original character slot.
+	if (CheckAttribute(pchar, "GenQuest.Survive_In_SeaOfficerIdx") && sti(pchar.GenQuest.Survive_In_SeaOfficerIdx) == index) return false;
+	if (CheckAttribute(pchar, "GenQuest.Survive_In_SeaPrisonerIdx") && sti(pchar.GenQuest.Survive_In_SeaPrisonerIdx) == index) return false;
+	if (CheckAttribute(pchar, "CustodyCombat.CaptorIndex") && sti(pchar.CustodyCombat.CaptorIndex) == index) return false;
+	if (CheckAttribute(actor, "prisoned") && sti(actor.prisoned)) return false;
+	for (int passenger = 0; passenger < GetPassengersQuantity(pchar); passenger++)
+	{
+		if (GetPassenger(pchar, passenger) == index) return false;
+	}
+	string survivorKey = "s" + index;
+	for (int nation = 0; nation < MAX_NATIONS; nation++)
+	{
+		if (nation == PIRATE) continue;
+		string nationKey = NationShortName(nation);
+		// A reporter state is not an acknowledgement that its native boat is gone.
+		if (CheckAttribute(pchar, "Crime.Sea." + nationKey + ".Survivors." + survivorKey)) return false;
+	}
+	return true;
+}
+
+void CrimeSea_ArchiveActorReporter(aref incident, string listName, string actorKey, ref actor)
+{
+	if (!CheckAttribute(incident, listName + "." + actorKey)) return;
+	int nextId = 1;
+	if (CheckAttribute(incident, "NextArchivedReporter")) nextId = sti(incident.NextArchivedReporter) + 1;
+	incident.NextArchivedReporter = nextId;
+	string archivedKey = "r" + nextId;
+	aref source, archived;
+	makearef(source, incident.(listName).(actorKey));
+	makearef(archived, incident.(listName).(archivedKey));
+	CopyAttributes(archived, source);
+	// Old saves may store just the numeric reporter value rather than State.
+	if (!CheckAttribute(source, "State")) archived.State = sti(GetAttributeValue(source));
+	archived.ActorIndex = actor.index;
+	archived.ActorId = actor.id;
+	if (CheckAttribute(actor, "trafficFleetID")) archived.FleetID = actor.trafficFleetID;
+	if (CheckAttribute(actor, "trafficRosterSlot")) archived.RosterSlot = actor.trafficRosterSlot;
+	DeleteAttribute(incident, listName + "." + actorKey);
+}
+
+void CrimeSea_ReleaseActor(ref actor)
+{
+	// Caller releases the whole group after native borrowers acknowledge detach,
+	// then invokes this before any character reset or index reuse.
+	if (!CrimeSea_CanReleaseActor(actor)) return;
+	string targetKey = "t" + actor.index;
+	string witnessKey = "w" + actor.index;
+	string groupKey = "g" + actor.index;
+	for (int nation = 0; nation < MAX_NATIONS; nation++)
+	{
+		if (nation == PIRATE) continue;
+		string nationKey = NationShortName(nation);
+		if (!CheckAttribute(pchar, "Crime.Sea." + nationKey)) continue;
+		aref incident;
+		makearef(incident, pchar.Crime.Sea.(nationKey));
+		CrimeSea_ArchiveActorReporter(incident, "Targets", targetKey, actor);
+		CrimeSea_ArchiveActorReporter(incident, "Witnesses", witnessKey, actor);
+		DeleteAttribute(incident, "Groups." + groupKey);
+	}
+}
+
 void CrimeSea_MarkShipUnavailable(int shipIndex)
 {
 	string targetKey = "t" + shipIndex;
@@ -752,6 +881,7 @@ void CrimeSea_RecordShipDead(ref dead, int killerIndex)
 	if (CheckAttribute(pchar, "Crime.Sea." + nationKey + ".Active"))
 	{
 		if (sti(pchar.Crime.Sea.(nationKey).Severity) < 2) pchar.Crime.Sea.(nationKey).Severity = 2;
+		if (CrimeSea_ObserveFort(dead)) CrimeSea_ReportAuthority(sti(dead.nation));
 	}
 }
 
@@ -799,6 +929,7 @@ void CrimeSea_RecordShipTaken(ref taken, int killerIndex, bool released)
 		string targetKey = "t" + taken.index;
 		pchar.Crime.Sea.(nationKey).Targets.(targetKey).State = 3;
 	}
+	if (CrimeSea_ObserveFort(taken)) CrimeSea_ReportAuthority(sti(taken.nation));
 }
 
 void CrimeSea_ReportCaptainFate(ref captain, int fate)
@@ -889,7 +1020,10 @@ void CrimeSea_ResolveDirect(int nation)
 	pchar.Crime.Sea.(nationKey).DirectResolved = true;
 	if (reportState == 2)
 	{
-		Crime_ApplyPublicConsequences(nation, severity, true);
+		int reportedSeverity = 0;
+		if (CheckAttribute(pchar, "Crime.Sea." + nationKey + ".ReportedSeverity"))
+			reportedSeverity = sti(pchar.Crime.Sea.(nationKey).ReportedSeverity);
+		Crime_ApplyPublicConsequencesDelta(nation, severity, true, reportedSeverity);
 		DeleteAttribute(pchar, "Crime.Sea." + nationKey);
 		return;
 	}
@@ -1525,6 +1659,7 @@ void Ship_Add2Sea(int iCharacterIndex, bool bFromCoast, string sFantomType, bool
 	if(CheckAttribute(rCharacter,"Ship.Sink")) {trace("ShipSink rCharacter.id = " + rCharacter.id); DeleteAttribute(rCharacter,"Ship.Sink");}
 	
 	CreateEntity(&Characters[iCharacterIndex], "Ship");
+	if (!IsEntity(rCharacter)) return;
 	
     Event(SHIP_UPDATE_PARAMETERS, "lf", iCharacterIndex, stf(rCharacter.Ship.Speed.z));		// Parameters      после создания корабля
     		
@@ -3825,7 +3960,9 @@ float Ship_TravelAmmoDamage(ref captain)
 bool Ship_TravelThreatBlocks()
 {
 	bSeaTravelSuperiority = false;
-	int party[COMPANION_MAX];
+	// The VM treats a one-element declaration as a scalar, not an array.
+	int party[2];
+	SetArraySize(&party, COMPANION_MAX);
 	int members = 0;
 	float ourPower = 0.0;
 	float ammunitionDamage = 0.0;
@@ -3984,7 +4121,7 @@ void Ship_CheckMainCharacter()
 		ref rFortCharacter = GetCharacter(sti(aFort.idx)); 
 		if (LAi_IsDead(rFortCharacter)) { continue; }
 		int iFortMode = sti(rFortCharacter.Fort.Mode);
-		aref aRLoc = FindIslandReloadLocator(sPlayerLocation, rFortCharacter.location.locator);
+		aref aRLoc = FindIslandReloadLocator(rFortCharacter.location, rFortCharacter.location.locator);
 		if (!CheckAttribute(aRLoc, "Radius")) { continue; }  // fix
 		float fRadius = stf(aRLoc.Radius);
 		fDistance = stf(aFort.Distance);

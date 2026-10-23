@@ -1,4 +1,5 @@
 #include "ai_fort.h"
+#include "sea_atlas.hpp"
 #include "ai_ship.h"
 
 AIShipTaskController::AIShipTaskController(AIShip *pShip)
@@ -252,4 +253,9 @@ void AIShipTaskController::Load(CSaveLoad *pSL)
 
     Primary.Load(pSL);
     Secondary.Load(pSL);
+    if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetAIShip()->GetACharacter()))
+    {
+        Primary.vTaskPnt = pose->Point(Primary.vTaskPnt);
+        Secondary.vTaskPnt = pose->Point(Secondary.vTaskPnt);
+    }
 }

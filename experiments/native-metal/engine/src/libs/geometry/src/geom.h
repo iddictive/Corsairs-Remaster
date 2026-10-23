@@ -247,6 +247,7 @@ class GEOM : public GEOS
     void CommitLaserProjection(uint64_t owner) override;
     void DiscardLaserProjection(uint64_t owner) override;
     bool IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&) const override;
+    void QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*,unsigned char*,size_t) const override;
     uint64_t GeometryGeneration() const override { return geometryGeneration; }
     uint64_t CollisionRevision() const override { return collisionRevision; }
     bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const override;

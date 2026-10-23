@@ -28,6 +28,8 @@ class WdmRenderModel : public WdmRenderObject
     ~WdmRenderModel() override;
 
     virtual bool Load(const char *modelName);
+    bool LoadChart(const char *visualRoot, const char *collisionRoot);
+    const std::vector<GEOS *> &CollisionParts() const { return collisionParts; }
 
     void PRender(VDX9RENDER *rs) override;
     void MRender(VDX9RENDER *rs) override;
@@ -52,4 +54,9 @@ class WdmRenderModel : public WdmRenderObject
     float radius;
 
     bool drawCircle;
+
+  private:
+    bool LoadParts(const std::string &path, const std::string &stem,
+                   std::vector<GEOS *> &parts, std::vector<std::string> &seen);
+    std::vector<GEOS *> visualParts, collisionParts;
 };

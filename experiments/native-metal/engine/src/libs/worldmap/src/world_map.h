@@ -38,9 +38,10 @@ class WorldMap : public Entity
     // Construction, destruction
     // --------------------------------------------------------------------------------------------
   public:
-    WorldMap();
+    explicit WorldMap(bool seaTraffic = false);
     ~WorldMap() override;
     float TrafficHours(float seconds) const { return seconds * timeScale; }
+    bool IsSeaTraffic() const { return seaTraffic; }
 
     //--------------------------------------------------------------------------------------------
     // Entity
@@ -51,6 +52,8 @@ class WorldMap : public Entity
     // Execution
     void Execute(uint32_t delta_time);
     void Realize(uint32_t delta_time);
+    void UpdateTraffic(float seconds);
+    void ReleaseWorld();
     // Messages
     uint64_t ProcessMessage(MESSAGE &message) override;
     // Changing an attribute
@@ -163,6 +166,11 @@ class WorldMap : public Entity
 
     ATTRIBUTES *aDate;
     float timeScale;
+    bool seaTraffic = false;
+    float seaTime = -1.f;
+    std::string seaIsland;
+    uint32_t seaResidencyMs = 0;
+    bool worldReleased = false;
 
     std::string bufForSave;
 

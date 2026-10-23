@@ -243,7 +243,8 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
         {
             CMatrix mPos, mRot, m1, m2;
 
-            if (mode != MAN_JUMP && ship_base && !ship_base->IsHullPositionRetained(pos + spos))
+            if (mode != MAN_JUMP && ship_base && (spos.x != 0.f || spos.y != 0.f || spos.z != 0.f) &&
+                !ship_base->IsHullPositionRetained(pos + spos))
                 spos = CVECTOR(0.f, 0.f, 0.f);
 
             mPos.BuildMatrix(CVECTOR(ang.x, ang.y, ang.z),
@@ -1106,12 +1107,26 @@ void ShipWalk::ReconcileHullSupport()
     shipState.hull = ship;
     const unsigned revision = ship->GetHullContourRevision();
     const bool changed = !hullSupportInitialized || hullRevision != revision;
+    hullSupportQueries.clear();
+    if (changed)
+        for (const auto &point : sailorsPoints.points.point)
+            hullSupportQueries.push_back(CrewPoint(point));
+    for (const auto &man : shipMan)
+    {
+        if (man.inWater || man.mode == MAN_SWIM || man.mode == MAN_JUMP) continue;
+        hullSupportQueries.push_back(man.pos);
+        if (changed) hullSupportQueries.push_back(man.ptTo);
+    }
+    hullSupportResults.resize(hullSupportQueries.size());
+    if (!hullSupportQueries.empty())
+        ship->QueryHullSupport(hullSupportQueries.data(), hullSupportResults.data(), hullSupportQueries.size());
+    size_t supportIndex = 0;
     if (changed)
     {
         hullSupportInitialized = true;
         hullRevision = revision;
         for (auto &point : sailorsPoints.points.point)
-            point.hullRetained = ship->IsHullPositionRetained(CrewPoint(point));
+            point.hullRetained = hullSupportResults[supportIndex++];
         sailorsPoints.UpdateLinks();
         fireModelSeconds = -1.f;
     }
@@ -1123,8 +1138,10 @@ void ShipWalk::ReconcileHullSupport()
     {
         if (man.inWater || man.mode == MAN_SWIM || man.mode == MAN_JUMP)
             continue;
+        const bool positionRetained = hullSupportResults[supportIndex++];
+        const bool targetRetained = changed ? hullSupportResults[supportIndex++] != 0 : true;
         const bool onMast = man.mode == MAN_CLIMB_UP || man.mode == MAN_CLIMB_DOWN || man.mode == MAN_OFF;
-        if (!ship->IsHullPositionRetained(man.pos) ||
+        if (!positionRetained ||
             (onMast && (!available(man.newWayPoint) || !available(man.lastWayPoint))))
         {
             for (const int i : {man.targetWayPoint, man.lastTargetPoint, man.newWayPoint})
@@ -1140,8 +1157,7 @@ void ShipWalk::ReconcileHullSupport()
         }
         if (!changed)
             continue;
-        bool routeValid = available(man.newWayPoint) && available(man.targetWayPoint) &&
-            ship->IsHullPositionRetained(man.ptTo);
+        bool routeValid = available(man.newWayPoint) && available(man.targetWayPoint) && targetRetained;
         for (int i = std::max(0, man.path.currentPointPosition); routeValid && i < man.path.length; ++i)
             routeValid = available(man.path.point[i]);
         if (routeValid)
@@ -1878,6 +1894,18 @@ uint64_t Sailors::ProcessMessage(MESSAGE &message)
             const float distance = message.Float();
             const int cutMode = message.Long();
             walk->OnHullCut(CVECTOR(x, y, z), distance, cutMode, gore, *rs);
+        }
+        break;
+    }
+
+    // Physical retirement differs from a sinking ship with living crew.
+    case MSG_SHIP_RELEASE: {
+        const auto shipID = message.EntityID();
+        const auto walk = std::ranges::find_if(shipWalk, [shipID](const auto &entry) { return entry.shipID == shipID; });
+        if (walk != shipWalk.end())
+        {
+            if (walk->bloodID) core.EraseEntity(walk->bloodID);
+            shipWalk.erase(walk);
         }
         break;
     }

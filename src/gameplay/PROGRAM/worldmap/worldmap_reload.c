@@ -349,6 +349,9 @@ bool WdmAddEncountersData()
 			if(encStringID == "") continue;
 			encStringID = "encounters." + encStringID + ".encdata";
 			if(CheckAttribute(&worldMap, encStringID) == 0) continue;
+			string actorDescriptorPath = "encounters." + worldMap.encounter.id;
+			aref existingDescriptor; makearef(existingDescriptor, worldMap.(actorDescriptorPath));
+			if (SeaTraffic_HasOriginalGroup(existingDescriptor)) continue;
 			int mapEncSlot = FindFreeMapEncounterSlot();
 			if(mapEncSlot < 0) continue;
 			ref mapEncSlotRef = GetMapEncounterRef(mapEncSlot);
@@ -379,8 +382,8 @@ bool WdmAddEncountersData()
 					{
 						mapEncSlotRef.Task = AITASK_MOVE;
 						DeleteAttribute(mapEncSlotRef, "Task.Target");
-						mapEncSlotRef.Task.Pos.x = wpsX + (stf(worldMap.(trafficPath).gotoX) - mpsX) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
-						mapEncSlotRef.Task.Pos.z = wpsZ + (stf(worldMap.(trafficPath).gotoZ) - mpsZ) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
+						mapEncSlotRef.Task.Pos.x = wpsX + (stf(worldMap.(trafficPath).gotoX) - mpsX) * GetSeaFrameScale();
+						mapEncSlotRef.Task.Pos.z = wpsZ + (stf(worldMap.(trafficPath).gotoZ) - mpsZ) * GetSeaFrameScale();
 					}
 				}
 			}
@@ -390,8 +393,8 @@ bool WdmAddEncountersData()
 				mapEncSlotRef.trafficRouteZ = wpsZ + 10000.0 * cos(stf(worldMap.encounter.ay));
 				if (CheckAttribute(trafficDescriptor, "gotoX") && CheckAttribute(trafficDescriptor, "gotoZ"))
 				{
-					mapEncSlotRef.trafficRouteX = wpsX + (stf(trafficDescriptor.gotoX) - mpsX) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
-					mapEncSlotRef.trafficRouteZ = wpsZ + (stf(trafficDescriptor.gotoZ) - mpsZ) * WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
+					mapEncSlotRef.trafficRouteX = wpsX + (stf(trafficDescriptor.gotoX) - mpsX) * GetSeaFrameScale();
+					mapEncSlotRef.trafficRouteZ = wpsZ + (stf(trafficDescriptor.gotoZ) - mpsZ) * GetSeaFrameScale();
 				}
 				WdmFleetSeaImportTask(mapEncSlotRef, pairedSeaGroup);
 			}
@@ -401,8 +404,10 @@ bool WdmAddEncountersData()
 			string grp; grp = "group" + i;
 			float encX = MakeFloat(worldMap.encounter.x);
 			float encZ = MakeFloat(worldMap.encounter.z);
-			wdmLoginToSea.encounters.(grp).x = wpsX + (encX - mpsX)*WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;//WDM_MAP_TO_SEA_SCALE;
-			wdmLoginToSea.encounters.(grp).z = wpsZ + (encZ - mpsZ)*WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;//WDM_MAP_TO_SEA_SCALE;
+			float encounterScale = WDM_MAP_ENCOUNTERS_TO_SEA_SCALE;
+			if (fleetSeaImported) encounterScale = GetSeaFrameScale();
+			wdmLoginToSea.encounters.(grp).x = wpsX + (encX - mpsX) * encounterScale;
+			wdmLoginToSea.encounters.(grp).z = wpsZ + (encZ - mpsZ) * encounterScale;
 			wdmLoginToSea.encounters.(grp).ay = worldMap.encounter.ay;
 			wdmLoginToSea.encounters.(grp).type = mapEncSlot;
 			wdmLoginToSea.encounters.(grp).id = worldMap.encounter.id;

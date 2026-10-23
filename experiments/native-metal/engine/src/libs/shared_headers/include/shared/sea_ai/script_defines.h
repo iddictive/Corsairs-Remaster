@@ -179,6 +179,7 @@
 #define AI_MESSAGE_FORT_UNSET_LIGHTS 51045
 // the method of recounting the guns on the ship SendMessage(&AISea, "la", AI_MESSAGE_RESEARCH_CANNONS, aCharacter)
 #define AI_MESSAGE_RESEARCH_CANNONS 51050
+#define AI_MESSAGE_RELEASE_GROUP 51051 // "ls", queue ordinary group removal at Execute boundary
 
 // cameras
 #define AI_CAMERAS_ADD_CAMERA 55000

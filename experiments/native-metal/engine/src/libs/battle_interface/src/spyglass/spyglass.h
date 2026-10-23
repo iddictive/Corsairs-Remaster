@@ -85,6 +85,7 @@ class ISPYGLASS : public Entity
     };
 
   public:
+    bool ReferencesCharacter(int32_t index) const { return m_bIsOn && m_nInfoCharacterIndex == index; }
     ISPYGLASS();
     ~ISPYGLASS() override;
     bool Init() override;

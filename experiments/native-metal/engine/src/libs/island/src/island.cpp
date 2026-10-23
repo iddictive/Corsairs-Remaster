@@ -9,8 +9,11 @@
 #include "tga.h"
 #include <cstdio>
 #include <cmath>
+#include <stdexcept>
 
 CREATE_CLASS(ISLAND)
+class IslandRegion final : public ISLAND {};
+CREATE_CLASS(IslandRegion)
 
 CREATE_CLASS(CoastFoam)
 
@@ -36,6 +39,9 @@ ISLAND::ISLAND()
     bDrawReflections = false;
 
     fCurrentImmersion = 0.0f;
+    vBoxCenter = vBoxSize = vRealBoxSize = CVECTOR(0.f);
+    fImmersionDistance = 3000.f;
+    fImmersionDepth = 25.f;
 }
 
 ISLAND::~ISLAND()
@@ -45,6 +51,9 @@ ISLAND::~ISLAND()
 
 void ISLAND::Uninit()
 {
+    for (const auto id : residentRegions) core.EraseEntity(id);
+    residentRegions.clear();
+    selectedRegion = 0;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     CancelWorldCutWork();
     worldCutState = nullptr;
@@ -63,6 +72,175 @@ void ISLAND::Uninit()
     {
         core.EraseEntity(model_id);
         core.EraseEntity(seabed_id);
+    }
+    model_id = seabed_id = 0;
+    traceModels.clear();
+    aggregateTraceModels.clear();
+    aForts.clear();
+    haveFortTraceBounds = false;
+    regionOffset = CVECTOR(0.f);
+    regionPose = {};
+    regionInverse = {};
+    regionRotated = false;
+}
+
+ISLAND *ISLAND::Region(entid_t id) const
+{
+    return id ? dynamic_cast<ISLAND *>(core.GetEntityPointer(id)) : nullptr;
+}
+
+bool ISLAND::OwnsModel(entid_t id) const
+{
+    return id && (id == model_id || id == seabed_id ||
+        std::find(traceModels.begin(), traceModels.end(), id) != traceModels.end() ||
+        std::find(aForts.begin(), aForts.end(), id) != aForts.end());
+}
+
+std::vector<entid_t> ISLAND::GetIslandModels()
+{
+    std::vector<entid_t> result;
+    if (model_id) result.push_back(model_id);
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->model_id) result.push_back(region->model_id);
+    return result;
+}
+
+std::vector<entid_t> ISLAND::GetSeabedModels()
+{
+    std::vector<entid_t> result;
+    if (seabed_id) result.push_back(seabed_id);
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->seabed_id) result.push_back(region->seabed_id);
+    return result;
+}
+
+void ISLAND::TranslateRegion(float x, float z)
+{
+    if (regionRotated)
+    {
+        auto pose = regionPose;
+        pose.values[4] = x; pose.values[5] = z;
+        PoseRegion(pose);
+        return;
+    }
+    const CVECTOR offset(x, 0.f, z), delta = offset - regionOffset;
+    if (~delta == 0.f) return;
+    // Called once, after original depth/path loading and before damage restore.
+    for (const auto id : traceModels) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+    { model->mtx.Pos() += delta; model->Update(); }
+    for (const auto id : aForts) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+    { model->mtx.Pos() += delta; model->Update(); }
+    mIslandOld.Pos() += delta;
+    mSeaBedOld.Pos() += delta;
+    vBoxCenter += delta;
+    rIsland.x1 += delta.x; rIsland.x2 += delta.x;
+    rIsland.y1 += delta.z; rIsland.y2 += delta.z;
+    for (size_t i = 0; i < AIPath.GetNumPoints(); ++i) AIPath.GetPoint(i)->vPos += delta;
+    regionOffset = offset;
+    regionPose.values[4] = x; regionPose.values[5] = z;
+    regionInverse.values[4] = -x; regionInverse.values[5] = -z;
+}
+
+bool ISLAND::PoseRegion(const storm_sea_atlas::Frame &pose)
+{
+    const auto &m = pose.values;
+    // Only metre-preserving rotations are valid: depth cells and path lengths
+    // stay authored, and model triangles/BSP are never rewritten.
+    if (!pose.Rigid()) return false;
+    if (m == regionPose.values) return true;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    // Frame adoption precedes persistent cuts and their asynchronous bindings.
+    if (worldCutState || worldCutFuture.valid()) return false;
+#endif
+    const bool rotated = m[0] != 1. || m[1] != 0. || m[2] != 0. || m[3] != 1.;
+    if (!rotated && !regionRotated)
+    {
+        TranslateRegion(static_cast<float>(m[4]), static_cast<float>(m[5]));
+        return true;
+    }
+    const auto localCenter = regionRotated ? regionLocalCenter : regionInverse.Point(vBoxCenter);
+    const auto localExtent = regionRotated ? regionLocalExtent : vRealBoxSize;
+    CMatrix delta;
+    delta.EqMultiply(regionInverse.Matrix(), pose.Matrix());
+    const auto moveModel = [&](entid_t id) {
+        if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+        {
+            CMatrix transformed;
+            transformed.EqMultiply(model->mtx, delta);
+            model->mtx = transformed;
+            model->Update();
+        }
+    };
+    for (const auto id : traceModels) moveModel(id);
+    for (const auto id : aForts)
+        if (std::find(traceModels.begin(), traceModels.end(), id) == traceModels.end()) moveModel(id);
+    CMatrix island, seabed;
+    island.EqMultiply(mIslandOld, delta); seabed.EqMultiply(mSeaBedOld, delta);
+    mIslandOld = island; mSeaBedOld = seabed;
+    for (size_t i = 0; i < AIPath.GetNumPoints(); ++i)
+        AIPath.GetPoint(i)->vPos = delta * AIPath.GetPoint(i)->vPos;
+    regionLocalCenter = localCenter; regionLocalExtent = localExtent;
+    regionPose = pose;
+    regionInverse = pose.Inverse();
+    regionOffset = CVECTOR(static_cast<float>(m[4]), 0.f, static_cast<float>(m[5]));
+    regionRotated = rotated;
+    vBoxCenter = pose.Point(localCenter);
+    vRealBoxSize = CVECTOR(static_cast<float>(std::abs(m[0])*localExtent.x+std::abs(m[1])*localExtent.z),
+        localExtent.y, static_cast<float>(std::abs(m[2])*localExtent.x+std::abs(m[3])*localExtent.z));
+    const float rx = static_cast<float>(std::abs(m[0])*vBoxSize.x+std::abs(m[1])*vBoxSize.z);
+    const float rz = static_cast<float>(std::abs(m[2])*vBoxSize.x+std::abs(m[3])*vBoxSize.z);
+    rIsland.x1 = vBoxCenter.x-rx; rIsland.x2 = vBoxCenter.x+rx;
+    rIsland.y1 = vBoxCenter.z-rz; rIsland.y2 = vBoxCenter.z+rz;
+    return true;
+}
+
+bool ISLAND::RegionVisible() const
+{
+    if (!model_id) return false;
+    CVECTOR camera, angles; float perspective;
+    pRS->GetCamera(camera, angles, perspective);
+    return IsWithinRange(camera, maxViewDistance * 1.3f);
+}
+
+bool ISLAND::IsWithinRange(const CVECTOR &point, float range) const
+{
+    const float x = std::max(0.f, std::abs(point.x - vBoxCenter.x) - vRealBoxSize.x);
+    const float z = std::max(0.f, std::abs(point.z - vBoxCenter.z) - vRealBoxSize.z);
+    return x * x + z * z <= range * range;
+}
+
+bool ISLAND::RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin) const
+{
+    const bool terrain = std::max(from.x, to.x) >= vBoxCenter.x - vRealBoxSize.x - margin &&
+        std::min(from.x, to.x) <= vBoxCenter.x + vRealBoxSize.x + margin &&
+        std::max(from.z, to.z) >= vBoxCenter.z - vRealBoxSize.z - margin &&
+        std::min(from.z, to.z) <= vBoxCenter.z + vRealBoxSize.z + margin;
+    return terrain || (haveFortTraceBounds &&
+        std::max(from.x, to.x) >= fortTraceBounds.x1-margin && std::min(from.x, to.x) <= fortTraceBounds.x2+margin &&
+        std::max(from.z, to.z) >= fortTraceBounds.y1-margin && std::min(from.z, to.z) <= fortTraceBounds.y2+margin);
+}
+
+void ISLAND::IncludeFortTraceBounds(entid_t fort)
+{
+    auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(fort));
+    if (!model) return;
+    model->Update();
+    for (int i = 0; const auto *node = model->GetNode(i); ++i)
+    {
+        if (!node->geo) continue;
+        GEOS::INFO info{}; node->geo->GetInfo(info);
+        auto transform = node->glob_mtx;
+        for (int corner = 0; corner < 8; ++corner)
+        {
+            const auto p = transform * (CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z)+CVECTOR(
+                (corner&1 ? .5f : -.5f)*info.boxsize.x, (corner&2 ? .5f : -.5f)*info.boxsize.y,
+                (corner&4 ? .5f : -.5f)*info.boxsize.z));
+            if (!haveFortTraceBounds) { fortTraceBounds = {p.x, p.z, p.x, p.z}; haveFortTraceBounds = true; }
+            fortTraceBounds.x1 = std::min(fortTraceBounds.x1, p.x); fortTraceBounds.x2 = std::max(fortTraceBounds.x2, p.x);
+            fortTraceBounds.y1 = std::min(fortTraceBounds.y1, p.z); fortTraceBounds.y2 = std::max(fortTraceBounds.y2, p.z);
+            rIsland.x1 = std::min(rIsland.x1, p.x); rIsland.x2 = std::max(rIsland.x2, p.x);
+            rIsland.y1 = std::min(rIsland.y1, p.z); rIsland.y2 = std::max(rIsland.y2, p.z);
+        }
     }
 }
 
@@ -84,6 +262,14 @@ bool ISLAND::Init()
 
 uint32_t ISLAND::AttributeChanged(ATTRIBUTES *attribute)
 {
+    if (attribute && (*attribute == "FogDensity" || *attribute == "LightingPath"))
+        for (const auto id : residentRegions) if (auto *region = Region(id))
+            if (region->AttributesPointer)
+            {
+                const auto *name = attribute->GetThisName();
+                region->AttributesPointer->SetAttribute(name, attribute->GetThisAttr());
+                region->AttributeChanged(region->AttributesPointer->GetAttributeClass(name));
+            }
     if (!attribute || *attribute != "LightingPath")
         return 0;
 
@@ -113,13 +299,19 @@ bool bView = false;
 
 void ISLAND::Realize(uint32_t Delta_Time)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        region->bDrawReflections = bDrawReflections;
+        region->Realize(Delta_Time);
+        region->bDrawReflections = false;
+    }
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     PollWorldCutWork(Delta_Time);
     if (!worldCuts.empty()) worldCutsReady = BindWorldCuts(worldCuts, false);
 #endif
     uint32_t dwAmbient, dwAmbientOld;
 
-    if (bForeignModels)
+    if (bForeignModels || !model_id || !RegionVisible())
         return;
 
     auto *pModel = static_cast<MODEL *>(core.GetEntityPointer(model_id));
@@ -272,17 +464,63 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
     entid_t eID;
     switch (message.Long())
     {
+    case MSG_ISLAND_ATTACH_REGION: {
+        const auto id = message.EntityID();
+        if (id != GetId() && Region(id) && std::find(residentRegions.begin(), residentRegions.end(), id) == residentRegions.end())
+        {
+            if (aggregateTraceModels.empty()) aggregateTraceModels = traceModels;
+            residentRegions.push_back(id);
+            const auto &models = Region(id)->traceModels;
+            aggregateTraceModels.insert(aggregateTraceModels.end(), models.begin(), models.end());
+        }
+        break;
+    }
+    case MSG_ISLAND_TRANSLATE_REGION: {
+        const float x = message.Float(), z = message.Float();
+        TranslateRegion(x, z);
+        break;
+    }
+    case MSG_ISLAND_POSE_REGION: {
+        storm_sea_atlas::Frame pose;
+        for (auto &value : pose.values) value = message.Float();
+        const bool applied = PoseRegion(pose);
+        if (!applied && AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
+            throw std::runtime_error("SEA_ATLAS_LAYOUT: physical pose rejected; reinstall matching sea assets");
+        return applied ? 1 : 0;
+    }
+    case MSG_ISLAND_SELECT_REGION: {
+        const auto id = message.EntityID();
+        if (id == GetId()) selectedRegion = 0;
+        else if (std::find(residentRegions.begin(), residentRegions.end(), id) != residentRegions.end()) selectedRegion = id;
+        break;
+    }
     case MSG_ISLAND_WORLD_STATE: {
-#ifdef STORM_METAL_SHIP_HULL_DAMAGE
         auto *state = message.AttributePointer();
         const auto reflection = message.EntityID();
+        if (AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
+        {
+            auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(reflection));
+            if (!model || !model->GetNode(0))
+                throw std::runtime_error("SEA_ATLAS_MODEL: physical reflection missing; reinstall matching sea assets");
+        }
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
         RestoreWorldCuts(state, reflection);
 #endif
         break;
     }
-    case MSG_ISLAND_ADD_FORT:
-        aForts.push_back(message.EntityID());
+    case MSG_ISLAND_ADD_FORT: {
+        const auto fort = message.EntityID();
+        aForts.push_back(fort);
+        // Composed atlas terrain omits baked fort duplicates. The one live
+        // destructible fort must therefore own physical shore collision too.
+        if (AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas") &&
+            std::find(traceModels.begin(), traceModels.end(), fort) == traceModels.end())
+        {
+            traceModels.push_back(fort);
+            IncludeFortTraceBounds(fort);
+        }
         break;
+    }
     case MSG_LOCATION_ADD_MODEL: {
         eID = message.EntityID();
         const std::string &idstr = message.String();
@@ -295,8 +533,22 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
         cFoamDir = message.String();
         cModelsDir = message.String();
         cModelsID = message.String();
-        Mount(cModelsID, cModelsDir, nullptr);
-        CreateHeightMap(cFoamDir, cModelsID);
+        auto *atlas = AttributesPointer ? AttributesPointer->GetAttributeClass("SeaAtlas") : nullptr;
+        if (atlas)
+        {
+            const auto *directory = static_cast<const char *>(atlas->GetAttribute("depth_directory"));
+            const auto *name = static_cast<const char *>(atlas->GetAttribute("depth_name"));
+            if (!directory || !*directory || !name || !*name)
+                throw std::runtime_error("SEA_ATLAS_DEPTH: missing prepared depth identity; reinstall matching sea assets");
+            if (!Mount(cModelsID, cModelsDir, nullptr))
+                throw std::runtime_error("SEA_ATLAS_MODEL: missing physical body; reinstall matching sea assets");
+            CreateHeightMap(directory, name, true);
+        }
+        else
+        {
+            Mount(cModelsID, cModelsDir, nullptr);
+            CreateHeightMap(cFoamDir, cModelsID);
+        }
         // CreateShadowMap(cModelsDir, cModelsID);
     }
     break;
@@ -310,7 +562,8 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
         bDrawReflections = false;
         break;
     case MSG_MODEL_SET_MAX_VIEW_DIST:
-        core.Send_Message(model_id, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, message.Float());
+        maxViewDistance = message.Float();
+        core.Send_Message(model_id, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, maxViewDistance);
         break;
     }
     return 1;
@@ -325,8 +578,18 @@ inline float ISLAND::GetShadowTemp(int32_t iX, int32_t iZ)
 
 bool ISLAND::GetShadow(float x, float z, float *fRes)
 {
-    const float fX = (x - vBoxCenter.x) / fShadowMapStep;
-    const float fZ = (z - vBoxCenter.z) / fShadowMapStep;
+    float fX, fZ;
+    if (regionRotated)
+    {
+        const auto local = regionInverse.Point(CVECTOR(x, 0.f, z)) - regionLocalCenter;
+        fX = local.x / fShadowMapStep;
+        fZ = local.z / fShadowMapStep;
+    }
+    else
+    {
+        fX = (x - vBoxCenter.x) / fShadowMapStep;
+        fZ = (z - vBoxCenter.z) / fShadowMapStep;
+    }
 
     *fRes = GetShadowTemp(ftoi(fX) + mzShadow.GetSizeX() / 2, ftoi(fZ) + mzShadow.GetSizeX() / 2);
 
@@ -342,6 +605,7 @@ void ISLAND::AddLocationModel(entid_t eid, const std::string_view &pIDStr, const
     cModelsDir = pDir;
     cModelsID = pIDStr;
     core.AddToLayer(ISLAND_TRACE, eid, 10);
+    traceModels.push_back(eid);
 }
 
 inline float ISLAND::GetDepthNoCheck(uint32_t iX, uint32_t iZ)
@@ -365,6 +629,11 @@ inline float ISLAND::GetDepthCheck(uint32_t iX, uint32_t iZ)
 
 bool ISLAND::Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->IsWithinRange(vPos, std::sqrt(vSize.x * vSize.x + vSize.z * vSize.z)) &&
+            region->Check2DBoxDepth(vPos, vSize, fAngY, fMinDepth)) return true;
+    if (!model_id && !bForeignModels) return false;
+    if (!residentRegions.empty() && !IsWithinRange(vPos, std::sqrt(vSize.x * vSize.x + vSize.z * vSize.z))) return false;
     // if (!mzDepth.isLoaded()) return false;
 
     const float fCos = cosf(fAngY), fSin = sinf(fAngY);
@@ -373,7 +642,7 @@ bool ISLAND::Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMi
         {
             float fDepth, xx = x, zz = z;
             RotateAroundY(xx, zz, fCos, fSin);
-            GetDepthFast(vPos.x + xx, vPos.z + zz, &fDepth);
+            LocalDepth(vPos.x + xx, vPos.z + zz, &fDepth);
             if (fDepth > fMinDepth)
                 return true;
         }
@@ -382,10 +651,34 @@ bool ISLAND::Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMi
 
 bool ISLAND::GetDepthFast(float x, float z, float *fRes)
 {
+    float depth = -50.f;
+    bool found = LocalDepth(x, z, &depth);
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        float other = -50.f;
+        if (region->LocalDepth(x, z, &other)) { depth = found ? std::max(depth, other) : other; found = true; }
+    }
+    if (fRes) *fRes = depth;
+    return found;
+}
+
+bool ISLAND::LocalDepth(float x, float z, float *fRes)
+{
+    if (!model_id && !bForeignModels) { if (fRes) *fRes = -50.f; return false; }
     // if (!mzDepth.isLoaded()) { if (fRes) *fRes = -50.0f; return false; }
-    x -= vBoxCenter.x;
-    z -= vBoxCenter.z;
-    if (fabsf(x) >= vRealBoxSize.x || fabsf(z) >= vRealBoxSize.z)
+    CVECTOR extent = vRealBoxSize;
+    if (regionRotated)
+    {
+        const auto local = regionInverse.Point(CVECTOR(x, 0.f, z)) - regionLocalCenter;
+        x = local.x; z = local.z;
+        extent = regionLocalExtent;
+    }
+    else
+    {
+        x -= vBoxCenter.x;
+        z -= vBoxCenter.z;
+    }
+    if (fabsf(x) >= extent.x || fabsf(z) >= extent.z)
     // if (x < -vRealBoxSize.x || z < -vRealBoxSize.z || x > vRealBoxSize.x || z > vRealBoxSize.z)
     {
         *fRes = -50.0f;
@@ -401,8 +694,15 @@ bool ISLAND::GetDepthFast(float x, float z, float *fRes)
 
 bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->LocalDepthCollision(previous, next, broadDepth, minDepth)) return true;
+    return LocalDepthCollision(previous, next, broadDepth, minDepth);
+}
+
+bool ISLAND::LocalDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth)
+{
     float coarseDepth;
-    if (!GetDepthFast(next.x, next.z, &coarseDepth) || coarseDepth < broadDepth)
+    if (!LocalDepth(next.x, next.z, &coarseDepth) || coarseDepth < broadDepth)
         return false;
 
     // Distant islands are lowered for rendering. Their current geometry is not
@@ -414,7 +714,7 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
     // geometry evidence; missing collision geometry retains the legacy result.
     CVECTOR surface(next.x, 0.0f, next.z);
     const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
-    const float hit = Trace(surface, bottom);
+    const float hit = LocalTrace(surface, bottom);
     const bool exact = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
     if (!exact || !std::isfinite(minDepth) ||
         (exact && -500.0f * hit >= minDepth))
@@ -428,7 +728,7 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
         for (int level = 0; level < levels; ++level)
         {
             const float y = level == 0 ? 0.0f : minDepth;
-            const float crossing = Trace(CVECTOR(previous.x, y, previous.z), CVECTOR(next.x, y, next.z));
+            const float crossing = LocalTrace(CVECTOR(previous.x, y, previous.z), CVECTOR(next.x, y, next.z));
             if (!std::isfinite(crossing) || crossing <= 1.0f)
                 return true;
         }
@@ -440,14 +740,25 @@ bool ISLAND::CheckDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
 
 bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
 {
-    if (!GetDepthFast(x, z, &depth))
+    bool found = LocalGroundDepth(x, z, keelY, depth);
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        float other;
+        if (region->LocalGroundDepth(x, z, keelY, other)) { depth = found ? std::max(depth, other) : other; found = true; }
+    }
+    return found;
+}
+
+bool ISLAND::LocalGroundDepth(float x, float z, float keelY, float &depth)
+{
+    if (!LocalDepth(x, z, &depth))
         return false;
     // Deep cells need no additional geometry work. Distant render immersion
     // makes the current model unsuitable for physical refinement.
     if (depth < keelY || fCurrentImmersion != 0.0f)
         return true;
     CVECTOR surface(x, 0.0f, z);
-    const float hit = Trace(surface, CVECTOR(x, -500.0f, z + 0.001f));
+    const float hit = LocalTrace(surface, CVECTOR(x, -500.0f, z + 0.001f));
     if (std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f)
     {
         const float exactDepth = -500.0f * hit;
@@ -459,22 +770,7 @@ bool ISLAND::GetGroundDepth(float x, float z, float keelY, float &depth)
 
 bool ISLAND::GetDepth(float x, float z, float *fRes)
 {
-    // if (!mzDepth.isLoaded()) {if (fRes) *fRes = -50.0f;    return false; }
-    x -= vBoxCenter.x;
-    z -= vBoxCenter.z;
-    if (fabsf(x) >= vRealBoxSize.x || fabsf(z) >= vRealBoxSize.z)
-    // if (x < -vRealBoxSize.x || z < -vRealBoxSize.z || x > vRealBoxSize.x || z > vRealBoxSize.z)
-    {
-        *fRes = -50.0f;
-        return false;
-    }
-
-    const float fX = (x * fStep1divDX) + static_cast<float>(iDMapSize >> 1);
-    const float fZ = (z * fStep1divDZ) + static_cast<float>(iDMapSize >> 1);
-
-    *fRes = GetDepthNoCheck(ftoi(fX), ftoi(fZ));
-
-    return true;
+    return GetDepthFast(x, z, fRes);
 }
 
 bool ISLAND::ActivateCamomileTrace(CVECTOR &vSrc)
@@ -494,7 +790,7 @@ bool ISLAND::ActivateCamomileTrace(CVECTOR &vSrc)
         fSin = sinf(fAng);
 
         vDst = vSrc + CVECTOR(fCos * fRadius, 0.0f, fSin * fRadius);
-        fRes = Trace(vSrc, vDst);
+        fRes = LocalTrace(vSrc, vDst);
         if (fRes > 1.0f)
             continue;
         auto *pEnt = static_cast<MODEL *>(core.GetEntityPointer(pCollide->GetObjectID()));
@@ -516,7 +812,7 @@ void ISLAND::CalcBoxParameters(CVECTOR &_vBoxCenter, CVECTOR &_vBoxSize)
     GEOS::INFO ginfo;
     float x1 = 1e+8f, x2 = -1e+8f, z1 = 1e+8f, z2 = -1e+8f;
 
-    auto &&entities = core.GetEntityIds(ISLAND_TRACE);
+    const auto &entities = traceModels;
     for (auto ent_id : entities)
     {
         MODEL *pM = static_cast<MODEL *>(core.GetEntityPointer(ent_id));
@@ -662,7 +958,7 @@ void ISLAND::Blur8(uint8_t **pBuffer, uint32_t dwSize)
     *pBuffer = pNewBuffer;
 }
 
-bool ISLAND::CreateHeightMap(const std::string_view &pDir, const std::string_view &pName)
+bool ISLAND::CreateHeightMap(const std::string_view &pDir, const std::string_view &pName, bool preparedAtlas)
 {
     TGA_H tga_head;
     char str_tmp[256];
@@ -703,6 +999,8 @@ bool ISLAND::CreateHeightMap(const std::string_view &pDir, const std::string_vie
     if (bLoad)
     {
         iDMapSize = mzDepth.GetSizeX();
+        if (preparedAtlas && iDMapSize != DMAP_SIZE)
+            throw std::runtime_error("SEA_ATLAS_DEPTH: invalid prepared grid size: " + fileName);
         for (iDMapSizeShift = 0; iDMapSizeShift < 30; iDMapSizeShift++)
             if (static_cast<uint32_t>(1 << iDMapSizeShift) == iDMapSize)
                 break;
@@ -716,6 +1014,8 @@ bool ISLAND::CreateHeightMap(const std::string_view &pDir, const std::string_vie
         vRealBoxSize /= 2.0f;
 
         auto pI = fio->OpenIniFile(iniName.c_str());
+        if (preparedAtlas && !pI)
+            throw std::runtime_error("SEA_ATLAS_DEPTH: missing prepared navigation metadata: " + iniName);
         Assert(pI.get());
 
         CVECTOR vTmpBoxCenter, vTmpBoxSize;
@@ -725,22 +1025,36 @@ bool ISLAND::CreateHeightMap(const std::string_view &pDir, const std::string_vie
         sscanf(str_tmp, "%f,%f,%f", &vTmpBoxSize.x, &vTmpBoxSize.y, &vTmpBoxSize.z);
         if (~(vTmpBoxCenter - vBoxCenter) > 0.1f)
         {
+            if (preparedAtlas)
+                throw std::runtime_error("SEA_ATLAS_DEPTH: body/grid centre differs: " + iniName);
             core.Trace("Island: vBoxCenter not equal, foam error: %s, distance = %.3f", iniName.c_str(),
                        sqrtf(~(vTmpBoxCenter - vBoxCenter)));
             core.Trace("vBoxCenter = %f,%f,%f", vBoxCenter.x, vBoxCenter.y, vBoxCenter.z);
         }
         if (~(vTmpBoxSize - vBoxSize) > 0.1f)
         {
+            if (preparedAtlas)
+                throw std::runtime_error("SEA_ATLAS_DEPTH: body/grid extent differs: " + iniName);
             core.Trace("Island: vBoxSize not equal, foam error: %s", iniName.c_str());
             core.Trace("vBoxSize = %f,%f,%f", vBoxSize.x, vBoxSize.y, vBoxSize.z);
         }
 
-        AIPath.Load(*pI);
-        AIPath.BuildTable();
+        if (preparedAtlas)
+        {
+            if (!AIPath.LoadPrepared((path.string() + ".aifg").c_str()))
+                throw std::runtime_error("SEA_ATLAS_DEPTH: prepared route table missing or invalid; reinstall matching sea assets: " + path.string());
+        }
+        else
+        {
+            AIPath.Load(*pI);
+            AIPath.BuildTable();
+        }
 
         return true;
     }
 
+    if (preparedAtlas)
+        throw std::runtime_error("SEA_ATLAS_DEPTH: prepared grid missing; reinstall matching sea assets: " + fileName);
     core.Trace("WARN: FOAM: Can't find foam: %s", fileName.c_str());
 
     int32_t iTestSize = static_cast<int32_t>(vBoxSize.x / 1.5f);
@@ -875,18 +1189,24 @@ bool ISLAND::Mount(const std::string_view &fname, const std::string_view &fdir, 
 
     model_id = core.CreateEntity("MODELR");
     core.Send_Message(model_id, "ls", MSG_MODEL_SET_LIGHT_PATH, static_cast<const char*>(AttributesPointer->GetAttribute("LightingPath")));
-    core.Send_Message(model_id, "ls", MSG_MODEL_LOAD_GEO, pathStr.c_str());
+    const auto loaded = core.Send_Message(model_id, "ls", MSG_MODEL_LOAD_GEO, pathStr.c_str());
+    if (!loaded && AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
+        throw std::runtime_error("SEA_ATLAS_MODEL: physical body missing; reinstall matching sea assets: " + pathStr);
 
     // extract subobject(sea_bed) to another model
     auto *pModel = static_cast<MODEL *>(core.GetEntityPointer(model_id));
     NODE *pNode = pModel->FindNode(SEA_BED_NODE_NAME);
     if (pNode)
         seabed_id = pNode->Unlink2Model();
+    else if (AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
+        throw std::runtime_error("SEA_ATLAS_MODEL: prepared body has no seabed; reinstall matching sea assets: " + pathStr);
     else
         core.Trace("Island: island %s has no sea bed, check me!", std::string(fname).c_str());
 
     core.AddToLayer(ISLAND_TRACE, model_id, 10);
     core.AddToLayer(ISLAND_TRACE, seabed_id, 10);
+    traceModels = {model_id};
+    if (seabed_id) traceModels.push_back(seabed_id);
     core.AddToLayer(RAIN_DROPS, model_id, 100);
 
     auto *pSeaBedModel = static_cast<MODEL *>(core.GetEntityPointer(seabed_id));
@@ -940,11 +1260,52 @@ float ISLAND::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTO
 
 float ISLAND::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
 {
-    return pCollide->Trace(core.GetEntityIds(ISLAND_TRACE), vSrc, vDst, nullptr, 0);
+    if (residentRegions.empty()) return LocalTrace(vSrc, vDst);
+    aggregateTraceModels.clear();
+    if (RegionIntersects(vSrc, vDst)) aggregateTraceModels.insert(aggregateTraceModels.end(), traceModels.begin(), traceModels.end());
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->RegionIntersects(vSrc, vDst))
+            aggregateTraceModels.insert(aggregateTraceModels.end(), region->traceModels.begin(), region->traceModels.end());
+    if (aggregateTraceModels.empty()) return 2.f;
+    return pCollide->Trace(aggregateTraceModels, vSrc, vDst, nullptr, 0);
+}
+
+float ISLAND::LocalTrace(const CVECTOR &src, const CVECTOR &dst)
+{
+    return traceModels.empty() ? 2.f : pCollide->Trace(traceModels, src, dst, nullptr, 0);
 }
 
 // Path section
 bool ISLAND::GetMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
+{
+    ISLAND *obstacle = this;
+    float nearest = LocalTrace(vSrc, vDst);
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        if (!region->RegionIntersects(vSrc, vDst)) continue;
+        const float hit = region->LocalTrace(vSrc, vDst);
+        if (hit < nearest) { nearest = hit; obstacle = region; }
+    }
+    const bool blocked = obstacle->LocalMovePoint(vSrc, vDst, vRes);
+    if (blocked && ~(vRes-vDst) == 0.f && AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
+    {
+        // Some authored bodies have no graph, or disconnected native graph
+        // components. Reuse the already loaded ocean PTC for that missing
+        // detour; never create another graph during sailing.
+        const auto resources = core.GetEntityId("WdmStaticResources");
+        ATTRIBUTES route(AttributesPointer->GetStringCodec());
+        if (resources && core.Send_Message(resources, "saffff", "SeaRoute", &route, vSrc.x, vSrc.z, vDst.x, vDst.z))
+        {
+            const CVECTOR point(route.GetAttributeAsFloat("x"), .1f, route.GetAttributeAsFloat("z"));
+            // Back-search may start outside the conservative far patch. The
+            // actual aggregate island trace still admits this physical leg.
+            if (~(point-vSrc) > .0001f && Trace(vSrc, point) > 1.f) vRes = point;
+        }
+    }
+    return blocked;
+}
+
+bool ISLAND::LocalMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
 {
     // check for one side
     uint32_t i, j;
@@ -956,7 +1317,7 @@ bool ISLAND::GetMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
         return false;
 
     // one simple trace vSrc - vDst
-    if (Trace(vSrc, vDst) >= 1.0f)
+    if (LocalTrace(vSrc, vDst) >= 1.0f)
         return false;
 
     CVECTOR vDir = !(vDst - vSrc);
@@ -970,13 +1331,13 @@ bool ISLAND::GetMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
     const uint32_t dwSizeDst = ((*PointsDst).size() > 8) ? 8 : (*PointsDst).size();
 
     for (i = 0; i < dwSizeDst; i++)
-        (*PointsDst)[i].fTemp = Trace(vDst, AIPath.GetPointPos((*PointsDst)[i].dwPnt));
+        (*PointsDst)[i].fTemp = LocalTrace(vDst, AIPath.GetPointPos((*PointsDst)[i].dwPnt));
 
     float fMaxDistance = 1e9f;
     uint32_t dwI = INVALID_ARRAY_INDEX, dwJ;
     for (i = 0; i < dwSizeSrc; i++)
     {
-        if (Trace(vSrc, AIPath.GetPointPos((*PointsSrc)[i].dwPnt)) < 1.0f)
+        if (LocalTrace(vSrc, AIPath.GetPointPos((*PointsSrc)[i].dwPnt)) < 1.0f)
             continue;
         const float fDist1 = sqrtf(~(vSrc - AIPath.GetPointPos((*PointsSrc)[i].dwPnt)));
         if (fDist1 < 80.0f)
@@ -984,6 +1345,7 @@ bool ISLAND::GetMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
         for (j = 0; j < dwSizeDst; j++)
             if ((*PointsDst)[j].fTemp > 1.0f)
             {
+                if (!AIPath.HasPath((*PointsSrc)[i].dwPnt, (*PointsDst)[j].dwPnt)) continue;
                 // if (Trace(vDst,AIPath.GetPointPos((*PointsDst)[j].dwPnt)) < 1.0f) continue;
                 const float fDist2 = sqrtf(~(vDst - AIPath.GetPointPos((*PointsDst)[j].dwPnt)));
                 const float fDistance = AIPath.GetPathDistance((*PointsSrc)[i].dwPnt, (*PointsDst)[j].dwPnt);

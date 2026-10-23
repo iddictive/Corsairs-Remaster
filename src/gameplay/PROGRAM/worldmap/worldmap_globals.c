@@ -143,6 +143,7 @@ int wdmGetNumberShipEncounters()
 bool wdmSetCurrentShipData(int shipIndex)
 {
 	worldMap.encounter.cur = shipIndex;
+	SeaTraffic_Notify("encounter.cur");
 	int i = MakeInt(worldMap.encounter.cur);
 	if(i < 0 || i != shipIndex) return 0;
 	return 1;
@@ -177,7 +178,7 @@ bool wdmCreateSpecialByIndex(float kSpeed, int index, ref encID, string from, st
 	float daysPerSec = 24.0/stf(worldMap.date.hourPerSec); 
 	float timeOutInSec = daysPerSec*timeOutInDays;
 	//Создаём реального энкоунтера
-	bool res = SendMessage(&worldMap, "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, from, to, kSpeed, timeOutInSec);
+	bool res = SendMessage(SeaTraffic_Native(), "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, from, to, kSpeed, timeOutInSec);
 	// boal <--
 	//Копируем данные
 	WdmCopyEncounterData(mapEncSlotRef, worldMap.EncounterID1);
@@ -213,7 +214,7 @@ bool wdmCreateMerchantShipByIndex(float kSpeed, int index, ref encID, string fro
 	float daysPerSec = 24.0/stf(worldMap.date.hourPerSec); 
 	float timeOutInSec = daysPerSec*timeOutInDays;
 	//Создаём реального энкоунтера
-	bool res = SendMessage(&worldMap, "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, from, to, kSpeed, timeOutInSec);
+	bool res = SendMessage(SeaTraffic_Native(), "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, from, to, kSpeed, timeOutInSec);
 	// boal <--
 	//Копируем данные
 	WdmCopyEncounterData(mapEncSlotRef, worldMap.EncounterID1);
@@ -231,7 +232,7 @@ bool wdmCreateMerchantShipXZByIndex(float kSpeed, int index, ref encID, float x1
 	float daysPerSec = 24.0/stf(worldMap.date.hourPerSec); 
 	float timeOutInSec = daysPerSec*timeOutInDays;
 	//Создаём реального энкоунтера
-	bool res = SendMessage(&worldMap, "lsffffff", MSG_WORLDMAP_CREATEENC_MER_XZ, nationShipName, x1, z1, x2, z2, kSpeed, timeOutInSec);
+	bool res = SendMessage(SeaTraffic_Native(), "lsffffff", MSG_WORLDMAP_CREATEENC_MER_XZ, nationShipName, x1, z1, x2, z2, kSpeed, timeOutInSec);
 	//Копируем данные
 	WdmCopyEncounterData(mapEncSlotRef, worldMap.EncounterID1);
 	//Вернём идентификатор
@@ -281,12 +282,12 @@ bool wdmCreateFollowShipByIndex(float kSpeed, int index, ref encID, int timeOutI
 	bool klas = (IsCharacterPerkOn(pchar,"SeaDogProfessional")) && (GetCharacterShipClass(pchar) < 5);
 	if (klas || (GetNationRelation2MainCharacter(iNation) != RELATION_ENEMY))
 	{
-		res = SendMessage(&worldMap, "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, "", "", kSpeed, timeOutInSec); // boal new
+		res = SendMessage(SeaTraffic_Native(), "lsssff", MSG_WORLDMAP_CREATEENC_MER, nationShipName, "", "", kSpeed, timeOutInSec); // boal new
 	}
 	else
 	{   // boal - код этот полный абзац, я Вам, господа акеловцы, аплодирую - метод Следовать даёт убегание - и так весь код. плакаль
 		// погано, что метод имеет право быть, но название должно быть иным, нужно чтоб мирные не доставали патрулями.
-		res = SendMessage(&worldMap, "lsff", MSG_WORLDMAP_CREATEENC_FLW, nationShipName, kSpeed, timeOutInSec);
+		res = SendMessage(SeaTraffic_Native(), "lsff", MSG_WORLDMAP_CREATEENC_FLW, nationShipName, kSpeed, timeOutInSec);
 	}
 	//Копируем данные
 	WdmCopyEncounterData(mapEncSlotRef, worldMap.EncounterID1);
@@ -315,11 +316,11 @@ bool wdmCreateRealFollowShipByIndex(float kSpeed, int index, ref encID, int time
 	bool res = false;
 	/*if(GetNationRelation2MainCharacter(iNation) != RELATION_ENEMY)
 	{
-		res = SendMessage(&worldMap, "lsssf", MSG_WORLDMAP_CREATEENC_MER, nationShipName, "", "", kSpeed);
+		res = SendMessage(SeaTraffic_Native(), "lsssf", MSG_WORLDMAP_CREATEENC_MER, nationShipName, "", "", kSpeed);
 	}
 	else
 	{ */  // boal - код этот полный абзац, я Вам, господа акеловцы, аплодирую - метод Следовать даёт убегание - и так весь код. плакаль
-		res = SendMessage(&worldMap, "lsff", MSG_WORLDMAP_CREATEENC_FLW, nationShipName, kSpeed, timeOutInSec);
+		res = SendMessage(SeaTraffic_Native(), "lsff", MSG_WORLDMAP_CREATEENC_FLW, nationShipName, kSpeed, timeOutInSec);
 	//}
 	//Копируем данные
 	WdmCopyEncounterData(mapEncSlotRef, worldMap.EncounterID1);
@@ -360,7 +361,7 @@ bool wdmCreateWarringShipsByIndex(int index1, int index2, ref encID1, ref encID2
 	float daysPerSec = 24.0/stf(worldMap.date.hourPerSec); // Boal супер бага была - делили на 24. Математику в школе прогуливали?
 	float timeOutInSec = daysPerSec*timeOutInDays;
 	//Создаём реального энкоунтера
-	bool res = SendMessage(&worldMap, "lssf", MSG_WORLDMAP_CREATEENC_WAR, nationShipName1, nationShipName2, timeOutInSec);
+	bool res = SendMessage(SeaTraffic_Native(), "lssf", MSG_WORLDMAP_CREATEENC_WAR, nationShipName1, nationShipName2, timeOutInSec);
 	//Копируем данные
 	// The engine assigns model/index 1 to Warring (ID2), and 2 to Attacked (ID1).
 	WdmCopyEncounterData(mapEncSlotRef1, worldMap.EncounterID2);
@@ -389,7 +390,7 @@ void wdmCreateStorm()
 			}
 		}
 	}
-	SendMessage(&worldMap, "ll", MSG_WORLDMAP_CREATESTORM, isTornado);
+	SendMessage(SeaTraffic_Native(), "ll", MSG_WORLDMAP_CREATESTORM, isTornado);
 }
 
 //Получить модельку кораблика по индексу нации

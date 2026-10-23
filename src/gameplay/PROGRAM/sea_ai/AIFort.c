@@ -26,14 +26,30 @@ void DeleteFortEnvironment()
 		DeleteClass(&FortsBlots[i]);
 	}
 	iNumForts = 0;
-	for(i = 0; i < MAX_FORTS; i++) { Forts[i].fortcmdridx = -1; }
+	for(i = 0; i < GetArraySize(&Forts); i++) { Forts[i].fortcmdridx = -1; }
 }
 
 void CreateFortEnvironment()
 {
     SetEventHandler("SeaPhonk_FortGeometry", "SeaPhonk_FortGeometry", 0);
 	iNumForts = 0;
-	for(int i = 0; i < MAX_FORTS; i++) { Forts[i].fortcmdridx = -1; }
+	int fortCapacity = MAX_FORTS;
+	int residentForts = 0;
+	for (int islandIndex = 0; islandIndex < GetArraySize(&Islands); islandIndex++)
+	{
+		if (!CheckAttribute(&Islands[islandIndex], "visible") || !sti(Islands[islandIndex].visible)) continue;
+		aref reloads; makearef(reloads, Islands[islandIndex].reload);
+		for (int locatorIndex = 0; locatorIndex < GetAttributesNum(reloads); locatorIndex++)
+		{
+			aref locator = GetAttributeN(reloads, locatorIndex);
+			if (CheckAttribute(locator, "fort.model") && locator.fort.model != "") residentForts++;
+		}
+	}
+	if (residentForts > fortCapacity) fortCapacity = residentForts;
+	// Allocate before native MODELR attributes borrow any array element.
+	SetArraySize(&Forts, fortCapacity);
+	SetArraySize(&FortsBlots, fortCapacity);
+	for(int i = 0; i < fortCapacity; i++) { Forts[i].fortcmdridx = -1; }
 	SetEventHandler(FORT_CANNON_DAMAGE, "Fort_CannonDamage", 0);
 	SetEventHandler(FORT_CREATE, "Fort_CreateEvent", 0);
 	SetEventHandler(FORT_LOADDMGCANNON, "Fort_LoadDamagedCannon", 0);
@@ -173,7 +189,7 @@ int Fort_GetDeadDays(ref rCharacter)
 	return GetPastTime("day", iDYear, iDMonth, iDDay, fTime, GetDataYear(), GetDataMonth(), GetDataDay(), GetTime());
 }
 
-void Fort_Login(int iIslandIndex)
+void Fort_LoginRegion(int iIslandIndex, ref targetIsland, float dx, float dz)
 {
 	// search fort's in current island
 	ref rIsland = GetIslandByIndex(iIslandIndex);
@@ -192,13 +208,30 @@ void Fort_Login(int iIslandIndex)
 			}
 			CreateEntity(&Forts[iNumForts], "MODELR");
 			Forts[iNumForts].PhonkWorldKey = "fort_" + arLocator.name;
+			if (Sea_HasAtlasFrame()) Forts[iNumForts].PhonkWorldKey = rIsland.id + "_fort_" + arLocator.name;
+			DeleteAttribute(&Forts[iNumForts], "SeaAtlasLegacyPose");
+			if (bSeaLoad && CheckAttribute(&AISea, "worldFrame.upgrade_pending"))
+			{
+				object legacyPose; Sea_LegacyRegionFrame(rIsland.id, &legacyPose);
+				aref storedPose; makearef(storedPose, Forts[iNumForts].SeaAtlasLegacyPose);
+				CopyAttributes(storedPose, &legacyPose);
+			}
 			string sFortModel = rIsland.filespath.models + "\" + arLocator.fort.model;
 			
 			//SetTextureForShip(refBaseShip, rCharacter);
 			
 			SendMessage(&Forts[iNumForts], "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
 			SendMessage(&Forts[iNumForts], "ls", MSG_MODEL_LOAD_GEO, sFortModel);
-			SendMessage(&Island, "li", MSG_ISLAND_ADD_FORT,  &Forts[iNumForts]);
+			Sea_PoseRegionModel(&Forts[iNumForts], rIsland.id, 0.0, 0.0, 0.0);
+			SendMessage(&targetIsland, "li", MSG_ISLAND_ADD_FORT, &Forts[iNumForts]);
+			aref registeredLocator;
+			makearef(registeredLocator, Forts[iNumForts].locator);
+			CopyAttributes(registeredLocator, arLocator);
+			registeredLocator.x = Sea_RegionX(rIsland.id, stf(arLocator.x), stf(arLocator.z));
+			registeredLocator.z = Sea_RegionZ(rIsland.id, stf(arLocator.x), stf(arLocator.z));
+			if (CheckAttribute(arLocator, "ay")) registeredLocator.ay = Sea_RegionHeading(rIsland.id, stf(arLocator.ay));
+			Forts[iNumForts].position.x = registeredLocator.x;
+			Forts[iNumForts].position.z = registeredLocator.z;
 			//LayerAddObject(SEA_REALIZE, &Forts[iNumForts], 10000);
 			LayerAddObject(FORT_CANNON_TRACE, &Forts[iNumForts], 1);
 			LayerAddObject(SUN_TRACE, &Forts[iNumForts], 1);
@@ -235,6 +268,8 @@ void Fort_Login(int iIslandIndex)
 			// Add fort to AIFort
 			ref rCharacter = GetCharacter(iFortCharacter);
 			if (!bSeaLoad) Fort_ReleaseCannonAmmo(rCharacter);
+			rCharacter.Ship.Pos.x = registeredLocator.x;
+			rCharacter.Ship.Pos.z = registeredLocator.z;
 			int iNation = sti(rCharacter.nation);
 			/*int iRelation = GetNationRelation2MainCharacter(iNation);
 			SetCharacterRelationBoth(nMainCharacterIndex, iFortCharacter, iRelation); */
@@ -383,10 +418,10 @@ void Fort_Login(int iIslandIndex)
 			// create fort blot
 			CreateEntity(&FortsBlots[iNumForts - 1], "blots");
 			SendMessage(&FortsBlots[iNumForts - 1], "lia", MSG_BLOTS_SETMODEL, &Forts[iNumForts - 1], rCharacter);
-			LayerAddObject(SEA_EXECUTE, &Forts[iNumForts], 10001);
+			LayerAddObject(SEA_EXECUTE, &Forts[iNumForts - 1], 10001);
 			//LayerAddObject(SEA_REALIZE, &Forts[iNumForts], 10001);
 			
-			SendMessage(&AIFort, "laaaii", AI_MESSAGE_ADD_FORT, rIsland, arLocator, rCharacter, &Forts[iNumForts-1], &FortsBlots[iNumForts-1]);
+			SendMessage(&AIFort, "laaaii", AI_MESSAGE_ADD_FORT, rIsland, registeredLocator, rCharacter, &Forts[iNumForts-1], &FortsBlots[iNumForts-1]);
 
 			// flags
 			ref rNation = GetNationByType(iNation);

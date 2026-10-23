@@ -141,6 +141,7 @@ class GEOS
     virtual void CommitLaserProjection(uint64_t owner)=0;
     virtual void DiscardLaserProjection(uint64_t owner)=0;
     virtual bool IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&) const=0;
+    virtual void QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*points,unsigned char*retained,size_t count) const=0;
     virtual uint64_t GeometryGeneration() const { return 0; }
     virtual uint64_t CollisionRevision() const { return 0; }
     virtual bool DrawLaserFragment(uint64_t owner,uint64_t fragment) const=0;

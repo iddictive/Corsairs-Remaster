@@ -8,6 +8,7 @@ class SEA_AI : public Entity
 {
   private:
     bool bFirstInit;
+    std::vector<std::string> releaseRequests, releaseAcknowledgements;
 
     void AddShip(entid_t _eidShip, ATTRIBUTES *pCharacter, ATTRIBUTES *pAShip);
     void SetCompanionEnemy(ATTRIBUTES *pACharacter);

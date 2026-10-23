@@ -25,12 +25,46 @@ std::vector<ISLAND_BASE::WorldSurface> ISLAND::GetWorldSurfaces() const
 #else
     if(model_id)result.push_back({model_id,WorldAuthoredMatrix(model_id)});
 #endif
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        auto surfaces = region->GetWorldSurfaces();
+        result.insert(result.end(), surfaces.begin(), surfaces.end());
+    }
     return result;
 }
 
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 namespace
 {
+storm_world_cut::Cut posedCut(storm_world_cut::Cut cut, const storm_sea_atlas::Frame &pose)
+{
+    const auto &m = pose.values;
+    const CVECTOR offset(static_cast<float>(m[4]), 0.f, static_cast<float>(m[5]));
+    const bool rotated = m[0] != 1. || m[1] != 0. || m[2] != 0. || m[3] != 1.;
+    if (rotated)
+    {
+        const auto vector = [&](const storm_ship_hull::Vec3 &v) {
+            return storm_ship_hull::Vec3{static_cast<float>(m[0]*v.x+m[1]*v.z), v.y,
+                static_cast<float>(m[2]*v.x+m[3]*v.z)};
+        };
+        cut.normal = vector(cut.normal);
+        cut.center = vector(cut.center);
+        for (auto &axis : cut.axes) axis = vector(axis);
+        for (auto &beam : cut.beams)
+        {
+            const auto tangent = vector(storm_ship_laser::beamTangent(beam));
+            const auto direction = vector({beam.direction[0], beam.direction[1], beam.direction[2]});
+            const auto start = vector({beam.start[0], beam.start[1], beam.start[2]});
+            beam.start = {start.x, start.y, start.z};
+            beam.direction = {direction.x, direction.y, direction.z};
+            beam.tangent = {tangent.x, tangent.y, tangent.z};
+        }
+    }
+    cut.distance += cut.normal.x * offset.x + cut.normal.y * offset.y + cut.normal.z * offset.z;
+    cut.center = cut.center + storm_ship_hull::Vec3{offset.x, offset.y, offset.z};
+    for (auto &beam : cut.beams) { beam.start[0] += offset.x; beam.start[1] += offset.y; beam.start[2] += offset.z; }
+    return cut;
+}
 struct RestoreWorldMatrix {MODEL*model;CMatrix matrix;~RestoreWorldMatrix(){model->mtx=matrix;model->Update();}};
 void continueDose(storm_world_cut::Cut&cut,const storm_world_cut::Cut&pending)
 {
@@ -117,7 +151,7 @@ std::vector<entid_t> ISLAND::WorldModels() const
     };
     // One visible cap owner: authored shore first, then uncovered seabed/forts.
     add(model_id); add(seabed_id);
-    for (const auto id : core.GetEntityIds(ISLAND_TRACE)) if (id != worldReflection) add(id);
+    for (const auto id : traceModels) if (id != worldReflection) add(id);
     for (const auto id : aForts) if (id != worldReflection) add(id);
     add(worldReflection);
     return result;
@@ -456,10 +490,21 @@ void ISLAND::RestoreWorldCuts(ATTRIBUTES *state, entid_t reflection)
         record.cut.distance = entry->GetAttributeAsFloat("distance");
         record.cut.center = {entry->GetAttributeAsFloat("x"), entry->GetAttributeAsFloat("y"), entry->GetAttributeAsFloat("z")};
         record.cut.radius = entry->GetAttributeAsFloat("radius", 1.f);
+        // Optional axes preserve the polyhedral blast orientation under a body
+        // rotation. Legacy translation-only records keep their identity axes.
+        if (record.cut.kind == storm_world_cut::Cut::Sphere)
+            for (unsigned a = 0; a < record.cut.axes.size(); ++a)
+            {
+                auto &axis = record.cut.axes[a]; const auto key = "axis"+std::to_string(a);
+                axis = {entry->GetAttributeAsFloat((key+"x").c_str(), axis.x),
+                    entry->GetAttributeAsFloat((key+"y").c_str(), axis.y),
+                    entry->GetAttributeAsFloat((key+"z").c_str(), axis.z)};
+            }
         if (record.cut.kind == storm_world_cut::Cut::Beam &&
             (!storm_hull_damage::readBeamSamples(entry, record.cut.beams) || record.cut.beams.empty())) return;
         const auto *scope = static_cast<const char *>(entry->GetAttribute("scope"));
         if (!scope || !*scope || !storm_world_cut::valid(record.cut)) return;
+        record.cut = posedCut(std::move(record.cut), regionPose);
         record.scope = scope; restored.push_back(std::move(record));
         restored.back().owner = int32_t(entry->GetAttributeAsDword("owner", uint32_t(-1)));
         restored.back().serial=version==3?storm::ship::material::revision(entry->GetAttribute("serial")):uint64_t(n)+1;
@@ -524,12 +569,21 @@ void ISLAND::PublishWorldCut(WorldCutRecord record,const WorldWork&work)
     record.serial=revision;
     worldCuts.push_back(std::move(record));
     if(worldCuts.size()>storm_world_cut::MaxCuts)worldCuts.erase(worldCuts.begin());
-    for(size_t n=0;n<worldCuts.size();++n){const auto&record=worldCuts[n];auto*entry=saved->VerifyAttributeClass("c"+std::to_string(n));
+    for(size_t n=0;n<worldCuts.size();++n){auto record=worldCuts[n];record.cut=posedCut(std::move(record.cut),regionInverse);auto*entry=saved->VerifyAttributeClass("c"+std::to_string(n));
         entry->SetAttributeUseDword("kind",record.cut.kind);entry->SetAttributeUseDword("owner",uint32_t(record.owner));entry->SetAttribute("scope",record.scope);
         entry->SetAttribute("serial",std::to_string(record.serial).c_str());
         entry->SetAttributeUseFloat("nx",record.cut.normal.x);entry->SetAttributeUseFloat("ny",record.cut.normal.y);entry->SetAttributeUseFloat("nz",record.cut.normal.z);
         entry->SetAttributeUseFloat("distance",record.cut.distance);entry->SetAttributeUseFloat("x",record.cut.center.x);entry->SetAttributeUseFloat("y",record.cut.center.y);
-        entry->SetAttributeUseFloat("z",record.cut.center.z);entry->SetAttributeUseFloat("radius",record.cut.radius);storm_hull_damage::writeBeamSamples(entry,record.cut.beams);}
+        entry->SetAttributeUseFloat("z",record.cut.center.z);entry->SetAttributeUseFloat("radius",record.cut.radius);storm_hull_damage::writeBeamSamples(entry,record.cut.beams);
+        if (record.cut.kind == storm_world_cut::Cut::Sphere && (regionRotated || entry->GetAttribute("axis0x")))
+            for (unsigned a = 0; a < record.cut.axes.size(); ++a)
+            {
+                const auto &axis = record.cut.axes[a]; const auto key = "axis"+std::to_string(a);
+                entry->SetAttributeUseFloat((key+"x").c_str(), axis.x);
+                entry->SetAttributeUseFloat((key+"y").c_str(), axis.y);
+                entry->SetAttributeUseFloat((key+"z").c_str(), axis.z);
+            }
+    }
     worldCutRevision=revision;
     worldCutsReady = true;
     saved->SetAttributeUseDword("version", 3);
@@ -560,6 +614,13 @@ float ISLAND::TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &
         if (std::isfinite(hit) && hit >= 0.f && hit <= 1.f && hit < nearest)
         { nearest = hit; receiver = id; }
     }
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+    {
+        if (!region->RegionIntersects(from, to)) continue;
+        entid_t other = 0;
+        const float hit = region->TraceWorldWeapon(from, to, other);
+        if (hit < nearest) { nearest = hit; receiver = other; }
+    }
     return nearest;
 #else
     return Trace(from, to);
@@ -568,6 +629,8 @@ float ISLAND::TraceWorldWeapon(const CVECTOR &from, const CVECTOR &to, entid_t &
 
 bool ISLAND::CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance, int32_t owner)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->OwnsModel(model)) return region->CutWorldWeapon(model, normal, distance, owner);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     WorldCutRecord record;
     record.scope = WorldModelKey(model);
@@ -595,12 +658,17 @@ bool ISLAND::CutWorldWeapon(entid_t model, const CVECTOR &normal, float distance
 
 bool ISLAND::BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner)
 {
+    bool accepted = true;
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->RegionIntersects(center, center, radius + 50.f))
+            accepted = region->BlastWorldWeapon(center, radius, owner) && accepted;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    if (!worldCutState && !model_id) return accepted;
     WorldCutRecord record;
     record.scope = "*"; record.cut.kind = storm_world_cut::Cut::Sphere;
     record.owner = owner;
     record.cut.center = {center.x, center.y, center.z}; record.cut.radius = radius;
-    return CommitWorldCut(std::move(record));
+    return CommitWorldCut(std::move(record)) && accepted;
 #else
     return false;
 #endif
@@ -608,6 +676,8 @@ bool ISLAND::BlastWorldWeapon(const CVECTOR &center, float radius, int32_t owner
 
 bool ISLAND::CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::BeamSample> &samples, int32_t owner)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->OwnsModel(model)) return region->CutWorldBeam(model, samples, owner);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     for (const auto &sample : samples)
         if (!storm_hull_damage::validPhysicalBeamDimensions(sample.radius, sample.depth)) return false;
@@ -621,6 +691,8 @@ bool ISLAND::CutWorldBeam(entid_t model, const std::vector<storm_hull_damage::Be
 
 bool ISLAND::IsWorldPositionRetained(entid_t model, const CVECTOR &point)
 {
+    for (const auto id : residentRegions) if (auto *region = Region(id))
+        if (region->OwnsModel(model)) return region->IsWorldPositionRetained(model, point);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     if(!worldCutsReady)return true;
     auto*receiver=dynamic_cast<MODEL*>(core.GetEntityPointer(model));if(!receiver)return true;
