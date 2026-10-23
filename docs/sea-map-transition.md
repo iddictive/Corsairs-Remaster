@@ -102,15 +102,38 @@ renderer is gone. This shutdown correction is local source only; installed
 Cmd-Q replay remains pending. Abort
 rearms an existing resource owner without reset-time entity creation. An immediate
 exit before warmup completes still uses cold loading, and one GM operation is
-indivisible. Reverse SeaLogin stays synchronous. These limits prevent claiming
+indivisible. The reverse cold fallback's SeaLogin stays synchronous. These limits prevent claiming
 universally stall-free transitions.
 
 Map-to-sea preserves `WdmAddEncountersData` then `GreatRecipe_MapAdmission(&wdmLoginToSea)`
 before releasing the map, and `GreatRecipe_PrepareSea` before the ordinary
 `EVENT_SEA_LOGIN`. The destination's initial rendered frame gates descent.
-Reverse sea construction still uses the established synchronous SeaLogin;
-resource progress calls present the retained GPU map frame.
-This is not an asynchronous sea loader, and indivisible I/O remains measurable.
+An ordinary return to the retained atlas scene uses `Sea_ResidentResume`;
+authored encounters, offshore dispatch and current authored storm contact keep
+their cold admission. A stale storm identity with `playerInStorm=0` does not
+select that fallback. Cold construction still uses synchronous SeaLogin;
+resource progress calls present the retained GPU map frame. This is not an
+asynchronous sea loader, and indivisible I/O remains measurable.
+
+## Transition diagnostics
+
+Ordinary public launches discard stdout/stderr. Use the existing native
+`getOrCreateLogger("sea-map-transition")` owner: it writes
+`Logs/sea-map-transition.log` beneath the configured `STORM_USERDATA` root
+and flushes at transition completion. The quiet-launch and unavailable-storage
+CPU replay is in the [transition evidence](evidence/sea-map-transition-20261023/README.md).
+Verify that route before relying on a player recording; changing broad logging
+settings or asking for another launch does not prove the route works.
+
+Read phase timestamps, the cold-admission reason and step intervals together.
+The rejection reason is captured before clearing the cold-login object and
+before discarding the resident scene, then emitted when the native transition
+starts. It distinguishes missing scene/map, authored offshore/encounter/storm
+and failed transition creation; successful resident admission clears its
+temporary field. If both native transition creation attempts fail, the legacy
+fader remains the recovery owner and cannot emit this entity's trace.
+CPU durations and eligible inter-execute gaps are different measurements;
+neither establishes GPU completion or the absence of visible frozen frames.
 
 ## Evidence and rejected approaches
 

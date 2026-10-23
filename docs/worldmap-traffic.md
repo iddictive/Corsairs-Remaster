@@ -1746,6 +1746,26 @@ Must not: no escape without the dice; no reroll on reopen during the same
 encounter; no enemy edge without the fastest hostile hull speed; no dead-end
 keyboard focus.
 
+## Resident-sea port-service continuation — unresolved
+
+The player reports a trader remaining near its destination for ten map days.
+Source inspection identifies a deadlock candidate: `Sea_ResidentSuspend`
+retains `trafficInSea` while freezing the physical scene, but both
+`WdmTrafficVoyageUpdate` and native `WdmMerchantShip::Update` use that flag to
+block service/next-leg departure. This is not a replay of the reported ship.
+
+Do not bypass those two guards alone: `SeaTraffic_ResumePoses` only relocates
+hulls, and a later `WdmFleetSeaSaveFleet` copies retained physical cargo,
+crew and condition over the strategic roster. Existing physical release and
+snapshot owners are `SeaTraffic_ReleaseSnapshot` / `SeaTraffic_Released` and
+native AISea's queued group release; restoration currently belongs to
+`WdmFleetSeaRestoreShip` before fresh native hull creation. The remaining
+repair owner is the sea/traffic authority handoff, not arrival-radius tuning
+or fabricated profitable jobs. Before editing it, replay a seeded mounted
+fleet through port service, departure, sea resume and the following snapshot;
+preserve the active-sea exclusion and prove cargo/crew/condition are not lost
+or applied twice. No trader behavior correction has been delivered here.
+
 ## Acceptance
 
 Primary falsifier: generated trade has a valid destination and real fleet;

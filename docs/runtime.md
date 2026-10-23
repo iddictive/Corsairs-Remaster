@@ -1,5 +1,26 @@
 # Runtime state
 
+## October23 — transition and gameplay repair
+
+Current installed signed engine: `fc47c87870fc0bc5791a32bdb3b0a902d9e4431262b89d625eedbb945983eb52`.
+The normal transactional installer delivered the native camera/forest/timing
+batch. Targeted gameplay delivery also matches both consumers for the stale
+storm-contact correction and admission-reason trace. Native/CPU results and
+the two actual player round trips are retained in the
+[transition evidence](evidence/sea-map-transition-20261023/README.md).
+
+The latest recorded return used cold sea login for1590.759ms. Its particular
+admission rejection was not recorded; the subsequent stale-storm correction
+and reason trace do not establish a stall-free return. Full transition, tree
+appearance and sustained FPS remain unverified. The player forbids further
+requested game replays; autonomous game control and SAVE inspection are also
+outside authorization. No additional game run is required from the player.
+The [mounted-trader service issue](worldmap-traffic.md#resident-sea-port-service-continuation--unresolved)
+remains source-diagnosed and unpatched. The island-density request still lacks
+a resolved map-versus-sea target; density was not changed.
+
+## Earlier runtime history
+
 October19: the player reopened SAVE recovery and graphics-setting repair before
 removing the local checkout. The active target remains the installed app. Root
 owns build, staging, player-state backup, integration and delivery; the earlier

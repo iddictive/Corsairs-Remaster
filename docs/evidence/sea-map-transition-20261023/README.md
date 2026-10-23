@@ -120,3 +120,14 @@ later scene creation and frame pacing are outside this CPU oracle. The recorded
 player pass does not establish that stale storm contact was its particular
 fallback cause. The player forbids further requested replay; do not claim the
 complete zero-stall contract passed or ask them to launch again.
+
+The last trace omitted the admission decision itself. The existing diagnostic
+now captures its reason before clearing `wdmLoginToSea` or discarding the sea,
+then emits `cold-admission:<reason>` through the already-proven native bridge.
+It changes no admission verdict, camera timing or scene callback order.
+The extended existing CPU replay checks distinct authored-storm, encounter and
+offshore reasons, reason capture across login-object clearing, healthy
+admission/cleanup and missing optional metadata. `Diagnostic=0; script_errors=0` accompanies the original
+baseline/current guard results. Scene/entity construction remains outside that
+fixture. This closes the missing diagnostic field; it does not establish the
+cause of the earlier player's cold branch or accept freeze-free gameplay.

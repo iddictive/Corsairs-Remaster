@@ -8,5 +8,10 @@
     "exit": 0,
     "stdout": "Run=0\nscript_errors=0\n",
     "stderr": ""
+  },
+  "diagnostic": {
+    "exit": 0,
+    "stdout": "Diagnostic=0\nscript_errors=0\n",
+    "stderr": ""
   }
 }

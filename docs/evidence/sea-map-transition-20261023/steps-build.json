@@ -20,5 +20,11 @@
     "installed_gameplay": "pending player",
     "freeze_absence": "not established",
     "resume_admission": "resume-admission-results.json"
+  },
+  "subsequent_script_delivery": {
+    "scope": "admission-reason trace; admission verdicts unchanged",
+    "worldmap_reload_sha256": "aedeec30559953b2e0507e88fe1d73d5e9cb7d7687abc25b0eb90341f3be3a25",
+    "comparison": "zero pending files in installed app and development runtime",
+    "actual_gameplay": "not replayed; no further requested launch"
   }
 }

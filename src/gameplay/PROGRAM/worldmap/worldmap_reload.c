@@ -13,6 +13,8 @@ void wdmReloadToSea()
 	}
     // Preserve live NPC slots and ownership before the cold path empties them.
     if (WdmTryResidentSea()) return;
+    string residentRejection = "unclassified";
+    if (CheckAttribute(&wdmLoginToSea, "residentRejection")) residentRejection = wdmLoginToSea.residentRejection;
     if (Sea_ResidentSuspended()) Sea_ResidentDiscard();
 	// расчёты ВМЛ -->
 	EmptyAllFantomCharacter();
@@ -75,6 +77,7 @@ void wdmReloadToSea()
 	CreateEntity(&SeaMapTransition, "SeaMapTransition");
 	if (IsEntity(&SeaMapTransition))
 	{
+		Sea_TransitionTrace("cold-admission:" + residentRejection);
 		SetEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit", 0);
 		SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
 		return;
@@ -166,23 +169,32 @@ void WdmEndFade()
 	ReloadProgressEnd();
 }
 
+bool WdmRejectResidentSea(string reason)
+{
+    wdmLoginToSea.residentRejection = reason;
+    return false;
+}
+
 bool WdmTryResidentSea()
 {
-    if (!Sea_ResidentSuspended() || !IsEntity(&worldMap)) return false;
+    if (!Sea_ResidentSuspended()) return WdmRejectResidentSea("scene-not-retained");
+    if (!IsEntity(&worldMap)) return WdmRejectResidentSea("map-inactive");
     worldMap.playerShipUpdate = "";
     // Explicit authored encounters and scripted offshore scenes use their
     // existing cold admission; no NPC slot may be cleared before this decision.
     // Native weather retains the last storm id after leaving its contact area.
     // Only a current authored storm needs cold admission; missing contact data
     // keeps the existing conservative path for older map state.
-    if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack") ||
-        (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "" &&
-         (!CheckAttribute(&worldMap, "playerInStorm") || sti(worldMap.playerInStorm)))) return false;
+    if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack")) return WdmRejectResidentSea("authored-offshore");
+    if (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "" &&
+        (!CheckAttribute(&worldMap, "playerInStorm") || sti(worldMap.playerInStorm)))
+        return WdmRejectResidentSea("authored-storm");
     int count = wdmGetNumberShipEncounters();
     for (int i = 0; i < count; i++)
     {
         if (!wdmSetCurrentShipData(i)) continue;
-        if (sti(worldMap.encounter.select) && WdmEncounterUsesAuthoredAdmission()) return false;
+        if (sti(worldMap.encounter.select) && WdmEncounterUsesAuthoredAdmission())
+            return WdmRejectResidentSea("authored-encounter");
     }
     DeleteAttribute(&wdmLoginToSea, "");
     WdmAddPlayerGroup();
@@ -203,7 +215,7 @@ bool WdmTryResidentSea()
     {
         wdmLockReload = false;
         DeleteAttribute(&wdmLoginToSea, "residentResume");
-        return false;
+        return WdmRejectResidentSea("transition-create-failed");
     }
     SetEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit", 0);
     SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
