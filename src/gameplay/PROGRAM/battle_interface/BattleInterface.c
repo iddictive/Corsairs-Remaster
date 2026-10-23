@@ -743,7 +743,7 @@ void BI_LaunchCommand()
 		else
 		{ // догнать перса с индексом targetNum
 		    // boal плывем только к друзьям или спец персам (потопить пирата) -->
-            if (GetNationRelation2MainCharacter(sti(Characters[targetNum].nation)) != RELATION_ENEMY || CheckAttribute(&Characters[targetNum], "CanBeSailTo"))
+            if ((GetNationRelation2MainCharacter(sti(Characters[targetNum].nation)) != RELATION_ENEMY && SeaAI_GetRelation(targetNum, GetMainCharacterIndex()) != RELATION_ENEMY) || CheckAttribute(&Characters[targetNum], "CanBeSailTo"))
             {
 			    if( !IsEntity(&SailToFader) ) {SeaAI_SailToCharacter(targetNum); }
 			}

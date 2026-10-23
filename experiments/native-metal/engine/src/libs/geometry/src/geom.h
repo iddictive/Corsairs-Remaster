@@ -136,6 +136,13 @@ class GEOM : public GEOS
     uint64_t laserPendingOwner=0,laserPendingSerial=0;
     storm_ship_laser::FaceIndex laserRetainedSupport;
     mutable std::vector<uint32_t>laserSupportCandidates,laserSupportNearby;
+    // Exact local positions only: moving supports always run the original predicate.
+    mutable std::map<std::array<float,3>,unsigned char> laserSupportMemo;
+    mutable std::shared_ptr<const storm_ship_laser::Surface> laserSupportMemoSurface;
+    mutable std::shared_ptr<const storm::ship::material::convex::ContactSnapshot> laserSupportMemoContact;
+    mutable uint64_t laserSupportMemoOwner=0;
+    mutable bool laserSupportMemoPending=false;
+    void RefreshLaserSupportMemo(uint64_t owner) const;
     std::vector<storm_ship_laser::FaceIndex>laserReleasedSupport;
     std::vector<LaserBatch>laserFragments;
     void ReleaseLaserFragments();

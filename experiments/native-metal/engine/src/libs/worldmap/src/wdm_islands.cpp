@@ -219,7 +219,7 @@ bool WdmIslands::LoadNext()
             }
             const auto &body = chart->Bodies()[loadBody++];
             auto *model = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
-                new WdmChartModel(body.chartTerrain), body.chartReflection.c_str(),
+                new WdmChartModel(body.chartReflection), body.chartTerrain.c_str(),
                 false, false, true, 2, wdm::render_levels::Island));
             if (!model) throw std::runtime_error("SEA_ATLAS_CHART: missing physical body " + body.id);
             islands.push_back(Islands{});

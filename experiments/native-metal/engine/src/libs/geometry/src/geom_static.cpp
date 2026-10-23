@@ -1236,14 +1236,34 @@ void GEOM::DiscardLaserProjection(uint64_t owner)
 {
     if(laserPendingOwner&&owner!=laserPendingOwner)return;ReleaseHullDraws(laserPendingDraws);for(auto&fragment:laserPendingBatch.fragments)ReleaseHullDraws(fragment.draws);laserPendingBatch={};laserPending.reset();laserPendingOwner=laserPendingSerial=0;
 }
+void GEOM::RefreshLaserSupportMemo(uint64_t owner) const
+{
+    const bool pending=owner==hullOwner&&hullContactPending&&hullContactState;
+    if(laserSupportMemoOwner!=owner||laserSupportMemoSurface!=laserVisualSurface||
+       laserSupportMemoContact!=hullContactState||laserSupportMemoPending!=pending)
+    {
+        laserSupportMemo.clear();
+        laserSupportMemoOwner=owner;
+        laserSupportMemoSurface=laserVisualSurface;
+        laserSupportMemoContact=hullContactState;
+        laserSupportMemoPending=pending;
+    }
+}
 bool GEOM::IsLaserSupportRetained(uint64_t owner,const storm_ship_hull::Vec3&point) const
 {
+    RefreshLaserSupportMemo(owner);
+    const bool finite=std::isfinite(point.x)&&std::isfinite(point.y)&&std::isfinite(point.z);
+    const std::array<float,3> key{point.x,point.y,point.z};
+    if(finite){const auto found=laserSupportMemo.find(key);if(found!=laserSupportMemo.end())return found->second!=0;}
+    bool retained;
     if(owner==hullOwner&&hullContactPending&&hullContactState){
-        bool retained=false;const storm_ship_hull::Vec3 pad{.025f,.025f,.025f};
+        retained=false;const storm_ship_hull::Vec3 pad{.025f,.025f,.025f};
         storm::ship::material::convex::forEachRetainedPiece(*hullContactState,{point-pad,point+pad},[&](const auto&piece){
             bool inside=true;for(const auto&face:piece.faces)inside&=storm_ship_hull::dot(face.plane.normal,point)<=face.plane.distance+.025f;
-            retained|=inside;});return retained;}
-    return owner!=laserOwner||!laserVisualSurface||storm_ship_laser::supportRetained(*laserVisualSurface,laserRetainedSupport,laserReleasedSupport,point,&laserSupportCandidates,&laserSupportNearby);
+            retained|=inside;});}
+    else retained=owner!=laserOwner||!laserVisualSurface||storm_ship_laser::supportRetained(*laserVisualSurface,laserRetainedSupport,laserReleasedSupport,point,&laserSupportCandidates,&laserSupportNearby);
+    if(finite){if(laserSupportMemo.size()>=4096)laserSupportMemo.clear();laserSupportMemo[key]=retained;}
+    return retained;
 }
 void GEOM::QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*points,unsigned char*retained,size_t count) const
 {
@@ -1260,6 +1280,18 @@ void GEOM::QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*points,u
         std::fill_n(retained,count,1);
         return;
     }
+    RefreshLaserSupportMemo(owner);
+    std::vector<size_t> missing;
+    missing.reserve(count);
+    for(size_t i=0;i<count;++i)
+    {
+        const auto &p=points[i];
+        const bool finite=std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z);
+        const auto found=finite?laserSupportMemo.find({p.x,p.y,p.z}):laserSupportMemo.end();
+        if(found!=laserSupportMemo.end())retained[i]=found->second;
+        else missing.push_back(i);
+    }
+    if(missing.empty())return;
     storm_geometry_work::ParallelGroup group;
     if(!group.acquired)
     {
@@ -1272,13 +1304,23 @@ void GEOM::QueryLaserSupport(uint64_t owner,const storm_ship_hull::Vec3*points,u
         auto &local=scratch[chunk];
         try
         {
-            for(size_t i=chunk;i<count;i+=scratch.size())
+            for(size_t n=chunk;n<missing.size();n+=scratch.size())
+            {
+                const size_t i=missing[n];
                 retained[i]=storm_ship_laser::supportRetained(*surface,laserRetainedSupport,laserReleasedSupport,
                     points[i],&local.candidates,&local.nearby);
+            }
         }
         catch(...) { local.error=std::current_exception(); }
     });
     for(const auto &local:scratch) if(local.error) std::rethrow_exception(local.error);
+    if(laserSupportMemo.size()+missing.size()>4096)laserSupportMemo.clear();
+    for(const size_t i:missing)
+    {
+        const auto &p=points[i];
+        if(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&laserSupportMemo.size()<4096)
+            laserSupportMemo[{p.x,p.y,p.z}]=retained[i];
+    }
 }
 float GEOM::TraceHullContact(VERTEX&start,VERTEX&finish,bool publish)
 {

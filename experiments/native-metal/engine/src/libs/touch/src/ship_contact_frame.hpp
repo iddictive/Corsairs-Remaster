@@ -424,35 +424,14 @@ inline Response arcadeResponse(const FrameBody &fa, const FrameBody &fb,
         Contact at = contact; at.time = 0;
         response = resolvePrepared(sa, sb, a.hull, b.hull, at, 1.0);
     }
-    // Cruise speed and powered rudder speed are not collision limits. A ship
-    // already sailing or turning at either limit must still receive the mass-
-    // weighted contact impulse. The virtual approach above excludes the boost
-    // from both this shove and the damage work; the brake below absorbs it.
-    if (!(excess > 0)) return ordinary;
-    const auto changeA = detail::pointVelocity(response.deltaVA, response.deltaWA, contact.point-a.pose.position);
-    const auto changeB = detail::pointVelocity(response.deltaVB, response.deltaWB, contact.point-b.pose.position);
-    const double residual = std::max(0.0, dot(va-vb+changeA-changeB-brakeA-brakeB, n));
-    if (residual > 0)
-    {
-        const double sources = double(arcadeA) + double(arcadeB);
-        if (arcadeA) brakeA += n * (residual / sources);
-        if (arcadeB) brakeB += n * (residual / sources);
-    }
-    // The mode absorbs this excess approach itself. Keeping it out of the
-    // receiver's impulse also keeps it out of HP and material fracture work.
-    response.deltaVA = response.deltaVA - brakeA;
-    response.deltaVB += brakeB;
+    // Momentum uses the real closing velocity and native mass/inertia. Only
+    // damage work uses the ordinary-speed envelope; braking the boosted source
+    // here used to discard the momentum instead of transferring it to the hit ship.
+    response.deltaVA = ordinary.deltaVA;
+    response.deltaVB = ordinary.deltaVB;
+    response.deltaWA = ordinary.deltaWA;
+    response.deltaWB = ordinary.deltaWB;
     response.normalClosing = ordinary.normalClosing;
-    // If a faster ordinary vessel is the real aggressor, an arcade brake on
-    // the player could accelerate it backwards and add energy. Preserve the
-    // ordinary conservative response for that opposing-motion case.
-    const auto kinetic = [](const Proxy &body, Vec2 velocity, double angular) {
-        return body.sweep.mass * dot(velocity, velocity) + body.hull.inertia * angular * angular;
-    };
-    const double before = kinetic(a, a.velocity, a.angular) + kinetic(b, b.velocity, b.angular);
-    const double after = kinetic(a, a.velocity+response.deltaVA, a.angular+response.deltaWA) +
-                         kinetic(b, b.velocity+response.deltaVB, b.angular+response.deltaWB);
-    if (after > before + 32 * std::numeric_limits<double>::epsilon() * std::max(1.0, before)) return ordinary;
     return response;
 }
 inline void project(Proxy &a, Proxy &b, const Contact &c, double extra)
