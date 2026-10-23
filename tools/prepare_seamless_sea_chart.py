@@ -384,6 +384,10 @@ def main():
     prepared = json.loads((OUTPUT/"manifest.json").read_bytes())
     inventory = json.loads((OWNER/"manifest.json").read_bytes())
     files, tree_inputs, bodies, bounds = project_trees(prepared)
+    from sea_chart_land import prepare_mainland
+    mainland = prepare_mainland(source_root, files, prepared)
+    record['continental_fill'] = mainland
+    record['inputs'].append(mainland['source'])
     model = enclose_chart(model, bounds)
     areas, area_inputs, regions, scale_inputs = project_areas(source_root, inventory, prepared)
     files.update(areas)

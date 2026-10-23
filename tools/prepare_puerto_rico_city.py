@@ -390,7 +390,7 @@ def collision(triangles):
     return struct.pack("<3i",len(slots),len(points),len(triangles))+b"".join(slots)+verts+indices
 
 
-def patch_model(template, groups):
+def patch_model(template, groups, *, collision_faces=None):
     g=parse_gm(template)
     h=list(g["header"])
     objects, buffers, indices, triangles=[],[],[],[]
@@ -435,7 +435,7 @@ def patch_model(template, groups):
     return (HEADER.pack(*h)+template[HEADER.size:metadata_end]+b"".join(objects)+
             b"".join(struct.pack("<3H",*tri) for tri in indices)+
             b"".join(struct.pack("<2i",typ,len(raw)) for typ,raw in buffers)+
-            b"".join(raw for _,raw in buffers)+collision(triangles))
+            b"".join(raw for _,raw in buffers)+collision(triangles if collision_faces is None else collision_faces))
 
 
 def matrix(spec=None):

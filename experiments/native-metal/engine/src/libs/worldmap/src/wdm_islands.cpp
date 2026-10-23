@@ -205,7 +205,10 @@ bool WdmIslands::LoadNext()
                         !storm::iEquals(label.group_name, "islands")) continue;
                     const bool projected = std::any_of(chart->Regions().begin(), chart->Regions().end(),
                         [&](const auto &region) { return storm::iEquals(region.id, label.name); });
-                    if (projected) continue;
+                    // The composed Mainland tree includes its prepared inland
+                    // fill. Stock mein also embeds obsolete island miniatures;
+                    // loading it again overlays both coasts and whole islands.
+                    if (projected || storm::iEquals(label.name, "mein")) continue;
                     const std::string name = std::string("islands\\") + label.name;
                     auto *background = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
                         new WdmRenderModel(), name.c_str(), false, false, true, 2, wdm::render_levels::Island));
