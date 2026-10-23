@@ -219,15 +219,14 @@ def patch_triangles(tri, spec):
                     yield tuple(morph(v,spec) for v in piece)
 
 
-def prune_bsp(data, g, removed):
-    """Only delete face references; every retained plane/partition stays valid."""
+def bsp_nodes(data, g):
+    """Yield validated reachable nodes and their active collision face references."""
     if not (g["header"][1] & 2):
-        return data, 0
+        return
     start = g["parsed_end"]
     count, _, triangles = struct.unpack_from("<3i",data,start)
     node_start = start+12
-    result = bytearray(data)
-    stack, visited, pruned = [0], set(), 0
+    stack, visited = [0], set()
     while stack:
         index = stack.pop()
         if index in visited or not 0 <= index < count:
@@ -239,16 +238,26 @@ def prune_bsp(data, g, removed):
         faces = [int.from_bytes(data[offset+20+j*3:offset+23+j*3],"little") for j in range(n)]
         if any(face >= triangles for face in faces):
             raise ValueError("Invalid stock BSP face")
+        yield offset, bits, faces
+        if left:
+            stack.append(child)
+        if right:
+            stack.append(child+right)
+
+
+def prune_bsp(data, g, removed):
+    """Only delete face references; every retained plane/partition stays valid."""
+    if not (g["header"][1] & 2):
+        return data, 0
+    result, pruned = bytearray(data), 0
+    for offset, bits, faces in bsp_nodes(data, g):
+        n = len(faces)
         retained = [face for face in faces if face not in removed]
         pruned += n-len(retained)
         if len(retained) != n:
             struct.pack_into("<I",result,offset+16,(bits & ~(15<<24)) | (len(retained)<<24))
             for j, face in enumerate(retained):
                 result[offset+20+j*3:offset+23+j*3] = face.to_bytes(3,"little")
-        if left:
-            stack.append(child)
-        if right:
-            stack.append(child+right)
     return bytes(result), pruned
 
 

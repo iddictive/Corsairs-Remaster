@@ -10117,5 +10117,161 @@
       }
     }
   },
-  "ownership": "python3 tools/prepare_seamless_sea_assets.py --source-root experiments/native-metal/.cache/runtime --ownership"
+  "ownership": "python3 tools/prepare_seamless_sea_assets.py --source-root experiments/native-metal/.cache/runtime --ownership",
+  "surface_composition": {
+    "Mainland": {
+      "reflection_sources": [
+        "SantaCatalina",
+        "Maracaibo",
+        "Beliz"
+      ],
+      "seabed_sources": [
+        "SantaCatalina",
+        "Maracaibo",
+        "Beliz"
+      ],
+      "native_reflection_triangles": 23853,
+      "native_seabed_triangles": 11454,
+      "regional_role_decisions": {
+        "Cartahena": {
+          "reflection": "Subset of Maracaibo native LOD.",
+          "child:seabed": "Subset of Maracaibo; retain its native version of 6 faces, 62.24m from Maracaibo fort reload and 4087.10m from Cartahena."
+        },
+        "Maracaibo": {
+          "reflection": "Retain once as canonical eastern native LOD.",
+          "child:seabed": "Retain once, replacing exactly 69 faces with Caracas native shoreline variant."
+        },
+        "Caracas": {
+          "reflection": "Equal to Maracaibo native LOD after local_to_body.",
+          "child:seabed": "Retain its 69 source shoreline faces around native Caracas fort reload; all other faces already occur in Maracaibo."
+        },
+        "Cumana": {
+          "reflection": "Subset of Maracaibo native LOD.",
+          "child:seabed": "Unchanged subset of Maracaibo."
+        },
+        "SantaCatalina": {
+          "reflection": "Retain once; includes PortoBello native LOD.",
+          "child:seabed": "Retain once; includes PortoBello native seabed."
+        },
+        "Beliz": {
+          "reflection": "Retain once as disjoint native northern LOD.",
+          "child:seabed": "Retain once as native northern seabed."
+        }
+      },
+      "source_evidence": {
+        "correspondence": "Shared triangles match material and UV; native coordinates agree within 2mm. Keep centimetre source correspondence tolerance; no box/Voronoi clipping. Normals and vertex colors remain with the selected native GM.",
+        "reflection_seam": {
+          "regions": [
+            "SantaCatalina",
+            "Maracaibo"
+          ],
+          "overlap_square_metres": 0.106,
+          "maximum_height_disagreement_metres": 0.000152,
+          "shared_triangles": 0
+        },
+        "seabed_seam": {
+          "regions": [
+            "SantaCatalina",
+            "Beliz"
+          ],
+          "overlap_square_metres": 0.269,
+          "maximum_height_disagreement_metres": 0.000319,
+          "shared_triangles": 0
+        },
+        "seam_interpretation": "Submillimetre height differences and small projected areas are consistent with native float seam slivers; retain authored edges without clipping.",
+        "above_water_seabed_metres": {
+          "Maracaibo": 1.512,
+          "SantaCatalina": 0.098
+        },
+        "Caracas_variant_authority": "Changed body support X18890.93..19935.95,Z-700.27..-92.90 contains native Caracas fort reload X19642.57,Z-461.02; no direct fort-mesh intersection is claimed."
+      }
+    },
+    "Cuba": {
+      "reflection_sources": [
+        "Cuba1"
+      ],
+      "seabed_sources": [
+        "Cuba1"
+      ],
+      "native_reflection_triangles": 5853,
+      "native_seabed_triangles": 3758,
+      "regional_role_decisions": {
+        "Cuba2": {
+          "reflection": "5853 triangles equal Cuba1 after local_to_body; retain Cuba1 once.",
+          "child:seabed": "3758 triangles equal Cuba1 after applying native seabed child z+200 before local_to_body; retain Cuba1 once."
+        }
+      },
+      "source_evidence": {
+        "above_water_seabed_metres": 0.065,
+        "native_child_transform_order": "child label -> region local_to_body -> physical body"
+      }
+    },
+    "Hispaniola": {
+      "reflection_sources": [
+        "Hispaniola1"
+      ],
+      "seabed_sources": [
+        "Hispaniola1"
+      ],
+      "native_reflection_triangles": 2987,
+      "native_seabed_triangles": 3270,
+      "regional_role_decisions": {
+        "Hispaniola2": {
+          "reflection": "Ownership-selected 2987 triangles equal Hispaniola1 after local_to_body; retain once.",
+          "child:seabed": "Ownership-selected 3270 triangles equal Hispaniola1 after local_to_body; retain once."
+        }
+      },
+      "source_evidence": {
+        "selection": "Use existing authored land/seabed ownership component recipes, excluding independently owned Tortuga.",
+        "above_water_seabed_metres": 3.414
+      }
+    }
+  },
+  "surface_variants": {
+    "Caracas_native_seabed": {
+      "body": "Mainland",
+      "region": "Caracas",
+      "body_region": "Maracaibo",
+      "role": "child:seabed",
+      "object_pairs": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "local_to_body": [
+        1,
+        0,
+        0,
+        1,
+        5665.603843688965,
+        -2015.8487548828125
+      ],
+      "body_face_ranges": [
+        [
+          0,
+          70
+        ],
+        [
+          502,
+          2240
+        ],
+        [
+          3279,
+          4253
+        ]
+      ],
+      "body_faces_sha256": "067951e2e65934383f9770d7c5f7399a584c45c7bc29022a20538aa6aaa2e8c7",
+      "expected_triangles": 69,
+      "correspondence": "Select Maracaibo counterparts by exact material and triangle UVs, choosing the unique nearest transformed source positions; preserve shared boundary using variant() UV/height/adjacency closure."
+    }
+  }
 }

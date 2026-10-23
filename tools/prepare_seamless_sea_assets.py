@@ -18,9 +18,10 @@ import statistics
 import struct
 
 from patch_metal_portobello_ground import HEADER, LABEL, OBJECT, parse_gm, _name
-from prepare_puerto_rico_city import vertices, prune_bsp
+from prepare_puerto_rico_city import vertices, prune_bsp, metadata
 from runtime_script_patch import atomic_write
 from metal_storage import ensure_space
+from sea_atlas_frames import layout as atlas_layout, ini as atlas_ini
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNER = ROOT / "src/assets/islands/seamless-sea"
@@ -59,6 +60,25 @@ def source(root, name):
     if path.is_symlink() or not path.is_file():
         raise ValueError(f"Expected regular resource: {name}")
     return path
+
+
+def source_texture(root, name, texture_path):
+    """Mirror the renderer's regional island override, then original fallback."""
+    if name.casefold() == "shadow.tga":
+        raise ValueError("Native shadow.tga needs the model's dynamic lighting owner")
+    normalized = name.replace("\\","/")
+    if normalized.casefold().startswith("resource/textures/"):
+        candidates = [normalized+".tx"]
+    else:
+        parent,sep,base = normalized.rpartition("/")
+        prefix = "RESOURCE/Textures/" + (parent+"/" if sep else "")
+        candidates = [prefix+"Islands/"+texture_path+"/"+base+".tx",prefix+base+".tx"]
+    for candidate in candidates:
+        try:
+            return source(root,candidate)
+        except ValueError:
+            pass
+    raise ValueError(f"Unresolved native island texture: {texture_path}/{name}")
 
 
 def labels(data):
@@ -648,6 +668,21 @@ def inventory(root):
         row["geometry_children"] = children
         row["ownership"] = "unassigned; component discovery does not authorize removal"
         result["regions"][region["id"]] = row
+    result["texture_inputs"] = texture_inventory(root,result)
+    return result
+
+
+def texture_inventory(root, manifest):
+    paths = {r["id"]:r["properties"].get("TexturePath",r["id"]) for r in regions()}
+    result = {}
+    for region,row in manifest["regions"].items():
+        for role,entry in row["files"].items():
+            if role not in ("terrain","reflection") and not role.startswith(("child:","reflection_child:")):
+                continue
+            for name in parse_gm(source(root,entry["path"]).read_bytes())["textures"]:
+                path = source_texture(root,name,paths[region])
+                data = path.read_bytes()
+                result[path.relative_to(root).as_posix()] = {"sha256":sha(data),"bytes":len(data)}
     return result
 
 
@@ -729,15 +764,310 @@ def extract(data, selected):
                     "pruned_bsp_references": pruned, "bounds": [low, high]}
 
 
+def write_asset(path, content):
+    """Leave unchanged prepared resources alone, including their timestamps."""
+    if path.is_file() and path.read_bytes() == content:
+        return
+    ensure_space(len(content), path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, content)
+
+
+def without_geometry_children(data):
+    g = parse_gm(data)
+    h = list(g["header"])
+    start = g["materials_offset"] + h[5]*56 + h[6]*80
+    end = start + h[7]*LABEL.size
+    kept = [data[start+i*LABEL.size:start+(i+1)*LABEL.size] for i in range(h[7])
+            if _name(g["strings"], LABEL.unpack_from(data,start+i*LABEL.size)[0]).casefold() != "geometry"]
+    h[7] = len(kept)
+    return HEADER.pack(*h) + data[HEADER.size:start] + b"".join(kept) + data[end:]
+
+
+def affine_matrix(values):
+    a,b,c,d,x,z = values
+    return [a,0,c,0, 0,1,0,0, b,0,d,0, x,0,z,1]
+
+
+def multiply_matrix(parent, child):
+    return [sum(parent[k*4+r]*child[c*4+k] for k in range(4)) for c in range(4) for r in range(4)]
+
+
+def relative_matrix(values, parent):
+    a,b,c,d,x,z = parent
+    det = a*d-b*c
+    if abs(det) < .99:
+        raise ValueError("Invalid native body frame")
+    e,f,g,h,u,v = values
+    return [(d*e-b*g)/det,(d*f-b*h)/det,(-c*e+a*g)/det,(-c*f+a*h)/det,
+            (d*(u-x)-b*(v-z))/det,(-c*(u-x)+a*(v-z))/det]
+
+
+def translated_reflection(data, transform):
+    """Put the chosen native LOD root in body coordinates, without remeshing."""
+    if transform == [1,0,0,1,0,0]:
+        return data
+    if transform[:4] != [1,0,0,1]:
+        raise ValueError("Non-translational reflection root needs an explicit source contract")
+    g = parse_gm(data)
+    h = list(g["header"])
+    result = bytearray(data[:g["parsed_end"]])
+    h[1] &= ~2  # Reflection is render-only; do not retain stale source-local BSP.
+    x,z = transform[4:]
+    h[14],h[16] = h[14]+x,h[16]+z
+    HEADER.pack_into(result,0,*h)
+    for i,obj in enumerate(g["objects"]):
+        row = list(obj)
+        row[3],row[5] = row[3]+x,row[5]+z
+        OBJECT.pack_into(result,g["objects_offset"]+i*OBJECT.size,*row)
+    for buffer in g["buffers"]:
+        for offset in range(buffer["payload_offset"],buffer["payload_offset"]+buffer["size"],buffer["stride"]):
+            px,py,pz = struct.unpack_from("<3f",result,offset)
+            struct.pack_into("<3f",result,offset,px+x,py,pz+z)
+    return bytes(result)
+
+
+def model_trees(root, manifest, recipe, outputs, variants, compositions):
+    """One native MODEL tree per body; one unlinkable seabed subtree per tree."""
+    textures, texture_paths = {}, {r["id"]:r["properties"].get("TexturePath",r["id"]) for r in regions()}
+    result, surface_variants = {}, {}
+
+    def leaf(data, region):
+        g = parse_gm(data)
+        replacements = {}
+        for i,name in enumerate(g["textures"]):
+            resolved = source_texture(root,name,texture_paths[region])
+            relative = resolved.relative_to(root).as_posix()
+            content = resolved.read_bytes()
+            textures[relative] = {"sha256":sha(content),"bytes":len(content)}
+            replacements[i] = relative[:-3].replace("/","\\")
+        return metadata(without_geometry_children(data),texture_names=replacements)
+
+    def emit(path, data, **detail):
+        write_asset(OUTPUT/path,data)
+        g = parse_gm(data)
+        count = sum(o[8] for o in g["objects"])
+        outputs[path] = {"sha256":sha(data),"bytes":len(data),"retained_triangles":count,**detail}
+        return {"path":path,"sha256":sha(data),"triangles":count,**detail}
+
+    def selected_data(body, region, role):
+        spec = recipe["bodies"][body]
+        entry = manifest["regions"][region]["files"][role]
+        data = source(root,entry["path"]).read_bytes()
+        ownership = spec if region == spec["source_region"] else spec.get("regional_ownership",{}).get(region,{})
+        selection = ownership.get("extract",{}).get(role)
+        if selection:
+            data,_ = extract(data,selection)
+        return data
+
+    for body,spec in recipe["bodies"].items():
+        base_region = spec["source_region"]
+        prefix = "RESOURCE/MODELS/SeamlessSea/"+body
+        surface = recipe.get("surface_composition",{}).get(body,{})
+        tree = {"texture_path":"","native_child_filename_contract":"original root stem + '_' + full label name",
+                "source_roles":surface}
+        seabed_regions = surface.get("seabed_sources",[base_region])
+        seabeds = {n:selected_data(body,n,"child:seabed") for n in seabed_regions}
+        seabed_patches = []
+        for name,patch in recipe.get("surface_variants",{}).items():
+            if patch["body"] != body:
+                continue
+            ids = sorted(i for a,b in patch["body_face_ranges"] for i in range(a,b))
+            if sha(struct.pack(f"<{len(ids)}I",*ids)) != patch["body_faces_sha256"]:
+                raise ValueError(f"Native seabed correspondence changed: {name}")
+            detail = variant(root,manifest,patch)
+            if len([i for a,b in detail["local_faces"] for i in range(a,b)]) != patch["expected_triangles"]:
+                raise ValueError(f"Native seabed replacement changed: {name}")
+            surface_variants[name] = {**patch,**detail}
+            region = patch["body_region"]
+            data = source(root,manifest["regions"][region]["files"][patch["role"]]["path"]).read_bytes()
+            owned = set(source_triangles(seabeds[region]))
+            removed = {i for a,b in detail["replaced_body_faces"] for i in range(a,b)}
+            if not removed <= owned:
+                raise ValueError("Seabed variant removes unowned native faces")
+            seabeds[region],_ = extract(data,[{"face_ranges":ranges(owned-removed)}])
+            data = source(root,manifest["regions"][patch["region"]]["files"][patch["role"]]["path"]).read_bytes()
+            data,_ = extract(data,[{"face_ranges":detail["local_faces"]}])
+            seabed_patches.append((name,patch["region"],data))
+        first = seabed_regions[0]
+        seabed_frame = spec["local_to_body"][first]
+        child = next(q["matrix"] for q in manifest["regions"][first]["geometry_children"] if q["name"] == "seabed")
+        if len(seabed_regions)+len(seabed_patches) > 1 and child != affine_matrix([1,0,0,1,0,0]):
+            raise ValueError("Composed seabed requires explicit native child frame")
+        seabed_matrix = multiply_matrix(affine_matrix(seabed_frame),child)
+        bed_children,bed_records = [],[]
+        for name,region,data in [(n,n,seabeds[n]) for n in seabed_regions[1:]]+seabed_patches:
+            label = "seabed_"+name
+            path = prefix+"_"+label+".gm"
+            transform = relative_matrix(spec["local_to_body"][region],seabed_frame)
+            bed_children.append((label,affine_matrix(transform)))
+            bed_records.append(emit(path,leaf(data,region),region=region,role="child:seabed",label=label,local_to_parent=transform))
+        seabed_data = metadata(leaf(seabeds[first],first),children=bed_children)
+        bed_records.insert(0,emit(prefix+"_seabed.gm",seabed_data,region=first,role="child:seabed",label="seabed",matrix=seabed_matrix))
+        terrain_children = [("seabed",seabed_matrix)]
+        terrain_records = []
+        for name in compositions[body]["admitted_patches"]:
+            patch = variants[name]
+            if patch["role"] != "terrain":
+                continue
+            label = "terrain_"+name
+            path = prefix+"_"+label+".gm"
+            data = (OUTPUT/patch["output"]).read_bytes()
+            transform = spec["local_to_body"][patch["region"]]
+            terrain_children.append((label,affine_matrix(transform)))
+            terrain_records.append(emit(path,leaf(data,patch["region"]),region=patch["region"],role="terrain",label=label,local_to_parent=transform))
+        for row in manifest["regions"][base_region]["geometry_children"]:
+            if row["name"] == "seabed":
+                continue
+            entry = manifest["regions"][base_region]["files"]["child:"+row["name"]]
+            label = "source_"+row["name"]
+            terrain_children.append((label,row["matrix"]))
+            terrain_records.append(emit(prefix+"_"+label+".gm",leaf(source(root,entry["path"]).read_bytes(),base_region),region=base_region,role="child:"+row["name"],label=label))
+        terrain_entry = manifest["regions"][base_region]["files"]["terrain"]
+        data = (OUTPUT/terrain_entry["path"]).read_bytes()
+        tree["terrain"] = emit(prefix+".gm",metadata(leaf(data,base_region),children=terrain_children),body=body,role="terrain")
+        tree["terrain"]["children"] = bed_records+terrain_records
+        reflection_regions = surface.get("reflection_sources",[base_region])
+        first = reflection_regions[0]
+        reflection_children,reflection_records = [],[]
+        for region in reflection_regions[1:]:
+            label = "surface_"+region
+            transform = spec["local_to_body"][region]
+            reflection_children.append((label,affine_matrix(transform)))
+            reflection_records.append(emit(prefix+"_refl_"+label+".gm",leaf(selected_data(body,region,"reflection"),region),region=region,role="reflection",label=label,local_to_parent=transform))
+        entry = manifest["regions"][first]["files"]["reflection"]
+        for row in labels(source(root,entry["path"]).read_bytes()):
+            if row["group"].casefold() != "geometry":
+                continue
+            label = "source_"+row["name"]
+            entry_child = manifest["regions"][first]["files"]["reflection_child:"+row["name"]]
+            reflection_children.append((label,row["matrix"]))
+            reflection_records.append(emit(prefix+"_refl_"+label+".gm",leaf(source(root,entry_child["path"]).read_bytes(),first),region=first,role="reflection_child:"+row["name"],label=label))
+        data = translated_reflection(selected_data(body,first,"reflection"),spec["local_to_body"][first])
+        tree["reflection"] = emit(prefix+"_refl.gm",metadata(leaf(data,first),children=reflection_children),body=body,role="reflection")
+        tree["reflection"]["children"] = reflection_records
+        tree["terrain"]["total_triangles"] = tree["terrain"]["triangles"]+sum(c["triangles"] for c in bed_records+terrain_records)
+        tree["reflection"]["total_triangles"] = tree["reflection"]["triangles"]+sum(c["triangles"] for c in reflection_records)
+        if surface and (tree["reflection"]["total_triangles"] != surface["native_reflection_triangles"] or
+                        sum(c["triangles"] for c in bed_records) != surface["native_seabed_triangles"]):
+            raise ValueError(f"Native surface composition counts changed: {body}")
+        result[body] = tree
+    return result,surface_variants,textures
+
+
+def dependency_hashes():
+    return {key:sha(path.read_bytes()) for key,path in {
+        "generator_sha256":Path(__file__),
+        "parser_sha256":Path(__file__).with_name("patch_metal_portobello_ground.py"),
+        "bsp_pruner_sha256":Path(__file__).with_name("prepare_puerto_rico_city.py"),
+        "atlas_frames_sha256":Path(__file__).with_name("sea_atlas_frames.py")}.items()}
+
+
+def frame_metadata(record, recipe, manifest, recipe_bytes, manifest_bytes):
+    frames = atlas_layout(recipe,manifest)
+    frame_path = "RESOURCE/INI/seamless_sea.ini"
+    frame_content = atlas_ini(frames,sha(recipe_bytes),sha(manifest_bytes),record["model_trees"])
+    write_asset(OUTPUT/frame_path,frame_content)
+    record.update(dependency_hashes())
+    record.update({"recipe_sha256":sha(recipe_bytes),"inventory_sha256":sha(manifest_bytes),
+                   "atlas_frames":frames,"map_binding":recipe["map_binding"]})
+    record["files"][frame_path] = {"sha256":sha(frame_content),"bytes":len(frame_content),"role":"inactive atlas frames"}
+    return record
+
+
+def refresh_frames():
+    """Refresh frame metadata only after proving the prepared GM/input closure."""
+    manifest_bytes = (OWNER/"manifest.json").read_bytes()
+    recipe_bytes = (OWNER/"recipe.json").read_bytes()
+    manifest,recipe = json.loads(manifest_bytes),json.loads(recipe_bytes)
+    record = json.loads((OUTPUT/"manifest.json").read_text())
+    if not record.get("model_trees") or recipe["runtime_activation"] is not False:
+        raise ValueError("Frame refresh requires prepared inactive body trees")
+    if record["bindings"] != recipe["bodies"]:
+        raise ValueError("Body geometry bindings changed; full preparation required")
+    hashes = dependency_hashes()
+    for key in ("parser_sha256","bsp_pruner_sha256"):
+        if hashes[key] != record[key]:
+            raise ValueError("Geometry preparation dependency changed; full preparation required")
+    for body,tree in record["model_trees"].items():
+        if tree["source_roles"] != recipe.get("surface_composition",{}).get(body,{}):
+            raise ValueError("Surface composition changed; full preparation required")
+    for name,spec in {**recipe.get("variants",{}),**recipe.get("surface_variants",{})}.items():
+        prepared = record.get("variants",{}).get(name,record.get("surface_variants",{}).get(name,{}))
+        if any(prepared.get(key) != value for key,value in spec.items()):
+            raise ValueError("Source variant recipe changed; full preparation required")
+    for body in record["body_assets"].values():
+        for region,files in body["logical_regions"].items():
+            for role,entry in files.items():
+                current = manifest["regions"][region]["files"][role]
+                if any(current[key] != entry[key] for key in ("path","sha256","bytes")):
+                    raise ValueError("Source geometry inventory changed; full preparation required")
+    for path,entry in record["texture_inputs"].items():
+        if manifest.get("texture_inputs",{}).get(path) != entry:
+            raise ValueError("Source texture inventory changed; full preparation required")
+    for name,entry in record["files"].items():
+        if name.casefold().endswith(".gm"):
+            path = OUTPUT/name
+            if path.is_symlink() or not path.is_file() or sha(path.read_bytes()) != entry["sha256"]:
+                raise ValueError(f"Prepared geometry missing or changed: {name}")
+    frame_metadata(record,recipe,manifest,recipe_bytes,manifest_bytes)
+    write_asset(OUTPUT/"manifest.json",(json.dumps(record,indent=2)+"\n").encode())
+    return record
+
+
+def refresh_trees(root):
+    """Reuse accepted pruned terrain; rebuild only the native model-tree phase."""
+    manifest_bytes = (OWNER/"manifest.json").read_bytes()
+    recipe_bytes = (OWNER/"recipe.json").read_bytes()
+    manifest,recipe = json.loads(manifest_bytes),json.loads(recipe_bytes)
+    record = json.loads((OUTPUT/"manifest.json").read_text())
+    hashes = dependency_hashes()
+    if recipe["runtime_activation"] is not False or record["bindings"] != recipe["bodies"]:
+        raise ValueError("Inactive unchanged terrain bindings required for tree-only preparation")
+    for key in ("parser_sha256","bsp_pruner_sha256"):
+        if record[key] != hashes[key]:
+            raise ValueError("Terrain preparation dependency changed; full preparation required")
+    for name,spec in recipe.get("variants",{}).items():
+        if any(record.get("variants",{}).get(name,{}).get(key) != value for key,value in spec.items()):
+            raise ValueError("Terrain variant recipe changed; full preparation required")
+    for body in record["body_assets"].values():
+        for region,files in body["logical_regions"].items():
+            for role,entry in files.items():
+                current = manifest["regions"][region]["files"][role]
+                if (any(current[key] != entry[key] for key in ("path","sha256","bytes")) or
+                        sha(source(root,current["path"]).read_bytes()) != current["sha256"]):
+                    raise ValueError("Source terrain closure changed; full preparation required")
+    for name,entry in record["files"].items():
+        if not name.casefold().endswith(".gm"):
+            continue
+        path = OUTPUT/name
+        if path.is_symlink() or not path.is_file() or sha(path.read_bytes()) != entry["sha256"]:
+            raise ValueError(f"Prepared terrain missing or changed: {name}")
+    for body,composition in record["body_composition"].items():
+        surface = recipe.get("surface_composition",{}).get(body,{})
+        composition["pending_source_roles"] = [p for p in composition["pending_source_roles"]
+            if p["role"] not in ("reflection","child:seabed") or p["region"] not in surface.get("regional_role_decisions",{})]
+        composition["complete"] = (not composition["pending_source_roles"] and composition["terrain_complete"] and
+                                   not any(n in record["composition_conflicts"] for n,p in recipe["variants"].items() if p["body"] == body))
+    trees,variants,textures = model_trees(root,manifest,recipe,record["files"],record["variants"],record["body_composition"])
+    if any(manifest.get("texture_inputs",{}).get(path) != row for path,row in textures.items()):
+        raise ValueError("Source tree textures changed; inventory required")
+    if dependency_hashes() != hashes:
+        raise ValueError("Tree preparation source changed during generation")
+    record.update({"model_trees":trees,"surface_variants":variants,"texture_inputs":textures,
+                   "tree_preparation":{"generator_sha256":hashes["generator_sha256"],
+                                       "recipe_sha256":sha(recipe_bytes),"inventory_sha256":sha(manifest_bytes)}})
+    frame_metadata(record,recipe,manifest,recipe_bytes,manifest_bytes)
+    write_asset(OUTPUT/"manifest.json",(json.dumps(record,indent=2)+"\n").encode())
+    return record
+
+
 def prepare(root):
     manifest_bytes = (OWNER / "manifest.json").read_bytes()
     recipe_bytes = (OWNER / "recipe.json").read_bytes()
     manifest = json.loads(manifest_bytes)
     recipe = json.loads(recipe_bytes)
-    source_hashes = {key:sha(path.read_bytes()) for key,path in {
-        "generator_sha256":Path(__file__),
-        "parser_sha256":Path(__file__).with_name("patch_metal_portobello_ground.py"),
-        "bsp_pruner_sha256":Path(__file__).with_name("prepare_puerto_rico_city.py")}.items()}
+    source_hashes = dependency_hashes()
     outputs = {}
     body_assets = {}
     for body, spec in recipe["bodies"].items():
@@ -767,9 +1097,7 @@ def prepare(root):
                 selected.append(row)
             content, detail = extract(data, selected)
             path = OUTPUT / entry["path"]
-            ensure_space(len(content), path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            atomic_write(path, content)
+            write_asset(path,content)
             outputs[entry["path"]] = {"body": body, "sha256": sha(content), **detail}
     variants, conflicts = {}, {}
     for name, spec in recipe.get("variants", {}).items():
@@ -787,9 +1115,7 @@ def prepare(root):
         entry = manifest["regions"][spec["region"]]["files"][spec["role"]]
         content, counts = extract(source(root, entry["path"]).read_bytes(), [{"face_ranges": detail["local_faces"]}])
         path = OUTPUT / spec["output"]
-        ensure_space(len(content),path)
-        path.parent.mkdir(parents=True,exist_ok=True)
-        atomic_write(path,content)
+        write_asset(path,content)
         outputs[spec["output"]] = {"variant": name,"sha256":sha(content),**counts}
     compositions = {}
     for body,spec in recipe["bodies"].items():
@@ -820,7 +1146,7 @@ def prepare(root):
                 raise ValueError(f"Regional patch removes faces outside {body}/{role} ownership")
             content,detail = extract(data,[{"face_ranges":ranges(owned-removed)}])
             path = OUTPUT / entry["path"]
-            atomic_write(path,content)
+            write_asset(path,content)
             outputs[entry["path"]] = {"body":body,"sha256":sha(content),**detail,
                                       "regional_replacement_faces":len(removed)}
         pending = []
@@ -830,7 +1156,9 @@ def prepare(root):
             for role in ("terrain","reflection","child:seabed"):
                 supplied = [p for p in variants.values() if p["body"] == body and p["region"] == region and p["role"] == role]
                 if not supplied:
-                    pending.append({"region":region,"role":role,"status":"Source variant composition unresolved; both pinned inputs retained."})
+                    surface = recipe.get("surface_composition",{}).get(body,{})
+                    if role not in ("reflection","child:seabed") or region not in surface.get("regional_role_decisions",{}):
+                        pending.append({"region":region,"role":role,"status":"Source variant composition unresolved; both pinned inputs retained."})
         compositions[body] = {"base_region":spec["source_region"],"admitted_patches":admitted,
                               "pending_source_roles":pending,
                               "native_fort_ownership":forts,
@@ -839,14 +1167,25 @@ def prepare(root):
                                   forts.get("complete",True),
                               "complete":not pending and not any(n in conflicts for n,p in recipe.get("variants",{}).items() if p["body"] == body),
                               "collision_rule":"Base exclusions and source-local replacement masks are one composition; never instantiate an unpruned base with its patches."}
+    trees,surface_variants,textures = model_trees(root,manifest,recipe,outputs,variants,compositions)
+    pinned_textures = manifest.get("texture_inputs",{})
+    if any(pinned_textures.get(path) != row for path,row in textures.items()):
+        raise ValueError("Prepared texture closure differs from the pinned source inventory")
+    if dependency_hashes() != source_hashes:
+        raise ValueError("Preparation source changed during generation; retain assets and refresh their owning phase")
     record = {"version": 1, **source_hashes,
+              "geometry_preparation":{"generator_sha256":source_hashes["generator_sha256"],
+                                      "recipe_sha256":sha(recipe_bytes),"inventory_sha256":sha(manifest_bytes)},
               "recipe_sha256": sha(recipe_bytes),
               "inventory_sha256": sha(manifest_bytes), "files": outputs,
               "bindings": recipe["bodies"], "body_assets": body_assets, "variants": variants,
               "composition_conflicts":conflicts,
               "body_composition":compositions,"map_binding":recipe["map_binding"],
+              "model_trees":trees,"surface_variants":surface_variants,
+              "texture_inputs":textures,
               "runtime_activation": recipe["runtime_activation"],
               "activation": "offline assets only; no runtime adapter"}
+    frame_metadata(record,recipe,manifest,recipe_bytes,manifest_bytes)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     atomic_write(OUTPUT / "manifest.json", (json.dumps(record, indent=2) + "\n").encode())
     return record
@@ -858,9 +1197,17 @@ def main():
     parser.add_argument("--inventory", action="store_true", help="write canonical source/component inventory only")
     parser.add_argument("--bindings", action="store_true", help="derive shared source-frame matrices into the canonical recipe")
     parser.add_argument("--ownership", action="store_true", help="bind explicit native land/seabed component recipes")
+    parser.add_argument("--frames", action="store_true", help="refresh inactive frame/INI metadata from the verified prepared GM tree closure")
+    parser.add_argument("--trees", action="store_true", help="prepare native model trees from verified unchanged pruned terrain/variant assets")
     args = parser.parse_args()
     root = args.source_root.resolve()
-    if args.inventory:
+    if args.trees:
+        record = refresh_trees(root)
+        print(f"Sea atlas: prepared {len(record['model_trees'])} native body trees; pruned terrain reused; runtime untouched")
+    elif args.frames:
+        record = refresh_frames()
+        print(f"Sea atlas: refreshed inactive frames for {len(record['model_trees'])} prepared body trees; geometry untouched")
+    elif args.inventory:
         record = inventory(root)
         OWNER.mkdir(parents=True, exist_ok=True)
         atomic_write(OWNER / "manifest.json", (json.dumps(record, indent=2) + "\n").encode())

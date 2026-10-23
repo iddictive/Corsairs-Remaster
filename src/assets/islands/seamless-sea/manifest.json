@@ -56586,5 +56586,387 @@
       ],
       "ownership": "unassigned; component discovery does not authorize removal"
     }
+  },
+  "texture_inputs": {
+    "RESOURCE/Textures/beach1.tga.tx": {
+      "sha256": "1f37a991166d28646cbb7a7ed1b2f59999d2532c940627554ccada665f5e10a9",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Barbados/BarbadosMask.tga.tx": {
+      "sha256": "8985335c221fa6fe74b3dbf019c35c97d26e9a73c462223d4fb006052a13134c",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/jungle1.tga.tx": {
+      "sha256": "7ac0c2e761ef81347fb0384d528d35ee8ff37c32a98a7b0d67edc59761c1dc37",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/rockK5.tga.tx": {
+      "sha256": "6ed971e2f152f392599734c0828638c4b985269a34bcf8b8ab7b590a5efd7c09",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/rockK2.tga.tx": {
+      "sha256": "ce2a8a0c173f1dad5762be6cdf8bb79bd33e15c987ca2dd6e1d1993d10a2d602",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/rockK4.tga.tx": {
+      "sha256": "b34bcdda13bc6a8eeb514f3f33ff24998799ce7ef2e1cc1bd6a3240ca6092d8c",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/BridgeTown_Sea.tga.tx": {
+      "sha256": "00f4e32df33cc9c79cca6d708bfda04f0f6b61b840074a8acc16cb0d82d122d7",
+      "bytes": 174744
+    },
+    "RESOURCE/Textures/beach2.tga.tx": {
+      "sha256": "ce9772a846bb895cc3f584883d3c1d39e0832ae2b136dd532ea7e97ef13b6400",
+      "bytes": 174744
+    },
+    "RESOURCE/Textures/rockK4s.tga.tx": {
+      "sha256": "db66b8df6446d204d85956e4f3f5dba70f41bf6936be09d410ab915a3ec04006",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Islands/Jamaica/JamaicaMask.tga.tx": {
+      "sha256": "a9d0284b6f570115c1318d84ad2d9fc2d1458b1e026f08e06e3a7f3680865bf5",
+      "bytes": 2796224
+    },
+    "RESOURCE/Textures/rockK1a.tga.tx": {
+      "sha256": "9e02cee15449260f7daf21de565d3755dca157eeae6e9a870c7c8ad8440228a6",
+      "bytes": 1397784
+    },
+    "RESOURCE/Textures/PortRoyal_mini.tga.tx": {
+      "sha256": "69cf351d83aa81a88fd546101cc4ab72cd560b26808980968f023ee4bc5f7316",
+      "bytes": 1398104
+    },
+    "RESOURCE/Textures/fortstone1.tga.tx": {
+      "sha256": "ff77db1924b66cafa4cb2700e4c640912dcdffebc128c2a17aacb9022863398f",
+      "bytes": 349544
+    },
+    "RESOURCE/Textures/Sandtile.tga.tx": {
+      "sha256": "40e196fa4ca5a3addd36750b342957a118d9a3a46fefb2182f84424b92c2f217",
+      "bytes": 349544
+    },
+    "RESOURCE/Textures/rockK1.tga.tx": {
+      "sha256": "98e6bd533385a93101a321650bcce83932e27571e7e9299086341f96c66b486d",
+      "bytes": 1392664
+    },
+    "RESOURCE/Textures/Islands/PuertoRico/PuertoRicoMask.tga.tx": {
+      "sha256": "1d8bba8ef3a30833658a4217474c9b0897ba1bbc31c10499d26302546afbec7c",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/beach.tga.tx": {
+      "sha256": "76b50e7895491d6095da9ec1ad6ae35bbc707f62dc7621c6d8cfdbfd0cc23b61",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/jungle_gray.tga.tx": {
+      "sha256": "c2f815a7d39561fd7fec9cc5d778332dc6d82b40f4c1d3ec2fa91cc97b34d4bd",
+      "bytes": 174784
+    },
+    "RESOURCE/Textures/reef1.tga.tx": {
+      "sha256": "6d02f9980e52c9f8c65ea4f174b51269d1f26ce63a3f90d88e1d86def60e8dd8",
+      "bytes": 174784
+    },
+    "RESOURCE/Textures/tavern3.tga.tx": {
+      "sha256": "bc78f74c7a8cd77989bb5262d2d15399ddd0ddd8c29b7b4ca870c85c9f894059",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/store2.tga.tx": {
+      "sha256": "a23fba49bc267da581986a8de1d1b4f6601bd0c723059ef30119dc33434d67e6",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/SpH1.tga.tx": {
+      "sha256": "ba1c59e15ec6705c72c399b18ac5a305b1746453d486280ba1a2fd76f67d74a1",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/SpH2.tga.tx": {
+      "sha256": "aca137e17bfb8a1edd670800771356d52813a227ddfc94599a5091622b101279",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/SpH4.tga.tx": {
+      "sha256": "7817648c4f042966b6cb1791a3ab06d525508537485d0afd60d739091e28280f",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/StoneH1.tga.tx": {
+      "sha256": "ac7617b6dcac2f825626a9332e205fc927f32bac6f7c9a3b2ef29bd85f311288",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/stoneH2.tga.tx": {
+      "sha256": "fb7aa1e781ebc456cb3210afb19a27a24b1ec0b1189a729252d9570fba7c3ab4",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/StoneH3.tga.tx": {
+      "sha256": "fdda20cd78e66eae47176943969b0849639e28506ad61459636432da228c0466",
+      "bytes": 1398120
+    },
+    "RESOURCE/Textures/FlH01.tga.tx": {
+      "sha256": "174b665a94d68c1277993ea8ce508a81920d9f5e027dda4f10cdf5f659e96dc4",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/FlH02.tga.tx": {
+      "sha256": "f1f1765f84915b2b40c4b4b0e912dcae1ddaf92aaac6c1d5b06acf8fb8e40843",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/barn2.tga.tx": {
+      "sha256": "c6d63b6570ad2cf1c163bbe11022454faa9d7a94486eb1d7dba3a45ba670b934",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/hut2.tga.tx": {
+      "sha256": "aa11b1e5e4095165d95c352cb81642fe040fa511a4f7ea21d89aded7318a9e7c",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/hut3.tga.tx": {
+      "sha256": "6db5e6ac61aad42669b2aa2b6df6ed95f8a81096eb4c298ff42bcf9acfbf8f02",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/hut4.tga.tx": {
+      "sha256": "5e9c28cceee36985b4ced27f30b93348280f2278f9a30be6828bc0bc23b991b6",
+      "bytes": 2796226
+    },
+    "RESOURCE/Textures/archDetailsU1.tga.tx": {
+      "sha256": "55f4b0c0181c321d6c7728f52bdff5b9339a116f1dc09b36f1bddfcf72910686",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/churchBigU1.tga.tx": {
+      "sha256": "a0397f1b50255f6b027fbe6498896bbc539d7e7338a67e87b40f767f9a38b31d",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/dirtK2.tga.tx": {
+      "sha256": "48c3c0f11fba06fd2776c9412e05eb190b1bc355b653ea85b979edb90c0dfce6",
+      "bytes": 1398104
+    },
+    "RESOURCE/Textures/flora2.tga.tx": {
+      "sha256": "2575d0b9ae16575400eb6ee4caa8738e4f430537d09e1403afe8bbd84e61f6b2",
+      "bytes": 1397784
+    },
+    "RESOURCE/Textures/checker.tga.tx": {
+      "sha256": "9736e808fe97c06156b0987d7e593735a5886d3e5d2494cc767b0290ace77895",
+      "bytes": 65560
+    },
+    "RESOURCE/Textures/TentArm1.tga.tx": {
+      "sha256": "ea66b3a380c16257af86ece7a8bb8258e26244c067d33d87a1afe469164c80ad",
+      "bytes": 174784
+    },
+    "RESOURCE/Textures/town_objects_tex1.tga.tx": {
+      "sha256": "43f2c7071215ff2d6ad9b1fdb085c64e3db0a3b5092579e99b3adbeea0b8f222",
+      "bytes": 2752536
+    },
+    "RESOURCE/Textures/FlH03.tga.tx": {
+      "sha256": "62e37559c2995105de0125e8e95d6d26391f3382a52a12e5b8751f6c4fc66504",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Shipyard1.tga.tx": {
+      "sha256": "c6e5d83c0b32377fe8ef1c47c80da1d45f06ba2995266c5949f1ffdb60bbe6a7",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/Barracks.tga.tx": {
+      "sha256": "159f8f6ddef2424d81a6e05506bcb94ac1ff7209f1aacc8637d33a431599e093",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/WareHouse.tga.tx": {
+      "sha256": "e07edbc1df6d2f9b871704cacd1a61f9f9f7cf02944c4f0b5aa9c813c8956842",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/NavalCollege.tga.tx": {
+      "sha256": "608e96d7e5be714c29bf0d3a1a432f329bd796d28e9c73eeeef05a6315e6e943",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/FishingNets.tga.tx": {
+      "sha256": "81ce5d9ebcc3ed648d7c0e91b42aeaf5dbf3582d807593ea35c7c9f8a28fb939",
+      "bytes": 1376280
+    },
+    "RESOURCE/Textures/Windmill.tga.tx": {
+      "sha256": "a1f92fddc3ba51ecbafddc1b16128c7056e7c3769540c1e9180801f7cb366098",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/TOWN_COB.tga.tx": {
+      "sha256": "b2334c605b3e5d41fec3cadd3f94901ca92df75069c9fc2def2877166b292a6e",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Ferns.tga.tx": {
+      "sha256": "157894ba99b5d1aa33d2818692db4085a3186e20f9e9f27c64b36996569cceef",
+      "bytes": 87384
+    },
+    "RESOURCE/Textures/Town_Stuff.tga.tx": {
+      "sha256": "8e2bc7ebabe03876a139eff68d6a473e453b36a4fb396dd62a320ec6d6053016",
+      "bytes": 2752536
+    },
+    "RESOURCE/Textures/treePalms.tga.tx": {
+      "sha256": "0a21ecbd84696576ab02b6a8280df3c0e0fa6af5cd1bb148c357cf559903ead7",
+      "bytes": 11184792
+    },
+    "RESOURCE/Textures/Residence3.tga.tx": {
+      "sha256": "1b46732c3cc8e503fcc0665558fc0e3361c13ff1160577d7661ea441f6995dc6",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/objects_tex3.tga.tx": {
+      "sha256": "302c9f5ba45be97e97fd820b356da0fb28a09e37db9f5760acf5f5a6f3c4eeb1",
+      "bytes": 11184834
+    },
+    "RESOURCE/Textures/objects_tex1.tga.tx": {
+      "sha256": "245a1b4b8337752a3f9a93df913285551eb0ff0f72a1a6a0a463dfaf72595969",
+      "bytes": 11184834
+    },
+    "RESOURCE/Textures/pierWood1.tga.tx": {
+      "sha256": "2018f00925be11f20e3c9fc598aa5266c60ec2fa104c13f2ebecf7365bb21318",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/pierStone1.tga.tx": {
+      "sha256": "91914a2452aa0a3f6ef70981864e51d1920a11e2e82d147d638e37d9f9f9ca2e",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/lighting/day1/locations/Town_PuertoRico/Town/Shadow.tga.tx": {
+      "sha256": "2e30e493f47f110aee40bf469d35d7d66286f7fcfaae1c2d0648f6f92d6673d6",
+      "bytes": 2795544
+    },
+    "RESOURCE/Textures/BankH1.tga.tx": {
+      "sha256": "2868cce085f7380b40b3aad3c7b564af3dd3cf0b04c8e9050be65b5a78419469",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/bump_city.tga.tx": {
+      "sha256": "62963e57ef881a5ad66c01f0be1315aa0d4f6fbf16d2c0e82f513596f9fa0876",
+      "bytes": 699074
+    },
+    "RESOURCE/Textures/church1.tga.tx": {
+      "sha256": "0fd110c03f4ec7ea4e5fca163642ff53b067f5dc11ace9cfd6e1cb5f0f244929",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/SignboardsA.tga.tx": {
+      "sha256": "af4cf7d141200e6438942efba102f6076595dc97429648d26e5e6a4e258c0acb",
+      "bytes": 698904
+    },
+    "RESOURCE/Textures/objects_tex2.tga.tx": {
+      "sha256": "9b0f9679fc4d866243d444ac5bf9fb91e06e2d8c4477e082e47f723957e03daa",
+      "bytes": 11184834
+    },
+    "RESOURCE/Textures/Islands/Curacao/CuracaoMask.tga.tx": {
+      "sha256": "2cec0636467d017cfd693b85a64836782cbca526c5efd457ced6b4dec53ee149",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Tortuga/TortugaMask.tga.tx": {
+      "sha256": "7c32458e04729552958e10f5fe1e07849c22dbc17effa9dfc0f0e8dabd0746c6",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Tortuga/shipDead.tga.tx": {
+      "sha256": "9796974199c11d6bc50bc70a43eff761a16b993f63bea6178b58008a14c45508",
+      "bytes": 174784
+    },
+    "RESOURCE/Textures/MontserratMask.tga.tx": {
+      "sha256": "3eaeab00c28e5028d441460603f121778610956018c56f9c65260391d16a73c4",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/DominicaMask.tga.tx": {
+      "sha256": "b256275fcc9cd49266e20064ee4f3a4ec9853fa6e246c9ff5e048c89d3c81572",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Trinidad/TrinidadMask.tga.tx": {
+      "sha256": "3a52ef227b27d2226d6c47ae7e040d08371b468e67c7e5d8ea14f74895431d99",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Trinidad/TobagoMask.tga.tx": {
+      "sha256": "e2ee5ebda205c5bf12733f01e7adb48bb140792e98620c97e882bdce11ae0052",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Nevis/NevisMask.tga.tx": {
+      "sha256": "27c7d9538a906d4729221987fda88d95cd46f262d38c142f9bc5397d0165c522",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Nevis/Charlestown_mini.tga.tx": {
+      "sha256": "36111906220d33f78f1a013893554a8f4453a7e6c64a099710b3d49da82da04c",
+      "bytes": 11184834
+    },
+    "RESOURCE/Textures/trees.tga.tx": {
+      "sha256": "27a8fa970284eaebce431821a12de515433a153be882f587bba126cef83de8ce",
+      "bytes": 11184824
+    },
+    "RESOURCE/Textures/WindmillFan.tga.tx": {
+      "sha256": "e63acc4c180e55863cde755f69062d9daf661cc1e776b14d899d852fc1e963b4",
+      "bytes": 174744
+    },
+    "RESOURCE/Textures/Islands/Antigua/AntiguaMask.tga.tx": {
+      "sha256": "fcbe7158c22c3d67b85d8a8ab9ee107194d048f2b020224182dec0d443f606e2",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Guadeloupe/GuadeloupeMask.tga.tx": {
+      "sha256": "7358bcae788ec1f65ee991ff268a470660b4c2f4f51b01edd0319a9cf536158b",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Guadeloupe/MarieGalanteMask.tga.tx": {
+      "sha256": "a755cffa7573df0002e5669387e78f95aa1923d27de531c9d3335cbcd486a2cd",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Martinique/MartiniqueMask.tga.tx": {
+      "sha256": "d566f46620f4928bf2ad51a62ea516c644d22a084ed3c1bb9f7ea9207ce853cf",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/rockSh1.tga.tx": {
+      "sha256": "ee8a7f6cb09c3b75c0e4b56cab45e781977e707f3772826cb7266d999ce3b594",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Bermudes_town.tga.tx": {
+      "sha256": "cd438ba582be71d404c56ad860305b8b967f82badd6d337df61a8d0052d4c83e",
+      "bytes": 5570584
+    },
+    "RESOURCE/Textures/Islands/Hispaniola1/HispaniolaMask.tga.tx": {
+      "sha256": "3af83209163ed00c014feff20f7400648a92f41a10149e87ca89c690af33bf5c",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Hispaniola1/TortugaFort.tga.tx": {
+      "sha256": "a8cac71b13271812cbb5410727d382396c4eae7204a43ec4bc106cb52a196f1f",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Islands/Hispaniola1/TortugaMask.tga.tx": {
+      "sha256": "7c32458e04729552958e10f5fe1e07849c22dbc17effa9dfc0f0e8dabd0746c6",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Hispaniola1/shipDead.tga.tx": {
+      "sha256": "9796974199c11d6bc50bc70a43eff761a16b993f63bea6178b58008a14c45508",
+      "bytes": 174784
+    },
+    "RESOURCE/Textures/Islands/Hispaniola2/HispaniolaMask.tga.tx": {
+      "sha256": "3af83209163ed00c014feff20f7400648a92f41a10149e87ca89c690af33bf5c",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Hispaniola2/TortugaFort.tga.tx": {
+      "sha256": "a8cac71b13271812cbb5410727d382396c4eae7204a43ec4bc106cb52a196f1f",
+      "bytes": 699064
+    },
+    "RESOURCE/Textures/Islands/Hispaniola2/TortugaMask.tga.tx": {
+      "sha256": "7c32458e04729552958e10f5fe1e07849c22dbc17effa9dfc0f0e8dabd0746c6",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/IslaMonaMask.tga.tx": {
+      "sha256": "ebeb402e878dca7b397a97250e0f4254f8bae7b1726d3b37c4f1458c596677ce",
+      "bytes": 2097176
+    },
+    "RESOURCE/Textures/PuertoRicoMask.tga.tx": {
+      "sha256": "8fc99a6b0754258a39718ef1f8512dedc3e95648ee79ba3f3b79545e5488200f",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/Dominica/DominicaMask.tga.tx": {
+      "sha256": "7358bcae788ec1f65ee991ff268a470660b4c2f4f51b01edd0319a9cf536158b",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/Islands/IslaMona/IslaMonaMask.tga.tx": {
+      "sha256": "ebeb402e878dca7b397a97250e0f4254f8bae7b1726d3b37c4f1458c596677ce",
+      "bytes": 2097176
+    },
+    "RESOURCE/Textures/Islands/Caiman/Caiman.tga.tx": {
+      "sha256": "fc6e6d7aa16048a1528f04bcbd2cfc0725ceda273b6f5d8144f3b61b063906bb",
+      "bytes": 2796184
+    },
+    "RESOURCE/Textures/fort_dirt.tga.tx": {
+      "sha256": "d5febefdc66b7eb8e09b14a21e8fcd6648d20fbae66f6d20d52cea9319968fe4",
+      "bytes": 43704
+    },
+    "RESOURCE/Textures/MargaritaFort.tga.tx": {
+      "sha256": "e3e177e6911975aa501fbd7d30134ace96f6490556d0d506a7285ef252043355",
+      "bytes": 1398120
+    },
+    "RESOURCE/Textures/fort_con_n.tga.tx": {
+      "sha256": "0874601b63d76ea1862019ccc118dad26bce96b53ae71db7dc807c4a2b438944",
+      "bytes": 5480
+    },
+    "RESOURCE/Textures/Islands/Providence/StKittsMask.tga.tx": {
+      "sha256": "ca616d3831160d59013600581a1db1ac8ce6c438b57a129857fda4a69be8e3e5",
+      "bytes": 2796184
+    }
   }
 }
