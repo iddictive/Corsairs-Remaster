@@ -1018,6 +1018,7 @@ void ILaunchAfterFrame()
 		case "I_NATIONS":		LaunchNationRelation();	return; break;
 		case "I_ITEMS":			LaunchItems();	return; break;
 		case "I_CABIN_CHEST": LaunchCabinChest(); return; break;
+		case "I_DEBUGER": LaunchDebuderMenu(); return; break;
 		// boal 220904 <--
 		case "TransferMain":
 			if( CheckAttribute(pchar,"TransferChar") )

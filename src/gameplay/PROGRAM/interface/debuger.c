@@ -5,9 +5,178 @@ int idLngFile = -1;
 int remInt = 0;
 string textLine = "***********************************"
 
-void TsunamiDebug_Start()
+object DebugMenu;
+int DebugMenuCount = 0;
+int DebugMenuGroup = 0;
+
+void DebugMenu_Add(int group, string action, string label)
 {
-	if (SeaTsunami_Start()) IDoExit(RC_INTERFACE_QUICK_SAVE);
+	string key = "a" + DebugMenuCount;
+	DebugMenu.actions.(key).group = group;
+	DebugMenu.actions.(key).action = action;
+	DebugMenu.actions.(key).label = label;
+	DebugMenuCount++;
+}
+
+string DebugMenu_Label(string action, string label)
+{
+	bool state;
+	bool toggle = false;
+	switch (action)
+	{
+		case "BTN_SPECIAL1": state = bNoEatNoRats; toggle = true; break;
+		case "BTN_SPECIAL2": state = bQuestLogShow; toggle = true; break;
+		case "BTN_SPECIAL3": state = TestRansackCaptain; toggle = true; break;
+		case "BTN_SPECIAL4": state = bLocatorShow; toggle = true; break;
+		case "BTN_SPECIAL5": state = bExpLogShow; toggle = true; break;
+		case "BTN_SPECIAL6": state = bPGGLogShow; toggle = true; break;
+		case "BTN_SPECIAL7": state = locCameraEnableFree; toggle = true; break;
+		case "BTN_SPECIAL8": state = bWorldAlivePause; toggle = true; break;
+		case "BTN_SPECIAL9": state = bBettaTestMode; toggle = true; break;
+		case "B_F10": state = LAi_IsImmortal(pchar); toggle = true; break;
+		case "B_F13": state = !CheckAttribute(pchar,"worldmapencountersoff") || pchar.worldmapencountersoff != "1"; toggle = true; break;
+		case "B_F14": state = globalSGMode; toggle = true; break;
+		case "PHONK": state = SeaPhonk_IsActive(); toggle = true; break;
+		case "PHONK_MUSIC": state = !SeaPhonk_IsMusicMuted(); toggle = true; break;
+		case "TSUNAMI_START":
+			if (IsEntity(&worldMap)) return "Цунами: дуга";
+			return label;
+		break;
+		case "WHIRLPOOL":
+			if (IsEntity(&Sea) && CheckAttribute(&Sea,"Whirlpool.Active") && sti(Sea.Whirlpool.Active)) return "Убрать водоворот";
+			return label;
+		break;
+	}
+	if (toggle)
+	{
+		if (state) return label + ": вкл";
+		return label + ": выкл";
+	}
+	return label;
+}
+
+bool DebugMenu_Enabled(string action)
+{
+	bool seaEffects = !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap);
+	switch (action)
+	{
+		case "TSUNAMI_START": return !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)); break;
+		case "TSUNAMI_RING": return !bAbordageStarted && IsEntity(&worldMap); break;
+		case "PHONK": return seaEffects; break;
+		case "PHONK_MUSIC": return seaEffects; break;
+		case "WHIRLPOOL": return seaEffects && !GreatRecipe_Locked(); break;
+	}
+	return true;
+}
+
+void DebugMenu_Refresh()
+{
+	DeleteAttribute(&DebugMenu,"slots");
+	int slot = 0;
+	for (int i = 0; i < DebugMenuCount; i++)
+	{
+		string key = "a" + i;
+		if (sti(DebugMenu.actions.(key).group) != DebugMenuGroup) continue;
+		string node = "ACTION" + slot;
+		string action = DebugMenu.actions.(key).action;
+		DebugMenu.slots.(node) = action;
+		SetNodeUsing(node,true);
+		SetSelectable(node,DebugMenu_Enabled(action));
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,node,0,"#" + DebugMenu_Label(action,DebugMenu.actions.(key).label));
+		slot++;
+	}
+	for (i = slot; i < 12; i++) SetNodeUsing("ACTION" + i,false);
+}
+
+void DebugMenu_SelectGroup(int group)
+{
+	DebugMenuGroup = group;
+	for (int i = 0; i < 8; i++) SetNodeUsing("SELECTED" + i,i == group);
+	DebugMenu_Refresh();
+	string title;
+	string hint;
+	switch (group)
+	{
+		case 0: title = "Эффекты"; hint = "Цунами работает в море и на карте. Кольцо — только на карте, водоворот и фонк — в море. Запуск эффекта возвращает в игру."; break;
+		case 1: title = "Персонаж"; hint = "Деньги, навыки, репутация и режим бессмертия."; break;
+		case 2: title = "Готовые наборы"; hint = "Каждый набор заменяет корабль, навыки, снаряжение и запасы героя."; break;
+		case 3: title = "Корабль и команда"; hint = "Кнопки классов заменяют текущий корабль следующим кораблём выбранного класса, с экипажем и грузом."; break;
+		case 4: title = "Мир и перемещение"; hint = "Погода, время, встречи и отношения наций. Для точного перехода введите: локация, группа, локатор."; break;
+		case 5: title = "Квесты"; hint = "Состояние квестов и тестовый переход в истории проклятого идола."; break;
+		case 6: title = "Камера"; hint = "Камера, локаторы и интерфейс. Свободная камера требует включённых debug-клавиш в engine.ini."; break;
+		case 7: title = "Диагностика"; hint = "Логи, атрибуты, статистика читов и обновление данных."; break;
+	}
+	SetFormatedText("SECTION_TITLE",title);
+	SetNodeUsing("DEBUGER_INFO",true);
+	SetNodeUsing("DEBUGER_SCROLL",true);
+	SetNodeUsing("DEBUGER_INFO_2",false);
+	SetFormatedText("DEBUGER_INFO",hint);
+	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"DEBUGER_INFO",5);
+}
+
+void DebugMenu_FirstAction()
+{
+	for (int i = 0; i < 12; i++)
+	{
+		string node = "ACTION" + i;
+		if (CheckAttribute(&DebugMenu,"slots." + node) && GetSelectable(node)) { SetCurrentNode(node); return; }
+	}
+	SetCurrentNode("TELEPORT_EDIT");
+}
+
+void DebugMenu_Move(int slot, string command)
+{
+	if (command != "leftstep" && command != "rightstep" && command != "upstep" && command != "downstep") return;
+	if (command == "leftstep" && slot % 2 == 0) { SetCurrentNode("CATEGORY" + DebugMenuGroup); return; }
+	int step = 1;
+	if (command == "leftstep") step = -1;
+	if (command == "upstep") step = -2;
+	if (command == "downstep") step = 2;
+	int i = slot + step;
+	while (i >= 0 && i < 12)
+	{
+		string node = "ACTION" + i;
+		if (CheckAttribute(&DebugMenu,"slots." + node) && GetSelectable(node)) { SetCurrentNode(node); return; }
+		i = i + step;
+	}
+	if (step < 0) SetCurrentNode("CATEGORY" + DebugMenuGroup);
+	else SetCurrentNode("DEBUGER_INFO");
+}
+
+bool DebugEffects_Whirlpool()
+{
+	if (!bSeaActive || bAbordageStarted || !IsEntity(&Sea) || IsEntity(&worldMap) || GreatRecipe_Locked()) return false;
+	if (CheckAttribute(&Sea,"Whirlpool.Active") && sti(Sea.Whirlpool.Active))
+	{
+		Sea.Whirlpool.Start = 0;
+		return true;
+	}
+	if (!CheckAttribute(pchar,"Ship.Pos.x") || !CheckAttribute(pchar,"Ship.Pos.z") || !CheckAttribute(pchar,"Ship.Ang.y")) return false;
+	// Start at the navigable rim, using the existing native water/current field.
+	float radius = 700.0;
+	Sea.Whirlpool.CenterX = stf(pchar.Ship.Pos.x) + sin(stf(pchar.Ship.Ang.y)) * radius * 0.78;
+	Sea.Whirlpool.CenterZ = stf(pchar.Ship.Pos.z) + cos(stf(pchar.Ship.Ang.y)) * radius * 0.78;
+	Sea.Whirlpool.Radius = radius;
+	Sea.Whirlpool.Intensity = 1.0;
+	Sea.Whirlpool.Duration = 90.0;
+	Sea.Whirlpool.ResumeAge = 0.0;
+	Sea.Whirlpool.Start = 1;
+	return true;
+}
+
+void DebugEffects_Run(string node)
+{
+	if (!DebugMenu_Enabled(node) || bAbordageStarted) return;
+	bool resume = false;
+	switch (node)
+	{
+		case "TSUNAMI_START": resume = SeaTsunami_Start(); break;
+		case "TSUNAMI_RING": resume = SeaTsunami_StartMapWithShape(1); break;
+		case "PHONK": resume = SeaPhonk_Toggle(); break;
+		case "PHONK_MUSIC": SeaPhonk_ToggleMusic(); DebugMenu_Refresh(); break;
+		case "WHIRLPOOL": resume = DebugEffects_Whirlpool(); break;
+	}
+	if (resume) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 
 void InitInterface(string iniName)
@@ -15,15 +184,13 @@ void InitInterface(string iniName)
  	StartAboveForm(true);
 	
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
-	SetNodeUsing("TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"TSUNAMI_START",0,"#Цунами");
-	
+	SetFormatedText("TITLE","Дебаг-меню");
+
 	CalculateInfoData();
 
 	CalculateCheatsInfo(); // Warship. Статистика - сколько читов юзали
 
-	SetFormatedText("DEBUGER_INFO",totalInfo);//"Информация отладчика");
-	SendMessage(&GameInterface,"lsl",MSG_INTERFACE_MSG_TO_NODE,"DEBUGER_INFO",5);
+	DebugMenu_SelectGroup(0);
 
 	SetEventHandler("InterfaceBreak","ProcessCancelExit",0); 
 	SetEventHandler("exitCancel","ProcessCancelExit",0); 
@@ -32,6 +199,7 @@ void InitInterface(string iniName)
 	//SetEventHandler("SetScrollerPos","SetScrollerPos",0);
 
     GameInterface.teleport_edit.str = "Pirates_Shipyard, reload, reload1";
+	DebugMenu_FirstAction();
 }
 
 void ProcessCancelExit()
@@ -67,127 +235,108 @@ void DoPostExit()
 
 void CalculateInfoData()
 {
-	totalInfo = textLine + textLine + textLine + NewStr();
-	totalInfo = totalInfo + "S1 - " + descS1 + NewStr() +
-	            "S2 - " + descS2 + NewStr() +
-				"S3 - " + descS3 + NewStr() +
-				"S4 - " + descS4 + NewStr() +
-				"S5 - " + descS5 + NewStr() +
-				"S6 - " + descS6 + NewStr() +
-				"S7 - " + descS7 + NewStr() +
-				"S8 - " + descS8 + NewStr() +
-				"S9 - " + descS9 + NewStr() +
-				textLine + textLine + textLine + NewStr();
-				
-	totalInfo = totalInfo + "F1 - " + descF1 + NewStr() +
-	                        "F2 - " + descF2 + NewStr() +
-	                        "F3 - " + descF3 + NewStr() +
-	                        "F4 - " + descF4 + NewStr() +
-	                        "F5 - " + descF5 + NewStr() +
-	                        "F6 - " + descF6 + NewStr() +
-	                        "F7 - " + descF7 + NewStr() +
-	                        "F8 - " + descF8 + NewStr() +
-	                        "F9 - " + descF9 + NewStr() +
-	                        "F10 - " + descF10 + NewStr() +
-	                        "F11 - " + descF11 + NewStr() +
-	                        "F12 - " + descF12 + NewStr() +
-	                        "F13 - " + descF13 + NewStr() +
-	                        "F14 - " + descF14 + NewStr() +
-	                        "F15 - " + descF15 + NewStr() +
-	                        "F16 - " + descF16 + NewStr() +
-	                        "F17 - " + descF17 + NewStr() +
-	                        "F18 - " + descF18 + NewStr() +
-                            "F19 - " + descF19 + NewStr() +
-                            "F20 - " + descF20 + NewStr() +
-				            "F21 - " + descF21 + NewStr() +
-				            "F22 - " + descF22 + NewStr() +
-				            "F23 - " + descF23 + NewStr() +
-				            "F24 - " + descF24 + NewStr() +
-				            "F25 - " + descF25 + NewStr() +
-				            "F26 - " + descF26 + NewStr() +
-				            "F27 - " + descF27 + NewStr() +
-				            "F28 - " + descF28 + NewStr() +
-				            "F29 - " + descF29 + NewStr() +
-				            "F30 - " + descF30 + NewStr() +
-				            "F31 - " + descF31 + NewStr() +
-				            "F32 - " + descF32 + NewStr() +
-							"F41 - " + descF41 + NewStr() +
-							"F42 - " + descF42 + NewStr() +
-							"******************** ship section ********************" + NewStr() +
-							"Class 7 - " + descF33 + NewStr() +
-							"Class 6 - " + descF34 + NewStr() +
-							"Class 5 - " + descF35 + NewStr() +
-							"Class 4 - " + descF36 + NewStr() +
-							"Class 3 - " + descF37 + NewStr() +
-							"Class 2 - " + descF38 + NewStr() +
-							"Class 1 - " + descF39 + NewStr() +
-							"Color - " + descF40 + NewStr() +
-				            textLine + textLine + textLine;
-	
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL1", 0, "#S1" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL2", 0, "#S2" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL3", 0, "#S3" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL4", 0, "#S4" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL5", 0, "#S5" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL6", 0, "#S6" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL7", 0, "#S7" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL8", 0, "#S8" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"BTN_SPECIAL9", 0, "#S9" );
-	
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F1", 0, "#F1" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F2", 0, "#F2" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F3", 0, "#F3" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F4", 0, "#F4" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F5", 0, "#F5" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F6", 0, "#F6" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F7", 0, "#F7" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F8", 0, "#F8" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F9", 0, "#F9" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F10", 0, "#F10" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F11", 0, "#F11" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F12", 0, "#F12" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F13", 0, "#F13" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F14", 0, "#F14" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F15", 0, "#F15" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F16", 0, "#F16" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F17", 0, "#F17" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F18", 0, "#F18" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F19", 0, "#F19" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F20", 0, "#F20" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F21", 0, "#F21" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F22", 0, "#F22" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F23", 0, "#F23" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F24", 0, "#F24" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F25", 0, "#F25" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F26", 0, "#F26" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F27", 0, "#F27" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F28", 0, "#F28" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F29", 0, "#F29" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F30", 0, "#F30" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F31", 0, "#F31" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F32", 0, "#F32" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F41", 0, "#F41" );
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F42", 0, "#F42" );
-
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F33", 0, "#Class 7");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F34", 0, "#Class 6");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F35", 0, "#Class 5");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F36", 0, "#Class 4");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F37", 0, "#Class 3"); 
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F38", 0, "#Class 2");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F39", 0, "#Class 1");
-	SendMessage( &GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"B_F40", 0, "#Color");
+	DeleteAttribute(&DebugMenu,"");
+	DebugMenuCount = 0;
+	DebugMenu_Add(0,"TSUNAMI_START","Цунами");
+	DebugMenu_Add(0,"WHIRLPOOL","Водоворот");
+	DebugMenu_Add(0,"TSUNAMI_RING","Цунами: кольцо");
+	DebugMenu_Add(0,"PHONK","Фонк");
+	DebugMenu_Add(0,"PHONK_MUSIC","Фонк-музыка");
+	DebugMenu_Add(0,"B_F14","Дробовик");
+	DebugMenu_Add(1,"B_F1","Золото +200 000");
+	DebugMenu_Add(1,"B_F5","Очки навыков +35");
+	DebugMenu_Add(1,"B_F7","Личные навыки до 1");
+	DebugMenu_Add(1,"B_F10","Бессмертие");
+	DebugMenu_Add(1,"B_F11","Репутация +10");
+	DebugMenu_Add(1,"B_F27","Репутация -10");
+	DebugMenu_Add(1,"B_F19","Шкиперу: навыки +35");
+	DebugMenu_Add(1,"B_F24","Лицензия на 30 дней");
+	DebugMenu_Add(2,"B_F6","Ранг 20 и «Арабелла»");
+	DebugMenu_Add(2,"B_F31","Ранг 35 и «Сантисима»");
+	DebugMenu_Add(2,"B_F32","Ранг 10 и бриг");
+	DebugMenu_Add(3,"BTN_SPECIAL1","Без еды и крыс");
+	DebugMenu_Add(3,"BTN_SPECIAL3","Капитаны сдаются");
+	DebugMenu_Add(3,"B_F4","Опыт команды +10");
+	DebugMenu_Add(3,"B_F40","Следующая расцветка");
+	DebugMenu_Add(3,"B_F33","Заменить корабль: класс 7");
+	DebugMenu_Add(3,"B_F34","Заменить корабль: класс 6");
+	DebugMenu_Add(3,"B_F35","Заменить корабль: класс 5");
+	DebugMenu_Add(3,"B_F36","Заменить корабль: класс 4");
+	DebugMenu_Add(3,"B_F37","Заменить корабль: класс 3");
+	DebugMenu_Add(3,"B_F38","Заменить корабль: класс 2");
+	DebugMenu_Add(3,"B_F39","Заменить корабль: класс 1");
+	DebugMenu_Add(3,"B_F41","Обновить корабли");
+	DebugMenu_Add(4,"BTN_SPECIAL8","Пауза живого мира");
+	DebugMenu_Add(4,"B_F8","Следующая таверна");
+	DebugMenu_Add(4,"B_F9","Ветер 16,5");
+	DebugMenu_Add(4,"B_F12","Награда за голову +50");
+	DebugMenu_Add(4,"B_F13","Встречи на карте");
+	DebugMenu_Add(4,"B_F15","Отношения наций");
+	DebugMenu_Add(4,"B_F16","Пропустить 5 дней");
+	DebugMenu_Add(4,"B_F30","Пропустить 20 дней");
+	DebugMenu_Add(4,"B_F20","Обновить свет маяков");
+	DebugMenu_Add(4,"B_F25","Перезагрузить локацию");
+	DebugMenu_Add(4,"B_F28","Летучий Голландец");
+	DebugMenu_Add(4,"B_F29","Награда за голову -50");
+	DebugMenu_Add(5,"B_F2","Запись об идоле");
+	DebugMenu_Add(5,"B_F17","Список квестов героя");
+	DebugMenu_Add(5,"B_F22","Аскольд и «Синяя птица»");
+	DebugMenu_Add(6,"BTN_SPECIAL4","Локаторы");
+	DebugMenu_Add(6,"BTN_SPECIAL7","Свободная камера");
+	DebugMenu_Add(6,"B_F3","Локация и координаты");
+	DebugMenu_Add(6,"B_F18","Скрыть / показать UI");
+	DebugMenu_Add(6,"B_F21","Камера рядом с героем");
+	DebugMenu_Add(6,"B_F23","Данные камеры");
+	DebugMenu_Add(7,"BTN_SPECIAL2","Логи квестов");
+	DebugMenu_Add(7,"BTN_SPECIAL5","Логи опыта");
+	DebugMenu_Add(7,"BTN_SPECIAL6","Логи капитанов");
+	DebugMenu_Add(7,"BTN_SPECIAL9","Бета-тест");
+	DebugMenu_Add(7,"B_F26","Данные героя и корабля");
+	DebugMenu_Add(7,"B_F42","Обновить локации");
+	DebugMenu_Add(7,"DEBUG_STATS","Статистика читов");
 }
+
 void ProcCommand()
 {
 	string comName = GetEventData();
 	string nodName = GetEventData();
+	for (int category = 0; category < 8; category++)
+	{
+		if (nodName != "CATEGORY" + category) continue;
+		if (comName == "activate" || comName == "click") DebugMenu_SelectGroup(category);
+		if (comName == "rightstep") { DebugMenu_SelectGroup(category); DebugMenu_FirstAction(); }
+		return;
+	}
+	if (nodName == "CLOSE" && (comName == "activate" || comName == "click")) { ProcessCancelExit(); return; }
+	if ((nodName == "DEBUGER_INFO" || nodName == "DEBUGER_INFO_2") && comName == "leftstep") { SetCurrentNode("CATEGORY" + DebugMenuGroup); return; }
+	for (int slot = 0; slot < 12; slot++)
+	{
+		if (nodName != "ACTION" + slot) continue;
+		if (comName != "activate" && comName != "click") { DebugMenu_Move(slot,comName); return; }
+		if (!GetSelectable(nodName) || !CheckAttribute(&DebugMenu,"slots." + nodName)) return;
+		nodName = DebugMenu.slots.(nodName);
+		SetNodeUsing("DEBUGER_INFO",true);
+		SetNodeUsing("DEBUGER_SCROLL",true);
+		SetNodeUsing("DEBUGER_INFO_2",false);
+		break;
+	}
+	if (nodName == "DEBUG_STATS")
+	{
+		CalculateCheatsInfo();
+		SetNodeUsing("DEBUGER_INFO",false);
+		SetNodeUsing("DEBUGER_SCROLL",false);
+		SetNodeUsing("DEBUGER_INFO_2",true);
+		SetCurrentNode("DEBUGER_INFO_2");
+		return;
+	}
+	if (nodName == "TSUNAMI_START" || nodName == "TSUNAMI_RING" || nodName == "PHONK" || nodName == "PHONK_MUSIC" || nodName == "WHIRLPOOL")
+	{
+		DebugEffects_Run(nodName);
+		return;
+	}
 
 	switch(nodName)
 	{
-		case "TSUNAMI_START":
-			if(comName=="activate" || comName=="click") TsunamiDebug_Start();
-		break;
 		case "TELEPORT_BTN":
 		  if(comName=="activate" || comName=="click")
 		  {
@@ -549,7 +698,10 @@ void ProcCommand()
 			break;
 	}
 	
+	// These original handlers close and unload this segment themselves.
+	if (nodName == "B_F2" || nodName == "B_F15" || nodName == "B_F25") return;
 	CalculateCheatsInfo(); // Статистика по читам
+	DebugMenu_Refresh();
 }
 
 string descS1 = "Не потреблять провизию и не получать ущерб от крыс";
@@ -702,7 +854,7 @@ void CalculateInfoDataF1()
 	Statistic_AddValue(PChar, "Cheats.F1", 1);
 }
 
-string descF2 = "CreateSiege";
+string descF2 = "Добавить запись №10 о проклятом идоле";
 void CalculateInfoDataF2()
 {
 	totalInfo = descF2;
@@ -827,7 +979,7 @@ void CalculateInfoDataF4()
 }
 
 ////////////////////////////////////////////////////////////////////////
-string descF5 = "Ранг +1 (35 скилов)";
+string descF5 = "Добавить 35 свободных очков навыков";
 int BOAL_debug_num = 1;
 void CalculateInfoDataF5()
 {
@@ -1410,7 +1562,7 @@ void CalculateInfoDataF18()
 	Statistic_AddValue(PChar, "Cheats.F18", 1);
 }
 
-string descF19 = "Офицеру-шкиперу +1 ранг (35 очков скилов)";
+string descF19 = "Добавить шкиперу 35 свободных очков навыков";
 void CalculateInfoDataF19()
 {
     totalInfo = descF19;

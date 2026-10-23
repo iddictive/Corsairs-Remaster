@@ -9,16 +9,7 @@ void InitInterface_gm(string iniName)
 	EngineLayersOffOn(true);
 
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
-	SetNodeUsing("MB_TSUNAMI_START", !bAbordageStarted && ((bSeaActive && IsEntity(&Sea)) || IsEntity(&worldMap)));
-	SetNodeUsing("MB_TSUNAMI_RING", !bAbordageStarted && IsEntity(&worldMap));
-	SetNodeUsing("MB_PHONK", !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap));
-	SetNodeUsing("MB_PHONK_MUSIC", !bAbordageStarted && bSeaActive && IsEntity(&Sea) && !IsEntity(&worldMap));
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Phonk Mode");
-	if (SeaPhonk_IsActive()) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK",0,"#Выключить фонк");
-	PhonkMusicButtonText();
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами");
-	if (IsEntity(&worldMap)) SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_START",0,"#Цунами: дуга");
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_TSUNAMI_RING",0,"#Цунами: кольцо");
+	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_DEBUG",0,"#Дебаг-меню");
 
 	SetEventHandler("InterfaceBreak","ProcessCancelExit",0);
 	SetEventHandler("exitCancel","ProcessCancelExit",0);
@@ -140,13 +131,6 @@ void IProcessFrame()
 {
 }
 
-void PhonkMusicButtonText()
-{
-	string label = "#Выключить фонк-музыку";
-	if (SeaPhonk_IsMusicMuted()) label = "#Включить фонк-музыку";
-	SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"MB_PHONK_MUSIC",0,label);
-}
-
 void ProcessCancelExit()
 {
 	if(CheckAttribute(&InterfaceStates,"Buttons.Resume.enable") && sti(InterfaceStates.Buttons.Resume.enable) == true)
@@ -192,34 +176,12 @@ void ProcessCommandExecute()
 
 	switch(nodName)
 	{
-		case "MB_PHONK_MUSIC":
+		case "MB_DEBUG":
 			if (comName == "click" || comName == "activate")
 			{
-				SeaPhonk_ToggleMusic();
-				PhonkMusicButtonText();
-			}
-		break;
-		case "MB_PHONK":
-			if (comName == "click" || comName == "activate")
-			{
-				if (SeaPhonk_Toggle()) ResumeClick();
-			}
-		break;
-		case "MB_TSUNAMI_START":
-			if (comName == "downstep")
-			{
-				if (IsEntity(&worldMap)) SetCurrentNode("MB_TSUNAMI_RING");
-				else SetCurrentNode("MB_PHONK");
-			}
-			if (comName == "click" || comName == "activate")
-			{
-				if (SeaTsunami_Start()) ResumeClick();
-			}
-		break;
-		case "MB_TSUNAMI_RING":
-			if (comName == "click" || comName == "activate")
-			{
-				if (SeaTsunami_StartMapWithShape(1)) ResumeClick();
+				InterfaceStates.LaunchAfterFrame = "I_DEBUGER";
+				PostEvent("LaunchIAfterFrame",1,"sl","I_DEBUGER",1);
+				ResumeClick();
 			}
 		break;
 		case "MB_NEW":
