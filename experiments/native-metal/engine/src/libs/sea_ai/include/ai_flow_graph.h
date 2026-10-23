@@ -5,8 +5,11 @@
 #include "storm_assert.h"
 #include "v_file_service.h"
 #include "math_inlines.h"
+#include "ai_flow_graph_table.h"
 
 #include <algorithm>
+#include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -182,11 +185,7 @@ class AIFlowGraph
     // std::vector<npoint_t>        aNearestPoints;
     std::string sSectionName;
 
-    struct table_t
-    {
-        uint32_t p;
-        float d;
-    };
+    using table_t = native_flow_graph::table_t;
 
     table_t *pTable;
 
@@ -200,12 +199,13 @@ class AIFlowGraph
 
     ~AIFlowGraph()
     {
-        STORM_DELETE(pTable);
+        delete[] pTable;
     }
 
     // save/load/release section
     void ReleaseAll();
     bool Load(INIFILE &pIni);
+    bool LoadPrepared(const char *path);
     bool Save(INIFILE *pIni);
 
     // point/edge/Path function section
@@ -324,6 +324,104 @@ inline bool AIFlowGraph::Load(INIFILE &pIni)
     return false;
 }
 
+inline bool AIFlowGraph::LoadPrepared(const char *path)
+{
+    using namespace native_flow_graph;
+    static_assert(sizeof(float) == 4 && sizeof(table_t) == 8, "Prepared graph requires native32 float records");
+    try
+    {
+        auto file = fio->_CreateFile(path, std::ios::binary | std::ios::in);
+        if (!file.is_open())
+            return false;
+        file.seekg(0, std::ios::end);
+        const auto size = file.tellg();
+        if (size < static_cast<std::streamoff>(prepared_header_bytes) ||
+            size > static_cast<std::streamoff>(max_prepared_bytes))
+            return false;
+        file.seekg(0, std::ios::beg);
+        std::vector<unsigned char> bytes(static_cast<size_t>(size));
+        if (!fio->_ReadFile(file, bytes.data(), bytes.size()))
+            return false;
+        size_t cursor = 0;
+        const auto read = [&](auto &value) {
+            if (cursor > bytes.size() || sizeof(value) > bytes.size() - cursor)
+                throw std::runtime_error("Truncated prepared graph");
+            std::memcpy(&value, bytes.data() + cursor, sizeof(value));
+            cursor += sizeof(value);
+        };
+        char magic[8];
+        uint32_t version, endian, points, edges, references, reserved;
+        uint64_t declaredBytes, checksum;
+        read(magic); read(version); read(endian); read(points); read(edges); read(references);
+        read(reserved); read(declaredBytes); read(checksum);
+        if (std::memcmp(magic, prepared_magic, sizeof(magic)) || version != prepared_version ||
+            endian != prepared_endian || reserved != 0 || points > max_prepared_points ||
+            edges > max_prepared_edges || references > max_prepared_references ||
+            declaredBytes != bytes.size() || declaredBytes != PreparedBytes(points, edges, references) ||
+            checksum != HashBytes(bytes.data() + cursor, bytes.size() - cursor))
+            return false;
+
+        std::vector<point_t> nextPoints(points);
+        std::vector<edge_t> nextEdges(edges);
+        std::vector<uint32_t> counts(points);
+        uint64_t counted = 0;
+        for (uint32_t i = 0; i < points; ++i)
+        {
+            auto &point = nextPoints[i];
+            read(point.vPos.x); read(point.vPos.y); read(point.vPos.z); read(point.dwFlags); read(counts[i]);
+            counted += counts[i];
+            if (!std::isfinite(point.vPos.x) || !std::isfinite(point.vPos.y) ||
+                !std::isfinite(point.vPos.z) || point.vPos.y != 0 || point.dwFlags != 0 || counted > references)
+                return false;
+        }
+        if (counted != references)
+            return false;
+        for (auto &edge : nextEdges)
+        {
+            read(edge.dw1); read(edge.dw2); read(edge.fLen);
+            if (edge.dw1 >= points || edge.dw2 >= points || !std::isfinite(edge.fLen) || edge.fLen < 0)
+                return false;
+        }
+        for (uint32_t i = 0; i < points; ++i)
+        {
+            auto &adjacency = nextPoints[i].aEdges;
+            adjacency.reserve(counts[i]);
+            for (uint32_t j = 0; j < counts[i]; ++j)
+            {
+                uint32_t edge;
+                read(edge);
+                if (edge >= edges || (nextEdges[edge].dw1 != i && nextEdges[edge].dw2 != i))
+                    return false;
+                adjacency.push_back(edge);
+            }
+        }
+        const size_t cells = size_t(points) * points;
+        std::unique_ptr<table_t[]> nextTable(new table_t[cells]);
+        for (size_t i = 0; i < cells; ++i)
+        {
+            auto &entry = nextTable[i];
+            read(entry.p); read(entry.d);
+            if ((entry.p != invalid_index && entry.p >= points) || !std::isfinite(entry.d) ||
+                entry.d < 0 || entry.d > 1e8f || (entry.p == invalid_index && entry.d != 1e8f))
+                return false;
+        }
+        if (cursor != bytes.size())
+            return false;
+
+        // Only complete, valid artifacts replace the live graph and its table.
+        aPoints.swap(nextPoints);
+        aEdges.swap(nextEdges);
+        delete[] pTable;
+        pTable = nextTable.release();
+        dwIteration = 0;
+        return true;
+    }
+    catch (const std::exception &)
+    {
+        return false;
+    }
+}
+
 inline decltype(AIFlowGraph::aPoints)::difference_type AIFlowGraph::AddPoint(CVECTOR vPos)
 {
     const point_t p(vPos);
@@ -381,55 +479,12 @@ inline size_t AIFlowGraph::GetOtherEdgePoint(size_t dwEdgeIdx, size_t dwPnt)
 
 inline void AIFlowGraph::BuildTable()
 {
-    uint32_t i, j, k, x, y;
     const auto dwNumPoints = aPoints.size();
-
-    STORM_DELETE(pTable);
+    delete[] pTable;
+    pTable = nullptr;
     pTable = new table_t[SQR(dwNumPoints)];
-    for (i = 0; i < SQR(dwNumPoints); i++)
-    {
-        pTable[i].p = INVALID_ARRAY_INDEX;
-        pTable[i].d = 1e8f;
-    }
-    for (i = 0; i < dwNumPoints; i++)
-    {
-        point_t *pP = &aPoints[i];
-        table_t *pTableRow = &pTable[i * dwNumPoints];
-        for (j = 0; j < pP->aEdges.size(); j++)
-        {
-            const uint32_t dwPnt = GetOtherEdgePoint(pP->aEdges[j], i);
-            pTableRow[dwPnt].p = dwPnt;
-            pTableRow[dwPnt].d = aEdges[pP->aEdges[j]].fLen;
-        }
-    }
-    for (k = 0; k < dwNumPoints; k++)
-    {
-        bool bF = true;
-        for (y = 0; y < dwNumPoints; y++)
-        {
-            for (x = 0; x < dwNumPoints; x++)
-                if (x != y)
-                {
-                    point_t *pP = &aPoints[y];
-                    float d = pTable[x + y * dwNumPoints].d;
-                    for (j = 0; j < pP->aEdges.size(); j++)
-                    {
-                        const uint32_t dwPnt = GetOtherEdgePoint(pP->aEdges[j], y);
-                        const float d1 = pTable[dwPnt + y * dwNumPoints].d;
-                        const float d2 = pTable[x + dwPnt * dwNumPoints].d;
-                        if (d1 + d2 < d && fabsf((d1 + d2) - d) > 0.01f)
-                        {
-                            d = d1 + d2;
-                            pTable[x + y * dwNumPoints].d = d;
-                            pTable[x + y * dwNumPoints].p = dwPnt;
-                            bF = false;
-                        }
-                    }
-                }
-        }
-        if (bF)
-            break;
-    }
+    native_flow_graph::BuildTable(aPoints, aEdges, pTable,
+                                [this](size_t edge, size_t point) { return GetOtherEdgePoint(edge, point); });
 }
 
 inline float AIFlowGraph::GetDistance(size_t dwP1, size_t dwP2)
