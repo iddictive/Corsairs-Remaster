@@ -179,6 +179,9 @@ class SHIP : public SHIP_BASE
     bool bGroundSupported = false, bGroundFalling = false; // reconstructed; velocity stays in State
     bool bGroundRestorePending = false;
     float groundWaterVelocityY = 0.f; // transient companion of phonkDrift.waterX/Z, m/s
+    float shoreStuckSeconds = 0.f; // consumed motion only; never saved or advanced by TOUCH
+    float shoreDirectionSeconds = 0.f;
+    CVECTOR shoreRecoveryDirection = CVECTOR(0.f); // zero also caches failed discovery
     // Volumetric cannon-ball radius (meters) for mast-pole capsule tests.
     // transient; not part of the save layout
     float fCannonTraceRadius = 0.0f;
@@ -200,6 +203,7 @@ class SHIP : public SHIP_BASE
                             CVECTOR &eventSpeed, CVECTOR &waterSpeed);
     void ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight, float seconds,
                                CVECTOR &eventSpeed, float &eventYaw, CVECTOR &waterSpeed);
+    void RecoverShoreMotion(float seconds, const GroundSupport &support);
     bool bMounted;
     bool bKeelContour;
     CVECTOR vOldAng, vOldPos;

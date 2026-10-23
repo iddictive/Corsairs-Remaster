@@ -969,6 +969,29 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion)
         }
     }
 
+    if (!bCollision && groundStep && !bSetFixed && !phonkFlight.airborne && !bGroundFalling && dtime > 0.f)
+    {
+        const float travel = std::hypot(State.vPos.x - beforeTranslation.vPos.x,
+                                        State.vPos.z - beforeTranslation.vPos.z);
+        const float turn = std::abs(State.vAng.y - beforeTranslation.vAng.y) *
+            std::max(1.f, State.vBoxSize.z * .5f);
+        const bool stuck = (bGroundSupported || bGroundMoveBlocked || bShip2Strand) &&
+            travel <= .025f * dtime && turn <= .025f * dtime;
+        shoreStuckSeconds = stuck ? shoreStuckSeconds + dtime : 0.f;
+        if (!stuck)
+        {
+            shoreDirectionSeconds = 0.f;
+            shoreRecoveryDirection = 0.f;
+        }
+        if (shoreStuckSeconds > 1.5f)
+            RecoverShoreMotion(dtime, endSupport);
+    }
+    else if (!bCollision)
+    {
+        shoreStuckSeconds = shoreDirectionSeconds = 0.f;
+        shoreRecoveryDirection = 0.f;
+    }
+
     CVECTOR effectiveGroundVelocity(0.f);
     if (groundStep)
     {
@@ -1513,6 +1536,118 @@ void SHIP::ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight,
     waterSpeed.x = METERS2KNOTS(float(water.linear.x * c - water.linear.z * s));
     waterSpeed.z = METERS2KNOTS(float(water.linear.x * s + water.linear.z * c));
     eventYaw = float(phonk ? water.angular : event.angular);
+}
+
+void SHIP::RecoverShoreMotion(float seconds, const GroundSupport &support)
+{
+    using namespace storm::ship::contact;
+    if (!pIsland || !pCollide || pIsland->GetCurrentImmersion() != 0.f) return;
+    CMatrix pose(State.vAng.x, State.vAng.y, State.vAng.z,
+        State.vPos.x + fXOffset, State.vPos.y - State.fShipImmersion - SP.fWaterLine,
+        State.vPos.z + fZOffset);
+    shoreDirectionSeconds -= seconds;
+    if (shoreDirectionSeconds <= 0.f)
+    {
+        // Only direction discovery is cached. Even failed/flat-land queries
+        // wait a quarter second; every admitted translation is checked below.
+        shoreDirectionSeconds = .25f;
+        shoreRecoveryDirection = 0.f;
+        CVECTOR outward(0.f);
+        std::vector<CVECTOR> normals;
+        for (const auto &keel : vKeelContour)
+        {
+            if (!IsHullPositionRetained(keel)) continue;
+            CVECTOR inward;
+            if (storm::ship::shore::embeddedNormal(pIsland, pCollide, pose * keel,
+                    std::max(2.f, State.vBoxSize.z), inward))
+            {
+                normals.push_back(inward);
+                outward -= inward;
+            }
+        }
+        // An upward support-plane normal projects downhill. The depth raster
+        // alone never supplies an escape direction.
+        if (normals.empty() && support.valid && support.height >= State.vPos.y - .0001f)
+            outward = CVECTOR(support.normal.x, 0.f, support.normal.z);
+        if (~outward > .000001f)
+        {
+            outward = !outward;
+            bool separating = true;
+            for (const auto &inward : normals)
+                if ((outward | inward) > .0001f) separating = false;
+            if (separating) shoreRecoveryDirection = outward;
+        }
+    }
+    if (~shoreRecoveryDirection < .000001f) return;
+    // Ramp from rest without adding velocity/impact energy. A long frame may
+    // release at most 1.5 cm; ordinary frames retain metres/second integration.
+    const auto rampIntegral = [](float time) {
+        const float elapsed = std::max(0.f, time - 1.5f);
+        return elapsed < .5f ? elapsed * elapsed : elapsed - .25f;
+    };
+    const float distance = .15f * (rampIntegral(shoreStuckSeconds) -
+                                  rampIntegral(shoreStuckSeconds - seconds));
+    const CVECTOR delta = shoreRecoveryDirection * std::min(distance, .015f);
+    const auto solidDepth = [&](const CVECTOR &point) {
+        const CVECTOR top(point.x, std::max(1500.f, State.vPos.y + State.vBoxSize.y), point.z);
+        const CVECTOR bottom(point.x, -500.f, point.z + .001f);
+        const float hit = pIsland->Trace(top, bottom);
+        return std::isfinite(hit) && hit >= 0.f && hit <= 1.f ?
+            std::max(0.f, top.y + hit * (bottom.y - top.y) - point.y) : 0.f;
+    };
+    for (const auto &keel : vKeelContour)
+    {
+        if (!IsHullPositionRetained(keel)) continue;
+        const auto from = pose * keel, to = from + delta;
+        const float hit = pIsland->Trace(from, to);
+        if (std::isfinite(hit) && hit >= 0.f && hit <= 1.f)
+        {
+            auto *model = static_cast<COLLISION_OBJECT *>(core.GetEntityPointer(pCollide->GetObjectID()));
+            TRIANGLE triangle;
+            if (!model || !model->GetCollideTriangle(triangle)) return;
+            const auto normal = (triangle.vrt[1] - triangle.vrt[0]) ^ (triangle.vrt[2] - triangle.vrt[0]);
+            if ((delta | normal) <= 0.f) return; // separating exits are allowed
+        }
+        float oldDepth, newDepth;
+        const float oldPenetration = pIsland->GetGroundDepth(from.x, from.z, from.y, oldDepth) ?
+            std::max(0.f, oldDepth - from.y) : 0.f;
+        const float newPenetration = pIsland->GetGroundDepth(to.x, to.z, to.y, newDepth) ?
+            std::max(0.f, newDepth - to.y) : 0.f;
+        if (newPenetration > oldPenetration + .0001f ||
+            solidDepth(to) > solidDepth(from) + .0001f) return;
+    }
+    // Reuse TOUCH's retained-hull sweep, without invoking its impulse/damage
+    // path or manufacturing a collision velocity for this recovery translation.
+    std::vector<CVECTOR> contour;
+    float lower, upper;
+    if (!GetHullContactContour(contour, lower, upper)) return;
+    Body own;
+    own.mass = GetHullContactMass();
+    own.start = {{State.vPos.x + fXOffset, State.vPos.z + fZOffset}, State.vAng.y};
+    own.end = {own.start.position + Vec2{delta.x, delta.z}, own.start.yaw};
+    for (const auto &point : contour) own.hull.push_back({point.x, point.z});
+    const auto prepared = detail::prepare(own);
+    if (prepared.points.empty()) return;
+    for (const auto id : core.GetEntityIds("ship"))
+    {
+        auto *other = dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if (!other || other == this) continue;
+        const auto position = other->GetPos();
+        const float radius = std::hypot(other->GetBoxsize().x, other->GetBoxsize().z) * .5f;
+        const Vec2 relative{position.x - own.start.position.x, position.z - own.start.position.z};
+        if (!detail::sweptRadiusOverlap(relative, {-delta.x, -delta.z}, prepared.radius, radius)) continue;
+        float otherLower, otherUpper;
+        if (!other->GetHullContactContour(contour, otherLower, otherUpper)) return;
+        // The contour's Y band belongs to the last published mRoot, whereas
+        // this runs during Move. Keep this recovery sweep conservative in Y.
+        Body obstacle;
+        obstacle.mass = other->GetHullContactMass();
+        obstacle.start = obstacle.end = {{position.x, position.z}, other->GetAng().y};
+        for (const auto &point : contour) obstacle.hull.push_back({point.x, point.z});
+        const auto otherPrepared = detail::prepare(obstacle);
+        if (otherPrepared.points.empty() || collidePrepared(own, obstacle, prepared, otherPrepared).hit) return;
+    }
+    State.vPos += delta;
 }
 
 void SHIP::CheckShip2Strand(float fDeltaTime)
@@ -3893,6 +4028,8 @@ CVECTOR SHIP::GetPos() const
 void SHIP::SetPos(const CVECTOR &vNewPos)
 {
     mastContactModel = 0;
+    shoreStuckSeconds = shoreDirectionSeconds = 0.f;
+    shoreRecoveryDirection = 0.f;
     State.vPos = vNewPos;
     if (pSea)
         State.vPos.y = pSea->WaveXZ(State.vPos.x, State.vPos.z);
@@ -4046,6 +4183,8 @@ void SHIP::Load(CSaveLoad *pSL)
     bGroundSupported = bGroundFalling = false;
     bGroundRestorePending = true;
     groundWaterVelocityY = 0.f;
+    shoreStuckSeconds = shoreDirectionSeconds = 0.f;
+    shoreRecoveryDirection = 0.f;
     whirlpoolMotion.Reset();
     emergenceSerial = 0;
     emergenceQueryActive = false;
