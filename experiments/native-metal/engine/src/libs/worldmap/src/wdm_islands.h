@@ -156,6 +156,7 @@ class WdmIslands : public WdmRenderObject
     };
     void BuildTsunamiLand();
     uint32_t BuildLandNode(uint32_t begin, uint32_t end);
+    bool ObstacleLandNode(uint32_t node, float x, float z, float radius) const;
     float TraceLandNode(uint32_t node, const CVECTOR &source, const CVECTOR &delta, float nearest) const;
     std::vector<LandTriangle> tsunamiLand;
     std::vector<LandNode> tsunamiLandNodes;

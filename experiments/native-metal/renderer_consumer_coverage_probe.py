@@ -86,7 +86,7 @@ for consumer, (relative, symbol) in required_source_hooks.items():
     need(symbol in (SOURCE / relative).read_text(), f"{consumer}: staged source lacks {symbol}")
 
 worldmap_bridge = (SOURCE / "worldmap/src/metal_world_map_bridge.h").read_text()
-need("StormMetalBeginWdmModel(device, 1)" in worldmap_bridge,
+need("unsigned role = 1" in worldmap_bridge and "StormMetalBeginWdmModel(device, role)" in worldmap_bridge,
      "worldmap models: scope never opens the backend model role")
 need("StormMetalEndWdmModel(device,previous)" in worldmap_bridge,
      "worldmap models: scope does not restore the previous backend model role")

@@ -450,6 +450,11 @@ bool WdmIslands::ObstacleTest(float x, float z, float radius)
 {
     if (radius <= 0.0f)
         return false;
+    if (chart)
+    {
+        BuildTsunamiLand();
+        return !tsunamiLandNodes.empty() && ObstacleLandNode(0, x, z, radius);
+    }
     const CVECTOR wPos(x, 0.0f, z);
     // walk through all the islands
     for (int32_t i = 0; i < islands.size(); i++)
@@ -481,6 +486,40 @@ bool WdmIslands::ObstacleTest(float x, float z, float radius)
         vrt.z = pos.z;
         for (auto *part : island.model->CollisionParts())
             if (part->Clip(p, 4, vrt, 50.0f, nullptr)) return true;
+    }
+    return false;
+}
+
+bool WdmIslands::ObstacleLandNode(uint32_t index, float x, float z, float radius) const
+{
+    const auto &node = tsunamiLandNodes[index];
+    if (x + radius < node.minX || x - radius > node.maxX ||
+        z + radius < node.minZ || z - radius > node.maxZ) return false;
+    if (!node.count)
+        return ObstacleLandNode(node.left, x, z, radius) || ObstacleLandNode(node.right, x, z, radius);
+    for (uint32_t i = node.begin; i < node.begin + node.count; ++i)
+    {
+        const auto &triangle = tsunamiLand[i];
+        if (x + radius < std::min({triangle.x[0], triangle.x[1], triangle.x[2]}) ||
+            x - radius > std::max({triangle.x[0], triangle.x[1], triangle.x[2]}) ||
+            z + radius < std::min({triangle.z[0], triangle.z[1], triangle.z[2]}) ||
+            z - radius > std::max({triangle.z[0], triangle.z[1], triangle.z[2]})) continue;
+        // Same XZ square as the native four clip planes. Test its remaining
+        // separating axes against the cached, water-clipped land triangles.
+        bool separated = false;
+        for (int v = 0; v < 3; ++v)
+        {
+            const int next = (v + 1) % 3;
+            const float nx = triangle.z[next] - triangle.z[v];
+            const float nz = triangle.x[v] - triangle.x[next];
+            const float a = nx * (triangle.x[0] - x) + nz * (triangle.z[0] - z);
+            const float b = nx * (triangle.x[1] - x) + nz * (triangle.z[1] - z);
+            const float c = nx * (triangle.x[2] - x) + nz * (triangle.z[2] - z);
+            const float extent = radius * (std::fabs(nx) + std::fabs(nz));
+            if (std::min({a, b, c}) > extent || std::max({a, b, c}) < -extent)
+            { separated = true; break; }
+        }
+        if (!separated) return true;
     }
     return false;
 }
