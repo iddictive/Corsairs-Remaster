@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "exit": 1,
+    "stdout": "Run=2\nscript_errors=0\n",
+    "stderr": ""
+  },
+  "current": {
+    "exit": 0,
+    "stdout": "Run=0\nscript_errors=0\n",
+    "stderr": ""
+  }
+}

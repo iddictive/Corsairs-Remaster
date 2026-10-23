@@ -225,6 +225,14 @@ class SeaMapTransition final : public Entity
         }
     }
 public:
+    uint32_t AttributeChanged(ATTRIBUTES *attribute) override
+    {
+        if (active == this && !seaOnly && attribute && std::strcmp(attribute->GetThisName(), "trace") == 0)
+            if (const auto logger = log())
+                logger->info("{} step={} elapsed_ms={:.3f}", reverse ? "map-to-sea" : "sea-to-map",
+                             attribute->GetValue(), std::chrono::duration<double, std::milli>(Clock::now() - started).count());
+        return 0;
+    }
     static void TraceDuration(const char *phase, double milliseconds)
     {
         if (Active())

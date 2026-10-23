@@ -1,0 +1,16 @@
+[2026-10-23 18:43:59.567] [sea-map-transition] [info] sea-to-map phase=flight elapsed_ms=0.246 max_frame_gap_ms=0.000
+[2026-10-23 18:44:00.914] [sea-map-transition] [info] sea-to-map phase=captured elapsed_ms=1347.840 max_frame_gap_ms=0.000
+[2026-10-23 18:44:00.952] [sea-map-transition] [info] sea-to-map phase=captured elapsed_ms=1385.659 max_frame_gap_ms=83.660
+[2026-10-23 18:44:00.952] [sea-map-transition] [info] sea-to-map phase=commit elapsed_ms=1385.669 max_frame_gap_ms=83.660
+[2026-10-23 18:44:01.040] [sea-map-transition] [info] resident-entry cpu_ms=8.815
+[2026-10-23 18:44:01.068] [sea-map-transition] [info] first-map-render cpu_ms=27.585
+[2026-10-23 18:44:01.181] [sea-map-transition] [info] sea-to-map phase=commit elapsed_ms=1614.587 max_frame_gap_ms=140.713
+[2026-10-23 18:44:01.181] [sea-map-transition] [info] sea-to-map phase=map-ready elapsed_ms=1614.594 max_frame_gap_ms=140.713
+[2026-10-23 18:44:01.402] [sea-map-transition] [info] sea-to-map phase=done elapsed_ms=1835.450 max_frame_gap_ms=140.713
+[2026-10-23 18:44:03.160] [sea-map-transition] [info] map-to-sea phase=flight elapsed_ms=0.084 max_frame_gap_ms=0.000
+[2026-10-23 18:44:03.228] [sea-map-transition] [info] map-to-sea phase=flight elapsed_ms=68.508 max_frame_gap_ms=68.508
+[2026-10-23 18:44:03.600] [sea-map-transition] [info] map-to-sea phase=captured elapsed_ms=440.614 max_frame_gap_ms=68.508
+[2026-10-23 18:44:03.601] [sea-map-transition] [info] map-to-sea phase=commit elapsed_ms=441.146 max_frame_gap_ms=68.508
+[2026-10-23 18:44:05.726] [sea-map-transition] [info] map-to-sea phase=commit elapsed_ms=2566.235 max_frame_gap_ms=271.130
+[2026-10-23 18:44:05.737] [sea-map-transition] [info] map-to-sea phase=scene-ready elapsed_ms=2577.615 max_frame_gap_ms=271.130
+[2026-10-23 18:44:06.940] [sea-map-transition] [info] map-to-sea phase=done elapsed_ms=3780.023 max_frame_gap_ms=271.130

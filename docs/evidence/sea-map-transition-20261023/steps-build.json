@@ -1,0 +1,24 @@
+{
+  "native_build": {
+    "version": 2,
+    "source_sha256": "e38eab7b9952f1da8dd8566d8c93fbb192f736572a4f1e349d9fe7b0e9d6a84d",
+    "engine_sha256": "b684ecbf2693a1b8cd978437591786f4671cf4dcc66d595a3ad70afd53f58d02"
+  },
+  "installed": {
+    "engine_sha256": "fc47c87870fc0bc5791a32bdb3b0a902d9e4431262b89d625eedbb945983eb52",
+    "sea_script_and_worldmap_reload": "canonical projection matched by targeted delivery check",
+    "scripts": {
+      "PROGRAM/sea_ai/sea.c": "cabd4b640792f627aa3970cb3020e0311e561d32bcbe8f0d65dd8ae16f9422f2",
+      "PROGRAM/worldmap/worldmap_reload.c": "4ad6b73822a72c30cfbad3a165437b9ef4abc9152a7bd0ccd4792b8e0a0004bc"
+    }
+  },
+  "verification": {
+    "native_build": "passed",
+    "installed_delivery": "passed transactional signatures and byte comparison",
+    "script_callback_probe": "Run=0; script_errors=0; release before resume; absent transition remains untouched",
+    "development_script_projection": "passed; zero pending files in both consumers after player exit",
+    "installed_gameplay": "pending player",
+    "freeze_absence": "not established",
+    "resume_admission": "resume-admission-results.json"
+  }
+}

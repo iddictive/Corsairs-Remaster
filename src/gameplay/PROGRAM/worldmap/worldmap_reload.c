@@ -123,8 +123,11 @@ void WdmStartFade()
 void WdmSeaTransitionCommit()
 {
 	DelEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit");
+	Sea_TransitionTrace("map-release:begin");
 	WdmStartFade();
+	Sea_TransitionTrace("map-release:end");
 	WdmEndFade();
+	Sea_TransitionTrace("sea-return:end");
 }
 
 void WdmEndFade()
@@ -136,10 +139,12 @@ void WdmEndFade()
         if (CheckAttribute(&wdmLoginToSea, "residentResume")) resumed = Sea_ResidentResume(&wdmLoginToSea);
         if (!resumed)
         {
+            Sea_TransitionTrace("cold-sea-login:begin");
             if (Sea_ResidentSuspended()) DeleteSeaEnvironment();
 		    ReloadProgressStart();
 		    Sea_DirectSailLogin(&wdmLoginToSea);
 		    ReloadProgressEnd();
+            Sea_TransitionTrace("cold-sea-login:end");
         }
 		if (bSkipSeaLogin || !bSeaActive)
 		{
@@ -167,8 +172,12 @@ bool WdmTryResidentSea()
     worldMap.playerShipUpdate = "";
     // Explicit authored encounters and scripted offshore scenes use their
     // existing cold admission; no NPC slot may be cleared before this decision.
+    // Native weather retains the last storm id after leaving its contact area.
+    // Only a current authored storm needs cold admission; missing contact data
+    // keeps the existing conservative path for older map state.
     if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack") ||
-        (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "")) return false;
+        (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "" &&
+         (!CheckAttribute(&worldMap, "playerInStorm") || sti(worldMap.playerInStorm)))) return false;
     int count = wdmGetNumberShipEncounters();
     for (int i = 0; i < count; i++)
     {

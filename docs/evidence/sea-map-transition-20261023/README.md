@@ -75,3 +75,48 @@ The renderer already caches pipeline states. Defer an asynchronous/cache redesig
 until the player's trace identifies a blocking pipeline miss; a first-render
 call site alone does not establish it as the observed freeze's cause. No second
 map simulation or speculative offscreen scene was introduced.
+
+## First recorded player round trip
+
+[The ordinary-launch trace](player-pass-20261023-184359.txt) comes from installed
+engine `540000f178dc790b73a05c337e6e11da18aa270f46ddd9336d81f1a5f72b5f53`.
+Outbound commit-to-map-ready took 228.925ms, including resident entry 8.815ms
+and the first map render's CPU submissions 27.585ms. The largest recorded
+eligible inter-execute gap was 140.713ms. Return commit-to-first-complete-sea
+frame took 2136.469ms; the recorded eligible gap reached 271.130ms. These phase
+intervals include script execution, scene preparation and rendering; they do
+not identify one function or prove one uninterrupted 2.14-second CPU stall.
+
+The next bounded diagnostic adds transition-only step timestamps around map
+release, resident resume/cold login, quests, island selection, sound, battle
+interface and traffic admission. It preserves the existing call order and
+all animation/readiness rules. The native attribute callback uses the same
+quiet file logger. A real script-VM probe of the actual `Sea_TransitionTrace`
+and `WdmSeaTransitionCommit` bodies returned `Run=0; script_errors=0`: release
+still precedes resume, and an absent transition receives no trace attribute.
+The surrounding scene callbacks were stubs; this is not game acceptance.
+
+[The second player trace](player-pass-20261023-185616.txt), from the installed
+engine in [steps-build.json](steps-build.json), identifies cold sea login:
+1590.759ms inside that call, followed by another 361.254ms before the first
+complete sea frame. No resident-resume step ran. Outbound daily hooks cost
+64.159ms; map creation cost 20.053ms, and first render submissions 24.434ms.
+This distinguishes scene reloading from a camera interpolation defect, but
+does not record which admission guard selected the cold path.
+
+One admission defect is independently reproduced: native
+`WdmPlayerShip::TestInStorm` clears `playerInStorm` when contact ends but retains
+the previous nonempty `stormId`. The resident-return gate treated that old
+identity as an active authored storm and forced cold loading. It now consults
+the existing current-contact flag too. Active authored storms, missing legacy
+contact data, selected authored encounters and offshore quest dispatch preserve
+their existing admission path; ordinary native weather needs no authored reload.
+
+With an empty caller-owned `TASK_SCRATCH_DIR`, run
+`python3 docs/evidence/sea-map-transition-20261023/resume-admission-replay.py`.
+The actual script guards execute in the real VM: baseline `Run=2`, current
+`Run=0`, both with zero script errors. The full saved-scene/entity preconditions,
+later scene creation and frame pacing are outside this CPU oracle. The recorded
+player pass does not establish that stale storm contact was its particular
+fallback cause. The player forbids further requested replay; do not claim the
+complete zero-stall contract passed or ask them to launch again.

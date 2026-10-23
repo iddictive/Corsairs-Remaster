@@ -435,9 +435,15 @@ void Sea_LandLoad()
 	}
 }
 
+void Sea_TransitionTrace(string step)
+{
+    if (IsEntity(&SeaMapTransition)) SeaMapTransition.trace = step;
+}
+
 void Sea_MapStartFade()
 {
 	DelEventHandler("FaderEvent_StartFade", "Sea_MapStartFade");
+	Sea_TransitionTrace("sea-suspend:begin");
 	Sea_DirectSailCapture();
     if (!Sea_ResidentSuspend())
     {
@@ -445,12 +451,14 @@ void Sea_MapStartFade()
 	    EmptyAllFantomCharacter(); // трем НПС
 	    EmptyAllFantomShips();    // трем корабли
     }
+    Sea_TransitionTrace("sea-suspend:end");
 	wdmEmptyAllDeadQuestEncounter(); // трем случайки
 	pchar.location = "";
 	PGG_DailyUpdate();
 	Siege_DailyUpdate();//homo осады 05/11/06
 	wdmUpdateAllEncounterLivetime(); // homo карта 25/03/07
 	Flag_Rerise(); // переподнять флаг при выходе на карту, прменить отношения нации в столбец ГГ
+	Sea_TransitionTrace("sea-daily-hooks:end");
 }
 
 bool Sea_ResidentSuspended()
@@ -497,6 +505,7 @@ void Sea_ResidentDiscard()
 bool Sea_ResidentResume(ref login)
 {
     if (!Sea_ResidentSuspended()) return false;
+    Sea_TransitionTrace("resident-resume:poses");
     SeaTraffic_ResumePoses();
     float x = Sea_LocalX(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
     float z = Sea_LocalZ(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
@@ -515,12 +524,14 @@ bool Sea_ResidentResume(ref login)
     bCanEnterToLand = false;
     sIslandLocator = "";
     bIsFortAtIsland = false;
+    Sea_TransitionTrace("resident-resume:quests");
     QuestsCheck();
     if (!bSeaActive || !IsEntity(&AISea))
     {
         bSkipSeaLogin = true;
         return true;
     }
+    Sea_TransitionTrace("resident-resume:island");
     Sea_SelectResidentIsland(login.Island);
     // The native weather/calendar continues on the map. Move its retained
     // entities back exactly once rather than recreate assets or double tick it.
@@ -536,6 +547,7 @@ bool Sea_ResidentResume(ref login)
     iStormLockSeconds = 0;
     if (bStorm) iStormLockSeconds = 60;
     fSeaStormRealSeconds = 0.0;
+    Sea_TransitionTrace("resident-resume:sound");
     SetSchemeForSea();
     PauseParticles(false);
     LayerFreeze(EXECUTE, true);
@@ -544,6 +556,7 @@ bool Sea_ResidentResume(ref login)
     LayerFreeze(SEA_REALIZE, false);
     LayerSetExecute(SEA_EXECUTE);
     LayerSetRealize(SEA_REALIZE);
+    Sea_TransitionTrace("resident-resume:interface");
     InitBattleInterface();
     StartBattleInterface();
     RefreshBattleInterface();
@@ -557,7 +570,9 @@ bool Sea_ResidentResume(ref login)
     }
     else bSeaReloadStarted = false;
     if (!bSeaActive || bSeaResidentSuspended) return true;
+    Sea_TransitionTrace("resident-resume:traffic");
     SeaTraffic_LoginRegionGroups(login.Island);
+    Sea_TransitionTrace("resident-resume:end");
     return true;
 }
 
@@ -579,7 +594,9 @@ void Sea_MapEndFade()
 	DelEventHandler("FaderEvent_EndFade", "Sea_MapEndFade");
 	Partition_SetValue("after");// Дележ добычи уход на карту
 	if (CheckAttribute(&worldMap, "directSail")) worldMap.seaTransition = 1;
+	Sea_TransitionTrace("map-create:begin");
 	wdmCreateMap(SeaMapLoadX, SeaMapLoadZ, SeaMapLoadAY);
+	Sea_TransitionTrace("map-create:end");
 }
 
 void Sea_MapTransitionCommit()
