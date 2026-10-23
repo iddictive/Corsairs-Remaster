@@ -180,6 +180,22 @@ bool DebugEffects_Whirlpool()
 	return true;
 }
 
+void DebugMenu_GivePerks()
+{
+	aref perks;
+	makearef(perks,ChrPerksList.list);
+	for (int i = 0; i < GetAttributesNum(perks); i++)
+	{
+		string name = GetAttributeName(GetAttributeN(perks,i));
+		// Free perks select special game modes (WildCaribbean), not ordinary abilities.
+		if (CheckAttribute(perks,name + ".NPCOnly") || CheckAttribute(perks,name + ".Hiden") || CheckAttribute(perks,name + ".Free")) continue;
+		if (!CheckCharacterPerk(pchar,name)) SetCharacterPerk(pchar,name);
+	}
+	Event("eSwitchPerks","l",GetMainCharacterIndex());
+	SetFormatedText("DEBUGER_INFO","Выданы все обычные личные и корабельные перки. Особые режимы игры не меняются.");
+	Statistic_AddValue(pchar,"Cheats.AllPerks",1);
+}
+
 void DebugEffects_Run(string node)
 {
 	if (!DebugMenu_Enabled(node) || bAbordageStarted) return;
@@ -268,7 +284,10 @@ void CalculateInfoData()
 	DebugMenu_Add(0,"B_F14","Дробовик");
 	DebugMenu_Add(1,"B_F1","Золото +200 000");
 	DebugMenu_Add(1,"B_F5","Очки навыков +35");
-	DebugMenu_Add(1,"B_F7","Личные навыки до 1");
+	DebugMenu_Add(1,"B_F7","Все навыки — 100");
+	DebugMenu_Add(1,"ALL_PERKS","Все обычные перки");
+	DebugMenu_Add(1,"HEAL","Здоровье и энергия");
+	DebugMenu_Add(1,"SUPPLIES","Лекарства и патроны");
 	DebugMenu_Add(1,"B_F10","Бессмертие");
 	DebugMenu_Add(1,"B_F11","Репутация +10");
 	DebugMenu_Add(1,"B_F27","Репутация -10");
@@ -360,6 +379,19 @@ void ProcCommand()
 
 	switch(nodName)
 	{
+		case "ALL_PERKS": DebugMenu_GivePerks(); break;
+		case "HEAL":
+			LAi_UseAtidoteBottle(pchar);
+			LAi_SetCurHPMax(pchar);
+			SetFormatedText("DEBUGER_INFO","Здоровье и энергия восстановлены, отравление снято.");
+			Statistic_AddValue(pchar,"Cheats.Heal",1);
+		break;
+		case "SUPPLIES":
+			TakeNItems(pchar,"potion2",20);
+			TakeNItems(pchar,"bullet",100);
+			SetFormatedText("DEBUGER_INFO","Получено 20 лечебных эликсиров и 100 пуль.");
+			Statistic_AddValue(pchar,"Cheats.Supplies",1);
+		break;
 		case "TELEPORT_BTN":
 		  if(comName=="activate" || comName=="click")
 		  {
@@ -1153,7 +1185,7 @@ void CalculateInfoDataF6()
 */	
 }
 ////////////////////////////////////////////////////////////////////////
-string descF7 = "Сбросить все личные скиллы до 1";
+string descF7 = "Поднять все личные и корабельные навыки до 100";
 
 void CalculateInfoDataF7()
 {
@@ -1182,7 +1214,8 @@ void CalculateInfoDataF7()
 	}
     // <*/
     
-	SetRandSelfSkill(PChar, 1, 1);
+	SetSelfSkill(PChar, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX);
+	SetShipSkill(PChar, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX, SKILL_MAX);
     
     totalInfo = totalInfo + LanguageConvertString(idLngFile,"new_string") + LanguageConvertString(idLngFile,"new_string") +
                 "Команда отработала успешно!";
