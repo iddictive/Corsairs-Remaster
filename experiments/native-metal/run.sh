@@ -111,7 +111,6 @@ if [[ -f "$dependency_root/Corsairs.icns" ]]; then
 fi
 /bin/cp "$root/launch-app.sh" "$bundle/Contents/MacOS/launch"
 chmod +x "$bundle/Contents/MacOS/launch"
-/bin/cp -c "$root/.cache/build/bin/engine-1" "$bundle/Contents/MacOS/metal-engine"
 python3 "$root/../../tools/patch_metal_portobello_ground.py" --apply-runtime "$runtime"
 python3 "$root/../../tools/patch_metal_portobello_shore.py" --apply-runtime "$runtime"
 python3 "$root/dynamic_town_shadow_probe.py"

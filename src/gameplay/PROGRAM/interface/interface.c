@@ -1045,6 +1045,7 @@ bool procInterfacePrepare(int interfaceCode)
 
 	if( LoadSegment(Interfaces[interfaceCode].SectionName) )
 	{
+		DeleteAttribute(&InterfaceStates,"LaunchAfterFrame");
 		Telescope_Off();
 		Event("Interface_Started");
 		InterfaceStates.Launched = true;

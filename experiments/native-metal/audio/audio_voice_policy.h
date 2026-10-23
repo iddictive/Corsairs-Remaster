@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cmath>
+#include <limits>
 #include <string_view>
 
 namespace storm::metal::audio
@@ -25,11 +26,17 @@ struct SpatialVoicePolicy
     float volumeGain;
 };
 
-constexpr SpatialVoicePolicy SpatialPolicyForAlias(std::string_view lowerAlias)
+constexpr SpatialVoicePolicy SpatialPolicyForAlias(std::string_view lowerAlias,
+                                                  float minDistance = -1.0f, float maxDistance = -1.0f)
 {
     // Each burning fireplace owns a loop; keep their sum quiet and local.
     if (lowerAlias == "ship_onfire")
         return {true, 1.0f, 0.5f};
+    // Exponential attenuation clamps at maxDistance and stays audible forever.
+    // Authored finite ranges instead end in silence; unbounded voices retain their curve.
+    if (minDistance >= 0.0f && maxDistance > minDistance &&
+        maxDistance < std::numeric_limits<float>::max())
+        return {true, 1.0f, 1.0f};
     return {false, 0.45f, 1.0f};
 }
 

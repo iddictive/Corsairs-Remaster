@@ -48,3 +48,5 @@ if otool -L "$root/.cache/build/bin/engine-1" | rg -i 'dxvk|moltenvk|vulkan'; th
 fi
 python3 "$root/../../tools/metal_engine_source.py" record \
  --engine "$root/.cache/build/bin/engine-1" --expected "$source_identity"
+mkdir -p "$root/.cache/CorsairsMetal.app/Contents/MacOS"
+/bin/cp -c "$root/.cache/build/bin/engine-1" "$root/.cache/CorsairsMetal.app/Contents/MacOS/metal-engine"

@@ -1,0 +1,15 @@
+{
+  "native_source_sha256": "718862161590027132c394588a2d73dfc244dbf484a7e7f2524af808502e6fa6",
+  "unsigned_engine_sha256": "a100b232dc1ec987629401ab1819b253f68914f2db318f386d8afd7ed0374285",
+  "interface_source_sha256": "ee1ce5561d942501cd9f4901331cd97b59115649bd58524d7de587fedd5cb4da",
+  "portable_inputs": 8243,
+  "renderer_coverage_classes": 9,
+  "architecture": "arm64",
+  "build_passed": true,
+  "installed": true,
+  "signed_engine_sha256": "371b98a8075326e87a05963a018439053ad937db5ce9ffac0b92de3b007ac489",
+  "engine_signature_verified": true,
+  "interface_runtime_sha256": "03ac11e1a2cf3e87ce4d4a511d22b51efff5da8d53943ea3e64c1c4dcb73d4e7",
+  "interface_projection_matches_runtime_and_app": true,
+  "gameplay_replay": false
+}

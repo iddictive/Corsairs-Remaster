@@ -15,6 +15,15 @@
 
 CREATE_SERVICE(SoundService)
 
+static void ApplySpatialRange(ma_sound &sound)
+{
+    const auto policy = storm::metal::audio::SpatialPolicyForAlias(
+        {}, ma_sound_get_min_distance(&sound), ma_sound_get_max_distance(&sound));
+    ma_sound_set_attenuation_model(&sound, policy.linearFalloff ?
+        ma_attenuation_model_linear : ma_attenuation_model_exponential);
+    ma_sound_set_rolloff(&sound, policy.rolloff);
+}
+
 SoundService::SoundService() = default;
 
 SoundService::~SoundService()
@@ -232,15 +241,10 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     ma_sound_set_looping(&it->sound, looped ? MA_TRUE : MA_FALSE);
     ma_sound_set_pitch(&it->sound, pitch_);
     ma_sound_set_volume(&it->sound, EffectiveVolume(*it));
-    if (spatial)
-    {
-        ma_sound_set_attenuation_model(&it->sound, spatialPolicy.linearFalloff ?
-            ma_attenuation_model_linear : ma_attenuation_model_exponential);
-        ma_sound_set_rolloff(&it->sound, spatialPolicy.rolloff);
-    }
     if (spatial && position) ma_sound_set_position(&it->sound, position->x, position->y, position->z);
     if (spatial && minDistance >= 0) ma_sound_set_min_distance(&it->sound, minDistance);
     if (spatial && maxDistance >= 0) ma_sound_set_max_distance(&it->sound, maxDistance);
+    if (spatial) ApplySpatialRange(it->sound);
     if (fadeMs > 0) ma_sound_set_fade_in_milliseconds(&it->sound, 0, EffectiveVolume(*it), fadeMs);
     // Looped sounds created at effective volume zero are kept stopped until SoundSetVolume raises them.
     // This avoids silent streaming of ambient ship loops at game start.
@@ -283,6 +287,7 @@ void SoundService::SoundSet3DParam(TSD_ID id, eSoundMessage message, const void 
     if (message == SM_POSITION) { const auto &p = *static_cast<const CVECTOR *>(value); ma_sound_set_position(&slot->sound, p.x, p.y, p.z); }
     else if (message == SM_MIN_DISTANCE) ma_sound_set_min_distance(&slot->sound, *static_cast<const float *>(value));
     else if (message == SM_MAX_DISTANCE) ma_sound_set_max_distance(&slot->sound, *static_cast<const float *>(value));
+    if (message == SM_MIN_DISTANCE || message == SM_MAX_DISTANCE) ApplySpatialRange(slot->sound);
 }
 
 void SoundService::SoundStop(TSD_ID id, int32_t fadeMs)

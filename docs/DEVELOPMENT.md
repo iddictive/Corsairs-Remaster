@@ -6,9 +6,10 @@
 definition and upstream GPLv3 license. The initial import preserves947 source,
 technique and CMake inputs byte-for-byte from verified batch `69f1dd4`; three
 patch backup files were excluded. `build.sh` compiles the tracked sources
-directly. It never extracts `engine.tar`, applies patches or rewrites sources.
+directly and stages the verified unsigned executable for script delivery. It
+never extracts `engine.tar`, applies patches or rewrites sources.
 The former patch stack remains in Git history; `.cache/storm` is historical
-evidence. `run.sh` owns staging and launch. `backend.mm` and adjacent Metal
+evidence. `run.sh` owns resource staging and launch. `backend.mm` and adjacent Metal
 headers own rendering. `src/gameplay` owns every managed complete script and
 interface definition; `tools/gameplay_sources.py` projects them to runtime files.
 `tools/sync_metal_gameplay.py` delivers these files and prepared assets directly;
@@ -101,6 +102,10 @@ For settings UI work only, `experiments/native-metal/run.sh --settings-hmr` watc
 
 Use `python3 tools/sync_metal_gameplay.py apply` for a reviewed script-only delivery. Staging receipts prove build and delivery, not interactive gameplay. Replay the changed action on a suitable save and check the nearest unaffected action before calling a feature accepted.
 
+When its compiler check reports `build/stage pending`, `experiments/native-metal/build.sh`
+refreshes both the build receipt and staged executable without launching the game
+or running diagnostic probes. Then repeat the targeted script delivery.
+
 Edit registered files directly in `src/gameplay`. New text sources use UTF-8 with LF endings; existing unchanged sources retain their bytes. The manifest declares each file's runtime encoding, including CP1251 resources. Script/header/INI projection restores CRLF. To deliver one independent file:
 
 ```sh
@@ -176,6 +181,10 @@ Archived findings with continuing maintenance value are retained in
 [San Juan port investigation](seamless-san-juan.md#historical-message-and-old-save-regressions).
 The [attribute-tree lifetime and lookup contract](attribute-class-lifetime.md)
 records the independent parent-chain and non-mutating lookup failures.
+The [F2 section dispatch evidence](evidence/menu-sections-20261023/README.md)
+records the stale deferred-target reproduction and bounded CPU method check.
+The [spatial audio range evidence](evidence/spatial-audio-20261023/README.md)
+records the distant-collision mixer reproduction and finite-range repair.
 
 ## Verification and troubleshooting
 
