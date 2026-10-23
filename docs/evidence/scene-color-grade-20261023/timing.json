@@ -1,0 +1,14 @@
+{
+  "resolution": [2560, 1655],
+  "device": "Apple M3 Max",
+  "warmup_frames": 10,
+  "measured_frames": 32,
+  "live_game_running": true,
+  "baseline_ref": "8e635ad50f95ead29c5212ab5c4ad4790b3e30f6",
+  "baseline_fxaa": {"median_ms": 0.232625, "p95_ms": 0.667042},
+  "candidate_fxaa": {"median_ms": 0.232458, "p95_ms": 0.420625},
+  "candidate_fxaa_lut": {"median_ms": 0.283208, "p95_ms": 0.383875},
+  "candidate_lut_only": {"median_ms": 0.082500, "p95_ms": 0.149875},
+  "candidate_copy_only": {"median_ms": 0.070542, "p95_ms": 0.076708},
+  "scope": "Standalone Metal scene pass, concurrent live game. Excludes whole game frame and backend scene snapshot copy. Table recipe revised after measurement; texture dimensions, format and shader operations unchanged. Does not prove unchanged game FPS."
+}

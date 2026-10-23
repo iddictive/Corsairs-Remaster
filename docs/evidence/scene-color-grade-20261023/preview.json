@@ -1,0 +1,11 @@
+{
+  "width": 640,
+  "height": 480,
+  "changed_pixels": 297568,
+  "alpha_changes": 0,
+  "mean_abs_channel_delta_255": 8.533826,
+  "gpu_ms": 0.050625,
+  "source": "docs/evidence/cannon-darts-20261021/native-perf-current-world/scene.ppm",
+  "source_sha256": "06fcb8db020c618a4d86a21009e797d63be4f441802f5fb5480ee288ddc41996",
+  "scope": "Native LUT-only pass over a retained sea frame; left original, right GPU result. Not installed-game acceptance."
+}

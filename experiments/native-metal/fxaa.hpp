@@ -5,6 +5,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
+
+#include "scene_color_grade.hpp"
 
 // A deliberately small, stateless FXAA pass.  The source is the private scene
 // snapshot made at the scene/HUD boundary and the destination is the current
@@ -19,7 +22,7 @@ namespace storm_metal {
 
 struct alignas(16) FXAAUniforms {
     simd_float4 texel_quality_threshold{};
-    // x = minimum contrast threshold, y = enabled (0/1), z/w reserved.
+    // x = minimum contrast threshold, y = FXAA enabled, z = scene LUT enabled.
     simd_float4 minimum_enabled_padding{};
 };
 
@@ -95,6 +98,7 @@ MSLLumaRange MSLLumaRangeFor(float center, float north, float south,
 
 fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
                texture2d<float, access::sample> scene [[texture(0)]],
+               texture3d<float, access::sample> colorLUT [[texture(1)]],
                sampler pointClamp [[sampler(0)]],
                sampler linearClamp [[sampler(1)]],
                constant FXAAUniforms &uniforms [[buffer(0)]]) {
@@ -103,6 +107,9 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
     const float edgeThreshold = uniforms.texel_quality_threshold.w;
     const float minimumThreshold = uniforms.minimum_enabled_padding.x;
     const float4 center = scene.sample(pointClamp, input.uv);
+    const float gradeEnabled = uniforms.minimum_enabled_padding.z;
+    if (uniforms.minimum_enabled_padding.y < .5f)
+        return sceneColorGrade(center, colorLUT, linearClamp, gradeEnabled);
 
     const float lumaN  = MSLLuma(scene.sample(pointClamp, input.uv + float2(0, -texel.y)).rgb);
     const float lumaS  = MSLLuma(scene.sample(pointClamp, input.uv + float2(0,  texel.y)).rgb);
@@ -117,8 +124,8 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
                                                lumaSW, lumaSE);
     const float span = range.maximum - range.minimum;
     const float threshold = max(minimumThreshold, range.maximum * edgeThreshold);
-    if (uniforms.minimum_enabled_padding.y < 0.5f || span < threshold)
-        return center;
+    if (span < threshold)
+        return sceneColorGrade(center, colorLUT, linearClamp, gradeEnabled);
 
     // The luma gradient chooses the edge normal.  Samples on that direction
     // reconstruct the edge while preserving texture detail along the edge.
@@ -146,7 +153,8 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
     const float lumaB = MSLLuma(rgbB);
     const float3 reconstructed = (lumaB < range.minimum || lumaB > range.maximum)
                                      ? rgbA : rgbB;
-    return float4(reconstructed, center.a);
+    return sceneColorGrade(float4(reconstructed, center.a), colorLUT,
+                           linearClamp, gradeEnabled);
 }
 )MSL";
 
@@ -154,6 +162,7 @@ struct FXAAPass {
     id<MTLRenderPipelineState> pipeline = nil;
     id<MTLSamplerState> pointClamp = nil;
     id<MTLSamplerState> linearClamp = nil;
+    id<MTLTexture> colorLUT = nil;
     MTLPixelFormat pixelFormat = MTLPixelFormatInvalid;
 
     bool initialize(id<MTLDevice> device, MTLPixelFormat format,
@@ -162,8 +171,9 @@ struct FXAAPass {
         if (pipeline && pointClamp && linearClamp && pixelFormat == format) return true;
 
         NSError *localError = nil;
+        const std::string source = std::string(sceneColorGradeShaderSource) + fxaaShaderSource;
         id<MTLLibrary> library = [device
-            newLibraryWithSource:[NSString stringWithUTF8String:fxaaShaderSource]
+            newLibraryWithSource:[NSString stringWithUTF8String:source.c_str()]
                          options:nil
                            error:&localError];
         if (!library) {
@@ -195,9 +205,12 @@ struct FXAAPass {
         id<MTLSamplerState> nextLinearSampler =
             [device newSamplerStateWithDescriptor:samplerDescriptor];
         if (!nextLinearSampler) return false;
+        id<MTLTexture> nextColorLUT = colorLUT ?: makeSceneColorLUT(device);
+        if (!nextColorLUT) return false;
         pipeline = nextPipeline;
         pointClamp = nextSampler;
         linearClamp = nextLinearSampler;
+        colorLUT = nextColorLUT;
         pixelFormat = format;
         return true;
     }
@@ -206,12 +219,13 @@ struct FXAAPass {
     // existing scene, including alpha, and avoids making Off depend on a
     // sampler or a future shader change.
     bool encode(id<MTLCommandBuffer> command, id<MTLTexture> source,
-                id<MTLTexture> destination, bool enabled = true) {
+                id<MTLTexture> destination, bool enabled = true,
+                bool gradeEnabled = false) {
         if (!command || !source || !destination || source == destination ||
             source.width != destination.width || source.height != destination.height ||
             source.pixelFormat != destination.pixelFormat)
             return false;
-        if (!enabled) {
+        if (!enabled && !gradeEnabled) {
             id<MTLBlitCommandEncoder> blit = [command blitCommandEncoder];
             if (!blit) return false;
             [blit copyFromTexture:source
@@ -229,7 +243,8 @@ struct FXAAPass {
         if (!pipeline || !pointClamp || !linearClamp || pixelFormat != destination.pixelFormat)
             return false;
 
-        FXAAUniforms uniforms = fxaaUniforms(source.width, source.height, true);
+        FXAAUniforms uniforms = fxaaUniforms(source.width, source.height, enabled);
+        uniforms.minimum_enabled_padding.z = gradeEnabled ? 1.f : 0.f;
         MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
         pass.colorAttachments[0].texture = destination;
         pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
@@ -239,6 +254,7 @@ struct FXAAPass {
         if (!encoder) return false;
         [encoder setRenderPipelineState:pipeline];
         [encoder setFragmentTexture:source atIndex:0];
+        [encoder setFragmentTexture:colorLUT atIndex:1];
         [encoder setFragmentSamplerState:pointClamp atIndex:0];
         [encoder setFragmentSamplerState:linearClamp atIndex:1];
         [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];

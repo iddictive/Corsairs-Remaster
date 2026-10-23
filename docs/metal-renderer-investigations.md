@@ -6,6 +6,15 @@ when changing the Metal backend. Current source owners below were checked at
 fixtures below. They are not current player FPS or
 stability guarantees.
 
+## Scene LUT stays before HUD
+
+The October23 candidate shares `FXAAPass` with a 32³ color LUT under the existing
+cinematic setting. Only the explicit scene/HUD boundary applies grading;
+Present fallback may already contain interface pixels. AA and grading disabled
+together issue no scene copy/composite. With AA off, the LUT requires its own
+snapshot and simple scene pass. [Source, retained frame and timing evidence](evidence/scene-color-grade-20261023/README.md)
+separate component costs from pending installed-scene and full-frame acceptance.
+
 ## Preserve resource lifetime when removing allocations
 
 `experiments/native-metal/backend.mm` owns `RawBufferCache`, `residentBuffer`,

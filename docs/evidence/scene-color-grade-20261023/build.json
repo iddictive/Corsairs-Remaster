@@ -1,0 +1,22 @@
+{
+  "build": "experiments/native-metal/build.sh",
+  "result": "passed",
+  "portable_inputs": 8243,
+  "renderer_coverage_classes": 9,
+  "architecture": "arm64",
+  "receipt_version": 2,
+  "source_sha256": "827f0aff552d9b5ac57525a04532ff80cdbd388381f603443349134195bb4b28",
+  "engine_sha256": "25c0a72c4b24166daa8ed98c10cfa9efd5d24d4f1b9b521a987def5c15b5d309",
+  "installed_signed_engine_sha256": "16d142acb30c542466723c6beba59cf62be8fc459cf4374ae1a645562432e570",
+  "installed_signature_verification": "valid on disk; satisfies its Designated Requirement",
+  "installation_verified": true,
+  "gameplay_verified": false,
+  "owned_source_sha256": {
+    "experiments/native-metal/backend.mm": "a3a233f9b190e5833b4ba2f72159a3a0a37550c23a8d1763dea1173c6fe0c5a9",
+    "experiments/native-metal/fxaa.hpp": "1c88573e67fc1e47fdd6fa4dfdd87128704bae260bf6ca76be4f85f471b470aa",
+    "experiments/native-metal/scene_color_grade.hpp": "2782eccda9974f6648a60c388805d9948a6371ad1f11977745bcd8e5b285ae44",
+    "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.cpp": "f911be39a4f191457794683af20d2707cef33983b92e1826b42f6da98ebee120",
+    "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.cpp": "e623d1ec00d36629b28f9e8fbfc396a7672999b94d7f3bc74b5a67fe88c4ee4f"
+  },
+  "scope": "Shared offline engine build includes this LUT/darts batch and an unrelated worldmap change. Installed signed engine hash and signature verified separately; all five current source hashes match the built batch. Not gameplay or full-frame performance acceptance."
+}

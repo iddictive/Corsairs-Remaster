@@ -943,17 +943,34 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
 void AIBalls::Realize(uint32_t Delta_Time)
 {
-    if (!dartTrace.empty()) AIHelper::pRS->DrawLines(dartTrace.data(), dartTrace.size()/2, "DartTracer");
+    if (!dartTrace.empty())
+    {
+        // Execute emits world positions. Unlike DrawRects, DrawLines does not
+        // establish an identity world transform for its caller.
+        CMatrix world;
+        AIHelper::pRS->GetTransform(storm_render::TransformWorld, world);
+        AIHelper::pRS->SetTransform(storm_render::TransformWorld, CMatrix());
+        AIHelper::pRS->DrawLines(dartTrace.data(), dartTrace.size()/2, "DartTracer");
+        AIHelper::pRS->SetTransform(storm_render::TransformWorld, world);
+    }
     if (!dartRects.empty() && dartTexture >= 0)
     {
         // The optional impact view is applied after Execute. Align the sprite
         // in the camera that actually draws it, including perspective motion.
         auto view = AIHelper::pRS->GetView();
+        storm_render::Viewport viewport{};
+        AIHelper::pRS->GetViewport(&viewport);
+        const float pixelsPerUnit = .5f * viewport.Height * std::abs(AIHelper::pRS->GetProjection().m[1][1]);
         CMatrix rotation;
         view.Get3X3(rotation);
         for (size_t i=0; i<dartRects.size(); ++i)
         {
             const CVECTOR position = view * dartRects[i].vPos;
+            // The thin authored dart disappears below one pixel in the normal
+            // stern camera. Keep its outer sprite at eight pixels; the world
+            // projectile, swept collision and existing tracer stay unchanged.
+            if (pixelsPerUnit > 0.f && position.z > 0.f)
+                dartRects[i].fSize = std::max(dartRects[i].fSize, 4.f * position.z / pixelsPerUnit);
             const CVECTOR direction = rotation * dartDirections[i];
             const float x = position.z*direction.x-position.x*direction.z;
             const float y = position.z*direction.y-position.y*direction.z;

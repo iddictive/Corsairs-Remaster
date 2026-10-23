@@ -1,0 +1,20 @@
+{
+  "width": 256,
+  "height": 1,
+  "changed_pixels": 230,
+  "alpha_changes": 0,
+  "mean_abs_channel_delta_255": 7.720052,
+  "gpu_ms": 0.097542,
+  "black": [
+    0,
+    0,
+    0
+  ],
+  "white": [
+    255,
+    255,
+    255
+  ],
+  "max_luminance_reversal": 0.0,
+  "deep_night_0_8_unchanged": true
+}

@@ -159,10 +159,17 @@ void AICannon::RealFire()
     const bool fixedFrame = UsesFixedBallisticFrame(pAHolder->GetACharacter());
     // New fixed-frame ammo saves its queued world launch direction in the
     // existing vector. Ordinary ammunition keeps its world target semantics.
-    const auto vEnemyDir = fixedFrame ? vEnemyPos : !(vEnemyPos - vPosTemp);
+    // A point target already contains the controller's moving-target lead and
+    // this gun's firing delay. Re-solve from the muzzle that actually fires;
+    // translating a queued direction with the ship would translate its hit.
+    // Explicit sky pitches and loaded queues retain the saved launch vector.
+    const bool fixedPoint = fixedFrame && dartCameraTargetValid;
+    const auto vEnemyDir = fixedFrame && !fixedPoint ? vEnemyPos
+        : !((fixedPoint ? dartCameraTarget : vEnemyPos) - vPosTemp);
     const auto fFireDirection = NormalizeAngle(atan2f(vEnemyDir.x, vEnemyDir.z));
-    const auto fFireHeightAngle = fixedFrame ? atan2f(vEnemyDir.y, std::hypot(vEnemyDir.x, vEnemyDir.z))
-                                           : CalcHeightFireAngle(fSpeedV0, vPosTemp, vEnemyPos);
+    const auto fFireHeightAngle = fixedFrame && !fixedPoint
+        ? atan2f(vEnemyDir.y, std::hypot(vEnemyDir.x, vEnemyDir.z))
+        : CalcHeightFireAngle(fSpeedV0, vPosTemp, fixedPoint ? dartCameraTarget : vEnemyPos);
 
     const auto vDirTemp = mRot * vDir;
     const auto fDirY = NormalizeAngle(atan2f(vDirTemp.x, vDirTemp.z));
@@ -186,7 +193,7 @@ void AICannon::RealFire()
         shot->SetAttributeUseFloat("TargetY", cameraTarget.y);
         shot->SetAttributeUseFloat("TargetZ", cameraTarget.z);
         shot->SetAttributeUseDword("TargetIndex", targetCharacter);
-        shot->SetAttributeUseDword("TargetValid", !fixedFrame || dartCameraTargetValid);
+        shot->SetAttributeUseDword("TargetValid", !fixedFrame || (dartCameraTargetValid && targetCharacter >= 0));
     }
     core.Event(CANNON_FIRE, "afffffffff", pAHolder->GetACharacter(), vPosTemp.x, vPosTemp.y, vPosTemp.z, fSpeedV0,
                fFireDirection, fFireHeightAngle, fDirY, fMaxFireDistance, fAngle);
@@ -240,7 +247,9 @@ bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay, 
         const float yaw = atan2f(_vFirePos.x - muzzle.x, _vFirePos.z - muzzle.z);
         vEnemyPos = CVECTOR(cosf(angle) * sinf(yaw), sinf(angle), cosf(angle) * cosf(yaw));
         dartCameraTarget = _vFirePos;
-        dartCameraTargetValid = targetIndex >= 0;
+        // This is a world aim point even when the optional camera is disabled
+        // or the receiver is water. A finite raw angle instead owns sky intent.
+        dartCameraTargetValid = !std::isfinite(rawFireAngle);
     }
     targetCharacter = targetIndex;
     fSpeedV0 = _fSpeedV0;

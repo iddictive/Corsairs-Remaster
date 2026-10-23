@@ -14,14 +14,21 @@ preview remain the owners. The dart profile uses muzzle-speed scale1.3653124814,
 vertical scale1/sqrt(3), fixed world ballistic frame and an additional2x time rate.
 Its maximum horizontal range is twice round shot at a physical30-degree launch;
 higher manual angles through80degrees remain available and reduce range.
-The allowed elevation is separate from the maximum-range optimum; a queued
-dart keeps its captured launch direction through the existing save vector.
+The allowed elevation is separate from the maximum-range optimum. Queued point
+shots retain the controller's led world target and solve again from the actual
+muzzle at firing time. Explicit sky angles and loaded queues retain the captured
+launch direction through the existing save vector.
 Catalogue accuracy350% scales ordinary gunner precision; separate dispersion
 and reference-range multipliers are removed from firing and its preview. Rendering uses the
 same camera-facing sprites as existing ammunition, with its own texture rotated
-along projected travel and a short warm tracer. No new saved projectile
+along projected travel and a short warm tracer. The dart's outer sprite keeps
+eight pixels of support in the drawing camera; its opaque shaft stays thin.
+Tracer vertices use an identity world transform and restore the caller's state.
+Projectile size, swept collision and draw count remain unchanged. No new saved projectile
 lane or binary field is allowed: identity uses the existing saved event string
 inside the round-shot lane, including tracer restoration after load.
+[Moving-muzzle and rendering evidence](evidence/dart-salvo-20261023/README.md)
+records source replay results and the remaining native-view limits.
 
 Starting catalogue balance: hull damage balls11.5, knippels5.75, darts6,
 grapes1; darts crew0.025% and rigging0.25. Darts cost twice ordinary bombs before
