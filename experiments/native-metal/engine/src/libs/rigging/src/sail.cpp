@@ -38,6 +38,7 @@ class OwnedStaticSails final : public StaticSails
     {
         VDX9RENDER *rs = nullptr;
         int vb = -1, ib = -1, surface = -1, heraldry = -1, holes = -1;
+        bool hasPunctures = false;
         storm_render::Texture *heraldryPointer = nullptr;
         uint32_t color = 0xffffffff;
         unsigned normalTriangles = 0, holeStart = 0, holeTriangles = 0;
@@ -89,9 +90,10 @@ class OwnedStaticSails final : public StaticSails
                 rs->SetSamplerState(2, storm_render::SamplerAddressU, storm_render::TextureAddressMirror);
                 if (mesh->holeTriangles)
                     rs->DrawBuffer(mesh->vb, sizeof(SAILVERTEX), mesh->ib, 0, mesh->vertices.size(), mesh->holeStart, mesh->holeTriangles);
-                rs->SetSamplerState(2, storm_render::SamplerAddressU, oldAddress);
+                rs->SetSamplerState(2, storm_render::SamplerAddressU, mesh->hasPunctures ? storm_render::TextureAddressWrap : oldAddress);
                 if (mesh->normalTriangles)
                     rs->DrawBuffer(mesh->vb, sizeof(SAILVERTEX), mesh->ib, 0, mesh->vertices.size(), 0, mesh->normalTriangles);
+                rs->SetSamplerState(2, storm_render::SamplerAddressU, oldAddress);
             } while (rs->TechniqueExecuteNext());
         }
         rs->SetRenderState(storm_render::RenderTextureFactor, oldColor);
@@ -131,7 +133,9 @@ std::unique_ptr<storm_map_player::StaticSails> SAIL::CaptureWorldMapVisual(MODEL
         };
         retain(sail->surfaceTex, mesh->surface);
         retain(sail->m_bIsGerald ? sail->m_nGeraldTex : m_nEmptyGerbTex, mesh->heraldry);
-        retain(texl, mesh->holes);
+        sail->FlushPunctures();
+        retain(sail->punctureTex >= 0 ? sail->punctureTex : texl, mesh->holes);
+        mesh->hasPunctures = (sail->punctureTex >= 0);
         if (sail->m_bIsGerald && sail->m_pGeraldTex)
         { mesh->heraldryPointer = sail->m_pGeraldTex; mesh->heraldryPointer->AddRef(); }
         mesh->vertices.resize(sail->ss.nVert);
@@ -227,6 +231,7 @@ std::unique_ptr<storm_map_player::StaticSails> SAIL::BuildWorldMapVisual(MODEL *
             auto *node = state ? state->GetAttributeClass(sail->hostNode->GetName()) : nullptr;
             auto *record = node ? node->GetAttributeClass(group) : nullptr;
             if (record) sail->SetAllHole(record->GetAttributeAsDword("hd"));
+            sail->LoadPunctures(record);
             sail->SetGeometry();
         }
         builder.texl = builder.RenderService->TextureCreate("ships\\parus_hole.tga");
@@ -865,6 +870,9 @@ void SAIL::Realize(uint32_t Delta_Time)
                     }
                     if (fireShip) StormMetalBeginShipFireSurface(RenderService->GetNativeDevice(),&fireShip->GetMatrix()->m[0][0],&firePoint,fireCount);
 #endif
+                    slist[i]->FlushPunctures();
+                    const int32_t stage2Tex = (slist[i]->punctureTex >= 0) ? slist[i]->punctureTex : texl;
+                    if (stage2Tex != texl) RenderService->TextureSet(2, stage2Tex);
                     // Draw hole texture sail
                     uint32_t dwOld;
                     RenderService->GetSamplerState(2, storm_render::SamplerAddressU, &dwOld);
@@ -886,12 +894,15 @@ void SAIL::Realize(uint32_t Delta_Time)
                                                   slist[i]->ss.nVert, slist[i]->ss.sholeIndx, slist[i]->ss.nholeIndx);
                     }
                     // Draw normal texture sail
-                    RenderService->SetSamplerState(2, storm_render::SamplerAddressU, dwOld);
+                    RenderService->SetSamplerState(2, storm_render::SamplerAddressU, (slist[i]->punctureTex >= 0) ? storm_render::TextureAddressWrap : dwOld);
                     if (slist[i]->ss.nnormIndx != 0)
                     {
                         RenderService->DrawBuffer(sg.vertBuf, sizeof(SAILVERTEX), sg.indxBuf, slist[i]->ss.sVert,
                                                   slist[i]->ss.nVert, slist[i]->ss.sIndx, slist[i]->ss.nnormIndx);
                     }
+                    RenderService->SetSamplerState(2, storm_render::SamplerAddressU, dwOld);
+                    if (stage2Tex != texl)
+                        RenderService->TextureSet(2, texl);
 #ifdef STORM_METAL_SHIP_FIRE
                     if (fireShip) StormMetalEndShipFireSurface(RenderService->GetNativeDevice());
 #endif
@@ -1553,6 +1564,7 @@ void SAIL::SetAllSails(int groupNum)
                                 if (ps != nullptr)
                                 {
                                     ps->SetAllHole(pASail->GetAttributeAsDword("hd"));
+                                    ps->LoadPunctures(pASail);
                                     /*if( (ps->ss.eSailType==SAIL_TREANGLE?10:12) == (int)ps->ss.holeCount )
                                     {// the whole sail is damaged - don't need it
                                       ps->bDeleted = true;

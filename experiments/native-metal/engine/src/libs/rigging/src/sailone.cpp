@@ -9,6 +9,8 @@
 #include "core.h"
 #include "math_inlines.h"
 #include "sail.h"
+#include "v_data.h"
+#include "texture_material_compat.hpp"
 #include <atomic>
 #include <cmath>
 
@@ -60,6 +62,7 @@ SAILONE::SAILONE()
 
     m_fHorzGeraldScale = 1.f;
     m_fVertGeraldScale = 1.f;
+
 }
 
 SAILONE::~SAILONE()
@@ -76,6 +79,8 @@ SAILONE::~SAILONE()
     STORM_DELETE(sailtrope.rrs[1]);
     TEXTURE_RELEASE(pp->RenderService, surfaceTex);
     TEXTURE_RELEASE(pp->RenderService, m_nGeraldTex);
+    if (punctureTex != -1 && pp && pp->RenderService)
+        TEXTURE_RELEASE(pp->RenderService, punctureTex);
     RELEASE(m_pGeraldTex);
 }
 
@@ -1698,15 +1703,21 @@ float SAILONE::SSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace)
             {
                 if (bCannonTrace)
                     DoHole = true;
-                if (retVal > tmpVal)
+                if (retVal > tmpVal) {
                     retVal = tmpVal;
+                    nearestHitU = (ix + lastBaryU) / 3.f;
+                    nearestHitV = (iy + lastBaryV) / 4.f;
+                }
             }
             else if ((tmpVal = CheckSailSquar(idx, vC, vB, vD, src, dst, bCannonTrace)) <= 1.f)
             {
                 if (bCannonTrace)
                     DoHole = true;
-                if (retVal > tmpVal)
+                if (retVal > tmpVal) {
                     retVal = tmpVal;
+                    nearestHitU = (ix + lastBaryU + lastBaryV) / 3.f;
+                    nearestHitV = (iy + 1.f - lastBaryU) / 4.f;
+                }
             }
         }
     }
@@ -1727,6 +1738,7 @@ float SAILONE::SSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace)
                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
                            ss.holeCount, GetHoleDword(), 12, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
                 cannonContactCallback=false;
+                RecordPuncture(nearestHitU, nearestHitV, pVai);
             }
         }
     }
@@ -1762,16 +1774,22 @@ float SAILONE::TSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace)
             {
                 if (bCannonTrace)
                     DoHole = true;
-                if (retVal > tmpVal)
+                if (retVal > tmpVal) {
                     retVal = tmpVal;
+                    nearestHitU = (ix + lastBaryU + lastBaryV) / 4.f;
+                    nearestHitV = (4.f - ix + iy - lastBaryU) / 4.f;
+                }
             }
             else if (iy > 0)
                 if ((tmpVal = CheckSailSquar(i, vA, vD, vB, src, dst, bCannonTrace)) <= 1.f)
                 {
                     if (bCannonTrace)
                         DoHole = true;
-                    if (retVal > tmpVal)
+                    if (retVal > tmpVal) {
                         retVal = tmpVal;
+                        nearestHitU = (ix + lastBaryV) / 4.f;
+                        nearestHitV = (4.f - ix + iy - lastBaryU - lastBaryV) / 4.f;
+                    }
                 }
         }
     }
@@ -1792,6 +1810,7 @@ float SAILONE::TSailTrace(CVECTOR &src, CVECTOR &dst, bool bCannonTrace)
                 core.Event("DoSailHole", "llssllllf", g_iBallOwnerIdx, charIdx, "*", hostNode->GetName(), groupNum,
                            ss.holeCount, GetHoleDword(), 10, static_cast<float>(maxSpeed) / pp->gdata[HostNum].speed_m);
                 cannonContactCallback=false;
+                RecordPuncture(nearestHitU, nearestHitV, pVai);
             }
         }
     }
@@ -1804,6 +1823,182 @@ uint32_t SAILONE::TakeCannonContactHoles(uint32_t mask, int maximum, int &reques
 {
     return storm_sail_damage::preferredHoles(mask,
         cannonContactCallback ? cannonContactHoles : 0,maximum,requested);
+}
+
+void SAILONE::ClearPunctures(ATTRIBUTES *entry)
+{
+    memset(punctureGrid, 0, sizeof(punctureGrid));
+    hasPunctures = punctureDirty = false;
+    TEXTURE_RELEASE(RenderService, punctureTex);
+    if (entry) {
+        entry->DeleteAttributeClassX(entry->GetAttributeClass("punc"));
+        entry->DeleteAttributeClassX(entry->GetAttributeClass("puncDamage"));
+    }
+}
+
+void SAILONE::SavePunctures(ATTRIBUTES *entry)
+{
+    if (!entry) return;
+    constexpr char hex[] = "0123456789abcdef";
+    // Fixed 128x128 coverage, independent of how many shots have hit the sail.
+    std::string encoded; encoded.reserve(4096);
+    for (const auto &row : punctureGrid) for (uint32_t word : row)
+        for (int shift = 28; shift >= 0; shift -= 4) encoded += hex[(word >> shift) & 15];
+    entry->SetAttribute("punc", std::string_view(encoded));
+    entry->SetAttributeUseFloat("puncDamage", lastDmg);
+}
+
+void SAILONE::HealPunctures(float retained)
+{
+    // A stable spatial hash distributes stitches across the sail. Cost occurs
+    // only on repair, never in the unchanged frame path.
+    unsigned count = 0;
+    for (const auto &row : punctureGrid) for (uint32_t word : row) count += __builtin_popcount(word);
+    unsigned remove = count - unsigned(std::floor(count * storm_sail_damage::unit(retained)));
+    for (unsigned n = 0; n < 16384 && remove; ++n) {
+        const unsigned pixel = (n * 4051u) & 16383u;
+        auto &word = punctureGrid[pixel / 128][(pixel % 128) / 32];
+        const uint32_t bit = uint32_t(1) << (pixel % 32);
+        if (word & bit) { word &= ~bit; --remove; }
+    }
+    hasPunctures = false;
+    for (const auto &row : punctureGrid) for (uint32_t word : row) hasPunctures |= word != 0;
+    punctureDirty = hasPunctures;
+    if (!hasPunctures) TEXTURE_RELEASE(RenderService, punctureTex);
+}
+
+void SAILONE::LoadPunctures(ATTRIBUTES *entry)
+{
+    puncturesLoaded = true;
+    lastDmg = entry ? entry->GetAttributeAsFloat("dmg") : 0.f;
+    const auto *saved = entry ? entry->GetAttributeClass("punc") : nullptr;
+    if (!saved || saved->GetValue().size() != 4096 || lastDmg <= 0.f) return;
+    const auto &encoded = saved->GetValue();
+    size_t index = 0;
+    for (auto &row : punctureGrid) for (auto &word : row) {
+        word = 0;
+        for (unsigned nibble = 0; nibble < 8; ++nibble) {
+            const char c = encoded[index++];
+            const unsigned digit = c >= '0' && c <= '9' ? c-'0' : c >= 'a' && c <= 'f' ? c-'a'+10 : 16;
+            if (digit > 15) { ClearPunctures(nullptr); return; }
+            word = (word << 4) | digit;
+        }
+        hasPunctures |= word != 0;
+    }
+    punctureDirty = hasPunctures;
+    const float previous = entry->GetAttributeAsFloat("puncDamage", lastDmg);
+    if (previous > lastDmg) {
+        HealPunctures(lastDmg / previous);
+        if (hasPunctures) SavePunctures(entry); else ClearPunctures(entry);
+    }
+}
+
+void SAILONE::SyncPunctures(ATTRIBUTES *entry)
+{
+    if (!puncturesLoaded) LoadPunctures(entry);
+    const float damage = entry ? entry->GetAttributeAsFloat("dmg") : 0.f;
+    if (hasPunctures && damage < lastDmg) {
+        if (damage <= 0.f) ClearPunctures(entry);
+        else {
+            HealPunctures(damage / lastDmg);
+            lastDmg = damage;
+            if (hasPunctures) SavePunctures(entry); else ClearPunctures(entry);
+        }
+    }
+    lastDmg = damage;
+}
+
+void SAILONE::RecordPuncture(float clothU, float clothV, VAI_OBJBASE *ship)
+{
+    auto *character = ship ? ship->GetACharacter() : nullptr;
+    if (!character || !std::isfinite(clothU) || !std::isfinite(clothV)) return;
+    auto *ai = character->GetAttributeClass("chr_ai");
+    if (ai && ai->GetAttributeAsDword("immortal")) return;
+    auto *sails = character->FindAClass(character, "Ship.Sails");
+    auto *node = sails ? sails->GetAttributeClass(hostNode->GetName()) : nullptr;
+    char key[24]; snprintf(key, sizeof(key), "%d", groupNum);
+    auto *entry = node ? node->GetAttributeClass(key) : nullptr;
+    if (!entry || entry->GetAttributeAsFloat("dmg") <= 0.f) return;
+    SyncPunctures(entry);
+
+    auto *balls = static_cast<VDATA *>(core.GetScriptVariable("AIBalls"));
+    auto *ballState = balls ? balls->GetAClass() : nullptr;
+    auto *goods = static_cast<VDATA *>(core.GetScriptVariable("Goods"));
+    const unsigned goodIndex = ballState ? ballState->GetAttributeAsDword("CurrentBallType", UINT32_MAX) : UINT32_MAX;
+    auto *good = goods && goods->IsArray() && goodIndex < goods->GetElementsNum() ? goods->GetAClass(goodIndex) : nullptr;
+    const auto *name = good ? good->GetAttributeClass("Name") : nullptr;
+    const bool dart = name && name->GetValue() == "Darts";
+    const bool chain = name && name->GetValue() == "Knippels";
+    // Tagged darts share the native Bombs trajectory; its collision envelope
+    // must not become the dart's cloth tear diameter.
+    const float radius = dart ? std::min(.04f, pp->fCannonRadius) : pp->fCannonRadius;
+    const float rx = std::max(.75f, radius * 128.f / std::max(sailWidth, .1f));
+    const float ry = std::max(.75f, radius * (chain ? .25f : 1.f) * 128.f / std::max(sailHeight, .1f));
+    const float x = std::clamp(clothU, 0.f, 1.f) * 127.f;
+    const float y = std::clamp(clothV, 0.f, 1.f) * 127.f;
+    bool changed = false;
+    for (int iy = std::max(0, int(std::floor(y-ry))); iy <= std::min(127, int(std::ceil(y+ry))); ++iy)
+        for (int ix = std::max(0, int(std::floor(x-rx))); ix <= std::min(127, int(std::ceil(x+rx))); ++ix) {
+            if (ss.eSailType == SAIL_TREANGLE && ix + iy < 127) continue;
+            if ((ix-x)*(ix-x)/(rx*rx) + (iy-y)*(iy-y)/(ry*ry) > 1.f) continue;
+            auto &word = punctureGrid[iy][ix/32];
+            const auto bit = uint32_t(1) << (ix%32);
+            changed |= !(word & bit); word |= bit;
+        }
+    if (changed) { hasPunctures = punctureDirty = true; SavePunctures(entry); }
+}
+
+void SAILONE::FlushPunctures()
+{
+    if (!punctureDirty || !hasPunctures || !RenderService) return;
+    constexpr unsigned size = 256, half = size/2;
+    if (pp->punctureStencil.empty()) {
+        auto *base = RenderService->GetTextureFromID(pp->texl);
+        if (!base || base->GetType() != storm_render::ResourceKind::Texture) return;
+        auto *texture = static_cast<storm_render::Texture *>(base);
+        storm_render::SurfaceDesc desc{}; storm_render::LockedRect lock{};
+        if (storm_render::failed(texture->GetLevelDesc(0, &desc)) || !desc.Width || !desc.Height ||
+            storm_render::failed(texture->LockRect(0, &lock, nullptr, storm_render::lock::readOnly))) return;
+        const bool compressed = desc.Format == storm_render::AssetFormat::DXT1 || desc.Format == storm_render::AssetFormat::DXT3 || desc.Format == storm_render::AssetFormat::DXT5;
+        std::vector<uint8_t> rgba;
+        const bool decoded = storm_metal::compat::decodeToRgba(desc.Format, desc.Width, desc.Height,
+            static_cast<uint8_t *>(lock.pBits), size_t(lock.Pitch)*(compressed ? (desc.Height+3)/4 : desc.Height), lock.Pitch, rgba);
+        texture->UnlockRect(0);
+        if (!decoded) return;
+        pp->punctureStencil.assign(size*size, 255);
+        // Right half retains the stock coarse-tear stencil; left half is
+        // puncture-only cloth, selected with Wrap instead of Clamp.
+        for (unsigned y=0; y<size; ++y) for (unsigned x=half; x<size; ++x)
+            pp->punctureStencil[y*size+x] = rgba[(size_t(y*desc.Height/size)*desc.Width + x*desc.Width/size)*4+3];
+    }
+    if (punctureTex < 0)
+        punctureTex = RenderService->TextureCreate(size, size, 0, 0, storm_render::AssetFormat::A8, storm_render::MemoryClass::Managed);
+    if (punctureTex < 0) return;
+    auto *texture = static_cast<storm_render::Texture *>(RenderService->GetTextureFromID(punctureTex));
+    if (!texture) return;
+    auto pixels = pp->punctureStencil;
+    const unsigned offsetY = ss.eSailType == SAIL_TREANGLE ? half : 0;
+    for (unsigned y=0; y<128; ++y) for (unsigned x=0; x<128; ++x)
+        if (punctureGrid[y][x/32] & (uint32_t(1) << (x%32))) {
+            pixels[(offsetY+y)*size+x] = 0;
+            pixels[(offsetY+y)*size+(size-1-x)] = 0;
+        }
+    // Coalesce all contacts since the previous draw into one upload/mip chain.
+    for (unsigned level=0, width=size; level<texture->GetLevelCount(); ++level, width=std::max(1u,width/2)) {
+        storm_render::LockedRect lock{};
+        if (storm_render::failed(texture->LockRect(level, &lock, nullptr, 0))) return;
+        for (unsigned y=0; y<width; ++y)
+            memcpy(static_cast<uint8_t *>(lock.pBits)+y*lock.Pitch, pixels.data()+y*width, width);
+        if (storm_render::failed(texture->UnlockRect(level))) return;
+        if (width>1) {
+            const unsigned next=width/2;
+            for (unsigned y=0; y<next; ++y) for (unsigned x=0; x<next; ++x)
+                pixels[y*next+x] = (unsigned(pixels[(y*2)*width+x*2])+pixels[(y*2)*width+x*2+1]+
+                    pixels[(y*2+1)*width+x*2]+pixels[(y*2+1)*width+x*2+1]+2)/4;
+            pixels.resize(next*next);
+        }
+    }
+    punctureDirty = false;
 }
 
 void SAILONE::CalculateSailWind()
@@ -1823,6 +2018,7 @@ void SAILONE::CalculateSailWind()
         auto *node=sails && hostNode ? sails->GetAttributeClass(hostNode->GetName()) : nullptr;
         char key[32]; snprintf(key,sizeof(key),"%d",groupNum);
         auto *entry=node ? node->GetAttributeClass(key) : nullptr;
+        SyncPunctures(entry);
         if (entry) savedDamage=entry->GetAttributeAsFloat("dmg");
     }
     clothDamage=storm_sail_damage::loss(savedDamage,capacity,ss.holeCount,GetMaxHoleCount());
@@ -1913,10 +2109,19 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
                               bool bCannonTrace)
 {
     auto retVal = 2.f;
-    // Physical contact records a bounded preference; only the script's
-    // cumulative damage threshold may commit a new hole.
-    const auto acceptHit = [this, i, bCannonTrace](float fraction)
+    // Coarse tears remain damage-threshold owned. Fine punctures use this
+    // triangle's actual contact coordinates, once per projectile and sail.
+    const auto acceptHit = [&, this](float fraction)
     {
+        if (!bCannonTrace) return fraction;
+        const auto ab = vb-va, ac = vc-va, point = vsrc+(vdst-vsrc)*fraction-va;
+        const float aa = ab|ab, bb = ab|ac, cc = ac|ac;
+        const float denominator = aa*cc-bb*bb;
+        if (!std::isfinite(denominator) || denominator <= 1.e-12f) return 2.f;
+        lastBaryU = std::clamp(((ab|point)*cc-(ac|point)*bb)/denominator, 0.f, 1.f);
+        lastBaryV = std::clamp(((ac|point)*aa-(ab|point)*bb)/denominator, 0.f, 1.f);
+        const float sum = lastBaryU+lastBaryV;
+        if (sum > 1.f) { lastBaryU /= sum; lastBaryV /= sum; }
         if (fraction <= 1.f && bCannonTrace && i>=0 && i<int(GetMaxHoleCount()))
             cannonContactHoles |= uint32_t(1)<<i;
         return fraction;
@@ -1935,9 +2140,9 @@ float SAILONE::CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVEC
     const float dstDist = fA * vdst.x + fB * vdst.y + fC * vdst.z - fD;
 
     if (srcDist == 0.f)
-        return 0.f;
+        return acceptHit(0.f);
     if (dstDist == 0.f)
-        return 1.f;
+        return acceptHit(1.f);
 
     if ((srcDist < 0.f) ^ (dstDist < 0.f))
         retVal = srcDist / (srcDist - dstDist);

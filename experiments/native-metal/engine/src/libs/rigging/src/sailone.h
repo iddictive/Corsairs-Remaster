@@ -17,6 +17,7 @@ extern float GetSailSpeed(int holeQ, int holeMax, float maxSpeed, float fSailHol
 
 // used other classes
 class NODE;
+class VAI_OBJBASE;
 
 #define SAIL_COL_MAX 13
 #define SAIL_ROW_MAX 17
@@ -204,6 +205,21 @@ class SAILONE : public SAILONE_BASE
     float CheckSailSquar(int i, CVECTOR &va, CVECTOR &vb, CVECTOR &vc, CVECTOR &vsrc, CVECTOR &vdst, bool bCannonTrace);
     void SetAllHole(uint32_t holeData) override;
     uint32_t TakeCannonContactHoles(uint32_t mask, int maximum, int &requested) const;
+    int32_t punctureTex = -1;
+    bool punctureDirty = false;
+    bool hasPunctures = false;
+    uint32_t punctureGrid[128][4]{};
+    bool puncturesLoaded = false;
+    float lastDmg = -1.0f;
+    float lastBaryU = 0.f, lastBaryV = 0.f;
+    float nearestHitU = 0.f, nearestHitV = 0.f;
+    void RecordPuncture(float clothU, float clothV, VAI_OBJBASE *pVai);
+    void FlushPunctures();
+    void LoadPunctures(ATTRIBUTES *entry);
+    void SavePunctures(ATTRIBUTES *entry);
+    void ClearPunctures(ATTRIBUTES *entry);
+    void SyncPunctures(ATTRIBUTES *entry);
+    void HealPunctures(float retained);
     // number of vertices vertically and horizontally
     uint32_t m_dwRow, m_dwCol;
     float sailWidth, sailHeight;

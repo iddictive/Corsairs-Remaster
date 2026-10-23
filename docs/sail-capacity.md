@@ -70,6 +70,28 @@ airburst correction, is rejected because it can erase prior damage. Keep
 sub-hole loss in native condition updates. Falling masts retain their independent
 loss.
 
+## Projectile punctures
+
+`SAILONE` keeps fine physical punctures separate from the 10/12 large-tear bits.
+One nearest cloth contact stamps a 128x128 coverage bitmap at its barycentric
+cloth coordinates. Shot radius is converted through sail dimensions; tagged
+Darts use a small shaft puncture and Knippels produce a wide slit. `DamageRig`
+still owns cumulative condition, propulsion loss and admission of large tears;
+the visible puncture never imposes an extra damage floor.
+
+The existing `Ship.Sails.<yard>.<group>` record stores `punc` as 4096 hexadecimal
+characters and `puncDamage` as the damage at its last update. Prior saves without
+these fields keep their old damage and tears. Partial repair stitches a
+proportional share of marked pixels; complete repair clears the bitmap and
+releases its texture. Live and rebuilt world-map visuals retain the same mask.
+
+The existing stage-2 alpha sample and draw passes consume a lazy 256x256 A8
+texture with mipmaps: puncture-only cloth in its left half and the sampled stock
+tear stencil plus punctures in its right half. Contacts coalesce into one upload
+per changed sail before rendering; unchanged masks do no raster/upload work.
+This bounds storage and avoids extra draw calls, but does not establish battle
+FPS or close rendered/save/repair acceptance without player replay.
+
 ## Acceptance and limits
 
 Equal-calibre, equal-range hits must debit the same admitted HP on intact cloth

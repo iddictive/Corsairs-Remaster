@@ -82,6 +82,8 @@ class SAIL : public SAIL_BASE
     storm_render::Material mat;
     std::filesystem::file_time_type ft_old;
     int32_t texl;
+    // Shared decoded stock tear stencil; individual sails only store coverage.
+    std::vector<uint8_t> punctureStencil;
     int32_t m_nEmptyGerbTex;
 
   public:
