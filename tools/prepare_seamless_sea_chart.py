@@ -17,6 +17,7 @@ from patch_metal_portobello_ground import HEADER, LABEL, OBJECT, parse_gm
 from prepare_puerto_rico_city import bsp_nodes, metadata
 from prepare_seamless_sea_assets import OWNER, OUTPUT, labels, sha, source, write_asset
 from sea_atlas_frames import point
+import sea_chart_albedo
 
 
 IDENTITY = [1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.]
@@ -132,7 +133,7 @@ def referenced_positions(data, role):
             yield struct.unpack_from("<3f", data, start+vertex*12)
 
 
-def project_trees(prepared):
+def project_trees(prepared, albedo):
     files, inputs, bodies, identities = {}, [], {}, {}
     scale = 1/prepared["atlas_frames"]["metres_per_map_unit"]
     limits, owners = [math.inf, math.inf, -math.inf, -math.inf], [None]*4
@@ -158,8 +159,8 @@ def project_trees(prepared):
         if destination in files:
             raise ValueError(f"Repeated chart output: {destination}")
         projected = chart_geometry(data, transform, scale)
-        files[destination] = projected
         a, b, c, d, tx, tz = prepared["atlas_frames"]["bodies"][body]["body_to_atlas"]
+        files[destination] = sea_chart_albedo.project(projected, [a,b,c,d,tx*scale,tz*scale], albedo)
         for x, y, z in referenced_positions(projected, role):
             p = [a*x+b*z+tx*scale, y, c*x+d*z+tz*scale]
             for slot, axis, is_min in ((0, 0, True), (1, 2, True), (2, 0, False), (3, 2, False)):
@@ -383,9 +384,15 @@ def main():
     model, ports, record = project(source_root)
     prepared = json.loads((OUTPUT/"manifest.json").read_bytes())
     inventory = json.loads((OWNER/"manifest.json").read_bytes())
-    files, tree_inputs, bodies, bounds = project_trees(prepared)
+    albedo, texture = sea_chart_albedo.material(source_root)
+    files, tree_inputs, bodies, bounds = project_trees(prepared, albedo)
     from sea_chart_land import prepare_mainland
     mainland = prepare_mainland(source_root, files, prepared)
+    world = list(prepared['atlas_frames']['bodies']['Mainland']['body_to_atlas'])
+    world[4:] = [v/prepared['atlas_frames']['metres_per_map_unit'] for v in world[4:]]
+    files[mainland['asset']] = sea_chart_albedo.project(files[mainland['asset']], world, albedo)
+    files[sea_chart_albedo.TEXTURE+'.tx'] = texture
+    record['land_albedo'] = albedo
     record['continental_fill'] = mainland
     record['inputs'].append(mainland['source'])
     model = enclose_chart(model, bounds)

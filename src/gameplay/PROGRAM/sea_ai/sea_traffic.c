@@ -396,6 +396,7 @@ bool SeaTraffic_Mount(ref fleet, float x, float z, float ay)
         aref from, to;
         makearef(from, fleet.Task); makearef(to, group.Task);
         CopyAttributes(to, from);
+        if (!CheckAttribute(group, "Task.Lock")) group.Task.Lock = false;
     }
     int commander = -1;
     int mounted = 0;
@@ -444,7 +445,23 @@ void SeaTraffic_Admit(aref descriptor)
         makearef(source, candidate.encdata); makearef(fleet, bundle.(id));
         CopyAttributes(fleet, source); WdmFleetSeaCopyIdentity(fleet, candidate);
         fleet.GroupName = "egroup__wdm_" + id;
-        if (Group_FindGroup(fleet.GroupName) >= 0 || !WdmFleetSeaAssemblyReady(fleet)) return;
+        int existing = Group_FindGroup(fleet.GroupName);
+        if (existing >= 0)
+        {
+            ref existingGroup = &AIGroups[existing];
+            if (!CheckAttribute(existingGroup, "trafficFleetID") || existingGroup.trafficFleetID != fleet.trafficFleetID) return;
+            for (int slot = 0; slot < MAX_CHARACTERS; slot++)
+            {
+                int index = Group_GetCharacterIndexR(existingGroup, slot);
+                if (index < 0) break;
+                // Saved group members may already have been recycled into a
+                // different fleet. Only this fleet's native hull owns residency.
+                if (IsEntity(&Characters[index]) && CheckAttribute(&Characters[index], "trafficFleetID") &&
+                    Characters[index].trafficFleetID == fleet.trafficFleetID) return;
+            }
+            fleet.trafficStaleGroup = 1;
+        }
+        if (!WdmFleetSeaAssemblyReady(fleet)) return;
         hulls = hulls + WdmFleetSeaHullCount(fleet);
     }
     if (hulls == 0 || iNumShips + hulls > MAX_SHIPS_ON_SEA) return;
@@ -456,6 +473,9 @@ void SeaTraffic_Admit(aref descriptor)
         fleet = GetAttributeN(&bundle, i);
         id = GetAttributeName(fleet);
         makearef(candidate, worldMap.encounters.(id));
+        // Drop only the stale script projection, after the complete battle
+        // passes capacity/resource admission. The saved roster owns its hulls.
+        if (CheckAttribute(fleet, "trafficStaleGroup")) Group_DeleteGroup(fleet.GroupName);
         if (!WdmFleetSeaImport(fleet, candidate, id)) { SeaTraffic_Rollback(&bundle); return; }
         fleet.trafficAdmissionLease = 1;
         worldMap.retireEncounter = id; SeaTraffic_Notify("retireEncounter");
@@ -512,7 +532,7 @@ bool SeaTraffic_HasOriginalGroup(aref descriptor)
     int g = Group_FindGroup(descriptor.trafficActorGroup);
     if (g < 0) return false;
     int index = Group_GetGroupCommanderIndexR(&AIGroups[g]);
-    return index >= 0 && CheckAttribute(&Characters[index], "trafficFleetID") &&
+    return index >= 0 && IsEntity(&Characters[index]) && CheckAttribute(&Characters[index], "trafficFleetID") &&
         Characters[index].trafficFleetID == descriptor.trafficFleetID && WdmFleetSeaAlive(&Characters[index]);
 }
 

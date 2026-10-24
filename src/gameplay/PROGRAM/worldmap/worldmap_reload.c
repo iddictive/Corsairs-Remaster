@@ -426,6 +426,9 @@ bool WdmAddEncountersData()
 			aref encDataForSlot;
 			makearef(encDataForSlot, worldMap.(encStringID));
 			CopyAttributes(mapEncSlotRef, encDataForSlot);
+			// CopyAttributes replaces the slot, including its occupancy flag.
+			// Reserve it before the next encounter asks the same allocator.
+			mapEncSlotRef.bUse = true;
 			aref trafficDescriptor;
 			string trafficDescriptorPath = "encounters." + worldMap.encounter.id;
 			makearef(trafficDescriptor, worldMap.(trafficDescriptorPath));

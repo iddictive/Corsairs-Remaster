@@ -1,0 +1,46 @@
+{
+  "frame": [
+    -2045,
+    -1985,
+    3200
+  ],
+  "sha256": "008cfc4ba685775d3710aa5e331b012a42b7dca91c0e6c8cb15a2d54897d0864",
+  "source_size": [
+    1254,
+    1254
+  ],
+  "provenance": "Built-in imagegen edit of the original worldmap relief baked in tools/sea_chart_albedo.py; original terrain positions supplied as image reference.",
+  "prompt": "Production nonrepeating cartographic terrain albedo in the exact reference coordinate frame. Preserve original painted relief, mountain positions, scale and muted olive/earth palette; continue forests, foothills and valleys into all transparent areas. Entire square is opaque land: game geometry supplies exact coastlines. No ocean, coastlines, beaches, yellow outlines, islands, symbols, labels, UI, grids, perspective, tiled grass or periodic patterns. Preserve original terrain detail and make continuous natural transitions.",
+  "detail_regions": {
+    "north-west": {
+      "file": "chart-north-west.png",
+      "sha256": "b7716ae16503f0382c02ea526d7eeda3d7d6e853a354572766fd07bae1c0e004",
+      "style": "Original cartographic reference supplied directly; fine granular texture frequency, muted green/brown relief; large forest canopies rejected."
+    },
+    "north-east": {
+      "file": "chart-north-east.png",
+      "sha256": "fa5dfb3f6e50af1ec4059f3af73c9b9ff451f2d47a159e7dd95adb070e7a6359"
+    },
+    "south-west": {
+      "file": "chart-south-west.png",
+      "sha256": "cd832135231acfc5e501c54efca444f624885addd6c78ab5c40e718e0132ef94"
+    },
+    "south-east": {
+      "file": "chart-south-east.png",
+      "sha256": "394fade957dc255c92a925d08e154e60228eb60c0349ffa7e31c76d9c8055c28"
+    }
+  },
+  "detail_region_layout": {
+    "world_size": 3200,
+    "region_size": 1728,
+    "offset": 1472,
+    "overlap": 256,
+    "order": [
+      "north-west",
+      "north-east",
+      "south-west",
+      "south-east"
+    ]
+  },
+  "detail_prompt": "Refine and enlarge the exact top-down painted terrain reference, preserving large-scale ridges, valleys, positions, scale and edge continuation. Add crisp fine cartographic forest canopy, branching drainage, hill contours, rock strata and varied muted olive/earth clearings. Original Corsairs painted cartography, no blurred grass carpet or tiled/repeating pattern, no neon, halos, sea, coastline, beaches, labels, roads, symbols, UI or objects. Full-bleed opaque square terrain; highest available detail for an approaching game camera. One unique overlapping quadrant of a continuous colour field."
+}

@@ -19,6 +19,7 @@ from prepare_native_movies import movie_paths
 from prepare_puerto_rico_city import paths as city_paths
 from prepare_port_rowboat import paths as rowboat_paths
 from prepare_roundhouse import paths as roundhouse_paths
+from sea_chart_albedo import TEXTURE as CHART_LAND_TEXTURE
 
 RECEIPT = ".delivery-state.json"
 ENGINE = "@engine"
@@ -61,6 +62,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx",
     "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx",
     "RESOURCE/Textures/BALLS/dart.tga.tx",
+    CHART_LAND_TEXTURE + ".tx",
     "RESOURCE/MODELS/Characters/RedBeard.gm",
     "RESOURCE/Textures/Characters/RedBeard.tga.tx",
     "RESOURCE/Textures/INTERFACES/PORTRAITS/64/face_2006.tga.tx",

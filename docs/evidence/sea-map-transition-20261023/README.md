@@ -208,3 +208,94 @@ establishes the retained route; it contains no fleet-count instrumentation and
 does not prove the repaired ships are visible. Native mounting/rendered round
 trip remains unverified. The candidate adds 28 source lines in `sea.c` only;
 the one-off fixture is retained evidence, outside the permanent test suite.
+
+## Mainland join and cannon crash follow-up
+
+The installed mainland fill has shared XZ positions with different heights;
+the maximum split is 10.9196 chart units. The offline repair assigns one height
+per packed GM position, retaining the authored stock surface at the inner join.
+Native coastal geometry and navigation frames remain unchanged.
+
+Connective faces also extrapolate the stock continent atlas into its yellow
+background. A repeating native ground material removed that padding but was
+rejected by the player: a tiled strip does not preserve the authored mainland
+image or form an acceptable join. That material replacement is removed from
+the candidate. The repair must preserve the mainland's authored visual field,
+not merely close holes or eliminate yellow pixels. Mesh/material agreement is
+checked in the complete native map view before delivery. Native 960x600
+round-trip CPU baseline is 14.649ms/frame; this is not an FPS guarantee.
+
+The supplied native crash resolves to missing `Ship.Cannons` in the actual
+`AIShipCannonController::UpdateParameters` call. Skipping that controller while
+its character/cannon branch is absent prevents the null dereference, with one
+extra attribute lookup per ship/frame. The event that removed the branch in the
+player's original crashed process is not established by its stack trace.
+
+The full native first-return probe exposes a separate admission defect:
+`WdmAddEncountersData` copies a descriptor over the allocated map slot and loses
+`bUse`. The next `FindFreeMapEncounterSlot` reports the missing field and reuses
+that slot. Restore occupancy immediately after the replacing copy. This removes
+the allocator errors, but the first nearby fleet still fails native admission;
+the flag correction alone does not satisfy visible-ship acceptance.
+The existing allocator/release contract remains the owner; cost is one attribute
+assignment per imported encounter, only during scene entry. The native falsifier
+is the selected live five-hull fleet appearing near the player on the first
+return, with no `encounters_map.c(7)` runtime errors.
+
+The broadened map-art requirement covers all chart islands. Their chart models
+currently retain sea-scale repeating ground materials. The accepting material
+must instead be a nonrepeating cartographic albedo in atlas coordinates, derived
+from the original map's authored relief. This affects chart render assets only;
+sea geometry/materials, navigation and locators retain their owners. Projection
+and texture baking stay offline, with no per-frame synthesis. The candidate must
+be inspected across the mainland join and island bodies before installation.
+
+The first full-field generated image is only 1254 pixels square and visibly
+blurs the original inland when applied alone. It is rejected as the primary
+map image. The material producer instead retains the original authored relief
+in a 4096-pixel atlas bake, feathering past its obsolete coast outlines into
+the authored extension. Chart ground uses upward normals and neutral vertex
+colour: sea-cliff lighting must not create dark polygon patches over painted
+relief. Beaches, reefs, foliage, towns and all sea-scene materials are retained.
+
+The decisive native rejection is `Group_FindGroup`: the selected five-hull
+fleet has a saved script group with five members and zero native actors.
+Other stale groups even reference slots already reused by another fleet.
+Admission now retains a group only when it has this fleet's actual native
+actor; a group owned by another identity remains protected. Once the whole
+battle passes the unchanged capacity/resource checks, delete only its stale
+script group and rebuild through the existing roster mount. No actor is
+deleted by this recovery. `HasOriginalGroup` likewise requires a native entity.
+Cost is a bounded member scan only when an admission finds an existing group;
+the existing residency cadence and ship limits remain unchanged. The primary
+falsifier remains the first selected five-hull fleet, not an unrelated boat.
+
+The first native admission after that repair creates all five selected hulls
+(actors 940–944) around the player, nearest 86.4 sea units. A subsequent full
+three-round-trip run exits 0, reports matching script/native counts of
+5 → 32 → 32 → 31, retains six nearby traffic hulls and renders actor 940 through
+the normal sea camera. The existing capacity/battle VM replay still passes.
+Copying the incoming Task also replaces its default Lock field; restore false
+only when absent, preserving an explicit incoming lock.
+
+The replay now headlessly compiles its exact private PROGRAM before creating
+the graphical engine. A duplicate function-scope variable exposed by native
+startup had shown an OS alert despite the hidden test window; it is corrected.
+The probe also uses the normal `DeleteSeaEnvironment` teardown before erasing
+all VM entities. An unordered fixture-wide erase had destroyed particle owners
+before active projectile children; normal scene teardown exits cleanly. These
+are probe lifecycle findings, not evidence of another player cannon crash.
+Known weather/island-density warnings from the loaded scene remain in raw
+results; the allocator and Task.Lock warnings are absent after repair.
+
+Finalization at the player's explicit stop/install request: deliver the current
+candidate without further art iterations. [Three native round trips](native-round-trip.json)
+and [the final chart replay](native-chart-views.json) retain the observations;
+[Yucatan](native-yucatan.png) and [the mounted fleet](native-fleet.png) are actual
+engine frames. The map art is not fully accepted: the north-west extension has
+been matched more closely to the original reference, while the other authored
+regions still differ in forest scale/colour. Native union boundary points also
+need a separate height-interpolation audit; closing internal shared-vertex
+splits does not prove every coast/fill boundary watertight. These remain pending
+an explicit request to resume, not claimed fixed. The new chart texture travels
+through the ordinary hash-bound delivery receipt alongside its models/scripts.

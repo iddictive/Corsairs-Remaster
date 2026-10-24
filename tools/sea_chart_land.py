@@ -145,6 +145,17 @@ def interpolate(p, triangle):
     return result
 
 
+def closest_point(p, triangle):
+    w=weights(p,triangle)
+    if w is not None and min(w)>=0:return p
+    candidates=[]
+    for a,b in zip(triangle,triangle[1:]+triangle[:1]):
+        dx,dz=b[0]-a[0],b[2]-a[2];length=dx*dx+dz*dz
+        t=max(0,min(1,((p[0]-a[0])*dx+(p[1]-a[2])*dz)/length)) if length else 0.
+        candidates.append((a[0]+t*dx,a[2]+t*dz))
+    return min(candidates,key=lambda q:math.dist(p,q))
+
+
 def prepare_mainland(source_root, files, prepared):
     """Retain stock inland relief/materials; attach it behind the native coast.
 
@@ -178,9 +189,12 @@ def prepare_mainland(source_root, files, prepared):
     # Source texture lookup is offline. Keep each material's native UV map;
     # new connective land extends the nearest stock continental surface.
     buckets={};step=32.
+    mainland_faces={piece[0][0] for piece in clipped}
     for index,(obj,tri) in enumerate(rows):
-        texture=g['textures'][g['materials'][obj[12]][10]].casefold()
-        if texture=='continent1.tga':continue # Contains packed unrelated islands.
+        # continent1 also owns the actual Mexico/Yucatan mainland. Excluding
+        # its whole material projected this join from distant continents.
+        # Geometry membership excludes unrelated islands without losing land.
+        if index not in mainland_faces:continue
         for x in range(math.floor(min(v[0] for v in tri)/step),math.floor(max(v[0] for v in tri)/step)+1):
             for z in range(math.floor(min(v[2] for v in tri)/step),math.floor(max(v[2] for v in tri)/step)+1):
                 buckets.setdefault((x,z),set()).add(index)
@@ -204,6 +218,18 @@ def prepare_mainland(source_root, files, prepared):
             return best
         return rows[min(found,key=lambda i:(distance(i),i))]
 
+    # A position has one relief height, including material/triangle boundaries.
+    # Selecting and clamping relief per connective face split shared vertices
+    # by up to eleven map units. Retain captured stock heights at the join;
+    # outside that surface sample its nearest edge instead of extrapolating.
+    stock_heights={}
+    for piece in clipped:
+        triangle=rows[piece[0][0]][1]
+        for x,z in piece[1:]:
+            height=interpolate((x/UNITS,z/UNITS),triangle)[1]
+            stock_heights[(x,z)]=max(stock_heights.get((x,z),-math.inf),height)
+    relief={}
+
     # Use native backland heights on the shared join, then return smoothly to
     # authored stock relief over four map units (200 native metres).
     segments={};blend=4.
@@ -214,7 +240,17 @@ def prepare_mainland(source_root, files, prepared):
     tx,tz=prepared['atlas_frames']['bodies']['Mainland']['body_to_atlas'][4:];tx/=50;tz/=50
 
     def finish(v):
-        x,z=v[0],v[2];best=blend;height=None
+        x,z=v[0],v[2];grid_key=(round(x*UNITS),round(z*UNITS))
+        # Distinct clipping-grid points can collapse onto one GM float vertex.
+        key=struct.pack('<2f',x-tx,z-tz)
+        if key in relief:
+            v[1]=relief[key];v[0]-=tx;v[2]-=tz
+            return tuple(v)
+        if grid_key in stock_heights:v[1]=stock_heights[grid_key]
+        else:
+            triangle=nearest((x,z))[1]
+            v[1]=max(0,interpolate(closest_point((x,z),triangle),triangle)[1])
+        best=blend;height=None
         for a,b in segments.get((math.floor(x/blend),math.floor(z/blend)),()):
             ax,az=a[0]/UNITS,a[1]/UNITS;dx,dz=(b[0]-a[0])/UNITS,(b[1]-a[1])/UNITS
             length=dx*dx+dz*dz
@@ -225,6 +261,7 @@ def prepare_mainland(source_root, files, prepared):
         if height is not None:
             weight=best/blend;weight=weight*weight*(3-2*weight)
             v[1]=height*(1-weight)+max(0,v[1])*weight
+        relief[key]=v[1]
         v[0]-=tx;v[2]-=tz
         return tuple(v)
 
@@ -242,8 +279,6 @@ def prepare_mainland(source_root, files, prepared):
         p=(sum(x for x,z in piece)/3/UNITS,sum(z for x,z in piece)/3/UNITS)
         obj,triangle=nearest(p)
         face=[interpolate((x/UNITS,z/UNITS),triangle) for x,z in piece]
-        # Extrapolate UVs, but not the stock relief outside its captured face.
-        for v in face:v[1]=max(0,min(max(p[1] for p in triangle),v[1]))
         add(obj,face)
     walls=[]
     for polygon in fill:

@@ -272,7 +272,7 @@ bool AIShipCannonController::Fire(AIShip *pEnemy)
 
 void AIShipCannonController::Execute(float fDeltaTime)
 {
-    UpdateParameters();
+    if (!UpdateParameters()) return;
 
     const CVECTOR vOurPos = GetAIShip()->GetPos();
     const float fOurHeight = CannonHeightAboveWater(vOurPos);
@@ -459,6 +459,8 @@ float AIShipCannonController::GetFireDistance(bool bMaxFireDistance) const
 
 bool AIShipCannonController::UpdateParameters()
 {
+    auto *character = GetAIShip()->GetACharacter();
+    if (!character || !character->FindAClass(character, "Ship.Cannons")) return false;
     const CVECTOR vOurPos = GetAIShip()->GetPos();
     const float fOurHeight = CannonHeightAboveWater(vOurPos);
     const CVECTOR vZ = !(GetAIShip()->GetMatrix()->Vz());
@@ -712,9 +714,9 @@ bool AIShipCannonController::isCanFire(AIShip *pEnemy)
 float AIShipCannonController::GetSpeedV0() const
 {
     ATTRIBUTES *pACharacter = GetAIShip()->GetACharacter();
+    if (!pACharacter) return 0.f;
     ATTRIBUTES *pACannons = pACharacter->FindAClass(pACharacter, "Ship.Cannons");
-    Assert(pACannons);
-    return pACannons->GetAttributeAsFloat("SpeedV0");
+    return pACannons ? pACannons->GetAttributeAsFloat("SpeedV0") : 0.f;
 }
 
 void AIShipCannonController::Realize(float fDeltaTime)
