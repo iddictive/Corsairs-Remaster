@@ -1,0 +1,13 @@
+{
+  "mode": "before",
+  "seconds": 0.39794991607777774,
+  "source_sha256": {
+    "src/gameplay/PROGRAM/sea_ai/sea.c": "9d395057c77fcb4c92a38a24e6e647373ce883063101233e65eeae972ce0711f",
+    "src/gameplay/PROGRAM/sea_ai/sea_traffic.c": "1dbdfb44d2208b6a857d38510cee79cc100e7b3a5466104843c312ee5f1815b7"
+  },
+  "exit": 1,
+  "stdout": "Run=2\nscript_errors=0\n",
+  "stderr": "",
+  "logs": {},
+  "fixture_sha256": "384c3cbd4f5966f9d2d75878b68363b261fdda843d5285f09c1d8c316d8f7cfe"
+}

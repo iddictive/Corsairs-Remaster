@@ -1,0 +1,117 @@
+#include "seadogs.c"
+int FixtureMounted;
+int FixtureRejected;
+bool FixtureReady = true;
+object FixtureActors;
+void FixtureProgress() {}
+bool WdmTrafficEnsureRoster(ref fleet, int rank) { return true; }
+void WdmTrafficConsumeSupplies(aref descriptor) {}
+bool WdmFleetSeaAssemblyReady(ref fleet) { return FixtureReady; }
+bool SeaTraffic_HasOriginalGroup(aref descriptor)
+{
+    string id = GetAttributeName(descriptor);
+    return CheckAttribute(&FixtureActors, id);
+}
+void SeaTraffic_RegisterHarbours() {}
+void WdmFleetSeaApplyTask(string id) {}
+void SeaTraffic_Notify(string path) {}
+void SeaTraffic_LoginRegionGroups(string island) {}
+void SeaTraffic_ReportPositions() {}
+bool SeaTraffic_Mount(ref fleet, float x, float z, float ay)
+{
+    string id = fleet.trafficFleetID;
+    if (CheckAttribute(&FixtureActors, id)) { FixtureRejected++; return false; }
+    FixtureActors.(id) = 1;
+    FixtureActors.(id).x = x;
+    FixtureActors.(id).z = z;
+    FixtureActors.(id).rosterHP = fleet.trafficRoster.ship0.hp;
+    ref group = Group_FindOrCreateGroup(fleet.GroupName);
+    WdmFleetSeaCopyIdentity(group, fleet);
+    iNumShips = iNumShips + WdmFleetSeaHullCount(fleet);
+    FixtureMounted++;
+    return true;
+}
+void ResetFixture()
+{
+    DeleteAttribute(&worldMap, "");
+    DeleteAttribute(&wdmLoginToSea, "");
+    DeleteAttribute(&FixtureActors, "");
+    DeleteAttribute(&SeaTrafficFreeSlots, "");
+    for (int g = 0; g < MAX_SHIP_GROUPS; g++) DeleteAttribute(&AIGroups[g], "");
+    ReleaseMapEncounters();
+    FixtureMounted = 0; FixtureRejected = 0; FixtureReady = true;
+    iNumShips = 1; iNumFantoms = 0;
+    pchar = &Characters[1]; pchar.rank = 10; pchar.location = "";
+    InterfaceStates.Launched = 0;
+    bSeaActive = true; bSeaLoaded = true; bSeaReloadStarted = false; bAbordageStarted = false;
+    AISea.worldFrame.version = 2; AISea.worldFrame.scale = 10;
+    AISea.worldFrame.sea_to_atlas.a = 1;
+    AISea.worldFrame.atlas_to_sea.a = 1; AISea.worldFrame.atlas_to_sea.b = 0;
+    AISea.worldFrame.atlas_to_sea.c = 0; AISea.worldFrame.atlas_to_sea.d = 1;
+    AISea.worldFrame.atlas_to_sea.tx = 0; AISea.worldFrame.atlas_to_sea.tz = 0;
+    pchar.Ship.Pos.x = 0; pchar.Ship.Pos.z = 0;
+}
+void StageFleet(string id, int slot, int hulls)
+{
+    aref d; makearef(d, worldMap.encounters.(id));
+    d.type = "Merchant"; d.x = 100; d.z = 0; d.ay = 0;
+    d.gotoX = 200; d.gotoZ = 0;
+    d.encdata.RealEncounterType = 0;
+    d.encdata.Type = "trade"; d.encdata.Nation = ENGLAND;
+    d.encdata.trafficRoster.count = hulls;
+    for (int s = 0; s < hulls; s++)
+    {
+        string key = "ship" + s;
+        d.encdata.trafficRoster.(key).baseType = SHIP_BILANCETTA;
+        d.encdata.trafficRoster.(key).dead = 0;
+        d.encdata.trafficRoster.(key).hp = 473;
+        d.encdata.trafficRoster.(key).mode = "trade";
+    }
+    aref source; makearef(source, d.encdata);
+    CopyAttributes(&MapEncounters[slot], source);
+    WdmFleetSeaImport(&MapEncounters[slot], d, id);
+    MapEncounters[slot].GroupName = "egroup__wdm_" + id;
+    MapEncounters[slot].bUse = true;
+    string raw = "row" + slot;
+    wdmLoginToSea.encounters.(raw).type = slot;
+    wdmLoginToSea.encounters.(raw).x = 1000;
+    wdmLoginToSea.encounters.(raw).z = 0;
+    wdmLoginToSea.encounters.(raw).ay = 0;
+}
+int Run()
+{
+    ResetFixture(); StageFleet("new", 0, 2);
+    if (!sti(worldMap.encounters.new.trafficInSea)) return 1;
+    Sea_LoginEncounterGroups(&wdmLoginToSea, "", true);
+    SeaTraffic_Residency();
+    if (FixtureMounted != 1 || iNumShips != 3) return 2;
+    if (stf(FixtureActors.new.rosterHP) != 473 || stf(FixtureActors.new.x) != 1000) return 3;
+    Sea_LoginEncounterGroups(&wdmLoginToSea, "", true);
+    if (FixtureMounted != 1 || FixtureRejected) return 4;
+
+    ResetFixture(); StageFleet("a", 0, 2); StageFleet("b", 1, 3);
+    worldMap.encounters.a.trafficBattleRoot = "a";
+    worldMap.encounters.b.trafficBattleRoot = "a";
+    Sea_LoginEncounterGroups(&wdmLoginToSea, "", true);
+    if (FixtureMounted != 2 || iNumShips != 6) return 5;
+
+    ResetFixture(); StageFleet("a", 0, 2); StageFleet("b", 1, 3);
+    worldMap.encounters.a.trafficBattleRoot = "a";
+    worldMap.encounters.b.trafficBattleRoot = "a";
+    iNumShips = MAX_SHIPS_ON_SEA - 4;
+    Sea_LoginEncounterGroups(&wdmLoginToSea, "", true);
+    if (FixtureMounted || CheckAttribute(&worldMap, "encounters.a.trafficInSea") ||
+        CheckAttribute(&worldMap, "encounters.b.trafficInSea")) return 6;
+
+    ResetFixture(); StageFleet("new", 0, 2); FixtureReady = false;
+    Sea_LoginEncounterGroups(&wdmLoginToSea, "", true);
+    if (FixtureMounted || CheckAttribute(&worldMap, "encounters.new.trafficInSea")) return 7;
+    FixtureReady = true; SeaTraffic_Residency();
+    if (FixtureMounted != 1) return 8;
+
+    ResetFixture(); StageFleet("quest", 0, 1);
+    MapEncounters[0].qID = "authored";
+    // Tagged predicate excludes authored groups; don't run their native scene path.
+    if (WdmFleetSeaTagged(&MapEncounters[0])) return 9;
+    return 0;
+}

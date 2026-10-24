@@ -1177,6 +1177,7 @@ void Sea_LoginEncounterGroups(ref Login, string island, bool retained)
 	if (!retained) WdmFleetSeaAttachMilitary(&Login);
 	int iNumGroups = GetAttributesNum(arEncounters);
 	if (!retained) WdmFleetSeaPrepareAdmission(&Login);
+    else WdmFleetSeaResumeAdmission(&Login);
 
 	for (i=0; i<iNumGroups; i++)
 	{
@@ -3005,6 +3006,33 @@ void WdmFleetSeaPrepareAdmission(ref login)
 		ref fleet = GetMapEncounterRef(sti(raw.type));
 		DeleteAttribute(fleet, "trafficSeaAdmission");
 	}
+}
+
+void WdmFleetSeaResumeAdmission(ref login)
+{
+    aref groups; makearef(groups, login.encounters);
+    // Map import reserves ownership before creating hulls. Release every new
+    // reservation first so the existing allocator can admit a complete battle.
+    for (int i = 0; i < GetAttributesNum(groups); i++)
+    {
+        aref raw = GetAttributeN(groups, i);
+        ref fleet = GetMapEncounterRef(sti(raw.type));
+        if (!WdmFleetSeaTagged(fleet)) continue;
+        string path = "encounters." + fleet.trafficFleetID;
+        if (!CheckAttribute(&worldMap, path)) continue;
+        aref descriptor; makearef(descriptor, worldMap.(path));
+        if (!SeaTraffic_HasOriginalGroup(descriptor)) DeleteAttribute(descriptor, "trafficInSea");
+    }
+    for (i = 0; i < GetAttributesNum(groups); i++)
+    {
+        aref row = GetAttributeN(groups, i);
+        ref candidate = GetMapEncounterRef(sti(row.type));
+        if (!WdmFleetSeaTagged(candidate)) continue;
+        string state = "encounters." + candidate.trafficFleetID;
+        if (!CheckAttribute(&worldMap, state)) continue;
+        aref pending; makearef(pending, worldMap.(state));
+        if (!SeaTraffic_HasOriginalGroup(pending)) SeaTraffic_Admit(pending);
+    }
 }
 
 bool WdmFleetSeaAdmit(ref fleet, ref login)

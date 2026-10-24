@@ -170,3 +170,41 @@ run, SAVE access or GPU/frame-pacing acceptance was performed. Missing retained
 scenes and failed native relocation still have synchronous cold recovery.
 The historical `resume-admission-replay.py` is pinned to its original repair
 commit; its old authored-rejection policy is superseded by this implementation.
+
+## Missing ordinary fleets on retained return — October 24
+
+The player's current transition log reaches `resident-resume:encounters` and
+`resident-resume:traffic`. A real-VM replay of the complete PROGRAM reproduces a
+separate admission failure: `WdmFleetSeaImport` reserves `trafficInSea`, retained
+`Sea_LoginEncounterGroups` skips tagged fleets, and residency treats the unmounted
+reservation as a mounted group. A staged two-hull fleet produces zero mounts,
+with zero script errors. Camera readiness does not prove fleet admission.
+
+The repair belongs to `sea.c`'s retained admission boundary: clear only imported
+reservations without their original live group, then admit those fleets through
+the existing `SeaTraffic_Admit` whole-battle allocator. Clear the complete batch
+before admitting its first member. Preserve live groups, roster values, authored
+encounters, capacity, harbour reservations and the ordinary cold caller.
+Reject partial battle admission and a failed admission that stays sea-owned.
+
+Performance contract: this adds two bounded passes over the existing login
+encounter slots once per retained return, using the existing allocator; no
+per-frame scan, polling interval or fleet cap changes. The pre-repair VM run
+takes 0.398s including whole-PROGRAM compilation. Native model-load cost and
+rendered handoff latency remain unmeasured by that CPU fixture. Reproduce with
+`codex-run-scratch run --max-bytes 536870912 --max-files 5000 --seconds 120
+--reserve-bytes 21474836480 -- python3
+docs/evidence/sea-map-transition-20261023/traffic-admission-replay.py before`.
+The `after` and `compile` modes use current source; the fixture substitutes
+physical mounting, resource readiness and surrounding scene callbacks.
+
+[Baseline](traffic-admission-before.json) returns `Run=2` with zero script
+errors; [the repaired replay](traffic-admission-after.json) returns `Run=0`.
+It covers the new two-hull fleet, retained roster/position, repeated admission,
+the complete five-hull battle, insufficient capacity and readiness recovery.
+[Unmodified full-PROGRAM compilation](traffic-admission-compile.json) also
+passes with zero script errors. The [player trace](traffic-player-return.txt)
+establishes the retained route; it contains no fleet-count instrumentation and
+does not prove the repaired ships are visible. Native mounting/rendered round
+trip remains unverified. The candidate adds 28 source lines in `sea.c` only;
+the one-off fixture is retained evidence, outside the permanent test suite.

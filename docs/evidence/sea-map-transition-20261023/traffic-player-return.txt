@@ -1,0 +1,17 @@
+[2026-10-24 11:42:55.238] [sea-map-transition] [info] map-to-sea phase=flight elapsed_ms=0.091 max_frame_gap_ms=0.000
+[2026-10-24 11:42:55.700] [sea-map-transition] [info] map-to-sea phase=captured elapsed_ms=461.982 max_frame_gap_ms=0.000
+[2026-10-24 11:42:55.701] [sea-map-transition] [info] map-to-sea phase=captured elapsed_ms=462.542 max_frame_gap_ms=63.817
+[2026-10-24 11:42:55.701] [sea-map-transition] [info] map-to-sea phase=commit elapsed_ms=462.544 max_frame_gap_ms=63.817
+[2026-10-24 11:42:55.703] [sea-map-transition] [info] map-to-sea step=map-release:begin elapsed_ms=464.849
+[2026-10-24 11:42:55.703] [sea-map-transition] [info] map-to-sea step=map-release:end elapsed_ms=464.888
+[2026-10-24 11:42:55.703] [sea-map-transition] [info] map-to-sea step=resident-resume:poses elapsed_ms=464.894
+[2026-10-24 11:42:55.704] [sea-map-transition] [info] map-to-sea step=resident-resume:quests elapsed_ms=465.675
+[2026-10-24 11:42:55.704] [sea-map-transition] [info] map-to-sea step=resident-resume:island elapsed_ms=466.115
+[2026-10-24 11:42:55.705] [sea-map-transition] [info] map-to-sea step=resident-resume:encounters elapsed_ms=466.642
+[2026-10-24 11:42:55.709] [sea-map-transition] [info] map-to-sea step=resident-resume:sound elapsed_ms=470.995
+[2026-10-24 11:42:55.715] [sea-map-transition] [info] map-to-sea step=resident-resume:interface elapsed_ms=476.878
+[2026-10-24 11:42:55.750] [sea-map-transition] [info] map-to-sea step=resident-resume:traffic elapsed_ms=512.097
+[2026-10-24 11:42:55.751] [sea-map-transition] [info] map-to-sea step=resident-resume:end elapsed_ms=512.342
+[2026-10-24 11:42:55.751] [sea-map-transition] [info] map-to-sea step=sea-return:end elapsed_ms=512.344
+[2026-10-24 11:42:55.968] [sea-map-transition] [info] map-to-sea phase=scene-ready elapsed_ms=730.079 max_frame_gap_ms=63.817
+[2026-10-24 11:42:57.177] [sea-map-transition] [info] map-to-sea phase=done elapsed_ms=1938.363 max_frame_gap_ms=63.817
